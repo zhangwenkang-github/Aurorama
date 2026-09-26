@@ -8,12 +8,12 @@ plugins {
 }
 
 android {
-    namespace = "dev.jdtech.jellyfin"
+    namespace = "com.zhangwenkang.cinefin"
     compileSdk = Versions.COMPILE_SDK
     buildToolsVersion = Versions.BUILD_TOOLS
 
     defaultConfig {
-        applicationId = "dev.jdtech.jellyfin"
+        applicationId = "com.zhangwenkang.cinefin"
         minSdk = Versions.MIN_SDK
         targetSdk = Versions.TARGET_SDK
 

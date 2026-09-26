@@ -1,0 +1,31 @@
+package com.zhangwenkang.cinefin.presentation.film.components
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.spacings
+
+@Composable
+fun ItemCountBadge(unplayedItemCount: Int, modifier: Modifier = Modifier) {
+    BaseBadge(modifier = modifier) {
+        Text(
+            text = unplayedItemCount.toString(),
+            color = MaterialTheme.colorScheme.onPrimary,
+            style = MaterialTheme.typography.labelMedium,
+            modifier =
+                Modifier.align(Alignment.Center)
+                    .padding(horizontal = MaterialTheme.spacings.extraSmall),
+        )
+    }
+}
+
+@Composable
+@Preview
+private fun ItemCountBadgePreview() {
+    FindroidTheme { ItemCountBadge(110) }
+}

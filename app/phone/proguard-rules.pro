@@ -21,7 +21,7 @@
 #-renamesourcefileattribute SourceFile
 
 # Keep class names of all classes for easy debugging (and fix navigation route checking)
--keepnames class dev.jdtech.jellyfin.** { *; }
+-keepnames class com.zhangwenkang.cinefin.** { *; }
 
 # These classes are from okhttp and are not used in Android
 -dontwarn org.bouncycastle.jsse.BCSSLSocket

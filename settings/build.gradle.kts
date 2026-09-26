@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.jdtech.jellyfin.settings"
+    namespace = "com.zhangwenkang.cinefin.settings"
     compileSdk = Versions.COMPILE_SDK
     buildToolsVersion = Versions.BUILD_TOOLS
 

@@ -1,6 +1,6 @@
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-rootProject.name = "findroid"
+rootProject.name = "cinefin"
 
 include(":app:phone")
 include(":app:tv")
