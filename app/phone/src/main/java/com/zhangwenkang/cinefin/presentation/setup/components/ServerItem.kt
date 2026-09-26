@@ -24,7 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -72,5 +72,5 @@ fun ServerItem(
 @Composable
 @Preview
 private fun ServerItemPreview() {
-    FindroidTheme { ServerItem(name = "Jellyfin Server", address = "http://192.168.0.10:8096") }
+    CinefinTheme { ServerItem(name = "Jellyfin Server", address = "http://192.168.0.10:8096") }
 }

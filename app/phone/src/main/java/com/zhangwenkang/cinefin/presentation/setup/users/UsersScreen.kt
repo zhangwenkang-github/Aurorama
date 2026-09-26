@@ -37,7 +37,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.User
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.UserItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersAction
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersEvent
@@ -210,7 +210,7 @@ private fun UsersScreenLayout(
 @PreviewScreenSizes
 @Composable
 private fun UsersScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         UsersScreenLayout(
             state =
                 UsersState(

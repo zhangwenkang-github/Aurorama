@@ -43,7 +43,7 @@ import androidx.compose.ui.window.Dialog
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -172,7 +172,7 @@ private fun SortByDialogItem(
 @Preview
 @Composable
 private fun SortByDialogPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SortByDialog(
             currentSortBy = SortBy.NAME,
             currentSortOrder = SortOrder.ASCENDING,
@@ -185,7 +185,7 @@ private fun SortByDialogPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun SortByDialogItemPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SortByDialogItem(option = Pair(SortBy.NAME, "Title"), isSelected = true, onSelect = {})
     }
 }

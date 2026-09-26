@@ -10,7 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.viewmodels.MainViewModel
 
@@ -26,7 +26,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
 
-            FindroidTheme(dynamicColor = state.isDynamicColors) {
+            CinefinTheme(dynamicColor = state.isDynamicColors) {
                 val navController = rememberNavController()
                 if (!state.isLoading) {
                     CompositionLocalProvider(LocalOfflineMode provides state.isOfflineMode) {

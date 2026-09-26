@@ -44,7 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServerAddress
 import com.zhangwenkang.cinefin.models.ServerAddress
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.setup.R as SetupR
@@ -178,7 +178,7 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
 @PreviewScreenSizes
 @Composable
 private fun ServerAddressesLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ServerAddressesLayout(
             state = ServerAddressesState(addresses = listOf(dummyServerAddress)),
             onAction = {},

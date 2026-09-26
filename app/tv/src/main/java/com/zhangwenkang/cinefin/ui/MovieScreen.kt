@@ -50,7 +50,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.Yellow
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieViewModel
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.utils.format
 import java.util.UUID
@@ -307,7 +307,7 @@ private fun MovieScreenLayout(state: MovieState, onAction: (MovieAction) -> Unit
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun MovieScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         MovieScreenLayout(
             state = MovieState(movie = dummyMovie, videoMetadata = dummyVideoMetadata),
             onAction = {},

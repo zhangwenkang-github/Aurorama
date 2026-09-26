@@ -26,7 +26,7 @@ import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.presentation.film.components.HomeCarousel
 import com.zhangwenkang.cinefin.presentation.film.components.HomeSection
 import com.zhangwenkang.cinefin.presentation.film.components.HomeView
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -121,7 +121,7 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun HomeScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         HomeScreenLayout(
             state =
                 HomeState(

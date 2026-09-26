@@ -64,7 +64,7 @@ import com.zhangwenkang.cinefin.film.presentation.show.ShowAction
 import com.zhangwenkang.cinefin.film.presentation.show.ShowState
 import com.zhangwenkang.cinefin.film.presentation.show.ShowViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.ui.components.Direction
 import com.zhangwenkang.cinefin.ui.components.ItemCard
@@ -393,7 +393,7 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun ShowScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ShowScreenLayout(state = ShowState(show = dummyShow, nextUp = dummyEpisode), onAction = {})
     }
 }

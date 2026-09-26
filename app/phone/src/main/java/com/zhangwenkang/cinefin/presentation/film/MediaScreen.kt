@@ -39,7 +39,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoritesCard
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
@@ -179,7 +179,7 @@ private fun MediaScreenLayout(
 @PreviewScreenSizes
 @Composable
 private fun MediaScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         MediaScreenLayout(
             state =
                 MediaState(libraries = dummyCollections, error = Exception("Failed to load data")),

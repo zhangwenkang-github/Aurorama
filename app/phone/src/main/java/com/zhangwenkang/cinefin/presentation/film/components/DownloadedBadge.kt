@@ -10,7 +10,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun DownloadedBadge(modifier: Modifier = Modifier) {
@@ -27,5 +27,5 @@ fun DownloadedBadge(modifier: Modifier = Modifier) {
 @Composable
 @Preview
 private fun DownloadedBadgePreview() {
-    FindroidTheme { DownloadedBadge() }
+    CinefinTheme { DownloadedBadge() }
 }

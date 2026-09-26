@@ -54,7 +54,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -305,7 +305,7 @@ private fun EpisodeScreenLayout(
 @PreviewScreenSizes
 @Composable
 private fun EpisodeScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         EpisodeScreenLayout(
             state = EpisodeState(episode = dummyEpisode, videoMetadata = dummyVideoMetadata),
             downloaderState = DownloaderState(),

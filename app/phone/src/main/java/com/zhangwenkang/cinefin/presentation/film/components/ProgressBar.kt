@@ -13,7 +13,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun ProgressBar(item: FindroidItem, width: Int, modifier: Modifier = Modifier) {
@@ -36,5 +36,5 @@ fun ProgressBar(item: FindroidItem, width: Int, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 private fun ProgressBarPreview() {
-    FindroidTheme { ProgressBar(item = dummyMovie, width = 142) }
+    CinefinTheme { ProgressBar(item = dummyMovie, width = 142) }
 }

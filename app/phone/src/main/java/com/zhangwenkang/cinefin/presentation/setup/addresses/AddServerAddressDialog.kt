@@ -22,7 +22,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.presentation.components.BaseDialog
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 
 @Composable
@@ -64,5 +64,5 @@ fun AddServerAddressDialog(onAdd: (address: String) -> Unit, onDismiss: () -> Un
 @Preview
 @Composable
 private fun AddServerAddressDialogPreview() {
-    FindroidTheme { AddServerAddressDialog(onAdd = {}, onDismiss = {}) }
+    CinefinTheme { AddServerAddressDialog(onAdd = {}, onDismiss = {}) }
 }

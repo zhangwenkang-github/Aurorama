@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun DiscoveredServerItem(name: String, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
@@ -50,5 +50,5 @@ fun DiscoveredServerItem(name: String, modifier: Modifier = Modifier, onClick: (
 @Composable
 @Preview
 private fun DiscoveredServerItemPreview() {
-    FindroidTheme { DiscoveredServerItem(name = "Jellyfin Server") }
+    CinefinTheme { DiscoveredServerItem(name = "Jellyfin Server") }
 }

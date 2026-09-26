@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Cinefin Staging</string>
+    <string name="app_name">Cinefin Staging</string>
 </resources>

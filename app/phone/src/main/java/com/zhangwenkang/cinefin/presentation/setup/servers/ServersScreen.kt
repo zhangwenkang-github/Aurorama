@@ -42,7 +42,7 @@ import com.zhangwenkang.cinefin.models.ServerWithAddresses
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerBottomSheet
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersAction
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersEvent
@@ -222,7 +222,7 @@ private fun ServersScreenLayout(
 @PreviewScreenSizes
 @Composable
 private fun ServersScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ServersScreenLayout(
             state =
                 ServersState(

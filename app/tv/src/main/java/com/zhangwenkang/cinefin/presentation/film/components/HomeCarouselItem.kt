@@ -31,7 +31,7 @@ import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -110,5 +110,5 @@ fun HomeCarouselItem(item: FindroidItem, onAction: (HomeAction) -> Unit) {
 @Composable
 @Preview(showBackground = true)
 private fun HomeCarouselItemPreview() {
-    FindroidTheme { HomeCarouselItem(item = dummyMovie, onAction = {}) }
+    CinefinTheme { HomeCarouselItem(item = dummyMovie, onAction = {}) }
 }

@@ -43,7 +43,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.presentation.film.components.SortByDialog
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.ui.components.Direction
 import com.zhangwenkang.cinefin.ui.components.ItemCard
@@ -168,7 +168,7 @@ private fun LibraryScreenLayout(
 @Composable
 private fun LibraryScreenLayoutPreview() {
     val items: Flow<PagingData<FindroidItem>> = flowOf(PagingData.from(dummyMovies))
-    FindroidTheme {
+    CinefinTheme {
         LibraryScreenLayout(
             libraryName = "Movies",
             state = LibraryState(items = items),

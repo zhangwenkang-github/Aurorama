@@ -49,7 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginAction
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginEvent
@@ -262,7 +262,7 @@ private fun LoginScreenLayout(
 @PreviewScreenSizes
 @Composable
 private fun AddServerScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         LoginScreenLayout(
             state =
                 LoginState(

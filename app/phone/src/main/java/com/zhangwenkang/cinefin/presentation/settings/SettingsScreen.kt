@@ -36,7 +36,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsGroupCard
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.plus
 import com.zhangwenkang.cinefin.settings.R as SettingsR
@@ -185,7 +185,7 @@ private fun SettingsScreenLayout(
 @PreviewScreenSizes
 @Composable
 private fun SettingsScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsScreenLayout(
             title = CoreR.string.title_settings,
             state =

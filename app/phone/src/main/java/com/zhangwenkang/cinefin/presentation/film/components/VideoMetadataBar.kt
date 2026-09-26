@@ -19,7 +19,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.models.AudioCodec
 import com.zhangwenkang.cinefin.models.DisplayProfile
 import com.zhangwenkang.cinefin.models.VideoMetadata
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -72,5 +72,5 @@ fun VideoMetadataBarItem(text: String, @DrawableRes icon: Int? = null) {
 @Composable
 @Preview(showBackground = true)
 private fun VideoMetadataBarPreview() {
-    FindroidTheme { VideoMetadataBar(videoMetadata = dummyVideoMetadata) }
+    CinefinTheme { VideoMetadataBar(videoMetadata = dummyVideoMetadata) }
 }

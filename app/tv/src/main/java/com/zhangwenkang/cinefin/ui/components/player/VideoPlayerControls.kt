@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -42,7 +42,7 @@ fun VideoPlayerControlsLayout(
 @Preview
 @Composable
 private fun VideoPlayerControlsLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         VideoPlayerControlsLayout(
             mediaTitle = {
                 Box(

@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -71,7 +71,7 @@ fun VideoPlayerOverlay(
 @Preview(device = "id:tv_4k")
 @Composable
 private fun VideoPlayerOverlayPreview() {
-    FindroidTheme {
+    CinefinTheme {
         Box(Modifier.fillMaxSize()) {
             VideoPlayerOverlay(
                 modifier = Modifier.align(Alignment.BottomCenter),

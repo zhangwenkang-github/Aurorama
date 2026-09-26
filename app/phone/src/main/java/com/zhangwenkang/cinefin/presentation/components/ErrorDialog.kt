@@ -27,7 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -105,7 +105,7 @@ fun ErrorDialog(exception: Throwable, onDismissRequest: () -> Unit) {
 @Preview
 @Composable
 private fun ErrorDialogPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ErrorDialog(exception = Exception("Error loading data"), onDismissRequest = {})
     }
 }

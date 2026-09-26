@@ -31,7 +31,7 @@ import com.zhangwenkang.cinefin.models.CollectionSection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.presentation.film.components.CollectionGrid
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import java.util.UUID
 
 @Composable
@@ -96,7 +96,7 @@ fun CollectionScreenLayout(
 @PreviewScreenSizes
 @Composable
 private fun CollectionScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         CollectionScreenLayout(
             collectionName = "Marvel",
             state =

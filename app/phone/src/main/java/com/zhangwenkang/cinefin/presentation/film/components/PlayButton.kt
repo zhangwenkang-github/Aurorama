@@ -18,7 +18,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -50,11 +50,11 @@ fun PlayButton(
 @Preview(showBackground = true)
 @Composable
 private fun PlayButtonMoviePreview() {
-    FindroidTheme { PlayButton(item = dummyMovie, onClick = {}) }
+    CinefinTheme { PlayButton(item = dummyMovie, onClick = {}) }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun PlayButtonEpisodePreview() {
-    FindroidTheme { PlayButton(item = dummyEpisode, onClick = {}) }
+    CinefinTheme { PlayButton(item = dummyEpisode, onClick = {}) }
 }

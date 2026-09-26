@@ -21,7 +21,7 @@ import com.zhangwenkang.cinefin.film.presentation.media.MediaAction
 import com.zhangwenkang.cinefin.film.presentation.media.MediaState
 import com.zhangwenkang.cinefin.film.presentation.media.MediaViewModel
 import com.zhangwenkang.cinefin.models.CollectionType
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.ui.components.Direction
 import com.zhangwenkang.cinefin.ui.components.ItemCard
@@ -85,7 +85,7 @@ private fun LibrariesScreenLayout(state: MediaState, onAction: (MediaAction) -> 
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun LibrariesScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         LibrariesScreenLayout(state = MediaState(libraries = dummyCollections), onAction = {})
     }
 }

@@ -35,7 +35,7 @@ import com.zhangwenkang.cinefin.models.Server
 import com.zhangwenkang.cinefin.models.ServerAddress
 import com.zhangwenkang.cinefin.models.ServerWithAddresses
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersAction
@@ -176,7 +176,7 @@ private fun ServersScreenLayout(state: ServersState, onAction: (ServersAction) -
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun ServersScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ServersScreenLayout(
             state =
                 ServersState(
@@ -204,5 +204,5 @@ private fun ServersScreenLayoutPreview() {
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun ServersScreenLayoutPreviewNoServers() {
-    FindroidTheme { ServersScreenLayout(state = ServersState(), onAction = {}) }
+    CinefinTheme { ServersScreenLayout(state = ServersState(), onAction = {}) }
 }

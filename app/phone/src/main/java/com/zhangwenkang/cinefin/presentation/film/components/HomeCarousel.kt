@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import kotlinx.coroutines.delay
 
@@ -73,7 +73,7 @@ fun HomeCarousel(
 @Composable
 @Preview(showBackground = true)
 private fun HomeCarouselPreview() {
-    FindroidTheme {
+    CinefinTheme {
         HomeCarousel(
             items = dummyMovies,
             itemsPadding = PaddingValues(horizontal = 0.dp),

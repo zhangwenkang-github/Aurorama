@@ -27,7 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.presentation.components.BaseDialog
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference as PreferenceBackend
@@ -134,7 +134,7 @@ fun SettingsNumberInputDialog(
 @Preview
 @Composable
 private fun SettingsNumberInputDialogPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsNumberInputDialog(
             preference =
                 PreferenceIntInput(

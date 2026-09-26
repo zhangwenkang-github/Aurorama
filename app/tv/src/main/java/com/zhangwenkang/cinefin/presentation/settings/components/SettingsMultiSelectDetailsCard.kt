@@ -31,7 +31,7 @@ import androidx.tv.material3.ClickableSurfaceScale
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
@@ -136,7 +136,7 @@ private fun SettingsMultiSelectDetailsCardItem(
 @Preview
 @Composable
 private fun SettingsSelectDetailsCardPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsMultiSelectDetailsCard(
             preference =
                 PreferenceMultiSelect(

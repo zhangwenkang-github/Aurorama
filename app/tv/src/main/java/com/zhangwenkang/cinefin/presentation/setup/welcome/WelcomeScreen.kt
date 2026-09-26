@@ -26,7 +26,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.R
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.presentation.welcome.WelcomeAction
 
@@ -94,5 +94,5 @@ private fun WelcomeScreenLayout(onAction: (WelcomeAction) -> Unit) {
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun WelcomeScreenLayoutPreview() {
-    FindroidTheme { WelcomeScreenLayout(onAction = {}) }
+    CinefinTheme { WelcomeScreenLayout(onAction = {}) }
 }

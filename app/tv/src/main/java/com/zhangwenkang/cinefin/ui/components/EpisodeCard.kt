@@ -28,7 +28,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.models.FindroidEpisode
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -91,5 +91,5 @@ fun EpisodeCard(episode: FindroidEpisode, onClick: (FindroidEpisode) -> Unit) {
 @Preview
 @Composable
 private fun ItemCardPreviewEpisode() {
-    FindroidTheme { EpisodeCard(episode = dummyEpisode, onClick = {}) }
+    CinefinTheme { EpisodeCard(episode = dummyEpisode, onClick = {}) }
 }

@@ -24,7 +24,7 @@ import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.core.R
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyUser
 import com.zhangwenkang.cinefin.models.User
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import org.jellyfin.sdk.model.api.ImageType
 
 @Composable
@@ -66,5 +66,5 @@ fun ProfileButton(user: User?, onClick: () -> Unit, modifier: Modifier = Modifie
 @Preview
 @Composable
 private fun ProfileButtonPreview() {
-    FindroidTheme { ProfileButton(user = dummyUser, onClick = {}) }
+    CinefinTheme { ProfileButton(user = dummyUser, onClick = {}) }
 }

@@ -26,7 +26,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.isDownloaded
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -100,23 +100,23 @@ fun ItemCard(
 @Preview(showBackground = true)
 @Composable
 private fun ItemCardPreviewMovie() {
-    FindroidTheme { ItemCard(item = dummyMovie, direction = Direction.HORIZONTAL, onClick = {}) }
+    CinefinTheme { ItemCard(item = dummyMovie, direction = Direction.HORIZONTAL, onClick = {}) }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ItemCardPreviewMovieVertical() {
-    FindroidTheme { ItemCard(item = dummyMovie, direction = Direction.VERTICAL, onClick = {}) }
+    CinefinTheme { ItemCard(item = dummyMovie, direction = Direction.VERTICAL, onClick = {}) }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ItemCardPreviewEpisode() {
-    FindroidTheme { ItemCard(item = dummyEpisode, direction = Direction.HORIZONTAL, onClick = {}) }
+    CinefinTheme { ItemCard(item = dummyEpisode, direction = Direction.HORIZONTAL, onClick = {}) }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ItemCardPreviewEpisodeVertical() {
-    FindroidTheme { ItemCard(item = dummyEpisode, direction = Direction.VERTICAL, onClick = {}) }
+    CinefinTheme { ItemCard(item = dummyEpisode, direction = Direction.VERTICAL, onClick = {}) }
 }

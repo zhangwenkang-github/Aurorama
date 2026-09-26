@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,11 +36,11 @@ fun HomeView(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        Box(modifier = Modifier.fillMaxWidth().height(42.dp).padding(itemsPadding)) {
+        Box(modifier = Modifier.fillMaxWidth().height(40.dp).padding(itemsPadding)) {
             Text(
                 text = stringResource(FilmR.string.latest_library, view.view.name),
                 modifier = Modifier.align(Alignment.CenterStart),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
             )
             IconButton(
                 onClick = {
@@ -63,16 +63,16 @@ fun HomeView(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
+        Spacer(modifier = Modifier.height(MaterialTheme.spacings.small))
         LazyRow(
             contentPadding = itemsPadding,
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
         ) {
-            items(view.view.items, key = { it.id }) { item ->
-                ItemCard(
+            itemsIndexed(view.view.items, key = { _, item -> item.id }) { index, item ->
+                LandscapeItemCard(
                     item = item,
-                    direction = Direction.VERTICAL,
                     onClick = { onAction(HomeAction.OnItemClick(item)) },
+                    index = index,
                 )
             }
         }

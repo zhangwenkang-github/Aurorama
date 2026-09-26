@@ -46,7 +46,7 @@ import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.R
 import com.zhangwenkang.cinefin.models.UiText
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginAction
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginEvent
@@ -281,7 +281,7 @@ private fun LoginScreenLayout(
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun LoginScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         LoginScreenLayout(
             state = LoginState(serverName = "Demo Server", quickConnectEnabled = true),
             onAction = {},
@@ -292,7 +292,7 @@ private fun LoginScreenLayoutPreview() {
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun LoginScreenLayoutPreviewError() {
-    FindroidTheme {
+    CinefinTheme {
         LoginScreenLayout(
             state =
                 LoginState(

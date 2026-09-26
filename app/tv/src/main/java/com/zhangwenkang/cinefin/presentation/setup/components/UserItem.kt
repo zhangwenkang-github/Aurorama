@@ -28,7 +28,7 @@ import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyUser
 import com.zhangwenkang.cinefin.models.User
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import org.jellyfin.sdk.model.api.ImageType
 
@@ -78,5 +78,5 @@ fun UserItem(
 @Preview
 @Composable
 private fun UserComponentPreview() {
-    FindroidTheme { UserItem(user = dummyUser) }
+    CinefinTheme { UserItem(user = dummyUser) }
 }

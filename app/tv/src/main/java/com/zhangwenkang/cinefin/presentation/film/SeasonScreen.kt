@@ -25,7 +25,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummySeason
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonAction
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonState
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonViewModel
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.ui.components.EpisodeCard
 import java.util.UUID
@@ -92,7 +92,7 @@ private fun SeasonScreenLayout(state: SeasonState, onAction: (SeasonAction) -> U
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun SeasonScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SeasonScreenLayout(
             state = SeasonState(season = dummySeason, episodes = dummyEpisodes),
             onAction = {},

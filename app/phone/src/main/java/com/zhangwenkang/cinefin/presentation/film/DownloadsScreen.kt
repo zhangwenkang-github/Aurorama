@@ -32,7 +32,7 @@ import com.zhangwenkang.cinefin.models.CollectionSection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.presentation.film.components.CollectionGrid
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun DownloadsScreen(
@@ -90,7 +90,7 @@ private fun DownloadsScreenLayout(state: CollectionState, onAction: (CollectionA
 @PreviewScreenSizes
 @Composable
 private fun DownloadsScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         DownloadsScreenLayout(
             state =
                 CollectionState(

@@ -16,7 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -36,5 +36,5 @@ fun FavoritesCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
 @Preview
 @Composable
 private fun FavoritesCardPreview() {
-    FindroidTheme { FavoritesCard(onClick = {}, modifier = Modifier.width(320.dp)) }
+    CinefinTheme { FavoritesCard(onClick = {}, modifier = Modifier.width(320.dp)) }
 }

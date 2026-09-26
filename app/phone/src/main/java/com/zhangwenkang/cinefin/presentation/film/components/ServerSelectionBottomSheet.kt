@@ -26,7 +26,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServerAddress
 import com.zhangwenkang.cinefin.models.ServerWithAddresses
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersAction
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersEvent
@@ -109,7 +109,7 @@ private fun ServerSelectionBottomSheetLayout(
 @Composable
 @Preview
 private fun ServerSelectionBottomSheetPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ServerSelectionBottomSheetLayout(
             currentServerId = "",
             state =

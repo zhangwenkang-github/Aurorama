@@ -16,7 +16,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceCategory
@@ -60,7 +60,7 @@ fun SettingsCategoryCard(preference: PreferenceCategory, modifier: Modifier = Mo
 @Preview
 @Composable
 private fun SettingsCategoryCardPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsCategoryCard(
             preference =
                 PreferenceCategory(nameStringResource = SettingsR.string.settings_category_player)
@@ -71,7 +71,7 @@ private fun SettingsCategoryCardPreview() {
 @Preview
 @Composable
 private fun SettingsCategoryCardDescriptionPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsCategoryCard(
             preference =
                 PreferenceCategory(
@@ -85,7 +85,7 @@ private fun SettingsCategoryCardDescriptionPreview() {
 @Preview
 @Composable
 private fun SettingsCategoryCardIconPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsCategoryCard(
             preference =
                 PreferenceCategory(

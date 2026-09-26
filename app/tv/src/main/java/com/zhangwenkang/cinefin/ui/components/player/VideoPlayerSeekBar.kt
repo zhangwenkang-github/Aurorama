@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.utils.handleDPadKeyEvents
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -124,7 +124,7 @@ fun VideoPlayerSeekBar(
 @Preview
 @Composable
 fun VideoPlayerSeekBarPreview() {
-    FindroidTheme {
+    CinefinTheme {
         VideoPlayerSeekBar(progress = 0.4f, onSeek = {}, state = rememberVideoPlayerState())
     }
 }

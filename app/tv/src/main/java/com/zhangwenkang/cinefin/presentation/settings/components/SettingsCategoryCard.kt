@@ -24,7 +24,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceCategory
@@ -82,7 +82,7 @@ fun SettingsCategoryCard(preference: PreferenceCategory, modifier: Modifier = Mo
 @Preview
 @Composable
 private fun SettingsCategoryCardPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsCategoryCard(
             preference =
                 PreferenceCategory(

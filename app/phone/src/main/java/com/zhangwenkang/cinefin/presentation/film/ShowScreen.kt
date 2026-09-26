@@ -56,7 +56,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.getShowDateString
@@ -301,5 +301,5 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
 @PreviewScreenSizes
 @Composable
 private fun EpisodeScreenLayoutPreview() {
-    FindroidTheme { ShowScreenLayout(state = ShowState(show = dummyShow), onAction = {}) }
+    CinefinTheme { ShowScreenLayout(state = ShowState(show = dummyShow), onAction = {}) }
 }

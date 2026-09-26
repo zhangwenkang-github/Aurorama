@@ -15,7 +15,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -38,5 +38,5 @@ fun HomeCarousel(
 @Composable
 @Preview(showBackground = true)
 private fun HomeCarouselPreview() {
-    FindroidTheme { HomeCarousel(items = dummyMovies, onAction = {}) }
+    CinefinTheme { HomeCarousel(items = dummyMovies, onAction = {}) }
 }

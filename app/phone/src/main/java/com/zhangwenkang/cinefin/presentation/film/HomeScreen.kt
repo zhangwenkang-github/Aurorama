@@ -2,11 +2,16 @@ package com.zhangwenkang.cinefin.presentation.film
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -23,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -31,6 +37,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeSection
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeSuggestions
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeView
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
+import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.film.presentation.home.HomeState
 import com.zhangwenkang.cinefin.film.presentation.home.HomeViewModel
@@ -40,9 +47,10 @@ import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.film.components.HomeCarousel
 import com.zhangwenkang.cinefin.presentation.film.components.HomeHeader
 import com.zhangwenkang.cinefin.presentation.film.components.HomeSection
+import com.zhangwenkang.cinefin.presentation.film.components.HomeTabRow
 import com.zhangwenkang.cinefin.presentation.film.components.HomeView
 import com.zhangwenkang.cinefin.presentation.film.components.ServerSelectionBottomSheet
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import kotlinx.coroutines.launch
@@ -89,17 +97,59 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
 
     val itemsPadding = PaddingValues(start = paddingStart, end = paddingEnd)
 
-    val contentPaddingTop = safePadding.top + 88.dp
-
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
     val showServerSelectionSheetState = rememberModalBottomSheetState()
     var showServerSelectionBottomSheet by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
+    val listState = rememberLazyListState()
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
+
+    // 顶部标签 = 首页 + 各媒体库，点击后平滑滚动到对应内容行
+    val tabs = buildList {
+        add(stringResource(CoreR.string.title_home))
+        state.views.forEach { add(it.view.name) }
+    }
+    val tabTargets = buildList {
+        var index = 0
+        add(index)
+        if (state.suggestionsSection != null) index++
+        if (state.resumeSection != null) index++
+        if (state.nextUpSection != null) index++
+        state.views.forEach {
+            add(index)
+            index++
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
+        HomeHeader(
+            serverName = state.server?.name ?: "",
+            isLoading = state.isLoading,
+            isError = state.error != null,
+            onServerClick = { showServerSelectionBottomSheet = true },
+            onErrorClick = { showErrorDialog = true },
+            onRetryClick = { onAction(HomeAction.OnRetryClick) },
+            onSearchClick = { onAction(HomeAction.OnSearchClick) },
+            onUserClick = { onAction(HomeAction.OnSettingsClick) },
+            modifier = Modifier.padding(start = paddingStart, top = paddingTop, end = paddingEnd),
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacings.medium))
+        HomeTabRow(
+            tabs = tabs,
+            selectedIndex = selectedTab,
+            onSelect = { index ->
+                selectedTab = index
+                scope.launch { listState.animateScrollToItem(tabTargets.getOrElse(index) { 0 }) }
+            },
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacings.small))
+
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
         PullToRefreshBox(isRefreshing = false, onRefresh = { onAction(HomeAction.OnRetryClick) }) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize().semantics { traversalIndex = 1f },
-                contentPadding = PaddingValues(top = contentPaddingTop, bottom = paddingBottom),
+                contentPadding = PaddingValues(bottom = paddingBottom),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
             ) {
                 state.suggestionsSection?.let { section ->
@@ -142,22 +192,14 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
             }
         }
 
-        if (state.error != null && showErrorDialog) {
-            ErrorDialog(exception = state.error!!, onDismissRequest = { showErrorDialog = false })
+            if (state.error != null && showErrorDialog) {
+                ErrorDialog(
+                    exception = state.error!!,
+                    onDismissRequest = { showErrorDialog = false },
+                )
+            }
         }
     }
-
-    HomeHeader(
-        serverName = state.server?.name ?: "",
-        isLoading = state.isLoading,
-        isError = state.error != null,
-        onServerClick = { showServerSelectionBottomSheet = true },
-        onErrorClick = { showErrorDialog = true },
-        onRetryClick = { onAction(HomeAction.OnRetryClick) },
-        onSearchClick = { onAction(HomeAction.OnSearchClick) },
-        onUserClick = { onAction(HomeAction.OnSettingsClick) },
-        modifier = Modifier.padding(start = paddingStart, top = paddingTop, end = paddingEnd),
-    )
 
     if (showServerSelectionBottomSheet) {
         ServerSelectionBottomSheet(
@@ -185,7 +227,7 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
 @PreviewScreenSizes
 @Composable
 private fun HomeScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         HomeScreenLayout(
             state =
                 HomeState(

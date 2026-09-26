@@ -26,7 +26,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
@@ -90,7 +90,7 @@ fun SettingsSwitchCard(
 @Preview
 @Composable
 private fun SettingsSwitchCardPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsSwitchCard(
             preference =
                 PreferenceSwitch(
@@ -106,7 +106,7 @@ private fun SettingsSwitchCardPreview() {
 @Preview
 @Composable
 private fun SettingsSwitchCardDisabledPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsSwitchCard(
             preference =
                 PreferenceSwitch(
@@ -123,7 +123,7 @@ private fun SettingsSwitchCardDisabledPreview() {
 @Preview
 @Composable
 private fun SettingsSwitchCardDescriptionPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsSwitchCard(
             preference =
                 PreferenceSwitch(

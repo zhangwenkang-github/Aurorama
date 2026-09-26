@@ -29,7 +29,7 @@ import androidx.tv.material3.RadioButton
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
@@ -130,7 +130,7 @@ private fun SettingsSelectDetailsCardItem(
 @Preview
 @Composable
 private fun SettingsSelectDetailsCardPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsSelectDetailsCard(
             preference =
                 PreferenceSelect(

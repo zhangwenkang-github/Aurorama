@@ -44,7 +44,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyDiscoveredServer
 import com.zhangwenkang.cinefin.presentation.setup.components.DiscoveredServerItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerAction
@@ -168,13 +168,13 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun AddServerScreenLayoutPreview() {
-    FindroidTheme { AddServerScreenLayout(state = AddServerState(), onAction = {}) }
+    CinefinTheme { AddServerScreenLayout(state = AddServerState(), onAction = {}) }
 }
 
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun AddServerScreenLayoutDiscoveredPreview() {
-    FindroidTheme {
+    CinefinTheme {
         AddServerScreenLayout(
             state = AddServerState(discoveredServers = listOf(dummyDiscoveredServer)),
             onAction = {},

@@ -16,7 +16,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceFileEdit
@@ -62,7 +62,7 @@ fun SettingsFileEditCard(preference: PreferenceFileEdit, modifier: Modifier = Mo
 @Preview
 @Composable
 private fun SettingsFileEditCardPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsFileEditCard(
             preference =
                 PreferenceFileEdit(
@@ -76,7 +76,7 @@ private fun SettingsFileEditCardPreview() {
 @Preview
 @Composable
 private fun SettingsFileEditCardDescriptionPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsFileEditCard(
             preference =
                 PreferenceFileEdit(
@@ -91,7 +91,7 @@ private fun SettingsFileEditCardDescriptionPreview() {
 @Preview
 @Composable
 private fun SettingsFileEditCardIconPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsFileEditCard(
             preference =
                 PreferenceFileEdit(

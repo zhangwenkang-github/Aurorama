@@ -46,7 +46,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.presentation.setup.components.DiscoveredServerItem
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerAction
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerEvent
@@ -181,5 +181,5 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
 @PreviewScreenSizes
 @Composable
 private fun AddServerScreenLayoutPreview() {
-    FindroidTheme { AddServerScreenLayout(state = AddServerState(), onAction = {}) }
+    CinefinTheme { AddServerScreenLayout(state = AddServerState(), onAction = {}) }
 }

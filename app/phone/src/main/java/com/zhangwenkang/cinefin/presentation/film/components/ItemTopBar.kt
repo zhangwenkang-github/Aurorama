@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
@@ -74,5 +74,5 @@ fun ItemTopBar(
 @Composable
 @Preview(showBackground = true)
 private fun ItemTopBarPreview() {
-    FindroidTheme { ItemTopBar(hasBackButton = true, hasHomeButton = true) }
+    CinefinTheme { ItemTopBar(hasBackButton = true, hasHomeButton = true) }
 }

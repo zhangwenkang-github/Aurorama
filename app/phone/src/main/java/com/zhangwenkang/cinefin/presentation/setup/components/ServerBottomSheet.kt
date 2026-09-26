@@ -24,7 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 
@@ -86,7 +86,7 @@ private fun ServerBottomSheetItem(
 @Preview
 @Composable
 private fun ServerBottomSheetPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ServerBottomSheet(
             name = "Jellyfin Server",
             address = "http://192.168.0.10:8096",
@@ -101,7 +101,7 @@ private fun ServerBottomSheetPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun ServerBottomSheetItemPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ServerBottomSheetItem(
             icon = painterResource(CoreR.drawable.ic_globe),
             text = stringResource(SetupR.string.addresses),

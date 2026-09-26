@@ -23,7 +23,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyDiscoveredServer
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -84,7 +84,7 @@ fun ServerItem(
 @Preview
 @Composable
 private fun ServerItemPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ServerItem(name = dummyDiscoveredServer.name, address = dummyDiscoveredServer.address)
     }
 }

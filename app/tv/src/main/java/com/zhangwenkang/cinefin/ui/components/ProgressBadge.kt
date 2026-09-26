@@ -21,7 +21,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyShow
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -63,11 +63,11 @@ fun ProgressBadge(item: FindroidItem, modifier: Modifier = Modifier) {
 @Preview
 @Composable
 private fun ProgressBadgePreviewWatched() {
-    FindroidTheme { ProgressBadge(item = dummyEpisode) }
+    CinefinTheme { ProgressBadge(item = dummyEpisode) }
 }
 
 @Preview
 @Composable
 private fun ProgressBadgePreviewItemRemaining() {
-    FindroidTheme { ProgressBadge(item = dummyShow) }
+    CinefinTheme { ProgressBadge(item = dummyShow) }
 }

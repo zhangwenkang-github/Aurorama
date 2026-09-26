@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
 import com.zhangwenkang.cinefin.models.UiText
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import kotlin.math.roundToInt
 
@@ -142,7 +142,7 @@ fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryCli
 @Composable
 @Preview
 private fun DownloaderCardPendingPreview() {
-    FindroidTheme {
+    CinefinTheme {
         DownloaderCard(
             state = DownloaderState(status = DownloadManager.STATUS_PENDING),
             onCancelClick = {},
@@ -154,7 +154,7 @@ private fun DownloaderCardPendingPreview() {
 @Composable
 @Preview
 private fun DownloaderCardDownloadingPreview() {
-    FindroidTheme {
+    CinefinTheme {
         DownloaderCard(
             state = DownloaderState(status = DownloadManager.STATUS_RUNNING, progress = 0.5f),
             onCancelClick = {},
@@ -166,7 +166,7 @@ private fun DownloaderCardDownloadingPreview() {
 @Composable
 @Preview
 private fun DownloaderCardFailedPreview() {
-    FindroidTheme {
+    CinefinTheme {
         DownloaderCard(
             state =
                 DownloaderState(

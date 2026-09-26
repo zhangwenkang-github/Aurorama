@@ -46,7 +46,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID
@@ -217,7 +217,7 @@ private fun PersonImage(person: FindroidPerson, modifier: Modifier = Modifier) {
 @PreviewScreenSizes
 @Composable
 private fun PersonScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         PersonScreenLayout(
             state = PersonState(person = dummyPersonDetail, starredInMovies = dummyMovies),
             onAction = {},

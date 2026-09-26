@@ -44,7 +44,7 @@ import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.User
 import com.zhangwenkang.cinefin.presentation.film.HomeScreen
 import com.zhangwenkang.cinefin.presentation.film.MediaScreen
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.ui.components.LoadingIndicator
 import com.zhangwenkang.cinefin.ui.components.PillBorderIndicator
@@ -204,7 +204,7 @@ private fun MainScreenLayout(
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun MainScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         MainScreenLayout(
             uiState = MainViewModel.UiState.Normal(server = dummyServer, user = dummyUser),
             navigateToSettings = {},

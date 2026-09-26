@@ -25,7 +25,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -69,5 +69,5 @@ fun DiscoveredServerItem(name: String, modifier: Modifier = Modifier, onClick: (
 @Composable
 @Preview
 private fun DiscoveredServerItemPreview() {
-    FindroidTheme { DiscoveredServerItem(dummyServer.name) }
+    CinefinTheme { DiscoveredServerItem(dummyServer.name) }
 }

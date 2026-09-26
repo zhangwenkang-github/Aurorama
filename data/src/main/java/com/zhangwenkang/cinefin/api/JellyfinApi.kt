@@ -26,6 +26,9 @@ import org.jellyfin.sdk.api.client.extensions.videosApi
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
 
+/** 客户端在 HTTP 头中使用的名称，保持 ASCII 且不随界面语言变化。 */
+private const val CLIENT_NAME = "Cinefin"
+
 /**
  * Jellyfin API class using org.jellyfin.sdk:jellyfin-platform-android
  *
@@ -42,10 +45,9 @@ class JellyfinApi(
     val jellyfin = createJellyfin {
         clientInfo =
             ClientInfo(
-                name =
-                    androidContext.applicationInfo
-                        .loadLabel(androidContext.packageManager)
-                        .toString(),
+                // 必须使用固定的 ASCII 名称：HTTP 头不允许非 ASCII 字符，
+                // 而应用显示名会随语言变化（中文为“影阁”），不能直接用作客户端标识。
+                name = CLIENT_NAME,
                 version = BuildConfig.VERSION_NAME,
             )
         context = androidContext

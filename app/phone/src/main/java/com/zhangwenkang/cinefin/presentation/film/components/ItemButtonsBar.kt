@@ -36,7 +36,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.isDownloaded
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -241,7 +241,7 @@ fun ItemButtonsBar(
 @Preview(showBackground = true)
 @Composable
 private fun ItemButtonsBarPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ItemButtonsBar(
             item = dummyEpisode,
             onPlayClick = {},
@@ -258,7 +258,7 @@ private fun ItemButtonsBarPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun ItemButtonsBarDownloadingPreview() {
-    FindroidTheme {
+    CinefinTheme {
         ItemButtonsBar(
             item = dummyEpisode,
             downloaderState =

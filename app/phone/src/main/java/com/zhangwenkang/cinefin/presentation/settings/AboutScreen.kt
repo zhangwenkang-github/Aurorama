@@ -48,7 +48,7 @@ import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 import com.zhangwenkang.cinefin.BuildConfig
 import com.zhangwenkang.cinefin.R
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 
@@ -186,5 +186,5 @@ fun AboutScreen(navigateBack: () -> Unit) {
 @Composable
 @PreviewScreenSizes
 private fun AboutScreenPreview() {
-    FindroidTheme { AboutScreen(navigateBack = {}) }
+    CinefinTheme { AboutScreen(navigateBack = {}) }
 }

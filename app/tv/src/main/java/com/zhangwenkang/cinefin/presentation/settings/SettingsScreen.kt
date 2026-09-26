@@ -23,7 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsGroupCard
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.presentation.enums.DeviceType
@@ -120,7 +120,7 @@ private fun SettingsScreenLayout(state: SettingsState, onAction: (SettingsAction
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun SettingsScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsScreenLayout(
             state =
                 SettingsState(

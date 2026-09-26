@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun CancelDownloadDialog(onCancel: () -> Unit, onDismiss: () -> Unit) {
@@ -29,5 +29,5 @@ fun CancelDownloadDialog(onCancel: () -> Unit, onDismiss: () -> Unit) {
 @Composable
 @Preview
 private fun CancelDownloadDialogPreview() {
-    FindroidTheme { CancelDownloadDialog(onCancel = {}, onDismiss = {}) }
+    CinefinTheme { CancelDownloadDialog(onCancel = {}, onDismiss = {}) }
 }

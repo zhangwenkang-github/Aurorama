@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun OverviewText(text: String, maxCollapsedLines: Int = Int.MAX_VALUE) {
@@ -47,5 +47,5 @@ fun OverviewText(text: String, maxCollapsedLines: Int = Int.MAX_VALUE) {
 @Composable
 @Preview(showBackground = true)
 private fun OverviewTextPreview() {
-    FindroidTheme { OverviewText(text = dummyMovie.overview, maxCollapsedLines = 3) }
+    CinefinTheme { OverviewText(text = dummyMovie.overview, maxCollapsedLines = 3) }
 }

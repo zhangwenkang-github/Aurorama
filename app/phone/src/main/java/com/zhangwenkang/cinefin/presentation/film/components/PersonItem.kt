@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyPerson
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
@@ -59,5 +59,5 @@ fun PersonItem(person: FindroidItemPerson, onClick: () -> Unit, modifier: Modifi
 @Composable
 @Preview(showBackground = true)
 private fun PersonItemPreview() {
-    FindroidTheme { PersonItem(person = dummyPerson, onClick = {}) }
+    CinefinTheme { PersonItem(person = dummyPerson, onClick = {}) }
 }

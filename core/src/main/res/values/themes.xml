@@ -8,7 +8,8 @@
     <!-- Base application theme. -->
     <style name="Theme.Cinefin" parent="Base.Theme.Cinefin" />
 
-    <style name="Base.Theme.Cinefin" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- 固定深色：应用默认与唯一的外观基调为深灰蓝影院风 -->
+    <style name="Base.Theme.Cinefin" parent="Theme.Material3.Dark.NoActionBar">
         <!-- Primary -->
         <item name="colorPrimary">@color/primary_light</item>
         <item name="colorOnPrimary">@android:color/white</item>

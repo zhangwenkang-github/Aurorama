@@ -17,7 +17,7 @@ import androidx.tv.material3.contentColorFor as contentColorForTv
 import com.zhangwenkang.cinefin.core.presentation.theme.Spacings
 
 @Composable
-fun FindroidTheme(content: @Composable BoxScope.() -> Unit) {
+fun CinefinTheme(content: @Composable BoxScope.() -> Unit) {
     MaterialTheme(colorScheme = darkScheme, typography = Typography, shapes = shapes) {
         MaterialThemeTv(colorScheme = darkSchemeTv, typography = TypographyTv, shapes = shapesTv) {
             CompositionLocalProvider(

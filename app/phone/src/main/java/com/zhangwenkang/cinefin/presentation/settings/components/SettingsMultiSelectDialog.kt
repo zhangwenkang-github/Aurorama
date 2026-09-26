@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.presentation.components.BaseDialog
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
@@ -105,7 +105,7 @@ private fun SettingsMultiSelectDialogItem(
 @Preview
 @Composable
 private fun SettingsMultiSelectDialogPreview() {
-    FindroidTheme {
+    CinefinTheme {
         SettingsMultiSelectDialog(
             preference =
                 PreferenceMultiSelect(

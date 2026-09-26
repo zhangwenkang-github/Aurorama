@@ -33,7 +33,7 @@ import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyUsers
 import com.zhangwenkang.cinefin.presentation.setup.components.UserItem
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersAction
@@ -139,7 +139,7 @@ private fun UsersScreenLayout(state: UsersState, onAction: (UsersAction) -> Unit
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun UsersScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         UsersScreenLayout(
             state = UsersState(users = dummyUsers, publicUsers = dummyUsers, serverName = "Demo"),
             onAction = {},
@@ -151,7 +151,7 @@ private fun UsersScreenLayoutPreview() {
 @Preview(device = "id:tv_1080p")
 @Composable
 private fun UsersScreenLayoutPreviewNoUsers() {
-    FindroidTheme {
+    CinefinTheme {
         UsersScreenLayout(
             state = UsersState(serverName = "Demo"),
             onAction = {},

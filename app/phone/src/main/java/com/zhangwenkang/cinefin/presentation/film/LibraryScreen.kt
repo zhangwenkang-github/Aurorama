@@ -51,7 +51,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SortByDialog
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.plus
@@ -216,7 +216,7 @@ private fun ErrorGroup(
 @Composable
 private fun LibraryScreenLayoutPreview() {
     val items: Flow<PagingData<FindroidItem>> = flowOf(PagingData.from(dummyMovies))
-    FindroidTheme {
+    CinefinTheme {
         LibraryScreenLayout(
             libraryName = "Movies",
             state = LibraryState(items = items),

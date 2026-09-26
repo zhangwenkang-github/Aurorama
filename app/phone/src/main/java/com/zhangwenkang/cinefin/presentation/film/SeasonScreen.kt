@@ -46,7 +46,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID
@@ -204,5 +204,5 @@ private fun SeasonScreenLayout(state: SeasonState, onAction: (SeasonAction) -> U
 @PreviewScreenSizes
 @Composable
 private fun SeasonScreenLayoutPreview() {
-    FindroidTheme { SeasonScreenLayout(state = SeasonState(season = dummySeason), onAction = {}) }
+    CinefinTheme { SeasonScreenLayout(state = SeasonState(season = dummySeason), onAction = {}) }
 }

@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Primary -->
-    <color name="primary_light">#0060ac</color>
-    <color name="primary_container_light">#d3e4ff</color>
-    <color name="on_primary_container_light">#001c3a</color>
+    <color name="primary_light">#2A5C86</color>
+    <color name="primary_container_light">#d3e7fa</color>
+    <color name="on_primary_container_light">#001c33</color>
 
-    <color name="primary_dark">#a1c9ff</color>
-    <color name="on_primary_dark">#00315e</color>
-    <color name="primary_container_dark">#004884</color>
-    <color name="on_primary_container_dark">#d3e4ff</color>
+    <color name="primary_dark">#8fc2f0</color>
+    <color name="on_primary_dark">#08243c</color>
+    <color name="primary_container_dark">#1b3a57</color>
+    <color name="on_primary_container_dark">#d3e7fa</color>
 
     <!-- Secondary -->
-    <color name="secondary_light">#545f70</color>
-    <color name="secondary_container_light">#d8e3f8</color>
-    <color name="on_secondary_container_light">#111c2b</color>
+    <color name="secondary_light">#4c5d70</color>
+    <color name="secondary_container_light">#d7e5f2</color>
+    <color name="on_secondary_container_light">#10202e</color>
 
-    <color name="secondary_dark">#bcc7db</color>
-    <color name="on_secondary_dark">#263141</color>
-    <color name="secondary_container_dark">#3c4758</color>
-    <color name="on_secondary_container_dark">#d8e3f8</color>
+    <color name="secondary_dark">#9db2c6</color>
+    <color name="on_secondary_dark">#10202e</color>
+    <color name="secondary_container_dark">#24384a</color>
+    <color name="on_secondary_container_dark">#d7e5f2</color>
 
 
     <color name="blue_300">#67b0ed</color>
@@ -27,15 +27,21 @@
     <color name="green_300">#71ca92</color>
     <color name="green_500">#24B364</color>
     <color name="green_800">#038043</color>
-    <color name="neutral_1000">#0E141A</color>
-    <color name="neutral_900">#121A21</color>
-    <color name="neutral_800">#243342</color>
-    <color name="neutral_700">#374F67</color>
-    <color name="neutral_400">#5D82A7</color>
-    <color name="neutral_300">#A9BDD1</color>
+    <!-- 深灰蓝影院色阶 -->
+    <color name="neutral_1000">#0A0E13</color>
+    <color name="neutral_950">#0F141A</color>
+    <color name="neutral_900">#131A22</color>
+    <color name="neutral_850">#172029</color>
+    <color name="neutral_800">#1E2833</color>
+    <color name="neutral_700">#26323F</color>
+    <color name="neutral_600">#3A4756</color>
+    <color name="neutral_500">#55677A</color>
+    <color name="neutral_400">#7C8DA0</color>
+    <color name="neutral_300">#A9B7C6</color>
     <color name="neutral_200">#D7E0E9</color>
-    <color name="neutral_100">#EEF2F6</color>
-    <color name="neutral_50">#F7FBFF</color>
+    <color name="neutral_100">#EBEFF4</color>
+    <color name="neutral_50">#F7F9FC</color>
+    <color name="gold_300">#E8C07A</color>
     <color name="transparent_white_300">#4DFFFFFF</color>
     <color name="transparent_black_300">#4D000000</color>
     <color name="red">#EB5757</color>

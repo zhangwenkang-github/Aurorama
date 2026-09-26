@@ -15,7 +15,7 @@ import com.zhangwenkang.cinefin.film.presentation.favorites.FavoritesViewModel
 import com.zhangwenkang.cinefin.models.CollectionSection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.UiText
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun FavoritesScreen(
@@ -42,7 +42,7 @@ fun FavoritesScreen(
 @PreviewScreenSizes
 @Composable
 private fun CollectionScreenLayoutPreview() {
-    FindroidTheme {
+    CinefinTheme {
         CollectionScreenLayout(
             collectionName = "Favorites",
             state =

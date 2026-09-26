@@ -31,7 +31,7 @@ import androidx.tv.material3.Text
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.player.core.domain.models.Track
 import com.zhangwenkang.cinefin.player.local.R as PlayerLocalR
-import com.zhangwenkang.cinefin.presentation.theme.FindroidTheme
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import kotlinx.parcelize.Parcelize
 
@@ -114,7 +114,7 @@ fun VideoPlayerTrackSelectorDialog(
 @Preview
 @Composable
 private fun VideoPlayerTrackSelectorDialogPreview() {
-    FindroidTheme {
+    CinefinTheme {
         VideoPlayerTrackSelectorDialog(
             trackType = C.TRACK_TYPE_AUDIO,
             tracks =
