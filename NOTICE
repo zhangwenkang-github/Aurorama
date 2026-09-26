@@ -1,0 +1,15 @@
+Cinefin
+Copyright (C) 2026 zhangwenkang
+
+本工程基于 Findroid 改造：
+    Findroid - https://github.com/jarnedemeulemeester/findroid
+    Copyright (C) Jarné Demeulemeester 与贡献者
+    许可证：GNU General Public License v3.0
+    基线提交：a28ac9e
+
+依据 GPL-3.0，本工程（衍生作品）同样以 GNU General Public License v3.0 授权发布，
+完整许可证文本见 LICENSE 文件。
+
+功能与协议实现参考（未复制源码）：
+    Jellyfin Android - https://github.com/jellyfin/jellyfin-android (GPL-2.0)
+    Next Player - https://github.com/anilbeesetti/nextplayer (GPL-3.0)
