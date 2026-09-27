@@ -106,6 +106,7 @@
     <string name="none">None</string>
     <string name="manage_servers">Manage servers</string>
     <string name="drawer_server_section">Server</string>
+    <string name="title_console">Server console</string>
     <string name="drawer_no_server">No server added</string>
     <string name="download_pending">Pending…</string>
     <string name="download_paused">Paused</string>

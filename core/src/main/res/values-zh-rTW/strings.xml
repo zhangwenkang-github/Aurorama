@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="drawer_server_section">伺服器</string>
+    <string name="title_console">伺服器控制台</string>
     <string name="drawer_no_server">尚未新增伺服器</string>
     <string name="app_name">影閣</string>
     <string name="jellyfin_banner">Jellyfin 橫幅</string>

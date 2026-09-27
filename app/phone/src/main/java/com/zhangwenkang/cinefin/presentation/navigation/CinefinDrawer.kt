@@ -46,6 +46,7 @@ fun CinefinDrawer(
     downloadsRoute: Any,
     settingsRoute: Any,
     serversRoute: Any,
+    consoleRoute: Any,
     showMedia: Boolean,
     onNavigate: (Any) -> Unit,
     onClose: () -> Unit,
@@ -127,6 +128,12 @@ fun CinefinDrawer(
             iconRes = CoreR.drawable.ic_settings,
             selected = false,
             onClick = { onNavigate(settingsRoute) },
+        )
+        DrawerItem(
+            titleRes = CoreR.string.title_console,
+            iconRes = CoreR.drawable.ic_globe,
+            selected = currentRoute == consoleRoute::class.qualifiedName,
+            onClick = { onNavigate(consoleRoute) },
         )
 
         Spacer(modifier = Modifier.height(MaterialTheme.spacings.medium))

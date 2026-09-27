@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.presentation.film.PersonScreen
 import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
 import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawer
+import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
 import com.zhangwenkang.cinefin.presentation.settings.AboutScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsFileEditScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsScreen
@@ -77,6 +78,8 @@ import kotlinx.coroutines.launch
 @Serializable data object MediaRoute
 
 @Serializable data object DownloadsRoute
+
+@Serializable data object ConsoleRoute
 
 @Serializable
 data class LibraryRoute(
@@ -180,6 +183,7 @@ fun NavigationRoot(
                 downloadsRoute = DownloadsRoute,
                 settingsRoute = settingsRoute,
                 serversRoute = ServersRoute,
+                consoleRoute = ConsoleRoute,
                 showMedia = !isOfflineMode,
                 onNavigate = { route ->
                     scope.launch { drawerState.close() }
@@ -296,6 +300,9 @@ fun NavigationRoot(
                         navigateToItem(navController = navController, item = item)
                     }
                 )
+            }
+            composable<ConsoleRoute> {
+                WebConsoleScreen(onBack = { navController.safePopBackStack() })
             }
             composable<LibraryRoute> { backStackEntry ->
                 val route: LibraryRoute = backStackEntry.toRoute()
