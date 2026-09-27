@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin
 
 import android.app.AppOpsManager
 import android.app.PictureInPictureParams
+import android.Manifest
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -23,10 +24,12 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.viewModels
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
+import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -90,6 +93,12 @@ class PlayerActivity : BasePlayerActivity() {
     /** Compose 控制层的可见性/锁定状态：控件层与手势层共用同一份状态 */
     private val controlsState = PlayerControlsState()
 
+    /** Android 13+ 通知权限：通知栏播放控制需要它；没授予只影响通知，不影响播放本身 */
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            Timber.d("通知权限结果：%s", granted)
+        }
+
     /** 画中画状态：控制层据此切到 Pip 骨架（PiP 窗口里不渲染控制层） */
     private val pipMode = mutableStateOf(false)
 
@@ -117,11 +126,18 @@ class PlayerActivity : BasePlayerActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val itemId = UUID.fromString(intent.extras!!.getString("itemId"))
-        val itemKind = intent.extras!!.getString("itemKind")
-        val startFromBeginning = intent.extras!!.getBoolean("startFromBeginning")
+        /*
+         * itemId 允许为空：从通知 / 锁屏回到播放页时，播放会话已经在服务里跑着，
+         * 页面只需要接管渲染，不能再拉一次流。
+         */
+        val itemId =
+            intent.extras?.getString("itemId")?.let { raw ->
+                runCatching { UUID.fromString(raw) }.getOrNull()
+            }
+        val itemKind = intent.extras?.getString("itemKind")
+        val startFromBeginning = intent.extras?.getBoolean("startFromBeginning") ?: false
         // 换内核会重开播放页：把失败前的精确进度带过来，不用服务端 5 秒一次的上报值续播
-        val startPositionMs = intent.extras!!.getLong(EXTRA_START_POSITION_MS, 0L)
+        val startPositionMs = intent.extras?.getLong(EXTRA_START_POSITION_MS, 0L) ?: 0L
         // 读掉就删：这个 Intent 会被 recreate() 复用，留着会让下次重建又跳回老位置
         intent.removeExtra(EXTRA_START_POSITION_MS)
 
@@ -283,22 +299,40 @@ class PlayerActivity : BasePlayerActivity() {
             }
         }
 
-        viewModel.initializePlayer(
-            itemId = itemId,
-            itemKind = itemKind ?: "",
-            startFromBeginning = startFromBeginning,
-            startPositionMs = startPositionMs,
-        )
+        if (itemId != null) {
+            viewModel.initializePlayer(
+                itemId = itemId,
+                itemKind = itemKind ?: "",
+                startFromBeginning = startFromBeginning,
+                startPositionMs = startPositionMs,
+            )
+        } else if (viewModel.player.mediaItemCount > 0) {
+            // 从通知回来：会话还在跑，接管它（补标题/章节等信息），不重新拉流
+            viewModel.attachToExistingSession()
+        } else {
+            // 既没有条目、也没有可接管的会话：不留一个空白播放页
+            finishPlayback()
+            return
+        }
         hideSystemUI()
+        requestNotificationPermissionIfNeeded()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
 
-        val itemId = UUID.fromString(intent.extras!!.getString("itemId"))
-        val itemKind = intent.extras!!.getString("itemKind")
-        val startFromBeginning = intent.extras!!.getBoolean("startFromBeginning")
+        val itemId =
+            intent.extras?.getString("itemId")?.let { raw ->
+                runCatching { UUID.fromString(raw) }.getOrNull()
+            }
+        if (itemId == null) {
+            // 从通知点回正在播放的会话：什么都不用做，页面已经在前台
+            controlsState.show()
+            return
+        }
+        val itemKind = intent.extras?.getString("itemKind")
+        val startFromBeginning = intent.extras?.getBoolean("startFromBeginning") ?: false
 
         viewModel.initializePlayer(
             itemId = itemId,
@@ -421,6 +455,22 @@ class PlayerActivity : BasePlayerActivity() {
                 .show(WindowInsetsCompat.Type.systemBars())
         } else {
             hideSystemUI()
+        }
+    }
+
+    /**
+     * 首次进入播放页时申请通知权限（Android 13+）。
+     *
+     * 系统只在用户没做过选择时弹窗，重复调用不会打扰；拒绝后通知栏控制不可见，
+     * 但前台服务与播放本身照常工作。
+     */
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 

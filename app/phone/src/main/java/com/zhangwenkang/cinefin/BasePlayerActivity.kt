@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
@@ -8,20 +9,21 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
-import androidx.media3.session.MediaSession
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
+import timber.log.Timber
 
 abstract class BasePlayerActivity : AppCompatActivity() {
 
     abstract val viewModel: PlayerViewModel
 
-    private lateinit var mediaSession: MediaSession
     private var wasPip: Boolean = false
 
     /**
      * 是否允许「后台继续播放」：由子类读取设置项。
      *
-     * 打开后离开播放页（锁屏、切到其它应用）不再暂停，只记录进度； 画中画不受影响。真正的常驻播放仍需要前台服务，见 docs/PLAYER_PLAN.md 阶段 4。
+     * 打开后离开播放页（锁屏、切到其它应用）不再暂停，只记录进度；画中画不受影响。
+     * 常驻播放由 [CinefinPlaybackService] 以 mediaPlayback 前台服务承载（阶段 4）。
      */
     protected open fun isBackgroundAudioEnabled(): Boolean = false
 
@@ -32,8 +34,7 @@ abstract class BasePlayerActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-
-        mediaSession = MediaSession.Builder(this, viewModel.player).build()
+        startPlaybackService()
     }
 
     override fun onResume() {
@@ -64,10 +65,27 @@ abstract class BasePlayerActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
 
-        mediaSession.release()
-
         if (wasPip) {
             finish()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        /*
+         * 播放页真正结束（按返回键退出、换内核重启等）时收掉前台服务：
+         * 开启后台播放的用户例外——服务要继续把播放交给通知栏与锁屏。
+         */
+        if (!isBackgroundAudioEnabled()) {
+            stopService(Intent(this, CinefinPlaybackService::class.java))
+        }
+    }
+
+    private fun startPlaybackService() {
+        try {
+            startService(Intent(this, CinefinPlaybackService::class.java))
+        } catch (e: Exception) {
+            Timber.e(e, "启动播放服务失败：通知栏与后台播放不可用，页面内播放不受影响")
         }
     }
 

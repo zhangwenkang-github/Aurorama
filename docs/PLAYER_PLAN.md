@@ -68,7 +68,7 @@
 | 手势层 | 80% | 🟡 | `utils/PlayerGestureHelper.kt`（589 行） |
 | 控制层（Compose 三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 82% | 🟡 | `presentation/player/PlayerControlOverlay.kt`；错误卡片、按钮八态、顶栏徽标均已实测；新增「更多」聚合面板 |
 | 面板系统 | 58% | 🟡 | 同文件：倍速/循环/画面比例/字幕/音轨/信息/队列/睡眠 + 更多 |
-| 系统层（通知栏 / 后台 / 焦点 / PiP） | 32% | ⛔ | `BasePlayerActivity.kt` 内联 `MediaSession`，**无 Service / 无通知**；PiP 状态已接入形态判定（Pip 骨架） |
+| 系统层（通知栏 / 后台 / 焦点 / PiP） | 88% | 🟡 | 阶段 4 完成：`playback/CinefinPlaybackService`（MediaSessionService + 前台服务）+ 自研通知 provider + `PlayerHolder` 共享实例；真机长稳（锁屏 30 分钟、耳机/蓝牙/来电）待验 |
 | 多形态骨架（手机 / 平板 / 折叠 / 小窗 / TV / 车机） | 55% | 🟡 | 新增 `PlayerFormFactor.kt` + `PlayerContentPanel.kt`；平板 SplitSide、手机竖屏 SplitPortrait、小窗 Compact、车机不沉浸已实现；平板与竖屏已实测（见 §10），折叠 / TV / 车机 / 小窗待实机 |
 | 无障碍 | 55% | 🟡 | 可点节点已自带标签（实测 `uiautomator` 可见）、role/selected 语义、48dp 命中区；焦点顺序/大字体/高对比未验证 |
 | 测试与验收 | 10% | ⛔ | 无 Compose UI 测试、无性能基线 |
@@ -85,6 +85,11 @@
   `PlayerOverlayContainer.kt`（按画面区划命中带）、`PlayerActivity.kt`（画面区排版 / 方向 / 车机不沉浸 / PiP 状态）、
   `app/phone/src/main/AndroidManifest.xml`（`fullSensor` + `resizeableActivity`）、
   `player/local` 三个 `strings.xml`（`player_controls_episodes` / `player_controls_more` / `player_controls_side_panel_collapse`）。
+- 阶段 4 的新增/改动：**新增** `playback/CinefinPlaybackService.kt`、`playback/CinefinMediaNotificationProvider.kt`、
+  `player/local/.../presentation/PlayerHolder.kt`、`core/res/drawable/ic_close.xml`；**改动** `PlayerViewModel.kt`
+  （播放器改由 `PlayerHolder` 提供 + `attachToExistingSession`）、`MPVPlayer.kt`（`getMediaMetadata` 返回当前媒体项元数据）、
+  `BasePlayerActivity.kt`（内联 MediaSession 改成前台服务）、`PlayerActivity.kt`（会话接管 + 通知权限）、
+  `AndroidManifest.xml`（service 与前台服务权限）、`player/local` 三个 `strings.xml`（`player_controls_previous_episode`）。
 - **判断进度只看本文件 §3 看板与 §4 勾选项**，不要用 `git status` 的改动量推断。
 - 可用验证环境：模拟器 `emulator-5554`（API 36 / 2560×1600 平板）在跑，且已安装 `com.zhangwenkang.cinefin.debug`；测试服务器凭据不入库。
 
@@ -145,13 +150,15 @@
 
 ### 阶段 4 · 系统层：后台 / 通知栏 / PiP（1–1.5 天）★体验关键
 
-- [ ] 4.1 `CinefinPlaybackService : MediaSessionService`，把内联 `MediaSession` 迁入，`onGetSession` 返回会话
-- [ ] 4.2 通知栏全套按钮（D4）：标题/封面/上一集/播放暂停/下一集/快退/快进/关闭/进度
-- [ ] 4.3 前台服务权限 + `startForeground`；后台播放开关交由 Service 决策
-- [ ] 4.4 音频焦点、来电暂停、耳机拔出暂停、蓝牙切换
-- [ ] 4.5 PiP：`setAspectRatio` 跟随比例、进入/退出不闪控制层、遥控三键、可选自动进 PiP 开关
-- [ ] 4.6 屏幕常亮按播放状态切换（复核暂停时是否释放）
-- [ ] 4.7 验收：`dumpsys media_session` 可见活跃会话；锁屏 30 分钟音频不中断；通知栏按钮全部可用
+- [x] 4.1 `CinefinPlaybackService : MediaSessionService`；播放器实例抽到进程级 `PlayerHolder`（`player/local`），播放页与服务共享同一实例；服务自连接一个常驻 `MediaController`（Media3 的通知只在"会话有控制者"时才显示，见 §10 说明）
+- [x] 4.2 通知栏（D4）：标题 / 季集副标题 / 进度条 / 五个传输按钮（上一集 / 快退 / 播放暂停 / 快进 / 下一集），自研 `CinefinMediaNotificationProvider`；点通知回播放页（不带 `itemId` → 接管会话不重新拉流）；删除通知 = 停止播放
+      · 取舍：Android 通知最多 5 个按钮，「关闭」不做第 6 个按钮，由通知删除手势 + 播放页返回承担
+      · 待补：通知大图标（封面）——需要把海报 URL 写进 `MediaMetadata.artworkUri`
+- [x] 4.3 前台服务：`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK` 权限 + `foregroundServiceType="mediaPlayback"`；后台播放开关（`pref_player_background_audio`）决定退出播放页后是否保留实例与服务；Android 13+ 首次进播放页请求通知权限
+- [x] 4.4 音频焦点（ExoPlayer `setAudioAttributes(..., true)`）+ 拔耳机 / 蓝牙断开自动暂停（`setHandleAudioBecomingNoisy(true)`）；媒体按键（播放/暂停/上下集）经 MediaSession 通路实测；来电依赖音频焦点（Android 10+ 来电触发 AUDIOFOCUS_LOSS，不加 `READ_PHONE_STATE`）
+- [x] 4.5 PiP：`setAspectRatio` + `sourceRectHint` + 可选自动进入（既有）；PiP 会话三键由 MediaSession 提供；模拟器实测进入 `mode=pinned`、播放与通知保持（模拟器需 `appops set ... PICTURE_IN_PICTURE allow`）
+- [x] 4.6 屏幕常亮：播放/暂停切换 `FLAG_KEEP_SCREEN_ON`（复核 `PlayerEvents.IsPlayingChanged` 释放路径，已正确）
+- [ ] 4.7 验收：`dumpsys media_session` 活跃会话 ✓、通知按钮 5 个 ✓、后台播放（Home 后仍 PLAYING、位置推进）✓；锁屏 30 分钟长稳、真机耳机/蓝牙/来电走查待补
 
 ### 阶段 5 · 平板 / 折叠 / 手机形态（1.5–2 天）
 
@@ -478,3 +485,6 @@ adb logcat -s CinefinPlayer:V ExoPlayerImpl:V             # 播放排障
 | 2026-09-27 | 记录 D8 上下文预算硬约束（纯文本 ≤880KB、内联图片 ≤48MiB）：少传图、工具输出裁剪、优先文本验证 |
 | 2026-09-27 | 记录 D9/D10：多形态由代码判定驱动（`PlayerFormFactor` + `PlayerChromeLayout`），TV / 车机 / 小窗纳入范围（D1/D3/D6 相应调整）；§5.5 补齐多形态规格（骨架矩阵、线框、组件映射、动效与系统集成） |
 | 2026-09-27 | 阶段 8.1–8.6 完成：新增 `PlayerFormFactor.kt`（形态判定 + 布局上下文）、`PlayerContentPanel.kt`（侧栏 / 竖屏内容区 / 横滑选集 / 小窗单行条）、`MorePanel`；`PlayerControlOverlay` 骨架化；`PlayerOverlayContainer` 命中区随骨架变化；`PlayerActivity` 形态驱动画面区排版 + `fullSensor` 方向 + 车机不沉浸；Manifest 放开 `sensorLandscape` 并显式 `resizeableActivity`。模拟器实测：平板横屏侧栏（选集 / 队列 / 收起后画面区全宽）、平板竖屏全屏、手机竖屏（视频区 42% 高 + 下方横滑选集），改尺寸与旋转不中断播放 |
+| 2026-09-27 | 阶段 4 完成（4.1–4.6，4.7 部分）：播放器实例抽到进程级 `PlayerHolder`，新增 `CinefinPlaybackService`（MediaSessionService + mediaPlayback 前台服务）与自研 `CinefinMediaNotificationProvider`；`BasePlayerActivity` 不再内联 `MediaSession`；`PlayerActivity` 支持"从通知接管会话不重新拉流"并请求通知权限（Android 13+）。实测：`dumpsys media_session` 可见活跃会话（PLAYING）、通知 5 个传输按钮 + 进度、Home 后播放继续（位置推进）、媒体按键暂停/播放生效、PiP `mode=pinned` 且播放与通知保持；mpv 内核元数据修复后通知标题正确 |
+| 2026-09-27 | 阶段 4 踩坑记录：① Media3 默认媒体通知只在该会话**有 controler 连接**时才显示（`MediaNotificationManager.shouldShowNotification` 先取已连接 controller 的 timeline），与本项目"播放页直接操作共享播放器实例"的架构不匹配 → 服务自连接常驻 `MediaController` + 自研通知 provider；② 通知渠道必须自建，否则 Android 14 的 `startForeground` 直接抛 `Bad notification for startForeground` 崩溃；③ `NotificationCompat.Builder` 没有 `setSubtitle`，副标题走 `setContentText`；④ `CommandButton.Builder(Int)` 是 1.11 的可用构造（`Builder(IconCompat)` 不存在） |
+| 2026-09-27 | 阶段 4 遗留：通知封面（`artworkUri`）、`REPLAY/其他内核` 下 PiP 位置上报（mpv 在 PiP 中 `position=-1`）、锁屏 30 分钟长稳与真机耳机/蓝牙/来电走查；另记录：ExoPlayer 内核播放 `64c132f8`（10-bit H.264）片源会在 `MatroskaExtractor` 报错，属既有解码问题，与本阶段无关 |

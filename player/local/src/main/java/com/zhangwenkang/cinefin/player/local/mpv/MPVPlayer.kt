@@ -1144,7 +1144,12 @@ class MPVPlayer(
      * dynamic metadata sourced from [Player.Listener.onMediaMetadataChanged].
      */
     override fun getMediaMetadata(): MediaMetadata {
-        return MediaMetadata.EMPTY
+        /*
+         * mpv 内核没有独立的元数据来源：直接用当前媒体项上带的信息（标题 + 季集号）。
+         * 通知栏 / 锁屏 / 车机都读这里，返回 EMPTY 会让它们只剩一个没有名字的播放器（阶段 4.2）。
+         */
+        return internalMediaItems.getOrNull(currentMediaItemIndex)?.mediaMetadata
+            ?: MediaMetadata.EMPTY
     }
 
     override fun getPlaylistMetadata(): MediaMetadata {

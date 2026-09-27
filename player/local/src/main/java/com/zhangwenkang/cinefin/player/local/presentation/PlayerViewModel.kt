@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -16,9 +15,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
@@ -29,7 +26,6 @@ import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
-import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
@@ -59,6 +55,8 @@ constructor(
     private val playlistManager: PlaylistManager,
     private val repository: JellyfinRepository,
     private val appPreferences: AppPreferences,
+    /** 播放器实例由进程级单例持有：播放页关闭后通知栏 / 后台播放仍要能控制它（阶段 4.1） */
+    private val playerHolder: PlayerHolder,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel(), Player.Listener {
     companion object {
@@ -68,6 +66,7 @@ constructor(
     }
 
     val player: Player
+        get() = playerHolder.player
 
     private val _uiState =
         MutableStateFlow(
@@ -110,8 +109,6 @@ constructor(
 
     private var items: MutableList<PlayerItem> = mutableListOf()
 
-    private val trackSelector = DefaultTrackSelector(application)
-
     /** 字幕/音轨的智能选择引擎：按语言优先级自动选轨，并记住用户的手动选择 */
     private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
 
@@ -136,7 +133,8 @@ constructor(
     var isInPictureInPictureMode: Boolean = false
 
     /** 当前播放核心：`exoplayer` 或 `mpv`。换内核要重建 player，由 Activity 重启播放页生效 */
-    val playerBackend: String = appPreferences.getValue(appPreferences.playerBackend)
+    val playerBackend: String
+        get() = playerHolder.backend
 
     init {
         segmentsSkipButton = appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton)
@@ -149,61 +147,6 @@ constructor(
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipType)
         segmentsAutoSkipMode =
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipMode)
-
-        val audioAttributes =
-            AudioAttributes.Builder()
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .setUsage(C.USAGE_MEDIA)
-                .build()
-
-        trackSelector.setParameters(
-            trackSelector
-                .buildUponParameters()
-                .setTunnelingEnabled(true)
-                // 使用用户设定的语言优先级列表（越靠前越优先）
-                .setPreferredAudioLanguages(*trackSelectionEngine.audioPriority.toTypedArray())
-                .setPreferredTextLanguages(*trackSelectionEngine.subtitlePriority.toTypedArray())
-        )
-
-        player =
-            when (playerBackend) {
-                PLAYER_BACKEND_EXOPLAYER -> {
-                    val renderersFactory =
-                        DefaultRenderersFactory(application)
-                            .setExtensionRendererMode(
-                                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-                            )
-                    ExoPlayer.Builder(application, renderersFactory)
-                        .setAudioAttributes(audioAttributes, true)
-                        .setTrackSelector(trackSelector)
-                        .setSeekBackIncrementMs(
-                            appPreferences.getValue(appPreferences.playerSeekBackInc)
-                        )
-                        .setSeekForwardIncrementMs(
-                            appPreferences.getValue(appPreferences.playerSeekForwardInc)
-                        )
-                        .setPauseAtEndOfMediaItems(true)
-                        .build()
-                }
-                PLAYER_BACKEND_MPV -> {
-                    MPVPlayer.Builder(application)
-                        .setAudioAttributes(audioAttributes, true)
-                        .setTrackSelectionParameters(trackSelector.parameters)
-                        .setSeekBackIncrementMs(
-                            appPreferences.getValue(appPreferences.playerSeekBackInc)
-                        )
-                        .setSeekForwardIncrementMs(
-                            appPreferences.getValue(appPreferences.playerSeekForwardInc)
-                        )
-                        .setPauseAtEndOfMediaItems(true)
-                        .setVideoOutput(appPreferences.getValue(appPreferences.playerMpvVo))
-                        .setAudioOutput(appPreferences.getValue(appPreferences.playerMpvAo))
-                        .setHwDec(appPreferences.getValue(appPreferences.playerMpvHwdec))
-                        .build()
-                }
-
-                else -> throw RuntimeException("$playerBackend is not a valid player backend")
-            }
     }
 
     /**
@@ -269,6 +212,31 @@ constructor(
         }
     }
 
+    /**
+     * 接管一个已经在播放的会话（从通知 / 锁屏回到播放页，阶段 4）。
+     *
+     * 播放器实例、播放列表与进度都还在服务里跑，这里**不能**重新 `setMediaItems`（会跳回开头）。
+     * 只需要重新挂监听，再把 uiState 里缺的标题补上；选集栏直接读播放器里的媒体项，不受影响。
+     */
+    fun attachToExistingSession() {
+        player.addListener(this)
+        refreshUiStateFromPlayer()
+    }
+
+    /** 用播放器当前条目刷新 uiState（标题 / 条目 id），不改动任何播放状态 */
+    private fun refreshUiStateFromPlayer() {
+        val mediaItem = player.currentMediaItem ?: return
+        val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull()
+        val extras = mediaItem.mediaMetadata.extras
+        val season = extras?.getInt(PLAYER_EXTRA_SEASON_NUMBER, -1) ?: -1
+        val episode = extras?.getInt(PLAYER_EXTRA_EPISODE_NUMBER, -1) ?: -1
+        val name = mediaItem.mediaMetadata.title?.toString().orEmpty()
+        val title = if (season >= 0 && episode >= 0) "S$season:E$episode - $name" else name
+        _uiState.update {
+            it.copy(currentItemTitle = title, currentItemId = itemId ?: it.currentItemId)
+        }
+    }
+
     private fun PlayerItem.toMediaItem(): MediaItem {
         val streamUrl = mediaSourceUri
         val mediaSubtitles = externalSubtitles.map { externalSubtitle ->
@@ -330,7 +298,15 @@ constructor(
         playbackPosition = 0L
         currentMediaItemIndex = 0
         player.removeListener(this)
-        player.release()
+        if (appPreferences.getValue(appPreferences.playerBackgroundAudio)) {
+            /*
+             * 后台播放开启：播放页关闭后实例继续由前台服务与通知栏控制，
+             * 这里只把最后位置写回，不能释放实例。
+             */
+            savedStateHandle["position"] = player.currentPosition
+        } else {
+            playerHolder.release()
+        }
     }
 
     fun updatePlaybackProgress() {
@@ -422,8 +398,17 @@ constructor(
         savedStateHandle["mediaItemIndex"] = player.currentMediaItemIndex
         viewModelScope.launch {
             try {
-                items
-                    .first { it.itemId.toString() == player.currentMediaItem?.mediaId }
+                val item =
+                    items.firstOrNull { it.itemId.toString() == player.currentMediaItem?.mediaId }
+                if (item == null) {
+                    /*
+                     * 播放页是从通知回到前台、或后台自动切集后新开的页面：items 还没建。
+                     * 用播放器里的元数据兜底刷新标题，播放本身不受影响。
+                     */
+                    refreshUiStateFromPlayer()
+                    return@launch
+                }
+                item
                     .let { item ->
                         val itemTitle =
                             if (item.parentIndexNumber != null && item.indexNumber != null) {
