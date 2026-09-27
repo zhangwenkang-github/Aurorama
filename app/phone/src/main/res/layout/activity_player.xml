@@ -6,12 +6,20 @@
     android:layout_height="match_parent"
     tools:context=".PlayerActivity">
 
+    <!-- 氛围背景：由当前影片海报取色生成，只在画面未铺满屏幕的区域（上下黑边）与加载态可见 -->
+    <View
+        android:id="@+id/ambient_backdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black" />
+
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/black"
+        android:background="@android:color/transparent"
         app:animation_enabled="false"
+        app:shutter_background_color="@android:color/transparent"
         app:show_buffering="always" />
 
     <LinearLayout

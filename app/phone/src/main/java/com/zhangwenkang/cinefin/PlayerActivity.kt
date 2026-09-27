@@ -6,8 +6,10 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.drawable.TransitionDrawable
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -33,13 +35,19 @@ import androidx.media3.common.C
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
+import coil3.BitmapImage
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.bitmapConfig
 import dagger.hilt.android.AndroidEntryPoint
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.presentation.player.SpeedSelectionDialogFragment
 import com.zhangwenkang.cinefin.presentation.player.TrackSelectionDialogFragment
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.AmbientColors
 import com.zhangwenkang.cinefin.utils.PlayerGestureHelper
 import com.zhangwenkang.cinefin.utils.PreviewScrubListener
 import java.util.UUID
@@ -50,10 +58,14 @@ import timber.log.Timber
 
 var isControlsLocked: Boolean = false
 
+/** 氛围背景切换的淡入时长 */
+private const val AMBIENT_FADE_DURATION = 600
+
 @AndroidEntryPoint
 class PlayerActivity : BasePlayerActivity() {
 
     @Inject lateinit var appPreferences: AppPreferences
+    @Inject lateinit var repository: JellyfinRepository
 
     lateinit var binding: ActivityPlayerBinding
     private var playerGestureHelper: PlayerGestureHelper? = null
@@ -61,6 +73,7 @@ class PlayerActivity : BasePlayerActivity() {
     private var previewScrubListener: PreviewScrubListener? = null
     private var wasZoom: Boolean = false
     private var skipButtonTimeoutExpired: Boolean = true
+    private var ambientItemId: UUID? = null
 
     private lateinit var skipSegmentButton: Button
 
@@ -147,6 +160,9 @@ class PlayerActivity : BasePlayerActivity() {
                         uiState.apply {
                             // Title
                             videoNameTextView.text = currentItemTitle
+
+                            // 氛围背景：跟随当前影片海报取色
+                            currentItemId?.let { updateAmbientBackdrop(it) }
 
                             // Media segment
                             currentSegment?.let { segment ->
@@ -356,6 +372,49 @@ class PlayerActivity : BasePlayerActivity() {
                 !isControlsLocked
         ) {
             pictureInPicture()
+        }
+    }
+
+    /**
+     * 用当前影片的海报/剧照生成播放页氛围背景。
+     *
+     * 只在画面未铺满屏幕的区域（上下黑边）与缓冲加载态可见；
+     * 控件配色保持应用统一的冰蓝，避免整屏变色干扰观看。
+     */
+    private fun updateAmbientBackdrop(itemId: UUID) {
+        if (ambientItemId == itemId) return
+        ambientItemId = itemId
+
+        lifecycleScope.launch {
+            val item = runCatching { repository.getItem(itemId) }.getOrNull() ?: return@launch
+            val imageUri = item.images.backdrop ?: item.images.primary ?: return@launch
+
+            val request =
+                ImageRequest.Builder(this@PlayerActivity)
+                    .data(imageUri)
+                    .size(AmbientColors.SAMPLE_SIZE)
+                    // 必须是软件位图，硬件位图无法读取像素
+                    .bitmapConfig(Bitmap.Config.ARGB_8888)
+                    .build()
+
+            val result =
+                runCatching { SingletonImageLoader.get(this@PlayerActivity).execute(request) }
+                    .getOrNull() ?: return@launch
+
+            val bitmap = (result.image as? BitmapImage)?.bitmap ?: return@launch
+            val color = AmbientColors.extract(bitmap) ?: return@launch
+            val target = AmbientColors.gradientFor(color)
+
+            val current = binding.ambientBackdrop.background
+            if (current == null) {
+                binding.ambientBackdrop.background = target
+            } else {
+                // 切换剧集时平滑过渡，避免背景突然跳色
+                val transition = TransitionDrawable(arrayOf(current, target))
+                transition.isCrossFadeEnabled = true
+                binding.ambientBackdrop.background = transition
+                transition.startTransition(AMBIENT_FADE_DURATION)
+            }
         }
     }
 

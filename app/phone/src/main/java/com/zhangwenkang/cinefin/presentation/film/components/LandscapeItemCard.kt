@@ -56,10 +56,10 @@ import kotlinx.coroutines.delay
 fun rememberLandscapeCardWidth(): Dp {
     val screenWidth = LocalConfiguration.current.screenWidthDp
     return when {
-        screenWidth >= 1200 -> 420.dp
-        screenWidth >= 900 -> 360.dp
-        screenWidth >= 600 -> 300.dp
-        else -> 236.dp
+        screenWidth >= 1400 -> 300.dp
+        screenWidth >= 1000 -> 272.dp
+        screenWidth >= 700 -> 232.dp
+        else -> 196.dp
     }
 }
 

@@ -75,6 +75,8 @@ constructor(
 
     data class UiState(
         val currentItemTitle: String,
+        /** 当前播放条目的 id，供播放页做海报取色等与条目相关的效果 */
+        val currentItemId: UUID? = null,
         val currentSegment: FindroidSegment?,
         val currentSkipButtonStringRes: Int,
         val currentTrickplay: Trickplay?,
@@ -362,6 +364,7 @@ constructor(
                         _uiState.update {
                             it.copy(
                                 currentItemTitle = itemTitle,
+                                currentItemId = item.itemId,
                                 currentSegment = null,
                                 currentChapters = item.chapters,
                                 fileLoaded = false,
