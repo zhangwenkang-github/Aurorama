@@ -58,13 +58,11 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                         }
 
                     val episodes =
-                        repository
-                            .getEpisodes(
-                                seriesId = itemId,
-                                seasonId = season.id,
-                                fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
-                            )
-                            .filter { !it.missing }
+                        loadSeriesEpisodes(
+                            seriesId = itemId,
+                            fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
+                            fallbackSeasonId = season.id,
+                        )
 
                     if (episodes.isEmpty()) {
                         return null
@@ -78,19 +76,19 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 BaseItemKind.SEASON -> {
                     val season = repository.getSeason(itemId)
                     val episodes =
-                        repository
-                            .getEpisodes(
-                                seriesId = season.seriesId,
-                                seasonId = season.id,
-                                fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
-                            )
-                            .filter { !it.missing }
+                        loadSeriesEpisodes(
+                            seriesId = season.seriesId,
+                            fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
+                            fallbackSeasonId = season.id,
+                        )
 
                     if (episodes.isEmpty()) {
                         return null
                     }
 
-                    val episode = episodes.first()
+                    // 从这一季的第一集开始播
+                    val episode =
+                        episodes.firstOrNull { it.seasonId == season.id } ?: episodes.first()
 
                     items = episodes
                     episode
@@ -99,13 +97,11 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                     val episode = repository.getEpisode(itemId)
 
                     val episodes =
-                        repository
-                            .getEpisodes(
-                                seriesId = episode.seriesId,
-                                seasonId = episode.seasonId,
-                                fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
-                            )
-                            .filter { !it.missing }
+                        loadSeriesEpisodes(
+                            seriesId = episode.seriesId,
+                            fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
+                            fallbackSeasonId = episode.seasonId,
+                        )
 
                     items = episodes
                     episode
@@ -200,6 +196,40 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     fun setCurrentMediaItemIndex(itemId: UUID) {
         currentItemIndex = items.indexOfFirst { it.id == itemId }
     }
+
+    /**
+     * 影阁：整部剧的播放队列 = **所有季的所有集**，按「季号 → 集号」排序。
+     *
+     * 之前只取当前这一季，导致播放队列面板显示不全（用户反馈：应能看到该季所有集，
+     * 以及其他季的所有集，并按季分组）。排序后队列面板可以直接按季号分组显示。
+     */
+    private suspend fun loadSeriesEpisodes(
+        seriesId: UUID,
+        fields: List<ItemFields>,
+        fallbackSeasonId: UUID? = null,
+    ): List<FindroidEpisode> =
+        runCatching {
+                repository
+                    .getSeasons(seriesId)
+                    .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
+                    .flatMap { season ->
+                        repository
+                            .getEpisodes(seriesId = seriesId, seasonId = season.id, fields = fields)
+                            .filter { !it.missing }
+                            .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
+                    }
+            }
+            .getOrElse { error ->
+                // 拉整剧失败也绝不能让播放起不来：退回到「只加载当前这一季」
+                Timber.w(error, "拉取整剧集数失败，回退到当前季")
+                fallbackSeasonId
+                    ?.let { seasonId ->
+                        repository
+                            .getEpisodes(seriesId = seriesId, seasonId = seasonId, fields = fields)
+                            .filter { !it.missing }
+                    }
+                    .orEmpty()
+            }
 
     private suspend fun FindroidItem.toPlayerItem(
         mediaSourceIndex: Int?,

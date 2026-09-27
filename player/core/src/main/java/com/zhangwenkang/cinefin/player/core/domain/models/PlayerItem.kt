@@ -18,3 +18,9 @@ data class PlayerItem(
     val chapters: List<PlayerChapter> = emptyList(),
     val trickplayInfo: TrickplayInfo? = null,
 ) : Parcelable
+
+/** MediaItem extras：季号（队列面板按季分组用） */
+const val PLAYER_EXTRA_SEASON_NUMBER = "cinefin.seasonNumber"
+
+/** MediaItem extras：集号 */
+const val PLAYER_EXTRA_EPISODE_NUMBER = "cinefin.episodeNumber"

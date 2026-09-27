@@ -15,6 +15,7 @@
     <string name="player_controls_info">播放信息</string>
     <string name="player_controls_queue">播放队列</string>
     <string name="player_controls_queue_empty">队列为空</string>
+    <string name="player_controls_season">第 %1$d 季</string>
     <string name="player_controls_sleep_timer">睡眠定时</string>
     <string name="player_controls_sleep_off">关闭</string>
     <string name="player_controls_sleep_minutes">%1$d 分钟</string>

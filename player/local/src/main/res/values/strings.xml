@@ -12,6 +12,7 @@
     <string name="player_controls_info">Playback info</string>
     <string name="player_controls_queue">Queue</string>
     <string name="player_controls_queue_empty">Nothing queued yet</string>
+    <string name="player_controls_season">Season %1$d</string>
     <string name="player_controls_sleep_timer">Sleep timer</string>
     <string name="player_controls_sleep_off">Off</string>
     <string name="player_controls_sleep_minutes">%1$d minutes</string>

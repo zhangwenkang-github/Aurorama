@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -63,6 +65,8 @@ import androidx.media3.common.Tracks
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
@@ -154,7 +158,7 @@ private class PlayerRuntime {
     var speed by mutableFloatStateOf(1f)
     var tracks by mutableStateOf<Tracks?>(null)
     var currentIndex by mutableIntStateOf(0)
-    var queueTitles by mutableStateOf<List<String>>(emptyList())
+    var queueEntries by mutableStateOf<List<QueueEntry>>(emptyList())
     var title by mutableStateOf("")
 
     fun sync(player: Player) {
@@ -167,10 +171,18 @@ private class PlayerRuntime {
         tracks = player.currentTracks
         currentIndex = player.currentMediaItemIndex
         title = player.currentMediaItem?.mediaMetadata?.title?.toString().orEmpty()
-        if (player.mediaItemCount != queueTitles.size) {
-            queueTitles =
+        if (player.mediaItemCount != queueEntries.size) {
+            queueEntries =
                 (0 until player.mediaItemCount).map { index ->
-                    player.getMediaItemAt(index).mediaMetadata.title?.toString().orEmpty()
+                    val mediaItem = player.getMediaItemAt(index)
+                    val extras = mediaItem.mediaMetadata.extras
+                    QueueEntry(
+                        title = mediaItem.mediaMetadata.title?.toString().orEmpty(),
+                        seasonNumber =
+                            extras?.getInt(PLAYER_EXTRA_SEASON_NUMBER, -1)?.takeIf { it >= 0 },
+                        episodeNumber =
+                            extras?.getInt(PLAYER_EXTRA_EPISODE_NUMBER, -1)?.takeIf { it >= 0 },
+                    )
                 }
         }
     }
@@ -388,7 +400,7 @@ fun PlayerControlOverlay(
                     InfoPanel(runtime = runtime, title = uiState.currentItemTitle)
                 PlayerPanel.Queue ->
                     QueuePanel(
-                        titles = runtime.queueTitles,
+                        entries = runtime.queueEntries,
                         currentIndex = runtime.currentIndex,
                         onSelect = { index ->
                             player.seekTo(index, 0L)
@@ -923,6 +935,13 @@ private data class TrackOption(
     val selected: Boolean,
 )
 
+/** 播放队列里的一项：标题 + 季/集号（电影没有季号） */
+private data class QueueEntry(
+    val title: String,
+    val seasonNumber: Int?,
+    val episodeNumber: Int?,
+)
+
 private fun trackOptions(tracks: Tracks?, type: Int): List<TrackOption> {
     val groups = tracks?.groups?.filter { it.type == type && it.isSupported }.orEmpty()
     return groups.mapIndexed { index, group ->
@@ -1169,13 +1188,19 @@ private fun InfoRow(label: String, value: String) {
 
 @Composable
 private fun QueuePanel(
-    titles: List<String>,
+    entries: List<QueueEntry>,
     currentIndex: Int,
     onSelect: (Int) -> Unit,
 ) {
+    val seasons = entries.mapNotNull { it.seasonNumber }.distinct().sorted()
+    val currentSeason = entries.getOrNull(currentIndex)?.seasonNumber
+    var selectedSeason by remember(seasons, currentSeason) {
+        mutableStateOf(currentSeason ?: seasons.firstOrNull())
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         PanelTitle(stringResource(PlayerR.string.player_controls_queue))
-        if (titles.isEmpty()) {
+        if (entries.isEmpty()) {
             Text(
                 text = stringResource(PlayerR.string.player_controls_queue_empty),
                 style = MaterialTheme.typography.bodyMedium,
@@ -1184,15 +1209,60 @@ private fun QueuePanel(
             )
             return@Column
         }
+
+        // 剧集：按季分组，先选季再看集；电影等没有季信息时退化成平铺列表
+        if (seasons.isNotEmpty()) {
+            ScrollableTabRow(
+                selectedTabIndex = seasons.indexOf(selectedSeason).coerceAtLeast(0),
+                containerColor = Color.Transparent,
+                contentColor = Vermilion,
+                edgePadding = 20.dp,
+                divider = {},
+            ) {
+                seasons.forEach { season ->
+                    Tab(
+                        selected = season == selectedSeason,
+                        onClick = { selectedSeason = season },
+                        text = {
+                            Text(
+                                text =
+                                    stringResource(PlayerR.string.player_controls_season, season),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        },
+                        selectedContentColor = Vermilion,
+                        unselectedContentColor = Mist,
+                    )
+                }
+            }
+        }
+
         PanelList {
-            titles.forEachIndexed { index, name ->
+            entries.forEachIndexed { index, entry ->
+                val visible =
+                    seasons.isEmpty() ||
+                        entry.seasonNumber == null ||
+                        entry.seasonNumber == selectedSeason
+                if (!visible) return@forEachIndexed
+
                 PanelRow(
-                    label = "${index + 1}. " + name.ifBlank { "—" },
+                    label = queueLabel(index = index, entry = entry),
                     selected = index == currentIndex,
                     onClick = { onSelect(index) },
                 )
             }
         }
+    }
+}
+
+/** 队列里的单行：有集号时显示「E03 标题」，否则退化成「3. 标题」 */
+private fun queueLabel(index: Int, entry: QueueEntry): String {
+    val title = entry.title.ifBlank { "—" }
+    val episode = entry.episodeNumber
+    return if (episode != null) {
+        "E%02d  %s".format(episode, title)
+    } else {
+        "${index + 1}. $title"
     }
 }
 

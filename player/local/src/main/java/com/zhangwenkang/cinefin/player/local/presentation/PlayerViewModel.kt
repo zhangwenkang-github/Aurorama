@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.local.presentation
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -22,6 +23,8 @@ import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
@@ -247,7 +250,18 @@ constructor(
             MediaItem.Builder()
                 .setMediaId(itemId.toString())
                 .setUri(streamUrl)
-                .setMediaMetadata(MediaMetadata.Builder().setTitle(name).build())
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(name)
+                        // 队列面板需要按季分组：把季号/集号随媒体项一起带过去
+                        .setExtras(
+                            Bundle().apply {
+                                putInt(PLAYER_EXTRA_SEASON_NUMBER, parentIndexNumber ?: -1)
+                                putInt(PLAYER_EXTRA_EPISODE_NUMBER, indexNumber ?: -1)
+                            }
+                        )
+                        .build()
+                )
                 .setSubtitleConfigurations(mediaSubtitles)
                 .build()
 
