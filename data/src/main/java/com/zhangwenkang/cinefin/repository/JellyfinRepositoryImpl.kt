@@ -340,13 +340,12 @@ class JellyfinRepositoryImpl(
                 probe.firstOrNull()?.mediaStreams?.firstOrNull {
                     it.type == MediaStreamType.VIDEO
                 }
-            // 任何编码的 10-bit 片源（H.264 High 10 / HEVC Main 10 / VP9 Profile 2）都要真重编码，
-            // 否则服务器只换容器、视频仍是 10-bit，设备依旧黑屏
-            val isTenBit =
-                probeVideoStream?.bitDepth == 10 ||
-                    probeVideoStream?.profile?.contains("10", ignoreCase = true) == true
+            val isTenBitH264 =
+                probeVideoStream?.codec.equals("h264", ignoreCase = true) &&
+                    (probeVideoStream?.bitDepth == 10 ||
+                        probeVideoStream?.profile?.contains("10", ignoreCase = true) == true)
             val requestedBitrate =
-                if (isTenBit) {
+                if (isTenBitH264) {
                     val sourceBitrate =
                         probeVideoStream?.bitRate
                             ?: probe.firstOrNull()?.bitrate
@@ -377,11 +376,37 @@ class JellyfinRepositoryImpl(
                                      * 但画面全黑——用户看到的就是「视频无法播放」。
                                      * 排除这两个 10-bit profile 后，服务器会自动转码成 8-bit H.264。
                                      */
-                                    // 按本机实际解码能力生成：解不了的 profile（10-bit 等）交给服务器转码
-                                    codecProfiles = DeviceCodecProfiles.build(),
+                                    codecProfiles =
+                                        listOf(
+                                            CodecProfile(
+                                                type = CodecType.VIDEO,
+                                                codec = "h264",
+                                                conditions =
+                                                    listOf(
+                                                        ProfileCondition(
+                                                            condition =
+                                                                ProfileConditionType.NOT_EQUALS,
+                                                            property =
+                                                                ProfileConditionValue.VIDEO_PROFILE,
+                                                            value = "High 10",
+                                                            isRequired = false,
+                                                        ),
+                                                        ProfileCondition(
+                                                            condition =
+                                                                ProfileConditionType.NOT_EQUALS,
+                                                            property =
+                                                                ProfileConditionValue.VIDEO_PROFILE,
+                                                            value = "High 4:4:4 Predictive",
+                                                            isRequired = false,
+                                                        ),
+                                                    ),
+                                                // 空列表 = 这个限制对所有 h264 片源都生效
+                                                applyConditions = emptyList(),
+                                            )
+                                        ),
                                     containerProfiles = emptyList(),
                                     directPlayProfiles = emptyList(),
-                                    // 转码出口：HLS 为主、渐进 MP4 兜底（实测只留 MP4 会导致转码起不来）
+                                    // 需要转码时提供标准 HLS / MP4 两种出口（App 已带 media3-exoplayer-hls）
                                     transcodingProfiles =
                                         listOf(
                                             TranscodingProfile(
