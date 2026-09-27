@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.GestureDetector
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -33,6 +34,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sign
 import kotlinx.coroutines.Dispatchers
 import timber.log.Timber
 
@@ -267,7 +270,24 @@ class PlayerGestureHelper(
                             val currentPos = playerView.player?.currentPosition ?: 0
                             val vidDuration = (playerView.player?.duration ?: 0).coerceAtLeast(0)
 
-                            val difference = ((currentEvent.x - firstEvent.x) * 90).toLong()
+                            // 滑动距离按屏幕宽度归一化，并做渐进加速：
+                            // 小幅滑动用于精细调整，大幅滑动快速跨越较长时间
+                            val swipeRatio =
+                                (currentEvent.x - firstEvent.x) /
+                                    playerView.measuredWidth.coerceAtLeast(1).toFloat()
+                            val acceleratedRatio =
+                                swipeRatio.sign *
+                                    abs(swipeRatio).pow(Constants.SEEK_ACCELERATION_EXPONENT)
+
+                            // 滑满整屏对应的时长随视频长度变化，并限制在合理区间
+                            val fullSwipeSpanMs =
+                                (vidDuration * Constants.SEEK_FULL_SWIPE_DURATION_RATIO)
+                                    .coerceIn(
+                                        Constants.SEEK_FULL_SWIPE_MIN_MS,
+                                        Constants.SEEK_FULL_SWIPE_MAX_MS,
+                                    )
+
+                            val difference = (acceleratedRatio * fullSwipeSpanMs).toLong()
                             val newPos = (currentPos + difference).coerceIn(0, vidDuration)
 
                             activity.binding.progressScrubberLayout.visibility = View.VISIBLE
@@ -289,6 +309,7 @@ class PlayerGestureHelper(
                             }
 
                             swipeGestureProgressOpen = true
+                            playerView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             true
                         } else {
                             false
