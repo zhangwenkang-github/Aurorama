@@ -134,9 +134,7 @@ constructor(
         trackSelector.setParameters(
             trackSelector
                 .buildUponParameters()
-                // 影阁：隧道模式在部分设备与容器（尤其 HLS 转码流）上会「有声音没画面」，
-                // 关掉后直连播放不受影响、转码播放能正常出画。
-                .setTunnelingEnabled(false)
+                .setTunnelingEnabled(true)
                 // 使用用户设定的语言优先级列表（越靠前越优先）
                 .setPreferredAudioLanguages(*trackSelectionEngine.audioPriority.toTypedArray())
                 .setPreferredTextLanguages(*trackSelectionEngine.subtitlePriority.toTypedArray())

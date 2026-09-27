@@ -18,6 +18,7 @@ import android.os.Looper
 import android.os.Process
 import android.util.Rational
 import android.view.SurfaceView
+import android.view.TextureView
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
@@ -123,7 +124,8 @@ class PlayerActivity : BasePlayerActivity() {
         isControlsLocked = false
 
         binding.controlOverlayCompose.setContent {
-            CinefinTheme {
+            // 注意：这里必须关掉主题底色，否则那层不透明 Surface 会把视频画面整个盖住
+            CinefinTheme(surfaceBackground = false) {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 PlayerControlOverlay(
                     player = viewModel.player,
@@ -339,9 +341,13 @@ class PlayerActivity : BasePlayerActivity() {
 
     private fun finishPlayback() {
         try {
-            viewModel.player.clearVideoSurfaceView(
-                binding.playerView.videoSurfaceView as SurfaceView
-            )
+            // 视频输出已改为 TextureView（避免控制层覆盖时 SurfaceView 被遮挡变黑），
+            // 这里同时兼容两种输出类型
+            when (val output = binding.playerView.videoSurfaceView) {
+                is SurfaceView -> viewModel.player.clearVideoSurfaceView(output)
+                is TextureView -> viewModel.player.clearVideoTextureView(output)
+                else -> Unit
+            }
         } catch (e: Exception) {
             Timber.e(e)
         }

@@ -118,39 +118,6 @@ class JellyfinRepositoryImpl(
             }
         }
 
-    /**
-     * 当前账号是否管理员：抽屉里的「服务器控制台 / 媒体资料管理器」入口依赖它。
-     *
-     * 服务器短暂不可达时回退到本地缓存（按用户 id 校验），避免管理员入口忽隐忽现。
-     */
-    override suspend fun isCurrentUserAdministrator(): Boolean =
-        withContext(Dispatchers.IO) {
-            val currentUserId = jellyfinApi.userId?.toString()
-            val cachedUserId = appPreferences.getValue(appPreferences.currentUserIsAdministratorUserId)
-            val cachedValue = appPreferences.getValue(appPreferences.currentUserIsAdministrator)
-
-            runCatching {
-                    jellyfinApi.userApi.getCurrentUser().content.policy?.isAdministrator == true
-                }
-                .getOrNull()
-                ?.let { isAdministrator ->
-                    if (currentUserId != null && currentUserId != cachedUserId) {
-                        appPreferences.setValue(
-                            appPreferences.currentUserIsAdministratorUserId,
-                            currentUserId,
-                        )
-                    }
-                    if (cachedValue != isAdministrator) {
-                        appPreferences.setValue(
-                            appPreferences.currentUserIsAdministrator,
-                            isAdministrator,
-                        )
-                    }
-                    isAdministrator
-                }
-                ?: (currentUserId != null && currentUserId == cachedUserId && cachedValue)
-        }
-
     override suspend fun getItem(itemId: UUID): FindroidItem? =
         withContext(Dispatchers.IO) {
             jellyfinApi.userLibraryApi
@@ -349,47 +316,6 @@ class JellyfinRepositoryImpl(
     override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
         withContext(Dispatchers.IO) {
             val sources = mutableListOf<FindroidSource>()
-
-            /*
-             * 影阁：Hi10P（H.264 High 10 Profile，10-bit）自救。
-             *
-             * 这种片源「能直连、能解码、但输出黑帧」：硬件解码器不支持 High 10，
-             * 却又不会报错，于是表现为「有声音、进度在走、画面全黑」。
-             * 只在直连声明里排除它还不行——服务器的转码默认「同编码就拷贝视频」，
-             * 拷进 TS 的仍然是 10-bit，设备照样黑。
-             *
-             * 因此对这类片源，把请求码率压到源码率以下（ContainerBitrateExceedsLimit），
-             * 服务器才会真正重编码成 8-bit H.264。只影响 10-bit 片源，其它片源保持直连。
-             */
-            val probe = jellyfinApi.mediaInfoApi
-                .getPostedPlaybackInfo(
-                    itemId,
-                    PlaybackInfoDto(userId = jellyfinApi.userId!!),
-                )
-                .content
-                .mediaSources
-                .orEmpty()
-            val probeVideoStream =
-                probe.firstOrNull()?.mediaStreams?.firstOrNull {
-                    it.type == MediaStreamType.VIDEO
-                }
-            // 任何编码的 10-bit 片源（H.264 High 10 / HEVC Main 10 / VP9 Profile 2）都要真重编码，
-            // 否则服务器只换容器、视频仍是 10-bit，设备依旧黑屏
-            val isTenBit =
-                probeVideoStream?.bitDepth == 10 ||
-                    probeVideoStream?.profile?.contains("10", ignoreCase = true) == true
-            val requestedBitrate =
-                if (isTenBit) {
-                    val sourceBitrate =
-                        probeVideoStream?.bitRate
-                            ?: probe.firstOrNull()?.bitrate
-                            ?: 0
-                    // 必须低于源码率才会真正重编码；同时给一个下限避免画质压太狠
-                    ((sourceBitrate * 0.6f).toInt()).coerceIn(1_500_000, 4_000_000)
-                } else {
-                    1_000_000_000
-                }
-
             sources.addAll(
                 jellyfinApi.mediaInfoApi
                     .getPostedPlaybackInfo(
@@ -398,55 +324,20 @@ class JellyfinRepositoryImpl(
                             userId = jellyfinApi.userId!!,
                             deviceProfile =
                                 DeviceProfile(
-                                    name = "Cinefin",
+                                    name = "Direct play all",
                                     maxStaticBitrate = 1_000_000_000,
                                     maxStreamingBitrate = 1_000_000_000,
-                                    /*
-                                     * 影阁：如实声明「设备解不了什么」。
-                                     *
-                                     * 之前这里是 codecProfiles = emptyList() 的「直连一切」，
-                                     * 结果像《AURA》这种 Hi10P（H.264 High 10 Profile，10-bit）
-                                     * 片源会被直接串流：硬件解码器输出黑帧，声音和进度都正常，
-                                     * 但画面全黑——用户看到的就是「视频无法播放」。
-                                     * 排除这两个 10-bit profile 后，服务器会自动转码成 8-bit H.264。
-                                     */
-                                    // 按本机实际解码能力生成：解不了的 profile（10-bit 等）交给服务器转码
-                                    codecProfiles = DeviceCodecProfiles.build(),
+                                    codecProfiles = emptyList(),
                                     containerProfiles = emptyList(),
                                     directPlayProfiles = emptyList(),
-                                    // 转码出口：HLS 为主、渐进 MP4 兜底（实测只留 MP4 会导致转码起不来）
-                                    transcodingProfiles =
-                                        listOf(
-                                            TranscodingProfile(
-                                                container = "ts",
-                                                type = DlnaProfileType.VIDEO,
-                                                videoCodec = "h264",
-                                                audioCodec = "aac,mp3,ac3,eac3",
-                                                protocol = MediaStreamProtocol.HLS,
-                                                context = EncodingContext.STREAMING,
-                                                enableSubtitlesInManifest = true,
-                                                maxAudioChannels = "2",
-                                                minSegments = 1,
-                                                breakOnNonKeyFrames = true,
-                                                conditions = emptyList(),
-                                            ),
-                                            TranscodingProfile(
-                                                container = "mp4",
-                                                type = DlnaProfileType.VIDEO,
-                                                videoCodec = "h264",
-                                                audioCodec = "aac,mp3,ac3,eac3",
-                                                protocol = MediaStreamProtocol.HTTP,
-                                                context = EncodingContext.STREAMING,
-                                                conditions = emptyList(),
-                                            ),
-                                        ),
+                                    transcodingProfiles = emptyList(),
                                     subtitleProfiles =
                                         listOf(
                                             SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),
                                             SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
                                         ),
                                 ),
-                            maxStreamingBitrate = requestedBitrate,
+                            maxStreamingBitrate = 1_000_000_000,
                         ),
                     )
                     .content
