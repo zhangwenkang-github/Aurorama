@@ -36,16 +36,6 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DeviceOptionsDto
 import org.jellyfin.sdk.model.api.DeviceProfile
-import org.jellyfin.sdk.model.api.CodecProfile
-import org.jellyfin.sdk.model.api.CodecType
-import org.jellyfin.sdk.model.api.DlnaProfileType
-import org.jellyfin.sdk.model.api.EncodingContext
-import org.jellyfin.sdk.model.api.MediaStreamProtocol
-import org.jellyfin.sdk.model.api.MediaStreamType
-import org.jellyfin.sdk.model.api.ProfileCondition
-import org.jellyfin.sdk.model.api.ProfileConditionType
-import org.jellyfin.sdk.model.api.ProfileConditionValue
-import org.jellyfin.sdk.model.api.TranscodingProfile
 import org.jellyfin.sdk.model.api.GeneralCommandType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
@@ -316,46 +306,6 @@ class JellyfinRepositoryImpl(
     override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
         withContext(Dispatchers.IO) {
             val sources = mutableListOf<FindroidSource>()
-
-            /*
-             * 影阁：Hi10P（H.264 High 10 Profile，10-bit）自救。
-             *
-             * 这种片源「能直连、能解码、但输出黑帧」：硬件解码器不支持 High 10，
-             * 却又不会报错，于是表现为「有声音、进度在走、画面全黑」。
-             * 只在直连声明里排除它还不行——服务器的转码默认「同编码就拷贝视频」，
-             * 拷进 TS 的仍然是 10-bit，设备照样黑。
-             *
-             * 因此对这类片源，把请求码率压到源码率以下（ContainerBitrateExceedsLimit），
-             * 服务器才会真正重编码成 8-bit H.264。只影响 10-bit 片源，其它片源保持直连。
-             */
-            val probe = jellyfinApi.mediaInfoApi
-                .getPostedPlaybackInfo(
-                    itemId,
-                    PlaybackInfoDto(userId = jellyfinApi.userId!!),
-                )
-                .content
-                .mediaSources
-                .orEmpty()
-            val probeVideoStream =
-                probe.firstOrNull()?.mediaStreams?.firstOrNull {
-                    it.type == MediaStreamType.VIDEO
-                }
-            val isTenBitH264 =
-                probeVideoStream?.codec.equals("h264", ignoreCase = true) &&
-                    (probeVideoStream?.bitDepth == 10 ||
-                        probeVideoStream?.profile?.contains("10", ignoreCase = true) == true)
-            val requestedBitrate =
-                if (isTenBitH264) {
-                    val sourceBitrate =
-                        probeVideoStream?.bitRate
-                            ?: probe.firstOrNull()?.bitrate
-                            ?: 0
-                    // 必须低于源码率才会真正重编码；同时给一个下限避免画质压太狠
-                    ((sourceBitrate * 0.6f).toInt()).coerceIn(1_500_000, 4_000_000)
-                } else {
-                    1_000_000_000
-                }
-
             sources.addAll(
                 jellyfinApi.mediaInfoApi
                     .getPostedPlaybackInfo(
@@ -364,81 +314,20 @@ class JellyfinRepositoryImpl(
                             userId = jellyfinApi.userId!!,
                             deviceProfile =
                                 DeviceProfile(
-                                    name = "Cinefin",
+                                    name = "Direct play all",
                                     maxStaticBitrate = 1_000_000_000,
                                     maxStreamingBitrate = 1_000_000_000,
-                                    /*
-                                     * 影阁：如实声明「设备解不了什么」。
-                                     *
-                                     * 之前这里是 codecProfiles = emptyList() 的「直连一切」，
-                                     * 结果像《AURA》这种 Hi10P（H.264 High 10 Profile，10-bit）
-                                     * 片源会被直接串流：硬件解码器输出黑帧，声音和进度都正常，
-                                     * 但画面全黑——用户看到的就是「视频无法播放」。
-                                     * 排除这两个 10-bit profile 后，服务器会自动转码成 8-bit H.264。
-                                     */
-                                    codecProfiles =
-                                        listOf(
-                                            CodecProfile(
-                                                type = CodecType.VIDEO,
-                                                codec = "h264",
-                                                conditions =
-                                                    listOf(
-                                                        ProfileCondition(
-                                                            condition =
-                                                                ProfileConditionType.NOT_EQUALS,
-                                                            property =
-                                                                ProfileConditionValue.VIDEO_PROFILE,
-                                                            value = "High 10",
-                                                            isRequired = false,
-                                                        ),
-                                                        ProfileCondition(
-                                                            condition =
-                                                                ProfileConditionType.NOT_EQUALS,
-                                                            property =
-                                                                ProfileConditionValue.VIDEO_PROFILE,
-                                                            value = "High 4:4:4 Predictive",
-                                                            isRequired = false,
-                                                        ),
-                                                    ),
-                                                // 空列表 = 这个限制对所有 h264 片源都生效
-                                                applyConditions = emptyList(),
-                                            )
-                                        ),
+                                    codecProfiles = emptyList(),
                                     containerProfiles = emptyList(),
                                     directPlayProfiles = emptyList(),
-                                    // 需要转码时提供标准 HLS / MP4 两种出口（App 已带 media3-exoplayer-hls）
-                                    transcodingProfiles =
-                                        listOf(
-                                            TranscodingProfile(
-                                                container = "ts",
-                                                type = DlnaProfileType.VIDEO,
-                                                videoCodec = "h264",
-                                                audioCodec = "aac,mp3,ac3,eac3",
-                                                protocol = MediaStreamProtocol.HLS,
-                                                context = EncodingContext.STREAMING,
-                                                enableSubtitlesInManifest = true,
-                                                maxAudioChannels = "2",
-                                                minSegments = 1,
-                                                breakOnNonKeyFrames = true,
-                                                conditions = emptyList(),
-                                            ),
-                                            TranscodingProfile(
-                                                container = "mp4",
-                                                type = DlnaProfileType.VIDEO,
-                                                videoCodec = "h264",
-                                                audioCodec = "aac,mp3,ac3,eac3",
-                                                protocol = MediaStreamProtocol.HTTP,
-                                                context = EncodingContext.STREAMING,
-                                                conditions = emptyList(),
-                                            ),
-                                        ),
+                                    transcodingProfiles = emptyList(),
                                     subtitleProfiles =
                                         listOf(
                                             SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),
                                             SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
                                         ),
                                 ),
-                            maxStreamingBitrate = requestedBitrate,
+                            maxStreamingBitrate = 1_000_000_000,
                         ),
                     )
                     .content
@@ -662,40 +551,6 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getUserConfiguration(): UserConfiguration =
         withContext(Dispatchers.IO) { jellyfinApi.userApi.getCurrentUser().content.configuration!! }
-
-    /**
-     * 当前账号是否为管理员。
-     *
-     * 需要联网查询，但控制台入口依赖它：服务器短暂不可达时不能把管理员的入口一起藏起来，
-     * 因此把结果按账号缓存——查询成功就刷新缓存，查询失败就用同一账号的上次结果。
-     */
-    override suspend fun isCurrentUserAdministrator(): Boolean =
-        withContext(Dispatchers.IO) {
-            val currentUserId = jellyfinApi.userId?.toString()
-            val cachedUserId = appPreferences.getValue(appPreferences.currentUserIsAdministratorUserId)
-            val cachedValue = appPreferences.getValue(appPreferences.currentUserIsAdministrator)
-
-            runCatching {
-                    jellyfinApi.userApi.getCurrentUser().content.policy?.isAdministrator == true
-                }
-                .getOrNull()
-                ?.let { isAdministrator ->
-                    if (currentUserId != null && currentUserId != cachedUserId) {
-                        appPreferences.setValue(
-                            appPreferences.currentUserIsAdministratorUserId,
-                            currentUserId,
-                        )
-                    }
-                    if (cachedValue != isAdministrator) {
-                        appPreferences.setValue(
-                            appPreferences.currentUserIsAdministrator,
-                            isAdministrator,
-                        )
-                    }
-                    isAdministrator
-                }
-                ?: (currentUserId != null && currentUserId == cachedUserId && cachedValue)
-        }
 
     override suspend fun getDownloads(): List<FindroidItem> =
         withContext(Dispatchers.IO) {
