@@ -139,6 +139,17 @@ class PlayerActivity : BasePlayerActivity() {
                         binding.controlOverlay.controlsVisible = visible
                         binding.controlOverlay.panelOpen = panelOpen
                         binding.controlOverlay.locked = locked
+                        /*
+                         * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
+                         * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
+                         * 同时也保证隐藏时不接管任何触摸，手势照常生效。
+                         */
+                        binding.controlOverlay.visibility =
+                            if (visible || panelOpen || locked) {
+                                View.VISIBLE
+                            } else {
+                                View.INVISIBLE
+                            }
                     },
                 )
             }

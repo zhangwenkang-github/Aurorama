@@ -108,6 +108,39 @@ class JellyfinRepositoryImpl(
             }
         }
 
+    /**
+     * 当前账号是否管理员：抽屉里的「服务器控制台 / 媒体资料管理器」入口依赖它。
+     *
+     * 服务器短暂不可达时回退到本地缓存（按用户 id 校验），避免管理员入口忽隐忽现。
+     */
+    override suspend fun isCurrentUserAdministrator(): Boolean =
+        withContext(Dispatchers.IO) {
+            val currentUserId = jellyfinApi.userId?.toString()
+            val cachedUserId = appPreferences.getValue(appPreferences.currentUserIsAdministratorUserId)
+            val cachedValue = appPreferences.getValue(appPreferences.currentUserIsAdministrator)
+
+            runCatching {
+                    jellyfinApi.userApi.getCurrentUser().content.policy?.isAdministrator == true
+                }
+                .getOrNull()
+                ?.let { isAdministrator ->
+                    if (currentUserId != null && currentUserId != cachedUserId) {
+                        appPreferences.setValue(
+                            appPreferences.currentUserIsAdministratorUserId,
+                            currentUserId,
+                        )
+                    }
+                    if (cachedValue != isAdministrator) {
+                        appPreferences.setValue(
+                            appPreferences.currentUserIsAdministrator,
+                            isAdministrator,
+                        )
+                    }
+                    isAdministrator
+                }
+                ?: (currentUserId != null && currentUserId == cachedUserId && cachedValue)
+        }
+
     override suspend fun getItem(itemId: UUID): FindroidItem? =
         withContext(Dispatchers.IO) {
             jellyfinApi.userLibraryApi
