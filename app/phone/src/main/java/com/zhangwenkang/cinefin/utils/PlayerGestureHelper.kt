@@ -44,12 +44,22 @@ class PlayerGestureHelper(
     private val activity: PlayerActivity,
     private val playerView: PlayerView,
     private val audioManager: AudioManager,
+    /** 单击画面：切换控制层显隐（控制层由 Compose 渲染，这里只发意图） */
+    private val onSingleTap: () -> Unit = {},
 ) {
     /**
      * Tracks whether video content should fill the screen, cutting off unwanted content on the
      * sides. Useful on wide-screen phones to remove black bars from some movies.
      */
     var isZoomEnabled = false
+
+    /**
+     * 手势总闸：画中画等场景由 Activity 置为 true 临时关掉全部手势。
+     *
+     * 注意不要再用 `playerView.useController` 当开关——控制层改成 Compose 之后
+     * 它永远是 false，会把手势全禁掉。
+     */
+    var isSuspended: Boolean = false
 
     /**
      * Tracks a value during a swipe gesture (between multiple onScroll calls). When the gesture
@@ -66,7 +76,8 @@ class PlayerGestureHelper(
 
     private var lastScaleEvent: Long = 0
 
-    private var playbackSpeedIncrease: Float = 2f
+    private var playbackSpeedIncrease: Float =
+        appPreferences.getValue(appPreferences.playerGesturesSpeedMultiplier).toFloatOrNull() ?: 2f
     private var lastPlaybackSpeed: Float = 0f
 
     private val screenWidth = Resources.getSystem().displayMetrics.widthPixels
@@ -83,10 +94,7 @@ class PlayerGestureHelper(
             playerView.context,
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                    playerView.apply {
-                        if (!isControllerFullyVisible) showController() else hideController()
-                    }
-
+                    onSingleTap()
                     return true
                 }
 
@@ -97,11 +105,10 @@ class PlayerGestureHelper(
                     // Stop long press gesture when more than 1 pointer
                     if (currentNumberOfPointers > 1) return
 
-                    // This is a temporary solution for chapter skipping.
-                    // TODO: Remove this after implementing #636
-                    if (appPreferences.getValue(appPreferences.playerGesturesChapterSkip)) {
-                        handleChapterSkip(e)
-                    } else {
+                    // 章节手势开启时优先跳章节，其余情况（中间区域、片源没有章节）回退到长按倍速
+                    val chapterSkipEnabled =
+                        appPreferences.getValue(appPreferences.playerGesturesChapterSkip)
+                    if (!chapterSkipEnabled || !handleChapterSkip(e)) {
                         enableSpeedIncrease()
                     }
                 }
@@ -143,15 +150,16 @@ class PlayerGestureHelper(
             if (it.isPlaying) {
                 lastPlaybackSpeed = it.playbackParameters.speed
                 it.setPlaybackSpeed(playbackSpeedIncrease)
-                activity.binding.gestureSpeedText.text = playbackSpeedIncrease.toString() + "x"
+                activity.binding.gestureSpeedText.text = formatSpeedLabel(playbackSpeedIncrease)
                 activity.binding.gestureSpeedLayout.visibility = View.VISIBLE
             }
         }
     }
 
-    private fun handleChapterSkip(e: MotionEvent) {
+    /** @return 是否已跳转章节；返回 false 表示当前位置没有可跳的章节，可回退到长按倍速 */
+    private fun handleChapterSkip(e: MotionEvent): Boolean {
         if (isControlsLocked) {
-            return
+            return false
         }
 
         val viewWidth = playerView.measuredWidth
@@ -162,20 +170,31 @@ class PlayerGestureHelper(
         val middleAreaStart = areaWidth * 2
         val rightmostAreaStart = middleAreaStart + areaWidth
 
-        when (e.x.toInt()) {
-            in leftmostAreaStart until middleAreaStart -> {
+        return when (e.x.toInt()) {
+            in leftmostAreaStart until middleAreaStart ->
                 activity.viewModel.seekToPreviousChapter()?.let { chapter ->
                     displayChapter(chapter)
-                }
-            }
+                    true
+                } ?: false
+
             in rightmostAreaStart until viewWidth -> {
+                val player = playerView.player
                 if (activity.viewModel.isLastChapter()) {
-                    playerView.player?.seekToNextMediaItem()
-                    return
+                    if (player != null && player.hasNextMediaItem()) {
+                        player.seekToNextMediaItem()
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    activity.viewModel.seekToNextChapter()?.let { chapter ->
+                        displayChapter(chapter)
+                        true
+                    } ?: false
                 }
-                activity.viewModel.seekToNextChapter()?.let { chapter -> displayChapter(chapter) }
             }
-            else -> return
+
+            else -> false
         }
     }
 
@@ -183,7 +202,12 @@ class PlayerGestureHelper(
         activity.binding.progressScrubberTrickplay.visibility = View.GONE
         activity.binding.progressScrubberLayout.visibility = View.VISIBLE
         activity.binding.progressScrubberText.text = chapter.name ?: ""
+        activity.binding.progressScrubberTarget.visibility = View.GONE
     }
+
+    /** 倍速显示：整数倍显示为 2×，半档显示为 1.5× */
+    private fun formatSpeedLabel(speed: Float): String =
+        if (speed % 1f == 0f) "${speed.toInt()}×" else "$speed×"
 
     private fun fastForward() {
         val currentPosition = playerView.player?.currentPosition ?: 0
@@ -285,6 +309,11 @@ class PlayerGestureHelper(
                                     .coerceIn(
                                         Constants.SEEK_FULL_SWIPE_MIN_MS,
                                         Constants.SEEK_FULL_SWIPE_MAX_MS,
+                                    ) *
+                                    Constants.GestureSensitivity.seekMultiplier(
+                                        appPreferences.getValue(
+                                            appPreferences.playerGesturesSeekSensitivity
+                                        )
                                     )
 
                             val difference = (acceleratedRatio * fullSwipeSpanMs).toLong()
@@ -292,7 +321,10 @@ class PlayerGestureHelper(
 
                             activity.binding.progressScrubberLayout.visibility = View.VISIBLE
                             activity.binding.progressScrubberText.text =
-                                "${longToTimestamp(difference)} [${longToTimestamp(newPos, true)}]"
+                                longToTimestamp(difference)
+                            activity.binding.progressScrubberTarget.text =
+                                "[${longToTimestamp(newPos, true)}]"
+                            activity.binding.progressScrubberTarget.visibility = View.VISIBLE
                             swipeGestureValueTrackerProgress = newPos
 
                             if (
@@ -347,7 +379,12 @@ class PlayerGestureHelper(
 
                     // Distance to swipe to go from min to max
                     val distanceFull =
-                        playerView.measuredHeight * Constants.FULL_SWIPE_RANGE_SCREEN_RATIO
+                        playerView.measuredHeight *
+                            Constants.GestureSensitivity.verticalScreenRatio(
+                                appPreferences.getValue(
+                                    appPreferences.playerGesturesVerticalSensitivity
+                                )
+                            )
                     val ratioChange = distanceY / distanceFull
 
                     if (firstEvent.x.toInt() > viewCenterX) {
@@ -604,7 +641,7 @@ class PlayerGestureHelper(
 
         @Suppress("ClickableViewAccessibility")
         playerView.setOnTouchListener { _, event ->
-            if (playerView.useController) {
+            if (!isSuspended) {
                 currentNumberOfPointers = event.pointerCount
                 when (event.pointerCount) {
                     1 -> {

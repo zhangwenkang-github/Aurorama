@@ -27,8 +27,11 @@ import android.widget.ImageView
 import android.widget.Space
 import android.widget.TextView
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.C
@@ -46,8 +49,11 @@ import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.presentation.player.PlayerControlOverlay
+import com.zhangwenkang.cinefin.presentation.player.PlayerControlsState
 import com.zhangwenkang.cinefin.presentation.player.SpeedSelectionDialogFragment
 import com.zhangwenkang.cinefin.presentation.player.TrackSelectionDialogFragment
+import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.AmbientColors
 import com.zhangwenkang.cinefin.utils.PlayerGestureHelper
@@ -75,12 +81,11 @@ class PlayerActivity : BasePlayerActivity() {
 
     override fun isBackgroundAudioEnabled(): Boolean =
         appPreferences.getValue(appPreferences.playerBackgroundAudio)
-    private var previewScrubListener: PreviewScrubListener? = null
     private var wasZoom: Boolean = false
-    private var skipButtonTimeoutExpired: Boolean = true
     private var ambientItemId: UUID? = null
 
-    private lateinit var skipSegmentButton: Button
+    /** Compose 控制层的可见性/锁定状态：控件层与手势层共用同一份状态 */
+    private val controlsState = PlayerControlsState()
 
     private val isPipSupported by lazy {
         // Check if device has PiP feature
@@ -97,14 +102,6 @@ class PlayerActivity : BasePlayerActivity() {
         ) == AppOpsManager.MODE_ALLOWED
     }
 
-    private val handler = Handler(Looper.getMainLooper())
-    private val skipButtonTimeout = Runnable {
-        if (!binding.playerView.isControllerFullyVisible) {
-            skipSegmentButton.isVisible = false
-            skipButtonTimeoutExpired = true
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -118,21 +115,49 @@ class PlayerActivity : BasePlayerActivity() {
 
         binding.playerView.player = viewModel.player
         configureSubtitleStyle()
-        binding.playerView.setControllerVisibilityListener(
-            PlayerView.ControllerVisibilityListener { visibility ->
-                if (visibility == View.GONE) {
-                    hideSystemUI()
-                }
-            }
-        )
 
-        val playerControls = binding.playerView.findViewById<View>(R.id.player_controls)
-        val lockedControls = binding.playerView.findViewById<View>(R.id.locked_player_view)
+        // 控制层改用 Compose 渲染（PlayerControlOverlay），Media3 自带控制器整体停用：
+        // 皮肤、面板、动效因此只有一套实现，也不会再出现两套控件互相打架
+        binding.playerView.useController = false
 
         isControlsLocked = false
 
-        configureInsets(playerControls)
-        configureInsets(lockedControls)
+        binding.controlOverlayCompose.setContent {
+            CinefinTheme {
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                PlayerControlOverlay(
+                    player = viewModel.player,
+                    uiState = uiState,
+                    controls = controlsState,
+                    isPipSupported = isPipSupported,
+                    onBack = { finishPlayback() },
+                    onPip = { pictureInPicture() },
+                    onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
+                    onSelectTrack = { type, index -> viewModel.switchToTrack(type, index) },
+                    onSkipSegment = { segment -> viewModel.skipSegment(segment) },
+                    onRegionsChanged = { visible, panelOpen, locked ->
+                        binding.controlOverlay.controlsVisible = visible
+                        binding.controlOverlay.panelOpen = panelOpen
+                        binding.controlOverlay.locked = locked
+                    },
+                )
+            }
+        }
+
+        // 锁定状态回写：手势层读同一个标记，锁屏后只留解锁按钮
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                snapshotFlow { controlsState.locked }.collect { locked ->
+                    isControlsLocked = locked
+                    requestedOrientation =
+                        if (locked) {
+                            ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        }
+                }
+            }
+        }
 
         if (appPreferences.getValue(appPreferences.playerGestures)) {
             playerGestureHelper =
@@ -141,22 +166,9 @@ class PlayerActivity : BasePlayerActivity() {
                     this,
                     binding.playerView,
                     getSystemService(AUDIO_SERVICE) as AudioManager,
+                    onSingleTap = { controlsState.toggle() },
                 )
         }
-
-        binding.playerView.findViewById<View>(R.id.back_button).setOnClickListener {
-            finishPlayback()
-        }
-
-        val videoNameTextView = binding.playerView.findViewById<TextView>(R.id.video_name)
-
-        val audioButton = binding.playerView.findViewById<ImageButton>(R.id.btn_audio_track)
-        val subtitleButton = binding.playerView.findViewById<ImageButton>(R.id.btn_subtitle)
-        val speedButton = binding.playerView.findViewById<ImageButton>(R.id.btn_speed)
-        skipSegmentButton = binding.playerView.findViewById(R.id.btn_skip_segment)
-        val pipButton = binding.playerView.findViewById<ImageButton>(R.id.btn_pip)
-        val lockButton = binding.playerView.findViewById<ImageButton>(R.id.btn_lockview)
-        val unlockButton = binding.playerView.findViewById<ImageButton>(R.id.btn_unlock)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -164,74 +176,12 @@ class PlayerActivity : BasePlayerActivity() {
                     viewModel.uiState.collect { uiState ->
                         Timber.d("$uiState")
                         uiState.apply {
-                            // Title
-                            videoNameTextView.text = currentItemTitle
-
                             // 氛围背景：跟随当前影片海报取色
                             currentItemId?.let { updateAmbientBackdrop(it) }
 
-                            // Media segment
-                            currentSegment?.let { segment ->
-                                // Skip Button - text
-                                skipSegmentButton.text = getString(currentSkipButtonStringRes)
-                                // Skip Button - visibility
-                                skipSegmentButton.isVisible = !isInPictureInPictureMode
-                                if (skipSegmentButton.isVisible) {
-                                    skipButtonTimeoutExpired = false
-                                    handler.removeCallbacks(skipButtonTimeout)
-                                    handler.postDelayed(
-                                        skipButtonTimeout,
-                                        viewModel.segmentsSkipButtonDuration * 1000,
-                                    )
-                                }
-                                // Skip Button - onClick
-                                skipSegmentButton.setOnClickListener {
-                                    viewModel.skipSegment(segment)
-                                    skipSegmentButton.isVisible = false
-                                }
-                            } ?: run { skipSegmentButton.isVisible = false }
-
-                            binding.playerView.setControllerVisibilityListener(
-                                PlayerView.ControllerVisibilityListener { visibility ->
-                                    if (skipButtonTimeoutExpired && currentSegment != null) {
-                                        skipSegmentButton.visibility = visibility
-                                    }
-                                }
-                            )
-
-                            // Trickplay
-                            previewScrubListener?.let { it.currentTrickplay = currentTrickplay }
-
+                            // 标题 / 章节 / 片段 / Trickplay 直接由 Compose 控制层消费 uiState；
+                            // 这里只把 Trickplay 同步给手势层的进度 HUD
                             playerGestureHelper?.let { it.currentTrickplay = currentTrickplay }
-
-                            // Chapters
-                            val playerControlView =
-                                findViewById<PlayerControlView>(R.id.exo_controller)
-                            if (currentChapters.isNotEmpty()) {
-                                val numOfChapters = currentChapters.size
-                                playerControlView.setExtraAdGroupMarkers(
-                                    LongArray(numOfChapters) { index ->
-                                        currentChapters[index].startPosition
-                                    },
-                                    BooleanArray(numOfChapters) { false },
-                                )
-                            } else {
-                                playerControlView.setExtraAdGroupMarkers(null, null)
-                            }
-
-                            // File Loaded
-                            if (fileLoaded) {
-                                audioButton.isEnabled = true
-                                audioButton.imageAlpha = 255
-                                lockButton.isEnabled = true
-                                lockButton.imageAlpha = 255
-                                subtitleButton.isEnabled = true
-                                subtitleButton.imageAlpha = 255
-                                speedButton.isEnabled = true
-                                speedButton.imageAlpha = 255
-                                pipButton.isEnabled = true
-                                pipButton.imageAlpha = 255
-                            }
                         }
                     }
                 }
@@ -278,72 +228,6 @@ class PlayerActivity : BasePlayerActivity() {
                     }
                 }
             }
-        }
-
-        audioButton.isEnabled = false
-        audioButton.imageAlpha = 75
-
-        lockButton.isEnabled = false
-        lockButton.imageAlpha = 75
-
-        subtitleButton.isEnabled = false
-        subtitleButton.imageAlpha = 75
-
-        speedButton.isEnabled = false
-        speedButton.imageAlpha = 75
-
-        if (isPipSupported) {
-            pipButton.isEnabled = false
-            pipButton.imageAlpha = 75
-        } else {
-            val pipSpace = binding.playerView.findViewById<Space>(R.id.space_pip)
-            pipButton.isVisible = false
-            pipSpace.isVisible = false
-        }
-
-        audioButton.setOnClickListener {
-            TrackSelectionDialogFragment(C.TRACK_TYPE_AUDIO, viewModel)
-                .show(supportFragmentManager, "trackselectiondialog")
-        }
-
-        val exoPlayerControlView = findViewById<FrameLayout>(R.id.player_controls)
-        val lockedLayout = findViewById<FrameLayout>(R.id.locked_player_view)
-
-        lockButton.setOnClickListener {
-            exoPlayerControlView.visibility = View.GONE
-            lockedLayout.visibility = View.VISIBLE
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
-            isControlsLocked = true
-        }
-
-        unlockButton.setOnClickListener {
-            exoPlayerControlView.visibility = View.VISIBLE
-            lockedLayout.visibility = View.GONE
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            isControlsLocked = false
-        }
-
-        subtitleButton.setOnClickListener {
-            TrackSelectionDialogFragment(C.TRACK_TYPE_TEXT, viewModel)
-                .show(supportFragmentManager, "trackselectiondialog")
-        }
-
-        speedButton.setOnClickListener {
-            SpeedSelectionDialogFragment(viewModel)
-                .show(supportFragmentManager, "speedselectiondialog")
-        }
-
-        pipButton.setOnClickListener { pictureInPicture() }
-
-        // Set marker color
-        val timeBar = binding.playerView.findViewById<DefaultTimeBar>(R.id.exo_progress)
-        timeBar.setAdMarkerColor(Color.WHITE)
-
-        if (appPreferences.getValue(appPreferences.playerTrickplay)) {
-            val imagePreview = binding.playerView.findViewById<ImageView>(R.id.image_preview)
-            previewScrubListener = PreviewScrubListener(imagePreview, timeBar, viewModel.player)
-
-            timeBar.addListener(previewScrubListener!!)
         }
 
         viewModel.initializePlayer(
@@ -450,7 +334,6 @@ class PlayerActivity : BasePlayerActivity() {
         } catch (e: Exception) {
             Timber.e(e)
         }
-        handler.removeCallbacks(skipButtonTimeout)
         finish()
     }
 
@@ -522,8 +405,8 @@ class PlayerActivity : BasePlayerActivity() {
         viewModel.isInPictureInPictureMode = isInPictureInPictureMode
         when (isInPictureInPictureMode) {
             true -> {
-                binding.playerView.useController = false
-                skipSegmentButton.isVisible = false
+                controlsState.visible = false
+                playerGestureHelper?.isSuspended = true
 
                 wasZoom = playerGestureHelper?.isZoomEnabled == true
                 playerGestureHelper?.updateZoomMode(false)
@@ -536,7 +419,8 @@ class PlayerActivity : BasePlayerActivity() {
             }
 
             false -> {
-                binding.playerView.useController = true
+                controlsState.show()
+                playerGestureHelper?.isSuspended = false
                 playerGestureHelper?.updateZoomMode(wasZoom)
 
                 // Override auto brightness

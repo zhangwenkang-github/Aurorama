@@ -403,3 +403,27 @@ PlayerEffect (Channel)     一次性：提示、跳下一集、退出、进入 P
 - 代码对应关系：`app/phone/.../PlayerActivity.kt`、`utils/PlayerGestureHelper.kt`、
   `player/local/.../PlayerViewModel.kt`、`app/tv/.../ui/PlayerScreen.kt`。
 - 本轮已落地：媒体库与抽屉导航、后台继续播放开关；播放界面自身的 Compose 化与面板系统进入 P1。
+
+---
+
+## 十三、P1 落地进度（2026-09-27）
+
+### 已完成
+
+| P1 项 | 实现 | 验证 |
+|-------|------|------|
+| 控制层 Compose 化 | 新增 `presentation/player/PlayerControlOverlay.kt`：顶栏（返回/标题/画中画/锁）、中央大控件（上一集/快退/播放暂停/快进/下一集 + 缓冲圈）、底栏（自绘进度条 + 章节刻度 + 缓冲段 + 拖动手柄、时间/剩余、速度、字幕、音轨、信息、队列、睡眠、锁）；Media3 自带控制层整体停用（`useController=false`） | 模拟器横屏实测：控件渲染、章节刻度可见、点击/自动隐藏正常 |
+| Trickplay 预览搬进 Compose | 拖动进度条时按 `Trickplay.interval` 取帧，显示 160dp 缩略图 + 目标时间 | 已接线（片源无预览帧时自动不显示） |
+| 面板系统 | `ModalBottomSheet` + `PlayerPanelHost`：倍速（0.25×–3×）、字幕（含「关闭字幕」）、音轨、播放信息、播放队列、睡眠定时 | 倍速/队列面板截图见 `docs/screenshots/player-panel-*.png` |
+| 睡眠定时 | 10/20/30/60 分钟，倒计时显示在时间行，到点自动暂停 | 面板可选，倒计时逻辑已接线 |
+| 锁屏防误触 | 锁屏后只保留一个可拖的解锁圆钮；由 Activity 同步 `isControlsLocked` 并锁定屏幕方向 | 实测锁定/解锁均正常（`player-locked-2026-09-27.png`） |
+| 触摸区域托管 | 新增 `PlayerOverlayContainer`：只有顶部 76dp / 中央 520×180dp / 底部 210dp 三个区交给 Compose，其余触摸原样放行给手势层 | 实测：单击显隐、双击、边缘滑动仍走既有手势实现 |
+| 手势层解耦 | 去掉 `PlayerGestureHelper` 里 `if (playerView.useController)` 这个隐式开关（控制层换成 Compose 后它恒为 false，会把手势全禁掉），改为显式的 `isSuspended`（仅画中画时置位） | 修复过程中实测复现并回归 |
+
+### 仍然待办（P1 剩余 / P2）
+
+1. 队列拖拽排序与循环模式（`PlaylistManager` 目前只有顺序播放）。
+2. 字幕延迟、双语、画面比例菜单（当前面板先落了倍速/字幕/音轨/信息/队列/睡眠）。
+3. 前台服务 + 通知栏按钮（现在只有 MediaSession，后台播放靠 `onPause` 不暂停实现）。
+4. 外部播放器、横屏视频从横屏启动、网络缓冲档位三条设置项。
+5. 音频形态（封面 + 歌词 + 队列）。
