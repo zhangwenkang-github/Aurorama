@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.recalculateWindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -19,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -36,6 +39,7 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun DownloadsScreen(
+    onOpenDrawer: () -> Unit,
     onItemClick: (item: FindroidItem) -> Unit,
     viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
@@ -44,6 +48,7 @@ fun DownloadsScreen(
     LaunchedEffect(true) { viewModel.loadItems() }
 
     DownloadsScreenLayout(
+        onOpenDrawer = onOpenDrawer,
         state = state,
         onAction = { action ->
             when (action) {
@@ -56,7 +61,11 @@ fun DownloadsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DownloadsScreenLayout(state: CollectionState, onAction: (CollectionAction) -> Unit) {
+private fun DownloadsScreenLayout(
+    onOpenDrawer: () -> Unit,
+    state: CollectionState,
+    onAction: (CollectionAction) -> Unit,
+) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
@@ -67,6 +76,15 @@ private fun DownloadsScreenLayout(state: CollectionState, onAction: (CollectionA
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(CoreR.string.title_download)) },
+                navigationIcon = {
+                    // 与首页/媒体库一致：左上角永远是抽屉入口
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(
+                            painter = painterResource(CoreR.drawable.ic_menu),
+                            contentDescription = null,
+                        )
+                    }
+                },
                 windowInsets = WindowInsets.statusBars.union(WindowInsets.displayCutout),
                 scrollBehavior = scrollBehavior,
             )
@@ -92,6 +110,7 @@ private fun DownloadsScreenLayout(state: CollectionState, onAction: (CollectionA
 private fun DownloadsScreenLayoutPreview() {
     CinefinTheme {
         DownloadsScreenLayout(
+            onOpenDrawer = {},
             state =
                 CollectionState(
                     sections =

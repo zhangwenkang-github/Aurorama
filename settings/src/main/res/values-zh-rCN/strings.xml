@@ -8,6 +8,9 @@
     <string name="settings_subtitle_mode">字幕显示</string>
     <string name="settings_remember_track_selection">记住轨道选择</string>
     <string name="settings_remember_track_selection_summary">手动切换字幕后，后续视频自动沿用同一语言</string>
+    <string name="player_gestures_speed">长按倍速档位</string>
+    <string name="player_gestures_seek_sensitivity">快进手势灵敏度</string>
+    <string name="player_gestures_vertical_sensitivity">亮度/音量灵敏度</string>
     <string name="settings_category_servers">服务器</string>
     <string name="settings_category_player">播放器</string>
     <string name="settings_category_download">下载</string>
@@ -60,10 +63,13 @@
     <string name="picture_in_picture">画中画</string>
     <string name="picture_in_picture_gesture_summary">在视频播放时使用主页按钮或手势进入画中画模式</string>
     <string name="picture_in_picture_gesture">画中画返回手势</string>
+    <string name="background_playback">后台播放</string>
+    <string name="pref_player_background_audio">后台继续播放</string>
+    <string name="pref_player_background_audio_summary">离开播放页后声音继续播放（与官方客户端一致）</string>
     <string name="player_start_maximized">最大化启动</string>
     <string name="player_start_maximized_summary">默认以最大化模式打开视频</string>
     <string name="player_gestures_chapter_skip">章节手势</string>
-    <string name="player_gestures_chapter_skip_summary">长按左/右侧可跳过章节（覆盖 2 倍速度手势）</string>
+    <string name="player_gestures_chapter_skip_summary">长按左/右侧可跳过章节（中间区域仍为倍速播放）</string>
     <string name="pref_player_chapter_markers">章节标记</string>
     <string name="pref_player_chapter_markers_summary">在进度栏上显示章节标记</string>
     <string name="pref_player_trickplay">进度条预览图</string>

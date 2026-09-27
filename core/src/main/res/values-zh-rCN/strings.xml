@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="drawer_server_section">服务器</string>
+    <string name="drawer_section_system">系统</string>
+    <string name="app_tagline">你的私人影音库</string>
+    <string name="role_administrator">管理员</string>
+    <string name="role_regular_user">普通用户</string>
     <string name="title_console">服务器控制台</string>
+    <string name="title_metadata_manager">媒体资料管理器</string>
+    <string name="drawer_section_media">媒体</string>
+    <string name="drawer_section_management">管理</string>
+    <string name="drawer_section_user">用户</string>
     <string name="drawer_no_server">尚未添加服务器</string>
     <string name="app_name">影阁</string>
     <string name="jellyfin_banner">Jellyfin 横幅</string>
     <string name="writers">作者</string>
     <string name="remove">删除</string>
     <string name="cancel">取消</string>
-    <string name="title_media">我的媒体</string>
+    <string name="title_media">媒体库</string>
     <string name="title_favorite">收藏</string>
     <string name="view_all">查看所有</string>
     <string name="error_loading_data">加载数据错误</string>

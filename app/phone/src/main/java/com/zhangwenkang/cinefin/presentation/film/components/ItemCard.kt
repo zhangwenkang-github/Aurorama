@@ -40,6 +40,7 @@ fun ItemCard(
         when (direction) {
             Direction.HORIZONTAL -> 260
             Direction.VERTICAL -> 150
+            Direction.SQUARE -> 184
         }
     Column(
         modifier =

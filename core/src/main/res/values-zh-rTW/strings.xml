@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="drawer_server_section">伺服器</string>
+    <string name="drawer_section_system">系統</string>
+    <string name="app_tagline">你的私人影音庫</string>
+    <string name="role_administrator">管理員</string>
+    <string name="role_regular_user">一般使用者</string>
     <string name="title_console">伺服器控制台</string>
+    <string name="title_metadata_manager">媒體資料管理器</string>
+    <string name="drawer_section_media">媒體</string>
+    <string name="drawer_section_management">管理</string>
+    <string name="drawer_section_user">使用者</string>
     <string name="drawer_no_server">尚未新增伺服器</string>
     <string name="app_name">影閣</string>
     <string name="jellyfin_banner">Jellyfin 橫幅</string>

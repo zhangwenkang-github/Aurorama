@@ -43,9 +43,22 @@ constructor(
                 CollectionType.Movies -> listOf(BaseItemKind.MOVIE)
                 CollectionType.TvShows -> listOf(BaseItemKind.SERIES)
                 CollectionType.BoxSets -> listOf(BaseItemKind.BOX_SET)
+                // 音乐库先列专辑（点进去是歌），图书库列书，家庭视频列视频，播放列表列列表
+                CollectionType.Music -> listOf(BaseItemKind.MUSIC_ALBUM)
+                CollectionType.Books -> listOf(BaseItemKind.BOOK)
+                CollectionType.HomeVideos -> listOf(BaseItemKind.VIDEO)
+                CollectionType.Playlists -> listOf(BaseItemKind.PLAYLIST)
                 CollectionType.Mixed,
                 CollectionType.Folders ->
-                    listOf(BaseItemKind.FOLDER, BaseItemKind.MOVIE, BaseItemKind.SERIES)
+                    listOf(
+                        BaseItemKind.FOLDER,
+                        BaseItemKind.MOVIE,
+                        BaseItemKind.SERIES,
+                        BaseItemKind.MUSIC_ALBUM,
+                        BaseItemKind.BOOK,
+                        BaseItemKind.VIDEO,
+                        BaseItemKind.PLAYLIST,
+                    )
                 else -> null
             }
 

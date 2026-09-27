@@ -79,7 +79,13 @@ import kotlinx.coroutines.launch
 
 @Serializable data object DownloadsRoute
 
-@Serializable data object ConsoleRoute
+/**
+ * 服务器 Web 控制台。
+ *
+ * [path] 决定进后台的哪一页：`/dashboard` 是控制台，`/metadata` 是媒体资料管理器，
+ * `/details?id=…` 用来把图书之类的条目交给服务器自带的阅读器。
+ */
+@Serializable data class ConsoleRoute(val path: String = "/dashboard")
 
 @Serializable
 data class LibraryRoute(
@@ -183,8 +189,19 @@ fun NavigationRoot(
                 downloadsRoute = DownloadsRoute,
                 settingsRoute = settingsRoute,
                 serversRoute = ServersRoute,
-                consoleRoute = ConsoleRoute,
+                consoleRoute = ConsoleRoute(),
+                metadataRoute = ConsoleRoute(path = "/metadata"),
                 showMedia = !isOfflineMode,
+                isOpen = drawerState.isOpen,
+                onOpenLibrary = { library ->
+                    navController.safeNavigate(
+                        LibraryRoute(
+                            libraryId = library.id.toString(),
+                            libraryName = library.name,
+                            libraryType = library.type,
+                        )
+                    )
+                },
                 onNavigate = { route ->
                     scope.launch { drawerState.close() }
                     navController.navigate(route) {
@@ -286,6 +303,7 @@ fun NavigationRoot(
             }
             composable<MediaRoute> {
                 MediaScreen(
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
                     onItemClick = { item ->
                         navigateToItem(navController = navController, item = item)
                     },
@@ -296,13 +314,18 @@ fun NavigationRoot(
             }
             composable<DownloadsRoute> {
                 DownloadsScreen(
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
                     onItemClick = { item ->
                         navigateToItem(navController = navController, item = item)
                     }
                 )
             }
-            composable<ConsoleRoute> {
-                WebConsoleScreen(onBack = { navController.safePopBackStack() })
+            composable<ConsoleRoute> { backStackEntry ->
+                val route: ConsoleRoute = backStackEntry.toRoute()
+                WebConsoleScreen(
+                    initialPath = route.path,
+                    onBack = { navController.safePopBackStack() },
+                )
             }
             composable<LibraryRoute> { backStackEntry ->
                 val route: LibraryRoute = backStackEntry.toRoute()
@@ -462,13 +485,18 @@ private fun navigateToItem(navController: NavHostController, item: FindroidItem)
                 )
             )
         is FindroidFolder ->
-            navController.safeNavigate(
-                LibraryRoute(
-                    libraryId = item.id.toString(),
-                    libraryName = item.name,
-                    libraryType = CollectionType.Folders,
+            // 图书（小说 / 漫画）交给服务器自带的阅读器，其余文件夹按目录继续往下浏览
+            if (item.kind == "Book") {
+                navController.safeNavigate(ConsoleRoute(path = "/details?id=${item.id}"))
+            } else {
+                navController.safeNavigate(
+                    LibraryRoute(
+                        libraryId = item.id.toString(),
+                        libraryName = item.name,
+                        libraryType = CollectionType.Folders,
+                    )
                 )
-            )
+            }
         else -> Unit
     }
 }

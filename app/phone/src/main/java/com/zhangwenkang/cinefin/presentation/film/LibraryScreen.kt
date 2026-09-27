@@ -82,6 +82,7 @@ fun LibraryScreen(
 
     LibraryScreenLayout(
         libraryName = libraryName,
+        libraryType = libraryType,
         state = state,
         onAction = { action ->
             when (action) {
@@ -98,10 +99,32 @@ fun LibraryScreen(
 @Composable
 private fun LibraryScreenLayout(
     libraryName: String,
+    libraryType: CollectionType,
     state: LibraryState,
     onAction: (LibraryAction) -> Unit,
 ) {
     val contentPadding = PaddingValues(all = MaterialTheme.spacings.default)
+
+    /**
+     * 按库类型换版式：
+     * - 音乐：方形专辑封面（1:1），一屏能看到更多张
+     * - 家庭视频 / 播放列表：横版卡片，符合「一段影像 / 一串列表」的直觉
+     * - 电影 / 剧集 / 图书 / 混合：竖版海报
+     */
+    val direction =
+        when (libraryType) {
+            CollectionType.HomeVideos,
+            CollectionType.Playlists -> Direction.HORIZONTAL
+            CollectionType.Music -> Direction.SQUARE
+            else -> Direction.VERTICAL
+        }
+    val minColumnSize =
+        when (libraryType) {
+            CollectionType.Music -> 184.dp
+            CollectionType.HomeVideos,
+            CollectionType.Playlists -> 260.dp
+            else -> 160.dp
+        }
 
     val items = state.items.collectAsLazyPagingItems()
 
@@ -145,7 +168,7 @@ private fun LibraryScreenLayout(
                 modifier = Modifier.fillMaxWidth().padding(contentPadding + innerPadding),
             )
             LazyVerticalGrid(
-                columns = GridCellsAdaptiveWithMinColumns(minSize = 160.dp, minColumns = 2),
+                columns = GridCellsAdaptiveWithMinColumns(minSize = minColumnSize, minColumns = 2),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = contentPadding + innerPadding,
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
@@ -156,7 +179,7 @@ private fun LibraryScreenLayout(
                     item?.let { item ->
                         ItemCard(
                             item = item,
-                            direction = Direction.VERTICAL,
+                            direction = direction,
                             onClick = { onAction(LibraryAction.OnItemClick(item)) },
                             modifier = Modifier.animateItem(),
                         )
@@ -219,6 +242,7 @@ private fun LibraryScreenLayoutPreview() {
     CinefinTheme {
         LibraryScreenLayout(
             libraryName = "Movies",
+            libraryType = CollectionType.Movies,
             state = LibraryState(items = items),
             onAction = {},
         )

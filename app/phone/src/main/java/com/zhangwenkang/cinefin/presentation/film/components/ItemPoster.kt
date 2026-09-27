@@ -16,6 +16,8 @@ import com.zhangwenkang.cinefin.models.FindroidMovie
 enum class Direction {
     HORIZONTAL,
     VERTICAL,
+    /** 方形封面：音乐专辑、播客封面这类 1:1 的图 */
+    SQUARE,
 }
 
 @Composable
@@ -32,6 +34,7 @@ fun ItemPoster(item: FindroidItem, direction: Direction, modifier: Modifier = Mo
                 is FindroidEpisode -> imageUri = item.images.showPrimary
             }
         }
+        Direction.SQUARE -> Unit
     }
 
     // Ugly workaround to append the files directory when loading local images
@@ -49,7 +52,13 @@ fun ItemPoster(item: FindroidItem, direction: Direction, modifier: Modifier = Mo
         contentScale = ContentScale.Crop,
         modifier =
             modifier
-                .aspectRatio(if (direction == Direction.HORIZONTAL) 1.77f else 0.66f)
+                .aspectRatio(
+                    when (direction) {
+                        Direction.HORIZONTAL -> 1.77f
+                        Direction.VERTICAL -> 0.66f
+                        Direction.SQUARE -> 1f
+                    }
+                )
                 .background(MaterialTheme.colorScheme.surfaceContainer),
     )
 }

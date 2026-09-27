@@ -32,6 +32,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
@@ -70,6 +72,9 @@ class PlayerActivity : BasePlayerActivity() {
     lateinit var binding: ActivityPlayerBinding
     private var playerGestureHelper: PlayerGestureHelper? = null
     override val viewModel: PlayerViewModel by viewModels()
+
+    override fun isBackgroundAudioEnabled(): Boolean =
+        appPreferences.getValue(appPreferences.playerBackgroundAudio)
     private var previewScrubListener: PreviewScrubListener? = null
     private var wasZoom: Boolean = false
     private var skipButtonTimeoutExpired: Boolean = true
@@ -112,6 +117,7 @@ class PlayerActivity : BasePlayerActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         binding.playerView.player = viewModel.player
+        configureSubtitleStyle()
         binding.playerView.setControllerVisibilityListener(
             PlayerView.ControllerVisibilityListener { visibility ->
                 if (visibility == View.GONE) {
@@ -373,6 +379,24 @@ class PlayerActivity : BasePlayerActivity() {
         ) {
             pictureInPicture()
         }
+    }
+
+    /**
+     * 字幕样式：media3 默认沿用系统字幕样式，系统字幕未开启时会退回「白字 + 不透明黑底」，
+     * 在画面上呈现为突兀的黑色方块。这里统一改为白字 + 黑色描边，不绘制底色。
+     */
+    @androidx.annotation.OptIn(UnstableApi::class)
+    private fun configureSubtitleStyle() {
+        binding.playerView.subtitleView?.setStyle(
+            CaptionStyleCompat(
+                /* foregroundColor = */ Color.WHITE,
+                /* backgroundColor = */ Color.TRANSPARENT,
+                /* windowColor = */ Color.TRANSPARENT,
+                /* edgeType = */ CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                /* edgeColor = */ Color.BLACK,
+                /* typeface = */ null,
+            )
+        )
     }
 
     /**

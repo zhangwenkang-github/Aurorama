@@ -455,6 +455,52 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     backendPreference =
                                                         appPreferences.playerGesturesZoom,
                                                 ),
+                                                PreferenceSelect(
+                                                    nameStringResource =
+                                                        R.string.player_gestures_speed,
+                                                    dependencies =
+                                                        listOf(appPreferences.playerGestures),
+                                                    supportedDeviceTypes =
+                                                        listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences
+                                                            .playerGesturesSpeedMultiplier,
+                                                    options =
+                                                        R.array.gesture_speed_multiplier,
+                                                    optionValues =
+                                                        R.array
+                                                            .gesture_speed_multiplier_values,
+                                                ),
+                                                PreferenceSelect(
+                                                    nameStringResource =
+                                                        R.string
+                                                            .player_gestures_seek_sensitivity,
+                                                    dependencies =
+                                                        listOf(appPreferences.playerGestures),
+                                                    supportedDeviceTypes =
+                                                        listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences
+                                                            .playerGesturesSeekSensitivity,
+                                                    options = R.array.gesture_sensitivity,
+                                                    optionValues =
+                                                        R.array.gesture_sensitivity_values,
+                                                ),
+                                                PreferenceSelect(
+                                                    nameStringResource =
+                                                        R.string
+                                                            .player_gestures_vertical_sensitivity,
+                                                    dependencies =
+                                                        listOf(appPreferences.playerGestures),
+                                                    supportedDeviceTypes =
+                                                        listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences
+                                                            .playerGesturesVerticalSensitivity,
+                                                    options = R.array.gesture_sensitivity,
+                                                    optionValues =
+                                                        R.array.gesture_sensitivity_values,
+                                                ),
                                                 PreferenceSwitch(
                                                     nameStringResource =
                                                         R.string.player_gestures_chapter_skip,
@@ -660,6 +706,21 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference =
                                                         appPreferences.playerPipGesture,
+                                                )
+                                            ),
+                                    ),
+                                    PreferenceGroup(
+                                        nameStringResource = R.string.background_playback,
+                                        preferences =
+                                            listOf(
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.pref_player_background_audio,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .pref_player_background_audio_summary,
+                                                    backendPreference =
+                                                        appPreferences.playerBackgroundAudio,
                                                 )
                                             ),
                                     ),

@@ -27,7 +27,11 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Interface
     val theme = Preference("pref_theme", "system")
-    val dynamicColors = Preference("pref_dynamic_colors", true)
+    /**
+     * 动态取色默认关闭：影阁有自己的墨底 + 朱砂配色，
+     * 跟随系统壁纸会把品牌色冲掉；想要 Material You 的用户可在设置里打开。
+     */
+    val dynamicColors = Preference("pref_dynamic_colors", false)
     val homeSuggestions = Preference<Boolean>("home_suggestions", true)
     val homeContinueWatching = Preference<Boolean>("home_continue_watching", true)
     val homeNextUp = Preference<Boolean>("home_next_up", true)
@@ -50,9 +54,27 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerGesturesZoom = Preference("pref_player_gestures_zoom", true)
     val playerGesturesSeek = Preference("pref_player_gestures_seek", true)
     val playerGesturesSeekTrickplay = Preference("pref_player_gestures_seek_trickplay", true)
-    val playerGesturesChapterSkip = Preference("pref_player_gestures_chapter_skip", true)
+    /**
+     * 长按左/右侧跳过章节。默认关闭，让长按保持「倍速播放」这一更常用的行为，
+     * 需要跳章节的用户可按需开启。
+     */
+    val playerGesturesChapterSkip = Preference("pref_player_gestures_chapter_skip", false)
     val playerGesturesBrightnessRemember = Preference("pref_player_brightness_remember", false)
     val playerGesturesStartMaximized = Preference("pref_player_start_maximized", false)
+    /**
+     * 当前账号是否为管理员的缓存（含账号 id）。
+     * 控制台入口依赖它——服务器短暂不可达时不该把管理员的入口也一起藏起来。
+     */
+    val currentUserIsAdministrator = Preference("pref_current_user_is_admin", false)
+    val currentUserIsAdministratorUserId = Preference("pref_current_user_is_admin_id", "")
+    /** 长按倍速的档位：1.5 / 2.0 / 3.0（字符串便于配合设置项的选择控件） */
+    val playerGesturesSpeedMultiplier = Preference("pref_player_gestures_speed", "2.0")
+    /** 横向滑动灵敏度：low / standard / high */
+    val playerGesturesSeekSensitivity =
+        Preference("pref_player_gestures_seek_sensitivity", "standard")
+    /** 纵向（亮度/音量）滑动灵敏度：low / standard / high */
+    val playerGesturesVerticalSensitivity =
+        Preference("pref_player_gestures_vertical_sensitivity", "standard")
 
     // Player - seeking
     val playerSeekBackInc = Preference("pref_player_seek_back_inc", 5_000L)
@@ -90,6 +112,12 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Player - PiP
     val playerPipGesture = Preference("pref_player_picture_in_picture_gesture", false)
+
+    /**
+     * 后台继续播放：离开播放页（锁屏 / 切到别的应用）时不暂停。
+     * 对应官方 Android 客户端「视频播放器 → 允许后台播放音频」。
+     */
+    val playerBackgroundAudio = Preference("pref_player_background_audio", false)
 
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)

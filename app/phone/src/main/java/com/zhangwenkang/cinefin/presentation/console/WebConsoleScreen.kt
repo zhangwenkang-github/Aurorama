@@ -64,12 +64,20 @@ import org.json.JSONObject
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun WebConsoleScreen(
+    /** 进入后台的哪一页：`/dashboard` 控制台、`/metadata` 媒体资料管理器、`/details?id=…` 详情页 */
+    initialPath: String = "/dashboard",
     onBack: () -> Unit,
     viewModel: ConsoleViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val safePadding = rememberSafePadding()
     val context = LocalContext.current
+
+    // Web 客户端地址：控制台内部的所有跳转都发生在同一个 WebView 里
+    val consoleUrl =
+        remember(state.baseUrl, initialPath) {
+            state.baseUrl.trimEnd('/') + "/web/#" + initialPath
+        }
 
     val skinCss =
         remember {
@@ -118,7 +126,7 @@ fun WebConsoleScreen(
                             ConsoleWebViewClient(
                                 serverHost = state.baseUrl.toHost(),
                                 seedUrl = state.credentialsSeedUrl,
-                                consoleUrl = state.consoleUrl,
+                                consoleUrl = consoleUrl,
                                 // 令牌失效时不写入凭据，让用户能直接在网页里重新登录
                                 credentialsScript =
                                     if (state.appTokenValid) buildCredentialsScript(state) else "",

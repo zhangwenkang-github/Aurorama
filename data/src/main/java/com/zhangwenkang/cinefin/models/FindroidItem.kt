@@ -34,6 +34,16 @@ suspend fun BaseItemDto.toFindroidItem(
         BaseItemKind.SERIES -> toFindroidShow(jellyfinRepository)
         BaseItemKind.BOX_SET -> toFindroidBoxSet(jellyfinRepository)
         BaseItemKind.FOLDER -> toFindroidFolder(jellyfinRepository)
+        // 影阁：非影视库也要能用——专辑 / 歌单 / 图书 / 照片按「容器」处理，可以继续往里点
+        BaseItemKind.MUSIC_ALBUM,
+        BaseItemKind.MUSIC_ARTIST,
+        BaseItemKind.PLAYLIST,
+        BaseItemKind.BOOK,
+        BaseItemKind.PHOTO,
+        BaseItemKind.PHOTO_ALBUM -> toFindroidFolder(jellyfinRepository)
+        // 音频与家庭视频本身就是可播放条目，直接走既有播放管线
+        BaseItemKind.AUDIO,
+        BaseItemKind.VIDEO -> toFindroidMovie(jellyfinRepository, serverDatabase)
         else -> null
     }
 }
