@@ -5,21 +5,16 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
-import androidx.compose.material3.adaptive.navigationsuite.rememberNavigationSuiteScaffoldState
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
@@ -29,7 +24,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
-import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
@@ -51,6 +45,7 @@ import com.zhangwenkang.cinefin.presentation.film.MovieScreen
 import com.zhangwenkang.cinefin.presentation.film.PersonScreen
 import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
+import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawer
 import com.zhangwenkang.cinefin.presentation.settings.AboutScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsFileEditScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsScreen
@@ -63,6 +58,7 @@ import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import java.util.UUID
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.launch
 
 @Serializable data object WelcomeRoute
 
@@ -160,64 +156,42 @@ fun NavigationRoot(
     var searchExpanded by remember { mutableStateOf(false) }
 
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in navigationItemClassNames && !searchExpanded
+    // 主导航收进抽屉：内容区获得完整宽度，服务器信息也不再占用首页顶部
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val showNavigation = currentRoute in navigationItemClassNames
+    val settingsRoute =
+        remember { SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings)) }
 
-    val navigationSuiteScaffoldState = rememberNavigationSuiteScaffoldState()
-
-    LaunchedEffect(showBottomBar) {
-        if (showBottomBar) {
-            navigationSuiteScaffoldState.show()
-        } else {
-            navigationSuiteScaffoldState.hide()
+    LaunchedEffect(showNavigation) {
+        if (!showNavigation && drawerState.isOpen) {
+            drawerState.close()
         }
     }
 
-    val windowAdaptiveInfo = currentWindowAdaptiveInfo()
-    val customNavSuiteType =
-        with(windowAdaptiveInfo) {
-            if (
-                windowSizeClass.isWidthAtLeastBreakpoint(
-                    WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND
-                )
-            ) {
-                NavigationSuiteType.NavigationRail
-            } else {
-                NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(this)
-            }
-        }
-
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            navigationItems.forEach { item ->
-                item(
-                    selected = currentRoute == item.route::class.qualifiedName,
-                    onClick = {
-                        if (
-                            item.route is MediaRoute &&
-                                currentRoute == MediaRoute::class.qualifiedName
-                        ) {
-                            searchExpanded = true
-                        }
-
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            painter = painterResource(item.icon),
-                            contentDescription = stringResource(item.title),
-                        )
-                    },
-                    enabled = item.enabled,
-                    label = { Text(text = stringResource(item.title)) },
-                )
-            }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = showNavigation,
+        drawerContent = {
+            CinefinDrawer(
+                currentRoute = currentRoute,
+                homeRoute = HomeRoute,
+                mediaRoute = MediaRoute,
+                downloadsRoute = DownloadsRoute,
+                settingsRoute = settingsRoute,
+                serversRoute = ServersRoute,
+                showMedia = !isOfflineMode,
+                onNavigate = { route ->
+                    scope.launch { drawerState.close() }
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onClose = { scope.launch { drawerState.close() } },
+            )
         },
-        layoutType = customNavSuiteType,
-        state = navigationSuiteScaffoldState,
     ) {
         NavHost(
             navController = navController,
@@ -292,15 +266,7 @@ fun NavigationRoot(
             }
             composable<HomeRoute> {
                 HomeScreen(
-                    onLibraryClick = {
-                        navController.safeNavigate(
-                            LibraryRoute(
-                                libraryId = it.id.toString(),
-                                libraryName = it.name,
-                                libraryType = it.type,
-                            )
-                        )
-                    },
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
                     onSearchClick = {
                         searchExpanded = true
                         navController.safeNavigate(MediaRoute) {
@@ -309,12 +275,6 @@ fun NavigationRoot(
                             restoreState = true
                         }
                     },
-                    onSettingsClick = {
-                        navController.safeNavigate(
-                            SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
-                        )
-                    },
-                    onManageServers = { navController.safeNavigate(ServersRoute) },
                     onItemClick = { item ->
                         navigateToItem(navController = navController, item = item)
                     },
