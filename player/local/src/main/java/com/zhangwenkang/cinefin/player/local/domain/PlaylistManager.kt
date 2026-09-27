@@ -262,7 +262,8 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             name = name,
             itemId = id,
             mediaSourceId = mediaSource.id,
-            mediaSourceUri = mediaSource.path,
+            // 服务器要转码时用转码地址（否则 Hi10P 之类会「有声音、进度在走、画面全黑」）
+            mediaSourceUri = mediaSource.transcodingPath ?: mediaSource.path,
             playbackPosition = playbackPosition,
             parentIndexNumber = if (this is FindroidEpisode) parentIndexNumber else null,
             indexNumber = if (this is FindroidEpisode) indexNumber else null,
