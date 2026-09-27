@@ -13,54 +13,52 @@ import android.graphics.drawable.TransitionDrawable
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.os.Process
 import android.util.Rational
+import android.view.Gravity
 import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.FrameLayout
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.Space
-import android.widget.TextView
 import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
-import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.CaptionStyleCompat
-import androidx.media3.ui.DefaultTimeBar
-import androidx.media3.ui.PlayerControlView
-import androidx.media3.ui.PlayerView
 import coil3.BitmapImage
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
-import dagger.hilt.android.AndroidEntryPoint
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
-import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.presentation.player.PlayerChromeLayout
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlsState
-import com.zhangwenkang.cinefin.presentation.player.SpeedSelectionDialogFragment
-import com.zhangwenkang.cinefin.presentation.player.TrackSelectionDialogFragment
+import com.zhangwenkang.cinefin.presentation.player.PlayerFormFactor
+import com.zhangwenkang.cinefin.presentation.player.PlayerLayoutContext
+import com.zhangwenkang.cinefin.presentation.player.keepsComposition
+import com.zhangwenkang.cinefin.presentation.player.rememberPlayerLayoutContext
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.AmbientColors
 import com.zhangwenkang.cinefin.utils.PlayerGestureHelper
-import com.zhangwenkang.cinefin.utils.PreviewScrubListener
+import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -69,6 +67,9 @@ var isControlsLocked: Boolean = false
 
 /** 氛围背景切换的淡入时长 */
 private const val AMBIENT_FADE_DURATION = 600
+
+/** 换解码内核重开播放页时携带的精确续播位置（毫秒） */
+private const val EXTRA_START_POSITION_MS = "startPositionMs"
 
 @AndroidEntryPoint
 class PlayerActivity : BasePlayerActivity() {
@@ -82,11 +83,21 @@ class PlayerActivity : BasePlayerActivity() {
 
     override fun isBackgroundAudioEnabled(): Boolean =
         appPreferences.getValue(appPreferences.playerBackgroundAudio)
+
     private var wasZoom: Boolean = false
     private var ambientItemId: UUID? = null
 
     /** Compose 控制层的可见性/锁定状态：控件层与手势层共用同一份状态 */
     private val controlsState = PlayerControlsState()
+
+    /** 画中画状态：控制层据此切到 Pip 骨架（PiP 窗口里不渲染控制层） */
+    private val pipMode = mutableStateOf(false)
+
+    /** 平板 / 折叠展开时右侧内容栏是否展开；收起后画面区占满整宽 */
+    private val sidePanelExpanded = mutableStateOf(true)
+
+    /** Compose 侧解析出的形态上下文；Activity 用它给画面区排版（同一份数值，避免两边错位） */
+    private var layoutContext: PlayerLayoutContext? = null
 
     private val isPipSupported by lazy {
         // Check if device has PiP feature
@@ -109,12 +120,18 @@ class PlayerActivity : BasePlayerActivity() {
         val itemId = UUID.fromString(intent.extras!!.getString("itemId"))
         val itemKind = intent.extras!!.getString("itemKind")
         val startFromBeginning = intent.extras!!.getBoolean("startFromBeginning")
+        // 换内核会重开播放页：把失败前的精确进度带过来，不用服务端 5 秒一次的上报值续播
+        val startPositionMs = intent.extras!!.getLong(EXTRA_START_POSITION_MS, 0L)
+        // 读掉就删：这个 Intent 会被 recreate() 复用，留着会让下次重建又跳回老位置
+        intent.removeExtra(EXTRA_START_POSITION_MS)
 
         binding = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         binding.playerView.player = viewModel.player
+        // 画面比例：沿用上次选过的档位（RESIZE_MODE_*，默认 0 = 适应屏幕）
+        binding.playerView.resizeMode = appPreferences.getValue(appPreferences.playerResizeMode)
         configureSubtitleStyle()
 
         // 控制层改用 Compose 渲染（PlayerControlOverlay），Media3 自带控制器整体停用：
@@ -127,27 +144,44 @@ class PlayerActivity : BasePlayerActivity() {
             // 注意：这里必须关掉主题底色，否则那层不透明 Surface 会把视频画面整个盖住
             CinefinTheme(surfaceBackground = false) {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
+                val layout = rememberPlayerLayoutContext(isPip = pipMode.value)
+                LaunchedEffect(layout, sidePanelExpanded.value) {
+                    layoutContext = layout
+                    applyVideoArea(layout)
+                }
                 PlayerControlOverlay(
                     player = viewModel.player,
                     uiState = uiState,
                     controls = controlsState,
+                    layout = layout,
+                    sidePanelExpanded = sidePanelExpanded.value,
+                    onToggleSidePanel = { sidePanelExpanded.value = !sidePanelExpanded.value },
                     isPipSupported = isPipSupported,
                     onBack = { finishPlayback() },
                     onPip = { pictureInPicture() },
                     onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
                     onSelectTrack = { type, index -> viewModel.switchToTrack(type, index) },
                     onSkipSegment = { segment -> viewModel.skipSegment(segment) },
-                    onRegionsChanged = { visible, panelOpen, locked ->
+                    initialResizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
+                    onSelectResizeMode = { mode -> selectResizeMode(mode) },
+                    aspectSupported = isExoPlayerBackend,
+                    onRetry = { viewModel.retryPlayback() },
+                    onSwitchBackend = { switchBackendAndRestart() },
+                    onRegionsChanged = { visible, panelOpen, locked, errorVisible ->
                         binding.controlOverlay.controlsVisible = visible
                         binding.controlOverlay.panelOpen = panelOpen
                         binding.controlOverlay.locked = locked
+                        binding.controlOverlay.errorVisible = errorVisible
                         /*
                          * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
                          * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
-                         * 同时也保证隐藏时不接管任何触摸，手势照常生效。
+                         * 但平板侧栏、手机竖屏下方内容区是常驻的，这些骨架必须保持可见。
                          */
+                        val chromeKeepsComposition =
+                            layoutContext?.chrome?.keepsComposition() == true
                         binding.controlOverlay.visibility =
-                            if (visible || panelOpen || locked) {
+                            if (visible || panelOpen || locked || chromeKeepsComposition) {
                                 View.VISIBLE
                             } else {
                                 View.INVISIBLE
@@ -160,15 +194,16 @@ class PlayerActivity : BasePlayerActivity() {
         // 锁定状态回写：手势层读同一个标记，锁屏后只留解锁按钮
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                snapshotFlow { controlsState.locked }.collect { locked ->
-                    isControlsLocked = locked
-                    requestedOrientation =
-                        if (locked) {
-                            ActivityInfo.SCREEN_ORIENTATION_LOCKED
-                        } else {
-                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                        }
-                }
+                snapshotFlow { controlsState.locked }
+                    .collect { locked ->
+                        isControlsLocked = locked
+                        requestedOrientation =
+                            if (locked) {
+                                ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                            } else {
+                                orientationForFormFactor()
+                            }
+                    }
             }
         }
 
@@ -179,7 +214,12 @@ class PlayerActivity : BasePlayerActivity() {
                     this,
                     binding.playerView,
                     getSystemService(AUDIO_SERVICE) as AudioManager,
-                    onSingleTap = { controlsState.toggle() },
+                    onSingleTap = {
+                        // 错误卡片是模态的：错误消失前不让单击把控制层收走
+                        if (viewModel.uiState.value.playerError == null) {
+                            controlsState.toggle()
+                        }
+                    },
                 )
         }
 
@@ -247,6 +287,7 @@ class PlayerActivity : BasePlayerActivity() {
             itemId = itemId,
             itemKind = itemKind ?: "",
             startFromBeginning = startFromBeginning,
+            startPositionMs = startPositionMs,
         )
         hideSystemUI()
     }
@@ -278,10 +319,7 @@ class PlayerActivity : BasePlayerActivity() {
         }
     }
 
-    /**
-     * 字幕样式：media3 默认沿用系统字幕样式，系统字幕未开启时会退回「白字 + 不透明黑底」，
-     * 在画面上呈现为突兀的黑色方块。这里统一改为白字 + 黑色描边，不绘制底色。
-     */
+    /** 字幕样式：media3 默认沿用系统字幕样式，系统字幕未开启时会退回「白字 + 不透明黑底」， 在画面上呈现为突兀的黑色方块。这里统一改为白字 + 黑色描边，不绘制底色。 */
     @androidx.annotation.OptIn(UnstableApi::class)
     private fun configureSubtitleStyle() {
         binding.playerView.subtitleView?.setStyle(
@@ -297,10 +335,118 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     /**
+     * 画面比例由 Media3 的 PlayerView 负责；换成 mpv 播放核心时画面输出由 mpv 自己控制， 这时比例档位在面板里显示为不可用，而不是给一个点了没反应的假开关。
+     */
+    private val isExoPlayerBackend: Boolean
+        get() =
+            appPreferences.getValue(appPreferences.playerBackend) ==
+                PlayerViewModel.PLAYER_BACKEND_EXOPLAYER
+
+    /**
+     * 一键切换解码内核（ExoPlayer ⇄ mpv）。
+     *
+     * 播放器和 MediaSession 都在 ViewModel 构造时绑定，就地换实例要连带重建会话。 这里先清空 ViewModelStore 再
+     * recreate()：既保证拿到新内核的 player，又保留返回栈。 不能用 startActivity 重启——PlayerActivity 是 singleTask，新
+     * Intent 会被复用给同一个实例， 旧实例随即 finish 就退回上一页（模拟器实测如此）。
+     */
+    /**
+     * 按骨架给画面区排版。
+     *
+     * 画面区尺寸是「播放器输出」与「控制层命中区」的共同基准：两边读同一份 [PlayerLayoutContext]，
+     * 竖屏 16:9 定高、平板让出右侧栏、折叠半开只占折痕以上——改一处不会让另一边错位。
+     */
+    private fun applyVideoArea(layout: PlayerLayoutContext) {
+        binding.root.post {
+            if (isFinishing || isDestroyed) return@post
+            val density = resources.displayMetrics.density
+            val expanded = sidePanelExpanded.value
+            val videoWidthDp =
+                if (layout.hasSideContent && expanded) {
+                    layout.videoWidthDp
+                } else {
+                    layout.windowWidthDp
+                }
+            val videoWidthPx = videoWidthDp * density
+            val videoHeightPx = layout.videoHeightDp * density
+
+            binding.playerView.updateLayoutParams<FrameLayout.LayoutParams> {
+                width =
+                    if (layout.chrome == PlayerChromeLayout.SplitSide) {
+                        videoWidthPx.roundToInt()
+                    } else {
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    }
+                height =
+                    when (layout.chrome) {
+                        PlayerChromeLayout.SplitPortrait,
+                        PlayerChromeLayout.FoldHalfOpen -> videoHeightPx.roundToInt()
+                        else -> ViewGroup.LayoutParams.MATCH_PARENT
+                    }
+                gravity = Gravity.TOP or Gravity.START
+            }
+
+            binding.controlOverlay.chrome = layout.chrome
+            binding.controlOverlay.videoWidthPx = videoWidthPx
+            binding.controlOverlay.videoHeightPx = videoHeightPx
+            binding.controlOverlay.compactBarHeightPx = 72f * density
+            /*
+             * 骨架切换后要重算整层可见性：平板侧栏 / 竖屏内容区 / 小窗控制条是常驻内容，
+             * 控制层淡出时它们不能跟着一起退出合成（否则内容栏消失且点不动）。
+             */
+            binding.controlOverlay.visibility =
+                if (layout.chrome.keepsComposition() || controlsState.visible) {
+                    View.VISIBLE
+                } else {
+                    View.INVISIBLE
+                }
+            applySystemUiVisibility()
+        }
+    }
+
+    /** 方向策略：手机 / 平板自由旋转，车机与 TV 锁横屏；锁屏时由锁定按钮单独接管 */
+    private fun orientationForFormFactor(): Int =
+        when (layoutContext?.formFactor) {
+            PlayerFormFactor.Car, PlayerFormFactor.Tv ->
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        }
+
+    /**
+     * 系统栏策略：手机 / 平板 / TV 进沉浸式全屏；车机保持系统栏可见
+     * （车机 HMI 不允许应用长期霸占整屏，返回与 Home 必须始终可达）。
+     */
+    private fun applySystemUiVisibility() {
+        if (layoutContext?.formFactor == PlayerFormFactor.Car) {
+            WindowCompat.getInsetsController(window, window.decorView)
+                .show(WindowInsetsCompat.Type.systemBars())
+        } else {
+            hideSystemUI()
+        }
+    }
+
+    private fun switchBackendAndRestart() {
+        val target = viewModel.switchBackend()
+        val position = viewModel.player.currentPosition.coerceAtLeast(0L)
+        Timber.d("Restart player with backend=$target from position=$position")
+
+        // recreate() 会复用同一个 Intent，把续播位置写回去即可
+        intent.putExtra(EXTRA_START_POSITION_MS, position)
+        // 不清空的话 recreate() 会把同一个 ViewModel（连着旧 player）交回来
+        viewModelStore.clear()
+        recreate()
+    }
+
+    /** 画面比例：即时生效 + 记住选择 */
+    private fun selectResizeMode(mode: Int) {
+        binding.playerView.resizeMode = mode
+        appPreferences.setValue(appPreferences.playerResizeMode, mode)
+        Timber.d("player resize mode=$mode")
+    }
+
+    /**
      * 用当前影片的海报/剧照生成播放页氛围背景。
      *
-     * 只在画面未铺满屏幕的区域（上下黑边）与缓冲加载态可见；
-     * 控件配色保持应用统一的冰蓝，避免整屏变色干扰观看。
+     * 只在画面未铺满屏幕的区域（上下黑边）与缓冲加载态可见； 控件配色保持应用统一的冰蓝，避免整屏变色干扰观看。
      */
     private fun updateAmbientBackdrop(itemId: UUID) {
         if (ambientItemId == itemId) return
@@ -420,6 +566,7 @@ class PlayerActivity : BasePlayerActivity() {
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         viewModel.isInPictureInPictureMode = isInPictureInPictureMode
+        pipMode.value = isInPictureInPictureMode
         when (isInPictureInPictureMode) {
             true -> {
                 controlsState.visible = false

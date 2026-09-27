@@ -10,12 +10,14 @@ import android.widget.FrameLayout
  * 播放控制层的触摸容器。
  *
  * 关键点：**只有落在控件区域内的触摸才交给内部的 ComposeView，其余一律返回 false 放行给下层的 PlayerView**。
- * 这样单击显隐、双击快进/快退、左右滑动进度、上下滑动亮度音量、双指缩放这些既有手势
- * 依然完全由 [com.zhangwenkang.cinefin.utils.PlayerGestureHelper] 处理，
- * 不会因为控制层换成 Compose 就把手势全吞掉。
+ * 这样单击显隐、双击快进/快退、左右滑动进度、上下滑动亮度音量、双指缩放这些既有手势 依然完全由
+ * [com.zhangwenkang.cinefin.utils.PlayerGestureHelper] 处理， 不会因为控制层换成 Compose 就把手势全吞掉。
  *
- * 交互区域用固定带宽判断（顶部 76dp / 中央 520×180dp / 底部 210dp）：
- * 比让每个控件上报坐标更稳定，也不会因为动画中间帧漏判。
+ * 交互区域按**画面区**（而不是整个控件）划带：顶部 76dp / 中央 520×180dp / 底部 210dp。
+ * 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管，
+ * 这样 Compose 内容不会被手势层穿透，画面区里的手势却一点不受影响。
+ *
+ * 错误卡片比中央控件高一截，出现时中央命中区放大到 600×400dp，否则重试按钮点不到。
  */
 class PlayerOverlayContainer
 @JvmOverloads
@@ -32,6 +34,19 @@ constructor(
 
     /** 锁屏态：只保留解锁按钮那一小块可点 */
     var locked: Boolean = false
+
+    /** 错误卡片是否可见：决定中央命中区用普控件尺寸还是放大尺寸 */
+    var errorVisible: Boolean = false
+
+    /** 当前骨架：决定命中区形状。由 Activity 与控制层同源写入 */
+    var chrome: PlayerChromeLayout = PlayerChromeLayout.Fullscreen
+
+    /** 画面区尺寸（px）。竖屏 16:9、侧栏模式让出右侧栏；0 表示退化为整块控件 */
+    var videoWidthPx: Float = 0f
+    var videoHeightPx: Float = 0f
+
+    /** 小窗单行控制条高度（px） */
+    var compactBarHeightPx: Float = 0f
 
     private var handlingSequence = false
     private val density = resources.displayMetrics.density
@@ -50,6 +65,7 @@ constructor(
 
     private fun shouldHandle(x: Float, y: Float): Boolean {
         if (panelOpen) return true
+        if (chrome == PlayerChromeLayout.Pip) return false
 
         if (locked) {
             return RectF(
@@ -61,17 +77,43 @@ constructor(
                 .contains(x, y)
         }
 
+        val videoWidth = videoWidthPx.takeIf { it > 0f } ?: width.toFloat()
+        val videoHeight = videoHeightPx.takeIf { it > 0f } ?: height.toFloat()
+
+        /*
+         * 画面区之外的常驻内容区（平板侧栏 / 竖屏下方选集 / 折叠半开下屏）永远接管触摸：
+         * 它不随控制层淡出，所以判断要放在 controlsVisible 之前。
+         */
+        val hasContentRegion =
+            chrome == PlayerChromeLayout.SplitSide ||
+                chrome == PlayerChromeLayout.SplitPortrait ||
+                chrome == PlayerChromeLayout.FoldHalfOpen
+        if (hasContentRegion && (x > videoWidth || y > videoHeight)) return true
+
         if (!controlsVisible) return false
 
-        val topBand = RectF(0f, 0f, width.toFloat(), 76f * density)
+        if (chrome == PlayerChromeLayout.Compact) {
+            val barHeight = compactBarHeightPx.takeIf { it > 0f } ?: 56f * density
+            return y >= height - barHeight
+        }
+
+        if (x > videoWidth || y > videoHeight) return false
+
+        // 竖屏画面区更矮，命中带跟着收窄，否则整块画面区都被控件吃掉、手势无处可落
+        val portrait = chrome == PlayerChromeLayout.SplitPortrait
+        val topBand = RectF(0f, 0f, videoWidth, (if (portrait) 56f else 76f) * density)
+        val centerHalfWidth = if (errorVisible) 300f else if (portrait) 200f else 260f
+        val centerHalfHeight = if (errorVisible) 200f else if (portrait) 64f else 90f
         val centerBand =
             RectF(
-                width / 2f - 260f * density,
-                height / 2f - 90f * density,
-                width / 2f + 260f * density,
-                height / 2f + 90f * density,
+                videoWidth / 2f - centerHalfWidth * density,
+                videoHeight / 2f - centerHalfHeight * density,
+                videoWidth / 2f + centerHalfWidth * density,
+                videoHeight / 2f + centerHalfHeight * density,
             )
-        val bottomBand = RectF(0f, height - 210f * density, width.toFloat(), height.toFloat())
+        val bottomBandHeight = (if (portrait) 100f else 210f) * density
+        val bottomBand =
+            RectF(0f, videoHeight - bottomBandHeight, videoWidth, videoHeight)
         return topBand.contains(x, y) || centerBand.contains(x, y) || bottomBand.contains(x, y)
     }
 }

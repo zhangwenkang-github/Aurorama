@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.mpv
 
 import android.content.Context
+import android.graphics.SurfaceTexture
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
@@ -54,7 +55,7 @@ class MPVPlayer(
     private val seekBackIncrement: Long = C.DEFAULT_SEEK_BACK_INCREMENT_MS,
     private val seekForwardIncrement: Long = C.DEFAULT_SEEK_FORWARD_INCREMENT_MS,
     private val pauseAtEndOfMediaItems: Boolean = false,
-    videoOutput: String = "gpu-next",
+    private val videoOutput: String = "gpu-next",
     audioOutput: String = "aaudio",
     hwDec: String = "mediacodec",
 ) : BasePlayer(), MPVLib.EventObserver, AudioManager.OnAudioFocusChangeListener {
@@ -1347,7 +1348,16 @@ class MPVPlayer(
      * @param textureView The texture view.
      */
     override fun setVideoTextureView(textureView: TextureView?) {
-        TODO("Not yet implemented")
+        if (textureView == null) {
+            detachTextureSurface()
+            return
+        }
+        textureView.surfaceTextureListener = surfaceTextureListener
+        // 已经可用时系统不会再补发 onSurfaceTextureAvailable，这里手动接一次
+        val surfaceTexture = textureView.surfaceTexture
+        if (textureView.isAvailable && surfaceTexture != null) {
+            attachTextureSurface(surfaceTexture, textureView.width, textureView.height)
+        }
     }
 
     /**
@@ -1357,7 +1367,8 @@ class MPVPlayer(
      * @param textureView The texture view to clear.
      */
     override fun clearVideoTextureView(textureView: TextureView?) {
-        TODO("Not yet implemented")
+        textureView?.surfaceTextureListener = null
+        detachTextureSurface()
     }
 
     /**
@@ -1497,6 +1508,64 @@ class MPVPlayer(
             mpvLib.setOptionString("sub-ass-force-margins", "no")
         }
     }
+
+    /** 当前挂在 mpv 上的 TextureView 对应 Surface；null 表示没接 */
+    private var textureSurface: Surface? = null
+
+    private fun attachTextureSurface(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
+        if (textureSurface != null) return
+        val surface = Surface(surfaceTexture)
+        textureSurface = surface
+        mpvLib.attachSurface(surface)
+        mpvLib.setOptionString("force-window", "yes")
+        mpvLib.setOptionString("vo", videoOutput)
+        if (width > 0 && height > 0) {
+            mpvLib.setPropertyString("android-surface-size", "${width}x$height")
+        }
+    }
+
+    private fun detachTextureSurface() {
+        val surface = textureSurface ?: return
+        mpvLib.setOptionString("vo", "null")
+        mpvLib.setOptionString("force-window", "no")
+        mpvLib.detachSurface()
+        surface.release()
+        textureSurface = null
+    }
+
+    /**
+     * TextureView 版的画面输出。
+     *
+     * 播放页控制层改 Compose 后，视频输出从 SurfaceView 换成了 TextureView（避免被控件层遮挡变黑）， 而 mpv 这个后端原来只实现了
+     * SurfaceView，一挂载就 NotImplementedError 崩掉。 这里按 SurfaceView 的同一套接法补上，差别只是 Surface 来自
+     * SurfaceTexture。
+     */
+    private val surfaceTextureListener =
+        object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(
+                surfaceTexture: SurfaceTexture,
+                width: Int,
+                height: Int,
+            ) {
+                attachTextureSurface(surfaceTexture, width, height)
+            }
+
+            override fun onSurfaceTextureSizeChanged(
+                surfaceTexture: SurfaceTexture,
+                width: Int,
+                height: Int,
+            ) {
+                mpvLib.setPropertyString("android-surface-size", "${width}x$height")
+            }
+
+            override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean {
+                detachTextureSurface()
+                // Surface 已自行释放，SurfaceTexture 交回系统回收
+                return true
+            }
+
+            override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) = Unit
+        }
 
     private val surfaceHolder: SurfaceHolder.Callback =
         object : SurfaceHolder.Callback {

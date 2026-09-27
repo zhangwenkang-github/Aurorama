@@ -15,6 +15,9 @@
     <string name="player_controls_info">播放信息</string>
     <string name="player_controls_queue">播放队列</string>
     <string name="player_controls_queue_empty">队列为空</string>
+    <string name="player_controls_episodes">选集</string>
+    <string name="player_controls_more">更多</string>
+    <string name="player_controls_side_panel_collapse">收起侧栏</string>
     <string name="player_controls_season">第 %1$d 季</string>
     <string name="player_controls_sleep_timer">睡眠定时</string>
     <string name="player_controls_sleep_off">关闭</string>
@@ -44,4 +47,25 @@
     <string name="player_controls_skip_commercial">跳过广告</string>
     <string name="player_controls_skip_unknown">跳过</string>
     <string name="player_controls_skip_preview">跳过预告</string>
+    <string name="player_controls_repeat">循环模式</string>
+    <string name="player_controls_repeat_off">顺序播放</string>
+    <string name="player_controls_repeat_off_caption">播完最后一集后停止</string>
+    <string name="player_controls_repeat_all">列表循环</string>
+    <string name="player_controls_repeat_all_caption">播完最后一集后回到第一集</string>
+    <string name="player_controls_repeat_one">单集循环</string>
+    <string name="player_controls_repeat_one_caption">反复播放当前这一集</string>
+    <string name="player_controls_shuffle">随机播放</string>
+    <string name="player_controls_shuffle_caption">打乱队列顺序播放</string>
+    <string name="player_controls_shuffle_unsupported">当前播放核心不支持随机播放</string>
+    <string name="player_controls_aspect">画面比例</string>
+    <string name="player_controls_aspect_fit">适应屏幕</string>
+    <string name="player_controls_aspect_fit_caption">保留原始比例，四周留黑边</string>
+    <string name="player_controls_aspect_zoom">裁剪填满</string>
+    <string name="player_controls_aspect_zoom_caption">保持比例铺满屏幕，裁掉溢出画面</string>
+    <string name="player_controls_aspect_fill">拉伸填满</string>
+    <string name="player_controls_aspect_fill_caption">拉满屏幕，画面会变形</string>
+    <string name="player_controls_aspect_unsupported">当前播放核心不支持画面比例</string>
+    <string name="player_controls_error_title">播放失败</string>
+    <string name="player_controls_error_retry">重试</string>
+    <string name="player_controls_error_switch_backend">改用 %1$s 内核</string>
 </resources>

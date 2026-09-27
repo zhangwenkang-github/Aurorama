@@ -12,19 +12,19 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
-import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
-import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
@@ -33,6 +33,7 @@ import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.ceil
@@ -60,6 +61,12 @@ constructor(
     private val appPreferences: AppPreferences,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel(), Player.Listener {
+    companion object {
+        /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
+        const val PLAYER_BACKEND_EXOPLAYER = "exoplayer"
+        const val PLAYER_BACKEND_MPV = "mpv"
+    }
+
     val player: Player
 
     private val _uiState =
@@ -87,6 +94,18 @@ constructor(
         val currentTrickplay: Trickplay?,
         val currentChapters: List<PlayerChapter>,
         val fileLoaded: Boolean,
+        /** 播放失败时的错误信息；非空时控制层显示错误卡片 */
+        val playerError: PlayerErrorInfo? = null,
+    )
+
+    /** 播放错误：给控制层的错误卡片用（阶段 1.3） */
+    data class PlayerErrorInfo(
+        /** 后端给出的说明，可能较长，UI 侧截断显示 */
+        val message: String,
+        /** 错误码名，例如 ERROR_CODE_DECODING_FAILED */
+        val codeName: String,
+        /** 出错时使用的内核：exoplayer / mpv */
+        val backend: String,
     )
 
     private var items: MutableList<PlayerItem> = mutableListOf()
@@ -116,6 +135,9 @@ constructor(
 
     var isInPictureInPictureMode: Boolean = false
 
+    /** 当前播放核心：`exoplayer` 或 `mpv`。换内核要重建 player，由 Activity 重启播放页生效 */
+    val playerBackend: String = appPreferences.getValue(appPreferences.playerBackend)
+
     init {
         segmentsSkipButton = appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton)
         segmentsSkipButtonTypes =
@@ -143,10 +165,9 @@ constructor(
                 .setPreferredTextLanguages(*trackSelectionEngine.subtitlePriority.toTypedArray())
         )
 
-        val playerBackend = appPreferences.getValue(appPreferences.playerBackend)
         player =
             when (playerBackend) {
-                "exoplayer" -> {
+                PLAYER_BACKEND_EXOPLAYER -> {
                     val renderersFactory =
                         DefaultRenderersFactory(application)
                             .setExtensionRendererMode(
@@ -164,7 +185,7 @@ constructor(
                         .setPauseAtEndOfMediaItems(true)
                         .build()
                 }
-                "mpv" -> {
+                PLAYER_BACKEND_MPV -> {
                     MPVPlayer.Builder(application)
                         .setAudioAttributes(audioAttributes, true)
                         .setTrackSelectionParameters(trackSelector.parameters)
@@ -185,8 +206,23 @@ constructor(
             }
     }
 
-    fun initializePlayer(itemId: UUID, itemKind: String, startFromBeginning: Boolean) {
+    /**
+     * 初始化并开始播放。
+     *
+     * @param startPositionMs 精确续播位置（毫秒）。换解码内核重启播放页时由 Activity 带入， 避免只依赖服务端 5 秒一次的上报而丢掉几秒进度；0
+     *   表示按服务端记录续播。
+     */
+    fun initializePlayer(
+        itemId: UUID,
+        itemKind: String,
+        startFromBeginning: Boolean,
+        startPositionMs: Long = 0L,
+    ) {
         player.addListener(this)
+
+        if (startPositionMs > 0L) {
+            playbackPosition = startPositionMs
+        }
 
         viewModelScope.launch {
             val startItem =
@@ -366,8 +402,7 @@ constructor(
     /**
      * 轨道信息就绪后按语言优先级自动选轨。
      *
-     * 同一媒体可能多次回调（例如外挂字幕稍后才挂载），因此每次都重新计算；
-     * 但用户在当前媒体里手动选过轨时不再干预。
+     * 同一媒体可能多次回调（例如外挂字幕稍后才挂载），因此每次都重新计算； 但用户在当前媒体里手动选过轨时不再干预。
      */
     override fun onTracksChanged(tracks: Tracks) {
         if (player !is ExoPlayer) return
@@ -375,10 +410,10 @@ constructor(
         if (manualTrackSelectionMediaId == mediaId) return
 
         runCatching {
-                val parameters =
-                    trackSelectionEngine.parameters(player.trackSelectionParameters, tracks)
-                player.trackSelectionParameters = parameters
-            }
+            val parameters =
+                trackSelectionEngine.parameters(player.trackSelectionParameters, tracks)
+            player.trackSelectionParameters = parameters
+        }
             .onFailure { Timber.w(it, "自动选择字幕/音轨失败") }
     }
 
@@ -450,28 +485,72 @@ constructor(
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         // Report playback stopped for current item and transition to the next one
-        if (
-            !playWhenReady &&
-                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM &&
-                player.playbackState == ExoPlayer.STATE_READY
-        ) {
-            viewModelScope.launch {
-                val mediaId = player.currentMediaItem?.mediaId
-                val position = player.currentPosition
-                val duration = player.duration
-                try {
-                    repository.postPlaybackStop(
-                        UUID.fromString(mediaId),
-                        position.times(10000),
-                        position.div(duration.toFloat()).times(100).toInt(),
-                    )
-                } catch (e: Exception) {
-                    Timber.e(e)
-                }
-                player.seekToNextMediaItem()
-                player.play()
-            }
+        if (reason != Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM || playWhenReady) {
+            return
         }
+        /*
+         * 注意：这里**不能**再要求 `playbackState == STATE_READY`。
+         * 播放器设了 pauseAtEndOfMediaItems，一集播完会在「渲染结束的那一刻」先把 playWhenReady 置 false，
+         * 那个瞬间状态可能还是 STATE_BUFFERING（比如手动拖到片尾后），一旦把这种情形挡掉，
+         * 这一集就会永远卡在片尾。
+         */
+        Timber.d(
+            "end of media item: state=${player.playbackState} repeat=${player.repeatMode} " +
+                "shuffle=${player.shuffleModeEnabled} index=${player.currentMediaItemIndex}/" +
+                "${player.mediaItemCount} hasNext=${player.hasNextMediaItem()}"
+        )
+        viewModelScope.launch {
+            val mediaId = player.currentMediaItem?.mediaId
+            val position = player.currentPosition
+            val duration = player.duration
+            try {
+                repository.postPlaybackStop(
+                    UUID.fromString(mediaId),
+                    position.times(10000),
+                    position.div(duration.toFloat()).times(100).toInt(),
+                )
+            } catch (e: Exception) {
+                Timber.e(e)
+            }
+            advanceAfterItemEnd()
+        }
+    }
+
+    /**
+     * 一集播完后的走向，由循环模式（控制层底栏的循环面板）决定：
+     * - 单集循环：回到本集开头继续播；
+     * - 顺序播放：往下一集走，走到队列末尾就停在片尾（由播放器发 STATE_ENDED 收尾）；
+     * - 列表循环：往下一集走，队列末尾会绕回第一集；
+     * - 随机播放：往「打乱后的下一集」走，队列末尾同样绕回。
+     *
+     * 播放器本身设了 `pauseAtEndOfMediaItems`，一集结束会先停住，由这里显式决定去向， 所以列表循环与随机也不会出现「跳两集」。
+     */
+    private fun advanceAfterItemEnd() {
+        val from = player.currentMediaItemIndex
+        val repeatMode = player.repeatMode
+        if (repeatMode == Player.REPEAT_MODE_ONE) {
+            player.seekTo(from, 0L)
+        } else if (player.hasNextMediaItem()) {
+            // hasNextMediaItem() 已经把列表循环与随机算进去了：循环/随机在队列末尾会绕回第一集
+            player.seekToNextMediaItem()
+        }
+        Timber.d(
+            "advance after item end: from=$from repeat=$repeatMode " +
+                "shuffle=${player.shuffleModeEnabled} -> index=${player.currentMediaItemIndex}"
+        )
+        player.play()
+    }
+
+    /** 队列走到尽头时的兜底：单集循环回到本集开头，列表循环/随机回第一集 */
+    private fun restartAtQueueEnd() {
+        val index =
+            if (player.repeatMode == Player.REPEAT_MODE_ONE) {
+                player.currentMediaItemIndex
+            } else {
+                0
+            }
+        player.seekTo(index, 0L)
+        player.play()
     }
 
     override fun onPlaybackStateChanged(state: Int) {
@@ -485,14 +564,46 @@ constructor(
             }
             ExoPlayer.STATE_READY -> {
                 stateString = "ExoPlayer.STATE_READY     -"
-                _uiState.update { it.copy(fileLoaded = true) }
+                // 能进 READY 就说明上一次失败已经恢复，顺手收起错误卡片
+                _uiState.update { it.copy(fileLoaded = true, playerError = null) }
             }
             ExoPlayer.STATE_ENDED -> {
                 stateString = "ExoPlayer.STATE_ENDED     -"
-                eventsChannel.trySend(PlayerEvents.NavigateBack)
+                /*
+                 * 顺序播放走到最后一集就收尾（关闭播放页，与既有行为一致）；
+                 * 列表循环 / 随机播放则绕回队列开头继续，单集循环回到本集开头，
+                 * 这是「片尾那一帧没能触发到下一集」时的兜底。
+                 */
+                if (player.repeatMode == Player.REPEAT_MODE_OFF) {
+                    eventsChannel.trySend(PlayerEvents.NavigateBack)
+                } else {
+                    restartAtQueueEnd()
+                }
             }
         }
         Timber.d("Changed player state to $stateString")
+    }
+
+    /**
+     * 播放失败：记下错误让控制层显示错误卡片。
+     *
+     * note：mpv 内核目前不会走这里（`MPVPlayer.getPlayerError()` 恒为 null、也没上报事件）， 所以错误卡片只在 ExoPlayer 内核生效；mpv
+     * 的错误上报见 docs/PLAYER_PLAN.md 待办。
+     */
+    override fun onPlayerError(error: PlaybackException) {
+        Timber.e(error, "Player error on backend=$playerBackend: ${error.errorCodeName}")
+        _uiState.update {
+            it.copy(
+                playerError =
+                    PlayerErrorInfo(
+                        message =
+                            error.message?.takeIf { message -> message.isNotBlank() }
+                                ?: error.errorCodeName,
+                        codeName = error.errorCodeName,
+                        backend = playerBackend,
+                    )
+            )
+        }
     }
 
     override fun onCleared() {
@@ -515,8 +626,7 @@ constructor(
                     .build()
         } else {
             val group =
-                player.currentTracks.groups
-                    .filter { it.type == trackType && it.isSupported }[index]
+                player.currentTracks.groups.filter { it.type == trackType && it.isSupported }[index]
             trackSelectionEngine.rememberSelectedLanguage(
                 trackType,
                 group.mediaTrackGroup.getFormat(0),
@@ -524,9 +634,7 @@ constructor(
             player.trackSelectionParameters =
                 player.trackSelectionParameters
                     .buildUpon()
-                    .setOverrideForType(
-                        TrackSelectionOverride(group.mediaTrackGroup, 0)
-                    )
+                    .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
                     .setTrackTypeDisabled(trackType, false)
                     .build()
         }
@@ -535,6 +643,41 @@ constructor(
     fun selectSpeed(speed: Float) {
         player.setPlaybackSpeed(speed)
         playbackSpeed = speed
+    }
+
+    /**
+     * 从错误中重试：清掉错误卡片，回到失败前的位置重新 prepare。
+     *
+     * ExoPlayer 出错后停在 STATE_IDLE，重新 prepare 即重新拉流； mpv 的 prepare 会重新 loadfile 并回到片头，所以这里统一把位置挪回去。
+     */
+    fun retryPlayback() {
+        val position = player.currentPosition.coerceAtLeast(0L)
+        Timber.d("Retrying playback on backend=$playerBackend from position=$position")
+        _uiState.update { it.copy(playerError = null) }
+        player.prepare()
+        if (position > 0L) {
+            player.seekTo(position)
+        }
+        player.play()
+    }
+
+    /**
+     * 一键切换解码内核：写入偏好并返回新内核名，由调用方重启播放页生效。
+     *
+     * 不能就地换：player 与 MediaSession 都在构造时绑定，换实例要连带重建会话。
+     */
+    fun switchBackend(): String {
+        val next =
+            if (playerBackend == PLAYER_BACKEND_MPV) PLAYER_BACKEND_EXOPLAYER
+            else PLAYER_BACKEND_MPV
+        appPreferences.setValue(appPreferences.playerBackend, next)
+        Timber.d("Player backend switched: $playerBackend -> $next")
+        return next
+    }
+
+    /** 手动收起错误卡片（不改播放状态） */
+    fun dismissPlayerError() {
+        _uiState.update { it.copy(playerError = null) }
     }
 
     private suspend fun getSegments(itemId: UUID) {

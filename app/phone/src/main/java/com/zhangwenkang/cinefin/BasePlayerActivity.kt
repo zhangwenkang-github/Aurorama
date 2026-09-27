@@ -21,8 +21,7 @@ abstract class BasePlayerActivity : AppCompatActivity() {
     /**
      * 是否允许「后台继续播放」：由子类读取设置项。
      *
-     * 打开后离开播放页（锁屏、切到其它应用）不再暂停，只记录进度；
-     * 画中画与投屏不受影响。真正的常驻播放仍需要前台服务，见 docs/PLAYER_SPEC.md。
+     * 打开后离开播放页（锁屏、切到其它应用）不再暂停，只记录进度； 画中画不受影响。真正的常驻播放仍需要前台服务，见 docs/PLAYER_PLAN.md 阶段 4。
      */
     protected open fun isBackgroundAudioEnabled(): Boolean = false
 

@@ -12,6 +12,9 @@
     <string name="player_controls_info">Playback info</string>
     <string name="player_controls_queue">Queue</string>
     <string name="player_controls_queue_empty">Nothing queued yet</string>
+    <string name="player_controls_episodes">Episodes</string>
+    <string name="player_controls_more">More</string>
+    <string name="player_controls_side_panel_collapse">Collapse side panel</string>
     <string name="player_controls_season">Season %1$d</string>
     <string name="player_controls_sleep_timer">Sleep timer</string>
     <string name="player_controls_sleep_off">Off</string>
@@ -43,4 +46,25 @@
     <string name="player_controls_skip_preview">Skip preview</string>
     <string name="player_controls_skip_commercial">Skip commercial</string>
     <string name="player_controls_skip_unknown">Skip</string>
+    <string name="player_controls_repeat">Loop mode</string>
+    <string name="player_controls_repeat_off">Play in order</string>
+    <string name="player_controls_repeat_off_caption">Stop after the last item</string>
+    <string name="player_controls_repeat_all">Loop queue</string>
+    <string name="player_controls_repeat_all_caption">Back to the first item after the last</string>
+    <string name="player_controls_repeat_one">Loop current item</string>
+    <string name="player_controls_repeat_one_caption">Replay the current item</string>
+    <string name="player_controls_shuffle">Shuffle</string>
+    <string name="player_controls_shuffle_caption">Play the queue in random order</string>
+    <string name="player_controls_shuffle_unsupported">Not supported by the current player</string>
+    <string name="player_controls_aspect">Aspect ratio</string>
+    <string name="player_controls_aspect_fit">Fit to screen</string>
+    <string name="player_controls_aspect_fit_caption">Keep the original ratio, black bars around</string>
+    <string name="player_controls_aspect_zoom">Crop to fill</string>
+    <string name="player_controls_aspect_zoom_caption">Keep the ratio and fill the screen, edges cropped</string>
+    <string name="player_controls_aspect_fill">Stretch to fill</string>
+    <string name="player_controls_aspect_fill_caption">Fill the screen, the picture is distorted</string>
+    <string name="player_controls_aspect_unsupported">Not supported by the current player core</string>
+    <string name="player_controls_error_title">Playback failed</string>
+    <string name="player_controls_error_retry">Retry</string>
+    <string name="player_controls_error_switch_backend">Switch to %1$s</string>
 </resources>
