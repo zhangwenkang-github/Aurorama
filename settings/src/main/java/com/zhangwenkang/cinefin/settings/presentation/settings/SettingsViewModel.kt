@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.zhangwenkang.cinefin.settings.R
+import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.presentation.enums.DeviceType
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceAppLanguage
@@ -94,6 +95,20 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     options = R.array.languages,
                                                     optionValues = R.array.languages_values,
                                                     optionsIncludeNull = true,
+                                                    onUpdate = { value ->
+                                                        // 首选语言置顶，其余沿用默认优先级
+                                                        appPreferences.setValue(
+                                                            appPreferences
+                                                                .preferredAudioLanguages,
+                                                            LanguageMatcher.priorityToString(
+                                                                LanguageMatcher.buildPriority(
+                                                                    value,
+                                                                    LanguageMatcher
+                                                                        .DEFAULT_AUDIO_PRIORITY,
+                                                                )
+                                                            ),
+                                                        )
+                                                    },
                                                 ),
                                                 PreferenceSelect(
                                                     nameStringResource =
@@ -105,6 +120,40 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     options = R.array.languages,
                                                     optionValues = R.array.languages_values,
                                                     optionsIncludeNull = true,
+                                                    onUpdate = { value ->
+                                                        appPreferences.setValue(
+                                                            appPreferences
+                                                                .preferredSubtitleLanguages,
+                                                            LanguageMatcher.priorityToString(
+                                                                LanguageMatcher.buildPriority(
+                                                                    value,
+                                                                    LanguageMatcher
+                                                                        .DEFAULT_SUBTITLE_PRIORITY,
+                                                                )
+                                                            ),
+                                                        )
+                                                    },
+                                                ),
+                                                PreferenceSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_subtitle_mode,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    backendPreference =
+                                                        appPreferences.subtitleMode,
+                                                    options = R.array.subtitle_mode,
+                                                    optionValues =
+                                                        R.array.subtitle_mode_values,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string
+                                                            .settings_remember_track_selection,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_remember_track_selection_summary,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    backendPreference =
+                                                        appPreferences.rememberTrackSelection,
                                                 ),
                                             )
                                     ),

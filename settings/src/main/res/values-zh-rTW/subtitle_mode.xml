@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="subtitle_mode">
+        <item>自動（僅偏好語言）</item>
+        <item>始終顯示字幕</item>
+        <item>關閉字幕</item>
+    </string-array>
+    <string-array name="subtitle_mode_values">
+        <item>auto</item>
+        <item>always</item>
+        <item>off</item>
+    </string-array>
+</resources>

@@ -13,6 +13,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -24,6 +25,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
+import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -87,6 +89,13 @@ constructor(
     private var items: MutableList<PlayerItem> = mutableListOf()
 
     private val trackSelector = DefaultTrackSelector(application)
+
+    /** 字幕/音轨的智能选择引擎：按语言优先级自动选轨，并记住用户的手动选择 */
+    private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
+
+    /** 用户在当前媒体里手动选过轨后，不再自动干预 */
+    private var manualTrackSelectionMediaId: String? = null
+
     var playWhenReady = true
     private var currentMediaItemIndex = savedStateHandle["mediaItemIndex"] ?: 0
     private var playbackPosition: Long = savedStateHandle["position"] ?: 0
@@ -126,12 +135,9 @@ constructor(
             trackSelector
                 .buildUponParameters()
                 .setTunnelingEnabled(true)
-                .setPreferredAudioLanguage(
-                    appPreferences.getValue(appPreferences.preferredAudioLanguage)
-                )
-                .setPreferredTextLanguage(
-                    appPreferences.getValue(appPreferences.preferredSubtitleLanguage)
-                )
+                // 使用用户设定的语言优先级列表（越靠前越优先）
+                .setPreferredAudioLanguages(*trackSelectionEngine.audioPriority.toTypedArray())
+                .setPreferredTextLanguages(*trackSelectionEngine.subtitlePriority.toTypedArray())
         )
 
         val playerBackend = appPreferences.getValue(appPreferences.playerBackend)
@@ -343,6 +349,25 @@ constructor(
         }
     }
 
+    /**
+     * 轨道信息就绪后按语言优先级自动选轨。
+     *
+     * 同一媒体可能多次回调（例如外挂字幕稍后才挂载），因此每次都重新计算；
+     * 但用户在当前媒体里手动选过轨时不再干预。
+     */
+    override fun onTracksChanged(tracks: Tracks) {
+        if (player !is ExoPlayer) return
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        if (manualTrackSelectionMediaId == mediaId) return
+
+        runCatching {
+                val parameters =
+                    trackSelectionEngine.parameters(player.trackSelectionParameters, tracks)
+                player.trackSelectionParameters = parameters
+            }
+            .onFailure { Timber.w(it, "自动选择字幕/音轨失败") }
+    }
+
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
         savedStateHandle["mediaItemIndex"] = player.currentMediaItemIndex
@@ -463,6 +488,9 @@ constructor(
     }
 
     fun switchToTrack(trackType: @C.TrackType Int, index: Int) {
+        // 用户手动选择后，本次播放不再自动改轨；同时把语言记为首选，供后续视频沿用
+        manualTrackSelectionMediaId = player.currentMediaItem?.mediaId
+
         // Index -1 equals disable track
         if (index == -1) {
             player.trackSelectionParameters =
@@ -472,16 +500,18 @@ constructor(
                     .setTrackTypeDisabled(trackType, true)
                     .build()
         } else {
+            val group =
+                player.currentTracks.groups
+                    .filter { it.type == trackType && it.isSupported }[index]
+            trackSelectionEngine.rememberSelectedLanguage(
+                trackType,
+                group.mediaTrackGroup.getFormat(0),
+            )
             player.trackSelectionParameters =
                 player.trackSelectionParameters
                     .buildUpon()
                     .setOverrideForType(
-                        TrackSelectionOverride(
-                            player.currentTracks.groups
-                                .filter { it.type == trackType && it.isSupported }[index]
-                                .mediaTrackGroup,
-                            0,
-                        )
+                        TrackSelectionOverride(group.mediaTrackGroup, 0)
                     )
                     .setTrackTypeDisabled(trackType, false)
                     .build()

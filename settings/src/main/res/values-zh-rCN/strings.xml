@@ -5,6 +5,9 @@
     <string name="settings_category_language">语言</string>
     <string name="settings_preferred_audio_language">偏好音频语言</string>
     <string name="settings_preferred_subtitle_language">偏好字幕语言</string>
+    <string name="settings_subtitle_mode">字幕显示</string>
+    <string name="settings_remember_track_selection">记住轨道选择</string>
+    <string name="settings_remember_track_selection_summary">手动切换字幕后，后续视频自动沿用同一语言</string>
     <string name="settings_category_servers">服务器</string>
     <string name="settings_category_player">播放器</string>
     <string name="settings_category_download">下载</string>

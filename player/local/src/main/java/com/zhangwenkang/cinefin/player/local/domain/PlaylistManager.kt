@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.player.local.domain
 
 import androidx.core.net.toUri
 import androidx.media3.common.MimeTypes
+import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.models.FindroidChapter
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -222,15 +223,22 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 }
                 .map { mediaStream ->
                     ExternalSubtitle(
-                        mediaStream.title,
-                        mediaStream.language,
-                        mediaStream.path!!.toUri(),
-                        when (mediaStream.codec) {
-                            "subrip" -> MimeTypes.APPLICATION_SUBRIP
-                            "webvtt" -> MimeTypes.APPLICATION_SUBRIP
-                            "ass" -> MimeTypes.TEXT_SSA
-                            else -> MimeTypes.TEXT_UNKNOWN
-                        },
+                        title = mediaStream.title,
+                        // 归一化为 BCP-47 标签，便于按语言优先级自动选中正确字幕
+                        language =
+                            LanguageMatcher.detect(
+                                mediaStream.language,
+                                mediaStream.title,
+                                mediaStream.path,
+                            ) ?: mediaStream.language,
+                        uri = mediaStream.path!!.toUri(),
+                        mimeType =
+                            when (mediaStream.codec) {
+                                "subrip" -> MimeTypes.APPLICATION_SUBRIP
+                                "webvtt" -> MimeTypes.APPLICATION_SUBRIP
+                                "ass" -> MimeTypes.TEXT_SSA
+                                else -> MimeTypes.TEXT_UNKNOWN
+                            },
                     )
                 }
         val trickplayInfo =

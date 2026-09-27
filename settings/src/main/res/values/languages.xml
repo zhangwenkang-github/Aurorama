@@ -33,6 +33,8 @@
         <item>Chechen</item>
         <item>Chichewa</item>
         <item>Chinese</item>
+        <item>Chinese (Simplified)</item>
+        <item>Chinese (Traditional)</item>
         <item>Church Slavic</item>
         <item>Chuvash</item>
         <item>Cornish</item>
@@ -220,6 +222,8 @@
         <item>che</item>
         <item>nya</item>
         <item>chi</item>
+        <item>zh-Hans</item>
+        <item>zh-Hant</item>
         <item>chu</item>
         <item>chv</item>
         <item>cor</item>

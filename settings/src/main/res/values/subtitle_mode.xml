@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="subtitle_mode">
+        <item>Auto (only preferred languages)</item>
+        <item>Always show subtitles</item>
+        <item>Off</item>
+    </string-array>
+    <string-array name="subtitle_mode_values">
+        <item>auto</item>
+        <item>always</item>
+        <item>off</item>
+    </string-array>
+</resources>

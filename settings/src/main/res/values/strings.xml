@@ -3,6 +3,9 @@
     <string name="settings_category_language">Language</string>
     <string name="settings_preferred_audio_language">Preferred audio language</string>
     <string name="settings_preferred_subtitle_language">Preferred subtitle language</string>
+    <string name="settings_subtitle_mode">Subtitle display</string>
+    <string name="settings_remember_track_selection">Remember track choice</string>
+    <string name="settings_remember_track_selection_summary">After you pick a subtitle or audio track manually, use the same language for later videos</string>
     <string name="settings_category_servers">Servers</string>
     <string name="settings_category_player">Player</string>
     <string name="settings_category_download">Downloads</string>

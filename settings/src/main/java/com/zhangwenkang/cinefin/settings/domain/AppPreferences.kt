@@ -13,6 +13,18 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val preferredAudioLanguage = Preference<String?>("pref_audio_language", null)
     val preferredSubtitleLanguage = Preference<String?>("pref_subtitle_language", null)
 
+    // Language - 字幕/音轨语言优先级（逗号分隔，越靠前优先级越高）
+    val preferredSubtitleLanguages =
+        Preference("pref_subtitle_languages", "zh-Hans,zh-Hant,zh,en")
+    val preferredAudioLanguages =
+        Preference("pref_audio_languages", "zh-Hans,zh-Hant,zh,ja,en")
+
+    /** 字幕显示模式：auto / always / off */
+    val subtitleMode = Preference("pref_subtitle_mode", Constants.SubtitleMode.AUTO)
+
+    /** 手动切换字幕/音轨后，是否把该语言记为首选（跨视频记忆） */
+    val rememberTrackSelection = Preference("pref_remember_track_selection", true)
+
     // Interface
     val theme = Preference("pref_theme", "system")
     val dynamicColors = Preference("pref_dynamic_colors", true)
