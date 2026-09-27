@@ -1,30 +1,29 @@
 package com.zhangwenkang.cinefin.presentation.console
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,21 +33,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zhangwenkang.cinefin.BuildConfig
+import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.Motion
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import org.json.JSONObject
 
 /**
  * 服务器控制台：直接加载服务器自带的 Web 客户端。
@@ -57,21 +55,31 @@ import kotlinx.serialization.json.JsonPrimitive
  * 与其把上百个设置页重写一遍，不如复用服务器端已有的 Web 控制台，
  * 再把当前登录态注入进去，用户打开即是已登录状态。
  *
- * 为了和 App 融为一体：
- * - 顶栏颜色取自网页顶部实际配色（跟随服务器自定义主题），并做平滑过渡；
- * - 去掉网页头部的阴影与分隔线，避免出现“两层皮”的接缝。
+ * 与 App 的融合做了三件事：
+ * 1. 没有 App 自己的标题栏——控制台铺满整屏，返回交给系统回退手势/返回键；
+ * 2. 登录态通过一个"同源空白种子页"写入 localStorage，不再闪现 manifest.json 的代码；
+ * 3. 每次页面加载都注入影阁皮肤（墨底 + 朱砂 + 发丝线），
+ *    与 App 内的设置页、抽屉是同一套语言，不会出现"两个应用"的割裂感。
  */
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun WebConsoleScreen(
     onBack: () -> Unit,
     viewModel: ConsoleViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val safePadding = rememberSafePadding(handleStartInsets = false)
+    val safePadding = rememberSafePadding()
+    val context = LocalContext.current
+
+    val skinCss =
+        remember {
+            context.resources.openRawResource(AppR.raw.web_console_skin).use {
+                it.bufferedReader().readText()
+            }
+        }
 
     var webView by remember { mutableStateOf<WebView?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    var webThemeColor by remember { mutableStateOf<Color?>(null) }
 
     LaunchedEffect(Unit) { viewModel.load() }
 
@@ -85,99 +93,84 @@ fun WebConsoleScreen(
         }
     }
 
-    val barColor by
-        animateColorAsState(
-            targetValue = webThemeColor ?: MaterialTheme.colorScheme.surface,
-            animationSpec = tween(Motion.durationMedium, easing = Motion.standard),
-            label = "consoleBarColor",
-        )
-    // 跟随网页配色自动切换前景色，浅色主题下用深色文字
-    val onBarColor = if (barColor.luminance() > 0.5f) Color.Black else Color.White
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        if (state.loaded) {
+            AndroidView(
+                // 上下留出系统栏安全区，左右铺满；底色由 App 提供，页面与状态栏之间没有接缝
+                modifier =
+                    Modifier.fillMaxSize()
+                        .padding(top = safePadding.top, bottom = safePadding.bottom),
+                factory = { ctx ->
+                    if (BuildConfig.DEBUG) {
+                        // 仅调试构建开放 WebView 远程调试，便于用 CDP 核对控制台真实 DOM 与主题变量
+                        WebView.setWebContentsDebuggingEnabled(true)
+                    }
+                    WebView(ctx).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.databaseEnabled = true
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = false
+                        settings.mediaPlaybackRequiresUserGesture = false
+                        setBackgroundColor(android.graphics.Color.parseColor("#0B0C0E"))
+                        webChromeClient = WebChromeClient()
+                        webViewClient =
+                            ConsoleWebViewClient(
+                                serverHost = state.baseUrl.toHost(),
+                                seedUrl = state.credentialsSeedUrl,
+                                consoleUrl = state.consoleUrl,
+                                // 令牌失效时不写入凭据，让用户能直接在网页里重新登录
+                                credentialsScript =
+                                    if (state.appTokenValid) buildCredentialsScript(state) else "",
+                                skinScript = buildSkinScript(skinCss),
+                                onLoadingChanged = { loading -> isLoading = loading },
+                            )
+                        // 先加载同源种子页写入登录态（页面本身不可见），再进入控制台
+                        loadUrl(state.credentialsSeedUrl)
+                        webView = this
+                    }
+                },
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
 
-    Column(modifier = Modifier.fillMaxSize().background(barColor)) {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .background(barColor)
-                    .padding(
-                        start = safePadding.start + MaterialTheme.spacings.small,
-                        top = safePadding.top + MaterialTheme.spacings.small,
-                        end = safePadding.end + MaterialTheme.spacings.small,
-                    )
-                    .height(56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_arrow_left),
-                    contentDescription = null,
-                    tint = onBarColor,
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(CoreR.string.title_console),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = onBarColor,
-                )
-                if (state.serverName.isNotBlank()) {
-                    Text(
-                        text = state.serverName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = onBarColor.copy(alpha = 0.75f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            IconButton(onClick = { webView?.reload() }) {
+        // 页面切换时只有一条 2dp 的朱砂细线，不占用版面
+        if (isLoading) {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = Color.Transparent,
+            )
+        }
+
+        // 兜底入口：网页状态异常时可以重新载入
+        webView?.let { view ->
+            IconButton(
+                onClick = { view.reload() },
+                colors =
+                    IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                modifier =
+                    Modifier.align(Alignment.BottomEnd)
+                        .padding(
+                            end = safePadding.end + MaterialTheme.spacings.medium,
+                            bottom = safePadding.bottom + MaterialTheme.spacings.medium,
+                        )
+                        .size(40.dp),
+            ) {
                 Icon(
                     painter = painterResource(CoreR.drawable.ic_rotate_ccw),
                     contentDescription = null,
-                    tint = onBarColor,
+                    modifier = Modifier.size(20.dp),
                 )
-            }
-        }
-
-        if (isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (state.loaded) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { context ->
-                        WebView(context).apply {
-                            // 遵循网页自身的 viewport（width=device-width），
-                            // 否则平板会被当成桌面宽视口，登录页等页面会错位
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.databaseEnabled = true
-                            settings.useWideViewPort = false
-                            settings.loadWithOverviewMode = false
-                            settings.mediaPlaybackRequiresUserGesture = false
-                            webChromeClient = WebChromeClient()
-                            webViewClient =
-                                ConsoleWebViewClient(
-                                    serverHost = state.baseUrl.toHost(),
-                                    consoleUrl = state.consoleUrl,
-                                    credentialsScript = buildCredentialsScript(state),
-                                    shouldSeedCredentials = state.appTokenValid,
-                                    onThemeColor = { color -> webThemeColor = color },
-                                    onLoadingChanged = { loading -> isLoading = loading },
-                                )
-                            // 先加载同源页面写入登录态，再进入控制台
-                            loadUrl(state.credentialsSeedUrl)
-                            webView = this
-                        }
-                    },
-                )
-            } else {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
             }
         }
     }
@@ -186,9 +179,9 @@ fun WebConsoleScreen(
 private fun String.toHost(): String =
     runCatching { Uri.parse(this).host }.getOrNull().orEmpty()
 
-/** 控制台地址（含登录态预置与页面美化脚本） */
+/** 种子页地址：同源但不存在的路径，由 [ConsoleWebViewClient] 直接拦截返回空白页。 */
 private val ConsoleState.credentialsSeedUrl: String
-    get() = baseUrl.trimEnd('/') + "/web/manifest.json"
+    get() = baseUrl.trimEnd('/') + "/cinefin-seed"
 
 /**
  * 注入 Jellyfin Web 的登录凭据（localStorage 的 `jellyfin_credentials`，
@@ -238,72 +231,102 @@ private fun buildCredentialsScript(state: ConsoleState): String {
         .trimIndent()
 }
 
-/** 采样网页顶部背景色，并顺手去掉网页头部的阴影/描边，避免与应用顶栏出现接缝 */
-private const val THEME_COLOR_SCRIPT =
-    "(function(){try{" +
-        "var style=document.getElementById('cinefin-blend');" +
-        "if(!style){style=document.createElement('style');style.id='cinefin-blend';" +
-        "style.textContent='.skinHeader,.MuiAppBar-root{box-shadow:none !important;border-bottom:none !important;}';" +
-        "document.head&&document.head.appendChild(style);}" +
-        "function pick(sel){var el=document.querySelector(sel);if(!el)return '';" +
-        "var c=getComputedStyle(el).backgroundColor||'';" +
-        "if(!c||c==='transparent'||c.indexOf('rgba(0, 0, 0, 0)')===0)return '';return c;}" +
-        "var list=['.skinHeader','.MuiAppBar-root','header','#reactRoot','body'];" +
-        "for(var i=0;i<list.length;i++){var c=pick(list[i]);if(c)return c;}" +
-        "return '';}catch(e){return '';}})()"
-
-private fun parseCssColor(raw: String?): Color? {
-    if (raw.isNullOrBlank()) return null
-    val cleaned = raw.trim().removeSurrounding("\"")
-    val numbers = Regex("\\d+").findAll(cleaned).map { it.value.toIntOrNull() ?: 0 }.toList()
-    if (numbers.size < 3) return null
-    val alpha = numbers.getOrNull(3)?.let { it } ?: 255
-    if (alpha == 0) return null
-    return Color(
-        red = numbers[0],
-        green = numbers[1],
-        blue = numbers[2],
-        alpha = alpha,
-    )
+/**
+ * 每次页面加载都补一层影阁皮肤，重复注入时覆盖同一节点，不会叠加。
+ *
+ * 注意：Jellyfin 的主题样式（themes/<name>/theme.css）由前端在运行期后插到 <head> 末尾，
+ * 如果在它之前落地，同优先级规则会被主题覆盖。所以这里除了提高选择器权重，
+ * 还把皮肤节点始终保持在 <head> 的最后一个子节点上（MutationObserver 跟随）。
+ */
+private fun buildSkinScript(css: String): String {
+    val quoted = JSONObject.quote(css)
+    return """
+        (function(){
+          try{
+            var id='cinefin-skin';
+            var head=document.head||document.documentElement;
+            var el=document.getElementById(id);
+            if(!el){
+              el=document.createElement('style');
+              el.id=id;
+            }
+            if(el.textContent !== $quoted){ el.textContent = $quoted; }
+            keepLast();
+            if(!window.__cinefinSkinWatching){
+              window.__cinefinSkinWatching = true;
+              new MutationObserver(keepLast).observe(head, {childList:true});
+            }
+            function keepLast(){
+              if(head.lastElementChild !== el){ head.appendChild(el); }
+            }
+          }catch(e){}
+        })()
+        """
+        .trimIndent()
 }
+
+/** 种子页：同源、空白、不可见，只负责把登录态写进 localStorage。 */
+private fun buildSeedHtml(credentialsScript: String): String =
+    """
+    <!doctype html>
+    <html><head><meta charset="utf-8">
+    <style>html,body{margin:0;padding:0;background:#0B0C0E;}</style>
+    </head><body><script>$credentialsScript</script></body></html>
+    """
+        .trimIndent()
 
 private class ConsoleWebViewClient(
     private val serverHost: String,
+    private val seedUrl: String,
     private val consoleUrl: String,
     private val credentialsScript: String,
-    private val shouldSeedCredentials: Boolean,
-    private val onThemeColor: (Color?) -> Unit,
+    private val skinScript: String,
     private val onLoadingChanged: (Boolean) -> Unit,
 ) : WebViewClient() {
     private var seedHandled = false
 
+    /**
+     * 种子页不发真实请求：直接在本地生成一个同源的空白页面。
+     * 这样既能把凭据写进该源的 localStorage，又不会像以前那样把
+     * manifest.json 的原始代码显示在屏幕上。
+     */
+    override fun shouldInterceptRequest(
+        view: WebView,
+        request: WebResourceRequest,
+    ): WebResourceResponse? {
+        val url = request.url.toString()
+        if (url.startsWith(seedUrl)) {
+            return WebResourceResponse(
+                "text/html",
+                "utf-8",
+                buildSeedHtml(credentialsScript).byteInputStream(),
+            )
+        }
+        return null
+    }
+
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         onLoadingChanged(true)
+        // 尽量早地套上皮肤，避免先看到一帧 Jellyfin 默认蓝
+        if (url != null && !url.startsWith(seedUrl)) {
+            view?.evaluateJavascript(skinScript, null)
+        }
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         if (view == null) return
 
-        if (!seedHandled) {
-            // 首次进入：在服务器同源文档里预置登录态，然后加载控制台。
-            // App 侧令牌已失效时不再覆盖，让用户能直接在网页里登录。
+        if (!seedHandled && url != null && url.startsWith(seedUrl)) {
             seedHandled = true
-            if (shouldSeedCredentials) {
-                view.evaluateJavascript(credentialsScript) { view.loadUrl(consoleUrl) }
-            } else {
-                view.loadUrl(consoleUrl)
-            }
+            // App 侧令牌已失效时不再覆盖，让用户能直接在网页里登录
+            view.loadUrl(consoleUrl)
             return
         }
 
         onLoadingChanged(false)
-
-        // 采样网页配色，让 App 顶栏与网页自然衔接
-        view.evaluateJavascript(THEME_COLOR_SCRIPT) { result ->
-            onThemeColor(parseCssColor(result))
-        }
+        view.evaluateJavascript(skinScript, null)
     }
 
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler, error: SslError) {
