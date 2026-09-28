@@ -10,6 +10,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -29,6 +30,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
+import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
@@ -38,6 +40,7 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.ceil
@@ -148,6 +151,22 @@ constructor(
         val loading: Boolean = false,
     )
 
+    /** 音轨面板里的一行：轨道信息（编码 / 声道 / 码率） */
+    data class AudioOption(
+        /** 音频轨道组下标：ExoPlayer 与 mpv 都用同一套下标定位 */
+        val id: Int,
+        val label: String,
+        val caption: String? = null,
+        val selected: Boolean = false,
+    )
+
+    /** 音轨面板状态（§1.2：音轨延迟 + 轨道描述） */
+    data class AudioPanelState(
+        val options: List<AudioOption> = emptyList(),
+        /** 音轨延迟（毫秒），正 = 声音延后 */
+        val delayMs: Long = 0L,
+    )
+
     private var items: MutableList<PlayerItem> = mutableListOf()
 
     /** 字幕/音轨的智能选择引擎：按语言优先级自动选轨，并记住用户的手动选择 */
@@ -158,6 +177,9 @@ constructor(
 
     private val _subtitlePanelState = MutableStateFlow(SubtitlePanelState())
     val subtitlePanelState = _subtitlePanelState.asStateFlow()
+
+    private val _audioPanelState = MutableStateFlow(AudioPanelState())
+    val audioPanelState = _audioPanelState.asStateFlow()
 
     /** mpv 内核当前使用的次字幕 track id（mpv 侧的状态，不落偏好） */
     private var mpvSecondarySubtitleId: Int? = null
@@ -203,6 +225,8 @@ constructor(
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipType)
         segmentsAutoSkipMode =
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipMode)
+
+        publishAudioPanelState()
 
         // 自研字幕状态变化 → 刷新面板状态，并把「原生文字渲染」的开关同步给播放内核
         viewModelScope.launch {
@@ -511,8 +535,9 @@ constructor(
      */
     override fun onTracksChanged(tracks: Tracks) {
         if (player !is ExoPlayer) {
-            // mpv：字幕轨（sid）来自这个回调，刷新面板让主/次字幕列表跟上
+            // mpv：字幕轨（sid）与音轨（aid）都来自这个回调，刷新面板跟上
             publishSubtitlePanelState()
+            publishAudioPanelState()
             return
         }
         val mediaId = player.currentMediaItem?.mediaId ?: return
@@ -523,6 +548,7 @@ constructor(
             // 用户手动选过轨：音轨保持现状，只同步字幕路由
             applySubtitleRoutingOnly()
         }
+        publishAudioPanelState()
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -1071,6 +1097,120 @@ constructor(
                     selected = group.isSelected,
                 )
             }
+
+    // ---------- 音轨面板：延迟 + 轨道描述（§1.2） ----------
+
+    /** 选音轨；复用换轨逻辑（会记住所选语言，跨视频沿用） */
+    fun selectAudioTrack(index: Int) {
+        switchToTrack(C.TRACK_TYPE_AUDIO, index)
+        publishAudioPanelState()
+    }
+
+    /** 音轨延迟 ±0.05s；ExoPlayer 与 mpv 都即时生效 */
+    fun adjustAudioDelay(deltaMs: Long) {
+        val current = appPreferences.getValue(appPreferences.playerAudioDelayMs)
+        val next =
+            (current + deltaMs).coerceIn(
+                -AudioDelayProcessor.MAX_DELAY_MS,
+                AudioDelayProcessor.MAX_DELAY_MS,
+            )
+        setAudioDelay(next)
+    }
+
+    /** 音轨延迟归零 */
+    fun resetAudioDelay() {
+        setAudioDelay(0L)
+    }
+
+    private fun setAudioDelay(delayMs: Long) {
+        appPreferences.setValue(appPreferences.playerAudioDelayMs, delayMs)
+        playerHolder.setAudioDelay(delayMs)
+        publishAudioPanelState()
+    }
+
+    /** 刷新音轨面板：两个内核汇总成同一份 UI 数据 */
+    private fun publishAudioPanelState() {
+        val options =
+            player.currentTracks.groups
+                .filter { it.type == C.TRACK_TYPE_AUDIO && it.isSupported }
+                .mapIndexed { index, group ->
+                    val format =
+                        (0 until group.length)
+                            .firstOrNull { group.isTrackSelected(it) }
+                            ?.let { group.getTrackFormat(it) }
+                            ?: group.mediaTrackGroup.getFormat(0)
+                    AudioOption(
+                        id = index,
+                        label = audioTrackLabel(format, index),
+                        caption = audioTrackCaption(format),
+                        selected = group.isSelected,
+                    )
+                }
+        _audioPanelState.value =
+            AudioPanelState(
+                options = options,
+                delayMs = appPreferences.getValue(appPreferences.playerAudioDelayMs),
+            )
+    }
+
+    private fun audioTrackLabel(
+        format: Format,
+        index: Int,
+    ): String =
+        format.label?.takeIf { it.isNotBlank() }
+            ?: format.language?.takeIf { it.isNotBlank() }?.let { languageDisplayName(it) }
+            ?: application.getString(R.string.player_audio_track_index, index + 1)
+
+    /** 轨道描述：编码 · 声道 · 码率（没有码率就显示采样率） */
+    private fun audioTrackCaption(format: Format): String {
+        val parts = mutableListOf<String>()
+        audioCodecLabel(format)?.let { parts += it }
+        if (format.channelCount > 0) {
+            parts += application.getString(R.string.player_audio_channels, format.channelCount)
+        }
+        when {
+            format.bitrate > 0 ->
+                parts +=
+                    application.getString(R.string.player_audio_bitrate, format.bitrate / 1000)
+            format.sampleRate > 0 ->
+                parts +=
+                    application.getString(
+                        R.string.player_audio_sample_rate,
+                        format.sampleRate / 1000,
+                    )
+        }
+        return parts.joinToString(" · ")
+    }
+
+    /** 音频编码短名：面板里要能一眼看懂 */
+    private fun audioCodecLabel(format: Format): String? {
+        val mime = format.sampleMimeType.orEmpty()
+        val codecs = format.codecs.orEmpty()
+        return when {
+            mime.contains("eac3", ignoreCase = true) ||
+                codecs.startsWith("ec-3", ignoreCase = true) -> "E-AC-3"
+            mime.contains("ac3", ignoreCase = true) ||
+                codecs.startsWith("ac-3", ignoreCase = true) -> "AC-3"
+            mime.contains("opus", ignoreCase = true) -> "Opus"
+            mime.contains("aac", ignoreCase = true) ||
+                codecs.startsWith("mp4a", ignoreCase = true) -> "AAC"
+            mime.contains("flac", ignoreCase = true) -> "FLAC"
+            mime.contains("mpeg", ignoreCase = true) ||
+                codecs.startsWith("mp3", ignoreCase = true) -> "MP3"
+            mime.contains("truehd", ignoreCase = true) -> "TrueHD"
+            mime.contains("dts", ignoreCase = true) -> "DTS"
+            mime.contains("pcm", ignoreCase = true) -> "PCM"
+            codecs.isNotBlank() -> codecs.uppercase()
+            else -> null
+        }
+    }
+
+    /** 语言标签转可读名（jpn → 日语）；识别不出来就原样显示 */
+    private fun languageDisplayName(tag: String): String =
+        runCatching { Locale.forLanguageTag(tag).getDisplayLanguage(Locale.getDefault()) }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) }
+            ?: tag
 
     fun switchToTrack(trackType: @C.TrackType Int, index: Int) {
         // 用户手动选择后，本次播放不再自动改轨；同时把语言记为首选，供后续视频沿用

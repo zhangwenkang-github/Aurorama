@@ -183,6 +183,7 @@ class PlayerActivity : BasePlayerActivity() {
             CinefinTheme(surfaceBackground = false) {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val subtitlePanelState by viewModel.subtitlePanelState.collectAsStateWithLifecycle()
+                val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
                 // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
                 val layout = rememberPlayerLayoutContext(isPip = pipMode.value)
                 LaunchedEffect(layout, sidePanelExpanded.value) {
@@ -200,13 +201,16 @@ class PlayerActivity : BasePlayerActivity() {
                     onBack = { finishPlayback() },
                     onPip = { pictureInPicture() },
                     onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
-                    onSelectTrack = { type, index -> viewModel.switchToTrack(type, index) },
                     subtitlePanelState = subtitlePanelState,
                     onSelectPrimarySubtitle = { id -> viewModel.selectSubtitlePrimary(id) },
                     onSelectSecondarySubtitle = { id -> viewModel.selectSubtitleSecondary(id) },
                     onAdjustSubtitleDelay = { delta -> viewModel.adjustSubtitleDelay(delta) },
                     onResetSubtitleDelay = { viewModel.resetSubtitleDelay() },
                     onUpdateSubtitleStyle = { style -> viewModel.updateSubtitleStyle(style) },
+                    audioPanelState = audioPanelState,
+                    onSelectAudioTrack = { index -> viewModel.selectAudioTrack(index) },
+                    onAdjustAudioDelay = { delta -> viewModel.adjustAudioDelay(delta) },
+                    onResetAudioDelay = { viewModel.resetAudioDelay() },
                     onSkipSegment = { segment -> viewModel.skipSegment(segment) },
                     initialResizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
                     onSelectResizeMode = { mode -> selectResizeMode(mode) },

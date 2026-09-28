@@ -104,8 +104,18 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
       真机实测（小米平板 5）：《夏日幽灵》简日双语 + 繁日双语双轨同显；暂停帧上把延迟从 0 → −0.1s，
       字幕在同一帧从无到有（cue 起点 121.1s，播放位置 121.057s）；mpv 下 `sub-delay` 立即生效、
       重启后延迟/外观/次字幕语言全部保留。
-- [ ] **1.2 音轨面板补全**（原阶段 3.2）——音轨延迟、轨道描述、默认轨记忆。
-      落点：`PlayerPanel.Audio` 分支 + `TrackSelectionEngine`。
+- [x] **1.2 音轨面板补全**（原阶段 3.2）——音轨延迟、轨道描述、默认轨记忆。
+      落点：`PlayerPanel.Audio` 分支 + `TrackSelectionEngine` + 播放内核。
+      实现：ExoPlayer 侧新增自研 `AudioDelayProcessor`（通过 `CinefinRenderersFactory` 挂进
+      Media3 音频链：正延迟插静音、负延迟丢帧，播放中即时生效，seek 后自动重新应用；
+      同时显式关掉音频 offload——offload 直通硬件会让延迟静默失效）。mpv 侧写原生
+      `audio-delay` 属性。面板：延迟条放顶部（±0.05s / 范围 ±5s / 点当前值归零），
+      音轨列表带描述（编码 · 声道 · 码率或采样率）；延迟落偏好（退出重进仍生效），
+      选轨沿用语言记忆（跨集 / 跨片沿用）。
+      验收：音轨延迟即时生效且方向正确（+ = 声音晚）；轨道描述可读；选轨记忆生效。
+      真机实测（小米平板 5）：ExoPlayer 日志「目标 50 ms → 插入静音 2400 帧（48000 Hz）」
+      与 50ms×48kHz 精确吻合；两个内核的延迟方向都已用户听感确认（+ = 声音晚、− = 声音早）；
+      两个内核的面板都显示「AAC · 2 声道 · 48 kHz」这类轨道描述。
 - [ ] **1.3 手势打磨与验收**（原阶段 2.x；**手势功能本身已完成**，见下）
       已实现：长按倍速 / 长按跳章节、双击、横向滑动 seek（按屏宽比例 + 渐进加速 + Trickplay 预览）、
       左缘亮度 / 右缘音量、双指缩放、锁屏屏蔽（`isControlsLocked` 全路径判断）、灵敏度与档位设置项
@@ -171,7 +181,7 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 | 播放内核（ExoPlayer + FFmpeg + mpv 双内核 + 静默降级） | 88% | 🟡 | `player/local`：`PlayerHolder` / `PlayerViewModel` / `mpv/MPVPlayer` |
 | 队列与选集（整剧补全、按季分组、缩略图行） | 85% | 🟡 | `PlaylistManager` + `PlayerContentPanel` |
 | 控制层（三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 88% | 🟡 | `presentation/player/PlayerControlOverlay.kt` |
-| 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 68% | 🟡 | 字幕面板已补全（§1.1）；音轨 / 画面 / 信息等待办见 §1.2 / 1.6–1.9 |
+| 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 78% | 🟡 | 字幕（§1.1）与音轨（§1.2）面板已补全；画面 / 信息 / 队列等待办见 §1.6–1.9 |
 | 系统层（通知栏 / 后台 / 焦点 / PiP） | 88% | 🟡 | `playback/CinefinPlaybackService` + `CinefinMediaNotificationProvider`；收尾见 §1.4 / 1.5 |
 | 多形态骨架（手机 / 平板 / 折叠 / 小窗 / TV / 车机） | 62% | 🟡 | `PlayerFormFactor` + 三种骨架已实测；折叠 / 小窗 / TV / 车机待实机（§1.12–1.14） |
 | 手势层 | 88% | 🟢 | `utils/PlayerGestureHelper.kt`：长按倍速 / 跳章节、双击、滑动 seek、边缘亮度音量、双指缩放、锁屏屏蔽、灵敏度设置均已实现；打磨见 §1.3 |
@@ -500,6 +510,10 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 自管字幕与内核字幕打架 | 自管接管时**必须**把 `setTrackTypeDisabled(TEXT, true)` 与语言引擎的参数合成一次算完；先选轨再禁用会让参数来回变化，`onTracksChanged` 死循环刷日志（`automatic 选轨` 每秒几十条） |
 | 同一媒体不同集的字幕序号会重复 | 字幕解析缓存 key 必须带媒体 id（`mediaId:index`），只按 index 会串集 |
 | mpv 侧字幕条目的 id | 是 mpv 的 track id（`Format.id`），不是列表下标；`secondary-sid` 也必须用它 |
+| Media3 没有音频偏移 API | 音轨延迟要自己写 `AudioProcessor`：正延迟插静音帧、负延迟丢帧，插到 `DefaultAudioSink` 的处理器链上（覆写 `DefaultRenderersFactory.buildAudioSink`） |
+| `BaseAudioProcessor` 的 `isActive` 陷阱 | 基类只在「有待消费输出」时算活跃，靠默认实现会让处理器被管线旁路、延迟只在第一个 buffer 生效；必须覆写成「配置完成后一直活跃」 |
+| 音频 offload 会让处理链失效 | offload 把压缩音频直通硬件，PCM 处理器收不到数据（延迟静默失效）；`CinefinRenderersFactory` 里显式 `DEFAULT_UNSUPPORTED` 关掉 |
+| mpv `audio-delay` 符号 | 正值 = 声音延后（与面板「+ = 声音晚」一致），真机听感确认过；不要凭「delay 是不是补提前量」的直觉想当然 |
 
 | 权威内容 | 位置 |
 |----------|------|
@@ -513,6 +527,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-28 | §1.2 音轨面板补全：自研 `AudioDelayProcessor`（ExoPlayer）+ `audio-delay`（mpv）+ 轨道描述 + 延迟偏好；真机验证通过（双内核听感确认） |
 | 2026-09-28 | §1.1 字幕面板补全：自管字幕管线（下载/解析/Compose 渲染）+ 延迟 ±0.1s + 双语次字幕 + 外观五档；mpv 侧同步支持；真机验证通过 |
 | 2026-09-28 | 文档重整：新增「快速上手」（项目结构 / 规范 / 命令 / 现状）与「§1 下一步任务」优先级清单；已完成阶段压缩为 §4 摘要；新增 §9 踩坑库 |
 | 2026-09-28 | 选集栏默认收起 + 单击画面收起；修复 `MPVLib is not initialized`（mpv 释放后 surface 回调） |

@@ -108,4 +108,13 @@
     <string name="player_subtitle_graphic_hint">图形字幕由播放内核渲染，不支持延迟与双语</string>
     <string name="player_subtitle_loading">字幕加载中…</string>
     <string name="player_subtitle_unavailable">当前媒体没有可调节的字幕</string>
+    <string name="player_audio_track_index">音轨 %1$d</string>
+    <string name="player_audio_channels">%1$d 声道</string>
+    <string name="player_audio_bitrate">%1$d kbps</string>
+    <string name="player_audio_sample_rate">%1$d kHz</string>
+    <string name="player_audio_delay">音轨延迟</string>
+    <string name="player_audio_delay_earlier">声音提前 0.05 秒</string>
+    <string name="player_audio_delay_later">声音延后 0.05 秒</string>
+    <string name="player_audio_delay_reset">延迟归零</string>
+    <string name="player_audio_no_track">当前媒体没有可选音轨</string>
 </resources>

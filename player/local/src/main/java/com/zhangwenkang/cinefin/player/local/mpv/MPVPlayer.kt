@@ -531,6 +531,12 @@ class MPVPlayer(
     // mpv 原生支持这些能力，和 ExoPlayer 的自研字幕渲染共用同一套面板，
     // 差异只在底层实现：这里把面板设置翻译成 mpv 属性。
 
+    /** 音轨延迟（毫秒）；正 = 声音延后（§1.2） */
+    fun setAudioDelay(delayMs: Long) {
+        Timber.d("mpv 音频延迟 = %d ms", delayMs)
+        mpvLib.setPropertyDouble("audio-delay", delayMs / 1000.0)
+    }
+
     /** 字幕延迟（毫秒）；正 = 字幕延后出现 */
     fun setSubtitleDelay(delayMs: Long) {
         Timber.d("mpv 字幕延迟 = %d ms", delayMs)

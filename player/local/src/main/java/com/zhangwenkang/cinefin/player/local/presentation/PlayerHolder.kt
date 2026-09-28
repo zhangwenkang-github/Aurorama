@@ -7,6 +7,8 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
+import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -42,6 +44,9 @@ constructor(
     private val trackSelector = DefaultTrackSelector(application)
     private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
 
+    /** 音轨延迟（§1.2）：ExoPlayer 音频链上挂它；mpv 走原生 audio-delay 属性 */
+    private val audioDelayProcessor = AudioDelayProcessor()
+
     /** 当前实例使用的内核；还没创建实例时返回偏好里的值 */
     val backend: String
         get() = instanceBackend ?: appPreferences.getValue(appPreferences.playerBackend)
@@ -62,8 +67,26 @@ constructor(
             return create(wanted).also {
                 instance = it
                 instanceBackend = wanted
+                applySavedAudioDelay()
             }
         }
+
+    /**
+     * 设置音轨延迟（毫秒）；正 = 声音延后。
+     *
+     * ExoPlayer 下改处理器里的目标值即可（播放中即时生效）；mpv 下写 `audio-delay` 属性。
+     */
+    fun setAudioDelay(delayMs: Long) {
+        val clamped =
+            delayMs.coerceIn(-AudioDelayProcessor.MAX_DELAY_MS, AudioDelayProcessor.MAX_DELAY_MS)
+        audioDelayProcessor.delayMs = clamped
+        (instance as? MPVPlayer)?.setAudioDelay(clamped)
+    }
+
+    private fun applySavedAudioDelay() {
+        val delayMs = appPreferences.getValue(appPreferences.playerAudioDelayMs)
+        if (delayMs != 0L) setAudioDelay(delayMs)
+    }
 
     /** 释放实例。播放页关闭且不允许后台播放、或服务停止时调用。 */
     fun release() {
@@ -92,7 +115,7 @@ constructor(
         return when (backend) {
             BACKEND_EXOPLAYER -> {
                 val renderersFactory =
-                    DefaultRenderersFactory(application)
+                    CinefinRenderersFactory(application, audioDelayProcessor)
                         .setExtensionRendererMode(
                             DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
                         )

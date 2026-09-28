@@ -122,6 +122,10 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerSubtitleStyleEdge = Preference("pref_player_subtitle_style_edge", 1)
     val playerSubtitleStylePosition = Preference("pref_player_subtitle_style_position", 1)
 
+    // Player - 音轨（延迟；§1.2）
+    /** 音轨延迟（毫秒）：正 = 声音延后，负 = 声音提前；面板按 0.05s 步长调节，范围 ±5s */
+    val playerAudioDelayMs = Preference("pref_player_audio_delay_ms", 0L)
+
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)
     val downloadWhenRoaming = Preference("pref_downloads_roaming", false)

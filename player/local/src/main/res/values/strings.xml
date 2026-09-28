@@ -107,4 +107,13 @@
     <string name="player_subtitle_graphic_hint">Graphic subtitles are rendered by the player core</string>
     <string name="player_subtitle_loading">Loading subtitles…</string>
     <string name="player_subtitle_unavailable">No adjustable subtitle found</string>
+    <string name="player_audio_track_index">Track %1$d</string>
+    <string name="player_audio_channels">%1$d ch</string>
+    <string name="player_audio_bitrate">%1$d kbps</string>
+    <string name="player_audio_sample_rate">%1$d kHz</string>
+    <string name="player_audio_delay">Audio delay</string>
+    <string name="player_audio_delay_earlier">Audio earlier by 0.05 s</string>
+    <string name="player_audio_delay_later">Audio later by 0.05 s</string>
+    <string name="player_audio_delay_reset">Reset delay to zero</string>
+    <string name="player_audio_no_track">No audio track available</string>
 </resources>

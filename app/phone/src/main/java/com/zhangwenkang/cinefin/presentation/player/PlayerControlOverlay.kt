@@ -86,6 +86,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import kotlin.math.roundToInt
@@ -297,7 +298,6 @@ fun PlayerControlOverlay(
     onBack: () -> Unit,
     onPip: () -> Unit,
     onSelectSpeed: (Float) -> Unit,
-    onSelectTrack: (Int, Int) -> Unit,
     /** 字幕面板状态（两个内核汇总后的同一份数据） */
     subtitlePanelState: PlayerViewModel.SubtitlePanelState,
     /** 选主字幕；null 表示关闭 */
@@ -310,6 +310,14 @@ fun PlayerControlOverlay(
     onResetSubtitleDelay: () -> Unit,
     /** 字幕外观调整 */
     onUpdateSubtitleStyle: (SubtitleStyle) -> Unit,
+    /** 音轨面板状态（音轨延迟 + 轨道描述） */
+    audioPanelState: PlayerViewModel.AudioPanelState,
+    /** 选音轨（音频轨道组下标） */
+    onSelectAudioTrack: (Int) -> Unit,
+    /** 音轨延迟步进（±50ms） */
+    onAdjustAudioDelay: (Long) -> Unit,
+    /** 音轨延迟归零 */
+    onResetAudioDelay: () -> Unit,
     onSkipSegment: (FindroidSegment) -> Unit,
     /** 打开播放页时先用哪个画面比例（Activity 从偏好里读出来的 `PlayerView.RESIZE_MODE_*`） */
     initialResizeMode: Int,
@@ -641,13 +649,11 @@ fun PlayerControlOverlay(
                         onUpdateStyle = onUpdateSubtitleStyle,
                     )
                 PlayerPanel.Audio ->
-                    TrackPanel(
-                        titleRes = PlayerR.string.select_audio_track,
-                        tracks = trackOptions(runtime.tracks, C.TRACK_TYPE_AUDIO),
-                        onSelect = { index ->
-                            onSelectTrack(C.TRACK_TYPE_AUDIO, index)
-                            panel = PlayerPanel.None
-                        },
+                    AudioPanel(
+                        state = audioPanelState,
+                        onSelectTrack = onSelectAudioTrack,
+                        onAdjustDelay = onAdjustAudioDelay,
+                        onResetDelay = onResetAudioDelay,
                     )
                 PlayerPanel.Aspect ->
                     AspectPanel(
@@ -1392,12 +1398,6 @@ internal fun formatSpeed(speed: Float): String {
 
 // ---------- 面板 ----------
 
-private data class TrackOption(
-    val index: Int,
-    val label: String,
-    val selected: Boolean,
-)
-
 /** 播放队列里的一项：标题 + 季/集号（电影没有季号） */
 internal data class QueueEntry(
     val title: String,
@@ -1406,20 +1406,6 @@ internal data class QueueEntry(
     /** 剧集缩略图（来自媒体项的 artworkUri）；取不到时列表退化成纯文字 */
     val artworkUri: String? = null,
 )
-
-private fun trackOptions(tracks: Tracks?, type: Int): List<TrackOption> {
-    val groups = tracks?.groups?.filter { it.type == type && it.isSupported }.orEmpty()
-    return groups.mapIndexed { index, group ->
-        val format = group.mediaTrackGroup.getFormat(0)
-        val language = format.language?.takeIf { it.isNotBlank() }
-        val label = format.label?.takeIf { it.isNotBlank() }
-        TrackOption(
-            index = index,
-            label = label ?: language ?: format.sampleMimeType ?: "轨道 ${index + 1}",
-            selected = group.isSelected,
-        )
-    }
-}
 
 private fun hasSelectedTrack(tracks: Tracks?, type: Int): Boolean =
     tracks?.groups?.any { it.type == type && it.isSupported && it.isSelected } == true
@@ -1649,43 +1635,6 @@ private fun AspectPanel(
     }
 }
 
-@Composable
-private fun TrackPanel(
-    titleRes: Int,
-    tracks: List<TrackOption>,
-    onSelect: (Int) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(titleRes))
-        if (tracks.isEmpty()) {
-            Text(
-                text = stringResource(PlayerR.string.player_controls_no_track),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Mist,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            )
-            return@Column
-        }
-        PanelList {
-            // 字幕轨多一个「关闭」：与官方客户端一致，关闭后不再自动选轨
-            if (titleRes == PlayerR.string.select_subtitle_track) {
-                PanelRow(
-                    label = stringResource(PlayerR.string.player_controls_subtitle_off),
-                    selected = tracks.none { it.selected },
-                    onClick = { onSelect(-1) },
-                )
-            }
-            tracks.forEach { track ->
-                PanelRow(
-                    label = track.label,
-                    selected = track.selected,
-                    onClick = { onSelect(track.index) },
-                )
-            }
-        }
-    }
-}
-
 /**
  * 字幕面板（§1.1）：主字幕 / 次字幕（双语）/ 延迟 ±0.1s / 外观。
  *
@@ -1850,19 +1799,19 @@ private fun SubtitleDelayRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
     ) {
-        SubtitleChip(
+        PanelChip(
             label = "−0.1s",
             selected = false,
             contentDescription = stringResource(PlayerR.string.player_subtitle_delay_earlier),
             onClick = { onAdjust(-PlayerSubtitleController.DELAY_STEP_MS) },
         )
-        SubtitleChip(
+        PanelChip(
             label = formatSubtitleDelay(delayMs),
             selected = true,
             contentDescription = stringResource(PlayerR.string.player_subtitle_delay_reset),
             onClick = onReset,
         )
-        SubtitleChip(
+        PanelChip(
             label = "+0.1s",
             selected = false,
             contentDescription = stringResource(PlayerR.string.player_subtitle_delay_later),
@@ -1894,7 +1843,7 @@ private fun SubtitleStyleRow(
                     .padding(horizontal = 20.dp, vertical = 2.dp),
         ) {
             labels.forEachIndexed { index, label ->
-                SubtitleChip(
+                PanelChip(
                     label = label,
                     selected = index == selectedIndex,
                     onClick = { onSelect(index) },
@@ -1906,7 +1855,7 @@ private fun SubtitleStyleRow(
 
 /** 面板里的小胶囊按钮：选中态用朱砂，未选中用墨系 */
 @Composable
-private fun SubtitleChip(
+private fun PanelChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -1942,6 +1891,93 @@ private fun formatSubtitleDelay(delayMs: Long): String {
         delayMs > 0L -> "+%.1fs".format(seconds)
         delayMs < 0L -> "−%.1fs".format(seconds)
         else -> "0.0s"
+    }
+}
+
+/**
+ * 音轨面板（§1.2）：音轨延迟 ±0.05s + 带描述的轨道列表。
+ *
+ * 轨道清单由 ViewModel 汇总（ExoPlayer 与 mpv 同一份数据），
+ * 描述里带编码、声道与码率，多音轨片源不用再靠猜。
+ */
+@Composable
+private fun AudioPanel(
+    state: PlayerViewModel.AudioPanelState,
+    onSelectTrack: (Int) -> Unit,
+    onAdjustDelay: (Long) -> Unit,
+    onResetDelay: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        PanelTitle(stringResource(PlayerR.string.select_audio_track))
+        PanelList {
+            // 延迟放最上面：和字幕面板一致，最高频的调节项不该被列表挤到下面
+            PanelTitle(stringResource(PlayerR.string.player_audio_delay))
+            AudioDelayRow(
+                delayMs = state.delayMs,
+                onAdjust = onAdjustDelay,
+                onReset = onResetDelay,
+            )
+            if (state.options.isEmpty()) {
+                Text(
+                    text = stringResource(PlayerR.string.player_audio_no_track),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Mist,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+            } else {
+                state.options.forEach { option ->
+                    PanelRow(
+                        label = option.label,
+                        caption = option.caption,
+                        selected = option.selected,
+                        onClick = { onSelectTrack(option.id) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 音轨延迟一行：−0.05s / 当前值（点击归零）/ +0.05s */
+@Composable
+private fun AudioDelayRow(
+    delayMs: Long,
+    onAdjust: (Long) -> Unit,
+    onReset: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+    ) {
+        PanelChip(
+            label = "−0.05s",
+            selected = false,
+            contentDescription = stringResource(PlayerR.string.player_audio_delay_earlier),
+            onClick = { onAdjust(-AudioDelayProcessor.STEP_MS) },
+        )
+        PanelChip(
+            label = formatAudioDelay(delayMs),
+            selected = true,
+            contentDescription = stringResource(PlayerR.string.player_audio_delay_reset),
+            onClick = onReset,
+        )
+        PanelChip(
+            label = "+0.05s",
+            selected = false,
+            contentDescription = stringResource(PlayerR.string.player_audio_delay_later),
+            onClick = { onAdjust(AudioDelayProcessor.STEP_MS) },
+        )
+    }
+}
+
+/** 音轨延迟显示：+0.25s / −0.05s / 0.00s */
+private fun formatAudioDelay(delayMs: Long): String {
+    val seconds = kotlin.math.abs(delayMs) / 1000.0
+    return when {
+        delayMs > 0L -> "+%.2fs".format(seconds)
+        delayMs < 0L -> "−%.2fs".format(seconds)
+        else -> "0.00s"
     }
 }
 
