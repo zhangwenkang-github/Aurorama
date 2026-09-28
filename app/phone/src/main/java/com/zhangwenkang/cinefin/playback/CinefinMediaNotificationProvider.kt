@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -14,12 +15,21 @@ import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaStyleNotificationHelper
+import coil3.BitmapImage
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.bitmapConfig
 import com.google.common.collect.ImmutableList
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -43,7 +53,24 @@ class CinefinMediaNotificationProvider(private val context: Context) :
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "cinefin_playback"
         private const val CHANNEL_NAME = "播放控制"
+
+        /** 通知封面解码边长：通知栏大图标用不到原图，512px 足够且省内存 */
+        private const val ARTWORK_SIZE_PX = 512
     }
+
+    /**
+     * 通知构建与封面加载都在主线程：用 Main.immediate 保证 callback 线程正确，
+     * 图片解码在 IO 线程做（通知线程绝不能阻塞）。
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** 当前封面缓存：只留最近一张，避免整剧播放时把每集封面都攒在内存里 */
+    private var cachedArtworkUri: String? = null
+    private var cachedArtwork: Bitmap? = null
+
+    /** 正在加载 / 加载失败过的封面 uri，避免 Media3 每次重建通知都重复请求 */
+    private val loadingArtwork = mutableSetOf<String>()
+    private val failedArtwork = mutableSetOf<String>()
 
     override fun createNotification(
         mediaSession: MediaSession,
@@ -83,6 +110,24 @@ class CinefinMediaNotificationProvider(private val context: Context) :
                 .setShowWhen(false)
                 .setOnlyAlertOnce(true)
                 .setOngoing(player.isPlaying)
+
+        /*
+         * 封面（§1.4）：命中缓存就带上；没有就异步加载，加载完成后再回调刷新一次通知。
+         * 通知线程（主线程）在这里绝不做网络 / 解码，避免卡住通知体系。
+         */
+        val artworkUri = metadata.artworkUri?.toString()?.takeIf { it.isNotBlank() }
+        val largeIcon = artworkUri?.takeIf { it == cachedArtworkUri }?.let { cachedArtwork }
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
+        } else if (artworkUri != null && artworkUri !in failedArtwork) {
+            requestArtwork(
+                artworkUri,
+                mediaSession,
+                customLayout,
+                actionFactory,
+                onNotificationChangedCallback,
+            )
+        }
 
         val duration = player.duration
         if (duration > 0L) {
@@ -129,6 +174,53 @@ class CinefinMediaNotificationProvider(private val context: Context) :
     /** 渠道交给 Media3 创建（低重要性：不发声、不震动，只做常驻控制） */
     override fun getNotificationChannelInfo(): MediaNotification.Provider.NotificationChannelInfo =
         MediaNotification.Provider.NotificationChannelInfo(CHANNEL_ID, CHANNEL_NAME)
+
+    /**
+     * 异步加载通知封面（§1.4）。
+     *
+     * 调用方（主线程构建通知）先拿到一张不带封面的通知；图片解码放在 IO 线程，
+     * 完成后用 [MediaNotification.Provider.Callback] 让 Media3 重建一次通知，
+     * 这次就能命中缓存、把封面画上去。
+     */
+    private fun requestArtwork(
+        uri: String,
+        mediaSession: MediaSession,
+        customLayout: ImmutableList<CommandButton>,
+        actionFactory: MediaNotification.ActionFactory,
+        callback: MediaNotification.Provider.Callback,
+    ) {
+        if (!loadingArtwork.add(uri)) return
+        scope.launch {
+            val bitmap =
+                withContext(Dispatchers.IO) {
+                    val request =
+                        ImageRequest.Builder(context)
+                            .data(uri)
+                            .size(ARTWORK_SIZE_PX)
+                            // 通知大图标要软件位图：ARGB_8888 配置下不会拿到硬件位图，
+                            // 硬件位图在部分 ROM 的通知栏里画不出来
+                            .bitmapConfig(Bitmap.Config.ARGB_8888)
+                            .build()
+                    runCatching { SingletonImageLoader.get(context).execute(request) }
+                        .getOrNull()
+                        ?.image
+                        ?.let { image -> (image as? BitmapImage)?.bitmap }
+                }
+            loadingArtwork.remove(uri)
+            if (bitmap == null) {
+                failedArtwork.add(uri)
+                // 不打完整地址：Jellyfin 的图片地址带 api_key
+                Timber.w("通知封面加载失败（%s）", uri.substringBefore('?'))
+                return@launch
+            }
+            cachedArtworkUri = uri
+            cachedArtwork = bitmap
+            Timber.d("通知封面就绪：%d×%d，刷新通知", bitmap.width, bitmap.height)
+            callback.onNotificationChanged(
+                createNotification(mediaSession, customLayout, actionFactory, callback)
+            )
+        }
+    }
 
     private fun ensureChannel() {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return

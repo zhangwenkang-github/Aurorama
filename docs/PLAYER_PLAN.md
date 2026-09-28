@@ -122,9 +122,13 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
       —— 全在 `utils/PlayerGestureHelper.kt` 与 `settings/…/AppPreferences.kt`。
       剩余：双击分区**触觉反馈**、手势与 Compose 命中区的优先级走查。
       验收：连续 20 次手势无冲突、无误触；锁屏后任意触摸不改变播放状态。
-- [ ] **1.4 通知封面**（D4 缺口）——自研通知 provider 用 `MediaMetadata.artworkUri` 异步加载后 `setLargeIcon`，
+- [x] **1.4 通知封面**（D4 缺口）——自研通知 provider 用 `MediaMetadata.artworkUri` 异步加载后 `setLargeIcon`，
       加载完成用 `onNotificationChangedCallback` 刷新（勿阻塞通知线程）。
       落点：`playback/CinefinMediaNotificationProvider.kt`。
+      实现：Coil 在 IO 线程解码（512px、ARGB_8888 软件位图），主线程只做通知组装；
+      只缓存「最近一张」封面（避免整剧播放攒位图）、同 URL 不重复请求、失败不反复重试。
+      真机实测（小米平板 5）：日志「通知封面就绪：363×512，刷新通知」后紧跟一次带封面的通知重建；
+      用户确认通知栏封面显示正常。
 - [ ] **1.5 阶段 4 收尾验收**——锁屏 30 分钟音频不中断、真机耳机拔出 / 蓝牙切换 / 来电暂停；
       自动降级 mpv 的端到端触发（上次因服务器视频流超时未能验成）。
 
@@ -182,7 +186,7 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 | 队列与选集（整剧补全、按季分组、缩略图行） | 85% | 🟡 | `PlaylistManager` + `PlayerContentPanel` |
 | 控制层（三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 88% | 🟡 | `presentation/player/PlayerControlOverlay.kt` |
 | 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 78% | 🟡 | 字幕（§1.1）与音轨（§1.2）面板已补全；画面 / 信息 / 队列等待办见 §1.6–1.9 |
-| 系统层（通知栏 / 后台 / 焦点 / PiP） | 88% | 🟡 | `playback/CinefinPlaybackService` + `CinefinMediaNotificationProvider`；收尾见 §1.4 / 1.5 |
+| 系统层（通知栏 / 后台 / 焦点 / PiP） | 92% | 🟡 | 通知封面已补（§1.4）；剩余收尾见 §1.5（锁屏/耳机/降级端到端） |
 | 多形态骨架（手机 / 平板 / 折叠 / 小窗 / TV / 车机） | 62% | 🟡 | `PlayerFormFactor` + 三种骨架已实测；折叠 / 小窗 / TV / 车机待实机（§1.12–1.14） |
 | 手势层 | 88% | 🟢 | `utils/PlayerGestureHelper.kt`：长按倍速 / 跳章节、双击、滑动 seek、边缘亮度音量、双指缩放、锁屏屏蔽、灵敏度设置均已实现；打磨见 §1.3 |
 | 无障碍 | 55% | 🟡 | 可点节点有标签与 role/selected、48dp 命中区；焦点顺序 / 大字体 / 高对比未验 |
@@ -527,6 +531,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-28 | §1.4 通知封面完成（Coil 异步加载 + 回调刷新 + 单张缓存）；新增 §11「播放页 UI/UX 改造待办」（用户 2026-09-28 提出的 5 条，暂不处理） |
 | 2026-09-28 | §1.2 音轨面板补全：自研 `AudioDelayProcessor`（ExoPlayer）+ `audio-delay`（mpv）+ 轨道描述 + 延迟偏好；真机验证通过（双内核听感确认） |
 | 2026-09-28 | §1.1 字幕面板补全：自管字幕管线（下载/解析/Compose 渲染）+ 延迟 ±0.1s + 双语次字幕 + 外观五档；mpv 侧同步支持；真机验证通过 |
 | 2026-09-28 | 文档重整：新增「快速上手」（项目结构 / 规范 / 命令 / 现状）与「§1 下一步任务」优先级清单；已完成阶段压缩为 §4 摘要；新增 §9 踩坑库 |
@@ -537,4 +542,75 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 2026-09-27 | 阶段 4 完成：`CinefinPlaybackService` + 自研通知 provider + 前台服务 + PiP + 媒体按键；`PlayerHolder` 成为播放器唯一持有者 |
 | 2026-09-27 | 阶段 8.1–8.6 完成：`PlayerFormFactor` 多形态判定 + `SplitSide` / `SplitPortrait` / `Compact` 骨架 + 命中区 + 车机不沉浸 |
 | 2026-09-27 | 阶段 1.1–1.3 完成：八态按钮、顶栏徽标、错误卡片；新增 `AGENTS.md`，旧文档合并为本文件 |
+
+---
+
+## 11. 播放页 UI/UX 改造（用户 2026-09-28 提出 · **先记录、暂不处理**）
+
+> 用户明确说明：这一组问题**最后统一做**，本轮只登记。
+> 本质上它们是一次「播放页控制层重构」（控件体系 + 版式 + 面板形态），
+> 与 §1.10 控制层视觉收口、§1.9 播放页设置面板高度重叠——**建议合并成一条线做，避免返工**。
+
+### 11.1 问题清单（按类型分组）
+
+**A. 控件精简（视觉噪音）**
+
+1. 播放界面有多余的、离散的常驻控件：
+   - 右上角的「画中画」与「锁定」，右下角还有一把固定的「锁」——同一个能力两个入口，且都常驻画面；
+   - 现状落点：`PlayerTopBar`（PiP / 锁）+ `PlayerBottomBar` 最右侧的锁按钮；
+   - 处理方向：常驻项只留一份；PiP 这类低频入口收进「更多」；锁的解锁入口保留在侧边/长按，
+     锁屏时不显示其它控件（`LockedOverlay` 已有）。
+
+**B. 图标语义（可读性）**
+
+2. 控件图标需要重绘，并**加上文字标签**——目前纯图标（字幕 / 音轨 / 画面 / 信息 / 队列 / 睡眠…），
+   不看 tooltip / 点一次试不出来是干啥的；
+   - 处理方向：底栏按钮统一「图标 + 文字」，图标重绘保持 24dp 网格、线性风格、与既有 `ic_*` 一致；
+   - 落点：`core/src/main/res/drawable/ic_*.xml` + `PlayerControlOverlay.kt` 的 `PlayerIconButton` / 底栏。
+
+**C. 面板形态统一**
+
+3. 点击控件后的面板统一**从右侧滑出**（和选集栏同款），**半透明背景、不压缩播放画面**、直接盖在画面上：
+   - 现状：面板是 `ModalBottomSheet`（底部弹起，遮住下半画面，且与平板侧栏两套交互）；
+   - 处理方向：把面板宿主机从 ModalBottomSheet 换成右侧抽屉（复用 `PlayerContentPanel` 的侧栏形态），
+     打开时 `PlayerActivity.applyVideoArea` 不再收窄画面；
+   - 落点：`PlayerControlOverlay.kt`（panel host）、`PlayerContentPanel.kt`、`PlayerOverlayContainer.kt`（命中区）、
+     `PlayerActivity.applyVideoArea`；
+   - ⚠️ 风险：命中区（触摸分区）必须同步改，改完要真机走查「面板打开时的单击 / 滑动 / 手势仲裁」。
+
+**D. 播放行为（bug 级）**
+
+4. 打开视频后**没有自动选择字幕**（以前实现过，疑似失效）；打开视频后**没有自动播放**。
+   - 已知线索（新会话从这里查，别从零开始）：
+     - 字幕：§1.1 之后主字幕由 `PlayerSubtitleController.pickPrimary()` 按语言优先级选；
+       若源的 `language` 识别为空、且 `subtitleMode=auto`，则**不选任何轨**——需要补「识别不出来时按默认轨兜底」；
+     - mpv 内核：`MPVPlayer` 初始化时把 `preferredTextLanguages.firstOrNull().split("-").last()`
+       写进了 mpv 的 `slang`（`zh-Hans` → `Hans`），语言匹配必然失败——**"以前有、现在没有"最可能的原因**；
+     - 自动播放：`initializePlayer` 里有 `player.play()`，但 `BasePlayerActivity.onPause` 会把
+       `playWhenReady=false`；起播阶段若经历一次 pause/resume（内核切换、加载），可能被带成"要手点一次"。
+   - 验收：打开任意有字幕的新片自动出字幕（语言优先级仍生效）；打开即播、无需第二次点击。
+
+**E. 控件排布**
+
+5. 控件重新排列，参考主流播放器（VLC / Infuse / Jellyfin / Emby / 哔哩哔哩等）的排布习惯。
+   - 处理方向：先做一次「控件审计」（列出全部控件、出现条件、使用频率），再定版式。主流共识大致是：
+     顶部＝返回 + 标题（+ 更多）；中央＝播放/暂停 + ±10s + 上/下集；底部＝进度 + 时间 + 一排高频工具；
+     低频（倍速 / 循环 / 信息 / 睡眠）进「更多」；锁定 / PiP 归顶部或侧边，不做双入口；
+   - 与 A、B 是同一组改造，建议一次版式定稿。
+
+### 11.2 做这组改造前先读
+
+- **沿用现有设计锁**（§5.5.4）：朱砂 `#D2553C` 唯一强调色、墨系中性色、15/13/11sp 字阶、999dp 胶囊、
+  16dp 面板圆角、180/220/240ms 动效曲线——**不新增配色、不换字体**。
+- **播放画面优先**：常驻控件不抢画面注意力；面板打开默认不改变画面布局（C 的"不压缩画面"就是这条）。
+- **命中区纪律**：任何控件 / 布局改动必须同步 `PlayerOverlayContainer` 的触摸分区，并真机走查手势（§5.2、§9）。
+- 方法论参考（技能 `design-taste-frontend`，只借方法不套模板）：改动前先做 **audit**（现状清单 + 使用频率）、
+  写一句 **design read**（受众＝自己家的观影场景、气质＝影院式克制、资产＝既有墨+朱砂设计系统）、
+  坚持 **anti-default**（不为"看起来丰富"堆控件）。⚠️ 该技能面向 Web 页面，控件排布以主流**播放器**习惯为准。
+
+### 11.3 建议顺序（新会话可直接照此开工）
+
+1. **D（自动选字幕 + 自动播放）**——bug 级，线索已定位，改动小、体感收益最大；
+2. **A + B + E（控件精简 / 图标文案 / 版式重排）**——一次定稿，避免反复改同一批文件；
+3. **C（面板右侧化 + 不压缩画面）**——牵动命中区与侧栏交互，单独做 + 真机走查。
 
