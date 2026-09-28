@@ -3,7 +3,61 @@
 > **新对话从这里开始。** 开工前读本文件，收工前把进度写回本文件。
 > 纪律：需求变更、决策、完成度、勾选项、更新日志，都在**同一次改动**里写回这里；不再新建零散 `.md`。
 >
-> 最后更新：2026-09-27　分支：`master`　基线提交：`8ab9c7a`（工作区含未提交改动）
+> 最后更新：2026-09-28　分支：`master`　最新提交：`ad45d40`
+
+---
+
+## 快速上手（新会话必读）
+
+### A. 项目是什么
+
+Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只做播放器**：`app/phone` 的播放页
+（`PlayerActivity` + Compose 控制层），双内核 ExoPlayer（默认）/ mpv（软解兜底）。
+
+| 模块 | 作用 |
+|------|------|
+| `app/phone` | 主应用（手机 + 平板）：`PlayerActivity`、`BasePlayerActivity`、`presentation/player/*`（控制层）、`playback/CinefinPlaybackService`（通知 / 后台 / 前台服务） |
+| `app/tv` | TV 端独立 Compose UI（本轮少动，阶段 8.9 对齐） |
+| `core` | 主题、工具、通用图标 / 字符串（`CoreR`） |
+| `data` | Jellyfin 数据模型与仓库（`FindroidItem` / `FindroidEpisode` 等） |
+| `player/core` | 播放模型（`PlayerItem` / `Track` / `Trickplay` / `PlayerChapter`） |
+| `player/local` | 播放核心：`PlayerHolder`（实例持有）、`PlayerViewModel`、`PlaylistManager`（队列）、`TrackSelectionEngine`、`mpv/MPVPlayer` |
+| `modes/film` | 电影 / 剧集业务页面 |
+| `settings` / `setup` | 偏好设置 / 服务器配置向导 |
+| `docs/PLAYER_PLAN.md` | **本文件：唯一权威文件** |
+
+改播放器基本只碰这几处：
+`PlayerControlOverlay.kt`（骨架 + 顶/中/底栏 + 面板）、`PlayerFormFactor.kt`（形态判定）、
+`PlayerContentPanel.kt`（内容栏 / 选集列表）、`PlayerOverlayContainer.kt`（触摸命中区）、
+`PlayerActivity.kt`（宿主）、`PlayerViewModel.kt` + `PlayerHolder.kt` + `PlaylistManager.kt`（播放逻辑）。
+
+### B. 规范与命令（硬约束）
+
+1. 全程简体中文；文档只维护本文件，不新建零散 `.md`。
+2. 构建（JDK 必须用这个，工程按 Java 21 编译）：
+   ```powershell
+   $env:JAVA_HOME='D:\Android\Android Studio\jbr'
+   cd E:\codex_work\Android_Studio_Work_Space\Cinefin
+   .\gradlew.bat :app:phone:assembleDebug --console=plain
+   ```
+3. **真机调试**（模拟器太卡已弃用；真机 = 小米平板 5 `nabu` / Android 13 / 1600×2560）：
+   ```powershell
+   adb install -r app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk
+   # debug 包播放页 exported=true，可直接带条目启动
+   adb shell am start -n com.zhangwenkang.cinefin.debug/com.zhangwenkang.cinefin.PlayerActivity --es itemId "<UUID>" --es itemKind "Episode"
+   adb shell dumpsys media_session | Select-String cinefin          # 会话 / 播放状态
+   adb shell uiautomator dump /sdcard/u.xml; adb shell cat /sdcard/u.xml | Select-String 'text="'  # UI 文本
+   adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkang.cinefin.debug_preferences.xml  # 读偏好（临时改内核）
+   ```
+4. 测试服务器 `jellyfins.zhangwenkang.com` **只读**（禁止任何写入 / 删除调用）。
+5. 每完成一个阶段就 `git commit`（先编译通过；信息用 `feat(player): …` / `fix(player): …`）。
+6. 工具输出必须裁剪（`-Last N` / `Select-String`）；截图只在必要时看、看完即删、不贴进回复。
+
+### C. 现在做到哪了
+
+播放页已可日常使用：手机 / 平板形态自适应、控制层完整（八态按钮 / 错误卡片 / 面板 / 缩略图选集）、
+右侧选集栏（默认收起、可手动弹出、点画面收起）、通知栏与后台播放、PiP、双内核与静默降级。
+完成度看板见 §3；**待办集中在 §1「下一步任务」**，踩坑经验在 §9。
 
 ---
 
@@ -30,15 +84,46 @@
 
 ---
 
-## 1. 本轮目标
+## 1. 下一步任务（挑一条开工：改代码 → 真机验证 → 勾掉 → 写 §10 日志 → commit）
 
-把已能播放的播放器界面，做成**平板与手机上"稳、顺、好看"的自用播放器**：
+### P0 · 直接影响日常观影
 
-1. 控制层补齐覆盖态（错误/重试/切内核）与视觉统一（八态按钮、字阶、遮罩）。
-2. 系统层补上 `MediaSessionService`（通知栏 + 锁屏 + 后台播放可靠）。
-3. 平板/折叠屏做分栏与半开形态；手机竖横屏打磨。
-4. 手势零冲突，锁屏防误触可靠。
-5. 全流程可无障碍使用（TalkBack、大字体、遥控/键盘焦点）。
+- [ ] **1.1 字幕面板补全**（原阶段 3.1）——延迟 ±0.1s、双语次字幕、外观（大小 / 颜色 / 背景 / 描边 / 位置）。
+      落点：`PlayerControlOverlay.kt` 的 `PlayerPanel.Subtitle` 分支 + `PlayerViewModel`（字幕样式 / `CueGroup`）。
+      验收：外挂 ASS 字幕调延迟立即生效、退出重进仍记住；双语不重叠。
+- [ ] **1.2 音轨面板补全**（原阶段 3.2）——音轨延迟、轨道描述、默认轨记忆。
+      落点：`PlayerPanel.Audio` 分支 + `TrackSelectionEngine`。
+- [ ] **1.3 手势与锁屏收口**（原阶段 2.1–2.5）——优先级仲裁（锁屏 > 面板 > 边缘亮度音量 > 横滑进度 > 双击 > 单击）、
+      双击分区可视化 + 触觉反馈、锁屏后吞掉全部触摸只留解锁钮。
+      落点：`utils/PlayerGestureHelper.kt`（589 行，XML HUD 与手势都在这里）+ `PlayerOverlayContainer.kt` 命中区。
+      验收：连续 20 次手势无冲突、无误触；锁屏后任意触摸不改变播放状态。
+- [ ] **1.4 通知封面**（D4 缺口）——自研通知 provider 用 `MediaMetadata.artworkUri` 异步加载后 `setLargeIcon`，
+      加载完成用 `onNotificationChangedCallback` 刷新（勿阻塞通知线程）。
+      落点：`playback/CinefinMediaNotificationProvider.kt`。
+- [ ] **1.5 阶段 4 收尾验收**——锁屏 30 分钟音频不中断、真机耳机拔出 / 蓝牙切换 / 来电暂停；
+      自动降级 mpv 的端到端触发（上次因服务器视频流超时未能验成）。
+
+### P1 · 体验提升
+
+- [ ] **1.6 画面调整**（原阶段 3.3）——旋转 / 镜像 / 裁剪 / 去黑边（比例已有，偏好仿 `pref_player_resize_mode`）。
+- [ ] **1.7 队列管理**（原阶段 3.4）——拖拽排序、删除、清空、跳转；循环模式补「播完暂停」。
+- [ ] **1.8 信息面板补全**（原阶段 3.5）——容器 / 编码 / 分辨率 / 码率 / 帧率 / HDR / 音频格式 / 文件大小 / 路径。
+- [ ] **1.9 播放页设置面板**（原阶段 3.6）——播放 / 解码 / 字幕 / 音频 / 画面 / 手势 六组，页内直接改。
+- [ ] **1.10 控制层视觉收口**（原阶段 1.4 / 1.5）——底栏时间可点切换「总时长 / 剩余」、章节入口、
+      15sp / 13sp 字阶、等宽数字、渐变遮罩统一、加载细线。
+- [ ] **1.11 播放增强**（原阶段 6）——进度记忆与服务端同步、片头片尾阈值设置、Trickplay 预加载与失败降级、
+      外挂字幕导入、播放结束行为（自动下一集 / 停在结束帧）。
+
+### P2 · 多形态与打磨
+
+- [ ] **1.12 折叠半开实测**（阶段 8.7）——`FoldHalfOpen` 骨架已写，缺折叠设备，待真机。
+- [ ] **1.13 小窗 / 分屏实测**（阶段 8.8）——`Compact` 骨架已写，需真机 freeform / 分屏。
+- [ ] **1.14 TV / 车机走查**（阶段 8.9 / D10）——10-foot 焦点、车机 64dp 命中区、不沉浸。
+- [ ] **1.15 PiP 三键与细进度条**（阶段 8.10）——MediaSession 已就绪，验证 PiP 窗口三键与比例。
+- [ ] **1.16 验收与打磨**（阶段 7）——真机回归矩阵、性能（首帧 ≤1.5s、2h 内存增长 <80MB）、
+      无障碍（TalkBack、大字体 2.0×、键盘焦点可见）。
+- [ ] **1.17 排障工具与工程基线**（阶段 0.3 / 0.4）——`PlayerDebugOverlay`（长按标题显示内核 / 解码器 / 码率 / 缓冲 / 丢帧）、
+      `ktfmtFormat` + `lintDebug` 无新增告警。
 
 ---
 
@@ -62,103 +147,49 @@
 
 ## 3. 完成度看板（估算，随进度更新）
 
-| 模块 | 完成度 | 状态 | 证据 / 落点 |
+| 模块 | 完成度 | 状态 | 落点 / 备注 |
 |------|--------|------|------------|
-| 播放内核（ExoPlayer + FFmpeg + mpv 降级） | 85% | 🟡 | `player/local/.../PlayerViewModel.kt`、`mpv/MPVPlayer.kt` |
-| 手势层 | 80% | 🟡 | `utils/PlayerGestureHelper.kt`（589 行） |
-| 控制层（Compose 三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 82% | 🟡 | `presentation/player/PlayerControlOverlay.kt`；错误卡片、按钮八态、顶栏徽标均已实测；新增「更多」聚合面板 |
-| 面板系统 | 58% | 🟡 | 同文件：倍速/循环/画面比例/字幕/音轨/信息/队列/睡眠 + 更多 |
-| 系统层（通知栏 / 后台 / 焦点 / PiP） | 88% | 🟡 | 阶段 4 完成：`playback/CinefinPlaybackService`（MediaSessionService + 前台服务）+ 自研通知 provider + `PlayerHolder` 共享实例；真机长稳（锁屏 30 分钟、耳机/蓝牙/来电）待验 |
-| 多形态骨架（手机 / 平板 / 折叠 / 小窗 / TV / 车机） | 55% | 🟡 | 新增 `PlayerFormFactor.kt` + `PlayerContentPanel.kt`；平板 SplitSide、手机竖屏 SplitPortrait、小窗 Compact、车机不沉浸已实现；平板与竖屏已实测（见 §10），折叠 / TV / 车机 / 小窗待实机 |
-| 无障碍 | 55% | 🟡 | 可点节点已自带标签（实测 `uiautomator` 可见）、role/selected 语义、48dp 命中区；焦点顺序/大字体/高对比未验证 |
-| 测试与验收 | 10% | ⛔ | 无 Compose UI 测试、无性能基线 |
+| 播放内核（ExoPlayer + FFmpeg + mpv 双内核 + 静默降级） | 88% | 🟡 | `player/local`：`PlayerHolder` / `PlayerViewModel` / `mpv/MPVPlayer` |
+| 队列与选集（整剧补全、按季分组、缩略图行） | 85% | 🟡 | `PlaylistManager` + `PlayerContentPanel` |
+| 控制层（三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 88% | 🟡 | `presentation/player/PlayerControlOverlay.kt` |
+| 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 58% | 🟡 | 框架齐全；条目补全见 §1.1 / 1.2 / 1.6–1.9 |
+| 系统层（通知栏 / 后台 / 焦点 / PiP） | 88% | 🟡 | `playback/CinefinPlaybackService` + `CinefinMediaNotificationProvider`；收尾见 §1.4 / 1.5 |
+| 多形态骨架（手机 / 平板 / 折叠 / 小窗 / TV / 车机） | 62% | 🟡 | `PlayerFormFactor` + 三种骨架已实测；折叠 / 小窗 / TV / 车机待实机（§1.12–1.14） |
+| 手势层 | 80% | 🟡 | `utils/PlayerGestureHelper.kt`；收口见 §1.3 |
+| 无障碍 | 55% | 🟡 | 可点节点有标签与 role/selected、48dp 命中区；焦点顺序 / 大字体 / 高对比未验 |
+| 测试与验收 | 10% | ⛔ | 无 UI 测试、无性能基线；见 §1.16 |
 
 ### 3.1 工作区状态（交接必读）
 
-- 当前未提交改动 **108 项**，其中大部分是**更早会话**留下的改造（主题、首页组件、设置页、播放控制层），不属于本次任务，也不要当成"本轮进度"。
-- 本任务到目前为止的改动：`docs/PLAYER_PLAN.md`+`AGENTS.md`（新增）、删除 5 个旧 `.md`；
-  以及阶段 1.3 涉及的 8 个文件 —— `PlayerViewModel.kt`、`MPVPlayer.kt`、`PlayerActivity.kt`、
-  `PlayerControlOverlay.kt`、`PlayerOverlayContainer.kt`、`BasePlayerActivity.kt`（注释）、
-  `player/local` 的三个 `strings.xml`。
-- 阶段 8.1–8.6 的新增/改动：**新增** `presentation/player/PlayerFormFactor.kt`、
-  `presentation/player/PlayerContentPanel.kt`；**改动** `PlayerControlOverlay.kt`（骨架化 + `MorePanel`）、
-  `PlayerOverlayContainer.kt`（按画面区划命中带）、`PlayerActivity.kt`（画面区排版 / 方向 / 车机不沉浸 / PiP 状态）、
-  `app/phone/src/main/AndroidManifest.xml`（`fullSensor` + `resizeableActivity`）、
-  `player/local` 三个 `strings.xml`（`player_controls_episodes` / `player_controls_more` / `player_controls_side_panel_collapse`）。
-- 阶段 4 的新增/改动：**新增** `playback/CinefinPlaybackService.kt`、`playback/CinefinMediaNotificationProvider.kt`、
-  `player/local/.../presentation/PlayerHolder.kt`、`core/res/drawable/ic_close.xml`；**改动** `PlayerViewModel.kt`
-  （播放器改由 `PlayerHolder` 提供 + `attachToExistingSession`）、`MPVPlayer.kt`（`getMediaMetadata` 返回当前媒体项元数据）、
-  `BasePlayerActivity.kt`（内联 MediaSession 改成前台服务）、`PlayerActivity.kt`（会话接管 + 通知权限）、
-  `AndroidManifest.xml`（service 与前台服务权限）、`player/local` 三个 `strings.xml`（`player_controls_previous_episode`）。
-- **判断进度只看本文件 §3 看板与 §4 勾选项**，不要用 `git status` 的改动量推断。
-- 可用验证环境：模拟器 `emulator-5554`（API 36 / 2560×1600 平板）在跑，且已安装 `com.zhangwenkang.cinefin.debug`；测试服务器凭据不入库。
+- 本任务改动均已提交（`git log --oneline` 里的 `feat(player):` / `fix(player):` 系列）；工作区另有更早会话留下的
+  **其他领域**未提交改动（主题、首页、设置页等），**不属于本任务，别动**。
+- **判断进度只看 §3 看板与 §1 任务清单**，不要用 `git status` 的改动量推断。
+- 验证环境：真机小米平板 5（见 §7）；模拟器已弃用；测试服务器凭据不入库。
+- 交接约定：完成一条任务 → 勾 §1 → §10 记一行 → `git commit`。
 
 ---
 
-## 4. 开发步骤与进度
+## 4. 已完成阶段摘要（待办已上移到 §1）
 
-> 每完成一项，把 `[ ]` 改成 `[x]` 并在 §10 记一行日志。预估为单人工作量（含自测）。
+| 原阶段 | 状态 | 结果 |
+|--------|------|------|
+| 0 · 基线 | 🟡 | 0.1 固定 JDK 构建通过；0.2 / 0.3 / 0.4 见 §1.17 |
+| 1 · 控制层 | 🟡 | 八态按钮、顶栏清晰度徽标、错误卡片（原因 / 重试 / 一键切内核）、无障碍标签完成；1.3b / 1.4 / 1.5 见 §1.10 |
+| 2 · 手势锁屏 | ⛔ | 未做，见 §1.3 |
+| 3 · 面板 | 🟡 | 倍速 / 循环 / 比例 / 字幕轨 / 音轨 / 信息 / 队列 / 睡眠 / 更多 的框架已有；补全见 §1.1 / 1.2 / 1.6–1.9 |
+| 4 · 系统层 | 🟡 88% | MediaSessionService + mediaPlayback 前台服务 + 自研通知（标题 / 季集 / 进度 / 5 按钮）+ PiP + 媒体按键；收尾见 §1.4 / 1.5 |
+| 5 · 形态 | 🟡 | 布局条目并入阶段 8；实机验收见 §1.12–1.14 |
+| 6 · 自用增强 | ⛔ | 未做，见 §1.11 |
+| 7 · 验收打磨 | ⛔ | 未做，见 §1.16 |
+| 8 · 多形态 | 🟡 55% | 8.1–8.6 完成（`PlayerFormFactor` 判定层 + `SplitSide` / `SplitPortrait` / `Compact` 骨架 + 命中区 + 车机不沉浸）；8.7–8.10 见 §1.12–1.15 |
 
-### 阶段 0 · 基线校验（0.5 天）
+改代码前值得先读的既有实现（避免重复造）：
 
-- [x] 0.1 用固定 JDK 构建并确认基线可编译（`assembleDebug`）— 2026-09-27 通过（25s，197 tasks up-to-date）
-- [ ] 0.2 连测试服务器（只读）播一条网络片源，验证首帧 / 进度 / 字幕切换
-- [ ] 0.3 新增 `PlayerDebugOverlay`（长按标题 2s 显示：内核 / 解码器 / 码率 / 缓冲 / 丢帧）
-- [ ] 0.4 `ktfmtFormat` + `lintDebug` 基线无新增告警
-
-### 阶段 1 · 控制层补完（1–1.5 天）★最高优先
-
-- [x] 1.1 `PlayerIconButton` 八态化：默认 / 按下（缩放 0.94 + 底色）/ 聚焦（2dp 朱砂描边，遥控与键盘用）/ 选中（朱砂图标 + 浮起底）/ 禁用（38% 透明度）/ 加载（转圈代图标）/ 激活徽标（右上朱砂点）/ 错误（朱砂底）
-      · 无障碍一并修掉：`contentDescription` + `role=Button` + `selected` 直接写在可点节点上（此前可点节点无标签）
-      · 选中态改由 `selected` 参数驱动，循环 / 字幕 / 画面比例 / 睡眠定时四处调用已迁移
-      · 实测量测：图标按钮 48×48dp、中央播放键 72×72dp
-- [x] 1.2 顶栏：清晰度徽标（`1080P`，无轨道信息时不显示假值）、标题两行省略
-- [x] 1.3 中央错误卡片：原因 + 重试 + 一键切内核 — 2026-09-27 完成，模拟器实测
-      （证据 `docs/screenshots/player-error-card-2026-09-27.png`：断网 → 卡片 → 重试恢复）
-- [ ] 1.3b 中央加载细线（顶部 2dp）
-- [ ] 1.4 底栏：时间可点切换"总时长 / 剩余时间"、章节入口、进度条命中区 ≥32dp
-- [ ] 1.5 视觉收口：渐变遮罩统一、15sp/13sp 字阶、等宽数字、发丝线、淡入淡出 150–200ms
-- [ ] 1.6 验收：竖横屏全控件走查 + TalkBack 能读完顶→中→底 + 重启后记住倍速/字幕/音量
-
-**阶段 1 过程中发现并已处理的问题**
-
-| 问题 | 影响 | 处理 |
-|------|------|------|
-| `MPVPlayer.setVideoTextureView()` 是 `TODO()` 桩 | 控制层改 Compose 后视频输出换成 TextureView，选 mpv 内核**必崩**（实测 `kotlin.NotImplementedError`，堆栈 `MPVPlayer.kt:1350 ← PlayerView.setPlayer ← PlayerActivity.onCreate`） | 已按 SurfaceView 同一套 `attachSurface` 实现 TextureView 挂载/卸载；模拟器实测出画面（`docs/screenshots/player-mpv-fallback-2026-09-27.png`） |
-| `PlayerActivity` 是 `launchMode="singleTask"` | 用 `startActivity` 重启换内核会被复用成同一实例，紧接着 `finish()` 直接退回上一页（实测过一次） | 改为 `intent.putExtra(位置) → viewModelStore.clear() → recreate()` |
-| mpv 内核不上报播放错误 | `getPlayerError()` 恒为 null，出错只有黑屏没有卡片 | **待办**：补 mpv 事件（`MPV_EVENT_END_FILE`）错误上报 |
-
-### 阶段 2 · 手势与锁屏收口（1–1.5 天）
-
-- [ ] 2.1 优先级仲裁：锁屏 > 面板 > 边缘亮度音量 > 横滑进度 > 双击 > 单击
-- [ ] 2.2 双击分区可视化 + 触觉反馈；亮度/音量/进度 HUD 统一为一个组件
-- [ ] 2.3 长按倍速胶囊（与"长按跳章节"设置互斥）
-- [ ] 2.4 双指缩放结果写回画面比例并记忆
-- [ ] 2.5 锁屏后吞掉全部触摸，仅留可拖解锁钮；锁定时锁定方向
-- [ ] 2.6 验收：连续 20 次手势无冲突无误触；锁屏后任意触摸不改变播放状态
-
-### 阶段 3 · 面板系统扩展（1.5–2 天）
-
-- [ ] 3.1 字幕：延迟 ±0.1s、双语次字幕、大小/颜色/背景/描边/位置
-- [ ] 3.2 音轨：延迟、描述、默认轨记忆（记忆已有）
-- [ ] 3.3 画面：补旋转 / 镜像 / 裁剪 / 去黑边（比例已有）
-- [ ] 3.4 队列：拖拽排序、删除、清空、跳转；循环模式 顺序/单曲/随机/播完暂停
-- [ ] 3.5 信息面板：容器/编码/分辨率/码率/帧率/HDR/音频格式/文件大小/路径
-- [ ] 3.6 新增设置面板：播放 / 解码 / 字幕 / 音频 / 画面 / 手势 分组
-- [ ] 3.7 睡眠定时补"播完当前"
-- [ ] 3.8 验收：任意时刻仅一个面板；返回键逐级收面板 → 收控制层 → 退出播放
-
-### 阶段 4 · 系统层：后台 / 通知栏 / PiP（1–1.5 天）★体验关键
-
-- [x] 4.1 `CinefinPlaybackService : MediaSessionService`；播放器实例抽到进程级 `PlayerHolder`（`player/local`），播放页与服务共享同一实例；服务自连接一个常驻 `MediaController`（Media3 的通知只在"会话有控制者"时才显示，见 §10 说明）
-- [x] 4.2 通知栏（D4）：标题 / 季集副标题 / 进度条 / 五个传输按钮（上一集 / 快退 / 播放暂停 / 快进 / 下一集），自研 `CinefinMediaNotificationProvider`；点通知回播放页（不带 `itemId` → 接管会话不重新拉流）；删除通知 = 停止播放
-      · 取舍：Android 通知最多 5 个按钮，「关闭」不做第 6 个按钮，由通知删除手势 + 播放页返回承担
-      · 待补：通知大图标（封面）——`MediaMetadata.artworkUri` 已带上（系统媒体控件已在用），自研 provider 还差"异步加载后 setLargeIcon"
-- [x] 4.3 前台服务：`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK` 权限 + `foregroundServiceType="mediaPlayback"`；后台播放开关（`pref_player_background_audio`）决定退出播放页后是否保留实例与服务；Android 13+ 首次进播放页请求通知权限
-- [x] 4.4 音频焦点（ExoPlayer `setAudioAttributes(..., true)`）+ 拔耳机 / 蓝牙断开自动暂停（`setHandleAudioBecomingNoisy(true)`）；媒体按键（播放/暂停/上下集）经 MediaSession 通路实测；来电依赖音频焦点（Android 10+ 来电触发 AUDIOFOCUS_LOSS，不加 `READ_PHONE_STATE`）
-- [x] 4.5 PiP：`setAspectRatio` + `sourceRectHint` + 可选自动进入（既有）；PiP 会话三键由 MediaSession 提供；模拟器实测进入 `mode=pinned`、播放与通知保持（模拟器需 `appops set ... PICTURE_IN_PICTURE allow`）
-- [x] 4.6 屏幕常亮：播放/暂停切换 `FLAG_KEEP_SCREEN_ON`（复核 `PlayerEvents.IsPlayingChanged` 释放路径，已正确）
-- [ ] 4.7 验收：`dumpsys media_session` 活跃会话 ✓、通知按钮 5 个 ✓、后台播放（Home 后仍 PLAYING、位置推进）✓；锁屏 30 分钟长稳、真机耳机/蓝牙/来电走查待补
+- 控制层骨架：`PlayerControlOverlay.kt` 按 `PlayerChromeLayout` 摆顶栏 / 中央簇 / 底栏，面板统一 `ModalBottomSheet`。
+- 选集 / 队列：`PlayerContentPanel.kt` 右侧内容栏（默认收起、点画面收起、底栏按钮开关），行样式 = 缩略图 + 集号 + 标题。
+- 队列数据：`PlaylistManager` 出清单，`PlayerViewModel.fillQueueInBackground()` 起播后逐集补进播放器。
+- 系统层：`playback/CinefinPlaybackService.kt`（MediaSessionService + 常驻 controller + 前台服务）+ `CinefinMediaNotificationProvider.kt`（自研通知）。
+- 双内核：`PlayerHolder` 按偏好建实例；ExoPlayer 解码能力不足时静默降级 mpv（`PlayerEvents.FallbackToMpv`）。
 
 ### 阶段 5 · 平板 / 折叠 / 手机形态（1.5–2 天）
 
@@ -203,7 +234,9 @@
 
 ---
 
-## 5. 界面规格（实现基准）
+## 5. 界面规格（实现基准 · 参考用）
+
+> 设计基准，**核心部分已实现**。日常开发按 §1 任务清单走，改到具体部件时再按需查阅本节。
 
 ### 5.1 分区与按键
 
@@ -317,61 +350,13 @@ PlayerActivity（单 Activity，edge-to-edge，PiP 宿主）
 优先级：`Pip > Freeform > FoldHalfOpen > Tv > Car > Foldable > Tablet > Phone`（前面的命中即返回）。
 每项判定都要有降级路径：拿不到 `FoldingFeature` 就按宽度档位走，拿不到 `UiMode` 就按 feature 走。
 
-#### 5.5.2 骨架线框
+#### 5.5.2 骨架线框（已实现，从略）
 
-手机竖屏 `SplitPortrait`（视频不再强制横屏，16:9 定高）：
-
-```
-┌──────────────────────────────┐
-│ ← 标题 · S01E03         ⋮  ⤢ │ 顶栏（叠在视频上，76dp 安全区）
-│        ⏮ ↺10 ▶ ↻10 ⏭        │ 中央簇
-│ ──────●────────────  12:31/24:05
-├ ─ ─ ─ ─ 视频区结束 ─ ─ ─ ─ ─ ┤   ← 视频区 = max(宽 × 9/16, 42% 窗口高)
-│ 选集 · 简介 · 队列            │ Tab 行 56dp
-│  ┌────┐ ┌────┐ ┌────┐        │
-│  │E01 │ │E02 │ │E03 │  →     │ 横滑卡片（选集封面 16:9 + 集数）
-│  └────┘ └────┘ └────┘        │
-└──────────────────────────────┘
-上滑内容区可全屏化（默认露 56dp 手柄），下滑回到视频比例
-```
-
-平板 / 折叠展开 `SplitSide`（视频区控制层保持现有布局，右侧新增内容栏）：
-
-```
-┌───────────────────────────────┬──────────────┐
-│ ← 标题 S01E03 1080P    ⤢ 🔒 ⋮ │ 选集 队列 简介│ 320dp
-│         ⏮ ↺10 ▶ ↻10 ⏭        │ ┌──────────┐ │
-│                               │ │E01  ▶ 播放中│ │
-│ ──────●────────────  12:31    │ │E02       │ │
-│ ⏮ ↺10 ▶ ⏭ ↻10 1.0× 💬 🎧 ▭ ☰ │ │E03       │ │
-└───────────────────────────────┴──────────────┘
-   视频区（宽 - 320dp）               内容栏，可折叠
-```
-
-折叠半开 `FoldHalfOpen`（垂直折痕）：
-
-```
-┌───────────────────────────────┐
-│         画面（折痕上方）         │  视频区高度 = 折痕上边缘
-├ ─ ─ ─ ─ ─ 铰链 ─ ─ ─ ─ ─ ─ ─ ─┤
-│ ──────●──────────────  12:31   │  进度条（下屏首行）
-│ ⏮ ↺10 ▶ ↻10 ⏭   1.0× 💬 🎧 ▭ ☰ │  控制行（64dp 命中区）
-│ 选集 E01 E02 E03 →             │  内容横滑（下屏剩余空间）
-└───────────────────────────────┘
-```
-
-小窗 `Compact`（自由窗口 / 分屏窄宽）：单行合并，点击标题出更多菜单
-
-```
-┌───────────────────┐
-│ ▶  标题  12:31/24:05│
-│ ─────●──────────── │
-└───────────────────┘
-```
-
-PiP：系统三键（上一集 / 播放暂停 / 下一集）+ 细进度条，比例跟随视频，控制层不闪。
-
-TV `Fullscreen(Tv)`：10-foot 尺度、焦点描边 2dp 朱砂 + 16dp 光晕、左右键 ±10s、中央键播放暂停、返回逐级收面板。
+`SplitSide`：左画面 + 右侧 320dp 内容栏（默认收起）。
+`SplitPortrait`：上画面（`max(16:9, 42% 窗口高)`）+ 下方页签与横滑选集卡片。
+`FoldHalfOpen`：折痕上画面、下屏控制行 + 选集。
+`Compact`：单行控制条（播放暂停 / 标题 / 时间 / 更多）+ 细进度条。
+`Pip`：系统三键 + 细进度条。
 
 #### 5.5.3 组件 × 骨架映射（谁出现在哪里）
 
@@ -471,40 +456,46 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 ---
 
-## 9. 权威文件索引
+## 9. 踩坑库与权威文件索引
 
-| 内容 | 位置 |
-|------|------|
+**改代码前先扫一遍这张表**——都是已经踩过的坑，重复踩会浪费一整轮。
+
+| 坑 | 结论 / 对策 |
+|----|------------|
+| 播放器实例放哪 | 必须是进程级单例 `PlayerHolder`（`player/local`），不能放 ViewModel：通知栏 / 后台播放要求 Activity 销毁后实例还在 |
+| Media3 默认媒体通知不显示 | `MediaNotificationManager.shouldShowNotification` 要求会话**有 MediaController 连接**；播放页直接操作共享实例 → 由服务自连接常驻 controller + 自研 provider |
+| Android 14 `startForeground` 崩溃 | 通知渠道必须自建，否则 `Bad notification for startForeground` 直接杀进程（见 `CinefinMediaNotificationProvider.ensureChannel()`） |
+| `NotificationCompat.Builder` 没有 `setSubtitle` | 通知副标题用 `setContentText` |
+| `CommandButton.Builder` | media3 1.11 可用构造是 `Builder(Int iconRes)`，`Builder(IconCompat)` 不存在 |
+| 队列只显示当前一集 | `PlaylistManager` 已有整剧清单，但 `initializePlayer` 只把当前集交给播放器 → 现由 `fillQueueInBackground()` 起播后逐集补全 |
+| `MPVPlayer.addMediaItems` 越界崩溃 | BasePlayer 封装可能传 `Int.MAX_VALUE`，下标必须收敛到 `[0, size]` |
+| `MPVPlayer.getMediaMetadata()` 返回空 | 通知 / 锁屏拿不到标题 → 改为返回当前媒体项元数据 |
+| mpv 释放后崩溃 | `release()` 后 TextureView detach 仍回调 `detachTextureSurface` 去碰已销毁的 `mpvLib`；现在先解绑 surface 再置 `released` 标志，所有 surface 回调短路 |
+| 10-bit H.264 播不了 | ExoPlayer 报 `NO_EXCEEDS_CAPABILITIES` → 已静默降级 mpv（`PlayerEvents.FallbackToMpv`） |
+| mpv 在 PiP 下 `position=-1` | 已知问题，待修（不影响播放） |
+| 视频输出用 TextureView | `activity_player.xml` 里 `surface_type="texture_view"`：SurfaceView 会被 Compose 控制层盖黑 |
+| 触摸与手势 | `PlayerOverlayContainer` 只把「画面区内顶 / 中 / 底三带」与「画面区之外的常驻内容区」交给 Compose，其余放行给 `PlayerGestureHelper`；改布局必须同步命中区 |
+| 真机 adb 进播放页 | 主清单 `PlayerActivity exported=false`；`src/debug/AndroidManifest.xml` 覆盖为 true，仅 debug 包可 `am start` |
+| 服务器偶发超时 | `jellyfins.zhangwenkang.com` 只读；视频流偶发 `SocketTimeoutException`（ping 正常），重试即可，不是客户端 bug |
+
+| 权威内容 | 位置 |
+|----------|------|
 | 播放界面任务 / 需求 / 决策 / 进度 | **本文件** |
-| 服务器控制台皮肤（已实现的旁支功能） | `docs/web-console-skin.css` 为唯一权威副本；改这里后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS |
-| 项目级里程碑（原 `docs/PLAN.md`） | 已合并进本文件；历史版本见 git |
-| 界面详细规格（原 `docs/PLAYER_SPEC.md`） | 已合并进本文件 §5–§6；历史版本见 git |
+| 服务器控制台皮肤（旁支功能） | `docs/web-console-skin.css`（改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） |
+| 旧文档（PLAN / PLAYER_SPEC / DEV_ENVIRONMENT / WEB_CONSOLE_SKIN） | 已合并进本文件，历史见 git |
 
 ---
 
-## 10. 更新日志
+## 10. 更新日志（近 8 条；更早见 `git log -p docs/PLAYER_PLAN.md`）
 
 | 日期 | 变更 |
 |------|------|
-| 2026-09-27 | 建立本文件；合并原 `PLAYER_SPEC.md` / `PLAN.md` / `DEV_ENVIRONMENT.md` / `PLAYER_DEV_PLAN.md` / `WEB_CONSOLE_SKIN.md`，删除后四者 |
-| 2026-09-27 | 记录 D1–D7 决策：平板优先、只做视频、TV 暂停、通知栏全套、外部播放器不做（进度无法同步） |
-| 2026-09-27 | 阶段 0.1 完成：固定 JDK 构建通过（`assembleDebug`，197 tasks up-to-date）；新增仓库级 `AGENTS.md` 指向本文件 |
-| 2026-09-27 | 修正 `BasePlayerActivity` 中指向已删文档的注释；补充 §3.1 工作区状态（108 项未提交改动中多数来自更早会话） |
-| 2026-09-27 | 阶段 1.3 完成：播放错误卡片（原因 + 重试 + 一键切内核），`PlayerViewModel` 加 `onPlayerError`/`retryPlayback`/`switchBackend`，`PlayerOverlayContainer` 错误态放大命中区；模拟器断网实测：卡片出现 → 重试恢复播放 |
-| 2026-09-27 | 修复 `MPVPlayer.setVideoTextureView()` 未实现导致的 mpv 必崩；修复 singleTask 下换内核重启退回上一页（改 `viewModelStore.clear() + recreate()`）；两者均在模拟器实测通过 |
-| 2026-09-27 | 新增待办：mpv 错误上报（`MPV_EVENT_END_FILE`）；可点节点无障碍标签为空并入 1.1 |
-| 2026-09-27 | 阶段 1.1 + 1.2 完成：`PlayerIconButton` 八态化（含聚焦/禁用/加载/错误/徽标）并修好可点节点的无障碍标签；顶栏加清晰度徽标（实测显示 1080P）与标题两行。模拟器文本验证：所有可点节点均带 `content-desc`，命中区 48dp / 72dp |
-| 2026-09-27 | 记录 D8 上下文预算硬约束（纯文本 ≤880KB、内联图片 ≤48MiB）：少传图、工具输出裁剪、优先文本验证 |
-| 2026-09-27 | 记录 D9/D10：多形态由代码判定驱动（`PlayerFormFactor` + `PlayerChromeLayout`），TV / 车机 / 小窗纳入范围（D1/D3/D6 相应调整）；§5.5 补齐多形态规格（骨架矩阵、线框、组件映射、动效与系统集成） |
-| 2026-09-27 | 阶段 8.1–8.6 完成：新增 `PlayerFormFactor.kt`（形态判定 + 布局上下文）、`PlayerContentPanel.kt`（侧栏 / 竖屏内容区 / 横滑选集 / 小窗单行条）、`MorePanel`；`PlayerControlOverlay` 骨架化；`PlayerOverlayContainer` 命中区随骨架变化；`PlayerActivity` 形态驱动画面区排版 + `fullSensor` 方向 + 车机不沉浸；Manifest 放开 `sensorLandscape` 并显式 `resizeableActivity`。模拟器实测：平板横屏侧栏（选集 / 队列 / 收起后画面区全宽）、平板竖屏全屏、手机竖屏（视频区 42% 高 + 下方横滑选集），改尺寸与旋转不中断播放 |
-| 2026-09-27 | 阶段 4 完成（4.1–4.6，4.7 部分）：播放器实例抽到进程级 `PlayerHolder`，新增 `CinefinPlaybackService`（MediaSessionService + mediaPlayback 前台服务）与自研 `CinefinMediaNotificationProvider`；`BasePlayerActivity` 不再内联 `MediaSession`；`PlayerActivity` 支持"从通知接管会话不重新拉流"并请求通知权限（Android 13+）。实测：`dumpsys media_session` 可见活跃会话（PLAYING）、通知 5 个传输按钮 + 进度、Home 后播放继续（位置推进）、媒体按键暂停/播放生效、PiP `mode=pinned` 且播放与通知保持；mpv 内核元数据修复后通知标题正确 |
-| 2026-09-27 | 阶段 4 踩坑记录：① Media3 默认媒体通知只在该会话**有 controler 连接**时才显示（`MediaNotificationManager.shouldShowNotification` 先取已连接 controller 的 timeline），与本项目"播放页直接操作共享播放器实例"的架构不匹配 → 服务自连接常驻 `MediaController` + 自研通知 provider；② 通知渠道必须自建，否则 Android 14 的 `startForeground` 直接抛 `Bad notification for startForeground` 崩溃；③ `NotificationCompat.Builder` 没有 `setSubtitle`，副标题走 `setContentText`；④ `CommandButton.Builder(Int)` 是 1.11 的可用构造（`Builder(IconCompat)` 不存在） |
-| 2026-09-27 | 阶段 4 遗留：通知封面（`artworkUri`）、`REPLAY/其他内核` 下 PiP 位置上报（mpv 在 PiP 中 `position=-1`）、锁屏 30 分钟长稳与真机耳机/蓝牙/来电走查；另记录：ExoPlayer 内核播放 `64c132f8`（10-bit H.264）片源会在 `MatroskaExtractor` 报错，属既有解码问题，与本阶段无关 |
-| 2026-09-28 | 切换到真机调试（小米平板 5 / Android 13，模拟器太卡）；新增 `src/debug/AndroidManifest.xml` 覆盖 `PlayerActivity exported=true`，方便 adb 直接带 itemId 启动播放页 |
-| 2026-09-28 | 修复用户反馈「播放列表显示不全」：`PlaylistManager` 早就拿到整剧集数（`items`），但 `PlayerViewModel.initializePlayer` 只把当前一集交给播放器，队列面板因此只有一条。现改为起播后由 `fillQueueInBackground()` 按「后面的集依次追加 → 前面的集倒序前插」逐集补全（不阻塞首帧、按 mediaId 去重、失败集跳过）；真机实测队列补齐到第 1 季 12 集 + 第 2 季，底部面板按季分组正常 |
-| 2026-09-28 | 修复真机崩溃 `IndexOutOfBoundsException: Index: 2147483647, Size: 1`：`MPVPlayer.addMediaItems` 直接 `internalMediaItems.addAll(index, …)`，而 BasePlayer 封装过来的下标可能是 `C.INDEX_UNSET`/越界值（mpv 内核下实测传入 `Int.MAX_VALUE`）→ 下标统一收敛到 `[0, size]`；补队列时也改为显式传索引，不再依赖无下标 `addMediaItem` 的封装 |
-| 2026-09-28 | 真机复现到：默认 ExoPlayer 内核播放 10-bit H.264 片源（如「学生会的一己之见」）直接 `ERROR_CODE_DECODING_FAILED / NO_EXCEEDS_CAPABILITIES`，错误卡片与「改用 mpv 内核」按钮在真机上工作正常；是否做「解码失败自动降级 mpv」待用户确认（会改动默认播放行为） |
-| 2026-09-28 | 按用户要求做三件事：① **静默自动降级**——ExoPlayer 报解码能力类错误（`DECODING_FAILED` / `DECODER_INIT_FAILED` / `FORMAT_EXCEEDS_CAPABILITIES` / `FORMAT_UNSUPPORTED`）时自动换 mpv 重播，不弹提示、同一媒体只降级一次（网络 / IO / DRM 类错误不降级，换内核也没用）；② **队列入口只留一个**——有常驻内容栏的骨架（平板 / 折叠展开）底栏按钮改成「显示 / 隐藏选集栏」，不再弹底部面板；手机等无内容栏的骨架仍保留底部面板兜底；③ **选集 / 队列列表改成「缩略图 + 集号 + 标题」**（侧栏列表、竖屏横滑卡片、底部面板队列三处统一），缩略图走 `MediaItem.artworkUri`（`PlayerItem.thumbnailUri` ← Jellyfin `images.primary`），顺带让系统媒体控件 / 锁屏也能拿到封面 |
-| 2026-09-28 | 真机验证：侧栏列表 12 集全部带剧集截图、当前集朱砂高亮与「正在播放」角标、底栏按钮文案变为「隐藏选集栏」；自动降级的端到端触发受服务器侧视频流超时（`SocketTimeoutException` / `ERROR_CODE_IO_UNSPECIFIED`，ping 正常）影响未能复现解码错误，逻辑与事件链路（`onPlayerError → FallbackToMpv → switchBackendAndRestart`）待网络恢复后补验 |
-| 2026-09-28 | 按用户反馈调整侧栏行为：① 右侧选集栏**默认收起**（不再一进来就占位），要手动从底栏「显示选集栏」弹出；② **单击画面即收起选集栏**（把宽度还给视频），侧栏收起时单击才切换控制层显隐。真机实测：默认无侧栏 → 点底栏弹出（12 集带缩略图）→ 点画面收起，全程无崩溃 |
-| 2026-09-28 | 修复真机崩溃 `IllegalStateException: MPVLib is not initialized`：`MPVPlayer.release()` 销毁原生库后，TextureView 被 detach 仍会回调 `onSurfaceTextureDestroyed → detachTextureSurface` 去调 mpv。现在 `release()` 先解绑挂载的 surface 再置 `released` 标志，所有 TextureView / SurfaceHolder 回调（attach / detach / sizeChanged / surfaceCreated / surfaceDestroyed）都短路保护 |
+| 2026-09-28 | 文档重整：新增「快速上手」（项目结构 / 规范 / 命令 / 现状）与「§1 下一步任务」优先级清单；已完成阶段压缩为 §4 摘要；新增 §9 踩坑库 |
+| 2026-09-28 | 选集栏默认收起 + 单击画面收起；修复 `MPVLib is not initialized`（mpv 释放后 surface 回调） |
+| 2026-09-28 | 静默自动降级 mpv；队列入口收敛为右侧栏；选集 / 队列列表改为「缩略图 + 集号 + 标题」 |
+| 2026-09-28 | 修复真机队列只显示一集（起播后台补全整剧）；修复 `MPVPlayer.addMediaItems` 下标越界崩溃 |
+| 2026-09-28 | 切真机调试（小米平板 5 / Android 13）；debug 包开放播放页直启 |
+| 2026-09-27 | 阶段 4 完成：`CinefinPlaybackService` + 自研通知 provider + 前台服务 + PiP + 媒体按键；`PlayerHolder` 成为播放器唯一持有者 |
+| 2026-09-27 | 阶段 8.1–8.6 完成：`PlayerFormFactor` 多形态判定 + `SplitSide` / `SplitPortrait` / `Compact` 骨架 + 命中区 + 车机不沉浸 |
+| 2026-09-27 | 阶段 1.1–1.3 完成：八态按钮、顶栏徽标、错误卡片；新增 `AGENTS.md`，旧文档合并为本文件 |
+
