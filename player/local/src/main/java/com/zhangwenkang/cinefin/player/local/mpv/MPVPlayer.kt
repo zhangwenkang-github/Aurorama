@@ -1102,6 +1102,12 @@ class MPVPlayer(
      * player must not be used after calling this method.
      */
     override fun release() {
+        if (released) return
+        // 先摘掉挂着的 TextureView 输出（此时 mpv 还活着，能正常 detach）；
+        // 之后再置 released：TextureView 被 detach 时的回调不能再碰已销毁的 mpvLib
+        // （真机上就是这里崩的：MPVLib is not initialized）
+        runCatching { detachTextureSurface() }
+        released = true
         if (handleAudioFocus) {
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, audioFocusRequest)
         }
@@ -1524,7 +1530,11 @@ class MPVPlayer(
     /** 当前挂在 mpv 上的 TextureView 对应 Surface；null 表示没接 */
     private var textureSurface: Surface? = null
 
+    /** release() 之后置位：原生库已销毁，任何 surface 回调都必须短路 */
+    private var released: Boolean = false
+
     private fun attachTextureSurface(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
+        if (released) return
         if (textureSurface != null) return
         val surface = Surface(surfaceTexture)
         textureSurface = surface
@@ -1538,11 +1548,16 @@ class MPVPlayer(
 
     private fun detachTextureSurface() {
         val surface = textureSurface ?: return
+        textureSurface = null
+        if (released) {
+            // mpv 已销毁：只需要把本地 Surface 还掉，不能再调 mpv
+            surface.release()
+            return
+        }
         mpvLib.setOptionString("vo", "null")
         mpvLib.setOptionString("force-window", "no")
         mpvLib.detachSurface()
         surface.release()
-        textureSurface = null
     }
 
     /**
@@ -1567,6 +1582,7 @@ class MPVPlayer(
                 width: Int,
                 height: Int,
             ) {
+                if (released) return
                 mpvLib.setPropertyString("android-surface-size", "${width}x$height")
             }
 
@@ -1590,6 +1606,7 @@ class MPVPlayer(
              * @param holder The SurfaceHolder whose surface is being created.
              */
             override fun surfaceCreated(holder: SurfaceHolder) {
+                if (released) return
                 mpvLib.attachSurface(holder.surface)
                 mpvLib.setOptionString("force-window", "yes")
                 mpvLib.setOptionString("vo", videoOutput)
@@ -1611,6 +1628,7 @@ class MPVPlayer(
                 width: Int,
                 height: Int,
             ) {
+                if (released) return
                 mpvLib.setPropertyString("android-surface-size", "${width}x$height")
             }
 
@@ -1623,6 +1641,7 @@ class MPVPlayer(
              * @param holder The SurfaceHolder whose surface is being destroyed.
              */
             override fun surfaceDestroyed(holder: SurfaceHolder) {
+                if (released) return
                 mpvLib.setOptionString("vo", "null")
                 mpvLib.setOptionString("force-window", "no")
                 mpvLib.detachSurface()

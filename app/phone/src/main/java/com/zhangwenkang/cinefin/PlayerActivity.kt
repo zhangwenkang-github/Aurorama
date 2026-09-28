@@ -102,8 +102,13 @@ class PlayerActivity : BasePlayerActivity() {
     /** 画中画状态：控制层据此切到 Pip 骨架（PiP 窗口里不渲染控制层） */
     private val pipMode = mutableStateOf(false)
 
-    /** 平板 / 折叠展开时右侧内容栏是否展开；收起后画面区占满整宽 */
-    private val sidePanelExpanded = mutableStateOf(true)
+    /**
+     * 平板 / 折叠展开时右侧内容栏是否展开。
+     *
+     * 默认收起（用户要求：侧栏不要一进来就占位，要手动从底栏点开），
+     * 点画面会顺手收起它，把宽度还给视频。
+     */
+    private val sidePanelExpanded = mutableStateOf(false)
 
     /** Compose 侧解析出的形态上下文；Activity 用它给画面区排版（同一份数值，避免两边错位） */
     private var layoutContext: PlayerLayoutContext? = null
@@ -233,7 +238,15 @@ class PlayerActivity : BasePlayerActivity() {
                     onSingleTap = {
                         // 错误卡片是模态的：错误消失前不让单击把控制层收走
                         if (viewModel.uiState.value.playerError == null) {
-                            controlsState.toggle()
+                            /*
+                             * 单击画面：选集栏开着就先把栏收回去（把宽度还给视频），
+                             * 否则按惯例切换控制层显隐。
+                             */
+                            if (sidePanelExpanded.value) {
+                                sidePanelExpanded.value = false
+                            } else {
+                                controlsState.toggle()
+                            }
                         }
                     },
                 )
