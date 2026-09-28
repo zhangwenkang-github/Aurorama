@@ -23,6 +23,17 @@
         app:show_buffering="always"
         app:surface_type="texture_view" />
 
+    <!--
+        自研字幕层（延迟 / 双语 / 外观）：贴在画面之上、控制层之下，
+        只画字幕不处理触摸；手势仍由下层 PlayerView 的 PlayerGestureHelper 接管。
+    -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/subtitle_overlay_compose"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false" />
+
     <LinearLayout
         android:id="@+id/progress_scrubber_layout"
         android:layout_width="wrap_content"

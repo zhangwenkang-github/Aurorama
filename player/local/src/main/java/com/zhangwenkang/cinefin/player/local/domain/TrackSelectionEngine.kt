@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.player.local.domain
 
 import androidx.media3.common.C
 import androidx.media3.common.Format
-import androidx.media3.common.TrackGroup
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
@@ -14,10 +13,8 @@ import timber.log.Timber
 /**
  * 字幕与音轨的智能选择引擎。
  *
- * 关键点在于“语言线索”的来源往往很脏：Jellyfin 元数据可能只有 `chi`，
- * 轨道标题可能是“简体中文”或 `Chinese (Simplified)`，外挂字幕则可能写进文件名。
- * 这里统一交给 [LanguageMatcher] 归一化后，再按用户设定的优先级挑选，
- * 从而做到“打开任何一部片子都自动选到想看的字幕，并且换视频后设置依然生效”。
+ * 关键点在于“语言线索”的来源往往很脏：Jellyfin 元数据可能只有 `chi`， 轨道标题可能是“简体中文”或 `Chinese (Simplified)`，外挂字幕则可能写进文件名。
+ * 这里统一交给 [LanguageMatcher] 归一化后，再按用户设定的优先级挑选， 从而做到“打开任何一部片子都自动选到想看的字幕，并且换视频后设置依然生效”。
  */
 class TrackSelectionEngine(private val appPreferences: AppPreferences) {
     /** 字幕模式：auto / always / off */
@@ -40,28 +37,35 @@ class TrackSelectionEngine(private val appPreferences: AppPreferences) {
 
     /**
      * 依据当前媒体实际包含的轨道，计算应该使用的轨道选择参数。
+     *
+     * @param subtitlesManaged 字幕已由自研字幕管线 / 图形字幕路由接管：此时这里完全不碰
+     *   文字轨（启用 / 禁用与 override 都不动）。否则「引擎选文字轨 → 路由再禁掉」会让
+     *   参数来回变化，触发 onTracksChanged 死循环。
      */
     fun parameters(
         current: TrackSelectionParameters,
         tracks: Tracks,
+        subtitlesManaged: Boolean = false,
     ): TrackSelectionParameters {
         var builder = current.buildUpon()
 
-        // 字幕开关
-        builder =
-            when (subtitleMode) {
-                Constants.SubtitleMode.OFF ->
-                    builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-                else -> builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-            }
-
-        val text = pickTextTrack(tracks)
-        if (text != null) {
+        if (!subtitlesManaged) {
+            // 字幕开关
             builder =
-                builder.setOverrideForType(
-                    TrackSelectionOverride(text.group.mediaTrackGroup, text.index)
-                )
-            Timber.d("自动选择字幕轨道: ${text.tag} (${text.format.label})")
+                when (subtitleMode) {
+                    Constants.SubtitleMode.OFF ->
+                        builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                    else -> builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                }
+
+            val text = pickTextTrack(tracks)
+            if (text != null) {
+                builder =
+                    builder.setOverrideForType(
+                        TrackSelectionOverride(text.group.mediaTrackGroup, text.index)
+                    )
+                Timber.d("自动选择字幕轨道: ${text.tag} (${text.format.label})")
+            }
         }
 
         val audio = pickAudioTrack(tracks)
@@ -76,10 +80,7 @@ class TrackSelectionEngine(private val appPreferences: AppPreferences) {
         return builder.build()
     }
 
-    /**
-     * 记住用户手动选择的语言：把它提到优先级列表最前面，
-     * 这样下一个视频（以及下一集）会自动沿用同一语言。
-     */
+    /** 记住用户手动选择的语言：把它提到优先级列表最前面， 这样下一个视频（以及下一集）会自动沿用同一语言。 */
     fun rememberSelectedLanguage(
         trackType: @C.TrackType Int,
         format: Format?,
@@ -101,8 +102,7 @@ class TrackSelectionEngine(private val appPreferences: AppPreferences) {
                 LanguageMatcher.DEFAULT_AUDIO_PRIORITY
             }
 
-        val current =
-            LanguageMatcher.parsePriority(appPreferences.getValue(preference), default)
+        val current = LanguageMatcher.parsePriority(appPreferences.getValue(preference), default)
         // 同语言族的旧条目先移除，避免出现 zh-Hans 与 zh 同时存在造成的歧义
         val base = LanguageMatcher.baseOf(tag)
         val updated = listOf(tag) + current.filterNot { LanguageMatcher.baseOf(it) == base }

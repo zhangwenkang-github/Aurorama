@@ -35,6 +35,7 @@ import androidx.media3.common.util.Clock
 import androidx.media3.common.util.ListenerSet
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.Util
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvEvent
 import dev.jdtech.mpv.MPVLib.MpvFormat
@@ -525,6 +526,63 @@ class MPVPlayer(
     private fun selectTrack(trackType: MPVTrackType, id: String) {
         mpvLib.setPropertyString(trackType.type, id)
     }
+
+    // ---------- 字幕：延迟 / 双语 / 外观（§1.1） ----------
+    // mpv 原生支持这些能力，和 ExoPlayer 的自研字幕渲染共用同一套面板，
+    // 差异只在底层实现：这里把面板设置翻译成 mpv 属性。
+
+    /** 字幕延迟（毫秒）；正 = 字幕延后出现 */
+    fun setSubtitleDelay(delayMs: Long) {
+        Timber.d("mpv 字幕延迟 = %d ms", delayMs)
+        mpvLib.setPropertyDouble("sub-delay", delayMs / 1000.0)
+        logSubtitleState()
+    }
+
+    /** 选主字幕（mpv track id，见 [getCurrentTracks] 的 Format.id）；null = 关闭 */
+    fun selectSubtitleTrack(trackId: Int?) {
+        mpvLib.setPropertyString("sid", trackId?.toString() ?: "no")
+        logSubtitleState()
+    }
+
+    /** 排障：打印 mpv 眼里的字幕状态（sid / 可见性 / 延迟 / 当前文本） */
+    fun logSubtitleState() {
+        val sid = mpvLib.getPropertyString("sid")
+        val visibility = mpvLib.getPropertyBoolean("sub-visibility")
+        val delay = mpvLib.getPropertyDouble("sub-delay")
+        val text = mpvLib.getPropertyString("sub-text")
+        Timber.d(
+            "mpv 字幕状态: sid=%s visible=%s delay=%s text=%s",
+            sid,
+            visibility,
+            delay,
+            text?.take(60),
+        )
+    }
+
+    /**
+     * 次字幕（mpv 的 track id 字符串）。
+     *
+     * 传 null 关闭。注意必须用 mpv 的 id（见 [getCurrentTracks] 里 Format.id），
+     * 不是字幕数组下标。
+     */
+    fun setSecondarySubtitle(trackId: String?) {
+        val value = trackId?.takeIf { it.isNotBlank() } ?: "no"
+        mpvLib.setPropertyString("secondary-sid", value)
+    }
+
+    /** 把面板的字幕外观档位翻译成 mpv 的 sub-* 属性 */
+    fun applySubtitleStyle(style: SubtitleStyle) {
+        // 字号：mpv 默认 55；直接按倍率缩放
+        mpvLib.setPropertyDouble("sub-font-size", 55.0 * style.textScale)
+        mpvLib.setPropertyString("sub-color", style.textColor.toMpvColor())
+        mpvLib.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
+        mpvLib.setPropertyDouble("sub-border-size", style.edgeWidthDp.toDouble())
+        // sub-pos 是「距底部百分比」的互补值：100 = 贴底，65 = 靠上
+        mpvLib.setPropertyDouble("sub-pos", (100.0 - style.bottomFraction * 100.0))
+    }
+
+    /** mpv 颜色格式是 #AARRGGBB；本项目的颜色是 ARGB，直接换个写法即可 */
+    private fun Int.toMpvColor(): String = "#%08X".format(this)
 
     // Timeline wrapper
     private val timeline: Timeline =

@@ -14,19 +14,26 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
+import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
+import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
+import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
@@ -110,10 +117,50 @@ constructor(
         val backend: String,
     )
 
+    /** 字幕面板里的一行轨道选项（两个内核共用同一套 UI） */
+    data class SubtitleOption(
+        /** ExoPlayer：Jellyfin 字幕源序号；mpv：mpv 的 track id */
+        val id: Int,
+        val label: String,
+        val caption: String? = null,
+        /** 图形字幕等不能调节的轨道：仍可选中（交给内核渲染），但面板会说明 */
+        val adjustable: Boolean = true,
+        val selected: Boolean = false,
+    )
+
+    /**
+     * 字幕面板状态。
+     *
+     * 两个内核最终都汇总成这一份状态：ExoPlayer 走自研字幕管线（Jellyfin 源清单），
+     * mpv 走 mpv 自己的字幕轨（track id），面板 UI 不需要知道区别。
+     */
+    data class SubtitlePanelState(
+        val primaryOptions: List<SubtitleOption> = emptyList(),
+        val secondaryOptions: List<SubtitleOption> = emptyList(),
+        val primaryId: Int? = null,
+        val secondaryId: Int? = null,
+        val delayMs: Long = 0L,
+        val style: SubtitleStyle = SubtitleStyle(),
+        /** 主字幕是否由自研渲染接管（决定延迟是否即时生效、能否做双语） */
+        val managed: Boolean = false,
+        /** 当前媒体里存在可用的文字字幕（能调延迟 / 双语） */
+        val controllable: Boolean = false,
+        val loading: Boolean = false,
+    )
+
     private var items: MutableList<PlayerItem> = mutableListOf()
 
     /** 字幕/音轨的智能选择引擎：按语言优先级自动选轨，并记住用户的手动选择 */
     private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
+
+    /** 自研字幕管线：延迟 / 双语 / 外观（ExoPlayer 文字字幕由它接管） */
+    val subtitleController = PlayerSubtitleController(viewModelScope, appPreferences)
+
+    private val _subtitlePanelState = MutableStateFlow(SubtitlePanelState())
+    val subtitlePanelState = _subtitlePanelState.asStateFlow()
+
+    /** mpv 内核当前使用的次字幕 track id（mpv 侧的状态，不落偏好） */
+    private var mpvSecondarySubtitleId: Int? = null
 
     /** 用户在当前媒体里手动选过轨后，不再自动干预 */
     private var manualTrackSelectionMediaId: String? = null
@@ -156,6 +203,14 @@ constructor(
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipType)
         segmentsAutoSkipMode =
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipMode)
+
+        // 自研字幕状态变化 → 刷新面板状态，并把「原生文字渲染」的开关同步给播放内核
+        viewModelScope.launch {
+            subtitleController.overlayState.collect { state ->
+                publishSubtitlePanelState(state)
+                applySubtitleRoutingOnly()
+            }
+        }
     }
 
     /**
@@ -171,6 +226,8 @@ constructor(
         startPositionMs: Long = 0L,
     ) {
         player.addListener(this)
+        applySavedSubtitlePreferences()
+        publishSubtitlePanelState()
 
         if (startPositionMs > 0L) {
             playbackPosition = startPositionMs
@@ -288,7 +345,9 @@ constructor(
      */
     fun attachToExistingSession() {
         player.addListener(this)
+        applySavedSubtitlePreferences()
         refreshUiStateFromPlayer()
+        publishSubtitlePanelState()
     }
 
     /** 用播放器当前条目刷新 uiState（标题 / 条目 id），不改动任何播放状态 */
@@ -451,16 +510,19 @@ constructor(
      * 同一媒体可能多次回调（例如外挂字幕稍后才挂载），因此每次都重新计算； 但用户在当前媒体里手动选过轨时不再干预。
      */
     override fun onTracksChanged(tracks: Tracks) {
-        if (player !is ExoPlayer) return
-        val mediaId = player.currentMediaItem?.mediaId ?: return
-        if (manualTrackSelectionMediaId == mediaId) return
-
-        runCatching {
-            val parameters =
-                trackSelectionEngine.parameters(player.trackSelectionParameters, tracks)
-            player.trackSelectionParameters = parameters
+        if (player !is ExoPlayer) {
+            // mpv：字幕轨（sid）来自这个回调，刷新面板让主/次字幕列表跟上
+            publishSubtitlePanelState()
+            return
         }
-            .onFailure { Timber.w(it, "自动选择字幕/音轨失败") }
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        if (manualTrackSelectionMediaId != mediaId) {
+            // 自动选轨 + 字幕路由：一次算完再设置，避免参数来回变化
+            applyAutoSelectAndRoute(tracks)
+        } else {
+            // 用户手动选过轨：音轨保持现状，只同步字幕路由
+            applySubtitleRoutingOnly()
+        }
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -476,10 +538,28 @@ constructor(
                      * 用播放器里的元数据兜底刷新标题，播放本身不受影响。
                      */
                     refreshUiStateFromPlayer()
+                    // 字幕源清单跟着播放器里的媒体 id 走：能从 PlaylistManager 找回就恢复
+                    player.currentMediaItem?.mediaId?.let { mediaId ->
+                        runCatching { UUID.fromString(mediaId) }
+                            .getOrNull()
+                            ?.let { playlistManager.getPlayerItem(it) }
+                            ?.let { remembered ->
+                                subtitleController.reset(
+                                    mediaId,
+                                    subtitleSourcesForBackend(remembered),
+                                )
+                            }
+                    }
                     return@launch
                 }
                 item
                     .let { item ->
+                        // 换集 / 换片：字幕源清单随条目更新并重新自动选字幕
+                        subtitleController.reset(
+                            item.itemId.toString(),
+                            subtitleSourcesForBackend(item),
+                        )
+                        mpvSecondarySubtitleId = null
                         val itemTitle =
                             if (item.parentIndexNumber != null && item.indexNumber != null) {
                                 if (item.indexNumberEnd == null) {
@@ -695,6 +775,302 @@ constructor(
         Timber.d("Clearing Player ViewModel")
         releasePlayer()
     }
+
+    // ---------- 字幕面板：延迟 / 双语 / 外观（§1.1） ----------
+
+    /**
+     * 选主字幕；null = 关闭。
+     *
+     * 两个内核共用一套面板：ExoPlayer 走自研渲染管线（文本字幕）或内核渲染（图形字幕），
+     * mpv 直接切它的 `sid`。
+     */
+    fun selectSubtitlePrimary(id: Int?) {
+        manualTrackSelectionMediaId = player.currentMediaItem?.mediaId
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            val mpv = player as? MPVPlayer ?: return
+            if (mpvSecondarySubtitleId == id) {
+                mpvSecondarySubtitleId = null
+                mpv.setSecondarySubtitle(null)
+            }
+            mpv.selectSubtitleTrack(id)
+            publishSubtitlePanelState()
+            return
+        }
+        subtitleController.selectPrimary(id)
+        applySubtitleRoutingOnly()
+    }
+
+    /** 选次字幕（双语）；null = 关闭。次字幕不允许与主字幕同轨。 */
+    fun selectSubtitleSecondary(id: Int?) {
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            val mpv = player as? MPVPlayer ?: return
+            mpvSecondarySubtitleId = id
+            mpv.setSecondarySubtitle(id?.toString())
+            publishSubtitlePanelState()
+            return
+        }
+        subtitleController.selectSecondary(id)
+    }
+
+    /** 字幕延迟 ±0.1s；两个内核都立即生效，并写回偏好 */
+    fun adjustSubtitleDelay(deltaMs: Long) {
+        val current = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
+        val next =
+            (current + deltaMs).coerceIn(
+                -PlayerSubtitleController.DELAY_LIMIT_MS,
+                PlayerSubtitleController.DELAY_LIMIT_MS,
+            )
+        subtitleController.setDelay(next)
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            (player as? MPVPlayer)?.setSubtitleDelay(next)
+        }
+        publishSubtitlePanelState()
+    }
+
+    /** 字幕延迟归零 */
+    fun resetSubtitleDelay() {
+        subtitleController.setDelay(0L)
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            (player as? MPVPlayer)?.setSubtitleDelay(0L)
+        }
+        publishSubtitlePanelState()
+    }
+
+    /** 字幕外观：写偏好 + 应用到当前内核（自绘层直接读状态，原生层由 Activity 更新） */
+    fun updateSubtitleStyle(style: SubtitleStyle) {
+        subtitleController.updateStyle(style)
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            (player as? MPVPlayer)?.applySubtitleStyle(style)
+        } else {
+            eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(style))
+        }
+        publishSubtitlePanelState()
+    }
+
+    /** 起播 / 接管会话时把已保存的延迟与外观应用到当前内核 */
+    private fun applySavedSubtitlePreferences() {
+        val delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            (player as? MPVPlayer)?.let { mpv ->
+                mpv.setSubtitleDelay(delayMs)
+                mpv.applySubtitleStyle(readSubtitleStyle())
+            }
+        } else {
+            eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(readSubtitleStyle()))
+        }
+    }
+
+    private fun readSubtitleStyle(): SubtitleStyle =
+        SubtitleStyle(
+            sizeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleSize),
+            colorIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleColor),
+            backgroundIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleBackground),
+            edgeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleEdge),
+            positionIndex = appPreferences.getValue(appPreferences.playerSubtitleStylePosition),
+        )
+
+    /**
+     * 自研字幕只在 ExoPlayer 内核下接管。
+     *
+     * mpv 自带字幕渲染（还能做 secondary-sid 双语），如果这边也加载一份，
+     * 画面上会出现两条一模一样的字幕（双显）。
+     */
+    private fun subtitleSourcesForBackend(item: PlayerItem): List<PlayerSubtitleSource> =
+        if (playerBackend == PLAYER_BACKEND_MPV) emptyList() else item.subtitleSources
+
+    /** 字幕渲染路由：文字轨交给谁渲染 */
+    private sealed interface SubtitleRouting {
+        /** 自研字幕接管（或正在加载）：禁用内核文字轨 */
+        data object Managed : SubtitleRouting
+
+        /** 用户显式关闭字幕 */
+        data object Off : SubtitleRouting
+
+        /** 图形字幕：由内核渲染，尽量匹配到具体轨道 */
+        data class Native(val source: PlayerSubtitleSource) : SubtitleRouting
+
+        /** 没有特殊约定：交给语言优先级引擎 */
+        data object Auto : SubtitleRouting
+    }
+
+    private fun resolveSubtitleRouting(
+        state: SubtitleOverlayState = subtitleController.overlayState.value
+    ): SubtitleRouting {
+        if (state.disabledByUser) return SubtitleRouting.Off
+        val selected = state.sources.firstOrNull { it.index == state.primaryIndex }
+        if (selected != null) {
+            // 自管字幕「已接管」或「正在加载」都先禁掉内核文字轨：
+            // 否则下载完成的瞬间会先闪一下原生字幕再被自绘层替换
+            if (selected.isTextBased && (state.primaryManaged || state.primaryLoading)) {
+                return SubtitleRouting.Managed
+            }
+            if (selected.isGraphic) return SubtitleRouting.Native(selected)
+        }
+        return SubtitleRouting.Auto
+    }
+
+    /**
+     * 自动选轨 + 字幕路由：一次算出最终参数、一次设置。
+     *
+     * 计算与设置必须合成一次：先让语言引擎选文字轨、再让路由禁掉它，
+     * 两次 setTrackSelectionParameters 会让轨道状态变化两轮，形成回调循环。
+     */
+    private fun applyAutoSelectAndRoute(tracks: Tracks = player.currentTracks) {
+        if (player !is ExoPlayer) return
+        if (player.currentMediaItem == null) return
+        val routing = resolveSubtitleRouting()
+        runCatching {
+            val parameters =
+                trackSelectionEngine.parameters(
+                    player.trackSelectionParameters,
+                    tracks,
+                    subtitlesManaged = routing !is SubtitleRouting.Auto,
+                )
+            player.trackSelectionParameters = routeSubtitleParameters(parameters, routing)
+        }
+            .onFailure { Timber.w(it, "自动选择字幕/音轨失败") }
+        publishSubtitlePanelState()
+    }
+
+    /** 只调整字幕部分（音轨保持现状）：用户手动选过轨之后走这里 */
+    private fun applySubtitleRoutingOnly() {
+        if (player !is ExoPlayer) return
+        if (player.currentMediaItem == null) return
+        val routing = resolveSubtitleRouting()
+        if (routing is SubtitleRouting.Auto) return
+        runCatching {
+            player.trackSelectionParameters =
+                routeSubtitleParameters(player.trackSelectionParameters, routing)
+        }
+            .onFailure { Timber.w(it, "字幕渲染路由失败") }
+        publishSubtitlePanelState()
+    }
+
+    /** 把路由规则应用到轨道选择参数 */
+    private fun routeSubtitleParameters(
+        parameters: TrackSelectionParameters,
+        routing: SubtitleRouting,
+    ): TrackSelectionParameters =
+        when (routing) {
+            SubtitleRouting.Managed, SubtitleRouting.Off ->
+                parameters
+                    .buildUpon()
+                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                    .build()
+            is SubtitleRouting.Native -> applyNativeSubtitleOverride(parameters, routing.source)
+            SubtitleRouting.Auto -> parameters
+        }
+
+    /** 图形字幕：按语言匹配内核文字轨（匹配不到就用第一条文字轨兜底） */
+    private fun applyNativeSubtitleOverride(
+        parameters: TrackSelectionParameters,
+        source: PlayerSubtitleSource,
+    ): TrackSelectionParameters {
+        val groups =
+            player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
+        if (groups.isEmpty()) return parameters
+        val base = LanguageMatcher.baseOf(source.language)
+        val matched =
+            groups.firstOrNull { group ->
+                val format = group.mediaTrackGroup.getFormat(0)
+                val tag = LanguageMatcher.detect(format.language, format.label, format.id)
+                tag != null && source.language.isNotBlank() && LanguageMatcher.baseOf(tag) == base
+            } ?: groups.firstOrNull()
+        if (matched == null) return parameters
+        return parameters
+            .buildUpon()
+            .setOverrideForType(TrackSelectionOverride(matched.mediaTrackGroup, 0))
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
+    }
+
+    /** 刷新字幕面板状态：两个内核在这里汇总成同一份 UI 数据 */
+    private fun publishSubtitlePanelState(
+        state: SubtitleOverlayState = subtitleController.overlayState.value
+    ) {
+        val delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
+        val style = readSubtitleStyle()
+
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            val options = nativeSubtitleOptions()
+            _subtitlePanelState.value =
+                SubtitlePanelState(
+                    primaryOptions = options,
+                    secondaryOptions = options.filter { it.id != mpvSecondarySubtitleId },
+                    primaryId = options.firstOrNull { it.selected }?.id,
+                    secondaryId = mpvSecondarySubtitleId,
+                    delayMs = delayMs,
+                    style = style,
+                    managed = false,
+                    controllable = options.isNotEmpty(),
+                    loading = false,
+                )
+            return
+        }
+
+        _subtitlePanelState.value =
+            SubtitlePanelState(
+                primaryOptions =
+                    state.sources.map { source ->
+                        subtitleOptionOf(source, selected = source.index == state.primaryIndex)
+                    },
+                secondaryOptions =
+                    state.sources
+                        .filter { it.isTextBased && it.index != state.primaryIndex }
+                        .map { source ->
+                            subtitleOptionOf(
+                                source,
+                                selected = source.index == state.secondaryIndex,
+                            )
+                        },
+                primaryId = state.primaryIndex,
+                secondaryId = state.secondaryIndex,
+                delayMs = delayMs,
+                style = style,
+                managed = state.primaryManaged,
+                controllable = state.sources.any { it.isTextBased },
+                loading = state.loading,
+            )
+    }
+
+    private fun subtitleOptionOf(
+        source: PlayerSubtitleSource,
+        selected: Boolean,
+    ): SubtitleOption {
+        val kind =
+            when {
+                source.isGraphic -> application.getString(R.string.player_subtitle_graphic)
+                source.isExternal -> application.getString(R.string.player_subtitle_external)
+                else -> application.getString(R.string.player_subtitle_embedded)
+            }
+        return SubtitleOption(
+            id = source.index,
+            label = source.title,
+            caption = "${source.formatLabel} · $kind",
+            adjustable = source.isTextBased,
+            selected = selected,
+        )
+    }
+
+    /** mpv 字幕轨列表：Format.id 就是 mpv 的 sid */
+    private fun nativeSubtitleOptions(): List<SubtitleOption> =
+        player.currentTracks.groups
+            .filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
+            .mapNotNull { group ->
+                val format = group.mediaTrackGroup.getFormat(0)
+                val id = format.id?.toIntOrNull() ?: return@mapNotNull null
+                SubtitleOption(
+                    id = id,
+                    label =
+                        format.label?.takeIf { it.isNotBlank() }
+                            ?: format.language?.takeIf { it.isNotBlank() }
+                            ?: "字幕 $id",
+                    caption = format.language,
+                    adjustable = true,
+                    selected = group.isSelected,
+                )
+            }
 
     fun switchToTrack(trackType: @C.TrackType Int, index: Int) {
         // 用户手动选择后，本次播放不再自动改轨；同时把语言记为首选，供后续视频沿用
@@ -957,4 +1333,7 @@ sealed interface PlayerEvents {
 
     /** 当前内核解不了这个片源：静默换 mpv 软解重播（播放页收到后直接重启播放页） */
     data object FallbackToMpv : PlayerEvents
+
+    /** 字幕外观变化：Activity 用它更新 PlayerView 原生字幕样式（图形字幕 / 兜底路径） */
+    data class SubtitleStyleChanged(val style: SubtitleStyle) : PlayerEvents
 }

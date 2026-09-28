@@ -91,9 +91,19 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 
 ### P0 · 直接影响日常观影
 
-- [ ] **1.1 字幕面板补全**（原阶段 3.1）——延迟 ±0.1s、双语次字幕、外观（大小 / 颜色 / 背景 / 描边 / 位置）。
-      落点：`PlayerControlOverlay.kt` 的 `PlayerPanel.Subtitle` 分支 + `PlayerViewModel`（字幕样式 / `CueGroup`）。
-      验收：外挂 ASS 字幕调延迟立即生效、退出重进仍记住；双语不重叠。
+- [x] **1.1 字幕面板补全**（原阶段 3.1）——延迟 ±0.1s、双语次字幕、外观（大小 / 颜色 / 背景 / 描边 / 位置）。
+      落点：`PlayerControlOverlay.kt` 的 `PlayerPanel.Subtitle` 分支 + `PlayerViewModel` +
+      新增自管字幕管线（`player/local/subtitle/`：`PlayerSubtitleController` + `SubtitleParser`）+
+      `PlayerSubtitleOverlay.kt`（Compose 渲染层）。
+      实现：ExoPlayer 下文本字幕改由自研渲染（下载 Jellyfin 交付的字幕文件 → 解析 SRT/VTT/ASS →
+      Compose 分层绘制），因此延迟可正可负且即时生效、主/次两条字幕可同时显示；图形字幕与拿不到
+      文件地址的字幕仍走内核原生渲染。mpv 内核把面板设置翻译成 `sub-delay` / `secondary-sid` /
+      `sub-*` 属性，同一套 UI。延迟与外观都落偏好（退出重进仍生效），主/次字幕语言进优先级列表
+      （跨集/跨片沿用）。
+      验收：外挂 ASS 字幕调延迟立即生效、退出重进仍记住；双语双轨不重叠。
+      真机实测（小米平板 5）：《夏日幽灵》简日双语 + 繁日双语双轨同显；暂停帧上把延迟从 0 → −0.1s，
+      字幕在同一帧从无到有（cue 起点 121.1s，播放位置 121.057s）；mpv 下 `sub-delay` 立即生效、
+      重启后延迟/外观/次字幕语言全部保留。
 - [ ] **1.2 音轨面板补全**（原阶段 3.2）——音轨延迟、轨道描述、默认轨记忆。
       落点：`PlayerPanel.Audio` 分支 + `TrackSelectionEngine`。
 - [ ] **1.3 手势打磨与验收**（原阶段 2.x；**手势功能本身已完成**，见下）
@@ -161,7 +171,7 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 | 播放内核（ExoPlayer + FFmpeg + mpv 双内核 + 静默降级） | 88% | 🟡 | `player/local`：`PlayerHolder` / `PlayerViewModel` / `mpv/MPVPlayer` |
 | 队列与选集（整剧补全、按季分组、缩略图行） | 85% | 🟡 | `PlaylistManager` + `PlayerContentPanel` |
 | 控制层（三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 88% | 🟡 | `presentation/player/PlayerControlOverlay.kt` |
-| 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 58% | 🟡 | 框架齐全；条目补全见 §1.1 / 1.2 / 1.6–1.9 |
+| 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 68% | 🟡 | 字幕面板已补全（§1.1）；音轨 / 画面 / 信息等待办见 §1.2 / 1.6–1.9 |
 | 系统层（通知栏 / 后台 / 焦点 / PiP） | 88% | 🟡 | `playback/CinefinPlaybackService` + `CinefinMediaNotificationProvider`；收尾见 §1.4 / 1.5 |
 | 多形态骨架（手机 / 平板 / 折叠 / 小窗 / TV / 车机） | 62% | 🟡 | `PlayerFormFactor` + 三种骨架已实测；折叠 / 小窗 / TV / 车机待实机（§1.12–1.14） |
 | 手势层 | 88% | 🟢 | `utils/PlayerGestureHelper.kt`：长按倍速 / 跳章节、双击、滑动 seek、边缘亮度音量、双指缩放、锁屏屏蔽、灵敏度设置均已实现；打磨见 §1.3 |
@@ -486,6 +496,10 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 触摸与手势 | `PlayerOverlayContainer` 只把「画面区内顶 / 中 / 底三带」与「画面区之外的常驻内容区」交给 Compose，其余放行给 `PlayerGestureHelper`；改布局必须同步命中区 |
 | 真机 adb 进播放页 | 主清单 `PlayerActivity exported=false`；`src/debug/AndroidManifest.xml` 覆盖为 true，仅 debug 包可 `am start` |
 | 服务器偶发超时 | `jellyfins.zhangwenkang.com` 只读；视频流偶发 `SocketTimeoutException`（ping 正常），重试即可，不是客户端 bug |
+| Android 正则不支持 `\{` 转义 | ICU 引擎对 `\{` 抛 `PatternSyntaxException`（字幕解析器静态初始化时崩过一次，整页闪退）；用字符类 `[{]` 代替。字幕下载 + 解析整体套 `runCatching`，解析失败只丢字幕不带崩播放页 |
+| 自管字幕与内核字幕打架 | 自管接管时**必须**把 `setTrackTypeDisabled(TEXT, true)` 与语言引擎的参数合成一次算完；先选轨再禁用会让参数来回变化，`onTracksChanged` 死循环刷日志（`automatic 选轨` 每秒几十条） |
+| 同一媒体不同集的字幕序号会重复 | 字幕解析缓存 key 必须带媒体 id（`mediaId:index`），只按 index 会串集 |
+| mpv 侧字幕条目的 id | 是 mpv 的 track id（`Format.id`），不是列表下标；`secondary-sid` 也必须用它 |
 
 | 权威内容 | 位置 |
 |----------|------|
@@ -499,6 +513,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-28 | §1.1 字幕面板补全：自管字幕管线（下载/解析/Compose 渲染）+ 延迟 ±0.1s + 双语次字幕 + 外观五档；mpv 侧同步支持；真机验证通过 |
 | 2026-09-28 | 文档重整：新增「快速上手」（项目结构 / 规范 / 命令 / 现状）与「§1 下一步任务」优先级清单；已完成阶段压缩为 §4 摘要；新增 §9 踩坑库 |
 | 2026-09-28 | 选集栏默认收起 + 单击画面收起；修复 `MPVLib is not initialized`（mpv 释放后 surface 回调） |
 | 2026-09-28 | 静默自动降级 mpv；队列入口收敛为右侧栏；选集 / 队列列表改为「缩略图 + 集号 + 标题」 |

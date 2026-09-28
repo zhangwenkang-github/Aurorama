@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.models.FindroidSources
 import com.zhangwenkang.cinefin.player.core.domain.models.ExternalSubtitle
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.TrickplayInfo
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import java.util.UUID
@@ -202,6 +203,15 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     }
 
     /**
+     * 取已构建过的播放信息。
+     *
+     * 用于「从通知回到播放页」这类没有重新走 [getInitialItem] 的场景：字幕源清单
+     * 随 [PlayerItem] 一起缓存，拿回它就还能继续做字幕面板与自研渲染。
+     */
+    fun getPlayerItem(itemId: UUID): PlayerItem? =
+        playerItems.firstOrNull { it.itemId == itemId }
+
+    /**
      * 播放队列在「整剧 / 整季 / 单片」层面的条目数。
      *
      * 注意读的是**清单** [items]（元数据已经全部拿到），不是已构建播放信息的条目数：
@@ -308,6 +318,39 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                             },
                     )
                 }
+        /*
+         * 字幕面板与自研字幕渲染读的清单：包含内嵌字幕在内**全部**字幕流。
+         *
+         * 内嵌字幕同样能从 Jellyfin 拿到独立字幕文件（服务端的 SubtitleProfile 声明了
+         * srt / ass 以 External 方式交付），所以「内嵌字幕」也能调延迟、做双语；
+         * 拿不到地址或解析不了的（图形字幕）会在面板里标注并退回播放内核渲染。
+         */
+        val subtitleSources =
+            mediaSource.mediaStreams
+                .filter { mediaStream -> mediaStream.type == MediaStreamType.SUBTITLE }
+                .map { mediaStream ->
+                    val language =
+                        LanguageMatcher.detect(
+                            mediaStream.language,
+                            mediaStream.title,
+                            mediaStream.path,
+                        ) ?: mediaStream.language
+                    PlayerSubtitleSource(
+                        index = mediaStream.index,
+                        title =
+                            mediaStream.title.ifBlank {
+                                mediaStream.displayTitle ?: language.ifBlank { "字幕" }
+                            },
+                        language = language,
+                        uri = mediaStream.path.orEmpty(),
+                        codec = mediaStream.codec,
+                        isGraphic = PlayerSubtitleSource.isGraphicCodec(mediaStream.codec),
+                        isExternal = mediaStream.isExternal,
+                        isDefault = mediaStream.isDefault,
+                        isForced = mediaStream.isForced,
+                    )
+                }
+                .sortedBy { it.index }
         val trickplayInfo =
             when (this) {
                 is FindroidSources -> {
@@ -338,6 +381,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             // 剧集用缩略图（16:9），其它条目退回海报：队列列表与通知封面共用这一个地址
             thumbnailUri = (images.primary ?: images.backdrop)?.toString(),
             externalSubtitles = externalSubtitles,
+            subtitleSources = subtitleSources,
             chapters = chapters.toPlayerChapters(),
             trickplayInfo = trickplayInfo,
         )

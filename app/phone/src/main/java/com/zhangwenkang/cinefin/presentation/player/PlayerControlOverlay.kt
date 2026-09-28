@@ -83,9 +83,12 @@ import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlinx.coroutines.delay
 import timber.log.Timber
@@ -295,6 +298,18 @@ fun PlayerControlOverlay(
     onPip: () -> Unit,
     onSelectSpeed: (Float) -> Unit,
     onSelectTrack: (Int, Int) -> Unit,
+    /** 字幕面板状态（两个内核汇总后的同一份数据） */
+    subtitlePanelState: PlayerViewModel.SubtitlePanelState,
+    /** 选主字幕；null 表示关闭 */
+    onSelectPrimarySubtitle: (Int?) -> Unit,
+    /** 选次字幕（双语）；null 表示关闭 */
+    onSelectSecondarySubtitle: (Int?) -> Unit,
+    /** 字幕延迟步进（±100ms） */
+    onAdjustSubtitleDelay: (Long) -> Unit,
+    /** 字幕延迟归零 */
+    onResetSubtitleDelay: () -> Unit,
+    /** 字幕外观调整 */
+    onUpdateSubtitleStyle: (SubtitleStyle) -> Unit,
     onSkipSegment: (FindroidSegment) -> Unit,
     /** 打开播放页时先用哪个画面比例（Activity 从偏好里读出来的 `PlayerView.RESIZE_MODE_*`） */
     initialResizeMode: Int,
@@ -617,13 +632,13 @@ fun PlayerControlOverlay(
                         },
                     )
                 PlayerPanel.Subtitle ->
-                    TrackPanel(
-                        titleRes = PlayerR.string.select_subtitle_track,
-                        tracks = trackOptions(runtime.tracks, C.TRACK_TYPE_TEXT),
-                        onSelect = { index ->
-                            onSelectTrack(C.TRACK_TYPE_TEXT, index)
-                            panel = PlayerPanel.None
-                        },
+                    SubtitlePanel(
+                        state = subtitlePanelState,
+                        onSelectPrimary = onSelectPrimarySubtitle,
+                        onSelectSecondary = onSelectSecondarySubtitle,
+                        onAdjustDelay = onAdjustSubtitleDelay,
+                        onResetDelay = onResetSubtitleDelay,
+                        onUpdateStyle = onUpdateSubtitleStyle,
                     )
                 PlayerPanel.Audio ->
                     TrackPanel(
@@ -1668,6 +1683,265 @@ private fun TrackPanel(
                 )
             }
         }
+    }
+}
+
+/**
+ * 字幕面板（§1.1）：主字幕 / 次字幕（双语）/ 延迟 ±0.1s / 外观。
+ *
+ * 轨道清单由 ViewModel 汇总（ExoPlayer 读 Jellyfin 字幕源，mpv 读它的 sid），
+ * 面板本身不区分内核。
+ */
+@Composable
+private fun SubtitlePanel(
+    state: PlayerViewModel.SubtitlePanelState,
+    onSelectPrimary: (Int?) -> Unit,
+    onSelectSecondary: (Int?) -> Unit,
+    onAdjustDelay: (Long) -> Unit,
+    onResetDelay: () -> Unit,
+    onUpdateStyle: (SubtitleStyle) -> Unit,
+) {
+    val colorLabels =
+        listOf(
+                PlayerR.string.player_subtitle_color_white,
+                PlayerR.string.player_subtitle_color_yellow,
+                PlayerR.string.player_subtitle_color_cyan,
+                PlayerR.string.player_subtitle_color_green,
+                PlayerR.string.player_subtitle_color_orange,
+            )
+            .map { stringResource(it) }
+    val backgroundLabels =
+        listOf(
+                PlayerR.string.player_subtitle_background_none,
+                PlayerR.string.player_subtitle_background_light,
+                PlayerR.string.player_subtitle_background_solid,
+                PlayerR.string.player_subtitle_background_opaque,
+            )
+            .map { stringResource(it) }
+    val edgeLabels =
+        listOf(
+                PlayerR.string.player_subtitle_edge_none,
+                PlayerR.string.player_subtitle_edge_thin,
+                PlayerR.string.player_subtitle_edge_thick,
+            )
+            .map { stringResource(it) }
+    val positionLabels =
+        listOf(
+                PlayerR.string.player_subtitle_position_low,
+                PlayerR.string.player_subtitle_position_mid_low,
+                PlayerR.string.player_subtitle_position_middle,
+                PlayerR.string.player_subtitle_position_mid_high,
+                PlayerR.string.player_subtitle_position_high,
+            )
+            .map { stringResource(it) }
+    val sizeLabels = SubtitleStyle.SIZES.map { "${(it * 100).roundToInt()}%" }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        PanelTitle(stringResource(PlayerR.string.select_subtitle_track))
+        PanelList {
+            /*
+             * 延迟放最上面：调 ±0.1s 是字幕面板最高频的操作，
+             * 轨道多的时候（内嵌多语言字幕）不能让它被挤到滚动区下面。
+             */
+            PanelTitle(stringResource(PlayerR.string.player_subtitle_delay))
+            if (state.loading) {
+                Text(
+                    text = stringResource(PlayerR.string.player_subtitle_loading),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Mist,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+            }
+            SubtitleDelayRow(
+                delayMs = state.delayMs,
+                onAdjust = onAdjustDelay,
+                onReset = onResetDelay,
+            )
+
+            if (state.primaryOptions.isEmpty()) {
+                PanelTitle(stringResource(PlayerR.string.player_subtitle_primary))
+                Text(
+                    text = stringResource(PlayerR.string.player_subtitle_unavailable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Mist,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+            } else {
+                // 主字幕
+                PanelTitle(stringResource(PlayerR.string.player_subtitle_primary))
+                PanelRow(
+                    label = stringResource(PlayerR.string.player_controls_subtitle_off),
+                    selected = state.primaryId == null,
+                    onClick = { onSelectPrimary(null) },
+                )
+                state.primaryOptions.forEach { option ->
+                    PanelRow(
+                        label = option.label,
+                        caption = option.caption,
+                        selected = option.selected,
+                        onClick = { onSelectPrimary(option.id) },
+                    )
+                }
+            }
+
+            // 次字幕（双语）：只有在当前媒体有可自管字幕时才有意义
+            if (state.controllable) {
+                PanelTitle(stringResource(PlayerR.string.player_subtitle_secondary))
+                PanelRow(
+                    label = stringResource(PlayerR.string.player_controls_subtitle_off),
+                    selected = state.secondaryId == null,
+                    onClick = { onSelectSecondary(null) },
+                )
+                state.secondaryOptions.forEach { option ->
+                    PanelRow(
+                        label = option.label,
+                        caption = option.caption,
+                        selected = option.id == state.secondaryId,
+                        onClick = { onSelectSecondary(option.id) },
+                    )
+                }
+            }
+
+            // 外观：大小 / 颜色 / 背景 / 描边 / 位置
+            PanelTitle(stringResource(PlayerR.string.player_subtitle_appearance))
+            SubtitleStyleRow(
+                titleRes = PlayerR.string.player_subtitle_size,
+                labels = sizeLabels,
+                selectedIndex = state.style.sizeIndex,
+                onSelect = { onUpdateStyle(state.style.copy(sizeIndex = it)) },
+            )
+            SubtitleStyleRow(
+                titleRes = PlayerR.string.player_subtitle_color,
+                labels = colorLabels,
+                selectedIndex = state.style.colorIndex,
+                onSelect = { onUpdateStyle(state.style.copy(colorIndex = it)) },
+            )
+            SubtitleStyleRow(
+                titleRes = PlayerR.string.player_subtitle_background,
+                labels = backgroundLabels,
+                selectedIndex = state.style.backgroundIndex,
+                onSelect = { onUpdateStyle(state.style.copy(backgroundIndex = it)) },
+            )
+            SubtitleStyleRow(
+                titleRes = PlayerR.string.player_subtitle_edge,
+                labels = edgeLabels,
+                selectedIndex = state.style.edgeIndex,
+                onSelect = { onUpdateStyle(state.style.copy(edgeIndex = it)) },
+            )
+            SubtitleStyleRow(
+                titleRes = PlayerR.string.player_subtitle_position,
+                labels = positionLabels,
+                selectedIndex = state.style.positionIndex,
+                onSelect = { onUpdateStyle(state.style.copy(positionIndex = it)) },
+            )
+        }
+    }
+}
+
+/** 延迟一行：−0.1s / 当前值（点击归零）/ +0.1s */
+@Composable
+private fun SubtitleDelayRow(
+    delayMs: Long,
+    onAdjust: (Long) -> Unit,
+    onReset: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+    ) {
+        SubtitleChip(
+            label = "−0.1s",
+            selected = false,
+            contentDescription = stringResource(PlayerR.string.player_subtitle_delay_earlier),
+            onClick = { onAdjust(-PlayerSubtitleController.DELAY_STEP_MS) },
+        )
+        SubtitleChip(
+            label = formatSubtitleDelay(delayMs),
+            selected = true,
+            contentDescription = stringResource(PlayerR.string.player_subtitle_delay_reset),
+            onClick = onReset,
+        )
+        SubtitleChip(
+            label = "+0.1s",
+            selected = false,
+            contentDescription = stringResource(PlayerR.string.player_subtitle_delay_later),
+            onClick = { onAdjust(PlayerSubtitleController.DELAY_STEP_MS) },
+        )
+    }
+}
+
+/** 外观里的一行档位：标题 + 可横向滚动的一组胶囊 */
+@Composable
+private fun SubtitleStyleRow(
+    @StringRes titleRes: Int,
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(
+            text = stringResource(titleRes),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Mist,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 2.dp),
+        ) {
+            labels.forEachIndexed { index, label ->
+                SubtitleChip(
+                    label = label,
+                    selected = index == selectedIndex,
+                    onClick = { onSelect(index) },
+                )
+            }
+        }
+    }
+}
+
+/** 面板里的小胶囊按钮：选中态用朱砂，未选中用墨系 */
+@Composable
+private fun SubtitleChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    contentDescription: String? = null,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            Modifier.clip(RoundedCornerShape(999.dp))
+                .background(if (selected) Vermilion.copy(alpha = 0.18f) else SurfaceRow)
+                .border(1.dp, if (selected) Vermilion else Hairline, RoundedCornerShape(999.dp))
+                .clickable(onClick = onClick)
+                .semantics {
+                    this.selected = selected
+                    if (contentDescription != null) {
+                        this.contentDescription = contentDescription
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) Vermilion else Paper,
+        )
+    }
+}
+
+/** 延迟显示：+0.3s / −0.1s / 0.0s */
+private fun formatSubtitleDelay(delayMs: Long): String {
+    val seconds = kotlin.math.abs(delayMs) / 1000.0
+    return when {
+        delayMs > 0L -> "+%.1fs".format(seconds)
+        delayMs < 0L -> "−%.1fs".format(seconds)
+        else -> "0.0s"
     }
 }
 

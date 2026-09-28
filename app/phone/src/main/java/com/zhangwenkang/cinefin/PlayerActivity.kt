@@ -44,6 +44,7 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.presentation.player.PlayerChromeLayout
@@ -51,6 +52,7 @@ import com.zhangwenkang.cinefin.presentation.player.PlayerControlOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlsState
 import com.zhangwenkang.cinefin.presentation.player.PlayerFormFactor
 import com.zhangwenkang.cinefin.presentation.player.PlayerLayoutContext
+import com.zhangwenkang.cinefin.presentation.player.PlayerSubtitleOverlay
 import com.zhangwenkang.cinefin.presentation.player.keepsComposition
 import com.zhangwenkang.cinefin.presentation.player.rememberPlayerLayoutContext
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
@@ -161,10 +163,26 @@ class PlayerActivity : BasePlayerActivity() {
 
         isControlsLocked = false
 
+        /*
+         * 自研字幕层（§1.1）：独立 ComposeView，避免控制层隐藏时字幕跟着消失；
+         * 只画字幕不处理触摸，手势仍由 PlayerView 上的 PlayerGestureHelper 接管。
+         */
+        binding.subtitleOverlayCompose.setContent {
+            CinefinTheme(surfaceBackground = false) {
+                val subtitleState by
+                    viewModel.subtitleController.overlayState.collectAsStateWithLifecycle()
+                PlayerSubtitleOverlay(
+                    player = viewModel.player,
+                    state = subtitleState,
+                )
+            }
+        }
+
         binding.controlOverlayCompose.setContent {
             // 注意：这里必须关掉主题底色，否则那层不透明 Surface 会把视频画面整个盖住
             CinefinTheme(surfaceBackground = false) {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val subtitlePanelState by viewModel.subtitlePanelState.collectAsStateWithLifecycle()
                 // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
                 val layout = rememberPlayerLayoutContext(isPip = pipMode.value)
                 LaunchedEffect(layout, sidePanelExpanded.value) {
@@ -183,6 +201,12 @@ class PlayerActivity : BasePlayerActivity() {
                     onPip = { pictureInPicture() },
                     onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
                     onSelectTrack = { type, index -> viewModel.switchToTrack(type, index) },
+                    subtitlePanelState = subtitlePanelState,
+                    onSelectPrimarySubtitle = { id -> viewModel.selectSubtitlePrimary(id) },
+                    onSelectSecondarySubtitle = { id -> viewModel.selectSubtitleSecondary(id) },
+                    onAdjustSubtitleDelay = { delta -> viewModel.adjustSubtitleDelay(delta) },
+                    onResetSubtitleDelay = { viewModel.resetSubtitleDelay() },
+                    onUpdateSubtitleStyle = { style -> viewModel.updateSubtitleStyle(style) },
                     onSkipSegment = { segment -> viewModel.skipSegment(segment) },
                     initialResizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
                     onSelectResizeMode = { mode -> selectResizeMode(mode) },
@@ -274,6 +298,8 @@ class PlayerActivity : BasePlayerActivity() {
                             is PlayerEvents.NavigateBack -> finishPlayback()
                             // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendAndRestart 带过去）
                             is PlayerEvents.FallbackToMpv -> switchBackendAndRestart()
+                            // 字幕外观变化：同步给 PlayerView 的原生字幕（图形字幕 / 兜底路径）
+                            is PlayerEvents.SubtitleStyleChanged -> configureSubtitleStyle()
                             is PlayerEvents.IsPlayingChanged -> {
                                 if (event.isPlaying) {
                                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -368,20 +394,49 @@ class PlayerActivity : BasePlayerActivity() {
         }
     }
 
-    /** 字幕样式：media3 默认沿用系统字幕样式，系统字幕未开启时会退回「白字 + 不透明黑底」， 在画面上呈现为突兀的黑色方块。这里统一改为白字 + 黑色描边，不绘制底色。 */
+    /**
+     * 原生字幕样式（走 Media3 渲染的那部分：图形字幕 / 没有独立文件的兜底字幕）。
+     *
+     * 文本字幕归自研渲染层（PlayerSubtitleOverlay），外观直接读 SubtitleStyle；
+     * 这里把同一套「大小 / 颜色 / 背景 / 描边 / 位置」翻译成 SubtitleView 的 API，
+     * 保证两类字幕在面板里调出来的观感一致。
+     */
     @androidx.annotation.OptIn(UnstableApi::class)
     private fun configureSubtitleStyle() {
-        binding.playerView.subtitleView?.setStyle(
+        val style = readSubtitleStyle()
+        val subtitleView = binding.playerView.subtitleView ?: return
+        subtitleView.setStyle(
             CaptionStyleCompat(
-                /* foregroundColor = */ Color.WHITE,
-                /* backgroundColor = */ Color.TRANSPARENT,
+                /* foregroundColor = */ style.textColor,
+                /* backgroundColor = */ style.backgroundColor,
                 /* windowColor = */ Color.TRANSPARENT,
-                /* edgeType = */ CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                /* edgeType = */
+                if (style.edgeWidthDp <= 0f) {
+                    CaptionStyleCompat.EDGE_TYPE_NONE
+                } else {
+                    CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                },
                 /* edgeColor = */ Color.BLACK,
                 /* typeface = */ null,
             )
         )
+        // 字号与位置：与自研渲染层用同一份档位（基准 4.2% 画面高度）
+        subtitleView.setFractionalTextSize(0.042f * style.textScale, false)
+        subtitleView.setBottomPaddingFraction(style.bottomFraction)
+        // 面板里调了颜色/字号就应生效，不能让字幕自带的嵌入样式盖回去
+        subtitleView.setApplyEmbeddedStyles(false)
+        subtitleView.setApplyEmbeddedFontSizes(false)
     }
+
+    /** 读面板里保存的字幕外观档位（与 PlayerViewModel.readSubtitleStyle 一致） */
+    private fun readSubtitleStyle(): SubtitleStyle =
+        SubtitleStyle(
+            sizeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleSize),
+            colorIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleColor),
+            backgroundIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleBackground),
+            edgeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleEdge),
+            positionIndex = appPreferences.getValue(appPreferences.playerSubtitleStylePosition),
+        )
 
     /**
      * 画面比例由 Media3 的 PlayerView 负责；换成 mpv 播放核心时画面输出由 mpv 自己控制， 这时比例档位在面板里显示为不可用，而不是给一个点了没反应的假开关。

@@ -17,6 +17,12 @@ data class PlayerItem(
     /** 剧集 / 影片缩略图（Jellyfin 图片地址）：队列列表与通知封面共用 */
     val thumbnailUri: String? = null,
     val externalSubtitles: List<ExternalSubtitle> = emptyList(),
+    /**
+     * 全部字幕源（含内嵌字幕）：字幕面板的轨道列表与自研渲染管线都读它。
+     *
+     * [externalSubtitles] 仍然保留给播放内核做原生兜底渲染；两者互不替代。
+     */
+    val subtitleSources: List<PlayerSubtitleSource> = emptyList(),
     val chapters: List<PlayerChapter> = emptyList(),
     val trickplayInfo: TrickplayInfo? = null,
 ) : Parcelable

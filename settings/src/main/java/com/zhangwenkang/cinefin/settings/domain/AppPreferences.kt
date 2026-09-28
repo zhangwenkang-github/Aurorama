@@ -14,10 +14,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val preferredSubtitleLanguage = Preference<String?>("pref_subtitle_language", null)
 
     // Language - 字幕/音轨语言优先级（逗号分隔，越靠前优先级越高）
-    val preferredSubtitleLanguages =
-        Preference("pref_subtitle_languages", "zh-Hans,zh-Hant,zh,en")
-    val preferredAudioLanguages =
-        Preference("pref_audio_languages", "zh-Hans,zh-Hant,zh,ja,en")
+    val preferredSubtitleLanguages = Preference("pref_subtitle_languages", "zh-Hans,zh-Hant,zh,en")
+    val preferredAudioLanguages = Preference("pref_audio_languages", "zh-Hans,zh-Hant,zh,ja,en")
 
     /** 字幕显示模式：auto / always / off */
     val subtitleMode = Preference("pref_subtitle_mode", Constants.SubtitleMode.AUTO)
@@ -27,10 +25,7 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Interface
     val theme = Preference("pref_theme", "system")
-    /**
-     * 动态取色默认关闭：影阁有自己的墨底 + 朱砂配色，
-     * 跟随系统壁纸会把品牌色冲掉；想要 Material You 的用户可在设置里打开。
-     */
+    /** 动态取色默认关闭：影阁有自己的墨底 + 朱砂配色， 跟随系统壁纸会把品牌色冲掉；想要 Material You 的用户可在设置里打开。 */
     val dynamicColors = Preference("pref_dynamic_colors", false)
     val homeSuggestions = Preference<Boolean>("home_suggestions", true)
     val homeContinueWatching = Preference<Boolean>("home_continue_watching", true)
@@ -41,6 +36,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Player
     val playerBackend = Preference("pref_player_backend", "exoplayer")
     val playerBrightness = Preference("pref_player_brightness", -1.0f)
+    /** 画面比例档位。数值直接用 Media3 `PlayerView.RESIZE_MODE_*`： 0 = 适应屏幕（默认）、3 = 拉伸填满、4 = 裁剪填满。 */
+    val playerResizeMode = Preference("pref_player_resize_mode", 0)
 
     // Player - mpv
     val playerMpv = Preference("pref_player_mpv", false)
@@ -54,17 +51,11 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerGesturesZoom = Preference("pref_player_gestures_zoom", true)
     val playerGesturesSeek = Preference("pref_player_gestures_seek", true)
     val playerGesturesSeekTrickplay = Preference("pref_player_gestures_seek_trickplay", true)
-    /**
-     * 长按左/右侧跳过章节。默认关闭，让长按保持「倍速播放」这一更常用的行为，
-     * 需要跳章节的用户可按需开启。
-     */
+    /** 长按左/右侧跳过章节。默认关闭，让长按保持「倍速播放」这一更常用的行为， 需要跳章节的用户可按需开启。 */
     val playerGesturesChapterSkip = Preference("pref_player_gestures_chapter_skip", false)
     val playerGesturesBrightnessRemember = Preference("pref_player_brightness_remember", false)
     val playerGesturesStartMaximized = Preference("pref_player_start_maximized", false)
-    /**
-     * 当前账号是否为管理员的缓存（含账号 id）。
-     * 控制台入口依赖它——服务器短暂不可达时不该把管理员的入口也一起藏起来。
-     */
+    /** 当前账号是否为管理员的缓存（含账号 id）。 控制台入口依赖它——服务器短暂不可达时不该把管理员的入口也一起藏起来。 */
     val currentUserIsAdministrator = Preference("pref_current_user_is_admin", false)
     val currentUserIsAdministratorUserId = Preference("pref_current_user_is_admin_id", "")
     /** 长按倍速的档位：1.5 / 2.0 / 3.0（字符串便于配合设置项的选择控件） */
@@ -113,11 +104,23 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Player - PiP
     val playerPipGesture = Preference("pref_player_picture_in_picture_gesture", false)
 
-    /**
-     * 后台继续播放：离开播放页（锁屏 / 切到别的应用）时不暂停。
-     * 对应官方 Android 客户端「视频播放器 → 允许后台播放音频」。
-     */
+    /** 后台继续播放：离开播放页（锁屏 / 切到别的应用）时不暂停。 对应官方 Android 客户端「视频播放器 → 允许后台播放音频」。 */
     val playerBackgroundAudio = Preference("pref_player_background_audio", false)
+
+    // Player - 字幕（延迟 / 双语 / 外观；§1.1）
+    /** 字幕延迟（毫秒）：正 = 字幕延后出现，负 = 字幕提前出现；面板按 0.1s 步长调节，范围 ±10s */
+    val playerSubtitleDelayMs = Preference("pref_player_subtitle_delay_ms", 0L)
+
+    /** 次字幕语言优先级（逗号分隔）；空串 = 关闭次字幕 */
+    val secondarySubtitleLanguages = Preference("pref_secondary_subtitle_languages", "")
+
+    /** 字幕外观档位，取值见 player/core 的 SubtitleStyle（这里只存索引，两处默认值保持一致） */
+    val playerSubtitleStyleSize = Preference("pref_player_subtitle_style_size", 1)
+
+    val playerSubtitleStyleColor = Preference("pref_player_subtitle_style_color", 0)
+    val playerSubtitleStyleBackground = Preference("pref_player_subtitle_style_background", 2)
+    val playerSubtitleStyleEdge = Preference("pref_player_subtitle_style_edge", 1)
+    val playerSubtitleStylePosition = Preference("pref_player_subtitle_style_position", 1)
 
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)
