@@ -430,7 +430,8 @@ PiP → 画面继续、控制层隐藏；车机 → 不退后台，保持前台�
 | 版本矩阵 | AGP 9.4.1 / Kotlin 2.4.20 / KSP 2.3.12 / ktfmt 0.27 `kotlinLangStyle` |
 | SDK 配置 | compileSdk 37 / targetSdk 36 / minSdk 28 / buildTools 37.0.0（`buildSrc/.../Versions.kt`） |
 | 关键依赖 | Compose 1.12.1 + material3 1.4.0；Media3 1.11.1（+ jellyfin ffmpeg-decoder 1.9.0+1）；libmpv 1.0.0（compileOnly）；Jellyfin SDK 1.8.12 |
-| 模拟器 | AVD `CinefinTablet`（2560×1600 / 320dpi / API 36），**无硬件加速**（需管理员安装 AEHD 驱动），优先真机 |
+| **真机（首选）** | 小米平板 5 `nabu` / 型号 21051182C，1600×2560 / 360dpi / Android 13（API 33）。模拟器太卡，2026-09-28 起调试以真机为准 |
+| 模拟器（备用） | AVD `CinefinTablet`（2560×1600 / 320dpi / API 36），无硬件加速；仅在真机不在时兜底 |
 | 测试服务器 | `https://jellyfins.zhangwenkang.com`（Jellyfin 10.11.8，只读！禁止写/删） |
 
 ```powershell
@@ -444,6 +445,17 @@ adb logcat -s CinefinPlayer:V ExoPlayerImpl:V             # 播放排障
 ```
 
 构建产物：`app/phone/build/outputs/apk/libre/debug/`（4 个 ABI，单包 85–95 MB debug）。
+
+真机调试（小米平板 5 / Android 13）约定：
+
+```powershell
+adb install -r app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk
+# 播放页在 debug 包里 exported=true（src/debug/AndroidManifest.xml 覆盖），可以直接带条目启动：
+adb shell am start -n com.zhangwenkang.cinefin.debug/com.zhangwenkang.cinefin.PlayerActivity `
+  --es itemId "<UUID>" --es itemKind "Episode"
+# 读真机偏好（SharedPreferences 是明文，可临时改内核等开关）
+adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkang.cinefin.debug_preferences.xml
+```
 
 ---
 
@@ -488,3 +500,7 @@ adb logcat -s CinefinPlayer:V ExoPlayerImpl:V             # 播放排障
 | 2026-09-27 | 阶段 4 完成（4.1–4.6，4.7 部分）：播放器实例抽到进程级 `PlayerHolder`，新增 `CinefinPlaybackService`（MediaSessionService + mediaPlayback 前台服务）与自研 `CinefinMediaNotificationProvider`；`BasePlayerActivity` 不再内联 `MediaSession`；`PlayerActivity` 支持"从通知接管会话不重新拉流"并请求通知权限（Android 13+）。实测：`dumpsys media_session` 可见活跃会话（PLAYING）、通知 5 个传输按钮 + 进度、Home 后播放继续（位置推进）、媒体按键暂停/播放生效、PiP `mode=pinned` 且播放与通知保持；mpv 内核元数据修复后通知标题正确 |
 | 2026-09-27 | 阶段 4 踩坑记录：① Media3 默认媒体通知只在该会话**有 controler 连接**时才显示（`MediaNotificationManager.shouldShowNotification` 先取已连接 controller 的 timeline），与本项目"播放页直接操作共享播放器实例"的架构不匹配 → 服务自连接常驻 `MediaController` + 自研通知 provider；② 通知渠道必须自建，否则 Android 14 的 `startForeground` 直接抛 `Bad notification for startForeground` 崩溃；③ `NotificationCompat.Builder` 没有 `setSubtitle`，副标题走 `setContentText`；④ `CommandButton.Builder(Int)` 是 1.11 的可用构造（`Builder(IconCompat)` 不存在） |
 | 2026-09-27 | 阶段 4 遗留：通知封面（`artworkUri`）、`REPLAY/其他内核` 下 PiP 位置上报（mpv 在 PiP 中 `position=-1`）、锁屏 30 分钟长稳与真机耳机/蓝牙/来电走查；另记录：ExoPlayer 内核播放 `64c132f8`（10-bit H.264）片源会在 `MatroskaExtractor` 报错，属既有解码问题，与本阶段无关 |
+| 2026-09-28 | 切换到真机调试（小米平板 5 / Android 13，模拟器太卡）；新增 `src/debug/AndroidManifest.xml` 覆盖 `PlayerActivity exported=true`，方便 adb 直接带 itemId 启动播放页 |
+| 2026-09-28 | 修复用户反馈「播放列表显示不全」：`PlaylistManager` 早就拿到整剧集数（`items`），但 `PlayerViewModel.initializePlayer` 只把当前一集交给播放器，队列面板因此只有一条。现改为起播后由 `fillQueueInBackground()` 按「后面的集依次追加 → 前面的集倒序前插」逐集补全（不阻塞首帧、按 mediaId 去重、失败集跳过）；真机实测队列补齐到第 1 季 12 集 + 第 2 季，底部面板按季分组正常 |
+| 2026-09-28 | 修复真机崩溃 `IndexOutOfBoundsException: Index: 2147483647, Size: 1`：`MPVPlayer.addMediaItems` 直接 `internalMediaItems.addAll(index, …)`，而 BasePlayer 封装过来的下标可能是 `C.INDEX_UNSET`/越界值（mpv 内核下实测传入 `Int.MAX_VALUE`）→ 下标统一收敛到 `[0, size]`；补队列时也改为显式传索引，不再依赖无下标 `addMediaItem` 的封装 |
+| 2026-09-28 | 真机复现到：默认 ExoPlayer 内核播放 10-bit H.264 片源（如「学生会的一己之见」）直接 `ERROR_CODE_DECODING_FAILED / NO_EXCEEDS_CAPABILITIES`，错误卡片与「改用 mpv 内核」按钮在真机上工作正常；是否做「解码失败自动降级 mpv」待用户确认（会改动默认播放行为） |

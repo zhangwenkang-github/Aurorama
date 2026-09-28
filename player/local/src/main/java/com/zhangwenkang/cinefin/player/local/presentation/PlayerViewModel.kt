@@ -36,8 +36,10 @@ import kotlin.math.ceil
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -114,6 +116,9 @@ constructor(
 
     /** 用户在当前媒体里手动选过轨后，不再自动干预 */
     private var manualTrackSelectionMediaId: String? = null
+
+    /** 后台补全播放队列的任务：重新起播时取消重来，避免两个任务同时插队 */
+    private var queueFillJob: Job? = null
 
     var playWhenReady = true
     private var currentMediaItemIndex = savedStateHandle["mediaItemIndex"] ?: 0
@@ -209,6 +214,65 @@ constructor(
             player.setMediaItems(mediaItems, 0, startPosition)
             player.prepare()
             player.play()
+            // 起播之后再补全整剧队列（用户反馈：队列面板只显示当前一集）
+            fillQueueInBackground()
+        }
+    }
+
+    /**
+     * 后台把整剧队列补进播放器。
+     *
+     * 播放器起播时只带着当前这一集，队列面板因此只有一条；这里的做法是不阻塞首帧：
+     * 先播当前集，再按「后面的集依次追加 → 前面的集倒序前插」逐集构建播放信息并插入，
+     * 队列面板与「下一集」按钮在几秒内补齐成整剧。中途用户切集也不受影响——插入前按 mediaId 去重。
+     */
+    private fun fillQueueInBackground() {
+        queueFillJob?.cancel()
+        queueFillJob =
+            viewModelScope.launch {
+                val currentIndex = playlistManager.queueIndex
+                val queueSize = playlistManager.queueSize
+                if (queueSize <= 1 || currentIndex < 0) return@launch
+
+                for (index in (currentIndex + 1) until queueSize) {
+                    val item =
+                        withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
+                            ?: continue
+                    if (!isActive) return@launch
+                    withContext(Dispatchers.Main) { addToQueueEnd(item) }
+                }
+                for (index in (currentIndex - 1) downTo 0) {
+                    val item =
+                        withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
+                            ?: continue
+                    if (!isActive) return@launch
+                    withContext(Dispatchers.Main) { addToQueueFront(item) }
+                }
+                Timber.d("播放队列补全完成：共 %d 项", player.mediaItemCount)
+            }
+    }
+
+    private fun addToQueueEnd(item: PlayerItem) {
+        if (playerContains(item.itemId)) return
+        // 显式给下标：不依赖 BasePlayer 对"无下标 addMediaItem"的封装（mpv 内核上它传过越界值）
+        player.addMediaItem(player.mediaItemCount, item.toMediaItem())
+        rememberQueueItem(item)
+    }
+
+    private fun addToQueueFront(item: PlayerItem) {
+        if (playerContains(item.itemId)) return
+        player.addMediaItem(0, item.toMediaItem())
+        rememberQueueItem(item)
+    }
+
+    private fun playerContains(itemId: UUID): Boolean {
+        val mediaId = itemId.toString()
+        return (0 until player.mediaItemCount).any { player.getMediaItemAt(it).mediaId == mediaId }
+    }
+
+    private fun rememberQueueItem(item: PlayerItem) {
+        if (items.none { it.itemId == item.itemId }) {
+            items.add(item)
         }
     }
 

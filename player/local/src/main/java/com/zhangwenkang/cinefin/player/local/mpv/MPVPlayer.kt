@@ -738,14 +738,21 @@ class MPVPlayer(
      * @param mediaItems The [MediaItems][MediaItem] to add.
      */
     override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
-        internalMediaItems.addAll(index, mediaItems)
+        /*
+         * 下标可能来自 BasePlayer 的封装（C.INDEX_UNSET 或已越界的值），
+         * 直接 addAll 会抛 IndexOutOfBoundsException 把播放页整个打崩（真机实测），
+         * 这里统一收敛到 [0, size]：越界一律当作"追加到末尾"。
+         */
+        val safeIndex =
+            if (index in 0..internalMediaItems.size) index else internalMediaItems.size
+        internalMediaItems.addAll(safeIndex, mediaItems)
         mediaItems.forEach { mediaItem ->
             mpvLib.command(
                 arrayOf(
                     "loadfile",
                     "${mediaItem.localConfiguration?.uri}",
                     "insert-at",
-                    index.toString(),
+                    safeIndex.toString(),
                 )
             )
         }

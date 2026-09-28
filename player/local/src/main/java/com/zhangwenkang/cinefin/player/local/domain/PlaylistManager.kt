@@ -25,6 +25,10 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     private var startItem: FindroidItem? = null
     private var items: List<FindroidItem> = emptyList()
     private val playerItems: MutableList<PlayerItem> = mutableListOf()
+
+    /** 构建播放信息失败过的条目：补队列时跳过，避免对同一集反复请求 */
+    private val failedItemIds: MutableSet<UUID> = mutableSetOf()
+
     var currentItemIndex: Int = 0
 
     suspend fun getInitialItem(
@@ -198,38 +202,71 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     }
 
     /**
+     * 播放队列在「整剧 / 整季 / 单片」层面的条目数。
+     *
+     * 注意读的是**清单** [items]（元数据已经全部拿到），不是已构建播放信息的条目数：
+     * 队列面板要显示完整剧集，而每集的播放信息（流地址 / 外挂字幕）是按需逐集构建的。
+     */
+    val queueSize: Int
+        get() = items.size
+
+    /** 当前播放条目在队列里的位置（与 [queueSize] 同一坐标系） */
+    val queueIndex: Int
+        get() = currentItemIndex
+
+    /**
+     * 按队列位置构建播放条目：已经构建过的直接复用，构建失败记下来并返回 null（调用方跳过）。
+     *
+     * 一次整剧可能有几十集，每集都要打一次播放信息接口，所以不做"开播前全量构建"，
+     * 而是由播放页在起播之后按顺序逐集调用（见 `PlayerViewModel.fillQueueInBackground`）。
+     */
+    suspend fun buildPlayerItemAt(index: Int): PlayerItem? {
+        val item = items.getOrNull(index) ?: return null
+        if (item.id in failedItemIds) return null
+        playerItems.firstOrNull { it.itemId == item.id }?.let {
+            return it
+        }
+        return runCatching { item.toPlayerItem(null, 0L) }
+            .onSuccess { playerItems.add(it) }
+            .onFailure {
+                // 记下失败的条目，避免补队列时对同一集反复重试
+                failedItemIds.add(item.id)
+                Timber.w(it, "构建队列第 %d 项失败，跳过这一集", index)
+            }
+            .getOrNull()
+    }
+
+    /**
      * 影阁：整部剧的播放队列 = **所有季的所有集**，按「季号 → 集号」排序。
      *
-     * 之前只取当前这一季，导致播放队列面板显示不全（用户反馈：应能看到该季所有集，
-     * 以及其他季的所有集，并按季分组）。排序后队列面板可以直接按季号分组显示。
+     * 之前只取当前这一季，导致播放队列面板显示不全（用户反馈：应能看到该季所有集， 以及其他季的所有集，并按季分组）。排序后队列面板可以直接按季号分组显示。
      */
     private suspend fun loadSeriesEpisodes(
         seriesId: UUID,
         fields: List<ItemFields>,
         fallbackSeasonId: UUID? = null,
-    ): List<FindroidEpisode> =
-        runCatching {
+    ): List<FindroidEpisode> = runCatching {
+        repository
+            .getSeasons(seriesId)
+            .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
+            .flatMap { season ->
                 repository
-                    .getSeasons(seriesId)
+                    .getEpisodes(seriesId = seriesId, seasonId = season.id, fields = fields)
+                    .filter { !it.missing }
                     .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
-                    .flatMap { season ->
-                        repository
-                            .getEpisodes(seriesId = seriesId, seasonId = season.id, fields = fields)
-                            .filter { !it.missing }
-                            .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
-                    }
             }
-            .getOrElse { error ->
-                // 拉整剧失败也绝不能让播放起不来：退回到「只加载当前这一季」
-                Timber.w(error, "拉取整剧集数失败，回退到当前季")
-                fallbackSeasonId
-                    ?.let { seasonId ->
-                        repository
-                            .getEpisodes(seriesId = seriesId, seasonId = seasonId, fields = fields)
-                            .filter { !it.missing }
-                    }
-                    .orEmpty()
-            }
+    }
+        .getOrElse { error ->
+            // 拉整剧失败也绝不能让播放起不来：退回到「只加载当前这一季」
+            Timber.w(error, "拉取整剧集数失败，回退到当前季")
+            fallbackSeasonId
+                ?.let { seasonId ->
+                    repository
+                        .getEpisodes(seriesId = seriesId, seasonId = seasonId, fields = fields)
+                        .filter { !it.missing }
+                }
+                .orEmpty()
+        }
 
     private suspend fun FindroidItem.toPlayerItem(
         mediaSourceIndex: Int?,

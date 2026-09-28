@@ -27,6 +27,7 @@
         <activity
             android:name=".PlayerActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|uiMode|keyboard|keyboardHidden|navigation"
+            android:exported="false"
             android:resizeableActivity="true"
             android:screenOrientation="fullSensor"
             android:launchMode="singleTask"
