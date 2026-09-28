@@ -77,6 +77,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.ui.AspectRatioFrameLayout
+import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
@@ -242,6 +243,7 @@ private class PlayerRuntime {
                             extras?.getInt(PLAYER_EXTRA_SEASON_NUMBER, -1)?.takeIf { it >= 0 },
                         episodeNumber =
                             extras?.getInt(PLAYER_EXTRA_EPISODE_NUMBER, -1)?.takeIf { it >= 0 },
+                        artworkUri = mediaItem.mediaMetadata.artworkUri?.toString(),
                     )
                 }
         }
@@ -377,7 +379,13 @@ fun PlayerControlOverlay(
         sleepMinutes = null
     }
 
-    // 底栏在两处出现（画面区内 / 折叠半开下屏），参数完全一致，抽成一个局部 composable
+    /*
+     * 底栏在两处出现（画面区内 / 折叠半开下屏），参数完全一致，抽成一个局部 composable。
+     *
+     * 队列入口只留一个：有常驻内容栏的骨架（平板 / 折叠展开）里，底栏按钮变成「显示 / 隐藏选集栏」，
+     * 不再弹底部面板；手机等没有内容栏的骨架才用底部面板兜底。
+     */
+    val hasSidePanel = layout.hasSideContent
     val bottomBar: @Composable (Modifier, Brush?) -> Unit = { barModifier, scrim ->
         PlayerBottomBar(
             positionMs = runtime.position,
@@ -399,7 +407,23 @@ fun PlayerControlOverlay(
             onOpenAudio = { panel = PlayerPanel.Audio },
             onOpenAspect = { panel = PlayerPanel.Aspect },
             onOpenInfo = { panel = PlayerPanel.Info },
-            onOpenQueue = { panel = PlayerPanel.Queue },
+            onOpenQueue =
+                if (hasSidePanel) {
+                    onToggleSidePanel
+                } else {
+                    { panel = PlayerPanel.Queue }
+                },
+            queueIconRes =
+                if (hasSidePanel) CoreR.drawable.ic_playlist else CoreR.drawable.ic_logs,
+            queueDescription =
+                stringResource(
+                    when {
+                        !hasSidePanel -> PlayerR.string.player_controls_queue
+                        sidePanelExpanded -> PlayerR.string.player_controls_side_panel_hide
+                        else -> PlayerR.string.player_controls_side_panel_show
+                    }
+                ),
+            queueSelected = hasSidePanel && sidePanelExpanded,
             onOpenSleep = { panel = PlayerPanel.Sleep },
             onLock = { controls.setLock(true) },
             scrim = scrim,
@@ -896,6 +920,10 @@ private fun PlayerBottomBar(
     onOpenAspect: () -> Unit,
     onOpenInfo: () -> Unit,
     onOpenQueue: () -> Unit,
+    /** 队列按钮的图标与语义：平板（有内容栏）时它变成「显示 / 隐藏选集栏」的开关 */
+    queueIconRes: Int = CoreR.drawable.ic_logs,
+    queueDescription: String,
+    queueSelected: Boolean = false,
     onOpenSleep: () -> Unit,
     onLock: () -> Unit,
     /** 底栏遮罩：叠在画面上的形态用渐变，折痕下屏用 null（背景由内容区承担） */
@@ -997,9 +1025,10 @@ private fun PlayerBottomBar(
                     onClick = onOpenInfo,
                 )
                 PlayerIconButton(
-                    iconRes = CoreR.drawable.ic_logs,
-                    contentDescription = stringResource(PlayerR.string.player_controls_queue),
+                    iconRes = queueIconRes,
+                    contentDescription = queueDescription,
                     onClick = onOpenQueue,
+                    selected = queueSelected,
                 )
                 PlayerIconButton(
                     iconRes = CoreR.drawable.ic_sun,
@@ -1359,6 +1388,8 @@ internal data class QueueEntry(
     val title: String,
     val seasonNumber: Int?,
     val episodeNumber: Int?,
+    /** 剧集缩略图（来自媒体项的 artworkUri）；取不到时列表退化成纯文字 */
+    val artworkUri: String? = null,
 )
 
 private fun trackOptions(tracks: Tracks?, type: Int): List<TrackOption> {
@@ -1422,6 +1453,8 @@ internal fun PanelRow(
     caption: String? = null,
     /** 能力不足的档位留个位置说明原因，不做假开关 */
     enabled: Boolean = true,
+    /** 列表型面板（如播放队列）在文字前放一张 16:9 缩略图 */
+    leadingArtworkUri: String? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1435,6 +1468,23 @@ internal fun PanelRow(
                 .clickable(enabled = enabled, onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
+        if (!leadingArtworkUri.isNullOrBlank()) {
+            Box(
+                modifier =
+                    Modifier.width(72.dp)
+                        .height(41.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(SurfaceHigh)
+            ) {
+                AsyncImage(
+                    model = leadingArtworkUri,
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
@@ -1787,6 +1837,7 @@ private fun QueuePanel(
                     label = queueLabel(index = index, entry = entry),
                     selected = index == currentIndex,
                     onClick = { onSelect(index) },
+                    leadingArtworkUri = entry.artworkUri,
                 )
             }
         }

@@ -18,6 +18,9 @@
     <string name="player_controls_episodes">选集</string>
     <string name="player_controls_more">更多</string>
     <string name="player_controls_side_panel_collapse">收起侧栏</string>
+    <string name="player_controls_side_panel_show">显示选集栏</string>
+    <string name="player_controls_side_panel_hide">隐藏选集栏</string>
+    <string name="player_controls_now_playing">正在播放</string>
     <string name="player_controls_season">第 %1$d 季</string>
     <string name="player_controls_sleep_timer">睡眠定时</string>
     <string name="player_controls_sleep_off">关闭</string>

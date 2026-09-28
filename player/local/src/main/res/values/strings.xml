@@ -15,6 +15,9 @@
     <string name="player_controls_episodes">Episodes</string>
     <string name="player_controls_more">More</string>
     <string name="player_controls_side_panel_collapse">Collapse side panel</string>
+    <string name="player_controls_side_panel_show">Show episode panel</string>
+    <string name="player_controls_side_panel_hide">Hide episode panel</string>
+    <string name="player_controls_now_playing">Now playing</string>
     <string name="player_controls_season">Season %1$d</string>
     <string name="player_controls_sleep_timer">Sleep timer</string>
     <string name="player_controls_sleep_off">Off</string>

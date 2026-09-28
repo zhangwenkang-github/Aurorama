@@ -335,6 +335,8 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             parentIndexNumber = if (this is FindroidEpisode) parentIndexNumber else null,
             indexNumber = if (this is FindroidEpisode) indexNumber else null,
             indexNumberEnd = if (this is FindroidEpisode) indexNumberEnd else null,
+            // 剧集用缩略图（16:9），其它条目退回海报：队列列表与通知封面共用这一个地址
+            thumbnailUri = (images.primary ?: images.backdrop)?.toString(),
             externalSubtitles = externalSubtitles,
             chapters = chapters.toPlayerChapters(),
             trickplayInfo = trickplayInfo,

@@ -259,6 +259,8 @@ class PlayerActivity : BasePlayerActivity() {
                     viewModel.eventsChannelFlow.collect { event ->
                         when (event) {
                             is PlayerEvents.NavigateBack -> finishPlayback()
+                            // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendAndRestart 带过去）
+                            is PlayerEvents.FallbackToMpv -> switchBackendAndRestart()
                             is PlayerEvents.IsPlayingChanged -> {
                                 if (event.isPlaying) {
                                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

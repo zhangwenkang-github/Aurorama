@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -41,9 +43,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
@@ -145,7 +149,8 @@ internal fun PlayerEpisodeQueueList(
             PlayerContentTab.Queue ->
                 itemsIndexed(entries) { index, entry ->
                     PlayerContentRow(
-                        label = queueLabel(index, entry),
+                        index = index,
+                        entry = entry,
                         selected = index == currentIndex,
                         onClick = { onSelect(index) },
                     )
@@ -178,7 +183,8 @@ internal fun PlayerEpisodeQueueList(
                         key = { _, entry -> entry.index },
                     ) { _, entry ->
                         PlayerContentRow(
-                            label = queueLabel(entry.index, entry.value),
+                            index = entry.index,
+                            entry = entry.value,
                             selected = entry.index == currentIndex,
                             onClick = { onSelect(entry.index) },
                         )
@@ -191,7 +197,8 @@ internal fun PlayerEpisodeQueueList(
 
 @Composable
 private fun PlayerContentRow(
-    label: String,
+    index: Int,
+    entry: QueueEntry,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -201,25 +208,51 @@ private fun PlayerContentRow(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 2.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .background(
                     if (selected) Vermilion.copy(alpha = 0.14f) else Color.Transparent
                 )
                 .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(6.dp),
     ) {
-        if (selected) {
-            Box(Modifier.size(6.dp).clip(CircleShape).background(Vermilion))
-            Spacer(Modifier.width(8.dp))
+        // 缩略图：剧集截图（16:9），没有图时留一块底色占位，列表不会跳高度
+        Box(
+            modifier =
+                Modifier.width(96.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(SurfaceHigh)
+        ) {
+            if (!entry.artworkUri.isNullOrBlank()) {
+                AsyncImage(
+                    model = entry.artworkUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (selected) Vermilion else Paper,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = episodeLabel(index, entry),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) Vermilion else Mist,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = entry.title.ifBlank { "—" },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selected) Vermilion else Paper,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (selected) {
+            Spacer(Modifier.width(6.dp))
+            Box(Modifier.size(6.dp).clip(CircleShape).background(Vermilion))
+        }
     }
 }
 
@@ -334,7 +367,7 @@ private fun PlayerEpisodeCards(
             val shape = RoundedCornerShape(12.dp)
             Column(
                 modifier =
-                    Modifier.width(168.dp)
+                    Modifier.width(184.dp)
                         .clip(shape)
                         .background(if (selected) SurfaceRow else SurfaceHigh)
                         .then(
@@ -344,22 +377,50 @@ private fun PlayerEpisodeCards(
                                 Modifier
                             }
                         )
-                        .clickable { onSelect(index) }
-                        .padding(12.dp),
+                        .clickable { onSelect(index) },
             ) {
-                Text(
-                    text = episodeLabel(index, entry),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (selected) Vermilion else Mist,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = entry.title.ifBlank { "—" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Paper,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // 缩略图铺满卡片上半部分（16:9），正在播放的集角上压一个朱砂角标
+                Box(
+                    modifier =
+                        Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(SurfaceHigh)
+                ) {
+                    if (!entry.artworkUri.isNullOrBlank()) {
+                        AsyncImage(
+                            model = entry.artworkUri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                    if (selected) {
+                        Text(
+                            text = stringResource(PlayerR.string.player_controls_now_playing),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Paper,
+                            modifier =
+                                Modifier.align(Alignment.BottomStart)
+                                    .padding(6.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Vermilion)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Text(
+                        text = episodeLabel(index, entry),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (selected) Vermilion else Mist,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = entry.title.ifBlank { "—" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Paper,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

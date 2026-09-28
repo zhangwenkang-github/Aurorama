@@ -14,6 +14,8 @@ data class PlayerItem(
     val parentIndexNumber: Int? = null,
     val indexNumber: Int? = null,
     val indexNumberEnd: Int? = null,
+    /** 剧集 / 影片缩略图（Jellyfin 图片地址）：队列列表与通知封面共用 */
+    val thumbnailUri: String? = null,
     val externalSubtitles: List<ExternalSubtitle> = emptyList(),
     val chapters: List<PlayerChapter> = emptyList(),
     val trickplayInfo: TrickplayInfo? = null,

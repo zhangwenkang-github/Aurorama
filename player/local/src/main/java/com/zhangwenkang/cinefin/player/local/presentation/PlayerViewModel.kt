@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.local.presentation
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
@@ -119,6 +120,9 @@ constructor(
 
     /** 后台补全播放队列的任务：重新起播时取消重来，避免两个任务同时插队 */
     private var queueFillJob: Job? = null
+
+    /** 已经自动降级过的媒体 id：同一个条目只降级一次，避免内核来回弹 */
+    private var autoFallbackMediaId: String? = null
 
     var playWhenReady = true
     private var currentMediaItemIndex = savedStateHandle["mediaItemIndex"] ?: 0
@@ -321,6 +325,8 @@ constructor(
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                         .setTitle(name)
+                        // 缩略图随媒体项一起带走：队列列表显示缩略图、通知显示封面都读它
+                        .setArtworkUri(thumbnailUri?.let { Uri.parse(it) })
                         // 队列面板需要按季分组：把季号/集号随媒体项一起带过去
                         .setExtras(
                             Bundle().apply {
@@ -653,7 +659,36 @@ constructor(
                     )
             )
         }
+        maybeAutoFallbackToMpv(error)
     }
+
+    /**
+     * 解码能力不足时静默降级到 mpv 软解。
+     *
+     * 场景：ExoPlayer 硬解不了的片源（10-bit H.264 等）会报 `NO_EXCEEDS_CAPABILITIES`，
+     * 此时直接换 mpv 内核重播，不弹提示（用户在观影，提示属于打扰）。
+     * 只对「当前内核是 ExoPlayer + 确实属于解码能力问题 + 这个条目还没降级过」触发一次，
+     * 避免两个内核之间来回跳。换内核由 Activity 重启播放页完成，播放进度会带过去。
+     */
+    private fun maybeAutoFallbackToMpv(error: PlaybackException) {
+        if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return
+        if (!isCodecCapabilityError(error)) return
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        if (autoFallbackMediaId == mediaId) return
+        autoFallbackMediaId = mediaId
+        Timber.i("解码能力不足（%s），自动降级到 mpv 内核", error.errorCodeName)
+        eventsChannel.trySend(PlayerEvents.FallbackToMpv)
+    }
+
+    /** 只有"内核解不了这个格式"类错误才值得换内核；网络、DRM、容器损坏等换内核也没用 */
+    private fun isCodecCapabilityError(error: PlaybackException): Boolean =
+        when (error.errorCode) {
+            PlaybackException.ERROR_CODE_DECODING_FAILED,
+            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED -> true
+            else -> false
+        }
 
     override fun onCleared() {
         super.onCleared()
@@ -919,4 +954,7 @@ sealed interface PlayerEvents {
     data object NavigateBack : PlayerEvents
 
     data class IsPlayingChanged(val isPlaying: Boolean) : PlayerEvents
+
+    /** 当前内核解不了这个片源：静默换 mpv 软解重播（播放页收到后直接重启播放页） */
+    data object FallbackToMpv : PlayerEvents
 }

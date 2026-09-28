@@ -153,7 +153,7 @@
 - [x] 4.1 `CinefinPlaybackService : MediaSessionService`；播放器实例抽到进程级 `PlayerHolder`（`player/local`），播放页与服务共享同一实例；服务自连接一个常驻 `MediaController`（Media3 的通知只在"会话有控制者"时才显示，见 §10 说明）
 - [x] 4.2 通知栏（D4）：标题 / 季集副标题 / 进度条 / 五个传输按钮（上一集 / 快退 / 播放暂停 / 快进 / 下一集），自研 `CinefinMediaNotificationProvider`；点通知回播放页（不带 `itemId` → 接管会话不重新拉流）；删除通知 = 停止播放
       · 取舍：Android 通知最多 5 个按钮，「关闭」不做第 6 个按钮，由通知删除手势 + 播放页返回承担
-      · 待补：通知大图标（封面）——需要把海报 URL 写进 `MediaMetadata.artworkUri`
+      · 待补：通知大图标（封面）——`MediaMetadata.artworkUri` 已带上（系统媒体控件已在用），自研 provider 还差"异步加载后 setLargeIcon"
 - [x] 4.3 前台服务：`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK` 权限 + `foregroundServiceType="mediaPlayback"`；后台播放开关（`pref_player_background_audio`）决定退出播放页后是否保留实例与服务；Android 13+ 首次进播放页请求通知权限
 - [x] 4.4 音频焦点（ExoPlayer `setAudioAttributes(..., true)`）+ 拔耳机 / 蓝牙断开自动暂停（`setHandleAudioBecomingNoisy(true)`）；媒体按键（播放/暂停/上下集）经 MediaSession 通路实测；来电依赖音频焦点（Android 10+ 来电触发 AUDIOFOCUS_LOSS，不加 `READ_PHONE_STATE`）
 - [x] 4.5 PiP：`setAspectRatio` + `sourceRectHint` + 可选自动进入（既有）；PiP 会话三键由 MediaSession 提供；模拟器实测进入 `mode=pinned`、播放与通知保持（模拟器需 `appops set ... PICTURE_IN_PICTURE allow`）
@@ -504,3 +504,5 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 2026-09-28 | 修复用户反馈「播放列表显示不全」：`PlaylistManager` 早就拿到整剧集数（`items`），但 `PlayerViewModel.initializePlayer` 只把当前一集交给播放器，队列面板因此只有一条。现改为起播后由 `fillQueueInBackground()` 按「后面的集依次追加 → 前面的集倒序前插」逐集补全（不阻塞首帧、按 mediaId 去重、失败集跳过）；真机实测队列补齐到第 1 季 12 集 + 第 2 季，底部面板按季分组正常 |
 | 2026-09-28 | 修复真机崩溃 `IndexOutOfBoundsException: Index: 2147483647, Size: 1`：`MPVPlayer.addMediaItems` 直接 `internalMediaItems.addAll(index, …)`，而 BasePlayer 封装过来的下标可能是 `C.INDEX_UNSET`/越界值（mpv 内核下实测传入 `Int.MAX_VALUE`）→ 下标统一收敛到 `[0, size]`；补队列时也改为显式传索引，不再依赖无下标 `addMediaItem` 的封装 |
 | 2026-09-28 | 真机复现到：默认 ExoPlayer 内核播放 10-bit H.264 片源（如「学生会的一己之见」）直接 `ERROR_CODE_DECODING_FAILED / NO_EXCEEDS_CAPABILITIES`，错误卡片与「改用 mpv 内核」按钮在真机上工作正常；是否做「解码失败自动降级 mpv」待用户确认（会改动默认播放行为） |
+| 2026-09-28 | 按用户要求做三件事：① **静默自动降级**——ExoPlayer 报解码能力类错误（`DECODING_FAILED` / `DECODER_INIT_FAILED` / `FORMAT_EXCEEDS_CAPABILITIES` / `FORMAT_UNSUPPORTED`）时自动换 mpv 重播，不弹提示、同一媒体只降级一次（网络 / IO / DRM 类错误不降级，换内核也没用）；② **队列入口只留一个**——有常驻内容栏的骨架（平板 / 折叠展开）底栏按钮改成「显示 / 隐藏选集栏」，不再弹底部面板；手机等无内容栏的骨架仍保留底部面板兜底；③ **选集 / 队列列表改成「缩略图 + 集号 + 标题」**（侧栏列表、竖屏横滑卡片、底部面板队列三处统一），缩略图走 `MediaItem.artworkUri`（`PlayerItem.thumbnailUri` ← Jellyfin `images.primary`），顺带让系统媒体控件 / 锁屏也能拿到封面 |
+| 2026-09-28 | 真机验证：侧栏列表 12 集全部带剧集截图、当前集朱砂高亮与「正在播放」角标、底栏按钮文案变为「隐藏选集栏」；自动降级的端到端触发受服务器侧视频流超时（`SocketTimeoutException` / `ERROR_CODE_IO_UNSPECIFIED`，ping 正常）影响未能复现解码错误，逻辑与事件链路（`onPlayerError → FallbackToMpv → switchBackendAndRestart`）待网络恢复后补验 |
