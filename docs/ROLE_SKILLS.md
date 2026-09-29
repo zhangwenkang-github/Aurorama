@@ -2,8 +2,8 @@
 
 | 项 | 值 |
 |----|----|
-| 版本 | v0.1（2026-09-29） |
-| 状态 | S1 设计角色已完成联网调查；S2/S3 与开发角色待相应会话启动前完善 |
+| 版本 | v0.2（2026-09-29） |
+| 状态 | S1/S2/S3 已完联网调查；开发角色（R1–R4）待相应会话启动前完善 |
 | 维护规则 | 每个角色会话启动前，项目负责人必须完成该角色的 skill 调查并更新本文件；<br>会话启动指令中必须包含"开始前必须学习的 skill"；能力缺口出现时动态补充并通知相关会话 |
 
 ---
@@ -13,8 +13,8 @@
 | 角色 | 会话 | 主要职责 | Skill 调查状态 |
 |------|------|---------|---------------|
 | UI/UX 设计 | S1 | 设计方向、视觉稿、设计系统 | ✅ 已完成（本文 §2） |
-| 架构与规范 | S2 | 架构文档、开发规范、Git 工作流 | 🟡 初版（本文 §3，启动前完善） |
-| 计划与 Skill 维护 | S3 | 路线图、排期、Skill 清单完整版 | 🟡 初版（本文 §4） |
+| 架构与规范 | S2 | 架构文档、开发规范、Git 工作流 | ✅ 已完成（本文 §3） |
+| 计划与 Skill 维护 | S3 | 路线图、排期、Skill 清单完整版 | ✅ 已完成（本文 §4） |
 | 阅读器开发 | R1 | EPUB/PDF/CBZ 阅读器 | 🟡 方向（本文 §5，启动前完善） |
 | 音乐开发 | R2 | 播放/队列/歌词/离线 | 🟡 方向（本文 §5，启动前完善） |
 | UI 落地开发 | R3 | 设计系统实现与页面改造 | 🟡 方向（本文 §5，启动前完善） |
@@ -54,21 +54,40 @@
 
 ---
 
-## 3. S2 · 架构与规范（初版，启动前完善）
+## 3. S2 · 架构与规范（✅ 2026-09-29 已调查）
 
-初步 skill 方向（启动前将联网核实并补充）：
+### 3.1 必学 skill（按顺序）
 
-- 现有代码库研究：模块依赖图、Compose UDF/MVI 现状、Hilt DI、Room3、Media3 集成；
-- Jellyfin SDK 1.8.12 与 OpenAPI（写白名单接口）；
-- Readium Kotlin Toolkit 3.4.0 集成约束（View/Fragment 体系 + AndroidView 承载）与许可（BSD-3）；
-- 工程规范：ktfmt（kotlinLangStyle）、GitHub Actions（build/format）、Conventional Commits；
-- Git 工作流：worktree、feature 分支、PR、咽喉文件串行保护。
+| # | 来源 | 路径 / URL | 要点 |
+|---|------|-----------|------|
+| 1 | 本仓库现状 | `settings.gradle.kts`、各模块 `build.gradle.kts` | 模块依赖图：app:phone → {core, data, player:core, player:local, setup, modes:film, settings}；core → {data, player:core, settings} |
+| 2 | Android 架构建议 | `developer.android.com/topic/architecture/recommendations`（经代理可达） | 分层、UDF、ViewModel、数据层边界 |
+| 3 | Readium Kotlin Toolkit | `readium.org/kotlin-toolkit` + GitHub README（能力矩阵已采集） | EPUB2/3 ✅；PDF ✅（搜索/高亮/TTS 为 👀 未实现）；CBZ 🚧 部分；**CBR ❌ 不支持**；分页/滚动/RTL ✅ |
+| 4 | Jellyfin SDK / OpenAPI | `api.jellyfin.org/openapi/jellyfin-openapi-stable.json`、`org.jellyfin.sdk 1.8.12` | 写白名单：`/UserItems/{id}/UserData`、收藏、播放上报、播放列表；`/Audio/{id}/Lyrics` |
+| 5 | Media3 | `developer.android.com/media/media3`（经代理） | 音频 gapless、MediaSession、后台播放 |
+| 6 | Google 工程实践 | `google.github.io/eng-practices/review/` | 代码审查标准（已采集目录：标准 / 关注点 / 评论写法） |
+| 7 | 本仓库工程规范 | ktfmt（kotlinLangStyle）、`.github/workflows/`、约定式提交历史 | CI 现状：Build（仅 master + docs 忽略 + concurrency）、Format（ktfmtCheck） |
 
-## 4. S3 · 计划与 Skill 维护（初版）
+### 3.2 调查记录
 
-- 技术项目管理：里程碑拆分、依赖排序、并行排期；
-- 技能调研方法：官方文档 / 权威仓库 / 行业最佳实践取证；
-- 《角色 Skill 清单》动态维护机制。
+- 2026-09-29：经代理（30001）抓取 Android 架构建议页、Readium README 能力矩阵、Google eng-practices 目录页；
+  其余来源列入 S2 会话学习清单（会话内自行深入）。
+
+## 4. S3 · 计划与 Skill 维护（✅ 2026-09-29 已调查）
+
+### 4.1 必学 skill（按顺序）
+
+| # | 来源 | 路径 / URL | 要点 |
+|---|------|-----------|------|
+| 1 | planning-with-files-zh | `C:\Users\zhangwenkang\.codex\skills\planning-with-files-zh\SKILL.md` | 磁盘持久化规划（task_plan/findings/progress）与阶段门禁 |
+| 2 | 里程碑与依赖排序 | 结合 `docs/REQUIREMENTS.md` 优先级 + 模块依赖图 | 关键路径识别、接口先行、可并行任务切分 |
+| 3 | 技能调研方法 | 官方文档 + 权威仓库取证；输出含来源与置信度 | 本文件维护规则（动态补充、通知会话） |
+| 4 | 上下文预算管理 | 单会话 ≤880KB 文本 / ≤48MiB 含图；工具输出裁剪；交接文件 | 长任务防中断纪律 |
+
+### 4.2 调查记录
+
+- 2026-09-29：核验 planning-with-files-zh 技能文档；确定调研与排期方法；
+  项目级依赖与优先级输入来自 `docs/REQUIREMENTS.md` §3/§8 与 `.planning` 调查报告。
 
 ## 5. 开发角色（R1–R4，方向稿，启动前必须完成调查）
 
