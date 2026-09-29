@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>A · Lumen 流光</title>
+<style>
+  :root{
+    --bg:#08090C;
+    --panel:#111319;
+    --panel-2:#171A21;
+    --line:rgba(255,255,255,.085);
+    --line-soft:rgba(255,255,255,.05);
+    --text:#F2F5F9;
+    --text-2:#98A2B3;
+    --text-3:#6B7483;
+    --accent:#5CE1D2;
+    --accent-2:#7CC4FF;
+    --r-xl:34px; --r-lg:26px; --r-md:18px; --r-sm:12px;
+    --sans:"Noto Sans SC","MiSans","Microsoft YaHei UI",sans-serif;
+    --din:"Bahnschrift","Noto Sans SC",sans-serif;
+    --mono:"Cascadia Mono","Consolas",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000}
+  body{font-family:var(--sans);color:var(--text);-webkit-font-smoothing:antialiased}
+  .screen{display:none;position:relative;overflow:hidden}
+  .screen.active{display:block}
+  .tablet{width:2048px;height:1280px;background:var(--bg)}
+  .phone-wrap{width:1240px;height:2560px;background:#05060A;padding:64px}
+  .screen.phone-wrap.active{display:flex}
+  .phone-shell{width:1112px;height:2432px;border-radius:78px;padding:14px;background:linear-gradient(160deg,#2A2E36,#0B0C10 40%,#181B22);}
+  .phone-screen{width:1084px;height:2404px;border-radius:66px;overflow:hidden;position:relative;background:var(--bg)}
+  .noise{position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
+  img{display:block;object-fit:cover}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .din{font-family:var(--din)}
+
+  /* ---------- 左侧悬浮导航轨 ---------- */
+  .rail{position:absolute;left:34px;top:300px;width:76px;padding:18px 0;border-radius:38px;
+    background:rgba(20,23,29,.72);backdrop-filter:blur(22px);border:1px solid var(--line-soft);
+    display:flex;flex-direction:column;align-items:center;gap:10px;z-index:20}
+  .rail .ico{width:56px;height:56px;border-radius:28px;display:grid;place-items:center;color:var(--text-3)}
+  .rail .ico.on{background:linear-gradient(180deg,rgba(92,225,210,.20),rgba(92,225,210,.06));
+    color:var(--accent);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+  .rail .sep{width:26px;height:1px;background:var(--line);margin:6px 0}
+  svg.i{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  svg.i.fill{fill:currentColor;stroke:none}
+
+  /* ---------- 顶栏 ---------- */
+  .topbar{position:absolute;top:0;left:0;right:0;height:104px;display:flex;align-items:center;
+    justify-content:space-between;padding:0 46px 0 148px;z-index:15}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .brand .nm{font-size:23px;font-weight:650;letter-spacing:.02em}
+  .brand .sub{font-size:14px;color:var(--text-3);letter-spacing:.36em}
+  .top-actions{display:flex;align-items:center;gap:14px}
+  .searchpill{display:flex;align-items:center;gap:12px;height:52px;padding:0 22px;border-radius:26px;
+    background:rgba(255,255,255,.045);border:1px solid var(--line-soft);color:var(--text-3);font-size:15px;min-width:300px}
+  .avatar{width:52px;height:52px;border-radius:26px;background:linear-gradient(150deg,#2A3038,#141821);
+    border:1px solid var(--line);display:grid;place-items:center;font-size:16px;color:var(--text-2)}
+
+  /* ---------- 首页 ---------- */
+  .hero-glow{position:absolute;left:60px;top:60px;width:1500px;height:640px;pointer-events:none;
+    background:radial-gradient(60% 60% at 30% 40%,rgba(92,225,210,.14),rgba(124,196,255,.08) 46%,rgba(0,0,0,0) 72%);
+    filter:blur(30px)}
+  .hero{position:absolute;left:148px;right:46px;top:104px;height:430px;border-radius:var(--r-xl);overflow:hidden;
+    box-shadow:0 40px 90px -60px rgba(0,0,0,.9)}
+  .hero .art{position:absolute;inset:0;width:100%;height:100%;transform:scale(1.02)}
+  .hero .scrim{position:absolute;inset:0;background:
+    linear-gradient(90deg,rgba(6,7,10,.94) 0%,rgba(6,7,10,.72) 34%,rgba(6,7,10,.12) 66%,rgba(6,7,10,.34) 100%),
+    linear-gradient(0deg,rgba(6,7,10,.92) 0%,rgba(6,7,10,.24) 42%,rgba(6,7,10,0) 68%)}
+  .hero .vign{position:absolute;inset:0;box-shadow:inset 0 0 160px 40px rgba(0,0,0,.55)}
+  .hero-inner{position:relative;height:100%;padding:52px 60px;display:flex;flex-direction:column;justify-content:flex-end;max-width:1080px}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.32em;color:var(--accent);
+    text-transform:uppercase;margin-bottom:20px}
+  .eyebrow .dot{width:6px;height:6px;border-radius:3px;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  .hero h1{font-size:60px;line-height:1.06;font-weight:600;letter-spacing:-.01em;margin-bottom:18px;
+    text-shadow:0 2px 30px rgba(0,0,0,.55)}
+  .hero .meta{display:flex;align-items:center;gap:14px;color:var(--text-2);font-size:16px;margin-bottom:30px}
+  .hero .meta .pill{padding:5px 12px;border-radius:8px;border:1px solid var(--line);font-size:13px;color:var(--text-2)}
+  .hero .cta{display:flex;align-items:center;gap:16px}
+  .btn{display:inline-flex;align-items:center;gap:12px;height:62px;padding:0 30px;border-radius:31px;font-size:17px;font-weight:600}
+  .btn.primary{background:var(--text);color:#0A0C11}
+  .btn.ghost{background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--text);backdrop-filter:blur(10px)}
+  .btn .k{font-size:13px;font-weight:500;opacity:.62}
+  .hero .resume{position:absolute;left:64px;right:64px;bottom:26px;height:4px;border-radius:2px;background:rgba(255,255,255,.14)}
+  .hero .resume i{display:block;height:100%;width:42%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+
+  .shelves{position:absolute;left:148px;right:46px;top:570px;bottom:0}
+  .shelf{margin-bottom:26px}
+  .shelf-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .shelf-head h2{font-size:25px;font-weight:600;letter-spacing:.01em}
+  .shelf-head .more{font-size:15px;color:var(--text-3)}
+  .row{display:flex;gap:26px}
+  .row.tight{gap:34px}
+
+  .wcard{width:430px;flex:none}
+  .wcard .bezel{padding:2px;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.015))}
+  .wcard .core{position:relative;border-radius:22px;overflow:hidden;background:var(--panel);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .wcard img{width:100%;height:210px}
+  .wcard .b{position:absolute;inset:0;background:linear-gradient(0deg,rgba(8,9,12,.92),rgba(8,9,12,.05) 62%)}
+  .wcard .t{position:absolute;left:20px;right:20px;bottom:20px}
+  .wcard .t .n{font-size:19px;font-weight:600;margin-bottom:8px}
+  .wcard .t .s{font-size:13px;color:var(--text-2);display:flex;justify-content:space-between;align-items:center}
+  .track{height:3px;border-radius:2px;background:rgba(255,255,255,.16);margin-top:10px;overflow:hidden}
+  .track i{display:block;height:100%;background:var(--accent)}
+  .wcard.hero-card .bezel{background:linear-gradient(180deg,rgba(92,225,210,.5),rgba(255,255,255,.05))}
+
+  .pcard{width:190px;flex:none}
+  .pcard .bezel{padding:2px;border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.012))}
+  .pcard .core{position:relative;border-radius:18px;overflow:hidden;background:var(--panel)}
+  .pcard img{width:100%;height:296px}
+  .pcard .grad{position:absolute;inset:0;background:linear-gradient(0deg,rgba(8,9,12,.72),rgba(0,0,0,0) 46%)}
+  .pcard .n{font-size:15px;color:var(--text-2);margin-top:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcard .tag{position:absolute;top:12px;left:12px;font-size:11px;letter-spacing:.14em;padding:4px 9px;border-radius:7px;
+    background:rgba(8,9,12,.62);border:1px solid var(--line);color:var(--accent);backdrop-filter:blur(8px)}
+
+  /* ---------- 详情页 ---------- */
+  .d-bg{position:absolute;left:0;right:0;top:0;height:820px}
+  .d-bg img{width:100%;height:100%;filter:saturate(1.02) contrast(1.02)}
+  .d-bg .fade{position:absolute;inset:0;background:
+    linear-gradient(180deg,rgba(8,9,12,.72) 0%,rgba(8,9,12,.62) 34%,rgba(8,9,12,.9) 74%,var(--bg) 100%),
+    linear-gradient(90deg,rgba(8,9,12,.86) 0%,rgba(8,9,12,.24) 46%,rgba(8,9,12,.62) 100%)}
+  .d-body{position:absolute;left:148px;right:46px;top:170px;display:flex;gap:58px}
+  .d-poster{width:352px;flex:none}
+  .d-poster .bezel{padding:3px;border-radius:30px;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.03))}
+  .d-poster .core{position:relative;border-radius:27px;overflow:hidden;background:var(--panel);
+    box-shadow:0 60px 90px -60px rgba(0,0,0,.95)}
+  .d-poster img{width:100%;height:500px}
+  .d-poster .tag{position:absolute;top:16px;left:16px;font-size:12px;letter-spacing:.18em;padding:6px 12px;border-radius:9px;
+    background:rgba(8,9,12,.66);border:1px solid var(--line);color:var(--accent);backdrop-filter:blur(10px)}
+  .d-info{flex:1;padding-top:8px;max-width:980px}
+  .d-info .eyebrow{margin-bottom:16px}
+  .d-info h1{font-size:62px;line-height:1.05;font-weight:600;letter-spacing:-.01em;margin-bottom:20px}
+  .d-info .meta{display:flex;align-items:center;gap:16px;color:var(--text-2);font-size:17px;margin-bottom:26px}
+  .d-info .meta .pill{padding:6px 14px;border-radius:9px;border:1px solid var(--line);font-size:14px}
+  .d-desc{font-size:18px;line-height:1.9;color:#C6CDD8;max-width:900px;margin-bottom:38px}
+  .d-actions{display:flex;align-items:center;gap:16px}
+  .d-facts{width:430px;flex:none;padding-top:8px}
+  .d-facts .row2{display:flex;justify-content:space-between;padding:17px 0;border-bottom:1px solid var(--line-soft);font-size:16px}
+  .d-facts .row2 .k{color:var(--text-3)}
+  .d-facts .row2 .v{color:var(--text-2);text-align:right;max-width:280px}
+  .d-eps{position:absolute;left:148px;right:46px;top:800px}
+  .d-eps .row{display:flex;gap:26px;margin-top:16px}
+  .ep{width:430px;flex:none}
+  .ep .bezel{padding:2px;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.012))}
+  .ep .core{position:relative;border-radius:20px;overflow:hidden;background:var(--panel)}
+  .ep img{width:100%;height:202px}
+  .ep .b{position:absolute;inset:0;background:linear-gradient(0deg,rgba(8,9,12,.9),rgba(8,9,12,.06) 60%)}
+  .ep .t{position:absolute;left:20px;right:20px;bottom:18px;display:flex;align-items:flex-end;justify-content:space-between}
+  .ep .t .n{font-size:18px;font-weight:600}
+  .ep .t .m{font-size:13px;color:var(--text-2)}
+  .ep .no{position:absolute;top:14px;left:16px;font-size:15px;color:var(--text-2)}
+  .ep.playing .bezel{background:linear-gradient(180deg,rgba(92,225,210,.6),rgba(255,255,255,.04))}
+
+  /* ---------- 播放器 ---------- */
+  .p-amb{position:absolute;inset:0;overflow:hidden}
+  .p-amb img{width:100%;height:100%;filter:blur(56px) saturate(1.25) brightness(.5);transform:scale(1.15)}
+  .p-amb .dim{position:absolute;inset:0;background:radial-gradient(70% 60% at 50% 46%,rgba(8,9,12,.35),rgba(4,5,8,.92))}
+  .p-video{position:absolute;left:0;right:0;top:64px;height:1152px;overflow:hidden;background:#000}
+  .p-video img{width:100%;height:100%}
+  .p-video .vig{position:absolute;inset:0;box-shadow:inset 0 0 220px 60px rgba(0,0,0,.62)}
+  .p-layer{position:absolute;inset:0}
+  .p-top{position:absolute;top:44px;left:56px;right:56px;display:flex;align-items:center;justify-content:space-between}
+  .p-top .ttl{display:flex;align-items:center;gap:20px}
+  .p-top .ttl .txt{font-size:19px;color:#E7EBF1}
+  .p-top .ttl .sub{font-size:14px;color:var(--text-3);margin-top:4px}
+  .p-top .acts{display:flex;gap:12px}
+  .p-top .ib{width:54px;height:54px;border-radius:27px;background:rgba(12,14,18,.55);border:1px solid var(--line-soft);
+    display:grid;place-items:center;color:#DCE2EA;backdrop-filter:blur(14px)}
+  .p-center{position:absolute;left:0;right:0;top:520px;display:flex;align-items:center;justify-content:center;gap:64px}
+  .p-center .sk{width:76px;height:76px;display:grid;place-items:center;color:#E9EDF3;position:relative}
+  .p-center .sk .num{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:13px;font-family:var(--mono)}
+  .p-center .play{width:132px;height:132px;border-radius:66px;background:rgba(16,18,23,.6);border:1px solid rgba(255,255,255,.16);
+    display:grid;place-items:center;color:#fff;backdrop-filter:blur(16px);
+    box-shadow:0 0 0 1px rgba(92,225,210,.25),0 30px 60px -30px rgba(92,225,210,.5)}
+  .p-bottom{position:absolute;left:56px;right:56px;bottom:46px}
+  .p-bar{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.16);margin-bottom:14px}
+  .p-bar .buf{position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:4px;background:rgba(255,255,255,.22)}
+  .p-bar .now{position:absolute;left:0;top:0;bottom:0;width:41%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .p-bar .knob{position:absolute;left:41%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:11px;background:#fff;
+    box-shadow:0 0 0 8px rgba(92,225,210,.18)}
+  .p-bar .chap{position:absolute;top:-5px;width:2px;height:18px;background:rgba(255,255,255,.42)}
+  .p-preview{position:absolute;left:41%;bottom:46px;transform:translateX(-50%);width:300px;padding:8px;border-radius:20px;
+    background:rgba(10,12,16,.86);border:1px solid var(--line);backdrop-filter:blur(20px)}
+  .p-preview img{width:100%;height:150px;border-radius:14px}
+  .p-preview .c{display:flex;justify-content:space-between;padding:10px 6px 4px;font-size:13px;color:var(--text-2)}
+  .p-times{display:flex;justify-content:space-between;align-items:center;font-size:16px;color:#D6DCE5;margin-bottom:22px}
+  .p-times .r{color:var(--text-3);font-size:14px}
+  .p-tools{display:flex;align-items:center;gap:14px}
+  .chip{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 20px;border-radius:24px;
+    background:rgba(14,16,21,.6);border:1px solid var(--line-soft);color:#DCE2EA;font-size:15px;backdrop-filter:blur(14px)}
+  .chip.on{border-color:rgba(92,225,210,.5);color:var(--accent)}
+  .p-tools .sp{flex:1}
+  .navbg{background:rgba(12,14,19,.55);backdrop-filter:blur(18px);border:1px solid var(--line-soft)}
+
+  /* ---------- 音乐 · 正在播放 ---------- */
+  .m-glow{position:absolute;left:120px;top:180px;width:900px;height:760px;
+    background:radial-gradient(52% 52% at 40% 45%,rgba(92,225,210,.16),rgba(124,196,255,.07) 55%,rgba(0,0,0,0) 76%);filter:blur(28px)}
+  .m-cover{position:absolute;left:150px;top:190px;width:560px}
+  .m-cover .bezel{padding:3px;border-radius:32px;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.03))}
+  .m-cover .core{border-radius:29px;overflow:hidden;background:var(--panel);box-shadow:0 70px 110px -70px rgba(0,0,0,.95)}
+  .m-cover img{width:100%;height:560px}
+  .m-meta{position:absolute;left:150px;top:800px;width:560px}
+  .m-meta h1{font-size:42px;font-weight:600;margin-bottom:10px}
+  .m-meta .ar{font-size:19px;color:var(--text-2);margin-bottom:20px}
+  .m-meta .badges{display:flex;gap:10px}
+  .m-badge{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:10px;
+    border:1px solid var(--line);font-size:13px;color:var(--text-2)}
+  .m-badge.hi{color:var(--accent);border-color:rgba(92,225,210,.42)}
+  .m-lyr{position:absolute;left:800px;right:520px;top:210px}
+  .m-chips{display:flex;gap:10px;margin-bottom:34px}
+  .m-line{margin-bottom:30px;opacity:.34}
+  .m-line .o{font-size:22px;color:#DDE3EB;margin-bottom:8px}
+  .m-line .t{font-size:19px;color:#AEB7C4}
+  .m-line.on{opacity:1}
+  .m-line.on .o{font-size:34px;font-weight:600;color:#fff}
+  .m-line.on .t{font-size:26px;color:var(--accent)}
+  .m-line.on .t::before{content:"";display:inline-block;width:18px;height:2px;background:var(--accent);
+    vertical-align:middle;margin-right:12px}
+  .m-queue{position:absolute;right:46px;top:150px;width:430px;bottom:230px;border-radius:28px;padding:26px 24px;
+    background:rgba(16,18,24,.66);border:1px solid var(--line-soft);backdrop-filter:blur(20px)}
+  .m-queue h3{font-size:17px;color:var(--text-2);font-weight:500;margin-bottom:20px;display:flex;justify-content:space-between}
+  .q-item{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+  .q-item img{width:52px;height:52px;border-radius:10px;flex:none}
+  .q-item .n{font-size:15px;margin-bottom:5px}
+  .q-item .s{font-size:12px;color:var(--text-3)}
+  .q-item.cur .n{color:var(--accent)}
+  .m-bar{position:absolute;left:150px;right:46px;bottom:56px}
+  .m-prog{position:relative;height:5px;border-radius:3px;background:rgba(255,255,255,.14);margin-bottom:12px}
+  .m-prog i{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .m-prog .knob{position:absolute;left:38%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:8px;background:#fff}
+  .m-times{display:flex;justify-content:space-between;font-size:14px;color:var(--text-3);margin-bottom:22px}
+  .m-ctrl{display:flex;align-items:center;justify-content:center;gap:46px}
+  .m-ctrl .ib{width:56px;height:56px;border-radius:28px;display:grid;place-items:center;color:#C6CDD8}
+  .m-ctrl .pp{width:82px;height:82px;border-radius:41px;background:var(--text);color:#0A0C11;display:grid;place-items:center}
+  .m-ctrl .ib.act{color:var(--accent)}
+
+  /* ---------- 音乐库 ---------- */
+  .lib-head{position:absolute;left:148px;right:46px;top:120px;display:flex;align-items:flex-end;justify-content:space-between}
+  .lib-head h1{font-size:46px;font-weight:600;letter-spacing:-.01em}
+  .lib-tabs{display:flex;gap:8px;margin-top:22px}
+  .lib-tab{height:44px;padding:0 20px;border-radius:22px;display:grid;place-items:center;font-size:15px;color:var(--text-3);
+    border:1px solid transparent}
+  .lib-tab.on{color:var(--text);background:rgba(255,255,255,.06);border-color:var(--line)}
+  .lib-grid{position:absolute;left:148px;right:46px;top:300px;display:grid;grid-template-columns:repeat(6,1fr);gap:34px 30px}
+  .alb .bezel{padding:2px;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.014))}
+  .alb .core{position:relative;border-radius:20px;overflow:hidden;background:var(--panel)}
+  .alb .core{height:262px}
+  .alb img{width:100%;height:100%}
+  .alb .core.typo{display:flex;flex-direction:column;justify-content:space-between;padding:24px;
+    background:linear-gradient(155deg,#242B36,#0D1015)}
+  .alb .core.typo.alt{background:linear-gradient(155deg,#1E383B,#0B1214)}
+  .alb .core.typo .big{font-size:33px;font-weight:600;line-height:1.22;letter-spacing:.02em;color:#E7ECF3}
+  .alb .core.typo .sm{font-size:12px;letter-spacing:.26em;color:var(--text-3)}
+  .alb .play{position:absolute;right:14px;bottom:14px;width:48px;height:48px;border-radius:24px;background:rgba(9,11,15,.72);
+    border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);backdrop-filter:blur(10px)}
+  .alb .n{font-size:16px;margin-top:14px;margin-bottom:6px}
+  .alb .s{font-size:13px;color:var(--text-3)}
+
+  /* ---------- 阅读器 ---------- */
+  .rd-wrap{position:absolute;inset:0;background:#0A0B0F}
+  .rd-wrap.paper{background:#EDE3D1}
+  .rd-top{position:absolute;left:0;right:0;top:0;height:104px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 56px;border-bottom:1px solid var(--line-soft);color:#E4E9F0}
+  .rd-wrap.paper .rd-top{color:#3A3227;border-bottom-color:rgba(58,50,39,.14)}
+  .rd-top .ttl{display:flex;align-items:baseline;gap:16px}
+  .rd-top .ttl b{font-size:21px;font-weight:600}
+  .rd-top .ttl span{font-size:14px;color:var(--text-3)}
+  .rd-wrap.paper .rd-top .ttl span{color:#8A7B66}
+  .rd-pages{position:absolute;left:112px;right:112px;top:168px;bottom:150px;display:flex;gap:96px}
+  .rd-pages.with-panel{right:496px}
+  .rd-page{flex:1;color:#CDD5E0;font-size:22px;line-height:1.95;position:relative}
+  .rd-wrap.paper .rd-page{color:#2F2A22;font-family:"SimSun","Noto Sans SC",serif;font-size:23px;line-height:2.05}
+  .rd-page h2{font-size:27px;font-weight:600;color:#EAF0F7;margin-bottom:26px}
+  .rd-wrap.paper .rd-page h2{color:#221E18;font-family:"Noto Sans SC",sans-serif}
+  .rd-page p{margin-bottom:22px;text-align:justify}
+  .rd-page .drop{float:left;font-size:76px;line-height:.92;margin:6px 14px 0 0;color:var(--accent)}
+  .rd-wrap.paper .rd-page .drop{color:#9A7B3F}
+  .rd-pnum{position:absolute;bottom:0;width:100%;text-align:center;font-size:14px;color:var(--text-3);font-family:var(--mono)}
+  .rd-wrap.paper .rd-pnum{color:#9C8E79}
+  .rd-foot{position:absolute;left:112px;right:112px;bottom:56px;display:flex;align-items:center;gap:28px}
+  .rd-foot .pbar{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.14)}
+  .rd-foot .pbar i{display:block;height:100%;width:42%;border-radius:2px;background:var(--accent)}
+  .rd-wrap.paper .rd-foot .pbar{background:rgba(58,50,39,.18)}
+  .rd-wrap.paper .rd-foot .pbar i{background:#9A7B3F}
+  .rd-foot .pct{font-size:15px;color:var(--text-2)}
+  .rd-wrap.paper .rd-foot .pct{color:#6B604F}
+  .rd-panel{position:absolute;right:46px;top:150px;width:392px;border-radius:28px;padding:28px 26px;
+    background:rgba(17,19,25,.86);border:1px solid var(--line-soft);backdrop-filter:blur(24px);color:#E6EBF2}
+  .rd-wrap.paper .rd-panel{background:rgba(255,252,244,.92);color:#2F2A22;border-color:rgba(58,50,39,.14)}
+  .rd-panel h3{font-size:18px;margin-bottom:22px;font-weight:600}
+  .rd-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;font-size:15px}
+  .rd-row .k{color:var(--text-2)}
+  .rd-wrap.paper .rd-row .k{color:#7A6E5C}
+  .rd-slider{width:170px;height:4px;border-radius:2px;background:rgba(255,255,255,.16);position:relative}
+  .rd-wrap.paper .rd-slider{background:rgba(58,50,39,.16)}
+  .rd-slider i{position:absolute;left:0;top:0;bottom:0;width:58%;border-radius:2px;background:var(--accent)}
+  .rd-wrap.paper .rd-slider i{background:#9A7B3F}
+  .rd-slider .k2{position:absolute;left:58%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:7px;background:#fff;
+    box-shadow:0 0 0 3px rgba(0,0,0,.25)}
+  .rd-themes{display:flex;gap:12px;margin-top:6px}
+  .rd-th{width:64px;height:64px;border-radius:16px;border:1px solid var(--line);display:grid;place-items:end center;
+    padding-bottom:8px;font-size:11px}
+  .rd-th.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(92,225,210,.28)}
+  .rd-wrap.paper .rd-th.on{border-color:#9A7B3F;box-shadow:0 0 0 2px rgba(154,123,63,.24)}
+  .rd-th.t-paper{background:#EDE3D1;color:#4A4234}
+  .rd-th.t-eye{background:#DDE2CB;color:#414636}
+  .rd-th.t-dark{background:#15171C;color:#C9D1DC}
+  .rd-th.t-oled{background:#000;color:#C9D1DC}
+  .rd-th.t-sys{background:linear-gradient(90deg,#EDE3D1 50%,#15171C 50%);color:#8A8172}
+
+  /* ---------- 手机端 ---------- */
+  .ph{position:absolute;inset:0;background:var(--bg)}
+  .ph .noise{opacity:.05}
+  .ph-status{position:absolute;top:0;left:0;right:0;height:92px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 66px;font-size:17px;color:#E7EBF1;font-family:var(--mono)}
+  .ph-hero{position:absolute;left:34px;right:34px;top:110px;height:660px;border-radius:38px;overflow:hidden}
+  .ph-hero img{width:100%;height:100%}
+  .ph-hero .scrim{position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,7,10,.94) 4%,rgba(6,7,10,.2) 52%,rgba(6,7,10,.05))}
+  .ph-hero .c{position:absolute;left:38px;right:38px;bottom:38px}
+  .ph-hero h1{font-size:46px;line-height:1.1;font-weight:600;margin-bottom:14px}
+  .ph-hero .m{font-size:15px;color:#C8D0DB;margin-bottom:26px}
+  .ph-hero .b{height:56px;border-radius:28px;background:var(--text);color:#0A0C11;display:inline-flex;align-items:center;gap:12px;
+    padding:0 26px;font-size:17px;font-weight:600}
+  .ph-sec{position:absolute;left:34px;right:34px}
+  .ph-sec h2{font-size:23px;margin-bottom:16px;font-weight:600}
+  .ph-row{display:flex;gap:20px}
+  .ph-w{width:372px;flex:none}
+  .ph-w .bezel{padding:2px;border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.014))}
+  .ph-w .core{position:relative;border-radius:18px;overflow:hidden;background:var(--panel)}
+  .ph-w img{width:100%;height:196px}
+  .ph-w .b{position:absolute;inset:0;background:linear-gradient(0deg,rgba(8,9,12,.9),rgba(8,9,12,.05) 62%)}
+  .ph-w .t{position:absolute;left:16px;right:16px;bottom:14px;font-size:16px}
+  .ph-p{width:214px;flex:none}
+  .ph-p img{width:100%;height:318px;border-radius:18px;border:1px solid var(--line-soft)}
+  .ph-p .n{font-size:14px;color:var(--text-2);margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ph-nav{position:absolute;left:34px;right:34px;bottom:34px;height:104px;border-radius:52px;background:rgba(16,18,24,.78);
+    border:1px solid var(--line-soft);backdrop-filter:blur(24px);display:flex;align-items:center;justify-content:space-around;padding:0 18px}
+  .ph-nav .ico{width:64px;height:64px;border-radius:32px;display:grid;place-items:center;color:var(--text-3)}
+  .ph-nav .ico.on{background:rgba(92,225,210,.16);color:var(--accent)}
+
+  /* ---------- 图标概念 ---------- */
+  .icon-screen{position:absolute;inset:0;background:radial-gradient(60% 60% at 30% 20%,#14171E,#07080B 70%);display:grid;place-items:center}
+  .icon-stack{text-align:center}
+  .icon-tile{position:relative;width:420px;height:420px;border-radius:108px;margin:0 auto 44px;overflow:hidden;
+    background:linear-gradient(150deg,#1B2029 0%,#0A0C11 54%,#101820 100%);
+    box-shadow:0 50px 90px -50px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.14)}
+  .icon-tile .iris{position:absolute;inset:0;display:grid;place-items:center}
+  .icon-tile .core-dot{width:64px;height:64px;border-radius:32px;background:radial-gradient(circle at 40% 38%,#EAFEFF,#5CE1D2 46%,#2C7C82);
+    box-shadow:0 0 60px 12px rgba(92,225,210,.42)}
+  .icon-tile .r{position:absolute;border-radius:50%;border:3px solid rgba(197,235,238,.5)}
+  .icon-tile .r1{inset:92px}
+  .icon-tile .r2{inset:130px;border-color:rgba(124,196,255,.42)}
+  .icon-tile .gap{position:absolute;inset:0;background:conic-gradient(from 210deg,rgba(8,9,12,0) 0 62deg,rgba(9,11,15,.96) 62deg 96deg,rgba(8,9,12,0) 96deg 360deg)}
+  .icon-mini{display:flex;gap:22px;justify-content:center;align-items:flex-end}
+  .icon-mini img,.icon-mini div{border-radius:26%}
+  .icon-cap{margin-top:34px;font-size:22px;color:#D7DEE8}
+  .icon-cap span{color:var(--text-3);font-size:17px;margin-left:14px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.6 12 4l8 6.6V20a1 1 0 0 1-1 1h-4.6v-5.4H9.6V21H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6.6l10-2v11"/><circle cx="6.4" cy="18" r="2.6"/><circle cx="16.4" cy="15.6" r="2.6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.4C10.4 5 8.2 4.4 4.6 4.4V18c3.6 0 5.8.6 7.4 2 1.6-1.4 3.8-2 7.4-2V4.4c-3.6 0-5.8.6-7.4 2z"/><path d="M12 6.4V20"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></symbol>
+  <symbol id="i-cast" viewBox="0 0 24 24"><path d="M3 19h.01M3 15.5A6.5 6.5 0 0 1 9.5 22M3 11a11 11 0 0 1 11 11"/><path d="M3 7V5.6A1.6 1.6 0 0 1 4.6 4h14.8A1.6 1.6 0 0 1 21 5.6v12.8a1.6 1.6 0 0 1-1.6 1.6H15"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 3.6 1.2 5 1.2 5H5.3s1.2-1.4 1.2-5z"/><path d="M10 18.6a2.2 2.2 0 0 0 4 0"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.4 19 12 8 18.6z"/></symbol>
+  <symbol id="i-back15" viewBox="0 0 24 24"><path d="M12 5.2A6.8 6.8 0 1 1 5.2 12"/><path d="M8.4 2.5 12 5.2 8.4 7.9"/></symbol>
+  <symbol id="i-fwd15" viewBox="0 0 24 24"><path d="M12 5.2A6.8 6.8 0 1 0 18.8 12"/><path d="M15.6 2.5 12 5.2l3.6 2.7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+
+<!-- ============ 首页（平板） ============ -->
+<section class="screen tablet" data-screen="home">
+  <div class="noise"></div>
+  <div class="hero-glow"></div>
+  <aside class="rail">
+    <div class="ico on"><svg class="i"><use href="#i-home"/></svg></div>
+    <div class="ico"><svg class="i"><use href="#i-grid"/></svg></div>
+    <div class="ico"><svg class="i"><use href="#i-music"/></svg></div>
+    <div class="ico"><svg class="i"><use href="#i-book"/></svg></div>
+    <div class="sep"></div>
+    <div class="ico"><svg class="i"><use href="#i-search"/></svg></div>
+  </aside>
+  <header class="topbar">
+    <div class="brand"><span class="nm">Cinefin</span><span class="sub">流光</span></div>
+    <div class="top-actions">
+      <div class="searchpill"><svg class="i" style="width:22px;height:22px"><use href="#i-search"/></svg>搜索电影、剧集、专辑、书籍</div>
+      <div class="avatar"><svg class="i" style="width:22px;height:22px"><use href="#i-cast"/></svg></div>
+      <div class="avatar"><svg class="i" style="width:22px;height:22px"><use href="#i-bell"/></svg></div>
+      <div class="avatar">张</div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <img class="art" src="assets/wide-02.jpg" alt="">
+    <div class="scrim"></div><div class="vign"></div>
+    <div class="hero-inner">
+      <div class="eyebrow"><span class="dot"></span>继续观看 · S1 E1</div>
+      <h1>宝石幻想：光芒重现</h1>
+      <div class="meta"><span>2026</span><span class="pill">TV-14</span><span>24 分钟</span><span class="pill">1080p · HDR</span><span>简中字幕</span></div>
+      <div class="cta">
+        <div class="btn primary"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg>继续观看<span class="k">12:36</span></div>
+        <div class="btn ghost"><svg class="i" style="width:20px;height:20px"><use href="#i-plus"/></svg>我的收藏</div>
+      </div>
+    </div>
+    <div class="resume"><i></i></div>
+  </section>
+
+  <div class="shelves">
+    <section class="shelf">
+      <div class="shelf-head"><h2>接下来</h2><span class="more">全部 ›</span></div>
+      <div class="row">
+        <div class="wcard hero-card"><div class="bezel"><div class="core">
+          <img src="assets/wide-01.jpg" alt=""><div class="b"></div>
+          <div class="t"><div class="n">奇异太郎少年的妖怪绘日记</div>
+            <div class="s"><span>S1 · E1 · 剩 24 分钟</span><span class="mono">上一集</span></div>
+            <div class="track"><i style="width:6%"></i></div></div>
+        </div></div></div>
+        <div class="wcard"><div class="bezel"><div class="core">
+          <img src="assets/wide-03.jpg" alt=""><div class="b"></div>
+          <div class="t"><div class="n">寂静之海</div>
+            <div class="s"><span>电影 · 118 分钟</span><span class="mono">46:10</span></div>
+            <div class="track"><i style="width:39%"></i></div></div>
+        </div></div></div>
+        <div class="wcard"><div class="bezel"><div class="core">
+          <img src="assets/wide-04.jpg" alt=""><div class="b"></div>
+          <div class="t"><div class="n">夜之继承者</div>
+            <div class="s"><span>S2 · E7 · 剩 9 分钟</span><span class="mono">14:02</span></div>
+            <div class="track"><i style="width:61%"></i></div></div>
+        </div></div></div>
+        <div class="wcard"><div class="bezel"><div class="core">
+          <img src="assets/wide-02.jpg" alt=""><div class="b"></div>
+          <div class="t"><div class="n">宝石幻想：光芒重现</div>
+            <div class="s"><span>S1 · E1 · 剩 11 分钟</span><span class="mono">12:36</span></div>
+            <div class="track"><i style="width:42%"></i></div></div>
+        </div></div></div>
+      </div>
+    </section>
+
+    <section class="shelf">
+      <div class="shelf-head"><h2>最近添加</h2><span class="more">媒体库 ›</span></div>
+      <div class="row tight">
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-03.jpg" alt=""><div class="grad"></div><span class="tag">4K</span></div></div><div class="n">AURA ～魔龙院光牙最后的战斗～</div></div>
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-02.jpg" alt=""><div class="grad"></div><span class="tag">新</span></div></div><div class="n">乔西的虎与鱼</div></div>
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-04.jpg" alt=""><div class="grad"></div></div></div><div class="n">夏日大作战</div></div>
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-05.jpg" alt=""><div class="grad"></div></div></div><div class="n">告白实行委员会</div></div>
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-07.jpg" alt=""><div class="grad"></div><span class="tag">新</span></div></div><div class="n">紫罗兰永恒花园</div></div>
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-06.jpg" alt=""><div class="grad"></div></div></div><div class="n">选择破坏者 WIXOSS</div></div>
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-08.jpg" alt=""><div class="grad"></div></div></div><div class="n">平家物语</div></div>
+        <div class="pcard"><div class="bezel"><div class="core"><img src="assets/poster-01.jpg" alt=""><div class="grad"></div></div></div><div class="n">被狙击的学园</div></div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ============ 详情页（平板） ============ -->
+<section class="screen tablet" data-screen="detail">
+  <div class="d-bg"><img src="assets/backdrop-02.jpg" alt=""><div class="fade"></div></div>
+  <div class="noise"></div>
+  <header class="topbar">
+    <div class="brand"><span class="nm" style="font-size:21px">‹ 动漫</span><span class="sub">AURA</span></div>
+    <div class="top-actions">
+      <div class="avatar"><svg class="i" style="width:22px;height:22px"><use href="#i-search"/></svg></div>
+      <div class="avatar"><svg class="i" style="width:22px;height:22px"><use href="#i-cast"/></svg></div>
+      <div class="avatar">张</div>
+    </div>
+  </header>
+  <div class="d-body">
+    <div class="d-poster"><div class="bezel"><div class="core">
+      <img src="assets/poster-03.jpg" alt=""><span class="tag">4K · HDR</span>
+    </div></div></div>
+    <div class="d-info">
+      <div class="eyebrow"><span class="dot"></span>动漫 · 剧场版 · 2026</div>
+      <h1>AURA ～魔龙院光牙最后的战斗～</h1>
+      <div class="meta"><span class="pill">TV-14</span><span>1 小时 23 分钟</span><span class="pill">日语 5.1</span><span class="pill">简中 · 双语字幕</span></div>
+      <p class="d-desc">平凡的高中生活被一通来自旧友的电话打断。为了兑现少年时代的那个约定，两人重新踏上寻找「魔龙院」的旅程——一段关于告别、也关于重逢的故事。</p>
+      <div class="d-actions">
+        <div class="btn primary"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg>播放</div>
+        <div class="btn ghost">继续观看<span class="k">46:10</span></div>
+        <div class="btn ghost"><svg class="i" style="width:20px;height:20px"><use href="#i-plus"/></svg>收藏</div>
+        <div class="btn ghost">下载</div>
+      </div>
+    </div>
+    <aside class="d-facts">
+      <div class="row2"><span class="k">导演</span><span class="v">岸 誠二</span></div>
+      <div class="row2"><span class="k">主要声优</span><span class="v">島﨑信長 / 花澤香菜</span></div>
+      <div class="row2"><span class="k">音轨</span><span class="v">日语 5.1 · 日语 2.0</span></div>
+      <div class="row2"><span class="k">字幕</span><span class="v">简体中文 · 双语 · 英文</span></div>
+      <div class="row2"><span class="k">文件</span><span class="v mono">1080p · HEVC · 4.2 GB</span></div>
+      <div class="row2"><span class="k">添加时间</span><span class="v">2026-09-14</span></div>
+    </aside>
+  </div>
+  <div class="d-eps">
+    <div class="shelf-head"><h2>剧集</h2><span class="more">共 12 集 ›</span></div>
+    <div class="row">
+      <div class="ep playing"><div class="bezel"><div class="core">
+        <img src="assets/wide-03.jpg" alt=""><div class="b"></div><span class="no mono">01</span>
+        <div class="t"><span class="n">魔龙院的来信</span><span class="m">24:02</span></div>
+      </div></div></div>
+      <div class="ep"><div class="bezel"><div class="core">
+        <img src="assets/wide-04.jpg" alt=""><div class="b"></div><span class="no mono">02</span>
+        <div class="t"><span class="n">夏日的回声</span><span class="m">24:00</span></div>
+      </div></div></div>
+      <div class="ep"><div class="bezel"><div class="core">
+        <img src="assets/wide-01.jpg" alt=""><div class="b"></div><span class="no mono">03</span>
+        <div class="t"><span class="n">光牙之约</span><span class="m">23:58</span></div>
+      </div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 播放器（平板） ============ -->
+<section class="screen tablet" data-screen="player">
+  <div class="p-amb"><img src="assets/wide-02.jpg" alt=""><div class="dim"></div></div>
+  <div class="p-video"><img src="assets/poster-04.jpg" alt=""><div class="vig"></div></div>
+  <div class="p-layer">
+    <div class="p-top">
+      <div class="ttl">
+        <div class="ib">‹</div>
+        <div><div class="txt">AURA ～魔龙院光牙最后的战斗～</div><div class="sub mono">EP 01 · 魔龙院的来信</div></div>
+      </div>
+      <div class="acts">
+        <div class="ib"><svg class="i" style="width:24px;height:24px"><use href="#i-cast"/></svg></div>
+        <div class="ib">⧉</div>
+        <div class="ib">🔒</div>
+      </div>
+    </div>
+    <div class="p-center">
+      <div class="sk"><svg class="i" style="width:58px;height:58px;stroke-width:1.5"><use href="#i-back15"/></svg><span class="num">15</span></div>
+      <div class="play"><svg class="i fill" style="width:44px;height:44px"><use href="#i-play"/></svg></div>
+      <div class="sk"><svg class="i" style="width:58px;height:58px;stroke-width:1.5"><use href="#i-fwd15"/></svg><span class="num">15</span></div>
+    </div>
+    <div class="p-bottom">
+      <div class="p-preview">
+        <img src="assets/wide-02.jpg" alt="">
+        <div class="c"><span class="mono">01:25:30</span><span>第 6 章 · 光牙之战</span></div>
+      </div>
+      <div class="p-bar">
+        <div class="buf"></div><div class="now"></div>
+        <div class="chap" style="left:18%"></div><div class="chap" style="left:34%"></div>
+        <div class="chap" style="left:57%"></div><div class="chap" style="left:78%"></div>
+        <div class="knob"></div>
+      </div>
+      <div class="p-times"><span class="mono">01:25 / 1:23:00</span><span class="r mono">剩 21:35</span></div>
+      <div class="p-tools">
+        <div class="chip on">字幕 · 简中 / 双语</div>
+        <div class="chip">音轨 · 日语 5.1</div>
+        <div class="chip">倍速 · 1.25×</div>
+        <div class="chip">章节</div>
+        <div class="chip">画面 · 适应</div>
+        <div class="sp"></div>
+        <div class="chip">设置</div>
+      </div>
+    </div>
+  </div>
+  <div class="noise"></div>
+</section>
+
+<!-- ============ 音乐 · 正在播放（平板） ============ -->
+<section class="screen tablet" data-screen="music">
+  <div class="noise"></div><div class="m-glow"></div>
+  <aside class="rail">
+    <div class="ico"><svg class="i"><use href="#i-home"/></svg></div>
+    <div class="ico"><svg class="i"><use href="#i-grid"/></svg></div>
+    <div class="ico on"><svg class="i"><use href="#i-music"/></svg></div>
+    <div class="ico"><svg class="i"><use href="#i-book"/></svg></div>
+    <div class="sep"></div>
+    <div class="ico"><svg class="i"><use href="#i-search"/></svg></div>
+  </aside>
+  <div class="m-cover"><div class="bezel"><div class="core"><img src="assets/poster-03.jpg" alt=""></div></div></div>
+  <div class="m-meta">
+    <h1>aLIEz</h1>
+    <div class="ar">澤野弘之 · 《A/Z｜aLIEz》</div>
+    <div class="badges"><span class="m-badge hi">FLAC · 直连</span><span class="m-badge">24bit / 48kHz</span><span class="m-badge">已离线</span></div>
+  </div>
+  <div class="m-lyr">
+    <div class="m-chips"><span class="chip">原文</span><span class="chip on">简体中文</span><span class="chip">双语对照</span></div>
+    <div class="m-line"><div class="o">決めつけばかり 自惚れを着た</div><div class="t">满是武断 披着自负的外衣</div></div>
+    <div class="m-line on"><div class="o">I say cry, I say lie, I say lie the end</div><div class="t">我呼喊 我撒谎 我说谎到终焉</div></div>
+    <div class="m-line"><div class="o">膝を抱えて 蹲るだけの</div><div class="t">只是抱膝蜷缩着</div></div>
+  </div>
+  <div class="m-queue">
+    <h3><span>播放队列</span><span class="mono">4 / 23</span></h3>
+    <div class="q-item cur"><img src="assets/poster-03.jpg" alt=""><div><div class="n">aLIEz</div><div class="s">澤野弘之 · 正在播放</div></div></div>
+    <div class="q-item"><img src="assets/poster-04.jpg" alt=""><div><div class="n">Brave Shine</div><div class="s">Aimer · 4:47</div></div></div>
+    <div class="q-item"><img src="assets/poster-05.jpg" alt=""><div><div class="n">爱的回归线</div><div class="s">陈韵若 · 4:12</div></div></div>
+    <div class="q-item"><img src="assets/poster-07.jpg" alt=""><div><div class="n">ninelie</div><div class="s">Aimer · 4:24</div></div></div>
+    <div class="q-item"><img src="assets/poster-01.jpg" alt=""><div><div class="n">SawanoHiroyuki[nZk]</div><div class="s">专辑 · 12 首</div></div></div>
+  </div>
+  <div class="m-bar">
+    <div class="m-prog"><i></i><div class="knob"></div></div>
+    <div class="m-times mono"><span>01:52</span><span>4:47</span></div>
+    <div class="m-ctrl">
+      <div class="ib act">⤨</div>
+      <div class="ib">◀◀</div>
+      <div class="pp"><svg class="i fill" style="width:30px;height:30px"><use href="#i-play"/></svg></div>
+      <div class="ib">▶▶</div>
+      <div class="ib act">↻</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 音乐库（平板） ============ -->
+<section class="screen tablet" data-screen="library">
+  <div class="noise"></div>
+  <aside class="rail">
+    <div class="ico"><svg class="i"><use href="#i-home"/></svg></div>
+    <div class="ico"><svg class="i"><use href="#i-grid"/></svg></div>
+    <div class="ico on"><svg class="i"><use href="#i-music"/></svg></div>
+    <div class="ico"><svg class="i"><use href="#i-book"/></svg></div>
+    <div class="sep"></div>
+    <div class="ico"><svg class="i"><use href="#i-search"/></svg></div>
+  </aside>
+  <div class="lib-head">
+    <div>
+      <h1>音乐</h1>
+      <div class="lib-tabs"><span class="lib-tab on">专辑</span><span class="lib-tab">艺术家</span><span class="lib-tab">歌曲</span><span class="lib-tab">歌单</span><span class="lib-tab">最近播放</span></div>
+    </div>
+    <div class="top-actions">
+      <div class="searchpill" style="min-width:260px"><svg class="i" style="width:20px;height:20px"><use href="#i-search"/></svg>搜索专辑、艺术家</div>
+      <div class="avatar">⇅</div>
+    </div>
+  </div>
+  <div class="lib-grid">
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-03.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">A/Z｜aLIEz</div><div class="s">澤野弘之 · 12 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-04.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">Brave Shine</div><div class="s">Aimer · 9 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-05.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">告白实行委员会</div><div class="s">HoneyWorks · 14 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-07.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">ninelie</div><div class="s">Aimer · 6 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-02.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">乔西的虎与鱼</div><div class="s">原声集 · 21 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-06.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">宝石幻想 OST</div><div class="s">Lapis Re:LiGHTs · 18 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-01.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">被狙击的学园</div><div class="s">OST · 15 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/poster-08.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">平家物语</div><div class="s">OST · 11 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/backdrop-01.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">寂静之海</div><div class="s">原声集 · 17 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core"><img src="assets/backdrop-02.jpg" alt=""><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">夜之继承者</div><div class="s">OST · 13 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core typo"><div class="sm">COMPILATION</div><div class="big">电影配乐<br>精选</div><div class="sm">32 TRACKS</div><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">电影配乐精选</div><div class="s">合辑 · 32 首</div></div>
+    <div class="alb"><div class="bezel"><div class="core typo alt"><div class="sm">PLAYLIST</div><div class="big">深夜<br>电台</div><div class="sm">48 TRACKS</div><div class="play"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div></div></div><div class="n">深夜电台</div><div class="s">歌单 · 48 首</div></div>
+  </div>
+</section>
+
+<!-- ============ 阅读器 · 深色（平板） ============ -->
+<section class="screen tablet" data-screen="reader">
+  <div class="rd-wrap">
+    <div class="noise"></div>
+    <div class="rd-top">
+      <div class="ttl"><span style="font-size:26px;color:#9AA3B2">‹</span><b>长夜将尽</b><span>第三章 · 灯塔</span></div>
+      <div class="p-tools">
+        <div class="chip">目录</div><div class="chip">书签</div><div class="chip">搜索</div><div class="chip on">排版</div>
+      </div>
+    </div>
+    <div class="rd-pages with-panel">
+      <div class="rd-page">
+        <h2>第三章 · 灯塔</h2>
+        <p><span class="drop">风</span>从海面上升起来的时候，灯塔的光正好掠过礁石。守塔人把最后一盏煤油灯拧灭，窗玻璃上留下一层薄薄的雾。</p>
+        <p>他记得父亲说过，黑夜不是用来害怕的，黑夜只是白天脱下外套之后的样子。</p>
+        <p>那年冬天，镇上的人陆续离开。邮局的橱窗里还贴着一张褪色的海报，画着从未抵达过的南方岛屿。</p>
+        <p>他把信折好，放进铁盒里。盒子已经很旧了，锁扣上有一道被反复摩挲出来的亮痕。</p>
+        <p>凌晨三点，雾散了。海面像一张被抚平的纸，安静得让人不敢呼吸。</p>
+        <div class="rd-pnum">128</div>
+      </div>
+      <div class="rd-page">
+        <p>七天后，船来了。甲板上堆着木箱和绳索，水手们用他听不懂的方言互相喊话。</p>
+        <p>他没有带行李，只带了那本翻旧的地图册，和一张写着坐标的纸。</p>
+        <p>海面上浮着细碎的光，像是有人把星星打碎了，撒在水里。</p>
+        <p>「你要去哪里？」船上的少年问。他想了想，说：去一个能看见灯塔背面的地方。</p>
+        <p>少年笑起来，递给他半块硬饼干。那是他这段旅程里，收到的第一份善意。</p>
+        <div class="rd-pnum">129</div>
+      </div>
+    </div>
+    <div class="rd-foot" style="right:480px">
+      <span class="pct mono">42%</span>
+      <div class="pbar"><i></i></div>
+      <span class="pct">第 3 / 9 章 · 剩 1 小时 12 分</span>
+    </div>
+    <aside class="rd-panel">
+      <h3>排版</h3>
+      <div class="rd-row"><span class="k">字号</span><div class="rd-slider"><i></i><span class="k2"></span></div></div>
+      <div class="rd-row"><span class="k">行距</span><div class="rd-slider"><i style="width:64%"></i><span class="k2" style="left:64%"></span></div></div>
+      <div class="rd-row"><span class="k">边距</span><div class="rd-slider"><i style="width:44%"></i><span class="k2" style="left:44%"></span></div></div>
+      <div class="rd-row"><span class="k">对齐</span><span class="mono" style="color:#9AA3B2">两端对齐</span></div>
+      <h3 style="margin-top:30px">主题</h3>
+      <div class="rd-themes">
+        <div class="rd-th t-paper">纸色</div>
+        <div class="rd-th t-eye">护眼</div>
+        <div class="rd-th t-dark on">深色</div>
+        <div class="rd-th t-oled">OLED</div>
+        <div class="rd-th t-sys">跟随</div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ 阅读器 · 纸色（平板） ============ -->
+<section class="screen tablet" data-screen="reader-paper">
+  <div class="rd-wrap paper">
+    <div class="noise" style="opacity:.09;mix-blend-mode:multiply"></div>
+    <div class="rd-top">
+      <div class="ttl"><span style="font-size:26px;color:#8A7B66">‹</span><b>长夜将尽</b><span>第三章 · 灯塔</span></div>
+      <div class="p-tools">
+        <div class="chip" style="background:rgba(255,255,255,.6);border-color:rgba(58,50,39,.16);color:#4A4234">目录</div>
+        <div class="chip" style="background:rgba(255,255,255,.6);border-color:rgba(58,50,39,.16);color:#4A4234">书签</div>
+        <div class="chip" style="background:rgba(255,255,255,.6);border-color:rgba(58,50,39,.16);color:#4A4234">搜索</div>
+        <div class="chip" style="background:rgba(255,255,255,.72);border-color:#9A7B3F;color:#7A5F28">排版</div>
+      </div>
+    </div>
+    <div class="rd-pages with-panel">
+      <div class="rd-page">
+        <h2>第三章 · 灯塔</h2>
+        <p><span class="drop">风</span>从海面上升起来的时候，灯塔的光正好掠过礁石。守塔人把最后一盏煤油灯拧灭，窗玻璃上留下一层薄薄的雾。</p>
+        <p>他记得父亲说过，黑夜不是用来害怕的，黑夜只是白天脱下外套之后的样子。</p>
+        <p>那年冬天，镇上的人陆续离开。邮局的橱窗里还贴着一张褪色的海报，画着从未抵达过的南方岛屿。</p>
+        <p>他把信折好，放进铁盒里。盒子已经很旧了，锁扣上有一道被反复摩挲出来的亮痕。</p>
+        <p>凌晨三点，雾散了。海面像一张被抚平的纸，安静得让人不敢呼吸。</p>
+        <div class="rd-pnum">128</div>
+      </div>
+      <div class="rd-page">
+        <p>七天后，船来了。甲板上堆着木箱和绳索，水手们用他听不懂的方言互相喊话。</p>
+        <p>他没有带行李，只带了那本翻旧的地图册，和一张写着坐标的纸。</p>
+        <p>海面上浮着细碎的光，像是有人把星星打碎了，撒在水里。</p>
+        <p>「你要去哪里？」船上的少年问。他想了想，说：去一个能看见灯塔背面的地方。</p>
+        <p>少年笑起来，递给他半块硬饼干。那是他这段旅程里，收到的第一份善意。</p>
+        <div class="rd-pnum">129</div>
+      </div>
+    </div>
+    <div class="rd-foot" style="right:480px">
+      <span class="pct mono">42%</span>
+      <div class="pbar"><i></i></div>
+      <span class="pct">第 3 / 9 章 · 剩 1 小时 12 分</span>
+    </div>
+    <aside class="rd-panel">
+      <h3>排版</h3>
+      <div class="rd-row"><span class="k">字号</span><div class="rd-slider"><i></i><span class="k2"></span></div></div>
+      <div class="rd-row"><span class="k">行距</span><div class="rd-slider"><i style="width:64%"></i><span class="k2" style="left:64%"></span></div></div>
+      <div class="rd-row"><span class="k">边距</span><div class="rd-slider"><i style="width:44%"></i><span class="k2" style="left:44%"></span></div></div>
+      <div class="rd-row"><span class="k">对齐</span><span class="mono" style="color:#6B604F">两端对齐</span></div>
+      <h3 style="margin-top:30px">主题</h3>
+      <div class="rd-themes">
+        <div class="rd-th t-paper on">纸色</div>
+        <div class="rd-th t-eye">护眼</div>
+        <div class="rd-th t-dark">深色</div>
+        <div class="rd-th t-oled">OLED</div>
+        <div class="rd-th t-sys">跟随</div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ 手机 · 首页 ============ -->
+<section class="screen phone-wrap" data-screen="phone">
+  <div class="phone-shell"><div class="phone-screen">
+    <div class="ph">
+      <div class="noise"></div>
+      <div class="ph-status"><span>21:04</span><span>5G ▮▮▮ 78%</span></div>
+      <div class="ph-hero">
+        <img src="assets/poster-02.jpg" alt="">
+        <div class="scrim"></div>
+        <div class="c">
+          <div class="eyebrow" style="margin-bottom:14px"><span class="dot"></span>继续观看 · 42%</div>
+          <h1>乔西的虎与鱼</h1>
+          <div class="m">2026 · 剧场版 · 剩 46 分钟</div>
+          <div class="b"><svg class="i fill" style="width:18px;height:18px"><use href="#i-play"/></svg>继续观看</div>
+        </div>
+      </div>
+      <div class="ph-sec" style="top:812px">
+        <h2>接下来</h2>
+        <div class="ph-row">
+          <div class="ph-w"><div class="bezel"><div class="core"><img src="assets/wide-04.jpg" alt=""><div class="b"></div>
+            <div class="t">夜之继承者 · S2 E7</div></div></div></div>
+          <div class="ph-w" style="width:224px"><div class="bezel"><div class="core"><img src="assets/wide-01.jpg" alt=""><div class="b"></div>
+            <div class="t">妖怪绘日记</div></div></div></div>
+        </div>
+      </div>
+      <div class="ph-sec" style="top:1210px">
+        <h2>最近添加</h2>
+        <div class="ph-row">
+          <div class="ph-p"><img src="assets/poster-03.jpg" alt=""><div class="n">AURA</div></div>
+          <div class="ph-p"><img src="assets/poster-04.jpg" alt=""><div class="n">夏日大作战</div></div>
+          <div class="ph-p"><img src="assets/poster-07.jpg" alt=""><div class="n">紫罗兰</div></div>
+          <div class="ph-p"><img src="assets/poster-06.jpg" alt=""><div class="n">WIXOSS</div></div>
+        </div>
+      </div>
+      <div class="ph-sec" style="top:1830px">
+        <h2>继续阅读</h2>
+        <div class="ph-row" style="gap:24px">
+          <div style="width:200px;height:280px;border-radius:20px;background:linear-gradient(160deg,#26313C,#101820);
+            border:1px solid var(--line);padding:22px;display:flex;flex-direction:column;justify-content:space-between">
+            <div style="font-size:15px;color:#9AA3B2">EPUB</div>
+            <div style="font-size:26px;font-weight:600;line-height:1.3">长夜<br>将尽</div>
+          </div>
+          <div style="flex:1;padding-top:12px">
+            <div style="font-size:22px;font-weight:600;margin-bottom:12px">长夜将尽</div>
+            <div style="font-size:16px;color:var(--text-3);margin-bottom:22px">第三章 · 灯塔 · 剩 1 小时 12 分</div>
+            <div class="track" style="height:5px"><i style="width:42%"></i></div>
+            <div style="display:inline-flex;align-items:center;gap:10px;height:54px;padding:0 24px;margin-top:26px;
+              border-radius:27px;background:var(--text);color:#0A0C11;font-size:16px;font-weight:600">继续阅读</div>
+          </div>
+        </div>
+      </div>
+      <div class="ph-nav">
+        <div class="ico on"><svg class="i" style="width:28px;height:28px"><use href="#i-home"/></svg></div>
+        <div class="ico"><svg class="i" style="width:28px;height:28px"><use href="#i-grid"/></svg></div>
+        <div class="ico"><svg class="i" style="width:28px;height:28px"><use href="#i-music"/></svg></div>
+        <div class="ico"><svg class="i" style="width:28px;height:28px"><use href="#i-book"/></svg></div>
+        <div class="ico"><svg class="i" style="width:28px;height:28px"><use href="#i-search"/></svg></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============ 图标概念 ============ -->
+<section class="screen" data-screen="icon" style="width:1024px;height:1024px">
+  <div class="icon-screen">
+    <div class="icon-stack">
+      <div class="icon-tile">
+        <svg viewBox="0 0 420 420" width="420" height="420">
+          <defs>
+            <linearGradient id="a-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#1E242E"/><stop offset=".55" stop-color="#090B10"/><stop offset="1" stop-color="#12222B"/>
+            </linearGradient>
+            <linearGradient id="a-ring" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stop-color="#7CC4FF" stop-opacity=".9"/><stop offset="1" stop-color="#5CE1D2"/>
+            </linearGradient>
+            <radialGradient id="a-dot"><stop offset="0" stop-color="#F2FFFF"/><stop offset=".5" stop-color="#5CE1D2"/><stop offset="1" stop-color="#2C7C82"/></radialGradient>
+            <radialGradient id="a-glow"><stop offset="0" stop-color="#5CE1D2" stop-opacity=".55"/><stop offset="1" stop-color="#5CE1D2" stop-opacity="0"/></radialGradient>
+          </defs>
+          <rect width="420" height="420" rx="104" fill="url(#a-bg)"/>
+          <circle cx="210" cy="210" r="120" fill="url(#a-glow)"/>
+          <circle cx="210" cy="210" r="98" fill="none" stroke="#9ED8DE" stroke-opacity=".3" stroke-width="5"/>
+          <g fill="none" stroke="url(#a-ring)" stroke-width="11" stroke-linecap="round">
+            <path d="M233.3 78.0 A134 134 0 0 1 312.7 123.8"/>
+            <path d="M335.9 164.2 A134 134 0 0 1 335.9 255.8"/>
+            <path d="M312.7 296.2 A134 134 0 0 1 233.3 342.0"/>
+            <path d="M186.7 342.0 A134 134 0 0 1 107.3 296.2"/>
+            <path d="M84.1 255.8 A134 134 0 0 1 84.1 164.2"/>
+            <path d="M107.3 123.8 A134 134 0 0 1 186.7 78.0"/>
+          </g>
+          <circle cx="210" cy="210" r="34" fill="url(#a-dot)"/>
+          <circle cx="196" cy="196" r="9" fill="#FFFFFF" fill-opacity=".85"/>
+        </svg>
+      </div>
+      <div class="icon-cap">Lumen · 光圈棱镜<span>圆环是镜头，缺口是光路，中心一点是画面本身</span></div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const screen = new URLSearchParams(location.search).get('s') || 'home';
+  document.querySelectorAll('.screen').forEach(el => {
+    el.classList.toggle('active', el.dataset.screen === screen);
+  });
+</script>
+</body>
+</html>
