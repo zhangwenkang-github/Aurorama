@@ -61,7 +61,7 @@
  └─ XxxViewModel.kt     // @HiltViewModel，State 用 MutableStateFlow
 ```
 
-- 新模块包名：`com.zhangwenkang.cinefin.reader.*`（`modes/reader`）、`com.zhangwenkang.cinefin.music.*`（`modes/music`）；
+- 新模块包名：`com.zhangwenkang.cinefin.book.*`（`modes/book`）、`com.zhangwenkang.cinefin.music.*`（`modes/music`）；
 - 领域纯逻辑放 `domain/`，UI 模型放 `presentation/models/`，DI 放 `di/`（参考 `modes/film/presentation/di/FilmModule.kt`）；
 - Compose 页面若需放在 `app/phone`（与现有 film 页面一致），则页面文件放 `app/phone/.../presentation/<mode>/`，业务逻辑仍留在对应 `modes/*` 模块。
 
@@ -205,7 +205,7 @@ viewModelScope.launch {
 1. **许可审查**（硬性）：新增任何第三方库前，确认许可与 **GPL-3.0 兼容**；**禁止** AGPL、GPL-2.0-only 代码并入（REQUIREMENTS §1）。
 2. **版本集中管理**：库与版本一律登记在 `gradle/libs.versions.toml`，模块里用 `libs.*` 引用；禁止模块内硬编码版本号。
 3. **仓库来源**：当前为 `google()` + `mavenCentral()`；若需新增仓库（如 Readium PDF 适配器要求的 `https://jitpack.io`），必须在根 `build.gradle.kts` 集中声明，并在 PR 说明中标注原因。
-4. **体积与性能**：新增依赖必须在 PR 中说明对 `assembleLibreDebug` 体积的影响；阅读器相关依赖只允许出现在 `:modes:reader`。
+4. **体积与性能**：新增依赖必须在 PR 中说明对 `assembleLibreDebug` 体积的影响；阅读器相关依赖只允许出现在 `:modes:book`。
 5. **原生库（.so）**：涉及 ABI 支持范围变化时必须在 PR 中列明（当前拆分 `armeabi-v7a` / `arm64-v8a` / `x86` / `x86_64`）。
 
 ---

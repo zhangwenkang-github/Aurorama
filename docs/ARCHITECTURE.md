@@ -60,7 +60,7 @@
 ```text
 :app:phone
  ├─ :modes:film        （既有）影视模式
- ├─ :modes:reader      （新增）阅读模式：书架 / 阅读页 / 阅读设置
+ ├─ :modes:book      （新增）阅读模式：书架 / 阅读页 / 阅读设置
  ├─ :modes:music       （新增）音乐模式：曲库 / 正在播放 / 队列 / 歌词 / 离线
  ├─ :settings / :setup （既有）
  ├─ :player:local      （既有，扩展音频队列能力）
@@ -71,10 +71,10 @@
 
 | 新模块 | 职责 | 允许依赖 | 明确禁止 |
 |--------|------|---------|---------|
-| `:modes:reader` | 书架（Books 库）、书籍详情入口、EPUB/PDF/CBZ 阅读页、排版与主题设置、批注与进度 | `:core`、`:data`、`:settings`、Readium 三件套 + pdfium 适配器、Compose | 不依赖 `:player:*`（阅读不播放）；不直接调 SDK |
+| `:modes:book` | 书架（Books 库）、书籍详情入口、EPUB/PDF/CBZ 阅读页、排版与主题设置、批注与进度 | `:core`、`:data`、`:settings`、Readium 三件套 + pdfium 适配器、Compose | 不依赖 `:player:*`（阅读不播放）；不直接调 SDK |
 | `:modes:music` | 音乐库浏览、正在播放、队列面板、歌词面板、离线管理 | `:core`、`:data`、`:settings`、`:player:core`、`:player:local`、Compose | 不直接调 SDK；不自己 new ExoPlayer |
 
-> **决策 1**：Readium 只在 `:modes:reader` 引入，避免污染其他模块的依赖图（`app:phone` 不直接依赖 Readium）。
+> **决策 1**：Readium 只在 `:modes:book` 引入，避免污染其他模块的依赖图（`app:phone` 不直接依赖 Readium）。
 > **决策 2**：音乐复用 `:player:local` 的 `PlayerHolder` 单实例（不新建第二个 Player），满足 MU-8「全 App 单 MediaSession，音视频互斥」。
 
 ### 2.3 依赖规则
@@ -91,7 +91,7 @@
 
 | 咽喉文件 | 被哪些任务线改动 | 保护措施（建议） |
 |----------|-----------------|-----------------|
-| `settings.gradle.kts` | R1（注册 `:modes:reader`）、R2（注册 `:modes:music`）、R3 | **一次改完两个模块注册**（由首个落地会话一次性提交），之后各线不再动 |
+| `settings.gradle.kts` | R1（注册 `:modes:book`）、R2（注册 `:modes:music`）、R3 | **一次改完两个模块注册**（由首个落地会话一次性提交），之后各线不再动 |
 | `gradle/libs.versions.toml` | R1（Readium / pdfium）、R2（可能新增库）、R3 | 版本目录改动集中提交；新增库必须先过许可审查（§7） |
 | 根 `build.gradle.kts`（`allprojects.repositories`） | R1（**必须新增 JitPack 仓库**给 pdfium 适配器） | 与模块注册同批提交，避免多条线各改一次 |
 | `app/phone/.../NavigationRoot.kt` | R1（书籍详情 / 阅读路由）、R2（音乐路由）、R3 | 路由注册分两次小提交，改前 rebase；同日改动需互相告知 |
@@ -395,7 +395,7 @@ interface MusicRepository {
 
 ### 6.1 必须串行（有硬依赖）
 
-1. **第 0 步（一次做完，单会话）**：`settings.gradle.kts` 注册 `:modes:reader` + `:modes:music`；根 `build.gradle.kts` 加 JitPack 仓库；`gradle/libs.versions.toml` 加 Readium 版本与坐标；两个新模块的空骨架（`build.gradle.kts` + 空包）→ 保证 `assembleDebug` 通过。**此后除依赖版本升级外不再有人动这三个文件。**
+1. **第 0 步（一次做完，单会话）**：`settings.gradle.kts` 注册 `:modes:book` + `:modes:music`；根 `build.gradle.kts` 加 JitPack 仓库；`gradle/libs.versions.toml` 加 Readium 版本与坐标；两个新模块的空骨架（`build.gradle.kts` + 空包）→ 保证 `assembleDebug` 通过。**此后除依赖版本升级外不再有人动这三个文件。**
 2. **接口先行**：`data` 层新增接口（§5.1）+ `player/core` 新模型（§5.2）先合入，R1 / R2 才能并行填实现。
 3. **下载器通用化**：`core/utils/DownloaderImpl.kt` 由一条线先完成"通用条目下载"重构，另一条线再加自己的分支。
 4. **`NavigationRoot.kt`**：两次小提交（阅读路由、音乐路由），改前 rebase。
@@ -428,7 +428,7 @@ PDF 懒加载 spike（R1）──▶ 走 Readium PDF 或自研 PDF（二选一�
 | # | 风险 / 待验证 | 影响 | 处理 |
 |---|--------------|------|------|
 | 1 | pdfium 适配器依赖 **JitPack**（`com.github.marain87:*`） | 构建可用性 | 本机直连实测 200 / 1.4 s；CI 首次 PR 时验证；失败则启用 `androidx.pdf` 备选 |
-| 2 | 应用体积：Readium（navigator / streamer / pdfium）+ pdfium native | APK 体积劣化 | 仅 `:modes:reader` 引入；PR 时对比 `assembleLibreDebug` 体积，超阈值评审说明 |
+| 2 | 应用体积：Readium（navigator / streamer / pdfium）+ pdfium native | APK 体积劣化 | 仅 `:modes:book` 引入；PR 时对比 `assembleLibreDebug` 体积，超阈值评审说明 |
 | 3 | Readium `readium-navigator` 依赖 fragment / constraintlayout / webkit 等 View 体系库 | 与 Compose 混用复杂度 | `AndroidView` 封装成单一 Composable，Fragment 生命周期收敛在容器内 |
 | 4 | CBZ 在 Readium 为 🚧 | 漫画需求 | R1 先做可行性 spike，不达标自研（§3.5） |
 | 5 | 阅读进度字段与官方 Web 阅读器是否一致 | 跨端进度 | Web 读一段后对比 `UserData` 变化（待验证） |
