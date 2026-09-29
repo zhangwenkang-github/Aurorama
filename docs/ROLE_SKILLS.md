@@ -13,6 +13,7 @@
 | 角色 | 会话 | 主要职责 | Skill 调查状态 |
 |------|------|---------|---------------|
 | UI/UX 设计 | S1 | 设计方向、视觉稿、设计系统 | ✅ 已完成（本文 §2） |
+| UI 设计系统 | S4 | 设计系统文档、组件规范、修订稿 | ✅ 已完成（复用 §2 + §2.5 补充） |
 | 架构与规范 | S2 | 架构文档、开发规范、Git 工作流 | ✅ 已完成（本文 §3） |
 | 计划与 Skill 维护 | S3 | 路线图、排期、Skill 清单完整版 | ✅ 已完成（本文 §4） |
 | 阅读器开发 | R1 | EPUB/PDF/CBZ 阅读器 | ✅ 已完成（本文 §5.1） |
@@ -51,6 +52,17 @@
 - 视觉稿一律**文件交付**，不在会话里贴大图/base64；
 - 参考截图看完即止；
 - 工具输出裁剪，分批生成图片。
+
+### 2.5 S4 · 设计系统补充（2026-09-29 调查）
+
+| 来源 | URL | 要点 |
+|------|-----|------|
+| Material Design 3 in Compose | `developer.android.com/develop/ui/compose/designsystems/material3`（经代理可达，已核验） | 语义色彩角色、主题 token 映射、组件规范 |
+| Material 3 设计令牌体系 | `m3.material.io`（SPA，如抓取受限改用官方文档/镜像） | 设计 token 分层（reference / system / component） |
+| Apple HIG（复习） | `developer.apple.com/design/human-interface-guidelines/designing-for-tvos`（经代理可达） | 焦点、层次、沉浸原则 |
+
+S4 交付要求：组件规范必须给出可直接翻译为 Compose token / 组件的数值（hex / dp / sp / ms / bezier），
+并落实"媒体色块融入按钮"修订（见 `docs/design/s1-decision.md`）。
 
 ---
 
