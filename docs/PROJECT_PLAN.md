@@ -40,7 +40,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill） | 🆕 已规划（2026-09-29，S3 v1.0） | W0 接口 / 设计冻结（S2 + S1 + 播放器 bug）→ W1 三线骨架 → P0 主体 → P1 收口 → 验收 |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🆕 已规划（2026-09-29，S3 v1.0） | W0 冻结进行中：S2 架构、**S4 设计系统 v1.0 已交付**（含修订稿与组件状态板）；播放器 bug 待修 → W1 三线骨架 → P0 主体 → P1 收口 → 验收 |
 
 ### 3.1 执行顺序（用户 2026-09-28 批准）
 

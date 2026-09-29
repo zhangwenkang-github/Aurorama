@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>S4 · Prism 棱镜修订稿（媒体色融入按钮）</title>
+<style>
+  :root{
+    /* ---- 中性色（UI_DESIGN_SYSTEM v1.0 §2.1） ---- */
+    --bg:#151A21;            /* surface */
+    --bg-dim:#10141A;        /* surface-dim */
+    --panel:#1B212B;         /* surface-container */
+    --panel-2:#222A36;       /* surface-container-high */
+    --panel-3:#2A3340;       /* surface-container-highest */
+    --line:#2C3542;          /* outline */
+    --line-v:#232B36;        /* outline-variant */
+    --text:#F4F1EA;          /* on-surface */
+    --text-2:#A7B0BD;        /* on-surface-variant */
+    --text-3:#6E7887;        /* on-surface-faint */
+    /* ---- 媒体色（三域 · 含明暗变体） ---- */
+    --film:#E8A15C;   --film-b:#EDB680;   --film-d:#BE844B;   --film-c:#3C3533;   --film-cp:#4C4037;   --film-o:#775B41;   --film-on:#141009;
+    --music:#3FC9A0;  --music-b:#69D5B5;  --music-d:#34A583;  --music-c:#213C3E;  --music-cp:#244947;  --music-o:#2B6D60;  --music-on:#06120D;
+    --book:#6FA8FF;   --book-b:#8FBBFF;   --book-d:#5B8AD1;   --book-c:#28374D;   --book-cp:#2F415E;   --book-o:#415E8A;   --book-on:#0A1220;
+    /* ---- 形状 / 字体 ---- */
+    --r-xl:28px; --r-lg:22px; --r-md:16px; --r-sm:12px; --r-xs:8px;
+    --sans:"MiSans","Noto Sans SC","Microsoft YaHei UI",sans-serif;
+    --serif:Georgia,"Noto Sans SC",serif;
+    --mono:"Cascadia Mono","Consolas",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000}
+  body{font-family:var(--sans);color:var(--text);-webkit-font-smoothing:antialiased}
+  .screen{display:none;position:relative;overflow:hidden}
+  .screen.active{display:block}
+  .tablet{width:2048px;height:1280px;background:var(--bg)}
+  .noise{position:absolute;inset:0;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
+  img{display:block;object-fit:cover}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  svg.i{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  svg.i.fill{fill:currentColor;stroke:none}
+
+  /* ---- 左侧导航（选中态用媒体色，删除右侧色点） ---- */
+  .rail{position:absolute;left:0;top:0;bottom:0;width:164px;background:#12171D;border-right:1px solid var(--line);
+    padding:34px 0 28px;display:flex;flex-direction:column;z-index:10}
+  .rail .logo{display:flex;align-items:center;gap:12px;padding:0 26px 30px}
+  .rail .logo .mk{width:38px;height:38px;border-radius:11px;background:linear-gradient(150deg,#2A333F,#131A22);
+    display:grid;place-items:center;border:1px solid var(--line)}
+  .rail .logo .mk svg{width:20px;height:20px;stroke:var(--film);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .rail .logo .nm{font-size:19px;font-weight:600;letter-spacing:.01em}
+  .rail .nav{display:flex;flex-direction:column;gap:2px;padding:0 14px}
+  .rail .it{display:flex;align-items:center;gap:14px;height:54px;padding:0 14px;border-radius:14px;color:var(--text-2);font-size:16px}
+  .rail .it.on{background:var(--panel-2);color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .rail .it.on.film{background:var(--film-c);color:var(--film-b);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .rail .it.on.music{background:var(--music-c);color:var(--music-b)}
+  .rail .it.on.book{background:var(--book-c);color:var(--book-b)}
+  .rail .it.on .i{color:inherit}
+  .rail .sep{height:1px;background:var(--line);margin:18px 26px}
+  .rail .foot{margin-top:auto;padding:0 26px}
+  .rail .who{display:flex;align-items:center;gap:12px;padding-top:20px;border-top:1px solid var(--line)}
+  .rail .who .av{width:42px;height:42px;border-radius:21px;background:#232B36;display:grid;place-items:center;font-size:15px}
+  .rail .who .tx{font-size:14px;color:var(--text-2);line-height:1.4}
+  .rail .who .tx b{display:block;color:var(--text);font-weight:500;font-size:15px}
+
+  .main{position:absolute;left:164px;right:0;top:0;bottom:0;padding:44px 48px}
+  .mhead{display:flex;align-items:flex-end;justify-content:space-between}
+  .mhead h1{font-size:40px;font-weight:600;letter-spacing:-.005em}
+  .mhead .sub{font-size:15px;color:var(--text-3);margin-top:10px}
+  .right-tools{display:flex;align-items:center;gap:12px}
+  .searchbox{display:flex;align-items:center;gap:12px;height:52px;padding:0 20px;border-radius:14px;background:#1A2029;
+    border:1px solid var(--line);color:var(--text-3);font-size:15px;min-width:290px}
+  .ibtn{width:52px;height:52px;border-radius:14px;background:#1A2029;border:1px solid var(--line);display:grid;place-items:center;color:var(--text-2)}
+
+  /* ---- Chip：媒体色融入选中态；无独立色点 ---- */
+  .chips{display:flex;gap:8px;margin-top:22px}
+  .chip{height:40px;padding:0 20px;border-radius:12px;display:grid;place-items:center;font-size:15px;color:var(--text-2);
+    border:1px solid var(--line);background:#1A2029;font-weight:500}
+  .chip.sel{background:var(--media-c);border-color:var(--media-o);color:var(--media-b);font-weight:600}
+  .chip.neutral-sel{background:var(--text);border-color:var(--text);color:#12171D;font-weight:600}
+
+  /* ---- 徽标：媒体色描边 + 文字；无独立色点 ---- */
+  .badge{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:500;
+    border:1px solid var(--line);color:var(--text-2);background:rgba(255,255,255,.02)}
+  .badge svg{width:12px;height:12px}
+  .badge.film{color:var(--film-b);border-color:var(--film-o);background:rgba(232,161,92,.06)}
+  .badge.music{color:var(--music-b);border-color:var(--music-o);background:rgba(63,201,160,.06)}
+  .badge.book{color:var(--book-b);border-color:var(--book-o);background:rgba(111,168,255,.06)}
+
+  /* ---- 按钮：四种变形 × 状态（媒体色融入） ---- */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:56px;padding:0 26px;border-radius:12px;
+    font-size:16px;font-weight:600;border:1px solid transparent;background:transparent}
+  .btn svg{width:18px;height:18px}
+  /* Filled */
+  .btn.filled{background:var(--media);color:var(--media-on)}
+  /* Outlined */
+  .btn.outlined{background:transparent;border-color:var(--media-o);color:var(--media-b);font-weight:500}
+  /* Text */
+  .btn.text{color:var(--media-b);font-weight:500;padding:0 16px}
+  /* Icon */
+  .btn.icon{width:52px;height:52px;padding:0;border-radius:14px;color:var(--media-b);border-color:transparent}
+  /* 状态 */
+  .btn.filled.pressed{background:var(--media-d)}
+  .btn.outlined.pressed{background:var(--media-c);border-color:var(--media)}
+  .btn.text.pressed{background:var(--media-c)}
+  .btn.icon.pressed{background:var(--media-c)}
+  .btn.focused{box-shadow:0 0 0 1px var(--bg),0 0 0 3px color-mix(in srgb,var(--media) 60%,transparent)}
+  .btn.disabled{background:var(--panel-2);color:var(--text-3);border-color:transparent;opacity:.62}
+  .btn.outlined.disabled{background:transparent;border-color:var(--line);color:var(--text-3)}
+  .btn.text.disabled{background:transparent;color:var(--text-3)}
+  .btn.icon.disabled{background:transparent;color:var(--text-3)}
+  .btn.sm{height:46px;padding:0 20px;font-size:15px;border-radius:12px}
+  .btn.xs{height:38px;padding:0 16px;font-size:14px;border-radius:12px}
+  .btn.sm svg,.btn.xs svg{width:16px;height:16px}
+
+  /* ---- 分段控件 ---- */
+  .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel-2)}
+  .seg div{flex:1;height:44px;display:grid;place-items:center;font-size:15px;color:var(--text-2);padding:0 22px;font-weight:500}
+  .seg div.on{background:var(--media-c);color:var(--media-b);font-weight:600;box-shadow:inset 0 0 0 1px var(--media-o);border-radius:10px;margin:2px}
+  .seg div + div{box-shadow:inset 1px 0 0 var(--line)}
+  .seg div.on + div,.seg div:has(+ div.on){box-shadow:none}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;position:relative;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px}
+  .sec-head h2{font-size:23px;font-weight:600}
+  .sec-head .more{font-size:14px;color:var(--text-3)}
+  .rule{height:1px;background:var(--line)}
+
+  /* ---- 进度条 ---- */
+  .prog{height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+  .prog i{display:block;height:100%;border-radius:2px;background:var(--media)}
+  .prog.thin{height:3px}
+  .prog.big{height:6px;border-radius:3px}
+
+  /* ---- 榜板（组件状态板） ---- */
+  .board{position:absolute;left:48px;right:48px;top:44px;bottom:44px;display:flex;flex-direction:column}
+  .board h1{font-size:40px;font-weight:600}
+  .board .sub{font-size:15px;color:var(--text-3);margin-top:10px}
+  .board-grid{display:grid;gap:22px;margin-top:26px}
+  .bcell{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:22px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .bcell .cap{font-size:13px;color:var(--text-3);margin-bottom:16px;font-family:var(--mono)}
+  .bcell .row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .bcell .note{font-size:13px;color:var(--text-2);line-height:1.7;margin-top:14px}
+  .th{font-size:12px;color:var(--text-3);font-family:var(--mono);margin-bottom:10px}
+
+  /* ================= 首页 ================= */
+  .bento{position:absolute;left:212px;right:48px;top:214px}
+  .b-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:26px}
+  .hero-b{grid-column:span 2;height:360px}
+  .hero-b img{position:absolute;inset:0;width:100%;height:100%}
+  .hero-b .sc{position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,13,17,.92),rgba(10,13,17,.35) 62%,rgba(10,13,17,.12))}
+  .hero-b .c{position:absolute;left:36px;right:36px;bottom:34px;max-width:820px}
+  .hero-b h2{font-size:44px;font-weight:600;line-height:1.12;margin:16px 0 14px}
+  .hero-b .meta{font-size:16px;color:#C8D0DB;margin-bottom:22px}
+  .hero-b .acts{display:flex;gap:12px;align-items:center}
+  .stack{display:flex;flex-direction:column;gap:26px}
+  .mini{height:167px;padding:24px;display:flex;gap:20px;align-items:center}
+  .mini .art{width:116px;height:116px;border-radius:16px;overflow:hidden;flex:none;border:1px solid var(--line)}
+  .mini .art img{width:100%;height:100%}
+  .mini .bd{flex:1;min-width:0}
+  .mini h3{font-size:21px;font-weight:600;margin:10px 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mini .meta{font-size:14px;color:var(--text-3);margin-bottom:12px}
+  .mini .mini-ctl{display:flex;gap:10px;margin-top:12px;align-items:center}
+  .brow{display:grid;gap:26px;margin-top:34px}
+  .brow.r3{grid-template-columns:repeat(3,1fr)}
+  .brow.r4{grid-template-columns:repeat(4,1fr)}
+  .wcard{position:relative;height:210px}
+  .wcard img{position:absolute;inset:0;width:100%;height:100%}
+  .wcard .sc{position:absolute;inset:0;background:linear-gradient(0deg,rgba(9,12,16,.94),rgba(9,12,16,.1) 62%)}
+  .wcard .c{position:absolute;left:22px;right:22px;bottom:20px}
+  .wcard h4{font-size:19px;font-weight:600;margin-bottom:9px}
+  .wcard .meta{font-size:13px;color:var(--text-2);display:flex;justify-content:space-between;margin-bottom:11px}
+  .pcard h5{font-size:15px;font-weight:500;margin-top:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcard .s{font-size:13px;color:var(--text-3);margin-top:6px}
+  .pcard img{width:100%;height:250px}
+  .pcard .tg{position:absolute;top:14px;left:14px;font-size:12px;padding:5px 10px;border-radius:8px;background:rgba(10,13,17,.7);
+    border:1px solid var(--line);color:var(--text-2);backdrop-filter:blur(8px)}
+
+  /* ================= 详情页 ================= */
+  .detail-bg{position:absolute;inset:0 0 auto 0;height:620px;overflow:hidden}
+  .detail-bg img{width:100%;height:100%;filter:brightness(.40) saturate(.9)}
+  .detail-bg .sc{position:absolute;inset:0;background:linear-gradient(180deg,rgba(21,26,33,.94),rgba(21,26,33,.88) 40%,var(--bg) 100%)}
+  .crumb{font-size:14px;color:var(--text-3);margin-bottom:24px}
+  .crumb span{margin:0 8px}
+  .d-grid{position:absolute;left:48px;right:48px;top:150px;display:grid;grid-template-columns:392px 1fr 430px;gap:44px}
+  .d-poster .core{border-radius:24px;overflow:hidden;border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .d-poster img{width:100%;height:548px}
+  .d-poster .acts{display:flex;flex-direction:column;gap:12px;margin-top:22px}
+  .d-poster .acts .btn{width:100%}
+  .d-meta2{display:flex;flex-direction:column;gap:0;margin-top:26px;border-top:1px solid var(--line)}
+  .d-meta2 .r{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line-v);font-size:14px}
+  .d-meta2 .k{color:var(--text-3)}
+  .d-mid h1{font-size:52px;line-height:1.1;font-weight:600;letter-spacing:-.01em;margin:16px 0 14px}
+  .d-mid .latin{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--text-3);margin-bottom:22px}
+  .d-mid .meta{display:flex;gap:12px;align-items:center;margin-bottom:26px;flex-wrap:wrap}
+  .d-mid .desc{font-size:17px;line-height:1.95;color:#C6CDD8;margin-bottom:30px}
+  .eplist{border-top:1px solid var(--line)}
+  .eprow{display:flex;align-items:center;gap:24px;padding:20px 0;border-bottom:1px solid var(--line-v)}
+  .eprow .n{font-family:var(--mono);font-size:15px;color:var(--text-3);width:38px}
+  .eprow .t{flex:1}
+  .eprow .t b{display:block;font-size:17px;font-weight:500;margin-bottom:7px}
+  .eprow .t span{font-size:13px;color:var(--text-3)}
+  .eprow .dur{font-family:var(--mono);font-size:14px;color:var(--text-3)}
+  .eprow.cur{background:linear-gradient(90deg,rgba(232,161,92,.13),rgba(232,161,92,0));margin:0 -20px;padding-left:20px;padding-right:20px}
+  .eprow.cur .n{color:var(--film-b)} .eprow.cur .t b{color:var(--film-b)}
+  .d-right h3{font-size:17px;font-weight:600;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .facts .r{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line-v);font-size:14px}
+  .facts .k{color:var(--text-3)}
+  .facts .v{color:var(--text-2);text-align:right;max-width:250px}
+  .d-right .card{padding:26px 24px;margin-bottom:26px}
+
+  /* ================= 媒体库 ================= */
+  .lib-toolbar{display:flex;align-items:center;justify-content:space-between;margin-top:26px}
+  .lib-cols{position:absolute;left:212px;right:48px;top:288px;display:grid;grid-template-columns:1fr 560px;gap:40px}
+  .lib-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px 26px}
+  .lib-side .sec-head{margin-bottom:12px}
+  .lr{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line-v)}
+  .lr img{width:46px;height:46px;border-radius:8px;flex:none}
+  .lr .b{flex:1;min-width:0}
+  .lr .b b{display:block;font-size:16px;font-weight:500;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lr .b span{font-size:13px;color:var(--text-3)}
+  .lr .act{color:var(--film-b);display:grid;place-items:center}
+  .lib-continue{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-bottom:34px}
+
+  /* ================= 音乐 · 正在播放 ================= */
+  .mu-art{position:absolute;left:212px;top:140px;width:520px}
+  .mu-art .core{border-radius:24px;overflow:hidden;border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .mu-art img{width:100%;height:520px}
+  .mu-vinyl{position:absolute;left:236px;top:664px;width:96px;height:96px;border-radius:48px;
+    background:repeating-radial-gradient(circle at 50% 50%,#1D232C 0 3px,#12171D 3px 6px);border:1px solid var(--line);display:grid;place-items:center}
+  .mu-vinyl i{width:34px;height:34px;border-radius:17px;background:var(--music);display:grid;place-items:center;color:var(--music-on);font-size:14px}
+  .mu-meta{position:absolute;left:356px;top:672px;width:376px}
+  .mu-meta h1{font-size:34px;font-weight:600;margin-bottom:8px}
+  .mu-meta .ar{font-size:16px;color:var(--text-2);margin-bottom:16px}
+  .mu-meta .badges{display:flex;gap:10px;flex-wrap:wrap}
+  .mu-lyr{position:absolute;left:804px;right:520px;top:150px}
+  .mu-lyr .langs{display:flex;gap:10px;margin-bottom:34px}
+  .ly{margin-bottom:32px;opacity:.4}
+  .ly .o{font-size:21px;color:#DDE3EB;margin-bottom:9px}
+  .ly .t{font-size:18px;color:#AEB7C4}
+  .ly.on{opacity:1}
+  .ly.on .o{font-size:32px;font-weight:600;color:#fff}
+  .ly.on .t{font-size:24px;color:var(--music-b)}
+  .ly.on .t::before{content:"";display:inline-block;width:16px;height:2px;background:var(--music);vertical-align:middle;margin-right:11px}
+  .mu-q{position:absolute;right:0;top:0;bottom:0;width:472px;background:#161B23;border-left:1px solid var(--line);padding:44px 38px}
+  .mu-q h3{font-size:18px;font-weight:600;margin-bottom:8px}
+  .mu-q .hint{font-size:13px;color:var(--text-3);margin-bottom:24px}
+  .qi{display:flex;align-items:center;gap:16px;padding:15px 0;border-bottom:1px solid var(--line-v)}
+  .qi .ix{font-family:var(--mono);font-size:14px;color:var(--text-3);width:26px}
+  .qi img{width:46px;height:46px;border-radius:10px;flex:none}
+  .qi .b{flex:1;min-width:0}
+  .qi .b b{display:block;font-size:15px;font-weight:500;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qi .b span{font-size:12px;color:var(--text-3)}
+  .qi.cur{background:linear-gradient(90deg,var(--music-c),transparent);margin:0 -16px;padding-left:16px;padding-right:16px}
+  .qi.cur .ix{color:var(--music-b)} .qi.cur .b b{color:var(--music-b)}
+  .mu-bar{position:absolute;left:212px;right:520px;bottom:48px}
+  .mu-bar .prog{position:relative;height:5px;border-radius:3px;background:rgba(255,255,255,.14);margin-bottom:14px}
+  .mu-bar .prog i{position:absolute;left:0;top:0;bottom:0;width:39%;background:var(--music);border-radius:3px}
+  .mu-bar .prog .kn{position:absolute;left:39%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:4px;background:#fff}
+  .mu-bar .tt{display:flex;justify-content:space-between;font-family:var(--mono);font-size:13px;color:var(--text-3);margin-bottom:20px}
+  .mu-bar .ctl{display:flex;align-items:center;gap:14px}
+  .mu-bar .ctl .pp{width:64px;height:64px;border-radius:18px;background:var(--music);color:var(--music-on);display:grid;place-items:center}
+  .mu-bar .ctl .sp{flex:1}
+
+  /* 状态板专用微调 */
+  .btn.icon{width:44px;height:44px;border-radius:12px}
+  .statecell{display:grid;place-items:center;padding:18px 10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;min-height:86px}
+  .rowlab{display:flex;align-items:center;font-size:14px;color:var(--text-2);font-family:var(--mono);padding-left:4px}
+
+  /* ================= 状态板通用 ================= */
+  .swatch{width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.08)}
+  .legend{display:flex;gap:26px;margin-top:18px;font-size:13px;color:var(--text-2)}
+  .legend b{color:var(--text)}
+  .tokenlist{font-family:var(--mono);font-size:12px;color:var(--text-3);line-height:1.9}
+  .tokenlist em{color:var(--media-b);font-style:normal}
+  /* 域作用域：页面级媒体色代入 */
+  .scope-film{--media:var(--film);--media-b:var(--film-b);--media-d:var(--film-d);--media-c:var(--film-c);--media-cp:var(--film-cp);--media-o:var(--film-o);--media-on:var(--film-on)}
+  .scope-music{--media:var(--music);--media-b:var(--music-b);--media-d:var(--music-d);--media-c:var(--music-c);--media-cp:var(--music-cp);--media-o:var(--music-o);--media-on:var(--music-on)}
+  .scope-book{--media:var(--book);--media-b:var(--book-b);--media-d:var(--book-d);--media-c:var(--book-c);--media-cp:var(--book-cp);--media-o:var(--book-o);--media-on:var(--book-on)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.6 12 4l8 6.6V20a1 1 0 0 1-1 1h-4.6v-5.4H9.6V21H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6.6l10-2v11"/><circle cx="6.4" cy="18" r="2.6"/><circle cx="16.4" cy="15.6" r="2.6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.4C10.4 5 8.2 4.4 4.6 4.4V18c3.6 0 5.8.6 7.4 2 1.6-1.4 3.8-2 7.4-2V4.4c-3.6 0-5.8.6-7.4 2z"/><path d="M12 6.4V20"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.4 19 12 8 18.6z"/></symbol>
+  <symbol id="i-cast" viewBox="0 0 24 24"><path d="M3 19h.01M3 15.5A6.5 6.5 0 0 1 9.5 22M3 11a11 11 0 0 1 11 11"/><path d="M3 7V5.6A1.6 1.6 0 0 1 4.6 4h14.8A1.6 1.6 0 0 1 21 5.6v12.8a1.6 1.6 0 0 1-1.6 1.6H15"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.2-4.4-7.2-9.4A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.2 3c0 5-7.2 9.4-7.2 9.4z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.6 4.5L19 7"/></symbol>
+</svg>
+
+<!-- ============ S4 · 首页（色块融入按钮） ============ -->
+<section class="screen tablet scope-film" data-screen="home">
+  <div class="noise"></div>
+  <aside class="rail">
+    <div class="logo"><div class="mk"><svg viewBox="0 0 24 24"><path d="M12 6.4C10.4 5 8.2 4.4 4.6 4.4V18c3.6 0 5.8.6 7.4 2 1.6-1.4 3.8-2 7.4-2V4.4c-3.6 0-5.8.6-7.4 2z"/></svg></div><div class="nm">棱镜</div></div>
+    <nav class="nav">
+      <div class="it on"><svg class="i"><use href="#i-home"/></svg><span>首页</span></div>
+      <div class="it"><svg class="i"><use href="#i-grid"/></svg><span>媒体库</span></div>
+      <div class="it"><svg class="i"><use href="#i-music"/></svg><span>音乐</span></div>
+      <div class="it"><svg class="i"><use href="#i-book"/></svg><span>书架</span></div>
+      <div class="it"><svg class="i"><use href="#i-search"/></svg><span>搜索</span></div>
+    </nav>
+    <div class="sep"></div>
+    <nav class="nav"><div class="it"><span>下载与离线</span></div><div class="it"><span>设置</span></div></nav>
+    <div class="foot"><div class="who"><div class="av">张</div><div class="tx"><b>zhangwenkang</b>jellyfins</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="mhead">
+      <div>
+        <h1>首页</h1>
+        <div class="sub">全部媒体 · 上次同步 21:04</div>
+        <div class="chips">
+          <div class="chip neutral-sel">全部</div>
+          <div class="chip">影视</div>
+          <div class="chip">音乐</div>
+          <div class="chip">读书</div>
+        </div>
+      </div>
+      <div class="right-tools">
+        <div class="searchbox"><svg class="i" style="width:20px;height:20px"><use href="#i-search"/></svg>搜索电影、专辑、书籍</div>
+        <div class="ibtn"><svg class="i"><use href="#i-cast"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="bento">
+    <div class="b-top">
+      <div class="hero-b card">
+        <img src="assets/wide-02.jpg" alt=""><div class="sc"></div>
+        <div class="c">
+          <span class="badge film">影视 · 继续观看</span>
+          <h2>宝石幻想：光芒重现</h2>
+          <div class="meta">S1 E1 · 24 分钟 · 1080p · 剩 11 分钟</div>
+          <div class="acts">
+            <div class="btn filled"><svg class="i fill"><use href="#i-play"/></svg>继续观看</div>
+            <div class="btn outlined">详情</div>
+          </div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="mini card" style="--media:var(--music);--media-b:var(--music-b);--media-d:var(--music-d);--media-c:var(--music-c);--media-cp:var(--music-cp);--media-o:var(--music-o);--media-on:var(--music-on)">
+          <div class="art"><img src="assets/poster-03.jpg" alt=""></div>
+          <div class="bd">
+            <span class="badge music">音乐</span>
+            <h3>aLIEz</h3>
+            <div class="meta">澤野弘之 · 01:52 / 4:47</div>
+            <div class="prog"><i style="width:39%"></i></div>
+            <div class="mini-ctl">
+              <div class="btn icon filled" style="width:48px;height:48px;border-radius:14px"><svg class="i fill" style="width:20px;height:20px"><use href="#i-play"/></svg></div>
+              <div class="btn icon" style="width:38px;height:38px;border-radius:12px;border:1px solid var(--line);color:var(--text-2)">◀◀</div>
+              <div class="btn icon" style="width:38px;height:38px;border-radius:12px;border:1px solid var(--line);color:var(--text-2)">▶▶</div>
+            </div>
+          </div>
+        </div>
+        <div class="mini card" style="--media:var(--book);--media-b:var(--book-b);--media-d:var(--book-d);--media-c:var(--book-c);--media-cp:var(--book-cp);--media-o:var(--book-o);--media-on:var(--book-on)">
+          <div class="art"><img src="assets/poster-06.jpg" alt=""></div>
+          <div class="bd">
+            <span class="badge book">阅读</span>
+            <h3>长夜将尽</h3>
+            <div class="meta">第三章 · 灯塔 · 剩 1 小时 12 分</div>
+            <div class="prog"><i style="width:42%"></i></div>
+            <div class="mini-ctl"><div class="btn filled xs">继续阅读</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="brow r3">
+      <div class="card wcard"><img src="assets/wide-01.jpg" alt=""><div class="sc"></div>
+        <div class="c"><h4>奇异太郎少年的妖怪绘日记</h4><div class="meta"><span>S1 · E1 · 剩 24 分钟</span><span class="mono">上一集</span></div><div class="prog thin"><i style="width:6%"></i></div></div></div>
+      <div class="card wcard"><img src="assets/wide-03.jpg" alt=""><div class="sc"></div>
+        <div class="c"><h4>寂静之海</h4><div class="meta"><span>电影 · 118 分钟</span><span class="mono">46:10</span></div><div class="prog thin"><i style="width:39%"></i></div></div></div>
+      <div class="card wcard"><img src="assets/wide-04.jpg" alt=""><div class="sc"></div>
+        <div class="c"><h4>夜之继承者</h4><div class="meta"><span>S2 · E7 · 剩 9 分钟</span><span class="mono">14:02</span></div><div class="prog thin"><i style="width:61%"></i></div></div></div>
+    </div>
+    <div class="brow r4">
+      <div class="pcard"><div class="card"><img src="assets/poster-03.jpg" alt=""><span class="tg">4K</span></div><h5>AURA ～魔龙院光牙最后的战斗～</h5><div class="s">动漫 · 剧场版</div></div>
+      <div class="pcard"><div class="card"><img src="assets/poster-02.jpg" alt=""></div><h5>乔西的虎与鱼</h5><div class="s">动漫 · 剧场版</div></div>
+      <div class="pcard"><div class="card"><img src="assets/poster-04.jpg" alt=""></div><h5>夏日大作战</h5><div class="s">动漫 · 电影</div></div>
+      <div class="pcard"><div class="card"><img src="assets/poster-07.jpg" alt=""></div><h5>紫罗兰永恒花园</h5><div class="s">动漫 · 剧集</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S4 · 详情页 ============ -->
+<section class="screen tablet scope-film" data-screen="detail">
+  <div class="noise"></div>
+  <div class="detail-bg"><img src="assets/backdrop-01.jpg" alt=""><div class="sc"></div></div>
+  <aside class="rail">
+    <div class="logo"><div class="mk"><svg viewBox="0 0 24 24"><path d="M12 6.4C10.4 5 8.2 4.4 4.6 4.4V18c3.6 0 5.8.6 7.4 2 1.6-1.4 3.8-2 7.4-2V4.4c-3.6 0-5.8.6-7.4 2z"/></svg></div><div class="nm">棱镜</div></div>
+    <nav class="nav">
+      <div class="it"><svg class="i"><use href="#i-home"/></svg><span>首页</span></div>
+      <div class="it on film"><svg class="i"><use href="#i-grid"/></svg><span>媒体库</span></div>
+      <div class="it"><svg class="i"><use href="#i-music"/></svg><span>音乐</span></div>
+      <div class="it"><svg class="i"><use href="#i-book"/></svg><span>书架</span></div>
+      <div class="it"><svg class="i"><use href="#i-search"/></svg><span>搜索</span></div>
+    </nav>
+    <div class="foot"><div class="who"><div class="av">张</div><div class="tx"><b>zhangwenkang</b>jellyfins</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="crumb">媒体库<span>/</span>动漫<span>/</span>AURA ～魔龙院光牙最后的战斗～</div>
+    <div class="d-grid">
+      <div class="d-poster">
+        <div class="core"><img src="assets/poster-03.jpg" alt=""></div>
+        <div class="acts">
+          <div class="btn filled"><svg class="i fill"><use href="#i-play"/></svg>播放</div>
+          <div class="btn outlined"><svg class="i"><use href="#i-heart"/></svg>加入收藏</div>
+          <div class="btn outlined"><svg class="i"><use href="#i-download"/></svg>下载到本机</div>
+        </div>
+        <div class="d-meta2">
+          <div class="r"><span class="k">文件</span><span class="v mono">1080p · HEVC · 4.2 GB</span></div>
+          <div class="r"><span class="k">添加时间</span><span class="v mono">2026-09-14</span></div>
+          <div class="r"><span class="k">播放次数</span><span class="v mono">3</span></div>
+        </div>
+      </div>
+      <div class="d-mid">
+        <span class="badge film">动漫 · 剧场版 · 2026</span>
+        <h1>魔龙院光牙<br>最后的战斗</h1>
+        <div class="latin">AURA — Maryuin Koga's Last Battle</div>
+        <div class="meta"><span class="badge">TV-14</span><span class="badge">1 小时 23 分钟</span><span class="badge">日语 5.1</span><span class="badge">简中 · 双语字幕</span></div>
+        <p class="desc">平凡的高中生活被一通来自旧友的电话打断。为了兑现少年时代的那个约定，两人重新踏上寻找「魔龙院」的旅程——一段关于告别、也关于重逢的故事。</p>
+        <div class="sec-head" style="margin-bottom:6px"><h2>剧集</h2><span class="more">共 12 集 · 按顺序播放</span></div>
+        <div class="eplist">
+          <div class="eprow cur"><span class="n">01</span><div class="t"><b>魔龙院的来信</b><span>正在播放 · 46:10 / 24:02</span></div><span class="dur">24:02</span></div>
+          <div class="eprow"><span class="n">02</span><div class="t"><b>夏日的回声</b><span>未播放</span></div><span class="dur">24:00</span></div>
+          <div class="eprow"><span class="n">03</span><div class="t"><b>光牙之约</b><span>未播放</span></div><span class="dur">23:58</span></div>
+          <div class="eprow"><span class="n">04</span><div class="t"><b>雨中的站台</b><span>未播放</span></div><span class="dur">24:01</span></div>
+        </div>
+      </div>
+      <div class="d-right">
+        <div class="card facts">
+          <h3>制作信息</h3>
+          <div class="r"><span class="k">导演</span><span class="v">岸 誠二</span></div>
+          <div class="r"><span class="k">编剧</span><span class="v">田中 仁</span></div>
+          <div class="r"><span class="k">主要声优</span><span class="v">島﨑信長 / 花澤香菜</span></div>
+          <div class="r"><span class="k">音轨</span><span class="v">日语 5.1 · 日语 2.0</span></div>
+          <div class="r"><span class="k">字幕</span><span class="v">简体中文 · 双语 · 英文</span></div>
+          <div class="r"><span class="k">分级</span><span class="v">TV-14</span></div>
+        </div>
+        <div class="card facts">
+          <h3>跨设备进度</h3>
+          <div class="r"><span class="k">Xiaomi Pad 5</span><span class="v mono">46:10 · 今天 21:04</span></div>
+          <div class="r"><span class="k">Redmi K60</span><span class="v mono">31:20 · 昨天</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S4 · 媒体库（新增屏） ============ -->
+<section class="screen tablet scope-film" data-screen="library">
+  <div class="noise"></div>
+  <aside class="rail">
+    <div class="logo"><div class="mk"><svg viewBox="0 0 24 24"><path d="M12 6.4C10.4 5 8.2 4.4 4.6 4.4V18c3.6 0 5.8.6 7.4 2 1.6-1.4 3.8-2 7.4-2V4.4c-3.6 0-5.8.6-7.4 2z"/></svg></div><div class="nm">棱镜</div></div>
+    <nav class="nav">
+      <div class="it"><svg class="i"><use href="#i-home"/></svg><span>首页</span></div>
+      <div class="it on film"><svg class="i"><use href="#i-grid"/></svg><span>媒体库</span></div>
+      <div class="it"><svg class="i"><use href="#i-music"/></svg><span>音乐</span></div>
+      <div class="it"><svg class="i"><use href="#i-book"/></svg><span>书架</span></div>
+      <div class="it"><svg class="i"><use href="#i-search"/></svg><span>搜索</span></div>
+    </nav>
+    <div class="sep"></div>
+    <nav class="nav"><div class="it"><span>下载与离线</span></div><div class="it"><span>设置</span></div></nav>
+    <div class="foot"><div class="who"><div class="av">张</div><div class="tx"><b>zhangwenkang</b>jellyfins</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="mhead">
+      <div>
+        <h1>媒体库</h1>
+        <div class="sub">3,218 个项目 · 影视域 · 上次扫描 20:40</div>
+      </div>
+      <div class="right-tools">
+        <div class="searchbox"><svg class="i" style="width:20px;height:20px"><use href="#i-search"/></svg>在媒体库中搜索</div>
+        <div class="ibtn"><svg class="i"><use href="#i-sort"/></svg></div>
+      </div>
+    </div>
+    <div class="lib-toolbar">
+      <div class="seg" style="width:560px">
+        <div class="on">影视</div><div>音乐</div><div>阅读</div>
+      </div>
+      <div class="chips" style="margin-top:0">
+        <div class="chip sel">全部</div>
+        <div class="chip">电影</div>
+        <div class="chip">剧集</div>
+        <div class="chip">动漫</div>
+        <div class="chip">4K</div>
+        <div class="chip">未观看</div>
+      </div>
+    </div>
+  </div>
+  <div class="lib-cols">
+    <div>
+      <div class="sec-head" style="margin-bottom:16px"><h2>继续观看</h2><span class="more">跨设备同步</span></div>
+      <div class="lib-continue">
+        <div class="card wcard" style="height:190px"><img src="assets/wide-03.jpg" alt=""><div class="sc"></div>
+          <div class="c"><h4>寂静之海</h4><div class="meta"><span>电影 · 剩 72 分钟</span><span class="mono">46:10</span></div><div class="prog thin"><i style="width:39%"></i></div></div></div>
+        <div class="card wcard" style="height:190px"><img src="assets/wide-01.jpg" alt=""><div class="sc"></div>
+          <div class="c"><h4>奇异太郎少年的妖怪绘日记</h4><div class="meta"><span>S1 · E2</span><span class="mono">02:40</span></div><div class="prog thin"><i style="width:12%"></i></div></div></div>
+        <div class="card wcard" style="height:190px"><img src="assets/wide-04.jpg" alt=""><div class="sc"></div>
+          <div class="c"><h4>夜之继承者</h4><div class="meta"><span>S2 · E7 · 剩 9 分钟</span><span class="mono">14:02</span></div><div class="prog thin"><i style="width:61%"></i></div></div></div>
+      </div>
+      <div class="sec-head"><h2>全部影视</h2><span class="more">按最近添加排序 · 1,204 部</span></div>
+      <div class="lib-grid">
+        <div class="pcard"><div class="card"><img src="assets/poster-01.jpg" alt="" style="height:300px"></div><h5>宝石幻想：光芒重现</h5><div class="s">剧集 · 12 集 · 4K</div></div>
+        <div class="pcard"><div class="card"><img src="assets/poster-05.jpg" alt="" style="height:300px"></div><h5>铃芽之旅</h5><div class="s">电影 · 122 分钟</div></div>
+        <div class="pcard"><div class="card"><img src="assets/poster-08.jpg" alt="" style="height:300px"></div><h5>孤独摇滚</h5><div class="s">剧集 · 12 集 · 1080p</div></div>
+        <div class="pcard"><div class="card"><img src="assets/poster-02.jpg" alt="" style="height:300px"></div><h5>乔西的虎与鱼</h5><div class="s">电影 · 98 分钟</div></div>
+      </div>
+    </div>
+    <div class="lib-side">
+      <div class="sec-head"><h2>最近添加</h2><span class="more">查看全部</span></div>
+      <div class="lr"><img src="assets/poster-03.jpg" alt=""><div class="b"><b>AURA ～魔龙院光牙最后的战斗～</b><span>动漫 · 剧场版 · 今天 20:40</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+      <div class="lr"><img src="assets/poster-04.jpg" alt=""><div class="b"><b>夏日大作战</b><span>动漫 · 电影 · 今天 20:38</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+      <div class="lr"><img src="assets/poster-06.jpg" alt=""><div class="b"><b>长夜将尽</b><span>书籍 · EPUB · 今天 19:12</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-book"/></svg></span></div>
+      <div class="lr"><img src="assets/poster-07.jpg" alt=""><div class="b"><b>紫罗兰永恒花园</b><span>动漫 · 剧集 · 昨天</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+      <div class="lr"><img src="assets/poster-02.jpg" alt=""><div class="b"><b>乔西的虎与鱼</b><span>动漫 · 电影 · 昨天</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+      <div class="lr" style="border-bottom:none"><img src="assets/poster-05.jpg" alt=""><div class="b"><b>铃芽之旅</b><span>动漫 · 电影 · 前天</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+      <div class="note tokenlist" style="margin-top:22px">同屏仅 1 个媒体色：<em>MediaFilm</em>；chip / 分段 / 列表当前行 / 播放图标全部为琥珀融入。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S4 · 音乐 · 正在播放 ============ -->
+<section class="screen tablet scope-music" data-screen="music">
+  <div class="noise"></div>
+  <aside class="rail">
+    <div class="logo"><div class="mk"><svg viewBox="0 0 24 24" style="stroke:var(--music)"><path d="M12 6.4C10.4 5 8.2 4.4 4.6 4.4V18c3.6 0 5.8.6 7.4 2 1.6-1.4 3.8-2 7.4-2V4.4c-3.6 0-5.8.6-7.4 2z"/></svg></div><div class="nm">棱镜</div></div>
+    <nav class="nav">
+      <div class="it"><svg class="i"><use href="#i-home"/></svg><span>首页</span></div>
+      <div class="it"><svg class="i"><use href="#i-grid"/></svg><span>媒体库</span></div>
+      <div class="it on music"><svg class="i"><use href="#i-music"/></svg><span>音乐</span></div>
+      <div class="it"><svg class="i"><use href="#i-book"/></svg><span>书架</span></div>
+      <div class="it"><svg class="i"><use href="#i-search"/></svg><span>搜索</span></div>
+    </nav>
+    <div class="foot"><div class="who"><div class="av">张</div><div class="tx"><b>zhangwenkang</b>jellyfins</div></div></div>
+  </aside>
+  <div class="mu-art"><div class="core"><img src="assets/poster-03.jpg" alt=""></div></div>
+  <div class="mu-vinyl"><i><svg class="i fill" style="width:14px;height:14px"><use href="#i-play"/></svg></i></div>
+  <div class="mu-meta">
+    <h1>aLIEz</h1>
+    <div class="ar">澤野弘之 · 《A/Z｜aLIEz》</div>
+    <div class="badges"><span class="badge music">FLAC · 直连</span><span class="badge">24bit / 48kHz</span><span class="badge">已离线</span></div>
+  </div>
+  <div class="mu-lyr">
+    <div class="langs">
+      <span class="chip sel">简体中文</span><span class="chip">原文</span><span class="chip">双语对照</span><span class="chip">日本語</span>
+    </div>
+    <div class="ly"><div class="o">決めつけばかり 自惚れを着た</div><div class="t">满是武断 披着自负的外衣</div></div>
+    <div class="ly on"><div class="o">I say cry, I say lie, I say lie the end</div><div class="t">我呼喊 我撒谎 我说谎到终焉</div></div>
+    <div class="ly"><div class="o">膝を抱えて 蹲るだけの</div><div class="t">只是抱膝蜷缩着</div></div>
+  </div>
+  <div class="mu-q">
+    <h3>播放队列</h3>
+    <div class="hint">单队列 · 可拖动排序 · 下一首播放</div>
+    <div class="qi cur"><span class="ix">01</span><img src="assets/poster-03.jpg" alt=""><div class="b"><b>aLIEz</b><span>澤野弘之 · 正在播放</span></div><span class="ix">▶</span></div>
+    <div class="qi"><span class="ix">02</span><img src="assets/poster-04.jpg" alt=""><div class="b"><b>Brave Shine</b><span>Aimer · 4:47</span></div><span class="ix">⠿</span></div>
+    <div class="qi"><span class="ix">03</span><img src="assets/poster-05.jpg" alt=""><div class="b"><b>爱的回归线</b><span>陈韵若 · 4:12</span></div><span class="ix">⠿</span></div>
+    <div class="qi"><span class="ix">04</span><img src="assets/poster-07.jpg" alt=""><div class="b"><b>ninelie</b><span>Aimer · 4:24</span></div><span class="ix">⠿</span></div>
+    <div class="qi"><span class="ix">05</span><img src="assets/poster-01.jpg" alt=""><div class="b"><b>SawanoHiroyuki[nZk]</b><span>专辑 · 12 首</span></div><span class="ix">＋</span></div>
+  </div>
+  <div class="mu-bar">
+    <div class="prog"><i></i><div class="kn"></div></div>
+    <div class="tt"><span>01:52</span><span>4:47</span></div>
+    <div class="ctl">
+      <div class="btn icon" style="border:1px solid var(--line);color:var(--text-2)">⤨</div>
+      <div class="btn icon" style="border:1px solid var(--line);color:var(--text-2)">◀◀</div>
+      <div class="pp"><svg class="i fill" style="width:26px;height:26px"><use href="#i-play"/></svg></div>
+      <div class="btn icon" style="border:1px solid var(--line);color:var(--text-2)">▶▶</div>
+      <div class="btn icon" style="border:1px solid var(--line);color:var(--text-2)">↻</div>
+      <div class="sp"></div>
+      <span class="badge">音量 62%</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S4 · 状态板 1：按钮 / Chip / 分段 ============ -->
+<section class="screen tablet scope-film" data-screen="board-buttons">
+  <div class="noise"></div>
+  <div class="board">
+    <h1>按钮 · Chip · 分段控件</h1>
+    <div class="sub">媒体色融入按钮：填充 / 描边 / 文本 / 图标 × default / hover / pressed / focused / disabled —— 全项目禁止"按钮 + 独立色块"</div>
+
+    <div class="board-grid" style="grid-template-columns:180px repeat(5,1fr);gap:14px">
+      <div class="rowlab"></div>
+      <div class="th">Default</div><div class="th">Hover（白 8%）</div><div class="th">Pressed</div><div class="th">Focused（2dp 外环）</div><div class="th">Disabled</div>
+
+      <div class="rowlab">Filled 填充</div>
+      <div class="statecell"><div class="btn filled">继续观看</div></div>
+      <div class="statecell"><div class="btn filled" style="box-shadow:inset 0 0 0 999px rgba(255,255,255,.08)">继续观看</div></div>
+      <div class="statecell"><div class="btn filled pressed">继续观看</div></div>
+      <div class="statecell"><div class="btn filled focused">继续观看</div></div>
+      <div class="statecell"><div class="btn disabled">继续观看</div></div>
+
+      <div class="rowlab">Outlined 描边</div>
+      <div class="statecell"><div class="btn outlined">加入收藏</div></div>
+      <div class="statecell"><div class="btn outlined" style="box-shadow:inset 0 0 0 999px rgba(255,255,255,.08)">加入收藏</div></div>
+      <div class="statecell"><div class="btn outlined pressed">加入收藏</div></div>
+      <div class="statecell"><div class="btn outlined focused">加入收藏</div></div>
+      <div class="statecell"><div class="btn outlined disabled">加入收藏</div></div>
+
+      <div class="rowlab">Text 文本</div>
+      <div class="statecell"><div class="btn text">全部剧集</div></div>
+      <div class="statecell"><div class="btn text" style="background:rgba(255,255,255,.08);border-radius:12px">全部剧集</div></div>
+      <div class="statecell"><div class="btn text pressed" style="border-radius:12px">全部剧集</div></div>
+      <div class="statecell"><div class="btn text focused" style="border-radius:12px">全部剧集</div></div>
+      <div class="statecell"><div class="btn text disabled">全部剧集</div></div>
+
+      <div class="rowlab">Icon 图标</div>
+      <div class="statecell"><div class="btn icon"><svg class="i"><use href="#i-play"/></svg></div></div>
+      <div class="statecell"><div class="btn icon" style="background:rgba(255,255,255,.08)"><svg class="i"><use href="#i-play"/></svg></div></div>
+      <div class="statecell"><div class="btn icon pressed"><svg class="i"><use href="#i-play"/></svg></div></div>
+      <div class="statecell"><div class="btn icon focused"><svg class="i"><use href="#i-play"/></svg></div></div>
+      <div class="statecell"><div class="btn icon disabled"><svg class="i"><use href="#i-play"/></svg></div></div>
+    </div>
+
+    <div class="board-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:22px">
+      <div class="bcell">
+        <div class="cap">chip 状态 · 无独立色点</div>
+        <div class="row">
+          <span class="chip">全部</span>
+          <span class="chip sel">电影</span>
+          <span class="chip" style="background:var(--film-cp);border-color:var(--film);color:var(--film-b)">Pressed</span>
+          <span class="chip" style="color:var(--text-3);border-color:var(--line)">Disabled</span>
+        </div>
+        <div class="note">选中态 = Media.Container 底 + Media.Bright 文字 + Media.Outline 描边。位置与尺寸不变，不出现任何色点 / 色块。</div>
+      </div>
+      <div class="bcell">
+        <div class="cap">分段控件 · 选中段媒体色</div>
+        <div class="seg" style="width:100%"><div class="on">影视</div><div>音乐</div><div>阅读</div></div>
+        <div class="note">44dp 高；容器 SurfaceContainerHigh + 1dp Outline；选中段 Media.Container + Media.Bright 600。</div>
+      </div>
+      <div class="bcell">
+        <div class="cap">徽标 · 描边 + 文字着色</div>
+        <div class="row">
+          <span class="badge film">影视 · 继续观看</span>
+          <span class="badge music">FLAC · 直连</span>
+          <span class="badge book">在读 · 42%</span>
+          <span class="badge"><svg class="i"><use href="#i-download"/></svg>已离线</span>
+        </div>
+        <div class="note">域徽标 = Media.Outline 描边 + Media.Bright 文字；状态徽标保持中性，不加彩色圆点。</div>
+      </div>
+    </div>
+
+    <div class="board-grid" style="grid-template-columns:repeat(3,1fr);margin-top:22px">
+      <div class="bcell" style="--media:var(--film);--media-b:var(--film-b);--media-d:var(--film-d);--media-c:var(--film-c);--media-cp:var(--film-cp);--media-o:var(--film-o);--media-on:var(--film-on)">
+        <div class="cap">影视域 · MediaFilm #E8A15C</div>
+        <div class="row"><span class="btn filled sm">播放</span><span class="btn outlined sm">收藏</span><span class="btn text sm">全部剧集</span></div>
+      </div>
+      <div class="bcell" style="--media:var(--music);--media-b:var(--music-b);--media-d:var(--music-d);--media-c:var(--music-c);--media-cp:var(--music-cp);--media-o:var(--music-o);--media-on:var(--music-on)">
+        <div class="cap">音乐域 · MediaMusic #3FC9A0</div>
+        <div class="row"><span class="btn filled sm">播放</span><span class="btn outlined sm">下一首</span><span class="btn text sm">加入队列</span></div>
+      </div>
+      <div class="bcell" style="--media:var(--book);--media-b:var(--book-b);--media-d:var(--book-d);--media-c:var(--book-c);--media-cp:var(--book-cp);--media-o:var(--book-o);--media-on:var(--book-on)">
+        <div class="cap">阅读域 · MediaBook #6FA8FF</div>
+        <div class="row"><span class="btn filled sm">继续阅读</span><span class="btn outlined sm">目录</span><span class="btn text sm">排版</span></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><b>Filled</b> = Media.Base / OnBase</span>
+      <span><b>Pressed</b> = Media.Dim 底</span>
+      <span><b>Focused</b> = 2dp 外环 Media 60% + 1dp 间隙</span>
+      <span><b>Disabled</b> = SurfaceContainerHigh + 38% 内容</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S4 · 状态板 2：卡片 ============ -->
+<section class="screen tablet scope-film" data-screen="board-cards">
+  <div class="noise"></div>
+  <div class="board">
+    <h1>卡片 · 海报 / 横版 / 列表行</h1>
+    <div class="sub">1dp 描边 + 顶部内高光 + 圆角 16dp + 无投影；媒体色只进入进度、当前行与选中描边</div>
+
+    <div class="board-grid" style="grid-template-columns:repeat(3,1fr);margin-top:22px;align-items:start">
+      <div class="bcell">
+        <div class="cap">海报卡 · 2:3</div>
+        <div style="display:flex;gap:22px">
+          <div style="width:220px">
+            <div class="card"><img src="assets/poster-03.jpg" style="width:100%;height:400px" alt=""></div>
+            <div style="font-size:15px;font-weight:500;margin-top:14px">Default · 1dp Outline</div>
+            <div style="font-size:13px;color:var(--text-3);margin-top:6px">动漫 · 剧场版</div>
+          </div>
+          <div style="width:220px">
+            <div class="card" style="border-color:var(--film-o)"><img src="assets/poster-04.jpg" style="width:100%;height:400px" alt=""></div>
+            <div style="font-size:15px;font-weight:500;margin-top:14px">Hover / Focus · 描边 Media.Outline</div>
+            <div style="font-size:13px;color:var(--text-3);margin-top:6px">不位移、不缩放</div>
+          </div>
+        </div>
+        <div class="note">无投影：层次 = 表面色差 + 1dp 描边 + inset 0 1px 0 rgba(255,255,255,.05)。</div>
+      </div>
+
+      <div class="bcell">
+        <div class="cap">横版卡 · 16:9 · 进度</div>
+        <div class="card wcard" style="height:200px"><img src="assets/wide-03.jpg" alt=""><div class="sc"></div>
+          <div class="c"><h4>寂静之海</h4><div class="meta"><span>电影 · 剩 72 分钟</span><span class="mono">46:10</span></div><div class="prog thin"><i style="width:39%"></i></div></div></div>
+        <div class="card wcard" style="height:200px;margin-top:22px"><img src="assets/wide-04.jpg" alt=""><div class="sc"></div>
+          <div class="c"><h4>夜之继承者</h4><div class="meta"><span>S2 · E7</span><span class="mono">14:02</span></div><div class="prog thin"><i style="width:61%"></i></div></div></div>
+        <div class="note">进度条 3dp、轨道白 16%、填充 Media.Base；角标为中性描边（4K / HDR）。</div>
+      </div>
+
+      <div class="bcell">
+        <div class="cap">列表行 · 88dp / 当前行 / 选中</div>
+        <div class="lr"><img src="assets/poster-03.jpg" alt=""><div class="b"><b>AURA ～魔龙院光牙最后的战斗～</b><span>Default · 1080p · HEVC</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+        <div class="lr" style="background:linear-gradient(90deg,var(--film-c),transparent);margin:0 -14px;padding-left:14px;padding-right:14px">
+          <img src="assets/poster-04.jpg" alt=""><div class="b"><b style="color:var(--film-b)">夏日大作战</b><span>正在播放 · 46:10 / 1:54:00</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+        <div class="lr"><img src="assets/poster-07.jpg" alt=""><div class="b"><b>紫罗兰永恒花园</b><span>已选中 · 下载 2 项</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-check"/></svg></span></div>
+        <div class="note">当前行 = Media.Container 横向渐变 + 标题 Media.Bright；选择态用图标表达，不用彩色圆点。</div>
+      </div>
+    </div>
+
+    <div class="board-grid" style="grid-template-columns:repeat(4,1fr);margin-top:22px">
+      <div class="bcell"><div class="cap">圆角刻度</div><div class="note" style="margin-top:0">28 对话框 / 22 面板 / 16 卡片 / 12 按钮 / 8 徽标。嵌套时内半径 = 外 − 包边。</div></div>
+      <div class="bcell"><div class="cap">描边</div><div class="note" style="margin-top:0">1dp #2C3542；弱分隔 1dp #232B36；选中描边 1dp Media.Outline（base 45%）。</div></div>
+      <div class="bcell"><div class="cap">顶部内高光</div><div class="note" style="margin-top:0">inset 0 1px 0 rgba(255,255,255,.05)，模拟"铝框内的玻璃板"。</div></div>
+      <div class="bcell"><div class="cap">无投影</div><div class="note" style="margin-top:0">全局 elevation 0dp；唯一例外是画面覆盖层的 blur 玻璃。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S4 · 状态板 3：列表 / 反馈 / 空状态 ============ -->
+<section class="screen tablet scope-film" data-screen="board-list">
+  <div class="noise"></div>
+  <div class="board">
+    <h1>列表 · 反馈 · 进度 · 空状态</h1>
+    <div class="sub">表格化信息、Toast、对话框、空状态与进度组件的统一规范（媒体色用于进度与主行动）</div>
+
+    <div class="board-grid" style="grid-template-columns:1.15fr 1fr 1fr;margin-top:22px;align-items:start">
+      <div class="bcell">
+        <div class="cap">列表 · 双行 / 表格信息 / 分组头</div>
+        <div class="th" style="margin-bottom:6px">继续观看 · 3</div>
+        <div class="lr"><img src="assets/poster-03.jpg" alt=""><div class="b"><b>AURA ～魔龙院光牙最后的战斗～</b><span>剩 37 分钟 · Pad 5</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+        <div class="lr" style="background:linear-gradient(90deg,var(--film-c),transparent);margin:0 -14px;padding-left:14px;padding-right:14px"><img src="assets/poster-05.jpg" alt=""><div class="b"><b style="color:var(--film-b)">铃芽之旅</b><span>46:10 / 2:02:00</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+        <div class="lr" style="border-bottom:none"><img src="assets/poster-08.jpg" alt=""><div class="b"><b>孤独摇滚</b><span>S1 E2 · 未播放</span></div><span class="act"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg></span></div>
+        <div class="d-meta2" style="margin-top:14px">
+          <div class="r"><span class="k">文件</span><span class="v mono">1080p · HEVC · 4.2 GB</span></div>
+          <div class="r"><span class="k">音频</span><span class="v mono">日语 5.1 · AAC 320k</span></div>
+        </div>
+        <div class="note">行高 88dp / 表格式 44dp；分隔 1dp #232B36；当前行只在"正在播放"时出现。</div>
+      </div>
+
+      <div class="bcell">
+        <div class="cap">进度 · 线性 / 环形 / 不确定</div>
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:10px">页面级 5dp</div>
+        <div class="prog big"><i style="width:41%"></i></div>
+        <div style="font-size:13px;color:var(--text-3);margin:20px 0 10px">卡片级 3dp</div>
+        <div class="prog thin"><i style="width:64%"></i></div>
+        <div style="display:flex;align-items:center;gap:26px;margin-top:24px">
+          <div style="width:44px;height:44px;border-radius:22px;border:3px solid var(--line);border-top-color:var(--film);display:grid;place-items:center" class="mono">62%</div>
+          <div style="flex:1">
+            <div class="prog big" style="background:rgba(255,255,255,.10)"><i style="width:40%;background:var(--film-d)"></i></div>
+            <div class="note" style="margin-top:10px">不确定态：填充段 40% 宽、1100ms linear 循环。</div>
+          </div>
+        </div>
+        <div class="note">进度组件只用当前域媒体色——它表达"进行中 + 属于哪个域"，不表达 success / error。</div>
+      </div>
+
+      <div class="bcell">
+        <div class="cap">空状态 · 对话框 · Toast</div>
+        <div style="border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center;background:rgba(255,255,255,.01)">
+          <div style="width:44px;height:44px;margin:0 auto 14px;color:var(--film-b)"><svg class="i" style="width:44px;height:44px"><use href="#i-grid"/></svg></div>
+          <div style="font-size:20px;font-weight:600">这个媒体库还没有内容</div>
+          <div style="font-size:14px;color:var(--text-2);margin:10px 0 18px">在服务器添加后点刷新，或切换其他媒体库。</div>
+          <div class="btn filled sm" style="display:inline-flex">刷新媒体库</div>
+        </div>
+        <div style="margin-top:20px;background:var(--panel-3);border:1px solid var(--line);border-radius:22px;padding:20px 22px">
+          <div style="font-size:18px;font-weight:600">从第 2 集开始播放？</div>
+          <div style="font-size:14px;color:var(--text-2);margin:10px 0 16px">当前进度位于第 1 集 46:10，将为你继续播放。</div>
+          <div style="display:flex;gap:10px;justify-content:flex-end"><div class="btn text sm">取消</div><div class="btn filled sm">继续播放</div></div>
+        </div>
+        <div style="margin-top:18px;background:var(--text);color:#14181F;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+          <svg class="i" style="width:16px;height:16px"><use href="#i-download"/></svg>
+          <span style="font-size:14px">已加入下载队列 · 4 项，可在下载页查看</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="board-grid" style="grid-template-columns:1.15fr 1fr;margin-top:22px;align-items:start">
+      <div class="bcell" style="--media:var(--music);--media-b:var(--music-b);--media-d:var(--music-d);--media-c:var(--music-c);--media-cp:var(--music-cp);--media-o:var(--music-o);--media-on:var(--music-on)">
+        <div class="cap">歌词组件 · 当前行媒体色（音乐域示例）</div>
+        <div class="ly" style="margin-bottom:16px;opacity:.4">
+          <div class="o" style="font-size:17px">決めつけばかり 自惚れを着た</div>
+          <div class="t" style="font-size:15px;color:var(--text-2)">满是武断 披着自负的外衣</div>
+        </div>
+        <div class="ly on" style="margin-bottom:0">
+          <div class="o" style="font-size:24px;font-weight:600;color:#fff">I say cry, I say lie, I say lie the end</div>
+          <div class="t" style="font-size:18px;color:var(--music-b)">我呼喊 我撒谎 我说谎到终焉</div>
+        </div>
+        <div class="note">当前行：原文 32sp/600 奶白 + 译文 24sp Media.Bright；非当前行 40% 不透明度；行距 34dp；当前行固定于可视区 38% 高度。</div>
+      </div>
+      <div class="bcell">
+        <div class="cap">阅读器排版面板 · 纸色主题 #A8843C</div>
+        <div style="background:#FBF6EC;border:1px solid rgba(60,52,40,.16);border-radius:22px;padding:24px 26px">
+          <div style="color:#332E25;font-size:18px;font-weight:600;margin-bottom:18px">排版</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <span style="color:#7A6E5C;font-size:14px">字号</span>
+            <span style="position:relative;width:220px;height:5px;border-radius:3px;background:rgba(60,52,40,.16);display:block">
+              <i style="position:absolute;left:0;top:0;bottom:0;width:56%;background:#A8843C;border-radius:3px;display:block"></i>
+              <i style="position:absolute;left:56%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:4px;background:#fff;display:block"></i>
+            </span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="color:#7A6E5C;font-size:14px">行距</span>
+            <span style="position:relative;width:220px;height:5px;border-radius:3px;background:rgba(60,52,40,.16);display:block">
+              <i style="position:absolute;left:0;top:0;bottom:0;width:72%;background:#A8843C;border-radius:3px;display:block"></i>
+              <i style="position:absolute;left:72%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:4px;background:#fff;display:block"></i>
+            </span>
+          </div>
+        </div>
+        <div class="note">深色 / OLED 主题用天青 Media.Book；纸色 / 护眼主题切换为纸页棕 #A8843C（C · Nocturne 皮肤规则）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const key = new URLSearchParams(location.search).get('s') || 'home';
+  document.querySelectorAll('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === key));
+</script>
+</body>
+</html>

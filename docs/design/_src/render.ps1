@@ -2,8 +2,10 @@
 # 用法（项目根目录）：
 #   pwsh docs/design/_src/render.ps1                 # 渲染全部
 #   pwsh docs/design/_src/render.ps1 -Only home,icon # 只渲染指定屏
+#   pwsh docs/design/_src/render.ps1 -Dir s4-revision # 只渲染指定方向
 param(
-    [string[]]$Only = @()
+    [string[]]$Only = @(),
+    [string[]]$Dir = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,10 +47,20 @@ $targets = @(
         'reader-paper' = @(2048, 1280)
         'phone'      = @(1240, 2560)
         'icon'       = @(1024, 1024)
+    } },
+    @{ dir = 's4-revision'; file = 'direction-s4.html'; screens = [ordered]@{
+        'home'          = @(2048, 1280)
+        'detail'        = @(2048, 1280)
+        'library'       = @(2048, 1280)
+        'music'         = @(2048, 1280)
+        'board-buttons' = @(2048, 1280)
+        'board-cards'   = @(2048, 1280)
+        'board-list'    = @(2048, 1280)
     } }
 )
 
 foreach ($t in $targets) {
+    if ($Dir.Count -gt 0 -and $Dir -notcontains $t.dir) { continue }
     $html = Join-Path $src $t.file
     if (-not (Test-Path $html)) { continue }
     $outDir = Join-Path $project "docs\design\$($t.dir)"
