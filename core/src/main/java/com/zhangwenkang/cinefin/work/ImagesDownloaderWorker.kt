@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import java.io.File
 import java.io.IOException
 import java.util.UUID

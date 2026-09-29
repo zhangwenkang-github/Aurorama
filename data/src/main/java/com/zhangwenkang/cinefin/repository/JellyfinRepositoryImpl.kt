@@ -36,16 +36,6 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DeviceOptionsDto
 import org.jellyfin.sdk.model.api.DeviceProfile
-import org.jellyfin.sdk.model.api.CodecProfile
-import org.jellyfin.sdk.model.api.CodecType
-import org.jellyfin.sdk.model.api.DlnaProfileType
-import org.jellyfin.sdk.model.api.EncodingContext
-import org.jellyfin.sdk.model.api.MediaStreamProtocol
-import org.jellyfin.sdk.model.api.MediaStreamType
-import org.jellyfin.sdk.model.api.ProfileCondition
-import org.jellyfin.sdk.model.api.ProfileConditionType
-import org.jellyfin.sdk.model.api.ProfileConditionValue
-import org.jellyfin.sdk.model.api.TranscodingProfile
 import org.jellyfin.sdk.model.api.GeneralCommandType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
@@ -565,18 +555,18 @@ class JellyfinRepositoryImpl(
     /**
      * 当前账号是否为管理员。
      *
-     * 需要联网查询，但控制台入口依赖它：服务器短暂不可达时不能把管理员的入口一起藏起来，
-     * 因此把结果按账号缓存——查询成功就刷新缓存，查询失败就用同一账号的上次结果。
+     * 需要联网查询，但控制台入口依赖它：服务器短暂不可达时不能把管理员的入口一起藏起来， 因此把结果按账号缓存——查询成功就刷新缓存，查询失败就用同一账号的上次结果。
      */
     override suspend fun isCurrentUserAdministrator(): Boolean =
         withContext(Dispatchers.IO) {
             val currentUserId = jellyfinApi.userId?.toString()
-            val cachedUserId = appPreferences.getValue(appPreferences.currentUserIsAdministratorUserId)
+            val cachedUserId =
+                appPreferences.getValue(appPreferences.currentUserIsAdministratorUserId)
             val cachedValue = appPreferences.getValue(appPreferences.currentUserIsAdministrator)
 
             runCatching {
-                    jellyfinApi.userApi.getCurrentUser().content.policy?.isAdministrator == true
-                }
+                jellyfinApi.userApi.getCurrentUser().content.policy?.isAdministrator == true
+            }
                 .getOrNull()
                 ?.let { isAdministrator ->
                     if (currentUserId != null && currentUserId != cachedUserId) {
@@ -592,8 +582,7 @@ class JellyfinRepositoryImpl(
                         )
                     }
                     isAdministrator
-                }
-                ?: (currentUserId != null && currentUserId == cachedUserId && cachedValue)
+                } ?: (currentUserId != null && currentUserId == cachedUserId && cachedValue)
         }
 
     override suspend fun getDownloads(): List<FindroidItem> =

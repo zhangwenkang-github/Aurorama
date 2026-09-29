@@ -5,9 +5,8 @@ import android.os.Build
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.language.LanguageMatcher
+import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.presentation.enums.DeviceType
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceAppLanguage
@@ -19,6 +18,7 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,8 +98,7 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     onUpdate = { value ->
                                                         // 首选语言置顶，其余沿用默认优先级
                                                         appPreferences.setValue(
-                                                            appPreferences
-                                                                .preferredAudioLanguages,
+                                                            appPreferences.preferredAudioLanguages,
                                                             LanguageMatcher.priorityToString(
                                                                 LanguageMatcher.buildPriority(
                                                                     value,
@@ -138,16 +137,13 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     nameStringResource =
                                                         R.string.settings_subtitle_mode,
                                                     iconDrawableId = R.drawable.ic_closed_caption,
-                                                    backendPreference =
-                                                        appPreferences.subtitleMode,
+                                                    backendPreference = appPreferences.subtitleMode,
                                                     options = R.array.subtitle_mode,
-                                                    optionValues =
-                                                        R.array.subtitle_mode_values,
+                                                    optionValues = R.array.subtitle_mode_values,
                                                 ),
                                                 PreferenceSwitch(
                                                     nameStringResource =
-                                                        R.string
-                                                            .settings_remember_track_selection,
+                                                        R.string.settings_remember_track_selection,
                                                     descriptionStringRes =
                                                         R.string
                                                             .settings_remember_track_selection_summary,
@@ -460,25 +456,20 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                         R.string.player_gestures_speed,
                                                     dependencies =
                                                         listOf(appPreferences.playerGestures),
-                                                    supportedDeviceTypes =
-                                                        listOf(DeviceType.PHONE),
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference =
                                                         appPreferences
                                                             .playerGesturesSpeedMultiplier,
-                                                    options =
-                                                        R.array.gesture_speed_multiplier,
+                                                    options = R.array.gesture_speed_multiplier,
                                                     optionValues =
-                                                        R.array
-                                                            .gesture_speed_multiplier_values,
+                                                        R.array.gesture_speed_multiplier_values,
                                                 ),
                                                 PreferenceSelect(
                                                     nameStringResource =
-                                                        R.string
-                                                            .player_gestures_seek_sensitivity,
+                                                        R.string.player_gestures_seek_sensitivity,
                                                     dependencies =
                                                         listOf(appPreferences.playerGestures),
-                                                    supportedDeviceTypes =
-                                                        listOf(DeviceType.PHONE),
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference =
                                                         appPreferences
                                                             .playerGesturesSeekSensitivity,
@@ -492,8 +483,7 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                             .player_gestures_vertical_sensitivity,
                                                     dependencies =
                                                         listOf(appPreferences.playerGestures),
-                                                    supportedDeviceTypes =
-                                                        listOf(DeviceType.PHONE),
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference =
                                                         appPreferences
                                                             .playerGesturesVerticalSensitivity,

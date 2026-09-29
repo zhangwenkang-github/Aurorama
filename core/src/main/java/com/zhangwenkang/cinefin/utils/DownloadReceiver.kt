@@ -4,13 +4,13 @@ import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import dagger.hilt.android.AndroidEntryPoint
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.toFindroidEpisode
 import com.zhangwenkang.cinefin.models.toFindroidMovie
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope

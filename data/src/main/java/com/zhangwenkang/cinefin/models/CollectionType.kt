@@ -19,10 +19,8 @@ enum class CollectionType(val type: String) {
         /**
          * 可以在 App 里浏览的库类型。
          *
-         * 这里刻意把所有「用户可见的媒体库」都列进来：除了原本的影视库，
-         * 音乐库、图书（小说/漫画）库、家庭视频库与播放列表库同样要能打开，
-         * 否则服务器上明明建好的库会在「媒体库」里凭空消失。
-         * LiveTv 不属于媒体库（是直播源视图），因此不在此列。
+         * 这里刻意把所有「用户可见的媒体库」都列进来：除了原本的影视库， 音乐库、图书（小说/漫画）库、家庭视频库与播放列表库同样要能打开，
+         * 否则服务器上明明建好的库会在「媒体库」里凭空消失。 LiveTv 不属于媒体库（是直播源视图），因此不在此列。
          */
         val supported =
             listOf(Movies, TvShows, BoxSets, Mixed, Folders, HomeVideos, Music, Books, Playlists)

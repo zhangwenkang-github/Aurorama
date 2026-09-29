@@ -2,8 +2,8 @@ package com.zhangwenkang.cinefin.setup.presentation.users
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel

@@ -1,10 +1,10 @@
 package com.zhangwenkang.cinefin.film.presentation.di
 
+import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import javax.inject.Singleton
 
 @Module

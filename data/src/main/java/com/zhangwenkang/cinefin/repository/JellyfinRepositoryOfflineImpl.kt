@@ -307,6 +307,11 @@ class JellyfinRepositoryOfflineImpl(
         return null
     }
 
+    override suspend fun isCurrentUserAdministrator(): Boolean {
+        // 离线模式不提供服务器控制台
+        return false
+    }
+
     override suspend fun getDownloads(): List<FindroidItem> =
         withContext(Dispatchers.IO) {
             val items = mutableListOf<FindroidItem>()

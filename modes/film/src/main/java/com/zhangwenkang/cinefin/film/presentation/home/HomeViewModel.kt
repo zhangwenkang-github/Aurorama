@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.film.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.CollectionType
@@ -12,6 +11,7 @@ import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.toView
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers

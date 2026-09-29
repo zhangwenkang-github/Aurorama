@@ -10,17 +10,13 @@ import kotlin.math.min
 /**
  * 播放页“氛围色”工具。
  *
- * 设计原则：只把影片海报的主色用于背景渐变（画面以外的区域与加载态），
- * 控件颜色保持应用统一的冰蓝，避免整屏变色导致视觉混乱。
+ * 设计原则：只把影片海报的主色用于背景渐变（画面以外的区域与加载态）， 控件颜色保持应用统一的冰蓝，避免整屏变色导致视觉混乱。
  */
 object AmbientColors {
     /** 取色时的采样尺寸（像素），越小越快，24x24 已足够稳定 */
     const val SAMPLE_SIZE = 24
 
-    /**
-     * 从海报中挑选最具代表性的颜色：偏好有色彩倾向、亮度适中的像素，
-     * 避免挑到纯黑边框或高光白。
-     */
+    /** 从海报中挑选最具代表性的颜色：偏好有色彩倾向、亮度适中的像素， 避免挑到纯黑边框或高光白。 */
     fun extract(bitmap: Bitmap): Int? {
         if (bitmap.width <= 0 || bitmap.height <= 0) return null
 
@@ -55,10 +51,7 @@ object AmbientColors {
         return bestColor
     }
 
-    /**
-     * 由氛围色生成深色渐变：顶部保留色调、向下逐渐收黑，
-     * 同时压低饱和度与亮度，保证不会喧宾夺主。
-     */
+    /** 由氛围色生成深色渐变：顶部保留色调、向下逐渐收黑， 同时压低饱和度与亮度，保证不会喧宾夺主。 */
     fun gradientFor(color: Int): GradientDrawable {
         val hsv = FloatArray(3)
         Color.colorToHSV(color, hsv)

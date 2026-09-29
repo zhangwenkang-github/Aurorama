@@ -1,16 +1,16 @@
 package com.zhangwenkang.cinefin.di
 
 import android.app.Application
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryImpl
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryOfflineImpl
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module

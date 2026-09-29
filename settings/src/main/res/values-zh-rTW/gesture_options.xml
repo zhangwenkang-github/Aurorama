@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="gesture_speed_multiplier">
+        <item>1.5×</item>
+        <item>2×</item>
+        <item>3×</item>
+    </string-array>
+    <string-array name="gesture_speed_multiplier_values">
+        <item>1.5</item>
+        <item>2.0</item>
+        <item>3.0</item>
+    </string-array>
+
+    <string-array name="gesture_sensitivity">
+        <item>保守</item>
+        <item>標準</item>
+        <item>靈敏</item>
+    </string-array>
+    <string-array name="gesture_sensitivity_values">
+        <item>low</item>
+        <item>standard</item>
+        <item>high</item>
+    </string-array>
+</resources>

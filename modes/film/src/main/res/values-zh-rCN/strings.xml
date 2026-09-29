@@ -4,5 +4,8 @@
     <string name="next_up">接下来</string>
     <string name="latest_library">最新 %1$s</string>
     <string name="recently_added">最近添加</string>
+    <string name="hero_play">播放</string>
+    <string name="hero_remaining_minutes">剩余 %1$d 分钟</string>
+    <string name="view_all">全部</string>
     <string name="search_placeholder">搜索电影和电视节目</string>
 </resources>

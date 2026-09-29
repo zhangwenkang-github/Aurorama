@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.film.presentation.downloads
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.zhangwenkang.cinefin.core.Constants
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.film.presentation.collection.CollectionState
@@ -11,6 +10,7 @@ import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

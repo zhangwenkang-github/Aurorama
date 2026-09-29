@@ -56,8 +56,7 @@ class PlayerGestureHelper(
     /**
      * 手势总闸：画中画等场景由 Activity 置为 true 临时关掉全部手势。
      *
-     * 注意不要再用 `playerView.useController` 当开关——控制层改成 Compose 之后
-     * 它永远是 false，会把手势全禁掉。
+     * 注意不要再用 `playerView.useController` 当开关——控制层改成 Compose 之后 它永远是 false，会把手势全禁掉。
      */
     var isSuspended: Boolean = false
 
@@ -305,11 +304,10 @@ class PlayerGestureHelper(
 
                             // 滑满整屏对应的时长随视频长度变化，并限制在合理区间
                             val fullSwipeSpanMs =
-                                (vidDuration * Constants.SEEK_FULL_SWIPE_DURATION_RATIO)
-                                    .coerceIn(
-                                        Constants.SEEK_FULL_SWIPE_MIN_MS,
-                                        Constants.SEEK_FULL_SWIPE_MAX_MS,
-                                    ) *
+                                (vidDuration * Constants.SEEK_FULL_SWIPE_DURATION_RATIO).coerceIn(
+                                    Constants.SEEK_FULL_SWIPE_MIN_MS,
+                                    Constants.SEEK_FULL_SWIPE_MAX_MS,
+                                ) *
                                     Constants.GestureSensitivity.seekMultiplier(
                                         appPreferences.getValue(
                                             appPreferences.playerGesturesSeekSensitivity
@@ -320,8 +318,7 @@ class PlayerGestureHelper(
                             val newPos = (currentPos + difference).coerceIn(0, vidDuration)
 
                             activity.binding.progressScrubberLayout.visibility = View.VISIBLE
-                            activity.binding.progressScrubberText.text =
-                                longToTimestamp(difference)
+                            activity.binding.progressScrubberText.text = longToTimestamp(difference)
                             activity.binding.progressScrubberTarget.text =
                                 "[${longToTimestamp(newPos, true)}]"
                             activity.binding.progressScrubberTarget.visibility = View.VISIBLE

@@ -116,6 +116,13 @@ interface JellyfinRepository {
 
     suspend fun getUserConfiguration(): UserConfiguration?
 
+    /**
+     * 当前登录账号是否为服务器管理员。
+     *
+     * 界面用它来决定是否显示「服务器控制台」这类只有管理员能用的入口； 服务器端仍会二次校验权限，这里只是不把无权限的入口摆在用户面前。
+     */
+    suspend fun isCurrentUserAdministrator(): Boolean
+
     suspend fun getDownloads(): List<FindroidItem>
 
     fun getUserId(): UUID

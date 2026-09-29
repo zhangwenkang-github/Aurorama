@@ -8,8 +8,7 @@ package com.zhangwenkang.cinefin.language
  * 2. 轨道标题（可能是“简体中文”“Chinese (Simplified)”“chs”这类自由文本）
  * 3. 外挂字幕文件名（`xxx.zh-Hans.ass`、`xxx.chs.srt`）
  *
- * 这里把三者统一归一化为 BCP-47 风格标签（zh-Hans / zh-Hant / zh / en / ja ...），
- * 再按用户定义的优先级列表打分，从而选出“用户最想看的那条字幕”。
+ * 这里把三者统一归一化为 BCP-47 风格标签（zh-Hans / zh-Hant / zh / en / ja ...）， 再按用户定义的优先级列表打分，从而选出“用户最想看的那条字幕”。
  */
 object LanguageMatcher {
     const val CHINESE_SIMPLIFIED = "zh-Hans"
@@ -44,10 +43,7 @@ object LanguageMatcher {
             "it",
         )
 
-    /**
-     * 关键字表：键为小写、已去除空格的线索，值为规范标签。
-     * 顺序敏感——更具体的关键字必须排在更宽泛的关键字之前（按长度倒序匹配）。
-     */
+    /** 关键字表：键为小写、已去除空格的线索，值为规范标签。 顺序敏感——更具体的关键字必须排在更宽泛的关键字之前（按长度倒序匹配）。 */
     private val KEYWORDS: List<Pair<String, String>> =
         listOf(
                 // 简体中文
@@ -170,10 +166,38 @@ object LanguageMatcher {
             "rus " to "ru",
         )
 
-    private val KNOWN_BASE_LANGUAGES = setOf(
-        "zh", "en", "ja", "ko", "fr", "de", "es", "pt", "ru", "it", "ar", "hi", "th", "vi",
-        "id", "tr", "nl", "pl", "sv", "da", "no", "fi", "cs", "el", "he", "uk", "ro", "bg", "hu",
-    )
+    private val KNOWN_BASE_LANGUAGES =
+        setOf(
+            "zh",
+            "en",
+            "ja",
+            "ko",
+            "fr",
+            "de",
+            "es",
+            "pt",
+            "ru",
+            "it",
+            "ar",
+            "hi",
+            "th",
+            "vi",
+            "id",
+            "tr",
+            "nl",
+            "pl",
+            "sv",
+            "da",
+            "no",
+            "fi",
+            "cs",
+            "el",
+            "he",
+            "uk",
+            "ro",
+            "bg",
+            "hu",
+        )
 
     /** 语言标签的中文显示名，用于设置页与轨道列表 */
     private val DISPLAY_NAMES =
@@ -196,21 +220,13 @@ object LanguageMatcher {
 
     /** 解析逗号分隔的优先级配置；为空或非法时回退到默认值 */
     fun parsePriority(raw: String?, default: List<String>): List<String> {
-        val parsed =
-            raw
-                ?.split(',')
-                ?.mapNotNull { normalize(it) }
-                ?.distinct()
-                .orEmpty()
+        val parsed = raw?.split(',')?.mapNotNull { normalize(it) }?.distinct().orEmpty()
         return parsed.ifEmpty { default }
     }
 
     fun priorityToString(priority: List<String>): String = priority.joinToString(",")
 
-    /**
-     * 由“首选语言”推导完整的优先级列表：首选置顶，其余保持默认顺序，
-     * 并剔除同语言族的重复项（例如首选繁体中文时不再保留简体中文之外的 zh）。
-     */
+    /** 由“首选语言”推导完整的优先级列表：首选置顶，其余保持默认顺序， 并剔除同语言族的重复项（例如首选繁体中文时不再保留简体中文之外的 zh）。 */
     fun buildPriority(rawPrimary: String?, default: List<String>): List<String> {
         val primary = normalize(rawPrimary) ?: return default
         val base = baseOf(primary)
@@ -220,9 +236,7 @@ object LanguageMatcher {
     /** 取语言基础码，例如 zh-Hans → zh、en-US → en */
     fun baseOf(tag: String): String = tag.substringBefore('-').lowercase()
 
-    /**
-     * 把任意语言线索归一化为规范标签；无法识别时返回 null。
-     */
+    /** 把任意语言线索归一化为规范标签；无法识别时返回 null。 */
     fun normalize(raw: String?): String? {
         if (raw.isNullOrBlank()) return null
         val compact = raw.trim().lowercase().replace('_', '-')
@@ -230,7 +244,10 @@ object LanguageMatcher {
 
         // 1. 关键字命中（含中文/英文描述、常见缩写）
         val flat = compact.replace(" ", "")
-        KEYWORDS.firstOrNull { flat.contains(it.first) }?.let { return it.second }
+        KEYWORDS.firstOrNull { flat.contains(it.first) }
+            ?.let {
+                return it.second
+            }
 
         // 2. BCP-47 结构：语言[-文字][-地区]
         val parts = compact.split('-').filter { it.isNotBlank() }
@@ -250,10 +267,7 @@ object LanguageMatcher {
     /** 依次尝试多个线索，返回第一个可识别的结果 */
     fun detect(vararg hints: String?): String? = hints.firstNotNullOfOrNull { normalize(it) }
 
-    /**
-     * 从外挂字幕文件名推断语言，例如：
-     * `Movie.2013.zh-Hans.ass` → zh-Hans，`动画.chs.srt` → zh-Hans
-     */
+    /** 从外挂字幕文件名推断语言，例如： `Movie.2013.zh-Hans.ass` → zh-Hans，`动画.chs.srt` → zh-Hans */
     fun fromFileName(fileName: String?): String? {
         if (fileName.isNullOrBlank()) return null
         val name = fileName.substringAfterLast('/').substringAfterLast('\\')
@@ -274,14 +288,10 @@ object LanguageMatcher {
         return !preferred.contains('-')
     }
 
-    /**
-     * 返回 [tag] 在优先级列表中的位置（0 最佳）；未命中返回 null。
-     */
+    /** 返回 [tag] 在优先级列表中的位置（0 最佳）；未命中返回 null。 */
     fun priorityIndex(tag: String?, priority: List<String>): Int? {
         if (tag.isNullOrBlank()) return null
-        priority.forEachIndexed { index, preferred ->
-            if (matches(tag, preferred)) return index
-        }
+        priority.forEachIndexed { index, preferred -> if (matches(tag, preferred)) return index }
         return null
     }
 }

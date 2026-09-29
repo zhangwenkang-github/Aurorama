@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -13,6 +11,8 @@ import com.zhangwenkang.cinefin.models.User
 import com.zhangwenkang.cinefin.models.toFindroidEpisode
 import com.zhangwenkang.cinefin.models.toFindroidMovie
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
 
 @HiltWorker

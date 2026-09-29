@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.setup.presentation.addserver
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.DiscoveredServer
 import com.zhangwenkang.cinefin.models.ExceptionUiText
@@ -10,6 +9,7 @@ import com.zhangwenkang.cinefin.models.ExceptionUiTexts
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
