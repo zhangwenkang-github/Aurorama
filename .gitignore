@@ -5,6 +5,10 @@ build/
 # Local configuration file (sdk path, etc)
 local.properties
 
+# Local credentials (never commit)
+.env.local
+.env.*.local
+
 # Log/OS Files
 *.log
 
