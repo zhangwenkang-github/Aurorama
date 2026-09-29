@@ -105,7 +105,5 @@ fun ErrorDialog(exception: Throwable, onDismissRequest: () -> Unit) {
 @Preview
 @Composable
 private fun ErrorDialogPreview() {
-    CinefinTheme {
-        ErrorDialog(exception = Exception("Error loading data"), onDismissRequest = {})
-    }
+    CinefinTheme { ErrorDialog(exception = Exception("Error loading data"), onDismissRequest = {}) }
 }

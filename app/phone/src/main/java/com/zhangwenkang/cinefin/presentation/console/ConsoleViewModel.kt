@@ -7,9 +7,9 @@ import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -31,10 +31,7 @@ data class ConsoleState(
         get() = baseUrl.trimEnd('/') + "/web/#/dashboard"
 }
 
-/**
- * 控制台使用服务器自带的 Web 客户端（与官方客户端同思路），
- * 因此需要读出当前服务器的地址与访问令牌用于自动登录。
- */
+/** 控制台使用服务器自带的 Web 客户端（与官方客户端同思路）， 因此需要读出当前服务器的地址与访问令牌用于自动登录。 */
 @HiltViewModel
 class ConsoleViewModel
 @Inject
@@ -71,16 +68,15 @@ constructor(
     private fun isTokenValid(
         baseUrl: String,
         token: String,
-    ): Boolean =
-        runCatching {
-                val request =
-                    Request.Builder()
-                        .url(baseUrl.trimEnd('/') + "/Users/Me")
-                        .header("X-Emby-Token", token)
-                        .build()
-                client.newCall(request).execute().use { it.isSuccessful }
-            }
-            .getOrDefault(false)
+    ): Boolean = runCatching {
+        val request =
+            Request.Builder()
+                .url(baseUrl.trimEnd('/') + "/Users/Me")
+                .header("X-Emby-Token", token)
+                .build()
+        client.newCall(request).execute().use { it.isSuccessful }
+    }
+        .getOrDefault(false)
 
     private val client =
         OkHttpClient.Builder()

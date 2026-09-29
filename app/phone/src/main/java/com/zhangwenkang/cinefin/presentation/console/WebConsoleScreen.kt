@@ -51,15 +51,13 @@ import org.json.JSONObject
 /**
  * 服务器控制台：直接加载服务器自带的 Web 客户端。
  *
- * 官方客户端对控制台、元数据管理、插件、日志等海量服务端功能也是这么处理的——
- * 与其把上百个设置页重写一遍，不如复用服务器端已有的 Web 控制台，
+ * 官方客户端对控制台、元数据管理、插件、日志等海量服务端功能也是这么处理的—— 与其把上百个设置页重写一遍，不如复用服务器端已有的 Web 控制台，
  * 再把当前登录态注入进去，用户打开即是已登录状态。
  *
  * 与 App 的融合做了三件事：
  * 1. 没有 App 自己的标题栏——控制台铺满整屏，返回交给系统回退手势/返回键；
  * 2. 登录态通过一个"同源空白种子页"写入 localStorage，不再闪现 manifest.json 的代码；
- * 3. 每次页面加载都注入影阁皮肤（墨底 + 朱砂 + 发丝线），
- *    与 App 内的设置页、抽屉是同一套语言，不会出现"两个应用"的割裂感。
+ * 3. 每次页面加载都注入影阁皮肤（墨底 + 朱砂 + 发丝线）， 与 App 内的设置页、抽屉是同一套语言，不会出现"两个应用"的割裂感。
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -75,16 +73,13 @@ fun WebConsoleScreen(
 
     // Web 客户端地址：控制台内部的所有跳转都发生在同一个 WebView 里
     val consoleUrl =
-        remember(state.baseUrl, initialPath) {
-            state.baseUrl.trimEnd('/') + "/web/#" + initialPath
-        }
+        remember(state.baseUrl, initialPath) { state.baseUrl.trimEnd('/') + "/web/#" + initialPath }
 
-    val skinCss =
-        remember {
-            context.resources.openRawResource(AppR.raw.web_console_skin).use {
-                it.bufferedReader().readText()
-            }
+    val skinCss = remember {
+        context.resources.openRawResource(AppR.raw.web_console_skin).use {
+            it.bufferedReader().readText()
         }
+    }
 
     var webView by remember { mutableStateOf<WebView?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -163,7 +158,8 @@ fun WebConsoleScreen(
                 onClick = { view.reload() },
                 colors =
                     IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                        containerColor =
+                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
                 modifier =
@@ -184,16 +180,15 @@ fun WebConsoleScreen(
     }
 }
 
-private fun String.toHost(): String =
-    runCatching { Uri.parse(this).host }.getOrNull().orEmpty()
+private fun String.toHost(): String = runCatching { Uri.parse(this).host }.getOrNull().orEmpty()
 
 /** 种子页地址：同源但不存在的路径，由 [ConsoleWebViewClient] 直接拦截返回空白页。 */
 private val ConsoleState.credentialsSeedUrl: String
     get() = baseUrl.trimEnd('/') + "/cinefin-seed"
 
 /**
- * 注入 Jellyfin Web 的登录凭据（localStorage 的 `jellyfin_credentials`，
- * 与服务器端 apiclient 使用的键保持一致），使控制台打开即为已登录状态。
+ * 注入 Jellyfin Web 的登录凭据（localStorage 的 `jellyfin_credentials`， 与服务器端 apiclient
+ * 使用的键保持一致），使控制台打开即为已登录状态。
  */
 private fun buildCredentialsScript(state: ConsoleState): String {
     val server =
@@ -243,8 +238,7 @@ private fun buildCredentialsScript(state: ConsoleState): String {
  * 每次页面加载都补一层影阁皮肤，重复注入时覆盖同一节点，不会叠加。
  *
  * 注意：Jellyfin 的主题样式（themes/<name>/theme.css）由前端在运行期后插到 <head> 末尾，
- * 如果在它之前落地，同优先级规则会被主题覆盖。所以这里除了提高选择器权重，
- * 还把皮肤节点始终保持在 <head> 的最后一个子节点上（MutationObserver 跟随）。
+ * 如果在它之前落地，同优先级规则会被主题覆盖。所以这里除了提高选择器权重， 还把皮肤节点始终保持在 <head> 的最后一个子节点上（MutationObserver 跟随）。
  */
 private fun buildSkinScript(css: String): String {
     val quoted = JSONObject.quote(css)
@@ -294,9 +288,7 @@ private class ConsoleWebViewClient(
     private var seedHandled = false
 
     /**
-     * 种子页不发真实请求：直接在本地生成一个同源的空白页面。
-     * 这样既能把凭据写进该源的 localStorage，又不会像以前那样把
-     * manifest.json 的原始代码显示在屏幕上。
+     * 种子页不发真实请求：直接在本地生成一个同源的空白页面。 这样既能把凭据写进该源的 localStorage，又不会像以前那样把 manifest.json 的原始代码显示在屏幕上。
      */
     override fun shouldInterceptRequest(
         view: WebView,

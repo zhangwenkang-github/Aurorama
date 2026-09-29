@@ -34,6 +34,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
+import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
 import com.zhangwenkang.cinefin.presentation.film.CollectionScreen
 import com.zhangwenkang.cinefin.presentation.film.DownloadsScreen
 import com.zhangwenkang.cinefin.presentation.film.EpisodeScreen
@@ -46,7 +47,6 @@ import com.zhangwenkang.cinefin.presentation.film.PersonScreen
 import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
 import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawer
-import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
 import com.zhangwenkang.cinefin.presentation.settings.AboutScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsFileEditScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsScreen
@@ -58,8 +58,8 @@ import com.zhangwenkang.cinefin.presentation.setup.users.UsersScreen
 import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import java.util.UUID
-import kotlinx.serialization.Serializable
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 @Serializable data object WelcomeRoute
 
@@ -82,8 +82,7 @@ import kotlinx.coroutines.launch
 /**
  * 服务器 Web 控制台。
  *
- * [path] 决定进后台的哪一页：`/dashboard` 是控制台，`/metadata` 是媒体资料管理器，
- * `/details?id=…` 用来把图书之类的条目交给服务器自带的阅读器。
+ * [path] 决定进后台的哪一页：`/dashboard` 是控制台，`/metadata` 是媒体资料管理器， `/details?id=…` 用来把图书之类的条目交给服务器自带的阅读器。
  */
 @Serializable data class ConsoleRoute(val path: String = "/dashboard")
 
@@ -169,8 +168,9 @@ fun NavigationRoot(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val showNavigation = currentRoute in navigationItemClassNames
-    val settingsRoute =
-        remember { SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings)) }
+    val settingsRoute = remember {
+        SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
+    }
 
     LaunchedEffect(showNavigation) {
         if (!showNavigation && drawerState.isOpen) {
@@ -317,7 +317,7 @@ fun NavigationRoot(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onItemClick = { item ->
                         navigateToItem(navController = navController, item = item)
-                    }
+                    },
                 )
             }
             composable<ConsoleRoute> { backStackEntry ->

@@ -1,27 +1,18 @@
 package com.zhangwenkang.cinefin.presentation.settings.components
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
 
+/** 开关项：整行可点，尾部就是开关本身。 */
 @Composable
 fun SettingsSwitchCard(
     preference: PreferenceSwitch,
@@ -29,37 +20,25 @@ fun SettingsSwitchCard(
     modifier: Modifier = Modifier,
 ) {
     SettingsBaseCard(preference = preference, onClick = onClick, modifier = modifier) {
-        Row(
-            modifier = Modifier.padding(MaterialTheme.spacings.medium),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (preference.iconDrawableId != null) {
-                Icon(
-                    painter = painterResource(preference.iconDrawableId!!),
-                    contentDescription = null,
+        SettingsRow(
+            title = stringResource(preference.nameStringResource),
+            description = preference.descriptionStringRes?.let { stringResource(it) },
+            iconRes = preference.iconDrawableId,
+            trailing = {
+                Switch(
+                    checked = preference.enabled && preference.value,
+                    onCheckedChange = { onClick() },
+                    enabled = preference.enabled,
+                    // 开关用温灰而不是朱砂：朱砂只留给"要播的内容"，
+                    // 一屏开关全红会把强调色的分量摊薄。
+                    colors =
+                        SwitchDefaults.colors(
+                            checkedTrackColor = MaterialTheme.colorScheme.secondary,
+                            checkedThumbColor = MaterialTheme.colorScheme.onSecondary,
+                        ),
                 )
-                Spacer(modifier = Modifier.width(MaterialTheme.spacings.default))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(preference.nameStringResource),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                preference.descriptionStringRes?.let {
-                    Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
-                    Text(
-                        text = stringResource(id = it),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(MaterialTheme.spacings.default))
-            Switch(
-                checked = preference.enabled && preference.value,
-                onCheckedChange = { onClick() },
-                enabled = preference.enabled,
-            )
-        }
+            },
+        )
     }
 }
 
@@ -73,22 +52,6 @@ private fun SettingsSwitchCardPreview() {
                     nameStringResource = SettingsR.string.settings_use_cache_title,
                     backendPreference = Preference("", true),
                     value = false,
-                ),
-            onClick = {},
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun SettingsSwitchCardDisabledPreview() {
-    CinefinTheme {
-        SettingsSwitchCard(
-            preference =
-                PreferenceSwitch(
-                    nameStringResource = SettingsR.string.settings_use_cache_title,
-                    backendPreference = Preference("", true),
-                    enabled = false,
                 ),
             onClick = {},
         )

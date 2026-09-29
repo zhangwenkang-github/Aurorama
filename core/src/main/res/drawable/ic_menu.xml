@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 影阁图标规范：24dp 网格、1.75dp 描边、圆角端点，只描边不填充。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -6,16 +8,16 @@
     <path
         android:pathData="M4,7 L20,7"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
+        android:strokeWidth="1.75"
         android:strokeLineCap="round" />
     <path
         android:pathData="M4,12 L20,12"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
+        android:strokeWidth="1.75"
         android:strokeLineCap="round" />
     <path
         android:pathData="M4,17 L20,17"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
+        android:strokeWidth="1.75"
         android:strokeLineCap="round" />
 </vector>

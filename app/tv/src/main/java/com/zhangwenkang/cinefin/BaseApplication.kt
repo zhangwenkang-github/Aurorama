@@ -11,8 +11,8 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
-import dagger.hilt.android.HiltAndroidApp
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
 import okio.Path.Companion.toOkioPath

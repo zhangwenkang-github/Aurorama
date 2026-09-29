@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.setup.addserver
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -46,7 +44,9 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.presentation.setup.components.DiscoveredServerItem
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
+import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerAction
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerEvent
@@ -99,22 +99,18 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
             verticalArrangement = Arrangement.Center,
             modifier =
                 Modifier.fillMaxHeight()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = MaterialTheme.spacings.large)
                     .widthIn(max = 480.dp)
                     .align(Alignment.Center)
                     .verticalScroll(scrollState),
         ) {
-            Image(
-                painter = painterResource(id = CoreR.drawable.ic_banner),
-                contentDescription = null,
-                modifier = Modifier.width(250.dp).align(Alignment.CenterHorizontally),
-            )
-            Spacer(modifier = Modifier.height(32.dp))
+            SetupBrandMark(markSize = 44.dp, subtitle = stringResource(CoreR.string.app_tagline))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
             Text(
                 text = stringResource(SetupR.string.add_server),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.medium))
             AnimatedVisibility(state.discoveredServers.isNotEmpty()) {
                 LazyRow {
                     items(state.discoveredServers) { discoveredServer ->

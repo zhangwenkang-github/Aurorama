@@ -8,23 +8,24 @@
     <!-- Base application theme. -->
     <style name="Theme.Cinefin" parent="Base.Theme.Cinefin" />
 
-    <!-- 固定深色：应用默认与唯一的外观基调为深灰蓝影院风 -->
+    <!-- 固定深色：应用默认与唯一的外观基调是墨底 + 朱砂。
+         基色一律取暗色方案，避免系统处于浅色时窗口底色从 Compose 内容下透出。 -->
     <style name="Base.Theme.Cinefin" parent="Theme.Material3.Dark.NoActionBar">
         <!-- Primary -->
-        <item name="colorPrimary">@color/primary_light</item>
-        <item name="colorOnPrimary">@android:color/white</item>
-        <item name="colorPrimaryContainer">@color/primary_container_light</item>
-        <item name="colorOnPrimaryContainer">@color/on_primary_container_light</item>
+        <item name="colorPrimary">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/on_primary_dark</item>
+        <item name="colorPrimaryContainer">@color/primary_container_dark</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary_container_dark</item>
 
         <!-- Secondary -->
-        <item name="colorSecondary">@color/secondary_light</item>
-        <item name="colorOnSecondary">@android:color/white</item>
-        <item name="colorSecondaryContainer">@color/secondary_container_light</item>
-        <item name="colorOnSecondaryContainer">@color/on_secondary_container_light</item>
+        <item name="colorSecondary">@color/secondary_dark</item>
+        <item name="colorOnSecondary">@color/on_secondary_dark</item>
+        <item name="colorSecondaryContainer">@color/secondary_container_dark</item>
+        <item name="colorOnSecondaryContainer">@color/on_secondary_container_dark</item>
 
         <!-- Surface -->
-        <item name="android:colorBackground">@color/neutral_50</item>
-        <item name="colorSurface">@color/neutral_100</item>
+        <item name="android:colorBackground">@color/neutral_1000</item>
+        <item name="colorSurface">@color/neutral_950</item>
         <item name="colorSurfaceContainer">?attr/colorSurface</item>
         <item name="colorSurfaceContainerLow">?attr/colorSurface</item>
         <item name="colorSurfaceContainerHigh">?attr/colorSurface</item>

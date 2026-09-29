@@ -112,7 +112,9 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
                 leadingIcon = {
                     Icon(
                         painter =
-                            painterResource(id = com.zhangwenkang.cinefin.core.R.drawable.ic_server),
+                            painterResource(
+                                id = com.zhangwenkang.cinefin.core.R.drawable.ic_server
+                            ),
                         contentDescription = null,
                     )
                 },

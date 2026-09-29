@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
@@ -60,6 +61,7 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun PlayerScreen(
     itemId: UUID,
@@ -177,6 +179,17 @@ fun PlayerScreen(
                 PlayerView(context).also { playerView ->
                     playerView.player = viewModel.player
                     playerView.useController = false
+                    // 字幕：白字 + 黑色描边，去掉 media3 默认的黑色底框
+                    playerView.subtitleView?.setStyle(
+                        CaptionStyleCompat(
+                            /* foregroundColor = */ android.graphics.Color.WHITE,
+                            /* backgroundColor = */ android.graphics.Color.TRANSPARENT,
+                            /* windowColor = */ android.graphics.Color.TRANSPARENT,
+                            /* edgeType = */ CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                            /* edgeColor = */ android.graphics.Color.BLACK,
+                            /* typeface = */ null,
+                        )
+                    )
                     viewModel.initializePlayer(
                         itemId = itemId,
                         itemKind = itemKind,

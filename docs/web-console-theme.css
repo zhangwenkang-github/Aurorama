@@ -1,0 +1,254 @@
+/* =========================================================================
+   影阁 · Jellyfin Web 皮肤
+   为 App 内「服务器控制台」与网页端统一视觉：墨底、宣纸白、朱砂印。
+   只覆盖外观（颜色/圆角/线条/阴影），不触碰任何数据与功能。
+   ========================================================================= */
+
+/* ---------- 1. 主题变量：MUI 的 CSS 变量（--jf-*） ---------- */
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+    /* 墨：背景与表面 */
+    --jf-palette-background-default: #0b0c0e !important;
+    --jf-palette-background-paper: #131518 !important;
+    --jf-palette-AppBar-defaultBg: #0f1114 !important;
+
+    /* 朱砂：唯一的强调色（按钮、选中、重点） */
+    --jf-palette-primary-main: #d2553c !important;
+    --jf-palette-primary-light: #e8705f !important;
+    --jf-palette-primary-dark: #9c3623 !important;
+    --jf-palette-primary-contrastText: #fff7f4 !important;
+
+    /* 温灰：次级操作 */
+    --jf-palette-secondary-main: #b4afa6 !important;
+    --jf-palette-secondary-contrastText: #1e1f21 !important;
+
+    /* 文本 */
+    --jf-palette-text-primary: #f1ede6 !important;
+    --jf-palette-text-secondary: #a8a49c !important;
+    --jf-palette-text-disabled: #6b6f74 !important;
+
+    /* 线与交互态 */
+    --jf-palette-divider: #24282c !important;
+    --jf-palette-action-active: #f1ede6 !important;
+    --jf-palette-action-hover: rgba(241, 237, 230, 0.06) !important;
+    --jf-palette-action-selected: rgba(210, 85, 60, 0.12) !important;
+    --jf-palette-action-disabled: #6b6f74 !important;
+    --jf-palette-action-disabledBackground: rgba(241, 237, 230, 0.08) !important;
+
+    /* 形状与字体：与 App 保持同一套节奏 */
+    --jf-shape-borderRadius: 12px !important;
+    --jf-typography-fontFamily: -apple-system, "Noto Sans SC", "PingFang SC",
+        "Microsoft YaHei", "Noto Sans", sans-serif !important;
+}
+
+/* ---------- 2. 底色与滚动条 ---------- */
+html.preload,
+body,
+#reactRoot {
+    background-color: #0b0c0e !important;
+    color: #f1ede6 !important;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: #24282c;
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #2e3237;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ---------- 3. 顶栏与侧栏：墨面 + 发丝线，去掉阴影与渐变 ---------- */
+.MuiAppBar-root,
+.skinHeader {
+    background-color: #0f1114 !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-bottom: 1px solid #24282c !important;
+}
+
+.MuiDrawer-paper,
+.mainDrawer,
+.navDrawer {
+    background-color: #0f1114 !important;
+    background-image: none !important;
+    border-right: 1px solid #24282c !important;
+    box-shadow: none !important;
+}
+
+/* 侧栏选中项：左侧一条朱砂竖线，其余保持安静 */
+.MuiListItemButton-root {
+    border-radius: 8px !important;
+}
+.MuiListItemButton-root.Mui-selected {
+    background-color: rgba(210, 85, 60, 0.1) !important;
+    box-shadow: inset 3px 0 0 0 #d2553c;
+}
+.MuiListItemButton-root.Mui-selected .MuiListItemText-primary,
+.MuiListItemButton-root.Mui-selected .MuiListItemIcon-root,
+.MuiListItemButton-root.Mui-selected .MuiSvgIcon-root {
+    color: #d2553c !important;
+}
+.MuiListItemButton-root:hover {
+    background-color: rgba(241, 237, 230, 0.06) !important;
+}
+
+/* ---------- 4. 面与卡片：只用明度差与发丝线，不用阴影 ---------- */
+.MuiPaper-root {
+    background-image: none !important;
+}
+.MuiCard-root,
+.paperList,
+.cardBox,
+.visualCardBox {
+    background-color: #131518 !important;
+    border: 1px solid #24282c !important;
+    box-shadow: none !important;
+}
+.MuiDivider-root {
+    border-color: #24282c !important;
+}
+.MuiAccordion-root {
+    background-color: #131518 !important;
+    border: 1px solid #24282c !important;
+    box-shadow: none !important;
+}
+
+/* ---------- 5. 按钮：主操作朱砂胶囊，其余描边 ---------- */
+.MuiButton-root,
+.emby-button,
+.raised,
+.fab {
+    border-radius: 999px !important;
+    text-transform: none !important;
+    box-shadow: none !important;
+}
+.MuiButton-containedPrimary,
+.raised.button-submit,
+.button-submit {
+    background-color: #d2553c !important;
+    color: #fff7f4 !important;
+}
+.MuiButton-containedPrimary:hover,
+.button-submit:hover {
+    background-color: #e8705f !important;
+}
+.MuiButton-outlined,
+.MuiButton-outlinedPrimary {
+    border-color: #24282c !important;
+    color: #f1ede6 !important;
+}
+.MuiButton-textPrimary,
+.MuiButton-text {
+    color: #d2553c !important;
+}
+.MuiIconButton-root {
+    color: #a8a49c !important;
+}
+.MuiIconButton-root:hover {
+    color: #f1ede6 !important;
+    background-color: rgba(241, 237, 230, 0.06) !important;
+}
+
+/* ---------- 6. 表单控件 ---------- */
+.MuiOutlinedInput-root,
+.MuiFilledInput-root,
+.MuiInputBase-root,
+input,
+textarea,
+select {
+    background-color: #131518 !important;
+    border-radius: 10px !important;
+    color: #f1ede6 !important;
+}
+.MuiOutlinedInput-notchedOutline,
+.MuiInputBase-root fieldset {
+    border-color: #24282c !important;
+}
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+.MuiInputBase-root.Mui-focused fieldset {
+    border-color: #d2553c !important;
+}
+.MuiInputLabel-root,
+.MuiFormLabel-root {
+    color: #a8a49c !important;
+}
+.MuiFormHelperText-root {
+    color: #a8a49c !important;
+}
+
+/* ---------- 7. 表格（控制台里最常用） ---------- */
+.MuiTableCell-root {
+    border-bottom: 1px solid #24282c !important;
+    color: #f1ede6 !important;
+}
+.MuiTableHead-root .MuiTableCell-root {
+    color: #a8a49c !important;
+    border-bottom: 1px solid #2e3237 !important;
+}
+.MuiTableRow-root:hover {
+    background-color: rgba(241, 237, 230, 0.04) !important;
+}
+
+/* ---------- 8. 徽标、开关、进度、标签页 ---------- */
+.MuiChip-root,
+.chip {
+    background-color: #17191d !important;
+    border: 1px solid #24282c !important;
+    color: #f1ede6 !important;
+}
+.MuiSwitch-switchBase.Mui-checked {
+    color: #b4afa6 !important;
+}
+.MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+    background-color: #b4afa6 !important;
+}
+.MuiLinearProgress-bar,
+.MuiCircularProgress-root {
+    color: #d2553c !important;
+    background-color: #d2553c !important;
+}
+.MuiTabs-indicator {
+    background-color: #d2553c !important;
+}
+.MuiTab-root.Mui-selected {
+    color: #d2553c !important;
+}
+
+/* ---------- 9. 登录页（令牌失效时会看到） ---------- */
+#loginPage,
+.loginPage {
+    background-color: #0b0c0e !important;
+    background-image: none !important;
+}
+#loginPage .card,
+.loginPage .card {
+    background-color: #131518 !important;
+    border: 1px solid #24282c !important;
+    box-shadow: none !important;
+}
+
+a {
+    color: #d2553c;
+}
+
+/* ---------- 10. 详情页：让海报与文字保持 App 的排版节奏 ---------- */
+.detailPagePrimaryContainer,
+.itemBackdrop {
+    background-image: none !important;
+}
+.itemBackdrop::after {
+    background: linear-gradient(
+        to bottom,
+        rgba(11, 12, 14, 0.2) 0%,
+        rgba(11, 12, 14, 0.85) 60%,
+        #0b0c0e 100%
+    ) !important;
+}

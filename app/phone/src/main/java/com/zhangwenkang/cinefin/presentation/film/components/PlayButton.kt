@@ -33,7 +33,12 @@ fun PlayButton(
             mutableLongStateOf((item.runtimeTicks - item.playbackPositionTicks) / 600000000)
         }
 
-    Button(onClick = onClick, modifier = modifier, enabled = enabled) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
         Icon(painter = painterResource(CoreR.drawable.ic_play), contentDescription = null)
         Spacer(modifier = Modifier.width(MaterialTheme.spacings.small))
         Text(

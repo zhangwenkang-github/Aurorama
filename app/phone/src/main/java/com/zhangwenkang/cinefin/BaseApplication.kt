@@ -21,10 +21,10 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.google.android.material.color.DynamicColors
-import dagger.hilt.android.HiltAndroidApp
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
 import com.zhangwenkang.cinefin.work.SyncWorker
+import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
 import okio.Path.Companion.toOkioPath

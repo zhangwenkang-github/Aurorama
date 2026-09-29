@@ -3,7 +3,6 @@ package com.zhangwenkang.cinefin.presentation.film.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -20,11 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,24 +45,23 @@ import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.Motion
 import com.zhangwenkang.cinefin.presentation.theme.spacings
-import kotlinx.coroutines.delay
 
-/** 横版海报卡的宽度：随屏幕尺寸自适应，平板更大、手机更紧凑。 */
+/** 横版卡宽度：随屏幕尺寸自适应，平板更大、手机更紧凑。 */
 @Composable
 fun rememberLandscapeCardWidth(): Dp {
     val screenWidth = LocalConfiguration.current.screenWidthDp
     return when {
-        screenWidth >= 1400 -> 300.dp
-        screenWidth >= 1000 -> 272.dp
-        screenWidth >= 700 -> 232.dp
-        else -> 196.dp
+        screenWidth >= 1400 -> 296.dp
+        screenWidth >= 1000 -> 264.dp
+        screenWidth >= 700 -> 224.dp
+        else -> 188.dp
     }
 }
 
 /**
- * Netflix 风格的横版内容卡：16:9 剧照 + 底部渐变字幕层 + 暖金进度条。
+ * 走廊里的横版卡：16:9 剧照 + 底部墨色渐变 + 片名。
  *
- * 交互细节：按下时轻微缩放、入场时淡入上浮并按 [index] 错开，形成成排出现的节奏感。
+ * 只有按下时轻微内缩这一种反馈——滚动中的成排卡片不再做错峰入场， 那会让整页看起来像在"表演"而不是在陈列。
  */
 @Composable
 fun LandscapeItemCard(
@@ -78,50 +73,26 @@ fun LandscapeItemCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val pressScale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = Motion.durationFast, easing = Motion.standard),
-        label = "cardPressScale",
-    )
+    val pressScale by
+        animateFloatAsState(
+            targetValue = if (pressed) 0.97f else 1f,
+            animationSpec = tween(durationMillis = Motion.durationFast, easing = Motion.standard),
+            label = "cardPressScale",
+        )
 
-    var appeared by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay((index.coerceAtMost(6) * Motion.staggerStep).toLong())
-        appeared = true
-    }
-    val appearProgress by animateFloatAsState(
-        targetValue = if (appeared) 1f else 0f,
-        animationSpec =
-            tween(durationMillis = Motion.durationSlow, easing = Motion.emphasizedDecelerate),
-        label = "cardAppear",
-    )
-
-    val resumeFraction =
-        if (item.runtimeTicks > 0) {
-            (item.playbackPositionTicks.toFloat() / item.runtimeTicks.toFloat())
-                .coerceIn(0f, 1f)
-        } else {
-            0f
-        }
+    val resumeFraction = item.resumeFraction()
 
     Box(
         modifier =
             modifier
                 .width(width)
                 .graphicsLayer {
-                    alpha = appearProgress
-                    translationY = (1f - appearProgress) * 36f
                     scaleX = pressScale
                     scaleY = pressScale
                 }
                 .aspectRatio(16f / 9f)
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    shape = MaterialTheme.shapes.medium,
-                )
                 .clickable(interactionSource = interactionSource, indication = null) {
                     onClick(item)
                 }
@@ -135,15 +106,15 @@ fun LandscapeItemCard(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // 底部渐变，保证标题在任意剧照上都清晰可读
+        // 底部渐变：保证片名在任意剧照上都清晰可读
         Box(
             modifier =
                 Modifier.fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            0.35f to Color.Transparent,
-                            0.72f to Color.Black.copy(alpha = 0.55f),
-                            1f to Color.Black.copy(alpha = 0.88f),
+                            0.42f to Color.Transparent,
+                            0.78f to Color.Black.copy(alpha = 0.5f),
+                            1f to Color.Black.copy(alpha = 0.86f),
                         )
                     )
         )
@@ -179,7 +150,7 @@ fun LandscapeItemCard(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.72f),
+                    color = Color.White.copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -191,14 +162,14 @@ fun LandscapeItemCard(
                 modifier =
                     Modifier.align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .height(3.dp)
-                        .background(Color.White.copy(alpha = 0.18f))
+                        .height(2.dp)
+                        .background(Color.White.copy(alpha = 0.16f))
             ) {
                 Box(
                     modifier =
                         Modifier.fillMaxWidth(resumeFraction)
-                            .height(3.dp)
-                            .background(MaterialTheme.colorScheme.tertiary)
+                            .height(2.dp)
+                            .background(MaterialTheme.colorScheme.primary)
                 )
             }
         }

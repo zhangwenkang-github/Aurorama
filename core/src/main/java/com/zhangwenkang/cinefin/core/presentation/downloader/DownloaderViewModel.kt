@@ -5,11 +5,11 @@ import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.isDownloading
 import com.zhangwenkang.cinefin.utils.Downloader
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.channels.Channel

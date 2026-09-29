@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.presentation.navigation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,12 +39,9 @@ import com.zhangwenkang.cinefin.presentation.theme.spacings
 /**
  * 主导航抽屉：品牌 → 浏览 → 系统 → 当前账号。
  *
- * 视觉上刻意"安静"：没有卡片、没有图标底色，只有发丝线与一处朱砂——
- * 选中的那一项。信息层级靠字号与明度差建立，服务器与账号收在抽屉底部，
- * 首页因此可以把整屏留给海报。
+ * 视觉上刻意"安静"：没有卡片、没有图标底色，只有发丝线与一处朱砂—— 选中的那一项。信息层级靠字号与明度差建立，服务器与账号收在抽屉底部， 首页因此可以把整屏留给海报。
  *
- * 「服务器控制台」是管理员专属入口：普通账号打开也只会看到空白与无权限提示，
- * 因此这里直接按账号权限决定是否显示。
+ * 「服务器控制台」是管理员专属入口：普通账号打开也只会看到空白与无权限提示， 因此这里直接按账号权限决定是否显示。
  */
 @Composable
 fun CinefinDrawer(
@@ -74,7 +70,9 @@ fun CinefinDrawer(
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.width(304.dp),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.spacings.medium)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.spacings.medium)
+        ) {
             Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
 
             // 品牌与账号：一行标识，一行身份
@@ -214,10 +212,7 @@ fun CinefinDrawer(
     }
 }
 
-/**
- * 抽屉里的一行导航：左侧是选中时出现的朱砂竖线，右侧是图标与文字。
- * 未选中项不画任何底色，让抽屉保持一片安静的墨色。
- */
+/** 抽屉里的一行导航：左侧是选中时出现的朱砂竖线，右侧是图标与文字。 未选中项不画任何底色，让抽屉保持一片安静的墨色。 */
 @Composable
 private fun DrawerNavItem(
     titleRes: Int,
@@ -242,8 +237,7 @@ private fun DrawerNavItemRaw(
     onClick: () -> Unit,
 ) {
     val accent = MaterialTheme.colorScheme.primary
-    val contentColor =
-        if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -251,7 +245,7 @@ private fun DrawerNavItemRaw(
             Modifier.fillMaxWidth()
                 .height(48.dp)
                 .clip(MaterialTheme.shapes.small)
-                .clickable(onClick = onClick)
+                .clickable(onClick = onClick),
     ) {
         Box(
             modifier =

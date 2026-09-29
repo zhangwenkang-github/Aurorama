@@ -1,13 +1,11 @@
 package com.zhangwenkang.cinefin.presentation.setup.servers
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,7 +40,9 @@ import com.zhangwenkang.cinefin.models.ServerWithAddresses
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerBottomSheet
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerItem
+import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersAction
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersEvent
@@ -102,32 +102,29 @@ private fun ServersScreenLayout(
     RootLayout {
         Column(
             modifier =
-                Modifier.padding(horizontal = 24.dp)
+                Modifier.padding(horizontal = MaterialTheme.spacings.large)
                     .widthIn(max = 480.dp)
                     .fillMaxWidth()
                     .align(Alignment.Center)
         ) {
-            Spacer(modifier = Modifier.weight(0.2f))
-            Image(
-                painter = painterResource(id = CoreR.drawable.ic_banner),
-                contentDescription = null,
-                modifier = Modifier.width(250.dp).align(Alignment.CenterHorizontally),
-            )
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.weight(0.15f))
+            SetupBrandMark(markSize = 44.dp, subtitle = stringResource(CoreR.string.app_tagline))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
             Text(
                 text = stringResource(SetupR.string.servers),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
             if (state.servers.isEmpty()) {
                 Text(
                     text = stringResource(SetupR.string.servers_no_servers),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.weight(1f))
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 ) {
                     items(state.servers) { server ->
@@ -163,6 +160,8 @@ private fun ServersScreenLayout(
             icon = { Icon(painterResource(CoreR.drawable.ic_plus), contentDescription = null) },
             text = { Text(text = stringResource(SetupR.string.servers_btn_add_server)) },
             modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
         )
     }
 

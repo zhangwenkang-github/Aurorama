@@ -1,32 +1,21 @@
 package com.zhangwenkang.cinefin.presentation.settings.components
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
 
+/** 单选项：当前值直接写在标题右侧——设置列表最常被扫读的就是这一列， 放在尾部比藏在副标题里更容易比较。 */
 @Composable
 fun SettingsSelectCard(
     preference: PreferenceSelect,
@@ -58,29 +47,13 @@ fun SettingsSelectCard(
         onClick = { showDialog = true },
         modifier = modifier,
     ) {
-        Row(
-            modifier = Modifier.padding(MaterialTheme.spacings.medium),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (preference.iconDrawableId != null) {
-                Icon(
-                    painter = painterResource(preference.iconDrawableId!!),
-                    contentDescription = null,
-                )
-                Spacer(modifier = Modifier.width(MaterialTheme.spacings.default))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(preference.nameStringResource),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
-                Text(
-                    text = optionsMap.getOrDefault(preference.value, notSetString),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
+        SettingsRow(
+            title = stringResource(preference.nameStringResource),
+            description = preference.descriptionStringRes?.let { stringResource(it) },
+            iconRes = preference.iconDrawableId,
+            value = optionsMap[preference.value] ?: notSetString,
+            showChevron = true,
+        )
     }
 
     if (showDialog) {

@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary -->
-    <color name="primary_light">#2A5C86</color>
-    <color name="primary_container_light">#d3e7fa</color>
-    <color name="on_primary_container_light">#001c33</color>
+    <!-- Primary：朱砂印，唯一强调色 -->
+    <color name="primary_light">#9c3623</color>
+    <color name="primary_container_light">#ffdad2</color>
+    <color name="on_primary_container_light">#3b0a03</color>
 
-    <color name="primary_dark">#8fc2f0</color>
-    <color name="on_primary_dark">#08243c</color>
-    <color name="primary_container_dark">#1b3a57</color>
-    <color name="on_primary_container_dark">#d3e7fa</color>
+    <color name="primary_dark">#d2553c</color>
+    <color name="on_primary_dark">#2a0a03</color>
+    <color name="primary_container_dark">#4a1a10</color>
+    <color name="on_primary_container_dark">#ffdad2</color>
 
-    <!-- Secondary -->
-    <color name="secondary_light">#4c5d70</color>
-    <color name="secondary_container_light">#d7e5f2</color>
-    <color name="on_secondary_container_light">#10202e</color>
+    <!-- Secondary：温灰 -->
+    <color name="secondary_light">#57534c</color>
+    <color name="secondary_container_light">#e7e1d8</color>
+    <color name="on_secondary_container_light">#1b1c1e</color>
 
-    <color name="secondary_dark">#9db2c6</color>
-    <color name="on_secondary_dark">#10202e</color>
-    <color name="secondary_container_dark">#24384a</color>
-    <color name="on_secondary_container_dark">#d7e5f2</color>
+    <color name="secondary_dark">#b4afa6</color>
+    <color name="on_secondary_dark">#1e1f21</color>
+    <color name="secondary_container_dark">#2a2b2e</color>
+    <color name="on_secondary_container_dark">#e8e2d9</color>
 
 
     <color name="blue_300">#67b0ed</color>
@@ -27,27 +27,32 @@
     <color name="green_300">#71ca92</color>
     <color name="green_500">#24B364</color>
     <color name="green_800">#038043</color>
-    <!-- 深灰蓝影院色阶 -->
-    <color name="neutral_1000">#0A0E13</color>
-    <color name="neutral_950">#0F141A</color>
-    <color name="neutral_900">#131A22</color>
-    <color name="neutral_850">#172029</color>
-    <color name="neutral_800">#1E2833</color>
-    <color name="neutral_700">#26323F</color>
-    <color name="neutral_600">#3A4756</color>
-    <color name="neutral_500">#55677A</color>
-    <color name="neutral_400">#7C8DA0</color>
-    <color name="neutral_300">#A9B7C6</color>
-    <color name="neutral_200">#D7E0E9</color>
-    <color name="neutral_100">#EBEFF4</color>
-    <color name="neutral_50">#F7F9FC</color>
-    <color name="gold_300">#E8C07A</color>
+    <!-- 墨色阶：影阁的底色分层 -->
+    <color name="neutral_1000">#0B0C0E</color>
+    <color name="neutral_950">#0F1114</color>
+    <color name="neutral_900">#131518</color>
+    <color name="neutral_850">#17191D</color>
+    <color name="neutral_800">#1D2024</color>
+    <color name="neutral_700">#23262A</color>
+    <color name="neutral_600">#2E3237</color>
+    <color name="neutral_500">#6B6F74</color>
+    <color name="neutral_400">#8D8F92</color>
+    <color name="neutral_300">#A8A49C</color>
+    <color name="neutral_200">#D8D3CA</color>
+    <color name="neutral_100">#EAE6DE</color>
+    <color name="neutral_50">#F7F4EF</color>
+    <color name="gold_300">#C9A227</color>
     <color name="transparent_white_300">#4DFFFFFF</color>
     <color name="transparent_black_300">#4D000000</color>
     <color name="red">#EB5757</color>
-    <color name="yellow">#F2C94C</color>
+    <color name="yellow">#C9A227</color>
     <color name="player_background">#AA000000</color>
 
-    <color name="logo_primary">#FF3DDC84</color>
-    <color name="logo_secondary">#FF00A4DC</color>
+    <!-- 播放器手势 HUD：墨色玻璃质感 -->
+    <color name="player_hud_background">#E6131518</color>
+    <color name="player_hud_outline">#33F1EDE6</color>
+    <color name="player_hud_text_secondary">#B3FFFFFF</color>
+
+    <color name="logo_primary">#FFD2553C</color>
+    <color name="logo_secondary">#FFF1EDE6</color>
 </resources>

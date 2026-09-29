@@ -23,7 +23,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -133,7 +132,9 @@ fun ItemButtonsBar(
                     Icon(
                         painter = painterResource(CoreR.drawable.ic_check),
                         contentDescription = null,
-                        tint = if (item.played) Color.Red else LocalContentColor.current,
+                        tint =
+                            if (item.played) MaterialTheme.colorScheme.primary
+                            else LocalContentColor.current,
                     )
                 }
                 FilledTonalIconButton(onClick = onMarkAsFavoriteClick) {
@@ -142,7 +143,7 @@ fun ItemButtonsBar(
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_heart_filled),
                                 contentDescription = null,
-                                tint = Color.Red,
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                         false -> {

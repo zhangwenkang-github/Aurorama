@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.setup.login
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -49,7 +47,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
+import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginAction
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginEvent
@@ -111,27 +111,24 @@ private fun LoginScreenLayout(
             verticalArrangement = Arrangement.Center,
             modifier =
                 Modifier.fillMaxHeight()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = MaterialTheme.spacings.large)
                     .widthIn(max = 480.dp)
                     .align(Alignment.Center)
                     .verticalScroll(scrollState),
         ) {
-            Image(
-                painter = painterResource(id = CoreR.drawable.ic_banner),
-                contentDescription = null,
-                modifier = Modifier.width(250.dp).align(Alignment.CenterHorizontally),
-            )
-            Spacer(modifier = Modifier.height(32.dp))
+            SetupBrandMark(markSize = 44.dp, subtitle = state.serverName)
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
             Text(
                 text = stringResource(SetupR.string.login),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
             Text(
                 text = stringResource(SetupR.string.server_subtitle, state.serverName ?: ""),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
             OutlinedTextField(
                 value = username,
                 leadingIcon = {

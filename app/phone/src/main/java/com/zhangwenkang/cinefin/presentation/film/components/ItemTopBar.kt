@@ -41,10 +41,11 @@ fun ItemTopBar(
         if (hasBackButton) {
             IconButton(
                 onClick = onBackClick,
-                modifier = Modifier.alpha(0.7f),
+                modifier = Modifier.alpha(0.92f),
                 colors =
                     IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.Black,
+                        // 半透明墨底：在任何剧照上都读得清，但不形成实心圆按钮
+                        containerColor = Color.Black.copy(alpha = 0.42f),
                         contentColor = Color.White,
                     ),
             ) {
@@ -57,10 +58,10 @@ fun ItemTopBar(
         if (hasHomeButton) {
             IconButton(
                 onClick = onHomeClick,
-                modifier = Modifier.alpha(0.7f),
+                modifier = Modifier.alpha(0.92f),
                 colors =
                     IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.Black,
+                        containerColor = Color.Black.copy(alpha = 0.42f),
                         contentColor = Color.White,
                     ),
             ) {

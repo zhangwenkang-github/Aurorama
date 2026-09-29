@@ -1,26 +1,15 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.models.FindroidCollection
@@ -28,6 +17,7 @@ import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.HomeItem
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
+/** 媒体库走廊：显示某个库的最新几部，标题右侧的"全部"进入该库。 用文字操作代替圆形箭头按钮，页面因此没有多余的控件形状。 */
 @Composable
 fun HomeView(
     view: HomeItem.ViewItem,
@@ -36,34 +26,24 @@ fun HomeView(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        Box(modifier = Modifier.fillMaxWidth().height(40.dp).padding(itemsPadding)) {
-            Text(
-                text = stringResource(FilmR.string.latest_library, view.view.name),
-                modifier = Modifier.align(Alignment.CenterStart),
-                style = MaterialTheme.typography.titleLarge,
-            )
-            IconButton(
-                onClick = {
-                    onAction(
-                        HomeAction.OnLibraryClick(
-                            FindroidCollection(
-                                id = view.view.id,
-                                name = view.view.name,
-                                images = FindroidImages(),
-                                type = view.view.type,
-                            )
+        SectionHeader(
+            title = stringResource(FilmR.string.latest_library, view.view.name),
+            actionText = stringResource(FilmR.string.view_all),
+            onActionClick = {
+                onAction(
+                    HomeAction.OnLibraryClick(
+                        FindroidCollection(
+                            id = view.view.id,
+                            name = view.view.name,
+                            images = FindroidImages(),
+                            type = view.view.type,
                         )
                     )
-                },
-                modifier = Modifier.align(Alignment.CenterEnd),
-            ) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_arrow_right),
-                    contentDescription = null,
                 )
-            }
-        }
-        Spacer(modifier = Modifier.height(MaterialTheme.spacings.small))
+            },
+            modifier =
+                Modifier.padding(itemsPadding).padding(bottom = MaterialTheme.spacings.small),
+        )
         LazyRow(
             contentPadding = itemsPadding,
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),

@@ -3,7 +3,6 @@ package com.zhangwenkang.cinefin.presentation.film.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -20,11 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,12 +39,11 @@ import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.Motion
 import com.zhangwenkang.cinefin.presentation.theme.spacings
-import kotlinx.coroutines.delay
 
 /**
- * 海报墙使用的竖版海报卡：2:3 海报 + 标题 + 观看进度。
+ * 海报墙的竖版卡：只有海报与片名。
  *
- * 与横版卡保持同一套动效语言（按下缩放、入场淡入上浮并错峰）。
+ * 没有描边、没有卡片投影——海报自己就是形状。观看进度压在海报底边上， 用一线朱砂表示"已经看到这里"，这也是整张卡上唯一的颜色。
  */
 @Composable
 fun PosterItemCard(
@@ -59,38 +54,19 @@ fun PosterItemCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val pressScale by animateFloatAsState(
-        targetValue = if (pressed) 0.96f else 1f,
-        animationSpec = tween(durationMillis = Motion.durationFast, easing = Motion.standard),
-        label = "posterPressScale",
-    )
+    val pressScale by
+        animateFloatAsState(
+            targetValue = if (pressed) 0.97f else 1f,
+            animationSpec = tween(durationMillis = Motion.durationFast, easing = Motion.standard),
+            label = "posterPressScale",
+        )
 
-    var appeared by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay((index.coerceAtMost(8) * Motion.staggerStep).toLong())
-        appeared = true
-    }
-    val appearProgress by animateFloatAsState(
-        targetValue = if (appeared) 1f else 0f,
-        animationSpec =
-            tween(durationMillis = Motion.durationSlow, easing = Motion.emphasizedDecelerate),
-        label = "posterAppear",
-    )
-
-    val resumeFraction =
-        if (item.runtimeTicks > 0) {
-            (item.playbackPositionTicks.toFloat() / item.runtimeTicks.toFloat())
-                .coerceIn(0f, 1f)
-        } else {
-            0f
-        }
+    val resumeFraction = item.resumeFraction()
 
     Column(
         modifier =
             modifier
                 .graphicsLayer {
-                    alpha = appearProgress
-                    translationY = (1f - appearProgress) * 28f
                     scaleX = pressScale
                     scaleY = pressScale
                 }
@@ -105,11 +81,6 @@ fun PosterItemCard(
                     .aspectRatio(2f / 3f)
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                        shape = MaterialTheme.shapes.medium,
-                    )
         ) {
             AsyncImage(
                 model =
@@ -135,14 +106,14 @@ fun PosterItemCard(
                     modifier =
                         Modifier.align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .height(3.dp)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                            .height(2.dp)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f))
                 ) {
                     Box(
                         modifier =
                             Modifier.fillMaxWidth(resumeFraction)
-                                .height(3.dp)
-                                .background(MaterialTheme.colorScheme.tertiary)
+                                .height(2.dp)
+                                .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             }
@@ -162,6 +133,14 @@ fun PosterItemCard(
         )
     }
 }
+
+/** 观看进度（0..1），没有时长信息时返回 0，卡片便不画进度线。 */
+internal fun FindroidItem.resumeFraction(): Float =
+    if (runtimeTicks > 0) {
+        (playbackPositionTicks.toFloat() / runtimeTicks.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
 
 @Preview(showBackground = true)
 @Composable

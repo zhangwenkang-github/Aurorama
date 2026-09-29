@@ -1,13 +1,11 @@
 package com.zhangwenkang.cinefin.presentation.settings.components
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DividerDefaults
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
@@ -31,28 +30,42 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
 import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsAction
 
+/**
+ * 一组设置项：扁平清单 + 行间发丝线。
+ *
+ * 整页不再用卡片包裹——设置项是一张清单，不是一堆卡片。 分组标题右侧拖一条发丝线，分隔线缩进到文字起始处， 于是"标题 / 组 / 项"三级关系只靠线与留白就说得清。
+ */
 @Composable
 fun SettingsGroupCard(
     group: PreferenceGroup,
     onAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column {
+    Column(modifier = modifier) {
         group.nameStringResource?.let {
-            Text(
-                text = stringResource(it),
-                modifier = Modifier.padding(start = MaterialTheme.spacings.medium),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Spacer(modifier.height(MaterialTheme.spacings.small))
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .padding(
+                            start = SettingsRowHorizontalPadding,
+                            end = SettingsRowHorizontalPadding,
+                            bottom = MaterialTheme.spacings.small,
+                        ),
+            ) {
+                Text(
+                    text = stringResource(it),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(MaterialTheme.spacings.medium))
+                HorizontalDivider(
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+            }
         }
-        Card(
-            modifier = modifier,
-            colors =
-                CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ),
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             group.preferences.fastForEachIndexed { index, preference ->
                 when (preference) {
                     is PreferenceCategory ->
@@ -119,7 +132,20 @@ fun SettingsGroupCard(
                         )
                 }
                 if (index < group.preferences.lastIndex) {
-                    HorizontalDivider(color = DividerDefaults.color.copy(alpha = 0.2f))
+                    HorizontalDivider(
+                        modifier =
+                            Modifier.padding(
+                                start =
+                                    if (preference.iconDrawableId != null) {
+                                        SettingsRowHorizontalPadding +
+                                            SettingsIconTileSize +
+                                            MaterialTheme.spacings.medium
+                                    } else {
+                                        SettingsRowHorizontalPadding
+                                    }
+                            ),
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
                 }
             }
         }
@@ -130,41 +156,29 @@ fun SettingsGroupCard(
 @Composable
 private fun SettingsGroupCardPreview() {
     CinefinTheme {
-        SettingsGroupCard(
-            group =
-                PreferenceGroup(
-                    nameStringResource = SettingsR.string.mpv_player,
-                    preferences =
-                        listOf(
-                            PreferenceSwitch(
-                                nameStringResource = SettingsR.string.mpv_player,
-                                descriptionStringRes = SettingsR.string.mpv_player_summary,
-                                backendPreference = Preference("", false),
+        Column(modifier = Modifier.padding(20.dp)) {
+            SettingsGroupCard(
+                group =
+                    PreferenceGroup(
+                        nameStringResource = SettingsR.string.settings_category_player,
+                        preferences =
+                            listOf(
+                                PreferenceSwitch(
+                                    nameStringResource = SettingsR.string.mpv_player,
+                                    descriptionStringRes = SettingsR.string.mpv_player_summary,
+                                    backendPreference = Preference("", false),
+                                ),
+                                PreferenceSelect(
+                                    nameStringResource = SettingsR.string.pref_player_mpv_hwdec,
+                                    dependencies = listOf(Preference("", false)),
+                                    backendPreference = Preference("", ""),
+                                    options = SettingsR.array.mpv_hwdec,
+                                    optionValues = SettingsR.array.mpv_hwdec,
+                                ),
                             ),
-                            PreferenceSelect(
-                                nameStringResource = SettingsR.string.pref_player_mpv_hwdec,
-                                dependencies = listOf(Preference("", false)),
-                                backendPreference = Preference("", ""),
-                                options = SettingsR.array.mpv_hwdec,
-                                optionValues = SettingsR.array.mpv_hwdec,
-                            ),
-                            PreferenceSelect(
-                                nameStringResource = SettingsR.string.pref_player_mpv_vo,
-                                dependencies = listOf(Preference("", false)),
-                                backendPreference = Preference("", ""),
-                                options = SettingsR.array.mpv_vos,
-                                optionValues = SettingsR.array.mpv_vos,
-                            ),
-                            PreferenceSelect(
-                                nameStringResource = SettingsR.string.pref_player_mpv_ao,
-                                dependencies = listOf(Preference("", false)),
-                                backendPreference = Preference("", ""),
-                                options = SettingsR.array.mpv_aos,
-                                optionValues = SettingsR.array.mpv_aos,
-                            ),
-                        ),
-                ),
-            onAction = {},
-        )
+                    ),
+                onAction = {},
+            )
+        }
     }
 }
