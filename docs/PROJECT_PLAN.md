@@ -40,11 +40,11 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟡 W2 进行中（2026-09-30 启动） | W0/W1 完成并合并；W2 主体波（R1-CORE 阅读模式 / R2-CORE 音乐浏览与队列 / R4-BASE 测试基建）进行中 |
-| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W1 骨架完成（Readium EPUB PoC 真机通过；progress JSON 待 W3 迁 Room） | W2：阅读模式（滚动/分页/双栏）、排版设置、阅读主题（纸色/护眼/深色/OLED） |
-| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 W1 骨架完成（94 专辑→播放→通知/锁屏/后台，真机通过） | W2：专辑/艺术家/歌曲/歌单浏览、队列、gapless、播放上报；服务器无 MusicAlbum 实体，按 Album 名客户端分组 |
-| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W1 token 落地（core 主题 + 基础组件 + 18 项单测通过；Typography 归位） | W3：音乐/阅读页面接入新设计；W4：全页面换新 |
-| **测试与验收**（真机矩阵 / 回归 / 性能） | `docs/TEST_PLAN.md`（R4 维护） | 🟡 W2 启动中 | 真机矩阵、性能基线方法、测试数据清单、每波回归清单；兼设备与环境协调 |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟡 W3 进行中（2026-09-30） | W0–W2 完成并合并（master `d9bd3ac`）；W3 三线（R1-OFFLINE / R2-LYRICS / R3-PAGES-A）进行中；PLAYER-BUG 排队 |
+| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W2 完成（阅读模式三档 / 排版 / 四主题，真机通过；10 单测） | W3：离线阅读（EB-11）+ 进度同步（EB-9）+ 书签基础（EB-8） |
+| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 W2 完成（94 专辑 / 87 艺术家 / 100 歌曲 / 歌单浏览 + 队列 + gapless + MU-9 上报，真机 16 项通过） | W3：歌词双语配对 / 语言切换（默认简体）/ 滚动同步（三样例验收） |
+| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W1 token 落地（core 主题 + 基础组件）；W3 进行中 | W3：阅读/音乐页面接入 Prism + 路由入口注册（ReaderActivity 改回非导出）；W4：全页面换新 |
+| **测试与验收**（真机矩阵 / 回归 / 性能） | `docs/TEST_PLAN.md`（R4 维护） | 🟢 W2 完成（基线：冷启动中位 1085ms / PSS 247,790kB / APK 96.95MiB；tools/test 6 脚本） | W3：回归支持；测试数据清单待用户确认；W5 全量回归 |
 
 ### 3.1 执行顺序（用户 2026-09-28 批准）
 
