@@ -40,10 +40,10 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟡 W3 进行中（2026-09-30） | W0–W2 完成并合并（master `d9bd3ac`）；W3 三线（R1-OFFLINE / R2-LYRICS / R3-PAGES-A）进行中；PLAYER-BUG 排队 |
-| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W2 完成（阅读模式三档 / 排版 / 四主题，真机通过；10 单测） | W3：离线阅读（EB-11）+ 进度同步（EB-9）+ 书签基础（EB-8） |
-| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 W2 完成（94 专辑 / 87 艺术家 / 100 歌曲 / 歌单浏览 + 队列 + gapless + MU-9 上报，真机 16 项通过） | W3：歌词双语配对 / 语言切换（默认简体）/ 滚动同步（三样例验收） |
-| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W1 token 落地（core 主题 + 基础组件）；W3 进行中 | W3：阅读/音乐页面接入 Prism + 路由入口注册（ReaderActivity 改回非导出）；W4：全页面换新 |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟡 缺陷修复波进行中（2026-09-30，master `f44f89e`） | W0–W3 完成并合并；用户第二轮验收缺陷分两批：音乐 3 交互（R3b 修复中）、书籍 PDF/CBZ（R1 提前启动）+ PLAYER-BUG 并行 |
+| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W3 完成（离线阅读 EB-11 / 进度同步 EB-9 / 书签 EB-8，真机通过） | 缺陷波：PDF 分页懒加载 + CBZ 自研导航（两 PDF + 两 CBZ 验收，EPUB 不回归） |
+| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 W3 完成（歌词双语 / 语言切换 / 滚动同步，三样例 + 41 单测） | 缺陷波：专辑返回层级 / 歌曲栏目点击播放 / 加载失败重试（R3b） |
+| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W3 完成（阅读/音乐页面接入 Prism + 路由注册 + P0 修复，真机复验） | W4：全页面换新（首页/媒体库/详情/搜索/下载/设置/抽屉/欢迎页） |
 | **测试与验收**（真机矩阵 / 回归 / 性能） | `docs/TEST_PLAN.md`（R4 维护） | 🟢 W2 完成（基线：冷启动中位 1085ms / PSS 247,790kB / APK 96.95MiB；tools/test 6 脚本） | W3：回归支持；测试数据清单待用户确认；W5 全量回归 |
 
 ### 3.1 执行顺序（用户 2026-09-28 批准）
