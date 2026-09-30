@@ -206,7 +206,7 @@ fun NavigationRoot(
                 isOpen = drawerState.isOpen,
                 onOpenLibrary = { library ->
                     navController.safeNavigate(
-                        LibraryRoute(
+                        libraryEntryRoute(
                             libraryId = library.id.toString(),
                             libraryName = library.name,
                             libraryType = library.type,
@@ -355,19 +355,24 @@ fun NavigationRoot(
             }
             composable<LibraryRoute> { backStackEntry ->
                 val route: LibraryRoute = backStackEntry.toRoute()
-                LibraryScreen(
-                    libraryId = UUID.fromString(route.libraryId),
-                    libraryName = route.libraryName,
-                    libraryType = route.libraryType,
-                    onItemClick = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                    navigateBack = { navController.safePopBackStack() },
-                )
+                if (route.libraryType == CollectionType.Music) {
+                    // 兜底：任何残留路由落到音乐库时同样进音乐模式（见 libraryEntryRoute）
+                    MusicModeScreen(onOpenDrawer = { scope.launch { drawerState.open() } })
+                } else {
+                    LibraryScreen(
+                        libraryId = UUID.fromString(route.libraryId),
+                        libraryName = route.libraryName,
+                        libraryType = route.libraryType,
+                        onItemClick = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
+                        },
+                        navigateBack = { navController.safePopBackStack() },
+                    )
+                }
             }
             composable<CollectionRoute> { backStackEntry ->
                 val route: CollectionRoute = backStackEntry.toRoute()
@@ -516,6 +521,24 @@ private fun navigateHome(navController: NavHostController) {
 }
 
 /**
+ * 媒体库入口路由（W3 R3 音乐库分支，P0 修复）。
+ *
+ * 测试服务器（Jellyfin 10.11.8）**没有 MusicAlbum 实体**：`LibraryViewModel` 对音乐库只查
+ * `BaseItemKind.MUSIC_ALBUM`，返回 0 条 → 音乐库空列表（W2-R2 已实测确认）。因此音乐库不走 通用媒体库页， 直接进音乐模式：`MusicRepository`
+ * 拉曲目后由 `MusicLibraryGrouping` 在客户端分组出 专辑 / 艺术家 / 歌曲 / 歌单（MU-2）。
+ */
+private fun libraryEntryRoute(
+    libraryId: String,
+    libraryName: String,
+    libraryType: CollectionType,
+): Any =
+    if (libraryType == CollectionType.Music) {
+        MusicModeRoute
+    } else {
+        LibraryRoute(libraryId = libraryId, libraryName = libraryName, libraryType = libraryType)
+    }
+
+/**
  * 打开本机阅读器（EB-10 入口改造）。
  *
  * `ReaderActivity` 是独立 Activity（Readium 导航器是 Fragment 体系，暂时不塞进 NavHost）， `exported=false` + 显式
@@ -547,7 +570,7 @@ private fun navigateToItem(
             navController.safeNavigate(EpisodeRoute(episodeId = item.id.toString()))
         is FindroidCollection ->
             navController.safeNavigate(
-                LibraryRoute(
+                libraryEntryRoute(
                     libraryId = item.id.toString(),
                     libraryName = item.name,
                     libraryType = item.type,
