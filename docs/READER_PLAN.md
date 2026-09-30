@@ -6,10 +6,10 @@
 | 项 | 值 |
 |----|----|
 | 任务线 | 阅读器（EPUB / PDF / CBZ） |
-| 会话 | W1-R1 · 阅读器骨架（R1-SKELETON）→ W2-R1 · 阅读器主体（R1-CORE）→ W3-R1 · 离线与进度同步（R1-OFFLINE） |
-| 分支 | `feature/r1-reader-offline`（W3） |
-| 基线 | `master` `d9bd3ac`（2026-09-30） |
-| 状态 | W3 离线下载 / 进度离线队列回传 / 书签基础完成（编译 + 单测 + 真机见 §7.5） |
+| 会话 | W1-R1 骨架 → W2-R1 主体 → W3-R1 离线与进度 → W4-R1 · PDF / CBZ 格式支持（R1-PDF-CBZ） |
+| 分支 | `feature/r1-pdf-cbz`（W4） |
+| 基线 | `master` `f44f89e`（2026-10-01） |
+| 状态 | W4 PDF（PdfRenderer 自研）与 CBZ（ZipFile 自研）已实现，编译 + 单测 + ktfmt 通过；真机验证**部分完成后暂停**（§7.6，按负责人调度停止实机操作） |
 
 ## 1. 需求与 W1 范围
 
@@ -19,8 +19,8 @@
 |------|------|---------|
 | EB-1 | 书源仅 Jellyfin Books 库 | 🟡 已用 Books 库真实 EPUB 验证；书籍详情入口归 W2 |
 | EB-2 | 首期 EPUB | ✅ Readium 3.4.0 已集成并真机打开 |
-| EB-3 | PDF 分页懒加载 | ⏳ 路线已评估（见 D5），实现归 W4 |
-| EB-4 | CBZ 基础阅读 | ⏳ 策略已定（见 D6），实现归 W4 |
+| EB-3 | PDF 分页懒加载 | ✅ W4 落地（PdfRenderer 自研，D14）：打开 / 翻页 / 缩放 + 页窗口 3 张位图，真机见 §7.6 |
+| EB-4 | CBZ 基础阅读 | ✅ W4 落地（ZipFile 自研，D15）：两本 CBZ 可打开，滚动 / 分页 / 双栏三档生效；RTL 开关后置 |
 | EB-5 | 滚动 / 横向分页 / 双栏 | ✅ 三档模式（滚动 / 分页 / 双栏）真机切换通过，Pad 5 横屏双栏渲染正确 |
 | EB-6 | 排版设置 | ✅ 字号 / 行距 / 边距 / 字体 / 对齐，即时生效并持久化 |
 | EB-7 | 独立阅读主题 | ✅ 纸色 / 护眼 / 深色 / OLED / 跟随，独立于主 App 主题 |
@@ -169,6 +169,64 @@
   Readium Locator 的章节标题 + 整书百分比（纯函数 `bookmarkLabel`，无标题时只用百分比）。
 - 服务端没有标准批注 API（ARCHITECTURE §3.6），因此只落本地；跨端同步 / 导出后置。
 - 阅读页顶栏"书签"打开面板：添加当前页、点击跳转（`navigator.go(locator, animated)`）、删除。
+
+### D14 · PDF 路线定稿：PdfRenderer 自研（W4-R1）
+
+按 D5 的三条候选路线完成 spike 后定稿（依据：Readium pdf.md 官方指南、androidx.pdf 发布说明、
+`PdfRenderer` API 文档、本仓库依赖现状与 EB-3 硬约束）：
+
+| 路线 | 结论 | 依据 |
+|------|------|------|
+| Readium pdfium 适配器 | ❌ 不选 | 需经 JitPack 引入第三方 `PdfiumAndroid` / `AndroidPdfViewer`（ABI 体积、CI 可达性、许可链都多一层），且 `PdfNavigatorFragment` 的页窗口与位图缓存不可控，EB-3 的「≤3 张位图」无法直接保证 |
+| androidx.pdf `pdf-viewer-fragment` | ❌ 不选 | 仍为 beta，定位是「整文档查看器 + DocumentService」，懒加载窗口不可配置，与 EB-3 验收口径不匹配 |
+| **PdfRenderer 自研** | ✅ 选用 | 框架 API（API 21+，零新增依赖）：`openPage(index)` + `Page.close()` 天然按页渲染回收；位图尺寸 / 降采样 / LRU 窗口全部由我们钉死，失败页降级占位 + 重试 |
+
+实现（`PdfPageSource` + `PageImageCache` + `SimpleBookView`）：
+
+- 位图长边 = `min(屏幕宽, 2048)`；`Page.render` 用 `Matrix` 等比缩放，先铺白底再渲染（避免透明通道
+  在深色主题下泛黑）；`ARGB_8888`（PDF 文字锐利优先）。
+- 内存窗口：`LruCache` 固定 3 张（当前页 ± 1），翻页只把新页放进窗口，旧页立即失去引用；
+  `PdfRenderer` 非线程安全 → 单 `Mutex` 串行化所有页面操作。
+- 文档对象（renderer + fd）在 `ReaderViewModel.onCleared` 统一释放；重复 close 安全。
+- 缩放：分页 / 双栏模式支持双指缩放（1×–4×）+ 拖动，平移量按放大后尺寸夹取；滚动模式不做手势
+  缩放（避免与纵向滚动抢事件）。
+- **不做**：文本选择 / 搜索 / 批注 / 目录（EB-3 明确后置）；加密 PDF 受 `PdfRenderer` 能力限制，
+  打不开时走错误态 + 重试。
+
+### D15 · CBZ 路线定稿：ZipFile 自研 + 解析失败根因（W4-R1）
+
+**根因（勘定结论）**：Readium `ArchiveSniffer.sniffContainer` 只在「压缩包内所有条目扩展名都在白名单
+（位图 + `acbf` / `xml`）」或「资源带 `.cbz` 扩展名」时才把 ZIP 判为 InformalComic。本仓库取书统一
+落盘为 `filesDir/books/{itemId}.book`（D3，**无扩展名**），于是只剩内容嗅探：Anda's Game 内含
+`Fonts/` 下的 ttf / otf 与 `*.txt` 说明文件 → 判定为普通 ZIP → `ImageParser` 因
+`format.conformsTo(InformalComic)` 为假返回 `FormatNotSupported` → 阅读页报「解析书籍失败」。
+`futuristic_tales` 只有 4 张 jpg（+1 个目录条目）→ 能打开。即：**包结构问题被 Readium 的全包白名单
+放大**，与包体积无关（16.5MB 本身不是原因）。
+
+**附带发现**：Readium 的图像导航只有「分页」语义，`EpubPreferences` 的 `scroll` / `columnCount`
+对它无效 —— 用户实测三种模式都渲染为分页，与 EB-4 / EB-5 不符。
+
+**定稿**：按 D6 既定兜底自研 CBZ：
+
+- `ComicPageSource`：`ZipFile` 随机读条目；页 = 只取位图条目（`ComicPageOrder.kt`：过滤目录 /
+  隐藏文件 / `__MACOSX` / `Thumbs.db` / 字体 / `acbf` / `xml`），按自然序排序（连续数字当数值比较，
+  `!cover.jpg` 仍在最前，与 Readium 的排序一致）。
+- 解码：先 `inJustDecodeBounds` 读尺寸，再 `BitmapFactory.decodeStream` + `inSampleSize`（2 的幂）
+  降采样到与 PDF 相同的窗口预算；`RGB_565`（扫描页是位图，窗口内存直接减半）。
+- 三种模式与 PDF 共用 `SimpleBookView`：滚动 = 纵向连续（当前页 = 首个可见页）；分页 = 单页横向
+  Pager；双栏 = 双页横向 Pager（Pad 5 横屏左右各一页）。
+- 书签暂不支持 PDF / CBZ（书签依赖 Readium Locator 语义，页序列格式改用 progression），顶栏
+  「书签」入口在这两类格式下隐藏。
+
+### D16 · 格式嗅探与进度语义（W4-R1）
+
+- 本地缓存文件名看不出格式，按**内容**嗅探（`BookFormat.kt`）：`%PDF-` → PDF；ZIP 且含
+  `META-INF/container.xml` → EPUB；其余 ZIP → CBZ；都不匹配 → Unknown（仍交给 Readium 尝试，
+  错误原样透出）。不依赖扩展名与 Jellyfin 元数据，离线也成立。
+- 进度：PDF / CBZ 用「页索引 / 总页数」换算 `progression`（页起点），写入与回传复用 EB-9 同一条
+  `ReadingProgress` 链路（ticks 由服务端 `RunTimeTicks` 换算，D12）；恢复用
+  `pageIndexForProgression`（floor + ε，抵消浮点往返误差）。`locatorJson` 留空，避免与 Readium
+  Locator 语义混淆。
 
 ## 3. 接口契约（已落地）
 
@@ -338,6 +396,22 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
       `:app:phone:assembleDebug ktfmtCheck` 通过。
 - [x] W3 真机验证记录写入 §7.5，踩坑写入 §8。
 
+### W4 任务清单（R1-PDF-CBZ，2026-10-01）
+
+- [x] ① PDF 支持（EB-3）：三条路线 spike → 定稿 PdfRenderer 自研（D14）；`PdfPageSource`
+      （按页渲染 + Mutex + Matrix 缩放 + 白底）与 `PageImageCache`（LRU 3 张）落地。
+- [x] ② CBZ 支持（EB-4）：勘定 Andas_Game 解析失败根因（D15，Readium 全包扩展名白名单 + 无扩展名
+      缓存文件）；`ComicPageSource`（ZipFile 随机读 + 自然序页序 + 降采样解码）落地。
+- [x] ③ 三档模式（EB-5 扩展到 PDF / CBZ）：`SimpleBookView` 滚动 / 分页 / 双栏 + 页指示文字；
+      双指缩放（1×–4×）在分页 / 双栏模式生效。
+- [x] ④ 格式嗅探与进度语义（D16）：按内容识别（PDF / EPUB / CBZ）+ 页索引 ↔ progression 换算，
+      复用 EB-9 落盘 / 回传链路；readium 路径（EPUB）零行为变化。
+- [x] 单测：格式嗅探 4 / CBZ 页序与过滤 4 / 尺寸·进度·页指示·缩放夹取 6，共 **14 项新增**；
+      `:modes:book` 合计 **29 项**（5 个测试类）全绿（`:modes:book:testDebugUnitTest`）。
+- [x] 门禁：`:app:phone:assembleDebug` + `:modes:book:testDebugUnitTest` + `ktfmtCheck` 通过。
+- [ ] 真机验证记录写入 §7.6（**部分**：attention PDF 打开 + 翻页已验；其余待负责人重新指派设备后补，
+      见 §7.6 与 §9）。
+
 ## 7. 真机验证记录（2026-09-30）
 
 设备：Xiaomi Pad 5（`nabu`，型号 21051182C），Android 13，2560×1600。
@@ -429,6 +503,36 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 > 补传（要等下一个 15 分钟周期）；补了「启动即尝试一次」的一次性任务后，重新打开应用即可补传
 > （上表最后一行即验证记录）。
 
+### 7.6 W4 PDF / CBZ 真机验证（2026-10-01 00:20–00:38，Pad 5）——**部分完成，按负责人调度暂停**
+
+设备：Xiaomi Pad 5（`43af8627`，Android 13，2560×1600 横屏，手势导航），分支 `feature/r1-pdf-cbz`
+（APK 含本波新代码，已在安装后核验 `classes3.dex` 含 `sniffBookFormat` / `SimpleBookView`）。
+
+**调度背景（必须留档）**：W4-R1 按当时有效的「45 分钟可接管」规则接手设备（00:20），但 PLAYER-BUG
+会话实际仍在活跃使用（内核切换验证），造成两会话并发装机/操作，用户投诉。**旧规则已废除：真机由
+负责人统一调度，只有持有者显式释放后才轮到下一会话，禁止按超时自动接管。** W4-R1 已按负责人指令
+在 00:38 停止全部 adb 操作（install / am / uiautomator / 内存采样），下表为停止前的已完成项。
+
+| 步骤 | 操作 | 结果 |
+|------|------|------|
+| 入口链路 | 媒体库 → 书籍 → 点 `attention_is_all_you_need` | `ReaderActivity` 打开（`topResumedActivity` 确认），未走 Web 控制台 |
+| PDF 打开（attention，2.2 MB / 15 页） | 冷启动打开 | 顶栏「离线可读 · 2.1 MB」+ 模式「分页」+「Aa」；**无「书签」按钮**（D15：页序列格式隐藏书签）；页指示「分页 · 1/15」，与本地 `pypdf` 读出的 15 页一致 |
+| PDF 翻页 | 单指左滑（屏内 1600→1000） | 页指示 1/15 → **2/15**，翻页有效；`ReaderActivity` 保持前台 |
+| 修复回归 | 首轮真机发现"分页模式滑不动"（缩放手势吃掉单指拖动），改为「仅 ≥2 指消费事件」后重装复测 | 上一条即修复后结果，翻页恢复 |
+
+**未完成（等待负责人重新指派设备）**：
+
+1. `虚构推理 (2026).pdf`（3649 页 / 640 MiB）打开 + 连续翻 20 页 + `dumpsys meminfo` 内存采样
+   （文件已按只读方式预置进应用缓存并校验字节数 `670,643,292`，尚未打开）；
+2. `Anda's Game.cbz`（24 页）与 `futuristic_tales.cbz`（4 页）打开 + 滚动 / 分页 / 双栏三档行为；
+3. EPUB 回归（《雷普利全集》打开 + 翻页 + `progress.json` 回传）；
+4. 双指缩放的整机手势验证（当前只有 `clampPageOffset` 单测覆盖；adb 无法注入标准多指手势）。
+
+> 内存测量口径（下次接管时直接执行）：`am force-stop` → 打开 PDF → 翻到第 1 页采样
+> `adb shell dumpsys meminfo com.zhangwenkang.cinefin.debug` 的 `TOTAL PSS` → 连续翻 20 页
+> （每次翻页后 2 s 采样一次）→ 取峰值与页号-内存曲线；判定标准：曲线不随页号增长（窗口 3 张位图，
+> 长边 2048 降采样）。对照组：attention（2.2 MB / 15 页）与虚构推理（640 MiB / 3649 页）同窗口。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -466,6 +570,21 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 14. **WorkManager 周期任务最小 15 分钟**，不能当"联网后立即回传"用；真正的快速补传是阅读页
     内 30 秒 ticker（只在有待同步记录时触发），Worker 负责进程被杀 / 长时间离线后的兜底。
     Worker 无待同步记录时只读一次 JSON，不发请求。
+15. **Readium 的 CBZ 判定是「全包扩展名白名单」**：`ArchiveSniffer.sniffContainer` 只在「压缩包内
+    所有条目扩展名 ∈ 位图 + `acbf`/`xml`」或「资源带 `.cbz` 扩展名」时才判 InformalComic。本项目
+    取书统一落盘为 `{itemId}.book`（无扩展名），Anda's Game 里的 `Fonts/*.ttf`、`*.otf`、`*.txt`
+    会让整包被判成普通 ZIP → `ImageParser` 返回 `FormatNotSupported` → 阅读页「解析书籍失败」；
+    futuristic_tales 只有 jpg 所以能开。**教训：格式能力不能只看容器，要看库的具体判定条件。**
+16. **Kotlin 注释里出现 `/*` 会开启嵌套块注释**：KDoc 里写路径通配（如 `Fonts/*.ttf`）会报
+    `Unclosed comment`，且报错位置在文件末尾，容易误判成后半段代码问题。
+17. **ktfmt 是独立门禁**：新代码编译通过 ≠ 格式通过；本波 8 个文件首轮 `ktfmtCheck` 全红，需先跑
+    `:modes:book:ktfmtFormat`（只格式化本模块，避免顺手改动其他任务线文件）。
+18. **`detectTransformGestures` 会把单指拖动也消费掉**：把它挂在 Pager 的页面上，分页 / 双栏模式
+    会「翻不动页」（真机实测：页指示停在 1/15）。修复：自定义 `detectMultiTouchZoom`，只在
+    **≥2 指**时 `calculateZoom/calculatePan` 并 `consume()`，单指拖动留给 `HorizontalPager`。
+19. **真机并发会把对方 APK 覆盖掉**：本波首轮真机验证跑在旧代码上（日志里 `openPublication` 行号与
+    源码不符），事后查明是另一会话在 00:22 重装了自己的构建。**教训：真机验证前先核验安装包
+    与本地构建一致（比对 APK 大小 / dex 特征字符串），再由负责人统一调度设备。**
 
 ## 9. 未决问题与下一波
 
@@ -497,6 +616,23 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 - W3：Room 本地 Locator、批注、离线进度队列（WorkManager）、30 秒定时上报。
 - W4：PDF 路线 spike 后定稿、CBZ 判定与自研窗口化、内存红线验证。
 
+### W4 遗留（交接负责人 / W5）
+
+- **真机验证未跑完**（2026-10-01 按负责人调度暂停）：只完成 attention PDF 打开 + 翻页；
+  虚构推理 PDF、两本 CBZ 的三档模式、EPUB 回归、内存采样见 §7.6「未完成」清单，等重新指派设备后补。
+- **RTL 开关**（EB-4 提到的漫画右到左翻页）未做：当前 PDF / CBZ 页序固定左到右，横屏双栏为
+  「左 2n+1、右 2n+2」；RTL 需在 `SimpleBookView` 与页序层加开关，归 W5 或按需排期。
+- **跨页拼接**（EB-4 后置项）未做；双栏只是同屏两页并排，不做跨页对图合并。
+- **滚动模式不能手势缩放**：分页 / 双栏可缩放（1×–4×）；滚动模式为避免与纵向滚动抢事件未接手势，
+  必要时后续用"双指优先"的自定义手势补。
+- **位图长边上限 2048**（ARCHITECTURE §3.4 的示例值）：Paged / TwoColumn 下页面按高度适配，
+  文字 / 线条锐利；滚动模式下页面按屏宽铺满（Pad 5 横屏约 1.7× 软放大）会略糊，若后续要更锐，
+  按模式分别调 `PAGE_BITMAP_MAX_SIDE_PX` 并复测内存。
+- **PDF / CBZ 不支持书签与精确 locator**：进度按页索引换算 progression（D16），书签入口隐藏；
+  如需批注，需要为页序列格式单独设计锚点模型。
+- **加密 PDF / 损坏页**：`PdfRenderer` 打不开的文档案走错误态 + 重试；单页渲染失败显示占位 + 重试，
+  未做整本文档级降级（如切换其他引擎）。
+
 ## 10. 变更日志
 
 | 日期 | 变更 |
@@ -505,3 +641,4 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 | 2026-09-30 | W2-R1：阅读模式（滚动 / 分页 / 双栏）、排版设置（字号 / 行距 / 边距 / 字体 / 对齐）、阅读主题（纸色 / 护眼 / 深色 / OLED / 跟随）；`pref_reader_*` 持久化；9 项单测 + Pad 5 真机验证 |
 | 2026-09-30 | W3-R1：离线整书下载（原子落盘 + 状态 UI）、进度离线队列（30 秒 / 退后台 / WorkManager 启动补传 + 周期兜底、冲突策略细化、runtimeTicks 缓存）、书签基础（JSON + 面板）；15 项单测（data 10 / modes:book 5）；真机验证见 §7.5 |
 | 2026-09-30 | W3-R1 rebase 到 `f283ef1`（R3 Prism 阅读页 + 入口）：`ReaderScreen.kt` 冲突按「保留 R3 外壳 + 并入离线功能」解决——顶栏沿用 Prism（`ReaderTopBar` 扩展下载状态 / 书签入口）、错误态用 `CinefinEmptyState`、`CompositionLocalProvider(LocalMediaColors)` 与设置面板保持 R3 版；离线暂存横幅、`jumpTarget` / `onJumpHandled` / `onNavigatorReady`、书签面板与 `DownloadAction` 全部保留 |
+| 2026-10-01 | W4-R1：PDF 走 PdfRenderer 自研（D14）、CBZ 走 ZipFile 自研（D15，含 Andas_Game 解析失败根因）、格式嗅探与页进度语义（D16）；`SimpleBookView` 三档模式 + 页指示 + 双指缩放；新增 14 项单测（模块合计 29 项，全绿）；真机部分验证（§7.6：attention PDF 打开 + 翻页）后按负责人调度暂停；踩坑 15–19 |
