@@ -630,6 +630,9 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
   按模式分别调 `PAGE_BITMAP_MAX_SIDE_PX` 并复测内存。
 - **PDF / CBZ 不支持书签与精确 locator**：进度按页索引换算 progression（D16），书签入口隐藏；
   如需批注，需要为页序列格式单独设计锚点模型。
+- **排版面板对 PDF / CBZ 只部分生效**：字号 / 行距 / 边距 / 字体 / 对齐是 EPUB（Readium 偏好）专属，
+  PDF / CBZ 下这些控件仍是可点的空操作；已生效的是阅读模式（滚动 / 分页 / 双栏）与主题。后续可在
+  `ReaderSettingsPanel` 里按 `ReaderDocument` 类型隐藏不适用的行。
 - **加密 PDF / 损坏页**：`PdfRenderer` 打不开的文档案走错误态 + 重试；单页渲染失败显示占位 + 重试，
   未做整本文档级降级（如切换其他引擎）。
 
