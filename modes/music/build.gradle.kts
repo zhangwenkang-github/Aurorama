@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -42,6 +43,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.paging)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    implementation(libs.coil.compose)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)

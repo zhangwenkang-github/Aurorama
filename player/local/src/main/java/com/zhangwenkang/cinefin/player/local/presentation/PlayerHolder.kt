@@ -40,11 +40,22 @@ constructor(
     private var instance: Player? = null
     private var instanceBackend: String? = null
 
-    private val trackSelector = DefaultTrackSelector(application)
     private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
 
     /** 音轨延迟（§1.2）：ExoPlayer 音频链上挂它；mpv 走原生 audio-delay 属性 */
     private val audioDelayProcessor = AudioDelayProcessor()
+
+    /** 当前是否处于音乐会话（由 `MusicPlaybackController` 维护，W1 R2）。 */
+    var musicSessionActive: Boolean = false
+
+    /**
+     * 已经创建好的播放器实例；没有实例时返回 null（**不**按偏好创建）。
+     *
+     * 播放会话服务与音乐控制器用它拿"活动实例"：音乐会话期间实例已被 [audioSession] 固定为 ExoPlayer， 若这里再走 [player]
+     * 的偏好重建逻辑，会把正在播放的音乐实例换掉。
+     */
+    val existingPlayer: Player?
+        get() = instance
 
     /** 当前实例使用的内核；还没创建实例时返回偏好里的值 */
     val backend: String
@@ -53,6 +64,12 @@ constructor(
     /** 播放器实例。按当前偏好创建；偏好里的内核变了（换内核重开播放页）会自动重建， 调用方拿到的永远是"对的内核 + 活的实例"。 */
     val player: Player
         get() {
+            // 音乐会话期间固定 ExoPlayer：偏好是 mpv 时，后台视频页对 player 的访问
+            // （每秒的进度/片段任务）也不能把正在播放的音乐实例换回 mpv。
+            // 音乐会话结束后（musicSessionActive=false）恢复下面的偏好重建逻辑。
+            if (musicSessionActive) {
+                return audioSession()
+            }
             val wanted = appPreferences.getValue(appPreferences.playerBackend)
             val existing = instance
             if (existing != null && instanceBackend == wanted) return existing
@@ -106,6 +123,7 @@ constructor(
 
     /** 释放实例。播放页关闭且不允许后台播放、或服务停止时调用。 */
     fun release() {
+        musicSessionActive = false
         val player = instance ?: return
         instance = null
         instanceBackend = null
@@ -119,6 +137,9 @@ constructor(
                 .setUsage(C.USAGE_MEDIA)
                 .build()
 
+        // 每次创建实例都用独立的 trackSelector：实例重建（音乐强制 ExoPlayer）时，
+        // 共享的 selector 会在旧实例的释放线程上被 release，触发 "accessed on the wrong thread"
+        val trackSelector = DefaultTrackSelector(application)
         trackSelector.setParameters(
             trackSelector
                 .buildUponParameters()

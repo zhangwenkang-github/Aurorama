@@ -42,22 +42,48 @@ class CinefinPlaybackService : MediaSessionService() {
         super.onCreate()
         // 媒体样式通知（标题 / 副标题 / 进度 / 传输按钮）由自己的 provider 提供（阶段 4.2）
         setMediaNotificationProvider(CinefinMediaNotificationProvider(this))
-        val player = playerHolder.player
-        mediaSession =
-            MediaSession.Builder(this, player)
-                .setSessionActivity(sessionActivityIntent())
-                .setCustomLayout(
-                    listOf(
-                        CommandButton.Builder(CoreR.drawable.ic_close)
-                            .setDisplayName(getString(PlayerR.string.player_controls_exit))
-                            .setPlayerCommand(Player.COMMAND_STOP)
-                            .build()
-                    )
-                )
-                .build()
+        // 优先复用"活动实例"：音乐会话期间实例已被 audioSession() 固定为 ExoPlayer，
+        // 若这里按偏好重建（例如偏好 mpv）会把正在播放的音乐换掉
+        val player = playerHolder.existingPlayer ?: playerHolder.player
+        mediaSession = buildMediaSession(player)
         connectSelfController()
         Timber.d("播放会话建立：backend=%s", playerHolder.backend)
     }
+
+    /**
+     * 每次 `startService` 都会走到这里。
+     *
+     * 播放器实例可能已被切换（例如视频回退 mpv 之后再起音乐，`audioSession()` 会把实例重建为 ExoPlayer），这时旧 [MediaSession]
+     * 仍指向已释放的实例，通知 / 锁屏会失联；检测到实例不一致 就重建会话与常驻控制者。
+     */
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        rebuildSessionIfPlayerChanged()
+        return super.onStartCommand(intent, flags, startId)
+    }
+
+    private fun rebuildSessionIfPlayerChanged() {
+        val active = playerHolder.existingPlayer ?: return
+        if (mediaSession?.player === active) return
+        Timber.i("播放器实例已切换，重建播放会话")
+        selfController?.release()
+        selfController = null
+        mediaSession?.release()
+        mediaSession = buildMediaSession(active)
+        connectSelfController()
+    }
+
+    private fun buildMediaSession(player: Player): MediaSession =
+        MediaSession.Builder(this, player)
+            .setSessionActivity(sessionActivityIntent())
+            .setCustomLayout(
+                listOf(
+                    CommandButton.Builder(CoreR.drawable.ic_close)
+                        .setDisplayName(getString(PlayerR.string.player_controls_exit))
+                        .setPlayerCommand(Player.COMMAND_STOP)
+                        .build()
+                )
+            )
+            .build()
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
