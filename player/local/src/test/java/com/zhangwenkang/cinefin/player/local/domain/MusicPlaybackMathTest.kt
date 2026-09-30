@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 音乐播放纯计算函数的边界用例（W1 R2）。 */
@@ -27,5 +29,22 @@ class MusicPlaybackMathTest {
         assertEquals(0L, playbackPositionTicks(0L))
         assertEquals(10_000_000L, playbackPositionTicks(1_000L))
         assertEquals(0L, playbackPositionTicks(-100L))
+    }
+
+    @Test
+    fun `进度上报按 10 秒节流`() {
+        assertFalse(isProgressReportDue(9_999L, 0L))
+        assertTrue(isProgressReportDue(10_000L, 0L))
+        assertFalse(isProgressReportDue(19_000L, 10_000L))
+        assertTrue(isProgressReportDue(20_000L, 10_000L))
+    }
+
+    @Test
+    fun `曲目切换时停止上报的百分比与位置一致`() {
+        // 曲目播到一半切歌：Stop 上报 50%
+        assertEquals(50, playbackPercentage(120_000L, 240_000L))
+        assertEquals(1_200_000_000L, playbackPositionTicks(120_000L))
+        // 队列播完：Stop 上报 100%
+        assertEquals(100, playbackPercentage(240_000L, 240_000L))
     }
 }

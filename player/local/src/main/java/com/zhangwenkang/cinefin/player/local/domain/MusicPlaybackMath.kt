@@ -19,3 +19,13 @@ internal fun playbackPercentage(positionMs: Long, durationMs: Long): Int {
     val safePosition = positionMs.coerceAtLeast(0L)
     return ((safePosition * 100L) / durationMs).toInt().coerceIn(0, 100)
 }
+
+/** MU-9 的周期上报间隔：10 秒。 */
+internal const val PROGRESS_REPORT_INTERVAL_MS = 10_000L
+
+/** 播放进度上报节流（MU-9）：距上次上报达到间隔才需要再报。 */
+internal fun isProgressReportDue(
+    nowMs: Long,
+    lastReportAtMs: Long,
+    intervalMs: Long = PROGRESS_REPORT_INTERVAL_MS,
+): Boolean = nowMs - lastReportAtMs >= intervalMs

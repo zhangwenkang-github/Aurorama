@@ -64,6 +64,8 @@ constructor(
         if (!playerHolder.musicSessionActive || !player.isPlayingMusicItem()) return
 
         val snapshot = playbackSnapshot(player)
+        // 恢复视频的"播完一件暂停"（音乐期间被关掉，见 PlayerHolder.applyMusicPlaybackTuning）
+        playerHolder.applyMusicPlaybackTuning(inMusicSession = false)
         stopLocal(player)
         playerHolder.musicSessionActive = false
         if (snapshot != null) {

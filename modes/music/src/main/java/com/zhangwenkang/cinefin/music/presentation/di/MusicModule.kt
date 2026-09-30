@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.music.data.MusicRepositoryImpl
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackControllerImpl
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
+import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinator
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinatorImpl
 import dagger.Binds
@@ -27,6 +28,8 @@ interface MusicModule {
 
     @Binds
     fun bindMusicPlaybackStateSource(impl: MusicPlaybackControllerImpl): MusicPlaybackStateSource
+
+    @Binds fun bindMusicQueueEditor(impl: MusicPlaybackControllerImpl): MusicQueueEditor
 
     @Binds fun bindPlaybackCoordinator(impl: PlaybackCoordinatorImpl): PlaybackCoordinator
 }

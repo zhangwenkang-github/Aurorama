@@ -48,4 +48,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
+
+    testImplementation("junit:junit:4.13.2")
 }

@@ -105,6 +105,16 @@ constructor(
     }
 
     /**
+     * 音乐会话的播放器微调（W2 R2，MU-4 gapless）。
+     *
+     * 视频分集依赖 `pauseAtEndOfMediaItems=true`（一集播完先停住、由播放页决定下一集）； 音乐必须关掉它：否则一首播完 `playWhenReady` 就被置
+     * false，专辑连播与 gapless 全部失效。 音乐永远走 ExoPlayer（[audioSession]），非 ExoPlayer 实例（mpv）静默忽略。
+     */
+    fun applyMusicPlaybackTuning(inMusicSession: Boolean) {
+        (instance as? ExoPlayer)?.setPauseAtEndOfMediaItems(!inMusicSession)
+    }
+
+    /**
      * 设置音轨延迟（毫秒）；正 = 声音延后。
      *
      * ExoPlayer 下改处理器里的目标值即可（播放中即时生效）；mpv 下写 `audio-delay` 属性。

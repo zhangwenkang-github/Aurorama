@@ -30,8 +30,8 @@ class MusicTrackResolver @Inject constructor(private val repository: JellyfinRep
             name = name,
             itemId = itemId,
             mediaSourceId = source.id,
-            // W1 从曲目开头播放；续播（UserData.playbackPositionTicks）与进度上报一起在 W2 做
-            playbackPosition = 0L,
+            // W2：服务器 UserData.playbackPositionTicks 换算出的续播位置（0 = 从头播放）
+            playbackPosition = resumePositionMs,
             // 与视频一致：服务器判定要转码时优先走转码地址，否则直连原始文件
             mediaSourceUri = source.transcodingPath ?: source.path,
             thumbnailUri = imageUri,
