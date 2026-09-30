@@ -48,6 +48,7 @@ fun CinefinDrawer(
     currentRoute: String?,
     homeRoute: Any,
     mediaRoute: Any,
+    musicRoute: Any,
     downloadsRoute: Any,
     settingsRoute: Any,
     serversRoute: Any,
@@ -110,6 +111,13 @@ fun CinefinDrawer(
                 iconRes = CoreR.drawable.ic_home,
                 selected = currentRoute == homeRoute::class.qualifiedName,
                 onClick = { onNavigate(homeRoute) },
+            )
+            // 音乐模式（W3 R3 接入）：与影视并列的一等入口，直接进 Prism 曲库
+            DrawerNavItemRaw(
+                title = "音乐",
+                iconRes = CoreR.drawable.ic_music,
+                selected = currentRoute == musicRoute::class.qualifiedName,
+                onClick = { onNavigate(musicRoute) },
             )
             if (showMedia) {
                 DrawerSectionLabel(textRes = CoreR.string.drawer_section_media)

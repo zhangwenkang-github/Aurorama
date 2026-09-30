@@ -11,11 +11,10 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
 
 /**
- * W1 阅读器 PoC 入口。
+ * 阅读器入口（EB-10）。
  *
- * 通过 adb 显式启动（W2 接入 NavigationRoot 后改为非 exported）： `adb shell am start -n
- * <applicationId>/com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity -e itemId
- * <uuid>`
+ * W3 R3 起由 `NavigationRoot` 的书籍条目以显式 Intent 打开（`EXTRA_ITEM_ID` / `EXTRA_TITLE`）， 已改回
+ * `exported=false`； 调试期如需 adb 直启，临时改 manifest 后务必还原。
  */
 @AndroidEntryPoint
 class ReaderActivity : AppCompatActivity() {

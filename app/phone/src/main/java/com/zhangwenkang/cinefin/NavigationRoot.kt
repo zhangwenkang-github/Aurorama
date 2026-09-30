@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin
 
+import android.content.Context
+import android.content.Intent
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.tween
@@ -15,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
@@ -24,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
@@ -34,6 +38,8 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
+import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
+import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
 import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
 import com.zhangwenkang.cinefin.presentation.film.CollectionScreen
 import com.zhangwenkang.cinefin.presentation.film.DownloadsScreen
@@ -167,7 +173,11 @@ fun NavigationRoot(
     // 主导航收进抽屉：内容区获得完整宽度，服务器信息也不再占用首页顶部
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val showNavigation = currentRoute in navigationItemClassNames
+    // 音乐模式复用同一个抽屉（入口在抽屉内），因此也允许手势拉出
+    val showNavigation =
+        currentRoute in navigationItemClassNames ||
+            currentRoute == MusicModeRoute::class.qualifiedName
+    val context = LocalContext.current
     val settingsRoute = remember {
         SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
     }
@@ -186,6 +196,7 @@ fun NavigationRoot(
                 currentRoute = currentRoute,
                 homeRoute = HomeRoute,
                 mediaRoute = MediaRoute,
+                musicRoute = MusicModeRoute,
                 downloadsRoute = DownloadsRoute,
                 settingsRoute = settingsRoute,
                 serversRoute = ServersRoute,
@@ -297,7 +308,11 @@ fun NavigationRoot(
                         }
                     },
                     onItemClick = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                 )
             }
@@ -305,7 +320,11 @@ fun NavigationRoot(
                 MediaScreen(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onItemClick = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                     onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
                     searchExpanded = searchExpanded,
@@ -316,9 +335,16 @@ fun NavigationRoot(
                 DownloadsScreen(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onItemClick = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                 )
+            }
+            composable<MusicModeRoute> {
+                MusicModeScreen(onOpenDrawer = { scope.launch { drawerState.open() } })
             }
             composable<ConsoleRoute> { backStackEntry ->
                 val route: ConsoleRoute = backStackEntry.toRoute()
@@ -334,7 +360,11 @@ fun NavigationRoot(
                     libraryName = route.libraryName,
                     libraryType = route.libraryType,
                     onItemClick = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                     navigateBack = { navController.safePopBackStack() },
                 )
@@ -345,7 +375,11 @@ fun NavigationRoot(
                     collectionId = UUID.fromString(route.collectionId),
                     collectionName = route.collectionName,
                     onItemClick = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                     navigateBack = { navController.safePopBackStack() },
                 )
@@ -353,7 +387,11 @@ fun NavigationRoot(
             composable<FavoritesRoute> {
                 FavoritesScreen(
                     onItemClick = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                     navigateBack = { navController.safePopBackStack() },
                 )
@@ -376,7 +414,11 @@ fun NavigationRoot(
                     navigateBack = { navController.safePopBackStack() },
                     navigateHome = { navigateHome(navController) },
                     navigateToItem = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                     navigateToPerson = { personId ->
                         navController.safeNavigate(PersonRoute(personId.toString()))
@@ -390,7 +432,11 @@ fun NavigationRoot(
                     navigateBack = { navController.safePopBackStack() },
                     navigateHome = { navigateHome(navController) },
                     navigateToItem = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                     navigateToSeries = { seriesId ->
                         navController.safeNavigate(ShowRoute(showId = seriesId.toString())) {
@@ -424,7 +470,11 @@ fun NavigationRoot(
                     navigateBack = { navController.safePopBackStack() },
                     navigateHome = { navigateHome(navController) },
                     navigateToItem = { item ->
-                        navigateToItem(navController = navController, item = item)
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
                     },
                 )
             }
@@ -465,7 +515,26 @@ private fun navigateHome(navController: NavHostController) {
     }
 }
 
-private fun navigateToItem(navController: NavHostController, item: FindroidItem) {
+/**
+ * 打开本机阅读器（EB-10 入口改造）。
+ *
+ * `ReaderActivity` 是独立 Activity（Readium 导航器是 Fragment 体系，暂时不塞进 NavHost）， `exported=false` + 显式
+ * Intent：入口只对 App 内可达。PDF / CBZ 由 W4 补齐前， 非 EPUB 书会在阅读页给出「打不开这本书」的说明与重试。
+ */
+private fun openReader(context: Context, itemId: String, title: String) {
+    context.startActivity(
+        Intent(context, ReaderActivity::class.java).apply {
+            putExtra(ReaderActivity.EXTRA_ITEM_ID, itemId)
+            putExtra(ReaderActivity.EXTRA_TITLE, title)
+        }
+    )
+}
+
+private fun navigateToItem(
+    navController: NavHostController,
+    item: FindroidItem,
+    context: Context,
+) {
     when (item) {
         is FindroidBoxSet ->
             navController.safeNavigate(
@@ -485,9 +554,11 @@ private fun navigateToItem(navController: NavHostController, item: FindroidItem)
                 )
             )
         is FindroidFolder ->
-            // 图书（小说 / 漫画）交给服务器自带的阅读器，其余文件夹按目录继续往下浏览
-            if (item.kind == "Book") {
-                navController.safeNavigate(ConsoleRoute(path = "/details?id=${item.id}"))
+            // 图书（EPUB）进本机阅读器；其余文件夹按目录继续往下浏览。
+            // `kind` 存的是 Jellyfin `BaseItemKind` 的枚举常量名（BOOK），与 JSON 名（Book）大小写不同，
+            // 原 `== "Book"` 永不命中，会退化成文件夹下钻（W3 R3 修正）。
+            if (item.kind?.equals("BOOK", ignoreCase = true) == true) {
+                openReader(context = context, itemId = item.id.toString(), title = item.name)
             } else {
                 navController.safeNavigate(
                     LibraryRoute(

@@ -1,9 +1,11 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaBook
+import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.ColumnCount
@@ -147,6 +149,30 @@ data class ReaderSettings(
     /** 强调色填充上的前景色（纸色 / 护眼用深墨，深色 / OLED 用阅读域 OnBase）。 */
     fun onAccentColor(systemDark: Boolean): Color =
         if (theme.isDark(systemDark)) MediaBook.onBase else CinefinTokens.OnSurfaceLight
+
+    /**
+     * 阅读器内的媒体色（§8.14 例外）：纸色 / 护眼主题把阅读域天青整体替换为纸页棕 `#A8843C`， 深色 / OLED 仍用阅读域天青。
+     *
+     * 返回同一份 [MediaColors] 结构，只是底 / 描边 / 文字 / 容器都换成纸页棕派生值， 这样顶栏按钮、分段控件、chip 与滑块在纸色主题内保持同一种强调色。
+     */
+    fun mediaColors(systemDark: Boolean): MediaColors {
+        if (theme.isDark(systemDark)) return MediaBook
+        val accent = CinefinTokens.PaperAccent
+        val surface = surfaceColor(systemDark)
+        return MediaColors(
+            base = accent,
+            bright = accent,
+            dim = accent,
+            onBase = CinefinTokens.OnSurfaceLight,
+            container =
+                accent.copy(alpha = CinefinTokens.MediaContainerAlpha).compositeOver(surface),
+            containerPressed =
+                accent
+                    .copy(alpha = CinefinTokens.MediaContainerPressedAlpha)
+                    .compositeOver(surface),
+            outline = accent.copy(alpha = CinefinTokens.MediaOutlineAlpha).compositeOver(surface),
+        )
+    }
 
     /** 先映射为与 Readium 解耦的中间快照（纯 Kotlin，可在 JVM 单测中直接断言）； [toEpubPreferences] 只做最后一步薄适配。 */
     internal fun toPreferenceSpec(systemDark: Boolean): ReaderPreferenceSpec {

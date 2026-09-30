@@ -2,12 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application>
-        <!-- W1 PoC：仅用于 adb 显式启动；W2 接入导航后必须改回 exported=false。 -->
+        <!-- W3 R3：入口已接入 NavigationRoot（书籍条目 → 显式 Intent），不再对 adb / 外部应用开放。 -->
         <activity
             android:name="com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity"
             android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
-            android:exported="true"
-            android:label="Cinefin Reader PoC" />
+            android:exported="false"
+            android:label="阅读器" />
     </application>
 
 </manifest>

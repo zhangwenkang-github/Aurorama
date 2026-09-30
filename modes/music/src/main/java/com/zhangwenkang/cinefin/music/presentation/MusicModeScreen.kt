@@ -1,12 +1,9 @@
 package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -23,16 +21,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,19 +36,33 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
@@ -65,10 +71,13 @@ import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import java.util.UUID
 import kotlin.math.roundToInt
 
+/** 队列行高（拖动换算基准）：面板内所有行等高，拖动位移才能按整数行对齐。 */
+private val QueueRowHeight = 72.dp
+
 /**
- * 音乐模式入口（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列面板）。
+ * 音乐模式入口（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列面板，W3 R3 接入 Prism）。
  *
- * 浏览：专辑 / 艺术家 / 歌曲 / 歌单四个标签页，点歌以当前列表整份入队； 队列：底栏「队列」按钮打开面板，支持点歌跳转、长按拖拽排序、移除与「下一首播放」；
+ * 浏览：专辑 / 艺术家 / 歌曲 / 歌单四个分段（设计系统 §8.2），点歌以当前列表整份入队； 队列：底栏「队列」按钮打开面板，支持点歌跳转、长按拖拽排序、移除与「下一首播放」；
  * 通知栏与锁屏由播放会话服务承载（music → Media3 单 MediaSession）。
  *
  * 路由注册由 R3 在 `NavigationRoot.kt` 统一提交（见 [MusicModeRoute]）。
@@ -77,6 +86,7 @@ import kotlin.math.roundToInt
 @Composable
 fun MusicModeScreen(
     modifier: Modifier = Modifier,
+    onOpenDrawer: (() -> Unit)? = null,
     viewModel: MusicModeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -87,85 +97,112 @@ fun MusicModeScreen(
     // 队列被清空（停止播放）时自动收起队列面板
     LaunchedEffect(queue) { if (queue == null) queueSheetOpen = false }
 
-    Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        MusicHeader(state = state, onBack = viewModel::closeDetail)
-        if (state.detail == null) {
-            MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
-        }
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            val error = state.errorMessage
-            when {
-                error != null ->
-                    ErrorPane(
-                        message = error,
-                        onRetry = viewModel::refresh,
-                        onDismiss = viewModel::dismissError,
-                    )
-                state.loading ->
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                state.detail != null ->
-                    DetailPane(
-                        detail = state.detail!!,
-                        currentItemId = queue?.currentItem?.itemId,
-                        onSongClick = viewModel::playSong,
-                        onPlayNext = viewModel::playNext,
-                    )
-                else ->
-                    LibraryPane(
-                        state = state,
-                        currentItemId = queue?.currentItem?.itemId,
-                        onAlbumClick = viewModel::openAlbum,
-                        onArtistClick = viewModel::openArtist,
-                        onPlaylistClick = viewModel::openPlaylist,
-                        onSongClick = viewModel::playSong,
-                        onPlayNext = viewModel::playNext,
-                    )
+    CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
+        val colors = LocalCinefinColors.current
+        Column(modifier = modifier.fillMaxSize().background(colors.surface)) {
+            MusicHeader(
+                state = state,
+                onBack = viewModel::closeDetail,
+                onOpenDrawer = onOpenDrawer,
+            )
+            if (state.detail == null) {
+                MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
+                Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
             }
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                val error = state.errorMessage
+                when {
+                    error != null ->
+                        ErrorPane(
+                            message = error,
+                            onRetry = viewModel::refresh,
+                            onDismiss = viewModel::dismissError,
+                        )
+                    state.loading ->
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    state.detail != null ->
+                        DetailPane(
+                            detail = state.detail!!,
+                            currentItemId = queue?.currentItem?.itemId,
+                            onSongClick = viewModel::playSong,
+                            onPlayNext = viewModel::playNext,
+                        )
+                    else ->
+                        LibraryPane(
+                            state = state,
+                            currentItemId = queue?.currentItem?.itemId,
+                            onAlbumClick = viewModel::openAlbum,
+                            onArtistClick = viewModel::openArtist,
+                            onPlaylistClick = viewModel::openPlaylist,
+                            onSongClick = viewModel::playSong,
+                            onPlayNext = viewModel::playNext,
+                        )
+                }
+            }
+
+            NowPlayingBar(
+                queue = queue,
+                isPlaying = isPlaying,
+                onPlayPause = viewModel::togglePlayPause,
+                onNext = viewModel::skipToNext,
+                onOpenQueue = { queueSheetOpen = true },
+            )
         }
 
-        NowPlayingBar(
-            queue = queue,
-            isPlaying = isPlaying,
-            onPlayPause = viewModel::togglePlayPause,
-            onNext = viewModel::skipToNext,
-            onOpenQueue = { queueSheetOpen = true },
-        )
-    }
-
-    val currentQueue = queue
-    if (queueSheetOpen && currentQueue != null) {
-        QueueSheet(
-            queue = currentQueue,
-            onDismiss = { queueSheetOpen = false },
-            onJump = viewModel::jumpToQueueItem,
-            onMove = viewModel::moveQueueItem,
-            onRemove = viewModel::removeQueueItem,
-        )
+        val currentQueue = queue
+        if (queueSheetOpen && currentQueue != null) {
+            QueueSheet(
+                queue = currentQueue,
+                onDismiss = { queueSheetOpen = false },
+                onJump = viewModel::jumpToQueueItem,
+                onMove = viewModel::moveQueueItem,
+                onRemove = viewModel::removeQueueItem,
+            )
+        }
     }
 }
 
 @Composable
-private fun MusicHeader(state: MusicModeViewModel.UiState, onBack: () -> Unit) {
+private fun MusicHeader(
+    state: MusicModeViewModel.UiState,
+    onBack: () -> Unit,
+    onOpenDrawer: (() -> Unit)?,
+) {
+    val colors = LocalCinefinColors.current
     val detail = state.detail
     Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
+        modifier =
+            Modifier.fillMaxWidth().height(72.dp).padding(horizontal = CinefinSpacing.Space3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (detail != null) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_arrow_left),
-                    contentDescription = "返回",
-                )
-            }
-        } else {
-            Spacer(modifier = Modifier.width(16.dp))
+        when {
+            detail != null ->
+                CinefinIconButton(onClick = onBack) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_arrow_left),
+                        contentDescription = "返回",
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            onOpenDrawer != null ->
+                CinefinIconButton(onClick = onOpenDrawer) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_menu),
+                        contentDescription = "打开导航",
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            else -> Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
         }
-        Column {
+        Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = detail?.title ?: "音乐",
-                style = MaterialTheme.typography.titleLarge,
+                style = CinefinType.TitleLarge,
+                color = colors.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -178,8 +215,8 @@ private fun MusicHeader(state: MusicModeViewModel.UiState, onBack: () -> Unit) {
                         state.tab == MusicTab.SONGS -> "共 ${state.songs.size} 首歌曲"
                         else -> "共 ${state.playlists.size} 个歌单"
                     },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
             )
         }
     }
@@ -187,22 +224,23 @@ private fun MusicHeader(state: MusicModeViewModel.UiState, onBack: () -> Unit) {
 
 @Composable
 private fun MusicTabs(selected: MusicTab, onSelect: (MusicTab) -> Unit) {
-    val tabs =
-        listOf(
-            MusicTab.ALBUMS to "专辑",
-            MusicTab.ARTISTS to "艺术家",
-            MusicTab.SONGS to "歌曲",
-            MusicTab.PLAYLISTS to "歌单",
-        )
-    PrimaryTabRow(selectedTabIndex = tabs.indexOfFirst { it.first == selected }) {
-        tabs.forEach { (tab, title) ->
-            Tab(
-                selected = tab == selected,
-                onClick = { onSelect(tab) },
-                text = { Text(text = title) },
-            )
-        }
-    }
+    CinefinSegmentedControl(
+        items = MusicTab.entries,
+        selected = selected,
+        onSelect = onSelect,
+        label = { tab ->
+            when (tab) {
+                MusicTab.ALBUMS -> "专辑"
+                MusicTab.ARTISTS -> "艺术家"
+                MusicTab.SONGS -> "歌曲"
+                MusicTab.PLAYLISTS -> "歌单"
+            }
+        },
+        modifier =
+            Modifier.padding(horizontal = CinefinSpacing.Space4)
+                .widthIn(max = 640.dp)
+                .fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -256,13 +294,22 @@ private fun DetailPane(
 @Composable
 private fun AlbumList(albums: List<MusicAlbum>, onAlbumClick: (MusicAlbum) -> Unit) {
     if (albums.isEmpty()) {
-        EmptyHint(text = "音乐库里还没有专辑")
+        EmptyHint(title = "音乐库里还没有专辑", message = "在服务器添加音乐后点「刷新」重新拉取")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items = albums, key = { album -> album.key }) { album ->
-            AlbumRow(album = album, onClick = { onAlbumClick(album) })
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            CinefinListRow(
+                title = album.name,
+                secondary =
+                    listOfNotNull(album.artist, "${album.songs.size} 首")
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · "),
+                onClick = { onAlbumClick(album) },
+                leading = {
+                    ArtworkThumb(imageUri = album.imageUri, placeholder = "♪", title = album.name)
+                },
+            )
         }
     }
 }
@@ -270,19 +317,23 @@ private fun AlbumList(albums: List<MusicAlbum>, onAlbumClick: (MusicAlbum) -> Un
 @Composable
 private fun ArtistList(artists: List<MusicArtist>, onArtistClick: (MusicArtist) -> Unit) {
     if (artists.isEmpty()) {
-        EmptyHint(text = "音乐库里还没有艺术家")
+        EmptyHint(title = "音乐库里还没有艺术家")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items = artists, key = { artist -> artist.key }) { artist ->
-            MediaRow(
+            CinefinListRow(
                 title = artist.name,
-                subtitle = "${artist.songs.size} 首",
-                imageUri = artist.imageUri,
-                placeholder = "♪",
+                secondary = "${artist.songs.size} 首",
                 onClick = { onArtistClick(artist) },
+                leading = {
+                    ArtworkThumb(
+                        imageUri = artist.imageUri,
+                        placeholder = "♪",
+                        title = artist.name,
+                    )
+                },
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         }
     }
 }
@@ -293,88 +344,49 @@ private fun PlaylistList(
     onPlaylistClick: (MusicPlaylist) -> Unit,
 ) {
     if (playlists.isEmpty()) {
-        EmptyHint(text = "服务器上没有歌单")
+        EmptyHint(title = "服务器上没有歌单")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items = playlists, key = { playlist -> playlist.id.toString() }) { playlist ->
-            MediaRow(
+            CinefinListRow(
                 title = playlist.name,
-                subtitle = playlist.songCount?.let { count -> "$count 首" } ?: "歌单",
-                imageUri = playlist.imageUri,
-                placeholder = "≡",
+                secondary = playlist.songCount?.let { count -> "$count 首" } ?: "歌单",
                 onClick = { onPlaylistClick(playlist) },
+                leading = {
+                    ArtworkThumb(
+                        imageUri = playlist.imageUri,
+                        placeholder = "≡",
+                        title = playlist.name,
+                    )
+                },
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         }
     }
 }
 
+/** 46–56dp 缩略图（§8.4：圆角 8dp）；无图时用字符占位，不引入额外色块。 */
 @Composable
-private fun AlbumRow(album: MusicAlbum, onClick: () -> Unit) {
-    MediaRow(
-        title = album.name,
-        subtitle =
-            listOfNotNull(album.artist, "${album.songs.size} 首")
-                .filter { it.isNotBlank() }
-                .joinToString(" · "),
-        imageUri = album.imageUri,
-        placeholder = "♪",
-        onClick = onClick,
-    )
-}
-
-@Composable
-private fun MediaRow(
-    title: String,
-    subtitle: String,
-    imageUri: String?,
-    placeholder: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun ArtworkThumb(imageUri: String?, placeholder: String, title: String) {
+    val colors = LocalCinefinColors.current
+    Box(
+        modifier =
+            Modifier.size(48.dp).clip(CinefinShapes.Xs).background(colors.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
     ) {
-        Surface(
-            modifier = Modifier.size(48.dp),
-            shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            if (imageUri == null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = placeholder,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                AsyncImage(
-                    model = imageUri,
-                    contentDescription = title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        if (imageUri == null) {
             Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                text = placeholder,
+                style = CinefinType.TitleMedium,
+                color = colors.onSurfaceVariant,
             )
-            if (subtitle.isNotBlank()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        } else {
+            AsyncImage(
+                model = imageUri,
+                contentDescription = title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
         }
     }
 }
@@ -388,7 +400,7 @@ private fun SongList(
     onPlayNext: (MusicSong) -> Unit,
 ) {
     if (songs.isEmpty()) {
-        EmptyHint(text = "这里还没有可播放的曲目")
+        EmptyHint(title = "这里还没有可播放的曲目")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -403,7 +415,6 @@ private fun SongList(
                 onClick = { onSongClick(song) },
                 onPlayNext = { onPlayNext(song) },
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         }
     }
 }
@@ -417,60 +428,57 @@ private fun SongRow(
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     var menuOpen by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = index.toString().padStart(2, '0'),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = song.name,
-                style = MaterialTheme.typography.bodyLarge,
-                color =
-                    if (isCurrent) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                fontWeight = if (isCurrent) FontWeight.SemiBold else null,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val line =
-                listOfNotNull(subtitle, formatDuration(song.runtimeTicks))
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · ")
-            if (line.isNotBlank()) {
+    CinefinListRow(
+        title = song.name,
+        secondary =
+            listOfNotNull(subtitle, formatDuration(song.runtimeTicks))
+                .filter { it.isNotBlank() }
+                .joinToString(" · ")
+                .ifBlank { null },
+        isCurrent = isCurrent,
+        onClick = onClick,
+        leading = {
+            Box(modifier = Modifier.width(28.dp), contentAlignment = Alignment.CenterStart) {
                 Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    text = index.toString().padStart(2, '0'),
+                    style = CinefinType.MonoDataSmall,
+                    color = if (isCurrent) media.bright else colors.onSurfaceFaint,
                 )
             }
-        }
-        Box {
-            TextButton(onClick = { menuOpen = true }, contentPadding = PaddingValues(0.dp)) {
-                Text(text = "⋮", style = MaterialTheme.typography.titleMedium)
+        },
+        trailing = {
+            Box {
+                CinefinIconButton(onClick = { menuOpen = true }) { tint ->
+                    Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
+                }
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    shape = CinefinShapes.Sm,
+                    containerColor = colors.surfaceContainerHighest,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "下一首播放",
+                                style = CinefinType.BodyMedium,
+                                color = colors.onSurface,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onPlayNext()
+                        },
+                    )
+                }
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text(text = "下一首播放") },
-                    onClick = {
-                        menuOpen = false
-                        onPlayNext()
-                    },
-                )
-            }
-        }
-    }
+        },
+    )
 }
 
 @Composable
@@ -482,43 +490,53 @@ private fun NowPlayingBar(
     onOpenQueue: () -> Unit,
 ) {
     val item = queue?.currentItem ?: return
-    Surface(tonalElevation = 3.dp) {
+    val colors = LocalCinefinColors.current
+    Column(modifier = Modifier.fillMaxWidth().background(colors.surfaceContainerHigh)) {
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.outlineVariant))
         Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
+            modifier =
+                Modifier.fillMaxWidth().height(68.dp).padding(horizontal = CinefinSpacing.Space5),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = CinefinType.TitleMedium,
+                    color = colors.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "队列 ${queue.currentIndex + 1}/${queue.items.size}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "队列 ${queue.currentIndex + 1}/${queue.items.size} · 正在播放",
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onOpenQueue) {
+            CinefinIconButton(onClick = onOpenQueue) { tint ->
                 Icon(
                     painter = painterResource(CoreR.drawable.ic_playlist),
                     contentDescription = "播放队列",
+                    tint = tint,
+                    modifier = Modifier.size(20.dp),
                 )
             }
-            IconButton(onClick = onPlayPause) {
+            CinefinIconButton(onClick = onPlayPause) { tint ->
                 Icon(
                     painter =
                         painterResource(
                             if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
                         ),
                     contentDescription = if (isPlaying) "暂停" else "播放",
+                    tint = tint,
+                    modifier = Modifier.size(20.dp),
                 )
             }
-            IconButton(onClick = onNext) {
+            CinefinIconButton(onClick = onNext) { tint ->
                 Icon(
                     painter = painterResource(CoreR.drawable.ic_skip_forward),
                     contentDescription = "下一首",
+                    tint = tint,
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -534,153 +552,163 @@ private fun QueueSheet(
     onMove: (Int, Int) -> Unit,
     onRemove: (Int) -> Unit,
 ) {
-    val rowHeight = 56.dp
-    val rowHeightPx = with(LocalDensity.current) { rowHeight.toPx() }
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val rowHeightPx = with(LocalDensity.current) { QueueRowHeight.toPx() }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.surfaceContainer,
+        contentColor = colors.onSurface,
+        dragHandle = {
+            Box(
+                modifier =
+                    Modifier.padding(top = CinefinSpacing.Space3)
+                        .size(width = 32.dp, height = 4.dp)
+                        .clip(CinefinShapes.TwoXs)
+                        .background(colors.onSurfaceVariant.copy(alpha = 0.24f))
+            )
+        },
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space5)) {
             Text(
                 text = "播放队列（${queue.items.size}）",
-                style = MaterialTheme.typography.titleMedium,
+                style = CinefinType.TitleMedium,
+                color = colors.onSurface,
             )
             Text(
                 text = "长按右侧「≡」拖拽排序，点标题跳转播放，点「✕」移除",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
         }
-        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp)) {
+        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
             itemsIndexed(
                 items = queue.items,
                 key = { index, item -> "$index-${item.itemId}" },
             ) { index, item ->
                 val isDragging = draggingIndex == index
-                Row(
+                val isCurrent = index == queue.currentIndex
+                CinefinListRow(
+                    title = item.name,
+                    isCurrent = isCurrent,
+                    showDivider = index != queue.items.lastIndex,
+                    onClick = { onJump(index) },
                     modifier =
-                        Modifier.fillMaxWidth()
-                            .height(rowHeight)
-                            .zIndex(if (isDragging) 1f else 0f)
+                        Modifier.zIndex(if (isDragging) 1f else 0f)
                             .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
                             .background(
-                                if (isDragging) {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                } else {
-                                    Color.Transparent
-                                }
-                            )
-                            .clickable { onJump(index) }
-                            .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = (index + 1).toString().padStart(2, '0'),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = item.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color =
-                                if (index == queue.currentIndex) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                            fontWeight =
-                                if (index == queue.currentIndex) FontWeight.SemiBold else null,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (index == queue.currentIndex) {
+                                if (isDragging) colors.surfaceContainerHigh else Color.Transparent
+                            ),
+                    leading = {
+                        Box(
+                            modifier = Modifier.width(28.dp),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
                             Text(
-                                text = "正在播放",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                text = (index + 1).toString().padStart(2, '0'),
+                                style = CinefinType.MonoDataSmall,
+                                color = if (isCurrent) media.bright else colors.onSurfaceFaint,
                             )
                         }
-                    }
-                    IconButton(onClick = { onRemove(index) }) {
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_close),
-                            contentDescription = "从队列移除",
-                        )
-                    }
-                    Box(
-                        modifier =
-                            Modifier.size(48.dp).pointerInput(index, queue.items.size) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = {
-                                        draggingIndex = index
-                                        dragOffset = 0f
-                                    },
-                                    onDrag = { change, amount ->
-                                        change.consume()
-                                        dragOffset += amount.y
-                                    },
-                                    onDragEnd = {
-                                        val from = draggingIndex
-                                        if (from != null) {
-                                            val delta = (dragOffset / rowHeightPx).roundToInt()
-                                            val to =
-                                                (from + delta).coerceIn(
-                                                    0,
-                                                    queue.items.lastIndex,
-                                                )
-                                            if (to != from) onMove(from, to)
-                                        }
-                                        draggingIndex = null
-                                        dragOffset = 0f
-                                    },
-                                    onDragCancel = {
-                                        draggingIndex = null
-                                        dragOffset = 0f
-                                    },
+                    },
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isCurrent) {
+                                Text(
+                                    text = "正在播放",
+                                    style = CinefinType.BodySmall,
+                                    color = media.bright,
                                 )
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(text = "≡", style = MaterialTheme.typography.titleMedium)
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+                            }
+                            CinefinIconButton(onClick = { onRemove(index) }) { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_close),
+                                    contentDescription = "从队列移除",
+                                    tint = tint,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Box(
+                                modifier =
+                                    Modifier.size(48.dp).pointerInput(index, queue.items.size) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                draggingIndex = index
+                                                dragOffset = 0f
+                                            },
+                                            onDrag = { change, amount ->
+                                                change.consume()
+                                                dragOffset += amount.y
+                                            },
+                                            onDragEnd = {
+                                                val from = draggingIndex
+                                                if (from != null) {
+                                                    val delta =
+                                                        (dragOffset / rowHeightPx).roundToInt()
+                                                    val to =
+                                                        (from + delta).coerceIn(
+                                                            0,
+                                                            queue.items.lastIndex,
+                                                        )
+                                                    if (to != from) onMove(from, to)
+                                                }
+                                                draggingIndex = null
+                                                dragOffset = 0f
+                                            },
+                                            onDragCancel = {
+                                                draggingIndex = null
+                                                dragOffset = 0f
+                                            },
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "≡",
+                                    style = CinefinType.TitleMedium,
+                                    color = colors.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
+                )
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
     }
 }
 
 @Composable
 private fun ErrorPane(message: String, onRetry: () -> Unit, onDismiss: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CinefinEmptyState(
+            title = "曲库加载失败",
+            message = message,
+            action = {
+                CinefinButton(text = "重试", onClick = onRetry, size = CinefinButtonSize.Medium)
+            },
+            secondaryAction = {
+                CinefinButton(
+                    text = "关闭",
+                    onClick = onDismiss,
+                    variant = CinefinButtonVariant.Text,
+                    size = CinefinButtonSize.Medium,
+                )
+            },
         )
-        Row {
-            TextButton(onClick = onRetry) { Text(text = "重试") }
-            TextButton(onClick = onDismiss) { Text(text = "关闭") }
-        }
     }
 }
 
 @Composable
-private fun EmptyHint(text: String) {
+private fun EmptyHint(title: String, message: String? = null) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        CinefinEmptyState(title = title, message = message)
     }
 }
 

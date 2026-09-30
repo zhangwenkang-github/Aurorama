@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -310,4 +314,84 @@ private fun DrawerPreviewContent() {
 @Composable
 private fun CinefinDrawerPreview() {
     CinefinTheme(domain = ContentDomain.Book) { DrawerPreviewContent() }
+}
+
+@Composable
+private fun SelectionPreviewContent() {
+    val colors = LocalCinefinColors.current
+    var mode by remember { mutableStateOf("分页") }
+    var font by remember { mutableStateOf("无衬线") }
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Text(
+            text = "分段控件（§8.2）",
+            style = CinefinType.LabelSmall,
+            color = colors.onSurfaceFaint,
+        )
+        CinefinSegmentedControl(
+            items = listOf("滚动", "分页", "双栏"),
+            selected = mode,
+            onSelect = { mode = it },
+            label = { it },
+        )
+        Text(
+            text = "筛选 Chip（§8.3）",
+            style = CinefinType.LabelSmall,
+            color = colors.onSurfaceFaint,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("默认", "无衬线", "等宽").forEach { option ->
+                CinefinFilterChip(
+                    text = option,
+                    selected = font == option,
+                    onClick = { font = option },
+                )
+            }
+            CinefinFilterChip(
+                text = "紧凑禁用",
+                selected = false,
+                onClick = {},
+                enabled = false,
+                compact = true,
+            )
+        }
+    }
+}
+
+@Preview(name = "分段 / Chip · 音乐域", widthDp = 420, heightDp = 260)
+@Composable
+private fun CinefinSelectionMusicPreview() {
+    CinefinTheme(domain = ContentDomain.Music) { SelectionPreviewContent() }
+}
+
+@Preview(name = "分段 / Chip · 阅读域", widthDp = 420, heightDp = 260)
+@Composable
+private fun CinefinSelectionBookPreview() {
+    CinefinTheme(domain = ContentDomain.Book) { SelectionPreviewContent() }
+}
+
+@Composable
+private fun EmptyStatePreviewContent() {
+    CinefinEmptyState(
+        title = "音乐库里还没有专辑",
+        message = "在服务器添加音乐后点「刷新」重新拉取",
+        icon = { PreviewIcon(it) },
+        action = { CinefinButton(text = "刷新", onClick = {}, size = CinefinButtonSize.Medium) },
+        secondaryAction = {
+            CinefinButton(
+                text = "稍后",
+                onClick = {},
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Medium,
+            )
+        },
+    )
+}
+
+@Preview(name = "空状态 · 音乐域", widthDp = 640, heightDp = 360)
+@Composable
+private fun CinefinEmptyStatePreview() {
+    CinefinTheme(domain = ContentDomain.Music) { EmptyStatePreviewContent() }
 }

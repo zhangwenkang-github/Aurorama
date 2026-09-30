@@ -2,7 +2,7 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,12 +16,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -32,6 +26,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -43,8 +40,10 @@ import kotlin.math.roundToInt
  *
  * 宽 512dp、圆角 22dp、内边距 30/28dp；字号 / 行距 / 边距滑块，字体 / 对齐 chip 行， 主题缩略图 5 个（78dp 圆角
  * 14dp）。所有修改即时回调，由调用方提交导航器并持久化。
+ *
+ * 分段控件与 chip 使用 core 的 Prism 组件；纸色 / 护眼主题下媒体色已被 [ReaderSettings.mediaColors]
+ * 替换为纸页棕，组件自动取色，面板不再手工传强调色。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReaderSettingsPanel(
     settings: ReaderSettings,
@@ -54,7 +53,6 @@ internal fun ReaderSettingsPanel(
 ) {
     val contentColor = settings.contentColor(systemDark)
     val accent = settings.accentColor(systemDark)
-    val onAccent = settings.onAccentColor(systemDark)
 
     Column(
         modifier =
@@ -67,31 +65,15 @@ internal fun ReaderSettingsPanel(
                 .padding(horizontal = 30.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space5),
     ) {
-        Text(text = "阅读设置", style = CinefinType.LabelLarge, color = contentColor)
+        Text(text = "阅读设置", style = CinefinType.TitleMedium, color = contentColor)
 
         SectionLabel("阅读模式", contentColor)
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            ReaderMode.entries.forEachIndexed { index, mode ->
-                SegmentedButton(
-                    selected = settings.mode == mode,
-                    onClick = { onSettingsChange(settings.copy(mode = mode)) },
-                    shape =
-                        SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = ReaderMode.entries.size,
-                        ),
-                    colors =
-                        SegmentedButtonDefaults.colors(
-                            activeContainerColor = accent,
-                            activeContentColor = onAccent,
-                            inactiveContainerColor = Color.Transparent,
-                            inactiveContentColor = contentColor.copy(alpha = 0.72f),
-                        ),
-                ) {
-                    Text(mode.label, style = CinefinType.LabelMedium)
-                }
-            }
-        }
+        CinefinSegmentedControl(
+            items = ReaderMode.entries,
+            selected = settings.mode,
+            onSelect = { mode -> onSettingsChange(settings.copy(mode = mode)) },
+            label = { mode -> mode.label },
+        )
 
         SliderRow(
             label = "字号",
@@ -126,8 +108,6 @@ internal fun ReaderSettingsPanel(
             options = ReaderFont.entries,
             selected = settings.font,
             label = { it.label },
-            contentColor = contentColor,
-            accent = accent,
             onSelect = { onSettingsChange(settings.copy(font = it)) },
         )
 
@@ -136,13 +116,14 @@ internal fun ReaderSettingsPanel(
             options = ReaderTextAlign.entries,
             selected = settings.textAlign,
             label = { it.label },
-            contentColor = contentColor,
-            accent = accent,
             onSelect = { onSettingsChange(settings.copy(textAlign = it)) },
         )
 
         SectionLabel("主题", contentColor)
-        Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+        ) {
             ReaderTheme.entries.forEach { theme ->
                 ThemeSwatch(
                     theme = theme,
@@ -189,7 +170,8 @@ private fun SliderRow(
             value = value,
             onValueChange = onValueChange,
             valueRange = range,
-            modifier = Modifier.width(230.dp),
+            // 平板按 §8.14 的 230dp 宽度呈现；手机（≈392dp 宽）自动收缩，数值文本不再被挤出屏幕
+            modifier = Modifier.weight(1f, fill = false).widthIn(max = 230.dp),
             colors =
                 SliderDefaults.colors(
                     thumbColor = Color.White,
@@ -201,6 +183,8 @@ private fun SliderRow(
             text = valueText,
             style = CinefinType.LabelMedium,
             color = contentColor.copy(alpha = 0.72f),
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(min = 44.dp),
         )
     }
 }
@@ -210,23 +194,19 @@ private fun <T> ChipRow(
     options: List<T>,
     selected: T,
     label: (T) -> String,
-    contentColor: Color,
-    accent: Color,
     onSelect: (T) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2)) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         options.forEach { option ->
-            FilterChip(
+            CinefinFilterChip(
+                text = label(option),
                 selected = option == selected,
                 onClick = { onSelect(option) },
-                label = { Text(label(option), style = CinefinType.LabelMedium) },
-                colors =
-                    FilterChipDefaults.filterChipColors(
-                        containerColor = Color.Transparent,
-                        labelColor = contentColor.copy(alpha = 0.72f),
-                        selectedContainerColor = accent.copy(alpha = 0.16f),
-                        selectedLabelColor = contentColor,
-                    ),
+                compact = true,
             )
         }
     }
@@ -252,7 +232,7 @@ private fun ThemeSwatch(
                     color = if (selected) accent else foreground.copy(alpha = 0.24f),
                     shape = RoundedCornerShape(14.dp),
                 )
-                .clickable(onClick = onSelect),
+                .cinefinClickable(onClick = onSelect),
         contentAlignment = Alignment.Center,
     ) {
         Column(
