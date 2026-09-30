@@ -120,4 +120,8 @@
     <string name="download_paused">已暖停</string>
     <string name="download_downloading">下載中…</string>
     <string name="download_failed">下載失敗</string>
+    <string name="title_music">音樂</string>
+    <string name="title_book_shelf">書架</string>
+    <string name="title_more">更多</string>
+    <string name="nav_collapse">收合</string>
 </resources>

@@ -7,8 +7,26 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,9 +34,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.NavOptionsBuilder
@@ -27,8 +55,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinBottomTab
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinDrawerGroup
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinModalDrawer
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavItem
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSideRail
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
 import com.zhangwenkang.cinefin.models.FindroidCollection
@@ -52,7 +89,10 @@ import com.zhangwenkang.cinefin.presentation.film.MovieScreen
 import com.zhangwenkang.cinefin.presentation.film.PersonScreen
 import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
-import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawer
+import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawerHeader
+import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
+import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
+import com.zhangwenkang.cinefin.presentation.navigation.navIcon
 import com.zhangwenkang.cinefin.presentation.settings.AboutScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsFileEditScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsScreen
@@ -170,16 +210,25 @@ fun NavigationRoot(
     var searchExpanded by remember { mutableStateOf(false) }
 
     val currentRoute = navBackStackEntry?.destination?.route
-    // 主导航收进抽屉：内容区获得完整宽度，服务器信息也不再占用首页顶部
+    // 主导航：手机底部 4 tab / 平板侧轨；抽屉继续承载全量入口（库列表 / 控制台 / 服务器）
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    // 音乐模式复用同一个抽屉（入口在抽屉内），因此也允许手势拉出
+    // 顶层页面允许手势拉出抽屉；详情页等保留全宽与返回手势
     val showNavigation =
         currentRoute in navigationItemClassNames ||
-            currentRoute == MusicModeRoute::class.qualifiedName
+            currentRoute == MusicModeRoute::class.qualifiedName ||
+            currentRoute == LibraryRoute::class.qualifiedName
     val context = LocalContext.current
     val settingsRoute = remember {
         SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
+    }
+
+    val drawerViewModel: DrawerViewModel = hiltViewModel()
+    val drawerData by drawerViewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(drawerState.isOpen) {
+        if (drawerState.isOpen) {
+            drawerViewModel.load()
+        }
     }
 
     LaunchedEffect(showNavigation) {
@@ -188,46 +237,265 @@ fun NavigationRoot(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = showNavigation,
-        drawerContent = {
-            CinefinDrawer(
-                currentRoute = currentRoute,
-                homeRoute = HomeRoute,
-                mediaRoute = MediaRoute,
-                musicRoute = MusicModeRoute,
-                downloadsRoute = DownloadsRoute,
-                settingsRoute = settingsRoute,
-                serversRoute = ServersRoute,
-                consoleRoute = ConsoleRoute(),
-                metadataRoute = ConsoleRoute(path = "/metadata"),
-                showMedia = !isOfflineMode,
-                isOpen = drawerState.isOpen,
-                onOpenLibrary = { library ->
-                    navController.safeNavigate(
+    // 形态分级（§4.4）：Compact 底部 tab；Medium 起侧轨（≥1200dp 默认展开 164dp）
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val compactNavigation =
+        !windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val railDefaultExpanded = windowSizeClass.isWidthAtLeastBreakpoint(1200)
+    var railExpanded by
+        rememberSaveable(railDefaultExpanded) { mutableStateOf(railDefaultExpanded) }
+
+    val booksLibrary = drawerData.libraries.firstOrNull { it.type == CollectionType.Books }
+    val currentLibrary =
+        if (currentRoute == LibraryRoute::class.qualifiedName) {
+            runCatching { navBackStackEntry?.toRoute<LibraryRoute>() }.getOrNull()
+        } else {
+            null
+        }
+
+    val homeSelected = currentRoute == HomeRoute::class.qualifiedName
+    val musicSelected = currentRoute == MusicModeRoute::class.qualifiedName
+    val mediaSelected = currentRoute == MediaRoute::class.qualifiedName
+    val downloadsSelected = currentRoute == DownloadsRoute::class.qualifiedName
+    val settingsSelected = currentRoute == SettingsRoute::class.qualifiedName
+    val booksSelected =
+        booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString()
+
+    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
+    val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
+    val navigateTopLevel: (Any) -> Unit = { route ->
+        closeDrawer()
+        navController.safeNavigate(route) {
+            popUpTo(navController.graph.startDestinationId) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+    val openLibrary: (FindroidCollection) -> Unit = { library ->
+        closeDrawer()
+        navController.safeNavigate(
+            libraryEntryRoute(
+                libraryId = library.id.toString(),
+                libraryName = library.name,
+                libraryType = library.type,
+            )
+        )
+    }
+
+    fun chromeItem(@DrawableRes res: Int, label: String, neutral: Boolean = false) =
+        CinefinNavItem(label = label, neutral = neutral, icon = navIcon(res))
+
+    val chromeDestinations =
+        listOf(
+            ChromeDestination(
+                item =
+                    chromeItem(
+                        CoreR.drawable.ic_home,
+                        stringResource(CoreR.string.title_home),
+                        neutral = true,
+                    ),
+                selected = homeSelected,
+                bottom = true,
+            ) {
+                navigateTopLevel(HomeRoute)
+            },
+            ChromeDestination(
+                item =
+                    chromeItem(CoreR.drawable.ic_music, stringResource(CoreR.string.title_music)),
+                selected = musicSelected,
+                bottom = true,
+            ) {
+                navigateTopLevel(MusicModeRoute)
+            },
+            ChromeDestination(
+                item =
+                    chromeItem(
+                        CoreR.drawable.ic_book,
+                        stringResource(CoreR.string.title_book_shelf),
+                    ),
+                selected = booksSelected,
+                bottom = true,
+            ) {
+                if (booksLibrary != null) {
+                    navigateTopLevel(
                         libraryEntryRoute(
-                            libraryId = library.id.toString(),
-                            libraryName = library.name,
-                            libraryType = library.type,
+                            libraryId = booksLibrary.id.toString(),
+                            libraryName = booksLibrary.name,
+                            libraryType = booksLibrary.type,
                         )
                     )
-                },
-                onNavigate = { route ->
-                    scope.launch { drawerState.close() }
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                } else {
+                    openDrawer()
+                }
+            },
+            ChromeDestination(
+                item =
+                    chromeItem(CoreR.drawable.ic_library, stringResource(CoreR.string.title_media)),
+                selected = mediaSelected,
+                bottom = false,
+            ) {
+                navigateTopLevel(MediaRoute)
+            },
+            ChromeDestination(
+                item =
+                    chromeItem(
+                        CoreR.drawable.ic_download,
+                        stringResource(CoreR.string.title_download),
+                    ),
+                selected = downloadsSelected,
+                bottom = false,
+            ) {
+                navigateTopLevel(DownloadsRoute)
+            },
+            ChromeDestination(
+                item =
+                    chromeItem(
+                        CoreR.drawable.ic_settings,
+                        stringResource(CoreR.string.title_settings),
+                        neutral = true,
+                    ),
+                selected = settingsSelected,
+                bottom = false,
+            ) {
+                navigateTopLevel(settingsRoute)
+            },
+            ChromeDestination(
+                item =
+                    chromeItem(
+                        CoreR.drawable.ic_menu,
+                        stringResource(CoreR.string.title_more),
+                        neutral = true,
+                    ),
+                selected = false,
+                bottom = true,
+            ) {
+                openDrawer()
+            },
+        )
+    val bottomItems = chromeDestinations.filter { it.bottom }
+
+    val drawerSpecs: List<Pair<String?, DrawerEntry>> = buildList {
+        add(
+            null to
+                DrawerEntry(
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_home,
+                            stringResource(CoreR.string.title_home),
+                            neutral = true,
+                        ),
+                    selected = homeSelected,
+                ) {
+                    navigateTopLevel(HomeRoute)
+                }
+        )
+        add(
+            null to
+                DrawerEntry(
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_music,
+                            stringResource(CoreR.string.title_music),
+                        ),
+                    selected = musicSelected,
+                ) {
+                    navigateTopLevel(MusicModeRoute)
+                }
+        )
+        if (!isOfflineMode) {
+            add(
+                stringResource(CoreR.string.drawer_section_media) to
+                    DrawerEntry(
+                        item =
+                            chromeItem(
+                                CoreR.drawable.ic_library,
+                                stringResource(CoreR.string.title_media),
+                            ),
+                        selected = mediaSelected,
+                    ) {
+                        navigateTopLevel(MediaRoute)
                     }
-                },
-                onClose = { scope.launch { drawerState.close() } },
             )
-        },
-    ) {
+            drawerData.libraries.forEach { library ->
+                add(
+                    stringResource(CoreR.string.drawer_section_media) to
+                        DrawerEntry(
+                            item = chromeItem(libraryIconRes(library.type), library.name),
+                            selected = false,
+                        ) {
+                            openLibrary(library)
+                        }
+                )
+            }
+        }
+        add(
+            null to
+                DrawerEntry(
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_download,
+                            stringResource(CoreR.string.title_download),
+                        ),
+                    selected = downloadsSelected,
+                ) {
+                    navigateTopLevel(DownloadsRoute)
+                }
+        )
+        if (drawerData.isAdministrator) {
+            add(
+                stringResource(CoreR.string.drawer_section_management) to
+                    DrawerEntry(
+                        item =
+                            chromeItem(
+                                CoreR.drawable.ic_globe,
+                                stringResource(CoreR.string.title_console),
+                            ),
+                        selected = currentRoute == ConsoleRoute::class.qualifiedName,
+                    ) {
+                        navigateTopLevel(ConsoleRoute())
+                    }
+            )
+            add(
+                stringResource(CoreR.string.drawer_section_management) to
+                    DrawerEntry(
+                        item =
+                            chromeItem(
+                                CoreR.drawable.ic_database,
+                                stringResource(CoreR.string.title_metadata_manager),
+                            ),
+                        selected = false,
+                    ) {
+                        navigateTopLevel(ConsoleRoute(path = "/metadata"))
+                    }
+            )
+        }
+        add(
+            stringResource(CoreR.string.drawer_section_user) to
+                DrawerEntry(
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_settings,
+                            stringResource(CoreR.string.title_settings),
+                            neutral = true,
+                        ),
+                    selected = settingsSelected,
+                ) {
+                    navigateTopLevel(settingsRoute)
+                }
+        )
+    }
+    val drawerEntries = drawerSpecs.map { it.second }
+    val drawerGroups =
+        drawerSpecs.groupBy({ it.first }, { it.second.item }).map { (title, items) ->
+            CinefinDrawerGroup(title = title, items = items)
+        }
+    val drawerSelectedIndex = drawerEntries.indexOfFirst { it.selected }
+
+    val host: @Composable () -> Unit = {
         NavHost(
             navController = navController,
             startDestination = startDestination,
+            modifier = Modifier.fillMaxSize(),
             enterTransition = { fadeIn(tween(300)) },
             exitTransition = { fadeOut(tween(300)) },
             predictivePopEnterTransition = { fadeIn(tween(300)) },
@@ -508,6 +776,134 @@ fun NavigationRoot(
             }
             composable<AboutRoute> {
                 AboutScreen(navigateBack = { navController.safePopBackStack() })
+            }
+        }
+    }
+
+    CinefinModalDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = showNavigation,
+        header = {
+            CinefinDrawerHeader(
+                userName = drawerData.userName,
+                serverName = drawerData.serverName,
+                serverAddress = drawerData.serverAddress,
+                onOpenServers = { navigateTopLevel(ServersRoute) },
+            )
+        },
+        groups = drawerGroups,
+        selectedIndex = drawerSelectedIndex,
+        onSelect = { index -> drawerEntries.getOrNull(index)?.onClick?.invoke() },
+    ) {
+        when {
+            compactNavigation && showNavigation ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.weight(1f)) { host() }
+                    CinefinBottomTab(
+                        items = bottomItems.map { it.item },
+                        selectedIndex = bottomItems.indexOfFirst { it.selected },
+                        onSelect = { index -> bottomItems.getOrNull(index)?.onClick?.invoke() },
+                        modifier = Modifier.navigationBarsPadding(),
+                    )
+                }
+            !compactNavigation && showNavigation ->
+                Row(modifier = Modifier.fillMaxSize()) {
+                    CinefinSideNavigation(
+                        items = chromeDestinations.map { it.item },
+                        selectedIndex = chromeDestinations.indexOfFirst { it.selected },
+                        onSelect = { index ->
+                            chromeDestinations.getOrNull(index)?.onClick?.invoke()
+                        },
+                        expanded = railExpanded,
+                        onToggleExpanded = { railExpanded = !railExpanded },
+                    )
+                    Box(modifier = Modifier.weight(1f)) { host() }
+                }
+            else -> host()
+        }
+    }
+}
+
+private data class ChromeDestination(
+    val item: CinefinNavItem,
+    val selected: Boolean,
+    val bottom: Boolean,
+    val onClick: () -> Unit,
+)
+
+private data class DrawerEntry(
+    val item: CinefinNavItem,
+    val selected: Boolean,
+    val onClick: () -> Unit,
+)
+
+/** 平板侧导航（§8.6）：logo 38dp + 条目 54dp / 圆角 14dp；折叠 88dp / 展开 164dp。 */
+@Composable
+private fun CinefinSideNavigation(
+    items: List<CinefinNavItem>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Column(
+        modifier =
+            Modifier.width(if (expanded) 164.dp else 88.dp)
+                .fillMaxHeight()
+                .background(colors.navSurface)
+                .border(1.dp, colors.outline)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(72.dp).padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center,
+        ) {
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_logo),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(38.dp),
+            )
+            if (expanded) {
+                Spacer(Modifier.width(CinefinSpacing.Space3))
+                Text(
+                    text = stringResource(CoreR.string.app_name),
+                    style = CinefinType.TitleMedium,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                )
+            }
+        }
+        CinefinSideRail(
+            items = items,
+            selectedIndex = selectedIndex,
+            onSelect = onSelect,
+            modifier = Modifier.weight(1f),
+            expanded = expanded,
+        )
+        Row(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .height(56.dp)
+                    .clickable(onClick = onToggleExpanded)
+                    .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center,
+        ) {
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_arrow_right),
+                contentDescription = null,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(20.dp).rotate(if (expanded) 180f else 0f),
+            )
+            if (expanded) {
+                Spacer(Modifier.width(CinefinSpacing.Space3))
+                Text(
+                    text = stringResource(CoreR.string.nav_collapse),
+                    style = CinefinType.NavLabel,
+                    color = colors.onSurfaceVariant,
+                )
             }
         }
     }

@@ -52,6 +52,7 @@ fun CinefinModalDrawer(
     groups: List<CinefinDrawerGroup>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
+    gesturesEnabled: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -59,6 +60,7 @@ fun CinefinModalDrawer(
     ModalNavigationDrawer(
         drawerState = drawerState,
         modifier = modifier,
+        gesturesEnabled = gesturesEnabled,
         scrimColor = colors.scrim,
         drawerContent = {
             ModalDrawerSheet(
