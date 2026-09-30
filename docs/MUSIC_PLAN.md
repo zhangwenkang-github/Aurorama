@@ -148,7 +148,7 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] 缺陷 3 · 曲库加载失败：失败自动重试一次（1.2 s 后）→ 仍失败进可重试错误态；错误面板按来源显示标题（曲库加载 / 播放 / 歌单加载 / 添加到队列）
 - [x] 单测：`MusicQueueFillTest`（2 例：补入次序 + 补完后的队列顺序 / 当前曲目），模块合计 **47 项**；首版补队列用"连续 insertNext"会把尾部顺序倒置，被该单测拦下后改为 `insertNext` + `move`（见 §6-20）
 - [x] 门禁：`:app:phone:assembleDebug`、`:modes:music:testDebugUnitTest`（47 项）、`ktfmtCheck` 通过
-- [ ] 真机验证（Pad 5）：返回键 / 点歌起播 / 断网重试 / 歌词不回归（见 §5.4）
+- [x] 真机验证（Pad 5，2026-10-01 00:58–01:05）：返回键 / 左上角返回 / 点歌 3.1 s 起播 + 补队列顺序 / 断网可重试错误态 + 自动重试 / 歌词不回归（见 §5.4）
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -242,17 +242,23 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 > 真机副作用均已还原：wifi 关闭 → 已开启（`ping jellyfins.zhangwenkang.com` 通）、`accelerometer_rotation`/`user_rotation` 还原、设备重新安装正式 APK 并停在影阁首页。
 > 真实三样例的**完整歌词不落库**（D18）：单测用同构样例；真实数据的行数 / 配对 / 语言结论来自本地临时夹具探针（跑完即删）。
 
-### 5.4 W3-R3b 验证状态（2026-10-01，真机窗口待负责人调度）
+### 5.4 W3-R3b 真机验证记录（2026-10-01 00:58–01:05，Xiaomi Pad 5 / Android 13，`43af8627`）
 
-真机由负责人统一调度（`device-lock.md`；45 分钟自动接管规则已废除），本会话在等待窗口期间先完成设备外验证：
+设备由负责人统一调度（`device-lock.md`，v2：禁止超时自动接管）；全部 `adb` 命令带 `-s 43af8627`。
 
-| # | 验收项 | 设备外证据（已完成） | 真机状态 |
-|---|--------|--------------------|---------|
-| 1 | 系统返回键层级（详情 → 音乐主界面） | 代码：`BackHandler(enabled = state.detail != null)` 与 `MusicHeader` 左上角返回共用 `viewModel.closeDetail()`；`modes:music` 新增 `libs.androidx.activity.compose` | ⏳ 待窗口 |
-| 2 | 歌曲页点歌即播 | 代码：`playSong` 先单曲解析 → `setQueue` 起播 → 后台补队列；补入次序与最终队列顺序由 `MusicQueueFillTest` 2 例覆盖（含"连续 insertNext 顺序倒置"回归） | ⏳ 待窗口 |
-| 3 | 曲库加载失败可重试 + 自动重试一次 | 代码：`refresh()` 首次失败后 1.2 s 自动重试一次，两次都失败进 `ErrorPane`（标题 = `errorTitle`，`重试` 按钮 → `refresh()`） | ⏳ 待窗口（需断网复现） |
-| 4 | 歌词功能不回归 | `:modes:music:testDebugUnitTest` 47/47（歌词 41 + 队列补齐 2 + 曲库聚合 4）；`:app:phone:assembleDebug` + `ktfmtCheck` 通过 | ⏳ 待窗口（底栏「词」+ 语言切换） |
-| 5 | 播放链路 | 播放核心未改动（`player:local` / `player:core` 零改动；`MusicTrackResolver` 仅新增单曲解析入口） | ⏳ 待窗口（`dumpsys media_session`） |
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | 系统返回键层级 | 音乐库（`共 94 张专辑`）→ 点专辑 `A/Z\|aLIEz`（详情 `共 1 首曲目`）→ `input keyevent 4` → dump：回到 `音乐 / 共 94 张专辑 / 专辑 艺术家 歌曲 歌单`（未退影阁首页） | ✅ |
+| 2 | 左上角返回按钮 | 同一路径改用详情页左上角「返回」→ dump：同样回 `音乐 / 共 94 张专辑` | ✅ |
+| 3 | 歌曲页点歌即播 | 「歌曲」页签（`共 100 首歌曲`）点第一首 `Last Reunion (最后的重逢)` → **3.1 s 内** `dumpsys media_session`：`state=3, metadata=Last Reunion…Peter Roe`；position `5772 → 8626 ms` 递增 | ✅ |
+| 4 | 后台补队列顺序 | 点歌后队列 `1/34` 持续增长到 45；队列面板顺序 `01 Last Reunion（正在播放）/ 02 心做し / 03 天下 / 04 梦的光点`，与歌曲页列表一致（旧的"整份解析后再起播"改法这里会等 ~100 次 PlaybackInfo） | ✅ |
+| 5 | 断网错误态 + 自动重试 | 关 wifi（`wifi_on=0`）→ 重启 App → 抽屉进音乐：出现 `曲库加载失败 / HTTP host unreachable / 重试 / 关闭`（非静默空白）；logcat `MusicModeViewModel: 曲库加载失败，自动重试一次`（01:03:16） | ✅ |
+| 6 | 点重试恢复 | 开 wifi（`wifi_on=1`，`ping jellyfins.zhangwenkang.com` 通，RTT ~150 ms）→ 点「重试」→ dump：`音乐 / 共 94 张专辑` 列表恢复 | ✅ |
+| 7 | 歌词不回归 | 底栏「词」→ `aLIEz`：`来源：服务端　简体中文 / 日文 / 英文 / 混合行` + 语言 chip；默认显示中文译文；切「日文」后显示日文原文（`決めつけばかり 自惚れを着た…`） | ✅ |
+
+> 设备副作用已还原：wifi 已开、App 已 `force-stop`（无播放会话）、`/sdcard/u.xml` 与本地临时截图已删除；
+> `device-lock.md`「当前占用」已写释放时间（01:05）。
+> 真机 RTT ~150 ms 也解释了旧实现的表现：歌曲页 100 首串行 `PlaybackInfo` ≈ 15 s+（§6-17）。
 
 ## 6. 踩坑库
 
@@ -295,6 +301,7 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
     `PlaybackInfo`（音频条目在列表接口里不带播放地址）；歌曲页 100 首即 100 次串行请求，期间没有任何 UI 反馈 = "点了没反应"，
     且任意一首拿不到媒体源时整次点击直接失败（错误面板还顶着"曲库加载失败"的标题）。
     → 起播路径改为"先解析被点曲目（1 次请求）→ 起播 → 后台按顺序补队列"，单曲失败只跳过该曲（视频线 `PlaylistManager` 的"按需逐集解析"是同一思路）。
+    真机量化：本服务器 RTT ≈ 150 ms，100 首串行即 15 s 起步；改后点歌 **3.1 s 内**出声（含 adb 采样往返，§5.4）。
 18. **详情页的系统返回键不会自动走页内返回**：NavHost 弹栈直接退到上一张路由（首页）。页内子状态（详情 / 面板）必须自己用
     `BackHandler(enabled = 子状态 != null)` 拦截；`modes:music` 因此新增 `libs.androidx.activity.compose` 依赖（版本目录已有别名，未改 `libs.versions.toml`）。
 19. **ktfmt 也检查 `.kts`**：给 `modes/music/build.gradle.kts` 加依赖后，只跑 `:modes:music:ktfmtFormatMain` 不够（它只覆盖 Kotlin 源码），
@@ -317,3 +324,10 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   真实三样例（aLIEz 83 → 40 双语块 / Brave Shine 27 → 12 / 爱的回归线 57 → 57 单语）与真机 8 项验证结论见 §5.3。
   决策见 §2.5（D14–D20）。**未决**：内嵌歌词（ID3 USLT / Vorbis LYRICS）、"断网重载→缓存"真机复现（转 R4）、
   歌词编辑 / 上传（对照 jellyfin-web 的 `lyricseditor`，未排期）。
+- **2026-10-01 W3-R3b**（本会话，`feature/r3-music-ux-fix`）：修用户复测的 3 项音乐交互缺陷——① 详情页系统返回键改走页内返回
+  （`BackHandler`，与左上角返回同一个 `closeDetail()` 出口）；② 歌曲页点歌改为"先解析被点曲目立即 `setQueue` 起播 → 后台按
+  `musicQueueFillOrder` 补队列"（原实现先串行解析整份列表，100 首 ≈ 15 s 且无任何反馈，任一首坏文件整次点击失败）；
+  ③ 曲库加载失败自动重试一次（1.2 s）后进可重试错误态，错误面板标题按来源区分（曲库 / 播放 / 歌单 / 入队）。
+  新增 `MusicQueueFillTest` 2 例（**首版"连续 insertNext"会把尾部顺序倒置，被该单测拦下**，改为 `insertNext` + `move`），
+  模块 47 项全绿；真机 7 项验证见 §5.4（返回键 / 左上角返回 / 点歌 3.1 s 起播 + 队列顺序 / 断网错误态 + 重试恢复 / 歌词语言切换）。
+  决策 §2.6（D21–D23），踩坑 §6-17～20。**未决**：歌词文本里带 `[00:00:00]` 前缀的纯音乐提示行（服务端原样返回，未做清理，非本次回归）。
