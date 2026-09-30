@@ -203,6 +203,17 @@
 `futuristic_tales` 只有 4 张 jpg（+1 个目录条目）→ 能打开。即：**包结构问题被 Readium 的全包白名单
 放大**，与包体积无关（16.5MB 本身不是原因）。
 
+两本地图包的实际结构（`zipfile` 只读清点，本地副本 `test_files/`）：
+
+| 文件 | 条目总数 | 条目构成 | 过滤后页数（本实现） | Readium 结果 |
+|------|---------|----------|---------------------|--------------|
+| `Andas_Game_2007.cbz`（16.5 MiB） | 37 | 24 × jpg + `AndasGame.acbf` + `ComicInfo.xml` + `Fonts/`（目录）+ 4 × txt + 6 × 字体（4 otf / 2 ttf） | **24**（`!cover.jpg` 在最前，与 Readium 的字符串排序一致） | ❌ `FormatNotSupported` |
+| `futuristic_tales.cbz`（0.7 MiB） | 5 | 1 × 目录 + 4 × jpg | **4** | ✅ 可解析（但三种模式都渲染为分页） |
+
+页序规则（`ComicPageOrder.kt`）：只保留位图条目（bmp/dib/gif/jif/jfi/jfif/jpg/jpeg/png/tif/tiff/webp），
+过滤目录条目、隐藏文件 / 目录、`__MACOSX`、`Thumbs.db`，再按「连续数字当数值」的自然序排序
+（`2.jpg` < `10.jpg`；`!cover.jpg` 因 ASCII 排序仍在最前，与 Readium 的 `sortedBy(toString())` 一致）。
+
 **附带发现**：Readium 的图像导航只有「分页」语义，`EpubPreferences` 的 `scroll` / `columnCount`
 对它无效 —— 用户实测三种模式都渲染为分页，与 EB-4 / EB-5 不符。
 
@@ -532,6 +543,11 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 > `adb shell dumpsys meminfo com.zhangwenkang.cinefin.debug` 的 `TOTAL PSS` → 连续翻 20 页
 > （每次翻页后 2 s 采样一次）→ 取峰值与页号-内存曲线；判定标准：曲线不随页号增长（窗口 3 张位图，
 > 长边 2048 降采样）。对照组：attention（2.2 MB / 15 页）与虚构推理（640 MiB / 3649 页）同窗口。
+>
+> **设备调度（2026-10-01 更新）**：负责人先后安排过 Pad 5 串行窗口与 K60 并行方案；K60
+> （`8e875894`，Redmi K60 / Android 15）在无 SIM 卡时 MIUI 不允许开启「USB 安装 / USB 调试（安全
+> 设置）」，安装被拒后设备断开，方案放弃。当前结论：**PDF/CBZ 的真机收尾（功能 + 内存采样）统一
+> 排队等 Pad 5（`43af8627`）窗口**，由负责人指派后执行；命令一律带 `-s 43af8627`。
 
 ## 8. 踩坑库
 
