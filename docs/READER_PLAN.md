@@ -6,10 +6,10 @@
 | 项 | 值 |
 |----|----|
 | 任务线 | 阅读器（EPUB / PDF / CBZ） |
-| 会话 | W1-R1 · 阅读器骨架（R1-SKELETON） |
-| 分支 | `feature/r1-reader-skeleton` |
-| 基线 | `master` `dfe1223`（2026-09-30） |
-| 状态 | W1 验收完成，待负责人合并 |
+| 会话 | W1-R1 · 阅读器骨架（R1-SKELETON）→ W2-R1 · 阅读器主体（R1-CORE） |
+| 分支 | `feature/r1-reader-core`（W2） |
+| 基线 | `master` `674ad8b`（2026-09-30） |
+| 状态 | W2 阅读模式 / 排版设置 / 阅读主题完成，真机通过；待负责人合并 |
 
 ## 1. 需求与 W1 范围
 
@@ -21,9 +21,9 @@
 | EB-2 | 首期 EPUB | ✅ Readium 3.4.0 已集成并真机打开 |
 | EB-3 | PDF 分页懒加载 | ⏳ 路线已评估（见 D5），实现归 W4 |
 | EB-4 | CBZ 基础阅读 | ⏳ 策略已定（见 D6），实现归 W4 |
-| EB-5 | 滚动 / 横向分页 / 双栏 | 🟡 分页 + 滚动已真机切换；双栏归 W2 |
-| EB-6 | 排版设置 | ⏳ Readium Preferences 已打通，UI 归 W2 |
-| EB-7 | 独立阅读主题 | 🟡 PoC 固定深色，主题 UI 归 W2 |
+| EB-5 | 滚动 / 横向分页 / 双栏 | ✅ 三档模式（滚动 / 分页 / 双栏）真机切换通过，Pad 5 横屏双栏渲染正确 |
+| EB-6 | 排版设置 | ✅ 字号 / 行距 / 边距 / 字体 / 对齐，即时生效并持久化 |
+| EB-7 | 独立阅读主题 | ✅ 纸色 / 护眼 / 深色 / OLED / 跟随，独立于主 App 主题 |
 | EB-8 | 批注 | ⏳ 归 W3 |
 | EB-9 | 进度写回 UserData | ✅ 读 / 写 / 反序列化均真机验证 |
 | EB-10 | 入口改造 | ⏳ 归 W2（本波用 adb 显式启动 PoC） |
@@ -101,6 +101,45 @@
 - `ReaderActivity` 声明 `exported=true`，仅用于本波 adb 显式启动验证。
 - W2 接入 `NavigationRoot` 后必须改回 `exported=false`，并把启动参数改为
   `itemId: UUID` 路由参数。
+
+### D8 · 阅读设置模型与提交方式（W2）
+
+- `ReaderSettings`（`modes/book/.../reader/ReaderSettings.kt`）是 UI / 持久化使用的纯数据：
+  `mode` / `fontSize` / `lineHeight` / `pageMargins` / `font` / `textAlign` / `theme`。
+- 每次设置变更构造**一整套** `EpubPreferences` 并 `navigator.submitPreferences(...)`，
+  保证即时生效且无旧偏好残留；不需要重建 Navigator Fragment。
+- 模式三档映射：滚动 = `scroll=true`；分页 = `scroll=false` + `columnCount=ONE`；
+  双栏 = `scroll=false` + `columnCount=TWO`（官方建议把 `columnCount` / `spread`
+  收敛为用户可见的单一"双页"开关）。
+- **字号单位是百分比倍数**（`fontSize=1.0` → CSS 100%），不是 px；官方 supportedRange
+  为字号 0.1–5.0、行距 1.0–2.0、边距 0.0–4.0，UI 取实用子区间 0.7–2.5 / 1.0–2.0 / 0.0–2.0，
+  越界 / 非有限值在 `ReaderSettings.sanitized()` 中裁剪。
+- 主题映射：纸色 / 护眼 = `Theme.LIGHT` + 自定义背景 / 文字色；深色 / OLED = `Theme.DARK`
+  + 自定义背景 / 文字色；`跟随` 按系统深色解析为深色 / 纸色。
+- 字体：默认不覆盖出版方字体；衬线 / 无衬线 / 等宽分别映射 Readium 内置
+  `FontFamily.SERIF / SANS_SERIF / MONOSPACE`，不打包字体文件。
+- 持久化：`AppPreferences` 只追加 `pref_reader_*` 键（`pref_reader_mode` /
+  `pref_reader_font_size` / `pref_reader_line_height` / `pref_reader_page_margins` /
+  `pref_reader_font_family` / `pref_reader_theme` / `pref_reader_text_align`），
+  由 `ReaderViewModel` 读写，未重排文件、未改其他任务线的键。
+
+### D9 · 阅读主题 / 面板 token（W2）
+
+- 复用 core 已落地的 `PaperSurface` / `PaperAccent`；在 `CinefinTokens` 追加 §8.14 阅读器
+  区块：`ReaderPanelDark`（`#191F28`，设计系统指定）、`ReaderEyeCareSurface`（`#E7EFE1`，
+  按纸色向绿色相偏移的派生值）、`ReaderOledSurface`（`#000000`）。
+- 强调色：纸色 / 护眼 = 纸页棕 `PaperAccent`；深色 / OLED = 阅读域天青 `MediaBook.base`；
+  强调填充上的文字用 `OnSurfaceLight` / `MediaBook.onBase`。
+- 这三项是 core token 的唯一追加（本波 core 主题文件无其他会话并行修改）；业务层不出现
+  自造色值，全部经 token 引用。若后续 S1/R3 修订设计系统，以设计系统为准回调。
+- 排版面板按 §8.14 实现：宽 512dp、圆角 22dp（`CinefinShapes.Lg`）、内边距 30/28dp、
+  78dp 主题缩略图（选中 2dp 描边）、滑块 / chip 行随阅读主题换色。
+
+### D10 · 面板滚动（真机发现）
+
+- 真机（Pad 5 横屏）发现 `ModalBottomSheet` 内固定高度的面板内容超过可视区时不会自动滚动，
+  主题行不可达。修复：`ReaderSettingsPanel` 的 Column 自带 `verticalScroll`，真机复测
+  5 个主题缩略图全部可见、可点。
 
 ## 3. 接口契约（已落地）
 
@@ -223,6 +262,17 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
 - [x] `:app:phone:compileLibreDebugKotlin` + `ktfmtCheck` 通过。
 - [x] 真机验证记录（见 §7）写入本文件。
 
+### W2 任务清单（R1-CORE，2026-09-30）
+
+- [x] 阅读模式三档：滚动 / 分页 / 双栏（Readium `scroll` + `columnCount`）。
+- [x] 平板双栏：Pad 5 横屏真机确认左右两栏渲染、翻页与进度正常。
+- [x] 排版设置：字号 / 行距 / 边距 / 内置字体 / 对齐，即时生效。
+- [x] 阅读主题：纸色 / 护眼 / 深色 / OLED / 跟随，独立于主 App 主题。
+- [x] `AppPreferences` 追加 `pref_reader_*`，退出重进保持（真机 force-stop 复测）。
+- [x] `modes/book` JVM 单测 9 项（模式 / 主题 / 颜色 / 字体 / 对齐 / 裁剪 / 回退 / 强调色 / 循环）。
+- [x] `:modes:book:testDebugUnitTest`、`:app:phone:assembleDebug`、`ktfmtCheck` 通过。
+- [x] W2 真机验证记录写入 §7.4，踩坑写入 §8。
+
 ## 7. 真机验证记录（2026-09-30）
 
 设备：Xiaomi Pad 5（`nabu`，型号 21051182C），Android 13，2560×1600。
@@ -257,6 +307,28 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 - 本地 `files/reader/progress.json` 记录同一 progression 与 locator，
   `pendingSync` 在回传成功后变为 `false`。
 
+### 7.4 W2 阅读模式 / 排版 / 主题（2026-09-30 21:24–21:38，Pad 5）
+
+设备：Xiaomi Pad 5（`nabu`，Android 13，2560×1600，横屏）；adb 文本命令优先，
+截图仅用于双栏 / 底色判断（本地查看后即删，未贴回对话）。
+
+| 项 | 操作 | 结果 |
+|----|------|------|
+| 面板完整性 | 顶栏点「Aa」 | 「阅读设置」面板显示模式 / 字号 / 行距 / 边距 / 字体 / 对齐 / 主题全部字段 |
+| 面板滚动 | 面板内上滑 | 修复后 5 个主题缩略图（纸色 / 护眼 / 深色 / OLED / 跟随）全部可见 |
+| 双栏 | 点「双栏」 | 顶栏显示「双栏」；截图确认左右两栏分页渲染，中间栏距正常 |
+| 字号即时生效 | 字号滑块 100% → 160% | 面板值即时变 160%，正文即时放大且保持双栏 |
+| 纸色主题 | 点「纸色」 | 正文底采样 `#FBF6EC`，顶栏同底，深墨正文 |
+| 滚动 + OLED | 点「滚动」+「OLED」 | 顶栏显示「滚动」，连续滚动单栏；正文底 `#000000`、顶栏底 `#191F28` |
+| 分页 + 护眼 | 点「分页」+「护眼」 | 顶栏显示「分页」，单栏分页；正文底 `#E7EFE1` |
+| 深色主题（默认） | 点「深色」 | 正文底 `#151A21` |
+| 持久化 | 双栏 + 纸色 + 160% 后 `force-stop` 重启 | 顶栏仍「双栏」、字号仍 160%、正文底仍 `#FBF6EC`；退出重进保持成立 |
+| 进度回归 | `run-as ... cat files/reader/progress.json` | `progression=0.003568879`、`pendingSync=false`，W1 进度链路无回归 |
+| 崩溃 | `adb logcat -d` 过滤 | 无 FATAL / `E cinefin` |
+
+> 验证后已把设置恢复为默认（滚动 / 深色 / 100% / 行距 1.2 / 边距 1.0 / 默认字体 / 两端对齐）
+> 并释放 device lock。截图临时文件位于 `%TEMP%\cinefin-r1-*.png`（未入库、未贴回对话）。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -274,20 +346,30 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
    ReaderActivity 临时“消失”；验证前重装本分支 APK 并立即执行。
 7. **凭据纪律**：`.env.local` 只在命令变量中使用；不得写入仓库、文档、提交
    信息或会话输出。测试日志只取过滤片段。
+8. **`EpubPreferences.fontSize` 是百分比倍数**（1.0 = CSS 100%），不是 px；
+   官方 supportedRange 0.1–5.0，超范围会静默失效或异常显示。行距 1.0–2.0、
+   边距 0.0–4.0，UI 需自行收窄到实用区间。
+9. **Readium `Theme` 枚举在 JVM 单测初始化时会调用 `android.graphics.Color.parseColor`**
+   （unit test 报 `not mocked`）。映射拆成纯 Kotlin 的 `ReaderPreferenceSpec` 中间层，
+   单测只断言该层；Readium 适配层（`toEpubPreferences`）留给真机 / instrumentation。
+10. **`ModalBottomSheet` 内超屏内容不会自动滚动**：面板必须自带 `verticalScroll`，
+    否则横屏下主题行不可达（本会话真机已修）。
+11. **adb 点击 Material3 Slider 轨道可以跳值**（真机验证用），但按像素换算的落点
+    有 ±2% 误差；需要精确默认值时多点一次或用 `value` 文本确认。
 
 ## 9. 未决问题与下一波
 
-### W1 遗留
+### W2 遗留（交接 W3）
 
-- `ReaderActivity` 现为 `exported=true`，W2 接入导航后改回 `false`。
-- 本地进度存储是文件版；W3 迁 Room 时补迁移与并发测试。
-- 退出重进后的精确定位恢复只做了代码路径实现，W2 做 UI 入口后补真机回归。
-
-### W2（R1-CORE）建议
-
-1. Books 库 → 书籍详情 → ReaderActivity 路由（NavigationRoot，由 R3 统一入口）。
-2. 排版设置 UI（字号 / 行距 / 边距 / 对齐 / 字体 / 双栏）映射 Readium Preferences。
-3. 阅读主题（纸色 / 护眼 / 深色 / OLED）独立于主 App 主题。
+- `ReaderActivity` 仍为 `exported=true`；Books 库 → 书籍详情 → 阅读器路由由 R3 统一注册
+  （本会话按约束未改 `NavigationRoot.kt`），接完导航后改回 `exported=false` 并换路由参数。
+- 「跟随」主题有单测覆盖（系统深色 → 深色、浅色 → 纸色）；真机系统当前为浅色，
+  未单独点选走查，W3 可在系统深色下补一次回归。
+- 字体只提供默认 + Readium 内置字体族（衬线 / 无衬线 / 等宽）；设计 §3.1 的
+  Noto Serif SC / 思源宋体（OFL 1.1，打包子集）待字体资源到位后接入。
+- 字号 / 行距 / 边距滑块为实用子区间（0.7–2.5 / 1.0–2.0 / 0.0–2.0），
+  如需放宽改 `ReaderSettings.kt` 顶部常量。
+- 本地进度仍是文件版 `progress.json`；W3 迁 Room 时补迁移与并发测试。
 
 ### W3 / W4
 
@@ -299,3 +381,4 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 | 日期 | 变更 |
 |------|------|
 | 2026-09-30 | W1-R1 创建本文档；完成 Readium PoC、进度接口、单测与真机验证 |
+| 2026-09-30 | W2-R1：阅读模式（滚动 / 分页 / 双栏）、排版设置（字号 / 行距 / 边距 / 字体 / 对齐）、阅读主题（纸色 / 护眼 / 深色 / OLED / 跟随）；`pref_reader_*` 持久化；9 项单测 + Pad 5 真机验证 |
