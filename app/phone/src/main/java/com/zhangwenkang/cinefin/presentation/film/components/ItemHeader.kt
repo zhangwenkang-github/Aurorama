@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,10 +21,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSeason
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.parallaxLayoutModifier
 
 @Composable
@@ -35,6 +35,7 @@ fun ItemHeader(
     showLogo: Boolean = false,
     content: @Composable (BoxScope.() -> Unit) = {},
 ) {
+    val colors = LocalCinefinColors.current
     val context = LocalContext.current
     var backdropUri =
         when (item) {
@@ -61,7 +62,7 @@ fun ItemHeader(
                 modifier =
                     Modifier.fillMaxSize()
                         .parallaxLayoutModifier(scrollState = scrollState, rate = 2),
-                placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceContainer),
+                placeholder = ColorPainter(colors.surfaceContainer),
                 contentScale = ContentScale.Crop,
             )
         },
@@ -76,6 +77,7 @@ fun ItemHeader(
     showLogo: Boolean = false,
     content: @Composable (BoxScope.() -> Unit) = {},
 ) {
+    val colors = LocalCinefinColors.current
     val context = LocalContext.current
     var backdropUri =
         when (item) {
@@ -103,7 +105,7 @@ fun ItemHeader(
                 modifier =
                     Modifier.fillMaxSize()
                         .parallaxLayoutModifier(lazyListState = lazyListState, rate = 2),
-                placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceContainer),
+                placeholder = ColorPainter(colors.surfaceContainer),
                 contentScale = ContentScale.Crop,
             )
         },
@@ -118,7 +120,8 @@ private fun ItemHeaderBase(
     backdropImage: @Composable (() -> Unit),
     content: @Composable (BoxScope.() -> Unit) = {},
 ) {
-    val backgroundColor = MaterialTheme.colorScheme.background
+    val colors = LocalCinefinColors.current
+    val backgroundColor = colors.surface
 
     val logoUri =
         when (item) {
@@ -145,7 +148,7 @@ private fun ItemHeaderBase(
                 contentDescription = null,
                 modifier =
                     Modifier.align(Alignment.BottomCenter)
-                        .padding(MaterialTheme.spacings.default)
+                        .padding(CinefinSpacing.Space5)
                         .height(100.dp)
                         .fillMaxWidth(),
                 contentScale = ContentScale.Fit,

@@ -4,21 +4,17 @@ import android.app.DownloadManager
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -26,14 +22,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import kotlin.math.roundToInt
 
 @Composable
 fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryClick: () -> Unit) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     val animatedProgress by
         animateFloatAsState(
             targetValue = state.progress,
@@ -42,9 +45,9 @@ fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryCli
 
     val textColor =
         when (state.status) {
-            DownloadManager.STATUS_PAUSED -> MaterialTheme.colorScheme.tertiary
-            DownloadManager.STATUS_FAILED -> MaterialTheme.colorScheme.error
-            else -> MaterialTheme.colorScheme.onSurface
+            DownloadManager.STATUS_PAUSED -> colors.onSurfaceVariant
+            DownloadManager.STATUS_FAILED -> colors.error
+            else -> colors.onSurface
         }
 
     val statusText =
@@ -57,22 +60,16 @@ fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryCli
 
     val progressIndicatorColor =
         when (state.status) {
-            DownloadManager.STATUS_PAUSED -> MaterialTheme.colorScheme.tertiary
-            DownloadManager.STATUS_SUCCESSFUL -> MaterialTheme.colorScheme.tertiary
-            DownloadManager.STATUS_FAILED -> MaterialTheme.colorScheme.error
-            else -> ProgressIndicatorDefaults.linearColor
+            DownloadManager.STATUS_FAILED -> colors.error
+            else -> media.base
         }
 
-    val progressTrackColor =
-        when (state.status) {
-            DownloadManager.STATUS_FAILED -> MaterialTheme.colorScheme.errorContainer
-            else -> ProgressIndicatorDefaults.linearTrackColor
-        }
+    val progressTrackColor = colors.progressTrack
 
-    OutlinedCard {
+    CinefinCard(contentPadding = PaddingValues(CinefinSpacing.Space4)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(MaterialTheme.spacings.medium),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -82,15 +79,15 @@ fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryCli
                     Text(
                         text = statusText,
                         color = textColor,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = CinefinType.BodyLarge,
                     )
                     Text(
                         text = animatedProgress.times(100).roundToInt().toString() + "%",
                         color = textColor,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = CinefinType.MonoDataSmall,
                     )
                 }
-                Spacer(Modifier.height(MaterialTheme.spacings.small))
+                Spacer(Modifier.height(CinefinSpacing.Space2))
                 when (state.status) {
                     DownloadManager.STATUS_PENDING -> {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -104,34 +101,42 @@ fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryCli
                         )
                     }
                 }
-                Spacer(Modifier.height(MaterialTheme.spacings.small))
+                Spacer(Modifier.height(CinefinSpacing.Space2))
                 if (state.errorText != null) {
                     Text(
                         text = state.errorText!!.asString(),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.error,
+                        style = CinefinType.BodyMedium,
                     )
                 }
             }
-            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                when (state.status) {
-                    DownloadManager.STATUS_PENDING,
-                    DownloadManager.STATUS_RUNNING -> {
-                        FilledTonalIconButton(onClick = onCancelClick) {
+            when (state.status) {
+                DownloadManager.STATUS_PENDING,
+                DownloadManager.STATUS_RUNNING -> {
+                    CinefinIconButton(
+                        onClick = onCancelClick,
+                        icon = { tint ->
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_x),
                                 contentDescription = null,
+                                tint = tint,
+                                modifier = Modifier.size(20.dp),
                             )
-                        }
-                    }
-                    DownloadManager.STATUS_FAILED -> {
-                        FilledTonalIconButton(onClick = onRetryClick) {
+                        },
+                    )
+                }
+                DownloadManager.STATUS_FAILED -> {
+                    CinefinIconButton(
+                        onClick = onRetryClick,
+                        icon = { tint ->
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_rotate_ccw),
                                 contentDescription = null,
+                                tint = tint,
+                                modifier = Modifier.size(20.dp),
                             )
-                        }
-                    }
+                        },
+                    )
                 }
             }
         }

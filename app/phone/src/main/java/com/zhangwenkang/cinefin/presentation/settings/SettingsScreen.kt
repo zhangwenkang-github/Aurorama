@@ -22,9 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -41,11 +37,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerState
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsGroupCard
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.presentation.enums.DeviceType
@@ -154,34 +155,34 @@ private fun SettingsScreenLayout(
     onAction: (SettingsAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
-    val gutter = MaterialTheme.spacings.default
+    val gutter = rememberPageGutter()
+    val colors = LocalCinefinColors.current
     val accountViewModel: DrawerViewModel = hiltViewModel()
     val accountState by accountViewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { accountViewModel.load() }
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(colors.surface)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier =
                 Modifier.fillMaxWidth()
                     .padding(
-                        start = safePadding.start + MaterialTheme.spacings.small,
-                        top = safePadding.top + MaterialTheme.spacings.small,
-                        end = safePadding.end + MaterialTheme.spacings.small,
+                        start = safePadding.start + CinefinSpacing.Space3,
+                        top = safePadding.top + CinefinSpacing.Space3,
+                        end = safePadding.end + CinefinSpacing.Space3,
                     )
                     .height(48.dp),
         ) {
-            IconButton(onClick = { onAction(SettingsAction.OnBackClick) }) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_arrow_left),
-                    contentDescription = null,
-                )
-            }
+            TopBarAction(
+                icon = CoreR.drawable.ic_arrow_left,
+                onClick = { onAction(SettingsAction.OnBackClick) },
+            )
             Text(
                 text = stringResource(title),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(start = MaterialTheme.spacings.extraSmall),
+                style = CinefinType.HeadlineSmall,
+                color = colors.onSurface,
+                modifier = Modifier.padding(start = CinefinSpacing.Space2),
             )
         }
 
@@ -191,10 +192,10 @@ private fun SettingsScreenLayout(
                 PaddingValues(
                     start = safePadding.start + gutter,
                     end = safePadding.end + gutter,
-                    top = MaterialTheme.spacings.medium,
-                    bottom = safePadding.bottom + MaterialTheme.spacings.large,
+                    top = CinefinSpacing.Space4,
+                    bottom = safePadding.bottom + CinefinSpacing.Space8,
                 ),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.large),
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             item(key = "account") {
@@ -221,37 +222,35 @@ private fun SettingsScreenLayout(
  */
 @Composable
 private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modifier) {
+    val colors = LocalCinefinColors.current
     val isAdministrator = state.isAdministrator
-    val badgeColor =
-        if (isAdministrator) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.onSurfaceVariant
+    val badgeColor = if (isAdministrator) colors.onSurface else colors.onSurfaceVariant
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier =
                 Modifier.fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = MaterialTheme.spacings.small),
+                    .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
         ) {
             Box(
                 modifier =
-                    Modifier.size(48.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                    Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = state.userName?.trim()?.take(1)?.uppercase().orEmpty().ifEmpty { "?" },
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    style = CinefinType.TitleLarge,
+                    color = colors.onSurface,
                 )
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = state.userName ?: stringResource(CoreR.string.not_set),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = CinefinType.TitleMedium,
+                    color = colors.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -260,8 +259,8 @@ private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modif
                 if (subtitle.isNotBlank()) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = CinefinType.BodySmall,
+                        color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -274,22 +273,22 @@ private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modif
                         if (isAdministrator) CoreR.string.role_administrator
                         else CoreR.string.role_regular_user
                     ),
-                style = MaterialTheme.typography.labelMedium,
+                style = CinefinType.LabelMedium,
                 color = badgeColor,
                 modifier =
-                    Modifier.clip(MaterialTheme.shapes.extraLarge)
+                    Modifier.clip(CinefinShapes.Xs)
                         .border(
                             width = 1.dp,
                             color = badgeColor.copy(alpha = 0.5f),
-                            shape = MaterialTheme.shapes.extraLarge,
+                            shape = CinefinShapes.Xs,
                         )
                         .padding(
-                            horizontal = MaterialTheme.spacings.small + 2.dp,
-                            vertical = MaterialTheme.spacings.extraSmall,
+                            horizontal = CinefinSpacing.Space2,
+                            vertical = CinefinSpacing.Space1,
                         ),
             )
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = colors.outlineVariant)
     }
 }
 

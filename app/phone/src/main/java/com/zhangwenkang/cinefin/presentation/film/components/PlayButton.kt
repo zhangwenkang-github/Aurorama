@@ -1,11 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -14,12 +10,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
 fun PlayButton(
@@ -33,23 +32,27 @@ fun PlayButton(
             mutableLongStateOf((item.runtimeTicks - item.playbackPositionTicks) / 600000000)
         }
 
-    Button(
+    CinefinButton(
+        text =
+            if (item.playbackPositionTicks > 0) {
+                stringResource(CoreR.string.runtime_minutes_left, runtimeMinutesLeft)
+            } else {
+                stringResource(CoreR.string.play)
+            },
         onClick = onClick,
         modifier = modifier,
+        variant = CinefinButtonVariant.Filled,
+        size = CinefinButtonSize.Large,
         enabled = enabled,
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        Icon(painter = painterResource(CoreR.drawable.ic_play), contentDescription = null)
-        Spacer(modifier = Modifier.width(MaterialTheme.spacings.small))
-        Text(
-            text =
-                if (item.playbackPositionTicks > 0) {
-                    stringResource(CoreR.string.runtime_minutes_left, runtimeMinutesLeft)
-                } else {
-                    stringResource(CoreR.string.play)
-                }
-        )
-    }
+        icon = { tint ->
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_play),
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(18.dp),
+            )
+        },
+    )
 }
 
 @Preview(showBackground = true)

@@ -1,22 +1,26 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
 @Composable
@@ -33,42 +37,38 @@ fun ItemTopBar(
         modifier =
             Modifier.fillMaxWidth()
                 .padding(
-                    start = safePadding.start + MaterialTheme.spacings.small,
-                    top = safePadding.top + MaterialTheme.spacings.small,
-                    end = safePadding.end + MaterialTheme.spacings.small,
+                    start = safePadding.start + CinefinSpacing.Space3,
+                    top = safePadding.top + CinefinSpacing.Space3,
+                    end = safePadding.end + CinefinSpacing.Space3,
                 )
     ) {
         if (hasBackButton) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.alpha(0.92f),
-                colors =
-                    IconButtonDefaults.iconButtonColors(
-                        // 半透明墨底：在任何剧照上都读得清，但不形成实心圆按钮
-                        containerColor = Color.Black.copy(alpha = 0.42f),
-                        contentColor = Color.White,
-                    ),
-            ) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_arrow_left),
-                    contentDescription = null,
-                )
-            }
+            OverlayIconAction(icon = CoreR.drawable.ic_arrow_left, onClick = onBackClick)
         }
         if (hasHomeButton) {
-            IconButton(
-                onClick = onHomeClick,
-                modifier = Modifier.alpha(0.92f),
-                colors =
-                    IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.Black.copy(alpha = 0.42f),
-                        contentColor = Color.White,
-                    ),
-            ) {
-                Icon(painter = painterResource(CoreR.drawable.ic_home), contentDescription = null)
-            }
+            OverlayIconAction(icon = CoreR.drawable.ic_home, onClick = onHomeClick)
         }
         content()
+    }
+}
+
+/** 压在剧照上的覆盖层图标键（§5.2 / §8.7 覆盖层）：黑 60% 底 + 方圆形 12dp + 白图标。 */
+@Composable
+private fun OverlayIconAction(icon: Int, onClick: () -> Unit) {
+    Box(
+        modifier =
+            Modifier.padding(end = CinefinSpacing.Space2)
+                .size(44.dp)
+                .clip(CinefinShapes.Sm)
+                .background(Color.Black.copy(alpha = 0.6f))
+                .cinefinClickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = Color.White,
+        )
     }
 }
 
