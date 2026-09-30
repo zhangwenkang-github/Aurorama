@@ -180,17 +180,19 @@ class MPVPlayer(
         mpvLib.setOptionString("sub-scale-with-window", "yes")
         mpvLib.setOptionString("sub-use-margins", "no")
 
-        // Language
-        // Split on "-" and use last part because media3 does some weird mapping
-        // See
-        // https://github.com/androidx/media/blob/1.4.0/libraries/common/src/main/java/androidx/media3/common/util/Util.java#L3742
-        trackSelectionParameters.preferredAudioLanguages.firstOrNull()?.let {
-            mpvLib.setOptionString("alang", it.split("-").last())
-        }
-        trackSelectionParameters.preferredTextLanguages.firstOrNull()?.let {
-            println(it.split("-").last())
-            mpvLib.setOptionString("slang", it.split("-").last())
-        }
+        /*
+         * Language（bug ① 修复点）：把语言优先级整份交给 mpv，让 mpv 自己按列表顺序挑轨。
+         *
+         * 旧实现取 firstOrNull() 再 split("-").last()，把 "zh-Hans" 截成 "Hans" 写进 slang，
+         * 没有任何轨道会命中 → mpv 打开新片不选字幕。alang / slang 本身就支持逗号分隔的优先列表
+         * （mpv 自己会做 ISO 639-1 / 639-2 与地区后缀的归一化），所以这里直接原样传全量标签。
+         */
+        trackSelectionParameters.preferredAudioLanguages
+            .takeIf { it.isNotEmpty() }
+            ?.let { mpvLib.setOptionString("alang", it.joinToString(",")) }
+        trackSelectionParameters.preferredTextLanguages
+            .takeIf { it.isNotEmpty() }
+            ?.let { mpvLib.setOptionString("slang", it.joinToString(",")) }
 
         // Other options
         mpvLib.setOptionString("force-window", "no")

@@ -43,7 +43,8 @@ abstract class BasePlayerActivity : AppCompatActivity() {
         if (wasPip) {
             wasPip = false
         } else {
-            viewModel.player.playWhenReady = viewModel.playWhenReady
+            // 起播窗口内不动播放状态，避免把「打开即播」覆盖成暂停（bug ②）
+            viewModel.restorePlayWhenReady()
         }
         hideSystemUI()
     }
@@ -54,7 +55,8 @@ abstract class BasePlayerActivity : AppCompatActivity() {
         if (isInPictureInPictureMode) {
             wasPip = true
         } else {
-            viewModel.playWhenReady = viewModel.player.playWhenReady
+            // 起播窗口内播放器的值不可信，不回存（bug ②）
+            viewModel.rememberPlayWhenReady()
             if (!isBackgroundAudioEnabled()) {
                 viewModel.player.playWhenReady = false
             }

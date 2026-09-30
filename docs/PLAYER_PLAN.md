@@ -518,6 +518,9 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | `BaseAudioProcessor` 的 `isActive` 陷阱 | 基类只在「有待消费输出」时算活跃，靠默认实现会让处理器被管线旁路、延迟只在第一个 buffer 生效；必须覆写成「配置完成后一直活跃」 |
 | 音频 offload 会让处理链失效 | offload 把压缩音频直通硬件，PCM 处理器收不到数据（延迟静默失效）；`CinefinRenderersFactory` 里显式 `DEFAULT_UNSUPPORTED` 关掉 |
 | mpv `audio-delay` 符号 | 正值 = 声音延后（与面板「+ = 声音晚」一致），真机听感确认过；不要凭「delay 是不是补提前量」的直觉想当然 |
+| mpv 语言优先列表 | `alang` / `slang` 要传**整份**逗号分隔列表（`zh-Hans,zh-Hant,zh,en`）。旧代码 `firstOrNull().split("-").last()` 把 `zh-Hans` 截成 `Hans`，任何轨道都匹配不上（真机表现：打开新片自动选到日语字幕）；mpv 自己会做 ISO 639-1/639-2 与地区后缀归一化 |
+| 自动选字幕兜底 | `PlayerSubtitleController.pickPrimary()` 在「语言优先级没命中」时按「默认轨 > 非强制字幕 > 轨道序号」兜底，别再直接返回 null（旧行为 = 打开新片没字幕）。注意 `TrackSelectionEngine.pickTextTrack()` 仍是「auto 不选」，两处语义待统一（见 §10 遗留） |
+| 打开即播与 pause/resume | `initializePlayer` 发出后、`play()` 落地前是**起播窗口**：播放器 `playWhenReady` 还是默认 false，此时 pause/resume（权限弹窗 / 切后台 / 切内核）会把 false 回存再写回、覆盖自动起播 → 打开视频要手点一次。窗口内一律不回存 / 不恢复（`PlayerViewModel.startupInProgress`） |
 
 | 权威内容 | 位置 |
 |----------|------|
@@ -531,6 +534,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-01 | §11 D 组两个 bug 修复（PLAYER-BUG 会话 / 分支 `feature/player-autoselect-fix`）：① 自动选字幕 = `pickPrimary()` 默认轨兜底 + mpv `alang`/`slang` 传全量语言列表；② 打开即播 = `PlayerViewModel.startupInProgress` 起播窗口（窗口内不回存 / 不恢复 `playWhenReady`）。真机 Pad 5：mpv《夏日幽灵》由基线 `sid=1 ja-JP（日本語）` 纠正为 `● sid=2 zh-Hans-CN（简日双语）`；ExoPlayer 同一片自动选中 `index=4`（简日双语，cues=1072 解析成功）且 `state=3` 直接起播。遗留：`TrackSelectionEngine.pickTextTrack()` 的 auto 兜底未同步；「语言识别不出来（language=null）」的片源只走了代码路径、未单独真机复现 |
 | 2026-09-28 | §1.4 通知封面完成（Coil 异步加载 + 回调刷新 + 单张缓存）；新增 §11「播放页 UI/UX 改造待办」（用户 2026-09-28 提出的 5 条，暂不处理） |
 | 2026-09-28 | §1.2 音轨面板补全：自研 `AudioDelayProcessor`（ExoPlayer）+ `audio-delay`（mpv）+ 轨道描述 + 延迟偏好；真机验证通过（双内核听感确认） |
 | 2026-09-28 | §1.1 字幕面板补全：自管字幕管线（下载/解析/Compose 渲染）+ 延迟 ±0.1s + 双语次字幕 + 外观五档；mpv 侧同步支持；真机验证通过 |
@@ -548,6 +552,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 ## 11. 播放页 UI/UX 改造（用户 2026-09-28 提出 · **先记录、暂不处理**）
 
 > 用户明确说明：这一组问题**最后统一做**，本轮只登记。
+> **2026-10-01 更新**：D 组（两个 bug）已由 PLAYER-BUG 会话单独修复并真机验证；A–C/E 仍按原计划统一做。
 > 本质上它们是一次「播放页控制层重构」（控件体系 + 版式 + 面板形态），
 > 与 §1.10 控制层视觉收口、§1.9 播放页设置面板高度重叠——**建议合并成一条线做，避免返工**。
 
@@ -578,7 +583,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
      `PlayerActivity.applyVideoArea`；
    - ⚠️ 风险：命中区（触摸分区）必须同步改，改完要真机走查「面板打开时的单击 / 滑动 / 手势仲裁」。
 
-**D. 播放行为（bug 级）**
+**D. 播放行为（bug 级）** · ✅ 2026-10-01 已修复（分支 `feature/player-autoselect-fix`）
 
 4. 打开视频后**没有自动选择字幕**（以前实现过，疑似失效）；打开视频后**没有自动播放**。
    - 已知线索（新会话从这里查，别从零开始）：
@@ -588,6 +593,14 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
        写进了 mpv 的 `slang`（`zh-Hans` → `Hans`），语言匹配必然失败——**"以前有、现在没有"最可能的原因**；
      - 自动播放：`initializePlayer` 里有 `player.play()`，但 `BasePlayerActivity.onPause` 会把
        `playWhenReady=false`；起播阶段若经历一次 pause/resume（内核切换、加载），可能被带成"要手点一次"。
+   - 已落地修复：
+     - 字幕：`pickPrimary()` 没命中语言优先级时按「默认轨 > 非强制字幕 > 轨道序号」兜底（auto / always 一致）；
+       `MPVPlayer` 把 `alang` / `slang` 改为传**整份**语言优先列表（不再 `split("-").last()`）；
+     - 打开即播：`PlayerViewModel` 新增起播窗口 `startupInProgress`，`initializePlayer` 到 `player.play()`
+       之间不回存 / 不恢复 `playWhenReady`；`BasePlayerActivity` 改走 `rememberPlayWhenReady()` / `restorePlayWhenReady()`。
+   - 真机验证（小米平板 5，2026-10-01）：mpv《夏日幽灵》自动选中 `● sid=2 zh-Hans-CN（简日双语）`（基线为
+     `sid=1 ja-JP 日本語`）；ExoPlayer 同一片自动选中 `index=4`（简日双语）并解析 1072 条 cue，媒体会话
+     `state=3` 直接播放、无需第二次点击。遗留：`language=null` 的片源只走了代码路径、未单独真机复现。
    - 验收：打开任意有字幕的新片自动出字幕（语言优先级仍生效）；打开即播、无需第二次点击。
 
 **E. 控件排布**

@@ -184,7 +184,12 @@ class PlayerSubtitleController(
         publish()
     }
 
-    /** 主字幕：沿用设置里的字幕语言优先级；auto 模式没命中就不显示 */
+    /**
+     * 主字幕：沿用设置里的字幕语言优先级；语言优先级都没命中时按「默认轨兜底」。
+     *
+     * 兜底是 bug ① 的修复点：片源语言识别为空（Jellyfin 没给 language、标题里也没有线索）时， 旧实现直接返回 null → 打开新片没有字幕。 现在 auto /
+     * always 都挑一条最像默认轨的字幕（优先默认轨、其次非强制字幕、最后按序号）， 保证「打开带字幕的片子就有字幕」，同时语言优先级仍然先生效。
+     */
     private fun pickPrimary(): PlayerSubtitleSource? {
         val mode = appPreferences.getValue(appPreferences.subtitleMode)
         if (mode == Constants.SubtitleMode.OFF) return null
@@ -211,13 +216,29 @@ class PlayerSubtitleController(
                     )
                 )
                 .firstOrNull()
-        if (best != null) return best
-
-        return when (mode) {
-            Constants.SubtitleMode.ALWAYS ->
-                candidates.sortedBy { if (it.isDefault) 0 else 1 }.firstOrNull()
-            else -> null
+        if (best != null) {
+            Timber.d("自动选中主字幕（语言命中）: index=${best.index} language=${best.language}")
+            return best
         }
+
+        // 没命中偏好语言（识别不出来 / 不在列表里）：默认轨兜底，别再让画面空着
+        val fallback =
+            candidates
+                .sortedWith(
+                    compareBy(
+                        { if (it.isDefault) 0 else 1 },
+                        // 强制字幕（Signs & Songs）只在没有完整字幕时才用
+                        { if (it.isForced) 1 else 0 },
+                        { it.index },
+                    )
+                )
+                .firstOrNull()
+        fallback?.let {
+            Timber.d(
+                "自动选中主字幕（默认轨兜底）: index=${it.index} language=${it.language} default=${it.isDefault}"
+            )
+        }
+        return fallback
     }
 
     /** 次字幕：只在用户设置过次字幕语言时自动选；永远不与主字幕同源 */

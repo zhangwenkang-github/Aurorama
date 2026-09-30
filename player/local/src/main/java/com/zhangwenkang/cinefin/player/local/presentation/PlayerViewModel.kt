@@ -193,6 +193,16 @@ constructor(
     private var autoFallbackMediaId: String? = null
 
     var playWhenReady = true
+
+    /**
+     * 起播窗口：`initializePlayer` 已发出、但媒体还没真正交给播放器（还在拉流 / 建播放信息）。
+     *
+     * bug ②（打开视频不自动播）：这个窗口里播放器的 `playWhenReady` 还是默认值 false， 此时若发生 pause / resume（通知权限弹窗、
+     * 加载中切后台、切内核重启…），BasePlayerActivity 会把 false 回存再写回， 把随后 `initializePlayer` 里的 `play()`
+     * 覆盖成暂停，用户必须手点一次。起播窗口内两边都不动播放状态，保证「打开即播」。
+     */
+    private var startupInProgress = false
+
     private var currentMediaItemIndex = savedStateHandle["mediaItemIndex"] ?: 0
     private var playbackPosition: Long = savedStateHandle["position"] ?: 0
     private var currentMediaItemSegments: List<FindroidSegment> = emptyList()
@@ -248,6 +258,9 @@ constructor(
         startFromBeginning: Boolean,
         startPositionMs: Long = 0L,
     ) {
+        // 打开条目就先声明「要播」的意图：起播窗口内不被 pause/resume 回存覆盖（bug ②）
+        startupInProgress = true
+        playWhenReady = true
         player.addListener(this)
         applySavedSubtitlePreferences()
         publishSubtitlePanelState()
@@ -273,6 +286,7 @@ constructor(
 
             if (startItem == null) {
                 Timber.e("No start item, stopping player initialization")
+                startupInProgress = false
                 return@launch
             }
 
@@ -298,9 +312,28 @@ constructor(
             player.setMediaItems(mediaItems, 0, startPosition)
             player.prepare()
             player.play()
+            // 媒体已交给播放器：之后的 playWhenReady 变化都算用户 / 系统意图，恢复正常回存
+            startupInProgress = false
             // 起播之后再补全整剧队列（用户反馈：队列面板只显示当前一集）
             fillQueueInBackground()
         }
+    }
+
+    /**
+     * 播放页回到前台时恢复播放状态。
+     *
+     * 起播窗口内播放器的 `playWhenReady` 还没落地，直接写回会把自动起播覆盖成暂停（bug ②），因此这个窗口里什么都不做—— `initializePlayer` 随后会自己
+     * `play()`。
+     */
+    fun restorePlayWhenReady() {
+        if (startupInProgress) return
+        player.playWhenReady = playWhenReady
+    }
+
+    /** 播放页离开前台时回存播放状态；起播窗口内的值不可信（还是播放器默认值），不回存（bug ②） */
+    fun rememberPlayWhenReady() {
+        if (startupInProgress) return
+        playWhenReady = player.playWhenReady
     }
 
     /**
