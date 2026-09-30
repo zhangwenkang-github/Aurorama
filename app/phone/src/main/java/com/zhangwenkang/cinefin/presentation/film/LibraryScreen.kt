@@ -13,9 +13,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -29,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -41,20 +37,24 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryAction
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryState
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryViewModel
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SortByDialog
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.plus
+import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
+import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -103,7 +103,9 @@ private fun LibraryScreenLayout(
     state: LibraryState,
     onAction: (LibraryAction) -> Unit,
 ) {
-    val contentPadding = PaddingValues(all = MaterialTheme.spacings.default)
+    val pageGutter = rememberPageGutter()
+    val gridGutter = rememberGridGutter()
+    val contentPadding = PaddingValues(all = pageGutter)
 
     /**
      * 按库类型换版式：
@@ -139,22 +141,26 @@ private fun LibraryScreenLayout(
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text(libraryName) },
+                title = {
+                    Text(
+                        text = libraryName,
+                        style = CinefinType.TitleLarge,
+                        color = LocalCinefinColors.current.onSurface,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = { onAction(LibraryAction.OnBackClick) }) {
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_arrow_left),
-                            contentDescription = null,
-                        )
-                    }
+                    TopBarAction(
+                        icon = CoreR.drawable.ic_arrow_left,
+                        onClick = { onAction(LibraryAction.OnBackClick) },
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
                 },
                 actions = {
-                    IconButton(onClick = { showSortByDialog = true }) {
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_arrow_down_up),
-                            contentDescription = null,
-                        )
-                    }
+                    TopBarAction(
+                        icon = CoreR.drawable.ic_arrow_down_up,
+                        onClick = { showSortByDialog = true },
+                        modifier = Modifier.padding(end = 4.dp),
+                    )
                 },
                 windowInsets = WindowInsets.statusBars.union(WindowInsets.displayCutout),
                 scrollBehavior = scrollBehavior,
@@ -171,8 +177,8 @@ private fun LibraryScreenLayout(
                 columns = GridCellsAdaptiveWithMinColumns(minSize = minColumnSize, minColumns = 2),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = contentPadding + innerPadding,
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
+                horizontalArrangement = Arrangement.spacedBy(gridGutter),
+                verticalArrangement = Arrangement.spacedBy(gridGutter),
             ) {
                 items(count = items.itemCount, key = items.itemKey { it.id }) {
                     val item = items[it]

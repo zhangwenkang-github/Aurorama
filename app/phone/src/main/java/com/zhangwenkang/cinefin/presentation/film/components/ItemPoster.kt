@@ -3,12 +3,12 @@ package com.zhangwenkang.cinefin.presentation.film.components
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
@@ -22,6 +22,7 @@ enum class Direction {
 
 @Composable
 fun ItemPoster(item: FindroidItem, direction: Direction, modifier: Modifier = Modifier) {
+    val colors = LocalCinefinColors.current
     val context = LocalContext.current
     var imageUri = item.images.primary
 
@@ -59,6 +60,6 @@ fun ItemPoster(item: FindroidItem, direction: Direction, modifier: Modifier = Mo
                         Direction.SQUARE -> 1f
                     }
                 )
-                .background(MaterialTheme.colorScheme.surfaceContainer),
+                .background(colors.surfaceContainerHigh),
     )
 }

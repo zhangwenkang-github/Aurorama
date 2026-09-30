@@ -16,9 +16,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -29,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
@@ -38,6 +34,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.presentation.media.MediaAction
 import com.zhangwenkang.cinefin.film.presentation.media.MediaState
 import com.zhangwenkang.cinefin.film.presentation.media.MediaViewModel
@@ -46,13 +45,15 @@ import com.zhangwenkang.cinefin.film.presentation.search.SearchState
 import com.zhangwenkang.cinefin.film.presentation.search.SearchViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoritesCard
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
+import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
 @Composable
@@ -106,9 +107,11 @@ private fun MediaScreenLayout(
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
 
-    val paddingStart = safePadding.start + MaterialTheme.spacings.default
-    val paddingEnd = safePadding.end + MaterialTheme.spacings.default
-    val paddingBottom = safePadding.bottom + MaterialTheme.spacings.default
+    val pageGutter = rememberPageGutter()
+    val gridGutter = rememberGridGutter()
+    val paddingStart = safePadding.start + pageGutter
+    val paddingEnd = safePadding.end + pageGutter
+    val paddingBottom = safePadding.bottom + pageGutter
 
     val contentPaddingTop by
         animateDpAsState(
@@ -147,16 +150,16 @@ private fun MediaScreenLayout(
                     )
                     .height(56.dp),
         ) {
-            IconButton(onClick = onOpenDrawer) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_menu),
-                    contentDescription = stringResource(CoreR.string.title_media),
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
+            TopBarAction(
+                icon = CoreR.drawable.ic_menu,
+                onClick = onOpenDrawer,
+                contentDescription = stringResource(CoreR.string.title_media),
+            )
+            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
             Text(
                 text = stringResource(CoreR.string.title_media),
-                style = MaterialTheme.typography.titleLarge,
+                style = CinefinType.TitleLarge,
+                color = LocalCinefinColors.current.onSurface,
             )
         }
 
@@ -180,8 +183,8 @@ private fun MediaScreenLayout(
                         end = paddingEnd,
                         bottom = paddingBottom,
                     ),
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
+                horizontalArrangement = Arrangement.spacedBy(gridGutter),
+                verticalArrangement = Arrangement.spacedBy(gridGutter),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     FavoritesCard(onClick = { onAction(MediaAction.OnFavoritesClick) })

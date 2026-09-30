@@ -1,10 +1,9 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -37,14 +34,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.Motion
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 /** 横版卡宽度：随屏幕尺寸自适应，平板更大、手机更紧凑。 */
 @Composable
@@ -59,9 +60,9 @@ fun rememberLandscapeCardWidth(): Dp {
 }
 
 /**
- * 走廊里的横版卡：16:9 剧照 + 底部墨色渐变 + 片名。
+ * 走廊里的横版卡（§8.4 WideCard）：16:9 剧照 + 底部 96dp 渐隐 + 片名（19sp）+ 3dp 进度。
  *
- * 只有按下时轻微内缩这一种反馈——滚动中的成排卡片不再做错峰入场， 那会让整页看起来像在"表演"而不是在陈列。
+ * 悬停 / 按下只换描边色与容器色，不做位移与缩放（B 纪律）。
  */
 @Composable
 fun LandscapeItemCard(
@@ -71,14 +72,12 @@ fun LandscapeItemCard(
     width: Dp = rememberLandscapeCardWidth(),
     index: Int = 0,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
-    val pressScale by
-        animateFloatAsState(
-            targetValue = if (pressed) 0.97f else 1f,
-            animationSpec = tween(durationMillis = Motion.durationFast, easing = Motion.standard),
-            label = "cardPressScale",
-        )
+    val emphasized = hovered || pressed
 
     val resumeFraction = item.resumeFraction()
 
@@ -86,21 +85,20 @@ fun LandscapeItemCard(
         modifier =
             modifier
                 .width(width)
-                .graphicsLayer {
-                    scaleX = pressScale
-                    scaleY = pressScale
-                }
                 .aspectRatio(16f / 9f)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .clickable(interactionSource = interactionSource, indication = null) {
-                    onClick(item)
-                }
+                .clip(CinefinShapes.Md)
+                .background(colors.surfaceContainerHigh)
+                .border(
+                    width = 1.dp,
+                    color = if (emphasized) media.outline else colors.outline,
+                    shape = CinefinShapes.Md,
+                )
+                .cinefinClickable(interactionSource = interactionSource) { onClick(item) }
     ) {
         AsyncImage(
             model = item.images.backdrop ?: item.images.primary,
-            placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceContainerHigh),
-            error = ColorPainter(MaterialTheme.colorScheme.surfaceContainerHigh),
+            placeholder = ColorPainter(colors.surfaceContainerHigh),
+            error = ColorPainter(colors.surfaceContainerHigh),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -120,8 +118,8 @@ fun LandscapeItemCard(
         )
 
         Row(
-            modifier = Modifier.align(Alignment.TopEnd).padding(MaterialTheme.spacings.small),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
+            modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space2),
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
             if (item.isDownloaded()) DownloadedBadge()
             if (item.played) PlayedBadge()
@@ -133,24 +131,24 @@ fun LandscapeItemCard(
                 Modifier.align(Alignment.BottomStart)
                     .fillMaxWidth()
                     .padding(
-                        start = MaterialTheme.spacings.medium,
-                        end = MaterialTheme.spacings.medium,
-                        bottom = MaterialTheme.spacings.medium,
+                        start = CinefinSpacing.Space4,
+                        end = CinefinSpacing.Space4,
+                        bottom = CinefinSpacing.Space3,
                     ),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
                 text = if (item is FindroidEpisode) item.seriesName else item.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
+                style = CinefinType.WideCardTitle,
+                color = colors.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             subtitleFor(item)?.let { subtitle ->
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.7f),
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -162,14 +160,12 @@ fun LandscapeItemCard(
                 modifier =
                     Modifier.align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .height(2.dp)
-                        .background(Color.White.copy(alpha = 0.16f))
+                        .height(3.dp)
+                        .background(colors.progressTrackOnImage)
             ) {
                 Box(
                     modifier =
-                        Modifier.fillMaxWidth(resumeFraction)
-                            .height(2.dp)
-                            .background(MaterialTheme.colorScheme.primary)
+                        Modifier.fillMaxWidth(resumeFraction).height(3.dp).background(media.base)
                 )
             }
         }

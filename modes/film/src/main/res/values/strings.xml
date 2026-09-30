@@ -8,4 +8,6 @@
     <string name="hero_remaining_minutes">%1$d min left</string>
     <string name="view_all">All</string>
     <string name="search_placeholder">Search movies and TV shows</string>
+    <string name="search_empty_title">No results</string>
+    <string name="search_empty_message">Try a different keyword · results update as you type</string>
 </resources>

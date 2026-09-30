@@ -11,17 +11,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 
 /**
  * 首页顶栏：抽屉入口 + 品牌字标 + 搜索。
@@ -42,45 +43,37 @@ fun HomeTopBar(
         modifier = modifier.fillMaxWidth().height(56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onOpenDrawer) {
-            Icon(
-                painter = painterResource(CoreR.drawable.ic_menu),
-                contentDescription = null,
-            )
-        }
+        val colors = LocalCinefinColors.current
+        val media = LocalMediaColors.current
 
-        Spacer(modifier = Modifier.width(8.dp))
+        TopBarAction(icon = CoreR.drawable.ic_menu, onClick = onOpenDrawer)
+
+        Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
 
         Text(
             text = stringResource(CoreR.string.app_name),
-            style = MaterialTheme.typography.titleLarge,
+            style = CinefinType.TitleLarge,
+            color = colors.onSurface,
         )
 
         Spacer(modifier = Modifier.weight(1f))
 
         AnimatedVisibility(visible = isError, enter = fadeIn(), exit = fadeOut()) {
-            IconButton(onClick = onErrorClick) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_alert_circle),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
+            TopBarAction(
+                icon = CoreR.drawable.ic_alert_circle,
+                onClick = onErrorClick,
+                tint = colors.error,
+            )
         }
 
         AnimatedVisibility(visible = isLoading, enter = fadeIn(), exit = fadeOut()) {
-            IconButton(onClick = onRetryClick) {
+            TopBarAction(onClick = onRetryClick) {
                 Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(strokeWidth = 2.dp)
+                    CircularProgressIndicator(strokeWidth = 2.dp, color = media.base)
                 }
             }
         }
 
-        IconButton(onClick = onSearchClick) {
-            Icon(
-                painter = painterResource(CoreR.drawable.ic_search),
-                contentDescription = null,
-            )
-        }
+        TopBarAction(icon = CoreR.drawable.ic_search, onClick = onSearchClick)
     }
 }

@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,14 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -32,12 +28,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 /** 主视觉的高度上限：手机竖屏永远够不到，平板/横屏靠它兜底。 */
 private val maxHeroHeight = 360.dp
@@ -52,8 +55,10 @@ fun HomeHero(
     item: FindroidItem,
     onClick: (FindroidItem) -> Unit,
     modifier: Modifier = Modifier,
-    contentPaddingHorizontal: androidx.compose.ui.unit.Dp = MaterialTheme.spacings.default,
+    contentPaddingHorizontal: androidx.compose.ui.unit.Dp = CinefinSpacing.Space5,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     Box(
         modifier =
             modifier
@@ -65,12 +70,12 @@ fun HomeHero(
                         maxHeroHeight,
                     )
                 )
-                .clickable { onClick(item) }
+                .cinefinClickable { onClick(item) }
     ) {
         AsyncImage(
             model = item.images.backdrop ?: item.images.primary,
-            placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceContainer),
-            error = ColorPainter(MaterialTheme.colorScheme.surfaceContainer),
+            placeholder = ColorPainter(colors.surfaceContainer),
+            error = ColorPainter(colors.surfaceContainer),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -83,8 +88,8 @@ fun HomeHero(
                     .background(
                         Brush.verticalGradient(
                             0.32f to Color.Transparent,
-                            0.68f to MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
-                            1f to MaterialTheme.colorScheme.background,
+                            0.68f to colors.surface.copy(alpha = 0.72f),
+                            1f to colors.surface,
                         )
                     )
         )
@@ -96,65 +101,56 @@ fun HomeHero(
                     .padding(
                         start = contentPaddingHorizontal,
                         end = contentPaddingHorizontal,
-                        bottom = MaterialTheme.spacings.medium,
+                        bottom = CinefinSpacing.Space5,
                     ),
-            verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
             Text(
                 text = stringResource(FilmR.string.continue_watching),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                style = CinefinType.LabelLarge,
+                color = media.bright,
             )
             Text(
                 text = item.heroTitle(),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                style = CinefinType.HeadlineMedium,
+                color = colors.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             item.heroSubtitle()?.let { subtitle ->
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier.clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                            .padding(
-                                horizontal = MaterialTheme.spacings.medium,
-                                vertical = MaterialTheme.spacings.small,
-                            ),
-                ) {
-                    Icon(
-                        painter = painterResource(CoreR.drawable.ic_play),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(MaterialTheme.spacings.small))
-                    Text(
-                        text = stringResource(FilmR.string.hero_play),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                }
+                CinefinButton(
+                    text = stringResource(FilmR.string.hero_play),
+                    onClick = { onClick(item) },
+                    variant = CinefinButtonVariant.Filled,
+                    size = CinefinButtonSize.Medium,
+                    icon = { tint: Color ->
+                        Icon(
+                            painter = painterResource(CoreR.drawable.ic_play),
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                )
                 item.heroRemainingMinutes()?.let { remainingMinutes ->
-                    Spacer(modifier = Modifier.width(MaterialTheme.spacings.medium))
+                    Spacer(modifier = Modifier.width(CinefinSpacing.Space4))
                     Text(
                         text =
                             stringResource(FilmR.string.hero_remaining_minutes, remainingMinutes),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = CinefinType.MonoData,
+                        color = colors.onSurfaceVariant,
                     )
                 }
             }

@@ -8,4 +8,6 @@
     <string name="hero_remaining_minutes">剩餘 %1$d 分鐘</string>
     <string name="view_all">全部</string>
     <string name="search_placeholder">搜尋電影和電視節目</string>
+    <string name="search_empty_title">找不到結果</string>
+    <string name="search_empty_message">換個關鍵字試試 · 輸入即時搜尋</string>
 </resources>

@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeSection
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeView
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.film.presentation.home.HomeState
@@ -46,12 +46,12 @@ import com.zhangwenkang.cinefin.presentation.film.components.HomeView
 import com.zhangwenkang.cinefin.presentation.film.components.PosterItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
+import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
 /** 版心：所有内容都对齐到这条页边线（含横屏时的刘海安全区）。 */
 private val wallMinColumnWidth = 152.dp
-private val wallGap = 12.dp
 
 @Composable
 fun HomeScreen(
@@ -88,7 +88,8 @@ private fun HomeScreenLayout(
     onRetry: () -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
-    val gutter = MaterialTheme.spacings.default
+    val gutter = rememberPageGutter()
+    val wallGap = rememberGridGutter()
     val gutterStart = safePadding.start + gutter
     val gutterEnd = safePadding.end + gutter
     val pagePadding = PaddingValues(start = gutterStart, end = gutterEnd)
@@ -136,9 +137,9 @@ private fun HomeScreenLayout(
                     columns = GridCells.Fixed(columns),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding =
-                        PaddingValues(bottom = safePadding.bottom + MaterialTheme.spacings.large),
+                        PaddingValues(bottom = safePadding.bottom + CinefinSpacing.Space8),
                     horizontalArrangement = Arrangement.spacedBy(wallGap),
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
                 ) {
                     heroItem?.let { item ->
                         item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
@@ -194,9 +195,9 @@ private fun HomeScreenLayout(
                                     Modifier.padding(
                                             start = gutterStart,
                                             end = gutterEnd,
-                                            top = MaterialTheme.spacings.small,
+                                            top = CinefinSpacing.Space2,
                                         )
-                                        .padding(bottom = MaterialTheme.spacings.small),
+                                        .padding(bottom = CinefinSpacing.Space2),
                             )
                         }
 

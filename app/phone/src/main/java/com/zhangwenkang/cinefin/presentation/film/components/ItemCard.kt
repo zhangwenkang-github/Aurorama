@@ -1,6 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,13 +19,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
 fun ItemCard(
@@ -36,6 +38,7 @@ fun ItemCard(
     onClick: (FindroidItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
     val width =
         when (direction) {
             Direction.HORIZONTAL -> 260
@@ -44,38 +47,34 @@ fun ItemCard(
         }
     Column(
         modifier =
-            modifier
-                .width(width.dp)
-                .clip(MaterialTheme.shapes.small)
-                .clickable(onClick = { onClick(item) })
+            modifier.width(width.dp).clip(CinefinShapes.Md).cinefinClickable { onClick(item) }
     ) {
-        Surface(shape = MaterialTheme.shapes.small) {
-            Box {
-                ItemPoster(item = item, direction = direction)
-                Row(
-                    modifier =
-                        Modifier.align(Alignment.TopEnd).padding(MaterialTheme.spacings.small),
-                    horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
-                ) {
-                    if (item.isDownloaded()) DownloadedBadge()
-                    if (item.played) PlayedBadge()
-                    item.unplayedItemCount?.takeIf { it > 0 }?.let { ItemCountBadge(it) }
-                }
-                if (direction == Direction.HORIZONTAL) {
-                    ProgressBar(
-                        item = item,
-                        width = width,
-                        modifier =
-                            Modifier.align(Alignment.BottomStart)
-                                .padding(MaterialTheme.spacings.small),
-                    )
-                }
+        Box(
+            modifier =
+                Modifier.clip(CinefinShapes.Md).border(1.dp, colors.outline, CinefinShapes.Md)
+        ) {
+            ItemPoster(item = item, direction = direction)
+            Row(
+                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space2),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            ) {
+                if (item.isDownloaded()) DownloadedBadge()
+                if (item.played) PlayedBadge()
+                item.unplayedItemCount?.takeIf { it > 0 }?.let { ItemCountBadge(it) }
+            }
+            if (direction == Direction.HORIZONTAL) {
+                ProgressBar(
+                    item = item,
+                    width = width,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(CinefinSpacing.Space2),
+                )
             }
         }
-        Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
         Text(
             text = if (item is FindroidEpisode) item.seriesName else item.name,
-            style = MaterialTheme.typography.bodyMedium,
+            style = CinefinType.TitleSmall,
+            color = colors.onSurface,
             maxLines = if (item is FindroidEpisode) 1 else 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -88,8 +87,8 @@ fun ItemCard(
                         item.indexNumber,
                         item.name,
                     ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -1,10 +1,9 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,26 +22,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.Motion
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 /**
- * 海报墙的竖版卡：只有海报与片名。
+ * 海报墙的竖版卡（§8.4）：海报 + 片名（TitleSmall）+ 进度（3dp `Media.Base`）。
  *
- * 没有描边、没有卡片投影——海报自己就是形状。观看进度压在海报底边上， 用一线朱砂表示"已经看到这里"，这也是整张卡上唯一的颜色。
+ * 1dp `Outline` 描边 + 顶部内高光；悬停 / 按下只换描边色，不做位移与缩放（B 纪律）。
  */
 @Composable
 fun PosterItemCard(
@@ -52,49 +53,48 @@ fun PosterItemCard(
     modifier: Modifier = Modifier,
     index: Int = 0,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
-    val pressScale by
-        animateFloatAsState(
-            targetValue = if (pressed) 0.97f else 1f,
-            animationSpec = tween(durationMillis = Motion.durationFast, easing = Motion.standard),
-            label = "posterPressScale",
-        )
+    val emphasized = hovered || pressed
 
     val resumeFraction = item.resumeFraction()
 
     Column(
         modifier =
-            modifier
-                .graphicsLayer {
-                    scaleX = pressScale
-                    scaleY = pressScale
-                }
-                .clip(MaterialTheme.shapes.medium)
-                .clickable(interactionSource = interactionSource, indication = null) {
-                    onClick(item)
-                }
+            modifier.clip(CinefinShapes.Md).cinefinClickable(
+                interactionSource = interactionSource
+            ) {
+                onClick(item)
+            }
     ) {
         Box(
             modifier =
                 Modifier.fillMaxWidth()
                     .aspectRatio(2f / 3f)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .clip(CinefinShapes.Md)
+                    .background(colors.surfaceContainerHigh)
+                    .border(
+                        width = 1.dp,
+                        color = if (emphasized) media.outline else colors.outline,
+                        shape = CinefinShapes.Md,
+                    )
         ) {
             AsyncImage(
                 model =
                     if (item is FindroidEpisode) item.images.showPrimary else item.images.primary,
-                placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceContainerHigh),
-                error = ColorPainter(MaterialTheme.colorScheme.surfaceContainerHigh),
+                placeholder = ColorPainter(colors.surfaceContainerHigh),
+                error = ColorPainter(colors.surfaceContainerHigh),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
 
             Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(MaterialTheme.spacings.small),
-                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
+                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space2),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
                 if (item.isDownloaded()) DownloadedBadge()
                 if (item.played) PlayedBadge()
@@ -106,14 +106,14 @@ fun PosterItemCard(
                     modifier =
                         Modifier.align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .height(2.dp)
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f))
+                            .height(3.dp)
+                            .background(colors.progressTrackOnImage)
                 ) {
                     Box(
                         modifier =
                             Modifier.fillMaxWidth(resumeFraction)
-                                .height(2.dp)
-                                .background(MaterialTheme.colorScheme.primary)
+                                .height(3.dp)
+                                .background(media.base)
                     )
                 }
             }
@@ -121,14 +121,15 @@ fun PosterItemCard(
 
         Text(
             text = if (item is FindroidEpisode) item.seriesName else item.name,
-            style = MaterialTheme.typography.bodyMedium,
+            style = CinefinType.TitleSmall,
+            color = colors.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier =
                 Modifier.padding(
                     start = 2.dp,
                     end = 2.dp,
-                    top = MaterialTheme.spacings.small,
+                    top = CinefinSpacing.Space2,
                 ),
         )
     }
