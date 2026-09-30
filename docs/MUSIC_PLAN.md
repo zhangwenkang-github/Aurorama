@@ -2,21 +2,21 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-09-30（W1-R2 会话）　分支：`feature/r2-music-skeleton`
+> 最后更新：2026-09-30（W2-R2 会话）　分支：`feature/r2-music-core`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
 | 编号 | 需求 | W1 状态 |
 |------|------|---------|
 | MU-1 | 独立"音乐"模式 + 抽屉入口，不复用视频播放页 | 🟡 入口 Composable + 路由契约已就绪；抽屉注册由 R3 统一提交 |
-| MU-2 | 曲库：专辑 / 艺术家 / 歌曲 / 歌单 / 收藏 / 最近播放 | 🟡 专辑 / 歌曲两级已通（客户端聚合）；其余待 W2/W3 |
-| MU-3 | 单队列 + 手动排序 + "下一首播放" + 队列保存 | 🟡 单队列（`MusicQueue` 冻结模型）已接入；保存/恢复待 W2 |
-| MU-4 | 直连优先 + 可配置转码档位；gapless 必做 | 🟡 音频强制 ExoPlayer（gapless 由内核承担）；`music_*` 偏好待 W2 |
+| MU-2 | 曲库：专辑 / 艺术家 / 歌曲 / 歌单 / 收藏 / 最近播放 | 🟡 W2 四维浏览（专辑 / 艺术家 / 歌曲 / 歌单）已实现；收藏 / 最近播放待 W3 |
+| MU-3 | 单队列 + 手动排序 + "下一首播放" + 队列保存 | 🟡 单队列 + 拖拽排序 + 下一首播放 + 队列面板（跳转 / 移除）已实现；队列保存（Room）待 W3 |
+| MU-4 | 直连优先 + 可配置转码档位；gapless 必做 | 🟡 W2 修复"一首播完即停"（`pauseAtEndOfMediaItems`）→ 专辑连播 + gapless 生效；`music_*` 码率偏好待 W3 |
 | MU-5 | 歌词：服务端 / 内嵌 / 外挂 LRC + 双语识别 | ⛔ 学习笔记与算法方案已定（§4.2），实现待 W2 |
 | MU-6 | 离线：下载 + 容量管理 + 离线播放 | ⛔ 方案已定（§4.3），实现待 W2/W3 |
 | MU-7 | 通知 / 锁屏 / 耳机按键 / 后台播放 + 睡眠定时 | 🟡 通知 / 锁屏 / 媒体键 / 后台长驻已真机验证；睡眠定时待 W2 |
 | MU-8 | 全 App 单 MediaSession，音视频互斥 | 🟡 音乐起播停视频已通（含上报）；视频侧接入待 W4（播放器线） |
-| MU-9 | 播放进度写回 Jellyfin | 🟡 起播 / 停止上报已接；10s 周期上报与续播待 W2 |
+| MU-9 | 播放进度写回 Jellyfin | 🟢 W2 完成：起播 Start / 10s 周期 Progress / 暂停即报 / 切歌 Stop→Start / 停止 Stop + 续播位置 |
 
 服务端约束（REQUIREMENTS §11）：**只读 + 用户数据白名单**（进度 / 收藏 / 播放列表可写；禁止媒体库管理/删除）。
 
@@ -53,6 +53,17 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
                             └─ ExoPlayer.setMediaItems(...) + prepare() + play()
 ```
 
+### 2.4 W2 本会话决策
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D8 | 曲库一次请求（`includeItemTypes=Audio`）客户端聚合出专辑 / 艺术家 / 歌曲三个维度，歌单单独请求 | 服务器无 MusicAlbum 实体（§6-1）；减少请求数，三个维度口径一致 |
+| D9 | 艺术家用**曲目聚合**（`AlbumArtist` → 首个艺人），不用 `MusicArtist` 实体列表 | 保证"艺术家里的曲目"与歌曲列表口径完全一致；`MusicArtist` 实体（86 个）留作 W3 头像 / 简介数据源 |
+| D10 | 歌单走 SDK `PlaylistsApi.getPlaylistItems`（在 `JellyfinApi` 追加 `playlistsApi` 访问器） | 服务器实测歌单端点只有**用户 access token** 可用（API Key 调 `/Playlists/{id}/Items` 报错，§6-9）；App 内天然是用户令牌 |
+| D11 | 音乐会话期间关掉 ExoPlayer 的 `pauseAtEndOfMediaItems`，停止音乐 / 视频起播时恢复 | 视频分集依赖"播完一件先停"，音乐必须连播；开着它 gapless 与专辑连播全部失效（§6-10） |
+| D12 | 队列编辑（点队列跳转 / 移除）放进附加接口 `MusicQueueEditor`，不动 W0 冻结的 `MusicPlaybackController` | 与 `MusicPlaybackStateSource` 同样的"冻结接口 + 附加接口"处理方式 |
+| D13 | 上报状态机：`activeItemId` + ticker 采样位置/时长；切歌在同一条协程里 Stop→Start 保证顺序 | 周期上报与切歌上报需要"上一首的位置/时长"，`onMediaItemTransition` 回调里拿不到 |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -76,6 +87,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 4. **浏览扩展**：艺术家 / 歌单 / 收藏 / 最近播放；
 5. **音质偏好**：`music_*` 前缀（Wi-Fi/蜂窝码率）、直连优先策略；
 6. **睡眠定时**（P1，与视频共用）。
+
+### W2（本会话，已交付）
+
+- [x] 曲库四维浏览：专辑 / 艺术家 / 歌曲 / 歌单（标签页切换，歌单空数据有兜底文案）
+- [x] 客户端聚合纯函数 `groupAlbums` / `groupArtists` + 续播换算 `resumePositionMs`（`MusicLibraryGrouping.kt`，4 用例）
+- [x] 队列面板：点标题跳转（`MusicQueueEditor.jumpTo`）、长按「≡」拖拽排序（`MusicQueue.move`）、「✕」移除（`removeAt`）
+- [x] 歌曲行「下一首播放」菜单（`insertNext`，含媒体源解析）
+- [x] 点歌按当前列表整份入队（专辑 / 艺术家 / 歌单 / 全部歌曲四种 `QueueSource`）
+- [x] gapless：音乐期间关闭 `pauseAtEndOfMediaItems`，停止后恢复（`PlayerHolder.applyMusicPlaybackTuning`）
+- [x] MU-9 上报：Start / 10s Progress / 暂停即报 / 切歌 Stop→Start / 停止 Stop（百分比修正）+ 续播 seek
+- [x] 单测：`MusicQueueTest`（4 用例）+ `MusicLibraryGroupingTest`（4 用例）+ `MusicPlaybackMathTest` 扩充（共 13 用例）
+- [x] 真机验证（§5.2）
+- [x] 文档收口（本节 + §5 / §6 / §7）
 
 ### W3/W4 依赖
 
@@ -121,6 +145,31 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 > 验证方式说明：因共享真机被并行会话占用，路由入口用**未提交的临时插桩**（NavigationRoot 注册 `MusicModeRoute` + 悬浮入口）完成验证，验证后已还原；正式入口由 R3 统一提交。
 
+### 5.2 W2 真机验证记录（2026-09-30，Xiaomi Pad 5 / Android 13，`43af8627`）
+
+| # | 项目 | 命令 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | 专辑浏览 | `uiautomator dump`：`音乐 / 共 94 张专辑`（客户端聚合） | ✅ |
+| 2 | 艺术家浏览 | 切「艺术家」页签：`共 87 位艺术家` | ✅ |
+| 3 | 歌曲浏览 | 切「歌曲」页签：`共 100 首歌曲`，行内含专辑名与时长 | ✅ |
+| 4 | 歌单浏览 | 写白名单内临时歌单（3 首）：列表 `共 1 个歌单 / 3 首`，详情 3 首顺序正确 | ✅ |
+| 5 | 队列面板 | 底栏「播放队列」：`播放队列（3）` + `正在播放` 标记 | ✅ |
+| 6 | 拖拽排序 | 长按 `≡` 拖 1 格：`心做し / Last Reunion（正在播放）/ 天下`，当前曲目不变 | ✅ |
+| 7 | 下一首播放 | 行内 `⋮ → 下一首播放`：队列 3→4，新条插到当前曲目之后 | ✅ |
+| 8 | 点队列跳转 | 点第 3 首：`Sending stop 8711707c…` → `Sending start d2ef9e2b…`，`active item id=2` | ✅ |
+| 9 | 切歌 | 底栏「下一首」：`Sending stop d2ef9e2b…` → `Sending start d2ef9e2b…`，`active item id` 2→3 | ✅ |
+| 10 | 队列移除 | 点 `✕`：`播放队列（3）→（2）`，当前曲目保持 | ✅ |
+| 11 | 同专辑连播（gapless） | 原神 3 首 FLAC 44.1kHz 直连；2s 采样 62 次：第 1 首 86.8s → 第 2 首 ~0s **全程 `state=3`**（无 buffering），无用户操作；日志 `Sending stop 1a49753d…` → `Sending start b8d0326b…` | ✅ |
+| 12 | MU-9 周期上报 | 连续 11 条 `Posting progress`，间隔 ~10.05s（位置 50.8s→153.5s 递增） | ✅ |
+| 13 | 暂停 / 恢复即时上报 | 暂停后服务器 `Sessions: paused=True, posTicks=625300000`；恢复后 `paused=False` | ✅ |
+| 14 | 服务器 Sessions 可见 | `GET /Sessions`：`client=Cinefin, device=21051182C, nowPlaying=Last Reunion…, paused=False`，`posTicks` 递增 | ✅ |
+| 15 | 构建 / 格式门禁 | `:app:phone:assembleDebug ktfmtCheck` | ✅ |
+| 16 | 单测 | `:player:local:testDebugUnitTest`（9）+ `:modes:music:testDebugUnitTest`（4）= 13/13 | ✅ |
+
+> 验证方式：入口未注册（由 R3 统一提交），本次用**未提交的临时插桩**（`NavigationRoot` 起始页临时指向 `MusicModeRoute`）完成验证，验证后已还原（还原后重跑门禁通过）。
+> 歌单验证用写白名单内的临时歌单（建 → 验证 → 删），服务器歌单数已回到 0。
+> "听觉无缝隙"的客观证据：全程无 buffering、同专辑同格式直连、无用户操作自动衔接；**听感复核**留给 R4 / 用户验收波（开发会话无法替用户听音）。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -138,7 +187,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 7. **仓库无测试基础设施**：`libs.versions.toml` 没有 junit / mockk，各模块无 `src/test`。本次在 `player:local` 用模块内 `testImplementation("junit:junit:4.13.2")` 字面量建立最小单测；**建议 W2 由负责人决定把测试依赖统一进版本目录**（本波该文件只有 R1 可写）。
 8. **共享真机冲突**：多会话并行使用同一台小米平板时，会出现"APK 被其他会话覆盖安装、点击/前台被抢占、uiautomator 服务冲突（`UiAutomationService already registered`）"。
    → 真机验证要压缩成"重装后 40 秒内一步完成"的脚本；或与负责人约定串行验证窗口。
+9. **歌单端点的鉴权差异**（2026-09-30 W2 实测）：`GET /Playlists/{id}/Items` 用 **API Key**（`X-Emby-Token`）调用报错
+   （`Error processing request`，无 body）；换成**用户 access token**（`POST /Users/AuthenticateByName` 换到）后正常返回曲目。
+   → App 内登录态天然是用户令牌，SDK `playlistsApi.getPlaylistItems` 无需特殊处理；命令行脚本复现时别用 API Key。
+10. **`pauseAtEndOfMediaItems` 是 ExoPlayer 专有 API（`Player` 接口没有）**：`PlayerHolder` 建实例时设 `true`（视频分集"播完先停"）。
+    音乐如果不关掉它，一首播完 `playWhenReady` 就被置 false → 专辑连播停住、gapless 失效。W1 没暴露是因为只测了单曲专辑（aLIEz）。
+    → `PlayerHolder.applyMusicPlaybackTuning(true/false)`：音乐期间关、停止音乐 / 视频起播时恢复。
+11. **"服务器没有歌单"是数据现状，不是能力缺失**：`includeItemTypes=Playlist` 返回 0；歌单接口本身可用（见 §6-9）。
+    真机验证用写白名单内的一张临时歌单（3 首，建 → 验证 → 删），不影响媒体库。
 
 ## 7. 会话日志
 
 - **2026-09-30 W1-R2**（本会话）：完成 §3 W1 全部条目；替换/新增文件见 git 提交；结论：音乐骨架 + 最小闭环可用，视频互斥链路真机通过；遗留 W2 待办见 §3。
+- **2026-09-30 W2-R2**（本会话，`feature/r2-music-core`）：完成四维曲库浏览（专辑 / 艺术家 / 歌曲 / 歌单）、
+  队列面板（拖拽排序 / 跳转 / 移除 / 下一首播放）、gapless 修复（`pauseAtEndOfMediaItems`）、MU-9 上报补齐与续播；
+  新增 13 条 JVM 单测（`MusicQueueTest` / `MusicLibraryGroupingTest` / `MusicPlaybackMathTest` 扩充）；
+  真机验证与结论见 §5。遗留：队列持久化（Room）、收藏 / 最近播放、`music_*` 码率偏好 → W3。
