@@ -96,7 +96,7 @@
 | 根 `build.gradle.kts`（`allprojects.repositories`） | R1（**必须新增 JitPack 仓库**给 pdfium 适配器） | 与模块注册同批提交，避免多条线各改一次 |
 | `app/phone/.../NavigationRoot.kt` | R1（书籍详情 / 阅读路由）、R2（音乐路由）、R3 | 路由注册分两次小提交，改前 rebase；同日改动需互相告知 |
 | `settings/.../AppPreferences.kt` | R1（阅读偏好）、R2（音乐 / 歌词偏好）、R3（界面偏好） | 前置约定 key 前缀（`reader_*` / `music_*`），一次提交只加自己前缀的 key |
-| 设计系统核心（`core/.../presentation/theme/*`、`app/phone/.../presentation/theme/*`） | R3 主改，R1/R2 只读 | **设计系统由 R3 串行独家改动**；R1/R2 只用 token，不新增 token |
+| 设计系统核心（`core/.../presentation/theme/*`、`app/phone/.../presentation/theme/*`） | R3 主改，R1/R2 只读 | **设计系统由 R3 串行独家改动**；R1/R2 只用 token，不新增 token。**Typography 归位（2026-09-30 负责人决策）**：设计系统核心统一归 `core`，`app:phone` 只保留入口包装，由 R3 在 W1 落地 |
 | `app/phone/.../playback/CinefinPlaybackService.kt` | R2（通知行为） | 由 R2 单独改 |
 | `player/local/.../presentation/PlayerHolder.kt` | R2（音频后端策略）、播放器线 | 改动前与播放器线确认；改后必须跑视频回归 |
 | `core/.../utils/DownloaderImpl.kt` | R1（书籍下载）、R2（音乐下载）、下载线 | 由**一条线先做通用化**（见 §6.1），另一条线只加自己的分支 |

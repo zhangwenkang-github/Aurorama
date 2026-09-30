@@ -1,6 +1,6 @@
 # Cinefin · 项目总览与协作规程
 
-> **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-09-29　分支 `master`
+> **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-09-30　分支 `master`
 > 项目级状态、任务线地图、协作规程都在本文件；单个任务线内部的需求 / 进度 / 决策写各自的线文档。
 
 ## 1. 项目是什么
@@ -40,7 +40,10 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🆕 已规划（2026-09-29，S3 v1.0） | W0 冻结进行中：S2 架构、**S4 设计系统 v1.0 已交付**（含修订稿与组件状态板）；播放器 bug 待修 → W1 三线骨架 → P0 主体 → P1 收口 → 验收 |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟡 W1 进行中（2026-09-30） | W0 已完成：S2 架构 / S4 设计系统（f9f7e57，含修订稿）+ 负责人基线（2b00120：`modes/book`、`modes/music` 骨架 + 音频接口冻结 + ktfmt 存量修复）；W1 三线骨架启动中 |
+| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（W1-R1 创建并维护） | 🟡 W1 启动中 | Readium 集成 PoC + 阅读进度接口；测试内容已就绪（`test_files`：2 CBZ + 1 PDF） |
+| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（W1-R2 创建并维护） | 🟡 W1 启动中 | `modes/music` 单 MediaSession 最小闭环（列表→播放→通知可控） |
+| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（W1-R3 创建并维护） | 🟡 W1 启动中 | UI_DESIGN_SYSTEM v1.0 → Compose token 主题 + 基础组件（含 Typography 归位） |
 
 ### 3.1 执行顺序（用户 2026-09-28 批准）
 
