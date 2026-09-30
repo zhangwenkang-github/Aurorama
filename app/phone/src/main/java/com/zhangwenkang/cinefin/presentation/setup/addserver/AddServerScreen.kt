@@ -16,8 +16,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,12 +39,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.setup.components.DiscoveredServerItem
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerAction
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerEvent
@@ -99,18 +100,19 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
             verticalArrangement = Arrangement.Center,
             modifier =
                 Modifier.fillMaxHeight()
-                    .padding(horizontal = MaterialTheme.spacings.large)
+                    .padding(horizontal = CinefinSpacing.Space8)
                     .widthIn(max = 480.dp)
                     .align(Alignment.Center)
                     .verticalScroll(scrollState),
         ) {
             SetupBrandMark(markSize = 44.dp, subtitle = stringResource(CoreR.string.app_tagline))
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space10))
             Text(
                 text = stringResource(SetupR.string.add_server),
-                style = MaterialTheme.typography.headlineMedium,
+                style = CinefinType.HeadlineMedium,
+                color = LocalCinefinColors.current.onSurface,
             )
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.medium))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
             AnimatedVisibility(state.discoveredServers.isNotEmpty()) {
                 LazyRow {
                     items(state.discoveredServers) { discoveredServer ->
@@ -125,7 +127,7 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
             OutlinedTextField(
                 value = serverAddress,
                 leadingIcon = {
@@ -152,7 +154,7 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
                     if (state.error != null) {
                         Text(
                             text = state.error!!.joinToString { it.asString(context.resources) },
-                            color = MaterialTheme.colorScheme.error,
+                            color = LocalCinefinColors.current.error,
                         )
                     }
                 },
@@ -165,12 +167,11 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        IconButton(
+        TopBarAction(
+            icon = CoreR.drawable.ic_arrow_left,
             onClick = { onAction(AddServerAction.OnBackClick) },
             modifier = Modifier.padding(start = 8.dp),
-        ) {
-            Icon(painter = painterResource(CoreR.drawable.ic_arrow_left), contentDescription = null)
-        }
+        )
     }
 }
 

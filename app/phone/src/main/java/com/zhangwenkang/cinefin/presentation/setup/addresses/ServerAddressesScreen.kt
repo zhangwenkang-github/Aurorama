@@ -1,7 +1,9 @@
 package com.zhangwenkang.cinefin.presentation.setup.addresses
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,14 +17,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -42,10 +39,18 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServerAddress
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.ServerAddress
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.addresses.ServerAddressesAction
@@ -80,10 +85,12 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
     val layoutDirection = LocalLayoutDirection.current
     val safePadding = rememberSafePadding()
 
-    val paddingStart = safePadding.start + MaterialTheme.spacings.default
-    val paddingTop = MaterialTheme.spacings.default
-    val paddingEnd = safePadding.end + MaterialTheme.spacings.default
-    val paddingBottom = safePadding.bottom + MaterialTheme.spacings.default
+    val pageGutter = rememberPageGutter()
+    val colors = LocalCinefinColors.current
+    val paddingStart = safePadding.start + pageGutter
+    val paddingTop = pageGutter
+    val paddingEnd = safePadding.end + pageGutter
+    val paddingBottom = safePadding.bottom + pageGutter
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var selectedAddress by remember { mutableStateOf<ServerAddress?>(null) }
@@ -94,29 +101,36 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(SetupR.string.addresses)) },
+                title = {
+                    Text(
+                        text = stringResource(SetupR.string.addresses),
+                        style = CinefinType.TitleLarge,
+                        color = colors.onSurface,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = { onAction(ServerAddressesAction.OnBackClick) }) {
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_arrow_left),
-                            contentDescription = null,
-                        )
-                    }
+                    TopBarAction(
+                        icon = CoreR.drawable.ic_arrow_left,
+                        onClick = { onAction(ServerAddressesAction.OnBackClick) },
+                    )
                 },
                 windowInsets = WindowInsets.statusBars.union(WindowInsets.displayCutout),
                 scrollBehavior = scrollBehavior,
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                text = { Text(stringResource(SetupR.string.add_address)) },
-                icon = {
+            CinefinButton(
+                text = stringResource(SetupR.string.add_address),
+                onClick = { openAddDialog = true },
+                variant = CinefinButtonVariant.Filled,
+                size = CinefinButtonSize.Medium,
+                icon = { tint ->
                     Icon(
                         painter = painterResource(CoreR.drawable.ic_plus),
                         contentDescription = null,
+                        tint = tint,
                     )
                 },
-                onClick = { openAddDialog = true },
             )
         },
     ) { innerPadding ->
@@ -130,13 +144,14 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
                         end = paddingEnd + innerPadding.calculateEndPadding(layoutDirection),
                         bottom = paddingBottom + innerPadding.calculateBottomPadding(),
                     ),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
+                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
             ) {
                 items(items = state.addresses, key = { it.id }) { address ->
-                    Surface(
+                    Box(
                         modifier =
                             Modifier.fillMaxWidth()
-                                .clip(CardDefaults.outlinedShape)
+                                .clip(CinefinShapes.Md)
+                                .background(colors.surfaceContainer)
                                 .combinedClickable(
                                     onClick = {},
                                     onLongClick = {
@@ -144,9 +159,13 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
                                         openDeleteDialog = true
                                     },
                                 )
-                                .padding(MaterialTheme.spacings.small)
+                                .padding(CinefinSpacing.Space4)
                     ) {
-                        Text(address.address)
+                        Text(
+                            text = address.address,
+                            style = CinefinType.BodyMedium,
+                            color = colors.onSurface,
+                        )
                     }
                 }
             }

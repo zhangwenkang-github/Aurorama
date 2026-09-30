@@ -6,15 +6,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -34,15 +32,21 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServerAddress
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.ServerWithAddresses
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerBottomSheet
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerItem
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersAction
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersEvent
@@ -98,33 +102,35 @@ private fun ServersScreenLayout(
     var openDeleteDialog by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedServer by remember { mutableStateOf<ServerWithAddresses?>(null) }
+    val colors = LocalCinefinColors.current
 
     RootLayout {
         Column(
             modifier =
-                Modifier.padding(horizontal = MaterialTheme.spacings.large)
+                Modifier.padding(horizontal = CinefinSpacing.Space8)
                     .widthIn(max = 480.dp)
                     .fillMaxWidth()
                     .align(Alignment.Center)
         ) {
             Spacer(modifier = Modifier.weight(0.15f))
             SetupBrandMark(markSize = 44.dp, subtitle = stringResource(CoreR.string.app_tagline))
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space10))
             Text(
                 text = stringResource(SetupR.string.servers),
-                style = MaterialTheme.typography.headlineMedium,
+                style = CinefinType.HeadlineMedium,
+                color = colors.onSurface,
             )
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space8))
             if (state.servers.isEmpty()) {
                 Text(
                     text = stringResource(SetupR.string.servers_no_servers),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.weight(1f))
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 ) {
                     items(state.servers) { server ->
@@ -145,23 +151,26 @@ private fun ServersScreenLayout(
             }
         }
         if (showBack) {
-            IconButton(
+            TopBarAction(
+                icon = CoreR.drawable.ic_arrow_left,
                 onClick = { onAction(ServersAction.OnBackClick) },
                 modifier = Modifier.padding(start = 8.dp),
-            ) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_arrow_left),
-                    contentDescription = null,
-                )
-            }
+            )
         }
-        ExtendedFloatingActionButton(
+        CinefinButton(
+            text = stringResource(SetupR.string.servers_btn_add_server),
             onClick = { onAction(ServersAction.OnAddClick) },
-            icon = { Icon(painterResource(CoreR.drawable.ic_plus), contentDescription = null) },
-            text = { Text(text = stringResource(SetupR.string.servers_btn_add_server)) },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(CinefinSpacing.Space6),
+            variant = CinefinButtonVariant.Filled,
+            size = CinefinButtonSize.Medium,
+            icon = { tint ->
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_plus),
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
         )
     }
 

@@ -2,14 +2,12 @@ package com.zhangwenkang.cinefin.presentation.setup.login
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -21,9 +19,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,11 +40,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginAction
 import com.zhangwenkang.cinefin.setup.presentation.login.LoginEvent
@@ -105,30 +106,32 @@ private fun LoginScreenLayout(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     val doLogin = { onAction(LoginAction.OnLoginClick(username, password)) }
+    val colors = LocalCinefinColors.current
 
     RootLayout {
         Column(
             verticalArrangement = Arrangement.Center,
             modifier =
                 Modifier.fillMaxHeight()
-                    .padding(horizontal = MaterialTheme.spacings.large)
+                    .padding(horizontal = CinefinSpacing.Space8)
                     .widthIn(max = 480.dp)
                     .align(Alignment.Center)
                     .verticalScroll(scrollState),
         ) {
             SetupBrandMark(markSize = 44.dp, subtitle = state.serverName)
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space10))
             Text(
                 text = stringResource(SetupR.string.login),
-                style = MaterialTheme.typography.headlineMedium,
+                style = CinefinType.HeadlineMedium,
+                color = colors.onSurface,
             )
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
             Text(
                 text = stringResource(SetupR.string.server_subtitle, state.serverName ?: ""),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = CinefinType.BodyMedium,
+                color = colors.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(MaterialTheme.spacings.large))
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space8))
             OutlinedTextField(
                 value = username,
                 leadingIcon = {
@@ -156,14 +159,12 @@ private fun LoginScreenLayout(
                     )
                 },
                 trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            painter =
-                                if (passwordVisible) painterResource(CoreR.drawable.ic_eye_off)
-                                else painterResource(CoreR.drawable.ic_eye),
-                            contentDescription = null,
-                        )
-                    }
+                    TopBarAction(
+                        icon =
+                            if (passwordVisible) CoreR.drawable.ic_eye_off
+                            else CoreR.drawable.ic_eye,
+                        onClick = { passwordVisible = !passwordVisible },
+                    )
                 },
                 onValueChange = { password = it },
                 label = { Text(text = stringResource(SetupR.string.edit_text_password_hint)) },
@@ -184,7 +185,7 @@ private fun LoginScreenLayout(
                     if (state.error != null) {
                         Text(
                             text = state.error!!.asString(),
-                            color = MaterialTheme.colorScheme.error,
+                            color = colors.error,
                         )
                     }
                 },
@@ -201,58 +202,58 @@ private fun LoginScreenLayout(
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         HorizontalDivider(
-                            modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+                            modifier =
+                                Modifier.weight(1f).padding(horizontal = CinefinSpacing.Space3)
                         )
                         Text(
                             text = stringResource(SetupR.string.or),
                             color = DividerDefaults.color,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = CinefinType.BodySmall,
                         )
                         HorizontalDivider(
-                            modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+                            modifier =
+                                Modifier.weight(1f).padding(horizontal = CinefinSpacing.Space3)
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box {
-                        if (state.quickConnectCode != null) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier =
-                                    Modifier.size(24.dp)
-                                        .align(Alignment.CenterStart)
-                                        .offset(x = 8.dp),
-                            )
-                        }
-                        OutlinedButton(
-                            onClick = { onAction(LoginAction.OnQuickConnectClick) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                text =
-                                    if (state.quickConnectCode != null) state.quickConnectCode!!
-                                    else stringResource(SetupR.string.login_btn_quick_connect)
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+                    CinefinButton(
+                        text =
+                            state.quickConnectCode
+                                ?: stringResource(SetupR.string.login_btn_quick_connect),
+                        onClick = { onAction(LoginAction.OnQuickConnectClick) },
+                        modifier = Modifier.fillMaxWidth(),
+                        variant = CinefinButtonVariant.Outlined,
+                        size = CinefinButtonSize.Large,
+                        icon =
+                            if (state.quickConnectCode != null) {
+                                { tint ->
+                                    CircularProgressIndicator(
+                                        color = tint,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            } else {
+                                null
+                            },
+                    )
                 }
             }
             if (state.disclaimer != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(text = state.disclaimer!!)
+                Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
+                Text(text = state.disclaimer!!, style = CinefinType.BodySmall)
             }
         }
-        IconButton(
+        TopBarAction(
+            icon = CoreR.drawable.ic_arrow_left,
             onClick = { onAction(LoginAction.OnBackClick) },
             modifier = Modifier.padding(start = 8.dp),
-        ) {
-            Icon(painter = painterResource(CoreR.drawable.ic_arrow_left), contentDescription = null)
-        }
-        IconButton(
+        )
+        TopBarAction(
+            icon = CoreR.drawable.ic_server,
             onClick = { onAction(LoginAction.OnChangeServerClick) },
             modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp),
-        ) {
-            Icon(painter = painterResource(CoreR.drawable.ic_server), contentDescription = null)
-        }
+        )
     }
 }
 
