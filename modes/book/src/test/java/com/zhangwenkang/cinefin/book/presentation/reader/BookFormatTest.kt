@@ -17,12 +17,26 @@ class BookFormatTest {
     }
 
     @Test
+    fun `前 1KB 内出现的 PDF 头也能识别`() {
+        val file = tempFile("junk-head.book")
+        file.writeBytes(ByteArray(300) { 0x20 } + "%PDF-1.7\n".toByteArray())
+        assertEquals(BookFormat.Pdf, sniffBookFormat(file))
+    }
+
+    @Test
     fun `含 OCF 容器的压缩包识别为 EPUB`() {
         val file = tempFile("ripely.book")
         writeZip(
             file,
             mapOf("mimetype" to "application/epub+zip", "META-INF/container.xml" to "<container/>"),
         )
+        assertEquals(BookFormat.Epub, sniffBookFormat(file))
+    }
+
+    @Test
+    fun `只有 mimetype 的压缩包也识别为 EPUB`() {
+        val file = tempFile("minimal-epub.book")
+        writeZip(file, mapOf("mimetype" to "application/epub+zip", "content.opf" to "<package/>"))
         assertEquals(BookFormat.Epub, sniffBookFormat(file))
     }
 

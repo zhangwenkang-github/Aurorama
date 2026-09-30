@@ -393,29 +393,42 @@ constructor(
         progression: Double,
     ): Locator? = runCatching { publication.locateProgression(progression) }.getOrNull()
 
-    /** 按内容分派：EPUB → Readium；PDF / CBZ → 页窗口自研视图。 */
+    /**
+     * 按内容分派：EPUB → Readium；PDF / CBZ → 页窗口自研视图。
+     *
+     * ZIP 里一张位图都没有时不算漫画包，交回 Readium（它能给出更准确的格式错误，也兼容结构异常的 EPUB）。
+     */
     private suspend fun openDocument(file: File, progress: ReadingProgress?): ReaderDocument =
         when (sniffBookFormat(file)) {
-            BookFormat.Pdf -> openSimple(file, SimpleBookFormat.Pdf, progress)
-            BookFormat.ComicArchive -> openSimple(file, SimpleBookFormat.ComicArchive, progress)
+            BookFormat.Pdf -> {
+                val source = PdfPageSource(file)
+                if (source.pageCount <= 0) {
+                    source.close()
+                    throw IllegalStateException("PDF 中没有可阅读的页面")
+                }
+                openSimple(source, SimpleBookFormat.Pdf, progress)
+            }
+
+            BookFormat.ComicArchive -> {
+                val source = ComicPageSource(file)
+                if (source.pageCount > 0) {
+                    openSimple(source, SimpleBookFormat.ComicArchive, progress)
+                } else {
+                    source.close()
+                    openReadium(file, progress)
+                }
+            }
+
             BookFormat.Epub,
             BookFormat.Unknown -> openReadium(file, progress)
         }
 
+    /** 打开好的页序列文档：接管 [PageSource] 生命周期（[closeDocuments] 统一释放）。 */
     private fun openSimple(
-        file: File,
+        source: PageSource,
         format: SimpleBookFormat,
         progress: ReadingProgress?,
     ): ReaderDocument.Simple {
-        val source =
-            when (format) {
-                SimpleBookFormat.Pdf -> PdfPageSource(file)
-                SimpleBookFormat.ComicArchive -> ComicPageSource(file)
-            }
-        if (source.pageCount <= 0) {
-            source.close()
-            throw IllegalStateException("${format.label} 中没有可阅读的页面")
-        }
         openedPageSource = source
         return ReaderDocument.Simple(
             format = format,
