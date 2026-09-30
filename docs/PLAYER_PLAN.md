@@ -131,6 +131,12 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
       用户确认通知栏封面显示正常。
 - [ ] **1.5 阶段 4 收尾验收**——锁屏 30 分钟音频不中断、真机耳机拔出 / 蓝牙切换 / 来电暂停；
       自动降级 mpv 的端到端触发（上次因服务器视频流超时未能验成）。
+- [x] **1.19 播放稳定性专项（PLAYER-STAB，2026-10-01）**——mpv 队列补片 ANR 修复 + 卡顿量化。
+      落点：`mpv/MPVPlayer.kt`（阻塞型 mpv 命令改走 `HandlerThread("mpv-command")`，保序、release 关闸）、
+      `presentation/PlayerViewModel.kt`（补片协程真后台 + 每条让出 50ms + 单次上限 150 条 + mediaId 集合去重）。
+      真机（Pad 5 / mpv / 灼眼的夏娜 73 集）：补片+点击场景主线程峰值 **2584ms → 508ms**；80 次点击 5.2s
+      无 `Input dispatching timed out`；修复前 mpv 补片窗口帧间隔 p99 166.68ms（SurfaceFlinger 采样）→
+      修复后稳态 24fps 满帧、无 >100ms 停顿。脚本见 `tools/player-stability/`；详见 §9 踩坑与 §10 日志。
 
 ### P1 · 体验提升
 
@@ -182,7 +188,7 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 
 | 模块 | 完成度 | 状态 | 落点 / 备注 |
 |------|--------|------|------------|
-| 播放内核（ExoPlayer + FFmpeg + mpv 双内核 + 静默降级） | 88% | 🟡 | `player/local`：`PlayerHolder` / `PlayerViewModel` / `mpv/MPVPlayer` |
+| 播放内核（ExoPlayer + FFmpeg + mpv 双内核 + 静默降级） | 88% | 🟡 | `player/local`：`PlayerHolder` / `PlayerViewModel` / `mpv/MPVPlayer`；2026-10-01 补片 ANR 修复见 §1.19 |
 | 队列与选集（整剧补全、按季分组、缩略图行） | 85% | 🟡 | `PlaylistManager` + `PlayerContentPanel` |
 | 控制层（三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 88% | 🟡 | `presentation/player/PlayerControlOverlay.kt` |
 | 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 78% | 🟡 | 字幕（§1.1）与音轨（§1.2）面板已补全；画面 / 信息 / 队列等待办见 §1.6–1.9 |
@@ -521,6 +527,10 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | mpv 语言优先列表 | `alang` / `slang` 要传**整份**逗号分隔列表（`zh-Hans,zh-Hant,zh,en`）。旧代码 `firstOrNull().split("-").last()` 把 `zh-Hans` 截成 `Hans`，任何轨道都匹配不上（真机表现：打开新片自动选到日语字幕）；mpv 自己会做 ISO 639-1/639-2 与地区后缀归一化 |
 | 自动选字幕兜底 | `PlayerSubtitleController.pickPrimary()` 在「语言优先级没命中」时按「默认轨 > 非强制字幕 > 轨道序号」兜底，别再直接返回 null（旧行为 = 打开新片没字幕）。注意 `TrackSelectionEngine.pickTextTrack()` 仍是「auto 不选」，两处语义待统一（见 §10 遗留） |
 | 打开即播与 pause/resume | `initializePlayer` 发出后、`play()` 落地前是**起播窗口**：播放器 `playWhenReady` 还是默认 false，此时 pause/resume（权限弹窗 / 切后台 / 切内核）会把 false 回存再写回、覆盖自动起播 → 打开视频要手点一次。窗口内一律不回存 / 不恢复（`PlayerViewModel.startupInProgress`） |
+| mpv 队列补片压主线程（ANR） | `fillQueueInBackground` 旧实现只在 IO 构建 PlayerItem，`player.addMediaItem` 仍在主线程；mpv 的 `addMediaItems` 同步执行 `mpvLib.command("loadfile")`，整季补片把主线程连续阻塞（dropbox：`Waited 5000ms for MotionEvent`，栈 `MPVPlayer.addMediaItems ← PlayerViewModel.addToQueueEnd ← fillQueueInBackground`）。修复：MPVPlayer 加 `HandlerThread("mpv-command")`，所有 command 按提交顺序异步执行；补片协程整体跑 IO、每条让出 50ms、单次上限 150 条、mediaId 集合 O(1) 去重。补片+点击场景主线程峰值 2584ms → 508ms |
+| mpv 命令异步化后的释放协议 | `release()` 不能直接 `destroy`（会与命令线程正在执行的命令并发打崩 native）。做法：`commandsClosed` 关闸 → `removeCallbacksAndMessages(null)` 丢排队命令 → 在命令线程上 `destroy` + `quitSafely`；`event()` / `onAudioFocusChange` 增加 `released` 短路；surface attach/detach 加主线程断言（命令线程只跑 command） |
+| 视频帧节奏怎么量 | TextureView 视频不走 `dumpsys gfxinfo`（实测 Total frames=0）；用 `SurfaceFlinger --latency <layer>` 采样，`INT64_MAX` 是 pending 必须剔除；同一帧会被重复 present，要同时看 `ready_*`（frameReady 去重）与 `present_*`。Pad 5 屏幕 120Hz、片源 24fps 时正常 p50≈41.7ms，p99>100ms 才是可感知停顿。补片窗口的帧数据会被服务器 PlaybackInfo 变慢（本轮 0.4→3.8s 漂移）污染，对比时优先用主线程指标（PerfMonitor latency） |
+| mpv 参数与卡顿定位结论 | 默认 `hwdec=mediacodec` / `vo=gpu-next` / cache 64+32MiB 下稳态 24fps 满帧、无 >100ms 停顿；参数不是可复现卡顿源，卡顿集中在补片窗口的主线程阻塞与服务器 / 网络缓冲。低内存 swap thrashing（02:07 现场）未在本次测量复现，作为后续观察项 |
 
 | 权威内容 | 位置 |
 |----------|------|
@@ -534,6 +544,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-01 | §1.19 播放稳定性专项（PLAYER-STAB / 分支 `feature/player-stability`）：mpv 队列补片 ANR 修复（MPVPlayer 命令线程 + 补片真后台 / 节流 / 上限 150）+ 卡顿量化。真机 Pad 5（mpv / 灼眼的夏娜 73 集）：补片+点击场景主线程峰值 2584ms → 508ms；80 次点击 5.2s 无 `Input dispatching timed out`；SurfaceFlinger 采样修复前 mpv 补片窗口 p99 166.68ms vs 同窗口 ExoPlayer p95 8.56ms / jank 1.93%；修复后 mpv 稳态 24fps 满帧、无 >100ms 停顿。新增 `tools/player-stability/{Invoke-AnrRepro,Measure-FrameLatency}.ps1`；门禁 `assembleDebug + player:local:testDebugUnitTest + ktfmtCheck` 通过；回归：字幕 / 音轨 / 倍速 / 队列面板与补片正常 |
 | 2026-10-01 | §11 D 组两个 bug 修复（PLAYER-BUG 会话 / 分支 `feature/player-autoselect-fix`）：① 自动选字幕 = `pickPrimary()` 默认轨兜底 + mpv `alang`/`slang` 传全量语言列表；② 打开即播 = `PlayerViewModel.startupInProgress` 起播窗口（窗口内不回存 / 不恢复 `playWhenReady`）。真机 Pad 5：mpv《夏日幽灵》由基线 `sid=1 ja-JP（日本語）` 纠正为 `● sid=2 zh-Hans-CN（简日双语）`；ExoPlayer 同一片自动选中 `index=4`（简日双语，cues=1072 解析成功）且 `state=3` 直接起播。遗留：`TrackSelectionEngine.pickTextTrack()` 的 auto 兜底未同步；「语言识别不出来（language=null）」的片源只走了代码路径、未单独真机复现 |
 | 2026-09-28 | §1.4 通知封面完成（Coil 异步加载 + 回调刷新 + 单张缓存）；新增 §11「播放页 UI/UX 改造待办」（用户 2026-09-28 提出的 5 条，暂不处理） |
 | 2026-09-28 | §1.2 音轨面板补全：自研 `AudioDelayProcessor`（ExoPlayer）+ `audio-delay`（mpv）+ 轨道描述 + 延迟偏好；真机验证通过（双内核听感确认） |
