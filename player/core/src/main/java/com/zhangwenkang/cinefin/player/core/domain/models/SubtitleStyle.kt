@@ -3,8 +3,7 @@ package com.zhangwenkang.cinefin.player.core.domain.models
 /**
  * 字幕外观（大小 / 颜色 / 背景 / 描边 / 位置）。
  *
- * 存的是「档位索引」而不是浮点值：偏好里只存 Int，跨版本不会因为浮点精度出现
- * 「明明选的是同一档，UI 却对不上」的尴尬；真正的数值由 [SIZES] / [COLORS] 等换算。
+ * 存的是「档位索引」而不是浮点值：偏好里只存 Int，跨版本不会因为浮点精度出现 「明明选的是同一档，UI 却对不上」的尴尬；真正的数值由 [SIZES] / [COLORS] 等换算。
  */
 data class SubtitleStyle(
     /** 字号档位：见 [SIZES] */

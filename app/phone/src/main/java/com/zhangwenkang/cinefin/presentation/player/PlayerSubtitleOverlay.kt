@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,7 +24,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Text
 import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleCue
@@ -32,12 +32,10 @@ import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 /**
  * 自研字幕渲染层（§1.1）。
  *
- * 贴在 PlayerView 之上、控制层之下：只画字幕，不处理任何触摸。
- * 之所以不用 Media3 的 SubtitleView：这里要同时显示主/次两条字幕、
- * 要能整体做 ±0.1s 时间偏移、还要字号/颜色/背景/描边/位置全可控。
+ * 贴在 PlayerView 之上、控制层之下：只画字幕，不处理任何触摸。 之所以不用 Media3 的 SubtitleView：这里要同时显示主/次两条字幕、 要能整体做 ±0.1s
+ * 时间偏移、还要字号/颜色/背景/描边/位置全可控。
  *
- * 时间同步：每帧读一次播放位置，和 cue 的起止时间比对——字幕切换的精度
- * 与画面刷新同步，比固定 100ms 轮询更准，且只在文本变化时才重组。
+ * 时间同步：每帧读一次播放位置，和 cue 的起止时间比对——字幕切换的精度 与画面刷新同步，比固定 100ms 轮询更准，且只在文本变化时才重组。
  */
 @Composable
 fun PlayerSubtitleOverlay(
@@ -48,9 +46,16 @@ fun PlayerSubtitleOverlay(
     var primaryText by remember { mutableStateOf("") }
     var secondaryText by remember { mutableStateOf("") }
 
-    LaunchedEffect(player, state.primaryCues, state.secondaryCues, state.primaryManaged, state.secondaryManaged, state.delayMs) {
+    LaunchedEffect(
+        player,
+        state.primaryCues,
+        state.secondaryCues,
+        state.primaryManaged,
+        state.secondaryManaged,
+        state.delayMs,
+    ) {
         while (true) {
-            withFrameNanos { }
+            withFrameNanos {}
             val positionMs = player.currentPosition
             if (positionMs < 0L) continue
             val nextPrimary =
@@ -89,7 +94,7 @@ fun PlayerSubtitleOverlay(
                     start = 24.dp,
                     end = 24.dp,
                     bottom = maxHeight * style.bottomFraction,
-                )
+                ),
         ) {
             // 次字幕在主字幕上方，互不重叠
             if (secondaryText.isNotEmpty()) {
@@ -116,14 +121,12 @@ private fun visibleText(
     positionMs: Long,
     delayMs: Long,
 ): String =
-    cues.filter { it.isVisibleAt(positionMs, delayMs) }
-        .joinToString(separator = "\n") { it.text }
+    cues.filter { it.isVisibleAt(positionMs, delayMs) }.joinToString(separator = "\n") { it.text }
 
 /**
  * 一行字幕：先描边（黑）再填色，做出「任何画面都读得清」的字幕效果。
  *
- * Compose 的 Text 没有原生描边参数，标准做法是用同一个文本绘制两次：
- * 第一次用 [Stroke] 描边，第二次用填充色盖在上面。
+ * Compose 的 Text 没有原生描边参数，标准做法是用同一个文本绘制两次： 第一次用 [Stroke] 描边，第二次用填充色盖在上面。
  */
 @Composable
 private fun SubtitleLine(

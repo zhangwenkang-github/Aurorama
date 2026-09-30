@@ -120,8 +120,7 @@ private fun PlayerContentTabItem(
 /**
  * 选集 / 队列列表。
  *
- * 选集按季分组（有季号时插入季标题），队列保持播放顺序平铺；两者都用同一份 [QueueEntry]，
- * 不额外请求接口——播放队列就是「这一部剧可播的全部条目」。
+ * 选集按季分组（有季号时插入季标题），队列保持播放顺序平铺；两者都用同一份 [QueueEntry]， 不额外请求接口——播放队列就是「这一部剧可播的全部条目」。
  */
 @Composable
 internal fun PlayerEpisodeQueueList(
@@ -210,9 +209,7 @@ private fun PlayerContentRow(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 3.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(
-                    if (selected) Vermilion.copy(alpha = 0.14f) else Color.Transparent
-                )
+                .background(if (selected) Vermilion.copy(alpha = 0.14f) else Color.Transparent)
                 .clickable(onClick = onClick)
                 .padding(6.dp),
     ) {
@@ -259,8 +256,7 @@ private fun PlayerContentRow(
 /**
  * 平板 / 折叠展开的右侧常驻内容栏。
  *
- * 宽度由调用方给定（320dp），这里只负责「页签 + 列表 + 收起按钮」。收起后画面区会,
- * 通过 [PlayerOverlayContainer] 的命中区同步变宽，不需要重新创建播放器。
+ * 宽度由调用方给定（320dp），这里只负责「页签 + 列表 + 收起按钮」。收起后画面区会, 通过 [PlayerOverlayContainer] 的命中区同步变宽，不需要重新创建播放器。
  */
 @Composable
 internal fun PlayerSideContent(
@@ -298,8 +294,8 @@ internal fun PlayerSideContent(
 /**
  * 手机竖屏画面下方的内容区。
  *
- * 顶部留 [PlayerContentTabRow] 与一条把手：默认只露标题行，上滑展开列表、下滑收回，
- * 视频区高度由 [PlayerLayoutContext.videoHeightDp] 决定，两者互不影响。
+ * 顶部留 [PlayerContentTabRow] 与一条把手：默认只露标题行，上滑展开列表、下滑收回， 视频区高度由 [PlayerLayoutContext.videoHeightDp]
+ * 决定，两者互不影响。
  */
 @Composable
 internal fun PlayerBottomContent(
@@ -377,12 +373,11 @@ private fun PlayerEpisodeCards(
                                 Modifier
                             }
                         )
-                        .clickable { onSelect(index) },
+                        .clickable { onSelect(index) }
             ) {
                 // 缩略图铺满卡片上半部分（16:9），正在播放的集角上压一个朱砂角标
                 Box(
-                    modifier =
-                        Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(SurfaceHigh)
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(SurfaceHigh)
                 ) {
                     if (!entry.artworkUri.isNullOrBlank()) {
                         AsyncImage(
@@ -435,8 +430,7 @@ private fun episodeLabel(index: Int, entry: QueueEntry): String {
 /**
  * 小窗 / 分屏单行控制条。
  *
- * 小窗里手势与花哨控件都没有意义，只留「播放暂停 + 标题 + 时间 + 更多」，
- * 更多菜单直接打开既有面板，功能不打折、界面不塞满。
+ * 小窗里手势与花哨控件都没有意义，只留「播放暂停 + 标题 + 时间 + 更多」， 更多菜单直接打开既有面板，功能不打折、界面不塞满。
  */
 @Composable
 internal fun PlayerCompactBar(

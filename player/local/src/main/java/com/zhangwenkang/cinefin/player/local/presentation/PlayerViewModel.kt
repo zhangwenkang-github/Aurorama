@@ -15,8 +15,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import com.zhangwenkang.cinefin.language.LanguageMatcher
@@ -50,11 +50,11 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -134,8 +134,7 @@ constructor(
     /**
      * 字幕面板状态。
      *
-     * 两个内核最终都汇总成这一份状态：ExoPlayer 走自研字幕管线（Jellyfin 源清单），
-     * mpv 走 mpv 自己的字幕轨（track id），面板 UI 不需要知道区别。
+     * 两个内核最终都汇总成这一份状态：ExoPlayer 走自研字幕管线（Jellyfin 源清单）， mpv 走 mpv 自己的字幕轨（track id），面板 UI 不需要知道区别。
      */
     data class SubtitlePanelState(
         val primaryOptions: List<SubtitleOption> = emptyList(),
@@ -307,34 +306,32 @@ constructor(
     /**
      * 后台把整剧队列补进播放器。
      *
-     * 播放器起播时只带着当前这一集，队列面板因此只有一条；这里的做法是不阻塞首帧：
-     * 先播当前集，再按「后面的集依次追加 → 前面的集倒序前插」逐集构建播放信息并插入，
+     * 播放器起播时只带着当前这一集，队列面板因此只有一条；这里的做法是不阻塞首帧： 先播当前集，再按「后面的集依次追加 → 前面的集倒序前插」逐集构建播放信息并插入，
      * 队列面板与「下一集」按钮在几秒内补齐成整剧。中途用户切集也不受影响——插入前按 mediaId 去重。
      */
     private fun fillQueueInBackground() {
         queueFillJob?.cancel()
-        queueFillJob =
-            viewModelScope.launch {
-                val currentIndex = playlistManager.queueIndex
-                val queueSize = playlistManager.queueSize
-                if (queueSize <= 1 || currentIndex < 0) return@launch
+        queueFillJob = viewModelScope.launch {
+            val currentIndex = playlistManager.queueIndex
+            val queueSize = playlistManager.queueSize
+            if (queueSize <= 1 || currentIndex < 0) return@launch
 
-                for (index in (currentIndex + 1) until queueSize) {
-                    val item =
-                        withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
-                            ?: continue
-                    if (!isActive) return@launch
-                    withContext(Dispatchers.Main) { addToQueueEnd(item) }
-                }
-                for (index in (currentIndex - 1) downTo 0) {
-                    val item =
-                        withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
-                            ?: continue
-                    if (!isActive) return@launch
-                    withContext(Dispatchers.Main) { addToQueueFront(item) }
-                }
-                Timber.d("播放队列补全完成：共 %d 项", player.mediaItemCount)
+            for (index in (currentIndex + 1) until queueSize) {
+                val item =
+                    withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
+                        ?: continue
+                if (!isActive) return@launch
+                withContext(Dispatchers.Main) { addToQueueEnd(item) }
             }
+            for (index in (currentIndex - 1) downTo 0) {
+                val item =
+                    withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
+                        ?: continue
+                if (!isActive) return@launch
+                withContext(Dispatchers.Main) { addToQueueFront(item) }
+            }
+            Timber.d("播放队列补全完成：共 %d 项", player.mediaItemCount)
+        }
     }
 
     private fun addToQueueEnd(item: PlayerItem) {
@@ -364,8 +361,8 @@ constructor(
     /**
      * 接管一个已经在播放的会话（从通知 / 锁屏回到播放页，阶段 4）。
      *
-     * 播放器实例、播放列表与进度都还在服务里跑，这里**不能**重新 `setMediaItems`（会跳回开头）。
-     * 只需要重新挂监听，再把 uiState 里缺的标题补上；选集栏直接读播放器里的媒体项，不受影响。
+     * 播放器实例、播放列表与进度都还在服务里跑，这里**不能**重新 `setMediaItems`（会跳回开头）。 只需要重新挂监听，再把 uiState
+     * 里缺的标题补上；选集栏直接读播放器里的媒体项，不受影响。
      */
     fun attachToExistingSession() {
         player.addListener(this)
@@ -556,8 +553,9 @@ constructor(
         savedStateHandle["mediaItemIndex"] = player.currentMediaItemIndex
         viewModelScope.launch {
             try {
-                val item =
-                    items.firstOrNull { it.itemId.toString() == player.currentMediaItem?.mediaId }
+                val item = items.firstOrNull {
+                    it.itemId.toString() == player.currentMediaItem?.mediaId
+                }
                 if (item == null) {
                     /*
                      * 播放页是从通知回到前台、或后台自动切集后新开的页面：items 还没建。
@@ -578,66 +576,65 @@ constructor(
                     }
                     return@launch
                 }
-                item
-                    .let { item ->
-                        // 换集 / 换片：字幕源清单随条目更新并重新自动选字幕
-                        subtitleController.reset(
-                            item.itemId.toString(),
-                            subtitleSourcesForBackend(item),
-                        )
-                        mpvSecondarySubtitleId = null
-                        val itemTitle =
-                            if (item.parentIndexNumber != null && item.indexNumber != null) {
-                                if (item.indexNumberEnd == null) {
-                                    "S${item.parentIndexNumber}:E${item.indexNumber} - ${item.name}"
-                                } else {
-                                    "S${item.parentIndexNumber}:E${item.indexNumber}-${item.indexNumberEnd} - ${item.name}"
-                                }
+                item.let { item ->
+                    // 换集 / 换片：字幕源清单随条目更新并重新自动选字幕
+                    subtitleController.reset(
+                        item.itemId.toString(),
+                        subtitleSourcesForBackend(item),
+                    )
+                    mpvSecondarySubtitleId = null
+                    val itemTitle =
+                        if (item.parentIndexNumber != null && item.indexNumber != null) {
+                            if (item.indexNumberEnd == null) {
+                                "S${item.parentIndexNumber}:E${item.indexNumber} - ${item.name}"
                             } else {
-                                item.name
+                                "S${item.parentIndexNumber}:E${item.indexNumber}-${item.indexNumberEnd} - ${item.name}"
                             }
-                        _uiState.update {
-                            it.copy(
-                                currentItemTitle = itemTitle,
-                                currentItemId = item.itemId,
-                                currentSegment = null,
-                                currentChapters = item.chapters,
-                                fileLoaded = false,
-                            )
+                        } else {
+                            item.name
                         }
-
-                        repository.postPlaybackStart(item.itemId)
-
-                        if (segmentsSkipButton || segmentsAutoSkip) {
-                            getSegments(item.itemId)
-                        }
-
-                        if (appPreferences.getValue(appPreferences.playerTrickplay)) {
-                            getTrickplay(item)
-                        }
-
-                        playlistManager.setCurrentMediaItemIndex(item.itemId)
-
-                        val previousItem = playlistManager.getPreviousPlayerItem()
-                        if (previousItem != null) {
-                            items.add(player.currentMediaItemIndex, previousItem)
-                            player.addMediaItem(
-                                player.currentMediaItemIndex,
-                                previousItem.toMediaItem(),
-                            )
-                        }
-
-                        val nextItem = playlistManager.getNextPlayerItem()
-                        if (nextItem != null) {
-                            items.add(player.currentMediaItemIndex + 1, nextItem)
-                            player.addMediaItem(
-                                player.currentMediaItemIndex + 1,
-                                nextItem.toMediaItem(),
-                            )
-                        }
-
-                        Timber.tag("PlayerItems").d(items.map { it.indexNumber }.toString())
+                    _uiState.update {
+                        it.copy(
+                            currentItemTitle = itemTitle,
+                            currentItemId = item.itemId,
+                            currentSegment = null,
+                            currentChapters = item.chapters,
+                            fileLoaded = false,
+                        )
                     }
+
+                    repository.postPlaybackStart(item.itemId)
+
+                    if (segmentsSkipButton || segmentsAutoSkip) {
+                        getSegments(item.itemId)
+                    }
+
+                    if (appPreferences.getValue(appPreferences.playerTrickplay)) {
+                        getTrickplay(item)
+                    }
+
+                    playlistManager.setCurrentMediaItemIndex(item.itemId)
+
+                    val previousItem = playlistManager.getPreviousPlayerItem()
+                    if (previousItem != null) {
+                        items.add(player.currentMediaItemIndex, previousItem)
+                        player.addMediaItem(
+                            player.currentMediaItemIndex,
+                            previousItem.toMediaItem(),
+                        )
+                    }
+
+                    val nextItem = playlistManager.getNextPlayerItem()
+                    if (nextItem != null) {
+                        items.add(player.currentMediaItemIndex + 1, nextItem)
+                        player.addMediaItem(
+                            player.currentMediaItemIndex + 1,
+                            nextItem.toMediaItem(),
+                        )
+                    }
+
+                    Timber.tag("PlayerItems").d(items.map { it.indexNumber }.toString())
+                }
             } catch (e: Exception) {
                 Timber.e(e)
             }
@@ -771,10 +768,9 @@ constructor(
     /**
      * 解码能力不足时静默降级到 mpv 软解。
      *
-     * 场景：ExoPlayer 硬解不了的片源（10-bit H.264 等）会报 `NO_EXCEEDS_CAPABILITIES`，
-     * 此时直接换 mpv 内核重播，不弹提示（用户在观影，提示属于打扰）。
-     * 只对「当前内核是 ExoPlayer + 确实属于解码能力问题 + 这个条目还没降级过」触发一次，
-     * 避免两个内核之间来回跳。换内核由 Activity 重启播放页完成，播放进度会带过去。
+     * 场景：ExoPlayer 硬解不了的片源（10-bit H.264 等）会报 `NO_EXCEEDS_CAPABILITIES`， 此时直接换 mpv
+     * 内核重播，不弹提示（用户在观影，提示属于打扰）。 只对「当前内核是 ExoPlayer + 确实属于解码能力问题 + 这个条目还没降级过」触发一次， 避免两个内核之间来回跳。换内核由
+     * Activity 重启播放页完成，播放进度会带过去。
      */
     private fun maybeAutoFallbackToMpv(error: PlaybackException) {
         if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return
@@ -807,8 +803,7 @@ constructor(
     /**
      * 选主字幕；null = 关闭。
      *
-     * 两个内核共用一套面板：ExoPlayer 走自研渲染管线（文本字幕）或内核渲染（图形字幕），
-     * mpv 直接切它的 `sid`。
+     * 两个内核共用一套面板：ExoPlayer 走自研渲染管线（文本字幕）或内核渲染（图形字幕）， mpv 直接切它的 `sid`。
      */
     fun selectSubtitlePrimary(id: Int?) {
         manualTrackSelectionMediaId = player.currentMediaItem?.mediaId
@@ -898,8 +893,7 @@ constructor(
     /**
      * 自研字幕只在 ExoPlayer 内核下接管。
      *
-     * mpv 自带字幕渲染（还能做 secondary-sid 双语），如果这边也加载一份，
-     * 画面上会出现两条一模一样的字幕（双显）。
+     * mpv 自带字幕渲染（还能做 secondary-sid 双语），如果这边也加载一份， 画面上会出现两条一模一样的字幕（双显）。
      */
     private fun subtitleSourcesForBackend(item: PlayerItem): List<PlayerSubtitleSource> =
         if (playerBackend == PLAYER_BACKEND_MPV) emptyList() else item.subtitleSources
@@ -938,8 +932,7 @@ constructor(
     /**
      * 自动选轨 + 字幕路由：一次算出最终参数、一次设置。
      *
-     * 计算与设置必须合成一次：先让语言引擎选文字轨、再让路由禁掉它，
-     * 两次 setTrackSelectionParameters 会让轨道状态变化两轮，形成回调循环。
+     * 计算与设置必须合成一次：先让语言引擎选文字轨、再让路由禁掉它， 两次 setTrackSelectionParameters 会让轨道状态变化两轮，形成回调循环。
      */
     private fun applyAutoSelectAndRoute(tracks: Tracks = player.currentTracks) {
         if (player !is ExoPlayer) return
@@ -978,7 +971,8 @@ constructor(
         routing: SubtitleRouting,
     ): TrackSelectionParameters =
         when (routing) {
-            SubtitleRouting.Managed, SubtitleRouting.Off ->
+            SubtitleRouting.Managed,
+            SubtitleRouting.Off ->
                 parameters
                     .buildUpon()
                     .clearOverridesOfType(C.TRACK_TYPE_TEXT)
@@ -1137,8 +1131,7 @@ constructor(
                     val format =
                         (0 until group.length)
                             .firstOrNull { group.isTrackSelected(it) }
-                            ?.let { group.getTrackFormat(it) }
-                            ?: group.mediaTrackGroup.getFormat(0)
+                            ?.let { group.getTrackFormat(it) } ?: group.mediaTrackGroup.getFormat(0)
                     AudioOption(
                         id = index,
                         label = audioTrackLabel(format, index),
@@ -1170,8 +1163,7 @@ constructor(
         }
         when {
             format.bitrate > 0 ->
-                parts +=
-                    application.getString(R.string.player_audio_bitrate, format.bitrate / 1000)
+                parts += application.getString(R.string.player_audio_bitrate, format.bitrate / 1000)
             format.sampleRate > 0 ->
                 parts +=
                     application.getString(
@@ -1209,8 +1201,7 @@ constructor(
     private fun languageDisplayName(tag: String): String =
         runCatching { Locale.forLanguageTag(tag).getDisplayLanguage(Locale.getDefault()) }
             .getOrNull()
-            ?.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) }
-            ?: tag
+            ?.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) } ?: tag
 
     fun switchToTrack(trackType: @C.TrackType Int, index: Int) {
         // 用户手动选择后，本次播放不再自动改轨；同时把语言记为首选，供后续视频沿用

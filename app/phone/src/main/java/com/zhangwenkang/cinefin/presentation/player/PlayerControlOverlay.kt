@@ -436,8 +436,7 @@ fun PlayerControlOverlay(
                 } else {
                     { panel = PlayerPanel.Queue }
                 },
-            queueIconRes =
-                if (hasSidePanel) CoreR.drawable.ic_playlist else CoreR.drawable.ic_logs,
+            queueIconRes = if (hasSidePanel) CoreR.drawable.ic_playlist else CoreR.drawable.ic_logs,
             queueDescription =
                 stringResource(
                     when {
@@ -483,7 +482,9 @@ fun PlayerControlOverlay(
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         } else {
-            Box(modifier = Modifier.width(videoWidth).height(videoHeight).align(Alignment.TopStart)) {
+            Box(
+                modifier = Modifier.width(videoWidth).height(videoHeight).align(Alignment.TopStart)
+            ) {
                 AnimatedVisibility(
                     visible = controls.visible,
                     enter = fadeIn(tween(180)),
@@ -1638,8 +1639,7 @@ private fun AspectPanel(
 /**
  * 字幕面板（§1.1）：主字幕 / 次字幕（双语）/ 延迟 ±0.1s / 外观。
  *
- * 轨道清单由 ViewModel 汇总（ExoPlayer 读 Jellyfin 字幕源，mpv 读它的 sid），
- * 面板本身不区分内核。
+ * 轨道清单由 ViewModel 汇总（ExoPlayer 读 Jellyfin 字幕源，mpv 读它的 sid）， 面板本身不区分内核。
  */
 @Composable
 private fun SubtitlePanel(
@@ -1897,8 +1897,7 @@ private fun formatSubtitleDelay(delayMs: Long): String {
 /**
  * 音轨面板（§1.2）：音轨延迟 ±0.05s + 带描述的轨道列表。
  *
- * 轨道清单由 ViewModel 汇总（ExoPlayer 与 mpv 同一份数据），
- * 描述里带编码、声道与码率，多音轨片源不用再靠猜。
+ * 轨道清单由 ViewModel 汇总（ExoPlayer 与 mpv 同一份数据）， 描述里带编码、声道与码率，多音轨片源不用再靠猜。
  */
 @Composable
 private fun AudioPanel(

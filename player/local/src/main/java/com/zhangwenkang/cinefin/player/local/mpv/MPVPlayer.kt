@@ -568,8 +568,7 @@ class MPVPlayer(
     /**
      * 次字幕（mpv 的 track id 字符串）。
      *
-     * 传 null 关闭。注意必须用 mpv 的 id（见 [getCurrentTracks] 里 Format.id），
-     * 不是字幕数组下标。
+     * 传 null 关闭。注意必须用 mpv 的 id（见 [getCurrentTracks] 里 Format.id）， 不是字幕数组下标。
      */
     fun setSecondarySubtitle(trackId: String?) {
         val value = trackId?.takeIf { it.isNotBlank() } ?: "no"
@@ -807,8 +806,7 @@ class MPVPlayer(
          * 直接 addAll 会抛 IndexOutOfBoundsException 把播放页整个打崩（真机实测），
          * 这里统一收敛到 [0, size]：越界一律当作"追加到末尾"。
          */
-        val safeIndex =
-            if (index in 0..internalMediaItems.size) index else internalMediaItems.size
+        val safeIndex = if (index in 0..internalMediaItems.size) index else internalMediaItems.size
         internalMediaItems.addAll(safeIndex, mediaItems)
         mediaItems.forEach { mediaItem ->
             mpvLib.command(

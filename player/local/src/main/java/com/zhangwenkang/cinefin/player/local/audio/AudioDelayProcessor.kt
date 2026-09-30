@@ -13,11 +13,9 @@ import timber.log.Timber
  * - 正延迟：在音频流里插入若干帧静音 → 声音整体后移（听起来比画面晚）；
  * - 负延迟：丢掉音频流开头若干帧 → 声音整体前移。
  *
- * 与字幕延迟不同，延迟值可以**播放中即时改**：每次 [queueInput] 都会把
- * 「目标延迟」与「已应用的延迟」对齐，缺多少补多少，不需要 flush / 重开播放。
+ * 与字幕延迟不同，延迟值可以**播放中即时改**：每次 [queueInput] 都会把 「目标延迟」与「已应用的延迟」对齐，缺多少补多少，不需要 flush / 重开播放。
  *
- * 实现继承 Media3 的 [BaseAudioProcessor]（它负责 buffer 复用与状态机），
- * 注意必须覆写 [isActive]：基类只在「有待消费输出」时算活跃，靠它会让处理器
+ * 实现继承 Media3 的 [BaseAudioProcessor]（它负责 buffer 复用与状态机）， 注意必须覆写 [isActive]：基类只在「有待消费输出」时算活跃，靠它会让处理器
  * 被管线旁路，延迟只在第一个 buffer 生效。
  */
 class AudioDelayProcessor : BaseAudioProcessor() {
@@ -36,11 +34,9 @@ class AudioDelayProcessor : BaseAudioProcessor() {
     /**
      * 目标延迟（毫秒），正 = 声音延后。
      *
-     * 播放线程写入、音频线程读取，用 volatile 保证可见性；改这个值不需要 flush，
-     * 下一次 [queueInput] 就会把差值补上（或跳掉）。
+     * 播放线程写入、音频线程读取，用 volatile 保证可见性；改这个值不需要 flush， 下一次 [queueInput] 就会把差值补上（或跳掉）。
      */
-    @Volatile
-    var delayMs: Long = 0L
+    @Volatile var delayMs: Long = 0L
 
     /**
      * 已经体现在输出流里的延迟（以帧计）：正 = 已插入静音，负 = 已跳过数据。
@@ -52,10 +48,13 @@ class AudioDelayProcessor : BaseAudioProcessor() {
     /** 上一次打过日志的目标延迟：只在延迟值变化后打一条，避免每个 buffer 刷屏 */
     private var lastLoggedDelayMs: Long = Long.MIN_VALUE
 
-    override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+    override fun onConfigure(
+        inputAudioFormat: AudioProcessor.AudioFormat
+    ): AudioProcessor.AudioFormat {
         // 只处理 PCM：16bit 是 Media3 音频链的默认输出，float 是开启 float 输出后的格式
-        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT &&
-            inputAudioFormat.encoding != C.ENCODING_PCM_FLOAT
+        if (
+            inputAudioFormat.encoding != C.ENCODING_PCM_16BIT &&
+                inputAudioFormat.encoding != C.ENCODING_PCM_FLOAT
         ) {
             throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         }

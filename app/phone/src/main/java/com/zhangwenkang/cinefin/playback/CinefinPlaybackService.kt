@@ -26,8 +26,7 @@ import timber.log.Timber
  * 2. 播放进入前台服务（`foregroundServiceType=mediaPlayback`），离开播放页后不被回收（4.3）；
  * 3. 通知里的按钮由 Media3 依据会话可用命令生成，另加一个「关闭」按钮（4.2）。
  *
- * 播放器实例不在服务里单独创建，而是复用进程级单例 [PlayerHolder]：播放页与通知栏操作的是
- * 同一个实例，命令无需跨进程往返，行为与页面上点按完全一致。
+ * 播放器实例不在服务里单独创建，而是复用进程级单例 [PlayerHolder]：播放页与通知栏操作的是 同一个实例，命令无需跨进程往返，行为与页面上点按完全一致。
  */
 @AndroidEntryPoint
 class CinefinPlaybackService : MediaSessionService() {
@@ -90,10 +89,9 @@ class CinefinPlaybackService : MediaSessionService() {
     /**
      * 自我连接一个 [MediaController]。
      *
-     * Media3 的媒体通知只在该会话**有控制者连接**时才显示
-     * （`MediaNotificationManager.shouldShowNotification` 会先取连接中的 controller）。
-     * 播放页操作的是进程内共享的播放器实例，本身不产生 controller，所以由服务挂一个常驻控制者，
-     * 通知栏 / 锁屏 / 车机才会出现控制入口。它只维持"被控制"状态，不参与实际命令分发。
+     * Media3 的媒体通知只在该会话**有控制者连接**时才显示 （`MediaNotificationManager.shouldShowNotification` 会先取连接中的
+     * controller）。 播放页操作的是进程内共享的播放器实例，本身不产生 controller，所以由服务挂一个常驻控制者， 通知栏 / 锁屏 /
+     * 车机才会出现控制入口。它只维持"被控制"状态，不参与实际命令分发。
      */
     private fun connectSelfController() {
         val token = SessionToken(this, ComponentName(this, CinefinPlaybackService::class.java))
@@ -122,8 +120,7 @@ class CinefinPlaybackService : MediaSessionService() {
     /**
      * 点通知回到播放页。
      *
-     * 刻意不带 `itemId`：播放页看到没有条目参数、而播放器里已有内容时，只把自己带会前台，
-     * 不重新拉流，避免"点一下通知进度就跳回开头"。
+     * 刻意不带 `itemId`：播放页看到没有条目参数、而播放器里已有内容时，只把自己带会前台， 不重新拉流，避免"点一下通知进度就跳回开头"。
      */
     private fun sessionActivityIntent(): PendingIntent {
         val intent =

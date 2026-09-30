@@ -69,8 +69,7 @@ enum class PlayerFoldPosture {
 /**
  * 该骨架是否有常驻内容（侧栏 / 竖屏下方内容区 / 小窗控制条）。
  *
- * 有常驻内容的骨架即使用户把控制层淡出，整层 Compose 也必须保持可见，
- * 否则内容栏会一起消失，同时失去点击能力。
+ * 有常驻内容的骨架即使用户把控制层淡出，整层 Compose 也必须保持可见， 否则内容栏会一起消失，同时失去点击能力。
  */
 fun PlayerChromeLayout.keepsComposition(): Boolean =
     this == PlayerChromeLayout.SplitSide ||
@@ -81,8 +80,8 @@ fun PlayerChromeLayout.keepsComposition(): Boolean =
 /**
  * 播放页布局上下文。
  *
- * [windowWidthDp] / [windowHeightDp] 是**当前窗口**尺寸（分屏会变小），[foldTopDp] 是折痕上边缘，
- * 三者都用 dp，Activity 与 Compose 共用同一份数值换算像素，避免两边各自取整造成错位。
+ * [windowWidthDp] / [windowHeightDp] 是**当前窗口**尺寸（分屏会变小），[foldTopDp] 是折痕上边缘， 三者都用 dp，Activity 与
+ * Compose 共用同一份数值换算像素，避免两边各自取整造成错位。
  */
 @Immutable
 data class PlayerLayoutContext(
@@ -116,11 +115,14 @@ data class PlayerLayoutContext(
                 else -> windowHeightDp
             }
 
-    val hasSideContent: Boolean get() = chrome == PlayerChromeLayout.SplitSide
+    val hasSideContent: Boolean
+        get() = chrome == PlayerChromeLayout.SplitSide
 
-    val hasBottomContent: Boolean get() = chrome == PlayerChromeLayout.SplitPortrait
+    val hasBottomContent: Boolean
+        get() = chrome == PlayerChromeLayout.SplitPortrait
 
-    val isCompact: Boolean get() = chrome == PlayerChromeLayout.Compact
+    val isCompact: Boolean
+        get() = chrome == PlayerChromeLayout.Compact
 
     companion object {
         /** 侧栏宽度：320dp 是「选集卡片 + 集号 + 时长」不换行的下限 */
@@ -128,10 +130,7 @@ data class PlayerLayoutContext(
     }
 }
 
-/**
- * 纯函数判定，方便单测与日志排查。顺序即优先级：
- * PiP > TV > 车机 > 小窗 > 折叠半开 > 折叠展开 / 平板 > 手机。
- */
+/** 纯函数判定，方便单测与日志排查。顺序即优先级： PiP > TV > 车机 > 小窗 > 折叠半开 > 折叠展开 / 平板 > 手机。 */
 fun detectPlayerLayout(
     context: Context,
     configuration: Configuration,
@@ -235,8 +234,8 @@ fun Context.findActivity(): Activity? {
 }
 
 /**
- * 在播放页 Compose 层读取当前形态。折叠状态来自 [WindowInfoTracker]，窗口尺寸用
- * [WindowMetricsCalculator] 取「当前窗口 / 最大窗口」，两者相除即可识别自由窗口。
+ * 在播放页 Compose 层读取当前形态。折叠状态来自 [WindowInfoTracker]，窗口尺寸用 [WindowMetricsCalculator] 取「当前窗口 /
+ * 最大窗口」，两者相除即可识别自由窗口。
  */
 @Composable
 fun rememberPlayerLayoutContext(isPip: Boolean): PlayerLayoutContext {
@@ -296,15 +295,15 @@ fun rememberPlayerLayoutContext(isPip: Boolean): PlayerLayoutContext {
         }
 
     return detectPlayerLayout(
-        context = context,
-        configuration = configuration,
-        foldPosture = foldPosture,
-        isInMultiWindowMode = activity?.isInMultiWindowMode == true,
-        isInPip = isPip,
-        windowWidthDp = windowWidthDp,
-        windowHeightDp = windowHeightDp,
-        fullWidthDp = fullWidthDp,
-    )
+            context = context,
+            configuration = configuration,
+            foldPosture = foldPosture,
+            isInMultiWindowMode = activity?.isInMultiWindowMode == true,
+            isInPip = isPip,
+            windowWidthDp = windowWidthDp,
+            windowHeightDp = windowHeightDp,
+            fullWidthDp = fullWidthDp,
+        )
         .copy(foldTopDp = foldTopDp)
 }
 

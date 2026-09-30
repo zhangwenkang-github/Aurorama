@@ -35,19 +35,16 @@ import timber.log.Timber
 /**
  * 播放通知（阶段 4.2 / D4）。
  *
- * 为什么不用 Media3 的默认通知：默认实现只依据"会话是否有控制者"来决定是否显示，
- * 与"播放页直接操作进程内播放器实例"的架构不匹配（表现为：会话正常、通知一直不出现）。
+ * 为什么不用 Media3 的默认通知：默认实现只依据"会话是否有控制者"来决定是否显示， 与"播放页直接操作进程内播放器实例"的架构不匹配（表现为：会话正常、通知一直不出现）。
  * 这里自己构建通知，同时把可控性拿回来：
  *
  * - 内容：标题 + 季集副标题 + 进度条 + 五个传输按钮（上一集 / 快退 / 播放暂停 / 快进 / 下一集）；
  * - 点通知回播放页，划线删除 = 停止播放并收掉服务；
  * - 封面：等 `MediaItem` 带上 artworkUri 后再补（见 PLAYER_PLAN 阶段 4 待办）。
  *
- * Android 的媒体通知最多显示 5 个按钮，所以"关闭"不做成第 6 个按钮，
- * 而是用通知的删除手势 + 播放页返回键承担。
+ * Android 的媒体通知最多显示 5 个按钮，所以"关闭"不做成第 6 个按钮， 而是用通知的删除手势 + 播放页返回键承担。
  */
-class CinefinMediaNotificationProvider(private val context: Context) :
-    MediaNotification.Provider {
+class CinefinMediaNotificationProvider(private val context: Context) : MediaNotification.Provider {
 
     companion object {
         const val NOTIFICATION_ID = 1001
@@ -58,10 +55,7 @@ class CinefinMediaNotificationProvider(private val context: Context) :
         private const val ARTWORK_SIZE_PX = 512
     }
 
-    /**
-     * 通知构建与封面加载都在主线程：用 Main.immediate 保证 callback 线程正确，
-     * 图片解码在 IO 线程做（通知线程绝不能阻塞）。
-     */
+    /** 通知构建与封面加载都在主线程：用 Main.immediate 保证 callback 线程正确， 图片解码在 IO 线程做（通知线程绝不能阻塞）。 */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** 当前封面缓存：只留最近一张，避免整剧播放时把每集封面都攒在内存里 */
@@ -103,9 +97,7 @@ class CinefinMediaNotificationProvider(private val context: Context) :
                 .setContentTitle(title)
                 .setContentText(subtitle)
                 .setContentIntent(playerActivityIntent())
-                .setDeleteIntent(
-                    actionFactory.createNotificationDismissalIntent(mediaSession)
-                )
+                .setDeleteIntent(actionFactory.createNotificationDismissalIntent(mediaSession))
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
                 .setOnlyAlertOnce(true)
@@ -137,10 +129,22 @@ class CinefinMediaNotificationProvider(private val context: Context) :
 
         // 传输按钮：紧凑视图固定显示「快退 / 播放暂停 / 快进」三个
         builder.addAction(
-            mediaAction(actionFactory, mediaSession, CoreR.drawable.ic_skip_back, PlayerR.string.player_controls_previous_episode, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+            mediaAction(
+                actionFactory,
+                mediaSession,
+                CoreR.drawable.ic_skip_back,
+                PlayerR.string.player_controls_previous_episode,
+                Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+            )
         )
         builder.addAction(
-            mediaAction(actionFactory, mediaSession, CoreR.drawable.ic_rewind, PlayerR.string.player_controls_rewind, Player.COMMAND_SEEK_BACK)
+            mediaAction(
+                actionFactory,
+                mediaSession,
+                CoreR.drawable.ic_rewind,
+                PlayerR.string.player_controls_rewind,
+                Player.COMMAND_SEEK_BACK,
+            )
         )
         builder.addAction(
             mediaAction(
@@ -152,14 +156,27 @@ class CinefinMediaNotificationProvider(private val context: Context) :
             )
         )
         builder.addAction(
-            mediaAction(actionFactory, mediaSession, CoreR.drawable.ic_fast_forward, PlayerR.string.player_controls_fast_forward, Player.COMMAND_SEEK_FORWARD)
+            mediaAction(
+                actionFactory,
+                mediaSession,
+                CoreR.drawable.ic_fast_forward,
+                PlayerR.string.player_controls_fast_forward,
+                Player.COMMAND_SEEK_FORWARD,
+            )
         )
         builder.addAction(
-            mediaAction(actionFactory, mediaSession, CoreR.drawable.ic_skip_forward, PlayerR.string.player_controls_next_episode, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+            mediaAction(
+                actionFactory,
+                mediaSession,
+                CoreR.drawable.ic_skip_forward,
+                PlayerR.string.player_controls_next_episode,
+                Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+            )
         )
 
         builder.setStyle(
-            MediaStyleNotificationHelper.MediaStyle(mediaSession).setShowActionsInCompactView(1, 2, 3)
+            MediaStyleNotificationHelper.MediaStyle(mediaSession)
+                .setShowActionsInCompactView(1, 2, 3)
         )
 
         return MediaNotification(NOTIFICATION_ID, builder.build())
@@ -178,9 +195,8 @@ class CinefinMediaNotificationProvider(private val context: Context) :
     /**
      * 异步加载通知封面（§1.4）。
      *
-     * 调用方（主线程构建通知）先拿到一张不带封面的通知；图片解码放在 IO 线程，
-     * 完成后用 [MediaNotification.Provider.Callback] 让 Media3 重建一次通知，
-     * 这次就能命中缓存、把封面画上去。
+     * 调用方（主线程构建通知）先拿到一张不带封面的通知；图片解码放在 IO 线程， 完成后用 [MediaNotification.Provider.Callback] 让 Media3
+     * 重建一次通知， 这次就能命中缓存、把封面画上去。
      */
     private fun requestArtwork(
         uri: String,
@@ -227,11 +243,11 @@ class CinefinMediaNotificationProvider(private val context: Context) :
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         val channel =
             NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                // 播放控制不是"新消息"：不发声、不震动，只在通知栏与锁屏常驻
-                NotificationManager.IMPORTANCE_LOW,
-            )
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    // 播放控制不是"新消息"：不发声、不震动，只在通知栏与锁屏常驻
+                    NotificationManager.IMPORTANCE_LOW,
+                )
                 .apply {
                     setShowBadge(false)
                     description = "播放进度与播放控制"
@@ -267,5 +283,4 @@ class CinefinMediaNotificationProvider(private val context: Context) :
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
-
 }

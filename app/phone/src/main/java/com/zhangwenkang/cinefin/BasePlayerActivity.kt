@@ -9,8 +9,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
-import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import timber.log.Timber
 
 abstract class BasePlayerActivity : AppCompatActivity() {
@@ -22,8 +22,8 @@ abstract class BasePlayerActivity : AppCompatActivity() {
     /**
      * 是否允许「后台继续播放」：由子类读取设置项。
      *
-     * 打开后离开播放页（锁屏、切到其它应用）不再暂停，只记录进度；画中画不受影响。
-     * 常驻播放由 [CinefinPlaybackService] 以 mediaPlayback 前台服务承载（阶段 4）。
+     * 打开后离开播放页（锁屏、切到其它应用）不再暂停，只记录进度；画中画不受影响。 常驻播放由 [CinefinPlaybackService] 以 mediaPlayback
+     * 前台服务承载（阶段 4）。
      */
     protected open fun isBackgroundAudioEnabled(): Boolean = false
 

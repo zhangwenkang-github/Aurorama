@@ -5,8 +5,8 @@ import timber.log.Timber
 /**
  * 一条解析好的字幕。时间为媒体时间轴上的毫秒。
  *
- * 只保留「文字 + 起止时间」：字体、位置、动画等 ASS 特效留给后续 libass 渲染
- * （见 docs/PLAYER_PLAN.md §1.18）；当前渲染层要的是延迟可调、双语可叠的纯文本。
+ * 只保留「文字 + 起止时间」：字体、位置、动画等 ASS 特效留给后续 libass 渲染 （见 docs/PLAYER_PLAN.md
+ * §1.18）；当前渲染层要的是延迟可调、双语可叠的纯文本。
  */
 data class SubtitleCue(val startMs: Long, val endMs: Long, val text: String) {
 
@@ -19,16 +19,16 @@ data class SubtitleCue(val startMs: Long, val endMs: Long, val text: String) {
  * 文本字幕解析器：SRT / WebVTT / ASS(SSA) 三种最常见的外挂字幕。
  *
  * 设计取舍：
- * - 解析结果只用于自研字幕渲染（延迟 / 双语 / 外观），图形字幕与服务端没给独立文件的字幕
- *   依旧交给播放内核原生渲染；
- * - ASS 的样式标签直接剥掉——本阶段的目标是「能调延迟、能叠双语」，
- *   特效还原是 §1.18 libass 的工作，不做半吊子实现。
+ * - 解析结果只用于自研字幕渲染（延迟 / 双语 / 外观），图形字幕与服务端没给独立文件的字幕 依旧交给播放内核原生渲染；
+ * - ASS 的样式标签直接剥掉——本阶段的目标是「能调延迟、能叠双语」， 特效还原是 §1.18 libass 的工作，不做半吊子实现。
  */
 object SubtitleParser {
 
     /** 时间行：`00:00:01,000 --> 00:00:04,000`（SRT / VTT 共用） */
     private val TIME_RANGE_REGEX =
-        Regex("""(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})""")
+        Regex(
+            """(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})"""
+        )
 
     /** 单个时间戳：`1:02:03.50` / `00:00:01,000` */
     private val SINGLE_TIME_REGEX = Regex("""^(\d{1,2}):(\d{2}):(\d{2})[.,](\d{1,3})$""")
@@ -38,9 +38,8 @@ object SubtitleParser {
     /**
      * ASS override 块 `{\i1}`。
      *
-     * 注意：Android 的 ICU 正则引擎不接受 `\{` 这种转义（会抛
-     * PatternSyntaxException: Syntax error near index ... \{[^}]*}），
-     * 所以用字符类 `[{]` 表达左花括号——真机上就是在这一行崩溃过一次。
+     * 注意：Android 的 ICU 正则引擎不接受 `\{` 这种转义（会抛 PatternSyntaxException: Syntax error near index ...
+     * \{[^}]*}）， 所以用字符类 `[{]` 表达左花括号——真机上就是在这一行崩溃过一次。
      */
     private val ASS_TAG_REGEX = Regex("""[{][^}]*[}]""")
 
@@ -71,7 +70,8 @@ object SubtitleParser {
         try {
             val cues =
                 when (codec.lowercase()) {
-                    "ass", "ssa" -> parseAss(content)
+                    "ass",
+                    "ssa" -> parseAss(content)
                     else -> parseTimeRanges(content)
                 }
             cues.filter { it.text.isNotBlank() && it.endMs > it.startMs }

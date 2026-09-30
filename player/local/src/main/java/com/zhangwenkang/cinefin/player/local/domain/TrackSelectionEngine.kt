@@ -38,9 +38,8 @@ class TrackSelectionEngine(private val appPreferences: AppPreferences) {
     /**
      * 依据当前媒体实际包含的轨道，计算应该使用的轨道选择参数。
      *
-     * @param subtitlesManaged 字幕已由自研字幕管线 / 图形字幕路由接管：此时这里完全不碰
-     *   文字轨（启用 / 禁用与 override 都不动）。否则「引擎选文字轨 → 路由再禁掉」会让
-     *   参数来回变化，触发 onTracksChanged 死循环。
+     * @param subtitlesManaged 字幕已由自研字幕管线 / 图形字幕路由接管：此时这里完全不碰 文字轨（启用 / 禁用与 override 都不动）。否则「引擎选文字轨 →
+     *   路由再禁掉」会让 参数来回变化，触发 onTracksChanged 死循环。
      */
     fun parameters(
         current: TrackSelectionParameters,

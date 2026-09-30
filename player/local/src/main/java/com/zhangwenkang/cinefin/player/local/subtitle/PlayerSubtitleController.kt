@@ -56,8 +56,8 @@ data class SubtitleOverlayState(
  * 2. 一个 Player 同一时刻只能选一条文字轨，「双语次字幕」做不到；
  * 3. 字号 / 颜色 / 背景 / 描边 / 位置需要统一的面板入口，自绘最直接。
  *
- * 只处理文本字幕；图形字幕（PGS 等）与拿不到文件地址的字幕继续走播放内核原生渲染，
- * 由 ViewModel 决定切换（见 `PlayerViewModel.applySubtitleRouting`）。
+ * 只处理文本字幕；图形字幕（PGS 等）与拿不到文件地址的字幕继续走播放内核原生渲染， 由 ViewModel 决定切换（见
+ * `PlayerViewModel.applySubtitleRouting`）。
  */
 class PlayerSubtitleController(
     private val scope: CoroutineScope,
@@ -83,6 +83,7 @@ class PlayerSubtitleController(
     private var secondaryLoading = false
     private val loading: Boolean
         get() = primaryLoading || secondaryLoading
+
     private var disabledByUser = false
 
     private var delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
@@ -106,8 +107,7 @@ class PlayerSubtitleController(
     /**
      * 换集 / 换片时调用：替换源清单并按语言偏好重新自动选择。
      *
-     * [mediaId] 用于隔离解析缓存——不同集的字幕源序号可能重复（每集都有「字幕 3」），
-     * 只按序号缓存会把上一集的字幕串到下一集。
+     * [mediaId] 用于隔离解析缓存——不同集的字幕源序号可能重复（每集都有「字幕 3」）， 只按序号缓存会把上一集的字幕串到下一集。
      */
     fun reset(
         mediaId: String,
@@ -261,13 +261,14 @@ class PlayerSubtitleController(
         // 换源时先把旧 cue 清掉，避免短暂显示上一条字幕的内容
         primaryCues = emptyList()
         primaryManaged = false
-        primaryLoadJob = loadCues(source, isPrimary = true) { cues ->
-            if (primaryIndex == source.index) {
-                primaryCues = cues
-                primaryManaged = cues.isNotEmpty()
-                publish()
+        primaryLoadJob =
+            loadCues(source, isPrimary = true) { cues ->
+                if (primaryIndex == source.index) {
+                    primaryCues = cues
+                    primaryManaged = cues.isNotEmpty()
+                    publish()
+                }
             }
-        }
     }
 
     private fun applySecondary(
@@ -290,13 +291,14 @@ class PlayerSubtitleController(
         }
         secondaryCues = emptyList()
         secondaryManaged = false
-        secondaryLoadJob = loadCues(source, isPrimary = false) { cues ->
-            if (secondaryIndex == source.index) {
-                secondaryCues = cues
-                secondaryManaged = cues.isNotEmpty()
-                publish()
+        secondaryLoadJob =
+            loadCues(source, isPrimary = false) { cues ->
+                if (secondaryIndex == source.index) {
+                    secondaryCues = cues
+                    secondaryManaged = cues.isNotEmpty()
+                    publish()
+                }
             }
-        }
     }
 
     /** 把选中的语言提到优先级列表最前，下一集 / 下一个视频自动沿用 */
@@ -395,14 +397,14 @@ class PlayerSubtitleController(
     /**
      * 字幕文件编码识别：先看 BOM，再严格试 UTF-8，失败退回 GB18030。
      *
-     * 老中文字幕常用 GBK/GB18030，直接按 UTF-8 读会整段乱码；这里先严格解码，
-     * 一旦有非法字节就交给 GB18030（GBK 的超集，能覆盖绝大多数中文老字幕）。
+     * 老中文字幕常用 GBK/GB18030，直接按 UTF-8 读会整段乱码；这里先严格解码， 一旦有非法字节就交给 GB18030（GBK 的超集，能覆盖绝大多数中文老字幕）。
      */
     private fun decodeText(bytes: ByteArray): String {
-        if (bytes.size >= 3 &&
-            bytes[0] == 0xEF.toByte() &&
-            bytes[1] == 0xBB.toByte() &&
-            bytes[2] == 0xBF.toByte()
+        if (
+            bytes.size >= 3 &&
+                bytes[0] == 0xEF.toByte() &&
+                bytes[1] == 0xBB.toByte() &&
+                bytes[2] == 0xBF.toByte()
         ) {
             return String(bytes, 3, bytes.size - 3, Charsets.UTF_8)
         }
@@ -413,8 +415,7 @@ class PlayerSubtitleController(
             return String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
         }
         return try {
-            Charsets.UTF_8
-                .newDecoder()
+            Charsets.UTF_8.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)
                 .onUnmappableCharacter(CodingErrorAction.REPORT)
                 .decode(ByteBuffer.wrap(bytes))

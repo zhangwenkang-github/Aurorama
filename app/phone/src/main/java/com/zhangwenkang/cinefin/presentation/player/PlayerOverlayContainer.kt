@@ -14,8 +14,7 @@ import android.widget.FrameLayout
  * [com.zhangwenkang.cinefin.utils.PlayerGestureHelper] 处理， 不会因为控制层换成 Compose 就把手势全吞掉。
  *
  * 交互区域按**画面区**（而不是整个控件）划带：顶部 76dp / 中央 520×180dp / 底部 210dp。
- * 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管，
- * 这样 Compose 内容不会被手势层穿透，画面区里的手势却一点不受影响。
+ * 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管， 这样 Compose 内容不会被手势层穿透，画面区里的手势却一点不受影响。
  *
  * 错误卡片比中央控件高一截，出现时中央命中区放大到 600×400dp，否则重试按钮点不到。
  */
@@ -112,8 +111,7 @@ constructor(
                 videoHeight / 2f + centerHalfHeight * density,
             )
         val bottomBandHeight = (if (portrait) 100f else 210f) * density
-        val bottomBand =
-            RectF(0f, videoHeight - bottomBandHeight, videoWidth, videoHeight)
+        val bottomBand = RectF(0f, videoHeight - bottomBandHeight, videoWidth, videoHeight)
         return topBand.contains(x, y) || centerBand.contains(x, y) || bottomBand.contains(x, y)
     }
 }

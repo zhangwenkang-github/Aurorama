@@ -1,8 +1,8 @@
 package com.zhangwenkang.cinefin
 
+import android.Manifest
 import android.app.AppOpsManager
 import android.app.PictureInPictureParams
-import android.Manifest
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -23,16 +23,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.core.content.ContextCompat
-import androidx.core.view.updateLayoutParams
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -107,8 +107,7 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 平板 / 折叠展开时右侧内容栏是否展开。
      *
-     * 默认收起（用户要求：侧栏不要一进来就占位，要手动从底栏点开），
-     * 点画面会顺手收起它，把宽度还给视频。
+     * 默认收起（用户要求：侧栏不要一进来就占位，要手动从底栏点开）， 点画面会顺手收起它，把宽度还给视频。
      */
     private val sidePanelExpanded = mutableStateOf(false)
 
@@ -401,9 +400,8 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 原生字幕样式（走 Media3 渲染的那部分：图形字幕 / 没有独立文件的兜底字幕）。
      *
-     * 文本字幕归自研渲染层（PlayerSubtitleOverlay），外观直接读 SubtitleStyle；
-     * 这里把同一套「大小 / 颜色 / 背景 / 描边 / 位置」翻译成 SubtitleView 的 API，
-     * 保证两类字幕在面板里调出来的观感一致。
+     * 文本字幕归自研渲染层（PlayerSubtitleOverlay），外观直接读 SubtitleStyle； 这里把同一套「大小 / 颜色 / 背景 / 描边 / 位置」翻译成
+     * SubtitleView 的 API， 保证两类字幕在面板里调出来的观感一致。
      */
     @androidx.annotation.OptIn(UnstableApi::class)
     private fun configureSubtitleStyle() {
@@ -414,8 +412,7 @@ class PlayerActivity : BasePlayerActivity() {
                 /* foregroundColor = */ style.textColor,
                 /* backgroundColor = */ style.backgroundColor,
                 /* windowColor = */ Color.TRANSPARENT,
-                /* edgeType = */
-                if (style.edgeWidthDp <= 0f) {
+                /* edgeType = */ if (style.edgeWidthDp <= 0f) {
                     CaptionStyleCompat.EDGE_TYPE_NONE
                 } else {
                     CaptionStyleCompat.EDGE_TYPE_OUTLINE
@@ -460,8 +457,8 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 按骨架给画面区排版。
      *
-     * 画面区尺寸是「播放器输出」与「控制层命中区」的共同基准：两边读同一份 [PlayerLayoutContext]，
-     * 竖屏 16:9 定高、平板让出右侧栏、折叠半开只占折痕以上——改一处不会让另一边错位。
+     * 画面区尺寸是「播放器输出」与「控制层命中区」的共同基准：两边读同一份 [PlayerLayoutContext]， 竖屏 16:9
+     * 定高、平板让出右侧栏、折叠半开只占折痕以上——改一处不会让另一边错位。
      */
     private fun applyVideoArea(layout: PlayerLayoutContext) {
         binding.root.post {
@@ -514,15 +511,12 @@ class PlayerActivity : BasePlayerActivity() {
     /** 方向策略：手机 / 平板自由旋转，车机与 TV 锁横屏；锁屏时由锁定按钮单独接管 */
     private fun orientationForFormFactor(): Int =
         when (layoutContext?.formFactor) {
-            PlayerFormFactor.Car, PlayerFormFactor.Tv ->
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            PlayerFormFactor.Car,
+            PlayerFormFactor.Tv -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         }
 
-    /**
-     * 系统栏策略：手机 / 平板 / TV 进沉浸式全屏；车机保持系统栏可见
-     * （车机 HMI 不允许应用长期霸占整屏，返回与 Home 必须始终可达）。
-     */
+    /** 系统栏策略：手机 / 平板 / TV 进沉浸式全屏；车机保持系统栏可见 （车机 HMI 不允许应用长期霸占整屏，返回与 Home 必须始终可达）。 */
     private fun applySystemUiVisibility() {
         if (layoutContext?.formFactor == PlayerFormFactor.Car) {
             WindowCompat.getInsetsController(window, window.decorView)
@@ -535,8 +529,7 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 首次进入播放页时申请通知权限（Android 13+）。
      *
-     * 系统只在用户没做过选择时弹窗，重复调用不会打扰；拒绝后通知栏控制不可见，
-     * 但前台服务与播放本身照常工作。
+     * 系统只在用户没做过选择时弹窗，重复调用不会打扰；拒绝后通知栏控制不可见， 但前台服务与播放本身照常工作。
      */
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return

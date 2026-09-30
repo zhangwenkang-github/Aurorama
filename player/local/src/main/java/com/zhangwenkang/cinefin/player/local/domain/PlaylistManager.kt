@@ -205,17 +205,14 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     /**
      * 取已构建过的播放信息。
      *
-     * 用于「从通知回到播放页」这类没有重新走 [getInitialItem] 的场景：字幕源清单
-     * 随 [PlayerItem] 一起缓存，拿回它就还能继续做字幕面板与自研渲染。
+     * 用于「从通知回到播放页」这类没有重新走 [getInitialItem] 的场景：字幕源清单 随 [PlayerItem] 一起缓存，拿回它就还能继续做字幕面板与自研渲染。
      */
-    fun getPlayerItem(itemId: UUID): PlayerItem? =
-        playerItems.firstOrNull { it.itemId == itemId }
+    fun getPlayerItem(itemId: UUID): PlayerItem? = playerItems.firstOrNull { it.itemId == itemId }
 
     /**
      * 播放队列在「整剧 / 整季 / 单片」层面的条目数。
      *
-     * 注意读的是**清单** [items]（元数据已经全部拿到），不是已构建播放信息的条目数：
-     * 队列面板要显示完整剧集，而每集的播放信息（流地址 / 外挂字幕）是按需逐集构建的。
+     * 注意读的是**清单** [items]（元数据已经全部拿到），不是已构建播放信息的条目数： 队列面板要显示完整剧集，而每集的播放信息（流地址 / 外挂字幕）是按需逐集构建的。
      */
     val queueSize: Int
         get() = items.size
@@ -227,15 +224,17 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     /**
      * 按队列位置构建播放条目：已经构建过的直接复用，构建失败记下来并返回 null（调用方跳过）。
      *
-     * 一次整剧可能有几十集，每集都要打一次播放信息接口，所以不做"开播前全量构建"，
-     * 而是由播放页在起播之后按顺序逐集调用（见 `PlayerViewModel.fillQueueInBackground`）。
+     * 一次整剧可能有几十集，每集都要打一次播放信息接口，所以不做"开播前全量构建"， 而是由播放页在起播之后按顺序逐集调用（见
+     * `PlayerViewModel.fillQueueInBackground`）。
      */
     suspend fun buildPlayerItemAt(index: Int): PlayerItem? {
         val item = items.getOrNull(index) ?: return null
         if (item.id in failedItemIds) return null
-        playerItems.firstOrNull { it.itemId == item.id }?.let {
-            return it
-        }
+        playerItems
+            .firstOrNull { it.itemId == item.id }
+            ?.let {
+                return it
+            }
         return runCatching { item.toPlayerItem(null, 0L) }
             .onSuccess { playerItems.add(it) }
             .onFailure {
