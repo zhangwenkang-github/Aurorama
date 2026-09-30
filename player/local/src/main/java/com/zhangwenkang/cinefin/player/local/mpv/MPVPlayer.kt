@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.SurfaceTexture
 import android.media.AudioManager
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -42,6 +43,7 @@ import dev.jdtech.mpv.MPVLib.MpvFormat
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -65,6 +67,19 @@ class MPVPlayer(
     private var audioFocusCallback: () -> Unit = {}
     private lateinit var audioFocusRequest: AudioFocusRequestCompat
     private val handler: Handler = Handler(context.mainLooper)
+
+    /**
+     * mpv 命令专用线程（ANR 修复）。
+     *
+     * [MPVLib.command] 是同步调用：`loadfile` 需要打开 / 探测网络流，单条就可能阻塞几十到几百毫秒。 播放页补全整季队列时每集一条
+     * loadfile，原先这些调用全部压在主线程上，真机复测出现过 `Waited 5000ms for MotionEvent` 的 ANR（dropbox 栈：addMediaItems
+     * ← fillQueueInBackground）。
+     *
+     * 这里把所有 command 调用按提交顺序串行放到专用线程，主线程只做轻量状态维护。 libmpv 允许从任意线程调用 API，命令之间的先后顺序由本队列保证。
+     */
+    private val commandThread: HandlerThread = HandlerThread("mpv-command").apply { start() }
+    private val commandHandler: Handler = Handler(commandThread.looper)
+    private val commandsClosed = AtomicBoolean(false)
 
     private constructor(
         builder: Builder
@@ -237,6 +252,20 @@ class MPVPlayer(
             if (res != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 mpvLib.setPropertyBoolean("pause", true)
             }
+        }
+    }
+
+    /**
+     * 把 mpv 命令投递到专用线程，调用方（主线程）不再同步等待 mpv core。
+     *
+     * 命令按提交顺序串行执行；[release] 之后提交的命令会被丢弃。
+     */
+    private fun postCommand(command: Array<String>) {
+        if (commandsClosed.get()) return
+        commandHandler.post {
+            if (commandsClosed.get()) return@post
+            runCatching { mpvLib.command(command) }
+                .onFailure { Timber.w(it, "mpv 命令执行失败：%s", command.firstOrNull()) }
         }
     }
 
@@ -443,11 +472,13 @@ class MPVPlayer(
 
     override fun event(eventId: Int) {
         handler.post {
+            // release 之后主线程队列里可能还排着事件回调：此时 mpv 可能正在销毁，必须短路
+            if (released) return@post
             when (eventId) {
                 MpvEvent.MPV_EVENT_START_FILE -> {
                     if (!isPlayerReady) {
                         for (command in initialCommands) {
-                            mpvLib.command(command)
+                            postCommand(command)
                         }
                     }
                 }
@@ -697,6 +728,7 @@ class MPVPlayer(
      *   [AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK].
      */
     override fun onAudioFocusChange(focusChange: Int) {
+        if (released) return
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
@@ -713,9 +745,9 @@ class MPVPlayer(
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                mpvLib.command(arrayOf("multiply", "volume", "$AUDIO_FOCUS_DUCKING"))
+                postCommand(arrayOf("multiply", "volume", "$AUDIO_FOCUS_DUCKING"))
                 audioFocusCallback = {
-                    mpvLib.command(arrayOf("multiply", "volume", "${1f / AUDIO_FOCUS_DUCKING}"))
+                    postCommand(arrayOf("multiply", "volume", "${1f / AUDIO_FOCUS_DUCKING}"))
                 }
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
@@ -765,8 +797,8 @@ class MPVPlayer(
      *   [.getCurrentWindowIndex] and [.getCurrentPosition].
      */
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
-        mpvLib.command(arrayOf("playlist-clear"))
-        mpvLib.command(arrayOf("playlist-remove", "current"))
+        postCommand(arrayOf("playlist-clear"))
+        postCommand(arrayOf("playlist-remove", "current"))
         internalMediaItems = mediaItems
     }
 
@@ -788,8 +820,8 @@ class MPVPlayer(
         startWindowIndex: Int,
         startPositionMs: Long,
     ) {
-        mpvLib.command(arrayOf("playlist-clear"))
-        mpvLib.command(arrayOf("playlist-remove", "current"))
+        postCommand(arrayOf("playlist-clear"))
+        postCommand(arrayOf("playlist-remove", "current"))
         internalMediaItems = mediaItems
         initialIndex = startWindowIndex
         initialSeekTo = startPositionMs
@@ -811,7 +843,7 @@ class MPVPlayer(
         val safeIndex = if (index in 0..internalMediaItems.size) index else internalMediaItems.size
         internalMediaItems.addAll(safeIndex, mediaItems)
         mediaItems.forEach { mediaItem ->
-            mpvLib.command(
+            postCommand(
                 arrayOf(
                     "loadfile",
                     "${mediaItem.localConfiguration?.uri}",
@@ -914,7 +946,7 @@ class MPVPlayer(
     /** Prepares the player. */
     override fun prepare() {
         internalMediaItems.forEachIndexed { index, mediaItem ->
-            mpvLib.command(
+            postCommand(
                 arrayOf(
                     "loadfile",
                     "${mediaItem.localConfiguration?.uri}",
@@ -1080,7 +1112,7 @@ class MPVPlayer(
             val seekTo = if (positionMs != C.TIME_UNSET) positionMs else initialSeekTo
             initialSeekTo =
                 if (isPlayerReady) {
-                    mpvLib.command(
+                    postCommand(
                         arrayOf("seek", "${seekTo.toDouble().div(C.MILLIS_PER_SECOND)}", "absolute")
                     )
                     0L
@@ -1114,7 +1146,7 @@ class MPVPlayer(
             // duplicate
             // external subtitle entries.
             if (currentMediaItemIndex != index) {
-                mpvLib.command(arrayOf("playlist-play-index", "$index"))
+                postCommand(arrayOf("playlist-play-index", "$index"))
             }
             setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
         }
@@ -1158,7 +1190,7 @@ class MPVPlayer(
     }
 
     override fun stop() {
-        mpvLib.command(arrayOf("stop", "keep-playlist"))
+        postCommand(arrayOf("stop", "keep-playlist"))
     }
 
     /**
@@ -1176,8 +1208,17 @@ class MPVPlayer(
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, audioFocusRequest)
         }
         resetInternalState()
-        mpvLib.removeObserver(this)
-        mpvLib.destroy()
+        runCatching { mpvLib.removeObserver(this) }
+        /*
+         * 命令线程收尾：先关闸（丢弃排队中的命令、拒绝新命令），让仍在执行的最后一条命令跑完，
+         * 最后在命令线程上销毁 mpv——destroy 不再阻塞主线程，也不会和命令执行并发。
+         */
+        commandsClosed.set(true)
+        commandHandler.removeCallbacksAndMessages(null)
+        commandHandler.post {
+            runCatching { mpvLib.destroy() }
+            commandThread.quitSafely()
+        }
     }
 
     override fun getCurrentTracks(): Tracks {
@@ -1598,6 +1639,8 @@ class MPVPlayer(
     private var released: Boolean = false
 
     private fun attachTextureSurface(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
+        // Surface 生命周期与 mpv 的 attachSurface 都必须在主线程；命令线程只承接 command()
+        check(Looper.myLooper() == handler.looper) { "mpv surface 操作必须在主线程" }
         if (released) return
         if (textureSurface != null) return
         val surface = Surface(surfaceTexture)
@@ -1611,6 +1654,7 @@ class MPVPlayer(
     }
 
     private fun detachTextureSurface() {
+        check(Looper.myLooper() == handler.looper) { "mpv surface 操作必须在主线程" }
         val surface = textureSurface ?: return
         textureSurface = null
         if (released) {

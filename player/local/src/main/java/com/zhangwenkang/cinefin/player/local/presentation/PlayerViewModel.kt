@@ -76,6 +76,12 @@ constructor(
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
         const val PLAYER_BACKEND_EXOPLAYER = "exoplayer"
         const val PLAYER_BACKEND_MPV = "mpv"
+
+        /** 单次队列补片最多新增条数：超大剧集（库里有 370 集的）不一次拉满，避免长时间占用网络与播放器时间线 */
+        private const val MAX_QUEUE_FILL_ITEMS = 150
+
+        /** 每条插入之间让出主线程的时间（> 1 帧），保证输入 / 渲染消息有机会执行 */
+        private const val QUEUE_FILL_STEP_DELAY_MS = 50L
     }
 
     val player: Player
@@ -337,53 +343,83 @@ constructor(
     }
 
     /**
-     * 后台把整剧队列补进播放器。
+     * 后台把整剧队列补进播放器（ANR 修复版）。
      *
-     * 播放器起播时只带着当前这一集，队列面板因此只有一条；这里的做法是不阻塞首帧： 先播当前集，再按「后面的集依次追加 → 前面的集倒序前插」逐集构建播放信息并插入，
-     * 队列面板与「下一集」按钮在几秒内补齐成整剧。中途用户切集也不受影响——插入前按 mediaId 去重。
+     * 旧实现虽然把「构建 PlayerItem」放在 IO，但 `player.addMediaItem` 的插入仍在主线程逐条执行； mpv 内核的 `addMediaItems`
+     * 会同步调用 `mpvLib.command("loadfile", …)`，整季补片时主线程被连续 阻塞，真机复测出现过 `Waited 5000ms for MotionEvent`
+     * 的 ANR。现在： ① 协程整体跑在 IO，插入时只切主线程做一次轻量时间线更新（mpv 命令已由 MPVPlayer 内部异步执行）； ② 每条插入之间让出一帧以上，输入 /
+     * 渲染消息有机会执行； ③ 单次补片有数量上限，超大剧集不会一次把网络、内存与播放器时间线全部拉满。
+     *
+     * 播放器起播时只带着当前这一集，队列面板因此只有一条；这里先播当前集，再按「后面的集依次追加 → 前面的集倒序前插」逐集构建并插入，中途用户切集也不受影响——插入前按 mediaId
+     * 去重。
      */
     private fun fillQueueInBackground() {
         queueFillJob?.cancel()
-        queueFillJob = viewModelScope.launch {
-            val currentIndex = playlistManager.queueIndex
-            val queueSize = playlistManager.queueSize
-            if (queueSize <= 1 || currentIndex < 0) return@launch
+        queueFillJob =
+            viewModelScope.launch(Dispatchers.IO) {
+                val (currentIndex, queueSize) =
+                    withContext(Dispatchers.Main) {
+                        playlistManager.queueIndex to playlistManager.queueSize
+                    }
+                if (queueSize <= 1 || currentIndex < 0) return@launch
 
-            for (index in (currentIndex + 1) until queueSize) {
-                val item =
-                    withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
-                        ?: continue
-                if (!isActive) return@launch
-                withContext(Dispatchers.Main) { addToQueueEnd(item) }
+                // player 只能在主线程访问：先快照当前列表里的 mediaId，之后插入前用它去重（O(1)）
+                val knownMediaIds =
+                    withContext(Dispatchers.Main) {
+                        (0 until player.mediaItemCount).mapTo(mutableSetOf()) {
+                            player.getMediaItemAt(it).mediaId
+                        }
+                    }
+                var added = 0
+                var stoppedAtLimit = false
+
+                for (index in (currentIndex + 1) until queueSize) {
+                    if (added >= MAX_QUEUE_FILL_ITEMS) {
+                        stoppedAtLimit = true
+                        break
+                    }
+                    val item = playlistManager.buildPlayerItemAt(index) ?: continue
+                    if (!isActive) return@launch
+                    if (insertQueueItem(item, atFront = false, knownMediaIds)) added++
+                    delay(QUEUE_FILL_STEP_DELAY_MS)
+                }
+                if (!stoppedAtLimit) {
+                    for (index in (currentIndex - 1) downTo 0) {
+                        if (added >= MAX_QUEUE_FILL_ITEMS) {
+                            stoppedAtLimit = true
+                            break
+                        }
+                        val item = playlistManager.buildPlayerItemAt(index) ?: continue
+                        if (!isActive) return@launch
+                        if (insertQueueItem(item, atFront = true, knownMediaIds)) added++
+                        delay(QUEUE_FILL_STEP_DELAY_MS)
+                    }
+                }
+
+                val total = withContext(Dispatchers.Main) { player.mediaItemCount }
+                if (stoppedAtLimit) {
+                    Timber.w("播放队列补全达上限：本次新增 %d 项（播放器共 %d 项）", added, total)
+                } else {
+                    Timber.d("播放队列补全完成：本次新增 %d 项（播放器共 %d 项）", added, total)
+                }
             }
-            for (index in (currentIndex - 1) downTo 0) {
-                val item =
-                    withContext(Dispatchers.IO) { playlistManager.buildPlayerItemAt(index) }
-                        ?: continue
-                if (!isActive) return@launch
-                withContext(Dispatchers.Main) { addToQueueFront(item) }
-            }
-            Timber.d("播放队列补全完成：共 %d 项", player.mediaItemCount)
+    }
+
+    /** 在主线程把一条队列项插进播放器；[knownMediaIds] 只在主线程读写，用作 O(1) 去重。 返回是否真正插入（重复项返回 false）。 */
+    private suspend fun insertQueueItem(
+        item: PlayerItem,
+        atFront: Boolean,
+        knownMediaIds: MutableSet<String>,
+    ): Boolean =
+        withContext(Dispatchers.Main) {
+            val mediaId = item.itemId.toString()
+            if (!knownMediaIds.add(mediaId)) return@withContext false
+            // 显式给下标：不依赖 BasePlayer 对"无下标 addMediaItem"的封装（mpv 内核上它传过越界值）
+            val index = if (atFront) 0 else player.mediaItemCount
+            player.addMediaItem(index, item.toMediaItem())
+            rememberQueueItem(item)
+            true
         }
-    }
-
-    private fun addToQueueEnd(item: PlayerItem) {
-        if (playerContains(item.itemId)) return
-        // 显式给下标：不依赖 BasePlayer 对"无下标 addMediaItem"的封装（mpv 内核上它传过越界值）
-        player.addMediaItem(player.mediaItemCount, item.toMediaItem())
-        rememberQueueItem(item)
-    }
-
-    private fun addToQueueFront(item: PlayerItem) {
-        if (playerContains(item.itemId)) return
-        player.addMediaItem(0, item.toMediaItem())
-        rememberQueueItem(item)
-    }
-
-    private fun playerContains(itemId: UUID): Boolean {
-        val mediaId = itemId.toString()
-        return (0 until player.mediaItemCount).any { player.getMediaItemAt(it).mediaId == mediaId }
-    }
 
     private fun rememberQueueItem(item: PlayerItem) {
         if (items.none { it.itemId == item.itemId }) {
