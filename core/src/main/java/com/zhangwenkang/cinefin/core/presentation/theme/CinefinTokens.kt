@@ -105,6 +105,14 @@ object CinefinTokens {
     val PaperSurface = Color(0xFFFBF6EC)
     val PaperAccent = Color(0xFFA8843C)
 
+    // ---- §8.14 阅读器主题扩展（R1-W2，派生值，变更需回设计系统评审）----
+    /** 阅读器排版面板深色底；§8.14 指定 `#191F28`。 */
+    val ReaderPanelDark = Color(0xFF191F28)
+    /** 护眼主题底色；设计系统未给值，按纸色向绿色相偏移派生（浅绿纸）。 */
+    val ReaderEyeCareSurface = Color(0xFFE7EFE1)
+    /** OLED 主题底色：纯黑，关闭像素。 */
+    val ReaderOledSurface = Color(0xFF000000)
+
     // ---- §5.3 / §6.4 画面覆盖层（唯一允许 blur 的场景）----
     val OverlayGlass = Color(0x99000000) // 黑 60%
 }

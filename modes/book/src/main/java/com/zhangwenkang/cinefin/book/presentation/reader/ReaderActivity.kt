@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,9 +29,13 @@ class ReaderActivity : AppCompatActivity() {
 
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
+            val settings by viewModel.settings.collectAsStateWithLifecycle()
             ReaderScreen(
                 state = state,
+                settings = settings,
                 title = title,
+                systemDark = isSystemInDarkTheme(),
+                onSettingsChange = viewModel::updateSettings,
                 onLocationChanged = viewModel::onLocationChanged,
                 onRetry = viewModel::retry,
             )

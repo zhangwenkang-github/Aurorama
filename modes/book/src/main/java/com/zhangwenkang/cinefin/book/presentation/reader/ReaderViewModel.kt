@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.repository.ReadingProgress
 import com.zhangwenkang.cinefin.repository.progressionToTicks
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -52,13 +53,25 @@ class ReaderViewModel
 constructor(
     @ApplicationContext private val context: Context,
     private val readerRepository: ReaderRepository,
+    private val appPreferences: AppPreferences,
 ) : ViewModel() {
     private val _state = MutableStateFlow<ReaderUiState>(ReaderUiState.Loading)
     val state: StateFlow<ReaderUiState> = _state.asStateFlow()
 
+    private val _settings = MutableStateFlow(readSettings())
+    val settings: StateFlow<ReaderSettings> = _settings.asStateFlow()
+
     private var openedItemId: UUID? = null
     private var openedAsset: Asset? = null
     private var progressJob: Job? = null
+
+    /** 排版 / 主题设置：内存即时生效（提交给导航器），同时写回 `pref_reader_*`。 */
+    fun updateSettings(settings: ReaderSettings) {
+        val sanitized = settings.sanitized()
+        if (sanitized == _settings.value) return
+        _settings.value = sanitized
+        persistSettings(sanitized)
+    }
 
     fun open(itemId: UUID) {
         if (_state.value is ReaderUiState.Ready || openedItemId == itemId) return
@@ -149,6 +162,35 @@ constructor(
             asset.close()
             throw error
         }
+    }
+
+    private fun readSettings(): ReaderSettings =
+        ReaderSettings(
+                mode = ReaderMode.fromStorage(appPreferences.getValue(appPreferences.readerMode)),
+                fontSize = appPreferences.getValue(appPreferences.readerFontSize),
+                lineHeight = appPreferences.getValue(appPreferences.readerLineHeight),
+                pageMargins = appPreferences.getValue(appPreferences.readerPageMargins),
+                font =
+                    ReaderFont.fromStorage(
+                        appPreferences.getValue(appPreferences.readerFontFamily)
+                    ),
+                theme =
+                    ReaderTheme.fromStorage(appPreferences.getValue(appPreferences.readerTheme)),
+                textAlign =
+                    ReaderTextAlign.fromStorage(
+                        appPreferences.getValue(appPreferences.readerTextAlign)
+                    ),
+            )
+            .sanitized()
+
+    private fun persistSettings(settings: ReaderSettings) {
+        appPreferences.setValue(appPreferences.readerMode, settings.mode.storageValue)
+        appPreferences.setValue(appPreferences.readerFontSize, settings.fontSize)
+        appPreferences.setValue(appPreferences.readerLineHeight, settings.lineHeight)
+        appPreferences.setValue(appPreferences.readerPageMargins, settings.pageMargins)
+        appPreferences.setValue(appPreferences.readerFontFamily, settings.font.storageValue)
+        appPreferences.setValue(appPreferences.readerTheme, settings.theme.storageValue)
+        appPreferences.setValue(appPreferences.readerTextAlign, settings.textAlign.storageValue)
     }
 }
 

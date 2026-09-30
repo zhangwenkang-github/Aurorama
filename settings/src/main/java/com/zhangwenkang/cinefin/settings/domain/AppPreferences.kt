@@ -149,6 +149,28 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Offline mode
     val offlineMode = Preference("pref_offline_mode", false)
 
+    // Reader
+    /** 阅读模式：scroll / paged / two_column。 */
+    val readerMode = Preference("pref_reader_mode", "scroll")
+
+    /** 正文字号倍数（Readium fontSize，1.0 = 100%）。 */
+    val readerFontSize = Preference("pref_reader_font_size", 1.0f)
+
+    /** 行距倍数。 */
+    val readerLineHeight = Preference("pref_reader_line_height", 1.2f)
+
+    /** 页面边距倍数。 */
+    val readerPageMargins = Preference("pref_reader_page_margins", 1.0f)
+
+    /** 内置字体：publisher / serif / sans / monospace。 */
+    val readerFontFamily = Preference("pref_reader_font_family", "publisher")
+
+    /** 阅读主题：paper / eyecare / dark / oled / system。 */
+    val readerTheme = Preference("pref_reader_theme", "dark")
+
+    /** 正文对齐：justify / start / center。 */
+    val readerTextAlign = Preference("pref_reader_text_align", "justify")
+
     // Migrations
     val mpvMigrated = Preference("mpv_migrated", false)
 
