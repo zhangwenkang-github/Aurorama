@@ -7,11 +7,18 @@ import java.util.UUID
 /**
  * 阅读器数据契约（ARCHITECTURE §5.1）。
  *
- * 服务端进度走 Jellyfin UserData 白名单接口；`locatorJson` 保存 Readium 的精确位置， W1 先落在应用私有 JSON 文件，W3 再迁入 Room（见
- * READER_PLAN 决策记录）。
+ * 服务端进度走 Jellyfin UserData 白名单接口；`locatorJson` 保存 Readium 的精确位置。 本地存储仍是应用私有 JSON 文件（W3-R1 决策
+ * D11：Room 迁移待 R2-LYRICS 释放数据库版本后再做，见 READER_PLAN）。
  */
 interface ReaderRepository {
+    /** 打开书籍用：本地已有直接命中，否则整本下载到应用私有目录。 */
     suspend fun ensureLocalFile(itemId: UUID): File
+
+    /** 显式下载（离线阅读 EB-11）：`onProgress` 为 0.0–1.0。 */
+    suspend fun downloadLocalFile(itemId: UUID, onProgress: (Float) -> Unit = {}): File
+
+    /** 本地已下载书籍信息；未下载返回 null。 */
+    suspend fun localFile(itemId: UUID): LocalBookFile?
 
     suspend fun deleteLocalFile(itemId: UUID)
 
@@ -19,8 +26,21 @@ interface ReaderRepository {
 
     suspend fun saveReadingProgress(itemId: UUID, progress: ReadingProgress)
 
-    suspend fun flushPendingProgress()
+    /** 联网回传待同步进度，返回成功条数（EB-9）。 */
+    suspend fun flushPendingProgress(): Int
+
+    /** 待同步进度条数，用于阅读页提示与定时重试。 */
+    suspend fun pendingProgressCount(): Int
+
+    suspend fun getBookmarks(itemId: UUID): List<ReaderBookmark>
+
+    suspend fun saveBookmark(bookmark: ReaderBookmark)
+
+    suspend fun deleteBookmark(itemId: UUID, bookmarkId: String)
 }
+
+/** 已下载书籍的本地文件信息。 */
+data class LocalBookFile(val itemId: UUID, val sizeBytes: Long)
 
 data class ReadingProgress(
     val itemId: UUID,
@@ -29,4 +49,11 @@ data class ReadingProgress(
     val positionTicks: Long,
     val updatedAt: Instant,
     val pendingSync: Boolean = false,
+    /**
+     * 该书目的 Jellyfin `RunTimeTicks` 缓存。
+     *
+     * 书籍的 runtime 常是 1 秒占位值，离线时拿不到；没有缓存会把 ticks 按默认时间轴换算， 回传后服务端进度会明显偏大（见 READER_PLAN §8 踩坑 4 /
+     * 12）。
+     */
+    val runtimeTicks: Long = 0L,
 )

@@ -6,9 +6,11 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -23,8 +25,10 @@ import coil3.svg.SvgDecoder
 import com.google.android.material.color.DynamicColors
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
+import com.zhangwenkang.cinefin.work.ReaderProgressSyncWorker
 import com.zhangwenkang.cinefin.work.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
 import okio.Path.Companion.toOkioPath
@@ -64,6 +68,7 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
         val workManager = WorkManager.getInstance(applicationContext)
 
         scheduleUserDataSync(workManager)
+        scheduleReaderProgressSync(workManager)
 
         if (!appPreferences.getValue(appPreferences.mpvMigrated)) {
             scheduleMpvCleanup(workManager)
@@ -114,6 +119,27 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
             uniqueWorkName = "mpv_cleanup",
             existingWorkPolicy = ExistingWorkPolicy.KEEP,
             request = cleanupRequest,
+        )
+    }
+
+    /**
+     * 阅读进度离线队列回传（EB-9）：断网期间的进度先落本地，联网后由 WorkManager 回传。
+     *
+     * 无待同步记录时只读一次本地 JSON，不产生网络请求。
+     */
+    private fun scheduleReaderProgressSync(workManager: WorkManager) {
+        val constraints =
+            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+
+        val syncRequest =
+            PeriodicWorkRequestBuilder<ReaderProgressSyncWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            uniqueWorkName = "readerProgressSync",
+            existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP,
+            request = syncRequest,
         )
     }
 }

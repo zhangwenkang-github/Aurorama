@@ -37,7 +37,9 @@ internal fun ReadiumEpubView(
     initialLocator: Locator?,
     settings: ReaderSettings,
     systemDark: Boolean,
+    jumpTarget: Locator?,
     onLocationChanged: (Locator) -> Unit,
+    onJumpHandled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -45,6 +47,7 @@ internal fun ReadiumEpubView(
     val currentSettings = rememberUpdatedState(settings)
     val currentSystemDark = rememberUpdatedState(systemDark)
     val currentOnLocationChanged = rememberUpdatedState(onLocationChanged)
+    val currentOnJumpHandled = rememberUpdatedState(onJumpHandled)
     var navigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
     val listener =
@@ -66,6 +69,14 @@ internal fun ReadiumEpubView(
 
     LaunchedEffect(navigator, settings, systemDark) {
         navigator?.submitPreferences(settings.toEpubPreferences(systemDark))
+    }
+
+    // 书签跳转：等导航器就绪后执行一次，避免 Fragment 还没 add 就 go 丢目标。
+    LaunchedEffect(navigator, jumpTarget) {
+        val target = jumpTarget ?: return@LaunchedEffect
+        val currentNavigator = navigator ?: return@LaunchedEffect
+        currentNavigator.go(target, animated = true)
+        currentOnJumpHandled.value()
     }
 
     key(publication) {

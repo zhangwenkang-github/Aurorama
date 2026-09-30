@@ -29,20 +29,39 @@ class ReaderActivity : AppCompatActivity() {
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
             val settings by viewModel.settings.collectAsStateWithLifecycle()
+            val downloadState by viewModel.downloadState.collectAsStateWithLifecycle()
+            val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+            val pendingSyncCount by viewModel.pendingSyncCount.collectAsStateWithLifecycle()
+            val jumpTarget by viewModel.jumpTarget.collectAsStateWithLifecycle()
             ReaderScreen(
                 state = state,
                 settings = settings,
                 title = title,
                 systemDark = isSystemInDarkTheme(),
+                downloadState = downloadState,
+                bookmarks = bookmarks,
+                pendingSyncCount = pendingSyncCount,
+                jumpTarget = jumpTarget,
                 onSettingsChange = viewModel::updateSettings,
                 onLocationChanged = viewModel::onLocationChanged,
                 onRetry = viewModel::retry,
+                onDownload = viewModel::downloadBook,
+                onAddBookmark = viewModel::addBookmark,
+                onRemoveBookmark = viewModel::removeBookmark,
+                onJumpToBookmark = viewModel::jumpTo,
+                onJumpHandled = viewModel::consumeJumpTarget,
             )
         }
 
         if (itemId != null) {
             viewModel.open(itemId)
         }
+    }
+
+    /** 退到后台立即落盘 + 尝试回传（ARCHITECTURE §3.6 上报时机）。 */
+    override fun onStop() {
+        viewModel.onStopReading()
+        super.onStop()
     }
 
     companion object {

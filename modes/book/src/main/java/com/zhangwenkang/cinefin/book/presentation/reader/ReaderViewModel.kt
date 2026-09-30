@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.repository.ReaderBookmark
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.repository.ReadingProgress
 import com.zhangwenkang.cinefin.repository.progressionToTicks
@@ -19,11 +20,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.services.locateProgression
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.http.DefaultHttpClient
@@ -33,6 +36,9 @@ import timber.log.Timber
 
 /** 阅读页进度回传去抖：与 ARCHITECTURE §3.6 的 2 秒约定一致。 */
 private const val PROGRESS_DEBOUNCE_MS = 2_000L
+
+/** 阅读中定时上报间隔（ARCHITECTURE §3.6：每 30 秒）。 */
+private const val PROGRESS_PERIODIC_MS = 30_000L
 
 sealed interface ReaderUiState {
     data object Loading : ReaderUiState
@@ -45,6 +51,17 @@ sealed interface ReaderUiState {
     ) : ReaderUiState
 
     data class Error(val message: String) : ReaderUiState
+}
+
+/** 离线阅读（EB-11）：整本书在本地的状态。 */
+sealed interface BookDownloadState {
+    data object NotDownloaded : BookDownloadState
+
+    data class Downloading(val progress: Float) : BookDownloadState
+
+    data class Downloaded(val sizeBytes: Long) : BookDownloadState
+
+    data class Failed(val message: String) : BookDownloadState
 }
 
 @HiltViewModel
@@ -61,9 +78,27 @@ constructor(
     private val _settings = MutableStateFlow(readSettings())
     val settings: StateFlow<ReaderSettings> = _settings.asStateFlow()
 
+    private val _downloadState =
+        MutableStateFlow<BookDownloadState>(BookDownloadState.NotDownloaded)
+    val downloadState: StateFlow<BookDownloadState> = _downloadState.asStateFlow()
+
+    private val _bookmarks = MutableStateFlow<List<ReaderBookmark>>(emptyList())
+    val bookmarks: StateFlow<List<ReaderBookmark>> = _bookmarks.asStateFlow()
+
+    /** 待同步进度条数：>0 时阅读页提示"离线暂存"，联网后自动回传。 */
+    private val _pendingSyncCount = MutableStateFlow(0)
+    val pendingSyncCount: StateFlow<Int> = _pendingSyncCount.asStateFlow()
+
+    private val _jumpTarget = MutableStateFlow<Locator?>(null)
+    val jumpTarget: StateFlow<Locator?> = _jumpTarget.asStateFlow()
+
     private var openedItemId: UUID? = null
     private var openedAsset: Asset? = null
     private var progressJob: Job? = null
+    private var periodicJob: Job? = null
+    private var downloadJob: Job? = null
+    private var currentLocator: Locator? = null
+    private var lastPersistedLocatorJson: String? = null
 
     /** 排版 / 主题设置：内存即时生效（提交给导航器），同时写回 `pref_reader_*`。 */
     fun updateSettings(settings: ReaderSettings) {
@@ -85,15 +120,25 @@ constructor(
                     val progress = readerRepository.getReadingProgress(itemId)
                     val (asset, publication) = openPublication(file)
                     openedAsset = asset
+                    // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
+                    val initialLocator =
+                        progress?.locatorJson?.toLocator()
+                            ?: progress
+                                ?.takeIf { it.progression > 0.0 }
+                                ?.let { locateByProgression(publication, it.progression) }
                     ReaderUiState.Ready(
                         itemId = itemId,
                         publication = publication,
-                        initialLocator = progress?.locatorJson?.toLocator(),
+                        initialLocator = initialLocator,
                         initialProgression = progress?.progression ?: 0.0,
                     )
                 }
             }
-                .onSuccess { _state.value = it }
+                .onSuccess {
+                    _state.value = it
+                    refreshLocalState(itemId)
+                    startPeriodicProgressReporter()
+                }
                 .onFailure {
                     Timber.w(it, "打开 EPUB 失败")
                     _state.value = ReaderUiState.Error(it.message ?: "打开 EPUB 失败")
@@ -109,32 +154,184 @@ constructor(
 
     fun onLocationChanged(locator: Locator) {
         val itemId = openedItemId ?: return
+        currentLocator = locator
         // totalProgression 是整本书的进度，progression 只代表当前资源（章节）内进度。
         val progression =
             locator.locations.totalProgression ?: locator.locations.progression ?: return
         progressJob?.cancel()
         progressJob = viewModelScope.launch {
             delay(PROGRESS_DEBOUNCE_MS)
-            val progress =
-                ReadingProgress(
+            persistProgress(itemId, locator, progression)
+        }
+    }
+
+    /** 退到后台 / 离开阅读页：立即落盘并尝试回传（ARCHITECTURE §3.6 上报时机）。 */
+    fun onStopReading() {
+        val itemId = openedItemId ?: return
+        val locator = currentLocator ?: return
+        val progression =
+            locator.locations.totalProgression ?: locator.locations.progression ?: return
+        progressJob?.cancel()
+        viewModelScope.launch {
+            persistProgress(itemId, locator, progression)
+            flushPendingProgress()
+        }
+    }
+
+    /** 显式下载整本书（EB-11）：离线前先下好，飞行模式下也能打开。 */
+    fun downloadBook() {
+        val itemId = openedItemId ?: return
+        if (_downloadState.value is BookDownloadState.Downloading) return
+        downloadJob?.cancel()
+        _downloadState.value = BookDownloadState.Downloading(0f)
+        downloadJob = viewModelScope.launch {
+            var lastPercent = -1
+            runCatching {
+                readerRepository.downloadLocalFile(itemId) { progress ->
+                    val percent = (progress * 100).toInt()
+                    if (percent != lastPercent) {
+                        lastPercent = percent
+                        _downloadState.value = BookDownloadState.Downloading(progress)
+                    }
+                }
+            }
+                .onSuccess { file ->
+                    _downloadState.value = BookDownloadState.Downloaded(file.length())
+                }
+                .onFailure {
+                    Timber.w(it, "下载书籍失败")
+                    _downloadState.value = BookDownloadState.Failed(it.message ?: "下载失败，请检查网络")
+                }
+        }
+    }
+
+    fun addBookmark() {
+        val itemId = openedItemId ?: return
+        val locator = currentLocator ?: return
+        val progression =
+            locator.locations.totalProgression ?: locator.locations.progression ?: return
+        viewModelScope.launch {
+            val bookmark =
+                ReaderBookmark(
+                    id = UUID.randomUUID().toString(),
                     itemId = itemId,
                     locatorJson = locator.toJSON().toString(),
                     progression = progression,
-                    positionTicks = progressionToTicks(progression),
-                    updatedAt = Instant.now(),
-                    pendingSync = true,
+                    label = bookmarkLabel(locator.title, progression),
+                    createdAt = Instant.now(),
                 )
-            runCatching { readerRepository.saveReadingProgress(itemId, progress) }
-                .onFailure { Timber.w(it, "保存阅读进度失败") }
+            runCatching { readerRepository.saveBookmark(bookmark) }
+                .onSuccess { refreshBookmarks() }
+                .onFailure { Timber.w(it, "保存书签失败") }
         }
+    }
+
+    fun removeBookmark(bookmarkId: String) {
+        val itemId = openedItemId ?: return
+        viewModelScope.launch {
+            runCatching { readerRepository.deleteBookmark(itemId, bookmarkId) }
+                .onSuccess { refreshBookmarks() }
+                .onFailure { Timber.w(it, "删除书签失败") }
+        }
+    }
+
+    /** 跳转到书签 / 位置（导航器消费后调用 [consumeJumpTarget]）。 */
+    fun jumpTo(bookmark: ReaderBookmark) {
+        _jumpTarget.value = bookmark.locatorJson.toLocator() ?: return
+    }
+
+    fun consumeJumpTarget() {
+        _jumpTarget.value = null
+    }
+
+    private suspend fun persistProgress(itemId: UUID, locator: Locator, progression: Double) {
+        val progress =
+            ReadingProgress(
+                itemId = itemId,
+                locatorJson = locator.toJSON().toString(),
+                progression = progression,
+                positionTicks = progressionToTicks(progression),
+                updatedAt = Instant.now(),
+                pendingSync = true,
+            )
+        runCatching { readerRepository.saveReadingProgress(itemId, progress) }
+            .onSuccess {
+                lastPersistedLocatorJson = progress.locatorJson
+                refreshPendingSyncCount()
+            }
+            .onFailure { Timber.w(it, "保存阅读进度失败") }
+    }
+
+    /**
+     * 30 秒定时上报（ARCHITECTURE §3.6）。
+     *
+     * 位置有变化就落盘 + 回传；位置没变但仍有待同步记录（断网时写入的）则重试回传， 于是关掉飞行模式后不需要重开阅读页也能补传。
+     */
+    private fun startPeriodicProgressReporter() {
+        periodicJob?.cancel()
+        periodicJob = viewModelScope.launch {
+            while (isActive) {
+                delay(PROGRESS_PERIODIC_MS)
+                val itemId = openedItemId ?: continue
+                val locator = currentLocator
+                val locatorJson = locator?.toJSON()?.toString()
+                val progression =
+                    locator?.locations?.totalProgression ?: locator?.locations?.progression
+                if (
+                    locator != null &&
+                        progression != null &&
+                        locatorJson != lastPersistedLocatorJson
+                ) {
+                    persistProgress(itemId, locator, progression)
+                } else if (_pendingSyncCount.value > 0) {
+                    flushPendingProgress()
+                }
+            }
+        }
+    }
+
+    private suspend fun flushPendingProgress() {
+        runCatching { readerRepository.flushPendingProgress() }
+            .onSuccess { refreshPendingSyncCount() }
+            .onFailure { Timber.w(it, "回传待同步阅读进度失败") }
+    }
+
+    private suspend fun refreshPendingSyncCount() {
+        _pendingSyncCount.value =
+            runCatching { readerRepository.pendingProgressCount() }.getOrDefault(0)
+    }
+
+    private suspend fun refreshBookmarks() {
+        val itemId = openedItemId ?: return
+        _bookmarks.value =
+            runCatching { readerRepository.getBookmarks(itemId) }.getOrDefault(emptyList())
+    }
+
+    private suspend fun refreshLocalState(itemId: UUID) {
+        val localFile = runCatching { readerRepository.localFile(itemId) }.getOrNull()
+        _downloadState.value =
+            if (localFile == null) {
+                BookDownloadState.NotDownloaded
+            } else {
+                BookDownloadState.Downloaded(localFile.sizeBytes)
+            }
+        refreshBookmarks()
+        refreshPendingSyncCount()
     }
 
     override fun onCleared() {
         progressJob?.cancel()
+        periodicJob?.cancel()
+        downloadJob?.cancel()
         openedAsset?.close()
         openedAsset = null
         super.onCleared()
     }
+
+    private suspend fun locateByProgression(
+        publication: Publication,
+        progression: Double,
+    ): Locator? = runCatching { publication.locateProgression(progression) }.getOrNull()
 
     private suspend fun openPublication(file: File): Pair<Asset, Publication> {
         val httpClient = DefaultHttpClient()
