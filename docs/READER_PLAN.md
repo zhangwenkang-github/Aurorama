@@ -234,6 +234,10 @@
 - 本地缓存文件名看不出格式，按**内容**嗅探（`BookFormat.kt`）：`%PDF-` → PDF；ZIP 且含
   `META-INF/container.xml` → EPUB；其余 ZIP → CBZ；都不匹配 → Unknown（仍交给 Readium 尝试，
   错误原样透出）。不依赖扩展名与 Jellyfin 元数据，离线也成立。
+- 健壮性细节：① ZIP 魔数（头 4 字节）优先于 PDF 判定，避免压缩包前 1 KB 恰好含 `%PDF-` 时误判；
+  ② PDF 头按 PDF 1.7 §7.5.2 允许出现在**前 1 KiB**（探针 1024 字节内查找魔数）；③ ZIP 含
+  `mimetype` 条目（即使缺 `container.xml`）也按 EPUB 处理；④ ZIP 过滤后一张位图都没有时不当作漫画，
+  交回 Readium 报错（兼容结构异常的 EPUB / 非漫画 ZIP）。
 - 进度：PDF / CBZ 用「页索引 / 总页数」换算 `progression`（页起点），写入与回传复用 EB-9 同一条
   `ReadingProgress` 链路（ticks 由服务端 `RunTimeTicks` 换算，D12）；恢复用
   `pageIndexForProgression`（floor + ε，抵消浮点往返误差）。`locatorJson` 留空，避免与 Readium
@@ -417,8 +421,8 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
       双指缩放（1×–4×）在分页 / 双栏模式生效。
 - [x] ④ 格式嗅探与进度语义（D16）：按内容识别（PDF / EPUB / CBZ）+ 页索引 ↔ progression 换算，
       复用 EB-9 落盘 / 回传链路；readium 路径（EPUB）零行为变化。
-- [x] 单测：格式嗅探 4 / CBZ 页序与过滤 4 / 尺寸·进度·页指示·缩放夹取 6，共 **14 项新增**；
-      `:modes:book` 合计 **29 项**（5 个测试类）全绿（`:modes:book:testDebugUnitTest`）。
+- [x] 单测：格式嗅探 6 / CBZ 页序与过滤 4 / 尺寸·进度·页指示·缩放夹取 6，共 **16 项新增**；
+      `:modes:book` 合计 **31 项**（5 个测试类）全绿（`:modes:book:testDebugUnitTest`）。
 - [x] 门禁：`:app:phone:assembleDebug` + `:modes:book:testDebugUnitTest` + `ktfmtCheck` 通过。
 - [ ] 真机验证记录写入 §7.6（**部分**：attention PDF 打开 + 翻页已验；其余待负责人重新指派设备后补，
       见 §7.6 与 §9）。
@@ -660,4 +664,4 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 | 2026-09-30 | W2-R1：阅读模式（滚动 / 分页 / 双栏）、排版设置（字号 / 行距 / 边距 / 字体 / 对齐）、阅读主题（纸色 / 护眼 / 深色 / OLED / 跟随）；`pref_reader_*` 持久化；9 项单测 + Pad 5 真机验证 |
 | 2026-09-30 | W3-R1：离线整书下载（原子落盘 + 状态 UI）、进度离线队列（30 秒 / 退后台 / WorkManager 启动补传 + 周期兜底、冲突策略细化、runtimeTicks 缓存）、书签基础（JSON + 面板）；15 项单测（data 10 / modes:book 5）；真机验证见 §7.5 |
 | 2026-09-30 | W3-R1 rebase 到 `f283ef1`（R3 Prism 阅读页 + 入口）：`ReaderScreen.kt` 冲突按「保留 R3 外壳 + 并入离线功能」解决——顶栏沿用 Prism（`ReaderTopBar` 扩展下载状态 / 书签入口）、错误态用 `CinefinEmptyState`、`CompositionLocalProvider(LocalMediaColors)` 与设置面板保持 R3 版；离线暂存横幅、`jumpTarget` / `onJumpHandled` / `onNavigatorReady`、书签面板与 `DownloadAction` 全部保留 |
-| 2026-10-01 | W4-R1：PDF 走 PdfRenderer 自研（D14）、CBZ 走 ZipFile 自研（D15，含 Andas_Game 解析失败根因）、格式嗅探与页进度语义（D16）；`SimpleBookView` 三档模式 + 页指示 + 双指缩放；新增 14 项单测（模块合计 29 项，全绿）；真机部分验证（§7.6：attention PDF 打开 + 翻页）后按负责人调度暂停；踩坑 15–19 |
+| 2026-10-01 | W4-R1：PDF 走 PdfRenderer 自研（D14）、CBZ 走 ZipFile 自研（D15，含 Andas_Game 解析失败根因）、格式嗅探与页进度语义（D16）；`SimpleBookView` 三档模式 + 页指示 + 双指缩放；格式嗅探健壮性（1 KiB PDF 探针 / mimetype-EPUB / 空图片 ZIP 回退 Readium）；新增 16 项单测（模块合计 31 项，全绿）；真机部分验证（§7.6：attention PDF 打开 + 翻页）后按负责人调度暂停；踩坑 15–19 |
