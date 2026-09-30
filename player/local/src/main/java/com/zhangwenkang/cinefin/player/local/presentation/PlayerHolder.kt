@@ -19,9 +19,8 @@ import timber.log.Timber
 /**
  * 播放器实例的唯一持有者（阶段 4.1）。
  *
- * 播放器必须活得比播放页久：通知栏、锁屏、后台播放都要求 Activity 销毁后播放器继续存在。
- * 所以创建与释放从 `PlayerViewModel` 挪到这里：播放页与 `CinefinPlaybackService` 共用同一实例，
- * 通知栏上的播放/暂停/上下集/快退快进直接作用在这个实例上，不需要跨进程控制器往返。
+ * 播放器必须活得比播放页久：通知栏、锁屏、后台播放都要求 Activity 销毁后播放器继续存在。 所以创建与释放从 `PlayerViewModel` 挪到这里：播放页与
+ * `CinefinPlaybackService` 共用同一实例， 通知栏上的播放/暂停/上下集/快退快进直接作用在这个实例上，不需要跨进程控制器往返。
  *
  * 线程约定：与 Media3 一致，所有调用都在主线程。
  */
@@ -51,10 +50,7 @@ constructor(
     val backend: String
         get() = instanceBackend ?: appPreferences.getValue(appPreferences.playerBackend)
 
-    /**
-     * 播放器实例。按当前偏好创建；偏好里的内核变了（换内核重开播放页）会自动重建，
-     * 调用方拿到的永远是"对的内核 + 活的实例"。
-     */
+    /** 播放器实例。按当前偏好创建；偏好里的内核变了（换内核重开播放页）会自动重建， 调用方拿到的永远是"对的内核 + 活的实例"。 */
     val player: Player
         get() {
             val wanted = appPreferences.getValue(appPreferences.playerBackend)
@@ -70,6 +66,26 @@ constructor(
                 applySavedAudioDelay()
             }
         }
+
+    /**
+     * 音乐会话入口（W0 冻结，MU-4 / MU-8）：音频强制 ExoPlayer —— 音乐永远不用 mpv。
+     *
+     * 与 [player] 共用唯一实例与单个 MediaSession：若当前实例是 mpv，会先释放再重建为 ExoPlayer；音乐会话结束后，[player]
+     * 仍按用户偏好恢复视频内核。
+     */
+    fun audioSession(): Player {
+        val existing = instance
+        if (existing != null && instanceBackend == BACKEND_EXOPLAYER) return existing
+        if (existing != null) {
+            Timber.i("音乐会话要求 ExoPlayer，重建播放器实例")
+            runCatching { existing.release() }
+        }
+        return create(BACKEND_EXOPLAYER).also {
+            instance = it
+            instanceBackend = BACKEND_EXOPLAYER
+            applySavedAudioDelay()
+        }
+    }
 
     /**
      * 设置音轨延迟（毫秒）；正 = 声音延后。
@@ -138,7 +154,9 @@ constructor(
                 MPVPlayer.Builder(application)
                     .setAudioAttributes(audioAttributes, true)
                     .setTrackSelectionParameters(trackSelector.parameters)
-                    .setSeekBackIncrementMs(appPreferences.getValue(appPreferences.playerSeekBackInc))
+                    .setSeekBackIncrementMs(
+                        appPreferences.getValue(appPreferences.playerSeekBackInc)
+                    )
                     .setSeekForwardIncrementMs(
                         appPreferences.getValue(appPreferences.playerSeekForwardInc)
                     )

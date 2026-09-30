@@ -92,6 +92,8 @@ dependencies {
     implementation(projects.player.local)
     implementation(projects.setup)
     implementation(projects.modes.film)
+    implementation(projects.modes.book)
+    implementation(projects.modes.music)
     implementation(projects.settings)
 
     implementation(libs.aboutlibraries.core)

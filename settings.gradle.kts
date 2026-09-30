@@ -10,6 +10,8 @@ include(":player:core")
 include(":player:local")
 include(":setup")
 include(":modes:film")
+include(":modes:book")
+include(":modes:music")
 include(":settings")
 
 pluginManagement {

@@ -15,6 +15,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // R1 的 Readium pdfium 适配器来自 JitPack；与模块注册同批提交（ARCHITECTURE §2.4）
+        maven("https://jitpack.io")
     }
 }
 
