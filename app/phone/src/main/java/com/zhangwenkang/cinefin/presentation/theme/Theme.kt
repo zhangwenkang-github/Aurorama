@@ -1,63 +1,39 @@
 package com.zhangwenkang.cinefin.presentation.theme
 
-import android.os.Build
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.contentColorFor
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme as CoreCinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
+import com.zhangwenkang.cinefin.core.presentation.theme.LegacyTypography
 import com.zhangwenkang.cinefin.core.presentation.theme.Spacings
 
 /**
- * Cinefin 主题。
+ * app:phone 主题入口包装（Typography 归位决策：设计系统核心统一归 `core`，本模块只保留入口与桥接）。
  *
- * 默认固定使用深灰蓝影院配色：无论系统是否开启深色模式，应用都保持深色外观， 以保证海报墙与播放页的观感一致。动态取色默认关闭，希望跟随系统壁纸的用户 可在设置中开启。
+ * 色彩 / 形状 / 排版已由 [CoreCinefinTheme] 统一提供；本包装只负责两件事：
+ * 1. 提供存量页面仍在使用的 [LocalSpacings]（历史 6 档间距，后续页面迁移后收敛到 CinefinSpacing）；
+ * 2. 过渡期把 [LegacyTypography] 交给 MaterialTheme，保证 145 处存量 `MaterialTheme.typography` 引用排版零回归。W3/W4
+ *    页面按 Prism 字阶落地后，改回默认 `CinefinTypography` 并删除桥接。
+ *
+ * @param domain 当前内容域；默认 [ContentDomain.Neutral]（首页 / 设置例外页）。
+ * @param surfaceBackground 播放页控制层必须传 `false`（见 core 主题说明）。
  */
 @Composable
 fun CinefinTheme(
+    domain: ContentDomain = ContentDomain.Neutral,
     darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
-    /**
-     * 是否铺一层主题底色。
-     *
-     * 播放页的控制层是**叠在视频画面上的浮层**，必须传 false： 否则这个不透明的 Surface 会盖住整个视频，表现为「一显示控制层画面就全黑」。
-     */
     surfaceBackground: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme =
-        when {
-            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                val context = LocalContext.current
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            }
-            darkTheme -> darkScheme
-            else -> lightScheme
-        }
-
-    MaterialTheme(colorScheme = colorScheme, typography = Typography, shapes = shapes) {
-        CompositionLocalProvider(
-            LocalContentColor provides contentColorFor(MaterialTheme.colorScheme.background),
-            LocalSpacings provides Spacings,
-        ) {
-            if (!surfaceBackground) {
-                content()
-                return@CompositionLocalProvider
-            }
-            // 固定铺一层主题底色：应用外观不跟随系统深浅色，
-            // 但不能让系统主题的窗口底色从内容下面透出来。
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                content()
-            }
-        }
+    CompositionLocalProvider(LocalSpacings provides Spacings) {
+        CoreCinefinTheme(
+            domain = domain,
+            darkTheme = darkTheme,
+            dynamicColor = dynamicColor,
+            surfaceBackground = surfaceBackground,
+            typography = LegacyTypography,
+            content = content,
+        )
     }
 }
