@@ -402,6 +402,19 @@ fun NavigationRoot(
                     navigateTopLevel(MusicModeRoute)
                 }
         )
+        add(
+            null to
+                DrawerEntry(
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_download,
+                            stringResource(CoreR.string.title_download),
+                        ),
+                    selected = downloadsSelected,
+                ) {
+                    navigateTopLevel(DownloadsRoute)
+                }
+        )
         if (!isOfflineMode) {
             add(
                 stringResource(CoreR.string.drawer_section_media) to
@@ -428,19 +441,6 @@ fun NavigationRoot(
                 )
             }
         }
-        add(
-            null to
-                DrawerEntry(
-                    item =
-                        chromeItem(
-                            CoreR.drawable.ic_download,
-                            stringResource(CoreR.string.title_download),
-                        ),
-                    selected = downloadsSelected,
-                ) {
-                    navigateTopLevel(DownloadsRoute)
-                }
-        )
         if (drawerData.isAdministrator) {
             add(
                 stringResource(CoreR.string.drawer_section_management) to
@@ -484,11 +484,12 @@ fun NavigationRoot(
                 }
         )
     }
-    val drawerEntries = drawerSpecs.map { it.second }
-    val drawerGroups =
-        drawerSpecs.groupBy({ it.first }, { it.second.item }).map { (title, items) ->
-            CinefinDrawerGroup(title = title, items = items)
-        }
+    // 按分组聚合后的顺序拍平：CinefinModalDrawer 的 selectedIndex / onSelect 与该顺序一致
+    val drawerGrouped = drawerSpecs.groupBy({ it.first }, { it.second })
+    val drawerGroups = drawerGrouped.map { (title, entries) ->
+        CinefinDrawerGroup(title = title, items = entries.map { it.item })
+    }
+    val drawerEntries = drawerGrouped.values.flatten()
     val drawerSelectedIndex = drawerEntries.indexOfFirst { it.selected }
 
     val host: @Composable () -> Unit = {
