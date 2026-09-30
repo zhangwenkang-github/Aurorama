@@ -26,7 +26,7 @@
 | EB-7 | 独立阅读主题 | ✅ 纸色 / 护眼 / 深色 / OLED / 跟随，独立于主 App 主题 |
 | EB-8 | 批注 | 🟡 W3 完成**书签**（本地 JSON + 添加 / 跳转 / 删除）；高亮 / 笔记与导出后置 |
 | EB-9 | 进度写回 UserData | ✅ W3 补齐离线暂存 + 联网回传（WorkManager）+ 冲突策略 + 30 秒 / 退后台上报 |
-| EB-10 | 入口改造 | ⏳ 归 W2（本波用 adb 显式启动 PoC） |
+| EB-10 | 入口改造 | ✅ R3 在 W3 落地（`NavigationRoot` 书籍条目显式 Intent + `ReaderActivity` 改回 `exported=false`）；本会话按约束未改导航 |
 | EB-11 | 离线阅读 | ✅ 整书下载到应用私有目录（`.part` 原子落盘）+ 阅读页离线状态 + 飞行模式可打开、可记录进度 |
 | EB-12 | 辅助阅读 | ⛔ 本期不做 |
 
@@ -332,8 +332,8 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
       约束回传 + 启动即补传）、`RunTimeTicks` 缓存修正离线 ticks、待同步标记只清当前记录、
       多设备冲突按最近时间戳 + locator 近似相等才保留。
 - [x] ③ 书签基础（EB-8）：`ReaderBookmark` 模型 + JSON 存储 + 面板（添加 / 跳转 / 删除）。
-- [x] 单测：data 4 项（冲突策略 3 项 + 书签编解码 4 项）与 modes/book 5 项（书签标签 /
-      百分比 / 体积）。
+- [x] 单测：data 10 项（进度合并 / ticks / 书签编解码，其中 7 项本波新增或改写）与
+      modes/book 5 项（书签标签 / 百分比 / 体积）。
 - [x] `:data:testDebugUnitTest`、`:modes:book:testDebugUnitTest`、
       `:app:phone:assembleDebug ktfmtCheck` 通过。
 - [x] W3 真机验证记录写入 §7.5，踩坑写入 §8。
@@ -401,6 +401,10 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 `81099153-42fc-71c4-05da-49d632fc6978`（EPUB，2.2 MB）。
 
 > 设备占用纪律：本会话到达时 W3-R3 已登记占用（22:05–22:20），按规程排队等待，22:21 登记后开始验证。
+>
+> 本表在 rebase 到 `f283ef1` **之前**完成：当时 manifest 仍是 `exported=true`，用 adb 显式启动
+> `ReaderActivity`。R3 的 Prism 阅读页外壳与 `exported=false` 在本会话 rebase 时合入（外壳保留、
+> 离线功能并入，见 §10 变更日志）。
 
 | 步骤 | 操作 | 结果 |
 |------|------|------|
@@ -467,8 +471,8 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 
 ### W2 遗留（交接 W3）
 
-- `ReaderActivity` 仍为 `exported=true`；Books 库 → 书籍详情 → 阅读器路由由 R3 统一注册
-  （本会话按约束未改 `NavigationRoot.kt`），接完导航后改回 `exported=false` 并换路由参数。
+- ✅（W3-R3 已完成）`ReaderActivity` 改回 `exported=false`；Books 库 → 书籍详情 → 阅读器路由由 R3
+  在 `NavigationRoot.kt` 统一注册，`EXTRA_ITEM_ID` / `EXTRA_TITLE` 路由参数沿用 W1 契约。
 - 「跟随」主题有单测覆盖（系统深色 → 深色、浅色 → 纸色）；真机系统当前为浅色，
   未单独点选走查，W3 可在系统深色下补一次回归。
 - 字体只提供默认 + Readium 内置字体族（衬线 / 无衬线 / 等宽）；设计 §3.1 的
@@ -480,8 +484,9 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 
 ### W3 遗留（交接 W4 / 负责人）
 
-- `ReaderActivity` 仍为 `exported=true`（入口注册与 `exported=false` 由 R3 在
-  `NavigationRoot.kt` 一并提交，本会话按约束未改）。
+- ✅ 入口与 `exported=false` 已由 R3 在 W3 一并落地（rebase 到 `f283ef1` 时合入）。注意：本会话
+  §7.5 的真机验证跑在 rebase 之前（manifest 仍 `exported=true`）的 APK 上，用 adb 显式启动；合入
+  后入口链路以 R3 的页面走查为准，adb 直启需临时改 manifest。
 - 书签只做到"添加 / 跳转 / 删除"；高亮、笔记、导出 / 跨端同步后置（EB-8）。
 - 阅读页不提供"删除下载"入口：正在渲染的 Publication 仍可能按需读取本地文件，删除交给后续
   下载管理 UI（`ReaderRepository.deleteLocalFile` 已就绪）。
@@ -498,4 +503,5 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 |------|------|
 | 2026-09-30 | W1-R1 创建本文档；完成 Readium PoC、进度接口、单测与真机验证 |
 | 2026-09-30 | W2-R1：阅读模式（滚动 / 分页 / 双栏）、排版设置（字号 / 行距 / 边距 / 字体 / 对齐）、阅读主题（纸色 / 护眼 / 深色 / OLED / 跟随）；`pref_reader_*` 持久化；9 项单测 + Pad 5 真机验证 |
-| 2026-09-30 | W3-R1：离线整书下载（原子落盘 + 状态 UI）、进度离线队列（30 秒 / 退后台 / WorkManager 回传 + 冲突策略细化 + runtimeTicks 缓存）、书签基础（JSON + 面板）；13 项单测；真机验证见 §7.5 |
+| 2026-09-30 | W3-R1：离线整书下载（原子落盘 + 状态 UI）、进度离线队列（30 秒 / 退后台 / WorkManager 启动补传 + 周期兜底、冲突策略细化、runtimeTicks 缓存）、书签基础（JSON + 面板）；15 项单测（data 10 / modes:book 5）；真机验证见 §7.5 |
+| 2026-09-30 | W3-R1 rebase 到 `f283ef1`（R3 Prism 阅读页 + 入口）：`ReaderScreen.kt` 冲突按「保留 R3 外壳 + 并入离线功能」解决——顶栏沿用 Prism（`ReaderTopBar` 扩展下载状态 / 书签入口）、错误态用 `CinefinEmptyState`、`CompositionLocalProvider(LocalMediaColors)` 与设置面板保持 R3 版；离线暂存横幅、`jumpTarget` / `onJumpHandled` / `onNavigatorReady`、书签面板与 `DownloadAction` 全部保留 |
