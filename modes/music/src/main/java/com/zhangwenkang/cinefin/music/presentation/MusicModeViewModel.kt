@@ -8,16 +8,27 @@ import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicRepository
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayState
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDocument
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsPresenter
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRepository
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -26,6 +37,8 @@ import kotlinx.coroutines.launch
  *
  * 负责：曲库浏览（专辑 / 艺术家 / 歌曲 / 歌单）、"点歌 → 整份列表入队起播"、 队列操作（拖拽排序 / 下一首播放 / 点队列跳转 / 移除）。播放本身完全交给
  * [MusicPlaybackController]，UI 不接触播放器 API。
+ *
+ * W3 R2 追加歌词（MU-5）：当前曲目变化 → 拉取 / 解析歌词（外挂 LRC → 服务端 → 本地缓存）， 播放位置 → 当前行索引（滚动同步与高亮）， 语言切换与双语对照只影响显示侧。
  */
 @HiltViewModel
 class MusicModeViewModel
@@ -35,6 +48,7 @@ constructor(
     private val trackResolver: MusicTrackResolver,
     private val playbackController: MusicPlaybackController,
     private val queueEditor: MusicQueueEditor,
+    private val lyricsRepository: LyricsRepository,
     playbackStateSource: MusicPlaybackStateSource,
 ) : ViewModel() {
 
@@ -56,6 +70,30 @@ constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    /**
+     * 歌词面板状态（MU-5）。
+     *
+     * [languages] 由逐行识别结果聚合（原文恒在末位）；[display] 默认简体中文（[LyricsPresenter.defaultDisplay]）；
+     * [activeIndex] 由 [LyricsPresenter.activeIndex] 根据播放位置算出，供高亮与跟随滚动使用。
+     */
+    data class LyricsUiState(
+        val open: Boolean = false,
+        val loading: Boolean = false,
+        val title: String? = null,
+        val document: LyricsDocument? = null,
+        val languages: List<LyricsDisplayLanguage> = emptyList(),
+        val display: LyricsDisplayState = LyricsDisplayState(),
+        val rows: List<LyricsRow> = emptyList(),
+        val activeIndex: Int = 0,
+        val message: String? = null,
+    )
+
+    private val _lyricsState = MutableStateFlow(LyricsUiState())
+    val lyricsState: StateFlow<LyricsUiState> = _lyricsState.asStateFlow()
+
+    private var loadedLyricsItemId: UUID? = null
+    private var lyricsLoadJob: Job? = null
+
     /** 正在播放的队列（当前曲目 / 播放模式 / 顺序），底栏与队列面板直接消费。 */
     val queue: StateFlow<MusicQueue?> = playbackController.queue
 
@@ -64,7 +102,138 @@ constructor(
 
     init {
         refresh()
+        observeLyrics()
     }
+
+    /** 当前曲目 → 拉歌词；播放位置 → 当前行。两条流各自独立，互不阻塞。 */
+    private fun observeLyrics() {
+        viewModelScope.launch {
+            playbackController.queue
+                .map { it?.currentItem }
+                .distinctUntilChanged { old, new -> old?.itemId == new?.itemId }
+                .collect(::onCurrentItemChanged)
+        }
+        viewModelScope.launch { playbackController.positionMs.collect(::syncActiveLyricLine) }
+    }
+
+    private fun onCurrentItemChanged(item: PlayerItem?) {
+        lyricsLoadJob?.cancel()
+        if (item == null) {
+            loadedLyricsItemId = null
+            _lyricsState.value = LyricsUiState()
+            return
+        }
+        if (loadedLyricsItemId == item.itemId && _lyricsState.value.document != null) return
+        loadedLyricsItemId = item.itemId
+        val localPath = localMediaPath(item.mediaSourceUri)
+        lyricsLoadJob = viewModelScope.launch {
+            _lyricsState.update {
+                it.copy(
+                    loading = true,
+                    title = item.name,
+                    document = null,
+                    languages = emptyList(),
+                    rows = emptyList(),
+                    activeIndex = 0,
+                    message = null,
+                )
+            }
+            val document = runCatching {
+                lyricsRepository.getLyrics(item.itemId, localPath)
+            }
+                .getOrNull()
+            if (loadedLyricsItemId != item.itemId) return@launch
+            _lyricsState.update { state ->
+                if (document == null) {
+                    state.copy(
+                        loading = false,
+                        document = null,
+                        languages = emptyList(),
+                        rows = emptyList(),
+                        activeIndex = 0,
+                        message = "该曲目暂无歌词（服务端 / 外挂 LRC 都没有）",
+                    )
+                } else {
+                    val display = LyricsPresenter.defaultDisplay(document)
+                    val rows = LyricsPresenter.rows(document, display)
+                    state.copy(
+                        loading = false,
+                        document = document,
+                        languages = LyricsPresenter.displayLanguages(document),
+                        display = display,
+                        rows = rows,
+                        activeIndex =
+                            LyricsPresenter.activeIndex(rows, playbackController.positionMs.value),
+                        message = null,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun syncActiveLyricLine(positionMs: Long) {
+        _lyricsState.update { state ->
+            if (state.rows.isEmpty()) {
+                state
+            } else {
+                val index = LyricsPresenter.activeIndex(state.rows, positionMs)
+                if (index == state.activeIndex) state else state.copy(activeIndex = index)
+            }
+        }
+    }
+
+    /** 打开歌词面板（曲目在底栏点「词」触发）。 */
+    fun openLyrics() {
+        _lyricsState.update { it.copy(open = true) }
+    }
+
+    fun closeLyrics() {
+        _lyricsState.update { it.copy(open = false) }
+    }
+
+    /** 语言切换（只改显示侧；默认简体中文）。 */
+    fun selectLyricsLanguage(language: LyricsDisplayLanguage) {
+        updateLyricsDisplay { it.copy(language = language) }
+    }
+
+    fun toggleLyricsBilingual() {
+        updateLyricsDisplay { it.copy(bilingual = !it.bilingual) }
+    }
+
+    /** 跟随滚动开关；关闭后高亮仍随播放位置变化，只是不自动滚动。 */
+    fun toggleLyricsFollow() {
+        updateLyricsDisplay { it.copy(follow = !it.follow) }
+    }
+
+    /** 点击歌词行：跳到该行时间戳（不改变播放 / 暂停状态）。 */
+    fun seekToLyricLine(startMs: Long) = playbackController.seekTo(startMs)
+
+    private fun updateLyricsDisplay(transform: (LyricsDisplayState) -> LyricsDisplayState) {
+        _lyricsState.update { state ->
+            val display = transform(state.display)
+            val document = state.document
+            if (document == null) {
+                state.copy(display = display)
+            } else {
+                val rows = LyricsPresenter.rows(document, display)
+                state.copy(
+                    display = display,
+                    rows = rows,
+                    activeIndex =
+                        LyricsPresenter.activeIndex(rows, playbackController.positionMs.value),
+                )
+            }
+        }
+    }
+
+    /** 本地音频路径（外挂 LRC 查找用）；在线 / 转码地址返回 null。 */
+    private fun localMediaPath(mediaSourceUri: String?): String? =
+        when {
+            mediaSourceUri == null -> null
+            mediaSourceUri.startsWith("file://") -> mediaSourceUri.removePrefix("file://")
+            mediaSourceUri.contains("://") -> null
+            else -> mediaSourceUri
+        }
 
     /** 重新加载曲库与歌单（一次曲目请求 + 一次歌单请求）。 */
     fun refresh() {

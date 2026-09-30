@@ -92,6 +92,7 @@ fun MusicModeScreen(
     val state by viewModel.uiState.collectAsState()
     val queue by viewModel.queue.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val lyricsState by viewModel.lyricsState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
 
     // 队列被清空（停止播放）时自动收起队列面板
@@ -146,7 +147,19 @@ fun MusicModeScreen(
                 isPlaying = isPlaying,
                 onPlayPause = viewModel::togglePlayPause,
                 onNext = viewModel::skipToNext,
+                onOpenLyrics = viewModel::openLyrics,
                 onOpenQueue = { queueSheetOpen = true },
+            )
+        }
+
+        if (lyricsState.open && queue != null) {
+            LyricsSheet(
+                state = lyricsState,
+                onDismiss = viewModel::closeLyrics,
+                onSelectLanguage = viewModel::selectLyricsLanguage,
+                onToggleBilingual = viewModel::toggleLyricsBilingual,
+                onToggleFollow = viewModel::toggleLyricsFollow,
+                onLineClick = viewModel::seekToLyricLine,
             )
         }
 
@@ -487,6 +500,7 @@ private fun NowPlayingBar(
     isPlaying: Boolean,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
+    onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
 ) {
     val item = queue?.currentItem ?: return
@@ -519,6 +533,9 @@ private fun NowPlayingBar(
                     tint = tint,
                     modifier = Modifier.size(20.dp),
                 )
+            }
+            CinefinIconButton(onClick = onOpenLyrics) { tint ->
+                Text(text = "词", style = CinefinType.LabelLarge, color = tint)
             }
             CinefinIconButton(onClick = onPlayPause) { tint ->
                 Icon(
