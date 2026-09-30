@@ -40,6 +40,7 @@ internal fun ReadiumEpubView(
     jumpTarget: Locator?,
     onLocationChanged: (Locator) -> Unit,
     onJumpHandled: () -> Unit,
+    onNavigatorReady: (Locator) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -48,6 +49,7 @@ internal fun ReadiumEpubView(
     val currentSystemDark = rememberUpdatedState(systemDark)
     val currentOnLocationChanged = rememberUpdatedState(onLocationChanged)
     val currentOnJumpHandled = rememberUpdatedState(onJumpHandled)
+    val currentOnNavigatorReady = rememberUpdatedState(onNavigatorReady)
     var navigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
     val listener =
@@ -77,6 +79,12 @@ internal fun ReadiumEpubView(
         val currentNavigator = navigator ?: return@LaunchedEffect
         currentNavigator.go(target, animated = true)
         currentOnJumpHandled.value()
+    }
+
+    // 导航器就绪时上报当前位置：用户不翻页也能直接加书签（不触发进度写入）。
+    LaunchedEffect(navigator) {
+        val currentNavigator = navigator ?: return@LaunchedEffect
+        currentOnNavigatorReady.value(currentNavigator.currentLocator.value)
     }
 
     key(publication) {

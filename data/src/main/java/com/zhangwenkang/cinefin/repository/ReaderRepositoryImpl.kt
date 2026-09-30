@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.repository
 
 import android.content.Context
+import android.net.ConnectivityManager
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import java.io.File
 import java.io.IOException
@@ -128,11 +129,15 @@ class ReaderRepositoryImpl(
     override suspend fun getReadingProgress(itemId: UUID): ReadingProgress? =
         withContext(Dispatchers.IO) {
             val local = progressStore.load(itemId)
-            val remote = runCatching {
-                fetchRemoteProgress(itemId)
-            }
-                .onFailure { Timber.w(it, "读取阅读进度失败，回退本地进度") }
-                .getOrNull()
+            // 飞行模式 / 无网络时不发请求：直接用本地 locator 打开，避免打开阅读页先卡超时。
+            val remote =
+                if (!hasActiveNetwork()) {
+                    null
+                } else {
+                    runCatching { fetchRemoteProgress(itemId) }
+                        .onFailure { Timber.w(it, "读取阅读进度失败，回退本地进度") }
+                        .getOrNull()
+                }
             resolveReadingProgress(itemId, local, remote)
         }
 
@@ -235,6 +240,11 @@ class ReaderRepositoryImpl(
         }
 
     private fun localFileFor(itemId: UUID): File = File(appContext.filesDir, "books/$itemId.book")
+
+    private fun hasActiveNetwork(): Boolean {
+        val manager = appContext.getSystemService(ConnectivityManager::class.java) ?: return true
+        return manager.activeNetwork != null
+    }
 
     private companion object {
         const val DOWNLOAD_BUFFER_BYTES = 64 * 1024

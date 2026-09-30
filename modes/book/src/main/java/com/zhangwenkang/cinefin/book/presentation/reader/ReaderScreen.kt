@@ -78,6 +78,7 @@ fun ReaderScreen(
     onRemoveBookmark: (String) -> Unit,
     onJumpToBookmark: (ReaderBookmark) -> Unit,
     onJumpHandled: () -> Unit,
+    onNavigatorReady: (Locator) -> Unit,
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
@@ -153,6 +154,7 @@ fun ReaderScreen(
                                     jumpTarget = jumpTarget,
                                     onLocationChanged = onLocationChanged,
                                     onJumpHandled = onJumpHandled,
+                                    onNavigatorReady = onNavigatorReady,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                         }

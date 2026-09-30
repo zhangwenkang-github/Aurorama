@@ -165,6 +165,11 @@ constructor(
         }
     }
 
+    /** 导航器就绪时的当前位置：只用于书签定位，不触发进度写入。 */
+    fun onNavigatorLocator(locator: Locator) {
+        if (currentLocator == null) currentLocator = locator
+    }
+
     /** 退到后台 / 离开阅读页：立即落盘并尝试回传（ARCHITECTURE §3.6 上报时机）。 */
     fun onStopReading() {
         val itemId = openedItemId ?: return

@@ -50,6 +50,7 @@ class ReaderActivity : AppCompatActivity() {
                 onRemoveBookmark = viewModel::removeBookmark,
                 onJumpToBookmark = viewModel::jumpTo,
                 onJumpHandled = viewModel::consumeJumpTarget,
+                onNavigatorReady = viewModel::onNavigatorLocator,
             )
         }
 
