@@ -125,13 +125,22 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
     /**
      * 阅读进度离线队列回传（EB-9）：断网期间的进度先落本地，联网后由 WorkManager 回传。
      *
-     * 无待同步记录时只读一次本地 JSON，不产生网络请求。
+     * 两条路径：① 启动即尝试一次（进程被杀 / 离线写入后，重新打开应用就能补传）； ② 15 分钟周期兜底（应用不重启也不会漏）。无待同步记录时只读一次本地 JSON，不产生网络请求。
      */
     private fun scheduleReaderProgressSync(workManager: WorkManager) {
         val constraints =
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
-        val syncRequest =
+        workManager.enqueueUniqueWork(
+            uniqueWorkName = "readerProgressSyncNow",
+            existingWorkPolicy = ExistingWorkPolicy.KEEP,
+            request =
+                OneTimeWorkRequestBuilder<ReaderProgressSyncWorker>()
+                    .setConstraints(constraints)
+                    .build(),
+        )
+
+        val periodicRequest =
             PeriodicWorkRequestBuilder<ReaderProgressSyncWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(constraints)
                 .build()
@@ -139,7 +148,7 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
         workManager.enqueueUniquePeriodicWork(
             uniqueWorkName = "readerProgressSync",
             existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP,
-            request = syncRequest,
+            request = periodicRequest,
         )
     }
 }

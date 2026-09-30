@@ -243,9 +243,11 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
   - 阅读中每 **30 秒**检查一次：位置有变化 → 落盘 + 回传；位置没变但仍有待同步记录 →
     重试回传（关掉飞行模式无需重开阅读页）；
   - 退到后台（`ReaderActivity.onStop`）→ 立即落盘 + 尝试回传；
-  - 进程被杀 / 长时间离线 → `ReaderProgressSyncWorker`（`core/work`，15 分钟周期 +
-    `NetworkType.CONNECTED` 约束，由 `BaseApplication` 调度）调用 `flushPendingProgress()`；
-    没有待同步记录时不发任何请求。
+  - 进程被杀 / 长时间离线 → `ReaderProgressSyncWorker`（`core/work`）调用
+    `flushPendingProgress()`，由 `BaseApplication` 调度两条路径：**应用启动即尝试一次**
+    （`readerProgressSyncNow`，进程被杀后重新打开应用就能补传）+ **15 分钟周期兜底**
+    （`readerProgressSync`）；两条都带 `NetworkType.CONNECTED` 约束，
+    没有待同步记录时只读一次本地 JSON、不发请求。
 
 ## 5. 学习笔记（ROLE_SKILLS §5.1 全表）
 
@@ -327,7 +329,7 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
       失败清理半截文件）、阅读页下载状态（下载 / 下载中 % / 离线可读 · 体积 / 重试）、
       离线命中缓存不再打网络。
 - [x] ② 进度同步（EB-9）：离线暂存 + 联网回传（阅读中 30 秒 / 退后台 / WorkManager 周期
-      约束回传）、`RunTimeTicks` 缓存修正离线 ticks、待同步标记只清当前记录、
+      约束回传 + 启动即补传）、`RunTimeTicks` 缓存修正离线 ticks、待同步标记只清当前记录、
       多设备冲突按最近时间戳 + locator 近似相等才保留。
 - [x] ③ 书签基础（EB-8）：`ReaderBookmark` 模型 + JSON 存储 + 面板（添加 / 跳转 / 删除）。
 - [x] 单测：data 4 项（冲突策略 3 项 + 书签编解码 4 项）与 modes/book 5 项（书签标签 /
@@ -391,6 +393,37 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 
 > 验证后已把设置恢复为默认（滚动 / 深色 / 100% / 行距 1.2 / 边距 1.0 / 默认字体 / 两端对齐）
 > 并释放 device lock。截图临时文件位于 `%TEMP%\cinefin-r1-*.png`（未入库、未贴回对话）。
+
+### 7.5 W3 离线 / 进度同步 / 书签（2026-09-30 22:19–22:5x，Pad 5）
+
+设备：Xiaomi Pad 5（`nabu`，Android 13，2560×1600 横屏）；adb 文本命令为主，截图仅 1 张用于确认
+离线正文渲染（本地查看后删除，未贴回对话）。书籍：Books 库《雷普利全集》
+`81099153-42fc-71c4-05da-49d632fc6978`（EPUB，2.2 MB）。
+
+> 设备占用纪律：本会话到达时 W3-R3 已登记占用（22:05–22:20），按规程排队等待，22:21 登记后开始验证。
+
+| 步骤 | 操作 | 结果 |
+|------|------|------|
+| 在线打开 | `am start -W … ReaderActivity -e itemId …` | `Status: ok`、`LaunchState: COLD`、`TotalTime 1932 ms`；顶栏「离线可读 · 2.1 MB」，命中 `files/books/{itemId}.book` 缓存 |
+| 进度基线 | 本地 `progress.json` | `progression=0.003568879…`、`positionTicks=35689`、`pendingSync=false`、`runtimeTicks=10000000` |
+| 服务端基线 | `GET /Users/{id}/Items/{id}/UserData` | `PlaybackPositionTicks=35689`、`PlayedPercentage=0.35689`、`LastPlayedDate=14:19:48Z`（22:19:48 CST） |
+| 飞行模式 | `cmd connectivity airplane-mode enable` | `airplane_mode_on=1`；`ping jellyfins.…` → `unknown host` |
+| 离线冷启动 | force-stop → `am start -W` | `Status: ok`、`COLD`、`TotalTime 1921 ms`（未先卡超时）；顶栏「离线可读 · 2.1 MB」+ 横幅「离线暂存 1 条进度，联网后自动回传」；截图确认正文正常渲染（飞行模式图标可见） |
+| 离线继续阅读 | 滚动一屏 | 本地进度 → `position=7`、`totalProgression=0.004282655246252677`、`pendingSync=true`、`positionTicks=42827`（= 0.00428265×10⁷，**离线 ticks 正确**，旧逻辑会算出约 4 286 万） |
+| 阅读页内回传 | 关闭飞行模式，等 30 秒 ticker | `progress.json → pendingSync=false`，`updatedAt` 保持离线写入的时间戳（未重写内容） |
+| 服务端确认 | `GET …/UserData` | `PlaybackPositionTicks=42827`、`PlayedPercentage=0.42827`、`LastPlayedDate=14:22:07Z`（22:22:07 CST） |
+| 退出重进恢复 | force-stop → 冷启动 → 向上滚一屏 | 回滚后仍在第 4 章（`…004.html`）`position=6`：说明冷启动恢复到了章节中段 `position=7`，若从头打开回滚会落到 `…003.html`；新进度在线同步成功 |
+| 书签添加 | 顶栏「书签」→「添加当前页书签」 | `files/reader/bookmarks.json` 新增 `label="1 · 0.4%"`、`progression=0.003568879…` |
+| 书签跳转 | 先下滚两屏（`position=8`、0.0049964），再从面板点该书签 | 回到 `position=6`、`progression=0.003568879…`，并即时回传 |
+| 后台回传兜底 | 飞行模式下滚动一屏 → `force-stop`（记录 `pendingSync=true` 留存）→ 关闭飞行模式 → 重新打开应用主界面（**不进阅读页**） | logcat：`WM-WorkerWrapper: Starting work for …ReaderProgressSyncWorker` → `Worker result SUCCESS`；`progress.json → pendingSync=false`；服务端 `LastPlayedDate=14:28:35Z`（22:28:35 CST）与 Worker 运行时刻一致 |
+| 稳定性 | `adb logcat -d` 过滤 `FATAL / ANR / E cinefin` | 无应用崩溃（命中的 AndroidRuntime 日志来自 `uiautomator` 命令自身） |
+
+> 截图临时文件位于 `%TEMP%\cinefin-r1-w3-offline.png`：本会话执行环境禁止 `Remove-Item`
+> （策略拦截），未能删除；该文件未入库、未贴回对话。
+>
+> 真机过程中发现并修掉一个设计缺口：WorkManager 周期任务用 `KEEP` 策略时，应用重启不会立刻
+> 补传（要等下一个 15 分钟周期）；补了「启动即尝试一次」的一次性任务后，重新打开应用即可补传
+> （上表最后一行即验证记录）。
 
 ## 8. 踩坑库
 
