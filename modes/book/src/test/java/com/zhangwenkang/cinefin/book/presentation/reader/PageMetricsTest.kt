@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import androidx.compose.ui.geometry.Offset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,5 +48,13 @@ class PageMetricsTest {
         assertEquals("双栏 · 5-6/24", pageIndicatorText(ReaderMode.TwoColumn, 4, 24))
         assertEquals("双栏 · 24-24/24", pageIndicatorText(ReaderMode.TwoColumn, 23, 24))
         assertEquals("分页 · 0/0", pageIndicatorText(ReaderMode.Paged, 0, 0))
+    }
+
+    @Test
+    fun `放大后的平移被夹在可移动范围内`() {
+        val clamped = clampPageOffset(Offset(500f, -900f), scale = 2f, width = 800, height = 1000)
+        assertEquals(400f, clamped.x, 0.01f)
+        assertEquals(-500f, clamped.y, 0.01f)
+        assertEquals(Offset.Zero, clampPageOffset(Offset(30f, 30f), scale = 1f, 800, 1000))
     }
 }

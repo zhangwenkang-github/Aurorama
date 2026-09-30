@@ -3,7 +3,10 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +38,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -213,7 +218,12 @@ private fun PagedPages(
     }
 }
 
-/** 单页 + 双指缩放 / 拖动（EB-3「缩放基础」）；缩放到 1× 以下自动回到居中。 */
+/**
+ * 单页 + 双指缩放（EB-3「缩放基础」）；缩放到 1× 以下自动回到居中。
+ *
+ * 手势只在**两根手指**同时按下时消费事件：单指拖动必须留给 `HorizontalPager` 翻页，否则 分页 / 双栏模式会翻不动页（真机实测踩坑，见 READER_PLAN §8 踩坑
+ * 18）。放大后可用双指拖动平移。
+ */
 @Composable
 private fun ZoomablePage(
     cache: PageImageCache,
@@ -231,14 +241,16 @@ private fun ZoomablePage(
                 .clipToBounds()
                 .onSizeChanged { boxSize = it }
                 .pointerInput(index) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(1f, PAGE_MAX_ZOOM)
+                    detectMultiTouchZoom { pan, zoom ->
+                        val nextScale = (scale * zoom).coerceIn(1f, PAGE_MAX_ZOOM)
+                        scale = nextScale
                         offset =
-                            if (scale <= 1f) {
-                                Offset.Zero
-                            } else {
-                                clampOffset(offset + pan, scale, boxSize)
-                            }
+                            clampPageOffset(
+                                offset + pan,
+                                nextScale,
+                                boxSize.width,
+                                boxSize.height,
+                            )
                     }
                 },
         contentAlignment = Alignment.Center,
@@ -332,8 +344,28 @@ private fun PageIndicator(
     )
 }
 
-private fun clampOffset(offset: Offset, scale: Float, size: IntSize): Offset {
-    val maxX = size.width * (scale - 1f) / 2f
-    val maxY = size.height * (scale - 1f) / 2f
-    return Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
+/**
+ * 只在 ≥2 根手指时消费事件的双指缩放手势。
+ *
+ * `detectTransformGestures` 会把单指拖动也当成 pan 消费掉，导致 Pager 收不到翻页手势。
+ */
+private suspend fun PointerInputScope.detectMultiTouchZoom(
+    onGesture: (pan: Offset, zoom: Float) -> Unit
+) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        do {
+            val event = awaitPointerEvent()
+            if (event.changes.count { it.pressed } >= 2) {
+                val zoom = event.calculateZoom()
+                val pan = event.calculatePan()
+                if (zoom != 1f || pan != Offset.Zero) {
+                    onGesture(pan, zoom)
+                    event.changes.forEach { change ->
+                        if (change.positionChanged()) change.consume()
+                    }
+                }
+            }
+        } while (event.changes.any { it.pressed })
+    }
 }

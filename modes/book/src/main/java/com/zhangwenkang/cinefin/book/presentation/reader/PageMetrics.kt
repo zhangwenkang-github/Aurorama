@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import androidx.compose.ui.geometry.Offset
 import kotlin.math.floor
 
 /**
@@ -70,4 +71,17 @@ internal fun pageIndicatorText(mode: ReaderMode, pageIndex: Int, pageCount: Int)
 
         else -> "${mode.label} · $first/$pageCount"
     }
+}
+
+/** 缩放后的平移夹取：放大 [scale] 倍时，最多平移到放大出来的边缘（避免把页面拖出视野）。 缩放回到 1× 时平移自动归零。 */
+internal fun clampPageOffset(
+    offset: Offset,
+    scale: Float,
+    width: Int,
+    height: Int,
+): Offset {
+    if (scale <= 1f) return Offset.Zero
+    val maxX = width * (scale - 1f) / 2f
+    val maxY = height * (scale - 1f) / 2f
+    return Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
 }
