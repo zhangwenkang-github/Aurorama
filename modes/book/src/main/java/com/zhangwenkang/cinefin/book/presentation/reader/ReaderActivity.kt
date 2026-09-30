@@ -44,6 +44,7 @@ class ReaderActivity : AppCompatActivity() {
                 jumpTarget = jumpTarget,
                 onSettingsChange = viewModel::updateSettings,
                 onLocationChanged = viewModel::onLocationChanged,
+                onSimplePageChanged = viewModel::onSimplePageChanged,
                 onRetry = viewModel::retry,
                 onDownload = viewModel::downloadBook,
                 onAddBookmark = viewModel::addBookmark,

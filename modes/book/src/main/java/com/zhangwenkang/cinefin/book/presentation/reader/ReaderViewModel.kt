@@ -45,8 +45,7 @@ sealed interface ReaderUiState {
 
     data class Ready(
         val itemId: UUID,
-        val publication: Publication,
-        val initialLocator: Locator?,
+        val document: ReaderDocument,
         val initialProgression: Double,
     ) : ReaderUiState
 
@@ -94,11 +93,17 @@ constructor(
 
     private var openedItemId: UUID? = null
     private var openedAsset: Asset? = null
+    private var openedPageSource: PageSource? = null
     private var progressJob: Job? = null
+    private var simpleProgressJob: Job? = null
     private var periodicJob: Job? = null
     private var downloadJob: Job? = null
     private var currentLocator: Locator? = null
+    /** PDF / CBZ 的当前位置（页索引 + 总页数），与 [currentLocator] 二者只会有一个生效。 */
+    private var currentSimplePage: Int? = null
+    private var currentSimplePageCount: Int = 0
     private var lastPersistedLocatorJson: String? = null
+    private var lastPersistedSimpleProgression: Double? = null
 
     /** 排版 / 主题设置：内存即时生效（提交给导航器），同时写回 `pref_reader_*`。 */
     fun updateSettings(settings: ReaderSettings) {
@@ -118,18 +123,9 @@ constructor(
                 withContext(Dispatchers.IO) {
                     val file = readerRepository.ensureLocalFile(itemId)
                     val progress = readerRepository.getReadingProgress(itemId)
-                    val (asset, publication) = openPublication(file)
-                    openedAsset = asset
-                    // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
-                    val initialLocator =
-                        progress?.locatorJson?.toLocator()
-                            ?: progress
-                                ?.takeIf { it.progression > 0.0 }
-                                ?.let { locateByProgression(publication, it.progression) }
                     ReaderUiState.Ready(
                         itemId = itemId,
-                        publication = publication,
-                        initialLocator = initialLocator,
+                        document = openDocument(file, progress),
                         initialProgression = progress?.progression ?: 0.0,
                     )
                 }
@@ -140,14 +136,16 @@ constructor(
                     startPeriodicProgressReporter()
                 }
                 .onFailure {
-                    Timber.w(it, "打开 EPUB 失败")
-                    _state.value = ReaderUiState.Error(it.message ?: "打开 EPUB 失败")
+                    Timber.w(it, "打开书籍失败")
+                    closeDocuments()
+                    _state.value = ReaderUiState.Error(it.message ?: "打开书籍失败")
                 }
         }
     }
 
     fun retry() {
         val itemId = openedItemId ?: return
+        closeDocuments()
         openedItemId = null
         open(itemId)
     }
@@ -165,6 +163,24 @@ constructor(
         }
     }
 
+    /**
+     * PDF / CBZ 翻页（EB-3 / EB-4）：整书进度 = 页索引 / 总页数，退回 EPUB 的 progression 语义， 服务端 ticks
+     * 换算与多设备恢复（[pageIndexForProgression]）都复用同一条链路。
+     */
+    fun onSimplePageChanged(pageIndex: Int, pageCount: Int) {
+        val itemId = openedItemId ?: return
+        if (pageCount <= 0) return
+        currentSimplePage = pageIndex.coerceIn(0, pageCount - 1)
+        currentSimplePageCount = pageCount
+        val progression = progressionForPage(currentSimplePage ?: 0, pageCount)
+        if (progression == lastPersistedSimpleProgression) return
+        simpleProgressJob?.cancel()
+        simpleProgressJob = viewModelScope.launch {
+            delay(PROGRESS_DEBOUNCE_MS)
+            persistProgression(itemId, progression)
+        }
+    }
+
     /** 导航器就绪时的当前位置：只用于书签定位，不触发进度写入。 */
     fun onNavigatorLocator(locator: Locator) {
         if (currentLocator == null) currentLocator = locator
@@ -173,12 +189,22 @@ constructor(
     /** 退到后台 / 离开阅读页：立即落盘并尝试回传（ARCHITECTURE §3.6 上报时机）。 */
     fun onStopReading() {
         val itemId = openedItemId ?: return
-        val locator = currentLocator ?: return
-        val progression =
-            locator.locations.totalProgression ?: locator.locations.progression ?: return
         progressJob?.cancel()
+        simpleProgressJob?.cancel()
+        val locator = currentLocator
+        val simpleProgression =
+            currentSimplePage
+                ?.takeIf { currentSimplePageCount > 0 }
+                ?.let { progressionForPage(it, currentSimplePageCount) }
+        if (locator == null && simpleProgression == null) return
         viewModelScope.launch {
-            persistProgress(itemId, locator, progression)
+            if (locator != null) {
+                val progression =
+                    locator.locations.totalProgression ?: locator.locations.progression
+                if (progression != null) persistProgress(itemId, locator, progression)
+            } else if (simpleProgression != null) {
+                persistProgression(itemId, simpleProgression)
+            }
             flushPendingProgress()
         }
     }
@@ -250,10 +276,23 @@ constructor(
     }
 
     private suspend fun persistProgress(itemId: UUID, locator: Locator, progression: Double) {
+        persistProgression(itemId, progression, locatorJson = locator.toJSON().toString())
+    }
+
+    /**
+     * 统一落盘 + 回传入口。
+     *
+     * [locatorJson] 为空表示 PDF / CBZ：恢复位置只依赖 progression（页索引 / 总页数）。
+     */
+    private suspend fun persistProgression(
+        itemId: UUID,
+        progression: Double,
+        locatorJson: String = "",
+    ) {
         val progress =
             ReadingProgress(
                 itemId = itemId,
-                locatorJson = locator.toJSON().toString(),
+                locatorJson = locatorJson,
                 progression = progression,
                 positionTicks = progressionToTicks(progression),
                 updatedAt = Instant.now(),
@@ -262,6 +301,7 @@ constructor(
         runCatching { readerRepository.saveReadingProgress(itemId, progress) }
             .onSuccess {
                 lastPersistedLocatorJson = progress.locatorJson
+                lastPersistedSimpleProgression = progression
                 refreshPendingSyncCount()
             }
             .onFailure { Timber.w(it, "保存阅读进度失败") }
@@ -282,14 +322,21 @@ constructor(
                 val locatorJson = locator?.toJSON()?.toString()
                 val progression =
                     locator?.locations?.totalProgression ?: locator?.locations?.progression
-                if (
+                val simpleProgression =
+                    currentSimplePage
+                        ?.takeIf { currentSimplePageCount > 0 }
+                        ?.let { progressionForPage(it, currentSimplePageCount) }
+                when {
                     locator != null &&
                         progression != null &&
-                        locatorJson != lastPersistedLocatorJson
-                ) {
-                    persistProgress(itemId, locator, progression)
-                } else if (_pendingSyncCount.value > 0) {
-                    flushPendingProgress()
+                        locatorJson != lastPersistedLocatorJson ->
+                        persistProgress(itemId, locator, progression)
+
+                    simpleProgression != null &&
+                        simpleProgression != lastPersistedSimpleProgression ->
+                        persistProgression(itemId, simpleProgression)
+
+                    _pendingSyncCount.value > 0 -> flushPendingProgress()
                 }
             }
         }
@@ -326,17 +373,68 @@ constructor(
 
     override fun onCleared() {
         progressJob?.cancel()
+        simpleProgressJob?.cancel()
         periodicJob?.cancel()
         downloadJob?.cancel()
+        closeDocuments()
+        super.onCleared()
+    }
+
+    /** 释放 Readium Asset 与 PDF / CBZ 页源；重复调用安全。 */
+    private fun closeDocuments() {
         openedAsset?.close()
         openedAsset = null
-        super.onCleared()
+        openedPageSource?.close()
+        openedPageSource = null
     }
 
     private suspend fun locateByProgression(
         publication: Publication,
         progression: Double,
     ): Locator? = runCatching { publication.locateProgression(progression) }.getOrNull()
+
+    /** 按内容分派：EPUB → Readium；PDF / CBZ → 页窗口自研视图。 */
+    private suspend fun openDocument(file: File, progress: ReadingProgress?): ReaderDocument =
+        when (sniffBookFormat(file)) {
+            BookFormat.Pdf -> openSimple(file, SimpleBookFormat.Pdf, progress)
+            BookFormat.ComicArchive -> openSimple(file, SimpleBookFormat.ComicArchive, progress)
+            BookFormat.Epub,
+            BookFormat.Unknown -> openReadium(file, progress)
+        }
+
+    private fun openSimple(
+        file: File,
+        format: SimpleBookFormat,
+        progress: ReadingProgress?,
+    ): ReaderDocument.Simple {
+        val source =
+            when (format) {
+                SimpleBookFormat.Pdf -> PdfPageSource(file)
+                SimpleBookFormat.ComicArchive -> ComicPageSource(file)
+            }
+        if (source.pageCount <= 0) {
+            source.close()
+            throw IllegalStateException("${format.label} 中没有可阅读的页面")
+        }
+        openedPageSource = source
+        return ReaderDocument.Simple(
+            format = format,
+            pageSource = source,
+            initialPage = pageIndexForProgression(progress?.progression ?: 0.0, source.pageCount),
+        )
+    }
+
+    private suspend fun openReadium(file: File, progress: ReadingProgress?): ReaderDocument.Rich {
+        val (asset, publication) = openPublication(file)
+        openedAsset = asset
+        // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
+        val initialLocator =
+            progress?.locatorJson?.toLocator()
+                ?: progress
+                    ?.takeIf { it.progression > 0.0 }
+                    ?.let { locateByProgression(publication, it.progression) }
+        return ReaderDocument.Rich(publication = publication, initialLocator = initialLocator)
+    }
 
     private suspend fun openPublication(file: File): Pair<Asset, Publication> {
         val httpClient = DefaultHttpClient()

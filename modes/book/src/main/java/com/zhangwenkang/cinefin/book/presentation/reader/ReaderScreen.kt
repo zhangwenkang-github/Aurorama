@@ -72,6 +72,7 @@ fun ReaderScreen(
     jumpTarget: Locator?,
     onSettingsChange: (ReaderSettings) -> Unit,
     onLocationChanged: (Locator) -> Unit,
+    onSimplePageChanged: (index: Int, pageCount: Int) -> Unit,
     onRetry: () -> Unit,
     onDownload: () -> Unit,
     onAddBookmark: () -> Unit,
@@ -82,6 +83,7 @@ fun ReaderScreen(
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
+    val bookmarksAvailable = (state as? ReaderUiState.Ready)?.document is ReaderDocument.Rich
 
     CinefinTheme(
         domain = ContentDomain.Book,
@@ -102,6 +104,7 @@ fun ReaderScreen(
                         chromeColor = chromeColor,
                         downloadState = downloadState,
                         onDownload = onDownload,
+                        bookmarksEnabled = bookmarksAvailable,
                         onOpenBookmarks = { showBookmarks = true },
                         onCycleMode = {
                             onSettingsChange(settings.copy(mode = settings.mode.next()))
@@ -146,17 +149,31 @@ fun ReaderScreen(
                                 }
 
                             is ReaderUiState.Ready ->
-                                ReadiumEpubView(
-                                    publication = state.publication,
-                                    initialLocator = state.initialLocator,
-                                    settings = settings,
-                                    systemDark = systemDark,
-                                    jumpTarget = jumpTarget,
-                                    onLocationChanged = onLocationChanged,
-                                    onJumpHandled = onJumpHandled,
-                                    onNavigatorReady = onNavigatorReady,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
+                                when (val document = state.document) {
+                                    is ReaderDocument.Rich ->
+                                        ReadiumEpubView(
+                                            publication = document.publication,
+                                            initialLocator = document.initialLocator,
+                                            settings = settings,
+                                            systemDark = systemDark,
+                                            jumpTarget = jumpTarget,
+                                            onLocationChanged = onLocationChanged,
+                                            onJumpHandled = onJumpHandled,
+                                            onNavigatorReady = onNavigatorReady,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+
+                                    is ReaderDocument.Simple ->
+                                        SimpleBookView(
+                                            document = document,
+                                            settings = settings,
+                                            systemDark = systemDark,
+                                            contentColor = contentColor,
+                                            chromeColor = chromeColor,
+                                            onPageChanged = onSimplePageChanged,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                }
                         }
                     }
                 }
@@ -245,6 +262,7 @@ private fun ReaderTopBar(
     chromeColor: Color,
     downloadState: BookDownloadState,
     onDownload: () -> Unit,
+    bookmarksEnabled: Boolean,
     onOpenBookmarks: () -> Unit,
     onCycleMode: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -269,13 +287,15 @@ private fun ReaderTopBar(
                 contentColor = contentColor,
                 onDownload = onDownload,
             )
-            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-            CinefinButton(
-                text = "书签",
-                onClick = onOpenBookmarks,
-                variant = CinefinButtonVariant.Text,
-                size = CinefinButtonSize.Small,
-            )
+            if (bookmarksEnabled) {
+                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+                CinefinButton(
+                    text = "书签",
+                    onClick = onOpenBookmarks,
+                    variant = CinefinButtonVariant.Text,
+                    size = CinefinButtonSize.Small,
+                )
+            }
             Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
             CinefinButton(
                 text = settings.mode.label,
