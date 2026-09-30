@@ -40,10 +40,10 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟡 W1 进行中（2026-09-30） | W0 已完成：S2 架构 / S4 设计系统（f9f7e57，含修订稿）+ 负责人基线（2b00120：`modes/book`、`modes/music` 骨架 + 音频接口冻结 + ktfmt 存量修复）；W1 三线骨架启动中 |
-| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（W1-R1 创建并维护） | 🟡 W1 启动中 | Readium 集成 PoC + 阅读进度接口；测试内容已就绪（`test_files`：2 CBZ + 1 PDF） |
-| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（W1-R2 创建并维护） | 🟡 W1 启动中 | `modes/music` 单 MediaSession 最小闭环（列表→播放→通知可控） |
-| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（W1-R3 创建并维护） | 🟡 W1 启动中 | UI_DESIGN_SYSTEM v1.0 → Compose token 主题 + 基础组件（含 Typography 归位） |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W1 完成并合并（2026-09-30，master `14e13bd`） | W0/W1 全部完成：骨架 + 三线最小闭环已合并；W2 主体波（R1-CORE / R2-CORE / R4-BASE）待启动 |
+| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W1 骨架完成（Readium EPUB PoC 真机通过；progress JSON 待 W3 迁 Room） | W2：阅读模式（滚动/分页/双栏）、排版设置、阅读主题（纸色/护眼/深色/OLED） |
+| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 W1 骨架完成（94 专辑→播放→通知/锁屏/后台，真机通过） | W2：专辑/艺术家/歌曲/歌单浏览、队列、gapless、播放上报；服务器无 MusicAlbum 实体，按 Album 名客户端分组 |
+| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W1 token 落地（core 主题 + 基础组件 + 18 项单测通过；Typography 归位） | W3：音乐/阅读页面接入新设计；W4：全页面换新 |
 
 ### 3.1 执行顺序（用户 2026-09-28 批准）
 
@@ -94,6 +94,10 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 4. **上下文纪律**：工具输出裁剪（`-Last N` / `Select-String`）；截图只在必要时看、看完即删；单会话上下文过半就交接（进度写进文档即可无损接续）。
 5. **验证纪律**：真机为准（小米平板 5 / Android 13，模拟器已弃用）；改播放 / 布局必须在真机验证后再勾任务。
 6. **文档纪律**：项目级状态只写本文件；任务线细节写各自文档；不新建零散 `.md`。
+7. **真机纪律（2026-09-30 起）**：`adb` 真机同一时刻只允许一个会话使用。需要真机验证前，先在
+   `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\device-lock.md` 登记占用
+   （会话名 / 设备 / 开始时间 / 预计时长），完成后清空；超 45 分钟未释放视为过期，可接管。
+   同一波次的真机回归优先由 R4（测试与验收）统一执行，开发会话只做必要的最小验证。
 
 ### 全局命令
 
