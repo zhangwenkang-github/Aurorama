@@ -15,12 +15,10 @@ import javax.inject.Singleton
 @Singleton
 class MusicTrackResolver @Inject constructor(private val repository: JellyfinRepository) {
 
-    /** 批量解析；任一曲目拿不到媒体源时抛出，由调用方决定是否提示用户。 */
-    suspend fun toPlayerItems(songs: List<MusicSong>): List<PlayerItem> = songs.map { song ->
-        song.toPlayerItem()
-    }
+    /** 单曲解析（W3-R3b）：起播只需要被点的那一首，先解析它就能立刻出声， 其余曲目由调用方随后按需补齐——避免"点歌曲页任意一首要先串行解析整份列表"。 */
+    suspend fun toPlayerItem(song: MusicSong): PlayerItem = song.resolve()
 
-    private suspend fun MusicSong.toPlayerItem(): PlayerItem {
+    private suspend fun MusicSong.resolve(): PlayerItem {
         val sources = repository.getMediaSources(itemId, includePath = true)
         val source =
             sources.firstOrNull { it.type == FindroidSourceType.LOCAL }

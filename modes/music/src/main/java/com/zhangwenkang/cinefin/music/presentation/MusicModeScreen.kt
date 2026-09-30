@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
@@ -98,6 +99,10 @@ fun MusicModeScreen(
     // 队列被清空（停止播放）时自动收起队列面板
     LaunchedEffect(queue) { if (queue == null) queueSheetOpen = false }
 
+    // 系统返回键与左上角返回一致（W3-R3b 缺陷 1）：详情（专辑 / 艺术家 / 歌单）内先回音乐主界面，
+    // 而不是直接退回首页；不在详情时交给 NavHost 正常返回。
+    BackHandler(enabled = state.detail != null) { viewModel.closeDetail() }
+
     CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
         val colors = LocalCinefinColors.current
         Column(modifier = modifier.fillMaxSize().background(colors.surface)) {
@@ -116,6 +121,7 @@ fun MusicModeScreen(
                 when {
                     error != null ->
                         ErrorPane(
+                            title = state.errorTitle ?: "曲库加载失败",
                             message = error,
                             onRetry = viewModel::refresh,
                             onDismiss = viewModel::dismissError,
@@ -702,10 +708,15 @@ private fun QueueSheet(
 }
 
 @Composable
-private fun ErrorPane(message: String, onRetry: () -> Unit, onDismiss: () -> Unit) {
+private fun ErrorPane(
+    title: String,
+    message: String,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CinefinEmptyState(
-            title = "曲库加载失败",
+            title = title,
             message = message,
             action = {
                 CinefinButton(text = "重试", onClick = onRetry, size = CinefinButtonSize.Medium)

@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-09-30（W3-R2 会话）　分支：`feature/r2-music-lyrics`
+> 最后更新：2026-10-01（W3-R3b 会话）　分支：`feature/r3-music-ux-fix`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -76,6 +76,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D19 | 配对判据 = **同一 Start** 必配；**≤250 ms 且两侧字形家族不同**（中文 ⇄ 非中文 / 繁 ⇄ 简）才配 | 服务端双语共享精确 Start；加字形家族约束可避免"纯中文歌相邻两句间隔很近"被误配成原文 + 译文（`LyricsPairerTest` 有回归用例） |
 | D20 | 显示侧取词优先译文侧：选中的语言命中 `secondary` 就取 `secondary`，否则取 `primary` | 日文原文若全为汉字会被"仅汉字 → 中文"规则判成中文，按"第一行命中"取值会显示成原文而不是中文译文（`LyricsPresenterTest` 有回归用例） |
 
+### 2.6 W3-R3b 本会话决策（用户复测 3 项交互缺陷）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D21 | 系统返回键用 `BackHandler(enabled = detail != null)` 在音乐模式内收口（不引入嵌套导航） | 只需"详情 → 音乐主界面"一层；与 `MusicHeader` 左上角返回共用 `closeDetail()`，两个入口行为永远一致；不改 `NavigationRoot.kt`（咽喉文件） |
+| D22 | 点歌改为「**先解析被点曲目** → `setQueue` 起播 → 后台按 `musicQueueFillOrder` 补队列」，取代"整份列表串行解析后再起播" | 歌曲页 100 首 = 100 次 `PlaybackInfo` 串行请求，起播被拖到十几秒（真机表现为"点了没反应"），且任一首无媒体源会让整次点击失败（§6-17）；补队列只用冻结接口 `insertNext` + `move`（尾部追加 / 队首前移，见 §6-20），不碰 `player:core`；补入次序抽成纯函数 `musicQueueFillOrder` 并单测（`MusicQueueFillTest` 2 例） |
+| D23 | 曲库加载失败**自动重试一次**（1.2 s 后）再进可重试错误态；错误面板标题按来源区分 | 服务器偶发超时（`PROJECT_PLAN` §6 已知风险）时用户不必自己点重试；"曲库加载失败"标题曾被播放 / 歌单失败复用，误导读数（§6-18） |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -132,6 +140,15 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 - 视频侧接入 `PlaybackCoordinator.onVideoStartRequested()`（播放器线，W4）——完成后"视频起播停音乐"闭环；
 - 离线下载（复用 `DownloaderImpl`，与下载线对齐，单写者约定见 `ARCHITECTURE` §2.4）。
+
+### W3-R3b 音乐交互修复（`feature/r3-music-ux-fix`，用户复测反馈 3 项）
+
+- [x] 缺陷 1 · 系统返回键层级：详情（专辑 / 艺术家 / 歌单）内按返回键先回音乐主界面（`BackHandler(enabled = detail != null)`，与左上角返回同一出口）
+- [x] 缺陷 2 · 歌曲页点歌不播放：`playSong` 改为「先解析被点曲目 → `setQueue` 立即起播 → 后台按 `musicQueueFillOrder` 补队列」（原实现先串行解析整份列表，歌曲页 100 首 = 100 次 PlaybackInfo，起播被拖住且任一首失败即整次点击失败）
+- [x] 缺陷 3 · 曲库加载失败：失败自动重试一次（1.2 s 后）→ 仍失败进可重试错误态；错误面板按来源显示标题（曲库加载 / 播放 / 歌单加载 / 添加到队列）
+- [x] 单测：`MusicQueueFillTest`（2 例：补入次序 + 补完后的队列顺序 / 当前曲目），模块合计 **47 项**；首版补队列用"连续 insertNext"会把尾部顺序倒置，被该单测拦下后改为 `insertNext` + `move`（见 §6-20）
+- [x] 门禁：`:app:phone:assembleDebug`、`:modes:music:testDebugUnitTest`（47 项）、`ktfmtCheck` 通过
+- [ ] 真机验证（Pad 5）：返回键 / 点歌起播 / 断网重试 / 歌词不回归（见 §5.4）
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -225,6 +242,18 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 > 真机副作用均已还原：wifi 关闭 → 已开启（`ping jellyfins.zhangwenkang.com` 通）、`accelerometer_rotation`/`user_rotation` 还原、设备重新安装正式 APK 并停在影阁首页。
 > 真实三样例的**完整歌词不落库**（D18）：单测用同构样例；真实数据的行数 / 配对 / 语言结论来自本地临时夹具探针（跑完即删）。
 
+### 5.4 W3-R3b 验证状态（2026-10-01，真机窗口待负责人调度）
+
+真机由负责人统一调度（`device-lock.md`；45 分钟自动接管规则已废除），本会话在等待窗口期间先完成设备外验证：
+
+| # | 验收项 | 设备外证据（已完成） | 真机状态 |
+|---|--------|--------------------|---------|
+| 1 | 系统返回键层级（详情 → 音乐主界面） | 代码：`BackHandler(enabled = state.detail != null)` 与 `MusicHeader` 左上角返回共用 `viewModel.closeDetail()`；`modes:music` 新增 `libs.androidx.activity.compose` | ⏳ 待窗口 |
+| 2 | 歌曲页点歌即播 | 代码：`playSong` 先单曲解析 → `setQueue` 起播 → 后台补队列；补入次序与最终队列顺序由 `MusicQueueFillTest` 2 例覆盖（含"连续 insertNext 顺序倒置"回归） | ⏳ 待窗口 |
+| 3 | 曲库加载失败可重试 + 自动重试一次 | 代码：`refresh()` 首次失败后 1.2 s 自动重试一次，两次都失败进 `ErrorPane`（标题 = `errorTitle`，`重试` 按钮 → `refresh()`） | ⏳ 待窗口（需断网复现） |
+| 4 | 歌词功能不回归 | `:modes:music:testDebugUnitTest` 47/47（歌词 41 + 队列补齐 2 + 曲库聚合 4）；`:app:phone:assembleDebug` + `ktfmtCheck` 通过 | ⏳ 待窗口（底栏「词」+ 语言切换） |
+| 5 | 播放链路 | 播放核心未改动（`player:local` / `player:core` 零改动；`MusicTrackResolver` 仅新增单曲解析入口） | ⏳ 待窗口（`dumpsys media_session`） |
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -262,6 +291,17 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
     构建静默失败。验证命令一律 `*> "$env:TEMP\xxx.log"` 落盘后再 `Select-String`。
 16. **真机登记时间要用设备/本机当前时间**：本会话读 `device-lock.md` 时看到"开始时间 23:05"而本机时间是 22:07（登记笔误），
     会导致"是否超过 45 分钟"无法判断。占用时请照抄 `Get-Date` 结果，用完立刻清空登记区。
+17. **"歌曲页点歌没反应"的根因是整份列表串行解析**（2026-10-01 W3-R3b 定位）：`MusicTrackResolver.toPlayerItems` 会为列表中**每一首**曲目各发一次
+    `PlaybackInfo`（音频条目在列表接口里不带播放地址）；歌曲页 100 首即 100 次串行请求，期间没有任何 UI 反馈 = "点了没反应"，
+    且任意一首拿不到媒体源时整次点击直接失败（错误面板还顶着"曲库加载失败"的标题）。
+    → 起播路径改为"先解析被点曲目（1 次请求）→ 起播 → 后台按顺序补队列"，单曲失败只跳过该曲（视频线 `PlaylistManager` 的"按需逐集解析"是同一思路）。
+18. **详情页的系统返回键不会自动走页内返回**：NavHost 弹栈直接退到上一张路由（首页）。页内子状态（详情 / 面板）必须自己用
+    `BackHandler(enabled = 子状态 != null)` 拦截；`modes:music` 因此新增 `libs.androidx.activity.compose` 依赖（版本目录已有别名，未改 `libs.versions.toml`）。
+19. **ktfmt 也检查 `.kts`**：给 `modes/music/build.gradle.kts` 加依赖后，只跑 `:modes:music:ktfmtFormatMain` 不够（它只覆盖 Kotlin 源码），
+    构建脚本的 CRLF/LF 差异仍会让 `ktfmtCheck` 报 `Invalid formatting` → 跑该模块的 `ktfmtFormat`（不带 `Main`）后再 `ktfmtCheck`。
+20. **`MusicQueue.insertNext` 是"下一首播放"语义，不能当"追加"连用**（2026-10-01 W3-R3b 单测拦截）：它固定插到 `currentIndex + 1`，
+    连续插 A→B 得到 `[当前, B, A, …]`——补队列时尾部曲目会被倒置。想按列表顺序补队列必须 `insertNext(item)` 后再 `move(insertedAt, 目标位置)`
+    （追加到队尾 `items.size - 1` / 前移到队首 `0`）；单测 `MusicQueueFillTest` 用 `MusicQueue` 纯函数模拟整段补入过程做回归。
 
 ## 7. 会话日志
 
