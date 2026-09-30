@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- W1 PoC：仅用于 adb 显式启动；W2 接入导航后必须改回 exported=false。 -->
+        <activity
+            android:name="com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity"
+            android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+            android:exported="true"
+            android:label="Cinefin Reader PoC" />
+    </application>
+
+</manifest>

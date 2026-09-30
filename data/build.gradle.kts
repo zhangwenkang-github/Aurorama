@@ -41,5 +41,8 @@ dependencies {
     ksp(libs.androidx.room3.compiler)
     implementation(libs.jellyfin.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
     implementation(libs.timber)
+
+    testImplementation(libs.junit)
 }
