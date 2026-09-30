@@ -41,9 +41,9 @@
   命令行工具用 30001（`curl.exe -x "https://<user>:<pass>@proxy.zhangwenkang.com:30001" "<URL>"`），**Gradle 不配代理**（直连）；
   凭据只允许在命令变量中使用，**禁止写入仓库 / 文档 / 提交信息 / 会话输出**。
 - 工具输出必须裁剪（`-Last N` / `Select-String`）；不把截图 / 大图贴进对话；单会话上下文过半即交接。
-- **真机纪律**：使用 `adb` 真机前先读并登记 `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\device-lock.md`
-  （会话名 / 设备 / 开始时间 / 预计时长），完成后清空；同一时刻只允许一个会话占用真机，超 45 分钟未释放视为过期可接管；
-  同波次真机回归优先由 R4 统一执行。
+- **真机纪律（v2）**：使用 `adb` 真机前先读并登记 `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\device-lock.md`
+  （会话名 / 设备 / 开始时间 / 预计时长），完成后**立即清空并写释放时间**；同一时刻只允许一个会话占用真机；
+  **禁止按超时自动接管，接管只能由负责人明确指派**；同波次真机回归优先由 R4 统一执行；第二台设备（K60）接入时按 serial 分配。
 
 ## 收工（必须）
 1. 验收通过后勾任务清单、把进度 / 决策 / 踩坑写回对应任务线文档（新线先建线文档）；
