@@ -198,13 +198,6 @@ fun NavigationRoot(
             else -> WelcomeRoute
         }
 
-    val navigationItems =
-        when (isOfflineMode) {
-            false -> listOf(homeTab, mediaTab, downloadsTab)
-            true -> listOf(homeTab, downloadsTab)
-        }
-    val navigationItemClassNames = navigationItems.map { it.route::class.qualifiedName }
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     var searchExpanded by remember { mutableStateOf(false) }
@@ -213,11 +206,20 @@ fun NavigationRoot(
     // 主导航：手机底部 4 tab / 平板侧轨；抽屉继续承载全量入口（库列表 / 控制台 / 服务器）
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    // 顶层页面允许手势拉出抽屉；详情页等保留全宽与返回手势
+    // 顶层页面允许手势拉出抽屉；详情页等保留全宽与返回手势。
+    // 统一目的地（D18）：凡是侧柜（底部 Tab / 侧轨 / 抽屉）里能点到的目标都按顶层页面处理——
+    // 手机选择后关闭抽屉，平板切换内容区、侧轨常驻，不再出现"某些条目把侧轨顶掉"。
     val showNavigation =
-        currentRoute in navigationItemClassNames ||
-            currentRoute == MusicModeRoute::class.qualifiedName ||
-            currentRoute == LibraryRoute::class.qualifiedName
+        currentRoute in
+            setOf(
+                HomeRoute::class.qualifiedName,
+                MediaRoute::class.qualifiedName,
+                DownloadsRoute::class.qualifiedName,
+                MusicModeRoute::class.qualifiedName,
+                LibraryRoute::class.qualifiedName,
+                SettingsRoute::class.qualifiedName,
+                ConsoleRoute::class.qualifiedName,
+            )
     val context = LocalContext.current
     val settingsRoute = remember {
         SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
@@ -316,23 +318,25 @@ fun NavigationRoot(
                 selected = booksSelected,
                 bottom = true,
             ) {
-                if (booksLibrary != null) {
+                // 没有书籍库时退到媒体库总览：与其它条目一样只"换内容区"，不弹出抽屉
+                val books = booksLibrary
+                if (books != null) {
                     navigateTopLevel(
                         libraryEntryRoute(
-                            libraryId = booksLibrary.id.toString(),
-                            libraryName = booksLibrary.name,
-                            libraryType = booksLibrary.type,
+                            libraryId = books.id.toString(),
+                            libraryName = books.name,
+                            libraryType = books.type,
                         )
                     )
                 } else {
-                    openDrawer()
+                    navigateTopLevel(MediaRoute)
                 }
             },
             ChromeDestination(
                 item =
                     chromeItem(CoreR.drawable.ic_library, stringResource(CoreR.string.title_media)),
                 selected = mediaSelected,
-                bottom = false,
+                bottom = true,
             ) {
                 navigateTopLevel(MediaRoute)
             },
@@ -359,137 +363,33 @@ fun NavigationRoot(
             ) {
                 navigateTopLevel(settingsRoute)
             },
-            ChromeDestination(
-                item =
-                    chromeItem(
-                        CoreR.drawable.ic_menu,
-                        stringResource(CoreR.string.title_more),
-                        neutral = true,
-                    ),
-                selected = false,
-                bottom = true,
-            ) {
-                openDrawer()
-            },
         )
     val bottomItems = chromeDestinations.filter { it.bottom }
 
-    val drawerSpecs: List<Pair<String?, DrawerEntry>> = buildList {
-        add(
-            null to
-                DrawerEntry(
-                    item =
-                        chromeItem(
-                            CoreR.drawable.ic_home,
-                            stringResource(CoreR.string.title_home),
-                            neutral = true,
-                        ),
-                    selected = homeSelected,
-                ) {
-                    navigateTopLevel(HomeRoute)
-                }
-        )
-        add(
-            null to
-                DrawerEntry(
-                    item =
-                        chromeItem(
-                            CoreR.drawable.ic_music,
-                            stringResource(CoreR.string.title_music),
-                        ),
-                    selected = musicSelected,
-                ) {
-                    navigateTopLevel(MusicModeRoute)
-                }
-        )
-        add(
-            null to
-                DrawerEntry(
-                    item =
-                        chromeItem(
-                            CoreR.drawable.ic_download,
-                            stringResource(CoreR.string.title_download),
-                        ),
-                    selected = downloadsSelected,
-                ) {
-                    navigateTopLevel(DownloadsRoute)
-                }
-        )
-        if (!isOfflineMode) {
-            add(
-                stringResource(CoreR.string.drawer_section_media) to
-                    DrawerEntry(
-                        item =
-                            chromeItem(
-                                CoreR.drawable.ic_library,
-                                stringResource(CoreR.string.title_media),
-                            ),
-                        selected = mediaSelected,
-                    ) {
-                        navigateTopLevel(MediaRoute)
-                    }
+    // 抽屉 = 同一份统一目的地列表 + 服务器库列表（D18：不再有「更多」分区，也没有分组标题，
+    // 选中索引与动作列表同源，杜绝分组聚合带来的索引错位，见踩坑 17）
+    val drawerEntries: List<DrawerEntry> =
+        chromeDestinations.map { destination ->
+            DrawerEntry(
+                item = destination.item,
+                selected = destination.selected,
+                onClick = destination.onClick,
             )
-            drawerData.libraries.forEach { library ->
-                add(
-                    stringResource(CoreR.string.drawer_section_media) to
-                        DrawerEntry(
-                            item = chromeItem(libraryIconRes(library.type), library.name),
-                            selected = false,
-                        ) {
-                            openLibrary(library)
-                        }
-                )
-            }
-        }
-        if (drawerData.isAdministrator) {
-            add(
-                stringResource(CoreR.string.drawer_section_management) to
+        } +
+            if (isOfflineMode) {
+                emptyList()
+            } else {
+                drawerData.libraries.map { library ->
                     DrawerEntry(
-                        item =
-                            chromeItem(
-                                CoreR.drawable.ic_globe,
-                                stringResource(CoreR.string.title_console),
-                            ),
-                        selected = currentRoute == ConsoleRoute::class.qualifiedName,
-                    ) {
-                        navigateTopLevel(ConsoleRoute())
-                    }
-            )
-            add(
-                stringResource(CoreR.string.drawer_section_management) to
-                    DrawerEntry(
-                        item =
-                            chromeItem(
-                                CoreR.drawable.ic_database,
-                                stringResource(CoreR.string.title_metadata_manager),
-                            ),
+                        item = chromeItem(libraryIconRes(library.type), library.name),
                         selected = false,
                     ) {
-                        navigateTopLevel(ConsoleRoute(path = "/metadata"))
+                        openLibrary(library)
                     }
-            )
-        }
-        add(
-            stringResource(CoreR.string.drawer_section_user) to
-                DrawerEntry(
-                    item =
-                        chromeItem(
-                            CoreR.drawable.ic_settings,
-                            stringResource(CoreR.string.title_settings),
-                            neutral = true,
-                        ),
-                    selected = settingsSelected,
-                ) {
-                    navigateTopLevel(settingsRoute)
                 }
-        )
-    }
-    // 按分组聚合后的顺序拍平：CinefinModalDrawer 的 selectedIndex / onSelect 与该顺序一致
-    val drawerGrouped = drawerSpecs.groupBy({ it.first }, { it.second })
-    val drawerGroups = drawerGrouped.map { (title, entries) ->
-        CinefinDrawerGroup(title = title, items = entries.map { it.item })
-    }
-    val drawerEntries = drawerGrouped.values.flatten()
+            }
+    val drawerGroups =
+        listOf(CinefinDrawerGroup(title = null, items = drawerEntries.map { it.item }))
     val drawerSelectedIndex = drawerEntries.indexOfFirst { it.selected }
 
     val host: @Composable () -> Unit = {
