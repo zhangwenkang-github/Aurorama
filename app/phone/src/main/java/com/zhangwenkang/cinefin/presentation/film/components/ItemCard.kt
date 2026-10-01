@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
@@ -37,6 +38,9 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
  * 栅格条目卡：宽度由栅格列决定（不再固定 150 / 260 / 184dp），版式随方向切换。
  *
  * Lumen 双层嵌套外壳 + 图上进度（横版卡）；标题与元信息压在卡片下方的留白里，字号与间距统一走 Prism 字阶。
+ *
+ * [width] 只给**无界宽度的横排行**（LazyRow）用：那种场景下 `fillMaxWidth` 拿不到列宽， 卡片会按各自海报的固有尺寸排布，出现「一大一小」（W11
+ * 反馈⑨季列表）。栅格 / 列表保持传 null 即可。
  */
 @Composable
 fun ItemCard(
@@ -45,6 +49,7 @@ fun ItemCard(
     onClick: (FindroidItem) -> Unit,
     modifier: Modifier = Modifier,
     index: Int = 0,
+    width: Dp? = null,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -53,11 +58,10 @@ fun ItemCard(
 
     Column(
         modifier =
-            modifier.fillMaxWidth().lumenEntrance(index).cinefinClickable(
-                interactionSource = interactionSource
-            ) {
-                onClick(item)
-            }
+            modifier
+                .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
+                .lumenEntrance(index)
+                .cinefinClickable(interactionSource = interactionSource) { onClick(item) }
     ) {
         LumenCardFrame(
             modifier = Modifier.fillMaxWidth(),

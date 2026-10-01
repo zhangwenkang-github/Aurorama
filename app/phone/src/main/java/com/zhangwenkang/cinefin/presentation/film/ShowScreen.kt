@@ -27,11 +27,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -319,6 +321,9 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
                                     item = season,
                                     direction = Direction.VERTICAL,
                                     onClick = { onAction(ShowAction.NavigateToItem(season)) },
+                                    // 季卡统一尺寸（W11 反馈⑨）：横排行是无界宽度，必须显式给宽度，
+                                    // 否则每张卡按各自海报的固有尺寸排布 → 「一大一小」；给死后只保留横向滑动
+                                    width = rememberSeasonCardWidth(),
                                 )
                             }
                         }
@@ -354,6 +359,24 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
         }
     }
 }
+
+/**
+ * 季卡宽度（W11 反馈⑨）：一列季卡**共用同一个宽度**，靠横向滑动观看，不再一大一小。
+ *
+ * 抽成纯函数便于单测——只要所有季卡取同一个返回值，尺寸就不可能不一致。
+ */
+internal fun seasonCardWidthDp(screenWidthDp: Float): Float =
+    when {
+        screenWidthDp >= 1400f -> 208f
+        screenWidthDp >= 1000f -> 184f
+        screenWidthDp >= 700f -> 168f
+        else -> 150f
+    }
+
+/** 读取当前窗口宽度换算成季卡宽度（与 [seasonCardWidthDp] 同源）。 */
+@Composable
+private fun rememberSeasonCardWidth(): Dp =
+    seasonCardWidthDp(LocalConfiguration.current.screenWidthDp.toFloat()).dp
 
 /** 剧集制作信息表：季数 / 类型 / 导演 / 编剧（年份与类型首项已经在头图眉标里出现过，这里不重复）。 */
 @Composable
