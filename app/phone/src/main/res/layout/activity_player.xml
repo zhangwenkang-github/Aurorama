@@ -13,6 +13,10 @@
         android:layout_height="match_parent"
         android:background="@android:color/black" />
 
+    <!--
+        加载图标只留一个（W11 反馈⑤）：Media3 内置缓冲圈关掉，
+        改由控制层的播放键转圈（控件可见）/ 玻璃圈（控件隐藏）表达，两个内核行为一致。
+    -->
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="match_parent"
@@ -20,7 +24,7 @@
         android:background="@android:color/transparent"
         app:animation_enabled="false"
         app:shutter_background_color="@android:color/transparent"
-        app:show_buffering="always"
+        app:show_buffering="never"
         app:surface_type="texture_view" />
 
     <!--

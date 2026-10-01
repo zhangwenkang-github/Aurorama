@@ -114,9 +114,12 @@ constructor(
         val topHeight =
             topBarHeightPx.takeIf { it > 0f } ?: ((if (portrait) 64f else 76f) * density)
         val topBand = RectF(0f, 0f, videoWidth, topHeight)
-        // 中央只留错误卡片（传输簇已挪到左下角），正常播放时中央整块让给手势
-        val centerHalfWidth = 300f
-        val centerHalfHeight = 200f
+        /*
+         * 中央 = 播放簇（W11 反馈③：上一个 · 快退 · 播放 · 快进 · 下一个 五键居中）。正常播放时只吃播放簇
+         * 那一块（约 320×80dp），画面其余部分照旧交给手势；错误卡片出现时放大到 600×400dp，否则「重试」点不到。
+         */
+        val centerHalfWidth = if (errorVisible) 300f else 160f
+        val centerHalfHeight = if (errorVisible) 200f else 40f
         val centerBand =
             RectF(
                 videoWidth / 2f - centerHalfWidth * density,
@@ -124,12 +127,21 @@ constructor(
                 videoWidth / 2f + centerHalfWidth * density,
                 videoHeight / 2f + centerHalfHeight * density,
             )
+        // 锁定键（W11 反馈②）：右缘垂直居中的一个小方块，键之外的右缘仍然放行给手势
+        val lockBand =
+            RectF(
+                videoWidth - 76f * density,
+                videoHeight / 2f - 36f * density,
+                videoWidth,
+                videoHeight / 2f + 36f * density,
+            )
         // 底栏 = 左下角传输行 + 通栏进度条；有实测高度就按实测
         val bottomBandHeight =
             bottomBarHeightPx.takeIf { it > 0f } ?: ((if (portrait) 130f else 150f) * density)
         val bottomBand = RectF(0f, videoHeight - bottomBandHeight, videoWidth, videoHeight)
         return topBand.contains(x, y) ||
-            (errorVisible && centerBand.contains(x, y)) ||
+            centerBand.contains(x, y) ||
+            lockBand.contains(x, y) ||
             bottomBand.contains(x, y)
     }
 }

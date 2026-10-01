@@ -121,6 +121,12 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private val sidePanelExpanded = mutableStateOf(false)
 
+    /** 全屏（W11 反馈⑥）：收紧常驻内容栏 + 强制横屏；同一个键按状态换图标 */
+    private val fullscreenMode = mutableStateOf(false)
+
+    /** 进全屏前的侧栏展开状态：退出全屏时原样还原 */
+    private var sidePanelBeforeFullscreen = false
+
     /** Compose 侧解析出的形态上下文；Activity 用它给画面区排版（同一份数值，避免两边错位） */
     private var layoutContext: PlayerLayoutContext? = null
 
@@ -224,6 +230,8 @@ class PlayerActivity : BasePlayerActivity() {
                         sidePanelExpanded = sidePanelExpanded.value,
                         onToggleSidePanel = { sidePanelExpanded.value = !sidePanelExpanded.value },
                         isPipSupported = isPipSupported,
+                        isFullscreen = fullscreenMode.value,
+                        onToggleFullscreen = { toggleFullscreen() },
                         onBack = { finishPlayback() },
                         onPip = { pictureInPicture() },
                         onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
@@ -253,7 +261,7 @@ class PlayerActivity : BasePlayerActivity() {
                         showChapterMarkers = settingsController.state.chapterMarkers,
                         onRetry = { viewModel.retryPlayback() },
                         onSwitchBackend = { switchBackendAndRestart() },
-                        onRegionsChanged = { visible, panelOpen, locked, errorVisible ->
+                        onRegionsChanged = { visible, panelOpen, locked, errorVisible, buffering ->
                             binding.controlOverlay.controlsVisible = visible
                             binding.controlOverlay.panelOpen = panelOpen
                             binding.controlOverlay.locked = locked
@@ -262,11 +270,18 @@ class PlayerActivity : BasePlayerActivity() {
                              * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
                              * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
                              * 但平板侧栏、手机竖屏下方内容区是常驻的，这些骨架必须保持可见。
+                             * 缓冲期间也要保持合成：那时播放键里的转圈是唯一加载图标（反馈⑤）。
                              */
                             val chromeKeepsComposition =
                                 layoutContext?.chrome?.keepsComposition() == true
                             binding.controlOverlay.visibility =
-                                if (visible || panelOpen || locked || chromeKeepsComposition) {
+                                if (
+                                    visible ||
+                                        panelOpen ||
+                                        locked ||
+                                        buffering ||
+                                        chromeKeepsComposition
+                                ) {
                                     View.VISIBLE
                                 } else {
                                     View.INVISIBLE
@@ -277,6 +292,8 @@ class PlayerActivity : BasePlayerActivity() {
                         },
                         onBottomBarHeight = { px ->
                             binding.controlOverlay.bottomBarHeightPx = px.toFloat()
+                            // 小窗只有这一条控制条，命中带读同一个实测高度（§9 踩坑：不写死 dp）
+                            binding.controlOverlay.compactBarHeightPx = px.toFloat()
                         },
                     )
                 }
@@ -290,11 +307,8 @@ class PlayerActivity : BasePlayerActivity() {
                     .collect { locked ->
                         isControlsLocked = locked
                         requestedOrientation =
-                            if (locked) {
-                                ActivityInfo.SCREEN_ORIENTATION_LOCKED
-                            } else {
-                                orientationForFormFactor()
-                            }
+                            if (locked) ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                            else desiredOrientation()
                     }
             }
         }
@@ -537,8 +551,11 @@ class PlayerActivity : BasePlayerActivity() {
             binding.controlOverlay.chrome = layout.chrome
             binding.controlOverlay.videoWidthPx = videoWidthPx
             binding.controlOverlay.videoHeightPx = videoHeightPx
-            // 小窗单行控制条：图标行 + 6dp 进度条 + 内边距 ≈ 92dp（与 PlayerCompactBar 同步）
-            binding.controlOverlay.compactBarHeightPx = 92f * density
+            /*
+             * 小窗控制条：标题行 + 工具行 + 6dp 进度条 ≈ 132dp，这里只作首帧兜底——
+             * 真正的高度由 PlayerCompactBar 的 onSizeChanged 实测回传（与底栏共用同一条通路）。
+             */
+            binding.controlOverlay.compactBarHeightPx = 132f * density
             /*
              * 骨架切换后要重算整层可见性：平板侧栏 / 竖屏内容区 / 小窗控制条是常驻内容，
              * 控制层淡出时它们不能跟着一起退出合成（否则内容栏消失且点不动）。
@@ -562,6 +579,32 @@ class PlayerActivity : BasePlayerActivity() {
             PlayerFormFactor.Tv -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
         }
+
+    /** 当前该给系统的方向：全屏优先横屏，否则按形态（车机 / TV 锁横屏，手机 / 平板自由旋转）。 */
+    private fun desiredOrientation(): Int =
+        if (fullscreenMode.value) {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        } else {
+            orientationForFormFactor()
+        }
+
+    /**
+     * 全屏 / 退出全屏（W11 反馈⑥）。
+     *
+     * 播放页本身就是沉浸式，所以「全屏」= 画面独占：收起右侧常驻内容栏（平板 / 折叠）并强制横屏 （手机竖屏的选集区让位给画面）；退出时把侧栏状态与方向策略原样还原。
+     */
+    private fun toggleFullscreen() {
+        val target = !fullscreenMode.value
+        fullscreenMode.value = target
+        if (target) {
+            sidePanelBeforeFullscreen = sidePanelExpanded.value
+            sidePanelExpanded.value = false
+        } else {
+            sidePanelExpanded.value = sidePanelBeforeFullscreen
+        }
+        requestedOrientation = desiredOrientation()
+        Timber.d("player fullscreen=%s", target)
+    }
 
     /** 系统栏策略：手机 / 平板 / TV 进沉浸式全屏；车机保持系统栏可见 （车机 HMI 不允许应用长期霸占整屏，返回与 Home 必须始终可达）。 */
     private fun applySystemUiVisibility() {

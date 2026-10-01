@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -50,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -629,32 +632,72 @@ private fun episodeLabel(index: Int, entry: QueueEntry): String {
 @Composable
 internal fun PlayerCompactBar(
     isPlaying: Boolean,
+    /** 缓冲中：主播放键图标位换成转圈（W11 反馈⑤，全屏唯一的一个加载图标） */
+    buffering: Boolean,
     title: String,
     positionMs: Long,
     durationMs: Long,
     bufferedMs: Long,
     chapters: List<PlayerChapter>,
     trickplay: Trickplay?,
+    isFullscreen: Boolean,
     onPlayPause: () -> Unit,
+    onPrevious: () -> Unit,
+    onRewind: () -> Unit,
+    onForward: () -> Unit,
+    onNext: () -> Unit,
     onSeek: (Long) -> Unit,
     onScrubStart: () -> Unit,
-    onOpenMore: () -> Unit,
+    onToggleFullscreen: () -> Unit,
+    /** 工具行（W11 反馈①：取消「更多」后，小窗用一行横向可滚的小键兜住全部入口） */
+    tools: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    onHeightChanged: (Int) -> Unit = {},
 ) {
     val colors = LocalCinefinColors.current
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
+                .onSizeChanged { onHeightChanged(it.height) }
                 .background(playerBottomScrim())
                 .padding(horizontal = CinefinSpacing.Space2, vertical = CinefinSpacing.Space1)
     ) {
+        /*
+         * 标题行（W11 反馈③）：小窗同样把播放 / 快进 / 下一个 摆回中间偏左的位置，
+         * 标题吃掉剩余宽度，时间码与全屏键贴右端——窗口再窄也不会把时间挤出屏幕（反馈⑧）。
+         */
         Row(verticalAlignment = Alignment.CenterVertically) {
             PlayerIconButton(
-                iconRes = if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play,
-                contentDescription = stringResource(PlayerR.string.player_controls_play_pause),
+                iconRes = CoreR.drawable.ic_skip_back,
+                contentDescription =
+                    stringResource(PlayerR.string.player_controls_previous_episode),
+                onClick = onPrevious,
+                size = 36.dp,
+            )
+            PlayerIconButton(
+                iconRes = CoreR.drawable.ic_rewind,
+                contentDescription = stringResource(PlayerR.string.player_controls_rewind),
+                onClick = onRewind,
+                size = 36.dp,
+            )
+            PlayerPlayKey(
+                isPlaying = isPlaying,
                 onClick = onPlayPause,
                 size = 40.dp,
+                buffering = buffering,
+            )
+            PlayerIconButton(
+                iconRes = CoreR.drawable.ic_fast_forward,
+                contentDescription = stringResource(PlayerR.string.player_controls_fast_forward),
+                onClick = onForward,
+                size = 36.dp,
+            )
+            PlayerIconButton(
+                iconRes = CoreR.drawable.ic_skip_forward,
+                contentDescription = stringResource(PlayerR.string.player_controls_next_episode),
+                onClick = onNext,
+                size = 36.dp,
             )
             Spacer(Modifier.width(CinefinSpacing.Space2))
             Text(
@@ -665,18 +708,40 @@ internal fun PlayerCompactBar(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            Spacer(Modifier.width(CinefinSpacing.Space2))
             Text(
                 text = "${formatTime(positionMs)} / ${formatTime(durationMs)}",
                 style = CinefinType.MonoDataSmall,
                 color = colors.onSurfaceVariant,
             )
             PlayerIconButton(
-                iconRes = PlayerR.drawable.ic_player_more,
-                contentDescription = stringResource(PlayerR.string.player_controls_more),
-                onClick = onOpenMore,
+                iconRes =
+                    if (isFullscreen) {
+                        PlayerR.drawable.ic_player_fullscreen_exit
+                    } else {
+                        PlayerR.drawable.ic_player_fullscreen
+                    },
+                contentDescription =
+                    stringResource(
+                        if (isFullscreen) {
+                            PlayerR.string.player_controls_fullscreen_exit
+                        } else {
+                            PlayerR.string.player_controls_fullscreen
+                        }
+                    ),
+                onClick = onToggleFullscreen,
                 size = 40.dp,
             )
         }
+        Spacer(Modifier.height(CinefinSpacing.Space1))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        ) {
+            tools()
+        }
+        Spacer(Modifier.height(CinefinSpacing.Space1))
         PlayerSeekBar(
             positionMs = positionMs,
             durationMs = durationMs,

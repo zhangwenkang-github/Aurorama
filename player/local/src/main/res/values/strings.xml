@@ -202,4 +202,12 @@
     <string name="player_audio_delay_later">Audio later by 0.05 s</string>
     <string name="player_audio_delay_reset">Reset delay to zero</string>
     <string name="player_audio_no_track">No audio track available</string>
+    <!-- W11 播放页第三轮：取消「更多」，入口按性质分配到右上工具簇与左下工具行 -->
+    <string name="player_controls_label_speed">Speed</string>
+    <string name="player_controls_label_sleep">Sleep</string>
+    <string name="player_controls_label_info">Info</string>
+    <string name="player_controls_label_settings">Settings</string>
+    <string name="player_controls_label_pip">PiP</string>
+    <string name="player_controls_fullscreen">Fullscreen</string>
+    <string name="player_controls_fullscreen_exit">Exit fullscreen</string>
 </resources>

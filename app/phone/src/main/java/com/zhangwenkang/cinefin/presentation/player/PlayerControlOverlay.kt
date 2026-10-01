@@ -151,8 +151,6 @@ private val SleepOptions = listOf(10, 20, 30, 60)
 
 internal enum class PlayerPanel {
     None,
-    /** 小窗 / 窄宽下的「更多」聚合入口：点进去再选具体面板 */
-    More,
     Speed,
     Repeat,
     Subtitle,
@@ -163,6 +161,35 @@ internal enum class PlayerPanel {
     Sleep,
     /** 播放页设置：播放 / 解码 / 字幕 / 音频 / 画面 / 手势 六组（§1.9） */
     Settings,
+}
+
+/**
+ * 控制层版式规格（W11 反馈①③⑧）。
+ *
+ * 「更多」取消后，原「更多」里的入口按性质分流：**右上工具簇**放内容 / 显示类（字幕 · 音轨 · 画面 · 选集， 宽屏再加播放设置），**左下工具行**放播放行为类（跳回 · 快退 ·
+ * 倍速 · 睡眠 · 播放信息 · 画中画，窄屏再把播放设置接住） 并在右端收一个全屏键；中央只留播放簇（播放 / 快进 / 下一个）。
+ *
+ * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证控件不越界、时间码仍然两端对齐。
+ */
+internal data class PlayerControlSpec(
+    /** 右上工具簇退化为纯图标，且只放「内容类」入口 */
+    val compactTools: Boolean,
+    /** 左下工具行的键尺寸（dp） */
+    val toolKeySizeDp: Float,
+    /** 左下工具行左右留白（dp） */
+    val toolRowPaddingDp: Float,
+    /** 窄屏把「播放设置」下移到左下工具行 */
+    val settingsInBottomRow: Boolean,
+)
+
+internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
+    val narrow = widthDp < 600f
+    return PlayerControlSpec(
+        compactTools = narrow,
+        toolKeySizeDp = if (narrow) 42f else 48f,
+        toolRowPaddingDp = if (narrow) 12f else 20f,
+        settingsInBottomRow = narrow,
+    )
 }
 
 /**
@@ -381,17 +408,26 @@ fun PlayerControlOverlay(
     onSwitchBackend: () -> Unit,
     /** 把「控制层可见 / 面板打开 / 锁屏 / 错误卡片」同步给承载视图，用来决定哪些触摸留给播放器 */
     onRegionsChanged:
-        (visible: Boolean, panelOpen: Boolean, locked: Boolean, errorVisible: Boolean) -> Unit =
-        { _, _, _, _ ->
+        (
+            visible: Boolean,
+            panelOpen: Boolean,
+            locked: Boolean,
+            errorVisible: Boolean,
+            buffering: Boolean,
+        ) -> Unit =
+        { _, _, _, _, _ ->
         },
     /** 实测顶栏 / 底栏高度（px）回传给命中区：控件高度一变，触摸分区跟着变（§9 踩坑） */
     onTopBarHeight: (Int) -> Unit = {},
     onBottomBarHeight: (Int) -> Unit = {},
+    /** 全屏（W11 反馈⑥）：收起常驻内容栏 + 强制横屏；同一个键按状态换图标 */
+    isFullscreen: Boolean = false,
+    onToggleFullscreen: () -> Unit = {},
 ) {
     val runtime = rememberPlayerRuntime(player)
     var panel by remember { mutableStateOf(PlayerPanel.None) }
     // 抽屉退场动画期间保留最后一个面板的内容，避免「滑走的是一块空板」
-    var lastPanel by remember { mutableStateOf(PlayerPanel.More) }
+    var lastPanel by remember { mutableStateOf(PlayerPanel.Speed) }
     // 从「更多」进的子面板给一个返回箭头，回到「更多」；从主界面工具键进的没有上一级
     var panelBackTarget by remember { mutableStateOf<PlayerPanel?>(null) }
     LaunchedEffect(panel) { if (panel != PlayerPanel.None) lastPanel = panel }
@@ -402,12 +438,20 @@ fun PlayerControlOverlay(
     var sleepRemaining by remember { mutableLongStateOf(0L) }
     var skipChipVisible by remember { mutableStateOf(true) }
 
-    LaunchedEffect(controls.visible, panel, controls.locked, uiState.playerError) {
+    LaunchedEffect(
+        controls.visible,
+        panel,
+        controls.locked,
+        uiState.playerError,
+        runtime.isBuffering,
+    ) {
         onRegionsChanged(
             controls.visible,
             panel != PlayerPanel.None,
             controls.locked,
             uiState.playerError != null,
+            // 缓冲期间承载视图要保持合成：控件整层隐藏时还要画那一个独立的缓冲圈（反馈⑤）
+            runtime.isBuffering,
         )
     }
 
@@ -470,40 +514,44 @@ fun PlayerControlOverlay(
      * 不再弹底部面板；手机等没有内容栏的骨架才用底部面板兜底。
      */
     val hasSidePanel = layout.hasSideContent
-    // 面板导航：从「更多 / 播放设置」进的子面板保留上一级，抽屉左上角的返回箭头回到那里；
+    // 面板导航：从「播放设置」进的子面板保留上一级，抽屉左上角的返回箭头回到那里；
     // 从主界面工具键进的是一级面板，没有返回箭头（只有关闭）。
     val navigatePanel: (PlayerPanel) -> Unit = { target ->
-        panelBackTarget =
-            if (panel == PlayerPanel.More || panel == PlayerPanel.Settings) panel else null
+        panelBackTarget = if (panel == PlayerPanel.Settings) panel else null
         panel = target
     }
-    val bottomBar: @Composable (Modifier, Brush?) -> Unit = { barModifier, scrim ->
-        PlayerBottomBar(
-            positionMs = runtime.position,
-            durationMs = runtime.duration,
-            bufferedMs = runtime.buffered,
-            chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
-            trickplay = uiState.currentTrickplay,
-            speed = runtime.speed,
-            sleepRemainingMs = sleepRemaining,
-            isPlaying = runtime.isPlaying,
-            onSeek = { target -> player.seekTo(target) },
-            onScrubStart = { controls.show() },
-            onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
-            onPrevious = { player.seekToPreviousMediaItem() },
-            onRewind = { player.seekBack() },
-            onForward = { player.seekForward() },
-            onNext = { player.seekToNextMediaItem() },
-            scrim = scrim,
-            modifier = barModifier,
-            onHeightChanged = onBottomBarHeight,
-        )
-    }
+    val bottomBar: @Composable (Modifier, Brush?, PlayerControlSpec) -> Unit =
+        { barModifier, scrim, spec ->
+            PlayerBottomBar(
+                positionMs = runtime.position,
+                durationMs = runtime.duration,
+                bufferedMs = runtime.buffered,
+                chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
+                trickplay = uiState.currentTrickplay,
+                speed = runtime.speed,
+                sleepActive = sleepRemaining > 0L,
+                spec = spec,
+                isFullscreen = isFullscreen,
+                isPipSupported = isPipSupported,
+                onSeek = { target -> player.seekTo(target) },
+                onScrubStart = { controls.show() },
+                onSpeed = { navigatePanel(PlayerPanel.Speed) },
+                onSleep = { navigatePanel(PlayerPanel.Sleep) },
+                onInfo = { navigatePanel(PlayerPanel.Info) },
+                onSettings = { navigatePanel(PlayerPanel.Settings) },
+                onPip = onPip,
+                onToggleFullscreen = onToggleFullscreen,
+                scrim = scrim,
+                modifier = barModifier,
+                onHeightChanged = onBottomBarHeight,
+            )
+        }
 
     /*
-     * 右上角工具簇（反馈⑥）：字幕 / 音轨 / 画面 / 选集 / 更多——「设置类」入口统一收到右上角，
-     * 左下角只留播放 / 切换 / 时间类，进度条通栏贴底。窄屏（<600dp）用纯图标 + 语义兜底，
-     * 宽屏带文字标签（§11 B）。
+     * 控件分布（W11 反馈①）：取消「更多」后按性质分流——
+     * 右上工具簇 = 内容 / 显示类（字幕 · 音轨 · 画面 · 选集，宽屏再加 播放设置）；
+     * 左下工具行 = 播放行为类（倍率（显示即入口）· 睡眠 · 播放信息 ·（窄屏）播放设置 · 画中画）+ 右下角全屏键；
+     * 中央 = 传输簇（上一个 · 快退 · 播放 · 快进 · 下一个）。窄屏（<600dp）用纯图标 + 语义兜底，宽屏带文字标签（§11 B）。
      */
     val toolCluster: @Composable (Boolean) -> Unit = { compact ->
         PlayerToolCluster(
@@ -530,7 +578,7 @@ fun PlayerControlOverlay(
                 } else {
                     { navigatePanel(PlayerPanel.Queue) }
                 },
-            onOpenMore = { navigatePanel(PlayerPanel.More) },
+            onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
         )
     }
 
@@ -547,27 +595,54 @@ fun PlayerControlOverlay(
         val videoWidth = with(density) { videoWidthDp.dp }
         val videoHeight = with(density) { layout.videoHeightDp.dp }
         val bottomScrim = playerBottomScrim()
-        // 右上角工具簇在窄屏（<600dp）退化成纯图标，宽屏带文字标签（§11 B）
-        val narrowTools = maxWidth < 600.dp
+        // 版式规格（W11 反馈①③⑧）：<600dp 收一档——右上工具簇退化纯图标、播放设置下移左下、键尺寸收一档
+        val spec = playerControlSpec(maxWidth.value)
         // 面板抽屉宽度：手机 / 窄窗整宽；宽屏取 46%（360–560dp）。抽屉盖在画面上，不改画面布局
         val drawerWidth =
             if (maxWidth < 420.dp) maxWidth else (maxWidth * 0.46f).coerceIn(360.dp, 560.dp)
 
         if (layout.isCompact) {
-            // 小窗：单行控制条 + 细进度条，其余面积留给画面
+            // 小窗：标题行 + 工具行 + 细进度条。「更多」取消后，工具行横向可滚，兜住全部入口（不缩水也不越界）
             PlayerCompactBar(
                 isPlaying = runtime.isPlaying,
+                buffering = runtime.isBuffering,
                 title = uiState.currentItemTitle.ifEmpty { runtime.title },
                 positionMs = runtime.position,
                 durationMs = runtime.duration,
                 bufferedMs = runtime.buffered,
                 chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
                 trickplay = uiState.currentTrickplay,
+                isFullscreen = isFullscreen,
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
+                onPrevious = { player.seekToPreviousMediaItem() },
+                onRewind = { player.seekBack() },
+                onForward = { player.seekForward() },
+                onNext = { player.seekToNextMediaItem() },
                 onSeek = { target -> player.seekTo(target) },
                 onScrubStart = { controls.show() },
-                onOpenMore = { navigatePanel(PlayerPanel.More) },
+                onToggleFullscreen = onToggleFullscreen,
+                tools = {
+                    PlayerCompactToolKeys(
+                        subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
+                        aspectActive =
+                            aspect.resizeMode != AspectMode.Fit.resizeMode ||
+                                videoTransform.hasAdjustments,
+                        isPipSupported = isPipSupported,
+                        speed = runtime.speed,
+                        onOpenSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
+                        onOpenAudio = { navigatePanel(PlayerPanel.Audio) },
+                        onOpenAspect = { navigatePanel(PlayerPanel.Aspect) },
+                        onOpenQueue = { navigatePanel(PlayerPanel.Queue) },
+                        onOpenInfo = { navigatePanel(PlayerPanel.Info) },
+                        onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
+                        onSpeed = { navigatePanel(PlayerPanel.Speed) },
+                        onSleep = { navigatePanel(PlayerPanel.Sleep) },
+                        onPip = onPip,
+                        onLock = { controls.setLock(true) },
+                    )
+                },
                 modifier = Modifier.align(Alignment.BottomCenter),
+                onHeightChanged = onBottomBarHeight,
             )
         } else {
             Box(
@@ -596,9 +671,8 @@ fun PlayerControlOverlay(
                                 },
                             qualityLabel = videoQualityLabel(runtime.tracks),
                             onBack = onBack,
-                            onLock = { controls.setLock(true) },
                             // 窄屏 / 竖屏用纯图标工具簇（<600dp），宽屏带文字标签
-                            compactTools = narrowTools,
+                            compactTools = spec.compactTools,
                             tools = { compact -> toolCluster(compact) },
                             modifier = Modifier.align(Alignment.TopCenter),
                             onHeightChanged = onTopBarHeight,
@@ -614,18 +688,49 @@ fun PlayerControlOverlay(
                                 modifier = Modifier.align(Alignment.Center),
                             )
                         } else {
-                            // 中央只留缓冲提示（反馈⑥：传输键整体挪到左下角，中央还给画面与手势）
-                            PlayerBufferingIndicator(
-                                visible = runtime.isBuffering,
+                            // 中央播放簇（W11 反馈③）：播放 / 快进 / 播放下一个 回到屏幕正中
+                            PlayerCenterCluster(
+                                isPlaying = runtime.isPlaying,
+                                // 缓冲中把播放键的图标换成转圈（反馈⑤：全屏只留一个加载图标）
+                                buffering = runtime.isBuffering,
+                                onPlayPause = {
+                                    if (player.isPlaying) player.pause() else player.play()
+                                },
+                                onPrevious = { player.seekToPreviousMediaItem() },
+                                onRewind = { player.seekBack() },
+                                onForward = { player.seekForward() },
+                                onNext = { player.seekToNextMediaItem() },
                                 modifier = Modifier.align(Alignment.Center),
                             )
                         }
 
+                        // 锁定键（W11 反馈②）：屏幕右缘垂直居中、贴边，样式与其它覆盖键一致
+                        PlayerIconButton(
+                            iconRes = CoreR.drawable.ic_lock,
+                            contentDescription =
+                                stringResource(PlayerR.string.player_controls_lock),
+                            onClick = { controls.setLock(true) },
+                            modifier =
+                                Modifier.align(Alignment.CenterEnd)
+                                    .padding(end = CinefinSpacing.Space3),
+                        )
+
                         // 折叠半开的底栏落在折痕下屏，画面区不再重复一份
                         if (layout.chrome != PlayerChromeLayout.FoldHalfOpen) {
-                            bottomBar(Modifier.align(Alignment.BottomCenter), bottomScrim)
+                            bottomBar(Modifier.align(Alignment.BottomCenter), bottomScrim, spec)
                         }
                     }
+                }
+
+                /*
+                 * 缓冲（W11 反馈⑤）：控件可见时由中央播放键里的转圈表达；控件整层隐藏（用户手动收起）
+                 * 时才用独立的玻璃圈兜底——任何时刻整个播放页只有 1 个加载图标，也不会与播放键叠在一起。
+                 */
+                if (runtime.isBuffering && !controls.visible) {
+                    PlayerBufferingIndicator(
+                        visible = true,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
                 }
 
                 // 锁屏态：只留一个解锁按钮，其余触摸交给手势层吞掉
@@ -692,7 +797,7 @@ fun PlayerControlOverlay(
                 modifier =
                     Modifier.fillMaxSize().padding(top = videoHeight).background(colors.surfaceDim)
             ) {
-                bottomBar(Modifier.fillMaxWidth(), null)
+                bottomBar(Modifier.fillMaxWidth(), null, spec)
                 PlayerBottomContent(
                     entries = runtime.queueEntries,
                     currentIndex = runtime.currentIndex,
@@ -742,14 +847,6 @@ fun PlayerControlOverlay(
                 onBack = panelBackTarget?.let { target -> { panel = target } },
             ) {
                 when (drawerPanel) {
-                    PlayerPanel.More ->
-                        MorePanel(
-                            isPipSupported = isPipSupported,
-                            // 小窗（Compact）没有右上角工具簇，「更多」要兜住全部功能入口
-                            showToolEntries = layout.isCompact,
-                            onPip = onPip,
-                            onOpen = { navigatePanel(it) },
-                        )
                     PlayerPanel.Speed ->
                         SpeedPanel(
                             current = runtime.speed,
@@ -851,10 +948,9 @@ private fun PlayerTopBar(
     /** 清晰度徽标（例如 1080P）；取不到时传 null，不占位 */
     qualityLabel: String?,
     onBack: () -> Unit,
-    onLock: () -> Unit,
     /** 窄屏 / 竖屏：工具簇用纯图标（<600dp），宽屏用「图标 + 文字」 */
     compactTools: Boolean,
-    /** 右上角工具簇（字幕 / 音轨 / 画面 / 选集 / 更多），由调用方注入保持单一入口 */
+    /** 右上角工具簇（字幕 / 音轨 / 画面 / 选集，宽屏再加 播放设置），由调用方注入保持单一入口 */
     tools: @Composable (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onHeightChanged: (Int) -> Unit = {},
@@ -906,15 +1002,8 @@ private fun PlayerTopBar(
             )
         }
         Spacer(Modifier.width(CinefinSpacing.Space2))
-        // 右上角：字幕 / 音轨 / 画面 / 选集 / 更多（反馈⑥：「设置类」入口集中在这里）
+        // 右上角：字幕 / 音轨 / 画面 / 选集（宽屏再加 播放设置）——W11 取消「更多」，锁移到右缘中部
         tools(compactTools)
-        Spacer(Modifier.width(CinefinSpacing.Space1))
-        // 锁定只保留这一个常驻入口（§11 A：顶栏 / 底栏不再重复；锁定后由 LockedOverlay 解锁）
-        PlayerIconButton(
-            iconRes = CoreR.drawable.ic_lock,
-            contentDescription = stringResource(PlayerR.string.player_controls_lock),
-            onClick = onLock,
-        )
     }
 }
 
@@ -946,9 +1035,18 @@ private fun PlayerBufferingIndicator(visible: Boolean, modifier: Modifier = Modi
     }
 }
 
-/** 主播放键：月白填充 + 深色图标（A · Lumen 的主行动 / §8.7 主播放键）。 */
+/**
+ * 主播放键：月白填充 + 深色图标（A · Lumen 的主行动 / §8.7 主播放键）。
+ *
+ * [buffering] = true 时图标位换成深色转圈：全屏唯一的那一个加载图标就落在这里（W11 反馈⑤）， 键本身仍可点（缓冲中卡住时照样能暂停）。
+ */
 @Composable
-private fun PlayerPlayKey(isPlaying: Boolean, onClick: () -> Unit, size: Dp = 56.dp) {
+internal fun PlayerPlayKey(
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+    size: Dp = 56.dp,
+    buffering: Boolean = false,
+) {
     val colors = LocalCinefinColors.current
     val playPauseLabel = stringResource(PlayerR.string.player_controls_play_pause)
     val interactionSource = remember { MutableInteractionSource() }
@@ -985,12 +1083,71 @@ private fun PlayerPlayKey(isPlaying: Boolean, onClick: () -> Unit, size: Dp = 56
                 )
                 .semantics(mergeDescendants = true) { contentDescription = playPauseLabel },
     ) {
-        Icon(
-            painter =
-                painterResource(if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play),
-            contentDescription = null,
-            tint = colors.inverseOnSurface,
-            modifier = Modifier.size(size * 0.45f),
+        if (buffering) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(size * 0.34f),
+                color = colors.inverseOnSurface,
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Icon(
+                painter =
+                    painterResource(
+                        if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
+                    ),
+                contentDescription = null,
+                tint = colors.inverseOnSurface,
+                modifier = Modifier.size(size * 0.45f),
+            )
+        }
+    }
+}
+
+/**
+ * 中央播放簇（W11 反馈③）：上一个 · 快退 −10s · 播放 / 暂停 · 快进 +10s · 下一个——五键居中， 与上一版的传输簇一致。传输键只在中央出现（右上工具簇 /
+ * 左下工具行都不再重复）； 簇之外的触摸区域照旧交给手势层（命中带见 [PlayerOverlayContainer]）。
+ */
+@Composable
+private fun PlayerCenterCluster(
+    isPlaying: Boolean,
+    buffering: Boolean,
+    onPlayPause: () -> Unit,
+    onPrevious: () -> Unit,
+    onRewind: () -> Unit,
+    onForward: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+        modifier = modifier,
+    ) {
+        PlayerTransportButton(
+            iconRes = CoreR.drawable.ic_skip_back,
+            contentDescription = stringResource(PlayerR.string.player_controls_previous_episode),
+            onClick = onPrevious,
+        )
+        PlayerTransportButton(
+            iconRes = CoreR.drawable.ic_rewind,
+            contentDescription = stringResource(PlayerR.string.player_controls_rewind),
+            onClick = onRewind,
+        )
+        PlayerPlayKey(
+            isPlaying = isPlaying,
+            onClick = onPlayPause,
+            size = 70.dp,
+            buffering = buffering,
+        )
+        PlayerTransportButton(
+            iconRes = CoreR.drawable.ic_fast_forward,
+            contentDescription = stringResource(PlayerR.string.player_controls_fast_forward),
+            onClick = onForward,
+        )
+        PlayerTransportButton(
+            iconRes = CoreR.drawable.ic_skip_forward,
+            contentDescription = stringResource(PlayerR.string.player_controls_next_episode),
+            onClick = onNext,
         )
     }
 }
@@ -1046,9 +1203,10 @@ private fun PlayerTransportButton(
 }
 
 /**
- * 右上角工具簇（反馈⑥）：字幕 / 音轨 / 画面 / 选集 / 更多。
+ * 右上角工具簇（W11 反馈①）：字幕 / 音轨 / 画面 / 选集（+ 宽屏的 播放设置）。
  *
- * 宽屏（≥600dp）用「图标 + 文字」工具键（§11 B），窄屏退化成 44dp 纯图标键 + 语义标签， 保证竖屏下顶栏仍然放得下返回 / 标题 / 锁定。
+ * 「更多」整体取消：内容 / 显示类留在这里，播放行为类（倍速 / 睡眠 / 信息 / 画中画）下移到左下工具行； 窄屏（<600dp）连「播放设置」一起下移，右上只留 4
+ * 个纯图标键，保证顶栏放得下返回 / 标题。 宽屏（≥600dp）用「图标 + 文字」工具键（§11 B）。
  */
 @Composable
 private fun PlayerToolCluster(
@@ -1060,7 +1218,7 @@ private fun PlayerToolCluster(
     onOpenAudio: () -> Unit,
     onOpenAspect: () -> Unit,
     onOpenQueue: () -> Unit,
-    onOpenMore: () -> Unit,
+    onOpenSettings: () -> Unit,
     queueDescription: String,
     modifier: Modifier = Modifier,
 ) {
@@ -1097,12 +1255,6 @@ private fun PlayerToolCluster(
                 onClick = onOpenQueue,
                 size = 44.dp,
             )
-            PlayerIconButton(
-                iconRes = PlayerR.drawable.ic_player_more,
-                contentDescription = stringResource(PlayerR.string.player_controls_more),
-                onClick = onOpenMore,
-                size = 44.dp,
-            )
         } else {
             PlayerToolButton(
                 iconRes = CoreR.drawable.ic_closed_caption,
@@ -1132,10 +1284,10 @@ private fun PlayerToolCluster(
                 onClick = onOpenQueue,
             )
             PlayerToolButton(
-                iconRes = PlayerR.drawable.ic_player_more,
-                label = stringResource(PlayerR.string.player_controls_more),
-                contentDescription = stringResource(PlayerR.string.player_controls_more),
-                onClick = onOpenMore,
+                iconRes = PlayerR.drawable.ic_player_settings,
+                label = stringResource(PlayerR.string.player_controls_label_settings),
+                contentDescription = stringResource(PlayerR.string.player_controls_settings),
+                onClick = onOpenSettings,
             )
         }
     }
@@ -1240,10 +1392,10 @@ private fun ErrorActionButton(
 // ---------- 底部 ----------
 
 /**
- * 左下角控制区 + 通栏进度条（反馈⑥）。
+ * 底栏（W11 反馈①⑥⑧）：左下工具行 + 时间码两端对齐 + 通栏进度条。
  *
- * 版式：左下角 = 播放 / 切换（上下集 · ±10s）/ 时间；倍速只在非 1× 时以媒体色提示； 进度条通栏贴在画面区最底部，缓冲层 / 章节刻度 / 拖拽态都在
- * [PlayerSeekBar] 里实现。
+ * 版式：左下工具行 = 倍率键（显示即入口）/ 睡眠 / 播放信息（窄屏再放 播放设置）/ 画中画； 右端 = 右下角全屏键（右下角只放它，倍率显示已从左下工具行走，两者不重叠）；
+ * 下一行时间码左「当前」右「总时长」，任何窗口宽度都不会错位；进度条通栏贴底，缓冲层 / 章节刻度 / 拖拽态都在 [PlayerSeekBar] 里实现。
  */
 @Composable
 private fun PlayerBottomBar(
@@ -1253,15 +1405,19 @@ private fun PlayerBottomBar(
     chapters: List<PlayerChapter>,
     trickplay: Trickplay?,
     speed: Float,
-    sleepRemainingMs: Long,
-    isPlaying: Boolean,
+    sleepActive: Boolean,
+    /** 版式规格（W11 反馈①⑧）：窄屏整体收一档、播放设置下移到本行 */
+    spec: PlayerControlSpec,
+    isFullscreen: Boolean,
+    isPipSupported: Boolean,
     onSeek: (Long) -> Unit,
     onScrubStart: () -> Unit,
-    onPlayPause: () -> Unit,
-    onPrevious: () -> Unit,
-    onRewind: () -> Unit,
-    onForward: () -> Unit,
-    onNext: () -> Unit,
+    onSpeed: () -> Unit,
+    onSleep: () -> Unit,
+    onInfo: () -> Unit,
+    onSettings: () -> Unit,
+    onPip: () -> Unit,
+    onToggleFullscreen: () -> Unit,
     /** 底栏遮罩：叠在画面上的形态用渐变，折痕下屏用 null（背景由内容区承担） */
     scrim: Brush? = null,
     modifier: Modifier = Modifier,
@@ -1278,67 +1434,116 @@ private fun PlayerBottomBar(
                 .then(if (scrim != null) Modifier.background(scrim) else Modifier)
                 .padding(bottom = CinefinSpacing.Space3)
     ) {
-        // 左下角：播放 / 切换 / 时间（反馈⑥：「播放/切换/时间类」集中在左下）
+        /*
+         * 左下工具行（W11 反馈①）：原「更多」里的播放行为类入口集中在这里——倍率键（显示即入口）/
+         * 睡眠 / 播放信息（窄屏再把 播放设置 接住）/ 画中画；最右端只有右下角的全屏键（反馈⑥）。
+         * 行内横向可滚：窗口再窄也只是多滑一下，不会把键挤出屏幕或压到时间码上（反馈⑧）。
+         */
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier =
                 Modifier.fillMaxWidth()
                     .padding(
-                        start = CinefinSpacing.Space5,
-                        end = CinefinSpacing.Space5,
+                        start = spec.toolRowPaddingDp.dp,
+                        end = spec.toolRowPaddingDp.dp,
                         top = CinefinSpacing.Space2,
                     ),
         ) {
-            PlayerPlayKey(isPlaying = isPlaying, onClick = onPlayPause)
-            Spacer(Modifier.width(CinefinSpacing.Space3))
-            PlayerTransportButton(
-                iconRes = CoreR.drawable.ic_skip_back,
-                contentDescription = stringResource(PlayerR.string.player_controls_skip_back),
-                onClick = onPrevious,
-            )
-            PlayerTransportButton(
-                iconRes = CoreR.drawable.ic_rewind,
-                contentDescription = stringResource(PlayerR.string.player_controls_rewind),
-                onClick = onRewind,
-            )
-            PlayerTransportButton(
-                iconRes = CoreR.drawable.ic_fast_forward,
-                contentDescription = stringResource(PlayerR.string.player_controls_fast_forward),
-                onClick = onForward,
-            )
-            PlayerTransportButton(
-                iconRes = CoreR.drawable.ic_skip_forward,
-                contentDescription = stringResource(PlayerR.string.player_controls_skip_forward),
-                onClick = onNext,
-            )
-            Spacer(Modifier.width(CinefinSpacing.Space3))
-            Text(
-                text = formatTime(positionMs),
-                style = CinefinType.MonoData,
-                color = colors.onSurface,
-            )
-            Text(
-                text = " / " + formatTime(durationMs),
-                style = CinefinType.MonoData,
-                color = colors.onSurfaceVariant,
-            )
-            if (sleepRemainingMs > 0L) {
-                Spacer(Modifier.width(CinefinSpacing.Space3))
-                Text(
-                    text = "睡眠 " + formatTime(sleepRemainingMs),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = media.bright,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+                modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+            ) {
+                /*
+                 * 倍率控件（W11 补充约束）：显示即入口——键面直接写当前倍率（1× / 1.5×），点开倍速面板，
+                 * 选完回来数字跟着更新；全播放页只有这一个倍速入口（右下角留给全屏键，二者不重叠）。
+                 */
+                PlayerSpeedKey(speed = speed, spec = spec, onClick = onSpeed)
+                PlayerToolKey(
+                    iconRes = PlayerR.drawable.ic_player_sleep,
+                    label = stringResource(PlayerR.string.player_controls_label_sleep),
+                    spec = spec,
+                    selected = sleepActive,
+                    onClick = onSleep,
                 )
+                PlayerToolKey(
+                    iconRes = PlayerR.drawable.ic_player_info,
+                    label = stringResource(PlayerR.string.player_controls_label_info),
+                    spec = spec,
+                    onClick = onInfo,
+                )
+                if (spec.settingsInBottomRow) {
+                    PlayerToolKey(
+                        iconRes = PlayerR.drawable.ic_player_settings,
+                        label = stringResource(PlayerR.string.player_controls_label_settings),
+                        spec = spec,
+                        onClick = onSettings,
+                    )
+                }
+                if (isPipSupported) {
+                    PlayerToolKey(
+                        iconRes = PlayerR.drawable.ic_player_pip,
+                        label = stringResource(PlayerR.string.player_controls_label_pip),
+                        spec = spec,
+                        onClick = onPip,
+                    )
+                }
             }
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = formatSpeed(speed),
-                style = CinefinType.MonoData,
-                color = if (speed != 1f) media.bright else colors.onSurfaceVariant,
+            Spacer(Modifier.width(CinefinSpacing.Space2))
+            // 右下角全屏键（反馈⑥）：同一个键，图标随状态切换；右下角只放它，不与任何倍率显示重叠
+            PlayerIconButton(
+                iconRes =
+                    if (isFullscreen) {
+                        PlayerR.drawable.ic_player_fullscreen_exit
+                    } else {
+                        PlayerR.drawable.ic_player_fullscreen
+                    },
+                contentDescription =
+                    stringResource(
+                        if (isFullscreen) {
+                            PlayerR.string.player_controls_fullscreen_exit
+                        } else {
+                            PlayerR.string.player_controls_fullscreen
+                        }
+                    ),
+                onClick = onToggleFullscreen,
+                size = spec.toolKeySizeDp.dp,
             )
         }
 
         Spacer(Modifier.height(CinefinSpacing.Space2))
+
+        /*
+         * 时间码两端对齐（W11 反馈⑧）：左 = 当前进度、右 = 总时长，各占画面区两端的一个固定位置。
+         * 旧版把「当前 / 总时长 + 倍速」塞在左下一行里，窗口一窄就被挤出屏幕（右侧时间错位）；
+         * 现在时间有自己的行，进度条仍然通栏贴底，任何宽度下都不会重叠或越界（不靠隐藏修复）。
+         */
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space5),
+        ) {
+            Text(
+                text = formatTime(positionMs),
+                style = CinefinType.MonoDataSmall,
+                color = colors.onSurface,
+            )
+            Spacer(Modifier.weight(1f))
+            if (sleepActive) {
+                Text(
+                    text = stringResource(PlayerR.string.player_controls_label_sleep),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = media.bright,
+                )
+                Spacer(Modifier.width(CinefinSpacing.Space2))
+            }
+            Text(
+                text = formatTime(durationMs),
+                style = CinefinType.MonoDataSmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
+
+        Spacer(Modifier.height(CinefinSpacing.Space1))
 
         // 进度条通栏贴底（左右不留边）：轨道 / 缓冲层 / 章节刻度 / 拖拽态都在 PlayerSeekBar 内（反馈⑦）
         PlayerSeekBar(
@@ -1351,6 +1556,177 @@ private fun PlayerBottomBar(
             onScrub = { onSeek(it) },
         )
     }
+}
+
+/**
+ * 左下工具行的一个键：窄屏 = 纯图标（收一档），宽屏 = 「图标 + 文字」（§11 B）。
+ *
+ * 选中态用媒体色融进键本体（底 [media.container] + 描边 + 亮色图标文字），不做独立色点（§2.6 第 1 条）。
+ */
+@Composable
+private fun PlayerToolKey(
+    iconRes: Int,
+    label: String,
+    spec: PlayerControlSpec,
+    onClick: () -> Unit,
+    selected: Boolean = false,
+) {
+    if (spec.compactTools) {
+        PlayerIconButton(
+            iconRes = iconRes,
+            contentDescription = label,
+            selected = selected,
+            onClick = onClick,
+            size = spec.toolKeySizeDp.dp,
+        )
+    } else {
+        PlayerToolButton(
+            iconRes = iconRes,
+            label = label,
+            contentDescription = label,
+            selected = selected,
+            onClick = onClick,
+        )
+    }
+}
+
+/**
+ * 倍率键（W11 补充约束）：**倍率显示与倍率控件是同一个键**——键面直接写当前倍率（1× / 1.5×）并带倍速图标， 点开倍速面板，选完数字跟着更新。旧版那个游离在右下角的 "1×"
+ * 显示收进这个键，右下角只留全屏键。
+ *
+ * 非 1× 时用媒体色融进键本体（§2.6 第 1 条：不做独立色点）；全播放页只有这一个倍速入口。
+ */
+@Composable
+private fun PlayerSpeedKey(speed: Float, spec: PlayerControlSpec, onClick: () -> Unit) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val active = speed != 1f
+    val shape = CinefinShapes.Md
+    val label = formatSpeed(speed)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            Modifier.height(spec.toolKeySizeDp.dp)
+                .widthIn(min = if (spec.compactTools) 46.dp else 64.dp)
+                .clip(shape)
+                .background(if (active) media.container else colors.scrim.copy(alpha = 0.45f))
+                .then(if (active) Modifier.border(1.dp, media.outline, shape) else Modifier)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClickLabel = label,
+                    onClick = onClick,
+                )
+                .semantics(mergeDescendants = true) {
+                    contentDescription = label
+                    selected = active
+                }
+                .padding(horizontal = CinefinSpacing.Space2),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // 宽屏的键都带图标，倍率键也跟着带一个；窄屏只留数字，把宽度让给旁边的全屏键
+            if (!spec.compactTools) {
+                Icon(
+                    painter = painterResource(PlayerR.drawable.ic_player_speed),
+                    contentDescription = null,
+                    tint = if (active) media.bright else colors.onSurface,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(CinefinSpacing.Space1))
+            }
+            Text(
+                text = label,
+                style = CinefinType.MonoDataSmall,
+                color = if (active) media.bright else colors.onSurface,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/**
+ * 小窗（Compact）的工具行（W11 反馈①）：小窗既没有右上角工具簇，也没有左下工具行的位置， 因此用一个横向可滚的小键行把全部入口兜住——「更多」取消后仍然一个功能一个入口、功能不缩水，
+ * 窗口再窄也只是多滑一下（反馈⑧：不靠隐藏修复）。
+ */
+@Composable
+internal fun PlayerCompactToolKeys(
+    subtitleEnabled: Boolean,
+    aspectActive: Boolean,
+    isPipSupported: Boolean,
+    /** 当前倍率：右下角倍率键的显示值（同时也是入口） */
+    speed: Float,
+    onOpenSubtitle: () -> Unit,
+    onOpenAudio: () -> Unit,
+    onOpenAspect: () -> Unit,
+    onOpenQueue: () -> Unit,
+    onOpenInfo: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onSpeed: () -> Unit,
+    onSleep: () -> Unit,
+    onPip: () -> Unit,
+    onLock: () -> Unit,
+) {
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_closed_caption,
+        contentDescription = stringResource(PlayerR.string.select_subtitle_track),
+        selected = subtitleEnabled,
+        onClick = onOpenSubtitle,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_speaker,
+        contentDescription = stringResource(PlayerR.string.select_audio_track),
+        onClick = onOpenAudio,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_aspect,
+        contentDescription = stringResource(PlayerR.string.player_controls_aspect),
+        selected = aspectActive,
+        onClick = onOpenAspect,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_playlist,
+        contentDescription = stringResource(PlayerR.string.player_controls_queue),
+        onClick = onOpenQueue,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_sleep,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_sleep),
+        onClick = onSleep,
+        size = 40.dp,
+    )
+    // 倍率显示 = 倍率入口（W11 补充约束），小窗里也不再有第二个倍速入口
+    PlayerSpeedKey(speed = speed, spec = playerControlSpec(0f), onClick = onSpeed)
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_info,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_info),
+        onClick = onOpenInfo,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_settings,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_settings),
+        onClick = onOpenSettings,
+        size = 40.dp,
+    )
+    if (isPipSupported) {
+        PlayerIconButton(
+            iconRes = PlayerR.drawable.ic_player_pip,
+            contentDescription = stringResource(PlayerR.string.player_controls_label_pip),
+            onClick = onPip,
+            size = 40.dp,
+        )
+    }
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_lock,
+        contentDescription = stringResource(PlayerR.string.player_controls_lock),
+        onClick = onLock,
+        size = 40.dp,
+    )
 }
 
 /**
@@ -2017,8 +2393,7 @@ private fun panelTitleRes(panel: PlayerPanel): Int =
         PlayerPanel.Queue -> PlayerR.string.player_controls_queue
         PlayerPanel.Sleep -> PlayerR.string.player_controls_sleep_timer
         PlayerPanel.Settings -> PlayerR.string.player_controls_settings
-        PlayerPanel.More,
-        PlayerPanel.None -> PlayerR.string.player_controls_more
+        PlayerPanel.None -> PlayerR.string.player_controls_settings
     }
 
 @Composable
@@ -2652,75 +3027,6 @@ private fun QueuePanel(
         onClear = onClear,
         modifier = Modifier.fillMaxSize(),
     )
-}
-
-/**
- * 「更多」聚合面板（§11 A/E + W10 反馈⑤）：低频入口统一收在这里，不再常驻画面。
- *
- * **去重**：字幕 / 音轨 / 画面比例 / 播放队列在右上角工具簇里已有唯一入口，循环模式在「播放设置 → 播放」组里，
- * 都不再在这里重复出现；这里只留画中画、倍速、播放信息、睡眠定时与「播放设置」这个设置类聚合入口。 小窗（Compact）没有右上角工具簇，[showToolEntries] = true
- * 时把四个工具入口兜回来，功能不缩水。
- */
-@Composable
-private fun MorePanel(
-    isPipSupported: Boolean,
-    showToolEntries: Boolean,
-    onPip: () -> Unit,
-    onOpen: (PlayerPanel) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        PanelList {
-            if (isPipSupported) {
-                PanelRow(
-                    label = stringResource(PlayerR.string.player_controls_pip),
-                    selected = false,
-                    onClick = onPip,
-                )
-            }
-            PanelRow(
-                label = stringResource(PlayerR.string.select_playback_speed),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Speed) },
-            )
-            if (showToolEntries) {
-                PanelRow(
-                    label = stringResource(PlayerR.string.select_subtitle_track),
-                    selected = false,
-                    onClick = { onOpen(PlayerPanel.Subtitle) },
-                )
-                PanelRow(
-                    label = stringResource(PlayerR.string.select_audio_track),
-                    selected = false,
-                    onClick = { onOpen(PlayerPanel.Audio) },
-                )
-                PanelRow(
-                    label = stringResource(PlayerR.string.player_controls_aspect),
-                    selected = false,
-                    onClick = { onOpen(PlayerPanel.Aspect) },
-                )
-                PanelRow(
-                    label = stringResource(PlayerR.string.player_controls_queue),
-                    selected = false,
-                    onClick = { onOpen(PlayerPanel.Queue) },
-                )
-            }
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_info),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Info) },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_sleep_timer),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Sleep) },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_settings),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Settings) },
-            )
-        }
-    }
 }
 
 @Composable
