@@ -402,7 +402,8 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         val video = source.mediaStreams.firstOrNull { it.type == MediaStreamType.VIDEO }
         val audio = source.mediaStreams.firstOrNull { it.type == MediaStreamType.AUDIO }
         return PlayerMediaInfo(
-            container = inferContainerFromUri(playbackUri),
+            // 播放地址是 Jellyfin 的 /Videos/<id>/stream（没有后缀），容器名优先从源文件名猜
+            container = inferContainerFromUri(playbackUri) ?: inferContainerFromUri(source.name),
             videoCodec = video?.codec?.takeIf { it.isNotBlank() },
             width = video?.width?.takeIf { it > 0 },
             height = video?.height?.takeIf { it > 0 },

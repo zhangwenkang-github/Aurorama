@@ -250,6 +250,7 @@ class PlayerActivity : BasePlayerActivity() {
                     onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
                     onQueueRemove = { index -> viewModel.removeQueueItem(index) },
                     onQueueClear = { viewModel.clearQueue() },
+                    showChapterMarkers = settingsController.state.chapterMarkers,
                     onRetry = { viewModel.retryPlayback() },
                     onSwitchBackend = { switchBackendAndRestart() },
                     onRegionsChanged = { visible, panelOpen, locked, errorVisible ->
@@ -687,6 +688,15 @@ class PlayerActivity : BasePlayerActivity() {
             ) * cropScale(transform.cropPercent)
         view.scaleX = (if (transform.mirror == VideoMirrorMode.HORIZONTAL) -1f else 1f) * scale
         view.scaleY = (if (transform.mirror == VideoMirrorMode.VERTICAL) -1f else 1f) * scale
+        // 排障 / 验收证据：把实际落到视图上的参数打出来（真机走查用文本核对，不靠截图）
+        Timber.d(
+            "ExoPlayer 画面变换: rotation=%.1f scaleX=%.3f scaleY=%.3f resizeMode=%d crop=%d",
+            view.rotation,
+            view.scaleX,
+            view.scaleY,
+            view.resizeMode,
+            transform.cropPercent,
+        )
     }
 
     /** mpv 换硬件解码：播放中即时生效（ExoPlayer 不走这条） */

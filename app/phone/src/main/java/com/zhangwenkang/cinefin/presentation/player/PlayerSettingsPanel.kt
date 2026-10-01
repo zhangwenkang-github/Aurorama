@@ -528,6 +528,8 @@ internal fun PanelSwitchRow(
                 .heightIn(min = 52.dp)
                 .clip(CinefinShapes.Sm)
                 .background(colors.surfaceContainerLow)
+                // 整行可点：开关行是「一行的表单」，不该只有右侧小圆钮响应（48dp 命中区纪律）
+                .clickable(enabled = enabled) { onCheckedChange(!checked) }
                 .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2),
     ) {
         Column(modifier = Modifier.weight(1f)) {

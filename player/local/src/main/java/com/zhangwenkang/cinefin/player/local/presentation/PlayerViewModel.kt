@@ -692,6 +692,8 @@ constructor(
                             currentSegment = null,
                             currentChapters = item.chapters,
                             fileLoaded = false,
+                            // 信息面板的媒体源元数据（§1.8）：跟着当前条目一起刷新
+                            currentMediaInfo = item.mediaInfo,
                         )
                     }
 

@@ -379,6 +379,8 @@ fun PlayerControlOverlay(
     onQueueMove: (Int, Int) -> Unit = { _, _ -> },
     onQueueRemove: (Int) -> Unit = {},
     onQueueClear: () -> Unit = {},
+    /** 进度条是否显示章节刻度（§1.9 设置面板「播放」组；关掉后不画刻度） */
+    showChapterMarkers: Boolean = true,
     /** 循环模式附加项「播完暂停」变化 */
     onPauseAfterCurrentItemChanged: (Boolean) -> Unit = {},
     /** 播放失败后的「重试」：清错误并从当前进度重新拉流 */
@@ -476,7 +478,7 @@ fun PlayerControlOverlay(
             positionMs = runtime.position,
             durationMs = runtime.duration,
             bufferedMs = runtime.buffered,
-            chapters = uiState.currentChapters,
+            chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
             trickplay = uiState.currentTrickplay,
             speed = runtime.speed,
             subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
@@ -535,7 +537,7 @@ fun PlayerControlOverlay(
                 positionMs = runtime.position,
                 durationMs = runtime.duration,
                 bufferedMs = runtime.buffered,
-                chapters = uiState.currentChapters,
+                chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
                 trickplay = uiState.currentTrickplay,
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
                 onSeek = { target -> player.seekTo(target) },

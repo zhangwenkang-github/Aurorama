@@ -660,6 +660,14 @@ class MPVPlayer(
             // mpv 的 video-zoom 以 2 为底：zoom = log2(裁剪放大 × 填满倍数)
             val zoom = if (zoomScale <= 1f) 0.0 else ln(zoomScale.toDouble()) / ln(2.0)
             mpvLib.setPropertyDouble("video-zoom", zoom)
+            // 排障 / 验收证据：真机走查用文本核对实际写进 mpv 的属性值
+            Timber.d(
+                "mpv 画面变换: video-rotate=%d video-scale-x=%.1f video-scale-y=%.1f video-zoom=%.4f",
+                rotate,
+                if (mirror == VideoMirrorMode.HORIZONTAL) -1.0 else 1.0,
+                if (mirror == VideoMirrorMode.VERTICAL) -1.0 else 1.0,
+                zoom,
+            )
         }
             .onFailure { Timber.w(it, "mpv 画面变换应用失败") }
     }

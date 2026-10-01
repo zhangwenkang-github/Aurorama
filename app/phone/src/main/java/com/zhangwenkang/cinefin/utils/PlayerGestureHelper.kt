@@ -143,6 +143,22 @@ class PlayerGestureHelper(
             },
         )
 
+    /**
+     * 手势总开关关闭时的兜底检测器：**只保留「单击显隐控制层」**。
+     *
+     * 控制层收起后如果连单击都不响应，用户就再也唤不出控件了（真机走查发现的死角）； 双击快进、长按倍速、滑动 seek、双指缩放这些「会改变播放状态」的手势仍然全部屏蔽。
+     */
+    private val singleTapDetector =
+        GestureDetector(
+            playerView.context,
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    onSingleTap()
+                    return true
+                }
+            },
+        )
+
     @SuppressLint("SetTextI18n")
     private fun enableSpeedIncrease() {
         playerView.player?.let {
@@ -638,20 +654,25 @@ class PlayerGestureHelper(
 
         @Suppress("ClickableViewAccessibility")
         playerView.setOnTouchListener { _, event ->
-            // 手势总开关（§1.9 设置面板）：现读偏好，关掉后所有自定义手势立即失效
-            if (!isSuspended && appPreferences.getValue(appPreferences.playerGestures)) {
+            // 手势总开关（§1.9 设置面板）：现读偏好，关掉后只有「单击显隐控制层」还保留
+            val gesturesEnabled = appPreferences.getValue(appPreferences.playerGestures)
+            if (!isSuspended) {
                 currentNumberOfPointers = event.pointerCount
-                when (event.pointerCount) {
-                    1 -> {
-                        tapGestureDetector.onTouchEvent(event)
-                        if (appPreferences.getValue(appPreferences.playerGesturesVB))
-                            vbGestureDetector.onTouchEvent(event)
-                        if (appPreferences.getValue(appPreferences.playerGesturesSeek))
-                            seekGestureDetector.onTouchEvent(event)
-                    }
-                    2 -> {
-                        if (appPreferences.getValue(appPreferences.playerGesturesZoom))
-                            zoomGestureDetector.onTouchEvent(event)
+                if (!gesturesEnabled) {
+                    if (event.pointerCount == 1) singleTapDetector.onTouchEvent(event)
+                } else {
+                    when (event.pointerCount) {
+                        1 -> {
+                            tapGestureDetector.onTouchEvent(event)
+                            if (appPreferences.getValue(appPreferences.playerGesturesVB))
+                                vbGestureDetector.onTouchEvent(event)
+                            if (appPreferences.getValue(appPreferences.playerGesturesSeek))
+                                seekGestureDetector.onTouchEvent(event)
+                        }
+                        2 -> {
+                            if (appPreferences.getValue(appPreferences.playerGesturesZoom))
+                                zoomGestureDetector.onTouchEvent(event)
+                        }
                     }
                 }
             }
