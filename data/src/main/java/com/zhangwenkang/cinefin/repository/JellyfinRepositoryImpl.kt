@@ -37,10 +37,13 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DeviceOptionsDto
 import org.jellyfin.sdk.model.api.DeviceProfile
+import org.jellyfin.sdk.model.api.DlnaProfileType
+import org.jellyfin.sdk.model.api.EncodingContext
 import org.jellyfin.sdk.model.api.GeneralCommandType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.MediaStreamProtocol
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayMethod
 import org.jellyfin.sdk.model.api.PlaybackInfoDto
@@ -53,6 +56,7 @@ import org.jellyfin.sdk.model.api.RepeatMode
 import org.jellyfin.sdk.model.api.SortOrder as ItemSortOrder
 import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
 import org.jellyfin.sdk.model.api.SubtitleProfile
+import org.jellyfin.sdk.model.api.TranscodingProfile
 import org.jellyfin.sdk.model.api.UserConfiguration
 import timber.log.Timber
 
@@ -323,11 +327,34 @@ class JellyfinRepositoryImpl(
             val maxStreamingBitrate =
                 PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
             val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)
+            /*
+             * 选了具体码率就必须声明转码能力：否则服务器认为「这个客户端不会播转码流」，
+             * 于是无视 maxStreamingBitrate 继续直连（Pad 5 真机实测：3 Mbps 档仍是 DirectPlay）。
+             * 只声明 HLS + H.264/AAC（Jellyfin 官方客户端的流式档位），音频直通优先级由服务器决定。
+             */
+            val transcodingProfiles =
+                if (PlayerStreamingQuality.requestsTranscoding(streamingBitrate)) {
+                    listOf(
+                        TranscodingProfile(
+                            container = "ts",
+                            type = DlnaProfileType.VIDEO,
+                            videoCodec = "h264",
+                            audioCodec = "aac,mp3,ac3,opus",
+                            protocol = MediaStreamProtocol.HLS,
+                            context = EncodingContext.STREAMING,
+                            enableSubtitlesInManifest = true,
+                            conditions = emptyList(),
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
             Timber.d(
-                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b",
+                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b profiles=%d",
                 streamingBitrate,
                 maxStreamingBitrate,
                 transcodingEnabled,
+                transcodingProfiles.size,
             )
             val sources = mutableListOf<FindroidSource>()
             sources.addAll(
@@ -344,7 +371,7 @@ class JellyfinRepositoryImpl(
                                     codecProfiles = emptyList(),
                                     containerProfiles = emptyList(),
                                     directPlayProfiles = emptyList(),
-                                    transcodingProfiles = emptyList(),
+                                    transcodingProfiles = transcodingProfiles,
                                     subtitleProfiles =
                                         listOf(
                                             SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),

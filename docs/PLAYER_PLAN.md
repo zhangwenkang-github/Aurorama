@@ -3,7 +3,7 @@
 > **新对话从这里开始。** 开工前读本文件，收工前把进度写回本文件。
 > 纪律：需求变更、决策、完成度、勾选项、更新日志，都在**同一次改动**里写回这里；不再新建零散 `.md`。
 >
-> 最后更新：2026-10-01　分支：`feature/w9-player-experience`（W9 播放器体验补全波：§1.6–1.9；基线 `master 695ba75`）
+> 最后更新：2026-10-02　分支：`feature/w12-player-ui4`（W12 播放页第四轮：**终版布局** + 控件样式统一 + 面板重组 + 码率服务器转码 + 解码回退；基线 `master 49d6b08`，落地记录见 §15）
 
 ---
 
@@ -574,6 +574,10 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | mpv 不读 `PlayerView.resizeMode` | mpv 自己渲染到 TextureView（AspectRatioFrameLayout 拿不到视频尺寸时内容框就是整屏），比例必须写 mpv 属性：适应 = `keepaspect=yes` + `panscan=0`、裁剪填满 = `panscan=1`、拉伸填满 = `keepaspect=no`。`setPropertyString` **不返回错误码**（`setOptionString` 返回），所以两个都写、用 `getPropertyString` 回读值打日志做证据；`panscan` 的旧值残留会让画面一直放大铺满，切换档位 / 内核 / 退出重进都要重放一次 |
 | `uiautomator` 读不出面板 chip 的选中态 | `PanelChip` / `PanelRow` 的选中只体现在底色与描边上，dump 里 `selected=false`（没有 `selectable` 语义）。验收需要「默认选中项」证据时，改用像素采样：选中 chip 的底 = 极光青容器合成色（Pad 5/K60 实测 ≈ `(54,122,118)`），未选中 = 面板底（`(17,19,25)`） |
 
+| 常驻侧栏会「挤压 / 右移画面」（W12 真机定论） | 平板侧栏一旦缩窄 `PlayerView`（`applyVideoArea` 按 `sidePanelExpanded` 改宽度），用户的感受就是「打开选集画面被挤走」——本轮改成**覆盖层**：画面区恒为整窗宽，面板盖右缘 320dp + 左缘 1dp 结构线。命中区必须单独补一条（`PlayerOverlayContainer.sidePanelOpen` / `sidePanelWidthPx`），否则面板上的点按会穿透到手势层 |
+| M3 `clickable` 的最小触控 ≠ 视觉框 | Compose Material3 会把可点节点扩到最小 48dp：`uiautomator` 读到的 bounds 是**触摸框**（48dp），不是画出来的键框（本轮宽屏 44dp / 窄屏 38dp）。验收「控件缩小」要用截图量描边位置（Pad 5 实测视觉框 ≈ 40–44dp、触摸框 108px = 48dp） |
+| 只发 `maxStreamingBitrate` 不会转码（W12 真机踩到） | `DeviceProfile.transcodingProfiles = emptyList()` 时服务器认为「这个客户端不会播转码流」，于是无视码率上限继续 DirectPlay（Pad 5 实测 3 Mbps 档 `PlayMethod=DirectPlay`、`TranscodingInfo=null`）。补上 `TranscodingProfile(ts + HLS + h264 + aac/mp3/ac3/opus)` 后会话才出现 `TranscodingInfo{IsVideoDirect=False, Bitrate=2808000, TranscodeReasons=ContainerBitrateExceedsLimit}`，App 播放 `master.m3u8` |
+| Jellyfin 会话 `PlayMethod` 可能滞后 | 同一时刻 `/Sessions` 可能给出 `PlayState.PlayMethod=DirectPlay` 而 `TranscodingInfo` 明确是转码（本轮实测）。判断「服务器是否转码」只看 `TranscodingInfo`（`IsVideoDirect` / `Bitrate` / `TranscodeReasons`） |
 | 权威内容 | 位置 |
 |----------|------|
 | 播放界面任务 / 需求 / 决策 / 进度 | **本文件** |
@@ -952,4 +956,72 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 3. 中央簇最后一档 160dp 对应 <360dp 画面区；<280dp 的极窄窗口（真实设备上会走 Compact 骨架，只有 `wm` 尺寸覆盖能造出来）仍可能与锁定键轻微重叠，没有实际设备路径。
 4. 「全屏」= 收起常驻内容栏 + 强制横屏；纯横屏设备（Pad 5 平板）上表现为侧栏收起 / 恢复，方向策略不变（K60 竖屏点击可见真实横屏全屏效果）。
 5. Compact（自由窗口 / 分屏窄宽）已经没有「更多」：工具行横向可滚，入口一个不少；后续若要给小窗也做完整版式，可把这一行改成与左下工具行同源的实现。
+
+---
+
+## 15. W12-PLAYER 落地记录（2026-10-02 · 分支 `feature/w12-player-ui4`）
+
+> 用户 2026-10-02 第四轮播放页反馈（多轮澄清后确认的**终版布局**）+ 面板重组 + 码率服务器转码 + 解码回退。
+> 提交：`e69218d`（C 行为修复）、`eb3c592`（A 布局 / 控件样式 + B 面板重组 + 码率 / 解码接线）、`b7cb441`（ktfmt）+ 转码档位补丁（本波末次提交）。
+> 基线 `master 49d6b08`；本波只写 `player:local`、`app:phone`、`data`（最小改）、`settings/AppPreferences`（只追加）。
+
+### 15.1 决策补充（与 §0 同源）
+
+| 编号 | 决策 |
+|------|------|
+| D27 | **终版布局**（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条（保留流光渐变）· 总时长；进度条下方左侧 6 键 = **音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息**，右侧 = 全屏 / 退出全屏（同一个键）；右上角 5 键 = **画中画 · 睡眠 · 选集 · 画面 · 设置**（画面在选集与设置之间）；锁定键仍贴画面区右缘垂直居中；中央五键仍居中。顺序抽成 `PLAYER_BOTTOM_KEY_ORDER` / `PLAYER_TOP_KEY_ORDER` + 单测钉死（改顺序即回归）。 |
+| D28 | **控件框统一**：覆盖层控件的玻璃底不透明度 0.45 → **0.28**（按下 0.44）、统一 1dp 描边（未选中 = 月白 16%，选中 = `Media.Outline`）、按键位版式收尺寸（宽屏 44dp / 窄屏 38dp；键内图标 24 / 22dp）。倍率键 = **图标在上、当前倍率在下**的垂直堆叠，图标与其它键同宽。 |
+| D29 | **面板重组**：设置面板只剩 **播放 / 手势** 两个分类（Tab 切换，播放分类直接列设置项、无「播放」大按钮）；**解码**独立成面板（内核 + 硬解/软解策略 + 优先级说明）；**字幕模式 / 记住手动选轨** 并入「字幕」面板；**音轨语言优先级** 并入「音轨」面板；**画面** 从设置里删除（只保留右上角入口）；**码率** 独立成面板（自动 / 原始画质 / 1·2·3·5·8·12·20·40 Mbps）。 |
+| D30 | **解码优先级与回退**：服务器转码 / 解码 → 本地硬解 → 软解（软解最耗电，放最后）。ExoPlayer 硬解优先 = 扩展渲染器兜底 + `setEnableDecoderFallback(true)`；解码能力类错误仍静默换 mpv（不弹错误卡片、不崩溃）。仅软解 = ExoPlayer 扩展渲染器优先（FFmpeg）/ mpv `hwdec=no`。未知偏好值一律按**硬解**处理，不静默降级成软解。 |
+| D31 | **码率走服务器转码**：`pref_player_streaming_bitrate`（0 自动 / -1 原始画质 / >0 具体 Mbps）→ `maxStreamingBitrate`；**只有具体 Mbps 档才声明 `transcodingProfiles`**（HLS + ts + h264 + aac/mp3/ac3/opus）；「原始画质」把 `enableTranscoding=false` 关死转码。播放侧继续走既有「`transcodingPath` 优先」路径，选档位由 Activity 从当前位置重启播放页重新拉 PlaybackInfo。 |
+| D32 | **选集 = 覆盖层**：平板 / 折叠展开的选集栏不再缩窄 `PlayerView`（画面永远整窗宽、不挤压不右移），改为盖在右缘 320dp 的半透明面板 + 左缘 1dp 结构线；触摸命中由 `PlayerOverlayContainer.sidePanelOpen` / `sidePanelWidthPx` 单独接管；返回键顺序 = 子面板 → 一级面板 → 选集栏 → 系统。 |
+
+### 15.2 逐条修复方式与文件
+
+| # | 反馈 | 修复方式 | 主要文件 |
+|---|------|----------|----------|
+| C1 | 选集面板挤压 / 右移画面 | `applyVideoArea` 不再按侧栏缩窄画面（宽度恒为 `MATCH_PARENT`）；侧栏改 `PlayerSideContent(containerColor = surfaceDim 94%)` 覆盖层 + 左缘 1dp 结构线；命中区新增右缘一条 | `PlayerActivity.kt`、`PlayerControlOverlay.kt`、`PlayerContentPanel.kt`、`PlayerOverlayContainer.kt` |
+| C2 | 返回键要先关选集 | `resolvePlayerBack(panelOpen, hasParentPanel, sidePanelOpen)` 新增 `PlayerBackAction.CloseSidePanel`；`BackHandler` 三分支处理（收栏后保持控制层可见，不退出播放页） | `PlayerControlOverlay.kt`、`PlayerControlLayoutTest.kt` |
+| A1 | 控件框更透 / 贴边 / 描边 | 新增 `PLAYER_GLASS_ALPHA=0.28` / `PLAYER_GLASS_PRESSED_ALPHA=0.44` / `PLAYER_GLASS_BORDER_ALPHA=0.16`；`PlayerIconButton` 新增 `iconSize` 参数（默认 40dp 键 / 24dp 图标）；`PlayerToolButton`（宽屏「图标 + 文字」键）随布局改版删除 | `PlayerControlOverlay.kt` |
+| A2 | 倍率键图标上 / 1X 下 | `PlayerSpeedKey` 改垂直 `Column`（图标 `spec.iconSizeDp` + 数字 `labelSmall`），键宽 = 其它键宽；小窗（Compact）同样生效 | `PlayerControlOverlay.kt` |
+| A3 | 终版布局 | `PlayerBottomBar` 重写为「进度行（时间-条-时间）+ 6 键行 + 右下全屏键」；`PlayerToolCluster` 重写为右上 5 键；顺序表 + 单测；新增图标 `ic_player_bitrate.xml`（三根信号条）/ `ic_player_decode.xml`（解码芯片） | `PlayerControlOverlay.kt`、`player/local/src/main/res/drawable/ic_player_*.xml`、`PlayerControlLayoutTest.kt`、`values/strings.xml`、`values-zh-rCN/strings.xml` |
+| B1 | 设置面板两个分类 | `PlayerSettingsGroup` → `PlayerSettingsTab(Playback / Gesture)`；`SettingsGroupRow` 改收标签表 + 选中下标；删除解码 / 字幕 / 音频 / 画面四组分支 | `PlayerSettingsPanel.kt` |
+| B2 | 解码独立入口 | 新增 `PlayerDecodePanel`（内核 + 策略 + 优先级文案）+ `PlayerPanel.Decode`；`PlayerDecodeMode` 纯函数（扩展渲染器模式 / 解码器回退 / mpv hwdec）；`PlayerHolder` 接 `extensionRendererMode` + `setEnableDecoderFallback` | `PlayerSettingsPanel.kt`、`PlayerControlOverlay.kt`、`player/local/domain/PlayerDecodeMode.kt`、`PlayerHolder.kt`、`PlayerDecodeModeTest.kt` |
+| B3 | 字幕 / 音频唯一入口 | `SubtitlePanel` 顶部并入字幕模式 chips + 「记住手动选轨」；`AudioPanel` 顶部并入音轨语言优先级 chips（`AudioLanguagePresets` 改 internal）；设置面板不再有这两组 | `PlayerControlOverlay.kt`、`PlayerSettingsPanel.kt` |
+| B4 | 码率面板 | 新增 `PlayerBitratePanel` + `PlayerStreamingQuality`（档位映射纯函数 + 单测）；`AppPreferences` 只追加 `pref_player_streaming_bitrate` / `pref_player_decode_mode` | `PlayerSettingsPanel.kt`、`settings/.../PlayerStreamingQuality.kt`、`AppPreferences.kt`、`PlayerStreamingQualityTest.kt` |
+| B5 | 服务器转码生效 | `getMediaSources` 读偏好 → `maxStreamingBitrate` / `enableTranscoding` / 条件性 `transcodingProfiles`（HLS+ts+h264+aac 等）；选档位由 `PlayerActivity.restartPlaybackKeepingPosition()` 重新拉流并续播 | `JellyfinRepositoryImpl.kt`、`PlayerActivity.kt` |
+
+### 15.3 门禁（2026-10-02）
+
+```
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- `:app:phone:assembleDebug` ✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **44** 项 = 既有 34 + 新增 10（`PlayerStreamingQualityTest` 5、`PlayerControlLayoutTest` 新增 5：两条顺序断言 + 尺寸分档 + 411dp 不越界 + 返回键覆盖选集）
+- `:player:local:testDebugUnitTest` ✅ **31** 项 = 既有 28 + `PlayerDecodeModeTest` 3
+
+### 15.4 真机走查（Pad 5 `43af8627` + K60 `8e875894`，命令全部带 `-s`）
+
+| # | 证据（文本 / 数值） |
+|---|--------------------|
+| ① 选集不挤压画面 | Pad 5 平板横屏（2560×1600）：打开选集栏前后 `dumpsys activity top` 的 `PlayerView` 恒为 `0,0-2560,1600`（未压缩 / 未右移）；选集覆盖层占 x≈1885–2551（320dp），E01–E06 列表可见；`显示选集栏 → 隐藏选集栏` 状态切换正常 |
+| ② BACK 先关面板 | Pad 5：选集栏打开时按 BACK → 无障碍树节点 99 → 54、标签回到「显示选集栏」，`pidof` 24805 不变、`topResumedActivity` 仍是 `PlayerActivity`；K60：「播放设置」面板按 BACK → 面板标题节点 0、`pidof` 1785 不变 |
+| ③ 进度条行 + 6 键 | Pad 5 横屏：`00:02 [36,1369][121,1403]` / `04:00 [2437,1369][2522,1403]` **同一 y**；进度条像素 y=1386：x=150/180/210 = `#5CE1D2`（极光青已播段）、x=230/245 = `#F2F5F9`（knob）、x=2400 = `#393A3B`（轨道）；下方一行 = 选择音轨 `[41,1454][149,1562]` → 选择字幕轨 → 1× → 码率 → 解码 → 信息，右侧 进入全屏 `[2410,1454][2518,1562]`。K60 竖屏同序（`选择音轨 [25,1117][179,1285]` … 进入全屏 `[1247,1117][1415,1285]`），时间行 `00:00 [56,987]` / `04:00 [1248,987]` 同 y |
+| ④ 右上 5 键顺序 | Pad 5 横屏：画中画 `[2045..2144]` → 睡眠 `[2144..2243]` → 显示/隐藏选集栏 `[2243..2342]` → 画面比例 `[2342..2441]` → 播放设置 `[2441..2549]`（y 均 9–117）；Pad 5 竖屏 `[1087..1591]`、K60 `[641..1425]` 同序 |
+| ⑤ 控件框像素采样 | Pad 5（暂停帧，y=1470 横切「音轨」键）：框外视频 `#52565A` → 左描边 `#5B5E61`（x≈54–57）→ 框内玻璃 `#3D4143` → 右描边 `#474F51`（x≈140–144）；纵向 x=95：上描边 `#474C4F`（y≈1458）→ 框内 `#20–2D` → 下描边 `#2C2D30`（y≈1554）。框内合成值 = 视频 × 0.72 + 玻璃 × 0.28（实测 ≈ `#3D`，W11 的 0.45 档应 ≈ `#30` → **更透**）；视觉框 ≈ 89×97px（≈40–44dp）= 24dp 图标 + 一圈边距（语义/触摸框按 M3 最小 48dp 展开，108px） |
+| ⑥ 倍率键竖排 | Pad 5 键框 `[279,1451][378,1564]`（宽 99px = 44dp，与其它键同宽、更高）；键内文本 `1×` 节点 `[312,1516][345,1555]` 落在**下部**，x=328 纵切：y=1470/1494 = `#F2F5F9`（仪表图标笔画，上部）→ y=1530 = `#D3D5D9`（数字，下部） |
+| ⑦ 设置面板两分类 | Pad 5 / K60：抽屉标题「播放设置」+ 只有 `播放` `[1411,96][1557,204]` / `手势` `[1566,96][1712,204]` 两个 Tab；播放分类直接列 后台播放 / 跳过片头片尾按钮 / 自动跳过片头片尾 / 进度条显示章节刻度 / 播完暂停 / 循环模式（**无「播放」大按钮、无解码 / 字幕 / 音频 / 画面项**）；手势分类含 手势总开关 / 左右亮度音量 / 双指缩放 / 横向滑动进度 / 拖动预览 / 长按跳章节 / 记住亮度 / 进入时铺满 / 长按倍速 三档 |
+| ⑧ 解码面板 + 回退 | 面板文本：播放内核（`ExoPlayer（硬解）` / `mpv（软解兜底）`）+ 解码策略（`硬解优先` / `仅软解`）+ `优先级：服务器转码 / 解码 → 本地硬解 → 软解`；点 ExoPlayer 行 → `Restart player (backend=exoplayer)` + 偏好落盘 `pref_player_backend=exoplayer`。回退链路（10-bit H.264 片源《染成茜色的坂道 NCED》）：`Player error on backend=exoplayer: ERROR_CODE_DECODING_FAILED` → `解码能力不足（ERROR_CODE_DECODING_FAILED），自动降级到 mpv 内核` → `Restart player with backend=mpv` → `pref_player_backend=mpv`、`pidof` 存活、媒体会话 `state=3`，全程 `FATAL/ANR/Input dispatching timed out` 0 条 |
+| ⑨ 字幕 / 音频唯一入口 | 字幕面板文本：`选择字幕轨 | 字幕模式 | 自动 | 始终显示 | 关闭 | 记住手动选轨 | 字幕延迟 | −0.1s | 0.0s | +0.1s | 主字幕 | … | 次字幕（双语） | … | 字幕外观 | 大小 | …`；音轨面板文本：`选择音轨 | 音轨语言优先 | 中文优先 | 日语优先 | 英语优先 | 下一次选轨生效 | 音轨延迟 | … | 日语 FLAC · 2 声道 · 48 kHz`；设置面板已无这两组与画面项 |
+| ⑩ 码率服务器转码 | 选「3 Mbps」：`pref_player_streaming_bitrate=3`；日志 `Restart player (streaming bitrate=3)` → `getMediaSources bitrate=3 maxStreamingBitrate=3000000 transcoding=true profiles=1`；`PlayerViewModel: Stream url: …/videos/<id>/master.m3u8?…&VideoBitrate=2552000&AudioBitrate=448000&SegmentContainer=ts…&TranscodeReasons=ContainerBitrateExceedsLimit`（mpv 打开同一 m3u8）；服务器会话 `TranscodingInfo{IsVideoDirect=False, Bitrate=2808000, Container=ts, VideoCodec=h264, AudioCodec=aac, TranscodeReasons=ContainerBitrateExceedsLimit}`；切回「自动」→ `bitrate=0 maxStreamingBitrate=1000000000 profiles=0`（回到改造前行为，续播位置保留） |
+| 稳定性 / 还原 | 两台设备整轮 `logcat`：`FATAL EXCEPTION` 0 / `ANR in` 0 / `Input dispatching timed out` 0；副作还原：Pad 5 `accelerometer_rotation=1` / `user_rotation=0`（`wm size/density` 无覆盖）、K60 同；两台 force-stop、`/sdcard/w12*` 与本地截图 / dump 全部删除；码率偏好已回「自动」、后端偏好保持会话开始时的 `mpv` |
+
+### 15.5 未决 / 移交项
+
+1. **选集覆盖层会盖住右下角全屏键与进度条右端**（面板打开期间那一条不可点 / 不可见）——这是「覆盖层不挤压画面」的必然结果，用户本轮只要求画面不动；若日后要求面板打开时仍能操作全屏键，需要给覆盖层让出底部控制带。
+2. **Jellyfin 会话的 `PlayState.PlayMethod` 仍可能显示 `DirectPlay`**，真正的转码事实看 `TranscodingInfo`（`IsVideoDirect=false` / `Bitrate` / `TranscodeReasons`）；验收脚本别只看 PlayMethod。
+3. 转码档位只声明 HLS + ts + h264（+ aac/mp3/ac3/opus）：HEVC / AV1 片源会转成 h264（服务器默认行为，与官方客户端一致）；若日后要给高码率保留 HEVC 直通，再补 directPlayProfiles / codecProfiles。
+4. 小窗（Compact）工具行顺序是「音轨 · 字幕 · 倍率 · 码率 · 解码 · 信息 · 睡眠 · 选集 · 画面 · 设置 · 画中画 · 锁定」，与画面区版式的两条固定顺序表同源但合并成一行；后续若给小窗也做完整版式，按 `PLAYER_BOTTOM_KEY_ORDER` / `PLAYER_TOP_KEY_ORDER` 拆行。
+5. 本轮未做（用户未要求）：媒体信息面板内容不变（只是入口改名「详细信息」语义不变）、手势分类内容不变（只是从六组变两分类）。
 
