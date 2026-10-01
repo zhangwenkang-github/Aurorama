@@ -1,23 +1,31 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
- * 区块标题：衬线标题 + 一条延伸到右边界的发丝线（+ 可选的文字操作）。
+ * 区块标题（Lumen）：大标题 23sp/600 + 右侧文字操作，**不画发丝线**。
  *
- * 这条线不是装饰：它把标题和它下面的内容明确地绑在一起， 让页面在滚动时仍然一眼分得清"哪一行是标题、哪一片是内容"。
+ * 旧稿的横贯分隔线在流光大版面上会切断"内容即光源"的整体感；这里改用间距与字阶建立层级， 右侧操作保留一个 16dp 右箭头，指向性比纯文字更强。
  */
 @Composable
 fun SectionHeader(
@@ -34,19 +42,27 @@ fun SectionHeader(
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
     ) {
         Text(text = title, style = CinefinType.SectionTitle, color = colors.onSurface)
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            color = colors.outlineVariant,
-        )
+        Spacer(modifier = Modifier.weight(1f))
         if (actionText != null && onActionClick != null) {
-            Text(
-                text = actionText,
-                style = CinefinType.LabelMedium,
-                color = media.bright,
+            Row(
                 modifier =
-                    Modifier.clickable { onActionClick() }
-                        .padding(vertical = CinefinSpacing.Space1),
-            )
+                    Modifier.clip(CinefinShapes.Sm)
+                        .cinefinClickable { onActionClick() }
+                        .padding(
+                            horizontal = CinefinSpacing.Space2,
+                            vertical = CinefinSpacing.Space2,
+                        ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(text = actionText, style = CinefinType.LabelMedium, color = media.bright)
+                Spacer(modifier = Modifier.width(CinefinSpacing.Space1))
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_arrow_right),
+                    contentDescription = null,
+                    tint = media.bright,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }

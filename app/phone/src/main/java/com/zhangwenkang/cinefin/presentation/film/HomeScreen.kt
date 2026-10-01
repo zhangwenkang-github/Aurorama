@@ -45,6 +45,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.HomeTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.HomeView
 import com.zhangwenkang.cinefin.presentation.film.components.PosterItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
+import com.zhangwenkang.cinefin.presentation.film.components.lumenEntrance
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
@@ -139,14 +140,17 @@ private fun HomeScreenLayout(
                     contentPadding =
                         PaddingValues(bottom = safePadding.bottom + CinefinSpacing.Space8),
                     horizontalArrangement = Arrangement.spacedBy(wallGap),
-                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+                    // Lumen 节奏：区块之间 32dp（旧稿 16dp），页面因此有"幕布"般的呼吸感
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
                 ) {
                     heroItem?.let { item ->
                         item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
                             HomeHero(
                                 item = item,
                                 onClick = onItemClick,
-                                contentPaddingHorizontal = gutterStart,
+                                modifier =
+                                    Modifier.padding(start = gutterStart, end = gutterEnd)
+                                        .lumenEntrance(),
                             )
                         }
                     }

@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import android.content.Context
 import android.content.Intent
+import android.text.format.Formatter
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,24 +18,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import androidx.core.graphics.toColorInt
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderAction
@@ -42,20 +42,30 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderViewModel
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieViewModel
+import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.VideoMetadata
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
+import com.zhangwenkang.cinefin.presentation.film.components.DetailPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
+import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
+import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
+import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
+import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents
 import java.util.UUID
@@ -126,6 +136,11 @@ fun MovieScreen(
     )
 }
 
+/**
+ * 电影详情（Lumen）：沉浸头图 + 海报 + 大标题 + 主行动全部压在图上，正文只留"剧情简介"。
+ *
+ * 平板（≥840dp）右侧再挂一张制作信息表，主栏不再堆"标签: 值"长句；手机把同样的信息留在正文里， 用间距与字阶分层（不画分隔线框死）。
+ */
 @Composable
 private fun MovieScreenLayout(
     state: MovieState,
@@ -134,10 +149,16 @@ private fun MovieScreenLayout(
     onDownloaderAction: (DownloaderAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding()
+    val gutter = rememberPageGutter()
 
-    val paddingStart = safePadding.start + MaterialTheme.spacings.default
-    val paddingEnd = safePadding.end + MaterialTheme.spacings.default
-    val paddingBottom = safePadding.bottom + MaterialTheme.spacings.default
+    val paddingStart = safePadding.start + gutter
+    val paddingEnd = safePadding.end + gutter
+    val paddingBottom = safePadding.bottom + gutter
+
+    val expanded =
+        currentWindowAdaptiveInfo()
+            .windowSizeClass
+            .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 
     val scrollState = rememberScrollState()
 
@@ -147,119 +168,143 @@ private fun MovieScreenLayout(
                 ItemHeader(
                     item = movie,
                     scrollState = scrollState,
+                    height = if (expanded) 400.dp else 300.dp,
                     content = {
-                        Column(
+                        Row(
                             modifier =
                                 Modifier.align(Alignment.BottomStart)
-                                    .padding(start = paddingStart, end = paddingEnd)
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = paddingStart,
+                                        end = paddingEnd,
+                                        bottom = CinefinSpacing.Space6,
+                                    ),
+                            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+                            verticalAlignment = Alignment.Bottom,
                         ) {
-                            Text(
-                                text = movie.name,
-                                overflow = TextOverflow.Ellipsis,
-                                maxLines = 3,
-                                style = MaterialTheme.typography.headlineMedium,
-                            )
-                            movie.originalTitle?.let { originalTitle ->
-                                if (originalTitle != movie.name) {
+                            if (expanded) {
+                                DetailPoster(item = movie, width = 216.dp)
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                            ) {
+                                movie.detailEyebrow()?.let { eyebrow ->
                                     Text(
-                                        text = originalTitle,
-                                        overflow = TextOverflow.Ellipsis,
-                                        maxLines = 1,
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        text = eyebrow,
+                                        style = CinefinType.LabelLarge,
+                                        color = LocalMediaColors.current.bright,
                                     )
                                 }
+                                Text(
+                                    text = movie.name,
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 3,
+                                    style =
+                                        if (expanded) CinefinType.DisplaySmall
+                                        else CinefinType.HeadlineMedium,
+                                    color = LocalCinefinColors.current.onSurface,
+                                )
+                                movie.originalTitle
+                                    ?.takeIf { it.isNotBlank() && it != movie.name }
+                                    ?.let { originalTitle ->
+                                        Text(
+                                            text = originalTitle,
+                                            overflow = TextOverflow.Ellipsis,
+                                            maxLines = 1,
+                                            style = CinefinType.BodyMedium,
+                                            color = LocalCinefinColors.current.onSurfaceVariant,
+                                        )
+                                    }
+                                movie.metaLine()?.let { meta ->
+                                    Text(
+                                        text = meta,
+                                        style = CinefinType.LabelMedium,
+                                        color = LocalCinefinColors.current.onSurfaceVariant,
+                                    )
+                                }
+                                Spacer(Modifier.height(CinefinSpacing.Space2))
+                                ItemButtonsBar(
+                                    item = movie,
+                                    downloaderState = downloaderState,
+                                    onPlayClick = { startFromBeginning ->
+                                        onAction(
+                                            MovieAction.Play(
+                                                startFromBeginning = startFromBeginning
+                                            )
+                                        )
+                                    },
+                                    onMarkAsPlayedClick = {
+                                        when (movie.played) {
+                                            true -> onAction(MovieAction.UnmarkAsPlayed)
+                                            false -> onAction(MovieAction.MarkAsPlayed)
+                                        }
+                                    },
+                                    onMarkAsFavoriteClick = {
+                                        when (movie.favorite) {
+                                            true -> onAction(MovieAction.UnmarkAsFavorite)
+                                            false -> onAction(MovieAction.MarkAsFavorite)
+                                        }
+                                    },
+                                    onTrailerClick = { uri ->
+                                        onAction(MovieAction.PlayTrailer(uri))
+                                    },
+                                    onDownloadClick = { storageIndex ->
+                                        onDownloaderAction(
+                                            DownloaderAction.Download(movie, storageIndex)
+                                        )
+                                    },
+                                    onDownloadCancelClick = {
+                                        onDownloaderAction(DownloaderAction.CancelDownload(movie))
+                                    },
+                                    onDownloadDeleteClick = {
+                                        onDownloaderAction(DownloaderAction.DeleteDownload(movie))
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
                             }
                         }
                     },
                 )
+
                 Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
-                    Spacer(Modifier.height(MaterialTheme.spacings.small))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        movie.premiereDate?.let { premiereDate ->
-                            Text(
-                                text = premiereDate.year.toString(),
-                                style = MaterialTheme.typography.bodyMedium,
+                    Spacer(Modifier.height(CinefinSpacing.Space8))
+                    if (expanded) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space10)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+                            ) {
+                                OverviewText(text = movie.overview, maxCollapsedLines = 6)
+                                state.videoMetadata?.let { videoMetadata ->
+                                    VideoMetadataBar(videoMetadata = videoMetadata)
+                                }
+                            }
+                            LumenInfoTable(
+                                rows = movieInfoRows(movie = movie, state = state),
+                                modifier = Modifier.width(360.dp),
                             )
                         }
-                        Text(
-                            text =
-                                stringResource(
-                                    CoreR.string.runtime_minutes,
-                                    movie.runtimeTicks.div(600000000),
-                                ),
-                            style = MaterialTheme.typography.bodyMedium,
+                    } else {
+                        OverviewText(text = movie.overview, maxCollapsedLines = 4)
+                        Spacer(Modifier.height(CinefinSpacing.Space6))
+                        InfoText(
+                            genres = movie.genres,
+                            director = state.director,
+                            writers = state.writers,
                         )
-                        movie.officialRating?.let { officialRating ->
-                            Text(text = officialRating, style = MaterialTheme.typography.bodyMedium)
+                        state.videoMetadata?.let { videoMetadata ->
+                            Spacer(Modifier.height(CinefinSpacing.Space4))
+                            VideoMetadataBar(videoMetadata = videoMetadata)
                         }
-                        movie.communityRating?.let { communityRating ->
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Icon(
-                                    painter = painterResource(CoreR.drawable.ic_star),
-                                    contentDescription = null,
-                                    tint = Color("#F2C94C".toColorInt()),
-                                )
-                                Spacer(Modifier.width(MaterialTheme.spacings.extraSmall))
-                                Text(
-                                    text = "%.1f".format(communityRating),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            }
+                        if (state.displayExtraInfo && state.videoMetadata != null) {
+                            Spacer(Modifier.height(CinefinSpacing.Space6))
+                            ExtraInfoText(videoMetadata = state.videoMetadata!!)
                         }
                     }
-                    Spacer(Modifier.height(MaterialTheme.spacings.small))
-                    state.videoMetadata?.let { videoMetadata ->
-                        VideoMetadataBar(videoMetadata)
-                        Spacer(Modifier.height(MaterialTheme.spacings.small))
-                    }
-                    ItemButtonsBar(
-                        item = movie,
-                        downloaderState = downloaderState,
-                        onPlayClick = { startFromBeginning ->
-                            onAction(MovieAction.Play(startFromBeginning = startFromBeginning))
-                        },
-                        onMarkAsPlayedClick = {
-                            when (movie.played) {
-                                true -> onAction(MovieAction.UnmarkAsPlayed)
-                                false -> onAction(MovieAction.MarkAsPlayed)
-                            }
-                        },
-                        onMarkAsFavoriteClick = {
-                            when (movie.favorite) {
-                                true -> onAction(MovieAction.UnmarkAsFavorite)
-                                false -> onAction(MovieAction.MarkAsFavorite)
-                            }
-                        },
-                        onTrailerClick = { uri -> onAction(MovieAction.PlayTrailer(uri)) },
-                        onDownloadClick = { storageIndex ->
-                            onDownloaderAction(DownloaderAction.Download(movie, storageIndex))
-                        },
-                        onDownloadCancelClick = {
-                            onDownloaderAction(DownloaderAction.CancelDownload(movie))
-                        },
-                        onDownloadDeleteClick = {
-                            onDownloaderAction(DownloaderAction.DeleteDownload(movie))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(MaterialTheme.spacings.small))
-                    if (state.displayExtraInfo && state.videoMetadata != null) {
-                        ExtraInfoText(videoMetadata = state.videoMetadata!!)
-                        Spacer(Modifier.height(MaterialTheme.spacings.medium))
-                    }
-                    OverviewText(text = movie.overview, maxCollapsedLines = 3)
-                    Spacer(Modifier.height(MaterialTheme.spacings.medium))
-                    InfoText(
-                        genres = movie.genres,
-                        director = state.director,
-                        writers = state.writers,
-                    )
-                    Spacer(Modifier.height(MaterialTheme.spacings.medium))
+                    Spacer(Modifier.height(CinefinSpacing.Space8))
                 }
+
                 if (state.actors.isNotEmpty()) {
                     ActorsRow(
                         actors = state.actors,
@@ -282,9 +327,56 @@ private fun MovieScreenLayout(
     }
 }
 
+/** 制作信息表内容：导演 / 编剧 / 类型 + 文件层信息（有元数据时才出现）。 */
+@Composable
+private fun movieInfoRows(movie: FindroidMovie, state: MovieState): List<Pair<String, String>> {
+    val context = LocalContext.current
+    return buildList {
+        state.director?.let { add(stringResource(CoreR.string.director) to it.name) }
+        if (state.writers.isNotEmpty()) {
+            add(
+                stringResource(CoreR.string.writers) to
+                    state.writers.joinToString(" / ") { writer -> writer.name }
+            )
+        }
+        if (movie.genres.isNotEmpty()) {
+            add(stringResource(CoreR.string.genres) to movie.genres.joinToString(" / "))
+        }
+        state.videoMetadata?.let { videoMetadata -> addAll(fileInfoRows(context, videoMetadata)) }
+    }
+}
+
+/** 文件层信息：体积 / 视频 / 音轨 / 字幕。 */
+@Composable
+private fun fileInfoRows(
+    context: Context,
+    videoMetadata: VideoMetadata,
+): List<Pair<String, String>> {
+    return buildList {
+        if (videoMetadata.size > 0) {
+            add(
+                stringResource(CoreR.string.size) to
+                    Formatter.formatFileSize(context, videoMetadata.size)
+            )
+        }
+        videoMetadata.videoTracks.firstOrNull()?.let {
+            add(stringResource(CoreR.string.video) to it)
+        }
+        if (videoMetadata.audioTracks.isNotEmpty()) {
+            add(stringResource(CoreR.string.audio) to videoMetadata.audioTracks.joinToString(" / "))
+        }
+        if (videoMetadata.subtitleTracks.isNotEmpty()) {
+            add(
+                stringResource(CoreR.string.subtitle) to
+                    videoMetadata.subtitleTracks.joinToString(" / ")
+            )
+        }
+    }
+}
+
 @PreviewScreenSizes
 @Composable
-private fun EpisodeScreenLayoutPreview() {
+private fun MovieScreenLayoutPreview() {
     CinefinTheme {
         MovieScreenLayout(
             state = MovieState(movie = dummyMovie, videoMetadata = dummyVideoMetadata),

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -33,6 +34,7 @@ fun ItemHeader(
     item: FindroidItem,
     scrollState: ScrollState,
     showLogo: Boolean = false,
+    height: Dp = 288.dp,
     content: @Composable (BoxScope.() -> Unit) = {},
 ) {
     val colors = LocalCinefinColors.current
@@ -55,6 +57,7 @@ fun ItemHeader(
     ItemHeaderBase(
         item = item,
         showLogo = showLogo,
+        height = height,
         backdropImage = {
             AsyncImage(
                 model = backdropUri,
@@ -75,6 +78,7 @@ fun ItemHeader(
     item: FindroidItem,
     lazyListState: LazyListState,
     showLogo: Boolean = false,
+    height: Dp = 288.dp,
     content: @Composable (BoxScope.() -> Unit) = {},
 ) {
     val colors = LocalCinefinColors.current
@@ -98,6 +102,7 @@ fun ItemHeader(
     ItemHeaderBase(
         item = item,
         showLogo = showLogo,
+        height = height,
         backdropImage = {
             AsyncImage(
                 model = backdropUri,
@@ -117,6 +122,7 @@ fun ItemHeader(
 private fun ItemHeaderBase(
     item: FindroidItem,
     showLogo: Boolean = false,
+    height: Dp = 288.dp,
     backdropImage: @Composable (() -> Unit),
     content: @Composable (BoxScope.() -> Unit) = {},
 ) {
@@ -129,15 +135,21 @@ private fun ItemHeaderBase(
             else -> item.images.logo
         }
 
-    Box(modifier = Modifier.height(288.dp).clipToBounds()) {
+    Box(modifier = Modifier.height(height).clipToBounds()) {
         backdropImage()
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(Color.Black.copy(alpha = 0.1f))
+            // Lumen：内暗角（左右压暗）+ 底部渐隐，内容图向下溶进页面底色
+            drawRect(brush = lumenVignette)
             drawRect(
                 brush =
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, backgroundColor),
-                        startY = 0f,
+                        colorStops =
+                            arrayOf(
+                                0f to Color.Transparent,
+                                0.45f to Color.Transparent,
+                                0.78f to backgroundColor.copy(alpha = 0.72f),
+                                1f to backgroundColor,
+                            )
                     )
             )
         }

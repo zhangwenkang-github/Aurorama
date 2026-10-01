@@ -20,34 +20,38 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.toColorInt
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyShow
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.show.ShowAction
 import com.zhangwenkang.cinefin.film.presentation.show.ShowState
 import com.zhangwenkang.cinefin.film.presentation.show.ShowViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
+import com.zhangwenkang.cinefin.presentation.film.components.DetailPoster
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
@@ -55,11 +59,14 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
+import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
+import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
+import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
+import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
-import com.zhangwenkang.cinefin.utils.getShowDateString
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
 
@@ -107,13 +114,20 @@ fun ShowScreen(
     )
 }
 
+/** 剧集详情（Lumen）：与电影详情同一套头图 / 标题 / 信息表语言，"接下来"与"季"作为两条走廊。 */
 @Composable
 private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
     val safePadding = rememberSafePadding()
+    val gutter = rememberPageGutter()
 
-    val paddingStart = safePadding.start + MaterialTheme.spacings.default
-    val paddingEnd = safePadding.end + MaterialTheme.spacings.default
-    val paddingBottom = safePadding.bottom + MaterialTheme.spacings.default
+    val paddingStart = safePadding.start + gutter
+    val paddingEnd = safePadding.end + gutter
+    val paddingBottom = safePadding.bottom + gutter
+
+    val expanded =
+        currentWindowAdaptiveInfo()
+            .windowSizeClass
+            .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 
     val scrollState = rememberScrollState()
 
@@ -123,120 +137,135 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
                 ItemHeader(
                     item = show,
                     scrollState = scrollState,
+                    height = if (expanded) 400.dp else 300.dp,
                     content = {
-                        Column(
+                        Row(
                             modifier =
                                 Modifier.align(Alignment.BottomStart)
-                                    .padding(start = paddingStart, end = paddingEnd)
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = paddingStart,
+                                        end = paddingEnd,
+                                        bottom = CinefinSpacing.Space6,
+                                    ),
+                            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+                            verticalAlignment = Alignment.Bottom,
                         ) {
-                            Text(
-                                text = show.name,
-                                overflow = TextOverflow.Ellipsis,
-                                maxLines = 3,
-                                style = MaterialTheme.typography.headlineMedium,
-                            )
-                            show.originalTitle?.let { originalTitle ->
-                                if (originalTitle != show.name) {
+                            if (expanded) {
+                                DetailPoster(item = show, width = 216.dp)
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                            ) {
+                                show.detailEyebrow(extra = null)?.let { eyebrow ->
                                     Text(
-                                        text = originalTitle,
-                                        overflow = TextOverflow.Ellipsis,
-                                        maxLines = 1,
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        text = eyebrow,
+                                        style = CinefinType.LabelLarge,
+                                        color = LocalMediaColors.current.bright,
                                     )
                                 }
+                                Text(
+                                    text = show.name,
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 3,
+                                    style =
+                                        if (expanded) CinefinType.DisplaySmall
+                                        else CinefinType.HeadlineMedium,
+                                    color = LocalCinefinColors.current.onSurface,
+                                )
+                                show.originalTitle
+                                    ?.takeIf { it.isNotBlank() && it != show.name }
+                                    ?.let { originalTitle ->
+                                        Text(
+                                            text = originalTitle,
+                                            overflow = TextOverflow.Ellipsis,
+                                            maxLines = 1,
+                                            style = CinefinType.BodyMedium,
+                                            color = LocalCinefinColors.current.onSurfaceVariant,
+                                        )
+                                    }
+                                show.metaLine()?.let { meta ->
+                                    Text(
+                                        text = meta,
+                                        style = CinefinType.LabelMedium,
+                                        color = LocalCinefinColors.current.onSurfaceVariant,
+                                    )
+                                }
+                                Spacer(Modifier.height(CinefinSpacing.Space2))
+                                ItemButtonsBar(
+                                    item = show,
+                                    onPlayClick = { startFromBeginning ->
+                                        onAction(
+                                            ShowAction.Play(startFromBeginning = startFromBeginning)
+                                        )
+                                    },
+                                    onMarkAsPlayedClick = {
+                                        when (show.played) {
+                                            true -> onAction(ShowAction.UnmarkAsPlayed)
+                                            false -> onAction(ShowAction.MarkAsPlayed)
+                                        }
+                                    },
+                                    onMarkAsFavoriteClick = {
+                                        when (show.favorite) {
+                                            true -> onAction(ShowAction.UnmarkAsFavorite)
+                                            false -> onAction(ShowAction.MarkAsFavorite)
+                                        }
+                                    },
+                                    onTrailerClick = { uri ->
+                                        onAction(ShowAction.PlayTrailer(uri))
+                                    },
+                                    onDownloadClick = {},
+                                    onDownloadCancelClick = {},
+                                    onDownloadDeleteClick = {},
+                                    modifier = Modifier.fillMaxWidth(),
+                                    canPlay = state.seasons.isNotEmpty(),
+                                )
                             }
                         }
                     },
                 )
+
                 Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
-                    Spacer(Modifier.height(MaterialTheme.spacings.small))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Text(
-                            text = getShowDateString(show),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Text(
-                            text =
-                                stringResource(
-                                    CoreR.string.runtime_minutes,
-                                    show.runtimeTicks.div(600000000),
-                                ),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        show.officialRating?.let { officialRating ->
-                            Text(text = officialRating, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        show.communityRating?.let { communityRating ->
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Icon(
-                                    painter = painterResource(CoreR.drawable.ic_star),
-                                    contentDescription = null,
-                                    tint = Color("#F2C94C".toColorInt()),
-                                )
-                                Spacer(Modifier.width(MaterialTheme.spacings.extraSmall))
-                                Text(
-                                    text = "%.1f".format(communityRating),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
+                    Spacer(Modifier.height(CinefinSpacing.Space8))
+                    if (expanded) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space10)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                OverviewText(text = show.overview, maxCollapsedLines = 6)
                             }
+                            LumenInfoTable(
+                                rows = showInfoRows(show = show, state = state),
+                                modifier = Modifier.width(360.dp),
+                            )
                         }
+                    } else {
+                        OverviewText(text = show.overview, maxCollapsedLines = 4)
+                        Spacer(Modifier.height(CinefinSpacing.Space6))
+                        InfoText(
+                            genres = show.genres,
+                            director = state.director,
+                            writers = state.writers,
+                        )
                     }
-                    Spacer(Modifier.height(MaterialTheme.spacings.small))
-                    ItemButtonsBar(
-                        item = show,
-                        onPlayClick = { startFromBeginning ->
-                            onAction(ShowAction.Play(startFromBeginning = startFromBeginning))
-                        },
-                        onMarkAsPlayedClick = {
-                            when (show.played) {
-                                true -> onAction(ShowAction.UnmarkAsPlayed)
-                                false -> onAction(ShowAction.MarkAsPlayed)
-                            }
-                        },
-                        onMarkAsFavoriteClick = {
-                            when (show.favorite) {
-                                true -> onAction(ShowAction.UnmarkAsFavorite)
-                                false -> onAction(ShowAction.MarkAsFavorite)
-                            }
-                        },
-                        onTrailerClick = { uri -> onAction(ShowAction.PlayTrailer(uri)) },
-                        onDownloadClick = {},
-                        onDownloadCancelClick = {},
-                        onDownloadDeleteClick = {},
-                        modifier = Modifier.fillMaxWidth(),
-                        canPlay = state.seasons.isNotEmpty(),
-                    )
-                    Spacer(Modifier.height(MaterialTheme.spacings.small))
-                    OverviewText(text = show.overview, maxCollapsedLines = 3)
-                    Spacer(Modifier.height(MaterialTheme.spacings.medium))
-                    InfoText(
-                        genres = show.genres,
-                        director = state.director,
-                        writers = state.writers,
-                    )
-                    Spacer(Modifier.height(MaterialTheme.spacings.medium))
-                    state.nextUp?.let { nextUp ->
-                        Text(
-                            text = stringResource(CoreR.string.next_up),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Spacer(Modifier.height(MaterialTheme.spacings.small))
+                    Spacer(Modifier.height(CinefinSpacing.Space8))
+                }
+
+                state.nextUp?.let { nextUp ->
+                    Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
+                        SectionHeader(title = stringResource(CoreR.string.next_up))
+                        Spacer(Modifier.height(CinefinSpacing.Space4))
                         Column(
                             modifier =
-                                Modifier.widthIn(max = 420.dp)
-                                    .clip(MaterialTheme.shapes.small)
-                                    .clickable { onAction(ShowAction.NavigateToItem(nextUp)) }
+                                Modifier.widthIn(max = 420.dp).clip(CinefinShapes.Md).clickable {
+                                    onAction(ShowAction.NavigateToItem(nextUp))
+                                }
                         ) {
                             ItemPoster(
                                 item = nextUp,
                                 direction = Direction.HORIZONTAL,
-                                modifier = Modifier.clip(MaterialTheme.shapes.medium),
+                                modifier = Modifier.clip(CinefinShapes.Md),
                             )
-                            Spacer(Modifier.height(MaterialTheme.spacings.extraSmall))
+                            Spacer(Modifier.height(CinefinSpacing.Space3))
                             Text(
                                 text =
                                     stringResource(
@@ -245,25 +274,22 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
                                         nextUp.indexNumber,
                                         nextUp.name,
                                     ),
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = CinefinType.TitleSmall,
+                                color = LocalCinefinColors.current.onSurface,
                             )
                         }
-                        Spacer(Modifier.height(MaterialTheme.spacings.medium))
+                        Spacer(Modifier.height(CinefinSpacing.Space8))
                     }
                 }
 
                 if (state.seasons.isNotEmpty()) {
                     Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
-                        Text(
-                            text = stringResource(CoreR.string.seasons),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Spacer(Modifier.height(MaterialTheme.spacings.small))
+                        SectionHeader(title = stringResource(CoreR.string.seasons))
                     }
+                    Spacer(Modifier.height(CinefinSpacing.Space4))
                     LazyRow(
                         contentPadding = PaddingValues(start = paddingStart, end = paddingEnd),
-                        horizontalArrangement =
-                            Arrangement.spacedBy(MaterialTheme.spacings.default),
+                        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
                     ) {
                         items(items = state.seasons, key = { item -> item.id }) { season ->
                             ItemCard(
@@ -273,7 +299,7 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
                             )
                         }
                     }
-                    Spacer(Modifier.height(MaterialTheme.spacings.medium))
+                    Spacer(Modifier.height(CinefinSpacing.Space8))
                 }
 
                 if (state.actors.isNotEmpty()) {
@@ -298,8 +324,28 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
     }
 }
 
+/** 剧集制作信息表：季数 / 类型 / 导演 / 编剧（年份与类型首项已经在头图眉标里出现过，这里不重复）。 */
+@Composable
+private fun showInfoRows(show: FindroidShow, state: ShowState): List<Pair<String, String>> {
+    return buildList {
+        if (state.seasons.isNotEmpty()) {
+            add(stringResource(CoreR.string.seasons) to state.seasons.size.toString())
+        }
+        if (show.genres.isNotEmpty()) {
+            add(stringResource(CoreR.string.genres) to show.genres.joinToString(" / "))
+        }
+        state.director?.let { add(stringResource(CoreR.string.director) to it.name) }
+        if (state.writers.isNotEmpty()) {
+            add(
+                stringResource(CoreR.string.writers) to
+                    state.writers.joinToString(" / ") { writer -> writer.name }
+            )
+        }
+    }
+}
+
 @PreviewScreenSizes
 @Composable
-private fun EpisodeScreenLayoutPreview() {
+private fun ShowScreenLayoutPreview() {
     CinefinTheme { ShowScreenLayout(state = ShowState(show = dummyShow), onAction = {}) }
 }

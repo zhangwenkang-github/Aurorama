@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -21,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,7 +29,6 @@ import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -42,9 +39,9 @@ import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /**
- * 海报墙的竖版卡（§8.4）：海报 + 片名（TitleSmall）+ 进度（3dp `Media.Base`）。
+ * 海报墙竖版卡（§8.4 PosterCard · Lumen）：双层嵌套外壳 + 2:3 海报 + 标题（两行）+ 3dp 进度。
  *
- * 1dp `Outline` 描边 + 顶部内高光；悬停 / 按下只换描边色，不做位移与缩放（B 纪律）。
+ * 信息只留"片名 + 进行中"两件事：徽标压到最少（下载 / 未看集数），标题最多两行—— 海报墙靠"图说一切"，多一行元信息就会让整面墙变挤。
  */
 @Composable
 fun PosterItemCard(
@@ -64,23 +61,14 @@ fun PosterItemCard(
 
     Column(
         modifier =
-            modifier.clip(CinefinShapes.Md).cinefinClickable(
-                interactionSource = interactionSource
-            ) {
+            modifier.lumenEntrance(index).cinefinClickable(interactionSource = interactionSource) {
                 onClick(item)
             }
     ) {
-        Box(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .aspectRatio(2f / 3f)
-                    .clip(CinefinShapes.Md)
-                    .background(colors.surfaceContainerHigh)
-                    .border(
-                        width = 1.dp,
-                        color = if (emphasized) media.outline else colors.outline,
-                        shape = CinefinShapes.Md,
-                    )
+        LumenCardFrame(
+            modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f),
+            emphasized = emphasized,
+            container = colors.surfaceContainerHigh,
         ) {
             AsyncImage(
                 model =
@@ -97,7 +85,6 @@ fun PosterItemCard(
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
                 if (item.isDownloaded()) DownloadedBadge()
-                if (item.played) PlayedBadge()
                 item.unplayedItemCount?.takeIf { it > 0 }?.let { ItemCountBadge(it) }
             }
 
