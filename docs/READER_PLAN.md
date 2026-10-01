@@ -709,6 +709,22 @@ Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `Fron
   （`CinefinPageTopBar`），阅读页外壳（R3 的 Prism 顶栏）还没有；建议 UI 线后续统一补
   `statusBarsPadding()` 或直接换 `CinefinPageTopBar`。
 
+### 7.8 W15-UI 顶栏避让修复真机验证（2026-10-02，Pad 5 `43af8627`，分支 `feature/w15-reader-topbar-posters`）——**完成**
+
+修复：`ReaderTopBar` 的 56dp 行补 `statusBarsPadding()`（与 W8 `CinefinPageTopBar` 同款——状态栏
+区域由顶栏 `chromeColor` 底铺满，按钮整体落到状态栏之下，横竖屏 / 手机 / 平板同一口径）。
+阅读设置面板与底部页指示同步复核，无同类遮挡（M3 `ModalBottomSheet` 自带 windowInsets）。
+
+| 形态 | 状态栏 insets | 顶栏按钮 bounds（uiautomator） | 结论 |
+|------|---------------|------------------------------|------|
+| 平板竖屏 1600×2560@360 | `[0,0][1600,60]` | 离线可读 `[899,99][1254,147]`、分页 `[1326,101][1395,146]`、Aa `[1485,101][1528,146]` | 按钮 top ≥99 > 60，无重叠 |
+| 平板横屏 2560×1600@360 | `[0,0][2560,60]` | 离线可读 `[1859,99][2214,147]`、分页 `[2286,101][2355,146]`、Aa `[2445,101][2488,146]` | 同上；页指示 `[1158,1480][1402,1528]` 在导航栏（1564 起）之上 |
+| 手机形态 1080×2400@420（≈411dp） | `[0,0][1080,60]` | 书签 `[574,108][655,160]`、分页 `[760,108][841,160]`、Aa `[946,108][996,160]` | 无重叠；设置面板最底「主题」行 2205 < 导航栏 2358 |
+
+「不留多余空带」：状态栏区域由顶栏同色底铺满（总高 = 状态栏 60px + 内容 126px + 1px 发丝线），
+没有旧行高被顶掉或双倍内边距。修复前遮挡记录见 §7.7.5（K60：按钮 `[959,15][1178,183]`、
+实际可点区仅 y 138–183）；修复后本次三形态按钮 top ≥99 且全部 > 状态栏高度。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -764,7 +780,8 @@ Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `Fron
 20. **阅读页顶栏没有状态栏内边距**：`ReaderTopBar` 用 56dp 高度直接顶到窗口顶部，K60 状态栏 138px
     把上 2/3 压住——`uiautomator` 报按钮 `[959,15][1178,183]`，实际可点区只有 y 138–183；adb 点
     y=99 会落到状态栏（表现为「点了没反应」）。真机脚本要用 y≈170 命中，或等 UI 线补
-    `statusBarsPadding()`（W8 只统一了主界面三个页面）。
+    `statusBarsPadding()`（W8 只统一了主界面三个页面）。**W15-UI（2026-10-02）已修复**：
+    `ReaderTopBar` 补 `statusBarsPadding()`，三形态真机取证见 §7.8。
 21. **多指手势的注入方式**：`adb shell input` 只有单指；`sendevent /dev/input/event*` 在 K60 被
     SELinux 拒（shell 虽在 `input` 组，写入仍 `Permission denied`）；可行路径是临时 `app_process`
     + `InputManagerGlobal.getInstance().injectInputEvent(event, WAIT_FOR_FINISH)` 构造 2 指
@@ -847,3 +864,4 @@ Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `Fron
 | 2026-10-01 | W4-R1 真机验收完成（Pad 5，负责人指派窗口）：attention（15 页）/ 虚构推理（3649 页，639.6 MB）/ Anda's Game（24 页）/ futuristic_tales（4 页）逐本打开 + 分页 / 双栏 / 滚动三档行为通过（双栏双截图核对左右为不同页）；EPUB《雷普利全集》回归通过（Locator 推进 + 回传）；虚构推理连翻 40 页 + 静止复测：稳态 **≈358 MB**，与 attention（≈334 MB）同量级，内存不随页数 / 文档大小增长（EB-3 达标）；`progress.json` 五条记录 `pendingSync=false`（D16 换算精确）。详见 §7.6 |
 | 2026-10-01 | W9-READER（分支 `feature/w9-reader-comics`）：①RTL 右起翻页（D17）——`SpreadOrder.kt` 页序层（`spreadPageSlots` / `spreadCount` / `isRtlPaging`）+ `SimpleBookView` 分页 / 双栏镜像 + 阅读设置面板开关（仅 PDF / CBZ）+ `pref_reader_rtl`；②跨页对图合并研判（D19）——本波不实施，记录内存 2× / 无可靠元数据 / 接缝与语义耦合四条理由与 W5 试点方案；③滚动模式双指缩放（D18）——`ZoomablePage` 下放到滚动列表页项（双指优先、单指不抢滚动），与分页共用 `PageZoom`（1×–4×、平移夹取、非有限值守卫）；新增 12 项单测（模块 43 项，6 个测试类全绿）+ 门禁全绿；真机验证见 §7.7 |
 | 2026-10-01 | W9-READER 真机验收完成（K60 `8e875894`，负责人指派 + 设备解锁后窗口）：RTL 三档（分页方向镜像 / 双栏逐像素水平镜像 / 滚动不变）、PDF 同样生效、滚动模式双指缩放（1.16→2.92、上限 4.00、捏回过 1× 不抢纵向滚动）、跨页结论可见性核对（两本书全竖版页，无对图样本）、EPUB 回归（WebView / locator 推进 / 书签增删 / 待同步队列），无 FATAL / ANR，设置与设备副作用全部还原。新发现阅读页顶栏未避让状态栏（§7.7.5、踩坑 20）、多指注入方法（踩坑 21） |
+| 2026-10-02 | W15-UI：阅读页顶栏避让修复——`ReaderTopBar` 补 `statusBarsPadding()`（与 W8 `CinefinPageTopBar` 同款），平板竖屏 / 横屏 / 手机形态三态真机取证，按钮 top 全部 > 状态栏高度；设置面板 / 页指示复核无遮挡。见 §7.8；首页平板海报等宽修复另见 `UI_PLAN.md` D35 |
