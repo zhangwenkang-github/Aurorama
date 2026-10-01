@@ -567,6 +567,9 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 开关行只有小圆钮可点 | Material3 `Switch` 命中区只有 ~52×32dp；面板里的「开关行」必须整行可点（`Row.clickable(enabled)`），否则点标签没反应（真机走查踩到） |
 | 播放页 UI 走查的点击时序 | 控制层 3.5 秒自动淡出 + `uiautomator dump` 要 3–4 秒：照 dump 出来的坐标点按经常点空。稳定做法是先发 `KEYCODE_MEDIA_PAUSE`（暂停后控制层不淡出）再点；脚本见 `tools/w9-player/Device-Ui.ps1` |
 | 竖屏（SplitPortrait）下方内容区不响应「单击显隐控制层」 | `PlayerOverlayContainer` 把画面区之外的常驻内容区整块交给 Compose（点画面区才 toggle）。走查时「点击视频区中心」= 视频区高度以内（竖屏 ≈ `max(16:9, 42% 窗口高)` 的像素值），别点到下方选集区 |
+| Media3 的 `RESIZE_MODE_ZOOM` 是空操作 | `PlayerView` 会把内容框（`exo_content_frame`）按视频比例收窄，ZOOM 在「内容框 = 视频比例」时没有任何视觉效果——W10 真机实测 Pad 5 上适应 / 裁剪 / 拉伸三档截图**逐像素相同**（用户反馈「比例无效」的真因之一）。对策：「裁剪填满」= 内容框保持视频比例（走 FIT）+ 等比视图缩放 `max(画面区比例/视频比例, 视频比例/画面区比例)`；裁剪也统一改成纯视图缩放，不再依赖容器宽高比 |
+| mpv 不读 `PlayerView.resizeMode` | mpv 自己渲染到 TextureView（AspectRatioFrameLayout 拿不到视频尺寸时内容框就是整屏），比例必须写 mpv 属性：适应 = `keepaspect=yes` + `panscan=0`、裁剪填满 = `panscan=1`、拉伸填满 = `keepaspect=no`。`setPropertyString` **不返回错误码**（`setOptionString` 返回），所以两个都写、用 `getPropertyString` 回读值打日志做证据；`panscan` 的旧值残留会让画面一直放大铺满，切换档位 / 内核 / 退出重进都要重放一次 |
+| `uiautomator` 读不出面板 chip 的选中态 | `PanelChip` / `PanelRow` 的选中只体现在底色与描边上，dump 里 `selected=false`（没有 `selectable` 语义）。验收需要「默认选中项」证据时，改用像素采样：选中 chip 的底 = 极光青容器合成色（Pad 5/K60 实测 ≈ `(54,122,118)`），未选中 = 面板底（`(17,19,25)`） |
 
 | 权威内容 | 位置 |
 |----------|------|
@@ -819,4 +822,63 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 3. **随机播放**在 mpv 下仍禁用（既有能力限制，本轮未动）。
 4. **手势总开关**关掉后仍保留「单击显隐控制层」（有意为之，避免控件唤不出的死角）；若后续要求「全关」，需要在设置页明确提示。
 5. 新增偏好键收口回 `AppPreferences.kt`（见 D11）留给下个能安全改该文件的波次。
+
+---
+
+## 13. W10-PLAYER 落地记录（2026-10-01 · 分支 `feature/w10-player-ui2`）
+
+> 用户 2026-10-01 晚对播放页的 7 条反馈。三组提交：`1a7384f`（①②）、`0f38c7e`（③④⑤）、`2f1e45f`（⑥⑦）+ 验收中发现的 Exo 比例补丁（同分支）。
+
+### 13.1 决策补充（与 §0 同源）
+
+| 编号 | 决策 |
+|------|------|
+| D14 | 播放页整层切 **A · Lumen**（极光青强调 / 曜石黑面板 / 月白主行动），色值只引用 `LumenColors` / 语义 token；面板、按钮、图标、进度条随 `ProvideLumenColors` 一起切，离开播放页自动回 Prism |
+| D15 | **一个功能一个入口**：字幕 / 音轨 / 画面 / 选集 只在右上角工具簇；循环模式移入「播放设置 → 播放」组；「更多」只留 画中画 / 倍速 / 播放信息 / 睡眠定时 / 播放设置；小窗（Compact）没有工具簇，在「更多」里兜底这四个入口，功能不缩水 |
+| D16 | 画面比例两内核对齐：ExoPlayer = `FIT` / `FILL` 原生 + **ZOOM 由等比视图缩放实现**（Media3 的 ZOOM 在内容框等于视频比例时无效）；mpv = `keepaspect` + `panscan`。裁剪 / 去黑边沿用同一套几何算法（`cropScale` / `letterboxFillScale`） |
+| D17 | 面板选择**不再自动关闭**（倍速 / 循环 / 睡眠 / 队列跳转只更新状态）；从「更多 / 播放设置」进的子面板带返回箭头回到上一级，只有显式关闭 / 返回才退出 |
+| D18 | 顶栏 / 底栏高度由 Compose `onSizeChanged` 实测回传 `PlayerOverlayContainer`（`topBarHeightPx` / `bottomBarHeightPx`），命中带永远跟控件实高一致，不再写死 dp |
+
+### 13.2 逐条修复方式与文件
+
+| # | 反馈 | 修复方式 | 主要文件 |
+|---|------|----------|----------|
+| ① | 画面比例无效、一直铺满且变形 | mpv 侧新增比例映射 `mpvResizeProperties`（FIT = keepaspect/panscan 关、裁剪填满 = panscan 开、拉伸填满 = keepaspect 关）并即时写 property；Activity 启动 / 切档 / 切内核都重放；Aspect 面板去掉「mpv 不支持」分支；双指缩放改走同一比例通路（还原 = 回偏好档位），去掉了直接在 mpv 写 panscan 的旧路径（残留源）。验收中发现 ExoPlayer 三档画面**逐像素相同**（Media3 的 ZOOM 在内容框 = 视频比例时是空操作）→ 「裁剪填满」改为「等比视图缩放填满画面区」，FIT/FILL 走原生，裁剪也改为纯视图缩放 | `player/local/domain/PlayerResizeMode.kt`（+5 单测）、`MPVPlayer.applyResizeMode`、`PlayerActivity.applyResizeModeToKernel` / `applyExoPlayerVideoTransform`、`PlayerGestureHelper.updateZoomMode`、`PlayerControlOverlay.AspectPanel` |
+| ② | 字幕背景默认应为「无」 | `AppPreferences.playerSubtitleStyleBackground` 与 `SubtitleStyle.BACKGROUND_DEFAULT_INDEX` 2 → 0（选项顺序 无 / 轻纱 / 半透明 / 实底）；已存偏好不动（无法区分显式选择） | `settings/.../AppPreferences.kt`、`player/core/.../SubtitleStyle.kt` |
+| ③ | 队列编辑不该在「更多」 | 队列整理（长按拖动排序 / 行尾删除 / 清空 / 点行跳转）移入「选集 → 播放队列」页：`PlayerEpisodeQueueList` 增可编辑模式，平板侧栏 / 竖屏下方内容区 / 小窗队列面板共用同一实现；「更多」里的播放队列入口删除 | `PlayerContentPanel.kt`（编辑行 + 整理头 + 删除键）、`PlayerControlOverlay.QueuePanel`、`PlayerSettingsPanel.kt` |
+| ④ | 面板选择后不要自动关闭 | 倍速 / 循环 / 睡眠 / 队列跳转都只更新状态；抽屉新增返回箭头（「更多 → 子面板」） | `PlayerControlOverlay.kt`（SpeedPanel / RepeatPanel / SleepPanel / QueuePanel / PlayerPanelDrawer） |
+| ⑤ | 「更多」去重与功能归位 | 从「更多」移除 字幕轨 / 音轨 / 画面比例 / 播放队列 / 循环；循环进「播放设置 → 播放」组，设置面板内与工具簇重复的三个入口行删除；小窗保留兜底项 | `PlayerControlOverlay.MorePanel`、`PlayerSettingsPanel.kt`、`player/local/res/values*/strings.xml` |
+| ⑥ | 控件重排（左下 + 右上，进度条通栏） | 顶栏 = 返回 + 标题 + **右上角工具簇**（字幕 / 音轨 / 画面 / 选集 / 更多，<600dp 纯图标）+ 锁定；底栏 = **左下角**播放 / 上下集 / ±10s / 时间，倍速非 1× 时媒体色提示；**进度条通栏贴底**；中央只留缓冲转圈，整块还给手势；命中带按实测高度（D18） | `PlayerControlOverlay.kt`（PlayerTopBar / PlayerToolCluster / PlayerBottomBar / PlayerPlayKey / PlayerBufferingIndicator）、`PlayerOverlayContainer.kt`、`PlayerActivity.kt` |
+| ⑦ | 播放页流光化 | 控制层整层包 `ProvideLumenColors`；进度条重绘为 Lumen 语言：极光青进度、缓冲层、章节刻度、拖拽放大 + 极光青描边、1dp 发丝线包边 + 顶部内高光（无 glow、无新色值） | `PlayerActivity.kt`（ProvideLumenColors）、`PlayerControlOverlay.PlayerSeekBar` |
+
+### 13.3 门禁（2026-10-01）
+
+```
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest
+```
+
+- `:app:phone:assembleDebug` ✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **23** 项（既有）
+- `:player:local:testDebugUnitTest` ✅ **28** 项 = 既有 23 + `PlayerResizeModeTest` 5
+
+### 13.4 真机走查（Pad 5 `43af8627` + K60 `8e875894`，命令全部带 `-s`）
+
+| # | 证据（文本 / 数值） |
+|---|--------------------|
+| ① mpv | `mpv 画面比例: resizeMode=0 keepaspect=yes panscan=0.000000 video-zoom=0.000000`（适应）/ `resizeMode=4 keepaspect=yes panscan=1.000000`（裁剪填满）/ `resizeMode=3 keepaspect=no panscan=0.000000`（拉伸填满），每条都有 `player resize mode=<n> kernel=mpv` 伴随；切成 ExoPlayer 再切回 mpv 均为 `resizeMode=0 keepaspect=yes panscan=0`（无残留）。像素：适应 = 1600×900 居中（上下黑边区可见氛围底）、裁剪/拉伸 = 铺满 1600×2560 |
+| ① Exo | `player resize mode=0/4/3 kernel=exoplayer` + `ExoPlayer 画面变换: rotation=0.0 scaleX=1.000/2.844/1.000 scaleY=… resizeMode=0/4(FIT+缩放)/3 zoomFill=1.000/2.844/1.000 viewAspect=0.625 videoAspect=1.778`；像素：适应 = 视频居中两侧/上下为氛围底，裁剪 = `zoomFill=2.844` 等比放大铺满，拉伸 = 画面铺满且比例被拉（`resizeMode=3`） |
+| ② | K60 删除 `pref_player_subtitle_style_background` 后启动播放页：字幕面板「背景」选中项像素 = (54,122,118)（极光青容器 = 选中「无」），其余三项 (17,19,25) 未选中；全程 prefs 里该键**仍不存在**（证明是默认值 0 而非存储值） |
+| ③ | K60「选集 → 播放队列」面板：`长按拖动排序，点行跳转` + `清空` [2974,242][3088,316] + 每行 `从队列移除`（E01–E04）；同一波「更多」面板只剩 画中画 / 选择播放速度 / 播放信息 / 睡眠定时 / 播放设置（无 播放队列/字幕轨/音轨/画面比例/循环） |
+| ④ | Pad 5 选倍速 0.25× 后 dump 仍为「选择播放速度」面板（8 个档位全在），只是选中态变化；点「关闭面板」才退出 |
+| ⑤ | Pad 5 / K60 的「更多」条目清单一致（见 ③）；循环模式入口出现在「播放设置 → 播放」组（`循环模式 / 顺序播放 / 列表循环 / 单集循环 / 随机`），且设置面板带「返回上一级」 |
+| ⑥ | Pad 5 平板/竖屏：右上角 字幕 [832..893] 音轨 [967..1028] 画面 [1102..1163] 选集 [1237..1298] 更多 [1372..1433] 锁定 [1474..1582]；左下角 播放暂停 [45,2310][171,2436] 跳回 [196..300] 快退 [300..404] 快进 [404..508] 跳过 [508..616] 时间 [641..888]，倍速贴右下 [1517..1555]。Pad 5 手机形态（`wm 1080x2400` + `density 420` ≈411dp）：工具簇退化成纯图标 [292..1058]（无文字标签）、左下角播放 [53,716][200,863] + 时间 [748..1026]、下方「选集 / 播放队列」页签；点视频区中心 540,400 → 控制层隐藏（中央命中区未被控件吃掉）。K60 横屏同分布：工具簇 [1953..3171]、左下角 [70..956] + 时间 [994..1371] |
+| ⑦ | Pad 5 截图底部进度条行 y=2491：已播段 = (92,225,210) ≈ `#5CE1D2`（4390 采样点）、knob = (242,245,249) 月白、缓冲/轨道 = (40,42,45)；整条轨道左右通栏到边缘 |
+| 稳定性 | 两台设备整轮 `logcat` 无 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out`；副作已还原（Pad 5 `wm size/density` reset、accel=1 / user_rotation=0；K60 `user-rotation free` + accel=1 / user_rotation=0；两台 force-stop、`/sdcard/w10*.xml` 清理、本地截图已删） |
+
+### 13.5 未决 / 移交项
+
+1. **ExoPlayer 的「裁剪填满」用视图缩放实现**（D16）：`zoomFill` 依赖 `uiState.currentMediaInfo` 的源分辨率；拿不到分辨率时退回 1.0（等效适应屏幕）。若后续拿到内核实测分辨率可再收敛。
+2. `PlayerVideoTransform` 的 `cropScale` 同时作用于两个内核，语义一致；但「去黑边」在 ExoPlayer 侧仍是「FIT 提升为裁剪填满」，与 mpv 的 `video-zoom` 路径不同源，视觉已对齐、代码未统一。
+3. 小窗（Compact）的「更多」保留四个工具兜底入口（D15），与常规形态的右上角工具簇分工不同——若后续小窗也加工具簇，可把兜底项撤掉。
+4. K60 当前物理横置（传感器 landscape），手机竖屏形态用 Pad 5 `wm 1080x2400` + `density 420` 等价覆盖验证（与 W8/W9 同法）；K60 原生竖屏复验并入下次 R4 回归。
 

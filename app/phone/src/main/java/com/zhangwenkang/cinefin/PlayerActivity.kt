@@ -133,11 +133,6 @@ class PlayerActivity : BasePlayerActivity() {
     /** 已经按哪个条目重算过画面变换（换集后视频分辨率可能不同） */
     private var appliedTransformItemId: UUID? = null
 
-    /** 视频内容容器（Media3 `exo_content_frame`）：裁剪靠它的宽高比，PlayerView 本身没有这个 API */
-    private val videoContentFrame: AspectRatioFrameLayout? by lazy {
-        binding.playerView.findViewById(androidx.media3.ui.R.id.exo_content_frame)
-    }
-
     private val isPipSupported by lazy {
         // Check if device has PiP feature
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
@@ -681,38 +676,60 @@ class PlayerActivity : BasePlayerActivity() {
         val view = binding.playerView
         val baseMode = appPreferences.getValue(appPreferences.playerResizeMode)
         // 去黑边：把「适应屏幕」提升为「裁剪填满」（填满 = 没有黑边）；其它档位保持用户选择
-        view.resizeMode =
+        val mode =
             if (transform.letterboxCrop && baseMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) {
                 AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             } else {
                 baseMode
             }
-        // 裁剪：收窄容器宽高比，配合 ZOOM 等效于左右各裁掉 N%
+        /*
+         * Media3 的三档语义（真机实测结论）：
+         * - FIT：内容框按视频比例，四周留黑边；
+         * - FILL：内容框撑满画面区，画面被拉伸（允许变形）；
+         * - ZOOM：内容框本来就等于视频比例时**没有任何视觉效果**（Pad 5 实测三档画面逐像素相同），
+         *   所以「裁剪填满」改成「内容框按视频比例（走 FIT）+ 等比视图缩放填满画面区」——
+         *   放大倍数取画面区与视频比例差（与 mpv 的 panscan 语义一致，溢出部分被父容器裁掉）。
+         */
         val videoRatio =
             if (videoWidth > 0 && videoHeight > 0) videoWidth.toFloat() / videoHeight else 0f
-        videoContentFrame?.setAspectRatio(
-            if (transform.cropPercent > 0 && videoRatio > 0f) {
-                videoRatio * (1f - 2f * transform.cropPercent / 100f)
+        val zoomFill =
+            if (mode == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) {
+                letterboxFillScale(
+                    view.width.toFloat(),
+                    view.height.toFloat(),
+                    videoWidth,
+                    videoHeight,
+                )
             } else {
-                0f
+                1f
             }
-        )
+        view.resizeMode =
+            if (mode == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) {
+                AspectRatioFrameLayout.RESIZE_MODE_FIT
+            } else {
+                mode
+            }
         view.rotation = transform.rotationDegrees.toFloat()
+        // 裁剪：四边各裁 N% ⇒ 等比放大 1/(1-2N%)（与 mpv 的 video-zoom 同一套算法）
         val scale =
             rotationFillScale(
                 transform.rotationDegrees,
                 view.width.toFloat(),
                 view.height.toFloat(),
-            ) * cropScale(transform.cropPercent)
+            ) * cropScale(transform.cropPercent) * zoomFill
         view.scaleX = (if (transform.mirror == VideoMirrorMode.HORIZONTAL) -1f else 1f) * scale
         view.scaleY = (if (transform.mirror == VideoMirrorMode.VERTICAL) -1f else 1f) * scale
         // 排障 / 验收证据：把实际落到视图上的参数打出来（真机走查用文本核对，不靠截图）
         Timber.d(
-            "ExoPlayer 画面变换: rotation=%.1f scaleX=%.3f scaleY=%.3f resizeMode=%d crop=%d",
+            "ExoPlayer 画面变换: rotation=%.1f scaleX=%.3f scaleY=%.3f resizeMode=%d" +
+                " zoomFill=%.3f viewAspect=%.3f videoAspect=%.3f crop=%d",
             view.rotation,
             view.scaleX,
             view.scaleY,
             view.resizeMode,
+            zoomFill,
+            if (view.height > 0) view.width.toFloat() / view.height else 0f,
+            videoRatio,
             transform.cropPercent,
         )
     }

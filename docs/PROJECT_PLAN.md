@@ -33,7 +33,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9 体验补全波完成 §1.6 画面调整 / §1.7 队列管理 / §1.8 信息面板 / §1.9 设置面板六组**（已合并 master `87b6692`，Pad 5 真机逐项走查通过；5 个新偏好键暂放 `player/local/domain/PlayerExtraPreferences.kt`，待收口决策）；待做：§1.18 libass / ExoPlayer 容器字段（需 data 透传） |
+| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9 体验补全波完成 §1.6 画面调整 / §1.7 队列管理 / §1.8 信息面板 / §1.9 设置面板六组**（已合并 master `87b6692`，Pad 5 真机逐项走查通过；5 个新偏好键暂放 `player/local/domain/PlayerExtraPreferences.kt`，待收口决策）；**W10 播放页第二轮反馈（2026-10-01，分支 `feature/w10-player-ui2`）：①画面比例双内核生效（mpv keepaspect/panscan + Exo「裁剪填满」改等比视图缩放）②字幕背景默认「无」③队列编辑归位「选集→播放队列」④面板选择不自动关闭⑤「更多」去重（循环进「播放设置」）⑥控件重排（左下播放/切换/时间 + 右上设置簇，进度条通栏）⑦播放页流光化**——Pad 5 + K60 逐条文本 / 像素证据见 `PLAYER_PLAN.md` §13；待做：§1.18 libass / ExoPlayer 容器字段（需 data 透传） |
 | **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
 | **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档 | 🟡 大部分完成 | 自签证书与多用户待补 |
 | **Web 控制台**（内置 WebView + 影阁皮肤） | `docs/web-console-skin.css`（唯一权威副本，改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） | ✅ 基本完成 | 跟随 App 令牌与配色 |
