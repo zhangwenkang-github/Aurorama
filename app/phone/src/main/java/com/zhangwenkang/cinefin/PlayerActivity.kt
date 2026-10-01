@@ -45,6 +45,7 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
+import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
@@ -207,71 +208,83 @@ class PlayerActivity : BasePlayerActivity() {
         binding.controlOverlayCompose.setContent {
             // 注意：这里必须关掉主题底色，否则那层不透明 Surface 会把视频画面整个盖住
             CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
-                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                val subtitlePanelState by viewModel.subtitlePanelState.collectAsStateWithLifecycle()
-                val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
-                // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
-                val layout = rememberPlayerLayoutContext(isPip = pipMode.value)
-                LaunchedEffect(layout, sidePanelExpanded.value) {
-                    layoutContext = layout
-                    applyVideoArea(layout)
+                // 反馈⑦：播放页整层切到 A · Lumen（极光青强调 / 曜石黑面板 / 月白主行动）；
+                // 组件仍只引用语义 token，离开本页自动回到 Prism
+                ProvideLumenColors {
+                    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                    val subtitlePanelState by
+                        viewModel.subtitlePanelState.collectAsStateWithLifecycle()
+                    val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
+                    // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
+                    val layout = rememberPlayerLayoutContext(isPip = pipMode.value)
+                    LaunchedEffect(layout, sidePanelExpanded.value) {
+                        layoutContext = layout
+                        applyVideoArea(layout)
+                    }
+                    PlayerControlOverlay(
+                        player = viewModel.player,
+                        uiState = uiState,
+                        controls = controlsState,
+                        layout = layout,
+                        sidePanelExpanded = sidePanelExpanded.value,
+                        onToggleSidePanel = { sidePanelExpanded.value = !sidePanelExpanded.value },
+                        isPipSupported = isPipSupported,
+                        onBack = { finishPlayback() },
+                        onPip = { pictureInPicture() },
+                        onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
+                        subtitlePanelState = subtitlePanelState,
+                        onSelectPrimarySubtitle = { id -> viewModel.selectSubtitlePrimary(id) },
+                        onSelectSecondarySubtitle = { id -> viewModel.selectSubtitleSecondary(id) },
+                        onAdjustSubtitleDelay = { delta -> viewModel.adjustSubtitleDelay(delta) },
+                        onResetSubtitleDelay = { viewModel.resetSubtitleDelay() },
+                        onUpdateSubtitleStyle = { style -> viewModel.updateSubtitleStyle(style) },
+                        audioPanelState = audioPanelState,
+                        onSelectAudioTrack = { index -> viewModel.selectAudioTrack(index) },
+                        onAdjustAudioDelay = { delta -> viewModel.adjustAudioDelay(delta) },
+                        onResetAudioDelay = { viewModel.resetAudioDelay() },
+                        onSkipSegment = { segment -> viewModel.skipSegment(segment) },
+                        initialResizeMode =
+                            appPreferences.getValue(appPreferences.playerResizeMode),
+                        onSelectResizeMode = { mode -> selectResizeMode(mode) },
+                        settingsController = settingsController,
+                        videoTransform = videoTransform.value,
+                        onSelectBackend = { backend -> restartWithBackend(backend) },
+                        onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
+                        onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
+                        onVideoTransformChanged = { transform -> updateVideoTransform(transform) },
+                        onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
+                        onQueueRemove = { index -> viewModel.removeQueueItem(index) },
+                        onQueueClear = { viewModel.clearQueue() },
+                        showChapterMarkers = settingsController.state.chapterMarkers,
+                        onRetry = { viewModel.retryPlayback() },
+                        onSwitchBackend = { switchBackendAndRestart() },
+                        onRegionsChanged = { visible, panelOpen, locked, errorVisible ->
+                            binding.controlOverlay.controlsVisible = visible
+                            binding.controlOverlay.panelOpen = panelOpen
+                            binding.controlOverlay.locked = locked
+                            binding.controlOverlay.errorVisible = errorVisible
+                            /*
+                             * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
+                             * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
+                             * 但平板侧栏、手机竖屏下方内容区是常驻的，这些骨架必须保持可见。
+                             */
+                            val chromeKeepsComposition =
+                                layoutContext?.chrome?.keepsComposition() == true
+                            binding.controlOverlay.visibility =
+                                if (visible || panelOpen || locked || chromeKeepsComposition) {
+                                    View.VISIBLE
+                                } else {
+                                    View.INVISIBLE
+                                }
+                        },
+                        onTopBarHeight = { px ->
+                            binding.controlOverlay.topBarHeightPx = px.toFloat()
+                        },
+                        onBottomBarHeight = { px ->
+                            binding.controlOverlay.bottomBarHeightPx = px.toFloat()
+                        },
+                    )
                 }
-                PlayerControlOverlay(
-                    player = viewModel.player,
-                    uiState = uiState,
-                    controls = controlsState,
-                    layout = layout,
-                    sidePanelExpanded = sidePanelExpanded.value,
-                    onToggleSidePanel = { sidePanelExpanded.value = !sidePanelExpanded.value },
-                    isPipSupported = isPipSupported,
-                    onBack = { finishPlayback() },
-                    onPip = { pictureInPicture() },
-                    onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
-                    subtitlePanelState = subtitlePanelState,
-                    onSelectPrimarySubtitle = { id -> viewModel.selectSubtitlePrimary(id) },
-                    onSelectSecondarySubtitle = { id -> viewModel.selectSubtitleSecondary(id) },
-                    onAdjustSubtitleDelay = { delta -> viewModel.adjustSubtitleDelay(delta) },
-                    onResetSubtitleDelay = { viewModel.resetSubtitleDelay() },
-                    onUpdateSubtitleStyle = { style -> viewModel.updateSubtitleStyle(style) },
-                    audioPanelState = audioPanelState,
-                    onSelectAudioTrack = { index -> viewModel.selectAudioTrack(index) },
-                    onAdjustAudioDelay = { delta -> viewModel.adjustAudioDelay(delta) },
-                    onResetAudioDelay = { viewModel.resetAudioDelay() },
-                    onSkipSegment = { segment -> viewModel.skipSegment(segment) },
-                    initialResizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
-                    onSelectResizeMode = { mode -> selectResizeMode(mode) },
-                    settingsController = settingsController,
-                    videoTransform = videoTransform.value,
-                    onSelectBackend = { backend -> restartWithBackend(backend) },
-                    onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
-                    onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
-                    onVideoTransformChanged = { transform -> updateVideoTransform(transform) },
-                    onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
-                    onQueueRemove = { index -> viewModel.removeQueueItem(index) },
-                    onQueueClear = { viewModel.clearQueue() },
-                    showChapterMarkers = settingsController.state.chapterMarkers,
-                    onRetry = { viewModel.retryPlayback() },
-                    onSwitchBackend = { switchBackendAndRestart() },
-                    onRegionsChanged = { visible, panelOpen, locked, errorVisible ->
-                        binding.controlOverlay.controlsVisible = visible
-                        binding.controlOverlay.panelOpen = panelOpen
-                        binding.controlOverlay.locked = locked
-                        binding.controlOverlay.errorVisible = errorVisible
-                        /*
-                         * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
-                         * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
-                         * 但平板侧栏、手机竖屏下方内容区是常驻的，这些骨架必须保持可见。
-                         */
-                        val chromeKeepsComposition =
-                            layoutContext?.chrome?.keepsComposition() == true
-                        binding.controlOverlay.visibility =
-                            if (visible || panelOpen || locked || chromeKeepsComposition) {
-                                View.VISIBLE
-                            } else {
-                                View.INVISIBLE
-                            }
-                    },
-                )
             }
         }
 

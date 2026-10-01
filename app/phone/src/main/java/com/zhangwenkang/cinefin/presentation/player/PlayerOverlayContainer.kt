@@ -13,9 +13,9 @@ import android.widget.FrameLayout
  * 这样单击显隐、双击快进/快退、左右滑动进度、上下滑动亮度音量、双指缩放这些既有手势 依然完全由
  * [com.zhangwenkang.cinefin.utils.PlayerGestureHelper] 处理， 不会因为控制层换成 Compose 就把手势全吞掉。
  *
- * 交互区域按**画面区**（而不是整个控件）划带：顶部 76dp / 中央 520×180dp / 底部 210dp； 竖屏（SplitPortrait）里画面更矮、底栏更高（图标 +
- * 文字的工具行），单独用 72 / 150dp 两条带宽。 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管， 这样 Compose
- * 内容不会被手势层穿透，画面区里的手势却一点不受影响。
+ * 交互区域按**画面区**（而不是整个控件）划带：顶带 = 顶栏（返回 / 标题 / 右上角工具簇 / 锁定）实高、 底带 = 左下角传输行 + 通栏进度条实高——两处都由控制层
+ * `onSizeChanged` 回传，不再写死 dp； 中央只有错误卡片才接管触摸（传输键已挪到左下角，中央整块留给手势）。
+ * 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管，这样 Compose 内容不会被手势层穿透，画面区里的手势却一点不受影响。
  *
  * 错误卡片比中央控件高一截，出现时中央命中区放大到 600×400dp，否则重试按钮点不到。
  */
@@ -47,6 +47,15 @@ constructor(
 
     /** 小窗单行控制条高度（px） */
     var compactBarHeightPx: Float = 0f
+
+    /**
+     * 顶栏 / 底栏实测高度（px）：由控制层测量后回传（`onSizeChanged`）。
+     *
+     * 顶栏要装下「返回 + 标题 + 右上角工具簇 + 锁定」，底栏是「左下角传输行 + 通栏进度条」， 两处高度都会随形态与窗口宽度变化——命中带必须跟实高走，否则会出现「进度条点不到」
+     * 或「点画面显隐控制层的可落区被吃掉」（§9 踩坑）。
+     */
+    var topBarHeightPx: Float = 0f
+    var bottomBarHeightPx: Float = 0f
 
     private var handlingSequence = false
     private val density = resources.displayMetrics.density
@@ -99,13 +108,15 @@ constructor(
 
         if (x > videoWidth || y > videoHeight) return false
 
-        // 竖屏画面区更矮，命中带跟着收窄，否则整块画面区都被控件吃掉、手势无处可落
+        // 竖屏画面区更矮，命中带跟着收窄，否则整块画面区都被控件吃掉、手势无处可落；
+        // 有实测高度时用实测（顶栏 / 底栏随形态变高变矮），没有则按骨架取保守值
         val portrait = chrome == PlayerChromeLayout.SplitPortrait
-        // 竖屏顶带 = 顶栏实际高度（8 + 48 + 8dp），给「点画面显隐控制层」留出可落的手指区
-        val topBand = RectF(0f, 0f, videoWidth, (if (portrait) 64f else 76f) * density)
-        val centerHalfWidth = if (errorVisible) 300f else if (portrait) 200f else 260f
-        // 竖屏中央带只包住传输簇（主键 70dp），比横屏更紧，避免吃掉剩下的手势区
-        val centerHalfHeight = if (errorVisible) 200f else if (portrait) 56f else 90f
+        val topHeight =
+            topBarHeightPx.takeIf { it > 0f } ?: ((if (portrait) 64f else 76f) * density)
+        val topBand = RectF(0f, 0f, videoWidth, topHeight)
+        // 中央只留错误卡片（传输簇已挪到左下角），正常播放时中央整块让给手势
+        val centerHalfWidth = 300f
+        val centerHalfHeight = 200f
         val centerBand =
             RectF(
                 videoWidth / 2f - centerHalfWidth * density,
@@ -113,9 +124,12 @@ constructor(
                 videoWidth / 2f + centerHalfWidth * density,
                 videoHeight / 2f + centerHalfHeight * density,
             )
-        // 底栏 = 进度条 + 时间行 + 图标文案工具行（≥52dp），竖屏命中带同步加高
-        val bottomBandHeight = (if (portrait) 150f else 210f) * density
+        // 底栏 = 左下角传输行 + 通栏进度条；有实测高度就按实测
+        val bottomBandHeight =
+            bottomBarHeightPx.takeIf { it > 0f } ?: ((if (portrait) 130f else 150f) * density)
         val bottomBand = RectF(0f, videoHeight - bottomBandHeight, videoWidth, videoHeight)
-        return topBand.contains(x, y) || centerBand.contains(x, y) || bottomBand.contains(x, y)
+        return topBand.contains(x, y) ||
+            (errorVisible && centerBand.contains(x, y)) ||
+            bottomBand.contains(x, y)
     }
 }
