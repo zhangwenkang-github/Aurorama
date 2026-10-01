@@ -25,6 +25,8 @@ data class PlayerItem(
     val subtitleSources: List<PlayerSubtitleSource> = emptyList(),
     val chapters: List<PlayerChapter> = emptyList(),
     val trickplayInfo: TrickplayInfo? = null,
+    /** 播放信息面板用的媒体元数据（§1.8）；构建时取不到的字段留 null，UI 降级显示「—」 */
+    val mediaInfo: PlayerMediaInfo? = null,
 ) : Parcelable
 
 /** MediaItem extras：季号（队列面板按季分组用） */
@@ -32,3 +34,6 @@ const val PLAYER_EXTRA_SEASON_NUMBER = "cinefin.seasonNumber"
 
 /** MediaItem extras：集号 */
 const val PLAYER_EXTRA_EPISODE_NUMBER = "cinefin.episodeNumber"
+
+/** MediaItem extras：播放信息面板的媒体元数据（[PlayerMediaInfo]） */
+const val PLAYER_EXTRA_MEDIA_INFO = "cinefin.mediaInfo"

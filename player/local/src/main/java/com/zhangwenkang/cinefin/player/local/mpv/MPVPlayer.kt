@@ -36,7 +36,11 @@ import androidx.media3.common.util.Clock
 import androidx.media3.common.util.ListenerSet
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.Util
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
+import com.zhangwenkang.cinefin.player.local.domain.cropScale
+import com.zhangwenkang.cinefin.player.local.domain.hdrFromMpv
 import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvEvent
 import dev.jdtech.mpv.MPVLib.MpvFormat
@@ -44,6 +48,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.ln
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -622,6 +627,105 @@ class MPVPlayer(
     /** mpv 颜色格式是 #AARRGGBB；本项目的颜色是 ARGB，直接换个写法即可 */
     private fun Int.toMpvColor(): String = "#%08X".format(this)
 
+    // ---------- 画面调整：旋转 / 镜像 / 裁剪 / 去黑边（§1.6） ----------
+    // mpv 侧全部走原生属性，immediate 生效；两个内核的差异只在实现方式（ExoPlayer 走视图变换）。
+
+    /**
+     * 画面几何变换（mpv 内核）。
+     *
+     * @param rotationDegrees 0 / 90 / 180 / 270（mpv `video-rotate`）
+     * @param mirror 0 关 / 1 水平 / 2 垂直（`video-scale-x|y` 取负值即镜像，gpu-next 支持）
+     * @param cropPercent 四边各裁掉的百分比（0–20）：`video-zoom = log2(1/(1-2p))`
+     * @param fillScale 去黑边的填满倍数（由播放页按「画面区比例 / 视频比例」算好传入；1 = 不放大）
+     */
+    fun applyVideoTransform(
+        rotationDegrees: Int,
+        mirror: Int,
+        cropPercent: Int,
+        fillScale: Float,
+    ) {
+        if (released) return
+        val rotate = ((rotationDegrees % 360) + 360) % 360
+        val zoomScale = cropScale(cropPercent) * fillScale.coerceAtLeast(1f)
+        runCatching {
+            mpvLib.setPropertyInt("video-rotate", rotate)
+            mpvLib.setPropertyDouble(
+                "video-scale-x",
+                if (mirror == VideoMirrorMode.HORIZONTAL) -1.0 else 1.0,
+            )
+            mpvLib.setPropertyDouble(
+                "video-scale-y",
+                if (mirror == VideoMirrorMode.VERTICAL) -1.0 else 1.0,
+            )
+            // mpv 的 video-zoom 以 2 为底：zoom = log2(裁剪放大 × 填满倍数)
+            val zoom = if (zoomScale <= 1f) 0.0 else ln(zoomScale.toDouble()) / ln(2.0)
+            mpvLib.setPropertyDouble("video-zoom", zoom)
+        }
+            .onFailure { Timber.w(it, "mpv 画面变换应用失败") }
+    }
+
+    /**
+     * mpv 硬件解码（`hwdec`）可以播放中切换：面板改「解码」组时立即生效。
+     *
+     * 取值：`mediacodec`（默认硬解）/ `no`（软解）。
+     */
+    fun applyHwDec(hwDec: String) {
+        if (released) return
+        runCatching { mpvLib.setPropertyString("hwdec", hwDec) }
+            .onFailure { Timber.w(it, "mpv 切换硬件解码失败：%s", hwDec) }
+    }
+
+    // ---------- 播放信息面板用的内核侧快照（§1.8） ----------
+
+    /**
+     * 读 mpv 的媒体参数（容器 / 编码 / 分辨率 / 帧率 / 码率 / HDR / 音频）。
+     *
+     * 全部字段按「取不到就是 null」处理，调用方负责降级显示「—」； 必须在主线程之外调用（部分属性会走到 mpv core），UI 侧用 IO 调度。
+     */
+    fun queryMediaInfo(): PlayerMediaInfo? {
+        if (released) return null
+        return runCatching {
+            val gamma = mpvString("video-params/gamma")
+            val primaries = mpvString("video-params/primaries")
+            val dolbyVision = mpvString("video-params/dolbyvision") != null
+            PlayerMediaInfo(
+                container = mpvString("file-format"),
+                videoCodec = mpvString("video-format"),
+                width = mpvInt("width")?.takeIf { it > 0 },
+                height = mpvInt("height")?.takeIf { it > 0 },
+                videoBitrate = mpvDouble("video-bitrate")?.takeIf { it > 0 }?.toInt(),
+                frameRate =
+                    (mpvDouble("container-fps") ?: mpvDouble("estimated-vf-fps"))
+                        ?.takeIf { it > 0 }
+                        ?.toFloat(),
+                hdr = hdrFromMpv(gamma = gamma, primaries = primaries, dolbyVision = dolbyVision),
+                audioCodec = mpvString("audio-codec-name"),
+                audioChannels =
+                    (mpvInt("audio-params/channel-count") ?: mpvInt("audio-params/channels"))
+                        ?.takeIf { it > 0 },
+                audioSampleRate = mpvInt("audio-params/samplerate")?.takeIf { it > 0 },
+                audioBitrate = mpvDouble("audio-bitrate")?.takeIf { it > 0 }?.toInt(),
+                fileSizeBytes = mpvDouble("file-size")?.takeIf { it > 0 }?.toLong(),
+            )
+        }
+            .onFailure { Timber.w(it, "mpv 媒体信息读取失败") }
+            .getOrNull()
+    }
+
+    private fun mpvString(name: String): String? = runCatching {
+        mpvLib.getPropertyString(name)?.takeIf { it.isNotBlank() }
+    }
+        .getOrNull()
+
+    /** mpv 的属性类型在不同版本下可能是 int 也可能是 string，这里统一收敛 */
+    private fun mpvInt(name: String): Int? =
+        runCatching { mpvLib.getPropertyInt(name) }.getOrNull()
+            ?: runCatching { mpvLib.getPropertyString(name)?.toDoubleOrNull()?.toInt() }.getOrNull()
+
+    private fun mpvDouble(name: String): Double? =
+        runCatching { mpvLib.getPropertyDouble(name) }.getOrNull()
+            ?: runCatching { mpvLib.getPropertyString(name)?.toDoubleOrNull() }.getOrNull()
+
     // Timeline wrapper
     private val timeline: Timeline =
         object : Timeline() {
@@ -864,7 +968,25 @@ class MPVPlayer(
      *   to the end of the playlist.
      */
     override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) {
-        TODO("Not yet implemented")
+        /*
+         * 队列管理（§1.7）用到的单条移动：mpv `playlist-move <index> <newIndex>`
+         * 语义与 Media3 一致（把 fromIndex 的条目移到 newIndex 的位置）。
+         * 面板只做单条拖拽，这里也按逐条移动实现，保持下标语义可控。
+         */
+        val size = internalMediaItems.size
+        if (fromIndex !in 0 until size || toIndex <= fromIndex) return
+        val from = fromIndex
+        val to = toIndex.coerceAtMost(size)
+        val target = newIndex.coerceIn(0, size - (to - from))
+
+        val moved = internalMediaItems.subList(from, to).toList()
+        internalMediaItems.subList(from, to).clear()
+        internalMediaItems.addAll(target.coerceAtMost(internalMediaItems.size), moved)
+        // 单条移动 == 一条 playlist-move；多条时从后往前发，避免中途下标漂移
+        for (offset in moved.indices.reversed()) {
+            postCommand(arrayOf("playlist-move", (from + offset).toString(), target.toString()))
+        }
+        notifyTimelineChanged()
     }
 
     override fun replaceMediaItems(
@@ -883,7 +1005,26 @@ class MPVPlayer(
      *   than the size of the playlist, media items to the end of the playlist are removed.
      */
     override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
-        TODO("Not yet implemented")
+        val size = internalMediaItems.size
+        val from = fromIndex.coerceIn(0, size)
+        val to = toIndex.coerceIn(from, size)
+        if (from >= to) return
+
+        internalMediaItems.subList(from, to).clear()
+        // 从后往前删：先删大下标，前面的下标不会漂移
+        for (index in (to - 1) downTo from) {
+            postCommand(arrayOf("playlist-remove", index.toString()))
+        }
+        notifyTimelineChanged()
+    }
+
+    /** 时间线变化通知（队列增删 / 重排后刷新控制层的队列快照） */
+    private fun notifyTimelineChanged() {
+        handler.post {
+            listeners.sendEvent(EVENT_TIMELINE_CHANGED) { listener ->
+                listener.onTimelineChanged(timeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
+            }
+        }
     }
 
     /**

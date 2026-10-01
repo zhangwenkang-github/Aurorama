@@ -23,14 +23,17 @@ import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_INFO
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
@@ -107,6 +110,8 @@ constructor(
         val currentItemTitle: String,
         /** 当前播放条目的 id，供播放页做海报取色等与条目相关的效果 */
         val currentItemId: UUID? = null,
+        /** 当前条目的媒体源元数据（§1.8 信息面板；内核侧实测值由面板再合并一层） */
+        val currentMediaInfo: PlayerMediaInfo? = null,
         val currentSegment: FindroidSegment?,
         val currentSkipButtonStringRes: Int,
         val currentTrickplay: Trickplay?,
@@ -194,6 +199,9 @@ constructor(
 
     /** 后台补全播放队列的任务：重新起播时取消重来，避免两个任务同时插队 */
     private var queueFillJob: Job? = null
+
+    /** 用户是否手动整理过队列（§1.7）：整理过之后不再让后台补片把删掉的条目补回来 */
+    private var queueManuallyEdited = false
 
     /** 已经自动降级过的媒体 id：同一个条目只降级一次，避免内核来回弹 */
     private var autoFallbackMediaId: String? = null
@@ -374,6 +382,8 @@ constructor(
                 var stoppedAtLimit = false
 
                 for (index in (currentIndex + 1) until queueSize) {
+                    // 用户手动整理过队列（排序 / 删除 / 清空）：不再把条目补回来
+                    if (queueManuallyEdited) return@launch
                     if (added >= MAX_QUEUE_FILL_ITEMS) {
                         stoppedAtLimit = true
                         break
@@ -385,6 +395,7 @@ constructor(
                 }
                 if (!stoppedAtLimit) {
                     for (index in (currentIndex - 1) downTo 0) {
+                        if (queueManuallyEdited) return@launch
                         if (added >= MAX_QUEUE_FILL_ITEMS) {
                             stoppedAtLimit = true
                             break
@@ -449,8 +460,14 @@ constructor(
         val episode = extras?.getInt(PLAYER_EXTRA_EPISODE_NUMBER, -1) ?: -1
         val name = mediaItem.mediaMetadata.title?.toString().orEmpty()
         val title = if (season >= 0 && episode >= 0) "S$season:E$episode - $name" else name
+        @Suppress("DEPRECATION")
+        val mediaInfo = extras?.getParcelable(PLAYER_EXTRA_MEDIA_INFO) as? PlayerMediaInfo
         _uiState.update {
-            it.copy(currentItemTitle = title, currentItemId = itemId ?: it.currentItemId)
+            it.copy(
+                currentItemTitle = title,
+                currentItemId = itemId ?: it.currentItemId,
+                currentMediaInfo = mediaInfo ?: it.currentMediaInfo,
+            )
         }
     }
 
@@ -481,6 +498,8 @@ constructor(
                             Bundle().apply {
                                 putInt(PLAYER_EXTRA_SEASON_NUMBER, parentIndexNumber ?: -1)
                                 putInt(PLAYER_EXTRA_EPISODE_NUMBER, indexNumber ?: -1)
+                                // 信息面板（§1.8）：媒体源元数据随媒体项一起带走
+                                mediaInfo?.let { putParcelable(PLAYER_EXTRA_MEDIA_INFO, it) }
                             }
                         )
                         .build()
@@ -548,12 +567,16 @@ constructor(
     }
 
     fun updateCurrentSegment() {
-        Timber.d("Updating current segment")
-        viewModelScope.launch(Dispatchers.Main) {
-            if (currentMediaItemSegments.isEmpty()) {
-                return@launch
+        // 页内改过「跳过片头片尾」设置就现读一次（§1.9：不重开播放页也生效）
+        refreshSegmentPreferences()
+        // 没有片段数据、或两个开关都关：收起按钮直接返回（每秒一次的轮询不该刷日志 / 干活）
+        if (currentMediaItemSegments.isEmpty() || (!segmentsSkipButton && !segmentsAutoSkip)) {
+            if (_uiState.value.currentSegment != null) {
+                _uiState.update { it.copy(currentSegment = null) }
             }
-
+            return
+        }
+        viewModelScope.launch(Dispatchers.Main) {
             val milliSeconds = player.currentPosition
 
             // Get current segment, - 100 milliseconds to avoid showing button after segment ends
@@ -755,6 +778,17 @@ constructor(
     private fun advanceAfterItemEnd() {
         val from = player.currentMediaItemIndex
         val repeatMode = player.repeatMode
+        /*
+         * 「播完暂停」（§1.7）：当前一集播完就停在片尾，不自动跳下一集。
+         * 播放器本身设了 pauseAtEndOfMediaItems，此刻已经是暂停态，这里直接返回即可。
+         */
+        if (
+            repeatMode != Player.REPEAT_MODE_ONE &&
+                appPreferences.getValue(PlayerExtraPreferences.pauseAfterCurrentItem)
+        ) {
+            Timber.d("pause after item end: stay at index=$from (播完暂停)")
+            return
+        }
         if (repeatMode == Player.REPEAT_MODE_ONE) {
             player.seekTo(from, 0L)
         } else if (player.hasNextMediaItem()) {
@@ -1333,6 +1367,90 @@ constructor(
         appPreferences.setValue(appPreferences.playerBackend, next)
         Timber.d("Player backend switched: $playerBackend -> $next")
         return next
+    }
+
+    /**
+     * 直接从偏好切内核（§1.9 设置面板的「解码」组）：播放页随后走「重启 + 续播」。
+     *
+     * 与 [switchBackend] 的区别是目标值由调用方给定（面板点哪一项就切哪一项）。
+     */
+    fun setBackend(backend: String) {
+        appPreferences.setValue(appPreferences.playerBackend, backend)
+        Timber.d("Player backend set to %s by settings panel", backend)
+    }
+
+    /**
+     * 页内改字幕模式（§1.9 设置面板的「字幕」组）：写偏好并立即重选 / 关闭字幕。
+     *
+     * - `off`：关掉主 / 次字幕（自研管线与内核字幕一起停）；
+     * - `auto` / `always`：清掉「手动选过轨」的标记，让语言引擎重新按优先级挑一条。
+     */
+    fun setSubtitleMode(mode: String) {
+        appPreferences.setValue(appPreferences.subtitleMode, mode)
+        Timber.d("Subtitle mode set to %s by settings panel", mode)
+        if (mode == Constants.SubtitleMode.OFF) {
+            selectSubtitlePrimary(null)
+            selectSubtitleSecondary(null)
+        } else {
+            manualTrackSelectionMediaId = null
+            applyAutoSelectAndRoute()
+        }
+        publishSubtitlePanelState()
+    }
+
+    /** 重读「跳过片头片尾」相关偏好（面板改完即时生效，不必重开播放页） */
+    fun refreshSegmentPreferences() {
+        segmentsSkipButton = appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton)
+        segmentsSkipButtonTypes =
+            appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButtonType)
+        segmentsSkipButtonDuration =
+            appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButtonDuration)
+        segmentsAutoSkip = appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkip)
+        segmentsAutoSkipTypes =
+            appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipType)
+        segmentsAutoSkipMode =
+            appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipMode)
+    }
+
+    // ---------- 队列管理：拖拽排序 / 删除 / 清空 / 跳转（§1.7） ----------
+
+    /**
+     * 队列排序（拖拽）：把 [fromIndex] 的条目移到 [toIndex]。
+     *
+     * 直接改播放器时间线（ExoPlayer 用原生 `moveMediaItem`，mpv 走 `playlist-move`）； 整理过之后置
+     * [queueManuallyEdited]，避免后台补片把用户刚删掉的条目又补回来。
+     */
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val count = player.mediaItemCount
+        if (fromIndex == toIndex || fromIndex !in 0 until count || toIndex !in 0 until count) return
+        queueManuallyEdited = true
+        player.moveMediaItem(fromIndex, toIndex)
+        Timber.d("queue move: %d -> %d（共 %d 项）", fromIndex, toIndex, player.mediaItemCount)
+    }
+
+    /** 从队列移除一条；正在播放的条目不允许移除（UI 上那一行的删除键禁用） */
+    fun removeQueueItem(index: Int) {
+        val count = player.mediaItemCount
+        if (index !in 0 until count || index == player.currentMediaItemIndex) return
+        queueManuallyEdited = true
+        player.removeMediaItem(index)
+        Timber.d("queue remove: %d（共 %d 项）", index, player.mediaItemCount)
+    }
+
+    /**
+     * 清空队列：**保留正在播放的条目**，把其它待播项全部移除。
+     *
+     * 直接 clearMediaItems 会把当前条目也删掉并停播，不符合「清空待播列表」的预期。
+     */
+    fun clearQueue() {
+        queueManuallyEdited = true
+        queueFillJob?.cancel()
+        val before = player.currentMediaItemIndex
+        if (before > 0) player.removeMediaItems(0, before)
+        val current = player.currentMediaItemIndex
+        val count = player.mediaItemCount
+        if (count > current + 1) player.removeMediaItems(current + 1, count)
+        Timber.d("queue clear: 保留当前条目，队列剩 %d 项", player.mediaItemCount)
     }
 
     /** 手动收起错误卡片（不改播放状态） */

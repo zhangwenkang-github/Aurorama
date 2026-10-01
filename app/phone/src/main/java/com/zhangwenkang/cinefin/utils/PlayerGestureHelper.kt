@@ -638,7 +638,8 @@ class PlayerGestureHelper(
 
         @Suppress("ClickableViewAccessibility")
         playerView.setOnTouchListener { _, event ->
-            if (!isSuspended) {
+            // 手势总开关（§1.9 设置面板）：现读偏好，关掉后所有自定义手势立即失效
+            if (!isSuspended && appPreferences.getValue(appPreferences.playerGestures)) {
                 currentNumberOfPointers = event.pointerCount
                 when (event.pointerCount) {
                     1 -> {

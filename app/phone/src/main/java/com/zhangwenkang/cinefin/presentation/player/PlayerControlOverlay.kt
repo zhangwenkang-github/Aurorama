@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -54,6 +55,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,15 +93,22 @@ import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
+import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
+import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
+import com.zhangwenkang.cinefin.player.local.domain.mergePlayerMediaInfo
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /* =========================================================================
@@ -143,6 +152,9 @@ private val SpeedOptions = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 /** 睡眠定时的档位（分钟） */
 private val SleepOptions = listOf(10, 20, 30, 60)
 
+/** 队列行的近似高度（dp）：拖拽排序按「位移超过一行就换位」计算，与 PanelRow 的 52dp + 缩略图匹配 */
+private val QUEUE_ROW_HEIGHT = 64.dp
+
 internal enum class PlayerPanel {
     None,
     /** 小窗 / 窄宽下的「更多」聚合入口：点进去再选具体面板 */
@@ -155,6 +167,8 @@ internal enum class PlayerPanel {
     Info,
     Queue,
     Sleep,
+    /** 播放页设置：播放 / 解码 / 字幕 / 音频 / 画面 / 手势 六组（§1.9） */
+    Settings,
 }
 
 /**
@@ -239,6 +253,9 @@ private class PlayerRuntime {
     var repeatMode by mutableIntStateOf(Player.REPEAT_MODE_OFF)
     var shuffleEnabled by mutableStateOf(false)
 
+    /** 队列快照对应的 mediaId 序列：队列增删 / 拖拽排序后用它判断要不要重建列表（§1.7） */
+    private var queueMediaIds: List<String> = emptyList()
+
     /** 当前播放核心能不能被随机播放：mpv 后端的 setShuffleModeEnabled 还是 TODO，不能碰 */
     var canShuffle by mutableStateOf(false)
 
@@ -255,9 +272,12 @@ private class PlayerRuntime {
         repeatMode = player.repeatMode
         shuffleEnabled = player.shuffleModeEnabled
         canShuffle = player.availableCommands.contains(Player.COMMAND_SET_SHUFFLE_MODE)
-        if (player.mediaItemCount != queueEntries.size) {
+        val ids =
+            (0 until player.mediaItemCount).map { index -> player.getMediaItemAt(index).mediaId }
+        if (ids != queueMediaIds) {
+            queueMediaIds = ids
             queueEntries =
-                (0 until player.mediaItemCount).map { index ->
+                ids.indices.map { index ->
                     val mediaItem = player.getMediaItemAt(index)
                     val extras = mediaItem.mediaMetadata.extras
                     QueueEntry(
@@ -343,6 +363,24 @@ fun PlayerControlOverlay(
     onSelectResizeMode: (Int) -> Unit,
     /** 当前播放核心是否支持画面比例（mpv 核心由它自己控制画面，这里就只做展示不接管） */
     aspectSupported: Boolean,
+    /** 播放页设置面板（§1.9）：六组设置的读写器由 Activity 持有 */
+    settingsController: PlayerSettingsController,
+    /** 画面调整（§1.6）当前状态：旋转 / 镜像 / 裁剪 / 去黑边 */
+    videoTransform: PlayerVideoTransform,
+    /** 切播放内核（ExoPlayer ⇄ mpv）：由 Activity 走「重启播放页 + 续播」的既有路径 */
+    onSelectBackend: (String) -> Unit,
+    /** mpv 换硬件解码：即时写 mpv 属性 */
+    onSelectMpvHwdec: (String) -> Unit,
+    /** 字幕模式变化：ViewModel 立即重选字幕 */
+    onSubtitleModeChanged: (String) -> Unit,
+    /** 画面调整变化：写入偏好并立即应用到画面输出 */
+    onVideoTransformChanged: (PlayerVideoTransform) -> Unit,
+    /** 队列整理（§1.7）：拖拽排序 / 移除单条 / 清空待播 */
+    onQueueMove: (Int, Int) -> Unit = { _, _ -> },
+    onQueueRemove: (Int) -> Unit = {},
+    onQueueClear: () -> Unit = {},
+    /** 循环模式附加项「播完暂停」变化 */
+    onPauseAfterCurrentItemChanged: (Boolean) -> Unit = {},
     /** 播放失败后的「重试」：清错误并从当前进度重新拉流 */
     onRetry: () -> Unit,
     /** 「换内核」：ExoPlayer ⇄ mpv（由 Activity 写偏好并重启播放页生效） */
@@ -442,7 +480,9 @@ fun PlayerControlOverlay(
             trickplay = uiState.currentTrickplay,
             speed = runtime.speed,
             subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
-            aspectActive = aspect.resizeMode != AspectMode.Fit.resizeMode,
+            // 画面键的激活态：比例不是「适应屏幕」，或做过旋转 / 镜像 / 裁剪 / 去黑边
+            aspectActive =
+                aspect.resizeMode != AspectMode.Fit.resizeMode || videoTransform.hasAdjustments,
             queueActive = hasSidePanel && sidePanelExpanded,
             sleepRemainingMs = sleepRemaining,
             onSeek = { target -> player.seekTo(target) },
@@ -688,6 +728,11 @@ fun PlayerControlOverlay(
                             repeatMode = runtime.repeatMode,
                             shuffleEnabled = runtime.shuffleEnabled,
                             canShuffle = runtime.canShuffle,
+                            pauseAfterItem = settingsController.state.pauseAfterCurrentItem,
+                            onTogglePauseAfterItem = { enabled ->
+                                settingsController.setPauseAfterCurrentItem(enabled)
+                                onPauseAfterCurrentItemChanged(enabled)
+                            },
                             onSelect = { mode, shuffle ->
                                 player.repeatMode = mode
                                 // mpv 后端的 setShuffleModeEnabled 还是 TODO，能力不足时不碰它
@@ -721,14 +766,30 @@ fun PlayerControlOverlay(
                         AspectPanel(
                             current = aspect,
                             supported = aspectSupported,
+                            transform = videoTransform,
+                            onTransformChange = onVideoTransformChanged,
                             onSelect = { mode ->
                                 aspect = mode
                                 onSelectResizeMode(mode.resizeMode)
-                                panel = PlayerPanel.None
                             },
                         )
+                    PlayerPanel.Settings ->
+                        PlayerSettingsPanel(
+                            controller = settingsController,
+                            videoTransform = videoTransform,
+                            onOpenPanel = { target -> panel = target },
+                            onSelectBackend = onSelectBackend,
+                            onSelectMpvHwdec = onSelectMpvHwdec,
+                            onSubtitleModeChanged = onSubtitleModeChanged,
+                            onVideoTransformChanged = onVideoTransformChanged,
+                        )
                     PlayerPanel.Info ->
-                        InfoPanel(runtime = runtime, title = uiState.currentItemTitle)
+                        InfoPanel(
+                            player = player,
+                            runtime = runtime,
+                            title = uiState.currentItemTitle,
+                            sourceInfo = uiState.currentMediaInfo,
+                        )
                     PlayerPanel.Queue ->
                         QueuePanel(
                             entries = runtime.queueEntries,
@@ -737,6 +798,9 @@ fun PlayerControlOverlay(
                                 player.seekTo(index, 0L)
                                 panel = PlayerPanel.None
                             },
+                            onMove = onQueueMove,
+                            onRemove = onQueueRemove,
+                            onClear = onQueueClear,
                         )
                     PlayerPanel.Sleep ->
                         SleepPanel(
@@ -1641,6 +1705,8 @@ internal fun PanelRow(
     enabled: Boolean = true,
     /** 列表型面板（如播放队列）在文字前放一张 16:9 缩略图 */
     leadingArtworkUri: String? = null,
+    /** 行尾附加动作（如队列的删除键 / 拖拽把手）；默认没有 */
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -1711,6 +1777,7 @@ internal fun PanelRow(
                 modifier = Modifier.size(20.dp),
             )
         }
+        trailing?.invoke()
     }
 }
 
@@ -1792,6 +1859,7 @@ private fun panelTitleRes(panel: PlayerPanel): Int =
         PlayerPanel.Info -> PlayerR.string.player_controls_info
         PlayerPanel.Queue -> PlayerR.string.player_controls_queue
         PlayerPanel.Sleep -> PlayerR.string.player_controls_sleep_timer
+        PlayerPanel.Settings -> PlayerR.string.player_controls_settings
         PlayerPanel.More,
         PlayerPanel.None -> PlayerR.string.player_controls_more
     }
@@ -1826,6 +1894,8 @@ private fun RepeatPanel(
     repeatMode: Int,
     shuffleEnabled: Boolean,
     canShuffle: Boolean,
+    pauseAfterItem: Boolean,
+    onTogglePauseAfterItem: (Boolean) -> Unit,
     onSelect: (repeatMode: Int, shuffle: Boolean) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1862,15 +1932,29 @@ private fun RepeatPanel(
                 enabled = canShuffle,
                 onClick = { onSelect(Player.REPEAT_MODE_ALL, true) },
             )
+            // 「播完暂停」（§1.7）：独立开关——当前一集播完停在片尾，不自动跳下一集
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_pause_after_item),
+                caption = stringResource(PlayerR.string.player_controls_pause_after_item_caption),
+                selected = pauseAfterItem,
+                onClick = { onTogglePauseAfterItem(!pauseAfterItem) },
+            )
         }
     }
 }
 
-/** 画面比例：适应屏幕 / 裁剪填满 / 拉伸填满 */
+/**
+ * 画面面板（§1.6 扩展）：比例（适应 / 裁剪 / 拉伸）+ 旋转 / 镜像 / 裁剪 / 去黑边。
+ *
+ * 比例沿用 `pref_player_resize_mode` 体系；几何变换写 `PlayerExtraPreferences` 并由 Activity 即时应用 （ExoPlayer
+ * 走视图变换，mpv 走原生属性）。改完不自动关面板——这些项常要连着调，和字幕面板一致。
+ */
 @Composable
 private fun AspectPanel(
     current: AspectMode,
     supported: Boolean,
+    transform: PlayerVideoTransform,
+    onTransformChange: (PlayerVideoTransform) -> Unit,
     onSelect: (AspectMode) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1891,6 +1975,7 @@ private fun AspectPanel(
                     onClick = { onSelect(mode) },
                 )
             }
+            VideoTransformControls(transform = transform, onTransformChange = onTransformChange)
         }
     }
 }
@@ -2128,7 +2213,7 @@ private fun SubtitleStyleRow(
 
 /** 面板里的小胶囊按钮（§8.3 Chip）：未选中中性底 + 描边，选中态媒体色融入控件本体。 */
 @Composable
-private fun PanelChip(
+internal fun PanelChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -2262,15 +2347,23 @@ private fun formatAudioDelay(delayMs: Long): String {
 
 @Composable
 private fun InfoPanel(
+    player: Player,
     runtime: PlayerRuntime,
     title: String,
+    sourceInfo: PlayerMediaInfo?,
 ) {
-    val videoFormat =
-        runtime.tracks
-            ?.groups
-            ?.firstOrNull { it.type == C.TRACK_TYPE_VIDEO && it.isSupported }
-            ?.mediaTrackGroup
-            ?.getFormat(0)
+    /*
+     * 双内核信息快照（§1.8）：媒体源元数据（Jellyfin）+ 内核实测值，内核优先。
+     * mpv 的属性读取会走到 native，放到 IO 线程；ExoPlayer 读的是 currentTracks。
+     * 两个内核能取到的字段不同 → 取不到统一显示「—」，不隐藏行、不崩。
+     */
+    var kernelInfo by remember { mutableStateOf<PlayerMediaInfo?>(null) }
+    LaunchedEffect(player, runtime.currentIndex) {
+        kernelInfo =
+            withContext(Dispatchers.IO) { runCatching { readKernelMediaInfo(player) }.getOrNull() }
+    }
+    val info = mergePlayerMediaInfo(sourceInfo, kernelInfo)
+
     val audioCount =
         runtime.tracks?.groups?.count { it.type == C.TRACK_TYPE_AUDIO && it.isSupported } ?: 0
     val subtitleCount =
@@ -2282,40 +2375,48 @@ private fun InfoPanel(
                 label = stringResource(PlayerR.string.player_controls_info_title),
                 value = title.ifEmpty { runtime.title },
             )
-            videoFormat?.let { format ->
-                val resolution =
-                    if (format.width > 0 && format.height > 0) {
-                        "${format.width} × ${format.height}"
-                    } else {
-                        "—"
-                    }
-                InfoRow(
-                    label = stringResource(PlayerR.string.player_controls_info_resolution),
-                    value = resolution,
-                )
-                format.frameRate
-                    ?.takeIf { it > 0f }
-                    ?.let { fps ->
-                        InfoRow(
-                            label = stringResource(PlayerR.string.player_controls_info_frame_rate),
-                            value = "${fps.roundToLong()} fps",
-                        )
-                    }
-                format.sampleMimeType?.let { mime ->
-                    InfoRow(
-                        label = stringResource(PlayerR.string.player_controls_info_codec),
-                        value = mime,
-                    )
-                }
-                format.bitrate
-                    ?.takeIf { it > 0 }
-                    ?.let { bitrate ->
-                        InfoRow(
-                            label = stringResource(PlayerR.string.player_controls_info_bitrate),
-                            value = "${bitrate / 1000} kbps",
-                        )
-                    }
-            }
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_container),
+                value = PlayerMediaInfoFormat.container(info?.container),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_codec),
+                value = PlayerMediaInfoFormat.codec(info?.videoCodec),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_resolution),
+                value = PlayerMediaInfoFormat.resolution(info?.width, info?.height),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_bitrate),
+                value = PlayerMediaInfoFormat.bitrate(info?.videoBitrate),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_frame_rate),
+                value = PlayerMediaInfoFormat.frameRate(info?.frameRate),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_hdr),
+                value = PlayerMediaInfoFormat.hdr(info?.hdr),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_audio_format),
+                value =
+                    PlayerMediaInfoFormat.audio(
+                        codec = info?.audioCodec,
+                        channels = info?.audioChannels,
+                        bitrate = info?.audioBitrate,
+                        sampleRate = info?.audioSampleRate,
+                    ),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_file_size),
+                value = PlayerMediaInfoFormat.fileSize(info?.fileSizeBytes),
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_path),
+                value = PlayerMediaInfoFormat.path(info?.path),
+            )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_audio_tracks),
                 value = audioCount.toString(),
@@ -2371,6 +2472,9 @@ private fun QueuePanel(
     entries: List<QueueEntry>,
     currentIndex: Int,
     onSelect: (Int) -> Unit,
+    onMove: (Int, Int) -> Unit,
+    onRemove: (Int) -> Unit,
+    onClear: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -2392,6 +2496,26 @@ private fun QueuePanel(
                     ),
             )
             return@Column
+        }
+
+        // 队列管理（§1.7）：清空 + 拖拽排序提示
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = CinefinSpacing.Space5, vertical = CinefinSpacing.Space1),
+        ) {
+            Text(
+                text = stringResource(PlayerR.string.player_queue_drag_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            PanelChip(
+                label = stringResource(PlayerR.string.player_queue_clear),
+                selected = false,
+                onClick = onClear,
+            )
         }
 
         // 剧集：按季分组，先选季再看集；电影等没有季信息时退化成平铺列表
@@ -2429,14 +2553,97 @@ private fun QueuePanel(
                         entry.seasonNumber == selectedSeason
                 if (!visible) return@forEachIndexed
 
-                PanelRow(
-                    label = queueLabel(index = index, entry = entry),
+                QueueEditableRow(
+                    index = index,
+                    entry = entry,
                     selected = index == currentIndex,
-                    onClick = { onSelect(index) },
-                    leadingArtworkUri = entry.artworkUri,
+                    canRemove = index != currentIndex,
+                    lastIndex = entries.lastIndex,
+                    onSelect = { onSelect(index) },
+                    onMove = onMove,
+                    onRemove = { onRemove(index) },
                 )
             }
         }
+    }
+}
+
+/**
+ * 队列里可整理的一行（§1.7）：点行跳转、长按拖动排序、行尾删除。
+ *
+ * 拖拽用「累计位移每超过一行高度就换一次位」的简化实现（不引新依赖）：一次拖拽可以连续换位， 松手即停在当前位置。删除键在当前播放条目上禁用（不允许把正在播的那条移除）。
+ */
+@Composable
+private fun QueueEditableRow(
+    index: Int,
+    entry: QueueEntry,
+    selected: Boolean,
+    canRemove: Boolean,
+    lastIndex: Int,
+    onSelect: () -> Unit,
+    onMove: (Int, Int) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    // 拖动过程中列表顺序会变：用最新的下标去算目标位，避免用捕获的旧下标
+    val currentIndex by rememberUpdatedState(index)
+    val currentLastIndex by rememberUpdatedState(lastIndex)
+    val rowHeightPx = with(LocalDensity.current) { QUEUE_ROW_HEIGHT.toPx() }
+
+    Box(
+        modifier =
+            Modifier.graphicsLayer { translationY = dragOffset }
+                .pointerInput(entry.title, entry.episodeNumber, entry.seasonNumber) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { dragging = true },
+                        onDragEnd = {
+                            dragging = false
+                            dragOffset = 0f
+                        },
+                        onDragCancel = {
+                            dragging = false
+                            dragOffset = 0f
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragOffset += dragAmount.y
+                            val steps = (dragOffset / rowHeightPx).roundToInt()
+                            if (steps != 0) {
+                                val target = (currentIndex + steps).coerceIn(0, currentLastIndex)
+                                if (target != currentIndex) onMove(currentIndex, target)
+                                dragOffset = 0f
+                            }
+                        },
+                    )
+                }
+    ) {
+        PanelRow(
+            label = queueLabel(index = index, entry = entry),
+            selected = selected,
+            onClick = onSelect,
+            leadingArtworkUri = entry.artworkUri,
+            trailing = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PlayerIconButton(
+                        iconRes = CoreR.drawable.ic_close,
+                        contentDescription = stringResource(PlayerR.string.player_queue_remove),
+                        onClick = onRemove,
+                        size = 40.dp,
+                        glass = false,
+                        enabled = canRemove,
+                    )
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_menu),
+                        contentDescription = null,
+                        tint = if (dragging) media.bright else colors.onSurfaceFaint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            },
+        )
     }
 }
 
@@ -2511,6 +2718,11 @@ private fun MorePanel(
                 label = stringResource(PlayerR.string.player_controls_sleep_timer),
                 selected = false,
                 onClick = { onOpen(PlayerPanel.Sleep) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_settings),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Settings) },
             )
         }
     }

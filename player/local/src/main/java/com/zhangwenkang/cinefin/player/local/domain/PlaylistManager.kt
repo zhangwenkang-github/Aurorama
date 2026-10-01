@@ -7,11 +7,13 @@ import com.zhangwenkang.cinefin.models.FindroidChapter
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidSources
 import com.zhangwenkang.cinefin.player.core.domain.models.ExternalSubtitle
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.TrickplayInfo
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -383,6 +385,32 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             subtitleSources = subtitleSources,
             chapters = chapters.toPlayerChapters(),
             trickplayInfo = trickplayInfo,
+            mediaInfo =
+                buildSourceMediaInfo(
+                    source = mediaSource,
+                    playbackUri = mediaSource.transcodingPath ?: mediaSource.path,
+                ),
+        )
+    }
+
+    /**
+     * 媒体源元数据 → 播放信息快照（§1.8 的第一层：Jellyfin 侧）。
+     *
+     * 这里只填 API 明确给出的字段；分辨率 / 帧率 / 码率 / HDR 的实测值由播放内核在面板打开时补， 两边都取不到的字段留 null，UI 统一显示「—」。
+     */
+    private fun buildSourceMediaInfo(source: FindroidSource, playbackUri: String): PlayerMediaInfo {
+        val video = source.mediaStreams.firstOrNull { it.type == MediaStreamType.VIDEO }
+        val audio = source.mediaStreams.firstOrNull { it.type == MediaStreamType.AUDIO }
+        return PlayerMediaInfo(
+            container = inferContainerFromUri(playbackUri),
+            videoCodec = video?.codec?.takeIf { it.isNotBlank() },
+            width = video?.width?.takeIf { it > 0 },
+            height = video?.height?.takeIf { it > 0 },
+            hdr = hdrFromJellyfin(video?.videoRangeType?.name, video?.videoDoViTitle),
+            audioCodec = audio?.codec?.takeIf { it.isNotBlank() },
+            audioChannels = channelsFromLayout(audio?.channelLayout),
+            fileSizeBytes = source.size.takeIf { it > 0 },
+            path = playbackUri.takeIf { it.isNotBlank() },
         )
     }
 

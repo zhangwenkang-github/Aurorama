@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import coil3.BitmapImage
 import coil3.SingletonImageLoader
@@ -46,6 +47,12 @@ import coil3.request.bitmapConfig
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
+import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
+import com.zhangwenkang.cinefin.player.local.domain.cropScale
+import com.zhangwenkang.cinefin.player.local.domain.letterboxFillScale
+import com.zhangwenkang.cinefin.player.local.domain.rotationFillScale
+import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.presentation.player.PlayerChromeLayout
@@ -53,6 +60,7 @@ import com.zhangwenkang.cinefin.presentation.player.PlayerControlOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlsState
 import com.zhangwenkang.cinefin.presentation.player.PlayerFormFactor
 import com.zhangwenkang.cinefin.presentation.player.PlayerLayoutContext
+import com.zhangwenkang.cinefin.presentation.player.PlayerSettingsController
 import com.zhangwenkang.cinefin.presentation.player.PlayerSubtitleOverlay
 import com.zhangwenkang.cinefin.presentation.player.keepsComposition
 import com.zhangwenkang.cinefin.presentation.player.rememberPlayerLayoutContext
@@ -115,6 +123,20 @@ class PlayerActivity : BasePlayerActivity() {
     /** Compose 侧解析出的形态上下文；Activity 用它给画面区排版（同一份数值，避免两边错位） */
     private var layoutContext: PlayerLayoutContext? = null
 
+    /** 播放页设置面板（§1.9）的读写器：六组设置都在页内直接改 */
+    private lateinit var settingsController: PlayerSettingsController
+
+    /** 画面调整（§1.6）当前状态：旋转 / 镜像 / 裁剪 / 去黑边 */
+    private val videoTransform = mutableStateOf(PlayerVideoTransform())
+
+    /** 已经按哪个条目重算过画面变换（换集后视频分辨率可能不同） */
+    private var appliedTransformItemId: UUID? = null
+
+    /** 视频内容容器（Media3 `exo_content_frame`）：裁剪靠它的宽高比，PlayerView 本身没有这个 API */
+    private val videoContentFrame: AspectRatioFrameLayout? by lazy {
+        binding.playerView.findViewById(androidx.media3.ui.R.id.exo_content_frame)
+    }
+
     private val isPipSupported by lazy {
         // Check if device has PiP feature
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
@@ -155,6 +177,9 @@ class PlayerActivity : BasePlayerActivity() {
         binding.playerView.player = viewModel.player
         // 画面比例：沿用上次选过的档位（RESIZE_MODE_*，默认 0 = 适应屏幕）
         binding.playerView.resizeMode = appPreferences.getValue(appPreferences.playerResizeMode)
+        // 设置面板（§1.9）与画面调整（§1.6）：偏好是唯一来源，进页面就按偏好还原
+        settingsController = PlayerSettingsController(appPreferences)
+        videoTransform.value = settingsController.readVideoTransform()
         configureSubtitleStyle()
 
         // 控制层改用 Compose 渲染（PlayerControlOverlay），Media3 自带控制器整体停用：
@@ -216,6 +241,15 @@ class PlayerActivity : BasePlayerActivity() {
                     initialResizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
                     onSelectResizeMode = { mode -> selectResizeMode(mode) },
                     aspectSupported = isExoPlayerBackend,
+                    settingsController = settingsController,
+                    videoTransform = videoTransform.value,
+                    onSelectBackend = { backend -> restartWithBackend(backend) },
+                    onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
+                    onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
+                    onVideoTransformChanged = { transform -> updateVideoTransform(transform) },
+                    onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
+                    onQueueRemove = { index -> viewModel.removeQueueItem(index) },
+                    onQueueClear = { viewModel.clearQueue() },
                     onRetry = { viewModel.retryPlayback() },
                     onSwitchBackend = { switchBackendAndRestart() },
                     onRegionsChanged = { visible, panelOpen, locked, errorVisible ->
@@ -257,29 +291,31 @@ class PlayerActivity : BasePlayerActivity() {
             }
         }
 
-        if (appPreferences.getValue(appPreferences.playerGestures)) {
-            playerGestureHelper =
-                PlayerGestureHelper(
-                    appPreferences,
-                    this,
-                    binding.playerView,
-                    getSystemService(AUDIO_SERVICE) as AudioManager,
-                    onSingleTap = {
-                        // 错误卡片是模态的：错误消失前不让单击把控制层收走
-                        if (viewModel.uiState.value.playerError == null) {
-                            /*
-                             * 单击画面：选集栏开着就先把栏收回去（把宽度还给视频），
-                             * 否则按惯例切换控制层显隐。
-                             */
-                            if (sidePanelExpanded.value) {
-                                sidePanelExpanded.value = false
-                            } else {
-                                controlsState.toggle()
-                            }
+        /*
+         * 手势层常驻挂载：总开关由 PlayerGestureHelper 每次触摸现读偏好（§1.9 设置面板里能即时开关），
+         * 关掉后所有自定义手势直接放行，不存在「要重开播放页才生效」的中间态。
+         */
+        playerGestureHelper =
+            PlayerGestureHelper(
+                appPreferences,
+                this,
+                binding.playerView,
+                getSystemService(AUDIO_SERVICE) as AudioManager,
+                onSingleTap = {
+                    // 错误卡片是模态的：错误消失前不让单击把控制层收走
+                    if (viewModel.uiState.value.playerError == null) {
+                        /*
+                         * 单击画面：选集栏开着就先把栏收回去（把宽度还给视频），
+                         * 否则按惯例切换控制层显隐。
+                         */
+                        if (sidePanelExpanded.value) {
+                            sidePanelExpanded.value = false
+                        } else {
+                            controlsState.toggle()
                         }
-                    },
-                )
-        }
+                    }
+                },
+            )
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -288,7 +324,14 @@ class PlayerActivity : BasePlayerActivity() {
                         Timber.d("$uiState")
                         uiState.apply {
                             // 氛围背景：跟随当前影片海报取色
-                            currentItemId?.let { updateAmbientBackdrop(it) }
+                            currentItemId?.let { itemId ->
+                                updateAmbientBackdrop(itemId)
+                                // 换集后视频分辨率可能不同：裁剪比例与填满倍数要重算（§1.6）
+                                if (itemId != appliedTransformItemId) {
+                                    appliedTransformItemId = itemId
+                                    applyVideoTransform()
+                                }
+                            }
 
                             // 标题 / 章节 / 片段 / Trickplay 直接由 Compose 控制层消费 uiState；
                             // 这里只把 Trickplay 同步给手势层的进度 HUD
@@ -331,15 +374,14 @@ class PlayerActivity : BasePlayerActivity() {
                     }
                 }
 
-                if (
-                    appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton) ||
-                        appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkip)
-                ) {
-                    launch {
-                        while (true) {
-                            viewModel.updateCurrentSegment()
-                            delay(1000L)
-                        }
+                /*
+                 * 片头 / 片尾轮询常驻：开关由 ViewModel 每秒现读偏好（§1.9 设置面板页内改完即生效），
+                 * 两个开关都关时 updateCurrentSegment 会直接返回，不做任何额外工作。
+                 */
+                launch {
+                    while (true) {
+                        viewModel.updateCurrentSegment()
+                        delay(1000L)
                     }
                 }
             }
@@ -508,6 +550,8 @@ class PlayerActivity : BasePlayerActivity() {
                     View.INVISIBLE
                 }
             applySystemUiVisibility()
+            // 画面区尺寸变了：裁剪 / 旋转的缩放系数要跟着重算
+            applyVideoTransform()
         }
     }
 
@@ -560,7 +604,105 @@ class PlayerActivity : BasePlayerActivity() {
     private fun selectResizeMode(mode: Int) {
         binding.playerView.resizeMode = mode
         appPreferences.setValue(appPreferences.playerResizeMode, mode)
+        // 去黑边开着时，有效比例由 applyVideoTransform 决定，这里要重算一次
+        applyVideoTransform()
         Timber.d("player resize mode=$mode")
+    }
+
+    /**
+     * 画面调整（§1.6）：旋转 / 镜像 / 裁剪 / 去黑边。
+     *
+     * 偏好是唯一来源（[PlayerExtraPreferences]），写完之后立即应用到画面输出： ExoPlayer 走 `PlayerView` 的视图变换 + 容器宽高比，mpv
+     * 走原生 `video-rotate` / `video-scale-*` / `video-zoom`。
+     */
+    private fun updateVideoTransform(transform: PlayerVideoTransform) {
+        videoTransform.value = transform
+        settingsController.setVideoTransform(transform)
+        applyVideoTransform()
+        Timber.d(
+            "video transform: rotation=%d mirror=%d crop=%d letterbox=%s",
+            transform.rotationDegrees,
+            transform.mirror,
+            transform.cropPercent,
+            transform.letterboxCrop,
+        )
+    }
+
+    private fun applyVideoTransform() {
+        val transform = videoTransform.value
+        val mpv = viewModel.player as? MPVPlayer
+        val videoWidth = viewModel.uiState.value.currentMediaInfo?.width ?: 0
+        val videoHeight = viewModel.uiState.value.currentMediaInfo?.height ?: 0
+        if (mpv != null) {
+            val viewWidth = binding.playerView.width.toFloat()
+            val viewHeight = binding.playerView.height.toFloat()
+            val fillScale =
+                if (transform.letterboxCrop) {
+                    letterboxFillScale(viewWidth, viewHeight, videoWidth, videoHeight)
+                } else {
+                    1f
+                }
+            mpv.applyVideoTransform(
+                rotationDegrees = transform.rotationDegrees,
+                mirror = transform.mirror,
+                cropPercent = transform.cropPercent,
+                fillScale = fillScale,
+            )
+            return
+        }
+        applyExoPlayerVideoTransform(transform, videoWidth, videoHeight)
+    }
+
+    @androidx.annotation.OptIn(UnstableApi::class)
+    private fun applyExoPlayerVideoTransform(
+        transform: PlayerVideoTransform,
+        videoWidth: Int,
+        videoHeight: Int,
+    ) {
+        val view = binding.playerView
+        val baseMode = appPreferences.getValue(appPreferences.playerResizeMode)
+        // 去黑边：把「适应屏幕」提升为「裁剪填满」（填满 = 没有黑边）；其它档位保持用户选择
+        view.resizeMode =
+            if (transform.letterboxCrop && baseMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) {
+                AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            } else {
+                baseMode
+            }
+        // 裁剪：收窄容器宽高比，配合 ZOOM 等效于左右各裁掉 N%
+        val videoRatio =
+            if (videoWidth > 0 && videoHeight > 0) videoWidth.toFloat() / videoHeight else 0f
+        videoContentFrame?.setAspectRatio(
+            if (transform.cropPercent > 0 && videoRatio > 0f) {
+                videoRatio * (1f - 2f * transform.cropPercent / 100f)
+            } else {
+                0f
+            }
+        )
+        view.rotation = transform.rotationDegrees.toFloat()
+        val scale =
+            rotationFillScale(
+                transform.rotationDegrees,
+                view.width.toFloat(),
+                view.height.toFloat(),
+            ) * cropScale(transform.cropPercent)
+        view.scaleX = (if (transform.mirror == VideoMirrorMode.HORIZONTAL) -1f else 1f) * scale
+        view.scaleY = (if (transform.mirror == VideoMirrorMode.VERTICAL) -1f else 1f) * scale
+    }
+
+    /** mpv 换硬件解码：播放中即时生效（ExoPlayer 不走这条） */
+    private fun applyMpvHwDec(hwDec: String) {
+        (viewModel.player as? MPVPlayer)?.applyHwDec(hwDec)
+        Timber.d("mpv hwdec=%s", hwDec)
+    }
+
+    /** 设置面板切内核：目标值已写入偏好，这里负责「重启播放页 + 保留进度」 */
+    private fun restartWithBackend(backend: String) {
+        viewModel.setBackend(backend)
+        val position = viewModel.player.currentPosition.coerceAtLeast(0L)
+        Timber.d("Restart player with backend=%s from position=%d", backend, position)
+        intent.putExtra(EXTRA_START_POSITION_MS, position)
+        viewModelStore.clear()
+        recreate()
     }
 
     /**
