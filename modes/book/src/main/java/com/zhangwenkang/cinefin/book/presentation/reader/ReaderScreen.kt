@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -274,7 +275,10 @@ private fun ReaderTopBar(
     Column(modifier = Modifier.fillMaxWidth().background(chromeColor)) {
         Row(
             modifier =
-                Modifier.fillMaxWidth().height(56.dp).padding(horizontal = CinefinSpacing.Space4),
+                Modifier.fillMaxWidth()
+                    .statusBarsPadding()
+                    .height(56.dp)
+                    .padding(horizontal = CinefinSpacing.Space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
