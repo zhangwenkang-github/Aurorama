@@ -122,6 +122,18 @@
 - [ ] **待真机**（设备当前未连接，等负责人分配）：Pad 5 横屏（侧轨常驻 + 首页头图 21:9 + 详情三栏）与 K60 竖屏（底部 4 tab + 抽屉统一列表 + 媒体库单列）走查；走查前先按 `device-lock.md` 登记
 - [ ] 未决：`MaterialTheme.spacings` 桥接（W4 遗留）本波未动；`HomeHeader` / `HomeCarousel` 旧死代码仍在
 
+### W5-R3F 本轮进度（UI 验收缺陷热修，2026-10-01，分支 `feature/r3-ui-hotfix`）
+
+用户验收发现 4 项缺陷，负责人定位后交给本会话逐条修复并真机复验：
+
+- [x] **① 首页头图打印对象（P0）**：根因是 Kotlin 字符串模板陷阱——`"S$this.parentIndexNumber E$this.indexNumber"` 里 `$this` 是**对象插值**，`.parentIndexNumber` 成了字面量（`LandscapeItemCard.cardMetaLine()` 有同款写法，首页卡片同样中招）。改为显式 `seasonCode()` / `indexCode()`（缺号回落 `S?` / `E?`，DTO 缺号被映射成 0 也算缺号）；头图眉标行加 `maxLines = 1` + `TextOverflow.Ellipsis`，集号文本 `weight(1f, fill = false)` 防再次溢出。新增 `ItemFormattingTest`（2 项，断言 `S1 E1` 与 `S? E?`）。
+- [x] **② 书架入口跳媒体库（P0）**：真机复现 + 根因确认——`DrawerViewModel.load()` 原先只挂在 `drawerState.isOpen`，**冷启动从未打开抽屉时 `drawerData.libraries` 为空** → `booksLibrary == null` → 书架条目回退 `navigateTopLevel(MediaRoute)`（对照组：先打开一次抽屉再点「书架」即可正常进书籍库，证明路由与 books 库映射本身没问题）。修法：新增独立 `BookshelfRoute` + `BookshelfScreen` / `BookshelfViewModel`——书架 Tab 永远进书架页，由页面自己解析「第一个非空的 books 库」（`Items?limit=1` 轻量判空）→ 退回第一个 books 库 → 没有 books 库则空态；`LaunchedEffect(Unit)` 预载抽屉数据（书架选中态 / 抽屉列表也不再等抽屉打开）。`pickBooksLibrary` 抽成纯逻辑 + 3 项单测；库内容页补空态（空库显示说明而不是空白）。
+- [x] **③ 媒体库搜索框悬浮遮挡（P1）**：`MediaScreen` 原先把搜索框与栅格放在同一 `Box`，靠栅格 `contentPaddingTop = 88/144dp` "让位"——只在滚动起点对齐，上滑后卡片钻到搜索框下面。改为 `Column`：搜索框是栅格上方的独立表头，栅格裁剪在自己区域内（顶部内边距收敛为 `Space6`）；M3 `SearchBar` 展开交互不变。
+- [x] **④ 流光（Lumen）效果过弱（P1）**：`LumenSurface` 增强四件事——卡片描边改 **1dp 渐变**（白 16% → 5% → 10%，emphasized 时走媒体色渐变）、顶部 1px 内高光改成"中段 2.6× 亮度、两端收光"的横向渐变、沿轮廓加 **极轻外发光**（8dp / 3dp 两道低透明白描边，内半圈被卡片本体盖住）；新增 `lumenTopGlow`（顶部白 12% → 42% 处消散）铺在首页头图与详情页头图；`lumenBottomScrim` 起点从 4% 收到 42%，图上 42% 不再被压暗，明暗对比与"下方溶进底色"更明确。光的颜色纪律守住 §2.6 / §5.3：**只用无彩色的白 / 黑**，未新增 token / 色值 / 位图。
+- [x] 门禁：`:app:phone:assembleDebug ktfmtCheck`、`:app:phone:testLibreDebugUnitTest`（5 项）、`:core:testLibreDebugUnitTest`、`:modes:film:testDebugUnitTest` 全绿
+- [x] 真机：Pad 5（`43af8627`，横屏 2560×1600 用 `wm size/density` 模拟）与 K60（`8e875894`，竖屏）按 §5「W5-R3F 验收」逐条复验通过；设备副作用已还原、device-lock 已登记并释放
+- [ ] 未决（留负责人决策）：`showNavigation` / `currentLibrary` 用 `Route::class.qualifiedName` 比较，对**带参路由**（Library / Settings / Console）恒为 false（见踩坑 28）→ D18 想要的"侧轨常驻"目前对这三个页面不生效；建议另行一波改 `NavDestination.hasRoute<T>()`，本波未动（避免波及控制台 WebView / 设置页表现）
+
 ## 5. 验收
 
 验收命令（2026-09-30 通过）：
@@ -210,6 +222,24 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [x] 旧配色清零（沿用 W4 门禁）：新增文件无 `ColorLight` / `ColorDark` / `D2553C`
 - [ ] **待真机走查**（设备未连接，负责人分配后补）：Pad 5 横屏 + K60 竖屏双形态；重点看侧轨在 设置 / 书架 / 控制台 三个页面是否常驻、首页头图在 21:9 与 16:9 的裁剪、详情页三栏在 1280dp 下的呼吸感
 
+### W5-R3F 验收（2026-10-01，分支 `feature/r3-ui-hotfix`）
+
+验收命令（全部通过）：
+
+```powershell
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat :app:phone:assembleDebug :app:phone:ktfmtCheck --console=plain                    # BUILD SUCCESSFUL
+.\gradlew.bat :app:phone:testLibreDebugUnitTest --console=plain                                # 5 项通过（ItemFormatting 2 + BookshelfPick 3）
+.\gradlew.bat :core:testLibreDebugUnitTest :modes:film:testDebugUnitTest --console=plain      # BUILD SUCCESSFUL
+```
+
+- [x] **①** K60 冷启动首页：头图眉标 `继续观看 · S1 E2`、走廊卡 `S1 · E2 · 剩余 23 分钟`、海报卡 `S1 · E1`（修复前真机为 `S[].parentIndexNumber · E[S[].parentIndexNumber].indexNumber`，见 W5 遗留截图记录）；单测断言 `S1 E1` / `S? E?`
+- [x] **②** K60：冷启动（**未打开抽屉**）点底部「书架」→ `书籍 · 共 5 个项目`（修复前落 `媒体库 · 共 7 个媒体库`）；Pad 5：冷启动点侧轨「书架」→ 同结果；两台设备「媒体库」仍进 `共 7 个媒体库`（行为未变）
+- [x] **③** K60：媒体库上滑后最上可见卡片 `其他` y=1203、搜索框 y=625–796（无交集）；Pad 5：上滑后顶部卡片 y=1137、搜索框 y=476–623（无交集）。展开搜索输入 `9` → 命中 `9-nine- 支配者的王冠`（徽标 `13`），交互无回归
+- [x] **④** 首页头图：卡片外一圈像素实测亮度 **25.3 → 35.1**（同帧远处页面背景对照恒为 25.3，排除内容差异），顶光 + 底渐隐 + 描边内高光肉眼可辨；Pad 5 横屏（`wm size 2560x1600` + `density 320` ≈ 1280dp）复验同款处理；详情页头图（`ItemHeader`）加同款顶部光晕 + 底部渐隐（截图自检，未入库、未贴回对话）
+- [x] 设备副作用已还原：Pad 5 `wm size/density reset`、`wm fixed-to-user-rotation disabled`、`accelerometer_rotation 1`、`user_rotation 0`；K60 未做显示覆盖；两台设备 App 已 force-stop、`/sdcard/*.xml` 临时文件已清理；`device-lock.md` 已登记并在完成时释放
+- [x] 纪律复核：不碰 `player/*`、不改 `settings.gradle.kts` / `libs.versions.toml` / `AppPreferences.kt`、不动其他 worktree、不改 `docs/PROJECT_PLAN.md`
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -236,6 +266,10 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 22. **`Brush.verticalGradient` 的多档写法要用 `colorStops = arrayOf(...)`**：直接传 `List<Color>` 只有等距三档够用；要精确控制"平台期 + 渐隐段"（Lumen 底部渐隐 0.45 起、0.78 落）必须用 `Pair<Float, Color>` 的 vararg / `colorStops` 参数，且 stop 必须单调递增。
 23. **`ktfmtCheck` 会在"改完文件"后立刻失败**：本仓的 `ktfmtCheck` 不参与增量缓存判定"只检查被改文件"，新增 / 编辑 Kotlin 后要先跑 `:app:phone:ktfmtFormat`（或全量 `ktfmtFormat`）再跑门禁；PowerShell 里用 `$LASTEXITCODE` 取 Gradle 退出码，别信 `Select-String` 管道的退出码（它是 0）。
 24. **`stringResource` 只能出现在 `@Composable` 里**：条目格式化工具（`runtimeLabel` / `remainingMinutes`）保持纯函数，只有需要文案的（`metaLine` / `cardMetaLine`）才标 `@Composable`——否则 `@Preview` 与单元测试都编译不过。
+25. **`"S$this.parentIndexNumber"` 是 Kotlin 字符串模板陷阱**：编译通过，但语义是「`$this` 对象插值 + 字面量 `.parentIndexNumber`」，真机上海报 / 走廊卡 / 头图眉标会把整段 `FindroidEpisode` 打印出来（首页主视觉被盖满）。要插值属性必须写 `${this.parentIndexNumber}`；本波统一收口到显式 `seasonCode()` / `indexCode()`（缺号回落 `S?` / `E?`）。凡"人眼看到对象字符串"的 bug，先在代码里搜 `"$` + 属性访问。
+26. **只在抽屉打开时才加载的导航数据 = 冷启动必踩**：`DrawerViewModel.load()` 原先挂在 `drawerState.isOpen`，而书架 Tab 的跳转 / 选中态都读这份库列表 → 冷启动点「书架」拿到空列表，被入口逻辑"兜底"到媒体库总览。两条纪律：① 顶部 / 侧边导航目的地依赖的数据要在 `LaunchedEffect(Unit)` 预载；② 入口不应把"数据未就绪"翻译成**另一个目的地**——本波把书架改成独立 `BookshelfRoute`，由页面自己解析（Loading → Ready / Empty / Failed）。真机定位手法：先开一次抽屉再点同一入口，若行为变正确，则基本可判定为"数据未加载 + 错误兜底"。
+27. **悬浮在滚动内容上的搜索框必然遮挡**：`Box { FilmSearchBar(); LazyVerticalGrid(topPadding = 88.dp) }` 只在滚动起点对齐，上滑后卡片会钻到搜索框下（用户截图可见"搜索框挡住最前面的卡片"）。两种解法二选一：放进滚动内容第一项（M3 `SearchBar` 展开需要全屏约束，放 lazy item 里会拿到无界约束，风险高）或改成不覆盖布局——本波取 Column 表头 + 栅格自裁剪，并用 `uiautomator` 断言"最上可见卡片 bounds 与搜索框 bounds 无交集"。
+28. **`currentRoute == Route::class.qualifiedName` 对带参路由恒为 false**：Navigation Compose 里 `destination.route` 对 data object 才是 qualifiedName，对带参路由是「类名 + `/{arg}` 模板」。所以 `showNavigation` 中的 `LibraryRoute` / `SettingsRoute` / `ConsoleRoute` 从未命中（这三个页面侧轨 / 底部 Tab 不常驻，与 D18 文字不符），`currentLibrary` 也恒为 null（书架库选中态失效）。正确写法是 `navBackStackEntry?.destination?.hasRoute<LibraryRoute>()`；本波新增的 `BookshelfRoute` 是 data object，不受影响。
 
 ## 7. 日志
 
@@ -247,3 +281,5 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - **交接提示（下一会话 / 负责人）**：① `MaterialTheme.spacings` 6 档桥接（44 文件约 220 处）与 `HomeHeader / HomeCarousel / HomeCarouselItem` 死代码待后续收敛；② 真平板（Pad 5 横屏）走查需负责人分配窗口（本波用 K60 + `wm` 覆盖验证，Pad 5 归 PLAYER-STAB）；③ 播放器覆盖层 / 面板的字阶随 `LegacyTypography` 删除变 Prism，播放器线 W4 PLAYER-UI 需在收口时复核面板排版；④ `settings/components/*` 内部卡片仍是 M3 组件（色板已 Prism），如需完全组件化可另开小波次。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
 - **2026-10-01 W5-R3（本会话）**：读齐 `PROJECT_PLAN` §1–§5、`UI_PLAN`（W1/W3/W4 + 19 条踩坑）、`UI_DESIGN_SYSTEM` §2–§10、`s1-decision`、**`s1-direction-a/README.md` + `home / detail / phone / library` 四张稿**、`REQUIREMENTS` §6、`SESSION_BRIEFS` W4-R3、`ROLE_SKILLS` §5.3；核对了 `presentation/film/*`、`presentation/navigation/CinefinDrawer.kt`、`core/.../components/*`。完成四条反馈：①首页与视频详情改 S1 流光手法（D17，新增 `LumenSurface` / `DetailPoster` / `LumenInfoTable` / `ItemFormatting` 四个组件文件，重写 `HomeHero` / `SectionHeader` / `LandscapeItemCard` / `PosterItemCard` / `ItemCard` / `ProgressBar` / `HomeSection` / `HomeView` / `MediaScreen` / `LibraryScreen` / `MovieScreen` / `ShowScreen`）；②媒体库去拥挤（D19：栅格放大 + 行距 24dp + 大标题层级 + 去发丝线）；③侧柜取消「更多」分组（D18）；④所有入口行为一致（`showNavigation` 统一集合，书架无库退媒体库）。门禁 `:app:phone:assembleDebug ktfmtCheck` + `:core:testLibreDebugUnitTest` + `:modes:film:testDebugUnitTest` 全绿。分支 `feature/r3-ui-lumen`。
 - **交接提示（下一会话 / 负责人）**：① **真机走查未做**（Pad 5 / K60 当前未连接）——重点断言「设置 / 书架 / 控制台 页面侧轨是否常驻」「手机抽屉选择后是否关闭」「首页头图 21:9 裁切」「详情三栏 1280dp 呼吸感」，走查前按 `device-lock.md` 登记；② 若负责人本意是"抽屉里的分组标题也一并取消"，本波已按此实现（抽屉无任何分组标题）——需要恢复分组时只改 `NavigationRoot` 里 `drawerGroups` 一处；③ 播放器线仍在改 `player/*` 与 `presentation/player/*`，本波未触碰（避免覆盖层冲突）；④ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
+- **2026-10-01 W5-R3F（本会话，UI 验收缺陷热修）**：读齐 `PROJECT_PLAN` §1–§5、`UI_PLAN`（W5 + 24 条踩坑）、`UI_DESIGN_SYSTEM`（§2.5 / §2.6 / §5.2 / §5.3 / §6 / §9.4）、`docs/design/s1-direction-a/README.md`。真机复现 4 项验收缺陷（K60 首页 `S[].parentIndexNumber`、冷启动点「书架」落媒体库、媒体库上滑搜索框遮挡、流光观感过弱）。修复：① `episodeCode` / `cardMetaLine` 显式插值 + 眉标 `maxLines`/ellipsis + 2 项单测；② 新增 `BookshelfRoute` / `BookshelfScreen` / `BookshelfViewModel`（`pickBooksLibrary` 3 项单测）+ 抽屉数据启动预载 + 库内容页空态；③ `MediaScreen` 搜索框改不覆盖布局；④ `LumenSurface` 渐变描边 / 内高光 / 外发光 + `lumenTopGlow` + 重调 `lumenBottomScrim`。门禁 `:app:phone:assembleDebug ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`(5) + `:core:testLibreDebugUnitTest` + `:modes:film:testDebugUnitTest` 全绿；Pad 5 横屏 / K60 竖屏逐条复验通过（含像素采样：卡外 25.3 → 35.1）。分支 `feature/r3-ui-hotfix`。
+- **交接提示（负责人 / 下一会话）**：① **踩坑 28 需单独一波**——`showNavigation` 对带参路由（Library / Settings / Console）恒不命中，D18 的"侧轨常驻"实际没生效；本波只把书架换成 data object 路由，其余未动；② 书架解析每次进入会多 1–2 次 `Items?limit=1` 查询（本地服务器 < 300ms，可接受；若嫌慢可在 `BookshelfViewModel` 里加内存缓存 / `hasRoute` 复用抽屉库列表）；③ 本波顺带发现 `LibraryScreen` 原先没有空态（空库=空白），已补 `CinefinEmptyState`；④ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛（W4/W5 遗留）。

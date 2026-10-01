@@ -12,4 +12,8 @@
     <string name="search_empty_message">换个关键词试试 · 输入即实时搜索</string>
     <string name="library_count">共 %1$d 个媒体库</string>
     <string name="library_item_count">共 %1$d 个项目</string>
+    <string name="library_empty_title">这个媒体库还没有内容</string>
+    <string name="library_empty_message">该库暂无条目，等服务器补充后再来看看。</string>
+    <string name="bookshelf_empty_title">书架暂无书籍库</string>
+    <string name="bookshelf_empty_message">当前服务器（或这个账号）看不到书籍库。</string>
 </resources>

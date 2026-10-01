@@ -1,6 +1,5 @@
 package com.zhangwenkang.cinefin.presentation.film
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,12 +119,6 @@ private fun MediaScreenLayout(
     val paddingEnd = safePadding.end + pageGutter
     val paddingBottom = safePadding.bottom + pageGutter
 
-    val contentPaddingTop by
-        animateDpAsState(
-            targetValue = if (state.error != null) 144.dp else 88.dp,
-            label = "content_padding",
-        )
-
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
 
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -181,7 +174,10 @@ private fun MediaScreenLayout(
             Spacer(Modifier.height(CinefinSpacing.Space6))
         }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        // Lumen 修正（2026-10-01 验收缺陷）：搜索框不再"悬浮在滚动内容之上"——
+        // 之前它和栅格同处一个 Box，上滑时卡片会钻到搜索框底下被挡住。现在改为列布局：
+        // 搜索框是栅格上方的独立表头，栅格被裁剪在自己的区域里，内容永远不会滑到搜索框下面。
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
             FilmSearchBar(
                 state = searchState,
                 expanded = searchExpanded,
@@ -191,48 +187,51 @@ private fun MediaScreenLayout(
                 paddingStart = paddingStart,
                 paddingEnd = paddingEnd,
             )
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = minColumnSize),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding =
-                    PaddingValues(
-                        start = paddingStart,
-                        top = contentPaddingTop,
-                        end = paddingEnd,
-                        bottom = paddingBottom + CinefinSpacing.Space8,
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(gridGutter),
-                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
-            ) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    FavoritesCard(onClick = { onAction(MediaAction.OnFavoritesClick) })
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = minColumnSize),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding =
+                        PaddingValues(
+                            start = paddingStart,
+                            top = CinefinSpacing.Space6,
+                            end = paddingEnd,
+                            bottom = paddingBottom + CinefinSpacing.Space8,
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(gridGutter),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        FavoritesCard(onClick = { onAction(MediaAction.OnFavoritesClick) })
+                    }
+                    itemsIndexed(state.libraries, key = { _, library -> library.id }) {
+                        index,
+                        library ->
+                        LibraryEntryCard(
+                            item = library,
+                            onClick = { onAction(MediaAction.OnItemClick(library)) },
+                            index = index,
+                        )
+                    }
                 }
-                itemsIndexed(state.libraries, key = { _, library -> library.id }) { index, library
-                    ->
-                    LibraryEntryCard(
-                        item = library,
-                        onClick = { onAction(MediaAction.OnItemClick(library)) },
-                        index = index,
+                if (state.error != null) {
+                    ErrorCard(
+                        onShowStacktrace = { showErrorDialog = true },
+                        onRetryClick = { onAction(MediaAction.OnRetryClick) },
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(
+                                    start = paddingStart,
+                                    top = CinefinSpacing.Space4,
+                                    end = paddingEnd,
+                                ),
                     )
-                }
-            }
-            if (state.error != null) {
-                ErrorCard(
-                    onShowStacktrace = { showErrorDialog = true },
-                    onRetryClick = { onAction(MediaAction.OnRetryClick) },
-                    modifier =
-                        Modifier.fillMaxWidth()
-                            .padding(
-                                start = paddingStart,
-                                top = 80.dp,
-                                end = paddingEnd,
-                            ),
-                )
-                if (showErrorDialog) {
-                    ErrorDialog(
-                        exception = state.error!!,
-                        onDismissRequest = { showErrorDialog = false },
-                    )
+                    if (showErrorDialog) {
+                        ErrorDialog(
+                            exception = state.error!!,
+                            onDismissRequest = { showErrorDialog = false },
+                        )
+                    }
                 }
             }
         }

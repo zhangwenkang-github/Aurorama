@@ -96,6 +96,8 @@ fun HomeHero(
                 modifier = Modifier.fillMaxSize(),
             )
 
+            // 流光三层：顶部光晕（内容即光源）→ 底部渐隐（文字托底）→ 内暗角（画面向内收）
+            Box(modifier = Modifier.fillMaxSize().background(lumenTopGlow))
             Box(modifier = Modifier.fillMaxSize().background(lumenBottomScrim(colors.surface)))
             Box(modifier = Modifier.fillMaxSize().background(lumenVignette))
 
@@ -106,7 +108,10 @@ fun HomeHero(
                         .padding(horizontal = contentPadding, vertical = contentPadding),
                 verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(media.base))
                     Spacer(Modifier.width(CinefinSpacing.Space2))
                     Text(
@@ -117,12 +122,17 @@ fun HomeHero(
                             ),
                         style = CinefinType.LabelLarge,
                         color = media.bright,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     item.episodeCode()?.let { code ->
                         Text(
                             text = " · $code",
                             style = CinefinType.LabelMedium,
                             color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
                     }
                 }

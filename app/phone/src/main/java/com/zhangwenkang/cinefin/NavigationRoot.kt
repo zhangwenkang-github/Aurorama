@@ -78,6 +78,7 @@ import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
 import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
+import com.zhangwenkang.cinefin.presentation.film.BookshelfScreen
 import com.zhangwenkang.cinefin.presentation.film.CollectionScreen
 import com.zhangwenkang.cinefin.presentation.film.DownloadsScreen
 import com.zhangwenkang.cinefin.presentation.film.EpisodeScreen
@@ -124,6 +125,9 @@ import kotlinx.serialization.Serializable
 @Serializable data object MediaRoute
 
 @Serializable data object DownloadsRoute
+
+/** 顶部「书架」Tab 的独立目的地：页面自己解析书籍库，不依赖抽屉是否打开过（见 BookshelfScreen）。 */
+@Serializable data object BookshelfRoute
 
 /**
  * 服务器 Web 控制台。
@@ -214,6 +218,7 @@ fun NavigationRoot(
             setOf(
                 HomeRoute::class.qualifiedName,
                 MediaRoute::class.qualifiedName,
+                BookshelfRoute::class.qualifiedName,
                 DownloadsRoute::class.qualifiedName,
                 MusicModeRoute::class.qualifiedName,
                 LibraryRoute::class.qualifiedName,
@@ -227,6 +232,9 @@ fun NavigationRoot(
 
     val drawerViewModel: DrawerViewModel = hiltViewModel()
     val drawerData by drawerViewModel.state.collectAsStateWithLifecycle()
+    // 抽屉数据要在冷启动就绪：书架 Tab 的跳转与选中态都读这份库列表（只在打开抽屉时加载会让
+    // 冷启动点「书架」拿到空列表）。打开抽屉时再刷新一次，保证服务器端新建的库能及时出现。
+    LaunchedEffect(Unit) { drawerViewModel.load() }
     LaunchedEffect(drawerState.isOpen) {
         if (drawerState.isOpen) {
             drawerViewModel.load()
@@ -261,7 +269,8 @@ fun NavigationRoot(
     val downloadsSelected = currentRoute == DownloadsRoute::class.qualifiedName
     val settingsSelected = currentRoute == SettingsRoute::class.qualifiedName
     val booksSelected =
-        booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString()
+        currentRoute == BookshelfRoute::class.qualifiedName ||
+            (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString())
 
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
@@ -318,19 +327,9 @@ fun NavigationRoot(
                 selected = booksSelected,
                 bottom = true,
             ) {
-                // 没有书籍库时退到媒体库总览：与其它条目一样只"换内容区"，不弹出抽屉
-                val books = booksLibrary
-                if (books != null) {
-                    navigateTopLevel(
-                        libraryEntryRoute(
-                            libraryId = books.id.toString(),
-                            libraryName = books.name,
-                            libraryType = books.type,
-                        )
-                    )
-                } else {
-                    navigateTopLevel(MediaRoute)
-                }
+                // 书架 = 独立目的地：页面自己解析「第一个非空的书籍库」，没有书库时显示空态，
+                // 不再依赖抽屉数据是否加载完、也不会回退到媒体库总览（2026-10-01 验收缺陷）。
+                navigateTopLevel(BookshelfRoute)
             },
             ChromeDestination(
                 item =
@@ -498,6 +497,19 @@ fun NavigationRoot(
                     onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
                     searchExpanded = searchExpanded,
                     onSearchExpand = { searchExpanded = it },
+                )
+            }
+            composable<BookshelfRoute> {
+                BookshelfScreen(
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onItemClick = { item ->
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
+                    },
+                    navigateBack = { navController.safePopBackStack() },
                 )
             }
             composable<DownloadsRoute> {

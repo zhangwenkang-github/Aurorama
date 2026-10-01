@@ -180,8 +180,8 @@ fun LandscapeItemCard(
 internal fun FindroidItem.cardMetaLine(): String {
     if (this is FindroidEpisode) {
         val parts = buildList {
-            add("S$this.parentIndexNumber")
-            add("E$this.indexNumber")
+            add(seasonCode())
+            add(indexCode())
             remainingMinutes()?.let { add(stringResource(FilmR.string.hero_remaining_minutes, it)) }
         }
         return parts.joinToString(" · ")

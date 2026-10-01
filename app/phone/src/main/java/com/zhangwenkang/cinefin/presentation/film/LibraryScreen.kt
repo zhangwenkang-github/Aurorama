@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.film
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,7 @@ import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -193,23 +195,37 @@ private fun LibraryScreenLayout(
                     .padding(bottom = CinefinSpacing.Space4),
         )
 
-        LazyVerticalGrid(
-            columns = GridCellsAdaptiveWithMinColumns(minSize = minColumnSize, minColumns = 2),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding,
-            horizontalArrangement = Arrangement.spacedBy(gridGutter),
-            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
-        ) {
-            items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
-                val item = items[index]
-                item?.let { loadedItem ->
-                    ItemCard(
-                        item = loadedItem,
-                        direction = direction,
-                        onClick = { onAction(LibraryAction.OnItemClick(loadedItem)) },
-                        modifier = Modifier.animateItem(),
-                    )
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyVerticalGrid(
+                columns = GridCellsAdaptiveWithMinColumns(minSize = minColumnSize, minColumns = 2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = contentPadding,
+                horizontalArrangement = Arrangement.spacedBy(gridGutter),
+                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+            ) {
+                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                    val item = items[index]
+                    item?.let { loadedItem ->
+                        ItemCard(
+                            item = loadedItem,
+                            direction = direction,
+                            onClick = { onAction(LibraryAction.OnItemClick(loadedItem)) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
                 }
+            }
+            // 空库不再是一块空白：加载完成且 0 条时给空态（书架解析到空壳书库时也走这里）
+            if (
+                !state.isLoading &&
+                    items.itemCount == 0 &&
+                    items.loadState.refresh is LoadState.NotLoading
+            ) {
+                CinefinEmptyState(
+                    title = stringResource(FilmR.string.library_empty_title),
+                    message = stringResource(FilmR.string.library_empty_message),
+                    modifier = Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
+                )
             }
         }
     }

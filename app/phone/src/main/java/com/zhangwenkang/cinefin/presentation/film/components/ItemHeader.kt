@@ -14,8 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -138,20 +136,10 @@ private fun ItemHeaderBase(
     Box(modifier = Modifier.height(height).clipToBounds()) {
         backdropImage()
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Lumen：内暗角（左右压暗）+ 底部渐隐，内容图向下溶进页面底色
+            // Lumen：顶部光晕（内容即光源）+ 内暗角（左右压暗）+ 底部渐隐，内容图向下溶进页面底色
+            drawRect(brush = lumenTopGlow)
             drawRect(brush = lumenVignette)
-            drawRect(
-                brush =
-                    Brush.verticalGradient(
-                        colorStops =
-                            arrayOf(
-                                0f to Color.Transparent,
-                                0.45f to Color.Transparent,
-                                0.78f to backgroundColor.copy(alpha = 0.72f),
-                                1f to backgroundColor,
-                            )
-                    )
-            )
+            drawRect(brush = lumenBottomScrim(backgroundColor))
         }
         content()
         if (showLogo) {

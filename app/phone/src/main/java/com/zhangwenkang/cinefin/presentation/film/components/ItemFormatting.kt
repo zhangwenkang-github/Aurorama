@@ -58,9 +58,22 @@ internal fun FindroidItem.remainingMinutes(): Int? {
     return remaining.takeIf { it > 0 }
 }
 
+/**
+ * 季号：`S1`。DTO 缺号时被映射成 0，这里回落 `S?`，避免把 0 当合法季号显示。
+ *
+ * 注意：`"S$this.parentIndexNumber"` 会被 Kotlin 解析成「`$this` 对象插值 + 字面量 `.parentIndexNumber`」，
+ * 首页头图因此打印过整段数据类（2026-10-01 验收缺陷），号位一律走显式插值。
+ */
+internal fun FindroidEpisode.seasonCode(): String =
+    "S${parentIndexNumber.takeIf { it > 0 }?.toString() ?: "?"}"
+
+/** 集号：`E1`（缺号回落 `E?`）。 */
+internal fun FindroidEpisode.indexCode(): String =
+    "E${indexNumber.takeIf { it > 0 }?.toString() ?: "?"}"
+
 /** 集号：`S1 E1`（只有剧集才有）。 */
 internal fun FindroidItem.episodeCode(): String? =
-    if (this is FindroidEpisode) "S$this.parentIndexNumber E$this.indexNumber" else null
+    if (this is FindroidEpisode) "${seasonCode()} ${indexCode()}" else null
 
 /** 元信息行：`2026 · TV-14 · 24 分钟`。 */
 @Composable
