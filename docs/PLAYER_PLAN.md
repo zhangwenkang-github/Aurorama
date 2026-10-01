@@ -3,7 +3,7 @@
 > **新对话从这里开始。** 开工前读本文件，收工前把进度写回本文件。
 > 纪律：需求变更、决策、完成度、勾选项、更新日志，都在**同一次改动**里写回这里；不再新建零散 `.md`。
 >
-> 最后更新：2026-10-01　分支：`feature/player-ui-refactor`（§11 A–C/E 改造；基线 `master 0e12846`）
+> 最后更新：2026-10-01　分支：`feature/w9-player-experience`（W9 播放器体验补全波：§1.6–1.9；基线 `master 695ba75`）
 
 ---
 
@@ -140,10 +140,32 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 
 ### P1 · 体验提升
 
-- [ ] **1.6 画面调整**（原阶段 3.3）——旋转 / 镜像 / 裁剪 / 去黑边（比例已有，偏好仿 `pref_player_resize_mode`）。
-- [ ] **1.7 队列管理**（原阶段 3.4）——拖拽排序、删除、清空、跳转；循环模式补「播完暂停」。
-- [ ] **1.8 信息面板补全**（原阶段 3.5）——容器 / 编码 / 分辨率 / 码率 / 帧率 / HDR / 音频格式 / 文件大小 / 路径。
-- [ ] **1.9 播放页设置面板**（原阶段 3.6）——播放 / 解码 / 字幕 / 音频 / 画面 / 手势 六组，页内直接改。
+- [x] **1.6 画面调整**（原阶段 3.3）——旋转 / 镜像 / 裁剪 / 去黑边（比例已有，偏好复用 `pref_player_resize_mode` 体系）。
+      落点：「画面」面板（比例 + 几何变换同一个面板，`PlayerControlOverlay.kt`）、`PlayerActivity.applyVideoTransform()`、
+      `player/local/domain/PlayerVideoTransform.kt`（纯函数：旋转铺满缩放 / 裁剪缩放 / 去黑边填满倍数）、
+      `MPVPlayer.applyVideoTransform()`（`video-rotate` / `video-scale-x|y` / `video-zoom`）。
+      实现：ExoPlayer 走视图变换（旋转 = `rotation` + `max(w/h,h/w)` 铺满；镜像 = `scaleX|Y` 取负；裁剪 = 收窄
+      `exo_content_frame` 宽高比 + ZOOM；去黑边 = FIT→ZOOM）；mpv 走原生属性（`video-zoom = log2(裁剪放大 × 填满倍数)`）。
+      新增偏好键单独声明在 `PlayerExtraPreferences`（见 §12 决策，不触碰 `AppPreferences.kt`）。**改完即时生效、退出重进保留**。
+- [x] **1.7 队列管理**（原阶段 3.4）——拖拽排序、删除、清空、跳转；循环模式补「播完暂停」。
+      落点：`QueuePanel` + `QueueEditableRow`（长按拖动换位 / 行尾删除 / 清空 / 点行跳转）、
+      `PlayerViewModel.moveQueueItem|removeQueueItem|clearQueue`、`MPVPlayer.moveMediaItems|removeMediaItems`（`playlist-move|remove`）、
+      `PlayerViewModel.advanceAfterItemEnd()` 的「播完暂停」分支。
+      语义：「清空」= 只保留正在播的那一条（直接 `clearMediaItems` 会把当前条目也删掉并停播）；
+      「播完暂停」= 当前一集播完停在片尾，不自动跳下一集（与循环模式正交，默认关）。
+- [x] **1.8 信息面板补全**（原阶段 3.5）——容器 / 编码 / 分辨率 / 码率 / 帧率 / HDR / 音频格式 / 文件大小 / 路径。
+      落点：`InfoPanel`（双内核合并 + 全字段「—」降级）、`PlayerMediaInfo`（`player:core`，随 `PlayerItem` 与 MediaItem extras 走）、
+      `PlayerMediaInfoFormat`（纯函数 + 单测）、`PlayerKernelMediaInfo.readKernelMediaInfo()`（ExoPlayer `Tracks` / mpv 原生属性）、
+      `MPVPlayer.queryMediaInfo()`。
+      实现：媒体源（Jellyfin：容器 / 文件大小 / 路径 / 编码 / 分辨率 / HDR / 声道）+ 内核实测（编码 / 帧率 / 码率 / 色彩）两层合并，
+      **内核优先**；两层都没有的字段输出「—」，行数固定（不会这行有那行没有）。
+- [x] **1.9 播放页设置面板**（原阶段 3.6）——播放 / 解码 / 字幕 / 音频 / 画面 / 手势 六组，页内直接改。
+      落点：`PlayerSettingsPanel.kt`（`PlayerSettingsController` + 六组面板 + `PanelSwitchRow` / `PanelChipRow` / `VideoTransformControls`）、
+      `MorePanel` 新增「播放设置」入口、`PlayerViewModel.setSubtitleMode|setBackend|refreshSegmentPreferences`、
+      `MPVPlayer.applyHwDec`、`PlayerGestureHelper`（手势总开关改为每次触摸现读）。
+      六组内容：播放（后台播放 / 跳过片头片尾按钮 / 自动跳过 / 章节刻度 / 播完暂停）、解码（内核切换 + mpv 硬解）、
+      字幕（模式 / 记住选轨 / 延迟外观入口）、音频（音轨面板入口 / 语言优先预设）、画面（比例 + 旋转 / 镜像 / 裁剪 / 去黑边）、
+      手势（总开关 + 5 个手势开关 + 亮度记忆 + 铺满 + 长按倍速 + 两档灵敏度）。**全部写偏好即生效，不重开播放页**。
 - [ ] **1.10 控制层视觉收口**（原阶段 1.4 / 1.5）——底栏时间可点切换「总时长 / 剩余」、章节入口、
       15sp / 13sp 字阶、等宽数字、渐变遮罩统一、加载细线。
       🟡 2026-10-01 部分落地（§11.4）：等宽数字（`MonoData`）、渐变遮罩统一（`scrim` 令牌）、字阶收敛到 Prism 字阶；
@@ -191,9 +213,9 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 | 模块 | 完成度 | 状态 | 落点 / 备注 |
 |------|--------|------|------------|
 | 播放内核（ExoPlayer + FFmpeg + mpv 双内核 + 静默降级） | 88% | 🟡 | `player/local`：`PlayerHolder` / `PlayerViewModel` / `mpv/MPVPlayer`；2026-10-01 补片 ANR 修复见 §1.19 |
-| 队列与选集（整剧补全、按季分组、缩略图行） | 85% | 🟡 | `PlaylistManager` + `PlayerContentPanel` |
+| 队列与选集（整剧补全、按季分组、缩略图行、拖拽排序 / 删除 / 清空 / 播完暂停） | 92% | 🟡 | `PlaylistManager` + `PlayerContentPanel` + `PlayerViewModel` 队列编辑（§1.7） |
 | 控制层（三栏 + 进度条 + 锁屏 + 错误卡片 + 八态按钮 + 清晰度徽标） | 88% | 🟡 | `presentation/player/PlayerControlOverlay.kt` |
-| 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多） | 78% | 🟡 | 字幕（§1.1）与音轨（§1.2）面板已补全；画面 / 信息 / 队列等待办见 §1.6–1.9 |
+| 面板系统（倍速 / 循环 / 比例 / 字幕 / 音轨 / 信息 / 队列 / 睡眠 / 更多 / 设置） | 88% | 🟡 | 字幕（§1.1）、音轨（§1.2）、画面（§1.6）、队列（§1.7）、信息（§1.8）、设置（§1.9）已补全，见 §12 |
 | 系统层（通知栏 / 后台 / 焦点 / PiP） | 92% | 🟡 | 通知封面已补（§1.4）；剩余收尾见 §1.5（锁屏/耳机/降级端到端） |
 | 多形态骨架（手机 / 平板 / 折叠 / 小窗 / TV / 车机） | 62% | 🟡 | `PlayerFormFactor` + 三种骨架已实测；折叠 / 小窗 / TV / 车机待实机（§1.12–1.14） |
 | 手势层 | 88% | 🟢 | `utils/PlayerGestureHelper.kt`：长按倍速 / 跳章节、双击、滑动 seek、边缘亮度音量、双指缩放、锁屏屏蔽、灵敏度设置均已实现；打磨见 §1.3 |
@@ -536,6 +558,15 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 播放页面板抽屉化（§11 C） | 抽屉宿主必须挂在画面区根 `Box` 内（`Modifier.align` 需要 BoxScope；放在 Box 外要么编译不过、要么盖不住画面）；退场内容用 `lastPanel` 兜底，避免滑走的是一块空板；「点外部关闭」的捕获层垫在抽屉之下，抽屉本体用 `pointerInput { detectTapGestures {} }` 吞空白点击——用 `clickable {}` 会给整块面板叠一个按钮语义（TalkBack 噪音）；打开期间命中区继续由 `PlayerOverlayContainer.panelOpen` 全屏接管，不随抽屉宽度变化 |
 | 覆盖层底栏加文字标签（§11 B） | 工具键从纯图标改为「图标 + 文字」后底栏变高：竖屏底带 100→150dp、小窗单行条 72→92dp；`PlayerOverlayContainer` 命中带必须同步，否则进度条上半截点不到、按钮触摸漏给手势层——以后改底栏高度都要对照命中带一起改。命中带也不能给过松：竖屏顶带按顶栏实高（8+48+8=64dp）取，超过会把「点画面显隐控制层」的可落区压没（Pad 5 走查实测 72dp 时只剩 ~30px） |
 | 顶栏尾部控件被挤到中间（weight 陷阱） | `标题 weight(1f, fill=false)` + 尾部 `Spacer(weight(1f))` 的组合在 Pad 5 横屏下**不会**把末尾的锁推到右端（实测锁停在顶栏约 63% 处）；尾部要贴边的控件，用「标题 `weight(1f)` 吃满剩余空间」而不是再放一个 weighted Spacer。同类权重组合改完必须真机（或 uiautomator bounds）复核坐标，别只看截图缩略图 |
+| 信息面板的媒体源元数据走哪条路 | `onMediaItemTransition` 命中 `items` 时会**直接**更新 `uiState`（不走 `refreshUiStateFromPlayer()`），只把元数据塞进 MediaItem extras 会出现「面板全空、只有内核字段」。结论：`PlayerItem.mediaInfo` 在 transition 分支里同步写进 `UiState.currentMediaInfo`，extras 只作为「从通知回到播放页」兜底路径 |
+| Jellyfin 播放地址没有后缀 | `/Videos/<id>/stream?static=true…` 的「扩展名」是 `stream`，容器名猜不出来；要回退到媒体源文件名（`FindroidSource.name`），mpv 侧还有 `file-format` 可用。ExoPlayer 拿不到容器时显示「—」（契约允许） |
+| mpv 的 `video-bitrate` 不保证随时可读 | 同一集不同时刻读出来可能是 null（面板显示「—」）也可能是 6.4 Mbps；这是 mpv 属性本身的可用性差异，不是解析 bug，别为它加轮询 |
+| 队列排序后 UI 不刷新 | 控制层的 `PlayerRuntime.sync` 原先只在 `mediaItemCount` 变化时重建队列列表，拖拽排序（数量不变）不会刷新；改成比较 **mediaId 序列**（O(n)，n ≤ 150）再重建 |
+| 「清空队列」不能直接 `clearMediaItems()` | 那会把正在播放的条目一起删掉并停播；正确做法是先删当前条目前的、再删其后的，只保留当前条目（真机实测：清空后仍在播、队列剩 1 项） |
+| 手势总开关关掉后的死角 | 只关「手势」不能把「单击显隐控制层」也关掉，否则用户收起控制层后再也唤不出控件（真机走查踩到）。实现：`gesturesEnabled=false` 时仍跑一个只含 `onSingleTapConfirmed` 的轻量检测器 |
+| 开关行只有小圆钮可点 | Material3 `Switch` 命中区只有 ~52×32dp；面板里的「开关行」必须整行可点（`Row.clickable(enabled)`），否则点标签没反应（真机走查踩到） |
+| 播放页 UI 走查的点击时序 | 控制层 3.5 秒自动淡出 + `uiautomator dump` 要 3–4 秒：照 dump 出来的坐标点按经常点空。稳定做法是先发 `KEYCODE_MEDIA_PAUSE`（暂停后控制层不淡出）再点；脚本见 `tools/w9-player/Device-Ui.ps1` |
+| 竖屏（SplitPortrait）下方内容区不响应「单击显隐控制层」 | `PlayerOverlayContainer` 把画面区之外的常驻内容区整块交给 Compose（点画面区才 toggle）。走查时「点击视频区中心」= 视频区高度以内（竖屏 ≈ `max(16:9, 42% 窗口高)` 的像素值），别点到下方选集区 |
 
 | 权威内容 | 位置 |
 |----------|------|
@@ -549,6 +580,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-01 | W9-PLAYER 播放器体验补全波（`feature/w9-player-experience`）：§1.8 信息面板（双内核 + 全字段「—」降级 + 纯函数单测）、§1.9 设置面板六组（页内即时生效）、§1.7 队列管理（拖拽排序 / 删除 / 清空 / 跳转 + 播完暂停）、§1.6 画面调整（旋转 / 镜像 / 裁剪 / 去黑边，双内核）。门禁 `assembleDebug + ktfmtCheck + app 23 项 / player:local 23 项单测` 通过；真机 Pad 5 逐项走查（信息面板双内核、设置六组、队列四操作 + 播完暂停、画面四变换 + 还原），`logcat` 无 FATAL/ANR。见 §12 |
 | 2026-10-01 | §11 A–E 真机走查（PLAYER-UI / Pad 5 `43af8627`，10:27–11:05 指派窗口）：抽屉右侧化不压缩画面、底栏 5 键「图标+文字」、锁定单入口、更多收低频、手势（单击/双击 +10s/横向 seek/左亮度/右音量/长按 2×/面板打开拦截）与 PiP 全部通过；D 组回归（打开即播 + 自动字幕）通过；`logcat` 无 FATAL / ANR。走查中发现并修复①顶栏锁被 weight 布局挤到中部 ②竖屏命中带过紧（顶 72→64dp、中央半高 64→56dp）。设备侧已还原；结论见 §11.4、踩坑见 §9 |
 | 2026-10-01 | §11 A–C/E 播放页控制层改造（PLAYER-UI / 分支 `feature/player-ui-refactor`）：Prism + 流光视觉收口；锁 / PiP 双入口收敛（PiP→更多）；底栏 9→5 个「图标 + 文字」高频键；面板改右侧抽屉且不压缩画面；命中带同步（竖屏 72 / 150dp、小窗 92dp）。门禁 `assembleDebug + player:local:testDebugUnitTest + ktfmtCheck` 通过；真机走查待设备（清单见 §11.4） |
 | 2026-10-01 | §1.19 播放稳定性专项（PLAYER-STAB / 分支 `feature/player-stability`）：mpv 队列补片 ANR 修复（MPVPlayer 命令线程 + 补片真后台 / 节流 / 上限 150）+ 卡顿量化。真机 Pad 5（mpv / 灼眼的夏娜 73 集）：补片+点击场景主线程峰值 2584ms → 508ms；80 次点击 5.2s 无 `Input dispatching timed out`；SurfaceFlinger 采样修复前 mpv 补片窗口 p99 166.68ms vs 同窗口 ExoPlayer p95 8.56ms / jank 1.93%；修复后 mpv 稳态 24fps 满帧、无 >100ms 停顿。新增 `tools/player-stability/{Invoke-AnrRepro,Measure-FrameLatency}.ps1`；门禁 `assembleDebug + player:local:testDebugUnitTest + ktfmtCheck` 通过；回归：字幕 / 音轨 / 倍速 / 队列面板与补片正常 |
@@ -727,4 +759,64 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 2. 背景模糊：Compose 没有 backdrop blur，抽屉按 §5.3 例外用「半透明底 + 结构线」实现（不做假 blur）。
 3. 遥控 / D-pad：本轮补了抽屉 `paneTitle` 语义；TV 焦点环走查并入阶段 8。
 4. K60（`8e875894`）归 UI 迭代会话；本轮竖屏项用 Pad 5 改窗口尺寸等价验证，如需 K60 原生复验并入 W5 全量回归。
+
+---
+
+## 12. W9-PLAYER 落地记录（2026-10-01 · 分支 `feature/w9-player-experience`）
+
+> 本波一次做完 §1.6 / §1.7 / §1.8 / §1.9 四项。代码、单测、真机走查与本文件进度同一次提交写回。
+
+### 12.1 决策补充（与 §0 同源）
+
+| 编号 | 决策 |
+|------|------|
+| D11 | **本波新增的播放器偏好键声明在 `player/local/domain/PlayerExtraPreferences.kt`**（`pref_player_video_rotation` / `_mirror` / `_crop_percent` / `_letterbox_crop` / `pref_player_pause_after_item`）。原因：W9 波次里 `settings` 模块的 `AppPreferences.kt` 由阅读器会话持有；键名仍用 `pref_player_*`、存在同一个 SharedPreferences，读写走 `AppPreferences.getValue/setValue`。下个波次如需收口，把这 5 个 `Preference` 搬回 `AppPreferences.kt` 即可（值不变） |
+| D12 | 「清空队列」= **保留正在播放的条目**，只清掉其余待播项；「播完暂停」= 与循环模式正交的独立开关（当前一集播完停在片尾）。这两个语义与主流播放器一致，避免「清空即停播」的意外 |
+| D13 | 信息面板字段来源分两层：**媒体源（Jellyfin）+ 内核实测，内核优先**；两层都取不到的字段一律显示「—」，面板行数固定。双内核因此不需要各自一套面板 |
+
+### 12.2 落地内容与文件
+
+| 项 | 主要落点 |
+|----|----------|
+| §1.8 信息面板 | `player/core`：`PlayerMediaInfo`（+`PlayerItem.mediaInfo`、`PLAYER_EXTRA_MEDIA_INFO`）；`player/local`：`PlayerMediaInfoFormat`（纯函数 + 14 个单测）、`PlayerKernelMediaInfo`、`MPVPlayer.queryMediaInfo()`；`app/phone`：`InfoPanel` 重写（9 + 6 行固定字段） |
+| §1.9 设置面板 | `app/phone/presentation/player/PlayerSettingsPanel.kt`（`PlayerSettingsController` + 六组 + `PanelSwitchRow` / `PanelChipRow` / `VideoTransformControls`）；`MorePanel` 增加「播放设置」；`PlayerViewModel.setSubtitleMode/setBackend/refreshSegmentPreferences`；`MPVPlayer.applyHwDec`；`PlayerGestureHelper` 手势总开关现读 |
+| §1.7 队列管理 | `QueuePanel` + `QueueEditableRow`（长按拖动换位、行尾删除、清空、点行跳转）；`PlayerViewModel.moveQueueItem/removeQueueItem/clearQueue`；`MPVPlayer.moveMediaItems/removeMediaItems`（mpv `playlist-move` / `playlist-remove`）；`advanceAfterItemEnd()` 的「播完暂停」分支 |
+| §1.6 画面调整 | `player/local/domain/PlayerVideoTransform.kt`（纯函数 + 5 个单测）；`PlayerActivity.applyVideoTransform()` / `applyExoPlayerVideoTransform()`；`MPVPlayer.applyVideoTransform()`；「画面」面板 = 比例 + 旋转 / 镜像 / 裁剪 / 去黑边 |
+
+辅助脚本：`tools/w9-player/Device-Ui.ps1`（dump → 找节点 → 点中心；控制层自动淡出的时序问题用它规避）。
+
+### 12.3 门禁（2026-10-01）
+
+```
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest
+```
+
+- `:app:phone:assembleDebug` ✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **23** 项（既有）
+- `:player:local:testDebugUnitTest` ✅ **23** 项 = 既有 9 + 本波 14（`PlayerMediaInfoFormatTest` 9 + `PlayerVideoTransformTest` 5）
+
+### 12.4 真机走查（Pad 5 `43af8627`，命令全部带 `-s`）
+
+素材：《灼眼的夏娜》S01E01–E04（h264 1080p，ExoPlayer 解码能力不足 → 自动降级 mpv，正好覆盖 mpv 路径）、《夏日幽灵》（ExoPlayer 路径）。
+
+| 项 | 证据（文本） |
+|----|--------------|
+| §1.8 ExoPlayer | 《夏日幽灵》信息面板：容器「—」（ExoPlayer 无容器信息，按契约降级）、编码 `HEVC（H.265）`、分辨率 `1920 × 1080`、帧率「—」、码率「—」、音频 `AAC · 2 声道`、文件大小 `2.45 GB`、路径 `/Videos/0b834979-…/stream` |
+| §1.8 mpv | 同一集信息面板：容器 `MKV`、`H.264（AVC）`、`1920 × 1080`、帧率 `23.976 fps`、`SDR`、`AAC · 2 声道 · 140 kbps`、`1.09 GB`、路径 `/Videos/6718656d-…/stream`；码率在 mpv 未暴露时为「—」——两内核字段差异全部按「—」降级，无空行、无崩溃 |
+| §1.9 六组 | 「更多 → 播放设置」六组页签 `播放 / 解码 / 字幕 / 音频 / 画面 / 手势` 全部可达（手势组需横滑一屏）；`解码` 组在 ExoPlayer 下把 mpv 硬解两行置灰；`音频` 组三个语言预设 + 「下一次选轨生效」说明；`手势` 组 11 项全列 |
+| §1.9 即时生效 | 字幕模式切「关闭」→ 画面字幕立即消失（`pref_subtitle_mode=off`），切回「自动」→ 重新选轨出字幕；`后台播放` 开关 → `pref_player_background_audio=true`；`手势总开关` 关 → 视频区单击不再输出 `PlayerControlsState: player controls visible=…`，开 → 立即恢复 |
+| §1.7 拖拽排序 | 长按拖动 `queue move: 3 -> 2（共 31 项）`，面板顺序变为 `E01 / E02 / E04 / E03 / E05`（mpv `playlist-move` 生效） |
+| §1.7 删除 / 清空 / 跳转 | 行尾删除键 → `queue remove: 4（共 30 项）`；「清空」→ `queue clear: 保留当前条目，队列剩 1 项` 且播放不中断；点 E03 → `Playing MediaItem: 5db08a9c-0ae2-5c4b-1995-9a6472a664d9`（跳转命中） |
+| §1.7 播完暂停 | 开：`end of media item: state=3 … index=0/22 hasNext=true` → `pause after item end: stay at index=0（播完暂停）`（有下一集也不跳）；关：`advance after item end: from=3 … -> index=3` + `Playing MediaItem: 29fa54d9…`（原有自动连播不回归） |
+| §1.6 ExoPlayer | 旋转 90° → `ExoPlayer 画面变换: rotation=90.0 scaleX=1.600 scaleY=1.600`；镜像水平 → `scaleX=-1.600`；裁剪 10% → `scaleX=-2.000 crop=10`；去黑边 → `resizeMode=0 → 4`（FIT→ZOOM）；`pref_player_video_*` 四项同步落盘 |
+| §1.6 mpv | 退出重进后自动恢复：`mpv 画面变换: video-rotate=90 video-scale-x=-1.0 video-scale-y=1.0 video-zoom=0.3219/1.8301`（裁剪 × 填满）；面板全设回默认 → `video-rotate=0 video-scale-x=1.0 video-zoom=0.0000`，偏好同步归零 |
+| 稳定性 | 整轮 `logcat` 无 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out`；设备侧已还原（force-stop、`pref_player_background_audio` 复位、`wm` 与旋转未改动、`/sdcard/w9p*.xml` 清理） |
+
+### 12.5 未决 / 移交项
+
+1. **章节刻度开关**已接到控制层（关掉后不再向进度条传章节），但「视觉上刻度消失」未单独做像素采样；如需像素级验收并入 R4 回归。
+2. **容器字段**：ExoPlayer 侧拿不到时显示「—」。若要做到两内核都显示，需要把 `MediaSourceInfo.container` 透传到 `FindroidSource`（`data` 模块，本波未动，避免与其它会话冲突）。
+3. **随机播放**在 mpv 下仍禁用（既有能力限制，本轮未动）。
+4. **手势总开关**关掉后仍保留「单击显隐控制层」（有意为之，避免控件唤不出的死角）；若后续要求「全关」，需要在设置页明确提示。
+5. 新增偏好键收口回 `AppPreferences.kt`（见 D11）留给下个能安全改该文件的波次。
 
