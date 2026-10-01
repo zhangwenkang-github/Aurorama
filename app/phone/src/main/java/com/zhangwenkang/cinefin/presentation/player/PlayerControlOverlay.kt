@@ -85,6 +85,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
@@ -1730,7 +1731,30 @@ internal fun PlayerCompactToolKeys(
 }
 
 /**
- * 进度条（画面覆盖层 §8.7）：6dp 轨道白 16% + 已缓冲白 24% + 媒体色已播段 + 章节刻度 + Trickplay 预览。 视觉细、命中区 34dp——「可点目标不小于
+ * 已播段渐变的色标（0..1，W11 反馈④）：极光青铺满前 90%，最后 10% 才过渡到辅光蓝。
+ *
+ * A 稿里辅光蓝是**渐变辅助色**、用量必须 <10%（`docs/design/s1-direction-a/README.md` §2）； 抽成纯函数 + 单测，免得日后被改成"半条蓝条"。
+ */
+internal fun playerProgressGradientStops(): List<Float> = listOf(0f, PLAYER_PROGRESS_ACCENT_END, 1f)
+
+/** 辅光蓝起点：0.9 = 只在末端 10% 出现第二种颜色。 */
+internal const val PLAYER_PROGRESS_ACCENT_END = 0.9f
+
+/** 已播段流光渐变（W11 反馈④）：极光青 → 末端辅光蓝；缓冲层 / 章节刻度 / 拖拽钮 / 内高光保持不变。 */
+internal fun playerProgressBrush(accent: Color, accentSecondary: Color): Brush {
+    val stops = playerProgressGradientStops()
+    return Brush.horizontalGradient(
+        colorStops =
+            arrayOf(
+                stops[0] to accent,
+                stops[1] to accent,
+                stops[2] to accentSecondary,
+            )
+    )
+}
+
+/**
+ * 进度条（画面覆盖层 §8.7）：6dp 轨道白 16% + 已缓冲白 24% + 流光渐变的已播段 + 章节刻度 + Trickplay 预览。 视觉细、命中区 34dp——「可点目标不小于
  * 48dp」由轨道两端的工具行外扩消化。
  */
 @Composable
@@ -1748,6 +1772,10 @@ internal fun PlayerSeekBar(
     var scrubFraction by remember { mutableFloatStateOf(0f) }
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
+    val lumen = LocalLumenColors.current
+    // 已播段流光渐变的两端色（W11 反馈④）：极光青打底、辅光蓝收尾；没有 Lumen 色板时退回当前域媒体色
+    val accent = lumen?.accent ?: media.base
+    val accentSecondary = lumen?.accentSecondary ?: media.bright
 
     val safeDuration = durationMs.coerceAtLeast(1L)
     val playedFraction =
@@ -1853,13 +1881,13 @@ internal fun PlayerSeekBar(
                         .clip(shape)
                         .background(colors.onSurface.copy(alpha = 0.24f))
             )
-            // 已播：唯一强调色（Lumen = 极光青；进度是播放器里媒体色的第一落点）
+            // 已播：流光渐变（W11 反馈④）——极光青为主，末端 <10% 过渡到辅光蓝，不再是单色
             Box(
                 modifier =
                     Modifier.fillMaxWidth(playedFraction)
                         .height(if (scrubbing) 8.dp else trackHeight)
                         .clip(shape)
-                        .background(media.base)
+                        .background(playerProgressBrush(accent, accentSecondary))
             )
             // 章节刻度：细白线，只做位置提示
             chapters.forEach { chapter ->
