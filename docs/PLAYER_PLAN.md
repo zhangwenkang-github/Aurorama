@@ -562,6 +562,9 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | Jellyfin 播放地址没有后缀 | `/Videos/<id>/stream?static=true…` 的「扩展名」是 `stream`，容器名猜不出来；要回退到媒体源文件名（`FindroidSource.name`），mpv 侧还有 `file-format` 可用。ExoPlayer 拿不到容器时显示「—」（契约允许） |
 | mpv 的 `video-bitrate` 不保证随时可读 | 同一集不同时刻读出来可能是 null（面板显示「—」）也可能是 6.4 Mbps；这是 mpv 属性本身的可用性差异，不是解析 bug，别为它加轮询 |
 | 队列排序后 UI 不刷新 | 控制层的 `PlayerRuntime.sync` 原先只在 `mediaItemCount` 变化时重建队列列表，拖拽排序（数量不变）不会刷新；改成比较 **mediaId 序列**（O(n)，n ≤ 150）再重建 |
+| 返回键关不掉子面板（W11 真机踩到） | 子面板的「上一级」标记（`panelBackTarget`）在返回后没清掉：`BackHandler` 每次都判定成「回上一级」，于是第二次按返回又回到同一个子面板，一级面板永远关不上。修复：回上一级 / 关面板 / 点抽屉外空白三条路径都要把标记清空 |
+| 窄窗里中央簇与锁定键叠在一起（W11 真机踩到） | 锁定键固定在画面区右缘垂直居中，中央簇居中排布，两者都吃中部空间；`wm 800x2400`（305dp）实测中央簇右端与锁定键重叠 26dp。修复：中央簇按画面区宽度收放（302 / 266 / 240 / 160dp 四档，`playerCenterSpec` + 单测保证「簇宽 ≤ 宽 − 2×(48+12)」），命中块改用实测尺寸（`onCenterClusterSize`） |
+| 季卡「一大一小」的根因 | `ItemCard` 根节点只有 `fillMaxWidth()`，而 `LazyRow` 的宽度约束是无界的 → 每张卡按各自海报的固有尺寸排版；另外标题 1 行 / 2 行也会让卡高差一整行。修复：新增可选 `width`（季列表传 `rememberSeasonCardWidth()` 分档固定值）+ 标题块固定预留两行高度 |
 | 「清空队列」不能直接 `clearMediaItems()` | 那会把正在播放的条目一起删掉并停播；正确做法是先删当前条目前的、再删其后的，只保留当前条目（真机实测：清空后仍在播、队列剩 1 项） |
 | 手势总开关关掉后的死角 | 只关「手势」不能把「单击显隐控制层」也关掉，否则用户收起控制层后再也唤不出控件（真机走查踩到）。实现：`gesturesEnabled=false` 时仍跑一个只含 `onSingleTapConfirmed` 的轻量检测器 |
 | 开关行只有小圆钮可点 | Material3 `Switch` 命中区只有 ~52×32dp；面板里的「开关行」必须整行可点（`Row.clickable(enabled)`），否则点标签没反应（真机走查踩到） |
@@ -583,6 +586,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-01 | **W11-PLAYER 播放页第三轮反馈（`feature/w11-player-ui3`）**：①取消「更多」并把入口按性质分流到右上工具簇 / 左下工具行（新增 7 枚 `ic_player_*` 矢量图标）②锁定键移到画面区右缘垂直居中③中央恢复五键传输簇（上一个 · 快退 · 播放 · 快进 · 下一个）④进度条已播段改流光渐变（极光青 → 末端 <10% 辅光蓝）⑤两个加载图标去重（Media3 内置缓冲圈关闭，控件可见时落在主播放键里）⑥右下角全屏 / 退出全屏键（收起常驻内容栏 + 强制横屏）⑦返回键先关面板（子面板先回上一级）⑧时间码两端对齐 + 中央簇四档收放，任何窗口宽度都不重叠 / 不越界⑨季卡统一尺寸只横向滑动。真机 Pad 5 + K60 逐条文本证据；门禁 `assembleDebug + ktfmtCheck + app 34 项 / player:local 28 项单测` 全绿。见 §14 |
 | 2026-10-01 | W9-PLAYER 播放器体验补全波（`feature/w9-player-experience`）：§1.8 信息面板（双内核 + 全字段「—」降级 + 纯函数单测）、§1.9 设置面板六组（页内即时生效）、§1.7 队列管理（拖拽排序 / 删除 / 清空 / 跳转 + 播完暂停）、§1.6 画面调整（旋转 / 镜像 / 裁剪 / 去黑边，双内核）。门禁 `assembleDebug + ktfmtCheck + app 23 项 / player:local 23 项单测` 通过；真机 Pad 5 逐项走查（信息面板双内核、设置六组、队列四操作 + 播完暂停、画面四变换 + 还原），`logcat` 无 FATAL/ANR。见 §12 |
 | 2026-10-01 | §11 A–E 真机走查（PLAYER-UI / Pad 5 `43af8627`，10:27–11:05 指派窗口）：抽屉右侧化不压缩画面、底栏 5 键「图标+文字」、锁定单入口、更多收低频、手势（单击/双击 +10s/横向 seek/左亮度/右音量/长按 2×/面板打开拦截）与 PiP 全部通过；D 组回归（打开即播 + 自动字幕）通过；`logcat` 无 FATAL / ANR。走查中发现并修复①顶栏锁被 weight 布局挤到中部 ②竖屏命中带过紧（顶 72→64dp、中央半高 64→56dp）。设备侧已还原；结论见 §11.4、踩坑见 §9 |
 | 2026-10-01 | §11 A–C/E 播放页控制层改造（PLAYER-UI / 分支 `feature/player-ui-refactor`）：Prism + 流光视觉收口；锁 / PiP 双入口收敛（PiP→更多）；底栏 9→5 个「图标 + 文字」高频键；面板改右侧抽屉且不压缩画面；命中带同步（竖屏 72 / 150dp、小窗 92dp）。门禁 `assembleDebug + player:local:testDebugUnitTest + ktfmtCheck` 通过；真机走查待设备（清单见 §11.4） |
@@ -881,4 +885,71 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 2. `PlayerVideoTransform` 的 `cropScale` 同时作用于两个内核，语义一致；但「去黑边」在 ExoPlayer 侧仍是「FIT 提升为裁剪填满」，与 mpv 的 `video-zoom` 路径不同源，视觉已对齐、代码未统一。
 3. 小窗（Compact）的「更多」保留四个工具兜底入口（D15），与常规形态的右上角工具簇分工不同——若后续小窗也加工具簇，可把兜底项撤掉。
 4. K60 当前物理横置（传感器 landscape），手机竖屏形态用 Pad 5 `wm 1080x2400` + `density 420` 等价覆盖验证（与 W8/W9 同法）；K60 原生竖屏复验并入下次 R4 回归。
+
+---
+
+## 14. W11-PLAYER 落地记录（2026-10-01 · 分支 `feature/w11-player-ui3`）
+
+> 用户 2026-10-01 深夜对播放页 / 季页的 9 条反馈 + 负责人 3 次补充（中心簇恢复五键、倍率显示与倍率控件合并、季卡同尺寸横滑）。
+> 五组提交：`5b67a67`（①②③⑥ + ⑤ 去重）、`486c6e5`（④）、`26ffef7`（⑤⑦⑧）、`da5062f`（⑨）、`0d75c0d`（真机踩到的两处补丁 + 中央簇收放）。
+
+### 14.1 决策补充（与 §0 同源）
+
+| 编号 | 决策 |
+|------|------|
+| D19 | **取消「更多」**，入口按性质分流：右上工具簇 = 内容 / 显示类（字幕 · 音轨 · 画面 · 选集；宽屏再加 播放设置）；左下工具行 = 播放行为类（倍率键 · 睡眠 · 播放信息 ·（窄屏）播放设置 · 画中画）+ 右下角全屏键；小窗（Compact）用一行可横滑的小键行兜住全部入口，功能不缩水、也不越界 |
+| D20 | **中央传输簇 = 上一个 · 快退 −10s · 播放 / 暂停 · 快进 +10s · 下一个**（五键居中，与 W9 版一致）；传输键只在中央出现，右上 / 左下都不再重复 |
+| D21 | **锁定键**移到画面区右缘垂直居中（贴边、样式与其它覆盖键一致）；**全屏键**在右下角；**倍率显示与倍率控件合并成同一个键**（键面直接写 `1×` / `1.5×`，非 1× 用媒体色），全播放页只有这一个倍速入口 |
+| D22 | **时间码两端对齐**：左 = 当前进度、右 = 总时长，各自有固定位置（旧版把「当前 / 总时长 + 倍率」挤在左下一行，窗口一窄就被挤出屏幕）；进度条仍通栏贴底 |
+| D23 | **加载图标只留一个**：Media3 内置缓冲圈关掉（`app:show_buffering="never"`，两个内核都走自绘）；控件可见时 = 主播放键里的转圈（键仍可点，缓冲卡住还能暂停），控件整层隐藏时才用玻璃圈兜底 |
+| D24 | **返回键优先级**：面板打开 → 先关面板（子面板回上一级，回完清标记）；没有面板才交回系统退出播放页 |
+| D25 | **中央簇随画面区宽度收放**（302 → 266 → 240 → 160dp 四档）：锁定键固定在右缘中部，两者都吃中部空间，窄窗必须收尺寸；命中块改用实测尺寸回传 |
+| D26 | **季卡统一尺寸**：固定宽度（150 / 168 / 184 / 208dp 分档）+ 标题块固定预留两行高度 → 一列季卡同宽同高，只保留横向滑动 |
+
+### 14.2 逐条修复方式与文件
+
+| # | 反馈 | 修复方式 | 主要文件 |
+|---|------|----------|----------|
+| ① | 控件全堆在右上角 | 删除 `MorePanel` / `PlayerPanel.More`，入口按 D19 分流；新增 7 个矢量图标 | `PlayerControlOverlay.kt`（`PlayerToolCluster` / `PlayerBottomBar` / `PlayerToolKey` / `PlayerCompactToolKeys`）、`PlayerContentPanel.kt`（`PlayerCompactBar`）、新图标：`ic_player_settings` `ic_player_info` `ic_player_pip` `ic_player_speed` `ic_player_sleep` `ic_player_fullscreen` `ic_player_fullscreen_exit` |
+| ② | 锁按钮移到右缘中部 | 顶栏删掉锁键，改为画面区 `Alignment.CenterEnd` + 12dp 内边距的玻璃覆盖键；命中带加「右缘中部 76×72dp」块 | `PlayerControlOverlay.PlayerTopBar`、`PlayerOverlayContainer.shouldHandle` |
+| ③ | 中央三键（补充后为五键） | 新建 `PlayerCenterCluster`：上一个 / 快退 / 播放（70dp 主行动键）/ 快进 / 下一个，整体居中；`playerCenterSpec` 按宽度收放键尺寸 | `PlayerControlOverlay.PlayerCenterCluster` / `playerCenterSpec`、`PlayerOverlayContainer`（命中块改实测尺寸） |
+| ④ | 进度条流光渐变 | 已播段改 `Brush.horizontalGradient`：0→0.9 极光青、0.9→1 过渡到辅光蓝（辅光蓝 <10%）；缓冲层 / 章节刻度 / 拖拽钮 / 内高光保留；色标抽纯函数 + 单测 | `PlayerControlOverlay.PlayerSeekBar` / `playerProgressGradientStops` / `playerProgressBrush` |
+| ⑤ | 两个加载图标 | Media3 内置缓冲圈关掉；控件可见时加载图标落在主播放键里（可点），控件隐藏时才画玻璃圈；承载视图在缓冲期间保持合成 | `activity_player.xml`（`show_buffering="never"`）、`PlayerControlOverlay.PlayerPlayKey` / `BufferingIndicator`、`PlayerActivity`（`onRegionsChanged` 增 `buffering`） |
+| ⑥ | 右下角全屏键 | `toggleFullscreen()`：收起常驻内容栏 + `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`；同一个键按 `isFullscreen` 换图标 / 文案；退出时还原侧栏与方向策略 | `PlayerActivity`（`fullscreenMode` / `desiredOrientation` / `toggleFullscreen`）、`PlayerControlOverlay.PlayerBottomBar`、`PlayerContentPanel.PlayerCompactBar` |
+| ⑦ | 返回键先关面板 | 覆盖层内 `BackHandler` + 纯函数 `resolvePlayerBack(panelOpen, hasParentPanel)`：子面板 → 上一级（并清标记），一级面板 → 关闭，无面板 → 放行给系统 | `PlayerControlOverlay`（`resolvePlayerBack` / `BackHandler`） |
+| ⑧ | 缩小时时间错位 | 时间码独立成行、两端对齐；工具行 `weight(1f) + horizontalScroll` 兜底不越界；中央簇四档收放保证与锁定键不重叠 | `PlayerControlOverlay.PlayerBottomBar` / `playerControlSpec` / `playerCenterSpec`、`PlayerOverlayContainer` |
+| ⑨ | 季页海报一大一小 | `ItemCard` 新增可选 `width`；季列表传 `rememberSeasonCardWidth()`（分档固定宽度）；标题块固定预留两行高度 → 同宽同高，只横向滑动 | `presentation/film/ShowScreen.kt`（`seasonCardWidthDp`）、`presentation/film/components/ItemCard.kt` |
+
+### 14.3 门禁（2026-10-01）
+
+```
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest :modes:film:testDebugUnitTest --console=plain
+```
+
+- `:app:phone:assembleDebug` ✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **34** 项 = 既有 23 + 新增 11（`PlayerControlLayoutTest` 9：版式分档 / 渐变色标 / 返回优先级 / 中央簇不重叠；`SeasonCardWidthTest` 2）
+- `:player:local:testDebugUnitTest` ✅ **28** 项（既有）｜`:modes:film:testDebugUnitTest` ✅（该模块无测试源）
+
+### 14.4 真机走查（Pad 5 `43af8627` + K60 `8e875894`，命令全部带 `-s`）
+
+| # | 证据（文本 / 数值） |
+|---|--------------------|
+| ① | **Pad 5 平板横屏**（2560×1600）右上工具簇 = 字幕 `[1874,18][2000,144]` 音轨 `[2009..2135]` 画面 `[2144..2270]` 选集 `[2279..2405]` 设置 `[2414..2540]`；左下工具行 = 倍率键 `[45,1318][189,1426]` 睡眠 `[198..324]` 信息 `[333..459]` 画中画 `[468..594]`；右下 = 进入全屏 `[2405,1318][2513,1426]`；无障碍树整轮 **没有任何「更多」节点**（改动前每次 dump 都有 `content-desc="更多"`）。**Pad 5 手机形态**（`wm 1080x2400` + `density 420` ≈411dp）：右上退化成 4 个纯图标 `[556..1063]`，左下工具行 = `1×` `[32,702][153,812]` 睡眠 `[156..277]` 信息 `[277..398]` 设置 `[398..519]` 画中画 `[519..645]`，右下 进入全屏 `[929,694][1055,820]`。**K60 竖屏**：右上 `[746..1418]`、左下 `[42..858]`、右下 `[1240..1408]`。新图标 7 枚（24dp / 1.5dp 圆头描边，`player/local/src/main/res/drawable/ic_player_*.xml`）；`ic_player_more.xml` 随「更多」一起删除 |
+| ② | 锁定键 = 画面区右缘垂直居中：Pad 5 平板 `锁定播放器 [2423,746][2531,854]`（右边距 29px，y 中心 800 = 1600/2，即画面区竖向中心）；K60 竖屏 `[1229,587][1397,755]`（右边距 43px，y 中心 671 = 视频区 1344/2）；Pad 5 手机形态 `[921,440][1047,566]`（y 中心 503 = 1008/2） |
+| ③ | 中央五键整簇居中：Pad 5 平板 `上一集 [936..1044] 快退 [1067..1175] 播放暂停 [1200..1358] 快进 [1383..1491] 下一集 [1514..1622]`（簇中心 1279 ≈ 屏宽中心 1280）；K60 竖屏 `[283..444][444..612][622..818][829..990][990..1158]`（簇中心 720.5 = 1440/2）；Pad 5 手机形态 `[140..941]`（中心 540.5 = 1080/2） |
+| ④ | 进度条像素采样（Pad 5，暂停在 39%，进度条行 y=1533）：x=20 / 250 / 500 / 750 / 850 / 880 全为 `#5CE1D2`（极光青），x=900 `#5CE0D3` → 920 `#63DBDC` → 940 `#69D5E5` → 960 `#70CFEE`（向辅光蓝 `#7CC4FF` 过渡，只占已播段末端 ≈9%）→ knob `#F2F5F9`；缓冲层 / 章节刻度 / 内高光保留 |
+| ⑤ | `dumpsys activity top` 中 Media3 的 `android.widget.ProgressBar{… #7f0a00e4 app:id/exo_buffering}` 恒为 `G`（GONE，`0,0-0,0`，两台设备一致）→ 内置缓冲圈彻底关闭。切集缓冲瞬间两帧截图（间隔 350ms）对比：Pad 5 中心键区 19881 px 中 519 px 变化（2.6%，键内转圈在转）、键外 85–140px 半径 38864 px **0 变化**；K60 中心键区 32761 px 中 1015 px 变化（3.1%）、键外 63796 px **0 变化**；两处中心像素均为 `#F2F5F9`（月白主播放键 + 一条深色弧） |
+| ⑥ | Pad 5 平板：侧栏展开时全屏键在视频区右下 `[1685,1318][1793,1426]`，点击 → 键变「退出全屏」+ 侧栏收起（`显示选集栏` + E01 消失）；再点 → 侧栏恢复（`隐藏选集栏` `[1559..1685]` + `E01 [2119,252]`）。Pad 5 手机形态点击 → `cur=2400x1080`（横屏）且底部「选集 / 播放队列」页签消失；K60 竖屏点击 → `cur=3200x1440` + 页签消失 + 键变「退出全屏」；退出后 `dumpsys` 方向策略回到 `SCREEN_ORIENTATION_FULL_SENSOR` |
+| ⑦ | 两台设备都验证：打开「播放设置」→ 点「循环模式」进子面板 → BACK 回「播放设置」（`循环模式` 行回来）→ 再 BACK 面板关闭（只剩覆盖层键）；全程 `pidof` 不变（Pad 5 `16853` / K60 `24288`）、`topResumedActivity` 仍是 `PlayerActivity` |
+| ⑧ | Pad 5 手机形态（1080×2400，411dp）：工具行 y 694–820、时间行 `10:46 [53,833][153,873]` / `24:25 [926,833][1026,873]`，两行互不相交、横向不出 1080；再缩到 `wm 800x2400`（305dp）：中央簇收到 `[160..639]`、锁定键 `[640,440][766,566]`（**不再重叠**；未收尺寸前实测簇右端 800 与锁定键左缘 640 重叠 160px = 26dp），时间行仍在两端；K60 竖屏 `13:43 [70,1113][205,1166]` / `24:25 [1234,1113][1369,1166]` |
+| ⑨ | 同一部两季剧集：Pad 5 横屏两张季卡 `[72,194][486,893]` / `[540,194][954,893]` 均 **414×699**；Pad 5 竖屏 **378×690** ×2；K60 竖屏 **525×977** ×2；Pad 5 手机形态 **394×734** ×2（间距 54–63px = 24dp）；`wm 800x2400` 缩窄后横向滑动：滑动前 `[53..447]` / `[510..800]`，滑动后 `[0..290]` / `[353..747]`（尺寸不变，只横滑） |
+| 稳定性 | 两台设备整轮 `logcat`：`FATAL EXCEPTION` 0 / `ANR in` 0 / `Input dispatching timed out` 0；副作已还原（Pad 5 `wm size/density` reset、accel=1、user_rotation=0；K60 accel=1、user_rotation=0；两台 force-stop、`/sdcard/w11*` 清理、本地截图已删） |
+
+### 14.5 未决 / 移交项
+
+1. 倍率键在窄屏是纯文字键（`1×` / `1.5×`），宽屏才带 `ic_player_speed` 图标；若以后要给窄屏也加图标，注意别挤到右下角全屏键。
+2. `ItemCard` 新增了可选 `width`，本波只有季列表传值；`PersonScreen` 的两条 `LazyRow` 仍是旧的 `fillMaxWidth()`（同样的「按固有尺寸排布」风险），按本轮范围没动，留作后续打磨。
+3. 中央簇最后一档 160dp 对应 <360dp 画面区；<280dp 的极窄窗口（真实设备上会走 Compact 骨架，只有 `wm` 尺寸覆盖能造出来）仍可能与锁定键轻微重叠，没有实际设备路径。
+4. 「全屏」= 收起常驻内容栏 + 强制横屏；纯横屏设备（Pad 5 平板）上表现为侧栏收起 / 恢复，方向策略不变（K60 竖屏点击可见真实横屏全屏效果）。
+5. Compact（自由窗口 / 分屏窄宽）已经没有「更多」：工具行横向可滚，入口一个不少；后续若要给小窗也做完整版式，可把这一行改成与左下工具行同源的实现。
 
