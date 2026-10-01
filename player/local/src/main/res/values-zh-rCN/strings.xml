@@ -39,6 +39,10 @@
     <string name="player_controls_info_buffered">已缓冲</string>
     <string name="player_controls_unlock">解锁控制</string>
     <string name="player_controls_pip">画中画</string>
+    <string name="player_controls_label_subtitle">字幕</string>
+    <string name="player_controls_label_audio">音轨</string>
+    <string name="player_controls_label_aspect">画面</string>
+    <string name="player_controls_panel_close">关闭面板</string>
     <string name="player_controls_skip_forward">跳过</string>
     <string name="player_controls_progress">进度条</string>
     <string name="player_trickplay">进度条预览图</string>

@@ -5,6 +5,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -32,17 +36,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +68,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +81,12 @@ import androidx.media3.common.Tracks
 import androidx.media3.ui.AspectRatioFrameLayout
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
@@ -95,28 +103,39 @@ import kotlinx.coroutines.delay
 import timber.log.Timber
 
 /* =========================================================================
-影阁 · 播放控制层（Compose）
+Cinefin · 播放控制层（Compose）
 
-设计解读：私人影音库的播放控制层，受众是自己家的片库；
-          气质是影院式克制暗色，dial = VARIANCE 5 / MOTION 5 / DENSITY 5。
-颜色锁：   唯一强调色朱砂 #D2553C；中性色只用墨系（#0B0C0E / #0F1114 / #131518 / #24282C）。
-形状锁：   按钮与胶囊 999dp，缩略图 12dp，面板 16dp，进度条 2~4dp。
-可读性：   上下渐变遮罩保证任何画面上文字都读得清（对比度 ≥ AA）。
+设计解读：私人影音库的沉浸播放层（S1 · 流光「内容即光源」+ Prism 设计系统 v1.0）。
+          画面是唯一光源：控制层只在需要时浮现，面板从右侧盖在画面上而不是挤压画面。
+颜色锁：  影视域媒体色（琥珀 MediaFilm）只出现在进度、进行中与激活面板上，且必须融进
+          控件本体（填充 / 描边 / 图标 / 文字）；其余一律中性色（CinefinColors）。
+          禁止独立色块 / 色点 / 发光，禁止任何 Color(0x…) 字面量。
+形状锁：  主播放键 22dp、工具键 16dp、面板 22dp、chip 12dp（CinefinShapes）。
+动效锁：  控制层 280ms Decelerate（淡入 + 上浮 12dp）；面板 420ms Emphasized；只动 transform / opacity / color。
+可读性：  上下渐隐遮罩 + 覆盖层工具键玻璃底，保证任何画面上文字与图标都可读。
 ========================================================================= */
 
-internal val Ink = Color(0xFF0B0C0E)
-internal val SurfaceLow = Color(0xFF0F1114)
-internal val SurfaceHigh = Color(0xFF131518)
-internal val SurfaceRow = Color(0xFF17191D)
-internal val Hairline = Color(0xFF24282C)
-internal val Vermilion = Color(0xFFD2553C)
-internal val Paper = Color(0xFFF1EDE6)
-internal val Mist = Color(0xFFA8A49C)
+/** 顶部渐隐遮罩：界面只在需要时浮现（流光 A 手法）。 */
+@Composable
+internal fun playerTopScrim(): Brush {
+    val scrim = LocalCinefinColors.current.scrim
+    return remember(scrim) {
+        Brush.verticalGradient(
+            listOf(scrim.copy(alpha = 0.86f), scrim.copy(alpha = 0.5f), Color.Transparent)
+        )
+    }
+}
 
-internal val ScrimTop =
-    Brush.verticalGradient(listOf(Color(0xE00B0C0E), Color(0x990B0C0E), Color(0x000B0C0E)))
-internal val ScrimBottom =
-    Brush.verticalGradient(listOf(Color(0x000B0C0E), Color(0xCC0B0C0E), Color(0xF20B0C0E)))
+/** 底部渐隐遮罩：给进度条与工具行托底。 */
+@Composable
+internal fun playerBottomScrim(): Brush {
+    val scrim = LocalCinefinColors.current.scrim
+    return remember(scrim) {
+        Brush.verticalGradient(
+            listOf(Color.Transparent, scrim.copy(alpha = 0.66f), scrim.copy(alpha = 0.92f))
+        )
+    }
+}
 
 /** 可选倍速档位：与设置里的「长按倍速」共用同一批数值，保持一致 */
 private val SpeedOptions = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
@@ -336,6 +355,11 @@ fun PlayerControlOverlay(
 ) {
     val runtime = rememberPlayerRuntime(player)
     var panel by remember { mutableStateOf(PlayerPanel.None) }
+    // 抽屉退场动画期间保留最后一个面板的内容，避免「滑走的是一块空板」
+    var lastPanel by remember { mutableStateOf(PlayerPanel.More) }
+    LaunchedEffect(panel) { if (panel != PlayerPanel.None) lastPanel = panel }
+    // 打开期间直接用当前面板（首帧不闪「更多」）；关闭后交给 lastPanel 走退场动画
+    val drawerPanel = if (panel == PlayerPanel.None) lastPanel else panel
     var aspect by remember { mutableStateOf(AspectMode.of(initialResizeMode)) }
     var sleepMinutes by remember { mutableStateOf<Int?>(null) }
     var sleepRemaining by remember { mutableLongStateOf(0L) }
@@ -418,25 +442,20 @@ fun PlayerControlOverlay(
             trickplay = uiState.currentTrickplay,
             speed = runtime.speed,
             subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
-            repeatActive = runtime.repeatMode != Player.REPEAT_MODE_OFF || runtime.shuffleEnabled,
             aspectActive = aspect.resizeMode != AspectMode.Fit.resizeMode,
-            sleepMinutes = sleepMinutes,
+            queueActive = hasSidePanel && sidePanelExpanded,
             sleepRemainingMs = sleepRemaining,
             onSeek = { target -> player.seekTo(target) },
             onScrubStart = { controls.show() },
-            onOpenSpeed = { panel = PlayerPanel.Speed },
-            onOpenRepeat = { panel = PlayerPanel.Repeat },
             onOpenSubtitle = { panel = PlayerPanel.Subtitle },
             onOpenAudio = { panel = PlayerPanel.Audio },
             onOpenAspect = { panel = PlayerPanel.Aspect },
-            onOpenInfo = { panel = PlayerPanel.Info },
             onOpenQueue =
                 if (hasSidePanel) {
                     onToggleSidePanel
                 } else {
                     { panel = PlayerPanel.Queue }
                 },
-            queueIconRes = if (hasSidePanel) CoreR.drawable.ic_playlist else CoreR.drawable.ic_logs,
             queueDescription =
                 stringResource(
                     when {
@@ -445,9 +464,7 @@ fun PlayerControlOverlay(
                         else -> PlayerR.string.player_controls_side_panel_show
                     }
                 ),
-            queueSelected = hasSidePanel && sidePanelExpanded,
-            onOpenSleep = { panel = PlayerPanel.Sleep },
-            onLock = { controls.setLock(true) },
+            onOpenMore = { panel = PlayerPanel.More },
             scrim = scrim,
             modifier = barModifier,
         )
@@ -455,6 +472,7 @@ fun PlayerControlOverlay(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
+        val colors = LocalCinefinColors.current
         // 画面区尺寸与 Activity 给 PlayerView 的布局参数同源：侧栏收起后画面区立即变宽
         val videoWidthDp =
             if (layout.hasSideContent && sidePanelExpanded) {
@@ -464,6 +482,10 @@ fun PlayerControlOverlay(
             }
         val videoWidth = with(density) { videoWidthDp.dp }
         val videoHeight = with(density) { layout.videoHeightDp.dp }
+        val bottomScrim = playerBottomScrim()
+        // 面板抽屉宽度：手机 / 窄窗整宽；宽屏取 46%（360–560dp）。抽屉盖在画面上，不改画面布局
+        val drawerWidth =
+            if (maxWidth < 420.dp) maxWidth else (maxWidth * 0.46f).coerceIn(360.dp, 560.dp)
 
         if (layout.isCompact) {
             // 小窗：单行控制条 + 细进度条，其余面积留给画面
@@ -487,8 +509,18 @@ fun PlayerControlOverlay(
             ) {
                 AnimatedVisibility(
                     visible = controls.visible,
-                    enter = fadeIn(tween(180)),
-                    exit = fadeOut(tween(180)),
+                    /*
+                     * 流光：控制层淡入 + 上浮 12dp（只动 opacity / transform），退出用 Accelerate 快速让位。
+                     * 时长走设计系统 token（motion-player 280ms），不再用历史 180ms。
+                     */
+                    enter =
+                        fadeIn(tween(CinefinMotion.Player, easing = CinefinMotion.Decelerate)) +
+                            slideInVertically(
+                                animationSpec =
+                                    tween(CinefinMotion.Player, easing = CinefinMotion.Decelerate),
+                                initialOffsetY = { with(density) { 12.dp.roundToPx() } },
+                            ),
+                    exit = fadeOut(tween(CinefinMotion.Fast, easing = CinefinMotion.Accelerate)),
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         PlayerTopBar(
@@ -497,9 +529,7 @@ fun PlayerControlOverlay(
                                     runtime.title.ifEmpty { stringResource(CoreR.string.app_name) }
                                 },
                             qualityLabel = videoQualityLabel(runtime.tracks),
-                            isPipSupported = isPipSupported,
                             onBack = onBack,
-                            onPip = onPip,
                             onLock = { controls.setLock(true) },
                             modifier = Modifier.align(Alignment.TopCenter),
                         )
@@ -530,7 +560,7 @@ fun PlayerControlOverlay(
 
                         // 折叠半开的底栏落在折痕下屏，画面区不再重复一份
                         if (layout.chrome != PlayerChromeLayout.FoldHalfOpen) {
-                            bottomBar(Modifier.align(Alignment.BottomCenter), ScrimBottom)
+                            bottomBar(Modifier.align(Alignment.BottomCenter), bottomScrim)
                         }
                     }
                 }
@@ -590,7 +620,8 @@ fun PlayerControlOverlay(
         // 折叠半开（水平折痕）：折痕以下是常驻控制区，不参与自动淡出
         if (layout.chrome == PlayerChromeLayout.FoldHalfOpen) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(top = videoHeight).background(SurfaceLow)
+                modifier =
+                    Modifier.fillMaxSize().padding(top = videoHeight).background(colors.surfaceDim)
             ) {
                 bottomBar(Modifier.fillMaxWidth(), null)
                 PlayerBottomContent(
@@ -602,89 +633,121 @@ fun PlayerControlOverlay(
                 )
             }
         }
-    }
 
-    if (panel != PlayerPanel.None) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { panel = PlayerPanel.None },
-            sheetState = sheetState,
-            containerColor = SurfaceHigh,
-            contentColor = Paper,
-            scrimColor = Color(0xB3000000),
-            dragHandle = { SheetHandle() },
+        /* ---------- 面板层：右侧抽屉（§11 C）----------
+         * 统一从右侧滑出（与选集栏同款），半透明底直接盖在画面上，画面布局不动；
+         * 打开期间触摸由 PlayerOverlayContainer 整层接管（panelOpen），点抽屉外的空白关闭。
+         */
+        if (panel != PlayerPanel.None) {
+            Box(
+                modifier =
+                    Modifier.fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { panel = PlayerPanel.None },
+                        )
+            )
+        }
+        AnimatedVisibility(
+            visible = panel != PlayerPanel.None,
+            enter =
+                slideInHorizontally(
+                    animationSpec = tween(CinefinMotion.Page, easing = CinefinMotion.Emphasized),
+                    initialOffsetX = { it },
+                ) + fadeIn(tween(CinefinMotion.Fast)),
+            exit =
+                slideOutHorizontally(
+                    animationSpec = tween(CinefinMotion.Page, easing = CinefinMotion.Accelerate),
+                    targetOffsetX = { it },
+                ) + fadeOut(tween(CinefinMotion.Fast)),
+            modifier = Modifier.align(Alignment.TopEnd),
         ) {
-            when (panel) {
-                PlayerPanel.More -> MorePanel(onOpen = { panel = it })
-                PlayerPanel.Speed ->
-                    SpeedPanel(
-                        current = runtime.speed,
-                        onSelect = {
-                            onSelectSpeed(it)
-                            panel = PlayerPanel.None
-                        },
-                    )
-                PlayerPanel.Repeat ->
-                    RepeatPanel(
-                        repeatMode = runtime.repeatMode,
-                        shuffleEnabled = runtime.shuffleEnabled,
-                        canShuffle = runtime.canShuffle,
-                        onSelect = { mode, shuffle ->
-                            player.repeatMode = mode
-                            // mpv 后端的 setShuffleModeEnabled 还是 TODO，能力不足时不碰它
-                            if (
-                                player.availableCommands.contains(Player.COMMAND_SET_SHUFFLE_MODE)
-                            ) {
-                                player.shuffleModeEnabled = shuffle
-                            }
-                            panel = PlayerPanel.None
-                        },
-                    )
-                PlayerPanel.Subtitle ->
-                    SubtitlePanel(
-                        state = subtitlePanelState,
-                        onSelectPrimary = onSelectPrimarySubtitle,
-                        onSelectSecondary = onSelectSecondarySubtitle,
-                        onAdjustDelay = onAdjustSubtitleDelay,
-                        onResetDelay = onResetSubtitleDelay,
-                        onUpdateStyle = onUpdateSubtitleStyle,
-                    )
-                PlayerPanel.Audio ->
-                    AudioPanel(
-                        state = audioPanelState,
-                        onSelectTrack = onSelectAudioTrack,
-                        onAdjustDelay = onAdjustAudioDelay,
-                        onResetDelay = onResetAudioDelay,
-                    )
-                PlayerPanel.Aspect ->
-                    AspectPanel(
-                        current = aspect,
-                        supported = aspectSupported,
-                        onSelect = { mode ->
-                            aspect = mode
-                            onSelectResizeMode(mode.resizeMode)
-                            panel = PlayerPanel.None
-                        },
-                    )
-                PlayerPanel.Info -> InfoPanel(runtime = runtime, title = uiState.currentItemTitle)
-                PlayerPanel.Queue ->
-                    QueuePanel(
-                        entries = runtime.queueEntries,
-                        currentIndex = runtime.currentIndex,
-                        onSelect = { index ->
-                            player.seekTo(index, 0L)
-                            panel = PlayerPanel.None
-                        },
-                    )
-                PlayerPanel.Sleep ->
-                    SleepPanel(
-                        currentMinutes = sleepMinutes,
-                        onSelect = {
-                            sleepMinutes = it
-                            panel = PlayerPanel.None
-                        },
-                    )
-                PlayerPanel.None -> Unit
+            PlayerPanelDrawer(
+                titleRes = panelTitleRes(drawerPanel),
+                width = drawerWidth,
+                onClose = { panel = PlayerPanel.None },
+            ) {
+                when (drawerPanel) {
+                    PlayerPanel.More ->
+                        MorePanel(
+                            isPipSupported = isPipSupported,
+                            onPip = onPip,
+                            onOpen = { panel = it },
+                        )
+                    PlayerPanel.Speed ->
+                        SpeedPanel(
+                            current = runtime.speed,
+                            onSelect = {
+                                onSelectSpeed(it)
+                                panel = PlayerPanel.None
+                            },
+                        )
+                    PlayerPanel.Repeat ->
+                        RepeatPanel(
+                            repeatMode = runtime.repeatMode,
+                            shuffleEnabled = runtime.shuffleEnabled,
+                            canShuffle = runtime.canShuffle,
+                            onSelect = { mode, shuffle ->
+                                player.repeatMode = mode
+                                // mpv 后端的 setShuffleModeEnabled 还是 TODO，能力不足时不碰它
+                                if (
+                                    player.availableCommands.contains(
+                                        Player.COMMAND_SET_SHUFFLE_MODE
+                                    )
+                                ) {
+                                    player.shuffleModeEnabled = shuffle
+                                }
+                                panel = PlayerPanel.None
+                            },
+                        )
+                    PlayerPanel.Subtitle ->
+                        SubtitlePanel(
+                            state = subtitlePanelState,
+                            onSelectPrimary = onSelectPrimarySubtitle,
+                            onSelectSecondary = onSelectSecondarySubtitle,
+                            onAdjustDelay = onAdjustSubtitleDelay,
+                            onResetDelay = onResetSubtitleDelay,
+                            onUpdateStyle = onUpdateSubtitleStyle,
+                        )
+                    PlayerPanel.Audio ->
+                        AudioPanel(
+                            state = audioPanelState,
+                            onSelectTrack = onSelectAudioTrack,
+                            onAdjustDelay = onAdjustAudioDelay,
+                            onResetDelay = onResetAudioDelay,
+                        )
+                    PlayerPanel.Aspect ->
+                        AspectPanel(
+                            current = aspect,
+                            supported = aspectSupported,
+                            onSelect = { mode ->
+                                aspect = mode
+                                onSelectResizeMode(mode.resizeMode)
+                                panel = PlayerPanel.None
+                            },
+                        )
+                    PlayerPanel.Info ->
+                        InfoPanel(runtime = runtime, title = uiState.currentItemTitle)
+                    PlayerPanel.Queue ->
+                        QueuePanel(
+                            entries = runtime.queueEntries,
+                            currentIndex = runtime.currentIndex,
+                            onSelect = { index ->
+                                player.seekTo(index, 0L)
+                                panel = PlayerPanel.None
+                            },
+                        )
+                    PlayerPanel.Sleep ->
+                        SleepPanel(
+                            currentMinutes = sleepMinutes,
+                            onSelect = {
+                                sleepMinutes = it
+                                panel = PlayerPanel.None
+                            },
+                        )
+                    PlayerPanel.None -> Unit
+                }
             }
         }
     }
@@ -697,54 +760,47 @@ private fun PlayerTopBar(
     title: String,
     /** 清晰度徽标（例如 1080P）；取不到时传 null，不占位 */
     qualityLabel: String?,
-    isPipSupported: Boolean,
     onBack: () -> Unit,
-    onPip: () -> Unit,
     onLock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
                 .fillMaxWidth()
-                .background(ScrimTop)
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .background(playerTopScrim())
+                .padding(horizontal = CinefinSpacing.Space2, vertical = CinefinSpacing.Space2),
     ) {
         PlayerIconButton(
             iconRes = CoreR.drawable.ic_arrow_left,
             contentDescription = stringResource(PlayerR.string.player_controls_exit),
             onClick = onBack,
         )
-        Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(CinefinSpacing.Space1))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            color = Paper,
+            color = colors.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
         if (qualityLabel != null) {
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(CinefinSpacing.Space2))
             Text(
                 text = qualityLabel,
-                style = MaterialTheme.typography.labelMedium,
-                color = Mist,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSurfaceVariant,
                 modifier =
-                    Modifier.clip(RoundedCornerShape(4.dp))
-                        .border(1.dp, Hairline, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    Modifier.clip(CinefinShapes.Xs)
+                        .border(1.dp, colors.outlineVariant, CinefinShapes.Xs)
+                        .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
             )
         }
         Spacer(Modifier.weight(1f))
-        if (isPipSupported) {
-            PlayerIconButton(
-                iconRes = CoreR.drawable.ic_picture_in_picture,
-                contentDescription = stringResource(PlayerR.string.player_controls_pip),
-                onClick = onPip,
-            )
-        }
+        // 锁定只保留这一个常驻入口（§11 A：顶栏 / 底栏不再重复；锁定后由 LockedOverlay 解锁）
         PlayerIconButton(
             iconRes = CoreR.drawable.ic_lock,
             contentDescription = stringResource(PlayerR.string.player_controls_lock),
@@ -766,36 +822,38 @@ private fun PlayerCenterControls(
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
         modifier = modifier,
     ) {
-        PlayerIconButton(
+        PlayerTransportButton(
             iconRes = CoreR.drawable.ic_skip_back,
             contentDescription = stringResource(PlayerR.string.player_controls_skip_back),
             onClick = onPrevious,
-            size = 48.dp,
         )
-        PlayerIconButton(
+        PlayerTransportButton(
             iconRes = CoreR.drawable.ic_rewind,
             contentDescription = stringResource(PlayerR.string.player_controls_rewind),
             onClick = onRewind,
-            size = 48.dp,
         )
-        // 唯一的实心朱砂按钮：播放/暂停是最高频动作
+        /*
+         * 唯一实心键：设计系统 §8.7 主播放键——70dp、圆角 22dp、
+         * OnSurface 底 + InverseOnSurface 图标。播放器覆盖层不在这里用媒体色（避免与画面互抢）。
+         */
         Box(
             contentAlignment = Alignment.Center,
             modifier =
-                Modifier.size(72.dp)
-                    .clip(CircleShape)
-                    .background(if (isBuffering) SurfaceRow else Vermilion)
+                Modifier.size(70.dp)
+                    .clip(CinefinShapes.Lg)
+                    .background(colors.onSurface)
                     .clickable(onClick = onPlayPause),
         ) {
             if (isBuffering) {
-                androidx.compose.material3.CircularProgressIndicator(
-                    modifier = Modifier.size(28.dp),
-                    color = Paper,
+                CircularProgressIndicator(
+                    modifier = Modifier.size(30.dp),
+                    color = colors.inverseOnSurface,
                     strokeWidth = 2.dp,
                 )
             } else {
@@ -805,22 +863,74 @@ private fun PlayerCenterControls(
                             if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
                         ),
                     contentDescription = stringResource(PlayerR.string.player_controls_play_pause),
-                    tint = Paper,
-                    modifier = Modifier.size(34.dp),
+                    tint = colors.inverseOnSurface,
+                    modifier = Modifier.size(30.dp),
                 )
             }
         }
-        PlayerIconButton(
+        PlayerTransportButton(
             iconRes = CoreR.drawable.ic_fast_forward,
             contentDescription = stringResource(PlayerR.string.player_controls_fast_forward),
             onClick = onForward,
-            size = 48.dp,
         )
-        PlayerIconButton(
+        PlayerTransportButton(
             iconRes = CoreR.drawable.ic_skip_forward,
             contentDescription = stringResource(PlayerR.string.player_controls_skip_forward),
             onClick = onNext,
-            size = 48.dp,
+        )
+    }
+}
+
+/** 次级传输键（±10s / 上下集）：44dp 玻璃圆底 + OnSurface 图标（§8.7 覆盖层次级键）。 */
+@Composable
+private fun PlayerTransportButton(
+    iconRes: Int,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            Modifier.size(46.dp)
+                .graphicsLayer {
+                    val scale = if (pressed) 0.92f else 1f
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .clip(CinefinShapes.Full)
+                .background(colors.scrim.copy(alpha = if (pressed) 0.7f else 0.42f))
+                .then(
+                    if (focused) {
+                        Modifier.border(
+                            2.dp,
+                            media.base.copy(alpha = 0.6f),
+                            CinefinShapes.Full,
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClickLabel = contentDescription,
+                    onClick = onClick,
+                )
+                .semantics(mergeDescendants = true) {
+                    this.contentDescription = contentDescription
+                },
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = colors.onSurface,
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -840,7 +950,8 @@ private fun PlayerErrorCard(
     // 卡片上直接写清「换成哪个内核」，避免用户点下去不知道会发生什么
     val targetBackend =
         if (error.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER) "mpv" else "ExoPlayer"
-    val shape = RoundedCornerShape(16.dp)
+    val colors = LocalCinefinColors.current
+    val shape = CinefinShapes.Md
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -848,32 +959,32 @@ private fun PlayerErrorCard(
             modifier
                 .widthIn(max = 420.dp)
                 .clip(shape)
-                .background(Color(0xE6131518))
-                .border(1.dp, Hairline, shape)
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .background(colors.surfaceContainer.copy(alpha = 0.96f))
+                .border(1.dp, colors.outline, shape)
+                .padding(horizontal = CinefinSpacing.Space6, vertical = CinefinSpacing.Space5),
     ) {
         Text(
             text = stringResource(PlayerR.string.player_controls_error_title),
-            color = Paper,
+            color = colors.onSurface,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
         Text(
             text = error.message,
-            color = Mist,
+            color = colors.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
         Text(
             text = "${error.backend} · ${error.codeName}",
-            color = Mist,
+            color = colors.onSurfaceFaint,
             style = MaterialTheme.typography.labelSmall,
         )
-        Spacer(modifier = Modifier.height(18.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
+        Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3)) {
             ErrorActionButton(
                 text = stringResource(PlayerR.string.player_controls_error_retry),
                 primary = true,
@@ -898,20 +1009,22 @@ private fun ErrorActionButton(
     primary: Boolean,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(999.dp)
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val shape = CinefinShapes.Sm
     Box(
         contentAlignment = Alignment.Center,
         modifier =
             Modifier.heightIn(min = 48.dp)
                 .clip(shape)
-                .background(if (primary) Vermilion else SurfaceRow)
-                .border(1.dp, if (primary) Color.Transparent else Hairline, shape)
+                .background(if (primary) media.base else Color.Transparent)
+                .border(1.dp, if (primary) Color.Transparent else media.outline, shape)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = CinefinSpacing.Space5),
     ) {
         Text(
             text = text,
-            color = Paper,
+            color = if (primary) media.onBase else media.bright,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium,
         )
@@ -929,35 +1042,34 @@ private fun PlayerBottomBar(
     trickplay: Trickplay?,
     speed: Float,
     subtitleEnabled: Boolean,
-    repeatActive: Boolean,
     aspectActive: Boolean,
-    sleepMinutes: Int?,
+    queueActive: Boolean,
     sleepRemainingMs: Long,
     onSeek: (Long) -> Unit,
     onScrubStart: () -> Unit,
-    onOpenSpeed: () -> Unit,
-    onOpenRepeat: () -> Unit,
     onOpenSubtitle: () -> Unit,
     onOpenAudio: () -> Unit,
     onOpenAspect: () -> Unit,
-    onOpenInfo: () -> Unit,
     onOpenQueue: () -> Unit,
-    /** 队列按钮的图标与语义：平板（有内容栏）时它变成「显示 / 隐藏选集栏」的开关 */
-    queueIconRes: Int = CoreR.drawable.ic_logs,
+    onOpenMore: () -> Unit,
+    /** 队列按钮的语义：平板（有内容栏）时它变成「显示 / 隐藏选集栏」的开关 */
     queueDescription: String,
-    queueSelected: Boolean = false,
-    onOpenSleep: () -> Unit,
-    onLock: () -> Unit,
     /** 底栏遮罩：叠在画面上的形态用渐变，折痕下屏用 null（背景由内容区承担） */
-    scrim: Brush? = ScrimBottom,
+    scrim: Brush? = null,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
                 .then(if (scrim != null) Modifier.background(scrim) else Modifier)
-                .padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
+                .padding(
+                    start = CinefinSpacing.Space5,
+                    end = CinefinSpacing.Space5,
+                    bottom = CinefinSpacing.Space3,
+                )
     ) {
         PlayerSeekBar(
             positionMs = positionMs,
@@ -969,108 +1081,91 @@ private fun PlayerBottomBar(
             onScrub = { onSeek(it) },
         )
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(CinefinSpacing.Space2))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = formatTime(positionMs),
-                style = MaterialTheme.typography.labelMedium,
-                color = Paper,
+                style = CinefinType.MonoData,
+                color = colors.onSurface,
             )
             Text(
                 text = " / " + formatTime(durationMs),
-                style = MaterialTheme.typography.labelMedium,
-                color = Mist,
+                style = CinefinType.MonoData,
+                color = colors.onSurfaceVariant,
             )
             if (sleepRemainingMs > 0L) {
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(CinefinSpacing.Space3))
                 Text(
                     text = "睡眠 " + formatTime(sleepRemainingMs),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Vermilion,
+                    color = media.bright,
                 )
             }
             Spacer(Modifier.weight(1f))
             Text(
                 text = formatSpeed(speed),
-                style = MaterialTheme.typography.labelMedium,
-                color = if (speed != 1f) Vermilion else Mist,
+                style = CinefinType.MonoData,
+                color = if (speed != 1f) media.bright else colors.onSurfaceVariant,
             )
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(CinefinSpacing.Space2))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
             /*
-             * 图标行可横向滚动：控件数量会随功能增加，窄屏（竖屏 / 分屏小窗）不至于把锁屏按钮挤出屏幕，
-             * 宽屏上内容不足以撑满时也只是靠左排列，看起来和固定排布没有区别。
+             * 高频工具行（§11 B/E）：图标 + 文字标签。低频入口（倍速 / 循环 / 信息 / 睡眠 / 画中画）
+             * 已收进「更多」，一屏只保留常用路径；窄屏（竖屏 / 小窗）仍可横向滚动兜底。
              */
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
                 modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
             ) {
-                PlayerIconButton(
-                    iconRes = CoreR.drawable.ic_gauge,
-                    contentDescription = stringResource(PlayerR.string.select_playback_speed),
-                    onClick = onOpenSpeed,
-                )
-                PlayerIconButton(
-                    iconRes = CoreR.drawable.ic_repeat,
-                    contentDescription = stringResource(PlayerR.string.player_controls_repeat),
-                    onClick = onOpenRepeat,
-                    selected = repeatActive,
-                )
-                PlayerIconButton(
+                PlayerToolButton(
                     iconRes = CoreR.drawable.ic_closed_caption,
+                    label = stringResource(PlayerR.string.player_controls_label_subtitle),
                     contentDescription = stringResource(PlayerR.string.select_subtitle_track),
-                    onClick = onOpenSubtitle,
                     selected = subtitleEnabled,
+                    onClick = onOpenSubtitle,
                 )
-                PlayerIconButton(
+                PlayerToolButton(
                     iconRes = CoreR.drawable.ic_speaker,
+                    label = stringResource(PlayerR.string.player_controls_label_audio),
                     contentDescription = stringResource(PlayerR.string.select_audio_track),
                     onClick = onOpenAudio,
                 )
-                PlayerIconButton(
+                PlayerToolButton(
                     iconRes = CoreR.drawable.ic_aspect,
+                    label = stringResource(PlayerR.string.player_controls_label_aspect),
                     contentDescription = stringResource(PlayerR.string.player_controls_aspect),
-                    onClick = onOpenAspect,
                     selected = aspectActive,
+                    onClick = onOpenAspect,
                 )
-                PlayerIconButton(
-                    iconRes = CoreR.drawable.ic_info,
-                    contentDescription = stringResource(PlayerR.string.player_controls_info),
-                    onClick = onOpenInfo,
-                )
-                PlayerIconButton(
-                    iconRes = queueIconRes,
+                PlayerToolButton(
+                    iconRes = CoreR.drawable.ic_playlist,
+                    label = stringResource(PlayerR.string.player_controls_episodes),
                     contentDescription = queueDescription,
+                    selected = queueActive,
                     onClick = onOpenQueue,
-                    selected = queueSelected,
                 )
-                PlayerIconButton(
-                    iconRes = CoreR.drawable.ic_sun,
-                    contentDescription = stringResource(PlayerR.string.player_controls_sleep_timer),
-                    onClick = onOpenSleep,
-                    selected = sleepMinutes != null,
+                PlayerToolButton(
+                    iconRes = PlayerR.drawable.ic_player_more,
+                    label = stringResource(PlayerR.string.player_controls_more),
+                    contentDescription = stringResource(PlayerR.string.player_controls_more),
+                    onClick = onOpenMore,
                 )
             }
-            PlayerIconButton(
-                iconRes = CoreR.drawable.ic_lock,
-                contentDescription = stringResource(PlayerR.string.player_controls_lock),
-                onClick = onLock,
-            )
         }
     }
 }
 
 /**
- * 进度条：底座 4dp 发丝线 + 已缓冲段 + 朱砂已播段 + 章节刻度 + 拖动时的 Trickplay 预览。 命中区做到 32dp，视觉仍只有 4dp，符合「可点目标不小于
- * 48dp」的可操作性要求。
+ * 进度条（画面覆盖层 §8.7）：6dp 轨道白 16% + 已缓冲白 24% + 媒体色已播段 + 章节刻度 + Trickplay 预览。 视觉细、命中区 34dp——「可点目标不小于
+ * 48dp」由轨道两端的工具行外扩消化。
  */
 @Composable
 internal fun PlayerSeekBar(
@@ -1085,6 +1180,8 @@ internal fun PlayerSeekBar(
 ) {
     var scrubbing by remember { mutableStateOf(false) }
     var scrubFraction by remember { mutableFloatStateOf(0f) }
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
 
     val safeDuration = durationMs.coerceAtLeast(1L)
     val playedFraction =
@@ -1103,26 +1200,26 @@ internal fun PlayerSeekBar(
         if (previewBitmap != null) {
             Row(
                 verticalAlignment = Alignment.Bottom,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = CinefinSpacing.Space2),
             ) {
                 Image(
                     bitmap = previewBitmap.asImageBitmap(),
                     contentDescription = null,
                     modifier =
                         Modifier.width(160.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .border(1.dp, Hairline, RoundedCornerShape(12.dp)),
+                            .clip(CinefinShapes.Xs)
+                            .border(1.dp, colors.outline, CinefinShapes.Xs),
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(CinefinSpacing.Space3))
                 Text(
                     text = formatTime(previewPosition),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Paper,
+                    style = CinefinType.MonoData,
+                    color = colors.onSurface,
                     modifier =
-                        Modifier.clip(RoundedCornerShape(8.dp))
-                            .background(SurfaceRow)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        Modifier.clip(CinefinShapes.Xs)
+                            .background(colors.scrim.copy(alpha = 0.8f))
+                            .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
                 )
             }
         }
@@ -1162,36 +1259,38 @@ internal fun PlayerSeekBar(
             Box(
                 modifier =
                     Modifier.fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Hairline)
+                        .height(6.dp)
+                        .clip(CinefinShapes.TwoXs)
+                        .background(colors.progressTrackOnImage)
             )
             // 已缓冲
             Box(
                 modifier =
                     Modifier.fillMaxWidth(bufferedFraction)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Mist.copy(alpha = 0.35f))
+                        .height(6.dp)
+                        .clip(CinefinShapes.TwoXs)
+                        .background(colors.onSurface.copy(alpha = 0.24f))
             )
-            // 已播（唯一强调色）
+            // 已播（唯一强调色：进度是播放器里媒体色的第一落点）
             Box(
                 modifier =
                     Modifier.fillMaxWidth(playedFraction)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Vermilion)
+                        .height(6.dp)
+                        .clip(CinefinShapes.TwoXs)
+                        .background(media.base)
             )
             // 章节刻度：细白线，只做位置提示
             chapters.forEach { chapter ->
                 val fraction = (chapter.startPosition.toFloat() / safeDuration).coerceIn(0f, 1f)
                 Box(
-                    modifier = Modifier.fillMaxWidth(fraction).height(4.dp).padding(end = 0.dp),
+                    modifier = Modifier.fillMaxWidth(fraction).height(6.dp),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Box(
                         modifier =
-                            Modifier.width(2.dp).height(9.dp).background(Paper.copy(alpha = 0.55f))
+                            Modifier.width(2.dp)
+                                .height(14.dp)
+                                .background(colors.onSurface.copy(alpha = 0.5f))
                     )
                 }
             }
@@ -1202,9 +1301,9 @@ internal fun PlayerSeekBar(
             ) {
                 Box(
                     modifier =
-                        Modifier.size(if (scrubbing) 16.dp else 12.dp)
-                            .clip(CircleShape)
-                            .background(Paper)
+                        Modifier.size(if (scrubbing) 20.dp else 14.dp)
+                            .clip(CinefinShapes.TwoXs)
+                            .background(colors.onSurface)
                 )
             }
         }
@@ -1229,11 +1328,15 @@ internal fun PlayerIconButton(
     error: Boolean = false,
     /** 激活徽标：右上角朱砂小点，表示"有内容 / 需注意" */
     badge: Boolean = false,
+    /** 是否使用覆盖层玻璃底：画面上的按钮用玻璃（§8.7），实体面板内的按钮保持透明 */
+    glass: Boolean = true,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
-    val shape = CircleShape
+    val shape = CinefinShapes.Md
 
     Box(
         contentAlignment = Alignment.Center,
@@ -1245,18 +1348,24 @@ internal fun PlayerIconButton(
                     scaleX = scale
                     scaleY = scale
                     // 禁用态整体降到 38%，与 Material 的禁用观感一致
-                    alpha = if (enabled) 1f else 0.38f
+                    alpha = if (enabled) 1f else colors.disabledAlpha
                 }
                 .clip(shape)
                 .background(
                     when {
-                        error -> Vermilion.copy(alpha = 0.18f)
-                        selected || pressed -> SurfaceRow
-                        focused -> SurfaceHigh
+                        error -> colors.error.copy(alpha = 0.16f)
+                        selected -> media.container
+                        pressed -> colors.scrim.copy(alpha = 0.72f)
+                        focused -> colors.stateHover
+                        glass -> colors.scrim.copy(alpha = 0.45f)
                         else -> Color.Transparent
                     }
                 )
-                .then(if (focused) Modifier.border(2.dp, Vermilion, shape) else Modifier)
+                .then(if (selected) Modifier.border(1.dp, media.outline, shape) else Modifier)
+                .then(
+                    if (focused) Modifier.border(2.dp, media.base.copy(alpha = 0.6f), shape)
+                    else Modifier
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     // 暗色影院风格不用涟漪：按下反馈由缩放 + 底色承担
@@ -1278,14 +1387,19 @@ internal fun PlayerIconButton(
         if (loading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(size * 0.45f),
-                color = Paper,
+                color = colors.onSurface,
                 strokeWidth = 2.dp,
             )
         } else {
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
-                tint = if (error || selected) Vermilion else Paper,
+                tint =
+                    when {
+                        error -> colors.error
+                        selected -> media.bright
+                        else -> colors.onSurface
+                    },
                 modifier = Modifier.size(size * 0.5f),
             )
         }
@@ -1296,9 +1410,80 @@ internal fun PlayerIconButton(
                         .padding(top = size * 0.14f, end = size * 0.14f)
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(Vermilion)
+                        .background(media.base)
             )
         }
+    }
+}
+
+/**
+ * 画面覆盖层工具键（§8.7 + §11 B）：图标 + 文字标签，玻璃底。
+ *
+ * 选中态用媒体色融入控件本体（底 Media.Container + 描边 Media.Outline + 亮色图标文字）， 不使用独立色点。命中区高 56dp，宽 ≥60dp。
+ */
+@Composable
+internal fun PlayerToolButton(
+    iconRes: Int,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    contentDescription: String = label,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val shape = CinefinShapes.Md
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier =
+            modifier
+                // 5 个高频键在 360dp 手机上不换行：56dp 底 + 8dp 间距 + 20dp 边距 ≈ 352dp
+                .widthIn(min = 56.dp)
+                .heightIn(min = 56.dp)
+                .clip(shape)
+                .background(
+                    when {
+                        selected && pressed -> media.containerPressed
+                        selected -> media.container
+                        pressed -> colors.scrim.copy(alpha = 0.72f)
+                        else -> colors.scrim.copy(alpha = 0.45f)
+                    }
+                )
+                .then(if (selected) Modifier.border(1.dp, media.outline, shape) else Modifier)
+                .then(
+                    if (focused) Modifier.border(2.dp, media.base.copy(alpha = 0.6f), shape)
+                    else Modifier
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClickLabel = contentDescription,
+                    onClick = onClick,
+                )
+                .semantics(mergeDescendants = true) {
+                    this.selected = selected
+                    this.contentDescription = contentDescription
+                }
+                .padding(horizontal = CinefinSpacing.Space1, vertical = CinefinSpacing.Space1),
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = if (selected) media.bright else colors.onSurface,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) media.bright else colors.onSurfaceVariant,
+            maxLines = 1,
+        )
     }
 }
 
@@ -1308,27 +1493,30 @@ private fun SkipSegmentChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val shape = CinefinShapes.Full
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(SurfaceLow.copy(alpha = 0.92f))
-                .border(1.dp, Hairline, RoundedCornerShape(999.dp))
+                .clip(shape)
+                .background(colors.scrim.copy(alpha = 0.8f))
+                .border(1.dp, media.outline, shape)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space3),
     ) {
         Icon(
             painter = painterResource(CoreR.drawable.ic_skip_forward),
             contentDescription = null,
-            tint = Vermilion,
+            tint = media.bright,
             modifier = Modifier.size(18.dp),
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(CinefinSpacing.Space2))
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
-            color = Paper,
+            color = colors.onSurface,
         )
     }
 }
@@ -1338,38 +1526,23 @@ private fun LockedOverlay(
     onUnlock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val media = LocalMediaColors.current
     Box(
         contentAlignment = Alignment.Center,
         modifier =
             modifier
-                .padding(end = 20.dp)
+                .padding(end = CinefinSpacing.Space5)
                 .size(56.dp)
-                .clip(CircleShape)
-                .background(SurfaceLow.copy(alpha = 0.86f))
-                .border(1.dp, Hairline, CircleShape)
+                .clip(CinefinShapes.Lg)
+                .background(media.container)
+                .border(1.dp, media.outline, CinefinShapes.Lg)
                 .clickable(onClick = onUnlock),
     ) {
         Icon(
             painter = painterResource(CoreR.drawable.ic_unlock),
             contentDescription = stringResource(PlayerR.string.player_controls_unlock),
-            tint = Paper,
+            tint = media.bright,
             modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
-@Composable
-private fun SheetHandle() {
-    Box(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier =
-                Modifier.width(36.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Hairline)
         )
     }
 }
@@ -1437,12 +1610,18 @@ private fun videoQualityLabel(tracks: Tracks?): String? {
 
 @Composable
 internal fun PanelTitle(text: String) {
+    val colors = LocalCinefinColors.current
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = Paper,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = colors.onSurfaceFaint,
+        modifier =
+            Modifier.padding(
+                start = CinefinSpacing.Space5,
+                end = CinefinSpacing.Space5,
+                top = CinefinSpacing.Space3,
+                bottom = CinefinSpacing.Space2,
+            ),
     )
 }
 
@@ -1458,25 +1637,34 @@ internal fun PanelRow(
     /** 列表型面板（如播放队列）在文字前放一张 16:9 缩略图 */
     leadingArtworkUri: String? = null,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val shape = CinefinShapes.Sm
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             Modifier.fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .padding(horizontal = CinefinSpacing.Space3, vertical = 2.dp)
+                .heightIn(min = 52.dp)
+                .clip(shape)
                 .background(
-                    if (selected && enabled) Vermilion.copy(alpha = 0.14f) else Color.Transparent
+                    if (selected && enabled) media.container else colors.surfaceContainerLow
+                )
+                .border(
+                    1.dp,
+                    if (selected && enabled) media.outline else colors.outlineVariant,
+                    shape,
                 )
                 .clickable(enabled = enabled, onClick = onClick)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2),
     ) {
         if (!leadingArtworkUri.isNullOrBlank()) {
             Box(
                 modifier =
                     Modifier.width(72.dp)
                         .height(41.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(SurfaceHigh)
+                        .clip(CinefinShapes.Xs)
+                        .background(colors.surfaceContainerHigh)
             ) {
                 AsyncImage(
                     model = leadingArtworkUri,
@@ -1485,7 +1673,7 @@ internal fun PanelRow(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(CinefinSpacing.Space3))
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -1493,9 +1681,9 @@ internal fun PanelRow(
                 style = MaterialTheme.typography.bodyLarge,
                 color =
                     when {
-                        !enabled -> Mist
-                        selected -> Vermilion
-                        else -> Paper
+                        !enabled -> colors.onSurfaceFaint
+                        selected -> media.bright
+                        else -> colors.onSurface
                     },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1504,7 +1692,7 @@ internal fun PanelRow(
                 Text(
                     text = caption,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Mist,
+                    color = colors.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1514,7 +1702,7 @@ internal fun PanelRow(
             Icon(
                 painter = painterResource(CoreR.drawable.ic_check),
                 contentDescription = null,
-                tint = Vermilion,
+                tint = media.base,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -1522,25 +1710,93 @@ internal fun PanelRow(
 }
 
 @Composable
-internal fun PanelList(content: @Composable () -> Unit) {
+internal fun ColumnScope.PanelList(content: @Composable () -> Unit) {
     Column(
         modifier =
             Modifier.fillMaxWidth()
-                .heightIn(max = 420.dp)
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 20.dp)
+                .padding(bottom = CinefinSpacing.Space5)
     ) {
         content()
     }
 }
+
+/**
+ * 右侧面板抽屉（§11 C）：半透明底直接盖在画面上，标题固定在顶部、内容区滚动。
+ *
+ * 宿主负责宽度（手机整宽 / 宽屏 46% 收敛到 360–560dp）与滑入滑出动画；本组件只画表面： 左缘 1dp 结构线 + 顶部标题 +
+ * 关闭键。抽屉本体吞掉空白点击，避免误触「点外部关闭」的捕获层。
+ */
+@Composable
+private fun PlayerPanelDrawer(
+    @StringRes titleRes: Int,
+    width: Dp,
+    onClose: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val title = stringResource(titleRes)
+    Row(
+        modifier =
+            Modifier.width(width)
+                .fillMaxHeight()
+                .background(colors.surfaceContainer.copy(alpha = 0.95f))
+                // 抽屉本体吞掉空白点击：用 pointerInput 而不是 clickable，避免给整块面板叠一个"按钮"语义
+                .pointerInput(Unit) { detectTapGestures {} }
+                .semantics { paneTitle = title }
+    ) {
+        Box(Modifier.width(1.dp).fillMaxHeight().background(colors.outline))
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .padding(start = CinefinSpacing.Space5, end = CinefinSpacing.Space2),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                PlayerIconButton(
+                    iconRes = CoreR.drawable.ic_close,
+                    contentDescription = stringResource(PlayerR.string.player_controls_panel_close),
+                    onClick = onClose,
+                    glass = false,
+                )
+            }
+            content()
+        }
+    }
+}
+
+/** 抽屉标题：与面板内容一一对应（各面板的顶层标题已移除，标题只在抽屉头出现一次）。 */
+@StringRes
+private fun panelTitleRes(panel: PlayerPanel): Int =
+    when (panel) {
+        PlayerPanel.Speed -> PlayerR.string.select_playback_speed
+        PlayerPanel.Repeat -> PlayerR.string.player_controls_repeat
+        PlayerPanel.Subtitle -> PlayerR.string.select_subtitle_track
+        PlayerPanel.Audio -> PlayerR.string.select_audio_track
+        PlayerPanel.Aspect -> PlayerR.string.player_controls_aspect
+        PlayerPanel.Info -> PlayerR.string.player_controls_info
+        PlayerPanel.Queue -> PlayerR.string.player_controls_queue
+        PlayerPanel.Sleep -> PlayerR.string.player_controls_sleep_timer
+        PlayerPanel.More,
+        PlayerPanel.None -> PlayerR.string.player_controls_more
+    }
 
 @Composable
 private fun SpeedPanel(
     current: Float,
     onSelect: (Float) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.select_playback_speed))
+    Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
             SpeedOptions.forEach { speed ->
                 val selected = kotlin.math.abs(speed - current) < 0.01f
@@ -1567,8 +1823,7 @@ private fun RepeatPanel(
     canShuffle: Boolean,
     onSelect: (repeatMode: Int, shuffle: Boolean) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.player_controls_repeat))
+    Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
             PanelRow(
                 label = stringResource(PlayerR.string.player_controls_repeat_off),
@@ -1613,8 +1868,7 @@ private fun AspectPanel(
     supported: Boolean,
     onSelect: (AspectMode) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.player_controls_aspect))
+    Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
             AspectMode.entries.forEach { mode ->
                 PanelRow(
@@ -1684,9 +1938,9 @@ private fun SubtitlePanel(
             )
             .map { stringResource(it) }
     val sizeLabels = SubtitleStyle.SIZES.map { "${(it * 100).roundToInt()}%" }
+    val colors = LocalCinefinColors.current
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.select_subtitle_track))
+    Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
             /*
              * 延迟放最上面：调 ±0.1s 是字幕面板最高频的操作，
@@ -1697,8 +1951,12 @@ private fun SubtitlePanel(
                 Text(
                     text = stringResource(PlayerR.string.player_subtitle_loading),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Mist,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        ),
                 )
             }
             SubtitleDelayRow(
@@ -1712,8 +1970,12 @@ private fun SubtitlePanel(
                 Text(
                     text = stringResource(PlayerR.string.player_subtitle_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Mist,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space2,
+                        ),
                 )
             } else {
                 // 主字幕
@@ -1828,12 +2090,18 @@ private fun SubtitleStyleRow(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
 ) {
+    val colors = LocalCinefinColors.current
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         Text(
             text = stringResource(titleRes),
             style = MaterialTheme.typography.bodyMedium,
-            color = Mist,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp),
+            color = colors.onSurfaceVariant,
+            modifier =
+                Modifier.padding(
+                    start = CinefinSpacing.Space5,
+                    end = CinefinSpacing.Space5,
+                    bottom = CinefinSpacing.Space1,
+                ),
         )
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1853,7 +2121,7 @@ private fun SubtitleStyleRow(
     }
 }
 
-/** 面板里的小胶囊按钮：选中态用朱砂，未选中用墨系 */
+/** 面板里的小胶囊按钮（§8.3 Chip）：未选中中性底 + 描边，选中态媒体色融入控件本体。 */
 @Composable
 private fun PanelChip(
     label: String,
@@ -1861,12 +2129,15 @@ private fun PanelChip(
     onClick: () -> Unit,
     contentDescription: String? = null,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val shape = CinefinShapes.Sm
     Box(
         contentAlignment = Alignment.Center,
         modifier =
-            Modifier.clip(RoundedCornerShape(999.dp))
-                .background(if (selected) Vermilion.copy(alpha = 0.18f) else SurfaceRow)
-                .border(1.dp, if (selected) Vermilion else Hairline, RoundedCornerShape(999.dp))
+            Modifier.clip(shape)
+                .background(if (selected) media.container else colors.surfaceContainer)
+                .border(1.dp, if (selected) media.outline else colors.outline, shape)
                 .clickable(onClick = onClick)
                 .semantics {
                     this.selected = selected
@@ -1874,12 +2145,12 @@ private fun PanelChip(
                         this.contentDescription = contentDescription
                     }
                 }
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) Vermilion else Paper,
+            color = if (selected) media.bright else colors.onSurfaceVariant,
         )
     }
 }
@@ -1906,8 +2177,8 @@ private fun AudioPanel(
     onAdjustDelay: (Long) -> Unit,
     onResetDelay: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.select_audio_track))
+    val colors = LocalCinefinColors.current
+    Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
             // 延迟放最上面：和字幕面板一致，最高频的调节项不该被列表挤到下面
             PanelTitle(stringResource(PlayerR.string.player_audio_delay))
@@ -1920,8 +2191,12 @@ private fun AudioPanel(
                 Text(
                     text = stringResource(PlayerR.string.player_audio_no_track),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Mist,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space2,
+                        ),
                 )
             } else {
                 state.options.forEach { option ->
@@ -1996,8 +2271,7 @@ private fun InfoPanel(
     val subtitleCount =
         runtime.tracks?.groups?.count { it.type == C.TRACK_TYPE_TEXT && it.isSupported } ?: 0
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.player_controls_info))
+    Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_title),
@@ -2063,20 +2337,23 @@ private fun InfoPanel(
 
 @Composable
 private fun InfoRow(label: String, value: String) {
+    val colors = LocalCinefinColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space5, vertical = CinefinSpacing.Space2),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = Mist,
+            color = colors.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Paper,
+            style = CinefinType.MonoDataSmall,
+            color = colors.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 240.dp),
@@ -2090,19 +2367,24 @@ private fun QueuePanel(
     currentIndex: Int,
     onSelect: (Int) -> Unit,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     val seasons = entries.mapNotNull { it.seasonNumber }.distinct().sorted()
     val currentSeason = entries.getOrNull(currentIndex)?.seasonNumber
     var selectedSeason by
         remember(seasons, currentSeason) { mutableStateOf(currentSeason ?: seasons.firstOrNull()) }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.player_controls_queue))
+    Column(modifier = Modifier.fillMaxSize()) {
         if (entries.isEmpty()) {
             Text(
                 text = stringResource(PlayerR.string.player_controls_queue_empty),
                 style = MaterialTheme.typography.bodyMedium,
-                color = Mist,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                color = colors.onSurfaceVariant,
+                modifier =
+                    Modifier.padding(
+                        horizontal = CinefinSpacing.Space5,
+                        vertical = CinefinSpacing.Space3,
+                    ),
             )
             return@Column
         }
@@ -2112,8 +2394,8 @@ private fun QueuePanel(
             ScrollableTabRow(
                 selectedTabIndex = seasons.indexOf(selectedSeason).coerceAtLeast(0),
                 containerColor = Color.Transparent,
-                contentColor = Vermilion,
-                edgePadding = 20.dp,
+                contentColor = media.base,
+                edgePadding = CinefinSpacing.Space5,
                 divider = {},
             ) {
                 seasons.forEach { season ->
@@ -2127,8 +2409,8 @@ private fun QueuePanel(
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         },
-                        selectedContentColor = Vermilion,
-                        unselectedContentColor = Mist,
+                        selectedContentColor = media.bright,
+                        unselectedContentColor = colors.onSurfaceVariant,
                     )
                 }
             }
@@ -2164,54 +2446,68 @@ internal fun queueLabel(index: Int, entry: QueueEntry): String {
     }
 }
 
+/**
+ * 「更多」聚合面板（§11 A/E）：低频入口统一收在这里，不再常驻画面。
+ *
+ * 底栏只留高频（字幕 / 音轨 / 画面 / 选集 / 更多）；倍速、循环、信息、睡眠、画中画从「更多」进，
+ * 小窗（Compact）形态下这里也是唯一的功能入口。选中后直接把面板切过去，少一次开合动画。
+ */
 @Composable
-private fun MorePanel(onOpen: (PlayerPanel) -> Unit) {
-    /*
-     * 小窗 / 窄宽形态的聚合入口：底栏那排图标放不下时，把同样的功能收进一个列表。
-     * 选中后直接把面板切过去（不先关闭再打开），少一次弹出动画。
-     */
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.player_controls_more))
-        PanelRow(
-            label = stringResource(PlayerR.string.select_playback_speed),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Speed) },
-        )
-        PanelRow(
-            label = stringResource(PlayerR.string.player_controls_repeat),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Repeat) },
-        )
-        PanelRow(
-            label = stringResource(PlayerR.string.select_subtitle_track),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Subtitle) },
-        )
-        PanelRow(
-            label = stringResource(PlayerR.string.select_audio_track),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Audio) },
-        )
-        PanelRow(
-            label = stringResource(PlayerR.string.player_controls_aspect),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Aspect) },
-        )
-        PanelRow(
-            label = stringResource(PlayerR.string.player_controls_queue),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Queue) },
-        )
-        PanelRow(
-            label = stringResource(PlayerR.string.player_controls_info),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Info) },
-        )
-        PanelRow(
-            label = stringResource(PlayerR.string.player_controls_sleep_timer),
-            selected = false,
-            onClick = { onOpen(PlayerPanel.Sleep) },
-        )
+private fun MorePanel(
+    isPipSupported: Boolean,
+    onPip: () -> Unit,
+    onOpen: (PlayerPanel) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        PanelList {
+            if (isPipSupported) {
+                PanelRow(
+                    label = stringResource(PlayerR.string.player_controls_pip),
+                    selected = false,
+                    onClick = onPip,
+                )
+            }
+            PanelRow(
+                label = stringResource(PlayerR.string.select_playback_speed),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Speed) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_repeat),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Repeat) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.select_subtitle_track),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Subtitle) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.select_audio_track),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Audio) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_aspect),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Aspect) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_queue),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Queue) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_info),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Info) },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_sleep_timer),
+                selected = false,
+                onClick = { onOpen(PlayerPanel.Sleep) },
+            )
+        }
     }
 }
 
@@ -2220,8 +2516,7 @@ private fun SleepPanel(
     currentMinutes: Int?,
     onSelect: (Int?) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        PanelTitle(stringResource(PlayerR.string.player_controls_sleep_timer))
+    Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
             PanelRow(
                 label = stringResource(PlayerR.string.player_controls_sleep_off),

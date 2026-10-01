@@ -13,8 +13,9 @@ import android.widget.FrameLayout
  * 这样单击显隐、双击快进/快退、左右滑动进度、上下滑动亮度音量、双指缩放这些既有手势 依然完全由
  * [com.zhangwenkang.cinefin.utils.PlayerGestureHelper] 处理， 不会因为控制层换成 Compose 就把手势全吞掉。
  *
- * 交互区域按**画面区**（而不是整个控件）划带：顶部 76dp / 中央 520×180dp / 底部 210dp。
- * 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管， 这样 Compose 内容不会被手势层穿透，画面区里的手势却一点不受影响。
+ * 交互区域按**画面区**（而不是整个控件）划带：顶部 76dp / 中央 520×180dp / 底部 210dp； 竖屏（SplitPortrait）里画面更矮、底栏更高（图标 +
+ * 文字的工具行），单独用 72 / 150dp 两条带宽。 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管， 这样 Compose
+ * 内容不会被手势层穿透，画面区里的手势却一点不受影响。
  *
  * 错误卡片比中央控件高一截，出现时中央命中区放大到 600×400dp，否则重试按钮点不到。
  */
@@ -100,7 +101,7 @@ constructor(
 
         // 竖屏画面区更矮，命中带跟着收窄，否则整块画面区都被控件吃掉、手势无处可落
         val portrait = chrome == PlayerChromeLayout.SplitPortrait
-        val topBand = RectF(0f, 0f, videoWidth, (if (portrait) 56f else 76f) * density)
+        val topBand = RectF(0f, 0f, videoWidth, (if (portrait) 72f else 76f) * density)
         val centerHalfWidth = if (errorVisible) 300f else if (portrait) 200f else 260f
         val centerHalfHeight = if (errorVisible) 200f else if (portrait) 64f else 90f
         val centerBand =
@@ -110,7 +111,8 @@ constructor(
                 videoWidth / 2f + centerHalfWidth * density,
                 videoHeight / 2f + centerHalfHeight * density,
             )
-        val bottomBandHeight = (if (portrait) 100f else 210f) * density
+        // 底栏 = 进度条 + 时间行 + 图标文案工具行（≥52dp），竖屏命中带同步加高
+        val bottomBandHeight = (if (portrait) 150f else 210f) * density
         val bottomBand = RectF(0f, videoHeight - bottomBandHeight, videoWidth, videoHeight)
         return topBand.contains(x, y) || centerBand.contains(x, y) || bottomBand.contains(x, y)
     }

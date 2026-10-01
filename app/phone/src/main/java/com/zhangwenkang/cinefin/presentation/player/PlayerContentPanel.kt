@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,11 +45,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
@@ -94,6 +101,8 @@ private fun PlayerContentTabItem(
             PlayerContentTab.Episodes -> stringResource(PlayerR.string.player_controls_episodes)
             PlayerContentTab.Queue -> stringResource(PlayerR.string.player_controls_queue)
         }
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
@@ -104,7 +113,7 @@ private fun PlayerContentTabItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) Paper else Mist,
+            color = if (selected) media.bright else colors.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
         Box(
@@ -112,7 +121,7 @@ private fun PlayerContentTabItem(
                 Modifier.width(20.dp)
                     .height(2.dp)
                     .clip(CircleShape)
-                    .background(if (selected) Vermilion else Color.Transparent)
+                    .background(if (selected) media.base else Color.Transparent)
         )
     }
 }
@@ -131,13 +140,18 @@ internal fun PlayerEpisodeQueueList(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 24.dp),
 ) {
+    val colors = LocalCinefinColors.current
     if (entries.isEmpty()) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text(
                 text = stringResource(PlayerR.string.player_controls_queue_empty),
                 style = MaterialTheme.typography.bodyMedium,
-                color = Mist,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+                color = colors.onSurfaceVariant,
+                modifier =
+                    Modifier.padding(
+                        horizontal = CinefinSpacing.Space5,
+                        vertical = CinefinSpacing.Space6,
+                    ),
             )
         }
         return
@@ -166,13 +180,13 @@ internal fun PlayerEpisodeQueueList(
                                         season,
                                     ),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = Mist,
+                                color = colors.onSurfaceVariant,
                                 modifier =
                                     Modifier.padding(
-                                        start = 20.dp,
-                                        end = 20.dp,
-                                        top = 16.dp,
-                                        bottom = 4.dp,
+                                        start = CinefinSpacing.Space5,
+                                        end = CinefinSpacing.Space5,
+                                        top = CinefinSpacing.Space4,
+                                        bottom = CinefinSpacing.Space1,
                                     ),
                             )
                         }
@@ -202,24 +216,30 @@ private fun PlayerContentRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 3.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(if (selected) Vermilion.copy(alpha = 0.14f) else Color.Transparent)
+                .padding(horizontal = CinefinSpacing.Space2, vertical = 3.dp)
+                .clip(CinefinShapes.Sm)
+                .background(if (selected) media.container else Color.Transparent)
+                .then(
+                    if (selected) Modifier.border(1.dp, media.outline, CinefinShapes.Sm)
+                    else Modifier
+                )
                 .clickable(onClick = onClick)
-                .padding(6.dp),
+                .padding(CinefinSpacing.Space2),
     ) {
         // 缩略图：剧集截图（16:9），没有图时留一块底色占位，列表不会跳高度
         Box(
             modifier =
                 Modifier.width(96.dp)
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(SurfaceHigh)
+                    .clip(CinefinShapes.Xs)
+                    .background(colors.surfaceContainerHigh)
         ) {
             if (!entry.artworkUri.isNullOrBlank()) {
                 AsyncImage(
@@ -230,25 +250,31 @@ private fun PlayerContentRow(
                 )
             }
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(CinefinSpacing.Space3))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = episodeLabel(index, entry),
                 style = MaterialTheme.typography.labelMedium,
-                color = if (selected) Vermilion else Mist,
+                color = if (selected) media.bright else colors.onSurfaceVariant,
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 text = entry.title.ifBlank { "—" },
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (selected) Vermilion else Paper,
+                color = colors.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         if (selected) {
-            Spacer(Modifier.width(6.dp))
-            Box(Modifier.size(6.dp).clip(CircleShape).background(Vermilion))
+            Spacer(Modifier.width(CinefinSpacing.Space2))
+            // 选中指示用图标而不是独立色点（§2.6 第 1 条：禁止色点 / 色块）
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_check),
+                contentDescription = null,
+                tint = media.base,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
@@ -267,7 +293,8 @@ internal fun PlayerSideContent(
     modifier: Modifier = Modifier,
 ) {
     var tab by remember { mutableStateOf(PlayerContentTab.Episodes) }
-    Column(modifier = modifier.background(SurfaceLow)) {
+    val colors = LocalCinefinColors.current
+    Column(modifier = modifier.background(colors.surfaceDim)) {
         PlayerContentTabRow(
             selected = tab,
             onSelect = { tab = it },
@@ -277,10 +304,11 @@ internal fun PlayerSideContent(
                     contentDescription =
                         stringResource(PlayerR.string.player_controls_side_panel_collapse),
                     onClick = onCollapse,
+                    glass = false,
                 )
             },
         )
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.outlineVariant))
         PlayerEpisodeQueueList(
             entries = entries,
             currentIndex = currentIndex,
@@ -307,13 +335,19 @@ internal fun PlayerBottomContent(
     showHandle: Boolean = true,
 ) {
     var tab by remember { mutableStateOf(PlayerContentTab.Episodes) }
-    Column(modifier = modifier.background(SurfaceLow)) {
+    val colors = LocalCinefinColors.current
+    Column(modifier = modifier.background(colors.surfaceDim)) {
         if (showHandle) {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(Modifier.width(36.dp).height(4.dp).clip(CircleShape).background(Hairline))
+                Box(
+                    Modifier.width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(colors.outlineVariant)
+                )
             }
         }
         PlayerContentTabRow(selected = tab, onSelect = { tab = it })
@@ -344,40 +378,53 @@ private fun PlayerEpisodeCards(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     if (entries.isEmpty()) {
         Text(
             text = stringResource(PlayerR.string.player_controls_queue_empty),
             style = MaterialTheme.typography.bodyMedium,
-            color = Mist,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            color = colors.onSurfaceVariant,
+            modifier =
+                Modifier.padding(
+                    horizontal = CinefinSpacing.Space5,
+                    vertical = CinefinSpacing.Space4,
+                ),
         )
         return
     }
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+        contentPadding =
+            PaddingValues(
+                horizontal = CinefinSpacing.Space4,
+                vertical = CinefinSpacing.Space2,
+            ),
         modifier = modifier.fillMaxWidth(),
     ) {
         itemsIndexed(entries) { index, entry ->
             val selected = index == currentIndex
-            val shape = RoundedCornerShape(12.dp)
+            val shape = CinefinShapes.Sm
             Column(
                 modifier =
                     Modifier.width(184.dp)
                         .clip(shape)
-                        .background(if (selected) SurfaceRow else SurfaceHigh)
+                        .background(if (selected) media.container else colors.surfaceContainerHigh)
                         .then(
                             if (selected) {
-                                Modifier.border(1.dp, Vermilion.copy(alpha = 0.6f), shape)
+                                Modifier.border(1.dp, media.outline, shape)
                             } else {
                                 Modifier
                             }
                         )
                         .clickable { onSelect(index) }
             ) {
-                // 缩略图铺满卡片上半部分（16:9），正在播放的集角上压一个朱砂角标
+                // 缩略图铺满卡片上半部分（16:9），正在播放的集角上压一个媒体色角标
                 Box(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(SurfaceHigh)
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .background(colors.surfaceContainerHigh)
                 ) {
                     if (!entry.artworkUri.isNullOrBlank()) {
                         AsyncImage(
@@ -391,27 +438,30 @@ private fun PlayerEpisodeCards(
                         Text(
                             text = stringResource(PlayerR.string.player_controls_now_playing),
                             style = MaterialTheme.typography.labelSmall,
-                            color = Paper,
+                            color = media.onBase,
                             modifier =
                                 Modifier.align(Alignment.BottomStart)
-                                    .padding(6.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Vermilion)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    .padding(CinefinSpacing.Space2)
+                                    .clip(CinefinShapes.Xs)
+                                    .background(media.base)
+                                    .padding(
+                                        horizontal = CinefinSpacing.Space2,
+                                        vertical = 2.dp,
+                                    ),
                         )
                     }
                 }
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(CinefinSpacing.Space3)) {
                     Text(
                         text = episodeLabel(index, entry),
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (selected) Vermilion else Mist,
+                        color = if (selected) media.bright else colors.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(CinefinSpacing.Space1))
                     Text(
                         text = entry.title.ifBlank { "—" },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Paper,
+                        color = colors.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -447,12 +497,13 @@ internal fun PlayerCompactBar(
     onOpenMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalCinefinColors.current
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
-                .background(ScrimBottom)
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .background(playerBottomScrim())
+                .padding(horizontal = CinefinSpacing.Space2, vertical = CinefinSpacing.Space1)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PlayerIconButton(
@@ -461,22 +512,22 @@ internal fun PlayerCompactBar(
                 onClick = onPlayPause,
                 size = 40.dp,
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(CinefinSpacing.Space2))
             Text(
                 text = title.ifBlank { "—" },
                 style = MaterialTheme.typography.labelLarge,
-                color = Paper,
+                color = colors.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             Text(
                 text = "${formatTime(positionMs)} / ${formatTime(durationMs)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = Mist,
+                style = CinefinType.MonoDataSmall,
+                color = colors.onSurfaceVariant,
             )
             PlayerIconButton(
-                iconRes = CoreR.drawable.ic_logs,
+                iconRes = PlayerR.drawable.ic_player_more,
                 contentDescription = stringResource(PlayerR.string.player_controls_more),
                 onClick = onOpenMore,
                 size = 40.dp,

@@ -36,6 +36,10 @@
     <string name="player_controls_info_buffered">Buffered</string>
     <string name="player_controls_unlock">Unlock controls</string>
     <string name="player_controls_pip">Picture-in-picture</string>
+    <string name="player_controls_label_subtitle">Subtitles</string>
+    <string name="player_controls_label_audio">Audio</string>
+    <string name="player_controls_label_aspect">Aspect</string>
+    <string name="player_controls_panel_close">Close panel</string>
     <string name="player_controls_rewind">Rewind</string>
     <string name="player_controls_exit">Exit player</string>
     <string name="player_controls_fast_forward">Fast forward</string>

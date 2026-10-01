@@ -43,6 +43,7 @@ import coil3.BitmapImage
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
+import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
@@ -167,7 +168,8 @@ class PlayerActivity : BasePlayerActivity() {
          * 只画字幕不处理触摸，手势仍由 PlayerView 上的 PlayerGestureHelper 接管。
          */
         binding.subtitleOverlayCompose.setContent {
-            CinefinTheme(surfaceBackground = false) {
+            // 播放视频 = 影视域：字幕层与控制层共用琥珀媒体色，颜色只服务进度 / 激活 / 主行动
+            CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
                 val subtitleState by
                     viewModel.subtitleController.overlayState.collectAsStateWithLifecycle()
                 PlayerSubtitleOverlay(
@@ -179,7 +181,7 @@ class PlayerActivity : BasePlayerActivity() {
 
         binding.controlOverlayCompose.setContent {
             // 注意：这里必须关掉主题底色，否则那层不透明 Surface 会把视频画面整个盖住
-            CinefinTheme(surfaceBackground = false) {
+            CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val subtitlePanelState by viewModel.subtitlePanelState.collectAsStateWithLifecycle()
                 val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
@@ -493,7 +495,8 @@ class PlayerActivity : BasePlayerActivity() {
             binding.controlOverlay.chrome = layout.chrome
             binding.controlOverlay.videoWidthPx = videoWidthPx
             binding.controlOverlay.videoHeightPx = videoHeightPx
-            binding.controlOverlay.compactBarHeightPx = 72f * density
+            // 小窗单行控制条：图标行 + 6dp 进度条 + 内边距 ≈ 92dp（与 PlayerCompactBar 同步）
+            binding.controlOverlay.compactBarHeightPx = 92f * density
             /*
              * 骨架切换后要重算整层可见性：平板侧栏 / 竖屏内容区 / 小窗控制条是常驻内容，
              * 控制层淡出时它们不能跟着一起退出合成（否则内容栏消失且点不动）。
