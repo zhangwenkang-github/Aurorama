@@ -182,6 +182,7 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - [x] **配套**：`MainViewModel` 离线偏好监听（只刷新状态，不回 Loading，避免设置页闪跳与滚动归零）；`DrawerViewModel` 的 `Provider<JellyfinRepository>` 按需解析 + `LaunchedEffect(isOfflineMode)` 刷新导航数据（切回在线侧轨库列表立即恢复）；首页「最新」区块按 `pref_ui_home_library_id` 过滤；音乐库按 `pref_ui_music_library_id` 作为 `parentId` 查询；书架优先 `pref_ui_bookshelf_library_id`
 - [x] **门禁**：`:app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest` 全绿（20 项，新增 `NavigationIaTest` 6 项 / `LibraryCatalogTest` 4 项 / `BookshelfPickTest` 2 项）
 - [x] **真机（Pad 5 `43af8627`）**：平板形态侧轨 8 条 IA + 媒体库二级 5 个子项；控制台页无 app 侧轨、左缘滑动不再拉出 app 抽屉；设置页「客户端设置」标题 / 媒体库三选项 / 侧栏显示开关（关掉 → 侧轨即时消失、重开恢复）；离线模式在最后且开关不跳页（切到离线侧轨子项与控制台入口即时隐藏，切回即时恢复）；手机形态（`wm 1080x2400`+`density 420` ≈ 411dp）无 hamburger（顶栏标题 x=20dp）、左缘 / 左侧拖动都不出抽屉、底部 4 Tab 与媒体库（共 5 个媒体库）/ 书架（共 5 个项目）行为不变。设备副作用已还原（`wm size / density` reset、App force-stop、`/sdcard` 临时 xml 清理）；device-lock 已登记并释放
+- [x] **TV 兼容**：两个新设置分类（媒体库 / 侧栏显示）限 `DeviceType.PHONE` —— TV 端设置页不渲染 `PreferenceDynamicSelect`（该模型未在 TV 实现），不会出现空行
 - 本期边界（留给负责人）：内容页（首页 / 音乐 / 书架）在**不重启**的情况下仍持有进入时解析的仓库实例，离线模式对它们的切换在**下一次启动**完全生效；导航面（侧轨 / 抽屉 / 入口门控）已即时生效
 
 ## 5. 验收

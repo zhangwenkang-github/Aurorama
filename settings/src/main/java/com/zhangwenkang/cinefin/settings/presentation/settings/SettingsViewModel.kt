@@ -175,6 +175,8 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_libraries,
                             iconDrawableId = R.drawable.ic_layout_dashboard,
+                            // 库选择是手机 / 平板客户端设置；TV 端设置页不渲染这两种新模型（保持冻结）。
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
                             onClick = {
                                 viewModelScope.launch {
                                     eventsChannel.send(
@@ -228,6 +230,7 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_sidebar,
                             descriptionStringRes = R.string.settings_sidebar_summary,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
                             onClick = {
                                 viewModelScope.launch {
                                     eventsChannel.send(
