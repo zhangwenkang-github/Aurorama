@@ -162,6 +162,12 @@ private const val PLAYER_GLASS_ALPHA = 0.28f
 private const val PLAYER_GLASS_PRESSED_ALPHA = 0.44f
 private const val PLAYER_GLASS_BORDER_ALPHA = 0.16f
 
+/**
+ * 1× 徽标（W14 起文本自适应）在底栏宽度预算里的最宽估值（dp）：labelSmall 11sp 下最宽档为「0.25×」， 含 Space2 × 2 内边距与 1dp 描边 ≈
+ * 48dp。只用于 [PlayerControlSpec.bottomRowWidthDp] 的兜底估算。
+ */
+private const val PLAYER_SPEED_BADGE_WIDTH_DP = 48f
+
 internal enum class PlayerPanel {
     None,
     Speed,
@@ -203,9 +209,13 @@ internal data class PlayerControlSpec(
     /** 工具行左右留白（dp） */
     val toolRowPaddingDp: Float,
 ) {
-    /** 底栏一行 = 6 个工具键 + 1× 文本 + 右下全屏键 + 8 个间距（含全屏键前的留白，W13 反馈③新增 1× 文本项） */
+    /**
+     * 底栏一行 = 6 个工具键 + 1× 徽标 + 右下全屏键 + 8 个间距（含全屏键前的留白，W13 反馈③新增 1×）。 1× 徽标 W14
+     * 起按文本自适应（不再占一个键框），按最宽档估值计；极端窄窗由工具行的横向滚动兜底。
+     */
     val bottomRowWidthDp: Float
-        get() = toolKeySizeDp * 8f + keyGapDp * 8f
+        get() =
+            toolKeySizeDp * 7f + maxOf(toolKeySizeDp, PLAYER_SPEED_BADGE_WIDTH_DP) + keyGapDp * 8f
 }
 
 internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
@@ -279,7 +289,7 @@ internal fun playerToolRowShowsSecondaryKeys(
 /**
  * 左下工具行实际渲染的键（W13 方案 A）：非全屏窄窗隐藏 码率 / 解码，其余保持 [PLAYER_BOTTOM_KEY_ORDER] 的终版顺序不动。
  *
- * 「1×」不是键表里的成员——它是独立文本项，固定在「详细信息」右侧（见 `PlayerSpeedLabel`）。
+ * 「1×」不是键表里的成员——它是独立徽标（纯展示，见 `PlayerSpeedBadge`），固定在「详细信息」右侧。
  */
 internal fun playerToolRowVisibleKeys(showsSecondaryKeys: Boolean): List<PlayerBottomKey> =
     if (showsSecondaryKeys) {
@@ -1219,6 +1229,28 @@ fun PlayerControlOverlay(
 
 // ---------- 顶部 ----------
 
+/**
+ * 覆盖层文本徽标（W14 抽共用组件）：顶栏「清晰度」与左下「倍率」共用同一条样式规则—— labelSmall 字号 + Xs 圆角（8dp）+ 1dp OutlineVariant 描边 +
+ * 水平 Space2 / 垂直 2dp 内边距。
+ *
+ * 底色交给所在遮罩（顶栏 / 底栏渐隐），徽标本身不铺色块；**纯展示**，不含任何点击行为。 两处样式必须同源（W14 起 1× 徽标对齐清晰度徽标），内联两份会漂移。
+ */
+@Composable
+private fun PlayerOverlayBadge(text: String, modifier: Modifier = Modifier) {
+    val colors = LocalCinefinColors.current
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = colors.onSurfaceVariant,
+        maxLines = 1,
+        modifier =
+            modifier
+                .clip(CinefinShapes.Xs)
+                .border(1.dp, colors.outlineVariant, CinefinShapes.Xs)
+                .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
+    )
+}
+
 @Composable
 private fun PlayerTopBar(
     title: String,
@@ -1268,15 +1300,7 @@ private fun PlayerTopBar(
         )
         if (qualityLabel != null && showQualityLabel) {
             Spacer(Modifier.width(CinefinSpacing.Space2))
-            Text(
-                text = qualityLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.onSurfaceVariant,
-                modifier =
-                    Modifier.clip(CinefinShapes.Xs)
-                        .border(1.dp, colors.outlineVariant, CinefinShapes.Xs)
-                        .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
-            )
+            PlayerOverlayBadge(text = qualityLabel)
         }
         Spacer(Modifier.width(CinefinSpacing.Space2))
         // 右上角 5 键（W12 终版）：画中画 · 睡眠 · 选集 · 画面 · 设置；锁移到右缘中部
@@ -1668,9 +1692,9 @@ private fun ErrorActionButton(
 /**
  * 底栏（W12 终版布局 + W13 方案 A）：进度条一行（当前时间 · 进度条 · 总时长）+ 左下工具行 + 右下全屏键。
  *
- * 左下工具行（2026-10-02 W13 反馈，用户确认的「方案 A」）：全屏 / 宽度充足时 6 键（音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 「详细信息」右侧的 1×
- * 文本；非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息 + 1×（码率 / 解码 从「设置 → 播放」进入）。 倍率键自 W13 起只显示图标，当前值单独用 1×
- * 文本项显示——两者指向同一个倍速面板，语义入口仍然只有一条。右下角只放全屏键，与工具行不重叠。
+ * 左下工具行（2026-10-02 W13 反馈，用户确认的「方案 A」；W14 微调）：全屏 / 宽度充足时 6 键（音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+
+ * 「详细信息」右侧的 1× 徽标；非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息 + 1× 徽标（码率 / 解码 从「设置 → 播放」进入）。 倍率键自 W13 起只显示图标，当前值由
+ * 1× 徽标显示；W14 起徽标为**纯展示**、不可点击，倍速入口只有倍率图标键一个。右下角只放全屏键，与工具行不重叠。
  */
 @Composable
 private fun PlayerBottomBar(
@@ -1796,7 +1820,7 @@ private fun PlayerBottomBar(
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
                             )
-                        // 倍率键：W13 反馈②起**只显示图标**，宽度与其它图标键一致；当前倍率由右侧的 1× 文本项显示
+                        // 倍率键：W13 反馈②起**只显示图标**，宽度与其它图标键一致；当前倍率由右侧的 1× 徽标显示（唯一倍速入口）
                         PlayerBottomKey.Speed ->
                             PlayerIconButton(
                                 iconRes = PlayerR.drawable.ic_player_speed,
@@ -1838,8 +1862,8 @@ private fun PlayerBottomBar(
                             )
                     }
                 }
-                // W13 反馈③：当前倍率作为**独立文本项**固定在「详细信息」右侧；点它和点倍率图标是同一个入口（同一面板）
-                PlayerSpeedLabel(speed = speed, spec = spec, onClick = onSpeed)
+                // W13 反馈③ + W14 微调：当前倍率作为**纯展示徽标**固定在「详细信息」右侧，不可点击（倍速入口只有倍率图标键）
+                PlayerSpeedBadge(speed = speed)
             }
             if (sleepActive) {
                 Spacer(Modifier.width(CinefinSpacing.Space1))
@@ -1875,50 +1899,20 @@ private fun PlayerBottomBar(
 }
 
 /**
- * 当前倍率文本（W13 反馈③）：**独立文本项**，固定在「详细信息」控件右侧，与其它覆盖层控件同风格（玻璃底 0.28 + 1dp 描边、同圆角、同键宽）。
+ * 当前倍率徽标（W13 反馈③新增；W14 起改为**纯展示**）：固定在「详细信息」控件右侧，与顶栏清晰度徽标共用 [PlayerOverlayBadge] 的同一条样式规则（同字号 / 圆角
+ * / 描边 / 内边距），不再有玻璃键框与点击行为。
  *
- * 它和倍率图标键指向同一个「倍速」面板——全文只有一个倍速入口，数字只是把这个入口的当前值显示出来； 非 1× 时与图标键一起切到媒体色激活态，扫一眼就知道当前不是原速。
+ * 倍速入口只有左下角的倍率图标键一个，这里只负责把当前值显示出来（随倍率变化）；语音提示仍带「倍速」前缀（如“倍速 1.5×”）。
  */
 @Composable
-private fun PlayerSpeedLabel(speed: Float, spec: PlayerControlSpec, onClick: () -> Unit) {
-    val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    val active = speed != 1f
-    val shape = CinefinShapes.Md
+private fun PlayerSpeedBadge(speed: Float, modifier: Modifier = Modifier) {
     val label = formatSpeed(speed)
     val entry = stringResource(PlayerR.string.player_controls_label_speed)
     Box(
-        contentAlignment = Alignment.Center,
         modifier =
-            Modifier.size(spec.toolKeySizeDp.dp)
-                .clip(shape)
-                .background(
-                    if (active) media.container else colors.scrim.copy(alpha = PLAYER_GLASS_ALPHA)
-                )
-                .border(
-                    1.dp,
-                    if (active) media.outline
-                    else colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA),
-                    shape,
-                )
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    role = Role.Button,
-                    onClickLabel = entry,
-                    onClick = onClick,
-                )
-                .semantics(mergeDescendants = true) {
-                    contentDescription = "$entry $label"
-                    selected = active
-                },
+            modifier.semantics(mergeDescendants = true) { contentDescription = "$entry $label" }
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (active) media.bright else colors.onSurface,
-            maxLines = 1,
-        )
+        PlayerOverlayBadge(text = label)
     }
 }
 
@@ -1927,7 +1921,7 @@ private fun PlayerSpeedLabel(speed: Float, spec: PlayerControlSpec, onClick: () 
  * 窗口再窄也只是多滑一下（W11 反馈⑧：不靠隐藏修复；W12 补 码率 / 解码 两个新入口）。
  *
  * W13 方案 A 起与画面区版式同一条判据：[showsSecondaryKeys] = false（非全屏窄窗）时同样隐藏 码率 / 解码， 二者从「设置 →
- * 播放」进入；倍率键只显示图标，当前值由「详细信息」右侧的 1× 文本项显示。
+ * 播放」进入；倍率键只显示图标，当前值由「详细信息」右侧的 1× 徽标显示（纯展示，W14）。
  */
 @Composable
 internal fun PlayerCompactToolKeys(
@@ -1936,7 +1930,7 @@ internal fun PlayerCompactToolKeys(
     bitrateActive: Boolean,
     decodeActive: Boolean,
     isPipSupported: Boolean,
-    /** 当前倍率：1× 文本项显示的值（倍率图标键与它同开倍速面板） */
+    /** 当前倍率：1× 徽标显示的值（倍速入口只有倍率图标键） */
     speed: Float,
     /** W13 方案 A：是否显示 码率 / 解码（全屏 / 宽度充足才显示） */
     showsSecondaryKeys: Boolean = true,
@@ -1967,7 +1961,7 @@ internal fun PlayerCompactToolKeys(
         onClick = onOpenSubtitle,
         size = 40.dp,
     )
-    // 倍率键：W13 反馈②起只显示图标（与其它键同宽）；当前值由「详细信息」右侧的 1× 文本项显示
+    // 倍率键：W13 反馈②起只显示图标（与其它键同宽）；当前值由「详细信息」右侧的 1× 徽标显示（唯一倍速入口）
     PlayerIconButton(
         iconRes = PlayerR.drawable.ic_player_speed,
         contentDescription = stringResource(PlayerR.string.player_controls_label_speed),
@@ -1997,8 +1991,8 @@ internal fun PlayerCompactToolKeys(
         onClick = onOpenInfo,
         size = 40.dp,
     )
-    // 1× 文本项：贴在「详细信息」右侧（W13 反馈③），与倍率图标键同一个入口
-    PlayerSpeedLabel(speed = speed, spec = playerControlSpec(0f), onClick = onSpeed)
+    // 1× 徽标：贴在「详细信息」右侧（W13 反馈③；W14 起纯展示、不可点）
+    PlayerSpeedBadge(speed = speed)
     PlayerIconButton(
         iconRes = PlayerR.drawable.ic_player_sleep,
         contentDescription = stringResource(PlayerR.string.player_controls_label_sleep),

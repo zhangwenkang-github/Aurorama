@@ -48,9 +48,9 @@ class PlayerControlLayoutTest {
 
     @Test
     fun bottomKeys_infoIsLastSoSpeedLabelSitsOnItsRight() {
-        // W13 反馈③：1× 文本项渲染在工具行尾部 → 只有「详细信息」是键表最后一个，它才会落在详细信息右侧
+        // W13 反馈③：1× 徽标渲染在工具行尾部 → 只有「详细信息」是键表最后一个，它才会落在详细信息右侧
         assertEquals(
-            "「详细信息」必须是左下键表最后一个（1× 文本项紧跟其后）",
+            "「详细信息」必须是左下键表最后一个（1× 徽标紧跟其后）",
             PlayerBottomKey.Info,
             PLAYER_BOTTOM_KEY_ORDER.last(),
         )
@@ -80,7 +80,7 @@ class PlayerControlLayoutTest {
 
         assertFalse("非全屏窄窗（手机形态 411dp）隐藏 码率 / 解码（验收②）", showsSecondaryKeys)
         assertEquals(
-            "非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息（1× 文本项另挂在详细信息右侧）",
+            "非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息（1× 徽标另挂在详细信息右侧）",
             listOf(
                 PlayerBottomKey.Audio,
                 PlayerBottomKey.Subtitle,
@@ -154,7 +154,8 @@ class PlayerControlLayoutTest {
     @Test
     fun bottomRow_fitsPhoneWidthWithoutScrolling() {
         // 411dp 是最窄的常见手机形态（Pad 5 wm 覆盖 / K60 竖屏）。W13 起这一档只渲染 4 键 + 1× + 全屏键，
-        // 但按「6 键 + 1× 文本 + 全屏键」（全显态、最坏情况）算也必须一行放得下
+        // 但按「6 键 + 1× 徽标 + 全屏键」（全显态、最坏情况）算也必须一行放得下；
+        // W14 起 1× 徽标文本自适应（最宽档 0.25× ≈ 48dp），宽度预算已按该值计入
         val spec = playerControlSpec(411f)
         val used = spec.bottomRowWidthDp + spec.toolRowPaddingDp * 2f
 
