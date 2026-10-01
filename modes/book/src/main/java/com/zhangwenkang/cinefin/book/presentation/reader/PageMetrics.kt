@@ -59,17 +59,45 @@ private const val PROGRESSION_EPSILON = 1e-6
 
 /**
  * 页指示文案：滚动 / 分页 / 双栏三档文字不同，既是阅读体验的一部分，也是真机验收时 `uiautomator dump` 判断"模式确实生效"的可见证据（READER_PLAN §7）。
+ *
+ * RTL 生效（分页 / 双栏 + 右起开关）时追加「右起」后缀：既是给用户的提示，也是真机验收 里判断开关状态与翻页方向的文本证据（READER_PLAN §7.7）。
  */
-internal fun pageIndicatorText(mode: ReaderMode, pageIndex: Int, pageCount: Int): String {
-    if (pageCount <= 0) return "${mode.label} · 0/0"
+internal fun pageIndicatorText(
+    mode: ReaderMode,
+    pageIndex: Int,
+    pageCount: Int,
+    rtl: Boolean = false,
+): String {
+    val suffix = if (isRtlPaging(mode, rtl)) " · 右起" else ""
+    if (pageCount <= 0) return "${mode.label} · 0/0$suffix"
     val first = (pageIndex + 1).coerceIn(1, pageCount)
-    return when (mode) {
-        ReaderMode.TwoColumn -> {
-            val last = (first + 1).coerceAtMost(pageCount)
-            "${mode.label} · $first-$last/$pageCount"
-        }
+    val base =
+        when (mode) {
+            ReaderMode.TwoColumn -> {
+                val last = (first + 1).coerceAtMost(pageCount)
+                "${mode.label} · $first-$last/$pageCount"
+            }
 
-        else -> "${mode.label} · $first/$pageCount"
+            else -> "${mode.label} · $first/$pageCount"
+        }
+    return base + suffix
+}
+
+/**
+ * 缩放状态（分页 / 双栏 / 滚动三种模式共用同一套数学，保证范围一致：1×–[PAGE_MAX_ZOOM]）。
+ *
+ * 真机踩坑 18 的结论是"手势必须由页项消费、单指留给容器滚动"；本状态机只负责把每次双指事件 推进为新的缩放 / 平移，与手势来源解耦，可单测（READER_PLAN §7.7）。
+ */
+internal data class PageZoom(val scale: Float = 1f, val offset: Offset = Offset.Zero) {
+
+    /** 推进一次双指手势：倍数夹取到 1×–[PAGE_MAX_ZOOM]，平移按放大后的可移动范围夹取（缩放回 1× 自动归零、居中）。 */
+    fun transform(zoom: Float, pan: Offset, width: Int, height: Int): PageZoom {
+        val safeZoom = if (zoom.isFinite() && zoom > 0f) zoom else 1f
+        val product = scale * safeZoom
+        val nextScale = (if (product.isFinite()) product else scale).coerceIn(1f, PAGE_MAX_ZOOM)
+        if (nextScale <= 1f) return PageZoom()
+        val safePan = if (pan.x.isFinite() && pan.y.isFinite()) pan else Offset.Zero
+        return PageZoom(nextScale, clampPageOffset(offset + safePan, nextScale, width, height))
     }
 }
 

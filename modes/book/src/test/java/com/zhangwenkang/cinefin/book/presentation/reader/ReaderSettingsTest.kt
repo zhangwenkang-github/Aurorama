@@ -163,4 +163,12 @@ class ReaderSettingsTest {
         assertEquals(CinefinTokens.PaperSurface, ReaderTheme.Paper.chromeColor(false))
         assertEquals(CinefinTokens.ReaderEyeCareSurface, ReaderTheme.EyeCare.chromeColor(false))
     }
+
+    @Test
+    fun `右起开关不影响 EPUB 偏好快照`() {
+        val baseline = ReaderSettings().toPreferenceSpec(systemDark = false)
+        assertEquals(baseline, ReaderSettings(rtl = true).toPreferenceSpec(systemDark = false))
+        assertTrue(ReaderSettings(rtl = true).rtl)
+        assertFalse(ReaderSettings().rtl)
+    }
 }

@@ -243,6 +243,59 @@
   `pageIndexForProgression`（floor + ε，抵消浮点往返误差）。`locatorJson` 留空，避免与 Readium
   Locator 语义混淆。
 
+### D17 · RTL 右起翻页（漫画）与三档模式语义（W9-READER）
+
+- 开关：`ReaderSettings.rtl`，持久化 `pref_reader_rtl`（`AppPreferences` 只追加，未重排既有键）；
+  只在页序列文档（PDF / CBZ）的阅读设置面板出现——EPUB 的阅读方向由 Readium 出版物元数据决定，
+  不提供全局开关（`ReaderSettingsPanel(showRtl = document is ReaderDocument.Simple)`）。
+- **逻辑页序恒为 1, 2, 3…**：RTL 不改页号、不改进度语义（`progressionForPage` / `pageIndicatorText`
+  仍按逻辑页），只改视觉呈现与翻页方向——三条不变量由 `SpreadOrder.kt` 的纯函数单测锁住。
+- 三档行为（真机口径见 §7.7）：
+  - **分页**：整条页链镜像（`HorizontalPager(reverseLayout = rtl)`）——右起时向右滑动前进，
+    单页槽位不变；
+  - **双栏**：页链镜像 + spread 内左右页镜像（右 = 2k+1、左 = 2k+2，读序自右向左）；
+    尾页单张时空槽留左（RTL 尾页贴右），LTR 仍左奇右偶；
+  - **滚动**：纵向连续阅读没有可翻转的横向轴，**保持不变**（1 → 2 → 3 自上而下）；
+    页指示不追加「右起」后缀（`isRtlPaging(mode, rtl)` 只在分页 / 双栏为真）。
+- 页指示在 RTL 生效时显示「分页 · 1/24 · 右起」：既是用户提示，也是真机验收的文本证据
+  （省的每次都要靠截图判断方向）。
+- 切开关时 `key(rtl)` 重建 Pager，`initialPage` 取当前逻辑页 → 正在读的那一页不会因镜像跳页。
+- 「封面单张」（RTL 首屏只放第 1 页、其后 2+3、4+5…）是实体漫画的排版习惯，但会改动
+  spread ↔ 页号映射与 W4 已验收的「双栏 1-2」口径，本波不做，列入 W5 候选。
+
+### D18 · 滚动模式双指缩放：页项消费的「双指优先」手势（W9-READER）
+
+- 复用分页模式已验证的手势形态：手势挂在**每个页项**上（`ZoomablePage`），只在 ≥2 指同时按下时
+  `calculateZoom/calculatePan` + `consume()`；单指拖动不消费，继续交给 `LazyColumn` 纵向滚动。
+  这是踩坑 18 的推广——若把手势挂在 LazyColumn 的**父层**，Main pass 里滚动容器（子层）先消费，
+  父层再 consume 也抢不回控制权，会出现「双指时列表还在滚」。
+- 滚动模式语义 = **页内缩放**：在某一页上双指捏合只放大该页（1×–4×），内容裁在页槽内，双指拖动
+  平移；纵向滚动始终可用（放大后仍是一指上下滚、换页）。
+- 范围与分页模式完全一致：共用 `PageZoom` 状态机（1×–[PAGE_MAX_ZOOM] = 4×，平移按放大后的可移动
+  范围夹取、缩回 1× 自动居中），`PageZoom.transform` 对 NaN / 无穷 / 非正倍率全部有守卫。
+- 调试轨迹：缩放步进 ≥0.1× 时打一行 `Timber.d("reader zoom index=… scale=… offset=…")`，
+  真机验收用 logcat 文本判断手势确实生效（不贴截图）。
+
+### D19 · 跨页对图合并：本波**不实施**，只交付正确排序 + 方案记录（W9-READER）
+
+**结论**：双栏 / 分页 / 滚动的页序本波已收敛（含 RTL 镜像，D17）；**跨页对图合并（把被拆成两张的
+横版对图拼回一页）不做**——代价与风险都不满足「不许半成品上线」，理由与后续方案如下。
+
+| 维度 | 研判 | 结论 |
+|------|------|------|
+| 内存 | 两半各按 2048 长边渲染时，合并图长边 2×2048 ≈ 3–4K px：ARGB 单张 ≈25 MB、RGB_565 ≈12 MB，是单页预算的 2×；合并瞬间还有「两张源图 + 一张目标图」的 3× 峰值。EB-3 的「窗口 3 张位图 / 长边 ≤2048」是按单页钉死的，合并需要**重建窗口预算与缓存键**（槽位从"页"变成"页/对图"两种粒度） | 高代价，需独立设计 |
+| 检测 | CBZ 没有可靠的"这两页是一张跨页图"元数据：实测两本测试书**全部是竖版页**（Anda's Game 24 页 1327×2039，只有 `Type=FrontCover` / `Letters` 两个标记），futuristic_tales 连 ComicInfo.xml 都没有。自动判定只能靠宽高比 + 边缘连续性启发式，误判会让整本书的翻页配对错位 | 不可靠 |
+| 画质 | 两半扫描图各自带纸边 / 页边距，直接并排仍有一条白缝；要"无缝"得先按内容裁边再对齐（逐本调参或做边缘检测），否则只是把两页搬到一个位图里 | 需要额外算法与逐本验证 |
+| 语义耦合 | 合并后「一屏 = 一页」还是「一屏 = 两页」会改变页指示、progression 与恢复口径（D16），需与 RTL / 双栏 / 书签模型一起设计 | 牵涉面大 |
+
+**本波交付**：单页 / 双栏的页序与 RTL 镜像（`SpreadOrder.kt` 纯函数 + 8 项单测）、页指示与
+`PageZoom` 单测；跨页合并的可行方案记录在案。**后续（W5 候选）**：① 只在**双栏 + 用户显式开关**
+下试用，先做「按 spread 手动标记合并」而不是全自动；② 合并位图单独走 `LruCache` 预算
+（建议长边上限 3072、RGB_565 优先），窗口退化为「当前槽 + 邻槽」两级；③ 检测先用
+`ComicInfo.xml` 的 `ImageWidth > ImageHeight`（横版单页）作为**只提示不自动合并**的信号；
+④ 真机验收必须含"拼接前后同一 spread 的像素对比 + 内存采样"，先在两本测试书上扩测试集
+（需要至少一本含横版对图的书）。
+
 ## 3. 接口契约（已落地）
 
 ```kotlin
@@ -427,6 +480,23 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
 - [x] 真机验证记录写入 §7.6（五本书逐本验收 + 三档模式 + 内存数据 + EPUB 回归 + 进度链路），
       并于完成后按调度立即释放设备。
 
+### W9 任务清单（R1-COMIC-DIRECTION，2026-10-01 · 分支 `feature/w9-reader-comics`）
+
+- [x] ① RTL 右起翻页开关（EB-4）：`ReaderSettings.rtl` + `pref_reader_rtl`（`AppPreferences` 只追加）；
+      `SpreadOrder.kt` 页序层（`spreadPageSlots` / `spreadCount` / `isRtlPaging`）+ `SimpleBookView`
+      镜像（分页 / 双栏 `reverseLayout` + spread 内左右交换）；面板开关只在 PDF / CBZ 出现；
+      滚动模式行为不变（D17）。
+- [x] ② 跨页对图合并：完成可行性研判，结论 = 本波不实施（内存 2× / 无可靠元数据 / 接缝与语义耦合），
+      交付正确页序 + 方案记录（D19），计划在 W5 以「双栏 + 显式开关 + 手动标记」形态试点。
+- [x] ③ 滚动模式手势缩放：`ZoomablePage` 下放到滚动列表的每个页项（双指优先、单指不消费）；
+      与分页共用 `PageZoom` 状态机（1×–4×、平移夹取、非有限值守卫）；带 `Timber` 调试轨迹（D18）。
+- [x] 单测：`SpreadOrderTest` 8 项（RTL 槽位 / 尾页空槽 / 越界 / RTL 只作用横向 / 页指示后缀）+
+      `PageMetricsTest` +3 项（缩放夹取、平移夹取、非有限手势）+ `ReaderSettingsTest` +1 项
+      （右起开关不进入 EPUB 偏好快照），合计 **12 项新增**；`:modes:book` 合计 **43 项**（6 个测试类）。
+- [x] 门禁：`:app:phone:assembleDebug` + `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（23 项）+
+      `:modes:book:testDebugUnitTest`（43 项）全绿。
+- [ ] 真机验证记录写入 §7.7（K60 `8e875894`：CBZ RTL 三档方向 / 滚动双指缩放 / 跨页结论 / EPUB 回归）。
+
 ## 7. 真机验证记录（2026-09-30）
 
 设备：Xiaomi Pad 5（`nabu`，型号 21051182C），Android 13，2560×1600。
@@ -575,7 +645,17 @@ EPUB 仍走 Readium Locator（见上表）。说明「页索引 / 总页数」�
   RTL 开关、跨页拼接、滚动模式缩放（§9 已列为 W5 候选）；PDF/CBZ 排版的字号 / 行距等控件为
   EPUB 专属，页序列格式下暂为可点的空操作（§9）。
 - 调度留档：本波真机窗口为负责人明确指派（W3-R3b 01:05 释放 → W4-R1 01:31 使用 → 完成后立即释放）；
-K60（`8e875894`）因 MIUI 无 SIM 卡限制「USB 安装」放弃，未产生任何验证数据。
+  K60（`8e875894`）因 MIUI 无 SIM 卡限制「USB 安装」放弃，未产生任何验证数据。
+
+### 7.7 W9 RTL / 滚动缩放真机验证（2026-10-01，Redmi K60 `8e875894`）——**进行中**
+
+设备：Redmi K60（`8e875894`，1440×3200，Android 13 / MIUI），分支 `feature/w9-reader-comics`；
+入口 = App 内「媒体库 → 书籍 → 点书 → ReaderActivity」（`exported=false`，adb 不能直启）。
+设备缓存（`run-as … ls files/books`）：`6bbbb0ce-7d2d-3500-ac6e-9b12054be028.book` 719,861 B
+= futuristic_tales（CBZ / 4 页）、`e2d0c13d-…` 670,643,292 B = 虚构推理（PDF / 3649 页）、
+`81099153-…` 2,220,485 B = 雷普利全集（EPUB）。
+
+> 待填：RTL 三档方向、滚动双指缩放、跨页结论、EPUB 回归、稳定性与释放时间（见 device-lock）。
 
 ## 8. 踩坑库
 
@@ -664,11 +744,11 @@ K60（`8e875894`）因 MIUI 无 SIM 卡限制「USB 安装」放弃，未产生�
 
 - **真机验证未跑完**（2026-10-01 按负责人调度暂停）：只完成 attention PDF 打开 + 翻页；
   虚构推理 PDF、两本 CBZ 的三档模式、EPUB 回归、内存采样见 §7.6「未完成」清单，等重新指派设备后补。
-- **RTL 开关**（EB-4 提到的漫画右到左翻页）未做：当前 PDF / CBZ 页序固定左到右，横屏双栏为
-  「左 2n+1、右 2n+2」；RTL 需在 `SimpleBookView` 与页序层加开关，归 W5 或按需排期。
-- **跨页拼接**（EB-4 后置项）未做；双栏只是同屏两页并排，不做跨页对图合并。
-- **滚动模式不能手势缩放**：分页 / 双栏可缩放（1×–4×）；滚动模式为避免与纵向滚动抢事件未接手势，
-  必要时后续用"双指优先"的自定义手势补。
+- ✅（W9-READER 已完成）**RTL 开关**：`SpreadOrder.kt` + `SimpleBookView(reverseLayout)` + 面板开关 +
+  `pref_reader_rtl`（D17）；横屏双栏 RTL = 右 2n+1、左 2n+2，滚动模式不变。
+- **跨页拼接**（EB-4 后置项）：D19 研判后本波不实施，方案与后续试点条件已记录（需横版对图测试书）。
+- ✅（W9-READER 已完成）**滚动模式手势缩放**：`ZoomablePage` 下放到滚动列表页项，双指优先、
+  单指不抢纵向滚动，1×–4× 与分页共用 `PageZoom`（D18）。
 - **位图长边上限 2048**（ARCHITECTURE §3.4 的示例值）：Paged / TwoColumn 下页面按高度适配，
   文字 / 线条锐利；滚动模式下页面按屏宽铺满（Pad 5 横屏约 1.7× 软放大）会略糊，若后续要更锐，
   按模式分别调 `PAGE_BITMAP_MAX_SIDE_PX` 并复测内存。
@@ -680,6 +760,19 @@ K60（`8e875894`）因 MIUI 无 SIM 卡限制「USB 安装」放弃，未产生�
 - **加密 PDF / 损坏页**：`PdfRenderer` 打不开的文档案走错误态 + 重试；单页渲染失败显示占位 + 重试，
   未做整本文档级降级（如切换其他引擎）。
 
+### W9 遗留（交接负责人 / W5）
+
+- **跨页对图合并**：D19 已给结论与方案（双栏 + 显式开关 + 手动标记起步；合并位图单独预算，
+  RGB_565 优先、长边上限 3072、两级槽位窗口）；开工前需要至少一本含横版对图的测试书，
+  否则没有可验证样本。
+- **RTL「封面单张」排版**：实体漫画常把封面单独放右页、其后 2+3、4+5…；会改动 spread ↔ 页号映射
+  与 W4 已验收口径，列为 W5 候选（D17）。
+- **PDF / CBZ 的 EPUB 专属行**：排版面板的字号 / 行距 / 边距 / 字体 / 对齐对页序列文档仍是可点的
+  空操作（W4 遗留，未在本波扩大改动面）；后续按 `ReaderDocument` 类型隐藏。
+- **滚动模式清晰度**：位图长边上限 2048 在滚动模式按屏宽铺满时略糊（W4 遗留）；若调高需按模式
+  分别设上限并复测内存（EB-3 红线）。
+- Room 迁移（D11）仍待 R2-LYRICS 合并后由 R1 单独提交。
+
 ## 10. 变更日志
 
 | 日期 | 变更 |
@@ -690,3 +783,4 @@ K60（`8e875894`）因 MIUI 无 SIM 卡限制「USB 安装」放弃，未产生�
 | 2026-09-30 | W3-R1 rebase 到 `f283ef1`（R3 Prism 阅读页 + 入口）：`ReaderScreen.kt` 冲突按「保留 R3 外壳 + 并入离线功能」解决——顶栏沿用 Prism（`ReaderTopBar` 扩展下载状态 / 书签入口）、错误态用 `CinefinEmptyState`、`CompositionLocalProvider(LocalMediaColors)` 与设置面板保持 R3 版；离线暂存横幅、`jumpTarget` / `onJumpHandled` / `onNavigatorReady`、书签面板与 `DownloadAction` 全部保留 |
 | 2026-10-01 | W4-R1：PDF 走 PdfRenderer 自研（D14）、CBZ 走 ZipFile 自研（D15，含 Andas_Game 解析失败根因）、格式嗅探与页进度语义（D16）；`SimpleBookView` 三档模式 + 页指示 + 双指缩放；格式嗅探健壮性（1 KiB PDF 探针 / mimetype-EPUB / 空图片 ZIP 回退 Readium）；新增 16 项单测（模块合计 31 项，全绿）；真机部分验证（§7.6：attention PDF 打开 + 翻页）后按负责人调度暂停；踩坑 15–19 |
 | 2026-10-01 | W4-R1 真机验收完成（Pad 5，负责人指派窗口）：attention（15 页）/ 虚构推理（3649 页，639.6 MB）/ Anda's Game（24 页）/ futuristic_tales（4 页）逐本打开 + 分页 / 双栏 / 滚动三档行为通过（双栏双截图核对左右为不同页）；EPUB《雷普利全集》回归通过（Locator 推进 + 回传）；虚构推理连翻 40 页 + 静止复测：稳态 **≈358 MB**，与 attention（≈334 MB）同量级，内存不随页数 / 文档大小增长（EB-3 达标）；`progress.json` 五条记录 `pendingSync=false`（D16 换算精确）。详见 §7.6 |
+| 2026-10-01 | W9-READER（分支 `feature/w9-reader-comics`）：①RTL 右起翻页（D17）——`SpreadOrder.kt` 页序层（`spreadPageSlots` / `spreadCount` / `isRtlPaging`）+ `SimpleBookView` 分页 / 双栏镜像 + 阅读设置面板开关（仅 PDF / CBZ）+ `pref_reader_rtl`；②跨页对图合并研判（D19）——本波不实施，记录内存 2× / 无可靠元数据 / 接缝与语义耦合四条理由与 W5 试点方案；③滚动模式双指缩放（D18）——`ZoomablePage` 下放到滚动列表页项（双指优先、单指不抢滚动），与分页共用 `PageZoom`（1×–4×、平移夹取、非有限值守卫）；新增 12 项单测（模块 43 项，6 个测试类全绿）+ 门禁全绿；真机验证见 §7.7 |

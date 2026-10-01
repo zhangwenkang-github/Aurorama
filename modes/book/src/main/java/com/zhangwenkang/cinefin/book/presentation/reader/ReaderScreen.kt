@@ -84,6 +84,9 @@ fun ReaderScreen(
     var showSettings by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
     val bookmarksAvailable = (state as? ReaderUiState.Ready)?.document is ReaderDocument.Rich
+    /** 右起翻页（RTL）只对页序列文档（PDF / CBZ）开放；EPUB 的阅读方向由 Readium 出版物元数据决定。 */
+    val pagingDirectionAvailable =
+        (state as? ReaderUiState.Ready)?.document is ReaderDocument.Simple
 
     CinefinTheme(
         domain = ContentDomain.Book,
@@ -206,6 +209,7 @@ fun ReaderScreen(
                         ReaderSettingsPanel(
                             settings = settings,
                             systemDark = systemDark,
+                            showRtl = pagingDirectionAvailable,
                             onSettingsChange = onSettingsChange,
                         )
                     }

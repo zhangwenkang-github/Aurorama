@@ -127,6 +127,8 @@ data class ReaderSettings(
     val font: ReaderFont = ReaderFont.Publisher,
     val theme: ReaderTheme = ReaderTheme.Dark,
     val textAlign: ReaderTextAlign = ReaderTextAlign.Justify,
+    /** 漫画右起翻页（RTL，EB-4）：只作用于 PDF / CBZ 的分页 / 双栏，滚动模式不受影响。 */
+    val rtl: Boolean = false,
 ) {
     /** 把外部（SharedPreferences）可能越界 / 非有限的值收进可用区间。 */
     fun sanitized(): ReaderSettings =
