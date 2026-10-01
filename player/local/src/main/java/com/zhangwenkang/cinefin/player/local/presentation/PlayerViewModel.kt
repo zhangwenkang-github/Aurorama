@@ -25,6 +25,7 @@ import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_INFO
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SUBTITLE_SOURCES
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
@@ -285,6 +286,7 @@ constructor(
         playWhenReady = true
         player.addListener(this)
         applySavedSubtitlePreferences()
+        syncMpvSubtitleMode()
         publishSubtitlePanelState()
 
         if (startPositionMs > 0L) {
@@ -508,6 +510,11 @@ constructor(
                                 putInt(PLAYER_EXTRA_EPISODE_NUMBER, indexNumber ?: -1)
                                 // 信息面板（§1.8）：媒体源元数据随媒体项一起带走
                                 mediaInfo?.let { putParcelable(PLAYER_EXTRA_MEDIA_INFO, it) }
+                                // mpv 转码场景的 libass 兜底：字幕清单随条目走，容器无内嵌字幕时 sub-add
+                                putParcelableArrayList(
+                                    PLAYER_EXTRA_SUBTITLE_SOURCES,
+                                    ArrayList(subtitleSources),
+                                )
                             }
                         )
                         .build()
@@ -650,6 +657,8 @@ constructor(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
+        // mpv 换集后重新对齐字幕开关（off → sid=no；auto / always → 按 slang 重选）
+        syncMpvSubtitleMode()
         savedStateHandle["mediaItemIndex"] = player.currentMediaItemIndex
         viewModelScope.launch {
             try {
@@ -1009,7 +1018,7 @@ constructor(
      * mpv 自带字幕渲染（还能做 secondary-sid 双语），如果这边也加载一份， 画面上会出现两条一模一样的字幕（双显）。
      */
     private fun subtitleSourcesForBackend(item: PlayerItem): List<PlayerSubtitleSource> =
-        if (playerBackend == PLAYER_BACKEND_MPV) emptyList() else item.subtitleSources
+        playerSubtitleSourcesForBackend(playerBackend, item)
 
     /** 字幕渲染路由：文字轨交给谁渲染 */
     private sealed interface SubtitleRouting {
@@ -1398,14 +1407,34 @@ constructor(
     fun setSubtitleMode(mode: String) {
         appPreferences.setValue(appPreferences.subtitleMode, mode)
         Timber.d("Subtitle mode set to %s by settings panel", mode)
+        val mpv = if (playerBackend == PLAYER_BACKEND_MPV) player as? MPVPlayer else null
         if (mode == Constants.SubtitleMode.OFF) {
             selectSubtitlePrimary(null)
             selectSubtitleSecondary(null)
+            // 关闭后同时关掉「自动选轨」意图：否则转码注入字幕时 mpv 又按 slang 选回来
+            mpv?.setSubtitleAutoSelect(false)
         } else {
             manualTrackSelectionMediaId = null
-            applyAutoSelectAndRoute()
+            if (mpv != null) {
+                // mpv 不走 TrackSelectionParameters：把 auto / always 都翻译成 sid=auto（按 slang 重选）
+                mpv.setSubtitleAutoSelect(true)
+            } else {
+                applyAutoSelectAndRoute()
+            }
         }
         publishSubtitlePanelState()
+    }
+
+    /**
+     * mpv 当前的字幕自动选轨意图与 App 字幕模式对齐。
+     *
+     * `off` → `sid=no`；`auto` / `always` → `sid=auto`（mpv 按 `slang` / 默认轨挑选）。 ExoPlayer 的同类逻辑走
+     * TrackSelectionParameters 路由，不需要这个桥。
+     */
+    private fun syncMpvSubtitleMode() {
+        val mpv = player as? MPVPlayer ?: return
+        val mode = appPreferences.getValue(appPreferences.subtitleMode)
+        mpv.setSubtitleAutoSelect(mode != Constants.SubtitleMode.OFF)
     }
 
     /** 重读「跳过片头片尾」相关偏好（面板改完即时生效，不必重开播放页） */
@@ -1665,3 +1694,14 @@ sealed interface PlayerEvents {
     /** 字幕外观变化：Activity 用它更新 PlayerView 原生字幕样式（图形字幕 / 兜底路径） */
     data class SubtitleStyleChanged(val style: SubtitleStyle) : PlayerEvents
 }
+
+/**
+ * 自研字幕覆盖层只服务 ExoPlayer 的文字字幕；mpv 的字幕（含 ASS/SSA 特效）由 mpv 内置 libass 渲染。
+ *
+ * mpv 下返回空清单 = 自研覆盖层不接管、不叠加文本层，避免两套字幕同时出现。
+ */
+internal fun playerSubtitleSourcesForBackend(
+    backend: String,
+    item: PlayerItem,
+): List<PlayerSubtitleSource> =
+    if (backend == PlayerViewModel.PLAYER_BACKEND_MPV) emptyList() else item.subtitleSources

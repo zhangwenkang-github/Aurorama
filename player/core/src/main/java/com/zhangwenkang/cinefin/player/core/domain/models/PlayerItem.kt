@@ -37,3 +37,11 @@ const val PLAYER_EXTRA_EPISODE_NUMBER = "cinefin.episodeNumber"
 
 /** MediaItem extras：播放信息面板的媒体元数据（[PlayerMediaInfo]） */
 const val PLAYER_EXTRA_MEDIA_INFO = "cinefin.mediaInfo"
+
+/**
+ * MediaItem extras：全部字幕源（[PlayerSubtitleSource] 的 Parcelable ArrayList）。
+ *
+ * ExoPlayer 走自研渲染管线、不读它；mpv 在「容器没有内嵌字幕」时（典型是服务器转码 / HLS） 用它把 Jellyfin 交付的独立字幕文件 sub-add 给 mpv，让
+ * libass 仍能渲染 ASS/SSA 特效。
+ */
+const val PLAYER_EXTRA_SUBTITLE_SOURCES = "cinefin.subtitleSources"

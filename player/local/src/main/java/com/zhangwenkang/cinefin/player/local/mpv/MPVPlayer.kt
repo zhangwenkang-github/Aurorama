@@ -36,7 +36,9 @@ import androidx.media3.common.util.Clock
 import androidx.media3.common.util.ListenerSet
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.Util
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SUBTITLE_SOURCES
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
@@ -359,6 +361,16 @@ class MPVPlayer(
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
 
+    /**
+     * 当前媒体可以注入 mpv 的服务端字幕（[PlayerSubtitleSource]），在 prepareMediaItem 时随条目刷新。
+     *
+     * 只在「容器里没有内嵌字幕轨」时使用（服务器转码 / HLS 场景容器内没有字幕）， 容器自带内嵌字幕（DirectPlay mkv）时让 mpv 直接读，避免出现重复轨道。
+     */
+    private var pendingServerSubtitles: List<PlayerSubtitleSource>? = null
+
+    /** App 字幕模式的自动选轨意图：true = sid=auto（按 slang / 默认轨选），false = sid=no */
+    private var subtitleAutoSelect: Boolean = true
+
     // mpv events
     override fun eventProperty(property: String) {
         // Nothing to do...
@@ -492,6 +504,8 @@ class MPVPlayer(
                     isSeekable = mpvLib.getPropertyBoolean("seekable") == true
                     currentDurationMs =
                         (mpvLib.getPropertyDouble("duration")?.times(C.MILLIS_PER_SECOND))?.toLong()
+                    // 容器解析完成：此时 track-list 是完整的，按「有无内嵌字幕」决定是否注入服务端字幕
+                    maybeAddServerSubtitles()
                 }
                 MpvEvent.MPV_EVENT_SEEK -> {
                     setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
@@ -623,6 +637,70 @@ class MPVPlayer(
         mpvLib.setPropertyDouble("sub-border-size", style.edgeWidthDp.toDouble())
         // sub-pos 是「距底部百分比」的互补值：100 = 贴底，65 = 靠上
         mpvLib.setPropertyDouble("sub-pos", (100.0 - style.bottomFraction * 100.0))
+    }
+
+    /**
+     * 字幕模式的自动选轨联动（App 侧字幕后端之间的桥）： `enabled=false` → `sid=no`（关闭字幕）；`enabled=true` → `sid=auto`（按
+     * slang / 默认轨重选）。
+     *
+     * 命令投到命令线程，与 sub-add 保序执行，避免刚注入的轨又被旧 sid 覆盖。
+     */
+    fun setSubtitleAutoSelect(enabled: Boolean) {
+        subtitleAutoSelect = enabled
+        postCommand(arrayOf("set", "sid", if (enabled) "auto" else "no"))
+        commandHandler.post { runCatching { logSubtitleState() } }
+    }
+
+    /**
+     * 容器解析完成后的服务端字幕注入。
+     *
+     * 规则：容器里已经有内嵌字幕轨（DirectPlay mkv）→ 保持现状，让 mpv 直接读容器字幕； 容器里没有（典型是服务器转码 HLS）→ 把 Jellyfin
+     * 交付的独立文本字幕文件 sub-add 给 mpv， 由 mpv 内置的 libass 渲染 ASS/SSA 特效（定位 / 字体 / 动画）。
+     */
+    private fun maybeAddServerSubtitles() {
+        val pending = pendingServerSubtitles ?: return
+        // 每个媒体只处理一次：无论是否注入，都清掉待处理标记，避免 track-list 抖动反复触发
+        pendingServerSubtitles = null
+        val injectable = selectServerSubtitlesToInject(pending)
+        if (injectable.isEmpty()) return
+        val hasInternal = runCatching {
+            hasInternalSubtitleTrack(parseMpvSubtitleTracks(mpvLib.getPropertyString("track-list")))
+        }
+            .getOrDefault(false)
+        if (hasInternal) {
+            Timber.d("mpv 容器已含内嵌字幕，跳过服务端字幕注入（候选 %d 条）", injectable.size)
+            return
+        }
+        Timber.i("mpv 容器无内嵌字幕（转码等），注入 %d 条服务端文本字幕", injectable.size)
+        injectable.forEach { source ->
+            postCommand(
+                arrayOf(
+                    /* command= */ "sub-add",
+                    /* url= */ source.uri,
+                    /* flags= */ "auto",
+                    /* title= */ source.title,
+                    /* lang= */ source.language,
+                )
+            )
+            Timber.d(
+                "mpv 注入字幕：%s（%s / %s）",
+                source.title,
+                source.language,
+                source.codec,
+            )
+        }
+        // 注入完成后按 App 的字幕模式重新选轨（auto = 交给 slang / 默认轨，no = 保持关闭）
+        postCommand(arrayOf("set", "sid", if (subtitleAutoSelect) "auto" else "no"))
+    }
+
+    /** 读取随 MediaItem 一起下发的 Jellyfin 字幕清单（可能为空） */
+    private fun MediaItem.serverSubtitleSources(): List<PlayerSubtitleSource> {
+        @Suppress("DEPRECATION")
+        val sources =
+            mediaMetadata.extras?.getParcelableArrayList<PlayerSubtitleSource>(
+                PLAYER_EXTRA_SUBTITLE_SOURCES
+            )
+        return sources?.toList() ?: emptyList()
     }
 
     /** mpv 颜色格式是 #AARRGGBB；本项目的颜色是 ARGB，直接换个写法即可 */
@@ -1278,6 +1356,8 @@ class MPVPlayer(
     private fun prepareMediaItem(index: Int) {
         internalMediaItems.getOrNull(index)?.let { mediaItem ->
             resetInternalState()
+            // 每个条目自带 Jellyfin 字幕清单：转码（容器无内嵌字幕）时由 mpv 侧补 sub-add
+            pendingServerSubtitles = mediaItem.serverSubtitleSources()
             mediaItem.localConfiguration?.subtitleConfigurations?.forEach { subtitle ->
                 initialCommands.add(
                     arrayOf(
@@ -2047,4 +2127,39 @@ class MPVPlayer(
             return tracks
         }
     }
+}
+
+/**
+ * 从 Jellyfin 字幕清单里挑出「需要 mpv sub-add 的条目」： 文本字幕、能拿到独立文件、且不是服务器上的外挂字幕（外挂字幕已由
+ * MediaItem.subtitleConfigurations 注入）。
+ *
+ * 内嵌 ASS/SSA 也在其中：转码时容器没有它们，必须靠 Jellyfin 交付的 Stream.ass 才能保住 libass 特效。
+ */
+internal fun selectServerSubtitlesToInject(
+    sources: List<PlayerSubtitleSource>
+): List<PlayerSubtitleSource> = sources.filter { it.isTextBased && !it.isExternal }
+
+/** mpv track-list 里一条字幕轨的摘要；只需要判定「是否容器内嵌」 */
+internal data class MpvSubtitleTrackInfo(val external: Boolean)
+
+/**
+ * 是否存在「容器内嵌字幕轨」（`external=false` 的 sub 轨）。
+ *
+ * 外挂 sub-add 的轨 `external=true`，不能算容器内嵌；DirectPlay 的 mkv 内嵌字幕则是 false。
+ */
+internal fun hasInternalSubtitleTrack(tracks: List<MpvSubtitleTrackInfo>): Boolean = tracks.any {
+    !it.external
+}
+
+/** 解析 mpv track-list JSON（Android org.json；JVM 单测覆盖纯逻辑，不覆盖这一段） */
+private fun parseMpvSubtitleTracks(trackListJson: String?): List<MpvSubtitleTrackInfo> {
+    if (trackListJson.isNullOrBlank()) return emptyList()
+    return runCatching {
+            val tracks = JSONArray(trackListJson)
+            (0 until tracks.length())
+                .mapNotNull { index -> tracks.optJSONObject(index) }
+                .filter { track -> track.optString("type") == MPVTrackType.SUBTITLE.type }
+                .map { track -> MpvSubtitleTrackInfo(external = track.optBoolean("external")) }
+        }
+        .getOrDefault(emptyList())
 }
