@@ -10,4 +10,6 @@
     <string name="search_placeholder">Search movies and TV shows</string>
     <string name="search_empty_title">No results</string>
     <string name="search_empty_message">Try a different keyword · results update as you type</string>
+    <string name="library_count">%1$d libraries</string>
+    <string name="library_item_count">%1$d items</string>
 </resources>

@@ -11,11 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -37,6 +36,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.media.MediaAction
 import com.zhangwenkang.cinefin.film.presentation.media.MediaState
 import com.zhangwenkang.cinefin.film.presentation.media.MediaViewModel
@@ -46,11 +46,10 @@ import com.zhangwenkang.cinefin.film.presentation.search.SearchViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
-import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoritesCard
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
-import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
+import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
@@ -95,6 +94,13 @@ fun MediaScreen(
     )
 }
 
+/**
+ * 媒体库总览（Lumen + 去拥挤）：
+ *
+ * 1. **层级**：顶栏只留抽屉入口，标题升级为大标题 + 计数副题，页面第一眼就知道"这是哪一层、有多少库"；
+ * 2. **栅格**：库卡从"固定 260dp + 自适应列"改为"整列宽 16:9 大卡"，手机一列、平板 2 列—— 旧写法在手机上会挤出屏幕、在平板上留不规则空档，这是"拥挤感"的主因；
+ * 3. **间距**：列距 16 / 26dp（随窗口），行距 24dp，区块上下留白 32dp。
+ */
 @Composable
 private fun MediaScreenLayout(
     onOpenDrawer: () -> Unit,
@@ -106,6 +112,7 @@ private fun MediaScreenLayout(
     onSearchAction: (SearchAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
+    val colors = LocalCinefinColors.current
 
     val pageGutter = rememberPageGutter()
     val gridGutter = rememberGridGutter()
@@ -115,26 +122,23 @@ private fun MediaScreenLayout(
 
     val contentPaddingTop by
         animateDpAsState(
-            targetValue =
-                if (state.error != null) {
-                    144.dp
-                } else {
-                    88.dp
-                },
+            targetValue = if (state.error != null) 144.dp else 88.dp,
             label = "content_padding",
         )
 
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
 
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val expanded =
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
     val minColumnSize =
         when {
-            windowSizeClass.isWidthAtLeastBreakpoint(
-                WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND
-            ) -> 320.dp
+            windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND) ->
+                420.dp
+            expanded -> 380.dp
             windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) ->
-                240.dp
-            else -> 160.dp
+                320.dp
+            else -> 300.dp
         }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -155,12 +159,26 @@ private fun MediaScreenLayout(
                 onClick = onOpenDrawer,
                 contentDescription = stringResource(CoreR.string.title_media),
             )
-            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+        }
+
+        // 标题块：大标题 + 计数副题（层级）
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(start = paddingStart, end = paddingEnd),
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+        ) {
             Text(
                 text = stringResource(CoreR.string.title_media),
-                style = CinefinType.TitleLarge,
-                color = LocalCinefinColors.current.onSurface,
+                style = if (expanded) CinefinType.HeadlineLarge else CinefinType.HeadlineMedium,
+                color = colors.onSurface,
             )
+            if (state.libraries.isNotEmpty()) {
+                Text(
+                    text = stringResource(FilmR.string.library_count, state.libraries.size),
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(CinefinSpacing.Space6))
         }
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -181,20 +199,20 @@ private fun MediaScreenLayout(
                         start = paddingStart,
                         top = contentPaddingTop,
                         end = paddingEnd,
-                        bottom = paddingBottom,
+                        bottom = paddingBottom + CinefinSpacing.Space8,
                     ),
                 horizontalArrangement = Arrangement.spacedBy(gridGutter),
-                verticalArrangement = Arrangement.spacedBy(gridGutter),
+                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     FavoritesCard(onClick = { onAction(MediaAction.OnFavoritesClick) })
                 }
-                items(state.libraries, key = { it.id }) { library ->
-                    ItemCard(
+                itemsIndexed(state.libraries, key = { _, library -> library.id }) { index, library
+                    ->
+                    LibraryEntryCard(
                         item = library,
-                        direction = Direction.HORIZONTAL,
                         onClick = { onAction(MediaAction.OnItemClick(library)) },
-                        modifier = Modifier.animateItem(),
+                        index = index,
                     )
                 }
             }
@@ -227,8 +245,7 @@ private fun MediaScreenLayoutPreview() {
     CinefinTheme {
         MediaScreenLayout(
             onOpenDrawer = {},
-            state =
-                MediaState(libraries = dummyCollections, error = Exception("Failed to load data")),
+            state = MediaState(libraries = dummyCollections, error = null),
             searchState = SearchState(),
             searchExpanded = false,
             onSearchExpand = {},

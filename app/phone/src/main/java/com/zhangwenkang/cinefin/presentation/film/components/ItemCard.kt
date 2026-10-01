@@ -1,19 +1,22 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,7 +25,6 @@ import com.zhangwenkang.cinefin.core.R
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -31,31 +33,40 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
+/**
+ * 栅格条目卡：宽度由栅格列决定（不再固定 150 / 260 / 184dp），版式随方向切换。
+ *
+ * Lumen 双层嵌套外壳 + 图上进度（横版卡）；标题与元信息压在卡片下方的留白里，字号与间距统一走 Prism 字阶。
+ */
 @Composable
 fun ItemCard(
     item: FindroidItem,
     direction: Direction,
     onClick: (FindroidItem) -> Unit,
     modifier: Modifier = Modifier,
+    index: Int = 0,
 ) {
     val colors = LocalCinefinColors.current
-    val width =
-        when (direction) {
-            Direction.HORIZONTAL -> 260
-            Direction.VERTICAL -> 150
-            Direction.SQUARE -> 184
-        }
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val pressed by interactionSource.collectIsPressedAsState()
+
     Column(
         modifier =
-            modifier.width(width.dp).clip(CinefinShapes.Md).cinefinClickable { onClick(item) }
+            modifier.fillMaxWidth().lumenEntrance(index).cinefinClickable(
+                interactionSource = interactionSource
+            ) {
+                onClick(item)
+            }
     ) {
-        Box(
-            modifier =
-                Modifier.clip(CinefinShapes.Md).border(1.dp, colors.outline, CinefinShapes.Md)
+        LumenCardFrame(
+            modifier = Modifier.fillMaxWidth(),
+            emphasized = hovered || pressed,
+            container = colors.surfaceContainerHigh,
         ) {
-            ItemPoster(item = item, direction = direction)
+            ItemPoster(item = item, direction = direction, modifier = Modifier.fillMaxWidth())
             Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space2),
+                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space3),
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
                 if (item.isDownloaded()) DownloadedBadge()
@@ -65,12 +76,14 @@ fun ItemCard(
             if (direction == Direction.HORIZONTAL) {
                 ProgressBar(
                     item = item,
-                    width = width,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(CinefinSpacing.Space2),
+                    modifier =
+                        Modifier.align(Alignment.BottomStart)
+                            .padding(horizontal = CinefinSpacing.Space3)
+                            .padding(bottom = CinefinSpacing.Space3),
                 )
             }
         }
-        Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
         Text(
             text = if (item is FindroidEpisode) item.seriesName else item.name,
             style = CinefinType.TitleSmall,
@@ -93,30 +106,44 @@ fun ItemCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.height(2.dp))
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ItemCardPreviewMovie() {
-    CinefinTheme { ItemCard(item = dummyMovie, direction = Direction.HORIZONTAL, onClick = {}) }
+    CinefinTheme {
+        ItemCard(
+            item = dummyMovie,
+            direction = Direction.HORIZONTAL,
+            onClick = {},
+            modifier = Modifier.width(260.dp),
+        )
+    }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ItemCardPreviewMovieVertical() {
-    CinefinTheme { ItemCard(item = dummyMovie, direction = Direction.VERTICAL, onClick = {}) }
+    CinefinTheme {
+        ItemCard(
+            item = dummyMovie,
+            direction = Direction.VERTICAL,
+            onClick = {},
+            modifier = Modifier.width(150.dp),
+        )
+    }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ItemCardPreviewEpisode() {
-    CinefinTheme { ItemCard(item = dummyEpisode, direction = Direction.HORIZONTAL, onClick = {}) }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ItemCardPreviewEpisodeVertical() {
-    CinefinTheme { ItemCard(item = dummyEpisode, direction = Direction.VERTICAL, onClick = {}) }
+    CinefinTheme {
+        ItemCard(
+            item = dummyEpisode,
+            direction = Direction.HORIZONTAL,
+            onClick = {},
+            modifier = Modifier.width(260.dp),
+        )
+    }
 }

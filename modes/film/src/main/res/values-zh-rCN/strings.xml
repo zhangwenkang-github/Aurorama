@@ -10,4 +10,6 @@
     <string name="search_placeholder">搜索电影和电视节目</string>
     <string name="search_empty_title">没有找到结果</string>
     <string name="search_empty_message">换个关键词试试 · 输入即实时搜索</string>
+    <string name="library_count">共 %1$d 个媒体库</string>
+    <string name="library_item_count">共 %1$d 个项目</string>
 </resources>
