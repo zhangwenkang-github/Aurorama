@@ -495,7 +495,8 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
       （右起开关不进入 EPUB 偏好快照），合计 **12 项新增**；`:modes:book` 合计 **43 项**（6 个测试类）。
 - [x] 门禁：`:app:phone:assembleDebug` + `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（23 项）+
       `:modes:book:testDebugUnitTest`（43 项）全绿。
-- [ ] 真机验证记录写入 §7.7（K60 `8e875894`：CBZ RTL 三档方向 / 滚动双指缩放 / 跨页结论 / EPUB 回归）。
+- [x] 真机验证记录写入 §7.7（K60 `8e875894`：CBZ RTL 三档方向 / 滚动双指缩放 / 跨页结论 / PDF RTL /
+      EPUB 回归 / 稳定性与还原；新发现「阅读页顶栏被状态栏压住」记入 §7.7.5 与踩坑 20）。
 
 ## 7. 真机验证记录（2026-09-30）
 
@@ -647,7 +648,7 @@ EPUB 仍走 Readium Locator（见上表）。说明「页索引 / 总页数」�
 - 调度留档：本波真机窗口为负责人明确指派（W3-R3b 01:05 释放 → W4-R1 01:31 使用 → 完成后立即释放）；
   K60（`8e875894`）因 MIUI 无 SIM 卡限制「USB 安装」放弃，未产生任何验证数据。
 
-### 7.7 W9 RTL / 滚动缩放真机验证（2026-10-01，Redmi K60 `8e875894`）——**进行中**
+### 7.7 W9 RTL / 滚动缩放真机验证（2026-10-01，Redmi K60 `8e875894`）——**完成**
 
 设备：Redmi K60（`8e875894`，1440×3200，Android 13 / MIUI），分支 `feature/w9-reader-comics`；
 入口 = App 内「媒体库 → 书籍 → 点书 → ReaderActivity」（`exported=false`，adb 不能直启）。
@@ -655,7 +656,58 @@ EPUB 仍走 Readium Locator（见上表）。说明「页索引 / 总页数」�
 = futuristic_tales（CBZ / 4 页）、`e2d0c13d-…` 670,643,292 B = 虚构推理（PDF / 3649 页）、
 `81099153-…` 2,220,485 B = 雷普利全集（EPUB）。
 
-> 待填：RTL 三档方向、滚动双指缩放、跨页结论、EPUB 回归、稳定性与释放时间（见 device-lock）。
+**7.7.1 RTL 三档行为（EB-4 / D17）**
+
+| 步骤 | 操作 | 结果 |
+|------|------|------|
+| 装机核验 | `install -r phone-libre-arm64-v8a-debug.apk`（102,935,506 B）+ 打开 futuristic_tales | `Success`；顶栏「离线可读 · 703 KB」，页指示「滚动 · 1/4」；面板出现「翻页方向 / 右起翻页（漫画）」且带说明「分页 / 双栏右到左；滚动模式仍自上而下」 |
+| 分页 LTR | 切「分页」后左滑 / 右滑 | 左滑 `分页 · 1/4 → 2/4`、右滑回 `1/4`（标准左到右） |
+| 分页 RTL | 面板开「右起翻页」→ 关面板 | 页指示变「分页 · 1/4 · 右起」；右滑（手指左→右）`1/4 → 2/4 · 右起`、左滑回 `1/4`（方向镜像且页号仍是逻辑序） |
+| 双栏 RTL 页序 | 切「双栏」（RTL 开）→ `screencap`；再关 RTL → `screencap` | 指示「双栏 · 1-2/4 · 右起」；两张截图裁剪内容区（y 200–2900）后按半屏比对：**RTL 左半 = LTR 右半、RTL 右半 = LTR 左半，灰度差 0.00/255；未镜像差 32.2/255** → RTL 双栏 = 右 2k+1、左 2k+2，整屏是 LTR 的精确水平镜像 |
+| 滚动 + RTL | 回「滚动」（RTL 保持开）→ 单指上滑 | 指示仍「滚动 · 1/4 → 2/4」不带右起、纵向顺序不变（**滚动模式不受 RTL 影响**，与 D17 口径一致） |
+| PDF + RTL | 打开虚构推理（PDF / 3649 页，缓存命中 639.6 MB） | 指示「分页 · 1/3649 · 右起」；右滑 `1/3649 → 2/3649`、左滑回 `1/3649` → RTL 对 PDF 同样生效 |
+| 持久化 | 验证后 `force-stop` 检查 `shared_prefs` | `pref_reader_rtl=false`（还原后）、`pref_reader_mode=scroll`；说明开关经 `AppPreferences` 正常读写 |
+
+**7.7.2 滚动模式双指缩放（EB-3 扩展 / D18）**
+
+注入方式：adb `input` 不支持多指；`sendevent /dev/input/event7` 被 SELinux 拒（`Permission denied`）→
+用临时 `app_process`（`InputManagerGlobal.injectInputEvent` + 2 指 `MotionEvent`）注入，工具在
+`%TEMP%` 与本机 `/data/local/tmp`，验证后已删除、未入库。
+
+| 步骤 | 操作 | 结果 |
+|------|------|------|
+| 滚动模式捏合放大 | 页 3 上双指张到 6× | logcat `reader zoom index=2 scale=1.16 → 1.32 → … → 2.92`（步进 ≥0.1 才打点），页面就地放大 |
+| 缩放上限 | 再注入一次更大幅度捏合 | `reader zoom … scale=4.00`（最大值打点一次后不再变）→ 1×–4× 夹取在真机成立 |
+| 不抢纵向滚动 | 缩放过程中与缩放后各做一次单指上滑 | 缩放中页指示停在 `2/4`（列表未被双指手势拖动）；缩放后单指上滑 `2/4 → 3/4`（纵向滚动未被吞） |
+| 捏合缩小 | 双指由 6× 距离捏回 | `scale=4.00 → 1.68 → … → 1.03`、`offset=(0,0)`（缩到 1× 自动居中） |
+| 分页模式对照 | 切「分页」重复捏合 + 单指翻页 | 同一手势 `scale` 最大 **4.00**；放大后单指滑动仍翻页（`分页 · 1/4 → 2/4 · 右起`）→ 两模式共用 `PageZoom` 口径一致 |
+
+**7.7.3 跨页拼接结论的可见性核对（D19）**
+
+两本测试书逐页尺寸（本地只读解包）：futuristic_tales = 654×1040 + 676×1040×3；
+Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `FrontCover` / `Letters` 两个 Type，
+**没有任何横版页**。即：现有测试集不含「被拆成两张的跨页对图」，跨页合并既无样本可验证、
+也无元数据可判定 → D19「本波不实施、先交付正确页序 + 方案记录」成立（真机部分只核对到页序正确）。
+
+**7.7.4 EPUB 回归与稳定性**
+
+| 项 | 结果 |
+|----|------|
+| 打开 | 雷普利全集（离线可读 · 2.1 MB）UI 树存在 WebView 节点，顶栏有「书签」按钮 |
+| 阅读设置面板 | EPUB 下**没有**「翻页方向 / 右起翻页」行、无开关（RTL 只对 PDF / CBZ，符合 D17） |
+| 翻页 + 进度 | 分页左滑后 locator 落到 `5o6jvk_z_split_000.html`、`progression=0.0007137758743754461`、`pendingSync=false` |
+| 书签 | 「添加当前页书签」→ `bookmarks.json` 新增 `版权信息 · 0.1%`；「删除」后回到 `{}` |
+| 待同步队列 | 期间 futuristic_tales 出现过「离线暂存 1 条进度」横幅，30 秒 ticker 后 `pendingSync=false`（W3 队列无回归） |
+| 稳定性 | `logcat` 过滤 `FATAL EXCEPTION / ANR in com.zhangwenkang / E cinefin`：0 命中 |
+| 还原 | 设置回默认（`pref_reader_mode=scroll`、`pref_reader_rtl=false`）；`/sdcard/w9_*.png`、`/sdcard/u.xml`、`/data/local/tmp/w9pinch.dex`、`/data/local/tmp/w9probe.dex`、`/data/local/tmp/dalvik-cache` 已删；App force-stop |
+
+**7.7.5 本波真机发现（缺陷候选，交 UI 线）**
+
+- **阅读页顶栏被状态栏压住**：`ReaderTopBar`（56dp = 196px）没有 `statusBarsPadding()`，而 K60 状态栏
+  高 138px → 顶栏上 2/3 落在状态栏下，模式 / 书签 / Aa 按钮的可点区只剩 y≈138–183（45px）；
+  本次验收必须先点 y=170 才生效（点 y=99 落到状态栏）。W8 只统一了三页主界面顶栏
+  （`CinefinPageTopBar`），阅读页外壳（R3 的 Prism 顶栏）还没有；建议 UI 线后续统一补
+  `statusBarsPadding()` 或直接换 `CinefinPageTopBar`。
 
 ## 8. 踩坑库
 
@@ -709,6 +761,16 @@ EPUB 仍走 Readium Locator（见上表）。说明「页索引 / 总页数」�
 19. **真机并发会把对方 APK 覆盖掉**：本波首轮真机验证跑在旧代码上（日志里 `openPublication` 行号与
     源码不符），事后查明是另一会话在 00:22 重装了自己的构建。**教训：真机验证前先核验安装包
     与本地构建一致（比对 APK 大小 / dex 特征字符串），再由负责人统一调度设备。**
+20. **阅读页顶栏没有状态栏内边距**：`ReaderTopBar` 用 56dp 高度直接顶到窗口顶部，K60 状态栏 138px
+    把上 2/3 压住——`uiautomator` 报按钮 `[959,15][1178,183]`，实际可点区只有 y 138–183；adb 点
+    y=99 会落到状态栏（表现为「点了没反应」）。真机脚本要用 y≈170 命中，或等 UI 线补
+    `statusBarsPadding()`（W8 只统一了主界面三个页面）。
+21. **多指手势的注入方式**：`adb shell input` 只有单指；`sendevent /dev/input/event*` 在 K60 被
+    SELinux 拒（shell 虽在 `input` 组，写入仍 `Permission denied`）；可行路径是临时 `app_process`
+    + `InputManagerGlobal.getInstance().injectInputEvent(event, WAIT_FOR_FINISH)` 构造 2 指
+    `MotionEvent`（注意：`InputManager.getInstance()` 在该 MIUI 上会抛 NPE，必须走 `InputManagerGlobal`；
+    keyguard 窗口会拒收注入的 MOVE——解锁后再注入）。验证完必须删除 `/data/local/tmp` 下的 dex
+    与 `/sdcard` 截图。
 
 ## 9. 未决问题与下一波
 
@@ -784,3 +846,4 @@ EPUB 仍走 Readium Locator（见上表）。说明「页索引 / 总页数」�
 | 2026-10-01 | W4-R1：PDF 走 PdfRenderer 自研（D14）、CBZ 走 ZipFile 自研（D15，含 Andas_Game 解析失败根因）、格式嗅探与页进度语义（D16）；`SimpleBookView` 三档模式 + 页指示 + 双指缩放；格式嗅探健壮性（1 KiB PDF 探针 / mimetype-EPUB / 空图片 ZIP 回退 Readium）；新增 16 项单测（模块合计 31 项，全绿）；真机部分验证（§7.6：attention PDF 打开 + 翻页）后按负责人调度暂停；踩坑 15–19 |
 | 2026-10-01 | W4-R1 真机验收完成（Pad 5，负责人指派窗口）：attention（15 页）/ 虚构推理（3649 页，639.6 MB）/ Anda's Game（24 页）/ futuristic_tales（4 页）逐本打开 + 分页 / 双栏 / 滚动三档行为通过（双栏双截图核对左右为不同页）；EPUB《雷普利全集》回归通过（Locator 推进 + 回传）；虚构推理连翻 40 页 + 静止复测：稳态 **≈358 MB**，与 attention（≈334 MB）同量级，内存不随页数 / 文档大小增长（EB-3 达标）；`progress.json` 五条记录 `pendingSync=false`（D16 换算精确）。详见 §7.6 |
 | 2026-10-01 | W9-READER（分支 `feature/w9-reader-comics`）：①RTL 右起翻页（D17）——`SpreadOrder.kt` 页序层（`spreadPageSlots` / `spreadCount` / `isRtlPaging`）+ `SimpleBookView` 分页 / 双栏镜像 + 阅读设置面板开关（仅 PDF / CBZ）+ `pref_reader_rtl`；②跨页对图合并研判（D19）——本波不实施，记录内存 2× / 无可靠元数据 / 接缝与语义耦合四条理由与 W5 试点方案；③滚动模式双指缩放（D18）——`ZoomablePage` 下放到滚动列表页项（双指优先、单指不抢滚动），与分页共用 `PageZoom`（1×–4×、平移夹取、非有限值守卫）；新增 12 项单测（模块 43 项，6 个测试类全绿）+ 门禁全绿；真机验证见 §7.7 |
+| 2026-10-01 | W9-READER 真机验收完成（K60 `8e875894`，负责人指派 + 设备解锁后窗口）：RTL 三档（分页方向镜像 / 双栏逐像素水平镜像 / 滚动不变）、PDF 同样生效、滚动模式双指缩放（1.16→2.92、上限 4.00、捏回过 1× 不抢纵向滚动）、跨页结论可见性核对（两本书全竖版页，无对图样本）、EPUB 回归（WebView / locator 推进 / 书签增删 / 待同步队列），无 FATAL / ANR，设置与设备副作用全部还原。新发现阅读页顶栏未避让状态栏（§7.7.5、踩坑 20）、多指注入方法（踩坑 21） |
