@@ -48,6 +48,8 @@
     <string name="player_settings_chapter_markers">Chapter markers on the progress bar</string>
     <string name="player_settings_pause_after_item">Pause when the item ends</string>
     <string name="player_settings_pause_after_item_caption">Stay at the end instead of playing the next episode</string>
+    <string name="player_settings_repeat_entry">Repeat mode</string>
+    <string name="player_settings_repeat_entry_caption">Order / repeat all / repeat one / shuffle</string>
     <string name="player_settings_backend">Player core</string>
     <string name="player_settings_backend_caption">Switching reloads the player page and keeps the position</string>
     <string name="player_settings_backend_exoplayer">ExoPlayer (hardware)</string>
@@ -119,6 +121,7 @@
     <string name="player_controls_label_audio">Audio</string>
     <string name="player_controls_label_aspect">Aspect</string>
     <string name="player_controls_panel_close">Close panel</string>
+    <string name="player_controls_panel_back">Back</string>
     <string name="player_controls_rewind">Rewind</string>
     <string name="player_controls_exit">Exit player</string>
     <string name="player_controls_fast_forward">Fast forward</string>

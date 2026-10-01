@@ -51,6 +51,8 @@
     <string name="player_settings_chapter_markers">进度条显示章节刻度</string>
     <string name="player_settings_pause_after_item">播完暂停</string>
     <string name="player_settings_pause_after_item_caption">当前一集播完停在片尾，不自动跳下一集</string>
+    <string name="player_settings_repeat_entry">循环模式</string>
+    <string name="player_settings_repeat_entry_caption">顺序播放 / 列表循环 / 单集循环 / 随机</string>
     <string name="player_settings_backend">播放内核</string>
     <string name="player_settings_backend_caption">切换内核会重载播放页，进度保留</string>
     <string name="player_settings_backend_exoplayer">ExoPlayer（硬解）</string>
@@ -122,6 +124,7 @@
     <string name="player_controls_label_audio">音轨</string>
     <string name="player_controls_label_aspect">画面</string>
     <string name="player_controls_panel_close">关闭面板</string>
+    <string name="player_controls_panel_back">返回上一级</string>
     <string name="player_controls_skip_forward">跳过</string>
     <string name="player_controls_progress">进度条</string>
     <string name="player_trickplay">进度条预览图</string>

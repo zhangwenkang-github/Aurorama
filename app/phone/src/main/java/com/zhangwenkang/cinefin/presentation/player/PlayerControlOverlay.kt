@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -42,8 +41,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -55,7 +52,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -151,9 +147,6 @@ private val SpeedOptions = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 
 /** 睡眠定时的档位（分钟） */
 private val SleepOptions = listOf(10, 20, 30, 60)
-
-/** 队列行的近似高度（dp）：拖拽排序按「位移超过一行就换位」计算，与 PanelRow 的 52dp + 缩略图匹配 */
-private val QUEUE_ROW_HEIGHT = 64.dp
 
 internal enum class PlayerPanel {
     None,
@@ -395,6 +388,8 @@ fun PlayerControlOverlay(
     var panel by remember { mutableStateOf(PlayerPanel.None) }
     // 抽屉退场动画期间保留最后一个面板的内容，避免「滑走的是一块空板」
     var lastPanel by remember { mutableStateOf(PlayerPanel.More) }
+    // 从「更多」进的子面板给一个返回箭头，回到「更多」；从主界面工具键进的没有上一级
+    var panelBackTarget by remember { mutableStateOf<PlayerPanel?>(null) }
     LaunchedEffect(panel) { if (panel != PlayerPanel.None) lastPanel = panel }
     // 打开期间直接用当前面板（首帧不闪「更多」）；关闭后交给 lastPanel 走退场动画
     val drawerPanel = if (panel == PlayerPanel.None) lastPanel else panel
@@ -471,6 +466,13 @@ fun PlayerControlOverlay(
      * 不再弹底部面板；手机等没有内容栏的骨架才用底部面板兜底。
      */
     val hasSidePanel = layout.hasSideContent
+    // 面板导航：从「更多 / 播放设置」进的子面板保留上一级，抽屉左上角的返回箭头回到那里；
+    // 从主界面工具键进的是一级面板，没有返回箭头（只有关闭）。
+    val navigatePanel: (PlayerPanel) -> Unit = { target ->
+        panelBackTarget =
+            if (panel == PlayerPanel.More || panel == PlayerPanel.Settings) panel else null
+        panel = target
+    }
     val bottomBar: @Composable (Modifier, Brush?) -> Unit = { barModifier, scrim ->
         PlayerBottomBar(
             positionMs = runtime.position,
@@ -487,14 +489,14 @@ fun PlayerControlOverlay(
             sleepRemainingMs = sleepRemaining,
             onSeek = { target -> player.seekTo(target) },
             onScrubStart = { controls.show() },
-            onOpenSubtitle = { panel = PlayerPanel.Subtitle },
-            onOpenAudio = { panel = PlayerPanel.Audio },
-            onOpenAspect = { panel = PlayerPanel.Aspect },
+            onOpenSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
+            onOpenAudio = { navigatePanel(PlayerPanel.Audio) },
+            onOpenAspect = { navigatePanel(PlayerPanel.Aspect) },
             onOpenQueue =
                 if (hasSidePanel) {
                     onToggleSidePanel
                 } else {
-                    { panel = PlayerPanel.Queue }
+                    { navigatePanel(PlayerPanel.Queue) }
                 },
             queueDescription =
                 stringResource(
@@ -504,7 +506,7 @@ fun PlayerControlOverlay(
                         else -> PlayerR.string.player_controls_side_panel_show
                     }
                 ),
-            onOpenMore = { panel = PlayerPanel.More },
+            onOpenMore = { navigatePanel(PlayerPanel.More) },
             scrim = scrim,
             modifier = barModifier,
         )
@@ -540,7 +542,7 @@ fun PlayerControlOverlay(
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
                 onSeek = { target -> player.seekTo(target) },
                 onScrubStart = { controls.show() },
-                onOpenMore = { panel = PlayerPanel.More },
+                onOpenMore = { navigatePanel(PlayerPanel.More) },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         } else {
@@ -640,6 +642,9 @@ fun PlayerControlOverlay(
                     controls.show()
                 },
                 onCollapse = onToggleSidePanel,
+                onQueueMove = onQueueMove,
+                onQueueRemove = onQueueRemove,
+                onQueueClear = onQueueClear,
                 modifier =
                     Modifier.width(layout.sidePanelWidthDp.dp)
                         .fillMaxHeight()
@@ -653,6 +658,9 @@ fun PlayerControlOverlay(
                 entries = runtime.queueEntries,
                 currentIndex = runtime.currentIndex,
                 onSelect = { index -> player.seekTo(index, 0L) },
+                onQueueMove = onQueueMove,
+                onQueueRemove = onQueueRemove,
+                onQueueClear = onQueueClear,
                 modifier = Modifier.fillMaxSize().padding(top = videoHeight),
             )
         }
@@ -668,6 +676,9 @@ fun PlayerControlOverlay(
                     entries = runtime.queueEntries,
                     currentIndex = runtime.currentIndex,
                     onSelect = { index -> player.seekTo(index, 0L) },
+                    onQueueMove = onQueueMove,
+                    onQueueRemove = onQueueRemove,
+                    onQueueClear = onQueueClear,
                     showHandle = false,
                     modifier = Modifier.weight(1f),
                 )
@@ -707,21 +718,22 @@ fun PlayerControlOverlay(
                 titleRes = panelTitleRes(drawerPanel),
                 width = drawerWidth,
                 onClose = { panel = PlayerPanel.None },
+                onBack = panelBackTarget?.let { target -> { panel = target } },
             ) {
                 when (drawerPanel) {
                     PlayerPanel.More ->
                         MorePanel(
                             isPipSupported = isPipSupported,
+                            // 小窗（Compact）没有右上角工具簇，「更多」要兜住全部功能入口
+                            showToolEntries = layout.isCompact,
                             onPip = onPip,
-                            onOpen = { panel = it },
+                            onOpen = { navigatePanel(it) },
                         )
                     PlayerPanel.Speed ->
                         SpeedPanel(
                             current = runtime.speed,
-                            onSelect = {
-                                onSelectSpeed(it)
-                                panel = PlayerPanel.None
-                            },
+                            // 反馈④：选档位只更新状态，面板保持打开，只有显式关闭 / 返回才退出
+                            onSelect = { onSelectSpeed(it) },
                         )
                     PlayerPanel.Repeat ->
                         RepeatPanel(
@@ -743,7 +755,6 @@ fun PlayerControlOverlay(
                                 ) {
                                     player.shuffleModeEnabled = shuffle
                                 }
-                                panel = PlayerPanel.None
                             },
                         )
                     PlayerPanel.Subtitle ->
@@ -776,7 +787,7 @@ fun PlayerControlOverlay(
                         PlayerSettingsPanel(
                             controller = settingsController,
                             videoTransform = videoTransform,
-                            onOpenPanel = { target -> panel = target },
+                            onOpenPanel = { target -> navigatePanel(target) },
                             onSelectBackend = onSelectBackend,
                             onSelectMpvHwdec = onSelectMpvHwdec,
                             onSubtitleModeChanged = onSubtitleModeChanged,
@@ -793,10 +804,8 @@ fun PlayerControlOverlay(
                         QueuePanel(
                             entries = runtime.queueEntries,
                             currentIndex = runtime.currentIndex,
-                            onSelect = { index ->
-                                player.seekTo(index, 0L)
-                                panel = PlayerPanel.None
-                            },
+                            // 反馈④：跳转不关面板，换集后仍可继续整理队列
+                            onSelect = { index -> player.seekTo(index, 0L) },
                             onMove = onQueueMove,
                             onRemove = onQueueRemove,
                             onClear = onQueueClear,
@@ -804,10 +813,7 @@ fun PlayerControlOverlay(
                     PlayerPanel.Sleep ->
                         SleepPanel(
                             currentMinutes = sleepMinutes,
-                            onSelect = {
-                                sleepMinutes = it
-                                panel = PlayerPanel.None
-                            },
+                            onSelect = { sleepMinutes = it },
                         )
                     PlayerPanel.None -> Unit
                 }
@@ -1804,6 +1810,8 @@ private fun PlayerPanelDrawer(
     @StringRes titleRes: Int,
     width: Dp,
     onClose: () -> Unit,
+    /** 上一级面板（从「更多 / 播放设置」进来的子面板）；null = 一级面板，不画返回箭头 */
+    onBack: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
@@ -1825,6 +1833,15 @@ private fun PlayerPanelDrawer(
                     Modifier.fillMaxWidth()
                         .padding(start = CinefinSpacing.Space5, end = CinefinSpacing.Space2),
             ) {
+                if (onBack != null) {
+                    PlayerIconButton(
+                        iconRes = CoreR.drawable.ic_arrow_left,
+                        contentDescription =
+                            stringResource(PlayerR.string.player_controls_panel_back),
+                        onClick = onBack,
+                        glass = false,
+                    )
+                }
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
@@ -2467,196 +2484,46 @@ private fun QueuePanel(
     onClear: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    val seasons = entries.mapNotNull { it.seasonNumber }.distinct().sorted()
-    val currentSeason = entries.getOrNull(currentIndex)?.seasonNumber
-    var selectedSeason by
-        remember(seasons, currentSeason) { mutableStateOf(currentSeason ?: seasons.firstOrNull()) }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (entries.isEmpty()) {
-            Text(
-                text = stringResource(PlayerR.string.player_controls_queue_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.onSurfaceVariant,
-                modifier =
-                    Modifier.padding(
-                        horizontal = CinefinSpacing.Space5,
-                        vertical = CinefinSpacing.Space3,
-                    ),
-            )
-            return@Column
-        }
-
-        // 队列管理（§1.7）：清空 + 拖拽排序提示
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+    if (entries.isEmpty()) {
+        Text(
+            text = stringResource(PlayerR.string.player_controls_queue_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurfaceVariant,
             modifier =
-                Modifier.fillMaxWidth()
-                    .padding(horizontal = CinefinSpacing.Space5, vertical = CinefinSpacing.Space1),
-        ) {
-            Text(
-                text = stringResource(PlayerR.string.player_queue_drag_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            PanelChip(
-                label = stringResource(PlayerR.string.player_queue_clear),
-                selected = false,
-                onClick = onClear,
-            )
-        }
-
-        // 剧集：按季分组，先选季再看集；电影等没有季信息时退化成平铺列表
-        if (seasons.isNotEmpty()) {
-            ScrollableTabRow(
-                selectedTabIndex = seasons.indexOf(selectedSeason).coerceAtLeast(0),
-                containerColor = Color.Transparent,
-                contentColor = media.base,
-                edgePadding = CinefinSpacing.Space5,
-                divider = {},
-            ) {
-                seasons.forEach { season ->
-                    Tab(
-                        selected = season == selectedSeason,
-                        onClick = { selectedSeason = season },
-                        text = {
-                            Text(
-                                text =
-                                    stringResource(PlayerR.string.player_controls_season, season),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        },
-                        selectedContentColor = media.bright,
-                        unselectedContentColor = colors.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-
-        PanelList {
-            entries.forEachIndexed { index, entry ->
-                val visible =
-                    seasons.isEmpty() ||
-                        entry.seasonNumber == null ||
-                        entry.seasonNumber == selectedSeason
-                if (!visible) return@forEachIndexed
-
-                QueueEditableRow(
-                    index = index,
-                    entry = entry,
-                    selected = index == currentIndex,
-                    canRemove = index != currentIndex,
-                    lastIndex = entries.lastIndex,
-                    onSelect = { onSelect(index) },
-                    onMove = onMove,
-                    onRemove = { onRemove(index) },
-                )
-            }
-        }
-    }
-}
-
-/**
- * 队列里可整理的一行（§1.7）：点行跳转、长按拖动排序、行尾删除。
- *
- * 拖拽用「累计位移每超过一行高度就换一次位」的简化实现（不引新依赖）：一次拖拽可以连续换位， 松手即停在当前位置。删除键在当前播放条目上禁用（不允许把正在播的那条移除）。
- */
-@Composable
-private fun QueueEditableRow(
-    index: Int,
-    entry: QueueEntry,
-    selected: Boolean,
-    canRemove: Boolean,
-    lastIndex: Int,
-    onSelect: () -> Unit,
-    onMove: (Int, Int) -> Unit,
-    onRemove: () -> Unit,
-) {
-    val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var dragging by remember { mutableStateOf(false) }
-    // 拖动过程中列表顺序会变：用最新的下标去算目标位，避免用捕获的旧下标
-    val currentIndex by rememberUpdatedState(index)
-    val currentLastIndex by rememberUpdatedState(lastIndex)
-    val rowHeightPx = with(LocalDensity.current) { QUEUE_ROW_HEIGHT.toPx() }
-
-    Box(
-        modifier =
-            Modifier.graphicsLayer { translationY = dragOffset }
-                .pointerInput(entry.title, entry.episodeNumber, entry.seasonNumber) {
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = { dragging = true },
-                        onDragEnd = {
-                            dragging = false
-                            dragOffset = 0f
-                        },
-                        onDragCancel = {
-                            dragging = false
-                            dragOffset = 0f
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            dragOffset += dragAmount.y
-                            val steps = (dragOffset / rowHeightPx).roundToInt()
-                            if (steps != 0) {
-                                val target = (currentIndex + steps).coerceIn(0, currentLastIndex)
-                                if (target != currentIndex) onMove(currentIndex, target)
-                                dragOffset = 0f
-                            }
-                        },
-                    )
-                }
-    ) {
-        PanelRow(
-            label = queueLabel(index = index, entry = entry),
-            selected = selected,
-            onClick = onSelect,
-            leadingArtworkUri = entry.artworkUri,
-            trailing = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PlayerIconButton(
-                        iconRes = CoreR.drawable.ic_close,
-                        contentDescription = stringResource(PlayerR.string.player_queue_remove),
-                        onClick = onRemove,
-                        size = 40.dp,
-                        glass = false,
-                        enabled = canRemove,
-                    )
-                    Icon(
-                        painter = painterResource(CoreR.drawable.ic_menu),
-                        contentDescription = null,
-                        tint = if (dragging) media.bright else colors.onSurfaceFaint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            },
+                Modifier.padding(
+                    horizontal = CinefinSpacing.Space5,
+                    vertical = CinefinSpacing.Space3,
+                ),
         )
+        return
     }
-}
-
-/** 队列里的单行：有集号时显示「E03 标题」，否则退化成「3. 标题」 */
-internal fun queueLabel(index: Int, entry: QueueEntry): String {
-    val title = entry.title.ifBlank { "—" }
-    val episode = entry.episodeNumber
-    return if (episode != null) {
-        "E%02d  %s".format(episode, title)
-    } else {
-        "${index + 1}. $title"
-    }
+    /*
+     * 队列整理（反馈③）：与「选集 → 播放队列」页共用同一份实现——
+     * 点行跳转 / 长按拖动排序 / 行尾删除 / 清空（保留正在播的条目）。
+     */
+    PlayerEpisodeQueueList(
+        entries = entries,
+        currentIndex = currentIndex,
+        tab = PlayerContentTab.Queue,
+        onSelect = onSelect,
+        onMove = onMove,
+        onRemove = onRemove,
+        onClear = onClear,
+        modifier = Modifier.fillMaxSize(),
+    )
 }
 
 /**
- * 「更多」聚合面板（§11 A/E）：低频入口统一收在这里，不再常驻画面。
+ * 「更多」聚合面板（§11 A/E + W10 反馈⑤）：低频入口统一收在这里，不再常驻画面。
  *
- * 底栏只留高频（字幕 / 音轨 / 画面 / 选集 / 更多）；倍速、循环、信息、睡眠、画中画从「更多」进，
- * 小窗（Compact）形态下这里也是唯一的功能入口。选中后直接把面板切过去，少一次开合动画。
+ * **去重**：字幕 / 音轨 / 画面比例 / 播放队列在右上角工具簇里已有唯一入口，循环模式在「播放设置 → 播放」组里，
+ * 都不再在这里重复出现；这里只留画中画、倍速、播放信息、睡眠定时与「播放设置」这个设置类聚合入口。 小窗（Compact）没有右上角工具簇，[showToolEntries] = true
+ * 时把四个工具入口兜回来，功能不缩水。
  */
 @Composable
 private fun MorePanel(
     isPipSupported: Boolean,
+    showToolEntries: Boolean,
     onPip: () -> Unit,
     onOpen: (PlayerPanel) -> Unit,
 ) {
@@ -2674,31 +2541,28 @@ private fun MorePanel(
                 selected = false,
                 onClick = { onOpen(PlayerPanel.Speed) },
             )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_repeat),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Repeat) },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.select_subtitle_track),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Subtitle) },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.select_audio_track),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Audio) },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_aspect),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Aspect) },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_queue),
-                selected = false,
-                onClick = { onOpen(PlayerPanel.Queue) },
-            )
+            if (showToolEntries) {
+                PanelRow(
+                    label = stringResource(PlayerR.string.select_subtitle_track),
+                    selected = false,
+                    onClick = { onOpen(PlayerPanel.Subtitle) },
+                )
+                PanelRow(
+                    label = stringResource(PlayerR.string.select_audio_track),
+                    selected = false,
+                    onClick = { onOpen(PlayerPanel.Audio) },
+                )
+                PanelRow(
+                    label = stringResource(PlayerR.string.player_controls_aspect),
+                    selected = false,
+                    onClick = { onOpen(PlayerPanel.Aspect) },
+                )
+                PanelRow(
+                    label = stringResource(PlayerR.string.player_controls_queue),
+                    selected = false,
+                    onClick = { onOpen(PlayerPanel.Queue) },
+                )
+            }
             PanelRow(
                 label = stringResource(PlayerR.string.player_controls_info),
                 selected = false,

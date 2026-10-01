@@ -14,6 +14,7 @@ package com.zhangwenkang.cinefin.presentation.player
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,14 +38,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,12 +65,16 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import kotlin.math.roundToInt
 
 /** 常驻内容区的两个页签。信息 / 字幕 / 音轨等仍在底部面板，不在这里重复开入口。 */
 internal enum class PlayerContentTab {
     Episodes,
     Queue,
 }
+
+/** 队列行近似高度（dp）：拖拽换位按「位移超过一行就换位」计算，与队列行的缩略图高度匹配 */
+private val QUEUE_ROW_HEIGHT = 72.dp
 
 /** 侧栏 / 内容区顶部页签行；[trailing] 放「收起侧栏」这类局部动作 */
 @Composable
@@ -139,6 +149,10 @@ internal fun PlayerEpisodeQueueList(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 24.dp),
+    /** 队列整理（§1.7）：拖拽排序 / 删除 / 清空；只有播放队列页给回调，选集页传 null */
+    onMove: ((Int, Int) -> Unit)? = null,
+    onRemove: ((Int) -> Unit)? = null,
+    onClear: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     if (entries.isEmpty()) {
@@ -159,15 +173,44 @@ internal fun PlayerEpisodeQueueList(
 
     LazyColumn(modifier = modifier, contentPadding = contentPadding) {
         when (tab) {
-            PlayerContentTab.Queue ->
-                itemsIndexed(entries) { index, entry ->
-                    PlayerContentRow(
-                        index = index,
-                        entry = entry,
-                        selected = index == currentIndex,
-                        onClick = { onSelect(index) },
-                    )
+            PlayerContentTab.Queue -> {
+                val editing = onMove != null && onRemove != null
+                if (editing && onClear != null) {
+                    item(key = "queue-edit-header") { QueueEditHeader(onClear = onClear) }
                 }
+                itemsIndexed(entries) { index, entry ->
+                    val row: @Composable () -> Unit = {
+                        PlayerContentRow(
+                            index = index,
+                            entry = entry,
+                            selected = index == currentIndex,
+                            onClick = { onSelect(index) },
+                            trailing =
+                                if (editing && onRemove != null) {
+                                    {
+                                        QueueRemoveButton(
+                                            enabled = index != currentIndex,
+                                            onClick = { onRemove(index) },
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                        )
+                    }
+                    if (editing && onMove != null) {
+                        QueueDragRow(
+                            index = index,
+                            lastIndex = entries.lastIndex,
+                            onMove = onMove,
+                        ) {
+                            row()
+                        }
+                    } else {
+                        row()
+                    }
+                }
+            }
             PlayerContentTab.Episodes -> {
                 val grouped = entries.withIndex().groupBy { it.value.seasonNumber }
                 grouped.forEach { (season, indexedEntries) ->
@@ -215,6 +258,8 @@ private fun PlayerContentRow(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 行尾动作（队列页的删除键）；选集页不传 */
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -276,6 +321,91 @@ private fun PlayerContentRow(
                 modifier = Modifier.size(18.dp),
             )
         }
+        trailing?.invoke()
+    }
+}
+
+/**
+ * 队列整理行（§1.7 → 反馈③）：长按拖动换位。
+ *
+ * 拖拽用「累计位移每超过一行高度就换一次位」的简化实现（不引新依赖），一次拖拽可以连续换位， 松手即停在当前位置；点行跳转与行尾删除由内容承担。
+ */
+@Composable
+private fun QueueDragRow(
+    index: Int,
+    lastIndex: Int,
+    onMove: (Int, Int) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    // 拖动过程中列表顺序会变：用最新的下标去算目标位，避免用捕获的旧下标
+    val currentIndex by rememberUpdatedState(index)
+    val currentLastIndex by rememberUpdatedState(lastIndex)
+    val rowHeightPx = with(LocalDensity.current) { QUEUE_ROW_HEIGHT.toPx() }
+
+    Box(
+        modifier =
+            Modifier.graphicsLayer { translationY = dragOffset }
+                .pointerInput(index) {
+                    detectDragGesturesAfterLongPress(
+                        onDragEnd = { dragOffset = 0f },
+                        onDragCancel = { dragOffset = 0f },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragOffset += dragAmount.y
+                            val steps = (dragOffset / rowHeightPx).roundToInt()
+                            if (steps != 0) {
+                                val target = (currentIndex + steps).coerceIn(0, currentLastIndex)
+                                if (target != currentIndex) onMove(currentIndex, target)
+                                dragOffset = 0f
+                            }
+                        },
+                    )
+                }
+    ) {
+        content()
+    }
+}
+
+/** 队列行尾删除键：正在播放的那条不允许移除（清空 = 只留它） */
+@Composable
+private fun QueueRemoveButton(enabled: Boolean, onClick: () -> Unit) {
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_close,
+        contentDescription = stringResource(PlayerR.string.player_queue_remove),
+        onClick = onClick,
+        size = 40.dp,
+        glass = false,
+        enabled = enabled,
+    )
+}
+
+/** 队列整理头：拖拽提示 + 清空（保留正在播的条目） */
+@Composable
+private fun QueueEditHeader(onClear: () -> Unit) {
+    val colors = LocalCinefinColors.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(
+                    start = CinefinSpacing.Space4,
+                    end = CinefinSpacing.Space4,
+                    top = CinefinSpacing.Space2,
+                    bottom = CinefinSpacing.Space1,
+                ),
+    ) {
+        Text(
+            text = stringResource(PlayerR.string.player_queue_drag_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        PanelChip(
+            label = stringResource(PlayerR.string.player_queue_clear),
+            selected = false,
+            onClick = onClear,
+        )
     }
 }
 
@@ -291,6 +421,10 @@ internal fun PlayerSideContent(
     onSelect: (Int) -> Unit,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 队列整理（§1.7）：选集页不显示，队列页显示拖拽 / 删除 / 清空 */
+    onQueueMove: (Int, Int) -> Unit = { _, _ -> },
+    onQueueRemove: (Int) -> Unit = {},
+    onQueueClear: () -> Unit = {},
 ) {
     var tab by remember { mutableStateOf(PlayerContentTab.Episodes) }
     val colors = LocalCinefinColors.current
@@ -314,6 +448,9 @@ internal fun PlayerSideContent(
             currentIndex = currentIndex,
             tab = tab,
             onSelect = onSelect,
+            onMove = onQueueMove,
+            onRemove = onQueueRemove,
+            onClear = onQueueClear,
             modifier = Modifier.weight(1f),
         )
     }
@@ -333,6 +470,10 @@ internal fun PlayerBottomContent(
     modifier: Modifier = Modifier,
     /** 折叠半开的下半屏是控制台，不需要「可上滑」的把手暗示 */
     showHandle: Boolean = true,
+    /** 队列整理（§1.7）：队列页的拖拽 / 删除 / 清空 */
+    onQueueMove: (Int, Int) -> Unit = { _, _ -> },
+    onQueueRemove: (Int) -> Unit = {},
+    onQueueClear: () -> Unit = {},
 ) {
     var tab by remember { mutableStateOf(PlayerContentTab.Episodes) }
     val colors = LocalCinefinColors.current
@@ -364,6 +505,9 @@ internal fun PlayerBottomContent(
                     currentIndex = currentIndex,
                     tab = tab,
                     onSelect = onSelect,
+                    onMove = onQueueMove,
+                    onRemove = onQueueRemove,
+                    onClear = onQueueClear,
                     modifier = Modifier.weight(1f),
                 )
         }

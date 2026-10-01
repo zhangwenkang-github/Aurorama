@@ -268,6 +268,14 @@ internal fun PlayerSettingsPanel(
                         checked = settings.pauseAfterCurrentItem,
                         onCheckedChange = { controller.setPauseAfterCurrentItem(it) },
                     )
+                    // 循环模式（顺序 / 列表 / 单集 / 随机）在「更多」去重后唯一的入口（W10 反馈⑤）
+                    PanelRow(
+                        label = stringResource(PlayerR.string.player_settings_repeat_entry),
+                        caption =
+                            stringResource(PlayerR.string.player_settings_repeat_entry_caption),
+                        selected = false,
+                        onClick = { onOpenPanel(PlayerPanel.Repeat) },
+                    )
                 }
 
                 PlayerSettingsGroup.Decode -> {
@@ -340,22 +348,9 @@ internal fun PlayerSettingsPanel(
                         checked = settings.rememberTrackSelection,
                         onCheckedChange = { controller.setRememberTrackSelection(it) },
                     )
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_open_subtitle),
-                        caption =
-                            stringResource(PlayerR.string.player_settings_open_subtitle_caption),
-                        selected = false,
-                        onClick = { onOpenPanel(PlayerPanel.Subtitle) },
-                    )
                 }
 
                 PlayerSettingsGroup.Audio -> {
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_open_audio),
-                        caption = stringResource(PlayerR.string.player_settings_open_audio_caption),
-                        selected = false,
-                        onClick = { onOpenPanel(PlayerPanel.Audio) },
-                    )
                     PanelTitle(stringResource(PlayerR.string.player_settings_audio_language))
                     PanelChipRow(
                         options =
@@ -380,13 +375,6 @@ internal fun PlayerSettingsPanel(
                 }
 
                 PlayerSettingsGroup.Picture -> {
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_aspect_entry),
-                        caption =
-                            stringResource(PlayerR.string.player_settings_aspect_entry_caption),
-                        selected = false,
-                        onClick = { onOpenPanel(PlayerPanel.Aspect) },
-                    )
                     VideoTransformControls(
                         transform = videoTransform,
                         onTransformChange = { transform ->
