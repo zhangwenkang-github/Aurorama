@@ -56,6 +56,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVarian
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -188,57 +189,22 @@ private fun MusicHeader(
     onBack: () -> Unit,
     onOpenDrawer: (() -> Unit)?,
 ) {
-    val colors = LocalCinefinColors.current
     val detail = state.detail
-    Row(
-        modifier =
-            Modifier.fillMaxWidth().height(72.dp).padding(horizontal = CinefinSpacing.Space3),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        when {
-            detail != null ->
-                CinefinIconButton(onClick = onBack) { tint ->
-                    Icon(
-                        painter = painterResource(CoreR.drawable.ic_arrow_left),
-                        contentDescription = "返回",
-                        tint = tint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            onOpenDrawer != null ->
-                CinefinIconButton(onClick = onOpenDrawer) { tint ->
-                    Icon(
-                        painter = painterResource(CoreR.drawable.ic_menu),
-                        contentDescription = "打开导航",
-                        tint = tint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            else -> Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-        }
-        Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = detail?.title ?: "音乐",
-                style = CinefinType.TitleLarge,
-                color = colors.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text =
-                    when {
-                        detail != null -> "共 ${detail.songs.size} 首曲目"
-                        state.tab == MusicTab.ALBUMS -> "共 ${state.albums.size} 张专辑"
-                        state.tab == MusicTab.ARTISTS -> "共 ${state.artists.size} 位艺术家"
-                        state.tab == MusicTab.SONGS -> "共 ${state.songs.size} 首歌曲"
-                        else -> "共 ${state.playlists.size} 个歌单"
-                    },
-                style = CinefinType.BodySmall,
-                color = colors.onSurfaceVariant,
-            )
-        }
-    }
+    // W8-R3：与媒体库 / 书架共用 `CinefinPageTopBar`（56dp + statusBarsPadding + 左侧 ic_menu「打开侧栏」），
+    // 修掉旧版 72dp 无 inset 导致的"按钮被状态栏压住"。详情（专辑 / 艺术家 / 歌单）改回返回键 + 详情标题。
+    CinefinPageTopBar(
+        title = detail?.title ?: "音乐",
+        subtitle =
+            when {
+                detail != null -> "共 ${detail.songs.size} 首曲目"
+                state.tab == MusicTab.ALBUMS -> "共 ${state.albums.size} 张专辑"
+                state.tab == MusicTab.ARTISTS -> "共 ${state.artists.size} 位艺术家"
+                state.tab == MusicTab.SONGS -> "共 ${state.songs.size} 首歌曲"
+                else -> "共 ${state.playlists.size} 个歌单"
+            },
+        onOpenDrawer = onOpenDrawer,
+        onBack = if (detail != null) onBack else null,
+    )
 }
 
 @Composable

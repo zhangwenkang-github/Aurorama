@@ -18,6 +18,9 @@ enum class NavEntryKey {
  * 1. **音乐 / 书架**：服务器确认没有对应类型的库时隐藏入口；库列表还没拿到（冷启动竞态 / 拉取失败） 时保持可见，由页面显示空态——不能把网络故障翻译成"没有音乐库"。
  * 2. **服务器控制台 / 元数据管理器**：只对管理员出现（W5-R3I 的门控不变）。
  * 3. 其余（首页 / 媒体库 / 下载 / 客户端设置）常驻。
+ *
+ * 顺序（W8-R3 用户反馈 4，覆盖 D22 ③ / D28 的排布）：**首页 → 音乐 → 书架 → 媒体库（二级分组）→ 下载 → [服务器控制台 / 媒体资料管理器] →
+ * 客户端设置**。
  */
 fun navEntryKeys(
     isAdministrator: Boolean,
@@ -26,9 +29,9 @@ fun navEntryKeys(
     hasBooksLibrary: Boolean,
 ): List<NavEntryKey> = buildList {
     add(NavEntryKey.Home)
-    add(NavEntryKey.Media)
     if (!librariesLoaded || hasMusicLibrary) add(NavEntryKey.Music)
     if (!librariesLoaded || hasBooksLibrary) add(NavEntryKey.Bookshelf)
+    add(NavEntryKey.Media)
     add(NavEntryKey.Downloads)
     if (isAdministrator) {
         add(NavEntryKey.Console)
@@ -36,6 +39,13 @@ fun navEntryKeys(
     }
     add(NavEntryKey.Settings)
 }
+
+/**
+ * 「媒体库」二级分组默认收起（W8-R3 用户反馈 4）：覆盖 W7-R3 的默认展开。
+ *
+ * 抽屉与侧轨共用这一份默认值——先在侧栏里看到「首页 / 音乐 / 书架 / 媒体库」四条一级入口， 需要时再用「媒体库」行尾的箭头展开出服务器实际的库列表（离线模式没有库列表，只留一级入口）。
+ */
+const val MEDIA_GROUP_DEFAULT_EXPANDED: Boolean = false
 
 /**
  * 侧栏（平板侧轨 / 抽屉）可见性过滤。

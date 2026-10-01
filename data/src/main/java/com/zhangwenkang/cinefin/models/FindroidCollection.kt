@@ -19,6 +19,8 @@ data class FindroidCollection(
     override val unplayedItemCount: Int? = null,
     val type: CollectionType,
     override val images: FindroidImages,
+    /** 库内条目总数（服务器 `ChildCount`，媒体库卡片展示"共 N 个项目"）；服务器未返回时为 null。 */
+    val itemCount: Int? = null,
     override val chapters: List<FindroidChapter> = emptyList(),
 ) : FindroidItem
 
@@ -33,6 +35,7 @@ fun BaseItemDto.toFindroidCollection(jellyfinRepository: JellyfinRepository): Fi
         id = id,
         name = name.orEmpty(),
         type = type,
+        itemCount = childCount,
         images = toFindroidImages(jellyfinRepository),
     )
 }

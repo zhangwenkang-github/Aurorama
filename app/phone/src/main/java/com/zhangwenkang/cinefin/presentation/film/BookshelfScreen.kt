@@ -2,7 +2,7 @@ package com.zhangwenkang.cinefin.presentation.film
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,13 +25,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
-import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -63,6 +61,10 @@ fun BookshelfScreen(
                 libraryType = current.library.type,
                 onItemClick = onItemClick,
                 navigateBack = navigateBack,
+                // 顶层模式（W8-R3）：书架 Tab 进入时是"书架"自己的页面——侧栏入口 +「书架」标题，
+                // 不再复用二级库内容页的返回箭头与库名「书籍」。
+                topLevel = true,
+                onOpenDrawer = onOpenDrawer,
             )
         else ->
             BookshelfPlaceholder(
@@ -89,30 +91,13 @@ private fun BookshelfPlaceholder(
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(start = paddingStart, top = safePadding.top, end = paddingEnd)
-                    .height(56.dp),
-        ) {
-            if (onOpenDrawer != null) {
-                TopBarAction(
-                    icon = CoreR.drawable.ic_menu,
-                    onClick = onOpenDrawer,
-                    contentDescription = stringResource(CoreR.string.title_book_shelf),
-                )
-            }
-        }
-
-        Text(
-            text = stringResource(CoreR.string.title_book_shelf),
-            style = CinefinType.HeadlineMedium,
-            color = colors.onSurface,
-            modifier =
-                Modifier.padding(start = paddingStart, end = paddingEnd)
-                    .padding(bottom = CinefinSpacing.Space6),
+        // 与媒体库 / 音乐同一顶栏（W8-R3）：侧栏入口 +「书架」标题；解析中 / 空态 / 失败态共用。
+        CinefinPageTopBar(
+            title = stringResource(CoreR.string.title_book_shelf),
+            onOpenDrawer = onOpenDrawer,
+            modifier = Modifier.padding(start = safePadding.start),
         )
+        Spacer(Modifier.height(CinefinSpacing.Space6))
 
         Box(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = paddingStart),

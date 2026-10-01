@@ -126,5 +126,6 @@
     <string name="nav_collapse">Collapse</string>
     <string name="nav_expand">Expand</string>
     <string name="nav_open_drawer">Open navigation</string>
+    <string name="nav_back">Back</string>
     <string name="console_back_to_app">Back to Cinefin</string>
 </resources>

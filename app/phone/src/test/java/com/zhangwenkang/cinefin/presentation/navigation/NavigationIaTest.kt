@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.navigation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -19,9 +20,9 @@ class NavigationIaTest {
         assertEquals(
             listOf(
                 NavEntryKey.Home,
-                NavEntryKey.Media,
                 NavEntryKey.Music,
                 NavEntryKey.Bookshelf,
+                NavEntryKey.Media,
                 NavEntryKey.Downloads,
                 NavEntryKey.Settings,
             ),
@@ -42,9 +43,9 @@ class NavigationIaTest {
         assertEquals(
             listOf(
                 NavEntryKey.Home,
-                NavEntryKey.Media,
                 NavEntryKey.Music,
                 NavEntryKey.Bookshelf,
+                NavEntryKey.Media,
                 NavEntryKey.Downloads,
                 NavEntryKey.Console,
                 NavEntryKey.Metadata,
@@ -123,8 +124,8 @@ class NavigationIaTest {
     }
 
     @Test
-    fun mediaGroupSitsBeforeMusicAndBookshelf() {
-        // W7-R3 用户反馈 2：二级库列表挂在「媒体库」行下（抽屉默认展开），整组要排在音乐 / 书架之前。
+    fun musicAndBookshelfSitBeforeMediaGroup() {
+        // W8-R3 用户反馈 4（覆盖 W7-R3）：媒体库（含二级库列表）移到音乐 / 书架之后。
         val keys =
             navEntryKeys(
                 isAdministrator = true,
@@ -133,8 +134,13 @@ class NavigationIaTest {
                 hasBooksLibrary = true,
             )
 
-        assertEquals(1, keys.indexOf(NavEntryKey.Media))
-        assertTrue(keys.indexOf(NavEntryKey.Music) > keys.indexOf(NavEntryKey.Media))
-        assertTrue(keys.indexOf(NavEntryKey.Bookshelf) > keys.indexOf(NavEntryKey.Media))
+        assertTrue(keys.indexOf(NavEntryKey.Music) < keys.indexOf(NavEntryKey.Media))
+        assertTrue(keys.indexOf(NavEntryKey.Bookshelf) < keys.indexOf(NavEntryKey.Media))
+    }
+
+    @Test
+    fun mediaGroupDefaultsCollapsed() {
+        // W8-R3 用户反馈 4：抽屉 / 侧轨的二级库列表默认收起，展开后才显示（覆盖 W7-R3 的默认展开）。
+        assertFalse(MEDIA_GROUP_DEFAULT_EXPANDED)
     }
 }

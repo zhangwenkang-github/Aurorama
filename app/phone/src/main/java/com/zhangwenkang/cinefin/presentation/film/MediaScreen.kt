@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,7 +14,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -32,9 +29,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.media.MediaAction
@@ -139,46 +136,27 @@ private fun MediaScreenLayout(
         }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 媒体库顶栏：有抽屉的形态（平板）保留入口；手机 Compact 无抽屉，这里保持高度让标题对齐。
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(
-                        start = paddingStart,
-                        top = safePadding.top,
-                        end = paddingEnd,
-                    )
-                    .height(56.dp),
-        ) {
-            if (onOpenDrawer != null) {
+        // 顶栏（W8-R3 统一）：侧栏入口 +「媒体库」+ 计数副题在同一行（修复旧版"按钮独占一块、
+        // 标题在下一块"的两段式），右侧是页面动作（搜索）。与音乐 / 书架的顶栏同一尺寸与内边距。
+        CinefinPageTopBar(
+            title = stringResource(CoreR.string.title_media),
+            subtitle =
+                if (state.libraries.isNotEmpty()) {
+                    stringResource(FilmR.string.library_count, state.libraries.size)
+                } else {
+                    null
+                },
+            onOpenDrawer = onOpenDrawer,
+            modifier = Modifier.padding(start = safePadding.start),
+            actions = {
                 TopBarAction(
-                    icon = CoreR.drawable.ic_menu,
-                    onClick = onOpenDrawer,
-                    contentDescription = stringResource(CoreR.string.title_media),
+                    icon = CoreR.drawable.ic_search,
+                    onClick = { onSearchExpand(true) },
+                    contentDescription = stringResource(CoreR.string.search),
                 )
-            }
-        }
-
-        // 标题块：大标题 + 计数副题（层级）
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(start = paddingStart, end = paddingEnd),
-            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
-        ) {
-            Text(
-                text = stringResource(CoreR.string.title_media),
-                style = if (expanded) CinefinType.HeadlineLarge else CinefinType.HeadlineMedium,
-                color = colors.onSurface,
-            )
-            if (state.libraries.isNotEmpty()) {
-                Text(
-                    text = stringResource(FilmR.string.library_count, state.libraries.size),
-                    style = CinefinType.BodyMedium,
-                    color = colors.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.height(CinefinSpacing.Space6))
-        }
+            },
+        )
+        Spacer(Modifier.height(CinefinSpacing.Space2))
 
         // Lumen 修正（2026-10-01 验收缺陷）：搜索框不再"悬浮在滚动内容之上"——
         // 之前它和栅格同处一个 Box，上滑时卡片会钻到搜索框底下被挡住。现在改为列布局：

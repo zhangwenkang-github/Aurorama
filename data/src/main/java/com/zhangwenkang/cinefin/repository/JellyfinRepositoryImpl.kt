@@ -103,9 +103,16 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getLibraries(): List<FindroidCollection> =
         withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi.getItems(jellyfinApi.userId!!).content.items.mapNotNull {
-                it.toFindroidCollection(this@JellyfinRepositoryImpl)
-            }
+            jellyfinApi.itemsApi
+                .getItems(
+                    jellyfinApi.userId!!,
+                    // W8-R3：媒体库卡片要显示"共 N 个项目"——库列表默认不返回 ChildCount，显式要一次
+                    // （只影响这一个请求的体积，不额外发请求）。
+                    fields = listOf(ItemFields.CHILD_COUNT),
+                )
+                .content
+                .items
+                .mapNotNull { it.toFindroidCollection(this@JellyfinRepositoryImpl) }
         }
 
     override suspend fun getItem(itemId: UUID): FindroidItem? =

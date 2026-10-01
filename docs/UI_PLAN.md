@@ -1,10 +1,10 @@
 # Cinefin UI 重塑任务线（UI_PLAN）
 
-> 任务线：UI 重塑（设计系统落地）｜波次：W5-R3（R3-UI-LUMEN）｜分支：`feature/r3-ui-lumen`（最新波次 W5-R3I：`feature/r3-console-entry`）｜最后更新：2026-10-01
+> 任务线：UI 重塑（设计系统落地）｜波次：W8-R3（三页顶栏统一 + 媒体库改版 + 侧栏媒体库分组回退）｜分支：`feature/r8-ui-unify`｜最后更新：2026-10-01
 > 权威设计依据：`docs/UI_DESIGN_SYSTEM.md`（S4 v1.0，Prism 棱镜）。
 > 本文件是该任务线的**唯一权威文档**：需求、决策、进度、验收、踩坑与日志都写在这里，不新建零散 `.md`。
 
-> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛； W5-R3（R3-UI-LUMEN）= 首页与视频详情改用 S1 流光（A · Lumen）手法 + 媒体库去拥挤 + 侧柜统一列表（取消「更多」分组）与入口行为一致化； W5-R3F（R3-UI-HOTFIX，`feature/r3-ui-hotfix`）= 四项 UI 验收缺陷热修； W5-R3G（R3-NAVFIX，`feature/r3-ui-navfix`）= 修复踩坑 28：带参路由统一用 `NavDestination.hasRoute` 判定，平板侧轨在设置 / 书籍库 / 带参媒体库页常驻且选中态正确； W5-R3H（R3-UI-LUMEN-A，`feature/r3-ui-lumen-a`）= 流光改 S1「A · Lumen」配色（`ProvideLumen` 局部覆盖 + 月白主按钮）+ 亮图文字阴影 / 水平渐隐 + 手机 hero 行动区排版修复； W5-R3I（R3-CONSOLE-ENTRY，`feature/r3-console-entry`，本波）= 恢复 D18 删除的「服务器控制台 / 媒体资料管理器」入口（管理员门控、统一列表、按 path 区分选中态）+ 控制台返回不再落到空白种子页。
+> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛； W5-R3（R3-UI-LUMEN）= 首页与视频详情改用 S1 流光（A · Lumen）手法 + 媒体库去拥挤 + 侧柜统一列表（取消「更多」分组）与入口行为一致化； W5-R3F（R3-UI-HOTFIX，`feature/r3-ui-hotfix`）= 四项 UI 验收缺陷热修； W5-R3G（R3-NAVFIX，`feature/r3-ui-navfix`）= 修复踩坑 28：带参路由统一用 `NavDestination.hasRoute` 判定，平板侧轨在设置 / 书籍库 / 带参媒体库页常驻且选中态正确； W5-R3H（R3-UI-LUMEN-A，`feature/r3-ui-lumen-a`）= 流光改 S1「A · Lumen」配色（`ProvideLumen` 局部覆盖 + 月白主按钮）+ 亮图文字阴影 / 水平渐隐 + 手机 hero 行动区排版修复； W5-R3I（R3-CONSOLE-ENTRY，`feature/r3-console-entry`）= 恢复 D18 删除的「服务器控制台 / 媒体资料管理器」入口（管理员门控、统一列表、按 path 区分选中态）+ 控制台返回不再落到空白种子页； W6-R6N（导航 IA + 客户端设置，`feature/r6-nav-ia`）= 顶层 IA 重排 + 媒体库二级分组 + 设置新增「媒体库」「侧栏显示」分类； W6-WEB（`feature/web-console-lumen`）= Web 控制台皮肤 v3「A · Lumen」+ WebView 滚动闸门； W6-VIS（`feature/r6-visual-all`）= A 配色全站化 + 侧栏 / 抽屉 / 设置视觉重设计 + 骨架屏加载过渡； W7-R3（`feature/r7-nav-fix`，已合并 master `c545eb9`）= 手机恢复抽屉入口 + 首页顶栏 app 图标 / 二级库列表进抽屉 / 侧柜常驻 Lumen / 控制台悬浮「返回影阁」胶囊 / 控制台选中态修正； **W8-R3（`feature/r8-ui-unify`，本波）= 三页共用顶栏 `CinefinPageTopBar`（56dp + 状态栏内边距）+ 媒体库总览库卡改版（类型图标 / 强调色 / 项目数）+ 侧栏「媒体库」分组默认收起并移到音乐 / 书架之后**。
 
 ## 1. 任务线定位
 
@@ -74,6 +74,10 @@
 | D29 | **侧柜皮肤常驻 A · Lumen**（W7-R3，用户复测反馈 3） | D24 ③ 让侧柜跟随当前目的地域（音乐 / 书架 / 书籍库回 Prism）；用户复测要求"音乐、书架的侧边菜单也要 Lumen 皮肤，但界面本身不变"。改法：`lumenChrome = true` 常量 → 侧轨 / 底栏 / 抽屉**任何页面**都套 `ProvideLumenColors`；`LumenPage` 的分流不变，因此音乐（Prism + 松石）、书架 / 阅读、书籍库的**页面内容**皮肤零改动。 |
 | D30 | **控制台页悬浮「返回影阁」胶囊**（W7-R3，用户复测反馈 4） | 控制台页 `showNavigation = false`（D22 ②），进得去但难出来。选定方案（保留系统返回一次回主界面的既有行为，**不**恢复平板双侧栏并存）：`composable<ConsoleRoute>` 用 `Box` 把 `WebConsoleScreen` 与 `ConsoleBackToAppPill` 叠放——右下角（`align(BottomEnd)` + `navigationBarsPadding` + 16dp）A 稿小胶囊：石墨底 94% + 1dp 发丝线 + 顶缘内高光 + `ic_logo` 18dp + 月白「返回影阁」，触控高 ≥44dp；点击 = `navigateHome`（回主界面）。文案新增 `CoreR.string.console_back_to_app`（en/zh）。 |
 | D31 | **控制台入口选中态：不在控制台就不选中**（W7-R3，用户复测反馈 5） | 根因：`consoleEntrySelected` 把"当前不在 `ConsoleRoute`"（`currentPath = null`）回退成 `/dashboard`，与 `entryPath = /dashboard` 相等 → 退出控制台后「服务器控制台」一直高亮。改为 `currentPath != null && currentPath == entryPath`；`ConsoleEntrySpecTest` 增加"null 不选中"断言（原断言按旧语义写反，同步更正）。 |
+
+| D32 | **三页共用顶栏 `CinefinPageTopBar`（媒体库 / 音乐 / 书架）**（W8-R3，2026-10-01 用户反馈 1） | 用户复测：音乐顶栏按钮"位置太高、被系统状态栏挡住"、媒体库"汉堡键与标题分两块"、书架顶层复用库内容页（出现返回箭头 + 库名「书籍」）。落地：①**core 新增 `CinefinPageTopBar`**——56dp 内容高 + `statusBarsPadding()`（音乐旧 `MusicHeader` 72dp 且无 insets 是遮挡根因）、44dp 图标键（图标 24dp，与首页 `HomeTopBar` 同尺寸）、页边距随窗口分级 20 / 24 / 32 / 48dp（与 `rememberPageGutter()` 同阈值，core 侧用 `LocalConfiguration` 复刻以便 `modes:music` 复用）、主标题 `TitleLarge` + 计数副标题 `BodySmall`、Lumen 区域顶栏下缘补一条发丝线；②三页统一左侧入口 = `ic_menu` + `content-desc="打开侧栏"`（新增 core 文案 `nav_back`）、右侧页面动作（媒体库搜索 / 书籍库与书架排序）；③**书架顶层去返回箭头与库名**：`LibraryScreen(topLevel = true, onOpenDrawer = …)` → 顶栏 =「书架 / 共 N 本」（新增 `bookshelf_item_count`），从媒体库点库卡进入仍是「返回 + 库名 + 共 N 个项目 + 排序」；④音乐详情（专辑 / 艺术家 / 歌单）仍用返回键 + 详情标题；首页 `HomeTopBar` 保持 `ic_logo` 不动。 |
+| D33 | **媒体库总览改版：库卡带类型图标 / 强调色 / 项目数（A · Lumen 内）**（W8-R3，2026-10-01 用户反馈 2） | 用户反馈"媒体库配色单调"。落地：①**库卡** = 类型图标磁贴（雾灰 `panelElevated` + 1dp 发丝线，图标取当前强调色——Lumen 区域 = 极光青，Prism = 当前域媒体色）+ 库名（月白）+ **项目数**（`共 N 个项目`）+ 三级灰右箭头；卡片面板 = Lumen 石墨 `panel`、底部渐隐用 `LumenTokens.Scrim`；②**项目数来自服务器**：`getLibraries()` 显式请求 `ItemFields.CHILD_COUNT`（`BaseItemDto.childCount` → 新增 `FindroidCollection.itemCount`；服务器没给就只显示库名，不占位）；③标题 + 计数并入共用顶栏同一排，去掉旧版"按钮独占一行 + 大标题块"的两段式；④色值仍只出自 `LumenColors`（未新增 token / 位图）。 |
+| D34 | **侧栏「媒体库」二级分组回退：默认收起 + 排到音乐 / 书架之后**（W8-R3，2026-10-01 用户反馈 4；覆盖 D22 ③ / D28） | ①`navEntryKeys` 顺序 = **首页 → 音乐 → 书架 → 媒体库 → 下载 → [服务器控制台 / 媒体资料管理器] → 客户端设置**（手机底部 4 Tab 顺序不变）；②新增纯常量 `MEDIA_GROUP_DEFAULT_EXPANDED = false`（单测断言），抽屉与侧轨共用 `mediaGroupExpanded` —— 展开后才显示库子项；③**抽屉的「媒体库」行补上侧轨同款行尾箭头**（`CinefinNavItem.trailing` + `CinefinDrawerItem` 渲染，标签在有 trailing 时 `weight(1f)`），点父行 = 导航 + 展开，点箭头 = 仅展开 / 收起（离线模式没有库列表 → 不给箭头）；④覆盖 W7-R3 的"默认展开、排在音乐 / 书架之前"。 |
 
 ## 4. 进度
 
@@ -231,6 +235,17 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - [x] **门禁**：`:app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :core:testLibreDebugUnitTest` 全绿（`:app:phone` 22 项 / `:core` 16 项，0 失败；新增 `mediaGroupSitsBeforeMusicAndBookshelf`、`selectsNothingWhenNotOnConsoleRoute`）
 - [x] **真机**：Pad 5 `43af8627`（平板 2560×1600 @320 + 手机形态 1080×2400 @420）与 K60 `8e875894`（1440×3200 @560 原生竖屏）逐条验证 1–5；像素采样 / dump 文本取证，logcat 无 FATAL / ANR；设备副作用已还原、device-lock 已写释放
 - 本期边界：Web 控制台内部皮肤仍由 W6-WEB 的 CSS v3 负责；`player:*`、`docs/web-console-skin.css`、`AppPreferences` 等禁用文件零改动
+
+### W8-R3 本轮进度（三页顶栏统一 + 媒体库改版 + 侧栏媒体库分组回退，2026-10-01，分支 `feature/r8-ui-unify`）
+
+用户 2026-10-01 复测反馈的 4 组（决策见 D32–D34）：
+
+- [x] **A 三页共用顶栏**：core 新增 `CinefinPageTopBar`（56dp + `statusBarsPadding()` + 44dp 键 + 统一页边距 / 标题排版 / 右侧动作槽）；媒体库 / 音乐 / 书架三页接入，音乐旧 72dp `MusicHeader`（无顶部 inset = 被状态栏挡的根因）下线；书架顶层改 `LibraryScreen(topLevel = true, onOpenDrawer = …)` → 顶栏「书架 / 共 N 本」、**无返回箭头、无库名「书籍」**；二级书籍库保持「返回 + 书籍 + 共 N 个项目 + 排序」；音乐详情保持「返回 + 详情标题 + 共 N 首曲目」
+- [x] **B 媒体库总览改版**：库卡 = 类型图标磁贴（雾灰 + 发丝线 + 强调色图标）+ 库名 + 项目数 + 三级灰箭头；面板改 Lumen 石墨、渐隐改 `LumenTokens.Scrim`；项目数经 `ItemFields.CHILD_COUNT` → `FindroidCollection.itemCount`；标题 / 计数并入顶栏同排（去掉两段式）
+- [x] **C 侧栏媒体库分组回退**：`navEntryKeys` = 首页 → 音乐 → 书架 → 媒体库 → 下载 → 控制台 / 资料管理器 → 客户端设置；`MEDIA_GROUP_DEFAULT_EXPANDED = false`；抽屉「媒体库」行补行尾箭头（与侧轨同款），展开后才显示库子项；手机底部 4 Tab 顺序不变
+- [x] **门禁**：`:app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :core:testLibreDebugUnitTest` 全绿（`:app:phone` 23 项 / `:core` 16 项，0 失败；`NavigationIaTest` 顺序改为"音乐 / 书架在媒体库之前"+ 新增 `mediaGroupDefaultsCollapsed`）
+- [x] **真机**：Pad 5 `43af8627`（平板 2560×1600 @320 + 手机形态 1080×2400 @420）与 K60 `8e875894`（1440×3200 @560 原生竖屏）逐条验证 A–D；像素采样 / dump 文本取证，logcat 无 FATAL / ANR；设备副作用已还原、device-lock 已写释放
+- 本期边界：音乐 / 书架 / 书籍库**页面内容**仍为各自皮肤（只有侧柜常驻 Lumen，见 D29）；`player:*`、`AppPreferences`、`settings.gradle.kts`、`libs.versions.toml`、`docs/web-console-skin.css`、`res/raw/web_console_skin.css` 零改动
 
 ## 5. 验收
 
@@ -456,6 +471,31 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [x] **稳定性 / 副作用**：两台设备 logcat 无 `FATAL` / `ANR in` / `Input dispatching timed out`（仅 uiautomator 自身启动日志）；Pad 5 `wm size/density` reset（Physical 1600×2560 / 360）、`accelerometer_rotation` 1、`user_rotation` 0；K60 未改 wm；两台 App force-stop、`/sdcard/w7r3*` 临时文件清理、本地截图已删。
 - 未验：**左缘滑出抽屉**在系统手势导航（`navigation_mode = 2`，两台设备均如此）下被系统「返回」手势占用，adb 左缘 swipe 触发的是系统返回（踩坑 43）；顶栏入口已验，如需手势断言需先切三键导航（如 W6-WEB 所做），本轮按"用户要求的是可见入口"处理。
 
+### W8-R3 验收（2026-10-01，三页顶栏统一 + 媒体库改版 + 侧栏媒体库分组回退，分支 `feature/r8-ui-unify`）
+
+验收命令（全部通过）：`:app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :core:testLibreDebugUnitTest`（app 23 项 + core 16 项，0 失败）。
+
+设备：Pad 5 `43af8627`（平板 `wm 2560x1600` + `density 320` ≈1280dp；手机形态 `wm 1080x2400` + `density 420` ≈411dp）+ K60 `8e875894`（1440×3200 @560 原生竖屏）。
+
+- [x] **①三页顶栏按钮 / 标题 bounds 一致（音乐不再被状态栏遮挡）**：
+  - Pad 5 手机形态：音乐 / 书架 / 媒体库的侧栏入口 `content-desc="打开侧栏"` 全部 = `[80,103][143,166]`（首页 `ic_logo` = `[77,100][145,168]`，两者中心 y 均为 134 —— 顶栏已落在状态栏之下）；标题 + 计数同排：音乐 `[190,73][304,149]` +「共 94 张专辑」`[190,149][375,195]`、书架 `[190,73][304,149]` +「共 5 本」`[190,149][304,195]`、媒体库 `[190,73][361,149]` +「共 5 个媒体库」`[190,149][409,195]`；右侧动作：书架「排序」`[938,103][1001,166]`、媒体库「搜索」`[938,103][1001,166]`。
+  - Pad 5 平板（1280dp）：三页顶栏标题 x 全为 528px（rail 328px + 48dp 页边距 96px + 44dp 键 88px + 8dp 间距 16px），音乐 `[528,70][616,128]` / 媒体库 `[528,70][660,128]` / 书架 `[528,70][616,128]`，按钮同为 `[444,92][492,140]`。
+  - K60：音乐 / 书架 / 媒体库的「打开侧栏」全部 = `[105,194][189,278]`，标题 y 全为 `[?,155][?,257]`（音乐 `[252,155][406,257]` / 书架 `[252,155][406,257]` / 媒体库 `[252,155][483,257]`）。
+- [x] **②书架顶层无返回箭头、无库名「书籍」**：Pad 5 手机形态书架 = 「打开侧栏」+「书架 / 共 5 本」+「排序」；Pad 5 平板 / K60 同构；点进二级书籍库（抽屉 → 书籍）仍是「返回」`[105,194][189,278]` +「书籍」+「共 5 个项目」+「排序」（原行为保留）。
+- [x] **③媒体库新布局 / 配色的像素采样（A 色板占比 + 强调色点缀）**：
+  - Pad 5 手机形态（1080×2400，步长 4，162,000 采样）：曜石黑 `#08090C` 43,186（26.66%）+ 石墨 `#111319` 20,732（12.80%）+ 雾灰 `#171A21` 10,627（6.56%）+ 月白 582 + 次级灰 776 + **极光青 `#5CE1D2` 213（0.13%，5 张库卡的类型图标）** + 辅光蓝 0。
+  - Pad 5 平板（步长 4，256,000 采样）：曜石黑 25.18% / 石墨 16.81% / 雾灰 13.16% / 极光青 117 点 / 辅光蓝 0。
+  - K60（步长 6，128,160 采样）：曜石黑 30.20% / 石墨 13.07% / 雾灰 6.68% / 极光青 163 点。
+  - 库卡信息条（dump）：卡片显示「库名 + 共 N 个项目」（Pad 5 手机形态 电影 5 / 动漫 1；平板 电影 9 / 动漫 5；K60 电影 3）。**N = 服务器 `ChildCount`**，三次读取值随服务器内容变化（服务端数据在变，非客户端不稳定）；类型图标不参与 dump（无文本），像素采样到的极光青即其着色。
+- [x] **④抽屉 / 侧轨顺序（音乐 → 书架 → 媒体库，库子项默认收起、展开后可见）**：
+  - Pad 5 手机形态抽屉（默认）：首页 358 → 音乐 505 → 书架 652 → 媒体库 799（行尾「展开」chevron `[677,764][803,890]`）→ 下载 946 → 服务器控制台 1093 → 媒体资料管理器 1240 → 客户端设置 1387（12 条整屏可见，无库子项）；点箭头后：电影 935 / 动漫 1061 / 书籍 1187 / 音乐 1313 / Playlists 1439（缩进 x=221 vs 一级 179 = 16dp）→ 下载 1576 / 控制台 1723 / 资料管理器 1870 / 客户端设置 2017（仍屏内）。
+  - Pad 5 平板侧轨（164dp 展开）：首页 201 → 音乐 313 → 书架 425 → 媒体库 537（默认收起）→ 下载 649 → 控制台 761 → 资料管理器 873 → 客户端设置 985；展开后子项 639 / 731 / 823 / 915 / 1007（缩进 148 vs 116 = 16dp）→ 下载 1109 / 控制台 1221 / 资料管理器 1333 / 客户端设置 1445。侧轨初始为 88dp 折叠态是 `rememberSaveable` 恢复了上一会话的形态（踩坑 41），点底部「收起 / 展开」后 164dp 正常。
+  - K60 抽屉：首页 535 → 音乐 731 → 书架 927 → 媒体库 1123（「展开」`[903,1076][1071,1244]`）→ 下载 1319 → 控制台 1515 → 资料管理器 1711 → 客户端设置 1907；展开后 电影 1305 / 动漫 1473 / 书籍 1641 / 音乐 1809 / Playlists 1977 → 下载 2159 → 控制台 2355 → 资料管理器 2551 → 客户端设置 2747。
+  - 手机底部 4 Tab 顺序不变：首页 / 音乐 / 书架 / 媒体库（K60 `y=3060–3121`，Pad 5 手机形态 `y=2295–2341`）。
+- [x] **⑤W7-R3 不回归**：首页顶栏仍是 `ic_logo`（`打开侧栏`）+ 搜索；手机抽屉入口与底部 4 Tab 正常；**音乐页内容区仍是 Prism**（K60：石板 `#151A21` 195,351 点 + 极光青 0）而底栏仍是 Lumen 石墨 `#111319` 21,907 + 极光青 134；控制台页悬浮「返回影阁」胶囊仍在（Pad 5 平板文本 `[2366,1471][2496,1513]`），一次系统返回回主界面；退出后「服务器控制台」行 `#111319`（未选中）、首页行 `#171A21`（选中）。
+- [x] **稳定性 / 副作用**：两台设备 logcat 无 `FATAL` / `ANR in` / `Input dispatching timed out`；Pad 5 `wm size/density` reset（Physical 1600×2560 / 360）、`accelerometer_rotation` 1、`user_rotation` 0；K60 未改 wm（Physical 1440×3200 / 560）、自动旋转 1；两台 App force-stop、`/sdcard/w8.xml` 临时文件清理、本地截图与 dump 已删除。
+- 未验：**左缘滑出抽屉**（系统手势导航占用，同 W7-R3 踩坑 43）；本波以顶栏可见入口为准。
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -506,8 +546,14 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 44. **MIUI「超级小爱悬浮窗」会顶掉 uiautomator dump**：Pad 5 上 dump 首行出现 `package="com.miui.voiceassist"` / `content-desc="超级小爱悬浮窗"`（全屏 FrameLayout），此时页面节点全部缺失。按一次 `KEYCODE_BACK` 关掉悬浮窗再 dump 即可；与踩坑 18 的「剪贴板与常用语」弹窗并列，走查脚本应有"首行不是目标包名 → 先关弹窗"的兜底。
 45. **半透明悬浮胶囊的像素采样不会等于纯色值**：`ConsoleBackToAppPill` 用 `lumen.panel.copy(alpha = 0.94f)` 压在 WebView 上，K60 实测主色是 `#11141A`（而不是 `#111319`）。验收时按"石墨家族 + 月白文字 + 高光/描边都在"判断，别把 alpha 混合结果当色值错误；换用完全不透明底又会丢掉"悬浮"质感。
 
+46. **`return@flatMap` 被折行就变成"返回 Unit"**：写成 `return@flatMap` 换行再给表达式时，Kotlin 在换行处补分号 → 编译报 `Return type mismatch: expected 'Iterable<DrawerEntry>', actual 'Unit'`（本波 `drawerEntries` 踩到，ktfmt 也不会替你把它并回一行）。要么把值写在同一行，要么改成 `if / else` 表达式。
+47. **`getItems` 的库列表默认不返回 `ChildCount`**：媒体库卡片要显示"共 N 个项目"时，必须在请求里显式 `fields = listOf(ItemFields.CHILD_COUNT)`（只影响这一个请求的体积，不额外发请求）；SDK 1.8.12 的 `BaseItemDto` 有 `getChildCount()` / `getRecursiveItemCount()`。缺字段时卡片只显示库名（不占位）。验收时注意 `ChildCount` 是**服务器实时数据**，不同时刻 / 不同设备读到不同值属正常（本波同一台服务器三次读到 5 / 9 / 3）。
+48. **"默认收起"的二级分组必须同时给出行尾入口**：只把子项藏起来而不给展开入口 = 把库列表藏死。抽屉与侧轨共用 `CinefinNavItem.trailing`（chevron），父行点击 = 导航 + 展开、箭头点击 = 仅开关；有 trailing 时标签必须 `weight(1f)`（否则重演踩坑 32 的"标签被挤成 …"）。
+49. **core 组件拿不到 app 侧的窗口工具函数**：`modes:music` 只依赖 core，`rememberPageGutter()` 在 app:phone 里用不到。共享顶栏把页边距分级（20 / 24 / 32 / 48dp）内化到 core（用 `LocalConfiguration.screenWidthDp` 复刻同一阈值）——两处阈值必须同步，改一处要改另一处。
+
 ## 7. 日志
 
+- **2026-10-01 W8-R3（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D31 / 踩坑 1–45，重点 W7-R3 小节与 D22/D24/D25）、`ROLE_SKILLS` §5.3、`UI_DESIGN_SYSTEM` §2/§4.4/§8、`docs/design/s1-direction-a/README.md`、`device-lock.md` 后开工。完成用户复测反馈 4 组（决策 D32–D34）：①**A 三页共用顶栏 `CinefinPageTopBar`**（core：56dp + `statusBarsPadding()` + 44dp 键 + 随窗口页边距 + 标题 / 计数排版 + Lumen 发丝线）接入媒体库 / 音乐 / 书架，音乐旧 72dp `MusicHeader` 下线（被状态栏遮挡的根因），书架顶层改 `LibraryScreen(topLevel = true)` →「书架 / 共 N 本」且不再出现返回箭头与库名「书籍」；②**B 媒体库改版**：库卡 = 类型图标磁贴（雾灰 + 发丝线 + 强调色图标）+ 库名 + 项目数（服务器 `ChildCount` → `FindroidCollection.itemCount`，`getLibraries` 显式请求字段）+ 三级灰箭头，面板 / 渐隐改 Lumen 石墨与 `Scrim`，标题与计数并入顶栏同排；③**C 侧栏「媒体库」分组回退**：`navEntryKeys` = 首页 → 音乐 → 书架 → 媒体库 → 下载 → 控制台 / 资料管理器 → 客户端设置，`MEDIA_GROUP_DEFAULT_EXPANDED = false`，抽屉「媒体库」行补侧轨同款行尾箭头（`CinefinNavItem.trailing`），展开后才显示库子项；④**D 不回归**：首页 `ic_logo`、手机抽屉与底部 Tab、音乐 / 书架页面内容皮肤、侧柜常驻 Lumen、控制台胶囊与选中态全部复核通过。门禁 `assembleDebug + ktfmtCheck + app 23 项 / core 16 项单测` 全绿；Pad 5（平板 1280dp + 手机形态 411dp）与 K60（原生竖屏）逐条 dump / 像素采样取证，设备副作用已还原。新踩坑 46–49。分支 `feature/r8-ui-unify`，未合并 master。
 - **2026-10-01 W7-R3（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D26 / 踩坑 1–40，重点 38–40 与 D22/D24/D25）、`ROLE_SKILLS` §5.3、`UI_DESIGN_SYSTEM` §2/§4.4/§8.6、`s1-direction-a/README.md`、`device-lock.md` 后开工。完成用户复测反馈 5 项（决策 D27–D31）：①手机恢复抽屉入口 + 首页顶栏换 `ic_logo` 作 app 图标 / 侧栏键；②二级库列表进抽屉（紧跟「媒体库」、缩进 48dp 行、先于音乐 / 书架）+ 抽屉条目区可滚动；③侧柜常驻 A · Lumen（`lumenChrome = true`），音乐 / 书架 / 阅读**内容**皮肤不变；④控制台页右下角新增 A 风格悬浮「返回影阁」胶囊（系统返回一次回主界面行为保留，未恢复双侧栏）；⑤`consoleEntrySelected` 对 `null` 不再回退 `/dashboard`，退出控制台不留选中。门禁 `assembleDebug + ktfmtCheck + app 22 项 / core 16 项单测` 全绿；Pad 5（平板 1280dp + 手机形态 411dp）与 K60（原生竖屏）逐条像素采样 / dump 取证，设备副作用已还原。新踩坑 41–45。分支 `feature/r7-nav-fix`，未合并 master。
 - **2026-10-01 W6-VIS（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D23 / 踩坑 1–37 / W6-R6N / W6-WEB）、`UI_DESIGN_SYSTEM` §2.6/§5/§6/§7、`s1-direction-a/README.md`、`LumenColors.kt` 与 film / settings / navigation / core components 代码地图后开工。完成三件事（决策 D24 / D25 / D26）：①Lumen 全域化（含 `ProvideLumen` 内嵌 M3 色板与跨域页统一处理、侧柜皮肤跟随 `lumenChrome`）；②侧栏 / 底栏 / 抽屉 / 客户端设置视觉重设计；③加载过渡（`LumenSkeleton.kt` + 冷启动品牌页 + 7 处页面接入）。门禁 `assembleDebug + ktfmtCheck + app/core 单测` 全绿；真机 Pad 5（1280dp 平板形态）与 K60（原生竖屏）像素采样与 4 连拍帧取证通过，设备副作用已还原。新踩坑 38 / 39 / 40。分支 `feature/r6-visual-all`（提交与推送见交接报告），未合并 master。
 - **2026-09-30 W1-R3（本会话）**：读齐 `PROJECT_PLAN` §1–5、`UI_DESIGN_SYSTEM` v1.0 全文、`s1-decision`、`REQUIREMENTS` §6/§10/§12、`ARCHITECTURE` §2.4、`SESSION_BRIEFS` W1-R3、`PARALLEL_PLAN` §1.3/W1、`ROLE_SKILLS` §5.3（在线校验 5 篇官方文档）；完成 token → Compose 主题映射、Typography 归位 + 桥接、4 类基础组件 + 预览 + 13 项单测；验收命令与真机走查通过。分支 `feature/r3-ui-tokens`。

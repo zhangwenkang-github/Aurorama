@@ -224,6 +224,8 @@ private fun CinefinDrawerItem(
             color = content,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = if (item.trailing != null) Modifier.weight(1f) else Modifier,
         )
+        item.trailing?.invoke()
     }
 }

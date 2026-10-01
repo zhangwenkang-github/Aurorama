@@ -12,6 +12,8 @@
     <string name="search_empty_message">Try a different keyword · results update as you type</string>
     <string name="library_count">%1$d libraries</string>
     <string name="library_item_count">%1$d items</string>
+    <string name="bookshelf_item_count">%1$d books</string>
+    <string name="library_sort">Sort</string>
     <string name="library_empty_title">This library is empty</string>
     <string name="library_empty_message">No items here yet — check back after the server adds some.</string>
     <string name="bookshelf_empty_title">No books library</string>

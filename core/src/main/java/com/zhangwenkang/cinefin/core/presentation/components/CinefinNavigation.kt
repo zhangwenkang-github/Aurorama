@@ -61,6 +61,11 @@ class CinefinNavItem(
     val icon: @Composable (selected: Boolean) -> Unit,
     /** 二级分组子项（媒体库 → 具体库）：抽屉里用缩进 + 紧凑行，与侧轨的子项层级一致。 */
     val nested: Boolean = false,
+    /**
+     * 尾部槽位（展开式二级分组的折叠箭头等）。侧轨由 `CinefinNavigationItem` 渲染， 抽屉由 `CinefinDrawerItem`
+     * 渲染——两侧共用同一份条目定义，避免"侧轨有箭头、抽屉没有"的不一致（W8-R3）。
+     */
+    val trailing: (@Composable () -> Unit)? = null,
 )
 
 /** 侧导航（Large / ExtraLarge ≥1200dp：164dp 展开；840–1199dp：88dp 折叠轨）。 */

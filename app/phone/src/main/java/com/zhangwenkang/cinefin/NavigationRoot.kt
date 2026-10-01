@@ -108,6 +108,7 @@ import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
 import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawerHeader
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
+import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPANDED
 import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
@@ -280,8 +281,9 @@ fun NavigationRoot(
     val railDefaultExpanded = windowSizeClass.isWidthAtLeastBreakpoint(1200)
     var railExpanded by
         rememberSaveable(railDefaultExpanded) { mutableStateOf(railDefaultExpanded) }
-    // 「媒体库」二级分组默认展开（用户反馈 3：所有实际存在的库要作为子选项直接可见）。
-    var mediaGroupExpanded by rememberSaveable { mutableStateOf(true) }
+    // 「媒体库」二级分组默认**收起**（W8-R3 用户反馈 4，覆盖 W7-R3 的默认展开）：抽屉与侧轨共用，
+    // 展开后才显示服务器的库列表——先给出「首页 / 音乐 / 书架 / 媒体库」四条一级入口。
+    var mediaGroupExpanded by rememberSaveable { mutableStateOf(MEDIA_GROUP_DEFAULT_EXPANDED) }
 
     LaunchedEffect(showNavigation) {
         // 控制台类页面不渲染侧柜（D22 ②），抽屉在这里让位；手机 Compact 自 W7-R3 起恢复抽屉，不再收回。
@@ -477,9 +479,11 @@ fun NavigationRoot(
     val railDestinations =
         visibleRailKeys(navKeys, sidebarVisibility).mapNotNull { chromeByKey[it] }
 
-    // 抽屉 = 同一份统一目的地列表，库列表**紧跟「媒体库」行**（W7-R3 用户反馈 2）：默认展开、
-    // 排在音乐 / 书架之前，与平板侧轨的二级分组同一顺序；离线模式没有库列表，只留一级入口。
-    // 选中索引与动作列表仍同源（踩坑 17）。
+    // 抽屉 = 同一份统一目的地列表，库列表挂在「媒体库」行下（W8-R3 用户反馈 4：**默认收起**、展开后才显示；
+    // 行尾箭头与侧轨同一套交互与图标，展开状态与侧轨共用 mediaGroupExpanded）。离线模式没有库列表，
+    // 只留一级入口。选中索引与动作列表仍同源（踩坑 17）。
+    val libraryChildrenVisible =
+        mediaGroupExpanded && !isOfflineMode && drawerData.libraries.isNotEmpty()
     val drawerEntries: List<DrawerEntry> = railDestinations.flatMap { destination ->
         val topLevel =
             DrawerEntry(
@@ -487,10 +491,59 @@ fun NavigationRoot(
                 selected = destination.selected,
                 onClick = destination.onClick,
             )
-        if (destination.key != NavEntryKey.Media || isOfflineMode) {
-            listOf(topLevel)
+        if (destination.key != NavEntryKey.Media) {
+            return@flatMap listOf(topLevel)
+        }
+        val expandable = !isOfflineMode && drawerData.libraries.isNotEmpty()
+        val parent =
+            DrawerEntry(
+                item =
+                    CinefinNavItem(
+                        label = destination.item.label,
+                        neutral = destination.item.neutral,
+                        icon = destination.item.icon,
+                        trailing =
+                            if (expandable) {
+                                {
+                                    val colors = LocalCinefinColors.current
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                if (mediaGroupExpanded) {
+                                                    CoreR.drawable.ic_chevron_up
+                                                } else {
+                                                    CoreR.drawable.ic_chevron_down
+                                                }
+                                            ),
+                                        contentDescription =
+                                            stringResource(
+                                                if (mediaGroupExpanded) {
+                                                    CoreR.string.nav_collapse
+                                                } else {
+                                                    CoreR.string.nav_expand
+                                                }
+                                            ),
+                                        tint = colors.onSurfaceFaint,
+                                        modifier =
+                                            Modifier.size(20.dp).clickable {
+                                                mediaGroupExpanded = !mediaGroupExpanded
+                                            },
+                                    )
+                                }
+                            } else {
+                                null
+                            },
+                    ),
+                selected = destination.selected,
+                onClick = {
+                    destination.onClick()
+                    if (!mediaGroupExpanded) mediaGroupExpanded = true
+                },
+            )
+        if (!libraryChildrenVisible) {
+            listOf(parent)
         } else {
-            listOf(topLevel) +
+            listOf(parent) +
                 drawerData.libraries.map { library ->
                     DrawerEntry(
                         item =

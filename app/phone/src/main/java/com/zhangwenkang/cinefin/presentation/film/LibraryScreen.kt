@@ -5,15 +5,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -37,9 +33,9 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryAction
@@ -73,6 +69,13 @@ fun LibraryScreen(
     onItemClick: (item: FindroidItem) -> Unit,
     navigateBack: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel(),
+    /**
+     * 顶层模式（书架 Tab 落点，W8-R3）：顶栏显示侧栏入口 +「书架 / 共 N 本」，**不显示返回箭头与库名**； false = 二级库内容页（从媒体库点库卡进入）：返回箭头 +
+     * 库名 + 计数。
+     */
+    topLevel: Boolean = false,
+    /** 侧栏入口（仅顶层模式使用）。 */
+    onOpenDrawer: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -89,6 +92,8 @@ fun LibraryScreen(
     LibraryScreenLayout(
         libraryName = libraryName,
         libraryType = libraryType,
+        topLevel = topLevel,
+        onOpenDrawer = onOpenDrawer,
         state = state,
         onAction = { action ->
             when (action) {
@@ -111,6 +116,8 @@ fun LibraryScreen(
 private fun LibraryScreenLayout(
     libraryName: String,
     libraryType: CollectionType,
+    topLevel: Boolean,
+    onOpenDrawer: (() -> Unit)?,
     state: LibraryState,
     onAction: (LibraryAction) -> Unit,
 ) {
@@ -161,40 +168,26 @@ private fun LibraryScreenLayout(
 
     var showSortByDialog by remember { mutableStateOf(false) }
 
+    // 顶栏（W8-R3 统一）：顶层 = 侧栏入口 +「书架 / 共 N 本」；二级 = 返回键 + 库名 + 计数。
+    // 统一 56dp 高度 + statusBarsPadding（共用组件内部处理），右侧保留排序动作。
+    val itemCountRes =
+        if (topLevel) FilmR.string.bookshelf_item_count else FilmR.string.library_item_count
+    val showCount = items.itemCount > 0 || items.loadState.refresh is LoadState.NotLoading
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(start = paddingStart, top = safePadding.top, end = paddingEnd)
-                    .height(56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TopBarAction(
-                icon = CoreR.drawable.ic_arrow_left,
-                onClick = { onAction(LibraryAction.OnBackClick) },
-            )
-            Spacer(Modifier.width(CinefinSpacing.Space2))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = libraryName,
-                    style = CinefinType.HeadlineSmall,
-                    color = LocalCinefinColors.current.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+        CinefinPageTopBar(
+            title = if (topLevel) stringResource(CoreR.string.title_book_shelf) else libraryName,
+            subtitle = if (showCount) stringResource(itemCountRes, items.itemCount) else null,
+            onOpenDrawer = if (topLevel) onOpenDrawer else null,
+            onBack = if (topLevel) null else ({ onAction(LibraryAction.OnBackClick) }),
+            modifier = Modifier.padding(start = safePadding.start),
+            actions = {
+                TopBarAction(
+                    icon = CoreR.drawable.ic_arrow_down_up,
+                    onClick = { showSortByDialog = true },
+                    contentDescription = stringResource(FilmR.string.library_sort),
                 )
-                if (items.itemCount > 0) {
-                    Text(
-                        text = stringResource(FilmR.string.library_item_count, items.itemCount),
-                        style = CinefinType.BodySmall,
-                        color = LocalCinefinColors.current.onSurfaceVariant,
-                    )
-                }
-            }
-            TopBarAction(
-                icon = CoreR.drawable.ic_arrow_down_up,
-                onClick = { showSortByDialog = true },
-            )
-        }
+            },
+        )
 
         Spacer(Modifier.height(CinefinSpacing.Space4))
 
@@ -317,6 +310,8 @@ private fun LibraryScreenLayoutPreview() {
         LibraryScreenLayout(
             libraryName = "Movies",
             libraryType = CollectionType.Movies,
+            topLevel = false,
+            onOpenDrawer = null,
             state = LibraryState(items = items),
             onAction = {},
         )
