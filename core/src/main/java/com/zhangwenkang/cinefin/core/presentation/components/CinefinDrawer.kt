@@ -6,14 +6,18 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -105,54 +109,60 @@ internal fun CinefinDrawerContent(
 ) {
     val colors = LocalCinefinColors.current
     val lumen = LocalLumenColors.current
-    Box(
-        modifier =
-            Modifier.fillMaxWidth()
-                .height(96.dp)
-                .drawBehind {
-                    if (lumen != null) {
-                        val stroke = 1.dp.toPx()
-                        drawRect(
-                            color = lumen.line,
-                            topLeft = Offset(0f, size.height - stroke),
-                            size = Size(size.width, stroke),
-                        )
+    Column(modifier = Modifier.fillMaxHeight()) {
+        Box(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .height(96.dp)
+                    .drawBehind {
+                        if (lumen != null) {
+                            val stroke = 1.dp.toPx()
+                            drawRect(
+                                color = lumen.line,
+                                topLeft = Offset(0f, size.height - stroke),
+                                size = Size(size.width, stroke),
+                            )
+                        }
                     }
+                    .padding(horizontal = CinefinSpacing.Space5),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            header()
+        }
+        // 条目区可滚动：媒体库默认展开后抽屉条目变多（库列表跟在「媒体库」之后），
+        // 矮屏（横屏手机）不能把底部条目裁掉。
+        Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+            var flatIndex = 0
+            groups.forEach { group ->
+                if (group.title != null) {
+                    Text(
+                        text = group.title,
+                        style = CinefinType.LabelSmall,
+                        color = lumen?.textFaint ?: colors.onSurfaceFaint,
+                        modifier =
+                            Modifier.padding(
+                                start = CinefinSpacing.Space5,
+                                end = CinefinSpacing.Space5,
+                                top = CinefinSpacing.Space3,
+                                bottom = CinefinSpacing.Space2,
+                            ),
+                    )
                 }
-                .padding(horizontal = CinefinSpacing.Space5),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        header()
-    }
-    var flatIndex = 0
-    groups.forEach { group ->
-        if (group.title != null) {
-            Text(
-                text = group.title,
-                style = CinefinType.LabelSmall,
-                color = lumen?.textFaint ?: colors.onSurfaceFaint,
-                modifier =
-                    Modifier.padding(
-                        start = CinefinSpacing.Space5,
-                        end = CinefinSpacing.Space5,
-                        top = CinefinSpacing.Space3,
-                        bottom = CinefinSpacing.Space2,
-                    ),
-            )
-        }
-        group.items.forEach { item ->
-            val index = flatIndex++
-            CinefinDrawerItem(
-                item = item,
-                selected = index == selectedIndex,
-                onClick = { onSelect(index) },
-            )
+                group.items.forEach { item ->
+                    val index = flatIndex++
+                    CinefinDrawerItem(
+                        item = item,
+                        selected = index == selectedIndex,
+                        onClick = { onSelect(index) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(CinefinSpacing.Space4))
         }
     }
-    Spacer(Modifier.height(CinefinSpacing.Space4))
 }
 
-/** 抽屉条目：56dp 高、圆角 12dp、左右 16dp 内边距。 */
+/** 抽屉条目：56dp 高、圆角 12dp、左右 16dp 内边距；二级子项（[CinefinNavItem.nested]）48dp + 缩进。 */
 @Composable
 private fun CinefinDrawerItem(
     item: CinefinNavItem,
@@ -189,8 +199,12 @@ private fun CinefinDrawerItem(
     Row(
         modifier =
             Modifier.fillMaxWidth()
-                .padding(horizontal = CinefinSpacing.Space3)
-                .height(56.dp)
+                .padding(
+                    start =
+                        CinefinSpacing.Space3 + if (item.nested) CinefinSpacing.Space4 else 0.dp,
+                    end = CinefinSpacing.Space3,
+                )
+                .height(if (item.nested) 48.dp else 56.dp)
                 .clip(shape)
                 .background(container)
                 .lumenItemFrame(lumen, selected, 12.dp)

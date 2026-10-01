@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -71,12 +72,14 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinDrawerGroup
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinModalDrawer
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavItem
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavigationItem
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.components.lumenEdgeHighlight
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LumenColorsDark
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.models.CollectionType
@@ -280,9 +283,9 @@ fun NavigationRoot(
     // 「媒体库」二级分组默认展开（用户反馈 3：所有实际存在的库要作为子选项直接可见）。
     var mediaGroupExpanded by rememberSaveable { mutableStateOf(true) }
 
-    LaunchedEffect(showNavigation, compactNavigation) {
-        // 手机形态（Compact）没有抽屉；窗口从平板缩回手机时若抽屉还开着，一并收回。
-        if ((!showNavigation || compactNavigation) && drawerState.isOpen) {
+    LaunchedEffect(showNavigation) {
+        // 控制台类页面不渲染侧柜（D22 ②），抽屉在这里让位；手机 Compact 自 W7-R3 起恢复抽屉，不再收回。
+        if (!showNavigation && drawerState.isOpen) {
             drawerState.close()
         }
     }
@@ -294,19 +297,9 @@ fun NavigationRoot(
         } else {
             null
         }
-    // 侧柜皮肤分级（W6-VIS 决策 D23）：影视域目的地（首页 / 媒体库 / 下载 / 客户端设置 / 影视类库）
-    // 的侧轨 / 底栏 / 抽屉跟随页面一起走 S1「A · Lumen」；音乐库、书架与书籍库保持 Prism。
-    // 判据只看"当前这一屏属于哪个域"，与页面内容同一个来源，避免出现"页面换了皮、侧栏还是旧配色"。
-    val lumenChrome =
-        when {
-            currentDestination.isRoute<MusicModeRoute>() -> false
-            currentDestination.isRoute<BookshelfRoute>() -> false
-            currentDestination.isRoute<LibraryRoute>() ->
-                currentLibrary?.libraryType?.let {
-                    it != CollectionType.Music && it != CollectionType.Books
-                } ?: true
-            else -> true
-        }
+    // 侧柜皮肤（W6-VIS D23 → W7-R3 用户反馈 3）：侧轨 / 底栏 / 抽屉**常驻** S1「A · Lumen」——
+    // 音乐 / 书架 / 阅读页只是**内容**保持各自皮肤（LumenPage 仍按域分流），侧边菜单统一走 A 稿。
+    val lumenChrome = true
     // 控制台 / 媒体资料管理器共用 ConsoleRoute 目的地，选中态要靠 path 参数区分（否则两条入口
     // 会同时高亮，见踩坑 28 的同类问题）。
     val consolePath =
@@ -325,10 +318,9 @@ fun NavigationRoot(
         currentDestination.isRoute<BookshelfRoute>() ||
             (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString())
 
-    // 手机（Compact）不再有抽屉：底栏已经覆盖四个入口，左侧抽屉（含 hamburger 与边缘滑出）
-    // 按用户反馈整体移除，避免误滑；平板保留抽屉（侧轨为主，抽屉兜底全量入口）。
-    val openDrawer: (() -> Unit)? =
-        if (compactNavigation) null else ({ scope.launch { drawerState.open() } })
+    // 手机（Compact）恢复抽屉入口（W7-R3 用户反馈 1）：顶栏 app 图标 / 菜单键可拉出，边缘手势也可用；
+    // 平板保持既有行为（侧轨为主，抽屉兜底全量入口）。
+    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
     val navigateTopLevel: (Any) -> Unit = { route ->
         closeDrawer()
@@ -485,28 +477,34 @@ fun NavigationRoot(
     val railDestinations =
         visibleRailKeys(navKeys, sidebarVisibility).mapNotNull { chromeByKey[it] }
 
-    // 抽屉 = 同一份统一目的地列表 + 服务器库列表（D18：不再有「更多」分区，也没有分组标题，
-    // 选中索引与动作列表同源，杜绝分组聚合带来的索引错位，见踩坑 17）
-    val drawerEntries: List<DrawerEntry> =
-        railDestinations.map { destination ->
+    // 抽屉 = 同一份统一目的地列表，库列表**紧跟「媒体库」行**（W7-R3 用户反馈 2）：默认展开、
+    // 排在音乐 / 书架之前，与平板侧轨的二级分组同一顺序；离线模式没有库列表，只留一级入口。
+    // 选中索引与动作列表仍同源（踩坑 17）。
+    val drawerEntries: List<DrawerEntry> = railDestinations.flatMap { destination ->
+        val topLevel =
             DrawerEntry(
                 item = destination.item,
                 selected = destination.selected,
                 onClick = destination.onClick,
             )
-        } +
-            if (isOfflineMode) {
-                emptyList()
-            } else {
+        if (destination.key != NavEntryKey.Media || isOfflineMode) {
+            listOf(topLevel)
+        } else {
+            listOf(topLevel) +
                 drawerData.libraries.map { library ->
                     DrawerEntry(
-                        item = chromeItem(libraryIconRes(library.type), library.name),
-                        selected = false,
-                    ) {
-                        openLibrary(library)
-                    }
+                        item =
+                            CinefinNavItem(
+                                label = library.name,
+                                icon = navIcon(libraryIconRes(library.type)),
+                                nested = true,
+                            ),
+                        selected = currentLibrary?.libraryId == library.id.toString(),
+                        onClick = { openLibrary(library) },
+                    )
                 }
-            }
+        }
+    }
     val drawerGroups =
         listOf(CinefinDrawerGroup(title = null, items = drawerEntries.map { it.item }))
     val drawerSelectedIndex = drawerEntries.indexOfFirst { it.selected }
@@ -663,10 +661,25 @@ fun NavigationRoot(
             composable<MusicModeRoute> { MusicModeScreen(onOpenDrawer = openDrawer) }
             composable<ConsoleRoute> { backStackEntry ->
                 val route: ConsoleRoute = backStackEntry.toRoute()
-                WebConsoleScreen(
-                    initialPath = route.path,
-                    onBack = { navController.safePopBackStack() },
-                )
+                // 控制台页不渲染 app 侧轨 / 底栏（D22 ②，避免与 jellyfin-web 自己的侧栏打架），
+                // 但要给一个**可见**的回 app 入口（W7-R3 用户反馈 4）：右下角 A 风格悬浮胶囊。
+                // 系统返回键的既有行为不变：控制台内先退网页历史，退无可退再离开控制台（踩坑 31）。
+                Box(modifier = Modifier.fillMaxSize()) {
+                    WebConsoleScreen(
+                        initialPath = route.path,
+                        onBack = { navController.safePopBackStack() },
+                    )
+                    ConsoleBackToAppPill(
+                        onClick = { navigateHome(navController) },
+                        modifier =
+                            Modifier.align(Alignment.BottomEnd)
+                                .navigationBarsPadding()
+                                .padding(
+                                    end = CinefinSpacing.Space4,
+                                    bottom = CinefinSpacing.Space4,
+                                ),
+                    )
+                }
             }
             composable<LibraryRoute> { backStackEntry ->
                 val route: LibraryRoute = backStackEntry.toRoute()
@@ -842,8 +855,8 @@ fun NavigationRoot(
 
     CinefinModalDrawer(
         drawerState = drawerState,
-        // 手机（Compact）没有抽屉：连边缘滑出的手势一并关掉，避免误滑（用户反馈 1）。
-        gesturesEnabled = showNavigation && !compactNavigation,
+        // 手机与平板都可从边缘滑出抽屉（W7-R3 用户反馈 1 恢复）；控制台类页面仍然让位给 WebView。
+        gesturesEnabled = showNavigation,
         header = {
             CinefinDrawerHeader(
                 userName = drawerData.userName,
@@ -926,6 +939,50 @@ private fun LumenPage(enabled: Boolean, content: @Composable () -> Unit) {
         ProvideLumen { content() }
     } else {
         content()
+    }
+}
+
+/**
+ * 控制台页的悬浮「返回影阁」胶囊（W7-R3 用户反馈 4）。
+ *
+ * A 稿手法：石墨底 + 1dp 发丝线 + 顶缘内高光 + 月白文字与品牌图标；无投影（§5.3 无投影规则）。 自铺底色、只借色板，因此用
+ * [ProvideLumenColors]（与侧柜同一入口）；点击回主界面， 系统返回键的「控制台内先退网页历史」行为保持不变（踩坑 31）。
+ */
+@Composable
+private fun ConsoleBackToAppPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ProvideLumenColors {
+        val lumen = LocalLumenColors.current ?: LumenColorsDark
+        Row(
+            modifier =
+                modifier
+                    .clip(CinefinShapes.Full)
+                    .background(lumen.panel.copy(alpha = 0.94f))
+                    .drawBehind {
+                        drawRect(
+                            brush = lumenEdgeHighlight(lumen),
+                            size = Size(size.width, 1.dp.toPx()),
+                        )
+                    }
+                    .border(1.dp, lumen.line, CinefinShapes.Full)
+                    .cinefinClickable(onClick = onClick)
+                    .defaultMinSize(minHeight = 44.dp)
+                    .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_logo),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(CinefinSpacing.Space2))
+            Text(
+                text = stringResource(CoreR.string.console_back_to_app),
+                style = CinefinType.NavLabel,
+                color = lumen.text,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -1301,6 +1358,11 @@ internal fun consoleEntrySpecs(isAdministrator: Boolean): List<ConsoleEntrySpec>
         )
     }
 
-/** 控制台两类入口的选中态：同一个 [ConsoleRoute] 目的地只能靠 path 参数区分；默认值（参数缺失） 等于控制台路径。 */
+/**
+ * 控制台两类入口的选中态：同一个 [ConsoleRoute] 目的地只能靠 path 参数区分。
+ *
+ * `currentPath = null` 表示**当前不在控制台目的地**（[currentPath] 只在 `ConsoleRoute` 上取值）—— 这种情况两条入口都不能高亮（W7-R3
+ * 用户反馈 5：旧实现把 null 回退成 `/dashboard`， 退出控制台后「服务器控制台」仍显示选中）。
+ */
 internal fun consoleEntrySelected(currentPath: String?, entryPath: String): Boolean =
-    (currentPath ?: ConsolePathDashboard) == entryPath
+    currentPath != null && currentPath == entryPath

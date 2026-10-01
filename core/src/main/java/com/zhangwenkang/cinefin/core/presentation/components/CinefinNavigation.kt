@@ -59,6 +59,8 @@ class CinefinNavItem(
     val label: String,
     val neutral: Boolean = false,
     val icon: @Composable (selected: Boolean) -> Unit,
+    /** 二级分组子项（媒体库 → 具体库）：抽屉里用缩进 + 紧凑行，与侧轨的子项层级一致。 */
+    val nested: Boolean = false,
 )
 
 /** 侧导航（Large / ExtraLarge ≥1200dp：164dp 展开；840–1199dp：88dp 折叠轨）。 */

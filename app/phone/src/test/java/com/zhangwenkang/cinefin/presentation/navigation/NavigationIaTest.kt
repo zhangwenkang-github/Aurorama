@@ -121,4 +121,20 @@ class NavigationIaTest {
             bottomNavKeys,
         )
     }
+
+    @Test
+    fun mediaGroupSitsBeforeMusicAndBookshelf() {
+        // W7-R3 用户反馈 2：二级库列表挂在「媒体库」行下（抽屉默认展开），整组要排在音乐 / 书架之前。
+        val keys =
+            navEntryKeys(
+                isAdministrator = true,
+                librariesLoaded = true,
+                hasMusicLibrary = true,
+                hasBooksLibrary = true,
+            )
+
+        assertEquals(1, keys.indexOf(NavEntryKey.Media))
+        assertTrue(keys.indexOf(NavEntryKey.Music) > keys.indexOf(NavEntryKey.Media))
+        assertTrue(keys.indexOf(NavEntryKey.Bookshelf) > keys.indexOf(NavEntryKey.Media))
+    }
 }

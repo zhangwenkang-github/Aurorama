@@ -69,6 +69,12 @@
 | D25 | **侧栏 / 抽屉 / 底栏与客户端设置视觉重设计（A 稿手法）**（W6-VIS，用户反馈「图标、背景色、排版太单调」） | ①**侧轨**：底 = 石墨 `#111319`（比曜石黑页底亮一档，形成"幕布 + 面板"层次）+ 右缘 1dp 发丝线（白 8.5%）+ 顶缘 1px 内高光；条目选中 = 雾灰 `#171A21` 容器 + 1dp 细线 + 顶部内高光 + **月白**标签 + **极光青**图标（唯一强调色只落在"当前焦点"），未选中 = 次级灰 `#98A2B3`，悬停 = 白 7% 幽灵底、按下 = 白 12%；品牌印记改成"雾灰 + 发丝线"小方框；②**底栏**同语言（石墨底 + 极光青指示条与图标 + 月白 / 次级灰标签），并把安全区一起铺满底色（踩坑 39）；③**抽屉** = 石墨面板 + 品牌方框 + 服务器行幽灵胶囊；④**客户端设置**：分类收进石墨卡（复用 `LumenCardFrame`：1dp 渐变描边 + 顶部内高光 + 极轻外发光），行内图标磁贴 = 雾灰 + 发丝线 + 顶部内高光，标题月白 / 说明与当前值次级灰 / 箭头三级灰，开关轨道 = 当前强调色 + 配对深色拇指，顶栏下补一条发丝线；⑤**不新增位图、不新增色值**：图标沿用现有矢量资源只做重着色，A 色值仍只在 `LumenTokens`。 | 
 | D26 | **加载过渡：骨架屏 + shimmer + 淡入**（W6-VIS，用户反馈「加载直接显示黑板」） | ①新增 `presentation/components/LumenSkeleton.kt`：`Modifier.lumenShimmer()`（底色 + 横向高光带；动画值只在 `drawBehind` 里读 → 只触发重绘、不重组）、`LumenSkeletonBlock` / `LumenSkeletonLine`、`LumenSkeletonOverlay`（淡入淡出外壳，兼避 ColumnScope 重载冲突，见踩坑 40）、页面级骨架（首页 / 媒体库 / 库内容 / 详情 / 设置）与 `ColdStartSplash`；②接入点：**冷启动**（登录态解析期显示曜石黑品牌页，就绪后主界面 220ms 淡入）、首页、媒体库总览、库内容页（分页首屏）、下载、5 个详情页、客户端设置；③纪律：全部动效只走 **opacity / graphicsLayer / 渐变平移**（§6.4），不改宽高、不做模糊；内容始终参与组合（只把 alpha 置 0），因此过渡不会重建滚动位置与分页状态。 | 
 
+| D27 | **手机恢复抽屉入口 + 顶栏 app 图标**（W7-R3，2026-10-01 用户复测反馈 1） | W6-R6N（D22 ①）按当时反馈把 Compact 抽屉整体移除，复测时用户要求恢复：①`openDrawer` 不再按形态置空（`val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }`），首页 / 媒体库 / 书架 / 下载顶栏重新出现抽屉键；②`CinefinModalDrawer(gesturesEnabled = showNavigation)`——手机也能从边缘滑出（控制台类页面仍让位给 WebView）；③`LaunchedEffect(showNavigation)` 只在**非侧柜页面**回收抽屉，窗口从平板缩回手机时不再强制关闭；④**首页顶栏的入口换成品牌图标**（`ic_logo`，26dp，contentDescription = `nav_open_drawer`「打开侧栏」），既是 app 图标也是抽屉入口（用户原话"也不显示 app 图标"）；媒体库 / 书架 / 下载顶栏沿用汉堡键，底部 4 Tab 顺序与行为不变。 |
+| D28 | **二级库列表进抽屉：默认展开、紧跟「媒体库」、排在音乐 / 书架之前**（W7-R3，用户复测反馈 2） | 旧实现把库列表平铺追加在抽屉末尾（音乐 / 书架之后），与平板侧轨的二级分组不一致。改法：`drawerEntries` 用 `railDestinations.flatMap`，在 `NavEntryKey.Media` 行之后立刻展开 `drawerData.libraries` 子项（离线模式 / 无库时只留一级入口）；子项用 `CinefinNavItem(nested = true)` → `CinefinDrawerItem` 缩进 16dp、行高 48dp（与侧轨 44dp 紧凑行同语言），选中态 = 当前库；`drawerSelectedIndex` 与动作列表仍同源（踩坑 17）。`CinefinNavItem` 新增 `nested` 参数（默认 false，API 兼容）。侧轨一行未动（`mediaGroupExpanded` 默认已为 true）。 |
+| D29 | **侧柜皮肤常驻 A · Lumen**（W7-R3，用户复测反馈 3） | D24 ③ 让侧柜跟随当前目的地域（音乐 / 书架 / 书籍库回 Prism）；用户复测要求"音乐、书架的侧边菜单也要 Lumen 皮肤，但界面本身不变"。改法：`lumenChrome = true` 常量 → 侧轨 / 底栏 / 抽屉**任何页面**都套 `ProvideLumenColors`；`LumenPage` 的分流不变，因此音乐（Prism + 松石）、书架 / 阅读、书籍库的**页面内容**皮肤零改动。 |
+| D30 | **控制台页悬浮「返回影阁」胶囊**（W7-R3，用户复测反馈 4） | 控制台页 `showNavigation = false`（D22 ②），进得去但难出来。选定方案（保留系统返回一次回主界面的既有行为，**不**恢复平板双侧栏并存）：`composable<ConsoleRoute>` 用 `Box` 把 `WebConsoleScreen` 与 `ConsoleBackToAppPill` 叠放——右下角（`align(BottomEnd)` + `navigationBarsPadding` + 16dp）A 稿小胶囊：石墨底 94% + 1dp 发丝线 + 顶缘内高光 + `ic_logo` 18dp + 月白「返回影阁」，触控高 ≥44dp；点击 = `navigateHome`（回主界面）。文案新增 `CoreR.string.console_back_to_app`（en/zh）。 |
+| D31 | **控制台入口选中态：不在控制台就不选中**（W7-R3，用户复测反馈 5） | 根因：`consoleEntrySelected` 把"当前不在 `ConsoleRoute`"（`currentPath = null`）回退成 `/dashboard`，与 `entryPath = /dashboard` 相等 → 退出控制台后「服务器控制台」一直高亮。改为 `currentPath != null && currentPath == entryPath`；`ConsoleEntrySpecTest` 增加"null 不选中"断言（原断言按旧语义写反，同步更正）。 |
+
 ## 4. 进度
 
 - [x] ①-色彩：中性色亮 / 暗、三域媒体色 3×7、语义色、状态层、M3 `ColorScheme` 映射
@@ -212,6 +218,19 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - [x] **门禁**：`:app:phone:assembleDebug` + `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest` + `:core:testLibreDebugUnitTest` 全绿（新增 `lumen material scheme maps neutral slots to direction a values` 1 项）
 - [x] **真机**：Pad 5 `43af8627`（`wm 2560x1600` + `density 320` ≈ 1280dp 平板形态：侧轨 164dp 展开 + 首页 / 媒体库 / 客户端设置 / 侧栏显示子页像素采样）+ K60 `8e875894`（1440×3200 @560 原生竖屏：底部 Tab + 冷启动骨架帧）；设备副作用已还原、device-lock 已登记并释放
 - 本期边界：控制台（WebView）皮肤由 W6-WEB 的 CSS v3 负责，不在本轮代码范围；播放页（`player/*`）按纪律未动
+
+### W7-R3 本轮进度（用户复测反馈修复波，2026-10-01，分支 `feature/r7-nav-fix`）
+
+用户 2026-10-01 复测反馈的 5 项（决策见 D27–D31）：
+
+- [x] **①手机恢复侧栏入口与顶栏 app 图标**：`openDrawer` 恢复为非空（Compact 也能开抽屉）、抽屉手势按 `showNavigation` 开启；首页顶栏入口换 `ic_logo`（26dp，`打开侧栏`）+ 媒体库 / 书架 / 下载顶栏汉堡键恢复
+- [x] **②媒体库二级分组进抽屉且默认展开**：库列表紧跟「媒体库」行（缩进 16dp / 48dp 行高），排在音乐 / 书架之前；抽屉条目区改为可滚动（`weight(1f, fill = false) + verticalScroll`），避免条目变多后矮屏裁掉底部；侧轨顺序不变
+- [x] **③侧柜常驻 Lumen**：`lumenChrome = true` —— 侧轨 / 底栏 / 抽屉在任何页面（含音乐 / 书架 / 书籍库）都是 A 稿；音乐、书架、阅读的**页面内容**皮肤未动
+- [x] **④控制台悬浮返回入口**：`ConsoleBackToAppPill`（石墨 94% + 发丝线 + 月白「返回影阁」，≥44dp 触控）叠在 WebView 右下角，点击回主界面；系统返回键行为不变（控制台内先退网页历史，一次返回离开控制台）；未恢复平板双侧栏
+- [x] **⑤控制台选中态修正**：`consoleEntrySelected` 对 `null` 返回 false；退出控制台后「服务器控制台」不再高亮
+- [x] **门禁**：`:app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :core:testLibreDebugUnitTest` 全绿（`:app:phone` 22 项 / `:core` 16 项，0 失败；新增 `mediaGroupSitsBeforeMusicAndBookshelf`、`selectsNothingWhenNotOnConsoleRoute`）
+- [x] **真机**：Pad 5 `43af8627`（平板 2560×1600 @320 + 手机形态 1080×2400 @420）与 K60 `8e875894`（1440×3200 @560 原生竖屏）逐条验证 1–5；像素采样 / dump 文本取证，logcat 无 FATAL / ANR；设备副作用已还原、device-lock 已写释放
+- 本期边界：Web 控制台内部皮肤仍由 W6-WEB 的 CSS v3 负责；`player:*`、`docs/web-console-skin.css`、`AppPreferences` 等禁用文件零改动
 
 ## 5. 验收
 
@@ -419,6 +438,24 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [x] **动效性能**：shimmer 只读绘制阶段状态（`drawBehind`），只触发重绘；骨架淡入淡出与内容淡入均走 `graphicsLayer{alpha}` / `AnimatedVisibility`（仅 opacity），未改宽高、未做模糊（§6.4）。
 - [x] **device-lock**：使用前登记、完成后写释放时间（Pad 5 `43af8627` + K60 `8e875894`），设备副作用（`wm size/density` / 旋转 / 临时文件 / force-stop）已还原。
 
+### W7-R3 验收（2026-10-01，用户复测反馈修复波，分支 `feature/r7-nav-fix`）
+
+验收命令（全部通过）：`:app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :core:testLibreDebugUnitTest`（app 22 项 + core 16 项，0 失败）。
+
+设备：Pad 5 `43af8627`（平板 `wm 2560x1600` + `density 320` ≈1280dp；手机形态 `wm 1080x2400` + `density 420` ≈411dp）+ K60 `8e875894`（1440×3200 @560 原生竖屏）。
+
+- [x] **①手机侧栏入口 / app 图标**：首页顶栏入口 `content-desc="打开侧栏"`（Pad 5 手机形态 [77,100][145,168]、标题 x=190px=72dp；K60 [102,191][193,282]），点击后抽屉打开；媒体库 / 书架 / 下载顶栏汉堡键恢复；底部 4 Tab 顺序与位置不变（y≈2295–2341 / K60 3060–3121）。
+- [x] **②媒体库二级分组（默认展开、位于音乐 / 书架之前）**：抽屉 dump 顺序 = 首页 → 媒体库 → 电影 / 动漫 / 书籍 / 音乐 / Playlists（缩进 x=221 vs 一级 179 → 16dp；K60 x=294 vs 238）→ 音乐 → 书架 → 下载 → 服务器控制台 → 媒体资料管理器 → 客户端设置，12 条在手机形态整屏可见；侧轨（Pad 5 平板）顺序一致：首页 y201 / 媒体库 y313 / 子项 415–825 / 音乐 y885 / 书架 y997 / 下载 y1109 / 控制台 y1221 / 资料管理器 y1333 / 客户端设置 y1445。
+- [x] **③侧柜常驻 Lumen（内容皮肤不变）**：
+  - 音乐页（Pad 5 平板）侧轨 = 石墨 `#111319` 356,087 + 选中雾灰 `#171A21` 27,571 + 次级灰 `#98A2B3` 11,687 + 月白 `#F2F5F9` 430；选中行（音乐）雾灰 11,243 + 月白 430 + 极光青 `#5CE1D2` 256；**音乐内容区仍是 Prism**：石板 `#151A21` 2,632,135 + 松石容器 `#213C3E` 20,091，极光青 0；
+  - 书架页（Pad 5 平板）侧轨 = `#111319` 356,814 + 选中行 26,844 + 极光青 898；内容区 `#12131A` / `#222A36`（原样）；
+  - K60 音乐页底栏 = `#111319` 189,914 + 次级灰 6,213 + 月白 918 + 极光青 502（指示条 / 图标）；内容区石板 2,937,078、极光青 0；
+  - 手机抽屉（Pad 5 手机形态）= `#111319` 1,078,164 + 选中行 `#171A21` 90,931 + 月白 743 / 极光青 669。
+- [x] **④控制台悬浮返回入口**：Pad 5 平板 pill 可点区 [2282,1444][2528,1540]（123×48dp，屏内），像素 `#111319` 14,552 + 月白 824 + 顶缘内高光 `#26272D` 472；点击 → 回首页（dump 出首页内容）。控制台页左缘 x<300 = `#0B0D11` + 极光青 1,209 → 只有 jellyfin-web 自带侧栏，**未恢复 app 双侧栏**。Pad 5 手机形态 / K60 pill 文本 [825,2230][996,2286] / [1101,2974][1328,3048]（可点区均 123×48dp；K60 像素 `#11141A` 为 94% 石墨底在 WebView 上的混色 + 月白 3,370）。**系统返回键行为不变**：控制台页按一次 BACK 即回主界面（Pad 5 手机形态实测，无空白种子页）。
+- [x] **⑤退出控制台后不再残留选中**：Pad 5 平板回首页后 首页行 `#171A21` + 月白 445、服务器控制台行 `#111319` 9,652 + 次级灰 1,250；手机形态 首页行 40,112 + 极光青 669、控制台行 `#111319` 36,494；K60 首页行 70,982 + 极光青 1,293、控制台行 `#111319` 65,547。
+- [x] **稳定性 / 副作用**：两台设备 logcat 无 `FATAL` / `ANR in` / `Input dispatching timed out`（仅 uiautomator 自身启动日志）；Pad 5 `wm size/density` reset（Physical 1600×2560 / 360）、`accelerometer_rotation` 1、`user_rotation` 0；K60 未改 wm；两台 App force-stop、`/sdcard/w7r3*` 临时文件清理、本地截图已删。
+- 未验：**左缘滑出抽屉**在系统手势导航（`navigation_mode = 2`，两台设备均如此）下被系统「返回」手势占用，adb 左缘 swipe 触发的是系统返回（踩坑 43）；顶栏入口已验，如需手势断言需先切三键导航（如 W6-WEB 所做），本轮按"用户要求的是可见入口"处理。
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -463,8 +500,15 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 39. **`Modifier.navigationBarsPadding()` 放在组件外会漏出外层主题色**：底栏的 modifier 链是「调用方 modifier（含 `navigationBarsPadding`）→ `.fillMaxWidth().height(64.dp).background(底)`」，背景画在安全区**以内**，手势条那一条留给外层 `CinefinTheme` 的 `#151A21` —— 真机上底栏下方就能看到一条石板色带（修好后同一坐标是 `#111319`）。修法：在底栏外再包一层 `Box(Modifier.fillMaxWidth().background(同色))`，或把安全区当作组件内部事务（背景先铺、padding 后加）。验证手法：`screencap` 后按行统计底部 200px 的最常见颜色。
 40. **`AnimatedVisibility` 在 `Column` / `Row` 里会解析到作用域重载**：把 `AnimatedVisibility` 写在「Column → Box → …」里会命中 `ColumnScope.AnimatedVisibility`，Kotlin 报 *"cannot be called in this context with an implicit receiver"*（BoxScope 与 ColumnScope 两个隐式接收者打架）。修法：把它收进一个**没有作用域接收者的顶层函数**（本波 = `LumenSkeletonOverlay`），或显式指定接收者；同类问题也适用于 `Modifier.align` / `weight` 这类作用域扩展。
 
+41. **`install -r` 后 `rememberSaveable` 的形态状态会被系统恢复，别当成默认值 bug**：Pad 5 走查时侧轨一开始是 88dp 折叠态，而代码里 `railDefaultExpanded = width ≥ 1200dp → true`。原因是重装 APK 只杀进程，Activity 任务的 saved instance state 仍被系统保留，下次启动把上一会话手动折叠的状态（`rememberSaveable`）恢复了。判据：先 `am force-stop` 再 `am start`（或清任务）后看默认值；本次用点击「收起 / 展开」行验证展开态。
+42. **抽屉条目区必须可滚动**：把二级库列表移进抽屉后条目从 6 条涨到 12 条（12×56dp = 672dp + 96dp header）。矮屏（横屏手机 / 小屏平板）会把「客户端设置」裁到屏幕外，而 `ModalDrawerSheet` 自己不滚动。修法：`CinefinDrawerContent` 内条目区 `Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()))`——`fill = false` 保证条目少时仍按内容高度排布。
+43. **系统手势导航会吃掉左缘滑动**：Pad 5 / K60 的 `navigation_mode = 2`（手势导航）下，`adb shell input swipe` 从左缘（x≈0）起手触发的是系统「返回」，不是 app 抽屉（实测把 app 直接退回桌面 / 上一页）。要断言抽屉手势，必须先切三键导航（`settings put secure navigation_mode 0`，W6-WEB 曾这么做并还原）或用不会与系统手势冲突的起点；本体入口（顶栏键）不受影响。
+44. **MIUI「超级小爱悬浮窗」会顶掉 uiautomator dump**：Pad 5 上 dump 首行出现 `package="com.miui.voiceassist"` / `content-desc="超级小爱悬浮窗"`（全屏 FrameLayout），此时页面节点全部缺失。按一次 `KEYCODE_BACK` 关掉悬浮窗再 dump 即可；与踩坑 18 的「剪贴板与常用语」弹窗并列，走查脚本应有"首行不是目标包名 → 先关弹窗"的兜底。
+45. **半透明悬浮胶囊的像素采样不会等于纯色值**：`ConsoleBackToAppPill` 用 `lumen.panel.copy(alpha = 0.94f)` 压在 WebView 上，K60 实测主色是 `#11141A`（而不是 `#111319`）。验收时按"石墨家族 + 月白文字 + 高光/描边都在"判断，别把 alpha 混合结果当色值错误；换用完全不透明底又会丢掉"悬浮"质感。
+
 ## 7. 日志
 
+- **2026-10-01 W7-R3（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D26 / 踩坑 1–40，重点 38–40 与 D22/D24/D25）、`ROLE_SKILLS` §5.3、`UI_DESIGN_SYSTEM` §2/§4.4/§8.6、`s1-direction-a/README.md`、`device-lock.md` 后开工。完成用户复测反馈 5 项（决策 D27–D31）：①手机恢复抽屉入口 + 首页顶栏换 `ic_logo` 作 app 图标 / 侧栏键；②二级库列表进抽屉（紧跟「媒体库」、缩进 48dp 行、先于音乐 / 书架）+ 抽屉条目区可滚动；③侧柜常驻 A · Lumen（`lumenChrome = true`），音乐 / 书架 / 阅读**内容**皮肤不变；④控制台页右下角新增 A 风格悬浮「返回影阁」胶囊（系统返回一次回主界面行为保留，未恢复双侧栏）；⑤`consoleEntrySelected` 对 `null` 不再回退 `/dashboard`，退出控制台不留选中。门禁 `assembleDebug + ktfmtCheck + app 22 项 / core 16 项单测` 全绿；Pad 5（平板 1280dp + 手机形态 411dp）与 K60（原生竖屏）逐条像素采样 / dump 取证，设备副作用已还原。新踩坑 41–45。分支 `feature/r7-nav-fix`，未合并 master。
 - **2026-10-01 W6-VIS（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D23 / 踩坑 1–37 / W6-R6N / W6-WEB）、`UI_DESIGN_SYSTEM` §2.6/§5/§6/§7、`s1-direction-a/README.md`、`LumenColors.kt` 与 film / settings / navigation / core components 代码地图后开工。完成三件事（决策 D24 / D25 / D26）：①Lumen 全域化（含 `ProvideLumen` 内嵌 M3 色板与跨域页统一处理、侧柜皮肤跟随 `lumenChrome`）；②侧栏 / 底栏 / 抽屉 / 客户端设置视觉重设计；③加载过渡（`LumenSkeleton.kt` + 冷启动品牌页 + 7 处页面接入）。门禁 `assembleDebug + ktfmtCheck + app/core 单测` 全绿；真机 Pad 5（1280dp 平板形态）与 K60（原生竖屏）像素采样与 4 连拍帧取证通过，设备副作用已还原。新踩坑 38 / 39 / 40。分支 `feature/r6-visual-all`（提交与推送见交接报告），未合并 master。
 - **2026-09-30 W1-R3（本会话）**：读齐 `PROJECT_PLAN` §1–5、`UI_DESIGN_SYSTEM` v1.0 全文、`s1-decision`、`REQUIREMENTS` §6/§10/§12、`ARCHITECTURE` §2.4、`SESSION_BRIEFS` W1-R3、`PARALLEL_PLAN` §1.3/W1、`ROLE_SKILLS` §5.3（在线校验 5 篇官方文档）；完成 token → Compose 主题映射、Typography 归位 + 桥接、4 类基础组件 + 预览 + 13 项单测；验收命令与真机走查通过。分支 `feature/r3-ui-tokens`。
 - **2026-09-30 W3-R3（本会话）**：读齐 `PROJECT_PLAN` §1–5、`UI_PLAN`、`UI_DESIGN_SYSTEM` §2.3–2.6/§4/§8–§10、`READER_PLAN`（D7–D10 + §9 遗留）、`MUSIC_PLAN`（W2 交付 + 踩坑）、`SESSION_BRIEFS` W3-R3、`PARALLEL_PLAN` §1.3/W3、`ROLE_SKILLS` §5.3；完成 core 三件剩余组件 + 音乐 / 阅读页 Prism 接入 + `NavigationRoot` 路由注册（音乐 + 书籍→阅读器）与 `exported=false`；门禁与真机走查（含手机形态、纸色主题色值采样）通过；顺带修正 `kind == "Book"` 大小写 bug（见踩坑 10）。分支 `feature/r3-ui-pages-a`。

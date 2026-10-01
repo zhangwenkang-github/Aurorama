@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
@@ -25,13 +28,14 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 
 /**
- * 首页顶栏：抽屉入口 + 品牌字标 + 搜索。
+ * 首页顶栏：**app 图标（抽屉入口）** + 品牌字标 + 搜索。
  *
- * 这里只用字标不用图形标志——首页的第一眼应该留给海报， 顶栏越安静，画面越突出。状态（加载中 / 出错）也用最小的图标提示， 不做彩色圆底按钮，避免与海报争夺注意力。
+ * W7-R3（用户反馈 1）：手机 Compact 恢复抽屉后，入口从汉堡键换成品牌图标（S1 A 稿的"光圈棱镜"）， 既是 app
+ * 图标也是侧栏入口；其余页面顶栏仍用汉堡键。顶栏其余部分保持安静——首页的第一眼应该留给海报。
  */
 @Composable
 fun HomeTopBar(
-    /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N），不显示 hamburger。 */
+    /** 抽屉入口；null = 不显示入口（控制台等不渲染侧柜的页面）。 */
     onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     isLoading: Boolean,
@@ -48,7 +52,14 @@ fun HomeTopBar(
         val media = LocalMediaColors.current
 
         if (onOpenDrawer != null) {
-            TopBarAction(icon = CoreR.drawable.ic_menu, onClick = onOpenDrawer)
+            TopBarAction(onClick = onOpenDrawer) {
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_logo),
+                    contentDescription = stringResource(CoreR.string.nav_open_drawer),
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
 
             Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
         }

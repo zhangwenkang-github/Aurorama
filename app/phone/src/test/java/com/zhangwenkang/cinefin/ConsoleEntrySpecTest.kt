@@ -33,8 +33,16 @@ class ConsoleEntrySpecTest {
         assertTrue(consoleEntrySelected(currentPath = "/dashboard", entryPath = "/dashboard"))
         assertFalse(consoleEntrySelected(currentPath = "/dashboard", entryPath = "/metadata"))
         assertTrue(consoleEntrySelected(currentPath = "/metadata", entryPath = "/metadata"))
-        // 默认值（参数缺失）等同控制台路径
-        assertTrue(consoleEntrySelected(currentPath = null, entryPath = "/dashboard"))
+        assertFalse(consoleEntrySelected(currentPath = "/metadata", entryPath = "/dashboard"))
+    }
+
+    @Test
+    fun selectsNothingWhenNotOnConsoleRoute() {
+        // W7-R3 用户反馈 5：退出控制台后 currentPath = null（当前目的地不是 ConsoleRoute），
+        // 两条入口都必须取消选中；旧实现把 null 回退成 /dashboard，导致「服务器控制台」一直亮着。
+        assertFalse(consoleEntrySelected(currentPath = null, entryPath = ConsolePathDashboard))
+        assertFalse(consoleEntrySelected(currentPath = null, entryPath = ConsolePathMetadata))
+        assertFalse(consoleEntrySelected(currentPath = null, entryPath = "/dashboard"))
         assertFalse(consoleEntrySelected(currentPath = null, entryPath = "/metadata"))
     }
 }
