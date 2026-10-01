@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
+import android.view.View
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -57,7 +58,8 @@ import org.json.JSONObject
  * 与 App 的融合做了三件事：
  * 1. 没有 App 自己的标题栏——控制台铺满整屏，返回交给系统回退手势/返回键；
  * 2. 登录态通过一个"同源空白种子页"写入 localStorage，不再闪现 manifest.json 的代码；
- * 3. 每次页面加载都注入影阁皮肤（墨底 + 朱砂 + 发丝线）， 与 App 内的设置页、抽屉是同一套语言，不会出现"两个应用"的割裂感。
+ * 3. 每次页面加载都注入影阁皮肤（S1「A · Lumen」：曜石黑底 + 石墨卡片 + 月白文字 + 极光青强调 + 白 8.5% 发丝线，见
+ *    docs/web-console-skin.css），与 App 内首页 / 详情页的 流光皮肤是同一套语言，不会出现"两个应用"的割裂感。
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -115,7 +117,17 @@ fun WebConsoleScreen(
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = false
                         settings.mediaPlaybackRequiresUserGesture = false
-                        setBackgroundColor(android.graphics.Color.parseColor("#0B0C0E"))
+                        // W6-WEB 滚动优化：控制台页面在 WebView 内上下滑动时反馈不流畅，
+                        // 逐条收敛会造成掉帧的系统级行为（与 CSS §15 的滚动闸门配套）。
+                        // ① 关闭 Android 过度滚动拉伸/回弹，边缘滚动不再触发二次合成
+                        overScrollMode = View.OVER_SCROLL_NEVER
+                        // ② 页面自身是顶层滚动，不需要再把滚动事件向 Compose 父级派发
+                        isNestedScrollingEnabled = false
+                        // ③ 离屏预栅格化：滚动进入新内容时不因现栅格化等待掉帧
+                        settings.setOffscreenPreRaster(true)
+                        // ④ 前台使用期间保持渲染进程优先级，避免被系统降级导致丢帧
+                        setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+                        setBackgroundColor(android.graphics.Color.parseColor("#08090C"))
                         webChromeClient = WebChromeClient()
                         webViewClient =
                             ConsoleWebViewClient(
@@ -272,7 +284,7 @@ private fun buildSeedHtml(credentialsScript: String): String =
     """
     <!doctype html>
     <html><head><meta charset="utf-8">
-    <style>html,body{margin:0;padding:0;background:#0B0C0E;}</style>
+    <style>html,body{margin:0;padding:0;background:#08090C;}</style>
     </head><body><script>$credentialsScript</script></body></html>
     """
         .trimIndent()

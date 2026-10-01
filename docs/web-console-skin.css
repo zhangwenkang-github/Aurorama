@@ -1,6 +1,19 @@
 /* =========================================================================
-   影阁 · Jellyfin Web 皮肤（v2）
-   目标：Web 控制台与 App 同一套视觉语言 —— 墨底、宣纸白、朱砂印、发丝线。
+   影阁 · Jellyfin Web 皮肤（v3 · Lumen 流光）
+
+   目标：Web 控制台与媒体资料管理器与 App 内 S1「A · Lumen」皮肤同一视觉
+        语言 —— 曜石黑底、石墨卡片、月白文字、极光青唯一强调、白 8.5% 发丝线。
+   色彩来源：docs/design/s1-direction-a/README.md §2 与 core 的 LumenColors.kt
+        （#08090C 底 / #111319 卡片 / #171A21 悬浮 / #F2F5F9 月白 /
+         #98A2B3 次级 / #6B7483 三级 / #5CE1D2 极光青 / #7CC4FF 辅光蓝）。
+   性能（v3 新增 §15）：滚动流畅性收敛 —— 禁用 backdrop-filter（WebView 滚动
+        逐帧重绘模糊层是掉帧主因之一）、关闭平滑滚动与过度滚动链式传递。
+   同步流程（唯一权威副本 = 本文件 docs/web-console-skin.css）：
+        1) 修改本文件；
+        2) 同步复制到 app/phone/src/main/res/raw/web_console_skin.css（App 内注入）；
+        3) 服务器自定义 CSS 由用户在 Jellyfin「控制台 → 显示 → 自定义 CSS」手动粘贴
+           上传，本仓库与 App 均不代传、不写入服务器。
+
    要点：Jellyfin 自带的主题（如 wmc/blue radiance）会在本样式之后加载，
         因此所有覆盖都带 `html body` 前缀提高优先级，并统一使用 !important。
    范围：只重绘外观（颜色/圆角/线条/阴影/字重），不动任何数据与功能。
@@ -11,40 +24,44 @@
 :root[data-theme],
 html[data-theme],
 html body {
-    --jf-palette-background-default: #0b0c0e !important;
-    --jf-palette-background-paper: #131518 !important;
-    --jf-palette-AppBar-defaultBg: #0f1114 !important;
+    /* 底与面：A 稿 --bg / --panel / --panel-2；AppBar 取两者之间的中间层 */
+    --jf-palette-background-default: #08090c !important;
+    --jf-palette-background-paper: #111319 !important;
+    --jf-palette-AppBar-defaultBg: #0b0d11 !important;
 
-    --jf-palette-primary-main: #d2553c !important;
-    --jf-palette-primary-light: #e8705f !important;
-    --jf-palette-primary-dark: #9c3623 !important;
-    --jf-palette-primary-contrastText: #fff7f4 !important;
+    /* 强调：极光青（唯一强调色，对应 A 稿 --accent） */
+    --jf-palette-primary-main: #5ce1d2 !important;
+    --jf-palette-primary-light: #7fe9dd !important;
+    --jf-palette-primary-dark: #3fb9ad !important;
+    --jf-palette-primary-contrastText: #0a0c11 !important;
 
-    --jf-palette-secondary-main: #b4afa6 !important;
-    --jf-palette-secondary-contrastText: #1e1f21 !important;
+    --jf-palette-secondary-main: #98a2b3 !important;
+    --jf-palette-secondary-contrastText: #0a0c11 !important;
 
-    --jf-palette-error-main: #e8705f !important;
-    --jf-palette-error-dark: #9c3623 !important;
-    --jf-palette-error-light: #ff9d8c !important;
-    --jf-palette-error-contrastText: #2c0904 !important;
+    /* 语义状态：低饱和冷调，仅用于状态提示，不参与强调（A 稿不引入第二种强调色） */
+    --jf-palette-error-main: #e87c6e !important;
+    --jf-palette-error-dark: #b8584c !important;
+    --jf-palette-error-light: #ffa79a !important;
+    --jf-palette-error-contrastText: #2a0f0a !important;
 
-    --jf-palette-info-main: #b4afa6 !important;
-    --jf-palette-success-main: #7f9f7a !important;
-    --jf-palette-warning-main: #c9a227 !important;
+    --jf-palette-info-main: #98a2b3 !important;
+    --jf-palette-success-main: #86a88f !important;
+    --jf-palette-warning-main: #c9ae6b !important;
 
-    --jf-palette-text-primary: #f1ede6 !important;
-    --jf-palette-text-secondary: #a8a49c !important;
-    --jf-palette-text-disabled: #6b6f74 !important;
+    --jf-palette-text-primary: #f2f5f9 !important;
+    --jf-palette-text-secondary: #98a2b3 !important;
+    --jf-palette-text-disabled: #6b7483 !important;
 
-    --jf-palette-divider: #24282c !important;
-    --jf-palette-action-active: #f1ede6 !important;
-    --jf-palette-action-hover: rgba(241, 237, 230, 0.06) !important;
+    /* 结构线一律用白 8.5%（A 稿 --line），弱分隔线白 5%（--line-soft） */
+    --jf-palette-divider: rgba(255, 255, 255, 0.085) !important;
+    --jf-palette-action-active: #f2f5f9 !important;
+    --jf-palette-action-hover: rgba(242, 245, 249, 0.06) !important;
     --jf-palette-action-hoverOpacity: 1 !important;
-    --jf-palette-action-selected: rgba(210, 85, 60, 0.12) !important;
+    --jf-palette-action-selected: rgba(92, 225, 210, 0.12) !important;
     --jf-palette-action-selectedOpacity: 1 !important;
-    --jf-palette-action-disabled: #6b6f74 !important;
-    --jf-palette-action-disabledBackground: rgba(241, 237, 230, 0.08) !important;
-    --jf-palette-action-focus: rgba(241, 237, 230, 0.12) !important;
+    --jf-palette-action-disabled: #6b7483 !important;
+    --jf-palette-action-disabledBackground: rgba(242, 245, 249, 0.08) !important;
+    --jf-palette-action-focus: rgba(242, 245, 249, 0.12) !important;
 
     --jf-shape-borderRadius: 12px !important;
     --jf-typography-fontFamily:
@@ -62,15 +79,15 @@ html body .skinBody,
 html body .dashboardDocument,
 html body .itemDetailPage,
 html body .detailPageWrapperContainer {
-    background-color: #0b0c0e !important;
+    background-color: #08090c !important;
     background-image: none !important;
-    color: #f1ede6 !important;
+    color: #f2f5f9 !important;
 }
 
 html body .backgroundContainer.withBackdrop,
 html body .dialogBackdropOpened,
 html body .backdropContainer {
-    background-color: rgba(11, 12, 14, 0.92) !important;
+    background-color: rgba(8, 9, 12, 0.92) !important;
 }
 
 /* 滚动条：细、暗、无高光 */
@@ -81,11 +98,11 @@ html body::-webkit-scrollbar {
 }
 html body ::-webkit-scrollbar-thumb,
 html body::-webkit-scrollbar-thumb {
-    background: #24282c !important;
+    background: rgba(242, 245, 249, 0.16) !important;
     border-radius: 999px !important;
 }
 html body ::-webkit-scrollbar-thumb:hover {
-    background: #2e3237 !important;
+    background: rgba(242, 245, 249, 0.26) !important;
 }
 html body ::-webkit-scrollbar-track,
 html body ::-webkit-scrollbar-track-piece,
@@ -94,7 +111,7 @@ html body::-webkit-scrollbar-track {
     box-shadow: none !important;
 }
 html body * {
-    scrollbar-color: #24282c transparent !important;
+    scrollbar-color: rgba(242, 245, 249, 0.16) transparent !important;
 }
 
 /* ---------- 3. 旧版主题的表面（wmc/blueradiance 的彩色面） ---------- */
@@ -128,10 +145,10 @@ html body .detailPagePrimaryContainer,
 html body .detailPageSecondaryContainer,
 html body .itemBackdrop,
 html body .itemBackdrop::after {
-    background-color: #0f1114 !important;
+    background-color: #0b0d11 !important;
     background-image: none !important;
     box-shadow: none !important;
-    color: #f1ede6 !important;
+    color: #f2f5f9 !important;
 }
 
 html body .paperList,
@@ -141,77 +158,96 @@ html body .cardBox:not(.visualCardBox) .cardPadder,
 html body .dialog,
 html body .ui-corner-all,
 html body .wizardStartForm {
-    background-color: #131518 !important;
-    border: 1px solid #24282c !important;
+    background-color: #111319 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
 }
 
-/* 无海报时的默认色块：收敛成墨面，不再出现彩虹底 */
+/* 无海报时的默认色块：收敛成石墨面，不再出现彩虹底 */
 html body .defaultCardBackground1,
 html body .defaultCardBackground2,
 html body .defaultCardBackground3,
 html body .defaultCardBackground4,
 html body .defaultCardBackground5 {
-    background-color: #1d2024 !important;
-    color: #f1ede6 !important;
+    background-color: #171a21 !important;
+    color: #f2f5f9 !important;
 }
 
 /* 旧版图标按钮 / 悬浮态 */
 html body .paper-icon-button-light:hover:not(:disabled),
 html body .paper-icon-button-light:active:not(:disabled),
 html body .paper-icon-button-light.show-focus:focus {
-    background-color: rgba(241, 237, 230, 0.08) !important;
-    color: #d2553c !important;
+    background-color: rgba(242, 245, 249, 0.08) !important;
+    color: #5ce1d2 !important;
 }
 
 /* ---------- 4. 侧栏 / 顶栏 ---------- */
 html body .MuiAppBar-root,
 html body .skinHeader {
-    background-color: #0f1114 !important;
+    background-color: #0b0d11 !important;
     background-image: none !important;
     box-shadow: none !important;
-    border-bottom: 1px solid #24282c !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.085) !important;
 }
 
 html body .MuiDrawer-paper,
 html body .MuiDrawer-paperAnchorLeft,
 html body .mainDrawer,
 html body .navDrawer {
-    background-color: #0f1114 !important;
+    background-color: #0b0d11 !important;
     background-image: none !important;
-    border-right: 1px solid #24282c !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.085) !important;
     box-shadow: none !important;
 }
 
 html body .MuiListItemButton-root {
     border-radius: 8px !important;
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
+/* 选中项取 A 稿悬浮轨「光晕焦点」手法：极光青渐变底 + 内高光 + 青字 */
 html body .MuiListItemButton-root.Mui-selected,
 html body .Mui-selected.MuiListItemButton-root {
-    background-color: rgba(210, 85, 60, 0.1) !important;
-    box-shadow: inset 3px 0 0 0 #d2553c !important;
-    color: #d2553c !important;
+    background: linear-gradient(180deg, rgba(92, 225, 210, 0.2), rgba(92, 225, 210, 0.06)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiListItemButton-root.Mui-selected .MuiListItemText-primary,
 html body .MuiListItemButton-root.Mui-selected .MuiListItemIcon-root,
 html body .MuiListItemButton-root.Mui-selected .MuiSvgIcon-root,
 html body .MuiListItemButton-root.Mui-selected .MuiTypography-root {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiListItemButton-root:hover {
-    background-color: rgba(241, 237, 230, 0.06) !important;
+    background-color: rgba(242, 245, 249, 0.06) !important;
 }
 html body .MuiListItemIcon-root,
 html body .MuiListItemIcon-root .MuiSvgIcon-root {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
+}
+/* 旧式 / 移动端抽屉导航项（服务器主题会把强调色灌进 .navMenuOption，必须显式压回中性色） */
+html body .navMenuOption,
+html body .navMenuOption .material-icons,
+html body .navMenuOption .md-icon,
+html body .navMenuOption emby-icon,
+html body .mainDrawer .navMenuOption,
+html body .navDrawer .navMenuOption {
+    color: #98a2b3 !important;
+}
+html body .navMenuOption:hover,
+html body .navMenuOption:focus {
+    color: #f2f5f9 !important;
 }
 html body .navMenuOption:hover,
 html body .actionSheetMenuItem:hover {
-    background-color: rgba(241, 237, 230, 0.06) !important;
+    background-color: rgba(242, 245, 249, 0.06) !important;
 }
-html body .navMenuOption-selected {
-    background-color: rgba(210, 85, 60, 0.12) !important;
-    color: #d2553c !important;
+html body .navMenuOption-selected,
+html body .navMenuOption-selected .material-icons,
+html body .navMenuOption-selected .md-icon,
+html body .navMenuOption-selected emby-icon,
+html body .navMenuOption-selected:hover {
+    background: linear-gradient(180deg, rgba(92, 225, 210, 0.2), rgba(92, 225, 210, 0.06)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    color: #5ce1d2 !important;
 }
 
 /* ---------- 5. MUI 面与卡片：明度差 + 发丝线，不要阴影 ---------- */
@@ -223,8 +259,8 @@ html body .MuiCard-root,
 html body .paperList,
 html body .cardBox,
 html body .visualCardBox {
-    background-color: #131518 !important;
-    border: 1px solid #24282c !important;
+    background-color: #111319 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
     box-shadow: none !important;
 }
 html body .MuiCard-root {
@@ -232,67 +268,67 @@ html body .MuiCard-root {
     overflow: hidden !important;
 }
 html body .MuiDivider-root {
-    border-color: #24282c !important;
-    background-color: #24282c !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
+    background-color: rgba(255, 255, 255, 0.085) !important;
 }
 html body .MuiAccordion-root,
 html body .MuiAccordion-root::before {
-    background-color: #131518 !important;
+    background-color: #111319 !important;
     background-image: none !important;
-    border: 1px solid #24282c !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
     box-shadow: none !important;
 }
 html body .MuiBackdrop-root {
-    background-color: rgba(8, 9, 10, 0.72) !important;
+    background-color: rgba(6, 7, 10, 0.72) !important;
 }
 html body .MuiMenu-paper,
 html body .MuiPopover-paper,
 html body .MuiAutocomplete-paper {
-    background-color: #17191d !important;
-    border: 1px solid #24282c !important;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55) !important;
+    background-color: #171a21 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
 }
 html body .MuiMenuItem-root {
-    color: #f1ede6 !important;
+    color: #f2f5f9 !important;
 }
 html body .MuiMenuItem-root:hover,
 html body .MuiMenuItem-root.Mui-focusVisible {
-    background-color: rgba(241, 237, 230, 0.06) !important;
+    background-color: rgba(242, 245, 249, 0.06) !important;
 }
 html body .MuiTooltip-tooltip {
-    background-color: #1d2024 !important;
-    color: #f1ede6 !important;
-    border: 1px solid #24282c !important;
+    background-color: #171a21 !important;
+    color: #f2f5f9 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
 }
 html body .MuiSnackbarContent-root {
-    background-color: #17191d !important;
-    color: #f1ede6 !important;
-    border: 1px solid #24282c !important;
+    background-color: #171a21 !important;
+    color: #f2f5f9 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
 }
 html body .MuiSkeleton-root {
-    background-color: rgba(241, 237, 230, 0.08) !important;
+    background-color: rgba(242, 245, 249, 0.08) !important;
 }
 
 /* 对话框与表单控件细节 */
 html body .MuiDialog-paper {
-    background-color: #131518 !important;
+    background-color: #111319 !important;
     background-image: none !important;
-    border: 1px solid #24282c !important;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.65) !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6) !important;
 }
 html body .MuiDialogTitle-root,
 html body .MuiDialogContent-root,
 html body .MuiDialogContentText-root {
-    color: #f1ede6 !important;
+    color: #f2f5f9 !important;
 }
 html body .MuiSelect-icon,
 html body .MuiAutocomplete-popupIndicator,
 html body .MuiAutocomplete-clearIndicator {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .MuiFormControlLabel-label,
 html body .MuiFormGroup-root {
-    color: #f1ede6 !important;
+    color: #f2f5f9 !important;
 }
 html body .MuiTableContainer-root,
 html body .MuiTable-root {
@@ -303,10 +339,10 @@ html body .MuiTypography-root {
     color: inherit;
 }
 html body .MuiListItemText-secondary {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 
-/* ---------- 6. 按钮：主操作朱砂胶囊，其余安静描边 ---------- */
+/* ---------- 6. 按钮：主操作月白胶囊（A 稿 .btn.primary），其余安静描边 ---------- */
 html body .MuiButton-root,
 html body .emby-button,
 html body .raised,
@@ -320,67 +356,68 @@ html body .MuiButton-containedPrimary,
 html body .MuiButton-contained.MuiButton-colorPrimary,
 html body .raised.button-submit,
 html body .button-submit {
-    background-color: #d2553c !important;
-    color: #fff7f4 !important;
+    background-color: #f2f5f9 !important;
+    color: #0a0c11 !important;
+    font-weight: 600 !important;
 }
 html body .MuiButton-containedPrimary:hover,
 html body .raised.button-submit:hover,
 html body .button-submit:hover,
 html body .button-submit:focus {
-    background-color: #e8705f !important;
-    color: #fff7f4 !important;
+    background-color: #dde3ec !important;
+    color: #0a0c11 !important;
 }
 html body .MuiButton-containedError,
 html body .MuiButton-colorError.MuiButton-contained,
 html body .button-delete {
-    background-color: #5e1f16 !important;
-    color: #ffdad6 !important;
+    background-color: #3a1a16 !important;
+    color: #ffb4a8 !important;
 }
 html body .MuiButton-containedError:hover,
 html body .button-delete:hover {
-    background-color: #e8705f !important;
-    color: #2c0904 !important;
+    background-color: #e87c6e !important;
+    color: #2a0f0a !important;
 }
 html body .MuiButton-outlined,
 html body .MuiButton-outlinedPrimary {
-    border-color: #24282c !important;
-    color: #f1ede6 !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
+    color: #f2f5f9 !important;
 }
 html body .MuiButton-outlined:hover {
-    border-color: #3a3f45 !important;
-    background-color: rgba(241, 237, 230, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    background-color: rgba(242, 245, 249, 0.06) !important;
 }
 html body .MuiButton-textPrimary,
 html body .MuiButton-text,
 html body .button-link,
 html body .button-flat:hover {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiButton-text:hover {
-    background-color: rgba(210, 85, 60, 0.1) !important;
+    background-color: rgba(92, 225, 210, 0.1) !important;
 }
 html body .MuiIconButton-root {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .MuiIconButton-root:hover {
-    color: #f1ede6 !important;
-    background-color: rgba(241, 237, 230, 0.06) !important;
+    color: #f2f5f9 !important;
+    background-color: rgba(242, 245, 249, 0.06) !important;
 }
 html body .fab,
 html body .raised,
 html body a[data-role="button"] {
-    background-color: #17191d !important;
+    background-color: #171a21 !important;
     background-image: none !important;
-    color: #f1ede6 !important;
-    border: 1px solid #24282c !important;
+    color: #f2f5f9 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
 }
 html body .fab:hover,
 html body .raised:hover,
 html body a[data-role="button"]:hover {
-    background-color: #1d2024 !important;
+    background-color: #1c2028 !important;
 }
 
-/* ---------- 7. 表单：暗面 + 朱砂聚焦 ---------- */
+/* ---------- 7. 表单：暗面 + 极光青聚焦 ---------- */
 html body .MuiOutlinedInput-root,
 html body .MuiFilledInput-root,
 html body .MuiInputBase-root,
@@ -391,21 +428,21 @@ html body .emby-select-withcolor,
 html body input,
 html body textarea,
 html body select {
-    background-color: #131518 !important;
+    background-color: #111319 !important;
     border-radius: 10px !important;
-    color: #f1ede6 !important;
-    border-color: #24282c !important;
+    color: #f2f5f9 !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html body .MuiOutlinedInput-notchedOutline,
 html body .MuiInputBase-root fieldset {
-    border-color: #24282c !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html body .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
 html body .MuiInputBase-root.Mui-focused fieldset,
 html body .emby-input:focus,
 html body .emby-textarea:focus,
 html body .emby-select-withcolor:focus {
-    border-color: #d2553c !important;
+    border-color: #5ce1d2 !important;
 }
 html body .MuiInputLabel-root,
 html body .MuiFormLabel-root,
@@ -413,122 +450,125 @@ html body .inputLabel,
 html body .inputLabelUnfocused,
 html body .textareaLabelUnfocused,
 html body .selectLabelUnfocused {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .MuiInputLabel-root.Mui-focused,
 html body .inputLabelFocused,
 html body .selectLabelFocused,
 html body .textareaLabelFocused {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiFormHelperText-root,
 html body .fieldDescription,
 html body .checkboxListLabel,
 html body .paperListLabel {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .MuiCheckbox-root.Mui-checked,
 html body .MuiRadio-root.Mui-checked,
 html body .emby-checkbox:checked + span + .checkboxOutline,
 html body .emby-radioButton:checked {
-    color: #d2553c !important;
-    background-color: #d2553c !important;
-    border-color: #d2553c !important;
+    color: #5ce1d2 !important;
+    background-color: #5ce1d2 !important;
+    border-color: #5ce1d2 !important;
 }
 html body .MuiCheckbox-root,
 html body .MuiRadio-root {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
     background-color: transparent !important;
 }
 
 /* ---------- 8. 表格（控制台里最常用） ---------- */
 html body .MuiTableCell-root {
-    border-bottom: 1px solid #24282c !important;
-    color: #f1ede6 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.085) !important;
+    color: #f2f5f9 !important;
 }
 html body .MuiTableHead-root .MuiTableCell-root {
-    color: #a8a49c !important;
-    border-bottom: 1px solid #2e3237 !important;
+    color: #98a2b3 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
 }
 html body .MuiTableRow-root:hover {
-    background-color: rgba(241, 237, 230, 0.04) !important;
+    background-color: rgba(242, 245, 249, 0.04) !important;
 }
 html body .MuiTableSortLabel-root.Mui-active {
-    color: #f1ede6 !important;
+    color: #f2f5f9 !important;
 }
 html body .MuiTableSortLabel-icon {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 
 /* ---------- 9. 徽标、开关、进度、标签页 ---------- */
 html body .MuiChip-root,
 html body .chip {
-    background-color: #17191d !important;
-    border: 1px solid #24282c !important;
-    color: #f1ede6 !important;
+    background-color: #171a21 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
+    color: #f2f5f9 !important;
 }
 html body .MuiChip-root.MuiChip-colorPrimary {
-    background-color: rgba(210, 85, 60, 0.16) !important;
-    border-color: rgba(210, 85, 60, 0.4) !important;
-    color: #ffdad2 !important;
+    background-color: rgba(92, 225, 210, 0.16) !important;
+    border-color: rgba(92, 225, 210, 0.4) !important;
+    color: #7fe9dd !important;
 }
 html body .MuiSwitch-thumb {
-    background-color: #a8a49c !important;
+    background-color: #98a2b3 !important;
 }
 html body .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
-    background-color: #2a0a03 !important;
+    background-color: #0a0c11 !important;
 }
 html body .MuiSwitch-switchBase.Mui-disabled .MuiSwitch-thumb {
-    background-color: #6b6f74 !important;
+    background-color: #6b7483 !important;
 }
 html body .MuiSwitch-switchBase.Mui-checked {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiSwitch-switchBase.Mui-checked:hover {
-    background-color: rgba(210, 85, 60, 0.12) !important;
+    background-color: rgba(92, 225, 210, 0.12) !important;
 }
 html body .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
-    background-color: #d2553c !important;
+    background-color: #5ce1d2 !important;
     opacity: 1 !important;
 }
 html body .MuiSwitch-track {
-    background-color: #2e3237 !important;
+    background-color: rgba(255, 255, 255, 0.16) !important;
     opacity: 1 !important;
 }
 html body .MuiLinearProgress-bar,
 html body .MuiCircularProgress-root {
-    color: #d2553c !important;
-    background-color: #d2553c !important;
+    color: #5ce1d2 !important;
+    background-color: #5ce1d2 !important;
 }
-html body .MuiLinearProgress-root,
+/* 进度填充用 A 稿青→蓝渐变（--accent → --accent-2，<10% 用量） */
 html body .MuiLinearProgress-barColorPrimary {
-    background-color: rgba(241, 237, 230, 0.08) !important;
+    background-image: linear-gradient(90deg, #5ce1d2, #7cc4ff) !important;
+}
+html body .MuiLinearProgress-root {
+    background-color: rgba(242, 245, 249, 0.08) !important;
 }
 html body .MuiSlider-thumb,
 html body .MuiSlider-track {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiSlider-rail {
-    color: #24282c !important;
+    color: rgba(255, 255, 255, 0.16) !important;
 }
 html body .MuiTabs-indicator {
-    background-color: #d2553c !important;
+    background-color: #5ce1d2 !important;
 }
 html body .MuiTab-root.Mui-selected {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiTab-root {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
     text-transform: none !important;
 }
 html body .MuiToggleButton-root.Mui-selected {
-    background-color: rgba(210, 85, 60, 0.16) !important;
-    color: #ffdad2 !important;
-    border-color: rgba(210, 85, 60, 0.4) !important;
+    background-color: rgba(92, 225, 210, 0.16) !important;
+    color: #7fe9dd !important;
+    border-color: rgba(92, 225, 210, 0.4) !important;
 }
 html body .MuiToggleButton-root {
-    color: #a8a49c !important;
-    border-color: #24282c !important;
+    color: #98a2b3 !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html body .itemProgressBarForeground,
 html body .countIndicator,
@@ -536,21 +576,21 @@ html body .fullSyncIndicator,
 html body .mediaSourceIndicator,
 html body .playedIndicator,
 html body .selectionCommandsPanel {
-    background-color: #d2553c !important;
-    color: #fff7f4 !important;
+    background-color: #5ce1d2 !important;
+    color: #0a0c11 !important;
 }
 html body .MuiAvatar-root.MuiAvatar-colorDefault {
-    background-color: #1d2024 !important;
-    color: #f1ede6 !important;
+    background-color: #171a21 !important;
+    color: #f2f5f9 !important;
 }
 
 /* ---------- 10. 链接与强调文字 ---------- */
 html body a,
 html body .MuiLink-root {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .MuiTypography-root.MuiLink-root:hover {
-    color: #e8705f !important;
+    color: #7fe9dd !important;
 }
 html body .buttonActive,
 html body .upNextDialog-countdownText,
@@ -558,49 +598,57 @@ html body .metadataSidebarIcon,
 html body .emby-tab-button-active,
 html body .emby-tab-button.show-focus:focus,
 html body .emby-tab-button:hover {
-    color: #d2553c !important;
+    color: #5ce1d2 !important;
 }
 html body .emby-tab-button {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .emby-button.show-focus:focus {
-    background-color: #d2553c !important;
-    color: #fff7f4 !important;
+    background-color: #5ce1d2 !important;
+    color: #0a0c11 !important;
 }
 html body .secondaryText,
 html body .listItem .secondary,
 html body .cardText-secondary,
 html body .fieldDescription {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
+}
+/* 卡片标题 / 列表主文字：服务器主题会用强调色染色，统一压回月白 */
+html body .cardText,
+html body .cardText-first,
+html body .cardText a,
+html body .cardTextButton,
+html body .listItemBodyText {
+    color: #f2f5f9 !important;
 }
 html body .listItem-border,
 html body .guide-channelHeaderCell,
 html body .channelPrograms,
 html body .programCell {
-    border-color: #24282c !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html body .listItem:hover {
-    background-color: rgba(241, 237, 230, 0.04) !important;
+    background-color: rgba(242, 245, 249, 0.04) !important;
 }
 
 /* ---------- 11. 登录页（令牌失效时会看到） ---------- */
 html body #loginPage,
 html body .loginPage {
-    background-color: #0b0c0e !important;
+    background-color: #08090c !important;
     background-image: none !important;
 }
 html body #loginPage .card,
 html body .loginPage .card,
 html body .loginPage .readOnlyContent {
-    background-color: #131518 !important;
-    border: 1px solid #24282c !important;
+    background-color: #111319 !important;
+    border: 1px solid rgba(255, 255, 255, 0.085) !important;
     box-shadow: none !important;
 }
 html body .loginDisclaimer {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 
-/* ---------- 12. 详情页：海报保留，叠层回到墨色 ---------- */
+/* ---------- 12. 详情页：海报保留，叠层回到曜石黑 ---------- */
 html body .detailPagePrimaryContainer,
 html body .itemBackdrop {
     background-image: none !important;
@@ -608,19 +656,19 @@ html body .itemBackdrop {
 html body .itemBackdrop::after {
     background: linear-gradient(
         to bottom,
-        rgba(11, 12, 14, 0.2) 0%,
-        rgba(11, 12, 14, 0.85) 60%,
-        #0b0c0e 100%
+        rgba(8, 9, 12, 0.2) 0%,
+        rgba(8, 9, 12, 0.85) 60%,
+        #08090c 100%
     ) !important;
 }
 html body .mediaInfoText {
-    background-color: rgba(241, 237, 230, 0.06) !important;
-    color: #f1ede6 !important;
+    background-color: rgba(242, 245, 249, 0.06) !important;
+    color: #f2f5f9 !important;
 }
 html body .infoBanner {
-    background-color: #3d3210 !important;
-    color: #f3e3b5 !important;
-    border: 1px solid #4a3d12 !important;
+    background-color: rgba(92, 225, 210, 0.1) !important;
+    color: #a9eee5 !important;
+    border: 1px solid rgba(92, 225, 210, 0.32) !important;
 }
 
 /* ---------- 13. legacy 主题遗留色收尾（各主题都带 !important 的那几条） ---------- */
@@ -633,80 +681,118 @@ html body .guide-date-tab-button:focus,
 html body .guide-date-tab-button.show-focus:focus,
 html body .guide-channelHeaderCell:focus,
 html body .programCell:focus {
-    background-color: #d2553c !important;
-    border-color: #d2553c !important;
-    color: #fff7f4 !important;
+    background-color: #5ce1d2 !important;
+    border-color: #5ce1d2 !important;
+    color: #0a0c11 !important;
 }
 html body .alphaPickerButton {
     background-color: transparent !important;
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .guide-headerTimeslots,
 html body .guide-date-tab-button {
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .programCell-sports,
 html body .programCell-movie,
 html body .programCell-kids,
 html body .programCell-news {
-    background-color: #1d2024 !important;
-    color: #f1ede6 !important;
+    background-color: #171a21 !important;
+    color: #f2f5f9 !important;
 }
 html body .programCell-active {
-    background-color: rgba(210, 85, 60, 0.24) !important;
-    color: #ffdad2 !important;
+    background-color: rgba(92, 225, 210, 0.24) !important;
+    color: #a9eee5 !important;
 }
 html body .guide-programTextIcon {
-    background-color: #1d2024 !important;
-    color: #a8a49c !important;
+    background-color: #171a21 !important;
+    color: #98a2b3 !important;
 }
 html body .card:focus .cardBox.visualCardBox,
 html body .card:focus .cardBox:not(.visualCardBox) .cardScalable {
-    border-color: #d2553c !important;
+    border-color: #5ce1d2 !important;
 }
 html body .itemSelectionPanel {
-    border-color: #d2553c !important;
+    border-color: #5ce1d2 !important;
 }
 html body .downloadbutton-icon-complete,
 html body .downloadbutton-icon-on {
-    color: #b4afa6 !important;
+    color: #98a2b3 !important;
 }
 html body .playstatebutton-icon-played,
 html body .ratingbutton-icon-withrating {
-    color: #e8705f !important;
+    color: #5ce1d2 !important;
 }
 html body .progressring-spiner {
-    border-color: #d2553c !important;
+    border-color: #5ce1d2 !important;
 }
 html body .emby-collapsible-button {
-    border-color: #24282c !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
 }
 html body .actionsheetDivider {
-    background-color: #24282c !important;
+    background-color: rgba(255, 255, 255, 0.085) !important;
 }
 html body .alphaPickerButton-selected {
-    color: #fff7f4 !important;
+    color: #0a0c11 !important;
 }
 
-/* ---------- 14. 旧版顶部/详情页标签：选中态做成朱砂胶囊，去掉浅灰实心块 ---------- */
+/* ---------- 14. 旧版顶部/详情页标签：选中态做成极光青胶囊，去掉浅灰实心块 ---------- */
 html body .emby-tab-button {
     background-color: transparent !important;
     border: 1px solid transparent !important;
     border-radius: 999px !important;
     box-shadow: none !important;
-    color: #a8a49c !important;
+    color: #98a2b3 !important;
 }
 html body .emby-tab-button:hover,
 html body .emby-tab-button.show-focus:focus {
-    background-color: rgba(241, 237, 230, 0.06) !important;
-    color: #f1ede6 !important;
+    background-color: rgba(242, 245, 249, 0.06) !important;
+    color: #f2f5f9 !important;
 }
 html body .emby-tab-button-active,
 html body .emby-tab-button-active:hover {
-    background-color: rgba(210, 85, 60, 0.16) !important;
-    border-color: rgba(210, 85, 60, 0.36) !important;
-    color: #ffdad2 !important;
+    background: linear-gradient(180deg, rgba(92, 225, 210, 0.2), rgba(92, 225, 210, 0.06)) !important;
+    border-color: rgba(92, 225, 210, 0.36) !important;
+    color: #a9eee5 !important;
 }
 html body .cardScalable {
-    border-color: #24282c !important;
+    border-color: rgba(255, 255, 255, 0.085) !important;
+}
+
+/* ---------- 15. 滚动流畅性：每帧重绘开销收敛（W6-WEB，2026-10-01） ----------
+   背景：用户在控制台 / 媒体资料管理器上下滑动时反馈不流畅。排查结论：
+   ① backdrop-filter 在 Android WebView 上会让模糊层在滚动期间逐帧重绘，
+      且 Jellyfin 主题 / 自定义 CSS 可能启用它 —— 一律禁用，用实色面替代；
+   ② scroll-behavior: smooth 让手势滚动带插值尾巴，跟手感差 —— 一律回 auto；
+   ③ overscroll-behavior 默认 auto 会把边缘滚动链式传给祖先容器，触发额外的
+      拉伸 / 回弹合成 —— 主滚动容器改 contain / none。
+   注意：这里刻意不配置 will-change（层提示），因为 Jellyfin 页面里
+   .MuiPaper / 卡片的数量很大，逐个提层会显著增加显存与合成开销。 */
+
+html body *,
+html body *::before,
+html body *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+html,
+html body,
+html body * {
+    scroll-behavior: auto !important;
+}
+
+html,
+html body {
+    overscroll-behavior: none !important;
+}
+
+html body .mainAnimatedPage,
+html body .mainAnimatedPages,
+html body .skinBody,
+html body .MuiDrawer-paper,
+html body .MuiPaper-root,
+html body .paperList,
+html body .cardBox {
+    overscroll-behavior: contain !important;
 }
