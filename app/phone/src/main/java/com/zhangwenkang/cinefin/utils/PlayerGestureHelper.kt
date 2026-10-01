@@ -524,15 +524,21 @@ class PlayerGestureHelper(
             )
             .apply { isQuickScaleEnabled = false }
 
+    /**
+     * 双指缩放：铺满 / 还原（§5.2）。
+     *
+     * 两个内核共用同一条「比例档位」通路（ExoPlayer 写 `PlayerView.resizeMode`，mpv 写 `keepaspect` / `panscan`），避免只在
+     * mpv 里直接改 panscan、还原时留下把画面放大铺满的残留。 放大 = 裁剪填满；还原 = 回到偏好里的比例档位（默认「适应屏幕」）。
+     */
     fun updateZoomMode(enabled: Boolean) {
-        if (playerView.player is MPVPlayer) {
-            (playerView.player as MPVPlayer).updateZoomMode(enabled)
-        } else {
-            playerView.resizeMode =
-                if (enabled) AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                else AspectRatioFrameLayout.RESIZE_MODE_FIT
+        val baseMode = appPreferences.getValue(appPreferences.playerResizeMode)
+        val mode = if (enabled) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else baseMode
+        when (val player = playerView.player) {
+            is MPVPlayer -> player.applyResizeMode(mode)
+            else -> playerView.resizeMode = mode
         }
         isZoomEnabled = enabled
+        Timber.d("player zoom gesture: enabled=%s resizeMode=%d", enabled, mode)
     }
 
     private fun releaseAction(event: MotionEvent) {

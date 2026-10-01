@@ -361,8 +361,6 @@ fun PlayerControlOverlay(
     /** 打开播放页时先用哪个画面比例（Activity 从偏好里读出来的 `PlayerView.RESIZE_MODE_*`） */
     initialResizeMode: Int,
     onSelectResizeMode: (Int) -> Unit,
-    /** 当前播放核心是否支持画面比例（mpv 核心由它自己控制画面，这里就只做展示不接管） */
-    aspectSupported: Boolean,
     /** 播放页设置面板（§1.9）：六组设置的读写器由 Activity 持有 */
     settingsController: PlayerSettingsController,
     /** 画面调整（§1.6）当前状态：旋转 / 镜像 / 裁剪 / 去黑边 */
@@ -767,7 +765,6 @@ fun PlayerControlOverlay(
                     PlayerPanel.Aspect ->
                         AspectPanel(
                             current = aspect,
-                            supported = aspectSupported,
                             transform = videoTransform,
                             onTransformChange = onVideoTransformChanged,
                             onSelect = { mode ->
@@ -1954,7 +1951,6 @@ private fun RepeatPanel(
 @Composable
 private fun AspectPanel(
     current: AspectMode,
-    supported: Boolean,
     transform: PlayerVideoTransform,
     onTransformChange: (PlayerVideoTransform) -> Unit,
     onSelect: (AspectMode) -> Unit,
@@ -1964,16 +1960,8 @@ private fun AspectPanel(
             AspectMode.entries.forEach { mode ->
                 PanelRow(
                     label = stringResource(mode.labelRes),
-                    caption =
-                        stringResource(
-                            if (supported) {
-                                mode.captionRes
-                            } else {
-                                PlayerR.string.player_controls_aspect_unsupported
-                            }
-                        ),
+                    caption = stringResource(mode.captionRes),
                     selected = mode == current,
-                    enabled = supported,
                     onClick = { onSelect(mode) },
                 )
             }

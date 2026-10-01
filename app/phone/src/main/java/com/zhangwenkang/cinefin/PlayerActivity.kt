@@ -175,8 +175,8 @@ class PlayerActivity : BasePlayerActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         binding.playerView.player = viewModel.player
-        // 画面比例：沿用上次选过的档位（RESIZE_MODE_*，默认 0 = 适应屏幕）
-        binding.playerView.resizeMode = appPreferences.getValue(appPreferences.playerResizeMode)
+        // 画面比例：沿用上次选过的档位（RESIZE_MODE_*，默认 0 = 适应屏幕）；两个内核都落到各自的输出通路
+        applyResizeModeToKernel(appPreferences.getValue(appPreferences.playerResizeMode))
         // 设置面板（§1.9）与画面调整（§1.6）：偏好是唯一来源，进页面就按偏好还原
         settingsController = PlayerSettingsController(appPreferences)
         videoTransform.value = settingsController.readVideoTransform()
@@ -240,7 +240,6 @@ class PlayerActivity : BasePlayerActivity() {
                     onSkipSegment = { segment -> viewModel.skipSegment(segment) },
                     initialResizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
                     onSelectResizeMode = { mode -> selectResizeMode(mode) },
-                    aspectSupported = isExoPlayerBackend,
                     settingsController = settingsController,
                     videoTransform = videoTransform.value,
                     onSelectBackend = { backend -> restartWithBackend(backend) },
@@ -485,14 +484,6 @@ class PlayerActivity : BasePlayerActivity() {
         )
 
     /**
-     * 画面比例由 Media3 的 PlayerView 负责；换成 mpv 播放核心时画面输出由 mpv 自己控制， 这时比例档位在面板里显示为不可用，而不是给一个点了没反应的假开关。
-     */
-    private val isExoPlayerBackend: Boolean
-        get() =
-            appPreferences.getValue(appPreferences.playerBackend) ==
-                PlayerViewModel.PLAYER_BACKEND_EXOPLAYER
-
-    /**
      * 一键切换解码内核（ExoPlayer ⇄ mpv）。
      *
      * 播放器和 MediaSession 都在 ViewModel 构造时绑定，就地换实例要连带重建会话。 这里先清空 ViewModelStore 再
@@ -601,13 +592,25 @@ class PlayerActivity : BasePlayerActivity() {
         recreate()
     }
 
-    /** 画面比例：即时生效 + 记住选择 */
-    private fun selectResizeMode(mode: Int) {
+    /**
+     * 把比例档位落到当前内核并留下验收日志。
+     *
+     * ExoPlayer 的画面输出由 Media3 `PlayerView` 负责；mpv 自己渲染画面，比例必须翻译成 `keepaspect` / `panscan`（§1.6 的
+     * `video-zoom` 只负责裁剪 / 去黑边的放大）。
+     */
+    private fun applyResizeModeToKernel(mode: Int) {
         binding.playerView.resizeMode = mode
+        val mpv = viewModel.player as? MPVPlayer
+        mpv?.applyResizeMode(mode)
+        Timber.d("player resize mode=%d kernel=%s", mode, if (mpv != null) "mpv" else "exoplayer")
+    }
+
+    /** 画面比例：即时生效 + 记住选择（两个内核都生效） */
+    private fun selectResizeMode(mode: Int) {
         appPreferences.setValue(appPreferences.playerResizeMode, mode)
+        applyResizeModeToKernel(mode)
         // 去黑边开着时，有效比例由 applyVideoTransform 决定，这里要重算一次
         applyVideoTransform()
-        Timber.d("player resize mode=$mode")
     }
 
     /**
@@ -635,6 +638,8 @@ class PlayerActivity : BasePlayerActivity() {
         val videoWidth = viewModel.uiState.value.currentMediaInfo?.width ?: 0
         val videoHeight = viewModel.uiState.value.currentMediaInfo?.height ?: 0
         if (mpv != null) {
+            // 比例档位重放一次：切内核 / 退出重进 / 双指缩放之后都不留旧值
+            mpv.applyResizeMode(appPreferences.getValue(appPreferences.playerResizeMode))
             val viewWidth = binding.playerView.width.toFloat()
             val viewHeight = binding.playerView.height.toFloat()
             val fillScale =

@@ -41,6 +41,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
 import com.zhangwenkang.cinefin.player.local.domain.hdrFromMpv
+import com.zhangwenkang.cinefin.player.local.domain.mpvResizeProperties
 import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvEvent
 import dev.jdtech.mpv.MPVLib.MpvFormat
@@ -1769,17 +1770,50 @@ class MPVPlayer(
         TODO("Not yet implemented")
     }
 
-    fun updateZoomMode(enabled: Boolean) {
-        if (enabled) {
-            mpvLib.setOptionString("panscan", "1")
-            mpvLib.setOptionString("sub-use-margins", "yes")
-            mpvLib.setOptionString("sub-ass-force-margins", "yes")
-        } else {
-            mpvLib.setOptionString("panscan", "0")
-            mpvLib.setOptionString("sub-use-margins", "no")
-            mpvLib.setOptionString("sub-ass-force-margins", "no")
+    /**
+     * 画面比例（mpv 内核）：适应 / 裁剪填满 / 拉伸填满。
+     *
+     * mpv 不读 Media3 的 `resizeMode`，比例必须落到它自己的原生属性上：`keepaspect` 控制是否等比、 `panscan`
+     * 控制等比铺满时是否裁掉溢出。两个属性都用 property 优先、option 兜底写入（libmpv 运行时只接受有对应 property 的 option），保证「切档位 / 切内核
+     * / 退出重进」都不会残留旧值。
+     */
+    fun applyResizeMode(resizeMode: Int) {
+        if (released) return
+        val props = mpvResizeProperties(resizeMode)
+        val keepAspect = if (props.keepAspect) "yes" else "no"
+        val panscan = if (props.panscan) "1" else "0"
+        runCatching {
+            setMpvString("keepaspect", keepAspect)
+            setMpvString("panscan", panscan)
+            // 铺满时字幕留在可见区域，避免被裁到画面外
+            val margins = if (props.panscan) "yes" else "no"
+            setMpvString("sub-use-margins", margins)
+            setMpvString("sub-ass-force-margins", margins)
+            // 排障 / 验收证据：真机走查用文本核对实际生效的属性值
+            Timber.d(
+                "mpv 画面比例: resizeMode=%d keepaspect=%s panscan=%s video-zoom=%s",
+                resizeMode,
+                readMpvString("keepaspect") ?: keepAspect,
+                readMpvString("panscan") ?: panscan,
+                readMpvString("video-zoom") ?: "—",
+            )
         }
+            .onFailure { Timber.w(it, "mpv 画面比例应用失败") }
     }
+
+    /**
+     * libmpv 的 `setPropertyString` 不返回错误码，`setOptionString` 返回（0 = 成功）。 两个都写：property 负责即时生效，option
+     * 负责没有同名 property 的项兜底。
+     */
+    private fun setMpvString(name: String, value: String) {
+        runCatching { mpvLib.setPropertyString(name, value) }
+        runCatching { mpvLib.setOptionString(name, value) }
+    }
+
+    private fun readMpvString(name: String): String? = runCatching {
+        mpvLib.getPropertyString(name)
+    }
+        .getOrNull()
 
     /** 当前挂在 mpv 上的 TextureView 对应 Surface；null 表示没接 */
     private var textureSurface: Surface? = null

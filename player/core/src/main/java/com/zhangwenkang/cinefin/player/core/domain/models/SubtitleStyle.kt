@@ -58,7 +58,8 @@ data class SubtitleStyle(
                 0xB3000000.toInt(),
                 0xE6000000.toInt(),
             )
-        const val BACKGROUND_DEFAULT_INDEX = 2
+        /** 默认「无」：字幕背景只在用户显式选择后才出现（2026-10-01 用户反馈） */
+        const val BACKGROUND_DEFAULT_INDEX = 0
 
         /** 描边宽度（dp）：无 / 细 / 粗（描边色固定黑，保证任何画面上都可读） */
         val EDGE_WIDTHS = listOf(0f, 2f, 4f)

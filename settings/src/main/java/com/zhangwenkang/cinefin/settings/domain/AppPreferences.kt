@@ -118,7 +118,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerSubtitleStyleSize = Preference("pref_player_subtitle_style_size", 1)
 
     val playerSubtitleStyleColor = Preference("pref_player_subtitle_style_color", 0)
-    val playerSubtitleStyleBackground = Preference("pref_player_subtitle_style_background", 2)
+    // 背景档位顺序：无 / 轻纱 / 半透明 / 实底 —— 默认「无」（用户 2026-10-01 反馈）
+    val playerSubtitleStyleBackground = Preference("pref_player_subtitle_style_background", 0)
     val playerSubtitleStyleEdge = Preference("pref_player_subtitle_style_edge", 1)
     val playerSubtitleStylePosition = Preference("pref_player_subtitle_style_position", 1)
 
