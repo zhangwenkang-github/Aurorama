@@ -295,6 +295,10 @@ class PlayerActivity : BasePlayerActivity() {
                             // 小窗只有这一条控制条，命中带读同一个实测高度（§9 踩坑：不写死 dp）
                             binding.controlOverlay.compactBarHeightPx = px.toFloat()
                         },
+                        onCenterClusterSize = { width, height ->
+                            binding.controlOverlay.centerClusterWidthPx = width.toFloat()
+                            binding.controlOverlay.centerClusterHeightPx = height.toFloat()
+                        },
                     )
                 }
             }

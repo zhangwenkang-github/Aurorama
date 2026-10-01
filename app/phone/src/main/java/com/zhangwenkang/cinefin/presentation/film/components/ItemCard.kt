@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -17,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,6 +57,7 @@ fun ItemCard(
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
+    val density = LocalDensity.current
 
     Column(
         modifier =
@@ -88,12 +91,24 @@ fun ItemCard(
             }
         }
         Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
+        /*
+         * 标题块固定预留两行（W11 反馈⑨）：季名一个一行、一个两行时，卡片总高会差一整行，
+         * 一列季卡看着就不是同一个尺寸。预留两行后短标题也占满这块高度，卡片尺寸才真的统一。
+         */
         Text(
             text = if (item is FindroidEpisode) item.seriesName else item.name,
             style = CinefinType.TitleSmall,
             color = colors.onSurface,
             maxLines = if (item is FindroidEpisode) 1 else 2,
             overflow = TextOverflow.Ellipsis,
+            modifier =
+                if (item is FindroidEpisode) {
+                    Modifier
+                } else {
+                    Modifier.heightIn(
+                        min = with(density) { (CinefinType.TitleSmall.lineHeight * 2f).toDp() }
+                    )
+                },
         )
         if (item is FindroidEpisode) {
             Text(

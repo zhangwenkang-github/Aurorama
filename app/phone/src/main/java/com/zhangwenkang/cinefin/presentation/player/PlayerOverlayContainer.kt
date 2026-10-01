@@ -57,6 +57,10 @@ constructor(
     var topBarHeightPx: Float = 0f
     var bottomBarHeightPx: Float = 0f
 
+    /** 中央播放簇的实测尺寸（px）：控制层回传，命中块跟它同源（窄窗收尺寸时不会多吃掉画面手势）。 */
+    var centerClusterWidthPx: Float = 0f
+    var centerClusterHeightPx: Float = 0f
+
     private var handlingSequence = false
     private val density = resources.displayMetrics.density
 
@@ -115,10 +119,17 @@ constructor(
             topBarHeightPx.takeIf { it > 0f } ?: ((if (portrait) 64f else 76f) * density)
         val topBand = RectF(0f, 0f, videoWidth, topHeight)
         /*
-         * 中央 = 播放簇（W11 反馈③：上一个 · 快退 · 播放 · 快进 · 下一个 五键居中）。正常播放时只吃播放簇
-         * 那一块（约 320×80dp），画面其余部分照旧交给手势；错误卡片出现时放大到 600×400dp，否则「重试」点不到。
+         * 中央 = 播放簇（W11 反馈③：上一个 · 快退 · 播放 · 快进 · 下一个 五键居中）。命中块跟控件实测尺寸同源
+         * （窄窗会收尺寸，见 playerCenterSpec），画面其余部分照旧交给手势；
+         * 错误卡片出现时放大到 600×400dp，否则「重试」点不到。
          */
-        val centerHalfWidth = if (errorVisible) 300f else 160f
+        val centerHalfWidth =
+            if (errorVisible) {
+                300f
+            } else {
+                // 宽度按实测的一半再放 8dp 余量（手指落点不需要像素级精确）
+                ((centerClusterWidthPx / 2f) / density + 8f).coerceAtLeast(60f)
+            }
         val centerHalfHeight = if (errorVisible) 200f else 40f
         val centerBand =
             RectF(

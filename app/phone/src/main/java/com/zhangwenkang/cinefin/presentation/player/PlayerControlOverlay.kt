@@ -220,6 +220,31 @@ internal fun resolvePlayerBack(
         else -> PlayerBackAction.ClosePanel
     }
 
+/** 中央播放簇的键尺寸（W11 反馈③⑧）。 */
+internal data class PlayerCenterSpec(
+    val playSizeDp: Float,
+    val transportSizeDp: Float,
+    val gapDp: Float,
+) {
+    /** 簇总宽 = 播放键 + 4 个次级传输键 + 4 个间距 */
+    val totalWidthDp: Float
+        get() = playSizeDp + transportSizeDp * 4f + gapDp * 4f
+}
+
+/**
+ * 中央簇按画面区宽度收放（W11 反馈③⑧）：锁定键固定在画面区**右缘垂直居中**， 两者都占中部空间；窗口越窄越要先收中央簇的键尺寸，否则窄窗里两个控件会叠在一起 （Pad 5 `wm
+ * 800x2400` 实测：不收尺寸时簇右端与锁定键重叠 26dp）。
+ *
+ * 非重叠条件：簇宽 ≤ 画面区宽 − 2×(锁定键 48dp + 留白 12dp)。
+ */
+internal fun playerCenterSpec(videoWidthDp: Float): PlayerCenterSpec =
+    when {
+        videoWidthDp >= 600f -> PlayerCenterSpec(70f, 46f, 12f) // 302dp
+        videoWidthDp >= 420f -> PlayerCenterSpec(62f, 42f, 10f) // 266dp
+        videoWidthDp >= 360f -> PlayerCenterSpec(56f, 38f, 8f) // 240dp
+        else -> PlayerCenterSpec(40f, 26f, 4f) // 160dp：极窄窗（多为小窗 / 分屏）最后一档
+    }
+
 /**
  * 画面比例档位。
  *
@@ -448,6 +473,8 @@ fun PlayerControlOverlay(
     /** 实测顶栏 / 底栏高度（px）回传给命中区：控件高度一变，触摸分区跟着变（§9 踩坑） */
     onTopBarHeight: (Int) -> Unit = {},
     onBottomBarHeight: (Int) -> Unit = {},
+    /** 实测中央簇尺寸（px）回传给命中区：窄窗收尺寸后命中块跟着收，画面其余部分仍留给手势 */
+    onCenterClusterSize: (Int, Int) -> Unit = { _, _ -> },
     /** 全屏（W11 反馈⑥）：收起常驻内容栏 + 强制横屏；同一个键按状态换图标 */
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
@@ -499,6 +526,8 @@ fun PlayerControlOverlay(
             } else {
                 PlayerPanel.None
             }
+        // 回上一级后必须清掉标记：否则下一次返回还会被判定成「回上一级」，面板关不掉（Pad 5 真机踩到）
+        panelBackTarget = null
     }
 
     // 出错时把控制层顶出来：错误卡片是模态的，用户点掉之前一直可见
@@ -739,6 +768,8 @@ fun PlayerControlOverlay(
                                 isPlaying = runtime.isPlaying,
                                 // 缓冲中把播放键的图标换成转圈（反馈⑤：全屏只留一个加载图标）
                                 buffering = runtime.isBuffering,
+                                // 中央簇随画面区宽度收放：窄窗不跟右缘锁定键打架（反馈⑧）
+                                spec = playerCenterSpec(videoWidthDp.toFloat()),
                                 onPlayPause = {
                                     if (player.isPlaying) player.pause() else player.play()
                                 },
@@ -747,6 +778,7 @@ fun PlayerControlOverlay(
                                 onForward = { player.seekForward() },
                                 onNext = { player.seekToNextMediaItem() },
                                 modifier = Modifier.align(Alignment.Center),
+                                onSizeChanged = onCenterClusterSize,
                             )
                         }
 
@@ -868,7 +900,10 @@ fun PlayerControlOverlay(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { panel = PlayerPanel.None },
+                            onClick = {
+                                panel = PlayerPanel.None
+                                panelBackTarget = null
+                            },
                         )
             )
         }
@@ -889,8 +924,17 @@ fun PlayerControlOverlay(
             PlayerPanelDrawer(
                 titleRes = panelTitleRes(drawerPanel),
                 width = drawerWidth,
-                onClose = { panel = PlayerPanel.None },
-                onBack = panelBackTarget?.let { target -> { panel = target } },
+                onClose = {
+                    panel = PlayerPanel.None
+                    panelBackTarget = null
+                },
+                onBack =
+                    panelBackTarget?.let { target ->
+                        {
+                            panel = target
+                            panelBackTarget = null
+                        }
+                    },
             ) {
                 when (drawerPanel) {
                     PlayerPanel.Speed ->
@@ -1157,53 +1201,61 @@ internal fun PlayerPlayKey(
 private fun PlayerCenterCluster(
     isPlaying: Boolean,
     buffering: Boolean,
+    /** 版式规格：窄窗收一档，避免与右缘锁定键重叠（W11 反馈⑧） */
+    spec: PlayerCenterSpec,
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onRewind: () -> Unit,
     onForward: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
+    onSizeChanged: (Int, Int) -> Unit = { _, _ -> },
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
-        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(spec.gapDp.dp),
+        modifier = modifier.onSizeChanged { onSizeChanged(it.width, it.height) },
     ) {
         PlayerTransportButton(
             iconRes = CoreR.drawable.ic_skip_back,
             contentDescription = stringResource(PlayerR.string.player_controls_previous_episode),
             onClick = onPrevious,
+            size = spec.transportSizeDp.dp,
         )
         PlayerTransportButton(
             iconRes = CoreR.drawable.ic_rewind,
             contentDescription = stringResource(PlayerR.string.player_controls_rewind),
             onClick = onRewind,
+            size = spec.transportSizeDp.dp,
         )
         PlayerPlayKey(
             isPlaying = isPlaying,
             onClick = onPlayPause,
-            size = 70.dp,
+            size = spec.playSizeDp.dp,
             buffering = buffering,
         )
         PlayerTransportButton(
             iconRes = CoreR.drawable.ic_fast_forward,
             contentDescription = stringResource(PlayerR.string.player_controls_fast_forward),
             onClick = onForward,
+            size = spec.transportSizeDp.dp,
         )
         PlayerTransportButton(
             iconRes = CoreR.drawable.ic_skip_forward,
             contentDescription = stringResource(PlayerR.string.player_controls_next_episode),
             onClick = onNext,
+            size = spec.transportSizeDp.dp,
         )
     }
 }
 
-/** 次级传输键（±10s / 上下集）：玻璃圆底 + OnSurface 图标（§8.7 覆盖层次级键）， 按压缩放、键盘焦点描边，命中区 46dp。 */
+/** 次级传输键（±10s / 上下集）：玻璃圆底 + OnSurface 图标（§8.7 覆盖层次级键）， 按压缩放、键盘焦点描边，默认命中区 46dp。 */
 @Composable
 private fun PlayerTransportButton(
     iconRes: Int,
     contentDescription: String,
     onClick: () -> Unit,
+    size: Dp = 46.dp,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -1213,7 +1265,7 @@ private fun PlayerTransportButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier =
-            Modifier.size(46.dp)
+            Modifier.size(size)
                 .graphicsLayer {
                     val scale = if (pressed) 0.92f else 1f
                     scaleX = scale

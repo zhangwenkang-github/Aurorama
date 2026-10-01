@@ -88,4 +88,29 @@ class PlayerControlLayoutTest {
             resolvePlayerBack(panelOpen = false, hasParentPanel = true),
         )
     }
+
+    @Test
+    fun centerCluster_neverOverlapsLockKey() {
+        // 锁定键 = 48dp 键 + 右侧 12dp 留白，固定在画面区右缘垂直居中；
+        // 中央簇居中排布，因此不重叠条件是：簇宽 ≤ 画面区宽 − 2×(48+12)
+        val lockReserve = 2f * (48f + 12f)
+        listOf(280f, 305f, 320f, 360f, 411f, 600f, 800f, 1280f).forEach { width ->
+            val cluster = playerCenterSpec(width).totalWidthDp
+            assertTrue(
+                "画面区 $width dp 时中央簇 $cluster dp 会与右缘锁定键重叠",
+                cluster <= width - lockReserve,
+            )
+        }
+    }
+
+    @Test
+    fun centerCluster_keepsPlayKeyLargest() {
+        listOf(280f, 360f, 420f, 800f).forEach { width ->
+            val spec = playerCenterSpec(width)
+            assertTrue(
+                "画面区 $width dp：主播放键必须仍是簇里最大的键",
+                spec.playSizeDp > spec.transportSizeDp,
+            )
+        }
+    }
 }
