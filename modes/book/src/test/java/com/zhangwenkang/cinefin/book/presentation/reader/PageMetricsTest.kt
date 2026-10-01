@@ -57,4 +57,55 @@ class PageMetricsTest {
         assertEquals(-500f, clamped.y, 0.01f)
         assertEquals(Offset.Zero, clampPageOffset(Offset(30f, 30f), scale = 1f, 800, 1000))
     }
+
+    @Test
+    fun `双指缩放夹取在 1 倍到 4 倍之间`() {
+        val zoomed = PageZoom().transform(zoom = 10f, pan = Offset.Zero, width = 800, height = 1000)
+        assertEquals(PAGE_MAX_ZOOM, zoomed.scale, 0.0001f)
+
+        val shrunk =
+            zoomed.transform(zoom = 0.01f, pan = Offset(120f, 50f), width = 800, height = 1000)
+        assertEquals(1f, shrunk.scale, 0.0001f)
+        assertEquals(Offset.Zero, shrunk.offset)
+    }
+
+    @Test
+    fun `缩放平移按放大后的边缘夹取`() {
+        val zoomed = PageZoom().transform(zoom = 2f, pan = Offset.Zero, width = 800, height = 1000)
+        assertEquals(2f, zoomed.scale, 0.0001f)
+
+        val panned =
+            zoomed.transform(zoom = 1f, pan = Offset(500f, -900f), width = 800, height = 1000)
+        assertEquals(400f, panned.offset.x, 0.01f)
+        assertEquals(-500f, panned.offset.y, 0.01f)
+    }
+
+    @Test
+    fun `非有限手势值不破坏缩放状态`() {
+        val zoomed =
+            PageZoom().transform(zoom = 2f, pan = Offset(10f, 10f), width = 800, height = 1000)
+
+        val nanZoom =
+            zoomed.transform(zoom = Float.NaN, pan = Offset.Zero, width = 800, height = 1000)
+        assertEquals(zoomed.scale, nanZoom.scale, 0.0001f)
+        assertEquals(zoomed.offset, nanZoom.offset)
+
+        val infiniteZoom =
+            zoomed.transform(
+                zoom = Float.POSITIVE_INFINITY,
+                pan = Offset.Zero,
+                width = 800,
+                height = 1000,
+            )
+        assertEquals(zoomed.scale, infiniteZoom.scale, 0.0001f)
+
+        val nanPan =
+            zoomed.transform(
+                zoom = 1f,
+                pan = Offset(Float.NaN, Float.NaN),
+                width = 800,
+                height = 1000,
+            )
+        assertEquals(zoomed.offset, nanPan.offset)
+    }
 }

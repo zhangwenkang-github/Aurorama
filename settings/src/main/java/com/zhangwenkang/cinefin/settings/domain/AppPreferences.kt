@@ -171,6 +171,9 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 正文对齐：justify / start / center。 */
     val readerTextAlign = Preference("pref_reader_text_align", "justify")
 
+    /** 漫画右起翻页（RTL）：只影响 PDF / CBZ 的分页 / 双栏方向；滚动模式保持纵向顺序。 */
+    val readerRtl = Preference("pref_reader_rtl", false)
+
     // Migrations
     val mpvMigrated = Preference("mpv_migrated", false)
 

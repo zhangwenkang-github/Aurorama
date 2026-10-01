@@ -493,6 +493,7 @@ constructor(
                     ReaderTextAlign.fromStorage(
                         appPreferences.getValue(appPreferences.readerTextAlign)
                     ),
+                rtl = appPreferences.getValue(appPreferences.readerRtl),
             )
             .sanitized()
 
@@ -504,6 +505,7 @@ constructor(
         appPreferences.setValue(appPreferences.readerFontFamily, settings.font.storageValue)
         appPreferences.setValue(appPreferences.readerTheme, settings.theme.storageValue)
         appPreferences.setValue(appPreferences.readerTextAlign, settings.textAlign.storageValue)
+        appPreferences.setValue(appPreferences.readerRtl, settings.rtl)
     }
 }
 

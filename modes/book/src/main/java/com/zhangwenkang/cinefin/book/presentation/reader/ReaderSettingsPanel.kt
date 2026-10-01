@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,6 +50,7 @@ import kotlin.math.roundToInt
 internal fun ReaderSettingsPanel(
     settings: ReaderSettings,
     systemDark: Boolean,
+    showRtl: Boolean,
     onSettingsChange: (ReaderSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -74,6 +77,17 @@ internal fun ReaderSettingsPanel(
             onSelect = { mode -> onSettingsChange(settings.copy(mode = mode)) },
             label = { mode -> mode.label },
         )
+
+        if (showRtl) {
+            SectionLabel("翻页方向", contentColor)
+            RtlSwitchRow(
+                checked = settings.rtl,
+                contentColor = contentColor,
+                accent = accent,
+                onAccent = settings.onAccentColor(systemDark),
+                onCheckedChange = { onSettingsChange(settings.copy(rtl = it)) },
+            )
+        }
 
         SliderRow(
             label = "字号",
@@ -133,6 +147,51 @@ internal fun ReaderSettingsPanel(
                 )
             }
         }
+    }
+}
+
+/**
+ * 漫画右起翻页开关（EB-4 / W9-READER）。
+ *
+ * 只有页序列文档（PDF / CBZ）显示；三档模式行为写在说明行里——分页 / 双栏右到左，滚动模式 仍自上而下（滚动模式没有可翻转的横向轴，见 [isRtlPaging]）。
+ */
+@Composable
+private fun RtlSwitchRow(
+    checked: Boolean,
+    contentColor: Color,
+    accent: Color,
+    onAccent: Color,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(text = "右起翻页（漫画）", style = CinefinType.BodyMedium, color = contentColor)
+            Text(
+                text = "分页 / 双栏右到左；滚动模式仍自上而下",
+                style = CinefinType.LabelSmall,
+                color = contentColor.copy(alpha = 0.72f),
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors =
+                SwitchDefaults.colors(
+                    checkedTrackColor = accent,
+                    checkedThumbColor = onAccent,
+                    checkedBorderColor = Color.Transparent,
+                    uncheckedTrackColor = contentColor.copy(alpha = 0.16f),
+                    uncheckedThumbColor = contentColor.copy(alpha = 0.72f),
+                    uncheckedBorderColor = Color.Transparent,
+                ),
+        )
     }
 }
 

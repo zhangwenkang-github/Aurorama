@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,10 +52,15 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import timber.log.Timber
+
+/** 双指缩放调试日志的最小步进：真机验收用 logcat 文本判断缩放生效，又不会每帧刷屏。 */
+private const val ZOOM_LOG_STEP = 0.1f
 
 /**
  * PDF / CBZ 阅读视图（EB-3 / EB-4）：滚动 / 横向分页 / 平板双栏三档模式。
@@ -108,6 +114,7 @@ internal fun SimpleBookView(
                     pageCount = pageCount,
                     initialPage = currentPage,
                     pagesPerSpread = 1,
+                    rtl = settings.rtl,
                     contentColor = contentColor,
                     onPageChanged = ::report,
                 )
@@ -118,13 +125,14 @@ internal fun SimpleBookView(
                     pageCount = pageCount,
                     initialPage = currentPage,
                     pagesPerSpread = 2,
+                    rtl = settings.rtl,
                     contentColor = contentColor,
                     onPageChanged = ::report,
                 )
         }
 
         PageIndicator(
-            text = pageIndicatorText(settings.mode, currentPage, pageCount),
+            text = pageIndicatorText(settings.mode, currentPage, pageCount, settings.rtl),
             chromeColor = chromeColor,
             contentColor = contentColor,
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -132,7 +140,11 @@ internal fun SimpleBookView(
     }
 }
 
-/** 滚动模式：纵向连续，当前页 = 首个可见页。 */
+/**
+ * 滚动模式：纵向连续，当前页 = 首个可见页。
+ *
+ * 每页仍挂双指缩放手势（EB-3 扩展到滚动模式）：竖排顺序与 RTL 无关，右起开关在滚动模式不改变 页序；单指纵向拖动不被消费，继续交给 `LazyColumn` 滚动。
+ */
 @Composable
 private fun ScrollPages(
     cache: PageImageCache,
@@ -160,7 +172,7 @@ private fun ScrollPages(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space2),
                 contentAlignment = Alignment.Center,
             ) {
-                PageContent(
+                ZoomablePage(
                     cache = cache,
                     index = index,
                     contentColor = contentColor,
@@ -171,47 +183,61 @@ private fun ScrollPages(
     }
 }
 
-/** 横向分页 / 双栏：`pagesPerSpread` = 1（分页）或 2（双栏，Pad 5 横屏左右各一页）。 */
+/**
+ * 横向分页 / 双栏：`pagesPerSpread` = 1（分页）或 2（双栏，Pad 5 横屏左右各一页）。
+ *
+ * RTL（漫画右起）时整条页链镜像（`reverseLayout`，向右滑动前进），spread 内左右页也镜像 （[spreadPageSlots]：右 = 2k+1、左 =
+ * 2k+2）；逻辑页号与进度不变。切开关时用 `key(rtl)` 重建 Pager，让 `initialPage` 按当前逻辑页重新落位，避免镜像瞬间跳到别的页。
+ */
 @Composable
 private fun PagedPages(
     cache: PageImageCache,
     pageCount: Int,
     initialPage: Int,
     pagesPerSpread: Int,
+    rtl: Boolean,
     contentColor: Color,
     onPageChanged: (Int) -> Unit,
 ) {
-    val spreadCount = (pageCount + pagesPerSpread - 1) / pagesPerSpread
-    val pagerState = rememberPagerState(initialPage = initialPage / pagesPerSpread) { spreadCount }
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }
-            .distinctUntilChanged()
-            .collect { spread -> onPageChanged(spread * pagesPerSpread) }
-    }
-    // 停稳后再预取邻页，避免抢可见页的解码带宽（窗口仍是 3 张）。
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }
-            .distinctUntilChanged()
-            .collect { spread ->
-                delay(150)
-                val base = spread * pagesPerSpread
-                listOf(base - 1, base + pagesPerSpread).forEach { cache.prefetch(it) }
-            }
-    }
+    key(rtl) {
+        val spreadTotal = spreadCount(pageCount, pagesPerSpread)
+        val pagerState =
+            rememberPagerState(initialPage = initialPage / pagesPerSpread) { spreadTotal }
+        LaunchedEffect(pagerState) {
+            snapshotFlow { pagerState.currentPage }
+                .distinctUntilChanged()
+                .collect { spread -> onPageChanged(spread * pagesPerSpread) }
+        }
+        // 停稳后再预取邻页，避免抢可见页的解码带宽（窗口仍是 3 张）。
+        LaunchedEffect(pagerState) {
+            snapshotFlow { pagerState.settledPage }
+                .distinctUntilChanged()
+                .collect { spread ->
+                    delay(150)
+                    val base = spread * pagesPerSpread
+                    listOf(base - 1, base + pagesPerSpread).forEach { cache.prefetch(it) }
+                }
+        }
 
-    HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize(), key = { it }) { spread ->
-        Row(modifier = Modifier.fillMaxSize()) {
-            repeat(pagesPerSpread) { offset ->
-                val index = spread * pagesPerSpread + offset
-                if (index < pageCount) {
-                    ZoomablePage(
-                        cache = cache,
-                        index = index,
-                        contentColor = contentColor,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    )
-                } else {
-                    Box(modifier = Modifier.weight(1f).fillMaxHeight())
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            key = { it },
+            reverseLayout = rtl,
+        ) { spread ->
+            val slots = spreadPageSlots(spread, pageCount, pagesPerSpread, rtl)
+            Row(modifier = Modifier.fillMaxSize()) {
+                slots.forEach { index ->
+                    if (index != null) {
+                        ZoomablePage(
+                            cache = cache,
+                            index = index,
+                            contentColor = contentColor,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                    } else {
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight())
+                    }
                 }
             }
         }
@@ -231,9 +257,9 @@ private fun ZoomablePage(
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    var scale by remember(index) { mutableStateOf(1f) }
-    var offset by remember(index) { mutableStateOf(Offset.Zero) }
+    var pageZoom by remember(index) { mutableStateOf(PageZoom()) }
     var boxSize by remember(index) { mutableStateOf(IntSize.Zero) }
+    var lastLoggedScale by remember(index) { mutableStateOf(1f) }
 
     Box(
         modifier =
@@ -241,16 +267,21 @@ private fun ZoomablePage(
                 .clipToBounds()
                 .onSizeChanged { boxSize = it }
                 .pointerInput(index) {
-                    detectMultiTouchZoom { pan, zoom ->
-                        val nextScale = (scale * zoom).coerceIn(1f, PAGE_MAX_ZOOM)
-                        scale = nextScale
-                        offset =
-                            clampPageOffset(
-                                offset + pan,
-                                nextScale,
-                                boxSize.width,
-                                boxSize.height,
+                    detectMultiTouchZoom { pan, zoomFactor ->
+                        val next =
+                            pageZoom.transform(zoomFactor, pan, boxSize.width, boxSize.height)
+                        pageZoom = next
+                        // 数帧一次的调试轨迹：真机验收用 logcat 文本判断缩放手势确实生效（不贴截图）。
+                        if (abs(next.scale - lastLoggedScale) >= ZOOM_LOG_STEP) {
+                            lastLoggedScale = next.scale
+                            Timber.d(
+                                "reader zoom index=%d scale=%.2f offset=(%.0f,%.0f)",
+                                index,
+                                next.scale,
+                                next.offset.x,
+                                next.offset.y,
                             )
+                        }
                     }
                 },
         contentAlignment = Alignment.Center,
@@ -258,10 +289,10 @@ private fun ZoomablePage(
         Box(
             modifier =
                 Modifier.fillMaxSize().graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offset.x
-                    translationY = offset.y
+                    scaleX = pageZoom.scale
+                    scaleY = pageZoom.scale
+                    translationX = pageZoom.offset.x
+                    translationY = pageZoom.offset.y
                 }
         ) {
             PageContent(
