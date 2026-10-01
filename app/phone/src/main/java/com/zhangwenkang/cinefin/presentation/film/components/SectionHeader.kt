@@ -20,6 +20,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
@@ -36,6 +37,9 @@ fun SectionHeader(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
+    val lumen = LocalLumenColors.current
+    // A 稿 `.shelf-head .more` 是三级文字灰；Prism 区域保持媒体色文字操作
+    val actionColor = lumen?.textFaint ?: media.bright
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -54,12 +58,12 @@ fun SectionHeader(
                         ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = actionText, style = CinefinType.LabelMedium, color = media.bright)
+                Text(text = actionText, style = CinefinType.LabelMedium, color = actionColor)
                 Spacer(modifier = Modifier.width(CinefinSpacing.Space1))
                 Icon(
                     painter = painterResource(CoreR.drawable.ic_arrow_right),
                     contentDescription = null,
-                    tint = media.bright,
+                    tint = actionColor,
                     modifier = Modifier.size(16.dp),
                 )
             }

@@ -13,17 +13,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
@@ -52,6 +58,7 @@ fun LumenCardFrame(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
+    val lumen = LocalLumenColors.current
     val borderBrush =
         if (emphasized) {
             Brush.linearGradient(
@@ -62,6 +69,9 @@ fun LumenCardFrame(
                         1f to media.outline,
                     )
             )
+        } else if (lumen != null) {
+            // Lumen 区域（S1 A 稿）：均匀 1px 白 8.5% 细线（`--line`），不再做"上缘受光"的铝框强调
+            SolidColor(lumen.line)
         } else {
             // 铝框感：上缘受光更亮、中段回落、下缘再收一点光，避免"通体一根灰线"
             Brush.linearGradient(
@@ -121,6 +131,22 @@ fun lumenBottomScrim(bottomColor: Color): Brush =
             )
     )
 
+/**
+ * 头图水平渐隐（S1 A 稿 `.hero .scrim` 第一层）：左侧压暗托住标题 / 元信息，右侧保留画面通透。
+ *
+ * A 稿以 `rgba(6,7,10,·)` 家族的近黑（[LumenTokens.Scrim]）叠加，文字所在的一侧最暗； 平板与手机共用同一组 stop，保证"内容即光源"的观感一致。
+ */
+fun lumenSideScrim(base: Color): Brush =
+    Brush.horizontalGradient(
+        colorStops =
+            arrayOf(
+                0f to base.copy(alpha = 0.92f),
+                0.34f to base.copy(alpha = 0.70f),
+                0.66f to base.copy(alpha = 0.12f),
+                1f to base.copy(alpha = 0.34f),
+            )
+    )
+
 /** 头图顶部光晕（S1 "内容即光源"）：光从画面上缘溢出、约 40% 处完全消散。 纯白低透明度，只加光不加色；压在图上时读作"画面在发光"，而不是盖了一层白纱。 */
 val lumenTopGlow: Brush
     get() =
@@ -132,6 +158,47 @@ val lumenTopGlow: Brush
                     0.42f to Color.Transparent,
                 )
         )
+
+/**
+ * Lumen 文字阴影层级（S1 A 稿 `.hero h1` 的 `text-shadow: 0 2px 30px rgba(0,0,0,.55)`）：[Title] 大标题、[Meta] 眉标
+ * / 元信息。
+ */
+enum class LumenTextShadow {
+    Title,
+    Meta,
+}
+
+/**
+ * 亮图上的文字可读性（S1 A 稿 text-shadow）：给文字加一层黑色阴影，保证任何底图上都能读清。
+ *
+ * 参数（dp 在调用点按屏幕密度换算成 px，与 CSS 的 30px 模糊同量级）：
+ * - [LumenTextShadow.Title]：黑 62%、偏移 (0, 2dp)、模糊 12dp——大标题用，边缘干净不糊字；
+ * - [LumenTextShadow.Meta]：黑 72%、偏移 (0, 1dp)、模糊 6dp——眉标 / 元信息用小字，收紧阴影避免发虚。
+ */
+@Composable
+fun TextStyle.lumenTextShadow(level: LumenTextShadow): TextStyle {
+    val density = LocalDensity.current
+    return when (level) {
+        LumenTextShadow.Title ->
+            copy(
+                shadow =
+                    Shadow(
+                        color = Color.Black.copy(alpha = 0.62f),
+                        offset = Offset(0f, with(density) { 2.dp.toPx() }),
+                        blurRadius = with(density) { 12.dp.toPx() },
+                    )
+            )
+        LumenTextShadow.Meta ->
+            copy(
+                shadow =
+                    Shadow(
+                        color = Color.Black.copy(alpha = 0.72f),
+                        offset = Offset(0f, with(density) { 1.dp.toPx() }),
+                        blurRadius = with(density) { 6.dp.toPx() },
+                    )
+            )
+    }
+}
 
 /** 内暗角：左右边缘各压暗一点，模拟"内容即光源、画面向内收"的光学感。 */
 val lumenVignette: Brush

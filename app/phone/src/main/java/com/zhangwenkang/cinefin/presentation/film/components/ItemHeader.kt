@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSeason
@@ -135,9 +136,12 @@ private fun ItemHeaderBase(
 
     Box(modifier = Modifier.height(height).clipToBounds()) {
         backdropImage()
+        // 左侧水平渐隐只在 Lumen 区域（电影 / 剧集详情）叠加，非 Lumen 详情页保持原观感
+        val lumenScrimColor = LocalLumenColors.current?.scrim
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Lumen：顶部光晕（内容即光源）+ 内暗角（左右压暗）+ 底部渐隐，内容图向下溶进页面底色
+            // Lumen：顶部光晕（内容即光源）+ 左侧水平渐隐（文字托底）+ 内暗角 + 底部渐隐，内容图向下溶进页面底色
             drawRect(brush = lumenTopGlow)
+            lumenScrimColor?.let { drawRect(brush = lumenSideScrim(it)) }
             drawRect(brush = lumenVignette)
             drawRect(brush = lumenBottomScrim(backgroundColor))
         }

@@ -56,6 +56,17 @@ enum class CinefinButtonSize {
     Small,
 }
 
+/**
+ * 按钮色调（§8.1 本轮扩展）：[Media] = 当前域媒体色（默认）；[Inverse] = 反色高对比面。
+ *
+ * [Inverse] 用于 Lumen（S1 A 稿）区域的主行动：月白底 + 深色内容（A 稿 `.btn.primary`）， 其余状态、描边、禁用逻辑与 [Media] 一致。非 Lumen
+ * 组件不得使用。
+ */
+enum class CinefinButtonTone {
+    Media,
+    Inverse,
+}
+
 private val CinefinButtonSize.height: Dp
     get() =
         when (this) {
@@ -104,6 +115,7 @@ internal fun resolveButtonColors(
     state: CinefinInteractionState,
     media: MediaColors,
     colors: CinefinColors,
+    tone: CinefinButtonTone = CinefinButtonTone.Media,
 ): CinefinButtonColors {
     val disabledContent = colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
     if (state == CinefinInteractionState.Disabled) {
@@ -116,6 +128,23 @@ internal fun resolveButtonColors(
             CinefinButtonVariant.Icon ->
                 CinefinButtonColors(Color.Transparent, disabledContent, Color.Transparent)
         }
+    }
+
+    if (tone == CinefinButtonTone.Inverse && variant == CinefinButtonVariant.Filled) {
+        // 反色填充（Lumen 主行动）：月白底 + 深色内容；按下 / 悬停用深色状态层轻轻压暗，保持同一色相
+        val container =
+            when (state) {
+                CinefinInteractionState.Hover ->
+                    colors.inverseOnSurface
+                        .copy(alpha = CinefinTokens.StateHoverAlpha)
+                        .compositeOver(colors.inverseSurface)
+                CinefinInteractionState.Pressed ->
+                    colors.inverseOnSurface
+                        .copy(alpha = CinefinTokens.StatePressedAlpha)
+                        .compositeOver(colors.inverseSurface)
+                else -> colors.inverseSurface
+            }
+        return CinefinButtonColors(container, colors.inverseOnSurface, Color.Transparent)
     }
 
     return when (variant) {
@@ -180,6 +209,7 @@ fun CinefinButton(
     modifier: Modifier = Modifier,
     variant: CinefinButtonVariant = CinefinButtonVariant.Filled,
     size: CinefinButtonSize = CinefinButtonSize.Large,
+    tone: CinefinButtonTone = CinefinButtonTone.Media,
     enabled: Boolean = true,
     icon: (@Composable (tint: Color) -> Unit)? = null,
 ) {
@@ -200,7 +230,7 @@ fun CinefinButton(
 
     val isIconOnly = variant == CinefinButtonVariant.Icon
     val shape = RoundedCornerShape(if (isIconOnly) 12.dp else size.corner)
-    val target = resolveButtonColors(variant, state, media, colors)
+    val target = resolveButtonColors(variant, state, media, colors, tone)
     val spec = tween<Color>(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard)
     val containerColor by
         animateColorAsState(

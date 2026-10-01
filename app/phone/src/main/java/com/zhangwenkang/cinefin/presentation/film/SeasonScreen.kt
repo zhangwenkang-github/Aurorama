@@ -36,6 +36,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummySeason
+import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonAction
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonState
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonViewModel
@@ -46,6 +47,8 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
+import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
+import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -97,104 +100,116 @@ private fun SeasonScreenLayout(state: SeasonState, onAction: (SeasonAction) -> U
 
     val lazyListState = rememberLazyListState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        state.season?.let { season ->
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                state = lazyListState,
-                contentPadding = PaddingValues(bottom = paddingBottom),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
-            ) {
-                item {
-                    ItemHeader(
-                        item = season,
-                        lazyListState = lazyListState,
-                        content = {
-                            Row(
-                                modifier =
-                                    Modifier.align(Alignment.BottomStart)
-                                        .padding(start = paddingStart, end = paddingEnd),
-                                verticalAlignment = Alignment.Bottom,
-                            ) {
-                                ItemPoster(
-                                    item = season,
-                                    direction = Direction.VERTICAL,
-                                    modifier =
-                                        Modifier.width(120.dp).clip(MaterialTheme.shapes.small),
-                                )
-                                Spacer(Modifier.width(MaterialTheme.spacings.medium))
-                                Column(modifier = Modifier) {
-                                    Text(
-                                        text = season.seriesName,
-                                        overflow = TextOverflow.Ellipsis,
-                                        maxLines = 1,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                    )
-                                    Text(
-                                        text = season.name,
-                                        overflow = TextOverflow.Ellipsis,
-                                        maxLines = 3,
-                                        style = MaterialTheme.typography.headlineMedium,
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    Spacer(Modifier.height(MaterialTheme.spacings.default.div(2)))
-                    ItemButtonsBar(
-                        item = season,
-                        onPlayClick = { startFromBeginning ->
-                            onAction(SeasonAction.Play(startFromBeginning = startFromBeginning))
-                        },
-                        onMarkAsPlayedClick = {
-                            when (season.played) {
-                                true -> onAction(SeasonAction.UnmarkAsPlayed)
-                                false -> onAction(SeasonAction.MarkAsPlayed)
-                            }
-                        },
-                        onMarkAsFavoriteClick = {
-                            when (season.favorite) {
-                                true -> onAction(SeasonAction.UnmarkAsFavorite)
-                                false -> onAction(SeasonAction.MarkAsFavorite)
-                            }
-                        },
-                        onTrailerClick = {},
-                        onDownloadClick = {},
-                        onDownloadCancelClick = {},
-                        onDownloadDeleteClick = {},
-                        modifier =
-                            Modifier.padding(start = paddingStart, end = paddingEnd).fillMaxWidth(),
-                        canPlay = state.episodes.isNotEmpty(),
-                    )
-                }
-                items(items = state.episodes, key = { episode -> episode.id }) { episode ->
-                    EpisodeCard(
-                        episode = episode,
-                        onClick = { onAction(SeasonAction.NavigateToItem(episode)) },
-                        modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
-                    )
-                }
-            }
-        } ?: run { CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
-
-        ItemTopBar(
-            hasBackButton = true,
-            hasHomeButton = true,
-            onBackClick = { onAction(SeasonAction.OnBackClick) },
-            onHomeClick = { onAction(SeasonAction.OnHomeClick) },
-        ) {
-            Spacer(modifier = Modifier.width(4.dp))
+    ProvideLumen {
+        Box(modifier = Modifier.fillMaxSize()) {
             state.season?.let { season ->
-                Button(
-                    onClick = { onAction(SeasonAction.NavigateToSeries(season.seriesId)) },
-                    modifier = Modifier.alpha(0.7f),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = Color.Black,
-                            contentColor = Color.White,
-                        ),
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = lazyListState,
+                    contentPadding = PaddingValues(bottom = paddingBottom),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
                 ) {
-                    Text(text = season.seriesName, overflow = TextOverflow.Ellipsis, maxLines = 1)
+                    item {
+                        ItemHeader(
+                            item = season,
+                            lazyListState = lazyListState,
+                            content = {
+                                Row(
+                                    modifier =
+                                        Modifier.align(Alignment.BottomStart)
+                                            .padding(start = paddingStart, end = paddingEnd),
+                                    verticalAlignment = Alignment.Bottom,
+                                ) {
+                                    ItemPoster(
+                                        item = season,
+                                        direction = Direction.VERTICAL,
+                                        modifier =
+                                            Modifier.width(120.dp).clip(MaterialTheme.shapes.small),
+                                    )
+                                    Spacer(Modifier.width(MaterialTheme.spacings.medium))
+                                    Column(modifier = Modifier) {
+                                        Text(
+                                            text = season.seriesName,
+                                            overflow = TextOverflow.Ellipsis,
+                                            maxLines = 1,
+                                            style =
+                                                MaterialTheme.typography.bodyLarge.lumenTextShadow(
+                                                    LumenTextShadow.Meta
+                                                ),
+                                        )
+                                        Text(
+                                            text = season.name,
+                                            overflow = TextOverflow.Ellipsis,
+                                            maxLines = 3,
+                                            style =
+                                                MaterialTheme.typography.headlineMedium
+                                                    .lumenTextShadow(LumenTextShadow.Title),
+                                        )
+                                    }
+                                }
+                            },
+                        )
+                        Spacer(Modifier.height(MaterialTheme.spacings.default.div(2)))
+                        ItemButtonsBar(
+                            item = season,
+                            onPlayClick = { startFromBeginning ->
+                                onAction(SeasonAction.Play(startFromBeginning = startFromBeginning))
+                            },
+                            onMarkAsPlayedClick = {
+                                when (season.played) {
+                                    true -> onAction(SeasonAction.UnmarkAsPlayed)
+                                    false -> onAction(SeasonAction.MarkAsPlayed)
+                                }
+                            },
+                            onMarkAsFavoriteClick = {
+                                when (season.favorite) {
+                                    true -> onAction(SeasonAction.UnmarkAsFavorite)
+                                    false -> onAction(SeasonAction.MarkAsFavorite)
+                                }
+                            },
+                            onTrailerClick = {},
+                            onDownloadClick = {},
+                            onDownloadCancelClick = {},
+                            onDownloadDeleteClick = {},
+                            modifier =
+                                Modifier.padding(start = paddingStart, end = paddingEnd)
+                                    .fillMaxWidth(),
+                            canPlay = state.episodes.isNotEmpty(),
+                        )
+                    }
+                    items(items = state.episodes, key = { episode -> episode.id }) { episode ->
+                        EpisodeCard(
+                            episode = episode,
+                            onClick = { onAction(SeasonAction.NavigateToItem(episode)) },
+                            modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
+                        )
+                    }
+                }
+            } ?: run { CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+
+            ItemTopBar(
+                hasBackButton = true,
+                hasHomeButton = true,
+                onBackClick = { onAction(SeasonAction.OnBackClick) },
+                onHomeClick = { onAction(SeasonAction.OnHomeClick) },
+            ) {
+                Spacer(modifier = Modifier.width(4.dp))
+                state.season?.let { season ->
+                    Button(
+                        onClick = { onAction(SeasonAction.NavigateToSeries(season.seriesId)) },
+                        modifier = Modifier.alpha(0.7f),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color.Black,
+                                contentColor = Color.White,
+                            ),
+                    ) {
+                        Text(
+                            text = season.seriesName,
+                            overflow = TextOverflow.Ellipsis,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }

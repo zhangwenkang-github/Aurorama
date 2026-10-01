@@ -3,6 +3,10 @@ package com.zhangwenkang.cinefin.core.presentation.theme
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinInteractionState
+import com.zhangwenkang.cinefin.core.presentation.components.resolveButtonColors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -213,5 +217,56 @@ class DesignTokenConsistencyTest {
         assertEquals(0.24f, CinefinTokens.MediaContainerPressedAlpha, 0.001f)
         assertEquals(0.45f, CinefinTokens.MediaOutlineAlpha, 0.001f)
         assertEquals(0.60f, CinefinTokens.FocusRingAlpha, 0.001f)
+    }
+
+    @Test
+    fun `lumen tokens match s1 direction a palette`() {
+        // 依据 docs/design/s1-direction-a/README.md §2 与 _src/direction-a.html 的 CSS 变量（用户 2026-10-01
+        // 批准）
+        assertHex(0xFF08090C, LumenTokens.Background, "Lumen Background")
+        assertHex(0xFF111319, LumenTokens.Panel, "Lumen Panel")
+        assertHex(0xFF171A21, LumenTokens.PanelElevated, "Lumen PanelElevated")
+        assertHex(0xFFF2F5F9, LumenTokens.Text, "Lumen Text")
+        assertHex(0xFF98A2B3, LumenTokens.TextSecondary, "Lumen TextSecondary")
+        assertHex(0xFF6B7483, LumenTokens.TextFaint, "Lumen TextFaint")
+        assertHex(0xFF5CE1D2, LumenTokens.Accent, "Lumen Accent")
+        assertHex(0xFF7CC4FF, LumenTokens.AccentSecondary, "Lumen AccentSecondary")
+        assertHex(0xFF0A0C11, LumenTokens.OnPrimary, "Lumen OnPrimary")
+        assertEquals(0.085f, LumenTokens.LineAlpha, 0.001f)
+        assertEquals(0.05f, LumenTokens.LineSoftAlpha, 0.001f)
+        assertEquals(0.07f, LumenTokens.GhostAlpha, 0.001f)
+        assertEquals(0.14f, LumenTokens.ProgressTrackAlpha, 0.001f)
+    }
+
+    @Test
+    fun `lumen cover maps prism semantics to direction a values`() {
+        assertHex(0xFF08090C, LumenCinefinColorsDark.surface, "Lumen surface")
+        assertHex(0xFF111319, LumenCinefinColorsDark.surfaceContainer, "Lumen container")
+        assertHex(
+            0xFF171A21,
+            LumenCinefinColorsDark.surfaceContainerHigh,
+            "Lumen container high",
+        )
+        assertHex(0xFFF2F5F9, LumenCinefinColorsDark.onSurface, "Lumen onSurface")
+        assertHex(0xFFF2F5F9, LumenColorsDark.primaryButton, "Lumen primary button")
+        assertHex(0xFF0A0C11, LumenColorsDark.onPrimary, "Lumen onPrimary")
+        // A 稿唯一强调色：极光青同时承担 base / bright（眉标、进度、焦点）
+        assertHex(0xFF5CE1D2, LumenMediaColors.base, "Lumen media base")
+        assertHex(0xFF5CE1D2, LumenMediaColors.bright, "Lumen media bright")
+    }
+
+    @Test
+    fun `inverse button tone resolves to month white with dark content`() {
+        val resolved =
+            resolveButtonColors(
+                variant = CinefinButtonVariant.Filled,
+                state = CinefinInteractionState.Default,
+                media = LumenMediaColors,
+                colors = LumenCinefinColorsDark,
+                tone = CinefinButtonTone.Inverse,
+            )
+        assertHex(0xFFF2F5F9, resolved.container, "Inverse container")
+        assertHex(0xFF0A0C11, resolved.content, "Inverse content")
+        assertEquals(0f, resolved.border.alpha, 0.001f)
     }
 }

@@ -5,11 +5,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,11 +22,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -34,6 +38,7 @@ import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
@@ -42,6 +47,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -56,10 +62,13 @@ private val heroMaxHeight = 420.dp
 /**
  * 首页主视觉（Lumen：内容即光源）。
  *
- * 全出血剧照 + 底部渐隐遮罩 + 内暗角；标题 / 元信息 / 主行动全部压在遮罩上， 任何亮度的剧照都能读清。媒体色只出现在三处：
- * 眉标圆点、进度线、"继续观看"填充按钮——都是"进行中"语义。
+ * 全出血剧照 + 左侧水平渐隐（A 稿 `.hero .scrim`）+ 底部渐隐 + 内暗角；标题 / 元信息 / 主行动全部压在 遮罩上，并统一加 Lumen 文字阴影（S1 A 稿
+ * `text-shadow`），任何亮度的剧照都能读清。
  *
- * 与旧稿的差别：头图从通栏方块改为同心圆角的大卡（22 / 28dp），元信息从长句改为 `·` 分隔的短标签， 行动区收敛为一个填充主行动（一屏一个 Filled，§8.1 规则 1）。
+ * 高度自适应：比例高度（平板 21:9 / 手机 16:9）是**下限**；内容（大字体、行动区换行）更高时卡片自动变高， 不再把行动区压扁（K60 竖屏曾因 16:9 高度 <
+ * 内容高度导致"继续观看 / 剩余 N 分钟"被裁）。
+ *
+ * 行动区用 `FlowRow`：宽屏时按钮与剩余时间同一行（Pad 5 布局不回退）；窄屏放不下时剩余时间自动换到 下一行，两者都完整显示。
  */
 @Composable
 fun HomeHero(
@@ -69,6 +78,7 @@ fun HomeHero(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
+    val lumen = LocalLumenColors.current
     val expanded =
         currentWindowAdaptiveInfo()
             .windowSizeClass
@@ -77,13 +87,14 @@ fun HomeHero(
     val contentPadding = if (expanded) CinefinSpacing.Space8 else CinefinSpacing.Space6
 
     val resumeFraction = item.resumeFraction()
+    val sideScrimColor = lumen?.scrim ?: colors.surface
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        // 平板按 21:9 出稿、手机按 16:9；两者都用高度上限兜底
+        // 平板按 21:9 出稿、手机按 16:9；高度上限兜底大屏，内容高度兜底小屏（见类注释）
         val ratio = if (expanded) 21f / 9f else 16f / 9f
-        val heroHeight = minOf(maxWidth / ratio, heroMaxHeight)
+        val minHeroHeight = minOf(maxWidth / ratio, heroMaxHeight)
         LumenCardFrame(
-            modifier = Modifier.fillMaxWidth().height(heroHeight),
+            modifier = Modifier.fillMaxWidth().heightIn(min = minHeroHeight),
             shape = shape,
             container = colors.surfaceContainerLowest,
         ) {
@@ -93,13 +104,14 @@ fun HomeHero(
                 error = ColorPainter(colors.surfaceContainer),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.matchParentSize(),
             )
 
-            // 流光三层：顶部光晕（内容即光源）→ 底部渐隐（文字托底）→ 内暗角（画面向内收）
-            Box(modifier = Modifier.fillMaxSize().background(lumenTopGlow))
-            Box(modifier = Modifier.fillMaxSize().background(lumenBottomScrim(colors.surface)))
-            Box(modifier = Modifier.fillMaxSize().background(lumenVignette))
+            // 流光四层：顶部光晕（内容即光源）→ 左侧水平渐隐（A 稿文字托底）→ 底部渐隐 → 内暗角
+            Box(modifier = Modifier.matchParentSize().background(lumenTopGlow))
+            Box(modifier = Modifier.matchParentSize().background(lumenSideScrim(sideScrimColor)))
+            Box(modifier = Modifier.matchParentSize().background(lumenBottomScrim(colors.surface)))
+            Box(modifier = Modifier.matchParentSize().background(lumenVignette))
 
             Column(
                 modifier =
@@ -120,7 +132,7 @@ fun HomeHero(
                                 if (resumeFraction > 0f) FilmR.string.continue_watching
                                 else CoreR.string.next_up
                             ),
-                        style = CinefinType.LabelLarge,
+                        style = CinefinType.LabelLarge.lumenTextShadow(LumenTextShadow.Meta),
                         color = media.bright,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -128,7 +140,7 @@ fun HomeHero(
                     item.episodeCode()?.let { code ->
                         Text(
                             text = " · $code",
-                            style = CinefinType.LabelMedium,
+                            style = CinefinType.LabelMedium.lumenTextShadow(LumenTextShadow.Meta),
                             color = colors.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -139,7 +151,9 @@ fun HomeHero(
 
                 Text(
                     text = item.heroTitle(),
-                    style = if (expanded) CinefinType.DisplaySmall else CinefinType.HeadlineMedium,
+                    style =
+                        (if (expanded) CinefinType.DisplaySmall else CinefinType.HeadlineMedium)
+                            .lumenTextShadow(LumenTextShadow.Title),
                     color = colors.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -148,7 +162,7 @@ fun HomeHero(
                 item.metaLine()?.let { meta ->
                     Text(
                         text = meta,
-                        style = CinefinType.LabelMedium,
+                        style = CinefinType.LabelMedium.lumenTextShadow(LumenTextShadow.Meta),
                         color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -158,7 +172,7 @@ fun HomeHero(
                 item.heroSubtitle()?.let { subtitle ->
                     Text(
                         text = subtitle,
-                        style = CinefinType.BodySmall,
+                        style = CinefinType.BodySmall.lumenTextShadow(LumenTextShadow.Meta),
                         color = colors.onSurfaceFaint,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -167,7 +181,11 @@ fun HomeHero(
 
                 Spacer(Modifier.height(CinefinSpacing.Space2))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // 行动区：放不下时自动换行（窄屏「继续观看」与「剩余 N 分钟」各占一行，均不截断）
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                ) {
                     CinefinButton(
                         text =
                             stringResource(
@@ -177,6 +195,7 @@ fun HomeHero(
                         onClick = { onClick(item) },
                         variant = CinefinButtonVariant.Filled,
                         size = CinefinButtonSize.Medium,
+                        tone = CinefinButtonTone.Inverse,
                         icon = { tint: Color ->
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_play),
@@ -187,15 +206,18 @@ fun HomeHero(
                         },
                     )
                     item.remainingMinutes()?.let { remainingMinutes ->
-                        Spacer(Modifier.width(CinefinSpacing.Space4))
                         Text(
                             text =
                                 stringResource(
                                     FilmR.string.hero_remaining_minutes,
                                     remainingMinutes,
                                 ),
-                            style = CinefinType.MonoData,
+                            style = CinefinType.MonoData.lumenTextShadow(LumenTextShadow.Meta),
                             color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                            textAlign = TextAlign.Start,
+                            modifier = Modifier.align(Alignment.CenterVertically),
                         )
                     }
                 }
@@ -214,7 +236,15 @@ fun HomeHero(
                         modifier =
                             Modifier.fillMaxWidth(resumeFraction)
                                 .height(3.dp)
-                                .background(media.base)
+                                .background(
+                                    if (lumen != null) {
+                                        Brush.horizontalGradient(
+                                            listOf(lumen.accent, lumen.accentSecondary)
+                                        )
+                                    } else {
+                                        SolidColor(media.base)
+                                    }
+                                )
                     )
                 }
             }

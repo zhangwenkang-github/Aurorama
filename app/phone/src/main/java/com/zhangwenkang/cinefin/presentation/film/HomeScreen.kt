@@ -33,6 +33,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeSection
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeView
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.film.presentation.home.HomeState
@@ -116,118 +117,123 @@ private fun HomeScreenLayout(
             ((available + wallGap.value.toInt()) / perColumn).coerceAtLeast(2)
         }
 
-    Column(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
-        HomeTopBar(
-            onOpenDrawer = onOpenDrawer,
-            onSearchClick = onSearchClick,
-            isLoading = state.isLoading,
-            isError = state.error != null,
-            onErrorClick = { showErrorDialog = true },
-            onRetryClick = onRetry,
-            modifier =
-                Modifier.padding(
-                    start = gutterStart,
-                    top = safePadding.top,
-                    end = gutterEnd,
-                ),
-        )
+    ProvideLumen {
+        Column(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
+            HomeTopBar(
+                onOpenDrawer = onOpenDrawer,
+                onSearchClick = onSearchClick,
+                isLoading = state.isLoading,
+                isError = state.error != null,
+                onErrorClick = { showErrorDialog = true },
+                onRetryClick = onRetry,
+                modifier =
+                    Modifier.padding(
+                        start = gutterStart,
+                        top = safePadding.top,
+                        end = gutterEnd,
+                    ),
+            )
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            PullToRefreshBox(isRefreshing = false, onRefresh = onRetry) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding =
-                        PaddingValues(bottom = safePadding.bottom + CinefinSpacing.Space8),
-                    horizontalArrangement = Arrangement.spacedBy(wallGap),
-                    // Lumen 节奏：区块之间 32dp（旧稿 16dp），页面因此有"幕布"般的呼吸感
-                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
-                ) {
-                    heroItem?.let { item ->
-                        item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
-                            HomeHero(
-                                item = item,
-                                onClick = onItemClick,
-                                modifier =
-                                    Modifier.padding(start = gutterStart, end = gutterEnd)
-                                        .lumenEntrance(),
-                            )
-                        }
-                    }
-
-                    resumeRail?.let { section ->
-                        item(key = "resume_rail", span = { GridItemSpan(maxLineSpan) }) {
-                            HomeSection(
-                                section = section.copy(items = section.items.drop(1)),
-                                itemsPadding = pagePadding,
-                                onAction = { action ->
-                                    if (action is HomeAction.OnItemClick) onItemClick(action.item)
-                                },
-                            )
-                        }
-                    }
-
-                    nextUpRail?.let { items ->
-                        item(key = "next_up", span = { GridItemSpan(maxLineSpan) }) {
-                            HomeSection(
-                                section = state.nextUpSection!!.homeSection.copy(items = items),
-                                itemsPadding = pagePadding,
-                                onAction = { action ->
-                                    if (action is HomeAction.OnItemClick) onItemClick(action.item)
-                                },
-                            )
-                        }
-                    }
-
-                    state.views.take(3).forEach { view ->
-                        item(key = "view_${view.id}", span = { GridItemSpan(maxLineSpan) }) {
-                            HomeView(
-                                view = view,
-                                itemsPadding = pagePadding,
-                                onAction = { action ->
-                                    if (action is HomeAction.OnItemClick) onItemClick(action.item)
-                                },
-                            )
-                        }
-                    }
-
-                    if (wallItems.isNotEmpty()) {
-                        item(key = "wall_title", span = { GridItemSpan(maxLineSpan) }) {
-                            SectionHeader(
-                                title = stringResource(FilmR.string.recently_added),
-                                modifier =
-                                    Modifier.padding(
-                                            start = gutterStart,
-                                            end = gutterEnd,
-                                            top = CinefinSpacing.Space2,
-                                        )
-                                        .padding(bottom = CinefinSpacing.Space2),
-                            )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                PullToRefreshBox(isRefreshing = false, onRefresh = onRetry) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding =
+                            PaddingValues(bottom = safePadding.bottom + CinefinSpacing.Space8),
+                        horizontalArrangement = Arrangement.spacedBy(wallGap),
+                        // Lumen 节奏：区块之间 32dp（旧稿 16dp），页面因此有"幕布"般的呼吸感
+                        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
+                    ) {
+                        heroItem?.let { item ->
+                            item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
+                                HomeHero(
+                                    item = item,
+                                    onClick = onItemClick,
+                                    modifier =
+                                        Modifier.padding(start = gutterStart, end = gutterEnd)
+                                            .lumenEntrance(),
+                                )
+                            }
                         }
 
-                        itemsIndexed(wallItems, key = { _, item -> item.id }) { index, item ->
-                            val isFirstColumn = index % columns == 0
-                            val isLastColumn = index % columns == columns - 1
-                            PosterItemCard(
-                                item = item,
-                                onClick = onItemClick,
-                                index = index,
-                                modifier =
-                                    Modifier.padding(
-                                        start = if (isFirstColumn) gutterStart else 0.dp,
-                                        end = if (isLastColumn) gutterEnd else 0.dp,
-                                    ),
-                            )
+                        resumeRail?.let { section ->
+                            item(key = "resume_rail", span = { GridItemSpan(maxLineSpan) }) {
+                                HomeSection(
+                                    section = section.copy(items = section.items.drop(1)),
+                                    itemsPadding = pagePadding,
+                                    onAction = { action ->
+                                        if (action is HomeAction.OnItemClick)
+                                            onItemClick(action.item)
+                                    },
+                                )
+                            }
+                        }
+
+                        nextUpRail?.let { items ->
+                            item(key = "next_up", span = { GridItemSpan(maxLineSpan) }) {
+                                HomeSection(
+                                    section = state.nextUpSection!!.homeSection.copy(items = items),
+                                    itemsPadding = pagePadding,
+                                    onAction = { action ->
+                                        if (action is HomeAction.OnItemClick)
+                                            onItemClick(action.item)
+                                    },
+                                )
+                            }
+                        }
+
+                        state.views.take(3).forEach { view ->
+                            item(key = "view_${view.id}", span = { GridItemSpan(maxLineSpan) }) {
+                                HomeView(
+                                    view = view,
+                                    itemsPadding = pagePadding,
+                                    onAction = { action ->
+                                        if (action is HomeAction.OnItemClick)
+                                            onItemClick(action.item)
+                                    },
+                                )
+                            }
+                        }
+
+                        if (wallItems.isNotEmpty()) {
+                            item(key = "wall_title", span = { GridItemSpan(maxLineSpan) }) {
+                                SectionHeader(
+                                    title = stringResource(FilmR.string.recently_added),
+                                    modifier =
+                                        Modifier.padding(
+                                                start = gutterStart,
+                                                end = gutterEnd,
+                                                top = CinefinSpacing.Space2,
+                                            )
+                                            .padding(bottom = CinefinSpacing.Space2),
+                                )
+                            }
+
+                            itemsIndexed(wallItems, key = { _, item -> item.id }) { index, item ->
+                                val isFirstColumn = index % columns == 0
+                                val isLastColumn = index % columns == columns - 1
+                                PosterItemCard(
+                                    item = item,
+                                    onClick = onItemClick,
+                                    index = index,
+                                    modifier =
+                                        Modifier.padding(
+                                            start = if (isFirstColumn) gutterStart else 0.dp,
+                                            end = if (isLastColumn) gutterEnd else 0.dp,
+                                        ),
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            if (state.error != null && showErrorDialog) {
-                ErrorDialog(
-                    exception = state.error!!,
-                    onDismissRequest = { showErrorDialog = false },
-                )
+                if (state.error != null && showErrorDialog) {
+                    ErrorDialog(
+                        exception = state.error!!,
+                        onDismissRequest = { showErrorDialog = false },
+                    )
+                }
             }
         }
     }
