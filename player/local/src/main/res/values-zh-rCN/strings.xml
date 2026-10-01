@@ -211,4 +211,24 @@
     <string name="player_controls_label_pip">画中画</string>
     <string name="player_controls_fullscreen">进入全屏</string>
     <string name="player_controls_fullscreen_exit">退出全屏</string>
+    <!-- W12 播放页第四轮：进度条下 6 键（音轨/字幕/倍率/码率/解码/详细信息）+ 右上 5 键 -->
+    <string name="player_controls_label_bitrate">码率</string>
+    <string name="player_controls_label_decode">解码</string>
+    <string name="player_controls_bitrate_auto">自动</string>
+    <string name="player_controls_bitrate_auto_caption">服务器自行判断直接播放或转码</string>
+    <string name="player_controls_bitrate_original">原始画质</string>
+    <string name="player_controls_bitrate_original_caption">只直接播放，不请求服务器转码</string>
+    <string name="player_controls_bitrate_caption">按所选码率请求服务器转码（对齐 Jellyfin 官方档位）</string>
+    <string name="player_controls_bitrate_active">服务器转码</string>
+    <string name="player_controls_decode_kernel">播放内核</string>
+    <string name="player_controls_decode_kernel_caption">切换内核会从当前位置重启播放</string>
+    <string name="player_controls_decode_strategy">解码策略</string>
+    <string name="player_controls_decode_hardware">硬解优先</string>
+    <string name="player_controls_decode_hardware_caption">本地硬解，失败时自动回退，不中断播放</string>
+    <string name="player_controls_decode_software">仅软解</string>
+    <string name="player_controls_decode_software_caption">FFmpeg / mpv 软解，兼容性最好、最耗电</string>
+    <string name="player_controls_decode_priority">优先级：服务器转码 / 解码 → 本地硬解 → 软解</string>
+    <string name="player_controls_decode_active">软解中</string>
+    <string name="player_settings_tab_playback">播放</string>
+    <string name="player_settings_tab_gesture">手势</string>
 </resources>

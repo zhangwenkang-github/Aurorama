@@ -27,6 +27,7 @@ import com.zhangwenkang.cinefin.models.toFindroidSegment
 import com.zhangwenkang.cinefin.models.toFindroidShow
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -312,6 +313,22 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
         withContext(Dispatchers.IO) {
+            /*
+             * 码率档位（W12 反馈 B）：0 = 自动（不设上限，服务器自行判断直连 / 转码）、
+             * -1 = 原始画质（只直连，明确禁用转码）、>0 = 具体 Mbps（按该上限请求服务器转码）。
+             * 选具体码率且片源超过上限时，服务器会在 mediaSources 里给出 transcodingUrl，
+             * 播放侧（PlaylistManager）优先使用它——功能与 Jellyfin 官方客户端的「质量」档位一致。
+             */
+            val streamingBitrate = appPreferences.getValue(appPreferences.playerStreamingBitrate)
+            val maxStreamingBitrate =
+                PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
+            val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)
+            Timber.d(
+                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b",
+                streamingBitrate,
+                maxStreamingBitrate,
+                transcodingEnabled,
+            )
             val sources = mutableListOf<FindroidSource>()
             sources.addAll(
                 jellyfinApi.mediaInfoApi
@@ -322,8 +339,8 @@ class JellyfinRepositoryImpl(
                             deviceProfile =
                                 DeviceProfile(
                                     name = "Direct play all",
-                                    maxStaticBitrate = 1_000_000_000,
-                                    maxStreamingBitrate = 1_000_000_000,
+                                    maxStaticBitrate = maxStreamingBitrate,
+                                    maxStreamingBitrate = maxStreamingBitrate,
                                     codecProfiles = emptyList(),
                                     containerProfiles = emptyList(),
                                     directPlayProfiles = emptyList(),
@@ -334,7 +351,9 @@ class JellyfinRepositoryImpl(
                                             SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
                                         ),
                                 ),
-                            maxStreamingBitrate = 1_000_000_000,
+                            maxStreamingBitrate = maxStreamingBitrate,
+                            // 原始画质 = 只直连；自动 / 具体码率都允许服务器转码
+                            enableTranscoding = transcodingEnabled,
                         ),
                     )
                     .content

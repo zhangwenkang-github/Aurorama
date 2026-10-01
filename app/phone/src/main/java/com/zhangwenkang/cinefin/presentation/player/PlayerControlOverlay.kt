@@ -103,6 +103,7 @@ import com.zhangwenkang.cinefin.player.local.domain.mergePlayerMediaInfo
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import com.zhangwenkang.cinefin.settings.domain.Constants
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlinx.coroutines.Dispatchers
@@ -151,6 +152,16 @@ private val SpeedOptions = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 /** 睡眠定时的档位（分钟） */
 private val SleepOptions = listOf(10, 20, 30, 60)
 
+/**
+ * 覆盖层控件「玻璃框」的不透明度（W12 反馈 A）。
+ *
+ * 用户要求比 W11 更透、框只包住图标与文字并带描边：底色从 0.45 降到 0.28（按下 0.44），
+ * 未选中的描边用极淡月白（0.16）——描边只负责在亮画面上勾出边界，不做色块（§2.6 第 1 条）。
+ */
+private const val PLAYER_GLASS_ALPHA = 0.28f
+private const val PLAYER_GLASS_PRESSED_ALPHA = 0.44f
+private const val PLAYER_GLASS_BORDER_ALPHA = 0.16f
+
 internal enum class PlayerPanel {
     None,
     Speed,
@@ -163,36 +174,99 @@ internal enum class PlayerPanel {
     Sleep,
     /** 播放页设置：播放 / 解码 / 字幕 / 音频 / 画面 / 手势 六组（§1.9） */
     Settings,
+    /** 解码面板（W12 反馈 B）：内核切换 + 硬解 / 软解策略，独立入口 */
+    Decode,
+    /** 码率面板（W12 反馈 B）：服务器转码档位，独立入口 */
+    Bitrate,
 }
 
 /**
- * 控制层版式规格（W11 反馈①③⑧）。
+ * 控制层版式规格（W12 终版布局 + 反馈 A 控件样式统一）。
  *
- * 「更多」取消后，原「更多」里的入口按性质分流：**右上工具簇**放内容 / 显示类（字幕 · 音轨 · 画面 · 选集， 宽屏再加播放设置），**左下工具行**放播放行为类（跳回 · 快退 ·
- * 倍速 · 睡眠 · 播放信息 · 画中画，窄屏再把播放设置接住） 并在右端收一个全屏键；中央只留播放簇（播放 / 快进 / 下一个）。
+ * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 6 键 = 音轨 / 字幕 / 倍率 /
+ * 码率 / 解码 / 详细信息，右侧 = 全屏键；右上角 5 键 = 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
  *
- * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证控件不越界、时间码仍然两端对齐。
+ * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证 6 键 + 全屏键一行不越界（极窄窗由横向滚动兜底）。
  */
 internal data class PlayerControlSpec(
-    /** 右上工具簇退化为纯图标，且只放「内容类」入口 */
-    val compactTools: Boolean,
-    /** 左下工具行的键尺寸（dp） */
+    /** 窄屏（<600dp）收一档 */
+    val narrow: Boolean,
+    /** 图标键边长（dp）；倍率键与它同宽 */
     val toolKeySizeDp: Float,
-    /** 左下工具行左右留白（dp） */
+    /** 图标键内图标尺寸（dp）——倍率键的图标同宽（W12 反馈 A） */
+    val iconSizeDp: Float,
+    /** 键间距（dp） */
+    val keyGapDp: Float,
+    /** 工具行左右留白（dp） */
     val toolRowPaddingDp: Float,
-    /** 窄屏把「播放设置」下移到左下工具行 */
-    val settingsInBottomRow: Boolean,
-)
+) {
+    /** 底栏一行 = 6 个工具键 + 右下全屏键 + 7 个间距（含全屏键前的留白） */
+    val bottomRowWidthDp: Float
+        get() = toolKeySizeDp * 7f + keyGapDp * 7f
+}
 
 internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
     val narrow = widthDp < 600f
-    return PlayerControlSpec(
-        compactTools = narrow,
-        toolKeySizeDp = if (narrow) 42f else 48f,
-        toolRowPaddingDp = if (narrow) 12f else 20f,
-        settingsInBottomRow = narrow,
-    )
+    return if (narrow) {
+            PlayerControlSpec(
+                narrow = true,
+                toolKeySizeDp = 38f,
+                iconSizeDp = 22f,
+                keyGapDp = 6f,
+                toolRowPaddingDp = 12f,
+            )
+        } else {
+            PlayerControlSpec(
+                narrow = false,
+                toolKeySizeDp = 44f,
+                iconSizeDp = 24f,
+                keyGapDp = 8f,
+                toolRowPaddingDp = 20f,
+            )
+        }
 }
+
+/**
+ * 进度条下方左侧 6 键的**固定顺序**（W12 终版布局，勿再变动）：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息。
+ *
+ * 抽成有序表是为了让「顺序」可被单测钉住——这一版布局是多轮确认的最终版，改顺序就是回归。
+ */
+internal enum class PlayerBottomKey {
+    Audio,
+    Subtitle,
+    Speed,
+    Bitrate,
+    Decode,
+    Info,
+}
+
+internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
+    listOf(
+        PlayerBottomKey.Audio,
+        PlayerBottomKey.Subtitle,
+        PlayerBottomKey.Speed,
+        PlayerBottomKey.Bitrate,
+        PlayerBottomKey.Decode,
+        PlayerBottomKey.Info,
+    )
+
+/** 右上角 5 键的**固定顺序**（W12 终版布局，勿再变动）：画中画 · 睡眠 · 选集 · 画面 · 设置。 */
+internal enum class PlayerTopKey {
+    Pip,
+    Sleep,
+    Episode,
+    Aspect,
+    Settings,
+}
+
+internal val PLAYER_TOP_KEY_ORDER: List<PlayerTopKey> =
+    listOf(
+        PlayerTopKey.Pip,
+        PlayerTopKey.Sleep,
+        PlayerTopKey.Episode,
+        PlayerTopKey.Aspect,
+        PlayerTopKey.Settings,
+    )
 
 /** 返回键该做什么（W11 反馈⑦）。 */
 internal enum class PlayerBackAction {
@@ -449,6 +523,10 @@ fun PlayerControlOverlay(
     videoTransform: PlayerVideoTransform,
     /** 切播放内核（ExoPlayer ⇄ mpv）：由 Activity 走「重启播放页 + 续播」的既有路径 */
     onSelectBackend: (String) -> Unit,
+    /** 解码策略（硬解优先 / 仅软解）：由 Activity 落偏好并重启播放页让两个内核重新创建实例（W12 反馈 B） */
+    onSelectDecodeMode: (String) -> Unit = {},
+    /** 码率档位（自动 / 原始画质 / 具体 Mbps）：由 Activity 落偏好并重启播放页重新拉取播放信息（W12 反馈 B） */
+    onSelectBitrate: (Long) -> Unit = {},
     /** mpv 换硬件解码：即时写 mpv 属性 */
     onSelectMpvHwdec: (String) -> Unit,
     /** 字幕模式变化：ViewModel 立即重选字幕 */
@@ -624,16 +702,22 @@ fun PlayerControlOverlay(
                 trickplay = uiState.currentTrickplay,
                 speed = runtime.speed,
                 sleepActive = sleepRemaining > 0L,
+                subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
+                bitrateActive = settingsController.state.streamingBitrate > 0L,
+                decodeActive =
+                    settingsController.state.decodeMode ==
+                        PlayerViewModel.DECODE_MODE_SOFTWARE ||
+                        settingsController.state.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
                 spec = spec,
                 isFullscreen = isFullscreen,
-                isPipSupported = isPipSupported,
                 onSeek = { target -> player.seekTo(target) },
                 onScrubStart = { controls.show() },
+                onAudio = { navigatePanel(PlayerPanel.Audio) },
+                onSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
                 onSpeed = { navigatePanel(PlayerPanel.Speed) },
-                onSleep = { navigatePanel(PlayerPanel.Sleep) },
+                onBitrate = { navigatePanel(PlayerPanel.Bitrate) },
+                onDecode = { navigatePanel(PlayerPanel.Decode) },
                 onInfo = { navigatePanel(PlayerPanel.Info) },
-                onSettings = { navigatePanel(PlayerPanel.Settings) },
-                onPip = onPip,
                 onToggleFullscreen = onToggleFullscreen,
                 scrim = scrim,
                 modifier = barModifier,
@@ -642,19 +726,18 @@ fun PlayerControlOverlay(
         }
 
     /*
-     * 控件分布（W11 反馈①）：取消「更多」后按性质分流——
-     * 右上工具簇 = 内容 / 显示类（字幕 · 音轨 · 画面 · 选集，宽屏再加 播放设置）；
-     * 左下工具行 = 播放行为类（倍率（显示即入口）· 睡眠 · 播放信息 ·（窄屏）播放设置 · 画中画）+ 右下角全屏键；
-     * 中央 = 传输簇（上一个 · 快退 · 播放 · 快进 · 下一个）。窄屏（<600dp）用纯图标 + 语义兜底，宽屏带文字标签（§11 B）。
+     * 控件分布（W12 终版，勿再变动）：
+     * 右上角 5 键 = 画中画 · 睡眠 · 选集 · 画面 · 设置；进度条下一行 = 左 6 键
+     * （音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 右下全屏键；中央五键；锁定键贴画面区右缘垂直居中。
      */
-    val toolCluster: @Composable (Boolean) -> Unit = { compact ->
+    val toolCluster: @Composable () -> Unit = {
         PlayerToolCluster(
-            compact = compact,
-            subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
+            isPipSupported = isPipSupported,
             // 画面键的激活态：比例不是「适应屏幕」，或做过旋转 / 镜像 / 裁剪 / 去黑边
             aspectActive =
                 aspect.resizeMode != AspectMode.Fit.resizeMode || videoTransform.hasAdjustments,
             queueActive = hasSidePanel && sidePanelExpanded,
+            sleepActive = sleepRemaining > 0L,
             queueDescription =
                 stringResource(
                     when {
@@ -663,8 +746,8 @@ fun PlayerControlOverlay(
                         else -> PlayerR.string.player_controls_side_panel_show
                     }
                 ),
-            onOpenSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
-            onOpenAudio = { navigatePanel(PlayerPanel.Audio) },
+            onPip = onPip,
+            onSleep = { navigatePanel(PlayerPanel.Sleep) },
             onOpenAspect = { navigatePanel(PlayerPanel.Aspect) },
             onOpenQueue =
                 if (hasSidePanel) {
@@ -724,6 +807,14 @@ fun PlayerControlOverlay(
                         onOpenQueue = { navigatePanel(PlayerPanel.Queue) },
                         onOpenInfo = { navigatePanel(PlayerPanel.Info) },
                         onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
+                        onOpenBitrate = { navigatePanel(PlayerPanel.Bitrate) },
+                        onOpenDecode = { navigatePanel(PlayerPanel.Decode) },
+                        bitrateActive = settingsController.state.streamingBitrate > 0L,
+                        decodeActive =
+                            settingsController.state.decodeMode ==
+                                PlayerViewModel.DECODE_MODE_SOFTWARE ||
+                                settingsController.state.backend ==
+                                    PlayerViewModel.PLAYER_BACKEND_MPV,
                         onSpeed = { navigatePanel(PlayerPanel.Speed) },
                         onSleep = { navigatePanel(PlayerPanel.Sleep) },
                         onPip = onPip,
@@ -760,9 +851,9 @@ fun PlayerControlOverlay(
                                 },
                             qualityLabel = videoQualityLabel(runtime.tracks),
                             onBack = onBack,
-                            // 窄屏 / 竖屏用纯图标工具簇（<600dp），宽屏带文字标签
-                            compactTools = spec.compactTools,
-                            tools = { compact -> toolCluster(compact) },
+                            // 右上角 5 键：画中画 · 睡眠 · 选集 · 画面 · 设置（W12 终版）
+                            showQualityLabel = !spec.narrow,
+                            tools = toolCluster,
                             modifier = Modifier.align(Alignment.TopCenter),
                             onHeightChanged = onTopBarHeight,
                         )
@@ -1005,6 +1096,9 @@ fun PlayerControlOverlay(
                             onAdjustDelay = onAdjustSubtitleDelay,
                             onResetDelay = onResetSubtitleDelay,
                             onUpdateStyle = onUpdateSubtitleStyle,
+                            // W12 反馈 B：字幕模式 / 记忆选择并入主字幕面板，全播放页只有这一个字幕入口
+                            controller = settingsController,
+                            onSubtitleModeChanged = onSubtitleModeChanged,
                         )
                     PlayerPanel.Audio ->
                         AudioPanel(
@@ -1012,6 +1106,8 @@ fun PlayerControlOverlay(
                             onSelectTrack = onSelectAudioTrack,
                             onAdjustDelay = onAdjustAudioDelay,
                             onResetDelay = onResetAudioDelay,
+                            // W12 反馈 B：音轨语言优先级并入主音轨面板，唯一入口
+                            controller = settingsController,
                         )
                     PlayerPanel.Aspect ->
                         AspectPanel(
@@ -1026,12 +1122,18 @@ fun PlayerControlOverlay(
                     PlayerPanel.Settings ->
                         PlayerSettingsPanel(
                             controller = settingsController,
-                            videoTransform = videoTransform,
                             onOpenPanel = { target -> navigatePanel(target) },
+                        )
+                    PlayerPanel.Decode ->
+                        PlayerDecodePanel(
+                            controller = settingsController,
                             onSelectBackend = onSelectBackend,
-                            onSelectMpvHwdec = onSelectMpvHwdec,
-                            onSubtitleModeChanged = onSubtitleModeChanged,
-                            onVideoTransformChanged = onVideoTransformChanged,
+                            onSelectDecodeMode = onSelectDecodeMode,
+                        )
+                    PlayerPanel.Bitrate ->
+                        PlayerBitratePanel(
+                            controller = settingsController,
+                            onSelectBitrate = onSelectBitrate,
                         )
                     PlayerPanel.Info ->
                         InfoPanel(
@@ -1070,10 +1172,10 @@ private fun PlayerTopBar(
     /** 清晰度徽标（例如 1080P）；取不到时传 null，不占位 */
     qualityLabel: String?,
     onBack: () -> Unit,
-    /** 窄屏 / 竖屏：工具簇用纯图标（<600dp），宽屏用「图标 + 文字」 */
-    compactTools: Boolean,
-    /** 右上角工具簇（字幕 / 音轨 / 画面 / 选集，宽屏再加 播放设置），由调用方注入保持单一入口 */
-    tools: @Composable (Boolean) -> Unit,
+    /** 窄屏：清晰度徽标不占位，把宽度让给标题与 5 个工具键 */
+    showQualityLabel: Boolean,
+    /** 右上角 5 键（画中画 / 睡眠 / 选集 / 画面 / 设置），由调用方注入保持单一入口与固定顺序 */
+    tools: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     onHeightChanged: (Int) -> Unit = {},
 ) {
@@ -1111,7 +1213,7 @@ private fun PlayerTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        if (qualityLabel != null && !compactTools) {
+        if (qualityLabel != null && showQualityLabel) {
             Spacer(Modifier.width(CinefinSpacing.Space2))
             Text(
                 text = qualityLabel,
@@ -1124,8 +1226,8 @@ private fun PlayerTopBar(
             )
         }
         Spacer(Modifier.width(CinefinSpacing.Space2))
-        // 右上角：字幕 / 音轨 / 画面 / 选集（宽屏再加 播放设置）——W11 取消「更多」，锁移到右缘中部
-        tools(compactTools)
+        // 右上角 5 键（W12 终版）：画中画 · 睡眠 · 选集 · 画面 · 设置；锁移到右缘中部
+        tools()
     }
 }
 
@@ -1304,7 +1406,13 @@ private fun PlayerTransportButton(
                     scaleY = scale
                 }
                 .clip(CinefinShapes.Full)
-                .background(colors.scrim.copy(alpha = if (pressed) 0.7f else 0.42f))
+                // 与其它覆盖键同一套玻璃底与描边（W12 反馈 A：更透 + 描边）
+                .background(
+                    colors.scrim.copy(
+                        alpha = if (pressed) PLAYER_GLASS_PRESSED_ALPHA else PLAYER_GLASS_ALPHA
+                    )
+                )
+                .border(1.dp, colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA), CinefinShapes.Full)
                 .then(
                     if (focused) {
                         Modifier.border(2.dp, media.base.copy(alpha = 0.6f), CinefinShapes.Full)
@@ -1333,19 +1441,19 @@ private fun PlayerTransportButton(
 }
 
 /**
- * 右上角工具簇（W11 反馈①）：字幕 / 音轨 / 画面 / 选集（+ 宽屏的 播放设置）。
+ * 右上角 5 键（W12 终版布局，顺序固定）：画中画 · 睡眠 · 选集 · 画面 · 设置。
  *
- * 「更多」整体取消：内容 / 显示类留在这里，播放行为类（倍速 / 睡眠 / 信息 / 画中画）下移到左下工具行； 窄屏（<600dp）连「播放设置」一起下移，右上只留 4
- * 个纯图标键，保证顶栏放得下返回 / 标题。 宽屏（≥600dp）用「图标 + 文字」工具键（§11 B）。
+ * 顺序表 [PLAYER_TOP_KEY_ORDER] 是这一版布局的验收点之一（用户明确「画面在选集与设置之间」），改顺序即回归。
+ * 键一律纯图标 + 贴边玻璃框（W12 反馈 A：更透、更小、带描边），文字语义走 contentDescription。
  */
 @Composable
 private fun PlayerToolCluster(
-    compact: Boolean,
-    subtitleEnabled: Boolean,
+    isPipSupported: Boolean,
     aspectActive: Boolean,
     queueActive: Boolean,
-    onOpenSubtitle: () -> Unit,
-    onOpenAudio: () -> Unit,
+    sleepActive: Boolean,
+    onPip: () -> Unit,
+    onSleep: () -> Unit,
     onOpenAspect: () -> Unit,
     onOpenQueue: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -1357,68 +1465,47 @@ private fun PlayerToolCluster(
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
         modifier = modifier,
     ) {
-        if (compact) {
-            PlayerIconButton(
-                iconRes = CoreR.drawable.ic_closed_caption,
-                contentDescription = stringResource(PlayerR.string.select_subtitle_track),
-                selected = subtitleEnabled,
-                onClick = onOpenSubtitle,
-                size = 44.dp,
-            )
-            PlayerIconButton(
-                iconRes = CoreR.drawable.ic_speaker,
-                contentDescription = stringResource(PlayerR.string.select_audio_track),
-                onClick = onOpenAudio,
-                size = 44.dp,
-            )
-            PlayerIconButton(
-                iconRes = CoreR.drawable.ic_aspect,
-                contentDescription = stringResource(PlayerR.string.player_controls_aspect),
-                selected = aspectActive,
-                onClick = onOpenAspect,
-                size = 44.dp,
-            )
-            PlayerIconButton(
-                iconRes = CoreR.drawable.ic_playlist,
-                contentDescription = queueDescription,
-                selected = queueActive,
-                onClick = onOpenQueue,
-                size = 44.dp,
-            )
-        } else {
-            PlayerToolButton(
-                iconRes = CoreR.drawable.ic_closed_caption,
-                label = stringResource(PlayerR.string.player_controls_label_subtitle),
-                contentDescription = stringResource(PlayerR.string.select_subtitle_track),
-                selected = subtitleEnabled,
-                onClick = onOpenSubtitle,
-            )
-            PlayerToolButton(
-                iconRes = CoreR.drawable.ic_speaker,
-                label = stringResource(PlayerR.string.player_controls_label_audio),
-                contentDescription = stringResource(PlayerR.string.select_audio_track),
-                onClick = onOpenAudio,
-            )
-            PlayerToolButton(
-                iconRes = CoreR.drawable.ic_aspect,
-                label = stringResource(PlayerR.string.player_controls_label_aspect),
-                contentDescription = stringResource(PlayerR.string.player_controls_aspect),
-                selected = aspectActive,
-                onClick = onOpenAspect,
-            )
-            PlayerToolButton(
-                iconRes = CoreR.drawable.ic_playlist,
-                label = stringResource(PlayerR.string.player_controls_episodes),
-                contentDescription = queueDescription,
-                selected = queueActive,
-                onClick = onOpenQueue,
-            )
-            PlayerToolButton(
-                iconRes = PlayerR.drawable.ic_player_settings,
-                label = stringResource(PlayerR.string.player_controls_label_settings),
-                contentDescription = stringResource(PlayerR.string.player_controls_settings),
-                onClick = onOpenSettings,
-            )
+        PLAYER_TOP_KEY_ORDER.forEach { key ->
+            when (key) {
+                PlayerTopKey.Pip ->
+                    if (isPipSupported) {
+                        PlayerIconButton(
+                            iconRes = PlayerR.drawable.ic_player_pip,
+                            contentDescription =
+                                stringResource(PlayerR.string.player_controls_label_pip),
+                            onClick = onPip,
+                        )
+                    }
+                PlayerTopKey.Sleep ->
+                    PlayerIconButton(
+                        iconRes = PlayerR.drawable.ic_player_sleep,
+                        contentDescription =
+                            stringResource(PlayerR.string.player_controls_label_sleep),
+                        selected = sleepActive,
+                        onClick = onSleep,
+                    )
+                PlayerTopKey.Episode ->
+                    PlayerIconButton(
+                        iconRes = CoreR.drawable.ic_playlist,
+                        contentDescription = queueDescription,
+                        selected = queueActive,
+                        onClick = onOpenQueue,
+                    )
+                PlayerTopKey.Aspect ->
+                    PlayerIconButton(
+                        iconRes = CoreR.drawable.ic_aspect,
+                        contentDescription = stringResource(PlayerR.string.player_controls_aspect),
+                        selected = aspectActive,
+                        onClick = onOpenAspect,
+                    )
+                PlayerTopKey.Settings ->
+                    PlayerIconButton(
+                        iconRes = PlayerR.drawable.ic_player_settings,
+                        contentDescription =
+                            stringResource(PlayerR.string.player_controls_settings),
+                        onClick = onOpenSettings,
+                    )
+            }
         }
     }
 }
@@ -1536,17 +1623,23 @@ private fun PlayerBottomBar(
     trickplay: Trickplay?,
     speed: Float,
     sleepActive: Boolean,
-    /** 版式规格（W11 反馈①⑧）：窄屏整体收一档、播放设置下移到本行 */
+    /** 字幕键激活态（改在进度条下方这一行，W12 终版布局） */
+    subtitleEnabled: Boolean,
+    /** 码率键激活态：选了具体 Mbps（服务器转码中） */
+    bitrateActive: Boolean,
+    /** 解码键激活态：软解或 mpv 内核 */
+    decodeActive: Boolean,
+    /** 版式规格（W12 反馈 A）：窄屏整体收一档 */
     spec: PlayerControlSpec,
     isFullscreen: Boolean,
-    isPipSupported: Boolean,
     onSeek: (Long) -> Unit,
     onScrubStart: () -> Unit,
+    onAudio: () -> Unit,
+    onSubtitle: () -> Unit,
     onSpeed: () -> Unit,
-    onSleep: () -> Unit,
+    onBitrate: () -> Unit,
+    onDecode: () -> Unit,
     onInfo: () -> Unit,
-    onSettings: () -> Unit,
-    onPip: () -> Unit,
     onToggleFullscreen: () -> Unit,
     /** 底栏遮罩：叠在画面上的形态用渐变，折痕下屏用 null（背景由内容区承担） */
     scrim: Brush? = null,
@@ -1565,62 +1658,121 @@ private fun PlayerBottomBar(
                 .padding(bottom = CinefinSpacing.Space3)
     ) {
         /*
-         * 左下工具行（W11 反馈①）：原「更多」里的播放行为类入口集中在这里——倍率键（显示即入口）/
-         * 睡眠 / 播放信息（窄屏再把 播放设置 接住）/ 画中画；最右端只有右下角的全屏键（反馈⑥）。
-         * 行内横向可滚：窗口再窄也只是多滑一下，不会把键挤出屏幕或压到时间码上（反馈⑧）。
+         * 进度条一行（W12 终版布局）：左 = 当前时间、中 = 进度条（保留流光渐变）、右 = 总时长——三者同一条线。
+         * 时间码不再单独占行，进度条也不再通栏贴底（下方还有 6 键工具行）。
          */
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier =
                 Modifier.fillMaxWidth()
-                    .padding(
-                        start = spec.toolRowPaddingDp.dp,
-                        end = spec.toolRowPaddingDp.dp,
-                        top = CinefinSpacing.Space2,
-                    ),
+                    .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space1),
+        ) {
+            Text(
+                text = formatTime(positionMs),
+                style = CinefinType.MonoDataSmall,
+                color = colors.onSurface,
+            )
+            Box(modifier = Modifier.weight(1f).padding(horizontal = CinefinSpacing.Space2)) {
+                PlayerSeekBar(
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    bufferedMs = bufferedMs,
+                    chapters = chapters,
+                    trickplay = trickplay,
+                    onScrubStart = onScrubStart,
+                    onScrub = { onSeek(it) },
+                )
+            }
+            Text(
+                text = formatTime(durationMs),
+                style = CinefinType.MonoDataSmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
+
+        Spacer(Modifier.height(CinefinSpacing.Space1))
+
+        /*
+         * 进度条下方：左侧 6 键（固定顺序 音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 右下全屏键。
+         * 行内横向可滚：窗口再窄也只是多滑一下，不会把键挤出屏幕（W12 反馈 A + W11 反馈⑧ 的兜底）。
+         */
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = spec.toolRowPaddingDp.dp, vertical = CinefinSpacing.Space1),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+                horizontalArrangement = Arrangement.spacedBy(spec.keyGapDp.dp),
                 modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
             ) {
-                /*
-                 * 倍率控件（W11 补充约束）：显示即入口——键面直接写当前倍率（1× / 1.5×），点开倍速面板，
-                 * 选完回来数字跟着更新；全播放页只有这一个倍速入口（右下角留给全屏键，二者不重叠）。
-                 */
-                PlayerSpeedKey(speed = speed, spec = spec, onClick = onSpeed)
-                PlayerToolKey(
-                    iconRes = PlayerR.drawable.ic_player_sleep,
-                    label = stringResource(PlayerR.string.player_controls_label_sleep),
-                    spec = spec,
-                    selected = sleepActive,
-                    onClick = onSleep,
-                )
-                PlayerToolKey(
-                    iconRes = PlayerR.drawable.ic_player_info,
-                    label = stringResource(PlayerR.string.player_controls_label_info),
-                    spec = spec,
-                    onClick = onInfo,
-                )
-                if (spec.settingsInBottomRow) {
-                    PlayerToolKey(
-                        iconRes = PlayerR.drawable.ic_player_settings,
-                        label = stringResource(PlayerR.string.player_controls_label_settings),
-                        spec = spec,
-                        onClick = onSettings,
-                    )
-                }
-                if (isPipSupported) {
-                    PlayerToolKey(
-                        iconRes = PlayerR.drawable.ic_player_pip,
-                        label = stringResource(PlayerR.string.player_controls_label_pip),
-                        spec = spec,
-                        onClick = onPip,
-                    )
+                PLAYER_BOTTOM_KEY_ORDER.forEach { key ->
+                    when (key) {
+                        PlayerBottomKey.Audio ->
+                            PlayerIconButton(
+                                iconRes = CoreR.drawable.ic_speaker,
+                                contentDescription =
+                                    stringResource(PlayerR.string.select_audio_track),
+                                onClick = onAudio,
+                                size = spec.toolKeySizeDp.dp,
+                                iconSize = spec.iconSizeDp.dp,
+                            )
+                        PlayerBottomKey.Subtitle ->
+                            PlayerIconButton(
+                                iconRes = CoreR.drawable.ic_closed_caption,
+                                contentDescription =
+                                    stringResource(PlayerR.string.select_subtitle_track),
+                                selected = subtitleEnabled,
+                                onClick = onSubtitle,
+                                size = spec.toolKeySizeDp.dp,
+                                iconSize = spec.iconSizeDp.dp,
+                            )
+                        // 倍率键：图标在上、当前倍率在下（W12 反馈 A），图标与其它键同宽
+                        PlayerBottomKey.Speed ->
+                            PlayerSpeedKey(speed = speed, spec = spec, onClick = onSpeed)
+                        PlayerBottomKey.Bitrate ->
+                            PlayerIconButton(
+                                iconRes = PlayerR.drawable.ic_player_bitrate,
+                                contentDescription =
+                                    stringResource(PlayerR.string.player_controls_label_bitrate),
+                                selected = bitrateActive,
+                                onClick = onBitrate,
+                                size = spec.toolKeySizeDp.dp,
+                                iconSize = spec.iconSizeDp.dp,
+                            )
+                        PlayerBottomKey.Decode ->
+                            PlayerIconButton(
+                                iconRes = PlayerR.drawable.ic_player_decode,
+                                contentDescription =
+                                    stringResource(PlayerR.string.player_controls_label_decode),
+                                selected = decodeActive,
+                                onClick = onDecode,
+                                size = spec.toolKeySizeDp.dp,
+                                iconSize = spec.iconSizeDp.dp,
+                            )
+                        PlayerBottomKey.Info ->
+                            PlayerIconButton(
+                                iconRes = PlayerR.drawable.ic_player_info,
+                                contentDescription =
+                                    stringResource(PlayerR.string.player_controls_label_info),
+                                onClick = onInfo,
+                                size = spec.toolKeySizeDp.dp,
+                                iconSize = spec.iconSizeDp.dp,
+                            )
+                    }
                 }
             }
+            if (sleepActive) {
+                Spacer(Modifier.width(CinefinSpacing.Space1))
+                Text(
+                    text = stringResource(PlayerR.string.player_controls_label_sleep),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = media.bright,
+                )
+            }
             Spacer(Modifier.width(CinefinSpacing.Space2))
-            // 右下角全屏键（反馈⑥）：同一个键，图标随状态切换；右下角只放它，不与任何倍率显示重叠
+            // 右下角全屏键：同一个键，图标随状态切换
             PlayerIconButton(
                 iconRes =
                     if (isFullscreen) {
@@ -1638,93 +1790,17 @@ private fun PlayerBottomBar(
                     ),
                 onClick = onToggleFullscreen,
                 size = spec.toolKeySizeDp.dp,
+                iconSize = spec.iconSizeDp.dp,
             )
         }
-
-        Spacer(Modifier.height(CinefinSpacing.Space2))
-
-        /*
-         * 时间码两端对齐（W11 反馈⑧）：左 = 当前进度、右 = 总时长，各占画面区两端的一个固定位置。
-         * 旧版把「当前 / 总时长 + 倍速」塞在左下一行里，窗口一窄就被挤出屏幕（右侧时间错位）；
-         * 现在时间有自己的行，进度条仍然通栏贴底，任何宽度下都不会重叠或越界（不靠隐藏修复）。
-         */
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space5),
-        ) {
-            Text(
-                text = formatTime(positionMs),
-                style = CinefinType.MonoDataSmall,
-                color = colors.onSurface,
-            )
-            Spacer(Modifier.weight(1f))
-            if (sleepActive) {
-                Text(
-                    text = stringResource(PlayerR.string.player_controls_label_sleep),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = media.bright,
-                )
-                Spacer(Modifier.width(CinefinSpacing.Space2))
-            }
-            Text(
-                text = formatTime(durationMs),
-                style = CinefinType.MonoDataSmall,
-                color = colors.onSurfaceVariant,
-            )
-        }
-
-        Spacer(Modifier.height(CinefinSpacing.Space1))
-
-        // 进度条通栏贴底（左右不留边）：轨道 / 缓冲层 / 章节刻度 / 拖拽态都在 PlayerSeekBar 内（反馈⑦）
-        PlayerSeekBar(
-            positionMs = positionMs,
-            durationMs = durationMs,
-            bufferedMs = bufferedMs,
-            chapters = chapters,
-            trickplay = trickplay,
-            onScrubStart = onScrubStart,
-            onScrub = { onSeek(it) },
-        )
     }
 }
 
 /**
- * 左下工具行的一个键：窄屏 = 纯图标（收一档），宽屏 = 「图标 + 文字」（§11 B）。
+ * 倍率键（W12 反馈 A）：**图标在上、当前倍率在下**的垂直堆叠，图标与其它工具键同宽（[PlayerControlSpec.iconSizeDp]）。
  *
- * 选中态用媒体色融进键本体（底 [media.container] + 描边 + 亮色图标文字），不做独立色点（§2.6 第 1 条）。
- */
-@Composable
-private fun PlayerToolKey(
-    iconRes: Int,
-    label: String,
-    spec: PlayerControlSpec,
-    onClick: () -> Unit,
-    selected: Boolean = false,
-) {
-    if (spec.compactTools) {
-        PlayerIconButton(
-            iconRes = iconRes,
-            contentDescription = label,
-            selected = selected,
-            onClick = onClick,
-            size = spec.toolKeySizeDp.dp,
-        )
-    } else {
-        PlayerToolButton(
-            iconRes = iconRes,
-            label = label,
-            contentDescription = label,
-            selected = selected,
-            onClick = onClick,
-        )
-    }
-}
-
-/**
- * 倍率键（W11 补充约束）：**倍率显示与倍率控件是同一个键**——键面直接写当前倍率（1× / 1.5×）并带倍速图标， 点开倍速面板，选完数字跟着更新。旧版那个游离在右下角的 "1×"
- * 显示收进这个键，右下角只留全屏键。
- *
- * 非 1× 时用媒体色融进键本体（§2.6 第 1 条：不做独立色点）；全播放页只有这一个倍速入口。
+ * 倍率显示与倍率控件仍是同一个键（W11 补充约束）：点开倍速面板，选完数字跟着更新；全播放页只有这一个倍速入口。
+ * 键宽与其它键一致、高度自然高出一点（图标 + 数字两行），行内垂直居中；非 1× 时用媒体色融进键本体。
  */
 @Composable
 private fun PlayerSpeedKey(speed: Float, spec: PlayerControlSpec, onClick: () -> Unit) {
@@ -1733,14 +1809,18 @@ private fun PlayerSpeedKey(speed: Float, spec: PlayerControlSpec, onClick: () ->
     val active = speed != 1f
     val shape = CinefinShapes.Md
     val label = formatSpeed(speed)
-    Box(
-        contentAlignment = Alignment.Center,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
         modifier =
-            Modifier.height(spec.toolKeySizeDp.dp)
-                .widthIn(min = if (spec.compactTools) 46.dp else 64.dp)
+            Modifier.width(spec.toolKeySizeDp.dp)
                 .clip(shape)
                 .background(if (active) media.container else colors.scrim.copy(alpha = 0.45f))
-                .then(if (active) Modifier.border(1.dp, media.outline, shape) else Modifier)
+                .border(
+                    1.dp,
+                    if (active) media.outline else colors.onSurface.copy(alpha = 0.16f),
+                    shape,
+                )
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -1752,39 +1832,36 @@ private fun PlayerSpeedKey(speed: Float, spec: PlayerControlSpec, onClick: () ->
                     contentDescription = label
                     selected = active
                 }
-                .padding(horizontal = CinefinSpacing.Space2),
+                .padding(vertical = 4.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // 宽屏的键都带图标，倍率键也跟着带一个；窄屏只留数字，把宽度让给旁边的全屏键
-            if (!spec.compactTools) {
-                Icon(
-                    painter = painterResource(PlayerR.drawable.ic_player_speed),
-                    contentDescription = null,
-                    tint = if (active) media.bright else colors.onSurface,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(CinefinSpacing.Space1))
-            }
-            Text(
-                text = label,
-                style = CinefinType.MonoDataSmall,
-                color = if (active) media.bright else colors.onSurface,
-                maxLines = 1,
-            )
-        }
+        Icon(
+            painter = painterResource(PlayerR.drawable.ic_player_speed),
+            contentDescription = null,
+            tint = if (active) media.bright else colors.onSurface,
+            modifier = Modifier.size(spec.iconSizeDp.dp),
+        )
+        Spacer(Modifier.height(1.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (active) media.bright else colors.onSurface,
+            maxLines = 1,
+        )
     }
 }
 
 /**
- * 小窗（Compact）的工具行（W11 反馈①）：小窗既没有右上角工具簇，也没有左下工具行的位置， 因此用一个横向可滚的小键行把全部入口兜住——「更多」取消后仍然一个功能一个入口、功能不缩水，
- * 窗口再窄也只是多滑一下（反馈⑧：不靠隐藏修复）。
+ * 小窗（Compact）的工具行：小窗既没有右上角 5 键、也没有进度条下 6 键的位置， 因此用一个横向可滚的小键行把全部入口兜住——一个功能一个入口、功能不缩水，
+ * 窗口再窄也只是多滑一下（W11 反馈⑧：不靠隐藏修复；W12 补 码率 / 解码 两个新入口）。
  */
 @Composable
 internal fun PlayerCompactToolKeys(
     subtitleEnabled: Boolean,
     aspectActive: Boolean,
+    bitrateActive: Boolean,
+    decodeActive: Boolean,
     isPipSupported: Boolean,
-    /** 当前倍率：右下角倍率键的显示值（同时也是入口） */
+    /** 当前倍率：倍率键的显示值（同时也是入口） */
     speed: Float,
     onOpenSubtitle: () -> Unit,
     onOpenAudio: () -> Unit,
@@ -1792,18 +1869,14 @@ internal fun PlayerCompactToolKeys(
     onOpenQueue: () -> Unit,
     onOpenInfo: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenBitrate: () -> Unit,
+    onOpenDecode: () -> Unit,
     onSpeed: () -> Unit,
     onSleep: () -> Unit,
     onPip: () -> Unit,
     onLock: () -> Unit,
 ) {
-    PlayerIconButton(
-        iconRes = CoreR.drawable.ic_closed_caption,
-        contentDescription = stringResource(PlayerR.string.select_subtitle_track),
-        selected = subtitleEnabled,
-        onClick = onOpenSubtitle,
-        size = 40.dp,
-    )
+    // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息，其余入口跟在后面
     PlayerIconButton(
         iconRes = CoreR.drawable.ic_speaker,
         contentDescription = stringResource(PlayerR.string.select_audio_track),
@@ -1811,10 +1884,38 @@ internal fun PlayerCompactToolKeys(
         size = 40.dp,
     )
     PlayerIconButton(
-        iconRes = CoreR.drawable.ic_aspect,
-        contentDescription = stringResource(PlayerR.string.player_controls_aspect),
-        selected = aspectActive,
-        onClick = onOpenAspect,
+        iconRes = CoreR.drawable.ic_closed_caption,
+        contentDescription = stringResource(PlayerR.string.select_subtitle_track),
+        selected = subtitleEnabled,
+        onClick = onOpenSubtitle,
+        size = 40.dp,
+    )
+    // 倍率显示 = 倍率入口（W11 补充约束），小窗里也不再有第二个倍速入口
+    PlayerSpeedKey(speed = speed, spec = playerControlSpec(0f), onClick = onSpeed)
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_bitrate,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_bitrate),
+        selected = bitrateActive,
+        onClick = onOpenBitrate,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_decode,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_decode),
+        selected = decodeActive,
+        onClick = onOpenDecode,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_info,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_info),
+        onClick = onOpenInfo,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_sleep,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_sleep),
+        onClick = onSleep,
         size = 40.dp,
     )
     PlayerIconButton(
@@ -1824,17 +1925,10 @@ internal fun PlayerCompactToolKeys(
         size = 40.dp,
     )
     PlayerIconButton(
-        iconRes = PlayerR.drawable.ic_player_sleep,
-        contentDescription = stringResource(PlayerR.string.player_controls_label_sleep),
-        onClick = onSleep,
-        size = 40.dp,
-    )
-    // 倍率显示 = 倍率入口（W11 补充约束），小窗里也不再有第二个倍速入口
-    PlayerSpeedKey(speed = speed, spec = playerControlSpec(0f), onClick = onSpeed)
-    PlayerIconButton(
-        iconRes = PlayerR.drawable.ic_player_info,
-        contentDescription = stringResource(PlayerR.string.player_controls_label_info),
-        onClick = onOpenInfo,
+        iconRes = CoreR.drawable.ic_aspect,
+        contentDescription = stringResource(PlayerR.string.player_controls_aspect),
+        selected = aspectActive,
+        onClick = onOpenAspect,
         size = 40.dp,
     )
     PlayerIconButton(
@@ -2066,7 +2160,10 @@ internal fun PlayerIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
+    /** 键边长：W12 反馈 A 起按键位版式收窄（刚好包住图标 + 一点边距） */
+    size: Dp = 40.dp,
+    /** 键内图标尺寸：与倍率键的图标同宽 */
+    iconSize: Dp = 24.dp,
     /** 选中态：该功能已开启（字幕、循环、画面比例、睡眠定时等） */
     selected: Boolean = false,
     enabled: Boolean = true,
@@ -2103,13 +2200,23 @@ internal fun PlayerIconButton(
                     when {
                         error -> colors.error.copy(alpha = 0.16f)
                         selected -> media.container
-                        pressed -> colors.scrim.copy(alpha = 0.72f)
+                        pressed -> colors.scrim.copy(alpha = PLAYER_GLASS_PRESSED_ALPHA)
                         focused -> colors.stateHover
-                        glass -> colors.scrim.copy(alpha = 0.45f)
+                        glass -> colors.scrim.copy(alpha = PLAYER_GLASS_ALPHA)
                         else -> Color.Transparent
                     }
                 )
-                .then(if (selected) Modifier.border(1.dp, media.outline, shape) else Modifier)
+                // W12 反馈 A：所有控件外框加 1dp 描边（选中态用媒体色描边），未选中是极淡的月白
+                .border(
+                    1.dp,
+                    when {
+                        error -> colors.error.copy(alpha = 0.4f)
+                        selected -> media.outline
+                        glass -> colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA)
+                        else -> Color.Transparent
+                    },
+                    shape,
+                )
                 .then(
                     if (focused) Modifier.border(2.dp, media.base.copy(alpha = 0.6f), shape)
                     else Modifier
@@ -2134,7 +2241,7 @@ internal fun PlayerIconButton(
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(size * 0.45f),
+                modifier = Modifier.size(iconSize * 0.9f),
                 color = colors.onSurface,
                 strokeWidth = 2.dp,
             )
@@ -2148,7 +2255,7 @@ internal fun PlayerIconButton(
                         selected -> media.bright
                         else -> colors.onSurface
                     },
-                modifier = Modifier.size(size * 0.5f),
+                modifier = Modifier.size(iconSize),
             )
         }
         if (badge && !loading) {
@@ -2161,77 +2268,6 @@ internal fun PlayerIconButton(
                         .background(media.base)
             )
         }
-    }
-}
-
-/**
- * 画面覆盖层工具键（§8.7 + §11 B）：图标 + 文字标签，玻璃底。
- *
- * 选中态用媒体色融入控件本体（底 Media.Container + 描边 Media.Outline + 亮色图标文字）， 不使用独立色点。命中区高 56dp，宽 ≥60dp。
- */
-@Composable
-internal fun PlayerToolButton(
-    iconRes: Int,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    selected: Boolean = false,
-    contentDescription: String = label,
-) {
-    val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val focused by interactionSource.collectIsFocusedAsState()
-    val shape = CinefinShapes.Md
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier =
-            modifier
-                // 5 个高频键在 360dp 手机上不换行：56dp 底 + 8dp 间距 + 20dp 边距 ≈ 352dp
-                .widthIn(min = 56.dp)
-                .heightIn(min = 56.dp)
-                .clip(shape)
-                .background(
-                    when {
-                        selected && pressed -> media.containerPressed
-                        selected -> media.container
-                        pressed -> colors.scrim.copy(alpha = 0.72f)
-                        else -> colors.scrim.copy(alpha = 0.45f)
-                    }
-                )
-                .then(if (selected) Modifier.border(1.dp, media.outline, shape) else Modifier)
-                .then(
-                    if (focused) Modifier.border(2.dp, media.base.copy(alpha = 0.6f), shape)
-                    else Modifier
-                )
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    role = Role.Button,
-                    onClickLabel = contentDescription,
-                    onClick = onClick,
-                )
-                .semantics(mergeDescendants = true) {
-                    this.selected = selected
-                    this.contentDescription = contentDescription
-                }
-                .padding(horizontal = CinefinSpacing.Space1, vertical = CinefinSpacing.Space1),
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            tint = if (selected) media.bright else colors.onSurface,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (selected) media.bright else colors.onSurfaceVariant,
-            maxLines = 1,
-        )
     }
 }
 
@@ -2550,6 +2586,8 @@ private fun panelTitleRes(panel: PlayerPanel): Int =
         PlayerPanel.Queue -> PlayerR.string.player_controls_queue
         PlayerPanel.Sleep -> PlayerR.string.player_controls_sleep_timer
         PlayerPanel.Settings -> PlayerR.string.player_controls_settings
+        PlayerPanel.Decode -> PlayerR.string.player_controls_label_decode
+        PlayerPanel.Bitrate -> PlayerR.string.player_controls_label_bitrate
         PlayerPanel.None -> PlayerR.string.player_controls_settings
     }
 
@@ -2673,6 +2711,9 @@ private fun SubtitlePanel(
     onAdjustDelay: (Long) -> Unit,
     onResetDelay: () -> Unit,
     onUpdateStyle: (SubtitleStyle) -> Unit,
+    /** W12 反馈 B：字幕模式 / 记忆选择并入本面板（唯一字幕入口），控制器由 Activity 持有 */
+    controller: PlayerSettingsController,
+    onSubtitleModeChanged: (String) -> Unit,
 ) {
     val colorLabels =
         listOf(
@@ -2712,6 +2753,32 @@ private fun SubtitlePanel(
 
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
+            // 字幕模式与「记住手动选择」（W12 反馈 B：从播放设置并入这里，全播放页只有这一个字幕入口）
+            PanelTitle(stringResource(PlayerR.string.player_settings_subtitle_mode))
+            val subtitleModes =
+                listOf(
+                    Constants.SubtitleMode.AUTO to PlayerR.string.player_settings_subtitle_auto,
+                    Constants.SubtitleMode.ALWAYS to
+                        PlayerR.string.player_settings_subtitle_always,
+                    Constants.SubtitleMode.OFF to PlayerR.string.player_settings_subtitle_off,
+                )
+            PanelChipRow(
+                options =
+                    subtitleModes.map { (value, labelRes) ->
+                        stringResource(labelRes) to
+                            (controller.state.subtitleMode == value)
+                    },
+                onSelect = { index ->
+                    val value = subtitleModes[index].first
+                    controller.setSubtitleMode(value)
+                    onSubtitleModeChanged(value)
+                },
+            )
+            PanelSwitchRow(
+                label = stringResource(PlayerR.string.player_settings_remember_track),
+                checked = controller.state.rememberTrackSelection,
+                onCheckedChange = { controller.setRememberTrackSelection(it) },
+            )
             /*
              * 延迟放最上面：调 ±0.1s 是字幕面板最高频的操作，
              * 轨道多的时候（内嵌多语言字幕）不能让它被挤到滚动区下面。
@@ -2946,10 +3013,33 @@ private fun AudioPanel(
     onSelectTrack: (Int) -> Unit,
     onAdjustDelay: (Long) -> Unit,
     onResetDelay: () -> Unit,
+    /** W12 反馈 B：音轨语言优先级并入本面板（唯一音轨入口） */
+    controller: PlayerSettingsController,
 ) {
     val colors = LocalCinefinColors.current
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
+            // 语言优先级（从播放设置并入）：决定自动选轨时优先挑哪条音轨
+            PanelTitle(stringResource(PlayerR.string.player_settings_audio_language))
+            PanelChipRow(
+                options =
+                    AudioLanguagePresets.map { (value, labelRes) ->
+                        stringResource(labelRes) to (controller.state.audioLanguagePreset == value)
+                    },
+                onSelect = { index ->
+                    controller.setAudioLanguage(AudioLanguagePresets[index].first)
+                },
+            )
+            Text(
+                text = stringResource(PlayerR.string.player_settings_audio_language_caption),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier =
+                    Modifier.padding(
+                        horizontal = CinefinSpacing.Space5,
+                        vertical = CinefinSpacing.Space1,
+                    ),
+            )
             // 延迟放最上面：和字幕面板一致，最高频的调节项不该被列表挤到下面
             PanelTitle(stringResource(PlayerR.string.player_audio_delay))
             AudioDelayRow(

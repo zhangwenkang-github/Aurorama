@@ -127,6 +127,16 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 音轨延迟（毫秒）：正 = 声音延后，负 = 声音提前；面板按 0.05s 步长调节，范围 ±5s */
     val playerAudioDelayMs = Preference("pref_player_audio_delay_ms", 0L)
 
+    // Player - 码率 / 解码（W12：服务器转码档位 + 硬解/软解策略；只追加，不重排既有键）
+    /**
+     * 播放码率档位：0 = 自动（服务器自行判断直连 / 转码）、-1 = 原始画质（只直连，不转码）、
+     * 其余 = 具体 Mbps（按该码率请求服务器转码）。映射见 [PlayerStreamingQuality]。
+     */
+    val playerStreamingBitrate = Preference("pref_player_streaming_bitrate", 0L)
+
+    /** 解码策略：hardware = 硬解优先（失败自动回退）、software = 仅软解（FFmpeg / mpv） */
+    val playerDecodeMode = Preference("pref_player_decode_mode", "hardware")
+
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)
     val downloadWhenRoaming = Preference("pref_downloads_roaming", false)

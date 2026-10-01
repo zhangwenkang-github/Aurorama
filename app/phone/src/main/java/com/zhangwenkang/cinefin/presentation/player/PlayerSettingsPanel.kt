@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.player
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,6 +43,7 @@ import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
+import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 
 /**
@@ -72,10 +74,14 @@ data class PlayerSettingsSnapshot(
     val gesturesSpeedMultiplier: String,
     val seekSensitivity: String,
     val verticalSensitivity: String,
+    /** 码率档位（W12 反馈 B）：0 / -1 / 具体 Mbps，见 [PlayerStreamingQuality] */
+    val streamingBitrate: Long,
+    /** 解码策略：hardware / software（W12 反馈 B） */
+    val decodeMode: String,
 )
 
-/** 语言优先级预设：写进既有 `pref_audio_languages`（逗号分隔的全量列表） */
-private val AudioLanguagePresets =
+/** 语言优先级预设（W12：并入「音轨」面板）：写进既有 `pref_audio_languages`（逗号分隔的全量列表） */
+internal val AudioLanguagePresets =
     listOf(
         "zh-Hans,zh-Hant,zh,en" to PlayerR.string.player_settings_language_zh,
         "ja,zh-Hans,zh-Hant,zh,en" to PlayerR.string.player_settings_language_ja,
@@ -149,6 +155,12 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
     fun setVerticalSensitivity(value: String) =
         write(appPreferences.playerGesturesVerticalSensitivity, value)
 
+    /** 码率档位：写偏好后由 Activity 重启播放页重新拉取播放信息（服务器转码生效） */
+    fun setStreamingBitrate(value: Long) = write(appPreferences.playerStreamingBitrate, value)
+
+    /** 解码策略：hardware / software（mpv 的硬解开关同步由面板写 playerMpvHwdec） */
+    fun setDecodeMode(value: String) = write(appPreferences.playerDecodeMode, value)
+
     /** 画面调整：旋转 / 镜像 / 裁剪 / 去黑边，写偏好后由播放页即时应用 */
     fun setVideoTransform(transform: PlayerVideoTransform) {
         appPreferences.setValue(PlayerExtraPreferences.videoRotation, transform.rotationDegrees)
@@ -204,41 +216,43 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
             seekSensitivity = appPreferences.getValue(appPreferences.playerGesturesSeekSensitivity),
             verticalSensitivity =
                 appPreferences.getValue(appPreferences.playerGesturesVerticalSensitivity),
+            streamingBitrate = appPreferences.getValue(appPreferences.playerStreamingBitrate),
+            decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode),
         )
 }
 
-/** 设置面板的六个分组（§1.9） */
-private enum class PlayerSettingsGroup(val labelRes: Int) {
-    Playback(PlayerR.string.player_settings_group_playback),
-    Decode(PlayerR.string.player_settings_group_decode),
-    Subtitle(PlayerR.string.player_settings_group_subtitle),
-    Audio(PlayerR.string.player_settings_group_audio),
-    Picture(PlayerR.string.player_settings_group_picture),
-    Gesture(PlayerR.string.player_settings_group_gesture),
+/**
+ * 设置面板的两个分类（W12 反馈 B）：**播放 / 手势**。
+ *
+ * 解码、字幕、音频、画面全部移出设置面板：解码有独立入口（进度条下 6 键之一）、字幕与音频并入各自面板、
+ * 画面只保留右上角入口——设置面板里不再出现重复入口，也不再出现「播放」大按钮。
+ */
+private enum class PlayerSettingsTab(@StringRes val labelRes: Int) {
+    Playback(PlayerR.string.player_settings_tab_playback),
+    Gesture(PlayerR.string.player_settings_tab_gesture),
 }
 
 /**
- * 播放页设置面板（§1.9）：播放 / 解码 / 字幕 / 音频 / 画面 / 手势 六组，页内直接改、即时生效。
+ * 播放页设置面板（W12 反馈 B）：播放 / 手势两个分类，Tab 切换，页内直接改、即时生效。
  *
- * 需要跨组件动作的项（切内核、换画面比例、字幕模式重选、mpv 换硬解）通过回调交给宿主； 其余项写完偏好即生效（手势层与播放页都是「用时现读」）。
+ * 「播放」分类直接列播放相关设置项；「手势」分类放全部手势设置。 需要跨组件动作的项（切内核、换画面比例、字幕模式重选）在各自面板里，通过回调交给宿主。
  */
 @Composable
 internal fun PlayerSettingsPanel(
     controller: PlayerSettingsController,
-    videoTransform: PlayerVideoTransform,
     onOpenPanel: (PlayerPanel) -> Unit,
-    onSelectBackend: (String) -> Unit,
-    onSelectMpvHwdec: (String) -> Unit,
-    onSubtitleModeChanged: (String) -> Unit,
-    onVideoTransformChanged: (PlayerVideoTransform) -> Unit,
 ) {
-    var group by remember { mutableStateOf(PlayerSettingsGroup.Playback) }
+    var tab by remember { mutableStateOf(PlayerSettingsTab.Playback) }
     val settings = controller.state
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsGroupRow(selected = group, onSelect = { group = it })
+        SettingsGroupRow(
+            labels = PlayerSettingsTab.entries.map { it.labelRes },
+            selectedIndex = tab.ordinal,
+            onSelect = { index -> tab = PlayerSettingsTab.entries[index] },
+        )
         PanelList {
-            when (group) {
-                PlayerSettingsGroup.Playback -> {
+            when (tab) {
+                PlayerSettingsTab.Playback -> {
                     PanelSwitchRow(
                         label = stringResource(PlayerR.string.player_settings_background_audio),
                         caption =
@@ -278,113 +292,7 @@ internal fun PlayerSettingsPanel(
                     )
                 }
 
-                PlayerSettingsGroup.Decode -> {
-                    PanelTitle(stringResource(PlayerR.string.player_settings_backend))
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_backend_exoplayer),
-                        caption = stringResource(PlayerR.string.player_settings_backend_caption),
-                        selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER,
-                        onClick = {
-                            controller.setBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
-                            onSelectBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
-                        },
-                    )
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_backend_mpv),
-                        caption = stringResource(PlayerR.string.player_settings_backend_caption),
-                        selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
-                        onClick = {
-                            controller.setBackend(PlayerViewModel.PLAYER_BACKEND_MPV)
-                            onSelectBackend(PlayerViewModel.PLAYER_BACKEND_MPV)
-                        },
-                    )
-                    PanelTitle(stringResource(PlayerR.string.player_settings_mpv_hwdec))
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_mpv_hwdec_on),
-                        caption = stringResource(PlayerR.string.player_settings_mpv_hwdec_caption),
-                        selected = settings.mpvHwdec == "mediacodec",
-                        enabled = settings.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
-                        onClick = {
-                            controller.setMpvHwdec("mediacodec")
-                            onSelectMpvHwdec("mediacodec")
-                        },
-                    )
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_mpv_hwdec_off),
-                        caption = stringResource(PlayerR.string.player_settings_mpv_hwdec_caption),
-                        selected = settings.mpvHwdec == "no",
-                        enabled = settings.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
-                        onClick = {
-                            controller.setMpvHwdec("no")
-                            onSelectMpvHwdec("no")
-                        },
-                    )
-                }
-
-                PlayerSettingsGroup.Subtitle -> {
-                    PanelTitle(stringResource(PlayerR.string.player_settings_subtitle_mode))
-                    val modes =
-                        listOf(
-                            Constants.SubtitleMode.AUTO to
-                                PlayerR.string.player_settings_subtitle_auto,
-                            Constants.SubtitleMode.ALWAYS to
-                                PlayerR.string.player_settings_subtitle_always,
-                            Constants.SubtitleMode.OFF to
-                                PlayerR.string.player_settings_subtitle_off,
-                        )
-                    PanelChipRow(
-                        options =
-                            modes.map { (value, labelRes) ->
-                                stringResource(labelRes) to (settings.subtitleMode == value)
-                            },
-                        onSelect = { index ->
-                            val value = modes[index].first
-                            controller.setSubtitleMode(value)
-                            onSubtitleModeChanged(value)
-                        },
-                    )
-                    PanelSwitchRow(
-                        label = stringResource(PlayerR.string.player_settings_remember_track),
-                        checked = settings.rememberTrackSelection,
-                        onCheckedChange = { controller.setRememberTrackSelection(it) },
-                    )
-                }
-
-                PlayerSettingsGroup.Audio -> {
-                    PanelTitle(stringResource(PlayerR.string.player_settings_audio_language))
-                    PanelChipRow(
-                        options =
-                            AudioLanguagePresets.map { (value, labelRes) ->
-                                stringResource(labelRes) to (settings.audioLanguagePreset == value)
-                            },
-                        onSelect = { index ->
-                            controller.setAudioLanguage(AudioLanguagePresets[index].first)
-                        },
-                    )
-                    Text(
-                        text =
-                            stringResource(PlayerR.string.player_settings_audio_language_caption),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalCinefinColors.current.onSurfaceVariant,
-                        modifier =
-                            Modifier.padding(
-                                horizontal = CinefinSpacing.Space5,
-                                vertical = CinefinSpacing.Space1,
-                            ),
-                    )
-                }
-
-                PlayerSettingsGroup.Picture -> {
-                    VideoTransformControls(
-                        transform = videoTransform,
-                        onTransformChange = { transform ->
-                            controller.setVideoTransform(transform)
-                            onVideoTransformChanged(transform)
-                        },
-                    )
-                }
-
-                PlayerSettingsGroup.Gesture -> {
+                PlayerSettingsTab.Gesture -> {
                     PanelSwitchRow(
                         label = stringResource(PlayerR.string.player_settings_gesture_master),
                         checked = settings.gesturesEnabled,
@@ -457,11 +365,12 @@ internal fun PlayerSettingsPanel(
     }
 }
 
-/** 六组的分组选择行（横向可滚，样式与队列的季节页签一致） */
+/** 分类选择行（W12：播放 / 手势两个 Tab，横向可滚，样式与队列的季节页签一致） */
 @Composable
 private fun SettingsGroupRow(
-    selected: PlayerSettingsGroup,
-    onSelect: (PlayerSettingsGroup) -> Unit,
+    labels: List<Int>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -472,10 +381,10 @@ private fun SettingsGroupRow(
                 .horizontalScroll(rememberScrollState())
                 .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2),
     ) {
-        PlayerSettingsGroup.entries.forEach { group ->
-            val isSelected = group == selected
+        labels.forEachIndexed { index, labelRes ->
+            val isSelected = index == selectedIndex
             Text(
-                text = stringResource(group.labelRes),
+                text = stringResource(labelRes),
                 style = MaterialTheme.typography.labelLarge,
                 color = if (isSelected) media.bright else colors.onSurfaceVariant,
                 modifier =
@@ -486,7 +395,7 @@ private fun SettingsGroupRow(
                             if (isSelected) media.outline else colors.outline,
                             CinefinShapes.Sm,
                         )
-                        .clickable { onSelect(group) }
+                        .clickable { onSelect(index) }
                         .semantics { this.selected = isSelected }
                         .padding(
                             horizontal = CinefinSpacing.Space4,
@@ -660,4 +569,120 @@ internal fun VideoTransformControls(
         checked = transform.letterboxCrop,
         onCheckedChange = { onTransformChange(transform.copy(letterboxCrop = it)) },
     )
+}
+
+/**
+ * 解码面板（W12 反馈 B）：**内核切换（ExoPlayer / mpv）+ 硬解 / 软解策略**。
+ *
+ * 优先级写在面板底部：服务器转码 / 解码 → 本地硬解 → 软解（软解最耗电，放最后）。
+ * 切内核与切策略都由宿主走「从当前位置重启播放」的既有路径，保证两个内核都用新参数重新创建实例。
+ */
+@Composable
+internal fun PlayerDecodePanel(
+    controller: PlayerSettingsController,
+    onSelectBackend: (String) -> Unit,
+    onSelectDecodeMode: (String) -> Unit,
+) {
+    val settings = controller.state
+    val colors = LocalCinefinColors.current
+    Column(modifier = Modifier.fillMaxSize()) {
+        PanelList {
+            PanelTitle(stringResource(PlayerR.string.player_controls_decode_kernel))
+            PanelRow(
+                label = stringResource(PlayerR.string.player_settings_backend_exoplayer),
+                caption = stringResource(PlayerR.string.player_controls_decode_kernel_caption),
+                selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER,
+                onClick = {
+                    controller.setBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
+                    onSelectBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
+                },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_settings_backend_mpv),
+                caption = stringResource(PlayerR.string.player_settings_backend_caption),
+                selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
+                onClick = {
+                    controller.setBackend(PlayerViewModel.PLAYER_BACKEND_MPV)
+                    onSelectBackend(PlayerViewModel.PLAYER_BACKEND_MPV)
+                },
+            )
+            PanelTitle(stringResource(PlayerR.string.player_controls_decode_strategy))
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_decode_hardware),
+                caption = stringResource(PlayerR.string.player_controls_decode_hardware_caption),
+                selected = settings.decodeMode == PlayerViewModel.DECODE_MODE_HARDWARE,
+                onClick = {
+                    controller.setDecodeMode(PlayerViewModel.DECODE_MODE_HARDWARE)
+                    onSelectDecodeMode(PlayerViewModel.DECODE_MODE_HARDWARE)
+                },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_decode_software),
+                caption = stringResource(PlayerR.string.player_controls_decode_software_caption),
+                selected = settings.decodeMode == PlayerViewModel.DECODE_MODE_SOFTWARE,
+                onClick = {
+                    controller.setDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
+                    onSelectDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
+                },
+            )
+            Text(
+                text = stringResource(PlayerR.string.player_controls_decode_priority),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier =
+                    Modifier.padding(
+                        horizontal = CinefinSpacing.Space5,
+                        vertical = CinefinSpacing.Space2,
+                    ),
+            )
+        }
+    }
+}
+
+/**
+ * 码率面板（W12 反馈 B）：**自动 / 原始画质 / 具体 Mbps**（对齐 Jellyfin 官方客户端的质量档位）。
+ *
+ * 选具体码率 = 请求服务器转码并播放返回的 `transcodingPath`；原始画质 = 只直连不转码。
+ * 选择后由宿主从当前位置重启播放（重新拉 PlaybackInfo），档位对下一次起播即时生效。
+ */
+@Composable
+internal fun PlayerBitratePanel(
+    controller: PlayerSettingsController,
+    onSelectBitrate: (Long) -> Unit,
+) {
+    val current = controller.state.streamingBitrate
+    Column(modifier = Modifier.fillMaxSize()) {
+        PanelList {
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_bitrate_auto),
+                caption = stringResource(PlayerR.string.player_controls_bitrate_auto_caption),
+                selected = current == PlayerStreamingQuality.AUTO,
+                onClick = {
+                    controller.setStreamingBitrate(PlayerStreamingQuality.AUTO)
+                    onSelectBitrate(PlayerStreamingQuality.AUTO)
+                },
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_bitrate_original),
+                caption = stringResource(PlayerR.string.player_controls_bitrate_original_caption),
+                selected = current == PlayerStreamingQuality.ORIGINAL,
+                onClick = {
+                    controller.setStreamingBitrate(PlayerStreamingQuality.ORIGINAL)
+                    onSelectBitrate(PlayerStreamingQuality.ORIGINAL)
+                },
+            )
+            PanelTitle(stringResource(PlayerR.string.player_controls_bitrate_caption))
+            PlayerStreamingQuality.PRESET_MBPS.forEach { mbps ->
+                val value = mbps.toLong()
+                PanelRow(
+                    label = PlayerStreamingQuality.bitrateLabel(value),
+                    selected = current == value,
+                    onClick = {
+                        controller.setStreamingBitrate(value)
+                        onSelectBitrate(value)
+                    },
+                )
+            }
+        }
+    }
 }

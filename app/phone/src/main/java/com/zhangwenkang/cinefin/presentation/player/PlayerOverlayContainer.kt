@@ -160,7 +160,9 @@ constructor(
             )
         // 底栏 = 左下角传输行 + 通栏进度条；有实测高度就按实测
         val bottomBandHeight =
-            bottomBarHeightPx.takeIf { it > 0f } ?: ((if (portrait) 130f else 150f) * density)
+            bottomBarHeightPx.takeIf { it > 0f }
+            // W12 终版底栏 = 进度条一行（时间-条-时间）+ 6 键工具行，比 W11 的「工具行 + 时间行 + 进度条」矮一截
+                ?: ((if (portrait) 110f else 118f) * density)
         val bottomBand = RectF(0f, videoHeight - bottomBandHeight, videoWidth, videoHeight)
         return topBand.contains(x, y) ||
             centerBand.contains(x, y) ||

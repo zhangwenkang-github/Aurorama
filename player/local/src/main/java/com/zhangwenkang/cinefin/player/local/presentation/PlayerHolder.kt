@@ -9,6 +9,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
+import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -161,10 +162,15 @@ constructor(
 
         return when (backend) {
             BACKEND_EXOPLAYER -> {
+                // 解码策略（W12 反馈 B）：硬解优先 = 扩展渲染器兜底 + 解码器自动回退；仅软解 = 扩展渲染器优先
+                val decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode)
                 val renderersFactory =
                     CinefinRenderersFactory(application, audioDelayProcessor)
                         .setExtensionRendererMode(
-                            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                            PlayerDecodeMode.extensionRendererMode(decodeMode)
+                        )
+                        .setEnableDecoderFallback(
+                            PlayerDecodeMode.decoderFallbackEnabled(decodeMode)
                         )
                 ExoPlayer.Builder(application, renderersFactory)
                     .setAudioAttributes(audioAttributes, true)

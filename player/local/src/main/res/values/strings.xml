@@ -210,4 +210,24 @@
     <string name="player_controls_label_pip">PiP</string>
     <string name="player_controls_fullscreen">Fullscreen</string>
     <string name="player_controls_fullscreen_exit">Exit fullscreen</string>
+    <!-- W12 播放页第四轮：进度条下 6 键（音轨/字幕/倍率/码率/解码/详细信息）+ 右上 5 键 -->
+    <string name="player_controls_label_bitrate">Bitrate</string>
+    <string name="player_controls_label_decode">Decoding</string>
+    <string name="player_controls_bitrate_auto">Auto</string>
+    <string name="player_controls_bitrate_auto_caption">Server decides between direct play and transcoding</string>
+    <string name="player_controls_bitrate_original">Original quality</string>
+    <string name="player_controls_bitrate_original_caption">Direct play only, the server never transcodes</string>
+    <string name="player_controls_bitrate_caption">Requests server transcoding at this bitrate (Jellyfin quality ladder)</string>
+    <string name="player_controls_bitrate_active">Server transcoding</string>
+    <string name="player_controls_decode_kernel">Player core</string>
+    <string name="player_controls_decode_kernel_caption">Changing the core restarts playback from the current position</string>
+    <string name="player_controls_decode_strategy">Decoding strategy</string>
+    <string name="player_controls_decode_hardware">Hardware first</string>
+    <string name="player_controls_decode_hardware_caption">Local hardware decoding, falls back automatically when it fails</string>
+    <string name="player_controls_decode_software">Software only</string>
+    <string name="player_controls_decode_software_caption">FFmpeg / mpv software decoding, highest compatibility and power draw</string>
+    <string name="player_controls_decode_priority">Priority: server transcode → local hardware → software</string>
+    <string name="player_controls_decode_active">Software decoding</string>
+    <string name="player_settings_tab_playback">Playback</string>
+    <string name="player_settings_tab_gesture">Gestures</string>
 </resources>

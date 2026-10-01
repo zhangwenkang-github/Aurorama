@@ -80,6 +80,14 @@ constructor(
         const val PLAYER_BACKEND_EXOPLAYER = "exoplayer"
         const val PLAYER_BACKEND_MPV = "mpv"
 
+        /**
+         * 解码策略（W12 反馈 B）：硬解优先（失败自动回退） / 仅软解。
+         *
+         * 优先级：服务器转码 / 解码 → 本地硬解 → 软解。软解最耗电，只在硬解不可用时兜底， 或由用户显式选择。
+         */
+        const val DECODE_MODE_HARDWARE = "hardware"
+        const val DECODE_MODE_SOFTWARE = "software"
+
         /** 单次队列补片最多新增条数：超大剧集（库里有 370 集的）不一次拉满，避免长时间占用网络与播放器时间线 */
         private const val MAX_QUEUE_FILL_ITEMS = 150
 

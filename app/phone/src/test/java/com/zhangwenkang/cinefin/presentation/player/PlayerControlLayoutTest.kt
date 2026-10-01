@@ -6,38 +6,79 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 播放页控件分布与流光进度条的回归测试（W11 反馈①③④⑧）。
+ * 播放页控件分布与流光进度条的回归测试（W11 反馈③④⑧ + W12 终版布局）。
  *
- * 两条约束容易在后续会话里被改回去，所以钉成断言：
- * 1. 右上工具簇在窄屏必须收成纯图标、并把「播放设置」下移到左下工具行（否则手机顶栏放不下 / 键被挤出屏幕）；
- * 2. 已播段渐变里辅光蓝的占比必须 <10%（A 稿：辅光蓝只做渐变辅助）。
+ * 三条约束容易在后续会话里被改回去，所以钉成断言：
+ * 1. 进度条下方 6 键与右上角 5 键的**顺序**是用户多轮确认的终版布局（改顺序即回归）；
+ * 2. 底栏一行（6 键 + 全屏键）在窄窗里放不下时必须能靠横向滚动兜底，键尺寸不能比 W12 更大；
+ * 3. 已播段渐变里辅光蓝的占比必须 <10%（A 稿：辅光蓝只做渐变辅助）。
  */
 class PlayerControlLayoutTest {
 
     @Test
-    fun wideLayout_keepsSettingsInTopClusterWithTextLabels() {
-        val spec = playerControlSpec(800f)
-
-        assertFalse("宽屏右上工具簇带文字标签", spec.compactTools)
-        assertFalse("宽屏把播放设置留在右上工具簇", spec.settingsInBottomRow)
-        assertEquals(48f, spec.toolKeySizeDp, 0.001f)
+    fun bottomKeys_keepFinalOrder() {
+        assertEquals(
+            "进度条下方左侧 6 键顺序：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息",
+            listOf(
+                PlayerBottomKey.Audio,
+                PlayerBottomKey.Subtitle,
+                PlayerBottomKey.Speed,
+                PlayerBottomKey.Bitrate,
+                PlayerBottomKey.Decode,
+                PlayerBottomKey.Info,
+            ),
+            PLAYER_BOTTOM_KEY_ORDER,
+        )
     }
 
     @Test
-    fun narrowLayout_movesSettingsToBottomRowAndShrinksKeys() {
+    fun topKeys_keepFinalOrderWithAspectBetweenEpisodesAndSettings() {
+        assertEquals(
+            "右上角 5 键顺序：画中画 · 睡眠 · 选集 · 画面 · 设置（画面在选集与设置之间）",
+            listOf(
+                PlayerTopKey.Pip,
+                PlayerTopKey.Sleep,
+                PlayerTopKey.Episode,
+                PlayerTopKey.Aspect,
+                PlayerTopKey.Settings,
+            ),
+            PLAYER_TOP_KEY_ORDER,
+        )
+    }
+
+    @Test
+    fun wideLayout_keepsW12KeySizes() {
+        val spec = playerControlSpec(800f)
+
+        assertFalse("宽屏不收尺寸", spec.narrow)
+        assertEquals("键框只比图标大一圈（W12 反馈 A）", 44f, spec.toolKeySizeDp, 0.001f)
+        assertEquals("键内图标 24dp 网格", 24f, spec.iconSizeDp, 0.001f)
+    }
+
+    @Test
+    fun narrowLayout_shrinksKeysAndKeepsIconSameWidthAsSpeedKey() {
         // 411dp ≈ Pad 5 手机形态 / K60 竖屏
         val spec = playerControlSpec(411f)
 
-        assertTrue("窄屏工具簇退化成纯图标", spec.compactTools)
-        assertTrue("窄屏把播放设置下移到左下工具行", spec.settingsInBottomRow)
-        assertEquals(42f, spec.toolKeySizeDp, 0.001f)
+        assertTrue("窄屏收一档", spec.narrow)
+        assertEquals(38f, spec.toolKeySizeDp, 0.001f)
+        assertEquals("倍率键图标与其它键同宽（W12 反馈 A）", 22f, spec.iconSizeDp, 0.001f)
         assertTrue("窄屏留白也要收一档", spec.toolRowPaddingDp < 20f)
     }
 
     @Test
-    fun thresholdAtSixHundredDp_switchesToCompactTools() {
-        assertTrue(playerControlSpec(599.9f).compactTools)
-        assertFalse(playerControlSpec(600f).compactTools)
+    fun thresholdAtSixHundredDp_switchesToNarrowSpec() {
+        assertTrue(playerControlSpec(599.9f).narrow)
+        assertFalse(playerControlSpec(600f).narrow)
+    }
+
+    @Test
+    fun bottomRow_fitsPhoneWidthWithoutScrolling() {
+        // 411dp 是最窄的常见手机形态（Pad 5 wm 覆盖 / K60 竖屏），6 键 + 全屏键必须一行放得下
+        val spec = playerControlSpec(411f)
+        val used = spec.bottomRowWidthDp + spec.toolRowPaddingDp * 2f
+
+        assertTrue("底栏一行 $used dp 会超出 411dp 手机宽度", used <= 411f)
     }
 
     @Test
