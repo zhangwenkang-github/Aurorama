@@ -20,6 +20,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 
@@ -77,6 +79,9 @@ data class PlayerSettingsSnapshot(
     val streamingBitrate: Long,
     /** 解码策略：hardware / software（W12 反馈 B） */
     val decodeMode: String,
+
+    /** 解码回退档位（W16）：0 = 本地硬解；1 = 服务器转码；2 = 本地软解 */
+    val decodeFallbackStage: Int,
 )
 
 /** 语言优先级预设（W12：并入「音轨」面板）：写进既有 `pref_audio_languages`（逗号分隔的全量列表） */
@@ -217,6 +222,7 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
                 appPreferences.getValue(appPreferences.playerGesturesVerticalSensitivity),
             streamingBitrate = appPreferences.getValue(appPreferences.playerStreamingBitrate),
             decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode),
+            decodeFallbackStage = appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
         )
 }
 
@@ -624,7 +630,8 @@ internal fun VideoTransformControls(
 /**
  * 解码面板（W12 反馈 B）：**内核切换（ExoPlayer / mpv）+ 硬解 / 软解策略**。
  *
- * 优先级写在面板底部：服务器转码 / 解码 → 本地硬解 → 软解（软解最耗电，放最后）。 切内核与切策略都由宿主走「从当前位置重启播放」的既有路径，保证两个内核都用新参数重新创建实例。
+ * 优先级写在面板底部（W16 用户拍板）：**本地硬解 → 服务器解码 / 转码 → 本地软解**，并显示当前实际档位。
+ * 切内核与切策略都由宿主走「从当前位置重启播放」的既有路径，保证两个内核都用新参数重新创建实例。
  */
 @Composable
 internal fun PlayerDecodePanel(
@@ -632,6 +639,8 @@ internal fun PlayerDecodePanel(
     onSelectBackend: (String) -> Unit,
     onSelectDecodeMode: (String) -> Unit,
 ) {
+    // 回退档位可能在播放过程中被 ViewModel 推进（不是通过本控制器写的）：每次打开面板回读一次
+    LaunchedEffect(Unit) { controller.refresh() }
     val settings = controller.state
     val colors = LocalCinefinColors.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -673,6 +682,28 @@ internal fun PlayerDecodePanel(
                     controller.setDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
                     onSelectDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
                 },
+            )
+            Text(
+                text =
+                    stringResource(
+                        PlayerR.string.player_controls_decode_stage_active,
+                        stringResource(
+                            when (settings.decodeFallbackStage) {
+                                PlayerDecodeFallback.STAGE_SERVER_TRANSCODE ->
+                                    PlayerR.string.player_controls_decode_stage_server
+                                PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE ->
+                                    PlayerR.string.player_controls_decode_stage_software
+                                else -> PlayerR.string.player_controls_decode_stage_hardware
+                            }
+                        ),
+                    ),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier =
+                    Modifier.padding(
+                        horizontal = CinefinSpacing.Space5,
+                        vertical = CinefinSpacing.Space1,
+                    ),
             )
             Text(
                 text = stringResource(PlayerR.string.player_controls_decode_priority),

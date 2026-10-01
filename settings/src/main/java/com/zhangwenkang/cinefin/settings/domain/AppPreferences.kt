@@ -137,6 +137,18 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 解码策略：hardware = 硬解优先（失败自动回退）、software = 仅软解（FFmpeg / mpv） */
     val playerDecodeMode = Preference("pref_player_decode_mode", "hardware")
 
+    // Player - 解码回退链（W16：本地硬解 → 服务器解码/转码 → 本地软解；只追加，不重排既有键）
+    /**
+     * 解码回退档位：0 = 未降级；1 = 已降到服务器解码/转码；2 = 已降到本地软解。
+     *
+     * 由 `PlayerViewModel` 在 ExoPlayer 硬解报错时推进，落盘是为了「重启播放页续播」不丢档位； 换条目 / 用户显式改码率、内核、解码策略时清回 0。映射见
+     * [PlayerDecodeFallback]。
+     */
+    val playerDecodeFallbackStage = Preference("pref_player_decode_fallback_stage", 0)
+
+    /** 触发解码回退的媒体 id（空 = 无）；条目变化时自动清空回退档位，避免影响下一部片 */
+    val playerDecodeFallbackMediaId = Preference("pref_player_decode_fallback_media_id", "")
+
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)
     val downloadWhenRoaming = Preference("pref_downloads_roaming", false)

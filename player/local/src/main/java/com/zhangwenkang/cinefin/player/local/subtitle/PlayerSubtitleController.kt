@@ -32,6 +32,13 @@ data class SubtitleOverlayState(
     val secondaryIndex: Int? = null,
     /** 主字幕的完整 cue 列表（渲染层按播放位置自己取当前句） */
     val primaryCues: List<SubtitleCue> = emptyList(),
+    /**
+     * 主字幕的原始 ASS/SSA 脚本（libass 渲染用；W16）。
+     *
+     * 非空 = 这条字幕是 ASS/SSA 源，特效（定位 / 字体 / 动画）交给 libass 还原； null = SRT / WebVTT 等纯文本源，由渲染层用 cue 现场生成
+     * ASS（同样走 libass）， 生成失败或 libass 不可用时再退回 [primaryCues] 文本渲染。
+     */
+    val primaryAssScript: String? = null,
     /** 次字幕的完整 cue 列表 */
     val secondaryCues: List<SubtitleCue> = emptyList(),
     val delayMs: Long = 0L,
@@ -76,6 +83,7 @@ class PlayerSubtitleController(
     private var primaryIndex: Int? = null
     private var secondaryIndex: Int? = null
     private var primaryCues: List<SubtitleCue> = emptyList()
+    private var primaryAssScript: String? = null
     private var secondaryCues: List<SubtitleCue> = emptyList()
     private var primaryManaged = false
     private var secondaryManaged = false
@@ -89,8 +97,11 @@ class PlayerSubtitleController(
     private var delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
     private var style = readStyle()
 
-    /** 已解析的字幕缓存：`媒体 id:源序号` → cue 列表（按媒体隔离，避免跨集串字幕） */
-    private val cueCache = mutableMapOf<String, List<SubtitleCue>>()
+    /** 已下载 / 解析的字幕缓存：`媒体 id:源序号` → 内容（按媒体隔离，避免跨集串字幕） */
+    private val subtitleCache = mutableMapOf<String, LoadedSubtitle>()
+
+    /** 一次下载的产物：cue 列表（文本 / 双语） + ASS 原文（libass） */
+    private data class LoadedSubtitle(val cues: List<SubtitleCue>, val assScript: String?)
 
     private var mediaId: String = ""
 
@@ -115,12 +126,13 @@ class PlayerSubtitleController(
     ) {
         primaryLoadJob?.cancel()
         secondaryLoadJob?.cancel()
-        cueCache.clear()
+        subtitleCache.clear()
         this.mediaId = mediaId
         this.sources = sources
         primaryIndex = null
         secondaryIndex = null
         primaryCues = emptyList()
+        primaryAssScript = null
         secondaryCues = emptyList()
         primaryManaged = false
         secondaryManaged = false
@@ -272,6 +284,7 @@ class PlayerSubtitleController(
         val source = sources.firstOrNull { it.index == index }
         if (index == null || source == null || !source.isTextBased) {
             primaryCues = emptyList()
+            primaryAssScript = null
             primaryManaged = false
             primaryLoading = false
             return
@@ -281,12 +294,15 @@ class PlayerSubtitleController(
         }
         // 换源时先把旧 cue 清掉，避免短暂显示上一条字幕的内容
         primaryCues = emptyList()
+        primaryAssScript = null
         primaryManaged = false
         primaryLoadJob =
-            loadCues(source, isPrimary = true) { cues ->
+            loadSubtitle(source, isPrimary = true) { loaded ->
                 if (primaryIndex == source.index) {
-                    primaryCues = cues
-                    primaryManaged = cues.isNotEmpty()
+                    primaryCues = loaded.cues
+                    // ASS/SSA 原文直接给 libass；SRT 等由渲染层现场生成 ASS（同样走 libass）
+                    primaryAssScript = loaded.assScript
+                    primaryManaged = loaded.assScript != null || loaded.cues.isNotEmpty()
                     publish()
                 }
             }
@@ -313,10 +329,10 @@ class PlayerSubtitleController(
         secondaryCues = emptyList()
         secondaryManaged = false
         secondaryLoadJob =
-            loadCues(source, isPrimary = false) { cues ->
+            loadSubtitle(source, isPrimary = false) { loaded ->
                 if (secondaryIndex == source.index) {
-                    secondaryCues = cues
-                    secondaryManaged = cues.isNotEmpty()
+                    secondaryCues = loaded.cues
+                    secondaryManaged = loaded.cues.isNotEmpty()
                     publish()
                 }
             }
@@ -337,37 +353,59 @@ class PlayerSubtitleController(
         appPreferences.setValue(preference, LanguageMatcher.priorityToString(updated))
     }
 
-    /** 下载 + 解析；命中缓存直接回调，返回 null 表示没有异步任务 */
-    private fun loadCues(
+    /** 下载 + 解析（cue 列表 + ASS 原文）；命中缓存直接回调，返回 null 表示没有异步任务 */
+    private fun loadSubtitle(
         source: PlayerSubtitleSource,
         isPrimary: Boolean,
-        onReady: (List<SubtitleCue>) -> Unit,
+        onReady: (LoadedSubtitle) -> Unit,
     ): Job? {
         val cacheKey = "$mediaId:${source.index}"
-        val cached = cueCache[cacheKey]
+        val cached = subtitleCache[cacheKey]
         if (cached != null) {
             onReady(cached)
             return null
         }
         if (isPrimary) primaryLoading = true else secondaryLoading = true
         return scope.launch {
-            val cues =
+            val loaded =
                 withContext(Dispatchers.IO) {
                     runCatching {
                             // 下载与解析一起兜底：解析器异常（含 Error）绝不能带崩播放页
                             val content = download(source.uri)
-                            SubtitleParser.parse(content, source.codec)
+                            LoadedSubtitle(
+                                cues = SubtitleParser.parse(content, source.codec),
+                                assScript = assScriptOf(content, source.codec),
+                            )
                         }
                         // 不打印完整地址：Jellyfin 的 DeliveryUrl 里带 ApiKey
                         .onFailure { Timber.w(it, "字幕加载失败（index=%d）", source.index) }
-                        .getOrDefault(emptyList())
+                        .getOrDefault(LoadedSubtitle(emptyList(), null))
                 }
-            cueCache[cacheKey] = cues
+            subtitleCache[cacheKey] = loaded
             if (isPrimary) primaryLoading = false else secondaryLoading = false
-            Timber.d("字幕解析完成: index=%d, cues=%d", source.index, cues.size)
-            onReady(cues)
+            Timber.d(
+                "字幕解析完成: index=%d, cues=%d, ass=%b",
+                source.index,
+                loaded.cues.size,
+                loaded.assScript != null,
+            )
+            onReady(loaded)
         }
     }
+
+    /**
+     * ASS / SSA 源直接透传原始脚本（特效交给 libass）；SRT / WebVTT 返回 null， 由渲染层按当前画面尺寸生成 ASS（见
+     * `PlayerSubtitleOverlay` / [AssSubtitleScript]）。
+     */
+    private fun assScriptOf(
+        content: String,
+        codec: String,
+    ): String? =
+        when (codec.lowercase()) {
+            "ass",
+            "ssa" -> AssSubtitleScript.normalize(content)
+            else -> null
+        }
 
     private fun publish() {
         _overlayState.value =
@@ -376,6 +414,7 @@ class PlayerSubtitleController(
                 primaryIndex = primaryIndex,
                 secondaryIndex = secondaryIndex,
                 primaryCues = primaryCues,
+                primaryAssScript = primaryAssScript,
                 secondaryCues = secondaryCues,
                 delayMs = delayMs,
                 style = style,

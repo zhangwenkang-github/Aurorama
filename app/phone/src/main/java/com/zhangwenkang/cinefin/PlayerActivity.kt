@@ -10,6 +10,7 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.drawable.TransitionDrawable
 import android.media.AudioManager
 import android.os.Build
@@ -73,7 +74,12 @@ import com.zhangwenkang.cinefin.utils.PlayerGestureHelper
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -202,6 +208,8 @@ class PlayerActivity : BasePlayerActivity() {
                 PlayerSubtitleOverlay(
                     player = viewModel.player,
                     state = subtitleState,
+                    // W16：libass 字幕层按「视频实际显示区」定位（与 mpv 一致），而不是整窗
+                    videoRectProvider = ::currentVideoRect,
                 )
             }
         }
@@ -374,6 +382,11 @@ class PlayerActivity : BasePlayerActivity() {
                             is PlayerEvents.NavigateBack -> finishPlayback()
                             // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendAndRestart 带过去）
                             is PlayerEvents.FallbackToMpv -> switchBackendAndRestart()
+                            // W16 回退链第 2 档：服务器解码/转码（PlaybackInfo 已按档位强制转码，重启拉新流）
+                            is PlayerEvents.RestartWithServerTranscode ->
+                                restartPlaybackKeepingPosition("fallback=server-transcode")
+                            // W16 回退链第 3 档：本地软解（mpv hwdec=no，档位由 PlayerHolder 读偏好强制）
+                            is PlayerEvents.FallbackToSoftware -> switchBackendAndRestart()
                             // 字幕外观变化：同步给 PlayerView 的原生字幕（图形字幕 / 兜底路径）
                             is PlayerEvents.SubtitleStyleChanged -> configureSubtitleStyle()
                             is PlayerEvents.IsPlayingChanged -> {
@@ -781,6 +794,67 @@ class PlayerActivity : BasePlayerActivity() {
         )
     }
 
+    /**
+     * 画面显示区（视频实际占用的像素矩形，相对字幕覆盖层坐标系）。
+     *
+     * W16：libass 字幕层拿它当渲染分辨率——字幕定位跟视频画面走（与 mpv 一致），而不是跟整窗走。 取 `exo_content_frame`（PlayerView
+     * 已按视频比例排好的内容框），再叠加视图侧的旋转 / 缩放 （裁剪填满 / 去黑边改的都是视图变换），最后与画面区求交。
+     */
+    private fun currentVideoRect(): Rect {
+        val view = binding.playerView
+        val overlay = binding.subtitleOverlayCompose
+        if (view.width <= 0 || view.height <= 0) return Rect()
+        val content = view.findViewById<View>(androidx.media3.ui.R.id.exo_content_frame) ?: view
+
+        val centerX = view.width / 2f
+        val centerY = view.height / 2f
+        val scaleX = abs(view.scaleX)
+        val scaleY = abs(view.scaleY)
+        val rad = Math.toRadians(view.rotation.toDouble())
+        val cos = cos(rad).toFloat()
+        val sin = sin(rad).toFloat()
+
+        val corners =
+            floatArrayOf(
+                content.left.toFloat(),
+                content.top.toFloat(),
+                content.right.toFloat(),
+                content.top.toFloat(),
+                content.right.toFloat(),
+                content.bottom.toFloat(),
+                content.left.toFloat(),
+                content.bottom.toFloat(),
+            )
+        var minX = Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        var index = 0
+        while (index < corners.size) {
+            val dx = (corners[index] - centerX) * scaleX
+            val dy = (corners[index + 1] - centerY) * scaleY
+            val x = dx * cos - dy * sin + centerX
+            val y = dx * sin + dy * cos + centerY
+            minX = min(minX, x)
+            maxX = max(maxX, x)
+            minY = min(minY, y)
+            maxY = max(maxY, y)
+            index += 2
+        }
+
+        val viewLocation = IntArray(2).also { view.getLocationInWindow(it) }
+        val overlayLocation = IntArray(2).also { overlay.getLocationInWindow(it) }
+        val offsetX = (viewLocation[0] - overlayLocation[0]).toFloat()
+        val offsetY = (viewLocation[1] - overlayLocation[1]).toFloat()
+
+        val combined = RectF(minX + offsetX, minY + offsetY, maxX + offsetX, maxY + offsetY)
+        val area = RectF(offsetX, offsetY, offsetX + view.width, offsetY + view.height)
+        if (!combined.intersect(area)) return Rect()
+        val out = Rect()
+        combined.round(out)
+        return out
+    }
+
     /** mpv 换硬件解码：播放中即时生效（ExoPlayer 不走这条） */
     private fun applyMpvHwDec(hwDec: String) {
         (viewModel.player as? MPVPlayer)?.applyHwDec(hwDec)
@@ -790,6 +864,8 @@ class PlayerActivity : BasePlayerActivity() {
     /** 设置面板切内核：目标值已写入偏好，这里负责「重启播放页 + 保留进度」 */
     private fun restartWithBackend(backend: String) {
         viewModel.setBackend(backend)
+        // 用户显式选内核：解码回退档位清零，回退链从头走（W16）
+        viewModel.clearDecodeFallback()
         restartPlaybackKeepingPosition("backend=$backend")
     }
 
@@ -803,6 +879,8 @@ class PlayerActivity : BasePlayerActivity() {
         val software = mode == PlayerViewModel.DECODE_MODE_SOFTWARE
         appPreferences.setValue(appPreferences.playerDecodeMode, mode)
         appPreferences.setValue(appPreferences.playerMpvHwdec, if (software) "no" else "mediacodec")
+        // 用户显式选解码策略：清空回退档位（否则「硬解优先」会被上一次的回退档位压成软解）
+        viewModel.clearDecodeFallback()
         restartPlaybackKeepingPosition("decode mode=$mode")
     }
 
@@ -814,6 +892,8 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun selectStreamingBitrate(bitrate: Long) {
         appPreferences.setValue(appPreferences.playerStreamingBitrate, bitrate)
+        // 用户显式选码率：清空回退档位（自动档重新按优先级链走）
+        viewModel.clearDecodeFallback()
         restartPlaybackKeepingPosition("streaming bitrate=$bitrate")
     }
 

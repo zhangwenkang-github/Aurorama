@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -44,6 +45,34 @@ class PlayerDecodeModeTest {
         assertEquals(
             DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON,
             PlayerDecodeMode.extensionRendererMode("未知"),
+        )
+    }
+
+    @Test
+    fun localSoftwareFallbackStage_forcesSoftwareWithoutTouchingPreference() {
+        // W16 回退链第 3 档：偏好仍是「硬解优先」，但本会话实际按软解建实例
+        val effective =
+            PlayerDecodeMode.effectiveMode(
+                PlayerDecodeMode.HARDWARE,
+                PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
+            )
+        assertEquals(PlayerDecodeMode.SOFTWARE, effective)
+        assertEquals(
+            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER,
+            PlayerDecodeMode.extensionRendererMode(effective),
+        )
+        assertEquals("no", PlayerDecodeMode.mpvHwDec(effective))
+    }
+
+    @Test
+    fun serverTranscodeStage_keepsHardwareDecoding() {
+        // 第 2 档只是把流换成服务器转码的 h264，本地仍优先硬解
+        assertEquals(
+            PlayerDecodeMode.HARDWARE,
+            PlayerDecodeMode.effectiveMode(
+                PlayerDecodeMode.HARDWARE,
+                PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+            ),
         )
     }
 }

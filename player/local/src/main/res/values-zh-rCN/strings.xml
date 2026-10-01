@@ -224,10 +224,14 @@
     <string name="player_controls_decode_kernel_caption">切换内核会从当前位置重启播放</string>
     <string name="player_controls_decode_strategy">解码策略</string>
     <string name="player_controls_decode_hardware">硬解优先</string>
-    <string name="player_controls_decode_hardware_caption">本地硬解，失败时自动回退，不中断播放</string>
+    <string name="player_controls_decode_hardware_caption">本地硬解，失败时先请求服务器转码，再回退本地软解</string>
     <string name="player_controls_decode_software">仅软解</string>
     <string name="player_controls_decode_software_caption">FFmpeg / mpv 软解，兼容性最好、最耗电</string>
-    <string name="player_controls_decode_priority">优先级：服务器转码 / 解码 → 本地硬解 → 软解</string>
+    <string name="player_controls_decode_priority">优先级：本地硬解 → 服务器解码 / 转码 → 本地软解</string>
+    <string name="player_controls_decode_stage_active">当前档位：%1$s</string>
+    <string name="player_controls_decode_stage_hardware">本地硬解</string>
+    <string name="player_controls_decode_stage_server">服务器解码 / 转码</string>
+    <string name="player_controls_decode_stage_software">本地软解</string>
     <string name="player_controls_decode_active">软解中</string>
     <string name="player_settings_tab_playback">播放</string>
     <string name="player_settings_tab_gesture">手势</string>

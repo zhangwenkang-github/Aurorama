@@ -1,3 +1,5 @@
+import java.util.zip.ZipFile
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose.compiler)
@@ -83,6 +85,17 @@ android {
         // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
     }
+
+    packaging {
+        jniLibs {
+            /*
+             * W16：字幕渲染引入 ass-kt（libass）后，ass-kt 与 libmpv 各自打包一份 libc++_shared.so，
+             * AGP 9 对同名原生库直接报错，所以先去重；具体保留哪一份由下方「合并后打补丁」决定——
+             * 必须保留 libmpv 的新版（见文件末尾 merge*NativeLibs 的补丁说明）。
+             */
+            pickFirsts += "**/libc++_shared.so"
+        }
+    }
 }
 
 dependencies {
@@ -142,3 +155,69 @@ dependencies {
     // 版本目录暂无 junit 别名（与 core 同口径）：只用于本模块的纯逻辑单测
     testImplementation("junit:junit:4.13.2")
 }
+
+/*
+ * W16 · libc++_shared.so 合并补丁。
+ *
+ * 背景：字幕渲染新增 ass-kt（libass）后，它和 libmpv 各自打包一份 libc++_shared.so，
+ * AGP 9 对同名原生库直接报错 → 上面用 packaging.jniLibs.pickFirsts 去重。但 pickFirst **固定**
+ * 取到 ass-kt 的旧版（实测与声明顺序无关），而 libmpv.so 需要新版里的
+ * `__from_chars_floating_point` —— 真机上是 `UnsatisfiedLinkError: dlopen failed: cannot locate symbol`
+ * （Pad 5 / Android 13 复现）。ass-kt 自 0.3.0 起各版本带的是同一份旧 libc++，换版本解决不了。
+ *
+ * 做法：原生库合并任务跑完后，用 libmpv AAR 里的新版 libc++_shared.so **覆盖**合并结果（逐个 ABI）。
+ * 新版 libc++ 向下兼容旧符号，libass 侧继续可用（真机验证见 PLAYER_PLAN §19）。
+ * 校验：APK 内 lib/arm64-v8a/libc++_shared.so 的 sha256 应等于 libmpv AAR 内同名文件。
+ */
+val libmpvNativeAar by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    // 只要 libmpv 自己的 AAR：带上传递依赖会把 jar（kotlin-stdlib 等）拉进来，和 artifactType=aar 冲突
+    isTransitive = false
+    attributes {
+        attribute(
+            org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Usage::class.java, "java-runtime"),
+        )
+        attribute(
+            org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Category::class.java, "library"),
+        )
+        attribute(
+            org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE,
+            "aar",
+        )
+    }
+}
+
+dependencies { add(libmpvNativeAar.name, libs.libmpv) }
+
+tasks
+    .matching { task -> task.name.startsWith("merge") && task.name.endsWith("NativeLibs") }
+    .configureEach {
+        doLast {
+            val aarFiles: Set<File> = libmpvNativeAar.resolve()
+            val aar: File? = aarFiles.firstOrNull { file -> file.name.startsWith("libmpv") }
+            if (aar == null) {
+                logger.warn("W16 原生库补丁：未找到 libmpv AAR，libc++_shared 可能仍是 ass-kt 旧版")
+                return@doLast
+            }
+            val zip = ZipFile(aar)
+            try {
+                val roots: Set<File> = outputs.files.files
+                for (root in roots) {
+                    if (!root.isDirectory) continue
+                    for (target in root.walkTopDown().filter { it.name == "libc++_shared.so" }) {
+                        val abi = target.parentFile?.name ?: continue
+                        val entry = zip.getEntry("jni/$abi/libc++_shared.so") ?: continue
+                        zip.getInputStream(entry).use { input ->
+                            target.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        logger.lifecycle("W16 原生库补丁：libc++_shared.so ($abi) 用 libmpv 版本覆盖")
+                    }
+                }
+            } finally {
+                zip.close()
+            }
+        }
+    }

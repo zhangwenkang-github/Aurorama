@@ -43,6 +43,7 @@ import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
+import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import java.util.UUID
@@ -84,7 +85,8 @@ constructor(
         /**
          * 解码策略（W12 反馈 B）：硬解优先（失败自动回退） / 仅软解。
          *
-         * 优先级：服务器转码 / 解码 → 本地硬解 → 软解。软解最耗电，只在硬解不可用时兜底， 或由用户显式选择。
+         * 优先级（W16 用户拍板，与 W12 相反）：**本地硬解 → 服务器解码/转码 → 本地软解**。
+         * 软解最耗电，排在最后：只有硬解报「解码能力不足」且服务器转码救不回来时才落地。
          */
         const val DECODE_MODE_HARDWARE = "hardware"
         const val DECODE_MODE_SOFTWARE = "software"
@@ -281,6 +283,12 @@ constructor(
         startFromBeginning: Boolean,
         startPositionMs: Long = 0L,
     ) {
+        /*
+         * W16：换条目（新开播放页、点别的片）时清掉上一部片的解码回退档位——必须在拉取
+         * PlaybackInfo 之前清，否则新条目会带着「强制服务器转码」的档位请求。
+         * 同一条目的续播（换内核 / 回退链重启）不清，档位要活过 Activity 重建。
+         */
+        resetDecodeFallbackForItem(itemId.toString())
         // 打开条目就先声明「要播」的意图：起播窗口内不被 pause/resume 回存覆盖（bug ②）
         startupInProgress = true
         playWhenReady = true
@@ -884,24 +892,56 @@ constructor(
                     )
             )
         }
-        maybeAutoFallbackToMpv(error)
+        handleCodecFallback(error)
     }
 
     /**
-     * 解码能力不足时静默降级到 mpv 软解。
+     * 解码能力不足时的静默回退（W16 用户拍板的链路）：**本地硬解 → 服务器解码/转码 → 本地软解**。
      *
-     * 场景：ExoPlayer 硬解不了的片源（10-bit H.264 等）会报 `NO_EXCEEDS_CAPABILITIES`， 此时直接换 mpv
-     * 内核重播，不弹提示（用户在观影，提示属于打扰）。 只对「当前内核是 ExoPlayer + 确实属于解码能力问题 + 这个条目还没降级过」触发一次， 避免两个内核之间来回跳。换内核由
-     * Activity 重启播放页完成，播放进度会带过去。
+     * 场景：ExoPlayer 硬解不了的片源（10-bit H.264 等）会报 `NO_EXCEEDS_CAPABILITIES`。此时： ① 还没降级 + 码率是「自动」→
+     * 请求服务器转码（换一路 h264 流重发），重启播放页续播； ② 已经在服务器转码档 / 用户选了具体 Mbps / 原始画质 → 落到本地软解（mpv
+     * hwdec=no，最耗电放最后）。
+     *
+     * 不弹提示（用户在观影，提示属于打扰）。档位落盘（[AppPreferences.playerDecodeFallbackStage]）是为了
+     * 「重启播放页续播」不丢档位，同时天然防死循环：升到软解档后再报错也不再推进。换条目 / 用户显式改 码率、内核、解码策略时档位清 0。
      */
-    private fun maybeAutoFallbackToMpv(error: PlaybackException) {
+    private fun handleCodecFallback(error: PlaybackException) {
         if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return
         if (!isCodecCapabilityError(error)) return
         val mediaId = player.currentMediaItem?.mediaId ?: return
         if (autoFallbackMediaId == mediaId) return
         autoFallbackMediaId = mediaId
-        Timber.i("解码能力不足（%s），自动降级到 mpv 内核", error.errorCodeName)
-        eventsChannel.trySend(PlayerEvents.FallbackToMpv)
+
+        val currentStage =
+            PlayerDecodeFallback.normalize(
+                appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
+            )
+        val bitratePreference = appPreferences.getValue(appPreferences.playerStreamingBitrate)
+        val nextStage = PlayerDecodeFallback.nextStage(currentStage, bitratePreference)
+        if (nextStage == currentStage) return
+        appPreferences.setValue(appPreferences.playerDecodeFallbackStage, nextStage)
+        appPreferences.setValue(appPreferences.playerDecodeFallbackMediaId, mediaId)
+
+        when (nextStage) {
+            PlayerDecodeFallback.STAGE_SERVER_TRANSCODE -> {
+                Timber.i(
+                    "解码能力不足（%s），先请求服务器解码/转码重试（优先级：本地硬解 → 服务器转码 → 本地软解）",
+                    error.errorCodeName,
+                )
+                eventsChannel.trySend(PlayerEvents.RestartWithServerTranscode)
+            }
+            else -> {
+                // 本地软解：mpv + hwdec=no（PlayerHolder 按回退档位强制软解）
+                if (playerBackend != PLAYER_BACKEND_MPV) {
+                    appPreferences.setValue(appPreferences.playerBackend, PLAYER_BACKEND_MPV)
+                }
+                Timber.i(
+                    "解码能力不足（%s），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）",
+                    error.errorCodeName,
+                )
+                eventsChannel.trySend(PlayerEvents.FallbackToSoftware)
+            }
+        }
     }
 
     /** 只有"内核解不了这个格式"类错误才值得换内核；网络、DRM、容器损坏等换内核也没用 */
@@ -913,6 +953,30 @@ constructor(
             PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED -> true
             else -> false
         }
+
+    /** 换条目：上一部片的解码回退档位不带到下一部（同一条目的重启续播不受影响） */
+    private fun resetDecodeFallbackForItem(mediaId: String?) {
+        val fallbackMediaId = appPreferences.getValue(appPreferences.playerDecodeFallbackMediaId)
+        if (fallbackMediaId.isBlank()) return
+        if (mediaId != null && mediaId == fallbackMediaId) return
+        clearDecodeFallback()
+    }
+
+    /**
+     * 清空解码回退档位（回 0 = 本地硬解）。
+     *
+     * 用户显式改码率 / 内核 / 解码策略时由 Activity 调用：用户的显式选择优先，回退链重新从头走。
+     */
+    fun clearDecodeFallback() {
+        if (appPreferences.getValue(appPreferences.playerDecodeFallbackStage) != 0) {
+            Timber.d("清空解码回退档位（回到本地硬解）")
+        }
+        appPreferences.setValue(
+            appPreferences.playerDecodeFallbackStage,
+            PlayerDecodeFallback.STAGE_NONE,
+        )
+        appPreferences.setValue(appPreferences.playerDecodeFallbackMediaId, "")
+    }
 
     override fun onCleared() {
         super.onCleared()
@@ -1688,8 +1752,19 @@ sealed interface PlayerEvents {
 
     data class IsPlayingChanged(val isPlaying: Boolean) : PlayerEvents
 
-    /** 当前内核解不了这个片源：静默换 mpv 软解重播（播放页收到后直接重启播放页） */
+    /** 当前内核解不了这个片源：静默换 mpv 软解重播（播放页收到后直接重启播放页；保留给 MPV 兜底路径） */
     data object FallbackToMpv : PlayerEvents
+
+    /**
+     * 硬解失败的第 2 档：请求服务器解码/转码后重播（W16 回退链：本地硬解 → 服务器转码 → 本地软解）。
+     *
+     * PlaybackInfo 已经按回退档位强制转码（data 层读 [AppPreferences.playerDecodeFallbackStage]），
+     * 播放页只需从当前位置重启、重新拉一次播放信息。
+     */
+    data object RestartWithServerTranscode : PlayerEvents
+
+    /** 硬解失败的第 3 档：本地软解（mpv hwdec=no）重播 */
+    data object FallbackToSoftware : PlayerEvents
 
     /** 字幕外观变化：Activity 用它更新 PlayerView 原生字幕样式（图形字幕 / 兜底路径） */
     data class SubtitleStyleChanged(val style: SubtitleStyle) : PlayerEvents

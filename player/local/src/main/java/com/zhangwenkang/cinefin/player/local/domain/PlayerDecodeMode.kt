@@ -1,11 +1,13 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 
 /**
  * 解码策略（W12 反馈 B）：**硬解优先（失败自动回退） / 仅软解**。
  *
- * 播放优先级：服务器转码 / 解码 → 本地硬解 → 软解（软解最耗电，只在硬解不可用时兜底，或由用户显式选择）。
+ * 播放优先级（W16 用户拍板，与 W12 相反）：**本地硬解 → 服务器解码/转码 → 本地软解** （软解最耗电，只在硬解不可用且服务器转码也救不回来时兜底，或由用户显式选择；链路见
+ * [PlayerDecodeFallback]）。
  *
  * 抽成纯函数（+ 单测）是因为同一份偏好要被三个地方读：PlayerHolder 建 ExoPlayer 的渲染器模式、 mpv 的 `hwdec` 参数、以及解码面板的选中态——散落成三处
  * `if` 很容易出现「面板显示软解但内核还是硬解」。
@@ -19,6 +21,18 @@ object PlayerDecodeMode {
 
     /** 兜底：偏好里出现未知值时按硬解优先处理（不静默降级成软解，避免耗电） */
     fun normalize(mode: String?): String = if (mode == SOFTWARE) SOFTWARE else HARDWARE
+
+    /**
+     * 实际生效的策略：解码回退链升到「本地软解」档时，强制软解（覆盖用户偏好，但不改偏好本身）。
+     *
+     * 用户偏好仍是唯一可写来源（面板显示不变），回退档位是播放会话的临时状态——用户重新选内核 / 解码策略 / 码率时清回 0（见 PlayerViewModel /
+     * PlayerActivity）。
+     */
+    fun effectiveMode(
+        mode: String?,
+        fallbackStage: Int?,
+    ): String =
+        if (PlayerDecodeFallback.forcesLocalSoftware(fallbackStage)) SOFTWARE else normalize(mode)
 
     /**
      * ExoPlayer 的扩展渲染器模式：

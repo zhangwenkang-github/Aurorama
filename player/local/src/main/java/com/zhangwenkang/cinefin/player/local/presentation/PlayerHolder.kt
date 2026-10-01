@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import javax.inject.Inject
 import javax.inject.Singleton
 import timber.log.Timber
@@ -161,8 +162,16 @@ constructor(
 
         return when (backend) {
             BACKEND_EXOPLAYER -> {
-                // 解码策略（W12 反馈 B）：硬解优先 = 扩展渲染器兜底 + 解码器自动回退；仅软解 = 扩展渲染器优先
-                val decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode)
+                /*
+                 * 解码策略（W12 反馈 B；W16 优先级调整为 本地硬解 → 服务器解码/转码 → 本地软解）：
+                 * 硬解优先 = 扩展渲染器兜底 + 解码器自动回退；仅软解 = 扩展渲染器优先。
+                 * 回退链升到「本地软解」档时强制软解（偏好本身不动，面板显示不变）。
+                 */
+                val decodeMode =
+                    PlayerDecodeMode.effectiveMode(
+                        appPreferences.getValue(appPreferences.playerDecodeMode),
+                        appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
+                    )
                 val renderersFactory =
                     CinefinRenderersFactory(application, audioDelayProcessor)
                         .setExtensionRendererMode(
@@ -186,7 +195,12 @@ constructor(
                     .build()
             }
 
-            BACKEND_MPV ->
+            BACKEND_MPV -> {
+                // 回退链的「本地软解」档：mpv 强制 hwdec=no，不再问 hwdec 偏好
+                val softwareForced =
+                    PlayerDecodeFallback.forcesLocalSoftware(
+                        appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
+                    )
                 MPVPlayer.Builder(application)
                     .setAudioAttributes(audioAttributes, true)
                     .setTrackSelectionParameters(trackSelector.parameters)
@@ -199,8 +213,15 @@ constructor(
                     .setPauseAtEndOfMediaItems(true)
                     .setVideoOutput(appPreferences.getValue(appPreferences.playerMpvVo))
                     .setAudioOutput(appPreferences.getValue(appPreferences.playerMpvAo))
-                    .setHwDec(appPreferences.getValue(appPreferences.playerMpvHwdec))
+                    .setHwDec(
+                        if (softwareForced) {
+                            PlayerDecodeMode.mpvHwDec(PlayerDecodeMode.SOFTWARE)
+                        } else {
+                            appPreferences.getValue(appPreferences.playerMpvHwdec)
+                        }
+                    )
                     .build()
+            }
 
             else -> throw RuntimeException("$backend is not a valid player backend")
         }

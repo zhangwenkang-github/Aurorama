@@ -27,6 +27,7 @@ import com.zhangwenkang.cinefin.models.toFindroidSegment
 import com.zhangwenkang.cinefin.models.toFindroidShow
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import java.io.File
 import java.util.UUID
@@ -328,12 +329,23 @@ class JellyfinRepositoryImpl(
                 PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
             val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)
             /*
+             * W16 解码回退链第 2 档：本地硬解报「解码能力不足」后，按回退档位强制服务器转码——
+             * 明确不允许直连 / 直传（enableDirectPlay / enableDirectStream = false），否则服务器会
+             * 认为参数没超限继续 DirectPlay，客户端还是解不了。用户显式选码率后档位会清零。
+             */
+            val forceTranscode =
+                PlayerDecodeFallback.forcesServerTranscode(
+                    appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
+                )
+            /*
              * 选了具体码率就必须声明转码能力：否则服务器认为「这个客户端不会播转码流」，
              * 于是无视 maxStreamingBitrate 继续直连（Pad 5 真机实测：3 Mbps 档仍是 DirectPlay）。
              * 只声明 HLS + H.264/AAC（Jellyfin 官方客户端的流式档位），音频直通优先级由服务器决定。
              */
             val transcodingProfiles =
-                if (PlayerStreamingQuality.requestsTranscoding(streamingBitrate)) {
+                if (
+                    PlayerStreamingQuality.requestsTranscoding(streamingBitrate) || forceTranscode
+                ) {
                     listOf(
                         TranscodingProfile(
                             container = "ts",
@@ -350,10 +362,11 @@ class JellyfinRepositoryImpl(
                     emptyList()
                 }
             Timber.d(
-                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b profiles=%d",
+                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b profiles=%d",
                 streamingBitrate,
                 maxStreamingBitrate,
                 transcodingEnabled,
+                forceTranscode,
                 transcodingProfiles.size,
             )
             val sources = mutableListOf<FindroidSource>()
@@ -381,6 +394,17 @@ class JellyfinRepositoryImpl(
                             maxStreamingBitrate = maxStreamingBitrate,
                             // 原始画质 = 只直连；自动 / 具体码率都允许服务器转码
                             enableTranscoding = transcodingEnabled,
+                            // W16：回退档位 = 服务器转码时禁止直连 / 直传，逼服务器真的转码
+                            enableDirectPlay = if (forceTranscode) false else null,
+                            enableDirectStream = if (forceTranscode) false else null,
+                            /*
+                             * 还禁止「流拷贝」：只禁直连 / 直传时，服务器会把 10-bit H.264 原样
+                             * 塞进 HLS（video stream copy），客户端依旧解不了——实测就是这个坑
+                             * （Hi10P 片源第二档仍报 ERROR_CODE_DECODING_FAILED）。禁掉拷贝后
+                             * 服务器按转码档位（h264/aac）重新编码，客户端硬解才吃得下。
+                             */
+                            allowVideoStreamCopy = if (forceTranscode) false else null,
+                            allowAudioStreamCopy = if (forceTranscode) false else null,
                         ),
                     )
                     .content

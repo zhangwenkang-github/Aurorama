@@ -223,10 +223,14 @@
     <string name="player_controls_decode_kernel_caption">Changing the core restarts playback from the current position</string>
     <string name="player_controls_decode_strategy">Decoding strategy</string>
     <string name="player_controls_decode_hardware">Hardware first</string>
-    <string name="player_controls_decode_hardware_caption">Local hardware decoding, falls back automatically when it fails</string>
+    <string name="player_controls_decode_hardware_caption">Local hardware decoding; on failure asks the server to transcode, then falls back to software</string>
     <string name="player_controls_decode_software">Software only</string>
     <string name="player_controls_decode_software_caption">FFmpeg / mpv software decoding, highest compatibility and power draw</string>
-    <string name="player_controls_decode_priority">Priority: server transcode → local hardware → software</string>
+    <string name="player_controls_decode_priority">Priority: local hardware → server transcode → local software</string>
+    <string name="player_controls_decode_stage_active">Active: %1$s</string>
+    <string name="player_controls_decode_stage_hardware">Local hardware</string>
+    <string name="player_controls_decode_stage_server">Server transcode</string>
+    <string name="player_controls_decode_stage_software">Local software</string>
     <string name="player_controls_decode_active">Software decoding</string>
     <string name="player_settings_tab_playback">Playback</string>
     <string name="player_settings_tab_gesture">Gestures</string>
