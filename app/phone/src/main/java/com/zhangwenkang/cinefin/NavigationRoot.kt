@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.NavOptionsBuilder
@@ -206,25 +208,24 @@ fun NavigationRoot(
 
     var searchExpanded by remember { mutableStateOf(false) }
 
-    val currentRoute = navBackStackEntry?.destination?.route
+    val currentDestination = navBackStackEntry?.destination
     // 主导航：手机底部 4 tab / 平板侧轨；抽屉继续承载全量入口（库列表 / 控制台 / 服务器）
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     // 顶层页面允许手势拉出抽屉；详情页等保留全宽与返回手势。
     // 统一目的地（D18）：凡是侧柜（底部 Tab / 侧轨 / 抽屉）里能点到的目标都按顶层页面处理——
     // 手机选择后关闭抽屉，平板切换内容区、侧轨常驻，不再出现"某些条目把侧轨顶掉"。
+    // 带参路由（Library / Settings / Console）的 destination.route 是「类名 + 参数模板」，
+    // 不能用 ::class.qualifiedName 比较（踩坑 28）；统一用 isRoute 按序列化器哈希匹配。
     val showNavigation =
-        currentRoute in
-            setOf(
-                HomeRoute::class.qualifiedName,
-                MediaRoute::class.qualifiedName,
-                BookshelfRoute::class.qualifiedName,
-                DownloadsRoute::class.qualifiedName,
-                MusicModeRoute::class.qualifiedName,
-                LibraryRoute::class.qualifiedName,
-                SettingsRoute::class.qualifiedName,
-                ConsoleRoute::class.qualifiedName,
-            )
+        currentDestination.isRoute<HomeRoute>() ||
+            currentDestination.isRoute<MediaRoute>() ||
+            currentDestination.isRoute<BookshelfRoute>() ||
+            currentDestination.isRoute<DownloadsRoute>() ||
+            currentDestination.isRoute<MusicModeRoute>() ||
+            currentDestination.isRoute<LibraryRoute>() ||
+            currentDestination.isRoute<SettingsRoute>() ||
+            currentDestination.isRoute<ConsoleRoute>()
     val context = LocalContext.current
     val settingsRoute = remember {
         SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
@@ -257,19 +258,19 @@ fun NavigationRoot(
 
     val booksLibrary = drawerData.libraries.firstOrNull { it.type == CollectionType.Books }
     val currentLibrary =
-        if (currentRoute == LibraryRoute::class.qualifiedName) {
+        if (currentDestination.isRoute<LibraryRoute>()) {
             runCatching { navBackStackEntry?.toRoute<LibraryRoute>() }.getOrNull()
         } else {
             null
         }
 
-    val homeSelected = currentRoute == HomeRoute::class.qualifiedName
-    val musicSelected = currentRoute == MusicModeRoute::class.qualifiedName
-    val mediaSelected = currentRoute == MediaRoute::class.qualifiedName
-    val downloadsSelected = currentRoute == DownloadsRoute::class.qualifiedName
-    val settingsSelected = currentRoute == SettingsRoute::class.qualifiedName
+    val homeSelected = currentDestination.isRoute<HomeRoute>()
+    val musicSelected = currentDestination.isRoute<MusicModeRoute>()
+    val mediaSelected = currentDestination.isRoute<MediaRoute>()
+    val downloadsSelected = currentDestination.isRoute<DownloadsRoute>()
+    val settingsSelected = currentDestination.isRoute<SettingsRoute>()
     val booksSelected =
-        currentRoute == BookshelfRoute::class.qualifiedName ||
+        currentDestination.isRoute<BookshelfRoute>() ||
             (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString())
 
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
@@ -930,3 +931,13 @@ private fun NavHostController.safePopBackStack(): Boolean {
         false
     }
 }
+
+/**
+ * 判断当前目的地是否为给定路由。
+ *
+ * `NavDestination.route` 对 data object 是 qualifiedName，对带参路由是「类名 + /{arg}」模板， 直接与
+ * `::class.qualifiedName` 比较会恒为 false（踩坑 28）。`hasRoute` 用路由类的序列化器 哈希与 `composable<T>` 注册的目的地 id
+ * 比对，带参 / 默认值路由都能命中。
+ */
+private inline fun <reified T : Any> NavDestination?.isRoute(): Boolean =
+    this?.hasRoute<T>() == true

@@ -4,7 +4,7 @@
 > 权威设计依据：`docs/UI_DESIGN_SYSTEM.md`（S4 v1.0，Prism 棱镜）。
 > 本文件是该任务线的**唯一权威文档**：需求、决策、进度、验收、踩坑与日志都写在这里，不新建零散 `.md`。
 
-> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛； W5-R3（R3-UI-LUMEN，本波）= 首页与视频详情改用 S1 流光（A · Lumen）手法 + 媒体库去拥挤 + 侧柜统一列表（取消「更多」分组）与入口行为一致化。
+> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛； W5-R3（R3-UI-LUMEN）= 首页与视频详情改用 S1 流光（A · Lumen）手法 + 媒体库去拥挤 + 侧柜统一列表（取消「更多」分组）与入口行为一致化； W5-R3F（R3-UI-HOTFIX，`feature/r3-ui-hotfix`）= 四项 UI 验收缺陷热修； W5-R3G（R3-NAVFIX，`feature/r3-ui-navfix`，本波）= 修复踩坑 28：带参路由统一用 `NavDestination.hasRoute` 判定，平板侧轨在设置 / 书籍库 / 带参媒体库页常驻且选中态正确。
 
 ## 1. 任务线定位
 
@@ -132,7 +132,18 @@
 - [x] **④ 流光（Lumen）效果过弱（P1）**：`LumenSurface` 增强四件事——卡片描边改 **1dp 渐变**（白 16% → 5% → 10%，emphasized 时走媒体色渐变）、顶部 1px 内高光改成"中段 2.6× 亮度、两端收光"的横向渐变、沿轮廓加 **极轻外发光**（8dp / 3dp 两道低透明白描边，内半圈被卡片本体盖住）；新增 `lumenTopGlow`（顶部白 12% → 42% 处消散）铺在首页头图与详情页头图；`lumenBottomScrim` 起点从 4% 收到 42%，图上 42% 不再被压暗，明暗对比与"下方溶进底色"更明确。光的颜色纪律守住 §2.6 / §5.3：**只用无彩色的白 / 黑**，未新增 token / 色值 / 位图。
 - [x] 门禁：`:app:phone:assembleDebug ktfmtCheck`、`:app:phone:testLibreDebugUnitTest`（5 项）、`:core:testLibreDebugUnitTest`、`:modes:film:testDebugUnitTest` 全绿
 - [x] 真机：Pad 5（`43af8627`，横屏 2560×1600 用 `wm size/density` 模拟）与 K60（`8e875894`，竖屏）按 §5「W5-R3F 验收」逐条复验通过；设备副作用已还原、device-lock 已登记并释放
-- [ ] 未决（留负责人决策）：`showNavigation` / `currentLibrary` 用 `Route::class.qualifiedName` 比较，对**带参路由**（Library / Settings / Console）恒为 false（见踩坑 28）→ D18 想要的"侧轨常驻"目前对这三个页面不生效；建议另行一波改 `NavDestination.hasRoute<T>()`，本波未动（避免波及控制台 WebView / 设置页表现）
+- [x] 未决项已由 **W5-R3G（`feature/r3-ui-navfix`）** 结清：`showNavigation` / `currentLibrary` / 各选中态统一改用 `NavDestination.hasRoute`（见踩坑 28 与 W5-R3G 小节）——平板侧轨在设置 / 书籍库 / 带参媒体库页面常驻且高亮正确，手机底部 Tab 无残留错误高亮
+
+### W5-R3G 本轮进度（导航侧轨常驻修复，2026-10-01，分支 `feature/r3-ui-navfix`）
+
+W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` + 文档）：
+
+- [x] **根因**：`NavDestination.route` 对 data object 是 qualifiedName，对带参路由是「类名 + `/{arg}`」模板；`currentRoute == Route::class.qualifiedName` 因此对 `LibraryRoute` / `SettingsRoute` / `ConsoleRoute` 恒为 false。受影响的不止 `showNavigation`（平板侧轨在设置 / 控制台 / 书籍库"消失"），还有 `currentLibrary`（书架库高亮失效）与 `settingsSelected` 等全部选中态判断。
+- [x] **修复**：新增文件内 `private inline fun <reified T : Any> NavDestination?.isRoute()`，统一走 `NavDestination.Companion.hasRoute`（按路由类序列化器哈希与 `composable<T>` 注册的目的地 id 比对，带参 / 默认值路由都能命中；navigation 2.10.1 的 import 是 `androidx.navigation.NavDestination.Companion.hasRoute`）。`showNavigation` 覆盖首页 / 媒体库 / 书架 / 下载 / 音乐 / 媒体库（Library）/ 设置 / 控制台全部 8 个统一目的地；`currentLibrary`、`homeSelected` / `musicSelected` / `mediaSelected` / `downloadsSelected` / `settingsSelected` / `booksSelected` 同步切换。未改 `navigateTopLevel` / `NavHost` 注册 / 抽屉动作，导航栈行为不变。
+- [x] 门禁：`:app:phone:assembleDebug ktfmtCheck` 通过（先 `ktfmtFormat` 归位 import 与注释）。
+- [x] 真机（Pad 5 `43af8627` 横屏 / K60 `8e875894` 竖屏，device-lock 已登记并在完成时释放）：Pad 5 首页 / 设置 / 书架（BookshelfRoute）/ 媒体库（MediaRoute）/ 电影库（LibraryRoute）/ 书籍库（LibraryRoute · Books）侧轨 6 项始终可见；设置项高亮 `SurfaceContainerHigh`（像素 34,42,54），书架项高亮 `Media.Container`（像素 60,53,51），首页项高亮 `SurfaceContainerHigh`；进入书籍库时"书架"项高亮——正是 `currentLibrary` 修复点。K60 底部 Tab 首页 / 音乐 / 书架 / 媒体库逐项切换，文字暖色像素只在当前项 >0（198 / 185 / 201 / 317，其余 0）；进设置页 4 项全部 0（无错误高亮），返回首页后首页项恢复高亮。
+- [x] 纪律复核：不改 `settings.gradle.kts` / `libs.versions.toml` / `AppPreferences.kt` / `player/*`、不动其他 worktree、不改 `docs/PROJECT_PLAN.md`。
+- **发现（留给负责人）**：真机走查确认**控制台（`ConsoleRoute`）与媒体资料管理器入口当前无法从 UI 到达**——D18 提交 `20c4fe3` 删掉原抽屉里的「服务器控制台 / 媒体资料管理器」条目后没有接回 `chromeDestinations`；`showNavigation` 仍保留 `ConsoleRoute` 判定，但已无导航来源。W5-R3G 未擅自恢复入口（需同时接 `DrawerViewModel.isAdmin` 权限判断，超出本波范围），如需恢复请单独排一波。
 
 ## 5. 验收
 
@@ -240,6 +251,20 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [x] 设备副作用已还原：Pad 5 `wm size/density reset`、`wm fixed-to-user-rotation disabled`、`accelerometer_rotation 1`、`user_rotation 0`；K60 未做显示覆盖；两台设备 App 已 force-stop、`/sdcard/*.xml` 临时文件已清理；`device-lock.md` 已登记并在完成时释放
 - [x] 纪律复核：不碰 `player/*`、不改 `settings.gradle.kts` / `libs.versions.toml` / `AppPreferences.kt`、不动其他 worktree、不改 `docs/PROJECT_PLAN.md`
 
+### W5-R3G 验收（2026-10-01，分支 `feature/r3-ui-navfix`）
+
+验收命令（全部通过）：
+
+```powershell
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck --console=plain    # BUILD SUCCESSFUL
+```
+
+- [x] **Pad 5（`43af8627`，横屏 2560×1564）**：侧轨（折叠 88dp，6 项）在 首页 / 设置 / 书架（BookshelfRoute）/ 媒体库（MediaRoute）/ 电影库（LibraryRoute）/ 书籍库（LibraryRoute · Books）全程常驻；选中态像素采样：设置与首页项 `rgb(34,42,54)`、书架与书籍库项 `rgb(60,53,51)`，未选中项均为 navSurface `rgb(18,23,29)`（修复前设置 / 书籍库页面整条侧轨消失）
+- [x] **K60（`8e875894`，竖屏 1080×2400）**：底部 Tab 首页 / 音乐 / 书架 / 媒体库逐项切换，选中项文字暖色像素 198 / 185 / 201 / 317，其余 0；进入设置页 4 项全 0（不残留错误高亮），返回首页后首页项恢复；抽屉选择设置后自动关闭
+- [x] 控制台（`ConsoleRoute`）：**当前 master 的 UI 无入口**（D18 提交 `20c4fe3` 移除后未接回 `chromeDestinations`），无法真机进入；带参路由判定已由设置（SettingsRoute）/ 书籍库与电影库（LibraryRoute）覆盖验证
+- [x] 纪律：不改 `settings.gradle.kts` / `libs.versions.toml` / `AppPreferences.kt` / `player/*`、不动其他 worktree、不改 `docs/PROJECT_PLAN.md`；设备副作用已还原（Pad 5 自动旋转恢复、两台设备 force-stop、临时文件清理），device-lock 已登记并在完成时释放
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -269,7 +294,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 25. **`"S$this.parentIndexNumber"` 是 Kotlin 字符串模板陷阱**：编译通过，但语义是「`$this` 对象插值 + 字面量 `.parentIndexNumber`」，真机上海报 / 走廊卡 / 头图眉标会把整段 `FindroidEpisode` 打印出来（首页主视觉被盖满）。要插值属性必须写 `${this.parentIndexNumber}`；本波统一收口到显式 `seasonCode()` / `indexCode()`（缺号回落 `S?` / `E?`）。凡"人眼看到对象字符串"的 bug，先在代码里搜 `"$` + 属性访问。
 26. **只在抽屉打开时才加载的导航数据 = 冷启动必踩**：`DrawerViewModel.load()` 原先挂在 `drawerState.isOpen`，而书架 Tab 的跳转 / 选中态都读这份库列表 → 冷启动点「书架」拿到空列表，被入口逻辑"兜底"到媒体库总览。两条纪律：① 顶部 / 侧边导航目的地依赖的数据要在 `LaunchedEffect(Unit)` 预载；② 入口不应把"数据未就绪"翻译成**另一个目的地**——本波把书架改成独立 `BookshelfRoute`，由页面自己解析（Loading → Ready / Empty / Failed）。真机定位手法：先开一次抽屉再点同一入口，若行为变正确，则基本可判定为"数据未加载 + 错误兜底"。
 27. **悬浮在滚动内容上的搜索框必然遮挡**：`Box { FilmSearchBar(); LazyVerticalGrid(topPadding = 88.dp) }` 只在滚动起点对齐，上滑后卡片会钻到搜索框下（用户截图可见"搜索框挡住最前面的卡片"）。两种解法二选一：放进滚动内容第一项（M3 `SearchBar` 展开需要全屏约束，放 lazy item 里会拿到无界约束，风险高）或改成不覆盖布局——本波取 Column 表头 + 栅格自裁剪，并用 `uiautomator` 断言"最上可见卡片 bounds 与搜索框 bounds 无交集"。
-28. **`currentRoute == Route::class.qualifiedName` 对带参路由恒为 false**：Navigation Compose 里 `destination.route` 对 data object 才是 qualifiedName，对带参路由是「类名 + `/{arg}` 模板」。所以 `showNavigation` 中的 `LibraryRoute` / `SettingsRoute` / `ConsoleRoute` 从未命中（这三个页面侧轨 / 底部 Tab 不常驻，与 D18 文字不符），`currentLibrary` 也恒为 null（书架库选中态失效）。正确写法是 `navBackStackEntry?.destination?.hasRoute<LibraryRoute>()`；本波新增的 `BookshelfRoute` 是 data object，不受影响。
+28. **`currentRoute == Route::class.qualifiedName` 对带参路由恒为 false**：Navigation Compose 里 `destination.route` 对 data object 才是 qualifiedName，对带参路由是「类名 + `/{arg}` 模板」。所以 `showNavigation` 中的 `LibraryRoute` / `SettingsRoute` / `ConsoleRoute` 从未命中（这三个页面侧轨 / 底部 Tab 不常驻，与 D18 文字不符），`currentLibrary` 也恒为 null（书架库选中态失效）。正确写法是 `navBackStackEntry?.destination?.hasRoute<LibraryRoute>()`；本波新增的 `BookshelfRoute` 是 data object，不受影响。**W5-R3G 已修复**：统一收口到 `NavDestination?.isRoute<T>()`（内部走 `NavDestination.Companion.hasRoute`，navigation 2.10.1 的 import 为 `androidx.navigation.NavDestination.Companion.hasRoute`），覆盖 8 个统一目的地与全部选中态；真机对照见 §5 W5-R3G 验收。
 
 ## 7. 日志
 
@@ -283,3 +308,5 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - **交接提示（下一会话 / 负责人）**：① **真机走查未做**（Pad 5 / K60 当前未连接）——重点断言「设置 / 书架 / 控制台 页面侧轨是否常驻」「手机抽屉选择后是否关闭」「首页头图 21:9 裁切」「详情三栏 1280dp 呼吸感」，走查前按 `device-lock.md` 登记；② 若负责人本意是"抽屉里的分组标题也一并取消"，本波已按此实现（抽屉无任何分组标题）——需要恢复分组时只改 `NavigationRoot` 里 `drawerGroups` 一处；③ 播放器线仍在改 `player/*` 与 `presentation/player/*`，本波未触碰（避免覆盖层冲突）；④ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
 - **2026-10-01 W5-R3F（本会话，UI 验收缺陷热修）**：读齐 `PROJECT_PLAN` §1–§5、`UI_PLAN`（W5 + 24 条踩坑）、`UI_DESIGN_SYSTEM`（§2.5 / §2.6 / §5.2 / §5.3 / §6 / §9.4）、`docs/design/s1-direction-a/README.md`。真机复现 4 项验收缺陷（K60 首页 `S[].parentIndexNumber`、冷启动点「书架」落媒体库、媒体库上滑搜索框遮挡、流光观感过弱）。修复：① `episodeCode` / `cardMetaLine` 显式插值 + 眉标 `maxLines`/ellipsis + 2 项单测；② 新增 `BookshelfRoute` / `BookshelfScreen` / `BookshelfViewModel`（`pickBooksLibrary` 3 项单测）+ 抽屉数据启动预载 + 库内容页空态；③ `MediaScreen` 搜索框改不覆盖布局；④ `LumenSurface` 渐变描边 / 内高光 / 外发光 + `lumenTopGlow` + 重调 `lumenBottomScrim`。门禁 `:app:phone:assembleDebug ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`(5) + `:core:testLibreDebugUnitTest` + `:modes:film:testDebugUnitTest` 全绿；Pad 5 横屏 / K60 竖屏逐条复验通过（含像素采样：卡外 25.3 → 35.1）。分支 `feature/r3-ui-hotfix`。
 - **交接提示（负责人 / 下一会话）**：① **踩坑 28 需单独一波**——`showNavigation` 对带参路由（Library / Settings / Console）恒不命中，D18 的"侧轨常驻"实际没生效；本波只把书架换成 data object 路由，其余未动；② 书架解析每次进入会多 1–2 次 `Items?limit=1` 查询（本地服务器 < 300ms，可接受；若嫌慢可在 `BookshelfViewModel` 里加内存缓存 / `hasRoute` 复用抽屉库列表）；③ 本波顺带发现 `LibraryScreen` 原先没有空态（空库=空白），已补 `CinefinEmptyState`；④ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛（W4/W5 遗留）。
+- **2026-10-01 W5-R3G（本会话，导航侧轨常驻修复）**：读齐 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D18 / 踩坑 28 / W5-R3F 交接）、`UI_DESIGN_SYSTEM` §8.6，核对 `NavigationRoot.kt` 的路由定义 / `composable<T>` 注册 / `chromeDestinations`。修复踩坑 28：`currentRoute == Route::class.qualifiedName` 改为文件内 `NavDestination?.isRoute<T>()`（`NavDestination.Companion.hasRoute`，按序列化器哈希匹配，带参 / 默认值路由均可命中），覆盖 `showNavigation` 8 个统一目的地与 `currentLibrary` / 五个 `selected` 判断；未改导航栈与抽屉动作。门禁 `:app:phone:assembleDebug ktfmtCheck` 通过。真机：Pad 5 横屏（home / library / downloads / music / bookshelf / settings 侧轨 6 项常驻，设置 / 书架 / 首页高亮像素采样；进入书籍库时"书架"高亮——`currentLibrary` 修复点）与 K60 竖屏（4 tab 切换选中态逐项验证、进设置无残留高亮、返回恢复）通过；发现并记录控制台入口缺失（D18 提交 `20c4fe3` 删除后未接回，见 W5-R3G 小节的"发现"）。分支 `feature/r3-ui-navfix`。
+- **交接提示（负责人 / 下一会话）**：① **控制台 / 媒体资料管理器入口待决策**——`ConsoleRoute` 判定已修好，但 UI 上没有入口（D18 删除后未接回 `chromeDestinations`，且需接 `DrawerViewModel.isAdmin`）；恢复入口属功能变更，本波未动。② 若后续把 `chromeDestinations` 改为按管理员动态生成，`showNavigation` 的 `isRoute<ConsoleRoute>()` 已就绪，无需再改判定。③ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛（W4/W5 遗留）。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
