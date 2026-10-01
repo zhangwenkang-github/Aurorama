@@ -3,7 +3,7 @@
 > **新对话从这里开始。** 开工前读本文件，收工前把进度写回本文件。
 > 纪律：需求变更、决策、完成度、勾选项、更新日志，都在**同一次改动**里写回这里；不再新建零散 `.md`。
 >
-> 最后更新：2026-10-02　分支：`feature/w15-libass`（W15-LIBASS：mpv 原生 libass 特效字幕 + 转码场景服务端字幕注入；Exo 路径方案已调研、待批准引入依赖；基线 `master ed303f9`，落地记录见 §18）
+> 最后更新：2026-10-02　分支：`feature/w16-exo-libass-decode`（W16-PLAYER：Exo 路径引入 libass（ASS/SSA 特效 + SRT 覆盖）+ 解码优先级改为「本地硬解 → 服务器解码/转码 → 本地软解」；基线 `master c365c7c`，落地记录见 §19）
 
 ---
 
@@ -172,13 +172,14 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
       「时间可点切换 / 章节入口 / 加载细线」仍未做，留给后续会话。
 - [ ] **1.11 播放增强**（原阶段 6）——进度记忆与服务端同步、片头片尾阈值设置、Trickplay 预加载与失败降级、
       外挂字幕导入、播放结束行为（自动下一集 / 停在结束帧）。
-- [x] **1.18 libass 字幕渲染**（M4 缺口）——✅ 2026-10-02 W15-LIBASS（**mpv 原生路径**，见 §18；Exo 路径方案已调研、待批准引入依赖）。
+- [x] **1.18 libass 字幕渲染**（M4 缺口）——✅ W15-LIBASS（**mpv 原生路径**，见 §18）+ ✅ **W16-PLAYER（Exo 路径，见 §19）**，两个内核都走 libass。
       mpv 内核：容器有内嵌字幕（DirectPlay）→ mpv 内置 libass 直接渲染；容器无字幕（服务器转码 / HLS）→
       按 MediaItem extras 的 Jellyfin 字幕清单 `sub-add` 独立 ASS 文件；App 覆盖层在 mpv 下不接管、不叠加。
       延迟（`sub-delay`）/ 开关（`sid=no|auto`）/ 语言（`slang` + 轨 `lang`）联动；`sub-ass-override` 保持默认 `scale`，
       ASS 的定位 / 字体 / 动画交给脚本 + libass 还原（颜色 / 背景 / 描边在 ASS 上让位给脚本，属有意取舍）。
-      ExoPlayer 路径保持现状（Media3 `SsaParser` 只出文本）；引入 libass 需新增依赖（候选 `peerless2012/ass-media`），
-      按红线先报告负责人、批准后单独开波。
+      **ExoPlayer 路径（W16 已落地）**：引入 `io.github.peerless2012:ass-kt`（libass ISC）走「App 驱动」渲染——
+      ASS/SSA 原文透传、SRT 由 `AssSubtitleScript` 生成 ASS，两者都交给 libass 画；延迟 / 开关 / 语言 / 大小档位与 mpv 同语义
+      （ASS 的颜色 / 位置 / 描边让位给脚本，与 mpv 的 `sub-ass-override=scale` 一致），libass 失败回退既有文本渲染。详见 §19。
       验收：DirectPlay / 转码双场景 + 像素对比 + 性能 / 稳定性 + Exo 回归，证据见 §18.4。
 
 ### P2 · 多形态与打磨
@@ -579,6 +580,9 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | `uiautomator` 读不出面板 chip 的选中态 | `PanelChip` / `PanelRow` 的选中只体现在底色与描边上，dump 里 `selected=false`（没有 `selectable` 语义）。验收需要「默认选中项」证据时，改用像素采样：选中 chip 的底 = 极光青容器合成色（Pad 5/K60 实测 ≈ `(54,122,118)`），未选中 = 面板底（`(17,19,25)`） |
 
 | 常驻侧栏会「挤压 / 右移画面」（W12 真机定论） | 平板侧栏一旦缩窄 `PlayerView`（`applyVideoArea` 按 `sidePanelExpanded` 改宽度），用户的感受就是「打开选集画面被挤走」——本轮改成**覆盖层**：画面区恒为整窗宽，面板盖右缘 320dp + 左缘 1dp 结构线。命中区必须单独补一条（`PlayerOverlayContainer.sidePanelOpen` / `sidePanelWidthPx`），否则面板上的点按会穿透到手势层 |
+| ass-kt 与 libmpv 的 `libc++_shared.so` 冲突（W16） | 两个 AAR 各带一份同名 `libc++_shared.so`，AGP 9 直接报 duplicate；`packaging.jniLibs.pickFirsts` 去重后**固定**取 ass-kt 的旧版（与声明顺序无关，实测 0.3.0–0.5.1 全是同一份旧 libc++），libmpv 缺 `__from_chars_floating_point` → 真机 `UnsatisfiedLinkError: dlopen failed`。修法：app 模块在 `merge*NativeLibs` 的 `doLast` 用 **libmpv AAR 里的新版覆盖**合并结果（逐个 ABI），校验 APK 内 `lib/arm64-v8a/libc++_shared.so` 的 sha256/大小（1374336 = libmpv 版）。改完 mpv 与 libass 两条路径都要真机回归 |
+| libass 对「同一时间戳」有帧缓存（W16） | 暂停画面下改字号 / 转屏后只调 `ass_set_font_scale` / `ass_set_frame_size` 不会让旧帧失效：libass 命中缓存直接回旧图（`changed=0`），表现为「面板改了、画面不动」。修法：`LibassSubtitleRenderer.load()` 只要脚本 / 字号 / storage / frame 任一变化就**释放并重建轨道 + 渲染器**再重新 `readBuffer`（几十 KB 脚本，毫秒级） |
+| libass 字体来源（W16） | 原生库用 fontconfig provider（`ass_set_fonts(..., "sans-serif", FONTCONFIG, ...)`），字体来自系统 `/system/fonts`：脚本里的 `方正准圆_GBK` 真机回退到 MiSans（日志 `fontselect: ... -> /system/fonts/MiSansVF.ttf`）。MKV 内嵌字体（attachment）在服务器转码场景 Jellyfin 不交付，同样走系统字体回退——与 mpv 路径一致，属接受差异 |
 | M3 `clickable` 的最小触控 ≠ 视觉框 | Compose Material3 会把可点节点扩到最小 48dp：`uiautomator` 读到的 bounds 是**触摸框**（48dp），不是画出来的键框（本轮宽屏 44dp / 窄屏 38dp）。验收「控件缩小」要用截图量描边位置（Pad 5 实测视觉框 ≈ 40–44dp、触摸框 108px = 48dp） |
 | 只发 `maxStreamingBitrate` 不会转码（W12 真机踩到） | `DeviceProfile.transcodingProfiles = emptyList()` 时服务器认为「这个客户端不会播转码流」，于是无视码率上限继续 DirectPlay（Pad 5 实测 3 Mbps 档 `PlayMethod=DirectPlay`、`TranscodingInfo=null`）。补上 `TranscodingProfile(ts + HLS + h264 + aac/mp3/ac3/opus)` 后会话才出现 `TranscodingInfo{IsVideoDirect=False, Bitrate=2808000, TranscodeReasons=ContainerBitrateExceedsLimit}`，App 播放 `master.m3u8` |
 | Jellyfin 会话 `PlayMethod` 可能滞后 | 同一时刻 `/Sessions` 可能给出 `PlayState.PlayMethod=DirectPlay` 而 `TranscodingInfo` 明确是转码（本轮实测）。判断「服务器是否转码」只看 `TranscodingInfo`（`IsVideoDirect` / `Bitrate` / `TranscodeReasons`） |
@@ -594,6 +598,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-02 | **W16-PLAYER：Exo 路径 libass + SRT 覆盖 + 解码优先级反转（`feature/w16-exo-libass-decode`）**：①引入 `io.github.peerless2012:ass-kt:0.5.1`（libass ISC，App 驱动渲染，不依赖 Media3）；②Exo 主字幕改由 libass 渲染——ASS/SSA 原文透传（定位 / 字体 / 特效还原），SRT 由 `AssSubtitleScript` 生成 ASS；延迟 / 开关 / 语言 / 大小档位与 mpv 同语义，次字幕仍纯文本，libass 失败回退既有文本渲染；③解码优先级改为「本地硬解 → 服务器解码 / 转码 → 本地软解」（`PlayerDecodeFallback` 纯函数），强制转码时禁直连 / 直传 / 流拷贝；④原生库冲突修复（libc++_shared 用 libmpv 版覆盖）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 52 项（+13）` 全绿；Pad 5 + K60 逐条真机证据与性能采样见 §19。 |
 | 2026-10-02 | **W15-LIBASS 特效字幕（`feature/w15-libass`）**：mpv 内核走内置 libass——DirectPlay 交给容器内嵌 ASS；服务器转码（容器无字幕）时按 MediaItem extras 里的 Jellyfin 字幕清单把 `Stream.ass` `sub-add` 给 mpv，不再出现「当前媒体没有可调节的字幕」。字幕模式联动（`off→sid=no` / `auto·always→sid=auto`）、延迟 / 语言沿用既有 `sub-delay` / `slang`；mpv 下自研覆盖层不接管（纯函数 + 单测钉死）。Exo 保持现状（Media3 只出文本；引入 libass 需新依赖，待批准）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 39 项（+8）单测` 全绿；K60 双场景真机证据、像素对比与性能采样见 §18。 | 
 | 2026-10-02 | **W14-PLAYER 播放页微调（`feature/w14-speed-badge`）**：①「1×」从可点文本项改为与顶栏清晰度徽标**同款的纯展示徽标**——抽共用组件 `PlayerOverlayBadge`（labelSmall + `CinefinShapes.Xs` 8dp 圆角 + 1dp `outlineVariant` 描边 + 水平 `Space2` / 垂直 2dp 内边距，无独立底色，顶 / 底由渐隐遮罩托底），顶栏清晰度徽标改为调用同一组件；②移除点击（点 1× 不再打开倍速面板），倍速入口只剩左下倍率图标键一个；③位置不变（「详细信息」右侧）、随倍率更新（1× / 1.5× …）；④底栏宽度预算改按徽标自适应口径（7 键 + 徽标最宽估值 + 8 间距）。门禁 `assembleDebug + ktfmtCheck + app 49 项单测` 全绿；Pad 5 + K60 逐条文本 / 像素证据见 §17。 |
 | 2026-10-02 | **W13-PLAYER 播放页第五轮反馈（`feature/w13-player-ui5`）**：①左下工具行按「全屏 / 宽度」分级显示——全屏或宽度充足（≥600dp / 平板 · 折叠）显示 6 键，非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息 + 1×（判据抽纯函数 + 单测）；②倍率键只显示图标（与其它图标键同宽，选中态=非 1×）；③当前倍率作为独立文本项固定在「详细信息」右侧，点图标 / 点数字同开「选择播放速度」；④被隐藏的 码率 / 解码 在「设置 → 播放」各加一行兜底入口（不新增图标）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 31 项单测` 全绿；Pad 5 + K60 逐条文本证据见 §16。 |
@@ -1196,3 +1201,74 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 3. 次字幕（`secondary-sid`）按 mpv 语义 `strip` 样式（只显示纯文本），主字幕保留 ASS 特效；ASS 内嵌字体（MKV attachment）在转码场景 Jellyfin 不交付，依赖系统 / mpv fontconfig 回退。
 4. mpv 侧「记住手动选轨」仍未做（`manualTrackSelectionMediaId` 目前只在 Exo 路径生效）；本波未做「sub-add 网络失败」的真机注入验证（代码路径由 `postCommand` 的 `runCatching` + 命令线程保护兜底）。
 
+## 19. W16-PLAYER 落地记录（2026-10-02 · 分支 `feature/w16-exo-libass-decode`）
+
+> 目标（用户决定）：①**Exo 内核（含硬解）也要引入 libass**，ASS/SSA 特效字幕在 Exo 路径同样生效；
+> ②**SRT 也覆盖**（libass 路径与既有渲染都要保证 SRT 正常，延迟 / 开关 / 语言 / 外观不回归）；
+> ③解码优先级改为 **本地硬解 → 服务器解码/转码 → 本地软解**（与 W12 相反），Exo 硬解失败能自动进下一档、不崩溃。
+> 基线 `master c365c7c`；本波写 `player:local` / `app:phone` / `data`（PlaybackInfo 参数）/ `settings`（`AppPreferences` 只追加 + 新增纯函数）；
+> 咽喉 `libs.versions.toml` 与 `player/local/build.gradle.kts` 由本会话写（另在 `app/phone/build.gradle.kts` 加了原生库去重与合并补丁）；`NavigationRoot.kt` / `settings.gradle.kts` 未触碰。
+
+### 19.1 方案调研与决策（D41–D43）
+
+| 编号 | 决策 |
+|------|------|
+| D41 | **Exo 路径引入 `io.github.peerless2012:ass-kt:0.5.1`（libass ISC + MIT 包装），走「App 驱动」渲染**。选它而不是 media3 集成的 `ass-media`：① `ass-kt` **不依赖 Media3**（无 1.8.0 → 1.11.1 兼容风险，本波实测直接编译通过）；② 自研字幕管线的延迟 / 双语 / 选轨 / 外观在 Media3 轨道体系里做不了，`ass-media` 的 renderer 只跟轨道选择走；③ 原生库 arm64 `libass.so` ≈3.0MB + `libc++_shared` ≈1.2MB。**依赖已获批**，只加在 `libs.versions.toml` + `player/local/build.gradle.kts`。 |
+| D42 | **字幕渲染路由**：Exo 主字幕统一交给 libass——ASS/SSA 原文透传（定位 / 字体 / 特效由脚本还原），SRT / WebVTT 由 `AssSubtitleScript.forCues()` 生成 ASS（字号 = 0.042×PlayResY×大小档位、位置 = MarginV、描边 = Outline、背景 = BorderStyle 3）。**归属**：延迟 / 开关 / 语言选择 / 大小倍率在 App 层（libass 只画）；ASS 的颜色 / 背景 / 位置 / 描边让位给脚本（与 mpv `sub-ass-override=scale` 一致）；SRT 的全部外观档位写进生成的 ASS 样式；次字幕仍纯文本（与 mpv `secondary-sid` strip 语义一致）。渲染基准 = 视频实际显示矩形（`currentVideoRect()`，跟随 FIT / 裁剪 / 旋转）。 |
+| D43 | **解码回退链**（`settings/domain/PlayerDecodeFallback.kt` 纯函数 + 单测）：`自动` 档硬解失败 → 第 2 档**强制服务器转码**（`enableDirectPlay / enableDirectStream / allowVideoStreamCopy / allowAudioStreamCopy = false` + 声明 h264/aac 转码 profile，逼服务器重编码）→ 再失败 → 第 3 档**本地软解**（mpv `hwdec=no`，Exo 侧对应扩展渲染器优先）。用户选具体 Mbps 时服务器本来就在转码 → 直接落软解；「原始画质」= 只直连 → 也直接落软解。档位落盘 `pref_player_decode_fallback_stage`（0/1/2）+ `pref_player_decode_fallback_media_id`，换条目 / 用户显式改码率·内核·解码策略时清零（防死循环）。 |
+
+### 19.2 实现（文件 + 行为）
+
+| 文件 | 改动 |
+|------|------|
+| `gradle/libs.versions.toml`、`player/local/build.gradle.kts` | 新增 `ass-kt:0.5.1` 依赖（唯一咽喉文件改动） |
+| `app/phone/build.gradle.kts` | `packaging.jniLibs.pickFirsts` 去重 `libc++_shared.so` + `merge*NativeLibs` 合并后用 **libmpv 的新版覆盖**（ass-kt 旧版缺 `__from_chars_floating_point`，会让 `libmpv.so` dlopen 失败，见 §9） |
+| `player/local/.../subtitle/LibassSubtitleRenderer.kt`（新） | libass 包装：`load(脚本, 字号, storage/frame 尺寸)`、`renderFrame(ms)`、失败标记与日志；参数变化整体重建（绕开 libass 同时间戳帧缓存，§9）；全部 `runCatching`（含 `UnsatisfiedLinkError`）——失败只标记，不崩 |
+| `player/local/.../subtitle/AssSubtitleScript.kt`（新，纯函数） | SRT/VTT cue → ASS 脚本（时间戳 / `&HAABBGGRR` 颜色 / 字号 / 边距换算 / 文本转义）+ ASS 原文归一化 |
+| `player/local/.../subtitle/PlayerSubtitleController.kt` | 下载后同时产出 cue 列表与 ASS 原文（ASS/SSA 才有）；`SubtitleOverlayState` 新增 `primaryAssScript`；缓存改为 `LoadedSubtitle` |
+| `app/phone/.../presentation/player/PlayerSubtitleOverlay.kt` | 每帧循环：主字幕走 libass（脚本 + 字号 + 存储 / 渲染尺寸变化时重建），画到视频显示矩形；次字幕 / libass 失败回退走既有 Compose 文本；`libass 字幕就绪` / 失败日志 |
+| `app/phone/.../PlayerActivity.kt` | `currentVideoRect()`：画面显示区像素矩形（内容框 + 视图旋转 / 缩放，裁剪到画面区），供 libass 定位；解码回退事件处理（`RestartWithServerTranscode` / `FallbackToSoftware`）；用户显式改码率 / 内核 / 解码策略时清回退档位 |
+| `settings/.../PlayerDecodeFallback.kt`（新，纯函数） | 档位规范化 / 下一档判定 / `forcesServerTranscode` / `forcesLocalSoftware` / 优先级表 |
+| `settings/.../AppPreferences.kt` | 只追加 `playerDecodeFallbackStage` / `playerDecodeFallbackMediaId` 两个键 |
+| `player/local/.../domain/PlayerDecodeMode.kt`、`presentation/PlayerHolder.kt` | `effectiveMode(mode, 回退档位)`：软解档强制软解（Exo 扩展渲染器优先 / mpv `hwdec=no`），不改用户偏好 |
+| `player/local/.../presentation/PlayerViewModel.kt` | `handleCodecFallback()`（硬解失败 → 转码 / 软解）、`clearDecodeFallback()`、换条目清档位、新事件；解码策略注释更新 |
+| `data/.../JellyfinRepositoryImpl.kt` | 转码档位时禁直连 / 直传 / 流拷贝并声明转码 profile；日志加 `forceTranscode` |
+| `player/local/res/values{,-zh-rCN}/strings.xml` | 优先级文案改「本地硬解 → 服务器解码 / 转码 → 本地软解」+ 硬解说明 + 当前档位行 |
+| 单测 | `PlayerDecodeFallbackTest`（6）、`AssSubtitleScriptTest`（5）、`PlayerDecodeModeTest`（+2）= player:local 39 → **52** |
+
+### 19.3 门禁（2026-10-02）
+
+```
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- `:app:phone:assembleDebug` ✅（arm64 分包 103.8MB = 基线 + ≈3.1MB libass/原生库）｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **49** 项（基线未改）
+- `:player:local:testDebugUnitTest` ✅ **52** 项 = 既有 39 + 新增 13
+- APK 内 `lib/arm64-v8a/libc++_shared.so` = **libmpv 版**（1374336B / `C4C2FE5C…`，非 ass-kt 的 1253544B）——原生库冲突修复的直接证据
+
+### 19.4 真机走查（Pad 5 `43af8627` + K60 `8e875894`，命令全部带 `-s`）
+
+素材：ASS 特效《齐木楠雄的灾难》`be79c27f-05cf-8ded-6ce1-e6e8d78e8b4d`（外挂 ASS，含定位 / 描边特效）；
+SRT《齐木楠雄的灾难 始动篇》`a35b7ea6-cdb3-ce23-966f-5798305028e7`（内嵌 17 轨含简中 SRT）；
+Hi10P《学生会的一己之见》`32074ae5-0847-c53c-1d14-9bd32383eec4`（h264 10-bit，Exo 硬解必失败）。
+
+| # | 证据（文本 / 数值） |
+|---|--------------------|
+| ① Exo + libass（ASS 特效） | `W/SubtitleRenderer: libass API version: 0x1704000`（原生库加载）→ `I/PlayerSubtitleOverlay: libass 字幕就绪：ASS 原文，script=46860 bytes，frame=2560x1440，storage=1920x1080，fontScale=1.00`；暂停帧「开 / 关字幕」像素 diff：**视频区 54,540 个采样点（步长 2）**、区域 [850,184]–[1878,1598]，字幕带截图确认对白「这是异常气象 是冰河期啊」由 libass 绘制；字体回退日志 `fontselect: (方正准圆_GBK) -> /system/fonts/MiSansVF.ttf` |
+| ② SRT 走 libass | 面板选「Simplified Chinese（SUBRIP · 内嵌，index=14）」→ `字幕解析完成: index=14, cues=528, ass=false` → `libass 字幕就绪：**SRT 生成脚本**，script=35542 bytes`；开 / 关字幕像素 diff **55,045**（视频区，含简体对白）；语言选择 / 延迟 / 开关全部沿用既有面板且生效 |
+| ③ 外观不回归 | 大小档位 75% ↔ 200% 播放中即时切换：日志 `fontScale=0.75` / `2.00`，暂停帧视频区 diff **29,952**（区域 [422,1298]–[1398,1484] = 字幕带），截图对比字号明显变化（修复了 libass 帧缓存导致的「改了不动」，§9）；ASS 的颜色 / 位置 / 描边按设计让位给脚本 |
+| ④ 解码回退链（Pad 5） | 自动档 + Hi10P：`getMediaSources … forceTranscode=false profiles=0` → `Player error on backend=exoplayer: ERROR_CODE_DECODING_FAILED` → `解码能力不足（…），先请求服务器解码/转码重试（优先级：本地硬解 → 服务器转码 → 本地软解）` → `Restart player (fallback=server-transcode)` → `forceTranscode=true profiles=1` + `master.m3u8?VideoCodec=h264`；服务器会话 `TranscodingInfo{IsVideoDirect=False, Bitrate=6667836, Container=ts, VideoCodec=h264}`，播放 `state=3` 不再降级（修复了「转码流仍是 10-bit 直拷贝」的坑，见 §9）；档位落盘 `pref_player_decode_fallback_stage=1`。 |
+| ⑤ 第 3 档本地软解 | 码率选「原始画质」后重放同一 Hi10P：`getMediaSources bitrate=-1 … transcoding=false forceTranscode=false profiles=0` → `解码能力不足（…），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）` → `Restart player with backend=mpv`；`pref_player_decode_fallback_stage=2`、`pref_player_backend=mpv`；mpv 正常起播（`state=3`，`Estimated source FPS: 23.923`）。 |
+| ⑥ 解码面板文案 | 面板文本：`播放内核 | ExoPlayer（硬解） | mpv（软解兜底） | 解码策略 | 硬解优先 | 本地硬解，失败时先请求服务器转码，再回退本地软解 | 仅软解 | 当前档位：本地硬解 | 优先级：本地硬解 → 服务器解码 / 转码 → 本地软解`；选内核 / 策略 / 码率都会清回退档位（下一次重置为「当前档位：本地硬解」）。 |
+| ⑦ 性能 / 内存（Pad 5，Exo + ASS 特效） | SurfaceFlinger `--latency` 30s：**821 帧 / present 24.2fps / p50 41.67ms / p95 50.07ms / p99 50.17ms / jank 0%**（阈值 74.79ms），`ready_jank 0.12%`；PSS **329,994kB**。 |
+| ⑧ K60 复验 | 切换 Exo 后同片：libass 生效（截图对白「静默的囚徒被囚之身」）；Hi10P 链路同 Pad 5（`forceTranscode=true profiles=1`、`stage=1`、`state=PLAYING(3)`）；mpv 路径回归正常（`MPVPlayer: Starting playback...`，无 `UnsatisfiedLinkError`）。 |
+| 稳定性 / 还原 | 两台设备整轮 `FATAL EXCEPTION` / `ANR` / `UnsatisfiedLinkError` 均 **0**；副作已还原：Pad 5 `pref_player_backend=exoplayer`、`streaming_bitrate=0`、`decode_fallback_stage=0`、`subtitle_style_size=1`、`subtitle_delay=0`（= 会话开始状态）；K60 回到 `backend=mpv`、`subtitle_mode=off`、档位 0；两机均 force-stop、`wm size` 为 Physical、`accelerometer_rotation=1`、`/sdcard/w16*` 清理干净。 |
+
+### 19.5 未决 / 移交项
+
+1. **许可证归属**：新增 libass（ISC）/ ass-kt（MIT）原生库，release 前需在 `NOTICE` / aboutlibraries 里补来源声明（本波红线只允许动依赖声明，未夹带）。
+2. **libc++ 覆盖是构建补丁**（`merge*NativeLibs` 的 `doLast`）：若日后升级 libmpv / ass-kt 或 AGP 改变合并顺序，需要重新核对 APK 内 `libc++_shared.so` 的来源（校验方法见 §9）。
+3. **SRT 背景 + 描边互斥**：libass 样式里 `BorderStyle=3`（背景框）与文字描边不能同时表达，两者都选时以背景框优先（生成逻辑注释已写，观感差异最小）。
+4. 次字幕（双语）在 Exo 路径仍走纯文本（效果与 mpv 的 strip 一致）；ASS 的 `\pos` / 字体 / 特效在 KTV 型特效字幕（`\k`）上的表现未单独取样。
+5. 未做「libass 初始化失败」的真机注入（代码路径：`LibassSubtitleRenderer` 全 `runCatching` + `failed` 标记 → 覆盖层切回文本渲染 + `libass 渲染不可用` 日志）。

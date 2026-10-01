@@ -33,14 +33,14 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W12 四波已合并**；**W13 第五轮（`639218c`）** 见 §16；**W14（已合并 `ed303f9`）**：1× 纯展示徽标——见 §17；**W15-LIBASS（已合并 master `0c3f8bc`）：mpv 原生 libass（DirectPlay 容器内嵌 ASS + 转码场景 sub-add Jellyfin `Stream.ass`）见 §18；Exo 路径引入 libass 需新依赖，待批准**；待做：Exo libass（待批准）/ §15.5 遗留 + §16.5（Compact 自由窗口取证） |
+| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W15 已合并 master `0c3f8bc`**；**W16-PLAYER（`feature/w16-exo-libass-decode`，基线 `c365c7c`）：Exo 路径引入 libass（ASS/SSA 特效 + SRT 生成脚本）+ 解码优先级改为「本地硬解 → 服务器解码/转码 → 本地软解」，见 §19**；待做：§15.5 遗留 + §16.5（Compact 自由窗口取证）+ 许可证归属（libass/ass-kt） |
 | **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
 | **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档 | 🟡 大部分完成 | 自签证书与多用户待补 |
 | **Web 控制台**（内置 WebView + 影阁皮肤） | `docs/web-console-skin.css`（唯一权威副本，改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） | ✅ 基本完成 | 跟随 App 令牌与配色 |
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W15 全部完成（2026-10-02，master `0c3f8bc`） | W15 双线（阅读页顶栏避让 + 平板首页海报等宽 / mpv 原生 libass 特效字幕）已合并推送，整合门禁 147 项单测全绿；Pad 5 + K60 均已装 `0c3f8bc` 整合版；等待用户复测（libass 建议用 ASS 特效字幕片源验证）；后续候选：Exo libass（待批准）、跨页合并、全量回归与发布准备 |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W16 开发完成（2026-10-02，W16 分支 `feature/w16-exo-libass-decode` 待合并） | W16-PLAYER（Exo libass + SRT 覆盖 + 解码优先级反转）实现 + 门禁（app 49 / player:local 52 项）+ Pad 5 + K60 双机验收完成（PLAYER_PLAN §19）；等待负责人合并与用户复测；后续候选：跨页合并、许可证归属补齐、全量回归与发布准备 |
 | **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W9-READER + W15-UI 顶栏修复完成（已合并 master `0c3f8bc`）：漫画 RTL 右起翻页 + 滚动双指缩放 + **阅读页顶栏避让状态栏修复（W15-UI，READER_PLAN §7.8）**；`modes:book` 43 项单测 | W4 已交付 PDF 分页懒加载 / CBZ 自研导航 / 三档模式；后续：跨页合并（需横版对图测试书）、RTL 封面单张、Room 迁移 |
 | **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 缺陷修复完成（返回层级 / 歌曲点播 / 加载重试，47 单测 + 真机复验） | 后续：服务端纯音乐提示行时间戳清理；W4 播放页联调 |
 | **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W8 完成（2026-10-01，master `f99af8d`；W7-R3 已并入 `c545eb9`） | W8-R3（用户复测反馈，D29–D31）：①三页顶栏统一为 `CinefinPageTopBar`（56dp + `statusBarsPadding()`；修复音乐汉堡被状态栏挡、书架顶层去返回箭头与库名「书籍」、媒体库按钮与标题同栏）；②媒体库库卡改版（类型图标磁贴 + 项目数 + A 配色层次，服务器 `ItemFields.CHILD_COUNT`）；③侧栏「媒体库」**默认收起并移到音乐、书架之后**（覆盖 W7 的排布）；④W7 行为不回归（抽屉、侧柜常驻 Lumen、控制台胶囊与选中态）；遗留：spacings 桥接收敛、左缘滑出抽屉在系统手势导航下未验 |
@@ -81,7 +81,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | M1 | 品牌化（影阁）+ 深灰蓝影院风设计系统 + 首页 | ✅ |
 | M2 | 连接层：HTTP/HTTPS、自签名证书、Quick Connect、多用户 | 🟡 Quick Connect 已有；自签证书 / 多用户待补 |
 | M3 | 浏览体验：首页、媒体库、详情、搜索、筛选 | ✅ 主体完成（抽屉导航 + 海报墙 + 媒体库分区 + 设置对齐官方） |
-| M4 | 播放器重构：双内核、libass 字幕、倍速、比例、章节、Trickplay、跳片头、PiP | 🟡 双内核 / 倍速 / 比例 / 章节 / Trickplay / 跳片头 / PiP 已有；**mpv 原生 libass 已完成（W15，2026-10-02，`feature/w15-libass`）**；Exo 路径引入 libass 待批准；详见 `PLAYER_PLAN.md` §18 |
+| M4 | 播放器重构：双内核、libass 字幕、倍速、比例、章节、Trickplay、跳片头、PiP | 🟡 双内核 / 倍速 / 比例 / 章节 / Trickplay / 跳片头 / PiP 已有；**libass 双内核完成：mpv 原生（W15，`0c3f8bc`）+ Exo 路径（W16 `feature/w16-exo-libass-decode`，含 SRT 覆盖与失败回退）**；详见 `PLAYER_PLAN.md` §18 / §19 |
 | M5 | 手势体系：长按 2×、滑动 seek、左亮度 / 右音量、双击、双指缩放、锁定、灵敏度 | 🟡 横向 seek（含渐进加速）/ 长按倍速 / 双指缩放已有；锁屏与优先级仲裁见 `PLAYER_PLAN.md` §1.3 |
 | M6 | 字幕 / 音轨语言智能识别与跨视频记忆 | ✅ |
 | M7 | 下载离线增强、投屏、同步观看 | ⛔ |
