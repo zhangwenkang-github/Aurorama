@@ -1,7 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.film
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -97,7 +96,6 @@ private fun HomeScreenLayout(
     val wallGap = rememberGridGutter()
     val gutterStart = safePadding.start + gutter
     val gutterEnd = safePadding.end + gutter
-    val pagePadding = PaddingValues(start = gutterStart, end = gutterEnd)
 
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -110,14 +108,6 @@ private fun HomeScreenLayout(
     val wallItems =
         remember(state.views) {
             state.views.flatMap { it.view.items }.distinctBy { it.id }.take(60)
-        }
-
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val columns =
-        remember(screenWidthDp) {
-            val available = screenWidthDp - (gutter.value * 2).toInt()
-            val perColumn = (wallMinColumnWidth + wallGap).value.toInt()
-            ((available + wallGap.value.toInt()) / perColumn).coerceAtLeast(2)
         }
 
     ProvideLumen {
@@ -137,13 +127,27 @@ private fun HomeScreenLayout(
                     ),
             )
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                // 列数按网格实际可用宽度算（已排除侧轨与左右页边距）：按窗口宽度算会在
+                // 平板（侧轨占宽）上多出一列，把卡片压到最小列宽以下；页边距由网格
+                // `contentPadding` 统一承担，保证同一行所有卡片完全等宽。
+                val columns =
+                    remember(maxWidth, gutterStart, gutterEnd, wallGap) {
+                        val available = maxWidth - gutterStart - gutterEnd
+                        ((available + wallGap) / (wallMinColumnWidth + wallGap))
+                            .toInt()
+                            .coerceAtLeast(2)
+                    }
                 PullToRefreshBox(isRefreshing = false, onRefresh = onRetry) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
-                            PaddingValues(bottom = safePadding.bottom + CinefinSpacing.Space8),
+                            PaddingValues(
+                                start = gutterStart,
+                                end = gutterEnd,
+                                bottom = safePadding.bottom + CinefinSpacing.Space8,
+                            ),
                         horizontalArrangement = Arrangement.spacedBy(wallGap),
                         // Lumen 节奏：区块之间 32dp（旧稿 16dp），页面因此有"幕布"般的呼吸感
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
@@ -153,9 +157,7 @@ private fun HomeScreenLayout(
                                 HomeHero(
                                     item = item,
                                     onClick = onItemClick,
-                                    modifier =
-                                        Modifier.padding(start = gutterStart, end = gutterEnd)
-                                            .lumenEntrance(),
+                                    modifier = Modifier.lumenEntrance(),
                                 )
                             }
                         }
@@ -164,7 +166,7 @@ private fun HomeScreenLayout(
                             item(key = "resume_rail", span = { GridItemSpan(maxLineSpan) }) {
                                 HomeSection(
                                     section = section.copy(items = section.items.drop(1)),
-                                    itemsPadding = pagePadding,
+                                    itemsPadding = PaddingValues(),
                                     onAction = { action ->
                                         if (action is HomeAction.OnItemClick)
                                             onItemClick(action.item)
@@ -177,7 +179,7 @@ private fun HomeScreenLayout(
                             item(key = "next_up", span = { GridItemSpan(maxLineSpan) }) {
                                 HomeSection(
                                     section = state.nextUpSection!!.homeSection.copy(items = items),
-                                    itemsPadding = pagePadding,
+                                    itemsPadding = PaddingValues(),
                                     onAction = { action ->
                                         if (action is HomeAction.OnItemClick)
                                             onItemClick(action.item)
@@ -190,7 +192,7 @@ private fun HomeScreenLayout(
                             item(key = "view_${view.id}", span = { GridItemSpan(maxLineSpan) }) {
                                 HomeView(
                                     view = view,
-                                    itemsPadding = pagePadding,
+                                    itemsPadding = PaddingValues(),
                                     onAction = { action ->
                                         if (action is HomeAction.OnItemClick)
                                             onItemClick(action.item)
@@ -204,27 +206,16 @@ private fun HomeScreenLayout(
                                 SectionHeader(
                                     title = stringResource(FilmR.string.recently_added),
                                     modifier =
-                                        Modifier.padding(
-                                                start = gutterStart,
-                                                end = gutterEnd,
-                                                top = CinefinSpacing.Space2,
-                                            )
+                                        Modifier.padding(top = CinefinSpacing.Space2)
                                             .padding(bottom = CinefinSpacing.Space2),
                                 )
                             }
 
                             itemsIndexed(wallItems, key = { _, item -> item.id }) { index, item ->
-                                val isFirstColumn = index % columns == 0
-                                val isLastColumn = index % columns == columns - 1
                                 PosterItemCard(
                                     item = item,
                                     onClick = onItemClick,
                                     index = index,
-                                    modifier =
-                                        Modifier.padding(
-                                            start = if (isFirstColumn) gutterStart else 0.dp,
-                                            end = if (isLastColumn) gutterEnd else 0.dp,
-                                        ),
                                 )
                             }
                         }
