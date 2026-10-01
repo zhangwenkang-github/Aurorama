@@ -1,10 +1,10 @@
 # Cinefin UI 重塑任务线（UI_PLAN）
 
-> 任务线：UI 重塑（设计系统落地）｜波次：W4-R3（R3-PAGES-B）｜分支：`feature/r3-ui-pages-b`｜最后更新：2026-10-01
+> 任务线：UI 重塑（设计系统落地）｜波次：W5-R3（R3-UI-LUMEN）｜分支：`feature/r3-ui-lumen`｜最后更新：2026-10-01
 > 权威设计依据：`docs/UI_DESIGN_SYSTEM.md`（S4 v1.0，Prism 棱镜）。
 > 本文件是该任务线的**唯一权威文档**：需求、决策、进度、验收、踩坑与日志都写在这里，不新建零散 `.md`。
 
-> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； 本轮 W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛。
+> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛； W5-R3（R3-UI-LUMEN，本波）= 首页与视频详情改用 S1 流光（A · Lumen）手法 + 媒体库去拥挤 + 侧柜统一列表（取消「更多」分组）与入口行为一致化。
 
 ## 1. 任务线定位
 
@@ -57,6 +57,9 @@
 | D14 | 音乐库入口直通音乐模式（P0 修复） | 测试服务器没有 MusicAlbum 实体，`LibraryViewModel` 对 `CollectionType.Music` 只查 `MUSIC_ALBUM` → 音乐库永远空列表。修法（限定在 `NavigationRoot.kt`，不动 `modes:film`）：新增 `libraryEntryRoute(...)`，媒体库卡片 / 抽屉 / 搜索结果里凡是 `CollectionType.Music` 的库一律路由到 `MusicModeRoute`（客户端按曲目分组出专辑 / 艺术家 / 歌曲 / 歌单）；`LibraryRoute` 组合里对 Music 类型做兜底重定向，防止历史返回栈 / 深链再落回空列表。 |
 | D15 | 导航形态分级（W4-R3） | §4.4 窗口分级落地：Compact（<600dp）用 core `CinefinBottomTab` 4 tab（影 / 乐 / 书 / 更多，64dp + 安全区）；Medium 起用 `CinefinSideRail` 侧轨（840–1199dp 折叠 88dp、≥1200dp 默认展开 164dp，底部「收起 / 展开」手动切换，`rememberSaveable` 记忆）。侧轨 / 底部 tab 只在顶层路由（首页 / 媒体库 / 下载 / 音乐 / 书库）出现；「书」tab 无 Books 库时回退打开抽屉。「更多」= 打开 Prism 抽屉（库列表 / 管理 / 服务器等全量入口）。 |
 | D16 | 抽屉换 `CinefinModalDrawer` + 分组顺序单一来源（W4-R3） | 删除旧 `presentation/navigation/CinefinDrawer.kt`（含 §2.6 禁止的朱砂竖条），改为 core `CinefinModalDrawer` + `CinefinDrawerHeader`（品牌 + 账号 + 服务器行）。`selectedIndex / onSelect` 与分组拍平顺序**同源**：先 `groupBy` 生成 groups，再从同一 grouped 结构拍平 actions，避免「分组聚合把未分组项提前」导致点击错位（见踩坑 17）。另给 core 组件补 `gesturesEnabled` 参数以保留非顶层页面的手势约束。 |
+| D17 | **首页与视频相关页面改用 S1 流光（A · Lumen）手法**（W5-R3，用户 2026-10-01 反馈） | 设计依据 = `docs/design/s1-direction-a/README.md`（S1 决策：B 骨架 + A 沉浸手法）。落地四件事：①**全出血头图**——首页主视觉从「通栏方块」改为页边内的同心圆角大卡（手机 28dp / 平板 22dp），16:9 ↔ 21:9 随窗口切换、高度上限 420dp；②**底部渐隐 + 内暗角**——新增 `lumenBottomScrim` / `lumenVignette` 两个纯渐变（无新色值），文字永远压在可读暗场上；③**双层嵌套卡片**——`LumenCardFrame` 统一「1dp 描边 + 顶部 1px 内高光」，描边画在内容之上，压在图上也可见；④**入场动效**——`Modifier.lumenEntrance(index)` = opacity 0→1 + translateY 8dp→0、560ms `Emphasized`、40ms 错峰（§6.3），只走 `graphicsLayer`。详情页（电影 / 剧集）同语言：海报 + 眉标 + 大标题 + 元信息短标签 + 主行动压在头图上，平板右侧挂制作信息表。 |
+| D18 | **侧轨 / 底部 Tab / 抽屉共用一份「统一目的地」列表，取消「更多」分组**（W5-R3，用户反馈 3 + 4） | 原 `chromeDestinations` 里的「更多」条目（`title_more` + `ic_menu`）是一个"桶"：点它弹抽屉，抽屉里再按 媒体 / 管理 / 用户 分区列条目——同一个目标在不同入口下行为不同（例如从侧轨点「设置」会因 `showNavigation=false` 把整条侧轨顶掉）。本波改成：**删除「更多」桶**，把媒体库 / 下载 / 设置 / 管理（控制台、媒体资料管理器）并入 `chromeDestinations` 一份列表；抽屉 = 同一份列表 + 服务器库列表（**无分组标题**）；`showNavigation` 改为「统一目的地集合」判定（首页 / 媒体库 / 下载 / 音乐 / 书架 / 设置 / 控制台）。结果：手机底部 Tab = 首页 / 媒体库 / 音乐 / 书架（4 个真实目标），抽屉仍可由顶栏菜单键与边缘手势打开；平板侧轨对**任何**条目都常驻，只换内容区。 |
+| D19 | **媒体库去拥挤**（W5-R3，用户反馈 2） | ①**栅格**：总览页库卡从「固定 260dp 宽 + `GridCells.Adaptive(160/240/320)`」改为「整列宽 16:9 大卡 + 列宽 300 / 320 / 380 / 420dp（按窗口分级）」——旧组合在手机上会把卡片挤出屏幕、在平板上留不规则空档，是拥挤感的主因；库内容页海报最小列宽 160 → 176dp、音乐方形 184 → 200dp、横版 260 → 300dp，并让 `ItemCard` 宽度由栅格列决定（不再固定 150/184/260dp）。②**间距**：区块行距 16 → 24dp（`Space6`），页面底部留白 +32dp，列距保持 16 / 26dp 的既有栅格；首页区块间距 16 → 32dp（`Space8`）。③**层级**：媒体库总览与库内容页都加「大标题 + 计数副题」（`HeadlineLarge/Medium` + `BodyMedium/BodySmall`），标题从 22sp 升到 32/40sp；区块标题去掉横贯发丝线，改右侧「全部 ›」文字操作。④**信息**：海报墙只留片名 + 进度（去掉已看徽标），走廊卡标题下只留一行元信息与右下角片长。 |
 
 ## 4. 进度
 
@@ -102,6 +105,18 @@
 - [ ] 未决：`MaterialTheme.spacings`（6 档桥接，44 个文件约 220 处）未收敛到 `CinefinSpacing`；`HomeHeader` / `HomeCarousel` / `HomeCarouselItem` 为旧首页死代码待清理；真平板（Pad 5 横屏）走查待负责人窗口
 
 ### P0 阻断修复（负责人 2026-09-30 插播，同分支）
+
+### W5-R3 本轮进度（R3-UI-LUMEN，2026-10-01）
+
+- [x] **流光手法原语**：`film/components/LumenSurface.kt`（`LumenCardFrame` 双层嵌套 + `Modifier.lumenEntrance` 入场 + `lumenBottomScrim` / `lumenVignette` 两个纯渐变）；**未新增任何 token / 色值 / 位图资源**
+- [x] **首页（影视区）**：`HomeHero` 重写（全出血圆角头图 + 眉标圆点 + 大标题 + `2026 · TV-14 · 24 分钟` 短标签 + 单一 Filled 主行动 + 3dp 图上进度）；`SectionHeader` 改为「大标题 + 全部 ›」（去发丝线）；`LandscapeItemCard` / `PosterItemCard` 换双层嵌套外壳 + 强底部渐隐 + 右下角片长；区块行距 16 → 32dp
+- [x] **视频详情页**：`MovieScreen` / `ShowScreen` 头图 288 → 300 / 400dp，标题升级 `HeadlineMedium`（手机）/ `DisplaySmall`（平板），眉标 + 元信息短标签 + 主行动全部压在图上；平板（≥840dp）新增左侧 216dp 海报 + 右侧 360dp 制作信息表（`LumenInfoTable`，44dp 行高 / key `OnSurfaceFaint` / value 右对齐）；季 / 接下来 / 演职人员统一走区块标题与 24dp 行距
+- [x] **媒体库去拥挤**：总览页大标题 + 计数副题 + 整列宽 `LibraryEntryCard`（16:9 双层嵌套）；库内容页标题区（库名 + 项目数）+ 栅格放大一档 + 行距 24dp；`ItemCard` / `ProgressBar` 改为宽度自适应
+- [x] **侧柜统一**（D18）：删除「更多」条目；抽屉 = 统一目的地列表 + 服务器库列表（无分组标题）；`showNavigation` 改为统一目的地集合；书架无库时退到媒体库总览（不再弹抽屉）
+- [x] 门禁：`:app:phone:assembleDebug ktfmtCheck`、`:core:testLibreDebugUnitTest`、`:modes:film:testDebugUnitTest` 全绿
+- [x] 组件预览：`HomeHero`（平板 / 手机）、`LandscapeItemCard`、`PosterItemCard`、`ItemCard`、`LibraryEntryCard` 均带 `@Preview`
+- [ ] **待真机**（设备当前未连接，等负责人分配）：Pad 5 横屏（侧轨常驻 + 首页头图 21:9 + 详情三栏）与 K60 竖屏（底部 4 tab + 抽屉统一列表 + 媒体库单列）走查；走查前先按 `device-lock.md` 登记
+- [ ] 未决：`MaterialTheme.spacings` 桥接（W4 遗留）本波未动；`HomeHeader` / `HomeCarousel` 旧死代码仍在
 
 - [x] ① 书籍点不开：`NavigationRoot` 的 `item.kind == "Book"` 与 `FindroidFolder.kind`（`BaseItemKind` 枚举名 `"BOOK"`）大小写不匹配，书籍一直落到「按文件夹下钻」分支 → 改 `kind.equals("BOOK", ignoreCase = true)`（见踩坑 10），书籍改走 `ReaderActivity`（`exported=false`）
 - [x] ② 音乐库空列表：`LibraryViewModel` 对 `CollectionType.Music` 只查 `MUSIC_ALBUM`，服务器无该实体 → `NavigationRoot` 增加 `libraryEntryRoute`：媒体库卡片 / 抽屉 / 搜索三处入口统一分流到 `MusicModeRoute`；`LibraryRoute`（Music）兜底重定向
@@ -177,6 +192,24 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
   - 像素采样（步长 6）：`#151A21` 31420 点、`#E8A15C` 786 点、旧朱砂 `#D2553C` 0 点
 - [x] 功能不回退：抽屉导航（下载 / 设置 / 库列表）、搜索（输入即搜）、详情（元信息 / 播放 / 演职人员）、底部 tab 切换保持
 
+### W5 验收（2026-10-01，分支 `feature/r3-ui-lumen`）
+
+验收命令（全部通过）：
+
+```powershell
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck --console=plain        # BUILD SUCCESSFUL
+.\gradlew.bat :core:testLibreDebugUnitTest :modes:film:testDebugUnitTest --console=plain   # BUILD SUCCESSFUL
+```
+
+- [x] 流光方案在首页与视频相关页面生效，手法与 `s1-direction-a/README.md` 一致（全出血头图 / 底部渐隐 / 内暗角 / 双层嵌套 / 5xx ms 入场）；音乐与阅读页面未改动（各自皮肤保持）
+- [x] 媒体库信息密度下降：库卡最小列宽 160 → 300dp（手机单列）、库内容海报 160 → 176dp、行距 16 → 24dp、标题 22 → 32/40sp、区块发丝线删除（数值见 D19）
+- [x] 侧柜无「更多」分组；`chromeDestinations` 一份列表同时驱动侧轨 / 底部 Tab / 抽屉，索引与动作同源（无分组聚合，踩坑 17 的隐患一并消失）
+- [x] 入口行为一致：`showNavigation` = 统一目的地集合（首页 / 媒体库 / 下载 / 音乐 / 书架 / 设置 / 控制台）；手机选择后关闭抽屉、平板侧轨常驻；书架无库时退到媒体库总览而不是弹抽屉
+- [x] 不新增 token / 色值 / 位图；业务层仍无 `Color(0x…)`（新组件全部引用 `CinefinTokens` / `CinefinColors` / `CinefinSpacing` / `CinefinMotion`）
+- [x] 旧配色清零（沿用 W4 门禁）：新增文件无 `ColorLight` / `ColorDark` / `D2553C`
+- [ ] **待真机走查**（设备未连接，负责人分配后补）：Pad 5 横屏 + K60 竖屏双形态；重点看侧轨在 设置 / 书架 / 控制台 三个页面是否常驻、首页头图在 21:9 与 16:9 的裁剪、详情页三栏在 1280dp 下的呼吸感
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -198,6 +231,11 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 17. **抽屉分组 + 拍平索引必须同源**：`groupBy` 会按「组首次出现顺序」重排条目——未分组项（首页 / 音乐 / 下载）若写在分组项之后，`groupBy` 后会被整体提前，而另一份 `map { it.second }` 的动作列表仍按原顺序拍平 → `onSelect(index)` 全部错位（真机表现为「点下载进了媒体库」）。修法：先 `groupBy`，再从同一 grouped 结构拍平 actions（本会话 D16）。
 18. **MIUI（Redmi K60 / Android 15）会弹「剪贴板与常用语」系统弹窗**：走查中 `input text` 后偶发出现，遮挡 UI 并让 `uiautomator dump` 只剩弹窗节点；脚本要容忍「dump 首行不是目标页面」并检测 `text="不同意"` 后点掉再继续。
 19. **`wm size` 覆盖后 `currentWindowAdaptiveInfo()` 需要一次前后台切换才刷新**：`wm size 2560x1600` / `wm size reset` 后若不重启或切后台，窗口分级可能停留在旧值（真机表现为底部 tab 与侧轨都不出现 / 切换滞后）；走查脚本在改 `wm` 后按 HOME → 重新 `am start` 再断言。
+20. **「固定宽度卡片 + 自适应栅格」必然拥挤**：`ItemCard` 固定 260dp 宽、父级用 `GridCells.Adaptive(minSize = 160.dp)`，在 411dp 手机上两列装不下（520 > 371）会溢出裁切，在平板上又会留不规则空档。修法见 D19：卡片宽度一律由栅格列决定（`fillMaxWidth` + 比例），再由列宽反推"一屏几张"。
+21. **`BoxScope.matchParentSize()` 是成员扩展，不能 import**：写成 `import androidx.compose.foundation.layout.matchParentSize` 会直接编译失败（`unresolved reference`），在 `BoxScope` 内容 lambda 里直接调即可。
+22. **`Brush.verticalGradient` 的多档写法要用 `colorStops = arrayOf(...)`**：直接传 `List<Color>` 只有等距三档够用；要精确控制"平台期 + 渐隐段"（Lumen 底部渐隐 0.45 起、0.78 落）必须用 `Pair<Float, Color>` 的 vararg / `colorStops` 参数，且 stop 必须单调递增。
+23. **`ktfmtCheck` 会在"改完文件"后立刻失败**：本仓的 `ktfmtCheck` 不参与增量缓存判定"只检查被改文件"，新增 / 编辑 Kotlin 后要先跑 `:app:phone:ktfmtFormat`（或全量 `ktfmtFormat`）再跑门禁；PowerShell 里用 `$LASTEXITCODE` 取 Gradle 退出码，别信 `Select-String` 管道的退出码（它是 0）。
+24. **`stringResource` 只能出现在 `@Composable` 里**：条目格式化工具（`runtimeLabel` / `remainingMinutes`）保持纯函数，只有需要文案的（`metaLine` / `cardMetaLine`）才标 `@Composable`——否则 `@Preview` 与单元测试都编译不过。
 
 ## 7. 日志
 
@@ -207,3 +245,5 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - **2026-09-30 W3-R3 · P0 插播修复（同会话继续）**：负责人验收发现两条阻断链路。①书籍点不开 = `kind` 大小写不匹配（本会话早前已修，本次按真实路径复验通过）；②音乐库空列表 = `LibraryViewModel` 只查 `MUSIC_ALBUM`、服务器无该实体 → 在 `NavigationRoot` 加 `libraryEntryRoute`，音乐库三处入口（媒体库卡片 / 抽屉 / 搜索）+ `LibraryRoute` 兜底统一进 `MusicModeRoute`。真机复验两条链路全通过（§5「P0 链路复验」），未改 `modes:film` 任何文件。提交 `fix(ui): 修复书籍入口与音乐库空列表两条 P0 链路`。
 - **2026-10-01 W4-R3（本会话）**：读齐 `PROJECT_PLAN` §1–5、`UI_DESIGN_SYSTEM` §2–§10 全文、`UI_PLAN`（W1/W3 + 16 条踩坑）、`REQUIREMENTS` §6/§10/§12、`SESSION_BRIEFS` W4-R3、`PARALLEL_PLAN` W4、`ROLE_SKILLS` §5.3，并通读 core 组件与音乐 / 阅读页参照。完成：①导航骨架（手机底部 4 tab / 平板侧轨 88↔164 / `CinefinModalDrawer` 抽屉，D15 / D16）；②首页 / 媒体库 / 搜索换新（卡片描边 + 3dp 媒体色进度 + 中性徽标 + 窗口分级边距）；③详情 / 下载 / 设置 / 欢迎与首连流程换新（`CinefinButton` 四态、操作键方圆形、`CinefinEmptyState`）；④删除 `LegacyTypography` 桥接统一 Prism 字阶；⑤门禁 `:app:phone:assembleDebug ktfmtCheck` 通过；⑥K60 双形态真机走查（手机全流程 + 宽屏侧轨折叠 / 展开 + 像素采样，见 §5 W4 验收）。修复抽屉索引错位 bug（踩坑 17）。分支 `feature/r3-ui-pages-b`。
 - **交接提示（下一会话 / 负责人）**：① `MaterialTheme.spacings` 6 档桥接（44 文件约 220 处）与 `HomeHeader / HomeCarousel / HomeCarouselItem` 死代码待后续收敛；② 真平板（Pad 5 横屏）走查需负责人分配窗口（本波用 K60 + `wm` 覆盖验证，Pad 5 归 PLAYER-STAB）；③ 播放器覆盖层 / 面板的字阶随 `LegacyTypography` 删除变 Prism，播放器线 W4 PLAYER-UI 需在收口时复核面板排版；④ `settings/components/*` 内部卡片仍是 M3 组件（色板已 Prism），如需完全组件化可另开小波次。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
+- **2026-10-01 W5-R3（本会话）**：读齐 `PROJECT_PLAN` §1–§5、`UI_PLAN`（W1/W3/W4 + 19 条踩坑）、`UI_DESIGN_SYSTEM` §2–§10、`s1-decision`、**`s1-direction-a/README.md` + `home / detail / phone / library` 四张稿**、`REQUIREMENTS` §6、`SESSION_BRIEFS` W4-R3、`ROLE_SKILLS` §5.3；核对了 `presentation/film/*`、`presentation/navigation/CinefinDrawer.kt`、`core/.../components/*`。完成四条反馈：①首页与视频详情改 S1 流光手法（D17，新增 `LumenSurface` / `DetailPoster` / `LumenInfoTable` / `ItemFormatting` 四个组件文件，重写 `HomeHero` / `SectionHeader` / `LandscapeItemCard` / `PosterItemCard` / `ItemCard` / `ProgressBar` / `HomeSection` / `HomeView` / `MediaScreen` / `LibraryScreen` / `MovieScreen` / `ShowScreen`）；②媒体库去拥挤（D19：栅格放大 + 行距 24dp + 大标题层级 + 去发丝线）；③侧柜取消「更多」分组（D18）；④所有入口行为一致（`showNavigation` 统一集合，书架无库退媒体库）。门禁 `:app:phone:assembleDebug ktfmtCheck` + `:core:testLibreDebugUnitTest` + `:modes:film:testDebugUnitTest` 全绿。分支 `feature/r3-ui-lumen`。
+- **交接提示（下一会话 / 负责人）**：① **真机走查未做**（Pad 5 / K60 当前未连接）——重点断言「设置 / 书架 / 控制台 页面侧轨是否常驻」「手机抽屉选择后是否关闭」「首页头图 21:9 裁切」「详情三栏 1280dp 呼吸感」，走查前按 `device-lock.md` 登记；② 若负责人本意是"抽屉里的分组标题也一并取消"，本波已按此实现（抽屉无任何分组标题）——需要恢复分组时只改 `NavigationRoot` 里 `drawerGroups` 一处；③ 播放器线仍在改 `player/*` 与 `presentation/player/*`，本波未触碰（避免覆盖层冲突）；④ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
