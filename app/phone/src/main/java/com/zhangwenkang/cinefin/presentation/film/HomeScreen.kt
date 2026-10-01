@@ -40,6 +40,8 @@ import com.zhangwenkang.cinefin.film.presentation.home.HomeState
 import com.zhangwenkang.cinefin.film.presentation.home.HomeViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
+import com.zhangwenkang.cinefin.presentation.components.HomeSkeleton
+import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.film.components.HomeHero
 import com.zhangwenkang.cinefin.presentation.film.components.HomeSection
 import com.zhangwenkang.cinefin.presentation.film.components.HomeTopBar
@@ -233,6 +235,19 @@ private fun HomeScreenLayout(
                     ErrorDialog(
                         exception = state.error!!,
                         onDismissRequest = { showErrorDialog = false },
+                    )
+                }
+
+                // 首屏加载过渡（W6-VIS D24）：数据到达前先铺骨架屏，就绪后骨架 220ms 淡出、卡片按
+                // `lumenEntrance` 错峰入场——不再出现"一片黑板直出"。
+                LumenSkeletonOverlay(
+                    visible = state.isLoading && heroItem == null && wallItems.isEmpty()
+                ) {
+                    HomeSkeleton(
+                        columns = columns,
+                        gutterStart = gutterStart,
+                        gutterEnd = gutterEnd,
+                        modifier = Modifier.fillMaxSize().padding(top = CinefinSpacing.Space4),
                     )
                 }
             }

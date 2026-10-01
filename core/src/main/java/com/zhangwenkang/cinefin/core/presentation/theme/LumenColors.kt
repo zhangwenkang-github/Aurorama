@@ -3,6 +3,9 @@ package com.zhangwenkang.cinefin.core.presentation.theme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -162,19 +165,87 @@ val LumenMediaColors: MediaColors =
     )
 
 /**
+ * Lumen 区域的 M3 [ColorScheme]（W6-VIS）：在 Prism 深色方案之上覆写全部中性槽位与强调槽位。
+ *
+ * 为什么要覆写 M3 而不只是 [LocalCinefinColors]：仓库里仍有大量 `MaterialTheme.colorScheme` 存量引用（`Scaffold` /
+ * `TopAppBar` / `Switch` / `TextField` / 对话框 / `SearchBar`），只换语义色会在 Lumen 页面留下石板蓝黑底与琥珀 /
+ * 松石强调色——正是用户反馈的"旧配色残留"。把 M3 槽位一起换掉， 存量组件零改动切到 A 色板；error / onError 等**语义色不属于媒体色**，保持 Prism 取值。
+ */
+val LumenMaterialColorScheme: ColorScheme =
+    cinefinColorScheme(ContentDomain.Movie, dark = true)
+        .copy(
+            primary = LumenTokens.Accent,
+            onPrimary = LumenTokens.OnPrimary,
+            primaryContainer =
+                LumenTokens.Accent.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                    .compositeOver(LumenTokens.Panel),
+            onPrimaryContainer = LumenTokens.Accent,
+            secondary = LumenTokens.Accent,
+            onSecondary = LumenTokens.OnPrimary,
+            secondaryContainer =
+                LumenTokens.Accent.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                    .compositeOver(LumenTokens.Panel),
+            onSecondaryContainer = LumenTokens.Accent,
+            tertiary = LumenTokens.AccentSecondary,
+            onTertiary = LumenTokens.OnPrimary,
+            tertiaryContainer =
+                LumenTokens.AccentSecondary.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                    .compositeOver(LumenTokens.Panel),
+            onTertiaryContainer = LumenTokens.AccentSecondary,
+            background = LumenTokens.Background,
+            onBackground = LumenTokens.Text,
+            surface = LumenTokens.Background,
+            onSurface = LumenTokens.Text,
+            surfaceVariant = LumenTokens.Panel,
+            onSurfaceVariant = LumenTokens.TextSecondary,
+            outline = Color.White.copy(alpha = LumenTokens.LineAlpha),
+            outlineVariant = Color.White.copy(alpha = LumenTokens.LineSoftAlpha),
+            inverseSurface = LumenTokens.Text,
+            inverseOnSurface = LumenTokens.OnPrimary,
+            inversePrimary = LumenTokens.Accent,
+            surfaceDim = LumenTokens.Background,
+            surfaceBright = LumenTokens.PanelElevated,
+            surfaceContainerLowest = LumenTokens.Background,
+            surfaceContainerLow = LumenTokens.Panel,
+            surfaceContainer = LumenTokens.Panel,
+            surfaceContainerHigh = LumenTokens.PanelElevated,
+            surfaceContainerHighest = LumenTokens.PanelElevated,
+        )
+
+/**
  * 把子树切到 S1 A 稿皮肤（首页 / 视频详情的唯一入口）。
  *
  * 三件事：① [LocalLumenColors] 置为 [LumenColorsDark]；② [LocalCinefinColors] / [LocalMediaColors]
- * 同步覆盖，使既有 Prism 组件零改动切换到 A 色板；③ 铺一层曜石黑页底（A 稿 `--bg`）。 离开本子树即恢复 Prism；音乐 / 阅读页面各自有独立的
- * [CinefinTheme]，不受影响。
+ * 同步覆盖，使既有 Prism 组件零改动切换到 A 色板；③ 内嵌一层 [MaterialTheme]（[LumenMaterialColorScheme]）， 让仍在读
+ * `MaterialTheme.colorScheme` 的存量组件（Scaffold / TopAppBar / Switch / 对话框）一并切到 A 色板； ④ 铺一层曜石黑页底（A 稿
+ * `--bg`）。离开本子树即恢复 Prism；音乐 / 阅读页面各自有独立的 [CinefinTheme]，不受影响。
  */
 @Composable
-fun ProvideLumen(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+fun ProvideLumenColors(content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalLumenColors provides LumenColorsDark,
         LocalCinefinColors provides LumenCinefinColorsDark,
         LocalMediaColors provides LumenMediaColors,
     ) {
+        MaterialTheme(
+            colorScheme = LumenMaterialColorScheme,
+            typography = MaterialTheme.typography,
+            shapes = MaterialTheme.shapes,
+        ) {
+            CompositionLocalProvider(LocalContentColor provides LumenColorsDark.text) { content() }
+        }
+    }
+}
+
+/**
+ * 同 [ProvideLumenColors]，额外铺一层曜石黑页底（A 稿 `--bg`）。
+ *
+ * 页级内容用它；只借色板、自带底色的组件（侧轨 / 底栏 / 抽屉）用 [ProvideLumenColors]， 避免 `fillMaxSize` 的盒子在 Column / Row
+ * 里抢走剩余空间。
+ */
+@Composable
+fun ProvideLumen(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    ProvideLumenColors {
         Box(modifier = modifier.fillMaxSize().background(LumenColorsDark.background)) { content() }
     }
 }

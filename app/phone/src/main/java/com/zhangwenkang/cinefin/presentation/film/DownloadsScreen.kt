@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.recalculateWindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
@@ -20,11 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.presentation.collection.CollectionAction
@@ -33,6 +36,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
 import com.zhangwenkang.cinefin.models.CollectionSection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.UiText
+import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.CollectionGrid
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
@@ -97,7 +101,16 @@ private fun DownloadsScreenLayout(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.displayCutout),
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
-            if (state.sections.isEmpty()) {
+            if (state.isLoading && state.sections.isEmpty()) {
+                // 加载过渡（W6-VIS D24）：下载清单解析期间给骨架格，避免先闪一下"没有下载"
+                LibraryGridSkeleton(
+                    columns = 4,
+                    tileHeight = 210.dp,
+                    gutterStart = CinefinSpacing.Space6,
+                    gutterEnd = CinefinSpacing.Space6,
+                    modifier = Modifier.fillMaxSize().padding(top = CinefinSpacing.Space6),
+                )
+            } else if (state.sections.isEmpty()) {
                 CinefinEmptyState(
                     title = stringResource(CoreR.string.no_downloads),
                     modifier = Modifier.align(Alignment.Center),

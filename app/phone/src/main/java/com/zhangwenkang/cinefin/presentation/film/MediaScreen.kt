@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,8 @@ import com.zhangwenkang.cinefin.film.presentation.search.SearchState
 import com.zhangwenkang.cinefin.film.presentation.search.SearchViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
+import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
+import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoritesCard
@@ -216,6 +219,18 @@ private fun MediaScreenLayout(
                             index = index,
                         )
                     }
+                }
+                // 媒体库加载过渡（W6-VIS D24）：库列表到达前用大卡骨架占位，到达后淡出
+                LumenSkeletonOverlay(visible = state.isLoading && state.libraries.isEmpty()) {
+                    MediaLibrarySkeleton(
+                        gutterStart = paddingStart,
+                        gutterEnd = paddingEnd,
+                        columns = if (expanded) 2 else 1,
+                        modifier =
+                            Modifier.fillMaxSize()
+                                .padding(top = CinefinSpacing.Space6)
+                                .background(LocalCinefinColors.current.surface),
+                    )
                 }
                 if (state.error != null) {
                     ErrorCard(

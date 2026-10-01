@@ -13,26 +13,33 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 
-/** 图标磁贴的尺寸；分隔线的缩进也以它为基准。 */
-internal val SettingsIconTileSize = 36.dp
+/** 图标磁贴的尺寸；分隔线的缩进也以它为基准（W6-VIS：36 → 38dp，与月白 / 次级灰的字阶更匹配）。 */
+internal val SettingsIconTileSize = 38.dp
 internal val SettingsRowHorizontalPadding = 16.dp
 
 /**
  * 设置项的统一行式样：图标磁贴 → 标题（+说明） → 尾部（当前值 / 开关 / 箭头）。
  *
  * 图标放进带发丝线的圆角磁贴里，是这一版设置页最直接的"换了样子"—— 整页不再用卡片把每一项包起来，而是排成一张清单， 靠分隔线与磁贴列建立秩序，读起来更接近控制台/系统设置。
+ *
+ * W6-VIS 升级：磁贴 = 雾灰底（`SurfaceContainerHigh`）+ 1dp 发丝线 + 顶部 1px 内高光；标题走月白、
+ * 说明与当前值走次级灰、箭头走三级灰——层次全部由**明度**与 1px 细线建立，不引入新的强调色。
  */
 @Composable
 fun SettingsRow(
@@ -44,35 +51,38 @@ fun SettingsRow(
     showChevron: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
+    val colors = LocalCinefinColors.current
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 60.dp)
+                .defaultMinSize(minHeight = 64.dp)
                 .padding(
                     horizontal = SettingsRowHorizontalPadding,
-                    vertical = MaterialTheme.spacings.small + 2.dp,
+                    vertical = CinefinSpacing.Space3,
                 ),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
     ) {
         if (iconRes != null) {
             Box(
                 modifier =
                     Modifier.size(SettingsIconTileSize)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                            shape = MaterialTheme.shapes.small,
-                        ),
+                        .clip(CinefinShapes.Sm)
+                        .background(colors.surfaceContainerHigh)
+                        .drawBehind {
+                            drawRect(
+                                color = colors.topHighlight,
+                                size = Size(size.width, 1.dp.toPx()),
+                            )
+                        }
+                        .border(width = 1.dp, color = colors.outline, shape = CinefinShapes.Sm),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = colors.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -81,7 +91,8 @@ fun SettingsRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = CinefinType.BodyLarge,
+                color = colors.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -91,8 +102,10 @@ fun SettingsRow(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = CinefinType.BodySmall,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
         }
@@ -102,8 +115,8 @@ fun SettingsRow(
             ?.let {
                 Text(
                     text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -115,7 +128,7 @@ fun SettingsRow(
             Icon(
                 painter = painterResource(CoreR.drawable.ic_arrow_right),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
+                tint = colors.onSurfaceFaint,
                 modifier = Modifier.size(16.dp),
             )
         }

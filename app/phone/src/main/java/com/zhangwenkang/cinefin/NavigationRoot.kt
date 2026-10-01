@@ -40,7 +40,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -67,9 +71,14 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinDrawerGroup
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinModalDrawer
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavItem
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavigationItem
+import com.zhangwenkang.cinefin.core.presentation.components.lumenEdgeHighlight
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
+import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
 import com.zhangwenkang.cinefin.models.FindroidCollection
@@ -284,6 +293,19 @@ fun NavigationRoot(
             runCatching { navBackStackEntry?.toRoute<LibraryRoute>() }.getOrNull()
         } else {
             null
+        }
+    // 侧柜皮肤分级（W6-VIS 决策 D23）：影视域目的地（首页 / 媒体库 / 下载 / 客户端设置 / 影视类库）
+    // 的侧轨 / 底栏 / 抽屉跟随页面一起走 S1「A · Lumen」；音乐库、书架与书籍库保持 Prism。
+    // 判据只看"当前这一屏属于哪个域"，与页面内容同一个来源，避免出现"页面换了皮、侧栏还是旧配色"。
+    val lumenChrome =
+        when {
+            currentDestination.isRoute<MusicModeRoute>() -> false
+            currentDestination.isRoute<BookshelfRoute>() -> false
+            currentDestination.isRoute<LibraryRoute>() ->
+                currentLibrary?.libraryType?.let {
+                    it != CollectionType.Music && it != CollectionType.Books
+                } ?: true
+            else -> true
         }
     // 控制台 / 媒体资料管理器共用 ConsoleRoute 目的地，选中态要靠 path 参数区分（否则两条入口
     // 会同时高亮，见踩坑 28 的同类问题）。
@@ -500,67 +522,79 @@ fun NavigationRoot(
             predictivePopExitTransition = { fadeOut(tween(300)) },
         ) {
             composable<WelcomeRoute> {
-                WelcomeScreen(onContinueClick = { navController.safeNavigate(ServersRoute) })
+                ProvideLumen {
+                    WelcomeScreen(onContinueClick = { navController.safeNavigate(ServersRoute) })
+                }
             }
             composable<ServersRoute> {
-                ServersScreen(
-                    navigateToUsers = { navController.safeNavigate(UsersRoute) },
-                    navigateToAddresses = { serverId ->
-                        navController.safeNavigate(ServerAddressesRoute(serverId))
-                    },
-                    onAddClick = { navController.safeNavigate(AddServerRoute) },
-                    onBackClick = { navController.safePopBackStack() },
-                    showBack = navController.previousBackStackEntry != null,
-                )
+                ProvideLumen {
+                    ServersScreen(
+                        navigateToUsers = { navController.safeNavigate(UsersRoute) },
+                        navigateToAddresses = { serverId ->
+                            navController.safeNavigate(ServerAddressesRoute(serverId))
+                        },
+                        onAddClick = { navController.safeNavigate(AddServerRoute) },
+                        onBackClick = { navController.safePopBackStack() },
+                        showBack = navController.previousBackStackEntry != null,
+                    )
+                }
             }
             composable<AddServerRoute> {
-                AddServerScreen(
-                    onSuccess = { navController.safeNavigate(UsersRoute) },
-                    onBackClick = { navController.safePopBackStack() },
-                )
+                ProvideLumen {
+                    AddServerScreen(
+                        onSuccess = { navController.safeNavigate(UsersRoute) },
+                        onBackClick = { navController.safePopBackStack() },
+                    )
+                }
             }
             composable<ServerAddressesRoute> { backStackEntry ->
                 val route: ServerAddressesRoute = backStackEntry.toRoute()
-                ServerAddressesScreen(
-                    serverId = route.serverId,
-                    navigateBack = { navController.safePopBackStack() },
-                )
+                ProvideLumen {
+                    ServerAddressesScreen(
+                        serverId = route.serverId,
+                        navigateBack = { navController.safePopBackStack() },
+                    )
+                }
             }
             composable<UsersRoute> {
-                UsersScreen(
-                    navigateToHome = { navigateHome(navController) },
-                    onChangeServerClick = {
-                        navController.safeNavigate(ServersRoute) {
-                            popUpTo(ServersRoute) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    },
-                    onAddClick = { navController.safeNavigate(LoginRoute()) },
-                    onBackClick = { navController.safePopBackStack() },
-                    onPublicUserClick = { username ->
-                        navController.safeNavigate(LoginRoute(username = username))
-                    },
-                    showBack = navController.previousBackStackEntry != null,
-                )
+                ProvideLumen {
+                    UsersScreen(
+                        navigateToHome = { navigateHome(navController) },
+                        onChangeServerClick = {
+                            navController.safeNavigate(ServersRoute) {
+                                popUpTo(ServersRoute) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
+                        onAddClick = { navController.safeNavigate(LoginRoute()) },
+                        onBackClick = { navController.safePopBackStack() },
+                        onPublicUserClick = { username ->
+                            navController.safeNavigate(LoginRoute(username = username))
+                        },
+                        showBack = navController.previousBackStackEntry != null,
+                    )
+                }
             }
             composable<LoginRoute> { backStackEntry ->
                 val route: LoginRoute = backStackEntry.toRoute()
-                LoginScreen(
-                    onSuccess = {
-                        navController.safeNavigate(HomeRoute) {
-                            popUpTo(0)
-                            launchSingleTop = true
-                        }
-                    },
-                    onChangeServerClick = {
-                        navController.safeNavigate(ServersRoute) {
-                            popUpTo(ServersRoute) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    },
-                    onBackClick = { navController.safePopBackStack() },
-                    prefilledUsername = route.username,
-                )
+                ProvideLumen {
+                    LoginScreen(
+                        onSuccess = {
+                            navController.safeNavigate(HomeRoute) {
+                                popUpTo(0)
+                                launchSingleTop = true
+                            }
+                        },
+                        onChangeServerClick = {
+                            navController.safeNavigate(ServersRoute) {
+                                popUpTo(ServersRoute) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
+                        onBackClick = { navController.safePopBackStack() },
+                        prefilledUsername = route.username,
+                    )
+                }
             }
             composable<HomeRoute> {
                 HomeScreen(
@@ -583,19 +617,21 @@ fun NavigationRoot(
                 )
             }
             composable<MediaRoute> {
-                MediaScreen(
-                    onOpenDrawer = openDrawer,
-                    onItemClick = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                    onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
-                    searchExpanded = searchExpanded,
-                    onSearchExpand = { searchExpanded = it },
-                )
+                ProvideLumen {
+                    MediaScreen(
+                        onOpenDrawer = openDrawer,
+                        onItemClick = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
+                        },
+                        onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
+                        searchExpanded = searchExpanded,
+                        onSearchExpand = { searchExpanded = it },
+                    )
+                }
             }
             composable<BookshelfRoute> {
                 BookshelfScreen(
@@ -611,16 +647,18 @@ fun NavigationRoot(
                 )
             }
             composable<DownloadsRoute> {
-                DownloadsScreen(
-                    onOpenDrawer = openDrawer,
-                    onItemClick = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                )
+                ProvideLumen {
+                    DownloadsScreen(
+                        onOpenDrawer = openDrawer,
+                        onItemClick = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
+                        },
+                    )
+                }
             }
             composable<MusicModeRoute> { MusicModeScreen(onOpenDrawer = openDrawer) }
             composable<ConsoleRoute> { backStackEntry ->
@@ -636,10 +674,30 @@ fun NavigationRoot(
                     // 兜底：任何残留路由落到音乐库时同样进音乐模式（见 libraryEntryRoute）
                     MusicModeScreen(onOpenDrawer = openDrawer)
                 } else {
-                    LibraryScreen(
-                        libraryId = UUID.fromString(route.libraryId),
-                        libraryName = route.libraryName,
-                        libraryType = route.libraryType,
+                    // 库内容页按域换皮（W6-VIS D23）：书籍库属阅读域、保持 Prism，影视类库走 Lumen
+                    LumenPage(enabled = route.libraryType != CollectionType.Books) {
+                        LibraryScreen(
+                            libraryId = UUID.fromString(route.libraryId),
+                            libraryName = route.libraryName,
+                            libraryType = route.libraryType,
+                            onItemClick = { item ->
+                                navigateToItem(
+                                    navController = navController,
+                                    item = item,
+                                    context = context,
+                                )
+                            },
+                            navigateBack = { navController.safePopBackStack() },
+                        )
+                    }
+                }
+            }
+            composable<CollectionRoute> { backStackEntry ->
+                val route: CollectionRoute = backStackEntry.toRoute()
+                ProvideLumen {
+                    CollectionScreen(
+                        collectionId = UUID.fromString(route.collectionId),
+                        collectionName = route.collectionName,
                         onItemClick = { item ->
                             navigateToItem(
                                 navController = navController,
@@ -651,32 +709,19 @@ fun NavigationRoot(
                     )
                 }
             }
-            composable<CollectionRoute> { backStackEntry ->
-                val route: CollectionRoute = backStackEntry.toRoute()
-                CollectionScreen(
-                    collectionId = UUID.fromString(route.collectionId),
-                    collectionName = route.collectionName,
-                    onItemClick = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                    navigateBack = { navController.safePopBackStack() },
-                )
-            }
             composable<FavoritesRoute> {
-                FavoritesScreen(
-                    onItemClick = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                    navigateBack = { navController.safePopBackStack() },
-                )
+                ProvideLumen {
+                    FavoritesScreen(
+                        onItemClick = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
+                        },
+                        navigateBack = { navController.safePopBackStack() },
+                    )
+                }
             }
             composable<MovieRoute> { backStackEntry ->
                 val route: MovieRoute = backStackEntry.toRoute()
@@ -747,44 +792,50 @@ fun NavigationRoot(
             }
             composable<PersonRoute> { backStackEntry ->
                 val route: PersonRoute = backStackEntry.toRoute()
-                PersonScreen(
-                    personId = UUID.fromString(route.personId),
-                    navigateBack = { navController.safePopBackStack() },
-                    navigateHome = { navigateHome(navController) },
-                    navigateToItem = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                )
+                ProvideLumen {
+                    PersonScreen(
+                        personId = UUID.fromString(route.personId),
+                        navigateBack = { navController.safePopBackStack() },
+                        navigateHome = { navigateHome(navController) },
+                        navigateToItem = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
+                        },
+                    )
+                }
             }
             composable<SettingsRoute> { backStackEntry ->
                 val route: SettingsRoute = backStackEntry.toRoute()
-                SettingsScreen(
-                    indexes = route.indexes,
-                    navigateToSettings = { indexes ->
-                        navController.safeNavigate(SettingsRoute(indexes = indexes))
-                    },
-                    navigateToSettingsFileEdit = { filePath ->
-                        navController.safeNavigate(SettingsFileEditRoute(filePath = filePath))
-                    },
-                    navigateToServers = { navController.safeNavigate(ServersRoute) },
-                    navigateToUsers = { navController.safeNavigate(UsersRoute) },
-                    navigateToAbout = { navController.safeNavigate(AboutRoute) },
-                    navigateBack = { navController.safePopBackStack() },
-                )
+                ProvideLumen {
+                    SettingsScreen(
+                        indexes = route.indexes,
+                        navigateToSettings = { indexes ->
+                            navController.safeNavigate(SettingsRoute(indexes = indexes))
+                        },
+                        navigateToSettingsFileEdit = { filePath ->
+                            navController.safeNavigate(SettingsFileEditRoute(filePath = filePath))
+                        },
+                        navigateToServers = { navController.safeNavigate(ServersRoute) },
+                        navigateToUsers = { navController.safeNavigate(UsersRoute) },
+                        navigateToAbout = { navController.safeNavigate(AboutRoute) },
+                        navigateBack = { navController.safePopBackStack() },
+                    )
+                }
             }
             composable<SettingsFileEditRoute> { backStackEntry ->
                 val route: SettingsFileEditRoute = backStackEntry.toRoute()
-                SettingsFileEditScreen(
-                    filePath = route.filePath,
-                    navigateBack = { navController.safePopBackStack() },
-                )
+                ProvideLumen {
+                    SettingsFileEditScreen(
+                        filePath = route.filePath,
+                        navigateBack = { navController.safePopBackStack() },
+                    )
+                }
             }
             composable<AboutRoute> {
-                AboutScreen(navigateBack = { navController.safePopBackStack() })
+                ProvideLumen { AboutScreen(navigateBack = { navController.safePopBackStack() }) }
             }
         }
     }
@@ -804,34 +855,77 @@ fun NavigationRoot(
         groups = drawerGroups,
         selectedIndex = drawerSelectedIndex,
         onSelect = { index -> drawerEntries.getOrNull(index)?.onClick?.invoke() },
+        drawerSkin = { drawerContent -> LumenChrome(lumenChrome) { drawerContent() } },
     ) {
         when {
             compactNavigation && showNavigation ->
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.weight(1f)) { host() }
-                    CinefinBottomTab(
-                        items = bottomItems.map { it.item },
-                        selectedIndex = bottomItems.indexOfFirst { it.selected },
-                        onSelect = { index -> bottomItems.getOrNull(index)?.onClick?.invoke() },
-                        modifier = Modifier.navigationBarsPadding(),
-                    )
+                    LumenChrome(lumenChrome) {
+                        // 手势条安全区也要跟着底栏一起铺满底色，否则系统导航区会露出外层主题的石板色
+                        // （真机表现为底栏下缘一条 21,26,33 的色带）。
+                        Box(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .background(
+                                        LocalLumenColors.current?.panel
+                                            ?: LocalCinefinColors.current.surface
+                                    )
+                        ) {
+                            CinefinBottomTab(
+                                items = bottomItems.map { it.item },
+                                selectedIndex = bottomItems.indexOfFirst { it.selected },
+                                onSelect = { index ->
+                                    bottomItems.getOrNull(index)?.onClick?.invoke()
+                                },
+                                modifier = Modifier.navigationBarsPadding(),
+                            )
+                        }
+                    }
                 }
             !compactNavigation && showNavigation ->
                 Row(modifier = Modifier.fillMaxSize()) {
-                    CinefinSideNavigation(
-                        destinations = railDestinations,
-                        mediaLibraries = if (isOfflineMode) emptyList() else drawerData.libraries,
-                        currentLibraryId = currentLibrary?.libraryId,
-                        mediaGroupExpanded = mediaGroupExpanded,
-                        onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
-                        onOpenLibrary = openLibrary,
-                        expanded = railExpanded,
-                        onToggleExpanded = { railExpanded = !railExpanded },
-                    )
+                    LumenChrome(lumenChrome) {
+                        CinefinSideNavigation(
+                            destinations = railDestinations,
+                            mediaLibraries =
+                                if (isOfflineMode) emptyList() else drawerData.libraries,
+                            currentLibraryId = currentLibrary?.libraryId,
+                            mediaGroupExpanded = mediaGroupExpanded,
+                            onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
+                            onOpenLibrary = openLibrary,
+                            expanded = railExpanded,
+                            onToggleExpanded = { railExpanded = !railExpanded },
+                        )
+                    }
                     Box(modifier = Modifier.weight(1f)) { host() }
                 }
             else -> host()
         }
+    }
+}
+
+/**
+ * 侧柜皮肤开关（W6-VIS D23）：影视域 = S1「A · Lumen」，其余 = 当前域 Prism。
+ *
+ * 只换色板，不加壳——侧轨 / 底栏 / 抽屉各自带底色，用 [ProvideLumenColors] 才不会在 Column / Row 里抢空间。
+ */
+@Composable
+private fun LumenChrome(enabled: Boolean, content: @Composable () -> Unit) {
+    if (enabled) {
+        ProvideLumenColors { content() }
+    } else {
+        content()
+    }
+}
+
+/** 页面级皮肤开关：影视域页面铺 S1 A 稿底（曜石黑 + A 色板），音乐 / 阅读域保持各自皮肤。 */
+@Composable
+private fun LumenPage(enabled: Boolean, content: @Composable () -> Unit) {
+    if (enabled) {
+        ProvideLumen { content() }
+    } else {
+        content()
     }
 }
 
@@ -866,24 +960,79 @@ private fun CinefinSideNavigation(
     onToggleExpanded: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
+    val lumen = LocalLumenColors.current
     Column(
         modifier =
             Modifier.width(if (expanded) 164.dp else 88.dp)
                 .fillMaxHeight()
-                .background(colors.navSurface)
-                .border(1.dp, colors.outline)
+                // W6-VIS 侧栏重设计：Lumen 区域抬一档到石墨面板（与曜石黑页底形成层次），右缘一条发丝线 +
+                // 顶缘 1px 内高光；Prism 区域保持原有四边描边与 navSurface 底。
+                .background(lumen?.panel ?: colors.navSurface)
+                .drawBehind {
+                    val stroke = 1.dp.toPx()
+                    if (lumen != null) {
+                        drawRect(
+                            brush = lumenEdgeHighlight(lumen),
+                            size = Size(size.width, stroke),
+                        )
+                        drawRect(
+                            color = lumen.line,
+                            topLeft = Offset(size.width - stroke, 0f),
+                            size = Size(stroke, size.height),
+                        )
+                    }
+                }
+                .then(
+                    if (lumen == null) {
+                        Modifier.border(1.dp, colors.outline)
+                    } else {
+                        Modifier
+                    }
+                )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(72.dp).padding(horizontal = 14.dp),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .height(72.dp)
+                    .drawBehind {
+                        if (lumen != null) {
+                            val stroke = 1.dp.toPx()
+                            drawRect(
+                                color = lumen.lineSoft,
+                                topLeft = Offset(0f, size.height - stroke),
+                                size = Size(size.width, stroke),
+                            )
+                        }
+                    }
+                    .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center,
         ) {
-            Icon(
-                painter = painterResource(CoreR.drawable.ic_logo),
-                contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier.size(38.dp),
-            )
+            if (lumen != null) {
+                // 品牌印记放进"雾灰 + 发丝线"的小方框：与抽屉头部、设置页磁贴同一套材质语言
+                Box(
+                    modifier =
+                        Modifier.size(38.dp)
+                            .clip(CinefinShapes.Sm)
+                            .background(lumen.panelElevated)
+                            .border(1.dp, lumen.line, CinefinShapes.Sm),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_logo),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+            } else {
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_logo),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(38.dp),
+                )
+            }
             if (expanded) {
                 Spacer(Modifier.width(CinefinSpacing.Space3))
                 Text(
@@ -971,6 +1120,15 @@ private fun CinefinSideNavigation(
             modifier =
                 Modifier.fillMaxWidth()
                     .height(56.dp)
+                    .drawBehind {
+                        if (lumen != null) {
+                            val stroke = 1.dp.toPx()
+                            drawRect(
+                                brush = lumenEdgeHighlight(lumen),
+                                size = Size(size.width, stroke),
+                            )
+                        }
+                    }
                     .clickable(onClick = onToggleExpanded)
                     .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,

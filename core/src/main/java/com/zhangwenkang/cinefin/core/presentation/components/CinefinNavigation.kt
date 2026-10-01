@@ -25,22 +25,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LumenColors
+import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
 
 /**
  * 导航条目（§8.6）。
  *
  * [neutral] 为 true 表示首页 / 设置等中性项：选中态用 `SurfaceContainerHigh + OnSurface`； 域页项选中态用
  * `Media.Container + Media.Bright`，不出现独立色点 / 色条（底部 Tab 的 24×3dp 指示条是导航指示器，属规范允许的例外）。
+ *
+ * Lumen 区域（W6-VIS）：条目改走「石墨 / 雾灰层次 + 发丝线 + 顶部内高光」——选中 = 雾灰底 + 白 8.5% 细线 + 月白标签 +
+ * 极光青图标（唯一强调色落在"当前焦点"），未选中 = 次级灰，悬停 = 白 7% 幽灵底。
  */
 class CinefinNavItem(
     val label: String,
@@ -58,19 +71,27 @@ fun CinefinSideRail(
     expanded: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
+    val lumen = LocalLumenColors.current
     Column(
         modifier =
             modifier
                 .width(if (expanded) 164.dp else 88.dp)
                 .fillMaxHeight()
-                .background(colors.navSurface)
+                .background(lumen?.panel ?: colors.navSurface)
                 .drawBehind {
                     val stroke = 1.dp.toPx()
                     drawRect(
-                        color = colors.outline,
+                        color = lumen?.line ?: colors.outline,
                         topLeft = Offset(size.width - stroke, 0f),
                         size = Size(stroke, size.height),
                     )
+                    if (lumen != null) {
+                        // 顶部内高光：侧轨上缘被光扫过一条 1px 细线，避免"整块纯色板"的单调
+                        drawRect(
+                            brush = lumenEdgeHighlight(lumen),
+                            size = Size(size.width, 1.dp.toPx()),
+                        )
+                    }
                 }
                 .padding(
                     horizontal = if (expanded) 10.dp else 12.dp,
@@ -101,36 +122,44 @@ fun CinefinNavigationItem(
     trailing: (@Composable () -> Unit)? = null,
     /** 二级分组子项用 44dp 紧凑行，避免「父项 + 全部库」把侧轨撑到需要滚动。 */
     compact: Boolean = false,
+    /** 条目圆角（与外壳一致，Lumen 选中态的发丝线按同一形状内缩 0.5dp 描边）。 */
+    cornerRadius: Dp = 14.dp,
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
+    val lumen = LocalLumenColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
     val container =
-        when {
-            pressed && (selected || !item.neutral) -> media.containerPressed
-            pressed -> colors.statePressed
-            selected && item.neutral -> colors.surfaceContainerHigh
-            selected -> media.container
-            hovered -> colors.stateHover
-            else -> Color.Transparent
-        }
+        navItemContainerColor(
+            selected = selected,
+            neutral = item.neutral,
+            hovered = hovered,
+            pressed = pressed,
+            media = media,
+            colors = colors,
+            lumen = lumen,
+        )
     val content =
-        when {
-            selected && item.neutral -> colors.onSurface
-            selected -> media.bright
-            pressed -> colors.onSurface
-            else -> colors.onSurfaceVariant
-        }
+        navItemContentColor(
+            selected = selected,
+            neutral = item.neutral,
+            pressed = pressed,
+            media = media,
+            colors = colors,
+            lumen = lumen,
+        )
+    val shape = RoundedCornerShape(cornerRadius)
 
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .height(if (compact) 44.dp else if (expanded) 54.dp else 56.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(shape)
                 .background(container)
+                .lumenItemFrame(lumen, selected, cornerRadius)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -166,13 +195,33 @@ fun CinefinBottomTab(
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
+    val lumen = LocalLumenColors.current
     Row(
-        modifier = modifier.fillMaxWidth().height(64.dp).background(colors.surface),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .background(lumen?.panel ?: colors.surface)
+                .drawBehind {
+                    if (lumen != null) {
+                        drawRect(
+                            brush = lumenEdgeHighlight(lumen),
+                            size = Size(size.width, 1.dp.toPx()),
+                        )
+                    }
+                },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items.forEachIndexed { index, item ->
             val selected = index == selectedIndex
-            val content = if (selected) media.bright else colors.onSurfaceVariant
+            val content =
+                if (lumen != null) {
+                    if (selected) lumen.text else lumen.textSecondary
+                } else if (selected) {
+                    media.bright
+                } else {
+                    colors.onSurfaceVariant
+                }
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight().cinefinClickable { onSelect(index) },
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -183,7 +232,15 @@ fun CinefinBottomTab(
                         Modifier.width(24.dp)
                             .height(3.dp)
                             .clip(CinefinShapes.TwoXs)
-                            .background(if (selected) media.base else Color.Transparent)
+                            .background(
+                                if (!selected) {
+                                    Color.Transparent
+                                } else if (lumen != null) {
+                                    lumen.accent
+                                } else {
+                                    media.base
+                                }
+                            )
                 )
                 Spacer(Modifier.height(CinefinSpacing.Space1))
                 Box(modifier = Modifier.size(24.dp)) { item.icon(selected) }
@@ -196,5 +253,93 @@ fun CinefinBottomTab(
                 )
             }
         }
+    }
+}
+
+/**
+ * 侧轨 / 底栏上缘的 1px 内高光（Lumen）：中段最亮、两端收光，读作"边缘被光扫过"。
+ *
+ * 只画在固定层上，纯白低透明度——不引入媒体色发光（§2.6 / §5.3）。
+ */
+fun lumenEdgeHighlight(lumen: LumenColors): Brush =
+    Brush.horizontalGradient(
+        colorStops =
+            arrayOf(
+                0f to Color.Transparent,
+                0.12f to Color.White.copy(alpha = lumen.line.alpha * 1.4f),
+                0.5f to Color.White.copy(alpha = lumen.line.alpha * 2.2f),
+                0.88f to Color.White.copy(alpha = lumen.line.alpha * 1.4f),
+                1f to Color.Transparent,
+            )
+    )
+
+/** 导航条目底色：Lumen = 雾灰层次（选中雾灰 / 悬停幽灵白 / 按下更实），Prism = 既有状态层。 */
+@Composable
+internal fun navItemContainerColor(
+    selected: Boolean,
+    neutral: Boolean,
+    hovered: Boolean,
+    pressed: Boolean,
+    media: MediaColors = LocalMediaColors.current,
+    colors: CinefinColors = LocalCinefinColors.current,
+    lumen: LumenColors? = LocalLumenColors.current,
+): Color =
+    if (lumen != null) {
+        when {
+            selected -> lumen.panelElevated
+            pressed -> lumen.ghost.copy(alpha = CinefinTokens.StatePressedAlpha)
+            hovered -> lumen.ghost
+            else -> Color.Transparent
+        }
+    } else {
+        when {
+            pressed && (selected || !neutral) -> media.containerPressed
+            pressed -> colors.statePressed
+            selected && neutral -> colors.surfaceContainerHigh
+            selected -> media.container
+            hovered -> colors.stateHover
+            else -> Color.Transparent
+        }
+    }
+
+/** 导航条目内容色：Lumen = 月白（选中）/ 次级灰（未选中），Prism = 既有域色语义。 */
+@Composable
+internal fun navItemContentColor(
+    selected: Boolean,
+    neutral: Boolean,
+    pressed: Boolean,
+    media: MediaColors = LocalMediaColors.current,
+    colors: CinefinColors = LocalCinefinColors.current,
+    lumen: LumenColors? = LocalLumenColors.current,
+): Color =
+    when {
+        lumen != null -> if (selected) lumen.text else lumen.textSecondary
+        selected && neutral -> colors.onSurface
+        selected -> media.bright
+        pressed -> colors.onSurface
+        else -> colors.onSurfaceVariant
+    }
+
+/** 选中条目的"双层嵌套"外壳：1dp 白 8.5% 发丝线 + 顶部 1px 内高光（A 稿 `.nav .item.active`）。 */
+internal fun Modifier.lumenItemFrame(
+    lumen: LumenColors?,
+    selected: Boolean,
+    cornerRadius: Dp,
+): Modifier {
+    if (lumen == null || !selected) return this
+    return this.drawWithContent {
+        drawContent()
+        drawRect(
+            brush = lumenEdgeHighlight(lumen),
+            size = Size(size.width, 1.dp.toPx()),
+        )
+        val stroke = 1.dp.toPx()
+        drawRoundRect(
+            color = lumen.line,
+            topLeft = Offset(stroke / 2f, stroke / 2f),
+            size = Size(size.width - stroke, size.height - stroke),
+            cornerRadius = CornerRadius(cornerRadius.toPx()),
+            style = Stroke(width = stroke),
+        )
     }
 }

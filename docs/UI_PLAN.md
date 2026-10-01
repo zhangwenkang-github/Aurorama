@@ -65,6 +65,10 @@
 | D22 | **导航 IA 与客户端设置改造（W6-R6N，2026-10-01 管理员账号验收反馈）** | ①**手机去掉左侧抽屉**：Compact 形态 `openDrawer = null`（首页 / 媒体库 / 书架 / 下载顶栏不再有 hamburger）、`CinefinModalDrawer(gesturesEnabled = showNavigation && !compactNavigation)`（边缘滑出手势一并关闭），底部 4 Tab 与顺序不变（`bottomNavKeys`）。②**控制台只留自己的侧栏**：`showNavigation` 移除 `ConsoleRoute` → 控制台 / 元数据管理器页不渲染 app 侧轨 / 底栏，边缘抽屉手势同时失效（控制台内建侧栏不与 app 侧栏打架）。③**顶层 IA**：首页 / 媒体库（二级分组）/ 音乐 / 书架 /（管理员：服务器控制台 / 元数据管理器）/ 客户端设置；`navEntryKeys` 纯函数门控（音乐 / 书架在服务器确认没有对应库时隐藏，库列表未就绪时保持可见走页面空态；控制台两条只对管理员；客户端设置常驻，避免"把自己关掉"）。抽屉与侧轨共用 `visibleRailKeys` 过滤后的同一份列表。④**媒体库二级分组**：侧轨「媒体库」行可展开 / 折叠（chevron），子项 = 服务器实际返回的全部库（同名多库逐条列出，`libraryIconRes` 按类型给图标），折叠轨（88dp）只显示一级图标；子项 44dp 紧凑行。⑤**文案**：`CoreR.string.title_settings` =「客户端设置」（settings 模块自身的 `title_settings` 不动 → TV 与设置内部索引语义不变）。⑥**设置项**：新增「媒体库」分类（首页媒体库 / 音乐库 / 书架媒体库，运行时选项来自 `pref_ui_library_catalog` 缓存，新增 `PreferenceDynamicSelect` + `SettingsDynamicSelectCard`）与「侧栏显示」分类（7 个开关，即时生效、持久化）；离线模式移到设置最后一项，**不再重启 Activity**（`RestartActivity` 事件不再有人发送）。⑦**离线模式不重启的三处配套**：`MainViewModel` 监听偏好变化只刷新状态（`check(showLoading = false)`，不把 UI 移出组合）；`DrawerViewModel` 用 `Provider<JellyfinRepository>` 按需解析在线 / 离线仓库并在 `LaunchedEffect(isOfflineMode)` 重新加载导航数据（切回在线时侧轨库列表立刻回来）；内容页仍在下一次启动完全切换（本期边界）。⑧新增偏好键一律 `pref_ui_*` 前缀追加，不重排既有键；设置模块不能依赖 data 层（依赖方向相反），所以媒体库目录由 `DrawerViewModel` 写入 `LibraryCatalog` 编码缓存、设置页读取。 |
 | D23 | **Web 控制台皮肤升级 v3「A · Lumen」+ WebView 滚动闸门**（W6-WEB，2026-10-01 用户反馈） | 用户反馈两件事：①控制台 / 媒体资料管理器的 Web UI 要与 App 内 Lumen 一致；②控制台页上下滑动不流畅。落地：①`docs/web-console-skin.css` 由 v2「墨+朱砂」重绘为 v3「A · Lumen」——页底曜石黑 `#08090C`、卡片石墨 `#111319`、悬浮 / 顶栏 / 侧栏 `#0B0D11`～`#171A21`、主文字月白 `#F2F5F9`、次级 `#98A2B3`、三级 `#6B7483`、**唯一强调色极光青 `#5CE1D2`**（链接 / 选中 / 焦点 / 开关 / 进度 / 标签页）、进度条青→蓝渐变 `#5CE1D2→#7CC4FF`（<10% 用量）、主按钮改 A 稿 `.btn.primary` 月白填充 + `#0A0C11` 深字、危险按钮暗红 `#3A1A16`/`#FFB4A8`、发丝线白 8.5% / 弱分隔线白 5%、错误色沿用设计系统 `#E87C6E` 低饱和冷调、侧栏选中项用 A 稿悬浮轨「渐变底 + 内高光」手法；**显式覆盖服务器主题灌进 `.navMenuOption` / `.cardText` 等元素的强调色**（踩坑 32）。②滚动闸门（v3 §15 + `WebConsoleScreen`）：CSS 全站禁用 `backdrop-filter`、`scroll-behavior: auto`、`overscroll-behavior: none/contain`；WebView 侧 `overScrollMode=NEVER`（去掉边缘拉伸回弹）、`isNestedScrollingEnabled=false`、`setOffscreenPreRaster(true)`、渲染进程优先级 `IMPORTANT`、背景色 / 种子页同步 `#08090C`。**同步流程**：本文件（docs）为唯一权威副本 → 同步复制 `app/phone/src/main/res/raw/web_console_skin.css`（App 注入）→ 服务器「控制台 → 显示 → 自定义 CSS」由用户手动粘贴上传，App / 仓库不代传、不写服务器。 |
 
+| D24 | **Lumen 全域化：影视域全覆盖 + 跨域页面统一处理 + 侧柜皮肤跟随**（W6-VIS，2026-10-01 用户反馈「除音乐库与书架外全部页面改流光配色」） | ①覆盖范围从「首页 + 电影 / 剧集 / 季 / 集详情」扩到影视域**全部页面**：媒体库总览、库内容页（非书籍类型）、收藏、合集、下载、演职人员、客户端设置（含设置子页 / 关于）、首连向导（欢迎 / 服务器 / 添加服务器 / 服务器地址 / 用户 / 登录）；②**跨域页面的统一处理**（§2.6 关系）：媒体库总览会同时列出音乐库与书籍库卡片，处理方式是「页面本体走 Lumen + 库卡片只用类型图标与中性色」——卡片不引用任何一域的媒体色，点进音乐库 → 音乐模式（Prism + 松石），点进书籍库 → 库内容页仍为 Prism，书架 / 音乐 / 阅读皮肤一律不动；③**侧柜（侧轨 / 底栏 / 抽屉）跟随当前目的地皮肤**：新增 `lumenChrome` 判据（音乐 / 书架 / 书籍库 = Prism，其余 = Lumen），避免"页面换了皮、侧栏还是旧配色"；④`ProvideLumen` 除三个语义色 CompositionLocal 外**内嵌一层 `MaterialTheme(LumenMaterialColorScheme)`**——仓库里仍有大量 `MaterialTheme.colorScheme` 存量引用（Scaffold / TopAppBar / Switch / TextField / 对话框 / SearchBar），只换语义色会在设置与向导页留下石板蓝黑底与琥珀 / 松石强调色（踩坑 38）；`LumenMaterialColorScheme` 由 `cinefinColorScheme(Movie)` 覆写中性 / 强调槽位生成，error 等**语义色**保持 Prism 取值；⑤新增 `ProvideLumenColors`（只借色板、不加壳）供侧轨 / 底栏 / 抽屉这类自带底色的组件使用——`ProvideLumen` 的 `fillMaxSize` 盒子会在 Column / Row 里抢走剩余空间。 | 
+| D25 | **侧栏 / 抽屉 / 底栏与客户端设置视觉重设计（A 稿手法）**（W6-VIS，用户反馈「图标、背景色、排版太单调」） | ①**侧轨**：底 = 石墨 `#111319`（比曜石黑页底亮一档，形成"幕布 + 面板"层次）+ 右缘 1dp 发丝线（白 8.5%）+ 顶缘 1px 内高光；条目选中 = 雾灰 `#171A21` 容器 + 1dp 细线 + 顶部内高光 + **月白**标签 + **极光青**图标（唯一强调色只落在"当前焦点"），未选中 = 次级灰 `#98A2B3`，悬停 = 白 7% 幽灵底、按下 = 白 12%；品牌印记改成"雾灰 + 发丝线"小方框；②**底栏**同语言（石墨底 + 极光青指示条与图标 + 月白 / 次级灰标签），并把安全区一起铺满底色（踩坑 39）；③**抽屉** = 石墨面板 + 品牌方框 + 服务器行幽灵胶囊；④**客户端设置**：分类收进石墨卡（复用 `LumenCardFrame`：1dp 渐变描边 + 顶部内高光 + 极轻外发光），行内图标磁贴 = 雾灰 + 发丝线 + 顶部内高光，标题月白 / 说明与当前值次级灰 / 箭头三级灰，开关轨道 = 当前强调色 + 配对深色拇指，顶栏下补一条发丝线；⑤**不新增位图、不新增色值**：图标沿用现有矢量资源只做重着色，A 色值仍只在 `LumenTokens`。 | 
+| D26 | **加载过渡：骨架屏 + shimmer + 淡入**（W6-VIS，用户反馈「加载直接显示黑板」） | ①新增 `presentation/components/LumenSkeleton.kt`：`Modifier.lumenShimmer()`（底色 + 横向高光带；动画值只在 `drawBehind` 里读 → 只触发重绘、不重组）、`LumenSkeletonBlock` / `LumenSkeletonLine`、`LumenSkeletonOverlay`（淡入淡出外壳，兼避 ColumnScope 重载冲突，见踩坑 40）、页面级骨架（首页 / 媒体库 / 库内容 / 详情 / 设置）与 `ColdStartSplash`；②接入点：**冷启动**（登录态解析期显示曜石黑品牌页，就绪后主界面 220ms 淡入）、首页、媒体库总览、库内容页（分页首屏）、下载、5 个详情页、客户端设置；③纪律：全部动效只走 **opacity / graphicsLayer / 渐变平移**（§6.4），不改宽高、不做模糊；内容始终参与组合（只把 alpha 置 0），因此过渡不会重建滚动位置与分页状态。 | 
+
 ## 4. 进度
 
 - [x] ①-色彩：中性色亮 / 暗、三域媒体色 3×7、语义色、状态层、M3 `ColorScheme` 映射
@@ -197,6 +201,17 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - [x] Pad 5 `43af8627`（临时 `wm size 2560x1600` + `density 320`）：控制台 dashboard 配色与滚动前后对比（有效数据见 §5；15:21:40 起设备被其他会话重装，已在下表如实标注数据边界）
 - [ ] **服务器自定义 CSS 待用户手动更新**（把 v3 粘贴到 Jellyfin「控制台 → 显示 → 自定义 CSS」；App / 仓库不代传）
 - 收尾：K60 临时 `navigation_mode`（手势→三键，便于左缘打开 App 抽屉）已还原为 2；用于进入控制台的临时 `DrawerViewModel.isAdministrator = true` 调试包已 `git restore` 并重装干净包
+
+### W6-VIS 本轮进度（A 配色全站化 + 侧栏/设置重设计 + 加载过渡，2026-10-01，分支 `feature/r6-visual-all`）
+
+用户 2026-10-01 管理员账号验收反馈的三项（决策见 D24 / D25 / D26）：
+
+- [x] **①除音乐库与书架外全部页面改流光（A）配色**：`ProvideLumen` 覆盖到媒体库总览 / 库内容页（非书籍）/ 收藏 / 合集 / 下载 / 演职人员 / 客户端设置（含设置子页与关于）/ 首连向导 6 页；`ProvideLumen` 新增 `MaterialTheme(LumenMaterialColorScheme)` 覆盖，存量 `MaterialTheme.colorScheme` 引用（Scaffold / TopAppBar / Switch / 对话框 / SearchBar）零改动切到 A 色板；跨域页面（媒体库总览含音乐 / 书籍卡）按「页面 Lumen + 卡片中性色 + 点进各域保持各域皮肤」处理
+- [x] **②侧栏 / 底栏 / 抽屉 / 客户端设置视觉重设计**：侧轨石墨底 + 右缘发丝线 + 顶缘内高光，选中 = 雾灰容器 + 1dp 细线 + 顶部内高光 + 月白标签 + 极光青图标，未选中次级灰，悬停幽灵白；底栏同语言并把安全区一起铺满；抽屉石墨面板 + 品牌方框 + 服务器幽灵胶囊；设置页分类收进石墨卡（LumenCardFrame）、图标磁贴雾灰 + 发丝线 + 内高光、开关轨道改当前强调色、顶栏下补发丝线。图标全部沿用现有矢量资源只重着色，未新增位图 / 色值
+- [x] **③加载过渡动画**：新增 `LumenSkeleton.kt`（shimmer 只触发重绘 + 页面级骨架 + `LumenSkeletonOverlay`），接入冷启动品牌页（220ms 淡入主界面）、首页、媒体库总览、库内容页、下载、5 个详情页、客户端设置；全部动效只走 opacity / graphicsLayer / 渐变平移，内容始终参与组合（不重建滚动与分页状态）
+- [x] **门禁**：`:app:phone:assembleDebug` + `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest` + `:core:testLibreDebugUnitTest` 全绿（新增 `lumen material scheme maps neutral slots to direction a values` 1 项）
+- [x] **真机**：Pad 5 `43af8627`（`wm 2560x1600` + `density 320` ≈ 1280dp 平板形态：侧轨 164dp 展开 + 首页 / 媒体库 / 客户端设置 / 侧栏显示子页像素采样）+ K60 `8e875894`（1440×3200 @560 原生竖屏：底部 Tab + 冷启动骨架帧）；设备副作用已还原、device-lock 已登记并释放
+- 本期边界：控制台（WebView）皮肤由 W6-WEB 的 CSS v3 负责，不在本轮代码范围；播放页（`player/*`）按纪律未动
 
 ## 5. 验收
 
@@ -382,6 +397,28 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [ ] **未决（用户侧）**：服务器「自定义 CSS」需用户手动粘贴 v3 内容；更新前 App 内皮肤已自洽（服务器旧 CSS 的主要强调色已被 v3 显式覆盖，个别未覆盖元素可能残留）
 - 数据边界说明：Pad 5 的 baseline 三轮采于 15:08–15:12、v3 三轮采于 15:20 前后（均为本会话包）；15:21:40 设备被其他会话重装后本会话立即停用 Pad 5，其后数据不计入（见 device-lock 更正记录）
 
+### W6-VIS 验收（2026-10-01，A 配色全站化 + 侧栏/设置重设计 + 加载过渡，分支 `feature/r6-visual-all`）
+
+验收命令（全部通过）：
+
+```powershell
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :core:testLibreDebugUnitTest --console=plain
+```
+
+- [x] **除音乐库 / 书架外各主要页面均为 Lumen 观感**（像素采样，Pad 5 2560×1600 @320 平板形态 + K60 1440×3200 @560）：
+  - 首页：精确色直方图前 24 位全部是 A 色板（`#08090C` 页底 386,277 / `#111319` 侧轨 60,763 / `#171A21` 容器 53,024 / `#F2F5F9` 月白 11,993 / `#98A2B3` 次级灰 2,652）；旧 Prism 强调色 **琥珀 0 / 松石 0 / 书籍蓝 0**；
+  - 媒体库总览：全屏无 Prism 槽位色（`#151A21` / `#12171D` 命中 0），页底 `#08090C` + 卡片 `#171A21`；
+  - 客户端设置：`#111319` 卡 1,686,017 / `#08090C` 页底 2,036,008 / 发丝线 `(38,39,45)` 25,284 / 月白文字 10,096，无 Prism 色；
+  - 「侧栏显示」子页：7 个开关轨道 `#5CE1D2` 命中 6,770、配对深色拇指 `#0A0C11` 12,012 → **开关 = 极光青**；
+  - **音乐页保持 Prism**：`#151A21` 3,305,745 / `#222A36` 78,444 / 松石系 `(33,60,62)` 22,503 / `(43,109,96)` 1,276，**极光青 0**；
+  - 旧朱砂 `#D2553C` 仅在品牌 logo 位图内（19 px），非 UI 控件残留。
+- [x] **侧栏视觉明显改善**：侧轨 164dp 展开 = 石墨底 `#111319` 426,777 px + 右缘发丝线（`(38,39,45)`）+ 选中项雾灰 `#171A21` 56,176 px + 月白标签 1,773 px + **极光青选中图标 704 px** + 次级灰 11,655 px；底栏（K60）= 石墨底 + 极光青指示条，手势条安全区同底色（修复前该处露出外层主题 `(21,26,33)`）。
+- [x] **功能不回退**：侧栏显示开关、库选择、离线模式、导航 IA 均未改动逻辑（本轮只改配色与排版；`AppPreferences` / `settings.gradle.kts` / `libs.versions.toml` / `player/*` / `WebConsoleScreen.kt` / `web-console-skin.css` 零改动）。
+- [x] **加载态有平滑过渡**：冷启动 4 连拍帧（K60）——第 1 帧系统桌面 → 第 2/3 帧为 shimmer 骨架（石墨块 + 扫光渐变，`#111319` / `#171A21` 连续色阶）→ 第 4 帧内容（卡片容器已就位、海报图仍在填充）；`logcat` 无 `FATAL` / `ANR in` / `Input dispatching timed out`。
+- [x] **动效性能**：shimmer 只读绘制阶段状态（`drawBehind`），只触发重绘；骨架淡入淡出与内容淡入均走 `graphicsLayer{alpha}` / `AnimatedVisibility`（仅 opacity），未改宽高、未做模糊（§6.4）。
+- [x] **device-lock**：使用前登记、完成后写释放时间（Pad 5 `43af8627` + K60 `8e875894`），设备副作用（`wm size/density` / 旋转 / 临时文件 / force-stop）已还原。
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -422,8 +459,13 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 36. **`dumpsys gfxinfo` 对 WebView 滚动的口径因设备而异**：同一控制台滚动场景，K60（骁龙 8+ Gen1）每轮稳定记录 ~1000 帧 HWUI 提交；Pad 5（骁龙 860）v3 包为 0 帧、baseline（v2 包）为 ~1050 帧——WebView 在不同设备 / 系统上走不同的合成路径（独立 Surface vs 进 App 绘制树），gfxinfo 只能当辅助口径。判断 WebView 滚动流畅度应加**页面内 rAF 帧间隔探针**（`requestAnimationFrame` 间隔的 p50/p90/max + >20ms 帧数）与 `longtask` 计数（本会话用 CDP + Node 临时脚本测量，未入库）。
 37. **overscroll 拉伸是否关闭的验证法**：滚到顶部后向下拉一次，比较前后两张截图的 WebView 区域（步长 6 / 容差 12）：`overScrollMode=NEVER` 时 diff=0 / maxDelta=0（内容完全不动）；默认 `OVER_SCROLL_ALWAYS` 时 Android 12+ 会做拉伸回弹（内容位移 + 边缘光效）。这是"到顶到底不干脆"类反馈的可复现判据。
 
+38. **`ProvideLumen` 只换语义色 CompositionLocal，换不掉存量 `MaterialTheme.colorScheme`**：首页与详情页当时几乎只读 `LocalCinefinColors` / `LocalMediaColors`，所以 W5-R3H 的局部覆盖看不出问题；一旦把 Lumen 扩到**设置 / 向导**这类大量使用 M3 组件的页面，`Scaffold` / `TopAppBar` 默认底色仍是 `#151A21`、`Switch` 的 `secondary` 仍是**音乐松石**、`TextField` / 对话框仍取 Prism 槽位——真机表现为"页面背景变了、控件还是旧配色"。修法：`ProvideLumen` 内嵌一层 `MaterialTheme(LumenMaterialColorScheme)`（用 `MaterialTheme.typography` / `shapes` 透传，避免排版与形状回归），由 `cinefinColorScheme(Movie)` `.copy(...)` 覆写中性 / 强调槽位；**error / onError 等语义色不参与改色**。推论：以后任何"局部皮肤"都必须同时给出 M3 槽位映射，否则只覆盖语义色的页面一定会漏。
+39. **`Modifier.navigationBarsPadding()` 放在组件外会漏出外层主题色**：底栏的 modifier 链是「调用方 modifier（含 `navigationBarsPadding`）→ `.fillMaxWidth().height(64.dp).background(底)`」，背景画在安全区**以内**，手势条那一条留给外层 `CinefinTheme` 的 `#151A21` —— 真机上底栏下方就能看到一条石板色带（修好后同一坐标是 `#111319`）。修法：在底栏外再包一层 `Box(Modifier.fillMaxWidth().background(同色))`，或把安全区当作组件内部事务（背景先铺、padding 后加）。验证手法：`screencap` 后按行统计底部 200px 的最常见颜色。
+40. **`AnimatedVisibility` 在 `Column` / `Row` 里会解析到作用域重载**：把 `AnimatedVisibility` 写在「Column → Box → …」里会命中 `ColumnScope.AnimatedVisibility`，Kotlin 报 *"cannot be called in this context with an implicit receiver"*（BoxScope 与 ColumnScope 两个隐式接收者打架）。修法：把它收进一个**没有作用域接收者的顶层函数**（本波 = `LumenSkeletonOverlay`），或显式指定接收者；同类问题也适用于 `Modifier.align` / `weight` 这类作用域扩展。
+
 ## 7. 日志
 
+- **2026-10-01 W6-VIS（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D23 / 踩坑 1–37 / W6-R6N / W6-WEB）、`UI_DESIGN_SYSTEM` §2.6/§5/§6/§7、`s1-direction-a/README.md`、`LumenColors.kt` 与 film / settings / navigation / core components 代码地图后开工。完成三件事（决策 D24 / D25 / D26）：①Lumen 全域化（含 `ProvideLumen` 内嵌 M3 色板与跨域页统一处理、侧柜皮肤跟随 `lumenChrome`）；②侧栏 / 底栏 / 抽屉 / 客户端设置视觉重设计；③加载过渡（`LumenSkeleton.kt` + 冷启动品牌页 + 7 处页面接入）。门禁 `assembleDebug + ktfmtCheck + app/core 单测` 全绿；真机 Pad 5（1280dp 平板形态）与 K60（原生竖屏）像素采样与 4 连拍帧取证通过，设备副作用已还原。新踩坑 38 / 39 / 40。分支 `feature/r6-visual-all`（提交与推送见交接报告），未合并 master。
 - **2026-09-30 W1-R3（本会话）**：读齐 `PROJECT_PLAN` §1–5、`UI_DESIGN_SYSTEM` v1.0 全文、`s1-decision`、`REQUIREMENTS` §6/§10/§12、`ARCHITECTURE` §2.4、`SESSION_BRIEFS` W1-R3、`PARALLEL_PLAN` §1.3/W1、`ROLE_SKILLS` §5.3（在线校验 5 篇官方文档）；完成 token → Compose 主题映射、Typography 归位 + 桥接、4 类基础组件 + 预览 + 13 项单测；验收命令与真机走查通过。分支 `feature/r3-ui-tokens`。
 - **2026-09-30 W3-R3（本会话）**：读齐 `PROJECT_PLAN` §1–5、`UI_PLAN`、`UI_DESIGN_SYSTEM` §2.3–2.6/§4/§8–§10、`READER_PLAN`（D7–D10 + §9 遗留）、`MUSIC_PLAN`（W2 交付 + 踩坑）、`SESSION_BRIEFS` W3-R3、`PARALLEL_PLAN` §1.3/W3、`ROLE_SKILLS` §5.3；完成 core 三件剩余组件 + 音乐 / 阅读页 Prism 接入 + `NavigationRoot` 路由注册（音乐 + 书籍→阅读器）与 `exported=false`；门禁与真机走查（含手机形态、纸色主题色值采样）通过；顺带修正 `kind == "Book"` 大小写 bug（见踩坑 10）。分支 `feature/r3-ui-pages-a`。
 - **交接提示（下一会话）**：① 负责人确认书籍入口对 PDF / CBZ 的影响面（§5 未决项）；② 歌词面板由 R2-LYRICS 并入 `MusicModeScreen`（本会话已把浏览 / 底栏 / 队列拆成独立私有 Composable，冲突面小）；③ W4-R3 继续剩余组件与其余页面换新，届时删 `LegacyTypography` 桥接。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。

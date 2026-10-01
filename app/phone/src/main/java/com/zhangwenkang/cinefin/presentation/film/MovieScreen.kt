@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -52,6 +51,7 @@ import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieViewModel
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.VideoMetadata
+import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
 import com.zhangwenkang.cinefin.presentation.film.components.DetailPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
@@ -338,7 +338,15 @@ private fun MovieScreenLayout(
                     }
                     Spacer(Modifier.height(paddingBottom))
                 }
-            } ?: run { CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+            }
+                ?: run {
+                    // 加载过渡（W6-VIS D24）：先用骨架屏占位，数据到达后内容淡入，不再"黑板 + 转圈"
+                    DetailSkeleton(
+                        gutterStart = paddingStart,
+                        gutterEnd = paddingEnd,
+                        modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                    )
+                }
 
             ItemTopBar(
                 hasBackButton = true,

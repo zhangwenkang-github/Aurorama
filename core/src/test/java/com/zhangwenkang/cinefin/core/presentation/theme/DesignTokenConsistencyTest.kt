@@ -269,4 +269,24 @@ class DesignTokenConsistencyTest {
         assertHex(0xFF0A0C11, resolved.content, "Inverse content")
         assertEquals(0f, resolved.border.alpha, 0.001f)
     }
+
+    @Test
+    fun `lumen material scheme maps neutral slots to direction a values`() {
+        // W6-VIS：ProvideLumen 需要同时覆盖 MaterialTheme.colorScheme，否则 Scaffold / TopAppBar /
+        // Switch / 对话框这些存量 M3 组件会在 Lumen 页面留下石板蓝黑底与琥珀 / 松石强调色。
+        assertHex(0xFF08090C, LumenMaterialColorScheme.background, "Lumen M3 background")
+        assertHex(0xFF08090C, LumenMaterialColorScheme.surface, "Lumen M3 surface")
+        assertHex(0xFFF2F5F9, LumenMaterialColorScheme.onSurface, "Lumen M3 onSurface")
+        assertHex(0xFF111319, LumenMaterialColorScheme.surfaceContainer, "Lumen M3 container")
+        assertHex(
+            0xFF171A21,
+            LumenMaterialColorScheme.surfaceContainerHigh,
+            "Lumen M3 container high",
+        )
+        assertHex(0xFF98A2B3, LumenMaterialColorScheme.onSurfaceVariant, "Lumen M3 variant")
+        // 唯一强调色：primary / secondary 都收敛到极光青，不再出现琥珀（影视）与松石（音乐）
+        assertHex(0xFF5CE1D2, LumenMaterialColorScheme.primary, "Lumen M3 primary")
+        assertHex(0xFF5CE1D2, LumenMaterialColorScheme.secondary, "Lumen M3 secondary")
+        assertHex(0xFF0A0C11, LumenMaterialColorScheme.onPrimary, "Lumen M3 onPrimary")
+    }
 }

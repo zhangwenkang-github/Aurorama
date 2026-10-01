@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,6 +47,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeAction
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeState
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
+import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
@@ -281,7 +281,14 @@ private fun EpisodeScreenLayout(
                     }
                     Spacer(Modifier.height(paddingBottom))
                 }
-            } ?: run { CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+            }
+                ?: run {
+                    DetailSkeleton(
+                        gutterStart = paddingStart,
+                        gutterEnd = paddingEnd,
+                        modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                    )
+                }
 
             ItemTopBar(
                 hasBackButton = true,

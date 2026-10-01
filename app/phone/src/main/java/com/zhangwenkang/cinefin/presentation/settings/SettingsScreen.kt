@@ -5,6 +5,8 @@ import android.app.UiModeManager
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,11 +39,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
+import com.zhangwenkang.cinefin.presentation.components.SettingsSkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
+import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerState
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsGroupCard
@@ -195,30 +201,55 @@ private fun SettingsScreenLayout(
                 modifier = Modifier.padding(start = CinefinSpacing.Space2),
             )
         }
+        // 发丝线：把"标题栏"和"设置清单"分成两层，滚动时标题不再与内容粘在一起
+        HorizontalDivider(color = colors.outlineVariant)
 
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding =
-                PaddingValues(
-                    start = safePadding.start + gutter,
-                    end = safePadding.end + gutter,
-                    top = CinefinSpacing.Space4,
-                    bottom = safePadding.bottom + CinefinSpacing.Space8,
-                ),
-            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            item(key = "account") {
-                SettingsAccountHeader(
-                    state = accountState,
-                    modifier = Modifier.widthIn(max = 640.dp),
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            val listAlpha by
+                animateFloatAsState(
+                    targetValue = if (state.isLoading) 0f else 1f,
+                    animationSpec = tween(CinefinMotion.Reader),
+                    label = "settings-content-alpha",
                 )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = listAlpha },
+                contentPadding =
+                    PaddingValues(
+                        start = safePadding.start + gutter,
+                        end = safePadding.end + gutter,
+                        top = CinefinSpacing.Space4,
+                        bottom = safePadding.bottom + CinefinSpacing.Space8,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                item(key = "account") {
+                    LumenCardFrame(
+                        shape = CinefinShapes.Lg,
+                        modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp),
+                    ) {
+                        SettingsAccountHeader(state = accountState)
+                    }
+                }
+                items(state.preferenceGroups) { group ->
+                    SettingsGroupCard(
+                        group = group,
+                        onAction = onAction,
+                        modifier = Modifier.widthIn(max = 640.dp),
+                    )
+                }
             }
-            items(state.preferenceGroups) { group ->
-                SettingsGroupCard(
-                    group = group,
-                    onAction = onAction,
-                    modifier = Modifier.widthIn(max = 640.dp),
+
+            // 设置加载过渡（W6-VIS D24）：首帧不再是一块纯黑板——先给分组卡骨架，数据到达后淡出
+            LumenSkeletonOverlay(visible = state.isLoading && state.preferenceGroups.isEmpty()) {
+                SettingsSkeleton(
+                    gutterStart = safePadding.start + gutter,
+                    gutterEnd = safePadding.end + gutter,
+                    maxWidth = 640.dp,
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .padding(top = CinefinSpacing.Space4)
+                            .background(colors.surface),
                 )
             }
         }
@@ -229,6 +260,8 @@ private fun SettingsScreenLayout(
  * 设置页顶部的账号条：头像首字 + 账号 + 服务器，右侧标出账号身份。
  *
  * 管理员身份直接写在界面上——用户由此明白抽屉里为什么会多出「服务器控制台」， 也解释了权限从哪里来，比藏在设置深处的开关更容易理解。
+ *
+ * W6-VIS：整条收进 Lumen 卡片（石墨底 + 1dp 发丝线 + 顶部内高光），头像用雾灰磁贴承托， 与下方分类卡共用同一套"卡片 / 磁贴"语言。
  */
 @Composable
 private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modifier) {
@@ -236,17 +269,18 @@ private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modif
     val isAdministrator = state.isAdministrator
     val badgeColor = if (isAdministrator) colors.onSurface else colors.onSurfaceVariant
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth().padding(CinefinSpacing.Space4)) {
         Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
+            modifier = Modifier.fillMaxWidth().padding(vertical = CinefinSpacing.Space1),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
         ) {
             Box(
                 modifier =
-                    Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh),
+                    Modifier.size(48.dp)
+                        .clip(CinefinShapes.Md)
+                        .background(colors.surfaceContainerHigh)
+                        .border(1.dp, colors.outline, CinefinShapes.Md),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -289,7 +323,7 @@ private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modif
                     Modifier.clip(CinefinShapes.Xs)
                         .border(
                             width = 1.dp,
-                            color = badgeColor.copy(alpha = 0.5f),
+                            color = colors.outline,
                             shape = CinefinShapes.Xs,
                         )
                         .padding(
@@ -298,7 +332,6 @@ private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modif
                         ),
             )
         }
-        HorizontalDivider(color = colors.outlineVariant)
     }
 }
 

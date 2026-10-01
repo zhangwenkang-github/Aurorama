@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +40,7 @@ import com.zhangwenkang.cinefin.film.presentation.season.SeasonAction
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonState
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.EpisodeCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
@@ -185,7 +185,14 @@ private fun SeasonScreenLayout(state: SeasonState, onAction: (SeasonAction) -> U
                         )
                     }
                 }
-            } ?: run { CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+            }
+                ?: run {
+                    DetailSkeleton(
+                        gutterStart = paddingStart,
+                        gutterEnd = paddingEnd,
+                        modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                    )
+                }
 
             ItemTopBar(
                 hasBackButton = true,

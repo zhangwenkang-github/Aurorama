@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -42,6 +41,7 @@ import com.zhangwenkang.cinefin.film.presentation.person.PersonState
 import com.zhangwenkang.cinefin.film.presentation.person.PersonViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidPerson
+import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
@@ -188,7 +188,14 @@ private fun PersonScreenLayout(state: PersonState, onAction: (PersonAction) -> U
 
                 Spacer(Modifier.height(paddingBottom))
             }
-        } ?: run { CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+        }
+            ?: run {
+                DetailSkeleton(
+                    gutterStart = paddingStart,
+                    gutterEnd = paddingEnd,
+                    modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                )
+            }
 
         ItemTopBar(
             hasBackButton = true,

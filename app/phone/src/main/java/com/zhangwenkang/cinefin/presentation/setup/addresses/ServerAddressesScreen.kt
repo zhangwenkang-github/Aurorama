@@ -47,6 +47,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.models.ServerAddress
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
@@ -97,75 +98,79 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
     var openAddDialog by remember { mutableStateOf(false) }
     var openDeleteDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(SetupR.string.addresses),
-                        style = CinefinType.TitleLarge,
-                        color = colors.onSurface,
-                    )
-                },
-                navigationIcon = {
-                    TopBarAction(
-                        icon = CoreR.drawable.ic_arrow_left,
-                        onClick = { onAction(ServerAddressesAction.OnBackClick) },
-                    )
-                },
-                windowInsets = WindowInsets.statusBars.union(WindowInsets.displayCutout),
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        floatingActionButton = {
-            CinefinButton(
-                text = stringResource(SetupR.string.add_address),
-                onClick = { openAddDialog = true },
-                variant = CinefinButtonVariant.Filled,
-                size = CinefinButtonSize.Medium,
-                icon = { tint ->
-                    Icon(
-                        painter = painterResource(CoreR.drawable.ic_plus),
-                        contentDescription = null,
-                        tint = tint,
-                    )
-                },
-            )
-        },
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(top = innerPadding.calculateTopPadding())) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding =
-                    PaddingValues(
-                        start = paddingStart + innerPadding.calculateStartPadding(layoutDirection),
-                        top = paddingTop,
-                        end = paddingEnd + innerPadding.calculateEndPadding(layoutDirection),
-                        bottom = paddingBottom + innerPadding.calculateBottomPadding(),
-                    ),
-                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
-            ) {
-                items(items = state.addresses, key = { it.id }) { address ->
-                    Box(
-                        modifier =
-                            Modifier.fillMaxWidth()
-                                .clip(CinefinShapes.Md)
-                                .background(colors.surfaceContainer)
-                                .combinedClickable(
-                                    onClick = {},
-                                    onLongClick = {
-                                        selectedAddress = address
-                                        openDeleteDialog = true
-                                    },
-                                )
-                                .padding(CinefinSpacing.Space4)
-                    ) {
+    // 向导子页（服务器地址）同样属于影视域：统一 Lumen 皮肤（W6-VIS D23）
+    ProvideLumen {
+        Scaffold(
+            modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                TopAppBar(
+                    title = {
                         Text(
-                            text = address.address,
-                            style = CinefinType.BodyMedium,
+                            text = stringResource(SetupR.string.addresses),
+                            style = CinefinType.TitleLarge,
                             color = colors.onSurface,
                         )
+                    },
+                    navigationIcon = {
+                        TopBarAction(
+                            icon = CoreR.drawable.ic_arrow_left,
+                            onClick = { onAction(ServerAddressesAction.OnBackClick) },
+                        )
+                    },
+                    windowInsets = WindowInsets.statusBars.union(WindowInsets.displayCutout),
+                    scrollBehavior = scrollBehavior,
+                )
+            },
+            floatingActionButton = {
+                CinefinButton(
+                    text = stringResource(SetupR.string.add_address),
+                    onClick = { openAddDialog = true },
+                    variant = CinefinButtonVariant.Filled,
+                    size = CinefinButtonSize.Medium,
+                    icon = { tint ->
+                        Icon(
+                            painter = painterResource(CoreR.drawable.ic_plus),
+                            contentDescription = null,
+                            tint = tint,
+                        )
+                    },
+                )
+            },
+        ) { innerPadding ->
+            Column(modifier = Modifier.padding(top = innerPadding.calculateTopPadding())) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding =
+                        PaddingValues(
+                            start =
+                                paddingStart + innerPadding.calculateStartPadding(layoutDirection),
+                            top = paddingTop,
+                            end = paddingEnd + innerPadding.calculateEndPadding(layoutDirection),
+                            bottom = paddingBottom + innerPadding.calculateBottomPadding(),
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+                ) {
+                    items(items = state.addresses, key = { it.id }) { address ->
+                        Box(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clip(CinefinShapes.Md)
+                                    .background(colors.surfaceContainer)
+                                    .combinedClickable(
+                                        onClick = {},
+                                        onLongClick = {
+                                            selectedAddress = address
+                                            openDeleteDialog = true
+                                        },
+                                    )
+                                    .padding(CinefinSpacing.Space4)
+                        ) {
+                            Text(
+                                text = address.address,
+                                style = CinefinType.BodyMedium,
+                                color = colors.onSurface,
+                            )
+                        }
                     }
                 }
             }

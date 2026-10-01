@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -46,6 +48,8 @@ import com.zhangwenkang.cinefin.film.presentation.library.LibraryViewModel
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
+import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
+import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
@@ -144,6 +148,14 @@ private fun LibraryScreenLayout(
             CollectionType.Playlists -> 300.dp
             else -> 176.dp
         }
+    // 骨架屏列数：与真实栅格的窗口分级保持同一量级（骨架只是"格子的节奏"，不追求逐像素一致）
+    val skeletonColumns =
+        when (val widthDp = LocalConfiguration.current.screenWidthDp) {
+            in 0..599 -> 2
+            in 600..839 -> 3
+            in 840..1199 -> 4
+            else -> if (widthDp >= 1600) 6 else 5
+        }
 
     val items = state.items.collectAsLazyPagingItems()
 
@@ -225,6 +237,27 @@ private fun LibraryScreenLayout(
                     title = stringResource(FilmR.string.library_empty_title),
                     message = stringResource(FilmR.string.library_empty_message),
                     modifier = Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
+                )
+            }
+
+            // 库内容加载过渡（W6-VIS D24）：首页数据到达前铺同版式的骨架格，避免"黑板直出"
+            LumenSkeletonOverlay(
+                visible = items.loadState.refresh is LoadState.Loading && items.itemCount == 0
+            ) {
+                LibraryGridSkeleton(
+                    columns = skeletonColumns,
+                    tileHeight =
+                        when (direction) {
+                            Direction.HORIZONTAL -> 170.dp
+                            Direction.SQUARE -> 200.dp
+                            else -> 264.dp
+                        },
+                    gutterStart = paddingStart,
+                    gutterEnd = paddingEnd,
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .padding(top = CinefinSpacing.Space4)
+                            .background(LocalCinefinColors.current.surface),
                 )
             }
         }
