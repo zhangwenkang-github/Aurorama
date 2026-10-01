@@ -33,7 +33,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W12 四波已合并**；**W13 第五轮（`639218c`）** 见 §16；**W14（已合并 master `ed303f9`）**：1× 改为与清晰度徽标同款的纯展示徽标（共用 `PlayerOverlayBadge`，不可点）——见 §17；待做：§1.18 libass（W15-LIBASS 进行中）/ §15.5 遗留 + §16.5（Compact 自由窗口取证） |
+| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W12 四波已合并**；**W13 第五轮（`639218c`）** 见 §16；**W14（已合并 `ed303f9`）**：1× 纯展示徽标——见 §17；**W15-LIBASS（2026-10-02，已验收待合并）：mpv 原生 libass（DirectPlay 容器内嵌 ASS + 转码场景 sub-add Jellyfin `Stream.ass`）见 §18；Exo 路径引入 libass 需新依赖，待批准**；待做：§15.5 遗留 + §16.5（Compact 自由窗口取证） |
 | **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
 | **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档 | 🟡 大部分完成 | 自签证书与多用户待补 |
 | **Web 控制台**（内置 WebView + 影阁皮肤） | `docs/web-console-skin.css`（唯一权威副本，改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） | ✅ 基本完成 | 跟随 App 令牌与配色 |
@@ -81,7 +81,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | M1 | 品牌化（影阁）+ 深灰蓝影院风设计系统 + 首页 | ✅ |
 | M2 | 连接层：HTTP/HTTPS、自签名证书、Quick Connect、多用户 | 🟡 Quick Connect 已有；自签证书 / 多用户待补 |
 | M3 | 浏览体验：首页、媒体库、详情、搜索、筛选 | ✅ 主体完成（抽屉导航 + 海报墙 + 媒体库分区 + 设置对齐官方） |
-| M4 | 播放器重构：双内核、libass 字幕、倍速、比例、章节、Trickplay、跳片头、PiP | 🟡 双内核 / 倍速 / 比例 / 章节 / Trickplay / 跳片头 / PiP 已有；**libass 字幕渲染未做**；详见 `PLAYER_PLAN.md` |
+| M4 | 播放器重构：双内核、libass 字幕、倍速、比例、章节、Trickplay、跳片头、PiP | 🟡 双内核 / 倍速 / 比例 / 章节 / Trickplay / 跳片头 / PiP 已有；**mpv 原生 libass 已完成（W15，2026-10-02，`feature/w15-libass`）**；Exo 路径引入 libass 待批准；详见 `PLAYER_PLAN.md` §18 |
 | M5 | 手势体系：长按 2×、滑动 seek、左亮度 / 右音量、双击、双指缩放、锁定、灵敏度 | 🟡 横向 seek（含渐进加速）/ 长按倍速 / 双指缩放已有；锁屏与优先级仲裁见 `PLAYER_PLAN.md` §1.3 |
 | M6 | 字幕 / 音轨语言智能识别与跨视频记忆 | ✅ |
 | M7 | 下载离线增强、投屏、同步观看 | ⛔ |
