@@ -202,22 +202,30 @@ internal enum class PlayerBackAction {
     ClosePanel,
     /** 子面板：先回上一级面板（与抽屉左上角的返回箭头同一套逻辑） */
     BackToParentPanel,
+    /** 覆盖层选集栏打开（W12 反馈 C）：先收起它，留在播放页 */
+    CloseSidePanel,
 }
 
 /**
- * 播放页返回键优先级（W11 反馈⑦）。
+ * 播放页返回键优先级（W11 反馈⑦ + W12 反馈 C）。
  *
- * 面板打开时**先关面板**：子面板回上一级、一级面板直接收起，都不退出播放页； 只有没有任何面板时，返回键才交回系统（真正退出播放）。
- * 抽成纯函数是为了让「顺序」可被单测钉住——它曾经完全没有拦截，按返回直接退 Activity。
+ * 面板 / 覆盖层打开时**先关面板**：子面板回上一级、一级面板直接收起、覆盖层选集栏先收栏，都不退出播放页；
+ * 只有没有任何面板时，返回键才交回系统（真正退出播放）。 抽成纯函数是为了让「顺序」可被单测钉住——它曾经完全没有拦截，按返回直接退 Activity。
  */
 internal fun resolvePlayerBack(
     panelOpen: Boolean,
     hasParentPanel: Boolean,
+    /** 覆盖层选集栏（平板 / 折叠展开）是否打开：它是最后一道「先关面板」 */
+    sidePanelOpen: Boolean = false,
 ): PlayerBackAction =
     when {
-        !panelOpen -> PlayerBackAction.Ignore
-        hasParentPanel -> PlayerBackAction.BackToParentPanel
-        else -> PlayerBackAction.ClosePanel
+        // 子面板：先回上一级（与抽屉左上角的返回箭头同一套逻辑）
+        panelOpen && hasParentPanel -> PlayerBackAction.BackToParentPanel
+        // 一级面板：直接关掉
+        panelOpen -> PlayerBackAction.ClosePanel
+        // 没有任何抽屉面板、但覆盖层选集栏开着：先收栏，别退出播放页
+        sidePanelOpen -> PlayerBackAction.CloseSidePanel
+        else -> PlayerBackAction.Ignore
     }
 
 /** 中央播放簇的键尺寸（W11 反馈③⑧）。 */
@@ -511,23 +519,34 @@ fun PlayerControlOverlay(
     }
 
     /*
-     * 返回键（W11 反馈⑦）：面板打开时先关面板，不能直接退出播放页。
+     * 返回键（W11 反馈⑦ + W12 反馈 C）：面板 / 覆盖层选集栏打开时先关，不能直接退出播放页。
      * 子面板（「播放设置 → 循环模式」这类）先回上一级，与抽屉左上角的返回箭头同一套优先级（纯函数 + 单测）。
      */
+    val sidePanelOnScreen = layout.hasSideContent && sidePanelExpanded
     val backAction =
         resolvePlayerBack(
             panelOpen = panel != PlayerPanel.None,
             hasParentPanel = panelBackTarget != null,
+            sidePanelOpen = sidePanelOnScreen,
         )
     BackHandler(enabled = backAction != PlayerBackAction.Ignore) {
-        panel =
-            if (backAction == PlayerBackAction.BackToParentPanel) {
-                panelBackTarget ?: PlayerPanel.None
-            } else {
-                PlayerPanel.None
+        when (backAction) {
+            PlayerBackAction.BackToParentPanel -> {
+                panel = panelBackTarget ?: PlayerPanel.None
+                // 回上一级后必须清掉标记：否则下一次返回还会被判定成「回上一级」，面板关不掉（Pad 5 真机踩到）
+                panelBackTarget = null
             }
-        // 回上一级后必须清掉标记：否则下一次返回还会被判定成「回上一级」，面板关不掉（Pad 5 真机踩到）
-        panelBackTarget = null
+            PlayerBackAction.ClosePanel -> {
+                panel = PlayerPanel.None
+                panelBackTarget = null
+            }
+            // 覆盖层选集栏：收栏并让控制层保持可见，用户能接着操作，不退出播放页
+            PlayerBackAction.CloseSidePanel -> {
+                onToggleSidePanel()
+                controls.show()
+            }
+            PlayerBackAction.Ignore -> Unit
+        }
     }
 
     // 出错时把控制层顶出来：错误卡片是模态的，用户点掉之前一直可见
@@ -660,13 +679,8 @@ fun PlayerControlOverlay(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val colors = LocalCinefinColors.current
-        // 画面区尺寸与 Activity 给 PlayerView 的布局参数同源：侧栏收起后画面区立即变宽
-        val videoWidthDp =
-            if (layout.hasSideContent && sidePanelExpanded) {
-                layout.videoWidthDp
-            } else {
-                layout.windowWidthDp
-            }
+        // 画面区尺寸与 Activity 给 PlayerView 的布局参数同源：选集栏是覆盖层，不再改变画面区宽度（W12 反馈 C）
+        val videoWidthDp = layout.windowWidthDp
         val videoWidth = with(density) { videoWidthDp.dp }
         val videoHeight = with(density) { layout.videoHeightDp.dp }
         val bottomScrim = playerBottomScrim()
@@ -836,24 +850,42 @@ fun PlayerControlOverlay(
             }
         }
 
-        // 平板 / 折叠展开：右侧常驻内容栏，可收起换回满屏画面
+        /*
+         * 平板 / 折叠展开：右侧「选集」覆盖层（W12 反馈 C）。
+         *
+         * 打开时画面区**不变**（不挤压、不右移），只把右缘 320dp 盖一层半透明面板 + 1dp 结构线；
+         * 它比控制层后绘制，所以盖在控件之上；触摸命中由 PlayerOverlayContainer.sidePanelOpen 单独接管。
+         */
         if (layout.hasSideContent && sidePanelExpanded) {
-            PlayerSideContent(
-                entries = runtime.queueEntries,
-                currentIndex = runtime.currentIndex,
-                onSelect = { index ->
-                    player.seekTo(index, 0L)
-                    controls.show()
-                },
-                onCollapse = onToggleSidePanel,
-                onQueueMove = onQueueMove,
-                onQueueRemove = onQueueRemove,
-                onQueueClear = onQueueClear,
+            Box(
                 modifier =
                     Modifier.width(layout.sidePanelWidthDp.dp)
                         .fillMaxHeight()
-                        .align(Alignment.TopEnd),
-            )
+                        .background(colors.surfaceDim.copy(alpha = 0.94f))
+                        .align(Alignment.TopEnd)
+            ) {
+                PlayerSideContent(
+                    entries = runtime.queueEntries,
+                    currentIndex = runtime.currentIndex,
+                    onSelect = { index ->
+                        player.seekTo(index, 0L)
+                        controls.show()
+                    },
+                    onCollapse = onToggleSidePanel,
+                    onQueueMove = onQueueMove,
+                    onQueueRemove = onQueueRemove,
+                    onQueueClear = onQueueClear,
+                    containerColor = colors.surfaceDim.copy(alpha = 0.94f),
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // 覆盖层左缘结构线：与右侧抽屉同一套语言
+                Box(
+                    Modifier.align(Alignment.CenterStart)
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .background(colors.outline)
+                )
+            }
         }
 
         // 手机竖屏：画面下方的常驻内容区（选集 / 队列）

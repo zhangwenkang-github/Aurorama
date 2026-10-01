@@ -527,22 +527,16 @@ class PlayerActivity : BasePlayerActivity() {
             if (isFinishing || isDestroyed) return@post
             val density = resources.displayMetrics.density
             val expanded = sidePanelExpanded.value
-            val videoWidthDp =
-                if (layout.hasSideContent && expanded) {
-                    layout.videoWidthDp
-                } else {
-                    layout.windowWidthDp
-                }
+            /*
+             * W12 反馈 C：选集栏改成**覆盖层**——画面区永远是整窗宽度，打开 / 收起选集都不再挤压或右移画面。
+             * 覆盖层自身的触摸命中由 controlOverlay.sidePanelOpen / sidePanelWidthPx 单独接管（见 PlayerOverlayContainer）。
+             */
+            val videoWidthDp = layout.windowWidthDp
             val videoWidthPx = videoWidthDp * density
             val videoHeightPx = layout.videoHeightDp * density
 
             binding.playerView.updateLayoutParams<FrameLayout.LayoutParams> {
-                width =
-                    if (layout.chrome == PlayerChromeLayout.SplitSide) {
-                        videoWidthPx.roundToInt()
-                    } else {
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    }
+                width = ViewGroup.LayoutParams.MATCH_PARENT
                 height =
                     when (layout.chrome) {
                         PlayerChromeLayout.SplitPortrait,
@@ -555,6 +549,10 @@ class PlayerActivity : BasePlayerActivity() {
             binding.controlOverlay.chrome = layout.chrome
             binding.controlOverlay.videoWidthPx = videoWidthPx
             binding.controlOverlay.videoHeightPx = videoHeightPx
+            // 覆盖层形态的选集栏：打开时右缘这一条由控制层接管触摸
+            binding.controlOverlay.sidePanelOpen = layout.hasSideContent && expanded
+            binding.controlOverlay.sidePanelWidthPx =
+                if (layout.hasSideContent) layout.sidePanelWidthDp * density else 0f
             /*
              * 小窗控制条：标题行 + 工具行 + 6dp 进度条 ≈ 132dp，这里只作首帧兜底——
              * 真正的高度由 PlayerCompactBar 的 onSizeChanged 实测回传（与底栏共用同一条通路）。

@@ -424,6 +424,8 @@ internal fun PlayerSideContent(
     onSelect: (Int) -> Unit,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 面板底色：常驻侧栏用不透明面板色，覆盖层选集栏传半透明（W12 反馈 C） */
+    containerColor: Color? = null,
     /** 队列整理（§1.7）：选集页不显示，队列页显示拖拽 / 删除 / 清空 */
     onQueueMove: (Int, Int) -> Unit = { _, _ -> },
     onQueueRemove: (Int) -> Unit = {},
@@ -431,7 +433,7 @@ internal fun PlayerSideContent(
 ) {
     var tab by remember { mutableStateOf(PlayerContentTab.Episodes) }
     val colors = LocalCinefinColors.current
-    Column(modifier = modifier.background(colors.surfaceDim)) {
+    Column(modifier = modifier.background(containerColor ?: colors.surfaceDim)) {
         PlayerContentTabRow(
             selected = tab,
             onSelect = { tab = it },

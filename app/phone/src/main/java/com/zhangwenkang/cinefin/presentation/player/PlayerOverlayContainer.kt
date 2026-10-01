@@ -41,9 +41,17 @@ constructor(
     /** 当前骨架：决定命中区形状。由 Activity 与控制层同源写入 */
     var chrome: PlayerChromeLayout = PlayerChromeLayout.Fullscreen
 
-    /** 画面区尺寸（px）。竖屏 16:9、侧栏模式让出右侧栏；0 表示退化为整块控件 */
+    /** 画面区尺寸（px）。竖屏 16:9；侧栏模式也是整窗宽（W12 起选集栏是覆盖层，不再挤压画面） */
     var videoWidthPx: Float = 0f
     var videoHeightPx: Float = 0f
+
+    /**
+     * 覆盖层选集栏（W12 反馈 C）：打开时右缘 [sidePanelWidthPx] 宽的一条由控制层接管触摸。
+     *
+     * 它不改变画面区布局（播放器仍是整窗宽），所以命中区必须单独补这一条；关闭时完全放行。
+     */
+    var sidePanelOpen: Boolean = false
+    var sidePanelWidthPx: Float = 0f
 
     /** 小窗单行控制条高度（px） */
     var compactBarHeightPx: Float = 0f
@@ -93,13 +101,17 @@ constructor(
         val videoWidth = videoWidthPx.takeIf { it > 0f } ?: width.toFloat()
         val videoHeight = videoHeightPx.takeIf { it > 0f } ?: height.toFloat()
 
+        // 覆盖层选集栏：只在它自己的那一条里接管触摸，画面区其余部分照旧留给手势
+        if (sidePanelOpen && sidePanelWidthPx > 0f) {
+            if (x >= videoWidth - sidePanelWidthPx) return true
+        }
+
         /*
          * 画面区之外的常驻内容区（平板侧栏 / 竖屏下方选集 / 折叠半开下屏）永远接管触摸：
          * 它不随控制层淡出，所以判断要放在 controlsVisible 之前。
          */
         val hasContentRegion =
-            chrome == PlayerChromeLayout.SplitSide ||
-                chrome == PlayerChromeLayout.SplitPortrait ||
+            chrome == PlayerChromeLayout.SplitPortrait ||
                 chrome == PlayerChromeLayout.FoldHalfOpen
         if (hasContentRegion && (x > videoWidth || y > videoHeight)) return true
 

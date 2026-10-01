@@ -90,6 +90,24 @@ class PlayerControlLayoutTest {
     }
 
     @Test
+    fun backKey_closesSidePanelBeforeLeavingPlayer() {
+        assertEquals(
+            "覆盖层选集栏打开时要先收栏，不能退出播放页（W12 反馈 C）",
+            PlayerBackAction.CloseSidePanel,
+            resolvePlayerBack(panelOpen = false, hasParentPanel = false, sidePanelOpen = true),
+        )
+    }
+
+    @Test
+    fun backKey_prefersDrawerPanelOverSidePanel() {
+        assertEquals(
+            "抽屉面板与选集栏同时开着：先关抽屉面板",
+            PlayerBackAction.ClosePanel,
+            resolvePlayerBack(panelOpen = true, hasParentPanel = false, sidePanelOpen = true),
+        )
+    }
+
+    @Test
     fun centerCluster_neverOverlapsLockKey() {
         // 锁定键 = 48dp 键 + 右侧 12dp 留白，固定在画面区右缘垂直居中；
         // 中央簇居中排布，因此不重叠条件是：簇宽 ≤ 画面区宽 − 2×(48+12)
