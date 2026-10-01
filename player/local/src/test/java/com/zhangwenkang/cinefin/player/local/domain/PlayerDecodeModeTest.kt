@@ -8,8 +8,8 @@ import org.junit.Test
 /**
  * 解码策略映射的回归测试（W12 反馈 B）。
  *
- * 硬解优先必须满足两件事：① 扩展渲染器作为兜底（不是关掉）；② 解码器自动回退开启——
- * 这是「ExoPlayer 硬解报错要自动回退且不崩溃」的第一道防线（第二道是 ViewModel 静默换 mpv）。
+ * 硬解优先必须满足两件事：① 扩展渲染器作为兜底（不是关掉）；② 解码器自动回退开启—— 这是「ExoPlayer 硬解报错要自动回退且不崩溃」的第一道防线（第二道是 ViewModel 静默换
+ * mpv）。
  */
 class PlayerDecodeModeTest {
 

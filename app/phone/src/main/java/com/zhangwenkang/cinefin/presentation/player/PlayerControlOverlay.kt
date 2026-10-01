@@ -155,8 +155,8 @@ private val SleepOptions = listOf(10, 20, 30, 60)
 /**
  * 覆盖层控件「玻璃框」的不透明度（W12 反馈 A）。
  *
- * 用户要求比 W11 更透、框只包住图标与文字并带描边：底色从 0.45 降到 0.28（按下 0.44），
- * 未选中的描边用极淡月白（0.16）——描边只负责在亮画面上勾出边界，不做色块（§2.6 第 1 条）。
+ * 用户要求比 W11 更透、框只包住图标与文字并带描边：底色从 0.45 降到 0.28（按下 0.44）， 未选中的描边用极淡月白（0.16）——描边只负责在亮画面上勾出边界，不做色块（§2.6
+ * 第 1 条）。
  */
 private const val PLAYER_GLASS_ALPHA = 0.28f
 private const val PLAYER_GLASS_PRESSED_ALPHA = 0.44f
@@ -183,8 +183,8 @@ internal enum class PlayerPanel {
 /**
  * 控制层版式规格（W12 终版布局 + 反馈 A 控件样式统一）。
  *
- * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 6 键 = 音轨 / 字幕 / 倍率 /
- * 码率 / 解码 / 详细信息，右侧 = 全屏键；右上角 5 键 = 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
+ * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 6 键 = 音轨 / 字幕 / 倍率 / 码率 / 解码 / 详细信息，右侧 = 全屏键；右上角 5
+ * 键 = 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
  *
  * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证 6 键 + 全屏键一行不越界（极窄窗由横向滚动兜底）。
  */
@@ -208,22 +208,22 @@ internal data class PlayerControlSpec(
 internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
     val narrow = widthDp < 600f
     return if (narrow) {
-            PlayerControlSpec(
-                narrow = true,
-                toolKeySizeDp = 38f,
-                iconSizeDp = 22f,
-                keyGapDp = 6f,
-                toolRowPaddingDp = 12f,
-            )
-        } else {
-            PlayerControlSpec(
-                narrow = false,
-                toolKeySizeDp = 44f,
-                iconSizeDp = 24f,
-                keyGapDp = 8f,
-                toolRowPaddingDp = 20f,
-            )
-        }
+        PlayerControlSpec(
+            narrow = true,
+            toolKeySizeDp = 38f,
+            iconSizeDp = 22f,
+            keyGapDp = 6f,
+            toolRowPaddingDp = 12f,
+        )
+    } else {
+        PlayerControlSpec(
+            narrow = false,
+            toolKeySizeDp = 44f,
+            iconSizeDp = 24f,
+            keyGapDp = 8f,
+            toolRowPaddingDp = 20f,
+        )
+    }
 }
 
 /**
@@ -283,8 +283,8 @@ internal enum class PlayerBackAction {
 /**
  * 播放页返回键优先级（W11 反馈⑦ + W12 反馈 C）。
  *
- * 面板 / 覆盖层打开时**先关面板**：子面板回上一级、一级面板直接收起、覆盖层选集栏先收栏，都不退出播放页；
- * 只有没有任何面板时，返回键才交回系统（真正退出播放）。 抽成纯函数是为了让「顺序」可被单测钉住——它曾经完全没有拦截，按返回直接退 Activity。
+ * 面板 / 覆盖层打开时**先关面板**：子面板回上一级、一级面板直接收起、覆盖层选集栏先收栏，都不退出播放页； 只有没有任何面板时，返回键才交回系统（真正退出播放）。
+ * 抽成纯函数是为了让「顺序」可被单测钉住——它曾经完全没有拦截，按返回直接退 Activity。
  */
 internal fun resolvePlayerBack(
     panelOpen: Boolean,
@@ -705,8 +705,7 @@ fun PlayerControlOverlay(
                 subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
                 bitrateActive = settingsController.state.streamingBitrate > 0L,
                 decodeActive =
-                    settingsController.state.decodeMode ==
-                        PlayerViewModel.DECODE_MODE_SOFTWARE ||
+                    settingsController.state.decodeMode == PlayerViewModel.DECODE_MODE_SOFTWARE ||
                         settingsController.state.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
                 spec = spec,
                 isFullscreen = isFullscreen,
@@ -1412,7 +1411,11 @@ private fun PlayerTransportButton(
                         alpha = if (pressed) PLAYER_GLASS_PRESSED_ALPHA else PLAYER_GLASS_ALPHA
                     )
                 )
-                .border(1.dp, colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA), CinefinShapes.Full)
+                .border(
+                    1.dp,
+                    colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA),
+                    CinefinShapes.Full,
+                )
                 .then(
                     if (focused) {
                         Modifier.border(2.dp, media.base.copy(alpha = 0.6f), CinefinShapes.Full)
@@ -1443,8 +1446,8 @@ private fun PlayerTransportButton(
 /**
  * 右上角 5 键（W12 终版布局，顺序固定）：画中画 · 睡眠 · 选集 · 画面 · 设置。
  *
- * 顺序表 [PLAYER_TOP_KEY_ORDER] 是这一版布局的验收点之一（用户明确「画面在选集与设置之间」），改顺序即回归。
- * 键一律纯图标 + 贴边玻璃框（W12 反馈 A：更透、更小、带描边），文字语义走 contentDescription。
+ * 顺序表 [PLAYER_TOP_KEY_ORDER] 是这一版布局的验收点之一（用户明确「画面在选集与设置之间」），改顺序即回归。 键一律纯图标 + 贴边玻璃框（W12 反馈
+ * A：更透、更小、带描边），文字语义走 contentDescription。
  */
 @Composable
 private fun PlayerToolCluster(
@@ -1700,7 +1703,10 @@ private fun PlayerBottomBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier =
                 Modifier.fillMaxWidth()
-                    .padding(horizontal = spec.toolRowPaddingDp.dp, vertical = CinefinSpacing.Space1),
+                    .padding(
+                        horizontal = spec.toolRowPaddingDp.dp,
+                        vertical = CinefinSpacing.Space1,
+                    ),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1799,8 +1805,8 @@ private fun PlayerBottomBar(
 /**
  * 倍率键（W12 反馈 A）：**图标在上、当前倍率在下**的垂直堆叠，图标与其它工具键同宽（[PlayerControlSpec.iconSizeDp]）。
  *
- * 倍率显示与倍率控件仍是同一个键（W11 补充约束）：点开倍速面板，选完数字跟着更新；全播放页只有这一个倍速入口。
- * 键宽与其它键一致、高度自然高出一点（图标 + 数字两行），行内垂直居中；非 1× 时用媒体色融进键本体。
+ * 倍率显示与倍率控件仍是同一个键（W11 补充约束）：点开倍速面板，选完数字跟着更新；全播放页只有这一个倍速入口。 键宽与其它键一致、高度自然高出一点（图标 + 数字两行），行内垂直居中；非 1×
+ * 时用媒体色融进键本体。
  */
 @Composable
 private fun PlayerSpeedKey(speed: Float, spec: PlayerControlSpec, onClick: () -> Unit) {
@@ -2758,15 +2764,13 @@ private fun SubtitlePanel(
             val subtitleModes =
                 listOf(
                     Constants.SubtitleMode.AUTO to PlayerR.string.player_settings_subtitle_auto,
-                    Constants.SubtitleMode.ALWAYS to
-                        PlayerR.string.player_settings_subtitle_always,
+                    Constants.SubtitleMode.ALWAYS to PlayerR.string.player_settings_subtitle_always,
                     Constants.SubtitleMode.OFF to PlayerR.string.player_settings_subtitle_off,
                 )
             PanelChipRow(
                 options =
                     subtitleModes.map { (value, labelRes) ->
-                        stringResource(labelRes) to
-                            (controller.state.subtitleMode == value)
+                        stringResource(labelRes) to (controller.state.subtitleMode == value)
                     },
                 onSelect = { index ->
                     val value = subtitleModes[index].first

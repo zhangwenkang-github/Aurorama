@@ -796,9 +796,8 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 解码策略（W12 反馈 B）：硬解优先 / 仅软解。
      *
-     * 偏好已由面板写入 [AppPreferences.playerDecodeMode]；两个内核都要用新参数重新创建实例
-     * （ExoPlayer 的扩展渲染器模式、mpv 的 hwdec 都是构造期参数），所以这里走「重启播放页 + 保留进度」。
-     * 同时把 mpv 的 hwdec 键同步成同一语义，避免两个入口给出互相矛盾的解码策略。
+     * 偏好已由面板写入 [AppPreferences.playerDecodeMode]；两个内核都要用新参数重新创建实例 （ExoPlayer 的扩展渲染器模式、mpv 的 hwdec
+     * 都是构造期参数），所以这里走「重启播放页 + 保留进度」。 同时把 mpv 的 hwdec 键同步成同一语义，避免两个入口给出互相矛盾的解码策略。
      */
     private fun selectDecodeMode(mode: String) {
         val software = mode == PlayerViewModel.DECODE_MODE_SOFTWARE
@@ -810,8 +809,8 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 码率档位（W12 反馈 B）：选具体 Mbps 时重新拉取播放信息，服务器返回 `transcodingPath`（HLS 转码流）后播放它。
      *
-     * 偏好已由面板写入 [AppPreferences.playerStreamingBitrate]，data 层据此构造 PlaybackInfo 请求；
-     * 这里只需重启播放页让 `getMediaSources` 重新走一遍（不清偏好，不重登）。
+     * 偏好已由面板写入 [AppPreferences.playerStreamingBitrate]，data 层据此构造 PlaybackInfo 请求； 这里只需重启播放页让
+     * `getMediaSources` 重新走一遍（不清偏好，不重登）。
      */
     private fun selectStreamingBitrate(bitrate: Long) {
         appPreferences.setValue(appPreferences.playerStreamingBitrate, bitrate)

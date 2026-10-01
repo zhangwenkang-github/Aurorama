@@ -129,8 +129,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Player - 码率 / 解码（W12：服务器转码档位 + 硬解/软解策略；只追加，不重排既有键）
     /**
-     * 播放码率档位：0 = 自动（服务器自行判断直连 / 转码）、-1 = 原始画质（只直连，不转码）、
-     * 其余 = 具体 Mbps（按该码率请求服务器转码）。映射见 [PlayerStreamingQuality]。
+     * 播放码率档位：0 = 自动（服务器自行判断直连 / 转码）、-1 = 原始画质（只直连，不转码）、 其余 = 具体 Mbps（按该码率请求服务器转码）。映射见
+     * [PlayerStreamingQuality]。
      */
     val playerStreamingBitrate = Preference("pref_player_streaming_bitrate", 0L)
 

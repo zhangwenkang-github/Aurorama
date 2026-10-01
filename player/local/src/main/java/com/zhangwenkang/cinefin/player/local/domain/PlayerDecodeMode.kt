@@ -7,8 +7,8 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
  *
  * 播放优先级：服务器转码 / 解码 → 本地硬解 → 软解（软解最耗电，只在硬解不可用时兜底，或由用户显式选择）。
  *
- * 抽成纯函数（+ 单测）是因为同一份偏好要被三个地方读：PlayerHolder 建 ExoPlayer 的渲染器模式、
- * mpv 的 `hwdec` 参数、以及解码面板的选中态——散落成三处 `if` 很容易出现「面板显示软解但内核还是硬解」。
+ * 抽成纯函数（+ 单测）是因为同一份偏好要被三个地方读：PlayerHolder 建 ExoPlayer 的渲染器模式、 mpv 的 `hwdec` 参数、以及解码面板的选中态——散落成三处
+ * `if` 很容易出现「面板显示软解但内核还是硬解」。
  */
 object PlayerDecodeMode {
     /** 硬解优先：ExoPlayer 先试 MediaCodec，初始化失败自动换下一个解码器（含 FFmpeg 软解） */
@@ -35,8 +35,8 @@ object PlayerDecodeMode {
     /**
      * 硬解失败是否允许自动回退到下一个解码器。
      *
-     * 硬解优先时必须开启：解码器初始化失败（`ERROR_CODE_DECODER_INIT_FAILED` 这类）会先在同内核回退，
-     * 仍失败才由 ViewModel 静默换 mpv 内核重播，全程不弹错误卡片、不崩溃。
+     * 硬解优先时必须开启：解码器初始化失败（`ERROR_CODE_DECODER_INIT_FAILED` 这类）会先在同内核回退， 仍失败才由 ViewModel 静默换 mpv
+     * 内核重播，全程不弹错误卡片、不崩溃。
      */
     fun decoderFallbackEnabled(mode: String?): Boolean = true
 

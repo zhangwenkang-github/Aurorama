@@ -42,7 +42,6 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
-import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 
@@ -224,8 +223,7 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
 /**
  * 设置面板的两个分类（W12 反馈 B）：**播放 / 手势**。
  *
- * 解码、字幕、音频、画面全部移出设置面板：解码有独立入口（进度条下 6 键之一）、字幕与音频并入各自面板、
- * 画面只保留右上角入口——设置面板里不再出现重复入口，也不再出现「播放」大按钮。
+ * 解码、字幕、音频、画面全部移出设置面板：解码有独立入口（进度条下 6 键之一）、字幕与音频并入各自面板、 画面只保留右上角入口——设置面板里不再出现重复入口，也不再出现「播放」大按钮。
  */
 private enum class PlayerSettingsTab(@StringRes val labelRes: Int) {
     Playback(PlayerR.string.player_settings_tab_playback),
@@ -574,8 +572,7 @@ internal fun VideoTransformControls(
 /**
  * 解码面板（W12 反馈 B）：**内核切换（ExoPlayer / mpv）+ 硬解 / 软解策略**。
  *
- * 优先级写在面板底部：服务器转码 / 解码 → 本地硬解 → 软解（软解最耗电，放最后）。
- * 切内核与切策略都由宿主走「从当前位置重启播放」的既有路径，保证两个内核都用新参数重新创建实例。
+ * 优先级写在面板底部：服务器转码 / 解码 → 本地硬解 → 软解（软解最耗电，放最后）。 切内核与切策略都由宿主走「从当前位置重启播放」的既有路径，保证两个内核都用新参数重新创建实例。
  */
 @Composable
 internal fun PlayerDecodePanel(
@@ -642,8 +639,8 @@ internal fun PlayerDecodePanel(
 /**
  * 码率面板（W12 反馈 B）：**自动 / 原始画质 / 具体 Mbps**（对齐 Jellyfin 官方客户端的质量档位）。
  *
- * 选具体码率 = 请求服务器转码并播放返回的 `transcodingPath`；原始画质 = 只直连不转码。
- * 选择后由宿主从当前位置重启播放（重新拉 PlaybackInfo），档位对下一次起播即时生效。
+ * 选具体码率 = 请求服务器转码并播放返回的 `transcodingPath`；原始画质 = 只直连不转码。 选择后由宿主从当前位置重启播放（重新拉
+ * PlaybackInfo），档位对下一次起播即时生效。
  */
 @Composable
 internal fun PlayerBitratePanel(

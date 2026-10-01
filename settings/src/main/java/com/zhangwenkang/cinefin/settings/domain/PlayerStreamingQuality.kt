@@ -8,8 +8,8 @@ package com.zhangwenkang.cinefin.settings.domain
  * - [ORIGINAL]（-1）：只直连播放，明确不允许服务器转码；
  * - 具体 Mbps（>0）：按该码率上限请求服务器转码，播放返回的 `transcodingPath`。
  *
- * 抽成纯函数（+ 单测）是因为它同时被 data 层（构造 PlaybackInfo 请求）与播放页 UI（档位显示）使用，
- * 两边必须用同一套映射，否则会出现「选了 8 Mbps 但请求里还是 1 Gbps」这类静默不一致。
+ * 抽成纯函数（+ 单测）是因为它同时被 data 层（构造 PlaybackInfo 请求）与播放页 UI（档位显示）使用， 两边必须用同一套映射，否则会出现「选了 8 Mbps 但请求里还是 1
+ * Gbps」这类静默不一致。
  */
 object PlayerStreamingQuality {
     /** 自动：服务器自行判断 */
