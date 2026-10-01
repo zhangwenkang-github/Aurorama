@@ -33,15 +33,15 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W12 四波已合并**；**W13 第五轮（`639218c`）** 见 §16；**W14（已合并 `ed303f9`）**：1× 纯展示徽标——见 §17；**W15-LIBASS（2026-10-02，已验收待合并）：mpv 原生 libass（DirectPlay 容器内嵌 ASS + 转码场景 sub-add Jellyfin `Stream.ass`）见 §18；Exo 路径引入 libass 需新依赖，待批准**；待做：§15.5 遗留 + §16.5（Compact 自由窗口取证） |
+| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W12 四波已合并**；**W13 第五轮（`639218c`）** 见 §16；**W14（已合并 `ed303f9`）**：1× 纯展示徽标——见 §17；**W15-LIBASS（已合并 master `0c3f8bc`）：mpv 原生 libass（DirectPlay 容器内嵌 ASS + 转码场景 sub-add Jellyfin `Stream.ass`）见 §18；Exo 路径引入 libass 需新依赖，待批准**；待做：Exo libass（待批准）/ §15.5 遗留 + §16.5（Compact 自由窗口取证） |
 | **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
 | **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档 | 🟡 大部分完成 | 自签证书与多用户待补 |
 | **Web 控制台**（内置 WebView + 影阁皮肤） | `docs/web-console-skin.css`（唯一权威副本，改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） | ✅ 基本完成 | 跟随 App 令牌与配色 |
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W14 完成（2026-10-02，master `ed303f9`）；🟡 W15 双线进行中 | W14（1× 徽标）已合并推送，双机装机；W15 双线并行——W15-UI（阅读页顶栏避让 + 平板首页海报尺寸，Pad 5）与 W15-LIBASS（ASS/SSA 特效字幕专项，K60）进行中；后续候选：跨页合并、全量回归与发布准备 |
-| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W9-READER 完成并真机验收（已合并 master `87b6692`）：漫画 RTL 右起翻页（分页 / 双栏镜像、滚动不变，K60 逐像素镜像核验）+ 滚动模式双指缩放（双指优先、1×–4×、不抢滚动）+ 跨页对图合并研判（D19：本波不实施，方案已记录）；`modes:book` 43 项单测 | W4 已交付 PDF 分页懒加载 / CBZ 自研导航 / 三档模式（虚构推理 3649 页 ≈358MB）；W9 真机记录见 READER_PLAN §7.7（含发现：阅读页顶栏未避让状态栏，交 UI 线）；后续：跨页合并（需横版对图测试书）、RTL 封面单张、Room 迁移 |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W15 全部完成（2026-10-02，master `0c3f8bc`） | W15 双线（阅读页顶栏避让 + 平板首页海报等宽 / mpv 原生 libass 特效字幕）已合并推送，整合门禁 147 项单测全绿；Pad 5 + K60 均已装 `0c3f8bc` 整合版；等待用户复测（libass 建议用 ASS 特效字幕片源验证）；后续候选：Exo libass（待批准）、跨页合并、全量回归与发布准备 |
+| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W9-READER + W15-UI 顶栏修复完成（已合并 master `0c3f8bc`）：漫画 RTL 右起翻页 + 滚动双指缩放 + **阅读页顶栏避让状态栏修复（W15-UI，READER_PLAN §7.8）**；`modes:book` 43 项单测 | W4 已交付 PDF 分页懒加载 / CBZ 自研导航 / 三档模式；后续：跨页合并（需横版对图测试书）、RTL 封面单张、Room 迁移 |
 | **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 缺陷修复完成（返回层级 / 歌曲点播 / 加载重试，47 单测 + 真机复验） | 后续：服务端纯音乐提示行时间戳清理；W4 播放页联调 |
 | **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W8 完成（2026-10-01，master `f99af8d`；W7-R3 已并入 `c545eb9`） | W8-R3（用户复测反馈，D29–D31）：①三页顶栏统一为 `CinefinPageTopBar`（56dp + `statusBarsPadding()`；修复音乐汉堡被状态栏挡、书架顶层去返回箭头与库名「书籍」、媒体库按钮与标题同栏）；②媒体库库卡改版（类型图标磁贴 + 项目数 + A 配色层次，服务器 `ItemFields.CHILD_COUNT`）；③侧栏「媒体库」**默认收起并移到音乐、书架之后**（覆盖 W7 的排布）；④W7 行为不回归（抽屉、侧柜常驻 Lumen、控制台胶囊与选中态）；遗留：spacings 桥接收敛、左缘滑出抽屉在系统手势导航下未验 |
 | **测试与验收**（真机矩阵 / 回归 / 性能） | `docs/TEST_PLAN.md`（R4 维护） | 🟢 W2 完成（基线：冷启动中位 1085ms / PSS 247,790kB / APK 96.95MiB；tools/test 6 脚本） | W3：回归支持；测试数据清单待用户确认；W5 全量回归 |
