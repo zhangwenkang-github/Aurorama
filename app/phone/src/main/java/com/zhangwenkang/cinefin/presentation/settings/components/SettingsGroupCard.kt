@@ -21,6 +21,7 @@ import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceAppLanguage
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceCategory
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceFileEdit
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceGroup
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntInput
@@ -92,6 +93,14 @@ fun SettingsGroupCard(
                             onUpdate = { value ->
                                 onAction(SettingsAction.OnUpdate(preference.copy(value = value)))
                                 preference.onUpdate(value)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    is PreferenceDynamicSelect ->
+                        SettingsDynamicSelectCard(
+                            preference = preference,
+                            onUpdate = { value ->
+                                onAction(SettingsAction.OnUpdate(preference.copy(value = value)))
                             },
                             modifier = Modifier.fillMaxWidth(),
                         )

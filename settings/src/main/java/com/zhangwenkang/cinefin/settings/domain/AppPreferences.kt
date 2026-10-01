@@ -174,6 +174,33 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Migrations
     val mpvMigrated = Preference("mpv_migrated", false)
 
+    // Interface - 导航信息架构（W6-R6N，2026-10-01；只追加 pref_ui_* 前缀，不重排既有键）
+    /** 首页「使用哪个媒体库」：null = 自动（服务器上全部影视库）。 */
+    val uiHomeLibraryId = Preference<String?>("pref_ui_home_library_id", null)
+
+    /** 音乐模式「使用哪个音乐库」：null = 自动（服务器上全部音乐库）。 */
+    val uiMusicLibraryId = Preference<String?>("pref_ui_music_library_id", null)
+
+    /** 书架「使用哪个书籍库」：null = 自动（第一个非空书籍库）。 */
+    val uiBookshelfLibraryId = Preference<String?>("pref_ui_bookshelf_library_id", null)
+
+    /** 侧栏（平板侧轨 / 抽屉）条目可见性。客户端设置始终可见，保证入口不会把自己关掉。 */
+    val uiSidebarShowHome = Preference("pref_ui_sidebar_show_home", true)
+    val uiSidebarShowMedia = Preference("pref_ui_sidebar_show_media", true)
+    val uiSidebarShowMusic = Preference("pref_ui_sidebar_show_music", true)
+    val uiSidebarShowBookshelf = Preference("pref_ui_sidebar_show_bookshelf", true)
+    val uiSidebarShowDownloads = Preference("pref_ui_sidebar_show_downloads", true)
+    val uiSidebarShowConsole = Preference("pref_ui_sidebar_show_console", true)
+    val uiSidebarShowMetadata = Preference("pref_ui_sidebar_show_metadata", true)
+
+    /**
+     * 服务器媒体库目录缓存（[com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog] 编码）。
+     *
+     * 设置模块不能依赖 data 层（data/settings 依赖方向相反），所以由 `DrawerViewModel` 在加载抽屉数据时写入， 设置页再读出来渲染「首页 / 音乐 /
+     * 书架使用哪个媒体库」的动态选项。
+     */
+    val uiLibraryCatalog = Preference("pref_ui_library_catalog", "")
+
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {
             @Suppress("UNCHECKED_CAST")

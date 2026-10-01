@@ -8,9 +8,12 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog
 import com.zhangwenkang.cinefin.settings.presentation.enums.DeviceType
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceAppLanguage
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceCategory
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicOption
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceFileEdit
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceGroup
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntInput
@@ -35,25 +38,34 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
     private val eventsChannel = Channel<SettingsEvent>()
     val events = eventsChannel.receiveAsFlow()
 
+    /** 服务器媒体库目录（由 App 层写入偏好缓存）：用于「首页 / 音乐 / 书架使用哪个媒体库」的选项。 */
+    private val libraryCatalog =
+        LibraryCatalog.decode(appPreferences.getValue(appPreferences.uiLibraryCatalog))
+
+    private val automaticLibraryOption =
+        PreferenceDynamicOption(
+            value = null,
+            labelStringResource = R.string.settings_library_auto,
+        )
+
+    private fun libraryOptions(filter: (String) -> Boolean): List<PreferenceDynamicOption> =
+        buildList {
+            add(automaticLibraryOption)
+            libraryCatalog
+                .filter { filter(it.type) }
+                .forEach { library ->
+                    add(PreferenceDynamicOption(value = library.id, label = library.name))
+                }
+        }
+
+    private val homeLibraryOptions = libraryOptions { it != "music" && it != "books" }
+
+    private val musicLibraryOptions = libraryOptions { it == "music" }
+
+    private val bookshelfLibraryOptions = libraryOptions { it == "books" }
+
     private val topLevelPreferences =
         listOf(
-            PreferenceGroup(
-                preferences =
-                    listOf(
-                        PreferenceSwitch(
-                            nameStringResource = R.string.offline_mode,
-                            descriptionStringRes = R.string.offline_mode_summary,
-                            iconDrawableId = R.drawable.ic_server_off,
-                            supportedDeviceTypes = listOf(DeviceType.PHONE),
-                            onClick = {
-                                viewModelScope.launch {
-                                    eventsChannel.send(SettingsEvent.RestartActivity)
-                                }
-                            },
-                            backendPreference = appPreferences.offlineMode,
-                        )
-                    )
-            ),
             PreferenceGroup(
                 preferences =
                     listOf(
@@ -153,6 +165,127 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                 ),
                                             )
                                     ),
+                                ),
+                        )
+                    )
+            ),
+            PreferenceGroup(
+                preferences =
+                    listOf(
+                        PreferenceCategory(
+                            nameStringResource = R.string.settings_category_libraries,
+                            iconDrawableId = R.drawable.ic_layout_dashboard,
+                            onClick = {
+                                viewModelScope.launch {
+                                    eventsChannel.send(
+                                        SettingsEvent.NavigateToSettings(
+                                            intArrayOf(it.nameStringResource)
+                                        )
+                                    )
+                                }
+                            },
+                            nestedPreferenceGroups =
+                                listOf(
+                                    PreferenceGroup(
+                                        preferences =
+                                            listOf(
+                                                PreferenceDynamicSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_home_library,
+                                                    descriptionStringRes =
+                                                        R.string.settings_home_library_summary,
+                                                    backendPreference =
+                                                        appPreferences.uiHomeLibraryId,
+                                                    options = homeLibraryOptions,
+                                                ),
+                                                PreferenceDynamicSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_music_library,
+                                                    descriptionStringRes =
+                                                        R.string.settings_music_library_summary,
+                                                    backendPreference =
+                                                        appPreferences.uiMusicLibraryId,
+                                                    options = musicLibraryOptions,
+                                                ),
+                                                PreferenceDynamicSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_bookshelf_library,
+                                                    descriptionStringRes =
+                                                        R.string.settings_bookshelf_library_summary,
+                                                    backendPreference =
+                                                        appPreferences.uiBookshelfLibraryId,
+                                                    options = bookshelfLibraryOptions,
+                                                ),
+                                            )
+                                    )
+                                ),
+                        )
+                    )
+            ),
+            PreferenceGroup(
+                preferences =
+                    listOf(
+                        PreferenceCategory(
+                            nameStringResource = R.string.settings_category_sidebar,
+                            descriptionStringRes = R.string.settings_sidebar_summary,
+                            onClick = {
+                                viewModelScope.launch {
+                                    eventsChannel.send(
+                                        SettingsEvent.NavigateToSettings(
+                                            intArrayOf(it.nameStringResource)
+                                        )
+                                    )
+                                }
+                            },
+                            nestedPreferenceGroups =
+                                listOf(
+                                    PreferenceGroup(
+                                        preferences =
+                                            listOf(
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_home,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowHome,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_media,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowMedia,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_music,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowMusic,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_bookshelf,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowBookshelf,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_downloads,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowDownloads,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_console,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowConsole,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_metadata,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowMetadata,
+                                                ),
+                                            )
+                                    )
                                 ),
                         )
                     )
@@ -895,6 +1028,19 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                         )
                     )
             ),
+            // 离线模式固定在设置最后一项：打开后停留本页（不重启 / 不跳转），联网能力在下次进入页面时自行降级。
+            PreferenceGroup(
+                preferences =
+                    listOf(
+                        PreferenceSwitch(
+                            nameStringResource = R.string.offline_mode,
+                            descriptionStringRes = R.string.offline_mode_summary,
+                            iconDrawableId = R.drawable.ic_server_off,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            backendPreference = appPreferences.offlineMode,
+                        )
+                    )
+            ),
         )
 
     fun loadPreferences(indexes: IntArray = intArrayOf(), deviceType: DeviceType) {
@@ -941,6 +1087,19 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                 )
                                             }
                                             is PreferenceSelect -> {
+                                                preference.copy(
+                                                    enabled =
+                                                        preference.enabled &&
+                                                            preference.dependencies.all {
+                                                                appPreferences.getValue(it)
+                                                            },
+                                                    value =
+                                                        appPreferences.getValue(
+                                                            preference.backendPreference
+                                                        ),
+                                                )
+                                            }
+                                            is PreferenceDynamicSelect -> {
                                                 preference.copy(
                                                     enabled =
                                                         preference.enabled &&
@@ -1013,6 +1172,11 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                             action.preference.value,
                         )
                     is PreferenceSelect ->
+                        appPreferences.setValue(
+                            action.preference.backendPreference,
+                            action.preference.value,
+                        )
+                    is PreferenceDynamicSelect ->
                         appPreferences.setValue(
                             action.preference.backendPreference,
                             action.preference.value,

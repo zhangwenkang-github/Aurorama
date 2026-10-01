@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -64,7 +66,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinBottomTab
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinDrawerGroup
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinModalDrawer
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavItem
-import com.zhangwenkang.cinefin.core.presentation.components.CinefinSideRail
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavigationItem
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -94,8 +96,12 @@ import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
 import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawerHeader
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
+import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
+import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
+import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
+import com.zhangwenkang.cinefin.presentation.navigation.visibleRailKeys
 import com.zhangwenkang.cinefin.presentation.settings.AboutScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsFileEditScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsScreen
@@ -228,6 +234,8 @@ fun NavigationRoot(
     // 控制台 / 媒体资料管理器也在这份列表里，但只对管理员可见（W5-R3I）。
     // 带参路由（Library / Settings / Console）的 destination.route 是「类名 + 参数模板」，
     // 不能用 ::class.qualifiedName 比较（踩坑 28）；统一用 isRoute 按序列化器哈希匹配。
+    // 控制台 / 元数据管理器**不在**这份集合里（W6-R6N，用户反馈 2）：这两个页面只保留控制台
+    // 自己的侧栏，app 侧轨 / 底部 Tab 与边缘抽屉手势都要让位给 WebView。
     val showNavigation =
         currentDestination.isRoute<HomeRoute>() ||
             currentDestination.isRoute<MediaRoute>() ||
@@ -235,8 +243,7 @@ fun NavigationRoot(
             currentDestination.isRoute<DownloadsRoute>() ||
             currentDestination.isRoute<MusicModeRoute>() ||
             currentDestination.isRoute<LibraryRoute>() ||
-            currentDestination.isRoute<SettingsRoute>() ||
-            currentDestination.isRoute<ConsoleRoute>()
+            currentDestination.isRoute<SettingsRoute>()
     val context = LocalContext.current
     val settingsRoute = remember {
         SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
@@ -246,16 +253,11 @@ fun NavigationRoot(
     val drawerData by drawerViewModel.state.collectAsStateWithLifecycle()
     // 抽屉数据要在冷启动就绪：书架 Tab 的跳转与选中态都读这份库列表（只在打开抽屉时加载会让
     // 冷启动点「书架」拿到空列表）。打开抽屉时再刷新一次，保证服务器端新建的库能及时出现。
-    LaunchedEffect(Unit) { drawerViewModel.load() }
+    // 离线下 / 切回在线时库列表要跟着刷新（W6-R6N：离线开关不再重启 Activity）。
+    LaunchedEffect(isOfflineMode) { drawerViewModel.load() }
     LaunchedEffect(drawerState.isOpen) {
         if (drawerState.isOpen) {
             drawerViewModel.load()
-        }
-    }
-
-    LaunchedEffect(showNavigation) {
-        if (!showNavigation && drawerState.isOpen) {
-            drawerState.close()
         }
     }
 
@@ -266,6 +268,15 @@ fun NavigationRoot(
     val railDefaultExpanded = windowSizeClass.isWidthAtLeastBreakpoint(1200)
     var railExpanded by
         rememberSaveable(railDefaultExpanded) { mutableStateOf(railDefaultExpanded) }
+    // 「媒体库」二级分组默认展开（用户反馈 3：所有实际存在的库要作为子选项直接可见）。
+    var mediaGroupExpanded by rememberSaveable { mutableStateOf(true) }
+
+    LaunchedEffect(showNavigation, compactNavigation) {
+        // 手机形态（Compact）没有抽屉；窗口从平板缩回手机时若抽屉还开着，一并收回。
+        if ((!showNavigation || compactNavigation) && drawerState.isOpen) {
+            drawerState.close()
+        }
+    }
 
     val booksLibrary = drawerData.libraries.firstOrNull { it.type == CollectionType.Books }
     val currentLibrary =
@@ -292,7 +303,10 @@ fun NavigationRoot(
         currentDestination.isRoute<BookshelfRoute>() ||
             (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString())
 
-    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
+    // 手机（Compact）不再有抽屉：底栏已经覆盖四个入口，左侧抽屉（含 hamburger 与边缘滑出）
+    // 按用户反馈整体移除，避免误滑；平板保留抽屉（侧轨为主，抽屉兜底全量入口）。
+    val openDrawer: (() -> Unit)? =
+        if (compactNavigation) null else ({ scope.launch { drawerState.open() } })
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
     val navigateTopLevel: (Any) -> Unit = { route ->
         closeDrawer()
@@ -326,90 +340,133 @@ fun NavigationRoot(
     fun chromeItem(@DrawableRes res: Int, label: String, neutral: Boolean = false) =
         CinefinNavItem(label = label, neutral = neutral, icon = navIcon(res))
 
-    val chromeDestinations =
-        listOf(
-            ChromeDestination(
-                item =
-                    chromeItem(
-                        CoreR.drawable.ic_home,
-                        stringResource(CoreR.string.title_home),
-                        neutral = true,
-                    ),
-                selected = homeSelected,
-                bottom = true,
-            ) {
-                navigateTopLevel(HomeRoute)
-            },
-            ChromeDestination(
-                item =
-                    chromeItem(CoreR.drawable.ic_music, stringResource(CoreR.string.title_music)),
-                selected = musicSelected,
-                bottom = true,
-            ) {
-                navigateTopLevel(MusicModeRoute)
-            },
-            ChromeDestination(
-                item =
-                    chromeItem(
-                        CoreR.drawable.ic_book,
-                        stringResource(CoreR.string.title_book_shelf),
-                    ),
-                selected = booksSelected,
-                bottom = true,
-            ) {
-                // 书架 = 独立目的地：页面自己解析「第一个非空的书籍库」，没有书库时显示空态，
-                // 不再依赖抽屉数据是否加载完、也不会回退到媒体库总览（2026-10-01 验收缺陷）。
-                navigateTopLevel(BookshelfRoute)
-            },
-            ChromeDestination(
-                item =
-                    chromeItem(CoreR.drawable.ic_library, stringResource(CoreR.string.title_media)),
-                selected = mediaSelected,
-                bottom = true,
-            ) {
-                navigateTopLevel(MediaRoute)
-            },
-            ChromeDestination(
-                item =
-                    chromeItem(
-                        CoreR.drawable.ic_download,
-                        stringResource(CoreR.string.title_download),
-                    ),
-                selected = downloadsSelected,
-                bottom = false,
-            ) {
-                navigateTopLevel(DownloadsRoute)
-            },
-            ChromeDestination(
-                item =
-                    chromeItem(
-                        CoreR.drawable.ic_settings,
-                        stringResource(CoreR.string.title_settings),
-                        neutral = true,
-                    ),
-                selected = settingsSelected,
-                bottom = false,
-            ) {
-                navigateTopLevel(settingsRoute)
-            },
-        ) +
-            // 控制台 / 媒体资料管理器（W5-R3I 恢复 D18 删除的入口）：只对管理员展示，且不出现在
-            // 手机底部 Tab（bottom = false），只在侧轨 / 抽屉里。
-            consoleEntrySpecs(drawerData.isAdministrator).map { entry ->
+    val sidebarVisibility = drawerData.sidebarVisibility
+    // 「服务器上实际存在什么库」的唯一来源是抽屉数据里的库列表；库列表未就绪时入口保持可见，
+    // 由页面自己显示空态——避免把网络故障误判成「服务器没有音乐库 / 书籍库」（见 NavigationIa.kt）。
+    val navKeys =
+        navEntryKeys(
+            isAdministrator = drawerData.isAdministrator,
+            librariesLoaded = drawerData.libraries.isNotEmpty(),
+            hasMusicLibrary = drawerData.libraries.any { it.type == CollectionType.Music },
+            hasBooksLibrary = drawerData.libraries.any { it.type == CollectionType.Books },
+        )
+    val consoleSpecByPath = consoleEntrySpecs(drawerData.isAdministrator).associateBy { it.path }
+
+    // 顶层 IA（W6-R6N）：首页 / 媒体库 / 音乐 / 书架 /（管理员：服务器控制台 / 元数据管理器）/ 客户端设置。
+    // 「媒体库」是二级分组，子项 = 服务器实际返回的全部库（同名多库按服务器顺序逐条列出）。
+    val chromeDestinations = navKeys.mapNotNull { key ->
+        when (key) {
+            NavEntryKey.Home ->
                 ChromeDestination(
-                    item = chromeItem(entry.iconRes, stringResource(entry.titleRes)),
-                    selected = consoleEntrySelected(consolePath, entry.path),
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_home,
+                            stringResource(CoreR.string.title_home),
+                            neutral = true,
+                        ),
+                    selected = homeSelected,
+                    bottom = true,
+                ) {
+                    navigateTopLevel(HomeRoute)
+                }
+            NavEntryKey.Media ->
+                ChromeDestination(
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_library,
+                            stringResource(CoreR.string.title_media),
+                        ),
+                    selected = mediaSelected,
+                    bottom = true,
+                ) {
+                    navigateTopLevel(MediaRoute)
+                }
+            NavEntryKey.Music ->
+                ChromeDestination(
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_music,
+                            stringResource(CoreR.string.title_music),
+                        ),
+                    selected = musicSelected,
+                    bottom = true,
+                ) {
+                    navigateTopLevel(MusicModeRoute)
+                }
+            NavEntryKey.Bookshelf ->
+                ChromeDestination(
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_book,
+                            stringResource(CoreR.string.title_book_shelf),
+                        ),
+                    selected = booksSelected,
+                    bottom = true,
+                ) {
+                    // 书架 = 独立目的地：页面自己解析书籍库，没有书库时显示空态，
+                    // 不再依赖抽屉数据是否加载完、也不会回退到媒体库总览。
+                    navigateTopLevel(BookshelfRoute)
+                }
+            NavEntryKey.Downloads ->
+                ChromeDestination(
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_download,
+                            stringResource(CoreR.string.title_download),
+                        ),
+                    selected = downloadsSelected,
                     bottom = false,
                 ) {
-                    navigateConsole(entry.path)
+                    navigateTopLevel(DownloadsRoute)
+                }
+            NavEntryKey.Console,
+            NavEntryKey.Metadata -> {
+                // 控制台 / 媒体资料管理器（W5-R3I）：只对管理员展示、不进手机底部 Tab，
+                // 两类入口共用 ConsoleRoute，选中态按 path 判定。
+                val path =
+                    if (key == NavEntryKey.Metadata) ConsolePathMetadata else ConsolePathDashboard
+                val spec = consoleSpecByPath[path] ?: return@mapNotNull null
+                ChromeDestination(
+                    key = key,
+                    item = chromeItem(spec.iconRes, stringResource(spec.titleRes)),
+                    selected = consoleEntrySelected(consolePath, spec.path),
+                    bottom = false,
+                ) {
+                    navigateConsole(spec.path)
                 }
             }
-    val bottomItems = chromeDestinations.filter { it.bottom }
+            NavEntryKey.Settings ->
+                ChromeDestination(
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_settings,
+                            stringResource(CoreR.string.title_settings),
+                            neutral = true,
+                        ),
+                    selected = settingsSelected,
+                    bottom = false,
+                ) {
+                    navigateTopLevel(settingsRoute)
+                }
+        }
+    }
+    val chromeByKey = chromeDestinations.associateBy { it.key }
+    // 手机底部 Tab 保持既有顺序（首页 / 音乐 / 书架 / 媒体库），不随侧轨排序变化。
+    val bottomItems = bottomNavKeys.mapNotNull { chromeByKey[it] }
+    // 侧栏 = 同一份列表按「客户端设置 → 侧栏显示」过滤（客户端设置常驻，见 NavigationIa.kt）。
+    val railDestinations =
+        visibleRailKeys(navKeys, sidebarVisibility).mapNotNull { chromeByKey[it] }
 
     // 抽屉 = 同一份统一目的地列表 + 服务器库列表（D18：不再有「更多」分区，也没有分组标题，
     // 选中索引与动作列表同源，杜绝分组聚合带来的索引错位，见踩坑 17）
     val drawerEntries: List<DrawerEntry> =
-        chromeDestinations.map { destination ->
+        railDestinations.map { destination ->
             DrawerEntry(
                 item = destination.item,
                 selected = destination.selected,
@@ -507,7 +564,7 @@ fun NavigationRoot(
             }
             composable<HomeRoute> {
                 HomeScreen(
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenDrawer = openDrawer,
                     onSearchClick = {
                         searchExpanded = true
                         navController.safeNavigate(MediaRoute) {
@@ -527,7 +584,7 @@ fun NavigationRoot(
             }
             composable<MediaRoute> {
                 MediaScreen(
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenDrawer = openDrawer,
                     onItemClick = { item ->
                         navigateToItem(
                             navController = navController,
@@ -542,7 +599,7 @@ fun NavigationRoot(
             }
             composable<BookshelfRoute> {
                 BookshelfScreen(
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenDrawer = openDrawer,
                     onItemClick = { item ->
                         navigateToItem(
                             navController = navController,
@@ -555,7 +612,7 @@ fun NavigationRoot(
             }
             composable<DownloadsRoute> {
                 DownloadsScreen(
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenDrawer = openDrawer,
                     onItemClick = { item ->
                         navigateToItem(
                             navController = navController,
@@ -565,9 +622,7 @@ fun NavigationRoot(
                     },
                 )
             }
-            composable<MusicModeRoute> {
-                MusicModeScreen(onOpenDrawer = { scope.launch { drawerState.open() } })
-            }
+            composable<MusicModeRoute> { MusicModeScreen(onOpenDrawer = openDrawer) }
             composable<ConsoleRoute> { backStackEntry ->
                 val route: ConsoleRoute = backStackEntry.toRoute()
                 WebConsoleScreen(
@@ -579,7 +634,7 @@ fun NavigationRoot(
                 val route: LibraryRoute = backStackEntry.toRoute()
                 if (route.libraryType == CollectionType.Music) {
                     // 兜底：任何残留路由落到音乐库时同样进音乐模式（见 libraryEntryRoute）
-                    MusicModeScreen(onOpenDrawer = { scope.launch { drawerState.open() } })
+                    MusicModeScreen(onOpenDrawer = openDrawer)
                 } else {
                     LibraryScreen(
                         libraryId = UUID.fromString(route.libraryId),
@@ -736,7 +791,8 @@ fun NavigationRoot(
 
     CinefinModalDrawer(
         drawerState = drawerState,
-        gesturesEnabled = showNavigation,
+        // 手机（Compact）没有抽屉：连边缘滑出的手势一并关掉，避免误滑（用户反馈 1）。
+        gesturesEnabled = showNavigation && !compactNavigation,
         header = {
             CinefinDrawerHeader(
                 userName = drawerData.userName,
@@ -763,11 +819,12 @@ fun NavigationRoot(
             !compactNavigation && showNavigation ->
                 Row(modifier = Modifier.fillMaxSize()) {
                     CinefinSideNavigation(
-                        items = chromeDestinations.map { it.item },
-                        selectedIndex = chromeDestinations.indexOfFirst { it.selected },
-                        onSelect = { index ->
-                            chromeDestinations.getOrNull(index)?.onClick?.invoke()
-                        },
+                        destinations = railDestinations,
+                        mediaLibraries = if (isOfflineMode) emptyList() else drawerData.libraries,
+                        currentLibraryId = currentLibrary?.libraryId,
+                        mediaGroupExpanded = mediaGroupExpanded,
+                        onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
+                        onOpenLibrary = openLibrary,
                         expanded = railExpanded,
                         onToggleExpanded = { railExpanded = !railExpanded },
                     )
@@ -779,6 +836,7 @@ fun NavigationRoot(
 }
 
 private data class ChromeDestination(
+    val key: NavEntryKey,
     val item: CinefinNavItem,
     val selected: Boolean,
     val bottom: Boolean,
@@ -791,12 +849,19 @@ private data class DrawerEntry(
     val onClick: () -> Unit,
 )
 
-/** 平板侧导航（§8.6）：logo 38dp + 条目 54dp / 圆角 14dp；折叠 88dp / 展开 164dp。 */
+/**
+ * 平板侧导航（§8.6）：logo 38dp + 条目 54dp / 圆角 14dp；折叠 88dp / 展开 164dp。
+ *
+ * IA（W6-R6N）：「媒体库」是二级分组，子项是服务器实际返回的库（同名多库逐条列出）。 折叠轨（88dp）只显示一级图标，展开后子项才出现——避免 88dp 宽出现半截库名。
+ */
 @Composable
 private fun CinefinSideNavigation(
-    items: List<CinefinNavItem>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
+    destinations: List<ChromeDestination>,
+    mediaLibraries: List<FindroidCollection>,
+    currentLibraryId: String?,
+    mediaGroupExpanded: Boolean,
+    onToggleMediaGroup: () -> Unit,
+    onOpenLibrary: (FindroidCollection) -> Unit,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
 ) {
@@ -829,13 +894,79 @@ private fun CinefinSideNavigation(
                 )
             }
         }
-        CinefinSideRail(
-            items = items,
-            selectedIndex = selectedIndex,
-            onSelect = onSelect,
-            modifier = Modifier.weight(1f),
-            expanded = expanded,
-        )
+        Column(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        horizontal = if (expanded) 10.dp else 12.dp,
+                        vertical = CinefinSpacing.Space3,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            destinations.forEach { destination ->
+                if (destination.key != NavEntryKey.Media) {
+                    CinefinNavigationItem(
+                        item = destination.item,
+                        selected = destination.selected,
+                        expanded = expanded,
+                        onClick = destination.onClick,
+                    )
+                    return@forEach
+                }
+
+                CinefinNavigationItem(
+                    item = destination.item,
+                    // 进入某个库时父项保持高亮（子项另有高亮），与「书架 → 书籍库」的既有行为一致。
+                    selected = destination.selected || currentLibraryId != null,
+                    expanded = expanded,
+                    onClick = {
+                        destination.onClick()
+                        if (!mediaGroupExpanded) onToggleMediaGroup()
+                    },
+                    trailing =
+                        if (mediaLibraries.isNotEmpty() && expanded) {
+                            {
+                                Icon(
+                                    painter =
+                                        painterResource(
+                                            if (mediaGroupExpanded) CoreR.drawable.ic_chevron_up
+                                            else CoreR.drawable.ic_chevron_down
+                                        ),
+                                    contentDescription =
+                                        stringResource(
+                                            if (mediaGroupExpanded) CoreR.string.nav_collapse
+                                            else CoreR.string.nav_expand
+                                        ),
+                                    tint = colors.onSurfaceFaint,
+                                    modifier =
+                                        Modifier.size(20.dp)
+                                            .clickable(onClick = onToggleMediaGroup),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                )
+                if (mediaGroupExpanded && expanded && mediaLibraries.isNotEmpty()) {
+                    mediaLibraries.forEach { library ->
+                        CinefinNavigationItem(
+                            item =
+                                CinefinNavItem(
+                                    label = library.name,
+                                    icon = navIcon(libraryIconRes(library.type)),
+                                ),
+                            selected = currentLibraryId == library.id.toString(),
+                            expanded = true,
+                            compact = true,
+                            onClick = { onOpenLibrary(library) },
+                            modifier = Modifier.padding(start = CinefinSpacing.Space4),
+                        )
+                    }
+                }
+            }
+        }
         Row(
             modifier =
                 Modifier.fillMaxWidth()

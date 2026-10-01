@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.settings.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -34,12 +35,27 @@ fun SettingsSelectDialog(
     onUpdate: (value: String?) -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    SettingsOptionsDialog(
+        titleRes = preference.nameStringResource,
+        options = options,
+        selectedValue = preference.value,
+        onUpdate = onUpdate,
+        onDismissRequest = onDismissRequest,
+    )
+}
+
+/** 通用单选项对话框：既服务资源数组驱动的 [PreferenceSelect]，也服务运行时选项（服务器媒体库列表）。 */
+@Composable
+fun SettingsOptionsDialog(
+    @StringRes titleRes: Int,
+    options: List<Pair<String?, String>>,
+    selectedValue: String?,
+    onUpdate: (value: String?) -> Unit,
+    onDismissRequest: () -> Unit,
+) {
     val lazyListState = rememberLazyListState()
 
-    BaseDialog(
-        title = stringResource(preference.nameStringResource),
-        onDismiss = onDismissRequest,
-    ) {
+    BaseDialog(title = stringResource(titleRes), onDismiss = onDismissRequest) {
         if (lazyListState.canScrollBackward) {
             HorizontalDivider()
         }
@@ -52,7 +68,7 @@ fun SettingsSelectDialog(
             items(items = options, key = { it.first ?: "null" }) { option ->
                 SettingsSelectDialogItem(
                     option = option,
-                    isSelected = option.first == preference.value,
+                    isSelected = option.first == selectedValue,
                     onSelect = onUpdate,
                 )
             }

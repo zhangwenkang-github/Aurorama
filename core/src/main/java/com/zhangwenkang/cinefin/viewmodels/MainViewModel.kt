@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.viewmodels
 
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
@@ -29,13 +30,34 @@ constructor(private val appPreferences: AppPreferences, private val database: Se
         data object Loading : UiState()
     }
 
-    init {
-        check()
+    private val offlineModeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == appPreferences.offlineMode.backendName) {
+            // 只刷新状态，不回到 Loading：否则整棵 UI 会被移出组合，设置页会闪一下并丢掉滚动位置。
+            check(showLoading = false)
+        }
     }
 
-    private fun check() {
+    init {
+        check()
+        // 离线模式开关不再重启 Activity（2026-10-01 用户反馈：打开后要停留在设置页），
+        // 因此这里监听偏好变化，让 LocalOfflineMode（导航入口 / 抽屉库列表）立即跟上。
+        appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
+            offlineModeListener
+        )
+    }
+
+    override fun onCleared() {
+        appPreferences.sharedPreferences.unregisterOnSharedPreferenceChangeListener(
+            offlineModeListener
+        )
+        super.onCleared()
+    }
+
+    private fun check(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _state.emit(MainState(isLoading = true))
+            if (showLoading) {
+                _state.emit(MainState(isLoading = true))
+            }
             val mainState =
                 MainState(
                     isLoading = false,

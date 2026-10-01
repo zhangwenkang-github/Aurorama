@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -33,8 +34,12 @@ sealed interface BookshelfState {
 }
 
 @HiltViewModel
-class BookshelfViewModel @Inject constructor(private val repository: JellyfinRepository) :
-    ViewModel() {
+class BookshelfViewModel
+@Inject
+constructor(
+    private val repository: JellyfinRepository,
+    private val appPreferences: AppPreferences,
+) : ViewModel() {
     private val _state = MutableStateFlow<BookshelfState>(BookshelfState.Loading)
     val state = _state.asStateFlow()
 
@@ -62,6 +67,19 @@ class BookshelfViewModel @Inject constructor(private val repository: JellyfinRep
      */
     private suspend fun resolveBooksLibrary(): FindroidCollection? {
         val libraries = repository.getLibraries()
+        // 客户端设置「书架媒体库」：显式选定且仍然存在的书籍库优先，不再逐库判空。
+        val preferredLibraryId =
+            appPreferences
+                .getValue(appPreferences.uiBookshelfLibraryId)
+                ?.takeIf { it.isNotBlank() }
+                ?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
+        if (preferredLibraryId != null) {
+            libraries
+                .firstOrNull { it.type == CollectionType.Books && it.id == preferredLibraryId }
+                ?.let {
+                    return it
+                }
+        }
         val nonEmptyLibraryIds =
             libraries
                 .filter { it.type == CollectionType.Books }
@@ -83,13 +101,21 @@ class BookshelfViewModel @Inject constructor(private val repository: JellyfinRep
 
 /**
  * 书库选择（纯逻辑，便于单测）： 按服务器顺序取**第一个非空**的 books 库；都为空时退回第一个 books 库（由库内容页显示空态）； 一个 books 库都没有时返回
- * null（书架页显示空态，不回退媒体库）。
+ * null（书架页显示空态，不回退媒体库）。[preferredLibraryId] 是客户端设置里显式选定的书库， 只要仍在 books 库里就最高优先。
  */
 internal fun pickBooksLibrary(
     libraries: List<FindroidCollection>,
     nonEmptyLibraryIds: Set<UUID> = emptySet(),
+    preferredLibraryId: UUID? = null,
 ): FindroidCollection? {
     val booksLibraries = libraries.filter { it.type == CollectionType.Books }
     if (booksLibraries.isEmpty()) return null
+    preferredLibraryId?.let { id ->
+        booksLibraries
+            .firstOrNull { it.id == id }
+            ?.let {
+                return it
+            }
+    }
     return booksLibraries.firstOrNull { it.id in nonEmptyLibraryIds } ?: booksLibraries.first()
 }

@@ -39,7 +39,8 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun DownloadsScreen(
-    onOpenDrawer: () -> Unit,
+    /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N）。 */
+    onOpenDrawer: (() -> Unit)?,
     onItemClick: (item: FindroidItem) -> Unit,
     viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
@@ -62,7 +63,7 @@ fun DownloadsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DownloadsScreenLayout(
-    onOpenDrawer: () -> Unit,
+    onOpenDrawer: (() -> Unit)?,
     state: CollectionState,
     onAction: (CollectionAction) -> Unit,
 ) {
@@ -84,8 +85,10 @@ private fun DownloadsScreenLayout(
                     )
                 },
                 navigationIcon = {
-                    // 与首页/媒体库一致：左上角永远是抽屉入口
-                    TopBarAction(icon = CoreR.drawable.ic_menu, onClick = onOpenDrawer)
+                    // 有抽屉的形态（平板）保留入口；手机 Compact 无抽屉。
+                    if (onOpenDrawer != null) {
+                        TopBarAction(icon = CoreR.drawable.ic_menu, onClick = onOpenDrawer)
+                    }
                 },
                 windowInsets = WindowInsets.statusBars.union(WindowInsets.displayCutout),
                 scrollBehavior = scrollBehavior,

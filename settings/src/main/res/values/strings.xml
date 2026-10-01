@@ -115,4 +115,21 @@
     <string name="advanced">Advanced</string>
     <string name="discard_changes_dialog_title">Discard changes?</string>
     <string name="discard_changes_dialog_text">You have unsaved changes.</string>
+    <string name="settings_category_libraries">Media libraries</string>
+    <string name="settings_library_auto">Automatic</string>
+    <string name="settings_home_library">Home library</string>
+    <string name="settings_home_library_summary">Which library the home \'Latest\' sections use</string>
+    <string name="settings_music_library">Music library</string>
+    <string name="settings_music_library_summary">Which library the music mode browses; the entry hides when the server has none</string>
+    <string name="settings_bookshelf_library">Bookshelf library</string>
+    <string name="settings_bookshelf_library_summary">Which library the bookshelf uses; Automatic picks the first non-empty books library</string>
+    <string name="settings_category_sidebar">Sidebar items</string>
+    <string name="settings_sidebar_summary">Applies to the tablet side rail and drawer</string>
+    <string name="settings_sidebar_show_home">Home</string>
+    <string name="settings_sidebar_show_media">Media libraries</string>
+    <string name="settings_sidebar_show_music">Music</string>
+    <string name="settings_sidebar_show_bookshelf">Bookshelf</string>
+    <string name="settings_sidebar_show_downloads">Downloads</string>
+    <string name="settings_sidebar_show_console">Server console</string>
+    <string name="settings_sidebar_show_metadata">Metadata manager</string>
 </resources>

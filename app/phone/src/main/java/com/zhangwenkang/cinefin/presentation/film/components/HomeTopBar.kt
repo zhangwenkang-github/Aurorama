@@ -31,7 +31,8 @@ import com.zhangwenkang.cinefin.presentation.components.TopBarAction
  */
 @Composable
 fun HomeTopBar(
-    onOpenDrawer: () -> Unit,
+    /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N），不显示 hamburger。 */
+    onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     isLoading: Boolean,
     isError: Boolean,
@@ -46,9 +47,11 @@ fun HomeTopBar(
         val colors = LocalCinefinColors.current
         val media = LocalMediaColors.current
 
-        TopBarAction(icon = CoreR.drawable.ic_menu, onClick = onOpenDrawer)
+        if (onOpenDrawer != null) {
+            TopBarAction(icon = CoreR.drawable.ic_menu, onClick = onOpenDrawer)
 
-        Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+        }
 
         Text(
             text = stringResource(CoreR.string.app_name),

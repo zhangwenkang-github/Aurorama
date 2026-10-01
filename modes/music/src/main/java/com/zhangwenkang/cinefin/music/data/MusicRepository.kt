@@ -65,8 +65,12 @@ data class MusicLibrary(
 
 /** 音乐曲库仓库（W1 R2 建立，W2 R2 扩展浏览维度）。 */
 interface MusicRepository {
-    /** 全部音乐曲目与客户端聚合结果（专辑 / 艺术家 / 歌曲三个维度共用一次请求）。 */
-    suspend fun getLibrary(): MusicLibrary
+    /**
+     * 全部音乐曲目与客户端聚合结果（专辑 / 艺术家 / 歌曲三个维度共用一次请求）。
+     *
+     * [libraryId] 非空时只取该音乐库的曲目（客户端设置「音乐库」；null = 自动，服务器上全部音乐库）。
+     */
+    suspend fun getLibrary(libraryId: UUID? = null): MusicLibrary
 
     /** 服务器歌单列表。 */
     suspend fun getPlaylists(): List<MusicPlaylist>
@@ -83,9 +87,9 @@ constructor(
     private val jellyfinApi: JellyfinApi,
 ) : MusicRepository {
 
-    override suspend fun getLibrary(): MusicLibrary =
+    override suspend fun getLibrary(libraryId: UUID?): MusicLibrary =
         withContext(Dispatchers.IO) {
-            val songs = querySongs()
+            val songs = querySongs(libraryId)
             MusicLibrary(
                 songs = songs,
                 albums = groupAlbums(songs),
@@ -136,12 +140,13 @@ constructor(
                 .mapNotNull { item -> item.toMusicSong(baseUrl) }
         }
 
-    private suspend fun querySongs(): List<MusicSong> {
+    private suspend fun querySongs(libraryId: UUID?): List<MusicSong> {
         val userId = jellyfinApi.userId ?: return emptyList()
         val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
         return jellyfinApi.itemsApi
             .getItems(
                 userId,
+                parentId = libraryId,
                 includeItemTypes = listOf(BaseItemKind.AUDIO),
                 recursive = true,
                 sortBy = listOfNotNull(ItemSortBy.fromName("SortName")),

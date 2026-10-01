@@ -22,6 +22,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -55,6 +56,7 @@ constructor(
     private val queueEditor: MusicQueueEditor,
     private val lyricsRepository: LyricsRepository,
     playbackStateSource: MusicPlaybackStateSource,
+    private val appPreferences: AppPreferences,
 ) : ViewModel() {
 
     data class UiState(
@@ -295,8 +297,16 @@ constructor(
         }
 
     private suspend fun loadLibraryOnce(): Pair<MusicLibrary, List<MusicPlaylist>> {
-        val library = repository.getLibrary()
+        val library = repository.getLibrary(libraryId = selectedMusicLibraryId())
         return library to repository.getPlaylists()
+    }
+
+    /** 客户端设置「音乐库」：指定库失效（被删除 / 重建）时回落自动（全部音乐库）。 */
+    private fun selectedMusicLibraryId(): UUID? {
+        val raw =
+            appPreferences.getValue(appPreferences.uiMusicLibraryId)?.takeIf { it.isNotBlank() }
+                ?: return null
+        return runCatching { UUID.fromString(raw) }.getOrNull()
     }
 
     fun selectTab(tab: MusicTab) {

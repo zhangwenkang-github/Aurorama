@@ -57,7 +57,8 @@ private val wallMinColumnWidth = 152.dp
 
 @Composable
 fun HomeScreen(
-    onOpenDrawer: () -> Unit,
+    /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N）。 */
+    onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     onItemClick: (item: FindroidItem) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -84,7 +85,7 @@ fun HomeScreen(
 @Composable
 private fun HomeScreenLayout(
     state: HomeState,
-    onOpenDrawer: () -> Unit,
+    onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     onItemClick: (FindroidItem) -> Unit,
     onRetry: () -> Unit,

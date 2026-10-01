@@ -131,6 +131,7 @@ fun SettingsScreen(
     SettingsScreenLayout(
         title = indexes.last(),
         state = state,
+        onReloadPreferences = { viewModel.loadPreferences(indexes, DeviceType.PHONE) },
         onAction = { action ->
             when (action) {
                 is SettingsAction.OnBackClick -> navigateBack()
@@ -152,6 +153,7 @@ fun SettingsScreen(
 private fun SettingsScreenLayout(
     @StringRes title: Int,
     state: SettingsState,
+    onReloadPreferences: () -> Unit,
     onAction: (SettingsAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -161,6 +163,14 @@ private fun SettingsScreenLayout(
     val accountState by accountViewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { accountViewModel.load() }
+
+    // 媒体库目录（偏好缓存）由 DrawerViewModel 在加载抽屉数据时写入；服务器库列表到达后
+    // 重新加载设置项，让「首页 / 音乐 / 书架使用哪个媒体库」的选项立刻可用（含新建的库）。
+    LaunchedEffect(accountState.libraries) {
+        if (accountState.libraries.isNotEmpty()) {
+            onReloadPreferences()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(colors.surface)) {
         Row(
@@ -326,6 +336,7 @@ private fun SettingsScreenLayoutPreview() {
                             ),
                         )
                 ),
+            onReloadPreferences = {},
             onAction = {},
         )
     }

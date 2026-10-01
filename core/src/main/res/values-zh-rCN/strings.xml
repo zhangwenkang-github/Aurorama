@@ -105,7 +105,7 @@
     <string name="watch_trailer">看预告</string>
     <string name="collection_no_media">该集合不包含任何媒体</string>
     <string name="show_stacktrace">显示堆栈跟踪</string>
-    <string name="title_settings">设置</string>
+    <string name="title_settings">客户端设置</string>
     <string name="title_download">下载</string>
     <string name="not_set">未设置</string>
     <string name="offline_mode">离线模式</string>
@@ -124,4 +124,5 @@
     <string name="title_book_shelf">书架</string>
     <string name="title_more">更多</string>
     <string name="nav_collapse">收起</string>
+    <string name="nav_expand">展开</string>
 </resources>

@@ -39,6 +39,38 @@ class BookshelfPickTest {
         assertNull(pickBooksLibrary(libraries, nonEmptyLibraryIds = emptySet()))
     }
 
+    @Test
+    fun prefersConfiguredLibraryEvenWhenItIsEmpty() {
+        val empty = booksLibrary("书籍3-空壳")
+        val nonEmpty = booksLibrary("书籍")
+        val libraries = listOf(empty, nonEmpty)
+
+        val picked =
+            pickBooksLibrary(
+                libraries = libraries,
+                nonEmptyLibraryIds = setOf(nonEmpty.id),
+                preferredLibraryId = empty.id,
+            )
+
+        // 显式选定优先：哪怕这个库是空的，也不偷偷换到别的库（页面显示空态）。
+        assertEquals(empty.id, picked?.id)
+    }
+
+    @Test
+    fun ignoresConfiguredLibraryThatNoLongerExists() {
+        val first = booksLibrary("书籍")
+        val libraries = listOf(first)
+
+        val picked =
+            pickBooksLibrary(
+                libraries = libraries,
+                nonEmptyLibraryIds = emptySet(),
+                preferredLibraryId = UUID.randomUUID(),
+            )
+
+        assertEquals(first.id, picked?.id)
+    }
+
     private fun booksLibrary(name: String) =
         FindroidCollection(
             id = UUID.randomUUID(),

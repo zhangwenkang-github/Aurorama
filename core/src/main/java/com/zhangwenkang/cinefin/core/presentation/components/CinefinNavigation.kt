@@ -97,6 +97,10 @@ fun CinefinNavigationItem(
     expanded: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 展开式条目（二级分组父项）的尾部槽位：折叠箭头等。 */
+    trailing: (@Composable () -> Unit)? = null,
+    /** 二级分组子项用 44dp 紧凑行，避免「父项 + 全部库」把侧轨撑到需要滚动。 */
+    compact: Boolean = false,
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
@@ -124,7 +128,7 @@ fun CinefinNavigationItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(if (expanded) 54.dp else 56.dp)
+                .height(if (compact) 44.dp else if (expanded) 54.dp else 56.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(container)
                 .clickable(
@@ -145,7 +149,9 @@ fun CinefinNavigationItem(
                 color = content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = if (trailing != null) Modifier.weight(1f) else Modifier,
             )
+            trailing?.invoke()
         }
     }
 }

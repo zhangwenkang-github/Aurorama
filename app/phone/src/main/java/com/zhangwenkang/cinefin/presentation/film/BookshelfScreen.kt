@@ -45,7 +45,8 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
  */
 @Composable
 fun BookshelfScreen(
-    onOpenDrawer: () -> Unit,
+    /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N）。 */
+    onOpenDrawer: (() -> Unit)?,
     onItemClick: (FindroidItem) -> Unit,
     navigateBack: () -> Unit,
     viewModel: BookshelfViewModel = hiltViewModel(),
@@ -76,7 +77,7 @@ fun BookshelfScreen(
 @Composable
 private fun BookshelfPlaceholder(
     state: BookshelfState,
-    onOpenDrawer: () -> Unit,
+    onOpenDrawer: (() -> Unit)?,
     onRetry: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
@@ -95,11 +96,13 @@ private fun BookshelfPlaceholder(
                     .padding(start = paddingStart, top = safePadding.top, end = paddingEnd)
                     .height(56.dp),
         ) {
-            TopBarAction(
-                icon = CoreR.drawable.ic_menu,
-                onClick = onOpenDrawer,
-                contentDescription = stringResource(CoreR.string.title_book_shelf),
-            )
+            if (onOpenDrawer != null) {
+                TopBarAction(
+                    icon = CoreR.drawable.ic_menu,
+                    onClick = onOpenDrawer,
+                    contentDescription = stringResource(CoreR.string.title_book_shelf),
+                )
+            }
         }
 
         Text(

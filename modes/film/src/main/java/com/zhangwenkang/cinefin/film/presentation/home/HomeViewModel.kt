@@ -130,12 +130,27 @@ constructor(
         Timber.i("Loading views")
         val items =
             if (appPreferences.getValue(appPreferences.homeLatest)) {
-                repository
-                    .getUserViews()
-                    .filter { view ->
+                val allViews =
+                    repository.getUserViews().filter { view ->
                         CollectionType.fromString(view.collectionType?.serialName) in
                             CollectionType.supported
                     }
+                // 「客户端设置 → 首页媒体库」：限定首页「最新」区块只取指定库；
+                // 指定的库在服务器上已不存在（或视图列表尚未命中）时回落全部库，避免首页空掉。
+                val preferredLibraryId =
+                    appPreferences.getValue(appPreferences.uiHomeLibraryId)?.takeIf {
+                        it.isNotBlank()
+                    }
+                val views =
+                    if (
+                        preferredLibraryId != null &&
+                            allViews.any { it.id.toString() == preferredLibraryId }
+                    ) {
+                        allViews.filter { it.id.toString() == preferredLibraryId }
+                    } else {
+                        allViews
+                    }
+                views
                     .map { view -> view to repository.getLatestMedia(view.id) }
                     .filter { (_, latest) -> latest.isNotEmpty() }
                     .map { (view, latest) -> view.toView(latest) }

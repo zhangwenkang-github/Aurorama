@@ -109,4 +109,21 @@
     <string name="media_segments_type_outro">片尾</string>
     <string name="media_segments_type_intro">片头</string>
     <string name="pref_player_media_segments_skip_button_duration">显示跳过按钮</string>
+    <string name="settings_category_libraries">媒体库</string>
+    <string name="settings_library_auto">自动</string>
+    <string name="settings_home_library">首页媒体库</string>
+    <string name="settings_home_library_summary">首页「最新」区块使用哪个库的内容</string>
+    <string name="settings_music_library">音乐库</string>
+    <string name="settings_music_library_summary">音乐模式浏览哪个音乐库；服务器没有音乐库时隐藏音乐入口</string>
+    <string name="settings_bookshelf_library">书架媒体库</string>
+    <string name="settings_bookshelf_library_summary">书架使用哪个书籍库；自动 = 第一个非空书籍库</string>
+    <string name="settings_category_sidebar">侧栏显示</string>
+    <string name="settings_sidebar_summary">对平板侧轨与抽屉生效；客户端设置始终保留</string>
+    <string name="settings_sidebar_show_home">首页</string>
+    <string name="settings_sidebar_show_media">媒体库</string>
+    <string name="settings_sidebar_show_music">音乐</string>
+    <string name="settings_sidebar_show_bookshelf">书架</string>
+    <string name="settings_sidebar_show_downloads">下载</string>
+    <string name="settings_sidebar_show_console">服务器控制台</string>
+    <string name="settings_sidebar_show_metadata">媒体资料管理器</string>
 </resources>

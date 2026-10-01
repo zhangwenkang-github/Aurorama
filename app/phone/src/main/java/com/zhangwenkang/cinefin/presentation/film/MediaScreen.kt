@@ -56,7 +56,8 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
 @Composable
 fun MediaScreen(
-    onOpenDrawer: () -> Unit,
+    /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N）。 */
+    onOpenDrawer: (() -> Unit)?,
     onItemClick: (FindroidItem) -> Unit,
     onFavoritesClick: () -> Unit,
     searchExpanded: Boolean,
@@ -102,7 +103,7 @@ fun MediaScreen(
  */
 @Composable
 private fun MediaScreenLayout(
-    onOpenDrawer: () -> Unit,
+    onOpenDrawer: (() -> Unit)?,
     state: MediaState,
     searchState: SearchState,
     searchExpanded: Boolean,
@@ -135,7 +136,7 @@ private fun MediaScreenLayout(
         }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 媒体库顶栏：抽屉入口必须一直在，否则进了这一页就再也回不去菜单
+        // 媒体库顶栏：有抽屉的形态（平板）保留入口；手机 Compact 无抽屉，这里保持高度让标题对齐。
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier =
@@ -147,11 +148,13 @@ private fun MediaScreenLayout(
                     )
                     .height(56.dp),
         ) {
-            TopBarAction(
-                icon = CoreR.drawable.ic_menu,
-                onClick = onOpenDrawer,
-                contentDescription = stringResource(CoreR.string.title_media),
-            )
+            if (onOpenDrawer != null) {
+                TopBarAction(
+                    icon = CoreR.drawable.ic_menu,
+                    onClick = onOpenDrawer,
+                    contentDescription = stringResource(CoreR.string.title_media),
+                )
+            }
         }
 
         // 标题块：大标题 + 计数副题（层级）
