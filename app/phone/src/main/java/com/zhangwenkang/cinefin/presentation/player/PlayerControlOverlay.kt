@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.player
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -192,6 +193,32 @@ internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
         settingsInBottomRow = narrow,
     )
 }
+
+/** 返回键该做什么（W11 反馈⑦）。 */
+internal enum class PlayerBackAction {
+    /** 没有面板打开：交给系统处理（退出播放页） */
+    Ignore,
+    /** 一级面板：直接关掉，留在播放页 */
+    ClosePanel,
+    /** 子面板：先回上一级面板（与抽屉左上角的返回箭头同一套逻辑） */
+    BackToParentPanel,
+}
+
+/**
+ * 播放页返回键优先级（W11 反馈⑦）。
+ *
+ * 面板打开时**先关面板**：子面板回上一级、一级面板直接收起，都不退出播放页； 只有没有任何面板时，返回键才交回系统（真正退出播放）。
+ * 抽成纯函数是为了让「顺序」可被单测钉住——它曾经完全没有拦截，按返回直接退 Activity。
+ */
+internal fun resolvePlayerBack(
+    panelOpen: Boolean,
+    hasParentPanel: Boolean,
+): PlayerBackAction =
+    when {
+        !panelOpen -> PlayerBackAction.Ignore
+        hasParentPanel -> PlayerBackAction.BackToParentPanel
+        else -> PlayerBackAction.ClosePanel
+    }
 
 /**
  * 画面比例档位。
@@ -454,6 +481,24 @@ fun PlayerControlOverlay(
             // 缓冲期间承载视图要保持合成：控件整层隐藏时还要画那一个独立的缓冲圈（反馈⑤）
             runtime.isBuffering,
         )
+    }
+
+    /*
+     * 返回键（W11 反馈⑦）：面板打开时先关面板，不能直接退出播放页。
+     * 子面板（「播放设置 → 循环模式」这类）先回上一级，与抽屉左上角的返回箭头同一套优先级（纯函数 + 单测）。
+     */
+    val backAction =
+        resolvePlayerBack(
+            panelOpen = panel != PlayerPanel.None,
+            hasParentPanel = panelBackTarget != null,
+        )
+    BackHandler(enabled = backAction != PlayerBackAction.Ignore) {
+        panel =
+            if (backAction == PlayerBackAction.BackToParentPanel) {
+                panelBackTarget ?: PlayerPanel.None
+            } else {
+                PlayerPanel.None
+            }
     }
 
     // 出错时把控制层顶出来：错误卡片是模态的，用户点掉之前一直可见

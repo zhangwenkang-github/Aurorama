@@ -56,4 +56,36 @@ class PlayerControlLayoutTest {
     private fun assertStopsSorted(stops: List<Float>) {
         stops.zipWithNext { left, right -> assertTrue("色标必须单调递增：$left -> $right", left < right) }
     }
+
+    @Test
+    fun backKey_closesPanelBeforeLeavingPlayer() {
+        assertEquals(
+            "面板打开时必须先关面板，而不是退出播放",
+            PlayerBackAction.ClosePanel,
+            resolvePlayerBack(panelOpen = true, hasParentPanel = false),
+        )
+    }
+
+    @Test
+    fun backKey_subPanelGoesBackToParentPanel() {
+        assertEquals(
+            "子面板先回上一级（与抽屉返回箭头一致）",
+            PlayerBackAction.BackToParentPanel,
+            resolvePlayerBack(panelOpen = true, hasParentPanel = true),
+        )
+    }
+
+    @Test
+    fun backKey_withoutPanelFallsThroughToSystem() {
+        assertEquals(
+            "没有面板时返回键交回系统（真正退出播放页）",
+            PlayerBackAction.Ignore,
+            resolvePlayerBack(panelOpen = false, hasParentPanel = false),
+        )
+        assertEquals(
+            "没有面板时即使残留上一级标记也不拦截",
+            PlayerBackAction.Ignore,
+            resolvePlayerBack(panelOpen = false, hasParentPanel = true),
+        )
+    }
 }
