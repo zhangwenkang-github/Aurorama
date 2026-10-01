@@ -1,10 +1,10 @@
 # Cinefin UI 重塑任务线（UI_PLAN）
 
-> 任务线：UI 重塑（设计系统落地）｜波次：W5-R3（R3-UI-LUMEN）｜分支：`feature/r3-ui-lumen`｜最后更新：2026-10-01
+> 任务线：UI 重塑（设计系统落地）｜波次：W5-R3（R3-UI-LUMEN）｜分支：`feature/r3-ui-lumen`（最新波次 W5-R3I：`feature/r3-console-entry`）｜最后更新：2026-10-01
 > 权威设计依据：`docs/UI_DESIGN_SYSTEM.md`（S4 v1.0，Prism 棱镜）。
 > 本文件是该任务线的**唯一权威文档**：需求、决策、进度、验收、踩坑与日志都写在这里，不新建零散 `.md`。
 
-> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛； W5-R3（R3-UI-LUMEN）= 首页与视频详情改用 S1 流光（A · Lumen）手法 + 媒体库去拥挤 + 侧柜统一列表（取消「更多」分组）与入口行为一致化； W5-R3F（R3-UI-HOTFIX，`feature/r3-ui-hotfix`）= 四项 UI 验收缺陷热修； W5-R3G（R3-NAVFIX，`feature/r3-ui-navfix`）= 修复踩坑 28：带参路由统一用 `NavDestination.hasRoute` 判定，平板侧轨在设置 / 书籍库 / 带参媒体库页常驻且选中态正确； W5-R3H（R3-UI-LUMEN-A，`feature/r3-ui-lumen-a`，本波）= 流光改 S1「A · Lumen」配色（`ProvideLumen` 局部覆盖 + 月白主按钮）+ 亮图文字阴影 / 水平渐隐 + 手机 hero 行动区排版修复。
+> 波次历史：W1-R3（R3-TOKENS，`feature/r3-ui-tokens`，已合并 master）= token 与四类基础组件； W3-R3（R3-PAGES-A，`feature/r3-ui-pages-a`）= 音乐 / 阅读页面接入 Prism + 路由入口注册； W4-R3（R3-PAGES-B）= 首页 / 媒体库 / 详情 / 搜索 / 下载 / 设置 / 抽屉 / 欢迎页全套换新 + 导航形态分级（手机底部 Tab / 平板侧轨）+ Prism 字阶收敛； W5-R3（R3-UI-LUMEN）= 首页与视频详情改用 S1 流光（A · Lumen）手法 + 媒体库去拥挤 + 侧柜统一列表（取消「更多」分组）与入口行为一致化； W5-R3F（R3-UI-HOTFIX，`feature/r3-ui-hotfix`）= 四项 UI 验收缺陷热修； W5-R3G（R3-NAVFIX，`feature/r3-ui-navfix`）= 修复踩坑 28：带参路由统一用 `NavDestination.hasRoute` 判定，平板侧轨在设置 / 书籍库 / 带参媒体库页常驻且选中态正确； W5-R3H（R3-UI-LUMEN-A，`feature/r3-ui-lumen-a`）= 流光改 S1「A · Lumen」配色（`ProvideLumen` 局部覆盖 + 月白主按钮）+ 亮图文字阴影 / 水平渐隐 + 手机 hero 行动区排版修复； W5-R3I（R3-CONSOLE-ENTRY，`feature/r3-console-entry`，本波）= 恢复 D18 删除的「服务器控制台 / 媒体资料管理器」入口（管理员门控、统一列表、按 path 区分选中态）+ 控制台返回不再落到空白种子页。
 
 ## 1. 任务线定位
 
@@ -61,6 +61,7 @@
 | D18 | **侧轨 / 底部 Tab / 抽屉共用一份「统一目的地」列表，取消「更多」分组**（W5-R3，用户反馈 3 + 4） | 原 `chromeDestinations` 里的「更多」条目（`title_more` + `ic_menu`）是一个"桶"：点它弹抽屉，抽屉里再按 媒体 / 管理 / 用户 分区列条目——同一个目标在不同入口下行为不同（例如从侧轨点「设置」会因 `showNavigation=false` 把整条侧轨顶掉）。本波改成：**删除「更多」桶**，把媒体库 / 下载 / 设置 / 管理（控制台、媒体资料管理器）并入 `chromeDestinations` 一份列表；抽屉 = 同一份列表 + 服务器库列表（**无分组标题**）；`showNavigation` 改为「统一目的地集合」判定（首页 / 媒体库 / 下载 / 音乐 / 书架 / 设置 / 控制台）。结果：手机底部 Tab = 首页 / 媒体库 / 音乐 / 书架（4 个真实目标），抽屉仍可由顶栏菜单键与边缘手势打开；平板侧轨对**任何**条目都常驻，只换内容区。 |
 | D19 | **媒体库去拥挤**（W5-R3，用户反馈 2） | ①**栅格**：总览页库卡从「固定 260dp 宽 + `GridCells.Adaptive(160/240/320)`」改为「整列宽 16:9 大卡 + 列宽 300 / 320 / 380 / 420dp（按窗口分级）」——旧组合在手机上会把卡片挤出屏幕、在平板上留不规则空档，是拥挤感的主因；库内容页海报最小列宽 160 → 176dp、音乐方形 184 → 200dp、横版 260 → 300dp，并让 `ItemCard` 宽度由栅格列决定（不再固定 150/184/260dp）。②**间距**：区块行距 16 → 24dp（`Space6`），页面底部留白 +32dp，列距保持 16 / 26dp 的既有栅格；首页区块间距 16 → 32dp（`Space8`）。③**层级**：媒体库总览与库内容页都加「大标题 + 计数副题」（`HeadlineLarge/Medium` + `BodyMedium/BodySmall`），标题从 22sp 升到 32/40sp；区块标题去掉横贯发丝线，改右侧「全部 ›」文字操作。④**信息**：海报墙只留片名 + 进度（去掉已看徽标），走廊卡标题下只留一行元信息与右下角片长。 |
 | D20 | **流光区域改用 S1「A · Lumen」配色（局部覆盖）**（W5-R3H，用户 2026-10-01 批准「B 骨架 + A 配色局部覆盖」） | 用户要求"流光效果同时改配色"。落地：新增 `core/.../theme/LumenColors.kt`（`LumenTokens` + `LumenColors` / `LocalLumenColors` + `ProvideLumen`；**全项目第二处允许 `Color(0x…)` 的文件**，A 稿色值唯一落点）= 曜石黑 `#08090C` 页底、石墨 `#111319` 卡片、雾灰 `#171A21` 悬浮 / 高亮底、月白 `#F2F5F9` 主文字与主按钮底、次级文字 `#98A2B3`、三级文字 `#6B7483`、极光青 `#5CE1D2` **唯一强调色**（眉标 / 进度 / 焦点 / 激活态）、辅光蓝 `#7CC4FF` 只用于头图进度渐变（<10%）。`ProvideLumen` 只包 **首页 + 电影 / 剧集 / 季 / 集详情**：同步覆盖 `LocalCinefinColors` / `LocalMediaColors` / `LocalLumenColors`，既有 Prism 组件零改动切到 A 色板；主行动改月白填充（`CinefinButton` 新增 `CinefinButtonTone.Inverse`，对应 A 稿 `.btn.primary`），卡片描边在 Lumen 区域改 A 稿 `--line`（白 8.5%），"全部 ›"改三级灰。**与 §2.6 媒体色纪律的关系**：Lumen 不是"第 4 个媒体色"，而是影视域在 Lumen 区域的**局部皮肤覆盖**——媒体库 / 搜索 / 设置 / 音乐 / 阅读都在 `ProvideLumen` 之外，保持 Prism 与各自皮肤；A 色板不得扩散到音乐 / 阅读。**文字可读性**（同波）：`TextStyle.lumenTextShadow(Title / Meta)`（标题黑 62% / offset (0,2dp) / 模糊 12dp；眉标与元信息黑 72% / (0,1dp) / 6dp）+ 首页 / 详情头图新增 A 稿左侧水平渐隐 `lumenSideScrim`（`rgba(6,7,10,·)` 家族）。**行动区排版**（同波）：手机 16:9 头图高度（≈208dp）小于内容高度导致行动区被压扁 → 头图改 `heightIn(min = 比例高度)`（内容可撑高）+ 行动区 `FlowRow`（放不下自动换行）+ 时间文本 `softWrap = false`。 |
+| D21 | **恢复「服务器控制台 / 媒体资料管理器」入口：`chromeDestinations` 统一列表 + 管理员门控 + 按 path 区分选中态**（W5-R3I，负责人 2026-10-01 交办；补 D18 缺口） | D18 把入口从抽屉删掉后没有接回统一列表（W5-R3G 走查发现并留档），本波按**历史实现**（`20c4fe3^`）恢复：①两条入口直接进 `chromeDestinations`（不再有「更多」分组），`bottom = false` → 手机底部 Tab 仍是 4 个真实目标，只在平板侧轨 / 手机抽屉出现；②**只对管理员显示**——沿用 `DrawerViewModel.isAdministrator`（`repository.isCurrentUserAdministrator()` 读取失败回落 false），非管理员一律隐藏，服务端管理页面对普通账号保持不可达；③路由复用历史定义：服务器控制台 `ConsoleRoute()`（默认 `/dashboard`）、媒体资料管理器 `ConsoleRoute(path = "/metadata")`，路径常量收口到 `ConsolePathDashboard` / `ConsolePathMetadata`（默认值 / 条目 / 选中态同源）；④两类入口**共用同一个目的地 id**，选中态只能按 `ConsoleRoute.path` 判定（`consoleEntrySelected`），否则两条会同时高亮；⑤导航走独立 `navigateConsole`（`popUpTo(start)` **不带** `saveState`、不 `restoreState`），否则统一入口的 `saveState + restoreState` 会按目的地 id 把上一次保存的控制台条目恢复出来——点「媒体资料管理器」会回到 `/dashboard`（踩坑 30）；⑥同波修掉控制台返回路径：种子页（写登录态用）不再留在 WebView 历史里，控制台页按一次系统返回即离开控制台（踩坑 31）。门控 / 路径 / 选中态抽成纯函数 `consoleEntrySpecs` / `consoleEntrySelected` 并补单测（3 项）。 |
 
 ## 4. 进度
 
@@ -156,6 +157,18 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - [x] 门禁：`:app:phone:assembleDebug ktfmtCheck`、`:core:testLibreDebugUnitTest`（16 项，含新增 3 项 Lumen token / 覆盖映射 / 反色按钮单测）全绿
 - [x] 真机自检（Pad 5 `43af8627`，截图自检不入库）：横屏 2560×1600（首页 / 电影详情 / 集详情 A 配色与文字阴影）+ 手机规格 1080×2400 @420 ≈ 411dp（行动区完整显示）
 - [ ] K60（`8e875894`）当前未接入：手机形态以 Pad 5 + K60 规格 `wm` 覆盖验证；K60 上线后补一次真机复验
+
+### W5-R3I 本轮进度（控制台入口恢复，2026-10-01，分支 `feature/r3-console-entry`）
+
+补 D18 缺口（W5-R3G 走查留档的「控制台 / 媒体资料管理器无法从 UI 到达」），决策见 D21：
+
+- [x] **入口接回统一列表**：`chromeDestinations` 追加两条（服务器控制台 `ic_globe` / `title_console` → `ConsoleRoute()`；媒体资料管理器 `ic_database` / `title_metadata_manager` → `ConsoleRoute(path = "/metadata")`），位置在「下载」与「设置」之间；`bottom = false` → 手机底部 Tab 仍只有首页 / 音乐 / 书架 / 媒体库，平板侧轨与手机抽屉各 8 条（管理员）
+- [x] **管理员门控**：条目构造走 `consoleEntrySpecs(drawerData.isAdministrator)`，非管理员（含 `isCurrentUserAdministrator()` 读取失败）返回空列表 → 两条入口不出现；测试账号（非管理员）真机可见 6 条（侧轨）/ 无控制台条目（抽屉）
+- [x] **选中态按 path 区分**：`consoleEntrySelected(currentPath, entryPath)`（`navBackStackEntry.toRoute<ConsoleRoute>().path`，参数缺失回落 `/dashboard`）→ 控制台页高亮「服务器控制台」、资料管理器页高亮「媒体资料管理器」，不再两条同亮
+- [x] **导航不复用状态**：`navigateConsole` = `popUpTo(startDestinationId)`（不带 `saveState`）+ `launchSingleTop`；统一入口的 `saveState + restoreState` 会把同一目的地 id 的旧条目恢复出来（踩坑 30），真机 CDP 实测资料管理器落到 `web/#/metadata`（修复前会回到 `#/dashboard`）
+- [x] **控制台返回路径**：`ConsoleWebViewClient` 在种子页 → 控制台页切换完成后 `clearHistory()`，控制台页按一次系统返回即回主界面（修复前会先落到空白 `cinefin-seed` 页，踩坑 31）；平板侧轨 / 手机底部 Tab 在控制台页常驻（`showNavigation` 已含 `ConsoleRoute`），抽屉手势可用
+- [x] **门禁**：`:app:phone:assembleDebug ktfmtCheck` 通过；`:app:phone:testLibreDebugUnitTest` 8 项全绿（新增 `ConsoleEntrySpecTest` 3 项：非管理员空列表、管理员两条路径与资源、选中态按 path）
+- [x] **真机**：Pad 5 `43af8627`（`wm size 2560x1600` + `density 320` ≈ 1280dp 平板形态）与 K60 `8e875894`（原生竖屏）——非管理员隐藏、临时 `isAdministrator = true` 调试构建下出现且导航 / 高亮正确、还原后重装干净包复验隐藏；device-lock 已登记并在完成时释放
 
 ## 5. 验收
 
@@ -295,6 +308,23 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [x] 纪律复核：不改 `settings.gradle.kts` / `libs.versions.toml` / `AppPreferences.kt` / `player/*`、不动其他 worktree、不改 `docs/PROJECT_PLAN.md`；Pad 5 `wm size/density` 已 reset、`accelerometer_rotation` 恢复 1 / `user_rotation` 0、App force-stop、`/sdcard` 临时文件清理；device-lock 已登记并在完成时释放
 - [ ] **K60（`8e875894`）当前未接入**：手机形态暂以 Pad 5 + K60 规格覆盖验证；接入后补一次真机复验（预期与 Pad 5 覆盖一致）
 
+### W5-R3I 验收（2026-10-01，控制台入口恢复，分支 `feature/r3-console-entry`）
+
+验收命令（全部通过）：
+
+```powershell
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck --console=plain          # BUILD SUCCESSFUL
+.\gradlew.bat :app:phone:testLibreDebugUnitTest --console=plain            # 8 项：原 5 + ConsoleEntrySpec 3
+```
+
+- [x] **① 非管理员隐藏（测试账号真名 `zhangwenkang`，服务端侧亦非管理员——jellyfin-web 把 `/dashboard` 重定向到 `#/home`）**：Pad 5 平板形态（侧轨展开 164dp）左侧 6 条 = 影阁 / 首页 / 音乐 / 书架 / 媒体库 / 下载 / 设置 + 收起，无控制台条目；抽屉（边缘手势打开）= 同一份 6 条 + 库列表（电影 / 动漫 / 其他 / 书籍 / 书籍3 / 音乐 / Playlists），无控制台条目；K60 底部 Tab 4 条 + 抽屉同样无控制台条目
+- [x] **② 管理员门控为纯函数 + 临时调试构建证明**（真机无法用管理员账号登录）：临时把 `DrawerViewModel` 的 `isAdministrator` 置 `true` 出调试包（未提交，验证后已 `git restore` 还原并重装干净包）——Pad 5 侧轨出现「服务器控制台 / 媒体资料管理器」（8 条），K60 抽屉出现同样两条且点击后抽屉关闭；两份证据同时说明门控接线正确（同一份 APK 的差别只在 `isAdministrator`）
+- [x] **③ 导航正确（CDP 取 WebView 真实 URL）**：Pad 5 点「服务器控制台」→ WebView `https://jellyfins.zhangwenkang.com/web/#/home`（服务端把 `/dashboard` 重定向到非管理员的首页），点「媒体资料管理器」→ 轮询抓到 `cinefin-seed` → `web/#/metadata`，**说明 app 侧确实带 `path = "/metadata"` 而不是复用旧条目**（踩坑 30 回归点）；K60 抽屉点「媒体资料管理器」→ `web/#/metadata`
+- [x] **④ 侧轨常驻 + 选中态（像素采样，截图未入库）**：控制台页面上侧轨仍为 8 条；「服务器控制台」行底像素 `(60,53,51)`（= `Media.Container` 选中高亮），「媒体资料管理器」行 `(18,23,29)`（未选中）；切到资料管理器后两行像素互换 → 同一目的地按 path 区分选中态生效
+- [x] **⑤ 返回 / 抽屉入口可用**：控制台页内按一次系统返回即回主界面（修复前先落到空白种子页，需按两次）；K60 控制台页底部 4 Tab 常驻，点「首页」直接回首页；平板侧轨在控制台页可点任意条目离开
+- [x] 纪律复核：不改 `settings.gradle.kts` / `libs.versions.toml` / `AppPreferences.kt` / `player/*`、不动其他 worktree、不改 `docs/PROJECT_PLAN.md`；Pad 5 `wm size / density` 已 reset、`accelerometer_rotation` 1 / `user_rotation` 0、两台设备 App 已 force-stop、`/sdcard` 临时 xml 与本地临时截图 / xml 已清理、`adb forward` 9222–9224 已移除；device-lock 将于完成时释放
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -326,6 +356,8 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 27. **悬浮在滚动内容上的搜索框必然遮挡**：`Box { FilmSearchBar(); LazyVerticalGrid(topPadding = 88.dp) }` 只在滚动起点对齐，上滑后卡片会钻到搜索框下（用户截图可见"搜索框挡住最前面的卡片"）。两种解法二选一：放进滚动内容第一项（M3 `SearchBar` 展开需要全屏约束，放 lazy item 里会拿到无界约束，风险高）或改成不覆盖布局——本波取 Column 表头 + 栅格自裁剪，并用 `uiautomator` 断言"最上可见卡片 bounds 与搜索框 bounds 无交集"。
 28. **`currentRoute == Route::class.qualifiedName` 对带参路由恒为 false**：Navigation Compose 里 `destination.route` 对 data object 才是 qualifiedName，对带参路由是「类名 + `/{arg}` 模板」。所以 `showNavigation` 中的 `LibraryRoute` / `SettingsRoute` / `ConsoleRoute` 从未命中（这三个页面侧轨 / 底部 Tab 不常驻，与 D18 文字不符），`currentLibrary` 也恒为 null（书架库选中态失效）。正确写法是 `navBackStackEntry?.destination?.hasRoute<LibraryRoute>()`；本波新增的 `BookshelfRoute` 是 data object，不受影响。**W5-R3G 已修复**：统一收口到 `NavDestination?.isRoute<T>()`（内部走 `NavDestination.Companion.hasRoute`，navigation 2.10.1 的 import 为 `androidx.navigation.NavDestination.Companion.hasRoute`），覆盖 8 个统一目的地与全部选中态；真机对照见 §5 W5-R3G 验收。
 29. **头图"内容比卡片高"时，底部对齐会先把行动区压扁**：手机竖屏 16:9 头图（411dp 屏 → 卡片 ≈371dp 宽 → ≈208dp 高）装不下「眉标 + 标题 + 元信息 + 副标题 + 行动区」（≈236dp）；`Column` 用 `align(BottomStart)` 后超出部分被 `clip(shape)` 裁掉——表现**不是**顶部被裁，而是最底部的行动区被**压缩测量**：46dp 的按钮胶囊只剩 ≈14dp 高、文字被拦腰裁切，「剩余 N 分钟」同样被裁（真机表现为用户报的"按钮与剩余时间显示不全"）。定位手法：截图后按行扫描按钮主色像素（橙色仅 y 662–699 → 胶囊高 38px）即可确认是垂直压缩而非水平溢出。修法：头图 `Modifier.heightIn(min = 比例高度)`（高度 = max(比例高度, 内容高度)，图片 / 遮罩层必须改 `matchParentSize`，否则 `fillMaxSize` 在高度无界时不参与测量）+ 行动区 `FlowRow`（放不下自动换行）+ 时间文本 `softWrap = false`。结论：**凡是"图 + 文字压底"的卡片，比例高度只能当 min，不能当固定高度**。
+30. **`popUpTo(saveState = true) + restoreState = true` 会按「目的地 id」恢复旧条目，把新参数顶掉**：服务器控制台与媒体资料管理器是同一条 `ConsoleRoute`（只差 `path` 参数）→ 两者目的地 id 相同。沿用统一入口 `navigateTopLevel`（`popUpTo(start){ saveState = true }` + `restoreState = true`）时：先开控制台（`/dashboard`）→ 再点资料管理器，`NavController` 发现 `backStackMap` 里有该目的地 id 的保存条目，**优先恢复它**（`restoreStateInternal(backStackState)`），于是新传入的 `path = "/metadata"` 被丢弃，用户又看到 `/dashboard`。定位手法：`adb forward` 到 WebView 的 devtools socket，`curl http://127.0.0.1:<port>/json` 读页面 URL（debug 包已开 `setWebContentsDebuggingEnabled`），或轮询 URL 变化。修法：这类"一个目的地 + 多种参数"的入口走独立导航（`popUpTo(start)` 不带 `saveState`、不 `restoreState` + `launchSingleTop`），让参数生效；**只有"同一个页面、要保留滚动 / 输入状态"的 Tab 才该用 `saveState/restoreState`**。
+31. **WebView 的"登录态种子页"会留在历史里，让返回变成两步空白页**：控制台的登录态是靠一个同源空白种子页写进 `localStorage` 的（先 `loadUrl(seedUrl)`，`onPageFinished` 里再 `loadUrl(consoleUrl)`），种子页因此成为 WebView 历史的第一条。系统返回键在 `ConsoleWebViewClient` 里优先走 `webView.canGoBack()`，于是控制台里按一次返回落到**看不见的种子页**（深色空白），要按第二次才离开控制台。修法：种子页 `onPageFinished` 置 `pendingSeedHistoryTrim`，等控制台页真正加载完再 `view.clearHistory()`（此时清掉的只有种子页那一步，控制台内部后续的 hash 导航历史不受影响）。
 
 ## 7. 日志
 
@@ -343,3 +375,5 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - **交接提示（负责人 / 下一会话）**：① **控制台 / 媒体资料管理器入口待决策**——`ConsoleRoute` 判定已修好，但 UI 上没有入口（D18 删除后未接回 `chromeDestinations`，且需接 `DrawerViewModel.isAdmin`）；恢复入口属功能变更，本波未动。② 若后续把 `chromeDestinations` 改为按管理员动态生成，`showNavigation` 的 `isRoute<ConsoleRoute>()` 已就绪，无需再改判定。③ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛（W4/W5 遗留）。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
 - **2026-10-01 W5-R3H（本会话，流光 A 配色 + 亮图文字 + 手机 hero 排版）**：读齐 `PROJECT_PLAN` §1–§5、`UI_PLAN`（W5 + 28 条踩坑）、`UI_DESIGN_SYSTEM` §2 色彩系统 / §2.6 媒体色纪律、`docs/design/s1-direction-a/README.md` + `home/detail/phone` 三张稿与渲染源 CSS 变量、`s1-decision`；核对 `presentation/film/*`、`components/LumenSurface.kt`、`core/.../theme/*` 与 `CinefinButton`。完成：①新增 `core/.../theme/LumenColors.kt`（`LumenTokens` / `LumenColors` / `LocalLumenColors` / `ProvideLumen`，A 稿色值唯一落点，D20）并接入首页 + 电影 / 剧集 / 季 / 集详情；`CinefinButton` 新增 `CinefinButtonTone.Inverse`（月白主按钮）；`LumenCardFrame` / `SectionHeader` 在 Lumen 区域改用 A 稿描边与三级灰；②`TextStyle.lumenTextShadow(Title/Meta)` + `lumenSideScrim`（A 稿左侧水平渐隐）应用到首页 / 详情头图文字；③定位并修复踩坑 29（手机 hero 高度不足 → 行动区被压缩测量），改 `heightIn(min = 比例高度)` + `FlowRow` + `softWrap = false`。门禁 `:app:phone:assembleDebug ktfmtCheck` + `:core:testLibreDebugUnitTest`（16 项）全绿；Pad 5 横屏（首页 / 电影详情 / 集详情）与 K60 规格手机形态（1080×2400 @420）真机自检通过（截图自检不入库）。分支 `feature/r3-ui-lumen-a`。
 - **交接提示（负责人 / 下一会话）**：① **K60（`8e875894`）当前未接入**——手机形态以 Pad 5 + K60 规格 `wm` 覆盖验证，K60 上线后建议补一次真机复验（步骤见 §5 W5-R3H 验收）；② 季 / 集详情页仍是旧版布局（`MaterialTheme.spacings` 桥接 + 旧字阶），本波只换配色与文字阴影，未做 Lumen 版式重排，如需统一到 W5 版式另排一波；③ 底部 Tab / 侧轨等导航 chrome 仍走 Prism（`ProvideLumen` 只包页面内容），这是"局部覆盖不扩散"的刻意边界，若要一并换色需先解决 chrome 与音乐 / 阅读共用的问题；④ `MaterialTheme.spacings` 桥接与 `HomeHeader / HomeCarousel*` 死代码仍未收敛（W4/W5 遗留）。合并前 rebase 最新 `master`；`docs/PROJECT_PLAN.md` 由负责人维护，本线不改。
+
+- **2026-10-01 W5-R3I（本会话，控制台入口恢复 + 管理员门控）**：读齐 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D18–D20、W5-R3G 小节与「发现」、踩坑 28）、`ARCHITECTURE` 导航相关章节、`REQUIREMENTS` §7（控制台属官方对齐批次 1，走 Web 兜底）；`git log -S metadataRoute` / `-S 服务器控制台` 追溯到入口由 `c3241fa` 建立、`20c4fe3`（D18）删除，历史实现用 `DrawerViewModel.isAdministrator` 门控 + `ic_globe`/`ic_database` + `ConsoleRoute()`/`ConsoleRoute(path = "/metadata")`。落地：①`chromeDestinations` 接回两条入口（`bottom = false`，手机底部 Tab 不变，侧轨 / 抽屉可见）；②门控 / 路径 / 选中态抽成纯函数 `consoleEntrySpecs` / `consoleEntrySelected` + 路径常量收口，补 `ConsoleEntrySpecTest` 3 项；③选中态改按 `ConsoleRoute.path` 判定，避免两条同亮；④独立 `navigateConsole` 关闭 `saveState/restoreState`（踩坑 30：同目的地 id 会把旧 `/dashboard` 条目恢复出来）；⑤`WebConsoleScreen` 种子页不再留历史，返回一次即离开控制台（踩坑 31）。门禁 `:app:phone:assembleDebug ktfmtCheck` 通过、`:app:phone:testLibreDebugUnitTest` 8 项全绿；真机 Pad 5（`43af8627`，2560×1600 @320 ≈ 1280dp）+ K60（`8e875894`）——非管理员隐藏（侧轨 6 条 / 抽屉无控制台条目）、临时 `isAdministrator = true` 调试包证明出现与导航正确（CDP 实证 `web/#/metadata`）、选中态像素采样 `(60,53,51)` vs `(18,23,29)`、控制台页返回一次回主界面；临时改动已 `git restore` 还原并重装干净包复验。分支 `feature/r3-console-entry`（未合并 master）。

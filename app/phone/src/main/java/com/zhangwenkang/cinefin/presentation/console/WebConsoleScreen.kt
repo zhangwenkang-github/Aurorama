@@ -288,6 +288,12 @@ private class ConsoleWebViewClient(
     private var seedHandled = false
 
     /**
+     * 种子页只是写登录态的跳板，不该留在 WebView 历史里：否则控制台里按一次系统返回会先落到空白种子页。 标记在种子页 `onPageFinished`
+     * 时置位，等控制台页真正加载完再清一次历史（此时清掉的只有种子页那一步）。
+     */
+    private var pendingSeedHistoryTrim = false
+
+    /**
      * 种子页不发真实请求：直接在本地生成一个同源的空白页面。 这样既能把凭据写进该源的 localStorage，又不会像以前那样把 manifest.json 的原始代码显示在屏幕上。
      */
     override fun shouldInterceptRequest(
@@ -320,9 +326,15 @@ private class ConsoleWebViewClient(
 
         if (!seedHandled && url != null && url.startsWith(seedUrl)) {
             seedHandled = true
+            pendingSeedHistoryTrim = true
             // App 侧令牌已失效时不再覆盖，让用户能直接在网页里登录
             view.loadUrl(consoleUrl)
             return
+        }
+
+        if (pendingSeedHistoryTrim) {
+            pendingSeedHistoryTrim = false
+            view.clearHistory()
         }
 
         onLoadingChanged(false)

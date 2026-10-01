@@ -132,11 +132,21 @@ import kotlinx.serialization.Serializable
 @Serializable data object BookshelfRoute
 
 /**
+ * 控制台后台路径（jellyfin-web 的 hash 路由）：`/dashboard` 控制台、`/metadata` 媒体资料管理器。
+ *
+ * 两类入口共用 [ConsoleRoute] 这一个目的地，只靠 [ConsoleRoute.path] 参数区分，因此路径常量必须 是唯一来源（默认值 / 侧柜条目 / 选中态判定都读这里）。
+ */
+internal const val ConsolePathDashboard = "/dashboard"
+
+internal const val ConsolePathMetadata = "/metadata"
+
+/**
  * 服务器 Web 控制台。
  *
- * [path] 决定进后台的哪一页：`/dashboard` 是控制台，`/metadata` 是媒体资料管理器， `/details?id=…` 用来把图书之类的条目交给服务器自带的阅读器。
+ * [path] 决定进后台的哪一页：[ConsolePathDashboard] 是控制台，[ConsolePathMetadata] 是媒体资料管理器， `/details?id=…`
+ * 用来把图书之类的条目交给服务器自带的阅读器。
  */
-@Serializable data class ConsoleRoute(val path: String = "/dashboard")
+@Serializable data class ConsoleRoute(val path: String = ConsolePathDashboard)
 
 @Serializable
 data class LibraryRoute(
@@ -215,6 +225,7 @@ fun NavigationRoot(
     // 顶层页面允许手势拉出抽屉；详情页等保留全宽与返回手势。
     // 统一目的地（D18）：凡是侧柜（底部 Tab / 侧轨 / 抽屉）里能点到的目标都按顶层页面处理——
     // 手机选择后关闭抽屉，平板切换内容区、侧轨常驻，不再出现"某些条目把侧轨顶掉"。
+    // 控制台 / 媒体资料管理器也在这份列表里，但只对管理员可见（W5-R3I）。
     // 带参路由（Library / Settings / Console）的 destination.route 是「类名 + 参数模板」，
     // 不能用 ::class.qualifiedName 比较（踩坑 28）；统一用 isRoute 按序列化器哈希匹配。
     val showNavigation =
@@ -263,6 +274,14 @@ fun NavigationRoot(
         } else {
             null
         }
+    // 控制台 / 媒体资料管理器共用 ConsoleRoute 目的地，选中态要靠 path 参数区分（否则两条入口
+    // 会同时高亮，见踩坑 28 的同类问题）。
+    val consolePath =
+        if (currentDestination.isRoute<ConsoleRoute>()) {
+            runCatching { navBackStackEntry?.toRoute<ConsoleRoute>() }.getOrNull()?.path
+        } else {
+            null
+        }
 
     val homeSelected = currentDestination.isRoute<HomeRoute>()
     val musicSelected = currentDestination.isRoute<MusicModeRoute>()
@@ -281,6 +300,16 @@ fun NavigationRoot(
             popUpTo(navController.graph.startDestinationId) { saveState = true }
             launchSingleTop = true
             restoreState = true
+        }
+    }
+    // 控制台两类入口不能用统一入口的 saveState / restoreState：popUpTo(saveState) + restoreState 是按
+    // 目的地 id 恢复保存的条目，而两个入口共用 ConsoleRoute 目的地 id——点「媒体资料管理器」会把上一次
+    // 保存的 `/dashboard` 条目恢复出来（args 被覆盖，见踩坑 30）。这里按 path 重新建条目。
+    val navigateConsole: (String) -> Unit = { path ->
+        closeDrawer()
+        navController.safeNavigate(ConsoleRoute(path)) {
+            popUpTo(navController.graph.startDestinationId)
+            launchSingleTop = true
         }
     }
     val openLibrary: (FindroidCollection) -> Unit = { library ->
@@ -363,7 +392,18 @@ fun NavigationRoot(
             ) {
                 navigateTopLevel(settingsRoute)
             },
-        )
+        ) +
+            // 控制台 / 媒体资料管理器（W5-R3I 恢复 D18 删除的入口）：只对管理员展示，且不出现在
+            // 手机底部 Tab（bottom = false），只在侧轨 / 抽屉里。
+            consoleEntrySpecs(drawerData.isAdministrator).map { entry ->
+                ChromeDestination(
+                    item = chromeItem(entry.iconRes, stringResource(entry.titleRes)),
+                    selected = consoleEntrySelected(consolePath, entry.path),
+                    bottom = false,
+                ) {
+                    navigateConsole(entry.path)
+                }
+            }
     val bottomItems = chromeDestinations.filter { it.bottom }
 
     // 抽屉 = 同一份统一目的地列表 + 服务器库列表（D18：不再有「更多」分区，也没有分组标题，
@@ -941,3 +981,37 @@ private fun NavHostController.safePopBackStack(): Boolean {
  */
 private inline fun <reified T : Any> NavDestination?.isRoute(): Boolean =
     this?.hasRoute<T>() == true
+
+/** 侧柜控制台入口的纯描述（标题 / 图标 / 后台路径）：把「门控 + 列表构造」从 Composable 里拆出来， 便于单测覆盖（见 `ConsoleEntrySpecTest`）。 */
+internal data class ConsoleEntrySpec(
+    @param:StringRes val titleRes: Int,
+    @param:DrawableRes val iconRes: Int,
+    val path: String,
+)
+
+/**
+ * 控制台 / 媒体资料管理器入口（W5-R3I 恢复 D18 删除的入口）。
+ *
+ * 历史实现（`20c4fe3^`）用 `DrawerViewModel.isAdministrator` 门控：非管理员（含管理员状态读取失败） 一律不给入口，避免把服务端管理页面暴露给普通账号。
+ */
+internal fun consoleEntrySpecs(isAdministrator: Boolean): List<ConsoleEntrySpec> =
+    if (!isAdministrator) {
+        emptyList()
+    } else {
+        listOf(
+            ConsoleEntrySpec(
+                titleRes = CoreR.string.title_console,
+                iconRes = CoreR.drawable.ic_globe,
+                path = ConsolePathDashboard,
+            ),
+            ConsoleEntrySpec(
+                titleRes = CoreR.string.title_metadata_manager,
+                iconRes = CoreR.drawable.ic_database,
+                path = ConsolePathMetadata,
+            ),
+        )
+    }
+
+/** 控制台两类入口的选中态：同一个 [ConsoleRoute] 目的地只能靠 path 参数区分；默认值（参数缺失） 等于控制台路径。 */
+internal fun consoleEntrySelected(currentPath: String?, entryPath: String): Boolean =
+    (currentPath ?: ConsolePathDashboard) == entryPath
