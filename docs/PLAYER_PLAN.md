@@ -590,6 +590,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-02 | **W13-PLAYER 播放页第五轮反馈（`feature/w13-player-ui5`）**：①左下工具行按「全屏 / 宽度」分级显示——全屏或宽度充足（≥600dp / 平板 · 折叠）显示 6 键，非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息 + 1×（判据抽纯函数 + 单测）；②倍率键只显示图标（与其它图标键同宽，选中态=非 1×）；③当前倍率作为独立文本项固定在「详细信息」右侧，点图标 / 点数字同开「选择播放速度」；④被隐藏的 码率 / 解码 在「设置 → 播放」各加一行兜底入口（不新增图标）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 31 项单测` 全绿；Pad 5 + K60 逐条文本证据见 §16。 |
 | 2026-10-01 | **W11-PLAYER 播放页第三轮反馈（`feature/w11-player-ui3`）**：①取消「更多」并把入口按性质分流到右上工具簇 / 左下工具行（新增 7 枚 `ic_player_*` 矢量图标）②锁定键移到画面区右缘垂直居中③中央恢复五键传输簇（上一个 · 快退 · 播放 · 快进 · 下一个）④进度条已播段改流光渐变（极光青 → 末端 <10% 辅光蓝）⑤两个加载图标去重（Media3 内置缓冲圈关闭，控件可见时落在主播放键里）⑥右下角全屏 / 退出全屏键（收起常驻内容栏 + 强制横屏）⑦返回键先关面板（子面板先回上一级）⑧时间码两端对齐 + 中央簇四档收放，任何窗口宽度都不重叠 / 不越界⑨季卡统一尺寸只横向滑动。真机 Pad 5 + K60 逐条文本证据；门禁 `assembleDebug + ktfmtCheck + app 34 项 / player:local 28 项单测` 全绿。见 §14 |
 | 2026-10-01 | W9-PLAYER 播放器体验补全波（`feature/w9-player-experience`）：§1.8 信息面板（双内核 + 全字段「—」降级 + 纯函数单测）、§1.9 设置面板六组（页内即时生效）、§1.7 队列管理（拖拽排序 / 删除 / 清空 / 跳转 + 播完暂停）、§1.6 画面调整（旋转 / 镜像 / 裁剪 / 去黑边，双内核）。门禁 `assembleDebug + ktfmtCheck + app 23 项 / player:local 23 项单测` 通过；真机 Pad 5 逐项走查（信息面板双内核、设置六组、队列四操作 + 播完暂停、画面四变换 + 还原），`logcat` 无 FATAL/ANR。见 §12 |
 | 2026-10-01 | §11 A–E 真机走查（PLAYER-UI / Pad 5 `43af8627`，10:27–11:05 指派窗口）：抽屉右侧化不压缩画面、底栏 5 键「图标+文字」、锁定单入口、更多收低频、手势（单击/双击 +10s/横向 seek/左亮度/右音量/长按 2×/面板打开拦截）与 PiP 全部通过；D 组回归（打开即播 + 自动字幕）通过；`logcat` 无 FATAL / ANR。走查中发现并修复①顶栏锁被 weight 布局挤到中部 ②竖屏命中带过紧（顶 72→64dp、中央半高 64→56dp）。设备侧已还原；结论见 §11.4、踩坑见 §9 |
@@ -1024,4 +1025,61 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 3. 转码档位只声明 HLS + ts + h264（+ aac/mp3/ac3/opus）：HEVC / AV1 片源会转成 h264（服务器默认行为，与官方客户端一致）；若日后要给高码率保留 HEVC 直通，再补 directPlayProfiles / codecProfiles。
 4. 小窗（Compact）工具行顺序是「音轨 · 字幕 · 倍率 · 码率 · 解码 · 信息 · 睡眠 · 选集 · 画面 · 设置 · 画中画 · 锁定」，与画面区版式的两条固定顺序表同源但合并成一行；后续若给小窗也做完整版式，按 `PLAYER_BOTTOM_KEY_ORDER` / `PLAYER_TOP_KEY_ORDER` 拆行。
 5. 本轮未做（用户未要求）：媒体信息面板内容不变（只是入口改名「详细信息」语义不变）、手势分类内容不变（只是从六组变两分类）。
+
+---
+
+## 16. W13-PLAYER 落地记录（2026-10-02 · 分支 `feature/w13-player-ui5`）
+
+> 用户第五轮播放页反馈（**方案 A 分级显示** + 倍率图标化 + 1× 文本独立）。提交：`d16b088`（实现）+ 文档提交；基线 master `424fdea`。
+> 本波只写 `app/phone`（`PlayerControlOverlay.kt` / `PlayerSettingsPanel.kt` / `PlayerControlLayoutTest.kt`）；`player:core` 无改动，`AppPreferences` / `NavigationRoot` / `settings.gradle.kts` / `libs.versions.toml` 未触碰。
+
+### 16.1 决策补充（与 §0 同源）
+
+| 编号 | 决策 |
+|------|------|
+| D33 | **左下工具行分级显示（方案 A）**：判据 = 先看真实全屏状态（`PlayerActivity.fullscreenMode`），再看宽度 / 形态档——全屏、宽度 ≥ **600dp**（与 `playerControlSpec` 的窄屏档、`PlayerFormFactor` 的 Phone → Tablet 分档同一条线）、或 Tablet / Foldable 形态 → **6 键全显**（音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息 + 1×）；非全屏窄窗（手机形态 411dp、`wm` 收窄 <600dp、自由窗口）→ 只留 音轨 · 字幕 · 倍率 · 详细信息 + 1×。抽成纯函数 `playerToolRowShowsSecondaryKeys(isFullscreen, widthDp, formFactor)` + `playerToolRowVisibleKeys(showsSecondaryKeys)`，单测钉死（全屏全显 / 窄窗隐藏 / 宽屏非全屏全显 / 600dp 阈值）。 |
+| D34 | **倍率键只显示图标**：改用 `PlayerIconButton(ic_player_speed)`，与其它工具键同宽同款，选中态 = 当前倍率 ≠ 1×；旧「图标上 / 数字下」的 `PlayerSpeedKey` 删除。**当前倍率文本独立成项**：`PlayerSpeedLabel` 固定在「详细信息」右侧，与其它覆盖层控件同玻璃底（0.28）+ 1dp 描边 + 同圆角；点图标 / 点数字打开同一个「选择播放速度」面板——全播放页仍然只有一个倍速语义入口（W11 D21 的约束不变）。 |
+| D35 | **设置 → 播放 补两行兜底入口**（码率 / 解码，纯文本 PanelRow，不新增图标；副标题显示当前档位 `自动 / 原始画质 / n Mbps` 与 `内核 · 策略`），点击打开对应面板；从子面板 BACK 仍回「播放设置」（沿用 W11 ⑦ 的 `panelBackTarget`）。小窗（Compact）工具行与画面区版式**共用同一条判据**：非全屏窄窗同样隐藏 码率 / 解码，倍率只留图标 + 「信息」右侧 1×。 |
+
+### 16.2 逐条落地与文件
+
+| # | 反馈 | 落地方式 | 主要文件 |
+|---|------|----------|----------|
+| ① | 方案 A 分级显示 | 新增 `PLAYER_TOOL_ROW_WIDE_WIDTH_DP = 600f` + 两个纯函数；`PlayerBottomBar` 按 `playerToolRowVisibleKeys()` 渲染；调用点传 `layout.windowWidthDp` / `layout.formFactor` / `isFullscreen`；Compact 行加 `showsSecondaryKeys` 参数 | `PlayerControlOverlay.kt` |
+| ② | 倍率键只显示图标 | `PlayerBottomKey.Speed` 分支改 `PlayerIconButton`（`selected = speed != 1f`）；删除 `PlayerSpeedKey` | 同上 |
+| ③ | 1× 独立文本项 | 新增 `PlayerSpeedLabel`（玻璃文本项，`contentDescription = "倍速 1×"`），渲染在键表尾部（=「详细信息」右侧）；Compact 行同样插在「信息」之后 | 同上 |
+| ④ | 设置兜底入口 | 「播放」分类顶部加 `码率` / `解码` 两个 `PanelRow`；新增 `streamingBitrateCaption()` / `decodeCaption()` 副标题（复用 `PlayerStreamingQuality.bitrateLabel` 与既有解码文案） | `PlayerSettingsPanel.kt` |
+| ⑤ | 判据单测 | `PlayerControlLayoutTest` +5：全屏全显 / 非全屏窄窗隐藏 码率·解码 / 宽屏非全屏全显 / 600dp 阈值 / 「详细信息」必须是末键（1× 才落在它右侧）；`bottomRowWidthDp` 公式计入 1× 项 | `PlayerControlLayoutTest.kt` |
+
+### 16.3 门禁（2026-10-02）
+
+```
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- `:app:phone:assembleDebug` ✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **49** 项 = 既有 44 + 新增 5
+- `:player:local:testDebugUnitTest` ✅ **31** 项（既有，未改动）
+
+### 16.4 真机走查（Pad 5 `43af8627` + K60 `8e875894`，命令全部带 `-s`）
+
+素材：《灼眼的夏娜》S01E03（`itemId=5db08a9c-0ae2-5c4b-1995-9a6472a664d9`，mpv 内核）。
+
+| # | 证据（文本 / 数值） |
+|---|--------------------|
+| ① 全屏 → 6 项齐全 | **Pad 5 平板全屏**（`PlayerActivity: player fullscreen=true`）：音轨 `[41,1461][149,1564]` · 字幕 `[158..266]` · 倍速 `[275..383]`（仅图标）· 码率 `[392..500]` · 解码 `[509..617]` · 信息 `[626..734]` · 1× `[747,1465][846,1564]` · 退出全屏 `[2410..2518]`，`PlayerView` 恒 `[0,0][2560,1564]`；**Pad 5 窄窗全屏**（`wm 800x1600` + `density 440` → 1600x756 ≈ 582dp）：同一窗口下 6 键回归（码率 `[386,636][508,756]`、解码 `[508..630]`、信息 `[630..752]`、1× `[765,649][870,754]`、退出全屏 `[1447..1579]`）；**K60 全屏**（3200x1440）：6 键 + 1× + 退出全屏 `[2968,1222][3136,1390]` |
+| ② 非全屏窄窗隐藏码率/解码 | **Pad 5 `wm` 收窄**（1600x756 ≈ 582dp，非全屏）：音轨 `[20,636][142,756]` · 字幕 `[142..264]` · 倍速 `[264..386]` · 信息 `[386..508]` · 1× `[521,649][626,754]` · 进入全屏 `[1447..1579]`；无障碍树整轮**无 码率 / 解码 节点**。**K60 竖屏 411dp**（1440x3200，非全屏）：音轨 `[25,1135][179,1303]` · 字幕 `[179..333]` · 倍速 `[333..487]` · 信息 `[487..641]` · 1× `[658,1152][791,1285]`（文本节点 `1× [700,1188][750,1249]`）· 进入全屏 `[1247..1415]`，同样无 码率 / 解码 |
+| ③ 宽屏非全屏仍全显 | Pad 5 原生 `[0,0][2560,1564]`（≈1280dp）非全屏 = 6 键 + 1×；K60 退出全屏后停在横屏 3200x1440（914dp）非全屏 = 6 键 + 1×（宽度档位兜底）；平板全屏态与窄窗全屏态对比证明**全屏优先于宽度**（同一 582dp 窗口仅因 `fullscreen=true` 就恢复 码率 / 解码） |
+| ④ 设置 → 播放 兜底入口 | Pad 5（平板 + 窄窗两种形态）与 K60 竖屏：抽屉 `播放 / 手势` 两个 Tab，播放分类顶部 = `码率`（副标题 `自动`）+ `解码`（副标题 `mpv（软解兜底） · 硬解优先`）；点「码率」→ 面板标题 `码率` + 自动 / 原始画质 / 1–40 Mbps，BACK 回「播放设置」（pid 1903 不变）；点「解码」→ 面板标题 `解码` + 播放内核（ExoPlayer（硬解） / mpv（软解兜底））+ 解码策略 + 优先级文案 |
+| ⑤ 倍率键仅图标、同宽 | Pad 5 键框宽 108px = 音轨 / 字幕 / 信息 / 全屏键同宽（视觉框 44dp），键内**无文本节点**，`content-desc="倍速"`；K60 `[333,1135][487,1303]`（154px）= 音轨 `[25..179]` / 字幕 `[179..333]` / 信息 `[487..641]` 同宽 |
+| ⑥ 1× 位于详细信息右侧 + 可点 | Pad 5 `1×` 文本节点 `[780,1495][813,1534]` 在信息 `[626,734]` 右侧（同玻璃底 + 1dp 描边）；点它 → 抽屉 `选择播放速度` + `0.25× … 3×` 档位；选 1.5× 后文本项立即变 `1.5×`（`[767,1495][827,1534]`，`content-desc="倍速 1.5×"`），再选回 1× 复原；点倍速图标同样打开 `选择播放速度`（同一入口，无第二个面板） |
+| ⑦ 既有布局 / 返回 / 比例不回归 | 右上 5 键顺序 画中画 `[2045..2144]` → 睡眠 → 选集 `[2243..2342]` → 画面 `[2342..2441]` → 设置 `[2441..2549]`；中央五键整簇 `[936..1622]`（中心 1279 ≈ 屏宽中心 1280）；锁定键贴右缘中部 `[2432,746][2540,854]`（y 中心 800 = 1564/2，右边距 20px）；选集**覆盖层**打开时 `PlayerView` 恒 `[0,0][2560,1564]`（不挤压、不右移），BACK 先收栏（`topResumedActivity` 仍 PlayerActivity、pid 1903 不变）；设置子面板 BACK 回上一级；画面比例面板（K60）正常列出 适应屏幕 / 裁剪填满 / 拉伸填满 + 旋转 0–270°；详细信息面板正常（标题 / 容器 `MKV` / 编码 `H.264（AVC）` / 分辨率 `1920 × 1080` / 时长等） |
+| 稳定性 / 还原 | 两台设备整轮 `logcat`：`FATAL EXCEPTION` 0 / `ANR in` 0 / `Input dispatching timed out` 0；副作还原：Pad 5 `wm size/density` reset（Physical 1600x2560 / 360dpi）、`accelerometer_rotation=1`、`user_rotation=0`；K60 无 `wm` 覆盖、`accelerometer_rotation=1`、`user_rotation=0`；两台 force-stop、`/sdcard/w13*` `w14–w36` `k13*` `k14*` dump 已清理；码率偏好保持「自动」、倍率已回 1×、内核偏好保持会话开始时的 mpv |
+
+### 16.5 未决 / 移交项
+
+1. **Compact（自由窗口 / 分屏）未做真机取证**：代码与画面区版式共用同一条判据（非全屏窄窗同样隐藏 码率 / 解码、倍率仅图标、1× 在「信息」右侧），但本波没能在 MIUI 上造出真自由窗口（`wm shell splitscreen` / `am start --windowingMode` 在本机不可用）。如需像素级证据，下一波用手动「小窗」触发。
+2. **Pad 5 走查期间发现系统级干扰**：MIUI「妙享桌面 / 镜像」（`com.xiaomi.mirror` + `MAGIC-POINTER` 悬浮窗）会在屏幕右缘占一条窗口，吃掉 x≈2391 附近的点击（正好覆盖右上「画面比例」键位置）——与本波改动无关；同一坐标在本波前半轮可用、后半轮被拦，K60 同键正常。后续验收脚本遇到「点了没反应」先看 `dumpsys window windows` 里有没有这个窗口。
+3. 1× 文本项宽度 = `spec.toolKeySizeDp`（窄屏 38dp）；图标键因 M3 最小触摸框会扩到 44dp，故窄屏下文本项视觉上比图标键略窄（平板档两者同为 44dp）。若要求像素级等宽，把 `PlayerSpeedLabel` 的宽度改为与 `PlayerIconButton` 同源即可。
+4. 分级判据的 600dp 与 `playerControlSpec` / `PlayerFormFactor` 是同一个数但仍是三处独立常量；若日后要收敛，抽一个共享常量即可（值不变）。
 
