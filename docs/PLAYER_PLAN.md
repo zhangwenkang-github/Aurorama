@@ -534,7 +534,8 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 视频帧节奏怎么量 | TextureView 视频不走 `dumpsys gfxinfo`（实测 Total frames=0）；用 `SurfaceFlinger --latency <layer>` 采样，`INT64_MAX` 是 pending 必须剔除；同一帧会被重复 present，要同时看 `ready_*`（frameReady 去重）与 `present_*`。Pad 5 屏幕 120Hz、片源 24fps 时正常 p50≈41.7ms，p99>100ms 才是可感知停顿。补片窗口的帧数据会被服务器 PlaybackInfo 变慢（本轮 0.4→3.8s 漂移）污染，对比时优先用主线程指标（PerfMonitor latency） |
 | mpv 参数与卡顿定位结论 | 默认 `hwdec=mediacodec` / `vo=gpu-next` / cache 64+32MiB 下稳态 24fps 满帧、无 >100ms 停顿；参数不是可复现卡顿源，卡顿集中在补片窗口的主线程阻塞与服务器 / 网络缓冲。低内存 swap thrashing（02:07 现场）未在本次测量复现，作为后续观察项 |
 | 播放页面板抽屉化（§11 C） | 抽屉宿主必须挂在画面区根 `Box` 内（`Modifier.align` 需要 BoxScope；放在 Box 外要么编译不过、要么盖不住画面）；退场内容用 `lastPanel` 兜底，避免滑走的是一块空板；「点外部关闭」的捕获层垫在抽屉之下，抽屉本体用 `pointerInput { detectTapGestures {} }` 吞空白点击——用 `clickable {}` 会给整块面板叠一个按钮语义（TalkBack 噪音）；打开期间命中区继续由 `PlayerOverlayContainer.panelOpen` 全屏接管，不随抽屉宽度变化 |
-| 覆盖层底栏加文字标签（§11 B） | 工具键从纯图标改为「图标 + 文字」后底栏变高：竖屏底带 100→150dp、小窗单行条 72→92dp；`PlayerOverlayContainer` 命中带必须同步，否则进度条上半截点不到、按钮触摸漏给手势层——以后改底栏高度都要对照命中带一起改 |
+| 覆盖层底栏加文字标签（§11 B） | 工具键从纯图标改为「图标 + 文字」后底栏变高：竖屏底带 100→150dp、小窗单行条 72→92dp；`PlayerOverlayContainer` 命中带必须同步，否则进度条上半截点不到、按钮触摸漏给手势层——以后改底栏高度都要对照命中带一起改。命中带也不能给过松：竖屏顶带按顶栏实高（8+48+8=64dp）取，超过会把「点画面显隐控制层」的可落区压没（Pad 5 走查实测 72dp 时只剩 ~30px） |
+| 顶栏尾部控件被挤到中间（weight 陷阱） | `标题 weight(1f, fill=false)` + 尾部 `Spacer(weight(1f))` 的组合在 Pad 5 横屏下**不会**把末尾的锁推到右端（实测锁停在顶栏约 63% 处）；尾部要贴边的控件，用「标题 `weight(1f)` 吃满剩余空间」而不是再放一个 weighted Spacer。同类权重组合改完必须真机（或 uiautomator bounds）复核坐标，别只看截图缩略图 |
 
 | 权威内容 | 位置 |
 |----------|------|
@@ -548,6 +549,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-01 | §11 A–E 真机走查（PLAYER-UI / Pad 5 `43af8627`，10:27–11:05 指派窗口）：抽屉右侧化不压缩画面、底栏 5 键「图标+文字」、锁定单入口、更多收低频、手势（单击/双击 +10s/横向 seek/左亮度/右音量/长按 2×/面板打开拦截）与 PiP 全部通过；D 组回归（打开即播 + 自动字幕）通过；`logcat` 无 FATAL / ANR。走查中发现并修复①顶栏锁被 weight 布局挤到中部 ②竖屏命中带过紧（顶 72→64dp、中央半高 64→56dp）。设备侧已还原；结论见 §11.4、踩坑见 §9 |
 | 2026-10-01 | §11 A–C/E 播放页控制层改造（PLAYER-UI / 分支 `feature/player-ui-refactor`）：Prism + 流光视觉收口；锁 / PiP 双入口收敛（PiP→更多）；底栏 9→5 个「图标 + 文字」高频键；面板改右侧抽屉且不压缩画面；命中带同步（竖屏 72 / 150dp、小窗 92dp）。门禁 `assembleDebug + player:local:testDebugUnitTest + ktfmtCheck` 通过；真机走查待设备（清单见 §11.4） |
 | 2026-10-01 | §1.19 播放稳定性专项（PLAYER-STAB / 分支 `feature/player-stability`）：mpv 队列补片 ANR 修复（MPVPlayer 命令线程 + 补片真后台 / 节流 / 上限 150）+ 卡顿量化。真机 Pad 5（mpv / 灼眼的夏娜 73 集）：补片+点击场景主线程峰值 2584ms → 508ms；80 次点击 5.2s 无 `Input dispatching timed out`；SurfaceFlinger 采样修复前 mpv 补片窗口 p99 166.68ms vs 同窗口 ExoPlayer p95 8.56ms / jank 1.93%；修复后 mpv 稳态 24fps 满帧、无 >100ms 停顿。新增 `tools/player-stability/{Invoke-AnrRepro,Measure-FrameLatency}.ps1`；门禁 `assembleDebug + player:local:testDebugUnitTest + ktfmtCheck` 通过；回归：字幕 / 音轨 / 倍速 / 队列面板与补片正常 |
 | 2026-10-01 | §11 D 组两个 bug 修复（PLAYER-BUG 会话 / 分支 `feature/player-autoselect-fix`）：① 自动选字幕 = `pickPrimary()` 默认轨兜底 + mpv `alang`/`slang` 传全量语言列表；② 打开即播 = `PlayerViewModel.startupInProgress` 起播窗口（窗口内不回存 / 不恢复 `playWhenReady`）。真机 Pad 5：mpv《夏日幽灵》由基线 `sid=1 ja-JP（日本語）` 纠正为 `● sid=2 zh-Hans-CN（简日双语）`；ExoPlayer 同一片自动选中 `index=4`（简日双语，cues=1072 解析成功）且 `state=3` 直接起播。遗留：`TrackSelectionEngine.pickTextTrack()` 的 auto 兜底未同步；「语言识别不出来（language=null）」的片源只走了代码路径、未单独真机复现 |
@@ -686,37 +688,43 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 **命中区同步（`PlayerOverlayContainer` / `PlayerActivity`）**
 
-- 竖屏（SplitPortrait）：顶带 56→**72dp**、底带 100→**150dp**（底栏因图标 + 文字变高）。
+- 竖屏（SplitPortrait）：顶带 56→**64dp**（= 顶栏实高；走查中发现 72dp 会把可落手势区压到 ~30px，已回调）、中央半高 64→**56dp**、底带 100→**150dp**（底栏因图标 + 文字变高）。
 - 小窗（Compact）：单行控制条高度 72→**92dp**。
 - 面板打开：继续整层接管（`panelOpen`），不随抽屉宽度变化；锁定命中区不变。
 
 **门禁与验证（2026-10-01，worktree `79d7`）**
 
 - `:app:phone:assembleDebug` ✅｜`:player:local:testDebugUnitTest` ✅｜`ktfmtCheck` ✅。
-- 设备未连接：真机（Pad 5 `43af8627`）走查待负责人调度，命令带 `-s 43af8627`。
+- 真机：Pad 5（`43af8627`）走查完成（2026-10-01 10:27–11:05，负责人在 device-lock 指派窗口），命令全部带 `-s 43af8627`。
 
-**真机走查清单（待设备接回后逐条勾）**
+**真机走查结果（Pad 5 `43af8627`，2026-10-01）**
 
-- [ ] 平板横屏（SplitSide）：底栏 5 键显示完整；点「选集」开合右侧内容栏；进度条拖动跟手。
-- [ ] 面板打开：字幕 / 音轨 / 画面 / 更多 从右侧滑出，**画面不变窄**；点抽屉外空白关闭；抽屉内滚动正常。
-- [ ] 命中区回归：面板打开时手势不穿透；关闭后单击显隐 / 双击 / 横向 seek / 左亮度右音量 / 双指缩放 / 长按 2× 全部正常。
-- [ ] 锁定：顶栏唯一锁入口；锁定后仅右中解锁键可点，其余触摸不改变播放状态。
-- [ ] 字幕面板：主 / 次字幕、延迟 ±0.1s、外观五档即时生效；音轨面板：切轨、延迟 ±0.05s 听感正确。
-- [ ] 更多面板：倍速 / 循环 / 信息 / 睡眠 / 画中画逐个可用（PiP 进出正常）。
-- [ ] 手机竖屏（K60）：底栏 5 键不换行；竖屏命中带（72 / 150dp）下点按与滑动不误触。
-- [ ] D 组回归：打开新片自动出字幕（语言优先级生效）且无需第二次点击即播。
-- [ ] 视觉走查：控制层与首页 / 详情页观感一致（渐隐遮罩、玻璃键、选中态媒体色）；无独立色块 / 色点 / 发光。
-- [ ] 稳定性抽样：控制层显隐不掉帧；面板开合无卡顿；`logcat`（`CinefinPlayer` / `ExoPlayerImpl`）无新异常。
+- ✅ **平板横屏（SplitSide）**：底栏 5 键「字幕 / 音轨 / 画面 / 选集 / 更多」完整显示；点「选集」开合右侧内容栏（画面让出 320dp，速度 / 时间随画面区左移）；进度条点按 / 拖动跟手。
+- ✅ **面板不压缩画面**：字幕 / 更多两个入口都从右侧滑出（523dp 抽屉覆盖侧栏 + 画面右缘），打开期间画面与侧栏位置不变；点抽屉外空白关闭；抽屉内可滚动（颜色组滚到）。
+- ✅ **命中区 / 手势**：面板打开时横向滑动不 seek（位置只随时间走）；单击显隐、双击 +10s（04:24→04:40）、横向滑 seek（04:40→05:24）、左亮度（0.514→0.988→0.511）、右音量（150→79）、长按 2×（按住期间速度显示 2×）全部正常。
+- ✅ **锁定**：顶栏唯一锁入口（右上角）；锁定后无障碍树只剩「解锁」1 个节点、点画面不改状态；点右中解锁键恢复。
+- ✅ **面板内容**：主 / 次字幕、延迟 ±0.1s、外观（大小 / 颜色 / 背景 / 描边 / 位置）渲染与交互正常（音轨 / 画面 / 队列等本轮未改逻辑，入口可达）。
+- ✅ **更多面板**：画中画 / 倍速 / 循环 / 信息 / 睡眠全部就位；点「画中画」进入 PiP（`mode=pinned` + `pip-dismiss-overlay`）。
+- ✅ **竖屏窄窗**（`wm size 800x1600` 把 Pad 5 模拟成 355dp 手机宽）：SplitPortrait 下方选集区正常、底栏 5 键不换行、竖屏命中带下点工具键能开抽屉、抽屉自动整宽。
+- ✅ **D 组回归**：`am start` 打开剧集后**无需任何点按**进度自行推进（03:26→03:39）；自管字幕自动出（面板「主字幕＝外部 zh」选中、画面有字幕行）。
+- ✅ **视觉**：顶 / 底渐隐遮罩、玻璃覆盖键、`OnSurface` 方形主播放键、选中态琥珀（字幕激活 / 面板选中行）与首页 / 详情页一致；无独立色块 / 色点 / 发光。
+- ✅ **稳定性抽样**：整轮 `logcat` 无 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out`；显隐与抽屉开合无可见卡顿。
 
-**真机验证记录（待设备）**
+**走查中发现并已修复（同分支补丁）**
+
+1. 顶栏「锁定」被挤到顶栏中部：旧写法「标题 `weight(1f, fill=false)` + 尾部 `Spacer(weight(1f))`」不会把末尾控件推到右端；改为「标题吃满剩余空间」，锁与清晰度徽标回到右上角（复测截图确认）。
+2. 竖屏命中带过紧：顶带 72dp 把「点画面显隐控制层」的可落手指区压到约 30px；按栏高精确化——竖屏顶带 72→**64dp**、中央半高 64→**56dp**（中央簇仍全包住），可落区回到约 80px。
+
+**真机验证记录**
 
 | 日期 | 设备 | 结论 | 备注 |
 |------|------|------|------|
-| 待填 | 小米平板 5 `43af8627` | 待走查 | 设备未连接；按负责人调度执行（禁用自动接管） |
+| 2026-10-01 | 小米平板 5 `43af8627`（Pad 5） | ✅ 走查通过（A–E + 流光视觉 + 手势回归 + PiP） | 10:27–11:05 指派窗口；设备侧已还原（`wm size` / density / 旋转 / 音量 / force-stop / 临时文件） |
 
 **未决 / 移交项**
 
 1. core `ic_*` 图标重绘（§11 B 的"重绘"部分）归 UI 迭代会话；播放器底栏已用现有图标 + 文字标签兜底可读性。
 2. 背景模糊：Compose 没有 backdrop blur，抽屉按 §5.3 例外用「半透明底 + 结构线」实现（不做假 blur）。
 3. 遥控 / D-pad：本轮补了抽屉 `paneTitle` 语义；TV 焦点环走查并入阶段 8。
+4. K60（`8e875894`）归 UI 迭代会话；本轮竖屏项用 Pad 5 改窗口尺寸等价验证，如需 K60 原生复验并入 W5 全量回归。
 

@@ -779,13 +779,18 @@ private fun PlayerTopBar(
             onClick = onBack,
         )
         Spacer(Modifier.width(CinefinSpacing.Space1))
+        /*
+         * 标题占满剩余宽度（weight + fill），确保右侧的清晰度徽标与锁定键贴住顶栏右端：
+         * 旧写法是「标题 weight(1f, fill=false) + 尾部 Spacer(weight(1f))」，实测锁被挤到
+         * 顶栏中部（2026-10-01 Pad 5 走查），所以改为「标题吃掉剩余空间」。
+         */
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             color = colors.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier.weight(1f),
         )
         if (qualityLabel != null) {
             Spacer(Modifier.width(CinefinSpacing.Space2))
@@ -799,7 +804,7 @@ private fun PlayerTopBar(
                         .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
             )
         }
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.width(CinefinSpacing.Space1))
         // 锁定只保留这一个常驻入口（§11 A：顶栏 / 底栏不再重复；锁定后由 LockedOverlay 解锁）
         PlayerIconButton(
             iconRes = CoreR.drawable.ic_lock,

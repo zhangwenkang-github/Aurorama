@@ -101,9 +101,11 @@ constructor(
 
         // 竖屏画面区更矮，命中带跟着收窄，否则整块画面区都被控件吃掉、手势无处可落
         val portrait = chrome == PlayerChromeLayout.SplitPortrait
-        val topBand = RectF(0f, 0f, videoWidth, (if (portrait) 72f else 76f) * density)
+        // 竖屏顶带 = 顶栏实际高度（8 + 48 + 8dp），给「点画面显隐控制层」留出可落的手指区
+        val topBand = RectF(0f, 0f, videoWidth, (if (portrait) 64f else 76f) * density)
         val centerHalfWidth = if (errorVisible) 300f else if (portrait) 200f else 260f
-        val centerHalfHeight = if (errorVisible) 200f else if (portrait) 64f else 90f
+        // 竖屏中央带只包住传输簇（主键 70dp），比横屏更紧，避免吃掉剩下的手势区
+        val centerHalfHeight = if (errorVisible) 200f else if (portrait) 56f else 90f
         val centerBand =
             RectF(
                 videoWidth / 2f - centerHalfWidth * density,
