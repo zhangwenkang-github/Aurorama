@@ -3,7 +3,7 @@
 > **新对话从这里开始。** 开工前读本文件，收工前把进度写回本文件。
 > 纪律：需求变更、决策、完成度、勾选项、更新日志，都在**同一次改动**里写回这里；不再新建零散 `.md`。
 >
-> 最后更新：2026-10-02　分支：`feature/w12-player-ui4`（W12 播放页第四轮：**终版布局** + 控件样式统一 + 面板重组 + 码率服务器转码 + 解码回退；基线 `master 49d6b08`，落地记录见 §15）
+> 最后更新：2026-10-02　分支：`feature/w15-libass`（W15-LIBASS：mpv 原生 libass 特效字幕 + 转码场景服务端字幕注入；Exo 路径方案已调研、待批准引入依赖；基线 `master ed303f9`，落地记录见 §18）
 
 ---
 
@@ -172,10 +172,14 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
       「时间可点切换 / 章节入口 / 加载细线」仍未做，留给后续会话。
 - [ ] **1.11 播放增强**（原阶段 6）——进度记忆与服务端同步、片头片尾阈值设置、Trickplay 预加载与失败降级、
       外挂字幕导入、播放结束行为（自动下一集 / 停在结束帧）。
-- [ ] **1.18 libass 字幕渲染**（M4 缺口）——当前字幕走 Media3 默认渲染；目标是接入 libass 提升 ASS/SSA 特效字幕
-      （字体、定位、动画）的还原度，并保留现有"字幕语言智能识别 + 样式设置"。
-      落点：`player/local`（渲染管线）+ `PlayerActivity.configureSubtitleStyle()`；需先调研 Media3 与 libass 的衔接方式。
-      验收：带复杂特效的 ASS 外挂字幕位置 / 字体 / 动画与电脑端播放器基本一致，且不影响双内核切换。
+- [x] **1.18 libass 字幕渲染**（M4 缺口）——✅ 2026-10-02 W15-LIBASS（**mpv 原生路径**，见 §18；Exo 路径方案已调研、待批准引入依赖）。
+      mpv 内核：容器有内嵌字幕（DirectPlay）→ mpv 内置 libass 直接渲染；容器无字幕（服务器转码 / HLS）→
+      按 MediaItem extras 的 Jellyfin 字幕清单 `sub-add` 独立 ASS 文件；App 覆盖层在 mpv 下不接管、不叠加。
+      延迟（`sub-delay`）/ 开关（`sid=no|auto`）/ 语言（`slang` + 轨 `lang`）联动；`sub-ass-override` 保持默认 `scale`，
+      ASS 的定位 / 字体 / 动画交给脚本 + libass 还原（颜色 / 背景 / 描边在 ASS 上让位给脚本，属有意取舍）。
+      ExoPlayer 路径保持现状（Media3 `SsaParser` 只出文本）；引入 libass 需新增依赖（候选 `peerless2012/ass-media`），
+      按红线先报告负责人、批准后单独开波。
+      验收：DirectPlay / 转码双场景 + 像素对比 + 性能 / 稳定性 + Exo 回归，证据见 §18.4。
 
 ### P2 · 多形态与打磨
 
@@ -590,6 +594,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-02 | **W15-LIBASS 特效字幕（`feature/w15-libass`）**：mpv 内核走内置 libass——DirectPlay 交给容器内嵌 ASS；服务器转码（容器无字幕）时按 MediaItem extras 里的 Jellyfin 字幕清单把 `Stream.ass` `sub-add` 给 mpv，不再出现「当前媒体没有可调节的字幕」。字幕模式联动（`off→sid=no` / `auto·always→sid=auto`）、延迟 / 语言沿用既有 `sub-delay` / `slang`；mpv 下自研覆盖层不接管（纯函数 + 单测钉死）。Exo 保持现状（Media3 只出文本；引入 libass 需新依赖，待批准）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 39 项（+8）单测` 全绿；K60 双场景真机证据、像素对比与性能采样见 §18。 | 
 | 2026-10-02 | **W14-PLAYER 播放页微调（`feature/w14-speed-badge`）**：①「1×」从可点文本项改为与顶栏清晰度徽标**同款的纯展示徽标**——抽共用组件 `PlayerOverlayBadge`（labelSmall + `CinefinShapes.Xs` 8dp 圆角 + 1dp `outlineVariant` 描边 + 水平 `Space2` / 垂直 2dp 内边距，无独立底色，顶 / 底由渐隐遮罩托底），顶栏清晰度徽标改为调用同一组件；②移除点击（点 1× 不再打开倍速面板），倍速入口只剩左下倍率图标键一个；③位置不变（「详细信息」右侧）、随倍率更新（1× / 1.5× …）；④底栏宽度预算改按徽标自适应口径（7 键 + 徽标最宽估值 + 8 间距）。门禁 `assembleDebug + ktfmtCheck + app 49 项单测` 全绿；Pad 5 + K60 逐条文本 / 像素证据见 §17。 |
 | 2026-10-02 | **W13-PLAYER 播放页第五轮反馈（`feature/w13-player-ui5`）**：①左下工具行按「全屏 / 宽度」分级显示——全屏或宽度充足（≥600dp / 平板 · 折叠）显示 6 键，非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息 + 1×（判据抽纯函数 + 单测）；②倍率键只显示图标（与其它图标键同宽，选中态=非 1×）；③当前倍率作为独立文本项固定在「详细信息」右侧，点图标 / 点数字同开「选择播放速度」；④被隐藏的 码率 / 解码 在「设置 → 播放」各加一行兜底入口（不新增图标）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 31 项单测` 全绿；Pad 5 + K60 逐条文本证据见 §16。 |
 | 2026-10-01 | **W11-PLAYER 播放页第三轮反馈（`feature/w11-player-ui3`）**：①取消「更多」并把入口按性质分流到右上工具簇 / 左下工具行（新增 7 枚 `ic_player_*` 矢量图标）②锁定键移到画面区右缘垂直居中③中央恢复五键传输簇（上一个 · 快退 · 播放 · 快进 · 下一个）④进度条已播段改流光渐变（极光青 → 末端 <10% 辅光蓝）⑤两个加载图标去重（Media3 内置缓冲圈关闭，控件可见时落在主播放键里）⑥右下角全屏 / 退出全屏键（收起常驻内容栏 + 强制横屏）⑦返回键先关面板（子面板先回上一级）⑧时间码两端对齐 + 中央簇四档收放，任何窗口宽度都不重叠 / 不越界⑨季卡统一尺寸只横向滑动。真机 Pad 5 + K60 逐条文本证据；门禁 `assembleDebug + ktfmtCheck + app 34 项 / player:local 28 项单测` 全绿。见 §14 |
@@ -1132,4 +1137,62 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 1. 徽标改为纯展示后，读屏焦点中的「倍速 n×」是静态描述，倍速入口只在倍率图标键（`content-desc="倍速"`）——若后续希望读屏直接说明可点位置，可在图标键描述里补当前倍率值。
 2. §16.5 第 3 条（1× 与图标键等宽）随本波作废：徽标按文本自适应，不再与键框对齐。
+
+---
+
+## 18. W15-LIBASS 落地记录（2026-10-02 · 分支 `feature/w15-libass`）
+
+> 目标：§1.18 libass 特效字幕。基线 `master ed303f9`；本波只写 `player/core`（新增 extras 常量）与 `player/local`；
+> `AppPreferences.kt` / `NavigationRoot.kt` / `settings.gradle.kts` / `libs.versions.toml` 未触碰，**未引入任何新依赖**。
+> 提交：实现 + 文档（见 `git log --oneline feature/w15-libass`）。
+
+### 18.1 方案调研与决策（D38–D40）
+
+| 编号 | 决策 |
+|------|------|
+| D38 | **mpv 原生 libass 路径为本波唯一实现**。mpv 0.41.0（`dev.jdtech.mpv:libmpv:1.0.0`）的 `libmpv.so` 已静态内含 libass / harfbuzz / fribidi / fontconfig（本地二进制符号核验），DirectPlay 让 mpv 直接读容器内嵌 ASS，零新增依赖、零 APK 体积增量、与 mpv 渲染同一线程。 |
+| D39 | **转码场景按需注入服务端字幕**：mpv 在 `FILE_LOADED` 后查 `track-list`——存在 `external=false` 的字幕轨（DirectPlay mkv 内嵌）就不动；没有（服务器转码 / HLS 容器无字幕）才把 MediaItem extras 里的 Jellyfin 内嵌文本字幕 `sub-add` 给 mpv（`flags=auto` + title/lang），由 libass 渲染 `Stream.ass` 原始特效。两条路径都保证同一媒体不会出现容器轨 + 注入轨重复。 |
+| D40 | **Exo 路径保持现状**：Media3 1.11.1 的 `SsaParser` 只输出基础 Cue（能解析 `[V4+ Styles]` 的部分字段，但不支持 ASS override tags / 动画 / `\pos` 定位），官方也没有 ASS 实时渲染计划。为 Exo 引入 libass 需要新增原生依赖（红线要求先报告负责人），本波只完成调研：候选 `io.github.peerless2012:ass-media:0.5.1`（MIT，libass ISC，Jellyfin Android TV / 多个播放器在用；Media3 effect/overlay 集成；arm64 `libass.so` ≈2.9MB + `libc++_shared` ≈1.2MB；其依赖基线是 Media3 1.8.0，与项目 1.11.1 的兼容性未验证）。批准后单独开波接入。 |
+
+**为什么 mpv 侧不必改样式开关**：mpv `--sub-ass-override` 默认 `scale`（`sub/sd_ass.c` 核验）：只把 `sub-pos` 当默认行位置、把 `sub-scale`/字号做选择性缩放（对话生效、typesetting 保留），**不覆盖字体名 / 颜色 / 边框**。所以现有「大小」档位对 ASS 对白仍生效，「颜色 / 背景 / 描边」在 ASS 上自动让位给脚本，避免强覆盖破坏特效。
+
+### 18.2 实现（文件 + 行为）
+
+| 文件 | 改动 |
+|------|------|
+| `player/core/.../models/PlayerItem.kt` | 新增 `PLAYER_EXTRA_SUBTITLE_SOURCES`（MediaItem extras 携带全量字幕源，Parcelable ArrayList） |
+| `player/local/.../presentation/PlayerViewModel.kt` | ① `toMediaItem()` 把 `subtitleSources` 放进 extras（Exo 不读，仅 mpv 兜底用）；② mpv 字幕模式联动：起播 / 换集 / 面板切换时 `off → setSubtitleAutoSelect(false)`、`auto·always → setSubtitleAutoSelect(true)`；③ 自研覆盖层清单抽成 `playerSubtitleSourcesForBackend()` 纯函数（mpv → 空 = 让位） |
+| `player/local/.../mpv/MPVPlayer.kt` | `prepareMediaItem` 记录 pending 清单；`FILE_LOADED` 后 `maybeAddServerSubtitles()`：解析 track-list 判内嵌轨 → 无则 `sub-add`（命令线程保序）→ 按 App 意图 `set sid auto|no`；新增 `setSubtitleAutoSelect()`；`sub-add` 命令仍走既有 `postCommand` 的 `runCatching`（失败只记日志，不崩 App） |
+| 单测 | `player:local` 31 → **39**：`MPVServerSubtitleTest`（内嵌文本才注入 / 外挂不重复 / 图形与空 URL 跳过 / 内嵌轨识别）+ `PlayerSubtitleRoutingTest`（mpv 让位、Exo 保留清单） |
+
+### 18.3 门禁（2026-10-02）
+
+```
+.\gradlew.bat :app:phone:assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- `:app:phone:assembleDebug` ✅｜`ktfmtCheck` ✅（中间执行过 `ktfmtFormat`）
+- `:app:phone:testLibreDebugUnitTest` ✅ **49** 项（既有基线，未改 app 模块）
+- `:player:local:testDebugUnitTest` ✅ **39** 项 = 既有 31 + 新增 8
+
+### 18.4 真机走查（K60 `8e875894`，命令全部带 `-s`）
+
+素材：《夏日幽灵》`itemId=0b834979-9e2e-8c13-9014-783cfd83e7ed`（内嵌 3 条 ASS：日本語 / 简日双语 / 繁日雙語）。
+
+| # | 证据（文本 / 数值） |
+|---|--------------------|
+| ① DirectPlay 不重复注入 | mpv 直连 mkv：字幕面板主 / 次字幕各 3 条（日本語 / 简日双语 / 繁日雙語），日志**无**注入记录（容器已有内嵌轨 → 跳过）；点「简日双语」→ `mpv 字幕状态: sid=2 visible=true delay=0.0 text=そんな顔してどうした`。 |
+| ② 转码缺口修复（核心） | 3 Mbps 档 → HLS `…/hls1/main/*.ts` + `TranscodeReasons=ContainerBitrateExceedsLimit`。修复前基线：面板「当前媒体没有可调节的字幕」（0 条）；本波日志 `mpv 容器无内嵌字幕（转码等），注入 3 条服务端文本字幕` + `mpv 注入字幕：日本語（ja / ass）…`，面板恢复 3 条 ASS。 |
+| ③ App 覆盖层让位 | 转码 + 字幕显示中执行 `uiautomator dump`：`subtitle_overlay_compose` 节点存在但内部文本节点 **0**、整棵树无字幕文本 → 字幕像素只可能来自 mpv 视频层（libass），不存在两套字幕叠加。 |
+| ④ 像素对比（位置 / 样式） | 同暂停帧「开字幕（sid=2）/ 关字幕（sid=no）」：`screencap` 逐像素 diff = **281,568** 个采样点（步长 2，画面区 1440×1341），bbox **[0,266][1438,1284]**，平均色 (87,164,191)——简日双语 ASS 含覆盖画面中下部的大范围特效，关字幕后整块消失。对照：关字幕帧连续两张（间隔 4s）diff=0、关字幕帧与稳定对照帧 diff=0，证明暂停画面完全静止，差异全部来自字幕渲染。 |
+| ⑤ 延迟 / 开关 / 模式联动 | 点 `+0.1s` → `mpv 字幕延迟 = 100 ms` + `delay=0.10000000149011612`；字幕模式 `关闭` → `sid=no text=null`，`自动` → `sid=2` 按 `slang`（zh-Hans 优先）重选；面板「关闭字幕」行同样 `sid=no`。 |
+| ⑥ 性能采样（转码 + ASS） | SurfaceFlinger `--latency` 30s：**811 帧样本，p50 41.55ms / p95 57.99ms / p99 59.66ms / 平均 24fps / jank 0%**（阈值 74.79ms）；关闭字幕对照 20s：518 样本 p50 41.42 / p95 58.15 / p99 60.21 / 24fps / jank 0%。PSS：有字幕 447,621kB vs 无字幕 455,619kB（波动范围内，libass 未见额外内存压力）。 |
+| ⑦ 稳定性 / Exo 回归 / 还原 | 整轮 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` 均 **0**；切回 ExoPlayer 打开同片：面板仍列 3 条 `ASS · 内嵌`（自管清单），进度正常推进、无崩溃（extras 改动不影响 Exo）。设备还原：`pref_player_backend=mpv`、删除临时 `pref_player_streaming_bitrate` 键、`/sdcard/w15*.xml` 与 prefs 备份已清理、force-stop。 |
+
+### 18.5 未决 / 移交项
+
+1. **ExoPlayer 路径 libass 引入待批准**：候选 `ass-media 0.5.1` 的 Media3 1.8.0 → 1.11.1 兼容性、`OVERLAY_OPEN_GL` 在 K60 / Pad 5 的性能未验证；属新依赖，按红线需负责人拍板后单独开波。
+2. **sub-add 轨的 `lang` 仍是 PlaylistManager 归一化值**（本轮日志为 `ja` / `zh`）：简繁区分目前靠 mpv 自身匹配；若要精确到 `zh-Hans` / `zh-Hant`，需在 `LanguageMatcher` / `PlaylistManager` 侧细化（跨播放器线影响面较大，未夹带）。
+3. 次字幕（`secondary-sid`）按 mpv 语义 `strip` 样式（只显示纯文本），主字幕保留 ASS 特效；ASS 内嵌字体（MKV attachment）在转码场景 Jellyfin 不交付，依赖系统 / mpv fontconfig 回退。
+4. mpv 侧「记住手动选轨」仍未做（`manualTrackSelectionMediaId` 目前只在 Exo 路径生效）；本波未做「sub-add 网络失败」的真机注入验证（代码路径由 `postCommand` 的 `runCatching` + 命令线程保护兜底）。
 
