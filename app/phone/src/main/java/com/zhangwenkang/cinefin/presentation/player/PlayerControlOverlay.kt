@@ -186,7 +186,10 @@ internal enum class PlayerPanel {
  * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 6 键 = 音轨 / 字幕 / 倍率 / 码率 / 解码 / 详细信息，右侧 = 全屏键；右上角 5
  * 键 = 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
  *
- * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证 6 键 + 全屏键一行不越界（极窄窗由横向滚动兜底）。
+ * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证工具行 + 全屏键一行不越界（极窄窗由横向滚动兜底）。
+ *
+ * W13 方案 A 起工具行**按全屏 / 宽度分级**（见 [playerToolRowShowsSecondaryKeys]）：全屏或宽度充足 = 6 键 + 1×； 非全屏窄窗 = 音轨 /
+ * 字幕 / 倍率 / 详细信息 + 1×（码率 / 解码 改从「设置 → 播放」进入）；倍率键只显示图标。
  */
 internal data class PlayerControlSpec(
     /** 窄屏（<600dp）收一档 */
@@ -200,9 +203,9 @@ internal data class PlayerControlSpec(
     /** 工具行左右留白（dp） */
     val toolRowPaddingDp: Float,
 ) {
-    /** 底栏一行 = 6 个工具键 + 右下全屏键 + 7 个间距（含全屏键前的留白） */
+    /** 底栏一行 = 6 个工具键 + 1× 文本 + 右下全屏键 + 8 个间距（含全屏键前的留白，W13 反馈③新增 1× 文本项） */
     val bottomRowWidthDp: Float
-        get() = toolKeySizeDp * 7f + keyGapDp * 7f
+        get() = toolKeySizeDp * 8f + keyGapDp * 8f
 }
 
 internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
@@ -249,6 +252,43 @@ internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
         PlayerBottomKey.Decode,
         PlayerBottomKey.Info,
     )
+
+/**
+ * 左下工具行「宽度充足」的阈值（W13 方案 A）：与 [playerControlSpec] 的窄屏档、`PlayerFormFactor` 的 Phone → Tablet 分档同源（都是
+ * 600dp）。低于它且不是全屏的窗口 = 「非全屏窄窗」，只留 音轨 / 字幕 / 倍率 / 详细信息 + 1×。
+ */
+internal const val PLAYER_TOOL_ROW_WIDE_WIDTH_DP = 600f
+
+/**
+ * 左下工具行是否显示「码率 / 解码」两个次级键（W13 方案 A，用户已确认）。
+ *
+ * 判据顺序：**先看真实全屏状态**（`PlayerActivity.fullscreenMode`），全屏一律全显；非全屏再叠宽度 / 形态档位——平板 / 折叠展开
+ * （[PlayerFormFactor.Tablet] / [PlayerFormFactor.Foldable]）或宽度 ≥ 600dp 也算宽度充足。两者都不满足（手机形态的
+ * 非全屏窄窗、自由窗口）才隐藏：码率 / 解码 改从「设置 → 播放」进入，功能不丢。
+ */
+internal fun playerToolRowShowsSecondaryKeys(
+    isFullscreen: Boolean,
+    widthDp: Float,
+    formFactor: PlayerFormFactor,
+): Boolean =
+    isFullscreen ||
+        widthDp >= PLAYER_TOOL_ROW_WIDE_WIDTH_DP ||
+        formFactor == PlayerFormFactor.Tablet ||
+        formFactor == PlayerFormFactor.Foldable
+
+/**
+ * 左下工具行实际渲染的键（W13 方案 A）：非全屏窄窗隐藏 码率 / 解码，其余保持 [PLAYER_BOTTOM_KEY_ORDER] 的终版顺序不动。
+ *
+ * 「1×」不是键表里的成员——它是独立文本项，固定在「详细信息」右侧（见 `PlayerSpeedLabel`）。
+ */
+internal fun playerToolRowVisibleKeys(showsSecondaryKeys: Boolean): List<PlayerBottomKey> =
+    if (showsSecondaryKeys) {
+        PLAYER_BOTTOM_KEY_ORDER
+    } else {
+        PLAYER_BOTTOM_KEY_ORDER.filter { key ->
+            key != PlayerBottomKey.Bitrate && key != PlayerBottomKey.Decode
+        }
+    }
 
 /** 右上角 5 键的**固定顺序**（W12 终版布局，勿再变动）：画中画 · 睡眠 · 选集 · 画面 · 设置。 */
 internal enum class PlayerTopKey {
@@ -709,6 +749,13 @@ fun PlayerControlOverlay(
                         settingsController.state.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
                 spec = spec,
                 isFullscreen = isFullscreen,
+                // W13 方案 A：全屏 / 宽度充足时全显 6 键；非全屏窄窗隐藏 码率 / 解码（改从「设置 → 播放」进入）
+                showsSecondaryKeys =
+                    playerToolRowShowsSecondaryKeys(
+                        isFullscreen = isFullscreen,
+                        widthDp = layout.windowWidthDp.toFloat(),
+                        formFactor = layout.formFactor,
+                    ),
                 onSeek = { target -> player.seekTo(target) },
                 onScrubStart = { controls.show() },
                 onAudio = { navigatePanel(PlayerPanel.Audio) },
@@ -800,6 +847,13 @@ fun PlayerControlOverlay(
                                 videoTransform.hasAdjustments,
                         isPipSupported = isPipSupported,
                         speed = runtime.speed,
+                        // W13 方案 A：小窗（自由窗口 / 分屏窄宽）与画面区版式共用同一条分级判据
+                        showsSecondaryKeys =
+                            playerToolRowShowsSecondaryKeys(
+                                isFullscreen = isFullscreen,
+                                widthDp = layout.windowWidthDp.toFloat(),
+                                formFactor = layout.formFactor,
+                            ),
                         onOpenSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
                         onOpenAudio = { navigatePanel(PlayerPanel.Audio) },
                         onOpenAspect = { navigatePanel(PlayerPanel.Aspect) },
@@ -1612,10 +1666,11 @@ private fun ErrorActionButton(
 // ---------- 底部 ----------
 
 /**
- * 底栏（W11 反馈①⑥⑧）：左下工具行 + 时间码两端对齐 + 通栏进度条。
+ * 底栏（W12 终版布局 + W13 方案 A）：进度条一行（当前时间 · 进度条 · 总时长）+ 左下工具行 + 右下全屏键。
  *
- * 版式：左下工具行 = 倍率键（显示即入口）/ 睡眠 / 播放信息（窄屏再放 播放设置）/ 画中画； 右端 = 右下角全屏键（右下角只放它，倍率显示已从左下工具行走，两者不重叠）；
- * 下一行时间码左「当前」右「总时长」，任何窗口宽度都不会错位；进度条通栏贴底，缓冲层 / 章节刻度 / 拖拽态都在 [PlayerSeekBar] 里实现。
+ * 左下工具行（2026-10-02 W13 反馈，用户确认的「方案 A」）：全屏 / 宽度充足时 6 键（音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 「详细信息」右侧的 1×
+ * 文本；非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息 + 1×（码率 / 解码 从「设置 → 播放」进入）。 倍率键自 W13 起只显示图标，当前值单独用 1×
+ * 文本项显示——两者指向同一个倍速面板，语义入口仍然只有一条。右下角只放全屏键，与工具行不重叠。
  */
 @Composable
 private fun PlayerBottomBar(
@@ -1635,6 +1690,11 @@ private fun PlayerBottomBar(
     /** 版式规格（W12 反馈 A）：窄屏整体收一档 */
     spec: PlayerControlSpec,
     isFullscreen: Boolean,
+    /**
+     * 是否显示「码率 / 解码」（W13 方案 A）：全屏 / 宽度充足时全显 6 键；非全屏窄窗隐藏这两个键（设置面板里有兜底入口）， 工具行变成 音轨 · 字幕 · 倍率 · 详细信息 +
+     * 1×。
+     */
+    showsSecondaryKeys: Boolean = true,
     onSeek: (Long) -> Unit,
     onScrubStart: () -> Unit,
     onAudio: () -> Unit,
@@ -1696,7 +1756,8 @@ private fun PlayerBottomBar(
         Spacer(Modifier.height(CinefinSpacing.Space1))
 
         /*
-         * 进度条下方：左侧 6 键（固定顺序 音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 右下全屏键。
+         * 进度条下方（W13 方案 A 起分级显示）：全屏 / 宽度充足 = 6 键（音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 1×；
+         * 非全屏窄窗 = 音轨 · 字幕 · 倍率 · 详细信息 + 1×（码率 / 解码 改从「设置 → 播放」进入）。右下恒为全屏键。
          * 行内横向可滚：窗口再窄也只是多滑一下，不会把键挤出屏幕（W12 反馈 A + W11 反馈⑧ 的兜底）。
          */
         Row(
@@ -1713,7 +1774,8 @@ private fun PlayerBottomBar(
                 horizontalArrangement = Arrangement.spacedBy(spec.keyGapDp.dp),
                 modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
             ) {
-                PLAYER_BOTTOM_KEY_ORDER.forEach { key ->
+                // W13 方案 A：非全屏窄窗只渲染 音轨 / 字幕 / 倍率 / 详细信息，码率 / 解码从这一行消失
+                playerToolRowVisibleKeys(showsSecondaryKeys).forEach { key ->
                     when (key) {
                         PlayerBottomKey.Audio ->
                             PlayerIconButton(
@@ -1734,9 +1796,17 @@ private fun PlayerBottomBar(
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
                             )
-                        // 倍率键：图标在上、当前倍率在下（W12 反馈 A），图标与其它键同宽
+                        // 倍率键：W13 反馈②起**只显示图标**，宽度与其它图标键一致；当前倍率由右侧的 1× 文本项显示
                         PlayerBottomKey.Speed ->
-                            PlayerSpeedKey(speed = speed, spec = spec, onClick = onSpeed)
+                            PlayerIconButton(
+                                iconRes = PlayerR.drawable.ic_player_speed,
+                                contentDescription =
+                                    stringResource(PlayerR.string.player_controls_label_speed),
+                                selected = speed != 1f,
+                                onClick = onSpeed,
+                                size = spec.toolKeySizeDp.dp,
+                                iconSize = spec.iconSizeDp.dp,
+                            )
                         PlayerBottomKey.Bitrate ->
                             PlayerIconButton(
                                 iconRes = PlayerR.drawable.ic_player_bitrate,
@@ -1768,6 +1838,8 @@ private fun PlayerBottomBar(
                             )
                     }
                 }
+                // W13 反馈③：当前倍率作为**独立文本项**固定在「详细信息」右侧；点它和点倍率图标是同一个入口（同一面板）
+                PlayerSpeedLabel(speed = speed, spec = spec, onClick = onSpeed)
             }
             if (sleepActive) {
                 Spacer(Modifier.width(CinefinSpacing.Space1))
@@ -1803,50 +1875,44 @@ private fun PlayerBottomBar(
 }
 
 /**
- * 倍率键（W12 反馈 A）：**图标在上、当前倍率在下**的垂直堆叠，图标与其它工具键同宽（[PlayerControlSpec.iconSizeDp]）。
+ * 当前倍率文本（W13 反馈③）：**独立文本项**，固定在「详细信息」控件右侧，与其它覆盖层控件同风格（玻璃底 0.28 + 1dp 描边、同圆角、同键宽）。
  *
- * 倍率显示与倍率控件仍是同一个键（W11 补充约束）：点开倍速面板，选完数字跟着更新；全播放页只有这一个倍速入口。 键宽与其它键一致、高度自然高出一点（图标 + 数字两行），行内垂直居中；非 1×
- * 时用媒体色融进键本体。
+ * 它和倍率图标键指向同一个「倍速」面板——全文只有一个倍速入口，数字只是把这个入口的当前值显示出来； 非 1× 时与图标键一起切到媒体色激活态，扫一眼就知道当前不是原速。
  */
 @Composable
-private fun PlayerSpeedKey(speed: Float, spec: PlayerControlSpec, onClick: () -> Unit) {
+private fun PlayerSpeedLabel(speed: Float, spec: PlayerControlSpec, onClick: () -> Unit) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val active = speed != 1f
     val shape = CinefinShapes.Md
     val label = formatSpeed(speed)
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    val entry = stringResource(PlayerR.string.player_controls_label_speed)
+    Box(
+        contentAlignment = Alignment.Center,
         modifier =
-            Modifier.width(spec.toolKeySizeDp.dp)
+            Modifier.size(spec.toolKeySizeDp.dp)
                 .clip(shape)
-                .background(if (active) media.container else colors.scrim.copy(alpha = 0.45f))
+                .background(
+                    if (active) media.container else colors.scrim.copy(alpha = PLAYER_GLASS_ALPHA)
+                )
                 .border(
                     1.dp,
-                    if (active) media.outline else colors.onSurface.copy(alpha = 0.16f),
+                    if (active) media.outline
+                    else colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA),
                     shape,
                 )
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     role = Role.Button,
-                    onClickLabel = label,
+                    onClickLabel = entry,
                     onClick = onClick,
                 )
                 .semantics(mergeDescendants = true) {
-                    contentDescription = label
+                    contentDescription = "$entry $label"
                     selected = active
-                }
-                .padding(vertical = 4.dp),
+                },
     ) {
-        Icon(
-            painter = painterResource(PlayerR.drawable.ic_player_speed),
-            contentDescription = null,
-            tint = if (active) media.bright else colors.onSurface,
-            modifier = Modifier.size(spec.iconSizeDp.dp),
-        )
-        Spacer(Modifier.height(1.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
@@ -1859,6 +1925,9 @@ private fun PlayerSpeedKey(speed: Float, spec: PlayerControlSpec, onClick: () ->
 /**
  * 小窗（Compact）的工具行：小窗既没有右上角 5 键、也没有进度条下 6 键的位置， 因此用一个横向可滚的小键行把全部入口兜住——一个功能一个入口、功能不缩水，
  * 窗口再窄也只是多滑一下（W11 反馈⑧：不靠隐藏修复；W12 补 码率 / 解码 两个新入口）。
+ *
+ * W13 方案 A 起与画面区版式同一条判据：[showsSecondaryKeys] = false（非全屏窄窗）时同样隐藏 码率 / 解码， 二者从「设置 →
+ * 播放」进入；倍率键只显示图标，当前值由「详细信息」右侧的 1× 文本项显示。
  */
 @Composable
 internal fun PlayerCompactToolKeys(
@@ -1867,8 +1936,10 @@ internal fun PlayerCompactToolKeys(
     bitrateActive: Boolean,
     decodeActive: Boolean,
     isPipSupported: Boolean,
-    /** 当前倍率：倍率键的显示值（同时也是入口） */
+    /** 当前倍率：1× 文本项显示的值（倍率图标键与它同开倍速面板） */
     speed: Float,
+    /** W13 方案 A：是否显示 码率 / 解码（全屏 / 宽度充足才显示） */
+    showsSecondaryKeys: Boolean = true,
     onOpenSubtitle: () -> Unit,
     onOpenAudio: () -> Unit,
     onOpenAspect: () -> Unit,
@@ -1882,7 +1953,7 @@ internal fun PlayerCompactToolKeys(
     onPip: () -> Unit,
     onLock: () -> Unit,
 ) {
-    // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息，其余入口跟在后面
+    // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息 + 1×，其余入口跟在后面（W13：非全屏窄窗去掉 码率 / 解码）
     PlayerIconButton(
         iconRes = CoreR.drawable.ic_speaker,
         contentDescription = stringResource(PlayerR.string.select_audio_track),
@@ -1896,28 +1967,38 @@ internal fun PlayerCompactToolKeys(
         onClick = onOpenSubtitle,
         size = 40.dp,
     )
-    // 倍率显示 = 倍率入口（W11 补充约束），小窗里也不再有第二个倍速入口
-    PlayerSpeedKey(speed = speed, spec = playerControlSpec(0f), onClick = onSpeed)
+    // 倍率键：W13 反馈②起只显示图标（与其它键同宽）；当前值由「详细信息」右侧的 1× 文本项显示
     PlayerIconButton(
-        iconRes = PlayerR.drawable.ic_player_bitrate,
-        contentDescription = stringResource(PlayerR.string.player_controls_label_bitrate),
-        selected = bitrateActive,
-        onClick = onOpenBitrate,
+        iconRes = PlayerR.drawable.ic_player_speed,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_speed),
+        selected = speed != 1f,
+        onClick = onSpeed,
         size = 40.dp,
     )
-    PlayerIconButton(
-        iconRes = PlayerR.drawable.ic_player_decode,
-        contentDescription = stringResource(PlayerR.string.player_controls_label_decode),
-        selected = decodeActive,
-        onClick = onOpenDecode,
-        size = 40.dp,
-    )
+    if (showsSecondaryKeys) {
+        PlayerIconButton(
+            iconRes = PlayerR.drawable.ic_player_bitrate,
+            contentDescription = stringResource(PlayerR.string.player_controls_label_bitrate),
+            selected = bitrateActive,
+            onClick = onOpenBitrate,
+            size = 40.dp,
+        )
+        PlayerIconButton(
+            iconRes = PlayerR.drawable.ic_player_decode,
+            contentDescription = stringResource(PlayerR.string.player_controls_label_decode),
+            selected = decodeActive,
+            onClick = onOpenDecode,
+            size = 40.dp,
+        )
+    }
     PlayerIconButton(
         iconRes = PlayerR.drawable.ic_player_info,
         contentDescription = stringResource(PlayerR.string.player_controls_label_info),
         onClick = onOpenInfo,
         size = 40.dp,
     )
+    // 1× 文本项：贴在「详细信息」右侧（W13 反馈③），与倍率图标键同一个入口
+    PlayerSpeedLabel(speed = speed, spec = playerControlSpec(0f), onClick = onSpeed)
     PlayerIconButton(
         iconRes = PlayerR.drawable.ic_player_sleep,
         contentDescription = stringResource(PlayerR.string.player_controls_label_sleep),

@@ -251,6 +251,22 @@ internal fun PlayerSettingsPanel(
         PanelList {
             when (tab) {
                 PlayerSettingsTab.Playback -> {
+                    /*
+                     * W13 方案 A：非全屏窄窗会把左下工具行的「码率 / 解码」隐藏，这里补两行兜底入口
+                     * （点击打开对应面板，不新增图标）；全屏 / 宽屏时它们是同一功能的另一种进法。
+                     */
+                    PanelRow(
+                        label = stringResource(PlayerR.string.player_controls_label_bitrate),
+                        caption = streamingBitrateCaption(settings.streamingBitrate),
+                        selected = false,
+                        onClick = { onOpenPanel(PlayerPanel.Bitrate) },
+                    )
+                    PanelRow(
+                        label = stringResource(PlayerR.string.player_controls_label_decode),
+                        caption = decodeCaption(settings.backend, settings.decodeMode),
+                        selected = false,
+                        onClick = { onOpenPanel(PlayerPanel.Decode) },
+                    )
                     PanelSwitchRow(
                         label = stringResource(PlayerR.string.player_settings_background_audio),
                         caption =
@@ -361,6 +377,42 @@ internal fun PlayerSettingsPanel(
             }
         }
     }
+}
+
+/**
+ * 码率兜底入口的副标题（W13 反馈①）：显示当前档位——自动 / 原始画质用资源字符串，具体档位走
+ * [PlayerStreamingQuality.bitrateLabel]（与码率面板里的档位文案同源）。
+ */
+@Composable
+private fun streamingBitrateCaption(bitrate: Long): String =
+    when {
+        bitrate == PlayerStreamingQuality.AUTO ->
+            stringResource(PlayerR.string.player_controls_bitrate_auto)
+        bitrate == PlayerStreamingQuality.ORIGINAL ->
+            stringResource(PlayerR.string.player_controls_bitrate_original)
+        else -> PlayerStreamingQuality.bitrateLabel(bitrate)
+    }
+
+/** 解码兜底入口的副标题（W13 反馈①）：当前内核 + 解码策略，一眼看清 Exo/mpv 与硬解/软解。 */
+@Composable
+private fun decodeCaption(backend: String, decodeMode: String): String {
+    val kernel =
+        stringResource(
+            if (backend == PlayerViewModel.PLAYER_BACKEND_MPV) {
+                PlayerR.string.player_settings_backend_mpv
+            } else {
+                PlayerR.string.player_settings_backend_exoplayer
+            }
+        )
+    val strategy =
+        stringResource(
+            if (decodeMode == PlayerViewModel.DECODE_MODE_SOFTWARE) {
+                PlayerR.string.player_controls_decode_software
+            } else {
+                PlayerR.string.player_controls_decode_hardware
+            }
+        )
+    return "$kernel · $strategy"
 }
 
 /** 分类选择行（W12：播放 / 手势两个 Tab，横向可滚，样式与队列的季节页签一致） */

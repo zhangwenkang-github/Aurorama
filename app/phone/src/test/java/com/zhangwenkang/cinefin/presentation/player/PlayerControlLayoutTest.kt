@@ -47,6 +47,85 @@ class PlayerControlLayoutTest {
     }
 
     @Test
+    fun bottomKeys_infoIsLastSoSpeedLabelSitsOnItsRight() {
+        // W13 反馈③：1× 文本项渲染在工具行尾部 → 只有「详细信息」是键表最后一个，它才会落在详细信息右侧
+        assertEquals(
+            "「详细信息」必须是左下键表最后一个（1× 文本项紧跟其后）",
+            PlayerBottomKey.Info,
+            PLAYER_BOTTOM_KEY_ORDER.last(),
+        )
+    }
+
+    @Test
+    fun toolRow_fullscreenKeepsAllSixKeys() {
+        val showsSecondaryKeys =
+            playerToolRowShowsSecondaryKeys(
+                isFullscreen = true,
+                widthDp = 411f,
+                formFactor = PlayerFormFactor.Phone,
+            )
+
+        assertTrue("全屏时必须全显 6 键（验收①）", showsSecondaryKeys)
+        assertEquals(PLAYER_BOTTOM_KEY_ORDER, playerToolRowVisibleKeys(showsSecondaryKeys))
+    }
+
+    @Test
+    fun toolRow_windowedNarrowPhone_hidesBitrateAndDecode() {
+        val showsSecondaryKeys =
+            playerToolRowShowsSecondaryKeys(
+                isFullscreen = false,
+                widthDp = 411f,
+                formFactor = PlayerFormFactor.Phone,
+            )
+
+        assertFalse("非全屏窄窗（手机形态 411dp）隐藏 码率 / 解码（验收②）", showsSecondaryKeys)
+        assertEquals(
+            "非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息（1× 文本项另挂在详细信息右侧）",
+            listOf(
+                PlayerBottomKey.Audio,
+                PlayerBottomKey.Subtitle,
+                PlayerBottomKey.Speed,
+                PlayerBottomKey.Info,
+            ),
+            playerToolRowVisibleKeys(showsSecondaryKeys),
+        )
+    }
+
+    @Test
+    fun toolRow_wideNonFullscreenWindow_keepsAllSixKeys() {
+        // Pad 5 平板横屏 ≈1280dp：即使没点全屏（侧栏展开态）也要全显
+        assertTrue(
+            "平板非全屏但宽度充足时仍全显（验收③）",
+            playerToolRowShowsSecondaryKeys(
+                isFullscreen = false,
+                widthDp = 1280f,
+                formFactor = PlayerFormFactor.Tablet,
+            ),
+        )
+        // 手机形态但窗口足够宽（横屏 / 宽窗口）：走宽度档位兜底，同样全显
+        assertTrue(
+            "宽度档位兜底：≥600dp 的非全屏窗口也全显",
+            playerToolRowShowsSecondaryKeys(
+                isFullscreen = false,
+                widthDp = 914f,
+                formFactor = PlayerFormFactor.Phone,
+            ),
+        )
+    }
+
+    @Test
+    fun toolRow_gradingThreshold_isSixHundredDp() {
+        assertFalse(
+            "599.9dp 仍按非全屏窄窗处理",
+            playerToolRowShowsSecondaryKeys(false, 599.9f, PlayerFormFactor.Phone),
+        )
+        assertTrue(
+            "600dp（playerControlSpec / PlayerFormFactor 的同一档位线）起全显",
+            playerToolRowShowsSecondaryKeys(false, 600f, PlayerFormFactor.Phone),
+        )
+    }
+
+    @Test
     fun wideLayout_keepsW12KeySizes() {
         val spec = playerControlSpec(800f)
 
@@ -74,7 +153,8 @@ class PlayerControlLayoutTest {
 
     @Test
     fun bottomRow_fitsPhoneWidthWithoutScrolling() {
-        // 411dp 是最窄的常见手机形态（Pad 5 wm 覆盖 / K60 竖屏），6 键 + 全屏键必须一行放得下
+        // 411dp 是最窄的常见手机形态（Pad 5 wm 覆盖 / K60 竖屏）。W13 起这一档只渲染 4 键 + 1× + 全屏键，
+        // 但按「6 键 + 1× 文本 + 全屏键」（全显态、最坏情况）算也必须一行放得下
         val spec = playerControlSpec(411f)
         val used = spec.bottomRowWidthDp + spec.toolRowPaddingDp * 2f
 
