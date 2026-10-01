@@ -40,10 +40,10 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | **下载 / 离线** | 暂无独立文档 | 🟡 有基础（Downloader / Room 离线仓库 / 图片 Worker） | 下载管理 UI 与播放本地文件 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W6 全部完成（2026-10-01，master `89d0d84`） | W6 三波（导航 IA / 控制台 Lumen 皮肤与滚动 / A 配色全站化 + 侧栏与设置视觉 + 加载过渡）已合并推送；Pad 5 已装整合版 + 冒烟通过，K60 待重连补装；等待用户复测 → 按反馈拆缺陷波 |
+| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W8 全部完成（2026-10-01，master `f99af8d`） | W6/W7/W8 三波已合并推送；Pad 5 + K60 均已装 `f99af8d` 整合版（安装 Success + 无 FATAL/ANR）；等待用户复测三页顶栏统一与媒体库改版 → 按反馈拆缺陷波 |
 | **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W4 完成（PDF 分页懒加载 + CBZ 自研导航；5 本书全部可开、三档模式生效；虚构推理 3649 页内存 ≈358MB 不随文档增长） | 后续：RTL / 缩放 / 跨页拼接（P1 收敛项） |
 | **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 缺陷修复完成（返回层级 / 歌曲点播 / 加载重试，47 单测 + 真机复验） | 后续：服务端纯音乐提示行时间戳清理；W4 播放页联调 |
-| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W6 完成 + W7-R3 修复波（`feature/r7-nav-fix`，待负责人合并） | W7-R3（2026-10-01 用户复测反馈，D27–D31）：①手机恢复抽屉入口 + 首页顶栏 app 图标；②二级库列表进抽屉（紧跟「媒体库」、先于音乐 / 书架）；③**侧柜常驻 A · Lumen**（音乐 / 书架 / 阅读页面内容皮肤不变，取代 D24 ③ 的按域分流）；④控制台页新增悬浮「返回影阁」胶囊；⑤退出控制台不再残留选中态；遗留候选：spacings 桥接收敛 |
+| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W8 完成（2026-10-01，master `f99af8d`；W7-R3 已并入 `c545eb9`） | W8-R3（用户复测反馈，D29–D31）：①三页顶栏统一为 `CinefinPageTopBar`（56dp + `statusBarsPadding()`；修复音乐汉堡被状态栏挡、书架顶层去返回箭头与库名「书籍」、媒体库按钮与标题同栏）；②媒体库库卡改版（类型图标磁贴 + 项目数 + A 配色层次，服务器 `ItemFields.CHILD_COUNT`）；③侧栏「媒体库」**默认收起并移到音乐、书架之后**（覆盖 W7 的排布）；④W7 行为不回归（抽屉、侧柜常驻 Lumen、控制台胶囊与选中态）；遗留：spacings 桥接收敛、左缘滑出抽屉在系统手势导航下未验 |
 | **测试与验收**（真机矩阵 / 回归 / 性能） | `docs/TEST_PLAN.md`（R4 维护） | 🟢 W2 完成（基线：冷启动中位 1085ms / PSS 247,790kB / APK 96.95MiB；tools/test 6 脚本） | W3：回归支持；测试数据清单待用户确认；W5 全量回归 |
 
 ### 3.1 执行顺序（用户 2026-09-28 批准）
