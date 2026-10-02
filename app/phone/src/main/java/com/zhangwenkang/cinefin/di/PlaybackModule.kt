@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.di
 
+import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayHost
 import com.zhangwenkang.cinefin.playback.CinefinPlaybackServiceStarter
+import com.zhangwenkang.cinefin.playback.MusicLyricsOverlayHostImpl
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackServiceStarter
 import dagger.Binds
 import dagger.Module
@@ -17,4 +19,6 @@ import dagger.hilt.components.SingletonComponent
 interface PlaybackModule {
     @Binds
     fun bindPlaybackServiceStarter(impl: CinefinPlaybackServiceStarter): PlaybackServiceStarter
+
+    @Binds fun bindMusicLyricsOverlayHost(impl: MusicLyricsOverlayHostImpl): MusicLyricsOverlayHost
 }

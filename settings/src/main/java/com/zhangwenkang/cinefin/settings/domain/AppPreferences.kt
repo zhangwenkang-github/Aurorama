@@ -249,6 +249,23 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 应用重启后恢复上次音乐队列与播放位置（MU-3 队列保存）。默认开。 */
     val musicResumeQueue = Preference("pref_music_resume_queue", true)
 
+    // Music（W23-MUSIC 桌面歌词；继续只追加 pref_music_* 前缀，不重排既有键）
+    /** 桌面歌词悬浮窗开关（需要「显示在其他应用上层」权限，无权限时悬浮窗不显示）。 */
+    val musicLyricsOverlay = Preference("pref_music_lyrics_overlay", false)
+
+    /** 桌面歌词文字颜色档位（[com.zhangwenkang.cinefin.music.data.LyricsOverlayTint] 的 key）。 */
+    val musicLyricsOverlayTint = Preference("pref_music_lyrics_overlay_tint", "moon_white")
+
+    /** 桌面歌词字号档位（[com.zhangwenkang.cinefin.music.data.LyricsOverlaySize] 的 key）。 */
+    val musicLyricsOverlaySize = Preference("pref_music_lyrics_overlay_size", "medium")
+
+    /** 桌面歌词显示语言（`LyricsDisplayLanguage.name`；文档里没有该语言时回落默认）。 */
+    val musicLyricsOverlayLanguage =
+        Preference("pref_music_lyrics_overlay_language", "SIMPLIFIED_CHINESE")
+
+    /** 桌面歌词锁定：锁定后不可拖动（仍可单击打开设置面板）。 */
+    val musicLyricsOverlayLocked = Preference("pref_music_lyrics_overlay_locked", false)
+
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {
             @Suppress("UNCHECKED_CAST")

@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.settings.presentation.settings
 
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
@@ -22,6 +24,7 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSele
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,8 +33,12 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor(private val appPreferences: AppPreferences) :
-    ViewModel() {
+class SettingsViewModel
+@Inject
+constructor(
+    private val appPreferences: AppPreferences,
+    @param:ApplicationContext private val context: Context,
+) : ViewModel() {
     private val _state = MutableStateFlow(SettingsState())
     val state = _state.asStateFlow()
 
@@ -290,6 +297,29 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                             )
                                     )
                                 ),
+                        )
+                    )
+            ),
+            PreferenceGroup(
+                preferences =
+                    listOf(
+                        // W23-MUSIC 桌面歌词：客户端设置入口（与全屏播放界面的开关共用同一偏好键）。
+                        // 打开时若还没有「显示在其他应用上层」权限，带包名引导到该权限页。
+                        PreferenceSwitch(
+                            nameStringResource = R.string.settings_music_lyrics_overlay,
+                            descriptionStringRes = R.string.settings_music_lyrics_overlay_summary,
+                            iconDrawableId = R.drawable.ic_closed_caption,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            backendPreference = appPreferences.musicLyricsOverlay,
+                            onClick = { preference ->
+                                if (preference.value && !Settings.canDrawOverlays(context)) {
+                                    viewModelScope.launch {
+                                        eventsChannel.send(
+                                            SettingsEvent.LaunchIntent(overlayPermissionIntent())
+                                        )
+                                    }
+                                }
+                            },
                         )
                     )
             ),
@@ -1204,4 +1234,11 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
             else -> Unit
         }
     }
+
+    /** 「显示在其他应用上层」权限页（桌面歌词需要）：带包名，落点就是本应用。 */
+    private fun overlayPermissionIntent(): Intent =
+        Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}"),
+        )
 }

@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- W23-MUSIC 桌面歌词：在其他应用上层显示悬浮歌词 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <uses-feature
         android:name="android.hardware.wifi"
@@ -56,6 +58,11 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <!-- W23-MUSIC 桌面歌词悬浮窗（普通 Service，不占前台通知，与播放前台服务共存） -->
+        <service
+            android:name=".playback.MusicLyricsOverlayService"
+            android:exported="false" />
 
         <receiver
             android:name=".utils.DownloadReceiver"

@@ -1,6 +1,11 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -43,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -104,9 +110,18 @@ fun MusicModeScreen(
     val playMode by viewModel.playMode.collectAsState()
     val lyricsState by viewModel.lyricsState.collectAsState()
     val sleepState by viewModel.sleepTimerState.collectAsState()
+    val lyricsOverlayState by viewModel.lyricsOverlayState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
     var sleepSheetOpen by rememberSaveable { mutableStateOf(false) }
     var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
+    var overlayGuideOpen by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    // 权限页返回：复核权限，拿到了就直接开启（用户在引导弹窗里点过「去授权」）
+    val overlayPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            viewModel.refreshLyricsOverlayPermission()
+            if (Settings.canDrawOverlays(context)) viewModel.enableLyricsOverlay()
+        }
 
     // 队列被清空（停止播放）时自动收起队列面板与全屏播放页
     LaunchedEffect(queue) {
@@ -204,12 +219,20 @@ fun MusicModeScreen(
                     durationMs = durationMs,
                     meta = viewModel.songMeta(currentQueue.currentItem?.itemId),
                     playMode = playMode,
+                    lyricsOverlayEnabled = lyricsOverlayState.enabled,
                     onClose = { nowPlayingOpen = false },
                     onPlayPause = viewModel::togglePlayPause,
                     onPrevious = viewModel::skipToPrevious,
                     onNext = viewModel::skipToNext,
                     onSeek = viewModel::seekTo,
                     onCyclePlayMode = viewModel::cyclePlayMode,
+                    onToggleLyricsOverlay = {
+                        when {
+                            lyricsOverlayState.enabled -> viewModel.toggleLyricsOverlay()
+                            Settings.canDrawOverlays(context) -> viewModel.enableLyricsOverlay()
+                            else -> overlayGuideOpen = true
+                        }
+                    },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
                     onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
@@ -252,6 +275,20 @@ fun MusicModeScreen(
             )
         }
 
+        if (overlayGuideOpen) {
+            LyricsOverlayPermissionDialog(
+                onConfirm = {
+                    overlayGuideOpen = false
+                    overlayPermissionLauncher.launch(
+                        Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}"),
+                        )
+                    )
+                },
+                onDismiss = { overlayGuideOpen = false },
+            )
+        }
     }
 }
 
