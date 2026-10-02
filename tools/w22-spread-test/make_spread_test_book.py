@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""W22 「拆页型对图」测试书生成器（可复现，供跨页合并真机终验）。
+"""W22/W26 「拆页型对图」测试书生成器（可复现，供跨页合并真机终验）。
 
 背景：金田一原画 PDF 每页本身就是整幅对开图，跨页合并没有触发点（READER_PLAN §7.9.1）。
 本脚本自造一本 30 页的合成漫画书，专门覆盖 `SpreadMerge.kt` 的判定与合成分支：
@@ -11,19 +11,28 @@
 | 低相似负样本（两页内容都贴内缘但互不相关） | 1 对 | 不合并 |
 | 横版整页（每页本身就是一幅对开图，宽高比 1.41） | 1 对 | 不合并 |
 
+W26 profile（`--profile w26`，42 页 = 21 槽）在原 15 槽之后追加 6 个槽位，覆盖「带纸边对图」：
+
+| 槽位 | 数量 | 期望 |
+|------|------|------|
+| 带纸边对图（内容两侧各留内缘纸白，需裁边后才能对穿） | 4 对 | **合并（裁剪路径）** |
+| 带纸边独立页对（两页不同内容、各自内缘纸白） | 1 对 | 不合并 |
+| 带纸边低相似对（内缘纸白 + 裁剪后曲线相位相反） | 1 对 | 不合并 |
+| 带纸边中相关对（裁剪后曲线 corr≈0.5 < 0.75 裁剪门槛） | 1 对 | 不合并 |
+
 对图按**水平镜像对称**绘制：中缝两侧像素连续（LTR 相位命中），外侧两缘也逐行一致
 （RTL 相位命中），因此在「右起翻页」开与关下都能验收同一条合并链路。
 
 产物（同一批 JPEG 页，两种容器）：
-- `<out-dir>/W22-Spread-Test.pdf`：与现有检测路径一致（Pillow 写 DCTDecode，PdfRenderer 可读）
-- `<out-dir>/W22-Spread-Test.cbz`：ZipFile 路径（含 2 的幂降采样分支）
+- `w22` profile → `<out-dir>/W22-Spread-Test.pdf/.cbz`（30 页，W22 回归）
+- `w26` profile → `<out-dir>/W26-Spread-Edge-Test.pdf/.cbz`（42 页，带纸边新增样本）
 
 生成后立刻用**与 Kotlin 纯函数同口径**的逻辑逐页自测（几何门槛 / 256 px 缩略图 / 内缘 2 列亮度带 /
-四条门槛），打印每个槽位的命中与误判统计；不达标会以非零退出码结束。
+四条门槛 / 纸边裁剪路径），打印每个槽位的命中与误判统计；不达标会以非零退出码结束。
 
 用法：
     python tools/w22-spread-test/make_spread_test_book.py \
-        --out-dir "E:\\codex_work\\Android_Studio_Work_Space\\test_files"
+        --out-dir "E:\\codex_work\\Android_Studio_Work_Space\\test_files" [--profile w26]
     python tools/w22-spread-test/make_spread_test_book.py --check-only <文件路径>
 
 依赖：Pillow（生成 + 解析 PDF 内嵌页图）。固定随机种子 → 产物可复现。
@@ -57,6 +66,12 @@ HALF_RATIO_MIN, HALF_RATIO_MAX = 0.55, 0.98
 HEIGHT_TOLERANCE = 0.02
 COMBINED_MIN, COMBINED_MAX = 1.15, 2.05
 MIN_SEAM_ROWS = 8
+# W26 纸边裁剪路径（与 SpreadMerge.kt 同口径）
+TRIM_MIN_CORRELATION = 0.75
+TRIM_MAX_DIFFERENCE = 0.15
+MAX_EDGE_TRIM_RATIO = 0.18
+PAPER_COLUMN_MIN_BRIGHTNESS = 215.0
+PAPER_COLUMN_MAX_STD = 20.0
 
 SEED = 20221002
 QUALITY_RANGE = (96, 60)  # 体积自动调参的上下界（目标 20–50 MB）
@@ -81,6 +96,24 @@ SLOTS = (
     "single",
     "spread",
 )
+
+# W26 追加槽位：带纸边对图 ×4 + 带纸边独立页对 + 带纸边低相似对
+SLOTS_W26 = SLOTS + (
+    "edge",
+    "edge",
+    "edge",
+    "edge_single",
+    "edge_mismatch",
+    "edge",
+    "edge_phase",
+)
+
+PROFILES = {
+    "w22": {"slots": SLOTS, "stem": "W22-Spread-Test", "pages": len(SLOTS) * 2},
+    "w26": {"slots": SLOTS_W26, "stem": "W26-Spread-Edge-Test", "pages": len(SLOTS_W26) * 2},
+}
+
+POSITIVE_SLOT_KINDS = ("spread", "edge")
 
 
 def _rng(seed: int) -> np.random.Generator:
@@ -233,11 +266,75 @@ def _landscape_pair(seed: int) -> tuple[Image.Image, Image.Image]:
     return landscape.copy(), shifted
 
 
-def build_pages() -> tuple[list[Image.Image], list[bool]]:
+def _edge_page_with_border(content: Image.Image, side: str, paper_px: int) -> Image.Image:
+    """把内容缩放到 (PAGE_W - paper_px) 宽后贴到纸白页；side = 内容所在的一侧（left/right）。"""
+    inner_w = PAGE_W - paper_px
+    scaled = content.resize((inner_w, PAGE_H), Image.LANCZOS)
+    page = Image.new("RGB", (PAGE_W, PAGE_H), (250, 249, 246))
+    page.paste(scaled, (0 if side == "left" else paper_px, 0))
+    return page
+
+
+def _edge_pair(seed: int, style: int, paper_px: int = 84) -> tuple[Image.Image, Image.Image]:
+    """带纸边对图：整幅画切成两半，各自内缘留纸白（模拟扫描时的页面白边）。"""
+    artwork = _mirror_pair(_spread_artwork(seed, style))
+    left = artwork.crop((0, 0, PAGE_W, PAGE_H))
+    right = artwork.crop((PAGE_W, 0, PAGE_W * 2, PAGE_H))
+    return (
+        _edge_page_with_border(left, "left", paper_px),
+        _edge_page_with_border(right, "right", paper_px),
+    )
+
+
+def _edge_single_pair(seed: int, paper_px: int = 84) -> tuple[Image.Image, Image.Image]:
+    """带纸边独立页对（负样本）：两张不同内容页，各自内缘纸白。"""
+    return (
+        _edge_page_with_border(_single_page(seed, "single"), "left", paper_px),
+        _edge_page_with_border(_single_page(seed + 1, "single"), "right", paper_px),
+    )
+
+
+def _edge_mismatch_pair(seed: int, paper_px: int = 84) -> tuple[Image.Image, Image.Image]:
+    """带纸边低相似对（负样本）：内缘纸白，裁边后两侧亮度曲线相位相反。"""
+    first, second = _mismatch_pair(seed)
+    return (
+        _edge_page_with_border(first, "left", paper_px),
+        _edge_page_with_border(second, "right", paper_px),
+    )
+
+
+def _edge_phase_pair(seed: int, paper_px: int = 84) -> tuple[Image.Image, Image.Image]:
+    """带纸边中相关对（负样本）：裁边后两侧同频正弦相位差 60°（corr ≈0.5 < 裁剪门槛 0.75）。"""
+    rng = _rng(seed)
+
+    def page(inverted: bool, phase: float) -> Image.Image:
+        base = _vertical_gradient(PAGE_W, PAGE_H, 210, 230)
+        rgb = np.repeat(base[:, :, None], 3, axis=2)
+        rgb += _paper_grain((PAGE_H, PAGE_W, 1), rng, 5.0)
+        rows = np.arange(PAGE_H, dtype=np.float32)
+        profile = 90.0 + 70.0 * np.sin(2 * math.pi * rows / 96.0 + phase)
+        band = np.repeat(profile[:, None], int(PAGE_W * 0.12), axis=1)
+        band_rgb = np.repeat(band[:, :, None], 3, axis=2)
+        pixels = rgb
+        if inverted:
+            pixels[:, : band.shape[1], :] = band_rgb
+        else:
+            pixels[:, -band.shape[1] :, :] = band_rgb
+        return Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8), "RGB")
+
+    return (
+        _edge_page_with_border(page(False, 0.0), "left", paper_px),
+        _edge_page_with_border(page(True, math.pi / 3), "right", paper_px),
+    )
+
+
+def build_pages(profile: str = "w22") -> tuple[list[Image.Image], list[bool]]:
+    slots = PROFILES[profile]["slots"]
     pages: list[Image.Image] = []
     expected: list[bool] = []
     spread_index = 0
-    for slot_index, kind in enumerate(SLOTS):
+    edge_index = 0
+    for slot_index, kind in enumerate(slots):
         seed = SEED + slot_index * 101
         if kind == "spread":
             artwork = _mirror_pair(_spread_artwork(seed, spread_index))
@@ -245,6 +342,12 @@ def build_pages() -> tuple[list[Image.Image], list[bool]]:
             pages.append(artwork.crop((PAGE_W, 0, PAGE_W * 2, PAGE_H)))
             expected.extend([True, True])
             spread_index += 1
+        elif kind == "edge":
+            paper_px = (84, 60, 110, 36)[edge_index % 4]
+            first, second = _edge_pair(seed, spread_index + edge_index, paper_px=paper_px)
+            pages.extend([first, second])
+            expected.extend([True, True])
+            edge_index += 1
         elif kind == "single":
             label = "cover" if slot_index == 0 else "single"
             pages.append(_single_page(seed, label))
@@ -252,6 +355,18 @@ def build_pages() -> tuple[list[Image.Image], list[bool]]:
             expected.extend([False, False])
         elif kind == "mismatch":
             first, second = _mismatch_pair(seed)
+            pages.extend([first, second])
+            expected.extend([False, False])
+        elif kind == "edge_single":
+            first, second = _edge_single_pair(seed)
+            pages.extend([first, second])
+            expected.extend([False, False])
+        elif kind == "edge_mismatch":
+            first, second = _edge_mismatch_pair(seed)
+            pages.extend([first, second])
+            expected.extend([False, False])
+        elif kind == "edge_phase":
+            first, second = _edge_phase_pair(seed)
             pages.extend([first, second])
             expected.extend([False, False])
         else:  # landscape
@@ -267,10 +382,10 @@ def _jpeg_bytes(image: Image.Image, quality: int) -> bytes:
     return buffer.getvalue()
 
 
-def write_outputs(pages: list[Image.Image], out_dir: Path) -> tuple[Path, Path, int]:
+def write_outputs(pages: list[Image.Image], out_dir: Path, stem: str) -> tuple[Path, Path, int]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = out_dir / "W22-Spread-Test.pdf"
-    cbz_path = out_dir / "W22-Spread-Test.cbz"
+    pdf_path = out_dir / f"{stem}.pdf"
+    cbz_path = out_dir / f"{stem}.cbz"
     # 质量自高向低调参：PDF 体积（≈ 内嵌 JPEG 总量）落进目标区间即停。
     quality = QUALITY_RANGE[0]
     while True:
@@ -323,11 +438,87 @@ def _thumbnail_cbz(image: Image.Image) -> np.ndarray:
     return np.asarray(image.resize(size, Image.LANCZOS), dtype=np.float32)
 
 
-def _edge_profile(gray: np.ndarray, edge: str, band: int = EDGE_BAND_PX) -> np.ndarray:
-    # 与 Kotlin 的 luminance() 同口径：先把 RGB 压成单通道亮度，再取内缘 band 列逐行平均
+def _edge_profile(
+    gray: np.ndarray, edge: str, band: int = EDGE_BAND_PX, inset: int = 0
+) -> np.ndarray:
+    # 与 Kotlin 的 spreadEdgeSample 同口径：先压亮度，再取内缘 band 列逐行平均（inset 跳过纸边）
     if gray.ndim == 3:
         gray = gray[..., 0] * 0.3008 + gray[..., 1] * 0.5898 + gray[..., 2] * 0.1094
-    return gray[:, :band].mean(axis=1) if edge == "left" else gray[:, -band:].mean(axis=1)
+    if edge == "left":
+        return gray[:, inset : inset + band].mean(axis=1)
+    end = gray.shape[1] - inset
+    return gray[:, end - band : end].mean(axis=1)
+
+
+def _edge_column_stats(gray: np.ndarray, edge: str, max_px: int) -> tuple[np.ndarray, np.ndarray]:
+    """与 Kotlin spreadEdgeColumnStats 同口径：内缘起 max_px 列的均值与列内标准差。"""
+    if gray.ndim == 3:
+        gray = gray[..., 0] * 0.3008 + gray[..., 1] * 0.5898 + gray[..., 2] * 0.1094
+    columns = gray.shape[1]
+    count = min(max_px, columns)
+    means = np.empty(count, dtype=np.float64)
+    stds = np.empty(count, dtype=np.float64)
+    for index in range(count):
+        x = index if edge == "left" else columns - 1 - index
+        column = gray[:, x]
+        means[index] = column.mean()
+        stds[index] = column.std()
+    return means, stds
+
+
+def _paper_trim_inset(means: np.ndarray, stds: np.ndarray) -> int | None:
+    """Kotlin paperTrimInset 同口径：内缘即内容 → 0；纸白后遇内容 → 偏移；整段纸白 → None。"""
+    if len(means) == 0:
+        return None
+    paper = (means >= PAPER_COLUMN_MIN_BRIGHTNESS) & (stds <= PAPER_COLUMN_MAX_STD)
+    if not bool(paper[0]):
+        return 0
+    for index in range(len(paper)):
+        if not bool(paper[index]):
+            return index
+    return None
+
+
+def _passes(evidence: tuple[float, float, float, float]) -> bool:
+    continuity, variation, correlation, difference = evidence
+    return (
+        continuity >= MIN_CONTINUITY
+        and variation >= MIN_VARIATION
+        and correlation >= MIN_CORRELATION
+        and difference <= MAX_DIFFERENCE
+    )
+
+
+def decide_merge(
+    first_gray: np.ndarray, second_gray: np.ndarray, first_edge: str, second_edge: str
+) -> tuple[bool, dict]:
+    """与 Kotlin spreadMergeDecision 同口径：直接路径优先，失败后尝试纸边裁剪路径。"""
+    base = _evidence(_edge_profile(first_gray, first_edge), _edge_profile(second_gray, second_edge))
+    if _passes(base):
+        return True, {"path": "direct", "trim_a": 0, "trim_b": 0, "evidence": base}
+    max_first = max(1, int(first_gray.shape[1] * MAX_EDGE_TRIM_RATIO))
+    max_second = max(1, int(second_gray.shape[1] * MAX_EDGE_TRIM_RATIO))
+    means_first, stds_first = _edge_column_stats(first_gray, first_edge, max_first)
+    means_second, stds_second = _edge_column_stats(second_gray, second_edge, max_second)
+    trim_first = _paper_trim_inset(means_first, stds_first)
+    trim_second = _paper_trim_inset(means_second, stds_second)
+    if trim_first is None or trim_second is None or (trim_first <= 0 and trim_second <= 0):
+        return False, {
+            "path": "miss",
+            "trim_a": trim_first,
+            "trim_b": trim_second,
+            "evidence": base,
+        }
+    trimmed = _evidence(
+        _edge_profile(first_gray, first_edge, inset=trim_first),
+        _edge_profile(second_gray, second_edge, inset=trim_second),
+    )
+    hit = (
+        _passes(trimmed)
+        and trimmed[2] >= TRIM_MIN_CORRELATION
+        and trimmed[3] <= TRIM_MAX_DIFFERENCE
+    )
+    return hit, {"path": "trim", "trim_a": trim_first, "trim_b": trim_second, "evidence": trimmed}
 
 
 def _evidence(first: np.ndarray, second: np.ndarray) -> tuple[float, float, float, float]:
@@ -349,7 +540,7 @@ def _evidence(first: np.ndarray, second: np.ndarray) -> tuple[float, float, floa
     return count / rows, variation, correlation, difference
 
 
-def detect(pages: list[Image.Image], thumbnail) -> list[dict]:
+def detect(pages: list[Image.Image], thumbnail, slots: tuple[str, ...]) -> list[dict]:
     """与 Kotlin 同口径的逐槽位判定（LTR / RTL 两个相位）。"""
     results: list[dict] = []
     thumbs = [thumbnail(page) for page in pages]
@@ -369,54 +560,46 @@ def detect(pages: list[Image.Image], thumbnail) -> list[dict]:
         for rtl in (False, True):
             first_edge = "left" if rtl else "right"
             second_edge = "right" if rtl else "left"
-            continuity, variation, correlation, difference = _evidence(
-                _edge_profile(thumbs[slot * 2], first_edge),
-                _edge_profile(thumbs[slot * 2 + 1], second_edge),
+            hit, info = decide_merge(
+                thumbs[slot * 2], thumbs[slot * 2 + 1], first_edge, second_edge
             )
-            hit = (
-                geometry
-                and continuity >= MIN_CONTINUITY
-                and variation >= MIN_VARIATION
-                and correlation >= MIN_CORRELATION
-                and difference <= MAX_DIFFERENCE
-            )
+            continuity, variation, correlation, difference = info["evidence"]
             phases["rtl" if rtl else "ltr"] = {
-                "hit": hit,
+                "hit": geometry and hit,
                 "geometry": geometry,
+                "path": info["path"],
+                "trim_a": info["trim_a"],
+                "trim_b": info["trim_b"],
                 "continuity": continuity,
                 "variation": variation,
                 "correlation": correlation,
                 "difference": difference,
             }
-        results.append({"slot": slot, "kind": SLOTS[slot], "phases": phases})
+        results.append({"slot": slot, "kind": slots[slot], "phases": phases})
     return results
 
 
-def report(results: list[dict], expected: list[bool], label: str) -> bool:
-    expected_slots = [expected[slot * 2] for slot in range(len(results))]
+def report(results: list[dict], label: str) -> bool:
+    expected_slots = [result["kind"] in POSITIVE_SLOT_KINDS for result in results]
     print(f"== {label} ==")
     for rtl_key, phase_label in (("ltr", "LTR"), ("rtl", "RTL")):
         hits = misses = false_positive = 0
         for result, want in zip(results, expected_slots):
-            hit = result["phases"][rtl_key]["hit"]
+            phase = result["phases"][rtl_key]
+            hit = phase["hit"]
+            detail = (
+                f"path={phase['path']} trim={phase['trim_a']}/{phase['trim_b']} "
+                f"cont={phase['continuity']:.3f} std={phase['variation']:.1f} "
+                f"corr={phase['correlation']:.3f} diff={phase['difference']:.3f}"
+            )
             if want and hit:
                 hits += 1
             elif want:
                 misses += 1
-                data = result["phases"][rtl_key]
-                print(
-                    f"  [{phase_label}] 漏判 slot={result['slot']:02d} ({result['kind']}) "
-                    f"cont={data['continuity']:.3f} std={data['variation']:.1f} "
-                    f"corr={data['correlation']:.3f} diff={data['difference']:.3f}"
-                )
+                print(f"  [{phase_label}] 漏判 slot={result['slot']:02d} ({result['kind']}) {detail}")
             elif hit:
                 false_positive += 1
-                data = result["phases"][rtl_key]
-                print(
-                    f"  [{phase_label}] 误判 slot={result['slot']:02d} ({result['kind']}) "
-                    f"cont={data['continuity']:.3f} std={data['variation']:.1f} "
-                    f"corr={data['correlation']:.3f} diff={data['difference']:.3f}"
-                )
+                print(f"  [{phase_label}] 误判 slot={result['slot']:02d} ({result['kind']}) {detail}")
         total_pairs = len(results)
         ok = misses == 0 and false_positive == 0
         print(
@@ -430,11 +613,25 @@ def report(results: list[dict], expected: list[bool], label: str) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="生成 / 自测 W22 拆页型对图测试书")
+    # Windows 默认 GBK 控制台装不下 ✓ / 中文，统一切到 UTF-8（不影响文件输出）。
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+    parser = argparse.ArgumentParser(description="生成 / 自测 W22/W26 拆页型对图测试书")
     parser.add_argument(
         "--out-dir",
         default=r"E:\codex_work\Android_Studio_Work_Space\test_files",
         help="输出目录（默认 = 真机测试素材目录，不入库）",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=tuple(PROFILES),
+        default="w22",
+        help="测试书规格：w22 = 30 页 W22 回归；w26 = 42 页追加带纸边样本",
     )
     parser.add_argument("--check-only", help="只复检已有文件（PDF 或 CBZ），不重新生成")
     args = parser.parse_args()
@@ -442,14 +639,23 @@ def main() -> int:
     if args.check_only:
         path = Path(args.check_only)
         pages = _load_pdf_pages(path) if path.suffix.lower() == ".pdf" else _load_cbz_pages(path)
-        # 复检时按槽位表重建期望
-        expected = [SLOTS[index // 2] == "spread" for index in range(len(pages))]
+        profile = "w26" if "W26" in path.name.upper() else "w22"
+        slots = PROFILES[profile]["slots"]
+        if len(pages) != PROFILES[profile]["pages"]:
+            print(
+                f"页数 {len(pages)} 与 profile={profile} 的槽位表"
+                f"（{PROFILES[profile]['pages']} 页）不匹配"
+            )
+            return 1
         thumbnail = _thumbnail_pdf if path.suffix.lower() == ".pdf" else _thumbnail_cbz
-        results = detect(pages, thumbnail)
-        return 0 if report(results, expected, f"{path.name}（复检）") else 1
+        results = detect(pages, thumbnail, slots)
+        return 0 if report(results, f"{path.name}（复检 · {profile}）") else 1
 
-    pages, expected = build_pages()
-    pdf_path, cbz_path, quality = write_outputs(pages, Path(args.out_dir))
+    pages, _ = build_pages(args.profile)
+    slots = PROFILES[args.profile]["slots"]
+    pdf_path, cbz_path, quality = write_outputs(
+        pages, Path(args.out_dir), PROFILES[args.profile]["stem"]
+    )
     print(f"生成：{pdf_path}（{pdf_path.stat().st_size / 1048576:.1f} MB）")
     print(f"生成：{cbz_path}（{cbz_path.stat().st_size / 1048576:.1f} MB）")
     print(f"页数：{len(pages)}　JPEG quality={quality}")
@@ -458,8 +664,14 @@ def main() -> int:
         if not TARGET_BYTES[0] <= size <= TARGET_BYTES[1]:
             print(f"提示：{path.name} 体积 {size / 1048576:.1f} MB 不在 20–50 MB 目标区间内")
 
-    ok_pdf = report(detect(_load_pdf_pages(pdf_path), _thumbnail_pdf), expected, "PDF 路径（缩放到长边 256）")
-    ok_cbz = report(detect(_load_cbz_pages(cbz_path), _thumbnail_cbz), expected, "CBZ 路径（2 的幂降采样）")
+    ok_pdf = report(
+        detect(_load_pdf_pages(pdf_path), _thumbnail_pdf, slots),
+        "PDF 路径（缩放到长边 256）",
+    )
+    ok_cbz = report(
+        detect(_load_cbz_pages(cbz_path), _thumbnail_cbz, slots),
+        "CBZ 路径（2 的幂降采样）",
+    )
     return 0 if ok_pdf and ok_cbz else 1
 
 

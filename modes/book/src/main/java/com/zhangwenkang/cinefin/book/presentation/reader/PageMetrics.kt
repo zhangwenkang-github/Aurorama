@@ -67,6 +67,7 @@ internal fun pageIndicatorText(
     pageIndex: Int,
     pageCount: Int,
     rtl: Boolean = false,
+    lastPageIndex: Int = pageIndex + 1,
 ): String {
     val suffix = if (isRtlPaging(mode, rtl)) " · 右起" else ""
     if (pageCount <= 0) return "${mode.label} · 0/0$suffix"
@@ -74,8 +75,11 @@ internal fun pageIndicatorText(
     val base =
         when (mode) {
             ReaderMode.TwoColumn -> {
-                val last = (first + 1).coerceAtMost(pageCount)
-                "${mode.label} · $first-$last/$pageCount"
+                // W26：双栏槽位可能是 1 页（横版整页独占 / 竖版单张）或 2 页，按实际页范围显示；
+                // lastPageIndex 与 pageIndex 同为 0-based 页索引。
+                val last = (lastPageIndex + 1).coerceIn(first, pageCount)
+                if (last > first) "${mode.label} · $first-$last/$pageCount"
+                else "${mode.label} · $first/$pageCount"
             }
 
             else -> "${mode.label} · $first/$pageCount"

@@ -102,10 +102,33 @@ internal fun SimpleBookView(
         remember(document) {
             mutableStateOf(document.initialPage.coerceIn(0, max(0, pageCount - 1)))
         }
+    var currentSlotEnd by remember(document) { mutableStateOf(currentPage) }
+    // 双栏版式（W26）：进入双栏时后台扫描每页宽高比，扫描完成前用 W22 的固定两页划分；
+    // 完成后横版整页独占一屏（无横版页时版式不变，Pager 不重建）。
+    var pageAspects by remember(document) { mutableStateOf<List<Float?>?>(null) }
+    LaunchedEffect(document, settings.mode) {
+        if (settings.mode == ReaderMode.TwoColumn && pageAspects == null) {
+            val aspects = document.pageSource.pageAspectRatios()
+            pageAspects = aspects
+            val slots = twoColumnSlots(aspects, pageCount)
+            Timber.d(
+                "reader spread layout pages=%d slots=%d landscape=%d",
+                pageCount,
+                slots.size,
+                slots.count { it.fullscreen },
+            )
+        }
+    }
+    val twoColumnLayout =
+        remember(pageAspects, pageCount) { twoColumnSlots(pageAspects.orEmpty(), pageCount) }
+    val twoColumnLayoutKey =
+        remember(twoColumnLayout) { if (twoColumnLayout.any { it.fullscreen }) 1 else 0 }
+    val pagedLayout = remember(pageCount) { pagedSlots(pageCount) }
 
-    fun report(page: Int) {
-        currentPage = page
-        onPageChanged(page, pageCount)
+    fun report(firstPage: Int, lastPage: Int) {
+        currentPage = firstPage
+        currentSlotEnd = lastPage
+        onPageChanged(firstPage, pageCount)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -116,16 +139,16 @@ internal fun SimpleBookView(
                     pageCount = pageCount,
                     initialPage = currentPage,
                     contentColor = contentColor,
-                    onPageChanged = ::report,
+                    onPageChanged = { page -> report(page, page) },
                 )
 
             ReaderMode.Paged ->
                 PagedPages(
                     cache = cache,
                     mergeCache = mergeCache,
-                    pageCount = pageCount,
                     initialPage = currentPage,
-                    pagesPerSpread = 1,
+                    slots = pagedLayout,
+                    layoutKey = 0,
                     rtl = settings.rtl,
                     contentColor = contentColor,
                     onPageChanged = ::report,
@@ -135,9 +158,9 @@ internal fun SimpleBookView(
                 PagedPages(
                     cache = cache,
                     mergeCache = mergeCache,
-                    pageCount = pageCount,
                     initialPage = currentPage,
-                    pagesPerSpread = 2,
+                    slots = twoColumnLayout,
+                    layoutKey = twoColumnLayoutKey,
                     rtl = settings.rtl,
                     contentColor = contentColor,
                     onPageChanged = ::report,
@@ -145,7 +168,14 @@ internal fun SimpleBookView(
         }
 
         PageIndicator(
-            text = pageIndicatorText(settings.mode, currentPage, pageCount, settings.rtl),
+            text =
+                pageIndicatorText(
+                    mode = settings.mode,
+                    pageIndex = currentPage,
+                    pageCount = pageCount,
+                    rtl = settings.rtl,
+                    lastPageIndex = currentSlotEnd,
+                ),
             chromeColor = chromeColor,
             contentColor = contentColor,
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -197,88 +227,108 @@ private fun ScrollPages(
 }
 
 /**
- * 横向分页 / 双栏：`pagesPerSpread` = 1（分页）或 2（双栏，Pad 5 横屏左右各一页）。
+ * 横向分页 / 双栏：槽位由 [slots] 决定（分页 = 每页一槽；双栏 = 横版整页独占 + 其余两页一槽）。
  *
- * RTL（漫画右起）时整条页链镜像（`reverseLayout`，向右滑动前进），spread 内左右页也镜像 （[spreadPageSlots]：右 = 2k+1、左 =
- * 2k+2）；逻辑页号与进度不变。切开关时用 `key(rtl)` 重建 Pager，让 `initialPage` 按当前逻辑页重新落位，避免镜像瞬间跳到别的页。
+ * RTL（漫画右起）时整条页链镜像（`reverseLayout`，向右滑动前进），槽位内左右页也镜像
+ * （[visualSlotPages]：先读的页在右）；逻辑页号与进度不变。切开关或版式重算时用 `key(rtl, layoutKey)` 重建 Pager，让 `initialPage`
+ * 按当前逻辑页重新落位，避免镜像 / 重排瞬间跳到别的页。
  */
 @Composable
 private fun PagedPages(
     cache: PageImageCache,
     mergeCache: SpreadImageCache?,
-    pageCount: Int,
     initialPage: Int,
-    pagesPerSpread: Int,
+    slots: List<SpreadSlot>,
+    layoutKey: Int,
     rtl: Boolean,
     contentColor: Color,
-    onPageChanged: (Int) -> Unit,
+    onPageChanged: (firstPage: Int, lastPage: Int) -> Unit,
 ) {
-    key(rtl) {
-        val spreadTotal = spreadCount(pageCount, pagesPerSpread)
-        val pagerState =
-            rememberPagerState(initialPage = initialPage / pagesPerSpread) { spreadTotal }
-        LaunchedEffect(pagerState) {
-            snapshotFlow { pagerState.currentPage }
-                .distinctUntilChanged()
-                .collect { spread -> onPageChanged(spread * pagesPerSpread) }
-        }
-        // 停稳后再预取邻页，避免抢可见页的解码带宽（窗口仍是 3 张）。
-        LaunchedEffect(pagerState) {
-            snapshotFlow { pagerState.settledPage }
-                .distinctUntilChanged()
-                .collect { spread ->
-                    delay(150)
-                    val base = spread * pagesPerSpread
-                    listOf(base - 1, base + pagesPerSpread).forEach { cache.prefetch(it) }
-                    // 对图合并：邻槽停稳后先做判定 / 合成，翻到下一屏时直接可用。
-                    if (mergeCache != null) {
-                        listOf(spread - 1, spread + 1).forEach { mergeCache.prefetch(it) }
+    key(rtl, layoutKey) {
+        // 空表只做保护（打开流程已拦截空文档）；不能写成 `return@key`：
+        // Compose 编译器会为 inline `key` 里的标签返回生成 $$$$$NON_LOCAL_RETURN$$$$$ 合成类，D8 无法 dex。
+        if (slots.isNotEmpty()) {
+            val pagerState =
+                rememberPagerState(initialPage = slotIndexForPage(slots, initialPage)) {
+                    slots.size
+                }
+            LaunchedEffect(pagerState, slots) {
+                snapshotFlow { pagerState.currentPage }
+                    .distinctUntilChanged()
+                    .collect { spread ->
+                        val slot = slots.getOrNull(spread)
+                        if (slot != null) {
+                            onPageChanged(slot.pages.first(), slot.pages.last())
+                        }
+                    }
+            }
+            // 停稳后再预取邻槽，避免抢可见页的解码带宽（窗口仍是 3 张）。
+            LaunchedEffect(pagerState, slots) {
+                snapshotFlow { pagerState.settledPage }
+                    .distinctUntilChanged()
+                    .collect { spread ->
+                        delay(150)
+                        slots.getOrNull(spread - 1)?.pages?.last()?.let { cache.prefetch(it) }
+                        slots.getOrNull(spread + 1)?.pages?.first()?.let { cache.prefetch(it) }
+                        // 对图合并：邻槽停稳后先做判定 / 合成，翻到下一屏时直接可用。
+                        if (mergeCache != null) {
+                            listOf(spread - 1, spread + 1)
+                                .mapNotNull { slots.getOrNull(it) }
+                                .filter { it.pages.size == SPREAD_MERGE_PAGES_PER_SPREAD }
+                                .forEach { mergeCache.prefetch(it.pages.first()) }
+                        }
+                    }
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                key = { it },
+                reverseLayout = rtl,
+            ) { spread ->
+                val slot = slots.getOrNull(spread)
+                if (slot != null) {
+                    when {
+                        // 横版整页（或分页的单页）：整屏居中，Fit 保持比例、不裁切。
+                        slot.fullscreen ->
+                            ZoomablePage(
+                                cache = cache,
+                                index = slot.pages.first(),
+                                contentColor = contentColor,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+
+                        slot.pages.size == SPREAD_MERGE_PAGES_PER_SPREAD && mergeCache != null ->
+                            MergedSpreadPage(
+                                cache = cache,
+                                mergeCache = mergeCache,
+                                slot = slot,
+                                rtl = rtl,
+                                contentColor = contentColor,
+                            )
+
+                        else ->
+                            SpreadPages(
+                                cache = cache,
+                                visualPages = visualSlotPages(slot, rtl),
+                                contentColor = contentColor,
+                            )
                     }
                 }
-        }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            key = { it },
-            reverseLayout = rtl,
-        ) { spread ->
-            if (mergeCache != null && pagesPerSpread == SPREAD_MERGE_PAGES_PER_SPREAD) {
-                MergedSpreadPage(
-                    cache = cache,
-                    mergeCache = mergeCache,
-                    pageCount = pageCount,
-                    pagesPerSpread = pagesPerSpread,
-                    spread = spread,
-                    rtl = rtl,
-                    contentColor = contentColor,
-                )
-            } else {
-                SpreadPages(
-                    cache = cache,
-                    pageCount = pageCount,
-                    pagesPerSpread = pagesPerSpread,
-                    spread = spread,
-                    rtl = rtl,
-                    contentColor = contentColor,
-                )
             }
         }
     }
 }
 
-/** 一个槽位的两页（分页模式为一页）各自渲染：W4 行为，合并未命中 / 未启用时使用。 */
+/** 一个槽位的视觉页（1–2 页，null = 空半格）各自渲染：W4 行为，合并未命中 / 未启用时使用。 */
 @Composable
 private fun SpreadPages(
     cache: PageImageCache,
-    pageCount: Int,
-    pagesPerSpread: Int,
-    spread: Int,
-    rtl: Boolean,
+    visualPages: List<Int?>,
     contentColor: Color,
 ) {
     Row(modifier = Modifier.fillMaxSize()) {
-        spreadPageSlots(spread, pageCount, pagesPerSpread, rtl).forEach { index ->
+        visualPages.forEach { index ->
             if (index != null) {
                 ZoomablePage(
                     cache = cache,
@@ -294,7 +344,7 @@ private fun SpreadPages(
 }
 
 /**
- * 双栏槽位：命中"对图"时显示合并后的整幅位图，否则回退到两页各自渲染。
+ * 双栏两页槽：命中"对图"时显示合并后的整幅位图，否则回退到两页各自渲染。
  *
  * 先按原样渲染两页（零延迟，与 W4 一致），合并位图就绪后再替换；邻槽在停稳后预取，正常翻页时合并图 已经备好。判定不命中 / 渲染失败时位图保持 null，这一屏与 W4 完全相同。
  */
@@ -302,30 +352,26 @@ private fun SpreadPages(
 private fun MergedSpreadPage(
     cache: PageImageCache,
     mergeCache: SpreadImageCache,
-    pageCount: Int,
-    pagesPerSpread: Int,
-    spread: Int,
+    slot: SpreadSlot,
     rtl: Boolean,
     contentColor: Color,
 ) {
+    val firstPage = slot.pages.first()
     // 第一帧先查缓存（预取过的邻槽直接上合并图），没有才异步判定 + 合成。
-    var merged by remember(spread) { mutableStateOf(mergeCache.cached(spread)) }
-    LaunchedEffect(spread) { if (merged == null) merged = mergeCache.mergedSpread(spread) }
+    var merged by remember(firstPage) { mutableStateOf(mergeCache.cached(firstPage)) }
+    LaunchedEffect(firstPage) { if (merged == null) merged = mergeCache.mergedSpread(firstPage) }
     val image = merged
     if (image == null) {
         SpreadPages(
             cache = cache,
-            pageCount = pageCount,
-            pagesPerSpread = pagesPerSpread,
-            spread = spread,
-            rtl = rtl,
+            visualPages = visualSlotPages(slot, rtl),
             contentColor = contentColor,
         )
         return
     }
     ZoomableSlot(
-        slotKey = "spread=$spread",
-        logLabel = "spread=$spread",
+        slotKey = "spread=$firstPage",
+        logLabel = "spread=$firstPage",
         modifier = Modifier.fillMaxSize(),
     ) {
         Image(

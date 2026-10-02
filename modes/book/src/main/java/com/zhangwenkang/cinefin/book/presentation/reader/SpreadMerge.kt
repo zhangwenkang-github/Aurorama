@@ -61,6 +61,17 @@ internal const val SPREAD_INK_THRESHOLD: Int = 200
 /** 内缘取样的列数：多取几列做平均，抵消扫描噪点。 */
 internal const val SPREAD_EDGE_BAND_PX: Int = 2
 
+/** 纸边裁剪路径（W26「带纸边对图」）的额外门槛：比直接路径更严，避免两张独立页的纸白边 各自对裁后误拼。 */
+internal const val SPREAD_TRIM_MIN_CORRELATION: Float = 0.75f
+internal const val SPREAD_TRIM_MAX_DIFFERENCE: Float = 0.15f
+
+/** 内缘裁剪上限：相对半页宽度的比例；纸白带超过此宽度视为无法定位内容边界（保守不合并）。 */
+internal const val SPREAD_MAX_EDGE_TRIM_RATIO: Float = 0.18f
+
+/** 纸白列判据：列平均亮度 ≥ [SPREAD_PAPER_COLUMN_MIN_BRIGHTNESS] 且列内标准差 ≤ [SPREAD_PAPER_COLUMN_MAX_STD]。 */
+internal const val SPREAD_PAPER_COLUMN_MIN_BRIGHTNESS: Float = 215f
+internal const val SPREAD_PAPER_COLUMN_MAX_STD: Float = 20f
+
 /** 内缘所在的一侧（拼接缝那一侧）。 */
 internal enum class SpreadEdge {
     Left,
@@ -136,10 +147,36 @@ internal fun spreadInnerEdge(slot: Int, rtl: Boolean): SpreadEdge =
 /** 一页内缘的逐行亮度取样（内缘 [SPREAD_EDGE_BAND_PX] 列的平均值）。 */
 internal data class SpreadEdgeSample(val brightness: IntArray, val widthPx: Int)
 
+/** 拼图半页的源列范围（[startPx], [endExclusivePx)）。 */
+internal data class SpreadHalfSourceRange(val startPx: Int, val endExclusivePx: Int) {
+    val widthPx: Int
+        get() = (endExclusivePx - startPx).coerceAtLeast(0)
+}
+
+/**
+ * 拼图半页的裁剪源范围：裁掉**内缘**一侧的纸边。
+ *
+ * 拼图左半的内缘在其右缘、右半的内缘在其左缘（LTR / RTL 都成立）；[edge] 传该半页的内缘。 例：704 宽、纸边 18 → 左半取 [0, 686)、右半取 [18, 704)。
+ */
+internal fun spreadHalfSourceRange(
+    widthPx: Int,
+    edge: SpreadEdge,
+    trimPx: Int,
+): SpreadHalfSourceRange {
+    if (widthPx <= 0) return SpreadHalfSourceRange(0, 0)
+    val trim = trimPx.coerceIn(0, widthPx - 1)
+    return if (edge == SpreadEdge.Right) {
+        SpreadHalfSourceRange(0, widthPx - trim)
+    } else {
+        SpreadHalfSourceRange(trim, widthPx)
+    }
+}
+
 /**
  * 从 ARGB 像素里抽取内缘逐行亮度：只读内缘 [bandPx] 列，逐行取平均。
  *
- * 入参是**缩略图**的像素（判定用），不是整幅页面位图；[widthPx] / [heightPx] 不合法时返回空样本。
+ * [insetPx] 是相对内缘的列偏移（W26 纸边裁剪路径：跳过内缘纸白带后重新取样）。 入参是**缩略图**的像素（判定用），不是整幅页面位图；[widthPx] / [heightPx]
+ * 不合法时返回空样本。
  */
 internal fun spreadEdgeSample(
     pixels: IntArray,
@@ -147,21 +184,87 @@ internal fun spreadEdgeSample(
     heightPx: Int,
     edge: SpreadEdge,
     bandPx: Int = SPREAD_EDGE_BAND_PX,
+    insetPx: Int = 0,
 ): SpreadEdgeSample {
     if (widthPx <= 0 || heightPx <= 0) return SpreadEdgeSample(IntArray(0), widthPx)
     if (pixels.size < widthPx * heightPx) return SpreadEdgeSample(IntArray(0), widthPx)
-    val band = bandPx.coerceIn(1, widthPx)
+    val start = insetPx.coerceIn(0, widthPx - 1)
+    val band = bandPx.coerceIn(1, widthPx - start)
     val out = IntArray(heightPx)
     for (y in 0 until heightPx) {
         var sum = 0
         val rowStart = y * widthPx
         for (i in 0 until band) {
-            val x = if (edge == SpreadEdge.Left) i else widthPx - 1 - i
+            val x = if (edge == SpreadEdge.Left) start + i else widthPx - 1 - start - i
             sum += luminance(pixels[rowStart + x])
         }
         out[y] = sum / band
     }
     return SpreadEdgeSample(brightness = out, widthPx = widthPx)
+}
+
+/**
+ * 内缘起 [maxPx] 列的逐列统计（判定缩略图与合成位图共用）。
+ *
+ * - 均值：该列所有行的平均亮度；
+ * - 标准差：该列行方向的亮度起伏（纸白边接近 0，内容列明显更大）。
+ *
+ * 返回 null 表示参数非法（尺寸 / 像素数组不足）。
+ */
+internal class SpreadEdgeColumnStats(val means: FloatArray, val standardDeviations: FloatArray) {
+    val size: Int
+        get() = means.size
+}
+
+internal fun spreadEdgeColumnStats(
+    pixels: IntArray,
+    widthPx: Int,
+    heightPx: Int,
+    edge: SpreadEdge,
+    maxPx: Int,
+): SpreadEdgeColumnStats? {
+    if (widthPx <= 0 || heightPx <= 0 || maxPx <= 0) return null
+    if (pixels.size < widthPx * heightPx) return null
+    val columns = minOf(maxPx, widthPx)
+    val means = FloatArray(columns)
+    val deviations = FloatArray(columns)
+    for (index in 0 until columns) {
+        val x = if (edge == SpreadEdge.Left) index else widthPx - 1 - index
+        var sum = 0.0
+        var sumSquares = 0.0
+        for (y in 0 until heightPx) {
+            val value = luminance(pixels[y * widthPx + x]).toDouble()
+            sum += value
+            sumSquares += value * value
+        }
+        val mean = sum / heightPx
+        val variance = (sumSquares / heightPx - mean * mean).coerceAtLeast(0.0)
+        means[index] = mean.toFloat()
+        deviations[index] = sqrt(variance).toFloat()
+    }
+    return SpreadEdgeColumnStats(means, deviations)
+}
+
+/**
+ * 找内缘纸边的裁剪量：从内缘向内跳过连续的纸白列，返回第一列「内容」的偏移。
+ *
+ * - 返回 0：内缘第一列就是内容（没有纸边可裁）；
+ * - 返回 >0：裁掉这么多列后到达内容边界；
+ * - 返回 null：整段扫描范围都是纸白（无法定位）或参数异常 → 放弃裁剪（保守）。
+ *
+ * 纸白列判据只接受「亮且低信息」的列：均匀深色带（黑边）不算纸白，避免把黑边页错裁 （READER_PLAN §8 坑 23）。
+ */
+internal fun paperTrimInset(stats: SpreadEdgeColumnStats): Int? {
+    if (stats.size <= 0) return null
+    var paperColumns = 0
+    for (index in 0 until stats.size) {
+        val isPaper =
+            stats.means[index] >= SPREAD_PAPER_COLUMN_MIN_BRIGHTNESS &&
+                stats.standardDeviations[index] <= SPREAD_PAPER_COLUMN_MAX_STD
+        if (!isPaper) return if (paperColumns > 0) index else 0
+        paperColumns += 1
+    }
+    return null
 }
 
 /** 中缝证据：只在"两侧内缘都有内容"的行上比较，纸白行不构成对图证据。 */
@@ -250,6 +353,108 @@ internal fun shouldMergeSpread(evidence: SpreadSeamEvidence): Boolean =
         evidence.variation >= SPREAD_SEAM_MIN_VARIATION &&
         evidence.correlation >= SPREAD_SEAM_MIN_CORRELATION &&
         evidence.difference <= SPREAD_SEAM_MAX_DIFFERENCE
+
+/** 合并决策：命中时给出拼合几何 + 两侧纸边裁剪（判定缩略图尺度的列数）。 */
+internal data class SpreadMergeDecision(
+    val geometry: SpreadMergeGeometry,
+    val trimFirstPx: Int,
+    val trimSecondPx: Int,
+    val thumbWidthFirstPx: Int,
+    val thumbWidthSecondPx: Int,
+    val evidence: SpreadSeamEvidence,
+) {
+    /** 是否走了纸边裁剪路径（真机日志 / 单测用）。 */
+    val trimmed: Boolean
+        get() = trimFirstPx > 0 || trimSecondPx > 0
+
+    /** 裁剪比例（裁剪列数 / 缩略图宽度），合成时映射到全分辨率位图。 */
+    val trimFirstRatio: Float
+        get() = if (thumbWidthFirstPx > 0) trimFirstPx / thumbWidthFirstPx.toFloat() else 0f
+
+    val trimSecondRatio: Float
+        get() = if (thumbWidthSecondPx > 0) trimSecondPx / thumbWidthSecondPx.toFloat() else 0f
+}
+
+/**
+ * 中缝判定（两条路径，优先级固定）：
+ * 1. **直接路径**（W22 标定）：内缘两侧直接对穿 → 原四门槛（无纸边对图的判定与 W22 完全一致）；
+ * 2. **纸边裁剪路径**（W26）：内缘两侧是纸白 / 低信息带时，向内找到第一列内容（[paperTrimInset]）， 用内移后的采样带重算证据。该路径要求相关性 /
+ *    平均差更严（[SPREAD_TRIM_MIN_CORRELATION] / [SPREAD_TRIM_MAX_DIFFERENCE]）， 且裁剪量不超过 [maxTrimFirstPx]
+ *    / [maxTrimSecondPx] （调用方按 [SPREAD_MAX_EDGE_TRIM_RATIO] 计算）。
+ *
+ * 返回 null 表示不合并（保守口径：宁可漏拼也不误拼）。
+ */
+internal fun spreadMergeDecision(
+    firstPixels: IntArray,
+    firstWidthPx: Int,
+    firstHeightPx: Int,
+    firstEdge: SpreadEdge,
+    secondPixels: IntArray,
+    secondWidthPx: Int,
+    secondHeightPx: Int,
+    secondEdge: SpreadEdge,
+    geometry: SpreadMergeGeometry,
+    maxTrimFirstPx: Int = (firstWidthPx * SPREAD_MAX_EDGE_TRIM_RATIO).toInt().coerceAtLeast(1),
+    maxTrimSecondPx: Int = (secondWidthPx * SPREAD_MAX_EDGE_TRIM_RATIO).toInt().coerceAtLeast(1),
+): SpreadMergeDecision? {
+    val firstBase = spreadEdgeSample(firstPixels, firstWidthPx, firstHeightPx, firstEdge)
+    val secondBase = spreadEdgeSample(secondPixels, secondWidthPx, secondHeightPx, secondEdge)
+    val baseEvidence = spreadSeamEvidence(firstBase, secondBase)
+    if (shouldMergeSpread(baseEvidence)) {
+        return SpreadMergeDecision(
+            geometry = geometry,
+            trimFirstPx = 0,
+            trimSecondPx = 0,
+            thumbWidthFirstPx = firstWidthPx,
+            thumbWidthSecondPx = secondWidthPx,
+            evidence = baseEvidence,
+        )
+    }
+    if (maxTrimFirstPx <= 0 || maxTrimSecondPx <= 0) return null
+    val firstStats =
+        spreadEdgeColumnStats(firstPixels, firstWidthPx, firstHeightPx, firstEdge, maxTrimFirstPx)
+            ?: return null
+    val secondStats =
+        spreadEdgeColumnStats(
+            secondPixels,
+            secondWidthPx,
+            secondHeightPx,
+            secondEdge,
+            maxTrimSecondPx,
+        ) ?: return null
+    val firstTrim = paperTrimInset(firstStats) ?: return null
+    val secondTrim = paperTrimInset(secondStats) ?: return null
+    // 两侧都没有纸边：这条路径不适用（保持 W22 的「内缘有内容但不连续 → 不合并」）。
+    if (firstTrim <= 0 && secondTrim <= 0) return null
+    val firstTrimmed =
+        spreadEdgeSample(
+            firstPixels,
+            firstWidthPx,
+            firstHeightPx,
+            firstEdge,
+            insetPx = firstTrim,
+        )
+    val secondTrimmed =
+        spreadEdgeSample(
+            secondPixels,
+            secondWidthPx,
+            secondHeightPx,
+            secondEdge,
+            insetPx = secondTrim,
+        )
+    val evidence = spreadSeamEvidence(firstTrimmed, secondTrimmed)
+    if (!shouldMergeSpread(evidence)) return null
+    if (evidence.correlation < SPREAD_TRIM_MIN_CORRELATION) return null
+    if (evidence.difference > SPREAD_TRIM_MAX_DIFFERENCE) return null
+    return SpreadMergeDecision(
+        geometry = geometry,
+        trimFirstPx = firstTrim,
+        trimSecondPx = secondTrim,
+        thumbWidthFirstPx = firstWidthPx,
+        thumbWidthSecondPx = secondWidthPx,
+        evidence = evidence,
+    )
+}
 
 /** 中缝比较所需的最少行数：太少（缩略图异常 / 边缘几乎全白）直接判定为不可合并。 */
 private const val MIN_SEAM_ROWS = 8
