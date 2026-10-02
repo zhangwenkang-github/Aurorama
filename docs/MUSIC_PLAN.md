@@ -315,7 +315,9 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] 单测：`ReplayGainTagParserTest` 6 → 12 项（MP4 双档 / 大小写与单位 / 非 RG 忽略 / moov 在尾定位 / 截断 / 覆盖编码往返），`:player:local` 98 → **104 项**
 - [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（61）+ `:player:local:testDebugUnitTest`（104）+ `:modes:music:testDebugUnitTest`（99）全绿
 - [x] 本地打标联调（负责人安排，无设备）：rsgain 3.8 基线只读确认原文件无 RG 标签；副本 `test_files/侧脸-RG.flac` 写入 track/album gain = **-8.47 dB**、peak = 1.000000（Loudness -9.53 LUFS，SHA-256 见 §7 日志）
-- [ ] 真机验证（待负责人调度设备窗口）：①M4A/MP4 标签识别（需先上传带标签的 M4A 样本）；②`侧脸-RG.flac` 识别（面板应显示「曲目标签 -8.5 dB（文件标签）」）；③面板设置 / 清除覆盖（-6 dB → 0.50x；清除后回落标签或原音量）；④回归 + 0 FATAL/ANR
+- [x] 真机验证（K60 `8e875894`，见 §5.11）：标签识别（RG 副本 -8.47 dB → 0.38x、面板「文件标签」；原曲 `来源=NONE`、面板「未检测到」）/ 覆盖 UI（-6.0 → 0.50x、+6.0 → 2.00x、轨道+专辑双滑杆 -2.5 dB → 0.75x、清除回落 -8.47 dB）/ 重启持久化 / 歌词·桌面歌词·队列·自然衔接回归 / 0 FATAL·ANR
+- [x] 真机拦下并修复：清除覆盖后回读内嵌标签偶发失败被当负缓存（面板「未检测到」直到重启）→ `ReplayGainReadResult`（失败不缓存）+ 换曲先清旧标签 + 3s 重试一次 + 覆盖编码取整（`-2.4999995` → `-2.5`）；重跑门禁全绿、重装复验
+- [ ] M4A/MP4 设备端样本：本库 123 首全 FLAC（0 个 m4a/mp4）→ **无样本待补**（解析与 moov 在尾二次 Range 由 12 项单测覆盖，含真机同款两段式路径的纯函数部分）
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -620,6 +622,28 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 >
 > 取证注意：补日志后必须**重新 `assembleDebug` 再装机**（首轮 APK 只有功能没有淡化日志，造成"无日志"误判）；K60 主缓冲小，跨 10 秒以上的序列日志要当轮 `logcat -d` 抓取。
 
+### 5.11 W35 真机验证记录（2026-10-02 23:10–23:35，Redmi K60 `8e875894`）
+
+设备由负责人指派（`device-lock.md`；Pad 5 归 W34，全程未触碰）；安装包 = 本 worktree `:app:phone:assembleDebug` 产物（先校验 dex 内含「本机增益覆盖」特征串，排除 master 旧镜像误装）；服务器只读确认两条音频：`侧脸.flac` id=`190863be…`、`侧脸-RG.flac` id=`98043669…`。
+
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | RG 副本识别（标签） | 播放 `侧脸-RG`（曲目档）：`ReplayGain 读取：item=98043669… 来源=EMBEDDED track=-8.47 album=-8.47`；面板「曲目标签 -8.5 dB（文件标签）」；`音乐音效统计 … rg=-8.47dB 输入RMS=0.36 输出RMS=0.14 实际增益=0.38x`（-8.47 dB 理论 0.377×） | ✅ |
+| 2 | 原曲对照（无标签） | 播放 `侧脸`（原曲）：`来源=NONE track=null album=null`；面板「未检测到 ReplayGain 标签」；无 RG 统计日志（不改变音量） | ✅ |
+| 3 | 覆盖 -6 dB | 拖「曲目增益」滑杆 → 文件 `track=-6.0`；面板「曲目标签 -6.0 dB（本机设置）」；实测 `rg=-6.00dB … 实际增益=0.49–0.50x` | ✅ |
+| 4 | 重启持久化 | force-stop → 重开 → 恢复队列播放：`来源=LOCAL_OVERRIDE track=-6.0`；面板仍为「-6.0 dB（本机设置）」（覆盖文件跨进程生效） | ✅ |
+| 5 | 覆盖 +6 dB | 拖到 +6 → 文件 `track=6.0`；实测 `rg=6.00dB … 实际增益=2.00x`（三连采样一致） | ✅ |
+| 6 | 清除回落 | 点「清除本机覆盖」→ 文件删除（`files/replaygain/` 空）；`来源=EMBEDDED track=-8.47`；实测回 0.38x；面板回「曲目标签 -8.5 dB（文件标签）」（修复后同进程复验） | ✅ |
+| 7 | 双滑杆（修复后构建） | 曲目 + 专辑各拖一档：文件 `track=-2.5`（取整后文本，修复前为 `-2.4999995`）/ `album=-2.5`；实测 `rg=-2.50dB … 实际增益=0.75x`；清除后回落 0.38x | ✅ |
+| 8 | 歌词 / 桌面歌词 | 倒数（服务端 40 行）：全屏歌词行「时针一直倒数着…」正常渲染；桌面歌词开 → `MusicLyricsOverlayController 更新：当前句/下一句` + 窗口 `APPLICATION_OVERLAY (276,126)`；再点关 → `桌面歌词悬浮窗已销毁` | ✅ |
+| 9 | 队列 / 自然衔接 | 队列面板「播放队列（123）」+ 拖拽提示；`侧脸-RG` 播完自然切到 倒数（active item 60→61）全程 `PLAYING`，无静音段、交叉淡化关闭档 0 条日志 | ✅ |
+| 10 | 稳定性 | 整轮 `FATAL EXCEPTION` / `ANR in com.zhangwenkang` / `Input dispatching timed out` / `UnsatisfiedLinkError` **0 条**（含 3 次重装 / force-stop / 重启） | ✅ |
+| 11 | M4A/MP4 | 只读枚举库内 123 首音频：`m4a/mp4/aac` = **0**；本机无 ffmpeg 造样本 → **无样本待补**（解析路径由 12 项单测覆盖） | ⏳ 待样本 |
+
+> 真机拦下并修复的缺陷（本波修复，提交见 git log）：清除覆盖后回读内嵌标签**偶发一次拉取失败被当成"无标签"写进负缓存**（面板「未检测到」且不改变音量，直到进程重启才恢复）。修复 = ①`ReplayGainReadResult`（Value / Failed）：失败不缓存、后续可重试；②换曲 / 重读前先清上一首标签（避免旧增益瞬时套到新曲）；③失败后 3 秒重试一次；④覆盖文本编码取整（`-2.4999995` → `-2.5`）。修复后重跑门禁 + 重装复验第 6/7 项。
+>
+> 还原：App force-stop；prefs 逐键复核 = `replaygain_mode=off` / `crossfade=0` / `eq_enabled=false` / `eq_preset=flat`；RG 覆盖目录空；`/sdcard/w35_ui*.xml` 全部删除；未改 `wm size` / density / 旋转 / Wi-Fi / 媒体音量；队列快照因测试播放前进未回滚（与 W21/W30 先例一致）。**Pad 5（43af8627）全程未占用**。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -706,6 +730,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 38. **M3 `Slider` 的 `input tap` 不设值**（W30 真机操作踩到）：点滑杆任意位置不会改变值（只聚焦），必须 `input swipe` 拖动；实现上滑杆拖动期间只更新处理器 / 内存（实时听感），`onValueChangeFinished` 才写 SharedPreferences，避免拖动期间高频落盘（对齐 W24 悬浮窗位置的做法）。
 39. **MP4/M4A 的 `ilst` 与 `data` 不是 FullBox，`meta` 才是**（W35 解析踩到）：`moov/udta/meta/ilst` 里 `meta` 带 4 字节 version/flags（QuickTime 老变体没有，需探测），`ilst` 是纯容器，`data` 的负载 = 4 字节 type indicator + 4 字节 locale + 文本（type=1 UTF-8 / type=2 UTF-16BE）。第一版单测构造器给 `ilst`/`data` 多加了一层 version/flags，导致"解析器读不到标签"的假故障——写 MP4 box 测试务必先对齐规范。另：moov 在文件尾（非 faststart）时，头部窗口读不到它，但顶层 box 头里的声明长度足以算出 moov 绝对偏移，二次 Range 即可，不需要整文件下载。
 40. **rsgain 的命令形态**（W35 打标）：`easy` 子命令只接受**目录**（自动按专辑分组），单文件打标用 `custom`——`rsgain custom -s s -a <file>` 只扫不写（`-s s` 是默认档），`-s i` 才是写 ReplayGain 2.0 标签；`loudgain` 的 `-a` 是 loudgain 自己的参数，rsgain 没有 `easy -a` 这种写法。实测《侧脸》：-9.53 LUFS / peak 1.000000 → gain -8.47 dB，写入 4 个标签（TRACK/ALBUM_GAIN + TRACK/ALBUM_PEAK）；副本用 TagLib padding，文件体积不变。
+41. **"读取失败"不能当"确认无标签"进负缓存**（W35 真机拦下）：清除本机覆盖后回读内嵌标签偶发一次拉取失败（无错误日志），旧实现把 `null` 写进 itemId 缓存 → 面板「未检测到 ReplayGain 标签」且不改变音量，直到进程重启才恢复。修复 = `ReplayGainReadResult`（Value / Failed）：Failed 不缓存、调用方 3 秒重试一次；同时换曲 / 重读前先清上一首标签，避免旧增益瞬间套到新曲。教训：凡"负结果可缓存"的链路都要区分**确认没有**与**读取失败**。
+42. **Media3 `seekToPrevious()` 的 3 秒语义 + 播放中 uiautomator 不 idle**（W35 真机操作踩到）：位置 > 3 秒时点「上一曲」只回到本曲开头，必须快速点两次才切上一首（音乐页上一曲走 `seekToPrevious`）——验证切歌时别误判按钮失灵。另外 K60 播放中 `uiautomator dump` 经常拿不到 idle 并**留下旧文件**（看起来"界面没变"），先 `input keyevent 85` 暂停（或发键后立刻 dump）再操作；日志取证要当轮 `logcat -d`，MIUI 会把 123 首队列信息刷满主缓冲。
 
 ## 7. 会话日志
 
@@ -776,4 +802,7 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   ②**M4A/MP4 RG**：`----` free-form 原子解析（mean / name / data，UTF-8 与 UTF-16）+ moov 在尾时按顶层 box 链二次只读 Range（D53）；
   ③**本机增益覆盖 UI**：音效面板 ReplayGain 组两滑杆（-12..+12 dB / 0.5 dB 步进，拖动实时、松手落盘）+ 清除；写 `<files/replaygain/<id>.txt`、缓存失效 + 播放链重读（D54）；
   ④**本地打标联调（负责人安排的方法 2，无设备）**：经代理下载 rsgain 3.8（Win64，工具在 `%USERPROFILE%\.codex\tools\rsgain`，不入库）；基线只读确认原文件 3 条普通 VorbisComment、0 条 RG；副本 `test_files/侧脸-RG.flac` 用 `rsgain custom -s i -a` 写入 TRACK/ALBUM gain = -8.47 dB、peak = 1.000000（Loudness -9.53 LUFS），SHA-256 `D85C800B822FC68B655E5EAA84BF83C656B9B087DAC941EC462C144A6BC0F394`、23,189,955 B；原文件 SHA-256 前后一致（`ABE5AE…0166`，未改动）；上传目标 = Jellyfin「音乐」库同目录（服务器 `/medi/音乐/侧脸-RG.flac`），待负责人触发扫描后做 App 端识别验证；
-  ⑤新增 6 条单测（`:player:local` 98 → **104 项**），门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 61 + player:local 104 + music 99 全绿；**待真机**（M4A 样本 / 侧脸-RG / 覆盖 UI 三组，负责人调度窗口）；**未决**：真交叉排期。
+  ⑤新增 6 条单测（`:player:local` 98 → **104 项**），门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 61 + player:local 104 + music 99 全绿；
+  ⑥**K60 真机验收完成**（2026-10-02 23:10–23:35，见 §5.11）：RG 副本 -8.47 dB → 0.38x（面板「文件标签」）、原曲对照 NONE（「未检测到」）、覆盖 -6.0 → 0.50x / +6.0 → 2.00x / 双滑杆 -2.5 → 0.75x / 清除回落 -8.47、重启持久化；歌词 / 桌面歌词 / 队列 / 自然衔接回归；0 FATAL·ANR；
+  ⑦**真机拦下的缺陷已修复并复验**：封面清除后回读偶发失败被负缓存（面板"未检测到"直到重启）→ `ReplayGainReadResult` 失败不缓存 + 换曲清旧标签 + 3s 重试 + 覆盖编码取整；重跑五项门禁全绿、重装复验；
+  ⑧还原：prefs 逐键（RG=off / crossfade=0 / eq=false / preset=flat）、覆盖目录空、force-stop、`/sdcard/w35_ui*.xml` 清理；Pad 5 未占用；队列快照前进未回滚（先例一致）。**未决**：真交叉排期（§4.6 方案就绪）；M4A 设备端样本（库内 0 个）。
