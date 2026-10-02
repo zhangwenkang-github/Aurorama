@@ -246,6 +246,8 @@ constructor(
     /** 退到后台 / 离开阅读页：立即落盘并尝试回传（ARCHITECTURE §3.6 上报时机）。 */
     fun onStopReading() {
         val itemId = openedItemId ?: return
+        // 后台不继续扫 PDF 文本层（结果保留，回到阅读页可重新输入关键词继续）。
+        cancelSearch()
         progressJob?.cancel()
         simpleProgressJob?.cancel()
         val locator = currentLocator
@@ -354,6 +356,11 @@ constructor(
             return
         }
         if (openedSimpleFormat != SimpleBookFormat.Pdf) return
+        // 页码 / 本地文件还没就绪（打开中）：不要留一个永远「扫描中」的状态。
+        if (openedSimplePageCount <= 0 || openedBookFile == null) {
+            _searchState.value = PdfSearchUiState(query = query)
+            return
+        }
         _searchState.value =
             PdfSearchUiState(query = query, running = true, pageCount = openedSimplePageCount)
         searchJob = viewModelScope.launch {
@@ -373,7 +380,10 @@ constructor(
     private suspend fun runSearch(query: String) {
         val file = openedBookFile ?: return
         val pageCount = openedSimplePageCount
-        if (pageCount <= 0) return
+        if (pageCount <= 0) {
+            _searchState.update { it.copy(running = false) }
+            return
+        }
         val source =
             pdfSearchSource ?: PdfBoxPageTextSource(context, file).also { pdfSearchSource = it }
         val engine = PdfSearchEngine(source = source, pageCount = pageCount)
