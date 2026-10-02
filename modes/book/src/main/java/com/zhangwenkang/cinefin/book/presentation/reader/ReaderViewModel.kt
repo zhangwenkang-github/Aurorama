@@ -14,12 +14,14 @@ import java.io.File
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,6 +41,9 @@ private const val PROGRESS_DEBOUNCE_MS = 2_000L
 
 /** 阅读中定时上报间隔（ARCHITECTURE §3.6：每 30 秒）。 */
 private const val PROGRESS_PERIODIC_MS = 30_000L
+
+/** 搜索输入去抖：输入停顿后才真正开始扫描（打字时立即取消上一条扫描，保证输入跟手）。 */
+private const val SEARCH_DEBOUNCE_MS = 400L
 
 sealed interface ReaderUiState {
     data object Loading : ReaderUiState
@@ -62,6 +67,23 @@ sealed interface BookDownloadState {
 
     data class Failed(val message: String) : BookDownloadState
 }
+
+/**
+ * PDF 搜索 UI 状态（W29-READER）：结果流式追加，进度按 [PDF_SEARCH_PROGRESS_STEP] 页节流刷新； 列表侧用 LazyColumn 懒加载，3649
+ * 页文档也不会把整表塞进一帧。
+ */
+data class PdfSearchUiState(
+    val query: String = "",
+    val running: Boolean = false,
+    val finished: Boolean = false,
+    val cancelled: Boolean = false,
+    val scannedPages: Int = 0,
+    val pageCount: Int = 0,
+    val hits: List<PdfSearchHit> = emptyList(),
+    val truncated: Boolean = false,
+    val hasTextLayer: Boolean = true,
+    val error: String? = null,
+)
 
 @HiltViewModel
 class ReaderViewModel
@@ -91,9 +113,28 @@ constructor(
     private val _jumpTarget = MutableStateFlow<Locator?>(null)
     val jumpTarget: StateFlow<Locator?> = _jumpTarget.asStateFlow()
 
+    /** 本地高亮批注（W29，EB-8）：按 itemId 落文件，不写服务器。 */
+    private val _annotations = MutableStateFlow<List<ReaderAnnotation>>(emptyList())
+    val annotations: StateFlow<List<ReaderAnnotation>> = _annotations.asStateFlow()
+
+    /** 页码跳转目标（搜索命中 / 批注跳转），由页序列视图消费后 [consumePageJumpTarget]。 */
+    private val _pageJumpTarget = MutableStateFlow<Int?>(null)
+    val pageJumpTarget: StateFlow<Int?> = _pageJumpTarget.asStateFlow()
+
+    private val _searchState = MutableStateFlow(PdfSearchUiState())
+    val searchState: StateFlow<PdfSearchUiState> = _searchState.asStateFlow()
+
+    private val annotationStore =
+        ReaderAnnotationStore(File(File(context.filesDir, "reader"), "annotations"))
+
     private var openedItemId: UUID? = null
     private var openedAsset: Asset? = null
     private var openedPageSource: PageSource? = null
+    private var openedBookFile: File? = null
+    private var openedSimpleFormat: SimpleBookFormat? = null
+    private var openedSimplePageCount: Int = 0
+    private var pdfSearchSource: PdfBoxPageTextSource? = null
+    private var searchJob: Job? = null
     private var progressJob: Job? = null
     private var simpleProgressJob: Job? = null
     private var periodicJob: Job? = null
@@ -117,6 +158,7 @@ constructor(
         if (_state.value is ReaderUiState.Ready || openedItemId == itemId) return
         openedItemId = itemId
         _state.value = ReaderUiState.Loading
+        resetToolState()
 
         viewModelScope.launch {
             runCatching {
@@ -146,8 +188,23 @@ constructor(
     fun retry() {
         val itemId = openedItemId ?: return
         closeDocuments()
+        resetToolState()
         openedItemId = null
         open(itemId)
+    }
+
+    /** 打开新书 / 重试时清掉上一本的搜索、批注与跳转状态（进度与设置不动）。 */
+    private fun resetToolState() {
+        searchJob?.cancel()
+        searchJob = null
+        pdfSearchSource?.close()
+        pdfSearchSource = null
+        openedBookFile = null
+        openedSimpleFormat = null
+        openedSimplePageCount = 0
+        _searchState.value = PdfSearchUiState()
+        _annotations.value = emptyList()
+        _pageJumpTarget.value = null
     }
 
     fun onLocationChanged(locator: Locator) {
@@ -275,6 +332,112 @@ constructor(
         _jumpTarget.value = null
     }
 
+    /** 跳转到页序列文档的某一页（0-based）：搜索命中 / 批注列表共用。 */
+    fun jumpToPage(pageIndex: Int) {
+        if (openedSimpleFormat == null) return
+        val pageCount = openedSimplePageCount
+        if (pageCount <= 0) return
+        _pageJumpTarget.value = pageIndex.coerceIn(0, pageCount - 1)
+    }
+
+    fun consumePageJumpTarget() {
+        _pageJumpTarget.value = null
+    }
+
+    /** 关键词变化（搜索面板输入框每次改动都调用）： 空查询直接清空；非空则取消上一条扫描、去抖 [SEARCH_DEBOUNCE_MS] 后重新流式扫描。 */
+    fun updateSearchQuery(raw: String) {
+        val query = normalizeSearchQuery(raw)
+        searchJob?.cancel()
+        searchJob = null
+        if (query.isEmpty()) {
+            _searchState.value = PdfSearchUiState()
+            return
+        }
+        if (openedSimpleFormat != SimpleBookFormat.Pdf) return
+        _searchState.value =
+            PdfSearchUiState(query = query, running = true, pageCount = openedSimplePageCount)
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            runSearch(query)
+        }
+    }
+
+    /** 取消当前扫描（关面板 / 离开阅读页）：结果保留，状态改为未运行。 */
+    fun cancelSearch() {
+        val wasRunning = _searchState.value.running
+        searchJob?.cancel()
+        searchJob = null
+        _searchState.update { it.copy(running = false, cancelled = it.cancelled || wasRunning) }
+    }
+
+    private suspend fun runSearch(query: String) {
+        val file = openedBookFile ?: return
+        val pageCount = openedSimplePageCount
+        if (pageCount <= 0) return
+        val source =
+            pdfSearchSource ?: PdfBoxPageTextSource(context, file).also { pdfSearchSource = it }
+        val engine = PdfSearchEngine(source = source, pageCount = pageCount)
+        runCatching { engine.search(query) { event -> applySearchEvent(event) } }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                Timber.w(error, "PDF 搜索失败")
+                _searchState.update { it.copy(running = false, error = error.message ?: "搜索失败") }
+            }
+    }
+
+    private fun applySearchEvent(event: PdfSearchEvent) {
+        when (event) {
+            is PdfSearchEvent.Progress ->
+                _searchState.update {
+                    it.copy(scannedPages = event.scannedPages, pageCount = event.pageCount)
+                }
+
+            is PdfSearchEvent.HitFound ->
+                _searchState.update { it.copy(hits = it.hits + event.hit) }
+
+            is PdfSearchEvent.Finished ->
+                _searchState.update {
+                    it.copy(
+                        running = false,
+                        finished = true,
+                        scannedPages = event.scannedPages,
+                        pageCount = event.pageCount,
+                        truncated = event.truncated,
+                        hasTextLayer = event.hasTextLayer,
+                    )
+                }
+        }
+    }
+
+    /** 新增矩形批注（页面归一化矩形 + 备注）：只落本地文件（W29，D23）。 */
+    fun addAnnotation(pageIndex: Int, rect: PageRect, note: String) {
+        val itemId = openedItemId ?: return
+        viewModelScope.launch {
+            val annotation = newReaderAnnotation(itemId.toString(), pageIndex, rect, note)
+            runCatching { annotationStore.save(annotation) }
+                .onSuccess { _annotations.value = it }
+                .onFailure { Timber.w(it, "保存批注失败") }
+        }
+    }
+
+    fun updateAnnotationNote(annotationId: String, note: String) {
+        val itemId = openedItemId ?: return
+        viewModelScope.launch {
+            runCatching { annotationStore.updateNote(itemId.toString(), annotationId, note) }
+                .onSuccess { _annotations.value = it }
+                .onFailure { Timber.w(it, "更新批注失败") }
+        }
+    }
+
+    fun removeAnnotation(annotationId: String) {
+        val itemId = openedItemId ?: return
+        viewModelScope.launch {
+            runCatching { annotationStore.delete(itemId.toString(), annotationId) }
+                .onSuccess { _annotations.value = it }
+                .onFailure { Timber.w(it, "删除批注失败") }
+        }
+    }
+
     private suspend fun persistProgress(itemId: UUID, locator: Locator, progression: Double) {
         persistProgression(itemId, progression, locatorJson = locator.toJSON().toString())
     }
@@ -359,6 +522,12 @@ constructor(
             runCatching { readerRepository.getBookmarks(itemId) }.getOrDefault(emptyList())
     }
 
+    /** 读取当前书的本地批注（W29）：文件缺失 / 脏数据都回退为空，不阻塞阅读页。 */
+    private suspend fun refreshAnnotations(itemId: UUID) {
+        _annotations.value =
+            runCatching { annotationStore.list(itemId.toString()) }.getOrDefault(emptyList())
+    }
+
     private suspend fun refreshLocalState(itemId: UUID) {
         val localFile = runCatching { readerRepository.localFile(itemId) }.getOrNull()
         _downloadState.value =
@@ -368,6 +537,7 @@ constructor(
                 BookDownloadState.Downloaded(localFile.sizeBytes)
             }
         refreshBookmarks()
+        refreshAnnotations(itemId)
         refreshPendingSyncCount()
     }
 
@@ -376,6 +546,7 @@ constructor(
         simpleProgressJob?.cancel()
         periodicJob?.cancel()
         downloadJob?.cancel()
+        resetToolState()
         closeDocuments()
         super.onCleared()
     }
@@ -401,6 +572,7 @@ constructor(
     private suspend fun openDocument(file: File, progress: ReadingProgress?): ReaderDocument =
         when (sniffBookFormat(file)) {
             BookFormat.Pdf -> {
+                openedBookFile = file
                 val source = PdfPageSource(file)
                 if (source.pageCount <= 0) {
                     source.close()
@@ -430,6 +602,8 @@ constructor(
         progress: ReadingProgress?,
     ): ReaderDocument.Simple {
         openedPageSource = source
+        openedSimpleFormat = format
+        openedSimplePageCount = source.pageCount
         return ReaderDocument.Simple(
             format = format,
             pageSource = source,

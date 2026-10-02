@@ -33,6 +33,9 @@ class ReaderActivity : AppCompatActivity() {
             val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
             val pendingSyncCount by viewModel.pendingSyncCount.collectAsStateWithLifecycle()
             val jumpTarget by viewModel.jumpTarget.collectAsStateWithLifecycle()
+            val searchState by viewModel.searchState.collectAsStateWithLifecycle()
+            val annotations by viewModel.annotations.collectAsStateWithLifecycle()
+            val pageJumpTarget by viewModel.pageJumpTarget.collectAsStateWithLifecycle()
             ReaderScreen(
                 state = state,
                 settings = settings,
@@ -42,6 +45,9 @@ class ReaderActivity : AppCompatActivity() {
                 bookmarks = bookmarks,
                 pendingSyncCount = pendingSyncCount,
                 jumpTarget = jumpTarget,
+                searchState = searchState,
+                annotations = annotations,
+                pageJumpTarget = pageJumpTarget,
                 onSettingsChange = viewModel::updateSettings,
                 onLocationChanged = viewModel::onLocationChanged,
                 onSimplePageChanged = viewModel::onSimplePageChanged,
@@ -52,6 +58,14 @@ class ReaderActivity : AppCompatActivity() {
                 onJumpToBookmark = viewModel::jumpTo,
                 onJumpHandled = viewModel::consumeJumpTarget,
                 onNavigatorReady = viewModel::onNavigatorLocator,
+                onSearchQueryChange = viewModel::updateSearchQuery,
+                onCancelSearch = viewModel::cancelSearch,
+                onJumpToHit = { hit -> viewModel.jumpToPage(hit.pageIndex) },
+                onJumpToAnnotation = { annotation -> viewModel.jumpToPage(annotation.pageIndex) },
+                onPageJumpHandled = viewModel::consumePageJumpTarget,
+                onAddAnnotation = viewModel::addAnnotation,
+                onUpdateAnnotationNote = viewModel::updateAnnotationNote,
+                onRemoveAnnotation = viewModel::removeAnnotation,
             )
         }
 

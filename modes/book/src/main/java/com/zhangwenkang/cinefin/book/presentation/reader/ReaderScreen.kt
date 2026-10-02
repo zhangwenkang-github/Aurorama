@@ -71,6 +71,9 @@ fun ReaderScreen(
     bookmarks: List<ReaderBookmark>,
     pendingSyncCount: Int,
     jumpTarget: Locator?,
+    searchState: PdfSearchUiState,
+    annotations: List<ReaderAnnotation>,
+    pageJumpTarget: Int?,
     onSettingsChange: (ReaderSettings) -> Unit,
     onLocationChanged: (Locator) -> Unit,
     onSimplePageChanged: (index: Int, pageCount: Int) -> Unit,
@@ -81,13 +84,30 @@ fun ReaderScreen(
     onJumpToBookmark: (ReaderBookmark) -> Unit,
     onJumpHandled: () -> Unit,
     onNavigatorReady: (Locator) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onCancelSearch: () -> Unit,
+    onJumpToHit: (PdfSearchHit) -> Unit,
+    onJumpToAnnotation: (ReaderAnnotation) -> Unit,
+    onPageJumpHandled: () -> Unit,
+    onAddAnnotation: (pageIndex: Int, rect: PageRect, note: String) -> Unit,
+    onUpdateAnnotationNote: (annotationId: String, note: String) -> Unit,
+    onRemoveAnnotation: (annotationId: String) -> Unit,
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
+    var showAnnotations by remember { mutableStateOf(false) }
+    var annotating by remember { mutableStateOf(false) }
+    var pendingAnnotation by remember { mutableStateOf<Pair<Int, PageRect>?>(null) }
+    var editingAnnotation by remember { mutableStateOf<ReaderAnnotation?>(null) }
     val bookmarksAvailable = (state as? ReaderUiState.Ready)?.document is ReaderDocument.Rich
     /** 右起翻页（RTL）只对页序列文档（PDF / CBZ）开放；EPUB 的阅读方向由 Readium 出版物元数据决定。 */
     val pagingDirectionAvailable =
         (state as? ReaderUiState.Ready)?.document is ReaderDocument.Simple
+    /** PDF 搜索 / 批注：只对 PDF 开放（CBZ 走同一页模型，但本波未列入验收范围）。 */
+    val pdfToolsAvailable =
+        ((state as? ReaderUiState.Ready)?.document as? ReaderDocument.Simple)?.format ==
+            SimpleBookFormat.Pdf
 
     CinefinTheme(
         domain = ContentDomain.Book,
@@ -110,11 +130,24 @@ fun ReaderScreen(
                         onDownload = onDownload,
                         bookmarksEnabled = bookmarksAvailable,
                         onOpenBookmarks = { showBookmarks = true },
+                        pdfToolsEnabled = pdfToolsAvailable,
+                        onOpenSearch = { showSearch = true },
+                        onOpenAnnotations = { showAnnotations = true },
                         onCycleMode = {
                             onSettingsChange(settings.copy(mode = settings.mode.next()))
                         },
                         onOpenSettings = { showSettings = true },
                     )
+
+                    if (annotating) {
+                        Surface(color = chromeColor, contentColor = contentColor) {
+                            AnnotateHintBar(
+                                contentColor = contentColor,
+                                accent = accent,
+                                onStop = { annotating = false },
+                            )
+                        }
+                    }
 
                     if (pendingSyncCount > 0) {
                         PendingSyncBanner(
@@ -174,7 +207,18 @@ fun ReaderScreen(
                                             systemDark = systemDark,
                                             contentColor = contentColor,
                                             chromeColor = chromeColor,
+                                            searchHits = searchState.hits,
+                                            annotations = annotations,
+                                            annotating = annotating,
+                                            jumpTargetPage = pageJumpTarget,
                                             onPageChanged = onSimplePageChanged,
+                                            onJumpHandled = onPageJumpHandled,
+                                            onAnnotationRequested = { index, rect ->
+                                                pendingAnnotation = index to rect
+                                            },
+                                            onAnnotationTap = { annotation ->
+                                                editingAnnotation = annotation
+                                            },
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                 }
@@ -250,6 +294,110 @@ fun ReaderScreen(
                     )
                 }
             }
+
+            if (showSearch) {
+                ModalBottomSheet(
+                    onDismissRequest = {
+                        showSearch = false
+                        onCancelSearch()
+                    },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = chromeColor,
+                    contentColor = contentColor,
+                    scrimColor = CinefinTokens.Scrim.copy(alpha = CinefinTokens.ScrimAlpha),
+                    dragHandle = {
+                        Box(
+                            modifier =
+                                Modifier.padding(top = CinefinSpacing.Space3)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .clip(CinefinShapes.TwoXs)
+                                    .background(contentColor.copy(alpha = 0.24f))
+                        )
+                    },
+                ) {
+                    ReaderSearchSheet(
+                        state = searchState,
+                        accent = accent,
+                        contentColor = contentColor,
+                        onQueryChange = onSearchQueryChange,
+                        onJumpToHit = { hit ->
+                            onJumpToHit(hit)
+                            showSearch = false
+                            onCancelSearch()
+                        },
+                    )
+                }
+            }
+
+            if (showAnnotations) {
+                ModalBottomSheet(
+                    onDismissRequest = { showAnnotations = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = chromeColor,
+                    contentColor = contentColor,
+                    scrimColor = CinefinTokens.Scrim.copy(alpha = CinefinTokens.ScrimAlpha),
+                    dragHandle = {
+                        Box(
+                            modifier =
+                                Modifier.padding(top = CinefinSpacing.Space3)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .clip(CinefinShapes.TwoXs)
+                                    .background(contentColor.copy(alpha = 0.24f))
+                        )
+                    },
+                ) {
+                    ReaderAnnotationSheet(
+                        annotations = annotations,
+                        annotating = annotating,
+                        contentColor = contentColor,
+                        onToggleAnnotating = {
+                            if (annotating) {
+                                annotating = false
+                            } else {
+                                annotating = true
+                                // 关掉面板才能看到页面去框选。
+                                showAnnotations = false
+                            }
+                        },
+                        onJumpToAnnotation = { annotation ->
+                            onJumpToAnnotation(annotation)
+                            showAnnotations = false
+                        },
+                        onRemoveAnnotation = { annotation -> onRemoveAnnotation(annotation.id) },
+                    )
+                }
+            }
+
+            pendingAnnotation?.let { (pageIndex, rect) ->
+                AnnotationNoteDialog(
+                    title = "添加批注（第 ${pageIndex + 1} 页）",
+                    initialNote = "",
+                    canDelete = false,
+                    onDismiss = { pendingAnnotation = null },
+                    onConfirm = { note ->
+                        onAddAnnotation(pageIndex, rect, note)
+                        pendingAnnotation = null
+                    },
+                    onDelete = {},
+                )
+            }
+
+            editingAnnotation?.let { annotation ->
+                AnnotationNoteDialog(
+                    title = "批注 · 第 ${annotation.pageIndex + 1} 页",
+                    initialNote = annotation.note,
+                    canDelete = true,
+                    onDismiss = { editingAnnotation = null },
+                    onConfirm = { note ->
+                        onUpdateAnnotationNote(annotation.id, note)
+                        editingAnnotation = null
+                    },
+                    onDelete = {
+                        onRemoveAnnotation(annotation.id)
+                        editingAnnotation = null
+                    },
+                )
+            }
         }
     }
 }
@@ -269,6 +417,9 @@ private fun ReaderTopBar(
     onDownload: () -> Unit,
     bookmarksEnabled: Boolean,
     onOpenBookmarks: () -> Unit,
+    pdfToolsEnabled: Boolean,
+    onOpenSearch: () -> Unit,
+    onOpenAnnotations: () -> Unit,
     onCycleMode: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -295,6 +446,22 @@ private fun ReaderTopBar(
                 contentColor = contentColor,
                 onDownload = onDownload,
             )
+            if (pdfToolsEnabled) {
+                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+                CinefinButton(
+                    text = "搜索",
+                    onClick = onOpenSearch,
+                    variant = CinefinButtonVariant.Text,
+                    size = CinefinButtonSize.Small,
+                )
+                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+                CinefinButton(
+                    text = "批注",
+                    onClick = onOpenAnnotations,
+                    variant = CinefinButtonVariant.Text,
+                    size = CinefinButtonSize.Small,
+                )
+            }
             if (bookmarksEnabled) {
                 Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
                 CinefinButton(

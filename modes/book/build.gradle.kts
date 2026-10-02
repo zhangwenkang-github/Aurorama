@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -46,6 +47,8 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.pdfbox.android)
     implementation(libs.readium.navigator)
     implementation(libs.readium.shared)
     implementation(libs.readium.streamer)
