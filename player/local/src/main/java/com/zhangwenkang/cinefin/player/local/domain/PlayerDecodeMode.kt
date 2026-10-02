@@ -56,4 +56,45 @@ object PlayerDecodeMode {
 
     /** mpv 的 `hwdec` 参数：硬解优先 = mediacodec，仅软解 = no */
     fun mpvHwDec(mode: String?): String = if (normalize(mode) == SOFTWARE) "no" else "mediacodec"
+
+    /**
+     * W18：解码面板「当前档位」的**实际状态**（文案要带内核，避免「本地硬解」到底是谁的歧义）。
+     *
+     * 判定顺序与真实建实例一致：先看回退档位（服务器转码 / 本地软解），再看用户偏好 + 当前内核。 例：`mpv` + 硬解优先 + 第 3 档 →
+     * [DecodeStage.MPV_SOFTWARE]（PlayerHolder 就是按 `hwdec=no` 建的实例）。
+     */
+    enum class DecodeStage {
+        /** ExoPlayer + MediaCodec 硬解 */
+        EXO_HARDWARE,
+
+        /** ExoPlayer + FFmpeg 扩展软解（用户选「仅软解」或落到第 3 档） */
+        EXO_SOFTWARE,
+
+        /** mpv + `hwdec=mediacodec` */
+        MPV_HARDWARE,
+
+        /** mpv + `hwdec=no`（用户选「仅软解」或回退链第 3 档） */
+        MPV_SOFTWARE,
+
+        /** 回退链第 2 档：流本身由服务器解码 / 转码 */
+        SERVER_TRANSCODE,
+    }
+
+    fun decodeStage(
+        backend: String?,
+        mode: String?,
+        fallbackStage: Int?,
+    ): DecodeStage {
+        if (PlayerDecodeFallback.forcesServerTranscode(fallbackStage)) {
+            return DecodeStage.SERVER_TRANSCODE
+        }
+        val software = effectiveMode(mode, fallbackStage) == SOFTWARE
+        val mpv = backend == PlayerDecodeFallback.BACKEND_MPV
+        return when {
+            mpv && software -> DecodeStage.MPV_SOFTWARE
+            mpv -> DecodeStage.MPV_HARDWARE
+            software -> DecodeStage.EXO_SOFTWARE
+            else -> DecodeStage.EXO_HARDWARE
+        }
+    }
 }

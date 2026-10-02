@@ -229,9 +229,11 @@
     <string name="player_controls_decode_software">Software only</string>
     <string name="player_controls_decode_software_caption">FFmpeg / mpv software decoding, highest compatibility and power draw</string>
     <string name="player_controls_decode_stage_active">Active: %1$s</string>
-    <string name="player_controls_decode_stage_hardware">Local hardware</string>
+    <string name="player_controls_decode_stage_exo_hardware">ExoPlayer hardware</string>
+    <string name="player_controls_decode_stage_exo_software">ExoPlayer software</string>
+    <string name="player_controls_decode_stage_mpv_hardware">mpv hardware</string>
+    <string name="player_controls_decode_stage_mpv_software">mpv software</string>
     <string name="player_controls_decode_stage_server">Server transcode</string>
-    <string name="player_controls_decode_stage_software">Local software</string>
     <string name="player_controls_decode_active">Software decoding</string>
     <string name="player_settings_tab_playback">Playback</string>
     <string name="player_settings_tab_gesture">Gestures</string>

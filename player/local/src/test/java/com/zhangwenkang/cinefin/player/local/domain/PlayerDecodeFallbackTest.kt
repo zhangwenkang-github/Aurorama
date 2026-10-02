@@ -4,6 +4,7 @@ import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -88,6 +89,158 @@ class PlayerDecodeFallbackTest {
         assertEquals(
             listOf("本地硬解", "服务器解码/转码", "本地软解"),
             PlayerDecodeFallback.PRIORITY,
+        )
+    }
+
+    // ---------- W18：手动选内核不关闭回退链（用户实测反馈） ----------
+
+    @Test
+    fun manualExoPlayer_codecFailureStillDescends() {
+        // 解码面板手动切 ExoPlayer：硬解报「解不了这个格式」→ 仍要按链路降到服务器转码
+        assertEquals(
+            PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_NONE,
+                backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = true,
+            ),
+        )
+        // 「原始画质」= 用户明确只直连：跳过服务器转码，直接落本地软解
+        assertEquals(
+            PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_NONE,
+                backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                bitratePreference = PlayerStreamingQuality.ORIGINAL,
+                codecCapabilityError = true,
+            ),
+        )
+    }
+
+    @Test
+    fun manualExoPlayer_networkErrorDoesNotSwitchKernel() {
+        // 第 1 档的网络 / DRM 类错误换内核救不了：直接报错，不进回退链
+        assertNull(
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_NONE,
+                backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = false,
+            )
+        )
+    }
+
+    @Test
+    fun manualMpv_failureAlsoDescends() {
+        // 手动切 mpv：mpv 上报的错误没有错误码，同样按链路下降（自动档 → 服务器转码）
+        assertEquals(
+            PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_NONE,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = false,
+            ),
+        )
+        // 原始画质 / 具体 Mbps：本地已经不可能再硬解，直接落 mpv 软解
+        assertEquals(
+            PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_NONE,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                bitratePreference = 8L,
+                codecCapabilityError = false,
+            ),
+        )
+    }
+
+    @Test
+    fun serverTranscodeStageFailure_anyErrorFallsToLocalSoftware() {
+        // 第 2 档（服务器转码流）失败不挑错误码：断网 / 解码失败都要继续降到本地软解
+        for (codecError in listOf(true, false)) {
+            assertEquals(
+                PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
+                PlayerDecodeFallback.stageAfterFailure(
+                    stage = PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+                    backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                    bitratePreference = PlayerStreamingQuality.AUTO,
+                    codecCapabilityError = codecError,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun onlyAllLinksFailed_reportsError() {
+        // 第 3 档（本地软解）再失败 = 链路全败：返回 null，由调用方显示错误卡片
+        assertNull(
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
+                backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = true,
+            )
+        )
+        assertNull(
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = false,
+            )
+        )
+    }
+
+    @Test
+    fun duplicateFailureReport_isDedupedSoOneFailureAdvancesOnlyOneStage() {
+        // mpv 一次打开失败会连发 2–3 条 END_FILE：只有第一条能推进档位，否则 0 → 2 跳过服务器转码
+        val key = PlayerDecodeFallback.failureKey(PlayerDecodeFallback.BACKEND_MPV, 0)
+        assertTrue(
+            PlayerDecodeFallback.isDuplicateFailure(
+                lastKey = key,
+                lastHandledAtMs = 1_000L,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                stage = 0,
+                nowMs = 1_800L,
+            )
+        )
+        // 换了内核 / 档位，或过了去重窗口 = 新的失败，不吞
+        assertFalse(
+            PlayerDecodeFallback.isDuplicateFailure(
+                lastKey = key,
+                lastHandledAtMs = 1_000L,
+                backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                stage = 0,
+                nowMs = 1_800L,
+            )
+        )
+        assertFalse(
+            PlayerDecodeFallback.isDuplicateFailure(
+                lastKey = key,
+                lastHandledAtMs = 1_000L,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                stage = 1,
+                nowMs = 1_800L,
+            )
+        )
+        assertFalse(
+            PlayerDecodeFallback.isDuplicateFailure(
+                lastKey = key,
+                lastHandledAtMs = 1_000L,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                stage = 0,
+                nowMs = 1_000L + PlayerDecodeFallback.DUPLICATE_FAILURE_WINDOW_MS,
+            )
+        )
+        assertFalse(
+            PlayerDecodeFallback.isDuplicateFailure(
+                lastKey = null,
+                lastHandledAtMs = 0L,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                stage = 0,
+                nowMs = 100L,
+            )
         )
     }
 }

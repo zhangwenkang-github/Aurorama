@@ -230,9 +230,11 @@
     <string name="player_controls_decode_software">仅软解</string>
     <string name="player_controls_decode_software_caption">FFmpeg / mpv 软解，兼容性最好、最耗电</string>
     <string name="player_controls_decode_stage_active">当前档位：%1$s</string>
-    <string name="player_controls_decode_stage_hardware">本地硬解</string>
-    <string name="player_controls_decode_stage_server">服务器解码 / 转码</string>
-    <string name="player_controls_decode_stage_software">本地软解</string>
+    <string name="player_controls_decode_stage_exo_hardware">ExoPlayer 硬解</string>
+    <string name="player_controls_decode_stage_exo_software">ExoPlayer 软解</string>
+    <string name="player_controls_decode_stage_mpv_hardware">mpv 硬解</string>
+    <string name="player_controls_decode_stage_mpv_software">mpv 软解</string>
+    <string name="player_controls_decode_stage_server">服务器转码</string>
     <string name="player_controls_decode_active">软解中</string>
     <string name="player_settings_tab_playback">播放</string>
     <string name="player_settings_tab_gesture">手势</string>

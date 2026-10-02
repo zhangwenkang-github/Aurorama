@@ -75,4 +75,58 @@ class PlayerDecodeModeTest {
             ),
         )
     }
+
+    @Test
+    fun decodeStageLabel_followsKernelAndFallbackStage() {
+        // W18：面板「当前档位」文案必须带内核，按实际生效的内核 + 解码方式映射
+        assertEquals(
+            PlayerDecodeMode.DecodeStage.EXO_HARDWARE,
+            PlayerDecodeMode.decodeStage(
+                PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                PlayerDecodeMode.HARDWARE,
+                PlayerDecodeFallback.STAGE_NONE,
+            ),
+        )
+        assertEquals(
+            PlayerDecodeMode.DecodeStage.MPV_HARDWARE,
+            PlayerDecodeMode.decodeStage(
+                PlayerDecodeFallback.BACKEND_MPV,
+                PlayerDecodeMode.HARDWARE,
+                PlayerDecodeFallback.STAGE_NONE,
+            ),
+        )
+        assertEquals(
+            PlayerDecodeMode.DecodeStage.SERVER_TRANSCODE,
+            PlayerDecodeMode.decodeStage(
+                PlayerDecodeFallback.BACKEND_MPV,
+                PlayerDecodeMode.HARDWARE,
+                PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+            ),
+        )
+        assertEquals(
+            PlayerDecodeMode.DecodeStage.MPV_SOFTWARE,
+            PlayerDecodeMode.decodeStage(
+                PlayerDecodeFallback.BACKEND_MPV,
+                PlayerDecodeMode.HARDWARE,
+                PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
+            ),
+        )
+        // 「仅软解」策略：两个内核各自映射到软解档
+        assertEquals(
+            PlayerDecodeMode.DecodeStage.MPV_SOFTWARE,
+            PlayerDecodeMode.decodeStage(
+                PlayerDecodeFallback.BACKEND_MPV,
+                PlayerDecodeMode.SOFTWARE,
+                PlayerDecodeFallback.STAGE_NONE,
+            ),
+        )
+        assertEquals(
+            PlayerDecodeMode.DecodeStage.EXO_SOFTWARE,
+            PlayerDecodeMode.decodeStage(
+                PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                PlayerDecodeMode.SOFTWARE,
+                PlayerDecodeFallback.STAGE_NONE,
+            ),
+        )
+    }
 }
