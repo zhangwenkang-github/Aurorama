@@ -135,7 +135,7 @@ class JellyfinRepositoryImpl(
             jellyfinApi.userLibraryApi
                 .getItem(itemId = itemId, userId = jellyfinApi.userId!!)
                 .content
-                .toFindroidItem(this@JellyfinRepositoryImpl)
+                .toFindroidItem(this@JellyfinRepositoryImpl, database)
         }
 
     override suspend fun getItems(
@@ -683,6 +683,18 @@ class JellyfinRepositoryImpl(
                 database
                     .getShowsByServerId(appPreferences.getValue(appPreferences.currentServer)!!)
                     .map { it.toFindroidShow(database, jellyfinApi.userId!!) }
+            )
+            // W34：剧集不在这两个表里（存 episodes），按已下载的 LOCAL source 反查补进下载列表，
+            // 层级化（节目 → 季 → 剧集）需要它们；只有进行中 / 失败 source 的剧集由 DownloadTask 表示。
+            items.addAll(
+                database.getCompletedEpisodeHierarchy().mapNotNull { hierarchy ->
+                    database
+                        .getEpisode(hierarchy.episodeId)
+                        ?.toFindroidEpisode(
+                            database,
+                            jellyfinApi.userId!!,
+                        )
+                }
             )
             items
         }

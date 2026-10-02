@@ -782,11 +782,7 @@ private fun containerDetail(container: DownloadHierarchyContainer): String {
         }
     val sizeText =
         if (container.sizeBytes > 0L) Formatter.formatFileSize(context, container.sizeBytes) else ""
-    return listOfNotNull(
-            container.detail ?: statusText,
-            statusText.takeIf { container.detail != null },
-            sizeText,
-        )
+    return listOfNotNull(container.detail, sizeText)
         .filter { it.isNotBlank() }
         .distinct()
         .joinToString(" · ")

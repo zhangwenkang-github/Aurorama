@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * W32 下载管理页 ViewModel。
@@ -221,14 +224,21 @@ constructor(
                 _state.update { it.copy(isLoading = true) }
             }
 
-            val tasks = downloader.refreshDownloadTasks()
+            // W34：每个数据源单独兜底——曲库 / 书籍元数据拉取失败时不能把下载任务整页清空。
+            val tasks = runCatching { downloader.refreshDownloadTasks() }.getOrElse { emptyList() }
             val episodeHierarchy = loadEpisodeHierarchy()
-            val completed = loadCompleted(episodeHierarchy)
+            val completed = runCatching {
+                loadCompleted(episodeHierarchy)
+            }
+                .getOrElse { emptyList() }
             val musicById = loadMusicLibrary()
             val bookFiles = loadBookFiles()
             val completedBookIds = bookFiles.map { it.itemId }.toSet()
             val bookMetadata = resolveBookMetadata(completedBookIds)
-            val storage = downloader.getStorageUsage()
+            val storage = runCatching {
+                downloader.getStorageUsage()
+            }
+                .getOrElse { DownloadStorageUsage(0L, 0L, 0L) }
             val bookStorageBytes = bookFiles.sumOf { it.sizeBytes }
 
             val activeEntries =
@@ -258,7 +268,6 @@ constructor(
                             status = DownloadTaskStatus.COMPLETED,
                             sizeBytes = file.sizeBytes,
                             imageUri = bookMetadata[file.itemId]?.imageUrl,
-                            bookDetail = formatBytes(file.sizeBytes),
                         )
                     }
 
@@ -282,7 +291,9 @@ constructor(
                     selection = current.selection.intersect(validKeys),
                 )
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            // W34 调试：刷新失败不再静默，打印后保留上一次可用状态，避免整页变空。
+            Timber.e(error, "下载页刷新失败")
             _state.update { it.copy(isLoading = false) }
         } finally {
             refreshing = false
@@ -295,8 +306,13 @@ constructor(
         return repository.getDownloads().mapNotNull { item ->
             val localSources = item.sources.filter { it.type == FindroidSourceType.LOCAL }
             val completedSource = localSources.firstOrNull { !it.path.endsWith(".download") }
-            // 只有进行中 / 失败 source 的电影不放进「已完成」；剧集容器（无 LOCAL source）保留入口。
+            // 只有进行中 / 失败 source 的电影不放进「已完成」。
             if (localSources.isNotEmpty() && completedSource == null) return@mapNotNull null
+            // W34：剧集由 getCompletedEpisodeHierarchy() 单独提供（带节目 / 季归属）；
+            // 空的剧集容器（show，无 LOCAL source）跳过，避免出现重复的节目卡片。
+            if (item is FindroidShow && completedSource == null) {
+                return@mapNotNull null
+            }
             CompletedDownload(
                 item = item,
                 source = completedSource,
@@ -322,6 +338,7 @@ constructor(
     private suspend fun loadBookFiles(): List<LocalBookFile> = runCatching {
         readerRepository.listLocalFiles()
     }
+        .onFailure { Timber.w(it, "下载页书籍离线列表读取失败") }
         .getOrElse { emptyList() }
 
     /** 书籍元数据（名字 / 封面）：会话级缓存，离线拿不到时给占位名。 */
@@ -415,7 +432,6 @@ constructor(
             albumName = song?.albumName,
             artist = song?.artist,
             trackIndex = song?.indexNumber ?: 0,
-            bookDetail = formatBytes(sizeBytes),
         )
     }
 
@@ -441,14 +457,6 @@ constructor(
                 is DownloadHierarchyLeaf -> listOf(child.entry)
                 is DownloadHierarchySubContainer -> child.children.map { it.entry }
             }
-        }
-
-    private fun formatBytes(bytes: Long): String =
-        when {
-            bytes >= 1024L * 1024L * 1024L -> "%.2f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
-            bytes >= 1024L * 1024L -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
-            bytes >= 1024L -> "%.1f KB".format(bytes / 1024.0)
-            else -> "$bytes B"
         }
 
     private fun DownloadManagerState.selectedEntries(): List<DownloadHierarchyEntry> =

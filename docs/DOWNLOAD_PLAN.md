@@ -40,6 +40,12 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 | D6 | **状态判定 / 恢复策略抽 `DownloadTaskRules` 纯函数** | 队列状态机与续传判定可单测（无 Android 运行时依赖），符合本波门禁要求 |
 | D7 | 已完成列表沿用 `getDownloads()`（movies + shows）；仅有进行中 / 失败 source 的电影不重复出现在「已完成」 | 剧集容器（show，无 LOCAL source）保留为入口；其删除仍走详情页 |
 | D8 | 暂停 / 重试 / 删除统一清理 DownloadManager sidecar（`.<目标名>.js`） | K60 实测 `remove` 后隐藏 sidecar 残留（约 50 kB/任务），存储占用清不干净；修复 `5341027`，真机复验删除后目录归零 |
+| D9 | **层级化在 UI 层做**：新建纯函数模块 `DownloadHierarchy`（`DownloadHierarchyEntry` → 容器 / 展开折叠 / 聚合状态），不改 `sources` 表结构 | 层级只是展示折叠，不该动下载引擎；纯函数可单测，`modes:film` 6 项新增单测覆盖分组 / 聚合 / 展开折叠 |
+| D10 | **视频层级的数据来源分层**：已完成剧集由 `getCompletedEpisodeHierarchy()`（LOCAL source 反查 `episodes` + joins）提供；进行中 / 失败任务的节目 / 季归属由 `DownloadTask` 侧的本地 DAO 查询补全 | `getDownloads()` 原本只返回 movies + shows，剧集本体在 `episodes` 表；不动引擎即可拿到 `seriesId` / `seasonId` 组织「节目 → 季 → 剧集」 |
+| D11 | **音乐层级用「侧车 + 主库快照」双来源**：下载时把专辑 / 艺人 / 音轨号写 `files/download_media.tsv`；层级标题与封面优先取主库 `getMusicTrackMetadata()`（60 s TTL 缓存），离线退侧车 | 服务器无 MusicAlbum 实体（音乐线既有结论），专辑只能按名字聚合；侧车保证重启 / 离线后仍能分组 |
+| D12 | **音乐下载入口加在音乐模式曲目菜单**（`下载` / `取消下载` / `删除下载` 三态）；书籍沿用阅读器离线文件（`files/books/*.book`），下载页只读展示 + 删除，不重复实现引擎 | 复用既有 DownloadManager 与阅读器离线链路；书籍占用单独显示（`含书籍 X`），避免和 `downloads/` 目录混淆 |
+| D13 | **`ReaderRepository` 的 Hilt 绑定从 `modes:book` 上移到 `data`**（新增 `ReaderRepositoryModule`） | 下载页（`modes:film`）要读离线书籍列表；绑定留在 book 模块会让只依赖 `modes:film` 的宿主（TV 壳）缺绑定 |
+| D14 | **修 `JellyfinRepositoryImpl.getItem()` 未合并本地 source** 的旧缺陷（补传 `database`） | W34 音乐「已下载」判定依赖 `item.sources` 里的 LOCAL 记录；缺失会让音乐菜单无法进入「删除下载」分支 |
 
 ## 4. 实现地图（W32）
 
@@ -56,6 +62,21 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 | `app/phone/.../film/DownloadsScreen.kt` | 三组管理 UI（分组 chips / 任务卡 / 多选操作栏 / 存储占用 / 删除确认） |
 | `app/phone/src/test/.../DownloadTaskRulesTest.kt` | 纯函数单测（7 项） |
 
+## 4.1 实现地图（W34 增量）
+
+| 文件 | 作用 |
+|------|------|
+| `modes/film/.../downloads/DownloadHierarchy.kt` | 层级模型 + 构建器 + 展开折叠扁平化（纯函数：`DownloadHierarchyBuilder` / `DownloadHierarchyFlattener` / `aggregateStatus`） |
+| `modes/film/src/test/.../DownloadHierarchyBuilderTest.kt` | 层级单测 6 项（节目→季→剧集 / 专辑 / 书籍 / 聚合状态 / 默认折叠与展开） |
+| `data/.../database/ServerDatabaseDao.kt` | `getDownloadedEpisodeHierarchy()` / `getCompletedEpisodeHierarchy()` / `getDownloadedItemIds()` |
+| `data/.../database/DownloadedEpisodeHierarchy.kt` | 已下载剧集的节目 / 季归属行 |
+| `data/.../repository/MusicTrackMetadata.kt` | 主库音频快照（专辑 / 艺人 / 音轨号 / 封面） |
+| `data/.../repository/ReaderRepositoryModule.kt` | 阅读器仓储绑定上移到 data 层 |
+| `core/.../utils/DownloadMediaSidecar.kt` | 音乐 / 书籍下载媒体侧车（`files/download_media.tsv`） |
+| `core/.../utils/DownloadTask.kt` / `Downloader.kt` / `DownloaderImpl.kt` | `DownloadTask` 增媒体类型 + 视频 / 音乐层级字段；`Downloder` 增带专辑元数据的下载重载、`downloadedItemIds()`、`mediaSidecar()` |
+| `modes/music/.../MusicModeViewModel.kt` / `MusicModeScreen.kt` | 曲目菜单「下载 / 取消下载 / 删除下载」+ 行内下载态 |
+| `app/phone/.../film/DownloadsScreen.kt` | 层级列表（容器 / 季 / 条目卡 + 封面 / 占位图标）+ 媒体筛选 chips + 容器删除确认 |
+
 ## 5. 进度
 
 - [x] sources 状态列 + Room v9 AutoMigration + DAO
@@ -67,6 +88,21 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 - [x] 下载管理 UI（进行中 / 已完成 / 失败 + 多选）
 - [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（58 项全绿；新增 `DownloadTaskRulesTest` 7 项）
 - [x] **K60 真机验收（2026-10-02，`8e875894`）**：断网续传 / 进程被杀续传 / 批量暂停删除 / 完成与删除 / 存储占用全部通过，并修复 sidecar 残留（`5341027`）；逐条结论与未触发项见 §6 / §7
+- [x] **W34 层级化 + 封面（Pad 5 `43af8627`，2026-10-03）**：视频 节目→季→剧集 / 音乐 专辑→曲目 / 书籍封面 + 容器聚合进度、无图占位、暂停 / 恢复 / 删除 / 批量 / 存储占用叠加不回归，见 §9
+- [x] W34 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（58 项）+ `:modes:film:testDebugUnitTest`（6 项，新增）全绿
+
+## 9. W34 真机验收（Pad 5 `43af8627`，2026-10-03）
+
+构建：`feature/w34-download-hierarchy`（起点 master `4c80276`）；测试服务器只读，全程未写服务器。
+
+1. **视频层级（节目 → 季 → 剧集）**：通过。下载「超能力女儿」第 1、2 集后，「已完成」页出现节目容器 `超能力女儿`（`2/2 集 · 已完成 · 2.49 GB`）；点开 → 季容器 `超能力女儿 / 2/2 集 · 已完成`；再点开 → 两条剧集行 `Hinamatsuri · 已完成 · 1.15 GB / 1.35 GB`（按集号排序）。默认折叠，点卡片展开 / 折叠（截图为展开三级）。
+2. **音乐层级（专辑 → 曲目）**：通过。音乐模式曲目菜单新增「下载」；下载完成后「已完成」页出现专辑容器 `Ang 5.0 / 张韶涵 · 1/1 首 · 26.40 MB`，展开为曲目行 `亲爱的，那不是爱情 · 已完成 · 26.40 MB`。下载中状态（`Ang 5.0 · 0/1 首` + 行内 `正在下载… 79% · 20.97 MB / 26.40 MB`）同样验证到。
+3. **书籍封面**：通过。阅读器离线书籍（7 本，767 MB）全部出现在「已完成」页书籍分组，显示书名 + 体积；封面走既有 Coil 链路（服务器主图 / 本地无图占位）。
+4. **无图占位**：通过。无主图条目显示类型图标（视频 🎞 / 音乐 ♪ / 书籍 📖 对应 Core 图标），不新增位图资源。
+5. **W32 行为不回归**：通过。①状态三组（进行中 / 已完成 / 失败）计数与筛选正常；②条目级暂停 / 删除按钮、容器级删除（含子项）正常；③多选 → 选择栏（暂停 / 继续 / 重试 / 删除）→「确定删除选中的 1 项下载吗？」→ 删除后「已完成 4 → 3」、占用同步下降；④存储占用显示 `含书籍 767 MB`，与书籍目录实测一致。
+6. **稳定性**：通过。整轮 logcat 0 FATAL / 0 ANR；`W34` 调试日志确认层级装配（tasks / completed / books / music 计数）。
+
+设备还原：删除测试产生的 3 个视频下载与 1 个音乐下载（`downloads/` 归零，仅保留 W34 之前的阅读器离线书籍）；App force-stop；未改 prefs / 旋转 / 网络；K60 全程未占用。
 
 ## 6. 验收结果（K60 真机，2026-10-02，serial `8e875894`）
 
@@ -100,3 +136,11 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 |------|------|------|
 | 2026-10-02 | W32-DOWNLOAD | 建线；实现管理 UI + 任务韧性 + 单测；门禁 `assembleDebug`（含 TV）/ `ktfmtCheck` / app 单测 58 项全绿；提交 `138b189`(feat) + `4053cb5`(docs) 已推送未合并；设备待调度，真机清单见 §6 |
 | 2026-10-02 | W32-DOWNLOAD | **K60 真机验收（8e875894）**：断网续传 / force-stop 续传 / 批量暂停删除 / 完成与删除 / 存储占用 / 0 FATAL-ANR 通过；暂停路径实测不续传（D2 修正）、修复 sidecar 残留 `5341027`（复验通过）；未触发：FAILED 自动重试、空间不足、reboot；设备已还原；修复提交已推送未合并 master |
+| 2026-10-03 | W34-DOWNLOAD | 层级化 + 封面：新建 `DownloadHierarchy`（纯函数 6 项单测）、视频层级（已完成剧集 DAO 反查 + `getDownloads` 补剧集）、音乐下载入口 + 侧车、书籍离线纳入列表、`ReaderRepository` 绑定上移 data、修 `getItem` 本地 source 合并；门禁四绿；Pad 5 真机 6 组通过（见 §9）；提交见交接 |
+
+## 10. W34 遗留
+
+- 音乐「已完成」判定依赖主库快照 / 侧车：完全离线且侧车缺失时会退化为「未分类」专辑（不崩溃，分组名降级）。
+- 书籍删除走阅读器 `deleteLocalFile()`，与下载引擎的 `sources` 表不互通（设计如此：书籍离线本就不在 DownloadManager 链路）。
+- 音乐下载入口目前只做单曲；整专辑批量下载未做（如需可后续波次加法）。
+- 视频容器只列已下载剧集，「3/12 集」表示容器内已下载数 / 容器内条目数，不是全季总集数（全季集数需要额外请求 `getEpisodes`，评估后留给后续波次）。
