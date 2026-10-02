@@ -57,6 +57,9 @@ constructor(
     private val _isPlaying = MutableStateFlow(false)
     override val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
+    private val _durationMs = MutableStateFlow(0L)
+    override val durationMs: StateFlow<Long> = _durationMs.asStateFlow()
+
     private var playbackJob: Job? = null
     private var attachedPlayer: Player? = null
 
@@ -121,6 +124,7 @@ constructor(
                     lastKnownDurationMs =
                         player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0L) ?: 0L
                     _positionMs.value = position
+                    _durationMs.value = lastKnownDurationMs
                     _isPlaying.value = player.isPlaying
                     // 队列可能被移动 / 删除 / 自动切换，索引以播放器为准最可靠
                     _queue.update { queue ->
@@ -129,6 +133,7 @@ constructor(
                     reportPeriodicProgressIfDue(player, position)
                 } else {
                     _positionMs.value = 0L
+                    _durationMs.value = 0L
                     _isPlaying.value = false
                     // 视频起播等外部路径停掉音乐：上报由仲裁器负责，这里只清理本地状态
                     if (!playerHolder.musicSessionActive) activeItemId = null
@@ -274,6 +279,7 @@ constructor(
         activeItemId = null
         _queue.value = null
         _positionMs.value = 0L
+        _durationMs.value = 0L
         _isPlaying.value = false
 
         val player = playerHolder.existingPlayer ?: return

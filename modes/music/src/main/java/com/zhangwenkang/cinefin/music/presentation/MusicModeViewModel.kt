@@ -66,7 +66,7 @@ constructor(
     private val recentStore: MusicRecentStore,
     private val sleepTimer: MusicSleepTimer,
     private val persister: MusicQueuePersister,
-    playbackStateSource: MusicPlaybackStateSource,
+    private val playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
 ) : ViewModel() {
 
@@ -136,6 +136,31 @@ constructor(
 
     /** 是否正在播放（底栏按钮图标用）。 */
     val isPlaying: StateFlow<Boolean> = playbackStateSource.isPlaying
+
+    /** 当前播放位置（毫秒）：底栏时间与全屏进度条共用；恢复态没有会话时为 0（由 UI 回落到快照位置）。 */
+    val positionMs: StateFlow<Long> = playbackController.positionMs
+
+    /** 当前曲目总时长（毫秒）：内核还没给出时为 0，UI 用曲库元数据兜底。 */
+    val durationMs: StateFlow<Long> = playbackStateSource.durationMs
+
+    /**
+     * 曲目元数据查询（W23-MUSIC）：[PlayerItem] 只带名字与封面，全屏播放页要显示的歌手 / 专辑、以及恢复态的时长兜底都从曲库快照里按 itemId 取；查不到返回
+     * null（UI 降级）。
+     */
+    fun songMeta(itemId: UUID?): MusicSong? {
+        if (itemId == null) return null
+        val state = _uiState.value
+        return state.songs.firstOrNull { it.itemId == itemId }
+            ?: state.detail?.songs?.firstOrNull { it.itemId == itemId }
+            ?: state.albums
+                .asSequence()
+                .flatMap { album -> album.songs.asSequence() }
+                .firstOrNull { it.itemId == itemId }
+            ?: state.artists
+                .asSequence()
+                .flatMap { artist -> artist.songs.asSequence() }
+                .firstOrNull { it.itemId == itemId }
+    }
 
     init {
         persister.start()
@@ -627,6 +652,12 @@ constructor(
             return
         }
         playbackController.previous()
+    }
+
+    /** 拖动全屏进度条（B 组）：恢复态没有播放会话，忽略。 */
+    fun seekTo(positionMs: Long) {
+        if (playbackController.queue.value == null) return
+        playbackController.seekTo(positionMs.coerceAtLeast(0L))
     }
 
     /** 打开服务端收藏列表（顶栏「收藏」入口）。 */
