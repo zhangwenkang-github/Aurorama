@@ -357,6 +357,17 @@ class JellyfinRepositoryOfflineImpl(
                     it.toFindroidShow(database, jellyfinApi.userId)
                 }
             )
+            // W36：与在线实现一致——补「已下载剧集」的节目 / 季归属，离线下载页也能组织 节目→季→剧集 层级。
+            items.addAll(
+                database.getCompletedEpisodeHierarchy().mapNotNull { hierarchy ->
+                    runCatching {
+                        database
+                            .getEpisode(hierarchy.episodeId)
+                            ?.toFindroidEpisode(database, jellyfinApi.userId)
+                    }
+                        .getOrNull()
+                }
+            )
             items
         }
 

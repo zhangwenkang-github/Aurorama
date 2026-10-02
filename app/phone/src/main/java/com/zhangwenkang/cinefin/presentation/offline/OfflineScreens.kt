@@ -27,11 +27,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
@@ -40,6 +44,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -94,7 +99,8 @@ fun OfflineHomeScreen(
     viewModel: OfflineMediaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { viewModel.load() }
+    // 每次进入页面都重读本机下载（下载完成后立即反映；VM 单例只用于共享开关状态）。
+    LaunchedEffect(Unit) { viewModel.load(force = true) }
 
     val colors = LocalCinefinColors.current
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -248,7 +254,7 @@ fun OfflineLibraryScreen(
     viewModel: OfflineMediaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) { viewModel.load(force = true) }
 
     val colors = LocalCinefinColors.current
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -257,7 +263,11 @@ fun OfflineLibraryScreen(
     var expandedKeys by remember { mutableStateOf(emptySet<String>()) }
     val containers =
         remember(state.entries, state.showHidden) {
-            OfflineMediaVisibility.buildHierarchy(state.entries, state.showHidden)
+            // W36 补充要求：离线媒体库只展示「已下载且允许离线的节目（视频）」+ 本地媒体库（W37 占位）。
+            OfflineMediaVisibility.buildHierarchy(
+                OfflineMediaVisibility.videoOnly(state.entries),
+                state.showHidden,
+            )
         }
     val rows =
         remember(containers, expandedKeys) {
@@ -298,12 +308,15 @@ fun OfflineLibraryScreen(
                 }
             rows.isEmpty() ->
                 CinefinEmptyState(
-                    title = "没有可离线观看的内容",
+                    title = "没有可离线观看的视频",
                     message =
-                        if (!state.showHidden && state.entries.isNotEmpty()) {
-                            "已下载条目都被关闭了离线观看；点右上角「眼睛」进入管理视图重新打开。"
+                        if (
+                            !state.showHidden &&
+                                state.entries.any { it.kind == OfflineMediaEntryKind.VIDEO }
+                        ) {
+                            "已下载节目都被关闭了离线观看；点右上角「眼睛」进入管理视图重新打开。"
                         } else {
-                            "联网后打开媒体详情页，点「下载」把内容存到本机。"
+                            "联网后打开节目详情页，点「下载」把剧集存到本机；音乐与书籍在各自入口查看。"
                         },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
                     icon = { tint ->
@@ -352,6 +365,7 @@ fun OfflineLibraryScreen(
                                     title = row.container.title,
                                     detail = row.container.detail.orEmpty(),
                                     collapsed = row.collapsed,
+                                    imageUri = row.container.imageUri,
                                     onClick = {
                                         expandedKeys =
                                             if (row.container.key in expandedKeys) {
@@ -365,10 +379,15 @@ fun OfflineLibraryScreen(
                                 OfflineLeafCard(
                                     title = row.entry.name,
                                     detail =
-                                        offlineLeafDetail(row.entry.mediaKind, row.entry.sizeBytes),
+                                        offlineLeafDetail(
+                                            row.entry.mediaKind,
+                                            row.entry.sizeBytes,
+                                            row.entry.runtimeTicks,
+                                        ),
                                     allowOffline = row.entry.allowOffline,
                                     depth = row.depth,
                                     iconRes = row.entry.mediaKind.iconRes(),
+                                    imageUri = row.entry.imageUri,
                                     onClick = {
                                         when (row.entry.mediaKind) {
                                             DownloadMediaKind.VIDEO ->
@@ -388,6 +407,13 @@ fun OfflineLibraryScreen(
                                 )
                         }
                     }
+                    // W36 预留（W37 内容）：本地媒体库入口 + 可见性开关。
+                    item(key = "local_library_placeholder") {
+                        LocalLibraryPlaceholderCard(
+                            visible = state.localLibraryVisible,
+                            onToggle = viewModel::setLocalLibraryVisible,
+                        )
+                    }
                 }
         }
     }
@@ -401,7 +427,7 @@ fun OfflineShelfScreen(
     viewModel: OfflineMediaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) { viewModel.load(force = true) }
 
     val colors = LocalCinefinColors.current
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -441,10 +467,16 @@ fun OfflineShelfScreen(
                 items(books, key = { book -> book.itemId.toString() }) { book ->
                     OfflineLeafCard(
                         title = book.name,
-                        detail = offlineLeafDetail(DownloadMediaKind.BOOK, book.sizeBytes),
+                        detail =
+                            offlineLeafDetail(
+                                DownloadMediaKind.BOOK,
+                                book.sizeBytes,
+                                book.runtimeTicks,
+                            ),
                         allowOffline = book.allowOffline,
                         depth = 0,
                         iconRes = CoreR.drawable.ic_book,
+                        imageUri = book.imageUri,
                         onClick = { onOpenBook(book.itemId, book.name) },
                         onToggleAllow = { allow -> viewModel.setAllowOffline(book.itemId, allow) },
                     )
@@ -488,11 +520,10 @@ private fun OfflineContainerCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.width((depth * 8).dp))
-            Icon(
-                painter = painterResource(container.mediaKind.iconRes()),
-                contentDescription = null,
-                tint = colors.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
+            OfflineArtwork(
+                imageUri = container.imageUri,
+                iconRes = container.mediaKind.iconRes(),
+                size = 44.dp,
             )
             Spacer(Modifier.width(CinefinSpacing.Space3))
             Column(modifier = Modifier.weight(1f)) {
@@ -535,11 +566,14 @@ private fun OfflineSubContainerCard(
     title: String,
     detail: String,
     collapsed: Boolean,
+    imageUri: String? = null,
     onClick: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     CinefinCard(onClick = onClick, contentPadding = PaddingValues(CinefinSpacing.Space3)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            OfflineArtwork(imageUri = imageUri, iconRes = CoreR.drawable.ic_film, size = 36.dp)
+            Spacer(Modifier.width(CinefinSpacing.Space3))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
@@ -575,6 +609,7 @@ private fun OfflineLeafCard(
     allowOffline: Boolean,
     depth: Int,
     iconRes: Int,
+    imageUri: String? = null,
     onClick: () -> Unit,
     onToggleAllow: (Boolean) -> Unit,
 ) {
@@ -582,11 +617,11 @@ private fun OfflineLeafCard(
     CinefinCard(onClick = onClick, contentPadding = PaddingValues(CinefinSpacing.Space3)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.width((depth * 8).dp))
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
+            OfflineArtwork(
+                imageUri = imageUri,
+                iconRes = iconRes,
+                size = 40.dp,
                 tint = if (allowOffline) colors.onSurfaceVariant else colors.onSurfaceFaint,
-                modifier = Modifier.size(20.dp),
             )
             Spacer(Modifier.width(CinefinSpacing.Space3))
             Column(modifier = Modifier.weight(1f)) {
@@ -622,16 +657,88 @@ private fun containerDetailText(container: DownloadHierarchyContainer): String =
         )
         .joinToString(" · ")
 
-private fun offlineLeafDetail(kind: DownloadMediaKind, sizeBytes: Long): String =
+private fun offlineLeafDetail(
+    kind: DownloadMediaKind,
+    sizeBytes: Long,
+    runtimeTicks: Long = 0L,
+): String =
     listOfNotNull(
             when (kind) {
                 DownloadMediaKind.VIDEO -> "本地文件"
                 DownloadMediaKind.MUSIC -> "本地音频"
                 DownloadMediaKind.BOOK -> "本地书籍"
             },
+            runtimeText(runtimeTicks),
             sizeText(sizeBytes).takeIf { sizeBytes > 0 },
         )
         .joinToString(" · ")
+
+/** Jellyfin ticks（1 tick = 100 ns）→ 可读时长；无数据返回 null。 */
+private fun runtimeText(ticks: Long): String? {
+    if (ticks <= 0L) return null
+    val totalSeconds = ticks / 10_000_000L
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    return if (hours > 0) "$hours 小时 $minutes 分" else "$minutes 分钟"
+}
+
+/** W36：离线封面 / 缩略图（本地缓存图）；无图时按类型图标占位。 */
+@Composable
+private fun OfflineArtwork(
+    imageUri: String?,
+    iconRes: Int,
+    size: androidx.compose.ui.unit.Dp,
+    tint: Color = LocalCinefinColors.current.onSurfaceVariant,
+) {
+    val colors = LocalCinefinColors.current
+    Box(
+        modifier =
+            Modifier.size(size).clip(CinefinShapes.Xs).background(colors.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (imageUri != null) {
+            AsyncImage(
+                model = imageUri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(size / 2),
+            )
+        }
+    }
+}
+
+/** W36 预留（W37 内容）：本地媒体库入口 + 可见性开关。 */
+@Composable
+private fun LocalLibraryPlaceholderCard(visible: Boolean, onToggle: (Boolean) -> Unit) {
+    val colors = LocalCinefinColors.current
+    CinefinCard(contentPadding = PaddingValues(CinefinSpacing.Space4)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_library),
+                contentDescription = null,
+                tint = colors.onSurfaceFaint,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(CinefinSpacing.Space3))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "本地媒体库", style = CinefinType.BodyLarge, color = colors.onSurface)
+                Text(
+                    text = "W37：添加本机文件夹（视频 / 音乐 / 书籍）后在这里显示",
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+            }
+            Switch(checked = visible, onCheckedChange = onToggle)
+        }
+    }
+}
 
 private fun DownloadMediaKind.iconRes(): Int =
     when (this) {

@@ -1,9 +1,12 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
+import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -17,6 +20,7 @@ import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
@@ -42,6 +46,7 @@ import timber.log.Timber
 class DownloadsViewModel
 @Inject
 constructor(
+    @ApplicationContext private val context: Context,
     private val downloader: Downloader,
     private val repository: JellyfinRepository,
     private val readerRepository: ReaderRepository,
@@ -305,7 +310,8 @@ constructor(
                             mediaKind = DownloadMediaKind.BOOK,
                             status = DownloadTaskStatus.COMPLETED,
                             sizeBytes = file.sizeBytes,
-                            imageUri = bookMetadata[file.itemId]?.imageUrl,
+                            imageUri =
+                                localImage(file.itemId) ?: bookMetadata[file.itemId]?.imageUrl,
                             allowOffline = offlineAllowMap[file.itemId] ?: true,
                         )
                     }
@@ -438,6 +444,8 @@ constructor(
             artist = song?.artist ?: artist,
             trackIndex = song?.indexNumber ?: 0,
             imageUri = song?.imageUri ?: videoImageUri(episode != null, episode, itemId),
+            showImageUri = localImage(episode?.seriesId),
+            seasonImageUri = localImage(episode?.seasonId),
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
     }
@@ -471,10 +479,23 @@ constructor(
             seasonIndex = episode?.seasonIndex ?: 0,
             imageUri =
                 when {
-                    song != null -> song.imageUri
+                    song != null -> localImage(item.id) ?: song.imageUri
                     mediaKind == DownloadMediaKind.BOOK ->
-                        bookMetadata[item.id]?.imageUrl ?: localImagePath(item.id)
-                    else -> runCatching { repository.getPrimaryImageUrl(item.id) }.getOrNull()
+                        localImage(item.id) ?: bookMetadata[item.id]?.imageUrl
+                    else ->
+                        localImage(item.id)
+                            ?: runCatching {
+                                repository.getPrimaryImageUrl(item.id)
+                            }
+                                .getOrNull()
+                },
+            showImageUri = localImage(episode?.seriesId),
+            seasonImageUri = localImage(episode?.seasonId),
+            runtimeTicks =
+                when (item) {
+                    is FindroidEpisode -> item.runtimeTicks
+                    is FindroidMovie -> item.runtimeTicks
+                    else -> 0L
                 },
             albumName = song?.albumName,
             artist = song?.artist,
@@ -483,18 +504,27 @@ constructor(
         )
     }
 
-    /** 视频条目封面：剧集用节目海报（本地 / 服务器），电影用本地主图。 */
+    /** W36 视频条目封面（本地优先，离线可见）： 剧集 = 剧集缩略图 → 季海报 → 节目海报 → 服务器节目海报；电影 = 本地主图。 */
     private suspend fun videoImageUri(
         isEpisode: Boolean,
         episode: DownloadedEpisodeHierarchy?,
         itemId: UUID,
     ): String? {
-        if (!isEpisode) return localImagePath(itemId)
-        val seriesId = episode?.seriesId ?: return null
-        return runCatching { repository.getPrimaryImageUrl(seriesId) }.getOrNull()
+        if (!isEpisode) return localImage(itemId)
+        return localImage(itemId)
+            ?: localImage(episode?.seasonId)
+            ?: localImage(episode?.seriesId)
+            ?: episode?.seriesId?.let { seriesId ->
+                runCatching { repository.getPrimaryImageUrl(seriesId) }.getOrNull()
+            }
     }
 
-    private fun localImagePath(itemId: UUID): String? = "images/$itemId/primary"
+    /** W36：本地图片缓存是否存在（下载时由 ImagesDownloaderWorker 落盘；不存在返回 null → 图标占位）。 */
+    private fun localImage(itemId: UUID?): String? {
+        if (itemId == null) return null
+        val file = File(context.filesDir, "images/$itemId/primary")
+        return if (file.isFile && file.length() > 0L) file.absolutePath else null
+    }
 
     /** 层级容器内的全部条目（含子容器）。 */
     private fun descendantEntries(

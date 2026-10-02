@@ -34,6 +34,15 @@ data class DownloadHierarchyEntry(
     val episodeIndex: Int = 0,
     val seasonIndex: Int = 0,
     val imageUri: String? = null,
+    /**
+     * W36 层级图规则：节目（Show）海报与季（Season）海报各自独立。
+     *
+     * 剧集行的 [imageUri] 按「剧集缩略图 → 季海报 → 节目海报」回退后的最终图； 容器行（节目 / 季）按「自己的海报 → 上一级海报」回退。
+     */
+    val showImageUri: String? = null,
+    val seasonImageUri: String? = null,
+    /** W36 元数据快照：条目时长（Jellyfin ticks，1 tick = 100 ns）；离线详情行显示用。 */
+    val runtimeTicks: Long = 0L,
     /** 音乐层级：专辑名 / 艺人 / 音轨号。 */
     val albumName: String? = null,
     val artist: String? = null,
@@ -242,7 +251,9 @@ object DownloadHierarchyBuilder {
                         completedCount = completed,
                         totalCount = sorted.size,
                         sizeBytes = sorted.sumOf { it.sizeBytes },
-                        imageUri = null,
+                        // W36：季用海报——季海报缺失时回退节目海报。
+                        imageUri =
+                            sorted.firstNotNullOfOrNull { it.seasonImageUri ?: it.showImageUri },
                         children = sorted.map { DownloadHierarchyLeaf(it.key, it) },
                     )
                 }
@@ -261,7 +272,11 @@ object DownloadHierarchyBuilder {
             completedCount = completed,
             totalCount = allEntries.size,
             sizeBytes = allEntries.sumOf { it.sizeBytes },
-            imageUri = entries.firstOrNull { it.imageUri != null }?.imageUri,
+            // W36：节目用海报——节目海报缺失时回退季海报（再退回条目图）。
+            imageUri =
+                entries.firstNotNullOfOrNull { it.showImageUri }
+                    ?: entries.firstNotNullOfOrNull { it.seasonImageUri }
+                    ?: entries.firstOrNull { it.imageUri != null }?.imageUri,
             canDelete = allEntries.any { it.canDelete },
             canOpen = false,
             children = seasons,

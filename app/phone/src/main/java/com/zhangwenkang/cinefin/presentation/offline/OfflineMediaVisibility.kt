@@ -30,6 +30,11 @@ object OfflineMediaVisibility {
         DownloadHierarchyBuilder.build(
             visibleEntries(entries, includeHidden).map { entry -> entry.toHierarchyEntry() }
         )
+
+    /** W36 补充要求：离线模式的「媒体库」页面只展示 ①已下载且允许离线的节目（视频）； ②本地媒体库（W37，占位）。音乐与书籍分别走「音乐」「书架」入口，不混进媒体库。 */
+    fun videoOnly(entries: List<OfflineMediaEntry>): List<OfflineMediaEntry> = entries.filter {
+        it.kind == OfflineMediaEntryKind.VIDEO
+    }
 }
 
 internal fun OfflineMediaEntry.toHierarchyEntry(): DownloadHierarchyEntry =
@@ -45,6 +50,10 @@ internal fun OfflineMediaEntry.toHierarchyEntry(): DownloadHierarchyEntry =
         status = DownloadTaskStatus.COMPLETED,
         sourceId = sourceId,
         sizeBytes = sizeBytes,
+        imageUri = imageUri,
+        showImageUri = showImageUri,
+        seasonImageUri = seasonImageUri,
+        runtimeTicks = runtimeTicks,
         seriesId = seriesId,
         seasonId = seasonId,
         seriesName = seriesName,

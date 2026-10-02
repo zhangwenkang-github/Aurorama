@@ -266,6 +266,14 @@ constructor(
                 .firstOrNull { it.itemId == itemId }
     }
 
+    /** W36：离线模式开关变化时曲库来源也跟着变（离线 = 本机已下载曲目，在线 = 服务器曲库）。 */
+    private val offlineModeListener =
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == appPreferences.offlineMode.backendName) {
+                refresh()
+            }
+        }
+
     init {
         persister.start()
         historyTracker.start()
@@ -276,6 +284,17 @@ constructor(
         observeRecent()
         observeOverlayArtists()
         observeRestoredQueueCleanup()
+        // W36：进入页面后切离线 / 回在线也要立刻重载曲库（VM 复用同一实例）。
+        appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
+            offlineModeListener
+        )
+    }
+
+    override fun onCleared() {
+        appPreferences.sharedPreferences.unregisterOnSharedPreferenceChangeListener(
+            offlineModeListener
+        )
+        super.onCleared()
     }
 
     /**

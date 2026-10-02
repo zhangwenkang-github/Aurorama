@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.utils
 
+import android.content.Context
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.ReaderRepository
@@ -35,6 +36,14 @@ data class OfflineMediaEntry(
     val sourceId: String? = null,
     val allowOffline: Boolean = true,
     val isEpisode: Boolean = false,
+    /** W36：离线可显示的本地图片（绝对路径）；按「条目图 → 季海报 → 节目海报」回退后的结果。 */
+    val imageUri: String? = null,
+    /** W36：节目海报（容器行用）。 */
+    val showImageUri: String? = null,
+    /** W36：季海报（季容器行用）。 */
+    val seasonImageUri: String? = null,
+    /** W36：时长（Jellyfin ticks）；无数据为 0。 */
+    val runtimeTicks: Long = 0L,
     val seriesId: UUID? = null,
     val seasonId: UUID? = null,
     val seriesName: String? = null,
@@ -55,6 +64,7 @@ interface OfflineMediaRepository {
 }
 
 class OfflineMediaRepositoryImpl(
+    private val context: Context,
     private val database: ServerDatabaseDao,
     private val sidecar: DownloadMediaSidecar,
     private val readerRepository: ReaderRepository,
@@ -94,6 +104,15 @@ class OfflineMediaRepositoryImpl(
                                 sourceId = source.id,
                                 allowOffline = allowOffline,
                                 isEpisode = true,
+                                imageUri =
+                                    localImage(itemId)
+                                        ?: localImage(episode.seasonId)
+                                        ?: localImage(episode.seriesId),
+                                showImageUri =
+                                    localImage(episode.seriesId) ?: localImage(episode.seasonId),
+                                seasonImageUri =
+                                    localImage(episode.seasonId) ?: localImage(episode.seriesId),
+                                runtimeTicks = episode.runtimeTicks,
                                 seriesId = episode.seriesId,
                                 seasonId = episode.seasonId,
                                 seriesName = episode.seriesName,
@@ -112,6 +131,10 @@ class OfflineMediaRepositoryImpl(
                                 sizeBytes = sizeBytes,
                                 sourceId = source.id,
                                 allowOffline = allowOffline,
+                                imageUri = localImage(itemId),
+                                runtimeTicks =
+                                    runCatching { database.getMovie(itemId)?.runtimeTicks }
+                                        .getOrNull() ?: 0L,
                                 albumName = record.albumName,
                                 artist = record.artist,
                                 trackIndex = record.trackIndex,
@@ -128,6 +151,10 @@ class OfflineMediaRepositoryImpl(
                                 sizeBytes = sizeBytes,
                                 sourceId = source.id,
                                 allowOffline = allowOffline,
+                                imageUri = localImage(itemId),
+                                runtimeTicks =
+                                    runCatching { database.getMovie(itemId)?.runtimeTicks }
+                                        .getOrNull() ?: 0L,
                             )
                         }
                     }
@@ -146,11 +173,19 @@ class OfflineMediaRepositoryImpl(
                             sizeBytes = book.sizeBytes,
                             sourceId = null,
                             allowOffline = book.itemId.toString() !in blockedBooks,
+                            imageUri = localImage(book.itemId),
                         )
                 }
 
             entries
         }
+
+    /** W36：本地图片缓存（下载时由 ImagesDownloaderWorker 落盘）；不存在返回 null（UI 回退占位）。 */
+    private fun localImage(itemId: UUID?): String? {
+        if (itemId == null) return null
+        val file = File(context.filesDir, "images/$itemId/primary")
+        return if (file.isFile && file.length() > 0L) file.absolutePath else null
+    }
 
     override suspend fun setAllowOffline(itemId: UUID, allow: Boolean) =
         withContext(Dispatchers.IO) {

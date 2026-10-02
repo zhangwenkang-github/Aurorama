@@ -193,6 +193,12 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
      * W36：被关闭「允许离线模式观看」的书籍 id（书籍离线文件不经过 `sources` 表， 开关状态只能落在偏好里；视频 / 音乐用 `sources.allowOffline`）。
      */
     val offlineBlockedBooks = Preference("pref_offline_blocked_books", emptySet<String>())
+    /**
+     * W36 预留（W37 实现内容）：离线媒体库里是否显示「本地媒体库」入口。
+     *
+     * W36 只落地开关位与持久化；「建立本地媒体库」（SAF 添加文件夹）属于 W37。
+     */
+    val localLibraryVisible = Preference("pref_local_library_visible", false)
 
     // Reader
     /** 阅读模式：scroll / paged / two_column。 */

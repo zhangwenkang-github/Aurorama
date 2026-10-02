@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.OfflineMediaEntry
 import com.zhangwenkang.cinefin.utils.OfflineMediaEntryKind
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
@@ -31,6 +32,7 @@ constructor(
     private val offlineMediaRepository: OfflineMediaRepository,
     private val trackResolver: MusicTrackResolver,
     private val playbackController: MusicPlaybackController,
+    private val appPreferences: AppPreferences,
 ) : ViewModel() {
 
     data class UiState(
@@ -38,6 +40,8 @@ constructor(
         val entries: List<OfflineMediaEntry> = emptyList(),
         /** 管理视图：显示被关闭「允许离线模式观看」的条目（默认隐藏）。 */
         val showHidden: Boolean = false,
+        /** W36 预留（W37 内容）：本地媒体库入口是否显示。 */
+        val localLibraryVisible: Boolean = false,
         val message: String? = null,
     ) {
         val visibleEntries: List<OfflineMediaEntry>
@@ -75,12 +79,25 @@ constructor(
             }
                 .onFailure { Timber.w(it, "读取离线媒体库失败") }
                 .getOrElse { emptyList() }
-            _state.update { it.copy(loading = false, entries = entries) }
+            _state.update {
+                it.copy(
+                    loading = false,
+                    entries = entries,
+                    localLibraryVisible =
+                        appPreferences.getValue(appPreferences.localLibraryVisible),
+                )
+            }
         }
     }
 
     fun setShowHidden(show: Boolean) {
         _state.update { it.copy(showHidden = show) }
+    }
+
+    /** W36 预留：本地媒体库入口可见性（W37 接入真实内容）。 */
+    fun setLocalLibraryVisible(visible: Boolean) {
+        appPreferences.setValue(appPreferences.localLibraryVisible, visible)
+        _state.update { it.copy(localLibraryVisible = visible) }
     }
 
     fun consumeMessage() {
