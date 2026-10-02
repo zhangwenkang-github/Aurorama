@@ -75,4 +75,42 @@ class LrcParserTest {
     fun `drops timestamp-only lines`() {
         assertTrue(LrcParser.parse("[00:30.00]\n").isEmpty())
     }
+
+    @Test
+    fun `parses enhanced lrc word tags`() {
+        val line = LrcParser.parse("[00:12.00]<00:12.00>Hel<00:12.50>lo <00:13.00>world").single()
+
+        assertEquals(12_000L, line.startMs)
+        assertEquals("Hello world", line.text)
+        assertEquals(
+            listOf(
+                LyricWord(12_000L, "Hel"),
+                LyricWord(12_500L, "lo "),
+                LyricWord(13_000L, "world"),
+            ),
+            line.words,
+        )
+    }
+
+    @Test
+    fun `applies offset to word tags and keeps plain lines without words`() {
+        val shifted = LrcParser.parse("[offset:+500]\n[00:10.00]<00:10.00>早<00:11.00>安").single()
+
+        assertEquals(9_500L, shifted.startMs)
+        assertEquals(listOf(9_500L, 10_500L), shifted.words.map { it.startMs })
+        assertEquals(listOf("早", "安"), shifted.words.map { it.text })
+
+        assertTrue(LrcParser.parse("[00:01.00]普通歌词").single().words.isEmpty())
+    }
+
+    @Test
+    fun `skips empty word segments and keeps leftover text`() {
+        val line = LrcParser.parse("[00:01.00]前<00:01.00><00:02.00>后").single()
+
+        assertEquals(
+            listOf(LyricWord(1_000L, "前"), LyricWord(2_000L, "后")),
+            line.words,
+        )
+        assertEquals("前后", line.text)
+    }
 }

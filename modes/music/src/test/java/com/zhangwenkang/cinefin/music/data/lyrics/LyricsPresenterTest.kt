@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.data.lyrics
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LyricsPresenterTest {
@@ -146,5 +147,60 @@ class LyricsPresenterTest {
         assertEquals(1, LyricsPresenter.activeIndex(rows, 5_000))
         assertEquals(2, LyricsPresenter.activeIndex(rows, 99_999))
         assertEquals(-1, LyricsPresenter.activeIndex(emptyList(), 1_000))
+    }
+
+    @Test
+    fun `renders word data on rows and falls back when absent`() {
+        val words = listOf(LyricWord(1_000L, "逐"), LyricWord(1_500L, "字"))
+        val document =
+            LyricsDocumentBuilder.build(
+                listOf(
+                    LyricLine(1_000L, "逐字", words = words),
+                    LyricLine(3_000L, "整行"),
+                ),
+                LyricsSource.LOCAL_OVERRIDE,
+            )
+        val rows = LyricsPresenter.rows(document, LyricsPresenter.defaultDisplay(document))
+
+        assertEquals(words, rows.first().words)
+        assertTrue(rows[1].words.isEmpty())
+    }
+
+    @Test
+    fun `word highlights advance within the line`() {
+        val words = listOf(LyricWord(1_000L, "逐"), LyricWord(2_000L, "字"), LyricWord(3_000L, "高"))
+
+        assertEquals(
+            listOf(0f, 0f, 0f),
+            LyricsPresenter.wordHighlights(words, 1_000L, lineEndMs = 4_000L).map { it.progress },
+        )
+        assertEquals(
+            listOf(1f, 0.5f, 0f),
+            LyricsPresenter.wordHighlights(words, 2_500L, lineEndMs = 4_000L).map { it.progress },
+        )
+        assertEquals(
+            listOf(1f, 1f, 1f),
+            LyricsPresenter.wordHighlights(words, 9_000L, lineEndMs = 4_000L).map { it.progress },
+        )
+        // 末词没有下一词 / 行尾时用 DEFAULT_WORD_MS 兜底
+        assertEquals(
+            0f,
+            LyricsPresenter.wordHighlights(words.takeLast(1), 3_000L).single().progress,
+        )
+        assertEquals(
+            1f,
+            LyricsPresenter.wordHighlights(words.takeLast(1), 3_500L).single().progress,
+        )
+        assertTrue(LyricsPresenter.wordHighlights(emptyList(), 1_000L).isEmpty())
+    }
+
+    @Test
+    fun `active word index follows position`() {
+        val words = listOf(LyricWord(1_000L, "逐"), LyricWord(2_000L, "字"))
+
+        assertEquals(-1, LyricsPresenter.activeWordIndex(words, 999L))
+        assertEquals(0, LyricsPresenter.activeWordIndex(words, 1_000L))
+        assertEquals(1, LyricsPresenter.activeWordIndex(words, 5_000L))
+        assertEquals(-1, LyricsPresenter.activeWordIndex(emptyList(), 1_000L))
     }
 }

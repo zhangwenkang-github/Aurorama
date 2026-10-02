@@ -26,7 +26,12 @@ data class LyricsRow(
     val startMs: Long?,
     val mainText: String,
     val subText: String? = null,
+    /** 主行的逐字数据（W28-MUSIC）；空列表 = 无逐字数据，显示侧回落整行高亮。 */
+    val words: List<LyricWord> = emptyList(),
 )
+
+/** 逐字高亮渲染单元：[progress] 0 = 未唱、1 = 已唱完。 */
+data class WordHighlight(val text: String, val progress: Float)
 
 /** 全屏播放页的歌词窗口：当前行 ±1（W24-MUSIC · C 组）。 */
 data class LyricsWindow(val previous: String?, val current: String?, val next: String?)
@@ -86,8 +91,31 @@ object LyricsPresenter {
                 startMs = block.startMs,
                 mainText = main.text,
                 subText = if (display.bilingual) other?.text else null,
+                words = main.words,
             )
         }
+
+    /**
+     * 逐字高亮进度（W28-MUSIC，纯函数）。
+     *
+     * 每个词按"自身起点 → 下一个词起点"折算 0..1 的推进比例；最后一个词用 [lineEndMs]（通常是下一行的开始时间） 兜底，缺失时用
+     * [DEFAULT_WORD_MS]。没有逐字数据时返回空列表，调用方回落整行高亮。
+     */
+    fun wordHighlights(
+        words: List<LyricWord>,
+        positionMs: Long,
+        lineEndMs: Long? = null,
+    ): List<WordHighlight> = words.mapIndexed { index, word ->
+        val nextStart = words.getOrNull(index + 1)?.startMs ?: lineEndMs
+        val end = nextStart?.takeIf { it > word.startMs } ?: (word.startMs + DEFAULT_WORD_MS)
+        val progress =
+            when {
+                positionMs <= word.startMs -> 0f
+                positionMs >= end -> 1f
+                else -> (positionMs - word.startMs).toFloat() / (end - word.startMs).toFloat()
+            }
+        WordHighlight(text = word.text, progress = progress.coerceIn(0f, 1f))
+    }
 
     /** 当前行索引（滚动同步 / 高亮，纯函数）：最后一行"开始时间 ≤ [positionMs]" 的行； 播放位置早于首行时停在第一行， 无歌词时返回 -1。 */
     fun activeIndex(rows: List<LyricsRow>, positionMs: Long): Int {
@@ -97,6 +125,13 @@ object LyricsPresenter {
             val start = row.startMs ?: return@forEachIndexed
             if (start <= positionMs) index = i
         }
+        return index
+    }
+
+    /** 当前逐字片段下标（最后一段"开始时间 ≤ [positionMs]"）；未到首词或无数据返回 -1（W28-MUSIC）。 */
+    fun activeWordIndex(words: List<LyricWord>, positionMs: Long): Int {
+        var index = -1
+        words.forEachIndexed { i, word -> if (word.startMs <= positionMs) index = i }
         return index
     }
 
@@ -139,4 +174,7 @@ object LyricsPresenter {
             LyricLanguage.MIXED,
             LyricLanguage.OTHER -> null
         }
+
+    /** 最后一个词没有结束时间时的兜底时长（与 500 ms 位置采样同量级）。 */
+    const val DEFAULT_WORD_MS = 500L
 }

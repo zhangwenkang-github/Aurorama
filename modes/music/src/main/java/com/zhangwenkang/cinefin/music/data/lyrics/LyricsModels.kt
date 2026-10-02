@@ -1,16 +1,33 @@
 package com.zhangwenkang.cinefin.music.data.lyrics
 
 /**
+ * 逐字（词）时间片段（W28-MUSIC）。
+ *
+ * 来源：增强 LRC 的 `<mm:ss.xx>` 标签，或服务端 `LyricLineCue`（按 `position`/`endPosition` 截取的子串 + ticks 时间）。
+ * [text] 保留原始分段文本（含词尾空格），渲染时按 [startMs] 递进高亮；整行歌词没有逐字数据时列表为空，显示侧回落整行高亮。
+ */
+data class LyricWord(val startMs: Long, val text: String)
+
+/**
  * 一行歌词（MU-5）。
  *
  * [startMs] 统一为毫秒；`null` 表示该行没有时间戳（未同步歌词）。 [isMetadata] 标记 LRC ID 标签（`[ti:]` / `[ar:]` /
- * `[offset:]` …）或"作词 / 作曲"一类的元数据行，显示前会被 [LyricsNormalizer] 丢弃。
+ * `[offset:]` …）或"作词 / 作曲"一类的元数据行，显示前会被 [LyricsNormalizer] 丢弃。 [words] 是逐字高亮数据（W28-MUSIC，可为空）。
  */
 data class LyricLine(
     val startMs: Long?,
     val text: String,
     val isMetadata: Boolean = false,
+    val words: List<LyricWord> = emptyList(),
 )
+
+/**
+ * 逐字片段拼接后是否与整行文本一致（W28-MUSIC）。
+ *
+ * 编辑 / 落盘前的守卫：用户改过文本后再照旧写逐字标签会让高亮与文本错位，此时应当丢弃逐字数据、回落整行。
+ */
+internal fun lyricWordsMatchText(words: List<LyricWord>, text: String): Boolean =
+    words.isNotEmpty() && words.joinToString("") { it.text }.trim() == text.trim()
 
 /**
  * 配对后的歌词块。

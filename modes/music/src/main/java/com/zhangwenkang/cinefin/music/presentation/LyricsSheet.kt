@@ -190,16 +190,36 @@ private fun LyricsLines(
                             .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = row.mainText,
-                        style =
-                            if (active) MaterialTheme.typography.titleMedium
-                            else MaterialTheme.typography.bodyLarge,
-                        color =
-                            if (active) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = if (active) FontWeight.SemiBold else null,
-                    )
+                    // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）
+                    val activeWordText =
+                        if (active)
+                            wordHighlightedText(
+                                text = row.mainText,
+                                words = row.words,
+                                positionMs = state.positionMs,
+                                lineEndMs = state.rows.getOrNull(index + 1)?.startMs,
+                                idleColor = MaterialTheme.colorScheme.onSurface,
+                                highlightColor = MaterialTheme.colorScheme.primary,
+                            )
+                        else null
+                    if (activeWordText != null) {
+                        Text(
+                            text = activeWordText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    } else {
+                        Text(
+                            text = row.mainText,
+                            style =
+                                if (active) MaterialTheme.typography.titleMedium
+                                else MaterialTheme.typography.bodyLarge,
+                            color =
+                                if (active) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (active) FontWeight.SemiBold else null,
+                        )
+                    }
                     val sub = row.subText
                     if (sub != null) {
                         Text(

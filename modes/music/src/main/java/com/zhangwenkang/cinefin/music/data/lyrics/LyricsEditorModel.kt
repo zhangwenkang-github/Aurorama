@@ -5,9 +5,16 @@ import java.util.Locale
 /**
  * 歌词编辑器的纯函数模型（W25-MUSIC）。
  *
- * 时间戳在编辑态保留为文本（便于边输边改），保存时统一校验；[id] 只用于列表 key / 回调定位，不参与落盘。
+ * 时间戳在编辑态保留为文本（便于边输边改），保存时统一校验；[id] 只用于列表 key / 回调定位，不参与落盘。 W28-MUSIC：整段时间轴偏移 / 单行 ±100ms
+ * 微调（[shiftLyricEditLines] / [nudgeLyricEditLine]）与逐字数据透传。
  */
-data class LyricEditLine(val id: Long, val timeText: String, val text: String)
+data class LyricEditLine(
+    val id: Long,
+    val timeText: String,
+    val text: String,
+    /** 逐字数据（整行文本未改时随行时间一起平移并保留；文本改过后保存时丢弃，回落整行高亮）。 */
+    val words: List<LyricWord> = emptyList(),
+)
 
 /** 时间戳解析结果：`valid=false` 表示格式非法；`startMs=null` 且 `valid=true` 表示留空（未同步行）。 */
 data class LyricTimeParse(val startMs: Long?, val valid: Boolean)
@@ -47,6 +54,60 @@ fun parseLyricTime(text: String): LyricTimeParse {
     return LyricTimeParse(startMs = startMs, valid = true)
 }
 
+/** 自定义偏移文本 → 毫秒：接受 `500` / `+500` / `-500`；空 / 非法返回 null。 */
+fun parseLyricOffsetMs(text: String): Long? = text.trim().removePrefix("+").toLongOrNull()
+
+/**
+ * 整段时间轴偏移（W28-MUSIC）：所有有时间戳的行统一平移 [deltaMs]（结果不小于 0）。
+ *
+ * 未同步行（留空）与时间戳非法的行原样保留；逐字数据随行平移。
+ */
+fun shiftLyricEditLines(lines: List<LyricEditLine>, deltaMs: Long): List<LyricEditLine> =
+    lines.map { line ->
+        shiftLyricEditLine(line, deltaMs)
+    }
+
+/** 单行时间微调（W28-MUSIC）：只改 [id] 命中的行，其余原样；行时间被钳制时逐字按实际差值平移。 */
+fun nudgeLyricEditLine(lines: List<LyricEditLine>, id: Long, deltaMs: Long): List<LyricEditLine> =
+    lines.map { line ->
+        if (line.id == id) shiftLyricEditLine(line, deltaMs) else line
+    }
+
+/** 编辑框文本变化对应的实际偏移量（用于把逐字数据一起平移）；任一侧无有效时间戳返回 null。 */
+internal fun lyricTimeDeltaMs(oldText: String, newText: String): Long? {
+    val old = parseLyricTime(oldText)
+    val new = parseLyricTime(newText)
+    if (!old.valid || !new.valid) return null
+    val oldStart = old.startMs ?: return null
+    val newStart = new.startMs ?: return null
+    return newStart - oldStart
+}
+
+/** 逐字数据整体平移（结果不小于 0）。 */
+internal fun shiftLyricWords(words: List<LyricWord>, deltaMs: Long): List<LyricWord> = words.map {
+    it.copy(startMs = (it.startMs + deltaMs).coerceAtLeast(0L))
+}
+
+/** 逐字数据在保存时是否仍然有效：文本一致，且首词起点与行时间戳重合（手动改时间后不再重合 → 丢弃逐字、回落整行）。 */
+internal fun lyricWordsConsistentWithLine(
+    words: List<LyricWord>,
+    text: String,
+    startMs: Long?,
+): Boolean = startMs != null && lyricWordsMatchText(words, text) && words.first().startMs == startMs
+
+private fun shiftLyricEditLine(line: LyricEditLine, deltaMs: Long): LyricEditLine {
+    if (deltaMs == 0L) return line
+    val parsed = parseLyricTime(line.timeText)
+    val start = parsed.startMs ?: return line
+    val shifted = (start + deltaMs).coerceAtLeast(0L)
+    if (shifted == start) return line
+    val applied = shifted - start
+    return line.copy(
+        timeText = formatLyricTime(shifted),
+        words = shiftLyricWords(line.words, applied),
+    )
+}
+
 /** 打开编辑器时的预填行：当前文档的全部原始行（原文 + 译文按块序展开）。 */
 fun lyricEditLines(document: LyricsDocument?): List<LyricEditLine> =
     document
@@ -58,6 +119,7 @@ fun lyricEditLines(document: LyricsDocument?): List<LyricEditLine> =
                 id = index.toLong(),
                 timeText = formatLyricTime(line.startMs),
                 text = line.text,
+                words = line.words,
             )
         }
 
@@ -68,6 +130,7 @@ fun lyricEditLinesFromText(text: String): List<LyricEditLine> =
             id = index.toLong(),
             timeText = formatLyricTime(line.startMs),
             text = line.text,
+            words = line.words,
         )
     }
 
@@ -78,7 +141,16 @@ fun lyricEditLinesToLyricLines(lines: List<LyricEditLine>): List<LyricLine>? {
         if (line.text.isBlank()) continue
         val parsed = parseLyricTime(line.timeText)
         if (!parsed.valid) return null
-        result += LyricLine(startMs = parsed.startMs, text = line.text.trim())
+        val text = line.text.trim()
+        result +=
+            LyricLine(
+                startMs = parsed.startMs,
+                text = text,
+                words =
+                    line.words
+                        .takeIf { lyricWordsConsistentWithLine(it, text, parsed.startMs) }
+                        .orEmpty(),
+            )
     }
     return result
 }

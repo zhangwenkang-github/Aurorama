@@ -3,6 +3,8 @@ package com.zhangwenkang.cinefin.music.data.lyrics
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import org.jellyfin.sdk.model.api.LyricLine as JellyfinLyricLine
+import org.jellyfin.sdk.model.api.LyricLineCue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -141,5 +143,46 @@ class LyricsRepositoryTest {
 
         assertTrue(repository.clearLocalOverride(itemId))
         assertEquals(LyricsSource.SERVER, repository.getLyrics(itemId)?.source)
+    }
+
+    @Test
+    fun `maps server cues to word segments`() {
+        val lines =
+            listOf(
+                JellyfinLyricLine(
+                    text = "Hello world",
+                    start = 12_000L * LYRICS_TICKS_PER_MS,
+                    cues =
+                        listOf(
+                            LyricLineCue(
+                                position = 0,
+                                endPosition = 6,
+                                start = 12_000L * LYRICS_TICKS_PER_MS,
+                            ),
+                            LyricLineCue(
+                                position = 6,
+                                endPosition = 11,
+                                start = 12_500L * LYRICS_TICKS_PER_MS,
+                            ),
+                            // 越界 cue 跳过，不产生半截词
+                            LyricLineCue(
+                                position = 99,
+                                endPosition = 120,
+                                start = 13_000L * LYRICS_TICKS_PER_MS,
+                            ),
+                        ),
+                ),
+                JellyfinLyricLine(text = "无逐字", start = null, cues = null),
+            )
+
+        val mapped = mapServerLyrics(lines)
+
+        assertEquals(12_000L, mapped[0].startMs)
+        assertEquals(
+            listOf(LyricWord(12_000L, "Hello "), LyricWord(12_500L, "world")),
+            mapped[0].words,
+        )
+        assertNull(mapped[1].startMs)
+        assertTrue(mapped[1].words.isEmpty())
     }
 }
