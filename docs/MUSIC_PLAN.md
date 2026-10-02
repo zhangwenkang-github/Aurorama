@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-10-02（W23-MUSIC 会话）　分支：`feature/w23-music-player-ui`
+> 最后更新：2026-10-02（W24-MUSIC 会话）　分支：`feature/w24-music-polish`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -104,6 +104,17 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D32 | 随机规则：**下一曲**交给内核 `DefaultShuffleOrder`（一轮内每首恰好一次 = 未播优先）；**上一曲**由 `MusicPlaybackHistory`（纯函数 + 进程级 tracker）给出"实际播放过的上一首"的队列索引，找不到才回落内核 | 用户明确要求"上一曲不是随机跳"；内核 shuffle 的 `seekToPrevious` 在手动跳播 / 随机起点下不等于真实历史（真机日志见 §5.6-3） |
 | D33 | 桌面歌词 = `modes:music` 的 `MusicLyricsOverlayController`（状态与歌词）+ `app:phone` 的 `MusicLyricsOverlayService`（`WindowManager` 覆盖层 + `ComposeView` 最小生命周期宿主），宿主接口沿用 `PlaybackServiceStarter` 的"模块定义接口、宿主实现"约定；Service 是**普通 Service**（不占前台通知，与播放前台服务共存） | 红线约束：主要逻辑在音乐线，App 层只加 Manifest 权限 / Service / Hilt 绑定；悬浮窗跟随播放与开关状态，退出播放 / 关闭开关即销毁 |
 
+### 2.9 W24 本会话决策（音乐 UI 细化）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D34 | 悬浮窗自动隐藏 = `MusicLyricsOverlayContent` 内部 `interacting`（3 秒无操作落回 false）+ 纯函数 `overlayChromeVisible(locked, interacting)`；**背景 / 边框恒受锁定抑制**，设置工具条自带一层落底半透明底板 | 「无操作 3 秒隐藏、触摸恢复、锁定保持隐藏」三个状态只用一个布尔表达；工具条底板与歌词背景分离，锁定后单击仍能看清 5 个图标（真机日志见 §5.7-1） |
+| D35 | 悬浮窗位置持久化 = `AppPreferences` 追加 `pref_music_lyrics_overlay_x/y`（-1 = 未记录）；拖动结束 / 布局完成后 `commitPosition()` 夹进屏幕再落盘 | 位置只在“拖动结束”与“屏幕旋转后越界”两个时机写入，避免拖动过程中每个 move 事件都写 SharedPreferences；`AppPreferences.kt` 只追加，不重排既有键（本波红线允许） |
+| D36 | 无歌词回落 = 控制器状态补 `title/artist`，显示侧 `overlayDisplayLines` 优先歌词、否则「歌名 / 歌手（缺失给占位）」；歌手来源 = `MusicModeViewModel` 把曲库快照里当前曲目的 artist 喂入控制器（内存 map），控制器再保留一次按需曲库加载兜底 | 真机首版只靠控制器懒加载 500 首快照，歌手要等网络请求回来（快速切歌时一直显示"暂无歌词"占位，见 §5.7-3）；ViewModel 已经持有曲库快照，直接喂入即时且离线可用 |
+| D37 | 全屏播放页按可用高度分两套布局：`maxHeight ≥ 620dp` 单列（W23 原样），否则两栏紧凑（左封面 / 右控制） | K60 横屏可用高度 411dp，W23 单列大封面会把进度条、歌词、功能键全部挤出屏幕（真机实测，见 §6-27）；两栏后 2–3 行歌词、细轨道进度条、播放列表入口全部可见，Pad 5 / 竖屏手机仍走原单列 |
+| D38 | 进度条改自绘 `MusicProgressBar`：4dp 圆头轨道 + 18dp 白色圆形拖点 + 同色 radial glow；整条 36dp 触控带按下 / 拖动都 seek 并消费手势 | Material3 `Slider` 的浮标是竖条（用户明确要求去掉）；自绘同时满足"细轨道 + 圆形发光拖点（Prism / 音乐皮肤）"，消费手势后不会误触全屏左滑呼出队列 |
+| D39 | 歌词页居中 = 上下 `contentPadding = 视口一半` + `centerItem()`（先 `animateScrollToItem`，再按目标行实际高度 `animateScrollBy` 微调）；去掉当前行前的「杠」，改用 `media.bright` 颜色 + 32sp / 21sp 字号区分 | 旧实现首帧 `viewportSize.height == 0`，滚动偏移退化成"当前行贴顶"（用户复现）；两段式滚动对首行 / 末行 / 双语多行都成立（真机实测居中后 `offset=332 ≈ (840-177)/2`，见 §5.7-6） |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -196,6 +207,26 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] `AppPreferences.kt` 只追加 `pref_music_lyrics_overlay*` 5 个键（开关 / 颜色 / 字号 / 语言 / 锁定）
 
 **遗留**：内嵌歌词 / 歌词编辑（W3 未决项）；`player:local` 的 `MusicPlaybackStateSource` 追加了 `durationMs`，`MusicPlaybackControllerImpl` 修了起播索引竞态（两处均在本波红线外，已记录理由）；桌面歌词悬浮窗位置不跨进程持久化（每次开启回到默认位）。
+
+### W24 音乐 UI 细化（本会话 `feature/w24-music-polish`，已交付）
+
+- [x] A1 悬浮窗自动隐藏：无操作 3 秒隐藏背景 / 边框（只留双行文字），触摸 / 拖动恢复；锁定后保持隐藏，单击只唤出设置工具条
+- [x] A2 悬浮窗按钮 / 设置工具条图标化：5 个 40dp 纯图标按钮（颜色 / 字号 / 语言 / 锁定 / 关闭），无文字、无边框、无底色；颜色图标用当前歌词色着色
+- [x] A3 无歌词回落：显示「歌名 / 歌手」，歌手由 ViewModel 曲库快照 + 控制器按需加载双来源提供，不出现空白双行
+- [x] A4 悬浮窗位置持久化：`pref_music_lyrics_overlay_x/y`（只追加），拖动结束 / 布局完成夹进屏幕后落盘，杀进程重启复位
+- [x] A5 全屏「桌面歌词」按钮状态色：未开启 = 白色图标，开启 = 音乐域强调色（`MediaMusic.base`），其余控件不动
+- [x] B6 歌词页当前行居中：上下半视口 padding + `centerItem()` 两段式滚动；修掉首帧 `viewportSize=0` 导致当前行贴顶
+- [x] B7 去掉当前行前的「杠」，改用强调色 + 32sp / 21sp 字号区分
+- [x] C8 全屏播放页显示 2–3 行歌词（当前行 ±1），点任意一行进歌词页
+- [x] C9 进度条改自绘：4dp 细轨道 + 18dp 白色圆形拖点 + 同色 radial glow，去掉 Material Slider 竖线浮标
+- [x] C10 播放列表半屏面板：全屏「播放队列」图标或左滑呼出，复用既有队列编辑（拖动 / 跳转 / 移除）
+- [x] 真机拦下并修复：K60 横屏（411dp 高）W23 单列全屏布局被裁切 → 按高度分「单列 / 两栏紧凑」两套布局
+- [x] 单测：`MusicLyricsOverlaySettingsTest` 新增回落 / 锁定 / 位置 3 例 + `LyricsPresenterTest` 新增歌词窗口 1 例，`:modes:music` 71 → **75 项**
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51 项）+ `:modes:music:testDebugUnitTest`（75 项）全绿
+- [x] 真机验证（K60 `8e875894` 全项 10 组，见 §5.7）
+- [x] `AppPreferences.kt` 只追加 `pref_music_lyrics_overlay_x/y` 2 个键（位置持久化）
+
+**遗留**：内嵌歌词 / 歌词编辑（W3 未决项不变）；悬浮窗设置工具条暂无“保持显示时长”档位（固定 3 秒）；真机残留新功能偏好 = 桌面歌词关 + 位置 (1017,759) + 颜色松石（W23 遗留色）。
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -355,6 +386,27 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 > 设备副作用：两机 App 已 force-stop、`/sdcard/w23_*.xml` 已清理；未改 `wm size` / `wm density` / 旋转 / Wi-Fi；Pad 5 在测试中经 appops 授予悬浮窗权限（等同系统页开关，保留）。
 > 测试期残留的新功能偏好（Pad 5）：`桌面歌词=关`、`颜色=松石`、`字号=特大`、`语言=日文`、`锁定=开`（均为本波新增键，用户下次开启面板可直接改；未做 prefs 文件改写，避免 W18 的 run-as 截断事故）。
 
+### 5.7 W24 真机验证记录（2026-10-02，Redmi K60 `8e875894`）
+
+设备由负责人统一调度（`device-lock.md`，K60 归 W24）；全部 `adb` 命令带 `-s 8e875894`；安装包 = 本会话 `assembleDebug` 产物；测试时设备为**横屏**（3200×1440 / 914×411dp，`fullSensor`）。
+悬浮窗是 `FLAG_NOT_FOCUSABLE` 的 `APPLICATION_OVERLAY` 窗口，`uiautomator dump` 抓不到它的节点（W23 §6-25 同款结论）；因此悬浮窗证据 = `dumpsys window` frame + 截图像素采样 + logcat 时间戳，App 内页面用 `uiautomator dump`。
+
+| # | 项目 | 证据 | 结果 |
+|---|------|------|------|
+| 1 | 悬浮窗 3s 自动隐藏 / 触摸恢复 / 锁定后单击唤出 | 日志 `背景：显示 17:01:50.038 → 隐藏 17:01:53.077`（3.039s）；点歌词区 `17:02:07.042 背景：显示`；锁定 `17:02:45.462 已锁定` → `17:02:45.476 背景：隐藏（锁定=true）`；锁定后单击 → 工具条 frame `[162,618][1168,1123]`（展开）且无「显示」日志 | ✅ |
+| 2 | 工具条图标化、无文字 / 无边框 / 无底色 | 工具条 frame 展开 `[162,618][1168,1123]`（5×40dp 图标行）vs 收起 `[162,618][1002,934]`；截图采样：按钮单元格背景 13601/14400 px = 容器色 `(15,18,23)`（无浅色底板），图标白色 3097 px + 颜色键 `(92,225,210)` 649 px | ✅ |
+| 3 | 无歌词时显示歌名 / 歌手 | 日志 `桌面歌词：无歌词，回落歌名 / 歌手（unravel / TK from 凛冽时雨）`（17:01:50.049 与重启后 17:03:46.685 各一次）；`unravel` 歌词加载前悬浮窗即显示两行，无空白 | ✅ |
+| 4 | 位置持久化（杀进程重启） | 拖动后 `17:03:22.718 桌面歌词位置：x=1017, y=759`（frame `[1155,897]`）；force-stop → 重启 → 重新起播 `17:03:46.484 位置：x=1017, y=759`、frame `[1155,897][…]` 与杀进程前一致 | ✅ |
+| 5 | 桌面歌词按钮两态色 | 全屏按钮区域像素采样：未开启 = 白色 1186 px / 强调色 0；开启 = `(63,201,160)` 249 px / 白色 0（音乐域 `MediaMusic.base`） | ✅ |
+| 6 | 歌词页当前行居中；无「杠」 | 居中日志 `target=30 viewport=840 offset=0 size=177 delta=-331.5` → 居中后 `offset=332 ≈ (840-177)/2`；节点 dump 当前行 centerY=994 = 列表视口（574–1414）中心；5 行文本 left 全部 530（无杠）；当前行强调色 8916 px、其余行 0 | ✅ |
+| 7 | 全屏 2–3 行歌词 + 点击进歌词页 | dump 三行 `あなたを傷つけたくはないよ / 覚えていて… / 無限に広がる孤独が絡まる`（当前行居中强调）；点当前行 → 歌词页（`返回全屏播放` + `来源：服务端　日文 / 英文` + 语言 chip） | ✅ |
+| 8 | 进度条新样式（像素 / 描边采样） | 修回放大后采样：轨道 y=633–646 共 14 px（=4dp）连续强调色；拖点白色圆 y=622–657，逐行宽度 51→62→51 px（中心行 62 px ≈ 18dp 圆，非竖线） | ✅ |
+| 9 | 播放列表半屏面板（图标 / 左滑、拖动 / 跳转） | 点全屏 `播放队列` 图标 → `播放队列（98）` 面板顶部 y=720（下半屏 720–1440）；左滑 `2500,500→1200,500` → 同一面板；`DOWN 900ms + MOVE` 长按拖动 → 01/02 由「梦的光点 / 123我爱你」互换；点 `123我爱你` → media_session `metadata=123我爱你`、`PLAYING` | ✅ |
+| 10 | W23 功能回归 + 稳定性 | 迷你栏五键顺序（队列 / 词 / 上一曲 / 播放 / 下一首）dump 一致；模式 4 连点日志 `顺序 → 列表循环 → 单曲循环 → 随机`；底栏「词」→ 歌词面板（`来源：服务端　简体中文` + 原文 / 双语 / 跟随）；顶栏睡眠定时面板（关闭 / 10 / 20 / 30 / 60）；收藏 / 最近入口在；重启后队列 `unravel 0:02/3:25 · 上次播放` 恢复；随机模式 seek 到曲末 → 自动衔接下一首（`絆 → 奢香夫人`，全程 `PLAYING`）；logcat 0 条 `FATAL EXCEPTION` / `ANR` / `Input dispatching timed out` | ✅ |
+| 11 | 真机拦下的缺陷 | K60 横屏 411dp 高时 W23 单列全屏被裁切（大封面 `[1263,348][2383,1384]` 后进度条 / 按钮全部出屏）→ 本波按高度分「单列 / 两栏紧凑」（§6-27），复测两栏后歌词 / 进度条 / 五键均可见 | ✅ |
+
+> 设备副作用：App force-stop、`/sdcard/w24_*.xml` 清理；未改 `wm size` / `wm density` / 旋转 / Wi-Fi（横屏为设备物理姿态，全程未主动改）；测试结束桌面歌词开关 = 关；新增位置键残留 `(1017,759)`；队列拖动顺序已还原（01 梦的光点 / 02 123我爱你），播放模式 4 连点回到原随机态。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -427,6 +479,11 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
     用 `dumpsys activity services <pkg>` 看 Service 存活，用 logcat 看两行歌词内容；`input tap/swipe` 可以直接命中覆盖层窗口（坐标取窗口 frame 内）。
 26. **手机（K60 411dp）播放栏仍然放得下五键**（2026-10-02 W23）：封面 48dp + 标题/时间列 ≈107dp + 5×44dp 图标键，
     行内边距压到 `Space2`；窄屏下时间用 `MonoDataSmall` 单行省略，避免换行撑高底栏。
+27. **横屏手机的"高"只有 411dp，单列全屏布局必被裁切**（2026-10-02 W24 真机拦下）：W23 全屏页按 `min(0.58×宽, 320dp)` 定封面尺寸，K60 横屏（914×411dp）封面 320dp + 歌名 + 歌词 + 进度条 + 传输键 + 功能键 ≈ 700dp，直接出屏（首屏只剩大封面）。→ 按 `maxHeight` 分两套布局：≥620dp 单列、矮屏两栏紧凑（左封面 / 右控制）；**全新全屏类页面落地时先按最矮目标机（横屏手机）估算固定高度**。
+28. **悬浮窗节点抓不到，不能拿 uiautomator 当唯一证据**（W24 实测）：`FLAG_NOT_FOCUSABLE` 的 `APPLICATION_OVERLAY` 不在 `uiautomator dump` 里（App 内页面正常）；`dumpsys window` 的 frame + 截图像素采样 + logcat 时间戳才能覆盖"背景隐藏 / 工具条展开 / 按钮颜色"。→ 悬浮窗验收脚本统一用这三件套，不要等 uiautomator。
+29. **悬浮窗像素取证前必须先关悬浮窗**（W24 实测）：悬浮窗是顶层窗口，开着它去采样歌词页 / 全屏页会串色（歌词页"当前行强调色"一度采到悬浮窗的松石色 `#5CE1D2`，误判 30 分钟）。→ 采样 App 内页面时先 `dumpsys window` 确认没有 `APPLICATION_OVERLAY` 叠加，或在采样前关掉开关。
+30. **队列面板里的滑动手势会穿透到全屏页**（W24 实测）：在 `ModalBottomSheet` 里做下滑手势（想滚列表）一旦超过阈值，sheet 关闭后同一段手势会继续触发全屏页的"下滑退出"。→ sheet 内滚动用"列表区内、较小位移"的滑动，或先确认 sheet 的滚动区域坐标；需要大幅滚动时用 `uiautomator` 定位行后分批滑。
+31. **歌词居中的旧实现是"首帧视口 0"的隐性 bug**（W24 实测）：`LaunchedEffect` 里读 `listState.layoutInfo.viewportSize.height` 首帧为 0，`scrollOffset` 退化为 `+40px` → 当前行停在最上方；改成"上下 contentPadding = 视口一半 + `animateScrollToItem` 后按实际行高 `animateScrollBy` 微调"，真机 offset 收敛到 `(viewport-size)/2`。→ 凡"首帧滚动定位"都要把 `viewportSize==0` 当成显式分支或等首帧布局。
 
 ## 7. 会话日志
 
@@ -463,3 +520,10 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   新增 12 条单测（`MusicPlayModeTest` / `MusicPlaybackHistoryTest` / `MusicLyricsOverlaySettingsTest`），`:modes:music` 71 项；
   门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 项 + music 71 项全绿；真机 16 项见 §5.6（Pad 5 全项 + K60 手机形态冒烟）。
   决策 §2.8（D29–D33），踩坑 §6-24～26。**未决**：内嵌歌词 / 歌词编辑；悬浮窗位置不跨进程持久化；`player:local` 两处改动（`durationMs` 观察 + 起播索引竞态修复）已在红线外记录理由。
+- **2026-10-02 W24-MUSIC**（本会话，`feature/w24-music-polish`，起点 master `7e092bc`）：完成用户逐条确认的 UI 细化——
+  **A 悬浮窗**：3 秒无操作隐藏背景 / 边框、触摸恢复、锁定保持隐藏且单击唤出设置；工具条改 5 个纯图标按钮（无文字 / 无边框 / 无底色）；无歌词回落「歌名 / 歌手」（ViewModel 曲库快照 + 控制器按需加载双来源）；位置跨进程持久化（`pref_music_lyrics_overlay_x/y`）；全屏按钮两态色（白 / 强调色）；
+  **B 歌词页**：当前行居中（首帧视口 0 修复）、去掉当前行前的「杠」改颜色 + 字号；
+  **C 全屏页**：2–3 行歌词（点任意行进歌词页）、自绘细轨道 + 圆形发光拖点进度条、播放列表半屏面板（图标 / 左滑呼出，拖动 / 跳转复用）；
+  **真机拦下并修复**：K60 横屏 411dp 高时 W23 单列全屏被裁切 → 按高度分「单列 / 两栏紧凑」。
+  新增 4 条单测（回落 / 锁定背景 / 位置夹取 / 歌词窗口），`:modes:music` 71 → **75 项**；门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 项 + music 75 项全绿；K60 真机 11 组证据见 §5.7。
+  决策 §2.9（D34–D39），踩坑 §6-27～31。**未决**：内嵌歌词 / 歌词编辑；工具条"保持显示时长"暂无档位（固定 3 秒）。
