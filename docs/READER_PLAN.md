@@ -9,7 +9,7 @@
 | 会话 | W1-R1 骨架 → W2-R1 主体 → W3-R1 离线与进度 → W4-R1 · PDF / CBZ 格式支持 → W9-R1 漫画方向（RTL）→ W15-UI 顶栏修复 → W22-R1 · 跨页对图合并 → W26-R1 · 横版独占与带纸边合并 → **W29-R1 · PDF 搜索 + 本地高亮批注** |
 | 分支 | `feature/r1-pdf-cbz`（W4）→ `feature/w9-reader-comics`（W9）→ `feature/w22-spread-merge`（W22）→ `feature/w26-reader-forms`（W26）→ **`feature/w29-pdf-search-annot`（W29，当前）** |
 | 基线 | `master` `d972315`（2026-10-02；W22/W26 均已合并：`21a97d0` / `a3dfc01`） |
-| 状态 | W4 PDF / CBZ 自研 + W9 RTL + W15-UI 顶栏 + W22 跨页对图合并 + W26 横版独占/带纸边裁剪均已合并 master（`modes:book` 77 项单测）；**W29 落地 PDF 文本层搜索 + 本地矩形高亮批注**（PdfBox-Android 流式扫描、`filesDir/reader/annotations/{itemId}.json`），`:modes:book` **101 项单测**（+24）全绿，门禁四绿；本地素材性能取证见 §7.12，**真机窗口未分配（代码 + 单测 + 本地取证，待负责人调度）** |
+| 状态 | W4 PDF / CBZ 自研 + W9 RTL + W15-UI 顶栏 + W22 跨页对图合并 + W26 横版独占/带纸边裁剪均已合并 master（`modes:book` 77 项单测）；**W29 落地 PDF 文本层搜索 + 本地矩形高亮批注**（PdfBox-Android 流式扫描、`filesDir/reader/annotations/{itemId}.json`），`:modes:book` **103 项单测**（+26）、门禁四绿；**真机验收已在 Pad 5 完成**（§7.13）：真机拦下 1 个搜索崩溃缺陷（重复 key）已修复复验，另顺带发现 W26 版式扫描在大文档上的 native 内存膨胀（未修，交 W26 线） |
 
 ## 1. 需求与 W1 范围
 
@@ -708,8 +708,10 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
       存储增改删 / 截断）+ `PageOverlayGeometryTest` 4（Fit 数学 / 退化尺寸 / 正反映射 / 越界夹取）。
 - [x] ⑦ 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest` +
       `:modes:book:testDebugUnitTest`（**101 项**）全绿。
-- [ ] ⑧ 真机走查（**设备未分配**，等负责人调度）：搜索命中 / 跳转 / 命中矩形叠加、批注增删改、
-      RTL / 双栏 / 合并槽显示、3649–5006 页文档输入响应与列表滚动、PSS 采样。
+- [x] ⑧ 真机走查（Pad 5 `43af8627`，负责人指派窗口）：搜索命中 65 条 / 跳转 + 命中矩形像素取证、
+      无文本层提示、非 PDF 无入口、3649 页文档 ~1.3 ms/页（无文本层）+ 退后台取消、批注增删改与列表
+      跳转、RTL / 双栏相位、合并槽 A/B 0 差异；**真机拦下 1 个搜索崩溃缺陷（重复 key）已修复复验**；
+      另顺带发现 W26 版式扫描在大文档上的 native 内存膨胀（交 W26 线）。详见 §7.13。
 
 ## 7. 真机验证记录（2026-09-30）
 
@@ -1170,6 +1172,89 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 4. 交互回归：批注模式下翻页暂停是否符合预期（退出批注模式恢复）、`ModalBottomSheet` 内的
    搜索输入与列表在手机形态（411dp）下的可达性。
 
+### 7.13 W29 真机验收（2026-10-02 20:33–21:0x，Pad 5 `43af8627`，负责人指派窗口）——**完成（真机拦下 1 个缺陷已修）**
+
+设备：Xiaomi Pad 5（`43af8627`，Android 13，竖屏 1600×2560）；K60 空闲未占用（按调度纪律）。
+构建：先装整合版 master `e465a83`（装机前核验 `classes3.dex` 含 `reader pdf search stopped`），
+真机发现搜索崩溃后换装修复分支 `fix/w29-search-hit-position`（提交 `9b7958c`）复测；
+入口统一为「媒体库 → 书籍 → 点书」（`ReaderActivity` 仍 `exported=false`）。素材全部取自本地缓存：
+`attention_is_all_you_need`（PDF / 15 页 / 2.1 MB，有文本层）、`W22-Spread-Test.pdf`（36.1 MB / 30 页，
+图片页「无文本层」+ 8 对合并槽）、`W22-Spread-Test.cbz`（34.6 MB，对照：无 PDF 工具入口）、
+`虚构推理 (2026)`（639.6 MB / 3649 页，大文档）。
+
+**7.13.1 真机拦下的缺陷（已修复 + 复验，交负责人合并）**
+
+- **现象**：打开 attention → 「搜索」→ 输入 `attention` → 进程 **FATAL**
+  （`java.lang.IllegalArgumentException: Key "0-25-9" was already used. If you are using
+  LazyColumn/Row please make sure you provide a unique key for each item.`），ReaderActivity 被
+  `Force finishing`，App 回到 MainActivity（日志时间戳 20:36:13）。
+- **根因**：`buildSnippet` 用「整段窗口 `indexOf(query)`」定位命中在片段里的位置——同一页出现两次
+  相同关键词时，后一个窗口会重新命中窗口里的**第一处**，两条命中的 `matchStartInSnippet` 相同 →
+  结果列表 `LazyColumn` 的 key（页码-片段位置-长度）重复 → Compose 直接抛异常。
+- **修复**（分支 `fix/w29-search-hit-position`，基于 master `e465a83`）：
+  ① 片段命中位置改为「原始下标 → 折叠后下标」的逐字符映射（`charMap`，连续空白映射到同一位置）；
+  ② 结果列表 key 前缀加下标护栏（追加式列表，下标稳定）；
+  ③ 补 2 项回归单测（同页 3 次命中位置互不相同且可定位 / 换行处命中映射），
+  `:modes:book` 101 → **103** 项，门禁（`assembleDebug` + `ktfmtCheck` + app 单测 + book 103）四绿。
+- **复验**：同一条搜索（attention / `attention`）→ 65 条命中、6 行/页、**无崩溃**，跳转与矩形正常 ✓。
+
+**7.13.2 搜索**
+
+| 项 | 结果 |
+|----|------|
+| 文本层命中（attention，15 页） | 「扫描完成 · 共 **65 条命中**」（6 条/页上限生效）；结果列表滚动到第 4–5 页行正常（懒加载）|
+| 点击跳页 + 命中矩形 | 「跳转」→ `分页 · 5/15`，页面叠加 5–6 条命中矩形：像素取证 5 条色带、每条高 33 px、带内深色文字像素占比 5.9–13.4%（矩形压在文字行上，宽度 105–467 px 随行宽变化）|
+| 无文本层（W22-Spread-Test.pdf，30 页） | ≈1–2 s 出「**该 PDF 没有文本层，无法搜索（可用矩形批注）**」+ 提示行「可以退出搜索，用「批注」在页面上框选高亮」|
+| 非 PDF 不出现工具入口 | W22-Spread-Test.cbz 顶栏只有下载状态 / 模式 / Aa，**无「搜索 / 批注」** ✓ |
+| 大文档（虚构推理，3649 页） | 首次搜索 ≈14 s（含 639 MB 文档加载与 8 MB 缓冲 + 临时文件建索引）→ 无文本层提示；热扫描 ≈**1.3 ms/页**（2125 页 ≈2.5–3 s）|
+| 搜索会话内存 | 搜索加载 PdfBox 后 Native ≈64 MB（8 MB 主缓冲 + 临时文件），与 EB-3「3 张页位图」同量级，未见随页数增长 |
+| 退后台取消 | 输入关键词后立即按 Home → 返回阅读页显示「**已暂停 · 已扫描 2125/3649 页 · 命中 0**」+「已暂停扫描：重新输入或改关键词会从头扫描。」✓ |
+
+**7.13.3 本地批注**
+
+| 项 | 结果 |
+|----|------|
+| 新增（空备注 / 带备注） | 框选 → 弹「添加批注（第 N 页）」→ 保存；落盘 `files/reader/annotations/{itemId}.json`（version 1，`page` 0-based、归一化矩形：如 `left 0.4375 / top 0.2011 / right 0.7496 / bottom 0.2735`）|
+| 编辑 | 单击已有框 → 弹窗**回填原备注**（`w29noteA`）→ 改为 `B` 保存 → `updatedAtMs` 更新、`createdAtMs` 不变 ✓ |
+| 删除 | 弹窗内「删除」与列表「删除」两条路径都生效，文件回到 `"annotations":[]` ✓ |
+| 列表 | 「共 N 条」+「第 5 页 · B」+「跳转 / 删除」；跳转从 `双栏 · 3-4/15` 回到 `5-6/15` ✓ |
+| 页面叠加 | attention 第 5 页 2 条批注 → 2 条色带，位置/尺寸与存储矩形换算一致（高 155 px、宽 505 px 对得上 0.072 / 0.31 的比例）|
+| RTL + 双栏相位 | 同一条批注：LTR 在左半（x 347–601）/ RTL 在右半（x 1147–1401），**高度、宽度与 y 完全一致** → 锚点只随页框走、不随相位漂移 ✓ |
+| 合并槽（W22 页 3-4 对图） | 页 3 的批注在合并槽**不叠加**且无错位：同槽位 A/B 截图逐像素比对，页面区域 **0 差异**（唯一差异是状态栏时钟 y 15–44）✓；未合并槽（页 7-8）批注正常叠在页 7 半格（x 244–607）✓ |
+| 交互备注 | 批注模式下单击已有批注不弹编辑（需先「结束」框选）；框选时单指翻页暂停 —— 与设计一致 |
+
+**7.13.4 大文档双栏与 PSS（顺带发现的 W26 线缺陷，本波未修）**
+
+| 场景（虚构推理 3649 页） | TOTAL PSS | Native Heap |
+|--------------------------|-----------|-------------|
+| 冷启动 `分页`（无版式扫描） | **357 MB**（复测 340 MB） | 58 MB |
+| 冷启动 → 切 `双栏`（触发 `pageAspectRatios` 3649 页扫描）+5 s | **962 MB** | **748 MB** |
+| 扫描完成后（+95 s） | 929 MB | 716 MB |
+| 再从双栏切回 `分页` | 897 MB（不回落） | 740 MB |
+
+- 同一进程内 20 槽连翻（33-34 → 73-74/3649，每槽精确 +2 页）**0 次误拼**（`reader spread merge`
+  命中 0）、0 FATAL / 0 ANR → W22/W26 的合并与版式判定在真实大文档上不回归 ✓；
+- **结论**：**W26 的「进入双栏逐页 `PdfRenderer.openPage` 扫全书宽高比」在 3649 页 PDF 上把
+  native heap 抬 +600 MB 量级且不回收**（冷启动分页 357 MB → 双栏 962 MB；扫描完成后 929 MB；
+  切回分页 897 MB；PSS 含 670–720 MB swapped，RSS 仍 ~300–400 MB）。W22 时代同文档双栏为 327.7 MB
+  （那时还没有版式扫描）⇒ 属 **W26 引入、本波 PSS 采样顺带发现**，不在 W29 范围（未修，
+  建议交 W26/W5 线：改用 PDFBox 读页尺寸 / 扫描分块 + 显式回收 / 可见区优先按需扫描）。
+
+**7.13.5 未覆盖**
+
+- 手机形态（K60 未占用）；BouncyCastle 瘦身与证书加密 PDF 降级；合并槽内的叠加映射；
+  金田一 5006 页本体（2.36 GB，需下载；与虚构推理同型、同走「无文本层」路径）。
+
+**7.13.6 设备副作用还原**
+
+- 测试批注文件已删、`files/reader/annotations` 目录已移除（`files/reader` 回到 `bookmarks.json` +
+  `progress.json`）；
+- prefs 与开场基线一致：`pref_reader_mode=paged`、`pref_reader_rtl=false`、主题 `eyecare`、
+  字号 `0.9988`；`accelerometer_rotation=1` / `user_rotation=0` 未改；
+- App `force-stop`（前台回到 MIUI 桌面）、`/sdcard/w29.xml` 已删；K60 未触碰；
+- 保留的正常副作用：三本测试书的阅读进度随走查前进（attention 第 5 页、W22 PDF 第 3 页、
+  虚构推理第 75 页）——与 W22/W26 同样按「正常阅读副作用」保留。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -1254,6 +1339,18 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 27. **真机自造素材的注入方式（服务器只读前提）**：把本地生成的 CBZ `adb push` 到 `/sdcard`，再经
     `cat … | run-as <pkg> sh -c 'cat > files/books/<itemId>.book'` 覆盖已下载缓存（`ensureLocalFile`
     只检查文件存在与长度 >0）；验证后按原字节还原缓存并删除 `/sdcard` 临时件，全程不写服务器。
+28. **`LazyColumn` 重复 key 是硬崩溃，片段命中位置不能对窗口做 `indexOf`**：W29 首轮真机搜索
+    「attention」直接 `FATAL EXCEPTION: Key "0-25-9" was already used`（ReaderActivity 被
+    Force finishing）。根因是 `buildSnippet` 在窗口里找**第一处**命中——同一页出现两次相同关键词时两条
+    命中的片段位置相同 → 列表 key 重复。修复：命中位置按「原始下标 → 折叠后下标」逐字符映射，
+    key 再加下标护栏；回归单测必须覆盖「同页多次命中位置互不相同」（只看 `substring` 相等会漏）。
+    另：`adb shell input text` 会弹 IME，弹窗按钮坐标会整体上移——脚本里必须重新 dump 取 bounds，
+    用旧坐标会点到 scrim 把弹窗关掉（本波两次「保存没生效」都是这个原因，不是应用缺陷）。
+29. **大文档「逐页 `PdfRenderer.openPage`」的 native 内存不回收**：W26 的 `pageAspectRatios()` 对
+    3649 页 PDF 逐页 openPage/close 后，进程 native heap 从 58 MB 涨到 **716–748 MB**（TOTAL PSS
+    357 → 962 MB），扫描完成后不回落、切回分页也不回落（PSS 里 670–720 MB 是 swapped）。
+    W22 时代同文档双栏只有 327.7 MB（那时没有版式扫描）。**教训：大文档的"元数据扫描"也要按内存红线
+    设计**（改用 PdfBox 读页尺寸 / 分块扫描 + 显式回收 / 可见区优先），并在 >1000 页素材上实测。
 
 ## 9. 未决问题与下一波
 
@@ -1347,12 +1444,15 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 
 ### W29 遗留（交接负责人 / 下一波）
 
-- **真机未验（设备未分配）**：搜索命中 / 跳转 / 矩形贴合、批注增删改、RTL / 双栏 / 合并槽显示、
-  3649–5006 页文档的输入响应与列表滚动、PSS 采样、旋转页（`/Rotate`）相位 ——
-  清单见 §7.12.5，等负责人派窗口（Pad 5 / K60 任一均可，素材已在服务器与 `test_files/`）。
+- ✅（2026-10-02 真机完成）**真机走查**：Pad 5 按 §7.12.5 清单跑完（§7.13），真机拦下 1 个搜索崩溃
+  缺陷已修复复验（`fix/w29-search-hit-position`，单测 101 → 103）。
+- **仍未覆盖（等下一波 / 视需要）**：手机形态（K60）下的搜索面板与结果列表可达性；
+  旋转页（`/Rotate` 90/270）命中矩形相位（真机样本里没有旋转页素材）；
+  搜索输入响应在文本层大文档（数千页纯文字 PDF）上的实测（本波大文档样本是扫描件，走「无文本层」路径）。
 - **合并槽位的叠加映射**：W22/W26 命中对图的合并槽位不叠加批注 / 命中矩形（数据仍按逻辑页保存）。
   后续可用 `spreadPieceOrder` + `spreadHalfSourceRange` + 裁剪比例把逻辑页矩形映射到合并位图；
-  映射要做成纯函数 + 单测（左半裁内缘、右半裁内缘的方向不能写反，踩坑 26）。
+  映射要做成纯函数 + 单测（左半裁内缘、右半裁内缘的方向不能写反，踩坑 26）。真机已确认现状是
+  「不叠加且无错位」（A/B 页面区域 0 差异，§7.13.3）。
 - **CBZ 未开放搜索 / 批注**：同一页模型与同一存储格式可直接复用（无文本层 → 只开放批注即可），
   本波为了验收口径只开放 PDF；如需开放是一行开关 + 真机走查。
 - **BouncyCastle 瘦身**：`exclude` 三件套可 −10.5 MB（+13.04 MB → +2.5 MB）；
@@ -1362,9 +1462,21 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
   若真机实测文本层 PDF 体验差，可做「页文本缓存 / 落盘索引（按 itemId + 文件大小指纹）」，
   并把「从当前页向外扫」作为可选项。
 - **搜索会话内存**：`PDDocument`（8 MB 主缓冲 + 临时文件）在首次搜索后按书常驻到换书；
-  真机 PSS 采样后若偏高，可改为「关面板即 `close()`」或 `setupTempFileOnly()`。
+  真机实测 Native ≈64 MB（§7.13.2），与 EB-3 页窗口同量级，暂不需要调整；若后续要更省可改为
+  「关面板即 `close()`」或 `setupTempFileOnly()`。
 - **命中矩形与片段的一致性**：片段按原文本（含换行）匹配，矩形按压缩文本匹配，两者在
   「跨行拆词」时可能数量不一致（矩形按序号配对、多余矩形丢弃）；真机走查时确认贴合度。
+
+### W26 遗留补充（本波 PSS 采样发现，交接 W26 / W5 线）
+
+- **进入双栏的「全书宽高比扫描」在大文档上内存不回收**（踩坑 29）：虚构推理 3649 页
+  冷启动分页 PSS 357 MB（Native 58 MB）→ 切双栏 962 MB（Native 748 MB）→ 扫描完成后 929 MB →
+  切回分页 897 MB（不回落）。W22 时代同文档双栏 327.7 MB（当时无扫描）⇒ W26 引入的回归。
+  建议方向（按代价从低到高）：① 用 W29 已引入的 PdfBox 读页尺寸（只解析页树，不逐页
+  `openPage`）；② 分块扫描 + 每块 `System.gc()` / 显式回收，观察 native 是否回落；
+  ③ 只扫「可见区 + 前后 N 页」的按需版式（与 `pageAspectRatios` 的缓存语义配套）；
+  ④ 扫描时禁止 3649 页级大文档一次性扫描（超过阈值走分页语义并提示）。
+  **开工前建议先在 5006 页金田一样本上复现一次**（本波只测了 3649 页 PDF 与 30/44 页小样本）。
 
 ## 10. 变更日志
 
@@ -1383,3 +1495,4 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 | 2026-10-02 | **W22-R1（分支 `feature/w22-spread-merge`）：跨页对图合并（D20）** —— 判定 / 几何纯函数（`SpreadMerge.kt`：竖版半页几何门槛、内缘亮度取样、中缝四条门槛、双栏槽位相位含 RTL、合并尺寸）+ `SpreadMergeCache.kt`（256 px 缩略图判定 → 两半统一高度合成 → 2 张 LRU → 邻槽预取 → 失败回退两页）+ `SimpleBookView.kt` 双栏槽位接入 + `PageSource.pageSizePx`；**只在双栏生效**，页号 / progression / 分页 / 滚动语义零变化，无新增偏好键；新增 14 项单测（模块 57 项，7 类）全绿；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` + app / book 单测通过；素材复核与阈值标定见 §7.9（金田一原画 PDF 5006 页：4768 页横版整页已是对图 → 无合并触发点，另暴露"双栏一屏 4 页"的形态问题）；随后自造 `W22-Spread-Test`（PDF 36.1 MB / CBZ 34.6 MB × 30 页，脚本 `tools/w22-spread-test/make_spread_test_book.py`），离线自测四组（LTR/RTL × PDF/CBZ）全部 8/8 命中、0 误判（§7.9.4）；真机待派窗口 |
 | 2026-10-02 | **W22-R1 真机终验完成**（Pad 5 `43af8627`，16:30–16:54，负责人指派窗口；素材 = 用户上传的 `W22-Spread-Test` PDF + CBZ）：双栏逐槽位 —— 8 对拆页型对图**全部命中**（`reader spread merge` 8 条，continuity 0.86–0.89 / corr 1.00 / diff 0.00）、5 对独立单页 + 低相似 + 横版整页**0 误拼**；中缝空带合并 0 px / 未合并 307 px、相邻两列 corr ≥0.9972；滑动后即时帧无两页闪动；内存 A/B **+12.0 MB ≈ 1 张合并位图**（PDF）、CBZ −17.3 MB（噪声内）、3649 页真实漫画冷启动稳态 **327.7 MB** 且 0 次误拼；RTL 相位 / 页号 / progression / 冷启动恢复不回归；无 FATAL/ANR；设备副作用还原。详见 §7.10 |
 | 2026-10-02 | **W29-R1（分支 `feature/w29-pdf-search-annot`）：PDF 搜索 + 本地高亮批注**（D22 / D23）——①搜索：引入 `PdfBox-Android 2.0.27.0`（Apache-2.0，无 native；依赖只加 `modes/book/build.gradle.kts` + `libs.versions.toml`），`PdfBoxPageTextSource`（8 MB 主缓冲 + 临时文件、Mutex 串行、逐页流式、空页补齐）+ `PdfSearchEngine`（单页 ≤6 / 整篇 ≤400、达上限即停、进度每 25 页、可取消）+ 搜索面板（去抖 400ms、LazyColumn 增量追加、命中词高亮）+ `PageOverlay` 命中矩形叠加；无文本层 / 上限 / 取消 / 失败均有明确文案；②批注：`ReaderAnnotation` + version 1 JSON 编解码 + `ReaderAnnotationStore`（`filesDir/reader/annotations/{itemId}.json`，原子写）+ 矩形框选 / 备注 / 列表跳转 / 删除，不写服务器、不用 Room、不依赖文本层；③单测 77 → **101**（新增 `PdfSearchTest` / `ReaderAnnotationTest` / `PageOverlayGeometryTest` 共 24 项）；④门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app + book（101）四绿；⑤本地取证（未占真机）：桌面同源 PdfBox 实测（15 页文本层 152 ms/页；5006 页扫描件 0.2 s 空扫）与整包 A/B（**+13.04 MB**，102.40 → 115.45 MB），见 §7.12；真机窗口待负责人调度（§9 遗留） |
+| 2026-10-02 | **W29 真机验收（Pad 5 `43af8627`，负责人指派窗口）+ 真机缺陷修复**（分支 `fix/w29-search-hit-position`，基于整合版 master `e465a83`）——①**真机拦下的崩溃**：搜索「attention」触发 `IllegalArgumentException: Key "0-25-9" was already used`（同页两次命中片段位置相同 → 结果列表 LazyColumn key 重复）→ 修复 `buildSnippet` 为「原始下标 → 折叠后下标」逐字符映射 + key 加下标护栏（踩坑 28），补 2 项回归单测（101 → **103**），同命令复验 65 条命中无崩溃；②搜索真机：命中列表懒加载滚动、跳转 `分页 · 5/15` + 命中矩形像素取证（5 条色带 33 px 高、带内文字像素 5.9–13.4%）、无文本层提示（W22 PDF ≈1–2 s）、非 PDF 无入口、虚构推理 3649 页首扫 ≈14 s / 热扫 ≈1.3 ms/页、退后台取消（已扫描 2125/3649 → 已暂停）、搜索会话 Native ≈64 MB；③批注真机：新增（空/带备注）→ 文件 version 1 落盘、编辑回填原备注、弹窗与列表两路删除、列表跳转、页面叠加与存储矩形换算一致、RTL 双栏相位锚点一致（LTR x 347–601 / RTL x 1147–1401，高宽 y 相同）、合并槽 A/B 页面区域 0 差异；④**顺带发现 W26 线缺陷**（踩坑 29，未修）：3649 页 PDF 进双栏的版式扫描把 Native 58 → 716–748 MB（PSS 357 → 962 MB）且不回收，交 W26 线；⑤设备还原：批注文件 / 目录删除、prefs 回 `paged` + `rtl=false` + `eyecare` + 字号 0.9988、旋转未改、App force-stop、`/sdcard/w29.xml` 删除，K60 未触碰。详见 §7.13 |
