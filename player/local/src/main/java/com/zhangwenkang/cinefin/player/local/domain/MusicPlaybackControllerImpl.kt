@@ -10,6 +10,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.audio.MusicCrossfadeMath
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
+import com.zhangwenkang.cinefin.player.local.audio.ReplayGainReadResult
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainTagReader
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -518,9 +519,19 @@ constructor(
             return
         }
         scope.launch {
-            val tags = replayGainReader.read(item)
+            // 换曲 / 重读前先清掉上一首标签：避免旧增益瞬时套到新曲（读取完成后立即回填）
+            audioEffects.clearReplayGainTags()
+            var result = replayGainReader.read(item)
+            if (result is ReplayGainReadResult.Failed) {
+                // 网络抖动：失败不写缓存，3 秒后重试一次
+                delay(REPLAYGAIN_RETRY_DELAY_MS)
+                if (_queue.value?.currentItem?.itemId != item.itemId) return@launch
+                result = replayGainReader.read(item)
+            }
             if (_queue.value?.currentItem?.itemId != item.itemId) return@launch
-            audioEffects.setCurrentTrackReplayGain(item.itemId, tags)
+            (result as? ReplayGainReadResult.Value)?.let { value ->
+                audioEffects.setCurrentTrackReplayGain(item.itemId, value.tags)
+            }
         }
     }
 
@@ -536,5 +547,8 @@ constructor(
 
         /** 淡化音量序列日志的最小间隔（毫秒），避免 100ms 采样刷屏。 */
         const val CROSSFADE_LOG_INTERVAL_MS = 400L
+
+        /** ReplayGain 拉取失败后的一次重试延迟（毫秒）。 */
+        const val REPLAYGAIN_RETRY_DELAY_MS = 3_000L
     }
 }

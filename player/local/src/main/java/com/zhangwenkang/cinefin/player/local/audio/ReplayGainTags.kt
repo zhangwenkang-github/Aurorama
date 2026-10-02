@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.audio
 
+import kotlin.math.roundToInt
+
 /**
  * ReplayGain（W30-MUSIC-FX）标签解析：FLAC（VorbisComment）、ID3v2（TXXX）与 M4A/MP4（iTunes free-form `----`
  * 原子）子集。
@@ -16,6 +18,19 @@ data class TrackReplayGain(
 ) {
     val isEmpty: Boolean
         get() = trackGainDb == null && albumGainDb == null
+}
+
+/**
+ * `ReplayGainTagReader.read` 的结果：区分"确认没有标签"与"读取失败"。
+ *
+ * 失败（网络 / HTTP）不能当负缓存——真机实测（W35）：清除本机覆盖后回读内嵌标签偶发一次失败， 旧实现把失败写进缓存并显示"未检测到标签"，直到进程重启才恢复。
+ */
+sealed interface ReplayGainReadResult {
+    /** 读取成功：[tags] 为 null 表示确认无标签（可安全负缓存）。 */
+    data class Value(val tags: TrackReplayGain?) : ReplayGainReadResult
+
+    /** 拉取 / 解析失败：不写缓存，调用方可稍后重试。 */
+    data object Failed : ReplayGainReadResult
 }
 
 enum class ReplayGainSource(val label: String) {
@@ -75,11 +90,14 @@ fun parseGainDb(text: String?): Float? {
 /** 编码本机覆盖文本（`track=-6.5` / `album=-8.0`）；两者都为空返回 null（调用方删除覆盖文件）。 */
 fun encodeReplayGainOverride(trackGainDb: Float?, albumGainDb: Float?): String? {
     val lines = buildList {
-        trackGainDb?.takeIf { it.isFinite() }?.let { add("track=$it") }
-        albumGainDb?.takeIf { it.isFinite() }?.let { add("album=$it") }
+        trackGainDb?.takeIf { it.isFinite() }?.let { add("track=${formatOverrideDb(it)}") }
+        albumGainDb?.takeIf { it.isFinite() }?.let { add("album=${formatOverrideDb(it)}") }
     }
     return lines.takeIf { it.isNotEmpty() }?.joinToString(separator = "\n", postfix = "\n")
 }
+
+/** 0.5 dB 档位的浮点误差（如 -2.4999995）折算回一位小数文本（-2.5）。 */
+private fun formatOverrideDb(value: Float): String = ((value * 10f).roundToInt() / 10f).toString()
 
 private fun Map<String, String>.toReplayGain(source: ReplayGainSource): TrackReplayGain? {
     val track = parseGainDb(this["REPLAYGAIN_TRACK_GAIN"])

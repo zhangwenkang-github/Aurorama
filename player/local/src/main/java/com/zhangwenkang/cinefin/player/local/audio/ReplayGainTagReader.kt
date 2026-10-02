@@ -45,22 +45,32 @@ constructor(
 
     private class CacheEntry(val value: TrackReplayGain?)
 
-    /** 读取一首曲目的 ReplayGain；失败与无标签都返回 null（静默降级，不影响播放）。 */
-    suspend fun read(item: PlayerItem): TrackReplayGain? =
+    /**
+     * 读取一首曲目的 ReplayGain；无标签返回 [ReplayGainReadResult.Value]（null），失败返回
+     * [ReplayGainReadResult.Failed]。
+     */
+    suspend fun read(item: PlayerItem): ReplayGainReadResult =
         withContext(Dispatchers.IO) {
             synchronized(cacheLock) { cache[item.itemId] }
                 ?.let {
-                    return@withContext it.value
+                    return@withContext ReplayGainReadResult.Value(it.value)
                 }
-            val result = readOverride(item.itemId) ?: readEmbedded(item)
-            synchronized(cacheLock) { cache[item.itemId] = CacheEntry(result) }
-            Timber.d(
-                "ReplayGain 读取：item=%s 来源=%s track=%s album=%s",
-                item.itemId,
-                result?.source?.name ?: "NONE",
-                result?.trackGainDb,
-                result?.albumGainDb,
-            )
+            val override = readOverride(item.itemId)
+            val result =
+                if (override != null) ReplayGainReadResult.Value(override) else readEmbedded(item)
+            if (result is ReplayGainReadResult.Value) {
+                synchronized(cacheLock) { cache[item.itemId] = CacheEntry(result.tags) }
+                Timber.d(
+                    "ReplayGain 读取：item=%s 来源=%s track=%s album=%s",
+                    item.itemId,
+                    result.tags?.source?.name ?: "NONE",
+                    result.tags?.trackGainDb,
+                    result.tags?.albumGainDb,
+                )
+            } else {
+                // 失败不缓存：切档位 / 切回曲目 / 调用方重试时会重新拉取
+                Timber.d("ReplayGain 读取失败（不缓存，可重试）：item=%s", item.itemId)
+            }
             result
         }
 
@@ -104,16 +114,18 @@ constructor(
             .getOrNull()
     }
 
-    private fun readEmbedded(item: PlayerItem): TrackReplayGain? {
-        val baseUrl = jellyfinApi.api.baseUrl?.trimEnd('/') ?: return null
-        val token = jellyfinApi.api.accessToken ?: return null
+    private fun readEmbedded(item: PlayerItem): ReplayGainReadResult {
+        val baseUrl = jellyfinApi.api.baseUrl?.trimEnd('/') ?: return ReplayGainReadResult.Failed
+        val token = jellyfinApi.api.accessToken ?: return ReplayGainReadResult.Failed
         val mediaSourceId = URLEncoder.encode(item.mediaSourceId, Charsets.UTF_8.name())
         val url = "$baseUrl/Audio/${item.itemId}/stream?static=true&mediaSourceId=$mediaSourceId"
-        val prefix = fetchRange(url, token, "bytes=0-${READ_BYTES - 1}") ?: return null
+        val prefix =
+            fetchRange(url, token, "bytes=0-${READ_BYTES - 1}")
+                ?: return ReplayGainReadResult.Failed
         parseReplayGainBytes(prefix)?.let {
-            return it
+            return ReplayGainReadResult.Value(it)
         }
-        if (!isMp4Header(prefix)) return null
+        if (!isMp4Header(prefix)) return ReplayGainReadResult.Value(null)
         return readMp4Embedded(url, token, prefix)
     }
 
@@ -125,22 +137,24 @@ constructor(
         url: String,
         token: String,
         prefix: ByteArray,
-    ): TrackReplayGain? {
+    ): ReplayGainReadResult {
         val scan = scanMp4TopLevelBoxes(prefix)
         if (scan.moovStart >= 0 && scan.moovCompleteInWindow) {
             // moov 完整落在头部窗口：通用解析不认 MP4，这里补一次。
-            return parseMp4ReplayGain(prefix).toTrackReplayGain()
+            return ReplayGainReadResult.Value(parseMp4ReplayGain(prefix).toTrackReplayGain())
         }
         val offset =
-            scan.nextBoxOffset ?: scan.moovStart.takeIf { it >= 0 }?.toLong() ?: return null
+            scan.nextBoxOffset
+                ?: scan.moovStart.takeIf { it >= 0 }?.toLong()
+                ?: return ReplayGainReadResult.Value(null)
         val window =
             fetchRange(url, token, "bytes=$offset-${offset + MP4_MOOV_WINDOW_BYTES - 1}")
-                ?: return null
+                ?: return ReplayGainReadResult.Failed
         val result = parseMp4ReplayGain(window)
         if (!result.moovFound) {
             Timber.d("ReplayGain MP4：二次窗口未找到 moov（offset=%d）", offset)
         }
-        return result.toTrackReplayGain()
+        return ReplayGainReadResult.Value(result.toTrackReplayGain())
     }
 
     /** 只读 Range 拉取（服务器只读调用，不写任何数据）；失败静默返回 null。 */
