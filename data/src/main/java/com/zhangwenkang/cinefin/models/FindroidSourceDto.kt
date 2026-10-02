@@ -19,6 +19,12 @@ data class FindroidSourceDto(
     val failureReason: String? = null,
     /** W32 最近一次状态变更时间（epoch ms），用于任务排序与对账。 */
     @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0,
+    /**
+     * W36「允许离线模式观看」：默认允许。
+     *
+     * 关闭后该条目在离线媒体库 / 离线音乐 / 离线书架中隐藏，在线访问不受影响； 只对 LOCAL（已下载）来源有意义。
+     */
+    @ColumnInfo(defaultValue = "1") val allowOffline: Boolean = true,
 )
 
 fun FindroidSource.toFindroidSourceDto(itemId: UUID, path: String): FindroidSourceDto {

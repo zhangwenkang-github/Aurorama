@@ -58,6 +58,8 @@ fun UsersScreen(
     onBackClick: () -> Unit,
     onPublicUserClick: (String) -> Unit,
     showBack: Boolean = true,
+    /** W36：无账号离线模式入口。 */
+    onOfflineClick: () -> Unit = {},
     viewModel: UsersViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -73,6 +75,7 @@ fun UsersScreen(
     UsersScreenLayout(
         state = state,
         showBack = showBack,
+        onOfflineClick = onOfflineClick,
         onAction = { action ->
             when (action) {
                 is UsersAction.OnChangeServerClick -> onChangeServerClick()
@@ -90,6 +93,7 @@ fun UsersScreen(
 private fun UsersScreenLayout(
     state: UsersState,
     showBack: Boolean = true,
+    onOfflineClick: () -> Unit = {},
     onAction: (UsersAction) -> Unit,
 ) {
     var openDeleteDialog by remember { mutableStateOf(false) }
@@ -182,6 +186,13 @@ private fun UsersScreenLayout(
                     modifier = Modifier.size(18.dp),
                 )
             },
+        )
+        CinefinButton(
+            text = "离线模式",
+            onClick = onOfflineClick,
+            modifier = Modifier.align(Alignment.BottomStart).padding(CinefinSpacing.Space6),
+            variant = CinefinButtonVariant.Outlined,
+            size = CinefinButtonSize.Medium,
         )
 
         if (openDeleteDialog && selectedUser != null) {

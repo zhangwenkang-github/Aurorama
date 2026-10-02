@@ -28,7 +28,11 @@ import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.welcome.WelcomeAction
 
 @Composable
-fun WelcomeScreen(onContinueClick: () -> Unit) {
+fun WelcomeScreen(
+    onContinueClick: () -> Unit,
+    /** W36：无账号离线模式入口。 */
+    onOfflineClick: () -> Unit = {},
+) {
     val uriHandler = LocalUriHandler.current
 
     WelcomeScreenLayout(
@@ -39,7 +43,8 @@ fun WelcomeScreen(onContinueClick: () -> Unit) {
                     uriHandler.openUri("https://jellyfin.org/")
                 }
             }
-        }
+        },
+        onOfflineClick = onOfflineClick,
     )
 }
 
@@ -49,7 +54,10 @@ fun WelcomeScreen(onContinueClick: () -> Unit) {
  * 版式刻意不做居中的"启动页"套路——左对齐、留白压在上下两端， 让这一屏看起来像放映前的一页节目单，而不是一张宣传海报。
  */
 @Composable
-private fun WelcomeScreenLayout(onAction: (WelcomeAction) -> Unit) {
+private fun WelcomeScreenLayout(
+    onAction: (WelcomeAction) -> Unit,
+    onOfflineClick: () -> Unit = {},
+) {
     val colors = LocalCinefinColors.current
     RootLayout(padding = PaddingValues(horizontal = CinefinSpacing.Space8)) {
         Column(
@@ -78,6 +86,14 @@ private fun WelcomeScreenLayout(onAction: (WelcomeAction) -> Unit) {
                 onClick = { onAction(WelcomeAction.OnContinueClick) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = CinefinButtonVariant.Filled,
+                size = CinefinButtonSize.Large,
+            )
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+            CinefinButton(
+                text = "离线模式",
+                onClick = onOfflineClick,
+                modifier = Modifier.fillMaxWidth(),
+                variant = CinefinButtonVariant.Outlined,
                 size = CinefinButtonSize.Large,
             )
             Spacer(modifier = Modifier.height(CinefinSpacing.Space2))

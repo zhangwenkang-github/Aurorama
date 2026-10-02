@@ -15,6 +15,7 @@ import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
+import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import java.util.UUID
@@ -44,6 +45,7 @@ constructor(
     private val downloader: Downloader,
     private val repository: JellyfinRepository,
     private val readerRepository: ReaderRepository,
+    private val offlineMediaRepository: OfflineMediaRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DownloadManagerState())
@@ -52,6 +54,8 @@ constructor(
     private var pollingJob: Job? = null
     private var refreshing = false
     private val cachedBookMetadata = mutableMapOf<UUID, BookMetadata>()
+    /** W36：「允许离线模式观看」开关状态（itemId → allow），refresh 时重读。 */
+    private var offlineAllowMap: Map<UUID, Boolean> = emptyMap()
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
@@ -95,6 +99,8 @@ constructor(
                 _state.update { it.copy(mediaFilter = action.filter) }
             is DownloadAction.DeleteContainer -> deleteContainer(action.key)
             is DownloadAction.DeleteEntry -> deleteEntry(action.key)
+            is DownloadAction.ToggleOffline -> setOfflineAllowed(action.key)
+            is DownloadAction.SetContainerOffline -> setContainerOffline(action.key, action.allow)
             DownloadAction.ToggleSelectionMode -> toggleSelectionMode()
             DownloadAction.ClearSelection -> clearSelection()
             DownloadAction.PauseSelected -> runForSelectedTasks { downloader.pauseTask(it) }
@@ -118,6 +124,36 @@ constructor(
             is DownloadAction.OpenEntry -> Unit
         }
     }
+
+    /** W36：切换单个层级条目的「允许离线模式观看」。 */
+    private fun setOfflineAllowed(key: String) {
+        viewModelScope.launch {
+            val entry = _state.value.findEntry(key) ?: return@launch
+            offlineMediaRepository.setAllowOffline(entry.itemId, !entry.allowOffline)
+            refresh(showLoading = false)
+        }
+    }
+
+    /** W36：容器级批量切换（节目 / 季 / 专辑 / 书籍容器）——对容器内全部条目生效。 */
+    private fun setContainerOffline(key: String, allow: Boolean) {
+        viewModelScope.launch {
+            val container =
+                _state.value.allContainers().firstOrNull { it.key == key } ?: return@launch
+            container.descendantItemIds().forEach { itemId ->
+                runCatching { offlineMediaRepository.setAllowOffline(itemId, allow) }
+                    .onFailure { Timber.w(it, "切换离线开关失败：$itemId") }
+            }
+            refresh(showLoading = false)
+        }
+    }
+
+    private fun DownloadHierarchyContainer.descendantItemIds(): List<UUID> =
+        children.flatMap { child ->
+            when (child) {
+                is DownloadHierarchyLeaf -> listOf(child.entry.itemId)
+                is DownloadHierarchySubContainer -> child.children.map { it.entry.itemId }
+            }
+        }
 
     /** W34：删除层级里的单个条目（任务 / 已完成媒体 / 阅读器离线书籍）。 */
     private fun deleteEntry(key: String) {
@@ -225,6 +261,8 @@ constructor(
             }
 
             // W34：每个数据源单独兜底——曲库 / 书籍元数据拉取失败时不能把下载任务整页清空。
+            // W36：「允许离线模式观看」开关状态（sources / 书籍偏好），供条目行与容器开关显示。
+            offlineAllowMap = loadOfflineAllowMap()
             val tasks = runCatching { downloader.refreshDownloadTasks() }.getOrElse { emptyList() }
             val episodeHierarchy = loadEpisodeHierarchy()
             val completed = runCatching {
@@ -268,6 +306,7 @@ constructor(
                             status = DownloadTaskStatus.COMPLETED,
                             sizeBytes = file.sizeBytes,
                             imageUri = bookMetadata[file.itemId]?.imageUrl,
+                            allowOffline = offlineAllowMap[file.itemId] ?: true,
                         )
                     }
 
@@ -341,6 +380,13 @@ constructor(
         .onFailure { Timber.w(it, "下载页书籍离线列表读取失败") }
         .getOrElse { emptyList() }
 
+    /** W36：离线开关状态（视频 / 音乐在 sources 表，书籍在偏好里）；失败按「全部允许」。 */
+    private suspend fun loadOfflineAllowMap(): Map<UUID, Boolean> = runCatching {
+        offlineMediaRepository.listEntries().associate { it.itemId to it.allowOffline }
+    }
+        .onFailure { Timber.w(it, "读取离线开关状态失败") }
+        .getOrElse { emptyMap() }
+
     /** 书籍元数据（名字 / 封面）：会话级缓存，离线拿不到时给占位名。 */
     private suspend fun resolveBookMetadata(bookIds: Set<UUID>): Map<UUID, BookMetadata> {
         if (bookIds.isEmpty()) return emptyMap()
@@ -392,6 +438,7 @@ constructor(
             artist = song?.artist ?: artist,
             trackIndex = song?.indexNumber ?: 0,
             imageUri = song?.imageUri ?: videoImageUri(episode != null, episode, itemId),
+            allowOffline = offlineAllowMap[itemId] ?: true,
         )
     }
 
@@ -432,6 +479,7 @@ constructor(
             albumName = song?.albumName,
             artist = song?.artist,
             trackIndex = song?.indexNumber ?: 0,
+            allowOffline = offlineAllowMap[item.id] ?: true,
         )
     }
 

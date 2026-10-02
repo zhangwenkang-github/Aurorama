@@ -123,6 +123,10 @@ interface ServerDatabaseDao {
 
     @Query("DELETE FROM sources WHERE id = :id") suspend fun deleteSource(id: String)
 
+    /** W36：切换单个下载来源的「允许离线模式观看」开关。 */
+    @Query("UPDATE sources SET allowOffline = :allowOffline WHERE id = :id")
+    suspend fun setSourceAllowOffline(id: String, allowOffline: Boolean)
+
     @Query("DELETE FROM movies WHERE id = :id") suspend fun deleteMovie(id: UUID)
 
     @Query(

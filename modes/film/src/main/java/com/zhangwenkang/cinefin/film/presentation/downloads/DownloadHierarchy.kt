@@ -40,6 +40,8 @@ data class DownloadHierarchyEntry(
     val trackIndex: Int = 0,
     /** 书籍容器：聚合信息行文案（体积 / 状态）。 */
     val bookDetail: String? = null,
+    /** W36：该条目是否允许在离线模式观看（对应 sources.allowOffline / 书籍偏好）。 */
+    val allowOffline: Boolean = true,
 ) {
     val key: String
         get() = itemKey(itemId)

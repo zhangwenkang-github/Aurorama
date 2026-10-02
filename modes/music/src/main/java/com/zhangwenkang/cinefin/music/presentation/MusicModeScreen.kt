@@ -161,6 +161,10 @@ fun MusicModeScreen(
                     onOpenRecent = viewModel::openRecent,
                     onOpenSleep = { sleepSheetOpen = true },
                 )
+                // W36：离线模式提示——曲库只含本机已下载曲目，点击即本地文件起播。
+                if (state.offline) {
+                    OfflineMusicNotice(songCount = state.songs.size)
+                }
                 if (state.detail == null) {
                     MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
@@ -1114,4 +1118,32 @@ private fun formatDuration(runtimeTicks: Long): String {
 internal fun formatPositionMs(positionMs: Long): String {
     val totalSeconds = positionMs.coerceAtLeast(0L) / 1_000L
     return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+}
+
+/** W36 离线音乐提示条：说明当前曲库只含本机已下载曲目（空库时提示去下载）。 */
+@Composable
+private fun OfflineMusicNotice(songCount: Int) {
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .background(colors.surfaceContainer)
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(CoreR.drawable.ic_music),
+            contentDescription = null,
+            tint = colors.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(CinefinSpacing.Space2))
+        Text(
+            text =
+                if (songCount > 0) "离线模式 · 仅显示本机已下载的 $songCount 首曲目"
+                else "离线模式 · 还没有下载的音乐，联网后在曲目菜单点「下载」",
+            style = CinefinType.BodySmall,
+            color = colors.onSurfaceVariant,
+        )
+    }
 }

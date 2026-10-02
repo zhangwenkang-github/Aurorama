@@ -73,9 +73,10 @@ suspend fun BaseItemDto.toFindroidMovie(
 
 suspend fun FindroidMovieDto.toFindroidMovie(
     database: ServerDatabaseDao,
-    userId: UUID,
+    userId: UUID?,
 ): FindroidMovie {
-    val userData = database.getUserDataOrCreateNew(id, userId)
+    // W36：无账号离线模式下没有 userId，播放状态按未观看处理，不再要求登录会话。
+    val userData = userId?.let { database.getUserDataOrCreateNew(id, it) }
     val sources = database.getSources(id).map { it.toFindroidSource(database) }
     val trickplayInfos = mutableMapOf<String, FindroidTrickplayInfo>()
     for (source in sources) {
@@ -88,10 +89,10 @@ suspend fun FindroidMovieDto.toFindroidMovie(
         name = name,
         originalTitle = originalTitle,
         overview = overview,
-        played = userData.played,
-        favorite = userData.favorite,
+        played = userData?.played ?: false,
+        favorite = userData?.favorite ?: false,
         runtimeTicks = runtimeTicks,
-        playbackPositionTicks = userData.playbackPositionTicks,
+        playbackPositionTicks = userData?.playbackPositionTicks ?: 0,
         premiereDate = premiereDate,
         genres = emptyList(),
         people = emptyList(),

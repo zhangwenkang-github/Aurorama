@@ -24,6 +24,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -680,6 +681,13 @@ private fun HierarchyLeafCard(
             if (!selectionMode) {
                 Spacer(Modifier.size(CinefinSpacing.Space1))
                 Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
+                    // W36：已完成条目的「允许离线模式观看」开关（默认开；关闭后离线媒体库隐藏）。
+                    if (entry.status == DownloadTaskStatus.COMPLETED) {
+                        Switch(
+                            checked = entry.allowOffline,
+                            onCheckedChange = { onAction(DownloadAction.ToggleOffline(entry.key)) },
+                        )
+                    }
                     if (task != null) {
                         when {
                             DownloadTaskRules.canPause(task.status) ->

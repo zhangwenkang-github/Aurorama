@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
+import org.json.JSONObject
 import timber.log.Timber
 
 /**
@@ -81,7 +82,13 @@ class ReaderRepositoryImpl(
                 ?.mapNotNull { file ->
                     runCatching { UUID.fromString(file.name.removeSuffix(".book")) }
                         .getOrNull()
-                        ?.let { LocalBookFile(itemId = it, sizeBytes = file.length()) }
+                        ?.let { id ->
+                            LocalBookFile(
+                                itemId = id,
+                                sizeBytes = file.length(),
+                                title = readLocalTitle(id),
+                            )
+                        }
                 }
                 ?.sortedBy { it.itemId.toString() }
                 ?.toList() ?: emptyList()
@@ -129,6 +136,10 @@ class ReaderRepositoryImpl(
                 partial.copyTo(target, overwrite = true)
                 partial.delete()
             }
+            // W36：书名侧车——离线（无服务器会话）时离线书架 / 离线媒体库仍能显示真实书名。
+            fetchItemTitle(baseUrl = baseUrl, token = token, itemId = itemId)?.let { title ->
+                writeLocalTitle(itemId, title)
+            }
             onProgress(1f)
             return target
         } catch (error: Throwable) {
@@ -142,6 +153,7 @@ class ReaderRepositoryImpl(
             val target = localFileFor(itemId)
             target.delete()
             File(target.parentFile, "${target.name}.part").delete()
+            titleFileFor(itemId).delete()
         }
     }
 
@@ -259,6 +271,40 @@ class ReaderRepositoryImpl(
         }
 
     private fun localFileFor(itemId: UUID): File = File(appContext.filesDir, "books/$itemId.book")
+
+    private fun titleFileFor(itemId: UUID): File = File(appContext.filesDir, "books/$itemId.title")
+
+    /** W36：读取书名侧车；旧数据（无侧车）返回 null，由调用方给占位名。 */
+    private fun readLocalTitle(itemId: UUID): String? = runCatching {
+        titleFileFor(itemId).takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotBlank() }
+    }
+        .getOrNull()
+
+    private fun writeLocalTitle(itemId: UUID, title: String) {
+        runCatching {
+            val file = titleFileFor(itemId)
+            file.parentFile?.mkdirs()
+            file.writeText(title.trim())
+        }
+            .onFailure { Timber.w(it, "写入书籍标题侧车失败") }
+    }
+
+    /** 下载完成后补一次书名（失败不影响下载结果，只影响离线显示名）。 */
+    private fun fetchItemTitle(baseUrl: String, token: String, itemId: UUID): String? =
+        runCatching {
+            // 优先走 `/Users/{userId}/Items/{id}`（10.11.8 稳定接口）；没有账号时退回 `/Items/{id}`。
+            val url =
+                jellyfinApi.userId?.let { userId ->
+                    "${baseUrl.trimEnd('/')}/Users/$userId/Items/$itemId"
+                } ?: "${baseUrl.trimEnd('/')}/Items/$itemId"
+            val request = Request.Builder().url(url).header("X-Emby-Token", token).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                JSONObject(response.body.string()).optString("Name").takeIf { it.isNotBlank() }
+            }
+        }
+        .onFailure { Timber.w(it, "读取书籍标题失败") }
+        .getOrNull()
 
     private fun hasActiveNetwork(): Boolean {
         val manager = appContext.getSystemService(ConnectivityManager::class.java) ?: return true
