@@ -235,6 +235,9 @@ constructor(
     val effectsReplayGainMode: StateFlow<ReplayGainMode> = audioEffects.replayGainMode
     val effectsReplayGainLabel: StateFlow<String?> = audioEffects.replayGainLabel
     val effectsCrossfadeSeconds: StateFlow<Int> = audioEffects.crossfadeSeconds
+    val effectsHasCurrentTrack: StateFlow<Boolean> = audioEffects.hasCurrentTrack
+    val effectsOverrideTrackDb: StateFlow<Float?> = audioEffects.overrideTrackDb
+    val effectsOverrideAlbumDb: StateFlow<Float?> = audioEffects.overrideAlbumDb
 
     /**
      * 曲目元数据查询（W23-MUSIC）：[PlayerItem] 只带名字与封面，全屏播放页要显示的歌手 / 专辑、以及恢复态的时长兜底都从曲库快照里按 itemId 取；查不到返回
@@ -1267,6 +1270,15 @@ constructor(
     fun commitEqualizerBands() = audioEffects.commitEqualizerBands()
 
     fun selectReplayGainMode(mode: ReplayGainMode) = audioEffects.setReplayGainMode(mode)
+
+    /** W35：本机增益覆盖（拖动实时生效、松手落盘；清除 = 删除本机覆盖文件）。 */
+    fun previewReplayGainOverrideTrack(gainDb: Float) = audioEffects.previewOverrideTrackDb(gainDb)
+
+    fun previewReplayGainOverrideAlbum(gainDb: Float) = audioEffects.previewOverrideAlbumDb(gainDb)
+
+    fun commitReplayGainOverride() = audioEffects.commitOverride()
+
+    fun clearReplayGainOverride() = audioEffects.clearLocalOverride()
 
     fun selectCrossfadeSeconds(seconds: Int) = audioEffects.setCrossfadeSeconds(seconds)
 

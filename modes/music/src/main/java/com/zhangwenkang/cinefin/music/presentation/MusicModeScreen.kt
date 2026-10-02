@@ -124,6 +124,9 @@ fun MusicModeScreen(
     val effectsReplayGainMode by viewModel.effectsReplayGainMode.collectAsState()
     val effectsReplayGainLabel by viewModel.effectsReplayGainLabel.collectAsState()
     val effectsCrossfadeSeconds by viewModel.effectsCrossfadeSeconds.collectAsState()
+    val effectsHasCurrentTrack by viewModel.effectsHasCurrentTrack.collectAsState()
+    val effectsOverrideTrackDb by viewModel.effectsOverrideTrackDb.collectAsState()
+    val effectsOverrideAlbumDb by viewModel.effectsOverrideAlbumDb.collectAsState()
     var overlayGuideOpen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     // 权限页返回：复核权限，拿到了就直接开启（用户在引导弹窗里点过「去授权」）
@@ -323,6 +326,9 @@ fun MusicModeScreen(
                 bands = effectsEqualizerBands,
                 replayGainMode = effectsReplayGainMode,
                 replayGainLabel = effectsReplayGainLabel,
+                hasCurrentTrack = effectsHasCurrentTrack,
+                overrideTrackDb = effectsOverrideTrackDb,
+                overrideAlbumDb = effectsOverrideAlbumDb,
                 crossfadeSeconds = effectsCrossfadeSeconds,
                 onDismiss = { effectsSheetOpen = false },
                 onToggleEqualizer = viewModel::setEqualizerEnabled,
@@ -330,6 +336,10 @@ fun MusicModeScreen(
                 onPreviewBand = viewModel::previewEqualizerBand,
                 onCommitBands = viewModel::commitEqualizerBands,
                 onSelectReplayGain = viewModel::selectReplayGainMode,
+                onPreviewOverrideTrack = viewModel::previewReplayGainOverrideTrack,
+                onPreviewOverrideAlbum = viewModel::previewReplayGainOverrideAlbum,
+                onCommitOverride = viewModel::commitReplayGainOverride,
+                onClearOverride = viewModel::clearReplayGainOverride,
                 onSelectCrossfade = viewModel::selectCrossfadeSeconds,
             )
         }

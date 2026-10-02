@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-10-02（W30-MUSIC-FX 会话）　分支：`feature/w30-audio-fx`
+> 最后更新：2026-10-02（W35-MUSIC-EXTRAS 会话）　分支：`feature/w35-crossfade-rg`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -141,6 +141,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D49 | 三项音效全部落在 **Exo 音频链**：新增 `MusicAudioEffectsProcessor`（5 段 peaking EQ + ReplayGain 逐样本增益）挂进 `CinefinRenderersFactory`（与 `AudioDelayProcessor` 同链，仅音乐会话处理）；**不改**"音乐固定 ExoPlayer"（W1 D3）。mpv 的 `af=equalizer` / `replaygain=no\|track\|album` 只在文档记录为"能力存在但音乐不可达" | mpv 原生能力对音乐路径无效（`PlayerHolder.audioSession()` 强制 Exo，后台视频页会把实例打回 mpv）；改 D3 会连带通知 / MediaSession / 队列 / gapless，超出本波红线。Exo 侧有 `AudioDelayProcessor` 先例（含"必须覆写 `isActive`、关 offload"两条踩坑） |
 | D50 | ReplayGain 数据源 = **本机覆盖文件 > 音频内嵌标签**：覆盖文件 `<filesDir>/replaygain/<itemId>.txt`（`track=-6.0` / `album=-12.0`）；内嵌标签对 `/Audio/{id}/stream?static=true` 发只读 Range（前 128 KB）解析 FLAC VorbisComment / ID3v2 TXXX；三态 `off/track/album`，**专辑档缺 album 标签回落曲目档**，无标签不改变音量；结果按 itemId 缓存（含负缓存） | 全库 100 首 FLAC 只读实测 **0 个 `REPLAYGAIN_*` / `R128_*` 标签**（服务器 JSON 同样没有），mpv 自动 replaygain 对音乐不可达 → 客户端自解析是唯一路径；覆盖文件给无标签文件一个合法的手动增益入口（也是真机"三态有值可测"的数据源，先例见 W25 歌词本机覆盖 D41） |
 | D51 | 交叉淡化交付**单实例近似**：曲尾淡出 + 曲首淡入（`Player.volume` 等功率包络，100 ms 采样、只在变化 > 0.002 时写、关闭 / 会话结束立即复位），档位 关 / 2 / 4 / 6 秒；**不做双实例真交叉（重叠）**，文档写明差异并列为未排期 | 双实例交叉会破坏单 Exo 实例 + 单 MediaSession + gapless + 上报链路；近似方案与 gapless 不冲突、默认关闭、可完整真机验收（曲线数值可证）。"真交叉"复杂度高，按 brief 分阶段 |
+
+### 2.13 W35 本会话决策（真交叉淡化调研结论 + ReplayGain 收尾）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D52 | **双实例真交叉淡化不在本波实施**：交付只读调研 + 三阶段实施方案（§4.6），正式交付仍为 W30 D51 单实例近似（默认关、可回退）。若未来开波，按"阶段 1 双 deck 基础（2–3 人日）→ 阶段 2 交叉引擎（3–4 人日）→ 阶段 3 会话切换与双机回归（3–5 人日）"推进，合计 8–12 人日 | 代码证据：`PlayerHolder` 全进程单实例；`CinefinPlaybackService` 以 `playerHolder.existingPlayer` 建 `MediaSession` 且实例变化即重建会话；`MusicPlaybackControllerImpl` 的队列 / 索引 / 上报 / 通知全读同一实例；deck B 还要解决音频焦点、MediaSession 主体切换、MU-9 上报时机与 UI 跟随。任一项漏做都会静默出错（双播 / 音量残留 / 进度写错），收益仅"重叠"听感，风险与工作量不成比例 |
+| D53 | ReplayGain 读取扩展 **M4A/MP4 iTunes free-form 原子**：解析 `moov/udta/meta/ilst/----`（子项 `mean`/`name`/`data`，UTF-8 与 UTF-16 探测）；头部 128 KB 窗口不含完整 `moov` 时，按顶层 box 链的声明长度算出 moov 绝对偏移，再发一次只读 Range（128 KB）；二次窗口仍找不到 moov 则记日志静默放弃 | 覆盖 iTunes / foobar2000 / rsgain 的 MP4 打标格式，与 FLAC VorbisComment / ID3v2 TXXX 并列；非 faststart（moov 在尾）在真实素材常见，box 链扫描成本极低、不需要整文件下载；服务器只读红线不变（全 GET + Range） |
+| D54 | 用户可见的**本机增益覆盖**入口：音效面板 ReplayGain 组内「曲目增益 / 专辑增益」两支滑杆（-12..+12 dB、0.5 dB 步进，拖动实时生效、松手落盘）+「清除本机覆盖」；写 `<filesDir>/replaygain/<itemId>.txt`（`track=` / `album=`，删空即删文件），写/删后失效 itemId 读缓存并触发播放链重读；覆盖 > 内嵌优先级不变 | 替代"只能外部写文件"；不写服务器；覆盖是逐曲目本机状态（先例 W25 歌词覆盖 D41）；滑杆沿用 EQ 的"拖动不落盘、onValueChangeFinished 才写"模式（W30 踩坑 38），避免拖动期间高频写文件 |
 
 ## 3. 任务清单
 
@@ -299,6 +307,16 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 **遗留（明示）**：① 本库 100 首 FLAC **全部没有 ReplayGain 标签** —— 功能链路就绪，实际生效需要用户给文件打 RG 标签或写本机覆盖文件（文档写清）；② 交叉淡化是单实例近似（曲尾淡出 + 曲首淡入，**无重叠**），双实例真交叉未排期；③ M4A/MP4 的 `----:com.apple.iTunes:replaygain_track_gain` 未实现（本库无样本，解析器留了扩展点）；④ EQ 的 peaking Q 固定 1.0，未做每段 Q 可调。
 
+### W35 音乐扩展（真交叉调研 + ReplayGain 收尾；本会话 `feature/w35-crossfade-rg`，已推送未合并）
+
+- [x] 真交叉淡化调研（只读）：单实例 / MediaSession / 上报链路约束拆解 + 三阶段方案与工作量（§4.6 / D52），结论 = 本波不实施
+- [x] M4A/MP4 ReplayGain 读取：`parseMp4ReplayGain`（`----` free-form）+ `scanMp4TopLevelBoxes`（moov 在尾时二次只读 Range）；与 FLAC / ID3v2 并列
+- [x] 本机增益覆盖 UI：面板两滑杆 + 清除；`ReplayGainTagReader.writeOverride`（写 / 删 + 缓存失效）+ `MusicAudioEffectsController` 覆盖状态与 `overrideRevision` 重读链
+- [x] 单测：`ReplayGainTagParserTest` 6 → 12 项（MP4 双档 / 大小写与单位 / 非 RG 忽略 / moov 在尾定位 / 截断 / 覆盖编码往返），`:player:local` 98 → **104 项**
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（61）+ `:player:local:testDebugUnitTest`（104）+ `:modes:music:testDebugUnitTest`（99）全绿
+- [x] 本地打标联调（负责人安排，无设备）：rsgain 3.8 基线只读确认原文件无 RG 标签；副本 `test_files/侧脸-RG.flac` 写入 track/album gain = **-8.47 dB**、peak = 1.000000（Loudness -9.53 LUFS，SHA-256 见 §7 日志）
+- [ ] 真机验证（待负责人调度设备窗口）：①M4A/MP4 标签识别（需先上传带标签的 M4A 样本）；②`侧脸-RG.flac` 识别（面板应显示「曲目标签 -8.5 dB（文件标签）」）；③面板设置 / 清除覆盖（-6 dB → 0.50x；清除后回落标签或原音量）；④回归 + 0 FATAL/ANR
+
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
 ### 4.1 队列与会话
@@ -373,6 +391,26 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 → 结论：RG 客户端链路可行但**本库暂无数据**；真机用本机覆盖文件（产品内的合法数据源）验证三态行为，文件标签路径由单测覆盖。
 
 **Media3 `GainProcessor` 备注（留档）**：1.11.1 的 `androidx.media3.common.audio.GainProcessor(GainProvider)` + `DefaultGainProvider`（`FADE_IN/OUT_LINEAR/EQUAL_POWER`、`Builder.addFadeAt(samplePos…)`）可在**样本级**应用增益/淡化，但 `GainProvider` 的入参是"音频流累计样本位置"，跨媒体项（gapless 不 flush 链路）时媒体项边界不可观测；本波未采用（EQ 需自研 DSP，RG 只用一个标量增益，`Player.volume` 包络更简单可靠），记录以备后续。
+
+### 4.6 W35 双实例真交叉淡化调研（只读，2026-10-02）
+
+**目标**：旧曲渐弱与新曲渐强**重叠**（真 crossfade），替换 W30 D51 的"淡出 + 淡入（无重叠）"近似。
+
+**现状约束（代码证据）**：
+1. `PlayerHolder` 全进程只持有 1 个实例（`instance` / `instanceBackend`）；`player` getter 会按偏好重建，音乐会话期间 `audioSession()` 强制 Exo 且复用唯一实例，`release()` 随播放服务生命周期。
+2. `CinefinPlaybackService` 用 `playerHolder.existingPlayer` 构建 `MediaSession`，实例变化（`rebuildSessionIfPlayerChanged()`）时**整体重建会话**；通知 / 锁屏 / 蓝牙 / 车机全部只认这个会话。
+3. `MusicPlaybackControllerImpl` 的队列、索引回写、500 ms ticker、MU-9 上报（Start / Progress / Stop）、`PlaybackPositionWriter` 都读同一实例的 `currentMediaItemIndex` / `currentItem`；`Player.volume` 是唯一可编程增益面，退出音乐会话会被复位。
+4. 音频焦点由 ExoPlayer `setAudioAttributes(attrs, true)` 处理；两条实例同时请求焦点会互相 duck / 暂停。
+
+**为什么不能"顺手"上双 deck**：deck B 需要第二条 Exo 实例（内存 / 解码 ×2）；两个实例同时持有音频焦点会互相干扰；MediaSession 只能绑一个 player，交叉窗口横跨"通知当前曲目 / 队列索引 / 上报归属"的语义变化；交叉时"旧曲何时 Stop、新曲何时 Start"必须重定义（否则服务器进度写错）；歌词 / 进度条 / 封面在交叉窗口要跟随主 deck。任一项漏做都会静默出错（双播 / 音量残留 / 上报错位）。
+
+**分阶段实施方案（未来开波照此做）**：
+- **阶段 1 · 双 deck 基础（2–3 人日）**：抽 `MusicDeck` 接口；deck A = 现 `PlayerHolder`，deck B 惰性创建（同 `AudioAttributes`、`handleAudioFocus=false`、不挂 MediaSession、独立 `CinefinRenderersFactory`）；加调试开关做"双 deck 同时出声"冒烟（不出厂）。
+- **阶段 2 · 交叉引擎（3–4 人日）**：`MusicCrossfadeMath` 扩双路等功率包络；在 `duration - fadeMs` 触发 deck B `setMediaItem / seekTo(0) / prepare / play`；100 ms ticker 同时驱动两 deck 音量；交叉完成停 A 并交换 A/B 角色；deck B 准备失败回落 D51 单实例近似。
+- **阶段 3 · 会话与回归（3–5 人日）**：`MediaSession.setPlayer()`（或重建会话）把主体切到活跃 deck；音频焦点只交给活跃 deck；通知 / 锁屏 / 耳机 / 车机、上报（旧曲 Stop = 交叉开始位置、新曲 Start = 交叉开始）、睡眠定时、歌词 / 悬浮窗、蓝牙断开、来电 duck、视频互斥全量回归（Pad 5 + K60 双机矩阵）。
+- **总计 8–12 人日 + 双机回归**。结论：**除非把"真交叉"列为头等功能，否则保持 D51 近似**——近似在 gapless 下已无静音缝，真交叉的增量主要是"重叠"听感。
+
+**其他备注**：Media3 1.11.1 `GainProcessor` 的样本位置入参跨 item 边界不可观测（§4.5 已记），不能替代双 deck；若未来音频链改为 `DefaultAudioSink` 单一 sink 混音方案，仍绕不开会话 / 上报 / UI 的同一批改造。
 
 ## 5. 真机验证记录（2026-09-30，Xiaomi Pad 5 / Android 13，`43af8627`）
 
@@ -666,6 +704,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 36. **FLAC 的 metadata block 长度是 24-bit 大端，VorbisComment 内部字段才是小端**（W30 解析踩到）：探测脚本第一版用 little-endian 读 block length（`00 00 22` 读成 2228224）→ 100/100 全部"解析失败"，差点把"全库无标签"当结论。写 FLAC 解析记住：block header = 1B(last/type) + **3B 大端**长度；VORBIS_COMMENT 内的 vendor / 条目长度 = 小端。
 37. **`Player.volume` 做淡入淡出的三条纪律**（W30）：① 只在音乐会话 + 档位 > 0 时驱动，暂停时不改（保持当前包络）；② 关闭档 / 会话结束 / 停止必须复位 `1f` —— 残留 0 会静音下一首甚至视频；③ 100ms 采样 + 变化阈值（>0.002）才写，避免每 tick 写音量；曲线可在日志里用 `sin(π/2·t)` 数值核对（等功率）。
 38. **M3 `Slider` 的 `input tap` 不设值**（W30 真机操作踩到）：点滑杆任意位置不会改变值（只聚焦），必须 `input swipe` 拖动；实现上滑杆拖动期间只更新处理器 / 内存（实时听感），`onValueChangeFinished` 才写 SharedPreferences，避免拖动期间高频落盘（对齐 W24 悬浮窗位置的做法）。
+39. **MP4/M4A 的 `ilst` 与 `data` 不是 FullBox，`meta` 才是**（W35 解析踩到）：`moov/udta/meta/ilst` 里 `meta` 带 4 字节 version/flags（QuickTime 老变体没有，需探测），`ilst` 是纯容器，`data` 的负载 = 4 字节 type indicator + 4 字节 locale + 文本（type=1 UTF-8 / type=2 UTF-16BE）。第一版单测构造器给 `ilst`/`data` 多加了一层 version/flags，导致"解析器读不到标签"的假故障——写 MP4 box 测试务必先对齐规范。另：moov 在文件尾（非 faststart）时，头部窗口读不到它，但顶层 box 头里的声明长度足以算出 moov 绝对偏移，二次 Range 即可，不需要整文件下载。
+40. **rsgain 的命令形态**（W35 打标）：`easy` 子命令只接受**目录**（自动按专辑分组），单文件打标用 `custom`——`rsgain custom -s s -a <file>` 只扫不写（`-s s` 是默认档），`-s i` 才是写 ReplayGain 2.0 标签；`loudgain` 的 `-a` 是 loudgain 自己的参数，rsgain 没有 `easy -a` 这种写法。实测《侧脸》：-9.53 LUFS / peak 1.000000 → gain -8.47 dB，写入 4 个标签（TRACK/ALBUM_GAIN + TRACK/ALBUM_PEAK）；副本用 TagLib padding，文件体积不变。
 
 ## 7. 会话日志
 
@@ -731,3 +771,9 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   UI = 全屏播放页第六键「音效」+ `MusicEffectsSheet`；`AppPreferences` 只追加 5 键；新增 18 条单测（`:player:local` 80 → **98 项**）；
   门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 + player:local 98 + music 99 全绿；K60 真机 13 组见 §5.10（EQ 预设 1.3x / 全段 -11.7dB → 0.31x；RG -6dB → 0.50x、-12dB → 0.25x；淡化淡出 0.94→0.01 + 淡入 0.14→1.00 全程 PLAYING；关闭档 0 条曲线日志；0 FATAL/ANR）。
   决策 §2.12（D49–D51），调研 §4.5，踩坑 §6-35～38。**未决**：本库无 RG 标签（需用户打标签 / 写覆盖文件）；真交叉未排期；M4A RG 标签未实现。
+- **2026-10-02 W35-MUSIC-EXTRAS**（本会话，`feature/w35-crossfade-rg`，起点 master `4c80276`）：真交叉调研 + ReplayGain 收尾——
+  ①**真交叉**：只读拆解单实例约束（单 `PlayerHolder` / 单 `MediaSession` / MU-9 上报 / UI 状态源），结论 = 本波不实施，给出三阶段方案与 8–12 人日工作量（D52 / §4.6）；
+  ②**M4A/MP4 RG**：`----` free-form 原子解析（mean / name / data，UTF-8 与 UTF-16）+ moov 在尾时按顶层 box 链二次只读 Range（D53）；
+  ③**本机增益覆盖 UI**：音效面板 ReplayGain 组两滑杆（-12..+12 dB / 0.5 dB 步进，拖动实时、松手落盘）+ 清除；写 `<files/replaygain/<id>.txt`、缓存失效 + 播放链重读（D54）；
+  ④**本地打标联调（负责人安排的方法 2，无设备）**：经代理下载 rsgain 3.8（Win64，工具在 `%USERPROFILE%\.codex\tools\rsgain`，不入库）；基线只读确认原文件 3 条普通 VorbisComment、0 条 RG；副本 `test_files/侧脸-RG.flac` 用 `rsgain custom -s i -a` 写入 TRACK/ALBUM gain = -8.47 dB、peak = 1.000000（Loudness -9.53 LUFS），SHA-256 `D85C800B822FC68B655E5EAA84BF83C656B9B087DAC941EC462C144A6BC0F394`、23,189,955 B；原文件 SHA-256 前后一致（`ABE5AE…0166`，未改动）；上传目标 = Jellyfin「音乐」库同目录（服务器 `/medi/音乐/侧脸-RG.flac`），待负责人触发扫描后做 App 端识别验证；
+  ⑤新增 6 条单测（`:player:local` 98 → **104 项**），门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 61 + player:local 104 + music 99 全绿；**待真机**（M4A 样本 / 侧脸-RG / 覆盖 UI 三组，负责人调度窗口）；**未决**：真交叉排期。
