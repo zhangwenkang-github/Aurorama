@@ -43,6 +43,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
+import com.zhangwenkang.cinefin.presentation.setup.components.CertificateTrustDialog
 import com.zhangwenkang.cinefin.presentation.setup.components.DiscoveredServerItem
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
@@ -171,6 +172,14 @@ private fun AddServerScreenLayout(state: AddServerState, onAction: (AddServerAct
             icon = CoreR.drawable.ic_arrow_left,
             onClick = { onAction(AddServerAction.OnBackClick) },
             modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+
+    state.certificatePrompt?.let { prompt ->
+        CertificateTrustDialog(
+            prompt = prompt,
+            onTrust = { onAction(AddServerAction.OnTrustCertificate) },
+            onDismiss = { onAction(AddServerAction.OnDismissCertificatePrompt) },
         )
     }
 }

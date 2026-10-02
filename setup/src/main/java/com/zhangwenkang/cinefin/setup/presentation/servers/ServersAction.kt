@@ -11,6 +11,10 @@ sealed interface ServersAction {
 
     data class DeleteServer(val serverId: String) : ServersAction
 
+    data object LoadTrustedCertificates : ServersAction
+
+    data class ClearTrustedCertificate(val trustKey: String) : ServersAction
+
     data object OnAddClick : ServersAction
 
     data object OnBackClick : ServersAction

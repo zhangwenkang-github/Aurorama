@@ -10,9 +10,14 @@ import com.zhangwenkang.cinefin.models.ServerAddress
 import com.zhangwenkang.cinefin.models.ServerWithAddresses
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.models.User
+import com.zhangwenkang.cinefin.network.CertificateTrustRequiredException
+import com.zhangwenkang.cinefin.network.TrustedCertificate
+import com.zhangwenkang.cinefin.network.fingerprintsMatch
+import com.zhangwenkang.cinefin.network.httpsTargetOf
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
+import com.zhangwenkang.cinefin.setup.domain.nextCurrentUserIdAfterDelete
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -54,7 +59,13 @@ class SetupRepositoryImpl(
         withContext(Dispatchers.IO) { jellyfinApi.quickConnectApi.getQuickConnectEnabled().content }
 
     override suspend fun initiateQuickConnect(): QuickConnectResult =
-        withContext(Dispatchers.IO) { jellyfinApi.quickConnectApi.initiateQuickConnect().content }
+        withContext(Dispatchers.IO) {
+            try {
+                jellyfinApi.quickConnectApi.initiateQuickConnect().content
+            } catch (e: Exception) {
+                throw certificateTrustRequiredForCurrentServer() ?: e
+            }
+        }
 
     override suspend fun getQuickConnectState(secret: String): QuickConnectResult =
         withContext(Dispatchers.IO) {
@@ -82,10 +93,14 @@ class SetupRepositoryImpl(
 
         val candidates = jellyfinApi.jellyfin.discovery.getAddressCandidates(address)
         val recommended =
-            jellyfinApi.jellyfin.discovery.getRecommendedServers(
-                candidates,
-                RecommendedServerInfoScore.OK,
-            )
+            try {
+                jellyfinApi.jellyfin.discovery.getRecommendedServers(
+                    candidates,
+                    RecommendedServerInfoScore.OK,
+                )
+            } catch (e: Exception) {
+                throw certificateTrustRequired(candidates) ?: e
+            }
         val goodServers = mutableListOf<RecommendedServerInfo>()
         val okServers = mutableListOf<RecommendedServerInfo>()
 
@@ -109,9 +124,10 @@ class SetupRepositoryImpl(
                 throw ExceptionUiTexts(createIssuesString(okServer))
             }
             else -> {
-                throw ExceptionUiText(
-                    UiText.StringResource(SetupR.string.add_server_error_not_found)
-                )
+                throw (certificateTrustRequired(candidates)
+                    ?: ExceptionUiText(
+                        UiText.StringResource(SetupR.string.add_server_error_not_found)
+                    ))
             }
         }
     }
@@ -210,10 +226,16 @@ class SetupRepositoryImpl(
 
     override suspend fun login(username: String, password: String) {
         withContext(Dispatchers.IO) {
-            val authenticationResult by
-                jellyfinApi.userApi.authenticateUserByName(
-                    data = AuthenticateUserByName(username = username, pw = password)
-                )
+            val authenticationResult =
+                try {
+                    val result by
+                        jellyfinApi.userApi.authenticateUserByName(
+                            data = AuthenticateUserByName(username = username, pw = password)
+                        )
+                    result
+                } catch (e: Exception) {
+                    throw certificateTrustRequiredForCurrentServer() ?: e
+                }
 
             saveAuthenticationResult(authenticationResult)
         }
@@ -221,10 +243,16 @@ class SetupRepositoryImpl(
 
     override suspend fun loginWithSecret(secret: String) {
         withContext(Dispatchers.IO) {
-            val authenticationResult by
-                jellyfinApi.userApi.authenticateWithQuickConnect(
-                    data = QuickConnectDto(secret = secret)
-                )
+            val authenticationResult =
+                try {
+                    val result by
+                        jellyfinApi.userApi.authenticateWithQuickConnect(
+                            data = QuickConnectDto(secret = secret)
+                        )
+                    result
+                } catch (e: Exception) {
+                    throw certificateTrustRequiredForCurrentServer() ?: e
+                }
 
             saveAuthenticationResult(authenticationResult)
         }
@@ -265,18 +293,35 @@ class SetupRepositoryImpl(
     }
 
     override suspend fun deleteUser(userId: UUID) {
-        // Let the user delete the current active user for now
-        /*val currentUser = getCurrentUser() ?: return
-        if (userId == currentUser.id) {
-            Timber.e("You cannot delete the current user")
-            return
-        }*/
+        val user = database.getUser(userId) ?: return
+        val server = database.getServer(user.serverId)
         database.deleteUser(userId)
+
+        // 删除的就是当前用户时不能让 servers.currentUserId 悬空：有其它用户就顺延到第一个，
+        // 没有就清空令牌（用户页会回到「添加用户」状态，而不是下次启动拿空令牌卡住）。
+        if (server?.currentUserId != userId) return
+
+        val remainingUsers = database.getUsers(server.id)
+        val nextUser =
+            nextCurrentUserIdAfterDelete(remainingUsers, userId, server.currentUserId)?.let {
+                database.getUser(it)
+            }
+
+        server.currentUserId = nextUser?.id
+        database.updateServer(server)
+
+        if (appPreferences.getValue(appPreferences.currentServer) == server.id) {
+            jellyfinApi.apply {
+                api.update(accessToken = nextUser?.accessToken)
+                this.userId = nextUser?.id
+            }
+        }
     }
 
     override suspend fun setCurrentUser(userId: UUID) {
         val server = getCurrentServer() ?: return
         val user = database.getUser(userId) ?: return
+        if (user.serverId != server.id) return
         server.currentUserId = user.id
         database.updateServer(server)
 
@@ -295,5 +340,61 @@ class SetupRepositoryImpl(
         server.currentServerAddressId = address.id
         database.updateServer(server)
         jellyfinApi.apply { api.update(baseUrl = address.address) }
+    }
+
+    override suspend fun trustCertificate(trustKey: String, fingerprint: String) {
+        jellyfinApi.certificateTrustStore.trust(trustKey, fingerprint)
+    }
+
+    override suspend fun getTrustedCertificates(): List<TrustedCertificate> =
+        jellyfinApi.certificateTrustStore.trustedCertificates()
+
+    override suspend fun clearTrustedCertificate(trustKey: String) {
+        jellyfinApi.certificateTrustStore.clear(trustKey)
+    }
+
+    /**
+     * 发现流程失败时判断原因是否是「证书不受系统信任」：
+     *
+     * 只读探测候选地址里的 https 端点（不做任何应用层请求），命中一张系统不信任的证书就返回可让用户确认指纹的异常； 否则返回 null，由调用方按原错误处理（服务器离线、不是
+     * Jellyfin 等）。
+     */
+    private suspend fun certificateTrustRequired(
+        candidates: Collection<String>
+    ): CertificateTrustRequiredException? =
+        withContext(Dispatchers.IO) {
+            candidates
+                .asSequence()
+                .mapNotNull { httpsTargetOf(it) }
+                .distinct()
+                .mapNotNull { (host, port) ->
+                    val info =
+                        jellyfinApi.certificateProbe.probe(host, port) ?: return@mapNotNull null
+                    if (info.systemTrusted) return@mapNotNull null
+
+                    val previous =
+                        jellyfinApi.certificateTrustStore.trustedFingerprint(info.trustKey)
+                    if (previous != null && fingerprintsMatch(previous, info.fingerprint)) {
+                        // 指纹已信任还连不上：问题不在证书，交给调用方按原错误处理。
+                        return@mapNotNull null
+                    }
+
+                    CertificateTrustRequiredException(
+                        host = info.host,
+                        port = info.port,
+                        fingerprint = info.fingerprint,
+                        previousFingerprint = previous,
+                    )
+                }
+                .firstOrNull()
+        }
+
+    /** 登录等「已保存服务器」的连接失败时，用当前服务器地址做同样的证书探测。 */
+    private suspend fun certificateTrustRequiredForCurrentServer():
+        CertificateTrustRequiredException? {
+        val serverId = appPreferences.getValue(appPreferences.currentServer) ?: return null
+        val address =
+            database.getServerWithAddressAndUser(serverId)?.address?.address ?: return null
+        return certificateTrustRequired(listOf(address))
     }
 }

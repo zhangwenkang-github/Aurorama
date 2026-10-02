@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerBottomSheet
 import com.zhangwenkang.cinefin.presentation.setup.components.ServerItem
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
+import com.zhangwenkang.cinefin.presentation.setup.components.TrustedCertificatesDialog
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersAction
@@ -101,6 +102,7 @@ private fun ServersScreenLayout(
     val sheetState = rememberModalBottomSheetState()
     var openDeleteDialog by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showTrustedCertificatesDialog by remember { mutableStateOf(false) }
     var selectedServer by remember { mutableStateOf<ServerWithAddresses?>(null) }
     val colors = LocalCinefinColors.current
 
@@ -171,6 +173,23 @@ private fun ServersScreenLayout(
                     modifier = Modifier.size(18.dp),
                 )
             },
+        )
+        TopBarAction(
+            icon = CoreR.drawable.ic_certificate,
+            contentDescription = stringResource(SetupR.string.certificate_trusted_title),
+            onClick = {
+                showTrustedCertificatesDialog = true
+                onAction(ServersAction.LoadTrustedCertificates)
+            },
+            modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp),
+        )
+    }
+
+    if (showTrustedCertificatesDialog) {
+        TrustedCertificatesDialog(
+            certificates = state.trustedCertificates,
+            onClear = { trustKey -> onAction(ServersAction.ClearTrustedCertificate(trustKey)) },
+            onDismiss = { showTrustedCertificatesDialog = false },
         )
     }
 

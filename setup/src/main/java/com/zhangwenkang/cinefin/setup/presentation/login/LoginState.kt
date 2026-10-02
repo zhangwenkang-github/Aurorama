@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.setup.presentation.login
 
 import com.zhangwenkang.cinefin.models.UiText
+import com.zhangwenkang.cinefin.setup.presentation.certificate.CertificateTrustPrompt
 
 data class LoginState(
     val serverName: String? = null,
@@ -9,4 +10,5 @@ data class LoginState(
     val quickConnectCode: String? = null,
     val isLoading: Boolean = false,
     val error: UiText? = null,
+    val certificatePrompt: CertificateTrustPrompt? = null,
 )

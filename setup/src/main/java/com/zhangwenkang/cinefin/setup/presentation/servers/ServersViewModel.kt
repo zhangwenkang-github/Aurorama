@@ -31,6 +31,20 @@ constructor(private val repository: SetupRepository, private val appPreferences:
         }
     }
 
+    fun loadTrustedCertificates() {
+        viewModelScope.launch {
+            val trustedCertificates = repository.getTrustedCertificates()
+            _state.emit(_state.value.copy(trustedCertificates = trustedCertificates))
+        }
+    }
+
+    private fun clearTrustedCertificate(trustKey: String) {
+        viewModelScope.launch {
+            repository.clearTrustedCertificate(trustKey)
+            loadTrustedCertificates()
+        }
+    }
+
     private fun setCurrentServer(serverId: String) {
         viewModelScope.launch {
             repository.setCurrentServer(serverId)
@@ -66,6 +80,12 @@ constructor(private val repository: SetupRepository, private val appPreferences:
             }
             is ServersAction.DeleteServer -> {
                 deleteServer(action.serverId)
+            }
+            is ServersAction.LoadTrustedCertificates -> {
+                loadTrustedCertificates()
+            }
+            is ServersAction.ClearTrustedCertificate -> {
+                clearTrustedCertificate(action.trustKey)
             }
             else -> Unit
         }

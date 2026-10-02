@@ -2,10 +2,15 @@ package com.zhangwenkang.cinefin.api
 
 import android.content.Context
 import com.zhangwenkang.cinefin.data.BuildConfig
+import com.zhangwenkang.cinefin.network.CertificateTrustStore
+import com.zhangwenkang.cinefin.network.ServerCertificateProbe
+import com.zhangwenkang.cinefin.network.SharedPreferencesCertificateTrustStore
+import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import java.util.UUID
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import okhttp3.OkHttpClient
 import org.jellyfin.sdk.api.client.HttpClientOptions
 import org.jellyfin.sdk.api.client.extensions.brandingApi
 import org.jellyfin.sdk.api.client.extensions.devicesApi
@@ -24,6 +29,7 @@ import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.api.client.extensions.videosApi
+import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
 
@@ -35,6 +41,8 @@ private const val CLIENT_NAME = "Cinefin"
  *
  * @param androidContext The context
  * @param socketTimeout The socket timeout
+ * @param certificateTrustStore 用户显式信任的自签证书指纹（TOFU）
+ * @param certificateProbe 只读证书探测（首次连接时取指纹给用户确认）
  * @constructor Creates a new [JellyfinApi] instance
  */
 class JellyfinApi(
@@ -42,7 +50,17 @@ class JellyfinApi(
     requestTimeout: Long = Constants.NETWORK_DEFAULT_REQUEST_TIMEOUT,
     connectTimeout: Long = Constants.NETWORK_DEFAULT_CONNECT_TIMEOUT,
     socketTimeout: Long = Constants.NETWORK_DEFAULT_SOCKET_TIMEOUT,
+    val certificateTrustStore: CertificateTrustStore =
+        SharedPreferencesCertificateTrustStore(androidContext),
+    val certificateProbe: ServerCertificateProbe =
+        ServerCertificateProbe(
+            connectTimeoutMs = connectTimeout.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+        ),
 ) {
+    // 自签证书支持：默认校验 + 用户确认过的指纹，二者之外一律拒绝（不做全局放行）。
+    private val okHttpFactory =
+        OkHttpFactory(buildCertificateAwareOkHttpClient(OkHttpClient(), certificateTrustStore))
+
     val jellyfin = createJellyfin {
         clientInfo =
             ClientInfo(
@@ -52,6 +70,8 @@ class JellyfinApi(
                 version = BuildConfig.VERSION_NAME,
             )
         context = androidContext
+        apiClientFactory = okHttpFactory
+        socketConnectionFactory = okHttpFactory
     }
     val api =
         jellyfin.createApi(

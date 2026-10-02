@@ -39,4 +39,13 @@
     <string name="cancel">取消</string>
     <string name="or">或</string>
     <string name="server_subtitle">伺服器：%s</string>
+    <string name="certificate_trust_title">不受信任的憑證</string>
+    <string name="certificate_trust_message">伺服器 %1$s 出示的憑證不受本機信任。如果這是您自己的伺服器（例如自簽憑證），請核對下方 SHA-256 指紋，只有一致時才信任。</string>
+    <string name="certificate_trust_fingerprint_title">SHA-256 指紋</string>
+    <string name="certificate_trust_changed">警告：憑證已發生變化。先前信任的指紋：\n%1$s</string>
+    <string name="certificate_trust_confirm">信任並繼續</string>
+    <string name="certificate_trusted_title">已信任憑證</string>
+    <string name="certificate_trusted_empty">尚未信任任何憑證。</string>
+    <string name="certificate_trust_clear">清除</string>
+    <string name="users_current_badge">目前</string>
 </resources>
