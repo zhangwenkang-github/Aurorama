@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -53,7 +54,12 @@ fun LyricsSheet(
     onToggleFollow: () -> Unit,
     onLineClick: (Long) -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    // W25 真机拦下：K60 竖屏下列表区（0.82 屏高）高于 sheet 半展开锚点，打开时歌词行被挤出可视区；
+    // 面板本身按 82% 屏高设计，打开即全展开（下滑仍可关闭）。
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
         Column(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.82f)) {
             LyricsHeader(state, onEditLyrics)
             LyricsLanguageBar(

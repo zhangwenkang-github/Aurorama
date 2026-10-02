@@ -248,7 +248,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] 客户端设置接入 `pref_music_resume_queue` 开关行（音乐行组，与桌面歌词同组；影响队列持久化恢复）
 - [x] 单测：`LyricsOverrideStoreTest`（4）/ `LyricsEditorModelTest`（4）/ `LyricsRepositoryTest`（+2）/ `MusicLyricsOverlaySettingsTest`（+1）= 新增 11 项，`:modes:music` 75 → **86 项** 全绿
 - [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51）+ `:modes:music:testDebugUnitTest`（86）全绿
-- [ ] 真机验证（K60 `8e875894`，见 §5.8）——待设备解锁后执行
+- [x] 真机验证（K60 `8e875894`，9 组，见 §5.8）：内嵌歌词显示 / 编辑保存重进生效 / UTF-8 + GBK 导入 / 清除覆盖回落 / 悬浮窗五档逐档计时 / 队列开关开与关 / 回归 + 0 FATAL/ANR
+- [x] 真机拦下并修复：K60 竖屏「词」面板半展开锚点把歌词行挤出可视区 → `LyricsSheet` 打开即全展开（`skipPartiallyExpanded`），下滑仍可关闭
 - [x] `AppPreferences.kt` 只追加 `pref_music_lyrics_overlay_idle`（不重排既有键）
 
 **红线说明**：`app/phone` 仅一处宿主接线——`MusicLyricsOverlayService` 给工具条新按钮传 `controller::cycleIdle`（悬浮窗内容在 `modes:music`，回调只能由宿主注入）；歌词导入的文件选择器在 `modes:music` 内完成，未改 app/phone。
@@ -447,6 +448,25 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 > 设备副作用：App force-stop、`/sdcard/w24_*.xml` 清理；未改 `wm size` / `wm density` / 旋转 / Wi-Fi（横屏为设备物理姿态，全程未主动改）；测试结束桌面歌词开关 = 关；新增位置键残留 `(1017,759)`；队列拖动顺序已还原（01 梦的光点 / 02 123我爱你），播放模式 4 连点回到原随机态。
 
+### 5.8 W25 真机验证记录（2026-10-02，Redmi K60 `8e875894`）
+
+设备由负责人统一调度（`device-lock.md`，K60 归 W25）；全部 `adb` 命令带 `-s 8e875894`；安装包 = 本会话 `assembleDebug` 产物（19:00 前先装 `9bae78c` 版，拦下「词」面板问题后重装修复版复测）。
+悬浮窗为 `FLAG_NOT_FOCUSABLE` 的 `APPLICATION_OVERLAY` 窗口，`uiautomator` 抓不到其节点 → 悬浮窗证据 = `dumpsys window` frame + logcat 时间戳；App 内页面用 `uiautomator dump` 文本。
+
+| # | 项目 | 证据 | 结果 |
+|---|------|------|------|
+| 1 | 内嵌歌词显示（仅内嵌标签的歌） | 当前曲 `无人之地 (no man's land)`：服务器 Lyric 流在 `/config/metadata/library/...`（无外挂 `.lrc`），API 5 行与文件内嵌 `LYRICS` 一致（作曲/编曲/制作/纯音乐）；面板 `来源：服务端` + 3 行（`无人之地 (no man's land) - UM` / `制作：UM` / `纯音乐，请欣赏`，署名行按既有规则清洗） | ✅ |
+| 2 | 歌词编辑保存 → 重进生效 | 词面板「编辑」→ 行列表（时间戳 + 文本）→「添加行」输入 `00:02.00` + `W25EDITLI` →「保存」；覆盖文件 `files/lyrics/override/8be8416d-….lrc` 含 `[00:02.000]W25EDITLI`；面板即时 `来源：本机覆盖` + 新行；**force-stop 重启后**仍 `来源：本机覆盖` 且新行在列（优先级最高） | ✅ |
+| 3 | 导入 `.lrc`（UTF-8 / GBK） | 系统文件选择器（下载内容）选 `w25_import.lrc` → 编辑器 `已导入 4 行（本机覆盖）`、面板显示 3 行 `W25 IMPORT LINE …`；GBK 文件（本机生成 GBK 字节 → `base64 -d` 落盘）→ `已导入 3 行（本机覆盖）` 且 `W25 GBK 中文行一/二` 正确解码 | ✅ |
+| 4 | 清除覆盖回落原来源 | 「清除覆盖」→ `已清除本机覆盖`、`files/lyrics/override` 目录清空；面板回落 `来源：服务端` + 原 3 行 | ✅ |
+| 5 | 悬浮窗「保持显示时长」逐档 | 工具条第 4 个图标循环切换；logcat「保持显示 → 背景：隐藏」配对：**2 秒 2.042s**（18:54:02.290→04.332）、**3 秒默认 3.009s**（18:51:01.560→04.569）、**3 秒显式 3.024s**（18:54:11.775→14.799）、**5 秒 5.036s**（18:51:53.690→58.726）、**10 秒 10.042s**（18:52:11.066→21.108）、**常显**（清日志后 12s 内 0 条隐藏、窗口保持展开）；结束后档位回 `3s`（默认） | ✅ |
+| 6 | 队列恢复开关开 / 关 | 设置页新行「恢复播放队列」：ON（默认）→ force-stop 重启 → 底栏 `unravel 1:54 / 3:25 · 上次播放`；OFF（`pref_music_resume_queue=false`）→ 重启后音乐页无底栏 / 无「上次播放」；再 ON → 重启恢复 | ✅ |
+| 7 | 既有功能回归 | 歌词面板（来源 / 语言 chip / 滚动行；`unravel`：`来源：服务端　日文 / 英文` + 日文行）；全屏播放页（退出全屏 / 播放队列 / 随机播放 / 收藏 / 歌词 / 桌面歌词）；播放队列面板（条目 + `≡` 拖拽柄）；睡眠定时面板（关闭 / 10 / 20 / 30 / 60）；播放自动衔接（无人之地 → 心做し → unravel 全程 PLAYING）；起播 `state=PLAYING(3) position=36316` 从续播位开始 | ✅ |
+| 8 | 稳定性 | 全程 logcat `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` / `UnsatisfiedLinkError` **0 条**（含两次 force-stop 重启与 6 档位切换） | ✅ |
+| 9 | 真机拦下并修复 | K60 竖屏「词」面板半展开锚点把歌词行挤出可视区（上滑展开才见）→ `LyricsSheet` 改 `rememberModalBottomSheetState(skipPartiallyExpanded = true)`（82% 屏高面板打开即全展开）；复测行列表直接可见、下滑仍可关闭 | ✅ |
+
+> 设备副作用：App force-stop（0 会话）；`/sdcard/w25_*.xml` 与 `/sdcard/Download/w25_import*.lrc` 已删除；偏好复核 = `pref_music_lyrics_overlay=false` / `..._idle=3s`（默认）/ `pref_music_resume_queue=true`（默认）/ 桌面歌词位置 `(276,126)` / 颜色松石 / 字号中 / 语言简体 / 未锁定（与开场基线一致）；`accelerometer_rotation=1` / `user_rotation=0` 未改；队列快照因测试播放前进（无人之地 → unravel，位置 1:54），未做回滚。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -567,3 +587,10 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   **真机拦下并修复**：K60 横屏 411dp 高时 W23 单列全屏被裁切 → 按高度分「单列 / 两栏紧凑」。
   新增 4 条单测（回落 / 锁定背景 / 位置夹取 / 歌词窗口），`:modes:music` 71 → **75 项**；门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 项 + music 75 项全绿；K60 真机 11 组证据见 §5.7。
   决策 §2.9（D34–D39），踩坑 §6-27～31。**未决**：内嵌歌词 / 歌词编辑；工具条"保持显示时长"暂无档位（固定 3 秒）。
+- **2026-10-02 W25-MUSIC**（本会话，`feature/w25-music-lyrics-edit`，起点 master `85690d4`，提交 `9bae78c` + 本文档提交）：完成四项——
+  ①**内嵌歌词探测（只读）**：全库 100 首按「Lyric 流路径 / 内嵌 `LYRICS` / API 返回」三类对照 + 3 个「服务器无外挂 LRC」样本逐行比对 + 4 个无标签负样本 + upstream `v10.11.8` 源码佐证 → **服务器已覆盖内嵌歌词**（§4.2），按 brief 条件不做客户端标签解析；
+  ②**本机歌词编辑 / 导入 LRC / 清除覆盖**：`LyricsOverrideStore`（`files/lyrics/override/<itemId>.lrc`，LRC 文本）、`LyricsEditorModel` 纯函数、编辑器对话框；来源链「本机覆盖 > 外挂 LRC > 服务端 > 缓存」；导入走系统文件选择器（UTF-8 / GBK 自动识别），**不写服务器**；
+  ③悬浮窗「保持显示时长」五档（2 / 3 / 5 / 10 秒 + 常显；`pref_music_lyrics_overlay_idle` 默认 `3s`，工具条第 6 个图标循环切换）；
+  ④客户端设置接入 `pref_music_resume_queue` 开关行（音乐行组，与桌面歌词同组）。
+  新增 11 条单测（`:modes:music` 75 → **86 项**），门禁 `assembleDebug` + `ktfmtCheck` + app 51 + music 86 全绿；K60 真机 9 组见 §5.8（真机拦下并修复「词」面板半展开裁切；0 FATAL/ANR）。
+  决策 §2.10（D40–D45）。**未决**：ID3v2 `USLT` / MP4 `©lyr` 的内嵌覆盖仅源码层推断（本库无该类样本）；离线本地文件（无网络、无缓存）取内嵌歌词的场景未做（如需另开任务）。
