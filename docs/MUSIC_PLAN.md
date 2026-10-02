@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-10-02（W28-MUSIC 会话）　分支：`feature/w28-word-lyrics`
+> 最后更新：2026-10-02（W30-MUSIC-FX 会话）　分支：`feature/w30-audio-fx`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -133,6 +133,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D46 | 逐字模型 = `LyricLine.words: List<LyricWord>`（可空默认空）+ `LyricsPresenter.wordHighlights`（纯函数，词按"自身起点 → 下一词起点"折算 0..1 进度，末词用下一行起点或 500 ms 兜底）；**无逐字数据（空列表）时显示侧完全走原整行高亮路径** | 整行高亮 / 滚动同步是 W3 已验收行为，逐字必须是"附加层"：`LyricsRow.words` 为空时新旧渲染完全同构（代码层 `wordHighlightedText` 返回 null 即回落），不引入新的滚动逻辑 |
 | D47 | 逐字来源两路：**增强 LRC `<mm:ss.xx>` 标签**（`LrcParser.parseWords`，外挂 / 本机覆盖 / 导入共用）+ **服务端 `Cues`**（`mapServerLyrics` 按 `position`/`endPosition` 截子串、ticks/10000 换算，越界跳过）；标签文本必须从行文本剥离 | 服务端实测全库 100 首 `Cues` 全空（§4.4），本库唯一可得样本 = 增强 LRC；`Cues` 映射为数据链就绪 + 单测覆盖（未来服务器 / 其他库可用）。剥离标签是硬要求：不剥离会把 `<00:05.00>` 原样显示给用户 |
 | D48 | 编辑增强 = **整段偏移**（`shiftLyricEditLines`）与**单行微调**（`nudgeLyricEditLine`），±100 ms 档 + 自定义毫秒输入（`parseLyricOffsetMs`）；逐字数据随行一起平移（`shiftLyricWords`），保存时校验"首词起点 == 行时间"否则丢弃逐字（`lyricWordsConsistentWithLine`） | 时间轴编辑必须与逐字高亮同源：行时间动了而词时间不动，高亮会错位到行外；校验失败宁可回落整行（D46）。保存仍写本机覆盖（`encodeLrc` 对有效逐字写回 `<mm:ss.xxx>` 增强 LRC），不写服务器 |
+
+### 2.12 W30 本会话决策（音乐音效 EQ / ReplayGain / 交叉淡化）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D49 | 三项音效全部落在 **Exo 音频链**：新增 `MusicAudioEffectsProcessor`（5 段 peaking EQ + ReplayGain 逐样本增益）挂进 `CinefinRenderersFactory`（与 `AudioDelayProcessor` 同链，仅音乐会话处理）；**不改**"音乐固定 ExoPlayer"（W1 D3）。mpv 的 `af=equalizer` / `replaygain=no\|track\|album` 只在文档记录为"能力存在但音乐不可达" | mpv 原生能力对音乐路径无效（`PlayerHolder.audioSession()` 强制 Exo，后台视频页会把实例打回 mpv）；改 D3 会连带通知 / MediaSession / 队列 / gapless，超出本波红线。Exo 侧有 `AudioDelayProcessor` 先例（含"必须覆写 `isActive`、关 offload"两条踩坑） |
+| D50 | ReplayGain 数据源 = **本机覆盖文件 > 音频内嵌标签**：覆盖文件 `<filesDir>/replaygain/<itemId>.txt`（`track=-6.0` / `album=-12.0`）；内嵌标签对 `/Audio/{id}/stream?static=true` 发只读 Range（前 128 KB）解析 FLAC VorbisComment / ID3v2 TXXX；三态 `off/track/album`，**专辑档缺 album 标签回落曲目档**，无标签不改变音量；结果按 itemId 缓存（含负缓存） | 全库 100 首 FLAC 只读实测 **0 个 `REPLAYGAIN_*` / `R128_*` 标签**（服务器 JSON 同样没有），mpv 自动 replaygain 对音乐不可达 → 客户端自解析是唯一路径；覆盖文件给无标签文件一个合法的手动增益入口（也是真机"三态有值可测"的数据源，先例见 W25 歌词本机覆盖 D41） |
+| D51 | 交叉淡化交付**单实例近似**：曲尾淡出 + 曲首淡入（`Player.volume` 等功率包络，100 ms 采样、只在变化 > 0.002 时写、关闭 / 会话结束立即复位），档位 关 / 2 / 4 / 6 秒；**不做双实例真交叉（重叠）**，文档写明差异并列为未排期 | 双实例交叉会破坏单 Exo 实例 + 单 MediaSession + gapless + 上报链路；近似方案与 gapless 不冲突、默认关闭、可完整真机验收（曲线数值可证）。"真交叉"复杂度高，按 brief 分阶段 |
 
 ## 3. 任务清单
 
@@ -277,6 +285,20 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 **遗留**：本库服务端无 `Cues` 样本，服务端映射仅单测覆盖（真机样本 = 增强 LRC 本机覆盖）；歌词缓存（`LyricsCache`）仍只存"行文本 + 时间"，离线回落缓存时逐字数据丢失（优雅降级为整行，如需离线逐字再扩展缓存格式）。
 
+### W30 音乐音效 EQ / ReplayGain / 交叉淡化（本会话 `feature/w30-audio-fx`，已交付）
+
+- [x] 调研（只读）：mpv / Exo 能力对照（§4.5）+ 服务器全库 100 首 ReplayGain 标签扫描（0/100，见 §4.5）
+- [x] EQ：`MusicEqualizer`（5 段频率 / 预设 / 编解码 / RBJ peaking biquad）+ `MusicAudioEffectsProcessor`（音频链逐样本处理，16bit/float，仅音乐会话）；面板「预设 7 档 + 五段滑杆」；实时拖动不落盘、拖动结束 commit
+- [x] ReplayGain：`ReplayGainTags`（FLAC VorbisComment / ID3v2 TXXX / 覆盖文本解析）+ `ReplayGainTagReader`（Range 拉取 + 覆盖文件 + 内存缓存）+ `ReplayGainMode` 三态与面板状态行
+- [x] 交叉淡化：`MusicCrossfadeMath`（等功率曲线）+ `MusicPlaybackControllerImpl` 100ms 包络循环（关 / 2 / 4 / 6 秒，默认关）
+- [x] UI：全屏播放页功能行第六键「音效」（`ic_music_equalizer`）+ `MusicEffectsSheet`（EQ / ReplayGain / 淡入淡出三组）
+- [x] `AppPreferences.kt` 只追加 5 键：`pref_music_eq_enabled` / `pref_music_eq_preset` / `pref_music_eq_custom_bands` / `pref_music_replaygain_mode` / `pref_music_crossfade_seconds`（不重排既有键）
+- [x] 单测 18 项（`MusicEqualizerTest` 5 / `ReplayGainTagParserTest` 6 / `MusicCrossfadeMathTest` 7），`:player:local` 80 → **98 项**
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51）+ `:player:local:testDebugUnitTest`（98）+ `:modes:music:testDebugUnitTest`（99）全绿
+- [x] 真机验证（K60 `8e875894`，见 §5.10）：EQ 可测差异（RMS 比值）/ RG 三态（覆盖文件 -6 dB / -12 dB）/ 交叉淡化淡出淡入全序列 + 关闭档 0 条曲线日志 / 回归与还原
+
+**遗留（明示）**：① 本库 100 首 FLAC **全部没有 ReplayGain 标签** —— 功能链路就绪，实际生效需要用户给文件打 RG 标签或写本机覆盖文件（文档写清）；② 交叉淡化是单实例近似（曲尾淡出 + 曲首淡入，**无重叠**），双实例真交叉未排期；③ M4A/MP4 的 `----:com.apple.iTunes:replaygain_track_gain` 未实现（本库无样本，解析器留了扩展点）；④ EQ 的 peaking Q 固定 1.0，未做每段 Q 可调。
+
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
 ### 4.1 队列与会话
@@ -335,6 +357,22 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 **粒度结论**：本库可得的最细粒度 = 增强 LRC 的"词/字段"（每段一个 `<mm:ss.xx>`）；服务端粒度 = 行（`Start`）+ 双语配对（同 Start），**没有逐字**。词段边界与实际唱词不一定逐字对齐（取决于 LRC 作者），客户端只做"按段推进"。
 
 **降级规则（D46）**：`words` 为空（服务端行 / 无标签 LRC / 缓存回落）→ 颜色不渐变、整行高亮 + 跟随滚动完全走 W3 路径；逐字只在"有数据且文本与词段拼接一致"时生效。
+
+### 4.5 W30 音效能力与数据源调研（只读，2026-10-02）
+
+**三项能力对照（音乐实际路径 = ExoPlayer，W1 D3）**
+
+| 能力 | mpv 原生 | Exo/Media3 原生 | 音乐可达性 | 本波落点 |
+|------|----------|-----------------|------------|----------|
+| EQ | ✅ `af=equalizer` / `anequalizer`（任意频段 / 增益 / Q） | ❌（需自研 AudioProcessor） | mpv 不可达（音乐强制 Exo） | 自研 `MusicAudioEffectsProcessor`（5 段 peaking biquad）挂 Exo 音频链 |
+| ReplayGain | ✅ `replaygain=no\|track\|album` + `replaygain-fallback` / `replaygain-preamp` | ❌（1.11.1 有 `GainProcessor` / `DefaultGainProvider`，但**不解析标签**、样本位置语义面向单个流） | mpv 不可达 | 客户端解析标签（FLAC/ID3）+ 逐样本增益 |
+| 交叉淡化 | ❌（gapless ≠ crossfade；`af` 只能处理单流） | ❌（无 dual-deck） | — | 单实例近似（`Player.volume` 包络），双实例真交叉未排期 |
+
+**服务器 ReplayGain 标签全库扫描（只读）**：100 首音频全部为 FLAC，Range 只读拉头部（64 KB / 256 KB 两种窗口）解析 VorbisComment：
+**100/100 可解析出普通标签**（`TITLE` 100 / `ALBUM` 100 / `LYRICS` 95 等，证明解析链路正确），但 **`REPLAYGAIN_*` 0/100、`R128_*` 0/100**；`/Items`（含 `MediaSources`）JSON 也不含 replaygain 字段。
+→ 结论：RG 客户端链路可行但**本库暂无数据**；真机用本机覆盖文件（产品内的合法数据源）验证三态行为，文件标签路径由单测覆盖。
+
+**Media3 `GainProcessor` 备注（留档）**：1.11.1 的 `androidx.media3.common.audio.GainProcessor(GainProvider)` + `DefaultGainProvider`（`FADE_IN/OUT_LINEAR/EQUAL_POWER`、`Builder.addFadeAt(samplePos…)`）可在**样本级**应用增益/淡化，但 `GainProvider` 的入参是"音频流累计样本位置"，跨媒体项（gapless 不 flush 链路）时媒体项边界不可观测；本波未采用（EQ 需自研 DSP，RG 只用一个标量增益，`Player.volume` 包络更简单可靠），记录以备后续。
 
 ## 5. 真机验证记录（2026-09-30，Xiaomi Pad 5 / Android 13，`43af8627`）
 
@@ -520,6 +558,30 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 > 设备副作用已还原：App force-stop（0 会话）；`/sdcard/w28_*.png|xml` 与 `/data/local/tmp/w28_word.lrc` 已删除；测试覆盖 `files/lyrics/override/<心做し id>.lrc` 已删（override 目录空）；偏好复核 = 桌面歌词 `false` / idle `3s` / 语言简体 / 字号中 / 颜色松石 / 位置 `(276,126)` / `resume_queue=true` / 未锁定（与开场备份逐键一致）；未改 `wm size` / density / 旋转 / Wi-Fi；队列快照因测试播放前进（Last Reunion → 心做し），未回滚。
 
+### 5.10 W30 音效真机验证记录（2026-10-02，Redmi K60 `8e875894`）
+
+设备由负责人统一调度（`device-lock.md`，K60 归 W30；Pad 5 全程未占用）；全部 `adb` 命令带 `-s 8e875894`；安装包 = 本会话 `assembleDebug` 产物（含"交叉淡化：位置"特征串，补日志后二次构建核对）。
+
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | 入口与面板 | 全屏播放页功能行六键：新增「音效」图标区 `[1159,2551][1327,2719]`；面板三组 = 均衡器（开关 + 7 预设 chips + 五段滑杆）/ ReplayGain（关闭 / 曲目 / 专辑 + 状态行）/ 淡入淡出（关闭 / 2 / 4 / 6 秒），K60 竖屏 411dp 六键不溢出 | ✅ |
+| 2 | EQ 预设可测差异 | 开 EQ +「低音增强」：`音乐音效统计：eq=开 gains=[7.0,5.0,2.0,0.0,0.0] … 实际增益=1.26–1.48x`（内容相关，>1 = 抬升生效） | ✅ |
+| 3 | EQ 全段衰减（可测差异） | 五段滑杆全部拖到最低：`gains=[-11.7,-11.7,-11.6,-11.7,-11.6] 输入RMS=0.2102 输出RMS=0.0653 实际增益=0.31x`（段间重叠使实际值略高于 -11.7 dB 的理论 0.26x） | ✅ |
+| 4 | EQ 关闭 = 透传 | 关 EQ 后无「音乐音效统计」（`sessionActive && (eq ∥ rg)` 门槛），播放正常 | ✅ |
+| 5 | RG 无标签链路 | 全库 100 首 0 标签（只读探测 §4.5）→ 选「曲目」档：`ReplayGain 读取：item=977d410b… 来源=NONE track=null album=null`（真实 Range 拉流 + 解析）、面板「未检测到 ReplayGain 标签」 | ✅ |
+| 6 | RG 曲目档（覆盖 -6 dB） | `files/replaygain/<id>.txt`（`track=-6.0` / `album=-12.0`）→ `rg=-6.00dB 实际增益=0.50x`（-6 dB = 0.501，精确）；面板「曲目标签 -6.0 dB（本机设置）」 | ✅ |
+| 7 | RG 专辑档（-12 dB） | 切「专辑」→ `rg=-12.00dB 实际增益=0.25x`（-12 dB = 0.251，精确；切换瞬间 1 条 0.42x 过渡 buffer） | ✅ |
+| 8 | RG 关闭档 | 切「关闭」→ 无「音乐音效统计」（不改变音量），面板回说明文案 | ✅ |
+| 9 | 交叉淡化淡出（6 秒档） | `1492: Conquest of Paradise` 4:38：剩余 `4661ms→0.94 / 4220→0.89 / 3715→0.83 / 3205→0.74 / 2696→0.65 / 2184→0.54 / 1674→0.42 / 1164→0.30 / 660→0.17 / 55→0.01`（等功率 sin 曲线数值命中） | ✅ |
+| 10 | 交叉淡化淡入 + 无静音衔接 | 切歌 `Sending start 856719c4…`，media_session 全程 `PLAYING(3)`；新曲 `529ms→0.14 / 1034→0.27 / 1545→0.39 / 2054→0.51 / 2565→0.62 / 3077→0.72 / 4603→0.93 / 5107→0.97 / 5622→1.00`；0.01 → 0.14 连续，无静音段 | ✅ |
+| 11 | 交叉淡化关闭档 | 关闭后 seek 到曲尾：`交叉淡化` 日志 **0 条**，自动切歌正常（active item 7→8，`PLAYING`） | ✅ |
+| 12 | 回归 | 手动换歌（下一首 6→7→8）/ 播放队列面板（播放队列（100））/ 歌词面板（`来源：服务端　简体中文`）/ 桌面歌词开→关（`悬浮窗已显示` + `已销毁`）/ 自动衔接全程 PLAYING | ✅ |
+| 13 | 稳定性 | 整轮 logcat `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` / `UnsatisfiedLinkError` **0 条**（含 4 次安装 / force-stop 重启） | ✅ |
+
+> 设备副作用已还原：App force-stop（0 会话）；prefs 逐键复核 = `crossfade=0` / `eq_enabled=false` / `eq_preset=flat` / `eq_custom_bands=0.0,0.0,0.0,0.0,0.0`（force-stop → `exec-out` 读出替换 → 非空校验写回的流程修正，3467 B）/ `replaygain_mode=off`；RG 覆盖文件 `files/replaygain/` 已删、`/data/local/tmp/w30_*` 与 `/sdcard/w30_*.xml` 已清理；未改 `wm size` / density / 旋转 / Wi-Fi；队列快照因测试播放前进（梦的光点 → Bloody Mary → 下一首），未回滚（与 W21/W28 先例一致）。
+>
+> 取证注意：补日志后必须**重新 `assembleDebug` 再装机**（首轮 APK 只有功能没有淡化日志，造成"无日志"误判）；K60 主缓冲小，跨 10 秒以上的序列日志要当轮 `logcat -d` 抓取。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -600,6 +662,10 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 32. **服务端 `Cues` 在本库全空 + 增强 LRC 标签必须剥离**（2026-10-02 W28）：全库 100 首 `GET /Audio/{id}/Lyrics` 的 `Cues` **0/100 非空**（服务端 LRC 解析器不产出 cues）→ 本库逐字样本只能来自外挂 / 导入 / 本机覆盖的增强 LRC；`<mm:ss.xx>` 若不从行文本剥离会原样显示在歌词里（用户直接看到标签）。另外 `LyricsCache` 仍只存 `startMs + text`：服务端将来有 cues、断网回落缓存时会丢逐字 → 当前刻意降级为整行（要离线逐字需扩展缓存格式）。
 33. **uiautomator dump 会同时包含全屏覆盖层与底层页面的节点**（W28 实测）：全屏播放页是 `MusicModeScreen` 内的 Box 覆盖层，底层歌曲列表 / mini bar 的同名按钮节点仍在 hierarchy 里，两组 bounds 交错（底层 mini bar 五键 y≈2710–2878、全屏功能行 y≈2551–2719）。→ 点全屏按钮要按"图标行 + label 的 y 分层"核对（桌面歌词点击区 = 图标行 `[1115,2551][1283,2719]`，不是底部同名的 label 行），否则会点到底层 mini bar 的下一曲 / 播放暂停；用 `content-desc` 或 `dumpsys window` 复核更稳。
 34. **MIUI 的 logcat 主缓冲很小，音频 MediaCodec debug 会吃掉周期日志**（W28 实测）：整轮调试后 `logcat -d` 只剩 ~955 行（`---------- beginning of main` 起），播放早期的逐字日志已被刷掉，导致误判"日志没打"。→ 周期性取证日志（逐字 / 上报 / 睡眠）必须 `logcat -c` 后**边播边过滤**或当场 `-d` 取，不能事后捞。
+35. **音乐固定 ExoPlayer 意味着 mpv 的 EQ / ReplayGain 永远不作用于音乐**（W30 调研定论）：`PlayerHolder.audioSession()` 强制 Exo（W1 D3），`applyMusicPlaybackTuning` 对 mpv 实例静默忽略。以后若有人提"用 mpv `replaygain` / `af=equalizer` 做音乐音效"，先看 `MUSIC_PLAN` §4.5 —— 能力存在但**路径不可达**，除非重开 D3 决策（通知 / MediaSession / gapless 全要重验）。
+36. **FLAC 的 metadata block 长度是 24-bit 大端，VorbisComment 内部字段才是小端**（W30 解析踩到）：探测脚本第一版用 little-endian 读 block length（`00 00 22` 读成 2228224）→ 100/100 全部"解析失败"，差点把"全库无标签"当结论。写 FLAC 解析记住：block header = 1B(last/type) + **3B 大端**长度；VORBIS_COMMENT 内的 vendor / 条目长度 = 小端。
+37. **`Player.volume` 做淡入淡出的三条纪律**（W30）：① 只在音乐会话 + 档位 > 0 时驱动，暂停时不改（保持当前包络）；② 关闭档 / 会话结束 / 停止必须复位 `1f` —— 残留 0 会静音下一首甚至视频；③ 100ms 采样 + 变化阈值（>0.002）才写，避免每 tick 写音量；曲线可在日志里用 `sin(π/2·t)` 数值核对（等功率）。
+38. **M3 `Slider` 的 `input tap` 不设值**（W30 真机操作踩到）：点滑杆任意位置不会改变值（只聚焦），必须 `input swipe` 拖动；实现上滑杆拖动期间只更新处理器 / 内存（实时听感），`onValueChangeFinished` 才写 SharedPreferences，避免拖动期间高频落盘（对齐 W24 悬浮窗位置的做法）。
 
 ## 7. 会话日志
 
@@ -658,3 +724,10 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   ③**编辑增强**：整段偏移 + 单行微调（±100ms 档 / 自定义毫秒），逐字随行平移（首词与行时间绑定校验，失败回落整行），保存写增强 LRC 本机覆盖（`encodeLrc` 写回 `<mm:ss.xxx>`），**不写服务器**。
   新增 13 条单测（`:modes:music` 86 → **99 项**），门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 + music 99 全绿；K60 真机 9 组见 §5.9（逐字日志 + 像素推进 / 悬浮窗逐字与偏移一致 / 整行降级像素 + 0 逐字日志 / 偏移重进生效 / 0 FATAL/ANR）。
   决策 §2.11（D46–D48），踩坑 §6-32～34。
+- **2026-10-02 W30-MUSIC-FX**（本会话，`feature/w30-audio-fx`，起点 master `e465a83`）：完成三项音效——
+  ①**均衡器 EQ**：调研结论 = mpv `af=equalizer` 能力存在但**音乐不可达**（W1 D3 固定 Exo）→ 落 Exo 音频链：`MusicEqualizer`（5 段 60/230/910/3600/14000 Hz，RBJ peaking biquad，±12 dB，7 档预设 + 自定义）+ `MusicAudioEffectsProcessor`（16bit/float，逐样本，仅音乐会话，每约 2.5s 输出输入/输出 RMS 统计）；
+  ②**ReplayGain**：全库 100 首 FLAC 只读扫描 **0 个 RG/R128 标签**（服务器 JSON 同）→ 客户端链路 = 本机覆盖文件 > 内嵌标签（FLAC VorbisComment / ID3v2 TXXX，Range 128KB 只读）→ off/track/album 三态（专辑档缺 album 回落曲目，无标签不改音量）；
+  ③**交叉淡化**：单实例近似（曲尾淡出 + 曲首淡入，`Player.volume` 等功率包络，100ms 采样，关/2/4/6 秒，默认关；双实例真交叉未排期）。
+  UI = 全屏播放页第六键「音效」+ `MusicEffectsSheet`；`AppPreferences` 只追加 5 键；新增 18 条单测（`:player:local` 80 → **98 项**）；
+  门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 + player:local 98 + music 99 全绿；K60 真机 13 组见 §5.10（EQ 预设 1.3x / 全段 -11.7dB → 0.31x；RG -6dB → 0.50x、-12dB → 0.25x；淡化淡出 0.94→0.01 + 淡入 0.14→1.00 全程 PLAYING；关闭档 0 条曲线日志；0 FATAL/ANR）。
+  决策 §2.12（D49–D51），调研 §4.5，踩坑 §6-35～38。**未决**：本库无 RG 标签（需用户打标签 / 写覆盖文件）；真交叉未排期；M4A RG 标签未实现。
