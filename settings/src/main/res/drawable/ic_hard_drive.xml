@@ -1,22 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 缓存（W42 重绘）：三层数据堆栈 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:pathData="M6,5.25 L18,5.25 A2.25,2.25 0 0 1 20.25,7.5 L20.25,16.5 A2.25,2.25 0 0 1 18,18.75 L6,18.75 A2.25,2.25 0 0 1 3.75,16.5 L3.75,7.5 A2.25,2.25 0 0 1 6,5.25 Z"
+        android:pathData="M12,3.6 C7.9,3.6 4.6,4.9 4.6,6.5 V17.5 C4.6,19.1 7.9,20.4 12,20.4 C16.1,20.4 19.4,19.1 19.4,17.5 V6.5 C19.4,4.9 16.1,3.6 12,3.6 Z"
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.75"
         android:strokeLineJoin="round" />
     <path
-        android:pathData="M6.75,15.25 L6.75,15.26 M10,15.25 L10,15.26"
+        android:pathData="M4.6,6.5 C4.6,8.1 7.9,9.4 12,9.4 C16.1,9.4 19.4,8.1 19.4,6.5"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.75"
-        android:strokeLineCap="round" />
+        android:strokeWidth="1.75" />
     <path
-        android:pathData="M3.75,9.25 L20.25,9.25"
+        android:pathData="M4.6,12 C4.6,13.6 7.9,14.9 12,14.9 C16.1,14.9 19.4,13.6 19.4,12"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.75" />
 </vector>

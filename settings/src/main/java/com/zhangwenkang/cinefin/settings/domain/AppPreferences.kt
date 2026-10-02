@@ -248,6 +248,13 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val uiSidebarShowMetadata = Preference("pref_ui_sidebar_show_metadata", true)
 
     /**
+     * 「隐藏底栏」（W42 新增，用户 2026-10-03 确认）：紧凑形态隐藏底部导航栏；重启保留。
+     *
+     * 平板形态没有底栏（侧轨常驻），设置页会把该开关置灰并给出一行说明。默认关。
+     */
+    val hideBottomBar = Preference("pref_hide_bottom_bar", false)
+
+    /**
      * 服务器媒体库目录缓存（[com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog] 编码）。
      *
      * 设置模块不能依赖 data 层（data/settings 依赖方向相反），所以由 `DrawerViewModel` 在加载抽屉数据时写入， 设置页再读出来渲染「首页 / 音乐 /

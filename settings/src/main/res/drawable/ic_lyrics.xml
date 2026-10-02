@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 关于（W42 重绘）：信息圆 + 实心点 -->
+<!-- 桌面歌词（W42 新增）：三行歌词 + 尾部音符 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:pathData="M12,3.6 A8.4,8.4 0 1 0 12,20.4 A8.4,8.4 0 1 0 12,3.6 Z"
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.75" />
-    <path
-        android:pathData="M12,11.2 V16.2"
+        android:pathData="M4.4,7.2 H15.6 M4.4,11 H13.6 M4.4,14.8 H11.2"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.75"
         android:strokeLineCap="round" />
     <path
-        android:pathData="M12,7.9 A1,1 0 1 0 12,9.9 A1,1 0 1 0 12,7.9 Z"
+        android:pathData="M18.6,12.4 V17.2"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M16.9,18.6 A1.7,1.7 0 1 0 20.3,18.6 A1.7,1.7 0 1 0 16.9,18.6 Z"
         android:fillColor="#FFFFFFFF" />
 </vector>

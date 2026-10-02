@@ -71,3 +71,43 @@ fun visibleRailKeys(
 /** 手机底部 Tab 的固定顺序（用户反馈：手机四条 Tab 行为不变）。 */
 val bottomNavKeys: List<NavEntryKey> =
     listOf(NavEntryKey.Home, NavEntryKey.Music, NavEntryKey.Bookshelf, NavEntryKey.Media)
+
+/**
+ * 侧栏分组（W42）：导航区按「内容 / 管理」分成两组，组间 12dp 空隙 + 细分隔线； 「客户端设置」固定在底部设置区（发丝线与导航区分隔，开关自己不能被关掉，见
+ * [visibleRailKeys]）。
+ */
+enum class RailGroup {
+    Content,
+    Manage,
+    Pinned,
+}
+
+/** 目的地 → 侧栏分组。 */
+fun railGroupOf(key: NavEntryKey): RailGroup =
+    when (key) {
+        NavEntryKey.Home,
+        NavEntryKey.Media,
+        NavEntryKey.Music,
+        NavEntryKey.Bookshelf,
+        NavEntryKey.Downloads -> RailGroup.Content
+        NavEntryKey.Console,
+        NavEntryKey.Metadata -> RailGroup.Manage
+        NavEntryKey.Settings -> RailGroup.Pinned
+    }
+
+/**
+ * 组间分隔索引（纯逻辑，单测覆盖）：返回「其后应插入分组空隙 + 细分隔线」的条目下标。
+ *
+ * 底部固定区（[RailGroup.Pinned]）不产生分组分隔——它与导航区之间由 `pinnedTailCount` 的发丝线负责， 两个发丝线叠在一起会把 72dp 折叠轨切得太碎。
+ */
+fun railGroupBreaks(keys: List<NavEntryKey>): Set<Int> {
+    val breaks = mutableSetOf<Int>()
+    keys.forEachIndexed { index, key ->
+        val next = keys.getOrNull(index + 1) ?: return@forEachIndexed
+        val group = railGroupOf(key)
+        val nextGroup = railGroupOf(next)
+        if (group == RailGroup.Pinned || nextGroup == RailGroup.Pinned) return@forEachIndexed
+        if (group != nextGroup) breaks.add(index)
+    }
+    return breaks
+}

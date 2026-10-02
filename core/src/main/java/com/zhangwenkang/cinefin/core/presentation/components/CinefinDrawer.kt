@@ -23,6 +23,7 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -196,36 +197,42 @@ private fun CinefinDrawerItem(
         )
     val shape = RoundedCornerShape(12.dp)
 
-    Row(
-        modifier =
-            Modifier.fillMaxWidth()
-                .padding(
-                    start =
-                        CinefinSpacing.Space3 + if (item.nested) CinefinSpacing.Space4 else 0.dp,
-                    end = CinefinSpacing.Space3,
-                )
-                .height(if (item.nested) 48.dp else 56.dp)
-                .clip(shape)
-                .background(container)
-                .lumenItemFrame(lumen, selected, 12.dp)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                )
-                .padding(horizontal = CinefinSpacing.Space4),
-        verticalAlignment = Alignment.CenterVertically,
+    CompositionLocalProvider(
+        LocalNavItemInteraction provides
+            NavItemInteractionState(selected = selected, hovered = hovered, pressed = pressed)
     ) {
-        Box(modifier = Modifier.size(24.dp)) { item.icon(selected) }
-        Spacer(Modifier.width(CinefinSpacing.Space4))
-        Text(
-            text = item.label,
-            style = CinefinType.NavLabel,
-            color = content,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = if (item.trailing != null) Modifier.weight(1f) else Modifier,
-        )
-        item.trailing?.invoke()
+        Row(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(
+                        start =
+                            CinefinSpacing.Space3 +
+                                if (item.nested) CinefinSpacing.Space4 else 0.dp,
+                        end = CinefinSpacing.Space3,
+                    )
+                    .height(if (item.nested) 48.dp else 56.dp)
+                    .clip(shape)
+                    .background(container)
+                    .lumenItemFrame(lumen, selected, 12.dp)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                    )
+                    .padding(horizontal = CinefinSpacing.Space4),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.size(24.dp)) { item.icon(selected) }
+            Spacer(Modifier.width(CinefinSpacing.Space4))
+            Text(
+                text = item.label,
+                style = CinefinType.NavLabel,
+                color = content,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = if (item.trailing != null) Modifier.weight(1f) else Modifier,
+            )
+            item.trailing?.invoke()
+        }
     }
 }

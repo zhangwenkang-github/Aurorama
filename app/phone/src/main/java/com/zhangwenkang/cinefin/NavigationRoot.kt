@@ -72,10 +72,13 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinDrawerGroup
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinModalDrawer
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavItem
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavigationItem
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinRailGroupDivider
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinRailSectionDivider
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.components.lumenEdgeHighlight
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
@@ -115,6 +118,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
+import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
 import com.zhangwenkang.cinefin.presentation.navigation.visibleRailKeys
 import com.zhangwenkang.cinefin.presentation.offline.OfflineHomeScreen
 import com.zhangwenkang.cinefin.presentation.offline.OfflineLibraryScreen
@@ -508,8 +512,11 @@ fun NavigationRoot(
     // 手机底部 Tab 保持既有顺序（首页 / 音乐 / 书架 / 媒体库），不随侧轨排序变化。
     val bottomItems = bottomNavKeys.mapNotNull { chromeByKey[it] }
     // 侧栏 = 同一份列表按「客户端设置 → 侧栏显示」过滤（客户端设置常驻，见 NavigationIa.kt）。
-    val railDestinations =
-        visibleRailKeys(navKeys, sidebarVisibility).mapNotNull { chromeByKey[it] }
+    val railKeys = visibleRailKeys(navKeys, sidebarVisibility)
+    val railDestinations = railKeys.mapNotNull { chromeByKey[it] }
+    // W42：分组之间的空隙 / 细分隔线，以及固定在底部的「客户端设置」区。
+    val railBreaks = railGroupBreaks(railKeys)
+    val railPinnedTail = if (railKeys.lastOrNull() == NavEntryKey.Settings) 1 else 0
 
     // 抽屉 = 同一份统一目的地列表，库列表挂在「媒体库」行下（W8-R3 用户反馈 4：**默认收起**、展开后才显示；
     // 行尾箭头与侧轨同一套交互与图标，展开状态与侧轨共用 mediaGroupExpanded）。离线模式没有库列表，
@@ -1015,6 +1022,8 @@ fun NavigationRoot(
                         navigateToUsers = { navController.safeNavigate(UsersRoute) },
                         navigateToAbout = { navController.safeNavigate(AboutRoute) },
                         navigateBack = { navController.safePopBackStack() },
+                        // W42：平板形态没有底栏，「隐藏底栏」开关需要置灰并给出说明。
+                        compactForm = compactNavigation,
                     )
                 }
             }
@@ -1054,25 +1063,35 @@ fun NavigationRoot(
             compactNavigation && showNavigation ->
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.weight(1f)) { host() }
-                    LumenChrome(lumenChrome) {
-                        // 手势条安全区也要跟着底栏一起铺满底色，否则系统导航区会露出外层主题的石板色
-                        // （真机表现为底栏下缘一条 21,26,33 的色带）。
-                        Box(
-                            modifier =
-                                Modifier.fillMaxWidth()
-                                    .background(
-                                        LocalLumenColors.current?.panel
-                                            ?: LocalCinefinColors.current.surface
-                                    )
-                        ) {
-                            CinefinBottomTab(
-                                items = bottomItems.map { it.item },
-                                selectedIndex = bottomItems.indexOfFirst { it.selected },
-                                onSelect = { index ->
-                                    bottomItems.getOrNull(index)?.onClick?.invoke()
-                                },
-                                modifier = Modifier.navigationBarsPadding(),
-                            )
+                    // W42「隐藏底栏」：紧凑形态可整体隐藏底栏（重启保留）；各页自身按 safeDrawing
+                    // 底部留白，隐藏后不会顶到手势条，导航仍可从顶栏 logo / 汉堡打开抽屉到达。
+                    if (!drawerData.hideBottomBar) {
+                        LumenChrome(lumenChrome) {
+                            // 手势条安全区也要跟着底栏一起铺满底色，否则系统导航区会露出外层主题的石板色
+                            // （真机表现为底栏下缘一条 21,26,33 的色带）。
+                            Box(
+                                modifier =
+                                    Modifier.fillMaxWidth()
+                                        .background(
+                                            LocalLumenColors.current?.background
+                                                ?: LocalCinefinColors.current.surface
+                                        )
+                                        .background(
+                                            LocalLumenColors.current
+                                                ?.panel
+                                                ?.copy(alpha = CinefinTokens.ChromeTranslucency)
+                                                ?: LocalCinefinColors.current.surface
+                                        )
+                            ) {
+                                CinefinBottomTab(
+                                    items = bottomItems.map { it.item },
+                                    selectedIndex = bottomItems.indexOfFirst { it.selected },
+                                    onSelect = { index ->
+                                        bottomItems.getOrNull(index)?.onClick?.invoke()
+                                    },
+                                    modifier = Modifier.navigationBarsPadding(),
+                                )
+                            }
                         }
                     }
                 }
@@ -1089,6 +1108,8 @@ fun NavigationRoot(
                             onOpenLibrary = openLibrary,
                             expanded = railExpanded,
                             onToggleExpanded = { railExpanded = !railExpanded },
+                            groupBreaks = railBreaks,
+                            pinnedTailCount = railPinnedTail,
                         )
                     }
                     Box(modifier = Modifier.weight(1f)) { host() }
@@ -1195,16 +1216,21 @@ private fun CinefinSideNavigation(
     onOpenLibrary: (FindroidCollection) -> Unit,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
+    groupBreaks: Set<Int> = emptySet(),
+    pinnedTailCount: Int = 0,
 ) {
     val colors = LocalCinefinColors.current
     val lumen = LocalLumenColors.current
     Column(
         modifier =
-            Modifier.width(if (expanded) 164.dp else 88.dp)
+            // W42：折叠 72dp / 展开 150dp；底色改半透明石墨（~82%）+ 右缘发丝线 + 顶缘内高光。
+            Modifier.width(if (expanded) 150.dp else 72.dp)
                 .fillMaxHeight()
-                // W6-VIS 侧栏重设计：Lumen 区域抬一档到石墨面板（与曜石黑页底形成层次），右缘一条发丝线 +
-                // 顶缘 1px 内高光；Prism 区域保持原有四边描边与 navSurface 底。
-                .background(lumen?.panel ?: colors.navSurface)
+                .background(lumen?.background ?: colors.surface)
+                .background(
+                    lumen?.panel?.copy(alpha = CinefinTokens.ChromeTranslucency)
+                        ?: colors.navSurface
+                )
                 .drawBehind {
                     val stroke = 1.dp.toPx()
                     if (lumen != null) {
@@ -1291,7 +1317,14 @@ private fun CinefinSideNavigation(
                     ),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            destinations.forEach { destination ->
+            destinations.forEachIndexed { index, destination ->
+                // 末尾条目（客户端设置）固定到底部设置区（W42），不参与导航区排序。
+                if (pinnedTailCount > 0 && index >= destinations.size - pinnedTailCount) {
+                    return@forEachIndexed
+                }
+                if (index > 0 && groupBreaks.contains(index - 1)) {
+                    CinefinRailGroupDivider(expanded = expanded)
+                }
                 if (destination.key != NavEntryKey.Media) {
                     CinefinNavigationItem(
                         item = destination.item,
@@ -1299,7 +1332,7 @@ private fun CinefinSideNavigation(
                         expanded = expanded,
                         onClick = destination.onClick,
                     )
-                    return@forEach
+                    return@forEachIndexed
                 }
 
                 CinefinNavigationItem(
@@ -1351,6 +1384,26 @@ private fun CinefinSideNavigation(
                         )
                     }
                 }
+            }
+        }
+        // 底部设置区（W42）：「客户端设置」用发丝线与导航区分隔并常驻（它自己的可见性开关不能被关掉，
+        // 见 NavigationIa.visibleRailKeys）。
+        if (pinnedTailCount > 0 && destinations.size >= pinnedTailCount) {
+            CinefinRailSectionDivider()
+            destinations.takeLast(pinnedTailCount).forEach { destination ->
+                CinefinNavigationItem(
+                    item = destination.item,
+                    selected = destination.selected,
+                    expanded = expanded,
+                    onClick = destination.onClick,
+                    modifier =
+                        Modifier.padding(
+                            start = if (expanded) 10.dp else 12.dp,
+                            end = if (expanded) 10.dp else 12.dp,
+                            top = 4.dp,
+                            bottom = 4.dp,
+                        ),
+                )
             }
         }
         Row(

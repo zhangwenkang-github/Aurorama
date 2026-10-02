@@ -63,7 +63,8 @@ fun SettingsGroupCard(
             ) {
                 Text(
                     text = stringResource(it),
-                    style = CinefinType.LabelLarge,
+                    // W42：分组标题 = 小号次级灰（设计系统 §8.5 的分组头口径）。
+                    style = CinefinType.LabelSmall,
                     color = colors.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.width(CinefinSpacing.Space4))
@@ -86,12 +87,10 @@ fun SettingsGroupCard(
                             SettingsSwitchCard(
                                 preference = preference,
                                 onClick = {
-                                    onAction(
-                                        SettingsAction.OnUpdate(
-                                            preference.copy(value = !preference.value)
-                                        )
-                                    )
-                                    preference.onClick(preference)
+                                    val toggled = preference.copy(value = !preference.value)
+                                    onAction(SettingsAction.OnUpdate(toggled))
+                                    // 回调拿到**切换后**的值：桌面歌词据此判断「刚打开且没有悬浮窗权限」。
+                                    preference.onClick(toggled)
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )

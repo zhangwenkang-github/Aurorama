@@ -71,13 +71,20 @@ constructor(
 
     private val bookshelfLibraryOptions = libraryOptions { it == "books" }
 
-    private val topLevelPreferences =
+    /**
+     * 顶层条目的原始定义（W42 起顺序不再直接决定展示顺序）。
+     *
+     * 设置页收敛为 5 组（用户 2026-10-03 确认）后，由 [buildTopLevelPreferenceGroups] 按 [SETTINGS_GROUP_LAYOUT]
+     * 分桶拼装——这样每个条目（分类）的内部子页结构保持原样，不必搬动大段定义， 也就不会把子页的索引路径搬丢。
+     */
+    private val rawPreferenceGroups =
         listOf(
             PreferenceGroup(
                 preferences =
                     listOf(
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_language,
+                            descriptionStringRes = R.string.settings_language_summary,
                             iconDrawableId = R.drawable.ic_languages,
                             onClick = {
                                 viewModelScope.launch {
@@ -181,7 +188,8 @@ constructor(
                     listOf(
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_libraries,
-                            iconDrawableId = R.drawable.ic_layout_dashboard,
+                            descriptionStringRes = R.string.settings_libraries_summary,
+                            iconDrawableId = R.drawable.ic_media_library,
                             // 库选择是手机 / 平板客户端设置；TV 端设置页不渲染这两种新模型（保持冻结）。
                             supportedDeviceTypes = listOf(DeviceType.PHONE),
                             onClick = {
@@ -209,31 +217,12 @@ constructor(
                                                 ),
                                                 PreferenceDynamicSelect(
                                                     nameStringResource =
-                                                        R.string.settings_music_library,
-                                                    descriptionStringRes =
-                                                        R.string.settings_music_library_summary,
-                                                    backendPreference =
-                                                        appPreferences.uiMusicLibraryId,
-                                                    options = musicLibraryOptions,
-                                                ),
-                                                PreferenceDynamicSelect(
-                                                    nameStringResource =
                                                         R.string.settings_bookshelf_library,
                                                     descriptionStringRes =
                                                         R.string.settings_bookshelf_library_summary,
                                                     backendPreference =
                                                         appPreferences.uiBookshelfLibraryId,
                                                     options = bookshelfLibraryOptions,
-                                                ),
-                                                // W39：首页「本地媒体」开关移入「媒体库」分类（媒体库页不再出现该开关）。
-                                                PreferenceSwitch(
-                                                    nameStringResource =
-                                                        R.string.settings_local_library_visible,
-                                                    descriptionStringRes =
-                                                        R.string
-                                                            .settings_local_library_visible_summary,
-                                                    backendPreference =
-                                                        appPreferences.localLibraryVisible,
                                                 ),
                                             )
                                     )
@@ -247,6 +236,7 @@ constructor(
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_sidebar,
                             descriptionStringRes = R.string.settings_sidebar_summary,
+                            iconDrawableId = R.drawable.ic_sidebar,
                             supportedDeviceTypes = listOf(DeviceType.PHONE),
                             onClick = {
                                 viewModelScope.launch {
@@ -313,23 +303,57 @@ constructor(
             PreferenceGroup(
                 preferences =
                     listOf(
-                        // W23-MUSIC 桌面歌词：客户端设置入口（与全屏播放界面的开关共用同一偏好键）。
-                        // 打开时若还没有「显示在其他应用上层」权限，带包名引导到该权限页。
-                        PreferenceSwitch(
-                            nameStringResource = R.string.settings_music_lyrics_overlay,
+                        // W42：桌面歌词收进子页——顶层只留一行「悬浮显示当前句与下一句」，
+                        // 权限提示与开关本体放进子页（用户 2026-10-03 确认）。
+                        PreferenceCategory(
+                            nameStringResource = R.string.settings_category_desktop_lyrics,
                             descriptionStringRes = R.string.settings_music_lyrics_overlay_summary,
-                            iconDrawableId = R.drawable.ic_closed_caption,
+                            iconDrawableId = R.drawable.ic_lyrics,
                             supportedDeviceTypes = listOf(DeviceType.PHONE),
-                            backendPreference = appPreferences.musicLyricsOverlay,
-                            onClick = { preference ->
-                                if (preference.value && !Settings.canDrawOverlays(context)) {
-                                    viewModelScope.launch {
-                                        eventsChannel.send(
-                                            SettingsEvent.LaunchIntent(overlayPermissionIntent())
+                            onClick = {
+                                viewModelScope.launch {
+                                    eventsChannel.send(
+                                        SettingsEvent.NavigateToSettings(
+                                            intArrayOf(it.nameStringResource)
                                         )
-                                    }
+                                    )
                                 }
                             },
+                            nestedPreferenceGroups =
+                                listOf(
+                                    PreferenceGroup(
+                                        preferences =
+                                            listOf(
+                                                // W23-MUSIC 桌面歌词（与全屏播放界面的开关共用同一偏好键）：
+                                                // 打开时若还没有「显示在其他应用上层」权限，带包名引导到该权限页。
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_music_lyrics_overlay,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_music_lyrics_overlay_permission,
+                                                    iconDrawableId = R.drawable.ic_lyrics,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences.musicLyricsOverlay,
+                                                    onClick = { preference ->
+                                                        if (
+                                                            preference.value &&
+                                                                !Settings.canDrawOverlays(context)
+                                                        ) {
+                                                            viewModelScope.launch {
+                                                                eventsChannel.send(
+                                                                    SettingsEvent.LaunchIntent(
+                                                                        overlayPermissionIntent()
+                                                                    )
+                                                                )
+                                                            }
+                                                        }
+                                                    },
+                                                )
+                                            )
+                                    )
+                                ),
                         ),
                         // W25-MUSIC 队列恢复开关（W21 遗留）：关闭后不落盘恢复快照、重启不恢复上次队列。
                         PreferenceSwitch(
@@ -346,6 +370,7 @@ constructor(
                     listOf(
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_interface,
+                            descriptionStringRes = R.string.settings_interface_summary,
                             iconDrawableId = R.drawable.ic_layout_dashboard,
                             onClick = {
                                 viewModelScope.launch {
@@ -358,39 +383,6 @@ constructor(
                             },
                             nestedPreferenceGroups =
                                 listOf(
-                                    PreferenceGroup(
-                                        nameStringResource = R.string.settings_category_appearance,
-                                        preferences =
-                                            listOf(
-                                                PreferenceSelect(
-                                                    nameStringResource = R.string.theme,
-                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
-                                                    backendPreference = appPreferences.theme,
-                                                    onUpdate = { value ->
-                                                        viewModelScope.launch {
-                                                            eventsChannel.send(
-                                                                SettingsEvent.UpdateTheme(
-                                                                    value ?: "system"
-                                                                )
-                                                            )
-                                                        }
-                                                    },
-                                                    options = R.array.theme,
-                                                    optionValues = R.array.theme_values,
-                                                ),
-                                                PreferenceSwitch(
-                                                    nameStringResource = R.string.dynamic_colors,
-                                                    descriptionStringRes =
-                                                        R.string.dynamic_colors_summary,
-                                                    enabled =
-                                                        Build.VERSION.SDK_INT >=
-                                                            Build.VERSION_CODES.S,
-                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
-                                                    backendPreference =
-                                                        appPreferences.dynamicColors,
-                                                ),
-                                            ),
-                                    ),
                                     PreferenceGroup(
                                         nameStringResource = R.string.home,
                                         preferences =
@@ -437,6 +429,7 @@ constructor(
                     listOf(
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_player,
+                            descriptionStringRes = R.string.settings_player_summary,
                             iconDrawableId = R.drawable.ic_play,
                             onClick = {
                                 viewModelScope.launch {
@@ -906,21 +899,8 @@ constructor(
                 preferences =
                     listOf(
                         PreferenceCategory(
-                            nameStringResource = R.string.users,
-                            iconDrawableId = R.drawable.ic_user,
-                            onClick = {
-                                viewModelScope.launch {
-                                    eventsChannel.send(SettingsEvent.NavigateToUsers)
-                                }
-                            },
-                        )
-                    )
-            ),
-            PreferenceGroup(
-                preferences =
-                    listOf(
-                        PreferenceCategory(
                             nameStringResource = R.string.settings_category_servers,
+                            descriptionStringRes = R.string.settings_servers_summary,
                             iconDrawableId = R.drawable.ic_server,
                             onClick = {
                                 viewModelScope.launch {
@@ -933,8 +913,10 @@ constructor(
             PreferenceGroup(
                 preferences =
                     listOf(
+                        // W42：下载 + 缓存合并成一个子页（5 组 IA：媒体库 → 下载与缓存）。
                         PreferenceCategory(
-                            nameStringResource = R.string.title_download,
+                            nameStringResource = R.string.settings_category_downloads_cache,
+                            descriptionStringRes = R.string.settings_downloads_cache_summary,
                             iconDrawableId = R.drawable.ic_download,
                             supportedDeviceTypes = listOf(DeviceType.PHONE),
                             onClick = {
@@ -969,7 +951,32 @@ constructor(
                                                         appPreferences.downloadWhenRoaming,
                                                 ),
                                             )
-                                    )
+                                    ),
+                                    // W42：缓存设置并入本子页（原来是独立的「缓存」分类）。
+                                    PreferenceGroup(
+                                        preferences =
+                                            listOf(
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_use_cache_title,
+                                                    descriptionStringRes =
+                                                        R.string.settings_use_cache_summary,
+                                                    iconDrawableId = R.drawable.ic_hard_drive,
+                                                    backendPreference = appPreferences.imageCache,
+                                                ),
+                                                PreferenceIntInput(
+                                                    nameStringResource =
+                                                        R.string.settings_cache_size,
+                                                    descriptionStringRes =
+                                                        R.string.settings_cache_size_message,
+                                                    dependencies =
+                                                        listOf(appPreferences.imageCache),
+                                                    backendPreference =
+                                                        appPreferences.imageCacheSize,
+                                                    suffixRes = R.string.mb,
+                                                ),
+                                            )
+                                    ),
                                 ),
                         )
                     )
@@ -979,6 +986,7 @@ constructor(
                     listOf(
                         PreferenceCategory(
                             nameStringResource = R.string.settings_category_network,
+                            descriptionStringRes = R.string.settings_network_summary,
                             iconDrawableId = R.drawable.ic_network,
                             onClick = {
                                 viewModelScope.launch {
@@ -1025,51 +1033,8 @@ constructor(
                 preferences =
                     listOf(
                         PreferenceCategory(
-                            nameStringResource = R.string.settings_category_cache,
-                            iconDrawableId = R.drawable.ic_hard_drive,
-                            onClick = {
-                                viewModelScope.launch {
-                                    eventsChannel.send(
-                                        SettingsEvent.NavigateToSettings(
-                                            intArrayOf(it.nameStringResource)
-                                        )
-                                    )
-                                }
-                            },
-                            nestedPreferenceGroups =
-                                listOf(
-                                    PreferenceGroup(
-                                        preferences =
-                                            listOf(
-                                                PreferenceSwitch(
-                                                    nameStringResource =
-                                                        R.string.settings_use_cache_title,
-                                                    descriptionStringRes =
-                                                        R.string.settings_use_cache_summary,
-                                                    backendPreference = appPreferences.imageCache,
-                                                ),
-                                                PreferenceIntInput(
-                                                    nameStringResource =
-                                                        R.string.settings_cache_size,
-                                                    descriptionStringRes =
-                                                        R.string.settings_cache_size_message,
-                                                    dependencies =
-                                                        listOf(appPreferences.imageCache),
-                                                    backendPreference =
-                                                        appPreferences.imageCacheSize,
-                                                    suffixRes = R.string.mb,
-                                                ),
-                                            )
-                                    )
-                                ),
-                        )
-                    )
-            ),
-            PreferenceGroup(
-                preferences =
-                    listOf(
-                        PreferenceCategory(
                             nameStringResource = R.string.about,
+                            descriptionStringRes = R.string.settings_about_summary,
                             iconDrawableId = R.drawable.ic_info,
                             onClick = {
                                 viewModelScope.launch {
@@ -1092,11 +1057,146 @@ constructor(
                         )
                     )
             ),
+            // W42：从既有分类中拆出 / 新增的顶层条目（展示位置由 SETTINGS_GROUP_LAYOUT 决定）。
+            PreferenceGroup(
+                preferences =
+                    listOf(
+                        // 「首页显示本地媒体」从「媒体库」子页提升为顶层开关（W42 5 组 IA：媒体库 → 本地媒体）。
+                        PreferenceSwitch(
+                            nameStringResource = R.string.settings_local_library_visible,
+                            descriptionStringRes = R.string.settings_local_library_visible_summary,
+                            iconDrawableId = R.drawable.ic_folder,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            backendPreference = appPreferences.localLibraryVisible,
+                        ),
+                        // TV 端保留显式的「用户」入口（手机侧由账号卡承接，TV 设置页没改版，行为保持不变）。
+                        PreferenceCategory(
+                            nameStringResource = R.string.users,
+                            iconDrawableId = R.drawable.ic_user,
+                            supportedDeviceTypes = listOf(DeviceType.TV),
+                            onClick = {
+                                viewModelScope.launch {
+                                    eventsChannel.send(SettingsEvent.NavigateToUsers)
+                                }
+                            },
+                        ),
+                        // 「音乐」：音乐模式使用哪个媒体库（原在「媒体库」子页里）。
+                        PreferenceCategory(
+                            nameStringResource = R.string.settings_category_music,
+                            descriptionStringRes = R.string.settings_music_summary,
+                            iconDrawableId = R.drawable.ic_music,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            onClick = {
+                                viewModelScope.launch {
+                                    eventsChannel.send(
+                                        SettingsEvent.NavigateToSettings(
+                                            intArrayOf(it.nameStringResource)
+                                        )
+                                    )
+                                }
+                            },
+                            nestedPreferenceGroups =
+                                listOf(
+                                    PreferenceGroup(
+                                        preferences =
+                                            listOf(
+                                                PreferenceDynamicSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_music_library,
+                                                    descriptionStringRes =
+                                                        R.string.settings_music_library_summary,
+                                                    backendPreference =
+                                                        appPreferences.uiMusicLibraryId,
+                                                    options = musicLibraryOptions,
+                                                )
+                                            )
+                                    )
+                                ),
+                        ),
+                        // 「外观」：原本在「界面」子页里的主题 / 动态取色，提升为与「界面」并列的顶层分类。
+                        PreferenceCategory(
+                            nameStringResource = R.string.settings_category_appearance,
+                            descriptionStringRes = R.string.settings_appearance_summary,
+                            iconDrawableId = R.drawable.ic_palette,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            onClick = {
+                                viewModelScope.launch {
+                                    eventsChannel.send(
+                                        SettingsEvent.NavigateToSettings(
+                                            intArrayOf(it.nameStringResource)
+                                        )
+                                    )
+                                }
+                            },
+                            nestedPreferenceGroups =
+                                listOf(
+                                    PreferenceGroup(
+                                        preferences =
+                                            listOf(
+                                                PreferenceSelect(
+                                                    nameStringResource = R.string.theme,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference = appPreferences.theme,
+                                                    onUpdate = { value ->
+                                                        viewModelScope.launch {
+                                                            eventsChannel.send(
+                                                                SettingsEvent.UpdateTheme(
+                                                                    value ?: "system"
+                                                                )
+                                                            )
+                                                        }
+                                                    },
+                                                    options = R.array.theme,
+                                                    optionValues = R.array.theme_values,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource = R.string.dynamic_colors,
+                                                    descriptionStringRes =
+                                                        R.string.dynamic_colors_summary,
+                                                    enabled =
+                                                        Build.VERSION.SDK_INT >=
+                                                            Build.VERSION_CODES.S,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences.dynamicColors,
+                                                ),
+                                            )
+                                    )
+                                ),
+                        ),
+                        // 「设备」：本设备上的系统级应用设置（权限 / 通知 / 存储）。上游 Findroid 的「设备」分类
+                        // 在本仓库从未接线（只有遗留字符串 device_name 与未调用的 updateDeviceName），
+                        // W42 按「只重排合并、不扩大范围」的原则接系统应用信息页，不新建偏好键。
+                        PreferenceCategory(
+                            nameStringResource = R.string.settings_category_device,
+                            descriptionStringRes = R.string.settings_device_summary,
+                            iconDrawableId = R.drawable.ic_device,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            onClick = {
+                                viewModelScope.launch {
+                                    eventsChannel.send(
+                                        SettingsEvent.LaunchIntent(
+                                            Intent(
+                                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                                Uri.parse("package:${context.packageName}"),
+                                            )
+                                        )
+                                    )
+                                }
+                            },
+                        ),
+                    )
+            ),
         )
 
-    fun loadPreferences(indexes: IntArray = intArrayOf(), deviceType: DeviceType) {
+    /** @param compactForm 紧凑形态（手机底部 Tab）。W42「隐藏底栏」只在紧凑形态可用：平板 / 展开形态 本来就没有底栏（侧轨常驻），开关置灰并给出说明。 */
+    fun loadPreferences(
+        indexes: IntArray = intArrayOf(),
+        deviceType: DeviceType,
+        compactForm: Boolean = true,
+    ) {
         viewModelScope.launch {
-            var preferences = topLevelPreferences
+            var preferences = topLevelPreferenceGroups(hideBottomBarSwitch(compactForm))
 
             // Show preferences based on the name of the parent
             for (index in indexes) {
@@ -1258,5 +1358,28 @@ constructor(
         Intent(
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
             Uri.parse("package:${context.packageName}"),
+        )
+
+    /**
+     * W42「隐藏底栏」：紧凑形态可开关（隐藏手机底部导航栏、重启保留）。
+     *
+     * 平板形态没有底栏（侧轨常驻），开关置灰 + 一行说明——用户 2026-10-03 确认的推荐做法。
+     */
+    private fun hideBottomBarSwitch(compactForm: Boolean) =
+        PreferenceSwitch(
+            nameStringResource = R.string.settings_hide_bottom_bar,
+            descriptionStringRes =
+                if (compactForm) R.string.settings_hide_bottom_bar_summary
+                else R.string.settings_hide_bottom_bar_tablet_note,
+            iconDrawableId = R.drawable.ic_sidebar,
+            enabled = compactForm,
+            supportedDeviceTypes = listOf(DeviceType.PHONE),
+            backendPreference = appPreferences.hideBottomBar,
+        )
+
+    /** 顶层 5 组（W42）：原始分类块 + 每轮动态生成的「隐藏底栏」开关。 */
+    private fun topLevelPreferenceGroups(hideBottomBar: PreferenceSwitch): List<PreferenceGroup> =
+        buildTopLevelPreferenceGroups(
+            rawPreferenceGroups.flatMap { it.preferences } + hideBottomBar
         )
 }

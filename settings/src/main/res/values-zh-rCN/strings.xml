@@ -85,7 +85,7 @@
     <string name="home_continue_watching">显示继续观看</string>
     <string name="home_next_up">显示接下来</string>
     <string name="home_latest">显示新增媒体</string>
-    <string name="offline_mode_summary">在没有连接服务器的情况下观看电影和剧集</string>
+    <string name="offline_mode_summary">断网时只显示本机已下载内容</string>
     <string name="mb">MB</string>
     <string name="ms">毫秒</string>
     <string name="seconds">秒</string>
@@ -114,17 +114,18 @@
     <string name="settings_home_library">首页媒体库</string>
     <string name="settings_home_library_summary">首页「最新」区块使用哪个库的内容</string>
     <string name="settings_music_library">音乐库</string>
-    <string name="settings_music_library_summary">音乐模式浏览哪个音乐库；服务器没有音乐库时隐藏音乐入口</string>
+    <string name="settings_music_library_summary">选择音乐模式使用的音乐库</string>
     <string name="settings_music_lyrics_overlay">桌面歌词</string>
-    <string name="settings_music_lyrics_overlay_summary">在其他应用上层悬浮显示两行歌词（当前句 + 下一句）；需要「显示在其他应用上层」权限</string>
+    <string name="settings_music_lyrics_overlay_summary">悬浮显示当前句与下一句</string>
+    <string name="settings_music_lyrics_overlay_permission">需要「显示在其他应用上层」权限；打开开关时会引导到系统设置授权。</string>
     <string name="settings_music_resume_queue">恢复播放队列</string>
-    <string name="settings_music_resume_queue_summary">重启应用后恢复上次的音乐队列与播放位置</string>
+    <string name="settings_music_resume_queue_summary">重启后恢复上次队列与进度</string>
     <string name="settings_bookshelf_library">书架媒体库</string>
     <string name="settings_bookshelf_library_summary">书架使用哪个书籍库；自动 = 第一个非空书籍库</string>
-    <string name="settings_local_library_visible">首页显示本地媒体</string>
-    <string name="settings_local_library_visible_summary">在首页展示本地媒体的入口（默认关闭）</string>
+    <string name="settings_local_library_visible">本地媒体</string>
+    <string name="settings_local_library_visible_summary">首页显示本地媒体</string>
     <string name="settings_category_sidebar">侧栏显示</string>
-    <string name="settings_sidebar_summary">对平板侧轨与抽屉生效；客户端设置始终保留</string>
+    <string name="settings_sidebar_summary">选择侧栏要展示的入口</string>
     <string name="settings_sidebar_show_home">首页</string>
     <string name="settings_sidebar_show_media">媒体库</string>
     <string name="settings_sidebar_show_music">音乐</string>
@@ -132,4 +133,28 @@
     <string name="settings_sidebar_show_downloads">下载</string>
     <string name="settings_sidebar_show_console">服务器控制台</string>
     <string name="settings_sidebar_show_metadata">媒体资料管理器</string>
+    <!-- W42：客户端设置 5 组重排（分组标题 / 行描述 / 新增条目） -->
+    <string name="settings_group_account_server">账号与服务器</string>
+    <string name="settings_group_media">媒体库</string>
+    <string name="settings_group_playback">播放与音乐</string>
+    <string name="settings_group_interface">外观与界面</string>
+    <string name="settings_group_other">其他</string>
+    <string name="settings_account_summary">管理用户与登录</string>
+    <string name="settings_about_summary">版本与开源许可</string>
+    <string name="settings_servers_summary">添加 / 切换服务器</string>
+    <string name="settings_network_summary">请求与超时参数</string>
+    <string name="settings_libraries_summary">各区域使用哪个媒体库</string>
+    <string name="settings_downloads_cache_summary">管理图片与下载缓存</string>
+    <string name="settings_category_downloads_cache">下载与缓存</string>
+    <string name="settings_category_music">音乐</string>
+    <string name="settings_music_summary">音乐库与音频偏好</string>
+    <string name="settings_category_desktop_lyrics">桌面歌词</string>
+    <string name="settings_player_summary">内核 / 字幕 / 手势</string>
+    <string name="settings_language_summary">应用与媒体语言</string>
+    <string name="settings_interface_summary">首页与详情页显示项</string>
+    <string name="settings_appearance_summary">主题与取色</string>
+    <string name="settings_hide_bottom_bar">隐藏底栏</string>
+    <string name="settings_hide_bottom_bar_summary">紧凑形态隐藏底部导航</string>
+    <string name="settings_hide_bottom_bar_tablet_note">平板形态使用侧轨，本就没有底栏</string>
+    <string name="settings_device_summary">应用权限与通知</string>
 </resources>

@@ -25,8 +25,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.LocalNavItemInteraction
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
@@ -139,12 +141,24 @@ fun CinefinDrawerHeader(
     }
 }
 
-/** 导航图标着色：选中 = 当前域 `Media.Bright`，未选中 = `OnSurfaceVariant`（§7.1）。 */
+/**
+ * 导航图标着色（W42）：Lumen 侧柜 = 选中极光青、未选中白 62%（悬停 / 按下再提亮一档）； Prism 区域保持 §7.1 的「选中 `Media.Bright` / 未选中
+ * `OnSurfaceVariant`」。
+ */
 @Composable
 internal fun navIconTint(selected: Boolean): Color {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
-    return if (selected) media.bright else colors.onSurfaceVariant
+    val lumen = LocalLumenColors.current
+    val interaction = LocalNavItemInteraction.current
+    return when {
+        lumen != null && selected -> lumen.accent
+        lumen != null && interaction.pressed -> Color.White.copy(alpha = 0.92f)
+        lumen != null && interaction.hovered -> Color.White.copy(alpha = 0.78f)
+        lumen != null -> Color.White.copy(alpha = CinefinTokens.NavUnselectedIconAlpha)
+        selected -> media.bright
+        else -> colors.onSurfaceVariant
+    }
 }
 
 /** 导航条目图标槽：统一 24dp 资源 + 选中态着色。 */

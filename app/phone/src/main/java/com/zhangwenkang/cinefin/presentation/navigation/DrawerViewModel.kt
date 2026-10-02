@@ -39,6 +39,8 @@ data class DrawerState(
     val libraries: List<FindroidCollection> = emptyList(),
     /** 侧栏条目可见性（客户端设置里可改）。 */
     val sidebarVisibility: SidebarVisibility = SidebarVisibility(),
+    /** 「隐藏底栏」（W42）：紧凑形态隐藏底部导航栏；平板形态本无底栏（侧轨常驻）。 */
+    val hideBottomBar: Boolean = false,
 )
 
 /** 抽屉导航栏的数据源：读取当前服务器与账号，让用户随时知道自己连的是哪台服务器。 */
@@ -59,8 +61,15 @@ constructor(
 
     /** 侧栏可见性开关：设置页改完偏好后主界面要立刻跟着变——靠 SharedPreferences 变更回调刷新， 不重启 Activity，也不重拉服务器数据。 */
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && key.startsWith(SIDEBAR_PREF_PREFIX)) {
-            _state.value = _state.value.copy(sidebarVisibility = readSidebarVisibility())
+        when {
+            key == null -> Unit
+            key.startsWith(SIDEBAR_PREF_PREFIX) ->
+                _state.value = _state.value.copy(sidebarVisibility = readSidebarVisibility())
+            key == HIDE_BOTTOM_BAR_PREF_KEY ->
+                _state.value =
+                    _state.value.copy(
+                        hideBottomBar = appPreferences.getValue(appPreferences.hideBottomBar)
+                    )
         }
     }
 
@@ -68,7 +77,11 @@ constructor(
         appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
             preferenceListener
         )
-        _state.value = _state.value.copy(sidebarVisibility = readSidebarVisibility())
+        _state.value =
+            _state.value.copy(
+                sidebarVisibility = readSidebarVisibility(),
+                hideBottomBar = appPreferences.getValue(appPreferences.hideBottomBar),
+            )
     }
 
     override fun onCleared() {
@@ -117,6 +130,7 @@ constructor(
                         isAdministrator = isAdministrator,
                         libraries = libraries,
                         sidebarVisibility = readSidebarVisibility(),
+                        hideBottomBar = appPreferences.getValue(appPreferences.hideBottomBar),
                     )
             }
                 .onFailure { Timber.w(it, "读取抽屉账号信息失败") }
@@ -136,5 +150,6 @@ constructor(
 
     private companion object {
         const val SIDEBAR_PREF_PREFIX = "pref_ui_sidebar_"
+        const val HIDE_BOTTOM_BAR_PREF_KEY = "pref_hide_bottom_bar"
     }
 }

@@ -8,6 +8,32 @@ import org.junit.Test
 /** 导航 IA 门控（W6-R6N）：顶层顺序、库类型门控、管理员门控与侧栏可见性过滤。 */
 class NavigationIaTest {
     @Test
+    fun railGroupsSplitContentAndManageWithoutTouchingSettings() {
+        val keys =
+            navEntryKeys(
+                isAdministrator = true,
+                librariesLoaded = true,
+                hasMusicLibrary = true,
+                hasBooksLibrary = true,
+            )
+
+        // 内容区（首页…下载）→ 管理区（控制台 / 元数据）；客户端设置固定在底部，不产生分组分隔。
+        assertEquals(setOf(4), railGroupBreaks(keys))
+        assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Home))
+        assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Downloads))
+        assertEquals(RailGroup.Manage, railGroupOf(NavEntryKey.Console))
+        assertEquals(RailGroup.Manage, railGroupOf(NavEntryKey.Metadata))
+        assertEquals(RailGroup.Pinned, railGroupOf(NavEntryKey.Settings))
+    }
+
+    @Test
+    fun railGroupsWithoutManageEntriesHaveNoBreaks() {
+        val keys = listOf(NavEntryKey.Home, NavEntryKey.Media, NavEntryKey.Settings)
+
+        assertTrue(railGroupBreaks(keys).isEmpty())
+    }
+
+    @Test
     fun topLevelOrderMatchesSpec() {
         val keys =
             navEntryKeys(

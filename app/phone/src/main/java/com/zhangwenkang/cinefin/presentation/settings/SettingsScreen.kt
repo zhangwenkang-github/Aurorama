@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -39,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -75,13 +78,17 @@ fun SettingsScreen(
     navigateToUsers: () -> Unit,
     navigateToAbout: () -> Unit,
     navigateBack: () -> Unit,
+    /** W42：紧凑形态（手机底部 Tab）才允许「隐藏底栏」；平板形态开关置灰 + 说明。 */
+    compactForm: Boolean = true,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
 
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(true) { viewModel.loadPreferences(indexes, DeviceType.PHONE) }
+    LaunchedEffect(indexes.toList(), compactForm) {
+        viewModel.loadPreferences(indexes, DeviceType.PHONE, compactForm)
+    }
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -137,13 +144,14 @@ fun SettingsScreen(
     SettingsScreenLayout(
         title = indexes.last(),
         state = state,
-        onReloadPreferences = { viewModel.loadPreferences(indexes, DeviceType.PHONE) },
+        onReloadPreferences = { viewModel.loadPreferences(indexes, DeviceType.PHONE, compactForm) },
+        onOpenUsers = navigateToUsers,
         onAction = { action ->
             when (action) {
                 is SettingsAction.OnBackClick -> navigateBack()
                 is SettingsAction.OnUpdate -> {
                     viewModel.onAction(action)
-                    viewModel.loadPreferences(indexes, DeviceType.PHONE)
+                    viewModel.loadPreferences(indexes, DeviceType.PHONE, compactForm)
                 }
             }
         },
@@ -160,6 +168,7 @@ private fun SettingsScreenLayout(
     @StringRes title: Int,
     state: SettingsState,
     onReloadPreferences: () -> Unit,
+    onOpenUsers: () -> Unit,
     onAction: (SettingsAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -228,7 +237,7 @@ private fun SettingsScreenLayout(
                         shape = CinefinShapes.Lg,
                         modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp),
                     ) {
-                        SettingsAccountHeader(state = accountState)
+                        SettingsAccountHeader(state = accountState, onClick = onOpenUsers)
                     }
                 }
                 items(state.preferenceGroups) { group ->
@@ -264,12 +273,22 @@ private fun SettingsScreenLayout(
  * W6-VIS：整条收进 Lumen 卡片（石墨底 + 1dp 发丝线 + 顶部内高光），头像用雾灰磁贴承托， 与下方分类卡共用同一套"卡片 / 磁贴"语言。
  */
 @Composable
-private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modifier) {
+private fun SettingsAccountHeader(
+    state: DrawerState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalCinefinColors.current
     val isAdministrator = state.isAdministrator
     val badgeColor = if (isAdministrator) colors.onSurface else colors.onSurfaceVariant
 
-    Column(modifier = modifier.fillMaxWidth().padding(CinefinSpacing.Space4)) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .cinefinClickable(onClick = onClick)
+                .padding(CinefinSpacing.Space4)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = CinefinSpacing.Space1),
             verticalAlignment = Alignment.CenterVertically,
@@ -309,6 +328,14 @@ private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modif
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                // W42：账号卡承担「账号与服务器」组的入口语义——点卡片进入用户管理。
+                Text(
+                    text = stringResource(SettingsR.string.settings_account_summary),
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceFaint,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
             Text(
@@ -330,6 +357,12 @@ private fun SettingsAccountHeader(state: DrawerState, modifier: Modifier = Modif
                             horizontal = CinefinSpacing.Space2,
                             vertical = CinefinSpacing.Space1,
                         ),
+            )
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_arrow_right),
+                contentDescription = null,
+                tint = colors.onSurfaceFaint,
+                modifier = Modifier.size(16.dp),
             )
         }
     }
@@ -370,6 +403,7 @@ private fun SettingsScreenLayoutPreview() {
                         )
                 ),
             onReloadPreferences = {},
+            onOpenUsers = {},
             onAction = {},
         )
     }

@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -68,7 +70,12 @@ class CinefinNavItem(
     val trailing: (@Composable () -> Unit)? = null,
 )
 
-/** 侧导航（Large / ExtraLarge ≥1200dp：164dp 展开；840–1199dp：88dp 折叠轨）。 */
+/**
+ * 侧导航（W42 改版：150dp 展开 / 72dp 折叠）。
+ *
+ * 底色改半透明石墨（[CinefinTokens.ChromeTranslucency]）+ 右缘 1dp 发丝线 + 顶缘内高光；分组之间用 [groupBreaks] 插入 12dp
+ * 空隙与细分隔线，末尾 [pinnedTailCount] 条（客户端设置区）用发丝线与导航区分隔。
+ */
 @Composable
 fun CinefinSideRail(
     items: List<CinefinNavItem>,
@@ -76,15 +83,25 @@ fun CinefinSideRail(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     expanded: Boolean = true,
+    /** 每组**最后一项**的索引：其后插入分组空隙 + 细分隔线（W42）。 */
+    groupBreaks: Set<Int> = emptySet(),
+    /** 末尾固定到底部的条目数（客户端设置区），与导航区之间用发丝线分隔（W42）。 */
+    pinnedTailCount: Int = 0,
 ) {
     val colors = LocalCinefinColors.current
     val lumen = LocalLumenColors.current
     Column(
         modifier =
             modifier
-                .width(if (expanded) 164.dp else 88.dp)
+                .width(if (expanded) 150.dp else 72.dp)
                 .fillMaxHeight()
-                .background(lumen?.panel ?: colors.navSurface)
+                // 半透明石墨需要确定的衬底：先铺页底（曜石黑）再叠 82% 面板，否则侧柜容器的同色底
+                // 会把透明度"吃掉"，真机像素采样看不到透出。
+                .background(lumen?.background ?: colors.surface)
+                .background(
+                    lumen?.panel?.copy(alpha = CinefinTokens.ChromeTranslucency)
+                        ?: colors.navSurface
+                )
                 .drawBehind {
                     val stroke = 1.dp.toPx()
                     drawRect(
@@ -107,6 +124,12 @@ fun CinefinSideRail(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         items.forEachIndexed { index, item ->
+            if (index > 0 && groupBreaks.contains(index - 1)) {
+                CinefinRailGroupDivider(expanded = expanded)
+            }
+            if (pinnedTailCount > 0 && index == items.size - pinnedTailCount) {
+                CinefinRailSectionDivider()
+            }
             CinefinNavigationItem(
                 item = item,
                 selected = index == selectedIndex,
@@ -159,36 +182,108 @@ fun CinefinNavigationItem(
         )
     val shape = RoundedCornerShape(cornerRadius)
 
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(if (compact) 44.dp else if (expanded) 54.dp else 56.dp)
-                .clip(shape)
-                .background(container)
-                .lumenItemFrame(lumen, selected, cornerRadius)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                )
-                .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center,
+    CompositionLocalProvider(
+        LocalNavItemInteraction provides
+            NavItemInteractionState(selected = selected, hovered = hovered, pressed = pressed)
     ) {
-        Box(modifier = Modifier.size(22.dp)) { item.icon(selected) }
-        if (expanded) {
-            Spacer(Modifier.width(CinefinSpacing.Space3))
-            Text(
-                text = item.label,
-                style = CinefinType.NavLabel,
-                color = content,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = if (trailing != null) Modifier.weight(1f) else Modifier,
-            )
-            trailing?.invoke()
+        Row(
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .height(if (compact) 44.dp else 48.dp)
+                    .clip(shape)
+                    .background(container)
+                    .railSelectionIndicator(
+                        color = if (lumen != null) lumen.accent else media.base,
+                        selected = selected,
+                    )
+                    .lumenItemFrame(lumen, selected, cornerRadius)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                    )
+                    .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center,
+        ) {
+            Box(modifier = Modifier.size(24.dp)) { item.icon(selected) }
+            if (expanded) {
+                Spacer(Modifier.width(CinefinSpacing.Space3))
+                Text(
+                    text = item.label,
+                    style = CinefinType.NavLabel,
+                    color = content,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (trailing != null) Modifier.weight(1f) else Modifier,
+                )
+                trailing?.invoke()
+            }
         }
+    }
+}
+
+/** 侧栏条目交互状态（W42）：图标槽按选中 / 悬停 / 按下提亮，与容器状态层同步。 */
+data class NavItemInteractionState(
+    val selected: Boolean = false,
+    val hovered: Boolean = false,
+    val pressed: Boolean = false,
+)
+
+/** 由 [CinefinNavigationItem] / 抽屉条目提供；图标槽（app 侧 `navIcon`）读取它决定着色。 */
+val LocalNavItemInteraction = compositionLocalOf { NavItemInteractionState() }
+
+/** 分组之间的 12dp 空隙 + 细分隔线（W42；折叠态两侧内缩，避免 72dp 窄轨上是一条通栏线）。 */
+@Composable
+fun CinefinRailGroupDivider(expanded: Boolean) {
+    val lumen = LocalLumenColors.current
+    val colors = LocalCinefinColors.current
+    Box(
+        modifier =
+            Modifier.fillMaxWidth().height(10.dp).drawBehind {
+                val stroke = 1.dp.toPx()
+                val inset = if (expanded) 0f else 12.dp.toPx()
+                drawRect(
+                    color = lumen?.lineSoft ?: colors.outlineVariant,
+                    topLeft = Offset(inset, size.height - stroke),
+                    size = Size((size.width - inset * 2f).coerceAtLeast(0f), stroke),
+                )
+            }
+    )
+}
+
+/** 底部设置区与导航区之间的发丝线（W42）。 */
+@Composable
+fun CinefinRailSectionDivider() {
+    val lumen = LocalLumenColors.current
+    val colors = LocalCinefinColors.current
+    Box(
+        modifier =
+            Modifier.fillMaxWidth().height(9.dp).drawBehind {
+                val stroke = 1.dp.toPx()
+                drawRect(
+                    color = lumen?.lineSoft ?: colors.outlineVariant,
+                    topLeft = Offset(0f, size.height - stroke),
+                    size = Size(size.width, stroke),
+                )
+            }
+    )
+}
+
+/** 选中条目的 3dp 极光青左缘指示条（W42：行内垂直居中 24dp、两端圆角）。 */
+private fun Modifier.railSelectionIndicator(color: Color, selected: Boolean): Modifier {
+    if (!selected) return this
+    return drawWithContent {
+        drawContent()
+        val barWidth = 3.dp.toPx()
+        val barHeight = 24.dp.toPx()
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(0f, (size.height - barHeight) / 2f),
+            size = Size(barWidth, barHeight),
+            cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+        )
     }
 }
 
@@ -208,7 +303,10 @@ fun CinefinBottomTab(
             modifier
                 .fillMaxWidth()
                 .height(64.dp)
-                .background(lumen?.panel ?: colors.surface)
+                .background(lumen?.background ?: colors.surface)
+                .background(
+                    lumen?.panel?.copy(alpha = CinefinTokens.ChromeTranslucency) ?: colors.surface
+                )
                 .drawBehind {
                     if (lumen != null) {
                         drawRect(

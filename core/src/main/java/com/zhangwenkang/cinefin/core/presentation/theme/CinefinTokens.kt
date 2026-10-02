@@ -64,6 +64,12 @@ object CinefinTokens {
     const val DisabledAlpha = 0.38f
     const val ScrimAlpha = 0.72f
 
+    // ---- W42 侧栏 / 底栏（半透明石墨 + 未选中图标提亮）----
+    /** 侧栏 / 底栏底色透明度：用户取中值 82%（78–84% 区间），保留背景透出又不牺牲文字对比度。 */
+    const val ChromeTranslucency = 0.82f
+    /** 侧栏未选中图标的提亮值（白 62%）；标签仍走次级灰，图标略亮一档便于扫读。 */
+    const val NavUnselectedIconAlpha = 0.62f
+
     // ---- §2.2 媒体色合成系数 ----
     const val MediaContainerAlpha = 0.16f
     const val MediaContainerPressedAlpha = 0.24f

@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 界面（W42 重绘）：页面分区（顶栏 + 两条分段线） -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:pathData="M4.5,4.5 L10,4.5 L10,10 L4.5,10 Z M14,4.5 L19.5,4.5 L19.5,13 L14,13 Z M4.5,14 L10,14 L10,19.5 L4.5,19.5 Z M14,17 L19.5,17 L19.5,19.5 L14,19.5 Z"
+        android:pathData="M5.2,4.4 H18.8 A2.2,2.2 0 0 1 21,6.6 V17.4 A2.2,2.2 0 0 1 18.8,19.6 H5.2 A2.2,2.2 0 0 1 3,17.4 V6.6 A2.2,2.2 0 0 1 5.2,4.4 Z"
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.75"
         android:strokeLineJoin="round" />
+    <path
+        android:pathData="M3,9.2 H21 M3,14.4 H21"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75" />
 </vector>

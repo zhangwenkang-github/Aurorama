@@ -29,9 +29,12 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 
-/** 图标磁贴的尺寸；分隔线的缩进也以它为基准（W6-VIS：36 → 38dp，与月白 / 次级灰的字阶更匹配）。 */
-internal val SettingsIconTileSize = 38.dp
+/** 图标磁贴的尺寸；分隔线的缩进也以它为基准（W42：38 → 40dp，容纳 24dp 语义图标）。 */
+internal val SettingsIconTileSize = 40.dp
 internal val SettingsRowHorizontalPadding = 16.dp
+
+/** 右侧控件位（W42）：开关 / 当前值 / 箭头共用同一个最小 44dp 的槽位，保证右缘对齐。 */
+internal val SettingsTrailingWidth = 44.dp
 
 /**
  * 设置项的统一行式样：图标磁贴 → 标题（+说明） → 尾部（当前值 / 开关 / 箭头）。
@@ -56,10 +59,12 @@ fun SettingsRow(
         modifier =
             modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 64.dp)
+                // W42 行高 60dp（原 64dp）；描述收敛为一行，行距更紧、组内更整齐。
+                .defaultMinSize(minHeight = 60.dp)
                 .padding(
                     horizontal = SettingsRowHorizontalPadding,
-                    vertical = CinefinSpacing.Space3,
+                    // 垂直 8dp：40dp 图标磁贴 / 两行文字都能落到 60dp 行高内（W42）。
+                    vertical = CinefinSpacing.Space2,
                 ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
@@ -83,7 +88,7 @@ fun SettingsRow(
                     painter = painterResource(iconRes),
                     contentDescription = null,
                     tint = colors.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
@@ -104,33 +109,39 @@ fun SettingsRow(
                         text = it,
                         style = CinefinType.BodySmall,
                         color = colors.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
         }
 
-        value
-            ?.takeIf { it.isNotBlank() }
-            ?.let {
-                Text(
-                    text = it,
-                    style = CinefinType.BodyMedium,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        // W42：右侧固定 44dp 控件位——开关 / 当前值 / 箭头三选一，统一右缘与垂直居中。
+        Box(
+            modifier =
+                Modifier.defaultMinSize(
+                    minWidth = SettingsTrailingWidth,
+                    minHeight = SettingsTrailingWidth,
+                ),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            when {
+                trailing != null -> trailing.invoke()
+                value != null && value.isNotBlank() ->
+                    Text(
+                        text = value,
+                        style = CinefinType.BodySmall,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                showChevron ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_arrow_right),
+                        contentDescription = null,
+                        tint = colors.onSurfaceFaint,
+                        modifier = Modifier.size(20.dp),
+                    )
             }
-
-        trailing?.invoke()
-
-        if (showChevron) {
-            Icon(
-                painter = painterResource(CoreR.drawable.ic_arrow_right),
-                contentDescription = null,
-                tint = colors.onSurfaceFaint,
-                modifier = Modifier.size(16.dp),
-            )
         }
     }
 }
