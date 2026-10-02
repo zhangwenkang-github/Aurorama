@@ -583,6 +583,9 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | ass-kt 与 libmpv 的 `libc++_shared.so` 冲突（W16） | 两个 AAR 各带一份同名 `libc++_shared.so`，AGP 9 直接报 duplicate；`packaging.jniLibs.pickFirsts` 去重后**固定**取 ass-kt 的旧版（与声明顺序无关，实测 0.3.0–0.5.1 全是同一份旧 libc++），libmpv 缺 `__from_chars_floating_point` → 真机 `UnsatisfiedLinkError: dlopen failed`。修法：app 模块在 `merge*NativeLibs` 的 `doLast` 用 **libmpv AAR 里的新版覆盖**合并结果（逐个 ABI），校验 APK 内 `lib/arm64-v8a/libc++_shared.so` 的 sha256/大小（1374336 = libmpv 版）。改完 mpv 与 libass 两条路径都要真机回归 |
 | libass 对「同一时间戳」有帧缓存（W16） | 暂停画面下改字号 / 转屏后只调 `ass_set_font_scale` / `ass_set_frame_size` 不会让旧帧失效：libass 命中缓存直接回旧图（`changed=0`），表现为「面板改了、画面不动」。修法：`LibassSubtitleRenderer.load()` 只要脚本 / 字号 / storage / frame 任一变化就**释放并重建轨道 + 渲染器**再重新 `readBuffer`（几十 KB 脚本，毫秒级） |
 | libass 字体来源（W16） | 原生库用 fontconfig provider（`ass_set_fonts(..., "sans-serif", FONTCONFIG, ...)`），字体来自系统 `/system/fonts`：脚本里的 `方正准圆_GBK` 真机回退到 MiSans（日志 `fontselect: ... -> /system/fonts/MiSansVF.ttf`）。MKV 内嵌字体（attachment）在服务器转码场景 Jellyfin 不交付，同样走系统字体回退——与 mpv 路径一致，属接受差异 |
+| 回退链「只改标记、没换内核」（W17） | `PlayerHolder.player` getter 会按 `appPreferences.playerBackend` **原地重建实例**：第 3 档若先写 backend=mpv 偏好再触发 `switchBackend()` toggle，此时 `PlayerHolder.backend` 已被重建改成 mpv，toggle 判定「当前是 mpv → 切 ExoPlayer」，把内核又写回 ExoPlayer（真机表现 = Exo 硬解失败后没有重新切换 mpv 软解）。修法：回退动作**显式传目标内核**（`setBackend(mpv)` + recreate），先读续播位置再写偏好；防死循环交给 `pref_player_decode_fallback_stage` 状态机，不要再加「同一媒体只降级一次」的拦截（它会把第 2 档失败卡死在 Exo） |
+| 选集覆盖层遮挡底栏右端控件（W17） | 平板 / 折叠展开的选集栏是覆盖在画面右缘的 320dp 面板，绘制在控制层之上；底栏原先铺满整窗 → 右下角全屏键落在面板之下，点击被面板吃掉（`player fullscreen=` 无日志）。修法：侧栏展开时底栏 `Modifier.padding(end = sidePanelWidthDp)` 整体让位，全屏键落到面板左侧；任何「右下角新增控件」都要先确认侧栏展开态是否被盖住 |
+| 控制层淡出后的第一击只唤出（W17 走查） | 控制层 3.5 秒自动淡出后，点按钮位置的第一下由手势层接管、只负责唤出控制层（视觉上按钮刚淡出又出现，像「点了没反应」）。真机验收要点：先 `KEYCODE_MEDIA_PAUSE`（暂停不淡出）或先点画面唤出，再点按钮；否则会把「首击唤出」误判成「按钮命中失效」 |
 | M3 `clickable` 的最小触控 ≠ 视觉框 | Compose Material3 会把可点节点扩到最小 48dp：`uiautomator` 读到的 bounds 是**触摸框**（48dp），不是画出来的键框（本轮宽屏 44dp / 窄屏 38dp）。验收「控件缩小」要用截图量描边位置（Pad 5 实测视觉框 ≈ 40–44dp、触摸框 108px = 48dp） |
 | 只发 `maxStreamingBitrate` 不会转码（W12 真机踩到） | `DeviceProfile.transcodingProfiles = emptyList()` 时服务器认为「这个客户端不会播转码流」，于是无视码率上限继续 DirectPlay（Pad 5 实测 3 Mbps 档 `PlayMethod=DirectPlay`、`TranscodingInfo=null`）。补上 `TranscodingProfile(ts + HLS + h264 + aac/mp3/ac3/opus)` 后会话才出现 `TranscodingInfo{IsVideoDirect=False, Bitrate=2808000, TranscodeReasons=ContainerBitrateExceedsLimit}`，App 播放 `master.m3u8` |
 | Jellyfin 会话 `PlayMethod` 可能滞后 | 同一时刻 `/Sessions` 可能给出 `PlayState.PlayMethod=DirectPlay` 而 `TranscodingInfo` 明确是转码（本轮实测）。判断「服务器是否转码」只看 `TranscodingInfo`（`IsVideoDirect` / `Bitrate` / `TranscodeReasons`） |
@@ -598,6 +601,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-02 | **W17-PLAYER 播放页第六轮反馈（`feature/w17-player-labels-fallback`）**：①回退链真实生效修复——第 3 档不再提前写 `playerBackend` 偏好（`PlayerHolder.player` 的 getter 会按新偏好原地重建实例，随后的 toggle 会把内核切回 ExoPlayer），改由 Activity 显式 `setBackend(mpv)`；删掉「同一媒体只降级一次」拦截，改由档位状态机防死循环；第 2 档（服务器转码）失败时任何错误都静默落第 3 档，只有第 3 档也失败才显示错误卡片。②解码面板删「优先级」提示、内核名只留 `ExoPlayer` / `mpv`。③「设置 → 播放」删除 W13 的码率 / 解码兜底两行。④中央播放键从月白填充改为与其它覆盖键同一套玻璃底 / 描边（像素采样：播放键内部 (119,156,168)、传输键 (162,177,181)、锁定键 (158,181,186)，同为压暗玻璃）。⑤右上 5 键 + 左下 6 键图标下加 10sp 小字（键框 56×58dp、图标 ×0.82），窄屏 / Compact 只留图标，右下全屏键与中央五键 / 锁定键保持纯图标；左下 6 键恒定齐全（码率 / 解码 不再隐藏）。⑥横屏退出全屏修复——全屏 + 选集覆盖层展开时底栏整体让出 320dp（退出全屏键从被面板盖住的 x≈2410 移到侧栏左侧 x≈1690），连点 20 次全部生效。门禁 `assembleDebug（含 TV）+ ktfmtCheck + app 51 项 / player:local 52 项` 全绿；双机真机证据见 §20。 |
 | 2026-10-02 | **W16-PLAYER：Exo 路径 libass + SRT 覆盖 + 解码优先级反转（`feature/w16-exo-libass-decode`）**：①引入 `io.github.peerless2012:ass-kt:0.5.1`（libass ISC，App 驱动渲染，不依赖 Media3）；②Exo 主字幕改由 libass 渲染——ASS/SSA 原文透传（定位 / 字体 / 特效还原），SRT 由 `AssSubtitleScript` 生成 ASS；延迟 / 开关 / 语言 / 大小档位与 mpv 同语义，次字幕仍纯文本，libass 失败回退既有文本渲染；③解码优先级改为「本地硬解 → 服务器解码 / 转码 → 本地软解」（`PlayerDecodeFallback` 纯函数），强制转码时禁直连 / 直传 / 流拷贝；④原生库冲突修复（libc++_shared 用 libmpv 版覆盖）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 52 项（+13）` 全绿；Pad 5 + K60 逐条真机证据与性能采样见 §19。 |
 | 2026-10-02 | **W15-LIBASS 特效字幕（`feature/w15-libass`）**：mpv 内核走内置 libass——DirectPlay 交给容器内嵌 ASS；服务器转码（容器无字幕）时按 MediaItem extras 里的 Jellyfin 字幕清单把 `Stream.ass` `sub-add` 给 mpv，不再出现「当前媒体没有可调节的字幕」。字幕模式联动（`off→sid=no` / `auto·always→sid=auto`）、延迟 / 语言沿用既有 `sub-delay` / `slang`；mpv 下自研覆盖层不接管（纯函数 + 单测钉死）。Exo 保持现状（Media3 只出文本；引入 libass 需新依赖，待批准）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 39 项（+8）单测` 全绿；K60 双场景真机证据、像素对比与性能采样见 §18。 | 
 | 2026-10-02 | **W14-PLAYER 播放页微调（`feature/w14-speed-badge`）**：①「1×」从可点文本项改为与顶栏清晰度徽标**同款的纯展示徽标**——抽共用组件 `PlayerOverlayBadge`（labelSmall + `CinefinShapes.Xs` 8dp 圆角 + 1dp `outlineVariant` 描边 + 水平 `Space2` / 垂直 2dp 内边距，无独立底色，顶 / 底由渐隐遮罩托底），顶栏清晰度徽标改为调用同一组件；②移除点击（点 1× 不再打开倍速面板），倍速入口只剩左下倍率图标键一个；③位置不变（「详细信息」右侧）、随倍率更新（1× / 1.5× …）；④底栏宽度预算改按徽标自适应口径（7 键 + 徽标最宽估值 + 8 间距）。门禁 `assembleDebug + ktfmtCheck + app 49 项单测` 全绿；Pad 5 + K60 逐条文本 / 像素证据见 §17。 |
@@ -1280,3 +1284,69 @@ Hi10P《学生会的一己之见》`32074ae5-0847-c53c-1d14-9bd32383eec4`（h264
 - 修复：`app/tv/build.gradle.kts` 与手机端同源补齐（`packaging.jniLibs.pickFirsts` + `merge*NativeLibs` 的 libmpv 覆盖 `doLast`）。
 - 验证：本机根 `assembleDebug`（与 CI 同命令）BUILD SUCCESSFUL；TV APK 内 `lib/arm64-v8a/libc++_shared.so` = 1,374,336B 且含
   `__from_chars_floating_point`（与手机端一致）。CI 修复后重跑以 run 结果为准。
+
+---
+
+## 20. W17-PLAYER 落地记录（2026-10-02 · 分支 `feature/w17-player-labels-fallback`）
+
+> 用户第六轮播放页反馈（6 项）：回退链修复 / 解码面板简化 / 设置去重 / 中央播放键样式 / 工具区加文字 / 横屏全屏键命中。
+> 基线 master `0460235`（W16 已合并）。本波写 `player:local`（回退状态机 + `MPVPlayer` 日志）、`app:phone`（播放页 UI / Activity）
+> 与 `player:local` 的字符串资源；`AppPreferences.kt` 只读不写，`NavigationRoot` / `settings.gradle.kts` / `libs.versions.toml` /
+> `app/*/build.gradle.kts` 未触碰；未合并 master。
+
+### 20.1 决策补充（与 §0 同源）
+
+| 编号 | 决策 |
+|------|------|
+| D44 | **回退链的「真实切内核」由 Activity 显式指定目标，不再用 toggle**：第 3 档只写 `pref_player_decode_fallback_stage=2`，由 `FallbackToSoftware` 事件触发 `switchBackendAndRestart(mpv)`（内部 `setBackend(mpv)` → 重建 mpv 实例 → `hwdec=no`）。同时删除「同一媒体只自动降级一次」的 `autoFallbackMediaId` 拦截，防死循环完全交给档位状态机（stage 2 不再推进）；第 1 档只接 codec 类错误，第 2 档（服务器转码流）失败时不再判断错误码，一律落第 3 档，保证「只有全部失败才提示错误」。 |
+| D45 | **工具区文字化 + 6 键恒定**：右上 5 键（画中画 · 睡眠 · 选集 · 画面 · 设置）与左下 6 键（音轨 · 字幕 · 倍速 · 码率 · 解码 · 详细信息）在图标下加 10sp 小字，键框 56×58dp（图标 ×0.82 缩小）；判据 `playerToolLabelsVisible(isFullscreen, widthDp, formFactor, isCompact)`——全屏 / ≥600dp / 平板 · 折叠显示文字，非全屏窄窗与 Compact 只留图标。W13 的「非全屏窄窗隐藏 码率 / 解码」作废：6 键在任何形态都可用（窄屏只去掉文字），设置面板里 W13 加的两行兜底入口按用户确认**完全删除**。右下全屏键 / 中央五键 / 右缘锁定键保持纯图标。 |
+| D46 | **中央播放键统一玻璃语言**：`PlayerPlayKey` 从「月白填充 + 深色图标」改为「黑 28% 玻璃底 + 1dp 白 16% 描边 + OnSurface 图标」，与 `PlayerTransportButton` / `PlayerIconButton` 同一套规则；只靠尺寸（56/70dp）与圆角 Lg 保持主行动辨识度。 |
+| D47 | **横屏全屏键命中修复**：平板 / 折叠展开的选集栏是覆盖在画面右缘的 320dp 面板；底栏原先铺满整窗，右下角全屏键会被面板盖住（真机实测点击无任何反应）。改为侧栏展开时**底栏整体让出侧栏宽度**（`Modifier.padding(end = sidePanelWidth)`），全屏键落到面板左侧始终可点；全屏态侧栏收起，底栏仍铺满整窗。 |
+
+### 20.2 实现（文件 + 行为）
+
+| 文件 | 改动 |
+|------|------|
+| `player/local/.../presentation/PlayerViewModel.kt` | `onPlayerError` 改为「回退链接管则直接返回」；`handleCodecFallback` 返回 Boolean（true=已接管）、删除 `autoFallbackMediaId`、第 3 档不再写 backend 偏好、stage=1 任意错误落软解、stage=2 停留并交给错误卡片 |
+| `app/phone/.../PlayerActivity.kt` | `switchBackendAndRestart(target: String?)`：显式目标时 `setBackend(target)`，先读续播位置再写偏好；`FallbackToMpv` / `FallbackToSoftware` 显式传 mpv；错误卡片「改用 X 内核」带上目标内核 |
+| `app/phone/.../presentation/player/PlayerControlOverlay.kt` | `PlayerPlayKey` 玻璃化；`PlayerIconButton` 新增 `label`（图标 + 10sp 小字，键框加宽 12dp / 加高 14dp）；工具簇 / 底栏传 `showLabels`；左下 6 键恒定齐全；新增 `playerToolLabelsVisible` 纯函数（删除 `playerToolRowShowsSecondaryKeys` / `playerToolRowVisibleKeys`）；底栏宽度预算新增 `bottomRowWidthDp(showLabels)`；`sidePanelInset` 让位；`onSwitchBackend` 改带目标参数 |
+| `app/phone/.../presentation/player/PlayerSettingsPanel.kt` | 「设置 → 播放」删除 码率 / 解码 两行与 `streamingBitrateCaption` / `decodeCaption`；解码面板删除「优先级」Text，保留「当前档位」 |
+| `player/local/res/values{,-zh-rCN}/strings.xml` | 内核名改纯 `ExoPlayer` / `mpv`；删除 `player_controls_decode_priority`；新增 `player_controls_label_details`（详细信息 / Details） |
+| `player/local/.../mpv/MPVPlayer.kt` | 初始化时打印 `MPVPlayer hwdec=… vo=…`（回退链第 3 档验收证据） |
+| `app/phone/src/test/.../PlayerControlLayoutTest.kt` | toolRow 分级断言改为「文字可见性 + 6 键恒定」；新增 Compact 不加文字、加文字后 600dp 宽度预算两项；51 项全绿 |
+
+### 20.3 门禁（2026-10-02）
+
+```
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- 根 `assembleDebug`（含 `:app:tv`）✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **51** 项 = 既有 49 + 新增 2
+- `:player:local:testDebugUnitTest` ✅ **52** 项（既有，未改动）
+
+### 20.4 真机走查（Pad 5 `43af8627` + K60 `8e875894`，命令全部带 `-s`）
+
+素材：Hi10P《学生会的一己之见》`32074ae5-0847-c53c-1d14-9bd32383eec4`（h264 10-bit，Exo 硬解必失败）。
+
+| # | 证据（文本 / 数值） |
+|---|--------------------|
+| ① 链路第 1 档：本地硬解失败 | Pad 5：`Player error on backend=exoplayer: ERROR_CODE_DECODING_FAILED` → `解码能力不足（ERROR_CODE_DECODING_FAILED），先请求服务器解码/转码重试（优先级：…）` → `getMediaSources bitrate=0 … forceTranscode=true profiles=1` → `Changed player state to ExoPlayer.STATE_READY`；落盘 `pref_player_decode_fallback_stage=1`、`pref_player_backend=exoplayer`；此时 `uiautomator` 全树**无「播放失败」节点**（第 1 档失败不弹错误）。 |
+| ② 链路第 2 档：服务器解码 / 转码 | 同上：`forceTranscode=true` + `Stream url … master.m3u8?…allowVideoStreamCopy=false`，服务器会话转码（W16 §19.4 ④ 已核 `TranscodingInfo{IsVideoDirect=False}`）；Exo 正常播放，不再降级。 |
+| ③ 链路第 3 档：实际切 mpv + `hwdec=no` | **Pad 5（原始画质路径）**：`Restart player (streaming bitrate=-1) from position=26251` → `ERROR_CODE_DECODING_FAILED` → `服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）` → `Restart player with backend=mpv from position=26251` → `MPVPlayer hwdec=no vo=gpu-next`；`stage=2` / `backend=mpv`。**K60**：同片同路径 `Restart player with backend=mpv from position=31000` + `MPVPlayer hwdec=no` ×2；`stage=2` / `backend=mpv`。 |
+| ④ 第 2 档失败也落第 3 档（W17 新逻辑） | Pad 5 在 stage=1（Exo 转码流）播放中注入一次 Wi-Fi 断连：`Player error on backend=exoplayer: ERROR_CODE_IO_NETWORK_CONNECTION_FAILED` → `解码能力不足（…），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）` → `Restart player with backend=mpv from position=188679`；`stage=2` / `backend=mpv`；恢复网络后 `uiautomator` 无「播放失败」节点。修复前该场景会被 `autoFallbackMediaId` 拦住、卡在 Exo。 |
+| ⑤ 解码面板文案 | Pad 5 与 K60 `uiautomator`：`播放内核 / ExoPlayer / mpv / 解码策略 / 硬解优先 / 仅软解 / 当前档位：本地硬解`；**无**「优先级：…」节点；内核名后无括号说明。 |
+| ⑥ 设置 → 播放去重 | Pad 5：面板文本 = `播放 / 手势 / 后台播放 / 跳过片头片尾按钮 / 自动跳过片头片尾 / 进度条显示章节刻度 / 播完暂停 / 循环模式`，**无**「码率」「解码」两行（W13 兜底入口已删）。 |
+| ⑦ 中央播放键样式统一 | Pad 5 暂停帧像素采样（截图本地查看后即删）：播放键内部 `(119,156,168)` vs 键外 `(156,213,230)`；传输键「快退」内部 `(162,177,181)` vs 键外 `(215,246,254)`；锁定键内部 `(158,181,186)`。三键内部均为比背景**压暗 ≈24–27%** 的玻璃底（旧版播放键为月白填充 ≈`(242,245,249)`），描边同为白 16%。 |
+| ⑧ 工具区 11 键文字 | **Pad 5 横屏（非全屏，宽 1137dp）**：右上 5 键 text = 画中画 `[1945,89][2011,118]` / 睡眠 / 选集 / 画面 / 设置；左下 6 键 text = 音轨 `[86,1509][130,1538]` / 字幕 / 倍速 / 码率 / 解码 / 详细信息 `[784,1509][872,1538]`；键框 `126×131px = 56×58dp`（density 2.25）。右下全屏键 `content-desc="进入全屏"` **无 text 子节点**。 |
+| ⑨ 窄屏只留图标 | **K60 竖屏（411dp 非全屏窄窗）**：右上 / 左下全部只有 `content-desc`（画中画 / 睡眠 / 播放队列 / 画面比例 / 播放设置 / 选择音轨 / 选择字幕轨 / 倍速 / 码率 / 解码 / 信息），**无 text 子节点**；键框 `154×168px`（M3 最小触控 44×48dp，视觉 38dp）；右下全屏键纯图标；中央五键 + 右缘锁定键全程无文字。 |
+| ⑩ 横屏退出全屏可点 | **修复前复现**：Pad 5 全屏 + 选集覆盖层展开（侧栏从 x=1840 起）时，旧版退出全屏键位于 `[2410,1445][2518,1553]`（面板之下），点击无 `player fullscreen=` 日志；**修复后**同场景键位 `[1690,1445][1798,1553]`（侧栏左侧），点击 → `player fullscreen=false`；随后每次 dump 定位按键连点 20 次：`tapped=20 events=20`，状态序列严格 `true,false,true,false…`（20 次全生效）。 |
+| 稳定性 / 还原 | 两台设备整轮 `logcat`：`FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` / `UnsatisfiedLinkError` 均 **0**。副作还原：Pad 5 `backend=mpv`、`streaming_bitrate=0`、`decode_fallback_stage=0`、`decode_fallback_media_id=""`、`subtitle_mode=auto`；K60 `backend=mpv`、`streaming_bitrate=0`、`stage=0`、`media_id=""`、`subtitle_mode=off`、`mpv_hwdec=mediacodec`；两机 force-stop、`/sdcard/w17_*.xml` 清理、K60 旋转设置回 `accelerometer_rotation=1` / `user_rotation=0`（Pad 5 未改 wm / 旋转）。 |
+
+### 20.5 未决 / 移交项
+
+1. **Compact（自由窗口 / 分屏）未真机取证**：判据 `playerToolLabelsVisible(isCompact=true) = false` 与单测已钉死，但 MIUI 上未造出真自由窗口；非全屏窄窗（K60 411dp）已覆盖「无文字」形态。
+2. **mpv 内核错误不上报**：本波「只有全部失败才提示错误」指回退链的 Exo 两档；第 3 档 mpv 自身失败仍不会弹错误卡片（`MPVPlayer.getPlayerError()` 恒 null、无事件，属既有内核限制）。若要让 mpv 失败也提示，需要给 `MPVPlayer` 增加错误事件上报（下一波）。
+3. **Wi-Fi 断连是验收注入手段**（第 2 档失败场景），不是用户日常场景；建议用户用真实超规格片源复测三段链路。
+4. **中央播放键改用玻璃底后主行动辨识度只靠尺寸 / 圆角**；若后续用户觉得不够醒目，可在不引入媒体色的前提下加深描边或加大尺寸。
