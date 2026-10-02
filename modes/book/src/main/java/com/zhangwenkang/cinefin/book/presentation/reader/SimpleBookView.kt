@@ -67,6 +67,9 @@ private const val ZOOM_LOG_STEP = 0.1f
  *
  * 内存策略（ARCHITECTURE §3.4）：位图按需渲染，[PageImageCache] 窗口固定 3 张，位图长边不超过
  * [PAGE_BITMAP_MAX_SIDE_PX]，与文档页数无关；先 `min(屏幕宽, 2048)` 再交给数据源降采样。
+ *
+ * 双栏另挂 [SpreadImageCache]（EB-4 后置项「跨页对图合并」，W22）：命中"被拆成两张的对图"时把两页 合成一张整幅位图（长边同样钉在
+ * [PAGE_BITMAP_MAX_SIDE_PX]，只缓存 2 张）；不命中 / 失败时逐页渲染， 行为与 W4 完全一致。分页与滚动模式不合并（[spreadMergeEnabled]）。
  */
 @Composable
 internal fun SimpleBookView(
@@ -80,13 +83,21 @@ internal fun SimpleBookView(
 ) {
     val pageCount = document.pageSource.pageCount
     val screenWidthPx = LocalContext.current.resources.displayMetrics.widthPixels
+    val maxSidePx = min(screenWidthPx, PAGE_BITMAP_MAX_SIDE_PX).coerceAtLeast(1)
     val cache =
-        remember(document) {
-            PageImageCache(
+        remember(document, maxSidePx) {
+            PageImageCache(source = document.pageSource, maxSidePx = maxSidePx)
+        }
+    // RTL 会翻转中缝相位（先读的页在右），缓存随开关重建。
+    val spreadCache =
+        remember(document, settings.rtl, maxSidePx) {
+            SpreadImageCache(
                 source = document.pageSource,
-                maxSidePx = min(screenWidthPx, PAGE_BITMAP_MAX_SIDE_PX).coerceAtLeast(1),
+                rtl = settings.rtl,
+                maxSidePx = maxSidePx,
             )
         }
+    val mergeCache = if (spreadMergeEnabled(settings.mode)) spreadCache else null
     var currentPage by
         remember(document) {
             mutableStateOf(document.initialPage.coerceIn(0, max(0, pageCount - 1)))
@@ -111,6 +122,7 @@ internal fun SimpleBookView(
             ReaderMode.Paged ->
                 PagedPages(
                     cache = cache,
+                    mergeCache = mergeCache,
                     pageCount = pageCount,
                     initialPage = currentPage,
                     pagesPerSpread = 1,
@@ -122,6 +134,7 @@ internal fun SimpleBookView(
             ReaderMode.TwoColumn ->
                 PagedPages(
                     cache = cache,
+                    mergeCache = mergeCache,
                     pageCount = pageCount,
                     initialPage = currentPage,
                     pagesPerSpread = 2,
@@ -192,6 +205,7 @@ private fun ScrollPages(
 @Composable
 private fun PagedPages(
     cache: PageImageCache,
+    mergeCache: SpreadImageCache?,
     pageCount: Int,
     initialPage: Int,
     pagesPerSpread: Int,
@@ -216,6 +230,10 @@ private fun PagedPages(
                     delay(150)
                     val base = spread * pagesPerSpread
                     listOf(base - 1, base + pagesPerSpread).forEach { cache.prefetch(it) }
+                    // 对图合并：邻槽停稳后先做判定 / 合成，翻到下一屏时直接可用。
+                    if (mergeCache != null) {
+                        listOf(spread - 1, spread + 1).forEach { mergeCache.prefetch(it) }
+                    }
                 }
         }
 
@@ -225,22 +243,96 @@ private fun PagedPages(
             key = { it },
             reverseLayout = rtl,
         ) { spread ->
-            val slots = spreadPageSlots(spread, pageCount, pagesPerSpread, rtl)
-            Row(modifier = Modifier.fillMaxSize()) {
-                slots.forEach { index ->
-                    if (index != null) {
-                        ZoomablePage(
-                            cache = cache,
-                            index = index,
-                            contentColor = contentColor,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                        )
-                    } else {
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight())
-                    }
-                }
+            if (mergeCache != null && pagesPerSpread == SPREAD_MERGE_PAGES_PER_SPREAD) {
+                MergedSpreadPage(
+                    cache = cache,
+                    mergeCache = mergeCache,
+                    pageCount = pageCount,
+                    pagesPerSpread = pagesPerSpread,
+                    spread = spread,
+                    rtl = rtl,
+                    contentColor = contentColor,
+                )
+            } else {
+                SpreadPages(
+                    cache = cache,
+                    pageCount = pageCount,
+                    pagesPerSpread = pagesPerSpread,
+                    spread = spread,
+                    rtl = rtl,
+                    contentColor = contentColor,
+                )
             }
         }
+    }
+}
+
+/** 一个槽位的两页（分页模式为一页）各自渲染：W4 行为，合并未命中 / 未启用时使用。 */
+@Composable
+private fun SpreadPages(
+    cache: PageImageCache,
+    pageCount: Int,
+    pagesPerSpread: Int,
+    spread: Int,
+    rtl: Boolean,
+    contentColor: Color,
+) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        spreadPageSlots(spread, pageCount, pagesPerSpread, rtl).forEach { index ->
+            if (index != null) {
+                ZoomablePage(
+                    cache = cache,
+                    index = index,
+                    contentColor = contentColor,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
+            } else {
+                Box(modifier = Modifier.weight(1f).fillMaxHeight())
+            }
+        }
+    }
+}
+
+/**
+ * 双栏槽位：命中"对图"时显示合并后的整幅位图，否则回退到两页各自渲染。
+ *
+ * 先按原样渲染两页（零延迟，与 W4 一致），合并位图就绪后再替换；邻槽在停稳后预取，正常翻页时合并图 已经备好。判定不命中 / 渲染失败时位图保持 null，这一屏与 W4 完全相同。
+ */
+@Composable
+private fun MergedSpreadPage(
+    cache: PageImageCache,
+    mergeCache: SpreadImageCache,
+    pageCount: Int,
+    pagesPerSpread: Int,
+    spread: Int,
+    rtl: Boolean,
+    contentColor: Color,
+) {
+    var merged by remember(spread) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(spread) { merged = mergeCache.mergedSpread(spread) }
+    val image = merged
+    if (image == null) {
+        SpreadPages(
+            cache = cache,
+            pageCount = pageCount,
+            pagesPerSpread = pagesPerSpread,
+            spread = spread,
+            rtl = rtl,
+            contentColor = contentColor,
+        )
+        return
+    }
+    ZoomableSlot(
+        slotKey = "spread=$spread",
+        logLabel = "spread=$spread",
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Image(
+            bitmap = image.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 
@@ -257,16 +349,42 @@ private fun ZoomablePage(
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    var pageZoom by remember(index) { mutableStateOf(PageZoom()) }
-    var boxSize by remember(index) { mutableStateOf(IntSize.Zero) }
-    var lastLoggedScale by remember(index) { mutableStateOf(1f) }
+    ZoomableSlot(
+        slotKey = index,
+        logLabel = "index=$index",
+        modifier = modifier,
+    ) {
+        PageContent(
+            cache = cache,
+            index = index,
+            contentColor = contentColor,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/**
+ * 槽位的双指缩放 / 平移与裁剪：单页与合并图共用同一套 [PageZoom] 数学，范围一致（1×–4×）。
+ *
+ * [slotKey] 决定缩放状态的生命周期：单页用页索引、合并图用 spread 序号，切换内容时自动归位。
+ */
+@Composable
+private fun ZoomableSlot(
+    slotKey: Any,
+    logLabel: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    var pageZoom by remember(slotKey) { mutableStateOf(PageZoom()) }
+    var boxSize by remember(slotKey) { mutableStateOf(IntSize.Zero) }
+    var lastLoggedScale by remember(slotKey) { mutableStateOf(1f) }
 
     Box(
         modifier =
             modifier
                 .clipToBounds()
                 .onSizeChanged { boxSize = it }
-                .pointerInput(index) {
+                .pointerInput(slotKey) {
                     detectMultiTouchZoom { pan, zoomFactor ->
                         val next =
                             pageZoom.transform(zoomFactor, pan, boxSize.width, boxSize.height)
@@ -275,8 +393,8 @@ private fun ZoomablePage(
                         if (abs(next.scale - lastLoggedScale) >= ZOOM_LOG_STEP) {
                             lastLoggedScale = next.scale
                             Timber.d(
-                                "reader zoom index=%d scale=%.2f offset=(%.0f,%.0f)",
-                                index,
+                                "reader zoom %s scale=%.2f offset=(%.0f,%.0f)",
+                                logLabel,
                                 next.scale,
                                 next.offset.x,
                                 next.offset.y,
@@ -295,12 +413,7 @@ private fun ZoomablePage(
                     translationY = pageZoom.offset.y
                 }
         ) {
-            PageContent(
-                cache = cache,
-                index = index,
-                contentColor = contentColor,
-                modifier = Modifier.fillMaxSize(),
-            )
+            content()
         }
     }
 }

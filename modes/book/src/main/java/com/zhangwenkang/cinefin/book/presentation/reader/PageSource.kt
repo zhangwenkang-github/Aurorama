@@ -25,8 +25,14 @@ import kotlinx.coroutines.withContext
 interface PageSource : AutoCloseable {
     val pageCount: Int
 
+    /** 页面自然尺寸（宽 × 高）：PDF 为页面点尺寸，CBZ 为位图像素尺寸；取不到返回 null。 */
+    suspend fun pageSizePx(index: Int): Pair<Int, Int>?
+
     /** 页面宽高比（宽 / 高），用于滚动模式的占位排版；取不到返回 null。 */
-    suspend fun pageAspectRatio(index: Int): Float?
+    suspend fun pageAspectRatio(index: Int): Float? =
+        pageSizePx(index)?.let { (width, height) ->
+            if (width > 0 && height > 0) width.toFloat() / height.toFloat() else null
+        }
 
     /** 渲染 / 解码一页，位图长边不超过 [maxSidePx]。 */
     suspend fun renderPage(index: Int, maxSidePx: Int): Bitmap?
@@ -49,14 +55,10 @@ class PdfPageSource(file: File) : PageSource {
     override val pageCount: Int
         get() = renderer.pageCount
 
-    override suspend fun pageAspectRatio(index: Int): Float? =
+    override suspend fun pageSizePx(index: Int): Pair<Int, Int>? =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                runCatching {
-                    renderer.openPage(index).use { page ->
-                        page.width.toFloat() / page.height.toFloat()
-                    }
-                }
+                runCatching { renderer.openPage(index).use { page -> page.width to page.height } }
                     .getOrNull()
             }
         }
@@ -106,10 +108,8 @@ class ComicPageSource(file: File) : PageSource {
     override val pageCount: Int
         get() = pages.size
 
-    override suspend fun pageAspectRatio(index: Int): Float? =
-        withContext(Dispatchers.IO) {
-            mutex.withLock { readBounds(index)?.let { it.first.toFloat() / it.second.toFloat() } }
-        }
+    override suspend fun pageSizePx(index: Int): Pair<Int, Int>? =
+        withContext(Dispatchers.IO) { mutex.withLock { readBounds(index) } }
 
     override suspend fun renderPage(index: Int, maxSidePx: Int): Bitmap? =
         withContext(Dispatchers.IO) {
