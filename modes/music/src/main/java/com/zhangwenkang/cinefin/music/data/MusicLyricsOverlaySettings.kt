@@ -48,6 +48,57 @@ data class LyricsOverlayLines(val current: String?, val next: String?) {
         get() = !current.isNullOrBlank()
 }
 
+/** 悬浮窗位置（像素，左上角相对屏幕）。 */
+data class LyricsOverlayPosition(val x: Int, val y: Int)
+
+/** 「无操作自动隐藏背景 / 边框」的时长（W24-MUSIC · A 组）。 */
+const val LYRICS_OVERLAY_IDLE_HIDE_MS = 3_000L
+
+/**
+ * 背景 / 边框是否显示（纯函数）。
+ *
+ * [interacting] = 距最近一次触摸 / 拖动不足 [LYRICS_OVERLAY_IDLE_HIDE_MS]；
+ * 锁定后无论是否交互都保持隐藏（只留歌词文字），此时单击只负责唤出设置工具条。
+ */
+fun overlayChromeVisible(locked: Boolean, interacting: Boolean): Boolean = !locked && interacting
+
+/**
+ * 悬浮窗两行最终显示内容（纯函数）。
+ *
+ * 有歌词 = 当前句 + 下一句；**无歌词时回落歌名 / 歌手**，避免出现两行空白。
+ */
+data class LyricsOverlayDisplay(val first: String, val second: String?)
+
+fun overlayDisplayLines(
+    lines: LyricsOverlayLines,
+    title: String?,
+    artist: String?,
+): LyricsOverlayDisplay {
+    if (lines.hasContent) return LyricsOverlayDisplay(lines.current.orEmpty(), lines.next)
+    val song = title?.takeIf { it.isNotBlank() } ?: return LyricsOverlayDisplay("暂无歌词", null)
+    return LyricsOverlayDisplay(song, artist?.takeIf { it.isNotBlank() } ?: "暂无歌词")
+}
+
+/** 校验偏好里的位置（-1 = 未记录）；越界 / 未记录返回 null。 */
+fun storedOverlayPosition(x: Int, y: Int): LyricsOverlayPosition? =
+    if (x >= 0 && y >= 0) LyricsOverlayPosition(x, y) else null
+
+/** 把悬浮窗位置夹进屏幕（拖动 / 恢复 / 旋转后都走它，纯函数）。 */
+fun clampOverlayPosition(
+    position: LyricsOverlayPosition,
+    windowWidth: Int,
+    windowHeight: Int,
+    screenWidth: Int,
+    screenHeight: Int,
+): LyricsOverlayPosition {
+    val maxX = (screenWidth - windowWidth).coerceAtLeast(0)
+    val maxY = (screenHeight - windowHeight).coerceAtLeast(0)
+    return LyricsOverlayPosition(
+        position.x.coerceIn(0, maxX),
+        position.y.coerceIn(0, maxY),
+    )
+}
+
 /**
  * 取"当前句 + 下一句"（纯函数，可 JVM 单测）。
  *

@@ -73,6 +73,35 @@ class LyricsPresenterTest {
     }
 
     @Test
+    fun `lyrics window shows previous current and next`() {
+        val rows =
+            listOf(
+                LyricsRow(startMs = 0L, mainText = "一"),
+                LyricsRow(startMs = 1_000L, mainText = "二"),
+                LyricsRow(startMs = 2_000L, mainText = "三"),
+            )
+
+        assertEquals(
+            LyricsWindow(previous = null, current = "一", next = "二"),
+            LyricsPresenter.window(rows, 0),
+        )
+        assertEquals(
+            LyricsWindow(previous = "一", current = "二", next = "三"),
+            LyricsPresenter.window(rows, 1),
+        )
+        assertEquals(
+            LyricsWindow(previous = "二", current = "三", next = null),
+            LyricsPresenter.window(rows, 2),
+        )
+        assertEquals(LyricsWindow(null, null, null), LyricsPresenter.window(emptyList(), 0))
+        // 越界索引收敛到最近一行，空歌词全 null
+        assertEquals(
+            LyricsWindow(previous = "二", current = "三", next = null),
+            LyricsPresenter.window(rows, 99),
+        )
+    }
+
+    @Test
     fun `switches to japanese original on demand`() {
         val display =
             LyricsPresenter.defaultDisplay(bilingual)

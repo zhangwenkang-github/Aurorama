@@ -77,4 +77,69 @@ class MusicLyricsOverlaySettingsTest {
         assertFalse(lines.hasContent)
         assertTrue(overlayLyricsLines(rows, 0).hasContent)
     }
+
+    @Test
+    fun `无歌词时回落歌名与歌手`() {
+        val empty = LyricsOverlayLines(current = null, next = null)
+        assertEquals(
+            LyricsOverlayDisplay(first = "夜に駆ける", second = "YOASOBI"),
+            overlayDisplayLines(empty, title = "夜に駆ける", artist = "YOASOBI"),
+        )
+        // 有歌名无歌手：第二行给占位，不出现空白双行
+        assertEquals(
+            LyricsOverlayDisplay(first = "夜に駆ける", second = "暂无歌词"),
+            overlayDisplayLines(empty, title = "夜に駆ける", artist = null),
+        )
+        assertEquals(
+            LyricsOverlayDisplay(first = "暂无歌词", second = null),
+            overlayDisplayLines(empty, title = null, artist = null),
+        )
+        // 有歌词时歌词优先于歌名 / 歌手
+        assertEquals(
+            LyricsOverlayDisplay(first = "第一句", second = "第二句"),
+            overlayDisplayLines(
+                LyricsOverlayLines(current = "第一句", next = "第二句"),
+                title = "歌名",
+                artist = "歌手",
+            ),
+        )
+    }
+
+    @Test
+    fun `锁定与交互决定背景显示`() {
+        assertTrue(overlayChromeVisible(locked = false, interacting = true))
+        assertFalse(overlayChromeVisible(locked = false, interacting = false))
+        // 锁定后无论是否交互都保持隐藏（只留歌词文字）
+        assertFalse(overlayChromeVisible(locked = true, interacting = true))
+        assertFalse(overlayChromeVisible(locked = true, interacting = false))
+    }
+
+    @Test
+    fun `悬浮窗位置记录与夹取`() {
+        assertNull(storedOverlayPosition(-1, -1))
+        assertNull(storedOverlayPosition(24, -1))
+        assertEquals(LyricsOverlayPosition(24, 300), storedOverlayPosition(24, 300))
+
+        assertEquals(
+            LyricsOverlayPosition(x = 200, y = 0),
+            clampOverlayPosition(
+                LyricsOverlayPosition(500, -20),
+                windowWidth = 200,
+                windowHeight = 100,
+                screenWidth = 400,
+                screenHeight = 800,
+            ),
+        )
+        // 窗口比屏幕还大时收敛到 (0,0)，不出现负坐标
+        assertEquals(
+            LyricsOverlayPosition(0, 0),
+            clampOverlayPosition(
+                LyricsOverlayPosition(10, 10),
+                windowWidth = 600,
+                windowHeight = 900,
+                screenWidth = 400,
+                screenHeight = 800,
+            ),
+        )
+    }
 }

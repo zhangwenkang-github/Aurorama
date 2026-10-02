@@ -10,9 +10,6 @@ import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -28,7 +25,9 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
+import com.zhangwenkang.cinefin.music.data.LyricsOverlayPosition
 import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
+import com.zhangwenkang.cinefin.music.data.clampOverlayPosition
 import com.zhangwenkang.cinefin.music.presentation.MusicLyricsOverlayContent
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -77,13 +76,11 @@ class MusicLyricsOverlayService : Service() {
         view.setViewTreeSavedStateRegistryOwner(owner)
         view.setContent {
             val state by controller.state.collectAsState()
-            var panelOpen by remember { mutableStateOf(false) }
             CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
                 MusicLyricsOverlayContent(
                     state = state,
-                    panelOpen = panelOpen,
-                    onTogglePanel = { panelOpen = !panelOpen },
                     onDrag = ::moveBy,
+                    onDragEnd = ::commitPosition,
                     onCycleTint = controller::cycleTint,
                     onCycleSize = controller::cycleSize,
                     onCycleLanguage = controller::cycleLanguage,
@@ -93,6 +90,7 @@ class MusicLyricsOverlayService : Service() {
             }
         }
         val screen = screenBounds()
+        val stored = controller.storedPosition()
         val layoutParams =
             WindowManager.LayoutParams(
                     WindowManager.LayoutParams.WRAP_CONTENT,
@@ -103,8 +101,8 @@ class MusicLyricsOverlayService : Service() {
                 )
                 .apply {
                     gravity = Gravity.TOP or Gravity.START
-                    x = WINDOW_MARGIN_PX
-                    y = screen.height() / 3
+                    x = stored?.x ?: WINDOW_MARGIN_PX
+                    y = stored?.y ?: (screen.height() / 3)
                 }
         overlayView = view
         params = layoutParams
@@ -116,6 +114,8 @@ class MusicLyricsOverlayService : Service() {
             }
         owner.start()
         owner.resume()
+        // 布局完成后再夹一次并落盘：屏幕旋转 / 恢复的历史位置越界时自动回到可视区
+        view.post(::commitPosition)
         Timber.i("桌面歌词悬浮窗已显示")
         controller.start()
         scope.launch {
@@ -156,6 +156,27 @@ class MusicLyricsOverlayService : Service() {
         layoutParams.x = (layoutParams.x + delta.x.toInt()).coerceIn(0, maxX)
         layoutParams.y = (layoutParams.y + delta.y.toInt()).coerceIn(0, maxY)
         runCatching { windowManager?.updateViewLayout(view, layoutParams) }
+    }
+
+    /** 拖动结束 / 布局完成后：夹进屏幕并持久化位置（W24 · A4 跨进程保留）。 */
+    private fun commitPosition() {
+        val layoutParams = params ?: return
+        val view = overlayView ?: return
+        val screen = screenBounds()
+        val clamped =
+            clampOverlayPosition(
+                LyricsOverlayPosition(layoutParams.x, layoutParams.y),
+                windowWidth = view.width.coerceAtLeast(1),
+                windowHeight = view.height.coerceAtLeast(1),
+                screenWidth = screen.width(),
+                screenHeight = screen.height(),
+            )
+        if (clamped.x != layoutParams.x || clamped.y != layoutParams.y) {
+            layoutParams.x = clamped.x
+            layoutParams.y = clamped.y
+            runCatching { windowManager?.updateViewLayout(view, layoutParams) }
+        }
+        controller.savePosition(clamped.x, clamped.y)
     }
 
     private fun screenBounds(): android.graphics.Rect =

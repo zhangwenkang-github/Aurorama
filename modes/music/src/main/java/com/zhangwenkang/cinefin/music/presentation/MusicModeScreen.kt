@@ -13,10 +13,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -233,6 +233,7 @@ fun MusicModeScreen(
                             else -> overlayGuideOpen = true
                         }
                     },
+                    onOpenQueue = { queueSheetOpen = true },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
                     onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
@@ -759,7 +760,7 @@ private fun NowPlayingBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QueueSheet(
+internal fun QueueSheet(
     queue: MusicQueue,
     onDismiss: () -> Unit,
     onJump: (Int) -> Unit,
@@ -787,7 +788,13 @@ private fun QueueSheet(
             )
         },
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space5)) {
+        // W24 · C10：底部半屏面板（图标 / 左滑两种入口共用同一份队列编辑）
+        Column(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .fillMaxHeight(0.5f)
+                    .padding(horizontal = CinefinSpacing.Space5)
+        ) {
             Text(
                 text = "播放队列（${queue.items.size}）",
                 style = CinefinType.TitleMedium,
@@ -799,102 +806,103 @@ private fun QueueSheet(
                 color = colors.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
-        }
-        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
-            itemsIndexed(
-                items = queue.items,
-                key = { index, item -> "$index-${item.itemId}" },
-            ) { index, item ->
-                val isDragging = draggingIndex == index
-                val isCurrent = index == queue.currentIndex
-                CinefinListRow(
-                    title = item.name,
-                    isCurrent = isCurrent,
-                    showDivider = index != queue.items.lastIndex,
-                    onClick = { onJump(index) },
-                    modifier =
-                        Modifier.zIndex(if (isDragging) 1f else 0f)
-                            .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
-                            .background(
-                                if (isDragging) colors.surfaceContainerHigh else Color.Transparent
-                            ),
-                    leading = {
-                        Box(
-                            modifier = Modifier.width(28.dp),
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            Text(
-                                text = (index + 1).toString().padStart(2, '0'),
-                                style = CinefinType.MonoDataSmall,
-                                color = if (isCurrent) media.bright else colors.onSurfaceFaint,
-                            )
-                        }
-                    },
-                    trailing = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (isCurrent) {
-                                Text(
-                                    text = "正在播放",
-                                    style = CinefinType.BodySmall,
-                                    color = media.bright,
-                                )
-                                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-                            }
-                            CinefinIconButton(onClick = { onRemove(index) }) { tint ->
-                                Icon(
-                                    painter = painterResource(CoreR.drawable.ic_close),
-                                    contentDescription = "从队列移除",
-                                    tint = tint,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
+            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                itemsIndexed(
+                    items = queue.items,
+                    key = { index, item -> "$index-${item.itemId}" },
+                ) { index, item ->
+                    val isDragging = draggingIndex == index
+                    val isCurrent = index == queue.currentIndex
+                    CinefinListRow(
+                        title = item.name,
+                        isCurrent = isCurrent,
+                        showDivider = index != queue.items.lastIndex,
+                        onClick = { onJump(index) },
+                        modifier =
+                            Modifier.zIndex(if (isDragging) 1f else 0f)
+                                .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
+                                .background(
+                                    if (isDragging) colors.surfaceContainerHigh
+                                    else Color.Transparent
+                                ),
+                        leading = {
                             Box(
-                                modifier =
-                                    Modifier.size(48.dp).pointerInput(index, queue.items.size) {
-                                        detectDragGesturesAfterLongPress(
-                                            onDragStart = {
-                                                draggingIndex = index
-                                                dragOffset = 0f
-                                            },
-                                            onDrag = { change, amount ->
-                                                change.consume()
-                                                dragOffset += amount.y
-                                            },
-                                            onDragEnd = {
-                                                val from = draggingIndex
-                                                if (from != null) {
-                                                    val delta =
-                                                        (dragOffset / rowHeightPx).roundToInt()
-                                                    val to =
-                                                        (from + delta).coerceIn(
-                                                            0,
-                                                            queue.items.lastIndex,
-                                                        )
-                                                    if (to != from) onMove(from, to)
-                                                }
-                                                draggingIndex = null
-                                                dragOffset = 0f
-                                            },
-                                            onDragCancel = {
-                                                draggingIndex = null
-                                                dragOffset = 0f
-                                            },
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.width(28.dp),
+                                contentAlignment = Alignment.CenterStart,
                             ) {
                                 Text(
-                                    text = "≡",
-                                    style = CinefinType.TitleMedium,
-                                    color = colors.onSurfaceVariant,
+                                    text = (index + 1).toString().padStart(2, '0'),
+                                    style = CinefinType.MonoDataSmall,
+                                    color = if (isCurrent) media.bright else colors.onSurfaceFaint,
                                 )
                             }
-                        }
-                    },
-                )
+                        },
+                        trailing = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isCurrent) {
+                                    Text(
+                                        text = "正在播放",
+                                        style = CinefinType.BodySmall,
+                                        color = media.bright,
+                                    )
+                                    Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+                                }
+                                CinefinIconButton(onClick = { onRemove(index) }) { tint ->
+                                    Icon(
+                                        painter = painterResource(CoreR.drawable.ic_close),
+                                        contentDescription = "从队列移除",
+                                        tint = tint,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                                Box(
+                                    modifier =
+                                        Modifier.size(48.dp).pointerInput(index, queue.items.size) {
+                                            detectDragGesturesAfterLongPress(
+                                                onDragStart = {
+                                                    draggingIndex = index
+                                                    dragOffset = 0f
+                                                },
+                                                onDrag = { change, amount ->
+                                                    change.consume()
+                                                    dragOffset += amount.y
+                                                },
+                                                onDragEnd = {
+                                                    val from = draggingIndex
+                                                    if (from != null) {
+                                                        val delta =
+                                                            (dragOffset / rowHeightPx).roundToInt()
+                                                        val to =
+                                                            (from + delta).coerceIn(
+                                                                0,
+                                                                queue.items.lastIndex,
+                                                            )
+                                                        if (to != from) onMove(from, to)
+                                                    }
+                                                    draggingIndex = null
+                                                    dragOffset = 0f
+                                                },
+                                                onDragCancel = {
+                                                    draggingIndex = null
+                                                    dragOffset = 0f
+                                                },
+                                            )
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "≡",
+                                        style = CinefinType.TitleMedium,
+                                        color = colors.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
+                    )
+                }
             }
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
         }
-        Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
     }
 }
 

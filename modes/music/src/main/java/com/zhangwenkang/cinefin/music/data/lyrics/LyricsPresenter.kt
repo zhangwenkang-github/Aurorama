@@ -28,6 +28,9 @@ data class LyricsRow(
     val subText: String? = null,
 )
 
+/** 全屏播放页的歌词窗口：当前行 ±1（W24-MUSIC · C 组）。 */
+data class LyricsWindow(val previous: String?, val current: String?, val next: String?)
+
 /**
  * 歌词显示选择与滚动同步（MU-5，纯函数）。
  *
@@ -95,6 +98,21 @@ object LyricsPresenter {
             if (start <= positionMs) index = i
         }
         return index
+    }
+
+    /**
+     * 全屏播放页歌词：当前行 ±1（纯函数，W24-MUSIC · C8）。
+     *
+     * 首行 / 末行自然缺一侧；越界索引收敛到最近一行，空歌词返回全 null。
+     */
+    fun window(rows: List<LyricsRow>, activeIndex: Int): LyricsWindow {
+        if (rows.isEmpty()) return LyricsWindow(null, null, null)
+        val index = activeIndex.coerceIn(0, rows.lastIndex)
+        return LyricsWindow(
+            previous = rows.getOrNull(index - 1)?.mainText,
+            current = rows[index].mainText,
+            next = rows.getOrNull(index + 1)?.mainText,
+        )
     }
 
     private fun pick(block: LyricBlock, language: LyricsDisplayLanguage): LyricLine? {

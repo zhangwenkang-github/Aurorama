@@ -266,6 +266,13 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 桌面歌词锁定：锁定后不可拖动（仍可单击打开设置面板）。 */
     val musicLyricsOverlayLocked = Preference("pref_music_lyrics_overlay_locked", false)
 
+    // Music（W24-MUSIC 桌面歌词位置持久化；继续只追加 pref_music_* 前缀，不重排既有键）
+    /** 桌面歌词悬浮窗左上角 X（像素；-1 = 尚未记录，使用默认位）。 */
+    val musicLyricsOverlayX = Preference("pref_music_lyrics_overlay_x", -1)
+
+    /** 桌面歌词悬浮窗左上角 Y（像素；-1 = 尚未记录，使用默认位）。 */
+    val musicLyricsOverlayY = Preference("pref_music_lyrics_overlay_y", -1)
+
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {
             @Suppress("UNCHECKED_CAST")

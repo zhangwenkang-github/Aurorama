@@ -194,7 +194,24 @@ constructor(
         observeLyrics()
         restoreQueue()
         observeRecent()
+        observeOverlayArtists()
         observeRestoredQueueCleanup()
+    }
+
+    /**
+     * 无歌词回落显示（W24 · A3）：曲库元数据就绪 / 队列切歌时，把当前曲目的歌手喂给桌面歌词控制器。
+     *
+     * 控制器自身还有一次按需曲库加载兜底（ViewModel 不存在的场景，如离开音乐页后自动切歌）。
+     */
+    private fun observeOverlayArtists() {
+        viewModelScope.launch {
+            combine(playbackController.queue, _uiState) { _, _ -> Unit }
+                .collect {
+                    val itemId = queue.value?.currentItem?.itemId ?: return@collect
+                    val song = songMeta(itemId) ?: return@collect
+                    lyricsOverlay.updateTrackArtist(song.itemId, song.artist)
+                }
+        }
     }
 
     /**

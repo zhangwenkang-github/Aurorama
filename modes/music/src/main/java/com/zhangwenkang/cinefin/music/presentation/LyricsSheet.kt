@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -28,7 +29,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -147,60 +147,54 @@ private fun LyricsLines(
     onLineClick: (Long) -> Unit,
 ) {
     val listState = rememberLazyListState()
-    val viewportHeight = listState.layoutInfo.viewportSize.height
-    val centerOffset = with(LocalDensity.current) { (48.dp).roundToPx() }
-
-    // 当前行变化 / 重开面板时把高亮行滚到视口中部；"跟随滚动"关闭后不再自动滚。
-    LaunchedEffect(state.activeIndex, state.display.follow, state.rows.size) {
-        if (!state.display.follow) return@LaunchedEffect
-        val target = state.activeIndex
-        if (target in state.rows.indices) {
-            listState.animateScrollToItem(
-                target,
-                scrollOffset = -(viewportHeight / 2 - centerOffset),
-            )
+    // W24 · B6：上下留半个视口 + centerItem()，当前行进入时即居中
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val verticalPadding = maxHeight / 2
+        // 当前行变化 / 重开面板时把高亮行滚到视口中部；"跟随滚动"关闭后不再自动滚。
+        LaunchedEffect(state.activeIndex, state.display.follow, state.rows.size) {
+            if (!state.display.follow) return@LaunchedEffect
+            listState.centerItem(state.activeIndex)
         }
-    }
-
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        itemsIndexed(state.rows) { index, row ->
-            val active = index == state.activeIndex
-            val startMs = row.startMs
-            Column(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (active) MaterialTheme.colorScheme.surfaceVariant
-                            else MaterialTheme.colorScheme.background
-                        )
-                        .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = row.mainText,
-                    style =
-                        if (active) MaterialTheme.typography.titleMedium
-                        else MaterialTheme.typography.bodyLarge,
-                    color =
-                        if (active) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (active) FontWeight.SemiBold else null,
-                )
-                val sub = row.subText
-                if (sub != null) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = verticalPadding),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            itemsIndexed(state.rows) { index, row ->
+                val active = index == state.activeIndex
+                val startMs = row.startMs
+                Column(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (active) MaterialTheme.colorScheme.surfaceVariant
+                                else MaterialTheme.colorScheme.background
+                            )
+                            .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
                     Text(
-                        text = sub,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = row.mainText,
+                        style =
+                            if (active) MaterialTheme.typography.titleMedium
+                            else MaterialTheme.typography.bodyLarge,
                         color =
                             if (active) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (active) FontWeight.SemiBold else null,
                     )
+                    val sub = row.subText
+                    if (sub != null) {
+                        Text(
+                            text = sub,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color =
+                                if (active) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

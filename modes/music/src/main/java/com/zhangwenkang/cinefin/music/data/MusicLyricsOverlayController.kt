@@ -43,6 +43,7 @@ class MusicLyricsOverlayController
 constructor(
     private val playbackController: MusicPlaybackController,
     private val lyricsRepository: LyricsRepository,
+    private val musicRepository: MusicRepository,
     private val appPreferences: AppPreferences,
     private val host: MusicLyricsOverlayHost,
 ) {
@@ -53,9 +54,9 @@ constructor(
         /** 是否正在播放音乐（决定悬浮窗该不该在）。 */
         val hasSession: Boolean = false,
         val title: String? = null,
+        val artist: String? = null,
         val current: String? = null,
         val next: String? = null,
-        val emptyMessage: String? = null,
         val tint: LyricsOverlayTint = LyricsOverlayTint.MOON_WHITE,
         val size: LyricsOverlaySize = LyricsOverlaySize.MEDIUM,
         val language: LyricsDisplayLanguage = LyricsDisplayLanguage.SIMPLIFIED_CHINESE,
@@ -77,6 +78,14 @@ constructor(
     private var loadJob: Job? = null
     private var positionMs = 0L
     private var serviceRequested = false
+    /** 曲目元数据（歌手）：无歌词时回落显示「歌名 / 歌手」，按需拉一次曲库快照并常驻内存。 */
+    private var trackMeta: Map<UUID, MusicSong>? = null
+    private var trackMetaRequested = false
+    private var trackMetaJob: Job? = null
+    /** 无歌词回落日志去重（同一曲目 + 同一歌手只打一次）。 */
+    private var fallbackLogged: Pair<UUID, String?>? = null
+    /** 音乐 ViewModel 喂入的曲目歌手（曲库快照已就绪时比懒加载更快、离线也可用）。 */
+    private val trackArtists = mutableMapOf<UUID, String>()
 
     // 设置页直接写偏好键，控制器用监听器跟随（同一开关在设置页与全屏播放页都能改）
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -151,6 +160,31 @@ constructor(
 
     /** 权限回来后由 UI 调用（授权页返回时刷新，不必等周期复核）。 */
     fun refreshPermission() = refreshFromPreferences()
+
+    /** 曲库元数据可用时由 `MusicModeViewModel` 喂入歌手名（无歌词回落显示用，纯内存不落盘）。 */
+    fun updateTrackArtist(itemId: UUID, artist: String?) {
+        if (artist.isNullOrBlank() || trackArtists[itemId] == artist) return
+        trackArtists[itemId] = artist
+        if (loadedItemId == itemId) refreshLines()
+    }
+
+    /** 悬浮窗上次拖动后的位置（未记录 / 越界返回 null，由 Service 回落默认位并夹进屏幕）。 */
+    fun storedPosition(): LyricsOverlayPosition? =
+        storedOverlayPosition(
+            appPreferences.getValue(appPreferences.musicLyricsOverlayX),
+            appPreferences.getValue(appPreferences.musicLyricsOverlayY),
+        )
+
+    /**
+     * 记录悬浮窗位置（W24 · A4）：拖动结束 / 兜底钳制后调用，跨进程与重启保留。
+     *
+     * 位置键不在 [OVERLAY_PREFERENCE_KEYS] 里，不会触发 [refreshFromPreferences] 的循环刷新。
+     */
+    fun savePosition(x: Int, y: Int) {
+        Timber.i("桌面歌词位置：x=%d, y=%d", x, y)
+        appPreferences.setValue(appPreferences.musicLyricsOverlayX, x)
+        appPreferences.setValue(appPreferences.musicLyricsOverlayY, y)
+    }
 
     private fun refreshFromPreferences() {
         val enabled = appPreferences.getValue(appPreferences.musicLyricsOverlay)
@@ -254,19 +288,24 @@ constructor(
         loadJob?.cancel()
         document = null
         loadedItemId = null
-        _state.update { state -> state.copy(current = null, next = null, emptyMessage = null) }
+        _state.update { state -> state.copy(current = null, next = null, artist = null) }
     }
 
     private fun refreshLines() {
         val loaded = document
+        val itemId = loadedItemId
+        val artist = itemId?.let { trackArtists[it] ?: trackMeta?.get(it)?.artist }
+        if (loaded == null && itemId != null && _state.value.enabled) ensureTrackMeta(itemId)
         if (loaded == null) {
-            _state.update { state ->
-                state.copy(
-                    current = null,
-                    next = null,
-                    emptyMessage = if (state.hasSession) "该曲目暂无歌词" else null,
+            if (itemId != null && fallbackLogged != (itemId to artist)) {
+                fallbackLogged = itemId to artist
+                Timber.i(
+                    "桌面歌词：无歌词，回落歌名 / 歌手（%s / %s）",
+                    _state.value.title ?: "—",
+                    artist ?: "暂无歌词",
                 )
             }
+            _state.update { state -> state.copy(current = null, next = null, artist = artist) }
             return
         }
         val language = _state.value.language
@@ -281,7 +320,7 @@ constructor(
             state.copy(
                 current = lines.current,
                 next = lines.next,
-                emptyMessage = if (lines.hasContent) null else "该曲目暂无歌词",
+                artist = artist,
             )
         }
         if (lines.current != previousCurrent) {
@@ -290,6 +329,30 @@ constructor(
                 lines.current ?: "—",
                 lines.next ?: "—",
             )
+        }
+    }
+
+    /**
+     * 懒加载曲库快照以补歌手名（无歌词时的回落显示）。
+     *
+     * 只在"当前有曲目且没有歌词"时触发一次；失败 / 离线时保留 null，由 UI 显示「暂无歌词」占位， 不阻塞歌词与播放。
+     */
+    private fun ensureTrackMeta(itemId: UUID) {
+        if (trackMeta?.containsKey(itemId) == true) return
+        if (trackMetaRequested || trackMetaJob?.isActive == true) return
+        trackMetaRequested = true
+        trackMetaJob = scope.launch {
+            val loaded = runCatching {
+                musicRepository.getLibrary().songs.associateBy { it.itemId }
+            }
+                .getOrNull()
+            if (loaded != null) {
+                trackMeta = loaded
+                Timber.i("桌面歌词：曲库元数据已加载（%d 首），歌手可用于回落显示", loaded.size)
+            } else {
+                Timber.w("桌面歌词：曲库元数据加载失败，歌手回落为占位")
+            }
+            refreshLines()
         }
     }
 

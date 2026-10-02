@@ -2,8 +2,10 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,10 +29,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -44,6 +47,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 /**
  * 全屏歌词页（W23-MUSIC · B 组）。
@@ -183,61 +188,43 @@ private fun LyricsLines(
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val listState = rememberLazyListState()
-    val viewportHeight = listState.layoutInfo.viewportSize.height
-    // §8.13：当前行固定在可视区 38% 高度
-    val centerOffset = with(LocalDensity.current) { (40.dp).roundToPx() }
-
-    LaunchedEffect(state.activeIndex, state.display.follow, state.rows.size) {
-        if (!state.display.follow) return@LaunchedEffect
-        val target = state.activeIndex
-        if (target in state.rows.indices) {
-            listState.animateScrollToItem(
-                target,
-                scrollOffset = -(viewportHeight * 38 / 100 - centerOffset),
-            )
+    // W24 · B6：上下留半个视口，任何一行（含首行）都能滚到正中
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val verticalPadding = maxHeight / 2
+        LaunchedEffect(state.activeIndex, state.display.follow, state.rows.size) {
+            if (!state.display.follow) return@LaunchedEffect
+            listState.centerItem(state.activeIndex)
         }
-    }
-
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding =
-            PaddingValues(
-                start = CinefinSpacing.Space6,
-                end = CinefinSpacing.Space6,
-                top = CinefinSpacing.Space8,
-                bottom = CinefinSpacing.Space16,
-            ),
-        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
-    ) {
-        itemsIndexed(state.rows) { index, row ->
-            val active = index == state.activeIndex
-            val startMs = row.startMs
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .clip(CinefinShapes.Xs)
-                        .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
-                        .padding(vertical = CinefinSpacing.Space1),
-                verticalAlignment = Alignment.Top,
-            ) {
-                if (active) {
-                    Box(
-                        modifier =
-                            Modifier.padding(top = CinefinSpacing.Space2)
-                                .size(width = 16.dp, height = 2.dp)
-                                .background(media.base)
-                    )
-                    Spacer(modifier = Modifier.width(CinefinSpacing.Space3))
-                }
-                Column(modifier = Modifier.weight(1f)) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding =
+                PaddingValues(
+                    start = CinefinSpacing.Space6,
+                    end = CinefinSpacing.Space6,
+                    top = verticalPadding,
+                    bottom = verticalPadding,
+                ),
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+        ) {
+            itemsIndexed(state.rows) { index, row ->
+                val active = index == state.activeIndex
+                val startMs = row.startMs
+                // W24 · B7：去掉当前行前的「杠」，只用颜色 + 字号区分
+                Column(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .clip(CinefinShapes.Xs)
+                            .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
+                            .padding(vertical = CinefinSpacing.Space1)
+                ) {
                     Text(
                         text = row.mainText,
                         style =
                             if (active) CinefinType.TitleLarge.copy(fontSize = 32.sp)
                             else CinefinType.TitleSmall.copy(fontSize = 21.sp),
                         color =
-                            if (active) colors.onSurface
+                            if (active) media.bright
                             else colors.onSurfaceVariant.copy(alpha = 0.4f),
                         fontWeight = if (active) FontWeight.SemiBold else null,
                     )
@@ -252,5 +239,25 @@ private fun LyricsLines(
                 }
             }
         }
+    }
+}
+
+/**
+ * 把 [target] 行滚到视口正中（W24 · B6）。
+ *
+ * 先 `animateScrollToItem` 把目标行带进视口，再按它当前的实际高度做一次居中微调—— 比"按视口百分比估算"更准（双语行 / 多行文本高度不定），也修掉了首帧
+ * `viewportSize.height == 0` 导致当前行停在最上方的问题。
+ */
+internal suspend fun LazyListState.centerItem(target: Int) {
+    if (target < 0) return
+    animateScrollToItem(target)
+    val info = snapshotFlow {
+        layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
+    }
+        .filterNotNull()
+        .first()
+    val viewportHeight = layoutInfo.viewportSize.height
+    if (viewportHeight > 0) {
+        animateScrollBy(info.offset - (viewportHeight - info.size) / 2f)
     }
 }
