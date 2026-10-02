@@ -55,8 +55,8 @@
     <string name="player_settings_repeat_entry_caption">顺序播放 / 列表循环 / 单集循环 / 随机</string>
     <string name="player_settings_backend">播放内核</string>
     <string name="player_settings_backend_caption">切换内核会重载播放页，进度保留</string>
-    <string name="player_settings_backend_exoplayer">ExoPlayer（硬解）</string>
-    <string name="player_settings_backend_mpv">mpv（软解兜底）</string>
+    <string name="player_settings_backend_exoplayer">ExoPlayer</string>
+    <string name="player_settings_backend_mpv">mpv</string>
     <string name="player_settings_mpv_hwdec">mpv 硬件解码</string>
     <string name="player_settings_mpv_hwdec_caption">仅 mpv 内核生效</string>
     <string name="player_settings_mpv_hwdec_on">MediaCodec</string>
@@ -207,6 +207,8 @@
     <string name="player_controls_label_speed">倍速</string>
     <string name="player_controls_label_sleep">睡眠</string>
     <string name="player_controls_label_info">信息</string>
+    <!-- W17 工具区文字标签：详细信息（图标下小字），contentDescription 仍用「信息」 -->
+    <string name="player_controls_label_details">详细信息</string>
     <string name="player_controls_label_settings">设置</string>
     <string name="player_controls_label_pip">画中画</string>
     <string name="player_controls_fullscreen">进入全屏</string>
@@ -227,7 +229,6 @@
     <string name="player_controls_decode_hardware_caption">本地硬解，失败时先请求服务器转码，再回退本地软解</string>
     <string name="player_controls_decode_software">仅软解</string>
     <string name="player_controls_decode_software_caption">FFmpeg / mpv 软解，兼容性最好、最耗电</string>
-    <string name="player_controls_decode_priority">优先级：本地硬解 → 服务器解码 / 转码 → 本地软解</string>
     <string name="player_controls_decode_stage_active">当前档位：%1$s</string>
     <string name="player_controls_decode_stage_hardware">本地硬解</string>
     <string name="player_controls_decode_stage_server">服务器解码 / 转码</string>

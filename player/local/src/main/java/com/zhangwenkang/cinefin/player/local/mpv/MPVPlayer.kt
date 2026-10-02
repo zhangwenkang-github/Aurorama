@@ -189,6 +189,8 @@ class MPVPlayer(
         // Hardware video decoding
         mpvLib.setOptionString("hwdec", hwDec)
         mpvLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
+        // W17 验收：把实际生效的 hwdec 打进日志（回退链第 3 档必须看到 hwdec=no）
+        Timber.i("MPVPlayer hwdec=%s vo=%s", hwDec, videoOutput)
 
         // TLS
         mpvLib.setOptionString("tls-verify", "no")

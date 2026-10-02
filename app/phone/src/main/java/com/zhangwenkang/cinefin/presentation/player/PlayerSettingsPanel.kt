@@ -258,21 +258,9 @@ internal fun PlayerSettingsPanel(
             when (tab) {
                 PlayerSettingsTab.Playback -> {
                     /*
-                     * W13 方案 A：非全屏窄窗会把左下工具行的「码率 / 解码」隐藏，这里补两行兜底入口
-                     * （点击打开对应面板，不新增图标）；全屏 / 宽屏时它们是同一功能的另一种进法。
+                     * W17（用户确认）：W13 加的「码率 / 解码」两行兜底入口**完全移除**，不留兜底入口。
+                     * 两个功能的唯一入口回到进度条下的工具键（窄屏只留图标，仍然可点）。
                      */
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_controls_label_bitrate),
-                        caption = streamingBitrateCaption(settings.streamingBitrate),
-                        selected = false,
-                        onClick = { onOpenPanel(PlayerPanel.Bitrate) },
-                    )
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_controls_label_decode),
-                        caption = decodeCaption(settings.backend, settings.decodeMode),
-                        selected = false,
-                        onClick = { onOpenPanel(PlayerPanel.Decode) },
-                    )
                     PanelSwitchRow(
                         label = stringResource(PlayerR.string.player_settings_background_audio),
                         caption =
@@ -383,42 +371,6 @@ internal fun PlayerSettingsPanel(
             }
         }
     }
-}
-
-/**
- * 码率兜底入口的副标题（W13 反馈①）：显示当前档位——自动 / 原始画质用资源字符串，具体档位走
- * [PlayerStreamingQuality.bitrateLabel]（与码率面板里的档位文案同源）。
- */
-@Composable
-private fun streamingBitrateCaption(bitrate: Long): String =
-    when {
-        bitrate == PlayerStreamingQuality.AUTO ->
-            stringResource(PlayerR.string.player_controls_bitrate_auto)
-        bitrate == PlayerStreamingQuality.ORIGINAL ->
-            stringResource(PlayerR.string.player_controls_bitrate_original)
-        else -> PlayerStreamingQuality.bitrateLabel(bitrate)
-    }
-
-/** 解码兜底入口的副标题（W13 反馈①）：当前内核 + 解码策略，一眼看清 Exo/mpv 与硬解/软解。 */
-@Composable
-private fun decodeCaption(backend: String, decodeMode: String): String {
-    val kernel =
-        stringResource(
-            if (backend == PlayerViewModel.PLAYER_BACKEND_MPV) {
-                PlayerR.string.player_settings_backend_mpv
-            } else {
-                PlayerR.string.player_settings_backend_exoplayer
-            }
-        )
-    val strategy =
-        stringResource(
-            if (decodeMode == PlayerViewModel.DECODE_MODE_SOFTWARE) {
-                PlayerR.string.player_controls_decode_software
-            } else {
-                PlayerR.string.player_controls_decode_hardware
-            }
-        )
-    return "$kernel · $strategy"
 }
 
 /** 分类选择行（W12：播放 / 手势两个 Tab，横向可滚，样式与队列的季节页签一致） */
@@ -630,7 +582,7 @@ internal fun VideoTransformControls(
 /**
  * 解码面板（W12 反馈 B）：**内核切换（ExoPlayer / mpv）+ 硬解 / 软解策略**。
  *
- * 优先级写在面板底部（W16 用户拍板）：**本地硬解 → 服务器解码 / 转码 → 本地软解**，并显示当前实际档位。
+ * W17（用户反馈②）：删除「优先级提示」文字；内核名只留 `ExoPlayer` / `mpv`（不带括号说明）。 面板保留「当前档位」一行，作为回退链实际落点的可视化证据。
  * 切内核与切策略都由宿主走「从当前位置重启播放」的既有路径，保证两个内核都用新参数重新创建实例。
  */
 @Composable
@@ -703,16 +655,6 @@ internal fun PlayerDecodePanel(
                     Modifier.padding(
                         horizontal = CinefinSpacing.Space5,
                         vertical = CinefinSpacing.Space1,
-                    ),
-            )
-            Text(
-                text = stringResource(PlayerR.string.player_controls_decode_priority),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant,
-                modifier =
-                    Modifier.padding(
-                        horizontal = CinefinSpacing.Space5,
-                        vertical = CinefinSpacing.Space2,
                     ),
             )
         }

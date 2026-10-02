@@ -75,6 +75,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
@@ -163,6 +164,15 @@ private const val PLAYER_GLASS_PRESSED_ALPHA = 0.44f
 private const val PLAYER_GLASS_BORDER_ALPHA = 0.16f
 
 /**
+ * 「图标 + 小字」工具键在纯图标键框基础上加宽 / 加高的尺寸（W17 反馈⑤）。
+ *
+ * 加字后键框从 44×44 变成 56×58（窄屏 38×38 不加字），最窄的「画中画」也不挤； 图标缩到 iconSize 的 0.82，给 10sp 小字让出一行高度。
+ */
+private const val PLAYER_TOOL_KEY_LABEL_WIDTH_EXTRA_DP = 12f
+private const val PLAYER_TOOL_KEY_LABEL_HEIGHT_EXTRA_DP = 14f
+private const val PLAYER_TOOL_KEY_LABEL_FONT_SIZE_SP = 10f
+
+/**
  * 1× 徽标（W14 起文本自适应）在底栏宽度预算里的最宽估值（dp）：labelSmall 11sp 下最宽档为「0.25×」， 含 Space2 × 2 内边距与 1dp 描边 ≈
  * 48dp。只用于 [PlayerControlSpec.bottomRowWidthDp] 的兜底估算。
  */
@@ -194,8 +204,8 @@ internal enum class PlayerPanel {
  *
  * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证工具行 + 全屏键一行不越界（极窄窗由横向滚动兜底）。
  *
- * W13 方案 A 起工具行**按全屏 / 宽度分级**（见 [playerToolRowShowsSecondaryKeys]）：全屏或宽度充足 = 6 键 + 1×； 非全屏窄窗 = 音轨 /
- * 字幕 / 倍率 / 详细信息 + 1×（码率 / 解码 改从「设置 → 播放」进入）；倍率键只显示图标。
+ * W17 起工具行**6 键恒定齐全**（见 [playerToolLabelsVisible]）：全屏 / 宽度充足 = 图标下加小字； 窄屏 / Compact =
+ * 只留图标。倍率键只显示图标，当前值由 1× 徽标显示。
  */
 internal data class PlayerControlSpec(
     /** 窄屏（<600dp）收一档 */
@@ -214,8 +224,21 @@ internal data class PlayerControlSpec(
      * 起按文本自适应（不再占一个键框），按最宽档估值计；极端窄窗由工具行的横向滚动兜底。
      */
     val bottomRowWidthDp: Float
-        get() =
-            toolKeySizeDp * 7f + maxOf(toolKeySizeDp, PLAYER_SPEED_BADGE_WIDTH_DP) + keyGapDp * 8f
+        get() = bottomRowWidthDp(showLabels = false)
+
+    /** W17：底栏一行宽度预算。[showLabels] = true 时 6 个工具键按「图标 + 小字」的加宽键框计 （全屏键恒为纯图标，不参与加宽）。 */
+    fun bottomRowWidthDp(showLabels: Boolean): Float {
+        val toolKeyWidth =
+            if (showLabels) {
+                toolKeySizeDp + PLAYER_TOOL_KEY_LABEL_WIDTH_EXTRA_DP
+            } else {
+                toolKeySizeDp
+            }
+        return toolKeyWidth * 6f +
+            toolKeySizeDp +
+            maxOf(toolKeyWidth, PLAYER_SPEED_BADGE_WIDTH_DP) +
+            keyGapDp * 8f
+    }
 }
 
 internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
@@ -264,41 +287,31 @@ internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
     )
 
 /**
- * 左下工具行「宽度充足」的阈值（W13 方案 A）：与 [playerControlSpec] 的窄屏档、`PlayerFormFactor` 的 Phone → Tablet 分档同源（都是
- * 600dp）。低于它且不是全屏的窗口 = 「非全屏窄窗」，只留 音轨 / 字幕 / 倍率 / 详细信息 + 1×。
+ * 工具区「宽度充足」的阈值（W17 沿用 W13 的 600dp）：与 [playerControlSpec] 的窄屏档、 `PlayerFormFactor` 的 Phone → Tablet
+ * 分档同源。低于它的非全屏窗口 = 「窄屏」，工具键只留图标； 达到它（或全屏 / 平板 / 折叠）才在图标下加文字。
  */
 internal const val PLAYER_TOOL_ROW_WIDE_WIDTH_DP = 600f
 
 /**
- * 左下工具行是否显示「码率 / 解码」两个次级键（W13 方案 A，用户已确认）。
+ * 工具区（右上 5 键 + 左下 6 键）是否在图标下显示小字（W17 用户确认）。
  *
- * 判据顺序：**先看真实全屏状态**（`PlayerActivity.fullscreenMode`），全屏一律全显；非全屏再叠宽度 / 形态档位——平板 / 折叠展开
- * （[PlayerFormFactor.Tablet] / [PlayerFormFactor.Foldable]）或宽度 ≥ 600dp 也算宽度充足。两者都不满足（手机形态的
- * 非全屏窄窗、自由窗口）才隐藏：码率 / 解码 改从「设置 → 播放」进入，功能不丢。
+ * 判据：Compact（自由窗口 / 分屏窄宽）一律只留图标；全屏（`PlayerActivity.fullscreenMode`）一律显示； 非全屏时宽度 ≥ 600dp 或平板 /
+ * 折叠展开形态显示。非全屏手机形态（窄屏）只留图标—— 38dp 键框放不下文字，硬塞会撑破底栏。
+ *
+ * 键本身（6 键）永远都在，文字只是可读性增强：W17 起「码率 / 解码」不再从工具行隐藏， 因此设置面板里 W13 加的两行兜底入口已删除（用户确认不留兜底入口）。
  */
-internal fun playerToolRowShowsSecondaryKeys(
+internal fun playerToolLabelsVisible(
     isFullscreen: Boolean,
     widthDp: Float,
     formFactor: PlayerFormFactor,
+    /** Compact 骨架（自由窗口 / 分屏窄宽）：无论宽度一律不加文字 */
+    isCompact: Boolean = false,
 ): Boolean =
-    isFullscreen ||
-        widthDp >= PLAYER_TOOL_ROW_WIDE_WIDTH_DP ||
-        formFactor == PlayerFormFactor.Tablet ||
-        formFactor == PlayerFormFactor.Foldable
-
-/**
- * 左下工具行实际渲染的键（W13 方案 A）：非全屏窄窗隐藏 码率 / 解码，其余保持 [PLAYER_BOTTOM_KEY_ORDER] 的终版顺序不动。
- *
- * 「1×」不是键表里的成员——它是独立徽标（纯展示，见 `PlayerSpeedBadge`），固定在「详细信息」右侧。
- */
-internal fun playerToolRowVisibleKeys(showsSecondaryKeys: Boolean): List<PlayerBottomKey> =
-    if (showsSecondaryKeys) {
-        PLAYER_BOTTOM_KEY_ORDER
-    } else {
-        PLAYER_BOTTOM_KEY_ORDER.filter { key ->
-            key != PlayerBottomKey.Bitrate && key != PlayerBottomKey.Decode
-        }
-    }
+    !isCompact &&
+        (isFullscreen ||
+            widthDp >= PLAYER_TOOL_ROW_WIDE_WIDTH_DP ||
+            formFactor == PlayerFormFactor.Tablet ||
+            formFactor == PlayerFormFactor.Foldable)
 
 /** 右上角 5 键的**固定顺序**（W12 终版布局，勿再变动）：画中画 · 睡眠 · 选集 · 画面 · 设置。 */
 internal enum class PlayerTopKey {
@@ -594,7 +607,7 @@ fun PlayerControlOverlay(
     /** 播放失败后的「重试」：清错误并从当前进度重新拉流 */
     onRetry: () -> Unit,
     /** 「换内核」：ExoPlayer ⇄ mpv（由 Activity 写偏好并重启播放页生效） */
-    onSwitchBackend: () -> Unit,
+    onSwitchBackend: (String) -> Unit,
     /** 把「控制层可见 / 面板打开 / 锁屏 / 错误卡片」同步给承载视图，用来决定哪些触摸留给播放器 */
     onRegionsChanged:
         (
@@ -736,6 +749,25 @@ fun PlayerControlOverlay(
      * 不再弹底部面板；手机等没有内容栏的骨架才用底部面板兜底。
      */
     val hasSidePanel = layout.hasSideContent
+    /*
+     * W17 反馈⑥：平板 / 折叠展开的选集栏是覆盖在画面右缘的 320dp 面板（W12 反馈 C），
+     * 底栏若仍铺满整窗，右下角的全屏键会被面板盖住——真机实测点它没有任何反应
+     * （「横屏退出全屏偶发无效」的层级拦截根因）。这里让底栏在侧栏展开时整体让出侧栏宽度，
+     * 全屏键落到面板左侧，始终可见可点；全屏态侧栏收起，底栏仍铺满整窗。
+     */
+    val sidePanelInset =
+        if (layout.hasSideContent && sidePanelExpanded) layout.sidePanelWidthDp.dp else 0.dp
+    /*
+     * W17 反馈⑤：工具区（右上 5 键 + 左下 6 键）是否在图标下加小字。
+     * Compact 一律只留图标；全屏 / 宽度 ≥600dp / 平板·折叠显示；非全屏手机形态（窄屏）只留图标。
+     */
+    val toolLabelsVisible =
+        playerToolLabelsVisible(
+            isFullscreen = isFullscreen,
+            widthDp = layout.windowWidthDp.toFloat(),
+            formFactor = layout.formFactor,
+            isCompact = layout.isCompact,
+        )
     // 面板导航：从「播放设置」进的子面板保留上一级，抽屉左上角的返回箭头回到那里；
     // 从主界面工具键进的是一级面板，没有返回箭头（只有关闭）。
     val navigatePanel: (PlayerPanel) -> Unit = { target ->
@@ -759,13 +791,8 @@ fun PlayerControlOverlay(
                         settingsController.state.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
                 spec = spec,
                 isFullscreen = isFullscreen,
-                // W13 方案 A：全屏 / 宽度充足时全显 6 键；非全屏窄窗隐藏 码率 / 解码（改从「设置 → 播放」进入）
-                showsSecondaryKeys =
-                    playerToolRowShowsSecondaryKeys(
-                        isFullscreen = isFullscreen,
-                        widthDp = layout.windowWidthDp.toFloat(),
-                        formFactor = layout.formFactor,
-                    ),
+                // W17：6 键恒定齐全；文字只在窄屏以外的形态出现
+                showLabels = toolLabelsVisible,
                 onSeek = { target -> player.seekTo(target) },
                 onScrubStart = { controls.show() },
                 onAudio = { navigatePanel(PlayerPanel.Audio) },
@@ -812,6 +839,7 @@ fun PlayerControlOverlay(
                     { navigatePanel(PlayerPanel.Queue) }
                 },
             onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
+            showLabels = toolLabelsVisible,
         )
     }
 
@@ -857,13 +885,6 @@ fun PlayerControlOverlay(
                                 videoTransform.hasAdjustments,
                         isPipSupported = isPipSupported,
                         speed = runtime.speed,
-                        // W13 方案 A：小窗（自由窗口 / 分屏窄宽）与画面区版式共用同一条分级判据
-                        showsSecondaryKeys =
-                            playerToolRowShowsSecondaryKeys(
-                                isFullscreen = isFullscreen,
-                                widthDp = layout.windowWidthDp.toFloat(),
-                                formFactor = layout.formFactor,
-                            ),
                         onOpenSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
                         onOpenAudio = { navigatePanel(PlayerPanel.Audio) },
                         onOpenAspect = { navigatePanel(PlayerPanel.Aspect) },
@@ -963,7 +984,12 @@ fun PlayerControlOverlay(
 
                         // 折叠半开的底栏落在折痕下屏，画面区不再重复一份
                         if (layout.chrome != PlayerChromeLayout.FoldHalfOpen) {
-                            bottomBar(Modifier.align(Alignment.BottomCenter), bottomScrim, spec)
+                            bottomBar(
+                                Modifier.align(Alignment.BottomCenter)
+                                    .padding(end = sidePanelInset),
+                                bottomScrim,
+                                spec,
+                            )
                         }
                     }
                 }
@@ -1337,9 +1363,12 @@ private fun PlayerBufferingIndicator(visible: Boolean, modifier: Modifier = Modi
 }
 
 /**
- * 主播放键：月白填充 + 深色图标（A · Lumen 的主行动 / §8.7 主播放键）。
+ * 主播放键（W17 反馈④：与其它覆盖键统一到同一套玻璃底 / 描边语言）。
  *
- * [buffering] = true 时图标位换成深色转圈：全屏唯一的那一个加载图标就落在这里（W11 反馈⑤）， 键本身仍可点（缓冲中卡住时照样能暂停）。
+ * 旧版是「月白填充 + 深色图标」，与中央四个玻璃传输键不是一套视觉；现在改为 「黑 28% 玻璃底 + 1dp 白 16% 描边 + OnSurface
+ * 图标」，只靠尺寸（56/70dp）与圆角（Lg） 保持主行动辨识度。中央五键与右缘锁定键一样**保持纯图标，不加文字**。
+ *
+ * [buffering] = true 时图标位换成同色转圈：全屏唯一的那一个加载图标就落在这里（W11 反馈⑤）， 键本身仍可点（缓冲中卡住时照样能暂停）。
  */
 @Composable
 internal fun PlayerPlayKey(
@@ -1363,14 +1392,19 @@ internal fun PlayerPlayKey(
                     scaleY = scale
                 }
                 .clip(CinefinShapes.Lg)
-                .background(colors.onSurface)
+                .background(
+                    colors.scrim.copy(
+                        alpha = if (pressed) PLAYER_GLASS_PRESSED_ALPHA else PLAYER_GLASS_ALPHA
+                    )
+                )
+                .border(
+                    1.dp,
+                    colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA),
+                    CinefinShapes.Lg,
+                )
                 .then(
                     if (focused) {
-                        Modifier.border(
-                            2.dp,
-                            colors.inverseOnSurface.copy(alpha = 0.6f),
-                            CinefinShapes.Lg,
-                        )
+                        Modifier.border(2.dp, colors.onSurface.copy(alpha = 0.6f), CinefinShapes.Lg)
                     } else {
                         Modifier
                     }
@@ -1387,7 +1421,7 @@ internal fun PlayerPlayKey(
         if (buffering) {
             CircularProgressIndicator(
                 modifier = Modifier.size(size * 0.34f),
-                color = colors.inverseOnSurface,
+                color = colors.onSurface,
                 strokeWidth = 2.dp,
             )
         } else {
@@ -1397,7 +1431,7 @@ internal fun PlayerPlayKey(
                         if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
                     ),
                 contentDescription = null,
-                tint = colors.inverseOnSurface,
+                tint = colors.onSurface,
                 modifier = Modifier.size(size * 0.45f),
             )
         }
@@ -1524,8 +1558,8 @@ private fun PlayerTransportButton(
 /**
  * 右上角 5 键（W12 终版布局，顺序固定）：画中画 · 睡眠 · 选集 · 画面 · 设置。
  *
- * 顺序表 [PLAYER_TOP_KEY_ORDER] 是这一版布局的验收点之一（用户明确「画面在选集与设置之间」），改顺序即回归。 键一律纯图标 + 贴边玻璃框（W12 反馈
- * A：更透、更小、带描边），文字语义走 contentDescription。
+ * 顺序表 [PLAYER_TOP_KEY_ORDER] 是这一版布局的验收点之一（用户明确「画面在选集与设置之间」），改顺序即回归。 键一律贴边玻璃框（W12 反馈
+ * A：更透、更小、带描边）；W17 反馈⑤起宽屏在全屏 / 宽度充足时于图标下加 10sp 小字，窄屏与 Compact 仍只留图标。
  */
 @Composable
 private fun PlayerToolCluster(
@@ -1539,6 +1573,8 @@ private fun PlayerToolCluster(
     onOpenQueue: () -> Unit,
     onOpenSettings: () -> Unit,
     queueDescription: String,
+    /** W17 反馈⑤：是否在图标下加小字（窄屏 / Compact 为 false） */
+    showLabels: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -1555,6 +1591,12 @@ private fun PlayerToolCluster(
                             contentDescription =
                                 stringResource(PlayerR.string.player_controls_label_pip),
                             onClick = onPip,
+                            label =
+                                if (showLabels) {
+                                    stringResource(PlayerR.string.player_controls_label_pip)
+                                } else {
+                                    null
+                                },
                         )
                     }
                 PlayerTopKey.Sleep ->
@@ -1564,6 +1606,12 @@ private fun PlayerToolCluster(
                             stringResource(PlayerR.string.player_controls_label_sleep),
                         selected = sleepActive,
                         onClick = onSleep,
+                        label =
+                            if (showLabels) {
+                                stringResource(PlayerR.string.player_controls_label_sleep)
+                            } else {
+                                null
+                            },
                     )
                 PlayerTopKey.Episode ->
                     PlayerIconButton(
@@ -1571,6 +1619,12 @@ private fun PlayerToolCluster(
                         contentDescription = queueDescription,
                         selected = queueActive,
                         onClick = onOpenQueue,
+                        label =
+                            if (showLabels) {
+                                stringResource(PlayerR.string.player_controls_episodes)
+                            } else {
+                                null
+                            },
                     )
                 PlayerTopKey.Aspect ->
                     PlayerIconButton(
@@ -1578,6 +1632,12 @@ private fun PlayerToolCluster(
                         contentDescription = stringResource(PlayerR.string.player_controls_aspect),
                         selected = aspectActive,
                         onClick = onOpenAspect,
+                        label =
+                            if (showLabels) {
+                                stringResource(PlayerR.string.player_controls_label_aspect)
+                            } else {
+                                null
+                            },
                     )
                 PlayerTopKey.Settings ->
                     PlayerIconButton(
@@ -1585,6 +1645,12 @@ private fun PlayerToolCluster(
                         contentDescription =
                             stringResource(PlayerR.string.player_controls_settings),
                         onClick = onOpenSettings,
+                        label =
+                            if (showLabels) {
+                                stringResource(PlayerR.string.player_controls_label_settings)
+                            } else {
+                                null
+                            },
                     )
             }
         }
@@ -1600,12 +1666,18 @@ private fun PlayerToolCluster(
 private fun PlayerErrorCard(
     error: PlayerViewModel.PlayerErrorInfo,
     onRetry: () -> Unit,
-    onSwitchBackend: () -> Unit,
+    onSwitchBackend: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // 卡片上直接写清「换成哪个内核」，避免用户点下去不知道会发生什么
     val targetBackend =
-        if (error.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER) "mpv" else "ExoPlayer"
+        if (error.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER) {
+            PlayerViewModel.PLAYER_BACKEND_MPV
+        } else {
+            PlayerViewModel.PLAYER_BACKEND_EXOPLAYER
+        }
+    val targetLabel =
+        if (targetBackend == PlayerViewModel.PLAYER_BACKEND_MPV) "mpv" else "ExoPlayer"
     val colors = LocalCinefinColors.current
     val shape = CinefinShapes.Md
 
@@ -1650,10 +1722,10 @@ private fun PlayerErrorCard(
                 text =
                     stringResource(
                         PlayerR.string.player_controls_error_switch_backend,
-                        targetBackend,
+                        targetLabel,
                     ),
                 primary = false,
-                onClick = onSwitchBackend,
+                onClick = { onSwitchBackend(targetBackend) },
             )
         }
     }
@@ -1690,11 +1762,11 @@ private fun ErrorActionButton(
 // ---------- 底部 ----------
 
 /**
- * 底栏（W12 终版布局 + W13 方案 A）：进度条一行（当前时间 · 进度条 · 总时长）+ 左下工具行 + 右下全屏键。
+ * 底栏（W12 终版布局 + W17 文字化）：进度条一行（当前时间 · 进度条 · 总时长）+ 左下工具行 + 右下全屏键。
  *
- * 左下工具行（2026-10-02 W13 反馈，用户确认的「方案 A」；W14 微调）：全屏 / 宽度充足时 6 键（音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+
- * 「详细信息」右侧的 1× 徽标；非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息 + 1× 徽标（码率 / 解码 从「设置 → 播放」进入）。 倍率键自 W13 起只显示图标，当前值由
- * 1× 徽标显示；W14 起徽标为**纯展示**、不可点击，倍速入口只有倍率图标键一个。右下角只放全屏键，与工具行不重叠。
+ * 左下工具行（W17 用户确认）：**6 键恒定齐全**（音轨 · 字幕 · 倍速 · 码率 · 解码 · 详细信息）+ 「详细信息」右侧的 1× 徽标；[showLabels] =
+ * true（全屏 / 宽度充足 / 平板）时在图标下加 10sp 小字， 窄屏与 Compact 只留图标。倍速键只显示图标，当前值由 1× 徽标（纯展示、不可点击）显示。
+ * 右下角全屏键**保持纯图标**，与工具行不重叠。
  */
 @Composable
 private fun PlayerBottomBar(
@@ -1714,11 +1786,8 @@ private fun PlayerBottomBar(
     /** 版式规格（W12 反馈 A）：窄屏整体收一档 */
     spec: PlayerControlSpec,
     isFullscreen: Boolean,
-    /**
-     * 是否显示「码率 / 解码」（W13 方案 A）：全屏 / 宽度充足时全显 6 键；非全屏窄窗隐藏这两个键（设置面板里有兜底入口）， 工具行变成 音轨 · 字幕 · 倍率 · 详细信息 +
-     * 1×。
-     */
-    showsSecondaryKeys: Boolean = true,
+    /** W17 反馈⑤：是否在 6 键图标下加小字（窄屏 / Compact 只留图标） */
+    showLabels: Boolean = false,
     onSeek: (Long) -> Unit,
     onScrubStart: () -> Unit,
     onAudio: () -> Unit,
@@ -1798,8 +1867,8 @@ private fun PlayerBottomBar(
                 horizontalArrangement = Arrangement.spacedBy(spec.keyGapDp.dp),
                 modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
             ) {
-                // W13 方案 A：非全屏窄窗只渲染 音轨 / 字幕 / 倍率 / 详细信息，码率 / 解码从这一行消失
-                playerToolRowVisibleKeys(showsSecondaryKeys).forEach { key ->
+                // W17：6 键恒定齐全；showLabels 只控制图标下的小字，窄屏仍可点全部功能
+                PLAYER_BOTTOM_KEY_ORDER.forEach { key ->
                     when (key) {
                         PlayerBottomKey.Audio ->
                             PlayerIconButton(
@@ -1809,6 +1878,12 @@ private fun PlayerBottomBar(
                                 onClick = onAudio,
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
+                                label =
+                                    if (showLabels) {
+                                        stringResource(PlayerR.string.player_controls_label_audio)
+                                    } else {
+                                        null
+                                    },
                             )
                         PlayerBottomKey.Subtitle ->
                             PlayerIconButton(
@@ -1819,6 +1894,14 @@ private fun PlayerBottomBar(
                                 onClick = onSubtitle,
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
+                                label =
+                                    if (showLabels) {
+                                        stringResource(
+                                            PlayerR.string.player_controls_label_subtitle
+                                        )
+                                    } else {
+                                        null
+                                    },
                             )
                         // 倍率键：W13 反馈②起**只显示图标**，宽度与其它图标键一致；当前倍率由右侧的 1× 徽标显示（唯一倍速入口）
                         PlayerBottomKey.Speed ->
@@ -1830,6 +1913,12 @@ private fun PlayerBottomBar(
                                 onClick = onSpeed,
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
+                                label =
+                                    if (showLabels) {
+                                        stringResource(PlayerR.string.player_controls_label_speed)
+                                    } else {
+                                        null
+                                    },
                             )
                         PlayerBottomKey.Bitrate ->
                             PlayerIconButton(
@@ -1840,6 +1929,12 @@ private fun PlayerBottomBar(
                                 onClick = onBitrate,
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
+                                label =
+                                    if (showLabels) {
+                                        stringResource(PlayerR.string.player_controls_label_bitrate)
+                                    } else {
+                                        null
+                                    },
                             )
                         PlayerBottomKey.Decode ->
                             PlayerIconButton(
@@ -1850,6 +1945,12 @@ private fun PlayerBottomBar(
                                 onClick = onDecode,
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
+                                label =
+                                    if (showLabels) {
+                                        stringResource(PlayerR.string.player_controls_label_decode)
+                                    } else {
+                                        null
+                                    },
                             )
                         PlayerBottomKey.Info ->
                             PlayerIconButton(
@@ -1859,6 +1960,12 @@ private fun PlayerBottomBar(
                                 onClick = onInfo,
                                 size = spec.toolKeySizeDp.dp,
                                 iconSize = spec.iconSizeDp.dp,
+                                label =
+                                    if (showLabels) {
+                                        stringResource(PlayerR.string.player_controls_label_details)
+                                    } else {
+                                        null
+                                    },
                             )
                     }
                 }
@@ -1920,8 +2027,8 @@ private fun PlayerSpeedBadge(speed: Float, modifier: Modifier = Modifier) {
  * 小窗（Compact）的工具行：小窗既没有右上角 5 键、也没有进度条下 6 键的位置， 因此用一个横向可滚的小键行把全部入口兜住——一个功能一个入口、功能不缩水，
  * 窗口再窄也只是多滑一下（W11 反馈⑧：不靠隐藏修复；W12 补 码率 / 解码 两个新入口）。
  *
- * W13 方案 A 起与画面区版式同一条判据：[showsSecondaryKeys] = false（非全屏窄窗）时同样隐藏 码率 / 解码， 二者从「设置 →
- * 播放」进入；倍率键只显示图标，当前值由「详细信息」右侧的 1× 徽标显示（纯展示，W14）。
+ * W17 起 Compact 骨架一律**只留图标、不加文字**（键行已横向可滚）；6 键入口恒定齐全， 「码率 / 解码」不再从这一行消失（设置面板里的兜底入口已按用户确认移除）。
+ * 倍率键只显示图标，当前值由「详细信息」右侧的 1× 徽标显示（纯展示，W14）。
  */
 @Composable
 internal fun PlayerCompactToolKeys(
@@ -1932,8 +2039,6 @@ internal fun PlayerCompactToolKeys(
     isPipSupported: Boolean,
     /** 当前倍率：1× 徽标显示的值（倍速入口只有倍率图标键） */
     speed: Float,
-    /** W13 方案 A：是否显示 码率 / 解码（全屏 / 宽度充足才显示） */
-    showsSecondaryKeys: Boolean = true,
     onOpenSubtitle: () -> Unit,
     onOpenAudio: () -> Unit,
     onOpenAspect: () -> Unit,
@@ -1947,7 +2052,7 @@ internal fun PlayerCompactToolKeys(
     onPip: () -> Unit,
     onLock: () -> Unit,
 ) {
-    // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息 + 1×，其余入口跟在后面（W13：非全屏窄窗去掉 码率 / 解码）
+    // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息 + 1×，其余入口跟在后面
     PlayerIconButton(
         iconRes = CoreR.drawable.ic_speaker,
         contentDescription = stringResource(PlayerR.string.select_audio_track),
@@ -1969,22 +2074,20 @@ internal fun PlayerCompactToolKeys(
         onClick = onSpeed,
         size = 40.dp,
     )
-    if (showsSecondaryKeys) {
-        PlayerIconButton(
-            iconRes = PlayerR.drawable.ic_player_bitrate,
-            contentDescription = stringResource(PlayerR.string.player_controls_label_bitrate),
-            selected = bitrateActive,
-            onClick = onOpenBitrate,
-            size = 40.dp,
-        )
-        PlayerIconButton(
-            iconRes = PlayerR.drawable.ic_player_decode,
-            contentDescription = stringResource(PlayerR.string.player_controls_label_decode),
-            selected = decodeActive,
-            onClick = onOpenDecode,
-            size = 40.dp,
-        )
-    }
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_bitrate,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_bitrate),
+        selected = bitrateActive,
+        onClick = onOpenBitrate,
+        size = 40.dp,
+    )
+    PlayerIconButton(
+        iconRes = PlayerR.drawable.ic_player_decode,
+        contentDescription = stringResource(PlayerR.string.player_controls_label_decode),
+        selected = decodeActive,
+        onClick = onOpenDecode,
+        size = 40.dp,
+    )
     PlayerIconButton(
         iconRes = PlayerR.drawable.ic_player_info,
         contentDescription = stringResource(PlayerR.string.player_controls_label_info),
@@ -2256,6 +2359,8 @@ internal fun PlayerIconButton(
     badge: Boolean = false,
     /** 是否使用覆盖层玻璃底：画面上的按钮用玻璃（§8.7），实体面板内的按钮保持透明 */
     glass: Boolean = true,
+    /** W17 反馈⑤：非空时在图标下加一行 10sp 小字（工具区专用）； null = 纯图标键（中央五键 / 锁定键 / 全屏键 / 小窗工具行都用它）。 */
+    label: String? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -2263,12 +2368,15 @@ internal fun PlayerIconButton(
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val shape = CinefinShapes.Md
+    val keyWidth = if (label != null) size + PLAYER_TOOL_KEY_LABEL_WIDTH_EXTRA_DP.dp else size
+    val keyHeight = if (label != null) size + PLAYER_TOOL_KEY_LABEL_HEIGHT_EXTRA_DP.dp else size
+    val drawnIconSize = if (label != null) iconSize * 0.82f else iconSize
 
     Box(
         contentAlignment = Alignment.Center,
         modifier =
             modifier
-                .size(size)
+                .size(width = keyWidth, height = keyHeight)
                 .graphicsLayer {
                     val scale = if (pressed) 0.94f else 1f
                     scaleX = scale
@@ -2322,22 +2430,46 @@ internal fun PlayerIconButton(
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(iconSize * 0.9f),
+                modifier = Modifier.size(drawnIconSize * 0.9f),
                 color = colors.onSurface,
                 strokeWidth = 2.dp,
             )
         } else {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint =
-                    when {
-                        error -> colors.error
-                        selected -> media.bright
-                        else -> colors.onSurface
-                    },
-                modifier = Modifier.size(iconSize),
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint =
+                        when {
+                            error -> colors.error
+                            selected -> media.bright
+                            else -> colors.onSurface
+                        },
+                    modifier = Modifier.size(drawnIconSize),
+                )
+                if (label != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        style =
+                            MaterialTheme.typography.labelSmall.copy(
+                                fontSize = PLAYER_TOOL_KEY_LABEL_FONT_SIZE_SP.sp,
+                                letterSpacing = 0.sp,
+                            ),
+                        color =
+                            when {
+                                error -> colors.error
+                                selected -> media.bright
+                                else -> colors.onSurface
+                            },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
         if (badge && !loading) {
             Box(

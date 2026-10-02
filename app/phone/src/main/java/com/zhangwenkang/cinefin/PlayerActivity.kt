@@ -270,7 +270,7 @@ class PlayerActivity : BasePlayerActivity() {
                         onQueueClear = { viewModel.clearQueue() },
                         showChapterMarkers = settingsController.state.chapterMarkers,
                         onRetry = { viewModel.retryPlayback() },
-                        onSwitchBackend = { switchBackendAndRestart() },
+                        onSwitchBackend = { target -> switchBackendAndRestart(target) },
                         onRegionsChanged = { visible, panelOpen, locked, errorVisible, buffering ->
                             binding.controlOverlay.controlsVisible = visible
                             binding.controlOverlay.panelOpen = panelOpen
@@ -381,12 +381,18 @@ class PlayerActivity : BasePlayerActivity() {
                         when (event) {
                             is PlayerEvents.NavigateBack -> finishPlayback()
                             // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendAndRestart 带过去）
-                            is PlayerEvents.FallbackToMpv -> switchBackendAndRestart()
+                            is PlayerEvents.FallbackToMpv ->
+                                switchBackendAndRestart(PlayerViewModel.PLAYER_BACKEND_MPV)
                             // W16 回退链第 2 档：服务器解码/转码（PlaybackInfo 已按档位强制转码，重启拉新流）
                             is PlayerEvents.RestartWithServerTranscode ->
                                 restartPlaybackKeepingPosition("fallback=server-transcode")
-                            // W16 回退链第 3 档：本地软解（mpv hwdec=no，档位由 PlayerHolder 读偏好强制）
-                            is PlayerEvents.FallbackToSoftware -> switchBackendAndRestart()
+                            /*
+                             * W16 回退链第 3 档：本地软解（mpv hwdec=no，档位由 PlayerHolder 读偏好强制）。
+                             * W17：目标内核必须**显式指定 mpv**，不能再用 toggle——回退档位写入后 PlayerHolder
+                             * 可能已把实例重建为 mpv，toggle 会误判成「切回 ExoPlayer」，导致回退链断在第 2 档。
+                             */
+                            is PlayerEvents.FallbackToSoftware ->
+                                switchBackendAndRestart(PlayerViewModel.PLAYER_BACKEND_MPV)
                             // 字幕外观变化：同步给 PlayerView 的原生字幕（图形字幕 / 兜底路径）
                             is PlayerEvents.SubtitleStyleChanged -> configureSubtitleStyle()
                             is PlayerEvents.IsPlayingChanged -> {
@@ -648,10 +654,18 @@ class PlayerActivity : BasePlayerActivity() {
         }
     }
 
-    private fun switchBackendAndRestart() {
-        val target = viewModel.switchBackend()
+    /**
+     * 重启播放页并切换内核。
+     *
+     * [target] 非空 = 显式切到该内核（回退链第 3 档必须显式指定 mpv）；为空 = 错误卡片 / 既有入口的 toggle 语义（ExoPlayer ⇄ mpv）。
+     *
+     * 注意顺序：先读当前位置，再写偏好——写完后 [PlayerViewModel.player] 会按新偏好重建实例， 后读位置会拿到 0。
+     */
+    private fun switchBackendAndRestart(target: String? = null) {
         val position = viewModel.player.currentPosition.coerceAtLeast(0L)
-        Timber.d("Restart player with backend=$target from position=$position")
+        val next = target ?: viewModel.switchBackend()
+        if (target != null) viewModel.setBackend(target)
+        Timber.d("Restart player with backend=$next from position=$position")
 
         // recreate() 会复用同一个 Intent，把续播位置写回去即可
         intent.putExtra(EXTRA_START_POSITION_MS, position)

@@ -57,46 +57,48 @@ class PlayerControlLayoutTest {
     }
 
     @Test
-    fun toolRow_fullscreenKeepsAllSixKeys() {
-        val showsSecondaryKeys =
-            playerToolRowShowsSecondaryKeys(
+    fun toolRow_fullscreenShowsLabels() {
+        assertTrue(
+            "全屏时工具键加小字（验收⑤）",
+            playerToolLabelsVisible(
                 isFullscreen = true,
                 widthDp = 411f,
                 formFactor = PlayerFormFactor.Phone,
-            )
-
-        assertTrue("全屏时必须全显 6 键（验收①）", showsSecondaryKeys)
-        assertEquals(PLAYER_BOTTOM_KEY_ORDER, playerToolRowVisibleKeys(showsSecondaryKeys))
+            ),
+        )
+        assertEquals("左下 6 键恒定齐全", 6, PLAYER_BOTTOM_KEY_ORDER.size)
     }
 
     @Test
-    fun toolRow_windowedNarrowPhone_hidesBitrateAndDecode() {
-        val showsSecondaryKeys =
-            playerToolRowShowsSecondaryKeys(
+    fun toolRow_windowedNarrowPhone_hidesLabelsButKeepsAllKeys() {
+        val showsLabels =
+            playerToolLabelsVisible(
                 isFullscreen = false,
                 widthDp = 411f,
                 formFactor = PlayerFormFactor.Phone,
             )
 
-        assertFalse("非全屏窄窗（手机形态 411dp）隐藏 码率 / 解码（验收②）", showsSecondaryKeys)
+        assertFalse("非全屏窄窗（手机形态 411dp）只留图标、不加文字（验收⑤）", showsLabels)
         assertEquals(
-            "非全屏窄窗只留 音轨 · 字幕 · 倍率 · 详细信息（1× 徽标另挂在详细信息右侧）",
+            "窄屏仍保留全部 6 个入口（码率 / 解码 不再隐藏）",
             listOf(
                 PlayerBottomKey.Audio,
                 PlayerBottomKey.Subtitle,
                 PlayerBottomKey.Speed,
+                PlayerBottomKey.Bitrate,
+                PlayerBottomKey.Decode,
                 PlayerBottomKey.Info,
             ),
-            playerToolRowVisibleKeys(showsSecondaryKeys),
+            PLAYER_BOTTOM_KEY_ORDER,
         )
     }
 
     @Test
-    fun toolRow_wideNonFullscreenWindow_keepsAllSixKeys() {
-        // Pad 5 平板横屏 ≈1280dp：即使没点全屏（侧栏展开态）也要全显
+    fun toolRow_wideNonFullscreenWindow_showsLabels() {
+        // Pad 5 平板横屏 ≈1280dp：即使没点全屏（侧栏展开态）也要加文字
         assertTrue(
-            "平板非全屏但宽度充足时仍全显（验收③）",
-            playerToolRowShowsSecondaryKeys(
+            "平板非全屏但宽度充足时加文字（验收⑤）",
+            playerToolLabelsVisible(
                 isFullscreen = false,
                 widthDp = 1280f,
                 formFactor = PlayerFormFactor.Tablet,
@@ -104,8 +106,8 @@ class PlayerControlLayoutTest {
         )
         // 手机形态但窗口足够宽（横屏 / 宽窗口）：走宽度档位兜底，同样全显
         assertTrue(
-            "宽度档位兜底：≥600dp 的非全屏窗口也全显",
-            playerToolRowShowsSecondaryKeys(
+            "宽度档位兜底：≥600dp 的非全屏窗口也加文字",
+            playerToolLabelsVisible(
                 isFullscreen = false,
                 widthDp = 914f,
                 formFactor = PlayerFormFactor.Phone,
@@ -117,11 +119,24 @@ class PlayerControlLayoutTest {
     fun toolRow_gradingThreshold_isSixHundredDp() {
         assertFalse(
             "599.9dp 仍按非全屏窄窗处理",
-            playerToolRowShowsSecondaryKeys(false, 599.9f, PlayerFormFactor.Phone),
+            playerToolLabelsVisible(false, 599.9f, PlayerFormFactor.Phone),
         )
         assertTrue(
-            "600dp（playerControlSpec / PlayerFormFactor 的同一档位线）起全显",
-            playerToolRowShowsSecondaryKeys(false, 600f, PlayerFormFactor.Phone),
+            "600dp（playerControlSpec / PlayerFormFactor 的同一档位线）起加文字",
+            playerToolLabelsVisible(false, 600f, PlayerFormFactor.Phone),
+        )
+    }
+
+    @Test
+    fun toolRow_compactNeverShowsLabels() {
+        assertFalse(
+            "Compact（自由窗口 / 分屏窄宽）无论宽度一律只留图标（验收⑤）",
+            playerToolLabelsVisible(
+                isFullscreen = false,
+                widthDp = 1280f,
+                formFactor = PlayerFormFactor.Freeform,
+                isCompact = true,
+            ),
         )
     }
 
@@ -153,13 +168,25 @@ class PlayerControlLayoutTest {
 
     @Test
     fun bottomRow_fitsPhoneWidthWithoutScrolling() {
-        // 411dp 是最窄的常见手机形态（Pad 5 wm 覆盖 / K60 竖屏）。W13 起这一档只渲染 4 键 + 1× + 全屏键，
-        // 但按「6 键 + 1× 徽标 + 全屏键」（全显态、最坏情况）算也必须一行放得下；
-        // W14 起 1× 徽标文本自适应（最宽档 0.25× ≈ 48dp），宽度预算已按该值计入
+        // 411dp 是最窄的常见手机形态（Pad 5 wm 覆盖 / K60 竖屏）。W17 起窄屏只留图标、不加文字，
+        // 但仍按「6 键 + 1× 徽标 + 全屏键」计算，必须一行放得下
         val spec = playerControlSpec(411f)
-        val used = spec.bottomRowWidthDp + spec.toolRowPaddingDp * 2f
+        val used = spec.bottomRowWidthDp(showLabels = false) + spec.toolRowPaddingDp * 2f
 
         assertTrue("底栏一行 $used dp 会超出 411dp 手机宽度", used <= 411f)
+    }
+
+    @Test
+    fun bottomRow_labeledKeysStillFitAtSixHundredDp() {
+        // W17：宽屏加文字后键框加宽（44 → 56dp），600dp 阈值档仍要一行放得下
+        val spec = playerControlSpec(600f)
+        val used = spec.bottomRowWidthDp(showLabels = true) + spec.toolRowPaddingDp * 2f
+
+        assertTrue("加文字后底栏一行 $used dp 会超出 600dp", used <= 600f)
+        assertTrue(
+            "加文字必须真的变宽（否则说明键框没加宽）",
+            spec.bottomRowWidthDp(showLabels = true) > spec.bottomRowWidthDp(showLabels = false),
+        )
     }
 
     @Test

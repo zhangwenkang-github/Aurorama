@@ -214,9 +214,6 @@ constructor(
     /** 用户是否手动整理过队列（§1.7）：整理过之后不再让后台补片把删掉的条目补回来 */
     private var queueManuallyEdited = false
 
-    /** 已经自动降级过的媒体 id：同一个条目只降级一次，避免内核来回弹 */
-    private var autoFallbackMediaId: String? = null
-
     var playWhenReady = true
 
     /**
@@ -880,6 +877,11 @@ constructor(
      */
     override fun onPlayerError(error: PlaybackException) {
         Timber.e(error, "Player error on backend=$playerBackend: ${error.errorCodeName}")
+        /*
+         * W17：回退链还有下一档时**不显示错误卡片**（每一步真实生效，只有全部失败才提示错误）。
+         * handleCodecFallback 接管本次错误（返回 true）时，错误卡片保持隐藏，由回退动作自己续播。
+         */
+        if (handleCodecFallback(error)) return
         _uiState.update {
             it.copy(
                 playerError =
@@ -892,7 +894,6 @@ constructor(
                     )
             )
         }
-        handleCodecFallback(error)
     }
 
     /**
@@ -904,21 +905,32 @@ constructor(
      *
      * 不弹提示（用户在观影，提示属于打扰）。档位落盘（[AppPreferences.playerDecodeFallbackStage]）是为了
      * 「重启播放页续播」不丢档位，同时天然防死循环：升到软解档后再报错也不再推进。换条目 / 用户显式改 码率、内核、解码策略时档位清 0。
+     *
+     * W17 修复（用户实测「Exo 硬解失败后没有重新切换 mpv 软解」）：① 第 3 档不再提前写 `playerBackend` 偏好——回退动作由 Activity 显式
+     * `setBackend(mpv)` 完成，避免「偏好已 mpv、实例仍被读成 Exo」时 toggle 语义把内核切回 ExoPlayer；②
+     * 去掉「同一媒体只降级一次」的拦截，改由档位状态机防死循环， 否则第 2 档失败会卡在 Exo 不落第 3 档；③ 只有第 3 档（本地软解）也失败才把错误交给调用方显示。
+     *
+     * @return true = 本次错误已被回退链接管（不要显示错误卡片）；false = 链路用尽或不该回退。
      */
-    private fun handleCodecFallback(error: PlaybackException) {
-        if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return
-        if (!isCodecCapabilityError(error)) return
-        val mediaId = player.currentMediaItem?.mediaId ?: return
-        if (autoFallbackMediaId == mediaId) return
-        autoFallbackMediaId = mediaId
-
+    private fun handleCodecFallback(error: PlaybackException): Boolean {
+        if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return false
+        val mediaId = player.currentMediaItem?.mediaId ?: return false
         val currentStage =
             PlayerDecodeFallback.normalize(
                 appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
             )
+        // 第 3 档（本地软解）是最后一档：再失败就是「全部失败」，交给调用方显示错误卡片
+        if (currentStage == PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE) return false
+        /*
+         * 第一档只接「内核解不了这个格式」类错误；第二档（服务器转码流也失败）时无论错误码都落第 3 档，
+         * 保证「只有全部失败才提示错误」——服务器转码不作为链路的终点。
+         */
+        if (!isCodecCapabilityError(error) && currentStage == PlayerDecodeFallback.STAGE_NONE) {
+            return false
+        }
         val bitratePreference = appPreferences.getValue(appPreferences.playerStreamingBitrate)
         val nextStage = PlayerDecodeFallback.nextStage(currentStage, bitratePreference)
-        if (nextStage == currentStage) return
+        if (nextStage == currentStage) return false
         appPreferences.setValue(appPreferences.playerDecodeFallbackStage, nextStage)
         appPreferences.setValue(appPreferences.playerDecodeFallbackMediaId, mediaId)
 
@@ -931,10 +943,11 @@ constructor(
                 eventsChannel.trySend(PlayerEvents.RestartWithServerTranscode)
             }
             else -> {
-                // 本地软解：mpv + hwdec=no（PlayerHolder 按回退档位强制软解）
-                if (playerBackend != PLAYER_BACKEND_MPV) {
-                    appPreferences.setValue(appPreferences.playerBackend, PLAYER_BACKEND_MPV)
-                }
+                /*
+                 * 本地软解：mpv + hwdec=no（PlayerHolder 按回退档位强制软解）。
+                 * 这里**只写档位**，内核由 Activity 收到事件后显式 setBackend(mpv) + 重启播放页；
+                 * 提前写偏好会让 PlayerHolder 在原地把实例重建为 mpv，随后 toggle 又把它切回 Exo（W17 根因）。
+                 */
                 Timber.i(
                     "解码能力不足（%s），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）",
                     error.errorCodeName,
@@ -942,6 +955,7 @@ constructor(
                 eventsChannel.trySend(PlayerEvents.FallbackToSoftware)
             }
         }
+        return true
     }
 
     /** 只有"内核解不了这个格式"类错误才值得换内核；网络、DRM、容器损坏等换内核也没用 */

@@ -52,8 +52,8 @@
     <string name="player_settings_repeat_entry_caption">Order / repeat all / repeat one / shuffle</string>
     <string name="player_settings_backend">Player core</string>
     <string name="player_settings_backend_caption">Switching reloads the player page and keeps the position</string>
-    <string name="player_settings_backend_exoplayer">ExoPlayer (hardware)</string>
-    <string name="player_settings_backend_mpv">mpv (software fallback)</string>
+    <string name="player_settings_backend_exoplayer">ExoPlayer</string>
+    <string name="player_settings_backend_mpv">mpv</string>
     <string name="player_settings_mpv_hwdec">mpv hardware decoding</string>
     <string name="player_settings_mpv_hwdec_caption">Only used by the mpv core</string>
     <string name="player_settings_mpv_hwdec_on">MediaCodec</string>
@@ -206,6 +206,8 @@
     <string name="player_controls_label_speed">Speed</string>
     <string name="player_controls_label_sleep">Sleep</string>
     <string name="player_controls_label_info">Info</string>
+    <!-- W17 tool row labels: "Details" shown under the info icon -->
+    <string name="player_controls_label_details">Details</string>
     <string name="player_controls_label_settings">Settings</string>
     <string name="player_controls_label_pip">PiP</string>
     <string name="player_controls_fullscreen">Fullscreen</string>
@@ -226,7 +228,6 @@
     <string name="player_controls_decode_hardware_caption">Local hardware decoding; on failure asks the server to transcode, then falls back to software</string>
     <string name="player_controls_decode_software">Software only</string>
     <string name="player_controls_decode_software_caption">FFmpeg / mpv software decoding, highest compatibility and power draw</string>
-    <string name="player_controls_decode_priority">Priority: local hardware → server transcode → local software</string>
     <string name="player_controls_decode_stage_active">Active: %1$s</string>
     <string name="player_controls_decode_stage_hardware">Local hardware</string>
     <string name="player_controls_decode_stage_server">Server transcode</string>
