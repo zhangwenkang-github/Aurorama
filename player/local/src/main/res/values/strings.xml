@@ -234,6 +234,9 @@
     <string name="player_controls_decode_stage_mpv_hardware">mpv hardware</string>
     <string name="player_controls_decode_stage_mpv_software">mpv software</string>
     <string name="player_controls_decode_stage_server">Server transcode</string>
+    <string name="player_controls_decode_fallback">Fallback on failure</string>
+    <string name="player_controls_decode_auto_fallback">Auto fallback</string>
+    <string name="player_controls_decode_auto_fallback_caption">On: fall back automatically (hardware → server transcode → mpv software). Off: keep the selected core and only show the error.</string>
     <string name="player_controls_decode_active">Software decoding</string>
     <string name="player_settings_tab_playback">Playback</string>
     <string name="player_settings_tab_gesture">Gestures</string>

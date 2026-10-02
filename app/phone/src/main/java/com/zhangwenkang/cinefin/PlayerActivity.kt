@@ -92,6 +92,16 @@ private const val AMBIENT_FADE_DURATION = 600
 /** 换解码内核重开播放页时携带的精确续播位置（毫秒） */
 private const val EXTRA_START_POSITION_MS = "startPositionMs"
 
+/**
+ * 本次播放会话的 id（W19）。
+ *
+ * 回退 / 手动切内核重启播放页时原样带回 → 解码回退档位与重启守卫在会话内保持；新开播放页 / 通知另起 播放时不会带它 → Activity 生成新 id，档位清零（回退链从头走）。
+ */
+private const val EXTRA_PLAYBACK_SESSION = "playbackSessionId"
+
+/** 重启播放页时要恢复到的条目（W19）：当前实际播放的条目，而不是 Intent 里的原始条目 */
+private data class PlayerRestartTarget(val itemId: String, val itemKind: String)
+
 @AndroidEntryPoint
 class PlayerActivity : BasePlayerActivity() {
 
@@ -145,6 +155,9 @@ class PlayerActivity : BasePlayerActivity() {
     /** 已经按哪个条目重算过画面变换（换集后视频分辨率可能不同） */
     private var appliedTransformItemId: UUID? = null
 
+    /** 本次播放会话 id（W19）：回退重启复用，重开播放页换新（见 [EXTRA_PLAYBACK_SESSION]） */
+    private var playbackSessionId: String = ""
+
     private val isPipSupported by lazy {
         // Check if device has PiP feature
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
@@ -177,6 +190,10 @@ class PlayerActivity : BasePlayerActivity() {
         val startPositionMs = intent.extras?.getLong(EXTRA_START_POSITION_MS, 0L) ?: 0L
         // 读掉就删：这个 Intent 会被 recreate() 复用，留着会让下次重建又跳回老位置
         intent.removeExtra(EXTRA_START_POSITION_MS)
+        // W19：回退重启复用同一个会话 id；新开播放页（没有这个 extra）换新会话
+        playbackSessionId =
+            intent.extras?.getString(EXTRA_PLAYBACK_SESSION)?.takeIf { it.isNotBlank() }
+                ?: UUID.randomUUID().toString()
 
         binding = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -186,7 +203,8 @@ class PlayerActivity : BasePlayerActivity() {
         // 画面比例：沿用上次选过的档位（RESIZE_MODE_*，默认 0 = 适应屏幕）；两个内核都落到各自的输出通路
         applyResizeModeToKernel(appPreferences.getValue(appPreferences.playerResizeMode))
         // 设置面板（§1.9）与画面调整（§1.6）：偏好是唯一来源，进页面就按偏好还原
-        settingsController = PlayerSettingsController(appPreferences)
+        // W19：解码面板的「播放内核」选中态以**实际生效内核**为准（PlayerHolder 实例优先，而不是偏好快照）
+        settingsController = PlayerSettingsController(appPreferences) { viewModel.playerBackend }
         videoTransform.value = settingsController.readVideoTransform()
         configureSubtitleStyle()
 
@@ -262,6 +280,7 @@ class PlayerActivity : BasePlayerActivity() {
                         onSelectBackend = { backend -> switchBackendAndRestart(backend) },
                         onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
                         onSelectDecodeMode = { mode -> selectDecodeMode(mode) },
+                        onAutoFallbackChange = { enabled -> selectAutoFallback(enabled) },
                         onSelectBitrate = { bitrate -> selectStreamingBitrate(bitrate) },
                         onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
                         onVideoTransformChanged = { transform -> updateVideoTransform(transform) },
@@ -440,6 +459,7 @@ class PlayerActivity : BasePlayerActivity() {
                 itemKind = itemKind ?: "",
                 startFromBeginning = startFromBeginning,
                 startPositionMs = startPositionMs,
+                playbackSessionId = playbackSessionId,
             )
         } else if (viewModel.player.mediaItemCount > 0) {
             // 从通知回来：会话还在跑，接管它（补标题/章节等信息），不重新拉流
@@ -469,10 +489,13 @@ class PlayerActivity : BasePlayerActivity() {
         val itemKind = intent.extras?.getString("itemKind")
         val startFromBeginning = intent.extras?.getBoolean("startFromBeginning") ?: false
 
+        // W19：onNewIntent = 新的播放请求 = 新会话（清回退档位，链路从头走）
+        playbackSessionId = UUID.randomUUID().toString()
         viewModel.initializePlayer(
             itemId = itemId,
             itemKind = itemKind ?: "",
             startFromBeginning = startFromBeginning,
+            playbackSessionId = playbackSessionId,
         )
     }
 
@@ -664,10 +687,14 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun switchBackendAndRestart(target: String) {
         val position = viewModel.player.currentPosition.coerceAtLeast(0L)
+        // W19：重启目标必须在写偏好之前取——偏好一变，PlayerHolder 会立刻按新偏好重建空实例
+        val restartTarget = currentRestartTarget()
         viewModel.setBackend(target)
         viewModel.clearDecodeFallback()
+        // 面板快照跟随（真正生效的内核在 Activity 重建后由 PlayerSettingsController 现读）
+        settingsController.refresh()
         Timber.d("Restart player with backend=$target from position=$position (manual)")
-        restartPlaybackFromPosition(position)
+        restartPlaybackFromPosition(position, restartTarget)
     }
 
     /**
@@ -678,9 +705,21 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun switchBackendForFallback(target: String) {
         val position = viewModel.player.currentPosition.coerceAtLeast(0L)
+        val restartTarget = currentRestartTarget()
         viewModel.setBackend(target)
         Timber.d("Restart player with backend=$target from position=$position (fallback)")
-        restartPlaybackFromPosition(position)
+        restartPlaybackFromPosition(position, restartTarget)
+    }
+
+    /**
+     * W19：当前实际播放的条目（id + 类型）；取不到时返回 null（调用方保持 Intent 原条目）。
+     *
+     * 必须**在写 `pref_player_backend` 之前**调用：偏好一变，[PlayerViewModel.player] 会立即按新偏好重建空实例。
+     */
+    private fun currentRestartTarget(): PlayerRestartTarget? {
+        val kind = viewModel.currentPlaybackItemKind() ?: return null
+        val mediaId = viewModel.player.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
+        return mediaId?.let { PlayerRestartTarget(it, kind) }
     }
 
     /**
@@ -900,6 +939,17 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     /**
+     * 「失败自动回退」开关（W19 用户新需求）：开 = 既有回退链（硬解 → 服务器转码 → mpv 软解）； 关 = 强制使用所选内核，失败只提示错误（不切换、不重启）。
+     *
+     * 关闭时顺带清空回退档位与重启守卫：面板的「当前档位」与「强制所选内核」语义一致，下一次失败直接进错误卡片。
+     */
+    private fun selectAutoFallback(enabled: Boolean) {
+        settingsController.setAutoFallback(enabled)
+        if (!enabled) viewModel.clearDecodeFallback()
+        Timber.d("解码自动回退开关：%s", if (enabled) "开" else "关（强制所选内核）")
+    }
+
+    /**
      * 码率档位（W12 反馈 B）：选具体 Mbps 时重新拉取播放信息，服务器返回 `transcodingPath`（HLS 转码流）后播放它。
      *
      * 偏好已由面板写入 [AppPreferences.playerStreamingBitrate]，data 层据此构造 PlaybackInfo 请求； 这里只需重启播放页让
@@ -924,8 +974,21 @@ class PlayerActivity : BasePlayerActivity() {
      *
      * W18：单独抽出来是因为「手动切内核」必须**先读位置、再写偏好**（见 [switchBackendAndRestart]），
      * 位置要由调用方传入，不能在这里再读一次（那时实例已重建、位置是 0）。
+     *
+     * W19：重启前把「正在播放的条目」和「播放会话 id」写回 Intent—— ① 季 / 剧集入口与队列换集时，Intent 里的原始条目 ≠
+     * 实际播放条目，重启用实际条目才不会跳回第一集 （找不到条目信息时保持原样）；② 会话 id 让解码回退档位活过 Activity 重建（见
+     * [EXTRA_PLAYBACK_SESSION]）。
      */
-    private fun restartPlaybackFromPosition(positionMs: Long) {
+    private fun restartPlaybackFromPosition(
+        positionMs: Long,
+        target: PlayerRestartTarget? = currentRestartTarget(),
+    ) {
+        target?.let {
+            intent.putExtra("itemId", it.itemId)
+            intent.putExtra("itemKind", it.itemKind)
+            Timber.d("Restart player 对准当前条目：itemId=%s kind=%s", it.itemId, it.itemKind)
+        }
+        intent.putExtra(EXTRA_PLAYBACK_SESSION, playbackSessionId)
         intent.putExtra(EXTRA_START_POSITION_MS, positionMs)
         viewModelStore.clear()
         recreate()

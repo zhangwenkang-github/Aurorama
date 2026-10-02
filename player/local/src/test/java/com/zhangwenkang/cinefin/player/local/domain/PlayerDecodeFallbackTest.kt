@@ -243,4 +243,75 @@ class PlayerDecodeFallbackTest {
             )
         )
     }
+
+    // ---------- W19：失败自动回退开关 + 循环保护（重启守卫） ----------
+
+    @Test
+    fun autoFallbackDisabled_neverTakesOverSoErrorCardShows() {
+        // 关 = 强制所选内核：即使链路还能降级（自动档 0 → 1），也不接管、不重启
+        assertNull(
+            PlayerDecodeFallback.fallbackDecision(
+                autoFallbackEnabled = false,
+                candidateStage = PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+                restartGuardExceeded = false,
+            )
+        )
+        // 开 = 原样采用链路判定
+        assertEquals(
+            PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+            PlayerDecodeFallback.fallbackDecision(
+                autoFallbackEnabled = true,
+                candidateStage = PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+                restartGuardExceeded = false,
+            ),
+        )
+        // 链路本身已用尽（第 3 档失败）：开 / 关都进错误卡片
+        assertNull(
+            PlayerDecodeFallback.fallbackDecision(
+                autoFallbackEnabled = true,
+                candidateStage = null,
+                restartGuardExceeded = false,
+            )
+        )
+    }
+
+    @Test
+    fun restartGuard_countsSameMediaAndSameTargetStage() {
+        // 第一次重启（同一媒体 + 目标 1）：计数 1
+        val first = PlayerDecodeFallback.recordRestart(null, "ep-1", 1)
+        assertEquals(PlayerDecodeFallback.RestartGuard("ep-1", 1, 1), first)
+        assertFalse(first.exceeded())
+        // 同一媒体 + 同一目标再来：计数递增，达到上限（2）仍允许
+        val second = PlayerDecodeFallback.recordRestart(first, "ep-1", 1)
+        assertEquals(2, second.attempts)
+        assertFalse(second.exceeded())
+        // 第 3 次 = 判定循环，交给错误卡片（不再重启）
+        val third = PlayerDecodeFallback.recordRestart(second, "ep-1", 1)
+        assertTrue(third.exceeded())
+        // 换目标档位（正常的 1 → 2 降级）或换媒体：从 1 重新计数
+        assertEquals(1, PlayerDecodeFallback.recordRestart(second, "ep-1", 2).attempts)
+        assertEquals(1, PlayerDecodeFallback.recordRestart(second, "ep-2", 1).attempts)
+        // 循环保护叠加在决策上：超限 → 不接管
+        assertNull(
+            PlayerDecodeFallback.fallbackDecision(
+                autoFallbackEnabled = true,
+                candidateStage = PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+                restartGuardExceeded = third.exceeded(),
+            )
+        )
+    }
+
+    @Test
+    fun restartGuard_roundTripsThroughPreferenceString() {
+        val guard = PlayerDecodeFallback.RestartGuard("media-9", 2, 1)
+        val raw = PlayerDecodeFallback.formatGuard(guard)
+        assertEquals(guard, PlayerDecodeFallback.parseGuard(raw))
+        // 空 / 损坏数据按「没有历史」处理（不误伤正常链路）
+        assertNull(PlayerDecodeFallback.parseGuard(""))
+        assertNull(PlayerDecodeFallback.parseGuard(null))
+        assertNull(PlayerDecodeFallback.parseGuard("media-9|2"))
+        assertNull(PlayerDecodeFallback.parseGuard("|2|1"))
+        assertNull(PlayerDecodeFallback.parseGuard("media-9|2|0"))
+        assertNull(PlayerDecodeFallback.parseGuard("media-9|x|1"))
+    }
 }

@@ -212,6 +212,14 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     fun getPlayerItem(itemId: UUID): PlayerItem? = playerItems.firstOrNull { it.itemId == itemId }
 
     /**
+     * W19：按条目 id 找队列里的原始条目（回退 / 手动切内核重启时用它把播放页恢复到正在播的那一条）。
+     *
+     * 季 / 剧集入口与队列换集时，Intent 里的原始条目和实际播放条目不是同一条。
+     */
+    fun findItem(itemId: UUID): FindroidItem? =
+        items.firstOrNull { it.id == itemId } ?: startItem?.takeIf { it.id == itemId }
+
+    /**
      * 播放队列在「整剧 / 整季 / 单片」层面的条目数。
      *
      * 注意读的是**清单** [items]（元数据已经全部拿到），不是已构建播放信息的条目数： 队列面板要显示完整剧集，而每集的播放信息（流地址 / 外挂字幕）是按需逐集构建的。

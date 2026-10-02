@@ -82,6 +82,9 @@ data class PlayerSettingsSnapshot(
 
     /** 解码回退档位（W16）：0 = 本地硬解；1 = 服务器转码；2 = 本地软解 */
     val decodeFallbackStage: Int,
+
+    /** 失败自动回退开关（W19）：关 = 强制所选内核，失败只提示错误 */
+    val autoFallback: Boolean,
 )
 
 /** 语言优先级预设（W12：并入「音轨」面板）：写进既有 `pref_audio_languages`（逗号分隔的全量列表） */
@@ -97,7 +100,15 @@ internal val AudioLanguagePresets =
  *
  * 「改完立即回读」保证 UI 与偏好不会脱节（例如同一项在全局设置页也被改过）。
  */
-class PlayerSettingsController(private val appPreferences: AppPreferences) {
+class PlayerSettingsController(
+    private val appPreferences: AppPreferences,
+    /**
+     * W19：解码面板「播放内核」选中态的数据源——优先实际生效的内核（PlayerHolder 实例）， 而不是偏好快照；实例与偏好短暂不一致时（如回退链刚切内核）面板也不会显示错内核。
+     */
+    private val effectiveBackend: () -> String = {
+        appPreferences.getValue(appPreferences.playerBackend)
+    },
+) {
     var state by mutableStateOf(read())
         private set
 
@@ -117,8 +128,6 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
 
     fun setPauseAfterCurrentItem(value: Boolean) =
         write(PlayerExtraPreferences.pauseAfterCurrentItem, value)
-
-    fun setBackend(value: String) = write(appPreferences.playerBackend, value)
 
     fun setMpvHwdec(value: String) = write(appPreferences.playerMpvHwdec, value)
 
@@ -165,6 +174,9 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
     /** 解码策略：hardware / software（mpv 的硬解开关同步由面板写 playerMpvHwdec） */
     fun setDecodeMode(value: String) = write(appPreferences.playerDecodeMode, value)
 
+    /** 失败自动回退开关（W19）：关 = 强制所选内核，失败只提示错误 */
+    fun setAutoFallback(value: Boolean) = write(appPreferences.playerAutoFallback, value)
+
     /** 画面调整：旋转 / 镜像 / 裁剪 / 去黑边，写偏好后由播放页即时应用 */
     fun setVideoTransform(transform: PlayerVideoTransform) {
         appPreferences.setValue(PlayerExtraPreferences.videoRotation, transform.rotationDegrees)
@@ -199,7 +211,7 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
             chapterMarkers = appPreferences.getValue(appPreferences.playerChapterMarkers),
             pauseAfterCurrentItem =
                 appPreferences.getValue(PlayerExtraPreferences.pauseAfterCurrentItem),
-            backend = appPreferences.getValue(appPreferences.playerBackend),
+            backend = effectiveBackend(),
             mpvHwdec = appPreferences.getValue(appPreferences.playerMpvHwdec),
             subtitleMode = appPreferences.getValue(appPreferences.subtitleMode),
             rememberTrackSelection = appPreferences.getValue(appPreferences.rememberTrackSelection),
@@ -223,6 +235,7 @@ class PlayerSettingsController(private val appPreferences: AppPreferences) {
             streamingBitrate = appPreferences.getValue(appPreferences.playerStreamingBitrate),
             decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode),
             decodeFallbackStage = appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
+            autoFallback = appPreferences.getValue(appPreferences.playerAutoFallback),
         )
 }
 
@@ -590,6 +603,7 @@ internal fun PlayerDecodePanel(
     controller: PlayerSettingsController,
     onSelectBackend: (String) -> Unit,
     onSelectDecodeMode: (String) -> Unit,
+    onAutoFallbackChange: (Boolean) -> Unit,
 ) {
     // 回退档位可能在播放过程中被 ViewModel 推进（不是通过本控制器写的）：每次打开面板回读一次
     LaunchedEffect(Unit) { controller.refresh() }
@@ -602,19 +616,15 @@ internal fun PlayerDecodePanel(
                 label = stringResource(PlayerR.string.player_settings_backend_exoplayer),
                 caption = stringResource(PlayerR.string.player_controls_decode_kernel_caption),
                 selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER,
-                onClick = {
-                    controller.setBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
-                    onSelectBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
-                },
+                // W19：偏好由 Activity 的 switchBackendAndRestart 写（必须先读续播位置、再写偏好，
+                // 否则 PlayerHolder 会立刻按新偏好重建空实例，位置读成 0、当前条目也取不到）
+                onClick = { onSelectBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER) },
             )
             PanelRow(
                 label = stringResource(PlayerR.string.player_settings_backend_mpv),
                 caption = stringResource(PlayerR.string.player_settings_backend_caption),
                 selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
-                onClick = {
-                    controller.setBackend(PlayerViewModel.PLAYER_BACKEND_MPV)
-                    onSelectBackend(PlayerViewModel.PLAYER_BACKEND_MPV)
-                },
+                onClick = { onSelectBackend(PlayerViewModel.PLAYER_BACKEND_MPV) },
             )
             PanelTitle(stringResource(PlayerR.string.player_controls_decode_strategy))
             PanelRow(
@@ -633,6 +643,17 @@ internal fun PlayerDecodePanel(
                 onClick = {
                     controller.setDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
                     onSelectDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
+                },
+            )
+            PanelTitle(stringResource(PlayerR.string.player_controls_decode_fallback))
+            PanelSwitchRow(
+                label = stringResource(PlayerR.string.player_controls_decode_auto_fallback),
+                caption =
+                    stringResource(PlayerR.string.player_controls_decode_auto_fallback_caption),
+                checked = settings.autoFallback,
+                onCheckedChange = { enabled ->
+                    controller.setAutoFallback(enabled)
+                    onAutoFallbackChange(enabled)
                 },
             )
             Text(

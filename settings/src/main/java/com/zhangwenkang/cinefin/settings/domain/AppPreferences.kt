@@ -149,6 +149,24 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 触发解码回退的媒体 id（空 = 无）；条目变化时自动清空回退档位，避免影响下一部片 */
     val playerDecodeFallbackMediaId = Preference("pref_player_decode_fallback_media_id", "")
 
+    // Player - 解码回退会话 / 循环保护 / 开关（W19：只追加，不重排既有键）
+    /**
+     * 回退档位所属的播放会话 id（空 = 无）。
+     *
+     * 回退重启（Activity recreate）会带着同一个会话 id，档位在会话内保持；新开播放页 / 通知另起播放会用新的会话 id，判定为「换会话」并把档位清零。旧实现按
+     * Intent 条目 id 比对，季 / 剧集入口与队列换集时 Intent 条目 ≠ 实际播放条目，每次回退重启都会清零档位 → 死循环（W19 真机实测 7 次重启 / 分钟）。
+     */
+    val playerDecodeFallbackSession = Preference("pref_player_decode_fallback_session", "")
+
+    /**
+     * 回退重启守卫（循环保护）：`mediaId|targetStage|attempts`，同一媒体 + 同一目标档位的重启次数。 只在「新播放会话」或用户显式改配置时清零，见
+     * [PlayerDecodeFallback]。
+     */
+    val playerDecodeFallbackGuard = Preference("pref_player_decode_fallback_guard", "")
+
+    /** 播放失败时是否自动回退：开 = 硬解 → 服务器转码 → mpv 软解；关 = 强制所选内核，失败只提示错误（默认开） */
+    val playerAutoFallback = Preference("pref_player_auto_fallback", true)
+
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)
     val downloadWhenRoaming = Preference("pref_downloads_roaming", false)

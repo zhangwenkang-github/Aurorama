@@ -21,6 +21,8 @@ import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import com.zhangwenkang.cinefin.language.LanguageMatcher
+import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
@@ -291,13 +293,26 @@ constructor(
         itemKind: String,
         startFromBeginning: Boolean,
         startPositionMs: Long = 0L,
+        playbackSessionId: String,
     ) {
         /*
-         * W16：换条目（新开播放页、点别的片）时清掉上一部片的解码回退档位——必须在拉取
-         * PlaybackInfo 之前清，否则新条目会带着「强制服务器转码」的档位请求。
-         * 同一条目的续播（换内核 / 回退链重启）不清，档位要活过 Activity 重建。
+         * W19：回退档位按「播放会话」判定，必须在本会话拉取 PlaybackInfo 之前处理。
+         *
+         * 旧实现按 Intent 条目 id 判定「换条目」，但季 / 剧集入口与队列换集时 Intent 条目 ≠
+         * 实际播放条目（如 Intent=季 id、实际播放=集 id）→ 每次回退重启都把刚推进的档位清零，
+         * 链路在「硬解失败 → 请求转码 → 重启」之间死循环（真机实测 60s 重启 7 次，永远到不了 mpv）。
+         * 现在回退重启复用同一个会话 id，档位活过 Activity 重建；新开播放页 = 新会话 → 清零。
          */
-        resetDecodeFallbackForItem(itemId.toString())
+        prepareDecodeFallback(playbackSessionId)
+        Timber.d(
+            "initializePlayer: itemId=%s kind=%s session=%s fallbackStage=%d",
+            itemId,
+            itemKind,
+            playbackSessionId,
+            PlayerDecodeFallback.normalize(
+                appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
+            ),
+        )
         // 打开条目就先声明「要播」的意图：起播窗口内不被 pause/resume 回存覆盖（bug ②）
         startupInProgress = true
         playWhenReady = true
@@ -931,6 +946,8 @@ constructor(
     private fun handleCodecFallback(error: PlaybackException): Boolean {
         val backend = playerBackend
         val mediaId = player.currentMediaItem?.mediaId ?: return false
+        // W19：「失败自动回退」开关关闭 = 强制使用所选内核，失败只提示错误（不切换、不重启）
+        val autoFallback = appPreferences.getValue(appPreferences.playerAutoFallback)
         val currentStage =
             PlayerDecodeFallback.normalize(
                 appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
@@ -956,17 +973,60 @@ constructor(
             )
             return true
         }
-        val nextStage =
+        // 链路判定（W18 纯函数）：下一档 / null = 链路已用尽
+        val candidateStage =
             PlayerDecodeFallback.stageAfterFailure(
                 stage = currentStage,
                 backend = backend,
                 bitratePreference = appPreferences.getValue(appPreferences.playerStreamingBitrate),
                 codecCapabilityError = isCodecCapabilityError(error),
             )
+        /*
+         * W19 循环保护：同一媒体 + 同一目标档位的重启次数超过上限即判定循环。
+         * 正常链路每档只会重启一次，触顶说明档位没能生效（例如被其它路径清零），直接报错比无限重启好。
+         */
+        val restartGuard =
+            PlayerDecodeFallback.parseGuard(
+                appPreferences.getValue(appPreferences.playerDecodeFallbackGuard)
+            )
+        val nextGuard = candidateStage?.let {
+            PlayerDecodeFallback.recordRestart(restartGuard, mediaId, it)
+        }
+        val nextStage =
+            PlayerDecodeFallback.fallbackDecision(
+                autoFallbackEnabled = autoFallback,
+                candidateStage = candidateStage,
+                restartGuardExceeded = nextGuard?.exceeded() == true,
+            )
+        if (nextStage == null) {
+            when {
+                !autoFallback -> Timber.i("自动回退已关闭，保持所选内核（backend=%s），交给错误卡片", backend)
+                nextGuard?.exceeded() == true ->
+                    Timber.w(
+                        "回退重启次数已达上限（media=%s target_stage=%d attempts=%d），判定为循环，交给错误卡片",
+                        mediaId,
+                        nextGuard.targetStage,
+                        nextGuard.attempts - 1,
+                    )
+            }
+        }
         // null = 链路已用尽（第 3 档也失败）：这一次才是「全部失败」，交给错误卡片
         if (nextStage == null || nextStage == currentStage) return false
         lastFailureHandledKey = PlayerDecodeFallback.failureKey(backend, currentStage)
         lastFailureHandledAtMs = nowMs
+        nextGuard?.let {
+            appPreferences.setValue(
+                appPreferences.playerDecodeFallbackGuard,
+                PlayerDecodeFallback.formatGuard(it),
+            )
+            Timber.d(
+                "回退重启计数：media=%s target_stage=%d attempts=%d/%d",
+                it.mediaId,
+                it.targetStage,
+                it.attempts,
+                PlayerDecodeFallback.MAX_FALLBACK_RESTARTS_PER_STAGE,
+            )
+        }
         appPreferences.setValue(appPreferences.playerDecodeFallbackStage, nextStage)
         appPreferences.setValue(appPreferences.playerDecodeFallbackMediaId, mediaId)
 
@@ -1006,21 +1066,32 @@ constructor(
             else -> false
         }
 
-    /** 换条目：上一部片的解码回退档位不带到下一部（同一条目的重启续播不受影响） */
-    private fun resetDecodeFallbackForItem(mediaId: String?) {
-        val fallbackMediaId = appPreferences.getValue(appPreferences.playerDecodeFallbackMediaId)
-        if (fallbackMediaId.isBlank()) return
-        if (mediaId != null && mediaId == fallbackMediaId) return
+    /**
+     * W19：播放会话切换时整理解码回退状态（必须在拉取 PlaybackInfo 之前调用）。
+     *
+     * 回退 / 手动切内核的 Activity 重启会复用同一个会话 id → 档位与重启守卫都保留； 新开播放页（详情页 / 通知另起播放）使用新会话 id → 清空档位与守卫，链路从头走。
+     * 旧实现按 Intent 条目 id 比对，季 / 剧集入口与队列换集时每次回退重启都会清零档位 → 死循环。
+     */
+    private fun prepareDecodeFallback(playbackSessionId: String) {
+        val storedSession = appPreferences.getValue(appPreferences.playerDecodeFallbackSession)
+        if (storedSession == playbackSessionId) return
+        if (storedSession.isNotBlank()) {
+            Timber.d("播放会话切换（%s → %s），清空解码回退档位", storedSession, playbackSessionId)
+        }
+        appPreferences.setValue(appPreferences.playerDecodeFallbackSession, playbackSessionId)
         clearDecodeFallback()
     }
 
     /**
-     * 清空解码回退档位（回 0 = 本地硬解）。
+     * 清空解码回退档位（回 0 = 本地硬解）与重启守卫。
      *
-     * 用户显式改码率 / 内核 / 解码策略时由 Activity 调用：用户的显式选择优先，回退链重新从头走。
+     * 用户显式改码率 / 内核 / 解码策略（或关掉自动回退开关）时由 Activity 调用：用户的显式选择优先， 回退链重新从头走。
      */
     fun clearDecodeFallback() {
-        if (appPreferences.getValue(appPreferences.playerDecodeFallbackStage) != 0) {
+        if (
+            appPreferences.getValue(appPreferences.playerDecodeFallbackStage) != 0 ||
+                appPreferences.getValue(appPreferences.playerDecodeFallbackGuard).isNotBlank()
+        ) {
             Timber.d("清空解码回退档位（回到本地硬解）")
         }
         appPreferences.setValue(
@@ -1028,6 +1099,25 @@ constructor(
             PlayerDecodeFallback.STAGE_NONE,
         )
         appPreferences.setValue(appPreferences.playerDecodeFallbackMediaId, "")
+        appPreferences.setValue(appPreferences.playerDecodeFallbackGuard, "")
+    }
+
+    /**
+     * W19：当前正在播放条目的条目类型（`BaseItemKind.serialName`），用于启动/重启时把播放页恢复到这一条。
+     *
+     * 季 / 剧集入口与队列换集时，Intent 里的原始条目和实际播放条目不是同一条；回退重启必须带上 实际条目（见
+     * PlayerActivity.restartPlaybackFromPosition），否则会跳回第一集。找不到时返回 null， 调用方保持原 Intent 条目。
+     */
+    fun currentPlaybackItemKind(): String? {
+        val itemId =
+            player.currentMediaItem?.mediaId?.let { raw ->
+                runCatching { UUID.fromString(raw) }.getOrNull()
+            } ?: return null
+        return when (playlistManager.findItem(itemId)) {
+            is FindroidEpisode -> BaseItemKind.EPISODE.serialName
+            is FindroidMovie -> BaseItemKind.MOVIE.serialName
+            else -> null
+        }
     }
 
     override fun onCleared() {

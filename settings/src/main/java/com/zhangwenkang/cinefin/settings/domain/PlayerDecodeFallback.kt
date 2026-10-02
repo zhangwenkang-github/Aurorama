@@ -91,6 +91,74 @@ object PlayerDecodeFallback {
             else -> nextStage(STAGE_NONE, bitratePreference)
         }
 
+    /**
+     * W19：一次失败后的回退决策（把「开关 / 链路档位 / 循环保护」收在一个纯函数里，便于单测）。
+     *
+     * @param autoFallbackEnabled 解码面板的「失败自动回退」开关：关 = 强制所选内核，失败只提示错误
+     * @param candidateStage [stageAfterFailure] 的链路判定结果（null = 链路已用尽）
+     * @param restartGuardExceeded 同一媒体 + 同一目标档位的重启次数是否已超上限（循环保护）
+     * @return 下一档；null = **不接管**（显示错误卡片：开关关闭 / 链路用尽 / 重启次数超限）
+     */
+    fun fallbackDecision(
+        autoFallbackEnabled: Boolean,
+        candidateStage: Int?,
+        restartGuardExceeded: Boolean,
+    ): Int? =
+        when {
+            !autoFallbackEnabled -> null
+            restartGuardExceeded -> null
+            else -> candidateStage
+        }
+
+    /**
+     * W19：回退重启守卫（循环保护），按「同一媒体 + 同一目标档位」计数。
+     *
+     * 正常链路每个目标档位最多重启一次（服务器转码 / 本地软解）；同一个目标被反复重启 （档位没能生效、状态被意外清零等循环）超过
+     * [MAX_FALLBACK_RESTARTS_PER_STAGE] 次就判定为循环， 直接交给错误卡片，不再无限重启。落盘格式
+     * `mediaId|targetStage|attempts`（[formatGuard] / [parseGuard]）。
+     */
+    data class RestartGuard(
+        val mediaId: String,
+        val targetStage: Int,
+        val attempts: Int,
+    ) {
+        fun exceeded(limit: Int = MAX_FALLBACK_RESTARTS_PER_STAGE): Boolean = attempts > limit
+    }
+
+    /** 同一媒体 + 同一目标档位的回退重启上限（超过即判定循环，交错误卡片） */
+    const val MAX_FALLBACK_RESTARTS_PER_STAGE = 2
+
+    /** 记录一次即将发起的重启：目标一致则计数 +1，换媒体 / 换目标档位则从 1 重新计数 */
+    fun recordRestart(
+        previous: RestartGuard?,
+        mediaId: String,
+        targetStage: Int,
+    ): RestartGuard {
+        val normalized = normalize(targetStage)
+        return if (
+            previous != null && previous.mediaId == mediaId && previous.targetStage == normalized
+        ) {
+            previous.copy(attempts = previous.attempts + 1)
+        } else {
+            RestartGuard(mediaId, normalized, 1)
+        }
+    }
+
+    /** 守卫序列化（SharedPreferences 单键存储）：`mediaId|targetStage|attempts` */
+    fun formatGuard(guard: RestartGuard): String =
+        "${guard.mediaId}|${guard.targetStage}|${guard.attempts}"
+
+    /** 守卫反序列化；空 / 损坏数据一律返回 null（按「没有历史」处理） */
+    fun parseGuard(raw: String?): RestartGuard? {
+        val parts = raw?.split('|') ?: return null
+        if (parts.size != 3) return null
+        val mediaId = parts[0].takeIf { it.isNotBlank() } ?: return null
+        val stage = parts[1].toIntOrNull() ?: return null
+        val attempts = parts[2].toIntOrNull() ?: return null
+        if (attempts <= 0) return null
+        return RestartGuard(mediaId, normalize(stage), attempts)
+    }
+
     /** 优先级文案用的顺序表（面板与文档同一份来源） */
     val PRIORITY: List<String> = listOf("本地硬解", "服务器解码/转码", "本地软解")
 

@@ -194,6 +194,8 @@ fun PlayerScreen(
                         itemId = itemId,
                         itemKind = itemKind,
                         startFromBeginning = startFromBeginning,
+                        // W19：TV 每次进入播放页 = 一个播放会话（回退档位不跨会话残留）
+                        playbackSessionId = java.util.UUID.randomUUID().toString(),
                     )
                     playerView.setBackgroundColor(
                         context.resources.getColor(android.R.color.black, context.theme)

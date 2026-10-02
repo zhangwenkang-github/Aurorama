@@ -588,6 +588,8 @@ fun PlayerControlOverlay(
     onSelectBackend: (String) -> Unit,
     /** 解码策略（硬解优先 / 仅软解）：由 Activity 落偏好并重启播放页让两个内核重新创建实例（W12 反馈 B） */
     onSelectDecodeMode: (String) -> Unit = {},
+    /** 失败自动回退开关（W19）：开 = 既有回退链；关 = 强制所选内核，失败只提示错误 */
+    onAutoFallbackChange: (Boolean) -> Unit = {},
     /** 码率档位（自动 / 原始画质 / 具体 Mbps）：由 Activity 落偏好并重启播放页重新拉取播放信息（W12 反馈 B） */
     onSelectBitrate: (Long) -> Unit = {},
     /** mpv 换硬件解码：即时写 mpv 属性 */
@@ -1218,6 +1220,7 @@ fun PlayerControlOverlay(
                             controller = settingsController,
                             onSelectBackend = onSelectBackend,
                             onSelectDecodeMode = onSelectDecodeMode,
+                            onAutoFallbackChange = onAutoFallbackChange,
                         )
                     PlayerPanel.Bitrate ->
                         PlayerBitratePanel(
