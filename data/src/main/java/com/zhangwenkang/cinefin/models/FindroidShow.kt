@@ -61,16 +61,17 @@ fun BaseItemDto.toFindroidShow(jellyfinRepository: JellyfinRepository): Findroid
 
 suspend fun FindroidShowDto.toFindroidShow(
     database: ServerDatabaseDao,
-    userId: UUID,
+    userId: UUID?,
 ): FindroidShow {
-    val userData = database.getUserDataOrCreateNew(id, userId)
+    // W36：无账号离线模式下没有 userId，播放状态按未观看处理，不再要求登录会话。
+    val userData = userId?.let { database.getUserDataOrCreateNew(id, it) }
     return FindroidShow(
         id = id,
         name = name,
         originalTitle = originalTitle,
         overview = overview,
-        played = userData.played,
-        favorite = userData.favorite,
+        played = userData?.played ?: false,
+        favorite = userData?.favorite ?: false,
         canPlay = true,
         canDownload = false,
         unplayedItemCount = null,

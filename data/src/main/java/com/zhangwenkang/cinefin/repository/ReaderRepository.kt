@@ -42,8 +42,8 @@ interface ReaderRepository {
     suspend fun deleteBookmark(itemId: UUID, bookmarkId: String)
 }
 
-/** 已下载书籍的本地文件信息。 */
-data class LocalBookFile(val itemId: UUID, val sizeBytes: Long)
+/** 已下载书籍的本地文件信息。W36：`title` 为下载时落盘的书名（缺省 = 旧数据没有标题侧车）。 */
+data class LocalBookFile(val itemId: UUID, val sizeBytes: Long, val title: String? = null)
 
 data class ReadingProgress(
     val itemId: UUID,

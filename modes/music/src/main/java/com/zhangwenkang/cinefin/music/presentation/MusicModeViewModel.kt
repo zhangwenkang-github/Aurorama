@@ -16,6 +16,8 @@ import com.zhangwenkang.cinefin.music.data.MusicRepository
 import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
+import com.zhangwenkang.cinefin.music.data.groupAlbums
+import com.zhangwenkang.cinefin.music.data.groupArtists
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricEditLine
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayState
@@ -51,6 +53,8 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
+import com.zhangwenkang.cinefin.utils.OfflineMediaEntryKind
+import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -97,6 +101,8 @@ constructor(
     private val audioEffects: MusicAudioEffectsController,
     private val downloader: Downloader,
     private val jellyfinRepository: JellyfinRepository,
+    /** W36：离线模式的曲库来源（本机已下载曲目）。 */
+    private val offlineMediaRepository: OfflineMediaRepository,
 ) : ViewModel() {
 
     /** W34：曲目下载态（下载列表层级化要求音乐侧也能发起下载）。 */
@@ -117,6 +123,8 @@ constructor(
     data class UiState(
         val loading: Boolean = true,
         val tab: MusicTab = MusicTab.ALBUMS,
+        /** W36：当前曲库来源是否为离线（离线模式只显示本机已下载曲目）。 */
+        val offline: Boolean = false,
         val albums: List<MusicAlbum> = emptyList(),
         val artists: List<MusicArtist> = emptyList(),
         val songs: List<MusicSong> = emptyList(),
@@ -699,11 +707,40 @@ constructor(
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             _uiState.update { it.copy(loading = true, errorTitle = null, errorMessage = null) }
+            // W36：离线模式只读本机已下载曲目，不发任何网络请求。
+            if (appPreferences.getValue(appPreferences.offlineMode)) {
+                val library = runCatching {
+                    loadOfflineLibrary()
+                }
+                    .onFailure { Timber.w(it, "读取离线曲库失败") }
+                    .getOrElse {
+                        MusicLibrary(
+                            songs = emptyList(),
+                            albums = emptyList(),
+                            artists = emptyList(),
+                        )
+                    }
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        offline = true,
+                        albums = library.albums,
+                        artists = library.artists,
+                        songs = library.songs,
+                        playlists = emptyList(),
+                        errorTitle = null,
+                        errorMessage = null,
+                    )
+                }
+                refreshDownloadState()
+                return@launch
+            }
             try {
                 val (library, playlists) = loadLibraryWithRetry()
                 _uiState.update {
                     it.copy(
                         loading = false,
+                        offline = false,
                         albums = library.albums,
                         artists = library.artists,
                         songs = library.songs,
@@ -744,6 +781,36 @@ constructor(
     private suspend fun loadLibraryOnce(): Pair<MusicLibrary, List<MusicPlaylist>> {
         val library = repository.getLibrary(libraryId = selectedMusicLibraryId())
         return library to repository.getPlaylists()
+    }
+
+    /**
+     * W36 离线曲库：本机已下载且「允许离线观看」的曲目（按专辑 / 艺术家聚合）。
+     *
+     * 曲目元数据来自下载侧车（专辑 / 艺人 / 音轨号）；播放走 [MusicTrackResolver] → 离线仓库 `getMediaSources` 优先 LOCAL
+     * 来源，即本地文件。
+     */
+    private suspend fun loadOfflineLibrary(): MusicLibrary {
+        val songs =
+            offlineMediaRepository
+                .listEntries()
+                .filter { it.kind == OfflineMediaEntryKind.MUSIC && it.allowOffline }
+                .map { entry ->
+                    MusicSong(
+                        itemId = entry.itemId,
+                        name = entry.name,
+                        albumName = entry.albumName ?: "未分类",
+                        artist = entry.artist,
+                        indexNumber = entry.trackIndex.takeIf { it > 0 },
+                        runtimeTicks = 0,
+                        imageUri = null,
+                    )
+                }
+                .sortedWith(compareBy({ it.albumName }, { it.indexNumber ?: 0 }, { it.name }))
+        return MusicLibrary(
+            songs = songs,
+            albums = groupAlbums(songs),
+            artists = groupArtists(songs),
+        )
     }
 
     /** 客户端设置「音乐库」：指定库失效（被删除 / 重建）时回落自动（全部音乐库）。 */

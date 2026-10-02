@@ -131,6 +131,12 @@ sealed interface DownloadAction {
     /** W34：删除整个层级容器（含下载中 / 已完成子项）。 */
     data class DeleteContainer(val key: String) : DownloadAction
 
+    /** W36：切换单个已完成条目的「允许离线模式观看」。 */
+    data class ToggleOffline(val key: String) : DownloadAction
+
+    /** W36：容器级（节目 / 专辑 / 季）批量切换「允许离线模式观看」。 */
+    data class SetContainerOffline(val key: String, val allow: Boolean) : DownloadAction
+
     data object PauseSelected : DownloadAction
 
     data object ResumeSelected : DownloadAction

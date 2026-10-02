@@ -63,6 +63,8 @@ fun ServersScreen(
     onAddClick: () -> Unit,
     onBackClick: () -> Unit,
     showBack: Boolean = true,
+    /** W36：无账号离线模式入口。 */
+    onOfflineClick: () -> Unit = {},
     viewModel: ServersViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -79,6 +81,7 @@ fun ServersScreen(
     ServersScreenLayout(
         state = state,
         showBack = showBack,
+        onOfflineClick = onOfflineClick,
         onAction = { action ->
             when (action) {
                 is ServersAction.OnAddClick -> onAddClick()
@@ -96,6 +99,7 @@ fun ServersScreen(
 private fun ServersScreenLayout(
     state: ServersState,
     showBack: Boolean = true,
+    onOfflineClick: () -> Unit = {},
     onAction: (ServersAction) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -173,6 +177,13 @@ private fun ServersScreenLayout(
                     modifier = Modifier.size(18.dp),
                 )
             },
+        )
+        CinefinButton(
+            text = "离线模式",
+            onClick = onOfflineClick,
+            modifier = Modifier.align(Alignment.BottomStart).padding(CinefinSpacing.Space6),
+            variant = CinefinButtonVariant.Outlined,
+            size = CinefinButtonSize.Medium,
         )
         TopBarAction(
             icon = CoreR.drawable.ic_certificate,

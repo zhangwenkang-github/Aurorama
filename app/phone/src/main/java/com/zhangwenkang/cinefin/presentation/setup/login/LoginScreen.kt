@@ -65,6 +65,8 @@ fun LoginScreen(
     onChangeServerClick: () -> Unit,
     onBackClick: () -> Unit,
     prefilledUsername: String? = null,
+    /** W36：无账号离线模式入口。 */
+    onOfflineClick: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -92,6 +94,7 @@ fun LoginScreen(
             viewModel.onAction(action)
         },
         prefilledUsername = prefilledUsername,
+        onOfflineClick = onOfflineClick,
     )
 }
 
@@ -100,6 +103,7 @@ private fun LoginScreenLayout(
     state: LoginState,
     onAction: (LoginAction) -> Unit,
     prefilledUsername: String? = null,
+    onOfflineClick: () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     var username by rememberSaveable { mutableStateOf(prefilledUsername ?: "") }
@@ -244,6 +248,14 @@ private fun LoginScreenLayout(
                 Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 Text(text = state.disclaimer!!, style = CinefinType.BodySmall)
             }
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
+            CinefinButton(
+                text = "离线模式",
+                onClick = onOfflineClick,
+                modifier = Modifier.fillMaxWidth(),
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Medium,
+            )
         }
         TopBarAction(
             icon = CoreR.drawable.ic_arrow_left,

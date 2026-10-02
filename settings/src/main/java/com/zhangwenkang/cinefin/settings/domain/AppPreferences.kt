@@ -189,6 +189,10 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Offline mode
     val offlineMode = Preference("pref_offline_mode", false)
+    /**
+     * W36：被关闭「允许离线模式观看」的书籍 id（书籍离线文件不经过 `sources` 表， 开关状态只能落在偏好里；视频 / 音乐用 `sources.allowOffline`）。
+     */
+    val offlineBlockedBooks = Preference("pref_offline_blocked_books", emptySet<String>())
 
     // Reader
     /** 阅读模式：scroll / paged / two_column。 */

@@ -115,6 +115,12 @@ import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
 import com.zhangwenkang.cinefin.presentation.navigation.visibleRailKeys
+import com.zhangwenkang.cinefin.presentation.offline.OfflineHomeScreen
+import com.zhangwenkang.cinefin.presentation.offline.OfflineLibraryScreen
+import com.zhangwenkang.cinefin.presentation.offline.OfflineModeViewModel
+import com.zhangwenkang.cinefin.presentation.offline.OfflineShelfScreen
+import com.zhangwenkang.cinefin.presentation.offline.StartDestinationKind
+import com.zhangwenkang.cinefin.presentation.offline.resolveStartDestinationKind
 import com.zhangwenkang.cinefin.presentation.settings.AboutScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsFileEditScreen
 import com.zhangwenkang.cinefin.presentation.settings.SettingsScreen
@@ -128,6 +134,7 @@ import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import java.util.UUID
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import org.jellyfin.sdk.model.api.BaseItemKind
 
 @Serializable data object WelcomeRoute
 
@@ -224,14 +231,35 @@ fun NavigationRoot(
     hasCurrentUser: Boolean,
 ) {
     val isOfflineMode = LocalOfflineMode.current
+    val offlineModeViewModel: OfflineModeViewModel = hiltViewModel()
 
-    val startDestination =
-        when {
-            hasServers && hasCurrentServer && hasCurrentUser -> HomeRoute
-            hasServers && hasCurrentServer -> UsersRoute
-            hasServers -> ServersRoute
-            else -> WelcomeRoute
+    // W36 导航门控（纯函数见 OfflineNavigation.kt，单测覆盖）：离线模式优先落离线首页。
+    // 只在首次组合时决定：之后进入 / 退出离线模式由显式导航与页面内容分流处理，避免切换时重建导航图。
+    val startDestination = remember {
+        when (
+            resolveStartDestinationKind(
+                isOfflineMode = isOfflineMode,
+                hasServers = hasServers,
+                hasCurrentServer = hasCurrentServer,
+                hasCurrentUser = hasCurrentUser,
+            )
+        ) {
+            StartDestinationKind.OFFLINE_HOME,
+            StartDestinationKind.HOME -> HomeRoute
+            StartDestinationKind.USERS -> UsersRoute
+            StartDestinationKind.SERVERS -> ServersRoute
+            StartDestinationKind.WELCOME -> WelcomeRoute
         }
+    }
+
+    /** W36：欢迎 / 服务器 / 用户 / 登录页的「离线模式」入口——不依赖任何服务器会话，直接进离线首页。 */
+    val enterOfflineMode: () -> Unit = {
+        offlineModeViewModel.enterOfflineMode()
+        navController.safeNavigate(HomeRoute) {
+            popUpTo(0)
+            launchSingleTop = true
+        }
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
@@ -574,7 +602,10 @@ fun NavigationRoot(
         ) {
             composable<WelcomeRoute> {
                 ProvideLumen {
-                    WelcomeScreen(onContinueClick = { navController.safeNavigate(ServersRoute) })
+                    WelcomeScreen(
+                        onContinueClick = { navController.safeNavigate(ServersRoute) },
+                        onOfflineClick = enterOfflineMode,
+                    )
                 }
             }
             composable<ServersRoute> {
@@ -587,6 +618,7 @@ fun NavigationRoot(
                         onAddClick = { navController.safeNavigate(AddServerRoute) },
                         onBackClick = { navController.safePopBackStack() },
                         showBack = navController.previousBackStackEntry != null,
+                        onOfflineClick = enterOfflineMode,
                     )
                 }
             }
@@ -623,6 +655,7 @@ fun NavigationRoot(
                             navController.safeNavigate(LoginRoute(username = username))
                         },
                         showBack = navController.previousBackStackEntry != null,
+                        onOfflineClick = enterOfflineMode,
                     )
                 }
             }
@@ -631,6 +664,8 @@ fun NavigationRoot(
                 ProvideLumen {
                     LoginScreen(
                         onSuccess = {
+                            // W36：登录成功自动退出离线模式，回到在线首页。
+                            offlineModeViewModel.exitOfflineMode()
                             navController.safeNavigate(HomeRoute) {
                                 popUpTo(0)
                                 launchSingleTop = true
@@ -644,32 +679,104 @@ fun NavigationRoot(
                         },
                         onBackClick = { navController.safePopBackStack() },
                         prefilledUsername = route.username,
+                        onOfflineClick = enterOfflineMode,
                     )
                 }
             }
             composable<HomeRoute> {
-                HomeScreen(
-                    onOpenDrawer = openDrawer,
-                    onSearchClick = {
-                        searchExpanded = true
-                        navController.safeNavigate(MediaRoute) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    onItemClick = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                )
+                if (isOfflineMode) {
+                    // W36 离线首页：已下载内容入口 + 空态 + 网络恢复提示（W37 本地文件库入口占位）。
+                    OfflineHomeScreen(
+                        onOpenDrawer = openDrawer,
+                        onOpenVideos = { navigateTopLevel(MediaRoute) },
+                        onOpenMusic = { navigateTopLevel(MusicModeRoute) },
+                        onOpenBooks = { navigateTopLevel(BookshelfRoute) },
+                        onExitOffline =
+                            if (hasCurrentUser) {
+                                { offlineModeViewModel.exitOfflineMode() }
+                            } else {
+                                null
+                            },
+                        onOpenLogin =
+                            if (hasServers) {
+                                {
+                                    navController.safeNavigate(UsersRoute) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                    )
+                } else {
+                    HomeScreen(
+                        onOpenDrawer = openDrawer,
+                        onSearchClick = {
+                            searchExpanded = true
+                            navController.safeNavigate(MediaRoute) {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onItemClick = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
+                        },
+                    )
+                }
             }
             composable<MediaRoute> {
-                ProvideLumen {
-                    MediaScreen(
+                if (isOfflineMode) {
+                    // W36 离线媒体库：只展示已下载媒体，点条目直接走本地文件。
+                    OfflineLibraryScreen(
+                        onOpenDrawer = openDrawer,
+                        onPlayVideo = { itemId, isEpisode ->
+                            val intent = Intent(context, PlayerActivity::class.java)
+                            intent.putExtra("itemId", itemId.toString())
+                            intent.putExtra(
+                                "itemKind",
+                                if (isEpisode) BaseItemKind.EPISODE.serialName
+                                else BaseItemKind.MOVIE.serialName,
+                            )
+                            context.startActivity(intent)
+                        },
+                        onOpenBook = { itemId, title ->
+                            openReader(context = context, itemId = itemId.toString(), title = title)
+                        },
+                    )
+                } else {
+                    ProvideLumen {
+                        MediaScreen(
+                            onOpenDrawer = openDrawer,
+                            onItemClick = { item ->
+                                navigateToItem(
+                                    navController = navController,
+                                    item = item,
+                                    context = context,
+                                )
+                            },
+                            onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
+                            searchExpanded = searchExpanded,
+                            onSearchExpand = { searchExpanded = it },
+                        )
+                    }
+                }
+            }
+            composable<BookshelfRoute> {
+                if (isOfflineMode) {
+                    // W36 离线书架：已下载书籍，点击直接进本机阅读器。
+                    OfflineShelfScreen(
+                        onOpenDrawer = openDrawer,
+                        onOpenBook = { itemId, title ->
+                            openReader(context = context, itemId = itemId.toString(), title = title)
+                        },
+                    )
+                } else {
+                    BookshelfScreen(
                         onOpenDrawer = openDrawer,
                         onItemClick = { item ->
                             navigateToItem(
@@ -678,24 +785,9 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
-                        onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
-                        searchExpanded = searchExpanded,
-                        onSearchExpand = { searchExpanded = it },
+                        navigateBack = { navController.safePopBackStack() },
                     )
                 }
-            }
-            composable<BookshelfRoute> {
-                BookshelfScreen(
-                    onOpenDrawer = openDrawer,
-                    onItemClick = { item ->
-                        navigateToItem(
-                            navController = navController,
-                            item = item,
-                            context = context,
-                        )
-                    },
-                    navigateBack = { navController.safePopBackStack() },
-                )
             }
             composable<DownloadsRoute> {
                 ProvideLumen {
