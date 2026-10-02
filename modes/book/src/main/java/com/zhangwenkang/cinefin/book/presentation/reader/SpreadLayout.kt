@@ -90,9 +90,15 @@ internal fun visualSlotPages(slot: SpreadSlot, rtl: Boolean): List<Int?> =
         else -> listOf(slot.pages.first(), null)
     }
 
-/** 逐页扫描宽高比（异常 / 取不到 → null）；由双栏版式在后台线程调用一次，结果缓存于会话内。 */
-internal suspend fun PageSource.pageAspectRatios(): List<Float?> {
+/**
+ * 全书宽高比读取（异常 / 取不到 → null）；由双栏版式在后台线程调用一次，结果缓存于会话内。
+ *
+ * 优先走数据源的批量元数据路径（PDF = PdfBox 只读页树，W33）；不可用时才回退逐页 [PageSource.pageAspectRatio]（CBZ 的
+ * `inJustDecodeBounds`，或 PDF 元数据读取失败时的兜底）。
+ */
+internal suspend fun PageSource.collectPageAspectRatios(): List<Float?> {
     val count = pageCount
     if (count <= 0) return emptyList()
+    pageAspectRatios()?.let { batch -> if (batch.size == count) return batch }
     return List(count) { index -> runCatching { pageAspectRatio(index) }.getOrNull() }
 }

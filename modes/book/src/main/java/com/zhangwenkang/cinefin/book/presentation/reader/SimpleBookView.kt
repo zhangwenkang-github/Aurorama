@@ -115,14 +115,18 @@ internal fun SimpleBookView(
     var pageAspects by remember(document) { mutableStateOf<List<Float?>?>(null) }
     LaunchedEffect(document, settings.mode) {
         if (settings.mode == ReaderMode.TwoColumn && pageAspects == null) {
-            val aspects = document.pageSource.pageAspectRatios()
+            val aspects = document.pageSource.collectPageAspectRatios()
             pageAspects = aspects
             val slots = twoColumnSlots(aspects, pageCount)
             Timber.d(
-                "reader spread layout pages=%d slots=%d landscape=%d",
+                "reader spread layout pages=%d slots=%d landscape=%d at=%s",
                 pageCount,
                 slots.size,
                 slots.count { it.fullscreen },
+                slots
+                    .filter { it.fullscreen }
+                    .take(8)
+                    .joinToString(",") { it.pages.first().toString() },
             )
         }
     }
