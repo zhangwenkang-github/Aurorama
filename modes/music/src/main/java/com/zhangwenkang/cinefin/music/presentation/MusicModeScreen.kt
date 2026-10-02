@@ -114,7 +114,14 @@ fun MusicModeScreen(
     val lyricsOverlayState by viewModel.lyricsOverlayState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
     var sleepSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var effectsSheetOpen by rememberSaveable { mutableStateOf(false) }
     var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
+    val effectsEqualizerEnabled by viewModel.effectsEqualizerEnabled.collectAsState()
+    val effectsEqualizerPreset by viewModel.effectsEqualizerPreset.collectAsState()
+    val effectsEqualizerBands by viewModel.effectsEqualizerBands.collectAsState()
+    val effectsReplayGainMode by viewModel.effectsReplayGainMode.collectAsState()
+    val effectsReplayGainLabel by viewModel.effectsReplayGainLabel.collectAsState()
+    val effectsCrossfadeSeconds by viewModel.effectsCrossfadeSeconds.collectAsState()
     var overlayGuideOpen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     // 权限页返回：复核权限，拿到了就直接开启（用户在引导弹窗里点过「去授权」）
@@ -234,6 +241,7 @@ fun MusicModeScreen(
                             else -> overlayGuideOpen = true
                         }
                     },
+                    onOpenEffects = { effectsSheetOpen = true },
                     onOpenQueue = { queueSheetOpen = true },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
@@ -298,6 +306,25 @@ fun MusicModeScreen(
                     sleepSheetOpen = false
                 },
                 onDismiss = { sleepSheetOpen = false },
+            )
+        }
+
+        // W30-MUSIC-FX：音效面板（EQ / ReplayGain / 淡入淡出），入口在全屏播放页功能行。
+        if (effectsSheetOpen) {
+            MusicEffectsSheet(
+                equalizerEnabled = effectsEqualizerEnabled,
+                preset = effectsEqualizerPreset,
+                bands = effectsEqualizerBands,
+                replayGainMode = effectsReplayGainMode,
+                replayGainLabel = effectsReplayGainLabel,
+                crossfadeSeconds = effectsCrossfadeSeconds,
+                onDismiss = { effectsSheetOpen = false },
+                onToggleEqualizer = viewModel::setEqualizerEnabled,
+                onSelectPreset = viewModel::selectEqualizerPreset,
+                onPreviewBand = viewModel::previewEqualizerBand,
+                onCommitBands = viewModel::commitEqualizerBands,
+                onSelectReplayGain = viewModel::selectReplayGainMode,
+                onSelectCrossfade = viewModel::selectCrossfadeSeconds,
             )
         }
 
