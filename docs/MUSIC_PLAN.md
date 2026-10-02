@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-10-02（W21-MUSIC 会话）　分支：`feature/w21-music-extras`
+> 最后更新：2026-10-02（W23-MUSIC 会话）　分支：`feature/w23-music-player-ui`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -94,6 +94,16 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D27 | 最近播放 = **本地 Room**（`music_recent`，itemId 主键 upsert + `playedAt` 倒序，上限 100）；记录时机 = 播放器队列当前曲目变化（恢复态不算"播放过"） | 最近播放是本地行为数据，不需要写服务器；重复播放只刷新时间并排到最前；曲库快照能查到完整元数据时补专辑 / 艺人 / 时长，查不到（如恢复队列）用播放条目兜底 |
 | D28 | 恢复态（重启后未点播放）下队列面板仍可拖拽 / 移除：编辑直接落在恢复快照并立即落盘；存档位置取值 = 活动会话读播放器实时位置、恢复态读快照里写回的续播位置 | 恢复态没有播放器会话，若照读 `positionMs`（=0）会把保存的位置清零（真机回归拦下，见 §6-21）；`musicQueueRemoveAt` 纯函数保证"删当前项索引顺延 / 删前面左移"语义并有单测 |
 
+### 2.8 W23 本会话决策（播放 UI/交互重构 + 桌面歌词悬浮窗）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D29 | 全屏播放界面与歌词页做成**音乐模式内的覆盖层**（`nowPlayingOpen` + `lyricsPage` 两个布尔），不新增路由、不改 `NavigationRoot.kt` | 本波红线：导航 IA 与版本目录不动；覆盖层同样满足"底栏进全屏 / 右滑歌词 / 下滑退出"，且状态与队列同源 |
+| D30 | 时长来源 = `MusicPlaybackStateSource` 追加 `durationMs`（附加只读观察接口，`MusicPlaybackController` 冻结接口不动）；恢复态用曲库元数据（`runtimeTicks`）兜底 | 底栏与全屏都要"当前时间 / 总时长"；控制器 ticker 已经采样 `lastKnownDurationMs`，加一条 StateFlow 即可，不碰 `player:core` |
+| D31 | 播放模式 = 四种模式 ↔ 内核 `repeatMode` + `shuffleEnabled` 的**纯映射**（`MusicPlayMode`），模式随队列持久化（无新增偏好键）；图标循环切换 | 复用既有 `MusicQueue` 字段，gapless / 上报 / 队列恢复全部不用改；顺序播放=OFF（播完停）、列表循环=ALL、单曲循环=ONE、随机=ALL+shuffle |
+| D32 | 随机规则：**下一曲**交给内核 `DefaultShuffleOrder`（一轮内每首恰好一次 = 未播优先）；**上一曲**由 `MusicPlaybackHistory`（纯函数 + 进程级 tracker）给出"实际播放过的上一首"的队列索引，找不到才回落内核 | 用户明确要求"上一曲不是随机跳"；内核 shuffle 的 `seekToPrevious` 在手动跳播 / 随机起点下不等于真实历史（真机日志见 §5.6-3） |
+| D33 | 桌面歌词 = `modes:music` 的 `MusicLyricsOverlayController`（状态与歌词）+ `app:phone` 的 `MusicLyricsOverlayService`（`WindowManager` 覆盖层 + `ComposeView` 最小生命周期宿主），宿主接口沿用 `PlaybackServiceStarter` 的"模块定义接口、宿主实现"约定；Service 是**普通 Service**（不占前台通知，与播放前台服务共存） | 红线约束：主要逻辑在音乐线，App 层只加 Manifest 权限 / Service / Hilt 绑定；悬浮窗跟随播放与开关状态，退出播放 / 关闭开关即销毁 |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -172,6 +182,20 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] `AppPreferences.kt` 只追加 `pref_music_resume_queue`（默认开，恢复开关；不动既有键）
 
 **遗留**：暂无（队列持久化的偏好开关暂未接设置页 UI，留作后续设置线接入；内置歌词、歌词编辑 / 上传仍按 §3 W3 未决项）。
+
+### W23 音乐播放 UI/交互重构 + 桌面歌词（本会话 `feature/w23-music-player-ui`，已交付）
+
+- [x] A 迷你播放栏：封面 + 「当前时间 / 总时长」+ 播放状态（**移除**「队列 N/N」）；按钮固定为 播放队列 / 词 / 上一曲 / 播放暂停 / 下一曲；点封面与标题区进全屏，各按钮互不触发全屏
+- [x] B 全屏播放界面：大封面、歌名 / 歌手 / 专辑、可拖动进度条 + 时间、上一曲 / 播放暂停 / 下一曲、收藏、歌词入口；左上箭头 / **下滑**退出，**右滑**进歌词页；歌词页左滑 / 返回箭头回全屏，**点当前歌词文本**也可进歌词页
+- [x] C 播放模式：顺序播放（播完停）/ 列表循环 / 单曲循环 / 随机播放，全屏图标循环切换；随机模式「下一曲随机（未播优先）+ 上一曲回播放历史」
+- [x] D 桌面歌词：`SYSTEM_ALERT_WINDOW` 权限引导（全屏播放界面弹引导框 → 系统权限页 → 返回自动开启）+ 客户端设置新增「桌面歌词」开关行；悬浮窗双行（当前句 + 下一句）、可拖动、单击弹设置面板（颜色 / 字号 / 语言 / 锁定 / 关闭）；跟随播放进度更新，退出播放 / 关闭开关即销毁
+- [x] 单测：`MusicPlayModeTest`（4）/ `MusicPlaybackHistoryTest`（4）/ `MusicLyricsOverlaySettingsTest`（4）新增 12 项，`:modes:music` 59 → **71 项**；`MusicPlaybackMathTest` 补 1 例回归（起播索引越界）
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51 项）+ `:modes:music:testDebugUnitTest`（71 项）全绿
+- [x] 真机验证（Pad 5 `43af8627` 全项 + K60 `8e875894` 手机形态冒烟，见 §5.6）
+- [x] 缺陷修复：换队列过渡窗口里 ticker 按旧播放器索引回写新队列 → `setMediaItems` 抛 `IllegalSeekPositionException`（起播失败），见 §6-24
+- [x] `AppPreferences.kt` 只追加 `pref_music_lyrics_overlay*` 5 个键（开关 / 颜色 / 字号 / 语言 / 锁定）
+
+**遗留**：内嵌歌词 / 歌词编辑（W3 未决项）；`player:local` 的 `MusicPlaybackStateSource` 追加了 `durationMs`，`MusicPlaybackControllerImpl` 修了起播索引竞态（两处均在本波红线外，已记录理由）；桌面歌词悬浮窗位置不跨进程持久化（每次开启回到默认位）。
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -305,6 +329,32 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 > 设备副作用已还原：App `force-stop`、`/sdcard/w21_ui.xml` 清理、收藏测试条目已取消（服务器收藏数回 0）；未改 prefs / `wm size` / 旋转 / Wi-Fi。
 > 过程事故：恢复态编辑队列时曾把保存位置清零（`persist` 照读无会话的 `positionMs=0`）——真机回归拦下，修复为 `queuePersistPositionMs`（活动会话 = 实时位置 / 恢复态 = 快照位置）+ 单测，第 7 项为修复后复验。
 
+### 5.6 W23 真机验证记录（2026-10-02，Pad 5 `43af8627` 全项 + K60 `8e875894` 冒烟）
+
+设备由负责人统一调度（`device-lock.md`，W23 登记 Pad 5 + K60）；全部 `adb` 命令带 `-s`；安装包 = 本会话 `assembleDebug` 产物（`phone-libre-arm64-v8a-debug.apk`）。
+
+| # | 项目 | 证据 | 结果 |
+|---|------|------|------|
+| 1 | 播放栏封面 / 时间 / 无队列号 / 五键顺序 | Pad 5 dump：封面 `content-desc=aLIEz [225,2425][333,2524]`、`aLIEz` + `0:04 / 4:07 · 正在播放`；五键 bounds 依次 `播放队列 [1114,2457] → 词 [1217] → 上一曲 [1312] → 暂停 [1411] → 下一首 [1510]`；无「队列 N/N」文案 | ✅ |
+| 2 | 点播放栏进全屏 | 点封面中心 → dump：`退出全屏 [279,117]`、大封面 `[539,569][1259,1289]`、`SawanoHiroyuki[nZk], 瑞葵 · A/Z\|aLIEz`、当前歌词行、`0:15 / 4:07`、底部四键（顺序播放 / 收藏 / 歌词 / 桌面歌词） | ✅ |
+| 3 | 歌词页进入 / 返回 | 右滑（`input swipe 700 1500 → 1500 1500`）→ 歌词页（`返回全屏播放` + `来源：服务端　简体中文 / 日文 / 英文 / 混合行` + 语言 chip）；歌词页左滑 → 全屏；点「歌词」键 → 歌词页；点当前歌词文本（`clickable=true`）→ 歌词页；返回箭头 → 全屏 | ✅ |
+| 4 | 四种播放模式 | 连点模式键：`顺序播放 → 列表循环 → 单曲循环 → 随机播放 → 顺序播放`；日志 `播放模式切换：X（repeat=ALL/ONE/OFF shuffle=…）` 四条齐全 | ✅ |
+| 5 | 顺序播放（播完停） | 顺序模式走到队列末曲（`只要平凡`）→ 再点下一曲不前进 → 进度条拖到末尾 → 12 s 后 `state=STOPPED(1) position=246037`（曲长 4:06）、`speed=0.0` | ✅ |
+| 6 | 列表循环 | 列表模式在末曲 `aLIEz` 点下一曲 → 回到队首 `Last Reunion`（6 次 next 走完整队列后再次回卷） | ✅ |
+| 7 | 单曲循环 | 单曲模式：`来自天堂的魔鬼` 拖到末尾 → 8 s 后同一首 `position=5831 state=3`（从头续播，未切歌） | ✅ |
+| 8 | 随机：下一曲随机（未播优先） | 日志 `随机下一曲：当前 index=0 → 58 → 72 → 76 → 84`（非顺序跳）+ 曲名 `Last Reunion → 只要平凡 → 来自天堂的魔鬼 → 水龙吟 → 篇章` 互不重复 | ✅ |
+| 9 | 随机：上一曲回历史 | 日志 `随机上一曲：回到历史曲目 index=76（当前 index=84）`、`index=72（当前 index=76）`；曲名 `篇章 → 水龙吟 → 来自天堂的魔鬼` 与播放历史一致 | ✅ |
+| 10 | 桌面歌词权限引导 | 点「桌面歌词」→ 引导框（`开启桌面歌词` + 说明 + `取消` / `去授权`）→ 点去授权 → `topResumedActivity=com.android.settings/.Settings$OverlaySettingsActivity`；测试侧用 `appops set … SYSTEM_ALERT_WINDOW allow` 等效授权 → 返回 App 自动开启（`桌面歌词开关：开启` + `悬浮窗已显示`） | ✅ |
+| 11 | 悬浮窗双行随播放更新 | 日志 `桌面歌词更新：当前句「一味的固执己见…」· 下一句「但有时也会躲藏在那被悲哀所羞辱的镜子里」`（aLIEz，后续多组随进度推进） | ✅ |
+| 12 | 悬浮窗拖动 / 单击面板 | 窗口（`dumpsys window`：`appop=SYSTEM_ALERT_WINDOW ty=APPLICATION_OVERLAY fl=NOT_FOCUSABLE`）从 `(24,853)` 拖到 `(610,1510)`；单击后窗口高度 `204 → 451`（面板展开） | ✅ |
+| 13 | 面板五项 | 日志：`颜色：松石` / `字号：大`（再点 `特大`）/ `语言：日文`（悬浮窗同步变日文原文）/ `锁定：已解锁 → 已锁定`（锁定时拖动窗口 frame 位置不变）/ `关闭`（`桌面歌词开关：关闭` + `悬浮窗已销毁` + `dumpsys activity services` 该 Service 记录 0） | ✅ |
+| 14 | 不回归 | 歌词面板（`来源：服务端　简体中文` + chip）、队列面板（`播放队列（6）` + `正在播放` + `≡`/`✕`）、睡眠定时面板（10/20/30/60）、force-stop 重启后队列恢复（`4:06 / 4:06 · 上次播放` + 播放键）、最近播放 / 收藏入口、gapless 自动衔接均正常 | ✅ |
+| 15 | 稳定性 | 整轮 logcat 无 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out`；本波真机拦下的 `IllegalSeekPositionException`（§6-24）已修复并复验 | ✅ |
+| 16 | K60 手机形态冒烟 | 底栏（手机 IA）→ 音乐 → 播放：封面 48dp + `Gate of Steiner -Piano- / 2:56 / 3:50 · 上次播放` + 五键顺序一致；点封面进全屏（收藏 / 歌词 / 桌面歌词）；授权后开启桌面歌词 → `dumpsys window` 出现本应用 `APPLICATION_OVERLAY` 窗口；再点关闭后窗口消失 | ✅ |
+
+> 设备副作用：两机 App 已 force-stop、`/sdcard/w23_*.xml` 已清理；未改 `wm size` / `wm density` / 旋转 / Wi-Fi；Pad 5 在测试中经 appops 授予悬浮窗权限（等同系统页开关，保留）。
+> 测试期残留的新功能偏好（Pad 5）：`桌面歌词=关`、`颜色=松石`、`字号=特大`、`语言=日文`、`锁定=开`（均为本波新增键，用户下次开启面板可直接改；未做 prefs 文件改写，避免 W18 的 run-as 截断事故）。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -364,6 +414,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 23. **PowerShell 的 `>` 会破坏二进制**（2026-10-02 W21）：`adb exec-out run-as … cat databases/music > x.db` 拉 Room 库会写出损坏文件；
     且 `run-as` 往 `/sdcard/Android/data/...` 复制会 `Permission denied`。→ 用 Python `subprocess.run(…, capture_output=True)` 读 `exec-out` 字节流再 `open(..., 'wb')` 落盘；
     Room WAL 模式要连同 `-wal` 一起拉取才能读到最新快照。
+24. **换队列过渡窗口里 ticker 会用旧索引回写新队列 → 起播抛 `IllegalSeekPositionException`**（2026-10-02 W23 真机拦下）：
+    `MusicPlaybackControllerImpl.setQueue` 先把 `_queue` 换成新队列（例如 1~6 首），而 500 ms 位置轮询 / `onMediaItemTransition`
+    仍在读**旧播放器**（100 首随机队列，`currentMediaItemIndex=84`）并回写 `currentIndex`；随后 `player.setMediaItems(items, latest.currentIndex, 0)`
+    直接抛 `IllegalSeekPositionException` → 音乐起播失败（真机日志 `音乐起播失败` + 该异常）。
+    → 起播索引统一走 `normalizeStartIndex(latest.currentIndex, latest.items.size)`，且 ticker / 媒体项切换只在
+    `queue.items.size == player.mediaItemCount` 时回写索引；`MusicPlaybackMathTest` 增加 `normalizeStartIndex(84, 1) == 0` 回归用例。
+    **凡"状态流会被另一个线程按旧快照回写"的路径，喂给内核前都要再归一化一次。**
+25. **悬浮窗取证用 `dumpsys window` 而不是 uiautomator**（2026-10-02 W23）：覆盖层窗口 `FLAG_NOT_FOCUSABLE`，
+    `uiautomator dump` 抓的是有焦点的窗口（App 主界面），看不到悬浮窗节点。
+    → 用 `dumpsys window windows` 看窗口的 `ty=APPLICATION_OVERLAY` / `appop=SYSTEM_ALERT_WINDOW` / `Frames:`（拖动/面板展开的坐标证据），
+    用 `dumpsys activity services <pkg>` 看 Service 存活，用 logcat 看两行歌词内容；`input tap/swipe` 可以直接命中覆盖层窗口（坐标取窗口 frame 内）。
+26. **手机（K60 411dp）播放栏仍然放得下五键**（2026-10-02 W23）：封面 48dp + 标题/时间列 ≈107dp + 5×44dp 图标键，
+    行内边距压到 `Space2`；窄屏下时间用 `MonoDataSmall` 单行省略，避免换行撑高底栏。
 
 ## 7. 会话日志
 
@@ -392,3 +455,11 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   本地最近播放（Room `music_recent`，倒序、重复置顶，顶栏时钟入口）。新增 12 条单测（模块 59 项），门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` +
   app 51 项 + music 59 项全绿；K60 真机 12 项验证见 §5.5（含真机拦下的"恢复态编辑清零位置"修复，踩坑 §6-21）。
   决策 §2.7（D24–D28）。**未决**：`pref_music_resume_queue` 开关暂未接设置页 UI；内置歌词 / 歌词编辑仍按 §3 W3 未决项后置。
+- **2026-10-02 W23-MUSIC**（本会话，`feature/w23-music-player-ui`，起点 master `7f49d88`，四组提交 A `74214e7` / B `0124828` / C `65c6095` / D `179df99`）：
+  **A 迷你播放栏**封面 + 当前/总时长（去掉「队列 N/N」）+ 五键固定顺序（播放队列 / 词 / 上一曲 / 播放暂停 / 下一曲），点封面或标题区进全屏；
+  **B 全屏播放界面**（大封面 / 歌名歌手 / 可拖动进度条 / 传输键 / 收藏 / 歌词入口）+ 歌词页（右滑进、左滑或箭头返回、点当前歌词文本也可进）；
+  **C 四种播放模式**（顺序播完停 / 列表循环 / 单曲循环 / 随机）+ 随机下一曲交给内核 shuffle（未播优先）、上一曲按 `MusicPlaybackHistory` 回实际播放历史；
+  **D 桌面歌词悬浮窗**（`SYSTEM_ALERT_WINDOW` 引导 + 客户端设置开关行 + 双行歌词 + 拖动 + 单击面板的颜色/字号/语言/锁定/关闭，退出播放或关闭开关即销毁）。
+  新增 12 条单测（`MusicPlayModeTest` / `MusicPlaybackHistoryTest` / `MusicLyricsOverlaySettingsTest`），`:modes:music` 71 项；
+  门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 项 + music 71 项全绿；真机 16 项见 §5.6（Pad 5 全项 + K60 手机形态冒烟）。
+  决策 §2.8（D29–D33），踩坑 §6-24～26。**未决**：内嵌歌词 / 歌词编辑；悬浮窗位置不跨进程持久化；`player:local` 两处改动（`durationMs` 观察 + 起播索引竞态修复）已在红线外记录理由。

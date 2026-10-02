@@ -75,9 +75,26 @@ constructor(
                 if (!playerHolder.musicSessionActive) return
                 val player = playerHolder.existingPlayer ?: return
                 if (!player.isPlayingMusicItem()) return
-                _queue.update { queue -> queue?.copy(currentIndex = player.currentMediaItemIndex) }
-                // 自己 setMediaItems 造成的整体替换不是"切歌"
+                // 自己 setMediaItems 造成的整体替换不是"切歌"，也不能用它的索引回写队列
+                // （过渡窗口里播放器还在旧队列，索引会越界；见 setQueue 的注释）
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
+                _queue.update { queue ->
+                    if (
+                        queue == null ||
+                            queue.items.isEmpty() ||
+                            queue.items.size != player.mediaItemCount
+                    ) {
+                        queue
+                    } else {
+                        queue.copy(
+                            currentIndex =
+                                normalizeStartIndex(
+                                    player.currentMediaItemIndex,
+                                    queue.items.size,
+                                )
+                        )
+                    }
+                }
                 onTrackChanged(mediaItem?.mediaId.toItemId())
             }
 
@@ -128,7 +145,23 @@ constructor(
                     _isPlaying.value = player.isPlaying
                     // 队列可能被移动 / 删除 / 自动切换，索引以播放器为准最可靠
                     _queue.update { queue ->
-                        queue?.copy(currentIndex = player.currentMediaItemIndex)
+                        // 只在播放器条目数与队列一致时同步：换队列过渡窗口里播放器还停在旧队列，
+                        // 回写会把新队列索引写成越界值（见 setQueue 的注释）
+                        if (
+                            queue == null ||
+                                queue.items.isEmpty() ||
+                                queue.items.size != player.mediaItemCount
+                        ) {
+                            queue
+                        } else {
+                            queue.copy(
+                                currentIndex =
+                                    normalizeStartIndex(
+                                        player.currentMediaItemIndex,
+                                        queue.items.size,
+                                    )
+                            )
+                        }
                     }
                     reportPeriodicProgressIfDue(player, position)
                 } else {
@@ -168,9 +201,13 @@ constructor(
                 attachListener(player)
                 // 起播前的极短窗口里用户可能又改了队列（move / insertNext），以最新状态为准
                 val latest = _queue.value ?: normalized
+                // W23-MUSIC 真机缺陷修复：换队列的过渡窗口里 ticker 仍按**旧**播放器状态回写
+                // currentIndex（例如从 100 首随机队列切到 6 首最近播放时是 84），直接喂给
+                // setMediaItems 会抛 IllegalSeekPositionException → 起播失败。这里统一归一化。
+                val startIndex = normalizeStartIndex(latest.currentIndex, latest.items.size)
                 player.setMediaItems(
                     latest.items.map { it.toMusicMediaItem() },
-                    latest.currentIndex,
+                    startIndex,
                     0L,
                 )
                 player.repeatMode = latest.repeatMode.toPlayerRepeatMode()
@@ -180,7 +217,7 @@ constructor(
                 latest.currentItem
                     ?.playbackPosition
                     ?.takeIf { it > 0L }
-                    ?.let { position -> player.seekTo(latest.currentIndex, position) }
+                    ?.let { position -> player.seekTo(startIndex, position) }
                 player.play()
                 latest.currentItem?.let { item ->
                     activeItemId = item.itemId
