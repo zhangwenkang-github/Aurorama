@@ -2,18 +2,52 @@ package com.zhangwenkang.cinefin.core.presentation.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.zhangwenkang.cinefin.core.R
 
 /*
- * 设计系统字族（UI_DESIGN_SYSTEM §3.1）的最终形态是打包 MiSans / Literata Italic / Cascadia Mono /
- * Noto Serif SC；授权与子集化未完成前先用平台同族字面兜底（sans-serif / serif / monospace），
- * 字号、行高、字重、字距已按 v1.0 全量落地，字体文件到位后只替换 FontFamily。
+ * 设计系统字族（UI_DESIGN_SYSTEM §3.1）W38 品牌波第一段落地：
+ * - 中文 UI = Noto Sans SC（OFL 1.1，Google Fonts 官方可变字体子集：GB2312 一级 3755 字 + 应用文案）；
+ *   官方 MiSans 许可「不得改编 / 不得再分发字体软件副本」，不随 APK 打包，仅作设计稿参考字面（见 UI_PLAN 品牌波）。
+ * - 编辑式衬线 = Literata（OFL 1.1，Google Fonts 官方，含真斜体）：章节题用斜体、阅读正文用正体。
+ * - 等宽 = 平台 monospace；Cascadia Mono 与阅读宋体 Noto Serif SC 留待后续决策（本轮不扩范围）。
+ * 字号 / 行高 / 字重 / 字距仍按 v1.0；字体文件见 core/src/main/res/font，许可全文见
+ * core/src/main/assets/licenses。
  */
-private val CinefinSans = FontFamily.SansSerif
-private val CinefinSerif = FontFamily.Serif
+private val CinefinSans =
+    FontFamily(
+        Font(
+            R.font.noto_sans_sc,
+            FontWeight.Normal,
+            variationSettings = FontVariation.Settings(FontVariation.weight(400)),
+        ),
+        Font(
+            R.font.noto_sans_sc,
+            FontWeight.Medium,
+            variationSettings = FontVariation.Settings(FontVariation.weight(500)),
+        ),
+        Font(
+            R.font.noto_sans_sc,
+            FontWeight.SemiBold,
+            variationSettings = FontVariation.Settings(FontVariation.weight(600)),
+        ),
+        // 兜底映射：任何 Bold 请求也走同一份可变字体，避免系统合成加粗（fake bold）。
+        Font(
+            R.font.noto_sans_sc,
+            FontWeight.Bold,
+            variationSettings = FontVariation.Settings(FontVariation.weight(700)),
+        ),
+    )
+private val CinefinSerif =
+    FontFamily(
+        Font(R.font.literata, FontWeight.Normal, FontStyle.Normal),
+        Font(R.font.literata_italic, FontWeight.Normal, FontStyle.Italic),
+    )
 private val CinefinMono = FontFamily.Monospace
 
 /**
@@ -259,7 +293,7 @@ val CinefinTypography =
     )
 
 /**
- * 旧「影阁」排版（迁移前 `app:phone` 的 `Typography.kt` 原值）。
+ * 旧「极光幕」排版（迁移前 `app:phone` 的 `Typography.kt` 原值）。
  *
  * W1 桥接：`app:phone` 的入口包装暂时把它交给 MaterialTheme，保证存量页面（145 处 `MaterialTheme.typography`
  * 引用）排版零回归；W3/W4 页面按 Prism 字阶改造后删除本桥接。

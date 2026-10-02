@@ -21,7 +21,7 @@ import com.zhangwenkang.cinefin.presentation.theme.spacings
 /**
  * 首次配置流程里的品牌标记。
  *
- * 这里不用 Jellyfin 官方的横幅图：用户装的是「影阁」，第一眼应该看到自己的应用， 服务器品牌在"连接服务器"那一步再出现也不迟。
+ * 这里不用 Jellyfin 官方的横幅图：用户装的是「极光幕」，第一眼应该看到自己的应用， 服务器品牌在"连接服务器"那一步再出现也不迟。
  */
 @Composable
 fun SetupBrandMark(

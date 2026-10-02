@@ -11,7 +11,7 @@
     <string name="drawer_section_management">管理</string>
     <string name="drawer_section_user">使用者</string>
     <string name="drawer_no_server">尚未新增伺服器</string>
-    <string name="app_name">影閣</string>
+    <string name="app_name">極光幕</string>
     <string name="jellyfin_banner">Jellyfin 橫幅</string>
     <string name="remove">移除</string>
     <string name="cancel">取消</string>
@@ -89,7 +89,8 @@
     <string name="video">視訊</string>
     <string name="audio">音訊</string>
     <string name="cancel_download_message">您確定要取消下載嗎？</string>
-    <string name="privacy_policy_notice">使用影閣即表示您同意 <a href="https://raw.githubusercontent.com/jarnedemeulemeester/findroid/main/PRIVACY">隱私政策</a>，其中聲明我們不收集任何數據</string>
+    <string name="privacy_policy_notice">使用極光幕即表示您同意 <a href="https://raw.githubusercontent.com/jarnedemeulemeester/findroid/main/PRIVACY">隱私政策</a>，其中聲明我們不收集任何數據</string>
+    <string name="console_back_to_app">返回極光幕</string>
     <string name="cancel_download">取消下載</string>
     <string name="downloaded_indicator">下載指示器</string>
     <string name="offline_mode_icon">離線模式圖標</string>

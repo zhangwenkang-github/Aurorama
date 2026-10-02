@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  自适应图标前景：与 App 内的标记同构——一格胶片 + 一枚朱砂播放键。
-  内容控制在中心 62x62 的安全区内（108dp 画布上按 0.62 缩放）。
+  自适应图标前景 · 方向 1「极光帘幕」（W38 品牌波）。
+  极光丝带自左上流下，底部一条幕布地平线；极光青 #5CE1D2 → 辅光蓝 #7CC4FF。
+  108dp 画布内，关键形体全部落在安全区 66dp（约 21…87）内，蒙版裁切后仍可读。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -10,40 +11,31 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <group
-        android:scaleX="0.62"
-        android:scaleY="0.62"
-        android:translateX="23"
-        android:translateY="23">
+    <!-- 副丝带：帘幕纵深，压在主线右侧 -->
+    <path
+        android:pathData="M60,26 C70,38 74,50 72,62 C70,74 64,82 58,88 L50,88 C56,80 62,72 64,62 C66,50 62,38 52,28 Z"
+        android:fillColor="#8C7CC4FF" />
 
-        <!-- 片格 -->
-        <path android:pathData="M26,10 L74,10 A16,16 0 0 1 90,26 L90,74 A16,16 0 0 1 74,90 L26,90 A16,16 0 0 1 10,74 L10,26 A16,16 0 0 1 26,10 Z">
-            <aapt:attr name="android:fillColor">
-                <gradient
-                    android:startX="18"
-                    android:startY="12"
-                    android:endX="84"
-                    android:endY="90"
-                    android:type="linear">
-                    <item android:offset="0" android:color="#FF1D2024" />
-                    <item android:offset="1" android:color="#FF0B0C0E" />
-                </gradient>
-            </aapt:attr>
-        </path>
+    <!-- 极光主线：自左上流下 -->
+    <path android:pathData="M38,18 C52,30 60,44 58,58 C56,72 48,80 44,88 L32,88 C38,78 44,70 42,58 C40,44 32,30 24,20 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="26"
+                android:startY="18"
+                android:endX="48"
+                android:endY="88"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF5CE1D2" />
+                <item android:offset="1" android:color="#FF7CC4FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
-        <path
-            android:pathData="M26,10 L74,10 A16,16 0 0 1 90,26 L90,74 A16,16 0 0 1 74,90 L26,90 A16,16 0 0 1 10,74 L10,26 A16,16 0 0 1 26,10 Z"
-            android:fillColor="#00000000"
-            android:strokeColor="#FF2E3237"
-            android:strokeWidth="2" />
-
-        <!-- 齿孔 -->
-        <path android:pathData="M18,30 L24,30 A2,2 0 0 1 26,32 L26,42 A2,2 0 0 1 24,44 L18,44 A2,2 0 0 1 16,42 L16,32 A2,2 0 0 1 18,30 Z" android:fillColor="#59F1EDE6" />
-        <path android:pathData="M18,56 L24,56 A2,2 0 0 1 26,58 L26,68 A2,2 0 0 1 24,70 L18,70 A2,2 0 0 1 16,68 L16,58 A2,2 0 0 1 18,56 Z" android:fillColor="#59F1EDE6" />
-        <path android:pathData="M76,30 L82,30 A2,2 0 0 1 84,32 L84,42 A2,2 0 0 1 82,44 L76,44 A2,2 0 0 1 74,42 L74,32 A2,2 0 0 1 76,30 Z" android:fillColor="#59F1EDE6" />
-        <path android:pathData="M76,56 L82,56 A2,2 0 0 1 84,58 L84,68 A2,2 0 0 1 82,70 L76,70 A2,2 0 0 1 74,68 L74,58 A2,2 0 0 1 76,56 Z" android:fillColor="#59F1EDE6" />
-
-        <!-- 朱砂播放键 -->
-        <path android:pathData="M43,34 L43,66 L69,50 Z" android:fillColor="#FFD2553C" />
-    </group>
+    <!-- 幕布地平线 -->
+    <path
+        android:pathData="M22,80 C40,72 68,72 86,80"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF7CC4FF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
 </vector>

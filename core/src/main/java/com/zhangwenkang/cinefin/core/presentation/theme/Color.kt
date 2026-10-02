@@ -3,7 +3,7 @@ package com.zhangwenkang.cinefin.core.presentation.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * 影阁配色：墨底、宣纸白、朱砂印。
+ * 极光幕配色：墨底、宣纸白、朱砂印。
  *
  * 取色只有一条规则——**画面即色彩**。海报与剧照承担全部饱和度， 界面自身退进墨、纸、发丝线三种中性色；唯一的强调色朱砂只表示一件事： 接下来要看的内容（继续观看、播放、当前选中项）。
  * 因此这一层不再引入第二种彩色强调色，层级靠明度与发丝线区分。

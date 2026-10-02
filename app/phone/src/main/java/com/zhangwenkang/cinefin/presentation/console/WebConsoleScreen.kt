@@ -58,7 +58,7 @@ import org.json.JSONObject
  * 与 App 的融合做了三件事：
  * 1. 没有 App 自己的标题栏——控制台铺满整屏，返回交给系统回退手势/返回键；
  * 2. 登录态通过一个"同源空白种子页"写入 localStorage，不再闪现 manifest.json 的代码；
- * 3. 每次页面加载都注入影阁皮肤（S1「A · Lumen」：曜石黑底 + 石墨卡片 + 月白文字 + 极光青强调 + 白 8.5% 发丝线，见
+ * 3. 每次页面加载都注入极光幕皮肤（S1「A · Lumen」：曜石黑底 + 石墨卡片 + 月白文字 + 极光青强调 + 白 8.5% 发丝线，见
  *    docs/web-console-skin.css），与 App 内首页 / 详情页的 流光皮肤是同一套语言，不会出现"两个应用"的割裂感。
  */
 @SuppressLint("SetJavaScriptEnabled")
@@ -247,7 +247,7 @@ private fun buildCredentialsScript(state: ConsoleState): String {
 }
 
 /**
- * 每次页面加载都补一层影阁皮肤，重复注入时覆盖同一节点，不会叠加。
+ * 每次页面加载都补一层极光幕皮肤，重复注入时覆盖同一节点，不会叠加。
  *
  * 注意：Jellyfin 的主题样式（themes/<name>/theme.css）由前端在运行期后插到 <head> 末尾，
  * 如果在它之前落地，同优先级规则会被主题覆盖。所以这里除了提高选择器权重， 还把皮肤节点始终保持在 <head> 的最后一个子节点上（MutationObserver 跟随）。

@@ -34,7 +34,7 @@ suspend fun BaseItemDto.toFindroidItem(
         BaseItemKind.SERIES -> toFindroidShow(jellyfinRepository)
         BaseItemKind.BOX_SET -> toFindroidBoxSet(jellyfinRepository)
         BaseItemKind.FOLDER -> toFindroidFolder(jellyfinRepository)
-        // 影阁：非影视库也要能用——专辑 / 歌单 / 图书 / 照片按「容器」处理，可以继续往里点
+        // 极光幕：非影视库也要能用——专辑 / 歌单 / 图书 / 照片按「容器」处理，可以继续往里点
         BaseItemKind.MUSIC_ALBUM,
         BaseItemKind.MUSIC_ARTIST,
         BaseItemKind.PLAYLIST,

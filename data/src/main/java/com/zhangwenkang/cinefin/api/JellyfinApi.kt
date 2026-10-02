@@ -65,7 +65,7 @@ class JellyfinApi(
         clientInfo =
             ClientInfo(
                 // 必须使用固定的 ASCII 名称：HTTP 头不允许非 ASCII 字符，
-                // 而应用显示名会随语言变化（中文为“影阁”），不能直接用作客户端标识。
+                // 而应用显示名会随语言变化（中文为“极光幕”），不能直接用作客户端标识。
                 name = CLIENT_NAME,
                 version = BuildConfig.VERSION_NAME,
             )

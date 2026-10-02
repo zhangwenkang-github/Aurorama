@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  单色主题图标（API 33+ themed icon）：与「极光帘幕」同构的纯路径剪影。
+  只用一个白色填充，交由系统统一着色；不含渐变、不含半透明层。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 帘幕两条丝带合成一块剪影，避免细碎空腔 -->
+    <path
+        android:pathData="M38,18 C52,30 60,44 58,58 C56,72 48,80 44,88 L32,88 C38,78 44,70 42,58 C40,44 32,30 24,20 Z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M60,26 C70,38 74,50 72,62 C70,74 64,82 58,88 L50,88 C56,80 62,72 64,62 C66,50 62,38 52,28 Z"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- 幕布地平线 -->
+    <path
+        android:pathData="M22,80 C40,72 68,72 86,80"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+</vector>

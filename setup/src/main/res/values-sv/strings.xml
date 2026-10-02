@@ -30,10 +30,10 @@
     <string name="servers">Servrar</string>
     <string name="servers_no_servers">Inga servrar hittades</string>
     <string name="servers_btn_add_server">Lägg till server</string>
-    <string name="welcome">Välkommen till Cinefin</string>
+    <string name="welcome">Välkommen till Aurorama</string>
     <string name="welcome_btn_continue">Fortsätt</string>
     <string name="welcome_btn_learn_more">Lär dig mer om Jellyfin</string>
-    <string name="welcome_text">Cinefin är ett tredjepartsprogram för Jellyfin. Cinefin innehåller ingen media av sig självt.\n\nFör att kunna använda denna app måste du ha en egen Jellyfin server.</string>
+    <string name="welcome_text">Aurorama är ett tredjepartsprogram för Jellyfin. Aurorama innehåller ingen media av sig självt.\n\nFör att kunna använda denna app måste du ha en egen Jellyfin server.</string>
     <string name="confirm">Bekräfta</string>
     <string name="cancel">Avbryt</string>
     <string name="or">ELLER</string>

@@ -293,7 +293,7 @@ private fun DrawerPreviewContent() {
             CinefinDrawerContent(
                 header = {
                     Text(
-                        text = "影阁 Cinefin",
+                        text = "极光幕 Aurorama",
                         style = CinefinType.TitleLarge,
                         color = colors.onSurface,
                     )

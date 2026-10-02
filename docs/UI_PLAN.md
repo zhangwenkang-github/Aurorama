@@ -80,6 +80,10 @@
 | D34 | **侧栏「媒体库」二级分组回退：默认收起 + 排到音乐 / 书架之后**（W8-R3，2026-10-01 用户反馈 4；覆盖 D22 ③ / D28） | ①`navEntryKeys` 顺序 = **首页 → 音乐 → 书架 → 媒体库 → 下载 → [服务器控制台 / 媒体资料管理器] → 客户端设置**（手机底部 4 Tab 顺序不变）；②新增纯常量 `MEDIA_GROUP_DEFAULT_EXPANDED = false`（单测断言），抽屉与侧轨共用 `mediaGroupExpanded` —— 展开后才显示库子项；③**抽屉的「媒体库」行补上侧轨同款行尾箭头**（`CinefinNavItem.trailing` + `CinefinDrawerItem` 渲染，标签在有 trailing 时 `weight(1f)`），点父行 = 导航 + 展开，点箭头 = 仅展开 / 收起（离线模式没有库列表 → 不给箭头）；④覆盖 W7-R3 的"默认展开、排在音乐 / 书架之前"。 |
 | D35 | **首页海报墙等宽修复：页边距交给网格 `contentPadding` + 列数按实际宽度计算**（W15-UI，2026-10-02 用户反馈「平板首页竖版海报大小不一，手机正常」） | 根因：海报墙把页边距做成**首末列 item 的 `Modifier.padding`**——`GridCells.Fixed` 本身每列等宽，但首 / 末列卡片各自再减一个页边距（平板 3 列：中间列 428px、首末列 374px，同排三张大小不一；手机 2 列时两列同为首 / 末、同样变窄，故"看起来正常"）。修法：①页边距改为 `LazyVerticalGrid.contentPadding`（start / end = gutter，首末列仍精确贴页边线，同排所有列完全等宽）；②`columns` 改为在 `BoxWithConstraints` 内按网格**实际可用宽度**计算（已排除侧轨；旧公式按窗口宽度算，侧轨占宽时会多算一列、把卡片压到 152dp 最小列宽以下）；③hero / 走廊 / 区块标题同步移除自带两端 padding —— 否则与网格 `contentPadding` 双重内缩（实测「全部」按钮右缘 1546→1492px）。 |
 
+| D36 | **品牌波第一段：改名边界与红线处理**（W38，2026-10-03） | 用户可见名 = `app_name`（`values` = `Aurorama`、新增 `values-en`、`values-zh-rCN` = 极光幕、`values-zh-rTW` = 極光幕；debug / staging 加后缀）。继承自上游的 17 份 setup `welcome*` 与 33 份 core `privacy_policy_notice` 按词面替换品牌名（fi / cs / et / sl / tr / az 修正格位）。`applicationId` / 包名 / `Theme.Cinefin*` / `ShapeAppearance.Cinefin.*` / `CinefinPlaybackService` / `CinefinEpubNavigator` 等内部标识不动（W39 评审）；`JellyfinApi.CLIENT_NAME` 沿用 `"Cinefin"`——它进 HTTP 头与服务端设备档案，改动会与「避免双机重装重登」冲突，W39 一并决策。`console_back_to_app` 的调用点落在红线文件 `NavigationRoot.kt`，本波按字面量更名（未申报不改红线）。 |
+| D37 | **自适应图标方向 1「极光帘幕」三套矢量落地**（W38，2026-10-03） | ①**自适应**：`drawable/ic_launcher_foreground.xml`（108dp：极光主线自左上流下 + 副丝带纵深 + 幕布地平线，极光青 `#5CE1D2` → 辅光蓝 `#7CC4FF` 线性渐变；关键形体全部落在 66dp 安全区内）+ `color/ic_launcher_background` = `#0B0C0E`；②**单色**：新增 `drawable/ic_launcher_monochrome.xml`（纯路径剪影），只在 `mipmap-anydpi-v33/ic_launcher.xml` 声明 `<monochrome>`，旧 API 保持「背景 + 前景」；③**深色**：`values-night/ic_launcher_background.xml` = `#05070B`。应用内印记 `ic_logo` 同构重绘（暗场圆角片底 + 丝带 + 地平线，最小 18dp 可读）。**不新增位图**；`core/src/main/ic_launcher-playstore.png`（商店用）仍是旧标记，随发布波重出。 |
+| D38 | **字体落地：Noto Sans SC（中文 UI）+ Literata（编辑 / 阅读衬线）**（W38，2026-10-03） | 核验结论：MiSans 官方许可（`https://hyperos.mi.com/font/zh/download/`，《MiSans 字体知识产权许可协议》）要求「不得对 MiSans 字体或其任何单独组件进行改编或二次开发」「不得再分发字体软件或其任何副本」→ **不打包、不子集化**，仅作设计稿参考字面；改用 SIL OFL 1.1 的 **Noto Sans SC**（Google Fonts 官方 `ofl/notosanssc`，可变字体收窄至 400–900 后子集化：GB2312 一级 3755 字 + 应用文案 + 拉丁 / 标点 = 2.32 MB）与 **Literata**（官方 `ofl/literata`，可变 + 真斜体，子集 0.37 / 0.36 MB）。`CinefinType` 三个 `FontFamily` 改为打包字体：Sans 用 `FontVariation` 映射 400 / 500 / 600 / 700 四档（避免合成加粗），Serif = Literata 正体 + 斜体；等宽仍是平台 `monospace`，Cascadia Mono / 阅读宋体 Noto Serif SC 留后续决策。许可全文 `core/src/main/assets/licenses/OFL-1.1-*.txt`。 |
+
 ## 4. 进度
 
 - [x] ①-色彩：中性色亮 / 暗、三域媒体色 3×7、语义色、状态层、M3 `ColorScheme` 映射
@@ -97,6 +101,16 @@
 - [x] 音乐 / 阅读页面已按域接入 `ContentDomain`；W4-R3 起影视 / 设置 / 下载 / 欢迎页全部换新，`MaterialTheme.typography` 存量引用随桥接删除统一走 Prism 字阶
 - [ ] W4-R3 组件（剩余）：对话框统一 `CinefinDialog` / Toast `CinefinToastHost` / 歌词组件收敛 / 播放器右侧面板（播放器线 W4 PLAYER-UI 负责）
 - [ ] **品牌波（用户 2026-10-03 决定：放在全部功能开发测试完成后、发布前执行）**：应用改名 **「极光幕 / Aurorama」**，**`applicationId` 改为 `io.github.zhangwenkang.aurorama`**（用户 2026-10-03 定；需同步 FileProvider authority / 服务 / adb 脚本 / 文档引用，并接受双机重装重登）+ 自适应矢量图标（**方向 1「极光帘幕」**：极光丝带自左上流下 + 底部幕布地平线，极光青 `#5CE1D2` → 辅光蓝 `#7CC4FF`；深色 / 单色 / 自适应三套）+ 打包字体（MiSans / Literata 走官方渠道；其他字体先调研授权，不允许则用开源替代）与子集化；**约定：新增字符串一律引用 `app_name` 资源，不硬编码应用名**（保证发布前改名一次生效）；执行时补一轮 UI 布局回归（字体度量可能影响排版）。
+
+### W38 品牌波 · 第一段（改名 + 自适应图标 + 字体，2026-10-03，分支 `feature/w38-brand-aurorama`）
+
+- [x] **A 改名**：`app_name` 全渠道（默认 `Aurorama` / 新增 `values-en` / `zh-rCN` 极光幕 / `zh-rTW` 極光幕 + debug、staging 变体）；launcher label（phone + TV manifest）、首连向导、抽屉 / 首页顶栏 / 冷启动 / 播放器兜底标题因引用 `CoreR.string.app_name` 自动跟随；setup `welcome` / `welcome_text` 17 语言、core `privacy_policy_notice` 33 语言词面更名并修正格位（fi / cs / et / sl / tr / az）
+- [x] **B 图标**：方向 1「极光帘幕」自适应前景 / 背景 + 单色（`anydpi-v33`）+ 深色（`values-night`）+ 应用内 `ic_logo` 同构；全部矢量 XML、无新增位图（详见 D37）
+- [x] **C 字体**：授权核验 → 官方源下载 → 子集化 → `CinefinType` 接入（详见 D38）；`assets/licenses/` 落 OFL 全文
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` + 相关模块单测（计数见 §5 W38 验收）
+- [x] **体积**：官方原文件 19.63 MB → 子集 2.91 MB（Noto Sans SC 17.77 → 2.32 MB；Literata 0.96 / 0.90 → 0.37 / 0.36 MB），APK 对照见 §5
+- [ ] **D 布局回归真机窗口**：Pad 5（`43af8627`）主 + K60（`8e875894`）抽验——等负责人统一调度
+- [ ] **W39 第二段**：`applicationId` → `io.github.zhangwenkang.aurorama` + FileProvider authority / 服务 / adb 脚本 / 文档引用 + `CLIENT_NAME` 决策
 
 ### W3-R3 本轮进度（R3-PAGES-A，2026-09-30）
 
@@ -509,6 +523,18 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [x] **⑤稳定性 / 副作用**：Pad 5 logcat 无 `FATAL` / `ANR`；`wm size/density` reset（Physical 1600×2560 / 360）、`accelerometer_rotation` 1、`user_rotation` 0、App force-stop、`/sdcard/w15_*.xml` 清理。
 - 备注：修复后横屏 1138dp 下按实际宽度得 5 列（176dp/列）；旧公式按窗口宽度会算 6 列（142dp/列 < 152dp 最小列宽），一并消除。
 
+### W38 品牌波第一段静态验收（2026-10-03，分支 `feature/w38-brand-aurorama`）
+
+**门禁**：根 `assembleDebug`（`:app:phone` + `:app:tv` 两个 APK 全绿）+ `ktfmtCheck` 通过；单测 `--rerun` 后逐模块统计 = **428 项 / 0 失败**（core 16、app:phone 70、modes:book 106、modes:music 99、data 27、player:local 104、modes:film 6；settings / player:core 无测试源）。
+
+**体积（同基线 `35fdea0` 对照，arm64-v8a debug）**：`122,885,391 B (117.19 MiB)` → `124,877,877 B (119.09 MiB)`，**+1.90 MiB**（字体原文件 19.63 MB → 子集 2.91 MB，压缩后入包 ≈1.90 MiB）。文档旧基线 96.95 MiB 是 W2 `674ad8b` 的数值，之后 W31–W37 功能增量（下载 / 离线 / 本地媒体库）已把它抬到 117 MiB，与本波无关。
+
+**字体**：子集字符集 5,715（GB2312 一级 3,755 + 应用文案补齐 1,088 + 拉丁 / 标点 / 箭头等区段）；**汉字缺失 0**；未覆盖字符只落在非中文脚本（韩文 276 / 拉丁扩展 103 / 天城文 58 / 阿拉伯 38 / 希伯来 27 / 箭头与符号 100+），由系统兜底。Noto 官方可变字体默认实例是 Thin(100)，已用 `varLib.instancer wght=400:900 --update-name-table` 收到 Regular；OFL 保留字体名为 `'Source'`，子集字体名 `Noto Sans SC` 不含该词，合规。
+
+**图标**：三套矢量 XML 在本地按 pathData 同源光栅化检查（前景 / 圆形蒙版 / 单色 / `ic_logo` 四张 108–400px 渲染图，临时文件不入库），形体落在 66dp 安全区内、圆形蒙版无裁切；`ic_logo` 在 18dp 档仍为一整块可辨剪影。
+
+**待真机**：字体度量回归（首页 / 媒体库 / 音乐 / 书架 / 设置 / 阅读器）+ 启动图标与主题图标落桌面效果，Pad 5（`43af8627`）主、K60（`8e875894`）抽验——等负责人调度窗口。
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -564,8 +590,15 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 48. **"默认收起"的二级分组必须同时给出行尾入口**：只把子项藏起来而不给展开入口 = 把库列表藏死。抽屉与侧轨共用 `CinefinNavItem.trailing`（chevron），父行点击 = 导航 + 展开、箭头点击 = 仅开关；有 trailing 时标签必须 `weight(1f)`（否则重演踩坑 32 的"标签被挤成 …"）。
 49. **core 组件拿不到 app 侧的窗口工具函数**：`modes:music` 只依赖 core，`rememberPageGutter()` 在 app:phone 里用不到。共享顶栏把页边距分级（20 / 24 / 32 / 48dp）内化到 core（用 `LocalConfiguration.screenWidthDp` 复刻同一阈值）——两处阈值必须同步，改一处要改另一处。
 
+50. **MiSans 免费商用 ≠ 可打包**：官方《MiSans 字体知识产权许可协议》除「注明使用了 MiSans」外，还明确「不得对字体或其任何单独组件进行改编或二次开发」「不得再分发字体软件或其任何副本」——子集化属改编、APK 内嵌属再分发，两条都撞。厂商字体（小米 / OPPO / 华为等）多半同款条款，落地前先读协议原文再谈子集化；本波改用 OFL 的 Noto Sans SC。
+51. **Google Fonts 的 `NotoSansSC[wght].ttf` 默认实例是 Thin(100)**（`name1 = "Noto Sans SC Thin"`）：直接 `Font(R.font.…)` 不传 variation 时全站变细体。必须先用 `fonttools varLib.instancer <字体> wght=400:900 --update-name-table` 把默认实例收窄到 Regular，再用 `FontVariation.Settings(FontVariation.weight(…))` 映射 400 / 500 / 600 / 700 四档，顺带避免系统合成加粗。
+52. **`raw.githubusercontent.com` 大文件在本机会被重置**：HTTP/2 下拉 1 MB 以上文件常见 0 字节且 `Invoke-WebRequest` 报「远程主机强迫关闭了一个现有的连接」；改用 `curl.exe --http1.1 --retry 3`（不要加 `-sS`，本机实测会静默输出 0 字节），17.7 MB 的 Noto 也能一次拉完。`Invoke-WebRequest` 还会把整包读进内存，大字体容易挂死。
+53. **`<monochrome>` 要单独放 `-v33` 目录**：`adaptive-icon` 的 monochrome 只在 API 33+ 生效，把 `mipmap-anydpi/ic_launcher.xml` 保持「背景 + 前景」两份、另建 `mipmap-anydpi-v33/ic_launcher.xml` 声明 monochrome，旧机型就不会遇到未知标签。
+54. **品牌文案改 `%1$s` 注入时先看调用点是否红线文件**：`console_back_to_app` 的唯一调用点在红线文件 `NavigationRoot.kt`，本波按字面量更名（`Back to Aurorama` / `返回极光幕`），未申报不动红线；后续若改占位符注入 `app_name`，同样要先申报。
+
 ## 7. 日志
 
+- **2026-10-03 W38 品牌波 · 第一段（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D8 字族兜底 + 品牌波待办 + 踩坑 1–49）、`UI_DESIGN_SYSTEM` §3 字体 / §7 图标后开工。①**改名**：`app_name` 覆盖默认 / `values-en`（新增）/ zh-rCN / zh-rTW + debug、staging 变体，launcher label（phone + TV）、首连向导、抽屉 / 首页顶栏 / 冷启动 / 播放器兜底标题随 `CoreR.string.app_name` 自动生效；setup 17 语言 `welcome*` 与 core 33 语言 `privacy_policy_notice` 词面更名（fi / cs / et / sl / tr / az 修正格位）；`applicationId` / 包名 / 内部资源名 / `CLIENT_NAME` 不动（W39）。②**图标**：方向 1「极光帘幕」自适应前景 + 背景 + monochrome（`anydpi-v33`）+ 深色（`values-night`）+ `ic_logo` 同构，全矢量、无新增位图；本地光栅化 QA 通过（含圆形蒙版）。③**字体**：MiSans 许可核验为「不得改编 / 不得再分发」→ 改打包 Noto Sans SC（OFL 1.1，3755 常用字 + 应用文案子集 2.32 MB）与 Literata（OFL 1.1，正体 + 斜体 0.37 / 0.36 MB），`CinefinType` 换真字族 + `FontVariation` 四档；许可全文落 `assets/licenses/`。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 428 项 / 0 失败；同基线 arm64 debug APK `117.19 → 119.09 MiB`（+1.90 MiB）。待办：布局回归真机窗口（等负责人调度）+ W39 包名段。新增踩坑 50–54。
 - **2026-10-02 W15-UI（本会话）**：读 `PROJECT_PLAN` §1–§5、`READER_PLAN` §7.7.5 + 踩坑 20、`UI_PLAN`（D15–D26 / 踩坑 20·23·39·49）、`UI_DESIGN_SYSTEM` §4.4/§8、`docs/design/s1-direction-a/README.md`、`device-lock.md` 后开工。完成两项：①**阅读页顶栏避让状态栏**（`ReaderTopBar` 56dp 行补 `statusBarsPadding()`，与 W8 `CinefinPageTopBar` 同款、状态栏区由 chromeColor 铺满；平板竖屏 / 横屏 / 手机形态三形态取证按钮 top ≥99 > 状态栏 60px；设置面板 / 页指示复核无遮挡——结论已写 `READER_PLAN` §7.8 + 踩坑 20）；②**平板首页竖版海报等宽修复**（D35：页边距从首末列 item padding 改为网格 `contentPadding`、`BoxWithConstraints` 按实际宽度算列数、hero / 走廊 / 区块标题同步去重；平板 3 列 392×651 等宽、手机 2 列 466×772、横屏 5 列 397/397/396/396/396）。门禁 `assembleDebug + ktfmtCheck + app 49 项单测` 全绿；Pad 5 逐项 dump 取证，设备副作用已还原（wm/旋转 reset、App force-stop、临时文件清理）。分支 `feature/w15-reader-topbar-posters`，未合并 master。
 - **2026-10-01 W8-R3（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D31 / 踩坑 1–45，重点 W7-R3 小节与 D22/D24/D25）、`ROLE_SKILLS` §5.3、`UI_DESIGN_SYSTEM` §2/§4.4/§8、`docs/design/s1-direction-a/README.md`、`device-lock.md` 后开工。完成用户复测反馈 4 组（决策 D32–D34）：①**A 三页共用顶栏 `CinefinPageTopBar`**（core：56dp + `statusBarsPadding()` + 44dp 键 + 随窗口页边距 + 标题 / 计数排版 + Lumen 发丝线）接入媒体库 / 音乐 / 书架，音乐旧 72dp `MusicHeader` 下线（被状态栏遮挡的根因），书架顶层改 `LibraryScreen(topLevel = true)` →「书架 / 共 N 本」且不再出现返回箭头与库名「书籍」；②**B 媒体库改版**：库卡 = 类型图标磁贴（雾灰 + 发丝线 + 强调色图标）+ 库名 + 项目数（服务器 `ChildCount` → `FindroidCollection.itemCount`，`getLibraries` 显式请求字段）+ 三级灰箭头，面板 / 渐隐改 Lumen 石墨与 `Scrim`，标题与计数并入顶栏同排；③**C 侧栏「媒体库」分组回退**：`navEntryKeys` = 首页 → 音乐 → 书架 → 媒体库 → 下载 → 控制台 / 资料管理器 → 客户端设置，`MEDIA_GROUP_DEFAULT_EXPANDED = false`，抽屉「媒体库」行补侧轨同款行尾箭头（`CinefinNavItem.trailing`），展开后才显示库子项；④**D 不回归**：首页 `ic_logo`、手机抽屉与底部 Tab、音乐 / 书架页面内容皮肤、侧柜常驻 Lumen、控制台胶囊与选中态全部复核通过。门禁 `assembleDebug + ktfmtCheck + app 23 项 / core 16 项单测` 全绿；Pad 5（平板 1280dp + 手机形态 411dp）与 K60（原生竖屏）逐条 dump / 像素采样取证，设备副作用已还原。新踩坑 46–49。分支 `feature/r8-ui-unify`，未合并 master。
 - **2026-10-01 W7-R3（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D26 / 踩坑 1–40，重点 38–40 与 D22/D24/D25）、`ROLE_SKILLS` §5.3、`UI_DESIGN_SYSTEM` §2/§4.4/§8.6、`s1-direction-a/README.md`、`device-lock.md` 后开工。完成用户复测反馈 5 项（决策 D27–D31）：①手机恢复抽屉入口 + 首页顶栏换 `ic_logo` 作 app 图标 / 侧栏键；②二级库列表进抽屉（紧跟「媒体库」、缩进 48dp 行、先于音乐 / 书架）+ 抽屉条目区可滚动；③侧柜常驻 A · Lumen（`lumenChrome = true`），音乐 / 书架 / 阅读**内容**皮肤不变；④控制台页右下角新增 A 风格悬浮「返回影阁」胶囊（系统返回一次回主界面行为保留，未恢复双侧栏）；⑤`consoleEntrySelected` 对 `null` 不再回退 `/dashboard`，退出控制台不留选中。门禁 `assembleDebug + ktfmtCheck + app 22 项 / core 16 项单测` 全绿；Pad 5（平板 1280dp + 手机形态 411dp）与 K60（原生竖屏）逐条像素采样 / dump 取证，设备副作用已还原。新踩坑 41–45。分支 `feature/r7-nav-fix`，未合并 master。

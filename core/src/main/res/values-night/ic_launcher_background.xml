@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色（夜间桌面）变体：比默认 #0B0C0E 更深一档，OLED 桌面上与极光丝带对比更强。 -->
+    <color name="ic_launcher_background">#05070B</color>
+</resources>

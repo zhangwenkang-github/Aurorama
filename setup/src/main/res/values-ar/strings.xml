@@ -23,10 +23,10 @@
     <string name="servers_no_servers">لم يتم العثور على خوادم</string>
     <string name="servers_btn_add_server">إضافة خادم</string>
     <string name="remove_server_dialog_text">هل أنت متأكد من إزالة الخادم %s؟</string>
-    <string name="welcome">أهلاً في Cinefin</string>
+    <string name="welcome">أهلاً في Aurorama</string>
     <string name="welcome_btn_continue">متابعة</string>
     <string name="welcome_btn_learn_more">تعلم المزيد عن Jellyfin</string>
-    <string name="welcome_text">Cinefin هو مشغل غير رسمي ل Jellyfin. Cinefin لا يحتوي على أية وسائط بشكل تلقائي.\n\nمن أجل استخدام هذا التطبيق عليك استضافة خادم Jellyfin بنفسك.</string>
+    <string name="welcome_text">Aurorama هو مشغل غير رسمي ل Jellyfin. Aurorama لا يحتوي على أية وسائط بشكل تلقائي.\n\nمن أجل استخدام هذا التطبيق عليك استضافة خادم Jellyfin بنفسك.</string>
     <string name="confirm">تأكيد</string>
     <string name="or">أو</string>
     <string name="server_subtitle">الخادم: %s</string>

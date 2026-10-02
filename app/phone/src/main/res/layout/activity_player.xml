@@ -230,7 +230,7 @@
         android:src="@drawable/transparent_circle"
         tools:ignore="ContentDescription" />
 
-    <!-- 影阁播放控制层：Compose 渲染，覆盖在画面之上；触摸仍由下层 PlayerView 的手势层处理 -->
+    <!-- 极光幕播放控制层：Compose 渲染，覆盖在画面之上；触摸仍由下层 PlayerView 的手势层处理 -->
     <com.zhangwenkang.cinefin.presentation.player.PlayerOverlayContainer
         android:id="@+id/control_overlay"
         android:layout_width="match_parent"

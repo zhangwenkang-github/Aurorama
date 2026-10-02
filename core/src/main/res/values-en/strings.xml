@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 英文品牌名显式落 values-en：与默认 values 同值，品牌波约定（W38）。 -->
+    <string name="app_name">Aurorama</string>
+</resources>
