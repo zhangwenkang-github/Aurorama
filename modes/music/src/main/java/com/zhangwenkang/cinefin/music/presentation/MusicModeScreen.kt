@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -98,13 +99,21 @@ fun MusicModeScreen(
     val queue by viewModel.queue.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isRestored by viewModel.isRestored.collectAsState()
+    val positionMs by viewModel.positionMs.collectAsState()
+    val durationMs by viewModel.durationMs.collectAsState()
     val lyricsState by viewModel.lyricsState.collectAsState()
     val sleepState by viewModel.sleepTimerState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
     var sleepSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
 
-    // 队列被清空（停止播放）时自动收起队列面板
-    LaunchedEffect(queue) { if (queue == null) queueSheetOpen = false }
+    // 队列被清空（停止播放）时自动收起队列面板与全屏播放页
+    LaunchedEffect(queue) {
+        if (queue == null) {
+            queueSheetOpen = false
+            nowPlayingOpen = false
+        }
+    }
 
     // 系统返回键与左上角返回一致（W3-R3b 缺陷 1）：详情（专辑 / 艺术家 / 歌单）内先回音乐主界面，
     // 而不是直接退回首页；不在详情时交给 NavHost 正常返回。
@@ -112,65 +121,93 @@ fun MusicModeScreen(
 
     CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
         val colors = LocalCinefinColors.current
-        Column(modifier = modifier.fillMaxSize().background(colors.surface)) {
-            MusicHeader(
-                state = state,
-                sleepState = sleepState,
-                onBack = viewModel::closeDetail,
-                onOpenDrawer = onOpenDrawer,
-                onOpenFavorites = viewModel::openFavorites,
-                onOpenRecent = viewModel::openRecent,
-                onOpenSleep = { sleepSheetOpen = true },
-            )
-            if (state.detail == null) {
-                MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
-                Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
-            }
-
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                val error = state.errorMessage
-                when {
-                    error != null ->
-                        ErrorPane(
-                            title = state.errorTitle ?: "曲库加载失败",
-                            message = error,
-                            onRetry = viewModel::refresh,
-                            onDismiss = viewModel::dismissError,
-                        )
-                    state.loading ->
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    state.detail != null ->
-                        DetailPane(
-                            detail = state.detail!!,
-                            currentItemId = queue?.currentItem?.itemId,
-                            onSongClick = viewModel::playSong,
-                            onPlayNext = viewModel::playNext,
-                            onToggleFavorite = viewModel::toggleFavorite,
-                        )
-                    else ->
-                        LibraryPane(
-                            state = state,
-                            currentItemId = queue?.currentItem?.itemId,
-                            onAlbumClick = viewModel::openAlbum,
-                            onArtistClick = viewModel::openArtist,
-                            onPlaylistClick = viewModel::openPlaylist,
-                            onSongClick = viewModel::playSong,
-                            onPlayNext = viewModel::playNext,
-                            onToggleFavorite = viewModel::toggleFavorite,
-                        )
+        Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                MusicHeader(
+                    state = state,
+                    sleepState = sleepState,
+                    onBack = viewModel::closeDetail,
+                    onOpenDrawer = onOpenDrawer,
+                    onOpenFavorites = viewModel::openFavorites,
+                    onOpenRecent = viewModel::openRecent,
+                    onOpenSleep = { sleepSheetOpen = true },
+                )
+                if (state.detail == null) {
+                    MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
+                    Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 }
+
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    val error = state.errorMessage
+                    when {
+                        error != null ->
+                            ErrorPane(
+                                title = state.errorTitle ?: "曲库加载失败",
+                                message = error,
+                                onRetry = viewModel::refresh,
+                                onDismiss = viewModel::dismissError,
+                            )
+                        state.loading ->
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        state.detail != null ->
+                            DetailPane(
+                                detail = state.detail!!,
+                                currentItemId = queue?.currentItem?.itemId,
+                                onSongClick = viewModel::playSong,
+                                onPlayNext = viewModel::playNext,
+                                onToggleFavorite = viewModel::toggleFavorite,
+                            )
+                        else ->
+                            LibraryPane(
+                                state = state,
+                                currentItemId = queue?.currentItem?.itemId,
+                                onAlbumClick = viewModel::openAlbum,
+                                onArtistClick = viewModel::openArtist,
+                                onPlaylistClick = viewModel::openPlaylist,
+                                onSongClick = viewModel::playSong,
+                                onPlayNext = viewModel::playNext,
+                                onToggleFavorite = viewModel::toggleFavorite,
+                            )
+                    }
+                }
+
+                NowPlayingBar(
+                    queue = queue,
+                    isPlaying = isPlaying,
+                    isRestored = isRestored,
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    fallbackDurationMs =
+                        viewModel
+                            .songMeta(queue?.currentItem?.itemId)
+                            ?.runtimeTicks
+                            ?.div(TICKS_PER_MS) ?: 0L,
+                    sleepState = sleepState,
+                    onOpenNowPlaying = { nowPlayingOpen = true },
+                    onPrevious = viewModel::skipToPrevious,
+                    onPlayPause = viewModel::togglePlayPause,
+                    onNext = viewModel::skipToNext,
+                    onOpenLyrics = viewModel::openLyrics,
+                    onOpenQueue = { queueSheetOpen = true },
+                )
             }
 
-            NowPlayingBar(
-                queue = queue,
-                isPlaying = isPlaying,
-                isRestored = isRestored,
-                sleepState = sleepState,
-                onPlayPause = viewModel::togglePlayPause,
-                onNext = viewModel::skipToNext,
-                onOpenLyrics = viewModel::openLyrics,
-                onOpenQueue = { queueSheetOpen = true },
-            )
+            val currentQueue = queue
+            if (nowPlayingOpen && currentQueue != null) {
+                MusicNowPlayingScreen(
+                    queue = currentQueue,
+                    isPlaying = isPlaying,
+                    isRestored = isRestored,
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    meta = viewModel.songMeta(currentQueue.currentItem?.itemId),
+                    onClose = { nowPlayingOpen = false },
+                    onPlayPause = viewModel::togglePlayPause,
+                    onPrevious = viewModel::skipToPrevious,
+                    onNext = viewModel::skipToNext,
+                    onSeek = viewModel::seekTo,
+                )
+            }
         }
 
         if (lyricsState.open && queue != null) {
@@ -564,7 +601,12 @@ private fun NowPlayingBar(
     queue: MusicQueue?,
     isPlaying: Boolean,
     isRestored: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    fallbackDurationMs: Long,
     sleepState: MusicSleepTimer.State,
+    onOpenNowPlaying: () -> Unit,
+    onPrevious: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onOpenLyrics: () -> Unit,
@@ -572,37 +614,59 @@ private fun NowPlayingBar(
 ) {
     val item = queue?.currentItem ?: return
     val colors = LocalCinefinColors.current
+    // 恢复态（重启后未点播放）没有播放器会话，位置与时长回落到快照 / 曲库元数据
+    val currentMs = if (isRestored) item.playbackPosition else positionMs
+    val totalMs = durationMs.takeIf { it > 0L } ?: fallbackDurationMs
+    val timeText = buildString {
+        append(formatPositionMs(currentMs))
+        append(" / ")
+        append(if (totalMs > 0L) formatPositionMs(totalMs) else "--:--")
+    }
+    val statusText = buildString {
+        if (isRestored) append("上次播放") else append(if (isPlaying) "正在播放" else "已暂停")
+        if (sleepState.active) append(" · 睡眠 ${formatSleepRemaining(sleepState.remainingMs)}")
+    }
     Column(modifier = Modifier.fillMaxWidth().background(colors.surfaceContainerHigh)) {
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.outlineVariant))
         Row(
             modifier =
-                Modifier.fillMaxWidth().height(68.dp).padding(horizontal = CinefinSpacing.Space5),
+                Modifier.fillMaxWidth().height(72.dp).padding(horizontal = CinefinSpacing.Space2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.name,
-                    style = CinefinType.TitleMedium,
-                    color = colors.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+            // 封面 + 标题 + 时间：整块可点，进入全屏播放界面（各按钮各自生效，不触发全屏）
+            Row(
+                modifier =
+                    Modifier.weight(1f)
+                        .clip(CinefinShapes.Sm)
+                        .clickable(onClick = onOpenNowPlaying)
+                        .padding(
+                            horizontal = CinefinSpacing.Space1,
+                            vertical = CinefinSpacing.Space1,
+                        ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ArtworkThumb(
+                    imageUri = item.thumbnailUri,
+                    placeholder = item.name,
+                    title = item.name,
                 )
-                Text(
-                    text =
-                        buildString {
-                            append("队列 ${queue.currentIndex + 1}/${queue.items.size}")
-                            if (isRestored) {
-                                append(" · 上次播放到 ${formatPositionMs(item.playbackPosition)}")
-                            } else {
-                                append(if (isPlaying) " · 正在播放" else " · 已暂停")
-                            }
-                            if (sleepState.active) {
-                                append(" · 睡眠 ${formatSleepRemaining(sleepState.remainingMs)}")
-                            }
-                        },
-                    style = CinefinType.BodySmall,
-                    color = colors.onSurfaceVariant,
-                )
+                Spacer(modifier = Modifier.width(CinefinSpacing.Space3))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.name,
+                        style = CinefinType.TitleSmall,
+                        color = colors.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "$timeText · $statusText",
+                        style = CinefinType.MonoDataSmall,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             CinefinIconButton(onClick = onOpenQueue) { tint ->
                 Icon(
@@ -614,6 +678,14 @@ private fun NowPlayingBar(
             }
             CinefinIconButton(onClick = onOpenLyrics) { tint ->
                 Text(text = "词", style = CinefinType.LabelLarge, color = tint)
+            }
+            CinefinIconButton(onClick = onPrevious) { tint ->
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_skip_back),
+                    contentDescription = "上一曲",
+                    tint = tint,
+                    modifier = Modifier.size(20.dp),
+                )
             }
             CinefinIconButton(onClick = onPlayPause) { tint ->
                 Icon(
@@ -874,8 +946,8 @@ private fun formatDuration(runtimeTicks: Long): String {
     return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
-/** 毫秒 → m:ss（底栏恢复态显示上次播放位置）。 */
-private fun formatPositionMs(positionMs: Long): String {
+/** 毫秒 → m:ss（底栏时间与全屏播放页共用）。 */
+internal fun formatPositionMs(positionMs: Long): String {
     val totalSeconds = positionMs.coerceAtLeast(0L) / 1_000L
     return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
