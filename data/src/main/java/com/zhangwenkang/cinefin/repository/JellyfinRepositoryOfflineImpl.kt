@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.repository
 import android.content.Context
 import androidx.paging.PagingData
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -202,6 +203,17 @@ class JellyfinRepositoryOfflineImpl(
             if (startItemId != null) return@withContext items.dropWhile { it.id != startItemId }
             items
         }
+
+    /** W34：离线实现没有服务端图片可拉，直接返回 null（下载页用类型图标占位）。 */
+    override suspend fun getPrimaryImageUrl(itemId: UUID): String? = null
+
+    override suspend fun getDownloadedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy> =
+        withContext(Dispatchers.IO) {
+            runCatching { database.getDownloadedEpisodeHierarchy() }.getOrElse { emptyList() }
+        }
+
+    /** W34：离线实现拿不到主库音频元数据，返回空表（层级退化为单条）。 */
+    override suspend fun getMusicTrackMetadata(): Map<UUID, MusicTrackMetadata> = emptyMap()
 
     override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
         withContext(Dispatchers.IO) {

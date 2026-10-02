@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.repository
 
 import androidx.paging.PagingData
+import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -124,6 +125,19 @@ interface JellyfinRepository {
     suspend fun isCurrentUserAdministrator(): Boolean
 
     suspend fun getDownloads(): List<FindroidItem>
+
+    /** W34 下载层级：单个条目的主图 URL（`/Items/{id}/Images/Primary?tag=…`）；无图返回 null。 */
+    suspend fun getPrimaryImageUrl(itemId: UUID): String?
+
+    /** W34 下载层级：本地已下载剧集的节目 / 季归属（离线读库，不联网）。 */
+    suspend fun getDownloadedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy>
+
+    /**
+     * W34 下载层级：主库音频快照（id → 专辑 / 艺人）。
+     *
+     * 音乐曲目在本地库里只按 movies 表存标题，专辑信息只能回主库取；失败返回空表（层级退化为单条）。
+     */
+    suspend fun getMusicTrackMetadata(): Map<UUID, MusicTrackMetadata>
 
     fun getUserId(): UUID
 }

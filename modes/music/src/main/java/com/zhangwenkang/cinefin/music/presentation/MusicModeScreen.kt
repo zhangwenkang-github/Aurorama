@@ -80,6 +80,7 @@ import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.formatSleepRemaining
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import kotlin.math.roundToInt
 
@@ -112,6 +113,7 @@ fun MusicModeScreen(
     val lyricsEditorState by viewModel.lyricsEditorState.collectAsState()
     val sleepState by viewModel.sleepTimerState.collectAsState()
     val lyricsOverlayState by viewModel.lyricsOverlayState.collectAsState()
+    val songDownloadState by viewModel.downloadState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
     var sleepSheetOpen by rememberSaveable { mutableStateOf(false) }
     var effectsSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -177,20 +179,24 @@ fun MusicModeScreen(
                             DetailPane(
                                 detail = state.detail!!,
                                 currentItemId = queue?.currentItem?.itemId,
+                                downloadState = songDownloadState,
                                 onSongClick = viewModel::playSong,
                                 onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
+                                onToggleDownload = viewModel::toggleSongDownload,
                             )
                         else ->
                             LibraryPane(
                                 state = state,
                                 currentItemId = queue?.currentItem?.itemId,
+                                downloadState = songDownloadState,
                                 onAlbumClick = viewModel::openAlbum,
                                 onArtistClick = viewModel::openArtist,
                                 onPlaylistClick = viewModel::openPlaylist,
                                 onSongClick = viewModel::playSong,
                                 onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
+                                onToggleDownload = viewModel::toggleSongDownload,
                             )
                     }
                 }
@@ -432,12 +438,14 @@ private fun MusicTabs(selected: MusicTab, onSelect: (MusicTab) -> Unit) {
 private fun LibraryPane(
     state: MusicModeViewModel.UiState,
     currentItemId: UUID?,
+    downloadState: MusicModeViewModel.SongDownloadState,
     onAlbumClick: (MusicAlbum) -> Unit,
     onArtistClick: (MusicArtist) -> Unit,
     onPlaylistClick: (MusicPlaylist) -> Unit,
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
+    onToggleDownload: (MusicSong) -> Unit,
 ) {
     when (state.tab) {
         MusicTab.ALBUMS -> AlbumList(albums = state.albums, onAlbumClick = onAlbumClick)
@@ -447,9 +455,11 @@ private fun LibraryPane(
                 songs = state.songs,
                 currentItemId = currentItemId,
                 showAlbum = true,
+                downloadState = downloadState,
                 onSongClick = onSongClick,
                 onPlayNext = onPlayNext,
                 onToggleFavorite = onToggleFavorite,
+                onToggleDownload = onToggleDownload,
             )
         MusicTab.PLAYLISTS ->
             PlaylistList(playlists = state.playlists, onPlaylistClick = onPlaylistClick)
@@ -460,9 +470,11 @@ private fun LibraryPane(
 private fun DetailPane(
     detail: MusicDetail,
     currentItemId: UUID?,
+    downloadState: MusicModeViewModel.SongDownloadState,
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
+    onToggleDownload: (MusicSong) -> Unit,
 ) {
     if (
         (detail is MusicDetail.Playlist && detail.loading) ||
@@ -477,6 +489,7 @@ private fun DetailPane(
         songs = detail.songs,
         currentItemId = currentItemId,
         showAlbum = detail !is MusicDetail.Album,
+        downloadState = downloadState,
         emptyTitle =
             when (detail) {
                 is MusicDetail.Favorites -> "还没有收藏的曲目"
@@ -486,6 +499,7 @@ private fun DetailPane(
         onSongClick = onSongClick,
         onPlayNext = onPlayNext,
         onToggleFavorite = onToggleFavorite,
+        onToggleDownload = onToggleDownload,
     )
 }
 
@@ -595,9 +609,11 @@ private fun SongList(
     currentItemId: UUID?,
     showAlbum: Boolean,
     emptyTitle: String = "这里还没有可播放的曲目",
+    downloadState: MusicModeViewModel.SongDownloadState = MusicModeViewModel.SongDownloadState(),
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
+    onToggleDownload: (MusicSong) -> Unit = {},
 ) {
     if (songs.isEmpty()) {
         EmptyHint(title = emptyTitle)
@@ -612,9 +628,24 @@ private fun SongList(
                 song = song,
                 subtitle = if (showAlbum) song.albumName else null,
                 isCurrent = song.itemId == currentItemId,
+                downloadLabel =
+                    when {
+                        downloadState.isDownloaded(song.itemId) -> "已下载"
+                        downloadState.activeStatus(song.itemId) == DownloadTaskStatus.PAUSED ->
+                            "下载已暂停"
+                        downloadState.isActive(song.itemId) -> "下载中"
+                        else -> null
+                    },
+                downloadMenuItem =
+                    when {
+                        downloadState.isDownloaded(song.itemId) -> "删除下载"
+                        downloadState.isActive(song.itemId) -> "取消下载"
+                        else -> "下载"
+                    },
                 onClick = { onSongClick(song) },
                 onPlayNext = { onPlayNext(song) },
                 onToggleFavorite = { onToggleFavorite(song) },
+                onToggleDownload = { onToggleDownload(song) },
             )
         }
     }
@@ -626,9 +657,12 @@ private fun SongRow(
     song: MusicSong,
     subtitle: String?,
     isCurrent: Boolean,
+    downloadLabel: String?,
+    downloadMenuItem: String,
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onToggleDownload: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -636,7 +670,7 @@ private fun SongRow(
     CinefinListRow(
         title = song.name,
         secondary =
-            listOfNotNull(subtitle, formatDuration(song.runtimeTicks))
+            listOfNotNull(subtitle, downloadLabel, formatDuration(song.runtimeTicks))
                 .filter { it.isNotBlank() }
                 .joinToString(" · ")
                 .ifBlank { null },
@@ -688,6 +722,19 @@ private fun SongRow(
                         onClick = {
                             menuOpen = false
                             onToggleFavorite()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = downloadMenuItem,
+                                style = CinefinType.BodyMedium,
+                                color = colors.onSurface,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onToggleDownload()
                         },
                     )
                 }

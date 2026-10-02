@@ -72,6 +72,21 @@ class ReaderRepositoryImpl(
             }
         }
 
+    override suspend fun listLocalFiles(): List<LocalBookFile> =
+        withContext(Dispatchers.IO) {
+            File(appContext.filesDir, "books")
+                .listFiles()
+                ?.asSequence()
+                ?.filter { it.isFile && it.name.endsWith(".book") && it.length() > 0 }
+                ?.mapNotNull { file ->
+                    runCatching { UUID.fromString(file.name.removeSuffix(".book")) }
+                        .getOrNull()
+                        ?.let { LocalBookFile(itemId = it, sizeBytes = file.length()) }
+                }
+                ?.sortedBy { it.itemId.toString() }
+                ?.toList() ?: emptyList()
+        }
+
     private fun download(
         target: File,
         itemId: UUID,

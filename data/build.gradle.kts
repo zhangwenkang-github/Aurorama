@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.androidx.room3)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -39,6 +40,8 @@ dependencies {
     implementation(libs.androidx.paging)
     implementation(libs.androidx.room3.runtime)
     ksp(libs.androidx.room3.compiler)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)

@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -34,6 +36,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -42,30 +46,38 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
-import com.zhangwenkang.cinefin.film.presentation.downloads.CompletedDownload
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyChild
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyContainer
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyEntry
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyFlattener
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyLeaf
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyRow
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyStatus
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchySubContainer
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadManagerState
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadMediaFilter
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
-import com.zhangwenkang.cinefin.film.presentation.downloads.completedKey
-import com.zhangwenkang.cinefin.film.presentation.downloads.taskKey
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.film.components.DeleteDownloadDialog
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
-import com.zhangwenkang.cinefin.utils.DownloadTask
+import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 
@@ -87,6 +99,7 @@ fun DownloadsScreen(
         onAction = { action ->
             when (action) {
                 is DownloadAction.Open -> onItemClick(action.item)
+                is DownloadAction.OpenEntry -> viewModel.itemForEntry(action.key)?.let(onItemClick)
                 else -> viewModel.onAction(action)
             }
         },
@@ -100,9 +113,9 @@ private enum class DownloadTab {
 }
 
 private sealed interface PendingDelete {
-    data class Task(val task: DownloadTask) : PendingDelete
+    data class Entry(val key: String, val title: String) : PendingDelete
 
-    data class Completed(val download: CompletedDownload) : PendingDelete
+    data class Container(val key: String, val title: String) : PendingDelete
 
     data object Selection : PendingDelete
 }
@@ -164,6 +177,7 @@ private fun DownloadsScreenLayout(
         Spacer(Modifier.height(CinefinSpacing.Space3))
         StorageSummary(
             storage = state.storage,
+            bookStorageBytes = state.bookStorageBytes,
             modifier = Modifier.padding(horizontal = horizontalPadding),
         )
         Spacer(Modifier.height(CinefinSpacing.Space3))
@@ -197,37 +211,97 @@ private fun DownloadsScreenLayout(
             )
         }
 
+        Spacer(Modifier.height(CinefinSpacing.Space2))
+        Row(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = horizontalPadding),
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+        ) {
+            CinefinFilterChip(
+                text = "全部",
+                selected = state.mediaFilter == DownloadMediaFilter.ALL,
+                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.ALL)) },
+                compact = true,
+            )
+            CinefinFilterChip(
+                text = "视频",
+                selected = state.mediaFilter == DownloadMediaFilter.VIDEO,
+                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.VIDEO)) },
+                compact = true,
+            )
+            CinefinFilterChip(
+                text = "音乐",
+                selected = state.mediaFilter == DownloadMediaFilter.MUSIC,
+                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.MUSIC)) },
+                compact = true,
+            )
+            CinefinFilterChip(
+                text = "书籍",
+                selected = state.mediaFilter == DownloadMediaFilter.BOOK,
+                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.BOOK)) },
+                compact = true,
+            )
+        }
+
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (tab) {
-                DownloadTab.ACTIVE ->
-                    TaskList(
-                        tasks = state.activeTasks,
-                        emptyTitle = stringResource(CoreR.string.download_empty_active),
-                        selectionMode = state.selectionMode,
-                        selection = state.selection,
-                        pageGutter = horizontalPadding,
-                        onAction = onAction,
-                        onRequestDelete = { pendingDelete = PendingDelete.Task(it) },
-                    )
-                DownloadTab.FAILED ->
-                    TaskList(
-                        tasks = state.failedTasks,
-                        emptyTitle = stringResource(CoreR.string.download_empty_failed),
-                        selectionMode = state.selectionMode,
-                        selection = state.selection,
-                        pageGutter = horizontalPadding,
-                        onAction = onAction,
-                        onRequestDelete = { pendingDelete = PendingDelete.Task(it) },
-                    )
-                DownloadTab.COMPLETED ->
-                    CompletedList(
-                        downloads = state.completed,
-                        selectionMode = state.selectionMode,
-                        selection = state.selection,
-                        pageGutter = horizontalPadding,
-                        onAction = onAction,
-                        onRequestDelete = { pendingDelete = PendingDelete.Completed(it) },
-                    )
+            when {
+                state.isLoading ->
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colors.onSurfaceVariant)
+                    }
+                else ->
+                    when (tab) {
+                        DownloadTab.ACTIVE ->
+                            HierarchyList(
+                                containers = state.containersFor(DownloadTaskGroup.ACTIVE),
+                                emptyTitle = stringResource(CoreR.string.download_empty_active),
+                                expandedKeys = state.expandedKeys,
+                                selectionMode = state.selectionMode,
+                                selection = state.selection,
+                                pageGutter = horizontalPadding,
+                                onAction = onAction,
+                                onRequestDeleteEntry = { key, title ->
+                                    pendingDelete = PendingDelete.Entry(key, title)
+                                },
+                                onRequestDeleteContainer = { key, title ->
+                                    pendingDelete = PendingDelete.Container(key, title)
+                                },
+                            )
+                        DownloadTab.FAILED ->
+                            HierarchyList(
+                                containers = state.containersFor(DownloadTaskGroup.FAILED),
+                                emptyTitle = stringResource(CoreR.string.download_empty_failed),
+                                expandedKeys = state.expandedKeys,
+                                selectionMode = state.selectionMode,
+                                selection = state.selection,
+                                pageGutter = horizontalPadding,
+                                onAction = onAction,
+                                onRequestDeleteEntry = { key, title ->
+                                    pendingDelete = PendingDelete.Entry(key, title)
+                                },
+                                onRequestDeleteContainer = { key, title ->
+                                    pendingDelete = PendingDelete.Container(key, title)
+                                },
+                            )
+                        DownloadTab.COMPLETED ->
+                            HierarchyList(
+                                containers = state.containersFor(DownloadTaskGroup.COMPLETED),
+                                emptyTitle = stringResource(CoreR.string.no_downloads),
+                                expandedKeys = state.expandedKeys,
+                                selectionMode = state.selectionMode,
+                                selection = state.selection,
+                                pageGutter = horizontalPadding,
+                                onAction = onAction,
+                                onRequestDeleteEntry = { key, title ->
+                                    pendingDelete = PendingDelete.Entry(key, title)
+                                },
+                                onRequestDeleteContainer = { key, title ->
+                                    pendingDelete = PendingDelete.Container(key, title)
+                                },
+                            )
+                    }
             }
         }
 
@@ -242,21 +316,47 @@ private fun DownloadsScreenLayout(
     }
 
     when (val pending = pendingDelete) {
-        is PendingDelete.Task ->
-            DeleteDownloadDialog(
-                onDelete = {
-                    onAction(DownloadAction.DeleteTask(pending.task))
-                    pendingDelete = null
+        is PendingDelete.Entry ->
+            AlertDialog(
+                title = { Text(pending.title) },
+                text = { Text(stringResource(CoreR.string.delete_download_message)) },
+                onDismissRequest = { pendingDelete = null },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onAction(DownloadAction.DeleteEntry(pending.key))
+                            pendingDelete = null
+                        }
+                    ) {
+                        Text(stringResource(CoreR.string.download_action_delete))
+                    }
                 },
-                onDismiss = { pendingDelete = null },
+                dismissButton = {
+                    TextButton(onClick = { pendingDelete = null }) {
+                        Text(stringResource(CoreR.string.cancel))
+                    }
+                },
             )
-        is PendingDelete.Completed ->
-            DeleteDownloadDialog(
-                onDelete = {
-                    onAction(DownloadAction.DeleteCompleted(pending.download))
-                    pendingDelete = null
+        is PendingDelete.Container ->
+            AlertDialog(
+                title = { Text(pending.title) },
+                text = { Text("删除该下载分组下的全部内容？") },
+                onDismissRequest = { pendingDelete = null },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onAction(DownloadAction.DeleteContainer(pending.key))
+                            pendingDelete = null
+                        }
+                    ) {
+                        Text(stringResource(CoreR.string.download_action_delete))
+                    }
                 },
-                onDismiss = { pendingDelete = null },
+                dismissButton = {
+                    TextButton(onClick = { pendingDelete = null }) {
+                        Text(stringResource(CoreR.string.cancel))
+                    }
+                },
             )
         PendingDelete.Selection ->
             AlertDialog(
@@ -291,7 +391,11 @@ private fun DownloadsScreenLayout(
 }
 
 @Composable
-private fun StorageSummary(storage: DownloadStorageUsage, modifier: Modifier = Modifier) {
+private fun StorageSummary(
+    storage: DownloadStorageUsage,
+    bookStorageBytes: Long,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalCinefinColors.current
     val context = LocalContext.current
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -306,142 +410,151 @@ private fun StorageSummary(storage: DownloadStorageUsage, modifier: Modifier = M
             text =
                 stringResource(
                     CoreR.string.download_storage_usage,
-                    Formatter.formatFileSize(context, storage.usedBytes),
+                    Formatter.formatFileSize(context, storage.usedBytes + bookStorageBytes),
                     Formatter.formatFileSize(context, storage.availableBytes),
                 ),
             style = CinefinType.BodyMedium,
             color = colors.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun TaskList(
-    tasks: List<DownloadTask>,
-    emptyTitle: String,
-    selectionMode: Boolean,
-    selection: Set<String>,
-    pageGutter: androidx.compose.ui.unit.Dp,
-    onAction: (DownloadAction) -> Unit,
-    onRequestDelete: (DownloadTask) -> Unit,
-) {
-    if (tasks.isEmpty()) {
-        CinefinEmptyState(
-            title = emptyTitle,
-            modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
-        )
-        return
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
-        contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8),
-        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
-    ) {
-        items(tasks, key = { taskKey(it) }) { task ->
-            DownloadTaskCard(
-                task = task,
-                selectionMode = selectionMode,
-                selected = taskKey(task) in selection,
-                onAction = onAction,
-                onRequestDelete = onRequestDelete,
+        if (bookStorageBytes > 0L) {
+            Spacer(Modifier.size(CinefinSpacing.Space2))
+            Text(
+                text = "（含书籍 ${Formatter.formatFileSize(context, bookStorageBytes)}）",
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceFaint,
             )
         }
     }
 }
 
 @Composable
-private fun DownloadTaskCard(
-    task: DownloadTask,
+private fun HierarchyList(
+    containers: List<DownloadHierarchyContainer>,
+    emptyTitle: String,
+    expandedKeys: Set<String>,
     selectionMode: Boolean,
-    selected: Boolean,
+    selection: Set<String>,
+    pageGutter: androidx.compose.ui.unit.Dp,
     onAction: (DownloadAction) -> Unit,
-    onRequestDelete: (DownloadTask) -> Unit,
+    onRequestDeleteEntry: (key: String, title: String) -> Unit,
+    onRequestDeleteContainer: (key: String, title: String) -> Unit,
+) {
+    if (containers.isEmpty()) {
+        CinefinEmptyState(
+            title = emptyTitle,
+            modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
+        )
+        return
+    }
+    val rows = DownloadHierarchyFlattener.flatten(containers, expandedKeys)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
+        contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8),
+        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+    ) {
+        items(rows, key = { row -> row.key }) { row ->
+            when (row) {
+                is DownloadHierarchyRow.ContainerRow ->
+                    HierarchyContainerCard(
+                        container = row.container,
+                        depth = row.depth,
+                        collapsed = row.collapsed,
+                        selectionMode = selectionMode,
+                        selection = selection,
+                        onAction = onAction,
+                        onRequestDeleteContainer = onRequestDeleteContainer,
+                    )
+                is DownloadHierarchyRow.ChildContainerRow ->
+                    HierarchySubContainerCard(
+                        container = row.container,
+                        depth = row.depth,
+                        collapsed = row.collapsed,
+                        onAction = onAction,
+                    )
+                is DownloadHierarchyRow.ItemRow ->
+                    HierarchyLeafCard(
+                        entry = row.entry,
+                        depth = row.depth,
+                        selectionMode = selectionMode,
+                        selected = row.entry.key in selection,
+                        onAction = onAction,
+                        onRequestDelete = onRequestDeleteEntry,
+                    )
+            }
+        }
+    }
+}
+
+/** W34：层级容器卡（节目 / 专辑 / 电影 / 书籍）。 */
+@Composable
+private fun HierarchyContainerCard(
+    container: DownloadHierarchyContainer,
+    depth: Int,
+    collapsed: Boolean,
+    selectionMode: Boolean,
+    selection: Set<String>,
+    onAction: (DownloadAction) -> Unit,
+    onRequestDeleteContainer: (key: String, title: String) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val context = LocalContext.current
 
     CinefinCard(
-        onClick =
-            if (selectionMode) ({ onAction(DownloadAction.ToggleSelection(taskKey(task))) })
-            else null,
-        selected = selected,
+        onClick = { onAction(DownloadAction.ToggleContainer(container.key)) },
+        selected =
+            container.children.any { child -> childSelectionKeys(child).any { it in selection } },
         contentPadding = PaddingValues(CinefinSpacing.Space4),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selectionMode) {
-                Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onAction(DownloadAction.ToggleSelection(taskKey(task))) },
-                )
-                Spacer(Modifier.size(CinefinSpacing.Space2))
-            }
+            Spacer(Modifier.width((depth * 8).dp))
+            ArtworkThumb(
+                imageUri = container.imageUri,
+                kind = container.mediaKind,
+                size = 44.dp,
+            )
+            Spacer(Modifier.size(CinefinSpacing.Space3))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = task.name,
+                    text = container.title,
                     style = CinefinType.BodyLarge,
                     color = colors.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(CinefinSpacing.Space1))
-                TaskStatusText(task = task)
-                if (task.status == DownloadTaskStatus.RUNNING) {
+                Text(
+                    text = containerDetail(container),
+                    style = CinefinType.BodySmall,
+                    color =
+                        if (container.status == DownloadHierarchyStatus.FAILED) colors.error
+                        else colors.onSurfaceVariant,
+                )
+                if (container.status == DownloadHierarchyStatus.RUNNING) {
                     Spacer(Modifier.height(CinefinSpacing.Space2))
                     LinearProgressIndicator(
-                        progress = { task.progress },
+                        progress = { container.progress },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
                         color = media.base,
                         trackColor = colors.progressTrack,
                     )
-                    Spacer(Modifier.height(CinefinSpacing.Space1))
-                    Text(
-                        text =
-                            "${(task.progress * 100).toInt()}% · " +
-                                Formatter.formatFileSize(context, task.downloadedBytes),
-                        style = CinefinType.BodySmall,
-                        color = colors.onSurfaceVariant,
-                    )
                 }
             }
             Spacer(Modifier.size(CinefinSpacing.Space2))
-            Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
-                when {
-                    DownloadTaskRules.canPause(task.status) ->
-                        CinefinIconButton(onClick = { onAction(DownloadAction.Pause(task)) }) { tint
-                            ->
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_pause),
-                                contentDescription =
-                                    stringResource(CoreR.string.download_action_pause),
-                                tint = tint,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    DownloadTaskRules.canResume(task.status) ->
-                        CinefinIconButton(onClick = { onAction(DownloadAction.Resume(task)) }) {
-                            tint ->
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_play),
-                                contentDescription =
-                                    stringResource(CoreR.string.download_action_resume),
-                                tint = tint,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    DownloadTaskRules.canRetry(task.status) ->
-                        CinefinIconButton(onClick = { onAction(DownloadAction.Retry(task)) }) { tint
-                            ->
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_rotate_ccw),
-                                contentDescription =
-                                    stringResource(CoreR.string.download_action_retry),
-                                tint = tint,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                }
-                CinefinIconButton(onClick = { onRequestDelete(task) }) { tint ->
+            Icon(
+                painter =
+                    painterResource(
+                        if (collapsed) CoreR.drawable.ic_chevron_down
+                        else CoreR.drawable.ic_chevron_up
+                    ),
+                contentDescription = if (collapsed) "展开" else "折叠",
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            if (!selectionMode && container.canDelete) {
+                Spacer(Modifier.size(CinefinSpacing.Space1))
+                CinefinIconButton(
+                    onClick = { onRequestDeleteContainer(container.key, container.title) }
+                ) { tint ->
                     Icon(
                         painter = painterResource(CoreR.drawable.ic_trash),
                         contentDescription = stringResource(CoreR.string.download_action_delete),
@@ -454,26 +567,283 @@ private fun DownloadTaskCard(
     }
 }
 
+/** W34：季容器（节目下的第二级，只展开 / 折叠，不带删除）。 */
 @Composable
-private fun TaskStatusText(task: DownloadTask) {
+private fun HierarchySubContainerCard(
+    container: DownloadHierarchySubContainer,
+    depth: Int,
+    collapsed: Boolean,
+    onAction: (DownloadAction) -> Unit,
+) {
     val colors = LocalCinefinColors.current
-    val text =
-        when (task.status) {
+    CinefinCard(
+        onClick = { onAction(DownloadAction.ToggleContainer(container.key)) },
+        contentPadding = PaddingValues(CinefinSpacing.Space3),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width((depth * 8).dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = container.title,
+                    style = CinefinType.BodyLarge,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(CinefinSpacing.Space1))
+                Text(
+                    text = container.detail.orEmpty(),
+                    style = CinefinType.BodySmall,
+                    color =
+                        if (container.status == DownloadHierarchyStatus.FAILED) colors.error
+                        else colors.onSurfaceVariant,
+                )
+            }
+            Icon(
+                painter =
+                    painterResource(
+                        if (collapsed) CoreR.drawable.ic_chevron_down
+                        else CoreR.drawable.ic_chevron_up
+                    ),
+                contentDescription = if (collapsed) "展开" else "折叠",
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+/** W34：层级里的单个条目（剧集 / 曲目 / 电影 / 书籍卡片）。 */
+@Composable
+private fun HierarchyLeafCard(
+    entry: DownloadHierarchyEntry,
+    depth: Int,
+    selectionMode: Boolean,
+    selected: Boolean,
+    onAction: (DownloadAction) -> Unit,
+    onRequestDelete: (key: String, title: String) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val context = LocalContext.current
+    val task = entry.task
+
+    CinefinCard(
+        onClick = {
+            when {
+                selectionMode -> onAction(DownloadAction.ToggleEntry(entry.key))
+                entry.mediaKind == DownloadMediaKind.BOOK ||
+                    entry.status == DownloadTaskStatus.COMPLETED ->
+                    onAction(DownloadAction.OpenEntry(entry.key))
+            }
+        },
+        selected = selected,
+        contentPadding = PaddingValues(CinefinSpacing.Space3),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (selectionMode) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onAction(DownloadAction.ToggleEntry(entry.key)) },
+                )
+                Spacer(Modifier.size(CinefinSpacing.Space1))
+            }
+            Spacer(Modifier.width((depth * 8).dp))
+            ArtworkThumb(imageUri = entry.imageUri, kind = entry.mediaKind, size = 40.dp)
+            Spacer(Modifier.size(CinefinSpacing.Space3))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = entry.name,
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(CinefinSpacing.Space1))
+                Text(
+                    text = leafDetail(entry),
+                    style = CinefinType.BodySmall,
+                    color =
+                        if (entry.status == DownloadTaskStatus.FAILED) colors.error
+                        else colors.onSurfaceVariant,
+                )
+                if (task != null && task.status == DownloadTaskStatus.RUNNING) {
+                    Spacer(Modifier.height(CinefinSpacing.Space1))
+                    LinearProgressIndicator(
+                        progress = { task.progress },
+                        modifier = Modifier.fillMaxWidth().height(3.dp),
+                        color = media.base,
+                        trackColor = colors.progressTrack,
+                    )
+                }
+            }
+            if (!selectionMode) {
+                Spacer(Modifier.size(CinefinSpacing.Space1))
+                Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
+                    if (task != null) {
+                        when {
+                            DownloadTaskRules.canPause(task.status) ->
+                                CinefinIconButton(
+                                    onClick = { onAction(DownloadAction.Pause(task)) }
+                                ) { tint ->
+                                    Icon(
+                                        painter = painterResource(CoreR.drawable.ic_pause),
+                                        contentDescription =
+                                            stringResource(CoreR.string.download_action_pause),
+                                        tint = tint,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            DownloadTaskRules.canResume(task.status) ->
+                                CinefinIconButton(
+                                    onClick = { onAction(DownloadAction.Resume(task)) }
+                                ) { tint ->
+                                    Icon(
+                                        painter = painterResource(CoreR.drawable.ic_play),
+                                        contentDescription =
+                                            stringResource(CoreR.string.download_action_resume),
+                                        tint = tint,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            DownloadTaskRules.canRetry(task.status) ->
+                                CinefinIconButton(
+                                    onClick = { onAction(DownloadAction.Retry(task)) }
+                                ) { tint ->
+                                    Icon(
+                                        painter = painterResource(CoreR.drawable.ic_rotate_ccw),
+                                        contentDescription =
+                                            stringResource(CoreR.string.download_action_retry),
+                                        tint = tint,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                        }
+                    }
+                    if (entry.canDelete) {
+                        CinefinIconButton(onClick = { onRequestDelete(entry.key, entry.name) }) {
+                            tint ->
+                            Icon(
+                                painter = painterResource(CoreR.drawable.ic_trash),
+                                contentDescription =
+                                    stringResource(CoreR.string.download_action_delete),
+                                tint = tint,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** W34：条目状态行（进度 / 体积 / 失败原因）。 */
+@Composable
+private fun leafDetail(entry: DownloadHierarchyEntry): String {
+    val context = LocalContext.current
+    val sizeText =
+        when {
+            entry.downloadedBytes > 0L && entry.totalBytes > 0L ->
+                "${Formatter.formatFileSize(context, entry.downloadedBytes)} / " +
+                    Formatter.formatFileSize(context, entry.totalBytes)
+            entry.sizeBytes > 0L -> Formatter.formatFileSize(context, entry.sizeBytes)
+            else -> ""
+        }
+    val statusText =
+        when (entry.status) {
             DownloadTaskStatus.PENDING -> stringResource(CoreR.string.download_pending)
-            DownloadTaskStatus.RUNNING -> stringResource(CoreR.string.download_downloading)
+            DownloadTaskStatus.RUNNING ->
+                "${stringResource(CoreR.string.download_downloading)} " +
+                    "${((entry.task?.progress ?: 0f) * 100).toInt()}%"
             DownloadTaskStatus.PAUSED ->
-                if (task.failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE) {
+                if (entry.task?.failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE) {
                     stringResource(CoreR.string.download_waiting_network)
                 } else {
                     stringResource(CoreR.string.download_paused)
                 }
-            DownloadTaskStatus.FAILED -> failureLabel(task.failureReason)
+            DownloadTaskStatus.FAILED -> failureLabel(entry.task?.failureReason)
             DownloadTaskStatus.COMPLETED -> stringResource(CoreR.string.download_tasks_completed)
         }
-    val color =
-        if (task.status == DownloadTaskStatus.FAILED) colors.error else colors.onSurfaceVariant
-    Text(text = text, style = CinefinType.BodySmall, color = color)
+    return listOf(statusText, sizeText).filter { it.isNotBlank() }.joinToString(" · ")
 }
+
+/** W34：容器状态行（聚合进度 + 状态）。 */
+@Composable
+private fun containerDetail(container: DownloadHierarchyContainer): String {
+    val context = LocalContext.current
+    val statusText =
+        when (container.status) {
+            DownloadHierarchyStatus.FAILED -> "失败"
+            DownloadHierarchyStatus.RUNNING -> "下载中"
+            DownloadHierarchyStatus.PENDING -> stringResource(CoreR.string.download_pending)
+            DownloadHierarchyStatus.PAUSED -> stringResource(CoreR.string.download_paused)
+            DownloadHierarchyStatus.COMPLETED -> "已完成"
+        }
+    val sizeText =
+        if (container.sizeBytes > 0L) Formatter.formatFileSize(context, container.sizeBytes) else ""
+    return listOfNotNull(
+            container.detail ?: statusText,
+            statusText.takeIf { container.detail != null },
+            sizeText,
+        )
+        .filter { it.isNotBlank() }
+        .distinct()
+        .joinToString(" · ")
+}
+
+/** W34：封面 / 缩略图；无图时按媒体类型用图标占位（不新增位图资源）。 */
+@Composable
+private fun ArtworkThumb(
+    imageUri: String?,
+    kind: DownloadMediaKind,
+    size: androidx.compose.ui.unit.Dp,
+) {
+    val colors = LocalCinefinColors.current
+    val context = LocalContext.current
+    val resolvedUri = imageUri?.let { raw ->
+        if (!raw.contains("://") && !raw.startsWith("images/")) {
+            "${context.filesDir}/$raw"
+        } else {
+            raw
+        }
+    }
+    Box(
+        modifier =
+            Modifier.size(size).clip(CinefinShapes.Xs).background(colors.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            resolvedUri != null ->
+                AsyncImage(
+                    model = resolvedUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            else ->
+                Icon(
+                    painter =
+                        painterResource(
+                            when (kind) {
+                                DownloadMediaKind.VIDEO -> CoreR.drawable.ic_film
+                                DownloadMediaKind.MUSIC -> CoreR.drawable.ic_music
+                                DownloadMediaKind.BOOK -> CoreR.drawable.ic_book
+                            }
+                        ),
+                    contentDescription = null,
+                    tint = colors.onSurfaceFaint,
+                    modifier = Modifier.size(size / 2),
+                )
+        }
+    }
+}
+
+private fun childSelectionKeys(child: DownloadHierarchyChild): List<String> =
+    when (child) {
+        is DownloadHierarchyLeaf -> listOf(child.key)
+        is DownloadHierarchySubContainer -> child.children.map { it.key }
+    }
 
 @Composable
 private fun failureLabel(reason: DownloadFailureReason?): String =
@@ -491,104 +861,6 @@ private fun failureLabel(reason: DownloadFailureReason?): String =
     }
 
 @Composable
-private fun CompletedList(
-    downloads: List<CompletedDownload>,
-    selectionMode: Boolean,
-    selection: Set<String>,
-    pageGutter: androidx.compose.ui.unit.Dp,
-    onAction: (DownloadAction) -> Unit,
-    onRequestDelete: (CompletedDownload) -> Unit,
-) {
-    if (downloads.isEmpty()) {
-        CinefinEmptyState(
-            title = stringResource(CoreR.string.no_downloads),
-            modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
-        )
-        return
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
-        contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8),
-        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
-    ) {
-        items(downloads, key = { completedKey(it.item) }) { download ->
-            CompletedDownloadCard(
-                download = download,
-                selectionMode = selectionMode,
-                selected = completedKey(download.item) in selection,
-                onAction = onAction,
-                onRequestDelete = onRequestDelete,
-            )
-        }
-    }
-}
-
-@Composable
-private fun CompletedDownloadCard(
-    download: CompletedDownload,
-    selectionMode: Boolean,
-    selected: Boolean,
-    onAction: (DownloadAction) -> Unit,
-    onRequestDelete: (CompletedDownload) -> Unit,
-) {
-    val colors = LocalCinefinColors.current
-    val context = LocalContext.current
-    CinefinCard(
-        onClick = {
-            if (selectionMode) {
-                if (download.canDelete) {
-                    onAction(DownloadAction.ToggleSelection(completedKey(download.item)))
-                }
-            } else {
-                onAction(DownloadAction.Open(download.item))
-            }
-        },
-        selected = selected,
-        contentPadding = PaddingValues(CinefinSpacing.Space4),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selectionMode) {
-                Checkbox(
-                    checked = selected,
-                    enabled = download.canDelete,
-                    onCheckedChange = {
-                        onAction(DownloadAction.ToggleSelection(completedKey(download.item)))
-                    },
-                )
-                Spacer(Modifier.size(CinefinSpacing.Space2))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = download.item.name,
-                    style = CinefinType.BodyLarge,
-                    color = colors.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (download.canDelete) {
-                    Spacer(Modifier.height(CinefinSpacing.Space1))
-                    Text(
-                        text = Formatter.formatFileSize(context, download.sizeBytes),
-                        style = CinefinType.BodySmall,
-                        color = colors.onSurfaceVariant,
-                    )
-                }
-            }
-            if (!selectionMode && download.canDelete) {
-                CinefinIconButton(onClick = { onRequestDelete(download) }) { tint ->
-                    Icon(
-                        painter = painterResource(CoreR.drawable.ic_trash),
-                        contentDescription = stringResource(CoreR.string.download_action_delete),
-                        tint = tint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun SelectionBar(
     state: DownloadManagerState,
     pageGutter: androidx.compose.ui.unit.Dp,
@@ -596,8 +868,7 @@ private fun SelectionBar(
     onRequestDelete: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val selectedTasks =
-        (state.activeTasks + state.failedTasks).filter { taskKey(it) in state.selection }
+    val selectedTasks = state.selectedTasks
     Row(
         modifier =
             Modifier.fillMaxWidth()

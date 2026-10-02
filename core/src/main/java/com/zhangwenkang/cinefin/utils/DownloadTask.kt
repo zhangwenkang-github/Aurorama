@@ -3,6 +3,13 @@ package com.zhangwenkang.cinefin.utils
 import android.app.DownloadManager
 import java.util.UUID
 
+/** W34 下载层级：条目所属媒体类型（下载列表层级化用）。 */
+enum class DownloadMediaKind {
+    VIDEO,
+    MUSIC,
+    BOOK,
+}
+
 /**
  * W32 下载任务（下载管理页的单一数据模型）。
  *
@@ -21,6 +28,18 @@ data class DownloadTask(
     val downloadedBytes: Long,
     val totalBytes: Long,
     val updatedAt: Long,
+    /** W34：媒体类型（默认视频；音乐由 DownloaderImpl 按本地曲库 / 侧车元数据判定）。 */
+    val mediaKind: DownloadMediaKind = DownloadMediaKind.VIDEO,
+    /** W34：视频层级（剧集）；电影为 null。 */
+    val seriesId: UUID? = null,
+    val seasonId: UUID? = null,
+    val seriesName: String? = null,
+    val seasonName: String? = null,
+    val episodeIndex: Int = 0,
+    val seasonIndex: Int = 0,
+    /** W34：音乐层级。 */
+    val albumName: String? = null,
+    val artist: String? = null,
 ) {
     val progress: Float
         get() =

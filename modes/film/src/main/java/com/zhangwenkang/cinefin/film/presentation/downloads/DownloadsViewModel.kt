@@ -2,13 +2,20 @@ package com.zhangwenkang.cinefin.film.presentation.downloads
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
+import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.LocalBookFile
+import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
+import com.zhangwenkang.cinefin.repository.ReaderRepository
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
+import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,6 +30,9 @@ import kotlinx.coroutines.launch
  *
  * 数据来源：Downloader（进行中 / 暂停 / 失败任务 + 存储占用）+ JellyfinRepository（已完成条目）。页面可见时每 1.5s 对账一次， 进程重启后由
  * DownloadManager 中的任务与 sources 表持久化状态恢复列表。
+ *
+ * W34：把任务与已完成条目归一化成 [DownloadHierarchyEntry]，交给纯函数 [DownloadHierarchyBuilder] 组织成「视频：节目 → 季 → 剧集 /
+ * 音乐：专辑 → 曲目 / 书籍：封面卡片」的层级容器。
  */
 @HiltViewModel
 class DownloadsViewModel
@@ -30,6 +40,7 @@ class DownloadsViewModel
 constructor(
     private val downloader: Downloader,
     private val repository: JellyfinRepository,
+    private val readerRepository: ReaderRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DownloadManagerState())
@@ -37,6 +48,7 @@ constructor(
 
     private var pollingJob: Job? = null
     private var refreshing = false
+    private val cachedBookMetadata = mutableMapOf<UUID, BookMetadata>()
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
@@ -56,9 +68,30 @@ constructor(
         pollingJob = null
     }
 
+    /** W34：层级条目对应的媒体条目（用于打开详情 / 阅读器）。 */
+    fun itemForEntry(key: String): FindroidItem? {
+        val entry = _state.value.findEntry(key) ?: return null
+        return _state.value.completed.firstOrNull { it.item.id == entry.itemId }?.item
+    }
+
     fun onAction(action: DownloadAction) {
         when (action) {
             is DownloadAction.ToggleSelection -> toggleSelection(action.key)
+            is DownloadAction.ToggleEntry -> toggleSelection(action.key)
+            is DownloadAction.ToggleContainer ->
+                _state.update { current ->
+                    val expanded =
+                        if (action.key in current.expandedKeys) {
+                            current.expandedKeys - action.key
+                        } else {
+                            current.expandedKeys + action.key
+                        }
+                    current.copy(expandedKeys = expanded)
+                }
+            is DownloadAction.SetMediaFilter ->
+                _state.update { it.copy(mediaFilter = action.filter) }
+            is DownloadAction.DeleteContainer -> deleteContainer(action.key)
+            is DownloadAction.DeleteEntry -> deleteEntry(action.key)
             DownloadAction.ToggleSelectionMode -> toggleSelectionMode()
             DownloadAction.ClearSelection -> clearSelection()
             DownloadAction.PauseSelected -> runForSelectedTasks { downloader.pauseTask(it) }
@@ -79,6 +112,25 @@ constructor(
                     refresh(showLoading = false)
                 }
             is DownloadAction.Open -> Unit
+            is DownloadAction.OpenEntry -> Unit
+        }
+    }
+
+    /** W34：删除层级里的单个条目（任务 / 已完成媒体 / 阅读器离线书籍）。 */
+    private fun deleteEntry(key: String) {
+        viewModelScope.launch {
+            val entry = _state.value.findEntry(key) ?: return@launch
+            when {
+                entry.task != null -> downloader.deleteTask(entry.task)
+                entry.mediaKind == DownloadMediaKind.BOOK ->
+                    readerRepository.deleteLocalFile(entry.itemId)
+                else -> {
+                    val completed =
+                        _state.value.completed.firstOrNull { it.item.id == entry.itemId }
+                    completed?.source?.let { downloader.deleteItem(completed.item, it) }
+                }
+            }
+            refresh(showLoading = false)
         }
     }
 
@@ -124,13 +176,35 @@ constructor(
     private fun deleteSelected() {
         viewModelScope.launch {
             val current = _state.value
-            for (task in current.selectedTasks()) {
-                downloader.deleteTask(task)
-            }
-            for (download in current.selectedCompleted()) {
-                download.source?.let { downloader.deleteItem(download.item, it) }
-            }
+            deleteEntries(current.selectedEntries())
             clearSelection()
+            refresh(showLoading = false)
+        }
+    }
+
+    /** 删除一组层级条目：优先走任务删除，其次走已完成条目删除。 */
+    private suspend fun deleteEntries(entries: List<DownloadHierarchyEntry>) {
+        for (entry in entries) {
+            val task = entry.task
+            if (task != null) {
+                downloader.deleteTask(task)
+                continue
+            }
+            val completed = _state.value.completed.firstOrNull { it.item.id == entry.itemId }
+            completed?.source?.let { downloader.deleteItem(completed.item, it) }
+        }
+    }
+
+    /** W34：删除容器 = 删除容器内所有可删条目（进行中 / 失败任务 + 单个已完成条目）。 */
+    private fun deleteContainer(containerKey: String) {
+        viewModelScope.launch {
+            val container =
+                (_state.value.activeContainers +
+                        _state.value.completedContainers +
+                        _state.value.failedContainers)
+                    .firstOrNull { it.key == containerKey } ?: return@launch
+            deleteEntries(descendantEntries(container))
+            _state.update { it.copy(expandedKeys = it.expandedKeys - containerKey) }
             refresh(showLoading = false)
         }
     }
@@ -148,10 +222,50 @@ constructor(
             }
 
             val tasks = downloader.refreshDownloadTasks()
-            val completed = loadCompleted()
+            val episodeHierarchy = loadEpisodeHierarchy()
+            val completed = loadCompleted(episodeHierarchy)
+            val musicById = loadMusicLibrary()
+            val bookFiles = loadBookFiles()
+            val completedBookIds = bookFiles.map { it.itemId }.toSet()
+            val bookMetadata = resolveBookMetadata(completedBookIds)
             val storage = downloader.getStorageUsage()
+            val bookStorageBytes = bookFiles.sumOf { it.sizeBytes }
+
+            val activeEntries =
+                tasks
+                    .filter { it.status != DownloadTaskStatus.FAILED }
+                    .map { task -> task.toHierarchyEntry(episodeHierarchy, musicById) }
+            val failedEntries =
+                tasks
+                    .filter { it.status == DownloadTaskStatus.FAILED }
+                    .map { task -> task.toHierarchyEntry(episodeHierarchy, musicById) }
+            val completedEntries =
+                completed
+                    .map { download ->
+                        download.toHierarchyEntry(musicById, bookMetadata, bookFiles)
+                    }
+                    .filterNotNull()
+            val bookEntries =
+                bookFiles
+                    .filter { file -> completedBookIds.contains(file.itemId) }
+                    .map { file ->
+                        DownloadHierarchyEntry(
+                            itemId = file.itemId,
+                            name =
+                                bookMetadata[file.itemId]?.name
+                                    ?: "离线书籍 ${file.itemId.toString().take(8)}",
+                            mediaKind = DownloadMediaKind.BOOK,
+                            status = DownloadTaskStatus.COMPLETED,
+                            sizeBytes = file.sizeBytes,
+                            imageUri = bookMetadata[file.itemId]?.imageUrl,
+                            bookDetail = formatBytes(file.sizeBytes),
+                        )
+                    }
+
             val validKeys =
-                tasks.map(::taskKey).toSet() + completed.map { completedKey(it.item) }.toSet()
+                (activeEntries + failedEntries + completedEntries + bookEntries)
+                    .map { it.key }
+                    .toSet()
 
             _state.update { current ->
                 current.copy(
@@ -159,6 +273,11 @@ constructor(
                     activeTasks = tasks.filter { it.status != DownloadTaskStatus.FAILED },
                     failedTasks = tasks.filter { it.status == DownloadTaskStatus.FAILED },
                     completed = completed,
+                    activeContainers = DownloadHierarchyBuilder.build(activeEntries),
+                    completedContainers =
+                        DownloadHierarchyBuilder.build(completedEntries + bookEntries),
+                    failedContainers = DownloadHierarchyBuilder.build(failedEntries),
+                    bookStorageBytes = bookStorageBytes,
                     storage = storage,
                     selection = current.selection.intersect(validKeys),
                 )
@@ -170,7 +289,9 @@ constructor(
         }
     }
 
-    private suspend fun loadCompleted(): List<CompletedDownload> {
+    private suspend fun loadCompleted(
+        episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>
+    ): List<CompletedDownload> {
         return repository.getDownloads().mapNotNull { item ->
             val localSources = item.sources.filter { it.type == FindroidSourceType.LOCAL }
             val completedSource = localSources.firstOrNull { !it.path.endsWith(".download") }
@@ -180,17 +301,174 @@ constructor(
                 item = item,
                 source = completedSource,
                 sizeBytes = completedSource?.let { source -> File(source.path).length() } ?: 0L,
+                episode = episodeHierarchy[item.id],
             )
         }
     }
 
-    private fun DownloadManagerState.selectedTasks(): List<DownloadTask> {
-        return (activeTasks + failedTasks).filter { taskKey(it) in selection }
+    /** W34：本地已下载剧集的节目 / 季归属（纯本地查询，离线也能组织层级）。 */
+    private suspend fun loadEpisodeHierarchy(): Map<UUID, DownloadedEpisodeHierarchy> =
+        runCatching {
+            repository.getDownloadedEpisodeHierarchy().associateBy { it.episodeId }
+        }
+        .getOrElse { emptyMap() }
+
+    /** W34：主库曲目快照（专辑 / 艺人 / 封面）。 */
+    private suspend fun loadMusicLibrary(): Map<UUID, MusicTrackMetadata> = runCatching {
+        repository.getMusicTrackMetadata()
+    }
+        .getOrElse { emptyMap() }
+
+    private suspend fun loadBookFiles(): List<LocalBookFile> = runCatching {
+        readerRepository.listLocalFiles()
+    }
+        .getOrElse { emptyList() }
+
+    /** 书籍元数据（名字 / 封面）：会话级缓存，离线拿不到时给占位名。 */
+    private suspend fun resolveBookMetadata(bookIds: Set<UUID>): Map<UUID, BookMetadata> {
+        if (bookIds.isEmpty()) return emptyMap()
+        for (id in bookIds) {
+            if (cachedBookMetadata.containsKey(id)) continue
+            val name = runCatching {
+                repository.getItem(id)?.name
+            }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
+            val imageUrl = runCatching { repository.getPrimaryImageUrl(id) }.getOrNull()
+            if (name != null || imageUrl != null) {
+                cachedBookMetadata[id] = BookMetadata(name = name, imageUrl = imageUrl)
+            }
+        }
+        return cachedBookMetadata.filterKeys { it in bookIds }
     }
 
-    private fun DownloadManagerState.selectedCompleted(): List<CompletedDownload> {
-        return completed.filter { completedKey(it.item) in selection }
+    private suspend fun DownloadTask.toHierarchyEntry(
+        episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
+        musicById: Map<UUID, MusicTrackMetadata>,
+    ): DownloadHierarchyEntry {
+        val episode = episodeHierarchy[itemId]
+        val song = musicById[itemId]
+        val isMusic = mediaKind == DownloadMediaKind.MUSIC || song != null
+        return DownloadHierarchyEntry(
+            itemId = itemId,
+            name = name,
+            mediaKind =
+                when {
+                    isMusic -> DownloadMediaKind.MUSIC
+                    mediaKind == DownloadMediaKind.BOOK -> DownloadMediaKind.BOOK
+                    else -> DownloadMediaKind.VIDEO
+                },
+            status = status,
+            task = this,
+            downloadId = downloadId,
+            sizeBytes = if (status == DownloadTaskStatus.COMPLETED) downloadedBytes else totalBytes,
+            downloadedBytes = downloadedBytes,
+            totalBytes = totalBytes,
+            updatedAt = updatedAt,
+            seriesId = episode?.seriesId,
+            seasonId = episode?.seasonId,
+            seriesName = episode?.seriesName,
+            seasonName = episode?.seasonName,
+            episodeIndex = episode?.episodeIndex ?: episodeIndex,
+            seasonIndex = episode?.seasonIndex ?: seasonIndex,
+            albumName = song?.albumName ?: albumName,
+            artist = song?.artist ?: artist,
+            trackIndex = song?.indexNumber ?: 0,
+            imageUri = song?.imageUri ?: videoImageUri(episode != null, episode, itemId),
+        )
     }
+
+    private suspend fun CompletedDownload.toHierarchyEntry(
+        musicById: Map<UUID, MusicTrackMetadata>,
+        bookMetadata: Map<UUID, BookMetadata>,
+        bookFiles: List<LocalBookFile>,
+    ): DownloadHierarchyEntry {
+        val song = musicById[item.id]
+        val book = bookFiles.firstOrNull { it.itemId == item.id }
+        val mediaKind =
+            when {
+                song != null -> DownloadMediaKind.MUSIC
+                book != null -> DownloadMediaKind.BOOK
+                else -> DownloadMediaKind.VIDEO
+            }
+        return DownloadHierarchyEntry(
+            itemId = item.id,
+            name = item.name,
+            mediaKind = mediaKind,
+            status = DownloadTaskStatus.COMPLETED,
+            sourceId = source?.id,
+            sizeBytes = sizeBytes,
+            updatedAt = 0L,
+            seriesId = episode?.seriesId,
+            seasonId = episode?.seasonId,
+            seriesName = episode?.seriesName,
+            seasonName = episode?.seasonName,
+            episodeIndex = episode?.episodeIndex ?: 0,
+            seasonIndex = episode?.seasonIndex ?: 0,
+            imageUri =
+                when {
+                    song != null -> song.imageUri
+                    mediaKind == DownloadMediaKind.BOOK ->
+                        bookMetadata[item.id]?.imageUrl ?: localImagePath(item.id)
+                    else -> runCatching { repository.getPrimaryImageUrl(item.id) }.getOrNull()
+                },
+            albumName = song?.albumName,
+            artist = song?.artist,
+            trackIndex = song?.indexNumber ?: 0,
+            bookDetail = formatBytes(sizeBytes),
+        )
+    }
+
+    /** 视频条目封面：剧集用节目海报（本地 / 服务器），电影用本地主图。 */
+    private suspend fun videoImageUri(
+        isEpisode: Boolean,
+        episode: DownloadedEpisodeHierarchy?,
+        itemId: UUID,
+    ): String? {
+        if (!isEpisode) return localImagePath(itemId)
+        val seriesId = episode?.seriesId ?: return null
+        return runCatching { repository.getPrimaryImageUrl(seriesId) }.getOrNull()
+    }
+
+    private fun localImagePath(itemId: UUID): String? = "images/$itemId/primary"
+
+    /** 层级容器内的全部条目（含子容器）。 */
+    private fun descendantEntries(
+        container: DownloadHierarchyContainer
+    ): List<DownloadHierarchyEntry> =
+        container.children.flatMap { child ->
+            when (child) {
+                is DownloadHierarchyLeaf -> listOf(child.entry)
+                is DownloadHierarchySubContainer -> child.children.map { it.entry }
+            }
+        }
+
+    private fun formatBytes(bytes: Long): String =
+        when {
+            bytes >= 1024L * 1024L * 1024L -> "%.2f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
+            bytes >= 1024L * 1024L -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
+            bytes >= 1024L -> "%.1f KB".format(bytes / 1024.0)
+            else -> "$bytes B"
+        }
+
+    private fun DownloadManagerState.selectedEntries(): List<DownloadHierarchyEntry> =
+        allContainers()
+            .flatMap { container -> descendantEntries(container) }
+            .filter { it.key in selection }
+            .distinctBy { it.key }
+
+    private fun DownloadManagerState.findEntry(key: String): DownloadHierarchyEntry? =
+        allContainers()
+            .flatMap { container -> descendantEntries(container) }
+            .firstOrNull { it.key == key }
+
+    private fun DownloadManagerState.selectedTasks(): List<DownloadTask> =
+        selectedEntries().mapNotNull { it.task }
+
+    private fun DownloadManagerState.allContainers(): List<DownloadHierarchyContainer> =
+        activeContainers + completedContainers + failedContainers
+
+    private data class BookMetadata(val name: String?, val imageUrl: String?)
 
     override fun onCleared() {
         super.onCleared()

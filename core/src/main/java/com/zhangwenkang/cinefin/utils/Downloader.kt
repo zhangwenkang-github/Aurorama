@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.utils
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.UiText
+import java.util.UUID
 
 interface Downloader {
     suspend fun downloadItem(
@@ -10,6 +11,20 @@ interface Downloader {
         sourceId: String,
         storageIndex: Int = 0,
     ): Pair<Long, UiText?>
+
+    /**
+     * W34：音乐曲目下载（带专辑 / 艺人侧车元数据）。
+     *
+     * 默认实现忽略元数据并走普通 [downloadItem]，只有真正的下载器实现才写入侧车。
+     */
+    suspend fun downloadItem(
+        item: FindroidItem,
+        sourceId: String,
+        storageIndex: Int,
+        albumName: String?,
+        artist: String? = null,
+        trackIndex: Int = 0,
+    ): Pair<Long, UiText?> = downloadItem(item, sourceId, storageIndex)
 
     suspend fun cancelDownload(item: FindroidItem, downloadId: Long)
 
@@ -41,4 +56,10 @@ interface Downloader {
 
     /** W32：下载占用与可用空间（下载管理页头部）。 */
     suspend fun getStorageUsage(): DownloadStorageUsage
+
+    /** W34：媒体类型 / 专辑侧车（下载列表层级化的离线元数据）。 */
+    fun mediaSidecar(): DownloadMediaSidecar
+
+    /** W34：已经完成下载（LOCAL 完整文件）的条目 id 集合。 */
+    suspend fun downloadedItemIds(): Set<UUID>
 }
