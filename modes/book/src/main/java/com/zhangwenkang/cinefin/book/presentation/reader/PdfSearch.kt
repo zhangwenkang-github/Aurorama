@@ -122,7 +122,12 @@ internal data class SnippetWindow(val text: String, val matchStart: Int, val mat
 private val WHITESPACE_RUN = Regex("\\s+")
 private const val ELLIPSIS = "…"
 
-/** 命中上下文片段：取命中前后各 [context] 个字符，把换行 / 连续空白折叠为单个空格， 首尾截断时加省略号；命中位置按折叠后的文本重新定位（换行命中也能标对）。 */
+/**
+ * 命中上下文片段：取命中前后各 [context] 个字符，把换行 / 连续空白折叠为单个空格，首尾截断时加省略号。
+ *
+ * 命中位置用「原始下标 → 折叠后下标」的逐字符映射求得，**不能**对整段窗口做 `indexOf(query)`：
+ * 同一页出现两次相同关键词时，后一个窗口会重新定位到窗口里的第一处，两条命中的片段位置相同 （真机表现为 `LazyColumn` 重复 key 崩溃，见 READER_PLAN §7.13）。
+ */
 internal fun buildSnippet(
     pageText: String,
     matchStart: Int,
@@ -133,16 +138,34 @@ internal fun buildSnippet(
     val start = (matchStart - context).coerceIn(0, pageText.length)
     val end = (matchStart + query.length + context).coerceIn(start, pageText.length)
     val rawWindow = pageText.substring(start, end)
-    val collapsed = rawWindow.replace(WHITESPACE_RUN, " ")
-    val collapsedQuery = query.replace(WHITESPACE_RUN, " ")
+    val collapsed = StringBuilder(rawWindow.length)
+    // charMap[i] = 原始窗口下标 i 映射到折叠文本的位置（连续空白折叠后映射到同一位置）。
+    val charMap = IntArray(rawWindow.length + 1)
+    var lastWasSpace = false
+    rawWindow.forEachIndexed { index, char ->
+        charMap[index] = collapsed.length
+        if (char.isWhitespace()) {
+            if (!lastWasSpace) {
+                collapsed.append(' ')
+                lastWasSpace = true
+            }
+        } else {
+            collapsed.append(char)
+            lastWasSpace = false
+        }
+    }
+    charMap[rawWindow.length] = collapsed.length
     val prefix = if (start > 0) ELLIPSIS else ""
     val suffix = if (end < pageText.length) ELLIPSIS else ""
-    val at = collapsed.indexOf(collapsedQuery, ignoreCase = true)
-    val matchStartInSnippet =
-        if (at >= 0) prefix.length + at
-        else (prefix.length + collapsed.length / 2).coerceAtMost((prefix + collapsed).length)
-    val matchLength = if (at >= 0) collapsedQuery.length else 0
-    return SnippetWindow(prefix + collapsed + suffix, matchStartInSnippet, matchLength)
+    val localStart = (matchStart - start).coerceIn(0, rawWindow.length)
+    val localEnd = (matchStart + query.length - start).coerceIn(localStart, rawWindow.length)
+    val collapsedStart = charMap[localStart]
+    val collapsedEnd = charMap[localEnd]
+    return SnippetWindow(
+        text = prefix + collapsed + suffix,
+        matchStart = prefix.length + collapsedStart,
+        matchLength = (collapsedEnd - collapsedStart).coerceAtLeast(0),
+    )
 }
 
 /**

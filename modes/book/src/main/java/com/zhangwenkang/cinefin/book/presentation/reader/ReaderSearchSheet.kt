@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -110,12 +110,14 @@ internal fun ReaderSearchSheet(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
                 verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
             ) {
-                items(
+                // key 里带上下标：结果只追加不重排，下标稳定；即使两条命中的片段位置意外相同，
+                // 也不会触发 LazyColumn 重复 key 崩溃（真机踩坑，见 READER_PLAN §7.13）。
+                itemsIndexed(
                     items = state.hits,
-                    key = { hit ->
-                        "${hit.pageIndex}-${hit.matchStartInSnippet}-${hit.matchLength}"
+                    key = { index, hit ->
+                        "$index-${hit.pageIndex}-${hit.matchStartInSnippet}-${hit.matchLength}"
                     },
-                ) { hit ->
+                ) { _, hit ->
                     SearchHitRow(
                         hit = hit,
                         accent = accent,
