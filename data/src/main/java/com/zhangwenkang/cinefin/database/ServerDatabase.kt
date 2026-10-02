@@ -38,7 +38,7 @@ import com.zhangwenkang.cinefin.models.User
             FindroidTrickplayInfoDto::class,
             FindroidSegmentDto::class,
         ],
-    version = 8,
+    version = 9,
     autoMigrations =
         [
             AutoMigration(from = 2, to = 3),
@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.models.User
             AutoMigration(from = 4, to = 5, spec = ServerDatabase.TrickplayMigration::class),
             AutoMigration(from = 5, to = 6, spec = ServerDatabase.IntrosMigration::class),
             AutoMigration(from = 7, to = 8),
+            AutoMigration(from = 8, to = 9),
         ],
 )
 @ColumnTypeConverters(Converters::class)

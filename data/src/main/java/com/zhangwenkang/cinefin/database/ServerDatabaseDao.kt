@@ -96,8 +96,30 @@ interface ServerDatabaseDao {
     @Query("SELECT * FROM sources WHERE downloadId = :downloadId")
     suspend fun getSourceByDownloadId(downloadId: Long): FindroidSourceDto?
 
+    /** W32：全部下载来源（下载管理页对账 / 已完成后删除）。 */
+    @Query("SELECT * FROM sources") suspend fun getAllSources(): List<FindroidSourceDto>
+
+    /** W32：未完成的下载来源（快照状态非 COMPLETED，或路径仍是 .download）。 */
+    @Query(
+        "SELECT * FROM sources WHERE taskStatus IS NULL OR taskStatus != 'COMPLETED' OR path LIKE '%.download'"
+    )
+    suspend fun getPendingSources(): List<FindroidSourceDto>
+
     @Query("UPDATE sources SET path = :path WHERE id = :id")
     suspend fun setSourcePath(id: String, path: String)
+
+    @Query("UPDATE sources SET downloadId = :downloadId WHERE id = :id")
+    suspend fun setSourceDownloadId(id: String, downloadId: Long?)
+
+    @Query(
+        "UPDATE sources SET taskStatus = :status, failureReason = :failureReason, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun setSourceTaskStatus(
+        id: String,
+        status: String?,
+        failureReason: String?,
+        updatedAt: Long,
+    )
 
     @Query("DELETE FROM sources WHERE id = :id") suspend fun deleteSource(id: String)
 
