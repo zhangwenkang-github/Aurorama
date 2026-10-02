@@ -549,7 +549,10 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
       `:modes:book` 合计 **57 项**（7 个测试类）全绿。
 - [x] ⑥ 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest` +
       `:modes:book:testDebugUnitTest` 通过。
-- [ ] ⑦ 真机验证（**待负责人派窗口**）：需要「被拆成两张的对图」素材；本会话未占用任何设备（§9 遗留）。
+- [x] ⑦ 自造「拆页型对图」测试书（`tools/w22-spread-test/make_spread_test_book.py`）：PDF 36.1 MB /
+      CBZ 34.6 MB × 30 页（8 对图 + 5 独立单页对 + 1 低相似 + 1 横版整页）；离线自测 LTR / RTL ×
+      PDF / CBZ 四组全部 **对图 8/8 命中、0 误判**（§7.9.4；素材在 `test_files/`，不入库）。
+- [ ] ⑧ 真机验证（**待负责人派窗口 + 用户上传素材**）；本会话未占用任何设备（§9 遗留）。
 
 ## 7. 真机验证记录（2026-09-30）
 
@@ -822,6 +825,36 @@ Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `Fron
 即：新增常驻内存与单页窗口（3 张 ≤35 MB）同量级、不随页数增长；真机 `dumpsys meminfo` 采样与
 「拼接前后同一 spread 像素对比」等负责人派窗口后补（§9 遗留）。
 
+**7.9.4 W22 自造素材「拆页型对图」测试书（供真机终验）**
+
+产物放在 `E:\codex_work\Android_Studio_Work_Space\test_files\`（**不入库**，等用户上传 Jellyfin）：
+
+| 文件 | 体积 | 页数 | 说明 |
+|------|------|------|------|
+| `W22-Spread-Test.pdf` | 36.1 MB | 30 | 单页 1408×1992（检出 675.8×956.2 pt），Pillow 写 DCTDecode，走现有 PDF 检测路径 |
+| `W22-Spread-Test.cbz` | 34.6 MB | 30 | 同一批 JPEG 页，覆盖 CBZ 的 2 的幂降采样分支 |
+
+布局（15 个槽位 = 相邻两页，槽位与 `spread = 2k / 2k+1` 一一对应）：
+独立单页对 5 对（封面 / 扉页 / 版权，内缘纸白）｜**对图 8 对**（一张横跨中缝的整幅画被切成左右两页，
+竖版半页、水平镜像对称 → LTR 与 RTL 两个相位都命中）｜低相似负样本 1 对（两页内缘都是正弦暗带、
+相位相反）｜横版整页 1 对（每页本身就是一幅对开图，与金田一素材同型）。
+
+离线自测（生成脚本内置，与 `SpreadMerge.kt` **同口径**：几何门槛 + 256 px 缩略图 + 内缘 2 列亮度带 +
+四条门槛；`--check-only` 可复检）：
+
+| 路径 | LTR 相位 | RTL 相位 |
+|------|----------|----------|
+| PDF（按比例缩放到长边 256） | 对图 **8/8 命中**、0 漏判、0 误判 | 对图 **8/8 命中**、0 漏判、0 误判 |
+| CBZ（2 的幂 `inSampleSize` 降采样） | 对图 **8/8 命中**、0 漏判、0 误判 | 对图 **8/8 命中**、0 漏判、0 误判 |
+
+负样本被拦下的原因（逐槽位打印）：独立单页对连续性 0.000（纸白中缝）；低相似对连续性 1.000、
+起伏 56.5 但**相关系数 −1.000**（只被相关性门槛拦下，正是该样本的设计目的）；横版整页相关度 1.000
+但**几何门槛**否决（宽高比 1.41 不是竖版半页）。
+
+脚本：`tools/w22-spread-test/make_spread_test_book.py`（固定种子可复现，输出 PDF + CBZ 并自测，
+不达标以非零码退出）。真机验收口径：进入双栏 → 看图 / logcat 是否出现
+`reader spread merge spread=… pages=… continuity=… corr=… diff=…` → 拼接前后同屏像素对比 + 内存采样。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -959,9 +992,9 @@ Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `Fron
 
 ### W22 遗留（交接负责人 / W5）
 
-- **真机验证未执行**（设备未分配，本会话零 adb 操作）：需要**含"被拆成两张的对图"的素材**才能验
-  「同一 spread 拼接前后像素对比 + `dumpsys meminfo` 内存采样 + RTL 相位」；金田一原画 PDF 没有可
-  合并样本（§7.9.1），建议负责人自造一本（把跨页图切两半打包成 PDF / CBZ）或另找拆页型扫描书。
+- **真机验证未执行**（设备未分配，本会话零 adb 操作）：所需素材已由本会话自造完成（`W22-Spread-Test`
+  PDF / CBZ，30 页，§7.9.4，待在 `test_files/`），**只等用户上传 Jellyfin + 负责人派设备窗口**；
+  验收内容 = 同一 spread 拼接前后像素对比 + `dumpsys meminfo` 内存采样 + RTL 相位 + 负样本不误拼。
 - **横版整页的形态适配**（新素材的直接诉求）：双栏会把两张"整页对图"并排（一屏 4 页），而分页
   （1 页/屏）才是正确形态。候选方案 = 双栏下检测横版整页（宽高比 ≥1.15）就整屏独占——会改动
   spread ↔ 页号映射（D19 的语义耦合），需单独设计页指示 / progression / 恢复口径后再做。
@@ -984,4 +1017,4 @@ Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `Fron
 | 2026-10-01 | W9-READER（分支 `feature/w9-reader-comics`）：①RTL 右起翻页（D17）——`SpreadOrder.kt` 页序层（`spreadPageSlots` / `spreadCount` / `isRtlPaging`）+ `SimpleBookView` 分页 / 双栏镜像 + 阅读设置面板开关（仅 PDF / CBZ）+ `pref_reader_rtl`；②跨页对图合并研判（D19）——本波不实施，记录内存 2× / 无可靠元数据 / 接缝与语义耦合四条理由与 W5 试点方案；③滚动模式双指缩放（D18）——`ZoomablePage` 下放到滚动列表页项（双指优先、单指不抢滚动），与分页共用 `PageZoom`（1×–4×、平移夹取、非有限值守卫）；新增 12 项单测（模块 43 项，6 个测试类全绿）+ 门禁全绿；真机验证见 §7.7 |
 | 2026-10-01 | W9-READER 真机验收完成（K60 `8e875894`，负责人指派 + 设备解锁后窗口）：RTL 三档（分页方向镜像 / 双栏逐像素水平镜像 / 滚动不变）、PDF 同样生效、滚动模式双指缩放（1.16→2.92、上限 4.00、捏回过 1× 不抢纵向滚动）、跨页结论可见性核对（两本书全竖版页，无对图样本）、EPUB 回归（WebView / locator 推进 / 书签增删 / 待同步队列），无 FATAL / ANR，设置与设备副作用全部还原。新发现阅读页顶栏未避让状态栏（§7.7.5、踩坑 20）、多指注入方法（踩坑 21） |
 | 2026-10-02 | W15-UI：阅读页顶栏避让修复——`ReaderTopBar` 补 `statusBarsPadding()`（与 W8 `CinefinPageTopBar` 同款），平板竖屏 / 横屏 / 手机形态三态真机取证，按钮 top 全部 > 状态栏高度；设置面板 / 页指示复核无遮挡。见 §7.8；首页平板海报等宽修复另见 `UI_PLAN.md` D35 |
-| 2026-10-02 | **W22-R1（分支 `feature/w22-spread-merge`）：跨页对图合并（D20）** —— 判定 / 几何纯函数（`SpreadMerge.kt`：竖版半页几何门槛、内缘亮度取样、中缝四条门槛、双栏槽位相位含 RTL、合并尺寸）+ `SpreadMergeCache.kt`（256 px 缩略图判定 → 两半统一高度合成 → 2 张 LRU → 邻槽预取 → 失败回退两页）+ `SimpleBookView.kt` 双栏槽位接入 + `PageSource.pageSizePx`；**只在双栏生效**，页号 / progression / 分页 / 滚动语义零变化，无新增偏好键；新增 14 项单测（模块 57 项，7 类）全绿；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` + app / book 单测通过；素材复核与阈值标定见 §7.9（金田一原画 PDF 5006 页：4768 页横版整页已是对图 → 无合并触发点，另暴露"双栏一屏 4 页"的形态问题）；真机待派窗口 |
+| 2026-10-02 | **W22-R1（分支 `feature/w22-spread-merge`）：跨页对图合并（D20）** —— 判定 / 几何纯函数（`SpreadMerge.kt`：竖版半页几何门槛、内缘亮度取样、中缝四条门槛、双栏槽位相位含 RTL、合并尺寸）+ `SpreadMergeCache.kt`（256 px 缩略图判定 → 两半统一高度合成 → 2 张 LRU → 邻槽预取 → 失败回退两页）+ `SimpleBookView.kt` 双栏槽位接入 + `PageSource.pageSizePx`；**只在双栏生效**，页号 / progression / 分页 / 滚动语义零变化，无新增偏好键；新增 14 项单测（模块 57 项，7 类）全绿；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` + app / book 单测通过；素材复核与阈值标定见 §7.9（金田一原画 PDF 5006 页：4768 页横版整页已是对图 → 无合并触发点，另暴露"双栏一屏 4 页"的形态问题）；随后自造 `W22-Spread-Test`（PDF 36.1 MB / CBZ 34.6 MB × 30 页，脚本 `tools/w22-spread-test/make_spread_test_book.py`），离线自测四组（LTR/RTL × PDF/CBZ）全部 8/8 命中、0 误判（§7.9.4）；真机待派窗口 |
