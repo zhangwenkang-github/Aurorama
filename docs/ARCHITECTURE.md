@@ -391,6 +391,25 @@ interface MusicRepository {
 
 ---
 
+### 5.4 连接层：自签证书信任（W31-CONN）
+
+**背景**：Android 默认拒绝不受系统信任的证书，自签 HTTPS 的 Jellyfin 服务器此前直接连接失败。
+
+**方案（TOFU，Trust On First Use）**：不关闭校验，只叠加「用户显式确认过的指纹」：
+
+| 组件 | 位置 | 职责 |
+|------|------|------|
+| `CertificateFingerprint` / `TrustKey` | `data/.../network` | SHA-256 指纹归一化 / 格式化 / 匹配、`host:port` 信任键（纯函数，单测覆盖） |
+| `CertificateTrustStore` | `data/.../network` | 「信任键 → 指纹」持久化；`SharedPreferencesCertificateTrustStore` 写入应用私有 `cinefin_trusted_certificates` |
+| `ToFuTrustManager` + `TrackedSslSocketFactory` | 同上 | 系统校验失败时，仅当「当前连接地址」的指纹被信任才放行；OkHttp 5 建连前调用 `createSocket(raw, host, port, autoClose)`，包装工厂据此记录 host 供 trust manager 判定 |
+| `ServerCertificateProbe` | 同上 | 只读 TLS 握手取出服务器证书指纹；探测用的一次性「接受任意证书」信任管理器不用于任何业务流量 |
+| `CertificateTrustRequiredException` | 同上 | 首次连接 / 证书变化时携带指纹交给 UI 确认 |
+
+- **接入点**：`JellyfinApi` 通过 `OkHttpFactory(自定义 OkHttpClient)` 注入 `apiClientFactory` / `socketConnectionFactory`（jellyfin-core 1.8.12 支持）；Coil 图片加载与 `ReaderRepositoryImpl` 书籍下载复用同一信任仓库。
+- **UI**：添加服务器、登录页展示 `host:port` + 完整 SHA-256 指纹（证书变化时额外警告）；服务器页「已信任证书」弹窗可随时清除，清除后对应地址立即回到默认拒绝。
+- **边界**：主机名（SAN/CN）校验保持 OkHttp 默认——自签证书必须把访问用的主机名 / IP 写进 SAN；未接入：WebView 控制台（`ConsoleViewModel`）与 `ImagesDownloaderWorker`。
+- **多用户（W31 审计）**：Room `users` 表 + `userdata(userId,itemId)` 已按用户隔离，`UsersScreen` 列表 / 切换 / 添加 / 删除入口位于设置页与抽屉；W31 修复「删除当前用户留下悬空 `currentUserId`」（有剩余用户顺延、否则清空令牌），并在列表标出当前账号；管理员缓存本身按账号 id 校验，不跨账号串号。
+
 ## 6. 并行开发边界（供 S3 排期）
 
 ### 6.1 必须串行（有硬依赖）
