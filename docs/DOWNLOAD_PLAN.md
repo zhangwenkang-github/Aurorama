@@ -58,7 +58,7 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 - [x] 存储占用显示（下载目录占用 + 可用空间）
 - [x] 网络恢复自动重试 worker（CONNECTED + 每进程一次）
 - [x] 下载管理 UI（进行中 / 已完成 / 失败 + 多选）
-- [x] 门禁：`assembleDebug` + `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（58 项全绿；新增 `DownloadTaskRulesTest` 7 项）
 - [ ] **真机验证（设备待负责人调度）**：见 §6
 
 ## 6. 验收清单（真机）
@@ -86,4 +86,4 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 
 | 日期 | 会话 | 内容 |
 |------|------|------|
-| 2026-10-02 | W32-DOWNLOAD | 建线；实现管理 UI + 任务韧性 + 单测；门禁结果见交接报告；设备待调度，真机清单见 §6 |
+| 2026-10-02 | W32-DOWNLOAD | 建线；实现管理 UI + 任务韧性 + 单测；门禁 `assembleDebug`（含 TV）/ `ktfmtCheck` / app 单测 58 项全绿；提交 `138b189`(feat) + `4053cb5`(docs) 已推送未合并；设备待调度，真机清单见 §6 |
