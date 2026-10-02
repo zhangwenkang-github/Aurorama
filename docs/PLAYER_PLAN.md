@@ -3,7 +3,7 @@
 > **新对话从这里开始。** 开工前读本文件，收工前把进度写回本文件。
 > 纪律：需求变更、决策、完成度、勾选项、更新日志，都在**同一次改动**里写回这里；不再新建零散 `.md`。
 >
-> 最后更新：2026-10-02　分支：`feature/w16-exo-libass-decode`（W16-PLAYER：Exo 路径引入 libass（ASS/SSA 特效 + SRT 覆盖）+ 解码优先级改为「本地硬解 → 服务器解码/转码 → 本地软解」；基线 `master c365c7c`，落地记录见 §19）
+> 最后更新：2026-10-02　分支：`feature/w18-manual-fallback-label`（W18-PLAYER：手动切内核不关闭回退链 + 解码档位文案带内核；基线 `master 8b7a7cc`，落地记录见 §21）
 
 ---
 
@@ -589,6 +589,10 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | M3 `clickable` 的最小触控 ≠ 视觉框 | Compose Material3 会把可点节点扩到最小 48dp：`uiautomator` 读到的 bounds 是**触摸框**（48dp），不是画出来的键框（本轮宽屏 44dp / 窄屏 38dp）。验收「控件缩小」要用截图量描边位置（Pad 5 实测视觉框 ≈ 40–44dp、触摸框 108px = 48dp） |
 | 只发 `maxStreamingBitrate` 不会转码（W12 真机踩到） | `DeviceProfile.transcodingProfiles = emptyList()` 时服务器认为「这个客户端不会播转码流」，于是无视码率上限继续 DirectPlay（Pad 5 实测 3 Mbps 档 `PlayMethod=DirectPlay`、`TranscodingInfo=null`）。补上 `TranscodingProfile(ts + HLS + h264 + aac/mp3/ac3/opus)` 后会话才出现 `TranscodingInfo{IsVideoDirect=False, Bitrate=2808000, TranscodeReasons=ContainerBitrateExceedsLimit}`，App 播放 `master.m3u8` |
 | Jellyfin 会话 `PlayMethod` 可能滞后 | 同一时刻 `/Sessions` 可能给出 `PlayState.PlayMethod=DirectPlay` 而 `TranscodingInfo` 明确是转码（本轮实测）。判断「服务器是否转码」只看 `TranscodingInfo`（`IsVideoDirect` / `Bitrate` / `TranscodeReasons`） |
+| 「手动切内核 = 关掉回退链」（W18 用户实测） | 手动切内核的**每一条入口**都必须 `clearDecodeFallback()`：解码面板（`restartWithBackend`）清了，但错误卡片「改用 X 内核」走 `switchBackendAndRestart` **没清**——残留档位会让下一次失败直接命中末档（不降级、只弹错误卡片）或跳过服务器转码。同时手动路径必须**先读续播位置、再写 `playerBackend` 偏好**：`PlayerHolder.player` 的 getter 会按新偏好就地重建实例，写后再读位置必是 0。现在两条路径明确分开：手动 = `switchBackendAndRestart`（清档位），回退链 = `switchBackendForFallback`（保留档位、显式目标内核） |
+| 无缓冲 Channel + `trySend` 会静默丢事件（W18） | `Channel<PlayerEvents>()`（rendezvous）上 `trySend` 只在「接收方此刻正挂起」时成功。回退事件是在 `onPlayerError`（主线程）里发的，主线程一忙（重组 / 正在处理上一条事件）事件就被丢弃，而 `handleCodecFallback` 已经返回「已接管」→ **既不回退、也不弹错误卡片**（用户看到的就是「解码失败后没有自动切回 mpv」）。事件通道一律带缓冲（`Channel(Channel.BUFFERED)`） |
+| mpv 的失败语义（W18） | ①`MPV_EVENT_END_FILE` 只给事件 id、拿不到 reason → 用 `eof-reached==false` 判「非正常结束」，再用「自己发起的 END_FILE 预算 + 3s 窗口」抵消 `stop` / 换片 / 切集 / 清队列产生的旧文件 END_FILE（预算只在已加载文件时记；`FILE_LOADED` 清预算），否则会把正常换集报成失败；②一次打开失败会连发 2–3 条 END_FILE，ViewModel 侧必须按「同内核 + 同档位 + 3s」去重，否则一次失败连跳两档、把服务器转码整档跳过；③mpv 硬解不被支持时会**自己静默软回退**（Hi10P 实测照播），断网时只会 stall（`paused-for-cache`），两者都不产生失败事件——可观测的 mpv 失败主要是打开失败 / 文件类错误 |
+| 用 `run-as` 改 prefs 会截断文件（W18 踩到并已恢复） | `Get-Content -Raw <不存在/读空> | adb shell run-as <pkg> tee shared_prefs/xxx.xml` 会用**空输入**把 prefs 截成 0 字节（本波把 Pad 5 + K60 的 prefs 全清了，靠会话中导出的备份恢复）。安全做法：写前确认本地文件非空 → `adb push` 到 `/data/local/tmp` → `adb shell "run-as <pkg> sh -c 'cat /data/local/tmp/x.xml > shared_prefs/xxx.xml'"` → `ls -l` 核对字节数；不要用 `tee` 接收可能为空的管道 |
 | 权威内容 | 位置 |
 |----------|------|
 | 播放界面任务 / 需求 / 决策 / 进度 | **本文件** |
@@ -601,6 +605,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-02 | **W18-PLAYER 手动切内核不关闭回退链 + 档位文案带内核（`feature/w18-manual-fallback-label`）**：①回退判定抽到 `PlayerDecodeFallback.stageAfterFailure`——手动 / 自动同一条链路（本地硬解 → 服务器转码 → 本地软解），第 2 档任意错误继续降、第 3 档失败才报错；②内核切换拆成「手动」（清回退档位 + 先读位置再写偏好）与「回退链」（保留档位、显式 `setBackend(mpv)`）两条路径，修掉错误卡片切内核残留档位 / 续播位置读成 0；③`MPVPlayer` 在 `END_FILE` 且 `eof-reached=false` 时上报 `PlaybackException`（预算 + 窗口抵消自己发起的 END_FILE，`FILE_LOADED` 清预算），ViewModel 侧同内核 / 同档位 3 s 去重——「手动 mpv 失败也降级、第 3 档失败才弹卡片」成立；④事件通道改带缓冲（原无缓冲 `trySend` 会静默丢回退事件）；⑤解码面板「当前档位」改为 `ExoPlayer 硬解 / ExoPlayer 软解 / mpv 硬解 / mpv 软解 / 服务器转码`（`PlayerDecodeMode.decodeStage` 纯函数）。门禁 `assembleDebug（含 TV）+ ktfmtCheck + app 51 项 / player:local 59 项（+7）` 全绿；Pad 5 + K60 三段链路日志、四态文案与全败错误卡片证据见 §21。 |
 | 2026-10-02 | **W17-PLAYER 播放页第六轮反馈（`feature/w17-player-labels-fallback`）**：①回退链真实生效修复——第 3 档不再提前写 `playerBackend` 偏好（`PlayerHolder.player` 的 getter 会按新偏好原地重建实例，随后的 toggle 会把内核切回 ExoPlayer），改由 Activity 显式 `setBackend(mpv)`；删掉「同一媒体只降级一次」拦截，改由档位状态机防死循环；第 2 档（服务器转码）失败时任何错误都静默落第 3 档，只有第 3 档也失败才显示错误卡片。②解码面板删「优先级」提示、内核名只留 `ExoPlayer` / `mpv`。③「设置 → 播放」删除 W13 的码率 / 解码兜底两行。④中央播放键从月白填充改为与其它覆盖键同一套玻璃底 / 描边（像素采样：播放键内部 (119,156,168)、传输键 (162,177,181)、锁定键 (158,181,186)，同为压暗玻璃）。⑤右上 5 键 + 左下 6 键图标下加 10sp 小字（键框 56×58dp、图标 ×0.82），窄屏 / Compact 只留图标，右下全屏键与中央五键 / 锁定键保持纯图标；左下 6 键恒定齐全（码率 / 解码 不再隐藏）。⑥横屏退出全屏修复——全屏 + 选集覆盖层展开时底栏整体让出 320dp（退出全屏键从被面板盖住的 x≈2410 移到侧栏左侧 x≈1690），连点 20 次全部生效。门禁 `assembleDebug（含 TV）+ ktfmtCheck + app 51 项 / player:local 52 项` 全绿；双机真机证据见 §20。 |
 | 2026-10-02 | **W16-PLAYER：Exo 路径 libass + SRT 覆盖 + 解码优先级反转（`feature/w16-exo-libass-decode`）**：①引入 `io.github.peerless2012:ass-kt:0.5.1`（libass ISC，App 驱动渲染，不依赖 Media3）；②Exo 主字幕改由 libass 渲染——ASS/SSA 原文透传（定位 / 字体 / 特效还原），SRT 由 `AssSubtitleScript` 生成 ASS；延迟 / 开关 / 语言 / 大小档位与 mpv 同语义，次字幕仍纯文本，libass 失败回退既有文本渲染；③解码优先级改为「本地硬解 → 服务器解码 / 转码 → 本地软解」（`PlayerDecodeFallback` 纯函数），强制转码时禁直连 / 直传 / 流拷贝；④原生库冲突修复（libc++_shared 用 libmpv 版覆盖）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 52 项（+13）` 全绿；Pad 5 + K60 逐条真机证据与性能采样见 §19。 |
 | 2026-10-02 | **W15-LIBASS 特效字幕（`feature/w15-libass`）**：mpv 内核走内置 libass——DirectPlay 交给容器内嵌 ASS；服务器转码（容器无字幕）时按 MediaItem extras 里的 Jellyfin 字幕清单把 `Stream.ass` `sub-add` 给 mpv，不再出现「当前媒体没有可调节的字幕」。字幕模式联动（`off→sid=no` / `auto·always→sid=auto`）、延迟 / 语言沿用既有 `sub-delay` / `slang`；mpv 下自研覆盖层不接管（纯函数 + 单测钉死）。Exo 保持现状（Media3 只出文本；引入 libass 需新依赖，待批准）。门禁 `assembleDebug + ktfmtCheck + app 49 项 / player:local 39 项（+8）单测` 全绿；K60 双场景真机证据、像素对比与性能采样见 §18。 | 
@@ -1350,3 +1355,115 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 2. **mpv 内核错误不上报**：本波「只有全部失败才提示错误」指回退链的 Exo 两档；第 3 档 mpv 自身失败仍不会弹错误卡片（`MPVPlayer.getPlayerError()` 恒 null、无事件，属既有内核限制）。若要让 mpv 失败也提示，需要给 `MPVPlayer` 增加错误事件上报（下一波）。
 3. **Wi-Fi 断连是验收注入手段**（第 2 档失败场景），不是用户日常场景；建议用户用真实超规格片源复测三段链路。
 4. **中央播放键改用玻璃底后主行动辨识度只靠尺寸 / 圆角**；若后续用户觉得不够醒目，可在不引入媒体色的前提下加深描边或加大尺寸。
+
+---
+
+## 21. W18-PLAYER 落地记录（2026-10-02 · 分支 `feature/w18-manual-fallback-label`）
+
+> 用户实测反馈两项：①**手动在解码面板切到 ExoPlayer 后，解码失败没有自动切回 mpv**（要求：手动选内核不能关闭自动回退链，
+> 失败仍按「本地硬解 → 服务器解码/转码 → mpv 软解」逐级下降，只有全部失败才提示错误）；②解码面板「当前档位」文案要不带内核歧义。
+> 基线 master `8b7a7cc`（W17 已合并）。本波写 `player:local`（回退判定 / mpv 错误上报 / 字符串）、`app:phone`（播放页内核切换路径 /
+> 面板文案）与 `settings`（回退判定纯函数）；`AppPreferences.kt` 只读、`NavigationRoot.kt` / `settings.gradle.kts` /
+> `libs.versions.toml` / `app/*/build.gradle.kts` 未触碰；未合并 master。
+
+### 21.1 复现与定位（Pad 5 + K60）
+
+1. **手动切 ExoPlayer 的基线与边角**：从解码面板手动切 ExoPlayer（含「先自动落到 mpv 软解档、再手动切回 Exo」的路径）后，
+   硬解失败**会**进链路（实测 `ERROR_CODE_DECODING_FAILED` → `forceTranscode=true profiles=1` → `STATE_READY`，断网注入后再真实落
+   `backend=mpv` + `hwdec=no`）。真正会让「手动切内核后不回退」复现的是三处状态机缺口：
+   - **错误卡片切内核不清档位**：`switchBackendAndRestart`（错误卡片「改用 X 内核」）不调用 `clearDecodeFallback`，
+     残留档位会让下一次失败直接命中末档（不降级）或跳过服务器转码；
+   - **续播位置被读成 0**：解码面板的 `restartWithBackend` 先写 `playerBackend` 偏好再读位置——`PlayerHolder.player` getter
+     会按新偏好**原地重建实例**，位置随即变 0（W17 的 `switchBackendAndRestart` 已按「先读后写」处理，两条路径不一致）；
+   - **手动 mpv 失败不可见**：`MPVPlayer` 从不上报错误（`getPlayerError()` 恒 null、无事件），「手动 mpv → 失败也降级」根本不成立；
+     第 3 档 mpv 全败时也弹不出错误卡片（W17 §20.5 遗留 2）。
+2. **事件通道会静默丢事件**：`eventsChannel = Channel<PlayerEvents>()` 是**无缓冲**通道，`onPlayerError`（主线程）里的
+   `trySend` 只有在接收方正挂起等待时才成功；主线程忙碌时事件被丢弃，而 `handleCodecFallback` 已返回「已接管」→ 既不回退也不报错。
+3. **一次失败会连发多条**：mpv 一次打开失败会连发 2–3 条 `MPV_EVENT_END_FILE`，不去重会让 [第 1 档失败] 被处理两次
+   （档位 0 → 1 → 2，服务器转码那一档被整段跳过）。
+
+### 21.2 实现（文件 + 行为）
+
+| 文件 | 改动 |
+|------|------|
+| `settings/.../domain/PlayerDecodeFallback.kt` | 新增 `BACKEND_EXOPLAYER` / `BACKEND_MPV`、`stageAfterFailure(stage, backend, bitrate, codecCapabilityError)`（**手动 / 自动同一条链路**：第 2 档失败一律落第 3 档；第 3 档失败返回 null = 全败才报错；ExoPlayer 第 1 档只接「解不了格式」类错误，mpv 上报无错误码、一律进链路）、`failureKey` / `isDuplicateFailure`（3 s 去重窗口） |
+| `player/local/.../domain/PlayerDecodeMode.kt` | 新增 `DecodeStage`（EXO_HARDWARE / EXO_SOFTWARE / MPV_HARDWARE / MPV_SOFTWARE / SERVER_TRANSCODE）+ `decodeStage(backend, mode, fallbackStage)` 纯函数：先看回退档位、再按实际生效的解码方式判 |
+| `player/local/.../presentation/PlayerViewModel.kt` | `eventsChannel` 改 `Channel(Channel.BUFFERED)`（trySend 不再丢事件）；`handleCodecFallback` 改用 `stageAfterFailure`（mpv 失败同样接管）；同内核 / 同档位 3 s 内重复上报直接忽略 |
+| `player/local/.../mpv/MPVPlayer.kt` | `MPV_EVENT_END_FILE` + `eof-reached=false` → `PlaybackException(ERROR_CODE_UNSPECIFIED)` → `onPlayerError`（日志 `MPVPlayer 播放失败：END_FILE 未到文件末尾`）；用「自己发起的 END_FILE 预算（`markIntentionalEndFile`，只有已加载文件时才记）+ 3 s 窗口」抵消换片 / 切集 / 停止产生的旧文件 END_FILE，`FILE_LOADED` 清预算 |
+| `app/phone/.../PlayerActivity.kt` | 内核切换拆成两条明确路径：`switchBackendAndRestart(target)`（**手动**：先读位置 → 写偏好 → **清回退档位** → 重启）与 `switchBackendForFallback(target)`（回退链：保留档位、显式目标内核）；解码面板与错误卡片都走手动路径；新增 `restartPlaybackFromPosition`（位置由调用方传入，修掉读成 0） |
+| `app/phone/.../presentation/player/PlayerSettingsPanel.kt` | 「当前档位」改用 `PlayerDecodeMode.decodeStage` 映射：`ExoPlayer 硬解 / ExoPlayer 软解 / mpv 硬解 / mpv 软解 / 服务器转码` |
+| `player/local/res/values{,-zh-rCN}/strings.xml` | 新档位文案 5 条（替换原「本地硬解 / 服务器解码 · 转码 / 本地软解」）；未恢复「优先级」提示与内核括号 |
+| 单测 | `PlayerDecodeFallbackTest` 6 → 12（手动 Exo / 手动 mpv / 第 2 档任意错误 / 全败才报错 / 重复上报去重）；`PlayerDecodeModeTest` 5 → 6（档位文案映射）= player:local 52 → **59** |
+
+### 21.3 门禁（2026-10-02）
+
+```
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- 根 `assembleDebug`（含 `:app:tv`）✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **51** 项（既有，未改动）
+- `:player:local:testDebugUnitTest` ✅ **59** 项 = 既有 52 + 新增 7
+
+### 21.4 真机走查（Pad 5 `43af8627` + K60 `8e875894`，命令全部带 `-s`）
+
+素材：Hi10P《学生会的一己之见》`32074ae5-0847-c53c-1d14-9bd32383eec4`（h264 10-bit）。
+**①手动切 ExoPlayer 后仍走完整链路（Pad 5）**：
+
+```
+PlayerViewModel: 清空解码回退档位（回到本地硬解）                     ← 从 stage=2（mpv 软解）手动切 ExoPlayer
+PlayerActivity : Restart player with backend=exoplayer from position=0 (manual)
+Player error on backend=exoplayer: ERROR_CODE_DECODING_FAILED
+PlayerViewModel: 解码能力不足（backend=exoplayer，ERROR_CODE_DECODING_FAILED），先请求服务器解码/转码重试（优先级：本地硬解 → 服务器转码 → 本地软解）
+PlayerActivity : Restart player (fallback=server-transcode) from position=1069000   ← 第 1 档失败（续播位置保留）
+JellyfinRepositoryImpl$getMediaSources: getMediaSources bitrate=0 … forceTranscode=true profiles=1
+PlayerViewModel: Changed player state to ExoPlayer.STATE_READY                      ← 第 2 档服务器转码真实播放
+── 断网注入（第 2 档失败）──
+Player error on backend=exoplayer: ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+PlayerViewModel: 解码能力不足（backend=exoplayer，ERROR_CODE_IO_NETWORK_CONNECTION_FAILED），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）
+PlayerActivity : Restart player with backend=mpv from position=1131930 (fallback)   ← 真实 setBackend(mpv)
+MPVPlayer: MPVPlayer hwdec=no vo=gpu-next  ×2                                       ← 真实 hwdec=no
+```
+
+落盘 `pref_player_decode_fallback_stage=2` / `pref_player_backend=mpv`；uiautomator 全树**无「播放失败」节点**（第 1/2 档失败不弹错误）。
+
+**②手动切 mpv 的失败也逐级下降（Pad 5）**：mpv 侧硬解失败会被 mpv 自己静默软回退、断网只会 stall（都不产生失败事件，见 §9），
+可注入的是「打开失败」：手动 mpv（`hwdec=mediacodec`）→ 断网 → 点「下一集」：
+
+```
+MPVPlayer: MPVPlayer 播放失败：END_FILE 未到文件末尾（eof-reached=false），上报回退链
+PlayerViewModel: Player error on backend=mpv: ERROR_CODE_UNSPECIFIED
+PlayerViewModel: 解码能力不足（backend=mpv，ERROR_CODE_UNSPECIFIED），先请求服务器解码/转码重试（优先级：本地硬解 → 服务器转码 → 本地软解）
+PlayerActivity : Restart player (fallback=server-transcode) from position=0
+```
+
+`backend=mpv` + `stage=1`（把链路产生的档位固定下来后实测）：`getMediaSources … forceTranscode=true profiles=1` →
+`Stream url … master.m3u8?…VideoCodec=h264` → `mpv [stream_callback:v] Opening …/master.m3u8` → 会话 `state=3`（第 2 档真实播放）。
+`backend=mpv` + `stage=2` 再注入一次打开失败：mpv 上报后**没有** `Restart player`，直接出错误卡片
+（uiautomator：`播放失败 | mpv 播放失败：文件提前结束（eof-reached=false） | 重试 | 改用 ExoPlayer 内核`）＝**全败才报错**。
+
+**③解码档位文案带内核（uiautomator 文本，4 态各一次）**：Pad 5 `当前档位：mpv 软解`（stage 2，mpv hwdec=no）→ 手动切 mpv 后
+`当前档位：mpv 硬解` → 手动切 ExoPlayer 后 `当前档位：ExoPlayer 硬解` → 硬解失败进第 2 档后 `当前档位：服务器转码`；
+K60 同面板取证 `当前档位：mpv 硬解`。面板文本仍只有 `播放内核 / ExoPlayer / mpv / 解码策略 / 硬解优先 / 仅软解 / 当前档位：…`，
+**无「优先级：…」节点、内核名后无括号说明**（W17 未回归）。
+
+**④K60 复验与稳定性**：K60 手动切 ExoPlayer 后播放 Hi10P → `pref_player_decode_fallback_stage=1` / `pref_player_backend=exoplayer`
+（同链路生效），队列预取 URL 为 `…/master.m3u8?… TranscodeReasons=DirectPlayError`；两机整轮 `logcat`：`FATAL EXCEPTION` /
+`ANR in` / `Input dispatching timed out` / `UnsatisfiedLinkError` 均 **0**。
+
+**副作用与还原**：Pad 5 `backend=mpv`、`streaming_bitrate=0`、`decode_fallback_stage=0`、`media_id=""`、`subtitle_mode=auto`；
+K60 `backend=mpv`、`streaming_bitrate=0`、`stage=0`、`media_id=""`、`subtitle_mode=off`、`mpv_hwdec=mediacodec`；
+两机 force-stop、`/sdcard/w18_*.xml` 与 `/data/local/tmp/w18_*` 清理、Wi-Fi 恢复开启（注入用开关已复位）。
+> ⚠️ 过程记录：本波用 `run-as` 改 prefs 时，`Get-Content` 失败导致 `tee` 用空输入**截断**了两机 prefs 文件；
+> 已用会话中导出的完整备份（含服务器 / 用户键）恢复并逐项核对（backend / stage / bitrate / subtitle / server 全部正确），
+> 恢复后两机重新起播正常（Pad 5 `state=3`、K60 首页正常）。教训写进 §9：**改 prefs 前必须确认输入流非空、写后必须 `ls -l` 核对字节数**。
+
+### 21.5 未决 / 移交项
+
+1. **队列换集失败触发的回退会重启到「播放页 Intent 的原条目」**：失败发生在「下一集」（不进新 Intent）时，回退重启复用旧 Intent，
+   落回原条目而不是失败的那一集；建议下一波让回退动作携带当前 `mediaId`（本次未改，避免扩大范围）。
+2. **mpv 的 `hwdec-current` 未纳入判定**：Hi10P 这类「mediacodec 不支持、mpv 自动软解」不算失败（保持本地软解、不强制服务器转码），
+   观感与功耗策略不变；若用户希望「mpv 硬解不可用也先请服务器转码」，需要再拍板。
+3. **mpv 断网只 stall、不报错**；真机「手动 mpv 失败」用打开失败注入，日常更常见的是文件 / 网络类打开失败。
+4. W17 遗留继续挂账：Compact 自由窗口取证、libc++ 覆盖构建补丁在依赖升级后的复核。
