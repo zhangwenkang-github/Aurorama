@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.music.data
 
 import android.content.SharedPreferences
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricWord
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayState
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDocument
@@ -57,6 +58,10 @@ constructor(
         val artist: String? = null,
         val current: String? = null,
         val next: String? = null,
+        /** 当前句的逐字数据（W28-MUSIC）；空 = 无逐字数据，回落整行显示。 */
+        val currentWords: List<LyricWord> = emptyList(),
+        /** 播放位置（毫秒，逐字高亮推进用）。 */
+        val positionMs: Long = 0,
         val tint: LyricsOverlayTint = LyricsOverlayTint.MOON_WHITE,
         val size: LyricsOverlaySize = LyricsOverlaySize.MEDIUM,
         val language: LyricsDisplayLanguage = LyricsDisplayLanguage.SIMPLIFIED_CHINESE,
@@ -306,7 +311,15 @@ constructor(
         loadJob?.cancel()
         document = null
         loadedItemId = null
-        _state.update { state -> state.copy(current = null, next = null, artist = null) }
+        _state.update { state ->
+            state.copy(
+                current = null,
+                next = null,
+                currentWords = emptyList(),
+                positionMs = 0L,
+                artist = null,
+            )
+        }
     }
 
     private fun refreshLines() {
@@ -332,12 +345,16 @@ constructor(
                 loaded,
                 LyricsDisplayState(language = language, bilingual = false, follow = true),
             )
-        val lines = overlayLyricsLines(rows, LyricsPresenter.activeIndex(rows, positionMs))
+        val activeIndex = LyricsPresenter.activeIndex(rows, positionMs)
+        val lines = overlayLyricsLines(rows, activeIndex)
+        val currentWords = rows.getOrNull(activeIndex.coerceAtLeast(0))?.words.orEmpty()
         val previousCurrent = _state.value.current
         _state.update { state ->
             state.copy(
                 current = lines.current,
                 next = lines.next,
+                currentWords = currentWords,
+                positionMs = positionMs,
                 artist = artist,
             )
         }

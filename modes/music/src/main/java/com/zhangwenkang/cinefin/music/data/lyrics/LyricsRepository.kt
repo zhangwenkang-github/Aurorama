@@ -8,7 +8,8 @@ import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.extensions.lyricsApi
-import org.jellyfin.sdk.model.api.LyricDto
+import org.jellyfin.sdk.model.api.LyricLine as JellyfinLyricLine
+import org.jellyfin.sdk.model.api.LyricLineCue
 
 /**
  * 歌词仓库（MU-5）。
@@ -57,20 +58,34 @@ interface LyricsRemoteSource {
 class JellyfinLyricsRemoteSource @Inject constructor(private val jellyfinApi: JellyfinApi) :
     LyricsRemoteSource {
 
-    /** 服务端 DTO → 行模型；`Start` 是 ticks（1 ms = 10000 ticks，实测 28440000 → 2.844 s）。 */
+    /** 服务端 DTO → 行模型（含 `Cues` 逐字片段，W28-MUSIC）。 */
     override suspend fun fetch(itemId: UUID): List<LyricLine>? =
-        jellyfinApi.api.lyricsApi.getLyrics(itemId).content.toLyricLines()
+        jellyfinApi.api.lyricsApi.getLyrics(itemId).content.lyrics?.let(::mapServerLyrics)
+}
 
-    private fun LyricDto.toLyricLines(): List<LyricLine>? = lyrics?.map { line ->
-        LyricLine(
-            startMs = line.start?.let { ticks -> ticks / TICKS_PER_MS },
-            text = line.text.orEmpty(),
-        )
-    }
+/** 服务端 `Start` / `Cue.Start` 是 ticks（1 ms = 10000 ticks，实测 28440000 → 2.844 s）。 */
+internal const val LYRICS_TICKS_PER_MS = 10_000L
 
-    private companion object {
-        const val TICKS_PER_MS = 10_000L
-    }
+/**
+ * 服务端歌词 DTO → 行模型（W28-MUSIC）。
+ *
+ * `Cues` 非空时按 `position`/`endPosition`（UTF-16 下标，与 Kotlin String 一致）截取行文本子串作为逐字片段； 越界 / 空片段跳过。本库实测
+ * 100 首 `Cues` 全为空（见 `MUSIC_PLAN` §4.4），该映射为数据链就绪 + 单测覆盖。
+ */
+internal fun mapServerLyrics(lines: List<JellyfinLyricLine>): List<LyricLine> = lines.map { line ->
+    val text = line.text.orEmpty()
+    LyricLine(
+        startMs = line.start?.let { ticks -> ticks / LYRICS_TICKS_PER_MS },
+        text = text,
+        words = line.cues.orEmpty().mapNotNull { cue -> cue.toWord(text) },
+    )
+}
+
+private fun LyricLineCue.toWord(text: String): LyricWord? {
+    if (position < 0 || endPosition > text.length || endPosition <= position) return null
+    val wordText = text.substring(position, endPosition)
+    if (wordText.isBlank()) return null
+    return LyricWord(startMs = start / LYRICS_TICKS_PER_MS, text = wordText)
 }
 
 @Singleton

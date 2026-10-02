@@ -75,4 +75,29 @@ class LyricsOverrideStoreTest {
         assertEquals("作词：测试", LyricTextCodec.decode(gbkBytes))
         assertEquals("测试", LyricTextCodec.decode("测试".toByteArray(Charsets.UTF_8)))
     }
+
+    @Test
+    fun `逐字数据以增强 LRC 写出并可往返`() {
+        val store = store()
+        val lines =
+            listOf(
+                LyricLine(
+                    startMs = 12_000L,
+                    text = "Hello world",
+                    words =
+                        listOf(
+                            LyricWord(12_000L, "Hello "),
+                            LyricWord(12_500L, "world"),
+                        ),
+                ),
+                LyricLine(20_000L, "整行歌词"),
+            )
+
+        assertTrue(store.save(itemId, lines))
+
+        val text = store.loadText(itemId).orEmpty()
+        assertTrue(text.contains("[00:12.000]<00:12.000>Hello <00:12.500>world"))
+        assertTrue(text.contains("[00:20.000]整行歌词"))
+        assertEquals(lines, store.load(itemId))
+    }
 }

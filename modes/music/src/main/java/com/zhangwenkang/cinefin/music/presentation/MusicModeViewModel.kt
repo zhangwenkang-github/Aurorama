@@ -25,6 +25,11 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
 import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLines
 import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLinesFromText
 import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLinesToLyricLines
+import com.zhangwenkang.cinefin.music.data.lyrics.lyricTimeDeltaMs
+import com.zhangwenkang.cinefin.music.data.lyrics.nudgeLyricEditLine
+import com.zhangwenkang.cinefin.music.data.lyrics.parseLyricOffsetMs
+import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricEditLines
+import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricWords
 import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
 import com.zhangwenkang.cinefin.music.data.musicQueueFillOrder
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
@@ -119,6 +124,8 @@ constructor(
         val display: LyricsDisplayState = LyricsDisplayState(),
         val rows: List<LyricsRow> = emptyList(),
         val activeIndex: Int = 0,
+        /** 播放位置（毫秒）：逐字高亮推进用（W28-MUSIC）。 */
+        val positionMs: Long = 0,
         val message: String? = null,
     )
 
@@ -136,6 +143,12 @@ constructor(
         val lines: List<LyricEditLine> = emptyList(),
         val hasOverride: Boolean = false,
         val message: String? = null,
+        /** 当前选中行（单行时间微调目标）；null = 未选中（W28-MUSIC）。 */
+        val selectedLineId: Long? = null,
+        /** 「整体偏移」自定义输入（毫秒，W28-MUSIC）。 */
+        val offsetText: String = "",
+        /** 「选中行微调」自定义输入（毫秒，W28-MUSIC）。 */
+        val stepText: String = "",
     )
 
     private val _lyricsEditorState = MutableStateFlow(LyricsEditorUiState())
@@ -144,6 +157,8 @@ constructor(
     private var nextEditLineId = 0L
     private var loadedLyricsItemId: UUID? = null
     private var lyricsLoadJob: Job? = null
+    /** 逐字高亮日志去重（行下标 to 词下标，W28-MUSIC）。 */
+    private var lastLoggedWord: Pair<Int, Int>? = null
     private var refreshJob: Job? = null
     private var playJob: Job? = null
 
@@ -290,6 +305,7 @@ constructor(
         lyricsLoadJob?.cancel()
         if (item == null) {
             loadedLyricsItemId = null
+            lastLoggedWord = null
             _lyricsState.value = LyricsUiState()
             return
         }
@@ -305,6 +321,7 @@ constructor(
                     languages = emptyList(),
                     rows = emptyList(),
                     activeIndex = 0,
+                    positionMs = 0,
                     message = null,
                 )
             }
@@ -321,19 +338,21 @@ constructor(
                         languages = emptyList(),
                         rows = emptyList(),
                         activeIndex = 0,
+                        positionMs = 0,
                         message = "该曲目暂无歌词（本机覆盖 / 外挂 LRC / 服务端都没有）",
                     )
                 } else {
                     val display = LyricsPresenter.defaultDisplay(document)
                     val rows = LyricsPresenter.rows(document, display)
+                    val position = playbackController.positionMs.value
                     state.copy(
                         loading = false,
                         document = document,
                         languages = LyricsPresenter.displayLanguages(document),
                         display = display,
                         rows = rows,
-                        activeIndex =
-                            LyricsPresenter.activeIndex(rows, playbackController.positionMs.value),
+                        activeIndex = LyricsPresenter.activeIndex(rows, position),
+                        positionMs = position,
                         message = null,
                     )
                 }
@@ -342,14 +361,36 @@ constructor(
     }
 
     private fun syncActiveLyricLine(positionMs: Long) {
-        _lyricsState.update { state ->
-            if (state.rows.isEmpty()) {
-                state
-            } else {
-                val index = LyricsPresenter.activeIndex(state.rows, positionMs)
-                if (index == state.activeIndex) state else state.copy(activeIndex = index)
+        val state = _lyricsState.value
+        if (state.rows.isEmpty()) {
+            if (state.positionMs != 0L) {
+                _lyricsState.update { it.copy(positionMs = 0L) }
             }
+            return
         }
+        val index = LyricsPresenter.activeIndex(state.rows, positionMs)
+        if (index != state.activeIndex || positionMs != state.positionMs) {
+            _lyricsState.update { it.copy(activeIndex = index, positionMs = positionMs) }
+        }
+        logWordProgress(state.rows, index, positionMs)
+    }
+
+    /** 逐字高亮推进取证日志（W28-MUSIC）：当前行有逐字数据时，词切换打一条（同一行 / 词的重复采样不重复打）。 无逐字数据的曲目不打日志（行为与整行高亮完全一致）。 */
+    private fun logWordProgress(rows: List<LyricsRow>, rowIndex: Int, positionMs: Long) {
+        val row = rows.getOrNull(rowIndex) ?: return
+        val words = row.words
+        if (words.isEmpty()) return
+        val wordIndex = LyricsPresenter.activeWordIndex(words, positionMs)
+        if (wordIndex < 0 || lastLoggedWord == (rowIndex to wordIndex)) return
+        lastLoggedWord = rowIndex to wordIndex
+        Timber.i(
+            "逐字歌词：pos=%dms 第 %d 行 第 %d/%d 词「%s」",
+            positionMs,
+            rowIndex + 1,
+            wordIndex + 1,
+            words.size,
+            words[wordIndex].text.trim(),
+        )
     }
 
     /** 打开歌词面板（曲目在底栏点「词」触发）。 */
@@ -431,10 +472,79 @@ constructor(
     fun updateLyricsEditorLineTime(id: Long, timeText: String) {
         _lyricsEditorState.update { state ->
             state.copy(
-                lines = state.lines.map { if (it.id == id) it.copy(timeText = timeText) else it },
+                lines =
+                    state.lines.map { line ->
+                        if (line.id != id) line
+                        else {
+                            // W28：直接输入时间 = 自定义微调；两侧都能解析时同步平移逐字数据，否则保留原值（保存时统一校验）
+                            val delta = lyricTimeDeltaMs(line.timeText, timeText)
+                            line.copy(
+                                timeText = timeText,
+                                words =
+                                    if (delta == null) line.words
+                                    else shiftLyricWords(line.words, delta),
+                            )
+                        }
+                    },
                 message = null,
             )
         }
+    }
+
+    /** 点选 / 取消选中微调行（W28-MUSIC）：再次点击同一行取消选中。 */
+    fun selectLyricsEditorLine(id: Long) {
+        _lyricsEditorState.update {
+            it.copy(selectedLineId = if (it.selectedLineId == id) null else id, message = null)
+        }
+    }
+
+    fun updateLyricsEditorOffsetText(text: String) {
+        _lyricsEditorState.update { it.copy(offsetText = text, message = null) }
+    }
+
+    fun updateLyricsEditorStepText(text: String) {
+        _lyricsEditorState.update { it.copy(stepText = text, message = null) }
+    }
+
+    /** 整段时间轴偏移（±100ms 档 / 自定义毫秒，W28-MUSIC）：所有有时间戳的行一起平移。 */
+    fun shiftLyricsEditorLines(deltaMs: Long) {
+        if (deltaMs == 0L) return
+        _lyricsEditorState.update {
+            it.copy(lines = shiftLyricEditLines(it.lines, deltaMs), message = null)
+        }
+    }
+
+    /** 选中行时间微调（±100ms 档 / 自定义毫秒，W28-MUSIC）。 */
+    fun shiftSelectedLyricsEditorLine(deltaMs: Long) {
+        val id = _lyricsEditorState.value.selectedLineId
+        if (id == null) {
+            _lyricsEditorState.update { it.copy(message = "先在列表里点选一行，再微调时间") }
+            return
+        }
+        if (deltaMs == 0L) return
+        _lyricsEditorState.update {
+            it.copy(lines = nudgeLyricEditLine(it.lines, id, deltaMs), message = null)
+        }
+    }
+
+    /** 应用「整体偏移」自定义输入（毫秒）。 */
+    fun applyLyricsEditorOffsetText() {
+        val delta = parseLyricOffsetMs(_lyricsEditorState.value.offsetText)
+        if (delta == null) {
+            _lyricsEditorState.update { it.copy(message = "偏移量应为毫秒整数（例：-500 / +250）") }
+            return
+        }
+        shiftLyricsEditorLines(delta)
+    }
+
+    /** 应用「选中行微调」自定义输入（毫秒）。 */
+    fun applyLyricsEditorStepText() {
+        val delta = parseLyricOffsetMs(_lyricsEditorState.value.stepText)
+        if (delta == null) {
+            _lyricsEditorState.update { it.copy(message = "偏移量应为毫秒整数（例：-100 / +100）") }
+            return
+        }
+        shiftSelectedLyricsEditorLine(delta)
     }
 
     /** 保存编辑结果为本机覆盖（来源链最高优先级，不写服务器）。 */
@@ -524,11 +634,12 @@ constructor(
                 state.copy(display = display)
             } else {
                 val rows = LyricsPresenter.rows(document, display)
+                val position = playbackController.positionMs.value
                 state.copy(
                     display = display,
                     rows = rows,
-                    activeIndex =
-                        LyricsPresenter.activeIndex(rows, playbackController.positionMs.value),
+                    activeIndex = LyricsPresenter.activeIndex(rows, position),
+                    positionMs = position,
                 )
             }
         }

@@ -55,16 +55,25 @@ class LyricsOverrideStore(val directory: File) {
         /** 覆盖目录名（相对 `<filesDir>/lyrics`）。 */
         const val DIRECTORY_NAME = "override"
 
-        /** 覆盖行 → LRC 文本（时间戳毫秒保真；留空时间戳按未同步行写出）。 */
+        /** 覆盖行 → LRC 文本（时间戳毫秒保真；留空时间戳按未同步行写出；逐字数据写增强 LRC 标签）。 */
         internal fun encodeLrc(lines: List<LyricLine>): String =
             lines
                 .asSequence()
                 .filter { it.text.isNotBlank() }
                 .map { line ->
-                    line.startMs?.let { startMs -> "[${formatLyricTime(startMs)}]${line.text}" }
-                        ?: line.text
+                    line.startMs?.let { start -> "[${formatLyricTime(start)}]" }.orEmpty() +
+                        encodeBody(line)
                 }
                 .joinToString("\n", postfix = "\n")
+
+        /** 有逐字数据（且与整行文本一致）时写 `<mm:ss.xxx>` 增强 LRC 标签；否则写整行文本。 */
+        private fun encodeBody(line: LyricLine): String {
+            if (line.startMs == null || !lyricWordsMatchText(line.words, line.text))
+                return line.text
+            return line.words.joinToString("") { word ->
+                "<${formatLyricTime(word.startMs)}>${word.text}"
+            }
+        }
     }
 }
 

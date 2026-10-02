@@ -75,4 +75,72 @@ class LyricsEditorModelTest {
     fun `空文档预填为空列表`() {
         assertTrue(lyricEditLines(null).isEmpty())
     }
+
+    @Test
+    fun `整段偏移与单行微调只改有效时间戳`() {
+        val lines =
+            listOf(
+                LyricEditLine(0L, "00:10.00", "第一句"),
+                LyricEditLine(1L, "", "未同步"),
+                LyricEditLine(2L, "坏", "非法"),
+                LyricEditLine(3L, "00:20.00", "第三句"),
+            )
+
+        val shifted = shiftLyricEditLines(lines, -500L)
+        assertEquals("00:09.500", shifted[0].timeText)
+        assertEquals("", shifted[1].timeText)
+        assertEquals("坏", shifted[2].timeText)
+        assertEquals("00:19.500", shifted[3].timeText)
+
+        val nudged = nudgeLyricEditLine(shifted, 3L, 1_000L)
+        assertEquals("00:09.500", nudged[0].timeText)
+        assertEquals("00:20.500", nudged[3].timeText)
+
+        assertEquals(500L, parseLyricOffsetMs("+500"))
+        assertEquals(-500L, parseLyricOffsetMs("-500"))
+        assertEquals(0L, parseLyricOffsetMs(" 0 "))
+        assertNull(parseLyricOffsetMs("半秒"))
+        assertNull(parseLyricOffsetMs(""))
+    }
+
+    @Test
+    fun `偏移同步平移逐字数据并钳制到零`() {
+        val words = listOf(LyricWord(10_000L, "逐"), LyricWord(10_500L, "字"))
+        val line = LyricEditLine(0L, "00:10.00", "逐字", words = words)
+
+        val shifted = shiftLyricEditLines(listOf(line), -500L).single()
+        assertEquals("00:09.500", shifted.timeText)
+        assertEquals(listOf(LyricWord(9_500L, "逐"), LyricWord(10_000L, "字")), shifted.words)
+
+        val clamped =
+            nudgeLyricEditLine(
+                    listOf(
+                        LyricEditLine(0L, "00:00.100", "尾", words = listOf(LyricWord(100L, "尾")))
+                    ),
+                    id = 0L,
+                    deltaMs = -500L,
+                )
+                .single()
+        assertEquals("00:00.000", clamped.timeText)
+        assertEquals(listOf(LyricWord(0L, "尾")), clamped.words)
+    }
+
+    @Test
+    fun `保存保留逐字数据但文本或时间被手改后丢弃`() {
+        val words = listOf(LyricWord(10_000L, "逐"), LyricWord(10_500L, "字"))
+        val line = LyricEditLine(0L, "00:10.00", "逐字", words = words)
+
+        assertEquals(words, lyricEditLinesToLyricLines(listOf(line)).orEmpty().single().words)
+
+        val textEdited = line.copy(text = "改过的文本")
+        assertTrue(
+            lyricEditLinesToLyricLines(listOf(textEdited)).orEmpty().single().words.isEmpty()
+        )
+
+        // 手动改时间后首词与行时间不再一致 → 丢弃逐字（防止高亮错位）
+        val timeEdited = line.copy(timeText = "00:15.00")
+        assertTrue(
+            lyricEditLinesToLyricLines(listOf(timeEdited)).orEmpty().single().words.isEmpty()
+        )
+    }
 }

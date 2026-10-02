@@ -218,16 +218,36 @@ private fun LyricsLines(
                             .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
                             .padding(vertical = CinefinSpacing.Space1)
                 ) {
-                    Text(
-                        text = row.mainText,
-                        style =
-                            if (active) CinefinType.TitleLarge.copy(fontSize = 32.sp)
-                            else CinefinType.TitleSmall.copy(fontSize = 21.sp),
-                        color =
-                            if (active) media.bright
-                            else colors.onSurfaceVariant.copy(alpha = 0.4f),
-                        fontWeight = if (active) FontWeight.SemiBold else null,
-                    )
+                    // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）
+                    val activeWordText =
+                        if (active)
+                            wordHighlightedText(
+                                text = row.mainText,
+                                words = row.words,
+                                positionMs = state.positionMs,
+                                lineEndMs = state.rows.getOrNull(index + 1)?.startMs,
+                                idleColor = colors.onSurfaceVariant.copy(alpha = 0.4f),
+                                highlightColor = media.bright,
+                            )
+                        else null
+                    if (activeWordText != null) {
+                        Text(
+                            text = activeWordText,
+                            style = CinefinType.TitleLarge.copy(fontSize = 32.sp),
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    } else {
+                        Text(
+                            text = row.mainText,
+                            style =
+                                if (active) CinefinType.TitleLarge.copy(fontSize = 32.sp)
+                                else CinefinType.TitleSmall.copy(fontSize = 21.sp),
+                            color =
+                                if (active) media.bright
+                                else colors.onSurfaceVariant.copy(alpha = 0.4f),
+                            fontWeight = if (active) FontWeight.SemiBold else null,
+                        )
+                    }
                     val sub = row.subText
                     if (sub != null) {
                         Text(

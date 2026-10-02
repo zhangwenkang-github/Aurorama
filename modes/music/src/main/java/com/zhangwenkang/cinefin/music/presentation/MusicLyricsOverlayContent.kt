@@ -142,14 +142,38 @@ fun MusicLyricsOverlayContent(
                     ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = lines.first,
-                fontSize = state.size.currentSp.sp,
-                fontWeight = FontWeight.Medium,
-                color = tint,
-                maxLines = 2,
-                textAlign = TextAlign.Center,
-            )
+            // W28-MUSIC：有逐字数据时当前句按词递进高亮（未唱 45% → 已唱实色）；无数据仍是整行实色
+            val wordText =
+                state.current
+                    ?.takeIf { it == lines.first }
+                    ?.let { current ->
+                        wordHighlightedText(
+                            text = current,
+                            words = state.currentWords,
+                            positionMs = state.positionMs,
+                            lineEndMs = null,
+                            idleColor = tint.copy(alpha = 0.45f),
+                            highlightColor = tint,
+                        )
+                    }
+            if (wordText != null) {
+                Text(
+                    text = wordText,
+                    fontSize = state.size.currentSp.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                Text(
+                    text = lines.first,
+                    fontSize = state.size.currentSp.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = tint,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                )
+            }
             Text(
                 text = lines.second ?: " ",
                 fontSize = state.size.nextSp.sp,
