@@ -56,6 +56,8 @@ import com.zhangwenkang.cinefin.settings.domain.models.Preference
 data class PlayerSettingsSnapshot(
     val backgroundAudio: Boolean,
     val segmentsSkipButton: Boolean,
+    /** 跳过提示条显示时长（秒，W20：以前只存在于全局设置页，播放页面板也补上阈值） */
+    val segmentsSkipButtonDuration: Long,
     val segmentsAutoSkip: Boolean,
     val chapterMarkers: Boolean,
     val pauseAfterCurrentItem: Boolean,
@@ -96,6 +98,13 @@ internal val AudioLanguagePresets =
     )
 
 /**
+ * W20（§6.1）：跳过提示条显示时长的可选项（秒）。
+ *
+ * 与全局设置页的数值输入共用同一个偏好键；这里给的是最常用的四档， 需要任意秒数仍可去「设置 → 播放」输入。
+ */
+internal val SegmentSkipDurations = listOf(3L, 5L, 8L, 10L)
+
+/**
  * 设置面板的读写器：值从 `SharedPreferences` 现读现写，面板 UI 只持有一份快照。
  *
  * 「改完立即回读」保证 UI 与偏好不会脱节（例如同一项在全局设置页也被改过）。
@@ -120,6 +129,9 @@ class PlayerSettingsController(
 
     fun setSegmentsSkipButton(value: Boolean) =
         write(appPreferences.playerMediaSegmentsSkipButton, value)
+
+    fun setSegmentsSkipButtonDuration(value: Long) =
+        write(appPreferences.playerMediaSegmentsSkipButtonDuration, value)
 
     fun setSegmentsAutoSkip(value: Boolean) =
         write(appPreferences.playerMediaSegmentsAutoSkip, value)
@@ -207,6 +219,8 @@ class PlayerSettingsController(
             backgroundAudio = appPreferences.getValue(appPreferences.playerBackgroundAudio),
             segmentsSkipButton =
                 appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton),
+            segmentsSkipButtonDuration =
+                appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButtonDuration),
             segmentsAutoSkip = appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkip),
             chapterMarkers = appPreferences.getValue(appPreferences.playerChapterMarkers),
             pauseAfterCurrentItem =
@@ -291,6 +305,29 @@ internal fun PlayerSettingsPanel(
                         checked = settings.segmentsAutoSkip,
                         onCheckedChange = { controller.setSegmentsAutoSkip(it) },
                     )
+                    /*
+                     * W20（§6.1 阈值补齐）：提示条显示时长的页内入口。
+                     * 与全局设置页共用同一个偏好键（秒）；改完下一秒的片段轮询即生效。
+                     */
+                    if (settings.segmentsSkipButton) {
+                        PanelTitle(
+                            stringResource(PlayerR.string.player_settings_segments_button_duration)
+                        )
+                        PanelChipRow(
+                            options =
+                                SegmentSkipDurations.map { seconds ->
+                                    stringResource(
+                                        PlayerR.string.player_settings_segments_seconds,
+                                        seconds,
+                                    ) to (settings.segmentsSkipButtonDuration == seconds)
+                                },
+                            onSelect = { index ->
+                                controller.setSegmentsSkipButtonDuration(
+                                    SegmentSkipDurations[index]
+                                )
+                            },
+                        )
+                    }
                     PanelSwitchRow(
                         label = stringResource(PlayerR.string.player_settings_chapter_markers),
                         checked = settings.chapterMarkers,

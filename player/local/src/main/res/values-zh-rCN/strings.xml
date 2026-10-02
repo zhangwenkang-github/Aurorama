@@ -48,6 +48,8 @@
     <string name="player_settings_background_audio_caption">离开播放页后继续播放声音</string>
     <string name="player_settings_segments_button">跳过片头片尾按钮</string>
     <string name="player_settings_segments_auto">自动跳过片头片尾</string>
+    <string name="player_settings_segments_button_duration">提示条显示时长</string>
+    <string name="player_settings_segments_seconds">%1$d 秒</string>
     <string name="player_settings_chapter_markers">进度条显示章节刻度</string>
     <string name="player_settings_pause_after_item">播完暂停</string>
     <string name="player_settings_pause_after_item_caption">当前一集播完停在片尾，不自动跳下一集</string>

@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.player.local.presentation
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
@@ -34,12 +33,13 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
-import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
+import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
+import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
@@ -51,7 +51,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.math.ceil
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -75,6 +74,11 @@ constructor(
     private val application: Application,
     private val playlistManager: PlaylistManager,
     private val repository: JellyfinRepository,
+    /**
+     * W20（§1.11）：进度除了走会话上报，还要**直接写 UserData**——真机实测 `Sessions/Playing/Progress` 不落
+     * `UserData.PlaybackPositionTicks`， 进程被杀之后续播会回到 0（详见 [PlaybackPositionWriter] 注释）。
+     */
+    private val playbackPositionWriter: PlaybackPositionWriter,
     private val appPreferences: AppPreferences,
     /** 播放器实例由进程级单例持有：播放页关闭后通知栏 / 后台播放仍要能控制它（阶段 4.1） */
     private val playerHolder: PlayerHolder,
@@ -99,6 +103,12 @@ constructor(
 
         /** 每条插入之间让出主线程的时间（> 1 帧），保证输入 / 渲染消息有机会执行 */
         private const val QUEUE_FILL_STEP_DELAY_MS = 50L
+
+        /** W20（§1.11）：进度常驻上报间隔。播放中每 5 秒向服务端写一次 UserData 进度 */
+        private const val PROGRESS_REPORT_INTERVAL_MS = 5_000L
+
+        /** W20：同一集「停止上报」的去重窗口（自然播完已报过 stop，换集回调不要再报一次） */
+        private const val STOP_REPORT_DEDUPE_MS = 15_000L
     }
 
     val player: Player
@@ -110,7 +120,6 @@ constructor(
                 currentItemTitle = "",
                 currentSegment = null,
                 currentSkipButtonStringRes = R.string.player_controls_skip_intro,
-                currentTrickplay = null,
                 currentChapters = emptyList(),
                 fileLoaded = false,
             )
@@ -139,9 +148,21 @@ constructor(
         val currentMediaInfo: PlayerMediaInfo? = null,
         val currentSegment: FindroidSegment?,
         val currentSkipButtonStringRes: Int,
-        val currentTrickplay: Trickplay?,
+        /**
+         * W20（§1.11 Trickplay）：预览图时间间隔（毫秒）；0 = 本条目没有 trickplay / 已关闭， 控制层不做任何预览查询。缩略图不再随 uiState
+         * 整批携带，改成按需向 [trickplayFrameAt] 取。
+         */
+        val trickplayIntervalMs: Int = 0,
+        /** W20：每加载好一张精灵图 +1；Compose 用它触发重组，把新到位的预览图刷出来 */
+        val trickplayVersion: Int = 0,
         val currentChapters: List<PlayerChapter>,
         val fileLoaded: Boolean,
+        /**
+         * W20（§6.1 片头片尾）：跳过提示条的显示时长（毫秒）。
+         *
+         * 来源是设置里的 `pref_player_media_segments_skip_button_duration`（秒）； 之前播放页写死 8 秒，用户设置的阈值根本不生效。
+         */
+        val skipChipDurationMs: Long = 5_000L,
         /** 播放失败时的错误信息；非空时控制层显示错误卡片 */
         val playerError: PlayerErrorInfo? = null,
     )
@@ -243,6 +264,22 @@ constructor(
     private var playbackPosition: Long = savedStateHandle["position"] ?: 0
     private var currentMediaItemSegments: List<FindroidSegment> = emptyList()
 
+    /*
+     * W20（§1.11 进度记忆）：最近一次「已上报 / 已知」的条目快照。
+     *
+     * `onMediaItemTransition` 触发时播放器里已经是**新**条目，读不到上一集的位置，
+     * 所以切集 / 退出时用这份快照给上一条补一条 `Playing/Stopped`，
+     * 保证「退出播放 / 切集 / 被杀后」服务端都能恢复到正确位置。
+     */
+    private var lastProgressItemId: UUID? = null
+    private var lastProgressPositionMs: Long = 0L
+    private var lastProgressDurationMs: Long = 0L
+    private var lastStopReportedItemId: UUID? = null
+    private var lastStopReportedAtMs: Long = 0L
+
+    /** W20（§1.11 Trickplay）：按需加载的预览图（只拉当前拖动位置所在的精灵图） */
+    private var trickplayLoader: TrickplayPreviewLoader? = null
+
     // Segments preferences
     var segmentsSkipButton: Boolean = false
     private var segmentsSkipButtonTypes: Set<String> = emptySet()
@@ -272,6 +309,23 @@ constructor(
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipMode)
 
         publishAudioPanelState()
+
+        /*
+         * W20（§1.11）：进度上报从「Activity STARTED 期间才跑」改成 ViewModel 常驻协程。
+         *
+         * 旧实现挂在 `repeatOnLifecycle(STARTED)` 里：切后台 / 锁屏后循环就停了，
+         * 后台继续播（后台播放开关）时被系统杀掉，服务端只剩进入后台前的位置。
+         * 现在按播放状态判断——播放中每 5 秒上报一次，暂停 / 没内容时什么都不做。
+         */
+        viewModelScope.launch {
+            while (isActive) {
+                delay(PROGRESS_REPORT_INTERVAL_MS)
+                val player = playerHolder.existingPlayer ?: continue
+                if (!player.isPlaying) continue
+                if (player.currentMediaItem == null) continue
+                updatePlaybackProgress()
+            }
+        }
 
         // 自研字幕状态变化 → 刷新面板状态，并把「原生文字渲染」的开关同步给播放内核
         viewModelScope.launch {
@@ -559,26 +613,36 @@ constructor(
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun releasePlayer() {
-        val mediaId = player.currentMediaItem?.mediaId
-        val position = player.currentPosition
-        val duration = player.duration
-        GlobalScope.launch {
-            delay(200L)
-            try {
-                if (mediaId != null && duration != C.TIME_UNSET) {
+        /*
+         * W20（§1.11 退出播放）：退出 / 被系统杀掉前必须把最终位置写回服务端。
+         * 旧实现先 `delay(200)` 再发：进程可能在延迟窗口里被回收，最后一次进度就丢了。
+         * 现在同步取好快照后立刻发出（GlobalScope 不受 onCleared 取消影响，进程还活着就能发完）。
+         */
+        val activePlayer = playerHolder.existingPlayer
+        val mediaId = activePlayer?.currentMediaItem?.mediaId
+        val position = (activePlayer?.currentPosition ?: 0L).coerceAtLeast(0L)
+        val duration = activePlayer?.duration ?: C.TIME_UNSET
+        val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
+        if (itemId != null && duration != C.TIME_UNSET) {
+            markStopReported(itemId)
+            GlobalScope.launch(Dispatchers.IO) {
+                try {
                     Timber.d("Sending playback stop")
                     repository.postPlaybackStop(
-                        UUID.fromString(mediaId),
+                        itemId,
                         position.times(10000),
-                        position.div(duration.toFloat()).times(100).toInt(),
+                        playedPercentage(position, duration),
                     )
+                } catch (e: Exception) {
+                    Timber.e(e)
                 }
-            } catch (e: Exception) {
-                Timber.e(e)
             }
         }
 
-        _uiState.update { it.copy(currentTrickplay = null) }
+        trickplayLoader = null
+        _uiState.update {
+            it.copy(trickplayIntervalMs = 0, trickplayVersion = it.trickplayVersion + 1)
+        }
         playWhenReady = false
         playbackPosition = 0L
         currentMediaItemIndex = 0
@@ -595,20 +659,77 @@ constructor(
     }
 
     fun updatePlaybackProgress() {
-        Timber.d("Updating playback progress")
+        val player = playerHolder.existingPlayer ?: return
+        val mediaItem = player.currentMediaItem ?: return
+        val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull() ?: return
+        val position = player.currentPosition.coerceAtLeast(0L)
+        val duration = player.duration
+        savedStateHandle["position"] = position
+        recordProgressSnapshot(itemId, position, duration)
         viewModelScope.launch(Dispatchers.Main) {
-            savedStateHandle["position"] = player.currentPosition
-            if (player.currentMediaItem != null && player.currentMediaItem!!.mediaId.isNotEmpty()) {
-                val itemId = UUID.fromString(player.currentMediaItem!!.mediaId)
-                try {
-                    repository.postPlaybackProgress(
-                        itemId,
-                        player.currentPosition.times(10000),
-                        !player.isPlaying,
-                    )
-                } catch (e: Exception) {
-                    Timber.e(e)
-                }
+            try {
+                repository.postPlaybackProgress(itemId, position.times(10000), !player.isPlaying)
+            } catch (e: Exception) {
+                Timber.e(e)
+            }
+        }
+        /*
+         * W20（§1.11）：会话上报之外，把位置直接写进 UserData——
+         * 服务端只在停止上报时落库，杀进程 / 崩溃时最后一段进度会丢。
+         */
+        viewModelScope.launch {
+            playbackPositionWriter.writePosition(itemId, position.times(10000))
+        }
+    }
+
+    /** 记录「已知的当前条目位置」，供切集 / 退出时给上一条补停止上报（W20） */
+    private fun recordProgressSnapshot(itemId: UUID, positionMs: Long, durationMs: Long) {
+        lastProgressItemId = itemId
+        lastProgressPositionMs = positionMs
+        lastProgressDurationMs = durationMs
+    }
+
+    private fun markStopReported(itemId: UUID) {
+        lastStopReportedItemId = itemId
+        lastStopReportedAtMs = SystemClock.elapsedRealtime()
+    }
+
+    /** 已播百分比（0–100）；时长未知时按 0 处理，交给服务端自己的判定 */
+    private fun playedPercentage(positionMs: Long, durationMs: Long): Int {
+        if (durationMs <= 0L || durationMs == C.TIME_UNSET) return 0
+        return ((positionMs.toDouble() / durationMs.toDouble()) * 100).toInt().coerceIn(0, 100)
+    }
+
+    /**
+     * W20（§1.11 切集）：换集 / 手动切条目后给**上一条**补一条停止上报。
+     *
+     * `onMediaItemTransition` 触发时播放器里已经是新条目，上一集的位置只能来自 [recordProgressSnapshot] 的快照；自然播完已经在结束分支报过
+     * stop， 用 [lastStopReportedItemId] + 去重窗口避免重复。
+     */
+    private fun reportOutgoingItemStop() {
+        val itemId = lastProgressItemId ?: return
+        val currentId =
+            playerHolder.existingPlayer?.currentMediaItem?.mediaId?.let { raw ->
+                runCatching { UUID.fromString(raw) }.getOrNull()
+            }
+        if (itemId == currentId) return
+        val now = SystemClock.elapsedRealtime()
+        if (itemId == lastStopReportedItemId && now - lastStopReportedAtMs < STOP_REPORT_DEDUPE_MS)
+            return
+        val position = lastProgressPositionMs
+        val duration = lastProgressDurationMs
+        lastProgressItemId = null
+        markStopReported(itemId)
+        Timber.d("换集：为上一集补停止上报 itemId=%s position=%d", itemId, position)
+        viewModelScope.launch {
+            try {
+                repository.postPlaybackStop(
+                    itemId,
+                    position.times(10000),
+                    playedPercentage(position, duration),
+                )
+            } catch (e: Exception) {
+                Timber.w(e, "切集：上一集停止上报失败")
             }
         }
     }
@@ -689,6 +810,8 @@ constructor(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
+        // W20（§1.11）：先把「上一条」的进度收尾（补 stop），再按新条目走后续流程
+        reportOutgoingItemStop()
         // mpv 换集后重新对齐字幕开关（off → sid=no；auto / always → 按 slang 重选）
         syncMpvSubtitleMode()
         savedStateHandle["mediaItemIndex"] = player.currentMediaItemIndex
@@ -752,9 +875,8 @@ constructor(
                         getSegments(item.itemId)
                     }
 
-                    if (appPreferences.getValue(appPreferences.playerTrickplay)) {
-                        getTrickplay(item)
-                    }
+                    // W20（§1.11）：Trickplay 改为按需加载——这里只准备加载器，不拉任何图
+                    prepareTrickplay(item)
 
                     playlistManager.setCurrentMediaItemIndex(item.itemId)
 
@@ -785,10 +907,16 @@ constructor(
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-        // Report playback stopped for current item and transition to the next one
-        if (reason != Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM || playWhenReady) {
+        if (playWhenReady || startupInProgress) return
+        /*
+         * W20（§1.11）：暂停（通知栏 / 耳机拔出 / 音频焦点丢失 / 手动）立刻落一次进度，
+         * 不等 5 秒轮询，也不等退出播放页——「被杀」前最后的状态因此总是最新的。
+         */
+        if (reason != Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+            updatePlaybackProgress()
             return
         }
+        // Report playback stopped for current item and transition to the next one
         /*
          * 注意：这里**不能**再要求 `playbackState == STATE_READY`。
          * 播放器设了 pauseAtEndOfMediaItems，一集播完会在「渲染结束的那一刻」先把 playWhenReady 置 false，
@@ -804,14 +932,19 @@ constructor(
             val mediaId = player.currentMediaItem?.mediaId
             val position = player.currentPosition
             val duration = player.duration
-            try {
-                repository.postPlaybackStop(
-                    UUID.fromString(mediaId),
-                    position.times(10000),
-                    position.div(duration.toFloat()).times(100).toInt(),
-                )
-            } catch (e: Exception) {
-                Timber.e(e)
+            val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
+            if (itemId != null) {
+                markStopReported(itemId)
+                recordProgressSnapshot(itemId, position, duration)
+                try {
+                    repository.postPlaybackStop(
+                        itemId,
+                        position.times(10000),
+                        playedPercentage(position, duration),
+                    )
+                } catch (e: Exception) {
+                    Timber.e(e)
+                }
             }
             advanceAfterItemEnd()
         }
@@ -1655,6 +1788,15 @@ constructor(
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipType)
         segmentsAutoSkipMode =
             appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkipMode)
+
+        /*
+         * W20（§6.1）：提示条时长以前写死在控制层（8 秒），设置里的「显示时长」形同虚设。
+         * 这里把偏好换算成毫秒放进 uiState，控制层按它超时收起；改设置后下一秒轮询即生效。
+         */
+        val skipChipDurationMs = segmentsSkipButtonDuration.coerceAtLeast(1L) * 1000L
+        if (_uiState.value.skipChipDurationMs != skipChipDurationMs) {
+            _uiState.update { it.copy(skipChipDurationMs = skipChipDurationMs) }
+        }
     }
 
     // ---------- 队列管理：拖拽排序 / 删除 / 清空 / 跳转（§1.7） ----------
@@ -1712,47 +1854,55 @@ constructor(
         }
     }
 
-    private suspend fun getTrickplay(item: PlayerItem) {
-        val trickplayInfo = item.trickplayInfo ?: return
-        Timber.d("Trickplay Resolution: ${trickplayInfo.width}")
-
-        withContext(Dispatchers.Default) {
-            val maxIndex =
-                ceil(
-                        trickplayInfo.thumbnailCount
-                            .toDouble()
-                            .div(trickplayInfo.tileWidth * trickplayInfo.tileHeight)
-                    )
-                    .toInt()
-            val bitmaps = mutableListOf<Bitmap>()
-
-            for (i in 0..maxIndex) {
-                repository.getTrickplayData(item.itemId, trickplayInfo.width, i)?.let { byteArray ->
-                    val fullBitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
-                    for (offsetY in
-                        0..<trickplayInfo.height * trickplayInfo.tileHeight step
-                            trickplayInfo.height) {
-                        for (offsetX in
-                            0..<trickplayInfo.width * trickplayInfo.tileWidth step
-                                trickplayInfo.width) {
-                            val bitmap =
-                                Bitmap.createBitmap(
-                                    fullBitmap,
-                                    offsetX,
-                                    offsetY,
-                                    trickplayInfo.width,
-                                    trickplayInfo.height,
-                                )
-                            bitmaps.add(bitmap)
-                        }
-                    }
-                }
-            }
+    /**
+     * W20（§1.11 Trickplay 预加载与失败降级）：换集时只准备**按需加载器**。
+     *
+     * 不再像旧实现那样把整部片的精灵图一次性拉全并解码常驻内存；真正拉图发生在 用户拖动进度条 / 手势 seek 时（[trickplayFrameAt]），每次只拉当前那张图。 服务器没有
+     * trickplay（`trickplayInfo == null`、总张数为 0）或用户关掉开关时， 加载器直接为 null，UI 走"无预览图"降级，不产生任何请求。
+     */
+    private fun prepareTrickplay(item: PlayerItem) {
+        val info = item.trickplayInfo
+        if (info == null || !appPreferences.getValue(appPreferences.playerTrickplay)) {
+            trickplayLoader = null
             _uiState.update {
-                it.copy(currentTrickplay = Trickplay(trickplayInfo.interval, bitmaps))
+                it.copy(trickplayIntervalMs = 0, trickplayVersion = it.trickplayVersion + 1)
             }
+            return
+        }
+        val loader =
+            TrickplayPreviewLoader(
+                info = info,
+                scope = viewModelScope,
+                fetchTileSheet = { sheet ->
+                    repository.getTrickplayData(item.itemId, info.width, sheet)
+                },
+                onSheetReady = {
+                    _uiState.update { state ->
+                        state.copy(trickplayVersion = state.trickplayVersion + 1)
+                    }
+                },
+            )
+        trickplayLoader = loader
+        Timber.d(
+            "Trickplay 按需加载就绪：interval=%dms tiles=%d sheets=%d",
+            info.interval,
+            TrickplayTiles.tileCount(info),
+            TrickplayTiles.sheetCount(info),
+        )
+        _uiState.update {
+            it.copy(
+                trickplayIntervalMs = if (loader.available) info.interval else 0,
+                trickplayVersion = it.trickplayVersion + 1,
+            )
         }
     }
+
+    /**
+     * 取 [positionMs] 处的 Trickplay 预览图（W20）。
+     *
+     * 只读缓存 + 触发后台拉取，不阻塞调用方（拖动 / Composition 都直接调用）； 未命中或拉取失败返回 null，调用方按"没有预览图"处理即可。
+     */
+    fun trickplayFrameAt(positionMs: Long): Bitmap? = trickplayLoader?.frameAt(positionMs)
 
     fun skipSegment(segment: FindroidSegment) {
         if (shouldSkipToNextEpisode(segment)) {

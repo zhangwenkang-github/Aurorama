@@ -30,7 +30,6 @@ import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.Constants
 import com.zhangwenkang.cinefin.isControlsLocked
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
-import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import kotlin.math.abs
@@ -82,7 +81,12 @@ class PlayerGestureHelper(
     private val screenWidth = Resources.getSystem().displayMetrics.widthPixels
     private val screenHeight = Resources.getSystem().displayMetrics.heightPixels
 
-    var currentTrickplay: Trickplay? = null
+    /**
+     * W20（§1.11 Trickplay 按需加载）：手势 seek HUD 的预览图提供者。
+     *
+     * 只做「查缓存 + 触发后台拉取」，未命中返回 null（HUD 先不显示图，拖动不受影响）； null = 本条目没有可用预览。
+     */
+    var trickplayFrameAt: ((Long) -> Bitmap?)? = null
     private val trickplayRoundedCorners = RoundedCornersTransformation(10f)
     private var currentTrickplayBitmap: Bitmap? = null
 
@@ -343,7 +347,7 @@ class PlayerGestureHelper(
                             if (
                                 appPreferences.getValue(appPreferences.playerGesturesSeekTrickplay)
                             ) {
-                                if (currentTrickplay != null) {
+                                if (trickplayFrameAt != null) {
                                     activity.binding.progressScrubberTrickplay.visibility =
                                         View.VISIBLE
                                     updateTrickplayImage(newPos)
@@ -628,8 +632,14 @@ class PlayerGestureHelper(
 
     fun updateTrickplayImage(position: Long) {
         try {
-            val trickplay = currentTrickplay ?: return
-            val bitmap = trickplay.images[position.div(trickplay.interval).toInt()]
+            val frameAt = trickplayFrameAt ?: return
+            val bitmap =
+                frameAt(position)
+                    ?: run {
+                        // 按需加载还没到位 / 服务器没有图：隐藏预览，不让异常打断手势
+                        activity.binding.progressScrubberTrickplay.visibility = View.GONE
+                        return
+                    }
 
             if (currentTrickplayBitmap != bitmap) {
                 activity.binding.progressScrubberTrickplay.load(bitmap) {

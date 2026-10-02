@@ -287,10 +287,18 @@ class PlayerActivity : BasePlayerActivity() {
                         onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
                         onQueueRemove = { index -> viewModel.removeQueueItem(index) },
                         onQueueClear = { viewModel.clearQueue() },
+                        // W20（§1.11）：Trickplay 预览按需取（未命中触发后台拉取，不阻塞拖动）
+                        trickplayFrameAt = { position -> viewModel.trickplayFrameAt(position) },
                         showChapterMarkers = settingsController.state.chapterMarkers,
                         onRetry = { viewModel.retryPlayback() },
                         onSwitchBackend = { target -> switchBackendAndRestart(target) },
-                        onRegionsChanged = { visible, panelOpen, locked, errorVisible, buffering ->
+                        onRegionsChanged = {
+                            visible,
+                            panelOpen,
+                            locked,
+                            errorVisible,
+                            buffering,
+                            skipChipVisible ->
                             binding.controlOverlay.controlsVisible = visible
                             binding.controlOverlay.panelOpen = panelOpen
                             binding.controlOverlay.locked = locked
@@ -309,6 +317,7 @@ class PlayerActivity : BasePlayerActivity() {
                                         panelOpen ||
                                         locked ||
                                         buffering ||
+                                        skipChipVisible ||
                                         chromeKeepsComposition
                                 ) {
                                     View.VISIBLE
@@ -388,9 +397,16 @@ class PlayerActivity : BasePlayerActivity() {
                                 }
                             }
 
-                            // 标题 / 章节 / 片段 / Trickplay 直接由 Compose 控制层消费 uiState；
-                            // 这里只把 Trickplay 同步给手势层的进度 HUD
-                            playerGestureHelper?.let { it.currentTrickplay = currentTrickplay }
+                            /*
+                             * 标题 / 章节 / 片段 / Trickplay 直接由 Compose 控制层消费 uiState；
+                             * 这里把 Trickplay 的「按需取图」入口同步给手势层的进度 HUD（W20）：
+                             * HUD 每次移动只查缓存 + 触发后台拉取，未命中先不显示图。
+                             */
+                            playerGestureHelper?.let { helper ->
+                                helper.trickplayFrameAt = { position ->
+                                    viewModel.trickplayFrameAt(position)
+                                }
+                            }
                         }
                     }
                 }
@@ -433,16 +449,12 @@ class PlayerActivity : BasePlayerActivity() {
                     }
                 }
 
-                launch {
-                    while (true) {
-                        viewModel.updatePlaybackProgress()
-                        delay(5000L)
-                    }
-                }
-
                 /*
                  * 片头 / 片尾轮询常驻：开关由 ViewModel 每秒现读偏好（§1.9 设置面板页内改完即生效），
                  * 两个开关都关时 updateCurrentSegment 会直接返回，不做任何额外工作。
+                 *
+                 * W20：这里的 5 秒进度上报循环已移除——进度改成 ViewModel 常驻协程
+                 * （切后台 / 锁屏也不停），并补上暂停 / 切集 / 退出的即时落盘，见 §23。
                  */
                 launch {
                     while (true) {

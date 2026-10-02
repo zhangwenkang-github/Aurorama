@@ -3,7 +3,7 @@
 > **新对话从这里开始。** 开工前读本文件，收工前把进度写回本文件。
 > 纪律：需求变更、决策、完成度、勾选项、更新日志，都在**同一次改动**里写回这里；不再新建零散 `.md`。
 >
-> 最后更新：2026-10-02　分支：`feature/w18-manual-fallback-label`（W18-PLAYER：手动切内核不关闭回退链 + 解码档位文案带内核；基线 `master 8b7a7cc`，落地记录见 §21）
+> 最后更新：2026-10-02　分支：`feature/w20-playback-enhance`（W20-PLAYER：进度写入 UserData + 片头尾阈值 / 提示条 + Trickplay 按需与降级；基线 `master 7ec5015`，落地记录见 §23）
 
 ---
 
@@ -170,8 +170,8 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
       15sp / 13sp 字阶、等宽数字、渐变遮罩统一、加载细线。
       🟡 2026-10-01 部分落地（§11.4）：等宽数字（`MonoData`）、渐变遮罩统一（`scrim` 令牌）、字阶收敛到 Prism 字阶；
       「时间可点切换 / 章节入口 / 加载细线」仍未做，留给后续会话。
-- [ ] **1.11 播放增强**（原阶段 6）——进度记忆与服务端同步、片头片尾阈值设置、Trickplay 预加载与失败降级、
-      外挂字幕导入、播放结束行为（自动下一集 / 停在结束帧）。
+- [ ] **1.11 播放增强**（原阶段 6）——🟡 W20 完成三项：✅ 进度记忆与服务端同步、✅ 片头片尾阈值与提示条、
+      ✅ Trickplay 按需预加载与失败降级（见 §23）；剩余：外挂字幕导入、播放结束行为（自动下一集 / 停在结束帧）。
 - [x] **1.18 libass 字幕渲染**（M4 缺口）——✅ W15-LIBASS（**mpv 原生路径**，见 §18）+ ✅ **W16-PLAYER（Exo 路径，见 §19）**，两个内核都走 libass。
       mpv 内核：容器有内嵌字幕（DirectPlay）→ mpv 内置 libass 直接渲染；容器无字幕（服务器转码 / HLS）→
       按 MediaItem extras 的 Jellyfin 字幕清单 `sub-add` 独立 ASS 文件；App 覆盖层在 mpv 下不接管、不叠加。
@@ -597,6 +597,10 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 | 面板先写偏好 = 手动切内核丢续播位置（W19 修复） | 解码面板的「切内核」行原本先 `controller.setBackend(...)` 再回调 Activity，而 `PlayerHolder.player` 的 getter 会**立刻按新偏好重建空实例** → Activity 随后读到的位置是 0、`currentMediaItem` 为 null（回退重启落回 Intent 原条目）。修法：面板只发回调，由 `switchBackendAndRestart` / `switchBackendForFallback` 统一「先读位置与当前条目、再写偏好、再重启」；`PlayerSettingsController.setBackend` 删除避免复用 |
 | 循环保护 = 回退重启守卫（W19 新增） | 正常链路每个目标档位最多重启一次（目标=服务器转码 / 本地软解）；`pref_player_decode_fallback_guard` 记 `mediaId\|targetStage\|attempts`，同一媒体 + 同一目标档位超过 2 次即判定循环，直接交错误卡片（不再无限重启）。用户显式改内核 / 解码策略 / 码率 / 关开关或新播放会话时守卫清零；纯函数 `PlayerDecodeFallback.recordRestart / RestartGuard.exceeded / parseGuard / fallbackDecision` 有单测 |
 | K60 logcat 环形缓冲小（W19 走查注意） | K60 上 MIUI 系统日志量大，`logcat -c` 后约 15s 就能把 app 的早期日志挤出缓冲（本波手动切内核的日志就是这样丢的）。要留证据就把 `logcat -c` 放在操作**前一刻**、操作后立刻 `logcat -d` 落盘；稳态证据用「偏好键 + uiautomator + 计数窗口」补 |
+| `Sessions/Playing/Progress` **不落** UserData（W20 真机实测） | 播放中每 5 秒发进度上报，服务端 `Now Playing` 会话位置会变，但 `GET /Users/{userId}/Items/{itemId}` 的 `UserData.PlaybackPositionTicks` **恒为 0**——只有 `Playing/Stopped` 才落库，所以「进程被杀」= 进度全丢。要恢复进度必须直写 `POST /UserItems/{itemId}/UserData`（写用户数据白名单），只带 `PlaybackPositionTicks` 一个字段 |
+| SDK `updateItemUserData` 的两个 UUID 顺序（W20 踩到） | jellyfin-sdk 1.8.12 的 `itemsApi.updateItemUserData(a, b, dto)` 会把 `a` 拼进 path、`b` 拼成 `?userId=`：正确顺序是 **(itemId, userId)**；按直觉传 `(userId, itemId)` 会得到 `POST /UserItems/{userId}/UserData?userId={itemId}` → 400（OkHttp 日志里一眼可见） |
+| 覆盖层提示条被控制层淡出带走（W20 修复） | 播放页整层控制层是**一个** ComposeView：控制层 3.5 秒自动淡出时 `PlayerActivity` 把它置成 `INVISIBLE`，片头尾提示条、缓冲圈这类「独立于控制层」的元素会一起消失（真机表现：「跳过片头」永远看不见）。修法：`onRegionsChanged` 增加 `skipChipVisible` 维度，提示条可见期间保持整层合成 |
+| 离线 Trickplay 缓存目录结构（W20 踩到） | `getTrickplayData` 的本地缓存是 `files/trickplay/<itemId>/<sourceId>/<index>`（Downloader 写入同款）；若把文件直接放成 `files/trickplay/<itemId>/<index>`，`listFiles().first()` 取到的是**文件本身**，`File(它, "0")` 读不到 → 悄悄回落到网络请求（真机表现为「投喂了图却仍在拉服务器」）。手工投喂验证时必须建 `<sourceId>` 这一层子目录 |
 | 权威内容 | 位置 |
 |----------|------|
 | 播放界面任务 / 需求 / 决策 / 进度 | **本文件** |
@@ -609,6 +613,7 @@ adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkan
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-02 | **W20-PLAYER 播放增强三项（`feature/w20-playback-enhance`）**：①**进度同步**——真机实测 `Sessions/Playing/Progress` 不落 `UserData.PlaybackPositionTicks`（服务器读回恒 0），新增 `PlaybackPositionWriter` 直写 `POST /UserItems/{itemId}/UserData`（写用户数据白名单）+ 上报循环迁到 ViewModel 常驻（切后台不停）+ 暂停 / 切集 / 退出即时落盘 + 换集给上一集补 `Playing/Stopped`；退出 / 杀进程 / 切集 / 双内核逐条取证（189.659 s 续播、194.849 s 续播、上一集 142.0 s）。②**片头尾**——提示条超时改读设置里的「显示时长」（原先写死 8 s），修「控制层淡出导致整层 ComposeView INVISIBLE、提示条永远看不见」的真机缺陷（`onRegionsChanged` 加 `skipChipVisible`），描边统一 `outlineVariant`，播放面板补时长档位；Exo / mpv 提示条 bounds 一致、自动跳过开（60→122 s）关（停在段内）两态。③**Trickplay**——整片预拉改为「只拉当前精灵图」+ 2 张 LRU + 请求去重 / 失败不重试（`TrickplayTiles` / `TrickplaySheetCache` / `TrickplayRequestState` 纯函数 + 6 单测），失败 404 → 优雅降级、命中本地精灵图 → 预览色块 21 万像素（双内核）。门禁 `assembleDebug（含 TV）+ ktfmtCheck + app 51 项 / player:local 62 → 68 项` 全绿；证据与还原见 §23。 |
 | 2026-10-02 | **W19-PLAYER 手动选内核后的自动回退 + UI 同步 + 频繁重载修复 + 「失败自动回退」开关（`feature/w19-fallback-toggle`）**：①**根因**——回退档位按「Intent 条目 id」判定，季 / 剧集入口与队列换集时 Intent 条目 ≠ 实际播放条目，回退重启每次清零档位 → 「硬解失败 → 请求转码 → 重启 → 清零」死循环（Pad 5 实测 60s 重启 7 次、从不出现 mpv、面板一直 ExoPlayer）；②档位改按**播放会话 id** 判定（`pref_player_decode_fallback_session`，回退 / 手动重启复用、新开播放页换新）+ 重启前把**实际播放条目**写回 Intent（修掉 §21.5「回退重启落回原条目」）；③面板「切内核」不再先写偏好（`PlayerHolder` 会立即重建空实例 → 位置读成 0），统一由 Activity「先读位置与条目 → 再写偏好 → 再重启」；解码面板「播放内核」选中态改读**实际生效内核**（`PlayerHolder.backend`）；④新增 `pref_player_auto_fallback`（默认开）：关 = 强制所选内核，失败只提示错误、不切换不重启；⑤循环保护 `pref_player_decode_fallback_guard`（同媒体 + 同目标档位 >2 次即报错，纯函数 + 单测）。门禁 `assembleDebug（含 TV）+ ktfmtCheck + app 51 项 / player:local 59 → 62 项（+3）` 全绿；双机真机证据见 §22。 |
 | 2026-10-02 | **W18-PLAYER 手动切内核不关闭回退链 + 档位文案带内核（`feature/w18-manual-fallback-label`）**：①回退判定抽到 `PlayerDecodeFallback.stageAfterFailure`——手动 / 自动同一条链路（本地硬解 → 服务器转码 → 本地软解），第 2 档任意错误继续降、第 3 档失败才报错；②内核切换拆成「手动」（清回退档位 + 先读位置再写偏好）与「回退链」（保留档位、显式 `setBackend(mpv)`）两条路径，修掉错误卡片切内核残留档位 / 续播位置读成 0；③`MPVPlayer` 在 `END_FILE` 且 `eof-reached=false` 时上报 `PlaybackException`（预算 + 窗口抵消自己发起的 END_FILE，`FILE_LOADED` 清预算），ViewModel 侧同内核 / 同档位 3 s 去重——「手动 mpv 失败也降级、第 3 档失败才弹卡片」成立；④事件通道改带缓冲（原无缓冲 `trySend` 会静默丢回退事件）；⑤解码面板「当前档位」改为 `ExoPlayer 硬解 / ExoPlayer 软解 / mpv 硬解 / mpv 软解 / 服务器转码`（`PlayerDecodeMode.decodeStage` 纯函数）。门禁 `assembleDebug（含 TV）+ ktfmtCheck + app 51 项 / player:local 59 项（+7）` 全绿；Pad 5 + K60 三段链路日志、四态文案与全败错误卡片证据见 §21。 |
 | 2026-10-02 | **W17-PLAYER 播放页第六轮反馈（`feature/w17-player-labels-fallback`）**：①回退链真实生效修复——第 3 档不再提前写 `playerBackend` 偏好（`PlayerHolder.player` 的 getter 会按新偏好原地重建实例，随后的 toggle 会把内核切回 ExoPlayer），改由 Activity 显式 `setBackend(mpv)`；删掉「同一媒体只降级一次」拦截，改由档位状态机防死循环；第 2 档（服务器转码）失败时任何错误都静默落第 3 档，只有第 3 档也失败才显示错误卡片。②解码面板删「优先级」提示、内核名只留 `ExoPlayer` / `mpv`。③「设置 → 播放」删除 W13 的码率 / 解码兜底两行。④中央播放键从月白填充改为与其它覆盖键同一套玻璃底 / 描边（像素采样：播放键内部 (119,156,168)、传输键 (162,177,181)、锁定键 (158,181,186)，同为压暗玻璃）。⑤右上 5 键 + 左下 6 键图标下加 10sp 小字（键框 56×58dp、图标 ×0.82），窄屏 / Compact 只留图标，右下全屏键与中央五键 / 锁定键保持纯图标；左下 6 键恒定齐全（码率 / 解码 不再隐藏）。⑥横屏退出全屏修复——全屏 + 选集覆盖层展开时底栏整体让出 320dp（退出全屏键从被面板盖住的 x≈2410 移到侧栏左侧 x≈1690），连点 20 次全部生效。门禁 `assembleDebug（含 TV）+ ktfmtCheck + app 51 项 / player:local 52 项` 全绿；双机真机证据见 §20。 |
@@ -1576,4 +1581,98 @@ uiautomator `播放失败 / mpv 播放失败：文件提前结束（eof-reached=
 2. **解码回退档位现在按播放会话保留**：同一会话内切集（队列换集）不清档位——语义是「这台设备在本会话里解不了这类流，继续用已降级的档位」；
    若希望「每集都从硬解重试」，需要把守卫 / 档位改回按媒体 id 判定（会重新引入容器入口的判定复杂度，未做）。
 3. **开关关闭只影响后续失败**：不会主动把当前播放的内核切回偏好内核（只清档位与守卫），面板选中态始终显示实际内核。
+4. W17 / W18 遗留继续挂账：Compact 自由窗口取证、libc++ 覆盖构建补丁在依赖升级后的复核。
+
+---
+
+## 23. W20-PLAYER 落地记录（2026-10-02 · 分支 `feature/w20-playback-enhance`）
+
+> 用户反馈 / 任务（§1.11 第一波三项）：①**进度记忆与服务端同步**（退出 / 切集 / 被杀后能恢复）；②**片头片尾阈值**复核 +
+> 提示条统一（自动跳过可关、双内核一致）；③**Trickplay 预加载与失败降级**（拖动时按需拉、无数据 / 拉取失败不卡不报错）。
+> 基线 master `7ec5015`（W19 已合并）。本波写 `player:local`（进度写入器 / Trickplay 加载 / 段偏好）、
+> `app:phone`（Activity 接线、提示条可见性、设置面板档位）；`data` 层**未改任何文件**；
+> `AppPreferences.kt` / `NavigationRoot.kt` / `settings.gradle.kts` / `libs.versions.toml` / `app/*/build.gradle.kts` 未触碰；未合并 master。
+
+### 23.1 复现与背景（Pad 5 `43af8627`）
+
+1. **会话进度不落 UserData**（本波最大缺口）：播放中 `Sessions/Playing/Progress` 每 5 秒都在发（logcat `Posting progress … position:` 递增），
+   但 `GET /Users/{userId}/Items/{itemId}` 读回的 `UserData.PlaybackPositionTicks` **恒为 0**——服务端只在停止上报时落库。
+   因此「系统杀掉进程」= 进度全丢（W19 时代续播只能靠 `Playing/Stopped`）。
+2. **上报循环挂在 Activity 上**：`PlayerActivity` 的 `repeatOnLifecycle(STARTED)` 里跑 5 秒上报，切后台 / 锁屏即停；
+   后台继续播（后台播放开关）时被杀，最后一段进度必丢。
+3. **片头片尾阈值形同虚设**：设置里有「显示跳过按钮时长」（秒），播放页却写死 `delay(8000L)`；且控制层 3.5 秒自动淡出会把整层
+   ComposeView 置成 `INVISIBLE`，提示条跟着消失——真机实测进片头段时「跳过片头」永远看不见（这才是用户报「提示条」的根因）。
+4. **Trickplay 一次性预拉整片**：`PlayerViewModel.getTrickplay` 在换集时把**全部精灵图**下载并解码成 `List<Bitmap>` 常驻内存
+   （一集几十到上百张，`for (i in 0..maxIndex)` 还会多请求一张越界图），缺失 / 失败时无失败标记、无降级语义。
+   本服务器 2116 个影片 / 剧集**全部没有 Trickplay 数据**（`Trickplay` 空 map、`GET …/Trickplay/{width}/0.jpg` 404），
+   即「服务器没有」这条路径是常态。
+
+### 23.2 实现（文件 + 行为）
+
+| 文件 | 改动 |
+|------|------|
+| `player/local/.../domain/PlaybackPositionWriter.kt`（新增） | 直写 `POST /UserItems/{itemId}/UserData`（只带 `PlaybackPositionTicks`）；SDK 1.8.12 的两个 UUID 参数顺序是「(path 的 itemId, query 的 userId)」，按 `(userId, itemId)` 传会拼成 `/UserItems/{userId}/UserData?userId={itemId}` → 400（真机踩到并修正） |
+| `player/local/.../presentation/PlayerViewModel.kt` | ①进度上报循环从 Activity 迁到 ViewModel 常驻协程（`playerHolder.existingPlayer` 判空、`isPlaying` 才发）；②`updatePlaybackProgress` 同时直写 UserData；③新增快照 `lastProgressItemId/Position/Duration` + `reportOutgoingItemStop()`（切集 / 手动换条目给**上一集**补 `Playing/Stopped`，与自然播完去重 15 s）；④暂停（非片尾）立即落一次进度；⑤`releasePlayer` 去掉 `delay(200)`，同步取快照后立刻发停止上报；⑥`trickplayLoader` 按需加载 + `trickplayFrameAt()`；⑦`uiState` 新增 `skipChipDurationMs` / `trickplayIntervalMs` / `trickplayVersion`（移除整批 `currentTrickplay`） |
+| `player/local/.../domain/TrickplayPreview.kt`（新增） | 纯逻辑：`TrickplayTiles`（精灵图索引换算 / 边界收敛）、`TrickplaySheetCache`（LRU，默认 2 张）、`TrickplayRequestState`（同图只发一次、**失败不重试**） |
+| `player/local/.../presentation/TrickplayPreviewLoader.kt`（新增） | 只拉「当前拖动位置所在的精灵图」；IO 拉取 + 解码、主线程落缓存与状态；失败 `markFailed` 后 `frameAt` 恒返回 null（UI 自然降级为「没有预览图」）；缓存目录兼容离线布局 `files/trickplay/<itemId>/<sourceId>/<index>` |
+| `app/phone/.../presentation/player/PlayerControlOverlay.kt` | 进度条与手势 HUD 改按需取图（`trickplayIntervalMs/Version/FrameAt`）；提示条超时读 `uiState.skipChipDurationMs`；`onRegionsChanged` 增加 `skipChipVisible` 维度（提示条可见时整层保持合成）；`SkipSegmentChip` 描边统一为 `outlineVariant`（与顶栏徽标 / 面板胶囊同一套 token） |
+| `app/phone/.../presentation/player/PlayerContentPanel.kt` | `PlayerCompactBar` 同步按需取图参数 |
+| `app/phone/.../presentation/player/PlayerSettingsPanel.kt` | 播放设置面板补「提示条显示时长」档位（3 / 5 / 8 / 10 秒，写既有偏好键；全局设置页仍可输入任意秒数） |
+| `app/phone/.../utils/PlayerGestureHelper.kt` | seek HUD 的预览图从「整批列表」改为 `trickplayFrameAt` 提供者（未命中先不显示，不阻塞手势） |
+| `app/phone/.../PlayerActivity.kt` | 移除 5 秒进度循环（迁往 ViewModel）；`trickplayFrameAt` 接线；`onRegionsChanged` 新参数参与可见性判定 |
+| `player/local/res/values{,-zh-rCN}/strings.xml` | 新增 2 条（提示条显示时长 / %d 秒） |
+| 单测 | 新增 `TrickplayPreviewTest` 6 项：精灵图换算（末张不满 / 越界 / 负数 / interval=0）、LRU 淘汰、请求去重与失败标记 = player:local 62 → **68** |
+
+### 23.3 门禁（2026-10-02）
+
+```
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- 根 `assembleDebug`（含 `:app:tv`）✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **51** 项（既有，未改动）
+- `:player:local:testDebugUnitTest` ✅ **68** 项 = 既有 62 + 新增 6
+
+### 23.4 真机走查（Pad 5 `43af8627`，命令全部带 `-s`；K60 归 W21-MUSIC，全程未占用）
+
+**① 进度：退出 / 杀进程 / 切集 / 双内核**（素材《秒速5厘米》`eb60b7e9…` + Hi10P《学生会的一己之见》S1:E1 `32074ae5…` / E2 `64c132f8…`）：
+
+```
+Posting progress of eb60b7e9…, position: 1896540000          ← 退出前最后一次周期写入
+PlayerViewModel$releasePlayer: Sending playback stop          ← 返回键退出
+GET /Users/{uid}/Items/eb60b7e9… → UserData.PlaybackPositionTicks = 189.7s   ← API 回读
+initializePlayer … → media_session position=189659（重开续播点 = 退出点）   ← 差 5ms
+am force-stop → 服务端 194.8s；重开后 position=194849        ← 杀进程后恢复
+PlayerViewModel: 换集：为上一集补停止上报 itemId=32074ae5… position=142029
+GET …/32074ae5… → 142.0s                                     ← 「切集」把上一集钉在切走的位置
+（mpv）Posting progress position=2070000000 → 服务端 207s；退出 stop → 225s；重开续播 242s
+```
+
+**② 片头片尾**（服务器无 media segments，按 W5-R3I / W17 先例用**临时注入补丁**取证，验完已 `git` 还原并重装干净包）：
+提示条 `text=跳过片头` bounds `[1364,2186][1510,2234]`（Exo / mpv 完全一致）；时长档 30 s：段内 8 s 仍可见，
+档 3 s：段内 9 s 已收起；自动跳过**开**（关掉按钮）= 位置 60 s → 122 s（mpv）/ 122.6 s（Exo）；**关** = 停在段内不跳（74 s→89 s）。
+
+**③ Trickplay 两条路径**（同临时注入 + 手工投喂精灵图）：
+
+```
+GET https://…/Videos/eb60b7e9…/Trickplay/160/0.jpg           ← 拖动触发按需拉取（服务器无图 → 404）
+TrickplayPreviewLoader: Trickplay 预览降级：精灵图 0 不可用（本次播放不再重试）
+（投喂 5×5 精灵图到 files/trickplay/<itemId>/<sourceId>/0 后）
+TrickplayPreviewLoader: Trickplay 精灵图就绪：sheet=0 tiles=25
+截图分析：预览色块 210412 px，bbox=(494,180)-(1105,523)（Exo=蓝 tile / mpv=绿 tile，几何位置一致）
+```
+
+拖动全程无卡顿、无异常、无错误卡片；`logcat` 整轮 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` / `UnsatisfiedLinkError` 均 **0**。
+
+**④ 副作用与还原**：prefs 用会话开始备份原样写回（`adb push` + `run-as sh -c 'cat … > …'`，写后 `ls -l` 核对 2729 B；
+`backend=exoplayer` / `stage=0` / `streaming_bitrate=0` / `subtitle_mode=auto`，测试期新增的 `media_segments_*` 键消失）；
+注入的 `files/trickplay/**` 已删、`/data/local/tmp` 与 `/sdcard` 的 `w20_*` 清空、App force-stop、Wi-Fi 保持开启、`wm size/density` 未改动。
+
+### 23.5 未决 / 移交项
+
+1. **服务器数据缺失**：本波服务器（`jellyfins.zhangwenkang.com`）2116 个影片 / 剧集**全部无 Trickplay**、抽样剧集**无 media segments**，
+   片头尾与 Trickplay 的「正常路径」只能用临时注入 + 投喂精灵图验证；等服务器侧生成数据后建议补一次真实数据回归（纯 `adb` 即可，无需改码）。
+2. **UserData 写入频率**：与 5 秒会话上报同频（只写 `PlaybackPositionTicks`）；如担心服务端写压力，可降到 15 秒 + 暂停 / 退出 / 切集必写（本波按「杀进程精度 ≤5 s」取舍）。
+3. **Trickplay 只缓存 2 张精灵图**：快速长距离拖动时可能出现「先空一帧、下一帧出图」；如观感不够，可把 `TrickplaySheetCache(capacity = 2)` 调到 3–4（内存每张约 1.4 MB）。
 4. W17 / W18 遗留继续挂账：Compact 自由窗口取证、libc++ 覆盖构建补丁在依赖升级后的复核。

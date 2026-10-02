@@ -11,6 +11,7 @@
  */
 package com.zhangwenkang.cinefin.presentation.player
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -66,7 +67,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
-import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import kotlin.math.roundToInt
 
@@ -641,7 +641,10 @@ internal fun PlayerCompactBar(
     durationMs: Long,
     bufferedMs: Long,
     chapters: List<PlayerChapter>,
-    trickplay: Trickplay?,
+    /** W20（§1.11）：Trickplay 预览改为按需取——间隔 0 = 无预览，version 变化 = 新图到位 */
+    trickplayIntervalMs: Int,
+    trickplayVersion: Int,
+    trickplayFrameAt: (Long) -> Bitmap?,
     isFullscreen: Boolean,
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
@@ -749,7 +752,9 @@ internal fun PlayerCompactBar(
             durationMs = durationMs,
             bufferedMs = bufferedMs,
             chapters = chapters,
-            trickplay = trickplay,
+            trickplayIntervalMs = trickplayIntervalMs,
+            trickplayVersion = trickplayVersion,
+            trickplayFrameAt = trickplayFrameAt,
             onScrubStart = onScrubStart,
             onScrub = onSeek,
         )

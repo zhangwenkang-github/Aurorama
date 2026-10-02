@@ -45,6 +45,8 @@
     <string name="player_settings_background_audio_caption">Keep playing after leaving the player page</string>
     <string name="player_settings_segments_button">Skip intro / outro button</string>
     <string name="player_settings_segments_auto">Auto skip intro / outro</string>
+    <string name="player_settings_segments_button_duration">Skip button duration</string>
+    <string name="player_settings_segments_seconds">%1$d s</string>
     <string name="player_settings_chapter_markers">Chapter markers on the progress bar</string>
     <string name="player_settings_pause_after_item">Pause when the item ends</string>
     <string name="player_settings_pause_after_item_caption">Stay at the end instead of playing the next episode</string>

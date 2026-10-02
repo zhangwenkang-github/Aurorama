@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.player
 
+import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
@@ -95,7 +96,6 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NU
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
-import com.zhangwenkang.cinefin.player.core.domain.models.Trickplay
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
@@ -602,6 +602,8 @@ fun PlayerControlOverlay(
     onQueueMove: (Int, Int) -> Unit = { _, _ -> },
     onQueueRemove: (Int) -> Unit = {},
     onQueueClear: () -> Unit = {},
+    /** W20（§1.11 Trickplay）：按位置取预览图；未命中会触发后台按需拉取并返回 null。 传 null 时进度条不做任何预览查询（旧行为里的「没有图」）。 */
+    trickplayFrameAt: (Long) -> Bitmap? = { null },
     /** 进度条是否显示章节刻度（§1.9 设置面板「播放」组；关掉后不画刻度） */
     showChapterMarkers: Boolean = true,
     /** 循环模式附加项「播完暂停」变化 */
@@ -610,7 +612,10 @@ fun PlayerControlOverlay(
     onRetry: () -> Unit,
     /** 「换内核」：ExoPlayer ⇄ mpv（由 Activity 写偏好并重启播放页生效） */
     onSwitchBackend: (String) -> Unit,
-    /** 把「控制层可见 / 面板打开 / 锁屏 / 错误卡片」同步给承载视图，用来决定哪些触摸留给播放器 */
+    /**
+     * 把「控制层可见 / 面板打开 / 锁屏 / 错误卡片 / 片头片尾提示条可见」同步给承载视图： 前四项用来决定哪些触摸留给播放器，最后一项（W20）用来决定整层 ComposeView
+     * 是否保持合成—— 控制层 3.5 秒淡出时提示条不能跟着消失（§6.1）。
+     */
     onRegionsChanged:
         (
             visible: Boolean,
@@ -618,8 +623,9 @@ fun PlayerControlOverlay(
             locked: Boolean,
             errorVisible: Boolean,
             buffering: Boolean,
+            skipChipVisible: Boolean,
         ) -> Unit =
-        { _, _, _, _, _ ->
+        { _, _, _, _, _, _ ->
         },
     /** 实测顶栏 / 底栏高度（px）回传给命中区：控件高度一变，触摸分区跟着变（§9 踩坑） */
     onTopBarHeight: (Int) -> Unit = {},
@@ -650,6 +656,7 @@ fun PlayerControlOverlay(
         controls.locked,
         uiState.playerError,
         runtime.isBuffering,
+        skipChipVisible,
     ) {
         onRegionsChanged(
             controls.visible,
@@ -658,6 +665,8 @@ fun PlayerControlOverlay(
             uiState.playerError != null,
             // 缓冲期间承载视图要保持合成：控件整层隐藏时还要画那一个独立的缓冲圈（反馈⑤）
             runtime.isBuffering,
+            // W20（§6.1）：跳过提示条独立于控制层，可见时承载视图必须保持合成
+            skipChipVisible && uiState.currentSegment != null && !controls.locked,
         )
     }
 
@@ -715,11 +724,15 @@ fun PlayerControlOverlay(
         }
     }
 
-    // 片头/片尾按钮：跟当前片段走，超时后自动收起
-    LaunchedEffect(uiState.currentSegment) {
+    /*
+     * 片头/片尾按钮：跟当前片段走，超时后自动收起。
+     * W20（§6.1）：超时时长读设置里的「跳过按钮显示时长」（uiState.skipChipDurationMs），
+     * 不再写死 8 秒；改设置后新的片段按新阈值收起。
+     */
+    LaunchedEffect(uiState.currentSegment, uiState.skipChipDurationMs) {
         if (uiState.currentSegment != null) {
             skipChipVisible = true
-            delay(8000L)
+            delay(uiState.skipChipDurationMs.coerceAtLeast(1000L))
             skipChipVisible = false
         } else {
             skipChipVisible = false
@@ -783,7 +796,9 @@ fun PlayerControlOverlay(
                 durationMs = runtime.duration,
                 bufferedMs = runtime.buffered,
                 chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
-                trickplay = uiState.currentTrickplay,
+                trickplayIntervalMs = uiState.trickplayIntervalMs,
+                trickplayVersion = uiState.trickplayVersion,
+                trickplayFrameAt = trickplayFrameAt,
                 speed = runtime.speed,
                 sleepActive = sleepRemaining > 0L,
                 subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
@@ -869,7 +884,9 @@ fun PlayerControlOverlay(
                 durationMs = runtime.duration,
                 bufferedMs = runtime.buffered,
                 chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
-                trickplay = uiState.currentTrickplay,
+                trickplayIntervalMs = uiState.trickplayIntervalMs,
+                trickplayVersion = uiState.trickplayVersion,
+                trickplayFrameAt = trickplayFrameAt,
                 isFullscreen = isFullscreen,
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
                 onPrevious = { player.seekToPreviousMediaItem() },
@@ -1777,7 +1794,9 @@ private fun PlayerBottomBar(
     durationMs: Long,
     bufferedMs: Long,
     chapters: List<PlayerChapter>,
-    trickplay: Trickplay?,
+    trickplayIntervalMs: Int,
+    trickplayVersion: Int,
+    trickplayFrameAt: (Long) -> Bitmap?,
     speed: Float,
     sleepActive: Boolean,
     /** 字幕键激活态（改在进度条下方这一行，W12 终版布局） */
@@ -1837,7 +1856,9 @@ private fun PlayerBottomBar(
                     durationMs = durationMs,
                     bufferedMs = bufferedMs,
                     chapters = chapters,
-                    trickplay = trickplay,
+                    trickplayIntervalMs = trickplayIntervalMs,
+                    trickplayVersion = trickplayVersion,
+                    trickplayFrameAt = trickplayFrameAt,
                     onScrubStart = onScrubStart,
                     onScrub = { onSeek(it) },
                 )
@@ -2173,7 +2194,15 @@ internal fun PlayerSeekBar(
     durationMs: Long,
     bufferedMs: Long,
     chapters: List<PlayerChapter>,
-    trickplay: Trickplay?,
+    /**
+     * W20（§1.11）：Trickplay 改为按需预览。
+     *
+     * [trickplayIntervalMs] = 0 表示本条目没有可用预览（服务器没生成 / 拉取失败 / 用户关闭）； [trickplayVersion]
+     * 是新图到位的版本号（读它让本次重组订阅加载进度）； [trickplayFrameAt] 只做「查缓存 + 触发后台拉取」，不会阻塞拖动。
+     */
+    trickplayIntervalMs: Int = 0,
+    trickplayVersion: Int = 0,
+    trickplayFrameAt: (Long) -> Bitmap? = { null },
     onScrubStart: () -> Unit,
     onScrub: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -2193,9 +2222,10 @@ internal fun PlayerSeekBar(
     val bufferedFraction = (bufferedMs.toFloat() / safeDuration).coerceIn(0f, 1f)
     val previewPosition = (playedFraction * safeDuration).roundToLong()
     val previewBitmap: android.graphics.Bitmap? =
-        if (scrubbing && trickplay != null && trickplay.images.isNotEmpty()) {
-            val index = (previewPosition / trickplay.interval.coerceAtLeast(1)).toInt()
-            trickplay.images.getOrNull(index.coerceIn(0, trickplay.images.size - 1))
+        if (scrubbing && trickplayIntervalMs > 0) {
+            // 显式引用版本号：新精灵图到位（version 变化）时本段重组，把预览图刷出来
+            @Suppress("UNUSED_EXPRESSION") trickplayVersion
+            trickplayFrameAt(previewPosition)
         } else {
             null
         }
@@ -2493,6 +2523,11 @@ private fun SkipSegmentChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    /*
+     * W20（§6.1 提示条样式统一）：与顶栏徽标（PlayerOverlayBadge）/ 面板胶囊（PanelChip）共用同一套
+     * 中性描边 token（outlineVariant）与 scrim 底，只把图标留给媒体强调色；
+     * 旧实现用 media.outline 描边，在亮画面上比其它覆盖层控件更抢眼。
+     */
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val shape = CinefinShapes.Full
@@ -2502,7 +2537,7 @@ private fun SkipSegmentChip(
             modifier
                 .clip(shape)
                 .background(colors.scrim.copy(alpha = 0.8f))
-                .border(1.dp, media.outline, shape)
+                .border(1.dp, colors.outlineVariant, shape)
                 .clickable(onClick = onClick)
                 .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space3),
     ) {
