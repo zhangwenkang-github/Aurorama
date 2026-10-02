@@ -259,7 +259,7 @@ class PlayerActivity : BasePlayerActivity() {
                         onSelectResizeMode = { mode -> selectResizeMode(mode) },
                         settingsController = settingsController,
                         videoTransform = videoTransform.value,
-                        onSelectBackend = { backend -> restartWithBackend(backend) },
+                        onSelectBackend = { backend -> switchBackendAndRestart(backend) },
                         onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
                         onSelectDecodeMode = { mode -> selectDecodeMode(mode) },
                         onSelectBitrate = { bitrate -> selectStreamingBitrate(bitrate) },
@@ -380,9 +380,9 @@ class PlayerActivity : BasePlayerActivity() {
                     viewModel.eventsChannelFlow.collect { event ->
                         when (event) {
                             is PlayerEvents.NavigateBack -> finishPlayback()
-                            // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendAndRestart 带过去）
+                            // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendForFallback 带过去）
                             is PlayerEvents.FallbackToMpv ->
-                                switchBackendAndRestart(PlayerViewModel.PLAYER_BACKEND_MPV)
+                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
                             // W16 回退链第 2 档：服务器解码/转码（PlaybackInfo 已按档位强制转码，重启拉新流）
                             is PlayerEvents.RestartWithServerTranscode ->
                                 restartPlaybackKeepingPosition("fallback=server-transcode")
@@ -392,7 +392,7 @@ class PlayerActivity : BasePlayerActivity() {
                              * 可能已把实例重建为 mpv，toggle 会误判成「切回 ExoPlayer」，导致回退链断在第 2 档。
                              */
                             is PlayerEvents.FallbackToSoftware ->
-                                switchBackendAndRestart(PlayerViewModel.PLAYER_BACKEND_MPV)
+                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
                             // 字幕外观变化：同步给 PlayerView 的原生字幕（图形字幕 / 兜底路径）
                             is PlayerEvents.SubtitleStyleChanged -> configureSubtitleStyle()
                             is PlayerEvents.IsPlayingChanged -> {
@@ -655,23 +655,32 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     /**
-     * 重启播放页并切换内核。
+     * 手动切内核（解码面板 / 错误卡片「改用 X 内核」）。
      *
-     * [target] 非空 = 显式切到该内核（回退链第 3 档必须显式指定 mpv）；为空 = 错误卡片 / 既有入口的 toggle 语义（ExoPlayer ⇄ mpv）。
+     * W18（用户实测反馈）：**手动选内核不等于关掉回退链**——这里把回退档位清回第 1 档（用户显式选择优先， 链路从头走），失败后仍按「本地硬解 → 服务器解码/转码 →
+     * 本地软解」逐级下降。
      *
      * 注意顺序：先读当前位置，再写偏好——写完后 [PlayerViewModel.player] 会按新偏好重建实例， 后读位置会拿到 0。
      */
-    private fun switchBackendAndRestart(target: String? = null) {
+    private fun switchBackendAndRestart(target: String) {
         val position = viewModel.player.currentPosition.coerceAtLeast(0L)
-        val next = target ?: viewModel.switchBackend()
-        if (target != null) viewModel.setBackend(target)
-        Timber.d("Restart player with backend=$next from position=$position")
+        viewModel.setBackend(target)
+        viewModel.clearDecodeFallback()
+        Timber.d("Restart player with backend=$target from position=$position (manual)")
+        restartPlaybackFromPosition(position)
+    }
 
-        // recreate() 会复用同一个 Intent，把续播位置写回去即可
-        intent.putExtra(EXTRA_START_POSITION_MS, position)
-        // 不清空的话 recreate() 会把同一个 ViewModel（连着旧 player）交回来
-        viewModelStore.clear()
-        recreate()
+    /**
+     * 回退链换内核（第 3 档：mpv + hwdec=no）。
+     *
+     * 与手动切换的区别：**保留**回退档位（PlayerHolder 靠它强制软解），且目标内核必须显式指定，不能用 toggle——档位写入后 PlayerHolder 可能已把实例重建为
+     * mpv，toggle 会误判成「切回 ExoPlayer」（W17 根因）。
+     */
+    private fun switchBackendForFallback(target: String) {
+        val position = viewModel.player.currentPosition.coerceAtLeast(0L)
+        viewModel.setBackend(target)
+        Timber.d("Restart player with backend=$target from position=$position (fallback)")
+        restartPlaybackFromPosition(position)
     }
 
     /**
@@ -875,14 +884,6 @@ class PlayerActivity : BasePlayerActivity() {
         Timber.d("mpv hwdec=%s", hwDec)
     }
 
-    /** 设置面板切内核：目标值已写入偏好，这里负责「重启播放页 + 保留进度」 */
-    private fun restartWithBackend(backend: String) {
-        viewModel.setBackend(backend)
-        // 用户显式选内核：解码回退档位清零，回退链从头走（W16）
-        viewModel.clearDecodeFallback()
-        restartPlaybackKeepingPosition("backend=$backend")
-    }
-
     /**
      * 解码策略（W12 反馈 B）：硬解优先 / 仅软解。
      *
@@ -915,7 +916,17 @@ class PlayerActivity : BasePlayerActivity() {
     private fun restartPlaybackKeepingPosition(reason: String) {
         val position = viewModel.player.currentPosition.coerceAtLeast(0L)
         Timber.d("Restart player (%s) from position=%d", reason, position)
-        intent.putExtra(EXTRA_START_POSITION_MS, position)
+        restartPlaybackFromPosition(position)
+    }
+
+    /**
+     * 从给定位置重开播放页。
+     *
+     * W18：单独抽出来是因为「手动切内核」必须**先读位置、再写偏好**（见 [switchBackendAndRestart]），
+     * 位置要由调用方传入，不能在这里再读一次（那时实例已重建、位置是 0）。
+     */
+    private fun restartPlaybackFromPosition(positionMs: Long) {
+        intent.putExtra(EXTRA_START_POSITION_MS, positionMs)
         viewModelStore.clear()
         recreate()
     }

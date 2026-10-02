@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -114,8 +115,19 @@ constructor(
         )
     val uiState = _uiState.asStateFlow()
 
-    private val eventsChannel = Channel<PlayerEvents>()
+    /**
+     * W18：事件通道必须有缓冲。
+     *
+     * 无缓冲（rendezvous）通道上 `trySend` 只有在「接收方此刻正挂起等待」时才成功——回退链的事件是在
+     * `onPlayerError`（主线程）里发出的，若此刻主线程正忙于重组 / 处理上一条事件，事件会被**静默丢弃**， 而 `handleCodecFallback`
+     * 已经返回「已接管」→ 既没有回退、也没有错误卡片（用户看到的就是 「解码失败后没有切回 mpv」）。缓冲后 `trySend` 不会丢事件。
+     */
+    private val eventsChannel = Channel<PlayerEvents>(capacity = Channel.BUFFERED)
     val eventsChannelFlow = eventsChannel.receiveAsFlow()
+
+    /** W18：上一次被回退链接管的失败（内核:档位 + 时间），用于吞掉同一次失败的重复上报 */
+    private var lastFailureHandledKey: String? = null
+    private var lastFailureHandledAtMs: Long = 0L
 
     data class UiState(
         val currentItemTitle: String,
@@ -872,8 +884,8 @@ constructor(
     /**
      * 播放失败：记下错误让控制层显示错误卡片。
      *
-     * note：mpv 内核目前不会走这里（`MPVPlayer.getPlayerError()` 恒为 null、也没上报事件）， 所以错误卡片只在 ExoPlayer 内核生效；mpv
-     * 的错误上报见 docs/PLAYER_PLAN.md 待办。
+     * W18：mpv 也走这里了——`MPVPlayer` 在 `MPV_EVENT_END_FILE` 且 `eof-reached=false`（非正常播完）时上报
+     * [PlaybackException]，于是「手动选 mpv 后播放失败」同样能进回退链 / 错误卡片（此前 mpv 的错误静默丢失）。
      */
     override fun onPlayerError(error: PlaybackException) {
         Timber.e(error, "Player error on backend=$playerBackend: ${error.errorCodeName}")
@@ -910,34 +922,59 @@ constructor(
      * `setBackend(mpv)` 完成，避免「偏好已 mpv、实例仍被读成 Exo」时 toggle 语义把内核切回 ExoPlayer；②
      * 去掉「同一媒体只降级一次」的拦截，改由档位状态机防死循环， 否则第 2 档失败会卡在 Exo 不落第 3 档；③ 只有第 3 档（本地软解）也失败才把错误交给调用方显示。
      *
+     * W18 修复（用户实测「解码面板手动切 ExoPlayer 后失败不回退」）： ① 判定抽到 [PlayerDecodeFallback.stageAfterFailure]
+     * 纯函数并补单测——**内核是手动还是自动不影响链路**， ExoPlayer 与 mpv 的失败都走同一条「本地硬解 → 服务器解码/转码 → 本地软解」； ② 手动切内核（解码面板 /
+     * 错误卡片）统一由 Activity 清空回退档位，链路从第 1 档重新走； ③ 事件通道改为带缓冲，`trySend` 不再静默丢事件（丢事件会造成「既不回退也不报错」的假死）。
+     *
      * @return true = 本次错误已被回退链接管（不要显示错误卡片）；false = 链路用尽或不该回退。
      */
     private fun handleCodecFallback(error: PlaybackException): Boolean {
-        if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return false
+        val backend = playerBackend
         val mediaId = player.currentMediaItem?.mediaId ?: return false
         val currentStage =
             PlayerDecodeFallback.normalize(
                 appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
             )
-        // 第 3 档（本地软解）是最后一档：再失败就是「全部失败」，交给调用方显示错误卡片
-        if (currentStage == PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE) return false
         /*
-         * 第一档只接「内核解不了这个格式」类错误；第二档（服务器转码流也失败）时无论错误码都落第 3 档，
-         * 保证「只有全部失败才提示错误」——服务器转码不作为链路的终点。
+         * W18：同一次失败内核可能连续上报多条（mpv 一次打开失败会连发 2–3 条 END_FILE；
+         * 不去重的话「第 1 档失败」会被处理两次，档位直接从 0 跳到 2，服务器转码那一档被跳过）。
          */
-        if (!isCodecCapabilityError(error) && currentStage == PlayerDecodeFallback.STAGE_NONE) {
-            return false
+        val nowMs = SystemClock.elapsedRealtime()
+        if (
+            PlayerDecodeFallback.isDuplicateFailure(
+                lastKey = lastFailureHandledKey,
+                lastHandledAtMs = lastFailureHandledAtMs,
+                backend = backend,
+                stage = currentStage,
+                nowMs = nowMs,
+            )
+        ) {
+            Timber.d(
+                "忽略重复的解码失败上报（%s，%dms 内已接管）",
+                PlayerDecodeFallback.failureKey(backend, currentStage),
+                nowMs - lastFailureHandledAtMs,
+            )
+            return true
         }
-        val bitratePreference = appPreferences.getValue(appPreferences.playerStreamingBitrate)
-        val nextStage = PlayerDecodeFallback.nextStage(currentStage, bitratePreference)
-        if (nextStage == currentStage) return false
+        val nextStage =
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = currentStage,
+                backend = backend,
+                bitratePreference = appPreferences.getValue(appPreferences.playerStreamingBitrate),
+                codecCapabilityError = isCodecCapabilityError(error),
+            )
+        // null = 链路已用尽（第 3 档也失败）：这一次才是「全部失败」，交给错误卡片
+        if (nextStage == null || nextStage == currentStage) return false
+        lastFailureHandledKey = PlayerDecodeFallback.failureKey(backend, currentStage)
+        lastFailureHandledAtMs = nowMs
         appPreferences.setValue(appPreferences.playerDecodeFallbackStage, nextStage)
         appPreferences.setValue(appPreferences.playerDecodeFallbackMediaId, mediaId)
 
         when (nextStage) {
             PlayerDecodeFallback.STAGE_SERVER_TRANSCODE -> {
                 Timber.i(
-                    "解码能力不足（%s），先请求服务器解码/转码重试（优先级：本地硬解 → 服务器转码 → 本地软解）",
+                    "解码能力不足（backend=%s，%s），先请求服务器解码/转码重试（优先级：本地硬解 → 服务器转码 → 本地软解）",
+                    backend,
                     error.errorCodeName,
                 )
                 eventsChannel.trySend(PlayerEvents.RestartWithServerTranscode)
@@ -949,7 +986,8 @@ constructor(
                  * 提前写偏好会让 PlayerHolder 在原地把实例重建为 mpv，随后 toggle 又把它切回 Exo（W17 根因）。
                  */
                 Timber.i(
-                    "解码能力不足（%s），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）",
+                    "解码能力不足（backend=%s，%s），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）",
+                    backend,
                     error.errorCodeName,
                 )
                 eventsChannel.trySend(PlayerEvents.FallbackToSoftware)

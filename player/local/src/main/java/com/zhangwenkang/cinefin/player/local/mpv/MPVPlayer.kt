@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -373,6 +374,29 @@ class MPVPlayer(
     /** App 字幕模式的自动选轨意图：true = sid=auto（按 slang / 默认轨选），false = sid=no */
     private var subtitleAutoSelect: Boolean = true
 
+    /**
+     * W18：错误上报的抑制预算。
+     *
+     * mpv 的 `MPV_EVENT_END_FILE` 只带事件 id、拿不到 reason，所以用三条规则区分「正常结束」与「播放失败」： ① `eof-reached == true`
+     * = 正常播完（含队列换集）；② 我们主动 `stop` / 换片 / 切集 / 删条目时，mpv 会为**旧文件** 立刻发一次非 EOF 的
+     * END_FILE——按「自己发起的条数」计数抵消，不能把它之后的**新文件打开失败**一起吞掉； ③ 预算只在时间窗内有效，超时作废（防漏掉事件后一直吞错误）。
+     */
+    private var intentionalEndFileBudget: Int = 0
+    private var suppressEndFileErrorUntilMs: Long = 0L
+
+    /**
+     * 记一次「自己发起的 END_FILE」。
+     *
+     * @param count 这一次操作预计产生的 END_FILE 条数（`playlist-clear` + `playlist-remove current` 可能是 2）
+     */
+    private fun markIntentionalEndFile(count: Int = 1) {
+        // 只有「当前已经有文件在播」时才会有旧文件的 END_FILE 需要抵消；
+        // 起播阶段（还没加载任何文件）不留预算，否则会把首个文件的打开失败一起吞掉
+        if (!isPlayerReady) return
+        intentionalEndFileBudget += count
+        suppressEndFileErrorUntilMs = SystemClock.elapsedRealtime() + END_FILE_SUPPRESS_WINDOW_MS
+    }
+
     // mpv events
     override fun eventProperty(property: String) {
         // Nothing to do...
@@ -504,6 +528,8 @@ class MPVPlayer(
                 }
                 MpvEvent.MPV_EVENT_FILE_LOADED -> {
                     isSeekable = mpvLib.getPropertyBoolean("seekable") == true
+                    // 新文件已经解析成功：旧文件的 END_FILE 预算作废（避免吞掉之后的真实失败）
+                    intentionalEndFileBudget = 0
                     currentDurationMs =
                         (mpvLib.getPropertyDouble("duration")?.times(C.MILLIS_PER_SECOND))?.toLong()
                     // 容器解析完成：此时 track-list 是完整的，按「有无内嵌字幕」决定是否注入服务端字幕
@@ -529,6 +555,46 @@ class MPVPlayer(
                         }
                     } else {
                         setPlayerStateAndNotifyIfChanged(playbackState = STATE_READY)
+                    }
+                }
+                /*
+                 * W18：mpv 的播放失败上报。
+                 *
+                 * MPVLib 的事件回调只给事件 id（拿不到 END_FILE 的 reason），所以判定用三条规则：
+                 * ① `eof-reached == true` → 正常播完（队列换集也走这里），不上报；
+                 * ② 我们主动 stop / 切集 / 释放引起的**旧文件**非 EOF END_FILE，按预算逐条抵消；
+                 * ③ 预算超时作废，保证新文件的打开失败不会被一起吞掉。
+                 * 其余 = 打开失败 / 流中断 / 解码失败 → 交给 [Player.Listener.onPlayerError]，
+                 * ViewModel 据此走「本地硬解 → 服务器转码 → 本地软解」的同一套回退链。
+                 */
+                MpvEvent.MPV_EVENT_END_FILE -> {
+                    val eofReached = mpvLib.getPropertyBoolean("eof-reached") == true
+                    val withinWindow = SystemClock.elapsedRealtime() < suppressEndFileErrorUntilMs
+                    if (!withinWindow) intentionalEndFileBudget = 0
+                    val intentional =
+                        released ||
+                            commandsClosed.get() ||
+                            (withinWindow && intentionalEndFileBudget > 0)
+                    if (intentional && withinWindow && intentionalEndFileBudget > 0) {
+                        intentionalEndFileBudget--
+                    }
+                    val suppressed = released || commandsClosed.get() || intentional
+                    if (!eofReached && !suppressed) {
+                        val error =
+                            PlaybackException(
+                                "mpv 播放失败：文件提前结束（eof-reached=false）",
+                                null,
+                                PlaybackException.ERROR_CODE_UNSPECIFIED,
+                            )
+                        Timber.e("MPVPlayer 播放失败：END_FILE 未到文件末尾（eof-reached=false），上报回退链")
+                        listeners.sendEvent(EVENT_PLAYER_ERROR) { listener ->
+                            listener.onPlayerError(error)
+                        }
+                        setPlayerStateAndNotifyIfChanged(
+                            playWhenReady = false,
+                            playWhenReadyChangeReason = PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST,
+                            playbackState = STATE_IDLE,
+                        )
                     }
                 }
                 else -> Unit
@@ -990,6 +1056,8 @@ class MPVPlayer(
      *   [.getCurrentWindowIndex] and [.getCurrentPosition].
      */
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
+        // 自己发起的换片：接下来非 EOF 的 END_FILE 不算播放失败
+        markIntentionalEndFile(count = 2)
         postCommand(arrayOf("playlist-clear"))
         postCommand(arrayOf("playlist-remove", "current"))
         internalMediaItems = mediaItems
@@ -1013,6 +1081,7 @@ class MPVPlayer(
         startWindowIndex: Int,
         startPositionMs: Long,
     ) {
+        markIntentionalEndFile(count = 2)
         postCommand(arrayOf("playlist-clear"))
         postCommand(arrayOf("playlist-remove", "current"))
         internalMediaItems = mediaItems
@@ -1100,6 +1169,8 @@ class MPVPlayer(
         if (from >= to) return
 
         internalMediaItems.subList(from, to).clear()
+        // 可能删到正在播的条目（如清空队列）：接下来的非 EOF END_FILE 属自己发起
+        if (currentMediaItemIndex in from until to) markIntentionalEndFile()
         // 从后往前删：先删大下标，前面的下标不会漂移
         for (index in (to - 1) downTo from) {
             postCommand(arrayOf("playlist-remove", index.toString()))
@@ -1357,6 +1428,8 @@ class MPVPlayer(
 
     private fun prepareMediaItem(index: Int) {
         internalMediaItems.getOrNull(index)?.let { mediaItem ->
+            // 主动切集 / 重载：旧文件随即产生的非 EOF END_FILE 不算播放失败
+            markIntentionalEndFile()
             resetInternalState()
             // 每个条目自带 Jellyfin 字幕清单：转码（容器无内嵌字幕）时由 mpv 侧补 sub-add
             pendingServerSubtitles = mediaItem.serverSubtitleSources()
@@ -1422,6 +1495,7 @@ class MPVPlayer(
     }
 
     override fun stop() {
+        markIntentionalEndFile()
         postCommand(arrayOf("stop", "keep-playlist"))
     }
 
@@ -2024,6 +2098,14 @@ class MPVPlayer(
     companion object {
         /** Fraction to which audio volume is ducked on loss of audio focus */
         private const val AUDIO_FOCUS_DUCKING = 0.5f
+
+        /**
+         * W18：END_FILE 错误抑制窗口（毫秒）。
+         *
+         * `stop` / 换片 / 切集 / 清队列后，mpv 会为旧文件立刻发一次非 EOF 的 END_FILE；窗口内的这类事件
+         * 属于「自己发起」，不能报成播放失败。正常播放失败（打开失败 / 流中断 / 解码失败）不会紧跟在 这些操作之后。
+         */
+        private const val END_FILE_SUPPRESS_WINDOW_MS = 3_000L
 
         private val permanentAvailableCommands: Commands =
             Commands.Builder()

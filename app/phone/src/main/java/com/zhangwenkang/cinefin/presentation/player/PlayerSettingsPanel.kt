@@ -38,12 +38,12 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
-import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 
@@ -640,12 +640,25 @@ internal fun PlayerDecodePanel(
                     stringResource(
                         PlayerR.string.player_controls_decode_stage_active,
                         stringResource(
-                            when (settings.decodeFallbackStage) {
-                                PlayerDecodeFallback.STAGE_SERVER_TRANSCODE ->
+                            // W18：档位文案带内核（ExoPlayer 硬解 / mpv 硬解 / 服务器转码 / mpv 软解），
+                            // 避免「本地硬解」被误读成 mpv 硬解
+                            when (
+                                PlayerDecodeMode.decodeStage(
+                                    backend = settings.backend,
+                                    mode = settings.decodeMode,
+                                    fallbackStage = settings.decodeFallbackStage,
+                                )
+                            ) {
+                                PlayerDecodeMode.DecodeStage.EXO_HARDWARE ->
+                                    PlayerR.string.player_controls_decode_stage_exo_hardware
+                                PlayerDecodeMode.DecodeStage.EXO_SOFTWARE ->
+                                    PlayerR.string.player_controls_decode_stage_exo_software
+                                PlayerDecodeMode.DecodeStage.MPV_HARDWARE ->
+                                    PlayerR.string.player_controls_decode_stage_mpv_hardware
+                                PlayerDecodeMode.DecodeStage.MPV_SOFTWARE ->
+                                    PlayerR.string.player_controls_decode_stage_mpv_software
+                                PlayerDecodeMode.DecodeStage.SERVER_TRANSCODE ->
                                     PlayerR.string.player_controls_decode_stage_server
-                                PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE ->
-                                    PlayerR.string.player_controls_decode_stage_software
-                                else -> PlayerR.string.player_controls_decode_stage_hardware
                             }
                         ),
                     ),

@@ -9,6 +9,11 @@ package com.zhangwenkang.cinefin.settings.domain
  * PlayerHolder 建实例（档位 = 本地软解时强制软解）； ③ 播放页面板 / ViewModel 推进档位。抽成纯函数（+ 单测）避免三处各写一套 if。
  */
 object PlayerDecodeFallback {
+    /** 内核取值，与 `AppPreferences.playerBackend` / `PlayerViewModel.PLAYER_BACKEND_*` 一致 */
+    const val BACKEND_EXOPLAYER = "exoplayer"
+
+    const val BACKEND_MPV = "mpv"
+
     /** 未降级：本地硬解 */
     const val STAGE_NONE = 0
 
@@ -53,6 +58,66 @@ object PlayerDecodeFallback {
     /** 档位是否要求「本地软解」：PlayerHolder 据此忽略硬解偏好 */
     fun forcesLocalSoftware(stage: Int?): Boolean = normalize(stage) == STAGE_LOCAL_SOFTWARE
 
+    /**
+     * W18：**一次播放失败后的下一档**（null = 链路已用尽，交给错误卡片）。
+     *
+     * 关键约束（用户实测反馈）：**内核是「手动选」还是「自动走链路」不影响判定**—— 手动切到 ExoPlayer / mpv 之后，失败仍要从第 1 档按同一条链路下降；只有第 3
+     * 档（本地软解）再失败才报错。
+     *
+     * | 当前档位  | 内核        | 错误类型            | 下一档                               |
+     * |-------|-----------|-----------------|-----------------------------------|
+     * | 服务器转码 | 任意        | 任意（转码流失败也要继续降）  | 本地软解                              |
+     * | 本地硬解  | ExoPlayer | 解不了这个格式         | 自动档 → 服务器转码；原始画质 / 具体 Mbps → 本地软解 |
+     * | 本地硬解  | ExoPlayer | 网络 / DRM 等      | null（换内核救不了，直接报错）                 |
+     * | 本地硬解  | mpv       | 任意（mpv 上报不带错误码） | 同「解不了这个格式」                        |
+     * | 本地软解  | 任意        | 任意              | null（全败）                          |
+     *
+     * @param backend 当前内核；null / 未知按 ExoPlayer 的保守规则处理
+     */
+    fun stageAfterFailure(
+        stage: Int?,
+        backend: String?,
+        bitratePreference: Long,
+        codecCapabilityError: Boolean,
+    ): Int? =
+        when {
+            // 第 3 档是最后一档：再失败就是「全部失败」，显示错误卡片
+            normalize(stage) == STAGE_LOCAL_SOFTWARE -> null
+            // 第 2 档（服务器转码流）失败：不挑错误码，一律继续降到本地软解
+            normalize(stage) == STAGE_SERVER_TRANSCODE -> STAGE_LOCAL_SOFTWARE
+            // 第 1 档：ExoPlayer 只接「解不了这个格式」类错误（网络 / DRM 换内核没用）
+            backend != BACKEND_MPV && !codecCapabilityError -> null
+            // 第 1 档可降级：自动档先请服务器转码，其余档位直接落本地软解
+            else -> nextStage(STAGE_NONE, bitratePreference)
+        }
+
     /** 优先级文案用的顺序表（面板与文档同一份来源） */
     val PRIORITY: List<String> = listOf("本地硬解", "服务器解码/转码", "本地软解")
+
+    /** 失败上报去重用的键：同一次失败 = 同一内核 + 同一档位 */
+    fun failureKey(
+        backend: String?,
+        stage: Int?,
+    ): String = "$backend:${normalize(stage)}"
+
+    /**
+     * W18：是否是「同一次失败的重复上报」。
+     *
+     * 内核（尤其 mpv）一次播放失败可能连发多条错误；若不去重，第 1 档的失败会被处理两次，档位直接从 0 跳到 2、 跳过服务器转码这一档。判据 = 键相同 + 在窗口内；换了内核 /
+     * 档位或过了窗口就是新的失败。
+     */
+    fun isDuplicateFailure(
+        lastKey: String?,
+        lastHandledAtMs: Long,
+        backend: String?,
+        stage: Int?,
+        nowMs: Long,
+        windowMs: Long = DUPLICATE_FAILURE_WINDOW_MS,
+    ): Boolean =
+        lastKey != null &&
+            lastKey == failureKey(backend, stage) &&
+            nowMs - lastHandledAtMs < windowMs
+
+    /** 重复失败上报的去重窗口（3 s：足够覆盖一次失败的多条回调，又不影响链路下一次失败） */
+    const val DUPLICATE_FAILURE_WINDOW_MS = 3_000L
 }
