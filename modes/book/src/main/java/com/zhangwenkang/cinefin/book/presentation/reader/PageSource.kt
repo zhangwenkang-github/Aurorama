@@ -34,11 +34,23 @@ interface PageSource : AutoCloseable {
             if (width > 0 && height > 0) width.toFloat() / height.toFloat() else null
         }
 
+    /**
+     * 全书页宽高比批量读取（双栏版式扫描用）。
+     *
+     * 默认实现逐页走 [pageAspectRatio]（CBZ 的 `inJustDecodeBounds` 足够轻）； PDF 覆写为 **只读页树元数据**的批量实现，避免为版式判定逐页
+     * `openPage`（W33，踩坑 29）。 返回 null 表示批量路径不可用，调用方回退逐页扫描。
+     */
+    suspend fun pageAspectRatios(): List<Float?>? = null
+
     /** 渲染 / 解码一页，位图长边不超过 [maxSidePx]。 */
     suspend fun renderPage(index: Int, maxSidePx: Int): Bitmap?
 }
 
-/** PDF：`PdfRenderer.openPage(index)` + `Page.close()`，严格按页渲染回收（EB-3）。 */
+/**
+ * PDF：`PdfRenderer.openPage(index)` + `Page.close()`，严格按页渲染回收（EB-3）。
+ *
+ * 版式元数据（[pageAspectRatios]）走 [PdfLayoutSource]（PdfBox 只读页树），渲染仍走 PdfRenderer（D14 不变）。
+ */
 class PdfPageSource(file: File) : PageSource {
     private val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     private val renderer =
@@ -48,6 +60,9 @@ class PdfPageSource(file: File) : PageSource {
             descriptor.close()
             throw error
         }
+
+    /** 版式元数据会话：只在双栏触发扫描时惰性加载，用完随页源一起释放。 */
+    private val layout = PdfLayoutSource(file)
 
     /** PdfRenderer 非线程安全：所有页面操作串行化。 */
     private val mutex = Mutex()
@@ -62,6 +77,12 @@ class PdfPageSource(file: File) : PageSource {
                     .getOrNull()
             }
         }
+
+    /** 双栏版式扫描：PdfBox 读页树元数据（不逐页 openPage、不渲染）。 */
+    override suspend fun pageAspectRatios(): List<Float?>? = runCatching {
+        layout.pageAspectRatios()
+    }
+        .getOrNull()
 
     override suspend fun renderPage(index: Int, maxSidePx: Int): Bitmap? =
         withContext(Dispatchers.IO) { mutex.withLock { renderPageLocked(index, maxSidePx) } }
@@ -86,6 +107,7 @@ class PdfPageSource(file: File) : PageSource {
         .getOrNull()
 
     override fun close() {
+        runCatching { layout.close() }
         runCatching { renderer.close() }
         runCatching { descriptor.close() }
     }
