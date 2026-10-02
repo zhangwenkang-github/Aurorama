@@ -1255,6 +1255,58 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 - 保留的正常副作用：三本测试书的阅读进度随走查前进（attention 第 5 页、W22 PDF 第 3 页、
   虚构推理第 75 页）——与 W22/W26 同样按「正常阅读副作用」保留。
 
+### 7.14 W33 双栏版式扫描内存修复（2026-10-02 21:4x–21:5x，Pad 5 `43af8627`，负责人指派窗口）——**完成**
+
+分支 `fix/w33-spread-scan-memory`（起点 master `9738877`），只动 `modes/book`；提交见交接报告。
+
+**7.14.1 根因与方案**
+
+- **根因**：W26 进入双栏时的全书宽高比扫描（`PageSource.pageAspectRatios()`）在 PDF 上逐页走
+  `PdfRenderer.openPage(index).use { it.width to it.height }`。`Page.close()` 只回收 Java 侧 Page 对象，
+  3649 次 openPage 让 **native heap 从 58 MB 抬到 716–748 MB 且不回收**（踩坑 29：PSS 357 → 962 MB，
+  切回分页 897 MB）。这是「用渲染器读元数据」的架构性错误：判定版式**不需要渲染、也不需要打开页面**。
+- **方案（选定「PdfBox 页树元数据批量读」）**：新增 `PdfLayoutSource.kt`——`PDDocument.load(file,
+  setupMixed(8 MB))` 只读页树，按 `page.cropBox`（缺省回退 `/MediaBox`）+ 继承的 `/Rotate` 折算显示尺寸
+  （与 `PdfRenderer.Page.width/height` 同口径：旋转 90/270 交换宽高，非法角度按 0），一次遍历全书得到
+  宽高比表；页面对象读完即丢弃，常驻只有页树与 8 MB 主缓冲（溢出到临时文件，与 W29 文本层同源策略）。
+  `PageSource` 新增可选批量方法 `pageAspectRatios()`（默认 null），`PdfPageSource` 覆写走 PdfBox；
+  `collectPageAspectRatios()` 优先批量路径、不可用（返回 null / 页数不符 / 抛错）时回退逐页扫描。
+- **边界**：渲染路径仍走 PdfRenderer（D14 不变），只有「版式判定」换元数据源；`PdfLayoutSource` 惰性加载，
+  分页 / 滚动模式不会打开它；关闭随 `PdfPageSource.close()` 释放。旋转页、`/CropBox` 裁剪、继承
+  `/Rotate` 都有单测锁定（`PdfLayoutSourceTest`，book 103 → **106**）。
+
+**7.14.2 门禁**
+
+`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（61）+ `:modes:book:testDebugUnitTest`（106）四绿。
+
+**7.14.3 真机：虚构推理（3649 页 / 639.6 MB，冷启动 → 切双栏）**
+
+| 阶段 | Native Heap | TOTAL PSS | 说明 |
+|------|-------------|-----------|------|
+| 分页基线（打开后静止） | 57.1 MB | 275.2 MB | 与 W22 基线 327.7 MB 同量级 |
+| 切双栏 +3 s | 55.3 MB | **299.2 MB** | 扫描已完成（日志见下）；修复前同点 **748 MB / 962 MB** |
+| 切双栏 +60 s（采样 3 次） | 57.0 MB | 286–299 MB | 不增长 |
+| 双栏 → 滚动 → 分页（回落） | 48.9 → 67.5 MB | **284.9 → 309.9 MB** | 能回落；修复前切回分页 897 MB 不回落 |
+| 冷启动直接双栏（RTL 右起） | 60.7 MB | 295.0 MB | 同书冷启动直接进双栏与修复前 W22 基线同量级 |
+
+- 扫描日志（文本取证）：`reader spread layout pages=3649 slots=1825 landscape=0 at=` —— 3649 页 → 1825 槽、
+  0 个横版独占；同书双栏连翻（73-74 → 75-76）页号精确 +2、0 次误拼、0 FATAL / ANR。
+- **判定一致性（W22-Spread-Test.pdf，30 页）**：`pages=30 slots=16 landscape=2 at=14,15`（横版页 15、16 独占，
+  与 W26 修复前 `landscape=2` 一致）；对图 **8/8 命中**（分两段走查：3-4 / 5-6 / 9-10 / 13-14 / 19-20 /
+  21-22 / 25-26 / 29-30，`continuity 0.88–0.89 / corr 1.00 / diff 0.00 / trim=0/0`）；负样本
+  （独立单页对 / 低相似对 / 横版页）**0 命中 = 0 误拼**；RTL 右起翻页方向镜像、页指示
+  `双栏 · 1-2/30 · 右起`、`spread=4 pages=5-6` 合并在 RTL 相位下重新命中。
+- **不回归**：搜索 `attention` → 「扫描完成 · 共 65 条命中」（W29 复验值，同页多次命中无崩溃）；
+  批注「开始框选 → 拖动 → 保存」→ `files/reader/annotations/0a1f4dc1….json` version 1 落盘
+  （page 5、归一化矩形 0.625 / 0.0 / 1.0 / 0.1907、note 空）；分页 / 双栏 / 滚动切换页号与 progression 正常。
+
+**7.14.4 设备还原**
+
+- prefs 回 `pref_reader_mode=paged`、`pref_reader_rtl=false`、主题 `eyecare`、字号 0.9988212（逐键比对）；
+- 测试批注文件已删、`files/reader/annotations` 目录已移除（`files/reader` 回到 `bookmarks.json` + `progress.json`）；
+- `/sdcard/w33_ui.xml` 与临时 APK 已删；App `force-stop`；**K60 未触碰**；
+- 保留的正常副作用：测试书阅读进度随走查前进（「虚构推理」本轮前进到 71-72 槽附近）。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -1350,7 +1402,14 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
     3649 页 PDF 逐页 openPage/close 后，进程 native heap 从 58 MB 涨到 **716–748 MB**（TOTAL PSS
     357 → 962 MB），扫描完成后不回落、切回分页也不回落（PSS 里 670–720 MB 是 swapped）。
     W22 时代同文档双栏只有 327.7 MB（那时没有版式扫描）。**教训：大文档的"元数据扫描"也要按内存红线
-    设计**（改用 PdfBox 读页尺寸 / 分块扫描 + 显式回收 / 可见区优先），并在 >1000 页素材上实测。
+    设计**，并在 >1000 页素材上实测。**W33 已修复**：只读元数据不要用渲染器——改走 PdfBox 页树
+    （`/CropBox` + 继承 `/Rotate`），native heap 回到 55–68 MB、PSS 285–310 MB 且能回落（踩坑 30）。
+30. **「读页面尺寸」要区分元数据与渲染两条路径**：`PdfRenderer.Page.width/height` 只能通过
+    `openPage` 拿到，而 openPage 在 PdfRenderer 的 native 侧有释放缺陷（踩坑 29）；PdfBox 的
+    `PDPage.cropBox` 是页树元数据读取，不需要打开 / 渲染页面，代价只有 8 MB 主缓冲 + 临时文件。
+    两者口径要对齐：`/Rotate` 只接受 90 的倍数、非法值按 0（PdfRenderer 行为），90/270 交换宽高、
+    缺省 `/CropBox` 回退 `/MediaBox`（PdfBox 自带）。`PdfLayoutSourceTest` 用 JVM 生成 PDF 锁定这三条。
+    **教训：任何"全书扫描"先问一句"这是什么性质的数据"**，能读元数据就不要渲染。
 
 ## 9. 未决问题与下一波
 
@@ -1467,13 +1526,18 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 - **命中矩形与片段的一致性**：片段按原文本（含换行）匹配，矩形按压缩文本匹配，两者在
   「跨行拆词」时可能数量不一致（矩形按序号配对、多余矩形丢弃）；真机走查时确认贴合度。
 
-### W26 遗留补充（本波 PSS 采样发现，交接 W26 / W5 线）
+### W26 遗留补充（本波 PSS 采样发现，交接 W26 / W5 线）——**W33 已修复（2026-10-02，§7.14）**
 
-- **进入双栏的「全书宽高比扫描」在大文档上内存不回收**（踩坑 29）：虚构推理 3649 页
+- ✅ **进入双栏的「全书宽高比扫描」在大文档上内存不回收**（踩坑 29）：虚构推理 3649 页
   冷启动分页 PSS 357 MB（Native 58 MB）→ 切双栏 962 MB（Native 748 MB）→ 扫描完成后 929 MB →
   切回分页 897 MB（不回落）。W22 时代同文档双栏 327.7 MB（当时无扫描）⇒ W26 引入的回归。
-  建议方向（按代价从低到高）：① 用 W29 已引入的 PdfBox 读页尺寸（只解析页树，不逐页
-  `openPage`）；② 分块扫描 + 每块 `System.gc()` / 显式回收，观察 native 是否回落；
+  修复（W33，分支 `fix/w33-spread-scan-memory`）：采用建议方向①「用 PdfBox 读页尺寸（只解析页树，
+  不逐页 `openPage`）」——新增 `PdfLayoutSource`（页树元数据批量读、8 MB 主缓冲 + 临时文件、
+  `/Rotate` 折算、失败回退逐页），真机 3649 页 Native 55–68 MB / PSS 285–310 MB 且能回落，
+  W22 测试书 8/8 命中 + 横版独占 + 0 误拼不回归（§7.14）。未采用②「分块 + `System.gc()`」：
+  根因是 native 侧不回收，强制 GC 不解决、还引入停顿；也未采用③④（按需扫描 / 阈值禁扫描）：
+  前者改版式语义（横版页在可视区外时无法提前独占）、后者牺牲大文档的版式正确性。
+  其余候选（未采用，留档）：② 分块扫描 + 每块 `System.gc()` / 显式回收；
   ③ 只扫「可见区 + 前后 N 页」的按需版式（与 `pageAspectRatios` 的缓存语义配套）；
   ④ 扫描时禁止 3649 页级大文档一次性扫描（超过阈值走分页语义并提示）。
   **开工前建议先在 5006 页金田一样本上复现一次**（本波只测了 3649 页 PDF 与 30/44 页小样本）。
@@ -1496,3 +1560,4 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 | 2026-10-02 | **W22-R1 真机终验完成**（Pad 5 `43af8627`，16:30–16:54，负责人指派窗口；素材 = 用户上传的 `W22-Spread-Test` PDF + CBZ）：双栏逐槽位 —— 8 对拆页型对图**全部命中**（`reader spread merge` 8 条，continuity 0.86–0.89 / corr 1.00 / diff 0.00）、5 对独立单页 + 低相似 + 横版整页**0 误拼**；中缝空带合并 0 px / 未合并 307 px、相邻两列 corr ≥0.9972；滑动后即时帧无两页闪动；内存 A/B **+12.0 MB ≈ 1 张合并位图**（PDF）、CBZ −17.3 MB（噪声内）、3649 页真实漫画冷启动稳态 **327.7 MB** 且 0 次误拼；RTL 相位 / 页号 / progression / 冷启动恢复不回归；无 FATAL/ANR；设备副作用还原。详见 §7.10 |
 | 2026-10-02 | **W29-R1（分支 `feature/w29-pdf-search-annot`）：PDF 搜索 + 本地高亮批注**（D22 / D23）——①搜索：引入 `PdfBox-Android 2.0.27.0`（Apache-2.0，无 native；依赖只加 `modes/book/build.gradle.kts` + `libs.versions.toml`），`PdfBoxPageTextSource`（8 MB 主缓冲 + 临时文件、Mutex 串行、逐页流式、空页补齐）+ `PdfSearchEngine`（单页 ≤6 / 整篇 ≤400、达上限即停、进度每 25 页、可取消）+ 搜索面板（去抖 400ms、LazyColumn 增量追加、命中词高亮）+ `PageOverlay` 命中矩形叠加；无文本层 / 上限 / 取消 / 失败均有明确文案；②批注：`ReaderAnnotation` + version 1 JSON 编解码 + `ReaderAnnotationStore`（`filesDir/reader/annotations/{itemId}.json`，原子写）+ 矩形框选 / 备注 / 列表跳转 / 删除，不写服务器、不用 Room、不依赖文本层；③单测 77 → **101**（新增 `PdfSearchTest` / `ReaderAnnotationTest` / `PageOverlayGeometryTest` 共 24 项）；④门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app + book（101）四绿；⑤本地取证（未占真机）：桌面同源 PdfBox 实测（15 页文本层 152 ms/页；5006 页扫描件 0.2 s 空扫）与整包 A/B（**+13.04 MB**，102.40 → 115.45 MB），见 §7.12；真机窗口待负责人调度（§9 遗留） |
 | 2026-10-02 | **W29 真机验收（Pad 5 `43af8627`，负责人指派窗口）+ 真机缺陷修复**（分支 `fix/w29-search-hit-position`，基于整合版 master `e465a83`）——①**真机拦下的崩溃**：搜索「attention」触发 `IllegalArgumentException: Key "0-25-9" was already used`（同页两次命中片段位置相同 → 结果列表 LazyColumn key 重复）→ 修复 `buildSnippet` 为「原始下标 → 折叠后下标」逐字符映射 + key 加下标护栏（踩坑 28），补 2 项回归单测（101 → **103**），同命令复验 65 条命中无崩溃；②搜索真机：命中列表懒加载滚动、跳转 `分页 · 5/15` + 命中矩形像素取证（5 条色带 33 px 高、带内文字像素 5.9–13.4%）、无文本层提示（W22 PDF ≈1–2 s）、非 PDF 无入口、虚构推理 3649 页首扫 ≈14 s / 热扫 ≈1.3 ms/页、退后台取消（已扫描 2125/3649 → 已暂停）、搜索会话 Native ≈64 MB；③批注真机：新增（空/带备注）→ 文件 version 1 落盘、编辑回填原备注、弹窗与列表两路删除、列表跳转、页面叠加与存储矩形换算一致、RTL 双栏相位锚点一致（LTR x 347–601 / RTL x 1147–1401，高宽 y 相同）、合并槽 A/B 页面区域 0 差异；④**顺带发现 W26 线缺陷**（踩坑 29，未修）：3649 页 PDF 进双栏的版式扫描把 Native 58 → 716–748 MB（PSS 357 → 962 MB）且不回收，交 W26 线；⑤设备还原：批注文件 / 目录删除、prefs 回 `paged` + `rtl=false` + `eyecare` + 字号 0.9988、旋转未改、App force-stop、`/sdcard/w29.xml` 删除，K60 未触碰。详见 §7.13 |
+| 2026-10-02 | **W33-READER-PERF（分支 `fix/w33-spread-scan-memory`，起点 master `9738877`）：双栏版式扫描内存回归修复**——①根因：W26 进双栏逐页 `PdfRenderer.openPage` 读尺寸（踩坑 29），native 不回收；②方案：新增 `PdfLayoutSource`（PdfBox 页树元数据批量读：`/CropBox` 回退 `/MediaBox` + 继承 `/Rotate` 折算、8 MB 主缓冲 + 临时文件、失败回退逐页），`PageSource.pageAspectRatios()` 可选批量路径 + `collectPageAspectRatios()` 优先批量，渲染路径不变；③单测 103 → **106**（`PdfLayoutSourceTest`：旋转折算 / 页树批量读取与缺省回退 / 继承 Rotate）；④门禁四绿（`assembleDebug` + `ktfmtCheck` + app 61 + book 106）；⑤真机 Pad 5：虚构推理 3649 页切双栏 Native 55–57 MB / PSS 286–299 MB（修复前 748 MB / 962 MB）、能回落、扫描日志 `slots=1825 landscape=0`；W22 测试书 `landscape=2 at=14,15` + 对图 8/8 + 0 误拼 + RTL / 搜索 65 条 / 批注不回归；⑥设备副作用还原（见 §7.14） |
