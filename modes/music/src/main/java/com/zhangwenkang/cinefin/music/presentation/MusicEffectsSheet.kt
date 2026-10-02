@@ -19,6 +19,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_MAX_GAIN_DB
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_MIN_GAIN_DB
+import com.zhangwenkang.cinefin.player.local.audio.MUSIC_REPLAYGAIN_OVERRIDE_MAX_DB
+import com.zhangwenkang.cinefin.player.local.audio.MUSIC_REPLAYGAIN_OVERRIDE_MIN_DB
+import com.zhangwenkang.cinefin.player.local.audio.MUSIC_REPLAYGAIN_OVERRIDE_STEP_DB
 import com.zhangwenkang.cinefin.player.local.audio.MusicCrossfadeMath
 import com.zhangwenkang.cinefin.player.local.audio.MusicEqualizerFrequencies
 import com.zhangwenkang.cinefin.player.local.audio.MusicEqualizerPreset
@@ -33,7 +37,7 @@ import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import java.util.Locale
 
 /**
- * 音效面板（W30-MUSIC-FX）：EQ（预设 + 五段自定义）、ReplayGain 三态、淡入淡出档位。
+ * 音效面板（W30-MUSIC-FX + W35）：EQ（预设 + 五段自定义）、ReplayGain 三态 + 本机增益覆盖、淡入淡出档位。
  *
  * 入口 = 全屏播放页功能行「音效」；只作用于音乐会话（播放链按会话门控，视频不受影响）。
  */
@@ -45,6 +49,9 @@ fun MusicEffectsSheet(
     bands: List<Float>,
     replayGainMode: ReplayGainMode,
     replayGainLabel: String?,
+    hasCurrentTrack: Boolean,
+    overrideTrackDb: Float?,
+    overrideAlbumDb: Float?,
     crossfadeSeconds: Int,
     onDismiss: () -> Unit,
     onToggleEqualizer: (Boolean) -> Unit,
@@ -52,6 +59,10 @@ fun MusicEffectsSheet(
     onPreviewBand: (Int, Float) -> Unit,
     onCommitBands: () -> Unit,
     onSelectReplayGain: (ReplayGainMode) -> Unit,
+    onPreviewOverrideTrack: (Float) -> Unit,
+    onPreviewOverrideAlbum: (Float) -> Unit,
+    onCommitOverride: () -> Unit,
+    onClearOverride: () -> Unit,
     onSelectCrossfade: (Int) -> Unit,
 ) {
     ModalBottomSheet(
@@ -140,7 +151,7 @@ fun MusicEffectsSheet(
                 text =
                     replayGainMode.let { mode ->
                         if (mode == ReplayGainMode.OFF) {
-                            "读取音频文件内嵌的 ReplayGain 标签；服务器标签缺失时不改变音量。"
+                            "读取音频文件内嵌的 ReplayGain 标签（FLAC / MP3 / M4A）；服务器标签缺失时不改变音量。"
                         } else {
                             replayGainLabel ?: "正在读取标签…"
                         }
@@ -149,6 +160,38 @@ fun MusicEffectsSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
             )
+            Text(
+                text = "本机增益覆盖（只写本机，不写服务器）",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp),
+            )
+            if (!hasCurrentTrack) {
+                Text(
+                    text = "播放一首曲目后可设置。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp),
+                )
+            } else {
+                OverrideGainRow(
+                    label = "曲目增益",
+                    gainDb = overrideTrackDb,
+                    onPreview = onPreviewOverrideTrack,
+                    onCommit = onCommitOverride,
+                )
+                OverrideGainRow(
+                    label = "专辑增益",
+                    gainDb = overrideAlbumDb,
+                    onPreview = onPreviewOverrideAlbum,
+                    onCommit = onCommitOverride,
+                )
+                TextButton(
+                    onClick = onClearOverride,
+                    modifier = Modifier.padding(start = 12.dp, end = 20.dp),
+                ) {
+                    Text("清除本机覆盖")
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -213,6 +256,38 @@ private fun EqualizerBandRow(
             onValueChangeFinished = onCommit,
             enabled = enabled,
             valueRange = MUSIC_EQUALIZER_MIN_GAIN_DB..MUSIC_EQUALIZER_MAX_GAIN_DB,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** 本机增益覆盖滑杆：未设置时显示"未设置"、滑杆停在 0；拖动实时生效，松手落盘。 */
+@Composable
+private fun OverrideGainRow(
+    label: String,
+    gainDb: Float?,
+    onPreview: (Float) -> Unit,
+    onCommit: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = if (gainDb == null) "未设置" else String.format(Locale.US, "%+.1f dB", gainDb),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = gainDb ?: 0f,
+            onValueChange = onPreview,
+            onValueChangeFinished = onCommit,
+            valueRange = MUSIC_REPLAYGAIN_OVERRIDE_MIN_DB..MUSIC_REPLAYGAIN_OVERRIDE_MAX_DB,
+            steps =
+                ((MUSIC_REPLAYGAIN_OVERRIDE_MAX_DB - MUSIC_REPLAYGAIN_OVERRIDE_MIN_DB) /
+                        MUSIC_REPLAYGAIN_OVERRIDE_STEP_DB)
+                    .toInt() - 1,
             modifier = Modifier.fillMaxWidth(),
         )
     }

@@ -192,6 +192,8 @@ constructor(
         }
         // ReplayGain 模式切换（UI 面板）时立刻按当前曲目重算增益。
         scope.launch { audioEffects.replayGainMode.collect { refreshReplayGain() } }
+        // W35：本机增益覆盖写入 / 清除后重读标签（覆盖文件优先级最高，立即生效）。
+        scope.launch { audioEffects.overrideRevision.collect { if (it > 0L) refreshReplayGain() } }
     }
 
     override fun setQueue(queue: MusicQueue, startIndex: Int) {
@@ -245,6 +247,7 @@ constructor(
                     lastKnownPositionMs = item.playbackPosition.coerceAtLeast(0L)
                     lastKnownDurationMs = 0L
                     lastProgressReportAtMs = SystemClock.elapsedRealtime()
+                    audioEffects.setCurrentTrack(item.itemId)
                     reportStartNow(item.itemId)
                 }
                 refreshReplayGain()
@@ -254,6 +257,7 @@ constructor(
                 Timber.w(e, "音乐起播失败")
                 playerHolder.musicSessionActive = false
                 activeItemId = null
+                audioEffects.clearCurrentTrack()
             }
         }
     }
@@ -340,7 +344,7 @@ constructor(
         _positionMs.value = 0L
         _durationMs.value = 0L
         _isPlaying.value = false
-        audioEffects.clearCurrentTrackReplayGain()
+        audioEffects.clearCurrentTrack()
 
         val player = playerHolder.existingPlayer ?: return
         if (!playerHolder.musicSessionActive) return
@@ -384,9 +388,11 @@ constructor(
         lastKnownDurationMs = 0L
         lastProgressReportAtMs = SystemClock.elapsedRealtime()
         if (nextItemId != null) {
+            // W35：与 ReplayGain 模式无关地登记当前曲目（音效面板的「本机增益覆盖」要用）。
+            audioEffects.setCurrentTrack(nextItemId)
             refreshReplayGain()
         } else {
-            audioEffects.clearCurrentTrackReplayGain()
+            audioEffects.clearCurrentTrack()
         }
         when {
             previousItemId == null -> nextItemId?.let(::reportStart)
@@ -508,7 +514,7 @@ constructor(
         if (!playerHolder.musicSessionActive) return
         val item = _queue.value?.currentItem ?: return
         if (audioEffects.replayGainMode.value == ReplayGainMode.OFF) {
-            audioEffects.clearCurrentTrackReplayGain()
+            audioEffects.clearReplayGainTags()
             return
         }
         scope.launch {
