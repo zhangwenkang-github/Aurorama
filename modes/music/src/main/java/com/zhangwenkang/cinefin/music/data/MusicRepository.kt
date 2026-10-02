@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 
@@ -24,6 +25,8 @@ data class MusicSong(
     val imageUri: String?,
     /** 服务器记录的续播位置（毫秒）；0 = 从头播放（MU-9）。 */
     val resumePositionMs: Long = 0L,
+    /** 服务端收藏状态（W21-R2；写入走 `/UserFavoriteItems/{id}`，读回走 `filters=IsFavorite`）。 */
+    val isFavorite: Boolean = false,
 )
 
 /**
@@ -77,6 +80,12 @@ interface MusicRepository {
 
     /** 歌单内曲目（按服务器返回顺序）。 */
     suspend fun getPlaylistSongs(playlistId: UUID): List<MusicSong>
+
+    /** 收藏 / 取消收藏（服务端 UserData 白名单；失败抛异常由 UI 提示）。 */
+    suspend fun setFavorite(itemId: UUID, favorite: Boolean)
+
+    /** 服务端收藏的曲目（`filters=IsFavorite` + `includeItemTypes=Audio`）。 */
+    suspend fun getFavoriteSongs(): List<MusicSong>
 }
 
 @Singleton
@@ -140,6 +149,34 @@ constructor(
                 .mapNotNull { item -> item.toMusicSong(baseUrl) }
         }
 
+    override suspend fun setFavorite(itemId: UUID, favorite: Boolean) {
+        withContext(Dispatchers.IO) {
+            if (favorite) {
+                jellyfinApi.userLibraryApi.markFavoriteItem(itemId)
+            } else {
+                jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
+            }
+        }
+    }
+
+    override suspend fun getFavoriteSongs(): List<MusicSong> =
+        withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId ?: return@withContext emptyList()
+            val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
+            jellyfinApi.itemsApi
+                .getItems(
+                    userId,
+                    filters = listOf(ItemFilter.IS_FAVORITE),
+                    includeItemTypes = listOf(BaseItemKind.AUDIO),
+                    recursive = true,
+                    enableUserData = true,
+                    limit = SONG_LIMIT,
+                )
+                .content
+                .items
+                .mapNotNull { item -> item.toMusicSong(baseUrl) }
+        }
+
     private suspend fun querySongs(libraryId: UUID?): List<MusicSong> {
         val userId = jellyfinApi.userId ?: return emptyList()
         val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
@@ -151,6 +188,7 @@ constructor(
                 recursive = true,
                 sortBy = listOfNotNull(ItemSortBy.fromName("SortName")),
                 sortOrder = listOfNotNull(SortOrder.fromName("Ascending")),
+                enableUserData = true,
                 limit = SONG_LIMIT,
             )
             .content
@@ -170,6 +208,7 @@ constructor(
             runtimeTicks = runtimeTicks,
             imageUri = imageUri(baseUrl),
             resumePositionMs = resumePositionMs(userData?.playbackPositionTicks, runtimeTicks),
+            isFavorite = userData?.isFavorite == true,
         )
     }
 

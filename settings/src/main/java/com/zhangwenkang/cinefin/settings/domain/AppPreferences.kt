@@ -245,6 +245,10 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
      */
     val uiLibraryCatalog = Preference("pref_ui_library_catalog", "")
 
+    // Music（W21-R2；只追加 pref_music_* 前缀，不重排既有键）
+    /** 应用重启后恢复上次音乐队列与播放位置（MU-3 队列保存）。默认开。 */
+    val musicResumeQueue = Preference("pref_music_resume_queue", true)
+
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {
             @Suppress("UNCHECKED_CAST")

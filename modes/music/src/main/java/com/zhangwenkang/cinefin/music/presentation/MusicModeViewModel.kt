@@ -6,7 +6,10 @@ import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
+import com.zhangwenkang.cinefin.music.data.MusicQueuePersister
+import com.zhangwenkang.cinefin.music.data.MusicRecentStore
 import com.zhangwenkang.cinefin.music.data.MusicRepository
+import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
@@ -16,6 +19,7 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsPresenter
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRepository
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
 import com.zhangwenkang.cinefin.music.data.musicQueueFillOrder
+import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
@@ -30,10 +34,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -55,6 +63,9 @@ constructor(
     private val playbackController: MusicPlaybackController,
     private val queueEditor: MusicQueueEditor,
     private val lyricsRepository: LyricsRepository,
+    private val recentStore: MusicRecentStore,
+    private val sleepTimer: MusicSleepTimer,
+    private val persister: MusicQueuePersister,
     playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
 ) : ViewModel() {
@@ -105,15 +116,74 @@ constructor(
     private var refreshJob: Job? = null
     private var playJob: Job? = null
 
-    /** 正在播放的队列（当前曲目 / 播放模式 / 顺序），底栏与队列面板直接消费。 */
-    val queue: StateFlow<MusicQueue?> = playbackController.queue
+    /** 上次会话的队列快照（W21-R2）：未点播放前只在本地展示 / 编辑。 */
+    private val _restoredQueue = MutableStateFlow<MusicQueue?>(null)
+
+    /** 正在播放的队列（当前曲目 / 播放模式 / 顺序）；无播放会话时回落到恢复快照，底栏与队列面板直接消费。 */
+    val queue: StateFlow<MusicQueue?> =
+        combine(playbackController.queue, _restoredQueue) { live, restored -> live ?: restored }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** 恢复态（重启后尚未点播放）：底栏文案与播放键语义据此区分。 */
+    val isRestored: StateFlow<Boolean> =
+        combine(playbackController.queue, _restoredQueue) { live, restored ->
+                live == null && restored != null
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** 音乐睡眠定时（W21-R2，MU-7）：进程级单例，离开音乐页 / 后台播放时仍生效。 */
+    val sleepTimerState: StateFlow<MusicSleepTimer.State> = sleepTimer.state
 
     /** 是否正在播放（底栏按钮图标用）。 */
     val isPlaying: StateFlow<Boolean> = playbackStateSource.isPlaying
 
     init {
+        persister.start()
         refresh()
         observeLyrics()
+        restoreQueue()
+        observeRecent()
+        observeRestoredQueueCleanup()
+    }
+
+    /**
+     * 启动时读取上次队列快照（W21-R2）：只恢复展示与续播位置，不自动出声； 用户点播放 / 切歌时按快照里的 `playbackPosition` 走既有 setQueue
+     * 续播路径（MU-9 同一条）。
+     */
+    private fun restoreQueue() {
+        viewModelScope.launch {
+            val snapshot = runCatching { persister.load() }.getOrNull() ?: return@launch
+            if (playbackController.queue.value == null) {
+                _restoredQueue.value = snapshot.queue
+            }
+        }
+    }
+
+    /** 当前曲目发生变化（起播 / 切歌）→ 记一条本地最近播放；恢复态不算"播放过"。 */
+    private fun observeRecent() {
+        viewModelScope.launch {
+            playbackController.queue
+                .map { queue -> queue?.currentItem }
+                .distinctUntilChanged { old, new -> old?.itemId == new?.itemId }
+                .collect { item ->
+                    if (item != null) {
+                        recentStore.record(
+                            item = item,
+                            librarySong =
+                                _uiState.value.songs.firstOrNull { song ->
+                                    song.itemId == item.itemId
+                                },
+                        )
+                    }
+                }
+        }
+    }
+
+    /** 播放器装载队列后清掉恢复快照（通知栏 / 锁屏续播等非本页路径同样适用）。 */
+    private fun observeRestoredQueueCleanup() {
+        viewModelScope.launch {
+            playbackController.queue.filterNotNull().collect { _restoredQueue.value = null }
+        }
     }
 
     /** 当前曲目 → 拉歌词；播放位置 → 当前行。两条流各自独立，互不阻塞。 */
@@ -195,6 +265,11 @@ constructor(
 
     /** 打开歌词面板（曲目在底栏点「词」触发）。 */
     fun openLyrics() {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            // 恢复态没有播放器状态流，按恢复条目主动拉一次歌词
+            onCurrentItemChanged(restored.currentItem)
+        }
         _lyricsState.update { it.copy(open = true) }
     }
 
@@ -476,17 +551,211 @@ constructor(
         }
     }
 
-    fun moveQueueItem(fromIndex: Int, toIndex: Int) = playbackController.move(fromIndex, toIndex)
+    /** 恢复态下点播放 / 切歌：把恢复快照交给播放器（按保存位置续播），随后进入正常播放语义。 */
+    private fun resumeRestored(queue: MusicQueue, index: Int) {
+        if (index !in queue.items.indices) return
+        _restoredQueue.value = null
+        playbackController.setQueue(queue, startIndex = index)
+    }
 
-    fun jumpToQueueItem(index: Int) = queueEditor.jumpTo(index)
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            val moved = restored.move(fromIndex, toIndex)
+            if (moved != restored) {
+                _restoredQueue.value = moved
+                persister.persistNow(moved)
+            }
+            return
+        }
+        playbackController.move(fromIndex, toIndex)
+    }
 
-    fun removeQueueItem(index: Int) = queueEditor.removeAt(index)
+    fun jumpToQueueItem(index: Int) {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            resumeRestored(restored, index)
+            return
+        }
+        queueEditor.jumpTo(index)
+    }
 
-    fun togglePlayPause() = playbackController.playPause()
+    fun removeQueueItem(index: Int) {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            val updated = musicQueueRemoveAt(restored, index)
+            when {
+                updated == null -> {
+                    _restoredQueue.value = null
+                    viewModelScope.launch { persister.clear() }
+                }
+                updated != restored -> {
+                    _restoredQueue.value = updated
+                    persister.persistNow(updated)
+                }
+            }
+            return
+        }
+        queueEditor.removeAt(index)
+    }
 
-    fun skipToNext() = playbackController.next()
+    fun togglePlayPause() {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            resumeRestored(restored, restored.currentIndex)
+            return
+        }
+        playbackController.playPause()
+    }
 
-    fun skipToPrevious() = playbackController.previous()
+    fun skipToNext() {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            resumeRestored(
+                restored,
+                (restored.currentIndex + 1).coerceAtMost(restored.items.lastIndex),
+            )
+            return
+        }
+        playbackController.next()
+    }
+
+    fun skipToPrevious() {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            resumeRestored(restored, (restored.currentIndex - 1).coerceAtLeast(0))
+            return
+        }
+        playbackController.previous()
+    }
+
+    /** 打开服务端收藏列表（顶栏「收藏」入口）。 */
+    fun openFavorites() {
+        _uiState.update {
+            it.copy(
+                detail = MusicDetail.Favorites(emptyList(), loading = true),
+                errorTitle = null,
+                errorMessage = null,
+            )
+        }
+        viewModelScope.launch {
+            runCatching { repository.getFavoriteSongs() }
+                .onSuccess { songs ->
+                    _uiState.update { state ->
+                        if (state.detail is MusicDetail.Favorites) {
+                            state.copy(detail = MusicDetail.Favorites(songs))
+                        } else {
+                            state
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        if (state.detail is MusicDetail.Favorites) {
+                            state.copy(
+                                detail = null,
+                                errorTitle = "收藏加载失败",
+                                errorMessage =
+                                    error.message?.takeIf { it.isNotBlank() } ?: "无法读取服务器收藏",
+                            )
+                        } else {
+                            state
+                        }
+                    }
+                }
+        }
+    }
+
+    /** 打开本地最近播放（顶栏「最近」入口，按播放时间倒序）。 */
+    fun openRecent() {
+        viewModelScope.launch {
+            val songs = runCatching {
+                recentStore.load()
+            }
+                .getOrDefault(emptyList())
+                .map { recent ->
+                    // 曲库已加载时用最新收藏态覆盖，避免最近列表里的「收藏 / 取消收藏」文案过时
+                    _uiState.value.songs
+                        .firstOrNull { song -> song.itemId == recent.itemId }
+                        ?.let { song -> recent.copy(isFavorite = song.isFavorite) } ?: recent
+                }
+            _uiState.update {
+                it.copy(
+                    detail = MusicDetail.Recent(songs),
+                    errorTitle = null,
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
+    /** 歌曲行「收藏 / 取消收藏」：写服务端白名单成功后同步所有列表里的收藏态。 */
+    fun toggleFavorite(song: MusicSong) {
+        val favorite = !song.isFavorite
+        viewModelScope.launch {
+            runCatching { repository.setFavorite(song.itemId, favorite) }
+                .onSuccess {
+                    Timber.i("收藏成功：itemId=${song.itemId} favorite=$favorite")
+                    _uiState.update { state -> state.withFavorite(song.itemId, favorite) }
+                }
+                .onFailure { error ->
+                    Timber.w(error, "收藏失败：itemId=${song.itemId}")
+                    _uiState.update {
+                        it.copy(
+                            errorTitle = "收藏失败",
+                            errorMessage =
+                                error.message?.takeIf { message -> message.isNotBlank() }
+                                    ?: "无法写入服务器收藏",
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun UiState.withFavorite(itemId: UUID, favorite: Boolean): UiState {
+        fun MusicSong.refreshed(): MusicSong =
+            if (this.itemId == itemId) copy(isFavorite = favorite) else this
+
+        val updatedAlbums = albums.map { album ->
+            album.copy(songs = album.songs.map { song -> song.refreshed() })
+        }
+        val updatedArtists = artists.map { artist ->
+            artist.copy(songs = artist.songs.map { song -> song.refreshed() })
+        }
+        val updatedSongs = songs.map { song -> song.refreshed() }
+        val updatedDetail =
+            when (val current = detail) {
+                null -> null
+                is MusicDetail.Album ->
+                    current.copy(
+                        album =
+                            current.album.copy(songs = current.album.songs.map { it.refreshed() })
+                    )
+                is MusicDetail.Artist ->
+                    current.copy(
+                        artist =
+                            current.artist.copy(songs = current.artist.songs.map { it.refreshed() })
+                    )
+                is MusicDetail.Playlist ->
+                    current.copy(songs = current.songs.map { it.refreshed() })
+                is MusicDetail.Favorites ->
+                    if (favorite) {
+                        current.copy(songs = current.songs.map { it.refreshed() })
+                    } else {
+                        current.copy(songs = current.songs.filterNot { it.itemId == itemId })
+                    }
+                is MusicDetail.Recent -> current.copy(songs = current.songs.map { it.refreshed() })
+            }
+        return copy(
+            albums = updatedAlbums,
+            artists = updatedArtists,
+            songs = updatedSongs,
+            detail = updatedDetail,
+        )
+    }
+
+    /** 选择睡眠定时档位（分钟）；null = 关闭。 */
+    fun selectSleepTimer(minutes: Int?) = sleepTimer.select(minutes)
 
     fun dismissError() {
         _uiState.update { it.copy(errorTitle = null, errorMessage = null) }
