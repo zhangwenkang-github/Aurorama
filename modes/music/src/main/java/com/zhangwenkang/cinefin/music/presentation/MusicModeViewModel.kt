@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
+import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
 import com.zhangwenkang.cinefin.music.data.MusicPlayMode
 import com.zhangwenkang.cinefin.music.data.MusicPlaybackHistoryTracker
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
@@ -74,6 +75,7 @@ constructor(
     private val sleepTimer: MusicSleepTimer,
     private val persister: MusicQueuePersister,
     private val historyTracker: MusicPlaybackHistoryTracker,
+    private val lyricsOverlay: MusicLyricsOverlayController,
     private val playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
 ) : ViewModel() {
@@ -162,6 +164,8 @@ constructor(
     /** 当前曲目总时长（毫秒）：内核还没给出时为 0，UI 用曲库元数据兜底。 */
     val durationMs: StateFlow<Long> = playbackStateSource.durationMs
 
+    /** 桌面歌词悬浮窗状态（W23-MUSIC · D 组）：开关 / 颜色 / 字号 / 语言 / 锁定都在这里。 */
+    val lyricsOverlayState: StateFlow<MusicLyricsOverlayController.State> = lyricsOverlay.state
 
     /**
      * 曲目元数据查询（W23-MUSIC）：[PlayerItem] 只带名字与封面，全屏播放页要显示的歌手 / 专辑、以及恢复态的时长兜底都从曲库快照里按 itemId 取；查不到返回
@@ -185,6 +189,7 @@ constructor(
     init {
         persister.start()
         historyTracker.start()
+        lyricsOverlay.start()
         refresh()
         observeLyrics()
         restoreQueue()
@@ -705,6 +710,15 @@ constructor(
     fun cyclePlayMode() {
         setPlayMode(playMode.value.next())
     }
+
+    /** 桌面歌词开关（全屏播放界面 / 设置页）：悬浮窗只在"播放中 + 有权限"时出现。 */
+    fun toggleLyricsOverlay() = lyricsOverlay.toggle()
+
+    /** 授权页返回且已拿到权限后调用：打开开关并把悬浮窗拉起来。 */
+    fun enableLyricsOverlay() = lyricsOverlay.setEnabled(true)
+
+    /** 从系统权限页返回后复核权限（拿到权限才能显示悬浮窗）。 */
+    fun refreshLyricsOverlayPermission() = lyricsOverlay.refreshPermission()
 
     /** 应用播放模式：活动会话直接改内核开关；恢复态只改快照并落盘（下次起播即生效）。 */
     fun setPlayMode(mode: MusicPlayMode) {

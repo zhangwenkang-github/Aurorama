@@ -16,8 +16,7 @@ interface MusicPlaybackStateSource {
      * 当前曲目总时长（毫秒），没有会话 / 内核还没给出时长时为 0。
      *
      * W23-MUSIC 追加：底栏与全屏播放页要显示"当前时间 / 总时长"，[MusicPlaybackStateSource]
-     * 是音乐线专门用来暴露只读播放状态的附加接口，照旧往这里加，不动 W0 冻结的
-     * [MusicPlaybackController]。
+     * 是音乐线专门用来暴露只读播放状态的附加接口，照旧往这里加，不动 W0 冻结的 [MusicPlaybackController]。
      */
     val durationMs: StateFlow<Long>
 }
