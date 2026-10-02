@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-10-02（W25-MUSIC 会话）　分支：`feature/w25-music-lyrics-edit`
+> 最后更新：2026-10-02（W28-MUSIC 会话）　分支：`feature/w28-word-lyrics`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -125,6 +125,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D43 | 导入 `.lrc` 在 `modes:music` 内用 `rememberLauncherForActivityResult(OpenDocument)`（任意 MIME 通配）实现，不新增 app/phone 接线 | `androidx.activity.compose` 已是音乐模块依赖（W3-R3b 引入）；`.lrc` 的 MIME 因文件管理器而异，通配避免被过滤；读入后按 UTF-8 → GBK 回退解码（与仓库/缓存同口径 `LyricTextCodec`） |
 | D44 | 悬浮窗「保持显示时长」= `LyricsOverlayIdle` 五档（2 / 3 / 5 / 10 秒 + 常显），工具条新增第 6 个图标按钮循环切换；新增偏好键 `pref_music_lyrics_overlay_idle`（默认 `3s`，保持 W24 行为） | 常显 = `durationMs = null`，`LaunchedEffect` 直接保持背景 / 边框；只追加键不重排；原五键的顺序与语义不动（新增键加在原键组尾部） |
 | D45 | 队列恢复开关直接落客户端设置的「音乐」行组（与桌面歌词同一组），只加一个 `PreferenceSwitch` + 两条字符串 | W21 已把开关语义做全（`MusicQueuePersister.load()/persist()`：关 = 不读不写），设置页只缺入口；沿用现有组件 / 文案风格（红线"settings 只加设置行"） |
+
+### 2.11 W28 本会话决策（逐字歌词 / 提示行清理 / 编辑时间轴）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D46 | 逐字模型 = `LyricLine.words: List<LyricWord>`（可空默认空）+ `LyricsPresenter.wordHighlights`（纯函数，词按"自身起点 → 下一词起点"折算 0..1 进度，末词用下一行起点或 500 ms 兜底）；**无逐字数据（空列表）时显示侧完全走原整行高亮路径** | 整行高亮 / 滚动同步是 W3 已验收行为，逐字必须是"附加层"：`LyricsRow.words` 为空时新旧渲染完全同构（代码层 `wordHighlightedText` 返回 null 即回落），不引入新的滚动逻辑 |
+| D47 | 逐字来源两路：**增强 LRC `<mm:ss.xx>` 标签**（`LrcParser.parseWords`，外挂 / 本机覆盖 / 导入共用）+ **服务端 `Cues`**（`mapServerLyrics` 按 `position`/`endPosition` 截子串、ticks/10000 换算，越界跳过）；标签文本必须从行文本剥离 | 服务端实测全库 100 首 `Cues` 全空（§4.4），本库唯一可得样本 = 增强 LRC；`Cues` 映射为数据链就绪 + 单测覆盖（未来服务器 / 其他库可用）。剥离标签是硬要求：不剥离会把 `<00:05.00>` 原样显示给用户 |
+| D48 | 编辑增强 = **整段偏移**（`shiftLyricEditLines`）与**单行微调**（`nudgeLyricEditLine`），±100 ms 档 + 自定义毫秒输入（`parseLyricOffsetMs`）；逐字数据随行一起平移（`shiftLyricWords`），保存时校验"首词起点 == 行时间"否则丢弃逐字（`lyricWordsConsistentWithLine`） | 时间轴编辑必须与逐字高亮同源：行时间动了而词时间不动，高亮会错位到行外；校验失败宁可回落整行（D46）。保存仍写本机覆盖（`encodeLrc` 对有效逐字写回 `<mm:ss.xxx>` 增强 LRC），不写服务器 |
 
 ## 3. 任务清单
 
@@ -256,6 +264,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 **遗留**：服务器覆盖内嵌歌词的结论仅实测 FLAC/Vorbis（ID3v2 `USLT` / MP4 `©lyr` 由同一 ATL 路径理论覆盖，本库无样本）；离线本地文件（无网络、无缓存）仍取不到内嵌歌词，如需客户端解析另开任务。
 
+### W28 逐字歌词 + 提示行清理 + 编辑时间轴（本会话 `feature/w28-word-lyrics`，进行中）
+
+- [x] 数据链调研（只读）：全库 100 首 `GET /Audio/{id}/Lyrics` → **`Cues` 全为空（0/100）**、无增强 LRC 标签；纯音乐占位行 27 条；服务端 DTO 的 `LyricLineCue` 契约（`position` / `endPosition` / `start` / `end`）核实（§4.4）
+- [x] 逐字数据模型与解析：`LyricWord` + `LyricLine.words`；`LrcParser.parseWords` 解析 `<mm:ss.xx>`（offset 同步、空词段跳过、标签前残留文本兜底）并从显示文本剥离；`mapServerLyrics` 映射服务端 `Cues`
+- [x] 逐字高亮：`LyricsPresenter.wordHighlights` / `activeWordIndex`（纯函数）+ `LyricsWordHighlight.wordHighlightedText`（AnnotatedString 颜色渐变）；接入歌词面板、全屏歌词页与桌面歌词悬浮窗；**无逐字数据整行降级**（原路径不变）
+- [x] 纯音乐提示行时间戳清理（W21 遗留）：`LyricsNormalizer.cleanPlaceholderTimestamp` 清理占位行文本里混入的 `[00:00:00]`（只命中纯音乐 / 无人声 / 请欣赏类，非占位行不动）
+- [x] 编辑增强：整段偏移 / 单行 ±100ms + 自定义毫秒（`shiftLyricEditLines` / `nudgeLyricEditLine` / `parseLyricOffsetMs`）；逐字随行平移、保存写增强 LRC 本机覆盖（`LyricsOverrideStore.encodeLrc`）
+- [x] 单测：`LrcParserTest`(+3) / `LyricsPresenterTest`(+3) / `LyricsNormalizerTest`(+2) / `LyricsEditorModelTest`(+3) / `LyricsOverrideStoreTest`(+1) / `LyricsRepositoryTest`(+1，服务端 `Cues` 映射)= 新增 13 项，`:modes:music` 86 → **99 项** 全绿
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51）+ `:modes:music:testDebugUnitTest`（99）全绿
+- [x] 真机验证（K60 `8e875894`，见 §5.9）：提示行清理前后对比 / 逐字推进（日志 + 像素）/ 整行降级（无逐字日志 + 整行强调色）/ 偏移与单行微调保存重进生效 + 悬浮窗一致 / 回归 + 0 FATAL/ANR
+
+**遗留**：本库服务端无 `Cues` 样本，服务端映射仅单测覆盖（真机样本 = 增强 LRC 本机覆盖）；歌词缓存（`LyricsCache`）仍只存"行文本 + 时间"，离线回落缓存时逐字数据丢失（优雅降级为整行，如需离线逐字再扩展缓存格式）。
+
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
 ### 4.1 队列与会话
@@ -300,6 +321,20 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 复用 `Downloader`（DownloadManager + WorkManager + Room）扩展 Audio 分支；下载完成后播 `file://` 本地源（`PlayerItem.mediaSourceUri`）；
 - 容量管理：设置页显示占用 + 一键清理（复用下载页样式）；自动缓存策略后置；
 - 与阅读器线共用 `DownloaderImpl` 时按 `ARCHITECTURE` §2.4 约定：一条线先做通用化，另一条只加自己的分支。
+
+### 4.4 逐字歌词数据链（W28-MUSIC 调研，只读）
+
+目标：回答"逐字（词）粒度从哪来、本库实际能拿到什么"，据此定实现与降级策略。
+
+| 来源 | 契约 / 粒度 | 本库实测（2026-10-02，全库 100 首） | 客户端处理 |
+|------|------------|--------------------------------|-----------|
+| 服务端 `GET /Audio/{id}/Lyrics` → `Lyrics[].Cues` | `LyricLineCue{position,endPosition,start,end}`：**行内 UTF-16 下标区间** + ticks 时间（1 ms = 10000 ticks） | **100 首全部 `Cues` 为空数组**（3 个样本逐行比对 + 全库扫描）；服务端 10.11.8 的 LRC 解析器不产出 cues | `mapServerLyrics` 已按契约映射（越界 / 空段跳过）+ 单测；本库无真机样本，属"未来可用" |
+| 增强 LRC `<mm:ss.xx>`（外挂 `.lrc` / 本机覆盖 / 导入） | 行内逐字标签：`[00:12.00]<00:12.00>词<00:12.80>句`；与行时间同 offset 语义 | 服务端返回的 100 首里 0 条含 `<…>` 标签；**本机覆盖 / 导入链路可携带**（W28 真机用增强 LRC 覆盖样本验证） | `LrcParser.parseWords`（本波新增）：标签剥离 + 转 `LyricWord`；`LyricsOverrideStore.encodeLrc` 保存时写回增强标签 |
+| 本机覆盖文件 `<filesDir>/lyrics/override/<itemId>.lrc` | 与"外挂 LRC"同格式（可读 LRC 文本），来源链最高优先级 | W25 建立；W28 真机写增强 LRC 样本（9 词 + 1 行无逐字） | 无需新格式：解析统一走 `LrcParser` |
+
+**粒度结论**：本库可得的最细粒度 = 增强 LRC 的"词/字段"（每段一个 `<mm:ss.xx>`）；服务端粒度 = 行（`Start`）+ 双语配对（同 Start），**没有逐字**。词段边界与实际唱词不一定逐字对齐（取决于 LRC 作者），客户端只做"按段推进"。
+
+**降级规则（D46）**：`words` 为空（服务端行 / 无标签 LRC / 缓存回落）→ 颜色不渐变、整行高亮 + 跟随滚动完全走 W3 路径；逐字只在"有数据且文本与词段拼接一致"时生效。
 
 ## 5. 真机验证记录（2026-09-30，Xiaomi Pad 5 / Android 13，`43af8627`）
 
@@ -467,6 +502,24 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 > 设备副作用：App force-stop（0 会话）；`/sdcard/w25_*.xml` 与 `/sdcard/Download/w25_import*.lrc` 已删除；偏好复核 = `pref_music_lyrics_overlay=false` / `..._idle=3s`（默认）/ `pref_music_resume_queue=true`（默认）/ 桌面歌词位置 `(276,126)` / 颜色松石 / 字号中 / 语言简体 / 未锁定（与开场基线一致）；`accelerometer_rotation=1` / `user_rotation=0` 未改；队列快照因测试播放前进（无人之地 → unravel，位置 1:54），未做回滚。
 
+### 5.9 W28 真机验证记录（2026-10-02，Redmi K60 `8e875894`）
+
+设备由负责人统一调度（`device-lock.md`，K60 归 W28；Pad 5 归 W27，全程未占用）；全部 `adb` 命令带 `-s 8e875894`；安装包 = 本会话 `assembleDebug` 产物（`classes12.dex` 含 `逐字歌词：pos=` 特征串，安装后核对）。
+
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | 提示行清理**前后对比** | 装前（W25 整合版 1.1.0）：`Last Reunion` 词面板 = `[00:00:00]此歌曲为没有填词的纯音乐，请您欣赏`（与服务器原始返回一致）；装 W28 版后同曲 = `此歌曲为没有填词的纯音乐，请您欣赏`（`来源：服务端`，前缀消失） | ✅ |
+| 2 | 逐字推进（日志采样） | 增强 LRC 本机覆盖（`心做し`，9 词 + 1 行无逐字；经 `run-as` 落 `files/lyrics/override/<id>.lrc`）→ 面板 `来源：本机覆盖`、文本已剥离 `<…>` 标签；logcat：`pos=5103ms 第 1 行 第 1/4 词「逐字」`→`8054ms 2/4`→`11130ms 3/4`→`14044ms 4/4`，`20259ms 第 2 行 1/3`→`23060ms 2/3`→`26157ms 3/3`（每词按时间戳推进） | ✅ |
+| 3 | 逐字推进（像素） | 同一行文本带（y 2159–2214）强调色像素：`x=115–226`（词 1 进度 0.41 @pos 6244，mean RGB 177,224,201）→ `x=115–466`（词 1–3 完成 @pos 15549，mean RGB 60,189,152）；亮色像素 2463 → 9619（同亮度阈值） | ✅ |
+| 4 | 桌面歌词逐字 + 偏移一致 | 悬浮窗 `APPLICATION_OVERLAY` frame `[276,264][1116,580]`；同帧区域亮色像素 3087 → 8486 → 13828、暗色 15403 → 10300 → 5314（pos 5.0 / 11.3 / 15.1 s）→ 逐字递进；点歌词行 `第二行也逐字` → `media_session position=20100` + 悬浮窗 `当前句「第二行也逐字」`；点 `逐字高亮推进样本` → `position=5200` + 悬浮窗当前句同步 | ✅ |
+| 5 | 偏移 / 单行微调保存重进 | 编辑器初值 `00:05.000 / 00:20.000 / 00:32.000 / 00:38.000` →「整体 +100ms」×2 + 选中第 2 行「−100ms」= `00:05.200 / 00:20.100 / 00:32.200 / 00:38.200`；保存后**重开编辑器仍为偏移值**；覆盖文件 `[00:05.200]<00:05.200>逐字<00:08.200>高亮…`（逐字随行平移，未丢段） | ✅ |
+| 6 | 偏移后播放时间轴 | 重播采样：第 1 行 `pos=5258 / 8301 / 11413 / 14383`（原 5103 / 8054 / 11130 / 14044，+200 ms 基线）；第 2 行 `pos=20342 / 23307 / 26468`（+100 ms 基线） | ✅ |
+| 7 | 无逐字数据整行降级 | 删除覆盖 → 面板 `来源：服务端　简体中文 / 日文 / 混合行`；播放期间 `逐字歌词` 日志 **0 条**；当前行 `不再哭泣` 整行强调色（像素 x=114–704 全行同色、y 3044–3099）+ 跟随滚动居中（同一帧悬浮窗同句） | ✅ |
+| 8 | 既有功能回归 | 歌词面板（来源 / 语言 chip / 双语对照 / 跟随滚动 / 点行 seek）/ 歌词编辑（预填 / 保存 / 清除覆盖回落）/ 桌面歌词（开 → 关 + Service 销毁）/ 播放队列（`播放队列（100）` + `正在播放`）/ 睡眠定时（关闭 + 10 / 20 / 30 / 60）/ 后台自动衔接 = 全过，无回归 | ✅ |
+| 9 | 门禁 + 稳定性 | `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 + music 99 全绿；真机全程 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` / crash buffer **0 条**（含 3 次 force-stop 重启与 1 次安装重启） | ✅ |
+
+> 设备副作用已还原：App force-stop（0 会话）；`/sdcard/w28_*.png|xml` 与 `/data/local/tmp/w28_word.lrc` 已删除；测试覆盖 `files/lyrics/override/<心做し id>.lrc` 已删（override 目录空）；偏好复核 = 桌面歌词 `false` / idle `3s` / 语言简体 / 字号中 / 颜色松石 / 位置 `(276,126)` / `resume_queue=true` / 未锁定（与开场备份逐键一致）；未改 `wm size` / density / 旋转 / Wi-Fi；队列快照因测试播放前进（Last Reunion → 心做し），未回滚。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -544,6 +597,9 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 29. **悬浮窗像素取证前必须先关悬浮窗**（W24 实测）：悬浮窗是顶层窗口，开着它去采样歌词页 / 全屏页会串色（歌词页"当前行强调色"一度采到悬浮窗的松石色 `#5CE1D2`，误判 30 分钟）。→ 采样 App 内页面时先 `dumpsys window` 确认没有 `APPLICATION_OVERLAY` 叠加，或在采样前关掉开关。
 30. **队列面板里的滑动手势会穿透到全屏页**（W24 实测）：在 `ModalBottomSheet` 里做下滑手势（想滚列表）一旦超过阈值，sheet 关闭后同一段手势会继续触发全屏页的"下滑退出"。→ sheet 内滚动用"列表区内、较小位移"的滑动，或先确认 sheet 的滚动区域坐标；需要大幅滚动时用 `uiautomator` 定位行后分批滑。
 31. **歌词居中的旧实现是"首帧视口 0"的隐性 bug**（W24 实测）：`LaunchedEffect` 里读 `listState.layoutInfo.viewportSize.height` 首帧为 0，`scrollOffset` 退化为 `+40px` → 当前行停在最上方；改成"上下 contentPadding = 视口一半 + `animateScrollToItem` 后按实际行高 `animateScrollBy` 微调"，真机 offset 收敛到 `(viewport-size)/2`。→ 凡"首帧滚动定位"都要把 `viewportSize==0` 当成显式分支或等首帧布局。
+32. **服务端 `Cues` 在本库全空 + 增强 LRC 标签必须剥离**（2026-10-02 W28）：全库 100 首 `GET /Audio/{id}/Lyrics` 的 `Cues` **0/100 非空**（服务端 LRC 解析器不产出 cues）→ 本库逐字样本只能来自外挂 / 导入 / 本机覆盖的增强 LRC；`<mm:ss.xx>` 若不从行文本剥离会原样显示在歌词里（用户直接看到标签）。另外 `LyricsCache` 仍只存 `startMs + text`：服务端将来有 cues、断网回落缓存时会丢逐字 → 当前刻意降级为整行（要离线逐字需扩展缓存格式）。
+33. **uiautomator dump 会同时包含全屏覆盖层与底层页面的节点**（W28 实测）：全屏播放页是 `MusicModeScreen` 内的 Box 覆盖层，底层歌曲列表 / mini bar 的同名按钮节点仍在 hierarchy 里，两组 bounds 交错（底层 mini bar 五键 y≈2710–2878、全屏功能行 y≈2551–2719）。→ 点全屏按钮要按"图标行 + label 的 y 分层"核对（桌面歌词点击区 = 图标行 `[1115,2551][1283,2719]`，不是底部同名的 label 行），否则会点到底层 mini bar 的下一曲 / 播放暂停；用 `content-desc` 或 `dumpsys window` 复核更稳。
+34. **MIUI 的 logcat 主缓冲很小，音频 MediaCodec debug 会吃掉周期日志**（W28 实测）：整轮调试后 `logcat -d` 只剩 ~955 行（`---------- beginning of main` 起），播放早期的逐字日志已被刷掉，导致误判"日志没打"。→ 周期性取证日志（逐字 / 上报 / 睡眠）必须 `logcat -c` 后**边播边过滤**或当场 `-d` 取，不能事后捞。
 
 ## 7. 会话日志
 
@@ -593,4 +649,12 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   ③悬浮窗「保持显示时长」五档（2 / 3 / 5 / 10 秒 + 常显；`pref_music_lyrics_overlay_idle` 默认 `3s`，工具条第 6 个图标循环切换）；
   ④客户端设置接入 `pref_music_resume_queue` 开关行（音乐行组，与桌面歌词同组）。
   新增 11 条单测（`:modes:music` 75 → **86 项**），门禁 `assembleDebug` + `ktfmtCheck` + app 51 + music 86 全绿；K60 真机 9 组见 §5.8（真机拦下并修复「词」面板半展开裁切；0 FATAL/ANR）。
-  决策 §2.10（D40–D45）。**未决**：ID3v2 `USLT` / MP4 `©lyr` 的内嵌覆盖仅源码层推断（本库无该类样本）；离线本地文件（无网络、无缓存）取内嵌歌词的场景未做（如需另开任务）。
+ 决策 §2.10（D40–D45）。**未决**：ID3v2 `USLT` / MP4 `©lyr` 的内嵌覆盖仅源码层推断（本库无该类样本）；离线本地文件（无网络、无缓存）取内嵌歌词的场景未做（如需另开任务）。
+- **2026-10-02 W28-MUSIC**（本会话，`feature/w28-word-lyrics`，起点 master `d972315`，提交见 git log）：完成三项——
+  ①**逐字歌词**：只读调研结论 = 服务端 `Cues` 全库 0/100（§4.4），可行粒度 = 增强 LRC `<mm:ss.xx>`（外挂 / 导入 / 本机覆盖）与服务端 `Cues`（映射就绪）；
+  数据层新增 `LyricWord` + `LyricLine.words`、`LrcParser.parseWords`（标签剥离 + offset 同步）、`mapServerLyrics`（`position`/`endPosition` 截子串）；
+  `LyricsPresenter.wordHighlights` / `activeWordIndex` 纯函数 + `wordHighlightedText`（AnnotatedString 颜色渐变）接入歌词面板 / 全屏歌词页 / 桌面歌词悬浮窗，**无逐字数据整行降级（原滚动同步路径不变）**；
+  ②**纯音乐提示行时间戳清理**（W21 遗留）：`LyricsNormalizer.cleanPlaceholderTimestamp` 清理占位行文本里的 `[00:00:00]`（真机前后对比：`[00:00:00]此歌曲为没有填词的纯音乐，请您欣赏` → `此歌曲为没有填词的纯音乐，请您欣赏`）；
+  ③**编辑增强**：整段偏移 + 单行微调（±100ms 档 / 自定义毫秒），逐字随行平移（首词与行时间绑定校验，失败回落整行），保存写增强 LRC 本机覆盖（`encodeLrc` 写回 `<mm:ss.xxx>`），**不写服务器**。
+  新增 13 条单测（`:modes:music` 86 → **99 项**），门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app 51 + music 99 全绿；K60 真机 9 组见 §5.9（逐字日志 + 像素推进 / 悬浮窗逐字与偏移一致 / 整行降级像素 + 0 逐字日志 / 偏移重进生效 / 0 FATAL/ANR）。
+  决策 §2.11（D46–D48），踩坑 §6-32～34。
