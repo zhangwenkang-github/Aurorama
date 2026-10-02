@@ -196,6 +196,7 @@ fun MusicModeScreen(
             if (nowPlayingOpen && currentQueue != null) {
                 MusicNowPlayingScreen(
                     queue = currentQueue,
+                    lyricsState = lyricsState,
                     isPlaying = isPlaying,
                     isRestored = isRestored,
                     positionMs = positionMs,
@@ -206,6 +207,11 @@ fun MusicModeScreen(
                     onPrevious = viewModel::skipToPrevious,
                     onNext = viewModel::skipToNext,
                     onSeek = viewModel::seekTo,
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
+                    onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
+                    onToggleLyricsFollow = viewModel::toggleLyricsFollow,
+                    onSeekLyricLine = viewModel::seekToLyricLine,
                 )
             }
         }
