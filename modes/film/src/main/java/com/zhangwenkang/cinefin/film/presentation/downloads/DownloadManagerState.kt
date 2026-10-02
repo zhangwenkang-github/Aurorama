@@ -35,13 +35,13 @@ data class DownloadManagerState(
     val selection: Set<String> = emptySet(),
 ) {
     val activeCount: Int
-        get() = activeTasks.size
+        get() = activeContainers.size
 
     val completedCount: Int
-        get() = completed.size
+        get() = completedContainers.size
 
     val failedCount: Int
-        get() = failedTasks.size
+        get() = failedContainers.size
 
     val hasSelection: Boolean
         get() = selection.isNotEmpty()

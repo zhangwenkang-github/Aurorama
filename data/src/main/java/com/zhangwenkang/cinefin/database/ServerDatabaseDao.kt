@@ -234,6 +234,46 @@ interface ServerDatabaseDao {
     )
     suspend fun getDownloadedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy>
 
+    /**
+     * W34 下载层级：已完成（LOCAL 完整文件）的剧集条目。
+     *
+     * `getDownloads()` 只返回 movies + shows；剧集存在 `episodes` 表，这里按 LOCAL source 反查， 供下载页「节目 → 季 →
+     * 剧集」层级使用（离线读库，不联网）。
+     */
+    @Query(
+        """
+        SELECT episodes.id AS episodeId,
+               episodes.seasonId AS seasonId,
+               episodes.seriesId AS seriesId,
+               episodes.name AS episodeName,
+               episodes.indexNumber AS episodeIndex,
+               episodes.runtimeTicks AS runtimeTicks,
+               shows.name AS seriesName,
+               seasons.name AS seasonName,
+               seasons.indexNumber AS seasonIndex
+        FROM episodes
+        INNER JOIN seasons ON seasons.id = episodes.seasonId
+        INNER JOIN shows ON shows.id = episodes.seriesId
+        WHERE EXISTS (
+            SELECT 1 FROM sources
+            WHERE sources.itemId = episodes.id
+              AND sources.type = 'LOCAL'
+              AND sources.path NOT LIKE '%.download'
+        )
+        """
+    )
+    suspend fun getCompletedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy>
+
+    /** W34：剧集 LOCAL 源（取第一个完整文件路径 / 体积）。 */
+    @Query(
+        """
+        SELECT * FROM sources
+        WHERE itemId = :itemId AND type = 'LOCAL' AND path NOT LIKE '%.download'
+        LIMIT 1
+        """
+    )
+    suspend fun getCompletedSource(itemId: UUID): FindroidSourceDto?
+
     /** W34 下载层级：已下载音频条目 id（音乐曲目在 movies 表里，只能靠主库曲库快照区分）。 */
     @Query(
         """
