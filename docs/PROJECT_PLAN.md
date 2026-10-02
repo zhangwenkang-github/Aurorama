@@ -35,7 +35,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 |----|------|------|---------|
 | **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W19 已合并**；**W19-PLAYER（已合并 master `93c72e9`）** 见 §22；**W27-PLAYER（已合并 master `e465a83`）：外挂字幕导入（双内核 libass）+ 字幕语言优先级 + 播放结束行为（自动下一集 / 停在结束帧）+ `PlayerDebugOverlay`，见 §24**；**W20-PLAYER（已合并 master `8d5a383`）：①进度写入 Jellyfin UserData（实测会话上报不落库 → 新增 `PlaybackPositionWriter` 直写 + 常驻上报 + 暂停/切集/退出落盘，退出 / 杀进程 / 切集 / 双内核取证）；②片头尾提示条读设置时长 + 修「控制层淡出把提示条藏掉」缺陷 + 播放面板补档位；③Trickplay 改按需拉当前精灵图 + LRU + 失败降级（纯函数 + 6 单测），见 §23**；待做：§15.5 / §16.5 / §20.5 / §21.5 / §22.5 / §23.5 / §24.5 遗留（Compact 自由窗口取证、mpv stall 不报错、回退档位按会话保留的语义取舍、服务器无 segments/trickplay 数据的真实回归、end-帧 OFF 档服务器缓流复验）+ 许可证 NOTICE（libass/ass-kt，release 前）；遗留：libc++ 覆盖构建补丁需在依赖升级后复核 |
 | **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
-| **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档（设计记入 `docs/ARCHITECTURE.md` §5.4） | 🟢 W31-CONN 已合并 master `9738877` | （原分支 `feature/w31-connection`）：自签证书 TOFU（指纹确认 / 记住 / 清除；data 网络层 + 添加服务器 / 登录 / 服务器页 UI；纯函数 + 真实 TLS 集成测试）；多用户（列表 / 切换 / 添加入口既有，修复删除当前用户悬空 + 当前账号标记 + 单测）。遗留：真机联调待设备调度、第二 Jellyfin 用户待服务器提供、WebView 控制台未接信任 |
+| **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档（设计记入 `docs/ARCHITECTURE.md` §5.4） | 🟢 W31-CONN 已合并 master `9738877`；**K60 真机联调完成** | 自签证书 TOFU（指纹确认 / 记住 / 清除）与多用户（切换 / 删除顺延 / 当前标记）全流程在 K60 验证（见 ARCHITECTURE §5.4.1）；真机发现并修复「清除信任后 TLS 会话复用绕过校验」→ 分支 `fix/w31-trust-session-reuse`（待合并）。遗留：WebView 控制台 / `ImagesDownloaderWorker` 未接信任 |
 | **Web 控制台**（内置 WebView + 影阁皮肤） | `docs/web-console-skin.css`（唯一权威副本，改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） | ✅ 基本完成 | 跟随 App 令牌与配色 |
 | **下载 / 离线** | `docs/DOWNLOAD_PLAN.md`（W32 建线） | 🟡 W32 已合并 master `9738877`；**K60 真机验收完成（断网 / force-stop 续传、批量暂停删除、完成与删除、存储占用通过）+ sidecar 残留修复 `5341027`（已合并 master `935e9f4` 后继合并）**；未触发：FAILED 自动重试 / 空间不足 / reboot 续传（DOWNLOAD_PLAN §6–§7） | 合并 `5341027`；补验未触发项；本地文件播放留后续波 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
@@ -79,7 +79,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 |------|------|------|
 | M0 | 环境打通、基线构建、服务器连通性 | ✅ |
 | M1 | 品牌化（影阁）+ 深灰蓝影院风设计系统 + 首页 | ✅ |
-| M2 | 连接层：HTTP/HTTPS、自签名证书、Quick Connect、多用户 | 🟡 Quick Connect 已有；**W31 自签证书 TOFU + 多用户审计完成（待真机联调）** |
+| M2 | 连接层：HTTP/HTTPS、自签名证书、Quick Connect、多用户 | 🟢 Quick Connect 已有；**W31 自签证书 TOFU + 多用户已完成 K60 真机联调**（会话复用修复待合并） |
 | M3 | 浏览体验：首页、媒体库、详情、搜索、筛选 | ✅ 主体完成（抽屉导航 + 海报墙 + 媒体库分区 + 设置对齐官方） |
 | M4 | 播放器重构：双内核、libass 字幕、倍速、比例、章节、Trickplay、跳片头、PiP | 🟡 双内核 / 倍速 / 比例 / 章节 / Trickplay / 跳片头 / PiP 已有；**libass 双内核完成：mpv 原生（W15，`0c3f8bc`）+ Exo 路径（W16 `feature/w16-exo-libass-decode`，含 SRT 覆盖与失败回退）**；详见 `PLAYER_PLAN.md` §18 / §19 |
 | M5 | 手势体系：长按 2×、滑动 seek、左亮度 / 右音量、双击、双指缩放、锁定、灵敏度 | 🟡 横向 seek（含渐进加速）/ 长按倍速 / 双指缩放已有；锁屏与优先级仲裁见 `PLAYER_PLAN.md` §1.3 |

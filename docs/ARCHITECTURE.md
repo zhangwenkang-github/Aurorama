@@ -410,6 +410,15 @@ interface MusicRepository {
 - **边界**：主机名（SAN/CN）校验保持 OkHttp 默认——自签证书必须把访问用的主机名 / IP 写进 SAN；未接入：WebView 控制台（`ConsoleViewModel`）与 `ImagesDownloaderWorker`。
 - **多用户（W31 审计）**：Room `users` 表 + `userdata(userId,itemId)` 已按用户隔离，`UsersScreen` 列表 / 切换 / 添加 / 删除入口位于设置页与抽屉；W31 修复「删除当前用户留下悬空 `currentUserId`」（有剩余用户顺延、否则清空令牌），并在列表标出当前账号；管理员缓存本身按账号 id 校验，不跨账号串号。
 
+#### 5.4.1 K60 真机联调（2026-10-02）
+
+- **环境**：PC 上起自签 HTTPS 服务（局域网 `10.71.41.146:8444`，证书 SAN `IP:10.71.41.146`，SHA-256 `BE:C8:E7:82:19:DC:CA:FD:A8:3D:76:59:E1:65:A3:E1:1C:78:19:ED:0E:84:2E:07:51:A5:B4:21:C3:5B:31:D0`），K60 走局域网直连（`http=200` 预检通过）。
+- **证书流程**：添加服务器 → 弹窗显示完整指纹（与 PC 一致）→ 信任并继续 → 服务器识别成功（`GET /System/Info/Public` 到达本地服务）；清除信任后**同进程**再连 → 立即 `SSLHandshakeException: Trust anchor ... not found` + 弹窗重现（无业务请求外发）；换第二张同 SAN 新证书 → 弹窗显示新指纹 + 「警告：证书已发生变化」+ 此前指纹；恢复原证书后旧信任仍可用（`POST /Users/AuthenticateByName` 到达）。
+- **真机发现并修复**：TLS 客户端会话缓存会让「清除信任」后的下一个连接走会话复用、跳过 trust manager。`CertificateAwareOkHttp` 现将证书感知客户端的 `SSLSessionContext` 限制为 1 条 / 1 秒（`sessionCacheSize=1`、`sessionTimeout=1`），保证每次连接重新做完整校验；修复分支 `fix/w31-trust-session-reuse`（待负责人合并）。
+- **多用户（K60 + 生产服务器）**：admin `zhangwenkang` 与第二个普通用户分别登录成功；Home「继续观看」仅 admin 出现（进度按用户隔离），`admin → test → admin` 来回切换正常；用户列表标出「当前」账号；删除当前用户（test）后 `servers.currentUserId` 顺延到 admin（设备 DB 实测）且无崩溃；错误密码显示「用户名或密码错误」；整轮 0 FATAL / ANR。
+- **测试服务备注**：PC 侧最终用 Python/OpenSSL 起服务；JBR `com.sun.net.httpserver.HttpsServer` 与 Android Conscrypt 的 engine socket 在 IP 直连时握手卡住（测试服务自身互通问题，与客户端无关）。
+- 遗留：WebView 控制台（`ConsoleViewModel`）与 `ImagesDownloaderWorker` 仍未接入信任；自签证书必须包含访问地址的 SAN。
+
 ## 6. 并行开发边界（供 S3 排期）
 
 ### 6.1 必须串行（有硬依赖）
