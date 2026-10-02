@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -68,6 +69,8 @@ class JellyfinRepositoryImpl(
     private val jellyfinApi: JellyfinApi,
     private val database: ServerDatabaseDao,
     private val appPreferences: AppPreferences,
+    /** W37：本地媒体库（合成 LOCAL 源，播放链路零改动复用）。 */
+    private val localLibrary: LocalLibraryRepository,
 ) : JellyfinRepository {
     /** W34：下载页轮询会重复取同一批封面 / 专辑元数据，用短 TTL 缓存避免每轮都打服务器。 */
     private val primaryImageUrls = java.util.concurrent.ConcurrentHashMap<UUID, String>()
@@ -94,6 +97,9 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getMovie(itemId: UUID): FindroidMovie =
         withContext(Dispatchers.IO) {
+            localLibrary.syntheticMovie(itemId)?.let {
+                return@withContext it
+            }
             jellyfinApi.userLibraryApi
                 .getItem(itemId, jellyfinApi.userId!!)
                 .content
@@ -132,6 +138,9 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getItem(itemId: UUID): FindroidItem? =
         withContext(Dispatchers.IO) {
+            localLibrary.syntheticMovie(itemId)?.let {
+                return@withContext it
+            }
             jellyfinApi.userLibraryApi
                 .getItem(itemId = itemId, userId = jellyfinApi.userId!!)
                 .content
@@ -327,6 +336,10 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
         withContext(Dispatchers.IO) {
+            // W37：本地媒体库条目 → 合成 LOCAL 源（content:// 文档 URI，不落 sources 表）。
+            localLibrary.syntheticSources(itemId)?.let {
+                return@withContext it
+            }
             /*
              * 码率档位（W12 反馈 B）：0 = 自动（不设上限，服务器自行判断直连 / 转码）、
              * -1 = 原始画质（只直连，明确禁用转码）、>0 = 具体 Mbps（按该上限请求服务器转码）。
@@ -505,6 +518,8 @@ class JellyfinRepositoryImpl(
 
     override suspend fun postPlaybackStart(itemId: UUID) {
         Timber.d("Sending start $itemId")
+        // W37：本地媒体库条目没有服务器会话，跳过上报。
+        if (localLibrary.isLocalItem(itemId)) return
         withContext(Dispatchers.IO) {
             jellyfinApi.playStateApi.reportPlaybackStart(
                 PlaybackStartInfo(
@@ -526,6 +541,8 @@ class JellyfinRepositoryImpl(
         playedPercentage: Int,
     ) {
         Timber.d("Sending stop $itemId")
+        // W37：本地媒体库条目不打服务器（进度由播放器内存态承载）。
+        if (localLibrary.isLocalItem(itemId)) return
         withContext(Dispatchers.IO) {
             when {
                 playedPercentage < 10 -> {
@@ -557,6 +574,8 @@ class JellyfinRepositoryImpl(
         isPaused: Boolean,
     ) {
         Timber.d("Posting progress of $itemId, position: $positionTicks")
+        // W37：本地媒体库条目不打服务器。
+        if (localLibrary.isLocalItem(itemId)) return
         withContext(Dispatchers.IO) {
             database.setPlaybackPositionTicks(itemId, jellyfinApi.userId!!, positionTicks)
             try {

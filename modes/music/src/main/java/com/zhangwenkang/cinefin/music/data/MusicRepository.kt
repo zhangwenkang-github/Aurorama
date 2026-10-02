@@ -14,6 +14,24 @@ import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 
+/** W37 曲目来源（在线融合：全部 / 服务器 / 本地）。 */
+enum class MusicItemSource(val label: String) {
+    SERVER("服务器"),
+    LOCAL("本地"),
+}
+
+/** 音乐曲库来源筛选档位。 */
+enum class MusicItemSourceFilter(val label: String) {
+    ALL("全部"),
+    SERVER("服务器"),
+    LOCAL("本地");
+
+    companion object {
+        fun fromName(raw: String?): MusicItemSourceFilter =
+            entries.firstOrNull { it.name == raw } ?: ALL
+    }
+}
+
 /** 一首可播放的音乐曲目（音乐线自己的模型，不经过 `FindroidItem`）。 */
 data class MusicSong(
     val itemId: UUID,
@@ -27,6 +45,10 @@ data class MusicSong(
     val resumePositionMs: Long = 0L,
     /** 服务端收藏状态（W21-R2；写入走 `/UserFavoriteItems/{id}`，读回走 `filters=IsFavorite`）。 */
     val isFavorite: Boolean = false,
+    /** W37：本地媒体库曲目的 SAF 文档 URI（null = 服务器曲目）。 */
+    val localUri: String? = null,
+    /** W37：来源（在线融合的来源徽标 / 筛选）。 */
+    val source: MusicItemSource = MusicItemSource.SERVER,
 )
 
 /**

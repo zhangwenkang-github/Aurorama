@@ -1,8 +1,11 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.local.localItemIdFor
 import com.zhangwenkang.cinefin.repository.ReaderBookmark
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.repository.ReadingProgress
@@ -29,6 +32,8 @@ import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.locateProgression
+import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.http.DefaultHttpClient
@@ -131,6 +136,8 @@ constructor(
     private var openedAsset: Asset? = null
     private var openedPageSource: PageSource? = null
     private var openedBookFile: File? = null
+    /** W37：本地媒体库书籍（SAF `content://`）；非空时源文件在用户文件夹里（索引只读，不拷贝）。 */
+    private var localDocumentUri: Uri? = null
     private var openedSimpleFormat: SimpleBookFormat? = null
     private var openedSimplePageCount: Int = 0
     private var pdfSearchSource: PdfBoxPageTextSource? = null
@@ -157,6 +164,7 @@ constructor(
     fun open(itemId: UUID) {
         if (_state.value is ReaderUiState.Ready || openedItemId == itemId) return
         openedItemId = itemId
+        localDocumentUri = null
         _state.value = ReaderUiState.Loading
         resetToolState()
 
@@ -185,12 +193,51 @@ constructor(
         }
     }
 
+    /**
+     * W37 本地媒体库：直接打开用户文件夹里的书籍（`content://`，不拷贝源文件）。
+     *
+     * [itemId] 由文档 URI 推出（`localItemIdFor`）：进度 / 书签 / 批注复用同一套本机存储； 本地书籍的进度只落本机（不回传服务器）。
+     */
+    fun openLocal(uri: Uri, title: String?) {
+        val itemId = localItemIdFor(uri.toString())
+        if (_state.value is ReaderUiState.Ready && openedItemId == itemId) return
+        openedItemId = itemId
+        localDocumentUri = uri
+        _state.value = ReaderUiState.Loading
+        resetToolState()
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val progress = readerRepository.getReadingProgress(itemId)
+                    ReaderUiState.Ready(
+                        itemId = itemId,
+                        document = openLocalDocument(uri, progress),
+                        initialProgression = progress?.progression ?: 0.0,
+                    )
+                }
+            }
+                .onSuccess {
+                    _state.value = it
+                    refreshLocalState(itemId)
+                    startPeriodicProgressReporter()
+                }
+                .onFailure {
+                    Timber.w(it, "打开本地书籍失败")
+                    closeDocuments()
+                    _state.value = ReaderUiState.Error(it.message ?: "打开本地书籍失败")
+                }
+        }
+        // title 只用于日志 / 后续扩展：阅读页标题由 Activity 侧的 intent extra 渲染。
+        Timber.d("打开本地书籍 %s（%s）", title, uri)
+    }
+
     fun retry() {
         val itemId = openedItemId ?: return
+        val localUri = localDocumentUri
         closeDocuments()
         resetToolState()
         openedItemId = null
-        open(itemId)
+        if (localUri != null) openLocal(localUri, null) else open(itemId)
     }
 
     /** 打开新书 / 重试时清掉上一本的搜索、批注与跳转状态（进度与设置不动）。 */
@@ -469,7 +516,8 @@ constructor(
                 progression = progression,
                 positionTicks = progressionToTicks(progression),
                 updatedAt = Instant.now(),
-                pendingSync = true,
+                // W37：本地媒体库书籍的进度只落本机（服务器没有这个 itemId，回传必然失败）。
+                pendingSync = localDocumentUri == null,
             )
         runCatching { readerRepository.saveReadingProgress(itemId, progress) }
             .onSuccess {
@@ -539,17 +587,31 @@ constructor(
     }
 
     private suspend fun refreshLocalState(itemId: UUID) {
-        val localFile = runCatching { readerRepository.localFile(itemId) }.getOrNull()
+        // 本地媒体库书籍：文件在用户文件夹（SAF），用文档大小显示「离线可读」。
         _downloadState.value =
-            if (localFile == null) {
-                BookDownloadState.NotDownloaded
+            if (localDocumentUri != null) {
+                BookDownloadState.Downloaded(contentSize(localDocumentUri!!) ?: 0L)
             } else {
-                BookDownloadState.Downloaded(localFile.sizeBytes)
+                val localFile = runCatching { readerRepository.localFile(itemId) }.getOrNull()
+                if (localFile == null) {
+                    BookDownloadState.NotDownloaded
+                } else {
+                    BookDownloadState.Downloaded(localFile.sizeBytes)
+                }
             }
         refreshBookmarks()
         refreshAnnotations(itemId)
         refreshPendingSyncCount()
     }
+
+    /** SAF 文档大小（`OpenableColumns.SIZE`），取不到返回 null。 */
+    private fun contentSize(uri: Uri): Long? = runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use {
+            cursor ->
+            if (cursor.moveToFirst()) cursor.getLong(0).takeIf { it >= 0 } else null
+        }
+    }
+        .getOrNull()
 
     override fun onCleared() {
         progressJob?.cancel()
@@ -605,6 +667,38 @@ constructor(
             BookFormat.Unknown -> openReadium(file, progress)
         }
 
+    /**
+     * W37 本地媒体库书籍（`content://`）：PDF 走 `ParcelFileDescriptor` + PdfRenderer、CBZ 走顺序流页源、 其余（EPUB /
+     * 未知）交给 Readium 的 ContentResolver 资源链。
+     */
+    private suspend fun openLocalDocument(uri: Uri, progress: ReadingProgress?): ReaderDocument =
+        when (sniffBookFormat(context.contentResolver, uri)) {
+            BookFormat.Pdf -> {
+                val descriptor =
+                    context.contentResolver.openFileDescriptor(uri, "r")
+                        ?: throw IllegalStateException("无法打开本地 PDF 文件")
+                val source = PdfPageSource(descriptor)
+                if (source.pageCount <= 0) {
+                    source.close()
+                    throw IllegalStateException("PDF 中没有可阅读的页面")
+                }
+                openSimple(source, SimpleBookFormat.Pdf, progress)
+            }
+
+            BookFormat.ComicArchive -> {
+                val source = ContentUriComicPageSource(context.contentResolver, uri)
+                if (source.pageCount > 0) {
+                    openSimple(source, SimpleBookFormat.ComicArchive, progress)
+                } else {
+                    source.close()
+                    openReadium(uri, progress)
+                }
+            }
+
+            BookFormat.Epub,
+            BookFormat.Unknown -> openReadium(uri, progress)
+        }
+
     /** 打开好的页序列文档：接管 [PageSource] 生命周期（[closeDocuments] 统一释放）。 */
     private fun openSimple(
         source: PageSource,
@@ -622,7 +716,10 @@ constructor(
     }
 
     private suspend fun openReadium(file: File, progress: ReadingProgress?): ReaderDocument.Rich {
-        val (asset, publication) = openPublication(file)
+        val httpClient = DefaultHttpClient()
+        val assetRetriever = AssetRetriever(context.contentResolver, httpClient)
+        val assetResult = assetRetriever.retrieve(file)
+        val (asset, publication) = openPublication(assetRetriever, httpClient, assetResult)
         openedAsset = asset
         // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
         val initialLocator =
@@ -633,10 +730,29 @@ constructor(
         return ReaderDocument.Rich(publication = publication, initialLocator = initialLocator)
     }
 
-    private suspend fun openPublication(file: File): Pair<Asset, Publication> {
+    /** W37：SAF `content://` 书籍（Readium 走 ContentResolver 资源）。 */
+    private suspend fun openReadium(uri: Uri, progress: ReadingProgress?): ReaderDocument.Rich {
         val httpClient = DefaultHttpClient()
         val assetRetriever = AssetRetriever(context.contentResolver, httpClient)
-        val assetResult = assetRetriever.retrieve(file)
+        val url =
+            Url(uri.toString()) as? AbsoluteUrl ?: throw IllegalStateException("无法识别本地书籍地址：$uri")
+        val assetResult = assetRetriever.retrieve(url)
+        val (asset, publication) = openPublication(assetRetriever, httpClient, assetResult)
+        openedAsset = asset
+        // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
+        val initialLocator =
+            progress?.locatorJson?.toLocator()
+                ?: progress
+                    ?.takeIf { it.progression > 0.0 }
+                    ?.let { locateByProgression(publication, it.progression) }
+        return ReaderDocument.Rich(publication = publication, initialLocator = initialLocator)
+    }
+
+    private suspend fun openPublication(
+        assetRetriever: AssetRetriever,
+        httpClient: DefaultHttpClient,
+        assetResult: org.readium.r2.shared.util.Try<Asset, *>,
+    ): Pair<Asset, Publication> {
         val asset =
             assetResult.getOrNull()
                 ?: throw IllegalStateException("无法识别书籍格式：${assetResult.failureOrNull()}")

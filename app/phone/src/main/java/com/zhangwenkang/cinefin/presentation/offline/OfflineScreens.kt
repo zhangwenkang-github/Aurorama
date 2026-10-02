@@ -53,6 +53,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyFla
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyLeaf
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyRow
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchySubContainer
+import com.zhangwenkang.cinefin.presentation.local.LocalLibrarySection
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
@@ -251,6 +252,8 @@ fun OfflineLibraryScreen(
     onOpenDrawer: (() -> Unit)?,
     onPlayVideo: (itemId: UUID, isEpisode: Boolean) -> Unit,
     onOpenBook: (itemId: UUID, title: String) -> Unit,
+    /** W37：本地媒体库详情（离线同样常显入口）。 */
+    onOpenLocalLibrary: (Long) -> Unit = {},
     viewModel: OfflineMediaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -307,27 +310,43 @@ fun OfflineLibraryScreen(
                     CircularProgressIndicator(color = colors.onSurfaceVariant)
                 }
             rows.isEmpty() ->
-                CinefinEmptyState(
-                    title = "没有可离线观看的视频",
-                    message =
-                        if (
-                            !state.showHidden &&
-                                state.entries.any { it.kind == OfflineMediaEntryKind.VIDEO }
-                        ) {
-                            "已下载节目都被关闭了离线观看；点右上角「眼睛」进入管理视图重新打开。"
-                        } else {
-                            "联网后打开节目详情页，点「下载」把剧集存到本机；音乐与书籍在各自入口查看。"
-                        },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
-                    icon = { tint ->
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_download),
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(44.dp),
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = CinefinSpacing.Space8),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+                ) {
+                    item(key = "offline-empty") {
+                        CinefinEmptyState(
+                            title = "没有可离线观看的视频",
+                            message =
+                                if (
+                                    !state.showHidden &&
+                                        state.entries.any { it.kind == OfflineMediaEntryKind.VIDEO }
+                                ) {
+                                    "已下载节目都被关闭了离线观看；点右上角「眼睛」进入管理视图重新打开。"
+                                } else {
+                                    "联网后打开节目详情页，点「下载」把剧集存到本机；音乐与书籍在各自入口查看。"
+                                },
+                            modifier =
+                                Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
+                            icon = { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_download),
+                                    contentDescription = null,
+                                    tint = tint,
+                                    modifier = Modifier.size(44.dp),
+                                )
+                            },
                         )
-                    },
-                )
+                    }
+                    // W37：离线模式同样常显「＋ 建立本地媒体库」（不依赖服务器 / 账号）。
+                    item(key = "local_library_section") {
+                        LocalLibrarySection(
+                            onOpenLibrary = onOpenLocalLibrary,
+                            modifier = Modifier.padding(horizontal = horizontalPadding),
+                        )
+                    }
+                }
             else ->
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = horizontalPadding),
@@ -407,12 +426,9 @@ fun OfflineLibraryScreen(
                                 )
                         }
                     }
-                    // W36 预留（W37 内容）：本地媒体库入口 + 可见性开关。
-                    item(key = "local_library_placeholder") {
-                        LocalLibraryPlaceholderCard(
-                            visible = state.localLibraryVisible,
-                            onToggle = viewModel::setLocalLibraryVisible,
-                        )
+                    // W37：本地媒体库（离线常显入口；索引只读，不依赖服务器）。
+                    item(key = "local_library_section") {
+                        LocalLibrarySection(onOpenLibrary = onOpenLocalLibrary)
                     }
                 }
         }
@@ -710,32 +726,6 @@ private fun OfflineArtwork(
                 tint = tint,
                 modifier = Modifier.size(size / 2),
             )
-        }
-    }
-}
-
-/** W36 预留（W37 内容）：本地媒体库入口 + 可见性开关。 */
-@Composable
-private fun LocalLibraryPlaceholderCard(visible: Boolean, onToggle: (Boolean) -> Unit) {
-    val colors = LocalCinefinColors.current
-    CinefinCard(contentPadding = PaddingValues(CinefinSpacing.Space4)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                painter = painterResource(CoreR.drawable.ic_library),
-                contentDescription = null,
-                tint = colors.onSurfaceFaint,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(Modifier.width(CinefinSpacing.Space3))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = "本地媒体库", style = CinefinType.BodyLarge, color = colors.onSurface)
-                Text(
-                    text = "W37：添加本机文件夹（视频 / 音乐 / 书籍）后在这里显示",
-                    style = CinefinType.BodySmall,
-                    color = colors.onSurfaceVariant,
-                )
-            }
-            Switch(checked = visible, onCheckedChange = onToggle)
         }
     }
 }

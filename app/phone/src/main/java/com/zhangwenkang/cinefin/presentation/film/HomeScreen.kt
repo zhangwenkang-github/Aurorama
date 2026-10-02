@@ -48,6 +48,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.HomeView
 import com.zhangwenkang.cinefin.presentation.film.components.PosterItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.film.components.lumenEntrance
+import com.zhangwenkang.cinefin.presentation.local.HomeLocalMediaSection
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
@@ -62,6 +63,8 @@ fun HomeScreen(
     onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     onItemClick: (item: FindroidItem) -> Unit,
+    /** W37：首页「本地媒体」入口（开关默认关，入口在本地媒体库总览里）。 */
+    onOpenLocalLibrary: (Long) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -73,6 +76,7 @@ fun HomeScreen(
         onOpenDrawer = onOpenDrawer,
         onSearchClick = onSearchClick,
         onItemClick = onItemClick,
+        onOpenLocalLibrary = onOpenLocalLibrary,
         onRetry = { viewModel.loadData() },
     )
 }
@@ -89,6 +93,7 @@ private fun HomeScreenLayout(
     onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     onItemClick: (FindroidItem) -> Unit,
+    onOpenLocalLibrary: (Long) -> Unit,
     onRetry: () -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -188,6 +193,11 @@ private fun HomeScreenLayout(
                             }
                         }
 
+                        // W37：本地媒体（`pref_local_library_visible`，默认关；无本地库时 section 自行隐藏）。
+                        item(key = "local_media", span = { GridItemSpan(maxLineSpan) }) {
+                            HomeLocalMediaSection(onOpenLibrary = onOpenLocalLibrary)
+                        }
+
                         state.views.take(3).forEach { view ->
                             item(key = "view_${view.id}", span = { GridItemSpan(maxLineSpan) }) {
                                 HomeView(
@@ -260,6 +270,7 @@ private fun HomeScreenLayoutPreview() {
             onOpenDrawer = {},
             onSearchClick = {},
             onItemClick = {},
+            onOpenLocalLibrary = {},
             onRetry = {},
         )
     }

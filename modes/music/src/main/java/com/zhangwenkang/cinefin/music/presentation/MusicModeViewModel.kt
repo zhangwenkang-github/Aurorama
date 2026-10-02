@@ -2,9 +2,12 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.local.LocalLibraryRepository
+import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
+import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
 import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
 import com.zhangwenkang.cinefin.music.data.MusicPlayMode
@@ -37,6 +40,7 @@ import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
 import com.zhangwenkang.cinefin.music.data.musicQueueFillOrder
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
 import com.zhangwenkang.cinefin.music.data.next
+import com.zhangwenkang.cinefin.music.data.toLocalMusicSong
 import com.zhangwenkang.cinefin.music.data.toRepeatMode
 import com.zhangwenkang.cinefin.music.data.toShuffleEnabled
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
@@ -103,6 +107,8 @@ constructor(
     private val jellyfinRepository: JellyfinRepository,
     /** W36：离线模式的曲库来源（本机已下载曲目）。 */
     private val offlineMediaRepository: OfflineMediaRepository,
+    /** W37：本地媒体库（用户自选文件夹里的音乐并入曲库）。 */
+    private val localLibraryRepository: LocalLibraryRepository,
 ) : ViewModel() {
 
     /** W34：曲目下载态（下载列表层级化要求音乐侧也能发起下载）。 */
@@ -129,6 +135,13 @@ constructor(
         val artists: List<MusicArtist> = emptyList(),
         val songs: List<MusicSong> = emptyList(),
         val playlists: List<MusicPlaylist> = emptyList(),
+        /** W37：曲库来源筛选（全部 / 服务器 / 本地）。 */
+        val sourceFilter: MusicItemSourceFilter = MusicItemSourceFilter.ALL,
+        /** W37：曲目行是否显示来源徽标。 */
+        val showSourceBadge: Boolean = true,
+        /** W37：本地曲目条数（筛选行副文案用）。 */
+        val localSongCount: Int = 0,
+        val serverSongCount: Int = 0,
         val detail: MusicDetail? = null,
         /** 错误标题（错误态面板顶部文案：曲库加载 / 播放 / 歌单加载）。 */
         val errorTitle: String? = null,
@@ -194,6 +207,10 @@ constructor(
     private var lastLoggedWord: Pair<Int, Int>? = null
     private var refreshJob: Job? = null
     private var playJob: Job? = null
+
+    /** W37：服务器（或离线已下载）曲库与本地媒体库曲库分开缓存，切换来源筛选不重新请求。 */
+    private var serverLibrary: MusicLibrary = MusicLibrary(emptyList(), emptyList(), emptyList())
+    private var localLibrary: MusicLibrary = MusicLibrary(emptyList(), emptyList(), emptyList())
 
     /** 上次会话的队列快照（W21-R2）：未点播放前只在本地展示 / 编辑。 */
     private val _restoredQueue = MutableStateFlow<MusicQueue?>(null)
@@ -278,6 +295,16 @@ constructor(
         persister.start()
         historyTracker.start()
         lyricsOverlay.start()
+        // W37：来源筛选 / 来源徽标从偏好恢复。
+        _uiState.update {
+            it.copy(
+                sourceFilter =
+                    MusicItemSourceFilter.fromName(
+                        appPreferences.getValue(appPreferences.localLibraryMusicSource)
+                    ),
+                showSourceBadge = appPreferences.getValue(appPreferences.localLibrarySourceBadge),
+            )
+        }
         refresh()
         observeLyrics()
         restoreQueue()
@@ -728,50 +755,45 @@ constructor(
             _uiState.update { it.copy(loading = true, errorTitle = null, errorMessage = null) }
             // W36：离线模式只读本机已下载曲目，不发任何网络请求。
             if (appPreferences.getValue(appPreferences.offlineMode)) {
-                val library = runCatching {
-                    loadOfflineLibrary()
-                }
-                    .onFailure { Timber.w(it, "读取离线曲库失败") }
-                    .getOrElse {
-                        MusicLibrary(
-                            songs = emptyList(),
-                            albums = emptyList(),
-                            artists = emptyList(),
-                        )
-                    }
+                serverLibrary =
+                    runCatching { loadOfflineLibrary() }
+                        .onFailure { Timber.w(it, "读取离线曲库失败") }
+                        .getOrElse { MusicLibrary(emptyList(), emptyList(), emptyList()) }
+                localLibrary = loadLocalLibrary()
                 _uiState.update {
                     it.copy(
                         loading = false,
                         offline = true,
-                        albums = library.albums,
-                        artists = library.artists,
-                        songs = library.songs,
                         playlists = emptyList(),
                         errorTitle = null,
                         errorMessage = null,
                     )
                 }
+                publishLibraries()
                 refreshDownloadState()
                 return@launch
             }
             try {
                 val (library, playlists) = loadLibraryWithRetry()
+                serverLibrary = library
+                localLibrary = loadLocalLibrary()
                 _uiState.update {
                     it.copy(
                         loading = false,
                         offline = false,
-                        albums = library.albums,
-                        artists = library.artists,
-                        songs = library.songs,
                         playlists = playlists,
                         errorTitle = null,
                         errorMessage = null,
                     )
                 }
+                publishLibraries()
                 refreshDownloadState()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
+                // 服务器不可达时本地媒体库仍然可用（错误面板关闭后能看到本地曲目）。
+                localLibrary = loadLocalLibrary()
+                publishLibraries()
                 _uiState.update {
                     it.copy(
                         loading = false,
@@ -783,6 +805,55 @@ constructor(
                 }
             }
         }
+    }
+
+    /** W37：来源筛选（全部 / 服务器 / 本地）与来源徽标开关。 */
+    fun setSourceFilter(filter: MusicItemSourceFilter) {
+        if (_uiState.value.sourceFilter == filter) return
+        appPreferences.setValue(appPreferences.localLibraryMusicSource, filter.name)
+        _uiState.update { it.copy(sourceFilter = filter) }
+        publishLibraries()
+    }
+
+    fun setShowSourceBadge(show: Boolean) {
+        appPreferences.setValue(appPreferences.localLibrarySourceBadge, show)
+        _uiState.update { it.copy(showSourceBadge = show) }
+    }
+
+    /** 当前筛选下的曲库视图（专辑 / 艺术家 / 歌曲三个维度同源重建）。 */
+    private fun publishLibraries() {
+        val songs =
+            when (_uiState.value.sourceFilter) {
+                MusicItemSourceFilter.ALL -> serverLibrary.songs + localLibrary.songs
+                MusicItemSourceFilter.SERVER -> serverLibrary.songs
+                MusicItemSourceFilter.LOCAL -> localLibrary.songs
+            }
+        _uiState.update {
+            it.copy(
+                songs = songs,
+                albums = groupAlbums(songs),
+                artists = groupArtists(songs),
+                localSongCount = localLibrary.songs.size,
+                serverSongCount = serverLibrary.songs.size,
+            )
+        }
+    }
+
+    /** W37：本地媒体库里的音乐条目 → 曲目（内嵌标签优先，缺失回退「本地文件」专辑）。 */
+    private suspend fun loadLocalLibrary(): MusicLibrary {
+        val songs = runCatching {
+            localLibraryRepository.allEntries()
+        }
+            .onFailure { Timber.w(it, "读取本地媒体库失败") }
+            .getOrElse { emptyList() }
+            .filter { it.kind == LocalMediaKind.MUSIC }
+            .sortedWith(compareBy({ it.album ?: "" }, { it.relativePath.lowercase() }))
+            .map { it.toLocalMusicSong() }
+        return MusicLibrary(
+            songs = songs,
+            albums = groupAlbums(songs),
+            artists = groupArtists(songs),
+        )
     }
 
     /** 第一次失败视为偶发（服务端超时 / 弱网），自动重试一次后仍失败才抛给调用方。 */

@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,6 +62,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
@@ -75,6 +77,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.R
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
+import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
@@ -167,6 +170,14 @@ fun MusicModeScreen(
                 }
                 if (state.detail == null) {
                     MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
+                    // W37 在线融合：曲库来源筛选（全部 / 服务器 / 本地）+ 来源徽标开关。
+                    if (!state.offline) {
+                        MusicSourceFilterRow(
+                            state = state,
+                            onSelect = viewModel::setSourceFilter,
+                            onToggleBadge = viewModel::setShowSourceBadge,
+                        )
+                    }
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 }
 
@@ -187,6 +198,7 @@ fun MusicModeScreen(
                                 detail = state.detail!!,
                                 currentItemId = queue?.currentItem?.itemId,
                                 downloadState = songDownloadState,
+                                showSourceBadge = state.showSourceBadge,
                                 onSongClick = viewModel::playSong,
                                 onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
@@ -197,6 +209,7 @@ fun MusicModeScreen(
                                 state = state,
                                 currentItemId = queue?.currentItem?.itemId,
                                 downloadState = songDownloadState,
+                                showSourceBadge = state.showSourceBadge,
                                 onAlbumClick = viewModel::openAlbum,
                                 onArtistClick = viewModel::openArtist,
                                 onPlaylistClick = viewModel::openPlaylist,
@@ -448,11 +461,49 @@ private fun MusicTabs(selected: MusicTab, onSelect: (MusicTab) -> Unit) {
     )
 }
 
+/**
+ * W37 在线融合：曲库来源筛选行（全部 / 服务器 / 本地）+ 来源徽标开关。
+ *
+ * 只影响浏览与队列来源展示：本地曲目与服务器曲目共用同一播放链路与同一队列模型。
+ */
+@Composable
+private fun MusicSourceFilterRow(
+    state: MusicModeViewModel.UiState,
+    onSelect: (MusicItemSourceFilter) -> Unit,
+    onToggleBadge: (Boolean) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier.padding(horizontal = CinefinSpacing.Space4)
+                .widthIn(max = 640.dp)
+                .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+    ) {
+        MusicItemSourceFilter.entries.forEach { filter ->
+            CinefinFilterChip(
+                text = filter.label,
+                selected = state.sourceFilter == filter,
+                compact = true,
+                onClick = { onSelect(filter) },
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        CinefinFilterChip(
+            text = "来源徽标",
+            selected = state.showSourceBadge,
+            compact = true,
+            onClick = { onToggleBadge(!state.showSourceBadge) },
+        )
+    }
+}
+
 @Composable
 private fun LibraryPane(
     state: MusicModeViewModel.UiState,
     currentItemId: UUID?,
     downloadState: MusicModeViewModel.SongDownloadState,
+    showSourceBadge: Boolean,
     onAlbumClick: (MusicAlbum) -> Unit,
     onArtistClick: (MusicArtist) -> Unit,
     onPlaylistClick: (MusicPlaylist) -> Unit,
@@ -470,6 +521,7 @@ private fun LibraryPane(
                 currentItemId = currentItemId,
                 showAlbum = true,
                 downloadState = downloadState,
+                showSourceBadge = showSourceBadge,
                 onSongClick = onSongClick,
                 onPlayNext = onPlayNext,
                 onToggleFavorite = onToggleFavorite,
@@ -485,6 +537,7 @@ private fun DetailPane(
     detail: MusicDetail,
     currentItemId: UUID?,
     downloadState: MusicModeViewModel.SongDownloadState,
+    showSourceBadge: Boolean,
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
@@ -504,6 +557,7 @@ private fun DetailPane(
         currentItemId = currentItemId,
         showAlbum = detail !is MusicDetail.Album,
         downloadState = downloadState,
+        showSourceBadge = showSourceBadge,
         emptyTitle =
             when (detail) {
                 is MusicDetail.Favorites -> "还没有收藏的曲目"
@@ -624,6 +678,7 @@ private fun SongList(
     showAlbum: Boolean,
     emptyTitle: String = "这里还没有可播放的曲目",
     downloadState: MusicModeViewModel.SongDownloadState = MusicModeViewModel.SongDownloadState(),
+    showSourceBadge: Boolean = true,
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
@@ -652,10 +707,12 @@ private fun SongList(
                     },
                 downloadMenuItem =
                     when {
+                        song.localUri != null -> null
                         downloadState.isDownloaded(song.itemId) -> "删除下载"
                         downloadState.isActive(song.itemId) -> "取消下载"
                         else -> "下载"
                     },
+                sourceBadge = song.source.label.takeIf { showSourceBadge },
                 onClick = { onSongClick(song) },
                 onPlayNext = { onPlayNext(song) },
                 onToggleFavorite = { onToggleFavorite(song) },
@@ -672,7 +729,8 @@ private fun SongRow(
     subtitle: String?,
     isCurrent: Boolean,
     downloadLabel: String?,
-    downloadMenuItem: String,
+    downloadMenuItem: String?,
+    sourceBadge: String?,
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -683,6 +741,7 @@ private fun SongRow(
     var menuOpen by remember { mutableStateOf(false) }
     CinefinListRow(
         title = song.name,
+        badge = sourceBadge,
         secondary =
             listOfNotNull(subtitle, downloadLabel, formatDuration(song.runtimeTicks))
                 .filter { it.isNotBlank() }
@@ -738,19 +797,21 @@ private fun SongRow(
                             onToggleFavorite()
                         },
                     )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = downloadMenuItem,
-                                style = CinefinType.BodyMedium,
-                                color = colors.onSurface,
-                            )
-                        },
-                        onClick = {
-                            menuOpen = false
-                            onToggleDownload()
-                        },
-                    )
+                    if (downloadMenuItem != null) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = downloadMenuItem,
+                                    style = CinefinType.BodyMedium,
+                                    color = colors.onSurface,
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                onToggleDownload()
+                            },
+                        )
+                    }
                 }
             }
         },

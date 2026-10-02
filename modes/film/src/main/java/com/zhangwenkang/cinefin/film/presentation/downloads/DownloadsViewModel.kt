@@ -268,7 +268,16 @@ constructor(
             // W34：每个数据源单独兜底——曲库 / 书籍元数据拉取失败时不能把下载任务整页清空。
             // W36：「允许离线模式观看」开关状态（sources / 书籍偏好），供条目行与容器开关显示。
             offlineAllowMap = loadOfflineAllowMap()
-            val tasks = runCatching { downloader.refreshDownloadTasks() }.getOrElse { emptyList() }
+            // W37 遗留修复（W36 §12）：取消（快速切页）不能被吞掉，否则会把页面刷成 0 条后靠下一次轮询自愈。
+            val tasks =
+                try {
+                    downloader.refreshDownloadTasks()
+                } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新下载任务失败")
+                    emptyList()
+                }
             val episodeHierarchy = loadEpisodeHierarchy()
             val completed = runCatching {
                 loadCompleted(episodeHierarchy)
@@ -336,6 +345,9 @@ constructor(
                     selection = current.selection.intersect(validKeys),
                 )
             }
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            // 取消（离开页面）直接向上传播：不再走"保留上一次状态 + 清 loading"的失败路径。
+            throw cancellation
         } catch (error: Exception) {
             // W34 调试：刷新失败不再静默，打印后保留上一次可用状态，避免整页变空。
             Timber.e(error, "下载页刷新失败")

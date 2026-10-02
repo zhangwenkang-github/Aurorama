@@ -174,6 +174,16 @@ class ReaderRepositoryImpl(
 
     override suspend fun saveReadingProgress(itemId: UUID, progress: ReadingProgress) {
         withContext(Dispatchers.IO) {
+            // W37：本地媒体库书籍（pendingSync=false）= 只落本机进度，不查服务器 RunTimeTicks、不回传。
+            if (!progress.pendingSync) {
+                progressStore.save(
+                    progress.copy(
+                        itemId = itemId,
+                        progression = normalizedProgression(progress.progression),
+                    )
+                )
+                return@withContext
+            }
             // Jellyfin 会用 PlaybackPositionTicks / RunTimeTicks 重算百分比；
             // 书籍 runtime 可能只是 1 秒占位值，因此必须随条目动态换算。
             // 离线时拿不到 RunTimeTicks，用上次缓存值；两者都没有才沿用调用方给的 ticks。

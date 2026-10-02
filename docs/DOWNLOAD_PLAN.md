@@ -1,7 +1,7 @@
 # Cinefin · 下载 / 离线任务线（DOWNLOAD_PLAN）
 
 > **本文件是下载 / 离线线的唯一权威文档**：需求、决策、进度、验收、踩坑都写在这里，不新建零散 `.md`。
-> 维护会话：W36-OFFLINE（分支 `feature/w36-offline-closure`，基线 master `bd6f8f0`；W32/W34 历史见 §4/§4.1）
+> 维护会话：W37-LOCAL-LIBRARY（分支 `feature/w37-local-library`，基线 master `8fef16d`；W32/W34/W36 历史见 §4/§4.1）
 > 最后更新：2026-10-03
 
 ## 1. 范围与现状
@@ -72,6 +72,20 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 | D21 | **离线媒体库只显示「节目（视频）」+「本地媒体库」占位**（音乐 / 书籍在各自入口） | 用户补充要求；音乐走音乐 Tab 的离线曲库，书籍走书架 Tab 的离线列表 |
 | D22 | **离线曲库随模式切换自动重载**：`MusicModeViewModel` 监听 `offlineMode` 偏好变化 → `refresh()` | 真机缺陷：退出离线后音乐页仍显示离线曲库（VM 复用同一实例）；监听后进出模式都即时切换来源 |
 
+### 3.2 W37 决策（本地媒体库）
+
+| 编号 | 决策 | 理由 / 后果 |
+|------|------|-------------|
+| D23 | **本地库模型全部落 `data`**：Room v11 追加 `local_libraries` / `local_library_folders` / `local_media_items` 三表（`AutoMigration 10 → 11`），仓库与纯函数同模块，UI 在 `app:phone/presentation/local` | core 依赖 data（离线仓库先例），反向会让 DI 成环；纯函数放 data 使 JVM 单测与实体/Schema 同源（新增 8 项单测） |
+| D24 | **SAF 扫描用框架 `DocumentsContract`**（`buildChildDocumentsUriUsingTree` 递归 + 扩展名白名单），`takePersistableUriPermission` 落持久读权限 | 不新增 `androidx.documentfile` 依赖（`libs.versions.toml` 红线）；重启 / 冷启动后文件夹仍可读 |
+| D25 | **索引只读、不拷贝源文件**；本地条目 itemId = `UUID.nameUUIDFromBytes(documentUri)` | 与需求一致（不复制 / 不移动）；确定性 UUID 让播放队列、阅读进度、书签、上报键跨重启稳定 |
+| D26 | **不写 `sources` / `movies` 表**，改由 `JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl` 对本地 itemId **合成 LOCAL 源**（path = `content://` 文档 URI），播放上报对本地条目跳过 | 写 sources 会让下载页把用户文件当「已下载」，删除下载存在删源文件风险；合成源让视频复用现有 `PlayerActivity → PlaylistManager` 链路（Exo 原生支持 content URI），零改动 `player:core` / `player:local` |
+| D27 | **阅读器支持 `content://` 三路**：PDF 走 `ParcelFileDescriptor` + PdfRenderer、CBZ 走 `ZipInputStream` 顺序重定位页源、EPUB 走 Readium ContentResolver 资源；本地书籍进度 `pendingSync=false`（只落本机） | SAF 拿不到随机访问 `File`；服务器没有本地 itemId，回传必然失败（会留下永远清不掉的待同步记录——真机拦下并修复） |
+| D28 | **音乐曲库融合**：`MusicSong` 增 `localUri` / `source`；`MusicModeViewModel` 分开缓存「服务器（或离线已下载）」与「本地媒体库」两份曲库，按 `pref_music_source_filter`（全部 / 服务器 / 本地）重建专辑 / 艺术家 / 歌曲视图；曲目行来源徽标由 `pref_music_source_badge` 控制 | 需求第 8 条「本地音乐并入曲库且可切换来源」；混合同队列由 `MusicQueue` 现有模型承载，本地曲目解析不经过服务器（离线可播） |
+| D29 | **首页开关 `pref_local_library_visible` 只管首页**：媒体库总览可见性由库级 `visibleInLibrary` 控制（总览页「眼睛」管理视图可恢复）；首页区块与库级开关互不影响 | 两个开关语义分离，避免"关了库级开关首页也一起消失"的困惑；首页默认关（沿用 W36 占位开关） |
+| D30 | **封面策略分阶段**：音乐内嵌标签（`MediaMetadataRetriever`：标题 / 艺人 / 专辑 / 音轨 / 时长 / 内嵌封面落 `files/local_covers/`）→ 同目录封面图；视频首帧 / 书籍首页封面列为遗留 | D 组为第二优先；标签 + 同目录封面已覆盖音乐来源徽标 / 专辑分组的主要价值，首帧类封面成本高、留后续波 |
+| D31 | **顺手修 W36 两项遗留**：①`DownloadsViewModel.refresh()` 对取消重抛（不再被 `runCatching` / 外层 `catch` 吞掉）；②`ImagesDownloaderWorker` 由「目录存在即跳过」改为「按 `primary` / `backdrop` 文件补拉」 | 两项都是 W36 §12 记录、改动局部且可回归：取消不再把下载页刷成 0 条；缓存不全的旧下载离线时能补图 |
+
 ## 4. 实现地图（W32）
 
 | 文件 | 作用 |
@@ -118,6 +132,12 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 - [x] **W36 离线闭环（2026-10-03）**：离线媒体目录（`OfflineMediaRepository`）+ 每项「允许离线模式观看」开关（Room v10 `sources.allowOffline` / 书籍偏好）+ 登录页 / 用户页 / 服务器页 / 欢迎页离线入口 + 登录成功自动退出 + 离线首页 / 媒体库 / 音乐 / 书架 IA 与空态 + W37 本地文件库占位（`pref_local_library_visible`）
 - [x] **W36 补充要求**：层级图规则（节目 / 季海报、剧集缩略图 + 回退）读本地缓存；离线媒体库只显示节目 + 本地媒体库占位；条目时长快照
 - [x] W36 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（70 项，新增 7）+ `:data:testDebugUnitTest`（19）+ `:modes:film:testDebugUnitTest`（6）+ `:modes:music:testDebugUnitTest`（99）+ `:modes:book:testDebugUnitTest`（106）全绿
+- [x] **W37 本地媒体库（数据 + 仓库 + 纯函数）**：Room v11 三表（库 / 文件夹 / 条目，AutoMigration 10→11）+ SAF 递归扫描（`DocumentsContract` + 扩展名白名单 + 持久化权限）+ 确定性 itemId + 音乐标签 / 同目录封面；纯函数（分类 / 分组 / 层级·平铺）落 `data/local`，新增 8 项单测
+- [x] **W37 打开链路**：本地视频 → 合成 LOCAL 源走现有播放器（Exo content URI）；本地 PDF / CBZ / EPUB → 阅读器 content URI 三路（PFD / ZipInputStream / Readium）；本地音乐 → 并入音乐曲库（来源筛选 全部 / 服务器 / 本地 + 混合同队列 + 来源徽标可关）
+- [x] **W37 UI 与安全边界**：媒体库页（在线 / 离线）常显「＋ 建立本地媒体库」+ 库卡 + 文件夹管理（层级 / 平铺 + 移除）+ 库级「在媒体库显示」+ 首页开关（默认关）+ 删除 / 移除确认文案「只解除关联、不删源文件」
+- [x] **W37 门禁**：根 `assembleDebug`（含 TV）+ `:app:phone:assembleDebug` + 根 `ktfmtCheck` 全绿；单测逐个 `--rerun` 数 `build/test-results/*.xml`：app **70** / core **16** / data **27**（新增 8）/ film **6** / book **106** / music **99**，全部 0 失败 0 错误
+- [x] **W37 真机验收（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）**：建库（混合 + 2 文件夹）→ 层级 / 平铺 → 视频 / 音乐 / 书籍各打开一次 → 库级开关 → 首页开关 → 重启保留 → 删除后源文件仍在；见 §13
+- [x] **W36 遗留顺手项**：下载页刷新竞态（取消不再吞 `JobCancellationException`）与 `ImagesDownloaderWorker` 按文件补拉（目录存在也补缺图）已修；旧书籍 `.title` 侧车式占位名仍留（见 §12）
 
 ## 9. W34 真机验收（Pad 5 `43af8627`，2026-10-03）
 
@@ -167,6 +187,7 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 | 2026-10-03 | W34-DOWNLOAD | 层级化 + 封面：新建 `DownloadHierarchy`（纯函数 6 项单测）、视频层级（已完成剧集 DAO 反查 + `getDownloads` 补剧集）、音乐下载入口 + 侧车、书籍离线纳入列表、`ReaderRepository` 绑定上移 data、修 `getItem` 本地 source 合并；门禁四绿；Pad 5 真机 6 组通过（见 §9）；提交见交接 |
 | 2026-10-03 | W36-OFFLINE | 离线闭环：`OfflineMediaRepository`（无账号可读）+ `sources.allowOffline` Room v10 + 书籍开关偏好 + 登录页 / 用户页 / 服务器页 / 欢迎页离线入口 + 登录成功自动退出 + 离线首页 / 媒体库 / 音乐 / 书架 IA 与空态 + W37 本地文件库占位；门禁全绿（app 70 / data 19 / film 6 / music 99 / book 106）；Pad 5 + K60 真机 8 组通过（见 §11） |
 | 2026-10-03 | W36-OFFLINE | 补充要求（负责人转达）：层级图规则（节目 / 季海报、剧集缩略图 + 回退）+ 离线媒体库只显示节目 + 本地媒体库占位 / 开关 + 时长快照；真机修复 2 处（离线 VM 缓存刷新、退出离线后音乐曲库不切换）+ 离线仓库 `getDownloads` 补剧集层级；下载测试数据已删、双机已还原 |
+| 2026-10-03 | W37-LOCAL-LIBRARY | 本地媒体库：Room v11 三表 + SAF 递归扫描（持久化权限 / 扩展名白名单 / 混合分组 / 每文件夹层级·平铺）+ 确定性 itemId + 合成 LOCAL 源（视频复用播放器）+ 阅读器 content:// 三路 + 音乐曲库来源筛选 / 混合同队列 / 来源徽标 + 媒体库与离线页常显入口 + 非破坏删除；顺手修 W36 两项遗留（下载刷新竞态 / 补拉图片）；门禁全绿（app 70 / core 16 / data 27 / film 6 / book 106 / music 99）；真机 Pad 5 + K60 抽验通过（见 §13） |
 
 ## 10. W34 遗留
 
@@ -192,8 +213,25 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 
 ## 12. W36 遗留
 
-- **下载页刷新竞态（既有）**：快速切页会取消正在执行的 `refresh()`（`JobCancellationException` 被 `runCatching` 吞掉），页面短暂显示 0 条，轮询 / 重进后自愈；本次未改（W32/W34 行为），建议后续单独加「取消不吞 + 重进重试」修复。
-- **`ImagesDownloaderWorker` 目录存在即跳过**：缓存不完整（如首次拉图部分失败）时不会补拉，离线可能退回图标；后续可在对账时校验 `primary` 是否存在。
+- ~~**下载页刷新竞态（既有）**：快速切页会取消正在执行的 `refresh()`（`JobCancellationException` 被 `runCatching` 吞掉），页面短暂显示 0 条，轮询 / 重进后自愈~~ → **W37 已修（D31）**：任务拉取与最外层 `catch` 都改为「取消重抛 + 失败兜底」，取消不再把状态刷成空。
+- ~~**`ImagesDownloaderWorker` 目录存在即跳过**：缓存不完整（如首次拉图部分失败）时不会补拉，离线可能退回图标~~ → **W37 已修（D31）**：改为按文件补拉（`primary` / `backdrop` 缺失才下载，已有文件跳过）。
 - **旧书籍无 `.title` 侧车**：W36 之前下载的书在离线书架显示「离线书籍 <id8>」占位；重新下载一次即补侧车。
 - **离线模式下下载页**：已补剧集层级（D10 只改了在线实现，W36 真机发现并修复二者一致）；离线时「已完成」列表仍依赖 `currentServer` 偏好存在，纯新的无服务器设备以离线媒体库为准。
-- **本地媒体库**：W36 仅占位 + 开关；SAF 添加文件夹、平铺 / 层级浏览、与服务器队列混合属于 W37。
+- ~~**本地媒体库**：W36 仅占位 + 开关；SAF 添加文件夹、平铺 / 层级浏览、与服务器队列混合属于 W37~~ → **W37 已交付**（见 §5 / §13）。
+- **W37 新增遗留（本地媒体库）**：①D 组封面策略只做到「音乐内嵌标签 + 同目录封面」——视频首帧 / 书籍首页封面未做；②CBZ 走 `ZipInputStream` 顺序重定位（大包逐页变慢，`ZipFile` 只接受 `File`）；③本地库条目不参与搜索（搜索仍未合并本地来源）；④「本地优先」去重未做（只对 App 内下载媒体启用，用户自选文件夹不做自动匹配）。
+
+## 13. W37 真机验收（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03）
+
+构建：`feature/w37-local-library`（起点 master `8fef16d`）；测试服务器只读（全程未写服务器）。测试素材 = 本机生成（Python：PDF 3 页 / 2 页、CBZ 3 页 PNG、WAV 正弦音）+ 1 个 788 KB 公开样例 mp4，推到 `/sdcard/W37Media/{Mixed,Extra}`（验收后已删除）。
+
+1. **建立库（混合类型 + 2 个文件夹）**：通过。媒体库页常显「＋ 建立本地媒体库」→ 名称 `W37Mix` + 类型「混合」→ SAF 选择 `W37Media/Mixed` → 建库并扫描；详情页「＋ 添加文件夹」补 `W37Media/Extra`。库卡与标题显示「混合 · 2 个文件夹 · 视频 1 · 音乐 2 · 书籍 3」「共 6 项」。
+2. **层级 / 平铺切换（每文件夹独立）**：通过。`Mixed` 切「平铺」→ 该文件夹条目按类型分组平铺；`Extra` 保持「层级」→ 子文件夹行 + 直属文件；两段设置互不影响（截屏与 UI 树核对）。
+3. **本地视频 → 现有播放器**：通过。点 `sample.mp4` 进 `PlayerActivity`；`dumpsys media_session` 实测 `state=3`（PLAYING）position 2.8s → 10.0s（播到片尾），全程无 FATAL。
+4. **本地音乐 → 音乐链路**：通过。点 `tone_a.wav` 起播（media_session `description=tone_a.wav`，position 走到 2.0s 结束）并自动切到音乐 Tab；曲库来源筛选「全部 / 服务器 / 本地」生效（本地 = 1 张专辑 1 首），曲目行显示「本地」来源徽标；`pref_music_source_filter` 持久化。
+5. **本地书籍 → 现有阅读器**：通过。`book.pdf` 打开显示「离线可读 · 1 KB」「分页 · 1/3」，翻到 2/3 正常渲染；本地书籍进度只落本机（真机拦下「离线暂存 1 条进度」永远清不掉的缺陷 → `saveReadingProgress` 对 `pendingSync=false` 跳过服务器换算与回传，复验横幅消失）。
+6. **库级「在媒体库显示」开关**：通过。关闭后库卡从媒体库总览消失、右上角「眼睛」进入管理视图可见「已隐藏」并可恢复；恢复后首页区块重新出现（首页开关此前已打开）。
+7. **首页本地媒体开关（默认关）**：通过。默认关闭时首页无「本地媒体」区块；打开后首页出现「本地媒体」+ `W37Mix` 库卡，点击进详情；开关值实测 `pref_local_library_visible`。
+8. **持久化与安全边界**：通过。①`am force-stop` 后重启 App，库 / 文件夹 / 索引仍在且可继续播放（SAF 持久权限）；②「删除媒体库」确认框明示「设备上的源文件不会被删除」，删除后媒体库页只剩「＋ 建立本地媒体库」，`find /sdcard/W37Media` 实测 6 个源文件全部保留；③移除文件夹同文案（只解除关联）。
+9. **K60 抽验**：通过。装机后首页 / 底部导航正常，媒体库页（手机紧凑形态）显示「本地媒体库」区块 + 「＋ 建立本地媒体库」入口 + 首页开关；点入口弹出建库对话框（名称 / 类型 / 创建并选择文件夹），取消无副作用；0 FATAL / 0 ANR。
+
+设备还原：Pad 5 删除测试库与 `pref_music_source_filter` 复位 `ALL`、`pref_local_library_visible=false`、删除 `/sdcard/W37Media` 与 `/sdcard/w37_ui*.xml`、App force-stop；K60 删除 `/sdcard/w37_k60.xml`、App force-stop；两机均未改旋转 / 网络 / 音量。

@@ -250,6 +250,8 @@ fun CinefinListRow(
     onClick: (() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    /** W37 在线融合：标题后的来源徽标（如「本地」）；null = 不显示。 */
+    badge: String? = null,
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
@@ -281,13 +283,20 @@ fun CinefinListRow(
                 Spacer(Modifier.width(CinefinSpacing.Space4))
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = CinefinType.TitleMedium,
-                    color = colors.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = title,
+                        style = CinefinType.TitleMedium,
+                        color = colors.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (!badge.isNullOrBlank()) {
+                        Spacer(Modifier.width(CinefinSpacing.Space2))
+                        CinefinSourceBadge(text = badge)
+                    }
+                }
                 if (secondary != null) {
                     Spacer(Modifier.height(CinefinSpacing.Space1))
                     Text(
@@ -313,6 +322,33 @@ fun CinefinListRow(
                         .background(colors.outlineVariant)
             )
         }
+    }
+}
+
+/**
+ * W37 来源徽标：1dp 媒体色描边 + `Media.Container` 底的小标签（不引入第 4 种颜色）。
+ *
+ * 用于音乐曲库「全部」来源下区分本地 / 服务器曲目；可用偏好关闭（关闭后调用方传 null）。
+ */
+@Composable
+fun CinefinSourceBadge(text: String, modifier: Modifier = Modifier) {
+    val media = LocalMediaColors.current
+    val colors = LocalCinefinColors.current
+    Box(
+        modifier =
+            modifier
+                .clip(CinefinShapes.TwoXs)
+                .background(media.container)
+                .border(1.dp, media.outline, CinefinShapes.TwoXs)
+                .padding(horizontal = 6.dp, vertical = 1.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = CinefinType.LabelSmall,
+            color = media.bright,
+            maxLines = 1,
+        )
     }
 }
 

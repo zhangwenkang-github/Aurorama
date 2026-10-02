@@ -38,9 +38,6 @@ constructor(
 
             val baseDir = File(appContext.filesDir, basePath)
 
-            // Do not download images if they are already present
-            if (baseDir.exists()) return@withContext
-
             val client = OkHttpClient()
             val uris = mapOf("primary" to item.images.primary, "backdrop" to item.images.backdrop)
 
@@ -55,6 +52,10 @@ constructor(
                 if (uri == null) {
                     continue
                 }
+
+                // W37 遗留修复（W36 §12）：按文件补拉——旧实现"目录存在即跳过"，首次拉图部分失败后不再补。
+                val target = File(appContext.filesDir, "$basePath/$name")
+                if (target.isFile && target.length() > 0L) continue
 
                 val request = Request.Builder().url(uri.toString()).build()
 
@@ -74,8 +75,7 @@ constructor(
                     }
 
                 try {
-                    val file = File(appContext.filesDir, "$basePath/$name")
-                    file.writeBytes(imageBytes)
+                    target.writeBytes(imageBytes)
                 } catch (e: IOException) {
                     Timber.e(e)
                 }

@@ -106,6 +106,7 @@ import com.zhangwenkang.cinefin.presentation.film.MovieScreen
 import com.zhangwenkang.cinefin.presentation.film.PersonScreen
 import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
+import com.zhangwenkang.cinefin.presentation.local.LocalLibraryDetailScreen
 import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawerHeader
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPANDED
@@ -184,6 +185,9 @@ data class LibraryRoute(
 @Serializable data class CollectionRoute(val collectionId: String, val collectionName: String)
 
 @Serializable data object FavoritesRoute
+
+/** W37：本地媒体库详情（本地库总览卡进入）。 */
+@Serializable data class LocalLibraryRoute(val libraryId: Long)
 
 @Serializable data class MovieRoute(val movieId: String)
 
@@ -726,6 +730,9 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
+                        onOpenLocalLibrary = { libraryId ->
+                            navController.safeNavigate(LocalLibraryRoute(libraryId))
+                        },
                     )
                 }
             }
@@ -747,6 +754,9 @@ fun NavigationRoot(
                         onOpenBook = { itemId, title ->
                             openReader(context = context, itemId = itemId.toString(), title = title)
                         },
+                        onOpenLocalLibrary = { libraryId ->
+                            navController.safeNavigate(LocalLibraryRoute(libraryId))
+                        },
                     )
                 } else {
                     ProvideLumen {
@@ -760,11 +770,36 @@ fun NavigationRoot(
                                 )
                             },
                             onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
+                            onOpenLocalLibrary = { libraryId ->
+                                navController.safeNavigate(LocalLibraryRoute(libraryId))
+                            },
                             searchExpanded = searchExpanded,
                             onSearchExpand = { searchExpanded = it },
                         )
                     }
                 }
+            }
+            composable<LocalLibraryRoute> { backStackEntry ->
+                val route: LocalLibraryRoute = backStackEntry.toRoute()
+                LocalLibraryDetailScreen(
+                    libraryId = route.libraryId,
+                    onBack = { navController.safePopBackStack() },
+                    onPlayVideo = { itemId ->
+                        val intent = Intent(context, PlayerActivity::class.java)
+                        intent.putExtra("itemId", itemId.toString())
+                        intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
+                        context.startActivity(intent)
+                    },
+                    onOpenBook = { itemId, title, documentUri ->
+                        openReader(
+                            context = context,
+                            itemId = itemId.toString(),
+                            title = title,
+                            localUri = documentUri,
+                        )
+                    },
+                    onMusicStarted = { navigateTopLevel(MusicModeRoute) },
+                )
             }
             composable<BookshelfRoute> {
                 if (isOfflineMode) {
@@ -1385,11 +1420,18 @@ private fun libraryEntryRoute(
  * `ReaderActivity` 是独立 Activity（Readium 导航器是 Fragment 体系，暂时不塞进 NavHost）， `exported=false` + 显式
  * Intent：入口只对 App 内可达。PDF / CBZ 由 W4 补齐前， 非 EPUB 书会在阅读页给出「打不开这本书」的说明与重试。
  */
-private fun openReader(context: Context, itemId: String, title: String) {
+private fun openReader(
+    context: Context,
+    itemId: String,
+    title: String,
+    /** W37：本地媒体库书籍的 SAF 文档 URI（非空时阅读器直接读用户文件夹，不拷贝源文件）。 */
+    localUri: String? = null,
+) {
     context.startActivity(
         Intent(context, ReaderActivity::class.java).apply {
             putExtra(ReaderActivity.EXTRA_ITEM_ID, itemId)
             putExtra(ReaderActivity.EXTRA_TITLE, title)
+            if (localUri != null) putExtra(ReaderActivity.EXTRA_LOCAL_URI, localUri)
         }
     )
 }

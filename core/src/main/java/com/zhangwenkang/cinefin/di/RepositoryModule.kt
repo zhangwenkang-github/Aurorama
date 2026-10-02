@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.di
 import android.app.Application
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryImpl
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryOfflineImpl
@@ -24,9 +25,16 @@ object RepositoryModule {
         jellyfinApi: JellyfinApi,
         serverDatabase: ServerDatabaseDao,
         appPreferences: AppPreferences,
+        localLibrary: LocalLibraryRepository,
     ): JellyfinRepositoryImpl {
         println("Creating new jellyfinRepositoryImpl")
-        return JellyfinRepositoryImpl(application, jellyfinApi, serverDatabase, appPreferences)
+        return JellyfinRepositoryImpl(
+            application,
+            jellyfinApi,
+            serverDatabase,
+            appPreferences,
+            localLibrary,
+        )
     }
 
     @Singleton
@@ -36,6 +44,7 @@ object RepositoryModule {
         jellyfinApi: JellyfinApi,
         serverDatabase: ServerDatabaseDao,
         appPreferences: AppPreferences,
+        localLibrary: LocalLibraryRepository,
     ): JellyfinRepositoryOfflineImpl {
         println("Creating new jellyfinRepositoryOfflineImpl")
         return JellyfinRepositoryOfflineImpl(
@@ -43,6 +52,7 @@ object RepositoryModule {
             jellyfinApi,
             serverDatabase,
             appPreferences,
+            localLibrary,
         )
     }
 

@@ -303,6 +303,16 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 交叉淡化档位（秒；0 = 关闭，可选 2 / 4 / 6）。默认关。 */
     val musicCrossfadeSeconds = Preference("pref_music_crossfade_seconds", 0)
 
+    // Local library（W37 本地媒体库；只追加 pref_local_* / pref_music_* 前缀，不重排既有键）
+    /** 音乐曲库来源筛选：`ALL` / `SERVER` / `LOCAL`。 */
+    val localLibraryMusicSource = Preference("pref_music_source_filter", "ALL")
+
+    /** 音乐列表是否显示「本地 / 服务器」来源徽标。 */
+    val localLibrarySourceBadge = Preference("pref_music_source_badge", true)
+
+    /** 本地库条目在「继续观看 / 最近播放」是否显示视频首帧封面（本地生成，默认开）。 */
+    val localLibraryVideoCover = Preference("pref_local_library_video_cover", true)
+
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {
             @Suppress("UNCHECKED_CAST")

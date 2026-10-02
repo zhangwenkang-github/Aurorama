@@ -24,6 +24,8 @@ class ReaderActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val itemId = intent.getStringExtra(EXTRA_ITEM_ID)?.toItemIdOrNull()
+        // W37：本地媒体库书籍（SAF content://）；与 itemId 二选一，本地优先。
+        val localUri = intent.getStringExtra(EXTRA_LOCAL_URI)?.let(android.net.Uri::parse)
         val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "阅读器 PoC" }
 
         setContent {
@@ -69,7 +71,9 @@ class ReaderActivity : AppCompatActivity() {
             )
         }
 
-        if (itemId != null) {
+        if (localUri != null) {
+            viewModel.openLocal(localUri, title)
+        } else if (itemId != null) {
             viewModel.open(itemId)
         }
     }
@@ -83,6 +87,8 @@ class ReaderActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_ITEM_ID = "itemId"
         const val EXTRA_TITLE = "title"
+        /** W37：本地媒体库书籍的 SAF 文档 URI。 */
+        const val EXTRA_LOCAL_URI = "localUri"
     }
 }
 

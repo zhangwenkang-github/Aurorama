@@ -10,6 +10,7 @@ import android.util.LruCache
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -51,8 +52,23 @@ interface PageSource : AutoCloseable {
  *
  * 版式元数据（[pageAspectRatios]）走 [PdfLayoutSource]（PdfBox 只读页树），渲染仍走 PdfRenderer（D14 不变）。
  */
-class PdfPageSource(file: File) : PageSource {
-    private val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+class PdfPageSource
+private constructor(
+    private val descriptor: ParcelFileDescriptor,
+    private val layout: PdfLayoutSource?,
+) : PageSource {
+
+    /** 本地缓存文件（`{itemId}.book`）：版式元数据走 PdfBox 只读页树。 */
+    constructor(
+        file: File
+    ) : this(
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY),
+        PdfLayoutSource(file),
+    )
+
+    /** SAF `content://` 打开（W37 本地媒体库）：没有 PdfBox 版式扫描，双栏回退逐页扫描。 */
+    constructor(descriptor: ParcelFileDescriptor) : this(descriptor, null)
+
     private val renderer =
         try {
             PdfRenderer(descriptor)
@@ -60,9 +76,6 @@ class PdfPageSource(file: File) : PageSource {
             descriptor.close()
             throw error
         }
-
-    /** 版式元数据会话：只在双栏触发扫描时惰性加载，用完随页源一起释放。 */
-    private val layout = PdfLayoutSource(file)
 
     /** PdfRenderer 非线程安全：所有页面操作串行化。 */
     private val mutex = Mutex()
@@ -80,7 +93,7 @@ class PdfPageSource(file: File) : PageSource {
 
     /** 双栏版式扫描：PdfBox 读页树元数据（不逐页 openPage、不渲染）。 */
     override suspend fun pageAspectRatios(): List<Float?>? = runCatching {
-        layout.pageAspectRatios()
+        layout?.pageAspectRatios()
     }
         .getOrNull()
 
@@ -107,7 +120,7 @@ class PdfPageSource(file: File) : PageSource {
         .getOrNull()
 
     override fun close() {
-        runCatching { layout.close() }
+        runCatching { layout?.close() }
         runCatching { renderer.close() }
         runCatching { descriptor.close() }
     }
@@ -165,6 +178,85 @@ class ComicPageSource(file: File) : PageSource {
 
     override fun close() {
         runCatching { zip.close() }
+    }
+}
+
+/**
+ * CBZ（SAF `content://`，W37 本地媒体库）：`ZipInputStream` 顺序重定位到目标条目再解码。
+ *
+ * `ZipFile` 只接受 `File`，content URI 拿不到随机访问句柄；本实现每次读页从流头扫到目标条目（页数少的漫画包完全够用）， 大包会明显变慢（记入 READER_PLAN
+ * 遗留）。
+ */
+class ContentUriComicPageSource(
+    private val resolver: android.content.ContentResolver,
+    private val uri: android.net.Uri,
+) : PageSource {
+    private val pages: List<String> = run {
+        val names = mutableListOf<String>()
+        runCatching {
+            resolver.openInputStream(uri)?.use { input ->
+                ZipInputStream(input).use { zip ->
+                    while (true) {
+                        val entry = zip.nextEntry ?: break
+                        if (!entry.isDirectory) names += entry.name
+                    }
+                }
+            }
+        }
+        orderComicPageNames(names)
+    }
+
+    private val mutex = Mutex()
+
+    override val pageCount: Int
+        get() = pages.size
+
+    override suspend fun pageSizePx(index: Int): Pair<Int, Int>? =
+        withContext(Dispatchers.IO) { mutex.withLock { readBounds(index) } }
+
+    override suspend fun renderPage(index: Int, maxSidePx: Int): Bitmap? =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                val bounds = readBounds(index) ?: return@withLock null
+                val options =
+                    BitmapFactory.Options().apply {
+                        inSampleSize = bitmapSampleSize(bounds.first, bounds.second, maxSidePx)
+                        inPreferredConfig = Bitmap.Config.RGB_565
+                    }
+                runCatching {
+                    openEntryStream(index)?.use { stream ->
+                        BitmapFactory.decodeStream(stream, null, options)
+                    }
+                }
+                    .getOrNull()
+            }
+        }
+
+    private fun readBounds(index: Int): Pair<Int, Int>? = runCatching {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openEntryStream(index)?.use { stream -> BitmapFactory.decodeStream(stream, null, options) }
+        options.outWidth to options.outHeight
+    }
+        .getOrNull()
+        ?.takeIf { it.first > 0 && it.second > 0 }
+
+    /** 打开目标条目的流（返回的 [ZipInputStream] 关闭时会一并关闭底层输入流）。 */
+    private fun openEntryStream(index: Int): java.io.InputStream? {
+        val name = pages.getOrNull(index) ?: return null
+        val raw = resolver.openInputStream(uri) ?: return null
+        val zip = ZipInputStream(java.io.BufferedInputStream(raw, STREAM_BUFFER_BYTES))
+        while (true) {
+            val entry = zip.nextEntry ?: break
+            if (entry.name == name) return zip
+        }
+        zip.close()
+        return null
+    }
+
+    override fun close() = Unit
+
+    private companion object {
+        const val STREAM_BUFFER_BYTES = 64 * 1024
     }
 }
 

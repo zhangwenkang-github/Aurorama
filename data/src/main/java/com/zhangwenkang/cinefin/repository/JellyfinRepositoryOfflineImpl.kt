@@ -5,6 +5,7 @@ import androidx.paging.PagingData
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -39,6 +40,8 @@ class JellyfinRepositoryOfflineImpl(
     private val jellyfinApi: JellyfinApi,
     private val database: ServerDatabaseDao,
     private val appPreferences: AppPreferences,
+    /** W37：本地媒体库（离线模式同样可播本机文件夹里的媒体）。 */
+    private val localLibrary: LocalLibraryRepository,
 ) : JellyfinRepository {
 
     override suspend fun getPublicSystemInfo(): PublicSystemInfo {
@@ -51,6 +54,9 @@ class JellyfinRepositoryOfflineImpl(
 
     override suspend fun getMovie(itemId: UUID): FindroidMovie =
         withContext(Dispatchers.IO) {
+            localLibrary.syntheticMovie(itemId)?.let {
+                return@withContext it
+            }
             database.getMovie(itemId).toFindroidMovie(database, jellyfinApi.userId)
         }
 
@@ -74,7 +80,8 @@ class JellyfinRepositoryOfflineImpl(
     }
 
     override suspend fun getItem(itemId: UUID): FindroidItem? {
-        return null
+        // W37：本地媒体库条目在离线模式下也要能取到（播放页信息回退）。
+        return localLibrary.syntheticMovie(itemId)
     }
 
     override suspend fun getItems(
@@ -227,6 +234,9 @@ class JellyfinRepositoryOfflineImpl(
 
     override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
         withContext(Dispatchers.IO) {
+            localLibrary.syntheticSources(itemId)?.let {
+                return@withContext it
+            }
             database.getSources(itemId).map { it.toFindroidSource(database) }
         }
 
@@ -258,6 +268,8 @@ class JellyfinRepositoryOfflineImpl(
         positionTicks: Long,
         playedPercentage: Int,
     ) {
+        // W37：本地媒体库条目没有服务器条目，跳过用户数据写入。
+        if (localLibrary.isLocalItem(itemId)) return
         withContext(Dispatchers.IO) {
             // W36：无账号离线模式没有可写的用户，播放进度只保留在内存路径（不落库）。
             val userId = jellyfinApi.userId ?: return@withContext
@@ -284,6 +296,8 @@ class JellyfinRepositoryOfflineImpl(
         positionTicks: Long,
         isPaused: Boolean,
     ) {
+        // W37：本地媒体库条目没有服务器条目，跳过用户数据写入。
+        if (localLibrary.isLocalItem(itemId)) return
         withContext(Dispatchers.IO) {
             val userId = jellyfinApi.userId ?: return@withContext
             database.setPlaybackPositionTicks(itemId, userId, positionTicks)

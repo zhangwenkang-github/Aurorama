@@ -15,6 +15,10 @@ import com.zhangwenkang.cinefin.models.FindroidShowDto
 import com.zhangwenkang.cinefin.models.FindroidSourceDto
 import com.zhangwenkang.cinefin.models.FindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.FindroidUserDataDto
+import com.zhangwenkang.cinefin.models.LocalLibraryDto
+import com.zhangwenkang.cinefin.models.LocalLibraryFolderDto
+import com.zhangwenkang.cinefin.models.LocalMediaCountRow
+import com.zhangwenkang.cinefin.models.LocalMediaItemDto
 import com.zhangwenkang.cinefin.models.Server
 import com.zhangwenkang.cinefin.models.ServerAddress
 import com.zhangwenkang.cinefin.models.ServerWithAddressAndUser
@@ -348,4 +352,72 @@ interface ServerDatabaseDao {
 
     @Query("SELECT * FROM trickplayInfos WHERE sourceId = :sourceId")
     suspend fun getTrickplayInfo(sourceId: String): FindroidTrickplayInfoDto?
+
+    // ---------------------------------------------------------- W37 本地媒体库
+
+    @Insert suspend fun insertLocalLibrary(library: LocalLibraryDto): Long
+
+    @Query("SELECT * FROM local_libraries ORDER BY createdAt ASC, id ASC")
+    suspend fun getLocalLibraries(): List<LocalLibraryDto>
+
+    @Query("SELECT * FROM local_libraries WHERE id = :id")
+    suspend fun getLocalLibrary(id: Long): LocalLibraryDto?
+
+    @Query("UPDATE local_libraries SET name = :name, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateLocalLibraryName(id: Long, name: String, updatedAt: Long)
+
+    @Query("UPDATE local_libraries SET type = :type, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateLocalLibraryType(id: Long, type: String, updatedAt: Long)
+
+    @Query(
+        "UPDATE local_libraries SET visibleInLibrary = :visible, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updateLocalLibraryVisible(id: Long, visible: Boolean, updatedAt: Long)
+
+    @Query("DELETE FROM local_libraries WHERE id = :id") suspend fun deleteLocalLibrary(id: Long)
+
+    @Insert suspend fun insertLocalLibraryFolder(folder: LocalLibraryFolderDto): Long
+
+    @Query("SELECT * FROM local_library_folders ORDER BY libraryId ASC, addedAt ASC, id ASC")
+    suspend fun getAllLocalLibraryFolders(): List<LocalLibraryFolderDto>
+
+    @Query(
+        "SELECT * FROM local_library_folders WHERE libraryId = :libraryId ORDER BY addedAt ASC, id ASC"
+    )
+    suspend fun getLocalLibraryFolders(libraryId: Long): List<LocalLibraryFolderDto>
+
+    @Query("SELECT * FROM local_library_folders WHERE id = :id")
+    suspend fun getLocalLibraryFolder(id: Long): LocalLibraryFolderDto?
+
+    @Query("UPDATE local_library_folders SET browseMode = :mode WHERE id = :id")
+    suspend fun updateLocalFolderBrowseMode(id: Long, mode: String)
+
+    @Query("DELETE FROM local_library_folders WHERE id = :id")
+    suspend fun deleteLocalLibraryFolder(id: Long)
+
+    @Query("DELETE FROM local_library_folders WHERE libraryId = :libraryId")
+    suspend fun deleteLocalLibraryFolders(libraryId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLocalMediaItems(items: List<LocalMediaItemDto>)
+
+    @Query("DELETE FROM local_media_items WHERE folderId = :folderId")
+    suspend fun clearLocalMediaByFolder(folderId: Long)
+
+    @Query("DELETE FROM local_media_items WHERE libraryId = :libraryId")
+    suspend fun deleteLocalLibraryItems(libraryId: Long)
+
+    @Query("SELECT * FROM local_media_items WHERE libraryId = :libraryId ORDER BY relativePath ASC")
+    suspend fun getLocalMediaItems(libraryId: Long): List<LocalMediaItemDto>
+
+    @Query("SELECT * FROM local_media_items ORDER BY relativePath ASC")
+    suspend fun getAllLocalMediaItems(): List<LocalMediaItemDto>
+
+    @Query("SELECT * FROM local_media_items WHERE itemId = :itemId LIMIT 1")
+    suspend fun getLocalMediaItem(itemId: UUID): LocalMediaItemDto?
+
+    @Query(
+        "SELECT libraryId AS libraryId, kind AS kind, COUNT(*) AS count FROM local_media_items GROUP BY libraryId, kind"
+    )
+    suspend fun getLocalMediaCounts(): List<LocalMediaCountRow>
 }

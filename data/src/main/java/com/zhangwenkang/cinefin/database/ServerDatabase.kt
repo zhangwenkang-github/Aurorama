@@ -18,6 +18,9 @@ import com.zhangwenkang.cinefin.models.FindroidShowDto
 import com.zhangwenkang.cinefin.models.FindroidSourceDto
 import com.zhangwenkang.cinefin.models.FindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.FindroidUserDataDto
+import com.zhangwenkang.cinefin.models.LocalLibraryDto
+import com.zhangwenkang.cinefin.models.LocalLibraryFolderDto
+import com.zhangwenkang.cinefin.models.LocalMediaItemDto
 import com.zhangwenkang.cinefin.models.Server
 import com.zhangwenkang.cinefin.models.ServerAddress
 import com.zhangwenkang.cinefin.models.User
@@ -37,8 +40,11 @@ import com.zhangwenkang.cinefin.models.User
             FindroidUserDataDto::class,
             FindroidTrickplayInfoDto::class,
             FindroidSegmentDto::class,
+            LocalLibraryDto::class,
+            LocalLibraryFolderDto::class,
+            LocalMediaItemDto::class,
         ],
-    version = 10,
+    version = 11,
     autoMigrations =
         [
             AutoMigration(from = 2, to = 3),
@@ -48,6 +54,7 @@ import com.zhangwenkang.cinefin.models.User
             AutoMigration(from = 7, to = 8),
             AutoMigration(from = 8, to = 9),
             AutoMigration(from = 9, to = 10),
+            AutoMigration(from = 10, to = 11),
         ],
 )
 @ColumnTypeConverters(Converters::class)

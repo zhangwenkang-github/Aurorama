@@ -19,6 +19,17 @@ class MusicTrackResolver @Inject constructor(private val repository: JellyfinRep
     suspend fun toPlayerItem(song: MusicSong): PlayerItem = song.resolve()
 
     private suspend fun MusicSong.resolve(): PlayerItem {
+        // W37：本地媒体库曲目直接使用 SAF content:// 文档 URI，不经过服务器（离线也可播）。
+        localUri?.let { uri ->
+            return PlayerItem(
+                name = name,
+                itemId = itemId,
+                mediaSourceId = LOCAL_SOURCE_ID,
+                playbackPosition = resumePositionMs,
+                mediaSourceUri = uri,
+                thumbnailUri = imageUri,
+            )
+        }
         val sources = repository.getMediaSources(itemId, includePath = true)
         val source =
             sources.firstOrNull { it.type == FindroidSourceType.LOCAL }
@@ -34,5 +45,9 @@ class MusicTrackResolver @Inject constructor(private val repository: JellyfinRep
             mediaSourceUri = source.transcodingPath ?: source.path,
             thumbnailUri = imageUri,
         )
+    }
+
+    private companion object {
+        const val LOCAL_SOURCE_ID = "local"
     }
 }

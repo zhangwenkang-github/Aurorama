@@ -1,8 +1,11 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import android.content.ContentResolver
+import android.net.Uri
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 
 /** 阅读器识别的书籍容器（EB-2 / EB-3 / EB-4）。 */
 enum class BookFormat(val label: String) {
@@ -55,6 +58,50 @@ fun sniffBookFormat(file: File): BookFormat {
         return BookFormat.Pdf
     }
     return BookFormat.Unknown
+}
+
+/**
+ * 内容识别（SAF `content://` 本地媒体库书籍，W37）：无法用 `ZipFile` 随机读，先用头部探针判 PDF / ZIP， 再顺序扫描 ZIP 条目区分 EPUB 与
+ * CBZ；扫到图片条目即认定漫画包（不整包扫描，避免大文件卡顿）。
+ */
+fun sniffBookFormat(resolver: ContentResolver, uri: Uri): BookFormat {
+    val header = ByteArray(FORMAT_PROBE_BYTES)
+    val read = runCatching {
+        resolver.openInputStream(uri)?.use { it.read(header) } ?: -1
+    }
+        .getOrDefault(-1)
+    if (read >= 4 && header[0] == 'P'.code.toByte() && header[1] == 'K'.code.toByte()) {
+        return sniffZipKind(resolver, uri)
+    }
+    if (read >= PDF_MAGIC.size && header.containsSequence(PDF_MAGIC, read)) {
+        return BookFormat.Pdf
+    }
+    return BookFormat.Unknown
+}
+
+private fun sniffZipKind(resolver: ContentResolver, uri: Uri): BookFormat {
+    var hasImage = false
+    return runCatching {
+            resolver.openInputStream(uri)?.use { input ->
+                ZipInputStream(input).use { zip ->
+                    while (true) {
+                        val entry = zip.nextEntry ?: break
+                        val name = entry.name
+                        if (
+                            name == "META-INF/container.xml" ||
+                                name == "mimetype" ||
+                                name.endsWith("/META-INF/container.xml")
+                        ) {
+                            return BookFormat.Epub
+                        }
+                        if (isComicPageEntry(name)) hasImage = true
+                        if (hasImage) return BookFormat.ComicArchive
+                    }
+                    BookFormat.Unknown
+                }
+            } ?: BookFormat.Unknown
+        }
+        .getOrDefault(BookFormat.Unknown)
 }
 
 /** 在 [length] 字节的有效范围内查找字节序列（避免把未读满的尾部当成数据）。 */

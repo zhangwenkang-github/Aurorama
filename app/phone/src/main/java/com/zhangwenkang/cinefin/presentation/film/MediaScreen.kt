@@ -49,6 +49,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoritesCard
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
+import com.zhangwenkang.cinefin.presentation.local.LocalLibrarySection
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
@@ -60,6 +61,8 @@ fun MediaScreen(
     onOpenDrawer: (() -> Unit)?,
     onItemClick: (FindroidItem) -> Unit,
     onFavoritesClick: () -> Unit,
+    /** W37：打开本地媒体库详情（媒体库页常显入口）。 */
+    onOpenLocalLibrary: (Long) -> Unit = {},
     searchExpanded: Boolean,
     onSearchExpand: (Boolean) -> Unit,
     viewModel: MediaViewModel = hiltViewModel(),
@@ -84,6 +87,7 @@ fun MediaScreen(
             }
             viewModel.onAction(action)
         },
+        onOpenLocalLibrary = onOpenLocalLibrary,
         onSearchAction = { action ->
             when (action) {
                 is SearchAction.OnItemClick -> onItemClick(action.item)
@@ -109,6 +113,7 @@ private fun MediaScreenLayout(
     searchExpanded: Boolean,
     onSearchExpand: (Boolean) -> Unit,
     onAction: (MediaAction) -> Unit,
+    onOpenLocalLibrary: (Long) -> Unit,
     onSearchAction: (SearchAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -188,6 +193,10 @@ private fun MediaScreenLayout(
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         FavoritesCard(onClick = { onAction(MediaAction.OnFavoritesClick) })
                     }
+                    // W37：本地媒体库（常显入口；在线 / 离线都在同一位置）。
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        LocalLibrarySection(onOpenLibrary = onOpenLocalLibrary)
+                    }
                     itemsIndexed(state.libraries, key = { _, library -> library.id }) {
                         index,
                         library ->
@@ -245,6 +254,7 @@ private fun MediaScreenLayoutPreview() {
             searchExpanded = false,
             onSearchExpand = {},
             onAction = {},
+            onOpenLocalLibrary = {},
             onSearchAction = {},
         )
     }
