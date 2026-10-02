@@ -8,6 +8,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
+import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
@@ -31,6 +32,7 @@ class PlayerHolder
 constructor(
     private val application: Application,
     private val appPreferences: AppPreferences,
+    private val musicAudioEffects: MusicAudioEffectsController,
 ) {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
@@ -113,6 +115,11 @@ constructor(
      */
     fun applyMusicPlaybackTuning(inMusicSession: Boolean) {
         (instance as? ExoPlayer)?.setPauseAtEndOfMediaItems(!inMusicSession)
+        // 音效只在音乐会话处理（EQ / ReplayGain）：视频会话透传，退出音乐时把交叉淡化可能留下的音量复位。
+        musicAudioEffects.processor.sessionActive = inMusicSession
+        if (!inMusicSession) {
+            instance?.volume = 1f
+        }
     }
 
     /**
@@ -135,6 +142,7 @@ constructor(
     /** 释放实例。播放页关闭且不允许后台播放、或服务停止时调用。 */
     fun release() {
         musicSessionActive = false
+        musicAudioEffects.processor.sessionActive = false
         val player = instance ?: return
         instance = null
         instanceBackend = null
@@ -173,7 +181,11 @@ constructor(
                         appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
                     )
                 val renderersFactory =
-                    CinefinRenderersFactory(application, audioDelayProcessor)
+                    CinefinRenderersFactory(
+                            application,
+                            audioDelayProcessor,
+                            musicAudioEffects.processor,
+                        )
                         .setExtensionRendererMode(
                             PlayerDecodeMode.extensionRendererMode(decodeMode)
                         )

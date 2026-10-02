@@ -277,6 +277,22 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 桌面歌词无操作自动隐藏的保持时长档位（`LyricsOverlayIdle` 的 key；`3s` 为默认，`always` = 常显）。 */
     val musicLyricsOverlayIdle = Preference("pref_music_lyrics_overlay_idle", "3s")
 
+    // Music（W30-MUSIC-FX 音乐音效 EQ / ReplayGain / 交叉淡化；继续只追加 pref_music_* 前缀，不重排既有键）
+    /** 均衡器开关（W30-MUSIC-FX）。默认关，保持既有听感不变。 */
+    val musicEqualizerEnabled = Preference("pref_music_eq_enabled", false)
+
+    /** 均衡器预设 key（`MusicEqualizerPreset.key`；`custom` = 使用 [musicEqualizerCustomBands]）。 */
+    val musicEqualizerPreset = Preference("pref_music_eq_preset", "flat")
+
+    /** 自定义频段增益（逗号分隔 dB，五段：60 / 230 / 910 / 3600 / 14000 Hz）。 */
+    val musicEqualizerCustomBands = Preference("pref_music_eq_custom_bands", "0.0,0.0,0.0,0.0,0.0")
+
+    /** ReplayGain 模式 key（`off` / `track` / `album`；对齐 mpv 的 `replaygain` 三态）。默认关。 */
+    val musicReplayGainMode = Preference("pref_music_replaygain_mode", "off")
+
+    /** 交叉淡化档位（秒；0 = 关闭，可选 2 / 4 / 6）。默认关。 */
+    val musicCrossfadeSeconds = Preference("pref_music_crossfade_seconds", 0)
+
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {
             @Suppress("UNCHECKED_CAST")

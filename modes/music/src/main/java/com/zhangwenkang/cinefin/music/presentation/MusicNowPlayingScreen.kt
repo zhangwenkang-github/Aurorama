@@ -92,6 +92,7 @@ fun MusicNowPlayingScreen(
     onSeek: (Long) -> Unit,
     onCyclePlayMode: () -> Unit,
     onToggleLyricsOverlay: () -> Unit,
+    onOpenEffects: () -> Unit,
     onOpenQueue: () -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onSelectLyricsLanguage: (LyricsDisplayLanguage) -> Unit,
@@ -139,6 +140,7 @@ fun MusicNowPlayingScreen(
                 onSeek = onSeek,
                 onCyclePlayMode = onCyclePlayMode,
                 onToggleLyricsOverlay = onToggleLyricsOverlay,
+                onOpenEffects = onOpenEffects,
                 onOpenLyrics = { lyricsPage = true },
                 onOpenQueue = onOpenQueue,
                 onToggleFavorite = onToggleFavorite,
@@ -171,6 +173,7 @@ private fun PlayerPage(
     onSeek: (Long) -> Unit,
     onCyclePlayMode: () -> Unit,
     onToggleLyricsOverlay: () -> Unit,
+    onOpenEffects: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
@@ -200,6 +203,7 @@ private fun PlayerPage(
                     onSeek = onSeek,
                     onCyclePlayMode = onCyclePlayMode,
                     onToggleLyricsOverlay = onToggleLyricsOverlay,
+                    onOpenEffects = onOpenEffects,
                     onOpenLyrics = onOpenLyrics,
                     onOpenQueue = onOpenQueue,
                     onToggleFavorite = onToggleFavorite,
@@ -223,6 +227,7 @@ private fun PlayerPage(
                     onSeek = onSeek,
                     onCyclePlayMode = onCyclePlayMode,
                     onToggleLyricsOverlay = onToggleLyricsOverlay,
+                    onOpenEffects = onOpenEffects,
                     onOpenLyrics = onOpenLyrics,
                     onOpenQueue = onOpenQueue,
                     onToggleFavorite = onToggleFavorite,
@@ -252,6 +257,7 @@ private fun RegularPlayerLayout(
     onSeek: (Long) -> Unit,
     onCyclePlayMode: () -> Unit,
     onToggleLyricsOverlay: () -> Unit,
+    onOpenEffects: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
@@ -332,6 +338,7 @@ private fun RegularPlayerLayout(
             onOpenLyrics = onOpenLyrics,
             onOpenQueue = onOpenQueue,
             onToggleLyricsOverlay = onToggleLyricsOverlay,
+            onOpenEffects = onOpenEffects,
         )
         Spacer(modifier = Modifier.height(CinefinSpacing.Space6))
     }
@@ -361,6 +368,7 @@ private fun CompactPlayerLayout(
     onSeek: (Long) -> Unit,
     onCyclePlayMode: () -> Unit,
     onToggleLyricsOverlay: () -> Unit,
+    onOpenEffects: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
@@ -446,6 +454,7 @@ private fun CompactPlayerLayout(
                     onOpenLyrics = onOpenLyrics,
                     onOpenQueue = onOpenQueue,
                     onToggleLyricsOverlay = onToggleLyricsOverlay,
+                    onOpenEffects = onOpenEffects,
                 )
             }
         }
@@ -561,7 +570,7 @@ private fun TransportControls(
     }
 }
 
-/** 全屏底部功能行：播放队列 / 播放模式 / 收藏 / 歌词 / 桌面歌词（五键）。 */
+/** 全屏底部功能行：播放队列 / 播放模式 / 收藏 / 歌词 / 桌面歌词 / 音效（六键）。 */
 @Composable
 private fun PlayerActionRow(
     playMode: MusicPlayMode,
@@ -573,6 +582,7 @@ private fun PlayerActionRow(
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
     onToggleLyricsOverlay: () -> Unit,
+    onOpenEffects: () -> Unit,
 ) {
     val media = LocalMediaColors.current
     Row(
@@ -613,6 +623,11 @@ private fun PlayerActionRow(
             label = "桌面歌词",
             tintOverride = if (lyricsOverlayEnabled) media.base else Color.White,
             onClick = onToggleLyricsOverlay,
+        )
+        NowPlayingAction(
+            icon = painterResource(R.drawable.ic_music_equalizer),
+            label = "音效",
+            onClick = onOpenEffects,
         )
     }
 }

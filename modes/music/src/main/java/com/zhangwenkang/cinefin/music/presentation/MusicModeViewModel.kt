@@ -40,6 +40,9 @@ import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
+import com.zhangwenkang.cinefin.player.local.audio.MusicEqualizerPreset
+import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
@@ -87,6 +90,7 @@ constructor(
     private val lyricsOverlay: MusicLyricsOverlayController,
     private val playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
+    private val audioEffects: MusicAudioEffectsController,
 ) : ViewModel() {
 
     data class UiState(
@@ -202,6 +206,14 @@ constructor(
 
     /** 桌面歌词悬浮窗状态（W23-MUSIC · D 组）：开关 / 颜色 / 字号 / 语言 / 锁定都在这里。 */
     val lyricsOverlayState: StateFlow<MusicLyricsOverlayController.State> = lyricsOverlay.state
+
+    // W30-MUSIC-FX：音效面板状态（EQ / ReplayGain / 淡入淡出），实现与偏好都在 player:local 的音效中枢。
+    val effectsEqualizerEnabled: StateFlow<Boolean> = audioEffects.equalizerEnabled
+    val effectsEqualizerPreset: StateFlow<MusicEqualizerPreset> = audioEffects.equalizerPreset
+    val effectsEqualizerBands: StateFlow<List<Float>> = audioEffects.equalizerBands
+    val effectsReplayGainMode: StateFlow<ReplayGainMode> = audioEffects.replayGainMode
+    val effectsReplayGainLabel: StateFlow<String?> = audioEffects.replayGainLabel
+    val effectsCrossfadeSeconds: StateFlow<Int> = audioEffects.crossfadeSeconds
 
     /**
      * 曲目元数据查询（W23-MUSIC）：[PlayerItem] 只带名字与封面，全屏播放页要显示的歌手 / 专辑、以及恢复态的时长兜底都从曲库快照里按 itemId 取；查不到返回
@@ -1160,6 +1172,23 @@ constructor(
 
     /** 选择睡眠定时档位（分钟）；null = 关闭。 */
     fun selectSleepTimer(minutes: Int?) = sleepTimer.select(minutes)
+
+    // W30-MUSIC-FX：音效面板动作（全部转发给 player:local 的音效中枢）。
+    fun setEqualizerEnabled(enabled: Boolean) = audioEffects.setEqualizerEnabled(enabled)
+
+    fun selectEqualizerPreset(preset: MusicEqualizerPreset) =
+        audioEffects.selectEqualizerPreset(preset)
+
+    /** 拖动频段滑杆（实时生效、不落盘）。 */
+    fun previewEqualizerBand(index: Int, gainDb: Float) =
+        audioEffects.setEqualizerBand(index, gainDb)
+
+    /** 拖动结束落盘。 */
+    fun commitEqualizerBands() = audioEffects.commitEqualizerBands()
+
+    fun selectReplayGainMode(mode: ReplayGainMode) = audioEffects.setReplayGainMode(mode)
+
+    fun selectCrossfadeSeconds(seconds: Int) = audioEffects.setCrossfadeSeconds(seconds)
 
     fun dismissError() {
         _uiState.update { it.copy(errorTitle = null, errorMessage = null) }

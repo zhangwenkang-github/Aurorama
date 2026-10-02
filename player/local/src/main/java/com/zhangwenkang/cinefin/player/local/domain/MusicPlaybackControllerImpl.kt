@@ -7,11 +7,16 @@ import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
+import com.zhangwenkang.cinefin.player.local.audio.MusicCrossfadeMath
+import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
+import com.zhangwenkang.cinefin.player.local.audio.ReplayGainTagReader
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +49,8 @@ constructor(
     private val coordinator: PlaybackCoordinator,
     private val serviceStarter: PlaybackServiceStarter,
     private val repository: JellyfinRepository,
+    private val audioEffects: MusicAudioEffectsController,
+    private val replayGainReader: ReplayGainTagReader,
 ) : MusicPlaybackController, MusicPlaybackStateSource, MusicQueueEditor {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -68,6 +75,7 @@ constructor(
     private var lastKnownPositionMs = 0L
     private var lastKnownDurationMs = 0L
     private var lastProgressReportAtMs = 0L
+    private var lastCrossfadeLogAtMs = 0L
 
     private val playerListener =
         object : Player.Listener {
@@ -173,6 +181,17 @@ constructor(
                 }
             }
         }
+        // W30-MUSIC-FX：交叉淡化音量包络（100ms 采样；未开启时降频空转，避免常驻高频唤醒）。
+        scope.launch {
+            while (isActive) {
+                val crossfadeActive =
+                    playerHolder.musicSessionActive && audioEffects.crossfadeSeconds.value > 0
+                applyCrossfadeVolume()
+                delay(if (crossfadeActive) CROSSFADE_TICK_MS else CROSSFADE_IDLE_TICK_MS)
+            }
+        }
+        // ReplayGain 模式切换（UI 面板）时立刻按当前曲目重算增益。
+        scope.launch { audioEffects.replayGainMode.collect { refreshReplayGain() } }
     }
 
     override fun setQueue(queue: MusicQueue, startIndex: Int) {
@@ -213,6 +232,8 @@ constructor(
                 player.repeatMode = latest.repeatMode.toPlayerRepeatMode()
                 player.shuffleModeEnabled = latest.shuffleEnabled
                 player.prepare()
+                // 交叉淡化可能把音量留在 0（异常路径）；起播前复位到 1，随后由包络循环接管。
+                player.volume = 1f
                 // 6) 续播（MU-9）：优先使用服务器记录的位置
                 latest.currentItem
                     ?.playbackPosition
@@ -226,6 +247,7 @@ constructor(
                     lastProgressReportAtMs = SystemClock.elapsedRealtime()
                     reportStartNow(item.itemId)
                 }
+                refreshReplayGain()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -318,6 +340,7 @@ constructor(
         _positionMs.value = 0L
         _durationMs.value = 0L
         _isPlaying.value = false
+        audioEffects.clearCurrentTrackReplayGain()
 
         val player = playerHolder.existingPlayer ?: return
         if (!playerHolder.musicSessionActive) return
@@ -360,6 +383,11 @@ constructor(
         lastKnownPositionMs = 0L
         lastKnownDurationMs = 0L
         lastProgressReportAtMs = SystemClock.elapsedRealtime()
+        if (nextItemId != null) {
+            refreshReplayGain()
+        } else {
+            audioEffects.clearCurrentTrackReplayGain()
+        }
         when {
             previousItemId == null -> nextItemId?.let(::reportStart)
             nextItemId == null -> reportStop(previousItemId, positionMs, durationMs)
@@ -426,8 +454,81 @@ constructor(
     private fun String?.toItemId(): UUID? =
         this?.let { mediaId -> runCatching { UUID.fromString(mediaId) }.getOrNull() }
 
+    /**
+     * 交叉淡化音量包络（W30-MUSIC-FX·近似方案：曲尾淡出 + 曲首淡入）。
+     *
+     * - 音乐会话结束 / 关闭淡化：复位为 1（不残留）；
+     * - 暂停中：保持当前包络值（恢复播放后按位置续算）；
+     * - 其余：`Player.volume` = [MusicCrossfadeMath.crossfadeVolume]（等功率，与 gapless 不冲突）。
+     */
+    private fun applyCrossfadeVolume() {
+        val player = playerHolder.existingPlayer ?: return
+        if (!playerHolder.musicSessionActive || !player.isPlayingMusicItem()) {
+            if (player.volume != 1f) player.volume = 1f
+            return
+        }
+        val fadeMs = audioEffects.crossfadeSeconds.value * 1_000L
+        if (fadeMs <= 0L) {
+            if (player.volume != 1f) player.volume = 1f
+            return
+        }
+        if (!player.isPlaying) return
+        val duration = player.duration
+        if (duration == C.TIME_UNSET || duration <= 0L) {
+            if (player.volume != 1f) player.volume = 1f
+            return
+        }
+        val target =
+            MusicCrossfadeMath.crossfadeVolume(
+                positionMs = player.currentPosition.coerceAtLeast(0L),
+                durationMs = duration,
+                fadeMs = fadeMs,
+            )
+        if (abs(player.volume - target) > 0.002f) {
+            player.volume = target
+            val now = SystemClock.elapsedRealtime()
+            if (
+                now - lastCrossfadeLogAtMs >= CROSSFADE_LOG_INTERVAL_MS ||
+                    target <= 0.001f ||
+                    target >= 0.999f
+            ) {
+                lastCrossfadeLogAtMs = now
+                Timber.i(
+                    "交叉淡化：位置 %d ms / 剩余 %d ms → 音量 %.2f",
+                    player.currentPosition.coerceAtLeast(0L),
+                    (duration - player.currentPosition).coerceAtLeast(0L),
+                    target,
+                )
+            }
+        }
+    }
+
+    /** 读取当前曲目的 ReplayGain 标签并按模式应用；异步 IO，回到主线程后核对曲目未变。 */
+    private fun refreshReplayGain() {
+        if (!playerHolder.musicSessionActive) return
+        val item = _queue.value?.currentItem ?: return
+        if (audioEffects.replayGainMode.value == ReplayGainMode.OFF) {
+            audioEffects.clearCurrentTrackReplayGain()
+            return
+        }
+        scope.launch {
+            val tags = replayGainReader.read(item)
+            if (_queue.value?.currentItem?.itemId != item.itemId) return@launch
+            audioEffects.setCurrentTrackReplayGain(item.itemId, tags)
+        }
+    }
+
     private companion object {
         /** 位置轮询间隔：喂 UI 进度条 + 采样上报位置，够用且不费电。 */
         const val POSITION_TICK_MS = 500L
+
+        /** 交叉淡化包络采样间隔（开启时）。 */
+        const val CROSSFADE_TICK_MS = 100L
+
+        /** 未开启交叉淡化时的空转间隔（只做"是否需要复位音量"的轻检查）。 */
+        const val CROSSFADE_IDLE_TICK_MS = 500L
+
+        /** 淡化音量序列日志的最小间隔（毫秒），避免 100ms 采样刷屏。 */
+        const val CROSSFADE_LOG_INTERVAL_MS = 400L
     }
 }
