@@ -716,7 +716,7 @@ private fun LocalLibraryType.iconRes(): Int =
         LocalLibraryType.MIXED -> CoreR.drawable.ic_library
     }
 
-private fun LocalMediaKind.iconRes(): Int =
+internal fun LocalMediaKind.iconRes(): Int =
     when (this) {
         LocalMediaKind.VIDEO -> CoreR.drawable.ic_video
         LocalMediaKind.MUSIC -> CoreR.drawable.ic_music
@@ -732,7 +732,7 @@ private fun entryDetail(entry: LocalLibraryEntry): String =
         .filter { it.isNotBlank() }
         .joinToString(" · ")
 
-private fun sizeText(sizeBytes: Long): String {
+internal fun sizeText(sizeBytes: Long): String {
     if (sizeBytes <= 0L) return "未知大小"
     val units = listOf("B", "KB", "MB", "GB", "TB")
     var value = sizeBytes.toDouble()
@@ -745,7 +745,7 @@ private fun sizeText(sizeBytes: Long): String {
     else String.format("%.1f %s", value, units[index])
 }
 
-private fun formatDuration(durationMs: Long): String {
+internal fun formatDuration(durationMs: Long): String {
     if (durationMs <= 0L) return "—"
     val totalSeconds = durationMs / 1000
     val minutes = totalSeconds / 60

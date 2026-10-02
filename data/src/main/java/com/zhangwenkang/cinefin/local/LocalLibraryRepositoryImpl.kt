@@ -163,6 +163,40 @@ class LocalLibraryRepositoryImpl(
     override suspend fun allEntries(): List<LocalLibraryEntry> =
         withContext(Dispatchers.IO) { database.getAllLocalMediaItems().map { it.toEntry() } }
 
+    override suspend fun search(query: String): List<LocalSearchHit> =
+        withContext(Dispatchers.IO) {
+            if (LocalLibrarySearch.normalize(query).isEmpty()) return@withContext emptyList()
+            val dtos = runCatching {
+                database.getAllLocalMediaItems()
+            }
+                .getOrDefault(emptyList())
+            val entries = dtos.map { it.toEntry() }
+            if (entries.isEmpty()) return@withContext emptyList()
+            // LocalLibraryEntry 不带 libraryId（W37 模型），按 itemId 回连 DTO 的归属库。
+            val libraryIdByItem = dtos.associate { it.itemId to it.libraryId }
+            val libraryNames = runCatching {
+                database.getLocalLibraries()
+            }
+                .getOrDefault(emptyList())
+                .associate { it.id to it.name }
+            val folders = runCatching {
+                database.getAllLocalLibraryFolders()
+            }
+                .getOrDefault(emptyList())
+                .associateBy { it.id }
+            LocalLibrarySearch.filter(entries, query).map { entry ->
+                val folder = folders[entry.folderId]
+                val libraryName = libraryIdByItem[entry.itemId]?.let(libraryNames::get)
+                val label =
+                    when {
+                        folder == null -> libraryName
+                        libraryName.isNullOrBlank() -> folder.displayName
+                        else -> "$libraryName · ${folder.displayName}"
+                    }
+                LocalSearchHit(entry = entry, folderLabel = label?.takeIf { it.isNotBlank() })
+            }
+        }
+
     override suspend fun entry(itemId: UUID): LocalLibraryEntry? =
         withContext(Dispatchers.IO) { database.getLocalMediaItem(itemId)?.toEntry() }
 

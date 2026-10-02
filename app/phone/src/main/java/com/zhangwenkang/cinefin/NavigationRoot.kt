@@ -780,6 +780,22 @@ fun NavigationRoot(
                             onOpenLocalLibrary = { libraryId ->
                                 navController.safeNavigate(LocalLibraryRoute(libraryId))
                             },
+                            // W43：搜索结果打开本地条目（红线文件，已申报）——与本地库详情页同一链路。
+                            onPlayLocalVideo = { itemId ->
+                                val intent = Intent(context, PlayerActivity::class.java)
+                                intent.putExtra("itemId", itemId.toString())
+                                intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
+                                context.startActivity(intent)
+                            },
+                            onOpenLocalBook = { itemId, title, documentUri ->
+                                openReader(
+                                    context = context,
+                                    itemId = itemId.toString(),
+                                    title = title,
+                                    localUri = documentUri,
+                                )
+                            },
+                            onLocalMusicStarted = { navigateTopLevel(MusicModeRoute) },
                             searchExpanded = searchExpanded,
                             onSearchExpand = { searchExpanded = it },
                         )

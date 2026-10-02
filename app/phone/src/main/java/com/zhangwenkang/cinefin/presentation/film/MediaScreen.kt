@@ -40,6 +40,7 @@ import com.zhangwenkang.cinefin.film.presentation.media.MediaViewModel
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
 import com.zhangwenkang.cinefin.film.presentation.search.SearchState
 import com.zhangwenkang.cinefin.film.presentation.search.SearchViewModel
+import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
@@ -50,10 +51,12 @@ import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.local.LocalLibrarySection
+import com.zhangwenkang.cinefin.presentation.local.LocalSearchPlaybackViewModel
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import java.util.UUID
 
 @Composable
 fun MediaScreen(
@@ -63,10 +66,15 @@ fun MediaScreen(
     onFavoritesClick: () -> Unit,
     /** W37：打开本地媒体库详情（媒体库页常显入口）。 */
     onOpenLocalLibrary: (Long) -> Unit = {},
+    /** W43：搜索命中本地条目的打开链路（与本地库详情页一致）—— 视频 → 播放器；书籍 → 阅读器；音乐 → 现有音乐播放链路（成功后跳音乐 Tab）。 */
+    onPlayLocalVideo: (UUID) -> Unit = {},
+    onOpenLocalBook: (UUID, String, String) -> Unit = { _, _, _ -> },
+    onLocalMusicStarted: () -> Unit = {},
     searchExpanded: Boolean,
     onSearchExpand: (Boolean) -> Unit,
     viewModel: MediaViewModel = hiltViewModel(),
     searchViewModel: SearchViewModel = hiltViewModel(),
+    playbackViewModel: LocalSearchPlaybackViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val searchState by searchViewModel.state.collectAsStateWithLifecycle()
@@ -91,6 +99,21 @@ fun MediaScreen(
         onSearchAction = { action ->
             when (action) {
                 is SearchAction.OnItemClick -> onItemClick(action.item)
+                is SearchAction.OnLocalItemClick ->
+                    when (action.hit.entry.kind) {
+                        LocalMediaKind.VIDEO -> onPlayLocalVideo(action.hit.entry.itemId)
+                        LocalMediaKind.BOOK ->
+                            onOpenLocalBook(
+                                action.hit.entry.itemId,
+                                action.hit.entry.displayName,
+                                action.hit.entry.documentUri,
+                            )
+                        LocalMediaKind.MUSIC ->
+                            playbackViewModel.playMusic(
+                                entry = action.hit.entry,
+                                onStarted = onLocalMusicStarted,
+                            )
+                    }
                 else -> Unit
             }
             searchViewModel.onAction(action)

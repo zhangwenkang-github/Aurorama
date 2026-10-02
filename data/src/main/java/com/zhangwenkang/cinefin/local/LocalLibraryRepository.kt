@@ -83,6 +83,9 @@ interface LocalLibraryRepository {
     /** 全部本地库条目（音乐线并入曲库用；不含「在媒体库显示」过滤）。 */
     suspend fun allEntries(): List<LocalLibraryEntry>
 
+    /** W43 搜索：按文件名 / 音乐内嵌标签标题匹配本地条目（大小写不敏感、含扩展名）， 返回条目 +「库名 · 文件夹名」来源标签；空白查询返回空列表。 */
+    suspend fun search(query: String): List<LocalSearchHit>
+
     suspend fun entry(itemId: UUID): LocalLibraryEntry?
 
     /** 播放链路用：本地条目 → 可直接播放的源（视频 / 音乐）。 */

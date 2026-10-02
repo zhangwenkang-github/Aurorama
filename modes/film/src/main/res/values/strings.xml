@@ -7,9 +7,12 @@
     <string name="hero_play">Play</string>
     <string name="hero_remaining_minutes">%1$d min left</string>
     <string name="view_all">All</string>
-    <string name="search_placeholder">Search movies and TV shows</string>
+    <string name="search_placeholder">Search library and local media</string>
     <string name="search_empty_title">No results</string>
     <string name="search_empty_message">Try a different keyword · results update as you type</string>
+    <string name="search_empty_query">No results for “%1$s”</string>
+    <string name="search_section_server">Server</string>
+    <string name="search_section_local">Local</string>
     <string name="library_count">%1$d libraries</string>
     <string name="library_item_count">%1$d items</string>
     <string name="bookshelf_item_count">%1$d books</string>

@@ -293,12 +293,10 @@ constructor(
     /** 播放某个本地曲目：队列 = 同一文件夹的全部本地曲目。 */
     fun playMusic(folderId: Long, itemId: UUID, onStarted: () -> Unit) {
         viewModelScope.launch {
-            val entries = runCatching {
-                repository.entries(_state.value.libraryId)
+            val started = runCatching {
+                playLocalMusicFolder(repository, localMusicPlayer, folderId, itemId)
             }
-                .getOrDefault(emptyList())
-                .filter { it.folderId == folderId }
-            val started = runCatching { localMusicPlayer.play(entries, itemId) }.getOrDefault(false)
+                .getOrDefault(false)
             if (started) onStarted()
         }
     }
@@ -325,5 +323,41 @@ constructor(
                     listOf(ContentGroup(null, LocalLibraryBrowse.rows(mine, browseMode)))
                 },
         )
+    }
+}
+
+/** W43 本地音乐起播（本地库详情页与媒体库搜索共用）： 队列 = 同一文件夹的全部本地曲目；用 `folderId` 取队列（folderId 全局唯一），搜索结果无需再解析所属库。 */
+internal suspend fun playLocalMusicFolder(
+    repository: LocalLibraryRepository,
+    localMusicPlayer: LocalMusicPlayer,
+    folderId: Long,
+    itemId: UUID,
+): Boolean {
+    val entries = repository.allEntries().filter { it.folderId == folderId }
+    return localMusicPlayer.play(entries, itemId)
+}
+
+/** W43 媒体库搜索浮层的本地音乐起播；起播成功由调用方跳到音乐 Tab（与 W37 详情页一致）。 */
+@HiltViewModel
+class LocalSearchPlaybackViewModel
+@Inject
+constructor(
+    private val repository: LocalLibraryRepository,
+    private val localMusicPlayer: LocalMusicPlayer,
+) : ViewModel() {
+
+    fun playMusic(entry: LocalLibraryEntry, onStarted: () -> Unit) {
+        viewModelScope.launch {
+            val started = runCatching {
+                playLocalMusicFolder(
+                    repository,
+                    localMusicPlayer,
+                    entry.folderId,
+                    entry.itemId,
+                )
+            }
+                .getOrDefault(false)
+            if (started) onStarted()
+        }
     }
 }

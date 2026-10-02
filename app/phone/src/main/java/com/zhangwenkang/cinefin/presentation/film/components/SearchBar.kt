@@ -5,9 +5,12 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -33,13 +37,20 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
 import com.zhangwenkang.cinefin.film.presentation.search.SearchState
+import com.zhangwenkang.cinefin.local.LocalMediaKind
+import com.zhangwenkang.cinefin.local.LocalSearchHit
+import com.zhangwenkang.cinefin.presentation.local.formatDuration
+import com.zhangwenkang.cinefin.presentation.local.iconRes
+import com.zhangwenkang.cinefin.presentation.local.sizeText
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -182,18 +193,47 @@ fun FilmSearchBar(
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
                 verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
             ) {
-                items(items = state.items, key = { it.id }) { item ->
-                    ItemCard(
-                        item = item,
-                        direction = Direction.VERTICAL,
-                        onClick = { onAction(SearchAction.OnItemClick(item)) },
-                        modifier = Modifier.animateItem(),
-                    )
+                // W43：分区①服务器媒体库（沿用原 ItemCard 海报网格；无命中不渲染分区）。
+                if (state.serverItems.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "search-section-server") {
+                        SearchSectionHeader(
+                            title = stringResource(FilmR.string.search_section_server),
+                            count = state.serverItems.size,
+                        )
+                    }
+                    items(items = state.serverItems, key = { "server-${it.id}" }) { item ->
+                        ItemCard(
+                            item = item,
+                            direction = Direction.VERTICAL,
+                            onClick = { onAction(SearchAction.OnItemClick(item)) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+                // W43：分区②本地媒体库（整行：类型图标 + 名称 + 库/文件夹·大小·时长 +「本地」徽标）。
+                if (state.localItems.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "search-section-local") {
+                        SearchSectionHeader(
+                            title = stringResource(FilmR.string.search_section_local),
+                            count = state.localItems.size,
+                        )
+                    }
+                    items(
+                        items = state.localItems,
+                        key = { "local-${it.entry.itemId}" },
+                        span = { GridItemSpan(maxLineSpan) },
+                    ) { hit ->
+                        LocalSearchResultRow(
+                            hit = hit,
+                            onClick = { onAction(SearchAction.OnLocalItemClick(hit)) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
                 }
             }
-            if (query.isNotBlank() && state.items.isEmpty() && !state.loading) {
+            if (query.isNotBlank() && state.isEmpty && !state.loading) {
                 CinefinEmptyState(
-                    title = stringResource(FilmR.string.search_empty_title),
+                    title = stringResource(FilmR.string.search_empty_query, query),
                     message = stringResource(FilmR.string.search_empty_message),
                     icon = { tint ->
                         Icon(
@@ -203,9 +243,67 @@ fun FilmSearchBar(
                             modifier = Modifier.size(44.dp),
                         )
                     },
-                    modifier = Modifier.align(androidx.compose.ui.Alignment.Center),
+                    modifier = Modifier.align(Alignment.Center),
                 )
             }
         }
     }
+}
+
+/** W43 搜索结果分区标题：`服务器` / `本地` + 命中数量（无命中的分区不渲染）。 */
+@Composable
+private fun SearchSectionHeader(title: String, count: Int, modifier: Modifier = Modifier) {
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier = modifier.fillMaxWidth().padding(top = CinefinSpacing.Space2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+    ) {
+        Text(text = title, style = CinefinType.LabelMedium, color = colors.onSurfaceVariant)
+        Text(
+            text = count.toString(),
+            style = CinefinType.MonoDataSmall,
+            color = colors.onSurfaceFaint,
+        )
+    }
+}
+
+/**
+ * W43 本地结果行：类型图标 + 名称 + 一行元数据（库 / 文件夹 · 时长 · 大小）+「本地」来源徽标。 点击事件仍走 [SearchAction.OnLocalItemClick]，由
+ * MediaScreen 按类型分发打开链路。
+ */
+@Composable
+private fun LocalSearchResultRow(
+    hit: LocalSearchHit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    val entry = hit.entry
+    CinefinListRow(
+        title = entry.displayName,
+        secondary = localSearchMeta(hit),
+        badge = stringResource(FilmR.string.search_section_local),
+        onClick = onClick,
+        modifier = modifier,
+        leading = {
+            Icon(
+                painter = painterResource(entry.kind.iconRes()),
+                contentDescription = entry.kind.label,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        },
+    )
+}
+
+/** 本地行元数据：库名 · 文件夹 → 音乐时长 → 文件大小（全为空时兜底「未知大小」）。 */
+private fun localSearchMeta(hit: LocalSearchHit): String {
+    val duration =
+        hit.entry.durationMs
+            .takeIf { it > 0L && hit.entry.kind == LocalMediaKind.MUSIC }
+            ?.let { formatDuration(it) }
+    return listOfNotNull(hit.folderLabel, duration, sizeText(hit.entry.sizeBytes))
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
 }
