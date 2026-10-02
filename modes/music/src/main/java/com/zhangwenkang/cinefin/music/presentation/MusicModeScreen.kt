@@ -65,10 +65,13 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.music.R
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
+import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.music.data.formatSleepRemaining
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -94,8 +97,11 @@ fun MusicModeScreen(
     val state by viewModel.uiState.collectAsState()
     val queue by viewModel.queue.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val isRestored by viewModel.isRestored.collectAsState()
     val lyricsState by viewModel.lyricsState.collectAsState()
+    val sleepState by viewModel.sleepTimerState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var sleepSheetOpen by rememberSaveable { mutableStateOf(false) }
 
     // 队列被清空（停止播放）时自动收起队列面板
     LaunchedEffect(queue) { if (queue == null) queueSheetOpen = false }
@@ -109,8 +115,12 @@ fun MusicModeScreen(
         Column(modifier = modifier.fillMaxSize().background(colors.surface)) {
             MusicHeader(
                 state = state,
+                sleepState = sleepState,
                 onBack = viewModel::closeDetail,
                 onOpenDrawer = onOpenDrawer,
+                onOpenFavorites = viewModel::openFavorites,
+                onOpenRecent = viewModel::openRecent,
+                onOpenSleep = { sleepSheetOpen = true },
             )
             if (state.detail == null) {
                 MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
@@ -135,6 +145,7 @@ fun MusicModeScreen(
                             currentItemId = queue?.currentItem?.itemId,
                             onSongClick = viewModel::playSong,
                             onPlayNext = viewModel::playNext,
+                            onToggleFavorite = viewModel::toggleFavorite,
                         )
                     else ->
                         LibraryPane(
@@ -145,6 +156,7 @@ fun MusicModeScreen(
                             onPlaylistClick = viewModel::openPlaylist,
                             onSongClick = viewModel::playSong,
                             onPlayNext = viewModel::playNext,
+                            onToggleFavorite = viewModel::toggleFavorite,
                         )
                 }
             }
@@ -152,6 +164,8 @@ fun MusicModeScreen(
             NowPlayingBar(
                 queue = queue,
                 isPlaying = isPlaying,
+                isRestored = isRestored,
+                sleepState = sleepState,
                 onPlayPause = viewModel::togglePlayPause,
                 onNext = viewModel::skipToNext,
                 onOpenLyrics = viewModel::openLyrics,
@@ -180,16 +194,32 @@ fun MusicModeScreen(
                 onRemove = viewModel::removeQueueItem,
             )
         }
+
+        if (sleepSheetOpen) {
+            SleepTimerSheet(
+                state = sleepState,
+                onSelect = { minutes ->
+                    viewModel.selectSleepTimer(minutes)
+                    sleepSheetOpen = false
+                },
+                onDismiss = { sleepSheetOpen = false },
+            )
+        }
     }
 }
 
 @Composable
 private fun MusicHeader(
     state: MusicModeViewModel.UiState,
+    sleepState: MusicSleepTimer.State,
     onBack: () -> Unit,
     onOpenDrawer: (() -> Unit)?,
+    onOpenFavorites: () -> Unit,
+    onOpenRecent: () -> Unit,
+    onOpenSleep: () -> Unit,
 ) {
     val detail = state.detail
+    val media = LocalMediaColors.current
     // W8-R3：与媒体库 / 书架共用 `CinefinPageTopBar`（56dp + statusBarsPadding + 左侧 ic_menu「打开侧栏」），
     // 修掉旧版 72dp 无 inset 导致的"按钮被状态栏压住"。详情（专辑 / 艺术家 / 歌单）改回返回键 + 详情标题。
     CinefinPageTopBar(
@@ -204,6 +234,39 @@ private fun MusicHeader(
             },
         onOpenDrawer = onOpenDrawer,
         onBack = if (detail != null) onBack else null,
+        actions = {
+            CinefinIconButton(onClick = onOpenFavorites) { tint ->
+                Icon(
+                    painter =
+                        painterResource(
+                            if (detail is MusicDetail.Favorites) {
+                                CoreR.drawable.ic_heart_filled
+                            } else {
+                                CoreR.drawable.ic_heart
+                            }
+                        ),
+                    contentDescription = "收藏",
+                    tint = tint,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            CinefinIconButton(onClick = onOpenRecent) { tint ->
+                Icon(
+                    painter = painterResource(R.drawable.ic_music_recent),
+                    contentDescription = "最近播放",
+                    tint = tint,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            CinefinIconButton(onClick = onOpenSleep) { tint ->
+                Icon(
+                    painter = painterResource(R.drawable.ic_music_sleep),
+                    contentDescription = "睡眠定时",
+                    tint = if (sleepState.active) media.bright else tint,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        },
     )
 }
 
@@ -237,6 +300,7 @@ private fun LibraryPane(
     onPlaylistClick: (MusicPlaylist) -> Unit,
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
+    onToggleFavorite: (MusicSong) -> Unit,
 ) {
     when (state.tab) {
         MusicTab.ALBUMS -> AlbumList(albums = state.albums, onAlbumClick = onAlbumClick)
@@ -248,6 +312,7 @@ private fun LibraryPane(
                 showAlbum = true,
                 onSongClick = onSongClick,
                 onPlayNext = onPlayNext,
+                onToggleFavorite = onToggleFavorite,
             )
         MusicTab.PLAYLISTS ->
             PlaylistList(playlists = state.playlists, onPlaylistClick = onPlaylistClick)
@@ -260,8 +325,12 @@ private fun DetailPane(
     currentItemId: UUID?,
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
+    onToggleFavorite: (MusicSong) -> Unit,
 ) {
-    if (detail is MusicDetail.Playlist && detail.loading) {
+    if (
+        (detail is MusicDetail.Playlist && detail.loading) ||
+            (detail is MusicDetail.Favorites && detail.loading)
+    ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
@@ -271,8 +340,15 @@ private fun DetailPane(
         songs = detail.songs,
         currentItemId = currentItemId,
         showAlbum = detail !is MusicDetail.Album,
+        emptyTitle =
+            when (detail) {
+                is MusicDetail.Favorites -> "还没有收藏的曲目"
+                is MusicDetail.Recent -> "还没有最近播放"
+                else -> "这里还没有可播放的曲目"
+            },
         onSongClick = onSongClick,
         onPlayNext = onPlayNext,
+        onToggleFavorite = onToggleFavorite,
     )
 }
 
@@ -381,11 +457,13 @@ private fun SongList(
     songs: List<MusicSong>,
     currentItemId: UUID?,
     showAlbum: Boolean,
+    emptyTitle: String = "这里还没有可播放的曲目",
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
+    onToggleFavorite: (MusicSong) -> Unit,
 ) {
     if (songs.isEmpty()) {
-        EmptyHint(title = "这里还没有可播放的曲目")
+        EmptyHint(title = emptyTitle)
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -399,6 +477,7 @@ private fun SongList(
                 isCurrent = song.itemId == currentItemId,
                 onClick = { onSongClick(song) },
                 onPlayNext = { onPlayNext(song) },
+                onToggleFavorite = { onToggleFavorite(song) },
             )
         }
     }
@@ -412,6 +491,7 @@ private fun SongRow(
     isCurrent: Boolean,
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
+    onToggleFavorite: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -460,6 +540,19 @@ private fun SongRow(
                             onPlayNext()
                         },
                     )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (song.isFavorite) "取消收藏" else "收藏",
+                                style = CinefinType.BodyMedium,
+                                color = colors.onSurface,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onToggleFavorite()
+                        },
+                    )
                 }
             }
         },
@@ -470,6 +563,8 @@ private fun SongRow(
 private fun NowPlayingBar(
     queue: MusicQueue?,
     isPlaying: Boolean,
+    isRestored: Boolean,
+    sleepState: MusicSleepTimer.State,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onOpenLyrics: () -> Unit,
@@ -493,7 +588,18 @@ private fun NowPlayingBar(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "队列 ${queue.currentIndex + 1}/${queue.items.size} · 正在播放",
+                    text =
+                        buildString {
+                            append("队列 ${queue.currentIndex + 1}/${queue.items.size}")
+                            if (isRestored) {
+                                append(" · 上次播放到 ${formatPositionMs(item.playbackPosition)}")
+                            } else {
+                                append(if (isPlaying) " · 正在播放" else " · 已暂停")
+                            }
+                            if (sleepState.active) {
+                                append(" · 睡眠 ${formatSleepRemaining(sleepState.remainingMs)}")
+                            }
+                        },
                     style = CinefinType.BodySmall,
                     color = colors.onSurfaceVariant,
                 )
@@ -706,9 +812,70 @@ private fun EmptyHint(title: String, message: String? = null) {
     }
 }
 
+/** 睡眠定时面板（W21-R2）：档位与视频侧一致（10 / 20 / 30 / 60 分钟 + 关闭）， 选中即生效并关闭面板；进行中再打开会显示剩余时间。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SleepTimerSheet(
+    state: MusicSleepTimer.State,
+    onSelect: (Int?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.surfaceContainer,
+        contentColor = colors.onSurface,
+        dragHandle = {
+            Box(
+                modifier =
+                    Modifier.padding(top = CinefinSpacing.Space3)
+                        .size(width = 32.dp, height = 4.dp)
+                        .clip(CinefinShapes.TwoXs)
+                        .background(colors.onSurfaceVariant.copy(alpha = 0.24f))
+            )
+        },
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space5)) {
+            Text(text = "睡眠定时", style = CinefinType.TitleMedium, color = colors.onSurface)
+            Text(
+                text =
+                    if (state.active) {
+                        "到点自动暂停音乐 · 剩余 ${formatSleepRemaining(state.remainingMs)}"
+                    } else {
+                        "到点自动暂停音乐，与视频播放页的定时互不影响"
+                    },
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
+            CinefinListRow(
+                title = "关闭",
+                isCurrent = !state.active,
+                onClick = { onSelect(null) },
+            )
+            listOf(10, 20, 30, 60).forEachIndexed { index, minutes ->
+                CinefinListRow(
+                    title = "$minutes 分钟",
+                    isCurrent = state.minutes == minutes,
+                    showDivider = index != 3,
+                    onClick = { onSelect(minutes) },
+                )
+            }
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
+        }
+    }
+}
+
 /** Jellyfin 的 runtimeTicks：1 tick = 100 ns，1 秒 = 10^7 ticks。 */
 private fun formatDuration(runtimeTicks: Long): String {
     if (runtimeTicks <= 0L) return ""
     val totalSeconds = runtimeTicks / 10_000_000L
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+}
+
+/** 毫秒 → m:ss（底栏恢复态显示上次播放位置）。 */
+private fun formatPositionMs(positionMs: Long): String {
+    val totalSeconds = positionMs.coerceAtLeast(0L) / 1_000L
     return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }

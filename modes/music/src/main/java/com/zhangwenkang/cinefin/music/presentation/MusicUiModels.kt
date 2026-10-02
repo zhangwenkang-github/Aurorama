@@ -67,4 +67,31 @@ sealed interface MusicDetail {
         override val sourceId: String
             get() = playlist.id.toString()
     }
+
+    /** 服务端收藏（W21-R2；顶栏「收藏」入口，写入走 UserData 白名单）。 */
+    data class Favorites(
+        override val songs: List<MusicSong>,
+        val loading: Boolean = false,
+    ) : MusicDetail {
+        override val title: String
+            get() = "收藏"
+
+        override val source: QueueSource
+            get() = QueueSource.FAVORITES
+
+        override val sourceId: String?
+            get() = null
+    }
+
+    /** 本地最近播放（W21-R2；按播放时间倒序）。 */
+    data class Recent(override val songs: List<MusicSong>) : MusicDetail {
+        override val title: String
+            get() = "最近播放"
+
+        override val source: QueueSource
+            get() = QueueSource.MANUAL
+
+        override val sourceId: String?
+            get() = null
+    }
 }
