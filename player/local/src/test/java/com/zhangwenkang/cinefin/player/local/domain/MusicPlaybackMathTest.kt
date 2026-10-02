@@ -14,6 +14,9 @@ class MusicPlaybackMathTest {
         assertEquals(2, normalizeStartIndex(2, 5))
         assertEquals(4, normalizeStartIndex(99, 5))
         assertEquals(0, normalizeStartIndex(3, 0))
+        // W23-MUSIC 真机回归：从 100 首随机队列切到 1 首时，旧索引 84 曾直接喂给 setMediaItems
+        // → IllegalSeekPositionException（起播失败），归一化后固定回落到 0
+        assertEquals(0, normalizeStartIndex(84, 1))
     }
 
     @Test

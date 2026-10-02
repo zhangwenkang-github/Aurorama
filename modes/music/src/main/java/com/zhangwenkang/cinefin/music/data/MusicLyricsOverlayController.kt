@@ -121,12 +121,14 @@ constructor(
     fun cycleTint() {
         val next = _state.value.tint.next()
         appPreferences.setValue(appPreferences.musicLyricsOverlayTint, next.key)
+        Timber.i("桌面歌词颜色：%s", next.label)
         refreshFromPreferences()
     }
 
     fun cycleSize() {
         val next = _state.value.size.next()
         appPreferences.setValue(appPreferences.musicLyricsOverlaySize, next.key)
+        Timber.i("桌面歌词字号：%s", next.label)
         refreshFromPreferences()
     }
 
@@ -136,11 +138,14 @@ constructor(
         val current = languages.indexOf(_state.value.language)
         val next = languages[(current + 1).mod(languages.size)]
         appPreferences.setValue(appPreferences.musicLyricsOverlayLanguage, next.name)
+        Timber.i("桌面歌词语言：%s", next.label)
         refreshFromPreferences()
     }
 
     fun toggleLock() {
-        appPreferences.setValue(appPreferences.musicLyricsOverlayLocked, !_state.value.locked)
+        val locked = !_state.value.locked
+        appPreferences.setValue(appPreferences.musicLyricsOverlayLocked, locked)
+        Timber.i("桌面歌词锁定：%s", if (locked) "已锁定（不可拖动）" else "已解锁")
         refreshFromPreferences()
     }
 
@@ -271,11 +276,19 @@ constructor(
                 LyricsDisplayState(language = language, bilingual = false, follow = true),
             )
         val lines = overlayLyricsLines(rows, LyricsPresenter.activeIndex(rows, positionMs))
+        val previousCurrent = _state.value.current
         _state.update { state ->
             state.copy(
                 current = lines.current,
                 next = lines.next,
                 emptyMessage = if (lines.hasContent) null else "该曲目暂无歌词",
+            )
+        }
+        if (lines.current != previousCurrent) {
+            Timber.i(
+                "桌面歌词更新：当前句「%s」· 下一句「%s」",
+                lines.current ?: "—",
+                lines.next ?: "—",
             )
         }
     }
