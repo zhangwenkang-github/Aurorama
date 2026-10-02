@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -32,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -181,7 +184,12 @@ fun MusicModeScreen(
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 }
 
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                // W39：四个 tab 共用真实下拉刷新；离线模式 refresh() 只重读本机索引，不发服务器请求。
+                PullToRefreshBox(
+                    isRefreshing = state.refreshing,
+                    onRefresh = viewModel::refresh,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                ) {
                     val error = state.errorMessage
                     when {
                         error != null ->
@@ -397,10 +405,22 @@ private fun MusicHeader(
         subtitle =
             when {
                 detail != null -> "共 ${detail.songs.size} 首曲目"
-                state.tab == MusicTab.ALBUMS -> "共 ${state.albums.size} 张专辑"
-                state.tab == MusicTab.ARTISTS -> "共 ${state.artists.size} 位艺术家"
-                state.tab == MusicTab.SONGS -> "共 ${state.songs.size} 首歌曲"
-                else -> "共 ${state.playlists.size} 个歌单"
+                else -> {
+                    val count =
+                        when (state.tab) {
+                            MusicTab.ALBUMS -> state.albums.size
+                            MusicTab.ARTISTS -> state.artists.size
+                            MusicTab.SONGS -> state.songs.size
+                            MusicTab.PLAYLISTS -> state.playlists.size
+                        }
+                    // W39：筛选「本地 / 服务器」时计数副题补来源前缀（口径与列表一致）。
+                    musicLibrarySubtitle(
+                        tab = state.tab,
+                        filter = state.sourceFilter,
+                        count = count,
+                        offline = state.offline,
+                    )
+                }
             },
         onOpenDrawer = onOpenDrawer,
         onBack = if (detail != null) onBack else null,
@@ -512,14 +532,25 @@ private fun LibraryPane(
     onToggleFavorite: (MusicSong) -> Unit,
     onToggleDownload: (MusicSong) -> Unit,
 ) {
+    // W39：空态按来源分支（本地 / 服务器 / 全部 / 离线），与下拉刷新提示一致。
+    val emptyCopy =
+        musicEmptyCopy(tab = state.tab, filter = state.sourceFilter, offline = state.offline)
     when (state.tab) {
-        MusicTab.ALBUMS -> AlbumList(albums = state.albums, onAlbumClick = onAlbumClick)
-        MusicTab.ARTISTS -> ArtistList(artists = state.artists, onArtistClick = onArtistClick)
+        MusicTab.ALBUMS ->
+            AlbumList(albums = state.albums, emptyCopy = emptyCopy, onAlbumClick = onAlbumClick)
+        MusicTab.ARTISTS ->
+            ArtistList(
+                artists = state.artists,
+                emptyCopy = emptyCopy,
+                onArtistClick = onArtistClick,
+            )
         MusicTab.SONGS ->
             SongList(
                 songs = state.songs,
                 currentItemId = currentItemId,
                 showAlbum = true,
+                emptyTitle = emptyCopy.title,
+                emptyMessage = emptyCopy.message,
                 downloadState = downloadState,
                 showSourceBadge = showSourceBadge,
                 onSongClick = onSongClick,
@@ -528,7 +559,11 @@ private fun LibraryPane(
                 onToggleDownload = onToggleDownload,
             )
         MusicTab.PLAYLISTS ->
-            PlaylistList(playlists = state.playlists, onPlaylistClick = onPlaylistClick)
+            PlaylistList(
+                playlists = state.playlists,
+                emptyCopy = emptyCopy,
+                onPlaylistClick = onPlaylistClick,
+            )
     }
 }
 
@@ -572,9 +607,13 @@ private fun DetailPane(
 }
 
 @Composable
-private fun AlbumList(albums: List<MusicAlbum>, onAlbumClick: (MusicAlbum) -> Unit) {
+private fun AlbumList(
+    albums: List<MusicAlbum>,
+    emptyCopy: MusicEmptyCopy,
+    onAlbumClick: (MusicAlbum) -> Unit,
+) {
     if (albums.isEmpty()) {
-        EmptyHint(title = "音乐库里还没有专辑", message = "在服务器添加音乐后点「刷新」重新拉取")
+        EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -595,9 +634,13 @@ private fun AlbumList(albums: List<MusicAlbum>, onAlbumClick: (MusicAlbum) -> Un
 }
 
 @Composable
-private fun ArtistList(artists: List<MusicArtist>, onArtistClick: (MusicArtist) -> Unit) {
+private fun ArtistList(
+    artists: List<MusicArtist>,
+    emptyCopy: MusicEmptyCopy,
+    onArtistClick: (MusicArtist) -> Unit,
+) {
     if (artists.isEmpty()) {
-        EmptyHint(title = "音乐库里还没有艺术家")
+        EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -621,10 +664,11 @@ private fun ArtistList(artists: List<MusicArtist>, onArtistClick: (MusicArtist) 
 @Composable
 private fun PlaylistList(
     playlists: List<MusicPlaylist>,
+    emptyCopy: MusicEmptyCopy,
     onPlaylistClick: (MusicPlaylist) -> Unit,
 ) {
     if (playlists.isEmpty()) {
-        EmptyHint(title = "服务器上没有歌单")
+        EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -677,6 +721,7 @@ private fun SongList(
     currentItemId: UUID?,
     showAlbum: Boolean,
     emptyTitle: String = "这里还没有可播放的曲目",
+    emptyMessage: String? = null,
     downloadState: MusicModeViewModel.SongDownloadState = MusicModeViewModel.SongDownloadState(),
     showSourceBadge: Boolean = true,
     onSongClick: (MusicSong) -> Unit,
@@ -685,7 +730,7 @@ private fun SongList(
     onToggleDownload: (MusicSong) -> Unit = {},
 ) {
     if (songs.isEmpty()) {
-        EmptyHint(title = emptyTitle)
+        EmptyHint(title = emptyTitle, message = emptyMessage)
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -1108,7 +1153,12 @@ private fun ErrorPane(
 
 @Composable
 private fun EmptyHint(title: String, message: String? = null) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    // 可滚动容器：让空态也能触发外层 PullToRefreshBox 的下拉手势（W39）。
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
         CinefinEmptyState(title = title, message = message)
     }
 }

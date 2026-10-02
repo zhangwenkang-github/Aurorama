@@ -128,6 +128,8 @@ constructor(
 
     data class UiState(
         val loading: Boolean = true,
+        /** W39：下拉刷新进行中（与首次加载区分：刷新保留现有列表，只转顶部指示）。 */
+        val refreshing: Boolean = false,
         val tab: MusicTab = MusicTab.ALBUMS,
         /** W36：当前曲库来源是否为离线（离线模式只显示本机已下载曲目）。 */
         val offline: Boolean = false,
@@ -752,9 +754,21 @@ constructor(
     fun refresh() {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
-            _uiState.update { it.copy(loading = true, errorTitle = null, errorMessage = null) }
+            // W39 验收取证：下拉刷新 / 重试都走这里；logcat 关键词「曲库刷新」。
+            val offlineMode = appPreferences.getValue(appPreferences.offlineMode)
+            Timber.d("曲库刷新：requested offline=%s", offlineMode)
+            // W39：首次加载走整页 loading；已有内容时走 PullToRefreshBox 指示，列表不闪空。
+            val firstLoad = _uiState.value.loading
+            _uiState.update {
+                if (firstLoad) {
+                    it.copy(loading = true, errorTitle = null, errorMessage = null)
+                } else {
+                    it.copy(refreshing = true, errorTitle = null, errorMessage = null)
+                }
+            }
             // W36：离线模式只读本机已下载曲目，不发任何网络请求。
-            if (appPreferences.getValue(appPreferences.offlineMode)) {
+            if (offlineMode) {
+                Timber.d("曲库刷新：离线模式 → 只重读本机索引（不发服务器请求）")
                 serverLibrary =
                     runCatching { loadOfflineLibrary() }
                         .onFailure { Timber.w(it, "读取离线曲库失败") }
@@ -763,6 +777,7 @@ constructor(
                 _uiState.update {
                     it.copy(
                         loading = false,
+                        refreshing = false,
                         offline = true,
                         playlists = emptyList(),
                         errorTitle = null,
@@ -770,6 +785,11 @@ constructor(
                     )
                 }
                 publishLibraries()
+                Timber.d(
+                    "曲库刷新：完成 offline=true albums=%d songs=%d",
+                    _uiState.value.albums.size,
+                    _uiState.value.songs.size,
+                )
                 refreshDownloadState()
                 return@launch
             }
@@ -780,6 +800,7 @@ constructor(
                 _uiState.update {
                     it.copy(
                         loading = false,
+                        refreshing = false,
                         offline = false,
                         playlists = playlists,
                         errorTitle = null,
@@ -787,6 +808,11 @@ constructor(
                     )
                 }
                 publishLibraries()
+                Timber.d(
+                    "曲库刷新：完成 offline=false albums=%d songs=%d",
+                    _uiState.value.albums.size,
+                    _uiState.value.songs.size,
+                )
                 refreshDownloadState()
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -797,6 +823,7 @@ constructor(
                 _uiState.update {
                     it.copy(
                         loading = false,
+                        refreshing = false,
                         errorTitle = "曲库加载失败",
                         errorMessage =
                             error.message?.takeIf { message -> message.isNotBlank() }
@@ -849,6 +876,7 @@ constructor(
             .filter { it.kind == LocalMediaKind.MUSIC }
             .sortedWith(compareBy({ it.album ?: "" }, { it.relativePath.lowercase() }))
             .map { it.toLocalMusicSong() }
+        Timber.d("曲库刷新：重读本地媒体库索引 songs=%d", songs.size)
         return MusicLibrary(
             songs = songs,
             albums = groupAlbums(songs),
@@ -869,7 +897,9 @@ constructor(
         }
 
     private suspend fun loadLibraryOnce(): Pair<MusicLibrary, List<MusicPlaylist>> {
-        val library = repository.getLibrary(libraryId = selectedMusicLibraryId())
+        val libraryId = selectedMusicLibraryId()
+        Timber.d("曲库刷新：重新请求服务器曲库 library=%s", libraryId)
+        val library = repository.getLibrary(libraryId = libraryId)
         return library to repository.getPlaylists()
     }
 
