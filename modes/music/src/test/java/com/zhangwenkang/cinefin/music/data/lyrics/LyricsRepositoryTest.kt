@@ -5,6 +5,7 @@ import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -33,7 +34,11 @@ class LyricsRepositoryTest {
     }
 
     private fun repository(remote: FakeRemote, directory: File) =
-        LyricsRepositoryImpl(remote, LyricsCache(directory))
+        LyricsRepositoryImpl(
+            remote,
+            LyricsCache(directory),
+            LyricsOverrideStore(File(directory, LyricsOverrideStore.DIRECTORY_NAME)),
+        )
 
     @Test
     fun `returns server lyrics and writes cache`() = runBlocking {
@@ -104,5 +109,37 @@ class LyricsRepositoryTest {
 
         assertEquals(LyricsSource.EXTERNAL_LRC, document?.source)
         assertEquals("本地同目录歌词", document?.blocks?.single()?.primary?.text)
+    }
+
+    @Test
+    fun `local override wins over external lrc and server`() = runBlocking {
+        val directory = File(temporaryFolder.root, "lyrics")
+        directory.mkdirs()
+        File(directory, "$itemId.lrc").writeText("[00:01.00]外挂歌词\n", Charsets.UTF_8)
+        val overrideStore = LyricsOverrideStore(File(directory, LyricsOverrideStore.DIRECTORY_NAME))
+        val remote = FakeRemote(lines = listOf(LyricLine(9_000, "服务端歌词")))
+        val repository = LyricsRepositoryImpl(remote, LyricsCache(directory), overrideStore)
+
+        overrideStore.save(itemId, listOf(LyricLine(2_000, "本机编辑歌词")))
+        val document = repository.getLyrics(itemId)
+
+        assertEquals(LyricsSource.LOCAL_OVERRIDE, document?.source)
+        assertEquals("本机编辑歌词", document?.blocks?.single()?.primary?.text)
+        assertEquals(0, remote.calls)
+    }
+
+    @Test
+    fun `clearing override falls back to server`() = runBlocking {
+        val directory = File(temporaryFolder.root, "lyrics")
+        val overrideStore = LyricsOverrideStore(File(directory, LyricsOverrideStore.DIRECTORY_NAME))
+        val remote = FakeRemote(lines = listOf(LyricLine(9_000, "服务端歌词")))
+        val repository = LyricsRepositoryImpl(remote, LyricsCache(directory), overrideStore)
+
+        assertTrue(repository.saveLocalOverrideText(itemId, "[00:02.00]导入歌词\n"))
+        assertTrue(repository.hasLocalOverride(itemId))
+        assertEquals(LyricsSource.LOCAL_OVERRIDE, repository.getLyrics(itemId)?.source)
+
+        assertTrue(repository.clearLocalOverride(itemId))
+        assertEquals(LyricsSource.SERVER, repository.getLyrics(itemId)?.source)
     }
 }

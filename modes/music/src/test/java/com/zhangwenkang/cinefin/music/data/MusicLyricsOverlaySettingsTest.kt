@@ -115,6 +115,27 @@ class MusicLyricsOverlaySettingsTest {
     }
 
     @Test
+    fun `保持显示时长档位循环与解析`() {
+        // 默认保持 W24 行为（3 秒）
+        assertEquals(LyricsOverlayIdle.SECONDS_3, LyricsOverlayIdle.DEFAULT)
+        assertEquals(3_000L, LyricsOverlayIdle.DEFAULT.durationMs)
+        // 循环：3s → 5s → 10s → 常显 → 2s → 3s
+        assertEquals(LyricsOverlayIdle.SECONDS_5, LyricsOverlayIdle.SECONDS_3.next())
+        assertEquals(LyricsOverlayIdle.SECONDS_10, LyricsOverlayIdle.SECONDS_5.next())
+        assertEquals(LyricsOverlayIdle.ALWAYS, LyricsOverlayIdle.SECONDS_10.next())
+        assertEquals(LyricsOverlayIdle.SECONDS_2, LyricsOverlayIdle.ALWAYS.next())
+        assertEquals(LyricsOverlayIdle.SECONDS_3, LyricsOverlayIdle.SECONDS_2.next())
+        // 常显 = 不自动隐藏
+        assertNull(LyricsOverlayIdle.ALWAYS.durationMs)
+        assertEquals(5, LyricsOverlayIdle.entries.size)
+        // 偏好键值解析与回落（未知值回落默认 3 秒）
+        assertEquals(LyricsOverlayIdle.SECONDS_10, LyricsOverlayIdle.fromKey("10s"))
+        assertEquals(LyricsOverlayIdle.ALWAYS, LyricsOverlayIdle.fromKey("always"))
+        assertEquals(LyricsOverlayIdle.DEFAULT, LyricsOverlayIdle.fromKey("bad"))
+        assertEquals(LyricsOverlayIdle.DEFAULT, LyricsOverlayIdle.fromKey(null))
+    }
+
+    @Test
     fun `悬浮窗位置记录与夹取`() {
         assertNull(storedOverlayPosition(-1, -1))
         assertNull(storedOverlayPosition(24, -1))

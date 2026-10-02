@@ -109,6 +109,7 @@ fun MusicModeScreen(
     val durationMs by viewModel.durationMs.collectAsState()
     val playMode by viewModel.playMode.collectAsState()
     val lyricsState by viewModel.lyricsState.collectAsState()
+    val lyricsEditorState by viewModel.lyricsEditorState.collectAsState()
     val sleepState by viewModel.sleepTimerState.collectAsState()
     val lyricsOverlayState by viewModel.lyricsOverlayState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -247,10 +248,27 @@ fun MusicModeScreen(
             LyricsSheet(
                 state = lyricsState,
                 onDismiss = viewModel::closeLyrics,
+                onEditLyrics = viewModel::openLyricsEditor,
                 onSelectLanguage = viewModel::selectLyricsLanguage,
                 onToggleBilingual = viewModel::toggleLyricsBilingual,
                 onToggleFollow = viewModel::toggleLyricsFollow,
                 onLineClick = viewModel::seekToLyricLine,
+            )
+        }
+
+        // W25-MUSIC：本机歌词编辑 / 导入 LRC / 清除覆盖
+        if (lyricsEditorState.open) {
+            LyricsEditorDialog(
+                state = lyricsEditorState,
+                onDismiss = viewModel::closeLyricsEditor,
+                onAddLine = viewModel::addLyricsEditorLine,
+                onRemoveLine = viewModel::removeLyricsEditorLine,
+                onLineTextChange = viewModel::updateLyricsEditorLineText,
+                onLineTimeChange = viewModel::updateLyricsEditorLineTime,
+                onSave = viewModel::saveLyricsEditor,
+                onClearOverride = viewModel::clearLyricsOverride,
+                onImportText = viewModel::importLyricsOverride,
+                onMessage = viewModel::showLyricsEditorMessage,
             )
         }
 

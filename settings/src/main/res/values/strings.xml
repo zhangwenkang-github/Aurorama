@@ -123,6 +123,8 @@
     <string name="settings_music_library_summary">Which library the music mode browses; the entry hides when the server has none</string>
     <string name="settings_music_lyrics_overlay">Desktop lyrics</string>
     <string name="settings_music_lyrics_overlay_summary">Floating two-line lyrics (current + next) over other apps; needs the "Display over other apps" permission</string>
+    <string name="settings_music_resume_queue">Resume music queue</string>
+    <string name="settings_music_resume_queue_summary">Restore the last music queue and playback position after the app restarts</string>
     <string name="settings_bookshelf_library">Bookshelf library</string>
     <string name="settings_bookshelf_library_summary">Which library the bookshelf uses; Automatic picks the first non-empty books library</string>
     <string name="settings_category_sidebar">Sidebar items</string>

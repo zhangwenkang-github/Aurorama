@@ -320,7 +320,15 @@ constructor(
                                     }
                                 }
                             },
-                        )
+                        ),
+                        // W25-MUSIC 队列恢复开关（W21 遗留）：关闭后不落盘恢复快照、重启不恢复上次队列。
+                        PreferenceSwitch(
+                            nameStringResource = R.string.settings_music_resume_queue,
+                            descriptionStringRes = R.string.settings_music_resume_queue_summary,
+                            iconDrawableId = R.drawable.ic_play,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            backendPreference = appPreferences.musicResumeQueue,
+                        ),
                     )
             ),
             PreferenceGroup(

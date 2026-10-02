@@ -42,6 +42,8 @@ enum class LyricLanguage(val label: String) {
 
 /** 歌词来源；用于界面角标与真机验证（断网时应当回落 [CACHE]）。 */
 enum class LyricsSource(val label: String) {
+    /** 用户在本机编辑 / 导入的覆盖（W25-MUSIC），优先级最高，不写服务器。 */
+    LOCAL_OVERRIDE("本机覆盖"),
     EXTERNAL_LRC("外挂 LRC"),
     SERVER("服务端"),
     CACHE("本地缓存"),

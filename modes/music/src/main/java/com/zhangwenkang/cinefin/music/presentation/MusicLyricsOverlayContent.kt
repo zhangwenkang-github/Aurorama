@@ -45,7 +45,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.music.R
-import com.zhangwenkang.cinefin.music.data.LYRICS_OVERLAY_IDLE_HIDE_MS
 import com.zhangwenkang.cinefin.music.data.LyricsOverlayLines
 import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
 import com.zhangwenkang.cinefin.music.data.overlayChromeVisible
@@ -59,8 +58,9 @@ import timber.log.Timber
  * 两行：当前句（实色）+ 下一句（60% 同色）；无歌词时回落"歌名 / 歌手"。单击歌词打开图标工具条（颜色 / 字号 / 语言 / 锁定 / 关闭），未锁定时可整窗拖动。手势在同一个
  * `pointerInput` 里判定"轻点 vs 拖动"，避免 tap 与 drag 两个检测器互相消费事件。
  *
- * W24-MUSIC · A 组：无操作 [LYRICS_OVERLAY_IDLE_HIDE_MS] 后隐藏背景 / 边框（只留歌词文字），触摸 / 拖动恢复；
- * 锁定后保持隐藏、单击只唤出设置工具条。工具条按钮全部 **只用图标、无边框 / 底色**。
+ * W24-MUSIC · A 组：无操作后隐藏背景 / 边框（只留歌词文字），触摸 / 拖动恢复；锁定后保持隐藏、单击只唤出设置工具条。 W25-MUSIC：隐藏等待时长由
+ * [com.zhangwenkang.cinefin.music.data.LyricsOverlayIdle] 档位决定（2 / 3 / 5 / 10 秒 + 常显）。 工具条按钮全部
+ * **只用图标、无边框 / 底色**。
  */
 @Composable
 fun MusicLyricsOverlayContent(
@@ -70,6 +70,7 @@ fun MusicLyricsOverlayContent(
     onCycleTint: () -> Unit,
     onCycleSize: () -> Unit,
     onCycleLanguage: () -> Unit,
+    onCycleIdle: () -> Unit,
     onToggleLock: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -77,13 +78,19 @@ fun MusicLyricsOverlayContent(
     val container = Color(0xE60E1116)
     val borderColor = Color(0x1FFFFFFF)
     val shape = RoundedCornerShape(22.dp)
-    // 背景 / 边框的显示窗口：面板打开或"最近 3 秒内交互过且未锁定"（锁定 = 恒隐藏）
+    // 背景 / 边框的显示窗口：面板打开或"最近一次交互后未超时且未锁定"（锁定 = 恒隐藏；常显档位 = 不超时）
     var interacting by remember { mutableStateOf(true) }
     var panelOpen by remember { mutableStateOf(false) }
     var interactionSeq by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(interactionSeq, panelOpen) {
-        delay(LYRICS_OVERLAY_IDLE_HIDE_MS)
+    LaunchedEffect(interactionSeq, panelOpen, state.idle) {
+        val duration = state.idle.durationMs
+        if (duration == null) {
+            // 常显：重新进入时把背景 / 边框亮回来并保持
+            interacting = true
+            return@LaunchedEffect
+        }
+        delay(duration)
         interacting = false
         panelOpen = false
     }
@@ -185,6 +192,14 @@ fun MusicLyricsOverlayContent(
                     onClick = {
                         touch()
                         onCycleLanguage()
+                    },
+                )
+                OverlayIconButton(
+                    iconRes = R.drawable.ic_music_timer,
+                    contentDescription = "保持显示 · ${state.idle.label}",
+                    onClick = {
+                        touch()
+                        onCycleIdle()
                     },
                 )
                 OverlayIconButton(

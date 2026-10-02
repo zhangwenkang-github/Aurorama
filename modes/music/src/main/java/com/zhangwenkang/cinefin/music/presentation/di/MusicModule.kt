@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.music.data.MusicRepository
 import com.zhangwenkang.cinefin.music.data.MusicRepositoryImpl
 import com.zhangwenkang.cinefin.music.data.lyrics.JellyfinLyricsRemoteSource
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsCache
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsOverrideStore
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRemoteSource
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRepository
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRepositoryImpl
@@ -57,5 +58,17 @@ interface MusicModule {
         @Singleton
         fun provideLyricsCache(@ApplicationContext context: Context): LyricsCache =
             LyricsCache(File(context.filesDir, "lyrics"))
+
+        /**
+         * 本机歌词覆盖存储（`<filesDir>/lyrics/override`，W25-MUSIC）。
+         *
+         * 与缓存同目录树、但独立子目录：覆盖是"用户显式编辑"的结果，生命周期独立于自动缓存（缓存清理不应误删覆盖）。
+         */
+        @Provides
+        @Singleton
+        fun provideLyricsOverrideStore(@ApplicationContext context: Context): LyricsOverrideStore =
+            LyricsOverrideStore(
+                File(File(context.filesDir, "lyrics"), LyricsOverrideStore.DIRECTORY_NAME)
+            )
     }
 }

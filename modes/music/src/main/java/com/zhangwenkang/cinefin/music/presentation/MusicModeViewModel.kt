@@ -15,12 +15,16 @@ import com.zhangwenkang.cinefin.music.data.MusicRepository
 import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricEditLine
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayState
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDocument
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsPresenter
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRepository
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
+import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLines
+import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLinesFromText
+import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLinesToLyricLines
 import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
 import com.zhangwenkang.cinefin.music.data.musicQueueFillOrder
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
@@ -121,6 +125,23 @@ constructor(
     private val _lyricsState = MutableStateFlow(LyricsUiState())
     val lyricsState: StateFlow<LyricsUiState> = _lyricsState.asStateFlow()
 
+    /**
+     * 歌词编辑器状态（W25-MUSIC）：编辑当前曲歌词 / 导入 `.lrc` / 清除本机覆盖。
+     *
+     * [lines] 是编辑态行（时间戳以文本保存，保存时校验）；[hasOverride] 决定「清除覆盖」是否有东西可清；[message] 是面板内提示。
+     */
+    data class LyricsEditorUiState(
+        val open: Boolean = false,
+        val title: String? = null,
+        val lines: List<LyricEditLine> = emptyList(),
+        val hasOverride: Boolean = false,
+        val message: String? = null,
+    )
+
+    private val _lyricsEditorState = MutableStateFlow(LyricsEditorUiState())
+    val lyricsEditorState: StateFlow<LyricsEditorUiState> = _lyricsEditorState.asStateFlow()
+
+    private var nextEditLineId = 0L
     private var loadedLyricsItemId: UUID? = null
     private var lyricsLoadJob: Job? = null
     private var refreshJob: Job? = null
@@ -300,7 +321,7 @@ constructor(
                         languages = emptyList(),
                         rows = emptyList(),
                         activeIndex = 0,
-                        message = "该曲目暂无歌词（服务端 / 外挂 LRC 都没有）",
+                        message = "该曲目暂无歌词（本机覆盖 / 外挂 LRC / 服务端都没有）",
                     )
                 } else {
                     val display = LyricsPresenter.defaultDisplay(document)
@@ -361,6 +382,139 @@ constructor(
 
     /** 点击歌词行：跳到该行时间戳（不改变播放 / 暂停状态）。 */
     fun seekToLyricLine(startMs: Long) = playbackController.seekTo(startMs)
+
+    /** 打开歌词编辑器：预填当前歌词文档（无歌词则从空列表开始，可手工添加行）。 */
+    fun openLyricsEditor() {
+        val item = queue.value?.currentItem ?: return
+        val lines = lyricEditLines(_lyricsState.value.document)
+        nextEditLineId = (lines.maxOfOrNull { it.id } ?: -1L) + 1
+        _lyricsEditorState.value =
+            LyricsEditorUiState(open = true, title = item.name, lines = lines)
+        viewModelScope.launch {
+            val hasOverride = runCatching {
+                lyricsRepository.hasLocalOverride(item.itemId)
+            }
+                .getOrDefault(false)
+            _lyricsEditorState.update { it.copy(hasOverride = hasOverride) }
+        }
+    }
+
+    fun closeLyricsEditor() {
+        _lyricsEditorState.value = LyricsEditorUiState()
+    }
+
+    /** 编辑器内提示（导入失败等场景）。 */
+    fun showLyricsEditorMessage(message: String) {
+        _lyricsEditorState.update { it.copy(message = message) }
+    }
+
+    fun addLyricsEditorLine() {
+        val line = LyricEditLine(id = nextEditLineId++, timeText = "", text = "")
+        _lyricsEditorState.update { it.copy(lines = it.lines + line, message = null) }
+    }
+
+    fun removeLyricsEditorLine(id: Long) {
+        _lyricsEditorState.update { state ->
+            state.copy(lines = state.lines.filterNot { it.id == id }, message = null)
+        }
+    }
+
+    fun updateLyricsEditorLineText(id: Long, text: String) {
+        _lyricsEditorState.update { state ->
+            state.copy(
+                lines = state.lines.map { if (it.id == id) it.copy(text = text) else it },
+                message = null,
+            )
+        }
+    }
+
+    fun updateLyricsEditorLineTime(id: Long, timeText: String) {
+        _lyricsEditorState.update { state ->
+            state.copy(
+                lines = state.lines.map { if (it.id == id) it.copy(timeText = timeText) else it },
+                message = null,
+            )
+        }
+    }
+
+    /** 保存编辑结果为本机覆盖（来源链最高优先级，不写服务器）。 */
+    fun saveLyricsEditor() {
+        val item = queue.value?.currentItem ?: return
+        val lines = lyricEditLinesToLyricLines(_lyricsEditorState.value.lines)
+        if (lines == null) {
+            _lyricsEditorState.update { it.copy(message = "时间格式应为 mm:ss.xx（例：01:23.45）") }
+            return
+        }
+        if (lines.isEmpty()) {
+            _lyricsEditorState.update { it.copy(message = "没有可保存的歌词行") }
+            return
+        }
+        viewModelScope.launch {
+            val ok = runCatching {
+                lyricsRepository.saveLocalOverride(item.itemId, lines)
+            }
+                .getOrDefault(false)
+            if (!ok) {
+                _lyricsEditorState.update { it.copy(message = "保存失败：本机存储不可写") }
+                return@launch
+            }
+            _lyricsEditorState.value = LyricsEditorUiState()
+            reloadLyrics(item)
+        }
+    }
+
+    /** 导入 `.lrc` 文本为本机覆盖（原样保存，保留 `[ti:]` 等标签）。 */
+    fun importLyricsOverride(text: String) {
+        val item = queue.value?.currentItem ?: return
+        if (text.isBlank()) {
+            _lyricsEditorState.update { it.copy(message = "文件里没有可用的歌词内容") }
+            return
+        }
+        viewModelScope.launch {
+            val ok = runCatching {
+                lyricsRepository.saveLocalOverrideText(item.itemId, text)
+            }
+                .getOrDefault(false)
+            if (!ok) {
+                _lyricsEditorState.update { it.copy(message = "导入失败：本机存储不可写") }
+                return@launch
+            }
+            val lines = lyricEditLinesFromText(text)
+            nextEditLineId = (lines.maxOfOrNull { it.id } ?: -1L) + 1
+            _lyricsEditorState.update {
+                it.copy(
+                    lines = lines,
+                    hasOverride = true,
+                    message = "已导入 ${lines.size} 行（本机覆盖）",
+                )
+            }
+            reloadLyrics(item)
+        }
+    }
+
+    /** 清除本机覆盖：回落到外挂 LRC / 服务端 / 缓存。 */
+    fun clearLyricsOverride() {
+        val item = queue.value?.currentItem ?: return
+        viewModelScope.launch {
+            val cleared = runCatching {
+                lyricsRepository.clearLocalOverride(item.itemId)
+            }
+                .getOrDefault(false)
+            _lyricsEditorState.update {
+                it.copy(
+                    hasOverride = false,
+                    message = if (cleared) "已清除本机覆盖" else "当前没有本机覆盖",
+                )
+            }
+            if (cleared) reloadLyrics(item)
+        }
+    }
+
+    /** 覆盖变更后强制重拉歌词（绕过"同一曲目不重复加载"守卫）。 */
+    private fun reloadLyrics(item: PlayerItem) {
+        loadedLyricsItemId = null
+        onCurrentItemChanged(item)
+    }
 
     private fun updateLyricsDisplay(transform: (LyricsDisplayState) -> LyricsDisplayState) {
         _lyricsState.update { state ->

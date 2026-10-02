@@ -62,6 +62,8 @@ constructor(
         val language: LyricsDisplayLanguage = LyricsDisplayLanguage.SIMPLIFIED_CHINESE,
         val languages: List<LyricsDisplayLanguage> = emptyList(),
         val locked: Boolean = false,
+        /** 「保持显示时长」档位（W25-MUSIC）：控制无操作自动隐藏背景 / 边框的时间；[LyricsOverlayIdle.ALWAYS] = 常显。 */
+        val idle: LyricsOverlayIdle = LyricsOverlayIdle.DEFAULT,
     ) {
         /** 悬浮窗应在屏幕上。 */
         val visible: Boolean
@@ -158,6 +160,17 @@ constructor(
         refreshFromPreferences()
     }
 
+    /** 循环切换「保持显示时长」档位（2s → 3s → 5s → 10s → 常显）。 */
+    fun cycleIdle() {
+        val next = _state.value.idle.next()
+        appPreferences.setValue(appPreferences.musicLyricsOverlayIdle, next.key)
+        Timber.i(
+            "桌面歌词保持显示：%s",
+            next.durationMs?.let { "${it / 1_000} 秒" } ?: "常显",
+        )
+        refreshFromPreferences()
+    }
+
     /** 权限回来后由 UI 调用（授权页返回时刷新，不必等周期复核）。 */
     fun refreshPermission() = refreshFromPreferences()
 
@@ -197,6 +210,10 @@ constructor(
                 appPreferences.getValue(appPreferences.musicLyricsOverlaySize)
             )
         val locked = appPreferences.getValue(appPreferences.musicLyricsOverlayLocked)
+        val idle =
+            LyricsOverlayIdle.fromKey(
+                appPreferences.getValue(appPreferences.musicLyricsOverlayIdle)
+            )
         val language =
             runCatching {
                 LyricsDisplayLanguage.valueOf(
@@ -211,6 +228,7 @@ constructor(
                 tint = tint,
                 size = size,
                 locked = locked,
+                idle = idle,
                 language = language,
             )
         }
@@ -364,6 +382,7 @@ constructor(
                 "pref_music_lyrics_overlay_size",
                 "pref_music_lyrics_overlay_language",
                 "pref_music_lyrics_overlay_locked",
+                "pref_music_lyrics_overlay_idle",
             )
 
         /** 权限复核周期：用户去系统页授权后回到 App 的兜底刷新（也可由 UI 主动调 refreshPermission）。 */

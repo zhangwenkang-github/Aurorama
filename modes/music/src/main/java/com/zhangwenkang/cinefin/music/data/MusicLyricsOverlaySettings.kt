@@ -51,13 +51,33 @@ data class LyricsOverlayLines(val current: String?, val next: String?) {
 /** 悬浮窗位置（像素，左上角相对屏幕）。 */
 data class LyricsOverlayPosition(val x: Int, val y: Int)
 
-/** 「无操作自动隐藏背景 / 边框」的时长（W24-MUSIC · A 组）。 */
-const val LYRICS_OVERLAY_IDLE_HIDE_MS = 3_000L
+/**
+ * 「保持显示时长」档位（W25-MUSIC）：工具条里循环切换，控制"无操作后自动隐藏背景 / 边框"的时间。
+ *
+ * [durationMs] = null 表示**常显**（不自动隐藏）；[key] 落偏好键 `pref_music_lyrics_overlay_idle`。
+ */
+enum class LyricsOverlayIdle(val key: String, val label: String, val durationMs: Long?) {
+    SECONDS_2("2s", "2 秒", 2_000L),
+    SECONDS_3("3s", "3 秒", 3_000L),
+    SECONDS_5("5s", "5 秒", 5_000L),
+    SECONDS_10("10s", "10 秒", 10_000L),
+    ALWAYS("always", "常显", null);
+
+    fun next(): LyricsOverlayIdle = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        /** 默认保持 W24 行为（3 秒）。 */
+        val DEFAULT = SECONDS_3
+
+        fun fromKey(key: String?): LyricsOverlayIdle =
+            entries.firstOrNull { it.key == key } ?: DEFAULT
+    }
+}
 
 /**
  * 背景 / 边框是否显示（纯函数）。
  *
- * [interacting] = 距最近一次触摸 / 拖动不足 [LYRICS_OVERLAY_IDLE_HIDE_MS]；
+ * [interacting] = 距最近一次触摸 / 拖动不足当前档位的保持时长（或档位为[LyricsOverlayIdle.ALWAYS]常显）；
  * 锁定后无论是否交互都保持隐藏（只留歌词文字），此时单击只负责唤出设置工具条。
  */
 fun overlayChromeVisible(locked: Boolean, interacting: Boolean): Boolean = !locked && interacting

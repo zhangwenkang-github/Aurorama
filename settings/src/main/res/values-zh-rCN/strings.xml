@@ -117,6 +117,8 @@
     <string name="settings_music_library_summary">音乐模式浏览哪个音乐库；服务器没有音乐库时隐藏音乐入口</string>
     <string name="settings_music_lyrics_overlay">桌面歌词</string>
     <string name="settings_music_lyrics_overlay_summary">在其他应用上层悬浮显示两行歌词（当前句 + 下一句）；需要「显示在其他应用上层」权限</string>
+    <string name="settings_music_resume_queue">恢复播放队列</string>
+    <string name="settings_music_resume_queue_summary">重启应用后恢复上次的音乐队列与播放位置</string>
     <string name="settings_bookshelf_library">书架媒体库</string>
     <string name="settings_bookshelf_library_summary">书架使用哪个书籍库；自动 = 第一个非空书籍库</string>
     <string name="settings_category_sidebar">侧栏显示</string>

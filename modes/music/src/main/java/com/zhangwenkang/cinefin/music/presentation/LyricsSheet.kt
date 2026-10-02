@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -45,6 +47,7 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 fun LyricsSheet(
     state: MusicModeViewModel.LyricsUiState,
     onDismiss: () -> Unit,
+    onEditLyrics: () -> Unit,
     onSelectLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleBilingual: () -> Unit,
     onToggleFollow: () -> Unit,
@@ -52,7 +55,7 @@ fun LyricsSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.82f)) {
-            LyricsHeader(state)
+            LyricsHeader(state, onEditLyrics)
             LyricsLanguageBar(
                 state = state,
                 onSelectLanguage = onSelectLanguage,
@@ -83,21 +86,27 @@ fun LyricsSheet(
 }
 
 @Composable
-private fun LyricsHeader(state: MusicModeViewModel.LyricsUiState) {
+private fun LyricsHeader(state: MusicModeViewModel.LyricsUiState, onEditLyrics: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        Text(
-            text = state.title ?: "歌词",
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 1,
-        )
-        val source = state.document?.source?.label
-        val languages = state.document?.availableLanguages?.joinToString(" / ") { it.label }
-        Text(
-            text = listOfNotNull(source?.let { "来源：$it" }, languages).joinToString("　"),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.title ?: "歌词",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                )
+                val source = state.document?.source?.label
+                val languages = state.document?.availableLanguages?.joinToString(" / ") { it.label }
+                Text(
+                    text = listOfNotNull(source?.let { "来源：$it" }, languages).joinToString("　"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            // W25-MUSIC：编辑 / 导入本机覆盖的入口（面板右上角）。
+            TextButton(onClick = onEditLyrics) { Text("编辑") }
+        }
         Spacer(modifier = Modifier.height(8.dp))
     }
 }

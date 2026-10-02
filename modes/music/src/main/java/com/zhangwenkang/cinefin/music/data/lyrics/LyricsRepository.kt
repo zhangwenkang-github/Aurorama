@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.music.data.lyrics
 
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import java.io.File
-import java.nio.charset.Charset
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,12 +13,14 @@ import org.jellyfin.sdk.model.api.LyricDto
 /**
  * 歌词仓库（MU-5）。
  *
- * 来源优先级（W3-R2 会话 brief：**外挂 LRC 优先，其次服务端**）：
- * 1. 外挂 `.lrc`——本地音频文件同目录同名文件（离线播放 / 下载后），或 `<filesDir>/lyrics/<itemId>.lrc`（手工投放）；
- * 2. 服务端 `GET /Audio/{itemId}/Lyrics`（Jellyfin SDK `LyricsApi.getLyrics`）；
- * 3. 本地缓存（上一次成功拉取的原文行）——断网时仍然可用。
+ * 来源优先级（W25 起：**本机覆盖 > 外挂 LRC > 服务端 > 本地缓存**）：
+ * 1. 本机覆盖——用户在 App 内编辑 / 导入的歌词（`<filesDir>/lyrics/override/<itemId>.lrc`，W25-MUSIC）；
+ * 2. 外挂 `.lrc`——本地音频文件同目录同名文件（离线播放 / 下载后），或 `<filesDir>/lyrics/<itemId>.lrc`（手工投放）；
+ * 3. 服务端 `GET /Audio/{itemId}/Lyrics`（Jellyfin SDK `LyricsApi.getLyrics`；实测服务器会把文件内嵌歌词提取为 metadata
+ *    `.lrc` 后由此接口返回）；
+ * 4. 本地缓存（上一次成功拉取的原文行）——断网时仍然可用。
  *
- * 内嵌歌词（ID3 USLT / Vorbis LYRICS）本会话未做，见 `MUSIC_PLAN` 未决项。
+ * 客户端内嵌标签解析未做：W25 只读探测确认 Jellyfin 10.11.8 已覆盖（见 `MUSIC_PLAN` §4.2 探测结论）。
  */
 interface LyricsRepository {
     /**
@@ -28,6 +29,18 @@ interface LyricsRepository {
      * @param localMediaPath 本地音频文件路径（离线播放时传入），用于找同目录外挂 LRC；在线播放传 null。
      */
     suspend fun getLyrics(itemId: UUID, localMediaPath: String? = null): LyricsDocument?
+
+    /** 保存本机覆盖（编辑保存）。返回是否落盘成功。 */
+    suspend fun saveLocalOverride(itemId: UUID, lines: List<LyricLine>): Boolean
+
+    /** 原样保存 LRC 文本为本机覆盖（导入 `.lrc`）。返回是否落盘成功。 */
+    suspend fun saveLocalOverrideText(itemId: UUID, text: String): Boolean
+
+    /** 删除本机覆盖（清除覆盖）；返回是否删除成功。 */
+    suspend fun clearLocalOverride(itemId: UUID): Boolean
+
+    /** 当前曲目是否存在本机覆盖。 */
+    suspend fun hasLocalOverride(itemId: UUID): Boolean
 }
 
 /**
@@ -63,14 +76,22 @@ class JellyfinLyricsRemoteSource @Inject constructor(private val jellyfinApi: Je
 @Singleton
 class LyricsRepositoryImpl
 @Inject
-constructor(private val remote: LyricsRemoteSource, private val cache: LyricsCache) :
-    LyricsRepository {
+constructor(
+    private val remote: LyricsRemoteSource,
+    private val cache: LyricsCache,
+    private val overrideStore: LyricsOverrideStore,
+) : LyricsRepository {
 
     /** 外挂 LRC 与缓存共用同一目录（`<filesDir>/lyrics`）。 */
     private val lyricsDir: File = cache.directory
 
     override suspend fun getLyrics(itemId: UUID, localMediaPath: String?): LyricsDocument? =
         withContext(Dispatchers.IO) {
+            overrideStore.load(itemId)?.let { lines ->
+                return@withContext LyricsDocumentBuilder.build(lines, LyricsSource.LOCAL_OVERRIDE)
+                    .takeIf { !it.isEmpty }
+            }
+
             externalLrc(itemId, localMediaPath)?.let { lines ->
                 return@withContext LyricsDocumentBuilder.build(lines, LyricsSource.EXTERNAL_LRC)
                     .takeIf { !it.isEmpty }
@@ -90,6 +111,18 @@ constructor(private val remote: LyricsRemoteSource, private val cache: LyricsCac
             }
             null
         }
+
+    override suspend fun saveLocalOverride(itemId: UUID, lines: List<LyricLine>): Boolean =
+        withContext(Dispatchers.IO) { overrideStore.save(itemId, lines) }
+
+    override suspend fun saveLocalOverrideText(itemId: UUID, text: String): Boolean =
+        withContext(Dispatchers.IO) { overrideStore.saveText(itemId, text) }
+
+    override suspend fun clearLocalOverride(itemId: UUID): Boolean =
+        withContext(Dispatchers.IO) { overrideStore.clear(itemId) }
+
+    override suspend fun hasLocalOverride(itemId: UUID): Boolean =
+        withContext(Dispatchers.IO) { overrideStore.has(itemId) }
 
     /** 外挂 LRC：本地媒体同目录 `<文件名>.lrc`，或应用歌词目录 `<itemId>.lrc`。 */
     private fun externalLrc(itemId: UUID, localMediaPath: String?): List<LyricLine>? {
@@ -111,16 +144,9 @@ constructor(private val remote: LyricsRemoteSource, private val cache: LyricsCac
         return null
     }
 
-    /** 外挂 LRC 常见 GBK 编码：先按 UTF-8 读，出现替换字符再按 GBK 重读。 */
+    /** 外挂 LRC 常见 GBK 编码：先按 UTF-8 读，出现替换字符再按 GBK 重读（与导入共用 [LyricTextCodec]）。 */
     private fun readText(file: File): String? {
         val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
-        val utf8 = String(bytes, Charsets.UTF_8)
-        if (!utf8.contains(REPLACEMENT_CHAR)) return utf8
-        val gbk = runCatching { String(bytes, Charset.forName("GBK")) }.getOrNull() ?: return utf8
-        return gbk.takeIf { !it.contains(REPLACEMENT_CHAR) } ?: utf8
-    }
-
-    private companion object {
-        const val REPLACEMENT_CHAR = '\uFFFD'
+        return LyricTextCodec.decode(bytes)
     }
 }

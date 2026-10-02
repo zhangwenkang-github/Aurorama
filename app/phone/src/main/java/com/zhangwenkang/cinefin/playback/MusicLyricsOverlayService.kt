@@ -84,6 +84,7 @@ class MusicLyricsOverlayService : Service() {
                     onCycleTint = controller::cycleTint,
                     onCycleSize = controller::cycleSize,
                     onCycleLanguage = controller::cycleLanguage,
+                    onCycleIdle = controller::cycleIdle,
                     onToggleLock = controller::toggleLock,
                     onClose = controller::dismiss,
                 )

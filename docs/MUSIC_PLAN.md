@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-10-02（W24-MUSIC 会话）　分支：`feature/w24-music-polish`
+> 最后更新：2026-10-02（W25-MUSIC 会话）　分支：`feature/w25-music-lyrics-edit`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -114,6 +114,17 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D37 | 全屏播放页按可用高度分两套布局：`maxHeight ≥ 620dp` 单列（W23 原样），否则两栏紧凑（左封面 / 右控制） | K60 横屏可用高度 411dp，W23 单列大封面会把进度条、歌词、功能键全部挤出屏幕（真机实测，见 §6-27）；两栏后 2–3 行歌词、细轨道进度条、播放列表入口全部可见，Pad 5 / 竖屏手机仍走原单列 |
 | D38 | 进度条改自绘 `MusicProgressBar`：4dp 圆头轨道 + 18dp 白色圆形拖点 + 同色 radial glow；整条 36dp 触控带按下 / 拖动都 seek 并消费手势 | Material3 `Slider` 的浮标是竖条（用户明确要求去掉）；自绘同时满足"细轨道 + 圆形发光拖点（Prism / 音乐皮肤）"，消费手势后不会误触全屏左滑呼出队列 |
 | D39 | 歌词页居中 = 上下 `contentPadding = 视口一半` + `centerItem()`（先 `animateScrollToItem`，再按目标行实际高度 `animateScrollBy` 微调）；去掉当前行前的「杠」，改用 `media.bright` 颜色 + 32sp / 21sp 字号区分 | 旧实现首帧 `viewportSize.height == 0`，滚动偏移退化成"当前行贴顶"（用户复现）；两段式滚动对首行 / 末行 / 双语多行都成立（真机实测居中后 `offset=332 ≈ (840-177)/2`，见 §5.7-6） |
+
+### 2.10 W25 本会话决策（内嵌歌词探测 / 本机歌词编辑 / 悬浮窗时长档位 / 队列恢复开关）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D40 | **内嵌歌词：先只读探测再决定，结论=服务器已覆盖 → 不做客户端标签解析**（证据见 §4.2；brief 的条件是"若服务器未覆盖"才补） | Jellyfin 10.11.8 扫描时由 `AudioFileProber.FetchDataFromTags(tryExtractEmbeddedLyrics)` 把内嵌歌词（ATL `track.Lyrics`）落为 metadata `.lrc`，`/Audio/{id}/Lyrics` 直接返回；客户端服务端来源链已能拿到。客户端解析需要离线文件字节（在线流式播放拿不到），另行评审 |
+| D41 | 本机覆盖落 `<filesDir>/lyrics/override/<itemId>.lrc`（独立子目录、LRC 文本、UTF-8），来源链变「**本机覆盖 > 外挂 LRC > 服务端 > 缓存**」 | 与缓存同目录树但生命周期独立（清理缓存不误删用户编辑）；LRC 文本可读、与导入导出同构；沿用 D15 文件存储不用 Room |
+| D42 | 编辑态模型 `LyricEditLine(id, timeText, text)`：时间戳编辑期保留文本，保存时统一校验（`mm:ss.x/.xx/.xxx`，留空 = 未同步行） | 边输边改不打断输入；解析 / 格式化 / 文档预填全部抽纯函数（`LyricsEditorModel`）可 JVM 单测 |
+| D43 | 导入 `.lrc` 在 `modes:music` 内用 `rememberLauncherForActivityResult(OpenDocument)`（任意 MIME 通配）实现，不新增 app/phone 接线 | `androidx.activity.compose` 已是音乐模块依赖（W3-R3b 引入）；`.lrc` 的 MIME 因文件管理器而异，通配避免被过滤；读入后按 UTF-8 → GBK 回退解码（与仓库/缓存同口径 `LyricTextCodec`） |
+| D44 | 悬浮窗「保持显示时长」= `LyricsOverlayIdle` 五档（2 / 3 / 5 / 10 秒 + 常显），工具条新增第 6 个图标按钮循环切换；新增偏好键 `pref_music_lyrics_overlay_idle`（默认 `3s`，保持 W24 行为） | 常显 = `durationMs = null`，`LaunchedEffect` 直接保持背景 / 边框；只追加键不重排；原五键的顺序与语义不动（新增键加在原键组尾部） |
+| D45 | 队列恢复开关直接落客户端设置的「音乐」行组（与桌面歌词同一组），只加一个 `PreferenceSwitch` + 两条字符串 | W21 已把开关语义做全（`MusicQueuePersister.load()/persist()`：关 = 不读不写），设置页只缺入口；沿用现有组件 / 文案风格（红线"settings 只加设置行"） |
 
 ## 3. 任务清单
 
@@ -228,6 +239,22 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 **遗留**：内嵌歌词 / 歌词编辑（W3 未决项不变）；悬浮窗设置工具条暂无“保持显示时长”档位（固定 3 秒）；真机残留新功能偏好 = 桌面歌词关 + 位置 (1017,759) + 颜色松石（W23 遗留色）。
 
+### W25 音乐扩展（本会话 `feature/w25-music-lyrics-edit`，进行中）
+
+- [x] 内嵌歌词探测（只读）：全库 100 首按「Lyric 流路径 / 内嵌 Vorbis `LYRICS` / API 返回」三类对照 + 3 个「服务器无外挂 LRC」样本逐行比对 + 4 个无标签负样本；**结论 = 服务器已覆盖内嵌歌词**（§4.2），按 brief 条件不做客户端标签解析
+- [x] 本机歌词编辑：`LyricsEditorDialog`（时间戳 + 文本逐行增 / 删 / 改 / 保存）→ `LyricsOverrideStore`（`<filesDir>/lyrics/override/<itemId>.lrc`）；`LyricsSource.LOCAL_OVERRIDE`「本机覆盖」参与来源链且优先级最高
+- [x] 导入 `.lrc`（系统文件选择器；UTF-8 / GBK 自动识别，原样保存并回填编辑器）+ 清除覆盖（回落外挂 LRC / 服务端 / 缓存）；**不写服务器**（文档边界：编辑仅本机生效）
+- [x] 悬浮窗工具条「保持显示时长」档位：2 / 3 / 5 / 10 秒 + 常显（第 6 个图标按钮循环切换；偏好键 `pref_music_lyrics_overlay_idle`，默认 `3s`）
+- [x] 客户端设置接入 `pref_music_resume_queue` 开关行（音乐行组，与桌面歌词同组；影响队列持久化恢复）
+- [x] 单测：`LyricsOverrideStoreTest`（4）/ `LyricsEditorModelTest`（4）/ `LyricsRepositoryTest`（+2）/ `MusicLyricsOverlaySettingsTest`（+1）= 新增 11 项，`:modes:music` 75 → **86 项** 全绿
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51）+ `:modes:music:testDebugUnitTest`（86）全绿
+- [ ] 真机验证（K60 `8e875894`，见 §5.8）——待设备解锁后执行
+- [x] `AppPreferences.kt` 只追加 `pref_music_lyrics_overlay_idle`（不重排既有键）
+
+**红线说明**：`app/phone` 仅一处宿主接线——`MusicLyricsOverlayService` 给工具条新按钮传 `controller::cycleIdle`（悬浮窗内容在 `modes:music`，回调只能由宿主注入）；歌词导入的文件选择器在 `modes:music` 内完成，未改 app/phone。
+
+**遗留**：服务器覆盖内嵌歌词的结论仅实测 FLAC/Vorbis（ID3v2 `USLT` / MP4 `©lyr` 由同一 ATL 路径理论覆盖，本库无样本）；离线本地文件（无网络、无缓存）仍取不到内嵌歌词，如需客户端解析另开任务。
+
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
 ### 4.1 队列与会话
@@ -253,6 +280,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 语言列表 = 逐行识别聚合（按 简中 > 繁中 > 日文 > 英文 > 混合 > 其他 排序）+ 末位固定"原文"；切换只改显示侧（`LyricsPresenter.rows`）。
 - 滚动同步：`LyricsPresenter.activeIndex(rows, positionMs)`（纯函数）→ 面板 `animateScrollToItem` 居中；位置流 500 ms 采样，索引不变时不触发重组。
 - 点击行跳转 = `MusicPlaybackController.seekTo(startMs)`，不改变播放 / 暂停状态。
+
+**内嵌歌词探测结论（W25-MUSIC，2026-10-02，全程只读）**
+
+- 目的：确认 `GET /Audio/{id}/Lyrics` 是否已覆盖"文件内嵌歌词"，据此决定要不要客户端补 ID3v2 `USLT` / Vorbis `LYRICS` / MP4 `©lyr` 解析（brief 条件：服务器未覆盖才实现）。
+- 方法：① 全库 100 首音频取 `MediaSources[0].MediaStreams` 里 `Type=Lyric` 流的路径（`/medi/音乐/*.lrc` = 外挂 LRC；`/config/metadata/library/**/*.lrc` = 服务器扫描时提取保存；无 Lyric 流 = 无歌词）；② 用 `Range: bytes=0-262143` 只读拉取每个 FLAC 头部、解析 Vorbis comment 的 `LYRICS` 字段；③ 逐条调用 `GET /Audio/{id}/Lyrics` 与内嵌标签比对。
+- 全库分布（100 首）：**95 首带内嵌 `LYRICS`**；`Lyric` 流 35 首指向媒体目录同名 `.lrc`（外挂），**61 首指向 `/config/metadata/library/...`（无外挂 LRC，歌词只可能来自内嵌标签/上传，前者已由样本证实）**；4 首无 Lyric 流且同时无内嵌标签（API 404）。
+- 「服务器无外挂 LRC」三个样本（API 返回 = 文件内嵌标签）：
+  - `b8d0326b`《梦之咏叹(晨)》：内嵌纯文本 9 行（作曲 / 指挥 / 乐队 / 录音棚 / 录音师 / 工程师 / 混音…）与 API 返回 **9/9 行逐行全等**（脚本比对 `equal=True`）；
+  - `08751d9c`《梦的光点》：内嵌 LRC 75 行，API 74 行——差异仅为无时间戳首行 `作词 : 陈天佑` 被服务端 LRC 解析器丢弃；
+  - `977d410b`《心做し》：内嵌 LRC 100 行，API 95 行（`[ti:]` / `[ar:]` 等 ID 标签被解析器丢弃）。
+- 负样本（文件无 `LYRICS` 标签 → API 404）：`1a49753d`《Dream Aria》/ `85e600ea`《Golden Key》/ `41432098`《S.T.A.Y.》/ `8a6701ce`《Start Over》。
+- 代码层佐证（upstream `jellyfin/jellyfin v10.11.8`）：`AudioFileProber.cs` 扫描时执行 `FetchDataFromTags(audio, …, tryExtractEmbeddedLyrics)`——注释 "Add external lyrics first to prevent the lrc file get overwritten on first scan"、"Save extracted lyrics if they exist, and if the audio doesn't yet have lyrics"；`track.Lyrics`（ATL/TagLib，覆盖 ID3v2 `USLT` / Vorbis `LYRICS` / MP4 `©lyr`）有同步 / 非同步候选时 `_lyricManager.SaveLyricAsync(audio, "lrc", lyrics)` 落为 metadata `.lrc`，随后 `LyricManager.GetLyricsAsync` 读取该 `.lrc` 经 API 返回。服务器未装任何歌词 provider 插件（`/Plugins` 8 个均非歌词；`RemoteSearch/Lyrics` 返回 0），排除"远端歌词库"来源。
+- **结论：服务器（Jellyfin 10.11.8）已覆盖内嵌歌词**（FLAC/Vorbis 实测；ID3v2 / MP4 由同一 ATL 路径理论覆盖，本库无样本）。按 brief 条件**本波不实现**客户端标签解析；服务端来源链已能把"仅内嵌歌词"的歌显示出来（真机证据见 §5.8）。
 
 ### 4.3 离线方案（MU-6）
 
