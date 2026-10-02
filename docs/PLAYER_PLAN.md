@@ -170,8 +170,8 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
       15sp / 13sp 字阶、等宽数字、渐变遮罩统一、加载细线。
       🟡 2026-10-01 部分落地（§11.4）：等宽数字（`MonoData`）、渐变遮罩统一（`scrim` 令牌）、字阶收敛到 Prism 字阶；
       「时间可点切换 / 章节入口 / 加载细线」仍未做，留给后续会话。
-- [ ] **1.11 播放增强**（原阶段 6）——🟡 W20 完成三项：✅ 进度记忆与服务端同步、✅ 片头片尾阈值与提示条、
-      ✅ Trickplay 按需预加载与失败降级（见 §23）；剩余：外挂字幕导入、播放结束行为（自动下一集 / 停在结束帧）。
+- [x] **1.11 播放增强**（原阶段 6）——✅ W20 三项：进度记忆与服务端同步、片头片尾阈值与提示条、Trickplay 按需预加载与失败降级（见 §23）；
+      ✅ **W27（`feature/w27-subtitle-behavior`，见 §24）：外挂字幕导入（双内核 libass）+ 播放结束行为（自动下一集 / 停在结束帧）**。
 - [x] **1.18 libass 字幕渲染**（M4 缺口）——✅ W15-LIBASS（**mpv 原生路径**，见 §18）+ ✅ **W16-PLAYER（Exo 路径，见 §19）**，两个内核都走 libass。
       mpv 内核：容器有内嵌字幕（DirectPlay）→ mpv 内置 libass 直接渲染；容器无字幕（服务器转码 / HLS）→
       按 MediaItem extras 的 Jellyfin 字幕清单 `sub-add` 独立 ASS 文件；App 覆盖层在 mpv 下不接管、不叠加。
@@ -190,8 +190,8 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 - [ ] **1.15 PiP 三键与细进度条**（阶段 8.10）——MediaSession 已就绪，验证 PiP 窗口三键与比例。
 - [ ] **1.16 验收与打磨**（阶段 7）——真机回归矩阵、性能（首帧 ≤1.5s、2h 内存增长 <80MB）、
       无障碍（TalkBack、大字体 2.0×、键盘焦点可见）。
-- [ ] **1.17 排障工具与工程基线**（阶段 0.3 / 0.4）——`PlayerDebugOverlay`（长按标题显示内核 / 解码器 / 码率 / 缓冲 / 丢帧）、
-      `ktfmtFormat` + `lintDebug` 无新增告警。
+- [ ] **1.17 排障工具与工程基线**（阶段 0.3 / 0.4）——✅ W27 `PlayerDebugOverlay`（长按标题显示内核 / 解码器 / 编码 / 分辨率 / 码率 / 帧率 / 缓冲 / 丢帧，1 s 刷新、可关闭，见 §24）；
+      `ktfmtCheck` 已进每次门禁；`lintDebug` 无新增告警仍未单独跑（挂账）。
 
 ---
 
@@ -1676,3 +1676,74 @@ TrickplayPreviewLoader: Trickplay 精灵图就绪：sheet=0 tiles=25
 2. **UserData 写入频率**：与 5 秒会话上报同频（只写 `PlaybackPositionTicks`）；如担心服务端写压力，可降到 15 秒 + 暂停 / 退出 / 切集必写（本波按「杀进程精度 ≤5 s」取舍）。
 3. **Trickplay 只缓存 2 张精灵图**：快速长距离拖动时可能出现「先空一帧、下一帧出图」；如观感不够，可把 `TrickplaySheetCache(capacity = 2)` 调到 3–4（内存每张约 1.4 MB）。
 4. W17 / W18 遗留继续挂账：Compact 自由窗口取证、libc++ 覆盖构建补丁在依赖升级后的复核。
+
+---
+
+## 24. W27-PLAYER 落地记录（2026-10-02 · 分支 `feature/w27-subtitle-behavior`）
+
+> 四项：①外挂字幕导入（.srt / .ass / .vtt，双内核 libass）②字幕语言优先级查缺 ③播放结束行为（自动下一集 / 停在结束帧）
+> ④`PlayerDebugOverlay`（§1.17）。基线 master `d972315`；本波写 `player:local` / `app:phone` / `player:local` 字符串资源；
+> `NavigationRoot.kt` / `settings.gradle.kts` / `libs.versions.toml` / `app/*/build.gradle.kts` / `modes/*` 未触碰；
+> `AppPreferences.kt` 未改动（新键放 `PlayerExtraPreferences`）；未合并 master。
+
+### 24.1 决策补充（D48–D50）
+
+| 编号 | 决策 |
+|------|------|
+| D48 | **侧载字幕**：系统文件选择器（SAF `OpenDocument`）导入 → 复制到 App 私有目录 `files/player_subtitles/<mediaId>/`（按播放条目保存、不写服务器）；支持 `.srt/.ass/.ssa/.vtt`。Exo 走既有自研管线（ASS 原文透传 / SRT 生成 ASS → libass）；mpv 走 `sub-add`（mpv 内置 libass）。侧载源 index 从 100000 起（避开 Jellyfin 的 0..n），与服务器字幕同一列表可切换，行尾垃圾桶可移除；**重进条目默认沿用第一条侧载**（导入即显式选择），语言从文件名推断。 |
+| D49 | **播放结束行为**（旧「播完暂停」拆成正向开关）：`pref_player_auto_next_episode`（自动下一集，默认开）+ `pref_player_stay_at_end_frame`（停在结束帧，默认关）。旧 `pref_player_pause_after_item=true` 只在新键从未写过时迁移成「自动下一集=关」。**队列末尾**（无下一集）与「自动下一集关」是两个分支：前者由「停在结束帧」决定保持 / 关页，后者一律停在当前结束帧；单集循环优先于自动下一集。循环面板里的旧开关改为同一「自动下一集」键。 |
+| D50 | **PlayerDebugOverlay**：长按播放页标题打开、1 s 刷新一次；字段 = 内核 / 解码器 / 编码 / 分辨率 / 码率 / 帧率 / 缓冲 / 丢帧（复用 §1.8 内核信息 + Exo `DecoderCounters` + mpv `hwdec-current` / `demuxer-cache-duration` / `frame-drop-count`）。Exo 的 Player API 必须主线程读（Media3 线程检查），只有 mpv native 查询放 IO；面板打开期间承载视图保持合成，命中区单独兜住面板矩形（顶栏以下的画面区默认放行给手势）。 |
+
+### 24.2 实现（文件 + 行为）
+
+| 文件 | 改动 |
+|------|------|
+| `player/local/.../subtitle/SideloadedSubtitleStore.kt`（新） | 纯文件仓库：按 mediaId 建目录、扩展名校验、同名文件追加序号不覆盖、语言用 `LanguageMatcher.fromFileName` 推断；`INDEX_BASE = 100000` |
+| `player/local/.../subtitle/PlayerSubtitleController.kt` | `download()` 支持 `file://` 侧载地址（其余仍是 Jellyfin HTTP） |
+| `player/local/.../mpv/MPVPlayer.kt` | 侧载字幕 `sub-add <path> [select]` / `sub-remove`；track-list 解析 `external-filename` 建「路径 ↔ track id」映射；**pending 集合**防 track-list 回包窗口内重复注入；`queryDebugStats()`（hwdec-current / 视频码率 / 丢帧 / demuxer 缓存） |
+| `player/local/.../presentation/PlayerViewModel.kt` | 侧载导入 / 移除 / 按条目记忆、Exo 源清单追加侧载、mpv 在 track-list 变化后补注入（只补缺失）；`readDebugStats()`（Exo 主线程 / mpv IO）；`advanceAfterItemEnd` / `STATE_ENDED` 接入 D49；旧「播完暂停」迁移 |
+| `player/local/.../domain/PlayerEndBehavior.kt`（新，纯函数） | `itemEndAction`（单集循环 > 自动下一集 > 停留）+ `queueEndAction`（停在结束帧 / 关页） |
+| `player/local/.../presentation/PlayerDebugStats.kt`（新） | 双内核实时快照读取（Exo tracks + DecoderCounters / mpv media info + debug stats） |
+| `player/local/.../domain/PlayerExtraPreferences.kt` | 追加 `autoNextEpisode` / `stayAtEndOfFrame`；旧 `pauseAfterCurrentItem` 标注 deprecated（仅迁移用） |
+| `app/phone/.../presentation/player/PlayerDebugOverlay.kt`（新） | 实时面板：1 s 轮询、`PlayerIconButton` 关闭键、行映射（解码档位文案复用现有字符串） |
+| `app/phone/.../presentation/player/PlayerSettingsPanel.kt` | 播放组新增「自动下一集 / 停在结束帧」两行（开关整行可点）；控制器新增 `setAutoNextEpisode` / `setStayAtEndOfFrame` / `setSubtitleLanguage`，快照新增 `subtitleLanguagePreset` |
+| `app/phone/.../presentation/player/PlayerControlOverlay.kt` | 字幕面板：字幕语言优先三档 chips（与音轨同一套预设）+ 「导入字幕文件…」入口 + 侧载行尾移除键；循环面板旧开关改「自动下一集」；标题长按打开 DebugOverlay；`onRegionsChanged` 增加 debug 可见维度 |
+| `app/phone/.../presentation/player/PlayerOverlayContainer.kt` | DebugOverlay 命中矩形（面板独立于控制层淡出，关闭键可点） |
+| `app/phone/.../PlayerActivity.kt` | `OpenDocument` launcher + 读取文件名 / 字节（IO）→ ViewModel 导入；Toast 成功 / 失败；`debugStatsProvider` 接线 |
+| `player/local/res/values{,-zh-rCN}/strings.xml` | 新增自动下一集 / 停在结束帧 / 字幕语言优先 / 侧载字幕 / 导入 / 移除 / DebugOverlay 文案 |
+| 单测 | `PlayerEndBehaviorTest`（7）、`SideloadedSubtitleStoreTest`（5）= player:local 68 → **80** |
+
+### 24.3 门禁（2026-10-02）
+
+```
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+.\gradlew.bat assembleDebug ktfmtCheck :app:phone:testLibreDebugUnitTest :player:local:testDebugUnitTest --console=plain
+```
+
+- 根 `assembleDebug`（含 `:app:tv`）✅｜`ktfmtCheck` ✅
+- `:app:phone:testLibreDebugUnitTest` ✅ **51** 项（既有，未改）
+- `:player:local:testDebugUnitTest` ✅ **80** 项 = 既有 68 + 新增 12
+
+### 24.4 真机走查（Pad 5 `43af8627`，命令全部带 `-s`）
+
+素材：《齐木楠雄的灾难》S2:E3 `be79c27f-05cf-8ded-6ce1-e6e8d78e8b4d`（外挂 ASS）+ 本波自造 `w27_test.srt` / `w27_test.ass`（Host 生成 → `/sdcard/Download`，SAF 走系统文件选择器导入）。
+
+| # | 证据 |
+|---|------|
+| ① Exo 导入 SRT（libass） | SAF 选文件 → `侧载字幕导入：w27_test.srt（语言=）`、`字幕解析完成: index=100000, cues=2, ass=false`、`libass 字幕就绪：SRT 生成脚本，script=744 bytes，frame=1600x900`；暂停帧字幕开 / 关像素 diff **10,497 / 360,000**（视频区步长 2） |
+| ② Exo 导入 ASS（libass） | `侧载字幕导入：w27_test.ass` → `字幕解析完成: index=100000, cues=1, ass=true` → `libass 字幕就绪：ASS 原文，script=594 bytes`；文件落盘 `files/player_subtitles/be79c27f…/w27_test.ass`（614 B） |
+| ③ mpv 双内核生效 | 切 mpv 后 `mpv 注入侧载字幕：…w27_test.ass / …w27_test.srt`（修复后每条只 1 次）→ 面板主字幕列出两条（带移除键）→ 选中 ASS：`mpv 字幕状态: sid=2 visible=true text=W27侧载ASS特效字幕`（截图字幕带目视确认，mpv libass 渲染）；关字幕 `sid=no text=null` |
+| ④ 记忆与移除 | force-stop 重开同集：Exo `字幕解析完成 index=100000`（默认沿用侧载）；mpv 移除 SRT → `mpv 移除侧载字幕：…w27_test.srt（track id=3）` + 文件删除 + 面板行消失；Exo 移除 ASS → 目录清空、面板回落到服务器字幕（`index=0, cues=710`） |
+| ⑤ 字幕语言优先级逐档 | 面板三档依次点击 → `pref_subtitle_languages`：`ja,zh-Hans,zh-Hant,zh,en` → `en,zh-Hans,zh-Hant,zh` → `zh-Hans,zh-Hant,zh,en`；dump 中文优先 `checked=true`（日语 / 英语 false），与音轨面板同一套 chips |
+| ⑥ 播放结束行为 | 自动下一集 ON：近片尾起播 → `end of media item … hasNext=true` → `Playing MediaItem: 5888fd02…` + `advance after item end … -> index=…`；OFF：`stay at end frame: … autoNext=false` + `state=2 PAUSED position=1431018`（不跳集）；停在结束帧 ON + 单条队列（队列面板「清空」后 1/1）→ `end of media item: index=0/1 hasNext=false` + `queue end: stay at end frame`（焦点保持 PlayerActivity） |
+| ⑦ PlayerDebugOverlay | 长按标题 → dump：`内核信息 / 内核 ExoPlayer / 解码器 ExoPlayer 硬解 · avc1.640032 / 编码 avc1.640032 / 分辨率 1920×1080 / 码率 — / 帧率 — · 1× / 缓冲 50.1 s · 7% / 丢帧 0 / 1`；点关闭键后 `内核信息` 节点消失 |
+| ⑧ 回归与稳定性 | 设置面板（自动下一集 / 停在结束帧 / 循环模式）、画面面板（比例 / 旋转）、队列面板（清空）、解码面板（Exo↔mpv 真实重启）、字幕面板（延迟 / 双语 / 外观）走查正常；整轮 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` / `UnsatisfiedLinkError` 均 **0** |
+| ⑨ 副作用与还原 | prefs 用会话开始备份原样写回（3244 B：`backend=exoplayer` / `subtitle_languages=zh,en` / `subtitle_mode=auto` / 旧 `pause_after_item=false`；测试期新键消失）；`wm size` reset 回 Physical 1600×2560；App force-stop；`/sdcard/w27_*`、`/sdcard/Download/w27_test.*`、`/data/local/tmp/w27_*` 与 `files/player_subtitles/` 全部清理；K60 未占用 |
+
+### 24.5 未决 / 移交项
+
+1. **「停在结束帧 = 关」的整队列真机档未跑成**：片尾段服务器直连流长时间 `state=6 buffering`（position 1404.7 s 卡住、ping 正常）；该分支由 `PlayerEndBehaviorTest.queueEndAction(false) → CLOSE_PLAYER` 单测覆盖，且与已验证的 ON 档只差目标动作，建议服务器恢复后补一次纯 adb 复验。
+2. **`lintDebug` 无新增告警未单独跑**（门禁不含 lint；`ktfmtCheck` 已绿）。
+3. **侧载字幕语言靠文件名推断**，面板没有「导入时手动选语言」；语言优先级 / 选轨记忆对能识别文件名的样本已生效，纯中文命名（如 `w27_test.srt`）语言为空、不会被优先级命中（但默认仍会选中）。
+4. **mpv 重复注入已修**（pending 集合），但若某条 `sub-add` 失败且此后 track-list 不再变化，本次加载不会无限重试（换集 / 下次轨道变化再补）。
+5. W17 / W18 / W20 既有遗留继续挂账：Compact 自由窗口取证、libc++ 覆盖构建补丁复核、Trickplay 真数据回归。
