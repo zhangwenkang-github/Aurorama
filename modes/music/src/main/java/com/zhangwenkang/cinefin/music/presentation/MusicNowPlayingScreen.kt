@@ -50,6 +50,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.R
+import com.zhangwenkang.cinefin.music.data.MusicPlayMode
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
@@ -72,11 +73,13 @@ fun MusicNowPlayingScreen(
     positionMs: Long,
     durationMs: Long,
     meta: MusicSong?,
+    playMode: MusicPlayMode,
     onClose: () -> Unit,
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSeek: (Long) -> Unit,
+    onCyclePlayMode: () -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onSelectLyricsLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleLyricsBilingual: () -> Unit,
@@ -114,11 +117,13 @@ fun MusicNowPlayingScreen(
                 positionMs = positionMs,
                 durationMs = durationMs,
                 meta = meta,
+                playMode = playMode,
                 onClose = onClose,
                 onPlayPause = onPlayPause,
                 onPrevious = onPrevious,
                 onNext = onNext,
                 onSeek = onSeek,
+                onCyclePlayMode = onCyclePlayMode,
                 onOpenLyrics = { lyricsPage = true },
                 onToggleFavorite = onToggleFavorite,
                 modifier =
@@ -140,11 +145,13 @@ private fun PlayerPage(
     positionMs: Long,
     durationMs: Long,
     meta: MusicSong?,
+    playMode: MusicPlayMode,
     onClose: () -> Unit,
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSeek: (Long) -> Unit,
+    onCyclePlayMode: () -> Unit,
     onOpenLyrics: () -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     modifier: Modifier = Modifier,
@@ -310,6 +317,12 @@ private fun PlayerPage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     NowPlayingAction(
+                        icon = painterResource(playMode.iconRes()),
+                        label = playMode.label,
+                        active = playMode != MusicPlayMode.SEQUENTIAL,
+                        onClick = onCyclePlayMode,
+                    )
+                    NowPlayingAction(
                         icon =
                             painterResource(
                                 if (meta?.isFavorite == true) CoreR.drawable.ic_heart_filled
@@ -332,6 +345,15 @@ private fun PlayerPage(
         }
     }
 }
+
+/** 播放模式图标（C 组）：顺序 / 列表循环 / 单曲循环 / 随机。 */
+private fun MusicPlayMode.iconRes(): Int =
+    when (this) {
+        MusicPlayMode.SEQUENTIAL -> R.drawable.ic_music_sequence
+        MusicPlayMode.LIST_LOOP -> CoreR.drawable.ic_repeat
+        MusicPlayMode.SINGLE_LOOP -> R.drawable.ic_music_repeat_one
+        MusicPlayMode.SHUFFLE -> R.drawable.ic_music_shuffle
+    }
 
 /** 全屏底部功能键（图标 + 文字，44dp 图标钮 + 12sp 标签）。 */
 @Composable

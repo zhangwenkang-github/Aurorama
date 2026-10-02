@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
+import com.zhangwenkang.cinefin.music.data.MusicPlayMode
+import com.zhangwenkang.cinefin.music.data.MusicPlaybackHistoryTracker
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicQueuePersister
 import com.zhangwenkang.cinefin.music.data.MusicRecentStore
@@ -18,11 +20,16 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDocument
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsPresenter
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRepository
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
+import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
 import com.zhangwenkang.cinefin.music.data.musicQueueFillOrder
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
+import com.zhangwenkang.cinefin.music.data.next
+import com.zhangwenkang.cinefin.music.data.toRepeatMode
+import com.zhangwenkang.cinefin.music.data.toShuffleEnabled
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
+import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
@@ -66,6 +73,7 @@ constructor(
     private val recentStore: MusicRecentStore,
     private val sleepTimer: MusicSleepTimer,
     private val persister: MusicQueuePersister,
+    private val historyTracker: MusicPlaybackHistoryTracker,
     private val playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
 ) : ViewModel() {
@@ -137,11 +145,23 @@ constructor(
     /** 是否正在播放（底栏按钮图标用）。 */
     val isPlaying: StateFlow<Boolean> = playbackStateSource.isPlaying
 
+    /** 播放模式（W23-MUSIC · C 组）：从队列的 repeatMode + shuffleEnabled 反推四种模式， 队列被持久化时模式跟着一起落盘，不需要额外偏好键。 */
+    val playMode: StateFlow<MusicPlayMode> =
+        combine(playbackController.queue, _restoredQueue) { live, restored ->
+                val queue = live ?: restored
+                musicPlayModeOf(
+                    repeatMode = queue?.repeatMode ?: RepeatMode.OFF,
+                    shuffleEnabled = queue?.shuffleEnabled ?: false,
+                )
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, MusicPlayMode.SEQUENTIAL)
+
     /** 当前播放位置（毫秒）：底栏时间与全屏进度条共用；恢复态没有会话时为 0（由 UI 回落到快照位置）。 */
     val positionMs: StateFlow<Long> = playbackController.positionMs
 
     /** 当前曲目总时长（毫秒）：内核还没给出时为 0，UI 用曲库元数据兜底。 */
     val durationMs: StateFlow<Long> = playbackStateSource.durationMs
+
 
     /**
      * 曲目元数据查询（W23-MUSIC）：[PlayerItem] 只带名字与封面，全屏播放页要显示的歌手 / 专辑、以及恢复态的时长兜底都从曲库快照里按 itemId 取；查不到返回
@@ -164,6 +184,7 @@ constructor(
 
     init {
         persister.start()
+        historyTracker.start()
         refresh()
         observeLyrics()
         restoreQueue()
@@ -642,6 +663,13 @@ constructor(
             )
             return
         }
+        if (playMode.value == MusicPlayMode.SHUFFLE) {
+            // 随机下一曲交给内核 shuffle 顺序（DefaultShuffleOrder：一轮内每首各一次 = 未播优先）
+            Timber.i(
+                "随机下一曲：当前 index=%d，按内核随机顺序切歌",
+                playbackController.queue.value?.currentIndex ?: -1,
+            )
+        }
         playbackController.next()
     }
 
@@ -651,7 +679,56 @@ constructor(
             resumeRestored(restored, (restored.currentIndex - 1).coerceAtLeast(0))
             return
         }
+        val live = playbackController.queue.value
+        if (playMode.value == MusicPlayMode.SHUFFLE && live != null) {
+            // 随机规则（用户明确）：上一曲 = 播放历史里实际播放过的上一首，不是随机跳
+            val index =
+                historyTracker.previousIndex(
+                    queueItemIds = live.items.map { item -> item.itemId },
+                    currentItemId = live.currentItem?.itemId,
+                )
+            if (index != null) {
+                Timber.i(
+                    "随机上一曲：回到历史曲目 index=%d（当前 index=%d）",
+                    index,
+                    live.currentIndex,
+                )
+                queueEditor.jumpTo(index)
+                return
+            }
+            Timber.i("随机上一曲：历史为空 / 曲目已不在队列，回退到内核上一首")
+        }
         playbackController.previous()
+    }
+
+    /** 图标循环切换播放模式（全屏播放界面的模式键）。 */
+    fun cyclePlayMode() {
+        setPlayMode(playMode.value.next())
+    }
+
+    /** 应用播放模式：活动会话直接改内核开关；恢复态只改快照并落盘（下次起播即生效）。 */
+    fun setPlayMode(mode: MusicPlayMode) {
+        Timber.i(
+            "播放模式切换：%s（repeat=%s shuffle=%s）",
+            mode.label,
+            mode.toRepeatMode(),
+            mode.toShuffleEnabled(),
+        )
+        if (playbackController.queue.value != null) {
+            playbackController.setRepeatMode(mode.toRepeatMode())
+            playbackController.setShuffleEnabled(mode.toShuffleEnabled())
+            return
+        }
+        val restored = _restoredQueue.value ?: return
+        val updated =
+            restored.copy(
+                repeatMode = mode.toRepeatMode(),
+                shuffleEnabled = mode.toShuffleEnabled(),
+            )
+        if (updated != restored) {
+            _restoredQueue.value = updated
+            persister.persistNow(updated)
+        }
     }
 
     /** 拖动全屏进度条（B 组）：恢复态没有播放会话，忽略。 */

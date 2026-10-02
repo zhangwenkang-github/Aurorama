@@ -101,6 +101,7 @@ fun MusicModeScreen(
     val isRestored by viewModel.isRestored.collectAsState()
     val positionMs by viewModel.positionMs.collectAsState()
     val durationMs by viewModel.durationMs.collectAsState()
+    val playMode by viewModel.playMode.collectAsState()
     val lyricsState by viewModel.lyricsState.collectAsState()
     val sleepState by viewModel.sleepTimerState.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -202,11 +203,13 @@ fun MusicModeScreen(
                     positionMs = positionMs,
                     durationMs = durationMs,
                     meta = viewModel.songMeta(currentQueue.currentItem?.itemId),
+                    playMode = playMode,
                     onClose = { nowPlayingOpen = false },
                     onPlayPause = viewModel::togglePlayPause,
                     onPrevious = viewModel::skipToPrevious,
                     onNext = viewModel::skipToNext,
                     onSeek = viewModel::seekTo,
+                    onCyclePlayMode = viewModel::cyclePlayMode,
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
                     onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
@@ -248,6 +251,7 @@ fun MusicModeScreen(
                 onDismiss = { sleepSheetOpen = false },
             )
         }
+
     }
 }
 
