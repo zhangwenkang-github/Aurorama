@@ -117,3 +117,23 @@ internal fun deletePartialFile(path: String): Boolean = runCatching {
     !File(path).exists() || File(path).delete()
 }
     .getOrDefault(false)
+
+/**
+ * DownloadManager 断点续传 sidecar（`<目标文件>.js`）。
+ *
+ * 真机（K60 / Android 15）实测：暂停（remove）会删除目标残片，但 sidecar 可能残留，导致下载页存储占用清不干净。 统一在暂停 / 重试 / 删除时主动清理。
+ */
+internal fun deletePartialSidecar(path: String): Boolean = runCatching {
+    val target = File(path)
+    val candidates = buildList {
+        target.parentFile?.let { add(File(it, ".${target.name}.js")) }
+        add(File("$path.js"))
+    }
+    candidates.all { !it.exists() || it.delete() }
+}
+    .getOrDefault(false)
+
+internal fun deletePartialArtifacts(path: String) {
+    deletePartialFile(path)
+    deletePartialSidecar(path)
+}

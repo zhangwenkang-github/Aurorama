@@ -218,6 +218,7 @@ class DownloaderImpl(
 
         database.deleteSource(source.id)
         File(source.path).delete()
+        deletePartialSidecar(source.path)
 
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         for (mediaStream in mediaStreams) {
@@ -343,6 +344,8 @@ class DownloaderImpl(
         withContext(Dispatchers.IO) {
             // 系统任务取消，但保留已写入的残片（进度大小供 UI 展示；恢复走安全重试）。
             task.downloadId?.let { runCatching { downloadManager.remove(it) } }
+            // remove 会删除目标残片，但 sidecar（.download.js）可能残留：主动清干净。
+            deletePartialArtifacts(task.path)
             database.setSourceTaskStatus(
                 task.sourceId,
                 DownloadTaskStatus.PAUSED.name,
@@ -371,12 +374,13 @@ class DownloaderImpl(
     override suspend fun deleteTask(task: DownloadTask): Boolean =
         withContext(Dispatchers.IO) {
             task.downloadId?.let { runCatching { downloadManager.remove(it) } }
+            deletePartialArtifacts(task.path)
             val source = database.getSources(task.itemId).firstOrNull { it.id == task.sourceId }
             val item = findItem(task.itemId)
             if (source != null && item != null) {
                 deleteItem(item, source.toFindroidSource(database))
             } else {
-                deletePartialFile(task.path)
+                deletePartialArtifacts(task.path)
                 database.deleteSource(task.sourceId)
             }
             true
