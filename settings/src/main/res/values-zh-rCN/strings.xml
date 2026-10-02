@@ -121,6 +121,8 @@
     <string name="settings_music_resume_queue_summary">重启应用后恢复上次的音乐队列与播放位置</string>
     <string name="settings_bookshelf_library">书架媒体库</string>
     <string name="settings_bookshelf_library_summary">书架使用哪个书籍库；自动 = 第一个非空书籍库</string>
+    <string name="settings_local_library_visible">首页显示本地媒体</string>
+    <string name="settings_local_library_visible_summary">在首页展示本地媒体的入口（默认关闭）</string>
     <string name="settings_category_sidebar">侧栏显示</string>
     <string name="settings_sidebar_summary">对平板侧轨与抽屉生效；客户端设置始终保留</string>
     <string name="settings_sidebar_show_home">首页</string>

@@ -225,6 +225,16 @@ constructor(
                                                         appPreferences.uiBookshelfLibraryId,
                                                     options = bookshelfLibraryOptions,
                                                 ),
+                                                // W39：首页「本地媒体」开关移入「媒体库」分类（媒体库页不再出现该开关）。
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_local_library_visible,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_local_library_visible_summary,
+                                                    backendPreference =
+                                                        appPreferences.localLibraryVisible,
+                                                ),
                                             )
                                     )
                                 ),

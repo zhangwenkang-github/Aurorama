@@ -3,7 +3,6 @@ package com.zhangwenkang.cinefin.presentation.local
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +43,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
@@ -55,7 +55,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.local.LocalFolderBrowseMode
 import com.zhangwenkang.cinefin.local.LocalLibraryBrowse
 import com.zhangwenkang.cinefin.local.LocalLibraryEntry
@@ -99,7 +98,7 @@ fun HomeLocalMediaSection(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "${card.type.label} · ${card.summary}",
+                            text = card.detail,
                             style = CinefinType.BodySmall,
                             color = LocalCinefinColors.current.onSurfaceVariant,
                             maxLines = 1,
@@ -113,10 +112,12 @@ fun HomeLocalMediaSection(
 }
 
 /**
- * W37 本地媒体库总览（嵌在媒体库页 / 离线媒体库页里，**在线离线都常显**）：
- * - 「＋ 建立本地媒体库」入口：名称 + 类型 + SAF 文件夹（持久化权限）；
+ * W39 本地媒体库总览（嵌在媒体库页 / 离线媒体库页里，**在线离线都常显**）：
+ * - 标题行右侧「＋ 新建」紧凑入口：名称 + 类型 + SAF 文件夹（持久化权限）；
  * - 库卡列表 + 管理视图（显示「在媒体库显示」关掉的库）；
- * - 首页本地媒体开关（`pref_local_library_visible`，默认关）。
+ * - 无库时只留一行空态；「只建立索引、不复制、不移动源文件」的说明移入新建对话框。
+ *
+ * 左右页边距由调用方承担（媒体库页由栅格 `contentPadding` 负责），组件自身不加内边距， 保证在线 / 离线两处卡片边缘一致。
  */
 @Composable
 fun LocalLibrarySection(
@@ -143,12 +144,13 @@ fun LocalLibrarySection(
     val colors = LocalCinefinColors.current
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space4),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
             Text(
                 text = "本地媒体库",
-                style = CinefinType.TitleLarge,
+                style = CinefinType.SectionTitle,
                 color = colors.onSurface,
                 modifier = Modifier.weight(1f),
             )
@@ -167,32 +169,38 @@ fun LocalLibrarySection(
                     )
                 }
             }
-        }
-        Text(
-            text = "把设备上已有的文件夹加入 App：只建立索引，不复制、不移动源文件。",
-            style = CinefinType.BodySmall,
-            color = colors.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = CinefinSpacing.Space4),
-        )
-        Spacer(Modifier.height(CinefinSpacing.Space3))
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
-        ) {
-            LocalLibraryEntryCard(
-                title = "＋ 建立本地媒体库",
-                detail = "选择名称与类型，再选一个或多个文件夹",
+            CinefinButton(
+                text = "＋ 新建",
                 onClick = { showCreateDialog = true },
+                variant = CinefinButtonVariant.Outlined,
+                size = CinefinButtonSize.Small,
             )
-            state.visibleCards.forEach { card ->
-                LocalLibraryCard(card = card, onClick = { onOpenLibrary(card.id) })
-            }
-            SwitchSettingRow(
-                title = "首页显示本地媒体",
-                detail = "在首页展示本地媒体的入口（默认关闭）",
-                checked = state.homeVisible,
-                onCheckedChange = viewModel::setHomeVisible,
-            )
+        }
+        Spacer(Modifier.height(CinefinSpacing.Space3))
+        when {
+            // 无库：只留一行空态（W39 收掉整块说明与整行大卡）
+            state.cards.isEmpty() ->
+                Text(
+                    text = "还没有本地媒体库 · 点「＋ 新建」",
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+            // 有库但全被「在媒体库显示」关掉：提示进管理视图（点标题行右侧「眼睛」）
+            state.visibleCards.isEmpty() ->
+                Text(
+                    text = "本地媒体库都已隐藏 · 点右上角「眼睛」查看",
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+            else ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+                ) {
+                    state.visibleCards.forEach { card ->
+                        LocalLibraryCard(card = card, onClick = { onOpenLibrary(card.id) })
+                    }
+                }
         }
     }
 
@@ -204,42 +212,6 @@ fun LocalLibrarySection(
                 viewModel.createLibrary(name, type) { id -> pendingLibraryId = id }
             },
         )
-    }
-}
-
-@Composable
-private fun LocalLibraryEntryCard(title: String, detail: String, onClick: () -> Unit) {
-    val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    CinefinCard(onClick = onClick, contentPadding = PaddingValues(CinefinSpacing.Space4)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier =
-                    Modifier.size(40.dp)
-                        .clip(CinefinShapes.Sm)
-                        .background(media.container)
-                        .border(1.dp, media.outline, CinefinShapes.Sm),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_plus),
-                    contentDescription = null,
-                    tint = media.bright,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(Modifier.width(CinefinSpacing.Space3))
-            Column(Modifier.weight(1f)) {
-                Text(text = title, style = CinefinType.TitleMedium, color = colors.onSurface)
-                Text(
-                    text = detail,
-                    style = CinefinType.BodySmall,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
     }
 }
 
@@ -272,21 +244,21 @@ private fun LocalLibraryCard(card: LocalLibraryViewModel.LibraryCard, onClick: (
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text =
-                        "${card.type.label} · ${card.folderCount} 个文件夹 · ${card.summary}" +
-                            if (!card.visibleInLibrary) " · 已隐藏" else "",
+                    text = card.detail,
                     style = CinefinType.BodySmall,
                     color = colors.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(Modifier.width(CinefinSpacing.Space2))
-            Text(
-                text = "${card.itemCount} 项",
-                style = CinefinType.MonoDataSmall,
-                color = colors.onSurfaceFaint,
-            )
+            if (card.itemCount > 0) {
+                Spacer(Modifier.width(CinefinSpacing.Space2))
+                Text(
+                    text = "${card.itemCount} 项",
+                    style = CinefinType.MonoDataSmall,
+                    color = colors.onSurfaceFaint,
+                )
+            }
         }
     }
 }
@@ -673,6 +645,12 @@ private fun CreateLibraryDialog(
                     selected = type,
                     onSelect = { type = it },
                     label = { it.label },
+                )
+                Spacer(Modifier.height(CinefinSpacing.Space3))
+                Text(
+                    text = "只建立索引，不复制、不移动源文件。",
+                    style = CinefinType.BodySmall,
+                    color = LocalCinefinColors.current.onSurfaceVariant,
                 )
             }
         },

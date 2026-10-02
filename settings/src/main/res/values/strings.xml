@@ -127,6 +127,8 @@
     <string name="settings_music_resume_queue_summary">Restore the last music queue and playback position after the app restarts</string>
     <string name="settings_bookshelf_library">Bookshelf library</string>
     <string name="settings_bookshelf_library_summary">Which library the bookshelf uses; Automatic picks the first non-empty books library</string>
+    <string name="settings_local_library_visible">Show local media on Home</string>
+    <string name="settings_local_library_visible_summary">Show the local media entry on the home screen (off by default)</string>
     <string name="settings_category_sidebar">Sidebar items</string>
     <string name="settings_sidebar_summary">Applies to the tablet side rail and drawer</string>
     <string name="settings_sidebar_show_home">Home</string>

@@ -46,9 +46,9 @@ import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
-import com.zhangwenkang.cinefin.presentation.film.components.FavoritesCard
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
+import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.local.LocalLibrarySection
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
@@ -79,10 +79,10 @@ fun MediaScreen(
         searchState = searchState,
         searchExpanded = searchExpanded,
         onSearchExpand = onSearchExpand,
+        onFavoritesClick = onFavoritesClick,
         onAction = { action ->
             when (action) {
                 is MediaAction.OnItemClick -> onItemClick(action.item)
-                is MediaAction.OnFavoritesClick -> onFavoritesClick()
                 else -> Unit
             }
             viewModel.onAction(action)
@@ -99,11 +99,12 @@ fun MediaScreen(
 }
 
 /**
- * 媒体库总览（Lumen + 去拥挤）：
+ * 媒体库总览（W39 两段式，Lumen + 去拥挤）：
  *
- * 1. **层级**：顶栏只留抽屉入口，标题升级为大标题 + 计数副题，页面第一眼就知道"这是哪一层、有多少库"；
- * 2. **栅格**：库卡从"固定 260dp + 自适应列"改为"整列宽 16:9 大卡"，手机一列、平板 2 列—— 旧写法在手机上会挤出屏幕、在平板上留不规则空档，这是"拥挤感"的主因；
- * 3. **间距**：列距 16 / 26dp（随窗口），行距 24dp，区块上下留白 32dp。
+ * 1. **顶栏**：侧栏入口 +「媒体库」+ 计数副题 + 右侧动作（收藏星形 / 搜索）同排；页内不再常显大搜索框， 点搜索图标才展开搜索浮层（原有搜索流程不变）；
+ * 2. **两段式**：①本地媒体库（标题行右侧「＋ 新建」；无库时一行空态）→ ②服务器媒体库（标题行 + 16:9 大卡网格，
+ *    位置上移、首屏尽量露出）；旧版整行「收藏」大卡与整块本地说明文案均已下线；
+ * 3. **间距**：列距 16 / 26dp（随窗口），行距 24dp，区块间距 24–32dp。
  */
 @Composable
 private fun MediaScreenLayout(
@@ -112,6 +113,7 @@ private fun MediaScreenLayout(
     searchState: SearchState,
     searchExpanded: Boolean,
     onSearchExpand: (Boolean) -> Unit,
+    onFavoritesClick: () -> Unit,
     onAction: (MediaAction) -> Unit,
     onOpenLocalLibrary: (Long) -> Unit,
     onSearchAction: (SearchAction) -> Unit,
@@ -154,6 +156,12 @@ private fun MediaScreenLayout(
             onOpenDrawer = onOpenDrawer,
             modifier = Modifier.padding(start = safePadding.start),
             actions = {
+                // W39：收藏从整行大卡改为顶栏图标键（星形），与搜索并列。
+                TopBarAction(
+                    icon = CoreR.drawable.ic_star,
+                    onClick = onFavoritesClick,
+                    contentDescription = stringResource(CoreR.string.title_favorite),
+                )
                 TopBarAction(
                     icon = CoreR.drawable.ic_search,
                     onClick = { onSearchExpand(true) },
@@ -163,19 +171,21 @@ private fun MediaScreenLayout(
         )
         Spacer(Modifier.height(CinefinSpacing.Space2))
 
-        // Lumen 修正（2026-10-01 验收缺陷）：搜索框不再"悬浮在滚动内容之上"——
-        // 之前它和栅格同处一个 Box，上滑时卡片会钻到搜索框底下被挡住。现在改为列布局：
-        // 搜索框是栅格上方的独立表头，栅格被裁剪在自己的区域里，内容永远不会滑到搜索框下面。
-        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        // W39：页内不再常显大搜索框（只保留顶栏图标入口）；点图标后才展开搜索浮层，
+        // 原有搜索流程（SearchBar + SearchViewModel）不变，关闭后回到两段式总览。
+        if (searchExpanded) {
             FilmSearchBar(
                 state = searchState,
-                expanded = searchExpanded,
+                expanded = true,
                 onExpand = onSearchExpand,
                 onAction = onSearchAction,
+                // 不要给 SearchBar 传 weight / 固定高度约束：M3 展开态要求父布局不限制尺寸
+                // （约束固定 min=max 会把输入框撑满、结果区压成 0 高）。它自己会占满剩余空间。
                 modifier = Modifier.fillMaxWidth(),
                 paddingStart = paddingStart,
                 paddingEnd = paddingEnd,
             )
+        } else {
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = minColumnSize),
@@ -190,21 +200,27 @@ private fun MediaScreenLayout(
                     horizontalArrangement = Arrangement.spacedBy(gridGutter),
                     verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
                 ) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        FavoritesCard(onClick = { onAction(MediaAction.OnFavoritesClick) })
-                    }
-                    // W37：本地媒体库（常显入口；在线 / 离线都在同一位置）。
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    // 两段式①：本地媒体库（标题行自带「＋ 新建」；无库时只留一行空态）。
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "local_library") {
                         LocalLibrarySection(onOpenLibrary = onOpenLocalLibrary)
                     }
-                    itemsIndexed(state.libraries, key = { _, library -> library.id }) {
-                        index,
-                        library ->
-                        LibraryEntryCard(
-                            item = library,
-                            onClick = { onAction(MediaAction.OnItemClick(library)) },
-                            index = index,
-                        )
+                    // 两段式②：服务器媒体库（标题行 + 16:9 大卡，位置上移、首屏尽量露出）。
+                    if (state.libraries.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "server_library_header") {
+                            SectionHeader(
+                                title = "服务器媒体库",
+                                modifier = Modifier.padding(top = CinefinSpacing.Space2),
+                            )
+                        }
+                        itemsIndexed(state.libraries, key = { _, library -> library.id }) {
+                            index,
+                            library ->
+                            LibraryEntryCard(
+                                item = library,
+                                onClick = { onAction(MediaAction.OnItemClick(library)) },
+                                index = index,
+                            )
+                        }
                     }
                 }
                 // 媒体库加载过渡（W6-VIS D24）：库列表到达前用大卡骨架占位，到达后淡出
@@ -253,6 +269,7 @@ private fun MediaScreenLayoutPreview() {
             searchState = SearchState(),
             searchExpanded = false,
             onSearchExpand = {},
+            onFavoritesClick = {},
             onAction = {},
             onOpenLocalLibrary = {},
             onSearchAction = {},

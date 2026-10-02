@@ -43,16 +43,16 @@ constructor(
         val countsByKind: Map<LocalMediaKind, Int>,
         val visibleInLibrary: Boolean,
     ) {
-        /** 「视频 2 · 音乐 3 · 书籍 1」；库为空时给引导文案。 */
-        val summary: String
-            get() {
-                if (itemCount <= 0) return "尚未扫描到媒体"
-                val parts =
-                    LocalMediaKind.entries.mapNotNull { kind ->
-                        countsByKind[kind]?.takeIf { it > 0 }?.let { "${kind.label} $it" }
-                    }
-                return parts.joinToString(" · ")
-            }
+        /** W39 去重口径：单一类型 = `书籍 · 1 个文件夹`（总数由行尾「N 项」承担）；混合库列各类型计数。 */
+        val detail: String
+            get() =
+                localLibraryCardDetail(
+                    typeLabel = type.label,
+                    folderCount = folderCount,
+                    itemCount = itemCount,
+                    countsByKind = countsByKind,
+                    visibleInLibrary = visibleInLibrary,
+                )
     }
 
     data class UiState(
@@ -100,11 +100,6 @@ constructor(
         _state.value = _state.value.copy(showHidden = show)
     }
 
-    fun setHomeVisible(visible: Boolean) {
-        appPreferences.setValue(appPreferences.localLibraryVisible, visible)
-        _state.value = _state.value.copy(homeVisible = visible)
-    }
-
     /** 建库；[onCreated] 回调库 id（UI 随后拉起 SAF 目录选择）。 */
     fun createLibrary(name: String, type: LocalLibraryType, onCreated: (Long) -> Unit = {}) {
         viewModelScope.launch {
@@ -145,6 +140,33 @@ constructor(
             countsByKind = countsByKind,
             visibleInLibrary = visibleInLibrary,
         )
+}
+
+/**
+ * W39 本地库卡副标题（纯函数，便于单测）：
+ * - 单一媒体类型（含「混合」库但只有一类文件）：`书籍 · 1 个文件夹`——不再重复「书籍 10」， 总数由行尾「N 项」承担；空库只提示「尚未扫描到媒体」；
+ * - 多类型：`混合 · 2 个文件夹 · 视频 1 · 音乐 2 · 书籍 3`；
+ * - 库级「在媒体库显示」关闭时追加 ` · 已隐藏`。
+ */
+internal fun localLibraryCardDetail(
+    typeLabel: String,
+    folderCount: Int,
+    itemCount: Int,
+    countsByKind: Map<LocalMediaKind, Int>,
+    visibleInLibrary: Boolean,
+): String {
+    val kinds =
+        LocalMediaKind.entries.mapNotNull { kind ->
+            countsByKind[kind]?.takeIf { it > 0 }?.let { "${kind.label} $it" }
+        }
+    return buildString {
+        append(typeLabel).append(" · ").append(folderCount).append(" 个文件夹")
+        when {
+            itemCount <= 0 -> append(" · 尚未扫描到媒体")
+            kinds.size > 1 -> append(" · ").append(kinds.joinToString(" · "))
+        }
+        if (!visibleInLibrary) append(" · 已隐藏")
+    }
 }
 
 /** 本地库详情：文件夹管理（添加 / 移除 / 层级与平铺）+ 库级设置 + 条目浏览。 */
