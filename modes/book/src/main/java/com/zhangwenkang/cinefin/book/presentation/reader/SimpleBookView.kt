@@ -78,7 +78,14 @@ internal fun SimpleBookView(
     systemDark: Boolean,
     contentColor: Color,
     chromeColor: Color,
+    searchHits: List<PdfSearchHit> = emptyList(),
+    annotations: List<ReaderAnnotation> = emptyList(),
+    annotating: Boolean = false,
+    jumpTargetPage: Int? = null,
     onPageChanged: (index: Int, pageCount: Int) -> Unit,
+    onJumpHandled: () -> Unit = {},
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit = { _, _ -> },
+    onAnnotationTap: (ReaderAnnotation) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val pageCount = document.pageSource.pageCount
@@ -124,6 +131,19 @@ internal fun SimpleBookView(
     val twoColumnLayoutKey =
         remember(twoColumnLayout) { if (twoColumnLayout.any { it.fullscreen }) 1 else 0 }
     val pagedLayout = remember(pageCount) { pagedSlots(pageCount) }
+    // 搜索命中 / 批注按页索引分组：叠加层只关心当前页（命中上限 400 条，过滤成本可忽略）。
+    val hitsByPage = remember(searchHits) { searchHits.groupBy { it.pageIndex } }
+    val annotationsByPage = remember(annotations) { annotations.groupBy { it.pageIndex } }
+
+    // 搜索命中 / 批注列表的跳页：更新当前页（Pager / 列表由各自的 LaunchedEffect 滚动到位）。
+    LaunchedEffect(jumpTargetPage) {
+        val target = jumpTargetPage ?: return@LaunchedEffect
+        if (target in 0 until pageCount) {
+            currentPage = target
+            currentSlotEnd = target
+        }
+        onJumpHandled()
+    }
 
     fun report(firstPage: Int, lastPage: Int) {
         currentPage = firstPage
@@ -139,7 +159,13 @@ internal fun SimpleBookView(
                     pageCount = pageCount,
                     initialPage = currentPage,
                     contentColor = contentColor,
+                    hitsByPage = hitsByPage,
+                    annotationsByPage = annotationsByPage,
+                    annotating = annotating,
+                    jumpTargetPage = jumpTargetPage,
                     onPageChanged = { page -> report(page, page) },
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
                 )
 
             ReaderMode.Paged ->
@@ -151,7 +177,13 @@ internal fun SimpleBookView(
                     layoutKey = 0,
                     rtl = settings.rtl,
                     contentColor = contentColor,
+                    hitsByPage = hitsByPage,
+                    annotationsByPage = annotationsByPage,
+                    annotating = annotating,
+                    jumpTargetPage = jumpTargetPage,
                     onPageChanged = ::report,
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
                 )
 
             ReaderMode.TwoColumn ->
@@ -163,7 +195,13 @@ internal fun SimpleBookView(
                     layoutKey = twoColumnLayoutKey,
                     rtl = settings.rtl,
                     contentColor = contentColor,
+                    hitsByPage = hitsByPage,
+                    annotationsByPage = annotationsByPage,
+                    annotating = annotating,
+                    jumpTargetPage = jumpTargetPage,
                     onPageChanged = ::report,
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
                 )
         }
 
@@ -194,13 +232,23 @@ private fun ScrollPages(
     pageCount: Int,
     initialPage: Int,
     contentColor: Color,
+    hitsByPage: Map<Int, List<PdfSearchHit>>,
+    annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    annotating: Boolean,
+    jumpTargetPage: Int?,
     onPageChanged: (Int) -> Unit,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialPage)
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
             .collect(onPageChanged)
+    }
+    LaunchedEffect(jumpTargetPage) {
+        val target = jumpTargetPage ?: return@LaunchedEffect
+        if (target in 0 until pageCount) listState.scrollToItem(target)
     }
     LazyColumn(
         state = listState,
@@ -219,6 +267,11 @@ private fun ScrollPages(
                     cache = cache,
                     index = index,
                     contentColor = contentColor,
+                    searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
+                    annotations = annotationsByPage[index].orEmpty(),
+                    annotating = annotating,
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
                     modifier = Modifier.fillMaxWidth().aspectRatio(aspect),
                 )
             }
@@ -242,7 +295,13 @@ private fun PagedPages(
     layoutKey: Int,
     rtl: Boolean,
     contentColor: Color,
+    hitsByPage: Map<Int, List<PdfSearchHit>>,
+    annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    annotating: Boolean,
+    jumpTargetPage: Int?,
     onPageChanged: (firstPage: Int, lastPage: Int) -> Unit,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
     key(rtl, layoutKey) {
         // 空表只做保护（打开流程已拦截空文档）；不能写成 `return@key`：
@@ -261,6 +320,14 @@ private fun PagedPages(
                             onPageChanged(slot.pages.first(), slot.pages.last())
                         }
                     }
+            }
+            // 搜索命中 / 批注跳页：直接滚到目标槽位（不做跨整本书的动画）。
+            LaunchedEffect(jumpTargetPage, slots) {
+                val target = jumpTargetPage ?: return@LaunchedEffect
+                if (target >= 0) {
+                    val slot = slotIndexForPage(slots, target)
+                    if (slot != pagerState.currentPage) pagerState.scrollToPage(slot)
+                }
             }
             // 停稳后再预取邻槽，避免抢可见页的解码带宽（窗口仍是 3 张）。
             LaunchedEffect(pagerState, slots) {
@@ -295,6 +362,12 @@ private fun PagedPages(
                                 cache = cache,
                                 index = slot.pages.first(),
                                 contentColor = contentColor,
+                                searchRects =
+                                    hitsByPage[slot.pages.first()].orEmpty().flatMap { it.rects },
+                                annotations = annotationsByPage[slot.pages.first()].orEmpty(),
+                                annotating = annotating,
+                                onAnnotationRequested = onAnnotationRequested,
+                                onAnnotationTap = onAnnotationTap,
                                 modifier = Modifier.fillMaxSize(),
                             )
 
@@ -305,6 +378,11 @@ private fun PagedPages(
                                 slot = slot,
                                 rtl = rtl,
                                 contentColor = contentColor,
+                                annotating = annotating,
+                                hitsByPage = hitsByPage,
+                                annotationsByPage = annotationsByPage,
+                                onAnnotationRequested = onAnnotationRequested,
+                                onAnnotationTap = onAnnotationTap,
                             )
 
                         else ->
@@ -312,6 +390,11 @@ private fun PagedPages(
                                 cache = cache,
                                 visualPages = visualSlotPages(slot, rtl),
                                 contentColor = contentColor,
+                                hitsByPage = hitsByPage,
+                                annotationsByPage = annotationsByPage,
+                                annotating = annotating,
+                                onAnnotationRequested = onAnnotationRequested,
+                                onAnnotationTap = onAnnotationTap,
                             )
                     }
                 }
@@ -326,6 +409,11 @@ private fun SpreadPages(
     cache: PageImageCache,
     visualPages: List<Int?>,
     contentColor: Color,
+    hitsByPage: Map<Int, List<PdfSearchHit>>,
+    annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    annotating: Boolean,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxSize()) {
         visualPages.forEach { index ->
@@ -334,6 +422,11 @@ private fun SpreadPages(
                     cache = cache,
                     index = index,
                     contentColor = contentColor,
+                    searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
+                    annotations = annotationsByPage[index].orEmpty(),
+                    annotating = annotating,
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
             } else {
@@ -355,6 +448,11 @@ private fun MergedSpreadPage(
     slot: SpreadSlot,
     rtl: Boolean,
     contentColor: Color,
+    annotating: Boolean,
+    hitsByPage: Map<Int, List<PdfSearchHit>>,
+    annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
     val firstPage = slot.pages.first()
     // 第一帧先查缓存（预取过的邻槽直接上合并图），没有才异步判定 + 合成。
@@ -366,9 +464,16 @@ private fun MergedSpreadPage(
             cache = cache,
             visualPages = visualSlotPages(slot, rtl),
             contentColor = contentColor,
+            hitsByPage = hitsByPage,
+            annotationsByPage = annotationsByPage,
+            annotating = annotating,
+            onAnnotationRequested = onAnnotationRequested,
+            onAnnotationTap = onAnnotationTap,
         )
         return
     }
+    // 合并槽位（W22/W26 对图拼合）：合并位图是两页拼接而成，本波不叠加搜索 / 批注矩形
+    // （数据仍按逻辑页保存，退出合并槽位 / 切回单页即可看到；READER_PLAN §2 D23 兼容边界）。
     ZoomableSlot(
         slotKey = "spread=$firstPage",
         logLabel = "spread=$firstPage",
@@ -394,17 +499,28 @@ private fun ZoomablePage(
     cache: PageImageCache,
     index: Int,
     contentColor: Color,
+    searchRects: List<PageRect> = emptyList(),
+    annotations: List<ReaderAnnotation> = emptyList(),
+    annotating: Boolean = false,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit = { _, _ -> },
+    onAnnotationTap: (ReaderAnnotation) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     ZoomableSlot(
         slotKey = index,
         logLabel = "index=$index",
+        gesturesEnabled = !annotating,
         modifier = modifier,
     ) {
         PageContent(
             cache = cache,
             index = index,
             contentColor = contentColor,
+            searchRects = searchRects,
+            annotations = annotations,
+            annotating = annotating,
+            onAnnotationRequested = onAnnotationRequested,
+            onAnnotationTap = onAnnotationTap,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -419,6 +535,7 @@ private fun ZoomablePage(
 private fun ZoomableSlot(
     slotKey: Any,
     logLabel: String,
+    gesturesEnabled: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -431,7 +548,8 @@ private fun ZoomableSlot(
             modifier
                 .clipToBounds()
                 .onSizeChanged { boxSize = it }
-                .pointerInput(slotKey) {
+                .pointerInput(slotKey, gesturesEnabled) {
+                    if (!gesturesEnabled) return@pointerInput
                     detectMultiTouchZoom { pan, zoomFactor ->
                         val next =
                             pageZoom.transform(zoomFactor, pan, boxSize.width, boxSize.height)
@@ -471,6 +589,11 @@ private fun PageContent(
     cache: PageImageCache,
     index: Int,
     contentColor: Color,
+    searchRects: List<PageRect>,
+    annotations: List<ReaderAnnotation>,
+    annotating: Boolean,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var bitmap by remember(index) { mutableStateOf<Bitmap?>(null) }
@@ -485,13 +608,26 @@ private fun PageContent(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         val image = bitmap
         when {
-            image != null ->
+            image != null -> {
                 Image(
                     bitmap = image.asImageBitmap(),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize(),
                 )
+                // 叠加层只在有内容时挂载：Fit 数学与上面的 Image 一致（见 [PageOverlay]）。
+                if (searchRects.isNotEmpty() || annotations.isNotEmpty() || annotating) {
+                    PageOverlay(
+                        imageWidth = image.width.toFloat(),
+                        imageHeight = image.height.toFloat(),
+                        searchRects = searchRects,
+                        annotations = annotations,
+                        annotating = annotating,
+                        onAnnotationRequested = { rect -> onAnnotationRequested(index, rect) },
+                        onAnnotationTap = onAnnotationTap,
+                    )
+                }
+            }
 
             failed ->
                 Column(
