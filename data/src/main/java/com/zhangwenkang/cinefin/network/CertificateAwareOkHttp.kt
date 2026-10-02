@@ -26,6 +26,13 @@ fun buildCertificateAwareOkHttpClient(
 
     val sslContext = SSLContext.getInstance("TLS")
     sslContext.init(null, arrayOf<TrustManager>(trustManager), null)
+    // 信任按「每次连接」判定：限制客户端 TLS 会话缓存，否则清除信任后旧会话仍可被复用（真机实测）。
+    runCatching {
+        sslContext.clientSessionContext.apply {
+            sessionCacheSize = 1
+            sessionTimeout = 1
+        }
+    }
 
     return base
         .newBuilder()
