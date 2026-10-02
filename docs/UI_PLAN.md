@@ -132,7 +132,7 @@
 - [x] **D 品牌遗留注释**：`docs/web-console-skin.css` + raw 副本 + `docs/web-console-theme.css`；代码注释 3 处红线文件（`NavigationRoot.kt` / `AppPreferences.kt` / `player:local PlaylistManager.kt`，**已申报，仅注释**）
 - [x] **门禁**：根 `assembleDebug`（phone + TV）+ `ktfmtCheck` 全绿；单测 `--rerun` 后 **439 项 / 0 失败**（app 74 / core 18（新增 2）/ data 27 / player:local 104 / film 6 / book 106 / music 104）
 - [x] **体积**：arm64-v8a debug 基线 `124,877,877 B (119.09 MiB)` → **`144,226,720 B (137.55 MiB)`（+18.45 MiB）**；`assets` 字体未压缩存储（`noCompress += "ttf"`）比压缩多 ≈5.2 MB，但保住 mmap 与 API 28（详见 §5 W40）
-- [ ] **E 真机布局回归**：Pad 5（`43af8627`）主 + K60（`8e875894`）抽验——等负责人调度窗口
+- [x] **E 真机布局回归**：Pad 5（`43af8627`）主 + K60（`8e875894`）抽验——窗口由负责人 2026-10-03 批准（05:22–05:25）；首页 / 媒体库 / 音乐 / 书架 / 客户端设置 / 关于 / 阅读器全通过，0 FATAL / ANR，字重 400–700 可见差异，内存无原生膨胀（详见 §5 W40）
 - [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；单测 `--rerun` 后 437 项 / 0 失败（app 74 / core 16 / data 27 / player:local 104 / film 6 / book 106 / music 104）
 - [x] **真机（Pad 5 主 + K60 抽验，2026-10-03 04:22–04:37）**：见 §5 W39 验收；期间拦下并修复「`weight(1f)` 传给 M3 `SearchBar` 导致展开态输入框撑满、结果区 0 高」的缺陷（踩坑 55）
 
@@ -576,7 +576,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 | 7 | 在线 / 离线一致 | 离线（`pref_offline_mode=true`）媒体库页 =「已下载媒体」+ 同一份「本地媒体库」区块（`书籍 · 1 个文件夹 · 10 项`），无「服务器媒体库」段；退出离线后在线复原 | ✅ |
 | 8 | 稳定性 | 双机整轮 `FATAL EXCEPTION` / `ANR in com.zhangwenkang` 0 条（含 2 次安装 / force-stop / 离线切换） | ✅ |
 
-**待真机 / 未覆盖**：W38 品牌波第一段的字体度量回归（首页 / 媒体库 / 音乐 / 书架 / 设置 / 阅读器）仍是独立窗口事项，本轮未做。
+**待真机 / 未覆盖**：W38 品牌波第一段的字体度量回归（首页 / 媒体库 / 音乐 / 书架 / 设置 / 阅读器）仍是独立窗口事项，本轮未做（**W40 已完成**：见下节「W40 字体修正波验收」真机回归表）。
 
 ### W40 字体修正波验收（2026-10-03，分支 `feature/w40-misans-font`）
 
@@ -586,7 +586,19 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 **体积（arm64-v8a debug）**：`124,877,877 B (119.09 MiB)` → **`144,226,720 B (137.55 MiB)`，+18.45 MiB**。说明：任务书预估 ≈130 MiB 是基于「压缩 asset」；实测 `noCompress += "ttf"`（未压缩）——压缩 asset 会让 `Typeface.Builder(assets, path)` 放弃 mmap、整包读入直接内存（20 MB × 4 档字重），且 API 28 存在取不到 fd 的风险；在「四档共用一份字体文件」的前提下，用 ≈5.2 MB 体积换内存与兼容性（取舍记录见 D40 / 踩坑 56）。
 
-**待真机**：E 组布局回归（首页 / 媒体库 / 音乐 / 书架 / 客户端设置 / 阅读器 + 字重 400–700 生效 + 0 FATAL/ANR）等 Pad 5 + K60 窗口，结论补写本节。
+**真机回归（2026-10-03 05:22–05:25，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验；窗口由负责人批准，副作用见 `device-lock.md`）**：双机装机 Success、全程 0 FATAL / ANR（`logcat` 关键词扫描）。
+
+| # | 项目 | 证据 | 结果 |
+|---|------|------|------|
+| 1 | 首页 / 媒体库 / 音乐 / 书架 | Pad 5 dump：首页 `继续观看 / 接下来 / 本地媒体 / 最新 电影` + 侧轨；媒体库 `共 7 个媒体库` + 收藏 / 搜索 + 本地媒体库 `书籍 · 1 个文件夹 / 10 项` + 服务器 电影 / 动漫 卡；音乐 `专辑 / 艺术家 / 歌曲 / 歌单` + `全部 / 服务器 / 本地` + 迷你播放条；书架 `共 8 本` | ✅ 无裁切 / 错位 / 溢出 |
+| 2 | 客户端设置 / 关于 | 设置 9 个分类正常；关于页命中 `本软件使用了 MiSans 字体（© 小米科技有限责任公司）` [425,570][1175,609]（K60 [138,931][1302,992]） | ✅ |
+| 3 | 阅读器 | `attention_is_all_you_need`（离线可读 · 2.1 MB）+ 搜索 / 批注 / 分页 / Aa + `分页 · 5/15`，顶栏避让状态栏正常 | ✅ |
+| 4 | 字重 400 / 500 / 600 / 700 | 截图目视：600（页面标题 / 库名 / 区块标题）明显重于 400（正文 / 作者 / 时长），500 居中；四档由 `'wght'` 轴映射（单测锁格式 + fontTools 复核轴 150–700） | ✅ |
+| 5 | 内存（mmap 效果） | Pad 5 首页 `Native Heap PSS 29,596 KB` / `TOTAL PSS 275,265 KB`——无压缩 asset 整包读入会出现的 ≈+80 MB 原生膨胀 | ✅ |
+| 6 | K60 抽验 | 冷启动 988 ms；首页 + 底部 4 tab + 抽屉 + 客户端设置 + 关于注明正常，0 FATAL / ANR | ✅ |
+| 7 | 稳定性 / 还原 | 双机 logcat 0 FATAL / ANR；force-stop、`/sdcard/w40*` 清理、未改旋转 / 网络 / 偏好 / 音量 | ✅ |
+
+Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图标未动（本波未改图标 / manifest 资源）；观察项：关于页仍用旧 `ic_banner`（Findroid 标识），属品牌波遗留，不在 W40 范围。
 
 ## 6. 踩坑库
 
@@ -653,7 +665,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 ## 7. 日志
 
-- **2026-10-03 W40 字体修正波（本会话，`feature/w40-misans-font`，起点 master `6273346`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D8 / D36–D39 / 踩坑 50–55）、`UI_DESIGN_SYSTEM` §3；官方 MiSans 许可协议节逐条核验（developer.android.com 本机不可达，Compose 字体 API 改从 Google Maven 官方 `ui-text 1.12.1` 源码包核对）。①**字体替换**：官方压缩包（227,880,072 B）解出 `MiSansVF.ttf`（20,093,424 B，SHA-256 `0DDEF906…115E79`）原字节入库 `core/src/main/assets/fonts/`，`CinefinType.CinefinSans` 四档 wght（`MisansFont.kt`：`AndroidFont` + `TypefaceLoader` 解析期加载，静态 token 无全局状态、预览可用）；删除 Noto 子集与 OFL 文本；②**注明义务**：关于页 `misans_attribution`（en/zh-rCN）+ `assets/licenses/MiSans-License.txt`；③**文档更正**：D38 更正三条款、D40 新决策；④**品牌遗留注释**：`web-console-skin.css` / raw 副本 / `web-console-theme.css` + 3 个红线文件注释（已申报）；⑤**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **439 项 / 0 失败**（core 新增 `MisansFontVariationTest` 2 项）；⑥**体积**：arm64 debug `119.09 MiB → 137.55 MiB（+18.45 MiB）`——未压缩存储（`noCompress += "ttf"`）换 mmap 与 API 28 兼容，比任务书 ≈130 MiB 预估高 ≈7.5 MiB，已记 D40 / 踩坑 56。待办：E 组真机布局回归（Pad 5 主 + K60 抽验）等负责人窗口；提交号见交接报告。
+- **2026-10-03 W40 字体修正波（本会话，`feature/w40-misans-font`，起点 master `6273346`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D8 / D36–D39 / 踩坑 50–55）、`UI_DESIGN_SYSTEM` §3；官方 MiSans 许可协议节逐条核验（developer.android.com 本机不可达，Compose 字体 API 改从 Google Maven 官方 `ui-text 1.12.1` 源码包核对）。①**字体替换**：官方压缩包（227,880,072 B）解出 `MiSansVF.ttf`（20,093,424 B，SHA-256 `0DDEF906…115E79`）原字节入库 `core/src/main/assets/fonts/`，`CinefinType.CinefinSans` 四档 wght（`MisansFont.kt`：`AndroidFont` + `TypefaceLoader` 解析期加载，静态 token 无全局状态、预览可用）；删除 Noto 子集与 OFL 文本；②**注明义务**：关于页 `misans_attribution`（en/zh-rCN）+ `assets/licenses/MiSans-License.txt`；③**文档更正**：D38 更正三条款、D40 新决策；④**品牌遗留注释**：`web-console-skin.css` / raw 副本 / `web-console-theme.css` + 3 个红线文件注释（已申报）；⑤**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **439 项 / 0 失败**（core 新增 `MisansFontVariationTest` 2 项）；⑥**体积**：arm64 debug `119.09 MiB → 137.55 MiB（+18.45 MiB）`——未压缩存储（`noCompress += "ttf"`）换 mmap 与 API 28 兼容，比任务书 ≈130 MiB 预估高 ≈7.5 MiB，已记 D40 / 踩坑 56；⑦**真机回归**（2026-10-03 05:22–05:25，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，窗口由负责人批准）：冷启动 1481 / 988 ms，首页 / 媒体库 / 音乐 / 书架 / 客户端设置 / 关于（MiSans 注明命中）/ 阅读器全通过，字重 400–700 可见差异，Pad 5 首页 `Native Heap PSS 29,596 KB` 无压缩 asset 原生膨胀，0 FATAL / ANR，副作用已还原（`device-lock.md`）。
 - **2026-10-03 W39 媒体库总览改版（本会话，`feature/w39-media-library-polish`，起点 master `e0686b9`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D22–D38 / 踩坑 29–54）、`UI_DESIGN_SYSTEM` §2/§4/§5、`MUSIC_PLAN` §5、`DOWNLOAD_PLAN` §12/§13 后开工（决策 D39）。①**搜索收口**：页内常驻 M3 搜索框下线、只留顶栏图标入口；真机拦下「`weight(1f)` → 输入框撑满 / 结果区 0 高」缺陷并修复（踩坑 55），输入 `9` 命中 `9-nine-` + 徽标 13。②**收藏进顶栏**（`ic_star`）→ 收藏页正常。③**两段式**：本地媒体库（标题行 +「＋ 新建」）→ 服务器媒体库（`SectionHeader` + 16:9 大卡首屏可见）；旧整行收藏卡 / 本地大卡 / 长说明全部下线，说明移入新建对话框。④**文案去重**：纯函数 `localLibraryCardDetail` + 4 项单测。⑤**开关归位**：客户端设置「媒体库」分类新增「首页显示本地媒体」（en/zh-rCN 字符串），媒体库页不再出现；真机关 → 首页区块消失 / 开 → 复原，pref 实测同步。⑥**一致性**：`LocalLibrarySection` 去内边距，在线 / 离线两处一致（离线实测同一区块、无服务器段）。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 437 项 / 0 失败（app 74 / core 16 / data 27 / player:local 104 / film 6 / book 106 / music 104）。真机 Pad 5 主 + K60 抽验，0 FATAL / ANR；设备副作用已还原（详见 §5 W39 与 `device-lock.md`）。新增踩坑 55。
 - **2026-10-03 W38 品牌波 · 第一段（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D8 字族兜底 + 品牌波待办 + 踩坑 1–49）、`UI_DESIGN_SYSTEM` §3 字体 / §7 图标后开工。①**改名**：`app_name` 覆盖默认 / `values-en`（新增）/ zh-rCN / zh-rTW + debug、staging 变体，launcher label（phone + TV）、首连向导、抽屉 / 首页顶栏 / 冷启动 / 播放器兜底标题随 `CoreR.string.app_name` 自动生效；setup 17 语言 `welcome*` 与 core 33 语言 `privacy_policy_notice` 词面更名（fi / cs / et / sl / tr / az 修正格位）；`applicationId` / 包名 / 内部资源名 / `CLIENT_NAME` 不动（W39）。②**图标**：方向 1「极光帘幕」自适应前景 + 背景 + monochrome（`anydpi-v33`）+ 深色（`values-night`）+ `ic_logo` 同构，全矢量、无新增位图；本地光栅化 QA 通过（含圆形蒙版）。③**字体**：MiSans 许可核验为「不得改编 / 不得再分发」→ 改打包 Noto Sans SC（OFL 1.1，3755 常用字 + 应用文案子集 2.32 MB）与 Literata（OFL 1.1，正体 + 斜体 0.37 / 0.36 MB），`CinefinType` 换真字族 + `FontVariation` 四档；许可全文落 `assets/licenses/`。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 428 项 / 0 失败；同基线 arm64 debug APK `117.19 → 119.09 MiB`（+1.90 MiB）。待办：布局回归真机窗口（等负责人调度）+ W39 包名段。新增踩坑 50–54。
 - **2026-10-02 W15-UI（本会话）**：读 `PROJECT_PLAN` §1–§5、`READER_PLAN` §7.7.5 + 踩坑 20、`UI_PLAN`（D15–D26 / 踩坑 20·23·39·49）、`UI_DESIGN_SYSTEM` §4.4/§8、`docs/design/s1-direction-a/README.md`、`device-lock.md` 后开工。完成两项：①**阅读页顶栏避让状态栏**（`ReaderTopBar` 56dp 行补 `statusBarsPadding()`，与 W8 `CinefinPageTopBar` 同款、状态栏区由 chromeColor 铺满；平板竖屏 / 横屏 / 手机形态三形态取证按钮 top ≥99 > 状态栏 60px；设置面板 / 页指示复核无遮挡——结论已写 `READER_PLAN` §7.8 + 踩坑 20）；②**平板首页竖版海报等宽修复**（D35：页边距从首末列 item padding 改为网格 `contentPadding`、`BoxWithConstraints` 按实际宽度算列数、hero / 走廊 / 区块标题同步去重；平板 3 列 392×651 等宽、手机 2 列 466×772、横屏 5 列 397/397/396/396/396）。门禁 `assembleDebug + ktfmtCheck + app 49 项单测` 全绿；Pad 5 逐项 dump 取证，设备副作用已还原（wm/旋转 reset、App force-stop、临时文件清理）。分支 `feature/w15-reader-topbar-posters`，未合并 master。
