@@ -1272,3 +1272,11 @@ Hi10P《学生会的一己之见》`32074ae5-0847-c53c-1d14-9bd32383eec4`（h264
 3. **SRT 背景 + 描边互斥**：libass 样式里 `BorderStyle=3`（背景框）与文字描边不能同时表达，两者都选时以背景框优先（生成逻辑注释已写，观感差异最小）。
 4. 次字幕（双语）在 Exo 路径仍走纯文本（效果与 mpv 的 strip 一致）；ASS 的 `\pos` / 字体 / 特效在 KTV 型特效字幕（`\k`）上的表现未单独取样。
 5. 未做「libass 初始化失败」的真机注入（代码路径：`LibassSubtitleRenderer` 全 `runCatching` + `failed` 标记 → 覆盖层切回文本渲染 + `libass 渲染不可用` 日志）。
+
+### 19.6 构建补丁补记：TV 端同步 libc++ 覆盖（CI 修复，2026-10-02）
+
+- 现象：CI 的根 `assembleDebug` 在 `:app:tv:mergeLibreDebugNativeLibs` 失败——`lib/arm64-v8a/libc++_shared.so`
+  同时来自 libmpv 与 ass-kt（TV 模块也依赖 `player:local`），而 W16 初版只在 `app/phone` 做了 `pickFirsts` + libmpv 覆盖。
+- 修复：`app/tv/build.gradle.kts` 与手机端同源补齐（`packaging.jniLibs.pickFirsts` + `merge*NativeLibs` 的 libmpv 覆盖 `doLast`）。
+- 验证：本机根 `assembleDebug`（与 CI 同命令）BUILD SUCCESSFUL；TV APK 内 `lib/arm64-v8a/libc++_shared.so` = 1,374,336B 且含
+  `__from_chars_floating_point`（与手机端一致）。CI 修复后重跑以 run 结果为准。
