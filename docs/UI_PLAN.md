@@ -83,6 +83,7 @@
 | D36 | **品牌波第一段：改名边界与红线处理**（W38，2026-10-03） | 用户可见名 = `app_name`（`values` = `Aurorama`、新增 `values-en`、`values-zh-rCN` = 极光幕、`values-zh-rTW` = 極光幕；debug / staging 加后缀）。继承自上游的 17 份 setup `welcome*` 与 33 份 core `privacy_policy_notice` 按词面替换品牌名（fi / cs / et / sl / tr / az 修正格位）。`applicationId` / 包名 / `Theme.Cinefin*` / `ShapeAppearance.Cinefin.*` / `CinefinPlaybackService` / `CinefinEpubNavigator` 等内部标识不动（W39 评审）；`JellyfinApi.CLIENT_NAME` 沿用 `"Cinefin"`——它进 HTTP 头与服务端设备档案，改动会与「避免双机重装重登」冲突，W39 一并决策。`console_back_to_app` 的调用点落在红线文件 `NavigationRoot.kt`，本波按字面量更名（未申报不改红线）。 |
 | D37 | **自适应图标方向 1「极光帘幕」三套矢量落地**（W38，2026-10-03） | ①**自适应**：`drawable/ic_launcher_foreground.xml`（108dp：极光主线自左上流下 + 副丝带纵深 + 幕布地平线，极光青 `#5CE1D2` → 辅光蓝 `#7CC4FF` 线性渐变；关键形体全部落在 66dp 安全区内）+ `color/ic_launcher_background` = `#0B0C0E`；②**单色**：新增 `drawable/ic_launcher_monochrome.xml`（纯路径剪影），只在 `mipmap-anydpi-v33/ic_launcher.xml` 声明 `<monochrome>`，旧 API 保持「背景 + 前景」；③**深色**：`values-night/ic_launcher_background.xml` = `#05070B`。应用内印记 `ic_logo` 同构重绘（暗场圆角片底 + 丝带 + 地平线，最小 18dp 可读）。**不新增位图**；`core/src/main/ic_launcher-playstore.png`（商店用）仍是旧标记，随发布波重出。 |
 | D38 | **字体落地：Noto Sans SC（中文 UI）+ Literata（编辑 / 阅读衬线）**（W38，2026-10-03） | 核验结论：MiSans 官方许可（`https://hyperos.mi.com/font/zh/download/`，《MiSans 字体知识产权许可协议》）要求「不得对 MiSans 字体或其任何单独组件进行改编或二次开发」「不得再分发字体软件或其任何副本」→ **不打包、不子集化**，仅作设计稿参考字面；改用 SIL OFL 1.1 的 **Noto Sans SC**（Google Fonts 官方 `ofl/notosanssc`，可变字体收窄至 400–900 后子集化：GB2312 一级 3755 字 + 应用文案 + 拉丁 / 标点 = 2.32 MB）与 **Literata**（官方 `ofl/literata`，可变 + 真斜体，子集 0.37 / 0.36 MB）。`CinefinType` 三个 `FontFamily` 改为打包字体：Sans 用 `FontVariation` 映射 400 / 500 / 600 / 700 四档（避免合成加粗），Serif = Literata 正体 + 斜体；等宽仍是平台 `monospace`，Cascadia Mono / 阅读宋体 Noto Serif SC 留后续决策。许可全文 `core/src/main/assets/licenses/OFL-1.1-*.txt`。 |
+| D39 | **媒体库总览两段式改版（W39，用户 2026-10-03 确认）** | ①**入口收口**：页内常显的 M3 `SearchBar` 大搜索框整体下线，只保留顶栏「搜索」图标入口（点开仍是原 `FilmSearchBar` + `SearchViewModel` 流程）；「收藏」从整行大卡改为顶栏星形 `ic_star` 图标键，与搜索并列。②**两段式**：①本地媒体库（标题行右侧「＋ 新建」`CinefinButton(Outlined, Small)`；无库时只留一行「还没有本地媒体库 · 点「＋ 新建」」，全被库级开关隐藏时提示点「眼睛」）→ ②服务器媒体库（`SectionHeader` + 现有 16:9 `LibraryEntryCard` 网格，位置上移到首屏）。③**文案去重**：新增纯函数 `localLibraryCardDetail`（`app/phone`）——单一类型 `书籍 · 1 个文件夹`（总数由行尾「N 项」承担，空库 `尚未扫描到媒体`）、多类型 `混合 · 2 个文件夹 · 视频 1 · 音乐 2 · 书籍 3`、隐藏库追加 `· 已隐藏`；页内「只建立索引，不复制、不移动源文件」长说明移入新建对话框一行小字。④**开关归位**：首页「本地媒体」开关从媒体库页移到客户端设置「媒体库」分类（`PreferenceSwitch` + `settings_local_library_visible` 两语言字符串；`pref_local_library_visible` 键不变），媒体库页不再出现该开关。⑤**一致性与 token**：`LocalLibrarySection` 不再自带左右内边距（在线由栅格 `contentPadding`、离线由调用方承担），在线 / 离线两处卡片边缘一致；卡片沿用 `CinefinCard`（16dp 圆角）、区块间距 24–32dp、行内边距 `Space3/Space4` 不变；只使用既有矢量与 `CinefinSpacing` / `CinefinType` 语义 token，无新增配色 / 字体 / 位图。 |
 
 ## 4. 进度
 
@@ -111,6 +112,20 @@
 - [x] **体积**：官方原文件 19.63 MB → 子集 2.91 MB（Noto Sans SC 17.77 → 2.32 MB；Literata 0.96 / 0.90 → 0.37 / 0.36 MB），APK 对照见 §5
 - [ ] **D 布局回归真机窗口**：Pad 5（`43af8627`）主 + K60（`8e875894`）抽验——等负责人统一调度
 - [ ] **W39 第二段**：`applicationId` → `io.github.zhangwenkang.aurorama` + FileProvider authority / 服务 / adb 脚本 / 文档引用 + `CLIENT_NAME` 决策
+
+### W39 媒体库总览改版（2026-10-03，分支 `feature/w39-media-library-polish`）
+
+- [x] **A1 搜索入口收口**：`MediaScreen` 页内常驻 `FilmSearchBar` 下线，只在 `searchExpanded` 时组合（顶栏搜索图标 / 首页搜索入口 → 原有 SearchBar + SearchViewModel 流程）；静态总览页无任何常驻搜索框
+- [x] **A2 收藏进顶栏**：整行 `FavoritesCard` 下线，顶栏 `TopBarAction(ic_star)` → 现有收藏页；`MediaScreenLayout` 新增 `onFavoritesClick` 形参（页面动作与 `MediaAction` 解耦）
+- [x] **A3 两段式**：本地媒体库（标题行 + 「＋ 新建」紧凑按钮 + 库卡 / 一行空态）→ 服务器媒体库（`SectionHeader` + 16:9 大卡网格）；移除旧「＋ 建立本地媒体库」大卡与页内长说明
+- [x] **A4 文案去重**：`localLibraryCardDetail` 纯函数（单一类型不再重复「书籍 10」，行尾「N 项」承担总数；空库 / 隐藏库文案就位）；4 项单测（`LocalLibraryCardTextTest`）
+- [x] **A5 开关归位**：客户端设置「媒体库」分类新增「首页显示本地媒体」`PreferenceSwitch`（`settings_local_library_visible` en/zh-rCN）；媒体库页开关与 `LocalLibraryViewModel.setHomeVisible` 一并下线（偏好键不变）
+- [x] **A6 视觉统一**：`LocalLibrarySection` 去内边距（在线 / 离线一致）、区块标题统一 `CinefinType.SectionTitle`、区块间距 24–32dp；未新增配色 / 字体 / 位图 / 依赖
+- [x] **A7 修改纪要**：`SettingsViewModel.kt`（设置项）、`LocalLibraryScreens.kt` / `LocalLibraryViewModels.kt`（两段与文案）、`MediaScreen.kt`（顶栏与两段）、`settings` 两语言字符串；未动 `NavigationRoot.kt` / `AppPreferences.kt` 等红线文件
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；单测 `--rerun` 后 437 项 / 0 失败（app 74 / core 16 / data 27 / player:local 104 / film 6 / book 106 / music 104）
+- [x] **真机（Pad 5 主 + K60 抽验，2026-10-03 04:22–04:37）**：见 §5 W39 验收；期间拦下并修复「`weight(1f)` 传给 M3 `SearchBar` 导致展开态输入框撑满、结果区 0 高」的缺陷（踩坑 55）
+
+**遗留（明示）**：①本地库条目并入搜索属 W40（范围 =「媒体库与本地」，用户 2026-10-03 确认）；②`LocalLibrarySection` 的「＋ 新建」按钮文案为硬编码中文（与 W37 既有本地库文案一致，未纳入本轮字符串资源化）。
 
 ### W3-R3 本轮进度（R3-PAGES-A，2026-09-30）
 
@@ -535,6 +550,23 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 **待真机**：字体度量回归（首页 / 媒体库 / 音乐 / 书架 / 设置 / 阅读器）+ 启动图标与主题图标落桌面效果，Pad 5（`43af8627`）主、K60（`8e875894`）抽验——等负责人调度窗口。
 
+### W39 验收（2026-10-03，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，分支 `feature/w39-media-library-polish`）
+
+窗口登记与释放见 `device-lock.md`（04:22–04:37）；服务器只读、未改旋转 / 网络 / 音量；Pad 5 偏好复原（`pref_music_source_filter=LOCAL` / `pref_offline_mode=false` / `pref_local_library_visible=true`），测试本地库（10 本书）原样保留，`/sdcard/w39_*.xml` 已清理。
+
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | 顶栏动作只剩收藏 + 搜索 | Pad 5 dump：`收藏` [1371,97][1425,151] + `搜索` [1470,97][1524,151]（侧轨折叠态在左，无页内搜索框）；K60 dump 同款 | ✅ |
+| 2 | 两段结构与首屏 | Pad 5：「本地媒体库」y≈278（右侧「＋ 新建」[1397,290][1510,335]）→「服务器媒体库」y≈627 → 首张 16:9 大卡（`电影` 标签 y≈1337）首屏可见；K60：`test · 书籍 · 0 个文件夹 · 尚未扫描到媒体` + 服务器 `电影` 卡 | ✅ |
+| 3 | 本地库卡文案去重 | Pad 5：`书籍 · 1 个文件夹` + 行尾 `10 项`（不再出现「书籍 10」）；空库卡无行尾计数 | ✅ |
+| 4 | 收藏入口 | 点顶栏星形 → 收藏页（标题「收藏」）；返回正常 | ✅ |
+| 5 | 搜索流程不回归 | 点顶栏搜索 → 展开态输入框在顶部（[198,282][1600,429]），输入 `9` 命中 `9-nine- 支配者的王冠` + 徽标 `13` | ✅（含缺陷修复，见踩坑 55） |
+| 6 | 设置项与生效 | 客户端设置 →「媒体库」：`首页显示本地媒体` 开关（summary 一行）；关 → pref `false` + 首页「本地媒体」区块消失；开 → pref `true` + 区块回来 | ✅ |
+| 7 | 在线 / 离线一致 | 离线（`pref_offline_mode=true`）媒体库页 =「已下载媒体」+ 同一份「本地媒体库」区块（`书籍 · 1 个文件夹 · 10 项`），无「服务器媒体库」段；退出离线后在线复原 | ✅ |
+| 8 | 稳定性 | 双机整轮 `FATAL EXCEPTION` / `ANR in com.zhangwenkang` 0 条（含 2 次安装 / force-stop / 离线切换） | ✅ |
+
+**待真机 / 未覆盖**：W38 品牌波第一段的字体度量回归（首页 / 媒体库 / 音乐 / 书架 / 设置 / 阅读器）仍是独立窗口事项，本轮未做。
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -595,9 +627,11 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 52. **`raw.githubusercontent.com` 大文件在本机会被重置**：HTTP/2 下拉 1 MB 以上文件常见 0 字节且 `Invoke-WebRequest` 报「远程主机强迫关闭了一个现有的连接」；改用 `curl.exe --http1.1 --retry 3`（不要加 `-sS`，本机实测会静默输出 0 字节），17.7 MB 的 Noto 也能一次拉完。`Invoke-WebRequest` 还会把整包读进内存，大字体容易挂死。
 53. **`<monochrome>` 要单独放 `-v33` 目录**：`adaptive-icon` 的 monochrome 只在 API 33+ 生效，把 `mipmap-anydpi/ic_launcher.xml` 保持「背景 + 前景」两份、另建 `mipmap-anydpi-v33/ic_launcher.xml` 声明 monochrome，旧机型就不会遇到未知标签。
 54. **品牌文案改 `%1$s` 注入时先看调用点是否红线文件**：`console_back_to_app` 的唯一调用点在红线文件 `NavigationRoot.kt`，本波按字面量更名（`Back to Aurorama` / `返回极光幕`），未申报不动红线；后续若改占位符注入 `app_name`，同样要先申报。
+55. **给 M3 `SearchBar` 传 `weight(1f)` 会把展开态压坏**（W39 真机拦下）：`weight(1f)` 给子项的是**固定**高度约束（`minHeight = maxHeight`），而 `SearchBar` 的展开布局用 `inputField.minIntrinsicHeight(...)` 经 `Constraints.constrainHeight` 算起始高度、再把剩余高度分给结果区——固定约束下输入框被撑到全高、结果区被压成 0 高（真机表现：点搜索图标后输入框垂直居中、输入 `9` 无任何结果）。修法：`SearchBar` 的父布局**不要限制尺寸**（本波在媒体库页去掉 `weight(1f)`，只留 `fillMaxWidth()`，它自己会占满剩余空间）；M3 文档原文即「parent layouts must not pass any Constraints that limit its size」，`DockedSearchBar` 才是平板受限场景的替代。
 
 ## 7. 日志
 
+- **2026-10-03 W39 媒体库总览改版（本会话，`feature/w39-media-library-polish`，起点 master `e0686b9`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D22–D38 / 踩坑 29–54）、`UI_DESIGN_SYSTEM` §2/§4/§5、`MUSIC_PLAN` §5、`DOWNLOAD_PLAN` §12/§13 后开工（决策 D39）。①**搜索收口**：页内常驻 M3 搜索框下线、只留顶栏图标入口；真机拦下「`weight(1f)` → 输入框撑满 / 结果区 0 高」缺陷并修复（踩坑 55），输入 `9` 命中 `9-nine-` + 徽标 13。②**收藏进顶栏**（`ic_star`）→ 收藏页正常。③**两段式**：本地媒体库（标题行 +「＋ 新建」）→ 服务器媒体库（`SectionHeader` + 16:9 大卡首屏可见）；旧整行收藏卡 / 本地大卡 / 长说明全部下线，说明移入新建对话框。④**文案去重**：纯函数 `localLibraryCardDetail` + 4 项单测。⑤**开关归位**：客户端设置「媒体库」分类新增「首页显示本地媒体」（en/zh-rCN 字符串），媒体库页不再出现；真机关 → 首页区块消失 / 开 → 复原，pref 实测同步。⑥**一致性**：`LocalLibrarySection` 去内边距，在线 / 离线两处一致（离线实测同一区块、无服务器段）。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 437 项 / 0 失败（app 74 / core 16 / data 27 / player:local 104 / film 6 / book 106 / music 104）。真机 Pad 5 主 + K60 抽验，0 FATAL / ANR；设备副作用已还原（详见 §5 W39 与 `device-lock.md`）。新增踩坑 55。
 - **2026-10-03 W38 品牌波 · 第一段（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D8 字族兜底 + 品牌波待办 + 踩坑 1–49）、`UI_DESIGN_SYSTEM` §3 字体 / §7 图标后开工。①**改名**：`app_name` 覆盖默认 / `values-en`（新增）/ zh-rCN / zh-rTW + debug、staging 变体，launcher label（phone + TV）、首连向导、抽屉 / 首页顶栏 / 冷启动 / 播放器兜底标题随 `CoreR.string.app_name` 自动生效；setup 17 语言 `welcome*` 与 core 33 语言 `privacy_policy_notice` 词面更名（fi / cs / et / sl / tr / az 修正格位）；`applicationId` / 包名 / 内部资源名 / `CLIENT_NAME` 不动（W39）。②**图标**：方向 1「极光帘幕」自适应前景 + 背景 + monochrome（`anydpi-v33`）+ 深色（`values-night`）+ `ic_logo` 同构，全矢量、无新增位图；本地光栅化 QA 通过（含圆形蒙版）。③**字体**：MiSans 许可核验为「不得改编 / 不得再分发」→ 改打包 Noto Sans SC（OFL 1.1，3755 常用字 + 应用文案子集 2.32 MB）与 Literata（OFL 1.1，正体 + 斜体 0.37 / 0.36 MB），`CinefinType` 换真字族 + `FontVariation` 四档；许可全文落 `assets/licenses/`。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 428 项 / 0 失败；同基线 arm64 debug APK `117.19 → 119.09 MiB`（+1.90 MiB）。待办：布局回归真机窗口（等负责人调度）+ W39 包名段。新增踩坑 50–54。
 - **2026-10-02 W15-UI（本会话）**：读 `PROJECT_PLAN` §1–§5、`READER_PLAN` §7.7.5 + 踩坑 20、`UI_PLAN`（D15–D26 / 踩坑 20·23·39·49）、`UI_DESIGN_SYSTEM` §4.4/§8、`docs/design/s1-direction-a/README.md`、`device-lock.md` 后开工。完成两项：①**阅读页顶栏避让状态栏**（`ReaderTopBar` 56dp 行补 `statusBarsPadding()`，与 W8 `CinefinPageTopBar` 同款、状态栏区由 chromeColor 铺满；平板竖屏 / 横屏 / 手机形态三形态取证按钮 top ≥99 > 状态栏 60px；设置面板 / 页指示复核无遮挡——结论已写 `READER_PLAN` §7.8 + 踩坑 20）；②**平板首页竖版海报等宽修复**（D35：页边距从首末列 item padding 改为网格 `contentPadding`、`BoxWithConstraints` 按实际宽度算列数、hero / 走廊 / 区块标题同步去重；平板 3 列 392×651 等宽、手机 2 列 466×772、横屏 5 列 397/397/396/396/396）。门禁 `assembleDebug + ktfmtCheck + app 49 项单测` 全绿；Pad 5 逐项 dump 取证，设备副作用已还原（wm/旋转 reset、App force-stop、临时文件清理）。分支 `feature/w15-reader-topbar-posters`，未合并 master。
 - **2026-10-01 W8-R3（本会话）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D17–D31 / 踩坑 1–45，重点 W7-R3 小节与 D22/D24/D25）、`ROLE_SKILLS` §5.3、`UI_DESIGN_SYSTEM` §2/§4.4/§8、`docs/design/s1-direction-a/README.md`、`device-lock.md` 后开工。完成用户复测反馈 4 组（决策 D32–D34）：①**A 三页共用顶栏 `CinefinPageTopBar`**（core：56dp + `statusBarsPadding()` + 44dp 键 + 随窗口页边距 + 标题 / 计数排版 + Lumen 发丝线）接入媒体库 / 音乐 / 书架，音乐旧 72dp `MusicHeader` 下线（被状态栏遮挡的根因），书架顶层改 `LibraryScreen(topLevel = true)` →「书架 / 共 N 本」且不再出现返回箭头与库名「书籍」；②**B 媒体库改版**：库卡 = 类型图标磁贴（雾灰 + 发丝线 + 强调色图标）+ 库名 + 项目数（服务器 `ChildCount` → `FindroidCollection.itemCount`，`getLibraries` 显式请求字段）+ 三级灰箭头，面板 / 渐隐改 Lumen 石墨与 `Scrim`，标题与计数并入顶栏同排；③**C 侧栏「媒体库」分组回退**：`navEntryKeys` = 首页 → 音乐 → 书架 → 媒体库 → 下载 → 控制台 / 资料管理器 → 客户端设置，`MEDIA_GROUP_DEFAULT_EXPANDED = false`，抽屉「媒体库」行补侧轨同款行尾箭头（`CinefinNavItem.trailing`），展开后才显示库子项；④**D 不回归**：首页 `ic_logo`、手机抽屉与底部 Tab、音乐 / 书架页面内容皮肤、侧柜常驻 Lumen、控制台胶囊与选中态全部复核通过。门禁 `assembleDebug + ktfmtCheck + app 23 项 / core 16 项单测` 全绿；Pad 5（平板 1280dp + 手机形态 411dp）与 K60（原生竖屏）逐条 dump / 像素采样取证，设备副作用已还原。新踩坑 46–49。分支 `feature/r8-ui-unify`，未合并 master。

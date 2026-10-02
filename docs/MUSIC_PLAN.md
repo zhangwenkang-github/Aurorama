@@ -150,6 +150,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D53 | ReplayGain 读取扩展 **M4A/MP4 iTunes free-form 原子**：解析 `moov/udta/meta/ilst/----`（子项 `mean`/`name`/`data`，UTF-8 与 UTF-16 探测）；头部 128 KB 窗口不含完整 `moov` 时，按顶层 box 链的声明长度算出 moov 绝对偏移，再发一次只读 Range（128 KB）；二次窗口仍找不到 moov 则记日志静默放弃 | 覆盖 iTunes / foobar2000 / rsgain 的 MP4 打标格式，与 FLAC VorbisComment / ID3v2 TXXX 并列；非 faststart（moov 在尾）在真实素材常见，box 链扫描成本极低、不需要整文件下载；服务器只读红线不变（全 GET + Range） |
 | D54 | 用户可见的**本机增益覆盖**入口：音效面板 ReplayGain 组内「曲目增益 / 专辑增益」两支滑杆（-12..+12 dB、0.5 dB 步进，拖动实时生效、松手落盘）+「清除本机覆盖」；写 `<filesDir>/replaygain/<itemId>.txt`（`track=` / `album=`，删空即删文件），写/删后失效 itemId 读缓存并触发播放链重读；覆盖 > 内嵌优先级不变 | 替代"只能外部写文件"；不写服务器；覆盖是逐曲目本机状态（先例 W25 歌词覆盖 D41）；滑杆沿用 EQ 的"拖动不落盘、onValueChangeFinished 才写"模式（W30 踩坑 38），避免拖动期间高频写文件 |
 
+| D55 | **音乐来源空态文案 + 真实下拉刷新（W39，用户 2026-10-03 确认）** | ①**空态按来源分支**（纯函数 `musicEmptyCopy`，`modes/music`）：本地「本地还没有音乐」/「在『媒体库 → 本地媒体库』添加包含音乐的文件夹后回来」；服务器「服务器音乐库里还没有专辑（按 tab 换 艺术家 / 歌曲）」/「下拉可刷新」；全部「服务器和本地都还没有音乐」/「在服务器或本地媒体库添加音乐后，下拉刷新」；离线「离线模式还没有可播放的音乐」/「联网后在曲目菜单点「下载」，或下拉刷新本地音乐索引」；歌单「服务器上没有歌单」/「下拉可刷新」。**不再出现「在服务器添加音乐后点「刷新」」这类错源 / 不存在控件文案**。②**真实下拉刷新**：内容区接 Compose M3 `PullToRefreshBox`（四 tab 共用），下拉触发 `MusicModeViewModel.refresh()`；`UiState` 新增 `refreshing`（首次加载仍整页 loading，刷新保留列表只转顶部指示）；空态容器改 `verticalScroll` 以接收下拉手势；**离线模式 refresh() 只重读本机索引，不发服务器请求**（保持离线语义）。③**计数副题细化**（纯函数 `musicLibrarySubtitle`）：筛选「本地」=「共 N 张本地专辑」/ 服务器 =「共 N 张服务器专辑」/ 全部 =「共 N 张专辑」（艺术家 / 歌曲同理；离线无前缀；歌单仍「共 N 个歌单」）。④**取证日志**：`曲库刷新：requested / 重新请求服务器曲库 / 重读本地媒体库索引 / 完成`（logcat 关键词「曲库刷新」，供验收复核「真实重取」）；不改 `pref_music_source_*` 键、不改 `player:core` / `player:local`。 |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -318,6 +320,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] 真机验证（K60 `8e875894`，见 §5.11）：标签识别（RG 副本 -8.47 dB → 0.38x、面板「文件标签」；原曲 `来源=NONE`、面板「未检测到」）/ 覆盖 UI（-6.0 → 0.50x、+6.0 → 2.00x、轨道+专辑双滑杆 -2.5 dB → 0.75x、清除回落 -8.47 dB）/ 重启持久化 / 歌词·桌面歌词·队列·自然衔接回归 / 0 FATAL·ANR
 - [x] 真机拦下并修复：清除覆盖后回读内嵌标签偶发失败被当负缓存（面板「未检测到」直到重启）→ `ReplayGainReadResult`（失败不缓存）+ 换曲先清旧标签 + 3s 重试一次 + 覆盖编码取整（`-2.4999995` → `-2.5`）；重跑门禁全绿、重装复验
 - [ ] M4A/MP4 设备端样本：本库 123 首全 FLAC（0 个 m4a/mp4）→ **无样本待补**（解析与 moov 在尾二次 Range 由 12 项单测覆盖，含真机同款两段式路径的纯函数部分）
+
+### W39 音乐来源文案 + 真实下拉刷新（本会话 `feature/w39-media-library-polish`，已推送未合并）
+
+- [x] **空态按来源分支**：纯函数 `musicEmptyCopy` + `EmptyHint` 加 message（专辑 / 艺术家 / 歌曲 / 歌单四 tab 共用）；本地 / 服务器 / 全部 / 离线 / 歌单五套文案全部就位（见 D55）
+- [x] **真实下拉刷新**：`MusicModeScreen` 内容区 `PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = viewModel::refresh)`；`UiState.refreshing` 与首载 `loading` 分离；空态容器 `verticalScroll` 保证空库也能下拉
+- [x] **离线语义**：离线模式 refresh() 走既有离线分支（重读已下载曲库 + 本地索引，不发网络请求），日志实测无「重新请求服务器曲库」行
+- [x] **计数副题**：`musicLibrarySubtitle` 按筛选补「本地 / 服务器」前缀（全部不加），四个 tab 口径一致
+- [x] **取证日志**：`曲库刷新：requested` / `重新请求服务器曲库` / `重读本地媒体库索引` / `完成`（Timber，debug 可读）
+- [x] **单测 5 项**（`MusicLibraryCopyTest`）：副题前缀（本地 / 服务器 / 全部 / 离线）、三种来源空态、艺术家 / 歌曲标题、歌单与离线空态；`:modes:music` 99 → **104 项**
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；`--rerun` 后 app 74 / core 16 / data 27 / player:local 104 / film 6 / book 106 / music 104 = 437 项 / 0 失败
+- [x] **真机验证（Pad 5 `43af8627` 主 + K60 抽验，2026-10-03 04:22–04:37）**：见 §5.12
+
+**遗留（明示）**：①服务器 / 全部两种**空态**分支在测试服务器（105 张专辑 / 123 首）上不可复现，用 5 项单测覆盖，真机只验证了「本地」「歌单」「离线」三种空态 + 三种筛选的计数副题；②刷新不改数据源口径（服务器只读），「数据更新」以仓库重取日志 + 计数副题为准。
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -644,6 +659,21 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 >
 > 还原：App force-stop；prefs 逐键复核 = `replaygain_mode=off` / `crossfade=0` / `eq_enabled=false` / `eq_preset=flat`；RG 覆盖目录空；`/sdcard/w35_ui*.xml` 全部删除；未改 `wm size` / density / 旋转 / Wi-Fi / 媒体音量；队列快照因测试播放前进未回滚（与 W21/W30 先例一致）。**Pad 5（43af8627）全程未占用**。
 
+### 5.12 W39 真机验证记录（2026-10-03 04:22–04:37，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+窗口登记 / 释放见 `device-lock.md`；服务器只读；安装包 = 本 worktree `:app:phone:assembleDebug`（arm64-v8a）。Pad 5 进入音乐页时来源筛选为 **本地**（W37 遗留值），先验证本地 / 全部 / 服务器三种口径，再做下拉刷新取证，最后在离线模式下复验语义；结束时把 `pref_music_source_filter` 复原为 `LOCAL`、`pref_offline_mode=false`。
+
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | 计数副题（三种筛选） | 本地：`共 0 张本地专辑`；全部：`共 105 张专辑`；服务器：`共 105 张服务器专辑`（切 chip 即变） | ✅ |
+| 2 | 四 tab 与空态（本地） | 专辑 `共 0 张本地专辑` / 艺术家 `共 0 位本地艺术家` / 歌曲 `共 0 首本地歌曲` → 均为「本地还没有音乐 / 在『媒体库 → 本地媒体库』添加包含音乐的文件夹后回来」；歌单 `共 0 个歌单` →「服务器上没有歌单 / 下拉可刷新」 | ✅ |
+| 3 | 在线下拉刷新（真实重取） | 04:31:14 在专辑列表下拉（`input swipe 900 900 900 1700 500`）→ logcat：`曲库刷新：requested offline=false` → `曲库刷新：重新请求服务器曲库 library=null` → `曲库刷新：重读本地媒体库索引 songs=0` → `曲库刷新：完成 offline=false albums=105 songs=123`；同帧截图可见顶部指示环（列表中仍显示专辑） | ✅ |
+| 4 | 离线语义 | 离线模式（`pref_offline_mode=true`）→ 音乐页无来源筛选行、副题 `共 0 张专辑`、空态「离线模式还没有可播放的音乐 / 联网后在曲目菜单点「下载」，或下拉刷新本地音乐索引」；04:34:37 下拉 → logcat 只有 `requested offline=true` + `离线模式 → 只重读本机索引（不发服务器请求）` + `重读本地媒体库索引`，**无**「重新请求服务器曲库」行 | ✅ |
+| 5 | K60 抽验 | 音乐页四 tab + 来源筛选 + 本地空态文案一致（`共 0 张本地专辑` +「本地还没有音乐」）；媒体库页两段式与顶栏动作同款 | ✅ |
+| 6 | 稳定性 | 双机整轮 `FATAL EXCEPTION` / `ANR in com.zhangwenkang` 0 条 | ✅ |
+
+> 未覆盖（明示）：服务器 / 全部两种空态分支在测试服务器（105 专辑 / 123 曲）不可复现，由 `MusicLibraryCopyTest` 5 项单测覆盖；下拉刷新只做只读重取，不存在写服务器动作。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -732,9 +762,11 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 40. **rsgain 的命令形态**（W35 打标）：`easy` 子命令只接受**目录**（自动按专辑分组），单文件打标用 `custom`——`rsgain custom -s s -a <file>` 只扫不写（`-s s` 是默认档），`-s i` 才是写 ReplayGain 2.0 标签；`loudgain` 的 `-a` 是 loudgain 自己的参数，rsgain 没有 `easy -a` 这种写法。实测《侧脸》：-9.53 LUFS / peak 1.000000 → gain -8.47 dB，写入 4 个标签（TRACK/ALBUM_GAIN + TRACK/ALBUM_PEAK）；副本用 TagLib padding，文件体积不变。
 41. **"读取失败"不能当"确认无标签"进负缓存**（W35 真机拦下）：清除本机覆盖后回读内嵌标签偶发一次拉取失败（无错误日志），旧实现把 `null` 写进 itemId 缓存 → 面板「未检测到 ReplayGain 标签」且不改变音量，直到进程重启才恢复。修复 = `ReplayGainReadResult`（Value / Failed）：Failed 不缓存、调用方 3 秒重试一次；同时换曲 / 重读前先清上一首标签，避免旧增益瞬间套到新曲。教训：凡"负结果可缓存"的链路都要区分**确认没有**与**读取失败**。
 42. **Media3 `seekToPrevious()` 的 3 秒语义 + 播放中 uiautomator 不 idle**（W35 真机操作踩到）：位置 > 3 秒时点「上一曲」只回到本曲开头，必须快速点两次才切上一首（音乐页上一曲走 `seekToPrevious`）——验证切歌时别误判按钮失灵。另外 K60 播放中 `uiautomator dump` 经常拿不到 idle 并**留下旧文件**（看起来"界面没变"），先 `input keyevent 85` 暂停（或发键后立刻 dump）再操作；日志取证要当轮 `logcat -d`，MIUI 会把 123 首队列信息刷满主缓冲。
+43. **空态不可滚动 → `PullToRefreshBox` 收不到下拉手势**（W39）：PTR 依赖子树的嵌套滚动事件，空态如果只是 `Box(fillMaxSize)` 居中放空状态，手指下拉没有任何可滚动节点消费，刷新永远不触发。修法：把空态包成 `Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Center)`——内容比视口小时仍居中、同时把手势转给 PTR；`CinefinEmptyState` 自身是 `fillMaxWidth + padding`，不会在无限高约束下崩。
 
 ## 7. 会话日志
 
+- **2026-10-03 W39 音乐来源文案 + 真实下拉刷新**（本会话，`feature/w39-media-library-polish`）：①新增 `MusicLibraryCopy.kt`（纯函数 `musicLibrarySubtitle` / `musicEmptyCopy` + `MusicEmptyCopy`）并把空态接进 `AlbumList` / `ArtistList` / `SongList` / `PlaylistList`（`EmptyHint` 支持 message 且改可滚动）；②`MusicModeScreen` 内容区接 `PullToRefreshBox`（四 tab 共用，`state.refreshing` 与 `loading` 分离），`MusicModeViewModel.refresh()` 按首载 / 刷新分流并在离线分支只重读本机索引 + 记录「曲库刷新」取证日志；③计数副题按来源筛选细化。单测 `MusicLibraryCopyTest` 5 项（music 99 → 104）；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，整仓 437 项 / 0 失败。真机 Pad 5 主 + K60 抽验（§5.12）：三种筛选口径、本地 / 歌单 / 离线空态、在线下拉「重新请求服务器曲库」+ 完成计数、离线下拉「只重读本机索引（无服务器请求）」、双机 0 FATAL / ANR；新增踩坑 43。分支已推送未合并。
 - **2026-09-30 W1-R2**（本会话）：完成 §3 W1 全部条目；替换/新增文件见 git 提交；结论：音乐骨架 + 最小闭环可用，视频互斥链路真机通过；遗留 W2 待办见 §3。
 - **2026-09-30 W2-R2**（本会话，`feature/r2-music-core`）：完成四维曲库浏览（专辑 / 艺术家 / 歌曲 / 歌单）、
   队列面板（拖拽排序 / 跳转 / 移除 / 下一首播放）、gapless 修复（`pauseAtEndOfMediaItems`）、MU-9 上报补齐与续播；
