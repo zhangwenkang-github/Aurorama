@@ -47,6 +47,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
+import com.zhangwenkang.cinefin.presentation.setup.components.CertificateTrustDialog
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
@@ -253,6 +254,14 @@ private fun LoginScreenLayout(
             icon = CoreR.drawable.ic_server,
             onClick = { onAction(LoginAction.OnChangeServerClick) },
             modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp),
+        )
+    }
+
+    state.certificatePrompt?.let { prompt ->
+        CertificateTrustDialog(
+            prompt = prompt,
+            onTrust = { onAction(LoginAction.OnTrustCertificate) },
+            onDismiss = { onAction(LoginAction.OnDismissCertificatePrompt) },
         )
     }
 }

@@ -23,6 +23,8 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.google.android.material.color.DynamicColors
+import com.zhangwenkang.cinefin.network.SharedPreferencesCertificateTrustStore
+import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
 import com.zhangwenkang.cinefin.work.ReaderProgressSyncWorker
@@ -31,6 +33,7 @@ import dagger.hilt.android.HiltAndroidApp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
+import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
 import timber.log.Timber
 
@@ -77,9 +80,23 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
 
     @OptIn(ExperimentalCoilApi::class, ExperimentalTime::class)
     override fun newImageLoader(context: PlatformContext): ImageLoader {
+        // 自签证书支持：图片请求与 API 请求共用「默认校验 + 用户确认过的指纹」同一套策略。
+        val imageHttpClient =
+            buildCertificateAwareOkHttpClient(
+                OkHttpClient.Builder()
+                    .connectTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .build(),
+                SharedPreferencesCertificateTrustStore(context),
+            )
         return ImageLoader.Builder(context)
             .components {
-                add(OkHttpNetworkFetcherFactory(cacheStrategy = { CacheControlCacheStrategy() }))
+                add(
+                    OkHttpNetworkFetcherFactory(
+                        callFactory = { imageHttpClient },
+                        cacheStrategy = { CacheControlCacheStrategy() },
+                    )
+                )
                 add(SvgDecoder.Factory())
             }
             .diskCachePolicy(

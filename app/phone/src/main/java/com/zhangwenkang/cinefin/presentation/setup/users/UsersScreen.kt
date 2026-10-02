@@ -134,6 +134,7 @@ private fun UsersScreenLayout(
                     items(state.users) { user ->
                         UserItem(
                             name = user.name,
+                            isCurrent = user.id == state.currentUserId,
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { onAction(UsersAction.OnUserClick(userId = user.id)) },
                             onLongClick = {

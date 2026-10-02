@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.UiText
+import com.zhangwenkang.cinefin.network.CertificateTrustRequiredException
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
+import com.zhangwenkang.cinefin.setup.presentation.certificate.toPrompt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -25,6 +27,10 @@ class LoginViewModel @Inject constructor(private val repository: SetupRepository
     val events = eventsChannel.receiveAsFlow()
 
     private var quickConnectJob: Job? = null
+
+    /** 等待用户确认证书后自动重试的凭据（只在内存里短暂保存，不落盘）。 */
+    private var pendingLogin: Pair<String, String>? = null
+    private var pendingQuickConnect: Boolean = false
 
     fun loadServer() {
         viewModelScope.launch {
@@ -56,10 +62,20 @@ class LoginViewModel @Inject constructor(private val repository: SetupRepository
     private fun login(username: String, password: String) {
         viewModelScope.launch {
             try {
-                _state.emit(_state.value.copy(isLoading = true, error = null))
+                _state.emit(
+                    _state.value.copy(
+                        isLoading = true,
+                        error = null,
+                        certificatePrompt = null,
+                    )
+                )
                 repository.login(username, password)
+                pendingLogin = null
                 _state.emit(_state.value.copy(isLoading = false))
                 eventsChannel.send(LoginEvent.Success)
+            } catch (e: CertificateTrustRequiredException) {
+                pendingLogin = username to password
+                _state.emit(_state.value.copy(isLoading = false, certificatePrompt = e.toPrompt()))
             } catch (e: Exception) {
                 val message =
                     if (e.message?.contains("401") == true) {
@@ -91,10 +107,45 @@ class LoginViewModel @Inject constructor(private val repository: SetupRepository
 
                 _state.emit(_state.value.copy(quickConnectCode = null))
                 eventsChannel.send(LoginEvent.Success)
+            } catch (e: CertificateTrustRequiredException) {
+                pendingQuickConnect = true
+                _state.emit(
+                    _state.value.copy(
+                        quickConnectCode = null,
+                        certificatePrompt = e.toPrompt(),
+                    )
+                )
             } catch (_: Exception) {
                 _state.emit(_state.value.copy(quickConnectCode = null))
             }
         }
+    }
+
+    /** 用户确认指纹：写入信任后按原路径重试（密码登录 / Quick Connect）。 */
+    private fun trustCertificate() {
+        val prompt = _state.value.certificatePrompt ?: return
+        viewModelScope.launch {
+            repository.trustCertificate(prompt.trustKey, prompt.fingerprint)
+            _state.emit(_state.value.copy(certificatePrompt = null))
+
+            val credentials = pendingLogin
+            when {
+                credentials != null -> {
+                    pendingLogin = null
+                    this@LoginViewModel.login(credentials.first, credentials.second)
+                }
+                pendingQuickConnect -> {
+                    pendingQuickConnect = false
+                    quickConnect()
+                }
+            }
+        }
+    }
+
+    private fun dismissCertificatePrompt() {
+        pendingLogin = null
+        pendingQuickConnect = false
+        _state.value = _state.value.copy(certificatePrompt = null)
     }
 
     fun onAction(action: LoginAction) {
@@ -104,6 +155,12 @@ class LoginViewModel @Inject constructor(private val repository: SetupRepository
             }
             is LoginAction.OnQuickConnectClick -> {
                 quickConnect()
+            }
+            is LoginAction.OnTrustCertificate -> {
+                trustCertificate()
+            }
+            is LoginAction.OnDismissCertificatePrompt -> {
+                dismissCertificatePrompt()
             }
             else -> Unit
         }

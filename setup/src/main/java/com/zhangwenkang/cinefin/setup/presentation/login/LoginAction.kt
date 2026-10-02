@@ -7,5 +7,9 @@ sealed interface LoginAction {
 
     data object OnQuickConnectClick : LoginAction
 
+    data object OnTrustCertificate : LoginAction
+
+    data object OnDismissCertificatePrompt : LoginAction
+
     data object OnBackClick : LoginAction
 }

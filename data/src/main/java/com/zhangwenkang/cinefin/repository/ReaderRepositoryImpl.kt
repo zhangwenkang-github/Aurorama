@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.repository
 import android.content.Context
 import android.net.ConnectivityManager
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import java.io.File
 import java.io.IOException
 import java.time.Instant
@@ -38,10 +39,13 @@ class ReaderRepositoryImpl(
     private val bookmarkStore =
         ReaderBookmarkStore(File(appContext.filesDir, "reader/bookmarks.json"))
     private val httpClient =
-        OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
+        buildCertificateAwareOkHttpClient(
+            OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build(),
+            jellyfinApi.certificateTrustStore,
+        )
     private val downloadMutex = Mutex()
 
     override suspend fun ensureLocalFile(itemId: UUID): File = downloadLocalFile(itemId) {}
