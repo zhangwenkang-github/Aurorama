@@ -76,6 +76,36 @@ class PdfSearchTest {
     }
 
     @Test
+    fun `同一页多次命中的片段位置互不相同`() {
+        // 回归：W29 首轮真机在「一页里同一关键词出现两次」时崩溃（片段位置都指向窗口里第一处 →
+        // LazyColumn 重复 key）。片段位置必须按原始下标精确映射。
+        val text = "虚构推理 是一部作品，虚构推理 有动画，虚构推理 还有剧场版"
+        val hits = pageSearchHits(text, charsOf(text), pageIndex = 0, query = "虚构推理", maxHits = 6)
+        assertEquals(3, hits.size)
+        assertEquals(hits.size, hits.map { it.matchStartInSnippet }.toSet().size)
+        hits.forEach { hit ->
+            assertEquals(
+                "虚构推理",
+                hit.snippet.substring(
+                    hit.matchStartInSnippet,
+                    hit.matchStartInSnippet + hit.matchLength,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `换行处的命中位置按折叠映射`() {
+        val text = "第一行\n\n虚构推理\n第二行"
+        val at = text.indexOf("虚构推理")
+        val window = buildSnippet(text, at, "虚构推理", context = 2)
+        assertEquals(
+            "虚构推理",
+            window.text.substring(window.matchStart, window.matchStart + window.matchLength),
+        )
+    }
+
+    @Test
     fun `流式引擎按页出命中并给出完成状态`() = runBlocking {
         val source =
             FakeTextSource(
