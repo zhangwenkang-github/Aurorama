@@ -64,6 +64,8 @@ class DownloaderImpl(
      */
     private val autoRetriedSourceIds = ConcurrentHashMap.newKeySet<String>()
 
+    private val sidecar = DownloadMediaSidecar(context)
+
     // TODO: We should probably move most (if not all) code to a worker.
     //  At this moment it is possible that some things are not downloaded due to the user leaving
     //  the current screen
@@ -71,6 +73,15 @@ class DownloaderImpl(
         item: FindroidItem,
         sourceId: String,
         storageIndex: Int,
+    ): Pair<Long, UiText?> = downloadItem(item, sourceId, storageIndex, null, null, 0)
+
+    override suspend fun downloadItem(
+        item: FindroidItem,
+        sourceId: String,
+        storageIndex: Int,
+        albumName: String?,
+        artist: String?,
+        trackIndex: Int,
     ): Pair<Long, UiText?> = coroutineScope {
         try {
             val source =
@@ -149,6 +160,19 @@ class DownloaderImpl(
                 }
             }
 
+            // W34：音乐曲目（专辑 / 艺人）写入侧车，供下载列表层级化与离线展示。
+            if (albumName != null) {
+                sidecar.put(
+                    DownloadMediaRecord(
+                        itemId = item.id.toString(),
+                        kind = DownloadMediaKind.MUSIC,
+                        albumName = albumName,
+                        artist = artist,
+                        trackIndex = trackIndex,
+                    )
+                )
+            }
+
             val sourceDto = source.toFindroidSourceDto(item.id, path.path.orEmpty())
 
             database.insertSource(
@@ -193,6 +217,8 @@ class DownloaderImpl(
     }
 
     override suspend fun deleteItem(item: FindroidItem, source: FindroidSource) {
+        // W34：删除条目时同步清掉媒体侧车（音乐专辑 / 艺人元数据）。
+        sidecar.remove(item.id)
         when (item) {
             is FindroidMovie -> {
                 database.deleteMovie(item.id)
@@ -277,6 +303,11 @@ class DownloaderImpl(
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
             val tasks = mutableListOf<DownloadTask>()
+            val mediaRecords = sidecar.records()
+            val episodeHierarchy = runCatching {
+                database.getDownloadedEpisodeHierarchy().associateBy { it.episodeId }
+            }
+                .getOrElse { emptyMap() }
 
             for (source in database.getPendingSources()) {
                 val snapshot = downloadManager.querySnapshot(source.downloadId)
@@ -324,6 +355,16 @@ class DownloaderImpl(
                                 ?: partialFileSize(source.path),
                         totalBytes = snapshot?.totalBytes ?: 0L,
                         updatedAt = source.updatedAt.takeIf { it > 0L } ?: now,
+                        mediaKind =
+                            mediaRecords[source.itemId.toString()]?.kind ?: DownloadMediaKind.VIDEO,
+                        seriesId = episodeHierarchy[source.itemId]?.seriesId,
+                        seasonId = episodeHierarchy[source.itemId]?.seasonId,
+                        seriesName = episodeHierarchy[source.itemId]?.seriesName,
+                        seasonName = episodeHierarchy[source.itemId]?.seasonName,
+                        episodeIndex = episodeHierarchy[source.itemId]?.episodeIndex ?: 0,
+                        seasonIndex = episodeHierarchy[source.itemId]?.seasonIndex ?: 0,
+                        albumName = mediaRecords[source.itemId.toString()]?.albumName,
+                        artist = mediaRecords[source.itemId.toString()]?.artist,
                     )
             }
 
@@ -338,6 +379,13 @@ class DownloaderImpl(
             }
 
             tasks.sortedByDescending { it.updatedAt }
+        }
+
+    override fun mediaSidecar(): DownloadMediaSidecar = sidecar
+
+    override suspend fun downloadedItemIds(): Set<UUID> =
+        withContext(Dispatchers.IO) {
+            runCatching { database.getDownloadedItemIds().toSet() }.getOrElse { emptySet() }
         }
 
     override suspend fun pauseTask(task: DownloadTask): Boolean =
@@ -375,6 +423,7 @@ class DownloaderImpl(
         withContext(Dispatchers.IO) {
             task.downloadId?.let { runCatching { downloadManager.remove(it) } }
             deletePartialArtifacts(task.path)
+            sidecar.remove(task.itemId)
             val source = database.getSources(task.itemId).firstOrNull { it.id == task.sourceId }
             val item = findItem(task.itemId)
             if (source != null && item != null) {

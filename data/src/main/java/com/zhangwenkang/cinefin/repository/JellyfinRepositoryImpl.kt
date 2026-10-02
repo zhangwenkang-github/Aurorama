@@ -5,6 +5,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -41,6 +42,7 @@ import org.jellyfin.sdk.model.api.DeviceProfile
 import org.jellyfin.sdk.model.api.DlnaProfileType
 import org.jellyfin.sdk.model.api.EncodingContext
 import org.jellyfin.sdk.model.api.GeneralCommandType
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -67,6 +69,13 @@ class JellyfinRepositoryImpl(
     private val database: ServerDatabaseDao,
     private val appPreferences: AppPreferences,
 ) : JellyfinRepository {
+    /** W34：下载页轮询会重复取同一批封面 / 专辑元数据，用短 TTL 缓存避免每轮都打服务器。 */
+    private val primaryImageUrls = java.util.concurrent.ConcurrentHashMap<UUID, String>()
+    private val imageUrlCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
+    private val musicTrackCache =
+        java.util.concurrent.atomic.AtomicReference<Map<UUID, MusicTrackMetadata>>(emptyMap())
+    private val musicTrackCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
+
     override suspend fun getPublicSystemInfo(): PublicSystemInfo =
         withContext(Dispatchers.IO) { jellyfinApi.systemApi.getPublicSystemInfo().content }
 
@@ -678,7 +687,86 @@ class JellyfinRepositoryImpl(
             items
         }
 
+    override suspend fun getPrimaryImageUrl(itemId: UUID): String? =
+        withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            if (now - imageUrlCacheAt.get() > CACHE_TTL_MS) {
+                primaryImageUrls.clear()
+                imageUrlCacheAt.set(now)
+            }
+            primaryImageUrls[itemId]?.let {
+                return@withContext it
+            }
+            val userId = jellyfinApi.userId ?: return@withContext null
+            val url = runCatching {
+                jellyfinApi.userLibraryApi.getItem(itemId, userId).content
+            }
+                .getOrNull()
+                ?.imageTags
+                ?.get(ImageType.PRIMARY)
+                ?.let { tag ->
+                    getBaseUrl().trimEnd('/') + "/Items/$itemId/Images/Primary?tag=$tag"
+                }
+            url?.let { primaryImageUrls[itemId] = it }
+            url
+        }
+
+    override suspend fun getDownloadedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy> =
+        withContext(Dispatchers.IO) {
+            runCatching { database.getDownloadedEpisodeHierarchy() }.getOrElse { emptyList() }
+        }
+
+    override suspend fun getMusicTrackMetadata(): Map<UUID, MusicTrackMetadata> =
+        withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            if (now - musicTrackCacheAt.get() <= CACHE_TTL_MS) {
+                return@withContext musicTrackCache.get()
+            }
+            val userId = jellyfinApi.userId ?: return@withContext emptyMap()
+            val baseUrl = getBaseUrl().trimEnd('/')
+            runCatching {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        userId,
+                        includeItemTypes = listOf(BaseItemKind.AUDIO),
+                        recursive = true,
+                        limit = MUSIC_TRACK_LIMIT,
+                    )
+                    .content
+                    .items
+            }
+                .getOrElse { emptyList() }
+                .mapNotNull { dto ->
+                    val imageTag = dto.imageTags?.get(ImageType.PRIMARY)
+                    MusicTrackMetadata(
+                        itemId = dto.id,
+                        name = dto.name.orEmpty(),
+                        albumName = dto.album?.takeIf { it.isNotBlank() },
+                        artist =
+                            dto.albumArtists?.firstOrNull()?.name ?: dto.artists?.firstOrNull(),
+                        indexNumber = dto.indexNumber,
+                        imageUri =
+                            imageTag?.let { tag ->
+                                "$baseUrl/Items/${dto.id}/Images/Primary?tag=$tag"
+                            },
+                    )
+                }
+                .associateBy { it.itemId }
+                .also {
+                    musicTrackCache.set(it)
+                    musicTrackCacheAt.set(now)
+                }
+        }
+
     override fun getUserId(): UUID {
         return jellyfinApi.userId!!
+    }
+
+    private companion object {
+        /** 音乐曲库上限，与音乐线曲库快照一致。 */
+        const val MUSIC_TRACK_LIMIT = 500
+
+        /** 下载页封面 / 曲库元数据缓存时长。 */
+        const val CACHE_TTL_MS = 60_000L
     }
 }

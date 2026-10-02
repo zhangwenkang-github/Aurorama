@@ -26,6 +26,7 @@ dependencies {
     implementation(projects.data)
     implementation(projects.settings)
     implementation(libs.timber)
+    implementation(libs.jellyfin.core)
 
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.runtime)
@@ -38,4 +39,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
+
+    testImplementation(libs.junit)
 }

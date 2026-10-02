@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
@@ -46,7 +47,10 @@ import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
+import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -91,7 +95,24 @@ constructor(
     private val playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
     private val audioEffects: MusicAudioEffectsController,
+    private val downloader: Downloader,
+    private val jellyfinRepository: JellyfinRepository,
 ) : ViewModel() {
+
+    /** W34：曲目下载态（下载列表层级化要求音乐侧也能发起下载）。 */
+    data class SongDownloadState(
+        val downloadedItemIds: Set<UUID> = emptySet(),
+        val activeStatuses: Map<UUID, DownloadTaskStatus> = emptyMap(),
+    ) {
+        fun isDownloaded(itemId: UUID): Boolean = itemId in downloadedItemIds
+
+        fun activeStatus(itemId: UUID): DownloadTaskStatus? = activeStatuses[itemId]
+
+        fun isActive(itemId: UUID): Boolean = activeStatuses[itemId] != null
+    }
+
+    private val _downloadState = MutableStateFlow(SongDownloadState())
+    val downloadState: StateFlow<SongDownloadState> = _downloadState.asStateFlow()
 
     data class UiState(
         val loading: Boolean = true,
@@ -688,6 +709,7 @@ constructor(
                         errorMessage = null,
                     )
                 }
+                refreshDownloadState()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
@@ -731,6 +753,64 @@ constructor(
 
     fun selectTab(tab: MusicTab) {
         _uiState.update { it.copy(tab = tab, detail = null) }
+    }
+
+    /** W34：刷新曲目下载态（进行中任务 + 已下载条目）。 */
+    fun refreshDownloadState() {
+        viewModelScope.launch {
+            runCatching {
+                val tasks = downloader.refreshDownloadTasks()
+                val active =
+                    tasks
+                        .filter { it.status != DownloadTaskStatus.COMPLETED }
+                        .associate { it.itemId to it.status }
+                val downloaded = downloader.downloadedItemIds()
+                _downloadState.value =
+                    SongDownloadState(
+                        downloadedItemIds = downloaded,
+                        activeStatuses = active,
+                    )
+            }
+                .onFailure { Timber.w(it, "刷新曲目下载态失败") }
+        }
+    }
+
+    /** W34：下载 / 删除单曲（音乐侧入口；下载引擎仍走 DownloadManager + sources 表）。 */
+    fun toggleSongDownload(song: MusicSong) {
+        viewModelScope.launch {
+            val item =
+                runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull() ?: return@launch
+            val localSources = item.sources.filter { it.type == FindroidSourceType.LOCAL }
+            val completed = localSources.firstOrNull { !it.path.endsWith(".download") }
+            if (completed != null) {
+                downloader.deleteItem(item, completed)
+                refreshDownloadState()
+                return@launch
+            }
+            val activeTask =
+                downloader.refreshDownloadTasks().firstOrNull {
+                    it.itemId == song.itemId && it.status != DownloadTaskStatus.COMPLETED
+                }
+            if (activeTask != null) {
+                downloader.deleteTask(activeTask)
+                refreshDownloadState()
+                return@launch
+            }
+            val sourceId =
+                runCatching { jellyfinRepository.getMediaSources(song.itemId, true) }
+                    .getOrNull()
+                    ?.firstOrNull()
+                    ?.id ?: return@launch
+            downloader.downloadItem(
+                item = item,
+                sourceId = sourceId,
+                storageIndex = 0,
+                albumName = song.albumName,
+                artist = song.artist,
+                trackIndex = song.indexNumber ?: 0,
+            )
+            refreshDownloadState()
+        }
     }
 
     fun openAlbum(album: MusicAlbum) {

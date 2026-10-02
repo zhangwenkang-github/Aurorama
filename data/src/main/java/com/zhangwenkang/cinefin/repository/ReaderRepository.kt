@@ -20,6 +20,9 @@ interface ReaderRepository {
     /** 本地已下载书籍信息；未下载返回 null。 */
     suspend fun localFile(itemId: UUID): LocalBookFile?
 
+    /** W34 下载列表：全部已离线书籍（下载页「书籍」层级用）。 */
+    suspend fun listLocalFiles(): List<LocalBookFile>
+
     suspend fun deleteLocalFile(itemId: UUID)
 
     suspend fun getReadingProgress(itemId: UUID): ReadingProgress?

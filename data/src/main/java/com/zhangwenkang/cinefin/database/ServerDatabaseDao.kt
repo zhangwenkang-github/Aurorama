@@ -204,6 +204,46 @@ interface ServerDatabaseDao {
 
     @Query("DELETE FROM episodes WHERE id = :id") suspend fun deleteEpisode(id: UUID)
 
+    /**
+     * W34 下载层级：已下载剧集 + 所属季 / 节目名。
+     *
+     * 只返回带 LOCAL 完整文件（非 `.download` 残片）的剧集；seasonName 用于「季」容器标题。
+     */
+    @Query(
+        """
+        SELECT episodes.id AS episodeId,
+               episodes.seasonId AS seasonId,
+               episodes.seriesId AS seriesId,
+               episodes.name AS episodeName,
+               episodes.indexNumber AS episodeIndex,
+               episodes.runtimeTicks AS runtimeTicks,
+               shows.name AS seriesName,
+               seasons.name AS seasonName,
+               seasons.indexNumber AS seasonIndex
+        FROM episodes
+        INNER JOIN seasons ON seasons.id = episodes.seasonId
+        INNER JOIN shows ON shows.id = episodes.seriesId
+        WHERE EXISTS (
+            SELECT 1 FROM sources
+            WHERE sources.itemId = episodes.id
+              AND sources.type = 'LOCAL'
+              AND sources.path NOT LIKE '%.download'
+        )
+        ORDER BY shows.name ASC, seasons.indexNumber ASC, episodes.indexNumber ASC
+        """
+    )
+    suspend fun getDownloadedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy>
+
+    /** W34 下载层级：已下载音频条目 id（音乐曲目在 movies 表里，只能靠主库曲库快照区分）。 */
+    @Query(
+        """
+        SELECT DISTINCT sources.itemId AS itemId
+        FROM sources
+        WHERE sources.type = 'LOCAL' AND sources.path NOT LIKE '%.download'
+        """
+    )
+    suspend fun getDownloadedItemIds(): List<UUID>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSegment(segment: FindroidSegmentDto)
 
