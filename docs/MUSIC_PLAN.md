@@ -2,7 +2,7 @@
 
 > 本文件是音乐线的**唯一权威文档**：需求、决策、进度、验收记录、踩坑库都在这里。
 > 关联文档：`PROJECT_PLAN.md`（项目总览）、`REQUIREMENTS.md` §5/§11、`ARCHITECTURE.md` §4/§5.2、`PARALLEL_PLAN.md`（波次）、`ROLE_SKILLS.md` §5.2。
-> 最后更新：2026-10-01（W3-R3b 会话）　分支：`feature/r3-music-ux-fix`
+> 最后更新：2026-10-02（W21-MUSIC 会话）　分支：`feature/w21-music-extras`
 
 ## 1. 需求基线（MU-1…MU-9，来源 REQUIREMENTS §5）
 
@@ -84,6 +84,16 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D22 | 点歌改为「**先解析被点曲目** → `setQueue` 起播 → 后台按 `musicQueueFillOrder` 补队列」，取代"整份列表串行解析后再起播" | 歌曲页 100 首 = 100 次 `PlaybackInfo` 串行请求，起播被拖到十几秒（真机表现为"点了没反应"），且任一首无媒体源会让整次点击失败（§6-17）；补队列只用冻结接口 `insertNext` + `move`（尾部追加 / 队首前移，见 §6-20），不碰 `player:core`；补入次序抽成纯函数 `musicQueueFillOrder` 并单测（`MusicQueueFillTest` 2 例） |
 | D23 | 曲库加载失败**自动重试一次**（1.2 s 后）再进可重试错误态；错误面板标题按来源区分 | 服务器偶发超时（`PROJECT_PLAN` §6 已知风险）时用户不必自己点重试；"曲库加载失败"标题曾被播放 / 歌单失败复用，误导读数（§6-18） |
 
+### 2.7 W21 本会话决策（睡眠定时 / 队列持久化 / 收藏与最近播放）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D24 | 睡眠定时放 `modes:music` 的**进程级单例** `MusicSleepTimer`（不落 `player:local`） | 音乐支持后台播放：用户离开音乐页 / 熄屏后定时必须继续生效，播放页内的局部状态做不到；到点只调 `MusicPlaybackController.pause()`，该方法自带"当前是音乐会话且是音乐条目"校验，不会误伤视频；视频侧既有定时仍留在播放页内，两者互不影响。档位与视频侧一致（10 / 20 / 30 / 60 分钟 + 关闭） |
+| D25 | 队列持久化用 data 层**独立 `MusicDatabase`**（库名 `music`，version 1：`music_queue_items` / `music_queue_state` / `music_recent` 三张表），不改 `ServerDatabase.kt` | W20 正在改 `servers` 库的 schema / 迁移；独立库让两波改动在文件级别隔离（本波 data 层全部新增文件）。存档由进程级 `MusicQueuePersister` 驱动：队列结构变化立即存、位置每 5 s 节流存；恢复只回填 UI 与续播位置、**不自动出声**，点播放 / 切歌走既有 `setQueue`（MU-9 续播路径），与 gapless 行为不冲突 |
+| D26 | 收藏走**服务端白名单**：写 = `userLibraryApi.markFavoriteItem` / `unmarkFavoriteItem`（失败抛异常由 UI 提示），读 = `filters=IsFavorite` + `includeItemTypes=Audio` | 需求「收藏」是服务器用户数据（REQUIREMENTS §11 白名单）；不复用视频侧 `markAsFavorite`（那个会吞异常、只标记待同步，验收"读回"不可靠）。入口 = 音乐顶栏 ♥ + 歌曲行 ⋮ 菜单「收藏 / 取消收藏」，不改导航 IA |
+| D27 | 最近播放 = **本地 Room**（`music_recent`，itemId 主键 upsert + `playedAt` 倒序，上限 100）；记录时机 = 播放器队列当前曲目变化（恢复态不算"播放过"） | 最近播放是本地行为数据，不需要写服务器；重复播放只刷新时间并排到最前；曲库快照能查到完整元数据时补专辑 / 艺人 / 时长，查不到（如恢复队列）用播放条目兜底 |
+| D28 | 恢复态（重启后未点播放）下队列面板仍可拖拽 / 移除：编辑直接落在恢复快照并立即落盘；存档位置取值 = 活动会话读播放器实时位置、恢复态读快照里写回的续播位置 | 恢复态没有播放器会话，若照读 `positionMs`（=0）会把保存的位置清零（真机回归拦下，见 §6-21）；`musicQueueRemoveAt` 纯函数保证"删当前项索引顺延 / 删前面左移"语义并有单测 |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -149,6 +159,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] 单测：`MusicQueueFillTest`（2 例：补入次序 + 补完后的队列顺序 / 当前曲目），模块合计 **47 项**；首版补队列用"连续 insertNext"会把尾部顺序倒置，被该单测拦下后改为 `insertNext` + `move`（见 §6-20）
 - [x] 门禁：`:app:phone:assembleDebug`、`:modes:music:testDebugUnitTest`（47 项）、`ktfmtCheck` 通过
 - [x] 真机验证（Pad 5，2026-10-01 00:58–01:05）：返回键 / 左上角返回 / 点歌 3.1 s 起播 + 补队列顺序 / 断网可重试错误态 + 自动重试 / 歌词不回归（见 §5.4）
+
+### W21 音乐扩展（本会话 `feature/w21-music-extras`，已交付）
+
+- [x] 睡眠定时（MU-7）：顶栏月亮入口 + 面板档位 10 / 20 / 30 / 60 分钟 + 关闭；底栏显示「睡眠 mm:ss」倒计时；到点自动 `pause()`（与视频播放页的定时互不影响，见 D24）
+- [x] 队列持久化（MU-3 队列保存）：独立 `MusicDatabase`（3 表）+ `MusicQueueStore` / `MusicQueuePersister`（D25）；杀进程 / 重启后恢复队列、当前曲目与播放位置，点播放从保存位置续播；恢复态下队列面板可拖拽 / 移除（D28）
+- [x] 收藏（MU-2）：歌曲行 ⋮ 菜单「收藏 / 取消收藏」写服务端白名单；顶栏 ♥ 打开服务端收藏列表（`filters=IsFavorite` 读回）；收藏页取消收藏即时移出
+- [x] 最近播放（MU-2）：本地 Room `music_recent`；播放 / 切歌自动记录（重复播放置顶）；顶栏时钟入口按播放时间倒序展示
+- [x] 单测：`MusicQueueStoreTest`（4）/ `MusicQueueEditsTest`（5）/ `MusicRecentStoreTest`（2）/ `MusicSleepTimerTest`（1）= 新增 12 项，`:modes:music` 合计 **59 项** 全绿
+- [x] 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51 项）+ `:modes:music:testDebugUnitTest`（59 项）全绿
+- [x] 真机验证（K60，2026-10-02）：睡眠到点暂停 / 杀进程重启续播 / 收藏读写回 / 最近播放顺序 / 歌词 / 队列 / 自动衔接 gapless 不回归（见 §5.5）
+- [x] `AppPreferences.kt` 只追加 `pref_music_resume_queue`（默认开，恢复开关；不动既有键）
+
+**遗留**：暂无（队列持久化的偏好开关暂未接设置页 UI，留作后续设置线接入；内置歌词、歌词编辑 / 上传仍按 §3 W3 未决项）。
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -260,6 +283,28 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 > `device-lock.md`「当前占用」已写释放时间（01:05）。
 > 真机 RTT ~150 ms 也解释了旧实现的表现：歌曲页 100 首串行 `PlaybackInfo` ≈ 15 s+（§6-17）。
 
+### 5.5 W21 音乐扩展真机验证记录（2026-10-02，Redmi K60 / Android，`8e875894`）
+
+设备由负责人统一调度（`device-lock.md`，K60 归本会话；Pad 5 归 W20 未占用）；全部 `adb` 命令带 `-s 8e875894`。
+
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | 睡眠定时到点暂停 | 顶栏月亮 → 选「10 分钟」→ 底栏 `队列 1/69 · 正在播放 · 睡眠 09:56`（逐秒递减）→ 14:11:22 logcat `MusicSleepTimer$select: 音乐睡眠定时到点，暂停播放` + `dumpsys media_session` `state=PAUSED(2)`、position=120338；底栏睡眠文案消失 | ✅ |
+| 2 | 队列持久化（杀进程） | 播放中（position 28630 ms）→ `am force-stop` → 重启进音乐：`队列 1/69 · 上次播放到 0:35` → 点播放：`state=BUFFERING(6) position=35231` → 从 35 s 续播（非 0） | ✅ |
+| 3 | 队列持久化（重装 + 暂停点） | 暂停于 2:07 → `install -r` 重装重启 → `队列 5/100 · 上次播放到 2:00` → 点播放：`position=120465`（2:00 续播）→ 点暂停：底栏 `队列 5/100 · 已暂停` | ✅ |
+| 4 | 数据库快照 | `run-as` 拉取 `music` 库（WAL）→ `music_queue_items` 100 项（position 0..99）、`music_queue_state` `currentIndex=3 positionMs=102173 repeatMode=OFF shuffle=0 source=MANUAL`、`music_recent` 4 条按 `playedAt` 倒序 | ✅ |
+| 5 | 收藏写入 + 读回 | 歌曲页 `Last Reunion` ⋮ → 「收藏」→ 顶栏 ♥ 收藏页：`共 1 首曲目 / Last Reunion (最后的重逢)`（服务端 `filters=IsFavorite` 读回）→ ⋮「取消收藏」→ 收藏页 `共 0 首曲目 / 还没有收藏的曲目`（测试数据已还原） | ✅ |
+| 6 | 最近播放顺序 | 依次播放 `Last Reunion` → `心做し` → `天下` → 顶栏时钟：`最近播放 / 共 3 首曲目` 顺序 `天下 / 心做し / Last Reunion`（最后播的排最前）；重复播放只置顶不新增 | ✅ |
+| 7 | 恢复态队列编辑 | force-stop 重启（恢复态 `队列 4/99 · 上次播放到 0:07`）→ 队列面板移除 1 项：`播放队列（98）`、当前索引 4→3；关闭面板底栏 `队列 3/98 · 上次播放到 0:07`（位置未清零）→ 再次重启仍 `队列 3/98 · 上次播放到 0:07`（编辑与位置都已落盘） | ✅ |
+| 8 | 歌词不回归 | 底栏「词」：`来源：服务端　简体中文 / 混合行` + 语言 chip + 滚动行 + 点击行 seek（`position=207180`） | ✅ |
+| 9 | 队列面板不回归 | `播放队列（69）`→（100）→（98）条目、当前曲目标「正在播放」、拖拽锚点 `≡` 与移除 `✕` 就位 | ✅ |
+| 10 | gapless / 自动衔接不回归 | 歌词点最后一行把「天下」seek 到 3:35 → 播放完**无用户操作**自动切「梦的光点」（active item 2→3），采样第 4→5 次之间 `state` 全程 `PLAYING(3)`、新曲目 `position=15 buffered=44489`（无暂停 / 无中断） | ✅ |
+| 11 | 稳定性 | 整轮多次 `logcat` 检查无 `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` / `UnsatisfiedLinkError` | ✅ |
+| 12 | 门禁 | `assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest`（51）+ `:modes:music:testDebugUnitTest`（59）全绿 | ✅ |
+
+> 设备副作用已还原：App `force-stop`、`/sdcard/w21_ui.xml` 清理、收藏测试条目已取消（服务器收藏数回 0）；未改 prefs / `wm size` / 旋转 / Wi-Fi。
+> 过程事故：恢复态编辑队列时曾把保存位置清零（`persist` 照读无会话的 `positionMs=0`）——真机回归拦下，修复为 `queuePersistPositionMs`（活动会话 = 实时位置 / 恢复态 = 快照位置）+ 单测，第 7 项为修复后复验。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -309,6 +354,16 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 20. **`MusicQueue.insertNext` 是"下一首播放"语义，不能当"追加"连用**（2026-10-01 W3-R3b 单测拦截）：它固定插到 `currentIndex + 1`，
     连续插 A→B 得到 `[当前, B, A, …]`——补队列时尾部曲目会被倒置。想按列表顺序补队列必须 `insertNext(item)` 后再 `move(insertedAt, 目标位置)`
     （追加到队尾 `items.size - 1` / 前移到队首 `0`）；单测 `MusicQueueFillTest` 用 `MusicQueue` 纯函数模拟整段补入过程做回归。
+21. **恢复态编辑队列会把保存位置清零**（2026-10-02 W21 真机回归拦下）：`MusicQueuePersister.persist` 原来无条件读
+    `playbackController.positionMs`，恢复态没有播放会话时该值为 0，于是"移除一项"就把 2:07 的存档位置覆盖成 0:00。
+    → 抽成纯函数 `queuePersistPositionMs(liveQueuePresent, livePositionMs, restoredPositionMs)`（活动会话 = 实时位置 / 恢复态 = 快照里写回的续播位置）并加单测；
+    **凡是"恢复态可编辑、后台又持续落盘"的路径都要明确位置来源**。
+22. **Timber `DebugTree` 的 tag 是调用点标签而不是类名**（2026-10-02 W21）：`MusicSleepTimer.select` 里的 `Timber.i` 输出 tag =
+    `MusicSleepTimer$select`，用 `adb logcat -s MusicSleepTimer:V` 过滤不到（一度以为日志没打）。→ 取证时先全量 `logcat -d | Select-String '关键字'`，
+    或按 `--pid=<app pid>` 过滤。
+23. **PowerShell 的 `>` 会破坏二进制**（2026-10-02 W21）：`adb exec-out run-as … cat databases/music > x.db` 拉 Room 库会写出损坏文件；
+    且 `run-as` 往 `/sdcard/Android/data/...` 复制会 `Permission denied`。→ 用 Python `subprocess.run(…, capture_output=True)` 读 `exec-out` 字节流再 `open(..., 'wb')` 落盘；
+    Room WAL 模式要连同 `-wal` 一起拉取才能读到最新快照。
 
 ## 7. 会话日志
 
@@ -331,3 +386,9 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   新增 `MusicQueueFillTest` 2 例（**首版"连续 insertNext"会把尾部顺序倒置，被该单测拦下**，改为 `insertNext` + `move`），
   模块 47 项全绿；真机 7 项验证见 §5.4（返回键 / 左上角返回 / 点歌 3.1 s 起播 + 队列顺序 / 断网错误态 + 重试恢复 / 歌词语言切换）。
   决策 §2.6（D21–D23），踩坑 §6-17～20。**未决**：歌词文本里带 `[00:00:00]` 前缀的纯音乐提示行（服务端原样返回，未做清理，非本次回归）。
+- **2026-10-02 W21-MUSIC**（本会话，`feature/w21-music-extras`）：完成三项——①睡眠定时（进程级 `MusicSleepTimer`，10/20/30/60 分钟档，
+  到点只暂停音乐、与视频侧定时互不影响，底栏倒计时）；②队列持久化（data 层独立 `MusicDatabase` 三表 + `MusicQueuePersister` 结构变化即存 / 位置 5 s 节流存，
+  重启恢复当前曲目与位置、点播放续播；恢复态仍可拖拽 / 移除）；③收藏（服务端 `UserFavoriteItems` 写 + `filters=IsFavorite` 读回，顶栏 ♥ + 行内菜单）与
+  本地最近播放（Room `music_recent`，倒序、重复置顶，顶栏时钟入口）。新增 12 条单测（模块 59 项），门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` +
+  app 51 项 + music 59 项全绿；K60 真机 12 项验证见 §5.5（含真机拦下的"恢复态编辑清零位置"修复，踩坑 §6-21）。
+  决策 §2.7（D24–D28）。**未决**：`pref_music_resume_queue` 开关暂未接设置页 UI；内置歌词 / 歌词编辑仍按 §3 W3 未决项后置。
