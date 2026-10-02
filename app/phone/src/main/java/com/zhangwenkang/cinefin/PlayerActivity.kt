@@ -13,9 +13,11 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.drawable.TransitionDrawable
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
+import android.provider.OpenableColumns
 import android.util.Rational
 import android.view.Gravity
 import android.view.SurfaceView
@@ -24,6 +26,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +52,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
@@ -80,8 +84,10 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 var isControlsLocked: Boolean = false
@@ -125,6 +131,17 @@ class PlayerActivity : BasePlayerActivity() {
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             Timber.d("通知权限结果：%s", granted)
+        }
+
+    /**
+     * W27 外挂字幕导入：系统文件选择器（SAF）。
+     *
+     * 选完后把内容复制进 App 私有目录（按当前播放条目保存，不写服务器），再交给 ViewModel 侧载； 解析与渲染完全复用既有字幕管线（Exo 走 libass，mpv 走
+     * sub-add + 内置 libass）。
+     */
+    private val subtitleImportLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { importSubtitleFromUri(it) }
         }
 
     /** 画中画状态：控制层据此切到 Pip 骨架（PiP 窗口里不渲染控制层） */
@@ -283,6 +300,12 @@ class PlayerActivity : BasePlayerActivity() {
                         onAutoFallbackChange = { enabled -> selectAutoFallback(enabled) },
                         onSelectBitrate = { bitrate -> selectStreamingBitrate(bitrate) },
                         onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
+                        // W27：侧载字幕导入 / 移除 + PlayerDebugOverlay 实时数据源
+                        onImportSubtitle = { subtitleImportLauncher.launch(arrayOf("*/*")) },
+                        onRemoveSideloadedSubtitle = { id ->
+                            viewModel.removeSideloadedSubtitle(id)
+                        },
+                        debugStatsProvider = { viewModel.readDebugStats() },
                         onVideoTransformChanged = { transform -> updateVideoTransform(transform) },
                         onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
                         onQueueRemove = { index -> viewModel.removeQueueItem(index) },
@@ -298,11 +321,13 @@ class PlayerActivity : BasePlayerActivity() {
                             locked,
                             errorVisible,
                             buffering,
-                            skipChipVisible ->
+                            skipChipVisible,
+                            debugOverlayVisible ->
                             binding.controlOverlay.controlsVisible = visible
                             binding.controlOverlay.panelOpen = panelOpen
                             binding.controlOverlay.locked = locked
                             binding.controlOverlay.errorVisible = errorVisible
+                            binding.controlOverlay.debugOverlayVisible = debugOverlayVisible
                             /*
                              * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
                              * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
@@ -318,6 +343,7 @@ class PlayerActivity : BasePlayerActivity() {
                                         locked ||
                                         buffering ||
                                         skipChipVisible ||
+                                        debugOverlayVisible ||
                                         chromeKeepsComposition
                                 ) {
                                     View.VISIBLE
@@ -564,6 +590,65 @@ class PlayerActivity : BasePlayerActivity() {
             edgeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleEdge),
             positionIndex = appPreferences.getValue(appPreferences.playerSubtitleStylePosition),
         )
+
+    /**
+     * W27：读取系统文件选择器返回的侧载字幕（文件名 + 字节），交给 ViewModel 复制到 App 私有目录。
+     *
+     * 读文件放 IO 线程；完成后弹一条 Toast（成功带文件名，失败带原因）。
+     */
+    private fun importSubtitleFromUri(uri: Uri) {
+        lifecycleScope.launch {
+            val (displayName, bytes) =
+                withContext(Dispatchers.IO) {
+                    val name =
+                        runCatching {
+                            contentResolver
+                                .query(
+                                    uri,
+                                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                                    null,
+                                    null,
+                                    null,
+                                )
+                                ?.use { cursor ->
+                                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                                }
+                        }
+                            .getOrNull()
+                            ?.takeIf { it.isNotBlank() }
+                            ?: uri.lastPathSegment?.substringAfterLast('/')?.takeIf {
+                                it.isNotBlank()
+                            }
+                            ?: "subtitle.srt"
+                    val data = runCatching {
+                        contentResolver.openInputStream(uri)?.use { stream -> stream.readBytes() }
+                    }
+                        .getOrNull()
+                    name to data
+                }
+            if (bytes == null || bytes.isEmpty()) {
+                Toast.makeText(
+                        this@PlayerActivity,
+                        getString(PlayerR.string.player_subtitle_import_failed),
+                        Toast.LENGTH_SHORT,
+                    )
+                    .show()
+                return@launch
+            }
+            viewModel.importSideloadedSubtitle(displayName, bytes) { success, message ->
+                Toast.makeText(
+                        this@PlayerActivity,
+                        if (success) {
+                            getString(PlayerR.string.player_subtitle_imported, message)
+                        } else {
+                            message
+                        },
+                        Toast.LENGTH_SHORT,
+                    )
+                    .show()
+            }
+        }
+    }
 
     /**
      * 一键切换解码内核（ExoPlayer ⇄ mpv）。

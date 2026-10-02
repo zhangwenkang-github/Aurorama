@@ -38,6 +38,14 @@ constructor(
     /** 错误卡片是否可见：决定中央命中区用普控件尺寸还是放大尺寸 */
     var errorVisible: Boolean = false
 
+    /**
+     * W27 PlayerDebugOverlay 是否打开。
+     *
+     * 调试面板独立于控制层淡出，且落在顶栏下方的「手势区」；打开期间由这里单独给它一块命中矩形， 否则关闭键 / 面板本身的事件会穿透到
+     * PlayerGestureHelper（顶栏三带以外都放行给手势）。
+     */
+    var debugOverlayVisible: Boolean = false
+
     /** 当前骨架：决定命中区形状。由 Activity 与控制层同源写入 */
     var chrome: PlayerChromeLayout = PlayerChromeLayout.Fullscreen
 
@@ -113,6 +121,16 @@ constructor(
         val hasContentRegion =
             chrome == PlayerChromeLayout.SplitPortrait || chrome == PlayerChromeLayout.FoldHalfOpen
         if (hasContentRegion && (x > videoWidth || y > videoHeight)) return true
+
+        // W27：调试面板打开时，面板所在矩形（左上角，顶栏下方）留给 Compose；它不随控制层淡出
+        if (debugOverlayVisible) {
+            val debugTop =
+                topBarHeightPx.takeIf { it > 0f }
+                    ?: ((if (chrome == PlayerChromeLayout.SplitPortrait) 64f else 76f) * density)
+            if (RectF(0f, debugTop, 344f * density, debugTop + 320f * density).contains(x, y)) {
+                return true
+            }
+        }
 
         if (!controlsVisible) return false
 

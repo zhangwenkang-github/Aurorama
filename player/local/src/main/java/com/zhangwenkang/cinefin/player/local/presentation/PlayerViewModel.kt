@@ -36,18 +36,25 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
+import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
+import com.zhangwenkang.cinefin.player.local.domain.PlayerEndBehavior
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
+import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
+import com.zhangwenkang.cinefin.player.local.domain.PlayerQueueEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitle
+import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitleStore
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
@@ -186,6 +193,8 @@ constructor(
         /** 图形字幕等不能调节的轨道：仍可选中（交给内核渲染），但面板会说明 */
         val adjustable: Boolean = true,
         val selected: Boolean = false,
+        /** W27：本机导入的侧载字幕（面板行尾给「移除」入口） */
+        val sideloaded: Boolean = false,
     )
 
     /**
@@ -230,6 +239,17 @@ constructor(
 
     /** 自研字幕管线：延迟 / 双语 / 外观（ExoPlayer 文字字幕由它接管） */
     val subtitleController = PlayerSubtitleController(viewModelScope, appPreferences)
+
+    /**
+     * W27 侧载字幕：用户从文件选择器导入的字幕文件按播放条目保存在本机（文件存储，不写服务器）。
+     *
+     * [sideloads] 是「当前播放条目」的记录快照；换集 / 换片时用 [applySubtitlePipelineForMedia] 重载。
+     */
+    private val sideloadStore by lazy {
+        SideloadedSubtitleStore(File(application.filesDir, "player_subtitles"))
+    }
+
+    private var sideloads: List<SideloadedSubtitle> = emptyList()
 
     private val _subtitlePanelState = MutableStateFlow(SubtitlePanelState())
     val subtitlePanelState = _subtitlePanelState.asStateFlow()
@@ -297,6 +317,7 @@ constructor(
         get() = playerHolder.backend
 
     init {
+        migrateEndBehaviorPreferences()
         segmentsSkipButton = appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton)
         segmentsSkipButtonTypes =
             appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButtonType)
@@ -543,6 +564,20 @@ constructor(
     fun attachToExistingSession() {
         player.addListener(this)
         applySavedSubtitlePreferences()
+        // W27：接管会话（通知 / 锁屏回前台）时补上侧载字幕；自研管线还没建立才重建，避免覆盖本次会话的手动选轨
+        player.currentMediaItem?.mediaId?.let { mediaId ->
+            sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
+            ensureMpvSideloadsInjected()
+            if (
+                playerBackend != PLAYER_BACKEND_MPV &&
+                    subtitleController.overlayState.value.sources.isEmpty()
+            ) {
+                applySubtitlePipelineForMedia(
+                    mediaId,
+                    pipelineSourcesFor(mediaId, currentPlaybackItem()),
+                )
+            }
+        }
         refreshUiStateFromPlayer()
         publishSubtitlePanelState()
     }
@@ -792,7 +827,11 @@ constructor(
      */
     override fun onTracksChanged(tracks: Tracks) {
         if (player !is ExoPlayer) {
-            // mpv：字幕轨（sid）与音轨（aid）都来自这个回调，刷新面板跟上
+            /*
+             * mpv：字幕轨（sid）与音轨（aid）都来自这个回调，刷新面板跟上。
+             * W27：文件加载完成 / 注入完成后这里会再次回调，把还没注入的侧载字幕补上。
+             */
+            ensureMpvSideloadsInjected(tracks)
             publishSubtitlePanelState()
             publishAudioPanelState()
             return
@@ -828,23 +867,31 @@ constructor(
                     refreshUiStateFromPlayer()
                     // 字幕源清单跟着播放器里的媒体 id 走：能从 PlaylistManager 找回就恢复
                     player.currentMediaItem?.mediaId?.let { mediaId ->
-                        runCatching { UUID.fromString(mediaId) }
+                        val remembered = runCatching {
+                            UUID.fromString(mediaId)
+                        }
                             .getOrNull()
                             ?.let { playlistManager.getPlayerItem(it) }
-                            ?.let { remembered ->
-                                subtitleController.reset(
-                                    mediaId,
-                                    subtitleSourcesForBackend(remembered),
-                                )
-                            }
+                        if (remembered != null) {
+                            applySubtitlePipelineForMedia(
+                                mediaId,
+                                pipelineSourcesFor(mediaId, remembered),
+                            )
+                        } else {
+                            // 找不回原始条目也要把侧载记录挂上（mpv 直接 sub-add / Exo 至少能列出已存文件）
+                            applySubtitlePipelineForMedia(
+                                mediaId,
+                                pipelineSourcesFor(mediaId, null),
+                            )
+                        }
                     }
                     return@launch
                 }
                 item.let { item ->
                     // 换集 / 换片：字幕源清单随条目更新并重新自动选字幕
-                    subtitleController.reset(
+                    applySubtitlePipelineForMedia(
                         item.itemId.toString(),
-                        subtitleSourcesForBackend(item),
+                        pipelineSourcesFor(item.itemId.toString(), item),
                     )
                     mpvSecondarySubtitleId = null
                     val itemTitle =
@@ -958,26 +1005,53 @@ constructor(
      * - 随机播放：往「打乱后的下一集」走，队列末尾同样绕回。
      *
      * 播放器本身设了 `pauseAtEndOfMediaItems`，一集结束会先停住，由这里显式决定去向， 所以列表循环与随机也不会出现「跳两集」。
+     *
+     * W27 起「自动下一集」开关（设置 → 播放 / `pref_player_auto_next_episode`）参与判定：
+     * 关闭时当前一集播完停在结束帧，不自动跳下一集（旧「播完暂停」语义）。
      */
     private fun advanceAfterItemEnd() {
         val from = player.currentMediaItemIndex
         val repeatMode = player.repeatMode
-        /*
-         * 「播完暂停」（§1.7）：当前一集播完就停在片尾，不自动跳下一集。
-         * 播放器本身设了 pauseAtEndOfMediaItems，此刻已经是暂停态，这里直接返回即可。
-         */
-        if (
-            repeatMode != Player.REPEAT_MODE_ONE &&
-                appPreferences.getValue(PlayerExtraPreferences.pauseAfterCurrentItem)
+        val autoNext = appPreferences.getValue(PlayerExtraPreferences.autoNextEpisode)
+        when (
+            PlayerEndBehavior.itemEndAction(
+                repeatMode = repeatMode,
+                hasNextMediaItem = player.hasNextMediaItem(),
+                autoNextEpisode = autoNext,
+            )
         ) {
-            Timber.d("pause after item end: stay at index=$from (播完暂停)")
-            return
-        }
-        if (repeatMode == Player.REPEAT_MODE_ONE) {
-            player.seekTo(from, 0L)
-        } else if (player.hasNextMediaItem()) {
-            // hasNextMediaItem() 已经把列表循环与随机算进去了：循环/随机在队列末尾会绕回第一集
-            player.seekToNextMediaItem()
+            PlayerItemEndAction.LOOP_CURRENT -> player.seekTo(from, 0L)
+            PlayerItemEndAction.PLAY_NEXT -> {
+                // hasNextMediaItem() 已经把列表循环与随机算进去了：循环/随机在队列末尾会绕回第一集
+                player.seekToNextMediaItem()
+            }
+            PlayerItemEndAction.STAY_AT_END -> {
+                /*
+                 * 两种「停留」要分开：
+                 * ①「自动下一集」关闭 = 播完暂停（§1.7）：停在当前结束帧，播放页保持不动；
+                 * ② 自动下一集开着、但队列没有下一集 = 队列末尾：按「停在结束帧」决定保持还是收尾
+                 *    （旧行为 = 关闭播放页；STATE_ENDED 分支仍作为兜底）。
+                 */
+                if (!autoNext) {
+                    Timber.d(
+                        "stay at end frame: index=$from repeat=$repeatMode autoNext=false (播完停在结束帧)"
+                    )
+                    return
+                }
+                when (
+                    PlayerEndBehavior.queueEndAction(
+                        appPreferences.getValue(PlayerExtraPreferences.stayAtEndOfFrame)
+                    )
+                ) {
+                    PlayerQueueEndAction.STAY_AT_END ->
+                        Timber.d("queue end: stay at end frame (停在结束帧)")
+                    PlayerQueueEndAction.CLOSE_PLAYER -> {
+                        Timber.d("queue end: close player (队列播完)")
+                        eventsChannel.trySend(PlayerEvents.NavigateBack)
+                    }
+                }
+                return
+            }
         }
         Timber.d(
             "advance after item end: from=$from repeat=$repeatMode " +
@@ -996,6 +1070,21 @@ constructor(
             }
         player.seekTo(index, 0L)
         player.play()
+    }
+
+    /**
+     * W27 播放结束行为：把旧的「播完暂停」迁移成「自动下一集 = 关」。
+     *
+     * 只在旧键为 true 且新键从未写过时迁一次，迁完复位旧键；不会改动用户既有的其他偏好。
+     */
+    private fun migrateEndBehaviorPreferences() {
+        val prefs = appPreferences.sharedPreferences
+        val autoNextKey = PlayerExtraPreferences.autoNextEpisode.backendName
+        val legacyKey = PlayerExtraPreferences.pauseAfterCurrentItem.backendName
+        if (!prefs.contains(autoNextKey) && prefs.getBoolean(legacyKey, false)) {
+            prefs.edit().putBoolean(autoNextKey, false).putBoolean(legacyKey, false).apply()
+            Timber.d("W27 迁移：播完暂停 → 关闭自动下一集")
+        }
     }
 
     override fun onPlaybackStateChanged(state: Int) {
@@ -1018,9 +1107,20 @@ constructor(
                  * 顺序播放走到最后一集就收尾（关闭播放页，与既有行为一致）；
                  * 列表循环 / 随机播放则绕回队列开头继续，单集循环回到本集开头，
                  * 这是「片尾那一帧没能触发到下一集」时的兜底。
+                 *
+                 * W27：顺序播放 + 「停在结束帧」开启时留在最后一帧，不退出播放页。
                  */
                 if (player.repeatMode == Player.REPEAT_MODE_OFF) {
-                    eventsChannel.trySend(PlayerEvents.NavigateBack)
+                    when (
+                        PlayerEndBehavior.queueEndAction(
+                            appPreferences.getValue(PlayerExtraPreferences.stayAtEndOfFrame)
+                        )
+                    ) {
+                        PlayerQueueEndAction.CLOSE_PLAYER ->
+                            eventsChannel.trySend(PlayerEvents.NavigateBack)
+                        PlayerQueueEndAction.STAY_AT_END ->
+                            Timber.d("queue end: stay at end frame (停在结束帧)")
+                    }
                 } else {
                     restartAtQueueEnd()
                 }
@@ -1294,6 +1394,108 @@ constructor(
         subtitleController.selectSecondary(id)
     }
 
+    /**
+     * W27 侧载字幕导入：由 Activity 的系统文件选择器回调。
+     *
+     * 文件复制到 App 私有目录（按当前播放条目保存，不写服务器）；导入成功后立即选中： Exo 走自研 libass 管线，mpv 走 `sub-add`（mpv 内置 libass）。
+     *
+     * @param onResult (成功?, 展示名或错误说明)
+     */
+    fun importSideloadedSubtitle(
+        displayName: String,
+        bytes: ByteArray,
+        onResult: (Boolean, String) -> Unit,
+    ) {
+        val mediaId = currentPlaybackMediaId()
+        if (mediaId == null) {
+            onResult(false, application.getString(R.string.player_subtitle_sideload_no_media))
+            return
+        }
+        viewModelScope.launch {
+            val record =
+                withContext(Dispatchers.IO) {
+                    runCatching { sideloadStore.import(mediaId, displayName, bytes) }.getOrNull()
+                }
+            if (record == null) {
+                onResult(
+                    false,
+                    application.getString(R.string.player_subtitle_sideload_unsupported),
+                )
+                return@launch
+            }
+            sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
+            Timber.d("侧载字幕导入：%s（语言=%s）", record.displayName, record.language)
+            if (playerBackend == PLAYER_BACKEND_MPV) {
+                (player as? MPVPlayer)?.addSubtitleFile(record.path, select = true)
+            } else {
+                val item = currentPlaybackItem()
+                applySubtitlePipelineForMedia(mediaId, pipelineSourcesFor(mediaId, item))
+                val index =
+                    SideloadedSubtitleStore.INDEX_BASE +
+                        sideloads.indexOfFirst { it.path == record.path }
+                if (index >= SideloadedSubtitleStore.INDEX_BASE) {
+                    subtitleController.selectPrimary(index)
+                }
+                applySubtitleRoutingOnly()
+            }
+            publishSubtitlePanelState()
+            onResult(true, record.displayName)
+        }
+    }
+
+    /**
+     * W27 侧载字幕移除：删除本机文件并重建字幕管线。
+     *
+     * Exo 的 [optionId] 是侧载源序号（≥ [SideloadedSubtitleStore.INDEX_BASE]）； mpv 的 [optionId] 是 track
+     * id，按「路径 → track id」反查记录。
+     */
+    fun removeSideloadedSubtitle(optionId: Int) {
+        val mediaId = currentPlaybackMediaId() ?: return
+        val record = resolveSideloadedRecord(optionId) ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { runCatching { sideloadStore.remove(record) } }
+            sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
+            Timber.d("侧载字幕已移除：%s", record.displayName)
+            if (playerBackend == PLAYER_BACKEND_MPV) {
+                (player as? MPVPlayer)?.removeSubtitleFile(record.path)
+            } else {
+                val item = currentPlaybackItem()
+                applySubtitlePipelineForMedia(mediaId, pipelineSourcesFor(mediaId, item))
+                applySubtitleRoutingOnly()
+            }
+            publishSubtitlePanelState()
+        }
+    }
+
+    private fun resolveSideloadedRecord(optionId: Int): SideloadedSubtitle? =
+        if (playerBackend == PLAYER_BACKEND_MPV) {
+            val mpv = player as? MPVPlayer
+            sideloads.firstOrNull { record -> mpv?.subtitleTrackIdForPath(record.path) == optionId }
+        } else {
+            if (optionId < SideloadedSubtitleStore.INDEX_BASE) {
+                null
+            } else {
+                sideloads.getOrNull(optionId - SideloadedSubtitleStore.INDEX_BASE)
+            }
+        }
+
+    /**
+     * W27 PlayerDebugOverlay：读取一份实时快照。
+     *
+     * ExoPlayer 的 `currentPosition` / `bufferedPosition` 等 API 有线程检查，必须在主线程读； mpv 的属性查询会走
+     * native、要求在主线程之外，只有它放 IO。
+     */
+    suspend fun readDebugStats(): PlayerDebugStats {
+        val current = player
+        val stats =
+            if (current is MPVPlayer) {
+                withContext(Dispatchers.IO) { readPlayerDebugStats(current) }
+            } else {
+                readPlayerDebugStats(current)
+            }
+        return stats.copy(decodeStage = currentDecodeStage().name)
+    }
+
     /** 字幕延迟 ±0.1s；两个内核都立即生效，并写回偏好 */
     fun adjustSubtitleDelay(deltaMs: Long) {
         val current = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
@@ -1357,7 +1559,101 @@ constructor(
      * mpv 自带字幕渲染（还能做 secondary-sid 双语），如果这边也加载一份， 画面上会出现两条一模一样的字幕（双显）。
      */
     private fun subtitleSourcesForBackend(item: PlayerItem): List<PlayerSubtitleSource> =
-        playerSubtitleSourcesForBackend(playerBackend, item)
+        playerSubtitleSourcesForBackend(
+            playerBackend,
+            item,
+            // W27 侧载字幕：Exo 走自研管线（libass 渲染），mpv 侧返回空清单、由 native sub-add 接管
+            sideloadSourcesFor(item.itemId.toString()),
+        )
+
+    /** 侧载字幕 → 自研管线的字幕源（序号从 [SideloadedSubtitleStore.INDEX_BASE] 起，避开 Jellyfin 的 0..n） */
+    private fun sideloadSourcesFor(mediaId: String): List<PlayerSubtitleSource> = runCatching {
+        sideloadStore.list(mediaId)
+    }
+        .getOrDefault(emptyList())
+        .mapIndexed { position, record ->
+            PlayerSubtitleSource(
+                index = SideloadedSubtitleStore.INDEX_BASE + position,
+                title = record.displayName,
+                language = record.language,
+                uri = "file://${record.path}",
+                codec = record.codec,
+                isExternal = true,
+            )
+        }
+
+    /**
+     * 换集 / 换片 / 导入 / 移除后重建字幕管线：重载当前条目的侧载记录，自研管线整体替换源清单。
+     *
+     * mpv 侧不经过自研管线，注入交给 [ensureMpvSideloadsInjected]。
+     */
+    private fun applySubtitlePipelineForMedia(
+        mediaId: String,
+        sources: List<PlayerSubtitleSource>,
+    ) {
+        sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
+        subtitleController.reset(mediaId, sources)
+        /*
+         * W27：用户为这个条目导入过字幕，默认沿用第一条侧载（导入本身就是显式选择）；
+         * 仍可在面板里切回服务器字幕或移除。mpv 侧由 sid / slang 决定，不需要这里选。
+         */
+        if (playerBackend != PLAYER_BACKEND_MPV && sideloads.isNotEmpty()) {
+            subtitleController.selectPrimary(SideloadedSubtitleStore.INDEX_BASE)
+        }
+        ensureMpvSideloadsInjected()
+    }
+
+    /** 当前条目要给（Exo）自研字幕管线的源清单：服务器字幕 + 侧载字幕；mpv 返回空（native 接管） */
+    private fun pipelineSourcesFor(
+        mediaId: String,
+        item: PlayerItem?,
+    ): List<PlayerSubtitleSource> =
+        when {
+            playerBackend == PLAYER_BACKEND_MPV -> emptyList()
+            item != null -> subtitleSourcesForBackend(item)
+            else -> sideloadSourcesFor(mediaId)
+        }
+
+    /**
+     * mpv：把当前媒体还没注入的侧载字幕补 `sub-add`。
+     *
+     * 在每次 track-list 变化后调用（文件加载完成、注入完成都会再次回调）；没注入成功时 不会在这里死循环重试，等下一次轨道变化或用户操作再补。
+     */
+    private fun ensureMpvSideloadsInjected(tracks: Tracks? = null) {
+        if (playerBackend != PLAYER_BACKEND_MPV) return
+        if (tracks != null && tracks.groups.isEmpty()) return
+        val mpv = player as? MPVPlayer ?: return
+        // 「已提交 sub-add、track-list 还没回来」也算已注入，避免重复注入（真机踩到过 3 份）
+        val missing = sideloads.filter { !mpv.isSubtitleFileAttached(it.path) }
+        if (missing.isEmpty()) return
+        missing.forEach { record -> mpv.addSubtitleFile(record.path, select = false) }
+        Timber.d(
+            "mpv 侧载字幕注入：%d 条（媒体 %s）",
+            missing.size,
+            player.currentMediaItem?.mediaId,
+        )
+    }
+
+    /** 当前实际播放条目的媒体 id（优先播放器，退回 uiState） */
+    private fun currentPlaybackMediaId(): String? =
+        player.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
+            ?: _uiState.value.currentItemId?.toString()
+
+    /** 当前实际播放条目在 ViewModel 清单里的原始 PlayerItem（队列换集 / 通知回前台都可能取不到） */
+    private fun currentPlaybackItem(): PlayerItem? {
+        val mediaId = player.currentMediaItem?.mediaId ?: return null
+        return items.firstOrNull { it.itemId.toString() == mediaId }
+    }
+
+    private fun currentDecodeStage(): PlayerDecodeMode.DecodeStage =
+        PlayerDecodeMode.decodeStage(
+            backend = playerBackend,
+            mode = appPreferences.getValue(appPreferences.playerDecodeMode),
+            fallbackStage =
+                PlayerDecodeFallback.normalize(
+                    appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
+                ),
+        )
 
     /** 字幕渲染路由：文字轨交给谁渲染 */
     private sealed interface SubtitleRouting {
@@ -1474,7 +1770,10 @@ constructor(
         val style = readSubtitleStyle()
 
         if (playerBackend == PLAYER_BACKEND_MPV) {
-            val options = nativeSubtitleOptions()
+            val mpv = player as? MPVPlayer
+            val sideloadTrackIds =
+                sideloads.mapNotNull { record -> mpv?.subtitleTrackIdForPath(record.path) }.toSet()
+            val options = nativeSubtitleOptions(sideloadTrackIds)
             _subtitlePanelState.value =
                 SubtitlePanelState(
                     primaryOptions = options,
@@ -1494,7 +1793,11 @@ constructor(
             SubtitlePanelState(
                 primaryOptions =
                     state.sources.map { source ->
-                        subtitleOptionOf(source, selected = source.index == state.primaryIndex)
+                        subtitleOptionOf(
+                            source,
+                            selected = source.index == state.primaryIndex,
+                            sideloaded = source.index >= SideloadedSubtitleStore.INDEX_BASE,
+                        )
                     },
                 secondaryOptions =
                     state.sources
@@ -1518,6 +1821,7 @@ constructor(
     private fun subtitleOptionOf(
         source: PlayerSubtitleSource,
         selected: Boolean,
+        sideloaded: Boolean = false,
     ): SubtitleOption {
         val kind =
             when {
@@ -1531,11 +1835,14 @@ constructor(
             caption = "${source.formatLabel} · $kind",
             adjustable = source.isTextBased,
             selected = selected,
+            sideloaded = sideloaded,
         )
     }
 
     /** mpv 字幕轨列表：Format.id 就是 mpv 的 sid */
-    private fun nativeSubtitleOptions(): List<SubtitleOption> =
+    private fun nativeSubtitleOptions(
+        sideloadTrackIds: Set<Int> = emptySet()
+    ): List<SubtitleOption> =
         player.currentTracks.groups
             .filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
             .mapNotNull { group ->
@@ -1550,6 +1857,7 @@ constructor(
                     caption = format.language,
                     adjustable = true,
                     selected = group.isSelected,
+                    sideloaded = id in sideloadTrackIds,
                 )
             }
 
@@ -2070,5 +2378,11 @@ sealed interface PlayerEvents {
 internal fun playerSubtitleSourcesForBackend(
     backend: String,
     item: PlayerItem,
+    /** W27 侧载字幕源（序号 ≥ INDEX_BASE）；mpv 侧不使用（由 native sub-add 接管） */
+    sideloaded: List<PlayerSubtitleSource> = emptyList(),
 ): List<PlayerSubtitleSource> =
-    if (backend == PlayerViewModel.PLAYER_BACKEND_MPV) emptyList() else item.subtitleSources
+    if (backend == PlayerViewModel.PLAYER_BACKEND_MPV) {
+        emptyList()
+    } else {
+        item.subtitleSources + sideloaded
+    }

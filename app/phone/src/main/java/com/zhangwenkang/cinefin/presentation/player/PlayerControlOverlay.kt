@@ -101,6 +101,7 @@ import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.mergePlayerMediaInfo
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
@@ -606,8 +607,12 @@ fun PlayerControlOverlay(
     trickplayFrameAt: (Long) -> Bitmap? = { null },
     /** 进度条是否显示章节刻度（§1.9 设置面板「播放」组；关掉后不画刻度） */
     showChapterMarkers: Boolean = true,
-    /** 循环模式附加项「播完暂停」变化 */
-    onPauseAfterCurrentItemChanged: (Boolean) -> Unit = {},
+    /** W27 侧载字幕：打开系统文件选择器导入（.srt / .ass / .vtt） */
+    onImportSubtitle: () -> Unit = {},
+    /** W27 侧载字幕：移除一条（id 与字幕选择回调同一套 id） */
+    onRemoveSideloadedSubtitle: (Int) -> Unit = {},
+    /** W27 PlayerDebugOverlay：实时数据源（内部在 IO 线程读取） */
+    debugStatsProvider: suspend () -> PlayerDebugStats = { PlayerDebugStats() },
     /** 播放失败后的「重试」：清错误并从当前进度重新拉流 */
     onRetry: () -> Unit,
     /** 「换内核」：ExoPlayer ⇄ mpv（由 Activity 写偏好并重启播放页生效） */
@@ -624,8 +629,9 @@ fun PlayerControlOverlay(
             errorVisible: Boolean,
             buffering: Boolean,
             skipChipVisible: Boolean,
+            debugOverlayVisible: Boolean,
         ) -> Unit =
-        { _, _, _, _, _, _ ->
+        { _, _, _, _, _, _, _ ->
         },
     /** 实测顶栏 / 底栏高度（px）回传给命中区：控件高度一变，触摸分区跟着变（§9 踩坑） */
     onTopBarHeight: (Int) -> Unit = {},
@@ -649,6 +655,8 @@ fun PlayerControlOverlay(
     var sleepMinutes by remember { mutableStateOf<Int?>(null) }
     var sleepRemaining by remember { mutableLongStateOf(0L) }
     var skipChipVisible by remember { mutableStateOf(true) }
+    // W27 PlayerDebugOverlay：长按标题打开，面板上的关闭键关掉
+    var debugOverlayVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(
         controls.visible,
@@ -657,6 +665,7 @@ fun PlayerControlOverlay(
         uiState.playerError,
         runtime.isBuffering,
         skipChipVisible,
+        debugOverlayVisible,
     ) {
         onRegionsChanged(
             controls.visible,
@@ -667,6 +676,8 @@ fun PlayerControlOverlay(
             runtime.isBuffering,
             // W20（§6.1）：跳过提示条独立于控制层，可见时承载视图必须保持合成
             skipChipVisible && uiState.currentSegment != null && !controls.locked,
+            // W27：调试面板独立于控制层，打开期间承载视图必须保持合成
+            debugOverlayVisible,
         )
     }
 
@@ -954,6 +965,11 @@ fun PlayerControlOverlay(
                                 },
                             qualityLabel = videoQualityLabel(runtime.tracks),
                             onBack = onBack,
+                            // W27 PlayerDebugOverlay：长按标题打开实时信息
+                            onTitleLongPress = {
+                                controls.show()
+                                debugOverlayVisible = true
+                            },
                             // 右上角 5 键：画中画 · 睡眠 · 选集 · 画面 · 设置（W12 终版）
                             showQualityLabel = !spec.narrow,
                             tools = toolCluster,
@@ -1120,6 +1136,15 @@ fun PlayerControlOverlay(
             }
         }
 
+        // W27 PlayerDebugOverlay：长按标题打开的实时信息面板（独立于控制层淡出，可单独关闭）
+        if (debugOverlayVisible) {
+            PlayerDebugOverlay(
+                statsProvider = debugStatsProvider,
+                onClose = { debugOverlayVisible = false },
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 76.dp),
+            )
+        }
+
         /* ---------- 面板层：右侧抽屉（§11 C）----------
          * 统一从右侧滑出（与选集栏同款），半透明底直接盖在画面上，画面布局不动；
          * 打开期间触摸由 PlayerOverlayContainer 整层接管（panelOpen），点抽屉外的空白关闭。
@@ -1179,10 +1204,10 @@ fun PlayerControlOverlay(
                             repeatMode = runtime.repeatMode,
                             shuffleEnabled = runtime.shuffleEnabled,
                             canShuffle = runtime.canShuffle,
-                            pauseAfterItem = settingsController.state.pauseAfterCurrentItem,
-                            onTogglePauseAfterItem = { enabled ->
-                                settingsController.setPauseAfterCurrentItem(enabled)
-                                onPauseAfterCurrentItemChanged(enabled)
+                            // W27：循环面板里同一开关改成正向的「自动下一集」（与设置面板同一个偏好）
+                            autoNextEpisode = settingsController.state.autoNextEpisode,
+                            onToggleAutoNextEpisode = { enabled ->
+                                settingsController.setAutoNextEpisode(enabled)
                             },
                             onSelect = { mode, shuffle ->
                                 player.repeatMode = mode
@@ -1207,6 +1232,9 @@ fun PlayerControlOverlay(
                             // W12 反馈 B：字幕模式 / 记忆选择并入主字幕面板，全播放页只有这一个字幕入口
                             controller = settingsController,
                             onSubtitleModeChanged = onSubtitleModeChanged,
+                            // W27：侧载字幕导入 / 移除
+                            onImport = onImportSubtitle,
+                            onRemoveSideloaded = onRemoveSideloadedSubtitle,
                         )
                     PlayerPanel.Audio ->
                         AudioPanel(
@@ -1303,6 +1331,8 @@ private fun PlayerTopBar(
     /** 清晰度徽标（例如 1080P）；取不到时传 null，不占位 */
     qualityLabel: String?,
     onBack: () -> Unit,
+    /** W27：长按标题打开 PlayerDebugOverlay */
+    onTitleLongPress: () -> Unit,
     /** 窄屏：清晰度徽标不占位，把宽度让给标题与 5 个工具键 */
     showQualityLabel: Boolean,
     /** 右上角 5 键（画中画 / 睡眠 / 选集 / 画面 / 设置），由调用方注入保持单一入口与固定顺序 */
@@ -1342,7 +1372,10 @@ private fun PlayerTopBar(
             color = colors.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            modifier =
+                Modifier.weight(1f).pointerInput(onTitleLongPress) {
+                    detectTapGestures(onLongPress = { onTitleLongPress() })
+                },
         )
         if (qualityLabel != null && showQualityLabel) {
             Spacer(Modifier.width(CinefinSpacing.Space2))
@@ -2872,8 +2905,9 @@ private fun RepeatPanel(
     repeatMode: Int,
     shuffleEnabled: Boolean,
     canShuffle: Boolean,
-    pauseAfterItem: Boolean,
-    onTogglePauseAfterItem: (Boolean) -> Unit,
+    /** W27：自动下一集（循环模式之外的独立开关；关 = 当前一集播完停在结束帧） */
+    autoNextEpisode: Boolean,
+    onToggleAutoNextEpisode: (Boolean) -> Unit,
     onSelect: (repeatMode: Int, shuffle: Boolean) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -2910,12 +2944,12 @@ private fun RepeatPanel(
                 enabled = canShuffle,
                 onClick = { onSelect(Player.REPEAT_MODE_ALL, true) },
             )
-            // 「播完暂停」（§1.7）：独立开关——当前一集播完停在片尾，不自动跳下一集
+            // W27：「自动下一集」独立开关——关掉后当前一集播完停在结束帧（旧「播完暂停」语义）
             PanelRow(
-                label = stringResource(PlayerR.string.player_controls_pause_after_item),
-                caption = stringResource(PlayerR.string.player_controls_pause_after_item_caption),
-                selected = pauseAfterItem,
-                onClick = { onTogglePauseAfterItem(!pauseAfterItem) },
+                label = stringResource(PlayerR.string.player_settings_auto_next),
+                caption = stringResource(PlayerR.string.player_settings_auto_next_caption),
+                selected = autoNextEpisode,
+                onClick = { onToggleAutoNextEpisode(!autoNextEpisode) },
             )
         }
     }
@@ -2965,6 +2999,10 @@ private fun SubtitlePanel(
     /** W12 反馈 B：字幕模式 / 记忆选择并入本面板（唯一字幕入口），控制器由 Activity 持有 */
     controller: PlayerSettingsController,
     onSubtitleModeChanged: (String) -> Unit,
+    /** W27：打开系统文件选择器导入侧载字幕 */
+    onImport: () -> Unit,
+    /** W27：移除一条侧载字幕（id 与选择回调同一套 id） */
+    onRemoveSideloaded: (Int) -> Unit,
 ) {
     val colorLabels =
         listOf(
@@ -3029,6 +3067,39 @@ private fun SubtitlePanel(
                 onCheckedChange = { controller.setRememberTrackSelection(it) },
             )
             /*
+             * W27 字幕语言优先级：与音轨面板同一套预设与交互（同一组 chip、同样是「下一次选轨生效」），
+             * 写进既有 `pref_subtitle_languages`。
+             */
+            PanelTitle(stringResource(PlayerR.string.player_subtitle_language))
+            PanelChipRow(
+                options =
+                    AudioLanguagePresets.map { (value, labelRes) ->
+                        stringResource(labelRes) to
+                            (controller.state.subtitleLanguagePreset == value)
+                    },
+                onSelect = { index ->
+                    controller.setSubtitleLanguage(AudioLanguagePresets[index].first)
+                },
+            )
+            Text(
+                text = stringResource(PlayerR.string.player_subtitle_language_caption),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier =
+                    Modifier.padding(
+                        horizontal = CinefinSpacing.Space5,
+                        vertical = CinefinSpacing.Space1,
+                    ),
+            )
+            // W27 侧载字幕：文件选择器导入，只保存在本机（面板主字幕列表里可直接切换 / 移除）
+            PanelTitle(stringResource(PlayerR.string.player_subtitle_sideload))
+            PanelRow(
+                label = stringResource(PlayerR.string.player_subtitle_import),
+                caption = stringResource(PlayerR.string.player_subtitle_import_caption),
+                selected = false,
+                onClick = onImport,
+            )
+            /*
              * 延迟放最上面：调 ±0.1s 是字幕面板最高频的操作，
              * 轨道多的时候（内嵌多语言字幕）不能让它被挤到滚动区下面。
              */
@@ -3077,6 +3148,12 @@ private fun SubtitlePanel(
                         caption = option.caption,
                         selected = option.selected,
                         onClick = { onSelectPrimary(option.id) },
+                        trailing =
+                            if (option.sideloaded) {
+                                { SideloadRemoveKey(id = option.id, onRemove = onRemoveSideloaded) }
+                            } else {
+                                null
+                            },
                     )
                 }
             }
@@ -3095,6 +3172,12 @@ private fun SubtitlePanel(
                         caption = option.caption,
                         selected = option.id == state.secondaryId,
                         onClick = { onSelectSecondary(option.id) },
+                        trailing =
+                            if (option.sideloaded) {
+                                { SideloadRemoveKey(id = option.id, onRemove = onRemoveSideloaded) }
+                            } else {
+                                null
+                            },
                     )
                 }
             }
@@ -3166,6 +3249,22 @@ private fun SubtitleDelayRow(
             onClick = { onAdjust(PlayerSubtitleController.DELAY_STEP_MS) },
         )
     }
+}
+
+/** W27 侧载字幕行尾的移除键（删除本机文件；正在使用的轨会同时被移除） */
+@Composable
+private fun SideloadRemoveKey(
+    id: Int,
+    onRemove: (Int) -> Unit,
+) {
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_trash,
+        contentDescription = stringResource(PlayerR.string.player_subtitle_remove_sideload),
+        onClick = { onRemove(id) },
+        size = 36.dp,
+        iconSize = 20.dp,
+        glass = false,
+    )
 }
 
 /** 外观里的一行档位：标题 + 可横向滚动的一组胶囊 */

@@ -6,7 +6,9 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
+import java.io.File
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
@@ -437,7 +439,16 @@ class PlayerSubtitleController(
 
     // ---------- 文件下载与解码 ----------
 
+    /**
+     * 读取字幕内容。
+     *
+     * W27：除 Jellyfin 的 HTTP 地址外，本机侧载字幕用 `file://` 地址（导入时已复制到 App 私有目录）， 不能强转
+     * HttpURLConnection，需要单独走文件读取。
+     */
     private fun download(uri: String): String {
+        if (uri.startsWith("file:")) {
+            return decodeText(File(URI(uri)).readBytes())
+        }
         val connection =
             (URL(uri).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 10_000

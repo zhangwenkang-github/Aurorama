@@ -60,12 +60,17 @@ data class PlayerSettingsSnapshot(
     val segmentsSkipButtonDuration: Long,
     val segmentsAutoSkip: Boolean,
     val chapterMarkers: Boolean,
-    val pauseAfterCurrentItem: Boolean,
+    /** W27 播放结束行为：自动下一集 */
+    val autoNextEpisode: Boolean,
+    /** W27 播放结束行为：队列播完停在结束帧 */
+    val stayAtEndOfFrame: Boolean,
     val backend: String,
     val mpvHwdec: String,
     val subtitleMode: String,
     val rememberTrackSelection: Boolean,
     val audioLanguagePreset: String,
+    /** W27：字幕语言优先预设（与音轨同一套交互，写 `pref_subtitle_languages`） */
+    val subtitleLanguagePreset: String,
     val gesturesEnabled: Boolean,
     val gesturesBrightnessVolume: Boolean,
     val gesturesZoom: Boolean,
@@ -138,8 +143,11 @@ class PlayerSettingsController(
 
     fun setChapterMarkers(value: Boolean) = write(appPreferences.playerChapterMarkers, value)
 
-    fun setPauseAfterCurrentItem(value: Boolean) =
-        write(PlayerExtraPreferences.pauseAfterCurrentItem, value)
+    /** W27：自动下一集（旧「播完暂停」的反向语义，写新键） */
+    fun setAutoNextEpisode(value: Boolean) = write(PlayerExtraPreferences.autoNextEpisode, value)
+
+    /** W27：队列播完停在结束帧（不退出播放页） */
+    fun setStayAtEndOfFrame(value: Boolean) = write(PlayerExtraPreferences.stayAtEndOfFrame, value)
 
     fun setMpvHwdec(value: String) = write(appPreferences.playerMpvHwdec, value)
 
@@ -150,6 +158,10 @@ class PlayerSettingsController(
 
     fun setAudioLanguage(priorityList: String) =
         write(appPreferences.preferredAudioLanguages, priorityList)
+
+    /** W27：字幕语言优先预设，与音轨共用同一组预设（写 `pref_subtitle_languages`） */
+    fun setSubtitleLanguage(priorityList: String) =
+        write(appPreferences.preferredSubtitleLanguages, priorityList)
 
     fun setGesturesEnabled(value: Boolean) = write(appPreferences.playerGestures, value)
 
@@ -223,13 +235,15 @@ class PlayerSettingsController(
                 appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButtonDuration),
             segmentsAutoSkip = appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkip),
             chapterMarkers = appPreferences.getValue(appPreferences.playerChapterMarkers),
-            pauseAfterCurrentItem =
-                appPreferences.getValue(PlayerExtraPreferences.pauseAfterCurrentItem),
+            autoNextEpisode = appPreferences.getValue(PlayerExtraPreferences.autoNextEpisode),
+            stayAtEndOfFrame = appPreferences.getValue(PlayerExtraPreferences.stayAtEndOfFrame),
             backend = effectiveBackend(),
             mpvHwdec = appPreferences.getValue(appPreferences.playerMpvHwdec),
             subtitleMode = appPreferences.getValue(appPreferences.subtitleMode),
             rememberTrackSelection = appPreferences.getValue(appPreferences.rememberTrackSelection),
             audioLanguagePreset = appPreferences.getValue(appPreferences.preferredAudioLanguages),
+            subtitleLanguagePreset =
+                appPreferences.getValue(appPreferences.preferredSubtitleLanguages),
             gesturesEnabled = appPreferences.getValue(appPreferences.playerGestures),
             gesturesBrightnessVolume = appPreferences.getValue(appPreferences.playerGesturesVB),
             gesturesZoom = appPreferences.getValue(appPreferences.playerGesturesZoom),
@@ -333,12 +347,22 @@ internal fun PlayerSettingsPanel(
                         checked = settings.chapterMarkers,
                         onCheckedChange = { controller.setChapterMarkers(it) },
                     )
+                    /*
+                     * W27 播放结束行为：旧的「播完暂停」拆成两个更直白的开关
+                     * （自动下一集 / 停在结束帧）；旧键在 ViewModel 初始化时迁到新键。
+                     */
                     PanelSwitchRow(
-                        label = stringResource(PlayerR.string.player_settings_pause_after_item),
+                        label = stringResource(PlayerR.string.player_settings_auto_next),
+                        caption = stringResource(PlayerR.string.player_settings_auto_next_caption),
+                        checked = settings.autoNextEpisode,
+                        onCheckedChange = { controller.setAutoNextEpisode(it) },
+                    )
+                    PanelSwitchRow(
+                        label = stringResource(PlayerR.string.player_settings_stay_at_end),
                         caption =
-                            stringResource(PlayerR.string.player_settings_pause_after_item_caption),
-                        checked = settings.pauseAfterCurrentItem,
-                        onCheckedChange = { controller.setPauseAfterCurrentItem(it) },
+                            stringResource(PlayerR.string.player_settings_stay_at_end_caption),
+                        checked = settings.stayAtEndOfFrame,
+                        onCheckedChange = { controller.setStayAtEndOfFrame(it) },
                     )
                     // 循环模式（顺序 / 列表 / 单集 / 随机）在「更多」去重后唯一的入口（W10 反馈⑤）
                     PanelRow(

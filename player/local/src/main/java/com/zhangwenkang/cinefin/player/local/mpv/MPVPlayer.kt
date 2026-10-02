@@ -50,6 +50,7 @@ import dev.jdtech.mpv.MPVLib.MpvEvent
 import dev.jdtech.mpv.MPVLib.MpvFormat
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ln
@@ -371,6 +372,21 @@ class MPVPlayer(
      */
     private var pendingServerSubtitles: List<PlayerSubtitleSource>? = null
 
+    /**
+     * W27 侧载字幕：本机文件路径 → mpv track id。
+     *
+     * track-list 每次变化时重解析（`eventProperty("track-list", …)`），面板据此把侧载轨标出来、 移除时按路径找到 track id 再
+     * `sub-remove`。只在主线程读写（property 回调与 UI 都在主线程）。
+     */
+    private val externalSubtitleTrackIds = ConcurrentHashMap<String, Int>()
+
+    /**
+     * W27：已提交 `sub-add` 但 track-list 还没回来的侧载字幕路径。
+     *
+     * 没有它时，track-list 回包前连续的轨道回调会重复 `sub-add` 同一条字幕（真机实测一次变成 3 条）。
+     */
+    private val pendingSideloadedSubtitleAdds = CopyOnWriteArraySet<String>()
+
     /** App 字幕模式的自动选轨意图：true = sid=auto（按 slang / 默认轨选），false = sid=no */
     private var subtitleAutoSelect: Boolean = true
 
@@ -408,6 +424,7 @@ class MPVPlayer(
                 "track-list" -> {
                     val newTracks = getTracks(value)
                     currentTracks = newTracks
+                    updateExternalSubtitleTracks(value)
                     listeners.sendEvent(EVENT_TRACKS_CHANGED) { listener ->
                         listener.onTracksChanged(currentTracks)
                     }
@@ -719,6 +736,71 @@ class MPVPlayer(
         commandHandler.post { runCatching { logSubtitleState() } }
     }
 
+    // ---------- 侧载字幕（W27） ----------
+
+    /**
+     * 把一条本机侧载字幕 sub-add 给 mpv（mpv 内置 libass 渲染，ASS/SSA 特效生效）。
+     *
+     * [select] = true 时立即选中（用户刚导入的预期就是「马上显示」）；重进条目时用 false， 仍按 slang / 默认轨自动选，避免覆盖用户的自动选轨偏好。
+     */
+    fun addSubtitleFile(
+        path: String,
+        select: Boolean,
+    ) {
+        if (released) return
+        // 已经有这条轨 / 已经提交过注入：不重复 sub-add
+        if (
+            externalSubtitleTrackIds.containsKey(path) || !pendingSideloadedSubtitleAdds.add(path)
+        ) {
+            return
+        }
+        postCommand(arrayOf("sub-add", path, if (select) "select" else "auto"))
+        Timber.d("mpv 注入侧载字幕：%s（select=%b）", path, select)
+    }
+
+    /** 这条本机字幕是否已经注入（含「已提交、track-list 还没回来」的窗口） */
+    fun isSubtitleFileAttached(path: String): Boolean =
+        externalSubtitleTrackIds.containsKey(path) || pendingSideloadedSubtitleAdds.contains(path)
+
+    /** 移除一条侧载字幕（按路径找 track id → `sub-remove`） */
+    fun removeSubtitleFile(path: String) {
+        if (released) return
+        pendingSideloadedSubtitleAdds.remove(path)
+        commandHandler.post {
+            runCatching {
+                if (!externalSubtitleTrackIds.containsKey(path)) {
+                    updateExternalSubtitleTracks(mpvLib.getPropertyString("track-list"))
+                }
+                externalSubtitleTrackIds[path]?.let { id ->
+                    postCommand(arrayOf("sub-remove", id.toString()))
+                    Timber.d("mpv 移除侧载字幕：%s（track id=%d）", path, id)
+                }
+            }
+                .onFailure { Timber.w(it, "mpv 移除侧载字幕失败") }
+        }
+    }
+
+    /** 某条本机字幕文件的 mpv track id（没注入时返回 null） */
+    fun subtitleTrackIdForPath(path: String): Int? = externalSubtitleTrackIds[path]
+
+    /** 反向查找：mpv track id → 本机字幕文件路径（只对侧载轨有效） */
+    fun subtitleTrackPath(trackId: Int): String? =
+        externalSubtitleTrackIds.entries.firstOrNull { it.value == trackId }?.key
+
+    private fun updateExternalSubtitleTracks(trackListJson: String?) {
+        val parsed =
+            parseMpvSubtitleTracks(trackListJson)
+                .mapNotNull { track ->
+                    val id = track.id ?: return@mapNotNull null
+                    val fileName = track.fileName ?: return@mapNotNull null
+                    fileName to id
+                }
+                .toMap()
+        externalSubtitleTrackIds.clear()
+        externalSubtitleTrackIds.putAll(parsed)
+        pendingSideloadedSubtitleAdds.removeAll(parsed.keys)
+    }
+
     /**
      * 容器解析完成后的服务端字幕注入。
      *
@@ -864,6 +946,38 @@ class MPVPlayer(
             )
         }
             .onFailure { Timber.w(it, "mpv 媒体信息读取失败") }
+            .getOrNull()
+    }
+
+    /**
+     * W27 PlayerDebugOverlay 需要的 mpv 实时数值（硬件解码器 / 丢帧 / 缓冲）。
+     *
+     * 取不到一律 null，调用方显示「—」；和 [queryMediaInfo] 一样必须在主线程之外调用。
+     */
+    data class MpvDebugStats(
+        /** 当前生效的硬件解码方式（mediacodec / no / auto-safe…） */
+        val hwdec: String?,
+        val videoBitrate: Int?,
+        val droppedFrames: Int?,
+        /** demuxer 缓存时长（毫秒） */
+        val cacheDurationMs: Long?,
+    )
+
+    fun queryDebugStats(): MpvDebugStats? {
+        if (released) return null
+        return runCatching {
+            MpvDebugStats(
+                hwdec = mpvString("hwdec-current"),
+                videoBitrate = mpvDouble("video-bitrate")?.takeIf { it > 0 }?.toInt(),
+                droppedFrames =
+                    (mpvInt("frame-drop-count") ?: mpvDouble("frame-drop-count")?.toInt())?.takeIf {
+                        it >= 0
+                    },
+                cacheDurationMs =
+                    mpvDouble("demuxer-cache-duration")?.takeIf { it >= 0 }?.times(1000)?.toLong(),
+            )
+        }
+            .onFailure { Timber.w(it, "mpv 调试信息读取失败") }
             .getOrNull()
     }
 
@@ -1240,6 +1354,8 @@ class MPVPlayer(
         currentDurationMs = null
         currentCacheDurationMs = null
         currentTracks = Tracks.EMPTY
+        externalSubtitleTrackIds.clear()
+        pendingSideloadedSubtitleAdds.clear()
         playbackParameters = PlaybackParameters.DEFAULT
         initialCommands.clear()
     }
@@ -2223,8 +2339,12 @@ internal fun selectServerSubtitlesToInject(
     sources: List<PlayerSubtitleSource>
 ): List<PlayerSubtitleSource> = sources.filter { it.isTextBased && !it.isExternal }
 
-/** mpv track-list 里一条字幕轨的摘要；只需要判定「是否容器内嵌」 */
-internal data class MpvSubtitleTrackInfo(val external: Boolean)
+/** mpv track-list 里一条字幕轨的摘要；判定「是否容器内嵌」，并记录侧载轨的 id / 文件名 */
+internal data class MpvSubtitleTrackInfo(
+    val external: Boolean,
+    val id: Int? = null,
+    val fileName: String? = null,
+)
 
 /**
  * 是否存在「容器内嵌字幕轨」（`external=false` 的 sub 轨）。
@@ -2243,7 +2363,13 @@ private fun parseMpvSubtitleTracks(trackListJson: String?): List<MpvSubtitleTrac
             (0 until tracks.length())
                 .mapNotNull { index -> tracks.optJSONObject(index) }
                 .filter { track -> track.optString("type") == MPVTrackType.SUBTITLE.type }
-                .map { track -> MpvSubtitleTrackInfo(external = track.optBoolean("external")) }
+                .map { track ->
+                    MpvSubtitleTrackInfo(
+                        external = track.optBoolean("external"),
+                        id = track.optInt("id").takeIf { it > 0 },
+                        fileName = track.optString("external-filename").takeIf { it.isNotBlank() },
+                    )
+                }
         }
         .getOrDefault(emptyList())
 }

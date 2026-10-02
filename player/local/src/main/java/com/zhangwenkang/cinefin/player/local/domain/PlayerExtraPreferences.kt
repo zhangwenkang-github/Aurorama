@@ -21,8 +21,18 @@ object PlayerExtraPreferences {
     /** 去黑边：自动放大画面填满画面区，去掉与视频比例不一致留下的黑边。默认关 */
     val videoLetterboxCrop = Preference("pref_player_video_letterbox_crop", false)
 
-    /** 循环模式附加项「播完暂停」：当前一集播完停住，不自动跳下一集。默认关 */
+    /**
+     * 循环模式附加项「播完暂停」：当前一集播完停住，不自动跳下一集。默认关。
+     *
+     * @deprecated W27 起并入「自动下一集」开关（[autoNextEpisode] 取反）；本键只用于把旧选择迁过来， 迁移后置 false 不再参与判定。
+     */
     val pauseAfterCurrentItem = Preference("pref_player_pause_after_item", false)
+
+    /** 自动下一集（W27）：当前一集播完自动切下一集。默认开（保持既有行为） */
+    val autoNextEpisode = Preference("pref_player_auto_next_episode", true)
+
+    /** 停在结束帧（W27）：队列 / 整片播完停在最后一帧、不退出播放页。默认关（旧行为 = 关闭播放页） */
+    val stayAtEndOfFrame = Preference("pref_player_stay_at_end_frame", false)
 }
 
 /** 镜像模式的取值（与 [PlayerExtraPreferences.videoMirror] 对应） */
