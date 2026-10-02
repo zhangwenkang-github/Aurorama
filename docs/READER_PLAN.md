@@ -6,10 +6,10 @@
 | 项 | 值 |
 |----|----|
 | 任务线 | 阅读器（EPUB / PDF / CBZ） |
-| 会话 | W1-R1 骨架 → W2-R1 主体 → W3-R1 离线与进度 → W4-R1 · PDF / CBZ 格式支持 → W9-R1 漫画方向（RTL）→ W15-UI 顶栏修复 → **W22-R1 · 跨页对图合并** |
-| 分支 | `feature/r1-pdf-cbz`（W4）→ `feature/w9-reader-comics`（W9）→ **`feature/w22-spread-merge`（W22，当前）** |
-| 基线 | `master` `7ec5015`（2026-10-02） |
-| 状态 | W4 PDF / CBZ 自研 + W9 RTL + W15-UI 顶栏已合并 master；**W22 跨页对图合并落地并完成真机终验**（自动、双栏限定、无新增偏好键）：判定 / 几何纯函数 + `SpreadImageCache` 按需合并，`:modes:book` **57 项单测**（+14）全绿；Pad 5 双格式全槽位：**对图 8/8 命中、负样本 0 误拼**、内存 +12.0 MB/冷启动 327.7 MB、RTL 与页序不回归（§7.10） |
+| 会话 | W1-R1 骨架 → W2-R1 主体 → W3-R1 离线与进度 → W4-R1 · PDF / CBZ 格式支持 → W9-R1 漫画方向（RTL）→ W15-UI 顶栏修复 → W22-R1 · 跨页对图合并 → W26-R1 · 横版独占与带纸边合并 → **W29-R1 · PDF 搜索 + 本地高亮批注** |
+| 分支 | `feature/r1-pdf-cbz`（W4）→ `feature/w9-reader-comics`（W9）→ `feature/w22-spread-merge`（W22）→ `feature/w26-reader-forms`（W26）→ **`feature/w29-pdf-search-annot`（W29，当前）** |
+| 基线 | `master` `d972315`（2026-10-02；W22/W26 均已合并：`21a97d0` / `a3dfc01`） |
+| 状态 | W4 PDF / CBZ 自研 + W9 RTL + W15-UI 顶栏 + W22 跨页对图合并 + W26 横版独占/带纸边裁剪均已合并 master（`modes:book` 77 项单测）；**W29 落地 PDF 文本层搜索 + 本地矩形高亮批注**（PdfBox-Android 流式扫描、`filesDir/reader/annotations/{itemId}.json`），`:modes:book` **101 项单测**（+24）全绿，门禁四绿；本地素材性能取证见 §7.12，**真机窗口未分配（代码 + 单测 + 本地取证，待负责人调度）** |
 
 ## 1. 需求与 W1 范围
 
@@ -356,6 +356,94 @@
    合成时按同一判据在全分辨率位图上重新检测纸边（失败用缩略图比例兜底），裁掉内缘后再拼接。
    黑边（均匀深色）不算纸白，避免误裁（踩坑 23 延续）。
 
+### D22 · PDF 搜索：PdfBox-Android 流式文本层（W29-R1）——**已落地（真机待窗口）**
+
+**选型**（D14 遗留「搜索 / 批注后置」的补课，评估口径 = 许可 / 体积 / 性能 / 与现架构的耦合）：
+
+| 路线 | 结论 | 依据 |
+|------|------|------|
+| **PdfBox-Android 2.0.27.0** | ✅ 选用 | Apache-2.0（与 GPL-3.0 兼容）；纯 Java、**无 native / 无 ABI 体积**；`PDFTextStripper` 同时给逐页文本 + `TextPosition` 字符框（命中矩形要靠它）；`PdfRenderer` 继续负责渲染，两者互不干扰 |
+| androidx.pdf | ❌ | 仍是 beta，公开 API 里没有文本提取 / 搜索，只有「整文档查看器」（与 D14 结论一致） |
+| 有限自研解析 | ❌ | Content stream + ToUnicode CMap（尤其中文嵌入字体）自研成本远大于引入依赖，且 W4 已定「不引 JitPack 三方」 |
+
+**依赖**：只加在 `modes/book/build.gradle.kts` + `gradle/libs.versions.toml`（本波唯一写入者）。
+体积（未混淆构建，R8 关闭）：AAR 3.10 MB + 传递依赖 BouncyCastle 三件套 10.5 MB
+（`bcprov-jdk15to18` 8.91 / `bcpkix` 0.98 / `bcutil` 0.65，仅证书加密路径使用）= **13.6 MB**；
+**整包 A/B 实测（同机同命令，基线 `d972315` vs 本分支）：arm64 APK 102.40 → 115.45 MB，+13.04 MB**
+（v7a 同样 +13.04 MB，与依赖件一致）；
+如需瘦身可 `exclude` 三件套（−10.5 MB），代价是证书加密 PDF 走 `NoClassDefFoundError` 降级
+（搜索报错、页面渲染与批注不受影响），**要真机验证后再做**（§9 遗留）。
+
+**实现口径**：
+
+- **内存**：`PDDocument.load(file, MemoryUsageSetting.setupMixed(8 MB))`——默认 `setupMainMemoryOnly`
+  会把 639 MB 的《虚构推理》整份读进主内存；8 MB 主缓冲 + 溢出临时文件，与 EB-3「3 张页位图」同量级。
+  文本层会话（`PdfBoxPageTextSource`）在首次搜索时按书常驻，换书 / 退出阅读页关闭（`PDDocument.close()`）。
+- **线程**：PdfBox 非线程安全 → 页源内一把 `Mutex` 串行化；扫描在 `Dispatchers.IO`；
+  取消（换关键词 / 关面板 / 离开阅读页）在**下一页边界**生效（回调里抛 `CancellationException`）。
+- **流式 + 有界**：一遍从第 1 页扫到末页，逐页回调出结果（`PdfSearchEngine`）；单页 ≤
+  `PDF_SEARCH_MAX_HITS_PER_PAGE`=6 条、整篇 ≤ `PDF_SEARCH_MAX_HITS`=400 条，达上限即停并标 `truncated`；
+  进度每 `PDF_SEARCH_PROGRESS_STEP`=25 页刷新一次 → 结果列表用 LazyColumn + 稳定 key 增量追加，
+  3649 页也不会把整表塞进一帧（「懒加载 / 分页」要求由此落地）。
+- **命中矩形**：`TextPosition.getX()/getY()`（PDFBox 已按页面 `/Rotate` 折算）+ `getWidthDirAdj()/getHeightDir()`
+  → 页面归一化矩形（与批注同一 `PageRect` 模型）；片段（含换行）与矩形按命中顺序配对；
+  矩形匹配走「压缩文本」（去空白 + 大小写不敏感），所以同一词被换行拆开也能标出来。
+- **无文本层**：整篇有效字符 < `PDF_SEARCH_MIN_TEXT_CHARS`=40 → UI 明确提示「该 PDF 没有文本层，无法搜索
+  （可用矩形批注）」；扫描件搜索是「秒级空扫 + 明确提示」，不会卡住阅读页。
+- **入口**：只对 PDF 开放（顶栏「搜索」）；结果点击 → 跳页 + 页面叠加命中矩形（`PageOverlay`）。
+
+**本地性能取证**（桌面 JVM Apache PDFBox 2.0.27，与 Android 端口同源代码；只读 `test_files/`，
+**未占用真机**；脚本为临时探针，未入库）：
+
+| 素材 | 页数 / 体积 | 抽到字符 | 全量扫描 | 每页 |
+|------|------------|---------|---------|------|
+| attention_is_all_you_need.pdf（有文本层，英文论文） | 15 页 / 2.2 MB | 33,486 | 2.28 s | **152 ms** |
+| W22-Spread-Test.pdf（图片页，无文本层） | 30 页 / 36 MB | 0 | 33 ms | **1.1 ms** |
+| 金田一原画 PDF（图片页） | 5,006 页 / 2.36 GB | 0 | 0.20 s | **0.04 ms** |
+| 深入理解计算机系统（第三版）（扫描版） | 775 页 / 524 MB | 0 | 0.07 s | **0.08 ms** |
+
+结论：**扫描件（虚构推理 / 金田一同型）搜索是秒级的「空扫 + 无文本层提示」**；有文本层的 PDF 成本与
+页数线性（桌面 ≈0.15 s/页，15 页含首次加载与 JIT 预热），3649 页纯文本 PDF 会是分钟级，靠
+「流式出结果 + 可取消 + 400 条上限」兜住体验。Android（ART + 设备 IO）一定慢于桌面，**真机实测待窗口**。
+
+### D23 · 本地高亮批注：矩形选区 + 页面归一化锚点（W29-R1）——**已落地（真机待窗口）**
+
+- **粒度 = 矩形选区 + 备注**（不是文字选择）：扫描件没有文本层也能用，也不依赖 Readium 的 Decoration 体系；
+  批注层与搜索命中共用同一套页面叠加（`PageOverlay` + `PageOverlayGeometry` 的 Fit 数学）。
+- **存储 = 本地文件**：`filesDir/reader/annotations/{itemId}.json`，一个 itemId 一个文件，原子写
+  （`.tmp` + rename）；读失败 / 坏 JSON 回退空列表，不阻塞阅读页。**不写服务器**（服务器没有标准批注 API）、
+  **不用 Room**（D4 / D11 同款策略，Room schema 是咽喉资源）。
+- **文件格式（version 1，字段缺省 / 未知字段可读）**：
+
+  ```json
+  {
+    "version": 1,
+    "itemId": "<jellyfin itemId>",
+    "annotations": [
+      {
+        "id": "5f0c…",
+        "page": 12,
+        "left": 0.10, "top": 0.22, "right": 0.48, "bottom": 0.31,
+        "note": "备注文本（可为空）",
+        "createdAtMs": 1759400000000,
+        "updatedAtMs": 1759400000000
+      }
+    ]
+  }
+  ```
+
+- **锚点口径**：`page` = 0-based 逻辑页索引（与页指示 / progression 同口径）；矩形 = 页面归一化 [0,1]、
+  左上原点、按**渲染方向**（PdfRenderer 的页面尺寸，含 `/Rotate`）归一化；不随阅读模式 / 缩放 / RTL 变化
+  （叠加层在页面内部、跟随 `ContentScale.Fit` 与缩放变换）。
+- **交互**：顶栏「批注」→ 面板（不依赖文本层）；「开始框选」进入批注模式（页面上单指拖动框选，
+  单指翻页暂停、双指缩放暂停），松手弹备注输入；非批注模式单击已有框 → 编辑 / 删除；列表支持跳转 / 删除。
+- **兼容边界（要求记录）**：
+  - **RTL**：只改渲染相位，页索引与归一化矩形不变；
+  - **双栏（未合并槽）**：每页各画自己的矩形，天然正确；
+  - **合并槽位（W22/W26 对图拼合）**：合并位图是两页拼出来的，本波**不叠加**批注 / 命中矩形
+    （数据仍按逻辑页保存，切回单页 / 分页 / 未合并槽即可见；映射方案见 §9 遗留）；
+  - 后续若要改粒度（文字选择 / 手绘 / 导出）：新增字段或抬 `version`，旧记录按矩形继续可读。
+
 ## 3. 接口契约（已落地）
 
 ```kotlin
@@ -600,6 +688,28 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
 - [x] ⑥ 真机（Pad 5 `43af8627`）：横版独占页号计数 + 与分页渲染像素一致；W22 8/8 命中回归（新进程全走）；
       W26 44 页 12/12 命中（含 4 条 `trim=` 裁剪路径）、负样本 0 误拼；RTL / progression / 无 FATAL 全过。
       真机拦下并修复两个缺陷（页指示 0/1-based 错位、合成裁剪方向写反）。详见 §7.11。
+
+### W29 任务清单（R1-SEARCH-ANNOT，2026-10-02 · 分支 `feature/w29-pdf-search-annot`）
+
+- [x] ① PDF 搜索选型（D22）：PdfBox-Android 2.0.27.0（Apache-2.0，无 native）对比 androidx.pdf /
+      有限自研；依赖只加 `modes/book/build.gradle.kts` + `libs.versions.toml`；本地素材性能取证见 §7.12。
+- [x] ② 流式搜索链路：`PdfBoxPageTextSource`（8 MB 主缓冲 + 临时文件、Mutex 串行、逐页流式、
+      空页补齐）+ `PdfSearchEngine`（单页 ≤6 / 整篇 ≤400、达上限即停、进度每 25 页、可取消）+
+      `PdfSearchUiState`（去抖 400ms、结果增量追加）。
+- [x] ③ 搜索 UI：顶栏「搜索」→ 面板（关键词输入 + 状态行 + 命中列表页码/片段 + 命中词高亮）→
+      点击跳页 → 页面 `PageOverlay` 叠加命中矩形；无文本层 / 上限 / 取消 / 失败都有明确文案。
+- [x] ④ 本地高亮批注（D23）：`ReaderAnnotation` + `ReaderAnnotationCodec`（version 1 JSON）+
+      `ReaderAnnotationStore`（`filesDir/reader/annotations/{itemId}.json`，原子写）；矩形框选 + 备注输入、
+      批注列表（跳转 / 删除）、单击已有框编辑 / 删除；批注模式单指框选（翻页 / 缩放在此模式暂停）。
+- [x] ⑤ 兼容性与边界：RTL / 双栏（未合并槽）直接复用归一化矩形；合并槽（W22/W26 对图拼合）不叠加，
+      数据仍按逻辑页保存；不依赖文本层（扫描件可用）；CBZ 未开放（同一页模型，留作后续）。
+- [x] ⑥ 单测 24 项：`PdfSearchTest` 12（归一化 / 片段 / 字符框 / 配对 / 上限 / 流式 / 无文本层 / 空查询 /
+      取消 / 进度）+ `ReaderAnnotationTest` 8（夹取 / 最小尺寸 / 摘要 / 编解码往返 / 兼容旧文件 /
+      存储增改删 / 截断）+ `PageOverlayGeometryTest` 4（Fit 数学 / 退化尺寸 / 正反映射 / 越界夹取）。
+- [x] ⑦ 门禁：`assembleDebug`（含 TV）+ `ktfmtCheck` + `:app:phone:testLibreDebugUnitTest` +
+      `:modes:book:testDebugUnitTest`（**101 项**）全绿。
+- [ ] ⑧ 真机走查（**设备未分配**，等负责人调度）：搜索命中 / 跳转 / 命中矩形叠加、批注增删改、
+      RTL / 双栏 / 合并槽显示、3649–5006 页文档输入响应与列表滚动、PSS 采样。
 
 ## 7. 真机验证记录（2026-09-30）
 
@@ -1011,6 +1121,55 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
   `/sdcard/Download/{w26_edge,w22_restore}.cbz` 全部删除；K60 未触碰。设备副作用仅剩 W22 PDF 的正常阅读进度
   （0.5）。
 
+### 7.12 W29 PDF 搜索 + 本地批注：本地取证（2026-10-02；**未占用真机**）
+
+设备未分配（device-lock：W29 登记为「暂未分配」；Pad 5 归 W27、K60 归 W28），本波只做
+**代码 + 单测 + 本地只读素材取证**：不碰 Jellyfin 服务器、不使用 adb、不写服务器数据。
+
+**7.12.1 门禁（本分支）**
+
+| 命令 | 结果 |
+|------|------|
+| `assembleDebug`（根，含 TV） | ✅ BUILD SUCCESSFUL |
+| `ktfmtCheck` | ✅ 0 未格式化文件 |
+| `:app:phone:testLibreDebugUnitTest` | ✅ 全绿 |
+| `:modes:book:testDebugUnitTest` | ✅ **101 项**（W26 的 77 + 本波 24）全绿 |
+
+**7.12.2 构建特征（真机走查时的装机核验口径）**
+
+- arm64 APK 115.45 MB（基线 `d972315` 同命令构建 102.40 MB，**+13.04 MB** = PdfBox + BouncyCastle；
+  v7a 同样 +13.04 MB）；
+- `classes3.dex` 含本波特征串 `reader pdf search stopped`（同一 dex 里还有 W22/W26 的
+  `reader spread merge` / `reader spread layout`）；PdfBox 类（`com/tom_roush`）分布在
+  `classes3/17/33.dex` —— 装机后可比对 dex 特征串，排除「跑在别人的构建上」（踩坑 19）。
+
+**7.12.3 单测覆盖（24 项）**
+
+- `PdfSearchTest`（12）：关键词归一化 / 片段折叠换行并定位命中 / 字符框大小写与空白无关匹配 /
+  中文命中与上限 / 片段与矩形配对 / 单页上限 / 流式按页出命中与完成状态 / 达上限提前结束 /
+  无文本层标记 / 空关键词不扫描 / 取消在页边界生效 / 进度步长。
+- `ReaderAnnotationTest`（8）：矩形夹取（含 NaN 与反向输入）/ 最小可点尺寸 / 备注摘要 /
+  编解码往返 / 标签 / 坏文件与未知字段兼容 / 存储按 itemId 分文件 + 增改删 + 重新读盘 / 备注截断。
+- `PageOverlayGeometryTest`（4）：Fit 落位与 `ContentScale.Fit` 一致 / 退化尺寸除零保护 /
+  归一化矩形 ↔ 像素正反映射 / 框选越界夹取与过小框忽略。
+
+**7.12.4 素材与性能（桌面 JVM 同源代码，详见 D22 表）**
+
+- `attention_is_all_you_need.pdf`：15 页抽出 33,486 字符，2.28 s（152 ms/页，含首次加载 + JIT 预热）；
+- 扫描件（W22-Spread-Test 30 页、金田一原画 5006 页、深入理解计算机系统 775 页）：**0 字符**、
+  合计毫秒级 → 「无文本层」路径成立且不会拖慢阅读页；
+- **未做**：真机（ART + 设备 IO）耗时、`dumpsys meminfo` PSS、3649 页《虚构推理》实机搜索 —— 等窗口。
+
+**7.12.5 未覆盖 / 真机待验清单（交负责人调度）**
+
+1. 搜索：命中列表滚动流畅度（3649 页文档边扫边滚）、跳页后命中矩形与文字的贴合度、
+   「无文本层」提示在真实扫描件上的文案与路径、旋转页（`/Rotate` 90/270）矩形相位；
+2. 批注：矩形框选（含双指 / 单指竞争）、备注输入与保存、列表跳转 / 删除、
+   RTL 与双栏相位、合并槽位（W22/W26 命中对图）下不叠加的可见性确认；
+3. 内存：搜索会话（8 MB 主缓冲 + 临时文件）与批注叠加层对 PSS 的影响；
+4. 交互回归：批注模式下翻页暂停是否符合预期（退出批注模式恢复）、`ModalBottomSheet` 内的
+   搜索输入与列表在手机形态（411dp）下的可达性。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -1186,6 +1345,27 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 - **判定扫描的边界成本**：`pageAspectRatios` 对 CBZ 要读 3649 个条目头、对 PDF 要 openPage 全书；
   大文档首次进双栏会有一次后台扫描（不阻塞首帧，完成前用 W22 版式占位）。
 
+### W29 遗留（交接负责人 / 下一波）
+
+- **真机未验（设备未分配）**：搜索命中 / 跳转 / 矩形贴合、批注增删改、RTL / 双栏 / 合并槽显示、
+  3649–5006 页文档的输入响应与列表滚动、PSS 采样、旋转页（`/Rotate`）相位 ——
+  清单见 §7.12.5，等负责人派窗口（Pad 5 / K60 任一均可，素材已在服务器与 `test_files/`）。
+- **合并槽位的叠加映射**：W22/W26 命中对图的合并槽位不叠加批注 / 命中矩形（数据仍按逻辑页保存）。
+  后续可用 `spreadPieceOrder` + `spreadHalfSourceRange` + 裁剪比例把逻辑页矩形映射到合并位图；
+  映射要做成纯函数 + 单测（左半裁内缘、右半裁内缘的方向不能写反，踩坑 26）。
+- **CBZ 未开放搜索 / 批注**：同一页模型与同一存储格式可直接复用（无文本层 → 只开放批注即可），
+  本波为了验收口径只开放 PDF；如需开放是一行开关 + 真机走查。
+- **BouncyCastle 瘦身**：`exclude` 三件套可 −10.5 MB（+13.04 MB → +2.5 MB）；
+  代价是证书加密 PDF 走 `NoClassDefFoundError` 降级（搜索报错、页面渲染与批注不受影响），
+  需要真机用加密样本验证后再做。
+- **重复搜索无索引缓存**：每次改关键词都从头扫一遍（扫描件毫秒级、文本层 PDF 分钟级）；
+  若真机实测文本层 PDF 体验差，可做「页文本缓存 / 落盘索引（按 itemId + 文件大小指纹）」，
+  并把「从当前页向外扫」作为可选项。
+- **搜索会话内存**：`PDDocument`（8 MB 主缓冲 + 临时文件）在首次搜索后按书常驻到换书；
+  真机 PSS 采样后若偏高，可改为「关面板即 `close()`」或 `setupTempFileOnly()`。
+- **命中矩形与片段的一致性**：片段按原文本（含换行）匹配，矩形按压缩文本匹配，两者在
+  「跨行拆词」时可能数量不一致（矩形按序号配对、多余矩形丢弃）；真机走查时确认贴合度。
+
 ## 10. 变更日志
 
 | 日期 | 变更 |
@@ -1202,3 +1382,4 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 | 2026-10-02 | W26-READER（分支 `feature/w26-reader-forms`）：①双栏「横版整页独占」——新增 `SpreadLayout.kt` 版式纯函数（阈值 1.15、槽位划分、RTL 相位、页→槽映射）与双栏接入（后台扫描尺寸、无横版不重建、独占槽整屏 Fit），页指示按实际页范围；②带纸边对图裁剪合并——`SpreadMerge.kt` 列统计 / 纸白判据 / 裁剪上限 / 更严裁剪路径门槛，合成时全分辨率重检 + 比例兜底 + 源范围纯函数（修「裁剪方向写反」真机缺陷）；③单测 57 → 77；④自造 `W26-Spread-Edge-Test`（44 页）离线 12/12 命中 0 误判、真机 12/12（4 条 trim 路径）+ W22 8/8 回归 + 0 误拼 + RTL/progression 不回归（§7.11）；门禁四绿；见 §2 D21 |
 | 2026-10-02 | **W22-R1（分支 `feature/w22-spread-merge`）：跨页对图合并（D20）** —— 判定 / 几何纯函数（`SpreadMerge.kt`：竖版半页几何门槛、内缘亮度取样、中缝四条门槛、双栏槽位相位含 RTL、合并尺寸）+ `SpreadMergeCache.kt`（256 px 缩略图判定 → 两半统一高度合成 → 2 张 LRU → 邻槽预取 → 失败回退两页）+ `SimpleBookView.kt` 双栏槽位接入 + `PageSource.pageSizePx`；**只在双栏生效**，页号 / progression / 分页 / 滚动语义零变化，无新增偏好键；新增 14 项单测（模块 57 项，7 类）全绿；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` + app / book 单测通过；素材复核与阈值标定见 §7.9（金田一原画 PDF 5006 页：4768 页横版整页已是对图 → 无合并触发点，另暴露"双栏一屏 4 页"的形态问题）；随后自造 `W22-Spread-Test`（PDF 36.1 MB / CBZ 34.6 MB × 30 页，脚本 `tools/w22-spread-test/make_spread_test_book.py`），离线自测四组（LTR/RTL × PDF/CBZ）全部 8/8 命中、0 误判（§7.9.4）；真机待派窗口 |
 | 2026-10-02 | **W22-R1 真机终验完成**（Pad 5 `43af8627`，16:30–16:54，负责人指派窗口；素材 = 用户上传的 `W22-Spread-Test` PDF + CBZ）：双栏逐槽位 —— 8 对拆页型对图**全部命中**（`reader spread merge` 8 条，continuity 0.86–0.89 / corr 1.00 / diff 0.00）、5 对独立单页 + 低相似 + 横版整页**0 误拼**；中缝空带合并 0 px / 未合并 307 px、相邻两列 corr ≥0.9972；滑动后即时帧无两页闪动；内存 A/B **+12.0 MB ≈ 1 张合并位图**（PDF）、CBZ −17.3 MB（噪声内）、3649 页真实漫画冷启动稳态 **327.7 MB** 且 0 次误拼；RTL 相位 / 页号 / progression / 冷启动恢复不回归；无 FATAL/ANR；设备副作用还原。详见 §7.10 |
+| 2026-10-02 | **W29-R1（分支 `feature/w29-pdf-search-annot`）：PDF 搜索 + 本地高亮批注**（D22 / D23）——①搜索：引入 `PdfBox-Android 2.0.27.0`（Apache-2.0，无 native；依赖只加 `modes/book/build.gradle.kts` + `libs.versions.toml`），`PdfBoxPageTextSource`（8 MB 主缓冲 + 临时文件、Mutex 串行、逐页流式、空页补齐）+ `PdfSearchEngine`（单页 ≤6 / 整篇 ≤400、达上限即停、进度每 25 页、可取消）+ 搜索面板（去抖 400ms、LazyColumn 增量追加、命中词高亮）+ `PageOverlay` 命中矩形叠加；无文本层 / 上限 / 取消 / 失败均有明确文案；②批注：`ReaderAnnotation` + version 1 JSON 编解码 + `ReaderAnnotationStore`（`filesDir/reader/annotations/{itemId}.json`，原子写）+ 矩形框选 / 备注 / 列表跳转 / 删除，不写服务器、不用 Room、不依赖文本层；③单测 77 → **101**（新增 `PdfSearchTest` / `ReaderAnnotationTest` / `PageOverlayGeometryTest` 共 24 项）；④门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app + book（101）四绿；⑤本地取证（未占真机）：桌面同源 PdfBox 实测（15 页文本层 152 ms/页；5006 页扫描件 0.2 s 空扫）与整包 A/B（**+13.04 MB**，102.40 → 115.45 MB），见 §7.12；真机窗口待负责人调度（§9 遗留） |
