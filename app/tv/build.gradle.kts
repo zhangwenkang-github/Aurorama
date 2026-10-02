@@ -62,6 +62,11 @@ android {
         }
     }
 
+    androidResources {
+        // W40：与 app:phone 同步 —— core 的 MiSansVF.ttf 需未压缩存储，Typeface.Builder 才能 mmap。
+        noCompress += "ttf"
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
 

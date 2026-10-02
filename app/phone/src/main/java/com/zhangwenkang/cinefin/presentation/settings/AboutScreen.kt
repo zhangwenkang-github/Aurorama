@@ -124,6 +124,12 @@ fun AboutScreen(navigateBack: () -> Unit) {
                                 text = stringResource(CoreR.string.app_description),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
+                            Spacer(Modifier.height(MaterialTheme.spacings.small))
+                            // MiSans 许可条款①：软件内特别注明使用了 MiSans 字体（W40 字体修正波）。
+                            Text(
+                                text = stringResource(CoreR.string.misans_attribution),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                             Spacer(Modifier.height(MaterialTheme.spacings.medium))
                             HorizontalDivider()
                             Spacer(Modifier.height(MaterialTheme.spacings.medium))

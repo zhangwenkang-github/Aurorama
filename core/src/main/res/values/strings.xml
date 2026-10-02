@@ -152,4 +152,6 @@
     <string name="nav_back">Back</string>
     <!-- 调用点落在红线文件 NavigationRoot.kt，本轮按字面量更新；后续如需 %1$s 注入 app_name 走申报。 -->
     <string name="console_back_to_app">Back to Aurorama</string>
+    <!-- W40 字体修正波：MiSans 许可条款①「在软件中特别注明使用了 MiSans 字体」（关于页常显）。 -->
+    <string name="misans_attribution">This app uses the MiSans font (© Xiaomi Technology Co., Ltd.)</string>
 </resources>

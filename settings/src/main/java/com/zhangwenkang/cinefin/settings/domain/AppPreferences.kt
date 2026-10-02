@@ -25,7 +25,7 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Interface
     val theme = Preference("pref_theme", "system")
-    /** 动态取色默认关闭：影阁有自己的墨底 + 朱砂配色， 跟随系统壁纸会把品牌色冲掉；想要 Material You 的用户可在设置里打开。 */
+    /** 动态取色默认关闭：极光幕有自己的墨底 + 朱砂配色， 跟随系统壁纸会把品牌色冲掉；想要 Material You 的用户可在设置里打开。 */
     val dynamicColors = Preference("pref_dynamic_colors", false)
     val homeSuggestions = Preference<Boolean>("home_suggestions", true)
     val homeContinueWatching = Preference<Boolean>("home_continue_watching", true)

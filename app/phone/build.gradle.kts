@@ -66,6 +66,12 @@ android {
         }
     }
 
+    androidResources {
+        // W40：MiSansVF.ttf 以 assets 原文件入库，加载走 Typeface.Builder(assets, path)（mmap / openFd）。
+        // 压缩存储会退化为「整包读入直接内存」（20 MB/字重），API 28 上还可能拿不到文件描述符。
+        noCompress += "ttf"
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
 
