@@ -308,8 +308,9 @@ private fun MergedSpreadPage(
     rtl: Boolean,
     contentColor: Color,
 ) {
-    var merged by remember(spread) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(spread) { merged = mergeCache.mergedSpread(spread) }
+    // 第一帧先查缓存（预取过的邻槽直接上合并图），没有才异步判定 + 合成。
+    var merged by remember(spread) { mutableStateOf(mergeCache.cached(spread)) }
+    LaunchedEffect(spread) { if (merged == null) merged = mergeCache.mergedSpread(spread) }
     val image = merged
     if (image == null) {
         SpreadPages(

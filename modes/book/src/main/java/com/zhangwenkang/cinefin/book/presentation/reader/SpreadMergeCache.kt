@@ -52,6 +52,12 @@ internal class SpreadImageCache(
         }
     }
 
+    /**
+     * 同步取已备好的合并位图（组合期第一帧用）：命中过一次 / 已预取的槽位直接拿到，避免先渲染两页再 换成合并图的闪动与多余渲染；没有则返回 null，由 [mergedSpread]
+     * 异步构建。
+     */
+    fun cached(spread: Int): Bitmap? = if (spread < 0) null else cache.get(spread)
+
     /** 预取邻槽（停稳后调用）：命中会连判定带位图一起备好，不命中只留一条判定缓存。 */
     suspend fun prefetch(spread: Int) {
         if (spread < 0 || spread >= spreadUpperBound()) return
