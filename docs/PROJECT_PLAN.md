@@ -37,7 +37,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
 | **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档（设计记入 `docs/ARCHITECTURE.md` §5.4） | 🟢 W31-CONN 实现完成 | **分支 `feature/w31-connection`（已推送未合并）**：自签证书 TOFU（指纹确认 / 记住 / 清除；data 网络层 + 添加服务器 / 登录 / 服务器页 UI；纯函数 + 真实 TLS 集成测试）；多用户（列表 / 切换 / 添加入口既有，修复删除当前用户悬空 + 当前账号标记 + 单测）。遗留：真机联调待设备调度、第二 Jellyfin 用户待服务器提供、WebView 控制台未接信任 |
 | **Web 控制台**（内置 WebView + 影阁皮肤） | `docs/web-console-skin.css`（唯一权威副本，改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） | ✅ 基本完成 | 跟随 App 令牌与配色 |
-| **下载 / 离线** | `docs/DOWNLOAD_PLAN.md`（W32 建线） | 🟡 **W32-DOWNLOAD（分支 `feature/w32-download-manager`，已推送未合并）：下载管理 UI（进行中 / 已完成 / 失败 + 暂停 / 恢复 / 重试 / 删除 + 批量 + 存储占用）+ 任务韧性（系统 DownloadManager 续传 / 失败原因 / 网络恢复自动重试）；设备待调度** | 真机验收（DOWNLOAD_PLAN §6）；本地文件播放留后续波 |
+| **下载 / 离线** | `docs/DOWNLOAD_PLAN.md`（W32 建线） | 🟡 W32 已合并 master `9738877`；**K60 真机验收完成（断网 / force-stop 续传、批量暂停删除、完成与删除、存储占用通过）+ sidecar 残留修复 `5341027`（已推送未合并）**；未触发：FAILED 自动重试 / 空间不足 / reboot 续传（DOWNLOAD_PLAN §6–§7） | 合并 `5341027`；补验未触发项；本地文件播放留后续波 |
 | **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
 | **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | 无 | ⛔ 未开始 | 收尾阶段 |
 | **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W29 全部完成（master `e465a83`，347 项单测全绿） | W27（外挂字幕导入/语言优先级/结束行为/DebugOverlay）、W28（逐字歌词/提示行清理/编辑增强）、W29（PDF 搜索/本地批注）均已合并推送；Pad 5 + K60 已装新整合版（W29 真机验收进行中）；进行中：W30 音乐音效、W31 连接层（自签证书/多用户）、W32 下载管理；待办：品牌（字体/图标/名字）、全量回归与发布准备 |
