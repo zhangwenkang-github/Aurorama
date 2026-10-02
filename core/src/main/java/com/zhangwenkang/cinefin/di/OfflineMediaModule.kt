@@ -28,6 +28,7 @@ object OfflineMediaModule {
         appPreferences: AppPreferences,
     ): OfflineMediaRepository =
         OfflineMediaRepositoryImpl(
+            context = context,
             database = serverDatabase,
             sidecar = DownloadMediaSidecar(context),
             readerRepository = readerRepository,

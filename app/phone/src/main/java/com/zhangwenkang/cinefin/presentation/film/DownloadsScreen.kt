@@ -551,6 +551,15 @@ private fun HierarchyContainerCard(
                 tint = colors.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )
+            // W36：容器级「允许离线模式观看」（已完成容器：节目 / 专辑 / 书籍卡片）。
+            if (!selectionMode && container.status == DownloadHierarchyStatus.COMPLETED) {
+                Switch(
+                    checked = container.descendantEntries().all { it.allowOffline },
+                    onCheckedChange = { allow ->
+                        onAction(DownloadAction.SetContainerOffline(container.key, allow))
+                    },
+                )
+            }
             if (!selectionMode && container.canDelete) {
                 Spacer(Modifier.size(CinefinSpacing.Space1))
                 CinefinIconButton(
@@ -806,10 +815,11 @@ private fun ArtworkThumb(
     val colors = LocalCinefinColors.current
     val context = LocalContext.current
     val resolvedUri = imageUri?.let { raw ->
-        if (!raw.contains("://") && !raw.startsWith("images/")) {
-            "${context.filesDir}/$raw"
-        } else {
-            raw
+        // W36：服务器 URL / 本地绝对路径原样使用；相对路径（images/…）补成绝对路径，离线也能加载。
+        when {
+            raw.contains("://") -> raw
+            raw.startsWith("/") -> raw
+            else -> "${context.filesDir}/$raw"
         }
     }
     Box(
@@ -847,6 +857,15 @@ private fun childSelectionKeys(child: DownloadHierarchyChild): List<String> =
     when (child) {
         is DownloadHierarchyLeaf -> listOf(child.key)
         is DownloadHierarchySubContainer -> child.children.map { it.key }
+    }
+
+/** W36：容器内的全部条目（容器级离线开关的聚合口径）。 */
+private fun DownloadHierarchyContainer.descendantEntries(): List<DownloadHierarchyEntry> =
+    children.flatMap { child ->
+        when (child) {
+            is DownloadHierarchyLeaf -> listOf(child.entry)
+            is DownloadHierarchySubContainer -> child.children.map { it.entry }
+        }
     }
 
 @Composable

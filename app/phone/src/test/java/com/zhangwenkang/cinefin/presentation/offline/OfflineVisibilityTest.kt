@@ -110,6 +110,24 @@ class OfflineVisibilityTest {
         assertTrue(movie.canOpen)
     }
 
+    @Test
+    fun offlineLibraryOnlyKeepsVideos() {
+        // W36 补充要求：离线媒体库只展示已下载节目（视频）；音乐 / 书籍走各自入口。
+        val entries =
+            listOf(
+                sampleVideo(name = "电影", allowOffline = true),
+                sampleMusic(name = "曲目", trackIndex = 1),
+                sampleBook(name = "书", allowOffline = true),
+            )
+
+        val videos = OfflineMediaVisibility.videoOnly(entries)
+        assertEquals(listOf("电影"), videos.map { it.name })
+        assertEquals(
+            listOf("电影"),
+            OfflineMediaVisibility.buildHierarchy(videos, includeHidden = false).map { it.title },
+        )
+    }
+
     private fun sampleVideo(name: String, allowOffline: Boolean) =
         OfflineMediaEntry(
             itemId = UUID.randomUUID(),
