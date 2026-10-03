@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +31,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -498,7 +497,6 @@ internal fun PanelSwitchRow(
     enabled: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
@@ -530,19 +528,11 @@ internal fun PanelSwitchRow(
             }
         }
         Spacer(Modifier.width(CinefinSpacing.Space3))
-        Switch(
+        // W44：统一走 core `CinefinSwitch`（关闭态拇指提亮 + 轨道描边），皮肤随 Prism / Lumen 自动切换。
+        CinefinSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
-            colors =
-                SwitchDefaults.colors(
-                    checkedThumbColor = media.onBase,
-                    checkedTrackColor = media.base,
-                    checkedBorderColor = media.base,
-                    uncheckedThumbColor = colors.onSurfaceVariant,
-                    uncheckedTrackColor = colors.surfaceContainerHighest,
-                    uncheckedBorderColor = colors.outline,
-                ),
         )
     }
 }

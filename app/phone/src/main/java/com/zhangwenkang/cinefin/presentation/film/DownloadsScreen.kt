@@ -24,7 +24,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,6 +53,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -553,7 +553,7 @@ private fun HierarchyContainerCard(
             )
             // W36：容器级「允许离线模式观看」（已完成容器：节目 / 专辑 / 书籍卡片）。
             if (!selectionMode && container.status == DownloadHierarchyStatus.COMPLETED) {
-                Switch(
+                CinefinSwitch(
                     checked = container.descendantEntries().all { it.allowOffline },
                     onCheckedChange = { allow ->
                         onAction(DownloadAction.SetContainerOffline(container.key, allow))
@@ -692,7 +692,7 @@ private fun HierarchyLeafCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
                     // W36：已完成条目的「允许离线模式观看」开关（默认开；关闭后离线媒体库隐藏）。
                     if (entry.status == DownloadTaskStatus.COMPLETED) {
-                        Switch(
+                        CinefinSwitch(
                             checked = entry.allowOffline,
                             onCheckedChange = { onAction(DownloadAction.ToggleOffline(entry.key)) },
                         )

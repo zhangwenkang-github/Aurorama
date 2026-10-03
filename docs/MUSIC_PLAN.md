@@ -152,6 +152,13 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 | D55 | **音乐来源空态文案 + 真实下拉刷新（W39，用户 2026-10-03 确认）** | ①**空态按来源分支**（纯函数 `musicEmptyCopy`，`modes/music`）：本地「本地还没有音乐」/「在『媒体库 → 本地媒体库』添加包含音乐的文件夹后回来」；服务器「服务器音乐库里还没有专辑（按 tab 换 艺术家 / 歌曲）」/「下拉可刷新」；全部「服务器和本地都还没有音乐」/「在服务器或本地媒体库添加音乐后，下拉刷新」；离线「离线模式还没有可播放的音乐」/「联网后在曲目菜单点「下载」，或下拉刷新本地音乐索引」；歌单「服务器上没有歌单」/「下拉可刷新」。**不再出现「在服务器添加音乐后点「刷新」」这类错源 / 不存在控件文案**。②**真实下拉刷新**：内容区接 Compose M3 `PullToRefreshBox`（四 tab 共用），下拉触发 `MusicModeViewModel.refresh()`；`UiState` 新增 `refreshing`（首次加载仍整页 loading，刷新保留列表只转顶部指示）；空态容器改 `verticalScroll` 以接收下拉手势；**离线模式 refresh() 只重读本机索引，不发服务器请求**（保持离线语义）。③**计数副题细化**（纯函数 `musicLibrarySubtitle`）：筛选「本地」=「共 N 张本地专辑」/ 服务器 =「共 N 张服务器专辑」/ 全部 =「共 N 张专辑」（艺术家 / 歌曲同理；离线无前缀；歌单仍「共 N 个歌单」）。④**取证日志**：`曲库刷新：requested / 重新请求服务器曲库 / 重读本地媒体库索引 / 完成`（logcat 关键词「曲库刷新」，供验收复核「真实重取」）；不改 `pref_music_source_*` 键、不改 `player:core` / `player:local`。 |
 
+### 2.14 W44 本会话决策（音乐三件套：开关对比度 / 统一滑杆 / 手势）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D56 | **全屏播放页与歌词页手势改向（用户 2026-10-03 确认）**：全屏播放页 **左滑 → 歌词页**、下滑关闭、**右滑留空**（不再绑定歌词）、**取消左滑打开队列**；歌词页 **右滑 → 返回全屏播放页**、下滑返回、左上返回箭头保留；队列仍只由「队列」按钮 / 底部队列图标打开。判定逻辑抽成纯函数 `swipeGestureDirection(totalX, totalY, 横阈值, 纵阈值)`（`MusicNowPlayingScreen.kt`），未达阈值返回 `null`，5 项单测 | 覆盖 W23 D29「右滑进歌词 / 左滑呼出队列」的方向决策（用户 2026-10-03 改口）；把"横向位移占优才判横滑、纵向下滑单独判"的矩阵从 `pointerInput` 闭包里提出来，两页共用同一函数、方向可单测，阈值不再散落 |
+| D57 | **音效面板的开关与滑杆改走 core 共享组件**（`CinefinSwitch` / `CinefinSlider`；全 App 范围与组件规格见 `UI_PLAN` D46）：开关关闭态拇指 `onSurfaceVariant` + 轨道 `surfaceContainerHigh` / `onSurfaceFaint` 描边；滑杆 = 4dp 胶囊轨道 + 18dp 圆点拇指 + 极轻同色柔光（与播放页 D38 自绘 `MusicProgressBar` 同一视觉语言）。**W30 交互语义不变**：`onValueChange` 实时预览、`onValueChangeFinished` 才落盘（W30 踩坑 38），EQ 关闭时五段滑杆 `enabled=false`，ReplayGain 覆盖的 0.5 dB 步进改由 `steps` + 吸附纯函数实现 | 用户实测：①M3 默认 `Switch` 关闭态拇指取 `outline`，在暗底上几乎看不见（「开启均衡器」小圆点不明显）；②M3 默认 `Slider` 的竖条拇指（浮标）与播放页圆点进度条不是一套语言。共享组件 + 纯函数吸附让"拖动实时生效、松手落盘"可被单测与真机像素双重取证，也避免两处滑杆各写一份样式 |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -333,6 +340,19 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] **真机验证（Pad 5 `43af8627` 主 + K60 抽验，2026-10-03 04:22–04:37）**：见 §5.12
 
 **遗留（明示）**：①服务器 / 全部两种**空态**分支在测试服务器（105 张专辑 / 123 首）上不可复现，用 5 项单测覆盖，真机只验证了「本地」「歌单」「离线」三种空态 + 三种筛选的计数副题；②刷新不改数据源口径（服务器只读），「数据更新」以仓库重取日志 + 计数副题为准。
+
+### W44 音乐三件套：开关对比度 / 统一滑杆 / 手势（本会话 `feature/w44-music-detail`，起点 master `77feba9`）
+
+- [x] **A 全局开关配色**：core 新增 `CinefinSwitch` + `cinefinSwitchColors()`——关闭态拇指 `onSurfaceVariant`、轨道 `surfaceContainerHigh`、描边 `onSurfaceFaint`；开启态当前域媒体色；禁用态降透明但仍可辨；Prism / Lumen 由 `LocalCinefinColors` / `LocalMediaColors` 自动切换，**未新增任何色值**
+- [x] **A 替换面**：`MusicEffectsSheet`、`SettingsSwitchCard`、`PlayerSettingsPanel`、`DownloadsScreen`×2、`LocalLibraryScreens`、`OfflineScreens`×2 全部改走共享组件；阅读器纸色面板保留按 `ReaderSettings` 派生的自定义配色（同一组件、显式传色）
+- [x] **B 统一滑杆**：core 新增 `CinefinSlider` + `CinefinSliderColors` / `CinefinSliderDefaults`——4dp 胶囊轨 + 18dp 圆点拇指 + 极轻柔光；支持 `steps` 吸附、禁用态、RTL、36dp 触控带（手势自消费）；数值 / 触摸换算纯函数 `cinefinSliderFraction` / `cinefinSliderValueAt` + 7 项单测
+- [x] **B 替换面**：EQ 五段 + ReplayGain 曲目 / 专辑覆盖（`MusicEffectsSheet`）、阅读器 `ReaderSettingsPanel` 数值滑杆；仓库内 `androidx.compose.material3.Slider` 使用点清零（`rg "Slider("` 只剩 core 组件自身）；播放页自绘 `MusicProgressBar` 不动，仅核对同一视觉语言
+- [x] **C 手势**：全屏左滑进歌词 / 右滑留空 / 取消左滑队列 / 下滑关闭；歌词页右滑返回 / 下滑返回 / 左上箭头保留；队列按钮与底部图标行为不变
+- [x] **单测**：core +7（`CinefinSliderMathTest`，含 0.5 dB 档位吸附）、music +5（`MusicSwipeGestureTest`）
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；`--rerun` 后 app 79 / core 25 / data 33 / player:local 104 / film 6 / book 106 / music 109 = **462 项 / 0 失败**
+- [x] **真机验证（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03 12:20–12:50）**：见 §5.13（含开关关闭态 thumb / 轨道像素采样与对比度）
+
+**遗留（明示）**：①歌词页「下滑返回」在歌词列表处于可滚动位置时依赖列表滚动边界，长歌词列表从中间下滑仍是滚动列表（与 W23 同款行为，未改）；②`CinefinSlider` 为自绘实现，键盘 / 无障碍只提供 `progressBarRangeInfo` + `setProgress`（无 M3 的完整键盘步进）；③滑杆发光沿用播放页的 `GlowScale = 2.6`，若后续设计系统调整进度条光晕需同步。
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -674,6 +694,28 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 > 未覆盖（明示）：服务器 / 全部两种空态分支在测试服务器（105 专辑 / 123 曲）不可复现，由 `MusicLibraryCopyTest` 5 项单测覆盖；下拉刷新只做只读重取，不存在写服务器动作。
 
+### 5.13 W44 真机验证记录（2026-10-03 12:20–12:50，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+窗口登记 / 释放见 `device-lock.md`；服务器只读；安装包 = 本 worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。采样像素均取 `screencap` 原图（Pad 5 1600×2560 / K60 1440×3200，360dpi），截图看完即删、不入库。
+
+| # | 项目 | 操作 / 证据 | 结果 |
+|---|------|------------|------|
+| 1 | A 开关关闭态（Prism / 音乐域） | 音效面板「开启均衡器」关：`checkable checked=false`；像素采样 thumb `(167,176,189)` = `onSurfaceVariant #A7B0BD`（952 px）、轨道填充 `(34,42,54)` = `surfaceContainerHigh #222A36`（4642 px）、描边 `(110,120,135)` = `onSurfaceFaint #6E7887`（1294 px）、面板底 `(23,29,37)` | ✅ |
+| 2 | A 对比度 | thumb / 轨道 **6.6:1**、thumb / 面板底 **7.74:1**；同位置 M3 默认（thumb = `outline #2C3542`）对面板底仅 **1.37:1** → 提亮后约 5.6 倍 | ✅ |
+| 3 | A 两套皮肤 + 开启态 | 客户端设置（Lumen）关闭态 thumb `(152,162,179)` = `textSecondary #98A2B3`、轨道 `(23,26,33)` = `panelElevated #171A21`、描边 `(107,116,131)` = `textFaint #6B7483`，thumb/底 **7.21:1**；开启态 Prism（Pad 5）轨道 `(63,201,160)` = 松石 `#3FC9A0`、拇指 `(6,18,13)` = `onBase`，Lumen（设置页）轨道 `(92,225,210)` = 极光青 | ✅ |
+| 3b | A 禁用态 | Pad 5 设置页「隐藏底栏」行（平板形态 `enabled=false`）：拇指 `(107,116,131)` = `onSurfaceFaint`、轨道 `(23,26,33)` = Lumen `panelElevated`、描边 `(69,76,87)`（= `onSurfaceFaint @55%` 合成）；拇指对轨道 **3.69:1**（Prism 同式 3.24:1），禁用仍可辨 | ✅ |
+| 4 | B 滑杆样式 | 音效面板 EQ 五段 + ReplayGain 两条 + 阅读器数值滑杆全部为圆点拇指：启用态拇指 `(244,241,234)` = `onSurface`（18dp 圆点，含同色柔光）、已填充轨 `(63,203,161)`、未填充轨 `(51,56,64)`（`progressTrack` 白 12% 合成）；与播放页进度条同语言 | ✅ |
+| 5 | B 拖动实时生效 | EQ 60 Hz 段拖动 → 面板标签 `+0.0 dB → +3.7 dB` 即时刷新；ReplayGain「曲目增益」拖动 → `未设置 → +7.0 dB`（0.5 dB 档位吸附） | ✅ |
+| 6 | B 松手落盘 | `run-as` 读 `shared_prefs/…_preferences.xml`：`pref_music_eq_custom_bands=3.7,0.0,0.0,0.0,0.0`；ReplayGain 覆盖写 `files/replaygain/<itemId>.txt`（20 B）→ 点「清除本机覆盖」后文件消失、标签回「未设置」；验证后 EQ 复原 `0.0×5` + `pref_music_eq_enabled=false` | ✅ |
+| 7 | B 禁用态 | EQ 关闭时五段滑杆 `enabled=false`：thumb 40% 白（含 glow，实测中心 `(128,169,157)`）、已填充 `(45,104,92)`、未填充 `(34,40,47)`，三态仍可辨 | ✅ |
+| 8 | C 全屏页手势 | 全屏播放页左滑（`input swipe 1400 1200 200 1200 150`）→ 歌词页出现 `content-desc="返回全屏播放"`；**左滑不再打开播放队列**（代码层已无该绑定，队列面板未出现） | ✅ |
+| 9 | C 歌词页手势 / 下滑 | 歌词页右滑 → 回全屏（`退出全屏` 出现、`返回全屏播放` 消失）；歌词页下滑 → 回全屏；全屏下滑 → 关闭（回曲库 + 迷你条 `正在播放`） | ✅ |
+| 10 | C 队列入口不回归 | 全屏页点「播放队列」图标 → 队列面板打开（`播放队列（89）` + 拖拽提示 + 条目）；面板可用系统返回关闭 | ✅ |
+| 11 | K60 抽验 | 冷启动 915 ms；左滑进歌词 / 右滑回全屏；音效面板开关与滑杆同款（开启态轨道 `(63,201,160)` / 拇指 `(6,18,13)`，滑杆行 teal 轨 + 圆点） | ✅ |
+| 12 | 稳定性 / 还原 | 双机整轮 `FATAL EXCEPTION` / `ANR in io.github.zhangwenkang.aurorama` **0 条**；双机 `am force-stop`、`/sdcard/w44*.png|xml` 清理、EQ 与 ReplayGain 覆盖复原、`pref_music_resume_queue` / `pref_local_library_visible` 保持 true | ✅ |
+
+> 未覆盖（明示）：①歌词页下滑返回未在"歌词长列表非顶部"场景单独取证（与 W23 同款行为）；②K60 只做手势 + 面板抽验，未复跑 EQ / RG 落盘（同 APK、同共享组件，落盘链路由 Pad 5 取证 + 单测覆盖）；③滑杆的键盘 / TalkBack 步进未做人工走查（语义只提供 `setProgress`）。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -765,6 +807,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 43. **空态不可滚动 → `PullToRefreshBox` 收不到下拉手势**（W39）：PTR 依赖子树的嵌套滚动事件，空态如果只是 `Box(fillMaxSize)` 居中放空状态，手指下拉没有任何可滚动节点消费，刷新永远不触发。修法：把空态包成 `Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Center)`——内容比视口小时仍居中、同时把手势转给 PTR；`CinefinEmptyState` 自身是 `fillMaxWidth + padding`，不会在无限高约束下崩。
 
 ## 7. 会话日志
+
+- **2026-10-03 W44 音乐三件套（本会话，`feature/w44-music-detail`，起点 master `77feba9`）**：读 `PROJECT_PLAN` §1–§5、`MUSIC_PLAN`（D29 / D38 / D49–D55 + 踩坑库）、`UI_PLAN`（D41–D45）、`UI_DESIGN_SYSTEM` §2/§4/§5 后开工（developer.android.com 两条官方页 20 s 超时不可达，按任务书回退项目设计系统 + 既有自绘进度条口径执行）。①**A 开关**：core 新增 `CinefinSwitch`（关闭态拇指 `onSurfaceVariant` / 轨道 `surfaceContainerHigh` / 描边 `onSurfaceFaint`；开启态域媒体色；禁用态可辨），替换音效面板 / 设置卡片 / 播放器面板 / 下载 / 本地库 / 离线共 8 处裸 `Switch`；②**B 滑杆**：core 新增 `CinefinSlider`（4dp 胶囊轨 + 18dp 圆点拇指 + 极轻柔光，`steps` 吸附 / 禁用 / RTL / 36dp 触控带），替换 EQ 五段 + RG 覆盖 + 阅读器滑杆，仓库 M3 默认 `Slider` 清零；③**C 手势**：全屏左滑进歌词 / 右滑留空 / 左滑队列取消 / 下滑关闭，歌词页右滑返回，判定抽纯函数 `swipeGestureDirection`。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **462 项 / 0 失败**（core 18→25、music 104→109）。真机 Pad 5 主 + K60 抽验（§5.13）：开关关闭态像素 `#A7B0BD` / 轨道 `#222A36` / 描边 `#6E7887`，对比度 6.6:1（旧默认 1.37:1）；Lumen 关闭态 `#98A2B3` / `#171A21` / `#6B7483`；EQ +3.7 dB 与 RG 覆盖 +7.0 dB 实时生效且落盘 / 清除可回读；左滑进词 / 右滑返回 / 下滑关闭 / 队列按钮全部命中；双机 0 FATAL / ANR，副作用已还原。分支已推送未合并。
 
 - **2026-10-03 W39 音乐来源文案 + 真实下拉刷新**（本会话，`feature/w39-media-library-polish`）：①新增 `MusicLibraryCopy.kt`（纯函数 `musicLibrarySubtitle` / `musicEmptyCopy` + `MusicEmptyCopy`）并把空态接进 `AlbumList` / `ArtistList` / `SongList` / `PlaylistList`（`EmptyHint` 支持 message 且改可滚动）；②`MusicModeScreen` 内容区接 `PullToRefreshBox`（四 tab 共用，`state.refreshing` 与 `loading` 分离），`MusicModeViewModel.refresh()` 按首载 / 刷新分流并在离线分支只重读本机索引 + 记录「曲库刷新」取证日志；③计数副题按来源筛选细化。单测 `MusicLibraryCopyTest` 5 项（music 99 → 104）；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，整仓 437 项 / 0 失败。真机 Pad 5 主 + K60 抽验（§5.12）：三种筛选口径、本地 / 歌单 / 离线空态、在线下拉「重新请求服务器曲库」+ 完成计数、离线下拉「只重读本机索引（无服务器请求）」、双机 0 FATAL / ANR；新增踩坑 43。分支已推送未合并。
 - **2026-09-30 W1-R2**（本会话）：完成 §3 W1 全部条目；替换/新增文件见 git 提交；结论：音乐骨架 + 最小闭环可用，视频互斥链路真机通过；遗留 W2 待办见 §3。

@@ -16,8 +16,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -25,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_MAX_GAIN_DB
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_MIN_GAIN_DB
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_REPLAYGAIN_OVERRIDE_MAX_DB
@@ -103,7 +103,7 @@ fun MusicEffectsSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(checked = equalizerEnabled, onCheckedChange = onToggleEqualizer)
+                CinefinSwitch(checked = equalizerEnabled, onCheckedChange = onToggleEqualizer)
             }
             LazyRow(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -250,7 +250,7 @@ private fun EqualizerBandRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Slider(
+        CinefinSlider(
             value = gainDb,
             onValueChange = { value -> onPreview(index, value) },
             onValueChangeFinished = onCommit,
@@ -279,7 +279,7 @@ private fun OverrideGainRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Slider(
+        CinefinSlider(
             value = gainDb ?: 0f,
             onValueChange = onPreview,
             onValueChangeFinished = onCommit,

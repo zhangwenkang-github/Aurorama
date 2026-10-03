@@ -102,7 +102,7 @@ fun MusicNowPlayingScreen(
 ) {
     val item = queue.currentItem ?: return
     val colors = LocalCinefinColors.current
-    // 歌词页与全屏播放页同属一个覆盖层（右滑进歌词 / 歌词页左滑返回）
+    // 歌词页与全屏播放页同属一个覆盖层（W44：左滑进歌词 / 歌词页右滑返回）
     var lyricsPage by rememberSaveable(item.itemId) { mutableStateOf(false) }
     BackHandler { if (lyricsPage) lyricsPage = false else onClose() }
 
@@ -118,7 +118,7 @@ fun MusicNowPlayingScreen(
                 onLineClick = onSeekLyricLine,
                 modifier =
                     Modifier.swipeGestures(
-                        onSwipeLeft = { lyricsPage = false },
+                        onSwipeRight = { lyricsPage = false },
                         onSwipeDown = { lyricsPage = false },
                     ),
             )
@@ -146,8 +146,7 @@ fun MusicNowPlayingScreen(
                 onToggleFavorite = onToggleFavorite,
                 modifier =
                     Modifier.swipeGestures(
-                        onSwipeRight = { lyricsPage = true },
-                        onSwipeLeft = onOpenQueue,
+                        onSwipeLeft = { lyricsPage = true },
                         onSwipeDown = onClose,
                     ),
             )
@@ -869,9 +868,11 @@ private fun PrimaryPlayButton(isPlaying: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * 全屏播放页的滑动手势：右滑进歌词 / 左滑回全屏 / 下滑退出。
+ * 全屏播放页与歌词页的滑动手势（W44 用户确认）：
+ * - 全屏播放页：**左滑进入歌词页** / 下滑退出（右滑留空，队列只由「队列」按钮打开）；
+ * - 歌词页：**右滑返回全屏播放页** / 下滑返回。
  *
- * 子组件（进度条、歌词滚动）先消费自己的拖动，父层检测拿不到已消费的手势， 因此拖动进度条与滚动歌词不会误触发翻页。
+ * 判定逻辑抽成纯函数 [swipeGestureDirection]；子组件（进度条、歌词滚动）先消费自己的拖动，父层检测拿不到已消费的手势， 因此拖动进度条与滚动歌词不会误触发翻页。
  */
 internal fun Modifier.swipeGestures(
     onSwipeRight: (() -> Unit)? = null,
@@ -892,16 +893,46 @@ internal fun Modifier.swipeGestures(
                     total += amount
                 },
                 onDragEnd = {
-                    if (abs(total.x) >= abs(total.y)) {
-                        if (total.x >= horizontalPx) onSwipeRight?.invoke()
-                        else if (total.x <= -horizontalPx) onSwipeLeft?.invoke()
-                    } else if (total.y >= verticalPx) {
-                        onSwipeDown?.invoke()
+                    when (swipeGestureDirection(total.x, total.y, horizontalPx, verticalPx)) {
+                        SwipeDirection.Right -> onSwipeRight?.invoke()
+                        SwipeDirection.Left -> onSwipeLeft?.invoke()
+                        SwipeDirection.Down -> onSwipeDown?.invoke()
+                        null -> Unit
                     }
                 },
             )
         }
     )
+
+/** 全屏播放页 / 歌词页的滑动方向。 */
+internal enum class SwipeDirection {
+    Right,
+    Left,
+    Down,
+}
+
+/**
+ * 拖动位移 → 手势方向（纯函数）：
+ *
+ * 横向位移绝对值占优时按横向阈值判定左 / 右滑（未达阈值返回 `null`，不触发任何动作）； 否则只有向下位移达到纵向阈值才算下滑。
+ */
+internal fun swipeGestureDirection(
+    totalX: Float,
+    totalY: Float,
+    horizontalThresholdPx: Float,
+    verticalThresholdPx: Float,
+): SwipeDirection? =
+    if (abs(totalX) >= abs(totalY)) {
+        when {
+            totalX >= horizontalThresholdPx -> SwipeDirection.Right
+            totalX <= -horizontalThresholdPx -> SwipeDirection.Left
+            else -> null
+        }
+    } else if (totalY >= verticalThresholdPx) {
+        SwipeDirection.Down
+    } else {
+        null
+    }
 
 /** Jellyfin runtimeTicks → 毫秒（1 tick = 100 ns）。 */
 internal const val TICKS_PER_MS = 10_000L

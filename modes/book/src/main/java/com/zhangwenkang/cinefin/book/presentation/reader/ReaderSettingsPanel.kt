@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +27,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSliderColors
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -179,7 +179,8 @@ private fun RtlSwitchRow(
                 color = contentColor.copy(alpha = 0.72f),
             )
         }
-        Switch(
+        // W44：组件统一走 core；纸色 / 护眼面板自带底色，配色仍按 ReaderSettings 派生（不用 Prism token）。
+        CinefinSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors =
@@ -225,17 +226,19 @@ private fun SliderRow(
             style = CinefinType.BodyMedium,
             color = contentColor,
         )
-        Slider(
+        // W44：默认 M3 竖条拇指换成 core 统一圆点滑杆；纸色面板配色按 ReaderSettings 派生。
+        CinefinSlider(
             value = value,
             onValueChange = onValueChange,
             valueRange = range,
             // 平板按 §8.14 的 230dp 宽度呈现；手机（≈392dp 宽）自动收缩，数值文本不再被挤出屏幕
             modifier = Modifier.weight(1f, fill = false).widthIn(max = 230.dp),
             colors =
-                SliderDefaults.colors(
-                    thumbColor = Color.White,
+                CinefinSliderColors(
                     activeTrackColor = accent,
                     inactiveTrackColor = contentColor.copy(alpha = 0.16f),
+                    thumbColor = Color.White,
+                    glowColor = accent.copy(alpha = 0.35f),
                 ),
         )
         Text(

@@ -2,17 +2,13 @@ package com.zhangwenkang.cinefin.presentation.settings.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
@@ -25,8 +21,6 @@ fun SettingsSwitchCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     SettingsBaseCard(preference = preference, onClick = onClick, modifier = modifier) {
         SettingsRow(
             title = stringResource(preference.nameStringResource),
@@ -39,23 +33,11 @@ fun SettingsSwitchCard(
                     modifier = Modifier.width(SettingsTrailingWidth),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Switch(
+                    // W44：配色统一走 core `CinefinSwitch`（关闭态拇指提亮 + 轨道描边），本页不再自拼颜色。
+                    CinefinSwitch(
                         checked = preference.enabled && preference.value,
                         onCheckedChange = { onClick() },
                         enabled = preference.enabled,
-                        // W6-VIS：开关轨道 = 当前强调色（Lumen 区域即极光青），拇指用配对的深色前景；
-                        // 未选中用雾灰轨道 + 发丝线描边，读作"关"而不是"灰色按钮"。
-                        colors =
-                            SwitchDefaults.colors(
-                                checkedTrackColor = media.base,
-                                checkedThumbColor = media.onBase,
-                                checkedBorderColor = Color.Transparent,
-                                uncheckedTrackColor = colors.surfaceContainerHigh,
-                                uncheckedThumbColor = colors.onSurfaceVariant,
-                                uncheckedBorderColor = colors.outline,
-                                disabledCheckedTrackColor = media.base.copy(alpha = 0.38f),
-                                disabledUncheckedTrackColor = colors.surfaceContainerHigh,
-                            ),
                         modifier = Modifier.scale(SettingsSwitchVisualScale),
                     )
                 }

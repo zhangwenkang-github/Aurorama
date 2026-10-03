@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +43,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -560,7 +560,7 @@ private fun OfflineContainerCard(
                 )
             }
             Spacer(Modifier.width(CinefinSpacing.Space2))
-            Switch(checked = allAllowed, onCheckedChange = onToggleAllow)
+            CinefinSwitch(checked = allAllowed, onCheckedChange = onToggleAllow)
             if (directLeaf == null) {
                 Icon(
                     painter =
@@ -651,7 +651,7 @@ private fun OfflineLeafCard(
                 Text(text = detail, style = CinefinType.BodySmall, color = colors.onSurfaceVariant)
             }
             Spacer(Modifier.width(CinefinSpacing.Space2))
-            Switch(checked = allowOffline, onCheckedChange = onToggleAllow)
+            CinefinSwitch(checked = allowOffline, onCheckedChange = onToggleAllow)
         }
     }
 }
