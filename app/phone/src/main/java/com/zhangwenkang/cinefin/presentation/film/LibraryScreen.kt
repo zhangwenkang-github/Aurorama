@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -80,6 +81,10 @@ fun LibraryScreen(
     onOpenDrawer: (() -> Unit)? = null,
     /** 临时库视图（W53 追加）：非空 = 顶栏显示「返回默认 ×」胶囊（一键回默认书架 / 库）。 */
     onBackToDefault: (() -> Unit)? = null,
+    /**
+     * 顶层页顶栏动作（W54-C 追加）：书架页注入「库选择 / 收藏」，排在「返回默认 ×」之后、排序列之前。 视频页与书架页共用同一顶栏组件，动作区由调用方注入，避免在库内容页里堆分支。
+     */
+    topBarActions: @Composable RowScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -99,6 +104,7 @@ fun LibraryScreen(
         topLevel = topLevel,
         onOpenDrawer = onOpenDrawer,
         onBackToDefault = onBackToDefault,
+        topBarActions = topBarActions,
         state = state,
         onAction = { action ->
             when (action) {
@@ -124,6 +130,7 @@ private fun LibraryScreenLayout(
     topLevel: Boolean,
     onOpenDrawer: (() -> Unit)?,
     onBackToDefault: (() -> Unit)? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
     state: LibraryState,
     onAction: (LibraryAction) -> Unit,
 ) {
@@ -207,6 +214,7 @@ private fun LibraryScreenLayout(
                 if (onBackToDefault != null) {
                     CinefinBackToDefaultChip(onClick = onBackToDefault)
                 }
+                topBarActions()
                 TopBarAction(
                     icon = CoreR.drawable.ic_arrow_down_up,
                     onClick = { showSortByDialog = true },

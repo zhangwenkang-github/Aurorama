@@ -23,4 +23,10 @@
     <string name="bookshelf_empty_message">当前服务器（或这个账号）看不到书籍库。</string>
     <string name="video_empty_title">暂无视频库</string>
     <string name="video_empty_message">当前服务器（或这个账号）看不到电影或剧集库。</string>
+    <string name="video_library_all">全部库</string>
+    <string name="library_favorite">收藏当前媒体库</string>
+    <string name="video_sleep_timer">睡眠定时</string>
+    <string name="video_sleep_timer_hint">睡眠定时将在下一版提供；本版只接入顶栏入口。</string>
+    <string name="bookshelf_library_auto">自动</string>
+    <string name="library_current_detail">当前：%1$s</string>
 </resources>

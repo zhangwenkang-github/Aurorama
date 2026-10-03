@@ -23,4 +23,10 @@
     <string name="bookshelf_empty_message">This server (or this account) has no books library to show.</string>
     <string name="video_empty_title">No video libraries</string>
     <string name="video_empty_message">This server (or this account) has no movie or TV show libraries to show.</string>
+    <string name="video_library_all">All libraries</string>
+    <string name="library_favorite">Favorite this library</string>
+    <string name="video_sleep_timer">Sleep timer</string>
+    <string name="video_sleep_timer_hint">The sleep timer arrives in the next release — this build only wires up the entry point.</string>
+    <string name="bookshelf_library_auto">Automatic</string>
+    <string name="library_current_detail">Current: %1$s</string>
 </resources>

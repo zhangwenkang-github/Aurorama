@@ -34,6 +34,8 @@ fun BaseItemDto.toFindroidCollection(jellyfinRepository: JellyfinRepository): Fi
     return FindroidCollection(
         id = id,
         name = name.orEmpty(),
+        // W54-C：库级「收藏」状态来自服务器 UserData（视频页 / 书架顶栏的收藏图标据此点亮）。
+        favorite = userData?.isFavorite == true,
         type = type,
         itemCount = childCount,
         images = toFindroidImages(jellyfinRepository),

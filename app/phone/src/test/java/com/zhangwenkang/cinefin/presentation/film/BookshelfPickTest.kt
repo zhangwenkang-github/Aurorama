@@ -71,6 +71,49 @@ class BookshelfPickTest {
         assertEquals(first.id, picked?.id)
     }
 
+    @Test
+    fun librarySelectionListsOnlyBooksLibrariesInServerOrder() {
+        val first = booksLibrary("书籍")
+        val movie = movieLibrary()
+        val second = booksLibrary("书籍3")
+
+        val selection =
+            resolveBookshelfLibrarySelection(listOf(first, movie, second), storedId = null)
+
+        assertNull(selection.selectedId)
+        assertEquals(listOf(first, second), selection.libraries)
+    }
+
+    @Test
+    fun librarySelectionKeepsStoredBooksLibrary() {
+        val first = booksLibrary("书籍")
+        val second = booksLibrary("书籍3")
+
+        val selection =
+            resolveBookshelfLibrarySelection(
+                libraries = listOf(first, second),
+                storedId = second.id.toString(),
+            )
+
+        assertEquals(second.id, selection.selectedId)
+    }
+
+    @Test
+    fun librarySelectionFallsBackToAutoWhenStoredLibraryMissing() {
+        val first = booksLibrary("书籍")
+        val movie = movieLibrary()
+
+        // 选中的书库被删 / 换成非 books 库 / 值损坏 → 一律回「自动」，不显示空白书架。
+        assertNull(
+            resolveBookshelfLibrarySelection(listOf(first, movie), UUID.randomUUID().toString())
+                .selectedId
+        )
+        assertNull(
+            resolveBookshelfLibrarySelection(listOf(first, movie), movie.id.toString()).selectedId
+        )
+        assertNull(resolveBookshelfLibrarySelection(listOf(first), "bogus").selectedId)
+    }
+
     private fun booksLibrary(name: String) =
         FindroidCollection(
             id = UUID.randomUUID(),
