@@ -36,6 +36,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
+import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerEndBehavior
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
@@ -371,6 +372,7 @@ constructor(
      *
      * @param startPositionMs 精确续播位置（毫秒）。换解码内核重启播放页时由 Activity 带入， 避免只依赖服务端 5 秒一次的上报而丢掉几秒进度；0
      *   表示按服务端记录续播。
+     * @param queueEntries W58b 视频多选批量播放：非空 = 显式播放队列（电影 / 单集）， [itemId] 只用于在队列里找起播项（回退重启后仍指向实际播放条目）。
      */
     fun initializePlayer(
         itemId: UUID,
@@ -378,6 +380,7 @@ constructor(
         startFromBeginning: Boolean,
         startPositionMs: Long = 0L,
         playbackSessionId: String,
+        queueEntries: List<PlaybackQueueEntry> = emptyList(),
     ) {
         /*
          * W19：回退档位按「播放会话」判定，必须在本会话拉取 PlaybackInfo 之前处理。
@@ -412,12 +415,20 @@ constructor(
         viewModelScope.launch {
             val startItem =
                 try {
-                    playlistManager.getInitialItem(
-                        itemId = itemId,
-                        itemKind = BaseItemKind.fromName(itemKind),
-                        mediaSourceIndex = null,
-                        startFromBeginning = startFromBeginning,
-                    )
+                    if (queueEntries.isNotEmpty()) {
+                        playlistManager.getInitialItemForQueue(
+                            entries = queueEntries,
+                            preferredItemId = itemId,
+                            startFromBeginning = startFromBeginning,
+                        )
+                    } else {
+                        playlistManager.getInitialItem(
+                            itemId = itemId,
+                            itemKind = BaseItemKind.fromName(itemKind),
+                            mediaSourceIndex = null,
+                            startFromBeginning = startFromBeginning,
+                        )
+                    }
                 } catch (e: Exception) {
                     Timber.e(e)
                     Toast.makeText(application, e.localizedMessage, Toast.LENGTH_LONG).show()

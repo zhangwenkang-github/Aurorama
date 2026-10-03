@@ -132,6 +132,42 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         return playerItem
     }
 
+    /**
+     * W58b：**显式播放队列**（视频多选批量播放）。
+     *
+     * 与 [getInitialItem] 的「按条目类型展开」不同：队列条目由调用方给出（已解析成电影 / 单集）， 本函数只按需取回条目并起播 [preferredItemId]
+     * 那一项（找不到时从队首开始）， 其余条目由播放页后台补进队列（[buildPlayerItemAt]）。
+     */
+    suspend fun getInitialItemForQueue(
+        entries: List<PlaybackQueueEntry>,
+        preferredItemId: UUID? = null,
+        startFromBeginning: Boolean = false,
+    ): PlayerItem? {
+        if (entries.isEmpty()) return null
+        val resolvedItems = entries.mapNotNull { entry ->
+            runCatching {
+                when (entry.kind) {
+                    BaseItemKind.MOVIE -> repository.getMovie(entry.itemId)
+                    BaseItemKind.EPISODE -> repository.getEpisode(entry.itemId)
+                    else -> null
+                }
+            }
+                .getOrNull()
+        }
+        if (resolvedItems.isEmpty()) return null
+        val startIndex =
+            resolvedItems.indexOfFirst { it.id == preferredItemId }.takeIf { it >= 0 } ?: 0
+        val initialItem = resolvedItems[startIndex]
+        items = resolvedItems
+        startItem = initialItem
+        currentItemIndex = startIndex
+        val playbackPosition =
+            if (startFromBeginning) 0L else initialItem.playbackPositionTicks.div(10000)
+        val playerItem = initialItem.toPlayerItem(null, playbackPosition)
+        playerItems.add(playerItem)
+        return playerItem
+    }
+
     suspend fun getPreviousPlayerItem(): PlayerItem? {
         Timber.d("Retrieving previous player item")
 

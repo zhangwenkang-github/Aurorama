@@ -50,4 +50,17 @@
     <string name="video_sleep_timer">Sleep timer</string>
     <string name="bookshelf_library_auto">Automatic</string>
     <string name="library_current_detail">Current: %1$s</string>
+    <string name="batch_action_play">Play</string>
+    <string name="batch_action_download">Download</string>
+    <string name="batch_action_favorite">Favorite</string>
+    <string name="batch_action_delete">Delete</string>
+    <string name="batch_action_mark_watched">Mark as watched</string>
+    <string name="batch_action_mark_read">Mark as read</string>
+    <string name="batch_delete_local_title">Delete downloads</string>
+    <string name="batch_delete_local_message">Delete %1$d selected download(s) from this device? Only local files and indexes are removed; media on the server is not affected.</string>
+    <string name="batch_download_added">%1$d item(s) added to the download queue</string>
+    <string name="batch_action_updated">Updated %1$d item(s)</string>
+    <string name="batch_delete_done">Deleted %1$d local download(s)</string>
+    <string name="batch_partial_failure">%1$d item(s) failed</string>
+    <string name="batch_play_unavailable">No playable items in the selection</string>
 </resources>

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -23,11 +24,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.Dp
@@ -35,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
-import androidx.paging.PagingData
+import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import androidx.window.core.layout.WindowSizeClass
@@ -44,6 +47,8 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaul
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
+import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -64,6 +69,17 @@ import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchAction
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchActionBar
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchDeleteDialog
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchMode
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchActionEnabled
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
+import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
@@ -71,7 +87,6 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import java.util.UUID
-import kotlinx.coroutines.flow.Flow
 
 /**
  * 视频模式页（W53，用户 2026-10-03 确认）：与首页 / 音乐 / 书架同级的顶层入口。
@@ -164,12 +179,79 @@ private fun VideoScreenLayout(
     val selectedLibrary = state.allLibraries.firstOrNull { it.id == state.selectedLibraryId }
     val favoriteLibrary = temporaryLibrary ?: selectedLibrary
 
+    // ---- W58b：聚合网格长按多选 + 批量操作（播放 = 加入播放队列；删除仅本地） ----
+    val pagingItems = state.aggregateItems.collectAsLazyPagingItems()
+    val batchViewModel: MediaBatchViewModel = hiltViewModel()
+    val downloadState by batchViewModel.downloadState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    var batchSelection by rememberMultiSelectState()
+    var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    // 只有聚合网格（含侧栏临时库视图）参与多选；库卡列表不参与。
+    val aggregateVisible =
+        temporaryLibrary != null ||
+            (state.displayMode == VideoDisplayMode.Aggregated && state.libraries.isNotEmpty())
+    val selectionMode = aggregateVisible && batchSelection.selectionMode
+    val loadedItems =
+        remember(pagingItems.itemCount) {
+            (0 until pagingItems.itemCount).mapNotNull { index -> pagingItems[index] }
+        }
+    val loadedIds = remember(loadedItems) { loadedItems.map { it.id.toString() } }
+    val selectedItems =
+        remember(loadedItems, batchSelection.selectedIds) {
+            loadedItems.filter { it.id.toString() in batchSelection.selectedIds }
+        }
+    val selectedCaps =
+        remember(selectedItems, downloadState) {
+            selectedItems.map { item ->
+                mediaBatchCaps(
+                    item = item,
+                    downloadedItemIds =
+                        downloadState.downloadedItemIds + downloadState.localBookItemIds,
+                    activeItemIds = downloadState.activeItemIds,
+                )
+            }
+        }
+
+    LaunchedEffect(loadedIds) { batchSelection = batchSelection.retain(loadedIds.toSet()) }
+    LaunchedEffect(aggregateVisible) {
+        if (!aggregateVisible) batchSelection = batchSelection.clear()
+    }
+    LaunchedEffect(batchViewModel) {
+        batchViewModel.refreshDownloadState()
+        batchViewModel.events.collect { event ->
+            mediaBatchEventMessage(context, event)?.let { message ->
+                snackbarHostState.showSnackbar(message)
+            }
+            when (event) {
+                is MediaBatchEvent.PlayQueue -> context.startVideoQueuePlayback(event.entries)
+                is MediaBatchEvent.Updated -> if (event.changed > 0) pagingItems.refresh()
+                else -> Unit
+            }
+            if (event is MediaBatchEvent.PlayQueue || event is MediaBatchEvent.Deleted) {
+                batchSelection = batchSelection.clear()
+            }
+        }
+    }
+
+    BackHandler(enabled = selectionMode) { batchSelection = batchSelection.clear() }
+
     Column(modifier = Modifier.fillMaxSize()) {
         CinefinPageTopBar(
             // 临时库视图：真实库名 + 类型 + 项目数（库卡总览不出现）。
-            title = temporaryLibrary?.name ?: stringResource(CoreR.string.title_video),
+            title =
+                if (selectionMode) {
+                    stringResource(
+                        CoreR.string.download_selected_count,
+                        batchSelection.selectedCount,
+                    )
+                } else {
+                    temporaryLibrary?.name ?: stringResource(CoreR.string.title_video)
+                },
             subtitle =
-                if (temporaryLibrary != null || selectedLibrary != null) {
+                if (selectionMode) {
+                    null
+                } else if (temporaryLibrary != null || selectedLibrary != null) {
                     val library = temporaryLibrary ?: selectedLibrary!!
                     listOfNotNull(
                             stringResource(libraryTypeLabelRes(library.type)),
@@ -183,9 +265,19 @@ private fun VideoScreenLayout(
                 } else {
                     null
                 },
-            onOpenDrawer = onOpenDrawer,
+            onOpenDrawer = if (selectionMode) null else onOpenDrawer,
             modifier = Modifier.padding(start = safePadding.start),
             actions = {
+                if (selectionMode) {
+                    MediaBatchTopBarActions(
+                        selectedCount = batchSelection.selectedCount,
+                        visibleCount = loadedIds.size,
+                        onSelectAll = { batchSelection = batchSelection.selectAll(loadedIds) },
+                        onSelectNone = { batchSelection = batchSelection.selectNone(loadedIds) },
+                        onExit = { batchSelection = batchSelection.clear() },
+                    )
+                    return@CinefinPageTopBar
+                }
                 if (temporaryLibrary != null && onExitTemporaryLibrary != null) {
                     CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
                 }
@@ -247,12 +339,22 @@ private fun VideoScreenLayout(
                         state.libraries.isNotEmpty())
             ) {
                 AggregatedVideoGrid(
-                    items = state.aggregateItems,
+                    pagingItems = pagingItems,
                     onItemClick = onItemClick,
                     contentPadding = contentPadding,
                     gridGutter = gridGutter,
                     paddingStart = paddingStart,
                     paddingEnd = paddingEnd,
+                    selectionMode = selectionMode,
+                    selectedIds = batchSelection.selectedIds,
+                    onToggleSelection = { item ->
+                        batchSelection =
+                            batchSelection.retain(loadedIds.toSet()).toggle(item.id.toString())
+                    },
+                    onLongPressSelection = { item ->
+                        batchSelection =
+                            batchSelection.retain(loadedIds.toSet()).longPress(item.id.toString())
+                    },
                 )
             } else {
                 VideoLibraryGrid(
@@ -291,6 +393,30 @@ private fun VideoScreenLayout(
                             ),
                 )
             }
+
+            CinefinSnackbarHost(
+                hostState = snackbarHostState,
+                modifier =
+                    Modifier.align(Alignment.BottomCenter).padding(horizontal = paddingStart),
+            )
+        }
+
+        if (selectionMode) {
+            MediaBatchActionBar(
+                mode = MediaBatchMode.VIDEO,
+                selectedCount = batchSelection.selectedCount,
+                isEnabled = { action -> mediaBatchActionEnabled(action, selectedCaps) },
+                onAction = { action ->
+                    when (action) {
+                        MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
+                        MediaBatchAction.DOWNLOAD -> batchViewModel.downloadSelected(selectedItems)
+                        MediaBatchAction.MARK_PLAYED ->
+                            batchViewModel.markPlayedSelected(selectedItems)
+                        MediaBatchAction.FAVORITE -> batchViewModel.favoriteSelected(selectedItems)
+                        MediaBatchAction.DELETE -> showBatchDeleteDialog = true
+                    }
+                },
+            )
         }
     }
 
@@ -306,6 +432,16 @@ private fun VideoScreenLayout(
                 showSleepTimer = false
             },
             onDismiss = { showSleepTimer = false },
+        )
+    }
+    if (showBatchDeleteDialog) {
+        MediaBatchDeleteDialog(
+            selectedCount = selectedItems.size,
+            onConfirm = {
+                batchViewModel.deleteSelected(selectedItems)
+                showBatchDeleteDialog = false
+            },
+            onDismiss = { showBatchDeleteDialog = false },
         )
     }
 }
@@ -381,14 +517,17 @@ private fun VideoLibraryGrid(
 /** 聚合列表：全部视频库的条目（电影 + 剧集）合并成一个懒加载网格。 */
 @Composable
 private fun AggregatedVideoGrid(
-    items: Flow<PagingData<FindroidItem>>,
+    pagingItems: LazyPagingItems<FindroidItem>,
     onItemClick: (FindroidItem) -> Unit,
     contentPadding: PaddingValues,
     gridGutter: Dp,
     paddingStart: Dp,
     paddingEnd: Dp,
+    selectionMode: Boolean = false,
+    selectedIds: Set<String> = emptySet(),
+    onToggleSelection: (FindroidItem) -> Unit = {},
+    onLongPressSelection: (FindroidItem) -> Unit = {},
 ) {
-    val pagingItems = items.collectAsLazyPagingItems()
     // 骨架屏列数与库内容页保持同一量级（骨架只是"格子的节奏"，不追求逐像素一致）。
     val skeletonColumns =
         when (val widthDp = LocalConfiguration.current.screenWidthDp) {
@@ -413,8 +552,14 @@ private fun AggregatedVideoGrid(
                     ItemCard(
                         item = loadedItem,
                         direction = Direction.VERTICAL,
-                        onClick = { onItemClick(loadedItem) },
+                        onClick = {
+                            if (selectionMode) onToggleSelection(loadedItem)
+                            else onItemClick(loadedItem)
+                        },
                         modifier = Modifier.animateItem(),
+                        selectionMode = selectionMode,
+                        selected = loadedItem.id.toString() in selectedIds,
+                        onLongClick = { onLongPressSelection(loadedItem) },
                     )
                 }
             }

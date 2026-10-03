@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
@@ -38,6 +41,8 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
+import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -69,6 +74,18 @@ import com.zhangwenkang.cinefin.presentation.film.components.LibraryTagTile
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryToolbarRow
 import com.zhangwenkang.cinefin.presentation.film.components.SortByPanel
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchAction
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchActionBar
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchDeleteDialog
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchMode
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchActionEnabled
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchMode
+import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
@@ -205,6 +222,68 @@ private fun LibraryScreenLayout(
     val tabs = remember(libraryType, state.tabs) { state.tabs.ifEmpty { libraryTabs(libraryType) } }
     val toolbarSpec = remember(state.tab) { libraryToolbarSpec(state.tab) }
 
+    // ---- W58b：长按多选 + 批量操作（视频库 / 书籍库共用；删除仅本地） ----
+    val batchMode = mediaBatchMode(libraryType)
+    val batchViewModel: MediaBatchViewModel = hiltViewModel()
+    val downloadState by batchViewModel.downloadState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    var batchSelection by rememberMultiSelectState()
+    var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    val selectionMode = batchMode != MediaBatchMode.NONE && batchSelection.selectionMode
+    // 「已加载条目」快照：分页只取已加载部分（不拉全库），翻页 / 刷新后由 retain 求交集。
+    val loadedItems =
+        remember(items.itemCount) { (0 until items.itemCount).mapNotNull { index -> items[index] } }
+    val loadedIds = remember(loadedItems) { loadedItems.map { it.id.toString() } }
+    val selectedItems =
+        remember(loadedItems, batchSelection.selectedIds) {
+            loadedItems.filter { it.id.toString() in batchSelection.selectedIds }
+        }
+    val selectedCaps =
+        remember(selectedItems, downloadState) {
+            selectedItems.map { item ->
+                mediaBatchCaps(
+                    item = item,
+                    // 书籍走阅读器离线链路，已下载状态与下载引擎分开存；这里合并成一个判定集合。
+                    downloadedItemIds =
+                        downloadState.downloadedItemIds + downloadState.localBookItemIds,
+                    activeItemIds = downloadState.activeItemIds,
+                )
+            }
+        }
+
+    LaunchedEffect(loadedIds) { batchSelection = batchSelection.retain(loadedIds.toSet()) }
+    // 切 tab / 换排序 / 换筛选 = 换了一份列表：退出多选，避免选中集合与视图不一致。
+    LaunchedEffect(
+        state.tab,
+        state.filter,
+        state.genre,
+        state.studio,
+        state.sortBy,
+        state.sortOrder,
+    ) {
+        batchSelection = batchSelection.clear()
+    }
+    LaunchedEffect(batchViewModel) {
+        batchViewModel.refreshDownloadState()
+        batchViewModel.events.collect { event ->
+            mediaBatchEventMessage(context, event)?.let { message ->
+                snackbarHostState.showSnackbar(message)
+            }
+            when (event) {
+                is MediaBatchEvent.PlayQueue -> context.startVideoQueuePlayback(event.entries)
+                // 标记已看 / 已读 / 收藏后重取一次已加载页，让卡片上的状态跟着走。
+                is MediaBatchEvent.Updated -> if (event.changed > 0) items.refresh()
+                else -> Unit
+            }
+            if (event is MediaBatchEvent.PlayQueue || event is MediaBatchEvent.Deleted) {
+                batchSelection = batchSelection.clear()
+            }
+        }
+    }
+
+    BackHandler(enabled = selectionMode) { batchSelection = batchSelection.clear() }
+
     var showSortPanel by remember { mutableStateOf(false) }
     var showFilterPanel by remember { mutableStateOf(false) }
     var showTabErrorDialog by rememberSaveable { mutableStateOf(false) }
@@ -235,16 +314,34 @@ private fun LibraryScreenLayout(
     Column(modifier = Modifier.fillMaxSize()) {
         CinefinPageTopBar(
             title =
-                if (topLevel && onBackToDefault == null) {
+                if (selectionMode) {
+                    stringResource(
+                        CoreR.string.download_selected_count,
+                        batchSelection.selectedCount,
+                    )
+                } else if (topLevel && onBackToDefault == null) {
                     stringResource(CoreR.string.title_book_shelf)
                 } else {
                     libraryName
                 },
-            subtitle = onBackToDefault?.let { stringResource(libraryTypeLabelRes(libraryType)) },
-            onOpenDrawer = if (topLevel) onOpenDrawer else null,
-            onBack = if (topLevel) null else ({ onAction(LibraryAction.OnBackClick) }),
+            subtitle =
+                if (selectionMode) null
+                else onBackToDefault?.let { stringResource(libraryTypeLabelRes(libraryType)) },
+            onOpenDrawer = if (topLevel && !selectionMode) onOpenDrawer else null,
+            onBack =
+                if (topLevel || selectionMode) null else ({ onAction(LibraryAction.OnBackClick) }),
             modifier = Modifier.padding(start = safePadding.start),
             actions = {
+                if (selectionMode) {
+                    MediaBatchTopBarActions(
+                        selectedCount = batchSelection.selectedCount,
+                        visibleCount = loadedIds.size,
+                        onSelectAll = { batchSelection = batchSelection.selectAll(loadedIds) },
+                        onSelectNone = { batchSelection = batchSelection.selectNone(loadedIds) },
+                        onExit = { batchSelection = batchSelection.clear() },
+                    )
+                    return@CinefinPageTopBar
+                }
                 if (onBackToDefault != null) {
                     CinefinBackToDefaultChip(onClick = onBackToDefault)
                 }
@@ -252,35 +349,38 @@ private fun LibraryScreenLayout(
             },
         )
 
-        Spacer(Modifier.height(CinefinSpacing.Space3))
+        // 多选态隐藏头部 tabs / 工具行 / 筛选 chips：选中作用域就是当前列表，避免中途换列表。
+        if (!selectionMode) {
+            Spacer(Modifier.height(CinefinSpacing.Space3))
 
-        LibraryTabRow(
-            tabs = tabs,
-            selected = state.tab,
-            libraryName = libraryName,
-            onSelect = { onAction(LibraryAction.SelectTab(it)) },
-            modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
-        )
+            LibraryTabRow(
+                tabs = tabs,
+                selected = state.tab,
+                libraryName = libraryName,
+                onSelect = { onAction(LibraryAction.SelectTab(it)) },
+                modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
+            )
 
-        Spacer(Modifier.height(CinefinSpacing.Space1))
+            Spacer(Modifier.height(CinefinSpacing.Space1))
 
-        LibraryToolbarRow(
-            countText = countText,
-            viewMode = state.viewMode,
-            spec = toolbarSpec,
-            filterActive = state.filter != null,
-            onViewModeChange = { onAction(LibraryAction.SelectViewMode(it)) },
-            onSortClick = { showSortPanel = true },
-            onFilterClick = { showFilterPanel = true },
-            modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
-        )
+            LibraryToolbarRow(
+                countText = countText,
+                viewMode = state.viewMode,
+                spec = toolbarSpec,
+                filterActive = state.filter != null,
+                onViewModeChange = { onAction(LibraryAction.SelectViewMode(it)) },
+                onSortClick = { showSortPanel = true },
+                onFilterClick = { showFilterPanel = true },
+                modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
+            )
 
-        LibraryActiveChipRow(
-            chips = activeChips,
-            modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
-        )
+            LibraryActiveChipRow(
+                chips = activeChips,
+                modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
+            )
 
-        Spacer(Modifier.height(CinefinSpacing.Space1))
+            Spacer(Modifier.height(CinefinSpacing.Space1))
+        }
 
         // W54-B：库内容页统一下拉刷新——分页列表走 LazyPagingItems.refresh()（真实重发请求），
         // 计数与当前 tab 由 ViewModel 重取。
@@ -314,8 +414,30 @@ private fun LibraryScreenLayout(
                             item?.let { loadedItem ->
                                 LibraryListRow(
                                     item = loadedItem,
-                                    onClick = { onAction(LibraryAction.OnItemClick(loadedItem)) },
+                                    onClick = {
+                                        if (selectionMode) {
+                                            batchSelection =
+                                                batchSelection
+                                                    .retain(loadedIds.toSet())
+                                                    .toggle(loadedItem.id.toString())
+                                        } else {
+                                            onAction(LibraryAction.OnItemClick(loadedItem))
+                                        }
+                                    },
                                     modifier = Modifier.animateItem(),
+                                    selectionMode = selectionMode,
+                                    selected = batchSelection.isSelected(loadedItem.id.toString()),
+                                    onLongClick =
+                                        if (batchMode != MediaBatchMode.NONE) {
+                                            {
+                                                batchSelection =
+                                                    batchSelection
+                                                        .retain(loadedIds.toSet())
+                                                        .longPress(loadedItem.id.toString())
+                                            }
+                                        } else {
+                                            null
+                                        },
                                 )
                             }
                         }
@@ -339,8 +461,30 @@ private fun LibraryScreenLayout(
                                 ItemCard(
                                     item = loadedItem,
                                     direction = direction,
-                                    onClick = { onAction(LibraryAction.OnItemClick(loadedItem)) },
+                                    onClick = {
+                                        if (selectionMode) {
+                                            batchSelection =
+                                                batchSelection
+                                                    .retain(loadedIds.toSet())
+                                                    .toggle(loadedItem.id.toString())
+                                        } else {
+                                            onAction(LibraryAction.OnItemClick(loadedItem))
+                                        }
+                                    },
                                     modifier = Modifier.animateItem(),
+                                    selectionMode = selectionMode,
+                                    selected = batchSelection.isSelected(loadedItem.id.toString()),
+                                    onLongClick =
+                                        if (batchMode != MediaBatchMode.NONE) {
+                                            {
+                                                batchSelection =
+                                                    batchSelection
+                                                        .retain(loadedIds.toSet())
+                                                        .longPress(loadedItem.id.toString())
+                                            }
+                                        } else {
+                                            null
+                                        },
                                 )
                             }
                         }
@@ -471,6 +615,29 @@ private fun LibraryScreenLayout(
                 )
             }
         }
+
+        CinefinSnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.padding(horizontal = paddingStart),
+        )
+
+        if (selectionMode) {
+            MediaBatchActionBar(
+                mode = batchMode,
+                selectedCount = batchSelection.selectedCount,
+                isEnabled = { action -> mediaBatchActionEnabled(action, selectedCaps) },
+                onAction = { action ->
+                    when (action) {
+                        MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
+                        MediaBatchAction.DOWNLOAD -> batchViewModel.downloadSelected(selectedItems)
+                        MediaBatchAction.MARK_PLAYED ->
+                            batchViewModel.markPlayedSelected(selectedItems)
+                        MediaBatchAction.FAVORITE -> batchViewModel.favoriteSelected(selectedItems)
+                        MediaBatchAction.DELETE -> showBatchDeleteDialog = true
+                    }
+                },
+            )
+        }
     }
 
     if (showSortPanel) {
@@ -500,6 +667,17 @@ private fun LibraryScreenLayout(
         state.tabError?.let { error ->
             ErrorDialog(exception = error, onDismissRequest = { showTabErrorDialog = false })
         }
+    }
+
+    if (showBatchDeleteDialog) {
+        MediaBatchDeleteDialog(
+            selectedCount = selectedItems.size,
+            onConfirm = {
+                batchViewModel.deleteSelected(selectedItems)
+                showBatchDeleteDialog = false
+            },
+            onDismiss = { showBatchDeleteDialog = false },
+        )
     }
 }
 

@@ -57,6 +57,7 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
 import com.zhangwenkang.cinefin.player.local.domain.letterboxFillScale
+import com.zhangwenkang.cinefin.player.local.domain.parsePlaybackQueueEntries
 import com.zhangwenkang.cinefin.player.local.domain.rotationFillScale
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
@@ -97,6 +98,16 @@ private const val AMBIENT_FADE_DURATION = 600
 
 /** 换解码内核重开播放页时携带的精确续播位置（毫秒） */
 private const val EXTRA_START_POSITION_MS = "startPositionMs"
+
+/**
+ * W58b 视频多选批量播放：显式播放队列的条目 id / 类型（两个并行 `ArrayList<String>`）。
+ *
+ * 与 [EXTRA_START_POSITION_MS] 挂在同一份 Intent 上——回退重启复用 Intent，队列随之保留； 读取端为
+ * `parsePlaybackQueueEntries`（id 与类型按位配对，非法项直接丢弃）。
+ */
+internal const val EXTRA_QUEUE_ITEM_IDS = "queueItemIds"
+
+internal const val EXTRA_QUEUE_ITEM_KINDS = "queueItemKinds"
 
 /**
  * 本次播放会话的 id（W19）。
@@ -203,6 +214,12 @@ class PlayerActivity : BasePlayerActivity() {
             }
         val itemKind = intent.extras?.getString("itemKind")
         val startFromBeginning = intent.extras?.getBoolean("startFromBeginning") ?: false
+        // W58b：视频多选批量播放的显式队列；没有这两个 extra 时是空列表，单条播放行为不变。
+        val queueEntries =
+            parsePlaybackQueueEntries(
+                ids = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_IDS),
+                kinds = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_KINDS),
+            )
         // 换内核会重开播放页：把失败前的精确进度带过来，不用服务端 5 秒一次的上报值续播
         val startPositionMs = intent.extras?.getLong(EXTRA_START_POSITION_MS, 0L) ?: 0L
         // 读掉就删：这个 Intent 会被 recreate() 复用，留着会让下次重建又跳回老位置
@@ -502,6 +519,7 @@ class PlayerActivity : BasePlayerActivity() {
                 startFromBeginning = startFromBeginning,
                 startPositionMs = startPositionMs,
                 playbackSessionId = playbackSessionId,
+                queueEntries = queueEntries,
             )
         } else if (viewModel.player.mediaItemCount > 0) {
             // 从通知回来：会话还在跑，接管它（补标题/章节等信息），不重新拉流
@@ -530,6 +548,11 @@ class PlayerActivity : BasePlayerActivity() {
         }
         val itemKind = intent.extras?.getString("itemKind")
         val startFromBeginning = intent.extras?.getBoolean("startFromBeginning") ?: false
+        val queueEntries =
+            parsePlaybackQueueEntries(
+                ids = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_IDS),
+                kinds = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_KINDS),
+            )
 
         // W19：onNewIntent = 新的播放请求 = 新会话（清回退档位，链路从头走）
         playbackSessionId = UUID.randomUUID().toString()
@@ -538,6 +561,7 @@ class PlayerActivity : BasePlayerActivity() {
             itemKind = itemKind ?: "",
             startFromBeginning = startFromBeginning,
             playbackSessionId = playbackSessionId,
+            queueEntries = queueEntries,
         )
     }
 

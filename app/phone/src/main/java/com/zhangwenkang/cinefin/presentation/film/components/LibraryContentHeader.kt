@@ -34,7 +34,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -278,12 +280,19 @@ fun LibraryFilterPanel(
     }
 }
 
-/** 列表视图行（W54-B）：56dp 宽竖版缩略图 + 标题 + 一行元信息，徽标贴在缩略图右上角。 */
+/**
+ * 列表视图行（W54-B）：56dp 宽竖版缩略图 + 标题 + 一行元信息，徽标贴在缩略图右上角。
+ *
+ * W58b：多选态在行首加 20dp 勾选指示（§8.5），长按经 [onLongClick] 进入多选（默认 null = 不参与多选）。
+ */
 @Composable
 fun LibraryListRow(
     item: FindroidItem,
     onClick: (FindroidItem) -> Unit,
     modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     Row(
@@ -291,10 +300,24 @@ fun LibraryListRow(
             modifier
                 .fillMaxWidth()
                 .heightIn(min = 88.dp)
-                .cinefinClickable { onClick(item) }
+                .then(
+                    if (onLongClick != null) {
+                        Modifier.cinefinSelectable(
+                            selected = selected,
+                            onClick = { onClick(item) },
+                            onLongPress = onLongClick,
+                        )
+                    } else {
+                        Modifier.cinefinClickable { onClick(item) }
+                    }
+                )
                 .padding(vertical = CinefinSpacing.Space2),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selectionMode) {
+            CinefinSelectIndicator(selected = selected)
+            Spacer(Modifier.width(CinefinSpacing.Space3))
+        }
         Box(modifier = Modifier.width(56.dp).clip(CinefinShapes.Xs)) {
             ItemPoster(
                 item = item,

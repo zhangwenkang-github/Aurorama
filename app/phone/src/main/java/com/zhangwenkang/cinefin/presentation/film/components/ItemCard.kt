@@ -25,7 +25,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -52,6 +54,11 @@ fun ItemCard(
     modifier: Modifier = Modifier,
     index: Int = 0,
     width: Dp? = null,
+    /** W58b：多选态 = 左上角 20dp 勾选指示（§8.4「已选圆点」）。 */
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    /** W58b：长按进入多选；null = 该卡不参与多选（既有调用零改动）。 */
+    onLongClick: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -64,7 +71,20 @@ fun ItemCard(
             modifier
                 .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
                 .lumenEntrance(index)
-                .cinefinClickable(interactionSource = interactionSource) { onClick(item) }
+                .then(
+                    if (onLongClick != null) {
+                        Modifier.cinefinSelectable(
+                            selected = selected,
+                            interactionSource = interactionSource,
+                            onClick = { onClick(item) },
+                            onLongPress = onLongClick,
+                        )
+                    } else {
+                        Modifier.cinefinClickable(interactionSource = interactionSource) {
+                            onClick(item)
+                        }
+                    }
+                )
     ) {
         LumenCardFrame(
             modifier = Modifier.fillMaxWidth(),
@@ -72,6 +92,12 @@ fun ItemCard(
             container = colors.surfaceContainerHigh,
         ) {
             ItemPoster(item = item, direction = direction, modifier = Modifier.fillMaxWidth())
+            if (selectionMode) {
+                CinefinSelectIndicator(
+                    selected = selected,
+                    modifier = Modifier.align(Alignment.TopStart).padding(CinefinSpacing.Space3),
+                )
+            }
             Row(
                 modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space3),
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),

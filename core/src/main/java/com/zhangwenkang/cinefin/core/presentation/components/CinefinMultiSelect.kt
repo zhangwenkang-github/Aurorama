@@ -15,7 +15,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +34,33 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.selection.MultiSelectState
+
+/**
+ * W58b：页面层多选状态（视频 / 书籍库内容页与视频聚合页共用）。
+ *
+ * 用 `rememberSaveable` 承载：旋屏 / 进程重建后选中不丢；列表刷新 / 分页仍由 [MultiSelectState.retain] 与已加载条目求交集。
+ */
+@Composable
+fun rememberMultiSelectState(): MutableState<MultiSelectState> =
+    rememberSaveable(saver = MultiSelectStateHolderSaver) { mutableStateOf(MultiSelectState()) }
+
+private val MultiSelectStateHolderSaver: Saver<MutableState<MultiSelectState>, Any> =
+    listSaver(
+        save = { holder -> listOf(holder.value.selectionMode, holder.value.selectedIds.toList()) },
+        restore = { saved ->
+            mutableStateOf(
+                MultiSelectState(
+                    selectionMode = saved.getOrNull(0) as? Boolean ?: false,
+                    selectedIds =
+                        (saved.getOrNull(1) as? List<*>)
+                            ?.filterIsInstance<String>()
+                            ?.toSet()
+                            .orEmpty(),
+                )
+            )
+        },
+    )
 
 /**
  * W58 可复用「长按进入多选」手势（下载页多选沿用旧实现，新三模式统一走这里）。
