@@ -32,6 +32,8 @@ class LocalLibraryViewModel
 constructor(
     private val repository: LocalLibraryRepository,
     private val appPreferences: AppPreferences,
+    /** W45：库卡封面（懒生成，卡片可见时调用 [loadCover]）。 */
+    private val thumbnails: LocalThumbnailProvider,
 ) : ViewModel() {
 
     data class LibraryCard(
@@ -62,6 +64,11 @@ constructor(
         val showHidden: Boolean = false,
         /** 首页是否显示本地媒体（默认关）。 */
         val homeVisible: Boolean = false,
+        /**
+         * 库卡封面（W45）：`libraryId -> Coil 模型`（本地缩略图绝对路径 / 音乐既有 coverUri）。 键存在但值为 null =
+         * 已尝试且无封面（回退类型图标，不再重试）。
+         */
+        val covers: Map<Long, String?> = emptyMap(),
     ) {
         val visibleCards: List<LibraryCard>
             get() = if (showHidden) cards else cards.filter { it.visibleInLibrary }
@@ -72,6 +79,13 @@ constructor(
 
     private val _state = MutableStateFlow(UiState())
     val state = _state.asStateFlow()
+
+    /**
+     * 封面请求去重：`libraryId -> 请求时的条目数`。
+     *
+     * 空库（尚未扫描）不请求——新建库时库卡会先以「0 项」出现，若此刻请求会拿到 null 并永久缓存 （真机拦下：库卡封面要进详情页才出现）；扫描完成、条目数变化后再触发一次。
+     */
+    private val coverRequests = mutableMapOf<Long, Int>()
 
     init {
         _state.value =
@@ -98,6 +112,22 @@ constructor(
 
     fun setShowHidden(show: Boolean) {
         _state.value = _state.value.copy(showHidden = show)
+    }
+
+    /**
+     * 库卡封面（W45）：卡片 / 库卡可见时按需请求；内部按 `libraryId` 去重，失败也不反复重试。
+     *
+     * 封面 = 「视频 → 书籍 → 音乐」顺序里第一个有缩略图的条目；全无则保持 null（UI 回退类型图标）。
+     */
+    fun loadCover(libraryId: Long) {
+        val card = _state.value.cards.firstOrNull { it.id == libraryId } ?: return
+        if (card.itemCount <= 0) return
+        if (coverRequests[libraryId] == card.itemCount) return
+        coverRequests[libraryId] = card.itemCount
+        viewModelScope.launch {
+            val cover = runCatching { thumbnails.libraryCover(libraryId) }.getOrNull()
+            _state.value = _state.value.copy(covers = _state.value.covers + (libraryId to cover))
+        }
     }
 
     /** 建库；[onCreated] 回调库 id（UI 随后拉起 SAF 目录选择）。 */
@@ -177,6 +207,8 @@ constructor(
     private val repository: LocalLibraryRepository,
     /** W37：本地曲目起播复用音乐链路（同一 MusicPlaybackController / 队列模型）。 */
     private val localMusicPlayer: LocalMusicPlayer,
+    /** W45：列表行 / 头部缩略图（懒生成）。 */
+    private val thumbnails: LocalThumbnailProvider,
 ) : ViewModel() {
 
     data class ContentGroup(val title: String?, val rows: List<LocalLibraryBrowse.Row>)
@@ -198,10 +230,19 @@ constructor(
         val folderCount: Int = 0,
         val itemCount: Int = 0,
         val folders: List<FolderContent> = emptyList(),
+        /** W45 详情头部封面（本地缩略图绝对路径 / 音乐 coverUri）；null = 生成中或已失败（回退类型图标）。 */
+        val headerCover: String? = null,
+        /** W45 列表行缩略图：`itemId -> Coil 模型`；值为 null = 已尝试且无缩略图。 */
+        val thumbs: Map<UUID, String?> = emptyMap(),
     )
 
     private val _state = MutableStateFlow(UiState())
     val state = _state.asStateFlow()
+
+    /** W45 请求去重（每个条目 / 头部请求一次）。 */
+    private val thumbRequests = mutableSetOf<UUID>()
+    /** 头部封面请求时的条目数（空库不请求；新增文件夹扫描完成后再请求一次）。 */
+    private var headerRequestedCount = -1
 
     fun setup(libraryId: Long) {
         if (_state.value.libraryId == libraryId) return
@@ -229,7 +270,32 @@ constructor(
                     folderCount = library.folders.size,
                     itemCount = entries.size,
                     folders = library.folders.map { folder -> folder.toContent(library, entries) },
+                    headerCover = _state.value.headerCover,
+                    thumbs = _state.value.thumbs,
                 )
+            loadHeaderCover()
+        }
+    }
+
+    /** W45：详情头部封面——库内「视频 → 书籍 → 音乐」第一个有缩略图的条目；全无回退类型图标。 */
+    fun loadHeaderCover() {
+        val state = _state.value
+        if (state.libraryId == 0L || state.itemCount <= 0) return
+        if (headerRequestedCount == state.itemCount) return
+        headerRequestedCount = state.itemCount
+        viewModelScope.launch {
+            val cover = runCatching { thumbnails.libraryCover(state.libraryId) }.getOrNull()
+            _state.value = _state.value.copy(headerCover = cover)
+        }
+    }
+
+    /** W45：列表行缩略图——行可见时按需生成（失败标记后不再重试，回退类型图标）。 */
+    fun loadThumbnail(entry: LocalLibraryEntry) {
+        if (entry.itemId in thumbRequests) return
+        thumbRequests += entry.itemId
+        viewModelScope.launch {
+            val thumb = runCatching { thumbnails.thumbnail(entry) }.getOrNull()
+            _state.value = _state.value.copy(thumbs = _state.value.thumbs + (entry.itemId to thumb))
         }
     }
 

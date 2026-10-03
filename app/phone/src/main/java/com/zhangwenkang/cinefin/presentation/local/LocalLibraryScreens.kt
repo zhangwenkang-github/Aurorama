@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,12 +35,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
@@ -51,6 +58,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -60,15 +68,24 @@ import com.zhangwenkang.cinefin.local.LocalLibraryBrowse
 import com.zhangwenkang.cinefin.local.LocalLibraryEntry
 import com.zhangwenkang.cinefin.local.LocalLibraryType
 import com.zhangwenkang.cinefin.local.LocalMediaKind
+import com.zhangwenkang.cinefin.presentation.film.components.BaseBadge
+import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
+import com.zhangwenkang.cinefin.presentation.film.components.lumenEntrance
+import com.zhangwenkang.cinefin.presentation.film.components.rememberLandscapeCardWidth
+import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import java.io.File
 import java.util.UUID
 
 /**
  * 首页「本地媒体」区块：由 `pref_local_library_visible` 控制（默认关）。
  *
- * 开关打开且存在本地库时渲染一排库卡（与库级「在媒体库显示」互不影响：后者只管媒体库总览）， 点击进本地库详情。
+ * W45：与首页其它走廊同语言——**封面（库内首项缩略图）+ 库名 +「N 项 · 类型」+ 类型角标**， 卡片宽高 / 圆角 / 间距与「继续观看」横排一致；无封面回退类型图标。
+ * 与库级「在媒体库显示」互不影响（后者只管媒体库总览）。
+ *
+ * 封面按需生成：库卡进入组合（可见）时才请求，见 [LocalLibraryViewModel.loadCover]。
  */
 @Composable
 fun HomeLocalMediaSection(
@@ -76,40 +93,188 @@ fun HomeLocalMediaSection(
     viewModel: LocalLibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    // 开关关闭时不刷新 / 不生成封面（首页隐藏时不该有额外开销）。
+    if (state.homeVisible) {
+        LaunchedEffect(Unit) { viewModel.refresh() }
+    }
     if (!state.homeVisible || state.cards.isEmpty()) return
+    val gutter = rememberGridGutter()
     Column(modifier = Modifier.fillMaxWidth()) {
         SectionHeader(
             title = "本地媒体",
-            modifier = Modifier.padding(bottom = CinefinSpacing.Space3),
+            modifier = Modifier.padding(bottom = CinefinSpacing.Space4),
         )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3)) {
-            items(items = state.cards, key = { card -> "local-home-${card.id}" }) { card ->
-                CinefinCard(
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(gutter)) {
+            itemsIndexed(
+                items = state.cards,
+                key = { _, card -> "local-home-${card.id}" },
+            ) { index, card ->
+                HomeLocalLibraryCard(
+                    card = card,
+                    cover = state.covers[card.id],
+                    index = index,
                     onClick = { onOpenLibrary(card.id) },
-                    contentPadding = PaddingValues(CinefinSpacing.Space3),
-                ) {
-                    Column(Modifier.width(200.dp)) {
-                        Text(
-                            text = card.name,
-                            style = CinefinType.TitleMedium,
-                            color = LocalCinefinColors.current.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = card.detail,
-                            style = CinefinType.BodySmall,
-                            color = LocalCinefinColors.current.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
+                    onCoverVisible = { viewModel.loadCover(card.id) },
+                )
             }
         }
     }
 }
+
+/**
+ * 首页本地库卡（W45）：与「继续观看」横排同宽同高（[rememberLandscapeCardWidth] + 16:9）、 同 `CinefinShapes.Md` 圆角；封面 +
+ * 底部渐隐 + 库名 +「N 项 · 类型」+ 右上类型角标。
+ */
+@Composable
+private fun HomeLocalLibraryCard(
+    card: LocalLibraryViewModel.LibraryCard,
+    cover: String?,
+    index: Int,
+    onClick: () -> Unit,
+    onCoverVisible: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val width = rememberLandscapeCardWidth()
+    // 条目数变化（新建库 → 扫描完成）后重新请求封面。
+    LaunchedEffect(card.id, card.itemCount) { onCoverVisible() }
+    LumenCardFrame(
+        modifier =
+            Modifier.width(width).aspectRatio(16f / 9f).lumenEntrance(index).cinefinClickable {
+                onClick()
+            },
+        container = colors.surfaceContainerHigh,
+    ) {
+        if (cover != null) {
+            AsyncImage(
+                model = localCoverModel(cover),
+                contentDescription = card.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                modifier =
+                    Modifier.fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0.36f to Color.Transparent,
+                                0.72f to Color.Black.copy(alpha = 0.42f),
+                                1f to Color.Black.copy(alpha = 0.88f),
+                            )
+                        )
+            )
+        } else {
+            // 无封面：回退类型图标（不引入额外色块）。
+            Box(
+                modifier = Modifier.fillMaxSize().background(colors.surfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(card.type.iconRes()),
+                    contentDescription = card.type.label,
+                    tint = colors.onSurfaceVariant,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+        }
+        TypeBadge(type = card.type, modifier = Modifier.align(Alignment.TopEnd))
+        Column(
+            modifier =
+                Modifier.align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(
+                        start = CinefinSpacing.Space4,
+                        end = CinefinSpacing.Space4,
+                        bottom = CinefinSpacing.Space3,
+                    ),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = card.name,
+                style = CinefinType.WideCardTitle,
+                color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${card.itemCount} 项 · ${card.type.label}",
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** 库卡右上角类型角标（§8.9 中性徽标：黑 62% 底 + 白 12% 描边）。 */
+@Composable
+private fun TypeBadge(type: LocalLibraryType, modifier: Modifier = Modifier) {
+    val colors = LocalCinefinColors.current
+    BaseBadge(modifier = modifier.padding(CinefinSpacing.Space3)) {
+        Row(
+            modifier =
+                Modifier.padding(
+                    horizontal = CinefinSpacing.Space2,
+                    vertical = CinefinSpacing.Space1,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+        ) {
+            Icon(
+                painter = painterResource(type.iconRes()),
+                contentDescription = null,
+                tint = colors.onSurface,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(text = type.label, style = CinefinType.LabelSmall, color = colors.onSurface)
+        }
+    }
+}
+
+/** W45：本地条目 / 库卡缩略图（40dp，`corner-xs`）；无图回退类型图标。 */
+@Composable
+internal fun LocalThumbnailTile(
+    cover: String?,
+    iconRes: Int,
+    iconDescription: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+    iconSize: Dp = 20.dp,
+    shape: Shape = CinefinShapes.Xs,
+) {
+    val colors = LocalCinefinColors.current
+    Box(
+        modifier = modifier.size(size).clip(shape).background(colors.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (cover != null) {
+            AsyncImage(
+                model = localCoverModel(cover),
+                contentDescription = iconDescription,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = iconDescription,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(iconSize),
+            )
+        }
+    }
+}
+
+/**
+ * W45：缩略图 → Coil 模型。缩略图是**文件绝对路径**（`files/local_thumbs/<itemId>.jpg` / 音乐内嵌封面）， 交给 Coil 3 时转成
+ * [File] 走 `FileMapper`（`file://`）；`content://`（同目录封面）原样传递。
+ */
+private fun localCoverModel(cover: String?): Any? =
+    when {
+        cover.isNullOrBlank() -> null
+        cover.startsWith("/") -> File(cover)
+        else -> cover
+    }
 
 /**
  * W39 本地媒体库总览（嵌在媒体库页 / 离线媒体库页里，**在线离线都常显**）：
@@ -198,7 +363,12 @@ fun LocalLibrarySection(
                     verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                 ) {
                     state.visibleCards.forEach { card ->
-                        LocalLibraryCard(card = card, onClick = { onOpenLibrary(card.id) })
+                        LocalLibraryCard(
+                            card = card,
+                            cover = state.covers[card.id],
+                            onCoverVisible = { viewModel.loadCover(card.id) },
+                            onClick = { onOpenLibrary(card.id) },
+                        )
                     }
                 }
         }
@@ -216,24 +386,22 @@ fun LocalLibrarySection(
 }
 
 @Composable
-private fun LocalLibraryCard(card: LocalLibraryViewModel.LibraryCard, onClick: () -> Unit) {
+private fun LocalLibraryCard(
+    card: LocalLibraryViewModel.LibraryCard,
+    cover: String?,
+    onCoverVisible: () -> Unit,
+    onClick: () -> Unit,
+) {
     val colors = LocalCinefinColors.current
+    // W45：库卡可见时才生成封面（懒生成 + 失败回退类型图标）。
+    LaunchedEffect(card.id, card.itemCount) { onCoverVisible() }
     CinefinCard(onClick = onClick, contentPadding = PaddingValues(CinefinSpacing.Space4)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier =
-                    Modifier.size(40.dp)
-                        .clip(CinefinShapes.Sm)
-                        .background(colors.surfaceContainerHigh),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(card.type.iconRes()),
-                    contentDescription = null,
-                    tint = colors.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+            LocalThumbnailTile(
+                cover = cover,
+                iconRes = card.type.iconRes(),
+                iconDescription = card.type.label,
+            )
             Spacer(Modifier.width(CinefinSpacing.Space3))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -306,6 +474,15 @@ fun LocalLibraryDetailScreen(
             contentPadding = PaddingValues(bottom = CinefinSpacing.Space8),
             verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
         ) {
+            // W45：详情头部封面（库内首项缩略图；无图回退类型图标）。
+            item(key = "cover") {
+                LocalLibraryHeaderCover(
+                    cover = state.headerCover,
+                    type = state.type,
+                    itemCount = state.itemCount,
+                    onCoverVisible = viewModel::loadHeaderCover,
+                )
+            }
             item(key = "settings") {
                 LibrarySettingsCard(
                     name = state.name,
@@ -368,8 +545,11 @@ fun LocalLibraryDetailScreen(
                         items = group.rows,
                         key = { index, _ -> "row-${folder.folderId}-$groupIndex-$index" },
                     ) { _, row ->
+                        val entry = (row as? LocalLibraryBrowse.Row.Entry)?.entry
                         BrowseRow(
                             row = row,
+                            thumbnail = entry?.let { state.thumbs[it.itemId] },
+                            onThumbnailVisible = { entry?.let(viewModel::loadThumbnail) },
                             onOpenEntry = { entry ->
                                 when (entry.kind) {
                                     LocalMediaKind.VIDEO -> onPlayVideo(entry.itemId)
@@ -548,7 +728,12 @@ private fun ContentSectionHeader(folder: LocalLibraryDetailViewModel.FolderConte
 }
 
 @Composable
-private fun BrowseRow(row: LocalLibraryBrowse.Row, onOpenEntry: (LocalLibraryEntry) -> Unit) {
+private fun BrowseRow(
+    row: LocalLibraryBrowse.Row,
+    thumbnail: String?,
+    onThumbnailVisible: () -> Unit,
+    onOpenEntry: (LocalLibraryEntry) -> Unit,
+) {
     val colors = LocalCinefinColors.current
     when (row) {
         is LocalLibraryBrowse.Row.Folder ->
@@ -575,21 +760,60 @@ private fun BrowseRow(row: LocalLibraryBrowse.Row, onOpenEntry: (LocalLibraryEnt
                     color = colors.onSurfaceFaint,
                 )
             }
-        is LocalLibraryBrowse.Row.Entry ->
+        is LocalLibraryBrowse.Row.Entry -> {
+            // W45：行可见时按需生成缩略图（视频首帧 / 书籍首页 / 音乐沿用既有封面）。
+            LaunchedEffect(row.entry.itemId) { onThumbnailVisible() }
             CinefinListRow(
                 title = row.entry.displayName,
                 secondary = entryDetail(row.entry),
                 onClick = { onOpenEntry(row.entry) },
                 modifier = Modifier.padding(start = CinefinSpacing.Space4 * row.depth),
                 leading = {
-                    Icon(
-                        painter = painterResource(row.entry.kind.iconRes()),
-                        contentDescription = row.entry.kind.label,
-                        tint = colors.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                    LocalThumbnailTile(
+                        cover = thumbnail,
+                        iconRes = row.entry.kind.iconRes(),
+                        iconDescription = row.entry.kind.label,
                     )
                 },
             )
+        }
+    }
+}
+
+/** W45 本地库详情头部封面：16:9 封面通栏裁切（高度 140dp），无图回退类型图标。 */
+@Composable
+private fun LocalLibraryHeaderCover(
+    cover: String?,
+    type: LocalLibraryType,
+    itemCount: Int,
+    onCoverVisible: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    // 条目数变化（新增文件夹 → 扫描完成）后重新请求。
+    LaunchedEffect(type, itemCount) { onCoverVisible() }
+    Box(
+        modifier =
+            Modifier.fillMaxWidth()
+                .height(140.dp)
+                .clip(CinefinShapes.Md)
+                .background(colors.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (cover != null) {
+            AsyncImage(
+                model = localCoverModel(cover),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Icon(
+                painter = painterResource(type.iconRes()),
+                contentDescription = type.label,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(36.dp),
+            )
+        }
     }
 }
 

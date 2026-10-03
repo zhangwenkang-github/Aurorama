@@ -95,6 +95,16 @@
 
 ## 4. 进度
 
+### W45 首页本地媒体卡片化 + 本地缩略图接入（2026-10-03，分支 `feature/w45-local-covers`，起点 master `d11f80d`）
+
+- **决策（D47，用户 2026-10-03 反馈「纯文字卡与首页不搭」）**：①**卡片化** = 封面（库内首项缩略图）+ 库名 +「N 项 · 类型」+ 右上类型角标；`rememberLandscapeCardWidth()` + `aspectRatio(16f/9f)` + `LumenCardFrame`（默认 `CinefinShapes.Md`）+ `lumenEntrance(index)`，横排间距 `rememberGridGutter()`、`SectionHeader` 底部 Space4——与「继续观看」**同宽同高同 pitch**；无封面回退既有类型图标（`surfaceContainerHigh` 底 + 32dp 图标）。②**三处使用点** = 媒体库总览库卡 40dp 缩略图（替换类型图标磁贴）/ 本地条目列表行 `CinefinListRow.leading` / 本地库详情头部 140dp 通栏封面。③**载入** = `localCoverModel()` 把绝对路径转 `File`（Coil 3 → `file://`）、`content://` 原样传字符串；缓存沿用全局 `ImageLoader`，不新增缓存层。④**不做** = 不新增配色 / 字体 / 位图，不动音乐链路（内嵌标签 → 同目录封面），不改库卡点击行为；首项选取与缩略图口径见 `DOWNLOAD_PLAN` D32–D36
+- [x] **A1 首页本地库卡改版**：`HomeLocalMediaSection` 从「纯文字卡（200dp 宽 + 库名 + W39 副标题）」改为首页同语言卡片——封面（库内首项缩略图）+ 库名 +「N 项 · 类型」+ 右上类型角标（`BaseBadge` 中性徽标）；尺寸 / 圆角 / 间距与「继续观看」横排一致（`rememberLandscapeCardWidth()` + `aspectRatio(16/9)` + `LumenCardFrame`(默认 `CinefinShapes.Md`) + `rememberGridGutter()`），`SectionHeader` 底部间距 Space3 → Space4 对齐走廊节奏
+- [x] **A2 缩略图接入三处**：媒体库总览库卡（40dp `corner-xs` 缩略图替换原类型图标磁贴，无图回退类型图标）/ 本地条目列表行（`CinefinListRow.leading` = 缩略图，行可见时按需生成）/ 本地库详情头部（140dp 通栏封面，无图回退类型图标）
+- [x] **A3 懒生成接线**：`LocalLibraryViewModel.loadCover` / `LocalLibraryDetailViewModel.loadHeaderCover` / `loadThumbnail` 去重请求；卡片 / 行的 `LaunchedEffect` 键含条目数（新建库扫描完成后自动重试）；`localCoverModel()` 把本地文件绝对路径转 `File` 交给 Coil 3（`file://` → `FileUriFetcher`），`content://`（同目录封面）原样传递
+- [x] **A4 空库不请求**：库卡 / 详情头部 `itemCount <= 0` 时不发起请求（踩坑 67）
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；单测 `--rerun` **471 项 / 0 失败**（data 新增 `LocalThumbnailRulesTest` 9 项：缓存 / 失败标记路径、缩放与旋转折算、首项顺序与限额、CBZ 第一张图过滤）
+- [x] **真机验收**：见 §5 W45 验收（四条封面链路像素取证 + 首页卡 16:9 同宽同高 + 125 项滚动 gfxinfo）
+
 - [x] ①-色彩：中性色亮 / 暗、三域媒体色 3×7、语义色、状态层、M3 `ColorScheme` 映射
 - [x] ①-排版：v1.0 字阶 + 7 个扩展 token（DetailTitle / SectionTitle / WideCardTitle / NavLabel / MonoData / MonoDataSmall / Reader*）
 - [x] ①-形状 / 动效 / 间距 / 无投影规则
@@ -682,6 +692,17 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **手势真机**（音乐线 D56）：全屏左滑进歌词 / 右滑留空（队列不再被左滑打开）/ 下滑关闭；歌词页右滑返回 / 下滑返回；「播放队列」按钮打开队列面板不回归；K60 抽验同款
 - [x] **稳定性 / 还原**：双机 0 `FATAL EXCEPTION` / 0 ANR；双机 force-stop、`/sdcard/w44*` 清理、EQ / RG 覆盖复原、设置开关保持原值（详见 `device-lock.md`）
 
+### W45 验收（2026-10-03，分支 `feature/w45-local-covers`，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+- [x] **四条封面链路（像素取证）**：自建素材（600×800 深蓝 PDF / 深绿 CBZ / 含深红封面的最小 EPUB / Big Buck Bunny 360p 10s mp4），Pad 5 取回 `files/local_thumbs/*.jpg` 用 PIL 读数——PDF 首页 `384×512 mean=[30,59,89]`、CBZ 第一张图 `384×512 mean=[20,111,70]`、EPUB `384×512 mean=[140,30,29]`、视频首帧 `512×288 mean=[90,105,57]`，逐条与素材底色对应；长边均 ≤512（JPEG）
+- [x] **懒生成 + 并发**：清缓存后只进首页（不进详情）即生成 3 张库卡封面（三库各 1 张，未全量刷图）；125 项库滚动一圈后缓存 65 张（仅可见行生成）
+- [x] **首页卡片化**：本地库卡 `content-desc=W45Mix [833,1945][1391,2259]` = 558×314px（16:9，与「继续观看」卡同宽同高同 pitch）+ 类型角标 `混合` + 库名 + `125 项 · 混合`；封面像素采样 `[66,79,57]`（叠底渐隐后的视频帧，回退态为 ≈`[26,31,39]` 中性底）→ 真图显示
+- [x] **性能**：Pad 5 125 项混合库首轮滚动 762 帧 / 51 janky（6.69%）/ p50 7ms / p90 17ms / p99 34ms（含现场生成）；缓存命中后第二轮 759 帧 / **4 janky（0.53%）** / p50 7ms / p90 9ms / p99 14ms（`dumpsys gfxinfo`）
+- [x] **列表行 / 详情头部 / 回退**：详情页视频行缩略图 40dp（`content-desc=视频 [90,1950][180,2040]`）、详情头部 140dp 通栏封面；音乐无内嵌 / 同目录封面时回退类型图标
+- [x] **真机拦下并修复**（踩坑 67）：新建库「0 项」阶段请求封面 → null 永久缓存（表现为「库卡封面要进一次详情页才出现」）；改为「空库不请求 + 按条目数变化重试」后清缓存重启、仅首页复验三库全部出图
+- [x] **K60 抽验**：装机 + 新建混合库（5 项）+ 库卡类型角标 + 详情行缩略图正常，0 FATAL / ANR
+- [x] **还原**：双机删除测试库（源文件保留）、删除 `/sdcard/Download/W45Media|W45Fresh` 与 `/sdcard/w45_ui*.xml`、`run-as` 清空 `files/local_thumbs`、`am force-stop`；未改偏好 / 旋转 / 网络 / 音量（`device-lock.md`）
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -757,9 +778,11 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 64. **`adb shell input swipe` 起点落在屏幕边缘会被系统返回手势吞掉**（W44 真机验证自绘滑杆时踩到）：起点 x=65 px（≈29 dp）落在手势导航的侧边返回热区，整条拖动被系统接管——表现是"面板被关闭、滑杆值没变"，看起来像组件 bug。验证任何横向拖动（滑杆 / 手势页）都把起点放到内容区（本波 65 → 600 px）再复测；真机上滑杆本身在内容区起手时拖动正常（已复验 + 落盘取证）。
 65. **M3 默认暗色 `Switch` / `Slider` 经不起暗底检验，且问题是"每页一份"**：`Switch` 关闭态拇指取 `outline`（#2C3542）对面板底 #171D25 仅 **1.37:1**，用户读作"小圆点看不见"；`Slider` 默认浮标是 4dp 宽 × 44dp 高的竖条，用户读作"控制条上的竖线"。修法不是逐页调色，而是把两者收成 core 共享组件（`CinefinSwitch` / `CinefinSlider`）再一次性替换调用点——否则新老样式会在设置 / 音效 / 播放器面板之间混排。验收用像素采样给对比度数字（1.37:1 → 6.6:1），比截图更可复核。
 66. **自绘滑杆（Canvas + `pointerInput`）不会自动继承 M3 行为**：RTL（最小值从右往左）、`steps` 档位吸附、无障碍语义（`progressBarRangeInfo` + `setProgress`）、禁用态都必须在组件里显式补；另外 `pointerInput` 的 key 里不能放每次重组都会新建的 lambda（会重启手势、拖动中途断开），要用 `rememberUpdatedState` 包住回调、只把 `enabled / valueRange / steps / isRtl` 当 key。
+67. **「按需加载 + 结果缓存」会让「尚未就绪」被当成「永远没有」**（W45 真机拦下）：库卡封面在 `LaunchedEffect(card.id)` 里请求一次，而新建库时库卡会先以「0 项 / 尚未扫描」出现——此刻 `repository.entries()` 返回空 → 得到 null 并写入 `covers[id]` + 请求去重集合，之后即使扫描完成（125 项）也不再请求；表现是「库卡封面必须进一次详情页才出现」（详情页的头部请求发生在数据就绪之后）。修法 = **空数据时不请求、请求键带上数据量**（`itemCount <= 0` 直接 return；`LaunchedEffect(card.id, card.itemCount)` + `coverRequests[id] == itemCount` 去重）。通用判据：凡「一次性请求 + 结果缓存」的 UI 状态，都要问一句「请求时数据可能还没到吗」——是则把「未就绪」与「确认为空」分开，或把数据量 / 版本号放进请求键。
 
 ## 7. 日志
 
+- **2026-10-03 W45 首页本地媒体卡片化 + 本地缩略图接入（本会话，`feature/w45-local-covers`，起点 master `d11f80d`）**：读 `PROJECT_PLAN` §1–§5、`DOWNLOAD_PLAN` §2.2/§12/§13、`UI_DESIGN_SYSTEM` §4/§5、`UI_PLAN` D39/D46 + 踩坑 20/29/65、`MUSIC_PLAN` W37 封面口径后开工（developer.android.com 直连 20s 超时不可达 → 改用官方镜像 `developer.android.google.cn` 学 `MediaMetadataRetriever` / `PdfRenderer`；Coil 3 行为用本机 3.6.3 产物字节码核对：`StringMapper` → `isFileUri` 对无 scheme 绝对路径为真）。①**规则纯函数**（data）：`LocalThumbnailRules`（`files/local_thumbs/<itemId>.jpg` + `.fail`、≤512 / JPEG 80、视频 1s→0s、候选「视频 → 书籍 → 音乐」、最多现场生成 3 张、CBZ 页图过滤）+ 9 项单测；②**提取**（app:phone `LocalThumbnailProvider`，`Semaphore(2)` + in-flight 合并 + `Dispatchers.IO`）：视频 `getScaledFrameAtTime`（旋转折算）→ PDF `PdfRenderer` 白底降采样 → CBZ `ZipInputStream` 首图（≤32MB）→ EPUB `modes:book` 新增 `LocalEpubCover`（Readium `Publication.cover()`）；音乐沿用 W37 链路；③**UI**：首页本地库卡（16:9 + 与继续观看同宽 + 类型角标 + 底部渐隐）、媒体库总览库卡 40dp 缩略图、列表行缩略图、详情头部 140dp 封面，无图回退类型图标。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **471 项 / 0 失败**（data 42 含新增 9）。真机（13:20–13:32，Pad 5 主 + K60 抽验）：四条封面链路像素取证（`[30,59,89]` / `[20,111,70]` / `[140,30,29]` / `[90,105,57]`）、首页卡 558×314 与继续观看同宽同高、125 项库滚动 `gfxinfo` 缓存命中后 0.53% janky（p90 9ms）；**拦下并修复**「新建库空库阶段请求封面被永久缓存」（踩坑 67）；双机 0 FATAL / ANR，副作用已还原。分支已推送未合并。
 - **2026-10-03 W44 开关对比度 + 统一滑杆 + 音乐手势（本会话，`feature/w44-music-detail`，起点 master `77feba9`）**：读 `PROJECT_PLAN` §1–§5、`UI_DESIGN_SYSTEM` §2/§4/§5、`UI_PLAN` D41–D45 + 踩坑库、`MUSIC_PLAN` W23/W24/W28/W30/W35/W39 后开工（developer.android.com `Slider` / `Switch` 两页本机 20 s 超时不可达，按任务书回退到项目设计系统与播放页自绘进度条口径）。①**共享组件**：`CinefinSwitch`（关闭态拇指 `onSurfaceVariant` / 轨道 `surfaceContainerHigh` / 描边 `onSurfaceFaint`，Prism + Lumen 自动切换）+ `CinefinSlider`（4dp 胶囊轨 + 18dp 圆点拇指 + 极轻柔光，`steps` 吸附 / 禁用 / RTL / 36dp 触控带），替换 8 处 `Switch` 与 4 类 `Slider`（EQ 五段 / RG 覆盖 / 阅读器），M3 默认 `Slider` 使用点清零；②**纯函数 + 单测**：`cinefinSliderFraction` / `cinefinSliderValueAt`（core 7 项）、`swipeGestureDirection`（music 5 项）；③**手势**：全屏左滑进歌词 / 右滑留空 / 左滑队列取消 / 下滑关闭，歌词页右滑返回，判定矩阵出闭包。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **462 项 / 0 失败**。真机（12:20–12:50，Pad 5 主 + K60 抽验）：开关关闭态像素 `#A7B0BD` / `#222A36` / `#6E7887`（对比度 1.37:1 → **6.6:1**）、Lumen `#98A2B3` / `#171A21` / `#6B7483`、禁用态 3.69:1；EQ `+3.7 dB` 与 RG 覆盖 `+7.0 dB` 实时生效且落盘 / 清除可回读；左滑进词 / 右滑返回 / 下滑关闭 / 队列按钮全部命中；双机 0 FATAL / ANR，副作用已还原。新增踩坑 64–66；分支已推送未合并。
 
 - **2026-10-03 W41 包名重命名 · 方案 A（本会话，`feature/w41-aurorama-package`，起点 master `410e20f`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D36–D44 / 踩坑 1–61）、`ARCHITECTURE` §1、`DEV_ENVIRONMENT`，并经代理读 Android 官方 `applicationId` / `FileProvider` 文档后开工。①**身份**：phone / TV `applicationId` → `io.github.zhangwenkang.aurorama`（`.debug` / `.staging` 后缀保留），**Kotlin namespace / 包名 / 目录 / import / proguard / 清单内相对类名全部未动**；`fastlane/Appfile`、`tools/*` 7 脚本 `$Package`、PROJECT_PLAN / DEV_ENVIRONMENT / PLAYER_PLAN / READER_PLAN / TEST_PLAN 的 adb 示例同步；**仓库无自建 FileProvider**，唯一 `${applicationId}` 占位符（androidx.startup）随 applicationId 自动解析、合并清单实测无 authority；②**标识**：`JellyfinApi.CLIENT_NAME` `"Cinefin"` → `"Aurorama"`；③**关于页**：旧 `ic_banner` → `ic_logo`（120dp）；④**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **450 项 / 0 失败**；`aapt` 双 APK `package='io.github.zhangwenkang.aurorama.debug'`；⑤**双机**（窗口 07:33–11:02，装机 / 重登由负责人完成）：关于页品牌 / SAF 失效（预期）/ 播放 + 媒体通知 / 下载 + 删除 / 离线开关全通过，Pad 5 冷启动 1501 ms、K60 905 ms，0 FATAL / ANR，旧包双机卸载；新增踩坑 62–63。详见 §5 W41 与 `device-lock.md`。
