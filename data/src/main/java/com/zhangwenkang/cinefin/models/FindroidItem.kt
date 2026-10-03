@@ -18,6 +18,15 @@ interface FindroidItem {
     val sources: List<FindroidSource>
     val runtimeTicks: Long
     val playbackPositionTicks: Long
+    /**
+     * W60：服务器 `UserData.PlayedPercentage`（0–100）。
+     *
+     * 书籍 / 音频等没有 `runtimeTicks`（或还没有时长）的续读 / 续听条目用它换算进度条； 有 `runtimeTicks` 的条目仍以 `playbackPosition
+     * / runtime` 为准。默认 null = 没有进度数据。
+     */
+    val playedPercentage: Double?
+        get() = null
+
     val unplayedItemCount: Int?
     val images: FindroidImages
     val chapters: List<FindroidChapter>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- W60 新增：收藏（书签）填充态。填充 + 同色圆角补边（与 ic_heart_filled 同口径，无描边噪声）。 -->
+    <path
+        android:pathData="M6.5,3.5 H17.5 V20.5 L12,16.75 L6.5,20.5 Z"
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

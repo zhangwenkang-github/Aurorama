@@ -76,7 +76,7 @@ fun LandscapeItemCard(
     val pressed by interactionSource.collectIsPressedAsState()
     val emphasized = hovered || pressed
 
-    val resumeFraction = item.resumeFraction()
+    val resumeFraction = item.cardResumeFraction()
 
     LumenCardFrame(
         modifier =
@@ -172,6 +172,21 @@ fun LandscapeItemCard(
             }
         }
     }
+}
+
+/**
+ * 走廊卡片进度（0..1，W60）：
+ * - 优先 `playbackPosition / runtime`（继续观看 / 收听有完整时长时精度最高）；
+ * - 没有时长数据（书籍 `runtimeTicks = 0`）或位置为 0 时回退 `UserData.playedPercentage / 100`；
+ * - 两者都没有返回 0，卡片不画进度线。
+ */
+internal fun FindroidItem.cardResumeFraction(): Float {
+    if (runtimeTicks > 0) {
+        val fromTicks = (playbackPositionTicks.toFloat() / runtimeTicks.toFloat()).coerceIn(0f, 1f)
+        if (fromTicks > 0f) return fromTicks
+    }
+    val percentage = playedPercentage ?: return 0f
+    return (percentage / 100.0).toFloat().coerceIn(0f, 1f)
 }
 
 /** 卡片元信息：剧集显示 `S1 · E1 · 剩余 24 分钟`，电影显示原名（无原名时退回片名）。 */

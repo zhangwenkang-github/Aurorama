@@ -118,6 +118,7 @@
     <string name="delete_download">删除下载</string>
     <string name="delete_download_message">您确定要从设备中删除此下载内容吗？</string>
     <string name="download_pending">正在等待…</string>
+    <string name="download_retry_in_progress">重试中 · 第 %1$d 次</string>
     <string name="download_paused">已暂停</string>
     <string name="download_downloading">正在下载…</string>
     <string name="download_failed">下载失败</string>
