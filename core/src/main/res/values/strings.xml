@@ -118,6 +118,7 @@
     <string name="drawer_section_user">Account</string>
     <string name="drawer_no_server">No server added</string>
     <string name="download_pending">Pending…</string>
+    <string name="download_retry_in_progress">Retrying · attempt %1$d</string>
     <string name="download_paused">Paused</string>
     <string name="download_downloading">Downloading…</string>
     <string name="download_failed">Failed to download</string>
