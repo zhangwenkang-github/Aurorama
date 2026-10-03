@@ -17,11 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderAction
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderEvent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
@@ -51,9 +56,13 @@ import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieViewModel
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.VideoMetadata
+import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
 import com.zhangwenkang.cinefin.presentation.film.components.DetailPoster
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeState
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
@@ -72,6 +81,7 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents
 import java.util.UUID
+import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 @Composable
@@ -80,15 +90,22 @@ fun MovieScreen(
     navigateBack: () -> Unit,
     navigateHome: () -> Unit,
     navigateToPerson: (personId: UUID) -> Unit,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: MovieViewModel = hiltViewModel(),
     downloaderViewModel: DownloaderViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val isOfflineMode = LocalOfflineMode.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val viewLabel = stringResource(CoreR.string.snackbar_view)
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloaderState by downloaderViewModel.state.collectAsStateWithLifecycle()
+    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
 
     LaunchedEffect(true) { viewModel.loadMovie(movieId = movieId) }
 
@@ -96,6 +113,17 @@ fun MovieScreen(
 
     ObserveAsEvents(downloaderViewModel.events) { event ->
         when (event) {
+            is DownloaderEvent.Queued -> {
+                // W60b：入队成功即反馈（「已加入下载队列」+「查看」跳下载页）。
+                scope.launch {
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(CoreR.string.detail_download_added),
+                            actionLabel = viewLabel,
+                        )
+                    if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
+                }
+            }
             is DownloaderEvent.Successful -> {
                 viewModel.loadMovie(movieId = movieId)
             }
@@ -112,6 +140,8 @@ fun MovieScreen(
     MovieScreenLayout(
         state = state,
         downloaderState = downloaderState,
+        downloadBadges = downloadBadges,
+        snackbarHostState = snackbarHostState,
         onAction = { action ->
             when (action) {
                 is MovieAction.Play -> {
@@ -148,6 +178,8 @@ fun MovieScreen(
 private fun MovieScreenLayout(
     state: MovieState,
     downloaderState: DownloaderState,
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAction: (MovieAction) -> Unit,
     onDownloaderAction: (DownloaderAction) -> Unit,
 ) {
@@ -187,7 +219,17 @@ private fun MovieScreenLayout(
                                 verticalAlignment = Alignment.Bottom,
                             ) {
                                 if (expanded) {
-                                    DetailPoster(item = movie, width = 216.dp)
+                                    DetailPoster(
+                                        item = movie,
+                                        width = 216.dp,
+                                        downloadBadge =
+                                            downloadBadges[movie.id]
+                                                ?: if (movie.isDownloaded()) {
+                                                    DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
+                                                } else {
+                                                    DownloadBadgeInfo()
+                                                },
+                                    )
                                 }
                                 Column(
                                     modifier = Modifier.weight(1f),
@@ -353,6 +395,11 @@ private fun MovieScreenLayout(
                 hasHomeButton = true,
                 onBackClick = { onAction(MovieAction.OnBackClick) },
                 onHomeClick = { onAction(MovieAction.OnHomeClick) },
+            )
+
+            CinefinSnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = paddingBottom),
             )
         }
     }

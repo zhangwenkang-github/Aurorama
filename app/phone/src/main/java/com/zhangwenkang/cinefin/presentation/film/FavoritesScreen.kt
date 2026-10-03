@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,7 +48,9 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchAction
@@ -75,13 +78,18 @@ fun FavoritesScreen(
     /** 抽屉入口；null = 当前形态没有抽屉（平板走常显侧轨）。 */
     onOpenDrawer: (() -> Unit)?,
     onItemClick: (item: FindroidItem) -> Unit,
+    /** 下载 Snackbar「查看」动作：跳下载页（W60b 下载反馈统一）。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: FavoritesItemsViewModel = hiltViewModel(),
     batchViewModel: MediaBatchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloadState by batchViewModel.downloadState.collectAsStateWithLifecycle()
+    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val viewLabel = stringResource(CoreR.string.snackbar_view)
     var selection by rememberMultiSelectState()
 
     LaunchedEffect(true) { viewModel.load() }
@@ -112,8 +120,15 @@ fun FavoritesScreen(
     LaunchedEffect(batchViewModel) {
         batchViewModel.refreshDownloadState()
         batchViewModel.events.collect { event ->
-            mediaBatchEventMessage(context, event)?.let { message ->
-                snackbarHostState.showSnackbar(message)
+            val message = mediaBatchEventMessage(context, event)
+            if (message != null) {
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel =
+                            if (event is MediaBatchEvent.DownloadQueued) viewLabel else null,
+                    )
+                if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
             }
             when (event) {
                 is MediaBatchEvent.Updated -> {
@@ -287,6 +302,7 @@ fun FavoritesScreen(
                                             .retain(loadedIds.toSet())
                                             .longPress(item.id.toString())
                                 },
+                                downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                             )
                         }
                     }

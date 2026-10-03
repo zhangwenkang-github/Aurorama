@@ -1,8 +1,10 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
@@ -10,6 +12,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -20,6 +23,8 @@ fun DetailPoster(
     item: FindroidItem,
     modifier: Modifier = Modifier,
     width: Dp = 216.dp,
+    /** W60b：下载状态角标（详情海报）；默认无角标，既有调用零改动。 */
+    downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
 ) {
     val colors = LocalCinefinColors.current
     LumenCardFrame(
@@ -35,5 +40,11 @@ fun DetailPoster(
             contentScale = ContentScale.Crop,
             modifier = Modifier.matchParentSize(),
         )
+        if (downloadBadge.state != DownloadBadgeState.NONE) {
+            DownloadStatusBadge(
+                badge = downloadBadge,
+                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space3),
+            )
+        }
     }
 }

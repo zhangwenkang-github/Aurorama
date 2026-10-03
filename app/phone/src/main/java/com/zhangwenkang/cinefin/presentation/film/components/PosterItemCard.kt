@@ -35,7 +35,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /**
@@ -49,6 +48,8 @@ fun PosterItemCard(
     onClick: (FindroidItem) -> Unit,
     modifier: Modifier = Modifier,
     index: Int = 0,
+    /** W60b：下载状态角标（下载中 / 暂停 / 失败 / 已下载）；默认无角标，既有调用零改动。 */
+    downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -80,14 +81,11 @@ fun PosterItemCard(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space2),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-            ) {
-                if (item.favorite) FavoriteBadge()
-                if (item.isDownloaded()) DownloadedBadge()
-                ItemStatusBadge(item)
-            }
+            CardBadgeOverlay(
+                item = item,
+                downloadBadge = downloadBadge,
+                cornerPadding = CinefinSpacing.Space2,
+            )
 
             if (resumeFraction > 0f) {
                 Box(

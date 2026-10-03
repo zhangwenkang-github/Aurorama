@@ -16,6 +16,7 @@ import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.HomeItem
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
+import java.util.UUID
 
 /** 媒体库走廊：显示某个库的最新几部，标题右侧的"全部"进入该库。 用文字操作代替圆形箭头按钮，页面因此没有多余的控件形状。 */
 @Composable
@@ -24,6 +25,8 @@ fun HomeView(
     itemsPadding: PaddingValues,
     onAction: (HomeAction) -> Unit,
     modifier: Modifier = Modifier,
+    /** W60b：下载状态角标（itemId → 角标）；默认空表 = 无角标，既有调用零改动。 */
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
     val gutter = rememberGridGutter()
     Column(modifier = modifier) {
@@ -53,6 +56,7 @@ fun HomeView(
                     item = item,
                     onClick = { onAction(HomeAction.OnItemClick(item)) },
                     index = index,
+                    downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                 )
             }
         }

@@ -54,6 +54,7 @@ import com.zhangwenkang.cinefin.presentation.local.sizeText
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import java.util.UUID
 import kotlinx.coroutines.delay
 
 @Composable
@@ -66,6 +67,8 @@ fun FilmSearchBar(
     modifier: Modifier = Modifier,
     paddingStart: Dp = 0.dp,
     paddingEnd: Dp = 0.dp,
+    /** W60b：下载状态角标（itemId → 角标）；搜索结果与列表同一套卡片角标。 */
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
     val media = LocalMediaColors.current
     val pageGutter = rememberPageGutter()
@@ -111,6 +114,9 @@ fun FilmSearchBar(
         }
         onAction(SearchAction.Search(query))
     }
+
+    // W60b：收藏变更后重跑当前查询，搜索结果卡片的收藏角标即时一致。
+    FavoriteChangeEffect { if (query.isNotBlank()) onAction(SearchAction.Search(query)) }
 
     SearchBar(
         inputField = {
@@ -207,6 +213,7 @@ fun FilmSearchBar(
                             direction = Direction.VERTICAL,
                             onClick = { onAction(SearchAction.OnItemClick(item)) },
                             modifier = Modifier.animateItem(),
+                            downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                         )
                     }
                 }

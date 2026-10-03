@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.models.HomeSection
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
+import java.util.UUID
 
 /** 一条横向内容走廊：标题 + 一排横版卡。卡片之间只有间隔，没有分隔线——横排本身就是分组。 */
 @Composable
@@ -20,6 +21,8 @@ fun HomeSection(
     itemsPadding: PaddingValues,
     onAction: (HomeAction) -> Unit,
     modifier: Modifier = Modifier,
+    /** W60b：下载状态角标（itemId → 角标）；默认空表 = 无角标，既有调用零改动。 */
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
     val gutter = rememberGridGutter()
     Column(modifier = modifier) {
@@ -36,6 +39,7 @@ fun HomeSection(
                     item = item,
                     onClick = { onAction(HomeAction.OnItemClick(item)) },
                     index = index,
+                    downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                 )
             }
         }

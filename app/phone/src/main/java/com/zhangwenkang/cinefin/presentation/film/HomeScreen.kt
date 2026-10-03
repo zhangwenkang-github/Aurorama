@@ -45,6 +45,8 @@ import com.zhangwenkang.cinefin.models.HomeSection
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.HomeSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.HomeHero
 import com.zhangwenkang.cinefin.presentation.film.components.HomeSection
@@ -58,6 +60,7 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import java.util.UUID
 
 /** 版心：所有内容都对齐到这条页边线（含横屏时的刘海安全区）。 */
 private val wallMinColumnWidth = 152.dp
@@ -75,6 +78,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
 
     LaunchedEffect(true) { viewModel.loadData() }
     // W60b：收藏变更后重取首页走廊，卡片收藏角标即时一致。
@@ -88,6 +93,7 @@ fun HomeScreen(
         onLibraryClick = onLibraryClick,
         onOpenLocalLibrary = onOpenLocalLibrary,
         onRetry = { viewModel.loadData() },
+        downloadBadges = downloadBadges,
     )
 }
 
@@ -106,6 +112,7 @@ private fun HomeScreenLayout(
     onLibraryClick: (FindroidCollection) -> Unit,
     onOpenLocalLibrary: (Long) -> Unit,
     onRetry: () -> Unit,
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val gutter = rememberPageGutter()
@@ -181,6 +188,7 @@ private fun HomeScreenLayout(
                                 HomeSection(
                                     section = section.copy(items = section.items.drop(1)),
                                     itemsPadding = PaddingValues(),
+                                    downloadBadges = downloadBadges,
                                     onAction = { action ->
                                         action.dispatch(onItemClick, onLibraryClick)
                                     },
@@ -192,6 +200,7 @@ private fun HomeScreenLayout(
                             homeRail(
                                 key = "resume_reading",
                                 section = section,
+                                downloadBadges = downloadBadges,
                                 onItemClick = onItemClick,
                                 onLibraryClick = onLibraryClick,
                             )
@@ -201,6 +210,7 @@ private fun HomeScreenLayout(
                             homeRail(
                                 key = "resume_listening",
                                 section = section,
+                                downloadBadges = downloadBadges,
                                 onItemClick = onItemClick,
                                 onLibraryClick = onLibraryClick,
                             )
@@ -211,6 +221,7 @@ private fun HomeScreenLayout(
                                 HomeSection(
                                     section = state.nextUpSection!!.homeSection.copy(items = items),
                                     itemsPadding = PaddingValues(),
+                                    downloadBadges = downloadBadges,
                                     onAction = { action ->
                                         action.dispatch(onItemClick, onLibraryClick)
                                     },
@@ -228,6 +239,7 @@ private fun HomeScreenLayout(
                                 HomeView(
                                     view = view,
                                     itemsPadding = PaddingValues(),
+                                    downloadBadges = downloadBadges,
                                     onAction = { action ->
                                         action.dispatch(onItemClick, onLibraryClick)
                                     },
@@ -241,18 +253,21 @@ private fun HomeScreenLayout(
                             titleRes = FilmR.string.recently_added_videos,
                             items = wallItems,
                             onItemClick = onItemClick,
+                            downloadBadges = downloadBadges,
                         )
                         homePosterWall(
                             keyPrefix = "recent_book",
                             titleRes = FilmR.string.recently_added_books,
                             items = state.recentlyAddedBooks,
                             onItemClick = onItemClick,
+                            downloadBadges = downloadBadges,
                         )
                         homePosterWall(
                             keyPrefix = "recent_music",
                             titleRes = FilmR.string.recently_added_music,
                             items = state.recentlyAddedMusic,
                             onItemClick = onItemClick,
+                            downloadBadges = downloadBadges,
                         )
                     }
                 }
@@ -297,6 +312,7 @@ private fun HomeAction.dispatch(
 private fun LazyGridScope.homeRail(
     key: String,
     section: HomeSection,
+    downloadBadges: Map<UUID, DownloadBadgeInfo>,
     onItemClick: (FindroidItem) -> Unit,
     onLibraryClick: (FindroidCollection) -> Unit,
 ) {
@@ -304,6 +320,7 @@ private fun LazyGridScope.homeRail(
         HomeSection(
             section = section,
             itemsPadding = PaddingValues(),
+            downloadBadges = downloadBadges,
             onAction = { action -> action.dispatch(onItemClick, onLibraryClick) },
         )
     }
@@ -315,6 +332,7 @@ private fun LazyGridScope.homePosterWall(
     @StringRes titleRes: Int,
     items: List<FindroidItem>,
     onItemClick: (FindroidItem) -> Unit,
+    downloadBadges: Map<UUID, DownloadBadgeInfo>,
 ) {
     if (items.isEmpty()) return
     item(key = "${keyPrefix}_title", span = { GridItemSpan(maxLineSpan) }) {
@@ -326,7 +344,12 @@ private fun LazyGridScope.homePosterWall(
         )
     }
     itemsIndexed(items, key = { _, item -> "${keyPrefix}_${item.id}" }) { index, item ->
-        PosterItemCard(item = item, onClick = onItemClick, index = index)
+        PosterItemCard(
+            item = item,
+            onClick = onItemClick,
+            index = index,
+            downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
+        )
     }
 }
 

@@ -66,6 +66,9 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -75,6 +78,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -132,6 +136,10 @@ constructor(
 
     private val _downloadState = MutableStateFlow(SongDownloadState())
     val downloadState: StateFlow<SongDownloadState> = _downloadState.asStateFlow()
+
+    /** W60b：下载反馈（已加入队列 · N 首）→ 音乐页 Snackbar（带「查看」跳下载页）。 */
+    private val downloadQueuedChannel = Channel<Int>(Channel.BUFFERED)
+    val downloadQueued = downloadQueuedChannel.receiveAsFlow()
 
     /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
     private val _batchSelection = MutableStateFlow(MultiSelectState())
@@ -1115,11 +1123,16 @@ constructor(
                 queueEditor.jumpTo(queueBefore.items.size)
             }
             _batchSelection.value = MultiSelectState()
-            for (song in songs.drop(1)) {
-                val item = runCatching { trackResolver.toPlayerItem(song) }.getOrNull() ?: continue
-                val queue = playbackController.queue.value ?: break
-                playbackController.insertNext(item)
-                playbackController.move(queue.currentIndex + 1, queue.items.size)
+            // W60b：其余曲目**并发预取**（每批 4 首，解析结果保持列表序），按批按顺序入队——
+            // 逐首串行解析在选中几十首时要等很久；起播不被预取阻塞，入队顺序仍是列表序。
+            for (chunk in songs.drop(1).chunked(QUEUE_PREFETCH_CONCURRENCY)) {
+                val resolved = chunk.map { song -> async { resolveQueueItem(song) } }.awaitAll()
+                for (item in resolved) {
+                    val queue = playbackController.queue.value ?: return@launch
+                    if (item == null) continue
+                    playbackController.insertNext(item)
+                    playbackController.move(queue.currentIndex + 1, queue.items.size)
+                }
             }
         }
     }
@@ -1148,6 +1161,7 @@ constructor(
             val failures = enqueueSongs(plan.targets)
             refreshDownloadState()
             reportDownloadFailures(failures, plan.targets.size)
+            if (failures == 0) downloadQueuedChannel.send(plan.targets.size)
             if (failures == 0 && plan.skippedByLimit > 0) {
                 showBatchFailure(
                     "单次上限 ${MusicAlbumDownloadRules.MAX_TRACKS_PER_REQUEST} 首",
@@ -1166,6 +1180,7 @@ constructor(
             val failures = enqueueSongs(plan.targets)
             refreshDownloadState()
             reportDownloadFailures(failures, plan.targets.size)
+            if (failures == 0) downloadQueuedChannel.send(plan.targets.size)
             if (failures == 0 && plan.skippedByLimit > 0) {
                 showBatchFailure(
                     "单次上限 ${MusicAlbumDownloadRules.MAX_TRACKS_PER_REQUEST} 首",
@@ -1347,6 +1362,7 @@ constructor(
                 trackIndex = song.indexNumber ?: 0,
             )
             refreshDownloadState()
+            downloadQueuedChannel.send(1)
         }
     }
 
@@ -1848,5 +1864,8 @@ constructor(
     private companion object {
         /** 曲库加载失败后的自动重试等待（毫秒）：给弱网 / 服务端偶发超时一次恢复窗口。 */
         const val AUTO_RETRY_DELAY_MS = 1_200L
+
+        /** W60b 批量播放并发预取的并发度：兼顾服务器压力与解析速度（队列仍按列表序入队）。 */
+        const val QUEUE_PREFETCH_CONCURRENCY = 4
     }
 }

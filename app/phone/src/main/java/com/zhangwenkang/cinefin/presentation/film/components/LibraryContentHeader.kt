@@ -54,7 +54,6 @@ import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidTag
-import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 
 /**
@@ -298,6 +297,8 @@ fun LibraryListRow(
     imageOverride: String? = null,
     /** W59：无图时的类型占位图标（书籍库传 `ic_book`）；null = 保持原有空白底。 */
     @DrawableRes placeholderIconRes: Int? = null,
+    /** W60b：下载状态角标；默认无角标，既有调用零改动。 */
+    downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
 ) {
     val colors = LocalCinefinColors.current
     Row(
@@ -331,14 +332,11 @@ fun LibraryListRow(
                 imageOverride = imageOverride,
                 placeholderIconRes = placeholderIconRes,
             )
-            Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space1),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
-            ) {
-                if (item.favorite) FavoriteBadge()
-                if (item.isDownloaded()) DownloadedBadge()
-                ItemStatusBadge(item)
-            }
+            CardBadgeOverlay(
+                item = item,
+                downloadBadge = downloadBadge,
+                cornerPadding = CinefinSpacing.Space1,
+            )
         }
         Spacer(Modifier.width(CinefinSpacing.Space4))
         Column(modifier = Modifier.weight(1f)) {

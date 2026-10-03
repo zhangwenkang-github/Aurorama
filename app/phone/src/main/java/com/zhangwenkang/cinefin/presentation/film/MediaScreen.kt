@@ -46,6 +46,8 @@ import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
@@ -77,6 +79,8 @@ fun MediaScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val searchState by searchViewModel.state.collectAsStateWithLifecycle()
+    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
 
     LaunchedEffect(true) { viewModel.loadData() }
 
@@ -94,6 +98,7 @@ fun MediaScreen(
             viewModel.onAction(action)
         },
         onOpenLocalLibrary = onOpenLocalLibrary,
+        downloadBadges = downloadBadges,
         onSearchAction = { action ->
             when (action) {
                 is SearchAction.OnItemClick -> onItemClick(action.item)
@@ -137,6 +142,7 @@ private fun MediaScreenLayout(
     onAction: (MediaAction) -> Unit,
     onOpenLocalLibrary: (Long) -> Unit,
     onSearchAction: (SearchAction) -> Unit,
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val colors = LocalCinefinColors.current
@@ -190,6 +196,7 @@ private fun MediaScreenLayout(
         if (searchExpanded) {
             FilmSearchBar(
                 state = searchState,
+                downloadBadges = downloadBadges,
                 expanded = true,
                 onExpand = onSearchExpand,
                 onAction = onSearchAction,

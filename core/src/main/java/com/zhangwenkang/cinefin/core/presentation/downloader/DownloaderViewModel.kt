@@ -53,6 +53,7 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
                 )
             if (downloadId != -1L) {
                 this@DownloaderViewModel.downloadId = downloadId
+                eventsChannel.trySend(DownloaderEvent.Queued)
                 pollDownloadProgress(downloadId)
             } else {
                 _state.emit(

@@ -34,6 +34,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -76,6 +78,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -126,6 +129,8 @@ fun MusicModeScreen(
     reselectSignal: Int = 0,
     /** W56：把「音乐页内二级层（全屏播放 / 歌词页 / 专辑·艺术家·歌单详情）是否打开」回报给导航层（决定再点图标是只收二级层还是不重复导航）。 */
     onInnerPageOpenChange: ((Boolean) -> Unit)? = null,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: MusicModeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -146,6 +151,19 @@ fun MusicModeScreen(
     var effectsSheetOpen by rememberSaveable { mutableStateOf(false) }
     var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
     var pendingBatchDelete by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // W60b：下载反馈统一（歌曲 / 专辑 / 批量）——「已加入下载队列 · N 首」+「查看」跳下载页。
+    LaunchedEffect(viewModel) {
+        viewModel.downloadQueued.collect { count ->
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = "已加入下载队列 · $count 首",
+                    actionLabel = "查看",
+                )
+            if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
+        }
+    }
     val effectsEqualizerEnabled by viewModel.effectsEqualizerEnabled.collectAsState()
     val effectsEqualizerPreset by viewModel.effectsEqualizerPreset.collectAsState()
     val effectsEqualizerBands by viewModel.effectsEqualizerBands.collectAsState()
@@ -321,6 +339,11 @@ fun MusicModeScreen(
                         onClose = viewModel::dismissNowPlayingBar,
                     )
                 }
+
+                CinefinSnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.padding(horizontal = CinefinSpacing.Space4),
+                )
             }
 
             val currentQueue = queue

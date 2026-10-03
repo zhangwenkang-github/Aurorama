@@ -57,6 +57,8 @@ fun BookshelfScreen(
     temporaryLibraryId: String? = null,
     /** 临时库视图的「返回默认 ×」/ 系统返回键动作（回默认书架）。 */
     onExitTemporaryLibrary: (() -> Unit)? = null,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: BookshelfViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -83,6 +85,7 @@ fun BookshelfScreen(
                 topLevel = true,
                 onOpenDrawer = onOpenDrawer,
                 onBackToDefault = onExitTemporaryLibrary,
+                onOpenDownloads = onOpenDownloads,
                 // 顶栏「库选择」+「收藏」（W54-C）：与视频页同一套动作，落点由库内容页头部注入。
                 topBarActions = {
                     BookshelfTopBarActions(

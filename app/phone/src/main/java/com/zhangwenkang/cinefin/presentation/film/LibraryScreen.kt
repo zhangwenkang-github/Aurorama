@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +64,9 @@ import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
@@ -121,6 +124,8 @@ fun LibraryScreen(
     /** W54-D：首页「全部」入口带「最近添加」初始排序；null = 沿用全局排序偏好（既有入口不变）。 */
     initialSortBy: SortBy? = null,
     initialSortOrder: SortOrder? = null,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     // W59：书籍封面自动生成结果（itemId → 本地绝对路径）。
@@ -151,6 +156,7 @@ fun LibraryScreen(
         state = state,
         bookCovers = bookCovers,
         onRequestBookCover = viewModel::requestBookCover,
+        onOpenDownloads = onOpenDownloads,
         onAction = { action ->
             when (action) {
                 is LibraryAction.OnItemClick -> onItemClick(action.item)
@@ -181,6 +187,8 @@ private fun LibraryScreenLayout(
     /** W59：书籍封面自动生成结果（itemId → 本地绝对路径）。 */
     bookCovers: Map<UUID, String> = emptyMap(),
     onRequestBookCover: (UUID, String?) -> Unit = { _, _ -> },
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     onAction: (LibraryAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding()
@@ -233,9 +241,12 @@ private fun LibraryScreenLayout(
     // ---- W58b：长按多选 + 批量操作（视频库 / 书籍库共用；删除仅本地） ----
     val batchMode = mediaBatchMode(libraryType)
     val batchViewModel: MediaBatchViewModel = hiltViewModel()
+    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
     val downloadState by batchViewModel.downloadState.collectAsStateWithLifecycle()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchSelection by rememberMultiSelectState()
     var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
     val selectionMode = batchMode != MediaBatchMode.NONE && batchSelection.selectionMode
@@ -276,7 +287,13 @@ private fun LibraryScreenLayout(
         batchViewModel.refreshDownloadState()
         batchViewModel.events.collect { event ->
             mediaBatchEventMessage(context, event)?.let { message ->
-                snackbarHostState.showSnackbar(message)
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel =
+                            if (event is MediaBatchEvent.DownloadQueued) viewLabel else null,
+                    )
+                if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
             }
             when (event) {
                 is MediaBatchEvent.PlayQueue -> context.startVideoQueuePlayback(event.entries)
@@ -530,6 +547,8 @@ private fun LibraryScreenLayout(
                                         } else {
                                             null
                                         },
+                                    downloadBadge =
+                                        downloadBadges[loadedItem.id] ?: DownloadBadgeInfo(),
                                 )
                             }
                         }
@@ -567,6 +586,7 @@ private fun LibraryScreenLayout(
                                 item = item,
                                 onClick = { onAction(LibraryAction.OnItemClick(item)) },
                                 modifier = Modifier.animateItem(),
+                                downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                             )
                         }
                     }
@@ -591,6 +611,7 @@ private fun LibraryScreenLayout(
                                 direction = direction,
                                 onClick = { onAction(LibraryAction.OnItemClick(item)) },
                                 modifier = Modifier.animateItem(),
+                                downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                             )
                         }
                     }

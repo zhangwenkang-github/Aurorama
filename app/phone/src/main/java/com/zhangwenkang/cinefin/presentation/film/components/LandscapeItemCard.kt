@@ -41,7 +41,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /** 横版卡宽度：随屏幕尺寸自适应。Lumen 版整体放大一档，走廊不再"挤成一条传送带"。 */
@@ -68,6 +67,8 @@ fun LandscapeItemCard(
     modifier: Modifier = Modifier,
     width: Dp = rememberLandscapeCardWidth(),
     index: Int = 0,
+    /** W60b：下载状态角标（下载中 / 暂停 / 失败 / 已下载）；默认无角标，既有调用零改动。 */
+    downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -109,14 +110,13 @@ fun LandscapeItemCard(
                     )
         )
 
-        Row(
-            modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space3),
-            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-        ) {
-            if (item.favorite) FavoriteBadge()
-            if (item.isDownloaded()) DownloadedBadge()
-            ItemStatusBadge(item)
-        }
+        // 横版卡右下角是标题 / 片长文字块：下载角标错位到右下时上移 48dp，压在剧照上而不是压字。
+        CardBadgeOverlay(
+            item = item,
+            downloadBadge = downloadBadge,
+            cornerPadding = CinefinSpacing.Space3,
+            bottomEndExtraBottom = 48.dp,
+        )
 
         Column(
             modifier =

@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,6 +63,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
+import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -75,6 +77,8 @@ fun SeasonScreen(
     navigateHome: () -> Unit,
     navigateToItem: (item: FindroidItem) -> Unit,
     navigateToSeries: (seriesId: UUID) -> Unit,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: SeasonViewModel = hiltViewModel(),
     detailDownloadViewModel: DetailDownloadViewModel = hiltViewModel(),
 ) {
@@ -83,6 +87,7 @@ fun SeasonScreen(
     val downloadSnapshot by detailDownloadViewModel.state.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchDialogVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(true) {
@@ -92,7 +97,12 @@ fun SeasonScreen(
 
     LaunchedEffect(Unit) {
         detailDownloadViewModel.events.collect { event ->
-            snackbarHostState.showSnackbar(downloadEventMessage(context, event))
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = downloadEventMessage(context, event),
+                    actionLabel = if (event.showsViewAction()) viewLabel else null,
+                )
+            if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
         }
     }
 

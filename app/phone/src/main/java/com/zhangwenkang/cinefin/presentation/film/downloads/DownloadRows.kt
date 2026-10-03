@@ -76,6 +76,16 @@ import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 
 /**
+ * 纯函数（W60b）：任务是否处于「自动重试」窗口——等待下一次重试（PENDING）或正在重试（RUNNING）且已有重试计数。
+ *
+ * 下载页行内状态徽标据此把「正在下载… / 正在等待…」换成「重试中 · 第 N 次」（core 文案由 W60 落地，W60b 接线）。
+ */
+internal fun showsRetryLabel(task: DownloadTask?): Boolean =
+    task != null &&
+        task.retryCount > 0 &&
+        (task.status == DownloadTaskStatus.PENDING || task.status == DownloadTaskStatus.RUNNING)
+
+/**
  * W59 下载页排版规格（`DOWNLOAD_PLAN.md` §22）。
  *
  * - 顶层卡片（Show / 专辑）：海报 / 方图 96dp（手机）/ 104dp（平板），行高随图贴满；
@@ -300,7 +310,12 @@ internal fun DownloadTopLevelRow(
                 }
                 Spacer(Modifier.height(CinefinSpacing.Space1))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    DownloadStatusBadge(status = entry.status, failureReason = task?.failureReason)
+                    DownloadStatusBadge(
+                        status = entry.status,
+                        failureReason = task?.failureReason,
+                        retrying = showsRetryLabel(task),
+                        retryCount = task?.retryCount ?: 0,
+                    )
                     Spacer(Modifier.width(CinefinSpacing.Space2))
                     Text(
                         text = leafSizeLine(entry),
@@ -764,6 +779,8 @@ internal fun DownloadLeafCard(
 private fun DownloadStatusBadge(
     status: DownloadTaskStatus,
     failureReason: DownloadFailureReason?,
+    retrying: Boolean = false,
+    retryCount: Int = 0,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -790,22 +807,27 @@ private fun DownloadStatusBadge(
             DownloadTaskStatus.FAILED -> CoreR.drawable.ic_alert_circle
         }
     val label =
-        when (status) {
-            DownloadTaskStatus.PENDING ->
+        when {
+            // W60b：自动重试（等待下一次 / 正在重试）优先显示「重试中 · 第 N 次」。
+            retrying && retryCount > 0 ->
+                stringResource(CoreR.string.download_retry_in_progress, retryCount)
+            status == DownloadTaskStatus.PENDING ->
                 if (failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE) {
                     stringResource(CoreR.string.download_waiting_network)
                 } else {
                     stringResource(CoreR.string.download_pending)
                 }
-            DownloadTaskStatus.RUNNING -> stringResource(CoreR.string.download_downloading)
-            DownloadTaskStatus.PAUSED ->
+            status == DownloadTaskStatus.RUNNING ->
+                stringResource(CoreR.string.download_downloading)
+            status == DownloadTaskStatus.PAUSED ->
                 if (failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE) {
                     stringResource(CoreR.string.download_waiting_network)
                 } else {
                     stringResource(CoreR.string.download_paused)
                 }
-            DownloadTaskStatus.COMPLETED -> stringResource(CoreR.string.download_tasks_completed)
-            DownloadTaskStatus.FAILED -> failureLabel(failureReason)
+            status == DownloadTaskStatus.COMPLETED ->
+                stringResource(CoreR.string.download_tasks_completed)
+            else -> failureLabel(failureReason)
         }
     Row(
         modifier =

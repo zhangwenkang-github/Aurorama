@@ -28,3 +28,10 @@ internal fun downloadEventMessage(context: Context, event: DetailDownloadEvent):
             event.reason?.asString(context.resources)
                 ?: context.getString(CoreR.string.detail_download_failed)
     }
+
+/**
+ * W60b：该事件是否附带「查看」动作（跳下载页）。
+ *
+ * 失败事件不给动作——失败时引导用户去下载页没有意义，先把失败信息读完整。
+ */
+internal fun DetailDownloadEvent.showsViewAction(): Boolean = this !is DetailDownloadEvent.Failed

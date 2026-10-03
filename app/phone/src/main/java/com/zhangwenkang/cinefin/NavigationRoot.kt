@@ -1029,6 +1029,7 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
+                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                     )
                 }
             }
@@ -1134,6 +1135,7 @@ fun NavigationRoot(
                             )
                         },
                         navigateBack = { navController.safePopBackStack() },
+                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                     )
                 }
             }
@@ -1157,6 +1159,7 @@ fun NavigationRoot(
                     // W56：顶层「音乐」图标再点 = 回音乐主页（先收起全屏播放 / 歌词覆盖层，再退页内详情）。
                     reselectSignal = musicOverlayReselectSignal,
                     onInnerPageOpenChange = { musicInnerPageOpen = it },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                 )
             }
             composable<TemporaryLibraryRoute> { backStackEntry ->
@@ -1177,6 +1180,7 @@ fun NavigationRoot(
                                 },
                                 temporaryLibraryId = route.libraryId,
                                 onExitTemporaryLibrary = { exitTemporaryLibrary(VideoRoute) },
+                                onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                             )
                         }
                     TemporaryLibraryKind.Music ->
@@ -1191,6 +1195,7 @@ fun NavigationRoot(
                                     )
                                 ),
                             onExitTemporaryLibrary = { exitTemporaryLibrary(MusicModeRoute) },
+                            onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                         )
                     TemporaryLibraryKind.Books ->
                         BookshelfScreen(
@@ -1205,6 +1210,7 @@ fun NavigationRoot(
                             navigateBack = { navController.safePopBackStack() },
                             temporaryLibraryId = route.libraryId,
                             onExitTemporaryLibrary = { exitTemporaryLibrary(BookshelfRoute) },
+                            onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                         )
                 }
             }
@@ -1259,6 +1265,7 @@ fun NavigationRoot(
                                 )
                             },
                             navigateBack = { navController.safePopBackStack() },
+                            onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                         )
                     }
                 }
@@ -1291,6 +1298,7 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
+                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                     )
                 }
             }
@@ -1303,6 +1311,7 @@ fun NavigationRoot(
                     navigateToPerson = { personId ->
                         navController.safeNavigate(PersonRoute(personId.toString()))
                     },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                 )
             }
             composable<ShowRoute> { backStackEntry ->
@@ -1321,6 +1330,7 @@ fun NavigationRoot(
                     navigateToPerson = { personId ->
                         navController.safeNavigate(PersonRoute(personId.toString()))
                     },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                 )
             }
             composable<SeasonRoute> { backStackEntry ->
@@ -1342,6 +1352,7 @@ fun NavigationRoot(
                             launchSingleTop = true
                         }
                     },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                 )
             }
             composable<EpisodeRoute> { backStackEntry ->
@@ -1359,6 +1370,7 @@ fun NavigationRoot(
                             launchSingleTop = true
                         }
                     },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                 )
             }
             composable<PersonRoute> { backStackEntry ->

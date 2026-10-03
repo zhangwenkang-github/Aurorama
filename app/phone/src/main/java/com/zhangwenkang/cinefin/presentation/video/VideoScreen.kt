@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -64,7 +65,9 @@ import com.zhangwenkang.cinefin.presentation.components.LibrarySelectorOption
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
@@ -107,6 +110,8 @@ fun VideoScreen(
     temporaryLibraryId: String? = null,
     /** 临时库视图的「返回默认 ×」/ 系统返回键动作（回默认视频页）。 */
     onExitTemporaryLibrary: (() -> Unit)? = null,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: VideoViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -124,6 +129,7 @@ fun VideoScreen(
         onOpenDrawer = onOpenDrawer,
         state = state,
         onItemClick = onItemClick,
+        onOpenDownloads = onOpenDownloads,
         onRetry = { viewModel.load(temporaryLibraryId) },
         onExitTemporaryLibrary = onExitTemporaryLibrary,
         onSelectLibrary = viewModel::selectLibrary,
@@ -137,6 +143,7 @@ private fun VideoScreenLayout(
     onOpenDrawer: (() -> Unit)?,
     state: VideoState,
     onItemClick: (FindroidItem) -> Unit,
+    onOpenDownloads: () -> Unit = {},
     onRetry: () -> Unit,
     onExitTemporaryLibrary: (() -> Unit)? = null,
     onSelectLibrary: (UUID?) -> Unit = {},
@@ -182,9 +189,12 @@ private fun VideoScreenLayout(
     // W60b：详情页 / 其它入口的收藏变更后刷新聚合网格，卡片收藏角标即时一致。
     FavoriteChangeEffect { pagingItems.refresh() }
     val batchViewModel: MediaBatchViewModel = hiltViewModel()
+    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
     val downloadState by batchViewModel.downloadState.collectAsStateWithLifecycle()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchSelection by rememberMultiSelectState()
     var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
     // 只有聚合网格（含侧栏临时库视图）参与多选；库卡列表不参与。
@@ -221,7 +231,13 @@ private fun VideoScreenLayout(
         batchViewModel.refreshDownloadState()
         batchViewModel.events.collect { event ->
             mediaBatchEventMessage(context, event)?.let { message ->
-                snackbarHostState.showSnackbar(message)
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel =
+                            if (event is MediaBatchEvent.DownloadQueued) viewLabel else null,
+                    )
+                if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
             }
             when (event) {
                 is MediaBatchEvent.PlayQueue -> context.startVideoQueuePlayback(event.entries)
@@ -331,6 +347,7 @@ private fun VideoScreenLayout(
                 AggregatedVideoGrid(
                     pagingItems = pagingItems,
                     onItemClick = onItemClick,
+                    downloadBadges = downloadBadges,
                     contentPadding = contentPadding,
                     gridGutter = gridGutter,
                     paddingStart = paddingStart,
@@ -509,6 +526,7 @@ private fun VideoLibraryGrid(
 private fun AggregatedVideoGrid(
     pagingItems: LazyPagingItems<FindroidItem>,
     onItemClick: (FindroidItem) -> Unit,
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
     contentPadding: PaddingValues,
     gridGutter: Dp,
     paddingStart: Dp,
@@ -550,6 +568,7 @@ private fun AggregatedVideoGrid(
                         selectionMode = selectionMode,
                         selected = loadedItem.id.toString() in selectedIds,
                         onLongClick = { onLongPressSelection(loadedItem) },
+                        downloadBadge = downloadBadges[loadedItem.id] ?: DownloadBadgeInfo(),
                     )
                 }
             }

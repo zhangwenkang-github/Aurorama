@@ -4,9 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,7 +34,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /**
@@ -64,6 +61,8 @@ fun ItemCard(
     imageOverride: String? = null,
     /** W59：无图时的类型占位图标（书籍库传 `ic_book`）；null = 保持原有空白底。 */
     @DrawableRes placeholderIconRes: Int? = null,
+    /** W60b：下载状态角标（下载中 / 暂停 / 失败 / 已下载）；默认无角标，既有调用零改动。 */
+    downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -109,14 +108,11 @@ fun ItemCard(
                     modifier = Modifier.align(Alignment.TopStart).padding(CinefinSpacing.Space3),
                 )
             }
-            Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space3),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-            ) {
-                if (item.favorite) FavoriteBadge()
-                if (item.isDownloaded()) DownloadedBadge()
-                ItemStatusBadge(item)
-            }
+            CardBadgeOverlay(
+                item = item,
+                downloadBadge = downloadBadge,
+                cornerPadding = CinefinSpacing.Space3,
+            )
             if (direction == Direction.HORIZONTAL) {
                 ProgressBar(
                     item = item,

@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -61,10 +62,12 @@ import com.zhangwenkang.cinefin.film.presentation.show.ShowViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
 import com.zhangwenkang.cinefin.presentation.film.components.BatchDownloadDialog
 import com.zhangwenkang.cinefin.presentation.film.components.DetailPoster
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
+import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
@@ -76,9 +79,11 @@ import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
+import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
+import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -92,6 +97,8 @@ fun ShowScreen(
     navigateHome: () -> Unit,
     navigateToItem: (item: FindroidItem) -> Unit,
     navigateToPerson: (personId: UUID) -> Unit,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: ShowViewModel = hiltViewModel(),
     detailDownloadViewModel: DetailDownloadViewModel = hiltViewModel(),
 ) {
@@ -100,6 +107,9 @@ fun ShowScreen(
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloadSnapshot by detailDownloadViewModel.state.collectAsStateWithLifecycle()
+    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
+    val viewLabel = stringResource(CoreR.string.snackbar_view)
 
     val snackbarHostState = remember { SnackbarHostState() }
     var batchDialogVisible by remember { mutableStateOf(false) }
@@ -111,7 +121,12 @@ fun ShowScreen(
 
     LaunchedEffect(Unit) {
         detailDownloadViewModel.events.collect { event ->
-            snackbarHostState.showSnackbar(downloadEventMessage(context, event))
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = downloadEventMessage(context, event),
+                    actionLabel = if (event.showsViewAction()) viewLabel else null,
+                )
+            if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
         }
     }
 
@@ -143,6 +158,7 @@ fun ShowScreen(
     ShowScreenLayout(
         state = state,
         downloadState = showDownloadState,
+        downloadBadges = downloadBadges,
         downloadBusy = state.downloadTargetsLoading,
         snackbarHostState = snackbarHostState,
         onDownloadClick = {
@@ -199,6 +215,7 @@ fun ShowScreen(
 private fun ShowScreenLayout(
     state: ShowState,
     downloadState: DetailDownloadState,
+    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
     downloadBusy: Boolean,
     snackbarHostState: SnackbarHostState,
     onDownloadClick: () -> Unit,
@@ -240,7 +257,13 @@ private fun ShowScreenLayout(
                                 verticalAlignment = Alignment.Bottom,
                             ) {
                                 if (expanded) {
-                                    DetailPoster(item = show, width = 216.dp)
+                                    DetailPoster(
+                                        item = show,
+                                        width = 216.dp,
+                                        downloadBadge =
+                                            downloadBadges[show.id]
+                                                ?: downloadBadgeInfo(downloadState),
+                                    )
                                 }
                                 Column(
                                     modifier = Modifier.weight(1f),

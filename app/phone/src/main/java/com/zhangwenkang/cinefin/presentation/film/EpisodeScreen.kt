@@ -19,6 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +67,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
+import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
@@ -82,6 +84,8 @@ fun EpisodeScreen(
     navigateHome: () -> Unit,
     navigateToPerson: (personId: UUID) -> Unit,
     navigateToSeason: (seasonId: UUID) -> Unit,
+    /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
+    onOpenDownloads: () -> Unit = {},
     viewModel: EpisodeViewModel = hiltViewModel(),
     downloaderViewModel: DownloaderViewModel = hiltViewModel(),
     detailDownloadViewModel: DetailDownloadViewModel = hiltViewModel(),
@@ -94,6 +98,7 @@ fun EpisodeScreen(
     val downloadSnapshot by detailDownloadViewModel.state.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val viewLabel = stringResource(CoreR.string.snackbar_view)
 
     LaunchedEffect(true) {
         viewModel.loadEpisode(episodeId = episodeId)
@@ -110,12 +115,19 @@ fun EpisodeScreen(
             if (event == DetailDownloadEvent.AddedToQueue) {
                 viewModel.loadEpisode(episodeId = episodeId)
             }
-            snackbarHostState.showSnackbar(downloadEventMessage(context, event))
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = downloadEventMessage(context, event),
+                    actionLabel = if (event.showsViewAction()) viewLabel else null,
+                )
+            if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
         }
     }
 
     ObserveAsEvents(downloaderViewModel.events) { event ->
         when (event) {
+            // W60b：单集下载的入队反馈由 DetailDownloadViewModel 的三态 Snackbar 承担（含「查看」动作）。
+            is DownloaderEvent.Queued -> Unit
             is DownloaderEvent.Successful -> {
                 viewModel.loadEpisode(episodeId = episodeId)
             }
