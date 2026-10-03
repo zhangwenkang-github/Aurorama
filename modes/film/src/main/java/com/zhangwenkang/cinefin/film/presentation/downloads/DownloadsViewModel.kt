@@ -234,6 +234,12 @@ constructor(
                 downloader.deleteTask(task)
                 continue
             }
+            // W58b 顺手修复：书籍走阅读器离线文件链路（与单条目删除同一口径），
+            // 旧实现直接找 completed.source —— 书籍没有 sources 行，多选删除会空转。
+            if (entry.mediaKind == DownloadMediaKind.BOOK) {
+                readerRepository.deleteLocalFile(entry.itemId)
+                continue
+            }
             val completed = _state.value.completed.firstOrNull { it.item.id == entry.itemId }
             completed?.source?.let { downloader.deleteItem(completed.item, it) }
         }
