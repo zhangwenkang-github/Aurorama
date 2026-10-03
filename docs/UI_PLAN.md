@@ -115,7 +115,7 @@
 - [x] **A3 库卡改正**：`LibraryEntryCard` 删除右上角未看徽标位（死代码：`FindroidCollection.unplayedItemCount` 恒 null、服务器库视图也不返回该字段），库卡第②行仍是「共 N 个项目」
 - [x] **A4 数据核验（只读接口探针，服务器 10.11.8，用户 zhangwenkang）**：媒体库网格 / 搜索 / 聚合（`/Items`）、Seasons、Latest、Suggestions 对 Series / Season 返回未看数（实测 13 / 48 / 40 / 370…），显式 `enableUserData=true` 与默认结果逐条一致；Movie / Episode / `/Views` 恒空；NextUp / Resume 只有 `played` → **查询保持现状，无需显式开启用户数据**
 - [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；单测 7 任务 `--rerun` **523 项 / 0 失败**（W52+W53 基线 516 + W56 净增 7；app 100 / core 37 / data 45 / player:local 105 / film 14 / book 113 / music 109）
-- [ ] **真机（待窗口）**：剧集未看数与服务器一致 / 已看打勾与未看无角标 / `99+` 场景 / 库网格·首页·搜索·视频页四处一致 / 0 FATAL·ANR —— 见 §5 W56 验收
+- [x] **真机（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03 21:21–21:37）**：剧集未看数与服务器逐条一致（13 / 10 / 12 / 48 / 13 / 12）、`99+`（银魂 370）、已看打勾与未看不加角标、库网格·首页·搜索·视频页四处一致、0 FATAL·ANR —— 见 §5 W56 验收
 
 ### W53 视频入口 + 视频模式页（2026-10-03，分支 `feature/w53-video-entry`，起点 master `1222bef`、rebase 到 W50 `8f3ba0e`）
 
@@ -796,7 +796,12 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **纯函数单测**（`ItemStatusBadgeTest` 7 项）：Series / Season / Folder 未看数 `>0` → `UnplayedCount`、`0` / `null` → `None`；**完全看完的整剧不打勾**；Movie / Episode 已看 → `Played`、未看 → `None`；文案 `1 / 99 / 100 / 4096` → `1 / 99 / 99+ / 99+`
 - [x] **视觉静态核对**：四个卡片的徽标仍在封面右上角、与下载徽标同排（`Arrangement.spacedBy(Space2)`）；仍走 `BaseBadge`（黑 62% 底 + 白 12% 描边）；无新增配色 / 字体 / 位图
 - [x] **门禁**：根 `assembleDebug`（含 TV：`app:phone` + `app:tv`）BUILD SUCCESSFUL；`ktfmtCheck` 全模块通过；单测 7 任务 `--rerun` **523 项 / 0 失败 0 错误**（app 100 / core 37 / data 45 / player:local 105 / film 14 / book 113 / music 109）
-- [ ] **真机（待窗口）**：①剧集未看数（与服务器 `UserData.UnplayedItemCount` 逐条比对）；②已看打勾 / 未看不加角标；③`99+` 场景；④库网格 / 首页 / 搜索 / 视频页四处一致；⑤0 FATAL / ANR
+- [x] **真机（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03 21:21–21:37，device-lock 已写释放与结论）**
+  - ① **剧集未看数**：动漫库网格（Pad）逐条 = 服务器 `UserData.UnplayedItemCount`——9-nine- 支配者的王冠 13 / 巴哈姆特之怒 Manaria Friends 10 / 宝石幻想：光芒重现 12 / 冰海战记 48 / 超次元游戏 海王星 13 / 超级索尼子 12（K60 抽验 13 / 10 / 12 同值）
+  - ② **已看打勾 / 未看不加角标**：`奇异太郎少年的妖怪绘日记` 特别篇 S0E13（played=true）缩略图右上 = 黑 62% 胶囊 + 白勾；同布局的第 1 季 12 集（全未看）同位置无角标（同屏对照取证）；电影库 17 部（服务器 0 已看）无任何角标；「特别篇」季卡（0 未看）不显示未看数
+  - ③ **`99+`**：银魂（服务器 370）徽标文案 = `99+`（同屏其余 23 / 24 / 13 / 31 / 39 / 12 均为两位数）
+  - ④ **四处一致**：库网格（动漫，见 ①）/ 首页走廊（学生会的一己之见 23、超能力女儿 12，与接口一致；「最近添加」海报墙为电影 = 无角标）/ 搜索（输入 `9` → 9-nine- 支配者的王冠 13）/ 视频页（库卡列表 = 库名 +「共 N 个项目」无未看角标；聚合列表 超次元游戏 海王星 13）
+  - ⑤ **0 FATAL / ANR**：双机 `logcat -b crash` 与 main `FATAL EXCEPTION|ANR in` 过滤均为空
 
 ## 6. 踩坑库
 
@@ -888,7 +893,7 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 
 ## 7. 日志
 
-- **2026-10-03 W56 视频海报状态徽标（本会话，`feature/w56-unwatched-badges`，起点 master `97e1cb6`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D32/D33/D39/D52–D53 + 踩坑库）、`UI_DESIGN_SYSTEM` §4/§5/§8.4/§8.9、官方 OpenAPI `UserItemDataDto` 与既有卡片 / 仓库代码后开工（决策 D54）。①**数据核验（只读探针）**：`/Items`（媒体库网格 / 搜索 / 聚合）、`/Shows/{id}/Seasons`、`/Items/Latest`、`/Suggestions` 对 Series / Season 均返回 `UserData.UnplayedItemCount`，显式 `enableUserData=true` 与默认一致；Movie / Episode / `/Views` 恒空、NextUp / Resume 只有 `played` → 查询保持现状，仅保持既有 `FindroidItem.unplayedItemCount` 映射；②**规则**：`posterStatusBadge()`（容器 → 未看数 / 电影·单集 → 已看打勾 / 其余无）+ `unplayedItemCountText()`（`99+`）；③**接入**：`PosterItemCard`（补打勾）/ `ItemCard` / `LandscapeItemCard` / `EpisodeCard` 统一 `ItemStatusBadge`，去掉会把「已看完整剧」误打勾的 `item.played` 判断；`LibraryEntryCard` 死徽标位删除；④**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **523 项 / 0 失败**（基线 516 + 7）；⑤真机待设备窗口（W53-TEMPV 占用中）后补验。
+- **2026-10-03 W56 视频海报状态徽标（本会话，`feature/w56-unwatched-badges`，起点 master `97e1cb6`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D32/D33/D39/D52–D53 + 踩坑库）、`UI_DESIGN_SYSTEM` §4/§5/§8.4/§8.9、官方 OpenAPI `UserItemDataDto` 与既有卡片 / 仓库代码后开工（决策 D54）。①**数据核验（只读探针）**：`/Items`（媒体库网格 / 搜索 / 聚合）、`/Shows/{id}/Seasons`、`/Items/Latest`、`/Suggestions` 对 Series / Season 均返回 `UserData.UnplayedItemCount`，显式 `enableUserData=true` 与默认一致；Movie / Episode / `/Views` 恒空、NextUp / Resume 只有 `played` → 查询保持现状，仅保持既有 `FindroidItem.unplayedItemCount` 映射；②**规则**：`posterStatusBadge()`（容器 → 未看数 / 电影·单集 → 已看打勾 / 其余无）+ `unplayedItemCountText()`（`99+`）；③**接入**：`PosterItemCard`（补打勾）/ `ItemCard` / `LandscapeItemCard` / `EpisodeCard` 统一 `ItemStatusBadge`，去掉会把「已看完整剧」误打勾的 `item.played` 判断；`LibraryEntryCard` 死徽标位删除；④**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **523 项 / 0 失败**（基线 516 + 7）；⑤**真机（21:21–21:37，Pad 5 主 + K60 抽验，device-lock 已写释放与结论）**：动漫网格 13/10/12/48/13/12 与服务器逐条一致、银魂 370 → `99+`、特别篇 S0E13 已看白勾 vs 第 1 季 12 集未看无角标、电影库 17 部无角标、首页走廊 23/12、搜索 `9` → 13、视频页库卡无未看数 + 聚合 13、K60 抽验一致、0 FATAL/ANR；真机拦下并确认的既有行为：库卡「共 N 个项目」取 `ChildCount`（与 W53 备注一致，非本波引入）。
 
 - **2026-10-03 W53 真机验收（本会话续，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，19:02–19:26）**：先 **rebase 到 W50 master `8f3ba0e`**（唯一冲突 = `PROJECT_PLAN` 的 W50 / W53 更新段，保留两段人工合并），复跑门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、单测 `--rerun` **505 项 0 失败**（W50 基线 496 + W53 净增 9；app 90 / core 37 / data 45 / player:local 105 / film 6 / book 113 / music 109），双机装机 `Success`。验收：①侧轨顺序（首页 / 视频 / 音乐 / 书架 / 媒体库 / 下载）与视频行选中态像素取证（极光青指示条 `rgb(92,225,210)`）；②侧栏「视频」开关即时生效（关 / 开）；③库卡列表进库（电影库「共 17 个项目」）；④「视频显示方式」库卡 ↔ 聚合即时生效（聚合 = 电影 + 剧集混合网格，含未看角标 40 / 26 / 12 / 28，滚动连续）；⑤K60 底栏 4 Tab 顺序 + 选中态像素 + 抽屉「视频」条目 + 顶栏 logo 入口；⑥0 FATAL / ANR（双机 crash buffer + main log 过滤为空）。**真机拦下并修复 P1**：离线模式下视频页仍显示服务器库（`VideoViewModel` 直接注入 `JellyfinRepository` → 离线开关不生效，同踩坑 33）→ 改注入 `Provider<JellyfinRepository>`、每次 `load()` 按当前偏好解析；K60 复验离线 = 空态「暂无视频库」、退出离线模式后库卡恢复。副作用已还原（Pad 显示方式回库卡列表、K60 退出离线模式、双机 force-stop、`/sdcard` 临时文件删除），device-lock 已写释放与结论。
 
