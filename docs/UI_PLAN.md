@@ -896,6 +896,13 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **红线**：仅 `NavigationRoot.kt`（角标接线，已申报）；`AppPreferences.kt` 零改动
 - [ ] **真机验收**：待负责人设备窗口 —— 清单见 `DOWNLOAD_PLAN` §20.5（Show 整剧 / Season 全季 / Episode 本集三态 + 批量跳过 + 角标 + 三设置 + 乐观回滚）
 
+### 三波合并真机走查（2026-10-03，负责人，Pad 5 `43af8627`；master `9fcea57`）
+
+- **W54-B（通过）**：书架页头部完整——tabs（书籍 / 建议 / 类型，按库类型出现）、工具行「1-8 / 8」+ 网格 / 列表 + 排序 + 筛选；排序面板（升序 / 降序；标题 / IMDB 评分 / 家长分级 / 加入日期 / 播放日期 / 发行日期）与筛选面板（全部 / 未读 / 已读 / 收藏，书籍库文案正确）均可开；列表视图渲染正常；**下拉刷新为真实重取**（swipe 后 `GET /Items?...` 网络请求 ×2）。
+- **W54-C（通过）**：视频页「全部库」chip → 菜单（全部库 / 电影 共 4 / 动漫 共 7）→ 选「电影」后库卡过滤为 1 张、副题「电影库 · 共 4 个项目」、出现「收藏当前媒体库」；收藏 toggle 点亮 → 服务器回读 `IsFavorite=true` → 再点 → 回读 `false`（已复原）；睡眠入口 → 占位对话框「睡眠定时将在下一版提供」；书架页有「自动」书库 chip、无睡眠入口（按设计）。
+- **W51（部分通过）**：三层动作排「下载 / 已播放 / 喜欢」就位；单集下载 Snackbar「已加入下载队列」+ 按钮变「已在队列」；侧栏下载角标 = 1 → 删除后消失（0 隐藏）；「下载与缓存」三项设置 UI 就位（仅 Wi-Fi 下载 / 同时下载数 = 2（1–3）/ 下载完成通知）。**真机拦下缺陷**：Show 详情页「下载」提示「没有可下载的剧集」——服务器该剧 `Episodes` 返回 12 集、每集 1 个 `MediaSource`，属客户端取集 / 过滤把目标筛成空（已打回 W51 会话，开 `feature/w51b-show-download-fix` 修复）。
+- **0 FATAL / ANR**（crash buffer + main 过滤为空）。**未覆盖**：K60 抽验、家庭视频库（「其他2」）缩略图修复效果（需截图比对）、平板两列 / 聚合模式下的选库表现。
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
