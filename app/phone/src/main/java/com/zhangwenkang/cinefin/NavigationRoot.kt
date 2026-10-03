@@ -98,6 +98,8 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
+import com.zhangwenkang.cinefin.models.SortBy
+import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
 import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
@@ -120,6 +122,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPA
 import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
 import com.zhangwenkang.cinefin.presentation.navigation.TemporaryLibraryKind
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
+import com.zhangwenkang.cinefin.presentation.navigation.homeViewAllRoute
 import com.zhangwenkang.cinefin.presentation.navigation.libraryEntryRoute
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
@@ -196,6 +199,13 @@ data class LibraryRoute(
     val libraryId: String,
     val libraryName: String,
     val libraryType: CollectionType,
+    /**
+     * W54-D（红线申报）：首页「全部」入口的初始排序参数（`SortBy.name` / `SortOrder.name`）。
+     *
+     * null = 按用户全局排序偏好进入（侧栏 / 媒体库卡等既有入口不变）；非空 = 本次进入的默认排序， 不写回偏好，用户改排序后才落全局键。
+     */
+    val sortBy: String? = null,
+    val sortOrder: String? = null,
 )
 
 /**
@@ -861,6 +871,20 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
+                        // W54-D 修 bug ①：首页「最新 · <库名>」的「全部」→ 该库内容页，
+                        // 默认「最近添加」排序（不写偏好；用户改排序才会落全局键）。
+                        onLibraryClick = { library ->
+                            navController.safeNavigate(
+                                homeViewAllRoute(
+                                    libraryId = library.id.toString(),
+                                    libraryName = library.name,
+                                    libraryType = library.type,
+                                )
+                            ) {
+                                popUpTo(navController.graph.startDestinationId)
+                                launchSingleTop = true
+                            }
+                        },
                         onOpenLocalLibrary = { libraryId ->
                             navController.safeNavigate(LocalLibraryRoute(libraryId))
                         },
@@ -1084,6 +1108,15 @@ fun NavigationRoot(
                             libraryId = UUID.fromString(route.libraryId),
                             libraryName = route.libraryName,
                             libraryType = route.libraryType,
+                            // W54-D：首页「全部」入口带「最近添加」初始排序；其余入口为 null（沿用偏好）。
+                            initialSortBy =
+                                route.sortBy?.let { name ->
+                                    SortBy.entries.firstOrNull { it.name == name }
+                                },
+                            initialSortOrder =
+                                route.sortOrder?.let { name ->
+                                    SortOrder.entries.firstOrNull { it.name == name }
+                                },
                             onItemClick = { item ->
                                 navigateToItem(
                                     navController = navController,

@@ -121,7 +121,14 @@ interface JellyfinRepository {
 
     suspend fun getSuggestions(): List<FindroidItem>
 
-    suspend fun getResumeItems(): List<FindroidItem>
+    /**
+     * 继续观看 / 阅读 / 收听的数据源（W54-D 起支持按类型取）。
+     *
+     * 默认与旧行为一致（电影 + 单集 = 继续观看）；首页「继续阅读 / 继续收听」分别传 `BOOK` / `AUDIO`。服务器没有对应续播数据时返回空列表，由首页自行隐藏走廊。
+     */
+    suspend fun getResumeItems(
+        includeItemTypes: List<BaseItemKind> = listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE)
+    ): List<FindroidItem>
 
     suspend fun getLatestMedia(parentId: UUID): List<FindroidItem>
 

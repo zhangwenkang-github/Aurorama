@@ -40,12 +40,23 @@ constructor(
     lateinit var sortBy: SortBy
     lateinit var sortOrder: SortOrder
 
+    /** W54-D：首页「全部」入口传入的初始排序（不写偏好，仅本次进入生效）。 */
+    private var initialSortBy: SortBy? = null
+    private var initialSortOrder: SortOrder? = null
+
     private var countJob: Job? = null
     private var tabJob: Job? = null
 
-    fun setup(parentId: UUID, libraryType: CollectionType) {
+    fun setup(
+        parentId: UUID,
+        libraryType: CollectionType,
+        initialSortBy: SortBy? = null,
+        initialSortOrder: SortOrder? = null,
+    ) {
         this.parentId = parentId
         this.libraryType = libraryType
+        this.initialSortBy = initialSortBy
+        this.initialSortOrder = initialSortOrder
         _state.update { it.copy(tabs = libraryTabs(libraryType)) }
     }
 
@@ -95,8 +106,14 @@ constructor(
 
     private suspend fun initSorting() {
         if (!::sortBy.isInitialized || !::sortOrder.isInitialized) {
-            sortBy = SortBy.fromString(appPreferences.getValue(appPreferences.sortBy))
-            sortOrder = SortOrder.fromString(appPreferences.getValue(appPreferences.sortOrder))
+            // W54-D：首页「全部」入口默认「最近添加」倒序（不写全局偏好）；其余入口沿用偏好。
+            if (initialSortBy != null) {
+                sortBy = initialSortBy!!
+                sortOrder = initialSortOrder ?: SortOrder.DESCENDING
+            } else {
+                sortBy = SortBy.fromString(appPreferences.getValue(appPreferences.sortBy))
+                sortOrder = SortOrder.fromString(appPreferences.getValue(appPreferences.sortOrder))
+            }
             _state.update { it.copy(sortBy = sortBy, sortOrder = sortOrder) }
         }
     }

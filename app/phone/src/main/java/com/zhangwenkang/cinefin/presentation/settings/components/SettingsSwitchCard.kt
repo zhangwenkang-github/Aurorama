@@ -47,7 +47,7 @@ fun SettingsSwitchCard(
 }
 
 /** M3 开关原生宽 52dp → 视觉缩到 44dp（0.846），与右侧控制位对齐（W42）。 */
-private const val SettingsSwitchVisualScale = 0.846f
+internal const val SettingsSwitchVisualScale = 0.846f
 
 @Preview
 @Composable

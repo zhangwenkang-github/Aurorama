@@ -185,7 +185,8 @@ class JellyfinRepositoryOfflineImpl(
         return emptyList()
     }
 
-    override suspend fun getResumeItems(): List<FindroidItem> {
+    override suspend fun getResumeItems(includeItemTypes: List<BaseItemKind>): List<FindroidItem> {
+        // 离线首页是独立的 OfflineHomeScreen，本实现只保留旧口径（电影 + 单集）。
         return withContext(Dispatchers.IO) {
             val serverId =
                 appPreferences.getValue(appPreferences.currentServer)

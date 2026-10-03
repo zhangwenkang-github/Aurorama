@@ -53,6 +53,8 @@ import com.zhangwenkang.cinefin.film.presentation.library.libraryTabs
 import com.zhangwenkang.cinefin.film.presentation.library.libraryToolbarSpec
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.SortBy
+import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
@@ -98,13 +100,21 @@ fun LibraryScreen(
     onBackToDefault: (() -> Unit)? = null,
     /** 顶层页顶栏动作（W54-C 追加）：书架页注入「库选择 / 收藏」，排在「返回默认 ×」之后。 视频页与书架页共用同一顶栏组件，动作区由调用方注入，避免在库内容页里堆分支。 */
     topBarActions: @Composable RowScope.() -> Unit = {},
+    /** W54-D：首页「全部」入口带「最近添加」初始排序；null = 沿用全局排序偏好（既有入口不变）。 */
+    initialSortBy: SortBy? = null,
+    initialSortOrder: SortOrder? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     var initialLoad by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(true) {
-        viewModel.setup(parentId = libraryId, libraryType = libraryType)
+        viewModel.setup(
+            parentId = libraryId,
+            libraryType = libraryType,
+            initialSortBy = initialSortBy,
+            initialSortOrder = initialSortOrder,
+        )
         if (initialLoad) {
             viewModel.loadItems()
             initialLoad = false

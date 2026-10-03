@@ -30,8 +30,18 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val dynamicColors = Preference("pref_dynamic_colors", false)
     val homeSuggestions = Preference<Boolean>("home_suggestions", true)
     val homeContinueWatching = Preference<Boolean>("home_continue_watching", true)
+    /** W54-D（用户 2026-10-03 确认）：继续阅读 / 继续收听两条走廊的独立开关。 */
+    val homeContinueReading = Preference<Boolean>("home_continue_reading", true)
+    val homeContinueListening = Preference<Boolean>("home_continue_listening", true)
     val homeNextUp = Preference<Boolean>("home_next_up", true)
-    val homeLatest = Preference<Boolean>("home_latest", true)
+    /**
+     * W54-D：「最近添加」按媒体类型拆成三条，各自开关。
+     *
+     * 逐库的「在首页显示」开关另见 [uiHomeLibrariesHidden]；旧的全局 `home_latest` 键已随本波退役。
+     */
+    val homeRecentlyAddedVideos = Preference<Boolean>("home_recently_added_videos", true)
+    val homeRecentlyAddedBooks = Preference<Boolean>("home_recently_added_books", true)
+    val homeRecentlyAddedMusic = Preference<Boolean>("home_recently_added_music", true)
     val displayExtraInfo = Preference("pref_display_extra_info", false)
 
     // Player
@@ -234,9 +244,6 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val mpvMigrated = Preference("mpv_migrated", false)
 
     // Interface - 导航信息架构（W6-R6N，2026-10-01；只追加 pref_ui_* 前缀，不重排既有键）
-    /** 首页「使用哪个媒体库」：null = 自动（服务器上全部影视库）。 */
-    val uiHomeLibraryId = Preference<String?>("pref_ui_home_library_id", null)
-
     /** 音乐模式「使用哪个音乐库」：null = 自动（服务器上全部音乐库）。 */
     val uiMusicLibraryId = Preference<String?>("pref_ui_music_library_id", null)
 
@@ -281,6 +288,20 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
      * 书架使用哪个媒体库」的动态选项。
      */
     val uiLibraryCatalog = Preference("pref_ui_library_catalog", "")
+
+    /**
+     * W54-D 首页模块的库级偏好（用户 2026-10-03 确认「全部按推荐」）。旧的 「首页媒体库」单选 `pref_ui_home_library_id`
+     * 已删除——它只让首页显示一个库的最新内容， 正是「首页只有最新电影」的根因；迁移说明见 `docs/UI_PLAN.md` D60。
+     *
+     * - [uiHomeLibrariesHidden]：关掉「在首页显示」的库 id 集合，默认空 = 全部开；
+     * - [uiHomeLibraryPages]：库 id → 默认分页 key 映射（先落盘，库页 tabs 消费）；
+     * - [uiHomeLibraryOrder]：用户调整过的媒体库顺序（未列出的库按服务器顺序追加）。
+     */
+    val uiHomeLibrariesHidden = Preference("pref_ui_home_libraries_hidden", emptySet<String>())
+
+    val uiHomeLibraryPages = Preference("pref_ui_home_library_pages", "")
+
+    val uiHomeLibraryOrder = Preference("pref_ui_home_library_order", "")
 
     /**
      * 视频模式页显示方式（W53，用户 2026-10-03 确认）：`cards` = 库卡列表（默认）/ `aggregated` = 聚合列表。
