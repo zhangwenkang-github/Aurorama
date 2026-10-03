@@ -109,10 +109,11 @@ fun AboutScreen(navigateBack: () -> Unit) {
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Spacer(Modifier.height(MaterialTheme.spacings.small))
+                            // W41：换用 Aurorama 应用内印记（原 Findroid 旧 ic_banner 下线）。
                             Image(
-                                painter = painterResource(CoreR.drawable.ic_banner),
+                                painter = painterResource(CoreR.drawable.ic_logo),
                                 contentDescription = null,
-                                modifier = Modifier.width(240.dp),
+                                modifier = Modifier.width(120.dp),
                             )
                             Spacer(Modifier.height(MaterialTheme.spacings.medium))
                             Text(

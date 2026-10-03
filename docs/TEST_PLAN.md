@@ -64,9 +64,9 @@
 
 ```powershell
 # 前置：设备已登记占用；应用已安装并处于已登录状态
-adb -s 43af8627 shell am force-stop com.zhangwenkang.cinefin.debug
+adb -s 43af8627 shell am force-stop io.github.zhangwenkang.aurorama.debug
 Start-Sleep -Seconds 1
-adb -s 43af8627 shell am start -W -n com.zhangwenkang.cinefin.debug/com.zhangwenkang.cinefin.MainActivity
+adb -s 43af8627 shell am start -W -n io.github.zhangwenkang.aurorama.debug/com.zhangwenkang.cinefin.MainActivity
 # 输出按 run 保存，取 TotalTime 中位数（默认 3 次）
 .\tools\test\Measure-ColdStart.ps1 -Serial 43af8627 -Runs 3
 ```
@@ -77,8 +77,8 @@ adb -s 43af8627 shell am start -W -n com.zhangwenkang.cinefin.debug/com.zhangwen
 ### 2.3 内存峰值（可复现命令）
 
 ```powershell
-adb -s 43af8627 shell am force-stop com.zhangwenkang.cinefin.debug
-adb -s 43af8627 shell am start -W -n com.zhangwenkang.cinefin.debug/com.zhangwenkang.cinefin.MainActivity
+adb -s 43af8627 shell am force-stop io.github.zhangwenkang.aurorama.debug
+adb -s 43af8627 shell am start -W -n io.github.zhangwenkang.aurorama.debug/com.zhangwenkang.cinefin.MainActivity
 # 每 2 s 采样一次，共 60 s；取 TOTAL PSS 峰值
 .\tools\test\Measure-MemoryPeak.ps1 -Serial 43af8627 -Seconds 60 -IntervalSeconds 2
 ```

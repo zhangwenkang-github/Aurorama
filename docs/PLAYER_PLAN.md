@@ -44,10 +44,10 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
    ```powershell
    adb install -r app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk
    # debug 包播放页 exported=true，可直接带条目启动
-   adb shell am start -n com.zhangwenkang.cinefin.debug/com.zhangwenkang.cinefin.PlayerActivity --es itemId "<UUID>" --es itemKind "Episode"
+   adb shell am start -n io.github.zhangwenkang.aurorama.debug/com.zhangwenkang.cinefin.PlayerActivity --es itemId "<UUID>" --es itemKind "Episode"
    adb shell dumpsys media_session | Select-String cinefin          # 会话 / 播放状态
    adb shell uiautomator dump /sdcard/u.xml; adb shell cat /sdcard/u.xml | Select-String 'text="'  # UI 文本
-   adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkang.cinefin.debug_preferences.xml  # 读偏好（临时改内核）
+   adb shell run-as io.github.zhangwenkang.aurorama.debug cat shared_prefs/io.github.zhangwenkang.aurorama.debug_preferences.xml  # 读偏好（临时改内核）
    ```
 4. 测试服务器 `jellyfins.zhangwenkang.com` **只读**（禁止任何写入 / 删除调用）。
 5. 每完成一个阶段就 `git commit`（先编译通过；信息用 `feat(player): …` / `fix(player): …`）。
@@ -504,10 +504,10 @@ adb logcat -s CinefinPlayer:V ExoPlayerImpl:V             # 播放排障
 ```powershell
 adb install -r app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk
 # 播放页在 debug 包里 exported=true（src/debug/AndroidManifest.xml 覆盖），可以直接带条目启动：
-adb shell am start -n com.zhangwenkang.cinefin.debug/com.zhangwenkang.cinefin.PlayerActivity `
+adb shell am start -n io.github.zhangwenkang.aurorama.debug/com.zhangwenkang.cinefin.PlayerActivity `
   --es itemId "<UUID>" --es itemKind "Episode"
 # 读真机偏好（SharedPreferences 是明文，可临时改内核等开关）
-adb shell run-as com.zhangwenkang.cinefin.debug cat shared_prefs/com.zhangwenkang.cinefin.debug_preferences.xml
+adb shell run-as io.github.zhangwenkang.aurorama.debug cat shared_prefs/io.github.zhangwenkang.aurorama.debug_preferences.xml
 ```
 
 ---

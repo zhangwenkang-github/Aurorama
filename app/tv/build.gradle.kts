@@ -15,7 +15,8 @@ android {
     buildToolsVersion = Versions.BUILD_TOOLS
 
     defaultConfig {
-        applicationId = "com.zhangwenkang.cinefin"
+        // W41（方案 A）：只改运行时身份，Kotlin namespace 保持不动。
+        applicationId = "io.github.zhangwenkang.aurorama"
         minSdk = Versions.MIN_SDK
         targetSdk = Versions.TARGET_SDK
 

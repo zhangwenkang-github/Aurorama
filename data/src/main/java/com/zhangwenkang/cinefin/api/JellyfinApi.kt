@@ -33,8 +33,8 @@ import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
 
-/** 客户端在 HTTP 头中使用的名称，保持 ASCII 且不随界面语言变化。 */
-private const val CLIENT_NAME = "Cinefin"
+/** 客户端在 HTTP 头中使用的名称，保持 ASCII 且不随界面语言变化。W41：品牌定名 Aurorama。 */
+private const val CLIENT_NAME = "Aurorama"
 
 /**
  * Jellyfin API class using org.jellyfin.sdk:jellyfin-platform-android

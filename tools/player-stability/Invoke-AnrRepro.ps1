@@ -29,7 +29,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Package = 'com.zhangwenkang.cinefin.debug'
+$Package = 'io.github.zhangwenkang.aurorama.debug'
 $Activity = 'com.zhangwenkang.cinefin.PlayerActivity'
 $adbArgs = @('-s', $Serial)
 

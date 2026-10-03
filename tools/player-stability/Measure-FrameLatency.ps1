@@ -18,7 +18,7 @@
 [CmdletBinding()]
 param(
     [string]$Serial = '43af8627',
-    [string]$Package = 'com.zhangwenkang.cinefin.debug',
+    [string]$Package = 'io.github.zhangwenkang.aurorama.debug',
     [int]$Seconds = 30,
     [int]$SampleIntervalSeconds = 4,
     [string]$OutputJson = ''

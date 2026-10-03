@@ -13,7 +13,7 @@
 [CmdletBinding()]
 param(
     [string]$Serial = $env:ANDROID_SERIAL,
-    [string]$Package = 'com.zhangwenkang.cinefin.debug',
+    [string]$Package = 'io.github.zhangwenkang.aurorama.debug',
     [string]$Activity = 'com.zhangwenkang.cinefin.MainActivity',
     [int]$Seconds = 60,
     [double]$IntervalSeconds = 2,

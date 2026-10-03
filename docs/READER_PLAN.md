@@ -720,7 +720,7 @@ W1 实现：`saveReadingProgress` 先读取该条目的 `RunTimeTicks`，再按�
 ### 7.1 打开与渲染
 
 ```text
-adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
+adb shell am start -W -n io.github.zhangwenkang.aurorama.debug/\
   com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity \
   -e itemId 8109915342fc71c405da49d632fc6978
 ```
@@ -827,7 +827,7 @@ adb shell am start -W -n com.zhangwenkang.cinefin.debug/\
 
 **7.6.2 PDF 内存数据（EB-3 硬约束）**
 
-测量方法（可复现）：`adb -s 43af8627 shell dumpsys meminfo com.zhangwenkang.cinefin.debug`
+测量方法（可复现）：`adb -s 43af8627 shell dumpsys meminfo io.github.zhangwenkang.aurorama.debug`
 取 **App Summary 的 TOTAL PSS**；单指左滑翻页，每次翻页后停 2 s 再采样（避免把渲染在途的瞬时值
 当稳态）；静止复测为连续 5 次、间隔 5 s。
 

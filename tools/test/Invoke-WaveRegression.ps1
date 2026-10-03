@@ -15,7 +15,7 @@
 param(
     [string]$Serial = $env:ANDROID_SERIAL,
     [ValidateSet('W2', 'W3', 'W4', 'W5', 'W6')][string]$Wave = 'W2',
-    [string]$Package = 'com.zhangwenkang.cinefin.debug',
+    [string]$Package = 'io.github.zhangwenkang.aurorama.debug',
     [string]$Activity = 'com.zhangwenkang.cinefin.MainActivity',
     [int]$LogcatTailLines = 3000,
     [switch]$SkipUiDump,
@@ -55,7 +55,7 @@ $checks.crashOrAnr = if ($fatal.Count -eq 0) { 'PASS (无命中)' } else { "FAIL
 # 2. MediaSession（音乐 / 视频会话互斥）
 $ms = Invoke-Adb shell dumpsys media_session
 Save-Report 'media-session' (($ms -split "`n" | Select-String -Pattern 'cinefin|state=|package=' | Select-Object -First 60) -join "`n")
-$checks.mediaSession = if ($ms -match 'com\.zhangwenkang\.cinefin') { 'INFO (存在 cinefin 会话)' } else { 'INFO (无 cinefin 会话)' }
+$checks.mediaSession = if ($ms -match 'io\.github\.zhangwenkang\.aurorama') { 'INFO (存在 aurorama 会话)' } else { 'INFO (无 aurorama 会话)' }
 
 # 3. 前台窗口 / Activity
 $focus = Invoke-Adb shell dumpsys window displays

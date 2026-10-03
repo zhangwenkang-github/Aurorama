@@ -30,6 +30,19 @@
 - 验收设备：Xiaomi Pad 5（Android 13，主）/ Redmi K60（Android 15）
 - 真机验证需 `adb devices` 在线（开发阶段保持 USB 调试连接）
 
+### 应用 ID 与 adb（W41 起）
+
+- **运行时身份**（`applicationId`）：`io.github.zhangwenkang.aurorama`（debug `.debug` / staging `.staging`）；
+- **Kotlin namespace / 包名**：仍为 `com.zhangwenkang.cinefin`（清单内相对类名、`am start -n <pkg>/<class>` 的类名部分都按 namespace 写）；
+- 换 applicationId = 新 App 身份：旧包 `com.zhangwenkang.cinefin.debug` 的数据（登录态 / 下载 / SAF 授权）不迁移，需全新安装 + 重登；新包可用后卸载旧包；回滚 = 装回旧 APK（重新登录 / 重下）。
+
+```powershell
+adb -s 43af8627 install -r app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk
+adb -s 43af8627 shell am start -W -n io.github.zhangwenkang.aurorama.debug/com.zhangwenkang.cinefin.MainActivity
+adb -s 43af8627 shell am force-stop io.github.zhangwenkang.aurorama.debug
+adb -s 43af8627 shell dumpsys package io.github.zhangwenkang.aurorama.debug | Select-String versionName
+```
+
 ## 4. 会话约定（并行开发）
 
 - 每个会话 = 1 个 feature 分支 + 1 个独立 worktree；
