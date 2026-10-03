@@ -306,7 +306,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 | A2 | 本地视频真实播放 | ✅ 通过 | `dumpsys media_session` `state=3` + `run-as` fd `187 -> /mnt/user/0/emulated/0/Download/W47Media/w47_big.mp4`（45.7 MB）+ `PlayerActivity$onCreate` UiState `path=content://…primary%3ADownload%2FW47Media%2Fw47_local.mp4`、`container=mp4`、`fileLoaded=true` |
 | A3 | 阅读大文档：金田一 2.36 GB（本地 SAF）+ 自造旋转页 PDF | 🟡 打开 ✅ / 双栏扫描触发 **D-W47-1**；旋转页 ✅ | 打开 ≈ **13.4 s**（滚动模式，tap → 内容区像素均值 >100）；双栏日志 `reader spread layout pages=5006 slots=4973 landscape=4938 at=1,2,3,4,5,6,7,8`；**扫描后 Native Heap 21 MB → 1,586 MB、PSS 1.72–2.45 GB → MIUI killinfo + SIGKILL（pid 9617 / 13072 两次被杀、`wm_finish_activity … proc died without state saved`）**；旋转页 PDF（`/Rotate` 90 / 270 各 1 页 + 原生横版 1 页 + 竖版 1 页）`pages=4 slots=4 landscape=3 at=0,2,3`，第 1 页白底区域宽高比 **1.43 ≈ 842/595**（旋转后按横版渲染） |
 | A4 | 播放器复验 | ✅ 2 项通过 + 1 项单测覆盖（1 项未触发见 7.3） | ①SRT「背景 + 描边」互斥：`AssSubtitleScriptTest.backgroundWinsWhenBackgroundAndOutlineBothSelected` 断言 `BorderStyle=3` + `OutlineColour=&H4C000000`（背景优先，不再画黑描边）；②end-帧 OFF 档（默认 `pref_player_stay_at_end_frame=false`）：本地单条目播完 → `PlayerViewModel: queue end: close player（队列播完）` + 返回 MainActivity + `state=1`、`queue size=0`；③Compact 自由窗口：`settings global enable_freeform_support=1` + `am start --windowingMode 5` + `am task resize … 0 0 1000 1600`（w444dp h711dp，`mode=freeform`）→ 工具行为纯图标（`content-desc` = 选择音轨 / 选择字幕轨 / 倍速 / 码率 / 解码 / 信息 / 睡眠 / 播放队列 / 画面比例 / 设置，无文字标签），本地视频 `state=3` 播放正常 |
-| A5 | 性能抽样 | 🟡 冷启动超阈值（D-W47-2） | 冷启动 `am start -W` TotalTime **1537 / 1268 / 1322 ms → 中位 1322 ms**（基线 1085 ms，**+21.8%，超 +15% 阈值**，`LaunchState=COLD`，首页已登录有内容）；音乐长列表（105 专辑，4 次上滑）`gfxinfo` **610 帧 / janky 17（2.79%）/ p50 7 ms / p90 12 ms**；双栏阅读 PSS：4 页 PDF 293 MB / Native 39 MB，金田一（本地 5006 页）见 D-W47-1 |
+| A5 | 性能抽样 | 🟡 冷启动超阈值 → **已评审接受新基线**（D-W47-2，用户 2026-10-03） | 冷启动 `am start -W` TotalTime **1537 / 1268 / 1322 ms → 中位 1322 ms**（基线 1085 ms，**+21.8%，超 +15% 阈值**，`LaunchState=COLD`，首页已登录有内容）；音乐长列表（105 专辑，4 次上滑）`gfxinfo` **610 帧 / janky 17（2.79%）/ p50 7 ms / p90 12 ms**；双栏阅读 PSS：4 页 PDF 293 MB / Native 39 MB，金田一（本地 5006 页）见 D-W47-1 |
 | A6 | 缩略图清理遗留（W45） | ✅ 修复 + 单测 | `LocalThumbnailRules.purgeThumbnails`（删 `<itemId>.jpg|.fail`）＋ `deleteLibrary` / `removeFolder` 调用＋ DAO `getLocalMediaItemsByFolder`；data 单测净增 1 项（purge 只删目标条目、不动其他文件） |
 
 ### 7.2 W47 新增缺陷
@@ -314,7 +314,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 | ID | 级别 | 现象 | 根因 / 定位 | 建议 |
 |----|------|------|------------|------|
 | D-W47-1 | **P1（内存 / 进程被杀）** | 本地媒体库（SAF `content://`）PDF 进双栏：金田一 5006 页时 Native Heap 1.59 GB、PSS 1.72–2.45 GB，随后被 MIUI 杀进程（2 次复现，无 Java / native crash，`killinfo` + `libprocessgroup` SIGKILL） | `PdfPageSource(descriptor)` 的 `layout = null` → `collectPageAspectRatios()` 回退**逐页 `PdfRenderer.openPage`**（W33 只给 `File` 路径接了 PdfBox `PdfLayoutSource`，本地 SAF 打开未覆盖） | ①把 SAF fd 接 `PdfLayoutSource`（`/proc/self/fd/N` 随机读或 PdfBox 流式 + 8 MB 溢出）；②兜底：大书（如 >1500 页）跳过逐页回退、直接固定两页划分；修复后按 W33 口径真机复验（Native ≤60 MB / PSS ≤310 MB） |
-| D-W47-2 | P2（性能阈值） | 冷启动中位 1322 ms，超基线 +15% 阈值（1248 ms） | 待定位；与 W2 基线相比应用状态更大（本地库 / 缩略图 / 更完整首屏）。debug 口径 | 负责人评审；需要时下一波复测并做启动 profile 抽样 |
+| D-W47-2 | P2（性能阈值） | 冷启动中位 1322 ms，超基线 +15% 阈值（1248 ms） | 与 W2 基线相比应用状态更大（本地库 / 缩略图 / 更完整首屏）。debug 口径 | **用户 2026-10-03 拍板：接受 debug 新基线 1322 ms**；发布包（release / AAB）实测若仍超 +15% 阈值，再开性能定位波并做启动 profile 抽样 |
 
 ### 7.3 未触发项（B 组 / 故障窗口）
 
