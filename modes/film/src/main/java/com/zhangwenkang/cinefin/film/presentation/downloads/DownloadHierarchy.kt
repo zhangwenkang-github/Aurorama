@@ -38,7 +38,8 @@ data class DownloadHierarchyEntry(
     /**
      * W36 层级图规则：节目（Show）海报与季（Season）海报各自独立。
      *
-     * 剧集行的 [imageUri] 按「剧集缩略图 → 季海报 → 节目海报」回退后的最终图； 容器行（节目 / 季）按「自己的海报 → 上一级海报」回退。
+     * W59 起严格同级：剧集行的 [imageUri] 只放**剧集自己的缩略图（帧图）**，节目 / 季海报各自只放自己的 primary；
+     * 缺图由视图层回退类型占位图标，**不跨级回退**（避免串图）。
      */
     val showImageUri: String? = null,
     val seasonImageUri: String? = null,
@@ -343,9 +344,8 @@ object DownloadHierarchyBuilder {
                         completedCount = completed,
                         totalCount = sorted.size,
                         sizeBytes = sorted.sumOf { it.sizeBytes },
-                        // W36：季用海报——季海报缺失时回退节目海报。
-                        imageUri =
-                            sorted.firstNotNullOfOrNull { it.seasonImageUri ?: it.showImageUri },
+                        // W59：季只用自己的海报（缺图 → 类型占位，不跨级回退）。
+                        imageUri = sorted.firstNotNullOfOrNull { it.seasonImageUri },
                         children = sorted.map { DownloadHierarchyLeaf(it.key, it) },
                         downloadedBytes = aggregate.downloadedBytes,
                         totalBytes = aggregate.totalBytes,
@@ -369,11 +369,8 @@ object DownloadHierarchyBuilder {
             completedCount = completed,
             totalCount = allEntries.size,
             sizeBytes = allEntries.sumOf { it.sizeBytes },
-            // W36：节目用海报——节目海报缺失时回退季海报（再退回条目图）。
-            imageUri =
-                entries.firstNotNullOfOrNull { it.showImageUri }
-                    ?: entries.firstNotNullOfOrNull { it.seasonImageUri }
-                    ?: entries.firstOrNull { it.imageUri != null }?.imageUri,
+            // W59：节目只用自己的海报（缺图 → 类型占位，不跨级回退）。
+            imageUri = entries.firstNotNullOfOrNull { it.showImageUri },
             canDelete = allEntries.any { it.canDelete },
             canOpen = false,
             children = seasons,

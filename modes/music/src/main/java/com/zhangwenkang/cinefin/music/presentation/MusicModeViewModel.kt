@@ -1000,15 +1000,44 @@ constructor(
         _batchSelection.update { it.retain(ids).toggle(song.itemId.toString()) }
     }
 
+    // ---- W59：专辑列表长按多选（批量下载整张；复用同一 MultiSelectState / 批量下载链路） ----
+
+    /** 专辑 Tab 的多选作用域（列表视图；进入专辑 / 其它详情后仍按曲目口径）。 */
+    private fun albumBatchScope(): Boolean =
+        _uiState.value.detail == null && _uiState.value.tab == MusicTab.ALBUMS
+
+    private fun visibleAlbums(): List<MusicAlbum> = _uiState.value.albums
+
+    private fun selectedAlbums(): List<MusicAlbum> {
+        val selection = _batchSelection.value.selectedIds
+        return visibleAlbums().filter { it.key in selection }
+    }
+
+    /** W59：长按专辑进入多选（选中该专辑卡）。 */
+    fun onAlbumBatchLongPress(album: MusicAlbum) {
+        val ids = visibleAlbums().map { it.key }.toSet()
+        _batchSelection.update { it.retain(ids).longPress(album.key) }
+    }
+
+    /** W59：多选态点击专辑卡 = 切换该专辑选中。 */
+    fun onAlbumBatchToggle(album: MusicAlbum) {
+        val ids = visibleAlbums().map { it.key }.toSet()
+        _batchSelection.update { it.retain(ids).toggle(album.key) }
+    }
+
     /** 全选当前视图已加载曲目（不拉全库）。 */
     fun onBatchSelectAll() {
-        val ids = visibleSongs().map { it.itemId.toString() }
+        val ids =
+            if (albumBatchScope()) visibleAlbums().map { it.key }
+            else visibleSongs().map { it.itemId.toString() }
         _batchSelection.update { it.selectAll(ids) }
     }
 
     /** 取消全选（保留多选模式）。 */
     fun onBatchSelectNone() {
-        val ids = visibleSongs().map { it.itemId.toString() }
+        val ids =
+            if (albumBatchScope()) visibleAlbums().map { it.key }
+            else visibleSongs().map { it.itemId.toString() }
         _batchSelection.update { it.selectNone(ids) }
     }
 
@@ -1019,11 +1048,26 @@ constructor(
 
     /** 批量动作条可用性（纯函数判定；UI 直接消费）。 */
     fun batchEnabled(action: MusicBatchAction): Boolean {
+        if (albumBatchScope()) {
+            // W59：专辑多选只提供「下载整张」——任一选中专辑还有缺失曲目即可用。
+            if (action != MusicBatchAction.DOWNLOAD) return false
+            return selectedAlbums().any { album -> albumDownloadPlan(album).targets.isNotEmpty() }
+        }
         val selected = selectedSongs()
         return musicBatchActionEnabled(
             action = action,
             selected = selected.map { batchCaps(it, _downloadState.value) },
             inPlaylist = _uiState.value.detail is MusicDetail.Playlist,
+        )
+    }
+
+    /** W59：专辑缺失曲目计划（只补齐缺失 + 单次 100 首上限）。 */
+    private fun albumDownloadPlan(album: MusicAlbum): MusicAlbumDownloadRules.Plan {
+        val downloadState = _downloadState.value
+        return MusicAlbumDownloadRules.plan(
+            album = album,
+            downloadedItemIds = downloadState.downloadedItemIds,
+            activeItemIds = downloadState.activeStatuses.keys,
         )
     }
 
@@ -1080,45 +1124,99 @@ constructor(
         }
     }
 
-    /** 批量下载：跳过已下载 / 已在队列的曲目。 */
+    /**
+     * 批量下载（W58 曲目多选 / W59 专辑多选共用）：跳过已下载 / 已在队列的曲目。
+     *
+     * 专辑多选 = 多张专辑合并计划（按专辑顺序 + 音轨序、去重、单次 100 首上限），走同一条入队链路。
+     */
     fun downloadSelected() {
         val downloadState = _downloadState.value
-        val targets = batchDownloadTargets(selectedSongs(), batchCapsMap(downloadState))
+        val plan: MusicAlbumDownloadRules.Plan
+        if (albumBatchScope()) {
+            plan =
+                MusicAlbumDownloadRules.planAlbums(
+                    albums = selectedAlbums(),
+                    downloadedItemIds = downloadState.downloadedItemIds,
+                    activeItemIds = downloadState.activeStatuses.keys,
+                )
+        } else {
+            val targets = batchDownloadTargets(selectedSongs(), batchCapsMap(downloadState))
+            plan = MusicAlbumDownloadRules.Plan(targets, 0, 0, 0)
+        }
+        if (plan.targets.isEmpty()) return
         viewModelScope.launch {
-            var failures = 0
-            for (song in targets) {
-                val item = runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull()
-                val sourceId = runCatching {
-                    jellyfinRepository.getMediaSources(song.itemId, true)
-                }
-                    .getOrNull()
-                    ?.firstOrNull()
-                    ?.id
-                if (item == null || sourceId == null) {
-                    failures++
-                    continue
-                }
-                runCatching {
-                    downloader.downloadItem(
-                        item = item,
-                        sourceId = sourceId,
-                        storageIndex = 0,
-                        albumName = song.albumName,
-                        artist = song.artist,
-                        trackIndex = song.indexNumber ?: 0,
-                    )
-                }
-                    .onFailure { failures++ }
-            }
+            val failures = enqueueSongs(plan.targets)
             refreshDownloadState()
-            if (failures > 0) {
-                _uiState.update {
-                    it.copy(
-                        errorTitle = "部分下载未加入队列",
-                        errorMessage = "有 $failures 首曲目读取失败，已加入其余 ${targets.size - failures} 首",
-                    )
-                }
+            reportDownloadFailures(failures, plan.targets.size)
+            if (failures == 0 && plan.skippedByLimit > 0) {
+                showBatchFailure(
+                    "单次上限 ${MusicAlbumDownloadRules.MAX_TRACKS_PER_REQUEST} 首",
+                    "已加入前 ${plan.targets.size} 首，剩余 ${plan.skippedByLimit} 首请再次下载",
+                )
             }
+        }
+    }
+
+    /** W59 专辑详情「下载专辑」：只补齐缺失 + 单次 100 首上限。 */
+    fun downloadAlbum() {
+        val album = (_uiState.value.detail as? MusicDetail.Album)?.album ?: return
+        val plan = albumDownloadPlan(album)
+        if (plan.targets.isEmpty()) return
+        viewModelScope.launch {
+            val failures = enqueueSongs(plan.targets)
+            refreshDownloadState()
+            reportDownloadFailures(failures, plan.targets.size)
+            if (failures == 0 && plan.skippedByLimit > 0) {
+                showBatchFailure(
+                    "单次上限 ${MusicAlbumDownloadRules.MAX_TRACKS_PER_REQUEST} 首",
+                    "已加入前 ${plan.targets.size} 首，剩余 ${plan.skippedByLimit} 首请再次下载",
+                )
+            }
+        }
+    }
+
+    /** 专辑详情「下载专辑」按钮文案状态（仅补齐缺失；null = 当前详情不是专辑）。 */
+    fun albumDownloadMissingCount(): Int? {
+        val album = (_uiState.value.detail as? MusicDetail.Album)?.album ?: return null
+        return albumDownloadPlan(album).targets.size
+    }
+
+    /** 逐首走既有批量下载链路（取条目 + 媒体源 → 入队），返回失败数。 */
+    private suspend fun enqueueSongs(songs: List<MusicSong>): Int {
+        var failures = 0
+        for (song in songs) {
+            val item = runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull()
+            val sourceId = runCatching {
+                jellyfinRepository.getMediaSources(song.itemId, true)
+            }
+                .getOrNull()
+                ?.firstOrNull()
+                ?.id
+            if (item == null || sourceId == null) {
+                failures++
+                continue
+            }
+            runCatching {
+                downloader.downloadItem(
+                    item = item,
+                    sourceId = sourceId,
+                    storageIndex = 0,
+                    albumName = song.albumName,
+                    artist = song.artist,
+                    trackIndex = song.indexNumber ?: 0,
+                )
+            }
+                .onFailure { failures++ }
+        }
+        return failures
+    }
+
+    private fun reportDownloadFailures(failures: Int, total: Int) {
+        if (failures > 0) {
+            showBatchFailure(
+                "部分下载未加入队列",
+                "有 $failures 首曲目读取失败，已加入其余 ${total - failures} 首",
+            )
         }
     }
 

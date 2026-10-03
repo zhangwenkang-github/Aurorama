@@ -51,6 +51,8 @@ dependencies {
     implementation(libs.jellyfin.core)
     implementation(libs.material)
     implementation(libs.okhttp)
+    // W59：在线书籍封面生成（PDF 首页）用 PdfBox-Android；复用 modes:book 同一依赖版本。
+    implementation(libs.pdfbox.android)
     implementation(libs.timber)
     implementation(libs.slf4j.api)
     implementation(libs.slf4j.android)

@@ -41,20 +41,82 @@ class DownloadArtworkRulesTest {
     }
 
     @Test
-    fun `剧集回退链按条目季节目远程顺序`() {
+    fun `W59 视频层级每级只认自己的图`() {
         assertEquals(
-            "item",
-            DownloadArtworkRules.videoFallback("item", "season", "series", "remote"),
+            "show-poster",
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.SHOW,
+                "show-poster",
+                "https://host/show.jpg",
+            ),
         )
         assertEquals(
-            "season",
-            DownloadArtworkRules.videoFallback(null, "season", "series", "remote"),
+            "season-poster",
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.SEASON,
+                "season-poster",
+                null,
+            ),
         )
         assertEquals(
-            "series",
-            DownloadArtworkRules.videoFallback(null, null, "series", "remote"),
+            "https://host/episode.jpg",
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.EPISODE,
+                null,
+                "https://host/episode.jpg",
+            ),
         )
-        assertEquals("remote", DownloadArtworkRules.videoFallback(null, null, null, "remote"))
-        assertNull(DownloadArtworkRules.videoFallback(null, null, null, null))
+    }
+
+    @Test
+    fun `W59 本级缺图不跨级回退直接类型占位`() {
+        // 剧集：即使季 / 节目海报存在，也不得采纳（防串图）。
+        assertNull(
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.EPISODE,
+                ownLocal = null,
+                ownRemote = null,
+                seasonImage = "season-poster",
+                showImage = "show-poster",
+            )
+        )
+        // 季：即使节目海报存在，也不得采纳。
+        assertNull(
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.SEASON,
+                ownLocal = null,
+                ownRemote = null,
+                showImage = "show-poster",
+            )
+        )
+        // 节目：即使季海报存在，也不得采纳。
+        assertNull(
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.SHOW,
+                ownLocal = null,
+                ownRemote = null,
+                seasonImage = "season-poster",
+            )
+        )
+        // 本级本地 / 远程都缺 → null（视图层回退类型图标）。
+        assertNull(
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.MOVIE,
+                null,
+                null,
+            )
+        )
+    }
+
+    @Test
+    fun `W59 本级本地图优先于本级远程图`() {
+        assertEquals(
+            "/files/images/episode/primary",
+            DownloadArtworkRules.videoArtwork(
+                DownloadArtworkRules.Level.EPISODE,
+                "/files/images/episode/primary",
+                "https://host/episode.jpg",
+            ),
+        )
     }
 }

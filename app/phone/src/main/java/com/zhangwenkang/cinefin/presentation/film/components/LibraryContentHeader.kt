@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -293,6 +294,10 @@ fun LibraryListRow(
     selectionMode: Boolean = false,
     selected: Boolean = false,
     onLongClick: (() -> Unit)? = null,
+    /** W59：书籍封面自动生成结果（本地绝对路径）；null = 服务器图 / 占位。 */
+    imageOverride: String? = null,
+    /** W59：无图时的类型占位图标（书籍库传 `ic_book`）；null = 保持原有空白底。 */
+    @DrawableRes placeholderIconRes: Int? = null,
 ) {
     val colors = LocalCinefinColors.current
     Row(
@@ -323,6 +328,8 @@ fun LibraryListRow(
                 item = item,
                 direction = Direction.VERTICAL,
                 modifier = Modifier.fillMaxWidth(),
+                imageOverride = imageOverride,
+                placeholderIconRes = placeholderIconRes,
             )
             Row(
                 modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space1),

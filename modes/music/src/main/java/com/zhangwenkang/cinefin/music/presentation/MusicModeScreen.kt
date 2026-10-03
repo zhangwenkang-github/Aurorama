@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -261,6 +262,8 @@ fun MusicModeScreen(
                                 onToggleDownload = viewModel::toggleSongDownload,
                                 onBatchLongPress = viewModel::onBatchLongPress,
                                 onBatchToggle = viewModel::onBatchToggle,
+                                onDownloadAlbum = viewModel::downloadAlbum,
+                                albumMissingCount = viewModel::albumDownloadMissingCount,
                             )
                         else ->
                             LibraryPane(
@@ -278,6 +281,8 @@ fun MusicModeScreen(
                                 onToggleDownload = viewModel::toggleSongDownload,
                                 onBatchLongPress = viewModel::onBatchLongPress,
                                 onBatchToggle = viewModel::onBatchToggle,
+                                onAlbumBatchLongPress = viewModel::onAlbumBatchLongPress,
+                                onAlbumBatchToggle = viewModel::onAlbumBatchToggle,
                             )
                     }
                 }
@@ -286,6 +291,7 @@ fun MusicModeScreen(
                     MusicBatchActionBar(
                         selectedCount = batchSelection.selectedCount,
                         isPlaylistDetail = state.detail is MusicDetail.Playlist,
+                        albumsOnly = state.detail == null && state.tab == MusicTab.ALBUMS,
                         isEnabled = viewModel::batchEnabled,
                         onPlay = viewModel::playSelected,
                         onDownload = viewModel::downloadSelected,
@@ -486,7 +492,13 @@ private fun MusicHeader(
 ) {
     val detail = state.detail
     val media = LocalMediaColors.current
-    val visibleSongCount = detail?.songs?.size ?: state.songs.size
+    // W59：专辑 Tab 的多选计数以专辑卡数为准（与 VM 的专辑多选作用域一致）。
+    val visibleSongCount =
+        when {
+            detail != null -> detail.songs.size
+            state.tab == MusicTab.ALBUMS -> state.albums.size
+            else -> state.songs.size
+        }
     val batchMode = batchSelection.selectionMode
     // W8-R3：与媒体库 / 书架共用 `CinefinPageTopBar`（56dp + statusBarsPadding + 左侧 ic_menu「打开侧栏」），
     // 修掉旧版 72dp 无 inset 导致的"按钮被状态栏压住"。详情（专辑 / 艺术家 / 歌单）改回返回键 + 详情标题。
@@ -653,13 +665,23 @@ private fun LibraryPane(
     onToggleDownload: (MusicSong) -> Unit,
     onBatchLongPress: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
+    onAlbumBatchLongPress: (MusicAlbum) -> Unit = {},
+    onAlbumBatchToggle: (MusicAlbum) -> Unit = {},
 ) {
     // W39：空态按来源分支（本地 / 服务器 / 全部 / 离线），与下拉刷新提示一致。
     val emptyCopy =
         musicEmptyCopy(tab = state.tab, filter = state.sourceFilter, offline = state.offline)
     when (state.tab) {
         MusicTab.ALBUMS ->
-            AlbumList(albums = state.albums, emptyCopy = emptyCopy, onAlbumClick = onAlbumClick)
+            AlbumList(
+                albums = state.albums,
+                emptyCopy = emptyCopy,
+                onAlbumClick = onAlbumClick,
+                selectionMode = batchSelection.selectionMode,
+                selectedIds = batchSelection.selectedIds,
+                onAlbumLongPress = onAlbumBatchLongPress,
+                onAlbumToggle = onAlbumBatchToggle,
+            )
         MusicTab.ARTISTS ->
             ArtistList(
                 artists = state.artists,
@@ -705,6 +727,8 @@ private fun DetailPane(
     onToggleDownload: (MusicSong) -> Unit,
     onBatchLongPress: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
+    onDownloadAlbum: () -> Unit = {},
+    albumMissingCount: () -> Int? = { null },
 ) {
     if (
         (detail is MusicDetail.Playlist && detail.loading) ||
@@ -734,6 +758,16 @@ private fun DetailPane(
         onToggleDownload = onToggleDownload,
         onBatchLongPress = onBatchLongPress,
         onBatchToggle = onBatchToggle,
+        header =
+            (detail as? MusicDetail.Album)?.let { albumDetail ->
+                {
+                    AlbumDetailHeader(
+                        album = albumDetail.album,
+                        missingCount = albumMissingCount(),
+                        onDownloadAlbum = onDownloadAlbum,
+                    )
+                }
+            },
     )
 }
 
@@ -742,6 +776,10 @@ private fun AlbumList(
     albums: List<MusicAlbum>,
     emptyCopy: MusicEmptyCopy,
     onAlbumClick: (MusicAlbum) -> Unit,
+    selectionMode: Boolean = false,
+    selectedIds: Set<String> = emptySet(),
+    onAlbumLongPress: (MusicAlbum) -> Unit = {},
+    onAlbumToggle: (MusicAlbum) -> Unit = {},
 ) {
     if (albums.isEmpty()) {
         EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
@@ -749,18 +787,76 @@ private fun AlbumList(
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items = albums, key = { album -> album.key }) { album ->
+            val selected = album.key in selectedIds
             CinefinListRow(
                 title = album.name,
                 secondary =
                     listOfNotNull(album.artist, "${album.songs.size} 首")
                         .filter { it.isNotBlank() }
                         .joinToString(" · "),
-                onClick = { onAlbumClick(album) },
-                leading = {
-                    ArtworkThumb(imageUri = album.imageUri, placeholder = "♪", title = album.name)
-                },
+                onClick = { if (selectionMode) onAlbumToggle(album) else onAlbumClick(album) },
+                onLongClick = { onAlbumLongPress(album) },
+                selectionMode = selectionMode,
+                selected = selected,
+                leading = { ArtworkThumb(imageUri = album.imageUri, title = album.name) },
             )
         }
+    }
+}
+
+/**
+ * W59 专辑详情头部：封面 + 专辑信息 + 「下载专辑」按钮。
+ *
+ * 按钮只补齐缺失（已下载 / 队列内跳过）+ 单次 100 首上限（与视频详情页整剧下载同口径）； 无缺失时置灰显示「已全部下载」。
+ */
+@Composable
+private fun AlbumDetailHeader(
+    album: MusicAlbum,
+    missingCount: Int?,
+    onDownloadAlbum: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ArtworkThumb(imageUri = album.imageUri, title = album.name, size = 64.dp)
+        Spacer(Modifier.width(CinefinSpacing.Space3))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = album.name,
+                style = CinefinType.TitleSmall,
+                color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text =
+                    listOfNotNull(album.artist, "${album.songs.size} 首")
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · "),
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(CinefinSpacing.Space3))
+        val targets = missingCount ?: 0
+        CinefinButton(
+            text =
+                if (targets > 0) {
+                    stringResource(CoreR.string.music_download_album_count, targets)
+                } else {
+                    stringResource(CoreR.string.music_album_all_downloaded)
+                },
+            onClick = onDownloadAlbum,
+            variant = CinefinButtonVariant.Outlined,
+            size = CinefinButtonSize.Small,
+            enabled = targets > 0,
+        )
     }
 }
 
@@ -780,13 +876,7 @@ private fun ArtistList(
                 title = artist.name,
                 secondary = "${artist.songs.size} 首",
                 onClick = { onArtistClick(artist) },
-                leading = {
-                    ArtworkThumb(
-                        imageUri = artist.imageUri,
-                        placeholder = "♪",
-                        title = artist.name,
-                    )
-                },
+                leading = { ArtworkThumb(imageUri = artist.imageUri, title = artist.name) },
             )
         }
     }
@@ -808,32 +898,29 @@ private fun PlaylistList(
                 title = playlist.name,
                 secondary = playlist.songCount?.let { count -> "$count 首" } ?: "歌单",
                 onClick = { onPlaylistClick(playlist) },
-                leading = {
-                    ArtworkThumb(
-                        imageUri = playlist.imageUri,
-                        placeholder = "≡",
-                        title = playlist.name,
-                    )
-                },
+                leading = { ArtworkThumb(imageUri = playlist.imageUri, title = playlist.name) },
             )
         }
     }
 }
 
-/** 46–56dp 缩略图（§8.4：圆角 8dp）；无图时用字符占位，不引入额外色块。 */
+/**
+ * W59：46–64dp 缩略图（§8.4：圆角 8dp）；**无图时 = 通用音乐占位**—— 现有音符矢量（`ic_music`）+ 当前域媒体色底，不再用黑底 / 字符占位（不新增位图）。
+ */
 @Composable
-private fun ArtworkThumb(imageUri: String?, placeholder: String, title: String) {
+private fun ArtworkThumb(imageUri: String?, title: String, size: Dp = 48.dp) {
     val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     Box(
-        modifier =
-            Modifier.size(48.dp).clip(CinefinShapes.Xs).background(colors.surfaceContainerHigh),
+        modifier = Modifier.size(size).clip(CinefinShapes.Xs).background(media.container),
         contentAlignment = Alignment.Center,
     ) {
         if (imageUri == null) {
-            Text(
-                text = placeholder,
-                style = CinefinType.TitleMedium,
-                color = colors.onSurfaceVariant,
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_music),
+                contentDescription = title,
+                tint = media.bright,
+                modifier = Modifier.size(size * 0.5f),
             )
         } else {
             AsyncImage(
@@ -851,6 +938,8 @@ private fun SongList(
     songs: List<MusicSong>,
     currentItemId: UUID?,
     showAlbum: Boolean,
+    /** W59：列表头部插槽（专辑详情用它放「下载专辑」头部）。 */
+    header: (@Composable () -> Unit)? = null,
     emptyTitle: String = "这里还没有可播放的曲目",
     emptyMessage: String? = null,
     downloadState: MusicModeViewModel.SongDownloadState = MusicModeViewModel.SongDownloadState(),
@@ -868,6 +957,9 @@ private fun SongList(
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
+        if (header != null) {
+            item(key = "song-list-header") { header() }
+        }
         // 歌单允许同一首曲目出现多次，key 里带序号避免重复 key 崩溃
         itemsIndexed(items = songs, key = { index, song -> "$index-${song.itemId}" }) { index, song
             ->
@@ -1062,7 +1154,6 @@ private fun NowPlayingBar(
             ) {
                 ArtworkThumb(
                     imageUri = item.thumbnailUri,
-                    placeholder = item.name,
                     title = item.name,
                 )
                 Spacer(modifier = Modifier.width(CinefinSpacing.Space3))
@@ -1139,6 +1230,8 @@ private fun NowPlayingBar(
 private fun MusicBatchActionBar(
     selectedCount: Int,
     isPlaylistDetail: Boolean,
+    /** W59：专辑多选（专辑列表 Tab）= 只提供「下载整张」。 */
+    albumsOnly: Boolean = false,
     isEnabled: (MusicBatchAction) -> Boolean,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
@@ -1147,6 +1240,15 @@ private fun MusicBatchActionBar(
     onRemoveFromPlaylist: () -> Unit,
 ) {
     CinefinBatchBar(selectedCount = selectedCount) {
+        if (albumsOnly) {
+            BatchActionButton(
+                enabled = isEnabled(MusicBatchAction.DOWNLOAD),
+                label = "下载整张",
+                iconRes = CoreR.drawable.ic_download,
+                onClick = onDownload,
+            )
+            return@CinefinBatchBar
+        }
         BatchActionButton(
             enabled = isEnabled(MusicBatchAction.PLAY),
             label = "播放",

@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
+import java.util.UUID
 
 /** W34：媒体类型筛选（全部 / 视频 / 音乐 / 书籍）。 */
 enum class DownloadMediaFilter {
@@ -45,6 +46,15 @@ data class DownloadManagerState(
 
     val hasSelection: Boolean
         get() = selection.isNotEmpty()
+
+    /** 三组容器合并（钻取详情页按 key 查找 / 批量操作用）。 */
+    val allContainers: List<DownloadHierarchyContainer>
+        get() = activeContainers + completedContainers + failedContainers
+
+    /** 按容器 key 查找（W59 钻取详情页）：不存在（已删除 / 换筛选）返回 null。 */
+    fun containerFor(key: String): DownloadHierarchyContainer? = allContainers.firstOrNull {
+        it.key == key
+    }
 
     /** 当前筛选下的容器（按标题 / 更新时间排序由构建器给出）。 */
     fun containersFor(group: DownloadTaskGroup): List<DownloadHierarchyContainer> =
@@ -136,6 +146,15 @@ sealed interface DownloadAction {
 
     /** W36：容器级（节目 / 专辑 / 季）批量切换「允许离线模式观看」。 */
     data class SetContainerOffline(val key: String, val allow: Boolean) : DownloadAction
+
+    /** W59：详情页「全部暂停」——容器内所有可暂停任务。 */
+    data class PauseContainer(val key: String) : DownloadAction
+
+    /** W59：详情页「全部继续」——容器内所有可继续任务。 */
+    data class ResumeContainer(val key: String) : DownloadAction
+
+    /** W59：书籍行可见时触发一次封面懒生成（本地已下载书籍走本地文件，不联网）。 */
+    data class EnsureBookCover(val itemId: UUID) : DownloadAction
 
     data object PauseSelected : DownloadAction
 

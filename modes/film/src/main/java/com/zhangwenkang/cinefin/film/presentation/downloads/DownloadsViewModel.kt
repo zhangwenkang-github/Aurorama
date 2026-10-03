@@ -13,9 +13,11 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
+import com.zhangwenkang.cinefin.utils.BookCoverProvider
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
+import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
@@ -51,6 +53,8 @@ constructor(
     private val repository: JellyfinRepository,
     private val readerRepository: ReaderRepository,
     private val offlineMediaRepository: OfflineMediaRepository,
+    /** W59：书籍封面自动生成（下载页书籍条目 / 书架共用）。 */
+    private val bookCoverProvider: BookCoverProvider,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DownloadManagerState())
@@ -59,6 +63,10 @@ constructor(
     private var pollingJob: Job? = null
     private var refreshing = false
     private val cachedBookMetadata = mutableMapOf<UUID, BookMetadata>()
+    /** W59：服务器主图 URL 会话级缓存（只在本地图缺失时查询，避免逐条打接口）。 */
+    private val remoteImageCache = mutableMapOf<UUID, String?>()
+    /** W59：点击打开时按需解析的条目缓存（书籍没有 `sources` 行）。 */
+    private val resolvedItemCache = mutableMapOf<UUID, FindroidItem>()
     /** W36：「允许离线模式观看」开关状态（itemId → allow），refresh 时重读。 */
     private var offlineAllowMap: Map<UUID, Boolean> = emptyMap()
 
@@ -86,6 +94,31 @@ constructor(
         return _state.value.completed.firstOrNull { it.item.id == entry.itemId }?.item
     }
 
+    /**
+     * W59：按需解析条目对象并回调（下载页点击完成条目 / 书籍行）。
+     *
+     * 书籍走阅读器离线链路、没有 `sources` 行，[itemForEntry] 找不到；这里优先用已完成缓存， 未命中时拉取一次条目并缓存（仅用户点击时触发，不参与轮询）。
+     */
+    fun resolveEntryItem(key: String, onReady: (FindroidItem) -> Unit) {
+        val entry = _state.value.findEntry(key) ?: return
+        _state.value.completed
+            .firstOrNull { it.item.id == entry.itemId }
+            ?.item
+            ?.let {
+                onReady(it)
+                return
+            }
+        resolvedItemCache[entry.itemId]?.let {
+            onReady(it)
+            return
+        }
+        viewModelScope.launch {
+            val item = runCatching { repository.getItem(entry.itemId) }.getOrNull() ?: return@launch
+            resolvedItemCache[entry.itemId] = item
+            onReady(item)
+        }
+    }
+
     fun onAction(action: DownloadAction) {
         when (action) {
             is DownloadAction.ToggleSelection -> toggleSelection(action.key)
@@ -106,6 +139,15 @@ constructor(
             is DownloadAction.DeleteEntry -> deleteEntry(action.key)
             is DownloadAction.ToggleOffline -> setOfflineAllowed(action.key)
             is DownloadAction.SetContainerOffline -> setContainerOffline(action.key, action.allow)
+            is DownloadAction.PauseContainer ->
+                runForContainerTasks(action.key, DownloadTaskRules::canPause) {
+                    downloader.pauseTask(it)
+                }
+            is DownloadAction.ResumeContainer ->
+                runForContainerTasks(action.key, DownloadTaskRules::canResume) {
+                    downloader.resumeTask(it)
+                }
+            is DownloadAction.EnsureBookCover -> ensureBookCover(action.itemId)
             DownloadAction.ToggleSelectionMode -> toggleSelectionMode()
             DownloadAction.ClearSelection -> clearSelection()
             DownloadAction.PauseSelected -> runForSelectedTasks { downloader.pauseTask(it) }
@@ -190,10 +232,33 @@ constructor(
 
     private fun toggleSelection(key: String) {
         _state.update { current ->
+            // W59：容器 / 季卡选中 = 该容器内全部条目；条目行 = 单个条目。
+            val targets = current.selectionTargets(key)
             val selection =
-                if (key in current.selection) current.selection - key else current.selection + key
-            current.copy(selection = selection, selectionMode = true)
+                if (targets.isNotEmpty() && targets.all { it in current.selection }) {
+                    current.selection - targets
+                } else {
+                    current.selection + targets
+                }
+            current.copy(selection = selection, selectionMode = selection.isNotEmpty())
         }
+    }
+
+    /** 选中目标的条目 key 集合：容器 key → 全部后代条目；季 key → 该季剧集；条目 key → 自身。 */
+    private fun DownloadManagerState.selectionTargets(key: String): Set<String> {
+        allContainers
+            .firstOrNull { it.key == key }
+            ?.let { container ->
+                return container.allEntries().mapTo(mutableSetOf()) { it.key }
+            }
+        allContainers.forEach { container ->
+            container.children.filterIsInstance<DownloadHierarchySubContainer>().forEach { season ->
+                if (season.key == key) {
+                    return season.children.mapTo(mutableSetOf()) { it.key }
+                }
+            }
+        }
+        return setOf(key)
     }
 
     private fun clearSelection() {
@@ -214,6 +279,35 @@ constructor(
                 block(task)
             }
             refresh(showLoading = false)
+        }
+    }
+
+    /** W59 详情页「全部暂停 / 全部继续」：对容器内所有可操作任务逐个执行。 */
+    private fun runForContainerTasks(
+        containerKey: String,
+        predicate: (DownloadTaskStatus) -> Boolean,
+        block: suspend (DownloadTask) -> Any?,
+    ) {
+        viewModelScope.launch {
+            val container = _state.value.containerFor(containerKey) ?: return@launch
+            val tasks =
+                container.allEntries().mapNotNull { it.task }.filter { predicate(it.status) }
+            var changed = false
+            for (task in tasks) {
+                block(task)
+                changed = true
+            }
+            if (changed) refresh(showLoading = false)
+        }
+    }
+
+    /** W59：书籍行可见时懒生成封面（已下载书籍走本地文件；成功后刷新列表出图）。 */
+    private fun ensureBookCover(itemId: UUID) {
+        if (bookCoverProvider.cached(itemId) != null) return
+        viewModelScope.launch {
+            if (bookCoverProvider.ensureCover(itemId) != null) {
+                refresh(showLoading = false)
+            }
         }
     }
 
@@ -329,7 +423,7 @@ constructor(
                                 DownloadArtworkRules.resolve(
                                     localImage(file.itemId),
                                     bookMetadata[file.itemId]?.imageUrl,
-                                ),
+                                ) ?: bookCoverProvider.cached(file.itemId),
                             allowOffline = offlineAllowMap[file.itemId] ?: true,
                         )
                     }
@@ -467,10 +561,25 @@ constructor(
             imageUri =
                 when {
                     song != null -> DownloadArtworkRules.resolve(localImage(itemId), song.imageUri)
-                    else -> videoImageUri(episode != null, episode, itemId)
+                    mediaKind == DownloadMediaKind.BOOK ->
+                        DownloadArtworkRules.resolve(
+                            localImage(itemId),
+                            bookCoverProvider.cached(itemId),
+                        )
+                    else -> videoImageUri(episode != null, itemId)
                 },
-            showImageUri = localImage(episode?.seriesId),
-            seasonImageUri = localImage(episode?.seasonId),
+            showImageUri =
+                DownloadArtworkRules.videoArtwork(
+                    DownloadArtworkRules.Level.SHOW,
+                    localImage(episode?.seriesId),
+                    remotePrimaryImage(episode?.seriesId),
+                ),
+            seasonImageUri =
+                DownloadArtworkRules.videoArtwork(
+                    DownloadArtworkRules.Level.SEASON,
+                    localImage(episode?.seasonId),
+                    remotePrimaryImage(episode?.seasonId),
+                ),
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
     }
@@ -509,15 +618,27 @@ constructor(
                         DownloadArtworkRules.resolve(
                             localImage(item.id),
                             bookMetadata[item.id]?.imageUrl,
-                        )
+                        ) ?: bookCoverProvider.cached(item.id)
                     else ->
-                        DownloadArtworkRules.resolve(
+                        DownloadArtworkRules.videoArtwork(
+                            if (episode != null) DownloadArtworkRules.Level.EPISODE
+                            else DownloadArtworkRules.Level.MOVIE,
                             localImage(item.id),
-                            runCatching { repository.getPrimaryImageUrl(item.id) }.getOrNull(),
+                            remotePrimaryImage(item.id),
                         )
                 },
-            showImageUri = localImage(episode?.seriesId),
-            seasonImageUri = localImage(episode?.seasonId),
+            showImageUri =
+                DownloadArtworkRules.videoArtwork(
+                    DownloadArtworkRules.Level.SHOW,
+                    localImage(episode?.seriesId),
+                    remotePrimaryImage(episode?.seriesId),
+                ),
+            seasonImageUri =
+                DownloadArtworkRules.videoArtwork(
+                    DownloadArtworkRules.Level.SEASON,
+                    localImage(episode?.seasonId),
+                    remotePrimaryImage(episode?.seasonId),
+                ),
             runtimeTicks =
                 when (item) {
                     is FindroidEpisode -> item.runtimeTicks
@@ -531,22 +652,26 @@ constructor(
         )
     }
 
-    /** W36 视频条目封面（本地优先，离线可见）： 剧集 = 剧集缩略图 → 季海报 → 节目海报 → 服务器节目海报；电影 = 本地主图。 */
-    private suspend fun videoImageUri(
-        isEpisode: Boolean,
-        episode: DownloadedEpisodeHierarchy?,
-        itemId: UUID,
-    ): String? {
-        if (!isEpisode) return DownloadArtworkRules.resolve(localImage(itemId), null)
-        return DownloadArtworkRules.videoFallback(
-            localItem = localImage(itemId),
-            localSeason = localImage(episode?.seasonId),
-            localSeries = localImage(episode?.seriesId),
-            remoteFallback =
-                episode?.seriesId?.let { seriesId ->
-                    runCatching { repository.getPrimaryImageUrl(seriesId) }.getOrNull()
-                },
+    /** W59 视频条目封面（严格同级，本地优先）： 电影 = 自身主图；剧集 = **自身缩略图（帧图）**——季 / 节目海报一律不作为回退（缺图即类型占位，防串图）。 */
+    private suspend fun videoImageUri(isEpisode: Boolean, itemId: UUID): String? =
+        DownloadArtworkRules.videoArtwork(
+            level =
+                if (isEpisode) DownloadArtworkRules.Level.EPISODE
+                else DownloadArtworkRules.Level.MOVIE,
+            ownLocal = localImage(itemId),
+            ownRemote = remotePrimaryImage(itemId),
         )
+
+    /** W59：服务器主图 URL（会话级缓存；只在本地图缺失时调用，避免逐条打接口）。 */
+    private suspend fun remotePrimaryImage(itemId: UUID?): String? {
+        if (itemId == null) return null
+        remoteImageCache[itemId]?.let {
+            return it
+        }
+        if (remoteImageCache.containsKey(itemId)) return null
+        val url = runCatching { repository.getPrimaryImageUrl(itemId) }.getOrNull()
+        remoteImageCache[itemId] = url
+        return url
     }
 
     /** W36：本地图片缓存是否存在（下载时由 ImagesDownloaderWorker 落盘；不存在返回 null → 图标占位）。 */

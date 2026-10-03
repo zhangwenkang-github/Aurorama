@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -28,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -47,26 +50,31 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDetailRow
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDrilldownRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadFormatRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyContainer
-import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyFlattener
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyRow
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadManagerState
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadMediaFilter
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
+import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
+import com.zhangwenkang.cinefin.film.presentation.downloads.detailRows
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadConfirmDialog
-import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadContainerCard
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadDrilldownHeader
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadGridBlock
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadGridGrouping
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadLeafCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListMetrics
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListSkeleton
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSeasonCard
-import com.zhangwenkang.cinefin.presentation.film.downloads.descendantEntries
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelCard
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelRow
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
@@ -89,17 +97,18 @@ fun DownloadsScreen(
         onAction = { action ->
             when (action) {
                 is DownloadAction.Open -> onItemClick(action.item)
-                is DownloadAction.OpenEntry -> viewModel.itemForEntry(action.key)?.let(onItemClick)
+                is DownloadAction.OpenEntry -> viewModel.resolveEntryItem(action.key, onItemClick)
                 else -> viewModel.onAction(action)
             }
         },
     )
 }
 
+/** W59 页签顺序 = 用户口径「进行中 → 失败 → 已完成」。 */
 private enum class DownloadTab {
     ACTIVE,
-    COMPLETED,
     FAILED,
+    COMPLETED,
 }
 
 private sealed interface PendingDelete {
@@ -123,18 +132,44 @@ private fun DownloadsScreenLayout(
     val compact = LocalConfiguration.current.screenWidthDp < 600
     var tab by rememberSaveable { mutableStateOf(DownloadTab.ACTIVE) }
     var pendingDelete by remember { mutableStateOf<PendingDelete?>(null) }
+    /** W59：钻取详情页的容器 key；null = 顶层列表。 */
+    var drilldownKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val drilldown = drilldownKey?.let { key -> state.containerFor(key) }
+
+    // 容器被删除 / 刷新后消失：自动回顶层列表，避免停在空详情。
+    LaunchedEffect(drilldownKey, drilldown) {
+        if (drilldownKey != null && drilldown == null) drilldownKey = null
+    }
+    BackHandler(enabled = state.selectionMode || drilldownKey != null) {
+        when {
+            state.selectionMode -> onAction(DownloadAction.ClearSelection)
+            else -> drilldownKey = null
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(colors.surface)) {
         CinefinPageTopBar(
-            title = stringResource(CoreR.string.title_download),
+            title = drilldown?.title ?: stringResource(CoreR.string.title_download),
             subtitle =
-                stringResource(
-                    CoreR.string.download_section_summary,
-                    state.activeCount,
-                    state.completedCount,
-                    state.failedCount,
-                ),
-            onOpenDrawer = onOpenDrawer,
+                drilldown?.let { container ->
+                    stringResource(
+                        if (container.mediaKind == DownloadMediaKind.MUSIC) {
+                            CoreR.string.download_count_tracks
+                        } else {
+                            CoreR.string.download_count_episodes
+                        },
+                        container.completedCount,
+                        container.totalCount,
+                    )
+                }
+                    ?: stringResource(
+                        CoreR.string.download_section_summary,
+                        state.activeCount,
+                        state.completedCount,
+                        state.failedCount,
+                    ),
+            onOpenDrawer = if (drilldown == null) onOpenDrawer else null,
+            onBack = if (drilldown != null) ({ drilldownKey = null }) else null,
             modifier = Modifier.padding(start = safePadding.start),
             actions = {
                 when {
@@ -164,148 +199,145 @@ private fun DownloadsScreenLayout(
             },
         )
 
-        Spacer(Modifier.height(CinefinSpacing.Space3))
-        StorageSummary(
-            storage = state.storage,
-            bookStorageBytes = state.bookStorageBytes,
-            modifier = Modifier.padding(horizontal = horizontalPadding),
-        )
-        Spacer(Modifier.height(CinefinSpacing.Space3))
+        if (drilldown == null) {
+            Spacer(Modifier.height(CinefinSpacing.Space3))
+            StorageSummary(
+                storage = state.storage,
+                bookStorageBytes = state.bookStorageBytes,
+                modifier = Modifier.padding(horizontal = horizontalPadding),
+            )
+            Spacer(Modifier.height(CinefinSpacing.Space3))
 
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = horizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-        ) {
-            CinefinFilterChip(
-                text = stringResource(CoreR.string.download_tasks_active) + " ${state.activeCount}",
-                selected = tab == DownloadTab.ACTIVE,
-                onClick = { tab = DownloadTab.ACTIVE },
-                compact = true,
-            )
-            CinefinFilterChip(
-                text =
-                    stringResource(CoreR.string.download_tasks_completed) +
-                        " ${state.completedCount}",
-                selected = tab == DownloadTab.COMPLETED,
-                onClick = { tab = DownloadTab.COMPLETED },
-                compact = true,
-            )
-            CinefinFilterChip(
-                text = stringResource(CoreR.string.download_tasks_failed) + " ${state.failedCount}",
-                selected = tab == DownloadTab.FAILED,
-                onClick = { tab = DownloadTab.FAILED },
-                compact = true,
-            )
-        }
-
-        Spacer(Modifier.height(CinefinSpacing.Space2))
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = horizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-        ) {
-            CinefinFilterChip(
-                text = stringResource(CoreR.string.download_filter_all),
-                selected = state.mediaFilter == DownloadMediaFilter.ALL,
-                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.ALL)) },
-                compact = true,
-            )
-            CinefinFilterChip(
-                text = stringResource(CoreR.string.video),
-                selected = state.mediaFilter == DownloadMediaFilter.VIDEO,
-                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.VIDEO)) },
-                compact = true,
-            )
-            CinefinFilterChip(
-                text = stringResource(CoreR.string.title_music),
-                selected = state.mediaFilter == DownloadMediaFilter.MUSIC,
-                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.MUSIC)) },
-                compact = true,
-            )
-            CinefinFilterChip(
-                text = stringResource(CoreR.string.download_filter_book),
-                selected = state.mediaFilter == DownloadMediaFilter.BOOK,
-                onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.BOOK)) },
-                compact = true,
-            )
-        }
-
-        Spacer(Modifier.height(CinefinSpacing.Space2))
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                state.isLoading ->
-                    DownloadListSkeleton(
-                        compact = compact,
-                        modifier =
-                            Modifier.padding(
-                                start = horizontalPadding,
-                                end = horizontalPadding,
-                                top = CinefinSpacing.Space3,
-                            ),
-                    )
-                else ->
-                    when (tab) {
-                        DownloadTab.ACTIVE ->
-                            HierarchyList(
-                                containers = state.containersFor(DownloadTaskGroup.ACTIVE),
-                                emptyTitle = stringResource(CoreR.string.download_empty_active),
-                                emptyIconRes = CoreR.drawable.ic_download,
-                                expandedKeys = state.expandedKeys,
-                                selectionMode = state.selectionMode,
-                                selection = state.selection,
-                                pageGutter = horizontalPadding,
-                                compact = compact,
-                                onAction = onAction,
-                                onRequestDeleteEntry = { key, title ->
-                                    pendingDelete = PendingDelete.Entry(key, title)
-                                },
-                                onRequestDeleteContainer = { key, title ->
-                                    pendingDelete = PendingDelete.Container(key, title)
-                                },
-                            )
-                        DownloadTab.FAILED ->
-                            HierarchyList(
-                                containers = state.containersFor(DownloadTaskGroup.FAILED),
-                                emptyTitle = stringResource(CoreR.string.download_empty_failed),
-                                emptyIconRes = CoreR.drawable.ic_alert_circle,
-                                expandedKeys = state.expandedKeys,
-                                selectionMode = state.selectionMode,
-                                selection = state.selection,
-                                pageGutter = horizontalPadding,
-                                compact = compact,
-                                onAction = onAction,
-                                onRequestDeleteEntry = { key, title ->
-                                    pendingDelete = PendingDelete.Entry(key, title)
-                                },
-                                onRequestDeleteContainer = { key, title ->
-                                    pendingDelete = PendingDelete.Container(key, title)
-                                },
-                            )
-                        DownloadTab.COMPLETED ->
-                            HierarchyList(
-                                containers = state.containersFor(DownloadTaskGroup.COMPLETED),
-                                emptyTitle = stringResource(CoreR.string.no_downloads),
-                                emptyIconRes = CoreR.drawable.ic_check,
-                                expandedKeys = state.expandedKeys,
-                                selectionMode = state.selectionMode,
-                                selection = state.selection,
-                                pageGutter = horizontalPadding,
-                                compact = compact,
-                                onAction = onAction,
-                                onRequestDeleteEntry = { key, title ->
-                                    pendingDelete = PendingDelete.Entry(key, title)
-                                },
-                                onRequestDeleteContainer = { key, title ->
-                                    pendingDelete = PendingDelete.Container(key, title)
-                                },
-                            )
-                    }
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            ) {
+                CinefinFilterChip(
+                    text =
+                        stringResource(CoreR.string.download_tasks_active) +
+                            " ${state.activeCount}",
+                    selected = tab == DownloadTab.ACTIVE,
+                    onClick = { tab = DownloadTab.ACTIVE },
+                    compact = true,
+                )
+                CinefinFilterChip(
+                    text =
+                        stringResource(CoreR.string.download_tasks_failed) +
+                            " ${state.failedCount}",
+                    selected = tab == DownloadTab.FAILED,
+                    onClick = { tab = DownloadTab.FAILED },
+                    compact = true,
+                )
+                CinefinFilterChip(
+                    text =
+                        stringResource(CoreR.string.download_tasks_completed) +
+                            " ${state.completedCount}",
+                    selected = tab == DownloadTab.COMPLETED,
+                    onClick = { tab = DownloadTab.COMPLETED },
+                    compact = true,
+                )
             }
+
+            Spacer(Modifier.height(CinefinSpacing.Space2))
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            ) {
+                CinefinFilterChip(
+                    text = stringResource(CoreR.string.download_filter_all),
+                    selected = state.mediaFilter == DownloadMediaFilter.ALL,
+                    onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.ALL)) },
+                    compact = true,
+                )
+                CinefinFilterChip(
+                    text = stringResource(CoreR.string.video),
+                    selected = state.mediaFilter == DownloadMediaFilter.VIDEO,
+                    onClick = {
+                        onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.VIDEO))
+                    },
+                    compact = true,
+                )
+                CinefinFilterChip(
+                    text = stringResource(CoreR.string.title_music),
+                    selected = state.mediaFilter == DownloadMediaFilter.MUSIC,
+                    onClick = {
+                        onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.MUSIC))
+                    },
+                    compact = true,
+                )
+                CinefinFilterChip(
+                    text = stringResource(CoreR.string.download_filter_book),
+                    selected = state.mediaFilter == DownloadMediaFilter.BOOK,
+                    onClick = { onAction(DownloadAction.SetMediaFilter(DownloadMediaFilter.BOOK)) },
+                    compact = true,
+                )
+            }
+
+            Spacer(Modifier.height(CinefinSpacing.Space2))
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    state.isLoading ->
+                        DownloadListSkeleton(
+                            compact = compact,
+                            modifier =
+                                Modifier.padding(
+                                    start = horizontalPadding,
+                                    end = horizontalPadding,
+                                    top = CinefinSpacing.Space3,
+                                ),
+                        )
+                    else ->
+                        OverviewList(
+                            containers = state.containersFor(tab.group),
+                            emptyTitle =
+                                stringResource(
+                                    when (tab) {
+                                        DownloadTab.ACTIVE -> CoreR.string.download_empty_active
+                                        DownloadTab.FAILED -> CoreR.string.download_empty_failed
+                                        DownloadTab.COMPLETED -> CoreR.string.no_downloads
+                                    }
+                                ),
+                            emptyIconRes =
+                                when (tab) {
+                                    DownloadTab.ACTIVE -> CoreR.drawable.ic_download
+                                    DownloadTab.FAILED -> CoreR.drawable.ic_alert_circle
+                                    DownloadTab.COMPLETED -> CoreR.drawable.ic_check
+                                },
+                            selectionMode = state.selectionMode,
+                            selection = state.selection,
+                            pageGutter = horizontalPadding,
+                            compact = compact,
+                            onAction = onAction,
+                            onOpenDetail = { key -> drilldownKey = key },
+                            onRequestDeleteEntry = { key, title ->
+                                pendingDelete = PendingDelete.Entry(key, title)
+                            },
+                            onRequestDeleteContainer = { key, title ->
+                                pendingDelete = PendingDelete.Container(key, title)
+                            },
+                        )
+                }
+            }
+        } else {
+            DownloadDetailPane(
+                container = drilldown,
+                pageGutter = horizontalPadding,
+                selectionMode = state.selectionMode,
+                selection = state.selection,
+                onAction = onAction,
+                onRequestDeleteEntry = { key, title ->
+                    pendingDelete = PendingDelete.Entry(key, title)
+                },
+                onRequestDeleteContainer = { key, title ->
+                    pendingDelete = PendingDelete.Container(key, title)
+                },
+            )
         }
 
         if (state.selectionMode) {
@@ -360,6 +392,271 @@ private fun DownloadsScreenLayout(
     }
 }
 
+private val DownloadTab.group: DownloadTaskGroup
+    get() =
+        when (this) {
+            DownloadTab.ACTIVE -> DownloadTaskGroup.ACTIVE
+            DownloadTab.FAILED -> DownloadTaskGroup.FAILED
+            DownloadTab.COMPLETED -> DownloadTaskGroup.COMPLETED
+        }
+
+@Composable
+private fun DownloadDetailPane(
+    container: DownloadHierarchyContainer,
+    pageGutter: Dp,
+    selectionMode: Boolean,
+    selection: Set<String>,
+    onAction: (DownloadAction) -> Unit,
+    onRequestDeleteEntry: (key: String, title: String) -> Unit,
+    onRequestDeleteContainer: (key: String, title: String) -> Unit,
+) {
+    var expandedSeasons by remember(container.key) { mutableStateOf<Set<String>>(emptySet()) }
+    val listState = rememberLazyListState()
+    val rows =
+        remember(container.key, container, expandedSeasons) {
+            detailRows(container, expandedSeasons)
+        }
+
+    // W59：进入详情自动展开第一个进行中的季（没有进行中 → 第一个未完成），并滚到该季可见。
+    LaunchedEffect(container.key) {
+        val auto = DownloadDrilldownRules.autoExpandSeasonKey(container) ?: return@LaunchedEffect
+        if (auto in expandedSeasons) return@LaunchedEffect
+        val updated = expandedSeasons + auto
+        expandedSeasons = updated
+        val index = detailRows(container, updated).indexOfFirst { it.key == auto }
+        if (index >= 0) {
+            withFrameNanos {}
+            listState.animateScrollToItem(index + 1)
+        }
+    }
+
+    val contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+    ) {
+        item(key = "detail-header") {
+            DownloadDrilldownHeader(
+                container = container,
+                onPauseAll = { onAction(DownloadAction.PauseContainer(container.key)) },
+                onResumeAll = { onAction(DownloadAction.ResumeContainer(container.key)) },
+                onRequestDelete = { onRequestDeleteContainer(container.key, container.title) },
+            )
+        }
+        items(items = rows, key = { row -> row.key }) { row ->
+            when (row) {
+                is DownloadDetailRow.Season -> {
+                    val seasonKeys = row.season.children.map { it.key }.toSet()
+                    DownloadSeasonCard(
+                        season = row.season,
+                        expanded = row.expanded,
+                        selectionMode = selectionMode,
+                        selected = seasonKeys.any { it in selection },
+                        onClick = {
+                            when {
+                                selectionMode ->
+                                    onAction(DownloadAction.ToggleSelection(row.season.key))
+                                row.expanded -> expandedSeasons = expandedSeasons - row.season.key
+                                else -> expandedSeasons = expandedSeasons + row.season.key
+                            }
+                        },
+                    )
+                }
+                is DownloadDetailRow.Item -> {
+                    val entry = row.entry
+                    DownloadLeafCard(
+                        entry = entry,
+                        depth = if (entry.seriesId != null) 1 else 0,
+                        selectionMode = selectionMode,
+                        selected = entry.key in selection,
+                        onToggleSelection = { onAction(DownloadAction.ToggleEntry(entry.key)) },
+                        onOpen = { onAction(DownloadAction.OpenEntry(entry.key)) },
+                        onAction = onAction,
+                        onRequestDelete = onRequestDeleteEntry,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 顶层列表：只显示 Show 卡 / 专辑卡 / 电影条目 / 书籍条目（平板折叠顶层项两两并排）。 */
+@Composable
+private fun OverviewList(
+    containers: List<DownloadHierarchyContainer>,
+    emptyTitle: String,
+    emptyIconRes: Int,
+    selectionMode: Boolean,
+    selection: Set<String>,
+    pageGutter: Dp,
+    compact: Boolean,
+    onAction: (DownloadAction) -> Unit,
+    onOpenDetail: (String) -> Unit,
+    onRequestDeleteEntry: (key: String, title: String) -> Unit,
+    onRequestDeleteContainer: (key: String, title: String) -> Unit,
+) {
+    if (containers.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
+            contentAlignment = Alignment.Center,
+        ) {
+            CinefinEmptyState(
+                title = emptyTitle,
+                icon = { tint ->
+                    Icon(
+                        painter = painterResource(emptyIconRes),
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(44.dp),
+                    )
+                },
+            )
+        }
+        return
+    }
+    val rows =
+        remember(containers) {
+            // W59：顶层排序 进行中 → 失败 → 已完成（同组按最近更新时间，再按标题）。
+            DownloadDrilldownRules.sortForDisplay(containers).map { container ->
+                DownloadHierarchyRow.ContainerRow(
+                    key = container.key,
+                    container = container,
+                    depth = 0,
+                    collapsed = true,
+                )
+            }
+        }
+    val contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8)
+    val listModifier = Modifier.fillMaxSize().padding(horizontal = pageGutter)
+
+    if (compact) {
+        LazyColumn(
+            modifier = listModifier,
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+        ) {
+            items(items = rows, key = { row -> row.key }) { row ->
+                OverviewItem(
+                    container = row.container,
+                    compact = true,
+                    selectionMode = selectionMode,
+                    selection = selection,
+                    onAction = onAction,
+                    onOpenDetail = onOpenDetail,
+                    onRequestDeleteEntry = onRequestDeleteEntry,
+                    onRequestDeleteContainer = onRequestDeleteContainer,
+                )
+            }
+        }
+        return
+    }
+
+    // 平板（W52 口径保留）：折叠顶层项两两并排；专辑与海报同高取整行高度。
+    val blocks = remember(rows) { DownloadGridGrouping.group(rows) }
+    LazyColumn(
+        modifier = listModifier,
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+    ) {
+        items(items = blocks, key = { block -> block.key }) { block ->
+            when (block) {
+                is DownloadGridBlock.Pair ->
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .height(DownloadListMetrics.PosterHeightExpanded),
+                        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space5),
+                    ) {
+                        OverviewItem(
+                            container = block.first.container,
+                            compact = false,
+                            selectionMode = selectionMode,
+                            selection = selection,
+                            onAction = onAction,
+                            onOpenDetail = onOpenDetail,
+                            onRequestDeleteEntry = onRequestDeleteEntry,
+                            onRequestDeleteContainer = onRequestDeleteContainer,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                        OverviewItem(
+                            container = block.second.container,
+                            compact = false,
+                            selectionMode = selectionMode,
+                            selection = selection,
+                            onAction = onAction,
+                            onOpenDetail = onOpenDetail,
+                            onRequestDeleteEntry = onRequestDeleteEntry,
+                            onRequestDeleteContainer = onRequestDeleteContainer,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                    }
+                is DownloadGridBlock.Single ->
+                    (block.row as? DownloadHierarchyRow.ContainerRow)?.let { containerRow ->
+                        OverviewItem(
+                            container = containerRow.container,
+                            compact = false,
+                            selectionMode = selectionMode,
+                            selection = selection,
+                            onAction = onAction,
+                            onOpenDetail = onOpenDetail,
+                            onRequestDeleteEntry = onRequestDeleteEntry,
+                            onRequestDeleteContainer = onRequestDeleteContainer,
+                        )
+                    }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverviewItem(
+    container: DownloadHierarchyContainer,
+    compact: Boolean,
+    selectionMode: Boolean,
+    selection: Set<String>,
+    onAction: (DownloadAction) -> Unit,
+    onOpenDetail: (String) -> Unit,
+    onRequestDeleteEntry: (key: String, title: String) -> Unit,
+    onRequestDeleteContainer: (key: String, title: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val drillable = DownloadDrilldownRules.isDrilldown(container)
+    val entries = container.allEntries()
+    val selected = entries.any { it.key in selection }
+    val onClick = {
+        when {
+            selectionMode -> onAction(DownloadAction.ToggleSelection(container.key))
+            drillable -> onOpenDetail(container.key)
+            else -> {
+                val first = entries.firstOrNull()
+                if (first != null) onAction(DownloadAction.OpenEntry(first.key))
+            }
+        }
+    }
+    if (drillable) {
+        DownloadTopLevelCard(
+            container = container,
+            compact = compact,
+            selectionMode = selectionMode,
+            selected = selected,
+            modifier = modifier,
+            onClick = onClick,
+        )
+    } else {
+        DownloadTopLevelRow(
+            container = container,
+            selectionMode = selectionMode,
+            selected = selected,
+            modifier = modifier,
+            onClick = onClick,
+            onAction = onAction,
+            onRequestDelete = onRequestDeleteEntry,
+        )
+    }
+}
+
 @Composable
 private fun StorageSummary(
     storage: DownloadStorageUsage,
@@ -399,199 +696,6 @@ private fun StorageSummary(
         }
     }
 }
-
-@Composable
-private fun HierarchyList(
-    containers: List<DownloadHierarchyContainer>,
-    emptyTitle: String,
-    emptyIconRes: Int,
-    expandedKeys: Set<String>,
-    selectionMode: Boolean,
-    selection: Set<String>,
-    pageGutter: Dp,
-    compact: Boolean,
-    onAction: (DownloadAction) -> Unit,
-    onRequestDeleteEntry: (key: String, title: String) -> Unit,
-    onRequestDeleteContainer: (key: String, title: String) -> Unit,
-) {
-    if (containers.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
-            contentAlignment = Alignment.Center,
-        ) {
-            CinefinEmptyState(
-                title = emptyTitle,
-                icon = { tint ->
-                    Icon(
-                        painter = painterResource(emptyIconRes),
-                        contentDescription = null,
-                        tint = tint,
-                        modifier = Modifier.size(44.dp),
-                    )
-                },
-            )
-        }
-        return
-    }
-    val rows =
-        remember(containers, expandedKeys) {
-            DownloadHierarchyFlattener.flatten(containers, expandedKeys)
-        }
-    val contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8)
-    val listModifier = Modifier.fillMaxSize().padding(horizontal = pageGutter)
-
-    if (compact) {
-        LazyColumn(
-            modifier = listModifier,
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
-        ) {
-            items(
-                items = rows,
-                key = { row -> row.key },
-                contentType = { row -> row.contentType() },
-            ) { row ->
-                DownloadRow(
-                    row = row,
-                    compact = true,
-                    selectionMode = selectionMode,
-                    selection = selection,
-                    onAction = onAction,
-                    onRequestDeleteEntry = onRequestDeleteEntry,
-                    onRequestDeleteContainer = onRequestDeleteContainer,
-                )
-            }
-        }
-        return
-    }
-
-    // 平板（W52）：折叠的顶层容器两两成行；展开容器连同子项整宽展示。
-    val blocks = remember(rows) { DownloadGridGrouping.group(rows) }
-    LazyColumn(
-        modifier = listModifier,
-        contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
-    ) {
-        items(
-            items = blocks,
-            key = { block -> block.key },
-            contentType = { block -> block.contentType() },
-        ) { block ->
-            when (block) {
-                is DownloadGridBlock.Pair ->
-                    Row(
-                        // W52：两列卡片同高——平板海报 156dp 高于文本列（≈148dp），行高直接取海报高度，
-                        // 不走 intrinsic 测量（避免 Coil 图片节点的 intrinsic 路径）。
-                        modifier =
-                            Modifier.fillMaxWidth()
-                                .height(DownloadListMetrics.PosterHeightExpanded),
-                        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space5),
-                    ) {
-                        val first = block.first.container
-                        DownloadContainerCard(
-                            container = first,
-                            compact = false,
-                            collapsed = true,
-                            selectionMode = selectionMode,
-                            selected = first.descendantEntries().any { it.key in selection },
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onToggle = { onAction(DownloadAction.ToggleContainer(first.key)) },
-                            onRequestDelete = { onRequestDeleteContainer(first.key, first.title) },
-                            onSetOffline = { allow ->
-                                onAction(DownloadAction.SetContainerOffline(first.key, allow))
-                            },
-                        )
-                        val second = block.second.container
-                        DownloadContainerCard(
-                            container = second,
-                            compact = false,
-                            collapsed = true,
-                            selectionMode = selectionMode,
-                            selected = second.descendantEntries().any { it.key in selection },
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onToggle = { onAction(DownloadAction.ToggleContainer(second.key)) },
-                            onRequestDelete = {
-                                onRequestDeleteContainer(second.key, second.title)
-                            },
-                            onSetOffline = { allow ->
-                                onAction(DownloadAction.SetContainerOffline(second.key, allow))
-                            },
-                        )
-                    }
-                is DownloadGridBlock.Single ->
-                    DownloadRow(
-                        row = block.row,
-                        compact = false,
-                        selectionMode = selectionMode,
-                        selection = selection,
-                        onAction = onAction,
-                        onRequestDeleteEntry = onRequestDeleteEntry,
-                        onRequestDeleteContainer = onRequestDeleteContainer,
-                    )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DownloadRow(
-    row: DownloadHierarchyRow,
-    compact: Boolean,
-    selectionMode: Boolean,
-    selection: Set<String>,
-    onAction: (DownloadAction) -> Unit,
-    onRequestDeleteEntry: (key: String, title: String) -> Unit,
-    onRequestDeleteContainer: (key: String, title: String) -> Unit,
-) {
-    when (row) {
-        is DownloadHierarchyRow.ContainerRow ->
-            DownloadContainerCard(
-                container = row.container,
-                compact = compact,
-                collapsed = row.collapsed,
-                selectionMode = selectionMode,
-                selected = row.container.descendantEntries().any { it.key in selection },
-                onToggle = { onAction(DownloadAction.ToggleContainer(row.container.key)) },
-                onRequestDelete = {
-                    onRequestDeleteContainer(row.container.key, row.container.title)
-                },
-                onSetOffline = { allow ->
-                    onAction(DownloadAction.SetContainerOffline(row.container.key, allow))
-                },
-            )
-        is DownloadHierarchyRow.ChildContainerRow ->
-            DownloadSeasonCard(
-                container = row.container,
-                depth = row.depth,
-                collapsed = row.collapsed,
-                onToggle = { onAction(DownloadAction.ToggleContainer(row.container.key)) },
-            )
-        is DownloadHierarchyRow.ItemRow ->
-            DownloadLeafCard(
-                entry = row.entry,
-                depth = row.depth,
-                selectionMode = selectionMode,
-                selected = row.entry.key in selection,
-                onToggleSelection = { onAction(DownloadAction.ToggleEntry(row.entry.key)) },
-                onOpen = { onAction(DownloadAction.OpenEntry(row.entry.key)) },
-                onAction = onAction,
-                onRequestDelete = onRequestDeleteEntry,
-            )
-    }
-}
-
-private fun DownloadHierarchyRow.contentType(): String =
-    when (this) {
-        is DownloadHierarchyRow.ContainerRow -> "download-container"
-        is DownloadHierarchyRow.ChildContainerRow -> "download-season"
-        is DownloadHierarchyRow.ItemRow -> "download-item"
-    }
-
-private fun DownloadGridBlock.contentType(): String =
-    when (this) {
-        is DownloadGridBlock.Pair -> "download-container-pair"
-        is DownloadGridBlock.Single -> row.contentType()
-    }
 
 @Composable
 private fun SelectionBar(

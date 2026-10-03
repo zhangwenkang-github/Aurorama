@@ -8,6 +8,8 @@ import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.BookCoverProvider
+import com.zhangwenkang.cinefin.utils.BookCoverRules
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -30,9 +32,16 @@ class LibraryViewModel
 constructor(
     private val jellyfinRepository: JellyfinRepository,
     private val appPreferences: AppPreferences,
+    /** W59：书籍封面自动生成（书籍库 / 书架条目可见时懒生成）。 */
+    private val bookCoverProvider: BookCoverProvider,
 ) : ViewModel() {
     private val _state = MutableStateFlow(LibraryState())
     val state = _state.asStateFlow()
+
+    /** W59：书籍封面缓存（itemId → 本地绝对路径），UI 逐条目读取。 */
+    private val _bookCovers = MutableStateFlow<Map<UUID, String>>(emptyMap())
+    val bookCovers = _bookCovers.asStateFlow()
+    private val requestedBookCovers = mutableSetOf<UUID>()
 
     lateinit var parentId: UUID
     lateinit var libraryType: CollectionType
@@ -58,6 +67,40 @@ constructor(
         this.initialSortBy = initialSortBy
         this.initialSortOrder = initialSortOrder
         _state.update { it.copy(tabs = libraryTabs(libraryType)) }
+    }
+
+    /**
+     * W59：书籍条目可见时懒生成封面——**条目可见时一次** + 磁盘缓存 + 失败标记。
+     *
+     * 非书籍库直接忽略；命中缓存 / 失败标记 / 已请求由 provider 与本类拦截，滚动回来不会重复生成。
+     */
+    fun requestBookCover(itemId: UUID, serverImageUrl: String? = null) {
+        if (!::libraryType.isInitialized || libraryType != CollectionType.Books) return
+        val cached = bookCoverProvider.cached(itemId)
+        when (
+            BookCoverRules.planCover(
+                serverImageUrl = serverImageUrl,
+                generatedPath = cached,
+                generationFailed = cached == null && bookCoverProvider.isMarkedFailed(itemId),
+            )
+        ) {
+            // 服务器图优先 / 生成失败占位：都不需要生成。
+            BookCoverRules.CoverSource.SERVER_IMAGE,
+            BookCoverRules.CoverSource.PLACEHOLDER -> return
+            BookCoverRules.CoverSource.GENERATED_CACHE -> {
+                val path = cached ?: return
+                _bookCovers.update { covers ->
+                    if (covers[itemId] == path) covers else covers + (itemId to path)
+                }
+                return
+            }
+            BookCoverRules.CoverSource.GENERATE -> Unit
+        }
+        if (!requestedBookCovers.add(itemId)) return
+        viewModelScope.launch {
+            val path = bookCoverProvider.ensureCover(itemId, serverImageUrl)
+            if (path != null) _bookCovers.update { it + (itemId to path) }
+        }
     }
 
     fun loadItems() {

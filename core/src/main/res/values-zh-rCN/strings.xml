@@ -161,6 +161,15 @@
     <string name="download_filter_book">书籍</string>
     <string name="download_container_progress">已下载 %1$s</string>
     <string name="download_eta_remaining">剩余 %1$s</string>
+    <!-- W59 下载页钻取式 IA / 层级图 / 书籍封面 -->
+    <string name="download_detail_open">查看详情</string>
+    <string name="download_detail_pause_all">全部暂停</string>
+    <string name="download_detail_resume_all">全部继续</string>
+    <string name="download_count_episodes">%1$d/%2$d 集</string>
+    <string name="download_count_tracks">%1$d/%2$d 首</string>
+    <!-- W59 音乐专辑批量下载 -->
+    <string name="music_download_album_count">下载专辑（%1$d 首）</string>
+    <string name="music_album_all_downloaded">已全部下载</string>
     <string name="download_delete_container_message">删除该下载分组下的全部内容？</string>
     <!-- W51 详情页下载动作 / 批量下载 / Snackbar / 侧栏角标 -->
     <string name="detail_action_download">下载</string>

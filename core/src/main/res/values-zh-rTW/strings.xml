@@ -162,6 +162,15 @@
     <string name="download_filter_book">書籍</string>
     <string name="download_container_progress">已下載 %1$s</string>
     <string name="download_eta_remaining">剩餘 %1$s</string>
+    <!-- W59 下載頁鑽取式 IA / 層級圖 / 書籍封面 -->
+    <string name="download_detail_open">查看詳情</string>
+    <string name="download_detail_pause_all">全部暫停</string>
+    <string name="download_detail_resume_all">全部繼續</string>
+    <string name="download_count_episodes">%1$d/%2$d 集</string>
+    <string name="download_count_tracks">%1$d/%2$d 首</string>
+    <!-- W59 音樂專輯批次下載 -->
+    <string name="music_download_album_count">下載專輯（%1$d 首）</string>
+    <string name="music_album_all_downloaded">已全部下載</string>
     <string name="download_delete_container_message">刪除此下載分組下的全部內容？</string>
     <!-- W51 詳情頁下載動作 / 批次下載 / Snackbar / 側欄角標 -->
     <string name="detail_action_download">下載</string>

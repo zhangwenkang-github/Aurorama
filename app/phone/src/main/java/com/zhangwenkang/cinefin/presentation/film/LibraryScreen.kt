@@ -122,6 +122,8 @@ fun LibraryScreen(
     initialSortOrder: SortOrder? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // W59：书籍封面自动生成结果（itemId → 本地绝对路径）。
+    val bookCovers by viewModel.bookCovers.collectAsStateWithLifecycle()
 
     var initialLoad by rememberSaveable { mutableStateOf(true) }
 
@@ -146,6 +148,8 @@ fun LibraryScreen(
         onBackToDefault = onBackToDefault,
         topBarActions = topBarActions,
         state = state,
+        bookCovers = bookCovers,
+        onRequestBookCover = viewModel::requestBookCover,
         onAction = { action ->
             when (action) {
                 is LibraryAction.OnItemClick -> onItemClick(action.item)
@@ -173,6 +177,9 @@ private fun LibraryScreenLayout(
     onBackToDefault: (() -> Unit)? = null,
     topBarActions: @Composable RowScope.() -> Unit = {},
     state: LibraryState,
+    /** W59：书籍封面自动生成结果（itemId → 本地绝对路径）。 */
+    bookCovers: Map<UUID, String> = emptyMap(),
+    onRequestBookCover: (UUID, String?) -> Unit = { _, _ -> },
     onAction: (LibraryAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding()
@@ -412,6 +419,15 @@ private fun LibraryScreenLayout(
                         items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                             val item = items[index]
                             item?.let { loadedItem ->
+                                val cover = bookCovers[loadedItem.id]
+                                LaunchedEffect(loadedItem.id) {
+                                    if (libraryType == CollectionType.Books) {
+                                        onRequestBookCover(
+                                            loadedItem.id,
+                                            loadedItem.images.primary?.toString(),
+                                        )
+                                    }
+                                }
                                 LibraryListRow(
                                     item = loadedItem,
                                     onClick = {
@@ -427,6 +443,14 @@ private fun LibraryScreenLayout(
                                     modifier = Modifier.animateItem(),
                                     selectionMode = selectionMode,
                                     selected = batchSelection.isSelected(loadedItem.id.toString()),
+                                    imageOverride =
+                                        if (loadedItem.images.primary == null) cover else null,
+                                    placeholderIconRes =
+                                        if (libraryType == CollectionType.Books) {
+                                            CoreR.drawable.ic_book
+                                        } else {
+                                            null
+                                        },
                                     onLongClick =
                                         if (batchMode != MediaBatchMode.NONE) {
                                             {
@@ -458,6 +482,15 @@ private fun LibraryScreenLayout(
                         items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                             val item = items[index]
                             item?.let { loadedItem ->
+                                val cover = bookCovers[loadedItem.id]
+                                LaunchedEffect(loadedItem.id) {
+                                    if (libraryType == CollectionType.Books) {
+                                        onRequestBookCover(
+                                            loadedItem.id,
+                                            loadedItem.images.primary?.toString(),
+                                        )
+                                    }
+                                }
                                 ItemCard(
                                     item = loadedItem,
                                     direction = direction,
@@ -474,6 +507,14 @@ private fun LibraryScreenLayout(
                                     modifier = Modifier.animateItem(),
                                     selectionMode = selectionMode,
                                     selected = batchSelection.isSelected(loadedItem.id.toString()),
+                                    imageOverride =
+                                        if (loadedItem.images.primary == null) cover else null,
+                                    placeholderIconRes =
+                                        if (libraryType == CollectionType.Books) {
+                                            CoreR.drawable.ic_book
+                                        } else {
+                                            null
+                                        },
                                     onLongClick =
                                         if (batchMode != MediaBatchMode.NONE) {
                                             {

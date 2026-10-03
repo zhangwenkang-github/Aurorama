@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -59,6 +60,10 @@ fun ItemCard(
     selected: Boolean = false,
     /** W58b：长按进入多选；null = 该卡不参与多选（既有调用零改动）。 */
     onLongClick: (() -> Unit)? = null,
+    /** W59：书籍封面自动生成结果（本地绝对路径）；null = 用服务器图 / 占位（既有调用零改动）。 */
+    imageOverride: String? = null,
+    /** W59：无图时的类型占位图标（书籍库传 `ic_book`）；null = 保持原有空白底。 */
+    @DrawableRes placeholderIconRes: Int? = null,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -91,7 +96,13 @@ fun ItemCard(
             emphasized = hovered || pressed,
             container = colors.surfaceContainerHigh,
         ) {
-            ItemPoster(item = item, direction = direction, modifier = Modifier.fillMaxWidth())
+            ItemPoster(
+                item = item,
+                direction = direction,
+                modifier = Modifier.fillMaxWidth(),
+                imageOverride = imageOverride,
+                placeholderIconRes = placeholderIconRes,
+            )
             if (selectionMode) {
                 CinefinSelectIndicator(
                     selected = selected,
