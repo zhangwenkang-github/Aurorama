@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.data
 
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.UserDataEvents
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -181,6 +182,8 @@ constructor(
             } else {
                 jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
             }
+            // W60b：音乐收藏也属于条目级收藏的单一数据源（其它页面的收藏角标靠它刷新）。
+            UserDataEvents.notifyFavoriteChanged()
         }
     }
 

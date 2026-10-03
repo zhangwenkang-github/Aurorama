@@ -341,6 +341,7 @@ fun NavigationRoot(
             currentDestination.isRoute<VideoRoute>() ||
             currentDestination.isRoute<MediaRoute>() ||
             currentDestination.isRoute<BookshelfRoute>() ||
+            currentDestination.isRoute<FavoritesRoute>() ||
             currentDestination.isRoute<DownloadsRoute>() ||
             currentDestination.isRoute<MusicModeRoute>() ||
             currentDestination.isRoute<TemporaryLibraryRoute>() ||
@@ -450,6 +451,7 @@ fun NavigationRoot(
         currentDestination.isRoute<BookshelfRoute>() ||
             (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString()) ||
             temporaryLibrary?.kind == TemporaryLibraryKind.Books
+    val favoritesSelected = currentDestination.isRoute<FavoritesRoute>()
 
     // 手机（Compact）恢复抽屉入口（W7-R3 用户反馈 1）：顶栏 app 图标可拉出，边缘手势也可用。
     // W46（用户确认）：展开形态取消抽屉——顶栏不再给入口（null），导航入口只剩常显侧轨（收 / 展开由侧轨自身按钮完成）。
@@ -475,6 +477,7 @@ fun NavigationRoot(
                 MediaRoute -> currentDestination.isRoute<MediaRoute>()
                 MusicModeRoute -> currentDestination.isRoute<MusicModeRoute>()
                 BookshelfRoute -> currentDestination.isRoute<BookshelfRoute>()
+                FavoritesRoute -> currentDestination.isRoute<FavoritesRoute>()
                 DownloadsRoute -> currentDestination.isRoute<DownloadsRoute>()
                 // 设置子页 = 同一目的地的不同参数（indexes），只有根参数才算「已在主页」。
                 is SettingsRoute ->
@@ -658,6 +661,20 @@ fun NavigationRoot(
                     // 书架 = 独立目的地：页面自己解析书籍库，没有书库时显示空态，
                     // 不再依赖抽屉数据是否加载完、也不会回退到媒体库总览。
                     navigateTopLevel(BookshelfRoute)
+                }
+            NavEntryKey.Favorites ->
+                ChromeDestination(
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_bookmark,
+                            stringResource(CoreR.string.title_my_favorites),
+                        ),
+                    selected = favoritesSelected,
+                    bottom = false,
+                ) {
+                    // W60b：侧栏一级「我的收藏」（跨库汇总，不占手机底部 Tab）。
+                    navigateTopLevel(FavoritesRoute)
                 }
             NavEntryKey.Downloads ->
                 ChromeDestination(
@@ -1048,7 +1065,6 @@ fun NavigationRoot(
                                     context = context,
                                 )
                             },
-                            onFavoritesClick = { navController.safeNavigate(FavoritesRoute) },
                             onOpenLocalLibrary = { libraryId ->
                                 navController.safeNavigate(LocalLibraryRoute(libraryId))
                             },
@@ -1267,6 +1283,7 @@ fun NavigationRoot(
             composable<FavoritesRoute> {
                 ProvideLumen {
                     FavoritesScreen(
+                        onOpenDrawer = openDrawer,
                         onItemClick = { item ->
                             navigateToItem(
                                 navController = navController,
@@ -1274,7 +1291,6 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
-                        navigateBack = { navController.safePopBackStack() },
                     )
                 }
             }

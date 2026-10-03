@@ -16,6 +16,8 @@ enum class NavEntryKey {
     Media,
     Music,
     Bookshelf,
+    /** W60b：侧栏一级「我的收藏」（跨库汇总；无侧栏可见性开关，常驻）。 */
+    Favorites,
     Downloads,
     Console,
     Metadata,
@@ -43,6 +45,7 @@ fun navEntryKeys(
     if (!librariesLoaded || hasVideoLibrary) add(NavEntryKey.Video)
     if (!librariesLoaded || hasMusicLibrary) add(NavEntryKey.Music)
     if (!librariesLoaded || hasBooksLibrary) add(NavEntryKey.Bookshelf)
+    add(NavEntryKey.Favorites)
     add(NavEntryKey.Media)
     add(NavEntryKey.Downloads)
     if (isAdministrator) {
@@ -74,6 +77,8 @@ fun visibleRailKeys(
         NavEntryKey.Media -> visibility.media
         NavEntryKey.Music -> visibility.music
         NavEntryKey.Bookshelf -> visibility.bookshelf
+        // 「我的收藏」没有侧栏可见性开关（W60b）：与客户端设置一样常驻，避免用户把自己关在外面。
+        NavEntryKey.Favorites -> true
         NavEntryKey.Downloads -> visibility.downloads
         NavEntryKey.Console -> visibility.console
         NavEntryKey.Metadata -> visibility.metadata
@@ -107,6 +112,7 @@ fun railGroupOf(key: NavEntryKey): RailGroup =
         NavEntryKey.Media,
         NavEntryKey.Music,
         NavEntryKey.Bookshelf,
+        NavEntryKey.Favorites,
         NavEntryKey.Downloads -> RailGroup.Content
         NavEntryKey.Console,
         NavEntryKey.Metadata -> RailGroup.Manage

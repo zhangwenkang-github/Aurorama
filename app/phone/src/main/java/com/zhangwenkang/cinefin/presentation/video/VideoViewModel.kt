@@ -147,24 +147,6 @@ constructor(
         appPreferences.setValue(appPreferences.uiVideoLibraryId, storedLibraryIdValue(libraryId))
     }
 
-    /** 顶栏「收藏」（W54-C）：收藏 / 取消收藏当前所选的库（复用既有用户数据能力）。 */
-    fun toggleFavorite(libraryId: UUID) {
-        viewModelScope.launch {
-            val target =
-                _state.value.allLibraries.firstOrNull { it.id == libraryId }
-                    ?: _state.value.temporaryLibrary?.takeIf { it.id == libraryId }
-                    ?: return@launch
-            val favorite = !target.favorite
-            runCatching {
-                if (favorite) repositoryProvider.get().markAsFavorite(libraryId)
-                else repositoryProvider.get().unmarkAsFavorite(libraryId)
-            }
-                .onFailure { throwable -> Timber.w(throwable, "切换库收藏失败") }
-            // 乐观更新：仓库内部已把失败的网络写入标记为「待同步」（与详情页收藏同一语义）。
-            setLibraryFavorite(libraryId, favorite)
-        }
-    }
-
     /** 偏好变化 / 手动选择共用的解析（不重新请求服务器）：更新可见库与聚合流。 */
     private fun applyLibrarySelection(storedId: String?) {
         val current = _state.value
@@ -181,22 +163,6 @@ constructor(
                 aggregateItems =
                     if (selection.visible.isEmpty()) flowOf(PagingData.empty())
                     else aggregateFlow(repositoryProvider.get(), selection.visible),
-            )
-    }
-
-    private fun setLibraryFavorite(libraryId: UUID, favorite: Boolean) {
-        fun List<FindroidCollection>.withFavorite(): List<FindroidCollection> = map { library ->
-            if (library.id == libraryId) library.copy(favorite = favorite) else library
-        }
-        val current = _state.value
-        _state.value =
-            current.copy(
-                allLibraries = current.allLibraries.withFavorite(),
-                libraries = current.libraries.withFavorite(),
-                temporaryLibrary =
-                    current.temporaryLibrary?.let { library ->
-                        if (library.id == libraryId) library.copy(favorite = favorite) else library
-                    },
             )
     }
 

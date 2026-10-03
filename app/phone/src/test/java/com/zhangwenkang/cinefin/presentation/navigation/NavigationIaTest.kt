@@ -19,9 +19,10 @@ class NavigationIaTest {
             )
 
         // 内容区（首页…下载）→ 管理区（控制台 / 元数据）；客户端设置固定在底部，不产生分组分隔。
-        assertEquals(setOf(5), railGroupBreaks(keys))
+        assertEquals(setOf(6), railGroupBreaks(keys))
         assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Home))
         assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Video))
+        assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Favorites))
         assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Downloads))
         assertEquals(RailGroup.Manage, railGroupOf(NavEntryKey.Console))
         assertEquals(RailGroup.Manage, railGroupOf(NavEntryKey.Metadata))
@@ -52,6 +53,7 @@ class NavigationIaTest {
                 NavEntryKey.Video,
                 NavEntryKey.Music,
                 NavEntryKey.Bookshelf,
+                NavEntryKey.Favorites,
                 NavEntryKey.Media,
                 NavEntryKey.Downloads,
                 NavEntryKey.Settings,
@@ -77,6 +79,7 @@ class NavigationIaTest {
                 NavEntryKey.Video,
                 NavEntryKey.Music,
                 NavEntryKey.Bookshelf,
+                NavEntryKey.Favorites,
                 NavEntryKey.Media,
                 NavEntryKey.Downloads,
                 NavEntryKey.Console,
@@ -101,6 +104,7 @@ class NavigationIaTest {
         assertEquals(
             listOf(
                 NavEntryKey.Home,
+                NavEntryKey.Favorites,
                 NavEntryKey.Media,
                 NavEntryKey.Downloads,
                 NavEntryKey.Settings,
@@ -179,8 +183,8 @@ class NavigationIaTest {
 
         val visible = visibleRailKeys(keys, visibility)
 
-        // 只关掉开关里的项；客户端设置永远保留（否则再也回不到设置页）。
-        assertEquals(listOf(NavEntryKey.Settings), visible)
+        // 只关掉开关里的项；客户端设置与「我的收藏」（无开关）永远保留。
+        assertEquals(listOf(NavEntryKey.Favorites, NavEntryKey.Settings), visible)
     }
 
     @Test
@@ -230,6 +234,7 @@ class NavigationIaTest {
         assertTrue(keys.indexOf(NavEntryKey.Video) < keys.indexOf(NavEntryKey.Music))
         assertTrue(keys.indexOf(NavEntryKey.Music) < keys.indexOf(NavEntryKey.Media))
         assertTrue(keys.indexOf(NavEntryKey.Bookshelf) < keys.indexOf(NavEntryKey.Media))
+        assertTrue(keys.indexOf(NavEntryKey.Favorites) < keys.indexOf(NavEntryKey.Media))
     }
 
     @Test

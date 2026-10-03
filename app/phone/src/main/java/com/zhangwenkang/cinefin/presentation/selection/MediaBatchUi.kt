@@ -137,7 +137,7 @@ private fun MediaBatchAction.iconRes(): Int =
         MediaBatchAction.PLAY -> CoreR.drawable.ic_play
         MediaBatchAction.DOWNLOAD -> CoreR.drawable.ic_download
         MediaBatchAction.MARK_PLAYED -> CoreR.drawable.ic_check
-        MediaBatchAction.FAVORITE -> CoreR.drawable.ic_heart
+        MediaBatchAction.FAVORITE -> CoreR.drawable.ic_bookmark
         MediaBatchAction.DELETE -> CoreR.drawable.ic_trash
     }
 

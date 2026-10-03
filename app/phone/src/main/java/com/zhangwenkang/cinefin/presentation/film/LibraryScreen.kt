@@ -65,6 +65,7 @@ import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
+import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryActiveChipRow
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryFilterPanel
@@ -288,6 +289,9 @@ private fun LibraryScreenLayout(
             }
         }
     }
+
+    // W60b：详情页 / 其它入口的收藏变更后刷新已加载页，卡片收藏角标即时一致。
+    FavoriteChangeEffect { items.refresh() }
 
     BackHandler(enabled = selectionMode) { batchSelection = batchSelection.clear() }
 

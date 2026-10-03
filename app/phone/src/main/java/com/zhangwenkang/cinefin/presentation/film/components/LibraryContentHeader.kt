@@ -335,6 +335,7 @@ fun LibraryListRow(
                 modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space1),
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
             ) {
+                if (item.favorite) FavoriteBadge()
                 if (item.isDownloaded()) DownloadedBadge()
                 ItemStatusBadge(item)
             }

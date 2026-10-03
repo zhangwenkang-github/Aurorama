@@ -178,7 +178,7 @@
     <string name="detail_action_downloaded">已下載</string>
     <string name="detail_action_queued">已在佇列</string>
     <string name="detail_action_played">已播放</string>
-    <string name="detail_action_favorite">喜歡</string>
+    <string name="detail_action_favorite">收藏</string>
     <string name="detail_download_added">已加入下載佇列</string>
     <string name="detail_download_already_queued">已在佇列</string>
     <string name="detail_download_already_downloaded">已下載</string>
@@ -225,4 +225,19 @@
     <string name="sleep_timer_custom_current">目前 %1$d 分鐘</string>
     <string name="sleep_timer_custom_hint">1–240 分鐘</string>
     <string name="sleep_timer_custom_start">開始計時 · %1$d 分鐘</string>
+    <!-- W60b 我的收藏（跨庫彙總）：側欄入口 / 類型篩選 / 排序 / 空態 / 徽標描述。 -->
+    <string name="title_my_favorites">我的收藏</string>
+    <string name="favorites_filter_all">全部</string>
+    <string name="favorites_filter_movies">電影</string>
+    <string name="favorites_filter_shows">劇集</string>
+    <string name="favorites_filter_episodes">單集</string>
+    <string name="favorites_sort_label">排序</string>
+    <string name="favorites_sort_date_added">加入日期</string>
+    <string name="favorites_sort_name">名稱</string>
+    <string name="favorites_empty_title">還沒有收藏</string>
+    <string name="favorites_empty_message">在詳細頁點「收藏」後，內容會彙總到這裡</string>
+    <string name="favorites_load_failed">收藏載入失敗</string>
+    <string name="favorite_badge_description">已收藏</string>
+    <!-- W60b 下載回饋統一：Snackbar「查看」動作（跳下載頁）。 -->
+    <string name="snackbar_view">查看</string>
 </resources>

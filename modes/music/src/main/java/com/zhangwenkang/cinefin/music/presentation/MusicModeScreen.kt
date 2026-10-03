@@ -561,9 +561,9 @@ private fun MusicHeader(
                     painter =
                         painterResource(
                             if (detail is MusicDetail.Favorites) {
-                                CoreR.drawable.ic_heart_filled
+                                CoreR.drawable.ic_bookmark_filled
                             } else {
-                                CoreR.drawable.ic_heart
+                                CoreR.drawable.ic_bookmark
                             }
                         ),
                     contentDescription = "收藏",
@@ -1264,7 +1264,7 @@ private fun MusicBatchActionBar(
         BatchActionButton(
             enabled = isEnabled(MusicBatchAction.FAVORITE),
             label = "收藏",
-            iconRes = CoreR.drawable.ic_heart,
+            iconRes = CoreR.drawable.ic_bookmark,
             onClick = onFavorite,
         )
         BatchActionButton(

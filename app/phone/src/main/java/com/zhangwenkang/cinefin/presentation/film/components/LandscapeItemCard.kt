@@ -113,6 +113,7 @@ fun LandscapeItemCard(
             modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space3),
             horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
+            if (item.favorite) FavoriteBadge()
             if (item.isDownloaded()) DownloadedBadge()
             ItemStatusBadge(item)
         }

@@ -231,4 +231,19 @@
     <string name="sleep_timer_custom_current">Current: %1$d minutes</string>
     <string name="sleep_timer_custom_hint">1–240 minutes</string>
     <string name="sleep_timer_custom_start">Start · %1$d minutes</string>
+    <!-- W60b 我的收藏（跨库汇总）：侧栏入口 / 类型筛选 / 排序 / 空态 / 徽标描述。 -->
+    <string name="title_my_favorites">My favorites</string>
+    <string name="favorites_filter_all">All</string>
+    <string name="favorites_filter_movies">Movies</string>
+    <string name="favorites_filter_shows">Series</string>
+    <string name="favorites_filter_episodes">Episodes</string>
+    <string name="favorites_sort_label">Sort</string>
+    <string name="favorites_sort_date_added">Date added</string>
+    <string name="favorites_sort_name">Name</string>
+    <string name="favorites_empty_title">No favorites yet</string>
+    <string name="favorites_empty_message">Items you mark as favorite will show up here</string>
+    <string name="favorites_load_failed">Failed to load favorites</string>
+    <string name="favorite_badge_description">Favorite</string>
+    <!-- W60b 下载反馈统一：Snackbar「查看」动作（跳下载页）。 -->
+    <string name="snackbar_view">View</string>
 </resources>

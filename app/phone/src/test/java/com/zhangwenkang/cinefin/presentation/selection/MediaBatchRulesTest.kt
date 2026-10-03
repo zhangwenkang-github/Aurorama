@@ -45,6 +45,14 @@ class MediaBatchRulesTest {
             ),
             mediaBatchActions(MediaBatchMode.BOOK),
         )
+        assertEquals(
+            listOf(
+                MediaBatchAction.FAVORITE,
+                MediaBatchAction.DOWNLOAD,
+                MediaBatchAction.MARK_PLAYED,
+            ),
+            mediaBatchActions(MediaBatchMode.FAVORITES),
+        )
         assertTrue(mediaBatchActions(MediaBatchMode.NONE).isEmpty())
     }
 

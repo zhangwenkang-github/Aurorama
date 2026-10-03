@@ -115,7 +115,15 @@ interface JellyfinRepository {
         recursive: Boolean = true,
     ): List<FindroidItem>
 
-    suspend fun getFavoriteItems(): List<FindroidItem>
+    /**
+     * 跨库收藏查询（W60b「我的收藏」页）：`filters=IsFavorite` + 电影 / 剧集 / 单集。
+     *
+     * [sortBy] / [sortOrder] 由页面排序选项决定（加入日期 = `DateCreated` 倒序 / 名称 = `SortName` 升序）。
+     */
+    suspend fun getFavoriteItems(
+        sortBy: SortBy = SortBy.DATE_ADDED,
+        sortOrder: SortOrder = SortOrder.DESCENDING,
+    ): List<FindroidItem>
 
     suspend fun getSearchItems(query: String): List<FindroidItem>
 

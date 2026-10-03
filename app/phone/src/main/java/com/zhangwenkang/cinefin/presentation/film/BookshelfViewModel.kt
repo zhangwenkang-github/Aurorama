@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
-import timber.log.Timber
 
 /**
  * 书架页（顶部「书架」Tab 的落点）状态机。
@@ -122,26 +121,6 @@ constructor(
             appPreferences.uiBookshelfLibraryId,
             storedLibraryIdValue(libraryId),
         )
-    }
-
-    /** 顶栏「收藏」（W54-C）：收藏 / 取消收藏当前显示的书籍库（复用既有用户数据能力）。 */
-    fun toggleFavorite(libraryId: UUID) {
-        val ready = state.value as? BookshelfState.Ready ?: return
-        if (ready.library.id != libraryId) return
-        val favorite = !ready.library.favorite
-        viewModelScope.launch {
-            runCatching {
-                if (favorite) repository.markAsFavorite(libraryId)
-                else repository.unmarkAsFavorite(libraryId)
-            }
-                .onFailure { throwable -> Timber.w(throwable, "切换书库收藏失败") }
-            // 乐观更新：仓库内部已把失败的网络写入标记为「待同步」（与详情页收藏同一语义）。
-            (state.value as? BookshelfState.Ready)?.let { current ->
-                if (current.library.id == libraryId) {
-                    _state.value = BookshelfState.Ready(current.library.copy(favorite = favorite))
-                }
-            }
-        }
     }
 
     /**

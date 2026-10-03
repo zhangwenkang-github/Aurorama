@@ -32,12 +32,10 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
-import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LibrarySelectorChip
 import com.zhangwenkang.cinefin.presentation.components.LibrarySelectorOption
-import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -89,10 +87,8 @@ fun BookshelfScreen(
                 topBarActions = {
                     BookshelfTopBarActions(
                         selection = librarySelection,
-                        favoriteLibrary = current.library,
                         showLibrarySelector = temporaryLibraryId == null,
                         onSelectLibrary = viewModel::selectLibrary,
-                        onToggleFavorite = viewModel::toggleFavorite,
                     )
                 },
             )
@@ -105,10 +101,8 @@ fun BookshelfScreen(
                 topBarActions = {
                     BookshelfTopBarActions(
                         selection = librarySelection,
-                        favoriteLibrary = null,
                         showLibrarySelector = temporaryLibraryId == null,
                         onSelectLibrary = viewModel::selectLibrary,
-                        onToggleFavorite = viewModel::toggleFavorite,
                     )
                 },
             )
@@ -116,17 +110,15 @@ fun BookshelfScreen(
 }
 
 /**
- * 书架顶栏动作（W54-C）：库选择（服务器上有 2 个以上书籍库时才给入口）+ 收藏当前显示的那个书库。
+ * 书架顶栏动作：库选择（服务器上有 2 个以上书籍库时才给入口）。
  *
- * 两处顶栏（库内容页头部 = Ready 态，页面占位头 = Loading / Empty / Failed 态）共用；临时库视图只显示路由指定的库， 因此不出现选择器，但收藏仍指向该库。
+ * 两处顶栏（库内容页头部 = Ready 态，页面占位头 = Loading / Empty / Failed 态）共用；临时库视图只显示路由指定的库，因此不出现选择器。
  */
 @Composable
 private fun RowScope.BookshelfTopBarActions(
     selection: BookshelfLibrarySelection,
-    favoriteLibrary: FindroidCollection?,
     showLibrarySelector: Boolean,
     onSelectLibrary: (UUID?) -> Unit,
-    onToggleFavorite: (UUID) -> Unit,
 ) {
     if (showLibrarySelector && selection.libraries.size >= 2) {
         val autoLabel = stringResource(FilmR.string.bookshelf_library_auto)
@@ -138,10 +130,7 @@ private fun RowScope.BookshelfTopBarActions(
                     LibrarySelectorOption(
                         id = null,
                         label = autoLabel,
-                        detail =
-                            favoriteLibrary?.let {
-                                stringResource(FilmR.string.library_current_detail, it.name)
-                            },
+                        detail = null,
                     )
                 ) +
                     selection.libraries.map { library ->
@@ -156,14 +145,6 @@ private fun RowScope.BookshelfTopBarActions(
                     },
             selectedId = selection.selectedId,
             onSelect = onSelectLibrary,
-        )
-    }
-    favoriteLibrary?.let { library ->
-        TopBarAction(
-            icon =
-                if (library.favorite) CoreR.drawable.ic_heart_filled else CoreR.drawable.ic_heart,
-            contentDescription = stringResource(FilmR.string.library_favorite),
-            onClick = { onToggleFavorite(library.id) },
         )
     }
 }

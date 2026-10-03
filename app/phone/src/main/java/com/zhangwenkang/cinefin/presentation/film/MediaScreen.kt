@@ -63,7 +63,6 @@ fun MediaScreen(
     /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N）。 */
     onOpenDrawer: (() -> Unit)?,
     onItemClick: (FindroidItem) -> Unit,
-    onFavoritesClick: () -> Unit,
     /** W37：打开本地媒体库详情（媒体库页常显入口）。 */
     onOpenLocalLibrary: (Long) -> Unit = {},
     /** W43：搜索命中本地条目的打开链路（与本地库详情页一致）—— 视频 → 播放器；书籍 → 阅读器；音乐 → 现有音乐播放链路（成功后跳音乐 Tab）。 */
@@ -87,7 +86,6 @@ fun MediaScreen(
         searchState = searchState,
         searchExpanded = searchExpanded,
         onSearchExpand = onSearchExpand,
-        onFavoritesClick = onFavoritesClick,
         onAction = { action ->
             when (action) {
                 is MediaAction.OnItemClick -> onItemClick(action.item)
@@ -136,7 +134,6 @@ private fun MediaScreenLayout(
     searchState: SearchState,
     searchExpanded: Boolean,
     onSearchExpand: (Boolean) -> Unit,
-    onFavoritesClick: () -> Unit,
     onAction: (MediaAction) -> Unit,
     onOpenLocalLibrary: (Long) -> Unit,
     onSearchAction: (SearchAction) -> Unit,
@@ -179,12 +176,6 @@ private fun MediaScreenLayout(
             onOpenDrawer = onOpenDrawer,
             modifier = Modifier.padding(start = safePadding.start),
             actions = {
-                // W39：收藏从整行大卡改为顶栏图标键（星形），与搜索并列。
-                TopBarAction(
-                    icon = CoreR.drawable.ic_star,
-                    onClick = onFavoritesClick,
-                    contentDescription = stringResource(CoreR.string.title_favorite),
-                )
                 TopBarAction(
                     icon = CoreR.drawable.ic_search,
                     onClick = { onSearchExpand(true) },
@@ -292,7 +283,6 @@ private fun MediaScreenLayoutPreview() {
             searchState = SearchState(),
             searchExpanded = false,
             onSearchExpand = {},
-            onFavoritesClick = {},
             onAction = {},
             onOpenLocalLibrary = {},
             onSearchAction = {},

@@ -329,7 +329,10 @@ class JellyfinRepositoryImpl(
                 .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
         }
 
-    override suspend fun getFavoriteItems(): List<FindroidItem> =
+    override suspend fun getFavoriteItems(
+        sortBy: SortBy,
+        sortOrder: SortOrder,
+    ): List<FindroidItem> =
         withContext(Dispatchers.IO) {
             jellyfinApi.itemsApi
                 .getItems(
@@ -338,6 +341,8 @@ class JellyfinRepositoryImpl(
                     includeItemTypes =
                         listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.EPISODE),
                     recursive = true,
+                    sortBy = listOf(ItemSortBy.fromName(sortBy.sortString)),
+                    sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
                 )
                 .content
                 .items
@@ -719,6 +724,8 @@ class JellyfinRepositoryImpl(
             } catch (_: Exception) {
                 database.setUserDataToBeSynced(jellyfinApi.userId!!, itemId, true)
             }
+            // W60b：单一数据源广播（本地状态已落库，详情 / 列表 / 收藏页统一靠它刷新）。
+            UserDataEvents.notifyFavoriteChanged()
         }
     }
 
@@ -730,6 +737,8 @@ class JellyfinRepositoryImpl(
             } catch (_: Exception) {
                 database.setUserDataToBeSynced(jellyfinApi.userId!!, itemId, true)
             }
+            // W60b：单一数据源广播（取消收藏同样通知所有展示方刷新）。
+            UserDataEvents.notifyFavoriteChanged()
         }
     }
 

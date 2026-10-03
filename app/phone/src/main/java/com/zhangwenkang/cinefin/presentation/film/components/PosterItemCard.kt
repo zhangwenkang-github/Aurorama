@@ -84,6 +84,7 @@ fun PosterItemCard(
                 modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space2),
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
+                if (item.favorite) FavoriteBadge()
                 if (item.isDownloaded()) DownloadedBadge()
                 ItemStatusBadge(item)
             }

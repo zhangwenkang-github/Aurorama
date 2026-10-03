@@ -204,8 +204,8 @@ fun ItemButtonsBar(
                 DetailLabeledButton(
                     label = stringResource(CoreR.string.detail_action_favorite),
                     icon =
-                        if (item.favorite) CoreR.drawable.ic_heart_filled
-                        else CoreR.drawable.ic_heart,
+                        if (item.favorite) CoreR.drawable.ic_bookmark_filled
+                        else CoreR.drawable.ic_bookmark,
                     selected = item.favorite,
                     onClick = onMarkAsFavoriteClick,
                 )

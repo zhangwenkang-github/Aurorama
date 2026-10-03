@@ -25,6 +25,8 @@ enum class MediaBatchAction {
 enum class MediaBatchMode {
     VIDEO,
     BOOK,
+    /** W60b 我的收藏页：跨库汇总（电影 / 剧集 / 单集），三键 = 收藏（取消收藏）/ 下载 / 已看。 */
+    FAVORITES,
     NONE,
 }
 
@@ -59,6 +61,12 @@ fun mediaBatchActions(mode: MediaBatchMode): List<MediaBatchAction> =
                 MediaBatchAction.DOWNLOAD,
                 MediaBatchAction.MARK_PLAYED,
                 MediaBatchAction.FAVORITE,
+            )
+        MediaBatchMode.FAVORITES ->
+            listOf(
+                MediaBatchAction.FAVORITE,
+                MediaBatchAction.DOWNLOAD,
+                MediaBatchAction.MARK_PLAYED,
             )
         MediaBatchMode.NONE -> emptyList()
     }

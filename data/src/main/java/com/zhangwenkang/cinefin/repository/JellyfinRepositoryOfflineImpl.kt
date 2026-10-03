@@ -155,9 +155,14 @@ class JellyfinRepositoryOfflineImpl(
         TODO("Not yet implemented")
     }
 
-    override suspend fun getFavoriteItems(): List<FindroidItem> {
-        TODO("Not yet implemented")
-    }
+    /**
+     * 离线模式的「我的收藏」没有跨库查询能力：本机索引只缓存已下载条目、也没有收藏查询入口， 返回空表由页面显示空态（收藏的写入 / 同步仍走 [markAsFavorite] /
+     * [unmarkAsFavorite]）。
+     */
+    override suspend fun getFavoriteItems(
+        sortBy: SortBy,
+        sortOrder: SortOrder,
+    ): List<FindroidItem> = emptyList()
 
     override suspend fun getSearchItems(query: String): List<FindroidItem> {
         return withContext(Dispatchers.IO) {

@@ -66,6 +66,7 @@ import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
+import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
@@ -126,7 +127,6 @@ fun VideoScreen(
         onRetry = { viewModel.load(temporaryLibraryId) },
         onExitTemporaryLibrary = onExitTemporaryLibrary,
         onSelectLibrary = viewModel::selectLibrary,
-        onToggleFavorite = viewModel::toggleFavorite,
         sleepTimerState = sleepTimerState,
         onSelectSleepMinutes = viewModel::selectSleepTimer,
     )
@@ -140,7 +140,6 @@ private fun VideoScreenLayout(
     onRetry: () -> Unit,
     onExitTemporaryLibrary: (() -> Unit)? = null,
     onSelectLibrary: (UUID?) -> Unit = {},
-    onToggleFavorite: (UUID) -> Unit = {},
     sleepTimerState: SleepTimerController.State = SleepTimerController.State(),
     onSelectSleepMinutes: (Int?) -> Unit = {},
 ) {
@@ -175,12 +174,13 @@ private fun VideoScreenLayout(
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
     var showSleepTimer by rememberSaveable { mutableStateOf(false) }
     val temporaryLibrary = state.temporaryLibrary
-    // 「库选择」落到实处的库（用于 chip 文案与收藏目标）；临时库视图优先显示路由指定的库。
+    // 「库选择」落到实处的库（用于 chip 文案）；临时库视图优先显示路由指定的库。
     val selectedLibrary = state.allLibraries.firstOrNull { it.id == state.selectedLibraryId }
-    val favoriteLibrary = temporaryLibrary ?: selectedLibrary
 
     // ---- W58b：聚合网格长按多选 + 批量操作（播放 = 加入播放队列；删除仅本地） ----
     val pagingItems = state.aggregateItems.collectAsLazyPagingItems()
+    // W60b：详情页 / 其它入口的收藏变更后刷新聚合网格，卡片收藏角标即时一致。
+    FavoriteChangeEffect { pagingItems.refresh() }
     val batchViewModel: MediaBatchViewModel = hiltViewModel()
     val downloadState by batchViewModel.downloadState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -309,16 +309,6 @@ private fun VideoScreenLayout(
                                 },
                         selectedId = state.selectedLibraryId,
                         onSelect = onSelectLibrary,
-                    )
-                }
-                // 收藏（W54-C）：收藏 / 取消收藏当前显示的那个库；「全部库」没有单一目标，不显示。
-                favoriteLibrary?.let { library ->
-                    TopBarAction(
-                        icon =
-                            if (library.favorite) CoreR.drawable.ic_heart_filled
-                            else CoreR.drawable.ic_heart,
-                        contentDescription = stringResource(FilmR.string.library_favorite),
-                        onClick = { onToggleFavorite(library.id) },
                     )
                 }
                 // 睡眠定时（W55 正式落地）：与音乐 / 播放器共享同一状态源；激活时点亮。

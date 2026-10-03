@@ -45,6 +45,7 @@ import com.zhangwenkang.cinefin.models.HomeSection
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.HomeSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
+import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.HomeHero
 import com.zhangwenkang.cinefin.presentation.film.components.HomeSection
 import com.zhangwenkang.cinefin.presentation.film.components.HomeTopBar
@@ -76,6 +77,8 @@ fun HomeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(true) { viewModel.loadData() }
+    // W60b：收藏变更后重取首页走廊，卡片收藏角标即时一致。
+    FavoriteChangeEffect { viewModel.loadData() }
 
     HomeScreenLayout(
         state = state,

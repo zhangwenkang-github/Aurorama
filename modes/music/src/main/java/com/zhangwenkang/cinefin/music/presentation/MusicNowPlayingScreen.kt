@@ -602,8 +602,8 @@ private fun PlayerActionRow(
         NowPlayingAction(
             icon =
                 painterResource(
-                    if (meta?.isFavorite == true) CoreR.drawable.ic_heart_filled
-                    else CoreR.drawable.ic_heart
+                    if (meta?.isFavorite == true) CoreR.drawable.ic_bookmark_filled
+                    else CoreR.drawable.ic_bookmark
                 ),
             label = if (meta?.isFavorite == true) "已收藏" else "收藏",
             active = meta?.isFavorite == true,
