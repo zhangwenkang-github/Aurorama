@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 视频页顶栏「睡眠定时」入口（W54-C）：与播放控制层 ic_player_sleep 同一月牙造型，24dp 网格。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,3.4 a8.6,8.6 0 1,0 0,17.2 a8.6,8.6 0 1,0 0,-17.2 Z M15.9,3.1 a7.4,7.4 0 1,0 0,14.8 a7.4,7.4 0 1,0 0,-14.8 Z" />
+</vector>

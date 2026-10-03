@@ -40,4 +40,10 @@
     <string name="library_filter_panel_hint">当前媒体库的常用筛选</string>
     <string name="library_tab_empty_title">这里还没有内容</string>
     <string name="library_tab_empty_message">这个 tab 当前没有条目，换个 tab 或下拉刷新试试。</string>
+    <string name="video_library_all">全部库</string>
+    <string name="library_favorite">收藏当前媒体库</string>
+    <string name="video_sleep_timer">睡眠定时</string>
+    <string name="video_sleep_timer_hint">睡眠定时将在下一版提供；本版只接入顶栏入口。</string>
+    <string name="bookshelf_library_auto">自动</string>
+    <string name="library_current_detail">当前：%1$s</string>
 </resources>

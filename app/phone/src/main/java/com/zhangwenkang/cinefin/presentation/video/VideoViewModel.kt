@@ -9,10 +9,12 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.presentation.utils.storedLibraryIdValue
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.flow.Flow
@@ -25,13 +27,17 @@ import timber.log.Timber
 /**
  * 视频模式页（W53）状态。
  *
- * - [libraries]：服务器上的视频库（movies + tvshows），顺序与服务器返回一致；
+ * - [allLibraries]：服务器上的全部视频库（movies + tvshows），顺序与服务器返回一致——「库选择」菜单的来源；
+ * - [libraries]：当前显示（过滤后）的库：库卡网格与聚合流都用它；[selectedLibraryId] 非空时它是单元素列表；
  * - [loaded]：库列表是否成功加载过一次（false 时显示加载骨架，而不是"没有视频库"空态）；
  * - [displayMode]：库卡列表 / 聚合列表，来自「客户端设置 → 媒体库 → 视频显示方式」；
  * - [aggregateItems]：聚合列表分页流；库列表为空时为 [PagingData.empty]。
  */
 data class VideoState(
+    val allLibraries: List<FindroidCollection> = emptyList(),
     val libraries: List<FindroidCollection> = emptyList(),
+    /** 顶栏「库选择」（W54-C）：null = 全部库；服务器上找不到该库时同样回落 null。 */
+    val selectedLibraryId: UUID? = null,
     val isLoading: Boolean = false,
     val loaded: Boolean = false,
     val error: Exception? = null,
@@ -63,8 +69,11 @@ constructor(
     val state = _state.asStateFlow()
 
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == appPreferences.uiVideoDisplayMode.backendName) {
-            _state.value = _state.value.copy(displayMode = readDisplayMode())
+        when (key) {
+            appPreferences.uiVideoDisplayMode.backendName ->
+                _state.value = _state.value.copy(displayMode = readDisplayMode())
+            appPreferences.uiVideoLibraryId.backendName ->
+                applyLibrarySelection(readStoredLibraryId())
         }
     }
 
@@ -95,11 +104,14 @@ constructor(
                     val temporaryLibrary = temporaryLibraryId?.let { id ->
                         libraries.firstOrNull { it.id.toString() == id }
                     }
+                    val selection = resolveVideoLibrarySelection(libraries, readStoredLibraryId())
                     // 临时库视图只加载该库；库在服务器上找不到（被删 / 重建）时回落默认视图。
-                    val visibleLibraries = temporaryLibrary?.let { listOf(it) } ?: libraries
+                    val visibleLibraries = temporaryLibrary?.let { listOf(it) } ?: selection.visible
                     _state.value =
                         _state.value.copy(
+                            allLibraries = libraries,
                             libraries = visibleLibraries,
+                            selectedLibraryId = selection.selectedId,
                             temporaryLibrary = temporaryLibrary,
                             loaded = true,
                             isLoading = false,
@@ -117,6 +129,66 @@ constructor(
                         )
                 }
         }
+    }
+
+    /** 顶栏「库选择」（W54-C）：null = 全部库。先落盘（跨页面 / 重启保留）再即时生效。 */
+    fun selectLibrary(libraryId: UUID?) {
+        // 写偏好会触发监听器即时重算（与「视频显示方式」同一机制）；写入同样的值不会触发回调，
+        // 页面本来也没有变化。
+        appPreferences.setValue(appPreferences.uiVideoLibraryId, storedLibraryIdValue(libraryId))
+    }
+
+    /** 顶栏「收藏」（W54-C）：收藏 / 取消收藏当前所选的库（复用既有用户数据能力）。 */
+    fun toggleFavorite(libraryId: UUID) {
+        viewModelScope.launch {
+            val target =
+                _state.value.allLibraries.firstOrNull { it.id == libraryId }
+                    ?: _state.value.temporaryLibrary?.takeIf { it.id == libraryId }
+                    ?: return@launch
+            val favorite = !target.favorite
+            runCatching {
+                if (favorite) repositoryProvider.get().markAsFavorite(libraryId)
+                else repositoryProvider.get().unmarkAsFavorite(libraryId)
+            }
+                .onFailure { throwable -> Timber.w(throwable, "切换库收藏失败") }
+            // 乐观更新：仓库内部已把失败的网络写入标记为「待同步」（与详情页收藏同一语义）。
+            setLibraryFavorite(libraryId, favorite)
+        }
+    }
+
+    /** 偏好变化 / 手动选择共用的解析（不重新请求服务器）：更新可见库与聚合流。 */
+    private fun applyLibrarySelection(storedId: String?) {
+        val current = _state.value
+        val selection = resolveVideoLibrarySelection(current.allLibraries, storedId)
+        // 临时库视图只显示那一个库；选择仍照常解析（退出临时视图后按选择显示）。
+        if (current.temporaryLibrary != null) {
+            _state.value = current.copy(selectedLibraryId = selection.selectedId)
+            return
+        }
+        _state.value =
+            current.copy(
+                selectedLibraryId = selection.selectedId,
+                libraries = selection.visible,
+                aggregateItems =
+                    if (selection.visible.isEmpty()) flowOf(PagingData.empty())
+                    else aggregateFlow(repositoryProvider.get(), selection.visible),
+            )
+    }
+
+    private fun setLibraryFavorite(libraryId: UUID, favorite: Boolean) {
+        fun List<FindroidCollection>.withFavorite(): List<FindroidCollection> = map { library ->
+            if (library.id == libraryId) library.copy(favorite = favorite) else library
+        }
+        val current = _state.value
+        _state.value =
+            current.copy(
+                allLibraries = current.allLibraries.withFavorite(),
+                libraries = current.libraries.withFavorite(),
+                temporaryLibrary =
+                    current.temporaryLibrary?.let { library ->
+                        if (library.id == libraryId) library.copy(favorite = favorite) else library
+                    },
+            )
     }
 
     private fun aggregateFlow(
@@ -139,6 +211,9 @@ constructor(
 
     private fun readDisplayMode(): VideoDisplayMode =
         VideoDisplayMode.fromString(appPreferences.getValue(appPreferences.uiVideoDisplayMode))
+
+    private fun readStoredLibraryId(): String? =
+        appPreferences.getValue(appPreferences.uiVideoLibraryId)
 
     private companion object {
         const val AGGREGATE_PAGE_SIZE = 30

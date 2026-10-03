@@ -243,6 +243,14 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 书架「使用哪个书籍库」：null = 自动（第一个非空书籍库）。 */
     val uiBookshelfLibraryId = Preference<String?>("pref_ui_bookshelf_library_id", null)
 
+    /**
+     * 视频模式页「显示哪个库」（W54-C，用户 2026-10-03 确认）：null = 全部视频库（`movies` + `tvshows`）。
+     *
+     * 视频页顶栏「库选择」写入这里：库卡模式 = 过滤显示哪些库卡；聚合模式 = 只聚合该库条目。 服务器上该库被删除 / 不再属于 movies·tvshows
+     * 时回落「全部库」（不偷偷改选别家）。
+     */
+    val uiVideoLibraryId = Preference<String?>("pref_ui_video_library_id", null)
+
     /** 侧栏（平板侧轨 / 抽屉）条目可见性。客户端设置始终可见，保证入口不会把自己关掉。 */
     val uiSidebarShowHome = Preference("pref_ui_sidebar_show_home", true)
 

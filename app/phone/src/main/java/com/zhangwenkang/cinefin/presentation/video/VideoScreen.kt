@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,13 +43,18 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.presentation.components.BaseDialog
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
+import com.zhangwenkang.cinefin.presentation.components.LibrarySelectorChip
+import com.zhangwenkang.cinefin.presentation.components.LibrarySelectorOption
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
@@ -59,6 +66,7 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -97,6 +105,8 @@ fun VideoScreen(
         onItemClick = onItemClick,
         onRetry = { viewModel.load(temporaryLibraryId) },
         onExitTemporaryLibrary = onExitTemporaryLibrary,
+        onSelectLibrary = viewModel::selectLibrary,
+        onToggleFavorite = viewModel::toggleFavorite,
     )
 }
 
@@ -107,6 +117,8 @@ private fun VideoScreenLayout(
     onItemClick: (FindroidItem) -> Unit,
     onRetry: () -> Unit,
     onExitTemporaryLibrary: (() -> Unit)? = null,
+    onSelectLibrary: (UUID?) -> Unit = {},
+    onToggleFavorite: (UUID) -> Unit = {},
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val pageGutter = rememberPageGutter()
@@ -137,23 +149,28 @@ private fun VideoScreenLayout(
         }
 
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
+    var showSleepTimerPlaceholder by rememberSaveable { mutableStateOf(false) }
     val temporaryLibrary = state.temporaryLibrary
+    // 「库选择」落到实处的库（用于 chip 文案与收藏目标）；临时库视图优先显示路由指定的库。
+    val selectedLibrary = state.allLibraries.firstOrNull { it.id == state.selectedLibraryId }
+    val favoriteLibrary = temporaryLibrary ?: selectedLibrary
 
     Column(modifier = Modifier.fillMaxSize()) {
         CinefinPageTopBar(
             // 临时库视图：真实库名 + 类型 + 项目数（库卡总览不出现）。
             title = temporaryLibrary?.name ?: stringResource(CoreR.string.title_video),
             subtitle =
-                if (temporaryLibrary != null) {
+                if (temporaryLibrary != null || selectedLibrary != null) {
+                    val library = temporaryLibrary ?: selectedLibrary!!
                     listOfNotNull(
-                            stringResource(libraryTypeLabelRes(temporaryLibrary.type)),
-                            temporaryLibrary.itemCount?.let {
+                            stringResource(libraryTypeLabelRes(library.type)),
+                            library.itemCount?.let {
                                 stringResource(FilmR.string.library_item_count, it)
                             },
                         )
                         .joinToString(" · ")
-                } else if (state.libraries.isNotEmpty()) {
-                    stringResource(FilmR.string.library_count, state.libraries.size)
+                } else if (state.allLibraries.isNotEmpty()) {
+                    stringResource(FilmR.string.library_count, state.allLibraries.size)
                 } else {
                     null
                 },
@@ -163,6 +180,52 @@ private fun VideoScreenLayout(
                 if (temporaryLibrary != null && onExitTemporaryLibrary != null) {
                     CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
                 }
+                // 库选择（W54-C）：库卡模式 = 过滤显示哪些库卡；聚合模式 = 只显示所选库内容。
+                // 服务器上只有一个视频库时没有可选项；临时库视图只显示那一个库，不出现选择器。
+                if (temporaryLibrary == null && state.allLibraries.size >= 2) {
+                    val allLibrariesLabel = stringResource(FilmR.string.video_library_all)
+                    val allLibrariesDetail =
+                        stringResource(FilmR.string.library_count, state.allLibraries.size)
+                    LibrarySelectorChip(
+                        label = selectedLibrary?.name ?: allLibrariesLabel,
+                        options =
+                            listOf(
+                                LibrarySelectorOption(
+                                    id = null,
+                                    label = allLibrariesLabel,
+                                    detail = allLibrariesDetail,
+                                )
+                            ) +
+                                state.allLibraries.map { library ->
+                                    LibrarySelectorOption(
+                                        id = library.id,
+                                        label = library.name,
+                                        detail =
+                                            library.itemCount?.let {
+                                                stringResource(FilmR.string.library_item_count, it)
+                                            },
+                                    )
+                                },
+                        selectedId = state.selectedLibraryId,
+                        onSelect = onSelectLibrary,
+                    )
+                }
+                // 收藏（W54-C）：收藏 / 取消收藏当前显示的那个库；「全部库」没有单一目标，不显示。
+                favoriteLibrary?.let { library ->
+                    TopBarAction(
+                        icon =
+                            if (library.favorite) CoreR.drawable.ic_heart_filled
+                            else CoreR.drawable.ic_heart,
+                        contentDescription = stringResource(FilmR.string.library_favorite),
+                        onClick = { onToggleFavorite(library.id) },
+                    )
+                }
+                // 睡眠定时（W54-C 只接入口；定时本体 = W55）：暂以对话框占位。
+                TopBarAction(
+                    icon = FilmR.drawable.ic_video_sleep,
+                    contentDescription = stringResource(FilmR.string.video_sleep_timer),
+                    onClick = { showSleepTimerPlaceholder = true },
+                )
             },
         )
         Spacer(Modifier.height(CinefinSpacing.Space2))
@@ -224,6 +287,29 @@ private fun VideoScreenLayout(
     val error = state.error
     if (showErrorDialog && error != null) {
         ErrorDialog(exception = error, onDismissRequest = { showErrorDialog = false })
+    }
+    if (showSleepTimerPlaceholder) {
+        SleepTimerPlaceholderDialog(onDismiss = { showSleepTimerPlaceholder = false })
+    }
+}
+
+/** 睡眠定时占位（W54-C）：本波只接入顶栏入口，定时本体（音乐 / 视频共享 + 自定义 1–240 分钟）由 W55 落地。 明确告诉用户"还没上线"，比点了没反应更好。 */
+@Composable
+private fun SleepTimerPlaceholderDialog(onDismiss: () -> Unit) {
+    BaseDialog(
+        title = stringResource(FilmR.string.video_sleep_timer),
+        onDismiss = onDismiss,
+        negativeButton = {},
+        positiveButton = {
+            TextButton(onClick = onDismiss) { Text(text = stringResource(CoreR.string.close)) }
+        },
+    ) { contentPadding ->
+        Text(
+            text = stringResource(FilmR.string.video_sleep_timer_hint),
+            style = CinefinType.BodyMedium,
+            color = LocalCinefinColors.current.onSurfaceVariant,
+            modifier = Modifier.padding(contentPadding),
+        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.presentation.film
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,11 +32,16 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
+import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
+import com.zhangwenkang.cinefin.presentation.components.LibrarySelectorChip
+import com.zhangwenkang.cinefin.presentation.components.LibrarySelectorOption
+import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import java.util.UUID
 
 /**
  * 顶部「书架」Tab 的落点页。
@@ -56,6 +62,7 @@ fun BookshelfScreen(
     viewModel: BookshelfViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val librarySelection by viewModel.librarySelection.collectAsStateWithLifecycle()
 
     LaunchedEffect(temporaryLibraryId) { viewModel.load(libraryId = temporaryLibraryId) }
 
@@ -78,6 +85,16 @@ fun BookshelfScreen(
                 topLevel = true,
                 onOpenDrawer = onOpenDrawer,
                 onBackToDefault = onExitTemporaryLibrary,
+                // 顶栏「库选择」+「收藏」（W54-C）：与视频页同一套动作，落点由库内容页头部注入。
+                topBarActions = {
+                    BookshelfTopBarActions(
+                        selection = librarySelection,
+                        favoriteLibrary = current.library,
+                        showLibrarySelector = temporaryLibraryId == null,
+                        onSelectLibrary = viewModel::selectLibrary,
+                        onToggleFavorite = viewModel::toggleFavorite,
+                    )
+                },
             )
         else ->
             BookshelfPlaceholder(
@@ -85,7 +102,69 @@ fun BookshelfScreen(
                 onOpenDrawer = onOpenDrawer,
                 onRetry = { viewModel.load(force = true, libraryId = temporaryLibraryId) },
                 onExitTemporaryLibrary = onExitTemporaryLibrary,
+                topBarActions = {
+                    BookshelfTopBarActions(
+                        selection = librarySelection,
+                        favoriteLibrary = null,
+                        showLibrarySelector = temporaryLibraryId == null,
+                        onSelectLibrary = viewModel::selectLibrary,
+                        onToggleFavorite = viewModel::toggleFavorite,
+                    )
+                },
             )
+    }
+}
+
+/**
+ * 书架顶栏动作（W54-C）：库选择（服务器上有 2 个以上书籍库时才给入口）+ 收藏当前显示的那个书库。
+ *
+ * 两处顶栏（库内容页头部 = Ready 态，页面占位头 = Loading / Empty / Failed 态）共用；临时库视图只显示路由指定的库， 因此不出现选择器，但收藏仍指向该库。
+ */
+@Composable
+private fun RowScope.BookshelfTopBarActions(
+    selection: BookshelfLibrarySelection,
+    favoriteLibrary: FindroidCollection?,
+    showLibrarySelector: Boolean,
+    onSelectLibrary: (UUID?) -> Unit,
+    onToggleFavorite: (UUID) -> Unit,
+) {
+    if (showLibrarySelector && selection.libraries.size >= 2) {
+        val autoLabel = stringResource(FilmR.string.bookshelf_library_auto)
+        val selectedLibrary = selection.libraries.firstOrNull { it.id == selection.selectedId }
+        LibrarySelectorChip(
+            label = selectedLibrary?.name ?: autoLabel,
+            options =
+                listOf(
+                    LibrarySelectorOption(
+                        id = null,
+                        label = autoLabel,
+                        detail =
+                            favoriteLibrary?.let {
+                                stringResource(FilmR.string.library_current_detail, it.name)
+                            },
+                    )
+                ) +
+                    selection.libraries.map { library ->
+                        LibrarySelectorOption(
+                            id = library.id,
+                            label = library.name,
+                            detail =
+                                library.itemCount?.let {
+                                    stringResource(FilmR.string.library_item_count, it)
+                                },
+                        )
+                    },
+            selectedId = selection.selectedId,
+            onSelect = onSelectLibrary,
+        )
+    }
+    favoriteLibrary?.let { library ->
+        TopBarAction(
+            icon =
+                if (library.favorite) CoreR.drawable.ic_heart_filled else CoreR.drawable.ic_heart,
+            contentDescription = stringResource(FilmR.string.library_favorite),
+            onClick = { onToggleFavorite(library.id) },
+        )
     }
 }
 
@@ -96,6 +175,7 @@ private fun BookshelfPlaceholder(
     onOpenDrawer: (() -> Unit)?,
     onRetry: () -> Unit,
     onExitTemporaryLibrary: (() -> Unit)? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = LocalCinefinColors.current
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -115,6 +195,7 @@ private fun BookshelfPlaceholder(
                 if (onExitTemporaryLibrary != null) {
                     CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
                 }
+                topBarActions()
             },
         )
         Spacer(Modifier.height(CinefinSpacing.Space6))
