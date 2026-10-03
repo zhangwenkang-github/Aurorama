@@ -50,7 +50,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.SettingsSkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
-import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerState
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsGroupCard
@@ -232,19 +231,27 @@ private fun SettingsScreenLayout(
                 verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                item(key = "account") {
-                    LumenCardFrame(
-                        shape = CinefinShapes.Lg,
-                        modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp),
-                    ) {
-                        SettingsAccountHeader(state = accountState, onClick = onOpenUsers)
-                    }
-                }
                 items(state.preferenceGroups) { group ->
                     SettingsGroupCard(
                         group = group,
                         onAction = onAction,
                         modifier = Modifier.widthIn(max = 640.dp),
+                        // W56（用户 2026-10-04 拍板）：账号卡并入「账号与服务器」组、作为组内首行；
+                        // 点击行为不变（进用户管理），头像 / 昵称 / 服务器 / 身份徽标由原组件保留。
+                        header =
+                            if (
+                                group.nameStringResource ==
+                                    SettingsR.string.settings_group_account_server
+                            ) {
+                                {
+                                    SettingsAccountHeader(
+                                        state = accountState,
+                                        onClick = onOpenUsers,
+                                    )
+                                }
+                            } else {
+                                null
+                            },
                     )
                 }
             }

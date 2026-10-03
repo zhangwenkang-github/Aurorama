@@ -118,6 +118,10 @@ fun MusicModeScreen(
     libraryTypeLabel: String? = null,
     /** 临时库视图的「返回默认 ×」/ 系统返回键动作（回默认音乐库）；null = 音乐 Tab 默认视图。 */
     onExitTemporaryLibrary: (() -> Unit)? = null,
+    /** W56：顶层「音乐」图标再点 = 回音乐主页——数值递增触发一次收起（全屏播放 / 歌词页 + 页内详情）。 */
+    reselectSignal: Int = 0,
+    /** W56：把「全屏播放 / 歌词页覆盖层是否打开」回报给导航层（决定再点图标是只收覆盖层还是不重复导航）。 */
+    onOverlayOpenChange: ((Boolean) -> Unit)? = null,
     viewModel: MusicModeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -161,6 +165,15 @@ fun MusicModeScreen(
             nowPlayingOpen = false
         }
     }
+
+    // W56：顶层「音乐」图标再点 = 回音乐主页——关闭全屏播放 / 歌词覆盖层与专辑等页内详情。
+    LaunchedEffect(reselectSignal) {
+        if (reselectSignal > 0 && (nowPlayingOpen || state.detail != null)) {
+            nowPlayingOpen = false
+            viewModel.closeDetail()
+        }
+    }
+    LaunchedEffect(nowPlayingOpen) { onOverlayOpenChange?.invoke(nowPlayingOpen) }
 
     // 系统返回键与左上角返回一致（W3-R3b 缺陷 1）：详情（专辑 / 艺术家 / 歌单）内先回音乐主界面，
     // 而不是直接退回首页；不在详情时交给 NavHost 正常返回。
@@ -268,6 +281,7 @@ fun MusicModeScreen(
                     onNext = viewModel::skipToNext,
                     onOpenLyrics = viewModel::openLyrics,
                     onOpenQueue = { queueSheetOpen = true },
+                    onClose = viewModel::dismissNowPlayingBar,
                 )
             }
 
@@ -912,6 +926,7 @@ private fun NowPlayingBar(
     onNext: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
+    onClose: () -> Unit,
 ) {
     val item = queue?.currentItem ?: return
     val colors = LocalCinefinColors.current
@@ -1005,6 +1020,15 @@ private fun NowPlayingBar(
                 Icon(
                     painter = painterResource(CoreR.drawable.ic_skip_forward),
                     contentDescription = "下一首",
+                    tint = tint,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            // W56：关闭面板 = 停止播放并收起迷你条（队列存档保留，再次选择曲目即可恢复）。
+            CinefinIconButton(onClick = onClose) { tint ->
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_close),
+                    contentDescription = "关闭面板",
                     tint = tint,
                     modifier = Modifier.size(20.dp),
                 )

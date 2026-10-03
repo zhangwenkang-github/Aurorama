@@ -1228,6 +1228,25 @@ constructor(
         playbackController.playPause()
     }
 
+    /**
+     * W56：迷你播放条「关闭面板」= 停止播放并收起面板（用户 2026-10-04 拍板）。
+     *
+     * 活动会话走 [MusicPlaybackController.stop]（停播 + 清内存队列；队列存档只写不清，重启仍可恢复）；
+     * 恢复态只丢本次进页面的展示快照，不动磁盘存档；收起后再次选择曲目走既有起播路径。
+     */
+    fun dismissNowPlayingBar() {
+        when (
+            musicMiniBarDismissTarget(
+                hasLiveQueue = playbackController.queue.value != null,
+                hasRestoredQueue = _restoredQueue.value != null,
+            )
+        ) {
+            MusicMiniBarDismissTarget.StopPlayback -> playbackController.stop()
+            MusicMiniBarDismissTarget.DropRestoredQueue -> _restoredQueue.value = null
+            MusicMiniBarDismissTarget.None -> Unit
+        }
+    }
+
     fun skipToNext() {
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {

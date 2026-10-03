@@ -34,6 +34,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -126,6 +127,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
 import com.zhangwenkang.cinefin.presentation.navigation.RAIL_LIBRARY_COUNT_GAP_DP
 import com.zhangwenkang.cinefin.presentation.navigation.SidebarLocalLibrary
 import com.zhangwenkang.cinefin.presentation.navigation.TemporaryLibraryKind
+import com.zhangwenkang.cinefin.presentation.navigation.TopLevelTapAction
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
 import com.zhangwenkang.cinefin.presentation.navigation.homeViewAllRoute
 import com.zhangwenkang.cinefin.presentation.navigation.libraryChildCountVisible
@@ -136,6 +138,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
 import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
 import com.zhangwenkang.cinefin.presentation.navigation.railLibraryLabelWidthDp
+import com.zhangwenkang.cinefin.presentation.navigation.topLevelTapAction
 import com.zhangwenkang.cinefin.presentation.navigation.visibleRailKeys
 import com.zhangwenkang.cinefin.presentation.offline.OfflineHomeScreen
 import com.zhangwenkang.cinefin.presentation.offline.OfflineLibraryScreen
@@ -315,6 +318,11 @@ fun NavigationRoot(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     var searchExpanded by remember { mutableStateOf(false) }
+    // W56：「顶层图标统一回对应主页」——音乐全屏播放 / 歌词页是音乐页内的覆盖层（不在导航栈里），
+    // 点顶层「音乐」图标时用递增信号让它收起；音乐页把覆盖层开关回报回来，用于区分
+    // 「已在主页（不重复导航 / 只收覆盖层）」与「在二级页 / 其它入口（走既有顶层导航）」。
+    var musicOverlayReselectSignal by remember { mutableIntStateOf(0) }
+    var musicOverlayOpen by remember { mutableStateOf(false) }
 
     val currentDestination = navBackStackEntry?.destination
     // 主导航：手机底部 4 tab / 平板侧轨；抽屉继续承载全量入口（库列表 / 控制台 / 服务器）
@@ -456,15 +464,49 @@ fun NavigationRoot(
     // `saveState + restoreState` 会按目的地 id 把「离开时整栈」恢复回来（例如 视频 → 某个库内容页），
     // 用户点底栏「视频」时会停在库内容页，看着像"切不回来"；这里恢复后统一把根页之上的子页面弹掉——
     // 根页自身的滚动 / 状态仍由 saveState 保留（踩坑 30 的结论不变）。
+    // W56（用户 2026-10-04 拍板）：已在入口主页时停在原地（不重复导航、不闪烁）；音乐主页的
+    // 全屏播放 / 歌词页是页面内覆盖层，用 [musicOverlayReselectSignal] 让它收起。
     val navigateTopLevel: (Any) -> Unit = { route ->
         closeDrawer()
-        navController.safeNavigate(route) {
-            popUpTo(navController.graph.startDestinationId) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
+        val isOnEntryHome =
+            when (route) {
+                HomeRoute -> currentDestination.isRoute<HomeRoute>()
+                VideoRoute -> currentDestination.isRoute<VideoRoute>()
+                MediaRoute -> currentDestination.isRoute<MediaRoute>()
+                MusicModeRoute -> currentDestination.isRoute<MusicModeRoute>()
+                BookshelfRoute -> currentDestination.isRoute<BookshelfRoute>()
+                DownloadsRoute -> currentDestination.isRoute<DownloadsRoute>()
+                // 设置子页 = 同一目的地的不同参数（indexes），只有根参数才算「已在主页」。
+                is SettingsRoute ->
+                    currentDestination.isRoute<SettingsRoute>() &&
+                        runCatching { navBackStackEntry?.toRoute<SettingsRoute>() }
+                            .getOrNull()
+                            ?.indexes
+                            ?.toList() == route.indexes.toList()
+                else -> false
+            }
+        when (
+            topLevelTapAction(
+                isOnEntryHome = isOnEntryHome,
+                hasInPageOverlay = route == MusicModeRoute && musicOverlayOpen,
+            )
+        ) {
+            TopLevelTapAction.Stay -> Unit
+            TopLevelTapAction.CollapseOverlay -> musicOverlayReselectSignal++
+            TopLevelTapAction.Navigate -> {
+                // 从二级页 / 其它入口回音乐主页时，恢复出来的覆盖层同样收起（回主页 = 关闭覆盖层）。
+                if (route == MusicModeRoute) {
+                    musicOverlayReselectSignal++
+                }
+                navController.safeNavigate(route) {
+                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+                // 带子页面（库内容 / 专辑详情等）时弹回根页；已在根页的情况上面已提前返回。
+                navController.popBackStack(route, inclusive = false)
+            }
         }
-        // 已是根页时为 no-op；带子页面（库内容 / 专辑详情等）时弹回根页。
-        navController.popBackStack(route, inclusive = false)
     }
     // 控制台两类入口不能用统一入口的 saveState / restoreState：popUpTo(saveState) + restoreState 是按
     // 目的地 id 恢复保存的条目，而两个入口共用 ConsoleRoute 目的地 id——点「媒体资料管理器」会把上一次
@@ -1093,7 +1135,14 @@ fun NavigationRoot(
                     )
                 }
             }
-            composable<MusicModeRoute> { MusicModeScreen(onOpenDrawer = openDrawer) }
+            composable<MusicModeRoute> {
+                MusicModeScreen(
+                    onOpenDrawer = openDrawer,
+                    // W56：顶层「音乐」图标再点 = 回音乐主页（先收起全屏播放 / 歌词覆盖层，再退页内详情）。
+                    reselectSignal = musicOverlayReselectSignal,
+                    onOverlayOpenChange = { musicOverlayOpen = it },
+                )
+            }
             composable<TemporaryLibraryRoute> { backStackEntry ->
                 // 临时库视图（W53 追加）：侧栏点服务器库 → 对应模式页直显该库；不写偏好。
                 // 返回键 / 「返回默认 ×」→ 该模式页的默认库（exitTemporaryLibrary）。

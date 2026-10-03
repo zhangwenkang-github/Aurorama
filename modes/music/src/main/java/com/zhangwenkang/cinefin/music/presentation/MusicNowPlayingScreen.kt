@@ -331,11 +331,9 @@ private fun RegularPlayerLayout(
         PlayerActionRow(
             playMode = playMode,
             meta = meta,
-            lyricsAvailable = lyricsState.rows.isNotEmpty(),
             lyricsOverlayEnabled = lyricsOverlayEnabled,
             onCyclePlayMode = onCyclePlayMode,
             onToggleFavorite = onToggleFavorite,
-            onOpenLyrics = onOpenLyrics,
             onOpenQueue = onOpenQueue,
             onToggleLyricsOverlay = onToggleLyricsOverlay,
             onOpenEffects = onOpenEffects,
@@ -447,11 +445,9 @@ private fun CompactPlayerLayout(
                 PlayerActionRow(
                     playMode = playMode,
                     meta = meta,
-                    lyricsAvailable = lyricsState.rows.isNotEmpty(),
                     lyricsOverlayEnabled = lyricsOverlayEnabled,
                     onCyclePlayMode = onCyclePlayMode,
                     onToggleFavorite = onToggleFavorite,
-                    onOpenLyrics = onOpenLyrics,
                     onOpenQueue = onOpenQueue,
                     onToggleLyricsOverlay = onToggleLyricsOverlay,
                     onOpenEffects = onOpenEffects,
@@ -570,16 +566,18 @@ private fun TransportControls(
     }
 }
 
-/** 全屏底部功能行：播放队列 / 播放模式 / 收藏 / 歌词 / 桌面歌词 / 音效（六键）。 */
+/**
+ * 全屏底部功能行：播放队列 / 播放模式 / 收藏 / 桌面歌词 / 音效（五键）。
+ *
+ * W56（用户 2026-10-04 拍板）：删除「歌词」入口按钮——进歌词页改由既有 ① 点歌词行进页 （[LyricsPreview]）/ ② 左滑手势承担；迷你播放条上的「词」按钮保留不动。
+ */
 @Composable
 private fun PlayerActionRow(
     playMode: MusicPlayMode,
     meta: MusicSong?,
-    lyricsAvailable: Boolean,
     lyricsOverlayEnabled: Boolean,
     onCyclePlayMode: () -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
-    onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
     onToggleLyricsOverlay: () -> Unit,
     onOpenEffects: () -> Unit,
@@ -611,12 +609,6 @@ private fun PlayerActionRow(
             active = meta?.isFavorite == true,
             enabled = meta != null,
             onClick = { meta?.let(onToggleFavorite) },
-        )
-        NowPlayingAction(
-            icon = painterResource(R.drawable.ic_music_lyrics),
-            label = "歌词",
-            active = lyricsAvailable,
-            onClick = onOpenLyrics,
         )
         NowPlayingAction(
             icon = painterResource(CoreR.drawable.ic_smartphone),

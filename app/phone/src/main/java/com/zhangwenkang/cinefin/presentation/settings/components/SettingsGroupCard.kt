@@ -50,6 +50,8 @@ fun SettingsGroupCard(
     group: PreferenceGroup,
     onAction: (SettingsAction) -> Unit,
     modifier: Modifier = Modifier,
+    /** W56：组内首行插槽（「账号与服务器」组的账号卡）。插槽自带点击语义， 与组内行之间同样画一条发丝线。 */
+    header: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     Column(modifier = modifier) {
@@ -79,6 +81,13 @@ fun SettingsGroupCard(
         }
         LumenCardFrame(shape = CinefinShapes.Lg, modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
+                if (header != null) {
+                    header()
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = SettingsRowHorizontalPadding),
+                        color = colors.outlineVariant,
+                    )
+                }
                 group.preferences.fastForEachIndexed { index, preference ->
                     when (preference) {
                         is PreferenceCategory ->
