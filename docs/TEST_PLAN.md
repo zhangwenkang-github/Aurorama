@@ -322,7 +322,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 2.53 GB / 5006 页本地 SAF 样本）：扫描日志 `pages=5006 slots=4973 landscape=4938`（与修复前一致）、Native
 49.8–53.9 MB、PSS 358–368 MB（同机滚动基线 316.3 MB）、+60 s 不增长、双栏→滚动→分页可回落；W22 测试书
 `landscape=2 at=14,15`、RTL 相位对图 8/8、0 误拼；设备副作用全部还原。详见 `READER_PLAN` §2 D24 / §7.16 与
-`DOWNLOAD_PLAN` §15。
+`DOWNLOAD_PLAN` §16。
 
 ### 7.3 未触发项（B 组 / 故障窗口）
 
