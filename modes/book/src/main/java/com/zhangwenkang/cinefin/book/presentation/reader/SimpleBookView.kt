@@ -343,7 +343,8 @@ private fun PagedPages(
                         slots.getOrNull(spread + 1)?.pages?.first()?.let { cache.prefetch(it) }
                         // 对图合并：邻槽停稳后先做判定 / 合成，翻到下一屏时直接可用。
                         if (mergeCache != null) {
-                            listOf(spread - 1, spread + 1)
+                            // 当前槽也一并复算：上一轮「未就绪」的判定在这里补上（W49，null 判定不缓存）。
+                            listOf(spread - 1, spread, spread + 1)
                                 .mapNotNull { slots.getOrNull(it) }
                                 .filter { it.pages.size == SPREAD_MERGE_PAGES_PER_SPREAD }
                                 .forEach { mergeCache.prefetch(it.pages.first()) }
@@ -461,7 +462,15 @@ private fun MergedSpreadPage(
     val firstPage = slot.pages.first()
     // 第一帧先查缓存（预取过的邻槽直接上合并图），没有才异步判定 + 合成。
     var merged by remember(firstPage) { mutableStateOf(mergeCache.cached(firstPage)) }
-    LaunchedEffect(firstPage) { if (merged == null) merged = mergeCache.mergedSpread(firstPage) }
+    // W49：判定未就绪 / 合成失败不是终局——限量退避重试；只有「明确不合并」才停在 W4 的两页渲染。
+    LaunchedEffect(firstPage) {
+        if (merged == null) merged = mergeCache.mergedSpread(firstPage)
+        for (attempt in 1 until SPREAD_MERGE_RETRY_ATTEMPTS) {
+            if (merged != null || !mergeCache.shouldRetry(firstPage)) break
+            delay(SPREAD_MERGE_RETRY_DELAY_MS)
+            merged = mergeCache.mergedSpread(firstPage)
+        }
+    }
     val image = merged
     if (image == null) {
         SpreadPages(

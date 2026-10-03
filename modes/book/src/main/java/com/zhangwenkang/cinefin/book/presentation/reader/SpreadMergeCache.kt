@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.util.LruCache
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -20,6 +21,8 @@ import timber.log.Timber
  *
  * 键 = 拼合页对的**首页索引**（W26：横版整页独占后槽位与页对的 `2k / 2k+1` 映射不再成立；两页槽一定由 相邻两页组成，首页即可唯一标识）。
  *
+ * W49：判定记忆只缓存**明确结论**——「资料未就绪」（页面尺寸 / 缩略图取不到）不写入缓存，下一次请求重算； 调用方可用 [shouldRetry] 判断该槽位是否值得稍后重试。
+ *
  * 内存（EB-3 红线同口径）：
  * - 判定只用两张 256 px 缩略图（各 ≈0.2 MB，用完立即 recycle）；
  * - 合并位图长边 ≤ [SPREAD_MERGE_MAX_SIDE_PX]，缓存窗口 [SPREAD_MERGE_CACHE_WINDOW] 张： PDF（ARGB_8888）≤ 2×11.8
@@ -34,8 +37,15 @@ internal class SpreadImageCache(
     private val maxSidePx = maxSidePx.coerceAtLeast(1)
     private val cache = LruCache<Int, Bitmap>(SPREAD_MERGE_CACHE_WINDOW)
 
-    /** 判定结果缓存：键 = 首页索引，值 = 命中时的决策（null = 不合并）。不随位图淘汰而失效。 */
-    private val decisions = HashMap<Int, SpreadMergeDecision?>()
+    /**
+     * 判定结果记忆：键 = 首页索引，只记明确结论（含「明确不合并」）。不随位图淘汰而失效。
+     *
+     * 未就绪的判定不写入，避免把瞬时失败缓存成永久「不合并」（W49 修复 W48 真机发现）。
+     */
+    private val decisions = SpreadMergeDecisionMemo()
+
+    /** 判定命中但合成失败（半页渲染失败等）的槽位：允许调用方稍后重试，成功后清除。 */
+    private val composeFailures = ConcurrentHashMap.newKeySet<Int>()
     private val mutex = Mutex()
 
     /** 合并后的整幅位图；不命中 / 渲染失败返回 null（调用方回退到两页各自渲染）。 */
@@ -45,10 +55,18 @@ internal class SpreadImageCache(
             return it
         }
         return mutex.withLock {
-            cache.get(firstPage)
-                ?: decideMerge(firstPage)
-                    ?.let { decision -> composeMerged(firstPage, decision) }
-                    ?.also { cache.put(firstPage, it) }
+            cache.get(firstPage)?.let {
+                return@withLock it
+            }
+            val decision = decideMerge(firstPage) ?: return@withLock null
+            val merged = composeMerged(firstPage, decision)
+            if (merged == null) {
+                composeFailures += firstPage
+            } else {
+                composeFailures -= firstPage
+                cache.put(firstPage, merged)
+            }
+            merged
         }
     }
 
@@ -58,23 +76,34 @@ internal class SpreadImageCache(
      */
     fun cached(firstPage: Int): Bitmap? = if (firstPage < 0) null else cache.get(firstPage)
 
+    /** 该槽位是否值得稍后重试（W49）：判定未就绪、或上一次合成失败时为 true；已有「明确不合并」结论或合并图已备好时为 false（避免无谓复算）。 */
+    fun shouldRetry(firstPage: Int): Boolean {
+        if (firstPage < 0 || firstPage + 1 >= source.pageCount) return false
+        if (firstPage in composeFailures) return true
+        return decisions.cached(firstPage) == null
+    }
+
     /** 预取邻槽（停稳后调用）：命中会连判定带位图一起备好，不命中只留一条判定缓存。 */
     suspend fun prefetch(firstPage: Int) {
         if (firstPage < 0 || firstPage + 1 >= source.pageCount) return
         mergedSpread(firstPage)
     }
 
-    private suspend fun decideMerge(firstPage: Int): SpreadMergeDecision? {
-        if (decisions.containsKey(firstPage)) return decisions[firstPage]
-        val decision = determineMerge(firstPage)
-        decisions[firstPage] = decision
-        return decision
-    }
+    private suspend fun decideMerge(firstPage: Int): SpreadMergeDecision? =
+        when (val result = decisions.resolve(firstPage) { determineMerge(firstPage) }) {
+            is SpreadMergeDecisionResult.Ready -> result.decision
+            SpreadMergeDecisionResult.NotReady -> null
+        }
 
-    private suspend fun determineMerge(firstPage: Int): SpreadMergeDecision? {
+    private suspend fun determineMerge(firstPage: Int): SpreadMergeDecisionResult {
         val secondPage = firstPage + 1
-        val sizeFirst = runCatching { source.pageSizePx(firstPage) }.getOrNull() ?: return null
-        val sizeSecond = runCatching { source.pageSizePx(secondPage) }.getOrNull() ?: return null
+        // 尺寸 / 缩略图取不到都是「未就绪」（瞬时失败），不能当成「不合并」写进记忆，否则这一屏本轮不再复算。
+        val sizeFirst =
+            runCatching { source.pageSizePx(firstPage) }.getOrNull()
+                ?: return SpreadMergeDecisionResult.NotReady
+        val sizeSecond =
+            runCatching { source.pageSizePx(secondPage) }.getOrNull()
+                ?: return SpreadMergeDecisionResult.NotReady
         val geometry =
             spreadMergeGeometry(
                 PagePairGeometry(
@@ -84,10 +113,10 @@ internal class SpreadImageCache(
                     sizeSecond.second,
                 ),
                 maxSidePx,
-            ) ?: return null
+            ) ?: return SpreadMergeDecisionResult.Ready(null)
         val thumbFirst =
             runCatching { source.renderPage(firstPage, SPREAD_MERGE_THUMB_MAX_SIDE_PX) }.getOrNull()
-                ?: return null
+                ?: return SpreadMergeDecisionResult.NotReady
         val thumbSecond = runCatching {
             source.renderPage(secondPage, SPREAD_MERGE_THUMB_MAX_SIDE_PX)
         }
@@ -95,7 +124,7 @@ internal class SpreadImageCache(
         if (thumbSecond == null) {
             // 第二张没渲染出来：第一张缩略图要先回收，不能漏。
             recycleQuietly(thumbFirst)
-            return null
+            return SpreadMergeDecisionResult.NotReady
         }
         val decision =
             try {
@@ -119,7 +148,7 @@ internal class SpreadImageCache(
                 recycleQuietly(thumbFirst)
                 recycleQuietly(thumbSecond)
             }
-        if (decision == null) return null
+        if (decision == null) return SpreadMergeDecisionResult.Ready(null)
         // 真机验收的文本证据：命中才打点（不命中每屏都会出现，不记）。
         val evidence = decision.evidence
         Timber.d(
@@ -133,7 +162,7 @@ internal class SpreadImageCache(
             decision.trimFirstPx,
             decision.trimSecondPx,
         )
-        return decision
+        return SpreadMergeDecisionResult.Ready(decision)
     }
 
     private suspend fun composeMerged(
@@ -188,6 +217,50 @@ internal class SpreadImageCache(
 
 private const val FIRST_SLOT = 0
 private const val SECOND_SLOT = 1
+
+/**
+ * 判定结果（W49）：区分「已有明确结论」与「资料未就绪」。
+ *
+ * [Ready] 的 [Ready.decision] 为 null 表示「明确不合并」——判定链路完整跑完、几何 / 中缝证据否决， 可以缓存（同一页对下次不再复算）； [NotReady]
+ * 表示这次判定没跑出来（页面尺寸 / 缩略图取不到等瞬时失败），**不写入缓存**， 下一次请求重算（W48 真机发现的「null 判定被缓存」即此类）。
+ */
+internal sealed interface SpreadMergeDecisionResult {
+    data class Ready(val decision: SpreadMergeDecision?) : SpreadMergeDecisionResult
+
+    data object NotReady : SpreadMergeDecisionResult
+}
+
+/**
+ * 判定记忆（W49）：只缓存 [SpreadMergeDecisionResult.Ready] 结论。
+ *
+ * 纯 Kotlin（无 Android 依赖），由 JVM 单测覆盖「先未就绪、后有效」的重试路径。
+ */
+internal class SpreadMergeDecisionMemo {
+    private val decisions = HashMap<Int, SpreadMergeDecision?>()
+
+    /** 已有明确结论（含明确不合并）时返回它；从未判定 / 上次未就绪时返回 null。 */
+    fun cached(firstPage: Int): SpreadMergeDecisionResult? =
+        if (decisions.containsKey(firstPage)) SpreadMergeDecisionResult.Ready(decisions[firstPage])
+        else null
+
+    /**
+     * 取判定：命中明确结论直接返回；否则调用 [compute]，只有 [SpreadMergeDecisionResult.Ready]
+     * 才写入记忆（[SpreadMergeDecisionResult.NotReady] 保持「未判定」，下次重算）。
+     */
+    suspend fun resolve(
+        firstPage: Int,
+        compute: suspend () -> SpreadMergeDecisionResult,
+    ): SpreadMergeDecisionResult {
+        cached(firstPage)?.let {
+            return it
+        }
+        val result = compute()
+        if (result is SpreadMergeDecisionResult.Ready) {
+            decisions[firstPage] = result.decision
+        }
+        return result
+    }
+}
 
 /**
  * 把两半合成为一整幅：统一高度（不放大）、左右相接（RTL 时先读的一页在右）。

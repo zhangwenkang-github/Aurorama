@@ -472,6 +472,28 @@ MIUI 杀死）。
 4. **边界**：渲染路径仍是 PdfRenderer（D14 不变）；版式扫描只在双栏挂载、惰性、随 `PdfPageSource.close()`
    释放；扫描期间维持 W22 固定两页占位版式，完成后按横版页独占重排。
 
+### D25 · W49：对图判定「null 不缓存 + 可重试」（W49-R1）——**已落地**
+
+**背景**：W48 真机（§7.16.3）在 LTR 冷启动 / 切 RTL 重建缓存瞬间观察到：某槽位的对图判定可能取到 null
+（页面尺寸 / 缩略图取不到等瞬时失败，`runCatching` 把异常吞成 null）并被写进判定缓存，之后该轮不再复算；
+同一页对在 RTL 相位 / 重建缓存后重新命中。判定链路（`pageSizePx` / `renderPage` / `spreadMergeDecision`）
+本身不改，只把「未就绪」与「明确不合并」分开。
+
+**修复**（`modes:book`，不新增偏好键）：
+
+1. **判定结果分型**：`SpreadMergeDecisionResult` = `Ready(decision)`（判定链路完整跑完；`decision == null`
+   表示几何 / 中缝证据**明确不合并**，可缓存）/ `NotReady`（页面尺寸 / 缩略图取不到，**不写缓存**）；
+   `SpreadMergeDecisionMemo` 只记 `Ready`，纯 Kotlin + JVM 单测。
+2. **调用侧重试**：`SpreadImageCache.shouldRetry(firstPage)`（未就绪 / 上次合成失败 = true；明确不合并或
+   合并图已备好 = false）；`MergedSpreadPage` 首次失败后按 `SPREAD_MERGE_RETRY_DELAY_MS = 250 ms` 退避重试，
+   上限 `SPREAD_MERGE_RETRY_ATTEMPTS = 3` 次；Pager 停稳的邻槽预取列表加入**当前槽**（`prefetch` 即「下一轮
+   强制复算」）。
+3. **不变式**：明确不合并仍然只判一次（保留 W22 的性能语义）；判定日志、2 张 LRU、合并几何与
+   `pageAspectRatios` 扫描全部不动。
+
+单测 `SpreadMergeDecisionMemoTest`（3 项）：先 `NotReady` 后 `Ready` 的重试路径（第二次重算并命中、命中后
+不再复算）、明确不合并缓存 null 结论、未就绪只影响当前页对。
+
 ## 3. 接口契约（已落地）
 
 ```kotlin
@@ -1394,6 +1416,23 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 会话首次生成，值即默认）；`accelerometer_rotation=1` / `user_rotation=0`；App force-stop；未改网络 /
 音量；服务器只读。
 
+### 7.17 W49 对图判定可重试复验（2026-10-03 17:0x–17:1x，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，负责人调度窗口）——**完成**
+
+分支 `fix/w49-leftover-cleanup`（起点 master `3dbca99`），素材 = `tools/w22-spread-test/make_spread_test_book.py`
+重新生成的 `W22-Spread-Test.pdf`（36.1 MB / 30 页；生成器离线自测 LTR / RTL 双路径 8/8 达标），经本地媒体库
+（SAF，`/sdcard/Download/w49media`）打开；测试服务器只读。安装包 = 本 worktree `:app:phone:assembleDebug`
+（arm64-v8a，`install -r`）。
+
+- **LTR 冷启动（双栏）**：`reader spread layout pages=30 slots=16 landscape=2 at=14,15`（与 W33 / W26 / W48
+  口径逐字一致）；8 对拆页对图**全部命中** —— `pages=3-4 / 5-6 / 9-10 / 13-14 / 19-20 / 21-22 / 25-26 /
+  29-30`（continuity 0.88–0.89 / corr 1.00 / diff 0.00 / trim=0/0）；翻满 15 槽仅这 8 条合并日志（0 误拼）。
+- **切 RTL 重建缓存**：打开右起后逐槽走查，同样 8/8 命中（corr 1.00 / diff 0.00），页指示
+  「双栏 · n-m/30 · 右起」全程正常；整会话合并日志 16 条 = LTR 8 + RTL 8，无多余合并、无漏合并。
+- **未确定性触发的项**：瞬时「判定未就绪」窗口（内存压力 / 解码瞬时失败）本轮未复现（与 W48 的
+  3-4/5-6 概率一致）；「不缓存未就绪 + 重试」由 `SpreadMergeDecisionMemoTest` 单测锁定，真机确认该改动
+  没有改变命中结果与 0 误拼。
+- K60 抽验：同 APK 装机 + 打开服务器书籍（attention PDF）回归阅读器滑杆修复（`UI_PLAN` D51）。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -1578,6 +1617,8 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - ✅（W26 完成）**带纸边的对图合并**：以"纸白 / 低信息带"判据先做内缘裁剪（上限 18% 半页宽），
   用更严的裁剪路径门槛（corr ≥0.75 / diff ≤0.15）兜住误拼；合成时全分辨率重检 + 比例兜底（D21、
   §7.11.3）。W26 新素材 4 对带纸边对图真机 4/4 命中、3 类带纸边负样本 0 误拼。
+- ✅（W49 完成）**「未就绪判定」不再被缓存**：W48 真机发现的「瞬时 null 判定被写进缓存 → 该轮不再复算」
+  改为结果分型 + 调用侧退避重试（D25、§7.17）；明确不合并仍然只判一次。
 - **CBZ 分辨率上限**：CBZ 走 `BitmapFactory` 2 的幂降采样，合并位图可能比 PDF 路径更软；如需更锐
   要改解码方式（分块 / 二次缩放），本波不动。
 - 合并判定只覆盖"两页等高"的对图；两半高度差 >2% 的扫描（跨页图被裁成不同高度）本波不合并。
@@ -1662,3 +1703,4 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 | 2026-10-02 | **W29 真机验收（Pad 5 `43af8627`，负责人指派窗口）+ 真机缺陷修复**（分支 `fix/w29-search-hit-position`，基于整合版 master `e465a83`）——①**真机拦下的崩溃**：搜索「attention」触发 `IllegalArgumentException: Key "0-25-9" was already used`（同页两次命中片段位置相同 → 结果列表 LazyColumn key 重复）→ 修复 `buildSnippet` 为「原始下标 → 折叠后下标」逐字符映射 + key 加下标护栏（踩坑 28），补 2 项回归单测（101 → **103**），同命令复验 65 条命中无崩溃；②搜索真机：命中列表懒加载滚动、跳转 `分页 · 5/15` + 命中矩形像素取证（5 条色带 33 px 高、带内文字像素 5.9–13.4%）、无文本层提示（W22 PDF ≈1–2 s）、非 PDF 无入口、虚构推理 3649 页首扫 ≈14 s / 热扫 ≈1.3 ms/页、退后台取消（已扫描 2125/3649 → 已暂停）、搜索会话 Native ≈64 MB；③批注真机：新增（空/带备注）→ 文件 version 1 落盘、编辑回填原备注、弹窗与列表两路删除、列表跳转、页面叠加与存储矩形换算一致、RTL 双栏相位锚点一致（LTR x 347–601 / RTL x 1147–1401，高宽 y 相同）、合并槽 A/B 页面区域 0 差异；④**顺带发现 W26 线缺陷**（踩坑 29，未修）：3649 页 PDF 进双栏的版式扫描把 Native 58 → 716–748 MB（PSS 357 → 962 MB）且不回收，交 W26 线；⑤设备还原：批注文件 / 目录删除、prefs 回 `paged` + `rtl=false` + `eyecare` + 字号 0.9988、旋转未改、App force-stop、`/sdcard/w29.xml` 删除，K60 未触碰。详见 §7.13 |
 | 2026-10-02 | **W33-READER-PERF（分支 `fix/w33-spread-scan-memory`，起点 master `9738877`）：双栏版式扫描内存回归修复**——①根因：W26 进双栏逐页 `PdfRenderer.openPage` 读尺寸（踩坑 29），native 不回收；②方案：新增 `PdfLayoutSource`（PdfBox 页树元数据批量读：`/CropBox` 回退 `/MediaBox` + 继承 `/Rotate` 折算、8 MB 主缓冲 + 临时文件、失败回退逐页），`PageSource.pageAspectRatios()` 可选批量路径 + `collectPageAspectRatios()` 优先批量，渲染路径不变；③单测 103 → **106**（`PdfLayoutSourceTest`：旋转折算 / 页树批量读取与缺省回退 / 继承 Rotate）；④门禁四绿（`assembleDebug` + `ktfmtCheck` + app 61 + book 106）；⑤真机 Pad 5：虚构推理 3649 页切双栏 Native 55–57 MB / PSS 286–299 MB（修复前 748 MB / 962 MB）、能回落、扫描日志 `slots=1825 landscape=0`；W22 测试书 `landscape=2 at=14,15` + 对图 8/8 + 0 误拼 + RTL / 搜索 65 条 / 批注不回归；⑥设备副作用还原（见 §7.14） |
 | 2026-10-03 | **W48-READER-PERF（分支 `fix/w48-saf-pdf-scan-memory`，起点 master `1ebdbcc`）：本地 SAF PDF 双栏扫描内存爆增修复（D-W47-1）**——①根因：W33 只覆盖本地缓存文件路径，本地媒体库 `content://` 的 `PdfPageSource(descriptor)` 仍 `layout = null` → 双栏逐页 `PdfRenderer.openPage`（W47 金田一 5006 页 Native 1.59 GB / PSS 2.45 GB 被杀）；②方案（D24）：`PdfLayoutSource.forDescriptor()`——`dup` 独立 fd + `Os.pread` 定位读（探针判定可 seek）+ `PDFParser(RandomAccessRead, ScratchFile)`（8 MB 混合缓冲），**4 KB 页 + 256 页 LRU 缓存**（首版无缓存真机 CPU 100% 数分钟不结束，踩坑 31）；③兜底：`PageSource.perPageAspectScanMaxPages`（PDF = 1500），批量不可用时大书跳过逐页扫描用安全默认并打 `skip-fallback` 日志，小书仍逐页；④单测 476 项（book 106 → **110**：阈值边界 / fd 可用性判定 / 页缓存合并读与跨页 / 随机读源批量读取）；⑤门禁四绿（根 `assembleDebug` 含 TV + `ktfmtCheck` + 7 个测试任务 `--rerun` 476 项 0 失败）；⑥真机 K60：金田一 5006 页扫描日志与修复前逐字一致（`slots=4973 landscape=4938`），Native 49.8–53.9 MB / PSS 358–368 MB（同机滚动基线 316.3 MB）、60 s 不增长、可回落；W22 `landscape=2 at=14,15`、RTL 相位对图 8/8、0 误拼；⑦设备副作用还原（§7.16） |
+| 2026-10-03 | **W49-READER（分支 `fix/w49-leftover-cleanup`，起点 master `3dbca99`）：对图判定「null 不缓存 + 可重试」（D25）**——`SpreadMergeDecisionResult`（`Ready` / `NotReady`）+ `SpreadMergeDecisionMemo` 只缓存明确结论；`shouldRetry` + 250 ms 退避重试（上限 3 次）+ 停稳预取补当前槽；单测 110 → **113**（`SpreadMergeDecisionMemoTest` 3 项）；真机 LTR 冷启动 8/8 + 切 RTL 重建缓存 8/8 + `landscape=2 at=14,15` + 0 误拼（§7.17）；同波将 CBZ 页序自然序比较器下沉 data 共用（`DOWNLOAD_PLAN` §17） |

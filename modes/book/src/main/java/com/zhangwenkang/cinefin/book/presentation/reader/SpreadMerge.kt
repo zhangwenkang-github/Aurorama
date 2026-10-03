@@ -32,6 +32,12 @@ internal const val SPREAD_MERGE_CACHE_WINDOW: Int = 2
 /** 一个 spread 固定 = 两页（只在 [ReaderMode.TwoColumn] 下合并）。 */
 internal const val SPREAD_MERGE_PAGES_PER_SPREAD: Int = 2
 
+/** 判定未就绪时的重试次数上限（W49）：冷启动 / 切 RTL 重建缓存瞬间的瞬时失败最多重试到该次数。 */
+internal const val SPREAD_MERGE_RETRY_ATTEMPTS: Int = 3
+
+/** 判定重试间隔（毫秒）：给页面解码 / 内存压力留出恢复窗口，又不拖慢可感知的合并显示。 */
+internal const val SPREAD_MERGE_RETRY_DELAY_MS: Long = 250
+
 /** 两半高度允许的相对误差（同一张对图被拆两张时高度几乎一致，留扫描裁切余量）。 */
 internal const val SPREAD_HALF_HEIGHT_TOLERANCE: Float = 0.02f
 
