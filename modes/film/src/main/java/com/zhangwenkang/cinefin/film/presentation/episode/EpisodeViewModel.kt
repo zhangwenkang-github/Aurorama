@@ -13,6 +13,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.PersonKind
@@ -60,31 +61,41 @@ constructor(
 
     fun onAction(action: EpisodeAction) {
         when (action) {
-            is EpisodeAction.MarkAsPlayed -> {
-                viewModelScope.launch {
-                    repository.markAsPlayed(episodeId)
-                    loadEpisode(episodeId)
-                }
-            }
-            is EpisodeAction.UnmarkAsPlayed -> {
-                viewModelScope.launch {
-                    repository.markAsUnplayed(episodeId)
-                    loadEpisode(episodeId)
-                }
-            }
-            is EpisodeAction.MarkAsFavorite -> {
-                viewModelScope.launch {
-                    repository.markAsFavorite(episodeId)
-                    loadEpisode(episodeId)
-                }
-            }
-            is EpisodeAction.UnmarkAsFavorite -> {
-                viewModelScope.launch {
-                    repository.unmarkAsFavorite(episodeId)
-                    loadEpisode(episodeId)
-                }
-            }
+            is EpisodeAction.MarkAsPlayed -> setPlayed(played = true)
+            is EpisodeAction.UnmarkAsPlayed -> setPlayed(played = false)
+            is EpisodeAction.MarkAsFavorite -> setFavorite(favorite = true)
+            is EpisodeAction.UnmarkAsFavorite -> setFavorite(favorite = false)
             else -> Unit
+        }
+    }
+
+    /** W51：已播放标记乐观更新，失败回滚（用户 2026-10-03 口径）。 */
+    private fun setPlayed(played: Boolean) {
+        val previous = _state.value.episode?.played ?: return
+        _state.update { it.copy(episode = it.episode?.copy(played = played)) }
+        viewModelScope.launch {
+            runCatching {
+                if (played) repository.markAsPlayed(episodeId)
+                else repository.markAsUnplayed(episodeId)
+            }
+                .onFailure {
+                    _state.update { it.copy(episode = it.episode?.copy(played = previous)) }
+                }
+        }
+    }
+
+    /** W51：喜欢标记乐观更新，失败回滚。 */
+    private fun setFavorite(favorite: Boolean) {
+        val previous = _state.value.episode?.favorite ?: return
+        _state.update { it.copy(episode = it.episode?.copy(favorite = favorite)) }
+        viewModelScope.launch {
+            runCatching {
+                if (favorite) repository.markAsFavorite(episodeId)
+                else repository.unmarkAsFavorite(episodeId)
+            }
+                .onFailure {
+                    _state.update { it.copy(episode = it.episode?.copy(favorite = previous)) }
+                }
         }
     }
 }

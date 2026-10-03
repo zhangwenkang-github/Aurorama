@@ -267,4 +267,13 @@ class DownloadTaskRulesTest {
             DownloadTaskRules.groupKey(DownloadTaskStatus.COMPLETED),
         )
     }
+
+    @Test
+    fun `活动队列状态只含排队下载与暂停`() {
+        assertTrue(DownloadTaskRules.isActiveQueueStatus(DownloadTaskStatus.PENDING))
+        assertTrue(DownloadTaskRules.isActiveQueueStatus(DownloadTaskStatus.RUNNING))
+        assertTrue(DownloadTaskRules.isActiveQueueStatus(DownloadTaskStatus.PAUSED))
+        assertFalse(DownloadTaskRules.isActiveQueueStatus(DownloadTaskStatus.COMPLETED))
+        assertFalse(DownloadTaskRules.isActiveQueueStatus(DownloadTaskStatus.FAILED))
+    }
 }

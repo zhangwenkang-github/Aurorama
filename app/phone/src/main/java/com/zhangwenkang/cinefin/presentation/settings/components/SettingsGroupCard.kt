@@ -28,6 +28,7 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicSe
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceFileEdit
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceGroup
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntInput
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
@@ -96,6 +97,17 @@ fun SettingsGroupCard(
                             )
                         is PreferenceSelect ->
                             SettingsSelectCard(
+                                preference = preference,
+                                onUpdate = { value ->
+                                    onAction(
+                                        SettingsAction.OnUpdate(preference.copy(value = value))
+                                    )
+                                    preference.onUpdate(value)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        is PreferenceIntSelect ->
+                            SettingsIntSelectCard(
                                 preference = preference,
                                 onUpdate = { value ->
                                     onAction(

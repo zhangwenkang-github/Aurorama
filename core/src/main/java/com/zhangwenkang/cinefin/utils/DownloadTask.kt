@@ -130,6 +130,16 @@ object DownloadTaskRules {
     fun coerceConcurrency(value: Int): Int =
         value.coerceIn(MIN_CONCURRENT_TASKS, MAX_CONCURRENT_TASKS)
 
+    /**
+     * W51：「活动任务」口径 = 下载中 + 排队 + 暂停。
+     *
+     * 侧栏下载角标与详情页「已在队列」判定共用；失败任务不算活动（详情页再点下载 = 从残片重试）。
+     */
+    fun isActiveQueueStatus(status: DownloadTaskStatus): Boolean =
+        status == DownloadTaskStatus.PENDING ||
+            status == DownloadTaskStatus.RUNNING ||
+            status == DownloadTaskStatus.PAUSED
+
     fun resolveStatus(
         persistedStatus: String?,
         pathIsPartial: Boolean,

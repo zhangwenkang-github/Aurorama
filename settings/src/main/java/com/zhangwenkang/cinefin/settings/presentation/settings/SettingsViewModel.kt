@@ -19,6 +19,7 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicSe
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceFileEdit
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceGroup
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntInput
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
@@ -965,10 +966,15 @@ constructor(
                                     PreferenceGroup(
                                         preferences =
                                             listOf(
+                                                // W51：用户口径 =「仅 Wi-Fi 下载（默认开）」；对既有键取反绑定，不新增重复键。
                                                 PreferenceSwitch(
                                                     nameStringResource =
-                                                        R.string.download_mobile_data,
+                                                        R.string.settings_download_wifi_only,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_download_wifi_only_summary,
                                                     supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    negateValue = true,
                                                     backendPreference =
                                                         appPreferences.downloadOverMobileData,
                                                 ),
@@ -981,6 +987,28 @@ constructor(
                                                     supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference =
                                                         appPreferences.downloadWhenRoaming,
+                                                ),
+                                                PreferenceIntSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_download_concurrency,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_download_concurrency_summary,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences.downloadConcurrency,
+                                                    optionValues = listOf(1, 2, 3),
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string
+                                                            .settings_download_complete_notification,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_download_complete_notification_summary,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences.downloadCompleteNotification,
                                                 ),
                                             )
                                     ),
@@ -1231,6 +1259,22 @@ constructor(
                                                                 appPreferences.getValue(it)
                                                             },
                                                     value =
+                                                        appPreferences
+                                                            .getValue(preference.backendPreference)
+                                                            .let { value ->
+                                                                if (preference.negateValue) !value
+                                                                else value
+                                                            },
+                                                )
+                                            }
+                                            is PreferenceIntSelect -> {
+                                                preference.copy(
+                                                    enabled =
+                                                        preference.enabled &&
+                                                            preference.dependencies.all {
+                                                                appPreferences.getValue(it)
+                                                            },
+                                                    value =
                                                         appPreferences.getValue(
                                                             preference.backendPreference
                                                         ),
@@ -1317,6 +1361,12 @@ constructor(
             is SettingsAction.OnUpdate -> {
                 when (action.preference) {
                     is PreferenceSwitch ->
+                        appPreferences.setValue(
+                            action.preference.backendPreference,
+                            if (action.preference.negateValue) !action.preference.value
+                            else action.preference.value,
+                        )
+                    is PreferenceIntSelect ->
                         appPreferences.setValue(
                             action.preference.backendPreference,
                             action.preference.value,

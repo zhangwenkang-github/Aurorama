@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,6 +36,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -68,6 +72,12 @@ class CinefinNavItem(
      * 渲染——两侧共用同一份条目定义，避免"侧轨有箭头、抽屉没有"的不一致（W8-R3）。
      */
     val trailing: (@Composable () -> Unit)? = null,
+    /**
+     * 图标右上角角标槽位（W51：下载入口的活动任务数）。
+     *
+     * 侧轨 / 抽屉 / 底栏三处共用同一份定义，避免"侧轨有角标、抽屉没有"的不一致。
+     */
+    val badge: (@Composable () -> Unit)? = null,
 )
 
 /**
@@ -206,7 +216,7 @@ fun CinefinNavigationItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center,
         ) {
-            Box(modifier = Modifier.size(24.dp)) { item.icon(selected) }
+            NavIconWithBadge(item = item, selected = selected)
             if (expanded) {
                 Spacer(Modifier.width(CinefinSpacing.Space3))
                 Text(
@@ -347,7 +357,7 @@ fun CinefinBottomTab(
                             )
                 )
                 Spacer(Modifier.height(CinefinSpacing.Space1))
-                Box(modifier = Modifier.size(24.dp)) { item.icon(selected) }
+                NavIconWithBadge(item = item, selected = selected)
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = item.label,
@@ -357,6 +367,57 @@ fun CinefinBottomTab(
                 )
             }
         }
+    }
+}
+
+/** 导航图标槽：24dp 图标 + 可选右上角角标（W51 下载活动任务数）。 */
+@Composable
+private fun NavIconWithBadge(item: CinefinNavItem, selected: Boolean) {
+    Box(modifier = Modifier.size(24.dp)) {
+        item.icon(selected)
+        item.badge?.let { badge ->
+            Box(modifier = Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-7).dp)) {
+                badge()
+            }
+        }
+    }
+}
+
+/**
+ * W51 导航角标：活动任务数（>99 收敛 `99+`）。
+ *
+ * 中性配色（`OnSurface` 底 / `Surface` 字），不占用媒体色；0 兜底不渲染（调用方仍负责 0 隐藏）。
+ */
+@Composable
+fun CinefinCountBadge(
+    count: Int,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+) {
+    if (count <= 0) return
+    val colors = LocalCinefinColors.current
+    val semanticsModifier =
+        if (contentDescription != null) {
+            Modifier.semantics { this.contentDescription = contentDescription }
+        } else {
+            Modifier
+        }
+    Box(
+        modifier =
+            modifier
+                .then(semanticsModifier)
+                .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(colors.onSurface)
+                .padding(horizontal = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = if (count > 99) "99+" else count.toString(),
+            style = CinefinType.LabelSmall,
+            color = colors.surface,
+            maxLines = 1,
+        )
     }
 }
 

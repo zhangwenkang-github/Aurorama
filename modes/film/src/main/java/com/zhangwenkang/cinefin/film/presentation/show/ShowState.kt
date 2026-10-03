@@ -12,5 +12,9 @@ data class ShowState(
     val actors: List<FindroidItemPerson> = emptyList(),
     val director: FindroidItemPerson? = null,
     val writers: List<FindroidItemPerson> = emptyList(),
+    /** W51：整剧下载目标（按季 / 集顺序展开的剧集）；null = 尚未按需加载。 */
+    val downloadTargets: List<FindroidEpisode>? = null,
+    val downloadTargetsLoading: Boolean = false,
+    val downloadTargetsError: Exception? = null,
     val error: Exception? = null,
 )

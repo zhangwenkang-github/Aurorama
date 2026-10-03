@@ -894,6 +894,28 @@ class DownloaderImpl(
             runCatching { database.getDownloadedItemIds().toSet() }.getOrElse { emptySet() }
         }
 
+    override suspend fun activeItemIds(): Set<UUID> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                database
+                    .getPendingSources()
+                    .mapNotNull { source ->
+                        val status =
+                            if (activeJobs.containsKey(source.id)) {
+                                DownloadTaskStatus.RUNNING
+                            } else {
+                                DownloadTaskRules.resolveStatus(
+                                    persistedStatus = source.taskStatus,
+                                    pathIsPartial = source.path.endsWith(".download"),
+                                )
+                            }
+                        source.itemId.takeIf { DownloadTaskRules.isActiveQueueStatus(status) }
+                    }
+                    .toSet()
+            }
+                .getOrElse { emptySet() }
+        }
+
     override suspend fun foregroundInfo(): ForegroundInfo {
         val tasks = snapshotActiveTasks()
         val notification =

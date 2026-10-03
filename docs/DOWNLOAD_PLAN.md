@@ -1,7 +1,8 @@
 # Cinefin · 下载 / 离线任务线（DOWNLOAD_PLAN）
 
 > **本文件是下载 / 离线线的唯一权威文档**：需求、决策、进度、验收、踩坑都写在这里，不新建零散 `.md`。
-> 维护会话：W50-DOWNLOAD-ENGINE（分支 `feature/w50-download-engine`，基线 master `3dbca99`；W32/W34/W36/W37 历史见 §4/§4.1）
+> 维护会话：W51-DOWNLOAD-GRANULARITY（分支 `feature/w51-download-granularity`，基线 master `ce58847`；W50 引擎见 §18、
+> W52 界面见 §19；W32/W34/W36/W37 历史见 §4/§4.1）
 > 最后更新：2026-10-03
 
 ## 1. 范围与现状
@@ -497,3 +498,81 @@ W45 遗留两条（§14.4）本波落地；**缓存与懒生成策略不变**（
 - **真机验收未执行**：设备由 W53 占用中（`device-lock` 2026-10-03 19:02 起），待负责人统一调度；
 - 平板两列只覆盖「已折叠顶层容器」；展开容器整宽（如需「网格内展开」需要新交互设计）；
 - 容器速度 = 子任务速度之和，不含排队任务的预估速度（排队任务速度为 0，显示「—」）。
+
+## 20. W51 下载粒度 + 详情页动作排重绘（2026-10-03，分支 `feature/w51-download-granularity`，起点 master `ce58847`）
+
+**背景**：W50 自研引擎与 W52 下载页改版之后，下载动作仍只落在单集（电影走旧入口）：节目 / 季没有下载入口；
+详情页动作排是 W32 之前的图标行，「下载 / 已播放 / 喜欢」三个动作没有同排语义，也没有三态提示；侧栏 / 抽屉的下载入口没有活动任务数；
+W50 已实现的三项下载设置没有 UI。本波按用户 2026-10-03 确认的口径一次补齐，**不改引擎、不新增偏好键**。
+
+### 20.1 需求（用户口径）
+
+| # | 需求 |
+|---|------|
+| A | **下载粒度**：节目（Show）= 下载整剧 / 季（Season）= 下载全季 / 集（Episode）= 下载本集；全部走 W50 自研引擎（不调用系统 DownloadManager） |
+| A1 | 整剧 / 全季确认框**默认「仅补齐缺失集」**（已下载 / 已在队列的条目跳过），**默认单次上限 100 集** |
+| B | 三层详情页**介绍上方**同排「下载 / 已播放 / 喜欢」三个动作一并重绘；后两者可点切换（既有 API，乐观更新 + 失败回滚） |
+| C | 点击下载给 Snackbar 三态：**已加入下载队列 / 已在队列 / 已下载** |
+| D | 侧栏（rail）+ 抽屉的「下载」项显示活动任务数（**下载中 + 排队 + 暂停**），0 隐藏 |
+| E | 客户端设置 → 下载子页：**仅 Wi-Fi 下载（默认开）/ 同时下载数 1–3（默认 2）/ 下载完成通知（默认开）** |
+
+### 20.2 决策
+
+| 编号 | 决策 | 理由 / 后果 |
+|------|------|-------------|
+| D49 | **批量只提供「仅补齐缺失集」**（跳过已下载 / 已在队列）+ 默认上限 100 集（可关开关解除上限） | 不提供「覆盖式重下」：已完成条目直接重下会把 `sources` 行改写为新的 `.download` 残片，任务失败时该条目在离线索引里暂时消失（文件仍在盘上）。需要重下时先在下载页删除再补齐。上限可关 = 满足「默认 100 集」又不把 370 集大库卡死 |
+| D50 | **状态判定 / 批量集选择 / 去重 / 上限抽纯函数** `DetailDownloadRules`（`stateOf` / `containerState` / `selectBatch`），落 `modes:film` + 6 项单测 | 门禁要求（纯 Kotlin、无 Android 依赖）；单集三态「已下载优先于已在队列」，容器聚合「缺失集优先于队列」 |
+| D51 | **活动队列口径抽 `DownloadTaskRules.isActiveQueueStatus`**（PENDING / RUNNING / PAUSED）；新增 `Downloader.activeItemIds()` **只读 Room 快照**（不做对账 / 不唤醒引擎 / 不发网络） | 角标 2s 轮询不能复用 `refreshDownloadTasks()`（它对账 + 读侧车 + 可能唤醒引擎）；详情页点击时实时读一次，避免页面快照过期把「已在队列」误报成「已加入」 |
+| D52 | **批量目标按需加载**：Show 点击下载时才按季拉剧集（`ShowViewModel.loadDownloadTargets`，结果缓存），Season 直接用页面已加载的 `state.episodes`；过滤 `canDownload && !missing` | 节目详情页打开成本不变（大库不预加载）；Season 页面本来就有剧集列表，零额外请求 |
+| D53 | **详情动作排重绘 = 两行 + 三标签键**：第一行 播放 / 重播 / 预告（Icon 44dp）；第二行 **下载 / 已播放 / 喜欢**（Outlined 46dp + 选中态，Lumen 下自动切极光青）；下载键文案随三态变化（下载 / 已在队列 / 已下载）；Movie 保留旧的「已下载 → 删除确认」分支 | §8.1 详情页口径：播放 = Filled，下载 / 收藏 = Outlined；K60 360dp 下三键按内容宽排布不截断；Movie（不在本波范围）行为不回归 |
+| D54 | **「已播放 / 喜欢」乐观更新 + 失败回滚**（Show / Season / Episode 三个 ViewModel） | 旧实现成功后整页 reload（慢且闪）；现在点击立即翻转 `played` / `favorite`，API 失败回滚到点击前的值 |
+| D55 | **Snackbar = 新 core 组件 `CinefinSnackbarHost`**（§8.12：`InverseSurface` 底 / 反色文字 / 圆角 12 / 高 ≥52dp / 宽 ≤480dp / 无投影），详情页 `Box` 底部居中 | 全项目首个 Snackbar 落点；批量结果用扩展文案「已加入下载队列 · N 集」；三态与批量文案全部走 core 字符串（en / zh-rCN / zh-rTW） |
+| D56 | **设置页复用既有键**：「仅 Wi-Fi 下载」对 `pref_downloads_mobile_data` **取反绑定**（`PreferenceSwitch` 新增 `negateValue`，默认开）；「同时下载数」新增 `PreferenceIntSelect`（1 / 2 / 3 单选，默认 2）；「下载完成通知」接 `pref_download_complete_notification` | 不新增重复键（W50 D44 口径）；`AppPreferences.kt` **零改动**（红线未动）；漫游开关沿用「允许移动数据时才可用」的依赖关系 |
+| D57 | **角标渲染 = `CinefinNavItem.badge` 槽位 + `CinefinCountBadge`**（>99 收敛 `99+`；`OnSurface` 底 / `Surface` 字，中立不占媒体色）；落点 = **侧轨 + 抽屉**；`NavigationRoot` 前台 RESUMED 期间 2s 只读轮询 | 底栏（W53 后 = 首页 / 视频 / 音乐 / 书架）不含「下载」项，无底栏落点，已在验收清单注明；角标按 itemId 去重计数（同一媒体多来源任务的极端情况会少计） |
+
+### 20.3 实现地图
+
+| 文件 | 作用 |
+|------|------|
+| `modes/film/.../presentation/detail/DetailDownloadRules.kt` | 三态判定 / 容器聚合 / 批量集选择 + 上限（纯函数，6 项单测） |
+| `modes/film/.../presentation/detail/DetailDownloadViewModel.kt` | 详情页共用：已下载 / 活动队列快照 + 单集 / 批量入队 + 结果事件 |
+| `modes/film/.../presentation/detail/DetailDownloadSnapshot.kt` / `DetailDownloadEvent.kt` | 状态快照 / 事件模型 |
+| `modes/film/.../presentation/downloads/DownloadBadgeViewModel.kt` | 侧栏角标计数（只读快照） |
+| `modes/film/.../presentation/show/ShowViewModel.kt` + `ShowState/Action.kt` | 整剧目标按需加载 + 已播放 / 喜欢乐观更新 |
+| `modes/film/.../presentation/season/SeasonViewModel.kt` / `episode/EpisodeViewModel.kt` | 已播放 / 喜欢乐观更新 |
+| `core/.../utils/DownloadTask.kt` / `Downloader.kt` / `DownloaderImpl.kt` | `isActiveQueueStatus` + `activeItemIds()` 只读快照 |
+| `core/.../core/presentation/components/CinefinSnackbar.kt` | Snackbar 组件（§8.12） |
+| `core/.../core/presentation/components/CinefinNavigation.kt` / `CinefinDrawer.kt` | `CinefinNavItem.badge` 槽位 + `CinefinCountBadge`（侧轨 / 底栏 / 抽屉三处共用槽位） |
+| `app/phone/.../presentation/film/ShowScreen.kt` / `SeasonScreen.kt` / `EpisodeScreen.kt` | 三态下载动作接线 + 批量确认框 + Snackbar |
+| `app/phone/.../presentation/film/components/ItemButtonsBar.kt` | 动作排重绘（播放行 + 下载 / 已播放 / 喜欢三标签键；Movie 旧分支保留） |
+| `app/phone/.../presentation/film/components/BatchDownloadDialog.kt` | 整剧 / 全季确认框（仅补齐缺失集 + 上限开关 + 动态计数） |
+| `app/phone/.../presentation/film/components/DetailDownloadMessages.kt` | 事件 → Snackbar 文案 |
+| `app/phone/.../presentation/film/components/CancelDownloadDialog.kt` / `DeleteDownloadDialog.kt` | 旧 M3 AlertDialog → 下载页同款 Lumen 面板 |
+| `app/phone/.../NavigationRoot.kt` | 角标接线 + 前台 2s 只读轮询（**红线，已申报**） |
+| `settings/.../presentation/models/PreferenceSwitch.kt` / `PreferenceIntSelect.kt` | 取反绑定标志 / Int 单选项模型 |
+| `settings/.../presentation/settings/SettingsViewModel.kt` | 下载子页三行接线（仅 Wi-Fi / 并发 / 完成通知） |
+| `app/phone/.../presentation/settings/components/SettingsIntSelectCard.kt` | Int 单选项卡片（复用通用选项对话框） |
+
+### 20.4 门禁（2026-10-03）
+
+- 根 `assembleDebug`（含 TV）+ 根 `ktfmtCheck` 全绿；
+- 单测逐个 `--rerun` 数 `build/test-results/*.xml`：app **106**（W51 净增 1）/ core **37** / data **45** / player:local **105** / film **20**（W51 净增 6）/ book **113** / music **112** = **538 项 0 失败 0 错误**（W56 基线 531 + W51 净增 7）；
+- 红线：**仅动 `NavigationRoot.kt`**（角标接线，已申报）；**未动** `settings.gradle.kts` / `libs.versions.toml` / `AndroidManifest.xml` / `AppPreferences.kt` / `player:core` / `player:local`。
+
+### 20.5 真机验收清单（待负责人统一调度；Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+1. Show 详情 →「下载」：确认框默认「仅补齐缺失集」+「单次上限 100 集」开关；确认后 Snackbar「已加入下载队列 · N 集」，下载页出现对应剧集；
+2. Show / Season 再次点「下载」（全部已在库 / 队列）：Snackbar「已在队列」/「已下载」，**不重复入队**（下载页条目数不增加）；
+3. Season 详情 → 下载全季同上；Episode 详情 → 下载本集：未下载 →「已加入下载队列」、队列中 →「已在队列」、已下载 →「已下载」；
+4. 三动作排：下载 / 已播放 / 喜欢同排；已播放 / 喜欢点击立即高亮（乐观更新），断网 / 失败后回滚；
+5. 侧轨 + 抽屉下载角标：0 隐藏；排队 / 下载中 / 暂停计数；完成 / 删除后计数下降（底栏无「下载」项，属 W53 后的 IA 口径）；
+6. 设置 → 下载与缓存：仅 Wi-Fi 默认开（关闭后移动数据可下载）、并发 1 / 3 生效、完成通知关闭后无完成通知；
+7. 回归：电影详情动作排 / 下载页 / 离线媒体库 / 封面缓存不回归；全程 0 FATAL / 0 ANR。
+
+### 20.6 遗留
+
+- **真机验收未执行**（需负责人设备窗口）；
+- 单次上限固定 100 集（可关闭上限，但不可改数值）；
+- 批量下载落默认存储（`storageIndex = 0`），不提供 SD 卡选择；单集仍保留存储选择对话框；
+- Episode 详情页不再提供「删除下载」入口（三态按钮点击只提示），删除统一走下载页（W52 已支持单条 / 容器删除）；
+- 角标按 itemId 去重计数：同一媒体存在多来源任务的极端情况会少计。

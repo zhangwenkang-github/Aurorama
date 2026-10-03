@@ -23,6 +23,12 @@
     <string name="about">關於</string>
     <string name="privacy_policy">隱私權政策</string>
     <string name="download_roaming">漫遊時下載</string>
+    <string name="settings_download_wifi_only">僅 Wi-Fi 下載</string>
+    <string name="settings_download_wifi_only_summary">行動網路下不下載，關閉後允許使用行動數據</string>
+    <string name="settings_download_concurrency">同時下載數</string>
+    <string name="settings_download_concurrency_summary">同時進行的下載任務數（1–3）</string>
+    <string name="settings_download_complete_notification">下載完成通知</string>
+    <string name="settings_download_complete_notification_summary">下載完成後發送通知</string>
     <string name="mpv_player">mpv 播放器</string>
     <string name="gestures">手勢</string>
     <string name="player_gestures">撥放器手勢</string>

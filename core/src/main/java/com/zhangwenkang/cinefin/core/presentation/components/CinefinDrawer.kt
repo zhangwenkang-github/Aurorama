@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -232,7 +233,14 @@ private fun CinefinDrawerItem(
                     .padding(horizontal = CinefinSpacing.Space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(modifier = Modifier.size(24.dp)) { item.icon(selected) }
+            Box(modifier = Modifier.size(24.dp)) {
+                item.icon(selected)
+                item.badge?.let { badge ->
+                    Box(modifier = Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-7).dp)) {
+                        badge()
+                    }
+                }
+            }
             Spacer(Modifier.width(CinefinSpacing.Space4))
             Text(
                 text = item.label,

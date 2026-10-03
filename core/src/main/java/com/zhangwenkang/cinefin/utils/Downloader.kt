@@ -70,6 +70,13 @@ interface Downloader {
     suspend fun downloadedItemIds(): Set<UUID>
 
     /**
+     * W51：只读队列快照——「活动任务」（排队 / 下载中 / 暂停）的条目 id 集合。
+     *
+     * 供详情页下载态与侧栏角标使用：只读 Room，不做对账、不唤醒引擎、不触发网络请求。
+     */
+    suspend fun activeItemIds(): Set<UUID>
+
+    /**
      * W50：运行下载队列，直到没有「当前可执行」的任务为止。
      *
      * 供 WorkManager 长时 worker 调用：worker 存活期间由前台服务托管常驻通知；队列为空时返回 [DownloadQueueOutcome.shouldRetry]

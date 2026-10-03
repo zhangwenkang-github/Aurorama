@@ -19,11 +19,15 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyShow
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -47,6 +52,9 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadViewModel
 import com.zhangwenkang.cinefin.film.presentation.show.ShowAction
 import com.zhangwenkang.cinefin.film.presentation.show.ShowState
 import com.zhangwenkang.cinefin.film.presentation.show.ShowViewModel
@@ -54,6 +62,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
+import com.zhangwenkang.cinefin.presentation.film.components.BatchDownloadDialog
 import com.zhangwenkang.cinefin.presentation.film.components.DetailPoster
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
@@ -67,6 +76,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
+import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
@@ -83,16 +93,64 @@ fun ShowScreen(
     navigateToItem: (item: FindroidItem) -> Unit,
     navigateToPerson: (personId: UUID) -> Unit,
     viewModel: ShowViewModel = hiltViewModel(),
+    detailDownloadViewModel: DetailDownloadViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
 
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val downloadSnapshot by detailDownloadViewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(true) { viewModel.loadShow(showId = showId) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    var batchDialogVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(true) {
+        viewModel.loadShow(showId = showId)
+        detailDownloadViewModel.refresh()
+    }
+
+    LaunchedEffect(Unit) {
+        detailDownloadViewModel.events.collect { event ->
+            snackbarHostState.showSnackbar(downloadEventMessage(context, event))
+        }
+    }
+
+    val downloadTargets = state.downloadTargets
+    val showDownloadState =
+        DetailDownloadRules.containerState(
+            itemIds = downloadTargets?.map { episode -> episode.id }.orEmpty(),
+            downloaded = downloadSnapshot.downloadedIds,
+            queued = downloadSnapshot.queuedIds,
+        )
+
+    // 整剧全部已在库 / 队列：不进确认框，直接给三态 Snackbar（用户 2026-10-03 口径）。
+    LaunchedEffect(downloadTargets, batchDialogVisible) {
+        val targets = downloadTargets ?: return@LaunchedEffect
+        if (!batchDialogVisible) return@LaunchedEffect
+        val selection =
+            DetailDownloadRules.selectBatch(
+                itemIds = targets.map { episode -> episode.id },
+                downloaded = downloadSnapshot.downloadedIds,
+                queued = downloadSnapshot.queuedIds,
+                limit = null,
+            )
+        if (selection.selected.isEmpty()) {
+            batchDialogVisible = false
+            detailDownloadViewModel.reportSkipped(selection)
+        }
+    }
 
     ShowScreenLayout(
         state = state,
+        downloadState = showDownloadState,
+        downloadBusy = state.downloadTargetsLoading,
+        snackbarHostState = snackbarHostState,
+        onDownloadClick = {
+            if (state.downloadTargets == null) {
+                viewModel.onAction(ShowAction.LoadDownloadTargets)
+            }
+            batchDialogVisible = true
+        },
         onAction = { action ->
             when (action) {
                 is ShowAction.Play -> {
@@ -117,11 +175,35 @@ fun ShowScreen(
             viewModel.onAction(action)
         },
     )
+
+    if (batchDialogVisible) {
+        BatchDownloadDialog(
+            title = stringResource(CoreR.string.detail_download_batch_title_show),
+            episodes = state.downloadTargets,
+            downloadedIds = downloadSnapshot.downloadedIds,
+            queuedIds = downloadSnapshot.queuedIds,
+            isLoading = state.downloadTargetsLoading && state.downloadTargets == null,
+            loadFailed = state.downloadTargetsError != null && state.downloadTargets == null,
+            onRetryLoad = { viewModel.onAction(ShowAction.LoadDownloadTargets) },
+            onConfirm = { items ->
+                detailDownloadViewModel.enqueueBatch(items)
+                batchDialogVisible = false
+            },
+            onDismiss = { batchDialogVisible = false },
+        )
+    }
 }
 
 /** 剧集详情（Lumen）：与电影详情同一套头图 / 标题 / 信息表语言，"接下来"与"季"作为两条走廊。 */
 @Composable
-private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
+private fun ShowScreenLayout(
+    state: ShowState,
+    downloadState: DetailDownloadState,
+    downloadBusy: Boolean,
+    snackbarHostState: SnackbarHostState,
+    onDownloadClick: () -> Unit,
+    onAction: (ShowAction) -> Unit,
+) {
     val safePadding = rememberSafePadding()
     val gutter = rememberPageGutter()
 
@@ -234,11 +316,14 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
                                         onTrailerClick = { uri ->
                                             onAction(ShowAction.PlayTrailer(uri))
                                         },
-                                        onDownloadClick = {},
+                                        onDownloadClick = { onDownloadClick() },
                                         onDownloadCancelClick = {},
                                         onDownloadDeleteClick = {},
                                         modifier = Modifier.fillMaxWidth(),
                                         canPlay = state.seasons.isNotEmpty(),
+                                        downloadState = downloadState,
+                                        downloadBusy = downloadBusy,
+                                        storageSelectionEnabled = false,
                                     )
                                 }
                             }
@@ -356,6 +441,11 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
                 onBackClick = { onAction(ShowAction.OnBackClick) },
                 onHomeClick = { onAction(ShowAction.OnHomeClick) },
             )
+            CinefinSnackbarHost(
+                hostState = snackbarHostState,
+                modifier =
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = CinefinSpacing.Space6),
+            )
         }
     }
 }
@@ -401,5 +491,14 @@ private fun showInfoRows(show: FindroidShow, state: ShowState): List<Pair<String
 @PreviewScreenSizes
 @Composable
 private fun ShowScreenLayoutPreview() {
-    CinefinTheme { ShowScreenLayout(state = ShowState(show = dummyShow), onAction = {}) }
+    CinefinTheme {
+        ShowScreenLayout(
+            state = ShowState(show = dummyShow),
+            downloadState = DetailDownloadState.NOT_DOWNLOADED,
+            downloadBusy = false,
+            snackbarHostState = remember { SnackbarHostState() },
+            onDownloadClick = {},
+            onAction = {},
+        )
+    }
 }

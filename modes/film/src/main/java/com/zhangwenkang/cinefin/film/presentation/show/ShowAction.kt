@@ -23,4 +23,7 @@ sealed interface ShowAction {
     data class NavigateToItem(val item: FindroidItem) : ShowAction
 
     data class NavigateToPerson(val personId: UUID) : ShowAction
+
+    /** W51：点击「下载」时按需拉取整剧剧集（按季展开）。 */
+    data object LoadDownloadTargets : ShowAction
 }

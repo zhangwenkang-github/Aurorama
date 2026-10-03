@@ -18,10 +18,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -37,6 +39,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderAction
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderEvent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
@@ -44,9 +47,14 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderViewModel
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadEvent
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadViewModel
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeAction
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeState
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
+import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
@@ -56,6 +64,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
+import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
@@ -75,17 +84,34 @@ fun EpisodeScreen(
     navigateToSeason: (seasonId: UUID) -> Unit,
     viewModel: EpisodeViewModel = hiltViewModel(),
     downloaderViewModel: DownloaderViewModel = hiltViewModel(),
+    detailDownloadViewModel: DetailDownloadViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val isOfflineMode = LocalOfflineMode.current
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloaderState by downloaderViewModel.state.collectAsStateWithLifecycle()
+    val downloadSnapshot by detailDownloadViewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(true) { viewModel.loadEpisode(episodeId = episodeId) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(true) {
+        viewModel.loadEpisode(episodeId = episodeId)
+        detailDownloadViewModel.refresh()
+    }
 
     LaunchedEffect(state.episode) {
         state.episode?.let { episode -> downloaderViewModel.update(episode) }
+    }
+
+    LaunchedEffect(Unit) {
+        detailDownloadViewModel.events.collect { event ->
+            // 入队成功后刷新条目，让进度卡（DownloaderCard）开始轮询新任务。
+            if (event == DetailDownloadEvent.AddedToQueue) {
+                viewModel.loadEpisode(episodeId = episodeId)
+            }
+            snackbarHostState.showSnackbar(downloadEventMessage(context, event))
+        }
     }
 
     ObserveAsEvents(downloaderViewModel.events) { event ->
@@ -106,6 +132,13 @@ fun EpisodeScreen(
     EpisodeScreenLayout(
         state = state,
         downloaderState = downloaderState,
+        downloadState =
+            DetailDownloadRules.stateOf(
+                itemId = episodeId,
+                downloaded = downloadSnapshot.downloadedIds,
+                queued = downloadSnapshot.queuedIds,
+            ),
+        snackbarHostState = snackbarHostState,
         onAction = { action ->
             when (action) {
                 is EpisodeAction.Play -> {
@@ -124,6 +157,9 @@ fun EpisodeScreen(
             viewModel.onAction(action)
         },
         onDownloaderAction = { action -> downloaderViewModel.onAction(action) },
+        onDownloadClick = { episode, storageIndex ->
+            detailDownloadViewModel.enqueueItem(item = episode, storageIndex = storageIndex)
+        },
     )
 }
 
@@ -131,8 +167,11 @@ fun EpisodeScreen(
 private fun EpisodeScreenLayout(
     state: EpisodeState,
     downloaderState: DownloaderState,
+    downloadState: DetailDownloadState,
+    snackbarHostState: SnackbarHostState,
     onAction: (EpisodeAction) -> Unit,
     onDownloaderAction: (DownloaderAction) -> Unit,
+    onDownloadClick: (FindroidEpisode, Int) -> Unit,
 ) {
     val safePadding = rememberSafePadding()
 
@@ -252,7 +291,7 @@ private fun EpisodeScreenLayout(
                             },
                             onTrailerClick = {},
                             onDownloadClick = { storageIndex ->
-                                onDownloaderAction(DownloaderAction.Download(episode, storageIndex))
+                                onDownloadClick(episode, storageIndex)
                             },
                             onDownloadCancelClick = {
                                 onDownloaderAction(DownloaderAction.CancelDownload(episode))
@@ -261,6 +300,8 @@ private fun EpisodeScreenLayout(
                                 onDownloaderAction(DownloaderAction.DeleteDownload(episode))
                             },
                             modifier = Modifier.fillMaxWidth(),
+                            downloadState = downloadState,
+                            downloadEnabled = episode.canDownload,
                         )
                         Spacer(Modifier.height(MaterialTheme.spacings.small))
                         if (state.displayExtraInfo && state.videoMetadata != null) {
@@ -319,6 +360,12 @@ private fun EpisodeScreenLayout(
                     }
                 }
             }
+            CinefinSnackbarHost(
+                hostState = snackbarHostState,
+                modifier =
+                    Modifier.align(Alignment.BottomCenter)
+                        .padding(bottom = MaterialTheme.spacings.medium),
+            )
         }
     }
 }
@@ -330,8 +377,11 @@ private fun EpisodeScreenLayoutPreview() {
         EpisodeScreenLayout(
             state = EpisodeState(episode = dummyEpisode, videoMetadata = dummyVideoMetadata),
             downloaderState = DownloaderState(),
+            downloadState = DetailDownloadState.NOT_DOWNLOADED,
+            snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
             onDownloaderAction = {},
+            onDownloadClick = { _, _ -> },
         )
     }
 }

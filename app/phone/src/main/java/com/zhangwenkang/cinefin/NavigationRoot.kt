@@ -53,7 +53,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
@@ -68,6 +70,7 @@ import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBottomTab
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinCountBadge
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinDrawerGroup
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinModalDrawer
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavItem
@@ -85,6 +88,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LumenColorsDark
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBadgeViewModel
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
 import com.zhangwenkang.cinefin.models.FindroidCollection
@@ -141,6 +145,7 @@ import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.video.VideoScreen
 import java.util.UUID
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -323,6 +328,19 @@ fun NavigationRoot(
 
     val drawerViewModel: DrawerViewModel = hiltViewModel()
     val drawerData by drawerViewModel.state.collectAsStateWithLifecycle()
+
+    // W51：下载入口角标 = 活动任务数（下载中 + 排队 + 暂停，0 隐藏）；前台可见期间只读快照。
+    val downloadBadgeViewModel: DownloadBadgeViewModel = hiltViewModel()
+    val downloadActiveCount by downloadBadgeViewModel.activeCount.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                downloadBadgeViewModel.refresh()
+                delay(DownloadBadgePollIntervalMs)
+            }
+        }
+    }
     // 抽屉数据要在冷启动就绪：书架 Tab 的跳转与选中态都读这份库列表（只在打开抽屉时加载会让
     // 冷启动点「书架」拿到空列表）。打开抽屉时再刷新一次，保证服务器端新建的库能及时出现。
     // 离线下 / 切回在线时库列表要跟着刷新（W6-R6N：离线开关不再重启 Activity）。
@@ -456,8 +474,12 @@ fun NavigationRoot(
         }
     }
 
-    fun chromeItem(@DrawableRes res: Int, label: String, neutral: Boolean = false) =
-        CinefinNavItem(label = label, neutral = neutral, icon = navIcon(res))
+    fun chromeItem(
+        @DrawableRes res: Int,
+        label: String,
+        neutral: Boolean = false,
+        badge: (@Composable () -> Unit)? = null,
+    ) = CinefinNavItem(label = label, neutral = neutral, icon = navIcon(res), badge = badge)
 
     val sidebarVisibility = drawerData.sidebarVisibility
     // 「服务器上实际存在什么库」的唯一来源是抽屉数据里的库列表；库列表未就绪时入口保持可见，
@@ -474,6 +496,20 @@ fun NavigationRoot(
             hasBooksLibrary = drawerData.libraries.any { it.type == CollectionType.Books },
         )
     val consoleSpecByPath = consoleEntrySpecs(drawerData.isAdministrator).associateBy { it.path }
+
+    // W51：下载角标（活动任务数 > 0 才渲染；99+ 收敛在组件内）。
+    val downloadBadge: (@Composable () -> Unit)? =
+        if (downloadActiveCount > 0) {
+            {
+                CinefinCountBadge(
+                    count = downloadActiveCount,
+                    contentDescription =
+                        stringResource(CoreR.string.download_active_badge, downloadActiveCount),
+                )
+            }
+        } else {
+            null
+        }
 
     // 顶层 IA（W6-R6N）：首页 / 媒体库 / 音乐 / 书架 /（管理员：服务器控制台 / 元数据管理器）/ 客户端设置。
     // 「媒体库」是二级分组，子项 = 服务器实际返回的全部库（同名多库按服务器顺序逐条列出）。
@@ -554,6 +590,7 @@ fun NavigationRoot(
                         chromeItem(
                             CoreR.drawable.ic_download,
                             stringResource(CoreR.string.title_download),
+                            badge = downloadBadge,
                         ),
                     selected = downloadsSelected,
                     bottom = false,
@@ -1780,3 +1817,6 @@ internal fun consoleEntrySpecs(isAdministrator: Boolean): List<ConsoleEntrySpec>
  */
 internal fun consoleEntrySelected(currentPath: String?, entryPath: String): Boolean =
     currentPath != null && currentPath == entryPath
+
+/** W51：下载角标轮询间隔（只读 Room 快照，不触发对账 / 引擎唤醒）。 */
+private const val DownloadBadgePollIntervalMs = 2_000L
