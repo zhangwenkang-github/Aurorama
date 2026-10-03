@@ -318,11 +318,11 @@ fun NavigationRoot(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     var searchExpanded by remember { mutableStateOf(false) }
-    // W56：「顶层图标统一回对应主页」——音乐全屏播放 / 歌词页是音乐页内的覆盖层（不在导航栈里），
-    // 点顶层「音乐」图标时用递增信号让它收起；音乐页把覆盖层开关回报回来，用于区分
-    // 「已在主页（不重复导航 / 只收覆盖层）」与「在二级页 / 其它入口（走既有顶层导航）」。
+    // W56：「顶层图标统一回对应主页」——音乐全屏播放 / 歌词页 / 专辑等详情都在音乐页内（不在导航栈里），
+    // 点顶层「音乐」图标时用递增信号让它们收起；音乐页把「页内二级层是否打开」回报回来，用于区分
+    // 「已在主页（不重复导航 / 只收二级层）」与「在二级页 / 其它入口（走既有顶层导航）」。
     var musicOverlayReselectSignal by remember { mutableIntStateOf(0) }
-    var musicOverlayOpen by remember { mutableStateOf(false) }
+    var musicInnerPageOpen by remember { mutableStateOf(false) }
 
     val currentDestination = navBackStackEntry?.destination
     // 主导航：手机底部 4 tab / 平板侧轨；抽屉继续承载全量入口（库列表 / 控制台 / 服务器）
@@ -488,7 +488,7 @@ fun NavigationRoot(
         when (
             topLevelTapAction(
                 isOnEntryHome = isOnEntryHome,
-                hasInPageOverlay = route == MusicModeRoute && musicOverlayOpen,
+                hasInPageOverlay = route == MusicModeRoute && musicInnerPageOpen,
             )
         ) {
             TopLevelTapAction.Stay -> Unit
@@ -1140,7 +1140,7 @@ fun NavigationRoot(
                     onOpenDrawer = openDrawer,
                     // W56：顶层「音乐」图标再点 = 回音乐主页（先收起全屏播放 / 歌词覆盖层，再退页内详情）。
                     reselectSignal = musicOverlayReselectSignal,
-                    onOverlayOpenChange = { musicOverlayOpen = it },
+                    onInnerPageOpenChange = { musicInnerPageOpen = it },
                 )
             }
             composable<TemporaryLibraryRoute> { backStackEntry ->

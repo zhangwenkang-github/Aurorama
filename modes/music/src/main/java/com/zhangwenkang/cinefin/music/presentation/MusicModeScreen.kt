@@ -120,8 +120,8 @@ fun MusicModeScreen(
     onExitTemporaryLibrary: (() -> Unit)? = null,
     /** W56：顶层「音乐」图标再点 = 回音乐主页——数值递增触发一次收起（全屏播放 / 歌词页 + 页内详情）。 */
     reselectSignal: Int = 0,
-    /** W56：把「全屏播放 / 歌词页覆盖层是否打开」回报给导航层（决定再点图标是只收覆盖层还是不重复导航）。 */
-    onOverlayOpenChange: ((Boolean) -> Unit)? = null,
+    /** W56：把「音乐页内二级层（全屏播放 / 歌词页 / 专辑·艺术家·歌单详情）是否打开」回报给导航层（决定再点图标是只收二级层还是不重复导航）。 */
+    onInnerPageOpenChange: ((Boolean) -> Unit)? = null,
     viewModel: MusicModeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -173,7 +173,9 @@ fun MusicModeScreen(
             viewModel.closeDetail()
         }
     }
-    LaunchedEffect(nowPlayingOpen) { onOverlayOpenChange?.invoke(nowPlayingOpen) }
+    LaunchedEffect(nowPlayingOpen, state.detail) {
+        onInnerPageOpenChange?.invoke(nowPlayingOpen || state.detail != null)
+    }
 
     // 系统返回键与左上角返回一致（W3-R3b 缺陷 1）：详情（专辑 / 艺术家 / 歌单）内先回音乐主界面，
     // 而不是直接退回首页；不在详情时交给 NavHost 正常返回。
