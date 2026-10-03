@@ -267,6 +267,11 @@ class JellyfinRepositoryOfflineImpl(
             runCatching { database.getDownloadedEpisodeHierarchy() }.getOrElse { emptyList() }
         }
 
+    override suspend fun getEpisodeHierarchyWithSources(): List<DownloadedEpisodeHierarchy> =
+        withContext(Dispatchers.IO) {
+            runCatching { database.getEpisodeHierarchyWithSources() }.getOrElse { emptyList() }
+        }
+
     /** W34：离线实现拿不到主库音频元数据，返回空表（层级退化为单条）。 */
     override suspend fun getMusicTrackMetadata(): Map<UUID, MusicTrackMetadata> = emptyMap()
 

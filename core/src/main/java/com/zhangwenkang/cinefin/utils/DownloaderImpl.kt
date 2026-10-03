@@ -745,7 +745,8 @@ class DownloaderImpl(
             val now = System.currentTimeMillis()
             val mediaRecords = sidecar.records()
             val episodeHierarchy = runCatching {
-                database.getDownloadedEpisodeHierarchy().associateBy { it.episodeId }
+                // W59：进行中 / 已完成的剧集都要带归属（Show → 季 → 剧集钻取分组）。
+                database.getEpisodeHierarchyWithSources().associateBy { it.episodeId }
             }
                 .getOrElse { emptyMap() }
             val tasks = mutableListOf<DownloadTask>()

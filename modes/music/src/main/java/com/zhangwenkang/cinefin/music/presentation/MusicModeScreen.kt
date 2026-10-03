@@ -915,14 +915,14 @@ private fun ArtworkThumb(imageUri: String?, title: String, size: Dp = 48.dp) {
         modifier = Modifier.size(size).clip(CinefinShapes.Xs).background(media.container),
         contentAlignment = Alignment.Center,
     ) {
-        if (imageUri == null) {
-            Icon(
-                painter = painterResource(CoreR.drawable.ic_music),
-                contentDescription = title,
-                tint = media.bright,
-                modifier = Modifier.size(size * 0.5f),
-            )
-        } else {
+        // W59：音符占位常驻在图下层——无图、加载中与加载失败都露出「音符 + 媒体色底」，不会出现黑块空白。
+        Icon(
+            painter = painterResource(CoreR.drawable.ic_music),
+            contentDescription = null,
+            tint = media.bright,
+            modifier = Modifier.size(size * 0.5f),
+        )
+        if (imageUri != null) {
             AsyncImage(
                 model = imageUri,
                 contentDescription = title,

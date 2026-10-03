@@ -193,6 +193,9 @@ interface JellyfinRepository {
     /** W34 下载层级：本地已下载剧集的节目 / 季归属（离线读库，不联网）。 */
     suspend fun getDownloadedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy>
 
+    /** W59 下载页钻取：**进行中 / 已完成**剧集的节目 / 季归属（有来源即纳入，离线读库）。 */
+    suspend fun getEpisodeHierarchyWithSources(): List<DownloadedEpisodeHierarchy>
+
     /**
      * W34 下载层级：主库音频快照（id → 专辑 / 艺人）。
      *

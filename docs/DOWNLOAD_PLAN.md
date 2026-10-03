@@ -674,3 +674,50 @@ W50 已实现的三项下载设置没有 UI。本波按用户 2026-10-03 确认�
 - 进行中剧集在下载页仍按「电影容器」渲染（无完成态层级归属，W51b / W52 既有遗留：下载中容器分组）；
 - 限速为「任务平均吞吐」语义（可小段突发），运行中任务不动态跟随新设置；
 - `ImagesDownloaderWorker` 仍无失败重试（入队幂等跳过已落盘文件）。
+
+## 22. W59 下载页钻取式 IA + 书籍封面自动生成 + 层级图规则 + 专辑批量下载（2026-10-04，分支 `feature/w59-downloads-redesign`，起点 master `9c65010`）
+
+**背景**：用户 2026-10-04 拍板 W59 四条——①下载页从「层级容器平铺」改为**钻取式 IA**（顶层只显示 Show 卡 / 音乐专辑卡 / 电影条目 / 书籍条目，Show / 专辑点击进详情）；②**在线书籍封面自动生成**（服务器图优先；没有图就生成，未下载的在线书籍也生成；HTTP Range 只读片段 + 懒生成 + 缓存 + 失败标记）；③**视频层级图严格同级**（Show / Season 只用自己的海报，Episode 只用缩略图，缺图类型占位、不跨级回退）；④**音乐专辑批量下载**（专辑列表长按多选 → 下载整张；专辑详情「下载专辑」按钮）+ 无图占位图。
+
+### 22.1 需求与决策
+
+| # | 需求（用户口径） | 落地 |
+|---|------------------|------|
+| ① | 顶层列表只显示顶层项（Show 卡 / 专辑卡 / 电影条目 / 书籍条目）+ 卡上聚合进度（「下载中 3/12 集 · 2.1 MB/s」） | `DownloadDrilldownRules.sortForDisplay`（进行中 → 失败 → 已完成）+ `DownloadTopLevelCard`（Show / 专辑，聚合 x/y + 体积 + 速度 + 剩余）+ `DownloadTopLevelRow`（电影 / 书籍平铺单条目行，左图固定比例 + 标题 + 状态行 + 操作键右对齐）；页签顺序改「进行中 → 失败 → 已完成」，类型筛选 / 多选保留 |
+| ② | 点击 Show / 专辑 → 钻取详情页（上半 = 海报 + 信息 + 总进度 + 全部暂停 / 全部继续 / 删除；下半 = 季卡可展开剧集 / 曲目列表） | 同一路由内 `drilldownKey` 状态切换（系统返回先退详情）；`DownloadDrilldownHeader` + `detailRows(container, expandedSeasons)`；季卡 72×108dp、剧集行 112×63dp（16:9）；专辑详情 = 曲目平铺 |
+| ③ | 进入详情自动展开第一个进行中的季并滚到可见 | `DownloadDrilldownRules.autoExpandSeasonKey`（进行中 → 第一个未完成 → 全完成不展开）+ `LaunchedEffect` + `animateScrollToItem` |
+| ④ | 在线书籍封面自动生成（服务器图优先；未下载也生成；Range 只读片段；懒生成 + 缓存 + 失败标记；失败回退类型占位） | 新 core `BookCoverProvider` + `BookCoverRules.planCover`（服务器图 → 生成缓存 → 生成 → 占位）+ `HttpByteSource`（HTTP Range 分块 LRU，不整本下载）+ `ZipArchiveReader`（EPUB / CBZ 只读中央目录 + 目标条目）+ PdfBox-Android（`PdfBoxRandomAccess` 适配 Range 随机读，PDF 首页渲染）；缓存 `files/book_covers/<id>.jpg` + `files/book_covers/<id>.fail`；书架 `LibraryViewModel.requestBookCover` + `ItemPoster.placeholderIconRes`（`ic_book`） |
+| ⑤ | 视频层级图严格同级（Show / Season 海报、Episode 缩略图，缺图类型占位，不跨级） | `DownloadArtworkRules.videoArtwork`（本级本地优先 / 本级远程兜底；季 / 节目图永不作为回退）+ ViewModel 每级只传自身图；容器构建器去掉 W36 跨级回退 |
+| ⑥ | 音乐专辑列表长按多选 → 批量下载整张（复用 W58 core 框架与批量下载链路） | `MusicModeViewModel.onAlbumBatchLongPress/Toggle`（专辑 key 作用域，非多选态恒空）+ `onBatchSelectAll/None` 按作用域取专辑；底栏 `MusicBatchActionBar(albumsOnly)` 只给「下载整张」；`MusicAlbumDownloadRules.planAlbums`（按专辑序 + 音轨序、去重、单次 100 首上限）→ 既有 `enqueueSongs` 入队链路 |
+| ⑦ | 专辑详情「下载专辑」（仅补齐缺失 + 100 首上限，与详情页整剧下载同口径） | `AlbumDetailHeader`（封面 + 专辑信息 + `下载专辑（N 首）` / 已全部下载置灰）+ `downloadAlbum()`；`MusicAlbumDownloadRules.plan` 跳过已下载 / 队列内 |
+| ⑧ | 无图专辑 / 曲目用通用音乐占位图（现有音符矢量 + 媒体色底，不新增位图） | `ArtworkThumb` 常驻 `ic_music` + `media.container` 底（无图 / 加载中 / 加载失败都不再黑块空白） |
+| ⑨ | 进行中剧集的显示归属（W52 遗留：下载中剧集被当电影平条 / 无法钻取） | 新 DAO / 仓库查询 `getEpisodeHierarchyWithSources()`（**存在 sources 即纳入**，与「已完成」查询并列），下载页与 `DownloaderImpl.refreshDownloadTasks` 改用该口径 |
+
+### 22.2 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；
+- 8 任务逐个 `--rerun` 数 XML：app **148** / core **69** / data **45** / player:local **110** / film **48** / book **113** / music **132** / player:core **12** = **677 项 / 0 失败 0 错误**（W58b 基线 655 + W59 新增 **22**）；
+- 新增单测 22：`DownloadDrilldownRulesTest` 6（film）+ `DownloadArtworkRulesTest` +2（严格同级 / 不跨级回退）+ `BookCoverRulesTest` 6 + `ZipArchiveReaderTest` 4（core）+ `MusicAlbumDownloadRulesTest` 4（music）；
+- 红线：未动 `NavigationRoot.kt`（钻取在同一路由内状态切换，未加路由）/ `AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:core` / `player:local`；**申报非红线改动**：`core/build.gradle.kts`（+ `pdfbox-android`，与 modes:book 同版本）、`data`（`ServerDatabaseDao` 新查询 + `JellyfinRepository` 两实现）、`core`（新 `BookCover*` / `BookByteSource` / `ZipArchiveReader` + `DownloaderImpl` 层级口径）、`modes:film` / `modes:music` / `app:phone`。
+
+### 22.3 真机验收（2026-10-04，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验；device-lock 已写释放与结论）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | 顶层聚合 + 页签顺序 | ✅ Show 卡「超能力女儿 正在下载… · 0/1 集 / 1.23 GB / 1.26 GB / 1.36 MB/s · 剩余 0:23」；专辑卡「已完成 · 1/1 首 + 体积」；书籍平铺（Anda's Game / attention_is_all_you_need / futuristic_tales / 虚构推理 / 雷普利全集）；页签 进行中 → 失败 → 已完成、类型筛选保留 |
+| ② | Show 钻取 + 自动展开 + 操作键 | ✅ 详情头部（海报 + 状态 + x/y + 体积 + 速度剩余）+「全部暂停 / 全部继续 / 删除」；进入自动展开进行中的季并滚到可见（S1E2 行）；季卡展开 / 折叠；全部暂停（105 MB 停住、速度「—」）→ 全部继续（105 → 116 MB 续传） |
+| ③ | 层级图严格同级 + 进行中归属 | ✅ 下载中剧集以 Show → 季 → 剧集分组（W52 遗留修复）；Show / 季 / 剧集各用自己的图 |
+| ④ | 书籍封面生成（本地 + Range + 断网） | ✅ 本地已下载书籍生成 3 张 JPEG（395×512 / ≤512 / 缓存 `files/book_covers`）；删除本地 `.book` 后由书架触发 **HTTP Range** 重新生成（此刻 `files/books` 为空 → 证明未下载在线书籍路径）；飞行模式下已加载书架仍显示 3 张生成封面（含本地文件已删除的那本）；随后打开书籍重新下载恢复本地文件 |
+| ⑤ | 专辑多选 + 下载整张 | ✅ 长按专辑 → 「已选 N 项」+ 全选 / ×、底栏仅「下载整张」；批量入队 3 张专辑 → 下载页专辑卡（正在等待… · 0/1 首 → 完成） |
+| ⑥ | 专辑详情「下载专辑」 | ✅ `下载专辑（1 首）` → 点击后置灰「已全部下载」+ 曲目行「下载中」；已在队列的专辑直接「已全部下载」（跳过已下载 / 队列内） |
+| ⑦ | 音乐占位图 | ✅ 飞行模式滚动专辑列表：无图 / 加载失败专辑显示「音符矢量 + 媒体色底」（非黑块） |
+| ⑧ | 多选批量操作保留 + 清理 | ✅ 顶栏「选择」→ 选 4 个容器（Show + 3 专辑，已选 5 项）→ 批量删除确认 → 9 已完成 → 5 已完成、占用 3.03 GB → 662 MB；测试下载全清、`files/downloads` 移除、`files/images` 清空 |
+| ⑨ | K60 抽验 | ✅ 抽屉「下载」入口、紧凑单列顶层列表（书籍平铺）、音乐专辑长按多选 +「下载整张」 |
+| ⑩ | 稳定性 | ✅ 双机 0 FATAL / 0 ANR（crash buffer 干净） |
+
+### 22.4 遗留
+
+- 详情页「删除」按钮本次未单点验证（与批量删除同为 `deleteEntries` 路径）；
+- 封面观感（PDF 首页 / CBZ 首图 / EPUB 封面）建议用户人工过目；失败即写 `.fail` 不再重试（换源 / 修复后需清缓存）；
+- 平板两列成对规则沿用 W52（相邻折叠顶层项两两并排），大数据量下的视觉节奏未单独评估；
+- Range 生成的封面在弱网下按失败标记一次性收敛，无自动重试（与「懒生成一次」口径一致）。

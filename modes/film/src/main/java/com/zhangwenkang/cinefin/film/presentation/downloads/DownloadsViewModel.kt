@@ -482,10 +482,14 @@ constructor(
         }
     }
 
-    /** W34：本地已下载剧集的节目 / 季归属（纯本地查询，离线也能组织层级）。 */
+    /**
+     * W34：本地剧集的节目 / 季归属（纯本地查询，离线也能组织层级）。
+     *
+     * W59：改用「有来源即纳入」的口径——进行中 / 暂停 / 失败任务也有归属，Show 卡与详情页 才能在下载中就被正确分组（旧口径只认完成文件，进行中剧集会被当成电影平条）。
+     */
     private suspend fun loadEpisodeHierarchy(): Map<UUID, DownloadedEpisodeHierarchy> =
         runCatching {
-            repository.getDownloadedEpisodeHierarchy().associateBy { it.episodeId }
+            repository.getEpisodeHierarchyWithSources().associateBy { it.episodeId }
         }
         .getOrElse { emptyMap() }
 

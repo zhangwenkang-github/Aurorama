@@ -863,6 +863,11 @@ class JellyfinRepositoryImpl(
             runCatching { database.getDownloadedEpisodeHierarchy() }.getOrElse { emptyList() }
         }
 
+    override suspend fun getEpisodeHierarchyWithSources(): List<DownloadedEpisodeHierarchy> =
+        withContext(Dispatchers.IO) {
+            runCatching { database.getEpisodeHierarchyWithSources() }.getOrElse { emptyList() }
+        }
+
     override suspend fun getMusicTrackMetadata(): Map<UUID, MusicTrackMetadata> =
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()

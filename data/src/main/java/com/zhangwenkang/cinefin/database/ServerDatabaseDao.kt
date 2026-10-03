@@ -302,6 +302,35 @@ interface ServerDatabaseDao {
     )
     suspend fun getCompletedEpisodeHierarchy(): List<DownloadedEpisodeHierarchy>
 
+    /**
+     * W59 下载页钻取式 IA：**存在下载来源（进行中 / 已完成）**的剧集所属节目 / 季。
+     *
+     * 与 [getCompletedEpisodeHierarchy] 的差别只在 WHERE：不要求来源是完整本地文件—— 进行中的 `.download` 残片也要参与 Show → 季
+     * → 剧集分组（否则下载中的剧集会被当成电影平条、无法钻取）。
+     */
+    @Query(
+        """
+        SELECT episodes.id AS episodeId,
+               episodes.seasonId AS seasonId,
+               episodes.seriesId AS seriesId,
+               episodes.name AS episodeName,
+               episodes.indexNumber AS episodeIndex,
+               episodes.runtimeTicks AS runtimeTicks,
+               shows.name AS seriesName,
+               seasons.name AS seasonName,
+               seasons.indexNumber AS seasonIndex
+        FROM episodes
+        INNER JOIN seasons ON seasons.id = episodes.seasonId
+        INNER JOIN shows ON shows.id = episodes.seriesId
+        WHERE EXISTS (
+            SELECT 1 FROM sources
+            WHERE sources.itemId = episodes.id
+        )
+        ORDER BY shows.name ASC, seasons.indexNumber ASC, episodes.indexNumber ASC
+        """
+    )
+    suspend fun getEpisodeHierarchyWithSources(): List<DownloadedEpisodeHierarchy>
+
     /** W34：剧集 LOCAL 源（取第一个完整文件路径 / 体积）。 */
     @Query(
         """
