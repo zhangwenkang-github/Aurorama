@@ -278,3 +278,11 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 - ~~缩略图为**本 App 私有派生缓存**，不随库删除清理（同一个文件重新建库即命中）；如需「删除库即清缓存」另开小任务~~ → **W47 已修**（`LocalThumbnailRules.purgeThumbnails` + `deleteLibrary` / `removeFolder` 调用 + DAO `getLocalMediaItemsByFolder`，data 单测净增 1 项：`purge` 只删目标条目 `<itemId>.jpg|.fail`、不动其他文件）；
 - 视频首帧固定取第 1 秒（黑场片源可能取到黑帧），未做「非黑帧搜索」；
 - CBZ 顺序流取「归档顺序第一张图」，未做自然序重排（与阅读器 `orderComicPageNames` 的差异仅在归档顺序异常时可见）。
+
+## 15. W47-B 下载补验（2026-10-03，Pad 5 `43af8627`，分支 `feature/w47b-b-verification`）
+
+- **设备侧断网 ≠ FAILED（结论修正）**：超能力女儿 第 1 集（1.15 GB）下载中关 Wi-Fi + 飞行模式 2 分钟 —— DownloadManager 停在 `PAUSED_WAITING_FOR_NETWORK`，App 映射为 `PAUSED` + `NETWORK_UNAVAILABLE`（下载页仍计「进行中」、0 失败），文件停在 115,672,729 B；恢复网络后**系统自行续传**（116.8 → 186.7 MB / 40 s，无应用层日志）。
+- **应用层自动重试仍未真机触发**：`DownloadTaskRules.isAutoRetryEligible` 只接受 `status == FAILED` +（网络 / 服务器原因），断网路径不产生 FAILED → `DownloadRetryWorker`（CONNECTED 约束）没有执行；补验需要服务器错误注入或传输层故障窗口（纯设备侧手段无法触发）。
+- **空间不足失败列表**：**跳过（用户确认 2026-10-03）**，原因 = 用户明确不方便、可不测或用其他方法；不算失败。
+- **reboot 续传**：待用户配合窗口（锁屏设备重启后无法自动解锁）。
+- 清理：测试下载经 App 删除流程移除（`0 进行中 / 1 已完成（既有书籍）/ 0 失败`），`files/downloads` 空。

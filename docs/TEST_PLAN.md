@@ -318,8 +318,10 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 ### 7.3 未触发项（B 组 / 故障窗口）
 
-- 下载 **FAILED 自动重试**（需服务器停机窗口）、**空间不足失败列表**（Pad 5 可用 53.68 GB）、**reboot 续传** —— 本轮无故障窗口，维持「未触发」。
-- **M4A 设备样本**：库内 0 个 m4a/mp4 曲目，ReplayGain 标签读取仍为单测覆盖，标「未覆盖」。
+- 下载 **FAILED 自动重试**（2026-10-03 B 组补验）：**纯设备侧断网不会产生 FAILED** —— 系统停在 `PAUSED_WAITING_FOR_NETWORK`（App 映射 `PAUSED` + `NETWORK_UNAVAILABLE`，下载页仍计「进行中」），恢复网络后由 **DownloadManager 自行续传**（116.8 → 186.7 MB / 40 s，无应用层日志）。应用层 `isAutoRetryEligible` 只接受 `FAILED`，故该路径在纯断网下无法触发 → 标「**部分覆盖**：系统自愈续传 ✅ / 应用层 FAILED 重试未触发」；补验需服务器错误注入或传输层故障窗口。
+- **空间不足失败列表**：**跳过（用户确认 2026-10-03）** —— 用户明确「不方便，可不测或用其他方法」，本轮不以任何方式（含等效方案）制造小空间，不算失败。
+- **reboot 续传**：待用户配合窗口（设备有锁屏，重启后无法自动解锁；负责人确认由用户配合，本轮未做）。
+- **M4A 设备样本**：✅ 已完成（2026-10-03，见 §7.5），不再是未覆盖项。
 - **end-帧 OFF 档的服务器缓流片尾**：本轮用本地单条目验证了 OFF 档目标动作（关闭播放页）；服务器直连流片尾 `state=6 buffering` 场景未复现（W24.5 原样挂账）。
 - libass 初始化失败注入、`sub-add` 网络失败注入（W19 / W18 既有遗留）：未触发。
 
@@ -328,3 +330,20 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - Pad 5 `43af8627`：删除测试库 **W47Media**（App 内删除 + `/sdcard/Download/W47Media` 源文件删除）、清 `/sdcard/w47*.xml`；阅读器偏好还原（`pref_reader_mode` 回「滚动」，离线模式 false）；Wi-Fi / 飞行模式 / freeform 全局开关还原；App `am force-stop`。
 - K60 `8e875894`：清 `/sdcard/w47k_ui.xml`、App `am force-stop`。
 - 服务器：未做任何写操作（白名单外零调用）。
+
+### 7.5 W47-B 补验（2026-10-03，Pad 5 `43af8627`，分支 `feature/w47b-b-verification`）
+
+M4A 样本 = 服务器 `m4a_60s_sample_file_574KB`（itemId `09805eb4-5342-457b-383f-46e4cb9b5ee9`；容器 `mov,mp4,m4a,3gp,3g2,mj2`；574 KB / 60 s）：
+
+| 步骤 | 结果 | 证据 |
+|------|------|------|
+| 标签读取 | ✅ 未检测到标签（真·无标签，非读取失败） | 面板「未检测到 ReplayGain 标签」；logcat `ReplayGainTagReader$read: …来源=NONE track=null album=null`；独立复核 = 服务器拉全量 587,509 B，`REPLAYGAIN` 0 次、freeform `----` atom 0 个 |
+| 本机覆盖 -6.0 dB | ✅ | 滑杆拖动 → 面板「曲目标签 -6.0 dB（本机设置）」；文件 `files/replaygain/09805eb4….txt` = `track=-6.0` |
+| 清除覆盖 + 回读 | ✅ 无负缓存 | 清除后面板回「未检测到 ReplayGain 标签」；logcat 出现**新的** `ReplayGain 读取：item=09805eb4 来源=NONE`（重新读取，不沿用缓存失败） |
+| 重启持久化 | ✅ | 覆盖 +4.0 dB（`track=4.0`）→ `am force-stop` + 重启 → 音乐页「0:05 / 1:00 · 上次播放」→ 恢复播放 → 面板仍「曲目标签 +4.0 dB（本机设置）」 |
+| 增益应用 | 🟡 代码链 + 数学可测 | `MusicAudioEffectsController.applyReplayGainToProcessor()`：`processor.replayGainFactor = 10^(dB/20)`（-6 dB → 0.501、+4 dB → 1.585，钳制 `MIN/MAX_GAIN_FACTOR`）；**未做声学 / 电平测量**（无采集条件），听感需人工复验 |
+| 稳定性 / 副作用 | ✅ | 全程 0 FATAL / ANR；覆盖已清除、`files/replaygain/` 空、`pref_music_replaygain_mode` 回 `off` |
+
+下载链路（超能力女儿 第 1 集，1.15 GB，Pad 5）：开始下载（7%）→ 关 Wi-Fi + 飞行模式 → 2 分钟任务保持「进行中」（系统 `PAUSED_WAITING_FOR_NETWORK`，文件停 115,672,729 B）→ 恢复网络 12 s 内 `Active default network` 恢复 → **系统自行续传** 116.8 → 120.8 → 157.3 → 186.7 MB（40 s，无应用层日志）→ App 删除流程清理（`0 进行中 / 1 已完成（既有书籍 2.22 MB）/ 0 失败`，`files/downloads` 空）。**结论：设备侧断网 = 系统自愈续传，不进入 FAILED。**
+
+设备还原：网络 / 飞行模式还原（ping 通）、下载测试数据经 App 删除、ReplayGain 覆盖清除、`pref_music_replaygain_mode=off`、App force-stop（device-lock 见登记文件）。

@@ -723,6 +723,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 离线模式（真断网：`svc wifi disable` + `cmd connectivity airplane-mode enable`）音乐页空态「离线模式还没有可播放的音乐 / 联网后在曲目菜单点『下载』…」正常；恢复网络与离线开关后回在线曲库。
 - 0 App FATAL / ANR；设备状态已还原（见 `TEST_PLAN` §7.4）。
 
+**M4A ReplayGain 真机补验（2026-10-03 W47-B，Pad 5）**：样本 `m4a_60s_sample_file_574KB`（服务器，574 KB / 60 s）→ 面板「未检测到 ReplayGain 标签」（log `来源=NONE`；独立复核 = 拉到全量 587,509 B，`REPLAYGAIN` 0 次 / freeform atom 0 个 → 真·无标签，非读失败）；本机覆盖 -6.0 dB → `files/replaygain/09805eb4….txt` = `track=-6.0` + 面板「曲目标签 -6.0 dB（本机设置）」；清除后回读（无负缓存）+ 覆盖 +4.0 dB 重启持久化（`force-stop` → 音乐页「上次播放」→ 恢复播放 → 面板仍 +4.0 dB）全部通过；增益应用链 = `10^(dB/20)`（未做声学测量）；覆盖已清除、`pref_music_replaygain_mode` 回 `off`，0 FATAL / ANR。详见 `TEST_PLAN` §7.5。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
