@@ -104,7 +104,7 @@
 | D53 | **视频模式页两种显示方式：库卡列表 / 聚合列表（W53，用户 2026-10-03 确认）** | ①**数据口径**：页面数据 = 服务器上 `movies` + `tvshows` 类型的全部库（`pickVideoLibraries` 纯函数 + 单测），顺序与服务器返回一致；②**库卡列表（默认）**：`LibraryEntryCard` 16:9 大卡网格（封面 / 库名 / 项目数），列宽沿用媒体库总览四档（300 / 320 / 380 / 420dp），点卡进库内容页（复用 `navigateToItem` → `LibraryRoute`）；③**聚合列表**：全部视频库的条目（电影 + 剧集）合并成一个懒加载网格（`ItemCard` 竖版海报 + `GridCellsAdaptiveWithMinColumns(176, 2)`），Paging 3 分页——Jellyfin 没有"一次查询多个媒体库"的接口，`VideoAggregatePagingSource` 按**库顺序**拼接、每个库内按「最近添加」（`DateCreated` 倒序）取，游标推进抽 `advanceVideoAggregateCursor` / `isVideoAggregateFinished` 纯函数 + 单测，空库 / 已取完的库自动跳过且不会让列表提前结束（一次 `load` 把 `loadSize` 填满）；④**设置项**：客户端设置 →「媒体库」子页新增「视频显示方式：库卡列表 / 聚合列表」（静态 `PreferenceSelect`，键 `pref_ui_video_display_mode`，默认 `cards`；取值 `cards` / `aggregated` 落盘），VideoViewModel 挂 SharedPreferences 监听，切换后回到页面即时生效；⑤**空态 / 骨架**：无视频库或聚合列表为空 → `CinefinEmptyState`（新增 `video_empty_title/message`），加载 → 库卡模式 `MediaLibrarySkeleton`、聚合模式 `LibraryGridSkeleton`（均走 `LumenSkeletonOverlay`）；⑥**顶栏**：复用 `CinefinPageTopBar`（手机 = app 图标入口 / 平板 = 无抽屉键，随 W46 形态规则），页面本体走 Lumen（影视域，D24）；⑦**仓库解析**：`VideoViewModel` 经 `Provider<JellyfinRepository>` 每次 `load()` 按当前偏好解析 在线 / 离线（踩坑 33 同类）——离线模式 `getLibraries()` 空列表给空态，不发网络请求（真机拦下后修复）。 | 已知边界：「最近添加」是**库内**排序（跨库全局排序需要服务器端祖先过滤，Jellyfin 无该接口，本波不做）；混合库（如 `mixed`）中的电影 / 剧集**不计入**聚合列表——口径严格限定在 movies / tvshows 库，与入口门控同源。 |
 
 | D54 | **实机 Bug A/B 修复：顶层入口回落根页 + 同目的地不同参数不走 saveState / restoreState（W53 复验，用户 2026-10-03 实机反馈）** | ①**Bug A（手机底栏「视频」切不回来）**：`navigateTopLevel` 的 `popUpTo(start){saveState}` + `restoreState` 会把「Tab 根 + 子页面」整栈恢复（如 视频 → 某个库内容页），点底栏「视频」停在库内容页；修法 = 导航后 `popBackStack(route, inclusive = false)` 统一弹回入口根页（已是根页为 no-op，根页滚动 / 状态仍由 saveState 保留）。②**Bug B2（侧栏选「书籍3」页里仍是「书籍」）**：库入口是「同一目的地 + 不同参数」，`restoreState` 按目的地 id 恢复旧条目、把新参数顶掉（踩坑 30 同类）；修法 = `openLibrary` 改 `popUpTo(start)` 不回存 / 不恢复 + `launchSingleTop`，按点击的库新建条目。③**Bug B1（侧栏选「音乐测试」页里仍是「音乐」）**：旧 `libraryEntryRoute` 把所有 Music 类型都映射到 `MusicModeRoute`（忽略 libraryId），音乐模式只读「客户端设置 → 音乐库」；修法 = 新增独立目的地 `MusicLibraryRoute(libraryId, libraryName)`（音乐 Tab 仍走 `MusicModeRoute`，两者分开 → 不会被 `restoreState` 用旧参数顶掉），`MusicModeViewModel` 从 SavedStateHandle 取路由库（路由 > 偏好 > 自动），顶栏显示库名；解析抽 `resolveMusicLibraryId` 纯函数 + 单测。④**库子项可区分**：侧栏 / 抽屉库子项右侧显示项目数（服务器 `ChildCount`，无值不占位）——抽屉完整显示，侧轨 168dp 下最长 4 字库名会截断（呈现取舍待用户确认）。⑤路由决策抽 `libraryEntryRoute` 纯函数（app:phone 单测 4 项）+ 音乐库解析单测 3 项。 |
-
+| D55 | **视频海报状态徽标：容器显示未看数、电影 / 单集已看打勾（W56，用户 2026-10-03 确认，官方口径）** | ①**规则纯函数**（`FindroidItem.posterStatusBadge()`，`app/phone` `presentation/film/components`）：Series / Season / 文件夹 → `UserData.UnplayedItemCount > 0` 显示未看条目数，`>99` 收敛 `99+`（`unplayedItemCountText`）；Movie / Episode → 服务器只给 `UserData.Played`：已看 → `PlayedBadge` 打勾、未看 → 不加角标；合集等本波未纳入类型 → 无；②**接入面** = `PosterItemCard`（首页海报墙，补「已看打勾」）/ `ItemCard`（库网格 / 搜索 / 视频聚合 / 季列表 / 演职人员）/ `LandscapeItemCard`（首页走廊与「接下来」）/ `EpisodeCard`（单集列表）统一走 `ItemStatusBadge(item)`（下载徽标仍独立、同排）；③**库卡改正**：`LibraryEntryCard` 的角标位删除——库视图（CollectionFolder）实测不返回 `UnplayedItemCount`、`FindroidCollection` 恒为 null，原先是死代码；库卡信息仍是「共 N 个项目」（`ChildCount`）；④**数据核验（只读接口探针，服务器 10.11.8）**：`/Items`（网格 / 搜索）、`/Shows/{id}/Seasons`、`/Items/Latest`、`/Suggestions` 对 Series / Season 均返回未看数，显式 `enableUserData=true` 与默认完全一致（服务端默认已含用户数据）→ **查询不改**；Movie / Episode / `/Views` 恒空，`/Shows/NextUp`、`/Items/Resume` 只有 `played`；⑤**不改**：离线 / 本地库路径（离线映射 `unplayedItemCount = null`，无角标是既有语义）；不新增配色 / 字体 / 位图。 | 视觉沿用封面右上角小胶囊（与下载徽标同排，黑 62% + 白 12% 描边，Prism / Lumen 通用）；`99+` 覆盖「整剧数百集未看」大库（真机样本 银魂 = 370 → `99+`）。 |
 ## 4. 进度
 
 ### W53 实机 Bug A/B 修复（2026-10-03，同分支；用户实机反馈，D54）
@@ -125,6 +125,16 @@
 - [x] **单测**：`LibraryEntryRouteTest` 4 项（app）+ `MusicLibrarySelectionTest` 3 项（music），共 +7
 - [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **512 项 0 失败**（app 94 / core 37 / data 45 / player:local 105 / film 6 / book 113 / music 112）
 - [x] **真机复验（Pad 5 主 + K60 抽验，20:46–20:56，device-lock 已写释放与结论）**：Bug A 两条路径（抽屉选库 / 视频页进库 → 点底栏「视频」均回视频页）；B2 双机「书籍3」命中（K60 标题「书籍3 / 共 8 个项目」、Pad 同）；B1 双机「音乐测试」命中（K60「音乐测试 / 共 0 张专辑」、Pad 同），随后点底栏「音乐」=「音乐 / 共 105 张专辑」（Tab 不被库入口参数顶掉）；抽屉与侧轨库子项显示「N 项」（抽屉完整；侧轨 168dp 下 4 字库名截断，待用户确认呈现）；0 FATAL / ANR
+
+### W56 视频海报状态徽标（未看数量 / 已看打勾，官方口径）（2026-10-03，分支 `feature/w56-unwatched-badges`，起点 master `97e1cb6`）
+
+- **决策（D55，用户 2026-10-03 确认）**：①Series / Season / 文件夹封面角标 = 未看条目数（`>0` 才显示，`>99` 显示 `99+`）；②Movie / Episode 已看 → 打勾徽标、未看 → 不加角标；③库卡保持「项目数」信息、原未看徽标位改正；④规则抽纯函数（类型 → 数字 / 打勾 / 无）+ 单测。
+- [x] **A1 规则纯函数**：`PosterStatusBadge.kt` —— `posterStatusBadge()`（类型 + 用户数据 → `UnplayedCount` / `Played` / `None`）、`unplayedItemCountText()`（`>99` → `99+`）、`ItemStatusBadge(item)` 组合渲染入口
+- [x] **A2 卡片统一接入**：`PosterItemCard`（补已看打勾）/ `ItemCard` / `LandscapeItemCard` / `EpisodeCard` —— 原 `if (item.played) PlayedBadge()` 会给「已看完的整剧」误打勾，统一改走规则；`ItemCountBadge` 文案走 `99+` 收敛
+- [x] **A3 库卡改正**：`LibraryEntryCard` 删除右上角未看徽标位（死代码：`FindroidCollection.unplayedItemCount` 恒 null、服务器库视图也不返回该字段），库卡第②行仍是「共 N 个项目」
+- [x] **A4 数据核验（只读接口探针，服务器 10.11.8，用户 zhangwenkang）**：媒体库网格 / 搜索 / 聚合（`/Items`）、Seasons、Latest、Suggestions 对 Series / Season 返回未看数（实测 13 / 48 / 40 / 370…），显式 `enableUserData=true` 与默认结果逐条一致；Movie / Episode / `/Views` 恒空；NextUp / Resume 只有 `played` → **查询保持现状，无需显式开启用户数据**
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；单测 7 任务 `--rerun` **523 项 / 0 失败**（W52+W53 基线 516 + W56 净增 7；app 100 / core 37 / data 45 / player:local 105 / film 14 / book 113 / music 109）
+- [ ] **真机（待窗口）**：剧集未看数与服务器一致 / 已看打勾与未看无角标 / `99+` 场景 / 库网格·首页·搜索·视频页四处一致 / 0 FATAL·ANR —— 见 §5 W56 验收
 
 ### W53 视频入口 + 视频模式页（2026-10-03，分支 `feature/w53-video-entry`，起点 master `1222bef`、rebase 到 W50 `8f3ba0e`）
 
@@ -808,7 +818,13 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **0 FATAL / ANR**（双机 crash buffer + main log 过滤为空）；副作用已还原（双机 force-stop、`/sdcard` 临时文件清理、未改设备偏好）
 - 备注：侧轨展开 168dp 下 4 字库名（音乐测试 / Playlists）会省略成「音乐测…」——项目数是用户确认项，最终呈现（名称截断 vs 项目数）待用户拍板
 
-## 6. 踩坑库
+### W56 验收（2026-10-03，分支 `feature/w56-unwatched-badges`，起点 master `97e1cb6`）
+
+- [x] **数据口径核验（只读接口探针，服务器 10.11.8 + 官方 OpenAPI）**：`UserItemDataDto.UnplayedItemCount`（int32 可空）只在 `UserData` 下返回；`/Items`（媒体库网格 / 搜索 / 聚合）、`/Shows/{id}/Seasons`、`/Items/Latest`、`/Suggestions` 对 Series / Season 有值（13 / 48 / 40 / 370…），带不带 `enableUserData=true` 结果一致；Movie / Episode / `/Views` 恒空；NextUp / Resume 只有 `played`
+- [x] **纯函数单测**（`ItemStatusBadgeTest` 7 项）：Series / Season / Folder 未看数 `>0` → `UnplayedCount`、`0` / `null` → `None`；**完全看完的整剧不打勾**；Movie / Episode 已看 → `Played`、未看 → `None`；文案 `1 / 99 / 100 / 4096` → `1 / 99 / 99+ / 99+`
+- [x] **视觉静态核对**：四个卡片的徽标仍在封面右上角、与下载徽标同排（`Arrangement.spacedBy(Space2)`）；仍走 `BaseBadge`（黑 62% 底 + 白 12% 描边）；无新增配色 / 字体 / 位图
+- [x] **门禁**：根 `assembleDebug`（含 TV：`app:phone` + `app:tv`）BUILD SUCCESSFUL；`ktfmtCheck` 全模块通过；单测 7 任务 `--rerun` **523 项 / 0 失败 0 错误**（app 100 / core 37 / data 45 / player:local 105 / film 14 / book 113 / music 109）
+- [ ] **真机（待窗口）**：①剧集未看数（与服务器 `UserData.UnplayedItemCount` 逐条比对）；②已看打勾 / 未看不加角标；③`99+` 场景；④库网格 / 首页 / 搜索 / 视频页四处一致；⑤0 FATAL / ANR
 
 ## 6. 踩坑库
 
@@ -897,6 +913,8 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 73. **自绘组件替换 M3 组件时，「尺寸契约」也会一起变**（W49 真机拦下，W44 回归）：`material3.Slider` 内部把宽度填满 **max** 约束，所以阅读器 `Modifier.weight(1f, fill = false).widthIn(max = 230.dp)` 一直正常；换成 `Canvas`（`Spacer`）后它按 **min** 约束尺寸（`Spacer` 直接 `layout(minWidth, minHeight)`）→ 宽度 0：轨道 / 拇指不绘制、触摸与键盘焦点都不响应、**连 a11y 树里的 `SeekBar` 节点都消失**（零面积节点被判不可见）。判据：`uiautomator dump` 里找不到 `android.widget.SeekBar`（有 `ProgressBarRangeInfo` 时 Compose 会把它标成 SeekBar）、截图列扫描发现该行没有任何轨道像素。修法：组件内 `fillMaxWidth()` 与 M3 对齐（上限交给调用方 `widthIn`）；**教训：换自绘组件时要连「尺寸 / 焦点 / a11y」三条契约一起对照原组件，不能只对齐配色与几何**。
 
 ## 7. 日志
+
+- **2026-10-03 W56 视频海报状态徽标（本会话，`feature/w56-unwatched-badges`，起点 master `97e1cb6`）**：读 `PROJECT_PLAN` §1–§5、`UI_PLAN`（D32/D33/D39/D52–D53 + 踩坑库）、`UI_DESIGN_SYSTEM` §4/§5/§8.4/§8.9、官方 OpenAPI `UserItemDataDto` 与既有卡片 / 仓库代码后开工（决策 D54）。①**数据核验（只读探针）**：`/Items`（媒体库网格 / 搜索 / 聚合）、`/Shows/{id}/Seasons`、`/Items/Latest`、`/Suggestions` 对 Series / Season 均返回 `UserData.UnplayedItemCount`，显式 `enableUserData=true` 与默认一致；Movie / Episode / `/Views` 恒空、NextUp / Resume 只有 `played` → 查询保持现状，仅保持既有 `FindroidItem.unplayedItemCount` 映射；②**规则**：`posterStatusBadge()`（容器 → 未看数 / 电影·单集 → 已看打勾 / 其余无）+ `unplayedItemCountText()`（`99+`）；③**接入**：`PosterItemCard`（补打勾）/ `ItemCard` / `LandscapeItemCard` / `EpisodeCard` 统一 `ItemStatusBadge`，去掉会把「已看完整剧」误打勾的 `item.played` 判断；`LibraryEntryCard` 死徽标位删除；④**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **523 项 / 0 失败**（基线 516 + 7）；⑤真机待设备窗口（W53-TEMPV 占用中）后补验。
 
 - **2026-10-03 W53 真机验收（本会话续，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，19:02–19:26）**：先 **rebase 到 W50 master `8f3ba0e`**（唯一冲突 = `PROJECT_PLAN` 的 W50 / W53 更新段，保留两段人工合并），复跑门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、单测 `--rerun` **505 项 0 失败**（W50 基线 496 + W53 净增 9；app 90 / core 37 / data 45 / player:local 105 / film 6 / book 113 / music 109），双机装机 `Success`。验收：①侧轨顺序（首页 / 视频 / 音乐 / 书架 / 媒体库 / 下载）与视频行选中态像素取证（极光青指示条 `rgb(92,225,210)`）；②侧栏「视频」开关即时生效（关 / 开）；③库卡列表进库（电影库「共 17 个项目」）；④「视频显示方式」库卡 ↔ 聚合即时生效（聚合 = 电影 + 剧集混合网格，含未看角标 40 / 26 / 12 / 28，滚动连续）；⑤K60 底栏 4 Tab 顺序 + 选中态像素 + 抽屉「视频」条目 + 顶栏 logo 入口；⑥0 FATAL / ANR（双机 crash buffer + main log 过滤为空）。**真机拦下并修复 P1**：离线模式下视频页仍显示服务器库（`VideoViewModel` 直接注入 `JellyfinRepository` → 离线开关不生效，同踩坑 33）→ 改注入 `Provider<JellyfinRepository>`、每次 `load()` 按当前偏好解析；K60 复验离线 = 空态「暂无视频库」、退出离线模式后库卡恢复。副作用已还原（Pad 显示方式回库卡列表、K60 退出离线模式、双机 force-stop、`/sdcard` 临时文件删除），device-lock 已写释放与结论。
 

@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -108,13 +107,6 @@ fun LibraryEntryCard(
                         )
                     )
         )
-
-        Row(
-            modifier = Modifier.align(Alignment.TopEnd).padding(CinefinSpacing.Space3),
-            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-        ) {
-            item.unplayedItemCount?.takeIf { it > 0 }?.let { ItemCountBadge(it) }
-        }
 
         Row(
             modifier =
