@@ -128,7 +128,7 @@
 - [x] **④顶层图标回主页**：纯函数 `topLevelTapAction` + `musicOverlayReselectSignal` / `musicInnerPageOpen` 接线（页内二级层 = 全屏覆盖层或专辑等详情）。
 - [x] **单测**：`TopLevelNavigationTest` 4 项（app）+ `MusicMiniBarRulesTest` 3 项（music）= 净增 7。
 - [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **583 项 / 0 失败 0 错误**（app 130 → 134 / music 111 → 114）；含 `:player:core:testDebugUnitTest` 全量 **590 项 / 0 失败**。
-- [ ] **真机**：待设备窗口（清单见 §5 W56 验收）。
+- [x] **真机（Pad 5 主 + K60 抽验，2026-10-04 01:36–01:43）**：四项全部通过（设置账号卡组内首行 / 迷你条 × 停播收起 + 重选恢复 / 全屏五键无歌词入口 + 点歌词行进歌词页 / 全屏·歌词页·艺术家详情·视频库内容页点对应图标均回主页）；双机 0 FATAL / ANR。详见 `device-lock.md`。
 
 ### W53B 侧栏「本地媒体库」子分组 + 本地库卡 16:9 缩略图（2026-10-03，分支 `feature/w53b-local-libs`，起点 master `9fcea57`）
 
@@ -997,6 +997,8 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - **静态核对**：账号卡复用原 `SettingsAccountHeader`（头像 / 昵称 / 服务器 / 徽标 / 点击全保留，仅容器上移进组卡）；迷你条 × 复用 `CinefinIconButton` + `ic_close`；全屏按钮组五键（无「歌词」）；无新增配色 / 字体 / 位图；`AppPreferences.kt` 零改动（偏好键未动）。
 - **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **583 项 / 0 失败 0 错误**（app 134 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 114）；含 `:player:core:testDebugUnitTest` 全量 **590 项 / 0 失败**；新增单测 7 项（`TopLevelNavigationTest` 4 + `MusicMiniBarRulesTest` 3）。
 - **真机（待窗口）**：①设置首屏——账号卡出现在「账号与服务器」卡内首行（头像 / 昵称 / 服务器 / 徽标），点击进用户管理；②音乐播放中迷你条 × → 停止播放 + 迷你条消失（媒体通知消退）；③× 后再次点曲目正常起播；重启后队列存档仍可恢复；④音乐全屏按钮组 = 五键（无「歌词」），点歌词预览行 / 左滑仍进歌词页，迷你条「词」仍开歌词 sheet；⑤音乐全屏 / 歌词页打开时点底栏 / 侧轨「音乐」→ 回音乐主页；点其它模式图标 → 对应主页；⑥视频库内容页 / 视频详情 / 书架详情 / 本地库详情 / 临时库下点对应顶层图标 → 弹回根页；⑦已在主页再点 → 不闪烁、不重复导航；⑧0 FATAL / ANR。
+
+- **负责人真机走查（2026-10-04 01:36–01:43，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，master `8181921`）**：①账号卡「账号与服务器」组内首行（K60 同款）；②迷你条 × → `dumpsys media_session` = `state=0` 停播 + 收起，重选曲恢复「正在播放」；③全屏五键（播放队列 / 顺序播放 / 收藏 / 桌面歌词 / 音效）**无歌词入口**；点歌词区域 → 歌词页（纯音乐提示），迷你条「词」保留；④全屏播放 → 点「音乐」→ 回音乐主页（播放不中断）；歌词页 / 艺术家「Aimer」详情 / 电影库内容页 → 点对应图标均回主页；已在主页再点图标停留无副作用；⑤0 FATAL / ANR。未覆盖：音乐「专辑」tab 详情（用艺术家详情等效）、设置子页回主页（可选）。
 
 ## 6. 踩坑库
 
