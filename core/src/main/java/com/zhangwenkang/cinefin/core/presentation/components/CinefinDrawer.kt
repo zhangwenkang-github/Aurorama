@@ -44,10 +44,16 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
-/** 抽屉分组：`title = null` 表示不画分组标题。 */
+/**
+ * 抽屉分组：`title = null` 表示不画分组标题。
+ *
+ * [dividerAboveTitle]（W53B）：分组标题上方是否加一条细分隔线——用于「媒体库 → 本地媒体库」这类**组内子分组**，
+ * 让子分组与上面的服务器库列表分开（复用侧轨同一条发丝线，不新增配色 / 字体 / 位图）。
+ */
 class CinefinDrawerGroup(
     val title: String?,
     val items: List<CinefinNavItem>,
+    val dividerAboveTitle: Boolean = false,
 )
 
 /**
@@ -146,6 +152,9 @@ internal fun CinefinDrawerContent(
         Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             var flatIndex = 0
             groups.forEach { group ->
+                if (group.dividerAboveTitle) {
+                    CinefinRailGroupDivider(expanded = true)
+                }
                 if (group.title != null) {
                     Text(
                         text = group.title,

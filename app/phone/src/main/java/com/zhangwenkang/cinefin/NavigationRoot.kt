@@ -48,8 +48,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -114,18 +116,23 @@ import com.zhangwenkang.cinefin.presentation.film.PersonScreen
 import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
 import com.zhangwenkang.cinefin.presentation.local.LocalLibraryDetailScreen
+import com.zhangwenkang.cinefin.presentation.local.iconRes
 import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawerHeader
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPANDED
 import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
+import com.zhangwenkang.cinefin.presentation.navigation.RAIL_LIBRARY_COUNT_GAP_DP
+import com.zhangwenkang.cinefin.presentation.navigation.SidebarLocalLibrary
 import com.zhangwenkang.cinefin.presentation.navigation.TemporaryLibraryKind
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
+import com.zhangwenkang.cinefin.presentation.navigation.libraryChildCountVisible
 import com.zhangwenkang.cinefin.presentation.navigation.libraryEntryRoute
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
 import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
+import com.zhangwenkang.cinefin.presentation.navigation.railLibraryLabelWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.visibleRailKeys
 import com.zhangwenkang.cinefin.presentation.offline.OfflineHomeScreen
 import com.zhangwenkang.cinefin.presentation.offline.OfflineLibraryScreen
@@ -350,6 +357,9 @@ fun NavigationRoot(
             drawerViewModel.load()
         }
     }
+    // W53B：本地库不属于服务器数据——导航变化（进出本地库详情 / 媒体库页新建后离开）时只读刷新一次本地库行，
+    // 让侧轨 / 抽屉的「本地媒体库」子分组跟着建立 / 删除 /「在媒体库显示」开关变化。
+    LaunchedEffect(navBackStackEntry) { drawerViewModel.refreshLocalLibraries() }
 
     // 形态分级（§4.4）：Compact 底部 tab；Medium 起侧轨（≥1200dp 默认展开 164dp）
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -379,6 +389,13 @@ fun NavigationRoot(
     val currentLibrary =
         if (currentDestination.isRoute<LibraryRoute>()) {
             runCatching { navBackStackEntry?.toRoute<LibraryRoute>() }.getOrNull()
+        } else {
+            null
+        }
+    // W53B：本地库详情（侧栏「本地媒体库」子项 / 媒体库页本地库卡的共同落点）——侧栏子项按它高亮。
+    val currentLocalLibraryId =
+        if (currentDestination.isRoute<LocalLibraryRoute>()) {
+            runCatching { navBackStackEntry?.toRoute<LocalLibraryRoute>() }.getOrNull()?.libraryId
         } else {
             null
         }
@@ -464,6 +481,13 @@ fun NavigationRoot(
             popUpTo(navController.graph.startDestinationId)
             launchSingleTop = true
         }
+    }
+    // W53B：侧栏「本地媒体库」子分组点一行 → 该本地库详情（既有 LocalLibraryRoute，与媒体库页本地库卡同落点）。
+    // 本地库详情是独立目的地（不在模式页里做临时覆盖），返回键 / 切其它入口都自然回到各自默认页面。
+    val openLocalLibrary: (SidebarLocalLibrary) -> Unit = { library ->
+        closeDrawer()
+        // launchSingleTop：已在同一个本地库详情时再点（平板侧轨常显）不重复入栈。
+        navController.safeNavigate(LocalLibraryRoute(library.id)) { launchSingleTop = true }
     }
     // 临时库视图（W53 追加）：返回键 / 「返回默认 ×」= 回到该模式页的**默认库**（入口根页）——
     // 用「导航到默认入口 + popUpTo 临时条目 inclusive」替换当前条目，再按一次返回才会离开页面。
@@ -641,10 +665,12 @@ fun NavigationRoot(
     val railPinnedTail = if (railKeys.lastOrNull() == NavEntryKey.Settings) 1 else 0
 
     // 抽屉 = 同一份统一目的地列表，库列表挂在「媒体库」行下（W8-R3 用户反馈 4：**默认收起**、展开后才显示；
-    // 行尾箭头与侧轨同一套交互与图标，展开状态与侧轨共用 mediaGroupExpanded）。离线模式没有库列表，
-    // 只留一级入口。选中索引与动作列表仍同源（踩坑 17）。
-    val libraryChildrenVisible =
-        mediaGroupExpanded && !isOfflineMode && drawerData.libraries.isNotEmpty()
+    // 行尾箭头与侧轨同一套交互与图标，展开状态与侧轨共用 mediaGroupExpanded）。选中索引与动作列表仍同源（踩坑 17）。
+    // W53B：子分组 = 服务器库（服务器返回）→「本地媒体库」标题 + 分隔 → 本地库行。本地库只读本机索引，
+    // 离线模式下同样可展开（不再要求 `!isOfflineMode`）；两组都空时保持一级入口、无展开箭头。
+    val hasMediaChildren =
+        drawerData.libraries.isNotEmpty() || drawerData.localLibraries.isNotEmpty()
+    val libraryChildrenVisible = mediaGroupExpanded && hasMediaChildren
     val drawerEntries: List<DrawerEntry> = railDestinations.flatMap { destination ->
         val topLevel =
             DrawerEntry(
@@ -655,7 +681,7 @@ fun NavigationRoot(
         if (destination.key != NavEntryKey.Media) {
             return@flatMap listOf(topLevel)
         }
-        val expandable = !isOfflineMode && drawerData.libraries.isNotEmpty()
+        val expandable = hasMediaChildren
         val parent =
             DrawerEntry(
                 item =
@@ -718,11 +744,52 @@ fun NavigationRoot(
                         selected = currentLibrary?.libraryId == library.id.toString(),
                         onClick = { openLibrary(library) },
                     )
+                } +
+                drawerData.localLibraries.map { library ->
+                    DrawerEntry(
+                        item =
+                            CinefinNavItem(
+                                label = library.name,
+                                icon = navIcon(library.type.iconRes()),
+                                nested = true,
+                                trailing = libraryChildCountTrailing(library.itemCount),
+                            ),
+                        selected = currentLocalLibraryId == library.id,
+                        onClick = { openLocalLibrary(library) },
+                        section = DrawerEntrySection.LocalLibrary,
+                    )
                 }
         }
     }
+    // W53B：本地库行单独成一个抽屉分组，复用分组标题样式（「本地媒体库」）+ 标题上方细分隔线；
+    // 三段是同一份 `drawerEntries` 的连续切片，拍平顺序不变 → `onSelect(index)` 与动作列表仍同源（踩坑 17）。
+    val localEntryIndexes =
+        drawerEntries
+            .withIndex()
+            .filter { it.value.section == DrawerEntrySection.LocalLibrary }
+            .map { it.index }
     val drawerGroups =
-        listOf(CinefinDrawerGroup(title = null, items = drawerEntries.map { it.item }))
+        if (localEntryIndexes.isEmpty()) {
+            listOf(CinefinDrawerGroup(title = null, items = drawerEntries.map { it.item }))
+        } else {
+            val localStart = localEntryIndexes.first()
+            val localEnd = localEntryIndexes.last() + 1
+            listOf(
+                CinefinDrawerGroup(
+                    title = null,
+                    items = drawerEntries.take(localStart).map { it.item },
+                ),
+                CinefinDrawerGroup(
+                    title = LocalMediaGroupTitle,
+                    items = drawerEntries.subList(localStart, localEnd).map { it.item },
+                    dividerAboveTitle = true,
+                ),
+                CinefinDrawerGroup(
+                    title = null,
+                    items = drawerEntries.drop(localEnd).map { it.item },
+                ),
+            )
+        }
     val drawerSelectedIndex = drawerEntries.indexOfFirst { it.selected }
 
     val host: @Composable () -> Unit = {
@@ -946,6 +1013,8 @@ fun NavigationRoot(
                 LocalLibraryDetailScreen(
                     libraryId = route.libraryId,
                     onBack = { navController.safePopBackStack() },
+                    // W53B：库级设置（「在媒体库显示」开关 / 重命名 / 条目数）变化后刷新侧栏「本地媒体库」子分组。
+                    onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
                     onPlayVideo = { itemId ->
                         val intent = Intent(context, PlayerActivity::class.java)
                         intent.putExtra("itemId", itemId.toString())
@@ -1307,10 +1376,14 @@ fun NavigationRoot(
                             destinations = railDestinations,
                             mediaLibraries =
                                 if (isOfflineMode) emptyList() else drawerData.libraries,
+                            // W53B：本地库只读本机索引，离线模式也列出（与服务器库分开的子分组）。
+                            localLibraries = drawerData.localLibraries,
                             currentLibraryId = currentLibrary?.libraryId,
+                            currentLocalLibraryId = currentLocalLibraryId,
                             mediaGroupExpanded = mediaGroupExpanded,
                             onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
                             onOpenLibrary = openLibrary,
+                            onOpenLocalLibrary = openLocalLibrary,
                             expanded = railExpanded,
                             onToggleExpanded = { railExpanded = !railExpanded },
                             groupBreaks = railBreaks,
@@ -1400,10 +1473,17 @@ private data class ChromeDestination(
     val onClick: () -> Unit,
 )
 
+/** 抽屉条目分区（W53B）：本地库行单独切成一个带标题的抽屉分组（「本地媒体库」），其余条目保持原顺序—— 分组只是渲染切片，拍平索引与动作列表仍同源（踩坑 17）。 */
+private enum class DrawerEntrySection {
+    Normal,
+    LocalLibrary,
+}
+
 private data class DrawerEntry(
     val item: CinefinNavItem,
     val selected: Boolean,
     val onClick: () -> Unit,
+    val section: DrawerEntrySection = DrawerEntrySection.Normal,
 )
 
 /**
@@ -1415,10 +1495,13 @@ private data class DrawerEntry(
 private fun CinefinSideNavigation(
     destinations: List<ChromeDestination>,
     mediaLibraries: List<FindroidCollection>,
+    localLibraries: List<SidebarLocalLibrary>,
     currentLibraryId: String?,
+    currentLocalLibraryId: Long?,
     mediaGroupExpanded: Boolean,
     onToggleMediaGroup: () -> Unit,
     onOpenLibrary: (FindroidCollection) -> Unit,
+    onOpenLocalLibrary: (SidebarLocalLibrary) -> Unit,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
     groupBreaks: Set<Int> = emptySet(),
@@ -1543,14 +1626,19 @@ private fun CinefinSideNavigation(
                 CinefinNavigationItem(
                     item = destination.item,
                     // 进入某个库时父项保持高亮（子项另有高亮），与「书架 → 书籍库」的既有行为一致。
-                    selected = destination.selected || currentLibraryId != null,
+                    selected =
+                        destination.selected ||
+                            currentLibraryId != null ||
+                            currentLocalLibraryId != null,
                     expanded = expanded,
                     onClick = {
                         destination.onClick()
                         if (!mediaGroupExpanded) onToggleMediaGroup()
                     },
                     trailing =
-                        if (mediaLibraries.isNotEmpty() && expanded) {
+                        if (
+                            (mediaLibraries.isNotEmpty() || localLibraries.isNotEmpty()) && expanded
+                        ) {
                             {
                                 Icon(
                                     painter =
@@ -1573,7 +1661,11 @@ private fun CinefinSideNavigation(
                             null
                         },
                 )
-                if (mediaGroupExpanded && expanded && mediaLibraries.isNotEmpty()) {
+                if (
+                    mediaGroupExpanded &&
+                        expanded &&
+                        (mediaLibraries.isNotEmpty() || localLibraries.isNotEmpty())
+                ) {
                     mediaLibraries.forEach { library ->
                         CinefinNavigationItem(
                             item =
@@ -1586,10 +1678,32 @@ private fun CinefinSideNavigation(
                             compact = true,
                             onClick = { onOpenLibrary(library) },
                             // 侧轨的 trailing 走组件参数（`CinefinNavigationItem(trailing = …)`），
-                            // 与抽屉用的 `CinefinNavItem.trailing` 是两个槽位（W53 Bug B 配套）。
-                            trailing = libraryChildCountTrailing(library.itemCount),
+                            // 与抽屉用的 `CinefinNavItem.trailing` 是两个槽位（W53 Bug B 配套）；
+                            // W53B 起按「完整名称优先」实测宽度决定是否显示项目数（168dp 轨宽取舍）。
+                            trailing = railLibraryCountTrailing(library.name, library.itemCount),
                             modifier = Modifier.padding(start = CinefinSpacing.Space4),
                         )
+                    }
+                    // W53B：服务器库之后 =「本地媒体库」子分组（分隔线 + 标题 + 每库一行）。
+                    if (localLibraries.isNotEmpty()) {
+                        CinefinRailGroupDivider(expanded = expanded)
+                        RailSubgroupTitle(text = LocalMediaGroupTitle)
+                        localLibraries.forEach { library ->
+                            CinefinNavigationItem(
+                                item =
+                                    CinefinNavItem(
+                                        label = library.name,
+                                        icon = navIcon(library.type.iconRes()),
+                                    ),
+                                selected = currentLocalLibraryId == library.id,
+                                expanded = true,
+                                compact = true,
+                                onClick = { onOpenLocalLibrary(library) },
+                                trailing =
+                                    railLibraryCountTrailing(library.name, library.itemCount),
+                                modifier = Modifier.padding(start = CinefinSpacing.Space4),
+                            )
+                        }
                     }
                 }
             }
@@ -1677,6 +1791,70 @@ private fun libraryChildCountTrailing(count: Int?): (@Composable () -> Unit)? =
     count?.let { value ->
         { LibraryChildCount(value) }
     }
+
+/**
+ * 侧轨库子项的尾标（W53B）：先用 [rememberTextMeasurer] 量出「库名 / 项目数」的实际宽度，再按 [libraryChildCountVisible]
+ * 的「完整名称优先」规则决定是否显示项目数 —— 168dp 展开轨下文字可用宽 [railLibraryLabelWidthDp]dp，名称 +
+ * 项目数放不下时省略项目数（不把库名截断成「音乐测…」）。
+ *
+ * 抽屉宽 320dp、文字可用宽充裕，仍走 [libraryChildCountTrailing] 的既有「有值就显示」口径。
+ */
+@Composable
+private fun railLibraryCountTrailing(name: String, count: Int?): (@Composable () -> Unit)? {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val countText =
+        if (count != null) stringResource(CoreR.string.nav_library_item_count, count) else null
+    val nameWidthDp =
+        with(density) {
+            measurer
+                .measure(name, style = CinefinType.NavLabel, maxLines = 1)
+                .size
+                .width
+                .toDp()
+                .value
+        }
+    val countWidthDp =
+        countText?.let { text ->
+            with(density) {
+                measurer
+                    .measure(text, style = CinefinType.BodySmall, maxLines = 1)
+                    .size
+                    .width
+                    .toDp()
+                    .value
+            }
+        } ?: 0f
+    val show =
+        count != null &&
+            libraryChildCountVisible(
+                labelWidthDp = railLibraryLabelWidthDp(),
+                nameWidthDp = nameWidthDp,
+                countWidthDp = countWidthDp,
+                gapDp = RAIL_LIBRARY_COUNT_GAP_DP,
+            )
+    return if (show) libraryChildCountTrailing(count) else null
+}
+
+/** 侧轨二级子分组标题（W53B）：复用抽屉分组标题的字阶与颜色（`LabelSmall` + 三级文字）， 不新增配色 / 字体 / 位图；只在展开态出现（折叠轨本来就不画子项）。 */
+@Composable
+private fun RailSubgroupTitle(text: String) {
+    val colors = LocalCinefinColors.current
+    val lumen = LocalLumenColors.current
+    Text(
+        text = text,
+        style = CinefinType.LabelSmall,
+        color = lumen?.textFaint ?: colors.onSurfaceFaint,
+        maxLines = 1,
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(
+                    start = 14.dp,
+                    top = CinefinSpacing.Space2,
+                    bottom = CinefinSpacing.Space1,
+                ),
+    )
+}
 
 /**
  * 打开本机阅读器（EB-10 入口改造）。
@@ -1820,3 +1998,6 @@ internal fun consoleEntrySelected(currentPath: String?, entryPath: String): Bool
 
 /** W51：下载角标轮询间隔（只读 Room 快照，不触发对账 / 引擎唤醒）。 */
 private const val DownloadBadgePollIntervalMs = 2_000L
+
+/** 侧栏「本地媒体库」子分组标题（W53B）：与本地库界面既有文案一致，侧轨 / 抽屉共用一份字面量。 */
+private const val LocalMediaGroupTitle = "本地媒体库"

@@ -231,7 +231,7 @@ private fun TypeBadge(type: LocalLibraryType, modifier: Modifier = Modifier) {
     }
 }
 
-/** W45：本地条目 / 库卡缩略图（40dp，`corner-xs`）；无图回退类型图标。 */
+/** W45：本地条目 / 库卡缩略图（默认 40dp 正方形，`corner-xs`）；无图回退类型图标。 */
 @Composable
 internal fun LocalThumbnailTile(
     cover: String?,
@@ -241,10 +241,17 @@ internal fun LocalThumbnailTile(
     size: Dp = 40.dp,
     iconSize: Dp = 20.dp,
     shape: Shape = CinefinShapes.Xs,
+    /** W53B：宽高分开（本地库卡 16:9）；默认都等于 [size]，既有调用点不变。 */
+    width: Dp = size,
+    height: Dp = size,
 ) {
     val colors = LocalCinefinColors.current
     Box(
-        modifier = modifier.size(size).clip(shape).background(colors.surfaceContainerHigh),
+        modifier =
+            modifier
+                .size(width = width, height = height)
+                .clip(shape)
+                .background(colors.surfaceContainerHigh),
         contentAlignment = Alignment.Center,
     ) {
         if (cover != null) {
@@ -385,6 +392,10 @@ fun LocalLibrarySection(
     }
 }
 
+/** W53B：本地库卡缩略图 16:9（宽 100dp，落在「约 96–104dp」档内）。 */
+private val LocalLibraryCardThumbnailWidth = 100.dp
+private val LocalLibraryCardThumbnailHeight = LocalLibraryCardThumbnailWidth * 9f / 16f
+
 @Composable
 private fun LocalLibraryCard(
     card: LocalLibraryViewModel.LibraryCard,
@@ -397,10 +408,14 @@ private fun LocalLibraryCard(
     LaunchedEffect(card.id, card.itemCount) { onCoverVisible() }
     CinefinCard(onClick = onClick, contentPadding = PaddingValues(CinefinSpacing.Space4)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            // W53B：本地库卡保持紧凑行卡，缩略图放大到 16:9（宽 100dp ≈ 96–104dp 档）；服务器库卡不动。
             LocalThumbnailTile(
                 cover = cover,
                 iconRes = card.type.iconRes(),
                 iconDescription = card.type.label,
+                iconSize = 24.dp,
+                width = LocalLibraryCardThumbnailWidth,
+                height = LocalLibraryCardThumbnailHeight,
             )
             Spacer(Modifier.width(CinefinSpacing.Space3))
             Column(Modifier.weight(1f)) {
@@ -439,10 +454,16 @@ fun LocalLibraryDetailScreen(
     onPlayVideo: (UUID) -> Unit,
     onOpenBook: (itemId: UUID, title: String, documentUri: String) -> Unit,
     onMusicStarted: () -> Unit,
+    /** W53B：库级设置（「在媒体库显示」开关 / 重命名 / 条目数）变化后通知侧栏只读刷新。 */
+    onLocalLibrariesChanged: () -> Unit = {},
     viewModel: LocalLibraryDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(libraryId) { viewModel.setup(libraryId) }
+    // W53B：本地库行的名称 / 项目数 /「在媒体库显示」都在这页改——变化后通知侧栏（平板侧轨常显）。
+    LaunchedEffect(state.visibleInLibrary, state.name, state.itemCount) {
+        onLocalLibrariesChanged()
+    }
 
     val colors = LocalCinefinColors.current
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -932,7 +953,8 @@ private fun UnlinkConfirmDialog(
     )
 }
 
-private fun LocalLibraryType.iconRes(): Int =
+/** 本地库类型 → 图标（侧栏「本地媒体库」子分组行与库卡共用同一份映射）。 */
+internal fun LocalLibraryType.iconRes(): Int =
     when (this) {
         LocalLibraryType.VIDEO -> CoreR.drawable.ic_video
         LocalLibraryType.MUSIC -> CoreR.drawable.ic_music

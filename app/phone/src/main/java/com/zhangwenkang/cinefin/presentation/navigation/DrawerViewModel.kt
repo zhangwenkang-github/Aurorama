@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -38,6 +39,8 @@ data class DrawerState(
     val isAdministrator: Boolean = false,
     /** 服务器上的全部媒体库（含音乐库 / 图书库 / 家庭视频 / 播放列表）。 抽屉里像官方客户端那样直接列出来，不用先点进「媒体库」再找。 */
     val libraries: List<FindroidCollection> = emptyList(),
+    /** 侧栏「本地媒体库」子分组的行（W53B）：只含库级「在媒体库显示」打开的本地库； 空列表 = 整组隐藏。 本地库只读本机索引，离线模式下同样可用（与服务器库列表无关）。 */
+    val localLibraries: List<SidebarLocalLibrary> = emptyList(),
     /** 侧栏条目可见性（客户端设置里可改）。 */
     val sidebarVisibility: SidebarVisibility = SidebarVisibility(),
     /** 「隐藏底栏」（W42）：紧凑形态隐藏底部导航栏；平板形态本无底栏（侧轨常驻）。 */
@@ -51,6 +54,8 @@ class DrawerViewModel
 constructor(
     private val database: ServerDatabaseDao,
     private val appPreferences: AppPreferences,
+    /** W53B：侧栏「本地媒体库」子分组的只读数据源（本机 Room 索引，不依赖服务器）。 */
+    private val localLibraryRepository: LocalLibraryRepository,
     /**
      * 离线模式开关不重启 Activity（W6-R6N），所以这里按需取仓库：每次 load() 都按**当前**偏好解析 在线 /
      * 离线实现，切回在线后侧轨库列表能立刻回来（内容页仍在下一次启动完全切换）。
@@ -93,6 +98,8 @@ constructor(
     }
 
     fun load() {
+        // W53B：本地库属于本机索引，先刷新（离线 / 未选服务器时也要显示）；服务器数据随后覆盖其余字段。
+        refreshLocalLibraries()
         viewModelScope.launch {
             runCatching {
                 val serverId =
@@ -123,8 +130,9 @@ constructor(
                         appPreferences.setValue(appPreferences.uiLibraryCatalog, catalog)
                     }
                 }
+                // 用 copy 而不是新建：只覆盖服务器相关字段，保留 refreshLocalLibraries() 刚写入的本地库行。
                 _state.value =
-                    DrawerState(
+                    _state.value.copy(
                         serverName = server?.name,
                         serverAddress = address?.address,
                         userName = user?.name,
@@ -135,6 +143,21 @@ constructor(
                     )
             }
                 .onFailure { Timber.w(it, "读取抽屉账号信息失败") }
+        }
+    }
+
+    /**
+     * 本地库行只读刷新（W53B）：不重拉服务器数据。
+     *
+     * 本地库建立 / 删除 / 重命名 /「在媒体库显示」开关都发生在内容页，侧栏（平板侧轨常显）跟着刷新即可 —— 每次导航变化与本地库详情页设置变化时调用。
+     */
+    fun refreshLocalLibraries() {
+        viewModelScope.launch {
+            val libraries = runCatching {
+                localLibraryRepository.libraries(includeHidden = true)
+            }
+                .getOrDefault(emptyList())
+            _state.value = _state.value.copy(localLibraries = sidebarLocalLibraries(libraries))
         }
     }
 

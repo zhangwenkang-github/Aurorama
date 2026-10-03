@@ -3,6 +3,8 @@ package com.zhangwenkang.cinefin.presentation.navigation
 import com.zhangwenkang.cinefin.LibraryRoute
 import com.zhangwenkang.cinefin.TemporaryLibraryRoute
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.local.LocalLibrary
+import com.zhangwenkang.cinefin.local.LocalLibraryType
 import com.zhangwenkang.cinefin.models.CollectionType
 
 /** 顶层目的地：底部 Tab 顺序与侧栏可见性开关都按它寻址（W6-R6N）。 */
@@ -124,6 +126,81 @@ enum class TemporaryLibraryKind {
     Music,
     Books,
 }
+
+/** 侧栏「本地媒体库」子分组的行（W53B）：本地库只在本机索引里，名称 + 项目数取自本地库数据。 */
+data class SidebarLocalLibrary(
+    val id: Long,
+    val name: String,
+    val type: LocalLibraryType,
+    val itemCount: Int,
+)
+
+/**
+ * 本地库列表 → 侧栏「本地媒体库」子分组行（W53B，纯函数 + 单测）。
+ *
+ * 只保留库级「在媒体库显示」打开的库（关掉的库不出现）；返回空列表时调用方把**整组**（标题 + 分隔 + 行）一起隐藏。顺序沿用仓库返回顺序（`createdAt` / id）。
+ */
+fun sidebarLocalLibraries(libraries: List<LocalLibrary>): List<SidebarLocalLibrary> =
+    libraries
+        .filter { it.visibleInLibrary }
+        .map { library ->
+            SidebarLocalLibrary(
+                id = library.id,
+                name = library.name,
+                type = library.type,
+                itemCount = library.itemCount,
+            )
+        }
+
+/**
+ * 侧轨展开态二级子项的「项目数」尾标是否显示（W53B，纯函数 + 单测）：**完整名称优先**。
+ *
+ * 名称放得下、且名称 + 间距 + 项目数一起放得下才显示项目数；否则省略项目数（不把库名截断成「音乐测…」）。 名称本身超出可用宽度时同样返回 false——此时名称仍走既有省略表现，属
+ * 168dp 轨宽的尺寸边界。
+ */
+fun libraryChildCountVisible(
+    labelWidthDp: Float,
+    nameWidthDp: Float,
+    countWidthDp: Float,
+    gapDp: Float = RAIL_LIBRARY_COUNT_GAP_DP,
+): Boolean = nameWidthDp <= labelWidthDp && nameWidthDp + gapDp + countWidthDp <= labelWidthDp
+
+/** 侧轨展开态宽度（§4.2 / W46：168dp；与 `CinefinSideNavigation` 的 `Modifier.width` 同源）。 */
+const val RAIL_EXPANDED_WIDTH_DP: Float = 168f
+
+/** 侧轨导航列左右内边距（与 `CinefinSideNavigation` 的 `padding(horizontal)` 同源）。 */
+const val RAIL_COLUMN_PADDING_DP: Float = 10f
+
+/** 二级子项左缩进（`CinefinSpacing.Space4`）。 */
+const val RAIL_SUBITEM_INDENT_DP: Float = 16f
+
+/** 导航条目左右内边距（core `CinefinNavigationItem` 的 `padding(horizontal = 14.dp)`）。 */
+const val NAV_ITEM_PADDING_DP: Float = 14f
+
+/** 导航图标边长（core `NavIconWithBadge` 的 24dp）。 */
+const val NAV_ICON_SIZE_DP: Float = 24f
+
+/** 图标与文字间距（`CinefinSpacing.Space3`）。 */
+const val NAV_ICON_GAP_DP: Float = 12f
+
+/** 名称与项目数之间的最小留白（不足时省略项目数，宁可少画也不要挤）。 */
+const val RAIL_LIBRARY_COUNT_GAP_DP: Float = 8f
+
+/**
+ * 侧轨展开态二级子项的文字可用宽度（dp，W53B 纯函数 + 单测）。
+ *
+ * 尺寸链 = 展开宽 [RAIL_EXPANDED_WIDTH_DP] − 导航列左右内边距 2×[RAIL_COLUMN_PADDING_DP] − 子项左缩进
+ * [RAIL_SUBITEM_INDENT_DP] − 条目左右内边距 2×[NAV_ITEM_PADDING_DP] − 图标 [NAV_ICON_SIZE_DP] − 图标与文字间距
+ * [NAV_ICON_GAP_DP]（168 − 20 − 16 − 28 − 24 − 12 = 68dp）。 任一处尺寸改动都要同步这里的常量（同 core
+ * `rememberPageGutter` 的阈值同步约定）。
+ */
+fun railLibraryLabelWidthDp(): Float =
+    RAIL_EXPANDED_WIDTH_DP -
+        2 * RAIL_COLUMN_PADDING_DP -
+        RAIL_SUBITEM_INDENT_DP -
+        2 * NAV_ITEM_PADDING_DP -
+        NAV_ICON_SIZE_DP -
+        NAV_ICON_GAP_DP
 
 /** 侧栏库子项 → 临时库视图归属（纯逻辑，单测覆盖）。 */
 fun temporaryLibraryKindOf(type: CollectionType): TemporaryLibraryKind? =
