@@ -673,4 +673,50 @@ W50 已实现的三项下载设置没有 UI。本波按用户 2026-10-03 确认�
 - 书籍条目封面本地落盘（`ReaderViewModel.downloadBook` 链路）未纳入本波：在线走服务器 URL 兜底、离线无本地图时用类型占位（Coil 磁盘缓存命中则仍可显示）；
 - 进行中剧集在下载页仍按「电影容器」渲染（无完成态层级归属，W51b / W52 既有遗留：下载中容器分组）；
 - 限速为「任务平均吞吐」语义（可小段突发），运行中任务不动态跟随新设置；
-- `ImagesDownloaderWorker` 仍无失败重试（入队幂等跳过已落盘文件）。
+- `ImagesDownloaderWorker` 仍无失败重试（入队幂等跳过已落盘文件）。→ **W60 已补齐，见 §22**。
+
+## 22. W60 下载失败重试补齐（2026-10-04，分支 `feature/w60-icons-retry-resume-bar`，起点 master `9c65010`；与 W59 并行）
+
+**背景**：用户 2026-10-04 拍板「下载失败自动重试（历史遗留）」——先只读核对现状，再补齐应用层失败重试（网络类无限 / 服务器类限次退避）与 worker 失败重试，下载页显示重试状态（如「重试中 · 第 N 次」）。本波文件域与 W59（下载页重构）隔离：只动 `core`（utils / work / res 字符串）与必要的 `data` 进度字段。
+
+### 22.1 现状核对（只读结论）
+
+| 项 | 现状 | 结论 |
+|----|------|------|
+| 失败分类 | `DownloadHttpEngine`：401/403 → 鉴权；5xx / 其他 4xx → 服务器错误；416 / 起点不一致 → 残片失效；提前断流 / IOException → 网络类 | ✅ 完整 |
+| 任务级退避 | `DownloadTaskRules.isAutoRetryEligible`：网络类无限、服务器类 5 次、残片失效 3 次；`backoffDelayMs` 30s 起指数、封顶 30 分钟 | ✅ 完整 |
+| 自动重试落库 | `DownloaderImpl.handleTaskFailure`：可重试 → `PENDING + failureReason + retryCount + nextRetryAt`（离线不加长退避，交给 CONNECTED）；不可重试 → `FAILED` + 失败通知 | ✅ 完整 |
+| 网络恢复唤醒 | `networkCallback` → `wakeNetworkBlockedTasks()`（清退避 + forceStart），进程死亡由 WM CONNECTED 延迟任务兜底 | ✅ 完整 |
+| 任务重试数据 | `DownloadTask.retryCount` / `nextRetryAt` 已进模型与下载页数据（`buildTask` 透传） | ✅ 可供 UI |
+| 图片缓存 worker | `ImagesDownloaderWorker` 吞掉图片失败、恒 `Result.success()`，无重试 | ❌ **缺口 → 本波补齐** |
+| 下载页「重试中 · 第 N 次」 | 状态徽标对 PENDING 只显示「等待下载 / 等待网络」 | ⏸ 文件属 W59 / W60b（`DownloadRows.kt`），本波只出 core 字符串 + 数据 |
+
+### 22.2 落地（本波改动）
+
+| 文件 | 改动 |
+|------|------|
+| `core/utils/...` | 无改动（任务级退避已满足口径，避免动 W50 稳定链路） |
+| `core/work/ImagesDownloaderWorker.kt` | 新增 `ImagesDownloadRetryRules`（`MAX_ATTEMPTS = 3`；IOException / 5xx / 408 / 429 为瞬时失败 → `Result.retry()`，WM 默认 30s 指数退避；404 / 403 / 非法地址为永久失败不重试）；图片先写 `name.part` 再 `renameTo`，避免写失败的残片被下一次当作已缓存跳过；非法 / 缺失 itemId 直接跳过 |
+| `core/src/test/.../ImagesDownloadRetryRulesTest.kt` | 新增 4 项（限次重试 / 到上限停止 / 无失败不重试 / HTTP 状态分类） |
+| `core/res`（默认 / zh-rCN / zh-rTW） | 新增 `download_retry_in_progress`（重试中 · 第 %1$d 次）供 W60b 接线 |
+
+### 22.3 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；
+- 8 任务逐个 `--rerun`：app **152** / core **63** / data **45** / player:local **110** / film **40** / book **113** / music **128** = **651 项 / 0 失败 0 错误**（基线 643 + 新增 8）；含 `:player:core` 全量 **663 项 / 0 失败**；
+- 红线：`core`（utils / work / res）、`app/phone`（`LandscapeItemCard`，另属图标 / 进度条需求）、`data`（`FindroidItem` / `FindroidFolder` / `FindroidMovie` 进度字段，**未在原白名单内，已申报**）；`NavigationRoot.kt` / `AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` 与 W59 文件域未动。
+
+### 22.4 真机验证（K60 `8e875894`，2026-10-04 05:58–06:21）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | 下载中开飞行模式 | 引擎失败并调度任务级重试：WM 延迟任务（CONNECTED 约束）当场注册，下载停止（残片保留 22.8 MB） |
+| ② | 关飞行模式 | 自动续传：残片 22.8 MB → 54.9 MB → 421 MB（无需手动点重试） |
+| ③ | 重试状态数据 | DB（sources 行）读出 `retryCount=1`、`failureReason=NULL`、`taskStatus=RUNNING`、`nextRetryAt=0`；全程无「失败」终态 |
+| ④ | 复原 | 测试下载（被狙击的学园）经下载页删除 → 0 进行中 · 5 已完成 · 0 失败、`files/downloads` 为空；0 FATAL / 0 ANR |
+
+### 22.5 遗留
+
+- 下载页「重试中 · 第 N 次」文案接线（`DownloadRows.kt` 状态徽标）归 **W60b**：core 字符串与 `DownloadTask.retryCount` 已就绪；
+- 图片缓存 worker 重试的设备端故障注入（时序难控，本波以 4 项单测覆盖策略）；
+- 服务器类限次（5 次）与残片失效（3 次）的真实故障注入仍未做（既有遗留，需服务器 / 代理侧注入）。
