@@ -218,7 +218,7 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 - **旧书籍无 `.title` 侧车**：W36 之前下载的书在离线书架显示「离线书籍 <id8>」占位；重新下载一次即补侧车。
 - **离线模式下下载页**：已补剧集层级（D10 只改了在线实现，W36 真机发现并修复二者一致）；离线时「已完成」列表仍依赖 `currentServer` 偏好存在，纯新的无服务器设备以离线媒体库为准。
 - ~~**本地媒体库**：W36 仅占位 + 开关；SAF 添加文件夹、平铺 / 层级浏览、与服务器队列混合属于 W37~~ → **W37 已交付**（见 §5 / §13）。
-- **W37 新增遗留（本地媒体库）**：①D 组封面策略只做到「音乐内嵌标签 + 同目录封面」——视频首帧 / 书籍首页封面未做；②CBZ 走 `ZipInputStream` 顺序重定位（大包逐页变慢，`ZipFile` 只接受 `File`）；~~③本地库条目不参与搜索（搜索仍未合并本地来源）~~ → **W43 已修**（2026-10-03，`feature/w43-search-local`：本地条目并入搜索 = 服务器 / 本地分区 + 来源徽标 + 打开链路，见 `UI_PLAN` D44 / §5 W43 验收）；④「本地优先」去重未做（只对 App 内下载媒体启用，用户自选文件夹不做自动匹配）。
+- **W37 新增遗留（本地媒体库）**：~~①D 组封面策略只做到「音乐内嵌标签 + 同目录封面」——视频首帧 / 书籍首页封面未做~~ → **W45 已做**（2026-10-03，`feature/w45-local-covers`：视频第 1 秒首帧 + PDF 首页 + CBZ 第一张图 + EPUB Readium 封面，懒生成 / `files/local_thumbs` 缓存 / 失败标记，见 §14 / `UI_PLAN` D47）；②CBZ 走 `ZipInputStream` 顺序重定位（大包逐页变慢，`ZipFile` 只接受 `File`）；~~③本地库条目不参与搜索（搜索仍未合并本地来源）~~ → **W43 已修**（2026-10-03，`feature/w43-search-local`：本地条目并入搜索 = 服务器 / 本地分区 + 来源徽标 + 打开链路，见 `UI_PLAN` D44 / §5 W43 验收）；④「本地优先」去重未做（只对 App 内下载媒体启用，用户自选文件夹不做自动匹配）。
 
 ## 13. W37 真机验收（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03）
 
@@ -237,3 +237,44 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 设备还原：Pad 5 删除测试库与 `pref_music_source_filter` 复位 `ALL`、`pref_local_library_visible=false`、删除 `/sdcard/W37Media` 与 `/sdcard/w37_ui*.xml`、App force-stop；K60 删除 `/sdcard/w37_k60.xml`、App force-stop；两机均未改旋转 / 网络 / 音量。
 
 **W43 关联更新（2026-10-03）**：本节所属 W37 遗留 ③「本地条目并入搜索」已勾掉（`UI_PLAN` D44 / §5 W43 验收）；本地库模型、扫描与打开链路未变。
+
+## 14. W45 本地封面 / 缩略图 + 首页本地媒体卡片化（2026-10-03，分支 `feature/w45-local-covers`，起点 master `d11f80d`）
+
+需求来源：§2.2 第 8/9 条（元数据取「音乐内嵌标签 → 文件名/同目录封面 → 视频首帧/书籍首页」）+ §12 W37 遗留 ①；用户 2026-10-03 确认「懒生成 + `files/local_thumbs` 缓存 + 失败回退图标，不迁移 Room」。
+
+### 14.1 决策
+
+| 编号 | 决策 | 理由 / 后果 |
+|------|------|-------------|
+| D32 | **缩略图 = 派生产物，不进索引 / 不迁移 Room**：磁盘缓存 `files/local_thumbs/<itemId>.jpg`（JPEG ~80、最长边 ≤512px），失败标记 `files/local_thumbs/<itemId>.fail`（存在即不再重试），内存命中最长边与并发上限抽 `LocalThumbnailRules` 纯函数（data 层 9 项单测） | 扫描索引保持只读语义（W37 D25）；缓存可随时整目录删除重建；纯函数让「缓存路径 / 缩放尺寸 / 首项选取 / 回退」可 JVM 单测 |
+| D33 | **分类提取口径**：视频 = `MediaMetadataRetriever` **第 1 秒首帧**（`getScaledFrameAtTime` 目标尺寸，失败退 `getFrameAtTime`）→ 失败退第 0 秒 → 类型图标；书籍 = PDF 首页（`PdfRenderer` 白底 + `Matrix` 降采样）/ CBZ 第一张图（`ZipInputStream` 顺序流，跳过 `__MACOSX` 与隐藏文件，单张 ≤32 MB）/ EPUB（Readium `Publication.cover()`，放 `modes:book` 以免把 Readium 类型带进 `app:phone` 编译面）；音乐 = 沿用 W37「内嵌标签封面 → 同目录封面」，不重做 | 首帧取 1s 避开黑场；PDF 必须铺白底（透明通道在深色主题下泛黑，与阅读器 `PdfPageSource` 同口径）；EPUB 走 Readium metadata cover = 用户口径 |
+| D34 | **懒生成 + 并发 ≤2**：只在库卡 / 列表行 / 详情头部可见时请求；`app:phone` 侧 `LocalThumbnailProvider`（`@Singleton`）用 `Semaphore(2)` + 同条目 in-flight 合并 + `Dispatchers.IO`；库卡封面 = 「视频 → 书籍 → 音乐」顺序里第一个有缩略图的条目，**最多现场生成 3 张**（已有缓存的候选不消耗预算） | 列表滚动不阻塞主线程；100+ 项库不会一次刷满缩略图；首项规则与用户口径一致（`LocalThumbnailRules.coverCandidates` / `planCover` 单测锁死） |
+| D35 | **UI 使用面**：首页「本地媒体」卡片化（封面 + 库名 +「N 项 · 类型」+ 类型角标，与「继续观看」横排**同宽同高**：`rememberLandscapeCardWidth()` + 16:9 + `CinefinShapes.Md` + `rememberGridGutter()` 间距）+ 媒体库总览库卡缩略图（40dp `corner-xs`）+ 本地条目列表行缩略图 + 本地库详情头部封面（140dp 通栏裁切）；无图统一回退既有类型图标 | 用户反馈「纯文字卡与首页不搭」；卡片语言与首页其它走廊一致（`LumenCardFrame` + 底部渐隐 + 中性角标），不新增配色 / 位图 |
+| D36 | **空库不请求封面**：库卡 / 详情头部仅在 `itemCount > 0` 时发起封面请求，并按 `itemCount` 变化重试（LaunchedEffect 键含条目数） | 真机拦下的缺陷：新建库时库卡先以「0 项」出现，此刻请求会拿到 null 并永久缓存 → 表现为「库卡封面要进一次详情页才出现」（§14.3⑥） |
+
+### 14.2 门禁（2026-10-03）
+
+- 根 `assembleDebug`（含 TV）+ 根 `ktfmtCheck` 全绿；
+- 单测逐个 `--rerun` 数 `build/test-results/*.xml`：app **79** / core **25** / data **42**（新增 `LocalThumbnailRulesTest` 9 项）/ player:local **104** / film **6** / book **106** / music **109** = **471 项 0 失败 0 错误**；
+- 红线：未动 `settings.gradle.kts` / `libs.versions.toml` / `AndroidManifest.xml` / `AppPreferences.kt` / `NavigationRoot.kt` / `player:core` / `player:local`；`modes:book` 新增公开 `LocalEpubCover`（只暴露 `Bitmap`）。
+
+### 14.3 真机验收（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03 13:20–13:32）
+
+测试素材 = 本机生成（600×800 深蓝 PDF / 3 页深绿 CBZ / 含深红封面的最小 EPUB 3 + 440Hz WAV）+ 1 个 991 KB 公开样例 mp4（Big Buck Bunny 360p 10s），推到 `/sdcard/Download/W45Media/{Mixed,Bulk}`（Bulk 120 件用于滚动观测）；测试服务器只读（全程未写服务器）。
+
+1. **四条封面链路（像素取证）**：取回 `files/local_thumbs/*.jpg` 用 PIL 读数——PDF 首页 `384×512 mean=[30,59,89]`、CBZ 第一张图 `384×512 mean=[20,111,70]`、EPUB `384×512 mean=[140,30,29]`、视频首帧 `512×288 mean=[90,105,57]`，与素材页面底色一一对应；长边均 ≤512（JPEG）。已有 W37 库（MoonReader PDF）首页 `367×512 mean=[170,148,122]`。
+2. **懒生成**：清空缓存后**只进首页**即生成 3 张库卡封面（三库各 1 张）；125 项库滚动一圈后缓存 65 张（仅可见行生成，非全量）。
+3. **首页卡片化**：本地库卡 `content-desc=W45Mix [833,1945][1391,2259]` = 558×314px（16:9，与「继续观看」卡同宽同高同 pitch）+ 右上角类型角标 `混合` + 库名 + `125 项 · 混合`；卡片封面像素采样 `[66,79,57]`（叠底渐隐后的视频帧；回退态为 ≈`[26,31,39]` 中性底）→ 真图确认显示。
+4. **性能（125 项混合库）**：首轮滚动 762 帧 / 51 janky（6.69%）/ p50 7ms / p90 17ms / p99 34ms（含现场生成）；缓存命中后第二轮 759 帧 / **4 janky（0.53%）** / p50 7ms / p90 9ms / p99 14ms。
+5. **列表行 / 详情头部**：详情页视频行缩略图 `content-desc=视频 [90,1950][180,2040]`（40dp 方块）；详情头部通栏封面 140dp × 全宽。
+6. **真机拦下并修复**：新建库「0 项」阶段请求封面 → null 永久缓存（缺陷与修法见 D36）；修复后清缓存重启、仅首页复验三库全部出图。
+7. **K60 抽验**：装机 + 新建混合库（5 项）+ 库卡类型角标 + 详情行缩略图正常，0 FATAL / ANR。
+8. **无封面回退**：音乐无内嵌 / 同目录封面时返回 null，库卡与列表行回退既有类型图标。
+
+设备还原：双机删除测试库（源文件保留）、删除 `/sdcard/Download/W45Media|W45Fresh` 与 `/sdcard/w45_ui*.xml`、`run-as` 清空 `files/local_thumbs`、`am force-stop`；未改偏好 / 旋转 / 网络 / 音量（`device-lock.md`）。
+
+### 14.4 W45 遗留
+
+- 缩略图为**本 App 私有派生缓存**，不随库删除清理（同一个文件重新建库即命中）；如需「删除库即清缓存」另开小任务；
+- 视频首帧固定取第 1 秒（黑场片源可能取到黑帧），未做「非黑帧搜索」；
+- CBZ 顺序流取「归档顺序第一张图」，未做自然序重排（与阅读器 `orderComicPageNames` 的差异仅在归档顺序异常时可见）。
