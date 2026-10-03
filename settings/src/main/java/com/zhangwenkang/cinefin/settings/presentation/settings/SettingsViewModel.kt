@@ -235,6 +235,20 @@ constructor(
                                                         appPreferences.uiMusicLibraryId,
                                                     options = musicLibraryOptions,
                                                 ),
+                                                // W53（用户 2026-10-03 确认）：视频模式页显示方式——库卡列表（默认）/
+                                                // 聚合列表；静态两选项，与「首页媒体库」等并列在「媒体库」子页。
+                                                PreferenceSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_video_display_mode,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_video_display_mode_summary,
+                                                    backendPreference =
+                                                        appPreferences.uiVideoDisplayMode,
+                                                    options = R.array.video_display_mode,
+                                                    optionValues =
+                                                        R.array.video_display_mode_values,
+                                                ),
                                             )
                                     )
                                 ),
@@ -268,6 +282,13 @@ constructor(
                                                         R.string.settings_sidebar_show_home,
                                                     backendPreference =
                                                         appPreferences.uiSidebarShowHome,
+                                                ),
+                                                // W53：侧栏「视频」入口（与首页 / 音乐 / 书架 / 媒体库 / 下载并列）。
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.settings_sidebar_show_video,
+                                                    backendPreference =
+                                                        appPreferences.uiSidebarShowVideo,
                                                 ),
                                                 PreferenceSwitch(
                                                     nameStringResource =

@@ -136,6 +136,7 @@ import com.zhangwenkang.cinefin.presentation.setup.servers.ServersScreen
 import com.zhangwenkang.cinefin.presentation.setup.users.UsersScreen
 import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
+import com.zhangwenkang.cinefin.presentation.video.VideoScreen
 import java.util.UUID
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -154,6 +155,9 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 @Serializable data class LoginRoute(val username: String? = null)
 
 @Serializable data object HomeRoute
+
+/** 视频模式页（W53）：与首页 / 音乐 / 书架同级的顶层入口。 */
+@Serializable data object VideoRoute
 
 @Serializable data object MediaRoute
 
@@ -287,6 +291,7 @@ fun NavigationRoot(
     // 自己的侧栏，app 侧轨 / 底部 Tab 与边缘抽屉手势都要让位给 WebView。
     val showNavigation =
         currentDestination.isRoute<HomeRoute>() ||
+            currentDestination.isRoute<VideoRoute>() ||
             currentDestination.isRoute<MediaRoute>() ||
             currentDestination.isRoute<BookshelfRoute>() ||
             currentDestination.isRoute<DownloadsRoute>() ||
@@ -354,6 +359,7 @@ fun NavigationRoot(
         }
 
     val homeSelected = currentDestination.isRoute<HomeRoute>()
+    val videoSelected = currentDestination.isRoute<VideoRoute>()
     val musicSelected = currentDestination.isRoute<MusicModeRoute>()
     val mediaSelected = currentDestination.isRoute<MediaRoute>()
     val downloadsSelected = currentDestination.isRoute<DownloadsRoute>()
@@ -410,6 +416,10 @@ fun NavigationRoot(
         navEntryKeys(
             isAdministrator = drawerData.isAdministrator,
             librariesLoaded = drawerData.libraries.isNotEmpty(),
+            hasVideoLibrary =
+                drawerData.libraries.any {
+                    it.type == CollectionType.Movies || it.type == CollectionType.TvShows
+                },
             hasMusicLibrary = drawerData.libraries.any { it.type == CollectionType.Music },
             hasBooksLibrary = drawerData.libraries.any { it.type == CollectionType.Books },
         )
@@ -432,6 +442,19 @@ fun NavigationRoot(
                     bottom = true,
                 ) {
                     navigateTopLevel(HomeRoute)
+                }
+            NavEntryKey.Video ->
+                ChromeDestination(
+                    key = key,
+                    item =
+                        chromeItem(
+                            CoreR.drawable.ic_film,
+                            stringResource(CoreR.string.title_video),
+                        ),
+                    selected = videoSelected,
+                    bottom = true,
+                ) {
+                    navigateTopLevel(VideoRoute)
                 }
             NavEntryKey.Media ->
                 ChromeDestination(
@@ -520,7 +543,8 @@ fun NavigationRoot(
         }
     }
     val chromeByKey = chromeDestinations.associateBy { it.key }
-    // 手机底部 Tab 保持既有顺序（首页 / 音乐 / 书架 / 媒体库），不随侧轨排序变化。
+    // 手机底部 Tab 固定顺序（W53 用户 2026-10-03 确认）：首页 / 视频 / 音乐 / 书架；
+    // 「媒体库」移出底栏，仍保留在侧栏 / 抽屉。顺序与侧轨排序解耦（bottomNavKeys 单一来源）。
     val bottomItems = bottomNavKeys.mapNotNull { chromeByKey[it] }
     // 侧栏 = 同一份列表按「客户端设置 → 侧栏显示」过滤（客户端设置常驻，见 NavigationIa.kt）。
     val railKeys = visibleRailKeys(navKeys, sidebarVisibility)
@@ -750,6 +774,21 @@ fun NavigationRoot(
                         },
                         onOpenLocalLibrary = { libraryId ->
                             navController.safeNavigate(LocalLibraryRoute(libraryId))
+                        },
+                    )
+                }
+            }
+            composable<VideoRoute> {
+                // 视频模式页（W53）：影视域页面走 Lumen 皮肤（D24），条目点击复用统一详情分发。
+                ProvideLumen {
+                    VideoScreen(
+                        onOpenDrawer = openDrawer,
+                        onItemClick = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
                         },
                     )
                 }

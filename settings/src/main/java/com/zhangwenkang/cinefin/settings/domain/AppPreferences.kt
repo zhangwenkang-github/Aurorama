@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.settings.domain
 
 import android.content.SharedPreferences
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
+import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import javax.inject.Inject
 import timber.log.Timber
 
@@ -244,6 +245,13 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     /** 侧栏（平板侧轨 / 抽屉）条目可见性。客户端设置始终可见，保证入口不会把自己关掉。 */
     val uiSidebarShowHome = Preference("pref_ui_sidebar_show_home", true)
+
+    /**
+     * W53（用户 2026-10-03 确认）：侧栏「视频」入口开关，与首页 / 音乐 / 书架 / 媒体库 / 下载并列。
+     *
+     * 只作用于侧栏（平板侧轨 / 手机抽屉）；手机底栏的四个 Tab 不受这些开关影响（既有语义）。
+     */
+    val uiSidebarShowVideo = Preference("pref_ui_sidebar_show_video", true)
     val uiSidebarShowMedia = Preference("pref_ui_sidebar_show_media", true)
     val uiSidebarShowMusic = Preference("pref_ui_sidebar_show_music", true)
     val uiSidebarShowBookshelf = Preference("pref_ui_sidebar_show_bookshelf", true)
@@ -265,6 +273,17 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
      * 书架使用哪个媒体库」的动态选项。
      */
     val uiLibraryCatalog = Preference("pref_ui_library_catalog", "")
+
+    /**
+     * 视频模式页显示方式（W53，用户 2026-10-03 确认）：`cards` = 库卡列表（默认）/ `aggregated` = 聚合列表。
+     *
+     * 取值见 [com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode]；设置页「媒体库」子页可选。
+     */
+    val uiVideoDisplayMode =
+        Preference(
+            "pref_ui_video_display_mode",
+            VideoDisplayMode.defaultValue.value,
+        )
 
     // Music（W21-R2；只追加 pref_music_* 前缀，不重排既有键）
     /** 应用重启后恢复上次音乐队列与播放位置（MU-3 队列保存）。默认开。 */

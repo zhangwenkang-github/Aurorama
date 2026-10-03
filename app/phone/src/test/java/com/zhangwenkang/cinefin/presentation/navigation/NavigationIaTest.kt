@@ -13,13 +13,15 @@ class NavigationIaTest {
             navEntryKeys(
                 isAdministrator = true,
                 librariesLoaded = true,
+                hasVideoLibrary = true,
                 hasMusicLibrary = true,
                 hasBooksLibrary = true,
             )
 
         // 内容区（首页…下载）→ 管理区（控制台 / 元数据）；客户端设置固定在底部，不产生分组分隔。
-        assertEquals(setOf(4), railGroupBreaks(keys))
+        assertEquals(setOf(5), railGroupBreaks(keys))
         assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Home))
+        assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Video))
         assertEquals(RailGroup.Content, railGroupOf(NavEntryKey.Downloads))
         assertEquals(RailGroup.Manage, railGroupOf(NavEntryKey.Console))
         assertEquals(RailGroup.Manage, railGroupOf(NavEntryKey.Metadata))
@@ -39,6 +41,7 @@ class NavigationIaTest {
             navEntryKeys(
                 isAdministrator = false,
                 librariesLoaded = true,
+                hasVideoLibrary = true,
                 hasMusicLibrary = true,
                 hasBooksLibrary = true,
             )
@@ -46,6 +49,7 @@ class NavigationIaTest {
         assertEquals(
             listOf(
                 NavEntryKey.Home,
+                NavEntryKey.Video,
                 NavEntryKey.Music,
                 NavEntryKey.Bookshelf,
                 NavEntryKey.Media,
@@ -62,6 +66,7 @@ class NavigationIaTest {
             navEntryKeys(
                 isAdministrator = true,
                 librariesLoaded = true,
+                hasVideoLibrary = true,
                 hasMusicLibrary = true,
                 hasBooksLibrary = true,
             )
@@ -69,6 +74,7 @@ class NavigationIaTest {
         assertEquals(
             listOf(
                 NavEntryKey.Home,
+                NavEntryKey.Video,
                 NavEntryKey.Music,
                 NavEntryKey.Bookshelf,
                 NavEntryKey.Media,
@@ -87,6 +93,7 @@ class NavigationIaTest {
             navEntryKeys(
                 isAdministrator = false,
                 librariesLoaded = true,
+                hasVideoLibrary = false,
                 hasMusicLibrary = false,
                 hasBooksLibrary = false,
             )
@@ -109,12 +116,45 @@ class NavigationIaTest {
             navEntryKeys(
                 isAdministrator = false,
                 librariesLoaded = false,
+                hasVideoLibrary = false,
                 hasMusicLibrary = false,
                 hasBooksLibrary = false,
             )
 
+        assertTrue(NavEntryKey.Video in keys)
         assertTrue(NavEntryKey.Music in keys)
         assertTrue(NavEntryKey.Bookshelf in keys)
+    }
+
+    @Test
+    fun hidesVideoWhenServerHasNoMovieOrShowLibrary() {
+        val keys =
+            navEntryKeys(
+                isAdministrator = false,
+                librariesLoaded = true,
+                hasVideoLibrary = false,
+                hasMusicLibrary = true,
+                hasBooksLibrary = true,
+            )
+
+        assertFalse(NavEntryKey.Video in keys)
+        assertEquals(NavEntryKey.Home, keys.first())
+        assertEquals(NavEntryKey.Music, keys[1])
+    }
+
+    @Test
+    fun keepsVideoWhileLibraryListIsUnknown() {
+        // 冷启动 / 拉取失败：库类型未知时不能把入口藏掉，交给视频页空态。
+        val keys =
+            navEntryKeys(
+                isAdministrator = false,
+                librariesLoaded = false,
+                hasVideoLibrary = false,
+                hasMusicLibrary = false,
+                hasBooksLibrary = false,
+            )
+
+        assertTrue(NavEntryKey.Video in keys)
     }
 
     @Test
@@ -123,12 +163,14 @@ class NavigationIaTest {
             navEntryKeys(
                 isAdministrator = false,
                 librariesLoaded = true,
+                hasVideoLibrary = true,
                 hasMusicLibrary = true,
                 hasBooksLibrary = true,
             )
         val visibility =
             SidebarVisibility(
                 home = false,
+                video = false,
                 media = false,
                 music = false,
                 bookshelf = false,
@@ -142,24 +184,50 @@ class NavigationIaTest {
     }
 
     @Test
-    fun phoneBottomTabsKeepHomeMusicBookshelfMediaOrder() {
-        assertEquals(
-            listOf(NavEntryKey.Home, NavEntryKey.Music, NavEntryKey.Bookshelf, NavEntryKey.Media),
-            bottomNavKeys,
-        )
-    }
-
-    @Test
-    fun musicAndBookshelfSitBeforeMediaGroup() {
-        // W8-R3 用户反馈 4（覆盖 W7-R3）：媒体库（含二级库列表）移到音乐 / 书架之后。
+    fun sidebarVisibilityCanHideVideoAlone() {
         val keys =
             navEntryKeys(
-                isAdministrator = true,
+                isAdministrator = false,
                 librariesLoaded = true,
+                hasVideoLibrary = true,
                 hasMusicLibrary = true,
                 hasBooksLibrary = true,
             )
 
+        val visible = visibleRailKeys(keys, SidebarVisibility(video = false))
+
+        assertFalse(NavEntryKey.Video in visible)
+        assertTrue(NavEntryKey.Media in visible)
+    }
+
+    @Test
+    fun phoneBottomTabsAreHomeVideoMusicBookshelf() {
+        // W53：媒体库移出底栏（仍保留在侧栏 / 抽屉）。
+        assertEquals(
+            listOf(
+                NavEntryKey.Home,
+                NavEntryKey.Video,
+                NavEntryKey.Music,
+                NavEntryKey.Bookshelf,
+            ),
+            bottomNavKeys,
+        )
+        assertFalse(NavEntryKey.Media in bottomNavKeys)
+    }
+
+    @Test
+    fun musicAndBookshelfSitBeforeMediaGroup() {
+        // W8-R3 用户反馈 4（W53 更新）：媒体库（含二级库列表）移到视频 / 音乐 / 书架之后。
+        val keys =
+            navEntryKeys(
+                isAdministrator = true,
+                librariesLoaded = true,
+                hasVideoLibrary = true,
+                hasMusicLibrary = true,
+                hasBooksLibrary = true,
+            )
+
+        assertTrue(keys.indexOf(NavEntryKey.Video) < keys.indexOf(NavEntryKey.Music))
         assertTrue(keys.indexOf(NavEntryKey.Music) < keys.indexOf(NavEntryKey.Media))
         assertTrue(keys.indexOf(NavEntryKey.Bookshelf) < keys.indexOf(NavEntryKey.Media))
     }

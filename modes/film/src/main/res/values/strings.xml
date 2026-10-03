@@ -21,4 +21,6 @@
     <string name="library_empty_message">No items here yet — check back after the server adds some.</string>
     <string name="bookshelf_empty_title">No books library</string>
     <string name="bookshelf_empty_message">This server (or this account) has no books library to show.</string>
+    <string name="video_empty_title">No video libraries</string>
+    <string name="video_empty_message">This server (or this account) has no movie or TV show libraries to show.</string>
 </resources>

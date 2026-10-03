@@ -20,6 +20,7 @@ import timber.log.Timber
 /** 侧栏（平板侧轨 / 平板抽屉）条目可见性；由「客户端设置 → 侧栏显示」维护。 */
 data class SidebarVisibility(
     val home: Boolean = true,
+    val video: Boolean = true,
     val media: Boolean = true,
     val music: Boolean = true,
     val bookshelf: Boolean = true,
@@ -140,6 +141,7 @@ constructor(
     private fun readSidebarVisibility() =
         SidebarVisibility(
             home = appPreferences.getValue(appPreferences.uiSidebarShowHome),
+            video = appPreferences.getValue(appPreferences.uiSidebarShowVideo),
             media = appPreferences.getValue(appPreferences.uiSidebarShowMedia),
             music = appPreferences.getValue(appPreferences.uiSidebarShowMusic),
             bookshelf = appPreferences.getValue(appPreferences.uiSidebarShowBookshelf),

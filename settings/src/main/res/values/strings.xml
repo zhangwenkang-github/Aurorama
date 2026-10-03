@@ -119,6 +119,8 @@
     <string name="settings_library_auto">Automatic</string>
     <string name="settings_home_library">Home library</string>
     <string name="settings_home_library_summary">Which library the home \'Latest\' sections use</string>
+    <string name="settings_video_display_mode">Video display</string>
+    <string name="settings_video_display_mode_summary">Library cards or one combined list</string>
     <string name="settings_music_library">Music library</string>
     <string name="settings_music_library_summary">Pick the music library for music mode</string>
     <string name="settings_music_lyrics_overlay">Desktop lyrics</string>
@@ -133,6 +135,7 @@
     <string name="settings_category_sidebar">Sidebar items</string>
     <string name="settings_sidebar_summary">Choose which entries appear</string>
     <string name="settings_sidebar_show_home">Home</string>
+    <string name="settings_sidebar_show_video">Video</string>
     <string name="settings_sidebar_show_media">Media libraries</string>
     <string name="settings_sidebar_show_music">Music</string>
     <string name="settings_sidebar_show_bookshelf">Bookshelf</string>

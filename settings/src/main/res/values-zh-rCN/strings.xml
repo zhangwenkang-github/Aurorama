@@ -113,6 +113,8 @@
     <string name="settings_library_auto">自动</string>
     <string name="settings_home_library">首页媒体库</string>
     <string name="settings_home_library_summary">首页「最新」区块使用哪个库的内容</string>
+    <string name="settings_video_display_mode">视频显示方式</string>
+    <string name="settings_video_display_mode_summary">库卡列表或聚合列表</string>
     <string name="settings_music_library">音乐库</string>
     <string name="settings_music_library_summary">选择音乐模式使用的音乐库</string>
     <string name="settings_music_lyrics_overlay">桌面歌词</string>
@@ -127,6 +129,7 @@
     <string name="settings_category_sidebar">侧栏显示</string>
     <string name="settings_sidebar_summary">选择侧栏要展示的入口</string>
     <string name="settings_sidebar_show_home">首页</string>
+    <string name="settings_sidebar_show_video">视频</string>
     <string name="settings_sidebar_show_media">媒体库</string>
     <string name="settings_sidebar_show_music">音乐</string>
     <string name="settings_sidebar_show_bookshelf">书架</string>

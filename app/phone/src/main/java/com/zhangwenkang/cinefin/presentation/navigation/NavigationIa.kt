@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.presentation.navigation
 /** 顶层目的地：底部 Tab 顺序与侧栏可见性开关都按它寻址（W6-R6N）。 */
 enum class NavEntryKey {
     Home,
+    Video,
     Media,
     Music,
     Bookshelf,
@@ -15,20 +16,22 @@ enum class NavEntryKey {
 /**
  * 顶层目的地门控（纯逻辑，单测覆盖）：
  *
- * 1. **音乐 / 书架**：服务器确认没有对应类型的库时隐藏入口；库列表还没拿到（冷启动竞态 / 拉取失败） 时保持可见，由页面显示空态——不能把网络故障翻译成"没有音乐库"。
+ * 1. **视频 / 音乐 / 书架**：服务器确认没有对应类型的库时隐藏入口；库列表还没拿到（冷启动竞态 / 拉取失败） 时保持可见，由页面显示空态——不能把网络故障翻译成"没有对应类型的库"。
  * 2. **服务器控制台 / 元数据管理器**：只对管理员出现（W5-R3I 的门控不变）。
  * 3. 其余（首页 / 媒体库 / 下载 / 客户端设置）常驻。
  *
- * 顺序（W8-R3 用户反馈 4，覆盖 D22 ③ / D28 的排布）：**首页 → 音乐 → 书架 → 媒体库（二级分组）→ 下载 → [服务器控制台 / 媒体资料管理器] →
+ * 顺序（W53 用户 2026-10-03 确认，覆盖 W8-R3 的排布）：**首页 → 视频 → 音乐 → 书架 → 媒体库（二级分组）→ 下载 → [服务器控制台 / 媒体资料管理器] →
  * 客户端设置**。
  */
 fun navEntryKeys(
     isAdministrator: Boolean,
     librariesLoaded: Boolean,
+    hasVideoLibrary: Boolean,
     hasMusicLibrary: Boolean,
     hasBooksLibrary: Boolean,
 ): List<NavEntryKey> = buildList {
     add(NavEntryKey.Home)
+    if (!librariesLoaded || hasVideoLibrary) add(NavEntryKey.Video)
     if (!librariesLoaded || hasMusicLibrary) add(NavEntryKey.Music)
     if (!librariesLoaded || hasBooksLibrary) add(NavEntryKey.Bookshelf)
     add(NavEntryKey.Media)
@@ -58,6 +61,7 @@ fun visibleRailKeys(
 ): List<NavEntryKey> = keys.filter { key ->
     when (key) {
         NavEntryKey.Home -> visibility.home
+        NavEntryKey.Video -> visibility.video
         NavEntryKey.Media -> visibility.media
         NavEntryKey.Music -> visibility.music
         NavEntryKey.Bookshelf -> visibility.bookshelf
@@ -68,9 +72,13 @@ fun visibleRailKeys(
     }
 }
 
-/** 手机底部 Tab 的固定顺序（用户反馈：手机四条 Tab 行为不变）。 */
+/**
+ * 手机底部 Tab 的固定顺序（W53 用户 2026-10-03 确认）：**首页 / 视频 / 音乐 / 书架**。
+ *
+ * 「媒体库」移出底栏，仍保留在侧栏 / 抽屉（它是二级分组，展开后是服务器实际库列表）。
+ */
 val bottomNavKeys: List<NavEntryKey> =
-    listOf(NavEntryKey.Home, NavEntryKey.Music, NavEntryKey.Bookshelf, NavEntryKey.Media)
+    listOf(NavEntryKey.Home, NavEntryKey.Video, NavEntryKey.Music, NavEntryKey.Bookshelf)
 
 /**
  * 侧栏分组（W42）：导航区按「内容 / 管理」分成两组，组间 12dp 空隙 + 细分隔线； 「客户端设置」固定在底部设置区（发丝线与导航区分隔，开关自己不能被关掉，见
@@ -86,6 +94,7 @@ enum class RailGroup {
 fun railGroupOf(key: NavEntryKey): RailGroup =
     when (key) {
         NavEntryKey.Home,
+        NavEntryKey.Video,
         NavEntryKey.Media,
         NavEntryKey.Music,
         NavEntryKey.Bookshelf,

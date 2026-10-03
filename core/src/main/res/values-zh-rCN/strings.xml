@@ -159,6 +159,7 @@
     <string name="download_eta_remaining">剩余 %1$s</string>
     <string name="download_delete_container_message">删除该下载分组下的全部内容？</string>
     <string name="title_music">音乐</string>
+    <string name="title_video">视频</string>
     <string name="title_book_shelf">书架</string>
     <string name="title_more">更多</string>
     <string name="nav_collapse">收起</string>

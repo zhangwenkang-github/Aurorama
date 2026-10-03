@@ -21,4 +21,6 @@
     <string name="library_empty_message">该库暂无条目，等服务器补充后再来看看。</string>
     <string name="bookshelf_empty_title">书架暂无书籍库</string>
     <string name="bookshelf_empty_message">当前服务器（或这个账号）看不到书籍库。</string>
+    <string name="video_empty_title">暂无视频库</string>
+    <string name="video_empty_message">当前服务器（或这个账号）看不到电影或剧集库。</string>
 </resources>

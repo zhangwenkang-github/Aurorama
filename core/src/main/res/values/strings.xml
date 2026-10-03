@@ -159,6 +159,7 @@
     <string name="download_eta_remaining">%1$s left</string>
     <string name="download_delete_container_message">Delete all downloaded items in this group from this device?</string>
     <string name="title_music">Music</string>
+    <string name="title_video">Video</string>
     <string name="title_book_shelf">Books</string>
     <string name="title_more">More</string>
     <string name="nav_collapse">Collapse</string>
