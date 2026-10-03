@@ -152,8 +152,6 @@
     <string name="settings_libraries_summary">Which library each section uses</string>
     <string name="settings_downloads_cache_summary">Image and download caches</string>
     <string name="settings_category_downloads_cache">Downloads &amp; cache</string>
-    <string name="settings_category_music">Music</string>
-    <string name="settings_music_summary">Music library and audio</string>
     <string name="settings_category_desktop_lyrics">Desktop lyrics</string>
     <string name="settings_player_summary">Backend, subtitles, gestures</string>
     <string name="settings_language_summary">App and media languages</string>

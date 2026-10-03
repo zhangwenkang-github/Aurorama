@@ -5,8 +5,9 @@
     <string name="app_tagline">你的私人影音库</string>
     <string name="role_administrator">管理员</string>
     <string name="role_regular_user">普通用户</string>
-    <string name="title_console">服务器控制台</string>
-    <string name="title_metadata_manager">媒体资料管理器</string>
+    <!-- W46：仅侧栏 / 抽屉用的精简文案（路由与设置项标题不动），保证 168dp 展开态不省略。 -->
+    <string name="title_console">控制台</string>
+    <string name="title_metadata_manager">资料管理</string>
     <string name="drawer_section_media">媒体</string>
     <string name="drawer_section_management">管理</string>
     <string name="drawer_section_user">用户</string>

@@ -146,8 +146,6 @@
     <string name="settings_libraries_summary">各区域使用哪个媒体库</string>
     <string name="settings_downloads_cache_summary">管理图片与下载缓存</string>
     <string name="settings_category_downloads_cache">下载与缓存</string>
-    <string name="settings_category_music">音乐</string>
-    <string name="settings_music_summary">音乐库与音频偏好</string>
     <string name="settings_category_desktop_lyrics">桌面歌词</string>
     <string name="settings_player_summary">内核 / 字幕 / 手势</string>
     <string name="settings_language_summary">应用与媒体语言</string>

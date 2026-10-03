@@ -327,6 +327,12 @@ fun NavigationRoot(
             drawerState.close()
         }
     }
+    LaunchedEffect(compactNavigation) {
+        // W46：平板形态没有抽屉入口（顶栏不再给键、边缘手势停用），窗口从手机切过去时别把已拉开的抽屉留在屏幕上。
+        if (!compactNavigation && drawerState.isOpen) {
+            drawerState.close()
+        }
+    }
 
     val booksLibrary = drawerData.libraries.firstOrNull { it.type == CollectionType.Books }
     val currentLibrary =
@@ -356,9 +362,14 @@ fun NavigationRoot(
         currentDestination.isRoute<BookshelfRoute>() ||
             (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString())
 
-    // 手机（Compact）恢复抽屉入口（W7-R3 用户反馈 1）：顶栏 app 图标 / 菜单键可拉出，边缘手势也可用；
-    // 平板保持既有行为（侧轨为主，抽屉兜底全量入口）。
-    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
+    // 手机（Compact）恢复抽屉入口（W7-R3 用户反馈 1）：顶栏 app 图标可拉出，边缘手势也可用。
+    // W46（用户确认）：展开形态取消抽屉——顶栏不再给入口（null），导航入口只剩常显侧轨（收 / 展开由侧轨自身按钮完成）。
+    val openDrawer: (() -> Unit)? =
+        if (compactNavigation) {
+            { scope.launch { drawerState.open() } }
+        } else {
+            null
+        }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
     val navigateTopLevel: (Any) -> Unit = { route ->
         closeDrawer()
@@ -1060,8 +1071,9 @@ fun NavigationRoot(
 
     CinefinModalDrawer(
         drawerState = drawerState,
-        // 手机与平板都可从边缘滑出抽屉（W7-R3 用户反馈 1 恢复）；控制台类页面仍然让位给 WebView。
-        gesturesEnabled = showNavigation,
+        // 手机可从边缘滑出抽屉（W7-R3 用户反馈 1 恢复）；控制台类页面让位给 WebView；
+        // W46（用户确认）：平板展开形态禁用边缘手势——抽屉整体停用，导航走常显侧轨。
+        gesturesEnabled = showNavigation && compactNavigation,
         header = {
             CinefinDrawerHeader(
                 userName = drawerData.userName,
@@ -1218,9 +1230,9 @@ private data class DrawerEntry(
 )
 
 /**
- * 平板侧导航（§8.6）：logo 38dp + 条目 54dp / 圆角 14dp；折叠 88dp / 展开 164dp。
+ * 平板侧导航（§8.6）：logo 38dp + 条目 48dp（二级子项 44dp）/ 圆角 14dp；W46 起折叠 72dp / 展开 168dp。
  *
- * IA（W6-R6N）：「媒体库」是二级分组，子项是服务器实际返回的库（同名多库逐条列出）。 折叠轨（88dp）只显示一级图标，展开后子项才出现——避免 88dp 宽出现半截库名。
+ * IA（W6-R6N）：「媒体库」是二级分组，子项是服务器实际返回的库（同名多库逐条列出）。 折叠轨（72dp）只显示一级图标，展开后子项才出现——避免 72dp 宽出现半截库名。
  */
 @Composable
 private fun CinefinSideNavigation(
@@ -1239,13 +1251,13 @@ private fun CinefinSideNavigation(
     val lumen = LocalLumenColors.current
     Column(
         modifier =
-            // W42：折叠 72dp / 展开 150dp；底色改半透明石墨（~82%）+ 右缘发丝线 + 顶缘内高光。
-            Modifier.width(if (expanded) 150.dp else 72.dp)
+            // W42：折叠 72dp；W46：展开 150 → 168dp（168dp 下最长的侧栏文案也不省略）。
+            // 底色 = 半透明石墨（W46 起 ~74%）+ 右缘发丝线 + 顶缘内高光。
+            Modifier.width(if (expanded) 168.dp else 72.dp)
                 .fillMaxHeight()
                 .background(lumen?.background ?: colors.surface)
                 .background(
-                    lumen?.panel?.copy(alpha = CinefinTokens.ChromeTranslucency)
-                        ?: colors.navSurface
+                    lumen?.panel?.copy(alpha = CinefinTokens.RailTranslucency) ?: colors.navSurface
                 )
                 .drawBehind {
                     val stroke = 1.dp.toPx()

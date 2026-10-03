@@ -224,6 +224,17 @@ constructor(
                                                         appPreferences.uiBookshelfLibraryId,
                                                     options = bookshelfLibraryOptions,
                                                 ),
+                                                // W46：音乐库选择从「播放与音乐 → 音乐」子页移到这里，与首页 /
+                                                // 书架并列（「音乐」子页整体下线）。
+                                                PreferenceDynamicSelect(
+                                                    nameStringResource =
+                                                        R.string.settings_music_library,
+                                                    descriptionStringRes =
+                                                        R.string.settings_music_library_summary,
+                                                    backendPreference =
+                                                        appPreferences.uiMusicLibraryId,
+                                                    options = musicLibraryOptions,
+                                                ),
                                             )
                                     )
                                 ),
@@ -1079,39 +1090,6 @@ constructor(
                                     eventsChannel.send(SettingsEvent.NavigateToUsers)
                                 }
                             },
-                        ),
-                        // 「音乐」：音乐模式使用哪个媒体库（原在「媒体库」子页里）。
-                        PreferenceCategory(
-                            nameStringResource = R.string.settings_category_music,
-                            descriptionStringRes = R.string.settings_music_summary,
-                            iconDrawableId = R.drawable.ic_music,
-                            supportedDeviceTypes = listOf(DeviceType.PHONE),
-                            onClick = {
-                                viewModelScope.launch {
-                                    eventsChannel.send(
-                                        SettingsEvent.NavigateToSettings(
-                                            intArrayOf(it.nameStringResource)
-                                        )
-                                    )
-                                }
-                            },
-                            nestedPreferenceGroups =
-                                listOf(
-                                    PreferenceGroup(
-                                        preferences =
-                                            listOf(
-                                                PreferenceDynamicSelect(
-                                                    nameStringResource =
-                                                        R.string.settings_music_library,
-                                                    descriptionStringRes =
-                                                        R.string.settings_music_library_summary,
-                                                    backendPreference =
-                                                        appPreferences.uiMusicLibraryId,
-                                                    options = musicLibraryOptions,
-                                                )
-                                            )
-                                    )
-                                ),
                         ),
                         // 「外观」：原本在「界面」子页里的主题 / 动态取色，提升为与「界面」并列的顶层分类。
                         PreferenceCategory(

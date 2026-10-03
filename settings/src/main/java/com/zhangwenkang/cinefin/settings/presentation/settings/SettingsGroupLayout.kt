@@ -18,7 +18,11 @@ enum class SettingsGroup(@param:StringRes val titleRes: Int) {
     Other(R.string.settings_group_other),
 }
 
-/** 组内条目的固定顺序：按条目的 `nameStringResource` 寻址（**不按对象**）， 因此同一条目定义可以来自任意原始分类块，只要资源名对得上就会被收进对应分组。 */
+/**
+ * 组内条目的固定顺序：按条目的 `nameStringResource` 寻址（**不按对象**）， 因此同一条目定义可以来自任意原始分类块，只要资源名对得上就会被收进对应分组。
+ *
+ * W46：「音乐」子页下线（音乐库选择移入「媒体库」子页），播放与音乐组只保留播放器 / 桌面歌词 / 恢复播放队列。
+ */
 val SETTINGS_GROUP_LAYOUT: List<Pair<SettingsGroup, List<Int>>> =
     listOf(
         SettingsGroup.AccountServer to
@@ -37,7 +41,6 @@ val SETTINGS_GROUP_LAYOUT: List<Pair<SettingsGroup, List<Int>>> =
         SettingsGroup.Playback to
             listOf(
                 R.string.settings_category_player,
-                R.string.settings_category_music,
                 R.string.settings_category_desktop_lyrics,
                 R.string.settings_music_resume_queue,
             ),

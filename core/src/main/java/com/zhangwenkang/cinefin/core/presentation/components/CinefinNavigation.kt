@@ -71,10 +71,10 @@ class CinefinNavItem(
 )
 
 /**
- * 侧导航（W42 改版：150dp 展开 / 72dp 折叠）。
+ * 侧导航（W42 改版：折叠 72dp；W46 展开 150 → 168dp）。
  *
- * 底色改半透明石墨（[CinefinTokens.ChromeTranslucency]）+ 右缘 1dp 发丝线 + 顶缘内高光；分组之间用 [groupBreaks] 插入 12dp
- * 空隙与细分隔线，末尾 [pinnedTailCount] 条（客户端设置区）用发丝线与导航区分隔。
+ * 底色改半透明石墨（[CinefinTokens.RailTranslucency]，W46 起 74%）+ 右缘 1dp 发丝线 + 顶缘内高光；分组之间用 [groupBreaks] 插入
+ * 12dp 空隙与细分隔线，末尾 [pinnedTailCount] 条（客户端设置区）用发丝线与导航区分隔。
  */
 @Composable
 fun CinefinSideRail(
@@ -93,14 +93,13 @@ fun CinefinSideRail(
     Column(
         modifier =
             modifier
-                .width(if (expanded) 150.dp else 72.dp)
+                .width(if (expanded) 168.dp else 72.dp)
                 .fillMaxHeight()
-                // 半透明石墨需要确定的衬底：先铺页底（曜石黑）再叠 82% 面板，否则侧柜容器的同色底
+                // 半透明石墨需要确定的衬底：先铺页底（曜石黑）再叠 74% 面板，否则侧柜容器的同色底
                 // 会把透明度"吃掉"，真机像素采样看不到透出。
                 .background(lumen?.background ?: colors.surface)
                 .background(
-                    lumen?.panel?.copy(alpha = CinefinTokens.ChromeTranslucency)
-                        ?: colors.navSurface
+                    lumen?.panel?.copy(alpha = CinefinTokens.RailTranslucency) ?: colors.navSurface
                 )
                 .drawBehind {
                     val stroke = 1.dp.toPx()
@@ -391,7 +390,8 @@ internal fun navItemContainerColor(
 ): Color =
     if (lumen != null) {
         when {
-            selected -> lumen.panelElevated
+            // W46：选中容器与侧栏底同 alpha（74%）——不透明会"吃掉"底层的透出，选中行变成一块实心板。
+            selected -> lumen.panelElevated.copy(alpha = CinefinTokens.RailTranslucency)
             pressed -> lumen.ghost.copy(alpha = CinefinTokens.StatePressedAlpha)
             hovered -> lumen.ghost
             else -> Color.Transparent

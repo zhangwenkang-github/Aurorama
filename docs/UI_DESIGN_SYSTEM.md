@@ -529,10 +529,10 @@ val CinefinTypography = Typography(
 
 | 类型 | 规格 | 选中态 |
 |------|------|--------|
-| 侧导航 SideRail（≥1200dp） | 宽 164dp；底 `#12171D`；右 1dp `Outline`；logo 38dp；item 高 54dp、圆角 14dp、间距 2dp、内边距 14dp；图标 22dp + 文字 16sp | 首页：底 `SurfaceContainerHigh` + 文字 `OnSurface`；域页：底 `Media.Container` + 图标/文字 `Media.Bright`；**删除原稿右侧色点** |
-| 折叠轨 Rail（840–1199dp） | 宽 88dp；仅图标 24dp 居中；item 高 56dp | 同上（无文字） |
+| 侧导航 SideRail（≥600dp，W46 起；展开态 ≥1200dp 默认） | 宽 **168dp**（W46 前 150dp）；底 = 页底衬底 + 石墨面板 @**74%**（W46 前 82%，`CinefinTokens.RailTranslucency`）；右 1dp 发丝线 + 顶缘内高光；logo 38dp；item 高 48dp（二级 44dp）、圆角 14dp、间距 2dp、内边距 14dp；图标 24dp + 文字 16sp | 选中 = 雾灰 `panelElevated` @74% + **3dp 极光青左缘指示条**（24dp 高、两端圆角）+ 1dp 细线；未选中 = 次级灰（图标提亮到白 62%） |
+| 折叠轨 Rail（≥600dp，收起态） | 宽 **72dp**；仅图标 24dp 居中；item 高 48dp | 同上（无文字） |
 | 底部 Tab（<600dp） | 高 64dp + 安全区；4 tab：影 / 乐 / 书 / 更多；图标 24dp + 文字 13sp；间距 4dp | 图标 fill + `Media.Bright` + 文字 `Media.Bright`；指示条 24×3dp、圆角 4dp、`Media.Base`，位于图标上方 4dp（该指示条是导航指示器，不属于"按钮旁色块"） |
-| 抽屉 Drawer | 宽 320dp；底 `SurfaceContainer`；header 96dp；item 高 56dp、圆角 12dp；分组标题 LabelSmall `OnSurfaceFaint` | 同侧导航 |
+| 抽屉 Drawer | 宽 320dp；底 = 页底衬底 + 石墨面板 @**74%**（W46，与侧轨同一透明度与两层画法）；header 96dp；item 高 56dp、圆角 12dp；分组标题 LabelSmall `OnSurfaceFaint` | 同侧导航 |
 
 ### 8.7 播放器控件
 

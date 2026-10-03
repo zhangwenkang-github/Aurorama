@@ -28,7 +28,6 @@ class SettingsGroupLayoutTest {
             toggle(R.string.settings_local_library_visible),
             category(R.string.settings_category_downloads_cache),
             category(R.string.settings_category_player),
-            category(R.string.settings_category_music),
             category(R.string.settings_category_desktop_lyrics),
             toggle(R.string.settings_music_resume_queue),
             category(R.string.settings_category_language),
@@ -73,7 +72,6 @@ class SettingsGroupLayoutTest {
                 ),
                 listOf(
                     R.string.settings_category_player,
-                    R.string.settings_category_music,
                     R.string.settings_category_desktop_lyrics,
                     R.string.settings_music_resume_queue,
                 ),

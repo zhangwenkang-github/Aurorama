@@ -30,8 +30,8 @@ import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 /**
  * 首页顶栏：**app 图标（抽屉入口）** + 品牌字标 + 搜索。
  *
- * W7-R3（用户反馈 1）：手机 Compact 恢复抽屉后，入口从汉堡键换成品牌图标（S1 A 稿的"光圈棱镜"）， 既是 app
- * 图标也是侧栏入口；其余页面顶栏仍用汉堡键。顶栏其余部分保持安静——首页的第一眼应该留给海报。
+ * W7-R3（用户反馈 1）：手机 Compact 恢复抽屉后，入口从汉堡键换成品牌图标（S1 A 稿的"光圈棱镜"）；W46 起音乐 / 书架 / 媒体库三个一级页的顶栏入口也统一成同一枚
+ * app 图标（24dp + 「打开侧栏」），二级页面保持原样。顶栏其余部分保持安静——首页的第一眼应该留给海报。
  */
 @Composable
 fun HomeTopBar(
@@ -57,7 +57,7 @@ fun HomeTopBar(
                     painter = painterResource(CoreR.drawable.ic_logo),
                     contentDescription = stringResource(CoreR.string.nav_open_drawer),
                     tint = Color.Unspecified,
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
 

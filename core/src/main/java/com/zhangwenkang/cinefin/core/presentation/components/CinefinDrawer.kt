@@ -32,10 +32,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
@@ -48,8 +50,8 @@ class CinefinDrawerGroup(
 )
 
 /**
- * Cinefin 抽屉（§8.6）：宽 320dp，底 `SurfaceContainer`，header 96dp，条目 56dp / 圆角 12dp， 分组标题 `LabelSmall +
- * OnSurfaceFaint`；无投影（`tonalElevation = 0`），遮罩用 `Scrim`。
+ * Cinefin 抽屉（§8.6）：宽 320dp，底 = 页底衬底 + 石墨面板 @74%（W46，与平板侧轨同一透明度），header 96dp，条目 56dp / 圆角 12dp， 分组标题
+ * `LabelSmall + OnSurfaceFaint`；无投影（`tonalElevation = 0`），遮罩用 `Scrim`。
  *
  * `selectedIndex` 按分组顺序拍平后计算；域页条目选中态为 `Media.Container + Media.Bright`。
  */
@@ -80,10 +82,18 @@ fun CinefinModalDrawer(
             drawerSkin {
                 val skin = LocalLumenColors.current
                 ModalDrawerSheet(
-                    modifier = Modifier.width(320.dp),
+                    modifier =
+                        Modifier.width(320.dp)
+                            // W46：与侧轨同款 74% 半透明——先铺页底衬底再叠面板，否则透明度会被抽屉壳的
+                            // 同色底吃掉（踩坑 57）。
+                            .background(skin?.background ?: colors.surface)
+                            .background(
+                                skin?.panel?.copy(alpha = CinefinTokens.RailTranslucency)
+                                    ?: colors.surfaceContainer
+                            ),
                     drawerShape = RectangleShape,
-                    // Lumen：抽屉 = 石墨面板（比曜石黑页底亮一档），与侧轨同一材质语言
-                    drawerContainerColor = skin?.panel ?: colors.surfaceContainer,
+                    // 底色由上一条 modifier 的两层 background 提供（容器色必须是透明，否则会盖住半透明层）。
+                    drawerContainerColor = Color.Transparent,
                     drawerContentColor = skin?.text ?: colors.onSurface,
                     drawerTonalElevation = 0.dp,
                 ) {

@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -38,16 +39,16 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
  * 顶层页面共用顶栏（W8-R3 用户反馈 1）：媒体库 / 音乐 / 书架三页共用同一套尺寸与排版。
  *
  * 统一项：**56dp 内容高 + `statusBarsPadding()`**（音乐页原先 72dp 且不带状态栏内边距，顶栏键会被系统状态栏压住，这里根治）、 44dp 图标键（图标
- * 24dp，与首页 `HomeTopBar` 同一语言）、页边距随窗口分级 20 / 24 / 32 / 48dp、左侧入口 = `ic_menu` +
- * `content-desc="打开侧栏"`（二级页面用返回键）、标题排版 = 主标题（`TitleLarge`）+ 计数副标题（`BodySmall`）。Lumen
- * 区域在顶栏下缘补一条发丝线（A 稿层次），Prism 区域保持纯净。
+ * 24dp，与首页 `HomeTopBar` 同一语言）、页边距随窗口分级 20 / 24 / 32 / 48dp、**一级页面左侧入口 = `ic_logo` app 图标 +
+ * `content-desc="打开侧栏"`**（W46：与首页 / 音乐 / 书架 / 媒体库四页统一；二级页面仍用返回键）、标题排版 = 主标题（`TitleLarge`）+
+ * 计数副标题（`BodySmall`）。Lumen 区域在顶栏下缘补一条发丝线（A 稿层次），Prism 区域保持纯净。
  */
 @Composable
 fun CinefinPageTopBar(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    /** 侧栏入口（顶部页面）：`ic_menu` + 「打开侧栏」。 */
+    /** 侧栏入口（一级页面）：app 图标（`ic_logo`）+ 「打开侧栏」；null = 不显示入口（平板形态 / 控制台页）。 */
     onOpenDrawer: (() -> Unit)? = null,
     /** 返回键（二级页面：专辑详情 / 库内容页）：优先于侧栏入口。 */
     onBack: (() -> Unit)? = null,
@@ -91,9 +92,10 @@ fun CinefinPageTopBar(
                 )
             onOpenDrawer != null ->
                 CinefinTopBarIcon(
-                    res = R.drawable.ic_menu,
+                    res = R.drawable.ic_logo,
                     contentDescription = stringResource(R.string.nav_open_drawer),
-                    tint = colors.onSurfaceVariant,
+                    // 品牌图标自带极光青渐变，不能按次级灰着色。
+                    tint = Color.Unspecified,
                     onClick = onOpenDrawer,
                 )
             else -> Unit
