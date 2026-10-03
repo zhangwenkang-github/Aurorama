@@ -86,6 +86,8 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 **W51b 更新（2026-10-03，分支 `feature/w51b-show-download-fix`，起点 master `9fcea57`、已 rebase 到 `233b387`，待负责人合并）**：W51 合并后的真机走查拦下「Show 整剧 → Snackbar『没有可下载的剧集』」——根因 = 取集只请求 `Fields=Overview`，Jellyfin 按需字段 `MediaSources` / `CanDownload` 缺失导致 `canDownload=false` + 空 `sources`，批量目标被过滤成 0 条；修法 = `DetailDownloadRules.EPISODE_FETCH_FIELDS` 统一带上三字段、目标筛选改「有媒体源」硬条件。同时修**批量入队竞态**：`DownloaderImpl.downloadItem` 原「先插队列行、后写条目快照」会被已唤醒的引擎抢跑（同机 12 集入队 11 集 FILE_ERROR），改为快照先落库。门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` 起点 **561 项 0 失败**（基线 559 + 2）、rebase 到 `233b387`（并入 W53B / W54-D）后复跑 **577 项 0 失败 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 112；`9fcea57 → 233b387` 对本波下载 / 详情页文件零 diff）。真机 Pad 5 `43af8627` 复验通过：Season「将加入 11 集」/ Show「将加入 12 集」确认框 → Snackbar「已加入下载队列 · 11 / 12 集」、下载页 `12 进行中 · 0 失败`、侧轨角标 12、单集下载回归正常、0 FATAL/ANR，测试下载（12+11+1）已删除、设备已还原。详见 `DOWNLOAD_PLAN` §20.7 / `UI_PLAN` §5 W51b。
 
+**W51b + W53B + W54-D 合并归档（2026-10-04，master `1bc026b`）**：负责人按「逐个验收合并」执行——W53B（侧栏「本地媒体库」子分组 + 本地库卡 16:9）`f24c7b8` → W54-D（首页模块 + 设置收口 + 「全部」修复）rebase 让号 **D61 / D62** 后 `233b387` → W51b（Show / Season 取集字段 `Overview + CanDownload + MediaSources` + 批量入队快照前移）`1bc026b`；master 门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` + 7 任务 `--rerun` **577 项 / 0 失败 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 112）；CI Build + Format 双绿；三波联合真机走查（Pad 5 主 + K60 抽验）通过、0 FATAL / ANR（清单与结论见 `UI_PLAN` §5 / `DOWNLOAD_PLAN` §20.7）。**下一波**：W55 睡眠定时统一（音乐 / 视频共享 + 自定义 1–240 分钟）→ 发布准备（待用户对功能界面最终全检）。
+
 ## 4. 里程碑状态（源自旧 `docs/PLAN.md`，已合并）
 
 | 阶段 | 内容 | 状态 |
