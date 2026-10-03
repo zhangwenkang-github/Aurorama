@@ -248,6 +248,11 @@ fun CinefinListRow(
     isCurrent: Boolean = false,
     showDivider: Boolean = true,
     onClick: (() -> Unit)? = null,
+    /** W58：长按进入多选；null = 该行不参与多选。 */
+    onLongClick: (() -> Unit)? = null,
+    /** W58：多选态 = 行首显示 20dp 勾选指示（§8.5）。 */
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     /** W37 在线融合：标题后的来源徽标（如「本地」）；null = 不显示。 */
@@ -271,13 +276,26 @@ fun CinefinListRow(
                 .height(if (secondary != null) 88.dp else 72.dp)
                 .then(if (brush != null) Modifier.background(brush) else Modifier)
                 .then(
-                    if (onClick != null) Modifier.cinefinClickable(onClick = onClick) else Modifier
+                    when {
+                        onClick != null && onLongClick != null ->
+                            Modifier.cinefinSelectable(
+                                selected = selected,
+                                onClick = onClick,
+                                onLongPress = onLongClick,
+                            )
+                        onClick != null -> Modifier.cinefinClickable(onClick = onClick)
+                        else -> Modifier
+                    }
                 )
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = CinefinSpacing.Space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (selectionMode) {
+                CinefinSelectIndicator(selected = selected)
+                Spacer(Modifier.width(CinefinSpacing.Space3))
+            }
             if (leading != null) {
                 leading()
                 Spacer(Modifier.width(CinefinSpacing.Space4))

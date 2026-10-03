@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -63,6 +64,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinBatchBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
@@ -80,6 +82,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.selection.MultiSelectState
 import com.zhangwenkang.cinefin.music.R
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
@@ -136,10 +139,12 @@ fun MusicModeScreen(
     val sleepState by viewModel.sleepTimerState.collectAsState()
     val lyricsOverlayState by viewModel.lyricsOverlayState.collectAsState()
     val songDownloadState by viewModel.downloadState.collectAsState()
+    val batchSelection by viewModel.batchSelection.collectAsState()
     var queueSheetOpen by rememberSaveable { mutableStateOf(false) }
     var sleepSheetOpen by rememberSaveable { mutableStateOf(false) }
     var effectsSheetOpen by rememberSaveable { mutableStateOf(false) }
     var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
+    var pendingBatchDelete by remember { mutableStateOf(false) }
     val effectsEqualizerEnabled by viewModel.effectsEqualizerEnabled.collectAsState()
     val effectsEqualizerPreset by viewModel.effectsEqualizerPreset.collectAsState()
     val effectsEqualizerBands by viewModel.effectsEqualizerBands.collectAsState()
@@ -186,6 +191,8 @@ fun MusicModeScreen(
         enabled = onExitTemporaryLibrary != null && state.detail == null,
         onBack = { onExitTemporaryLibrary?.invoke() },
     )
+    // W58：长按进入多选后，任何子层 / 详情状态变化都不自动退出（用户用顶栏 × 或全不选退出）。
+    BackHandler(enabled = batchSelection.selectionMode) { viewModel.onBatchExit() }
 
     CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
         val colors = LocalCinefinColors.current
@@ -194,6 +201,7 @@ fun MusicModeScreen(
                 MusicHeader(
                     state = state,
                     sleepState = sleepState,
+                    batchSelection = batchSelection,
                     libraryName = libraryName,
                     libraryTypeLabel = libraryTypeLabel,
                     onExitTemporaryLibrary = onExitTemporaryLibrary,
@@ -202,6 +210,9 @@ fun MusicModeScreen(
                     onOpenFavorites = viewModel::openFavorites,
                     onOpenRecent = viewModel::openRecent,
                     onOpenSleep = { sleepSheetOpen = true },
+                    onBatchSelectAll = viewModel::onBatchSelectAll,
+                    onBatchSelectNone = viewModel::onBatchSelectNone,
+                    onBatchExit = viewModel::onBatchExit,
                 )
                 // W36：离线模式提示——曲库只含本机已下载曲目，点击即本地文件起播。
                 if (state.offline) {
@@ -243,10 +254,13 @@ fun MusicModeScreen(
                                 currentItemId = queue?.currentItem?.itemId,
                                 downloadState = songDownloadState,
                                 showSourceBadge = state.showSourceBadge,
+                                batchSelection = batchSelection,
                                 onSongClick = viewModel::playSong,
                                 onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
                                 onToggleDownload = viewModel::toggleSongDownload,
+                                onBatchLongPress = viewModel::onBatchLongPress,
+                                onBatchToggle = viewModel::onBatchToggle,
                             )
                         else ->
                             LibraryPane(
@@ -254,6 +268,7 @@ fun MusicModeScreen(
                                 currentItemId = queue?.currentItem?.itemId,
                                 downloadState = songDownloadState,
                                 showSourceBadge = state.showSourceBadge,
+                                batchSelection = batchSelection,
                                 onAlbumClick = viewModel::openAlbum,
                                 onArtistClick = viewModel::openArtist,
                                 onPlaylistClick = viewModel::openPlaylist,
@@ -261,30 +276,45 @@ fun MusicModeScreen(
                                 onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
                                 onToggleDownload = viewModel::toggleSongDownload,
+                                onBatchLongPress = viewModel::onBatchLongPress,
+                                onBatchToggle = viewModel::onBatchToggle,
                             )
                     }
                 }
 
-                NowPlayingBar(
-                    queue = queue,
-                    isPlaying = isPlaying,
-                    isRestored = isRestored,
-                    positionMs = positionMs,
-                    durationMs = durationMs,
-                    fallbackDurationMs =
-                        viewModel
-                            .songMeta(queue?.currentItem?.itemId)
-                            ?.runtimeTicks
-                            ?.div(TICKS_PER_MS) ?: 0L,
-                    sleepState = sleepState,
-                    onOpenNowPlaying = { nowPlayingOpen = true },
-                    onPrevious = viewModel::skipToPrevious,
-                    onPlayPause = viewModel::togglePlayPause,
-                    onNext = viewModel::skipToNext,
-                    onOpenLyrics = viewModel::openLyrics,
-                    onOpenQueue = { queueSheetOpen = true },
-                    onClose = viewModel::dismissNowPlayingBar,
-                )
+                if (batchSelection.selectionMode) {
+                    MusicBatchActionBar(
+                        selectedCount = batchSelection.selectedCount,
+                        isPlaylistDetail = state.detail is MusicDetail.Playlist,
+                        isEnabled = viewModel::batchEnabled,
+                        onPlay = viewModel::playSelected,
+                        onDownload = viewModel::downloadSelected,
+                        onFavorite = viewModel::favoriteSelected,
+                        onDelete = { pendingBatchDelete = true },
+                        onRemoveFromPlaylist = viewModel::removeSelectedFromPlaylist,
+                    )
+                } else {
+                    NowPlayingBar(
+                        queue = queue,
+                        isPlaying = isPlaying,
+                        isRestored = isRestored,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        fallbackDurationMs =
+                            viewModel
+                                .songMeta(queue?.currentItem?.itemId)
+                                ?.runtimeTicks
+                                ?.div(TICKS_PER_MS) ?: 0L,
+                        sleepState = sleepState,
+                        onOpenNowPlaying = { nowPlayingOpen = true },
+                        onPrevious = viewModel::skipToPrevious,
+                        onPlayPause = viewModel::togglePlayPause,
+                        onNext = viewModel::skipToNext,
+                        onOpenLyrics = viewModel::openLyrics,
+                        onOpenQueue = { queueSheetOpen = true },
+                        onClose = viewModel::dismissNowPlayingBar,
+                    )
+                }
             }
 
             val currentQueue = queue
@@ -369,6 +399,17 @@ fun MusicModeScreen(
             )
         }
 
+        if (pendingBatchDelete) {
+            MusicBatchDeleteDialog(
+                selectedCount = batchSelection.selectedCount,
+                onConfirm = {
+                    viewModel.deleteSelected()
+                    pendingBatchDelete = false
+                },
+                onDismiss = { pendingBatchDelete = false },
+            )
+        }
+
         if (sleepSheetOpen) {
             SleepTimerSheet(
                 state = sleepState,
@@ -427,6 +468,7 @@ fun MusicModeScreen(
 private fun MusicHeader(
     state: MusicModeViewModel.UiState,
     sleepState: SleepTimerController.State,
+    batchSelection: MultiSelectState,
     /** W53 Bug B1：侧栏点具体音乐库时的顶栏标题（null = 「音乐」）。 */
     libraryName: String?,
     /** W53 追加：临时库视图顶栏的类型前缀（如「音乐库」）。 */
@@ -438,15 +480,23 @@ private fun MusicHeader(
     onOpenFavorites: () -> Unit,
     onOpenRecent: () -> Unit,
     onOpenSleep: () -> Unit,
+    onBatchSelectAll: () -> Unit,
+    onBatchSelectNone: () -> Unit,
+    onBatchExit: () -> Unit,
 ) {
     val detail = state.detail
     val media = LocalMediaColors.current
+    val visibleSongCount = detail?.songs?.size ?: state.songs.size
+    val batchMode = batchSelection.selectionMode
     // W8-R3：与媒体库 / 书架共用 `CinefinPageTopBar`（56dp + statusBarsPadding + 左侧 ic_menu「打开侧栏」），
     // 修掉旧版 72dp 无 inset 导致的"按钮被状态栏压住"。详情（专辑 / 艺术家 / 歌单）改回返回键 + 详情标题。
     CinefinPageTopBar(
-        title = detail?.title ?: libraryName?.takeIf { it.isNotBlank() } ?: "音乐",
+        title =
+            if (batchMode) "已选 ${batchSelection.selectedCount} 项"
+            else detail?.title ?: libraryName?.takeIf { it.isNotBlank() } ?: "音乐",
         subtitle =
             when {
+                batchMode -> null
                 detail != null -> "共 ${detail.songs.size} 首曲目"
                 else -> {
                     val count =
@@ -470,8 +520,27 @@ private fun MusicHeader(
                 }
             },
         onOpenDrawer = onOpenDrawer,
-        onBack = if (detail != null) onBack else null,
+        onBack = if (detail != null && !batchMode) onBack else null,
         actions = {
+            if (batchMode) {
+                val allSelected =
+                    visibleSongCount > 0 && batchSelection.selectedCount >= visibleSongCount
+                CinefinButton(
+                    text = if (allSelected) "取消全选" else "全选",
+                    onClick = { if (allSelected) onBatchSelectNone() else onBatchSelectAll() },
+                    size = CinefinButtonSize.Small,
+                    variant = CinefinButtonVariant.Text,
+                )
+                CinefinIconButton(onClick = onBatchExit) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_close),
+                        contentDescription = "退出多选",
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                return@CinefinPageTopBar
+            }
             if (onExitTemporaryLibrary != null && detail == null) {
                 CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
             }
@@ -574,6 +643,7 @@ private fun LibraryPane(
     currentItemId: UUID?,
     downloadState: MusicModeViewModel.SongDownloadState,
     showSourceBadge: Boolean,
+    batchSelection: MultiSelectState,
     onAlbumClick: (MusicAlbum) -> Unit,
     onArtistClick: (MusicArtist) -> Unit,
     onPlaylistClick: (MusicPlaylist) -> Unit,
@@ -581,6 +651,8 @@ private fun LibraryPane(
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onToggleDownload: (MusicSong) -> Unit,
+    onBatchLongPress: (MusicSong) -> Unit,
+    onBatchToggle: (MusicSong) -> Unit,
 ) {
     // W39：空态按来源分支（本地 / 服务器 / 全部 / 离线），与下拉刷新提示一致。
     val emptyCopy =
@@ -603,10 +675,13 @@ private fun LibraryPane(
                 emptyMessage = emptyCopy.message,
                 downloadState = downloadState,
                 showSourceBadge = showSourceBadge,
+                batchSelection = batchSelection,
                 onSongClick = onSongClick,
                 onPlayNext = onPlayNext,
                 onToggleFavorite = onToggleFavorite,
                 onToggleDownload = onToggleDownload,
+                onBatchLongPress = onBatchLongPress,
+                onBatchToggle = onBatchToggle,
             )
         MusicTab.PLAYLISTS ->
             PlaylistList(
@@ -623,10 +698,13 @@ private fun DetailPane(
     currentItemId: UUID?,
     downloadState: MusicModeViewModel.SongDownloadState,
     showSourceBadge: Boolean,
+    batchSelection: MultiSelectState,
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onToggleDownload: (MusicSong) -> Unit,
+    onBatchLongPress: (MusicSong) -> Unit,
+    onBatchToggle: (MusicSong) -> Unit,
 ) {
     if (
         (detail is MusicDetail.Playlist && detail.loading) ||
@@ -643,6 +721,7 @@ private fun DetailPane(
         showAlbum = detail !is MusicDetail.Album,
         downloadState = downloadState,
         showSourceBadge = showSourceBadge,
+        batchSelection = batchSelection,
         emptyTitle =
             when (detail) {
                 is MusicDetail.Favorites -> "还没有收藏的曲目"
@@ -653,6 +732,8 @@ private fun DetailPane(
         onPlayNext = onPlayNext,
         onToggleFavorite = onToggleFavorite,
         onToggleDownload = onToggleDownload,
+        onBatchLongPress = onBatchLongPress,
+        onBatchToggle = onBatchToggle,
     )
 }
 
@@ -774,10 +855,13 @@ private fun SongList(
     emptyMessage: String? = null,
     downloadState: MusicModeViewModel.SongDownloadState = MusicModeViewModel.SongDownloadState(),
     showSourceBadge: Boolean = true,
+    batchSelection: MultiSelectState = MultiSelectState(),
     onSongClick: (MusicSong) -> Unit,
     onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onToggleDownload: (MusicSong) -> Unit = {},
+    onBatchLongPress: (MusicSong) -> Unit = {},
+    onBatchToggle: (MusicSong) -> Unit = {},
 ) {
     if (songs.isEmpty()) {
         EmptyHint(title = emptyTitle, message = emptyMessage)
@@ -808,7 +892,12 @@ private fun SongList(
                         else -> "下载"
                     },
                 sourceBadge = song.source.label.takeIf { showSourceBadge },
-                onClick = { onSongClick(song) },
+                selectionMode = batchSelection.selectionMode,
+                selected = batchSelection.isSelected(song.itemId.toString()),
+                onClick = {
+                    if (batchSelection.selectionMode) onBatchToggle(song) else onSongClick(song)
+                },
+                onLongClick = { onBatchLongPress(song) },
                 onPlayNext = { onPlayNext(song) },
                 onToggleFavorite = { onToggleFavorite(song) },
                 onToggleDownload = { onToggleDownload(song) },
@@ -826,7 +915,10 @@ private fun SongRow(
     downloadLabel: String?,
     downloadMenuItem: String?,
     sourceBadge: String?,
+    selectionMode: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onPlayNext: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleDownload: () -> Unit,
@@ -843,7 +935,10 @@ private fun SongRow(
                 .joinToString(" · ")
                 .ifBlank { null },
         isCurrent = isCurrent,
+        selectionMode = selectionMode,
+        selected = selected,
         onClick = onClick,
+        onLongClick = onLongClick,
         leading = {
             Box(modifier = Modifier.width(28.dp), contentAlignment = Alignment.CenterStart) {
                 Text(
@@ -1037,6 +1132,112 @@ private fun NowPlayingBar(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MusicBatchActionBar(
+    selectedCount: Int,
+    isPlaylistDetail: Boolean,
+    isEnabled: (MusicBatchAction) -> Boolean,
+    onPlay: () -> Unit,
+    onDownload: () -> Unit,
+    onFavorite: () -> Unit,
+    onDelete: () -> Unit,
+    onRemoveFromPlaylist: () -> Unit,
+) {
+    CinefinBatchBar(selectedCount = selectedCount) {
+        BatchActionButton(
+            enabled = isEnabled(MusicBatchAction.PLAY),
+            label = "播放",
+            iconRes = CoreR.drawable.ic_play,
+            onClick = onPlay,
+        )
+        BatchActionButton(
+            enabled = isEnabled(MusicBatchAction.DOWNLOAD),
+            label = "下载",
+            iconRes = CoreR.drawable.ic_download,
+            onClick = onDownload,
+        )
+        BatchActionButton(
+            enabled = isEnabled(MusicBatchAction.FAVORITE),
+            label = "收藏",
+            iconRes = CoreR.drawable.ic_heart,
+            onClick = onFavorite,
+        )
+        BatchActionButton(
+            enabled = isEnabled(MusicBatchAction.DELETE),
+            label = "删除",
+            iconRes = CoreR.drawable.ic_trash,
+            onClick = onDelete,
+        )
+        if (isPlaylistDetail) {
+            BatchActionButton(
+                enabled = isEnabled(MusicBatchAction.REMOVE_FROM_PLAYLIST),
+                label = "移出歌单",
+                iconRes = CoreR.drawable.ic_playlist,
+                onClick = onRemoveFromPlaylist,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BatchActionButton(
+    enabled: Boolean,
+    label: String,
+    iconRes: Int,
+    onClick: () -> Unit,
+) {
+    CinefinIconButton(enabled = enabled, onClick = onClick) { tint ->
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+/** 批量删除确认（红线：只删本机下载；纯服务器条目不在目标内）。 */
+@Composable
+private fun MusicBatchDeleteDialog(
+    selectedCount: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surfaceContainerHighest,
+        shape = CinefinShapes.Xl,
+        title = {
+            Text(text = "删除本地下载", style = CinefinType.HeadlineSmall, color = colors.onSurface)
+        },
+        text = {
+            Text(
+                text = "确定删除选中的 $selectedCount 项本机下载吗？只删除本机文件与索引，服务器上的媒体不受影响。",
+                style = CinefinType.BodyMedium,
+                color = colors.onSurfaceVariant,
+            )
+        },
+        confirmButton = {
+            CinefinButton(
+                text = "删除",
+                onClick = onConfirm,
+                size = CinefinButtonSize.Medium,
+                variant = CinefinButtonVariant.Filled,
+            )
+        },
+        dismissButton = {
+            CinefinButton(
+                text = "取消",
+                onClick = onDismiss,
+                size = CinefinButtonSize.Medium,
+                variant = CinefinButtonVariant.Text,
+            )
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

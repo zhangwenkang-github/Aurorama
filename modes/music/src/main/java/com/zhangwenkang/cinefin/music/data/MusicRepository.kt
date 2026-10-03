@@ -108,6 +108,9 @@ interface MusicRepository {
 
     /** 服务端收藏的曲目（`filters=IsFavorite` + `includeItemTypes=Audio`）。 */
     suspend fun getFavoriteSongs(): List<MusicSong>
+
+    /** W58：把曲目从服务器歌单移除（编辑歌单，非删除媒体；纯服务器写白名单）。 */
+    suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID)
 }
 
 @Singleton
@@ -178,6 +181,15 @@ constructor(
             } else {
                 jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
             }
+        }
+    }
+
+    override suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID) {
+        withContext(Dispatchers.IO) {
+            jellyfinApi.playlistsApi.removeItemFromPlaylist(
+                playlistId = playlistId.toString(),
+                entryIds = listOf(itemId.toString()),
+            )
         }
     }
 

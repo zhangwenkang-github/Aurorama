@@ -115,8 +115,16 @@
 | D63 | **设置账号卡并入「账号与服务器」组首行（W56，用户 2026-10-04 拍板）** | ①`SettingsScreen` 删除 LazyColumn 顶部独立账号卡（原 `item(key = "account")` + 独立 `LumenCardFrame`），改由 `SettingsGroupCard` 新增的 `header` 组内首行插槽渲染同一 `SettingsAccountHeader`（头像 / 昵称 / 服务器 / 身份徽标全保留、点击仍进用户管理），插槽与组内行之间画同规格发丝线；②识别口径 = `PreferenceGroup.nameStringResource == settings_group_account_server`（5 组 IA 的第一组，组内既有「服务器」「网络」两项不动）；③不新增配色 / 字体 / 位图 / 字符串资源，`AppPreferences.kt` 零改动。 | 账号卡原本与分组卡并列在列表顶部，割裂了「账号与服务器」的组归属；插槽式合并保持卡片壳 / 行样式与既有组件不变，其余分组零感知。 |
 | D64 | **顶层图标统一「回对应主页」（W56，用户 2026-10-04 拍板）** | ①落点判定抽纯函数 `topLevelTapAction(isOnEntryHome, hasInPageOverlay)`（`app/phone` `presentation/navigation/TopLevelNavigation.kt`，4 项单测）：已在入口主页 → `Stay`（不重复导航 / 不闪烁）；主页 + 页内二级层 → `CollapseOverlay`；二级页 / 其它入口 → `Navigate`（沿用 W53 D54 的 `safeNavigate + popBackStack` 弹回入口根页）；②音乐全屏播放 / 歌词页 / 专辑·艺术家·歌单详情都是音乐页内状态（不在导航栈里）：`MusicModeScreen` 新增 `reselectSignal`（递增 = 收起覆盖层 + 退页内详情）与 `onInnerPageOpenChange`（回报「页内二级层是否打开」= 覆盖层或详情）；`NavigationRoot` 点「音乐」顶层图标走三分支，从二级页 / 其它入口回音乐时同样先收起恢复出来的覆盖层；③逐场景核对：首页 / 视频 / 音乐 / 书架 / 媒体库 / 下载 / 设置根页已在主页时均不重复导航；库内容页（视频 / 书籍）、临时库、视频与书架详情、本地库详情等由既有 `Navigate` 分支弹回对应根页；④已知边界：设置子页（同一目的地的不同 `indexes` 参数）不算「主页」，仍走既有导航；`Stay` 分支仍在最前面关抽屉，手机抽屉行为不回归。 | 音乐覆盖层此前无法用顶层图标关闭（点「音乐」是导航 no-op），是用户明确点名的缺口；把三态判定提成纯函数后，覆盖层语义可单测，其余入口只做「不重复导航」的最小改动。 |
 | D65 | **下载设置手动输入 + 「仅 Wi-Fi」不看计费 + 下载页缩略图本地优先（W57，用户 2026-10-04 拍板）** | ①**下载与缓存子页**：同时下载数改 `PreferenceIntInput(1..8)`（原 1/2/3 单选）、新增「下载限速」`PreferenceIntInput(0..100 MB/s，0 = 不限速)`、图片缓存默认 20 → **50 MB**；`PreferenceIntInput` 新增 `valueRange`（越界输入在对话框与写库双层自动钳制）。②**网络策略**：`DownloadNetworkRules`（纯函数）——`hasTransport(WIFI/ETHERNET)` 直接允许、**不看系统计费标记**；其余网络（蜂窝等）仍看「允许移动数据 / 漫游」开关。③**缩略图**：所有条目入队即由 `ImagesDownloaderWorker` 落盘自身封面 + `DownloadArtworkRules`（本地优先 / 剧集 条目→季→节目→远程兜底）+ 无图类型图标占位；飞行模式（断网）实测仍显示。④**限速**：`DownloadSpeedLimitRules` + `DownloadThrottle`（本次会话平均速率节流），每次任务启动读取偏好（运行中的任务不打断）。⑤新增文案三语言（默认 / zh-rCN / zh-rTW）。 | 红线动 `AppPreferences.kt`（缓存默认 50 + 新键 `pref_download_speed_limit_mbps`，已申报）；`NavigationRoot.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:core` / `player:local` 未动。门禁 599 项 / 0 失败（含 `player:core` 全量 606）；真机复现 + 复验见 `DOWNLOAD_PLAN` §21。 |
+| D66 | **W58 多选批量的 UI 口径 = 下载页多选 + 设计系统 §8.5（用户 2026-10-04 拍板；三模式共用，先音乐打样）** | ①**入口**：长列表 / 网格行与卡片**长按**进入多选（`Modifier.cinefinSelectable`：普通态单击 = 原动作，长按 = 进入并选中该条）；②**选中反馈**：列表行行首 20dp 勾选（§8.5：选中 = `Media.Base` 填充 + `OnBase` 勾，未选中 = 透明底 + 1dp 描边），卡片左上角同款指示（§8.4「已选圆点」），不在卡片上叠媒体色底；③**顶栏**：多选态标题替换为「已选 N 项」+「全选 / 取消全选」+ × 退出（复用 `CinefinButton(Text, Small)` / `CinefinIconButton` + `ic_close`），返回键先退多选；④**底栏**：下载页同款工具条（`CinefinBatchBar`：「已选 N 项」+ 右动作键），可用性 = 任一选中条目满足（纯函数判定），全不选 / 系统返回自动退出；⑤**全选** = 当前视图**已加载**条目（分页列表不拉全库）；⑥不新增配色 / 字体 / 位图；新增文案 `selection_select_all` / `selection_select_none` / `selection_exit` / `selection_load_failed`（默认 / zh-rCN / zh-rTW），动作词条复用既有 `download_action_*` / `title_*`。⑦**红线口径**：音乐「删除」只删本机下载（已下载且非本地媒体库的服务器条目），纯服务器 / 本地媒体库条目入口置灰或隐藏； **不新增任何服务器媒体删除写操作**。 | 与下载页多选视觉 / 交互同源，避免三模式各造一套；状态抽 `core` `MultiSelectState` 纯函数后「选中集合增删 / 已加载全选 / 删除仅本机」都能单测。音乐落点与决策细节见 `MUSIC_PLAN` D66–D69 / §5.17；视频 / 书籍待接。 |
 
 ## 4. 进度
+
+### W58 多选批量（2026-10-04，分支 `feature/w58-multi-select`，起点 master `ea18849`；音乐部分已交付）
+
+- **范围（用户 2026-10-04 拍板）**：音乐 / 视频 / 书籍三模式长列表 / 网格长按进入多选 + 已加载全选 + 按类型批量操作；**本会话先做音乐打样**（含可复用框架与纯函数），视频 / 书籍后续接。
+- **共用框架（core，已交付）**：`core/selection/MultiSelectState`（`selectionMode` + `selectedIds`；`longPress` / `toggle` / `selectAll` / `selectNone` / `retain` / `clear` 纯函数，非多选态选中集合恒为空）+ `core/presentation/components/CinefinMultiSelect.kt`（`cinefinSelectable` 长按手势 / `CinefinSelectIndicator` §8.5 20dp 勾选 / `CinefinBatchBar` 工具条）+ `CinefinListRow` 的 `onLongClick` / `selectionMode` / `selected` 默认参数 + 4 条新文案三语言（决策 D66）。
+- **音乐（已交付）**：歌曲 Tab 与专辑 / 艺术家 / 歌单 / 收藏 / 最近播放详情长按进入多选；顶栏「已选 N 项」+ 全选 / 取消全选 + ×；底栏五键（播放 = 加入当前队列开始播 / 下载 / 收藏 / 删除只删本地 / 从歌单移除）；落点 `modes:music` `MusicBatchRules` + `MusicModeViewModel` / `MusicModeScreen`，细节见 `MUSIC_PLAN` §2.16 / §5.17。
+- **视频 / 书籍（待做，已定边界）**：视频 = 库内容网格 / 聚合网格（Paging 已加载页）/ 临时库视图的卡片多选 → 播放（加入当前队列）/ 下载 / 标记已看 / 收藏 / 删除（仅本地下载）；书籍 = 书架库内容网格 → 下载 / 标记已读 / 收藏（无播放）；两者均复用本波 core 框架与 `CinefinListRow` / `ItemCard` 勾选指示，纯函数（动作可用性 / 已加载全选 / 删除仅本地 / 播放入队顺序）各自落 `app:phone` 单测。
 
 ### W57 下载体验：设置手动输入 + 网络策略 + 下载页缩略图（2026-10-04，分支 `feature/w57-download-ux`，起点 master `3518dca`）
 
@@ -1011,6 +1019,14 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - **静态核对**：账号卡复用原 `SettingsAccountHeader`（头像 / 昵称 / 服务器 / 徽标 / 点击全保留，仅容器上移进组卡）；迷你条 × 复用 `CinefinIconButton` + `ic_close`；全屏按钮组五键（无「歌词」）；无新增配色 / 字体 / 位图；`AppPreferences.kt` 零改动（偏好键未动）。
 - **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **583 项 / 0 失败 0 错误**（app 134 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 114）；含 `:player:core:testDebugUnitTest` 全量 **590 项 / 0 失败**；新增单测 7 项（`TopLevelNavigationTest` 4 + `MusicMiniBarRulesTest` 3）。
 - **真机（待窗口）**：①设置首屏——账号卡出现在「账号与服务器」卡内首行（头像 / 昵称 / 服务器 / 徽标），点击进用户管理；②音乐播放中迷你条 × → 停止播放 + 迷你条消失（媒体通知消退）；③× 后再次点曲目正常起播；重启后队列存档仍可恢复；④音乐全屏按钮组 = 五键（无「歌词」），点歌词预览行 / 左滑仍进歌词页，迷你条「词」仍开歌词 sheet；⑤音乐全屏 / 歌词页打开时点底栏 / 侧轨「音乐」→ 回音乐主页；点其它模式图标 → 对应主页；⑥视频库内容页 / 视频详情 / 书架详情 / 本地库详情 / 临时库下点对应顶层图标 → 弹回根页；⑦已在主页再点 → 不闪烁、不重复导航；⑧0 FATAL / ANR。
+
+### W58 多选批量验收（2026-10-04，分支 `feature/w58-multi-select`，起点 master `ea18849`；静态 / 门禁部分，音乐打样）
+
+- **范围**：core 通用多选框架（状态纯函数 / 长按手势 / 勾选指示 / 批量工具条 / 文案三语言）+ 音乐曲目多选与五键批量动作；决策 D66。
+- **静态核对**：多选工具条与勾选全走既有 core 组件（§8.5 / 下载页 `SelectionBar` 口径），无新增配色 / 字体 / 位图；「删除」只出现在已下载且非本地媒体库的服务器条目，确认框明示「只删本机文件与索引」；无任何服务器媒体删除写操作（歌单「移出」走 Jellyfin 歌单编辑接口）。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` **638 项 / 0 失败 0 错误**（app 136 / core 59 / data 45 / player:local 105 / film 40 / book 113 / music 128 / player:core 12；新增 32）。
+- **真机（待窗口）**：清单见 `MUSIC_PLAN` §5.17（音乐八组）；视频 / 书籍多选落地后一并补清单。
+- **未覆盖**：视频 / 书籍多选批量（后续会话）；音乐专辑 / 艺术家 / 歌单行不参与多选（按 D66 口径）。
 
 - **负责人真机走查（2026-10-04 01:36–01:43，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，master `8181921`）**：①账号卡「账号与服务器」组内首行（K60 同款）；②迷你条 × → `dumpsys media_session` = `state=0` 停播 + 收起，重选曲恢复「正在播放」；③全屏五键（播放队列 / 顺序播放 / 收藏 / 桌面歌词 / 音效）**无歌词入口**；点歌词区域 → 歌词页（纯音乐提示），迷你条「词」保留；④全屏播放 → 点「音乐」→ 回音乐主页（播放不中断）；歌词页 / 艺术家「Aimer」详情 / 电影库内容页 → 点对应图标均回主页；已在主页再点图标停留无副作用；⑤0 FATAL / ANR。未覆盖：音乐「专辑」tab 详情（用艺术家详情等效）、设置子页回主页（可选）。
 

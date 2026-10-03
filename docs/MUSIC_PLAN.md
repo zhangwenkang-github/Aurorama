@@ -166,6 +166,15 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D59 | **迷你播放条新增「关闭面板」×（用户 2026-10-04 拍板）**：行为 = 停止播放并收起面板；活动会话走 `MusicPlaybackController.stop()`（停播 + 清内存队列 + Stop 上报），恢复态只丢本次进页面的 `_restoredQueue` 展示快照；**队列存档只写不清**（`MusicQueuePersister` 既有语义），收起后再次选择曲目走既有起播路径。按钮复用 `CinefinIconButton` + `CoreR.drawable.ic_close`（contentDescription「关闭面板」），排在迷你条按钮组末位；不新增配色 / 字体 / 位图 / 字符串资源。落点判定抽纯函数 `musicMiniBarDismissTarget(hasLiveQueue, hasRestoredQueue)`（`modes/music`）+ 3 项单测 | `stop()` 后 `queue = live ?: restored` 两端同时为空 → 迷你条与全屏覆盖层由既有 `LaunchedEffect(queue)` 自动收起；用纯函数把「停播 / 只丢展示快照 / 无操作」三态从 Compose 里提出来，避免「× 把存档也清了」的回退 |
 | D60 | **全屏播放页删除「歌词」入口按钮（用户 2026-10-04 拍板）**：`PlayerActionRow` 由六键改五键（播放队列 / 播放模式 / 收藏 / 桌面歌词 / 音效）；进歌词页保留既有两条路径——点歌词预览行（W24 C8）与左滑手势（W44 D56）；**迷你播放条上的「词」按钮保留不动**（用户只要求播放界面）。不改歌词页本体（`MusicLyricsPage` / `LyricsSheet`）与桌面歌词 | 三条入口并存冗余；删按钮不影响点击行与手势两条路径，`MusicSwipeGestureTest` 等既有单测不回归 |
 
+### 2.16 W58 本会话决策（长按多选 + 批量操作，音乐打样）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D66 | **通用多选状态与组件落 `core`，三模式共用（音乐先落）**：状态 = `core/selection/MultiSelectState`（`selectionMode` + `selectedIds`，纯函数 `longPress` / `toggle` / `selectAll` / `selectNone` / `retain` / `clear`；**非多选态选中集合恒为空**，全不选自动退出）；组件 = `core/presentation/components/CinefinMultiSelect.kt`（`Modifier.cinefinSelectable` 长按手势、§8.5 `CinefinSelectIndicator` 20dp 勾选、下载页同款 `CinefinBatchBar`「已选 N 项」工具条）；`CinefinListRow` 增 `onLongClick` / `selectionMode` / `selected` 三个默认参数（老调用零改动）；新增文案 `selection_select_all` / `selection_select_none` / `selection_exit` / `selection_load_failed`（默认 / zh-rCN / zh-rTW） | 下载页的多选逻辑写死在 ViewModel + 私有组件里，三个新模式若各写一份会重演「选中集合增删 / 全选口径 / 删除门槛」三处判定；把状态提成纯数据类后可单测（13 项）、`retain()` 让分页 / 刷新后的选择自动与已加载列表求交集，不会出现「选中了看不见的条目」 |
+| D67 | **「全选」= 当前视图已加载条目**（`selectAll(visibleSongs)`），分页列表不拉全库；音乐落点 = 歌曲 Tab 与专辑 / 艺术家 / 歌单 / 收藏 / 最近播放详情（详情里选中作用域 = 详情列表） | 与用户 2026-10-04 口径一致（「当前视图已加载」）；把「已加载」由调用方显式传入，避免在纯函数层猜分页边界 |
+| D68 | **音乐批量动作五键：播放 / 下载 / 收藏 / 删除 / 从歌单移除**（§D66 工具条口径；可用性由 `MusicBatchRules` 纯函数判定，任一选中条目满足即可启用，与下载页一致）：①**播放 = 加入当前播放队列开始播**——按当前列表顺序（不是长按顺序）解析，已有队列则依次追加到队尾再跳过去起播第一首，队列为空则先建队列再补齐；单曲解析失败跳过、不计入失败；②**下载**跳过已下载 / 已在队列的曲目；③**收藏**任一所选未收藏 → 全部收藏、全部已收藏 → 全部取消；④**删除（红线）只删本地**——目标 = 已下载且**非本地媒体库**的服务器条目（本地媒体库曲目连入口都不出现），逐个 `Downloader.deleteItem` 删本机文件与索引，**不提供任何服务器媒体删除**；⑤**从歌单移除**只在歌单详情出现，走 `PlaylistsApi.removeItemFromPlaylist`（编辑歌单，不是删媒体），成功后本地移除该批曲目 | `batchPlayOrder` 纯函数把「按列表序而非点击序入队」钉死；下载 / 删除的分门槛（已下载 / 在队列 / 本地库）与批量目标筛选同源，避免 UI 可点而动作空转；删除沿用 W51/W57 的「只动本机」口径，服务器写操作仍只在既有白名单（已播放 / 喜欢 / 收藏 / 已读 / 下载 / 歌单编辑）内 |
+| D69 | **`MusicQueue.move()` 支持追加队尾**：`toIndex == items.size` 合法（摘出后再插入的语义 = 追加到末尾，`currentIndex` 相应移动），其余越界值仍返回自身；补 `player:core` 5 项单测 | 批量入队要把 `insertNext` 插到当前曲目之后的条目摆到队尾，旧实现 `toIndex !in items.indices` 会把 `size` 直接拒掉——批量播放永远把第二首留在当前曲目后面；修正后 `musicQueueFillOrder` 的补队列路径语义不变（其 `toIndex` 均 < size） |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -370,6 +379,17 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [ ] **真机**：待设备窗口（清单见 §5.16）
 
 **遗留（明示）**：①× 在恢复态只丢本次进页面的展示快照，**不清磁盘存档**（按用户「队列保留」口径，重启仍可恢复）；②迷你条按钮组由五枚增至六枚，窄屏手机（≈360dp）标题区更早省略——未改布局，真机走查时留意是否拥挤（必要时再评估）。
+
+### W58 长按多选 + 批量操作（本会话 `feature/w58-multi-select`，起点 master `ea18849`；音乐部分）
+
+- [x] **A 通用多选框架（core，三模式共用）**：`MultiSelectState` 纯状态（进入 / 切换 / 已加载全选 / 取消全选 / 求交集 / 退出）+ `CinefinMultiSelect.kt` 组件（`cinefinSelectable` 长按手势、`CinefinSelectIndicator` §8.5 20dp 勾选、`CinefinBatchBar` 工具条）+ `CinefinListRow` 三个默认参数 + 4 条新文案三语言
+- [x] **B 音乐多选**：歌曲 Tab 与专辑 / 艺术家 / 歌单 / 收藏 / 最近播放详情长按行 → 多选；顶栏「已选 N 项」+「全选 / 取消全选」+ × 退出；选中后单击切换；底栏工具条替换迷你播放条；全不选 / 系统返回自动退出
+- [x] **C 五键批量动作**：播放（加入当前队列开始播，按列表序）/ 下载 / 收藏 / 删除（**只删本地**：仅已下载且非本地媒体库的服务器条目；确认框明示「只删除本机文件与索引」）/ 从歌单移除（仅歌单详情）
+- [x] **D 纯函数 + 单测**：`MusicBatchRules`（动作可用性 / 播放入队顺序 / 收藏目标 / 下载目标 / 删除目标）+ 14 项音乐单测；`MultiSelectState` 13 项 core 单测；`MusicQueue.move` 追加队尾 5 项 `player:core` 单测
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` **638 项 / 0 失败 0 错误**（app 136 / core 59 / data 45 / player:local 105 / film 40 / book 113 / music 128 / player:core 12）
+- [ ] **真机**：待设备窗口（清单见 §5.17）
+
+**范围边界（明示）**：①音乐只做**曲目**的多选，专辑 / 艺术家 / 歌单**行**不参与（批量操作语义都落在曲目上）；②离线模式同一条路径（可见曲目即已下载服务器条目，删除仍然可用）；③「全选」仅覆盖当前视图已加载曲目；④视频 / 书籍多选**本会话未做**，复用本波 core 框架（见 `UI_PLAN` §4 W58 与后续交接说明）。
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -755,6 +775,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - **决策（D59–D60）**：见 §2.15。
 - **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **583 项 / 0 失败 0 错误**（music +3）；含 `:player:core:testDebugUnitTest` 全量 **590 项 / 0 失败**。
 - **真机（待窗口）**：①播放中点 × → 音频停止、迷你条消失、媒体通知消退；②× 后再次点曲目 → 正常起播；③重启后仍能恢复队列（存档未被 × 清空）；④全屏播放页按钮组 = 五键（无「歌词」）；⑤点歌词预览行 / 左滑仍进歌词页；⑥迷你条「词」仍打开歌词 sheet；⑦窄屏手机下六键迷你条不拥挤 / 可点；⑧0 FATAL / ANR。
+
+### 5.17 W58 音乐多选批量（2026-10-04，静态 / 门禁，分支 `feature/w58-multi-select`）
+
+- **范围**：音乐曲目长按多选 + 已加载全选 + 五键批量动作（播放 / 下载 / 收藏 / 删除只删本地 / 从歌单移除）；core 通用框架 + 纯函数单测。决策 D66–D69 见 §2.16。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` **638 项 / 0 失败 0 错误**（app 136 / core 59 / data 45 / player:local 105 / film 40 / book 113 / music 128 / player:core 12；新增 32 = core 13 + music 14 + player:core 5）。
+- **真机（待窗口，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）**：①歌曲 / 专辑详情 / 艺术家详情 / 歌单 / 收藏 / 最近播放长按行 → 顶栏「已选 N 项」+ 勾选指示；②单击切换、全选 / 取消全选只覆盖已加载列表；③批量播放 → 按列表顺序入队并起播第一首（先建空队列再追加 + 队列已有追加到队尾两条）；④批量下载跳过量已下载 / 队列内曲目；⑤批量收藏 / 取消收藏与单曲路径一致；⑥批量删除只出现在已下载服务器条目、确认框「只删本机」、纯服务器 / 本地媒体库条目按钮置灰；⑦歌单详情「移出歌单」成功且媒体未删；⑧退出多选 / 系统返回 / 全不选三条退出路径；⑨0 FATAL / ANR。
+
+**遗留（本会话明示）**：①视频 / 书籍多选批量未做（复用 core 框架的交接说明见 `UI_PLAN` §4 W58）；②音乐专辑 / 艺术家 / 歌单**行**不参与多选（按 D66 口径）；③批量播放逐首串行解析，选中很多曲目时补齐较慢（与单曲起播同一链路，后续如需可评估并发化）。
 
 ## 6. 踩坑库
 

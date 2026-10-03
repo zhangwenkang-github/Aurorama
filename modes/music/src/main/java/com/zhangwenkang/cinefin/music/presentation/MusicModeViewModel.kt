@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.music.presentation
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.core.selection.MultiSelectState
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidSourceType
@@ -131,6 +132,10 @@ constructor(
 
     private val _downloadState = MutableStateFlow(SongDownloadState())
     val downloadState: StateFlow<SongDownloadState> = _downloadState.asStateFlow()
+
+    /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
+    private val _batchSelection = MutableStateFlow(MultiSelectState())
+    val batchSelection: StateFlow<MultiSelectState> = _batchSelection.asStateFlow()
 
     data class UiState(
         val loading: Boolean = true,
@@ -947,6 +952,7 @@ constructor(
         )
 
     fun selectTab(tab: MusicTab) {
+        _batchSelection.value = MultiSelectState()
         _uiState.update { it.copy(tab = tab, detail = null) }
     }
 
@@ -968,6 +974,244 @@ constructor(
             }
                 .onFailure { Timber.w(it, "刷新曲目下载态失败") }
         }
+    }
+
+    // ---- W58：长按多选 + 批量操作（音乐打样；删除仅本地） ----
+
+    /** 当前视图**已加载**的曲目（歌曲 Tab 或专辑 / 艺术家 / 歌单 / 收藏 / 最近播放详情）。 */
+    private fun visibleSongs(): List<MusicSong> {
+        val state = _uiState.value
+        return state.detail?.songs ?: state.songs
+    }
+
+    private fun syncBatchSelection(ids: Set<String>) {
+        _batchSelection.update { it.retain(ids) }
+    }
+
+    /** 长按行：进入多选并把该曲目加入选中。 */
+    fun onBatchLongPress(song: MusicSong) {
+        val ids = visibleSongs().map { it.itemId.toString() }.toSet()
+        _batchSelection.update { it.retain(ids).longPress(song.itemId.toString()) }
+    }
+
+    /** 多选态单击行：切换单曲选中。 */
+    fun onBatchToggle(song: MusicSong) {
+        val ids = visibleSongs().map { it.itemId.toString() }.toSet()
+        _batchSelection.update { it.retain(ids).toggle(song.itemId.toString()) }
+    }
+
+    /** 全选当前视图已加载曲目（不拉全库）。 */
+    fun onBatchSelectAll() {
+        val ids = visibleSongs().map { it.itemId.toString() }
+        _batchSelection.update { it.selectAll(ids) }
+    }
+
+    /** 取消全选（保留多选模式）。 */
+    fun onBatchSelectNone() {
+        val ids = visibleSongs().map { it.itemId.toString() }
+        _batchSelection.update { it.selectNone(ids) }
+    }
+
+    /** 退出多选（清空选择）。 */
+    fun onBatchExit() {
+        _batchSelection.value = MultiSelectState()
+    }
+
+    /** 批量动作条可用性（纯函数判定；UI 直接消费）。 */
+    fun batchEnabled(action: MusicBatchAction): Boolean {
+        val selected = selectedSongs()
+        return musicBatchActionEnabled(
+            action = action,
+            selected = selected.map { batchCaps(it, _downloadState.value) },
+            inPlaylist = _uiState.value.detail is MusicDetail.Playlist,
+        )
+    }
+
+    private fun selectedSongs(): List<MusicSong> {
+        val selection = _batchSelection.value.selectedIds
+        return visibleSongs().filter { it.itemId.toString() in selection }
+    }
+
+    private fun batchCaps(song: MusicSong, downloadState: SongDownloadState): SongBatchCaps =
+        musicSongBatchCaps(
+            song = song,
+            downloadedItemIds = downloadState.downloadedItemIds,
+            activeItemIds = downloadState.activeStatuses.keys,
+        )
+
+    /**
+     * 批量「播放」= 加入当前播放队列开始播（W58 用户口径）。
+     *
+     * 队列为空时先建队列再补其余；已有队列则把选中曲目追加到队尾并跳过去播放第一首。 解析按列表顺序串行进行，单曲失败跳过。
+     */
+    fun playSelected() {
+        val songs = selectedSongs()
+        if (songs.isEmpty()) return
+        playJob?.cancel()
+        playJob = viewModelScope.launch {
+            val first = runCatching { trackResolver.toPlayerItem(songs.first()) }.getOrNull()
+            if (first == null) {
+                showBatchFailure("播放失败", "无法解析「${songs.first().name}」的播放地址")
+                return@launch
+            }
+            val queueBefore = playbackController.queue.value
+            if (queueBefore == null) {
+                playbackController.setQueue(
+                    MusicQueue(
+                        items = listOf(first),
+                        currentIndex = 0,
+                        source = QueueSource.MANUAL,
+                        sourceId = null,
+                    ),
+                    startIndex = 0,
+                )
+            } else {
+                playbackController.insertNext(first)
+                playbackController.move(queueBefore.currentIndex + 1, queueBefore.items.size)
+                queueEditor.jumpTo(queueBefore.items.size)
+            }
+            _batchSelection.value = MultiSelectState()
+            for (song in songs.drop(1)) {
+                val item = runCatching { trackResolver.toPlayerItem(song) }.getOrNull() ?: continue
+                val queue = playbackController.queue.value ?: break
+                playbackController.insertNext(item)
+                playbackController.move(queue.currentIndex + 1, queue.items.size)
+            }
+        }
+    }
+
+    /** 批量下载：跳过已下载 / 已在队列的曲目。 */
+    fun downloadSelected() {
+        val downloadState = _downloadState.value
+        val targets = batchDownloadTargets(selectedSongs(), batchCapsMap(downloadState))
+        viewModelScope.launch {
+            var failures = 0
+            for (song in targets) {
+                val item = runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull()
+                val sourceId = runCatching {
+                    jellyfinRepository.getMediaSources(song.itemId, true)
+                }
+                    .getOrNull()
+                    ?.firstOrNull()
+                    ?.id
+                if (item == null || sourceId == null) {
+                    failures++
+                    continue
+                }
+                runCatching {
+                    downloader.downloadItem(
+                        item = item,
+                        sourceId = sourceId,
+                        storageIndex = 0,
+                        albumName = song.albumName,
+                        artist = song.artist,
+                        trackIndex = song.indexNumber ?: 0,
+                    )
+                }
+                    .onFailure { failures++ }
+            }
+            refreshDownloadState()
+            if (failures > 0) {
+                _uiState.update {
+                    it.copy(
+                        errorTitle = "部分下载未加入队列",
+                        errorMessage = "有 $failures 首曲目读取失败，已加入其余 ${targets.size - failures} 首",
+                    )
+                }
+            }
+        }
+    }
+
+    /** 批量收藏：任一所选未收藏 → 全部收藏；全部已收藏 → 全部取消。 */
+    fun favoriteSelected() {
+        val selected = selectedSongs()
+        val favorite = batchFavoriteTarget(selected) ?: return
+        val ids = selected.map { it.itemId }.toSet()
+        viewModelScope.launch {
+            runCatching { ids.forEach { repository.setFavorite(it, favorite) } }
+                .onSuccess { _uiState.update { state -> state.withFavorites(ids, favorite) } }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            errorTitle = "收藏失败",
+                            errorMessage =
+                                error.message?.takeIf { message -> message.isNotBlank() }
+                                    ?: "无法写入服务器收藏",
+                        )
+                    }
+                }
+        }
+    }
+
+    /** 批量删除：**只删本地**——已下载服务器条目逐个删除本地文件与索引；纯服务器条目不在目标内。 */
+    fun deleteSelected() {
+        val targets = batchDeleteTargets(selectedSongs(), batchCapsMap(_downloadState.value))
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            var failures = 0
+            for (song in targets) {
+                val item = runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull()
+                val source =
+                    item?.sources?.firstOrNull { source ->
+                        source.type == FindroidSourceType.LOCAL &&
+                            !source.path.endsWith(".download")
+                    }
+                if (item == null || source == null) {
+                    failures++
+                    continue
+                }
+                runCatching { downloader.deleteItem(item, source) }.onFailure { failures++ }
+            }
+            refreshDownloadState()
+            if (failures > 0) {
+                _uiState.update {
+                    it.copy(
+                        errorTitle = "部分删除失败",
+                        errorMessage = "有 $failures 项本地下载未能删除，请稍后重试",
+                    )
+                }
+            }
+        }
+    }
+
+    /** 批量「从播放列表移除」（仅歌单详情）：移除服务器歌单条目，不删除媒体本身。 */
+    fun removeSelectedFromPlaylist() {
+        val detail = _uiState.value.detail as? MusicDetail.Playlist ?: return
+        val selected = selectedSongs()
+        if (selected.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                selected.forEach { repository.removeFromPlaylist(detail.playlist.id, it.itemId) }
+            }
+                .onSuccess {
+                    val removed = selected.map { it.itemId }.toSet()
+                    _uiState.update { state ->
+                        val current = state.detail as? MusicDetail.Playlist ?: return@update state
+                        state.copy(
+                            detail =
+                                current.copy(songs = current.songs.filter { it.itemId !in removed })
+                        )
+                    }
+                    _batchSelection.value = MultiSelectState()
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            errorTitle = "从播放列表移除失败",
+                            errorMessage =
+                                error.message?.takeIf { message -> message.isNotBlank() }
+                                    ?: "无法写入服务器歌单",
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun batchCapsMap(downloadState: SongDownloadState): Map<UUID, SongBatchCaps> =
+        visibleSongs().associate { song -> song.itemId to batchCaps(song, downloadState) }
+
+    private fun showBatchFailure(title: String, message: String) {
+        _uiState.update { it.copy(errorTitle = title, errorMessage = message) }
     }
 
     /** W34：下载 / 删除单曲（音乐侧入口；下载引擎仍走 DownloadManager + sources 表）。 */
@@ -1057,6 +1301,7 @@ constructor(
     }
 
     fun closeDetail() {
+        _batchSelection.value = MultiSelectState()
         _uiState.update { it.copy(detail = null, errorTitle = null, errorMessage = null) }
     }
 
@@ -1423,8 +1668,13 @@ constructor(
     }
 
     private fun UiState.withFavorite(itemId: UUID, favorite: Boolean): UiState {
+        return withFavorites(setOf(itemId), favorite)
+    }
+
+    /** W58：批量收藏 / 取消收藏后同步所有列表（单曲路径复用同一实现）。 */
+    private fun UiState.withFavorites(itemIds: Set<UUID>, favorite: Boolean): UiState {
         fun MusicSong.refreshed(): MusicSong =
-            if (this.itemId == itemId) copy(isFavorite = favorite) else this
+            if (this.itemId in itemIds) copy(isFavorite = favorite) else this
 
         val updatedAlbums = albums.map { album ->
             album.copy(songs = album.songs.map { song -> song.refreshed() })
@@ -1452,7 +1702,7 @@ constructor(
                     if (favorite) {
                         current.copy(songs = current.songs.map { it.refreshed() })
                     } else {
-                        current.copy(songs = current.songs.filterNot { it.itemId == itemId })
+                        current.copy(songs = current.songs.filterNot { it.itemId in itemIds })
                     }
                 is MusicDetail.Recent -> current.copy(songs = current.songs.map { it.refreshed() })
             }

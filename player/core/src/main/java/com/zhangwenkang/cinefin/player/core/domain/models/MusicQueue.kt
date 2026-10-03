@@ -39,15 +39,22 @@ data class MusicQueue(
     val currentItem: PlayerItem?
         get() = items.getOrNull(currentIndex)
 
-    /** 拖拽排序：把 [fromIndex] 处的曲目移到 [toIndex]，并保持"当前曲目"不变（MU-3）。 越界或原地移动返回自身。 */
+    /**
+     * 拖拽排序 / 追加：把 [fromIndex] 处的曲目移到 [toIndex]，并保持"当前曲目"不变（MU-3）。 越界或原地移动返回自身。
+     *
+     * W58：`toIndex == items.size` 表示**追加到队尾**（拖拽排序不会用到，但批量入队要 把 `insertNext`
+     * 插到当前曲目之后的条目摆到队尾）；其余越界值仍返回自身。
+     */
     fun move(fromIndex: Int, toIndex: Int): MusicQueue {
-        if (fromIndex !in items.indices || toIndex !in items.indices || fromIndex == toIndex) {
+        if (fromIndex !in items.indices || toIndex !in 0..items.size || fromIndex == toIndex) {
             return this
         }
-        val reordered = items.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+        // 先摘出再插入：`toIndex == items.size`（追加队尾）时，摘出后的插入位上界是 size - 1。
+        val insertAt = if (toIndex == items.size) items.size - 1 else toIndex
+        val reordered = items.toMutableList().apply { add(insertAt, removeAt(fromIndex)) }
         val newCurrentIndex =
             when {
-                currentIndex == fromIndex -> toIndex
+                currentIndex == fromIndex -> insertAt
                 fromIndex < currentIndex && toIndex >= currentIndex -> currentIndex - 1
                 fromIndex > currentIndex && toIndex <= currentIndex -> currentIndex + 1
                 else -> currentIndex

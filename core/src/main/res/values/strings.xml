@@ -133,6 +133,10 @@
     <string name="download_action_retry">Retry</string>
     <string name="download_action_delete">Delete</string>
     <string name="download_action_select">Select</string>
+    <string name="selection_select_all">Select all</string>
+    <string name="selection_select_none">Deselect all</string>
+    <string name="selection_exit">Exit selection</string>
+    <string name="selection_load_failed">Couldn\'t load %1$d item(s). Nothing was changed.</string>
     <string name="download_selected_count">%1$d selected</string>
     <string name="download_delete_tasks_title">Delete downloads</string>
     <string name="download_delete_tasks_message">Delete %1$d selected downloads from this device?</string>
