@@ -52,6 +52,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SortByDialog
+import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.plus
@@ -180,8 +181,25 @@ private fun LibraryScreenLayout(
     val showCount = items.itemCount > 0 || items.loadState.refresh is LoadState.NotLoading
     Column(modifier = Modifier.fillMaxSize()) {
         CinefinPageTopBar(
-            title = if (topLevel) stringResource(CoreR.string.title_book_shelf) else libraryName,
-            subtitle = if (showCount) stringResource(itemCountRes, items.itemCount) else null,
+            // 临时库视图（W53 追加）：标题 = 真实库名（不是「书架」），副题补类型前缀。
+            title =
+                if (topLevel && onBackToDefault == null) {
+                    stringResource(CoreR.string.title_book_shelf)
+                } else {
+                    libraryName
+                },
+            subtitle =
+                if (showCount) {
+                    listOfNotNull(
+                            onBackToDefault?.let {
+                                stringResource(libraryTypeLabelRes(libraryType))
+                            },
+                            stringResource(itemCountRes, items.itemCount),
+                        )
+                        .joinToString(" · ")
+                } else {
+                    null
+                },
             onOpenDrawer = if (topLevel) onOpenDrawer else null,
             onBack = if (topLevel) null else ({ onAction(LibraryAction.OnBackClick) }),
             modifier = Modifier.padding(start = safePadding.start),
