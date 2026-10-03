@@ -15,6 +15,7 @@ import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.models.toFindroidEpisode
@@ -32,6 +33,7 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.UserConfiguration
 
@@ -92,6 +94,9 @@ class JellyfinRepositoryOfflineImpl(
         sortOrder: SortOrder,
         startIndex: Int?,
         limit: Int?,
+        filters: List<ItemFilter>?,
+        genres: List<String>?,
+        studios: List<String>?,
     ): List<FindroidItem> {
         return emptyList()
     }
@@ -102,9 +107,41 @@ class JellyfinRepositoryOfflineImpl(
         recursive: Boolean,
         sortBy: SortBy,
         sortOrder: SortOrder,
+        filters: List<ItemFilter>?,
+        genres: List<String>?,
+        studios: List<String>?,
     ): Flow<PagingData<FindroidItem>> {
         TODO("Not yet implemented")
     }
+
+    /** 离线模式没有服务器库内容，计数固定 0（库内容页在离线时不显示范围计数）。 */
+    override suspend fun getItemCount(
+        parentId: UUID?,
+        includeTypes: List<BaseItemKind>?,
+        recursive: Boolean,
+        filters: List<ItemFilter>?,
+        genres: List<String>?,
+        studios: List<String>?,
+    ): Int = 0
+
+    override suspend fun getLibrarySuggestions(
+        parentId: UUID,
+        includeTypes: List<BaseItemKind>?,
+        limit: Int,
+    ): List<FindroidItem> = emptyList()
+
+    override suspend fun getUpcomingEpisodes(parentId: UUID, limit: Int): List<FindroidItem> =
+        emptyList()
+
+    override suspend fun getGenres(
+        parentId: UUID,
+        includeItemTypes: List<BaseItemKind>?,
+    ): List<FindroidTag> = emptyList()
+
+    override suspend fun getStudios(
+        parentId: UUID,
+        includeItemTypes: List<BaseItemKind>?,
+    ): List<FindroidTag> = emptyList()
 
     override suspend fun getPerson(personId: UUID): FindroidPerson {
         TODO("Not yet implemented")

@@ -28,7 +28,10 @@ fun ItemPoster(item: FindroidItem, direction: Direction, modifier: Modifier = Mo
 
     when (direction) {
         Direction.HORIZONTAL -> {
-            if (item is FindroidMovie) imageUri = item.images.backdrop
+            // W54-B：家庭视频（`BaseItemKind.VIDEO`）在映射层同样落到 `FindroidMovie`，但视频没有元数据
+            // 来源、也就没有 Backdrop——原逻辑一律取 Backdrop 会让整个家庭视频库缩略图空白；
+            // 只有真的存在 Backdrop 时才用它，否则回退到 Primary（缩略图本来就是 Primary）。
+            if (item is FindroidMovie) imageUri = item.images.backdrop ?: item.images.primary
         }
         Direction.VERTICAL -> {
             when (item) {

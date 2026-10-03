@@ -17,6 +17,7 @@ import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.models.toFindroidCollection
@@ -155,6 +156,9 @@ class JellyfinRepositoryImpl(
         sortOrder: SortOrder,
         startIndex: Int?,
         limit: Int?,
+        filters: List<ItemFilter>?,
+        genres: List<String>?,
+        studios: List<String>?,
     ): List<FindroidItem> =
         withContext(Dispatchers.IO) {
             jellyfinApi.itemsApi
@@ -167,6 +171,9 @@ class JellyfinRepositoryImpl(
                     sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
                     startIndex = startIndex,
                     limit = limit,
+                    filters = filters,
+                    genres = genres,
+                    studios = studios,
                 )
                 .content
                 .items
@@ -179,15 +186,122 @@ class JellyfinRepositoryImpl(
         recursive: Boolean,
         sortBy: SortBy,
         sortOrder: SortOrder,
+        filters: List<ItemFilter>?,
+        genres: List<String>?,
+        studios: List<String>?,
     ): Flow<PagingData<FindroidItem>> {
         return Pager(
                 config = PagingConfig(pageSize = 10, enablePlaceholders = false),
                 pagingSourceFactory = {
-                    ItemsPagingSource(this, parentId, includeTypes, recursive, sortBy, sortOrder)
+                    ItemsPagingSource(
+                        this,
+                        parentId,
+                        includeTypes,
+                        recursive,
+                        sortBy,
+                        sortOrder,
+                        filters = filters,
+                        genres = genres,
+                        studios = studios,
+                    )
                 },
             )
             .flow
     }
+
+    override suspend fun getItemCount(
+        parentId: UUID?,
+        includeTypes: List<BaseItemKind>?,
+        recursive: Boolean,
+        filters: List<ItemFilter>?,
+        genres: List<String>?,
+        studios: List<String>?,
+    ): Int =
+        withContext(Dispatchers.IO) {
+            jellyfinApi.itemsApi
+                .getItems(
+                    jellyfinApi.userId!!,
+                    parentId = parentId,
+                    includeItemTypes = includeTypes,
+                    recursive = recursive,
+                    filters = filters,
+                    genres = genres,
+                    studios = studios,
+                    // 只要总数：拿 1 条即可让服务器照常计算 TotalRecordCount（limit = 0 的语义各版本不一致）。
+                    limit = 1,
+                    enableTotalRecordCount = true,
+                )
+                .content
+                .totalRecordCount
+        }
+
+    override suspend fun getLibrarySuggestions(
+        parentId: UUID,
+        includeTypes: List<BaseItemKind>?,
+        limit: Int,
+    ): List<FindroidItem> =
+        withContext(Dispatchers.IO) {
+            jellyfinApi.itemsApi
+                .getItems(
+                    jellyfinApi.userId!!,
+                    parentId = parentId,
+                    includeItemTypes = includeTypes,
+                    recursive = true,
+                    sortBy = listOf(ItemSortBy.RANDOM),
+                    limit = limit,
+                )
+                .content
+                .items
+                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        }
+
+    override suspend fun getUpcomingEpisodes(parentId: UUID, limit: Int): List<FindroidItem> =
+        withContext(Dispatchers.IO) {
+            jellyfinApi.showsApi
+                .getUpcomingEpisodes(jellyfinApi.userId!!, parentId = parentId, limit = limit)
+                .content
+                .items
+                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        }
+
+    override suspend fun getGenres(
+        parentId: UUID,
+        includeItemTypes: List<BaseItemKind>?,
+    ): List<FindroidTag> =
+        withContext(Dispatchers.IO) {
+            jellyfinApi.genresApi
+                .getGenres(
+                    userId = jellyfinApi.userId!!,
+                    parentId = parentId,
+                    includeItemTypes = includeItemTypes,
+                    sortBy = listOf(ItemSortBy.SORT_NAME),
+                )
+                .content
+                .items
+                .mapNotNull { dto ->
+                    val name = dto.name ?: return@mapNotNull null
+                    FindroidTag(id = dto.id, name = name)
+                }
+        }
+
+    override suspend fun getStudios(
+        parentId: UUID,
+        includeItemTypes: List<BaseItemKind>?,
+    ): List<FindroidTag> =
+        withContext(Dispatchers.IO) {
+            jellyfinApi.studiosApi
+                .getStudios(
+                    userId = jellyfinApi.userId!!,
+                    parentId = parentId,
+                    includeItemTypes = includeItemTypes,
+                )
+                .content
+                .items
+                .mapNotNull { dto ->
+                    val name = dto.name ?: return@mapNotNull null
+                    FindroidTag(id = dto.id, name = name)
+                }
+        }
 
     override suspend fun getPerson(personId: UUID): FindroidPerson =
         withContext(Dispatchers.IO) {

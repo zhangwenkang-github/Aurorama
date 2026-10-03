@@ -105,7 +105,19 @@
 
 | D54 | **实机 Bug A/B 修复：顶层入口回落根页 + 同目的地不同参数不走 saveState / restoreState（W53 复验，用户 2026-10-03 实机反馈）** | ①**Bug A（手机底栏「视频」切不回来）**：`navigateTopLevel` 的 `popUpTo(start){saveState}` + `restoreState` 会把「Tab 根 + 子页面」整栈恢复（如 视频 → 某个库内容页），点底栏「视频」停在库内容页；修法 = 导航后 `popBackStack(route, inclusive = false)` 统一弹回入口根页（已是根页为 no-op，根页滚动 / 状态仍由 saveState 保留）。②**Bug B2（侧栏选「书籍3」页里仍是「书籍」）**：库入口是「同一目的地 + 不同参数」，`restoreState` 按目的地 id 恢复旧条目、把新参数顶掉（踩坑 30 同类）；修法 = `openLibrary` 改 `popUpTo(start)` 不回存 / 不恢复 + `launchSingleTop`，按点击的库新建条目。③**Bug B1（侧栏选「音乐测试」页里仍是「音乐」）**：旧 `libraryEntryRoute` 把所有 Music 类型都映射到 `MusicModeRoute`（忽略 libraryId），音乐模式只读「客户端设置 → 音乐库」；修法 = 新增独立目的地 `MusicLibraryRoute(libraryId, libraryName)`（音乐 Tab 仍走 `MusicModeRoute`，两者分开 → 不会被 `restoreState` 用旧参数顶掉），`MusicModeViewModel` 从 SavedStateHandle 取路由库（路由 > 偏好 > 自动），顶栏显示库名；解析抽 `resolveMusicLibraryId` 纯函数 + 单测。④**库子项可区分**：侧栏 / 抽屉库子项右侧显示项目数（服务器 `ChildCount`，无值不占位）——抽屉完整显示，侧轨 168dp 下最长 4 字库名会截断（呈现取舍待用户确认）。⑤路由决策抽 `libraryEntryRoute` 纯函数（app:phone 单测 4 项）+ 音乐库解析单测 3 项。 |
 | D55 | **视频海报状态徽标：容器显示未看数、电影 / 单集已看打勾（W56，用户 2026-10-03 确认，官方口径）** | ①**规则纯函数**（`FindroidItem.posterStatusBadge()`，`app/phone` `presentation/film/components`）：Series / Season / 文件夹 → `UserData.UnplayedItemCount > 0` 显示未看条目数，`>99` 收敛 `99+`（`unplayedItemCountText`）；Movie / Episode → 服务器只给 `UserData.Played`：已看 → `PlayedBadge` 打勾、未看 → 不加角标；合集等本波未纳入类型 → 无；②**接入面** = `PosterItemCard`（首页海报墙，补「已看打勾」）/ `ItemCard`（库网格 / 搜索 / 视频聚合 / 季列表 / 演职人员）/ `LandscapeItemCard`（首页走廊与「接下来」）/ `EpisodeCard`（单集列表）统一走 `ItemStatusBadge(item)`（下载徽标仍独立、同排）；③**库卡改正**：`LibraryEntryCard` 的角标位删除——库视图（CollectionFolder）实测不返回 `UnplayedItemCount`、`FindroidCollection` 恒为 null，原先是死代码；库卡信息仍是「共 N 个项目」（`ChildCount`）；④**数据核验（只读接口探针，服务器 10.11.8）**：`/Items`（网格 / 搜索）、`/Shows/{id}/Seasons`、`/Items/Latest`、`/Suggestions` 对 Series / Season 均返回未看数，显式 `enableUserData=true` 与默认完全一致（服务端默认已含用户数据）→ **查询不改**；Movie / Episode / `/Views` 恒空，`/Shows/NextUp`、`/Items/Resume` 只有 `played`；⑤**不改**：离线 / 本地库路径（离线映射 `unplayedItemCount = null`，无角标是既有语义）；不新增配色 / 字体 / 位图。 | 视觉沿用封面右上角小胶囊（与下载徽标同排，黑 62% + 白 12% 描边，Prism / Lumen 通用）；`99+` 覆盖「整剧数百集未看」大库（真机样本 银魂 = 370 → `99+`）。 |
+| D56 | **库内容页头部共享组件（W54-B，用户 2026-10-03 确认）** | ①**落点与共享**：库内容页（视频库 / 书籍库 / 书架三处入口）继续共用一份 `LibraryScreen`；头部 UI 新增 `app/phone` `presentation/film/components/LibraryContentHeader.kt`（tabs / 工具行 / 列表行 / 分类 tile / 筛选面板）+ `SortByPanel.kt`（排序面板），**口径纯函数**放 `modes:film` `presentation/library/LibraryHeaderRules.kt`（tab 出现规则 / 工具行动作 / 筛选映射 / 库类型→查询类型 / 排序映射 / 计数文案，全部可单测）。②**顶部 tabs（Jellyfin 官方客户端 IA）**：库名（第一项，标签 = 真实库名）/ 建议 / 即将播出 / 类型 / 制片发行商 / 剧集，按库类型出现——电影 = 库名 + 建议 + 类型 + 制片发行商；剧集 = 六项全给；图书 / 家庭视频 / 音乐 / 合集 = 库名 + 建议 + 类型；混合 / 文件夹 = 库名 + 建议 + 类型 + 制片发行商；播放列表 = 只有库名。③**取数口径**：建议 = 库内 `SortBy=Random` 抽样 24 条（SDK 1.8.12 与官方 OpenAPI stable 的 `/Items/Suggestions` 都**没有** `parentId`，做不了官方库内建议）；即将播出 = `/Shows/Upcoming?parentId=`（SDK `getUpcomingEpisodes`）；类型 / 制片发行商 = `/Genres` / `/Studios?parentId=`，点分类 → 回库名 tab + 库内过滤 chip（`/Items` 的 `genres` / `studios` 按**名称**过滤）；剧集 = `/Items?includeItemTypes=Episode&recursive=true&limit=300`。④**工具行**：条目计数「1-94 / 94」（`libraryCountText`；总数用 `limit=1` + `TotalRecordCount` 单发请求取，未知时退化为已加载条数、空库不出文案）+ 网格 / 列表切换 + 排序（原 `SortByDialog` → 工具行图标 + 底部 `SortByPanel`，排序项 / 方向口径不变）+ 筛选 funnel（常用筛选集合 = 未看 / 已看 / 收藏；书籍库文案改未读 / 已读；播放列表库不提供）。条目型 tab（建议 / 即将播出 / 剧集）保留计数与视图切换，分类 tab 只留计数。⑤**下拉刷新**：整块内容 `PullToRefreshBox`——分页列表走 `LazyPagingItems.refresh()`（真实重发请求），计数与当前 tab 由 ViewModel 重取（不重建 Pager，列表不闪空）。⑥**视图切换 = 进程内状态**：`LibraryViewMode` 不写 `AppPreferences`（红线文件，未申报）。⑦**新增 3 枚描边矢量图标**（core `ic_view_grid` / `ic_view_list` / `ic_filter`，24dp 网格 / 1.75dp 描边 / 无填充），**无新增配色 / 字体 / 位图**。⑧**任务 E 已知缺陷**：家庭视频库缩略图空白，根因与修法见踩坑 74（`ItemPoster` 横版分支 `backdrop ?: primary`）。 | 显示方式是否持久化留给 W54-D 收口（走 `AppPreferences` 需先申报）；「建议」不是官方 `/Items/Suggestions` 语义（SDK 限制），SDK 升级后可只改取数一行。 |
+
 ## 4. 进度
+
+### W54-B 库内容页头部共享组件（2026-10-03，分支 `feature/w54-lib-header`，起点 master `ce58847`）
+
+- **开工学习（强制）**：读 `PROJECT_PLAN` §1–§5、`UI_DESIGN_SYSTEM` §2/§4/§5、`UI_PLAN`（D39 两段式 / D52–D55 / 踩坑库）后动手（决策 D56）。
+- **落点**：`LibraryScreen.kt`（本波单写者）+ `components/LibraryContentHeader.kt` + `components/SortByPanel.kt`（替换 `SortByDialog.kt`）+ `modes:film` `LibraryHeaderRules.kt` / `LibraryState` / `LibraryAction` / `LibraryViewModel` + `data` 仓库 5 个新方法（计数 / 库内建议 / 即将播出 / 类型 / 制片发行商）与 paging 过滤参数（`filters` / `genres` / `studios`）透传（`JellyfinApi` 补 `genresApi` / `studiosApi` 两个只读入口）。
+- **不改**：`presentation/video/VideoScreen.kt`、`presentation/film/BookshelfScreen.kt`（W54-C 单写者）；`NavigationRoot.kt` / `AppPreferences.kt` / `AndroidManifest.xml`（红线未动）。
+- **E 已知缺陷（家庭视频缩略图）**：只读定位根因（踩坑 74）→ 一行回退修复（`ItemPoster`：`backdrop ?: primary`）。
+- **单测**：`LibraryHeaderRulesTest` 13 项（tab 出现规则 / 工具行动作 / 筛选映射 / 计数文案 / 排序映射 / 库类型映射）。
+- **门禁**：根 `assembleDebug`（含 TV）BUILD SUCCESSFUL；`ktfmtCheck` 通过；7 任务 `--rerun` **544 项 / 0 失败 0 错误**（app 105 / core 37 / data 45 / player:local 105 / film 27 / book 113 / music 112 = 基线 531 + 净增 13）。
+- **未做 / 交接**：真机走查（未申请设备窗口）——tabs 切换 / 计数 / 列表视图 / 排序与筛选面板 / 下拉刷新 / 家庭视频缩略图六项待 Pad 5 主 + K60 抽验。
 
 ### W53 实机 Bug A/B 修复（2026-10-03，同分支；用户实机反馈，D54）
 
@@ -831,6 +843,17 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
   - ④ **四处一致**：库网格（动漫，见 ①）/ 首页走廊（学生会的一己之见 23、超能力女儿 12，与接口一致；「最近添加」海报墙为电影 = 无角标）/ 搜索（输入 `9` → 9-nine- 支配者的王冠 13）/ 视频页（库卡列表 = 库名 +「共 N 个项目」无未看角标；聚合列表 超次元游戏 海王星 13）
   - ⑤ **0 FATAL / ANR**：双机 `logcat -b crash` 与 main `FATAL EXCEPTION|ANR in` 过滤均为空
 
+### W54-B 验收（2026-10-03，分支 `feature/w54-lib-header`，起点 master `ce58847`；静态 / 门禁部分）
+
+- [x] **头部共享一份实现**：视频库 / 书籍库 / 书架三处都走 `LibraryScreen`（`BookshelfScreen` 传 `topLevel = true`），头部组件落在 `presentation/film/components/LibraryContentHeader.kt` + `SortByPanel.kt`，仓库里没有第二份实现
+- [x] **tabs 按库类型出现**（纯函数 `libraryTabs` + 单测）：电影 / 剧集 / 图书 / 家庭视频 / 音乐 / 合集 / 混合 / 文件夹 / 播放列表逐类型断言；「库名」永远第一项；剧集库才给「即将播出」「剧集」
+- [x] **工具行**：计数文案 `1-94 / 94`（未知总数 → 只显示已加载条数；空库不出文案）、网格 / 列表切换（`LazyVerticalGrid` / `LibraryListRow` 懒列表）、排序（工具行 `ic_arrow_down_up` 图标 → `SortByPanel` 底部面板）、筛选 funnel（`LibraryFilterPanel`：全部 / 未看 / 已看 / 收藏，书籍库读作未读 / 已读）
+- [x] **生效筛选可清除**：funnel 选中的筛选与从「类型」/「制片发行商」点进来的库内过滤都在工具行下方显示成可点清除的 chip
+- [x] **下拉刷新（真实重取）**：`PullToRefreshBox` → `LazyPagingItems.refresh()` 重发分页请求 + `LibraryAction.Refresh` 重取计数与当前 tab，非纯动画
+- [x] **无新增配色 / 字体 / 位图**：仅 core 新增 3 枚描边矢量图标（非位图），颜色全部取语义 token / 当前域媒体色
+- [x] **门禁**：根 `assembleDebug`（含 TV）BUILD SUCCESSFUL；`ktfmtCheck` 全模块通过；单测 7 任务 `--rerun` **544 项 / 0 失败 0 错误**（app 105 / core 37 / data 45 / player:local 105 / film 27 / book 113 / music 112；基线 531 + 净增 13）
+- [ ] **真机**：tabs 切换 / 计数文案 / 列表视图 / 排序与筛选面板 / 下拉刷新 / 家庭视频缩略图（修 `ItemPoster` 后）待设备窗口（本会话未申请真机）
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
@@ -916,6 +939,9 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 72. **MIUI 杀前台进程不一定有 FATAL / ANR**（W47 读 2.36 GB PDF 时）：进程被 SIGKILL，logcat 无 Java / native 异常；判据是 `logcat -b events` 的 `killinfo: [<pid>,…]` + `am_proc_died` + `libprocessgroup: Successfully killed process cgroup` + `wm_finish_activity … proc died without state saved`，配套现象 = `pidof` 换号、`dumpsys meminfo` 读不到进程。排查内存爆增必须在操作**过程中**按秒采样 `dumpsys meminfo`（Native Heap + TOTAL PSS），等操作结束再取会错过峰值。
 
 73. **自绘组件替换 M3 组件时，「尺寸契约」也会一起变**（W49 真机拦下，W44 回归）：`material3.Slider` 内部把宽度填满 **max** 约束，所以阅读器 `Modifier.weight(1f, fill = false).widthIn(max = 230.dp)` 一直正常；换成 `Canvas`（`Spacer`）后它按 **min** 约束尺寸（`Spacer` 直接 `layout(minWidth, minHeight)`）→ 宽度 0：轨道 / 拇指不绘制、触摸与键盘焦点都不响应、**连 a11y 树里的 `SeekBar` 节点都消失**（零面积节点被判不可见）。判据：`uiautomator dump` 里找不到 `android.widget.SeekBar`（有 `ProgressBarRangeInfo` 时 Compose 会把它标成 SeekBar）、截图列扫描发现该行没有任何轨道像素。修法：组件内 `fillMaxWidth()` 与 M3 对齐（上限交给调用方 `widthIn`）；**教训：换自绘组件时要连「尺寸 / 焦点 / a11y」三条契约一起对照原组件，不能只对齐配色与几何**。
+
+74. **家庭视频库缩略图空白 = 映射层复用「电影」+ 横版卡一律取 Backdrop**（W54-B 定位，任务 E）：`BaseItemKind.VIDEO`（家庭视频 / 个人视频）在 `toFindroidItem` 里落到 `toFindroidMovie`，而 `ItemPoster` 的 `Direction.HORIZONTAL` 分支写的是「是 `FindroidMovie` → 取 `images.backdrop`」。影视库的电影 / 剧集有元数据来源（TMDB 等）所以有 Backdrop；**家庭视频没有任何元数据来源、只有 Primary（视频缩略图）** → `AsyncImage(model = null)` 只画出容器底色，表现为「整个家庭视频库没有缩略图」，同一个库在竖版（图书 / 电影）方向下反而正常。修法 = `item.images.backdrop ?: item.images.primary`（有 Backdrop 时行为不变）。判据：其它库正常、只有 homevideos / 个人视频库异常时，先查「库类型 → 映射成的 Findroid 类型 → 该方向取哪张图」这条链，而不是先查网络 / 服务器缩略图任务。
+75. **PowerShell `Select-Object -First N` 会掐死 Gradle 管道**（W54-B 门禁时踩到）：`.\gradlew.bat <tasks> --console=plain 2>&1 | Select-String … | Select-Object -First 30` 一旦输出够 30 行就停掉上游管道，Gradle 进程被终止、构建只跑了 8 秒却返回 exit 0，看起来像「跑完了」。门禁输出一律用 `Select-Object -Last N`（或先落文件再过滤）。同理：多任务 `--rerun` 要写在**每个任务名之后**（`gradlew :t1 --rerun :t2 --rerun`），只在末尾写一次时 Gradle 只重跑其中一个（实测摘要 `242 actionable tasks: 1 executed`，改成逐任务写法后才是 `7 executed`）。
 
 ## 7. 日志
 

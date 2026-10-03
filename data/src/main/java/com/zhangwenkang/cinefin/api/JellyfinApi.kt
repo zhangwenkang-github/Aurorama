@@ -14,6 +14,7 @@ import okhttp3.OkHttpClient
 import org.jellyfin.sdk.api.client.HttpClientOptions
 import org.jellyfin.sdk.api.client.extensions.brandingApi
 import org.jellyfin.sdk.api.client.extensions.devicesApi
+import org.jellyfin.sdk.api.client.extensions.genresApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.mediaInfoApi
 import org.jellyfin.sdk.api.client.extensions.mediaSegmentsApi
@@ -21,6 +22,7 @@ import org.jellyfin.sdk.api.client.extensions.playStateApi
 import org.jellyfin.sdk.api.client.extensions.playlistsApi
 import org.jellyfin.sdk.api.client.extensions.quickConnectApi
 import org.jellyfin.sdk.api.client.extensions.sessionApi
+import org.jellyfin.sdk.api.client.extensions.studiosApi
 import org.jellyfin.sdk.api.client.extensions.suggestionsApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
 import org.jellyfin.sdk.api.client.extensions.trickplayApi
@@ -86,6 +88,7 @@ class JellyfinApi(
 
     val brandingApi = api.brandingApi
     val devicesApi = api.devicesApi
+    val genresApi = api.genresApi
     val itemsApi = api.itemsApi
     val mediaInfoApi = api.mediaInfoApi
     val mediaSegmentsApi = api.mediaSegmentsApi
@@ -95,6 +98,7 @@ class JellyfinApi(
     val sessionApi = api.sessionApi
     val showsApi = api.tvShowsApi
     val suggestionsApi = api.suggestionsApi
+    val studiosApi = api.studiosApi
     val systemApi = api.systemApi
     val trickplayApi = api.trickplayApi
     val userApi = api.userApi

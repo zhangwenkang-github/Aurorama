@@ -23,4 +23,21 @@
     <string name="bookshelf_empty_message">This server (or this account) has no books library to show.</string>
     <string name="video_empty_title">No video libraries</string>
     <string name="video_empty_message">This server (or this account) has no movie or TV show libraries to show.</string>
+    <string name="library_tab_suggestions">Suggestions</string>
+    <string name="library_tab_upcoming">Upcoming</string>
+    <string name="library_tab_genres">Genres</string>
+    <string name="library_tab_studios">Studios</string>
+    <string name="library_tab_episodes">Episodes</string>
+    <string name="library_filter_favorite">Favorites</string>
+    <string name="library_filter_unplayed">Unwatched</string>
+    <string name="library_filter_played">Watched</string>
+    <string name="library_filter_unread">Unread</string>
+    <string name="library_filter_read">Read</string>
+    <string name="library_view_grid">Grid</string>
+    <string name="library_view_list">List</string>
+    <string name="library_filter">Filter</string>
+    <string name="library_filter_all">All</string>
+    <string name="library_filter_panel_hint">Common filters for this library</string>
+    <string name="library_tab_empty_title">Nothing here</string>
+    <string name="library_tab_empty_message">This tab has no items right now.</string>
 </resources>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 极光幕图标规范：24dp 网格、1.75dp 描边、圆角端点，只描边不填充。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M5.25,3.75 L9.75,3.75 A1.5,1.5 0 0 1 11.25,5.25 L11.25,9.75 A1.5,1.5 0 0 1 9.75,11.25 L5.25,11.25 A1.5,1.5 0 0 1 3.75,9.75 L3.75,5.25 A1.5,1.5 0 0 1 5.25,3.75 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M14.25,3.75 L18.75,3.75 A1.5,1.5 0 0 1 20.25,5.25 L20.25,9.75 A1.5,1.5 0 0 1 18.75,11.25 L14.25,11.25 A1.5,1.5 0 0 1 12.75,9.75 L12.75,5.25 A1.5,1.5 0 0 1 14.25,3.75 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M5.25,12.75 L9.75,12.75 A1.5,1.5 0 0 1 11.25,14.25 L11.25,18.75 A1.5,1.5 0 0 1 9.75,20.25 L5.25,20.25 A1.5,1.5 0 0 1 3.75,18.75 L3.75,14.25 A1.5,1.5 0 0 1 5.25,12.75 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M14.25,12.75 L18.75,12.75 A1.5,1.5 0 0 1 20.25,14.25 L20.25,18.75 A1.5,1.5 0 0 1 18.75,20.25 L14.25,20.25 A1.5,1.5 0 0 1 12.75,18.75 L12.75,14.25 A1.5,1.5 0 0 1 14.25,12.75 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineJoin="round" />
+</vector>

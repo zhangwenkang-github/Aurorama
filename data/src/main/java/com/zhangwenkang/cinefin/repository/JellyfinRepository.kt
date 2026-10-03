@@ -11,6 +11,7 @@ import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 import java.util.UUID
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.UserConfiguration
 
@@ -46,6 +48,12 @@ interface JellyfinRepository {
         sortOrder: SortOrder = SortOrder.ASCENDING,
         startIndex: Int? = null,
         limit: Int? = null,
+        /** W54-B 筛选（funnel）：已看 / 未看 / 收藏，映射到 Jellyfin `filters`。 */
+        filters: List<ItemFilter>? = null,
+        /** W54-B 库内「类型」过滤（按名称）。 */
+        genres: List<String>? = null,
+        /** W54-B 库内「制片发行商」过滤（按名称）。 */
+        studios: List<String>? = null,
     ): List<FindroidItem>
 
     suspend fun getItemsPaging(
@@ -54,7 +62,50 @@ interface JellyfinRepository {
         recursive: Boolean = false,
         sortBy: SortBy = SortBy.defaultValue,
         sortOrder: SortOrder = SortOrder.ASCENDING,
+        filters: List<ItemFilter>? = null,
+        genres: List<String>? = null,
+        studios: List<String>? = null,
     ): Flow<PagingData<FindroidItem>>
+
+    /**
+     * 库内容页条目计数（W54-B）：只取 `TotalRecordCount`（`limit = 1` + 由服务器返回总数）， 供工具行「1-94 /
+     * 94」使用；与网格共用同一组过滤条件，保证计数与列表同源。
+     */
+    suspend fun getItemCount(
+        parentId: UUID? = null,
+        includeTypes: List<BaseItemKind>? = null,
+        recursive: Boolean = false,
+        filters: List<ItemFilter>? = null,
+        genres: List<String>? = null,
+        studios: List<String>? = null,
+    ): Int
+
+    /**
+     * 库内「建议」（W54-B）：`SortBy=Random` 的库内随机抽样。
+     *
+     * 说明：SDK 1.8.12 的 `/Items/Suggestions` 没有 `parentId` 参数（官方 OpenAPI stable 同样没有），
+     * 无法做「库内建议」，因此用库内随机抽样落地同一 IA 位置。
+     */
+    suspend fun getLibrarySuggestions(
+        parentId: UUID,
+        includeTypes: List<BaseItemKind>?,
+        limit: Int = 24,
+    ): List<FindroidItem>
+
+    /** 「即将播出」（W54-B，仅剧集库）：`/Shows/Upcoming?parentId=`，Jellyfin 官方同名 tab 的同一接口。 */
+    suspend fun getUpcomingEpisodes(parentId: UUID, limit: Int = 24): List<FindroidItem>
+
+    /** 库内「类型」（Genre）列表（W54-B）：`/Genres?parentId=`。 */
+    suspend fun getGenres(
+        parentId: UUID,
+        includeItemTypes: List<BaseItemKind>? = null,
+    ): List<FindroidTag>
+
+    /** 库内「制片发行商」（Studio）列表（W54-B）：`/Studios?parentId=`。 */
+    suspend fun getStudios(
+        parentId: UUID,
+        includeItemTypes: List<BaseItemKind>? = null,
+    ): List<FindroidTag>
 
     suspend fun getPerson(personId: UUID): FindroidPerson
 
