@@ -94,6 +94,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
+import com.zhangwenkang.cinefin.music.presentation.MusicLibraryRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
 import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
@@ -115,6 +116,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPANDED
 import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
+import com.zhangwenkang.cinefin.presentation.navigation.libraryEntryRoute
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
@@ -296,6 +298,7 @@ fun NavigationRoot(
             currentDestination.isRoute<BookshelfRoute>() ||
             currentDestination.isRoute<DownloadsRoute>() ||
             currentDestination.isRoute<MusicModeRoute>() ||
+            currentDestination.isRoute<MusicLibraryRoute>() ||
             currentDestination.isRoute<LibraryRoute>() ||
             currentDestination.isRoute<SettingsRoute>()
     val context = LocalContext.current
@@ -360,7 +363,9 @@ fun NavigationRoot(
 
     val homeSelected = currentDestination.isRoute<HomeRoute>()
     val videoSelected = currentDestination.isRoute<VideoRoute>()
-    val musicSelected = currentDestination.isRoute<MusicModeRoute>()
+    val musicSelected =
+        currentDestination.isRoute<MusicModeRoute>() ||
+            currentDestination.isRoute<MusicLibraryRoute>()
     val mediaSelected = currentDestination.isRoute<MediaRoute>()
     val downloadsSelected = currentDestination.isRoute<DownloadsRoute>()
     val settingsSelected = currentDestination.isRoute<SettingsRoute>()
@@ -377,6 +382,10 @@ fun NavigationRoot(
             null
         }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
+    // 顶层入口（底栏 / 侧轨 / 抽屉）：**落点 = 该入口的根页**（W53 Bug A 修复）。
+    // `saveState + restoreState` 会按目的地 id 把「离开时整栈」恢复回来（例如 视频 → 某个库内容页），
+    // 用户点底栏「视频」时会停在库内容页，看着像"切不回来"；这里恢复后统一把根页之上的子页面弹掉——
+    // 根页自身的滚动 / 状态仍由 saveState 保留（踩坑 30 的结论不变）。
     val navigateTopLevel: (Any) -> Unit = { route ->
         closeDrawer()
         navController.safeNavigate(route) {
@@ -384,6 +393,8 @@ fun NavigationRoot(
             launchSingleTop = true
             restoreState = true
         }
+        // 已是根页时为 no-op；带子页面（库内容 / 专辑详情等）时弹回根页。
+        navController.popBackStack(route, inclusive = false)
     }
     // 控制台两类入口不能用统一入口的 saveState / restoreState：popUpTo(saveState) + restoreState 是按
     // 目的地 id 恢复保存的条目，而两个入口共用 ConsoleRoute 目的地 id——点「媒体资料管理器」会把上一次
@@ -397,13 +408,19 @@ fun NavigationRoot(
     }
     val openLibrary: (FindroidCollection) -> Unit = { library ->
         closeDrawer()
+        // W53 Bug B2：库入口是「同一目的地 + 不同参数」（书籍 / 书籍3、音乐 / 音乐测试），不能走统一入口的
+        // saveState / restoreState——按目的地 id 恢复旧条目会把新参数顶掉（踩坑 30 同类），真机表现为
+        // 「点 书籍3 页面仍是 书籍」。这里 popUpTo(start) 不回存、不恢复，保证按点击的库新建条目。
         navController.safeNavigate(
             libraryEntryRoute(
                 libraryId = library.id.toString(),
                 libraryName = library.name,
                 libraryType = library.type,
             )
-        )
+        ) {
+            popUpTo(navController.graph.startDestinationId)
+            launchSingleTop = true
+        }
     }
 
     fun chromeItem(@DrawableRes res: Int, label: String, neutral: Boolean = false) =
@@ -625,6 +642,8 @@ fun NavigationRoot(
                                 label = library.name,
                                 icon = navIcon(libraryIconRes(library.type)),
                                 nested = true,
+                                // W53 Bug B 配套：同类型多库（书籍 / 书籍3、音乐 / 音乐测试）补项目数，便于区分。
+                                trailing = libraryChildCountTrailing(library.itemCount),
                             ),
                         selected = currentLibrary?.libraryId == library.id.toString(),
                         onClick = { openLibrary(library) },
@@ -912,6 +931,15 @@ fun NavigationRoot(
                 }
             }
             composable<MusicModeRoute> { MusicModeScreen(onOpenDrawer = openDrawer) }
+            composable<MusicLibraryRoute> { backStackEntry ->
+                // W53 Bug B1：侧栏点具体音乐库走独立目的地——libraryId 经 SavedStateHandle 进 ViewModel
+                // （按该库加载），libraryName 只用于顶栏标题；音乐 Tab 仍走 MusicModeRoute（用偏好）。
+                val route: MusicLibraryRoute = backStackEntry.toRoute()
+                MusicModeScreen(
+                    onOpenDrawer = openDrawer,
+                    libraryName = route.libraryName,
+                )
+            }
             composable<ConsoleRoute> { backStackEntry ->
                 val route: ConsoleRoute = backStackEntry.toRoute()
                 // 控制台页不渲染 app 侧轨 / 底栏（D22 ②，避免与 jellyfin-web 自己的侧栏打架），
@@ -1447,6 +1475,9 @@ private fun CinefinSideNavigation(
                             expanded = true,
                             compact = true,
                             onClick = { onOpenLibrary(library) },
+                            // 侧轨的 trailing 走组件参数（`CinefinNavigationItem(trailing = …)`），
+                            // 与抽屉用的 `CinefinNavItem.trailing` 是两个槽位（W53 Bug B 配套）。
+                            trailing = libraryChildCountTrailing(library.itemCount),
                             modifier = Modifier.padding(start = CinefinSpacing.Space4),
                         )
                     }
@@ -1517,21 +1548,24 @@ private fun navigateHome(navController: NavHostController) {
 }
 
 /**
- * 媒体库入口路由（W3 R3 音乐库分支，P0 修复）。
+ * 侧栏 / 抽屉里媒体库子项的「项目数」尾标（W53 Bug B 配套）。
  *
- * 测试服务器（Jellyfin 10.11.8）**没有 MusicAlbum 实体**：`LibraryViewModel` 对音乐库只查
- * `BaseItemKind.MUSIC_ALBUM`，返回 0 条 → 音乐库空列表（W2-R2 已实测确认）。因此音乐库不走 通用媒体库页， 直接进音乐模式：`MusicRepository`
- * 拉曲目后由 `MusicLibraryGrouping` 在客户端分组出 专辑 / 艺术家 / 歌曲 / 歌单（MU-2）。
+ * 服务器上同类型多库很常见（书籍 / 书籍3、音乐 / 音乐测试），光看名字不好区分——名称右侧补一行项目数 （服务器没返回 `ChildCount` 时整条不显示，不占位）。
  */
-private fun libraryEntryRoute(
-    libraryId: String,
-    libraryName: String,
-    libraryType: CollectionType,
-): Any =
-    if (libraryType == CollectionType.Music) {
-        MusicModeRoute
-    } else {
-        LibraryRoute(libraryId = libraryId, libraryName = libraryName, libraryType = libraryType)
+@Composable
+private fun LibraryChildCount(count: Int) {
+    Text(
+        text = stringResource(CoreR.string.nav_library_item_count, count),
+        style = CinefinType.BodySmall,
+        color = LocalCinefinColors.current.onSurfaceFaint,
+        maxLines = 1,
+    )
+}
+
+/** `trailing` 槽位的可选内容：[count] 为空时返回 null（条目不显示尾标）。 */
+private fun libraryChildCountTrailing(count: Int?): (@Composable () -> Unit)? =
+    count?.let { value ->
+        { LibraryChildCount(value) }
     }
 
 /**

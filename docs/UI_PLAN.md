@@ -103,7 +103,19 @@
 
 | D53 | **视频模式页两种显示方式：库卡列表 / 聚合列表（W53，用户 2026-10-03 确认）** | ①**数据口径**：页面数据 = 服务器上 `movies` + `tvshows` 类型的全部库（`pickVideoLibraries` 纯函数 + 单测），顺序与服务器返回一致；②**库卡列表（默认）**：`LibraryEntryCard` 16:9 大卡网格（封面 / 库名 / 项目数），列宽沿用媒体库总览四档（300 / 320 / 380 / 420dp），点卡进库内容页（复用 `navigateToItem` → `LibraryRoute`）；③**聚合列表**：全部视频库的条目（电影 + 剧集）合并成一个懒加载网格（`ItemCard` 竖版海报 + `GridCellsAdaptiveWithMinColumns(176, 2)`），Paging 3 分页——Jellyfin 没有"一次查询多个媒体库"的接口，`VideoAggregatePagingSource` 按**库顺序**拼接、每个库内按「最近添加」（`DateCreated` 倒序）取，游标推进抽 `advanceVideoAggregateCursor` / `isVideoAggregateFinished` 纯函数 + 单测，空库 / 已取完的库自动跳过且不会让列表提前结束（一次 `load` 把 `loadSize` 填满）；④**设置项**：客户端设置 →「媒体库」子页新增「视频显示方式：库卡列表 / 聚合列表」（静态 `PreferenceSelect`，键 `pref_ui_video_display_mode`，默认 `cards`；取值 `cards` / `aggregated` 落盘），VideoViewModel 挂 SharedPreferences 监听，切换后回到页面即时生效；⑤**空态 / 骨架**：无视频库或聚合列表为空 → `CinefinEmptyState`（新增 `video_empty_title/message`），加载 → 库卡模式 `MediaLibrarySkeleton`、聚合模式 `LibraryGridSkeleton`（均走 `LumenSkeletonOverlay`）；⑥**顶栏**：复用 `CinefinPageTopBar`（手机 = app 图标入口 / 平板 = 无抽屉键，随 W46 形态规则），页面本体走 Lumen（影视域，D24）；⑦**仓库解析**：`VideoViewModel` 经 `Provider<JellyfinRepository>` 每次 `load()` 按当前偏好解析 在线 / 离线（踩坑 33 同类）——离线模式 `getLibraries()` 空列表给空态，不发网络请求（真机拦下后修复）。 | 已知边界：「最近添加」是**库内**排序（跨库全局排序需要服务器端祖先过滤，Jellyfin 无该接口，本波不做）；混合库（如 `mixed`）中的电影 / 剧集**不计入**聚合列表——口径严格限定在 movies / tvshows 库，与入口门控同源。 |
 
+| D54 | **实机 Bug A/B 修复：顶层入口回落根页 + 同目的地不同参数不走 saveState / restoreState（W53 复验，用户 2026-10-03 实机反馈）** | ①**Bug A（手机底栏「视频」切不回来）**：`navigateTopLevel` 的 `popUpTo(start){saveState}` + `restoreState` 会把「Tab 根 + 子页面」整栈恢复（如 视频 → 某个库内容页），点底栏「视频」停在库内容页；修法 = 导航后 `popBackStack(route, inclusive = false)` 统一弹回入口根页（已是根页为 no-op，根页滚动 / 状态仍由 saveState 保留）。②**Bug B2（侧栏选「书籍3」页里仍是「书籍」）**：库入口是「同一目的地 + 不同参数」，`restoreState` 按目的地 id 恢复旧条目、把新参数顶掉（踩坑 30 同类）；修法 = `openLibrary` 改 `popUpTo(start)` 不回存 / 不恢复 + `launchSingleTop`，按点击的库新建条目。③**Bug B1（侧栏选「音乐测试」页里仍是「音乐」）**：旧 `libraryEntryRoute` 把所有 Music 类型都映射到 `MusicModeRoute`（忽略 libraryId），音乐模式只读「客户端设置 → 音乐库」；修法 = 新增独立目的地 `MusicLibraryRoute(libraryId, libraryName)`（音乐 Tab 仍走 `MusicModeRoute`，两者分开 → 不会被 `restoreState` 用旧参数顶掉），`MusicModeViewModel` 从 SavedStateHandle 取路由库（路由 > 偏好 > 自动），顶栏显示库名；解析抽 `resolveMusicLibraryId` 纯函数 + 单测。④**库子项可区分**：侧栏 / 抽屉库子项右侧显示项目数（服务器 `ChildCount`，无值不占位）——抽屉完整显示，侧轨 168dp 下最长 4 字库名会截断（呈现取舍待用户确认）。⑤路由决策抽 `libraryEntryRoute` 纯函数（app:phone 单测 4 项）+ 音乐库解析单测 3 项。 |
+
 ## 4. 进度
+
+### W53 实机 Bug A/B 修复（2026-10-03，同分支；用户实机反馈，D54）
+
+- **Bug A（手机底栏「视频」切不回来）**：从抽屉选库 / 从视频页进库后再点底栏「视频」停在库内容页。根因 = `navigateTopLevel` 的 `popUpTo(start){saveState}` + `restoreState` 会把「Tab 根 + 子页面」整栈恢复。修法：导航后 `popBackStack(route, inclusive = false)` 统一弹回入口根页（已是根页为 no-op；根页滚动 / 状态仍由 `saveState` 保留）。
+- **Bug B2（侧栏选「书籍3」页里仍是「书籍」）**：库入口 = 同一目的地 + 不同参数，`restoreState` 按目的地 id 恢复旧条目、把新参数顶掉（踩坑 30 同类）。修法：`openLibrary` 改 `popUpTo(start)`（不回存 / 不恢复）+ `launchSingleTop`，按点击的库新建条目。
+- **Bug B1（侧栏选「音乐测试」页里仍是「音乐」）**：旧 `libraryEntryRoute` 把所有 Music 类型映射到 `MusicModeRoute`（忽略 libraryId），音乐模式只读「客户端设置 → 音乐库」。修法：新增独立目的地 `MusicLibraryRoute(libraryId, libraryName)`（音乐 Tab 仍是 `MusicModeRoute`，两者分开 → 参数不会被 `restoreState` 互相覆盖），`MusicModeViewModel` 从 SavedStateHandle 取路由库（路由 > 偏好 > 自动），顶栏显示库名；`resolveMusicLibraryId` 纯函数 + 单测。
+- **库子项可区分（D54 ④）**：侧栏 / 抽屉库子项右侧显示项目数（服务器 `ChildCount`，无值不占位）。
+- [x] **单测**：`LibraryEntryRouteTest` 4 项（app）+ `MusicLibrarySelectionTest` 3 项（music），共 +7
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **512 项 0 失败**（app 94 / core 37 / data 45 / player:local 105 / film 6 / book 113 / music 112）
+- [x] **真机复验（Pad 5 主 + K60 抽验，20:46–20:56，device-lock 已写释放与结论）**：Bug A 两条路径（抽屉选库 / 视频页进库 → 点底栏「视频」均回视频页）；B2 双机「书籍3」命中（K60 标题「书籍3 / 共 8 个项目」、Pad 同）；B1 双机「音乐测试」命中（K60「音乐测试 / 共 0 张专辑」、Pad 同），随后点底栏「音乐」=「音乐 / 共 105 张专辑」（Tab 不被库入口参数顶掉）；抽屉与侧轨库子项显示「N 项」（抽屉完整；侧轨 168dp 下 4 字库名截断，待用户确认呈现）；0 FATAL / ANR
 
 ### W53 视频入口 + 视频模式页（2026-10-03，分支 `feature/w53-video-entry`，起点 master `1222bef`、rebase 到 W50 `8f3ba0e`）
 
@@ -777,6 +789,15 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **视频页静态核对**：`pickVideoLibraries` 只放行 movies / tvshows；聚合游标 4 种推进路径（同库续取 / 短页换库 / 空库跳过 / 末尾结束）；聚合分页 `prevKey = null`（只向后翻）、`getRefreshKey = null`（刷新从头）；空态两处（无视频库、聚合空）、骨架两处（库卡 / 条目）、错误两处（库列表 / 分页）均有重试入口
 - [x] **真机（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03 19:02–19:26）**：①Pad 侧轨顺序 首页 / 视频 / 音乐 / 书架 / 媒体库 / 下载，视频行选中态像素取证 = 极光青 `rgb(92,225,210)` 指示条（x 23–28 / y 330–384）；②侧栏「视频」开关即时生效（关 → 侧轨条目消失；开 → 回位）；③库卡列表（电影 / 动漫）点卡进库（电影库页「共 17 个项目」）；④「视频显示方式」默认库卡列表；切「聚合列表」后页面即时变为电影 + 剧集混合网格（滚动可见剧集未看角标 40 / 26 / 12 / 28，连续加载），收工已还原默认；⑤K60 底栏 4 Tab = 首页 / 视频 / 音乐 / 书架（可点区 `[0,2920][1440,3144]` 四等分，媒体库已移出底栏）、视频 Tab 选中态像素取证（x 498–580 / y 2944–3048）、顶栏入口 = app 图标（`content-desc`「打开侧栏」）、抽屉含「视频」条目；⑥离线模式（真机拦下并修复后复验）= 视频页空态「暂无视频库」，退出离线模式后库卡恢复；⑦0 FATAL / ANR（双机 crash buffer + main log 过滤为空）
 - **备注（既有行为，非 W53 引入）**：库卡「共 N 个项目」读服务器 `ChildCount`，实测同一库在不同时刻 / 页面取值浮动（电影 1–8、动漫 1–9），与媒体库页同组件同数据源；库内容页按分页真实计数（电影 17）。Pad 测试中出现一次 MIUI 小窗 + 放大镜叠加窗口（`com.xiaomi.mirror`）挡住 uiautomator，force-stop + 重启恢复（未改无障碍设置）。
+
+### W53 实机 Bug A/B 复验（2026-10-03 20:46–20:56，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验；device-lock 已写释放与结论）
+
+- [x] **Bug A（手机底栏「视频」切不回来）**：K60 两条路径均通过——①抽屉选「书籍3」→ 点底栏「视频」= 视频页首屏；②视频页 → 点「电影」库卡进库 → 点底栏「视频」= 视频页首屏（此前停在库内容页）
+- [x] **Bug B2（「书籍3」仍显示「书籍」）**：K60 抽屉选「书籍3」→ 标题「书籍3」+「共 8 个项目」+ 书目一致；Pad 侧轨选「书籍3」→ 同样命中（修复前双机都会落回「书籍」）
+- [x] **Bug B1（「音乐测试」仍显示「音乐」）**：K60 抽屉选「音乐测试」→ 顶栏「音乐测试」+「共 0 张专辑」+ 空态；Pad 侧轨同样命中；随后点底栏「音乐」→ 「音乐 / 共 105 张专辑」（Tab 参数不被库入口顶掉）
+- [x] **库子项项目数**：抽屉（K60）「电影 4 项 / 动漫 9 项 / 其他2 3 项 / 书籍 3 项 / 书籍3 9 项 / 音乐 2 项 / 音乐测试 1 项 / Playlists 3 项」（数值随服务器 `ChildCount` 浮动，同既有口径）；侧轨（Pad）同样显示（`ChildCount` 浮动：电影 7 / 动漫 8 / 其他2 3 / 书籍 1 / 书籍3 8 / 音乐 2 / 音乐测试 2 / Playlists 6）
+- [x] **0 FATAL / ANR**（双机 crash buffer + main log 过滤为空）；副作用已还原（双机 force-stop、`/sdcard` 临时文件清理、未改设备偏好）
+- 备注：侧轨展开 168dp 下 4 字库名（音乐测试 / Playlists）会省略成「音乐测…」——项目数是用户确认项，最终呈现（名称截断 vs 项目数）待用户拍板
 
 ## 6. 踩坑库
 

@@ -164,6 +164,7 @@
     <string name="title_more">More</string>
     <string name="nav_collapse">Collapse</string>
     <string name="nav_expand">Expand</string>
+    <string name="nav_library_item_count">%1$d items</string>
     <string name="nav_open_drawer">Open navigation</string>
     <string name="nav_back">Back</string>
     <!-- 调用点落在红线文件 NavigationRoot.kt，本轮按字面量更新；后续如需 %1$s 注入 app_name 走申报。 -->

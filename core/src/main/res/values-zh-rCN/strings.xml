@@ -164,6 +164,7 @@
     <string name="title_more">更多</string>
     <string name="nav_collapse">收起</string>
     <string name="nav_expand">展开</string>
+    <string name="nav_library_item_count">%1$d 项</string>
     <string name="nav_open_drawer">打开侧栏</string>
     <string name="nav_back">返回</string>
     <string name="console_back_to_app">返回极光幕</string>

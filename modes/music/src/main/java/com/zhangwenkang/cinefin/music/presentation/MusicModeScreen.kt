@@ -106,6 +106,11 @@ private val QueueRowHeight = 72.dp
 fun MusicModeScreen(
     modifier: Modifier = Modifier,
     onOpenDrawer: (() -> Unit)? = null,
+    /**
+     * W53 Bug B1：从侧栏 / 抽屉点**具体音乐库**进入时带上库名——顶栏标题显示该库（如「音乐测试」）； null = 音乐 Tab
+     * 入口，沿用「音乐」标题。要加载哪个库由路由参数（`libraryId`）经 SavedStateHandle 传给 ViewModel，本参数只负责标题展示。
+     */
+    libraryName: String? = null,
     viewModel: MusicModeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -161,6 +166,7 @@ fun MusicModeScreen(
                 MusicHeader(
                     state = state,
                     sleepState = sleepState,
+                    libraryName = libraryName,
                     onBack = viewModel::closeDetail,
                     onOpenDrawer = onOpenDrawer,
                     onOpenFavorites = viewModel::openFavorites,
@@ -390,6 +396,8 @@ fun MusicModeScreen(
 private fun MusicHeader(
     state: MusicModeViewModel.UiState,
     sleepState: MusicSleepTimer.State,
+    /** W53 Bug B1：侧栏点具体音乐库时的顶栏标题（null = 「音乐」）。 */
+    libraryName: String?,
     onBack: () -> Unit,
     onOpenDrawer: (() -> Unit)?,
     onOpenFavorites: () -> Unit,
@@ -401,7 +409,7 @@ private fun MusicHeader(
     // W8-R3：与媒体库 / 书架共用 `CinefinPageTopBar`（56dp + statusBarsPadding + 左侧 ic_menu「打开侧栏」），
     // 修掉旧版 72dp 无 inset 导致的"按钮被状态栏压住"。详情（专辑 / 艺术家 / 歌单）改回返回键 + 详情标题。
     CinefinPageTopBar(
-        title = detail?.title ?: "音乐",
+        title = detail?.title ?: libraryName?.takeIf { it.isNotBlank() } ?: "音乐",
         subtitle =
             when {
                 detail != null -> "共 ${detail.songs.size} 首曲目"

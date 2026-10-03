@@ -1,5 +1,9 @@
 package com.zhangwenkang.cinefin.presentation.navigation
 
+import com.zhangwenkang.cinefin.LibraryRoute
+import com.zhangwenkang.cinefin.models.CollectionType
+import com.zhangwenkang.cinefin.music.presentation.MusicLibraryRoute
+
 /** 顶层目的地：底部 Tab 顺序与侧栏可见性开关都按它寻址（W6-R6N）。 */
 enum class NavEntryKey {
     Home,
@@ -102,6 +106,30 @@ fun railGroupOf(key: NavEntryKey): RailGroup =
         NavEntryKey.Console,
         NavEntryKey.Metadata -> RailGroup.Manage
         NavEntryKey.Settings -> RailGroup.Pinned
+    }
+
+/**
+ * 侧栏 / 抽屉点某个服务器媒体库时的落点路由（纯函数，单测覆盖）。
+ *
+ * - **音乐库**：带上点击的 `libraryId` / `libraryName` 进音乐模式的「指定音乐库」目的地（[MusicLibraryRoute]）
+ *   ——服务器上可能有多个同类型音乐库（如「音乐」「音乐测试」），不带参数的旧实现会一律落到 「客户端设置 → 音乐库」偏好的那一个（W53 Bug B1：点「音乐测试」页里仍是「音乐」）。
+ *   音乐 Tab / 本地曲目起播等入口仍走 `MusicModeRoute`（无参数 = 用偏好）。
+ * - **其余类型**：进通用库内容页；参数里带着 id / 名称 / 类型，导航侧必须按参数新建条目 （不能走统一入口的 `saveState +
+ *   restoreState`，否则旧条目会把新参数顶掉——W53 Bug B2）。
+ */
+fun libraryEntryRoute(
+    libraryId: String,
+    libraryName: String,
+    libraryType: CollectionType,
+): Any =
+    if (libraryType == CollectionType.Music) {
+        MusicLibraryRoute(libraryId = libraryId, libraryName = libraryName)
+    } else {
+        LibraryRoute(
+            libraryId = libraryId,
+            libraryName = libraryName,
+            libraryType = libraryType,
+        )
     }
 
 /**

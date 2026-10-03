@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
@@ -109,6 +110,11 @@ constructor(
     private val offlineMediaRepository: OfflineMediaRepository,
     /** W37：本地媒体库（用户自选文件夹里的音乐并入曲库）。 */
     private val localLibraryRepository: LocalLibraryRepository,
+    /**
+     * W53 Bug B1：从侧栏点具体音乐库进入时，路由参数（`libraryId`）随导航条目进 SavedStateHandle—— 这里按「路由参数 → 客户端设置偏好 →
+     * 自动」的优先级解析要加载哪个音乐库。
+     */
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     /** W34：曲目下载态（下载列表层级化要求音乐侧也能发起下载）。 */
@@ -933,13 +939,12 @@ constructor(
         )
     }
 
-    /** 客户端设置「音乐库」：指定库失效（被删除 / 重建）时回落自动（全部音乐库）。 */
-    private fun selectedMusicLibraryId(): UUID? {
-        val raw =
-            appPreferences.getValue(appPreferences.uiMusicLibraryId)?.takeIf { it.isNotBlank() }
-                ?: return null
-        return runCatching { UUID.fromString(raw) }.getOrNull()
-    }
+    /** 当前曲库来源库：**侧栏点进来的库优先**（W53 Bug B1），否则读客户端设置「音乐库」； 指定库失效（被删除 / 重建）时回落自动（全部音乐库）。 */
+    private fun selectedMusicLibraryId(): UUID? =
+        resolveMusicLibraryId(
+            routeLibraryId = savedStateHandle.get<String>(MUSIC_ROUTE_LIBRARY_ID),
+            preferredLibraryId = appPreferences.getValue(appPreferences.uiMusicLibraryId),
+        )
 
     fun selectTab(tab: MusicTab) {
         _uiState.update { it.copy(tab = tab, detail = null) }
