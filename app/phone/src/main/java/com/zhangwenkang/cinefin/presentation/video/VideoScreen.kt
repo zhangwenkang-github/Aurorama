@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -41,12 +43,14 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.presentation.components.BaseDialog
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
@@ -90,6 +94,7 @@ fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
 
     LaunchedEffect(temporaryLibraryId) { viewModel.load(temporaryLibraryId) }
 
@@ -107,6 +112,8 @@ fun VideoScreen(
         onExitTemporaryLibrary = onExitTemporaryLibrary,
         onSelectLibrary = viewModel::selectLibrary,
         onToggleFavorite = viewModel::toggleFavorite,
+        sleepTimerState = sleepTimerState,
+        onSelectSleepMinutes = viewModel::selectSleepTimer,
     )
 }
 
@@ -119,6 +126,8 @@ private fun VideoScreenLayout(
     onExitTemporaryLibrary: (() -> Unit)? = null,
     onSelectLibrary: (UUID?) -> Unit = {},
     onToggleFavorite: (UUID) -> Unit = {},
+    sleepTimerState: SleepTimerController.State = SleepTimerController.State(),
+    onSelectSleepMinutes: (Int?) -> Unit = {},
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val pageGutter = rememberPageGutter()
@@ -149,7 +158,7 @@ private fun VideoScreenLayout(
         }
 
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
-    var showSleepTimerPlaceholder by rememberSaveable { mutableStateOf(false) }
+    var showSleepTimer by rememberSaveable { mutableStateOf(false) }
     val temporaryLibrary = state.temporaryLibrary
     // 「库选择」落到实处的库（用于 chip 文案与收藏目标）；临时库视图优先显示路由指定的库。
     val selectedLibrary = state.allLibraries.firstOrNull { it.id == state.selectedLibraryId }
@@ -220,11 +229,12 @@ private fun VideoScreenLayout(
                         onClick = { onToggleFavorite(library.id) },
                     )
                 }
-                // 睡眠定时（W54-C 只接入口；定时本体 = W55）：暂以对话框占位。
+                // 睡眠定时（W55 正式落地）：与音乐 / 播放器共享同一状态源；激活时点亮。
                 TopBarAction(
                     icon = FilmR.drawable.ic_video_sleep,
                     contentDescription = stringResource(FilmR.string.video_sleep_timer),
-                    onClick = { showSleepTimerPlaceholder = true },
+                    tint = if (sleepTimerState.active) LocalMediaColors.current.bright else null,
+                    onClick = { showSleepTimer = true },
                 )
             },
         )
@@ -288,28 +298,40 @@ private fun VideoScreenLayout(
     if (showErrorDialog && error != null) {
         ErrorDialog(exception = error, onDismissRequest = { showErrorDialog = false })
     }
-    if (showSleepTimerPlaceholder) {
-        SleepTimerPlaceholderDialog(onDismiss = { showSleepTimerPlaceholder = false })
+    if (showSleepTimer) {
+        SleepTimerDialog(
+            state = sleepTimerState,
+            onSelect = { minutes ->
+                onSelectSleepMinutes(minutes)
+                showSleepTimer = false
+            },
+            onDismiss = { showSleepTimer = false },
+        )
     }
 }
 
-/** 睡眠定时占位（W54-C）：本波只接入顶栏入口，定时本体（音乐 / 视频共享 + 自定义 1–240 分钟）由 W55 落地。 明确告诉用户"还没上线"，比点了没反应更好。 */
+/** 睡眠定时（W55）：与音乐 / 播放器共享状态源与 core 选择组件（预设 + 自定义 1–240 分钟）。 */
 @Composable
-private fun SleepTimerPlaceholderDialog(onDismiss: () -> Unit) {
+private fun SleepTimerDialog(
+    state: SleepTimerController.State,
+    onSelect: (Int?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     BaseDialog(
-        title = stringResource(FilmR.string.video_sleep_timer),
+        title = stringResource(CoreR.string.sleep_timer_title),
         onDismiss = onDismiss,
         negativeButton = {},
         positiveButton = {
             TextButton(onClick = onDismiss) { Text(text = stringResource(CoreR.string.close)) }
         },
     ) { contentPadding ->
-        Text(
-            text = stringResource(FilmR.string.video_sleep_timer_hint),
-            style = CinefinType.BodyMedium,
-            color = LocalCinefinColors.current.onSurfaceVariant,
-            modifier = Modifier.padding(contentPadding),
-        )
+        Column(modifier = Modifier.padding(contentPadding).verticalScroll(rememberScrollState())) {
+            CinefinSleepTimerOptions(
+                activeMinutes = state.minutes,
+                remainingMs = state.remainingMs,
+                onSelect = onSelect,
+            )
+        }
     }
 }
 

@@ -55,6 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -71,6 +72,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -83,10 +85,10 @@ import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
-import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
-import com.zhangwenkang.cinefin.music.data.formatSleepRemaining
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
+import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
+import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -408,7 +410,7 @@ fun MusicModeScreen(
 @Composable
 private fun MusicHeader(
     state: MusicModeViewModel.UiState,
-    sleepState: MusicSleepTimer.State,
+    sleepState: SleepTimerController.State,
     /** W53 Bug B1：侧栏点具体音乐库时的顶栏标题（null = 「音乐」）。 */
     libraryName: String?,
     /** W53 追加：临时库视图顶栏的类型前缀（如「音乐库」）。 */
@@ -903,7 +905,7 @@ private fun NowPlayingBar(
     positionMs: Long,
     durationMs: Long,
     fallbackDurationMs: Long,
-    sleepState: MusicSleepTimer.State,
+    sleepState: SleepTimerController.State,
     onOpenNowPlaying: () -> Unit,
     onPrevious: () -> Unit,
     onPlayPause: () -> Unit,
@@ -923,7 +925,9 @@ private fun NowPlayingBar(
     }
     val statusText = buildString {
         if (isRestored) append("上次播放") else append(if (isPlaying) "正在播放" else "已暂停")
-        if (sleepState.active) append(" · 睡眠 ${formatSleepRemaining(sleepState.remainingMs)}")
+        if (sleepState.active) {
+            append(" · 睡眠 ${SleepTimerSpec.formatRemaining(sleepState.remainingMs)}")
+        }
     }
     Column(modifier = Modifier.fillMaxWidth().background(colors.surfaceContainerHigh)) {
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.outlineVariant))
@@ -1195,11 +1199,11 @@ private fun EmptyHint(title: String, message: String? = null) {
     }
 }
 
-/** 睡眠定时面板（W21-R2）：档位与视频侧一致（10 / 20 / 30 / 60 分钟 + 关闭）， 选中即生效并关闭面板；进行中再打开会显示剩余时间。 */
+/** 睡眠定时面板（W55 统一）：与视频 / 播放器共享 core 选择组件与进程级状态源；选中即生效并关闭面板。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SleepTimerSheet(
-    state: MusicSleepTimer.State,
+    state: SleepTimerController.State,
     onSelect: (Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1219,32 +1223,23 @@ private fun SleepTimerSheet(
             )
         },
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space5)) {
-            Text(text = "睡眠定时", style = CinefinType.TitleMedium, color = colors.onSurface)
+        Column(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = CinefinSpacing.Space5)
+                    .verticalScroll(rememberScrollState())
+        ) {
             Text(
-                text =
-                    if (state.active) {
-                        "到点自动暂停音乐 · 剩余 ${formatSleepRemaining(state.remainingMs)}"
-                    } else {
-                        "到点自动暂停音乐，与视频播放页的定时互不影响"
-                    },
-                style = CinefinType.BodySmall,
-                color = colors.onSurfaceVariant,
+                text = stringResource(CoreR.string.sleep_timer_title),
+                style = CinefinType.TitleMedium,
+                color = colors.onSurface,
             )
             Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
-            CinefinListRow(
-                title = "关闭",
-                isCurrent = !state.active,
-                onClick = { onSelect(null) },
+            CinefinSleepTimerOptions(
+                activeMinutes = state.minutes,
+                remainingMs = state.remainingMs,
+                onSelect = onSelect,
             )
-            listOf(10, 20, 30, 60).forEachIndexed { index, minutes ->
-                CinefinListRow(
-                    title = "$minutes 分钟",
-                    isCurrent = state.minutes == minutes,
-                    showDivider = index != 3,
-                    onClick = { onSelect(minutes) },
-                )
-            }
             Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
         }
     }

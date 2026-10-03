@@ -88,7 +88,7 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 | # | 决策 | 理由 |
 |---|------|------|
-| D24 | 睡眠定时放 `modes:music` 的**进程级单例** `MusicSleepTimer`（不落 `player:local`） | 音乐支持后台播放：用户离开音乐页 / 熄屏后定时必须继续生效，播放页内的局部状态做不到；到点只调 `MusicPlaybackController.pause()`，该方法自带"当前是音乐会话且是音乐条目"校验，不会误伤视频；视频侧既有定时仍留在播放页内，两者互不影响。档位与视频侧一致（10 / 20 / 30 / 60 分钟 + 关闭） |
+| D24 | 睡眠定时放 `modes:music` 的**进程级单例** `MusicSleepTimer`（不落 `player:local`）；**W55 升级（2026-10-04）**：统一迁移到 `player:local` 的 `SleepTimerController`，与视频 / 播放器共享，档位补自定义 1–240 分钟（见 D58 / §5.15） | 音乐支持后台播放：用户离开音乐页 / 熄屏后定时必须继续生效，播放页内的局部状态做不到；到点只调 `MusicPlaybackController.pause()`，该方法自带"当前是音乐会话且是音乐条目"校验，不会误伤视频；视频侧既有定时仍留在播放页内，两者互不影响。档位与视频侧一致（10 / 20 / 30 / 60 分钟 + 关闭） |
 | D25 | 队列持久化用 data 层**独立 `MusicDatabase`**（库名 `music`，version 1：`music_queue_items` / `music_queue_state` / `music_recent` 三张表），不改 `ServerDatabase.kt` | W20 正在改 `servers` 库的 schema / 迁移；独立库让两波改动在文件级别隔离（本波 data 层全部新增文件）。存档由进程级 `MusicQueuePersister` 驱动：队列结构变化立即存、位置每 5 s 节流存；恢复只回填 UI 与续播位置、**不自动出声**，点播放 / 切歌走既有 `setQueue`（MU-9 续播路径），与 gapless 行为不冲突 |
 | D26 | 收藏走**服务端白名单**：写 = `userLibraryApi.markFavoriteItem` / `unmarkFavoriteItem`（失败抛异常由 UI 提示），读 = `filters=IsFavorite` + `includeItemTypes=Audio` | 需求「收藏」是服务器用户数据（REQUIREMENTS §11 白名单）；不复用视频侧 `markAsFavorite`（那个会吞异常、只标记待同步，验收"读回"不可靠）。入口 = 音乐顶栏 ♥ + 歌曲行 ⋮ 菜单「收藏 / 取消收藏」，不改导航 IA |
 | D27 | 最近播放 = **本地 Room**（`music_recent`，itemId 主键 upsert + `playedAt` 倒序，上限 100）；记录时机 = 播放器队列当前曲目变化（恢复态不算"播放过"） | 最近播放是本地行为数据，不需要写服务器；重复播放只刷新时间并排到最前；曲库快照能查到完整元数据时补专辑 / 艺人 / 时长，查不到（如恢复队列）用播放条目兜底 |
@@ -227,7 +227,7 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 ### W21 音乐扩展（本会话 `feature/w21-music-extras`，已交付）
 
-- [x] 睡眠定时（MU-7）：顶栏月亮入口 + 面板档位 10 / 20 / 30 / 60 分钟 + 关闭；底栏显示「睡眠 mm:ss」倒计时；到点自动 `pause()`（与视频播放页的定时互不影响，见 D24）
+- [x] 睡眠定时（MU-7）：顶栏月亮入口 + 面板档位 10 / 20 / 30 / 60 分钟 + 关闭；底栏显示「睡眠 mm:ss」倒计时；到点自动 `pause()`（与视频播放页的定时互不影响，见 D24）；**W55 统一升级**：状态源迁 `player:local.SleepTimerController`，档位补自定义 1–240 分钟，见 D58 / §5.15
 - [x] 队列持久化（MU-3 队列保存）：独立 `MusicDatabase`（3 表）+ `MusicQueueStore` / `MusicQueuePersister`（D25）；杀进程 / 重启后恢复队列、当前曲目与播放位置，点播放从保存位置续播；恢复态下队列面板可拖拽 / 移除（D28）
 - [x] 收藏（MU-2）：歌曲行 ⋮ 菜单「收藏 / 取消收藏」写服务端白名单；顶栏 ♥ 打开服务端收藏列表（`filters=IsFavorite` 读回）；收藏页取消收藏即时移出
 - [x] 最近播放（MU-2）：本地 Room `music_recent`；播放 / 切歌自动记录（重复播放置顶）；顶栏时钟入口按播放时间倒序展示
@@ -725,6 +725,13 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 **M4A ReplayGain 真机补验（2026-10-03 W47-B，Pad 5）**：样本 `m4a_60s_sample_file_574KB`（服务器，574 KB / 60 s）→ 面板「未检测到 ReplayGain 标签」（log `来源=NONE`；独立复核 = 拉到全量 587,509 B，`REPLAYGAIN` 0 次 / freeform atom 0 个 → 真·无标签，非读失败）；本机覆盖 -6.0 dB → `files/replaygain/09805eb4….txt` = `track=-6.0` + 面板「曲目标签 -6.0 dB（本机设置）」；清除后回读（无负缓存）+ 覆盖 +4.0 dB 重启持久化（`force-stop` → 音乐页「上次播放」→ 恢复播放 → 面板仍 +4.0 dB）全部通过；增益应用链 = `10^(dB/20)`（未做声学测量）；覆盖已清除、`pref_music_replaygain_mode` 回 `off`，0 FATAL / ANR。详见 `TEST_PLAN` §7.5。
 
+### 5.15 W55 睡眠定时统一（2026-10-04，静态 / 门禁，分支 `feature/w55-sleep-timer`）
+
+- **决策（D58）**：睡眠定时由 W21 的 `modes:music` 单例 `MusicSleepTimer` 升级为 `player:local` 进程级 `SleepTimerController`，与视频 / 播放器共用；到点暂停唯一共享播放器实例（音乐侧由 `MusicPlaybackControllerImpl` 监听器继续做暂停上报 / `_isPlaying` 同步），档位保留 10 / 20 / 30 / 60 + 自定义 1–240 分钟。
+- **落点**：`MusicModeViewModel` 改注入 `SleepTimerController`（`sleepTimerState` 类型同步）；`SleepTimerSheet` 换 core 共享组件 `CinefinSleepTimerOptions`；底栏 `睡眠 mm:ss` 改用 `SleepTimerSpec.formatRemaining`；删除 `MusicSleepTimer` / `MusicSleepTimerTest`（1 项迁到 `player:core` 的 7 项）。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **576 项 / 0 失败**（music 111）；含新 `:player:core:testDebugUnitTest` 全量 **583 项 / 0 失败**。
+- **真机（待窗口）**：音乐到点暂停 / 自定义分钟 / 取消清理 / 熄屏后台 / 0 FATAL，清单见 `PLAYER_PLAN` §26.3。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -816,6 +823,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 43. **空态不可滚动 → `PullToRefreshBox` 收不到下拉手势**（W39）：PTR 依赖子树的嵌套滚动事件，空态如果只是 `Box(fillMaxSize)` 居中放空状态，手指下拉没有任何可滚动节点消费，刷新永远不触发。修法：把空态包成 `Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Center)`——内容比视口小时仍居中、同时把手势转给 PTR；`CinefinEmptyState` 自身是 `fillMaxWidth + padding`，不会在无限高约束下崩。
 
 ## 7. 会话日志
+
+- **2026-10-04 W55 睡眠定时统一（本会话，`feature/w55-sleep-timer`，起点 master `1aae466`）**：先只读核对音乐侧 `MusicSleepTimer`（W21，10/20/30/60 + 关闭、进程级、到点 `MusicPlaybackController.pause()`）与视频侧 `PlayerControlOverlay` 内的局部计时（`remember` + `LaunchedEffect`、档位同 10/20/30/60、到点 `player.pause()`），确认两侧到点行为一致 → 按「保留既有档位 + 自定义 1–240」落地统一：`player:core` 新增 `SleepTimerSpec` / `SleepTimerStateMachine`（7 项纯函数单测），`player:local` 新增进程级 `SleepTimerController`（唯一共享播放器实例到点暂停），core 新增 `CinefinSleepTimerOptions` 共享组件（复用 `CinefinListRow` / `CinefinSlider` / `CinefinButton`），三处宿主（音乐 sheet / 视频页对话框 / 播放器面板）接同一状态源。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` 576 项 0 失败、全量 583 项 0 失败。真机待窗口（清单 `PLAYER_PLAN` §26.3）。分支已推送未合并。
 
 - **2026-10-03 W44 音乐三件套（本会话，`feature/w44-music-detail`，起点 master `77feba9`）**：读 `PROJECT_PLAN` §1–§5、`MUSIC_PLAN`（D29 / D38 / D49–D55 + 踩坑库）、`UI_PLAN`（D41–D45）、`UI_DESIGN_SYSTEM` §2/§4/§5 后开工（developer.android.com 两条官方页 20 s 超时不可达，按任务书回退项目设计系统 + 既有自绘进度条口径执行）。①**A 开关**：core 新增 `CinefinSwitch`（关闭态拇指 `onSurfaceVariant` / 轨道 `surfaceContainerHigh` / 描边 `onSurfaceFaint`；开启态域媒体色；禁用态可辨），替换音效面板 / 设置卡片 / 播放器面板 / 下载 / 本地库 / 离线共 8 处裸 `Switch`；②**B 滑杆**：core 新增 `CinefinSlider`（4dp 胶囊轨 + 18dp 圆点拇指 + 极轻柔光，`steps` 吸附 / 禁用 / RTL / 36dp 触控带），替换 EQ 五段 + RG 覆盖 + 阅读器滑杆，仓库 M3 默认 `Slider` 清零；③**C 手势**：全屏左滑进歌词 / 右滑留空 / 左滑队列取消 / 下滑关闭，歌词页右滑返回，判定抽纯函数 `swipeGestureDirection`。门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，单测 `--rerun` **462 项 / 0 失败**（core 18→25、music 104→109）。真机 Pad 5 主 + K60 抽验（§5.13）：开关关闭态像素 `#A7B0BD` / 轨道 `#222A36` / 描边 `#6E7887`，对比度 6.6:1（旧默认 1.37:1）；Lumen 关闭态 `#98A2B3` / `#171A21` / `#6B7483`；EQ +3.7 dB 与 RG 覆盖 +7.0 dB 实时生效且落盘 / 清除可回读；左滑进词 / 右滑返回 / 下滑关闭 / 队列按钮全部命中；双机 0 FATAL / ANR，副作用已还原。分支已推送未合并。
 

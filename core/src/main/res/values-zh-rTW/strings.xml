@@ -200,4 +200,15 @@
     <string name="library_type_boxsets">合集</string>
     <string name="library_type_mixed">混合庫</string>
     <string name="temp_library_back_to_default">返回預設</string>
+    <!-- W55 睡眠定時統一：音樂 / 視訊共享元件（CinefinSleepTimerOptions）。 -->
+    <string name="sleep_timer_title">睡眠定時</string>
+    <string name="sleep_timer_subtitle">到點自動暫停播放</string>
+    <string name="sleep_timer_subtitle_active">到點自動暫停播放 · 剩餘 %1$s</string>
+    <string name="sleep_timer_off">關閉</string>
+    <string name="sleep_timer_cancel">取消定時</string>
+    <string name="sleep_timer_minutes">%1$d 分鐘</string>
+    <string name="sleep_timer_custom">自訂…</string>
+    <string name="sleep_timer_custom_current">目前 %1$d 分鐘</string>
+    <string name="sleep_timer_custom_hint">1–240 分鐘</string>
+    <string name="sleep_timer_custom_start">開始計時 · %1$d 分鐘</string>
 </resources>

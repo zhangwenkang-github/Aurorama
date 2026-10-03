@@ -204,4 +204,15 @@
     <string name="nav_back">返回</string>
     <string name="console_back_to_app">返回极光幕</string>
     <string name="misans_attribution">本软件使用了 MiSans 字体（© 小米科技有限责任公司）</string>
+    <!-- W55 睡眠定时统一：音乐 / 视频共享组件（CinefinSleepTimerOptions）。 -->
+    <string name="sleep_timer_title">睡眠定时</string>
+    <string name="sleep_timer_subtitle">到点自动暂停播放</string>
+    <string name="sleep_timer_subtitle_active">到点自动暂停播放 · 剩余 %1$s</string>
+    <string name="sleep_timer_off">关闭</string>
+    <string name="sleep_timer_cancel">取消定时</string>
+    <string name="sleep_timer_minutes">%1$d 分钟</string>
+    <string name="sleep_timer_custom">自定义…</string>
+    <string name="sleep_timer_custom_current">当前 %1$d 分钟</string>
+    <string name="sleep_timer_custom_hint">1–240 分钟</string>
+    <string name="sleep_timer_custom_start">开始计时 · %1$d 分钟</string>
 </resources>

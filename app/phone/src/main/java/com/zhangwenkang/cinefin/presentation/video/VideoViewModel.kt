@@ -9,6 +9,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.presentation.utils.storedLibraryIdValue
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -64,9 +65,17 @@ constructor(
      */
     private val repositoryProvider: Provider<JellyfinRepository>,
     private val appPreferences: AppPreferences,
+    /** W55 睡眠定时统一：视频页顶栏入口与播放器 / 音乐共享同一状态源。 */
+    private val sleepTimerController: SleepTimerController,
 ) : ViewModel() {
     private val _state = MutableStateFlow(VideoState())
     val state = _state.asStateFlow()
+
+    /** W55 睡眠定时状态（视频页顶栏图标激活态 + 对话框）。 */
+    val sleepTimerState = sleepTimerController.state
+
+    /** W55：选择睡眠定时分钟；null = 取消。 */
+    fun selectSleepTimer(minutes: Int?) = sleepTimerController.select(minutes)
 
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {

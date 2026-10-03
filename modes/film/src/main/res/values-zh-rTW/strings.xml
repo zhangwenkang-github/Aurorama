@@ -18,7 +18,6 @@
     <string name="video_library_all">全部媒體庫</string>
     <string name="library_favorite">收藏目前的媒體庫</string>
     <string name="video_sleep_timer">睡眠定時</string>
-    <string name="video_sleep_timer_hint">睡眠定時將於下一版提供；本版只接入頂欄入口。</string>
     <string name="bookshelf_library_auto">自動</string>
     <string name="library_current_detail">目前：%1$s</string>
 </resources>

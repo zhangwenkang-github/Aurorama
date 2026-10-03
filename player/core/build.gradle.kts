@@ -21,4 +21,7 @@ android {
     }
 }
 
-dependencies { implementation(libs.timber) }
+dependencies {
+    implementation(libs.timber)
+    testImplementation("junit:junit:4.13.2")
+}

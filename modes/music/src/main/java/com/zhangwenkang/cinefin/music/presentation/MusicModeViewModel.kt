@@ -17,7 +17,6 @@ import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicQueuePersister
 import com.zhangwenkang.cinefin.music.data.MusicRecentStore
 import com.zhangwenkang.cinefin.music.data.MusicRepository
-import com.zhangwenkang.cinefin.music.data.MusicSleepTimer
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
 import com.zhangwenkang.cinefin.music.data.groupAlbums
@@ -54,6 +53,7 @@ import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
+import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
@@ -97,7 +97,7 @@ constructor(
     private val queueEditor: MusicQueueEditor,
     private val lyricsRepository: LyricsRepository,
     private val recentStore: MusicRecentStore,
-    private val sleepTimer: MusicSleepTimer,
+    private val sleepTimer: SleepTimerController,
     private val persister: MusicQueuePersister,
     private val historyTracker: MusicPlaybackHistoryTracker,
     private val lyricsOverlay: MusicLyricsOverlayController,
@@ -235,8 +235,8 @@ constructor(
             }
             .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    /** 音乐睡眠定时（W21-R2，MU-7）：进程级单例，离开音乐页 / 后台播放时仍生效。 */
-    val sleepTimerState: StateFlow<MusicSleepTimer.State> = sleepTimer.state
+    /** 睡眠定时（W55 统一，前身 W21-R2 MU-7）：进程级单例，与视频 / 播放器共用；离开音乐页 / 后台播放时仍生效。 */
+    val sleepTimerState: StateFlow<SleepTimerController.State> = sleepTimer.state
 
     /** 是否正在播放（底栏按钮图标用）。 */
     val isPlaying: StateFlow<Boolean> = playbackStateSource.isPlaying

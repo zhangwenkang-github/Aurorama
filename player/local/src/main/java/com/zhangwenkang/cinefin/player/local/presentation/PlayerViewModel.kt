@@ -42,6 +42,7 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlayerQueueEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
+import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
@@ -90,6 +91,8 @@ constructor(
     /** 播放器实例由进程级单例持有：播放页关闭后通知栏 / 后台播放仍要能控制它（阶段 4.1） */
     private val playerHolder: PlayerHolder,
     private val savedStateHandle: SavedStateHandle,
+    /** W55 睡眠定时统一：进程级状态源（音乐 / 视频共用同一计时器）。 */
+    private val sleepTimerController: SleepTimerController,
 ) : ViewModel(), Player.Listener {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
@@ -132,6 +135,12 @@ constructor(
             )
         )
     val uiState = _uiState.asStateFlow()
+
+    /** W55 睡眠定时状态（统一状态源）：播放器睡眠键激活态与睡眠面板消费。 */
+    val sleepTimerState = sleepTimerController.state
+
+    /** W55：选择睡眠定时分钟；null = 取消。 */
+    fun selectSleepTimer(minutes: Int?) = sleepTimerController.select(minutes)
 
     /**
      * W18：事件通道必须有缓冲。

@@ -206,4 +206,15 @@
     <string name="console_back_to_app">Back to Aurorama</string>
     <!-- W40 字体修正波：MiSans 许可条款①「在软件中特别注明使用了 MiSans 字体」（关于页常显）。 -->
     <string name="misans_attribution">This app uses the MiSans font (© Xiaomi Technology Co., Ltd.)</string>
+    <!-- W55 睡眠定时统一：音乐 / 视频共享组件（CinefinSleepTimerOptions）。 -->
+    <string name="sleep_timer_title">Sleep timer</string>
+    <string name="sleep_timer_subtitle">Auto-pause playback when the timer ends</string>
+    <string name="sleep_timer_subtitle_active">Auto-pause playback · %1$s remaining</string>
+    <string name="sleep_timer_off">Off</string>
+    <string name="sleep_timer_cancel">Cancel timer</string>
+    <string name="sleep_timer_minutes">%1$d minutes</string>
+    <string name="sleep_timer_custom">Custom…</string>
+    <string name="sleep_timer_custom_current">Current: %1$d minutes</string>
+    <string name="sleep_timer_custom_hint">1–240 minutes</string>
+    <string name="sleep_timer_custom_start">Start · %1$d minutes</string>
 </resources>

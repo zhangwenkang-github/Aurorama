@@ -1755,3 +1755,36 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 1. **Compact 自由窗口取证（W17/W20 遗留，已补上）**：MIUI 上可用 `settings put global enable_freeform_support 1` + `am start … --windowingMode 5` 造出 freeform 任务，再 `am task resize <id> 0 0 1000 1600`（w444dp h711dp，`mode=freeform`）→ `isInMultiWindowMode=true`、`windowWidthDp < fullWidthDp×3/4` → `PlayerChromeLayout.Compact`。真机证据：播放器工具行只保留图标（`content-desc`＝选择音轨 / 选择字幕轨 / 倍速 / 码率 / 解码 / 信息 / 睡眠 / 播放队列 / 画面比例 / 设置，**无文字标签**），本地视频同窗 `state=PLAYING(3)`。收工已删除 `enable_freeform_support` 并 force-stop（§24.5-5 的该项遗留可勾销；`--bounds` 不需要，`am task resize` 足够）。
 2. **end-帧 OFF 档（`pref_player_stay_at_end_frame=false`，默认）**：本地单条目视频播完 → `PlayerViewModel: queue end: close player（队列播完）` + 返回 MainActivity + `state=1 / queue size=0`。**服务器直连流片尾 `state=6 buffering` 场景仍未复现**（§24.5-1 的一半遗留保留：服务器缓流档）。
 3. **SRT「背景 + 描边」互斥（§19.5-3 遗留）**：新增单测 `AssSubtitleScriptTest.backgroundWinsWhenBackgroundAndOutlineBothSelected`——背景（70% 黑）+ 粗描边同时选择时，生成样式 `BorderStyle=3`、`OutlineColour=&H4C000000`（背景色），不再输出黑描边；观测层仍未做真机像素复验（无内置 SRT 样本，建议下一波用 W27 侧载 SRT 流程补像素取证）。
+
+---
+
+## 26. W55-PLAYER 落地记录（2026-10-04 · 分支 `feature/w55-sleep-timer`）
+
+> 用户 2026-10-04 拍板「睡眠定时统一」：音乐 / 视频共享同一实现 + 自定义 1–240 分钟。本波把 W12 播放页内的局部计时与
+> W21 音乐侧 `MusicSleepTimer` 合并为 `player:local` 进程级单例 `SleepTimerController`；播放器睡眠键 / 面板、音乐顶栏月亮 +
+> 底栏倒计时、视频页顶栏睡眠入口（W54-C 占位转正）全部接同一状态源；纯逻辑落 `player:core`（`SleepTimerSpec` +
+> `SleepTimerStateMachine`）并新增 7 项单测。
+> 红线改动：`player/core`、`player/local`、`core`、`app/phone`、`modes/music`、`modes/film`（删占位文案）；
+> `AppPreferences.kt` / `NavigationRoot.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` **未动**。
+
+### 26.1 决策（D51–D52）
+
+| 编号 | 决策 |
+|------|------|
+| D51 | **单一状态源**：睡眠定时 = `player:local` 的 `SleepTimerController`（`@Singleton`，进程级；离开音乐页 / 播放页、熄屏与后台播放时继续生效）。状态 = `minutes + remainingMs`；到点暂停**唯一共享播放器实例**（音视频互斥：音乐侧由既有监听器继续做暂停上报与 `_isPlaying` 同步，视频侧同样覆盖后台播放）；取消 / 到点都取消计时协程并清零；不落偏好（进程重启清零）。 |
+| D52 | **档位与 UI**：预设保留 W12/W21 已验收的 **10 / 20 / 30 / 60 分钟**，新增**自定义 1–240 分钟**（`CinefinSlider` 整分钟 + 「开始计时」）；共享组件 `core.CinefinSleepTimerOptions` 由音乐 sheet 与视频页对话框直接复用，播放器右侧面板复用同一档位常量 / 滑块（行样式保持 `PanelRow`）。不新增配色 / 字体 / 位图；新增文案走 core 字符串（默认 / zh-rCN / zh-rTW）。 |
+
+### 26.2 实现落点
+
+| 模块 | 改动 |
+|------|------|
+| `player:core` | 新增 `SleepTimerSpec`（分钟换算 / 1–240 收敛 / 到点判定 / `mm:ss` 格式化）+ `SleepTimerStateMachine`（select / cancel / tick 纯状态机）+ `SleepTimerTest` 7 项；`build.gradle.kts` 加 junit |
+| `player:local` | 新增 `SleepTimerController`（每秒 tick、到点暂停、取消清理）；`PlayerViewModel` 暴露 `sleepTimerState` / `selectSleepTimer` |
+| `core` | 新增 `CinefinSleepTimerOptions`（状态行 + 关闭/取消 + 预设 + 自定义编辑器）+ 三语言字符串 |
+| `app:phone` | `PlayerControlOverlay` 删本地 `sleepMinutes` / `sleepRemaining` / `LaunchedEffect`，睡眠键激活态与 `SleepPanel` 改读统一状态；`PlayerActivity` 传状态；`VideoScreen` 顶栏睡眠入口由占位改为正式对话框；`VideoViewModel` 接状态源 |
+| `modes:music` | 删除 `MusicSleepTimer` / `MusicSleepTimerTest`；`MusicModeViewModel` 改注入 `SleepTimerController`；`SleepTimerSheet` 换共享组件；底栏倒计时改用 `SleepTimerSpec.formatRemaining` |
+
+### 26.3 门禁（全绿）与真机清单（待设备窗口）
+
+- 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务逐个 `--rerun` **576 项 / 0 失败 / 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 111；music −1 = 旧 `MusicSleepTimerTest` 迁移）；新增 `:player:core:testDebugUnitTest` **7 项 / 0 失败**（分钟换算 / 1–240 边界 / 到点判定 / 取消清理 / 格式化），全量 **583 项 / 0 失败**。
+- 真机清单：① 音乐顶栏月亮 → 10 分钟 → 底栏 `睡眠 09:xx` 递减 → 到点暂停、文案消失；② 音乐自定义（如 37 分钟）→ 滑块 +「开始计时 · 37 分钟」生效，取消后不再暂停；③ 视频播放页右上睡眠键 → 面板（预设 + 自定义）→ 激活态点亮 → 到点暂停视频；④ 视频页顶栏睡眠对话框（非占位）设定后进入播放页状态连续；⑤ 熄屏 / 后台跨页面到点仍暂停（音乐 / 视频各一组）；⑥ 0 FATAL / ANR、播放页既有布局（D27 键序）不回归。

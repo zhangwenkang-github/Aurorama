@@ -88,6 +88,8 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 **W51b + W53B + W54-D 合并归档（2026-10-04，master `1bc026b`）**：负责人按「逐个验收合并」执行——W53B（侧栏「本地媒体库」子分组 + 本地库卡 16:9）`f24c7b8` → W54-D（首页模块 + 设置收口 + 「全部」修复）rebase 让号 **D61 / D62** 后 `233b387` → W51b（Show / Season 取集字段 `Overview + CanDownload + MediaSources` + 批量入队快照前移）`1bc026b`；master 门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` + 7 任务 `--rerun` **577 项 / 0 失败 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 112）；CI Build + Format 双绿；三波联合真机走查（Pad 5 主 + K60 抽验）通过、0 FATAL / ANR（清单与结论见 `UI_PLAN` §5 / `DOWNLOAD_PLAN` §20.7）。**下一波**：W55 睡眠定时统一（音乐 / 视频共享 + 自定义 1–240 分钟）→ 发布准备（待用户对功能界面最终全检）。
 
+**W55 更新（2026-10-04，分支 `feature/w55-sleep-timer`，起点 master `1aae466`，待负责人合并）**：用户 2026-10-04 确认的「睡眠定时统一」整波落地——音乐 / 视频共享 `player:local` 进程级单例 `SleepTimerController`（离开页面 / 熄屏 / 后台播放继续生效；到点暂停唯一共享播放器实例，音视频互斥）；预设保留 10 / 20 / 30 / 60 + 新增自定义 1–240 分钟（滑块，core 共享组件 `CinefinSleepTimerOptions`）；播放器睡眠键 / 面板、视频页顶栏（W54-C 占位转正）、音乐顶栏 / sheet / 底栏全部接同一状态源；纯逻辑落 `player:core`（`SleepTimerSpec` + `SleepTimerStateMachine`）并新增 7 项单测。门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` **576 项 / 0 失败 0 错误**（music −1 = 旧 `MusicSleepTimerTest` 迁移）、含新 `:player:core:testDebugUnitTest` 全量 **583 项 / 0 失败**。红线动 `player/core` / `player/local` / `core` / `app/phone` / `modes/music` / `modes/film`（删占位文案）；`AppPreferences.kt` / `NavigationRoot.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` 未动。真机验收待设备窗口（清单 `PLAYER_PLAN` §26 / `UI_PLAN` §5 / `MUSIC_PLAN` §5.15）。
+
 ## 4. 里程碑状态（源自旧 `docs/PLAN.md`，已合并）
 
 | 阶段 | 内容 | 状态 |

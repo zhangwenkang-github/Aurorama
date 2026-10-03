@@ -83,6 +83,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.ui.AspectRatioFrameLayout
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -95,11 +96,13 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_N
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
+import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
+import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.mergePlayerMediaInfo
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
@@ -150,9 +153,6 @@ internal fun playerBottomScrim(): Brush {
 
 /** 可选倍速档位：与设置里的「长按倍速」共用同一批数值，保持一致 */
 private val SpeedOptions = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
-
-/** 睡眠定时的档位（分钟） */
-private val SleepOptions = listOf(10, 20, 30, 60)
 
 /**
  * 覆盖层控件「玻璃框」的不透明度（W12 反馈 A）。
@@ -638,6 +638,10 @@ fun PlayerControlOverlay(
     onBottomBarHeight: (Int) -> Unit = {},
     /** 实测中央簇尺寸（px）回传给命中区：窄窗收尺寸后命中块跟着收，画面其余部分仍留给手势 */
     onCenterClusterSize: (Int, Int) -> Unit = { _, _ -> },
+    /** 睡眠定时状态（W55 统一状态源：音乐 / 视频共用同一计时器） */
+    sleepState: SleepTimerController.State = SleepTimerController.State(),
+    /** 选择睡眠定时分钟；null = 取消 */
+    onSelectSleepMinutes: (Int?) -> Unit = {},
     /** 全屏（W11 反馈⑥）：收起常驻内容栏 + 强制横屏；同一个键按状态换图标 */
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
@@ -652,8 +656,6 @@ fun PlayerControlOverlay(
     // 打开期间直接用当前面板（首帧不闪「更多」）；关闭后交给 lastPanel 走退场动画
     val drawerPanel = if (panel == PlayerPanel.None) lastPanel else panel
     var aspect by remember { mutableStateOf(AspectMode.of(initialResizeMode)) }
-    var sleepMinutes by remember { mutableStateOf<Int?>(null) }
-    var sleepRemaining by remember { mutableLongStateOf(0L) }
     var skipChipVisible by remember { mutableStateOf(true) }
     // W27 PlayerDebugOverlay：长按标题打开，面板上的关闭键关掉
     var debugOverlayVisible by remember { mutableStateOf(false) }
@@ -750,24 +752,6 @@ fun PlayerControlOverlay(
         }
     }
 
-    // 睡眠定时：到点暂停
-    LaunchedEffect(sleepMinutes) {
-        val minutes = sleepMinutes
-        if (minutes == null) {
-            sleepRemaining = 0L
-            return@LaunchedEffect
-        }
-        var remaining = minutes * 60_000L
-        while (remaining > 0L) {
-            sleepRemaining = remaining
-            delay(1000L)
-            remaining -= 1000L
-        }
-        sleepRemaining = 0L
-        player.pause()
-        sleepMinutes = null
-    }
-
     /*
      * 底栏在两处出现（画面区内 / 折叠半开下屏），参数完全一致，抽成一个局部 composable。
      *
@@ -811,7 +795,7 @@ fun PlayerControlOverlay(
                 trickplayVersion = uiState.trickplayVersion,
                 trickplayFrameAt = trickplayFrameAt,
                 speed = runtime.speed,
-                sleepActive = sleepRemaining > 0L,
+                sleepActive = sleepState.active,
                 subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
                 bitrateActive = settingsController.state.streamingBitrate > 0L,
                 decodeActive =
@@ -848,7 +832,7 @@ fun PlayerControlOverlay(
             aspectActive =
                 aspect.resizeMode != AspectMode.Fit.resizeMode || videoTransform.hasAdjustments,
             queueActive = hasSidePanel && sidePanelExpanded,
-            sleepActive = sleepRemaining > 0L,
+            sleepActive = sleepState.active,
             queueDescription =
                 stringResource(
                     when {
@@ -1291,8 +1275,8 @@ fun PlayerControlOverlay(
                         )
                     PlayerPanel.Sleep ->
                         SleepPanel(
-                            currentMinutes = sleepMinutes,
-                            onSelect = { sleepMinutes = it },
+                            state = sleepState,
+                            onSelect = onSelectSleepMinutes,
                         )
                     PlayerPanel.None -> Unit
                 }
@@ -3626,21 +3610,105 @@ private fun QueuePanel(
 
 @Composable
 private fun SleepPanel(
-    currentMinutes: Int?,
+    state: SleepTimerController.State,
     onSelect: (Int?) -> Unit,
 ) {
+    val colors = LocalCinefinColors.current
+    val activeMinutes = state.minutes
+    val customActiveMinutes = activeMinutes?.takeIf { it !in SleepTimerSpec.PRESET_MINUTES }
+    val isCustomActive = customActiveMinutes != null
+    var customExpanded by remember { mutableStateOf(false) }
+    var customMinutes by remember { mutableIntStateOf(customActiveMinutes ?: 30) }
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
+            if (state.active) {
+                PanelTitle(
+                    stringResource(
+                        CoreR.string.sleep_timer_subtitle_active,
+                        SleepTimerSpec.formatRemaining(state.remainingMs),
+                    )
+                )
+            } else {
+                PanelTitle(stringResource(CoreR.string.sleep_timer_subtitle))
+            }
             PanelRow(
-                label = stringResource(PlayerR.string.player_controls_sleep_off),
-                selected = currentMinutes == null,
+                label =
+                    stringResource(
+                        if (state.active) CoreR.string.sleep_timer_cancel
+                        else CoreR.string.sleep_timer_off
+                    ),
+                selected = !state.active,
                 onClick = { onSelect(null) },
             )
-            SleepOptions.forEach { minutes ->
+            SleepTimerSpec.PRESET_MINUTES.forEach { minutes ->
                 PanelRow(
-                    label = stringResource(PlayerR.string.player_controls_sleep_minutes, minutes),
-                    selected = currentMinutes == minutes,
+                    label = stringResource(CoreR.string.sleep_timer_minutes, minutes),
+                    selected = activeMinutes == minutes,
                     onClick = { onSelect(minutes) },
+                )
+            }
+            PanelRow(
+                label = stringResource(CoreR.string.sleep_timer_custom),
+                caption =
+                    when {
+                        customExpanded -> stringResource(CoreR.string.sleep_timer_custom_hint)
+                        customActiveMinutes != null ->
+                            stringResource(
+                                CoreR.string.sleep_timer_custom_current,
+                                customActiveMinutes,
+                            )
+                        else -> null
+                    },
+                selected = isCustomActive,
+                onClick = {
+                    if (!customExpanded && customActiveMinutes != null) {
+                        customMinutes = customActiveMinutes
+                    }
+                    customExpanded = !customExpanded
+                },
+            )
+            if (customExpanded) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .padding(
+                                horizontal = CinefinSpacing.Space5,
+                                vertical = CinefinSpacing.Space2,
+                            ),
+                ) {
+                    Text(
+                        text = stringResource(CoreR.string.sleep_timer_custom_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(CoreR.string.sleep_timer_minutes, customMinutes),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colors.onSurface,
+                    )
+                }
+                CinefinSlider(
+                    value = customMinutes.toFloat(),
+                    onValueChange = { value ->
+                        customMinutes =
+                            value
+                                .roundToInt()
+                                .coerceIn(
+                                    SleepTimerSpec.MIN_MINUTES,
+                                    SleepTimerSpec.MAX_MINUTES,
+                                )
+                    },
+                    valueRange =
+                        SleepTimerSpec.MIN_MINUTES.toFloat()..SleepTimerSpec.MAX_MINUTES.toFloat(),
+                    steps = SleepTimerSpec.MAX_MINUTES - SleepTimerSpec.MIN_MINUTES - 1,
+                    modifier = Modifier.padding(horizontal = CinefinSpacing.Space5),
+                )
+                PanelRow(
+                    label = stringResource(CoreR.string.sleep_timer_custom_start, customMinutes),
+                    selected = false,
+                    onClick = { onSelect(customMinutes) },
                 )
             }
         }

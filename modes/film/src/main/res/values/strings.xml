@@ -48,7 +48,6 @@
     <string name="video_library_all">All libraries</string>
     <string name="library_favorite">Favorite this library</string>
     <string name="video_sleep_timer">Sleep timer</string>
-    <string name="video_sleep_timer_hint">The sleep timer arrives in the next release — this build only wires up the entry point.</string>
     <string name="bookshelf_library_auto">Automatic</string>
     <string name="library_current_detail">Current: %1$s</string>
 </resources>
