@@ -159,6 +159,13 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D56 | **全屏播放页与歌词页手势改向（用户 2026-10-03 确认）**：全屏播放页 **左滑 → 歌词页**、下滑关闭、**右滑留空**（不再绑定歌词）、**取消左滑打开队列**；歌词页 **右滑 → 返回全屏播放页**、下滑返回、左上返回箭头保留；队列仍只由「队列」按钮 / 底部队列图标打开。判定逻辑抽成纯函数 `swipeGestureDirection(totalX, totalY, 横阈值, 纵阈值)`（`MusicNowPlayingScreen.kt`），未达阈值返回 `null`，5 项单测 | 覆盖 W23 D29「右滑进歌词 / 左滑呼出队列」的方向决策（用户 2026-10-03 改口）；把"横向位移占优才判横滑、纵向下滑单独判"的矩阵从 `pointerInput` 闭包里提出来，两页共用同一函数、方向可单测，阈值不再散落 |
 | D57 | **音效面板的开关与滑杆改走 core 共享组件**（`CinefinSwitch` / `CinefinSlider`；全 App 范围与组件规格见 `UI_PLAN` D46）：开关关闭态拇指 `onSurfaceVariant` + 轨道 `surfaceContainerHigh` / `onSurfaceFaint` 描边；滑杆 = 4dp 胶囊轨道 + 18dp 圆点拇指 + 极轻同色柔光（与播放页 D38 自绘 `MusicProgressBar` 同一视觉语言）。**W30 交互语义不变**：`onValueChange` 实时预览、`onValueChangeFinished` 才落盘（W30 踩坑 38），EQ 关闭时五段滑杆 `enabled=false`，ReplayGain 覆盖的 0.5 dB 步进改由 `steps` + 吸附纯函数实现 | 用户实测：①M3 默认 `Switch` 关闭态拇指取 `outline`，在暗底上几乎看不见（「开启均衡器」小圆点不明显）；②M3 默认 `Slider` 的竖条拇指（浮标）与播放页圆点进度条不是一套语言。共享组件 + 纯函数吸附让"拖动实时生效、松手落盘"可被单测与真机像素双重取证，也避免两处滑杆各写一份样式 |
 
+### 2.15 W56 本会话决策（迷你条「关闭面板」/ 全屏去歌词按钮）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D59 | **迷你播放条新增「关闭面板」×（用户 2026-10-04 拍板）**：行为 = 停止播放并收起面板；活动会话走 `MusicPlaybackController.stop()`（停播 + 清内存队列 + Stop 上报），恢复态只丢本次进页面的 `_restoredQueue` 展示快照；**队列存档只写不清**（`MusicQueuePersister` 既有语义），收起后再次选择曲目走既有起播路径。按钮复用 `CinefinIconButton` + `CoreR.drawable.ic_close`（contentDescription「关闭面板」），排在迷你条按钮组末位；不新增配色 / 字体 / 位图 / 字符串资源。落点判定抽纯函数 `musicMiniBarDismissTarget(hasLiveQueue, hasRestoredQueue)`（`modes/music`）+ 3 项单测 | `stop()` 后 `queue = live ?: restored` 两端同时为空 → 迷你条与全屏覆盖层由既有 `LaunchedEffect(queue)` 自动收起；用纯函数把「停播 / 只丢展示快照 / 无操作」三态从 Compose 里提出来，避免「× 把存档也清了」的回退 |
+| D60 | **全屏播放页删除「歌词」入口按钮（用户 2026-10-04 拍板）**：`PlayerActionRow` 由六键改五键（播放队列 / 播放模式 / 收藏 / 桌面歌词 / 音效）；进歌词页保留既有两条路径——点歌词预览行（W24 C8）与左滑手势（W44 D56）；**迷你播放条上的「词」按钮保留不动**（用户只要求播放界面）。不改歌词页本体（`MusicLyricsPage` / `LyricsSheet`）与桌面歌词 | 三条入口并存冗余；删按钮不影响点击行与手势两条路径，`MusicSwipeGestureTest` 等既有单测不回归 |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -353,6 +360,16 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - [x] **真机验证（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03 12:20–12:50）**：见 §5.13（含开关关闭态 thumb / 轨道像素采样与对比度）
 
 **遗留（明示）**：①歌词页「下滑返回」在歌词列表处于可滚动位置时依赖列表滚动边界，长歌词列表从中间下滑仍是滚动列表（与 W23 同款行为，未改）；②`CinefinSlider` 为自绘实现，键盘 / 无障碍只提供 `progressBarRangeInfo` + `setProgress`（无 M3 的完整键盘步进）；③滑杆发光沿用播放页的 `GlowScale = 2.6`，若后续设计系统调整进度条光晕需同步。
+
+### W56 交互修正：迷你条「关闭面板」+ 全屏去歌词按钮（本会话 `feature/w56-interaction-fixes`，起点 master `2ed356f`）
+
+- [x] **A 迷你播放条 ×**：`NowPlayingBar` 按钮组末位新增 `CinefinIconButton`（`CoreR.drawable.ic_close`，contentDescription「关闭面板」）→ `MusicModeViewModel.dismissNowPlayingBar()`：活动会话 `MusicPlaybackController.stop()`（停播 + 清内存队列 + Stop 上报），恢复态只丢内存展示快照；队列存档只写不清（`MusicQueuePersister`），收起后再次选择曲目走既有起播路径；迷你条 / 全屏覆盖层由既有 `LaunchedEffect(queue)` 自动收起
+- [x] **B 全屏去歌词按钮**：`PlayerActionRow` 六键 → 五键（播放队列 / 播放模式 / 收藏 / 桌面歌词 / 音效）；进歌词页保留「点歌词预览行」（W24 C8）与「左滑」（W44 D56）；迷你条「词」按钮保留
+- [x] **纯函数 + 单测**：`musicMiniBarDismissTarget(hasLiveQueue, hasRestoredQueue)`（`modes/music`）+ 3 项单测（停播 / 只丢快照 / 无操作）
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **583 项 / 0 失败 0 错误**（music 111 → 114）；含 `:player:core:testDebugUnitTest` 全量 **590 项 / 0 失败**
+- [ ] **真机**：待设备窗口（清单见 §5.16）
+
+**遗留（明示）**：①× 在恢复态只丢本次进页面的展示快照，**不清磁盘存档**（按用户「队列保留」口径，重启仍可恢复）；②迷你条按钮组由五枚增至六枚，窄屏手机（≈360dp）标题区更早省略——未改布局，真机走查时留意是否拥挤（必要时再评估）。
 
 ## 4. 学习笔记（ROLE_SKILLS §5.2 全表成果）
 
@@ -732,6 +749,13 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **576 项 / 0 失败**（music 111）；含新 `:player:core:testDebugUnitTest` 全量 **583 项 / 0 失败**。
 - **真机（待窗口）**：音乐到点暂停 / 自定义分钟 / 取消清理 / 熄屏后台 / 0 FATAL，清单见 `PLAYER_PLAN` §26.3。
 
+### 5.16 W56 交互修正（2026-10-04，静态 / 门禁，分支 `feature/w56-interaction-fixes`）
+
+- **范围**：迷你播放条「关闭面板」×（停播 + 收起，队列存档保留）；全屏播放页删除歌词入口按钮（保留点歌词行 / 左滑进歌词页；迷你条「词」保留）。
+- **决策（D59–D60）**：见 §2.15。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **583 项 / 0 失败 0 错误**（music +3）；含 `:player:core:testDebugUnitTest` 全量 **590 项 / 0 失败**。
+- **真机（待窗口）**：①播放中点 × → 音频停止、迷你条消失、媒体通知消退；②× 后再次点曲目 → 正常起播；③重启后仍能恢复队列（存档未被 × 清空）；④全屏播放页按钮组 = 五键（无「歌词」）；⑤点歌词预览行 / 左滑仍进歌词页；⑥迷你条「词」仍打开歌词 sheet；⑦窄屏手机下六键迷你条不拥挤 / 可点；⑧0 FATAL / ANR。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：
@@ -823,6 +847,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 43. **空态不可滚动 → `PullToRefreshBox` 收不到下拉手势**（W39）：PTR 依赖子树的嵌套滚动事件，空态如果只是 `Box(fillMaxSize)` 居中放空状态，手指下拉没有任何可滚动节点消费，刷新永远不触发。修法：把空态包成 `Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Center)`——内容比视口小时仍居中、同时把手势转给 PTR；`CinefinEmptyState` 自身是 `fillMaxWidth + padding`，不会在无限高约束下崩。
 
 ## 7. 会话日志
+
+- **2026-10-04 W56 交互修正（本会话，`feature/w56-interaction-fixes`，起点 master `2ed356f`）**：①迷你播放条新增「关闭面板」×（`MusicModeViewModel.dismissNowPlayingBar()`：活动会话 `stop()` 停播清内存队列 / 恢复态只丢展示快照；存档只写不清；纯函数 `musicMiniBarDismissTarget` + 3 项单测）；②全屏播放页 `PlayerActionRow` 六键改五键（删「歌词」入口；点歌词行与左滑两条路径保留，迷你条「词」保留）；③设置 / 导航两处 UI 修正在 `UI_PLAN` D63–D64（账号卡并入「账号与服务器」组首行；顶层图标统一「回对应主页」，音乐覆盖层用 `reselectSignal` 收起）。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` 583 项 0 失败、全量 590 项 0 失败。真机待窗口（§5.16）。分支已推送未合并。
 
 - **2026-10-04 W55 睡眠定时统一（本会话，`feature/w55-sleep-timer`，起点 master `1aae466`）**：先只读核对音乐侧 `MusicSleepTimer`（W21，10/20/30/60 + 关闭、进程级、到点 `MusicPlaybackController.pause()`）与视频侧 `PlayerControlOverlay` 内的局部计时（`remember` + `LaunchedEffect`、档位同 10/20/30/60、到点 `player.pause()`），确认两侧到点行为一致 → 按「保留既有档位 + 自定义 1–240」落地统一：`player:core` 新增 `SleepTimerSpec` / `SleepTimerStateMachine`（7 项纯函数单测），`player:local` 新增进程级 `SleepTimerController`（唯一共享播放器实例到点暂停），core 新增 `CinefinSleepTimerOptions` 共享组件（复用 `CinefinListRow` / `CinefinSlider` / `CinefinButton`），三处宿主（音乐 sheet / 视频页对话框 / 播放器面板）接同一状态源。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` 576 项 0 失败、全量 583 项 0 失败。真机待窗口（清单 `PLAYER_PLAN` §26.3）。分支已推送未合并。
 
