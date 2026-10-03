@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import org.junit.Assert.assertEquals
@@ -202,6 +203,74 @@ class DownloadHierarchyBuilderTest {
         )
     }
 
+    /** W52：容器聚合口径 = 子任务速度之和；剩余时间 = 剩余字节 / 聚合速度。 */
+    @Test
+    fun `container aggregates speed and eta from children`() {
+        val entries =
+            listOf(
+                taskEntry(
+                    name = "E1",
+                    status = DownloadTaskStatus.RUNNING,
+                    downloaded = 100L,
+                    total = 400L,
+                    speed = 10L,
+                    index = 1,
+                ),
+                taskEntry(
+                    name = "E2",
+                    status = DownloadTaskStatus.RUNNING,
+                    downloaded = 200L,
+                    total = 600L,
+                    speed = 20L,
+                    index = 2,
+                ),
+                taskEntry(
+                    name = "E3",
+                    status = DownloadTaskStatus.COMPLETED,
+                    downloaded = 0L,
+                    total = 0L,
+                    speed = 0L,
+                    index = 3,
+                    sizeBytes = 300L,
+                ),
+            )
+
+        val show = DownloadHierarchyBuilder.build(entries).single()
+
+        assertEquals(600L, show.downloadedBytes)
+        assertEquals(1300L, show.totalBytes)
+        assertEquals(30L, show.speedBytesPerSecond)
+        // 剩余 700 字节 / 30 B/s = 23.34 → 向上取整 24s。
+        assertEquals(24L, show.etaSeconds)
+
+        val season = show.children.single() as DownloadHierarchySubContainer
+        assertEquals(600L, season.downloadedBytes)
+        assertEquals(1300L, season.totalBytes)
+        assertEquals(30L, season.speedBytesPerSecond)
+        assertEquals(24L, season.etaSeconds)
+    }
+
+    /** W52：没有速度数据（进程重启 / 已暂停）时剩余时间为 null，界面显示占位「—」。 */
+    @Test
+    fun `container without speed has no eta`() {
+        val entry =
+            taskEntry(
+                name = "E1",
+                status = DownloadTaskStatus.PAUSED,
+                downloaded = 100L,
+                total = 400L,
+                speed = 0L,
+                index = 1,
+            )
+
+        val show = DownloadHierarchyBuilder.build(listOf(entry)).single()
+
+        assertEquals(100L, show.downloadedBytes)
+        assertEquals(400L, show.totalBytes)
+        assertEquals(0L, show.speedBytesPerSecond)
+        assertEquals(null, show.etaSeconds)
+    }
+
     @Test
     fun `flattener expands and collapses containers`() {
         val entries =
@@ -233,5 +302,46 @@ class DownloadHierarchyBuilderTest {
         // 只展开季：子项可见（容器本身仍折叠时子项不显示，这里验证季展开逻辑）。
         val seasonOnly = DownloadHierarchyFlattener.flatten(containers, setOf(showKey, seasonKey))
         assertEquals(2, seasonOnly.count { it is DownloadHierarchyRow.ItemRow })
+    }
+
+    private fun taskEntry(
+        name: String,
+        status: DownloadTaskStatus,
+        downloaded: Long,
+        total: Long,
+        speed: Long,
+        index: Int,
+        sizeBytes: Long = total,
+    ): DownloadHierarchyEntry {
+        val itemId = UUID.randomUUID()
+        return DownloadHierarchyEntry(
+            itemId = itemId,
+            name = name,
+            mediaKind = DownloadMediaKind.VIDEO,
+            status = status,
+            sourceId = if (status == DownloadTaskStatus.COMPLETED) "src-$name" else null,
+            sizeBytes = sizeBytes,
+            downloadedBytes = downloaded,
+            totalBytes = total,
+            seriesId = showId,
+            seasonId = seasonOneId,
+            seriesName = "示例剧",
+            seasonName = "第 1 季",
+            episodeIndex = index,
+            task =
+                DownloadTask(
+                    itemId = itemId,
+                    sourceId = "src-$name",
+                    name = name,
+                    path = "/tmp/$name.download",
+                    downloadId = 1L,
+                    status = status,
+                    failureReason = null,
+                    downloadedBytes = downloaded,
+                    totalBytes = total,
+                    updatedAt = 0L,
+                    speedBytesPerSecond = speed,
+                ),
+        )
     }
 }

@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -16,7 +17,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -28,17 +33,24 @@ import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.presentation.components.ColdStartSplash
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
+import com.zhangwenkang.cinefin.utils.EXTRA_OPEN_DOWNLOADS
 import com.zhangwenkang.cinefin.viewmodels.MainState
 import com.zhangwenkang.cinefin.viewmodels.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
+    /** W52：多任务下载通知的「打开下载页」请求（冷启动读 Intent，热启动由 onNewIntent 写入）。 */
+    private var openDownloadsRequest by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        openDownloadsRequest = consumeOpenDownloadsRequest(intent)
         requestDownloadNotificationPermission()
 
         // 应用固定深色外观：状态栏/导航栏图标始终用浅色，
@@ -63,11 +75,31 @@ class MainActivity : AppCompatActivity() {
                         visible = !state.isLoading,
                         enter = fadeIn(tween(CinefinMotion.Reader)),
                     ) {
-                        MainContent(state = state, navController = navController)
+                        MainContent(
+                            state = state,
+                            navController = navController,
+                            openDownloadsRequest = openDownloadsRequest,
+                            onOpenDownloadsHandled = { openDownloadsRequest = false },
+                        )
                     }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (consumeOpenDownloadsRequest(intent)) {
+            openDownloadsRequest = true
+        }
+    }
+
+    /** 读取并消费「打开下载页」标记：消费后同一个 Intent 不会重复触发导航。 */
+    private fun consumeOpenDownloadsRequest(intent: Intent?): Boolean {
+        val requested = intent?.getBooleanExtra(EXTRA_OPEN_DOWNLOADS, false) == true
+        if (requested) intent.removeExtra(EXTRA_OPEN_DOWNLOADS)
+        return requested
     }
 
     /**
@@ -97,6 +129,8 @@ class MainActivity : AppCompatActivity() {
 private fun MainContent(
     state: MainState,
     navController: NavHostController,
+    openDownloadsRequest: Boolean,
+    onOpenDownloadsHandled: () -> Unit,
 ) {
     CompositionLocalProvider(LocalOfflineMode provides state.isOfflineMode) {
         NavigationRoot(
@@ -105,5 +139,12 @@ private fun MainContent(
             hasCurrentServer = state.hasCurrentServer,
             hasCurrentUser = state.hasCurrentUser,
         )
+    }
+    LaunchedEffect(openDownloadsRequest) {
+        if (!openDownloadsRequest) return@LaunchedEffect
+        // NavHost 尚未组合时 currentBackStackEntry 为 null；等它就绪后再跳（冷启动路径）。
+        snapshotFlow { navController.currentBackStackEntry }.filterNotNull().first()
+        navController.navigate(DownloadsRoute) { launchSingleTop = true }
+        onOpenDownloadsHandled()
     }
 }

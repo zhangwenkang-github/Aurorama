@@ -126,6 +126,7 @@
     <string name="download_tasks_completed">已完成</string>
     <string name="download_tasks_failed">失敗</string>
     <string name="download_storage_usage">已佔用 %1$s · 可用 %2$s</string>
+    <string name="download_storage_books_suffix">（含書籍 %1$s）</string>
     <string name="download_empty_active">沒有進行中的下載</string>
     <string name="download_empty_failed">沒有失敗的下載</string>
     <string name="download_action_pause">暫停</string>
@@ -153,6 +154,11 @@
     <string name="download_notification_cancel">取消</string>
     <string name="download_notification_completed">下載完成</string>
     <string name="download_notification_failed">下載失敗</string>
+    <string name="download_filter_all">全部</string>
+    <string name="download_filter_book">書籍</string>
+    <string name="download_container_progress">已下載 %1$s</string>
+    <string name="download_eta_remaining">剩餘 %1$s</string>
+    <string name="download_delete_container_message">刪除此下載分組下的全部內容？</string>
     <string name="title_music">音樂</string>
     <string name="title_book_shelf">書架</string>
     <string name="title_more">更多</string>

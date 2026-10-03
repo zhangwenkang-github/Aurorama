@@ -16,6 +16,8 @@ import com.zhangwenkang.cinefin.core.R as CoreR
  *
  * - 前台通知：常驻，显示当前任务进度 + 暂停 / 取消操作（WorkManager `setForeground` 托管）；
  * - 完成 / 失败通知：单任务一条，自动消失，点击打开应用。
+ *
+ * W52：操作按钮仍只对「当前任务」生效；**多任务**时点击通知本体直接进下载页（不额外做多按钮）。
  */
 internal class DownloadNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -40,7 +42,7 @@ internal class DownloadNotifications(private val context: Context) {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
-                .setContentIntent(openAppIntent())
+                .setContentIntent(openAppIntent(openDownloads = activeCount > 1))
                 .setProgress(100, task?.progressPercent() ?: 0, task?.totalBytes == 0L)
         if (task != null) {
             builder
@@ -112,10 +114,13 @@ internal class DownloadNotifications(private val context: Context) {
         }
     }
 
-    private fun openAppIntent(): PendingIntent {
+    private fun openAppIntent(openDownloads: Boolean = false): PendingIntent {
         val launch =
             context.packageManager.getLaunchIntentForPackage(context.packageName)
                 ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
+        // W52：单实例 + SINGLE_TOP，进程活着时把「进下载页」的请求交给 onNewIntent（冷启动走 onCreate）。
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        if (openDownloads) launch.putExtra(EXTRA_OPEN_DOWNLOADS, true)
         return PendingIntent.getActivity(
             context,
             REQUEST_OPEN_APP,
@@ -165,3 +170,6 @@ internal class DownloadNotifications(private val context: Context) {
         private const val REQUEST_OPEN_APP = 100
     }
 }
+
+/** W52：多任务前台通知点击时，把「打开下载页」意图经启动 Intent 传给 [com.zhangwenkang.cinefin.MainActivity]。 */
+const val EXTRA_OPEN_DOWNLOADS = "com.zhangwenkang.cinefin.extra.OPEN_DOWNLOADS"

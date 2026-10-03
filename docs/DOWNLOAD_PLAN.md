@@ -189,6 +189,7 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 | 2026-10-03 | W36-OFFLINE | 补充要求（负责人转达）：层级图规则（节目 / 季海报、剧集缩略图 + 回退）+ 离线媒体库只显示节目 + 本地媒体库占位 / 开关 + 时长快照；真机修复 2 处（离线 VM 缓存刷新、退出离线后音乐曲库不切换）+ 离线仓库 `getDownloads` 补剧集层级；下载测试数据已删、双机已还原 |
 | 2026-10-03 | W37-LOCAL-LIBRARY | 本地媒体库：Room v11 三表 + SAF 递归扫描（持久化权限 / 扩展名白名单 / 混合分组 / 每文件夹层级·平铺）+ 确定性 itemId + 合成 LOCAL 源（视频复用播放器）+ 阅读器 content:// 三路 + 音乐曲库来源筛选 / 混合同队列 / 来源徽标 + 媒体库与离线页常显入口 + 非破坏删除；顺手修 W36 两项遗留（下载刷新竞态 / 补拉图片）；门禁全绿（app 70 / core 16 / data 27 / film 6 / book 106 / music 99）；真机 Pad 5 + K60 抽验通过（见 §13） |
 | 2026-10-03 | W50-DOWNLOAD-ENGINE | **自研下载引擎替换**（推翻 D1/D2）：OkHttp Range 真断点续传 + 暂停保留残片 + Wi-Fi/漫游策略 + 失败分类退避 + 速度/ETA 数据模型 + Room v12 六列只追加 + 旧进行中任务标记需重下 + DownloadManagerSupport/DownloadReceiver 退役 + WM 长时 worker 托管前台通知（进度/暂停/取消）+ 完成/失败通知 + 三个下载设置接引擎；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，496 项单测 0 失败（W49 基线 486 + W50 净增 10）；**真机 8 项验收通过（Pad 5 主 + K60 抽验：暂停续传 / force-stop / 重启后打开续传 / 飞行模式自动恢复 / 通知 / 三设置 / 回归 / 迁移，0 FATAL；真机拦下并修复网络策略误判、唤醒延迟、恢复等待过长 3 处，见 §18.7）** |
+| 2026-10-03 | W52-DOWNLOADS-REDESIGN | 下载页改版（§19）：大海报 96×144dp + 大条目 + 平板两列 + 容器聚合（已下载 x/y / 已用与总大小 / 速度 / 剩余时间，`DownloadAggregateRules` + `DownloadFormatRules` 纯函数）+ 旧组件重绘（Lumen 确认对话框 / 状态徽标 / LumenSkeleton 骨架）+ 多任务前台通知点击进下载页；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、**507 项单测 0 失败**（app 84 / core 37 / data 45 / film 14 / music 109 / book 113 / player:local 105；基线 496 + 11）；提交 `12c46dd` 已推送分支 `feature/w52-downloads-redesign`（rebase origin/master `2963799`，docs-only 增量）；**真机验收待调度（设备由 W53 占用）**，清单见 §19.5 |
 
 ## 10. W34 遗留
 
@@ -430,3 +431,69 @@ W45 遗留两条（§14.4）本波落地；**缓存与懒生成策略不变**（
 - **MIUI 自启动限制**：重启设备后系统不允许 App 后台拉起（JobScheduler 无任务、进程不启动）→ 需用户打开 App 才续传；AOSP / 已授予自启动权限不受影响。如需彻底修复可加 `BOOT_COMPLETED` 接收器 + 引导用户开启自启动（本波评估后不引入，留 W51/W52 决定）。
 - **MIUI 通知 action 点击**：前台通知的「暂停/取消」在 dumpsys 中确认注册（PendingIntent），但 MIUI 通知面板不把 action 暴露给 uiautomator，无法自动点按取证；同一引擎 API（`pauseTaskById` / `deleteTaskById`）已通过 App 内暂停 / 继续 / 删除路径验证。
 - 双机各留有 25–47 KB 旧 DownloadManager `.js` 孤儿文件（历史遗留，非本波产生）。
+
+## 19. W52 下载界面改版（2026-10-03，分支 `feature/w52-downloads-redesign`，起点 master `8f3ba0e`）
+
+**背景**：W50 自研引擎已把速度 / ETA / 已下载字节 / 总大小写进 `DownloadTask`（§18），下载页仍是 W34 的 40dp 缩略图 + 文本行。
+用户 2026-10-03 确认按「**大海报 + 大条目 + 容器聚合进度 + 速度 / 剩余时间**」重排，并重绘下载页内的旧 Findroid 组件。
+本波只改下载页与下载流程组件，不动导航 / 设置 / 详情页动作排（W51）与视频入口（W53）。
+
+### 19.1 排版规格（用户口径）
+
+| 项 | 规格 |
+|----|------|
+| 手机（Compact）· 节目 / 电影 / 书籍容器 | 竖版海报 **96×144dp**（2:3，贴满行高）；卡片行高 = max(海报 144dp, 文本列 148dp) ≈ **148dp**（目标 144–150dp） |
+| 手机 · 季容器 | 72×108dp 海报（第二级缩进 12dp） |
+| 手机 · 剧集条目 | **112×63dp**（16:9）缩略图；曲目 56×56dp；书籍 48×72dp；电影子项 64×96dp |
+| 专辑容器 | 方形封面 **96×96dp**（手机）/ 104×104dp（平板） |
+| 平板（≥600dp） | 海报 104×156dp；**折叠的顶层容器两两并排（两列）**；展开容器连同子项整宽展示 |
+| 条目信息 | 标题 / 季集号（`S1E2`）/ 大小 / 状态徽标 / 进度条；容器额外携带聚合信息 |
+| 图片加载 | 沿用 Coil `AsyncImage` + W36 层级图规则（剧集缩略图 → 季海报 → 节目海报 → 类型图标）；占位 = 类型图标（加载中 / 失败露在图下层），不新增位图资源 |
+| 列表性能 | `LazyColumn` 逐行 `key` + `contentType`（容器 / 季 / 条目 / 两列行四种类型），聚合与格式化全部走 `remember` / 纯函数（不逐帧重算） |
+
+尺寸唯一落点 = `app/phone/.../presentation/film/downloads/DownloadRows.kt` 的 `DownloadListMetrics`；
+平板成行规则 = 同目录 `DownloadGridGrouping`（纯函数）。
+
+### 19.2 容器聚合口径
+
+| 字段 | 口径 |
+|------|------|
+| 已下载 x/y | 容器内**已完成条目数** / 容器内条目总数（与 W34 聚合状态同源） |
+| 已用 / 总大小 | `downloadedBytes` = 子条目已下载字节之和（已完成条目按文件体积计）；`totalBytes` = 子条目期待总大小之和（未知时回落到文件体积） |
+| 速度 | **容器速度 = 子任务速度之和**（缺失 = 0 → 界面显示占位「—」） |
+| 剩余时间 | **剩余字节 / 聚合速度**（向上取整）；剩余为 0 或无速度 = null → 界面显示占位「—」 |
+| 进度条 | 优先按字节（`byteProgress`），总大小未知时回落到条目计数；轮询值 200ms linear 跟随（§6.3，不逐帧跳变） |
+
+纯函数：`DownloadAggregateRules.of(entries)`（字节 / 速度 / ETA 聚合，`DownloadHierarchy.kt`）+
+`DownloadFormatRules`（体积 / 速度 / 剩余时间 /「x/y」/ 百分比文案，`DownloadFormatting.kt`），均有 JVM 单测。
+
+### 19.3 决策
+
+| 编号 | 决策 | 理由 / 后果 |
+|------|------|-------------|
+| D45 | **手机大海报行 = 海报贴满行高（96×144dp），文本列 12dp 内边距；平板海报放大到 104×156dp** | 满足「海报宽 96–104dp、行高 144–150dp」，避免「海报 + 上下 12dp 留白把行高推到 168dp」的偏差；`DownloadListMetrics` 是尺寸唯一落点 |
+| D46 | **平板两列只作用于「相邻且已折叠」的顶层容器**；展开容器连同子项整宽 | 层级从属关系（节目 → 季 → 剧集）不能被两列打断；`DownloadGridGrouping` 纯函数 + 3 项单测锁定规则 |
+| D47 | **下载页旧组件在页面内重绘**：M3 `AlertDialog` → `DownloadConfirmDialog`（Lumen 面板 + 月白主行动）；文本状态行 → 状态徽标（12dp 前置图标 + LabelSmall）；加载圈 → `LumenSkeleton` 骨架；空态补类型图标 | 范围限定下载页；`CancelDownloadDialog` / `DownloaderCard` / `DownloadedBadge` 属于详情页动作排（W51）与浏览卡，本波不动 |
+| D48 | **多任务前台通知点击进下载页**：`DownloadNotifications` 在 `activeCount > 1` 时给启动 Intent 加 `EXTRA_OPEN_DOWNLOADS`（`NEW_TASK + SINGLE_TOP`），`MainActivity` 在 `onCreate` / `onNewIntent` 消费后导航到 `DownloadsRoute` | 不新增通知按钮、不动 `NavigationRoot.kt`；单任务保持原行为（打开 App）；通知操作按钮仍只对当前任务生效 |
+
+### 19.4 门禁（2026-10-03）
+
+- 根 `assembleDebug`（含 TV）+ 根 `ktfmtCheck` 全绿；
+- 单测逐个 `--rerun` 数 `build/test-results/*.xml`：app **84**（W52 净增 3）/ core **37** / data **45** / film **14**（W52 净增 8）/ music **109** / book **113** / player:local **105** = **507 项 0 失败 0 错误**（基线 496 + 11）；
+- 红线：未动 `settings.gradle.kts` / `libs.versions.toml` / `AndroidManifest.xml` / `AppPreferences.kt` / `NavigationRoot.kt` / `player:core` / `player:local`。
+
+### 19.5 真机验收清单（待负责人调度：Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+1. 手机（K60）容器海报像素采样 ≈ 96×144dp、行高 ≈ 148dp；剧集条目缩略图 16:9；
+2. 平板（Pad 5）折叠容器两列并排；展开容器连同季 / 剧集整宽；gutter 与既有栅格一致；
+3. 下载中容器聚合：已下载 x/y、已用 / 总大小随进度刷新；**速度 = 子任务之和、剩余时间 = 剩余 / 速度**（下载中实测；暂停 / 无速度显示「—」）；
+4. 三组筛选（进行中 / 已完成 / 失败）+ 媒体筛选（全部 / 视频 / 音乐 / 书籍）+ 空态 / 骨架；
+5. 旧组件重绘：删除确认对话框（Lumen 面板 / 月白主行动）、状态徽标、容器 / 条目行；展开折叠 / 暂停 / 恢复 / 重试 / 删除 / 离线开关 / 多选不回归；
+6. 多任务前台通知点击进下载页（单任务 = 打开 App 不回归）；
+7. 下载中条目动效 / 流畅度（进度条 200ms 跟随、列表滚动）；0 FATAL / ANR。
+
+### 19.6 遗留
+
+- **真机验收未执行**：设备由 W53 占用中（`device-lock` 2026-10-03 19:02 起），待负责人统一调度；
+- 平板两列只覆盖「已折叠顶层容器」；展开容器整宽（如需「网格内展开」需要新交互设计）；
+- 容器速度 = 子任务速度之和，不含排队任务的预估速度（排队任务速度为 0，显示「—」）。

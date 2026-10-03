@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadSpeedRules
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
@@ -67,6 +68,62 @@ enum class DownloadHierarchyStatus {
     COMPLETED,
 }
 
+/**
+ * W52 条目级聚合口径（纯函数）：
+ *
+ * - [expectedTotalBytes]：优先任务上报的总大小；已完成条目 / 旧数据没有总大小时回落到文件体积；
+ * - [effectiveDownloadedBytes]：已完成条目 = 文件体积（任务字段不保留历史字节），其余 = 已下载字节；
+ * - [remainingBytes]：剩余待下载字节（不会为负）。
+ */
+val DownloadHierarchyEntry.expectedTotalBytes: Long
+    get() = if (totalBytes > 0L) totalBytes else sizeBytes.coerceAtLeast(0L)
+
+val DownloadHierarchyEntry.effectiveDownloadedBytes: Long
+    get() =
+        if (status == DownloadTaskStatus.COMPLETED) expectedTotalBytes
+        else downloadedBytes.coerceAtLeast(0L)
+
+val DownloadHierarchyEntry.remainingBytes: Long
+    get() = (expectedTotalBytes - effectiveDownloadedBytes).coerceAtLeast(0L)
+
+/** W52：一层容器（节目 / 季 / 专辑 / 书籍）的聚合值。 */
+data class DownloadAggregate(
+    val downloadedBytes: Long,
+    val totalBytes: Long,
+    val remainingBytes: Long,
+    val speedBytesPerSecond: Long,
+    val etaSeconds: Long?,
+)
+
+/**
+ * W52 容器聚合口径（纯函数，单测覆盖）：
+ *
+ * - 已下载 = 子条目已下载字节之和；总大小 = 子条目期待总大小之和；
+ * - **速度 = 子任务速度之和**（进程重启后任务速度为 0，界面显示占位「—」）；
+ * - 剩余时间 = 剩余字节 / 聚合速度（无速度或无剩余量时为 null，界面显示「—」）。
+ */
+object DownloadAggregateRules {
+
+    fun of(entries: List<DownloadHierarchyEntry>): DownloadAggregate {
+        val downloaded = entries.sumOf { it.effectiveDownloadedBytes }
+        val total = entries.sumOf { it.expectedTotalBytes }
+        val remaining = entries.sumOf { it.remainingBytes }
+        val speed = entries.sumOf { entry -> entry.task?.speedBytesPerSecond ?: 0L }
+        return DownloadAggregate(
+            downloadedBytes = downloaded,
+            totalBytes = total,
+            remainingBytes = remaining,
+            speedBytesPerSecond = speed,
+            etaSeconds =
+                if (remaining > 0L) {
+                    DownloadSpeedRules.etaSeconds(total, downloaded, speed)
+                } else {
+                    null
+                },
+        )
+    }
+}
+
 sealed interface DownloadHierarchyChild {
     val key: String
 }
@@ -86,7 +143,23 @@ data class DownloadHierarchySubContainer(
     val sizeBytes: Long,
     val imageUri: String?,
     val children: List<DownloadHierarchyLeaf>,
-) : DownloadHierarchyChild
+    /** W52 聚合：已下载 / 总大小 / 速度 / 剩余时间。 */
+    val downloadedBytes: Long = 0L,
+    val totalBytes: Long = 0L,
+    val speedBytesPerSecond: Long = 0L,
+    val etaSeconds: Long? = null,
+) : DownloadHierarchyChild {
+    val progress: Float
+        get() = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+
+    /** W52：按字节的聚合进度（比条目计数更平滑；总大小未知时回落到条目计数）。 */
+    val byteProgress: Float
+        get() =
+            when {
+                totalBytes > 0L -> (downloadedBytes.toFloat() / totalBytes).coerceIn(0f, 1f)
+                else -> progress
+            }
+}
 
 data class DownloadHierarchyContainer(
     val key: String,
@@ -101,9 +174,22 @@ data class DownloadHierarchyContainer(
     val canDelete: Boolean,
     val canOpen: Boolean,
     val children: List<DownloadHierarchyChild>,
+    /** W52 聚合：已下载 / 总大小 / 速度 / 剩余时间。 */
+    val downloadedBytes: Long = 0L,
+    val totalBytes: Long = 0L,
+    val speedBytesPerSecond: Long = 0L,
+    val etaSeconds: Long? = null,
 ) {
     val progress: Float
         get() = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+
+    /** W52：按字节的聚合进度（比条目计数更平滑；总大小未知时回落到条目计数）。 */
+    val byteProgress: Float
+        get() =
+            when {
+                totalBytes > 0L -> (downloadedBytes.toFloat() / totalBytes).coerceIn(0f, 1f)
+                else -> progress
+            }
 }
 
 /** 行扁平化结果：LazyColumn 的一行。 */
@@ -186,6 +272,7 @@ object DownloadHierarchyBuilder {
                     compareByDescending<DownloadHierarchyEntry> { it.updatedAt }.thenBy { it.name }
                 )
                 .map { entry ->
+                    val aggregate = DownloadAggregateRules.of(listOf(entry))
                     DownloadHierarchyContainer(
                         key = containerKey(DownloadMediaKind.VIDEO, "movie:${entry.itemId}"),
                         title = entry.name,
@@ -199,6 +286,10 @@ object DownloadHierarchyBuilder {
                         canDelete = entry.canDelete,
                         canOpen = entry.status == DownloadTaskStatus.COMPLETED,
                         children = listOf(DownloadHierarchyLeaf(entry.key, entry)),
+                        downloadedBytes = aggregate.downloadedBytes,
+                        totalBytes = aggregate.totalBytes,
+                        speedBytesPerSecond = aggregate.speedBytesPerSecond,
+                        etaSeconds = aggregate.etaSeconds,
                     )
                 }
 
@@ -238,6 +329,7 @@ object DownloadHierarchyBuilder {
                         )
                     val statuses = sorted.map { it.toHierarchyStatus() }
                     val completed = sorted.count { it.status == DownloadTaskStatus.COMPLETED }
+                    val aggregate = DownloadAggregateRules.of(sorted)
                     DownloadHierarchySubContainer(
                         key = childContainerKey(seriesId.toString(), "${seasonId ?: "unknown"}"),
                         title = sorted.first().seasonName ?: "未知季",
@@ -255,6 +347,10 @@ object DownloadHierarchyBuilder {
                         imageUri =
                             sorted.firstNotNullOfOrNull { it.seasonImageUri ?: it.showImageUri },
                         children = sorted.map { DownloadHierarchyLeaf(it.key, it) },
+                        downloadedBytes = aggregate.downloadedBytes,
+                        totalBytes = aggregate.totalBytes,
+                        speedBytesPerSecond = aggregate.speedBytesPerSecond,
+                        etaSeconds = aggregate.etaSeconds,
                     )
                 }
                 .sortedBy { it.title }
@@ -262,6 +358,7 @@ object DownloadHierarchyBuilder {
         val allEntries = seasons.flatMap { it.children.map { leaf -> leaf.entry } }
         val statuses = allEntries.map { it.toHierarchyStatus() }
         val completed = allEntries.count { it.status == DownloadTaskStatus.COMPLETED }
+        val aggregate = DownloadAggregateRules.of(allEntries)
         val seriesName = entries.first().seriesName ?: entries.first().name
         return DownloadHierarchyContainer(
             key = containerKey(DownloadMediaKind.VIDEO, seriesId.toString()),
@@ -280,6 +377,10 @@ object DownloadHierarchyBuilder {
             canDelete = allEntries.any { it.canDelete },
             canOpen = false,
             children = seasons,
+            downloadedBytes = aggregate.downloadedBytes,
+            totalBytes = aggregate.totalBytes,
+            speedBytesPerSecond = aggregate.speedBytesPerSecond,
+            etaSeconds = aggregate.etaSeconds,
         )
     }
 
@@ -312,6 +413,7 @@ object DownloadHierarchyBuilder {
                 val statuses = sorted.map { it.toHierarchyStatus() }
                 val completed = sorted.count { it.status == DownloadTaskStatus.COMPLETED }
                 val artist = sorted.firstNotNullOfOrNull { it.artist }
+                val aggregate = DownloadAggregateRules.of(sorted)
                 DownloadHierarchyContainer(
                     key = containerKey(DownloadMediaKind.MUSIC, albumName),
                     title = albumName,
@@ -330,6 +432,10 @@ object DownloadHierarchyBuilder {
                     canDelete = sorted.any { it.canDelete },
                     canOpen = false,
                     children = sorted.map { DownloadHierarchyLeaf(it.key, it) },
+                    downloadedBytes = aggregate.downloadedBytes,
+                    totalBytes = aggregate.totalBytes,
+                    speedBytesPerSecond = aggregate.speedBytesPerSecond,
+                    etaSeconds = aggregate.etaSeconds,
                 )
             }
             .sortedWith(
@@ -344,6 +450,7 @@ object DownloadHierarchyBuilder {
         entries
             .sortedBy { it.name }
             .map { entry ->
+                val aggregate = DownloadAggregateRules.of(listOf(entry))
                 DownloadHierarchyContainer(
                     key = containerKey(DownloadMediaKind.BOOK, entry.itemId.toString()),
                     title = entry.name,
@@ -357,6 +464,10 @@ object DownloadHierarchyBuilder {
                     canDelete = entry.canDelete,
                     canOpen = entry.status == DownloadTaskStatus.COMPLETED,
                     children = listOf(DownloadHierarchyLeaf(entry.key, entry)),
+                    downloadedBytes = aggregate.downloadedBytes,
+                    totalBytes = aggregate.totalBytes,
+                    speedBytesPerSecond = aggregate.speedBytesPerSecond,
+                    etaSeconds = aggregate.etaSeconds,
                 )
             }
 }

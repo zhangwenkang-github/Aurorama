@@ -97,6 +97,7 @@
 | D50 | **设置「音乐」子页下线：音乐库选择归位「媒体库」（W46，用户 2026-10-03 确认）** | ①`PreferenceDynamicSelect(settings_music_library → uiMusicLibraryId)` 从「播放与音乐 → 音乐」子页移入「媒体库」子页，与「首页媒体库 / 书架媒体库」并列；②删除 `PreferenceCategory(settings_category_music)` 入口与其空组（`settings_category_music` / `settings_music_summary` 两条资源同步删除）；③`SETTINGS_GROUP_LAYOUT` 的「播放与音乐」组只留播放器 / 桌面歌词 / 恢复播放队列，`SettingsGroupLayoutTest` 同步（分桶顺序与组内顺序断言更新）。 |
 
 | D51 | **`CinefinSlider` 键盘 / 无障碍步进 + 光晕参数同源 + 阅读器滑杆零宽回归修复（W49，2026-10-03）** | ①**键盘步进（对齐 M3 `Slider` 的 `slideOnKeyEvents`）**：`focusable` + `onKeyEvent`，方向键按步长调整（`delta = 区间长度 / (steps + 1)`；无档位 = 区间 1%）、Home / End 到端点、PageUp / PageDown 跳 `clamp((steps + 1) / 10, 1, 10)` 个步长，RTL 下左右方向对调，KeyUp 回调 `onValueChangeFinished`；数值换算抽 `cinefinSliderStepSize` / `cinefinSliderSnappedValue` / `cinefinSliderSteppedValue` / `cinefinSliderPagedValue` 纯函数（core 单测 +4）。②**无障碍**：`setProgress` 目标按档位就近吸附（M3 `sliderSemantics` 同口径），`progressBarRangeInfo` 保留。③**视觉参数同源**：新增 core `CinefinProgressVisuals`（36dp 触控带 / 4dp 轨 / 9dp 拇指 / 光晕 2.6×、0.45 alpha / 禁用 0.4），`CinefinSlider` 与播放页 `MusicProgressBar` 共用，删除两处各自硬编码。④**真机拦下的 W44 回归**：M3 `Slider` 会填满 max 约束，自绘 `Canvas`（`Spacer`）只取 **min** 约束 → 阅读器 `SliderRow` 的 `weight(1f, fill = false)` 让三条滑杆宽度为 0（不可见、不可触摸、a11y 树里整节点消失）；修法 = 组件内 `fillMaxWidth()`（M3 同口径），上限仍由调用方 `widthIn(max = 230.dp)` 控制（Pad 230dp / K60 209dp）。 | 用户口径「滑杆要像 M3 一样能用」+ W44 遗留「自绘滑杆无完整 M3 键盘步进 / 光晕参数与播放页各写一份」；键盘步进的 delta / 吸附口径逐条对照 M3 `Slider.kt`（本机 1.4.0 源码）而非凭感觉。真机（Pad 5 主 + K60 抽验）：阅读器滑杆 `android.widget.SeekBar` 节点回归 a11y 树（230dp / 209dp）、tap 100%→160%、TAB + 方向键 200%→201%（一档 1.8%）；EQ 每按一次 +0.2 dB（1% 区间）、ReplayGain 覆盖每按一次 **+0.5 dB**（steps=47），触摸 / 落盘 / 清除均正常 |
+| D52 | **下载页改版：大海报 + 大条目 + 容器聚合（W52，用户 2026-10-03 确认）** | ①**尺寸**：手机节目 / 季 / 电影 / 书籍海报 **96×144dp**（2:3 贴满行高，卡片行高 ≈148dp）、剧集缩略图 **112×63dp**（16:9）、专辑方形 96×96dp；平板海报 104×156dp。②**平板两列**：`DownloadGridGrouping` 只把相邻且已折叠的顶层容器两两成行，展开容器连同子项整宽（层级从属关系优先于网格）。③**容器聚合**：聚合进度条（按字节，未知回落计数）+「已下载 x/y」+「已用 / 总大小」+ 速度（= 子任务速度之和）+ 剩余时间（= 剩余 / 速度，缺数据「—」），口径落在 `DownloadAggregateRules` / `DownloadFormatRules` 纯函数 + 单测。④**旧组件重绘（范围 = 下载页）**：M3 `AlertDialog` → Lumen 确认对话框、文本状态行 → 状态徽标（12dp 前置图标）、加载圈 → `LumenSkeleton` 骨架、空态补图标；`LazyColumn` 逐行 `key` + `contentType`（Compose 性能规范）。⑤**不动**：`NavigationRoot.kt` / `AppPreferences.kt` / 详情页动作排（W51）/ `player:*`；多任务通知点击改用启动 Intent 附加标记（`EXTRA_OPEN_DOWNLOADS`）由 `MainActivity` 导航到下载页，不新增通知按钮。 |
 
 ## 4. 进度
 
@@ -741,6 +742,13 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **触摸 / 键盘步进**：Pad 字号 tap 位置 `100%` → 中点 `200%`（K60 `160%`）→ 还原 `100%`；TAB 聚焦 `SeekBar` 后方向键一次 = 一档（字号 200% → 201%，步长 1.8%）。
 - [x] **EQ / ReplayGain 不回归**：EQ 五段触摸 `+0.0 → +7.3 dB`（键盘每次 +0.2 dB，1% 区间）；ReplayGain 覆盖键盘每次 **+0.5 dB**（steps=47）；`关闭态` 语义为 `ProgressBar`（无 `setProgress`）、开启后转 `SeekBar`；收工 EQ 五段回 +0.0 dB、覆盖清除（未设置）。
 - [ ] **未覆盖**：TalkBack 实机走查（本轮以 a11y 树里 `SeekBar` + `ProgressBarRangeInfo` / `setProgress` + 单测为准）；`CinefinSwitch` / 播放页 `MusicProgressBar` 视觉参数同源只做了代码级核对（像素采样沿用 W44 / W45 记录）。
+
+### W52 验收（2026-10-03，分支 `feature/w52-downloads-redesign`；静态 / 门禁部分）
+
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；单测 `--rerun` **507 项 / 0 失败**（app 84 / core 37 / data 45 / player:local 105 / film 14 / book 113 / music 109，W52 净增 11）。
+- [x] **排版静态核对**：手机海报 96×144dp / 行高 ≈148dp（容器卡文本列 = 标题 20 + 详情 20 + 聚合 20 + 进度 4 + 操作行 44 + 间距 16 + 内边距 24 = 148dp）；平板海报 104×156dp + 折叠容器两列；剧集缩略图 112×63dp（16:9）。
+- [x] **纯函数单测**：容器聚合速度 / ETA（`DownloadHierarchyBuilderTest` ×2）、体积 / 速度 / 剩余 /「x/y」/ 百分比文案（`DownloadFormatRulesTest` ×6）、平板成行规则（`DownloadGridGroupingTest` ×3）。
+- [ ] **真机（待调度）**：手机像素采样、平板两列、下载中聚合速度与剩余时间、三组与媒体筛选、空态与骨架、旧组件重绘、多任务通知进下载页、0 FATAL·ANR —— 清单见 `DOWNLOAD_PLAN` §19.5。
 
 ## 6. 踩坑库
 

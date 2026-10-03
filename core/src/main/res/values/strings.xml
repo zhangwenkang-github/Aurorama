@@ -125,6 +125,7 @@
     <string name="download_tasks_completed">Completed</string>
     <string name="download_tasks_failed">Failed</string>
     <string name="download_storage_usage">%1$s used · %2$s free</string>
+    <string name="download_storage_books_suffix">(includes books %1$s)</string>
     <string name="download_empty_active">No downloads in progress</string>
     <string name="download_empty_failed">No failed downloads</string>
     <string name="download_action_pause">Pause</string>
@@ -152,6 +153,11 @@
     <string name="download_notification_cancel">Cancel</string>
     <string name="download_notification_completed">Download complete</string>
     <string name="download_notification_failed">Download failed</string>
+    <string name="download_filter_all">All</string>
+    <string name="download_filter_book">Books</string>
+    <string name="download_container_progress">%1$s downloaded</string>
+    <string name="download_eta_remaining">%1$s left</string>
+    <string name="download_delete_container_message">Delete all downloaded items in this group from this device?</string>
     <string name="title_music">Music</string>
     <string name="title_book_shelf">Books</string>
     <string name="title_more">More</string>
