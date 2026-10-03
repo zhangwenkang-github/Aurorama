@@ -2,8 +2,13 @@
 <resources>
     <string name="latest_library">最新上架的 %1$s</string>
     <string name="recently_added">最近加入</string>
+    <string name="recently_added_videos">最近加入 · 影片</string>
+    <string name="recently_added_books">最近加入 · 書籍</string>
+    <string name="recently_added_music">最近加入 · 音樂</string>
     <string name="next_up">接下來</string>
     <string name="continue_watching">繼續觀看</string>
+    <string name="continue_reading">繼續閱讀</string>
+    <string name="continue_listening">繼續收聽</string>
     <string name="hero_play">播放</string>
     <string name="hero_remaining_minutes">剩餘 %1$d 分鐘</string>
     <string name="view_all">全部</string>

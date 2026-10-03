@@ -371,13 +371,13 @@ class JellyfinRepositoryImpl(
                 .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
         }
 
-    override suspend fun getResumeItems(): List<FindroidItem> =
+    override suspend fun getResumeItems(includeItemTypes: List<BaseItemKind>): List<FindroidItem> =
         withContext(Dispatchers.IO) {
             jellyfinApi.itemsApi
                 .getResumeItems(
                     jellyfinApi.userId!!,
                     limit = 12,
-                    includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE),
+                    includeItemTypes = includeItemTypes,
                 )
                 .content
                 .items

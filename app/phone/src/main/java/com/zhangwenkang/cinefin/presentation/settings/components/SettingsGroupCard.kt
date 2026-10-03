@@ -27,6 +27,8 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceCategory
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceFileEdit
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceGroup
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceHomeLibrary
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceHomeLibraryOrder
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
@@ -124,6 +126,22 @@ fun SettingsGroupCard(
                                     onAction(
                                         SettingsAction.OnUpdate(preference.copy(value = value))
                                     )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        is PreferenceHomeLibrary ->
+                            SettingsHomeLibraryCard(
+                                preference = preference,
+                                onUpdate = { updated ->
+                                    onAction(SettingsAction.OnUpdate(updated))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        is PreferenceHomeLibraryOrder ->
+                            SettingsHomeLibraryOrderCard(
+                                preference = preference,
+                                onUpdate = { updated ->
+                                    onAction(SettingsAction.OnUpdate(updated))
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )

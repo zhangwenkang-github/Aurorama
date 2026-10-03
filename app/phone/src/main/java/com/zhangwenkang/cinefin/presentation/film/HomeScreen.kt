@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,7 +39,9 @@ import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.film.presentation.home.HomeState
 import com.zhangwenkang.cinefin.film.presentation.home.HomeViewModel
+import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.HomeSection
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.HomeSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
@@ -63,6 +67,8 @@ fun HomeScreen(
     onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     onItemClick: (item: FindroidItem) -> Unit,
+    /** 「最新 · <库名>」右侧「全部」入口（W54-D）：进入该库内容页并默认按「最近添加」排序。 */
+    onLibraryClick: (FindroidCollection) -> Unit = {},
     /** W37：首页「本地媒体」入口（开关默认关，入口在本地媒体库总览里）。 */
     onOpenLocalLibrary: (Long) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
@@ -76,6 +82,7 @@ fun HomeScreen(
         onOpenDrawer = onOpenDrawer,
         onSearchClick = onSearchClick,
         onItemClick = onItemClick,
+        onLibraryClick = onLibraryClick,
         onOpenLocalLibrary = onOpenLocalLibrary,
         onRetry = { viewModel.loadData() },
     )
@@ -93,6 +100,7 @@ private fun HomeScreenLayout(
     onOpenDrawer: (() -> Unit)?,
     onSearchClick: () -> Unit,
     onItemClick: (FindroidItem) -> Unit,
+    onLibraryClick: (FindroidCollection) -> Unit,
     onOpenLocalLibrary: (Long) -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -108,12 +116,10 @@ private fun HomeScreenLayout(
         state.resumeSection?.homeSection?.items?.firstOrNull()
             ?: state.nextUpSection?.homeSection?.items?.firstOrNull()
     val resumeRail = state.resumeSection?.homeSection?.takeIf { it.items.size > 1 }
+    val readingRail = state.resumeReadingSection?.homeSection
+    val listeningRail = state.resumeListeningSection?.homeSection
     val nextUpRail = state.nextUpSection?.homeSection?.items?.takeIf { it.isNotEmpty() }
-
-    val wallItems =
-        remember(state.views) {
-            state.views.flatMap { it.view.items }.distinctBy { it.id }.take(60)
-        }
+    val wallItems = state.recentlyAddedVideos
 
     ProvideLumen {
         Column(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
@@ -173,11 +179,28 @@ private fun HomeScreenLayout(
                                     section = section.copy(items = section.items.drop(1)),
                                     itemsPadding = PaddingValues(),
                                     onAction = { action ->
-                                        if (action is HomeAction.OnItemClick)
-                                            onItemClick(action.item)
+                                        action.dispatch(onItemClick, onLibraryClick)
                                     },
                                 )
                             }
+                        }
+
+                        readingRail?.let { section ->
+                            homeRail(
+                                key = "resume_reading",
+                                section = section,
+                                onItemClick = onItemClick,
+                                onLibraryClick = onLibraryClick,
+                            )
+                        }
+
+                        listeningRail?.let { section ->
+                            homeRail(
+                                key = "resume_listening",
+                                section = section,
+                                onItemClick = onItemClick,
+                                onLibraryClick = onLibraryClick,
+                            )
                         }
 
                         nextUpRail?.let { items ->
@@ -186,8 +209,7 @@ private fun HomeScreenLayout(
                                     section = state.nextUpSection!!.homeSection.copy(items = items),
                                     itemsPadding = PaddingValues(),
                                     onAction = { action ->
-                                        if (action is HomeAction.OnItemClick)
-                                            onItemClick(action.item)
+                                        action.dispatch(onItemClick, onLibraryClick)
                                     },
                                 )
                             }
@@ -198,37 +220,37 @@ private fun HomeScreenLayout(
                             HomeLocalMediaSection(onOpenLibrary = onOpenLocalLibrary)
                         }
 
-                        state.views.take(3).forEach { view ->
+                        state.views.forEach { view ->
                             item(key = "view_${view.id}", span = { GridItemSpan(maxLineSpan) }) {
                                 HomeView(
                                     view = view,
                                     itemsPadding = PaddingValues(),
                                     onAction = { action ->
-                                        if (action is HomeAction.OnItemClick)
-                                            onItemClick(action.item)
+                                        action.dispatch(onItemClick, onLibraryClick)
                                     },
                                 )
                             }
                         }
 
-                        if (wallItems.isNotEmpty()) {
-                            item(key = "wall_title", span = { GridItemSpan(maxLineSpan) }) {
-                                SectionHeader(
-                                    title = stringResource(FilmR.string.recently_added),
-                                    modifier =
-                                        Modifier.padding(top = CinefinSpacing.Space2)
-                                            .padding(bottom = CinefinSpacing.Space2),
-                                )
-                            }
-
-                            itemsIndexed(wallItems, key = { _, item -> item.id }) { index, item ->
-                                PosterItemCard(
-                                    item = item,
-                                    onClick = onItemClick,
-                                    index = index,
-                                )
-                            }
-                        }
+                        // W54-D：「最近添加」按媒体类型拆成三条（视频 = 原海报墙形态保留）。
+                        homePosterWall(
+                            keyPrefix = "recent_video",
+                            titleRes = FilmR.string.recently_added_videos,
+                            items = wallItems,
+                            onItemClick = onItemClick,
+                        )
+                        homePosterWall(
+                            keyPrefix = "recent_book",
+                            titleRes = FilmR.string.recently_added_books,
+                            items = state.recentlyAddedBooks,
+                            onItemClick = onItemClick,
+                        )
+                        homePosterWall(
+                            keyPrefix = "recent_music",
+                            titleRes = FilmR.string.recently_added_music,
+                            items = state.recentlyAddedMusic,
+                            onItemClick = onItemClick,
+                        )
                     }
                 }
 
@@ -256,6 +278,55 @@ private fun HomeScreenLayout(
     }
 }
 
+/** 首页 action 统一分发（W54-D 修 bug ①：`OnLibraryClick` 不能再被丢掉）。 */
+private fun HomeAction.dispatch(
+    onItemClick: (FindroidItem) -> Unit,
+    onLibraryClick: (FindroidCollection) -> Unit,
+) {
+    when (this) {
+        is HomeAction.OnItemClick -> onItemClick(item)
+        is HomeAction.OnLibraryClick -> onLibraryClick(library)
+        else -> Unit
+    }
+}
+
+/** 首页走廊：标题 + 一排横版卡（继续阅读 / 继续收听用）。 */
+private fun LazyGridScope.homeRail(
+    key: String,
+    section: HomeSection,
+    onItemClick: (FindroidItem) -> Unit,
+    onLibraryClick: (FindroidCollection) -> Unit,
+) {
+    item(key = key, span = { GridItemSpan(maxLineSpan) }) {
+        HomeSection(
+            section = section,
+            itemsPadding = PaddingValues(),
+            onAction = { action -> action.dispatch(onItemClick, onLibraryClick) },
+        )
+    }
+}
+
+/** 首页海报墙分区：标题（通栏）+ 竖版海报卡（最近添加三条共用）。 */
+private fun LazyGridScope.homePosterWall(
+    keyPrefix: String,
+    @StringRes titleRes: Int,
+    items: List<FindroidItem>,
+    onItemClick: (FindroidItem) -> Unit,
+) {
+    if (items.isEmpty()) return
+    item(key = "${keyPrefix}_title", span = { GridItemSpan(maxLineSpan) }) {
+        SectionHeader(
+            title = stringResource(titleRes),
+            modifier =
+                Modifier.padding(top = CinefinSpacing.Space2)
+                    .padding(bottom = CinefinSpacing.Space2),
+        )
+    }
+    itemsIndexed(items, key = { _, item -> "${keyPrefix}_${item.id}" }) { index, item ->
+        PosterItemCard(item = item, onClick = onItemClick, index = index)
+    }
+}
+
 @PreviewScreenSizes
 @Composable
 private fun HomeScreenLayoutPreview() {
@@ -270,6 +341,7 @@ private fun HomeScreenLayoutPreview() {
             onOpenDrawer = {},
             onSearchClick = {},
             onItemClick = {},
+            onLibraryClick = {},
             onOpenLocalLibrary = {},
             onRetry = {},
         )

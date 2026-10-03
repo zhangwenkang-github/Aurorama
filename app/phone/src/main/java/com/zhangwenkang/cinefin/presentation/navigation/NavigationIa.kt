@@ -6,6 +6,8 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.local.LocalLibrary
 import com.zhangwenkang.cinefin.local.LocalLibraryType
 import com.zhangwenkang.cinefin.models.CollectionType
+import com.zhangwenkang.cinefin.models.SortBy
+import com.zhangwenkang.cinefin.models.SortOrder
 
 /** 顶层目的地：底部 Tab 顺序与侧栏可见性开关都按它寻址（W6-R6N）。 */
 enum class NavEntryKey {
@@ -259,6 +261,27 @@ fun libraryEntryRoute(
         )
     }
 }
+
+/**
+ * 首页「最新 · <库名>」右侧「全部」的落点（W54-D 修 bug ①，纯函数单测覆盖）。
+ *
+ * 与侧栏库入口同一目的地 [LibraryRoute]，但带上「最近添加」排序参数（`DateCreated` 倒序）：
+ * 进库内容页第一屏就是最新入库的条目；用户仍可在库页工具行改排序（那次才写全局偏好）。
+ *
+ * 音乐库的 [LibraryRoute] 会由导航层兜底进音乐模式（与库入口一致）；其余类型直接进库内容页。
+ */
+fun homeViewAllRoute(
+    libraryId: String,
+    libraryName: String,
+    libraryType: CollectionType,
+): LibraryRoute =
+    LibraryRoute(
+        libraryId = libraryId,
+        libraryName = libraryName,
+        libraryType = libraryType,
+        sortBy = SortBy.DATE_ADDED.name,
+        sortOrder = SortOrder.DESCENDING.name,
+    )
 
 /**
  * 组间分隔索引（纯逻辑，单测覆盖）：返回「其后应插入分组空隙 + 细分隔线」的条目下标。

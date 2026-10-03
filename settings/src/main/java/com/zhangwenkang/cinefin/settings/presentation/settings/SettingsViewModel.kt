@@ -10,14 +10,18 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.models.HomeLibrarySettings
 import com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog
 import com.zhangwenkang.cinefin.settings.presentation.enums.DeviceType
+import com.zhangwenkang.cinefin.settings.presentation.models.HomeLibraryOrderEntry
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceAppLanguage
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceCategory
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicOption
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceDynamicSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceFileEdit
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceGroup
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceHomeLibrary
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceHomeLibraryOrder
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
@@ -66,11 +70,30 @@ constructor(
                 }
         }
 
-    private val homeLibraryOptions = libraryOptions { it != "music" && it != "books" }
-
     private val musicLibraryOptions = libraryOptions { it == "music" }
 
     private val bookshelfLibraryOptions = libraryOptions { it == "books" }
+
+    /**
+     * 首页逐库设置行（W54-D）：一行 = 库名 +「在首页显示」开关 +「默认分页」。
+     *
+     * 结构与选项来自媒体库目录缓存；当前值由 [loadPreferences] 从偏好填。更新走 [onAction] 对「期望值 vs 落盘值」求差，只写变化的键。
+     */
+    private val homeLibraryRows = libraryCatalog.map { library ->
+        PreferenceHomeLibrary(
+            nameStringResource = R.string.settings_home_library_show,
+            libraryId = library.id,
+            libraryName = library.name,
+            libraryType = library.type,
+        )
+    }
+
+    private val homeLibraryOrderRow =
+        PreferenceHomeLibraryOrder(
+            nameStringResource = R.string.settings_home_library_order,
+            descriptionStringRes = R.string.settings_home_library_order_summary,
+            libraries = libraryCatalog.map { HomeLibraryOrderEntry(it.id, it.name) },
+        )
 
     /**
      * 顶层条目的原始定义（W42 起顺序不再直接决定展示顺序）。
@@ -207,15 +230,6 @@ constructor(
                                     PreferenceGroup(
                                         preferences =
                                             listOf(
-                                                PreferenceDynamicSelect(
-                                                    nameStringResource =
-                                                        R.string.settings_home_library,
-                                                    descriptionStringRes =
-                                                        R.string.settings_home_library_summary,
-                                                    backendPreference =
-                                                        appPreferences.uiHomeLibraryId,
-                                                    options = homeLibraryOptions,
-                                                ),
                                                 PreferenceDynamicSelect(
                                                     nameStringResource =
                                                         R.string.settings_bookshelf_library,
@@ -432,14 +446,46 @@ constructor(
                                                         appPreferences.homeContinueWatching,
                                                 ),
                                                 PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.home_continue_reading,
+                                                    backendPreference =
+                                                        appPreferences.homeContinueReading,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.home_continue_listening,
+                                                    backendPreference =
+                                                        appPreferences.homeContinueListening,
+                                                ),
+                                                PreferenceSwitch(
                                                     nameStringResource = R.string.home_next_up,
                                                     backendPreference = appPreferences.homeNextUp,
                                                 ),
                                                 PreferenceSwitch(
-                                                    nameStringResource = R.string.home_latest,
-                                                    backendPreference = appPreferences.homeLatest,
+                                                    nameStringResource =
+                                                        R.string.home_recently_added_videos,
+                                                    backendPreference =
+                                                        appPreferences.homeRecentlyAddedVideos,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.home_recently_added_books,
+                                                    backendPreference =
+                                                        appPreferences.homeRecentlyAddedBooks,
+                                                ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.home_recently_added_music,
+                                                    backendPreference =
+                                                        appPreferences.homeRecentlyAddedMusic,
                                                 ),
                                             ),
+                                    ),
+                                    // W54-D：逐库「在首页显示」+「默认分页」+ 媒体库顺序。
+                                    // 目录为空（库列表未就绪）时该组被 loadPreferences 过滤掉。
+                                    PreferenceGroup(
+                                        nameStringResource = R.string.settings_home_libraries_group,
+                                        preferences = homeLibraryRows + listOf(homeLibraryOrderRow),
                                     ),
                                     PreferenceGroup(
                                         preferences =
@@ -1306,6 +1352,48 @@ constructor(
                                                         ),
                                                 )
                                             }
+                                            is PreferenceHomeLibrary -> {
+                                                val hidden =
+                                                    appPreferences.getValue(
+                                                        appPreferences.uiHomeLibrariesHidden
+                                                    )
+                                                val pages =
+                                                    HomeLibrarySettings.decodePageMap(
+                                                        appPreferences.getValue(
+                                                            appPreferences.uiHomeLibraryPages
+                                                        )
+                                                    )
+                                                preference.copy(
+                                                    visible =
+                                                        HomeLibrarySettings.isLibraryVisible(
+                                                            preference.libraryId,
+                                                            hidden,
+                                                        ),
+                                                    pageKey =
+                                                        HomeLibrarySettings.resolvePageKey(
+                                                            preference.libraryType,
+                                                            pages[preference.libraryId],
+                                                        ),
+                                                )
+                                            }
+                                            is PreferenceHomeLibraryOrder -> {
+                                                val stored =
+                                                    HomeLibrarySettings.decodeIdList(
+                                                        appPreferences.getValue(
+                                                            appPreferences.uiHomeLibraryOrder
+                                                        )
+                                                    )
+                                                val orderedIds =
+                                                    HomeLibrarySettings.applyOrder(
+                                                        preference.libraries.map { it.id },
+                                                        stored,
+                                                    )
+                                                val byId =
+                                                    preference.libraries.associateBy { it.id }
+                                                preference.copy(
+                                                    libraries = orderedIds.mapNotNull { byId[it] }
+                                                )
+                                            }
                                             is PreferenceMultiSelect -> {
                                                 preference.copy(
                                                     enabled =
@@ -1381,6 +1469,56 @@ constructor(
                             action.preference.backendPreference,
                             action.preference.value,
                         )
+                    is PreferenceHomeLibrary -> {
+                        val hidden = appPreferences.getValue(appPreferences.uiHomeLibrariesHidden)
+                        if (
+                            action.preference.visible !=
+                                HomeLibrarySettings.isLibraryVisible(
+                                    action.preference.libraryId,
+                                    hidden,
+                                )
+                        ) {
+                            appPreferences.setValue(
+                                appPreferences.uiHomeLibrariesHidden,
+                                HomeLibrarySettings.setLibraryVisible(
+                                    hidden,
+                                    action.preference.libraryId,
+                                    action.preference.visible,
+                                ),
+                            )
+                        }
+                        val pages =
+                            HomeLibrarySettings.decodePageMap(
+                                appPreferences.getValue(appPreferences.uiHomeLibraryPages)
+                            )
+                        val currentPage =
+                            HomeLibrarySettings.resolvePageKey(
+                                action.preference.libraryType,
+                                pages[action.preference.libraryId],
+                            )
+                        if (
+                            action.preference.pageKey != currentPage &&
+                                action.preference.pageKey in
+                                    HomeLibrarySettings.pageKeys(action.preference.libraryType)
+                        ) {
+                            appPreferences.setValue(
+                                appPreferences.uiHomeLibraryPages,
+                                HomeLibrarySettings.encodePageMap(
+                                    pages +
+                                        (action.preference.libraryId to action.preference.pageKey)
+                                ),
+                            )
+                        }
+                    }
+                    is PreferenceHomeLibraryOrder -> {
+                        val ids = action.preference.libraries.map { it.id }
+                        if (ids.isNotEmpty()) {
+                            appPreferences.setValue(
+                                appPreferences.uiHomeLibraryOrder,
+                                HomeLibrarySettings.encodeIdList(ids),
+                            )
+                        }
+                    }
                     is PreferenceMultiSelect ->
                         appPreferences.setValue(
                             action.preference.backendPreference,
