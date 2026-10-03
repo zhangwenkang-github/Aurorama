@@ -1,8 +1,10 @@
 package com.zhangwenkang.cinefin.core.presentation.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -13,6 +15,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -21,7 +28,6 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import kotlin.math.roundToInt
@@ -53,7 +59,7 @@ object CinefinSliderDefaults {
             activeTrackColor = media.base,
             inactiveTrackColor = colors.progressTrack,
             thumbColor = colors.onSurface,
-            glowColor = media.base.copy(alpha = GlowAlpha),
+            glowColor = media.base.copy(alpha = CinefinProgressVisuals.GlowAlpha),
         )
     }
 }
@@ -66,6 +72,12 @@ object CinefinSliderDefaults {
  * 触控带消费自己的手势，纵向滚动容器不会抢走滑动。
  *
  * 触摸 / 数值换算逻辑抽成 [cinefinSliderValueAt] / [cinefinSliderFraction] 纯函数，便于单测。
+ *
+ * W49 补齐键盘步进（对齐 M3 `Slider`）：方向键按档位步进（无档位时按区间 1%）、Home / End 到端点、 PageUp / PageDown 跳 10%，RTL
+ * 下左右方向对调；无障碍 `setProgress` 的目标值按档位就近吸附。
+ *
+ * 宽度与 M3 `Slider` 同口径：**填满可用宽度**（内部 `fillMaxWidth`），调用方用 `Modifier.widthIn(max = …)` 控制上限。W49
+ * 真机发现：`Canvas` 只取最小约束，若照搬 M3 时代的 `weight(1f, fill = false)`，组件宽度会是 0 （阅读器三条滑杆不可见、不可触摸，W44 回归）。
  */
 @Composable
 fun CinefinSlider(
@@ -78,23 +90,56 @@ fun CinefinSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     colors: CinefinSliderColors = CinefinSliderDefaults.colors(),
 ) {
+    require(steps >= 0) { "steps should be >= 0" }
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // 拖动过程中不希望因父层重组换 lambda 而重启 pointerInput（会中断当前手势）。
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
     val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
-    val alpha = if (enabled) 1f else DisabledAlpha
+    val currentValue by rememberUpdatedState(coercedValue)
+    val alpha = if (enabled) 1f else CinefinProgressVisuals.DisabledAlpha
 
     Canvas(
         modifier =
             modifier
-                .height(TouchHeight)
+                .fillMaxWidth()
+                .height(CinefinProgressVisuals.TouchHeight)
+                .focusable(enabled)
+                .onKeyEvent { event ->
+                    if (!enabled) return@onKeyEvent false
+                    when (event.type) {
+                        KeyEventType.KeyDown -> {
+                            val target =
+                                cinefinSliderKeyTarget(
+                                    key = event.key,
+                                    value = currentValue,
+                                    valueRange = valueRange,
+                                    steps = steps,
+                                    isRtl = isRtl,
+                                )
+                            if (target == null) {
+                                false
+                            } else {
+                                currentOnValueChange(target)
+                                true
+                            }
+                        }
+                        KeyEventType.KeyUp ->
+                            if (cinefinSliderIsStepKey(event.key)) {
+                                currentOnValueChangeFinished?.invoke()
+                                true
+                            } else {
+                                false
+                            }
+                        else -> false
+                    }
+                }
                 .semantics {
                     progressBarRangeInfo = ProgressBarRangeInfo(coercedValue, valueRange, steps)
                     if (enabled) {
                         setProgress { target ->
                             currentOnValueChange(
-                                target.coerceIn(valueRange.start, valueRange.endInclusive)
+                                cinefinSliderSnappedValue(target, valueRange, steps)
                             )
                             currentOnValueChangeFinished?.invoke()
                             true
@@ -105,7 +150,7 @@ fun CinefinSlider(
                 }
                 .pointerInput(enabled, valueRange, steps, isRtl) {
                     if (!enabled) return@pointerInput
-                    val thumbRadiusPx = ThumbRadius.toPx()
+                    val thumbRadiusPx = CinefinProgressVisuals.ThumbRadius.toPx()
                     fun valueAt(x: Float): Float {
                         val position = if (isRtl) size.width - x else x
                         return cinefinSliderValueAt(
@@ -134,8 +179,8 @@ fun CinefinSlider(
                     }
                 }
     ) {
-        val thumbRadius = ThumbRadius.toPx()
-        val trackHeight = TrackHeight.toPx()
+        val thumbRadius = CinefinProgressVisuals.ThumbRadius.toPx()
+        val trackHeight = CinefinProgressVisuals.TrackHeight.toPx()
         val startX = thumbRadius
         val endX = size.width - thumbRadius
         if (endX <= startX) return@Canvas
@@ -159,9 +204,9 @@ fun CinefinSlider(
                             Color.Transparent,
                         ),
                     center = Offset(thumbX, centerY),
-                    radius = thumbRadius * GlowScale,
+                    radius = thumbRadius * CinefinProgressVisuals.GlowScale,
                 ),
-            radius = thumbRadius * GlowScale,
+            radius = thumbRadius * CinefinProgressVisuals.GlowScale,
             center = Offset(thumbX, centerY),
         )
         drawLine(
@@ -220,9 +265,92 @@ private fun snapSliderRatio(ratio: Float, steps: Int): Float {
     return ((ratio * intervals).roundToInt() / intervals).coerceIn(0f, 1f)
 }
 
-private val TouchHeight = 36.dp
-private val TrackHeight = 4.dp
-private val ThumbRadius = 9.dp
-private const val GlowScale = 2.6f
-private const val GlowAlpha = 0.45f
-private const val DisabledAlpha = 0.4f
+/**
+ * 目标值按档位就近吸附（`steps <= 0` 时只做夹紧）——无障碍 `setProgress` 与键盘步进共用。
+ *
+ * 与 M3 `Slider` 的 `setProgress` 同一口径：目标落在两个档位之间时取最近的档位值。
+ */
+fun cinefinSliderSnappedValue(
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+): Float {
+    val span = range.endInclusive - range.start
+    if (span <= 0f) return range.start
+    val clamped = value.coerceIn(range.start, range.endInclusive)
+    return range.start + snapSliderRatio(cinefinSliderFraction(clamped, range), steps) * span
+}
+
+/** 键盘 / 无障碍的单步增量（M3 同口径）：有档位时 = 区间长度 / (steps + 1)； 无档位（连续滑杆）键盘按区间 1% 调整——连续拖动仍不受限。 */
+fun cinefinSliderStepSize(range: ClosedFloatingPointRange<Float>, steps: Int): Float {
+    val span = range.endInclusive - range.start
+    if (span <= 0f) return 0f
+    return span / if (steps > 0) (steps + 1).toFloat() else 100f
+}
+
+/** 方向键单步：先吸附到档位网格再 ± 一个步长，端点夹紧（`steps > 0` 时正好落到相邻档位）。 */
+fun cinefinSliderSteppedValue(
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    increase: Boolean,
+): Float = cinefinSliderPageSteps(value, range, steps, increase, pages = 1)
+
+/** PageUp / PageDown：一次跳 `clamp((steps + 1) / 10, 1, 10)` 个步长（无档位 = 10% 区间）。 */
+fun cinefinSliderPagedValue(
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    increase: Boolean,
+): Float {
+    val intervals = if (steps > 0) steps + 1 else 100
+    val pages = (intervals / 10).coerceIn(1, 10)
+    return cinefinSliderPageSteps(value, range, steps, increase, pages)
+}
+
+private fun cinefinSliderPageSteps(
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    increase: Boolean,
+    pages: Int,
+): Float {
+    val span = range.endInclusive - range.start
+    if (span <= 0f) return range.start
+    val base = cinefinSliderSnappedValue(value, range, steps)
+    val delta = pages * cinefinSliderStepSize(range, steps)
+    val target = if (increase) base + delta else base - delta
+    return target.coerceIn(range.start, range.endInclusive)
+}
+
+/** 方向键 / Home / End / PageUp / PageDown → 目标值；返回 null = 该键不参与步进。 */
+private fun cinefinSliderKeyTarget(
+    key: Key,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    isRtl: Boolean,
+): Float? =
+    when (key) {
+        // RTL 下左右方向对调（视觉左 = 数值增大），与 M3 的 reverseDirection 一致。
+        Key.DirectionLeft -> cinefinSliderSteppedValue(value, valueRange, steps, increase = isRtl)
+        Key.DirectionRight -> cinefinSliderSteppedValue(value, valueRange, steps, increase = !isRtl)
+        Key.DirectionUp -> cinefinSliderSteppedValue(value, valueRange, steps, increase = true)
+        Key.DirectionDown -> cinefinSliderSteppedValue(value, valueRange, steps, increase = false)
+        Key.MoveHome -> valueRange.start
+        Key.MoveEnd -> valueRange.endInclusive
+        Key.PageUp -> cinefinSliderPagedValue(value, valueRange, steps, increase = false)
+        Key.PageDown -> cinefinSliderPagedValue(value, valueRange, steps, increase = true)
+        else -> null
+    }
+
+/** KeyUp 时需要回调 `onValueChangeFinished` 的键（与 [cinefinSliderKeyTarget] 的键集合一致）。 */
+private fun cinefinSliderIsStepKey(key: Key): Boolean =
+    key == Key.DirectionLeft ||
+        key == Key.DirectionRight ||
+        key == Key.DirectionUp ||
+        key == Key.DirectionDown ||
+        key == Key.MoveHome ||
+        key == Key.MoveEnd ||
+        key == Key.PageUp ||
+        key == Key.PageDown

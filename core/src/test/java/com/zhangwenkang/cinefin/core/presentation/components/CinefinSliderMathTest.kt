@@ -75,4 +75,57 @@ class CinefinSliderMathTest {
     fun valueAtHandlesTooNarrowTrack() {
         assertEquals(0f, cinefinSliderValueAt(10f, 12f, thumbRadiusPx, range, 0), 0.0001f)
     }
+
+    @Test
+    fun snappedValueRoundsToNearestStep() {
+        // steps = 3 → 0 / 25 / 50 / 75 / 100
+        assertEquals(25f, cinefinSliderSnappedValue(30f, range, 3), 0.0001f)
+        assertEquals(50f, cinefinSliderSnappedValue(60f, range, 3), 0.0001f)
+        assertEquals(75f, cinefinSliderSnappedValue(70f, range, 3), 0.0001f)
+        assertEquals(0f, cinefinSliderSnappedValue(-5f, range, 3), 0.0001f)
+        assertEquals(100f, cinefinSliderSnappedValue(999f, range, 3), 0.0001f)
+        // steps = 0：连续滑杆只夹紧、不吸附
+        assertEquals(33.3f, cinefinSliderSnappedValue(33.3f, range, 0), 0.0001f)
+    }
+
+    @Test
+    fun steppedValueMovesOneStepAndClampsAtEnds() {
+        // 无档位：键盘按区间 1% 调整（M3 同口径）
+        assertEquals(1f, cinefinSliderSteppedValue(0f, range, 0, increase = true), 0.0001f)
+        assertEquals(99f, cinefinSliderSteppedValue(100f, range, 0, increase = false), 0.0001f)
+        // steps = 3 → 每步 25
+        assertEquals(75f, cinefinSliderSteppedValue(50f, range, 3, increase = true), 0.0001f)
+        assertEquals(0f, cinefinSliderSteppedValue(0f, range, 3, increase = false), 0.0001f)
+        // ReplayGain 覆盖：-12..12 dB、0.5 dB 步进（steps = 47）
+        assertEquals(
+            0.5f,
+            cinefinSliderSteppedValue(0f, -12f..12f, 47, increase = true),
+            0.0001f,
+        )
+        assertEquals(
+            -0.5f,
+            cinefinSliderSteppedValue(0f, -12f..12f, 47, increase = false),
+            0.0001f,
+        )
+        // 退化区间：返回区间起点，不抛异常
+        assertEquals(5f, cinefinSliderSteppedValue(5f, 5f..5f, 0, increase = true), 0.0001f)
+    }
+
+    @Test
+    fun stepSizeFollowsStepsOrOnePercent() {
+        assertEquals(25f, cinefinSliderStepSize(range, 3), 0.0001f)
+        assertEquals(0.5f, cinefinSliderStepSize(-12f..12f, 47), 0.0001f)
+        assertEquals(1f, cinefinSliderStepSize(range, 0), 0.0001f)
+        assertEquals(0f, cinefinSliderStepSize(5f..5f, 3), 0.0001f)
+    }
+
+    @Test
+    fun pagedValueJumpsTenPercentOfIntervals() {
+        // steps = 3 → 4 段 → page = clamp(0, 1, 10) = 1 → 跳 25
+        assertEquals(100f, cinefinSliderPagedValue(75f, range, 3, increase = true), 0.0001f)
+        assertEquals(50f, cinefinSliderPagedValue(75f, range, 3, increase = false), 0.0001f)
+        // 无档位：100 段 → page = 10 → 跳 10% 区间
+        assertEquals(10f, cinefinSliderPagedValue(0f, range, 0, increase = true), 0.0001f)
+        assertEquals(90f, cinefinSliderPagedValue(100f, range, 0, increase = false), 0.0001f)
+    }
 }

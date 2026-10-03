@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinProgressVisuals
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -718,12 +719,12 @@ private fun MusicProgressBar(
     val media = LocalMediaColors.current
     val span = (valueRange.endInclusive - valueRange.start).takeIf { it > 0f } ?: 1f
     val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
-    val alpha = if (enabled) 1f else 0.4f
+    val alpha = if (enabled) 1f else CinefinProgressVisuals.DisabledAlpha
     Canvas(
         modifier =
-            modifier.height(PROGRESS_TOUCH_HEIGHT_DP.dp).pointerInput(enabled, valueRange) {
+            modifier.height(CinefinProgressVisuals.TouchHeight).pointerInput(enabled, valueRange) {
                 if (!enabled) return@pointerInput
-                val thumbRadiusPx = PROGRESS_THUMB_RADIUS_DP.dp.toPx()
+                val thumbRadiusPx = CinefinProgressVisuals.ThumbRadius.toPx()
                 fun valueAt(x: Float): Float {
                     val startX = thumbRadiusPx
                     val endX = size.width - thumbRadiusPx
@@ -749,8 +750,8 @@ private fun MusicProgressBar(
                 }
             }
     ) {
-        val thumbRadius = PROGRESS_THUMB_RADIUS_DP.dp.toPx()
-        val trackHeight = PROGRESS_TRACK_HEIGHT_DP.dp.toPx()
+        val thumbRadius = CinefinProgressVisuals.ThumbRadius.toPx()
+        val trackHeight = CinefinProgressVisuals.TrackHeight.toPx()
         val centerY = size.height / 2f
         val startX = thumbRadius
         val endX = size.width - thumbRadius
@@ -761,13 +762,13 @@ private fun MusicProgressBar(
                 Brush.radialGradient(
                     colors =
                         listOf(
-                            media.base.copy(alpha = 0.45f * alpha),
+                            media.base.copy(alpha = CinefinProgressVisuals.GlowAlpha * alpha),
                             Color.Transparent,
                         ),
                     center = Offset(thumbX, centerY),
-                    radius = thumbRadius * PROGRESS_GLOW_SCALE,
+                    radius = thumbRadius * CinefinProgressVisuals.GlowScale,
                 ),
-            radius = thumbRadius * PROGRESS_GLOW_SCALE,
+            radius = thumbRadius * CinefinProgressVisuals.GlowScale,
             center = Offset(thumbX, centerY),
         )
         drawLine(
@@ -791,11 +792,6 @@ private fun MusicProgressBar(
         )
     }
 }
-
-private const val PROGRESS_TOUCH_HEIGHT_DP = 36f
-private const val PROGRESS_TRACK_HEIGHT_DP = 4f
-private const val PROGRESS_THUMB_RADIUS_DP = 9f
-private const val PROGRESS_GLOW_SCALE = 2.6f
 
 /** 全屏底部功能键（图标 + 文字，44dp 图标钮 + 12sp 标签）。 */
 @Composable
