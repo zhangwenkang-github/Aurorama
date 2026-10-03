@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ComicPageOrderTest {
@@ -35,9 +34,10 @@ class ComicPageOrderTest {
 
     @Test
     fun `封面感叹号排序在前且大小写不敏感`() {
-        assertTrue(compareComicPageNames("!cover.jpg", "01.jpg") < 0)
-        assertTrue(compareComicPageNames("Page1.JPG", "page2.jpg") < 0)
-        assertEquals(0, compareComicPageNames("a-01.jpg", "A-01.JPG"))
+        assertEquals(
+            listOf("!cover.jpg", "Page1.JPG", "page2.jpg"),
+            orderComicPageNames(listOf("page2.jpg", "Page1.JPG", "!cover.jpg")),
+        )
     }
 
     @Test

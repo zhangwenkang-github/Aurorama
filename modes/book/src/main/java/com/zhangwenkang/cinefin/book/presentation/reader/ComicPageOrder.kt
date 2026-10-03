@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import com.zhangwenkang.cinefin.local.LocalThumbnailRules
 import java.util.Locale
 
 /**
@@ -35,39 +36,9 @@ internal fun isComicPageEntry(name: String): Boolean {
 }
 
 /**
- * 自然序比较：把连续数字当数值比较，`2.jpg` 排在 `10.jpg` 之前（普通字符串序会反过来）。
+ * 过滤出图片条目并按阅读顺序排序（CBZ 页序）。
  *
- * 大小写不敏感；后缀用于保证包含关系的稳定排序（`a.jpg` < `a1.jpg`）。
+ * 自然序比较与本地缩略图（W49「CBZ 封面自然序」）共用 data 层同一份实现，避免两处排序口径漂移。
  */
-internal fun compareComicPageNames(a: String, b: String): Int {
-    var i = 0
-    var j = 0
-    while (i < a.length && j < b.length) {
-        val ca = a[i]
-        val cb = b[j]
-        if (ca.isDigit() && cb.isDigit()) {
-            var iEnd = i
-            while (iEnd < a.length && a[iEnd].isDigit()) iEnd++
-            var jEnd = j
-            while (jEnd < b.length && b[jEnd].isDigit()) jEnd++
-            val numberA = a.substring(i, iEnd).trimStart('0')
-            val numberB = b.substring(j, jEnd).trimStart('0')
-            val byLength = numberA.length.compareTo(numberB.length)
-            if (byLength != 0) return byLength
-            val byDigits = numberA.compareTo(numberB)
-            if (byDigits != 0) return byDigits
-            i = iEnd
-            j = jEnd
-        } else {
-            val byChar = ca.lowercaseChar().compareTo(cb.lowercaseChar())
-            if (byChar != 0) return byChar
-            i++
-            j++
-        }
-    }
-    return (a.length - i).compareTo(b.length - j)
-}
-
-/** 过滤出图片条目并按阅读顺序排序（CBZ 页序）。 */
 internal fun orderComicPageNames(entryNames: List<String>): List<String> =
-    entryNames.filter(::isComicPageEntry).sortedWith(::compareComicPageNames)
+    LocalThumbnailRules.sortedComicPageNames(entryNames.filter(::isComicPageEntry))

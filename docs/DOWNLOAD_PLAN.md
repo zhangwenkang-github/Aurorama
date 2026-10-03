@@ -276,8 +276,8 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 ### 14.4 W45 遗留
 
 - ~~缩略图为**本 App 私有派生缓存**，不随库删除清理（同一个文件重新建库即命中）；如需「删除库即清缓存」另开小任务~~ → **W47 已修**（`LocalThumbnailRules.purgeThumbnails` + `deleteLibrary` / `removeFolder` 调用 + DAO `getLocalMediaItemsByFolder`，data 单测净增 1 项：`purge` 只删目标条目 `<itemId>.jpg|.fail`、不动其他文件）；
-- 视频首帧固定取第 1 秒（黑场片源可能取到黑帧），未做「非黑帧搜索」；
-- CBZ 顺序流取「归档顺序第一张图」，未做自然序重排（与阅读器 `orderComicPageNames` 的差异仅在归档顺序异常时可见）。
+- ~~视频首帧固定取第 1 秒（黑场片源可能取到黑帧），未做「非黑帧搜索」~~ → **W49 已修**（候选帧 1 s / 10% / 30% + 近黑帧跳过，全部黑回退第 1 秒帧，见 §17）；
+- ~~CBZ 顺序流取「归档顺序第一张图」，未做自然序重排~~ → **W49 已修**（自然序第一张页图，比较器与阅读器共用同一实现，见 §17）。
 
 ## 15. W47-B 下载补验（2026-10-03，Pad 5 `43af8627`，分支 `feature/w47b-b-verification`）
 
@@ -303,3 +303,31 @@ seek / 打不开 / 解析失败时按 `PER_PAGE_LAYOUT_SCAN_MAX_PAGES = 1500` �
 （与修复前逐页扫描一致）；Native 49.8–53.9 MB、PSS 358–368 MB（同机滚动基线 316.3 MB）、+60 s 不增长、
 双栏→滚动→分页持平可回落；W22 测试书 `landscape=2 at=14,15`、RTL 相位对图 8/8、0 误拼。设备还原：测试库
 删除 + `/sdcard/Download/W48Media`（2.53 GB 素材）删除、阅读器偏好回 `scroll` / `rtl=false`、App force-stop。
+
+## 17. W49 本地缩略图遗留清理（2026-10-03，分支 `fix/w49-leftover-cleanup`，起点 master `3dbca99`）
+
+W45 遗留两条（§14.4）本波落地；**缓存与懒生成策略不变**（`files/local_thumbs` + `.fail` + 并发 ≤2 + 最多现场
+生成 3 张，D32 / D34）。
+
+1. **视频非黑帧选择（D33 口径修订）**：`LocalThumbnailRules.videoFrameTimesUs(durationMs)` 给出候选帧 =
+   **1 s → 时长 10% → 30% → 0 s**（去重；时长未知 / 非法只留 1 s 与 0 s）；`isNearlyBlack(pixels)` 用
+   32×32 采样位图的**平均相对亮度 ≤ 0.10** 判近黑（sRGB 权重 0.2126 / 0.7152 / 0.0722）。逐候选取帧
+   （`getScaledFrameAtTime` → 退 `getFrameAtTime`），跳过近黑帧；**全部候选都黑时回退第一张成功取到的帧**
+   （通常即第 1 秒），一张都取不到才回退类型图标；亮度测量失败按「不黑」处理（照常显示该帧）。
+2. **CBZ 自然序第一页（D33 口径修订）**：自然序比较器（连续数字按数值、大小写不敏感、`a.jpg < a1.jpg`）
+   **下沉 data 层**（`LocalThumbnailRules.compareComicPageNames` / `sortedComicPageNames`），阅读器
+   `orderComicPageNames`（modes:book）改为复用同一实现，不再两处各写一份。SAF 拿不到随机访问 `ZipFile`，
+   封面改**两遍顺序流**：第一遍只列页名（仍过滤目录 / 隐藏文件 / `__MACOSX` / ≥32 MB）求自然序首图，
+   第二遍流到该条目再解码（只读目标条目数据、不解码其他图）。
+3. **单测（data 43 → 45）**：候选时间点（10 分钟 / 10 秒去重 / 时长 null / 0 / 负数）、近黑阈值
+   （`0x000000` / `0x141414` / `0x404040` / 纯白 + 可调阈值 + 空数组均值 0）、自然序（`p1 < p2 < p10`、
+   大小写不敏感、`p01 == p1`、`!cover` 在前、空表）；book 侧 `ComicPageOrderTest` 改为断言排序结果
+   （比较器与 data 共用）。
+4. **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 个测试任务 `--rerun` **486 项 0 失败**
+   （基线 477 + 新增 9：core 4 / data 2 / book 3）。
+5. **真机（Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，2026-10-03 17:0x–17:1x）**：本地混合库（1 个文件夹，
+   2 视频 + 2 CBZ + 1 PDF）——黑场片头 mp4（0–1.5 s 黑 → 橙）缩略图 = **橙色帧** 512×288 mean
+   `[253.5,140.5,0.5]`（1 s / 10% 候选均黑 → 命中 30% 候选）；全黑视频**回退第 1 秒黑帧**（`.jpg` 存在、
+   无 `.fail`）；归档序 `p10(蓝)/p2(红)/p1(绿)` 的 CBZ 缩略图 = 384×512 mean `[0,255,1]` = **自然序 p1**
+   （不是归档首图 p10）。副作用还原：测试库 App 内删除 → 缩略图随库 purge（`files/local_thumbs` 只剩用户
+   既有 4 张）、`/sdcard/Download/w49media` 删除、App force-stop；双机 0 FATAL / ANR。

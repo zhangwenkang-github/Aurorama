@@ -36,11 +36,11 @@ import timber.log.Timber
 /**
  * W45：本地媒体封面 / 缩略图（懒生成 + 磁盘缓存 + 失败标记）。
  *
- * |类型 |来源                                                                                 |回退          |
- * |---|-----------------------------------------------------------------------------------|------------|
- * |视频 |`MediaMetadataRetriever` 第 1 秒首帧（`getScaledFrameAtTime`，失败退 `getFrameAtTime`）      |第 0 秒 → 类型图标|
- * |书籍 |PDF 首页（`PdfRenderer`）/ CBZ 第一张图（`ZipInputStream` 顺序流）/ EPUB（Readium metadata cover）|类型图标        |
- * |音乐 |沿用 W37 链路：内嵌标签封面 → 同目录封面（`entry.coverUri`），不重做                                     |类型图标        |
+ * |类型 |来源                                                                                            |回退              |
+ * |---|----------------------------------------------------------------------------------------------|----------------|
+ * |视频 |`MediaMetadataRetriever` 候选帧 1s / 10% / 30%（跳过近黑帧；`getScaledFrameAtTime` 失败退 `getFrameAtTime`）|全黑退第 1 秒帧 → 类型图标|
+ * |书籍 |PDF 首页（`PdfRenderer`）/ CBZ **自然序**第一张图（`ZipInputStream` 两遍顺序流）/ EPUB（Readium metadata cover）  |类型图标            |
+ * |音乐 |沿用 W37 链路：内嵌标签封面 → 同目录封面（`entry.coverUri`），不重做                                                |类型图标            |
  *
  * 纪律：
  * - 只在调用方（卡片 / 列表行 / 详情头部可见时）按需生成；生成前先查 `files/local_thumbs/<itemId>.jpg`；
@@ -184,7 +184,11 @@ constructor(
             LocalMediaKind.MUSIC -> null
         }
 
-    /** 视频：第 1 秒首帧 → 回退第 0 秒。 */
+    /**
+     * 视频：候选帧 1s → 10% → 30% → 0s，跳过近黑帧（W49，W45 遗留「黑场片源取到黑帧」）。
+     *
+     * 全部候选都是黑帧时回退第一张成功取到的帧（正常情况下即第 1 秒），取不到任何帧才回退类型图标。
+     */
     private fun videoCover(documentUri: String): Bitmap? {
         val retriever = MediaMetadataRetriever()
         return try {
@@ -201,31 +205,22 @@ constructor(
                 retriever
                     .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
                     ?.toIntOrNull() ?: 0
+            val durationMs =
+                retriever
+                    .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                    ?.toLongOrNull()
             val target = LocalThumbnailRules.videoTargetSize(width, height, rotation)
-            for (timeUs in LocalThumbnailRules.VIDEO_FRAME_TIMES_US) {
-                val scaled = target?.let { size ->
-                    runCatching {
-                        retriever.getScaledFrameAtTime(
-                            timeUs,
-                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                            size.first,
-                            size.second,
-                        )
-                    }
-                        .getOrNull()
+            var fallback: Bitmap? = null
+            for (timeUs in LocalThumbnailRules.videoFrameTimesUs(durationMs)) {
+                val frame = frameAt(retriever, timeUs, target) ?: continue
+                if (isNearlyBlackFrame(frame)) {
+                    if (fallback == null) fallback = frame else frame.recycle()
+                    continue
                 }
-                val frame =
-                    scaled
-                        ?: runCatching {
-                            retriever.getFrameAtTime(
-                                timeUs,
-                                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                            )
-                        }
-                            .getOrNull()
-                if (frame != null) return frame
+                fallback?.recycle()
+                return frame
             }
-            null
+            fallback
         } catch (error: Throwable) {
             Timber.w(error, "W45 视频首帧失败：$documentUri")
             null
@@ -233,6 +228,44 @@ constructor(
             runCatching { retriever.release() }
         }
     }
+
+    /** 单个候选时间点取帧：优先按目标尺寸缩放（旋转已折算），失败退整帧。 */
+    private fun frameAt(
+        retriever: MediaMetadataRetriever,
+        timeUs: Long,
+        target: Pair<Int, Int>?,
+    ): Bitmap? {
+        val scaled = target?.let { size ->
+            runCatching {
+                retriever.getScaledFrameAtTime(
+                    timeUs,
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                    size.first,
+                    size.second,
+                )
+            }
+                .getOrNull()
+        }
+        if (scaled != null) return scaled
+        return runCatching {
+            retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+        }
+            .getOrNull()
+    }
+
+    /** 近黑帧判定：缩到 32×32 后取像素求平均相对亮度；测量失败按「不黑」处理（照常显示该帧）。 */
+    private fun isNearlyBlackFrame(frame: Bitmap): Boolean = runCatching {
+        val side = LocalThumbnailRules.VIDEO_LUMA_SAMPLE_SIDE_PX
+        val sample = Bitmap.createScaledBitmap(frame, side, side, true)
+        try {
+            val pixels = IntArray(side * side)
+            sample.getPixels(pixels, 0, side, 0, 0, side, side)
+            LocalThumbnailRules.isNearlyBlack(pixels)
+        } finally {
+            if (sample !== frame) sample.recycle()
+        }
+    }
+        .getOrDefault(false)
 
     /** 书籍：PDF 首页（白底 + 降采样渲染）。 */
     private fun pdfCover(documentUri: String): Bitmap? {
@@ -273,23 +306,21 @@ constructor(
         }
     }
 
-    /** 书籍：CBZ 第一张页图（`ZipInputStream` 顺序流，遇到第一张图即停）。 */
+    /**
+     * 书籍：CBZ **自然序**第一张页图（W49，W45 遗留「归档顺序第一张图」）。
+     *
+     * SAF `content://` 拿不到随机访问的 `ZipFile`，只能顺序流：第一遍列页名求自然序首图， 第二遍流到该条目再解码（目录 / 隐藏文件 / `__MACOSX` /
+     * 超大图仍由 [LocalThumbnailRules.isComicPageImage] 过滤）。
+     */
     private fun cbzCover(documentUri: String): Bitmap? {
-        val stream =
-            runCatching {
-                context.contentResolver.openInputStream(Uri.parse(documentUri))
-            }
-                .getOrNull() ?: return null
+        val firstName = cbzFirstPageName(documentUri) ?: return null
+        val stream = openContentStream(documentUri) ?: return null
         stream.use { raw ->
             ZipInputStream(BufferedInputStream(raw)).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
-                    val isPage =
-                        LocalThumbnailRules.isComicPageImage(
-                            entry.name ?: "",
-                            entry.isDirectory,
-                        ) && entry.size <= MAX_COMIC_PAGE_BYTES
-                    if (isPage) {
+                    if (!entry.isDirectory && entry.name == firstName) {
+                        if (entry.size > MAX_COMIC_PAGE_BYTES) return null
                         val bytes = runCatching { zip.readBytes() }.getOrNull() ?: return null
                         return decodeThumb(bytes)
                     }
@@ -299,6 +330,33 @@ constructor(
         }
         return null
     }
+
+    /** 第一遍：只列页名（不解码），返回自然序第一张页图的条目名。 */
+    private fun cbzFirstPageName(documentUri: String): String? {
+        val stream = openContentStream(documentUri) ?: return null
+        val names = mutableListOf<String>()
+        stream.use { raw ->
+            ZipInputStream(BufferedInputStream(raw)).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    val name = entry.name ?: ""
+                    if (
+                        LocalThumbnailRules.isComicPageImage(name, entry.isDirectory) &&
+                            entry.size <= MAX_COMIC_PAGE_BYTES
+                    ) {
+                        names += name
+                    }
+                    entry = zip.nextEntry
+                }
+            }
+        }
+        return LocalThumbnailRules.sortedComicPageNames(names).firstOrNull()
+    }
+
+    private fun openContentStream(documentUri: String): java.io.InputStream? = runCatching {
+        context.contentResolver.openInputStream(Uri.parse(documentUri))
+    }
+        .getOrNull()
 
     // ------------------------------------------------------------ 位图 → 磁盘
 

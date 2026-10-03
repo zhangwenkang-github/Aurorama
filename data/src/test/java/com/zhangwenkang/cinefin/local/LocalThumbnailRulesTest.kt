@@ -177,7 +177,49 @@ class LocalThumbnailRulesTest {
     }
 
     @Test
-    fun `视频首帧回退顺序为第一秒再第零秒`() {
-        assertEquals(listOf(1_000_000L, 0L), LocalThumbnailRules.VIDEO_FRAME_TIMES_US)
+    fun `视频候选帧为 1 秒 10% 30% 再第 0 秒且去重`() {
+        // 10 分钟：1s → 60s → 180s → 0s
+        assertEquals(
+            listOf(1_000_000L, 60_000_000L, 180_000_000L, 0L),
+            LocalThumbnailRules.videoFrameTimesUs(600_000L),
+        )
+        // 10 秒：10% 与第 1 秒重合 → 去重
+        assertEquals(
+            listOf(1_000_000L, 3_000_000L, 0L),
+            LocalThumbnailRules.videoFrameTimesUs(10_000L),
+        )
+        // 时长未知 / 非法：只保留第 1 秒与第 0 秒
+        assertEquals(listOf(1_000_000L, 0L), LocalThumbnailRules.videoFrameTimesUs(null))
+        assertEquals(listOf(1_000_000L, 0L), LocalThumbnailRules.videoFrameTimesUs(0L))
+        assertEquals(listOf(1_000_000L, 0L), LocalThumbnailRules.videoFrameTimesUs(-5L))
+    }
+
+    @Test
+    fun `近黑帧判定使用平均相对亮度阈值`() {
+        assertTrue(LocalThumbnailRules.isNearlyBlack(IntArray(16) { 0xFF000000.toInt() }))
+        // 0x14 = 20 → 相对亮度 ≈ 0.078，仍在黑场阈值内
+        assertTrue(LocalThumbnailRules.isNearlyBlack(IntArray(16) { 0xFF141414.toInt() }))
+        // 0x40 = 64 → 相对亮度 ≈ 0.25，属于可见内容
+        assertFalse(LocalThumbnailRules.isNearlyBlack(IntArray(16) { 0xFF404040.toInt() }))
+        assertFalse(LocalThumbnailRules.isNearlyBlack(IntArray(16) { 0xFFFFFFFF.toInt() }))
+        assertEquals(0.0, LocalThumbnailRules.meanLuma(IntArray(0)), 1e-9)
+        // 阈值可调：同样的像素在更宽松的阈值下算黑
+        assertTrue(
+            LocalThumbnailRules.isNearlyBlack(IntArray(16) { 0xFF404040.toInt() }, maxLuma = 0.3)
+        )
+    }
+
+    @Test
+    fun `CBZ 页名自然序 p1 p2 p10 且大小写不敏感`() {
+        assertEquals(
+            listOf("cover/Intro.PNG", "p1.jpg", "p2.jpg", "p3.jpg", "p10.jpg"),
+            LocalThumbnailRules.sortedComicPageNames(
+                listOf("p10.jpg", "p2.jpg", "p1.jpg", "cover/Intro.PNG", "p3.jpg")
+            ),
+        )
+        assertTrue(LocalThumbnailRules.compareComicPageNames("a.jpg", "A1.jpg") < 0)
+        assertEquals(0, LocalThumbnailRules.compareComicPageNames("p01.jpg", "P1.JPG"))
+        assertTrue(LocalThumbnailRules.compareComicPageNames("!cover.jpg", "01.jpg") < 0)
+        assertEquals(emptyList<String>(), LocalThumbnailRules.sortedComicPageNames(emptyList()))
     }
 }
