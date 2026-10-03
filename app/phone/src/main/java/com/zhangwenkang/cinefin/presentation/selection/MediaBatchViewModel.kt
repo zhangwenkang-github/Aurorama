@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.presentation.selection
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
@@ -129,6 +130,7 @@ constructor(
         if (targets.isEmpty()) return
         viewModelScope.launch {
             val repository = repositoryProvider.get()
+            val state = _downloadState.value
             var queued = 0
             var failed = 0
             // 书籍走阅读器离线文件链路（与下载页「书籍」分组同源），其余走下载引擎。
@@ -139,22 +141,15 @@ constructor(
                     .onFailure { failed++ }
             }
             for (item in targets - books.toSet()) {
-                val detail = runCatching { repository.getItem(item.id) }.getOrNull()
-                val sourceId = runCatching {
-                    repository.getMediaSources(item.id, true)
-                }
-                    .getOrNull()
-                    ?.firstOrNull()
-                    ?.id
-                if (detail == null || sourceId == null) {
-                    failed++
-                    continue
-                }
-                runCatching {
-                    downloader.downloadItem(item = detail, sourceId = sourceId, storageIndex = 0)
-                }
-                    .onSuccess { (downloadId, _) -> if (downloadId >= 0) queued++ else failed++ }
-                    .onFailure { failed++ }
+                val (queuedNow, failedNow) =
+                    enqueueEngineTargets(
+                        repository = repository,
+                        item = item,
+                        downloadedIds = state.downloadedItemIds,
+                        queuedIds = state.activeItemIds,
+                    )
+                queued += queuedNow
+                failed += failedNow
             }
             refreshDownloadState()
             eventsChannel.send(MediaBatchEvent.DownloadQueued(queued = queued, failed = failed))
@@ -261,4 +256,92 @@ constructor(
             .minByOrNull { it.indexNumber }
     }
         .getOrNull()
+
+    /**
+     * 单条目入队（下载引擎）：电影 / 单集直接入队；**剧集 / 季按「补齐缺失集」展开** （与详情页「整剧 / 全季下载」同口径，复用 `DetailDownloadRules`
+     * 的取集字段 / 目标筛选 / 上限 / 去重）。
+     *
+     * 返回 (成功入队数, 失败数)。
+     */
+    private suspend fun enqueueEngineTargets(
+        repository: JellyfinRepository,
+        item: FindroidItem,
+        downloadedIds: Set<UUID>,
+        queuedIds: Set<UUID>,
+    ): Pair<Int, Int> {
+        val episodes =
+            when (item) {
+                is FindroidShow -> loadSeriesEpisodes(repository, item.id)
+                is FindroidSeason -> loadSeasonEpisodes(repository, item.seriesId, item.id)
+                else -> return enqueueEngineItem(repository, item)
+            }
+        val targets = DetailDownloadRules.downloadTargets(episodes)
+        val selection =
+            DetailDownloadRules.selectBatch(
+                itemIds = targets.map { it.id },
+                downloaded = downloadedIds,
+                queued = queuedIds,
+            )
+        val byId = targets.associateBy { it.id }
+        var queued = 0
+        var failed = 0
+        for (id in selection.selected) {
+            val episode = byId[id] ?: continue
+            val (queuedNow, failedNow) = enqueueEngineItem(repository, episode)
+            queued += queuedNow
+            failed += failedNow
+        }
+        return queued to failed
+    }
+
+    /** 单条目入队（下载引擎）；返回 (成功入队数, 失败数)。 */
+    private suspend fun enqueueEngineItem(
+        repository: JellyfinRepository,
+        item: FindroidItem,
+    ): Pair<Int, Int> {
+        val sourceId =
+            item.sources.firstOrNull()?.id
+                ?: runCatching { repository.getMediaSources(item.id, true) }
+                    .getOrNull()
+                    ?.firstOrNull()
+                    ?.id
+        if (sourceId == null) return 0 to 1
+        val detail =
+            if (item.sources.isNotEmpty()) item
+            else runCatching { repository.getItem(item.id) }.getOrNull() ?: return 0 to 1
+        return runCatching {
+                downloader.downloadItem(item = detail, sourceId = sourceId, storageIndex = 0)
+            }
+            .fold(
+                onSuccess = { (downloadId, _) -> if (downloadId >= 0) 1 to 0 else 0 to 1 },
+                onFailure = { 0 to 1 },
+            )
+    }
+
+    /** 整剧集数（全部季，按季号 → 集号排序；取集字段与详情页一致）。 */
+    private suspend fun loadSeriesEpisodes(
+        repository: JellyfinRepository,
+        seriesId: UUID,
+    ): List<FindroidEpisode> = runCatching {
+        repository
+            .getSeasons(seriesId)
+            .sortedBy { it.indexNumber }
+            .flatMap { season -> loadSeasonEpisodes(repository, seriesId, season.id) }
+    }
+        .getOrElse { emptyList() }
+
+    private suspend fun loadSeasonEpisodes(
+        repository: JellyfinRepository,
+        seriesId: UUID,
+        seasonId: UUID,
+    ): List<FindroidEpisode> = runCatching {
+        repository
+            .getEpisodes(
+                seriesId = seriesId,
+                seasonId = seasonId,
+                fields = DetailDownloadRules.EPISODE_FETCH_FIELDS,
+            )
+            .sortedBy { it.indexNumber }
+    }
+        .getOrElse { emptyList() }
 }
