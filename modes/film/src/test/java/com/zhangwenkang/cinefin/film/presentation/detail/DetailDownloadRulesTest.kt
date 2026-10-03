@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.film.presentation.detail
 
+import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import java.util.UUID
+import org.jellyfin.sdk.model.api.ItemFields
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -137,5 +139,25 @@ class DetailDownloadRulesTest {
             DetailDownloadRules.selectBatch(ids, downloaded = emptySet(), queued = ids.toSet())
         assertTrue(queued.selected.isEmpty())
         assertEquals(2, queued.skippedQueued)
+    }
+
+    @Test
+    fun `批量目标_有媒体源即入选_不因CanDownload字段缺失被误杀`() {
+        // W51b 真机缺陷：取集只请求 Overview 时，服务器不返回 CanDownload / MediaSources，
+        // SDK 把 canDownload 映射成 false → 整剧目标被全部过滤成 0 条。
+        val canDownloadMissing = dummyEpisode.copy(canDownload = false)
+        val withoutSource = dummyEpisode.copy(sources = emptyList())
+        val virtual = dummyEpisode.copy(missing = true)
+
+        val targets =
+            DetailDownloadRules.downloadTargets(listOf(canDownloadMissing, withoutSource, virtual))
+
+        assertEquals(listOf(canDownloadMissing.id), targets.map { episode -> episode.id })
+    }
+
+    @Test
+    fun `取集字段_必须显式请求媒体源与下载权限`() {
+        assertTrue(DetailDownloadRules.EPISODE_FETCH_FIELDS.contains(ItemFields.MEDIA_SOURCES))
+        assertTrue(DetailDownloadRules.EPISODE_FETCH_FIELDS.contains(ItemFields.CAN_DOWNLOAD))
     }
 }

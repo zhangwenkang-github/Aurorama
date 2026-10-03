@@ -179,6 +179,14 @@ class DownloaderImpl(
             val partial = File(partialPath)
             val existingBytes = if (partial.isFile) partial.length() else 0L
 
+            // W51b 竞态修复：条目快照必须先于队列行落库。
+            //
+            // 批量入队（整剧 / 全季）时引擎往往已在运行：若先插入 PENDING 队列行，再写快照（剧集要拉
+            // show / season，两次网络往返），引擎会在快照落库前抢到该行 → findItem 读不到条目 →
+            // FILE_ERROR「任务对应的媒体条目缺失」。真机批量入队 12 集时 11 集命中该竞态。
+            runCatching { persistItemSnapshot(item) }
+                .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
+
             val sourceDto =
                 FindroidSourceDto(
                     id = sourceId,
@@ -197,8 +205,6 @@ class DownloaderImpl(
                     allowOffline = existing?.allowOffline ?: true,
                 )
             database.insertSource(sourceDto)
-            runCatching { persistItemSnapshot(item) }
-                .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
 
             // W34：音乐曲目（专辑 / 艺人）写入侧车，供下载列表层级化与离线展示。
             if (albumName != null) {

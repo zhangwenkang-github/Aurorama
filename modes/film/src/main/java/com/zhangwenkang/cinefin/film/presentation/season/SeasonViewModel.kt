@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.film.presentation.season
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -10,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.jellyfin.sdk.model.api.ItemFields
 
 @HiltViewModel
 class SeasonViewModel @Inject constructor(private val repository: JellyfinRepository) :
@@ -29,7 +29,7 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
                     repository.getEpisodes(
                         seriesId = season.seriesId,
                         seasonId = seasonId,
-                        fields = listOf(ItemFields.OVERVIEW),
+                        fields = DetailDownloadRules.EPISODE_FETCH_FIELDS,
                     )
                 _state.emit(_state.value.copy(season = season, episodes = episodes))
             } catch (e: Exception) {

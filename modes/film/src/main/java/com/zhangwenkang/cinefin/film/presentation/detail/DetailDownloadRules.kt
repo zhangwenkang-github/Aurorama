@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.film.presentation.detail
 
+import com.zhangwenkang.cinefin.models.FindroidEpisode
 import java.util.UUID
+import org.jellyfin.sdk.model.api.ItemFields
 
 /** W51 详情页下载动作三态（单集与容器共用）。 */
 enum class DetailDownloadState {
@@ -32,6 +34,16 @@ data class BatchDownloadSelection(
 object DetailDownloadRules {
     /** 整剧 / 全季批量下载的默认单次上限（用户 2026-10-03 口径：默认 100 集）。 */
     const val DEFAULT_BATCH_LIMIT = 100
+
+    /**
+     * W51b：整剧 / 全季取集时必须显式请求的字段。
+     *
+     * `MediaSources`（引擎按 `sources.first().id` 入队）与 `CanDownload`（下载权限）都是 Jellyfin 的 **按需字段**：只请求
+     * `Overview` 时服务器的 `BaseItemDto` 里两者为 null → SDK 映射出空 `sources` / `canDownload =
+     * false`，批量目标会被误杀成 0 条（W51 真机缺陷根因，只读探针已复核）。
+     */
+    val EPISODE_FETCH_FIELDS: List<ItemFields> =
+        listOf(ItemFields.OVERVIEW, ItemFields.CAN_DOWNLOAD, ItemFields.MEDIA_SOURCES)
 
     /** 单集三态：已下载优先于已在队列（同时命中时按「已下载」提示）。 */
     fun stateOf(
@@ -66,6 +78,18 @@ object DetailDownloadRules {
             DetailDownloadState.DOWNLOADED
         }
     }
+
+    /**
+     * W51b：整剧 / 全季的下载目标筛选。
+     *
+     * 判据 = 非虚拟集（`!missing`）且**有媒体源**（`sources` 非空，引擎据此取 sourceId）。 刻意不把 `canDownload`
+     * 当门槛：该字段缺失时会被映射成 `false`，正是 W51 真机缺陷的成因； 服务器权限由引擎按 401/403 分类反馈（见
+     * `DownloadFailureReason.AUTHENTICATION`）。
+     */
+    fun downloadTargets(episodes: List<FindroidEpisode>): List<FindroidEpisode> =
+        episodes.filter { episode ->
+            !episode.missing && episode.sources.isNotEmpty()
+        }
 
     /**
      * 批量选择要入队的剧集：

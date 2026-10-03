@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.film.presentation.show
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidShow
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.PersonKind
 
 @HiltViewModel
@@ -99,10 +99,10 @@ class ShowViewModel @Inject constructor(private val repository: JellyfinReposito
                             repository.getEpisodes(
                                 seriesId = show.id,
                                 seasonId = season.id,
-                                fields = listOf(ItemFields.OVERVIEW),
+                                fields = DetailDownloadRules.EPISODE_FETCH_FIELDS,
                             )
                         }
-                        .filter { episode -> episode.canDownload && !episode.missing }
+                        .let(DetailDownloadRules::downloadTargets)
                 _state.update {
                     it.copy(downloadTargetsLoading = false, downloadTargets = episodes)
                 }

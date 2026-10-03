@@ -96,8 +96,7 @@ fun SeasonScreen(
         }
     }
 
-    val downloadTargets =
-        state.episodes.filter { episode -> episode.canDownload && !episode.missing }
+    val downloadTargets = DetailDownloadRules.downloadTargets(state.episodes)
     val seasonDownloadState =
         DetailDownloadRules.containerState(
             itemIds = downloadTargets.map { episode -> episode.id },

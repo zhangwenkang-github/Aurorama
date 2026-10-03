@@ -173,6 +173,7 @@
 - [x] **E 设置 UI**：`PreferenceSwitch.negateValue`（仅 Wi-Fi 对 `pref_downloads_mobile_data` 取反绑定）+ `PreferenceIntSelect` / `SettingsIntSelectCard`（并发 1–3）+ 完成通知开关；`AppPreferences.kt` 零改动。
 - [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` **538 项 0 失败 0 错误**（app 106 / core 37 / data 45 / player:local 105 / film 20 / book 113 / music 112）。
 - [ ] **真机验收**：待负责人设备窗口（清单见 `DOWNLOAD_PLAN` §20.5）。
+- [x] **W51b 真机缺陷修复（2026-10-03，分支 `feature/w51b-show-download-fix`，起点 master `9fcea57`）**：真机拦下「Show 整剧 → Snackbar『没有可下载的剧集』」——根因 = 取集只请求 `Fields=Overview`，`MediaSources` / `CanDownload` 按需字段缺失 → `canDownload=false` + 空 `sources` 被过滤成 0 条；修法 = 取集统一 `DetailDownloadRules.EPISODE_FETCH_FIELDS`（Overview + CanDownload + MediaSources）、目标筛选改「有媒体源」硬条件；同时修**批量入队竞态**（条目快照先于队列行落库 → 消除「文件写入失败 / 任务对应的媒体条目缺失」）。纯函数 +2 单测；门禁 **561 项 0 失败**；真机 Pad 5 复验：Show「将加入 12 集」→ Snackbar「已加入下载队列 · 12 集」、Season「将加入 11 集」→「· 11 集」、角标 12 → 删除后 0、单集回归正常、0 FATAL/ANR。详见 `DOWNLOAD_PLAN` §20.7。
 
 ### W53 实机 Bug A/B 修复（2026-10-03，同分支；用户实机反馈，D54）
 
@@ -948,6 +949,15 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **静态核对**：只用既有配色 / 字体 / 位图 token（新图标 0 枚，复用 `ic_chevron_up/down`）；设置行沿用 `SettingsRow` 60dp 行高 + 44dp 控制位、开关走 core `CinefinSwitch`、对话框复用 `SettingsOptionsDialog` / `BaseDialog`
 - [x] **红线 / 迁移**：`AppPreferences.kt` 删 `pref_ui_home_library_id` / `home_latest` + 加 8 键（已申报）；`NavigationRoot.kt` 加 `LibraryRoute.sortBy/sortOrder` + 「全部」接线（已申报）；迁移说明见 D61 ⑥
 - [ ] **真机验收**：待负责人设备窗口 —— 清单：继续观看 / 阅读 / 收听三条走廊（含空数据自动隐藏）、最近添加×3、逐库开关与媒体库顺序上下调整、默认分页落盘（重开设置保留）、首页「全部」进库内容页且默认「最近添加」排序、0 FATAL / ANR
+
+### W51b 验收（2026-10-03，分支 `feature/w51b-show-download-fix`，起点 master `9fcea57`、已 rebase 到 `233b387`；Pad 5 `43af8627`）
+
+- [x] **根因（只读探针）**：`GET /Shows/{id}/Episodes?Fields=CanDownload,MediaSources,Overview` → 12 集、`CanDownload` 非空、`MediaSources.Count=1`；`Fields=Overview` → 12 集、两者全 null（按需字段未请求）。
+- [x] **修法**：`DetailDownloadRules.EPISODE_FETCH_FIELDS` 统一取集字段；`downloadTargets()` 改「`!missing && sources.isNotEmpty()`」；`DownloaderImpl.downloadItem` 条目快照前移到 `insertSource` 之前（消除竞态）。
+- [x] **单测**：`DetailDownloadRulesTest` +2（媒体源入选 / 取集字段锁定）；film 33 → 35。
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务 `--rerun` 起点 **561 项 / 0 失败 0 错误**（app 114），rebase 到 master `233b387`（并入 W53B / W54-D）后复跑 **577 项 / 0 失败 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 112）；`9fcea57 → 233b387` 对本波下载 / 详情页文件零 diff，真机结论同样成立。
+- [x] **真机（Pad 5 `43af8627`，23:12–23:32，device-lock 已写释放与结论）**：Season 全季「将加入 11 集 / 已跳过 … 队列中 1 集」→ Snackbar「已加入下载队列 · 11 集」；Show 整剧「将加入 12 集」→ Snackbar「已加入下载队列 · 12 集」；下载页 `12 进行中 · 0 失败`、侧轨角标 12；单集下载回归 → 角标 1、`1 进行中 · 0 失败`；修复前同机同操作 11 失败（FILE_ERROR）对照；0 FATAL / ANR / FILE_ERROR；测试下载（12+11+1）已删除、偏好与临时文件未变。
+- [ ] **遗留**：进行中批量仍显示逐集容器（完成后才聚合）；批量入队按剧集重复拉 show/season 快照（约 10 s）。
 
 ## 6. 踩坑库
 

@@ -1,8 +1,8 @@
 # Cinefin · 下载 / 离线任务线（DOWNLOAD_PLAN）
 
 > **本文件是下载 / 离线线的唯一权威文档**：需求、决策、进度、验收、踩坑都写在这里，不新建零散 `.md`。
-> 维护会话：W51-DOWNLOAD-GRANULARITY（分支 `feature/w51-download-granularity`，基线 master `ce58847`；W50 引擎见 §18、
-> W52 界面见 §19；W32/W34/W36/W37 历史见 §4/§4.1）
+> 维护会话：W51B-SHOW-DOWNLOAD（分支 `feature/w51b-show-download-fix`，基线 master `9fcea57`；W51 粒度见 §20、
+> W50 引擎见 §18、W52 界面见 §19；W32/W34/W36/W37 历史见 §4/§4.1）
 > 最后更新：2026-10-03
 
 ## 1. 范围与现状
@@ -178,6 +178,8 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 - **旧数据判定**：v9 迁移后旧 source 的 `taskStatus` 为 NULL，首次进入下载页按路径自动补写状态（`.download` → FAILED，其余 → COMPLETED）。
 - **未触发项**：网络 / 服务器 FAILED 的自动重试、空间不足失败列表、reboot 续传（见 §6 3/4/6）；建议在服务器可停机窗口或备用条目下补验。
 - **未做**：本地文件播放（后续波）；下载限速 / 并发队列调整；已完成列表的封面图（当前为文本行卡片）；孤儿 sidecar 的自动清扫。
+- **W51b · Jellyfin 按需字段（`MediaSources` / `CanDownload`）不请求就全为 null**：`/Shows/{id}/Episodes` 只带 `Fields=Overview` 时，SDK 映射出空 `sources` / `canDownload=false`——拿它做批量过滤门槛会把整季剧集误杀成 0 条（真机现象 = Snackbar「没有可下载的剧集」）。取数方必须显式请求（`DetailDownloadRules.EPISODE_FETCH_FIELDS`），筛选门槛改用「有媒体源」这一硬条件。
+- **W51b · 队列行先于条目快照落库会踩竞态**：`downloadItem` 先插 PENDING 行、后写快照（剧集要拉 show + season 两次网络）时，批量入队会让**已唤醒的引擎**在快照落库前抢到该行 → `findItem()` 读不到条目 → FILE_ERROR「任务对应的媒体条目缺失」（同机 12 集入队实测 11 集失败）。修法 = 快照写入前移到 `insertSource` 之前；**队列可见的行必须已经具备执行所需的最小数据**。
 
 ## 8. 日志
 
@@ -576,3 +578,53 @@ W50 已实现的三项下载设置没有 UI。本波按用户 2026-10-03 确认�
 - 批量下载落默认存储（`storageIndex = 0`），不提供 SD 卡选择；单集仍保留存储选择对话框；
 - Episode 详情页不再提供「删除下载」入口（三态按钮点击只提示），删除统一走下载页（W52 已支持单条 / 容器删除）；
 - 角标按 itemId 去重计数：同一媒体存在多来源任务的极端情况会少计。
+
+### 20.7 W51b 真机缺陷修复（2026-10-03，分支 `feature/w51b-show-download-fix`，起点 master `9fcea57`，已 rebase 到 master `233b387`）
+
+**背景**：W51 合并后（master `9fcea57`，559 单测）负责人 Pad 5 走查拦下——Show 详情页点「下载」提示 Snackbar
+「**没有可下载的剧集**」；只读探针显示服务器 `/Shows/{id}/Episodes` 对「超能力女儿」返回 12 集、每集 1 个 MediaSource，
+数据侧无缺失。本轮定位并修复**两条**缺陷（第二条为真机批量复验时新发现）。
+
+#### 根因与修法
+
+| # | 现象 | 根因 | 修法 |
+|---|------|------|------|
+| ① | 整剧 / 全季目标被筛成 0 条 → Snackbar「没有可下载的剧集」 | `ShowViewModel.loadDownloadTargets` / `SeasonViewModel.loadSeason` 取集只请求 `Fields=Overview`；Jellyfin 的 `MediaSources` / `CanDownload` 都是**按需字段**，未请求时 `BaseItemDto` 里为 null → SDK 映射出空 `sources` / `canDownload=false`，W51 的 `canDownload && !missing` 过滤把 12 集全部丢掉（Episode 单集走 `userLibraryApi.getItem` 默认字段，故正常） | 取集统一走 `DetailDownloadRules.EPISODE_FETCH_FIELDS`（Overview + CanDownload + MediaSources）；目标筛选抽 `downloadTargets()`（判据 = `!missing && sources.isNotEmpty()`，不再以会缺失的 `canDownload` 当门槛，权限失败交引擎 401/403 分类） |
+| ② | 批量入队 12 集：`1 进行中 + 11 失败`（下载页「文件写入失败」，日志「任务对应的媒体条目缺失」） | `DownloaderImpl.downloadItem` 先插 PENDING 队列行、后写条目快照（剧集快照要拉 show + season 两次网络）；批量入队时引擎已被前一条唤醒，会在快照落库前抢到该行 → `findItem()` 读不到条目 → FILE_ERROR | 快照写入**前移到 `insertSource` 之前**——队列行一旦对引擎可见，条目快照必已落库；幂等命中 PENDING/RUNNING/PAUSED 时仍直接返回，不重复写 |
+
+**只读探针（服务器 zhangwenkang，`GET /Shows/bf24fa94-…/Episodes`）**：
+
+- `Fields=CanDownload,MediaSources,Overview` → 12 集，`CanDownload` 全部非空、`MediaSources.Count=1`；
+- `Fields=Overview` → 12 集，`CanDownload` / `MediaSources` **全部为 null**（与根因 ① 完全吻合）。
+
+#### 单测（+2）
+
+- `批量目标_有媒体源即入选_不因CanDownload字段缺失被误杀`：`canDownload=false` + 有源 → 入选；无源 / 虚拟集 → 剔除；
+- `取集字段_必须显式请求媒体源与下载权限`：锁定 `EPISODE_FETCH_FIELDS` 必须包含 `MEDIA_SOURCES` / `CAN_DOWNLOAD`。
+
+#### 门禁（2026-10-03）
+
+- 根 `assembleDebug`（含 TV）+ 根 `ktfmtCheck` 全绿；
+- 7 任务逐个 `--rerun` 数 XML：起点基线 = **561 项 0 失败 0 错误**（W51 基线 559 + 净增 2；app 114 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 112）；
+- **rebase 到 master `233b387`（并入 W53B / W54-D）后复跑**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` **577 项 0 失败 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 112）；
+- 说明：`9fcea57 → 233b387` 对本波涉及的下载 / 详情页文件 **零 diff**（`git diff` 为空），故真机复验结论对 rebase 后的分支同样成立。
+
+#### 真机复验（Pad 5 `43af8627`，23:12–23:32；device-lock 已写释放与结论）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | Season 全季 | ✅ 「下载全季」→ 确认框「将加入 11 集 / 已跳过：已下载 0 集 · 队列中 1 集 / 单次上限 100 集」→ 确认后 Snackbar「**已加入下载队列 · 11 集**」（截图取证），按钮转「已在队列」 |
+| ② | Show 整剧 | ✅ 「下载整剧」→ 确认框「**将加入 12 集** / 单次上限 100 集」→ 确认后 Snackbar「**已加入下载队列 · 12 集**」（轮询取证）；原「没有可下载的剧集」不再出现 |
+| ③ | 队列 / 角标 | ✅ 下载页 `12 进行中 · 0 失败`；侧轨角标「**12 个活动下载**」；单集下载回归 → 角标 1、`1 进行中 · 0 失败`、按钮「已在队列」 |
+| ④ | 竞态修复旁证 | ✅ 修复前同机同操作 = `1 进行中 · 11 失败（文件写入失败）`；修复后 **0 失败** |
+| ⑤ | 稳定性 | ✅ 0 FATAL / 0 ANR / 0 FILE_ERROR（crash buffer + main 过滤为空） |
+
+备注：Pad 5 当前 Wi-Fi 被判为计费网络 → 默认「仅 Wi-Fi 下载」下任务停在「等待网络」（W50 既有策略，非缺陷；复验只覆盖入队与角标）；
+测试下载 12 + 11 + 1 已全部删除，偏好 / `/sdcard` 临时文件 / App 状态已还原，服务器全程只读。
+
+#### 遗留
+
+- **进行中任务的容器分组**：下载页对进行中的整季批量仍显示为**逐集容器**（`getDownloadedEpisodeHierarchy` 只含已完成
+  `path NOT LIKE '%.download'`），下载完成后才合并成「节目 → 季 → 剧集」；本次未改（属 W34 层级查询口径，需要新增「含进行中」的
+  查询并按调用方分流以免影响离线可用性，留后续）。
+- **批量入队会为每集重复拉 show / season 快照**（12 集 = 24 次 GET + 图片 worker，入队约 10 s）；可按 show/season 去重优化，留后续。
