@@ -1788,3 +1788,4 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 - 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务逐个 `--rerun` **576 项 / 0 失败 / 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 111；music −1 = 旧 `MusicSleepTimerTest` 迁移）；新增 `:player:core:testDebugUnitTest` **7 项 / 0 失败**（分钟换算 / 1–240 边界 / 到点判定 / 取消清理 / 格式化），全量 **583 项 / 0 失败**。
 - 真机清单：① 音乐顶栏月亮 → 10 分钟 → 底栏 `睡眠 09:xx` 递减 → 到点暂停、文案消失；② 音乐自定义（如 37 分钟）→ 滑块 +「开始计时 · 37 分钟」生效，取消后不再暂停；③ 视频播放页右上睡眠键 → 面板（预设 + 自定义）→ 激活态点亮 → 到点暂停视频；④ 视频页顶栏睡眠对话框（非占位）设定后进入播放页状态连续；⑤ 熄屏 / 后台跨页面到点仍暂停（音乐 / 视频各一组）；⑥ 0 FATAL / ANR、播放页既有布局（D27 键序）不回归。
+- **负责人真机走查（2026-10-04 01:08，Pad 5 `43af8627`，master `64bcd8c`）**：§26.3 ①–⑥ 全通过——音乐自定义 1 分钟 → 底栏「睡眠 00:55」递减 → 到点自动暂停；视频页正式对话框设 20 分钟 → 播放器面板「到点自动暂停播放 · 剩余 18:26」状态连续 → 取消定时清零；后台（Home）60 秒到点 `dumpsys media_session` = `state=2`（PAUSED）；0 FATAL / ANR。详见 `device-lock.md`。
