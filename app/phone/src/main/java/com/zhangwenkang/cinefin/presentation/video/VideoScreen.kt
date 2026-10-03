@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.video
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
@@ -50,6 +52,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
+import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
@@ -72,17 +75,28 @@ fun VideoScreen(
     /** 抽屉入口；null = 当前形态没有抽屉（平板 | 非顶层）。 */
     onOpenDrawer: (() -> Unit)?,
     onItemClick: (FindroidItem) -> Unit,
+    /** 临时库视图（W53 追加）：非空 = 侧栏点进来的视频库 id，直显该库条目网格。 */
+    temporaryLibraryId: String? = null,
+    /** 临时库视图的「返回默认 ×」/ 系统返回键动作（回默认视频页）。 */
+    onExitTemporaryLibrary: (() -> Unit)? = null,
     viewModel: VideoViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(temporaryLibraryId) { viewModel.load(temporaryLibraryId) }
+
+    // 临时库视图：返回键先退出临时库（回默认视频页），再按一次才离开（用户 2026-10-03 口径）。
+    BackHandler(
+        enabled = state.temporaryLibrary != null && onExitTemporaryLibrary != null,
+        onBack = { onExitTemporaryLibrary?.invoke() },
+    )
 
     VideoScreenLayout(
         onOpenDrawer = onOpenDrawer,
         state = state,
         onItemClick = onItemClick,
-        onRetry = { viewModel.load() },
+        onRetry = { viewModel.load(temporaryLibraryId) },
+        onExitTemporaryLibrary = onExitTemporaryLibrary,
     )
 }
 
@@ -92,6 +106,7 @@ private fun VideoScreenLayout(
     state: VideoState,
     onItemClick: (FindroidItem) -> Unit,
     onRetry: () -> Unit,
+    onExitTemporaryLibrary: (() -> Unit)? = null,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val pageGutter = rememberPageGutter()
@@ -122,23 +137,42 @@ private fun VideoScreenLayout(
         }
 
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
+    val temporaryLibrary = state.temporaryLibrary
 
     Column(modifier = Modifier.fillMaxSize()) {
         CinefinPageTopBar(
-            title = stringResource(CoreR.string.title_video),
+            // 临时库视图：真实库名 + 类型 + 项目数（库卡总览不出现）。
+            title = temporaryLibrary?.name ?: stringResource(CoreR.string.title_video),
             subtitle =
-                if (state.libraries.isNotEmpty()) {
+                if (temporaryLibrary != null) {
+                    listOfNotNull(
+                            stringResource(libraryTypeLabelRes(temporaryLibrary.type)),
+                            temporaryLibrary.itemCount?.let {
+                                stringResource(FilmR.string.library_item_count, it)
+                            },
+                        )
+                        .joinToString(" · ")
+                } else if (state.libraries.isNotEmpty()) {
                     stringResource(FilmR.string.library_count, state.libraries.size)
                 } else {
                     null
                 },
             onOpenDrawer = onOpenDrawer,
             modifier = Modifier.padding(start = safePadding.start),
+            actions = {
+                if (temporaryLibrary != null && onExitTemporaryLibrary != null) {
+                    CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
+                }
+            },
         )
         Spacer(Modifier.height(CinefinSpacing.Space2))
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (state.displayMode == VideoDisplayMode.Aggregated && state.libraries.isNotEmpty()) {
+            if (
+                temporaryLibrary != null ||
+                    (state.displayMode == VideoDisplayMode.Aggregated &&
+                        state.libraries.isNotEmpty())
+            ) {
                 AggregatedVideoGrid(
                     items = state.aggregateItems,
                     onItemClick = onItemClick,

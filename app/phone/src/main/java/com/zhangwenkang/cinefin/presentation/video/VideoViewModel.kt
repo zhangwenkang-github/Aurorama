@@ -37,6 +37,10 @@ data class VideoState(
     val error: Exception? = null,
     val displayMode: VideoDisplayMode = VideoDisplayMode.defaultValue,
     val aggregateItems: Flow<PagingData<FindroidItem>> = flowOf(PagingData.empty()),
+    /**
+     * 临时库视图（W53 追加）：非空 = 侧栏点进来的某个视频库——顶栏显示「库名 + 类型 + 项目数」、 内容直显该库条目网格；返回键 / 「返回默认 ×」回默认视频页。不写偏好。
+     */
+    val temporaryLibrary: FindroidCollection? = null,
 )
 
 /**
@@ -77,7 +81,7 @@ constructor(
         super.onCleared()
     }
 
-    fun load() {
+    fun load(temporaryLibraryId: String? = null) {
         viewModelScope.launch {
             val repository = repositoryProvider.get()
             _state.value =
@@ -88,13 +92,19 @@ constructor(
                 )
             runCatching { pickVideoLibraries(repository.getLibraries()) }
                 .onSuccess { libraries ->
+                    val temporaryLibrary = temporaryLibraryId?.let { id ->
+                        libraries.firstOrNull { it.id.toString() == id }
+                    }
+                    // 临时库视图只加载该库；库在服务器上找不到（被删 / 重建）时回落默认视图。
+                    val visibleLibraries = temporaryLibrary?.let { listOf(it) } ?: libraries
                     _state.value =
                         _state.value.copy(
-                            libraries = libraries,
+                            libraries = visibleLibraries,
+                            temporaryLibrary = temporaryLibrary,
                             loaded = true,
                             isLoading = false,
                             error = null,
-                            aggregateItems = aggregateFlow(repository, libraries),
+                            aggregateItems = aggregateFlow(repository, visibleLibraries),
                         )
                 }
                 .onFailure { throwable ->

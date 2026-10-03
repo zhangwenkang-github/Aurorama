@@ -61,6 +61,7 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
@@ -111,6 +112,10 @@ fun MusicModeScreen(
      * 入口，沿用「音乐」标题。要加载哪个库由路由参数（`libraryId`）经 SavedStateHandle 传给 ViewModel，本参数只负责标题展示。
      */
     libraryName: String? = null,
+    /** 临时库视图（W53 追加）：顶栏「类型 · 数量」的类型前缀（如「音乐库」；null = 不带前缀）。 */
+    libraryTypeLabel: String? = null,
+    /** 临时库视图的「返回默认 ×」/ 系统返回键动作（回默认音乐库）；null = 音乐 Tab 默认视图。 */
+    onExitTemporaryLibrary: (() -> Unit)? = null,
     viewModel: MusicModeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -158,6 +163,12 @@ fun MusicModeScreen(
     // 系统返回键与左上角返回一致（W3-R3b 缺陷 1）：详情（专辑 / 艺术家 / 歌单）内先回音乐主界面，
     // 而不是直接退回首页；不在详情时交给 NavHost 正常返回。
     BackHandler(enabled = state.detail != null) { viewModel.closeDetail() }
+    // 临时库视图（W53 追加）：没有详情 / 面板打开时，返回键先退出临时库（回默认音乐库）。
+    // 详情打开时本 handler 禁用 → 详情返回语义优先；两者不会互相抢（BackHandler 为 LIFO）。
+    BackHandler(
+        enabled = onExitTemporaryLibrary != null && state.detail == null,
+        onBack = { onExitTemporaryLibrary?.invoke() },
+    )
 
     CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
         val colors = LocalCinefinColors.current
@@ -167,6 +178,8 @@ fun MusicModeScreen(
                     state = state,
                     sleepState = sleepState,
                     libraryName = libraryName,
+                    libraryTypeLabel = libraryTypeLabel,
+                    onExitTemporaryLibrary = onExitTemporaryLibrary,
                     onBack = viewModel::closeDetail,
                     onOpenDrawer = onOpenDrawer,
                     onOpenFavorites = viewModel::openFavorites,
@@ -398,6 +411,10 @@ private fun MusicHeader(
     sleepState: MusicSleepTimer.State,
     /** W53 Bug B1：侧栏点具体音乐库时的顶栏标题（null = 「音乐」）。 */
     libraryName: String?,
+    /** W53 追加：临时库视图顶栏的类型前缀（如「音乐库」）。 */
+    libraryTypeLabel: String?,
+    /** W53 追加：临时库视图的「返回默认 ×」；null = 默认视图不显示。 */
+    onExitTemporaryLibrary: (() -> Unit)?,
     onBack: () -> Unit,
     onOpenDrawer: (() -> Unit)?,
     onOpenFavorites: () -> Unit,
@@ -422,17 +439,24 @@ private fun MusicHeader(
                             MusicTab.PLAYLISTS -> state.playlists.size
                         }
                     // W39：筛选「本地 / 服务器」时计数副题补来源前缀（口径与列表一致）。
-                    musicLibrarySubtitle(
-                        tab = state.tab,
-                        filter = state.sourceFilter,
-                        count = count,
-                        offline = state.offline,
-                    )
+                    listOfNotNull(
+                            libraryTypeLabel,
+                            musicLibrarySubtitle(
+                                tab = state.tab,
+                                filter = state.sourceFilter,
+                                count = count,
+                                offline = state.offline,
+                            ),
+                        )
+                        .joinToString(" · ")
                 }
             },
         onOpenDrawer = onOpenDrawer,
         onBack = if (detail != null) onBack else null,
         actions = {
+            if (onExitTemporaryLibrary != null && detail == null) {
+                CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
+            }
             CinefinIconButton(onClick = onOpenFavorites) { tint ->
                 Icon(
                     painter =

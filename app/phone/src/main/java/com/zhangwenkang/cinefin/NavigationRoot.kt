@@ -94,7 +94,6 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
-import com.zhangwenkang.cinefin.music.presentation.MusicLibraryRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
 import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
@@ -115,9 +114,11 @@ import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawerHeader
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPANDED
 import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
+import com.zhangwenkang.cinefin.presentation.navigation.TemporaryLibraryKind
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
 import com.zhangwenkang.cinefin.presentation.navigation.libraryEntryRoute
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
+import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
 import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
@@ -190,6 +191,20 @@ data class LibraryRoute(
     val libraryId: String,
     val libraryName: String,
     val libraryType: CollectionType,
+)
+
+/**
+ * 临时库视图（W53 追加，用户 2026-10-03 确认）：侧栏 / 抽屉点某个服务器媒体库 → 对应模式页（[kind]）直显该库数据，不写偏好。
+ *
+ * 返回键 / 「返回默认 ×」= 回到该模式页的**默认库**（入口根页），再按一次才离开页面；点其它底栏 / 侧栏入口同样回默认。
+ */
+@Serializable
+data class TemporaryLibraryRoute(
+    val libraryId: String,
+    val libraryName: String,
+    val kind: TemporaryLibraryKind,
+    /** [CollectionType.type]（顶栏类型文案用）。 */
+    val libraryType: String,
 )
 
 @Serializable data class CollectionRoute(val collectionId: String, val collectionName: String)
@@ -298,7 +313,7 @@ fun NavigationRoot(
             currentDestination.isRoute<BookshelfRoute>() ||
             currentDestination.isRoute<DownloadsRoute>() ||
             currentDestination.isRoute<MusicModeRoute>() ||
-            currentDestination.isRoute<MusicLibraryRoute>() ||
+            currentDestination.isRoute<TemporaryLibraryRoute>() ||
             currentDestination.isRoute<LibraryRoute>() ||
             currentDestination.isRoute<SettingsRoute>()
     val context = LocalContext.current
@@ -349,6 +364,13 @@ fun NavigationRoot(
         } else {
             null
         }
+    // 临时库视图（W53 追加）：侧栏点服务器媒体库 → 模式页直显该库；选中态按 kind 落到对应入口。
+    val temporaryLibrary =
+        if (currentDestination.isRoute<TemporaryLibraryRoute>()) {
+            runCatching { navBackStackEntry?.toRoute<TemporaryLibraryRoute>() }.getOrNull()
+        } else {
+            null
+        }
     // 侧柜皮肤（W6-VIS D23 → W7-R3 用户反馈 3）：侧轨 / 底栏 / 抽屉**常驻** S1「A · Lumen」——
     // 音乐 / 书架 / 阅读页只是**内容**保持各自皮肤（LumenPage 仍按域分流），侧边菜单统一走 A 稿。
     val lumenChrome = true
@@ -362,16 +384,19 @@ fun NavigationRoot(
         }
 
     val homeSelected = currentDestination.isRoute<HomeRoute>()
-    val videoSelected = currentDestination.isRoute<VideoRoute>()
+    val videoSelected =
+        currentDestination.isRoute<VideoRoute>() ||
+            temporaryLibrary?.kind == TemporaryLibraryKind.Video
     val musicSelected =
         currentDestination.isRoute<MusicModeRoute>() ||
-            currentDestination.isRoute<MusicLibraryRoute>()
+            temporaryLibrary?.kind == TemporaryLibraryKind.Music
     val mediaSelected = currentDestination.isRoute<MediaRoute>()
     val downloadsSelected = currentDestination.isRoute<DownloadsRoute>()
     val settingsSelected = currentDestination.isRoute<SettingsRoute>()
     val booksSelected =
         currentDestination.isRoute<BookshelfRoute>() ||
-            (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString())
+            (booksLibrary != null && currentLibrary?.libraryId == booksLibrary.id.toString()) ||
+            temporaryLibrary?.kind == TemporaryLibraryKind.Books
 
     // 手机（Compact）恢复抽屉入口（W7-R3 用户反馈 1）：顶栏 app 图标可拉出，边缘手势也可用。
     // W46（用户确认）：展开形态取消抽屉——顶栏不再给入口（null），导航入口只剩常显侧轨（收 / 展开由侧轨自身按钮完成）。
@@ -419,6 +444,14 @@ fun NavigationRoot(
             )
         ) {
             popUpTo(navController.graph.startDestinationId)
+            launchSingleTop = true
+        }
+    }
+    // 临时库视图（W53 追加）：返回键 / 「返回默认 ×」= 回到该模式页的**默认库**（入口根页）——
+    // 用「导航到默认入口 + popUpTo 临时条目 inclusive」替换当前条目，再按一次返回才会离开页面。
+    val exitTemporaryLibrary: (Any) -> Unit = { defaultRoute ->
+        navController.safeNavigate(defaultRoute) {
+            popUpTo<TemporaryLibraryRoute> { inclusive = true }
             launchSingleTop = true
         }
     }
@@ -931,14 +964,54 @@ fun NavigationRoot(
                 }
             }
             composable<MusicModeRoute> { MusicModeScreen(onOpenDrawer = openDrawer) }
-            composable<MusicLibraryRoute> { backStackEntry ->
-                // W53 Bug B1：侧栏点具体音乐库走独立目的地——libraryId 经 SavedStateHandle 进 ViewModel
-                // （按该库加载），libraryName 只用于顶栏标题；音乐 Tab 仍走 MusicModeRoute（用偏好）。
-                val route: MusicLibraryRoute = backStackEntry.toRoute()
-                MusicModeScreen(
-                    onOpenDrawer = openDrawer,
-                    libraryName = route.libraryName,
-                )
+            composable<TemporaryLibraryRoute> { backStackEntry ->
+                // 临时库视图（W53 追加）：侧栏点服务器库 → 对应模式页直显该库；不写偏好。
+                // 返回键 / 「返回默认 ×」→ 该模式页的默认库（exitTemporaryLibrary）。
+                val route: TemporaryLibraryRoute = backStackEntry.toRoute()
+                when (route.kind) {
+                    TemporaryLibraryKind.Video ->
+                        ProvideLumen {
+                            VideoScreen(
+                                onOpenDrawer = openDrawer,
+                                onItemClick = { item ->
+                                    navigateToItem(
+                                        navController = navController,
+                                        item = item,
+                                        context = context,
+                                    )
+                                },
+                                temporaryLibraryId = route.libraryId,
+                                onExitTemporaryLibrary = { exitTemporaryLibrary(VideoRoute) },
+                            )
+                        }
+                    TemporaryLibraryKind.Music ->
+                        MusicModeScreen(
+                            onOpenDrawer = openDrawer,
+                            // libraryId 由 SavedStateHandle 进 ViewModel（按该库加载），name 只用于顶栏标题。
+                            libraryName = route.libraryName,
+                            libraryTypeLabel =
+                                stringResource(
+                                    libraryTypeLabelRes(
+                                        CollectionType.fromString(route.libraryType)
+                                    )
+                                ),
+                            onExitTemporaryLibrary = { exitTemporaryLibrary(MusicModeRoute) },
+                        )
+                    TemporaryLibraryKind.Books ->
+                        BookshelfScreen(
+                            onOpenDrawer = openDrawer,
+                            onItemClick = { item ->
+                                navigateToItem(
+                                    navController = navController,
+                                    item = item,
+                                    context = context,
+                                )
+                            },
+                            navigateBack = { navController.safePopBackStack() },
+                            temporaryLibraryId = route.libraryId,
+                            onExitTemporaryLibrary = { exitTemporaryLibrary(BookshelfRoute) },
+                        )
+                }
             }
             composable<ConsoleRoute> { backStackEntry ->
                 val route: ConsoleRoute = backStackEntry.toRoute()

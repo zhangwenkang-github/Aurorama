@@ -32,6 +32,7 @@ import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
@@ -76,6 +77,8 @@ fun LibraryScreen(
     topLevel: Boolean = false,
     /** 侧栏入口（仅顶层模式使用）。 */
     onOpenDrawer: (() -> Unit)? = null,
+    /** 临时库视图（W53 追加）：非空 = 顶栏显示「返回默认 ×」胶囊（一键回默认书架 / 库）。 */
+    onBackToDefault: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -94,6 +97,7 @@ fun LibraryScreen(
         libraryType = libraryType,
         topLevel = topLevel,
         onOpenDrawer = onOpenDrawer,
+        onBackToDefault = onBackToDefault,
         state = state,
         onAction = { action ->
             when (action) {
@@ -118,6 +122,7 @@ private fun LibraryScreenLayout(
     libraryType: CollectionType,
     topLevel: Boolean,
     onOpenDrawer: (() -> Unit)?,
+    onBackToDefault: (() -> Unit)? = null,
     state: LibraryState,
     onAction: (LibraryAction) -> Unit,
 ) {
@@ -181,6 +186,9 @@ private fun LibraryScreenLayout(
             onBack = if (topLevel) null else ({ onAction(LibraryAction.OnBackClick) }),
             modifier = Modifier.padding(start = safePadding.start),
             actions = {
+                if (onBackToDefault != null) {
+                    CinefinBackToDefaultChip(onClick = onBackToDefault)
+                }
                 TopBarAction(
                     icon = CoreR.drawable.ic_arrow_down_up,
                     onClick = { showSortByDialog = true },

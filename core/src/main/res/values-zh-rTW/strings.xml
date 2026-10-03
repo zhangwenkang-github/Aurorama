@@ -165,4 +165,13 @@
     <string name="title_more">更多</string>
     <string name="nav_collapse">收合</string>
     <string name="nav_library_item_count">%1$d 項</string>
+    <string name="library_type_movies">電影庫</string>
+    <string name="library_type_tvshows">影集庫</string>
+    <string name="library_type_homevideos">家庭視訊</string>
+    <string name="library_type_music">音樂庫</string>
+    <string name="library_type_books">書籍庫</string>
+    <string name="library_type_playlists">播放清單</string>
+    <string name="library_type_boxsets">合集</string>
+    <string name="library_type_mixed">混合庫</string>
+    <string name="temp_library_back_to_default">返回預設</string>
 </resources>

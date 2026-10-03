@@ -165,6 +165,15 @@
     <string name="nav_collapse">Collapse</string>
     <string name="nav_expand">Expand</string>
     <string name="nav_library_item_count">%1$d items</string>
+    <string name="library_type_movies">Movies</string>
+    <string name="library_type_tvshows">TV shows</string>
+    <string name="library_type_homevideos">Home videos</string>
+    <string name="library_type_music">Music</string>
+    <string name="library_type_books">Books</string>
+    <string name="library_type_playlists">Playlists</string>
+    <string name="library_type_boxsets">Collections</string>
+    <string name="library_type_mixed">Mixed</string>
+    <string name="temp_library_back_to_default">Default library</string>
     <string name="nav_open_drawer">Open navigation</string>
     <string name="nav_back">Back</string>
     <!-- 调用点落在红线文件 NavigationRoot.kt，本轮按字面量更新；后续如需 %1$s 注入 app_name 走申报。 -->

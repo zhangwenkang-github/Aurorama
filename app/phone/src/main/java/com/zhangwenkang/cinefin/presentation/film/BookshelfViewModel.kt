@@ -43,15 +43,18 @@ constructor(
     private val _state = MutableStateFlow<BookshelfState>(BookshelfState.Loading)
     val state = _state.asStateFlow()
 
-    private var loaded = false
+    /** 已加载的库键（null = 默认书库）；换库（含侧栏临时库视图）时重新解析。 */
+    private var loadedLibraryKey: String? = null
 
-    fun load(force: Boolean = false) {
-        if (loaded && !force) return
-        loaded = true
+    /** [libraryId] 非空 = 「临时库视图」（W53 追加）：侧栏点具体书籍库 → 只解析该库（找不到走空态）， 不读「客户端设置 → 书架媒体库」偏好、不写偏好。 */
+    fun load(force: Boolean = false, libraryId: String? = null) {
+        if (!force && loadedLibraryKey == libraryId && state.value !is BookshelfState.Loading)
+            return
+        loadedLibraryKey = libraryId
         viewModelScope.launch {
             _state.value = BookshelfState.Loading
             _state.value =
-                runCatching { resolveBooksLibrary() }
+                runCatching { resolveBooksLibrary(temporaryLibraryId = libraryId) }
                     .fold(
                         onSuccess = { library ->
                             library?.let { BookshelfState.Ready(it) } ?: BookshelfState.Empty
@@ -65,8 +68,15 @@ constructor(
      * 「优先第一个非空的 books 库」：服务器上常有"建好但还没放书"的空壳书库， 用一次 `limit = 1` 的轻量查询确认非空（与库内容页同样的 `BOOK` +
      * 递归口径），都空则退回第一个书库—— 由库内容页显示空态，而不是把用户丢到媒体库总览。
      */
-    private suspend fun resolveBooksLibrary(): FindroidCollection? {
+    private suspend fun resolveBooksLibrary(
+        temporaryLibraryId: String? = null
+    ): FindroidCollection? {
         val libraries = repository.getLibraries()
+        if (temporaryLibraryId != null) {
+            return libraries.firstOrNull {
+                it.id.toString() == temporaryLibraryId && it.type == CollectionType.Books
+            }
+        }
         // 客户端设置「书架媒体库」：显式选定且仍然存在的书籍库优先，不再逐库判空。
         val preferredLibraryId =
             appPreferences

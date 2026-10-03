@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -47,11 +49,21 @@ fun BookshelfScreen(
     onOpenDrawer: (() -> Unit)?,
     onItemClick: (FindroidItem) -> Unit,
     navigateBack: () -> Unit,
+    /** 临时库视图（W53 追加）：非空 = 侧栏点进来的书籍库 id，只加载该库。 */
+    temporaryLibraryId: String? = null,
+    /** 临时库视图的「返回默认 ×」/ 系统返回键动作（回默认书架）。 */
+    onExitTemporaryLibrary: (() -> Unit)? = null,
     viewModel: BookshelfViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(temporaryLibraryId) { viewModel.load(libraryId = temporaryLibraryId) }
+
+    // 临时库视图：返回键先退出临时库（回默认书架），再按一次才离开（用户 2026-10-03 口径）。
+    BackHandler(
+        enabled = temporaryLibraryId != null && onExitTemporaryLibrary != null,
+        onBack = { onExitTemporaryLibrary?.invoke() },
+    )
 
     when (val current = state) {
         is BookshelfState.Ready ->
@@ -65,12 +77,14 @@ fun BookshelfScreen(
                 // 不再复用二级库内容页的返回箭头与库名「书籍」。
                 topLevel = true,
                 onOpenDrawer = onOpenDrawer,
+                onBackToDefault = onExitTemporaryLibrary,
             )
         else ->
             BookshelfPlaceholder(
                 state = current,
                 onOpenDrawer = onOpenDrawer,
-                onRetry = { viewModel.load(force = true) },
+                onRetry = { viewModel.load(force = true, libraryId = temporaryLibraryId) },
+                onExitTemporaryLibrary = onExitTemporaryLibrary,
             )
     }
 }
@@ -81,6 +95,7 @@ private fun BookshelfPlaceholder(
     state: BookshelfState,
     onOpenDrawer: (() -> Unit)?,
     onRetry: () -> Unit,
+    onExitTemporaryLibrary: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -96,6 +111,11 @@ private fun BookshelfPlaceholder(
             title = stringResource(CoreR.string.title_book_shelf),
             onOpenDrawer = onOpenDrawer,
             modifier = Modifier.padding(start = safePadding.start),
+            actions = {
+                if (onExitTemporaryLibrary != null) {
+                    CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
+                }
+            },
         )
         Spacer(Modifier.height(CinefinSpacing.Space6))
 

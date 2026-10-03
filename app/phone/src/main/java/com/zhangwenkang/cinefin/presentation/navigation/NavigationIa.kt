@@ -1,8 +1,9 @@
 package com.zhangwenkang.cinefin.presentation.navigation
 
 import com.zhangwenkang.cinefin.LibraryRoute
+import com.zhangwenkang.cinefin.TemporaryLibraryRoute
+import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.CollectionType
-import com.zhangwenkang.cinefin.music.presentation.MusicLibraryRoute
 
 /** 顶层目的地：底部 Tab 顺序与侧栏可见性开关都按它寻址（W6-R6N）。 */
 enum class NavEntryKey {
@@ -109,21 +110,70 @@ fun railGroupOf(key: NavEntryKey): RailGroup =
     }
 
 /**
+ * 侧栏 / 抽屉点某个服务器媒体库时的落点模式页（W53 追加「临时库视图」；纯逻辑，单测覆盖）。
+ *
+ * - **视频库**（movies / tvshows / homevideos / 混合「其他」）→ 视频页直显该库内容网格；
+ * - **音乐库** → 音乐模式按该库加载；
+ * - **书籍库** → 书架按该库加载；
+ * - **其余**（Playlists 等）→ 通用库内容页。
+ *
+ * null = 不是模式页库（走通用库内容页）。
+ */
+enum class TemporaryLibraryKind {
+    Video,
+    Music,
+    Books,
+}
+
+/** 侧栏库子项 → 临时库视图归属（纯逻辑，单测覆盖）。 */
+fun temporaryLibraryKindOf(type: CollectionType): TemporaryLibraryKind? =
+    when (type) {
+        CollectionType.Movies,
+        CollectionType.TvShows,
+        CollectionType.HomeVideos,
+        // 「其他」= Jellyfin 混合库（collectionType 为 null），用户口径归视频页。
+        CollectionType.Mixed -> TemporaryLibraryKind.Video
+        CollectionType.Music -> TemporaryLibraryKind.Music
+        CollectionType.Books -> TemporaryLibraryKind.Books
+        else -> null
+    }
+
+/**
+ * 临时库视图顶栏的「类型」文案资源（纯逻辑，单测覆盖）。
+ *
+ * 与 [temporaryLibraryKindOf] 分开：通用库内容页（Playlists / 合集 / 文件夹等）也要显示类型。
+ */
+fun libraryTypeLabelRes(type: CollectionType): Int =
+    when (type) {
+        CollectionType.Movies -> CoreR.string.library_type_movies
+        CollectionType.TvShows -> CoreR.string.library_type_tvshows
+        CollectionType.HomeVideos -> CoreR.string.library_type_homevideos
+        CollectionType.Music -> CoreR.string.library_type_music
+        CollectionType.Books -> CoreR.string.library_type_books
+        CollectionType.Playlists -> CoreR.string.library_type_playlists
+        CollectionType.BoxSets -> CoreR.string.library_type_boxsets
+        else -> CoreR.string.library_type_mixed
+    }
+
+/**
  * 侧栏 / 抽屉点某个服务器媒体库时的落点路由（纯函数，单测覆盖）。
  *
- * - **音乐库**：带上点击的 `libraryId` / `libraryName` 进音乐模式的「指定音乐库」目的地（[MusicLibraryRoute]）
- *   ——服务器上可能有多个同类型音乐库（如「音乐」「音乐测试」），不带参数的旧实现会一律落到 「客户端设置 → 音乐库」偏好的那一个（W53 Bug B1：点「音乐测试」页里仍是「音乐」）。
- *   音乐 Tab / 本地曲目起播等入口仍走 `MusicModeRoute`（无参数 = 用偏好）。
- * - **其余类型**：进通用库内容页；参数里带着 id / 名称 / 类型，导航侧必须按参数新建条目 （不能走统一入口的 `saveState +
- *   restoreState`，否则旧条目会把新参数顶掉——W53 Bug B2）。
+ * 模式页库（视频 / 音乐 / 书籍）返回 [TemporaryLibraryRoute]（临时库视图：不写偏好、返回键先回默认库）； 其余类型返回 [LibraryRoute]（参数里带 id
+ * / 名称 / 类型，导航侧必须按参数新建条目——不能走统一入口的 `saveState + restoreState`，否则旧条目会把新参数顶掉，W53 Bug B2）。
  */
 fun libraryEntryRoute(
     libraryId: String,
     libraryName: String,
     libraryType: CollectionType,
-): Any =
-    if (libraryType == CollectionType.Music) {
-        MusicLibraryRoute(libraryId = libraryId, libraryName = libraryName)
+): Any {
+    val kind = temporaryLibraryKindOf(libraryType)
+    return if (kind != null) {
+        TemporaryLibraryRoute(
+            libraryId = libraryId,
+            libraryName = libraryName,
+            kind = kind,
+            libraryType = libraryType.type,
+        )
     } else {
         LibraryRoute(
             libraryId = libraryId,
@@ -131,6 +181,7 @@ fun libraryEntryRoute(
             libraryType = libraryType,
         )
     }
+}
 
 /**
  * 组间分隔索引（纯逻辑，单测覆盖）：返回「其后应插入分组空隙 + 细分隔线」的条目下标。

@@ -165,6 +165,15 @@
     <string name="nav_collapse">收起</string>
     <string name="nav_expand">展开</string>
     <string name="nav_library_item_count">%1$d 项</string>
+    <string name="library_type_movies">电影库</string>
+    <string name="library_type_tvshows">剧集库</string>
+    <string name="library_type_homevideos">家庭视频</string>
+    <string name="library_type_music">音乐库</string>
+    <string name="library_type_books">书籍库</string>
+    <string name="library_type_playlists">播放列表</string>
+    <string name="library_type_boxsets">合集</string>
+    <string name="library_type_mixed">混合库</string>
+    <string name="temp_library_back_to_default">返回默认</string>
     <string name="nav_open_drawer">打开侧栏</string>
     <string name="nav_back">返回</string>
     <string name="console_back_to_app">返回极光幕</string>

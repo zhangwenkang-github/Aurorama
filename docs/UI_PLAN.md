@@ -109,6 +109,14 @@
 
 ### W53 实机 Bug A/B 修复（2026-10-03，同分支；用户实机反馈，D54）
 
+**W53 追加：临时库视图（用户 2026-10-03 确认，本会话落实 A 全部 6 条；B / C 见下「交接」）**
+
+- **落点**：侧栏 / 抽屉点服务器库 → 对应模式页直显该库（新目的地 `TemporaryLibraryRoute(libraryId, libraryName, kind, libraryType)`）：视频库（movies / tvshows / homevideos / 混合「其他」）→ 视频页**该库条目网格**（不走库卡总览）；音乐库 → 音乐模式该库；书籍库 → 书架该库；Playlists 等其余类型 → 通用库内容页（原行为）。归属判定抽 `temporaryLibraryKindOf` + `libraryEntryRoute` 纯函数（单测）。
+- **返回语义**：返回键先退出临时库、回该模式页默认库（视频 / 书架 / 音乐三页各挂 `BackHandler`；音乐页在详情打开时让位给详情返回）；「返回默认 ×」胶囊（新增 core `CinefinBackToDefaultChip`，Prism / Lumen 自适应）一键同效；点其它底栏 / 侧栏入口同样回默认（D54 ①「入口回落根页」保证）。
+- **临时态不写偏好**：库 id / 名称只走路由参数（进程内），不碰 `AppPreferences`。
+- **顶栏**：视频页 = 真实库名 + 「类型 · 共 N 个项目」；音乐页 = 库名 + 「类型 · 当前 Tab 计数」；书架 = 库名 + 项目数。
+- **交接（未做，下一步）**：①**B 侧栏本地库分组**——「媒体库」组内服务器库之后加「本地媒体库」子分组标题 + 分隔，列本地库（名称 + 项目数），遵循库级「在媒体库显示」开关、0 库整组隐藏、点击进 `LocalLibraryRoute`（需 `DrawerViewModel` 读本地库 + 侧轨 / 抽屉两处渲染）；②**C 本地库卡尺寸**——媒体库页本地库卡缩略图放大到 16:9（≈96–104dp 宽），服务器库卡保持 16:9 大卡（落点 `presentation/local` 的本地库卡组件）。
+
 - **Bug A（手机底栏「视频」切不回来）**：从抽屉选库 / 从视频页进库后再点底栏「视频」停在库内容页。根因 = `navigateTopLevel` 的 `popUpTo(start){saveState}` + `restoreState` 会把「Tab 根 + 子页面」整栈恢复。修法：导航后 `popBackStack(route, inclusive = false)` 统一弹回入口根页（已是根页为 no-op；根页滚动 / 状态仍由 `saveState` 保留）。
 - **Bug B2（侧栏选「书籍3」页里仍是「书籍」）**：库入口 = 同一目的地 + 不同参数，`restoreState` 按目的地 id 恢复旧条目、把新参数顶掉（踩坑 30 同类）。修法：`openLibrary` 改 `popUpTo(start)`（不回存 / 不恢复）+ `launchSingleTop`，按点击的库新建条目。
 - **Bug B1（侧栏选「音乐测试」页里仍是「音乐」）**：旧 `libraryEntryRoute` 把所有 Music 类型映射到 `MusicModeRoute`（忽略 libraryId），音乐模式只读「客户端设置 → 音乐库」。修法：新增独立目的地 `MusicLibraryRoute(libraryId, libraryName)`（音乐 Tab 仍是 `MusicModeRoute`，两者分开 → 参数不会被 `restoreState` 互相覆盖），`MusicModeViewModel` 从 SavedStateHandle 取路由库（路由 > 偏好 > 自动），顶栏显示库名；`resolveMusicLibraryId` 纯函数 + 单测。
