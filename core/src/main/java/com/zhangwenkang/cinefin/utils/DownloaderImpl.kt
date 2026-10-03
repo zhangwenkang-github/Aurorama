@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Environment
@@ -16,6 +17,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.zhangwenkang.cinefin.core.R as CoreR
@@ -62,6 +64,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -107,6 +110,27 @@ class DownloaderImpl(
 
     @Volatile private var lastNotificationAt = 0L
 
+    /**
+     * 网络恢复回调（W50）：把「网络类失败 + 退避等待」的任务立即唤醒。
+     *
+     * 退避封顶 30 分钟，但网络恢复属于用户可感知的明确事件：进程存活时不等退避，直接清退避 + 强制调度； 进程已死时仍由 WorkManager 的 CONNECTED 延迟任务兜底。
+     */
+    private val networkCallback =
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                scope.launch { wakeNetworkBlockedTasks() }
+            }
+        }
+
+    init {
+        runCatching {
+            context
+                .getSystemService(ConnectivityManager::class.java)
+                ?.registerDefaultNetworkCallback(networkCallback)
+        }
+            .onFailure { Timber.w(it, "注册下载网络回调失败") }
+    }
+
     // ---------------------------------------------------------------------------------------------
     // 入队 / 调度
     // ---------------------------------------------------------------------------------------------
@@ -147,7 +171,7 @@ class DownloaderImpl(
                     existingStatus == DownloadTaskStatus.PAUSED
             ) {
                 // 幂等：同一来源已在队列 / 下载中 / 暂停，不重置进度。
-                ensureEngineRunning()
+                ensureEngineRunning(forceStart = true)
                 return@withContext Pair(existing?.downloadId ?: handle, null)
             }
 
@@ -189,7 +213,7 @@ class DownloaderImpl(
                 )
             }
 
-            ensureEngineRunning()
+            ensureEngineRunning(forceStart = true)
             Pair(handle, null)
         }
 
@@ -260,21 +284,35 @@ class DownloaderImpl(
     /**
      * 确保有一个下载引擎 worker 在运行。
      *
-     * 唯一工作链上已有未完成工作时直接复用（避免页面轮询 / 重复点击导致工作链膨胀）。
+     * - 唯一工作链上已有 **运行中** 的 worker：直接复用（它会继续领取任务）；
+     * - 只有「排队中」（等待退避 / 网络）的 worker：普通调用不打扰；用户动作（新下载 / 继续 / 重试）用 [forceStart] 取消延迟任务并立即唤醒；
+     * - 链上已无未完成工作：入队即时 worker。
      */
-    private suspend fun ensureEngineRunning() {
-        val hasUnfinished =
+    private suspend fun ensureEngineRunning(forceStart: Boolean = false) {
+        val infos =
             withContext(Dispatchers.IO) {
                 runCatching {
                     workManager.getWorkInfosForUniqueWorkFlow(DOWNLOAD_ENGINE_WORK_NAME).first()
                 }
                     .getOrNull()
-                    ?.any { !it.state.isFinished } == true
             }
-        if (!hasUnfinished) enqueueEngineWork(delayMs = 0L)
+        if (infos == null) {
+            enqueueEngineWork(delayMs = 0L)
+            return
+        }
+        if (infos.any { it.state == WorkInfo.State.RUNNING }) return
+        val hasUnfinished = infos.any { !it.state.isFinished }
+        when {
+            !hasUnfinished -> enqueueEngineWork(delayMs = 0L)
+            forceStart -> enqueueEngineWork(delayMs = 0L, policy = ExistingWorkPolicy.REPLACE)
+            else -> Unit
+        }
     }
 
-    private fun enqueueEngineWork(delayMs: Long) {
+    private fun enqueueEngineWork(
+        delayMs: Long,
+        policy: ExistingWorkPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
+    ) {
         val builder =
             OneTimeWorkRequestBuilder<DownloadEngineWorker>()
                 .setConstraints(
@@ -286,7 +324,7 @@ class DownloaderImpl(
         }
         workManager.enqueueUniqueWork(
             DOWNLOAD_ENGINE_WORK_NAME,
-            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            policy,
             builder.build(),
         )
     }
@@ -501,7 +539,13 @@ class DownloaderImpl(
             runCatching { database.setSourceProgress(source.id, 0L, source.totalBytes, now) }
         }
         if (retryable) {
-            val delayMs = DownloadTaskRules.backoffDelayMs(retryCount)
+            /*
+             * 断网时不用长退避：下一次 worker 直接带 CONNECTED 约束等待网络恢复，恢复即续传；
+             * 仅在「网络可用但仍失败」（超时 / 服务端错误 / 计费策略拦截）时叠加指数退避。
+             */
+            val offline =
+                reason == DownloadFailureReason.NETWORK_UNAVAILABLE && !hasValidatedInternet()
+            val delayMs = if (offline) 0L else DownloadTaskRules.backoffDelayMs(retryCount)
             database.setSourceTaskStatus(
                 source.id,
                 DownloadTaskStatus.PENDING.name,
@@ -510,6 +554,7 @@ class DownloaderImpl(
             )
             database.setSourceRetry(source.id, retryCount, now + delayMs, now)
             Timber.i(
+                failure,
                 "下载失败将自动重试（%s，第 %d 次，%d ms 后）：%s",
                 reason,
                 retryCount,
@@ -575,7 +620,7 @@ class DownloaderImpl(
                 System.currentTimeMillis(),
             )
             database.setSourceRetry(source.id, source.retryCount, 0L, System.currentTimeMillis())
-            ensureEngineRunning()
+            ensureEngineRunning(forceStart = true)
             Pair(source.downloadId ?: downloadTaskHandle(source.id), null)
         }
 
@@ -590,7 +635,7 @@ class DownloaderImpl(
                 now,
             )
             database.setSourceRetry(source.id, 0, 0L, now)
-            ensureEngineRunning()
+            ensureEngineRunning(forceStart = true)
             Pair(source.downloadId ?: downloadTaskHandle(source.id), null)
         }
 
@@ -786,10 +831,12 @@ class DownloaderImpl(
                         null,
                         now,
                     )
+                    // 启动恢复 = 新会话：清掉历史退避时间，立即尝试一次（网络未恢复时由 CONNECTED 约束等待）。
+                    database.setSourceRetry(source.id, source.retryCount, 0L, now)
                     recovered += 1
                 }
             }
-            if (recovered > 0) ensureEngineRunning()
+            if (recovered > 0) ensureEngineRunning(forceStart = true)
             recovered
         }
 
@@ -818,7 +865,7 @@ class DownloaderImpl(
                 database.setSourceRetry(source.id, source.retryCount, 0L, now)
                 retried += 1
             }
-            if (retried > 0) ensureEngineRunning()
+            if (retried > 0) ensureEngineRunning(forceStart = true)
             retried
         }
 
@@ -989,8 +1036,16 @@ class DownloaderImpl(
             jellyfinRepository.getMediaSources(item.id, true)
         }
             .getOrElse {
+                val reason =
+                    when (it) {
+                        is java.net.UnknownHostException,
+                        is java.net.ConnectException,
+                        is java.net.SocketTimeoutException,
+                        is java.io.IOException -> DownloadFailureReason.NETWORK_UNAVAILABLE
+                        else -> DownloadFailureReason.SERVER_ERROR
+                    }
                 throw DownloadHttpException(
-                    DownloadFailureReason.NETWORK_UNAVAILABLE,
+                    reason,
                     it.message,
                     it,
                 )
@@ -1107,13 +1162,61 @@ class DownloaderImpl(
 
     private fun networkPolicyAllows(): Boolean {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return true
-        val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
-        // 「仅 Wi-Fi 下载」（默认开）复用既有键：pref_downloads_mobile_data=false 即仅计费网络拦截放宽。
+        val capabilities = runCatching {
+            manager.activeNetwork?.let { network -> manager.getNetworkCapabilities(network) }
+        }
+            .getOrNull()
+        if (capabilities == null) {
+            // 无法判定（网络切换瞬间 / 系统未返回能力）：放行，交给传输层失败分类处理，避免误拦。
+            Timber.d("下载网络策略：无法读取活动网络能力，默认允许")
+            return true
+        }
+        // 「仅 Wi-Fi 下载」（默认开）复用既有键：pref_downloads_mobile_data=false 时拦截「系统判定为计费」的网络。
         val metered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-        if (metered && !appPreferences.getValue(appPreferences.downloadOverMobileData)) return false
-        val roaming = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
-        if (roaming && !appPreferences.getValue(appPreferences.downloadWhenRoaming)) return false
+        if (metered && !appPreferences.getValue(appPreferences.downloadOverMobileData)) {
+            Timber.i("下载网络策略：当前网络为计费网络且未允许移动数据，等待")
+            return false
+        }
+        // 漫游只对蜂窝网络有意义（Wi-Fi 不因“无 NOT_ROAMING 能力”被误拦）。
+        val cellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+        val roaming =
+            cellular && !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
+        if (roaming && !appPreferences.getValue(appPreferences.downloadWhenRoaming)) {
+            Timber.i("下载网络策略：蜂窝漫游且未允许，等待")
+            return false
+        }
         return true
+    }
+
+    /** 当前是否有「已验证可用」的网络（断网退避判定用）。 */
+    private fun hasValidatedInternet(): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return true
+        val capabilities =
+            runCatching {
+                manager.activeNetwork?.let { network -> manager.getNetworkCapabilities(network) }
+            }
+                .getOrNull() ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    /** 网络恢复：清掉网络类任务的退避时间并立即唤醒队列。 */
+    private suspend fun wakeNetworkBlockedTasks() {
+        val now = System.currentTimeMillis()
+        val blocked =
+            withContext(Dispatchers.IO) {
+                database.getPendingSources().filter { source ->
+                    source.taskStatus.toTaskStatus() == DownloadTaskStatus.PENDING &&
+                        source.failureReason.toFailureReason() ==
+                            DownloadFailureReason.NETWORK_UNAVAILABLE
+                }
+            }
+        if (blocked.isEmpty()) return
+        for (source in blocked) {
+            database.setSourceRetry(source.id, source.retryCount, 0L, now)
+        }
+        ensureEngineRunning(forceStart = true)
+        Timber.i("网络恢复：唤醒 %d 个等待网络的下载任务", blocked.size)
     }
 
     private data class TaskRuntime(
