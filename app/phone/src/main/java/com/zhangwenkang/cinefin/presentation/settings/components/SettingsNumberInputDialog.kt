@@ -46,7 +46,10 @@ fun SettingsIntInputDialog(
     SettingsNumberInputDialog(
         preference = preference,
         initialValue = preference.value.toString(),
-        onUpdate = { value -> value.toIntOrNull()?.let { value -> onUpdate(value) } },
+        // W57：越界 / 非法输入在写入前按 valueRange 自动钳制。
+        onUpdate = { value ->
+            value.toIntOrNull()?.let { value -> onUpdate(preference.coerceValue(value)) }
+        },
         onDismissRequest = onDismissRequest,
         suffix = suffix,
     )

@@ -39,9 +39,12 @@
     <string name="settings_download_wifi_only">Wi-Fi only</string>
     <string name="settings_download_wifi_only_summary">Don\'t download over mobile data</string>
     <string name="settings_download_concurrency">Simultaneous downloads</string>
-    <string name="settings_download_concurrency_summary">How many downloads run at once (1–3)</string>
+    <string name="settings_download_concurrency_summary">How many downloads run at once (1–8)</string>
     <string name="settings_download_complete_notification">Notify when complete</string>
     <string name="settings_download_complete_notification_summary">Show a notification when a download finishes</string>
+    <string name="settings_download_speed_limit">Download speed limit</string>
+    <string name="settings_download_speed_limit_summary">Limit download speed (0–100 MB/s, 0 = unlimited). Applies to newly started tasks.</string>
+    <string name="mb_per_second">MB/s</string>
     <string name="mpv_player_summary">Use the experimental mpv player to play videos. mpv has support for more video, audio and subtitle codecs.</string>
     <string name="gestures">Gestures</string>
     <string name="player_gestures">Player gestures</string>

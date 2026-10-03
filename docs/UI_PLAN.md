@@ -115,7 +115,20 @@
 | D63 | **设置账号卡并入「账号与服务器」组首行（W56，用户 2026-10-04 拍板）** | ①`SettingsScreen` 删除 LazyColumn 顶部独立账号卡（原 `item(key = "account")` + 独立 `LumenCardFrame`），改由 `SettingsGroupCard` 新增的 `header` 组内首行插槽渲染同一 `SettingsAccountHeader`（头像 / 昵称 / 服务器 / 身份徽标全保留、点击仍进用户管理），插槽与组内行之间画同规格发丝线；②识别口径 = `PreferenceGroup.nameStringResource == settings_group_account_server`（5 组 IA 的第一组，组内既有「服务器」「网络」两项不动）；③不新增配色 / 字体 / 位图 / 字符串资源，`AppPreferences.kt` 零改动。 | 账号卡原本与分组卡并列在列表顶部，割裂了「账号与服务器」的组归属；插槽式合并保持卡片壳 / 行样式与既有组件不变，其余分组零感知。 |
 | D64 | **顶层图标统一「回对应主页」（W56，用户 2026-10-04 拍板）** | ①落点判定抽纯函数 `topLevelTapAction(isOnEntryHome, hasInPageOverlay)`（`app/phone` `presentation/navigation/TopLevelNavigation.kt`，4 项单测）：已在入口主页 → `Stay`（不重复导航 / 不闪烁）；主页 + 页内二级层 → `CollapseOverlay`；二级页 / 其它入口 → `Navigate`（沿用 W53 D54 的 `safeNavigate + popBackStack` 弹回入口根页）；②音乐全屏播放 / 歌词页 / 专辑·艺术家·歌单详情都是音乐页内状态（不在导航栈里）：`MusicModeScreen` 新增 `reselectSignal`（递增 = 收起覆盖层 + 退页内详情）与 `onInnerPageOpenChange`（回报「页内二级层是否打开」= 覆盖层或详情）；`NavigationRoot` 点「音乐」顶层图标走三分支，从二级页 / 其它入口回音乐时同样先收起恢复出来的覆盖层；③逐场景核对：首页 / 视频 / 音乐 / 书架 / 媒体库 / 下载 / 设置根页已在主页时均不重复导航；库内容页（视频 / 书籍）、临时库、视频与书架详情、本地库详情等由既有 `Navigate` 分支弹回对应根页；④已知边界：设置子页（同一目的地的不同 `indexes` 参数）不算「主页」，仍走既有导航；`Stay` 分支仍在最前面关抽屉，手机抽屉行为不回归。 | 音乐覆盖层此前无法用顶层图标关闭（点「音乐」是导航 no-op），是用户明确点名的缺口；把三态判定提成纯函数后，覆盖层语义可单测，其余入口只做「不重复导航」的最小改动。 |
 
+| D65 | **下载设置手动输入 + 「仅 Wi-Fi」不看计费 + 下载页缩略图本地优先（W57，用户 2026-10-04 拍板）** | ①**下载与缓存子页**：同时下载数改 `PreferenceIntInput(1..8)`（原 1/2/3 单选）、新增「下载限速」`PreferenceIntInput(0..100 MB/s，0 = 不限速)`、图片缓存默认 20 → **50 MB**；`PreferenceIntInput` 新增 `valueRange`（越界输入在对话框与写库双层自动钳制）。②**网络策略**：`DownloadNetworkRules`（纯函数）——`hasTransport(WIFI/ETHERNET)` 直接允许、**不看系统计费标记**；其余网络（蜂窝等）仍看「允许移动数据 / 漫游」开关。③**缩略图**：所有条目入队即由 `ImagesDownloaderWorker` 落盘自身封面 + `DownloadArtworkRules`（本地优先 / 剧集 条目→季→节目→远程兜底）+ 无图类型图标占位；飞行模式（断网）实测仍显示。④**限速**：`DownloadSpeedLimitRules` + `DownloadThrottle`（本次会话平均速率节流），每次任务启动读取偏好（运行中的任务不打断）。⑤新增文案三语言（默认 / zh-rCN / zh-rTW）。 | 红线动 `AppPreferences.kt`（缓存默认 50 + 新键 `pref_download_speed_limit_mbps`，已申报）；`NavigationRoot.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:core` / `player:local` 未动。门禁 599 项 / 0 失败（含 `player:core` 全量 606）；真机复现 + 复验见 `DOWNLOAD_PLAN` §21。 |
+
 ## 4. 进度
+
+### W57 下载体验：设置手动输入 + 网络策略 + 下载页缩略图（2026-10-04，分支 `feature/w57-download-ux`，起点 master `3518dca`）
+
+- **范围（用户 2026-10-04 拍板五条，决策 D65）**：①图片缓存默认 50 MB；②同时下载数手动输入（1–8，默认 2，越界钳制）；③新增下载限速（0–100 MB/s，0 = 不限速，引擎真实限速）；④「仅 Wi-Fi 下载」不看系统计费标记（`hasTransport(WIFI/ETHERNET)` 即允许，修复家庭 Wi-Fi 被判计费时永远等待）；⑤下载页缩略图任何网络下都显示（本地优先，无图类型占位）。
+- **缩略图根因（真机复现，Pad 5 `43af8627` 01:48–01:56）**：等待网络的电影 / 剧集条目均无图——电影从未落盘自身封面（`persistItemSnapshot` Movie 分支不调度图片 worker + `videoImageUri` 只查本地）；剧集只落节目 / 季海报、自身封面未落盘且进行中无层级归属被当电影容器渲染。`ImagesDownloaderWorker` 链路本身正常。
+- **落点**：`settings`（`AppPreferences.kt` **红线，已申报**：缓存默认 50 + 新键；`PreferenceIntInput.valueRange`；`SettingsViewModel` 两行接线）、`core`（`DownloadNetworkRules` / `DownloadSpeedLimitRules` / `DownloadThrottle` / `DownloadHttpEngine` 节流 / `DownloaderImpl` 网络策略 + 入队落图 / `ImagesDownloaderWorker` 非法地址兜底）、`modes:film`（`DownloadArtworkRules` + `DownloadsViewModel` 本地优先）。零新增配色 / 字体 / 位图；新增文案三语言。
+- [x] **①-③设置**：并发 99 → 收敛 8、限速 500 → 收敛 100 MB/s、缓存默认 50 MB（真机实测）。
+- [x] **④网络策略**：计费 Wi-Fi + 仅 Wi-Fi 开，单集入队立即下载（14.7 MB → 115 MB，1.2–2.3 MB/s），不再等待。
+- [x] **⑤缩略图**：入队数秒后下载页显示剧集海报（`files/images` 落 episode/season/show 三目录）；飞行模式下仍显示；关飞行自动续传（115 → 119 MB）。
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` **599 项 / 0 失败 0 错误**（app 136 / core 46 / data 45 / player:local 105 / film 40 / book 113 / music 114）、含 `player:core` 全量 **606 项 / 0 失败**；新增单测 16 项。
+- [x] **真机（Pad 5 `43af8627`，2026-10-04 02:11–02:16；device-lock 已写释放与结论）**：全部通过、0 FATAL / 0 ANR；测试下载已删除、偏好还原、服务器只读。
 
 ### W56 交互修正：设置账号卡并入 / 顶层图标回主页 / 迷你条 × / 全屏去歌词按钮（2026-10-04，分支 `feature/w56-interaction-fixes`，起点 master `2ed356f`）
 

@@ -8,6 +8,7 @@ import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -77,6 +78,8 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
         existingBytes: Long,
         validator: String?,
         expectedTotalBytes: Long,
+        /** W57 限速：≤ 0 = 不限速；按本次会话平均速率节流（读块后计算等待）。 */
+        speedLimitBytesPerSecond: Long = 0L,
         onProgress:
             suspend (
                 downloadedBytes: Long,
@@ -174,6 +177,7 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
 
                         val buffer = ByteArray(BUFFER_BYTES)
                         var lastFlushAt = SystemClock.elapsedRealtime()
+                        val sessionStartedAt = SystemClock.elapsedRealtime()
                         while (true) {
                             coroutineContext.ensureActive()
                             val read = input.read(buffer)
@@ -181,6 +185,15 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                             file.write(buffer, 0, read)
                             downloaded += read
                             onProgress(downloaded, totalBytes, validatorHeader, resumed)
+                            // W57 限速：按本次会话平均速率节流（0 = 不限速）。
+                            val waitMillis =
+                                DownloadThrottle.waitMillis(
+                                    bytesSinceStart = downloaded - offset,
+                                    elapsedMillis =
+                                        SystemClock.elapsedRealtime() - sessionStartedAt,
+                                    limitBytesPerSecond = speedLimitBytesPerSecond,
+                                )
+                            if (waitMillis > 0L) delay(waitMillis)
                             val now = SystemClock.elapsedRealtime()
                             if (now - lastFlushAt >= FLUSH_INTERVAL_MS) {
                                 file.fd.sync()

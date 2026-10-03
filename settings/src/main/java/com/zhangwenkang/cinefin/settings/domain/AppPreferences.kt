@@ -183,6 +183,9 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val downloadWhenRoaming = Preference("pref_downloads_roaming", false)
     /** W50 自研下载引擎：同时下载数（1–3，默认 2）。设置 UI 由 W51 补。 */
     val downloadConcurrency = Preference("pref_download_concurrency", 2)
+
+    /** W57：下载限速（MB/s，0 = 不限速；每次任务启动时读取）。 */
+    val downloadSpeedLimitMbps = Preference("pref_download_speed_limit_mbps", 0)
     /** W50 自研下载引擎：下载完成通知开关（默认开）；关闭后仍保留进行中前台服务通知。 */
     val downloadCompleteNotification = Preference("pref_download_complete_notification", true)
 
@@ -196,7 +199,7 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Cache
     val imageCache = Preference("pref_image_cache", true)
-    val imageCacheSize = Preference("pref_image_cache_size", 20)
+    val imageCacheSize = Preference("pref_image_cache_size", 50)
 
     // Sorting
     val sortBy = Preference("pref_sort_by", "SortName")

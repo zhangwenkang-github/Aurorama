@@ -121,12 +121,12 @@ object DownloadTaskRules {
     /** 残片失效（无法续传）最多自动安全重下次数。 */
     const val MAX_RESUME_RETRIES = 3
 
-    /** W50 同时下载数下限 / 上限 / 默认值（偏好 `pref_download_concurrency`）。 */
+    /** W50 同时下载数下限 / 上限 / 默认值（偏好 `pref_download_concurrency`）；W57 上限 3 → 8。 */
     const val MIN_CONCURRENT_TASKS = 1
-    const val MAX_CONCURRENT_TASKS = 3
+    const val MAX_CONCURRENT_TASKS = 8
     const val DEFAULT_CONCURRENT_TASKS = 2
 
-    /** 同时下载数钳制到 1–3（缺省值由偏好键 default = 2 提供）。 */
+    /** 同时下载数钳制到 1–8（缺省值由偏好键 default = 2 提供；设置页手动输入同范围）。 */
     fun coerceConcurrency(value: Int): Int =
         value.coerceIn(MIN_CONCURRENT_TASKS, MAX_CONCURRENT_TASKS)
 

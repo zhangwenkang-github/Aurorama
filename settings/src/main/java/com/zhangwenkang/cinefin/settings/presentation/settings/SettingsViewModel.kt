@@ -1034,7 +1034,8 @@ constructor(
                                                     backendPreference =
                                                         appPreferences.downloadWhenRoaming,
                                                 ),
-                                                PreferenceIntSelect(
+                                                // W57：并发改为手动输入（1–8，越界自动钳制）。
+                                                PreferenceIntInput(
                                                     nameStringResource =
                                                         R.string.settings_download_concurrency,
                                                     descriptionStringRes =
@@ -1043,7 +1044,20 @@ constructor(
                                                     supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference =
                                                         appPreferences.downloadConcurrency,
-                                                    optionValues = listOf(1, 2, 3),
+                                                    valueRange = 1..8,
+                                                ),
+                                                // W57：下载限速（0–100 MB/s，0 = 不限速）。
+                                                PreferenceIntInput(
+                                                    nameStringResource =
+                                                        R.string.settings_download_speed_limit,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .settings_download_speed_limit_summary,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences.downloadSpeedLimitMbps,
+                                                    suffixRes = R.string.mb_per_second,
+                                                    valueRange = 0..100,
                                                 ),
                                                 PreferenceSwitch(
                                                     nameStringResource =
@@ -1527,7 +1541,7 @@ constructor(
                     is PreferenceIntInput ->
                         appPreferences.setValue(
                             action.preference.backendPreference,
-                            action.preference.value,
+                            action.preference.coerceValue(action.preference.value),
                         )
                     is PreferenceLongInput ->
                         appPreferences.setValue(

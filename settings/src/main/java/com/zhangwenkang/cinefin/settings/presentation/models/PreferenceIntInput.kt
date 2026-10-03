@@ -17,4 +17,9 @@ data class PreferenceIntInput(
     @param:StringRes val prefixRes: Int? = null,
     @param:StringRes val suffixRes: Int? = null,
     val value: Int = -1,
-) : Preference
+    /** 可选输入范围（W57 下载设置）：越界 / 非法输入在写入前自动钳制。 */
+    val valueRange: IntRange? = null,
+) : Preference {
+    fun coerceValue(value: Int): Int =
+        valueRange?.let { value.coerceIn(it.first, it.last) } ?: value
+}

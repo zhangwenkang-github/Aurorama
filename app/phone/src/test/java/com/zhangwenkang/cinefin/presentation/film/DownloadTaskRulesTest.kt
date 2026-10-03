@@ -238,13 +238,14 @@ class DownloadTaskRulesTest {
     }
 
     @Test
-    fun `同时下载数钳制到1到3`() {
+    fun `同时下载数钳制到1到8`() {
         assertEquals(2, DownloadTaskRules.DEFAULT_CONCURRENT_TASKS)
         assertEquals(1, DownloadTaskRules.coerceConcurrency(0))
         assertEquals(1, DownloadTaskRules.coerceConcurrency(1))
         assertEquals(2, DownloadTaskRules.coerceConcurrency(2))
-        assertEquals(3, DownloadTaskRules.coerceConcurrency(3))
-        assertEquals(3, DownloadTaskRules.coerceConcurrency(9))
+        assertEquals(8, DownloadTaskRules.coerceConcurrency(8))
+        assertEquals(8, DownloadTaskRules.coerceConcurrency(9))
+        assertEquals(8, DownloadTaskRules.coerceConcurrency(100))
     }
 
     @Test

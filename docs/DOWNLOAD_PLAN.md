@@ -628,3 +628,49 @@ W50 已实现的三项下载设置没有 UI。本波按用户 2026-10-03 确认�
   `path NOT LIKE '%.download'`），下载完成后才合并成「节目 → 季 → 剧集」；本次未改（属 W34 层级查询口径，需要新增「含进行中」的
   查询并按调用方分流以免影响离线可用性，留后续）。
 - **批量入队会为每集重复拉 show / season 快照**（12 集 = 24 次 GET + 图片 worker，入队约 10 s）；可按 show/season 去重优化，留后续。
+
+## 21. W57 下载体验（2026-10-04，分支 `feature/w57-download-ux`，起点 master `3518dca`）
+
+**背景**：用户 2026-10-04 拍板下载体验 5 条——图片缓存默认 50 MB、并发改手动输入（1–8）、新增下载限速（0–100 MB/s，0 = 不限速）、「仅 Wi-Fi 下载」不看系统计费标记（修复家庭 Wi-Fi 被判计费时永远「等待网络」）、下载页缩略图任何网络下都显示。本波只动下载设置 / 网络策略 / 缩略图链路，不动下载粒度与下载页布局。
+
+### 21.1 需求与决策
+
+| # | 需求（用户口径） | 落地 |
+|---|------------------|------|
+| ① | `pref_image_cache_size` 默认 20 → **50**（MB） | `AppPreferences.kt` 默认值改 50（只影响未设置过的设备；本机已存值交负责人走查手改，**不做迁移**） |
+| ② | 同时下载数改**手动输入**：1–8、默认 2、越界自动钳制 | `PreferenceIntSelect(1/2/3)` → `PreferenceIntInput(valueRange = 1..8)`；`DownloadTaskRules.MAX_CONCURRENT_TASKS` 3 → 8（引擎读值仍钳制） |
+| ③ | 新增**下载限速**：0–100 MB/s、0 = 不限速、默认 0；引擎真实限速 | 新键 `pref_download_speed_limit_mbps`；`DownloadSpeedLimitRules`（钳制 / MB/s→B/s）+ `DownloadThrottle`（按**本次会话平均速率**节流）；`DownloadHttpEngine.download(speedLimitBytesPerSecond)` 在每读块后计算等待；**每次任务启动时读取偏好——运行中的任务不打断，新任务 / 重试立即生效**；媒体主体与外挂字幕流均受控 |
+| ④ | 「仅 Wi-Fi 下载」**不看计费标记** | `DownloadNetworkRules.decide`（纯函数）：`hasTransport(WIFI/ETHERNET)` → 直接允许；其余网络（蜂窝等）仍看「允许移动数据」（默认 false = 等待）与漫游开关。**修复「家庭 Wi-Fi 被判计费 → 永远等待」** |
+| ⑤ | 下载页缩略图**任何网络下都显示**（本地优先；无图用类型占位） | `persistItemSnapshot` 对**所有条目入队即** `startImagesDownloader(item)` 落盘自身封面（`filesDir/images/<itemId>/primary`）；`DownloadArtworkRules`（纯函数：本地优先 / 剧集 条目→季→节目→远程兜底）；音乐条目改本地优先；`ImagesDownloaderWorker` 对非法地址不再中断整个任务 |
+
+### 21.2 缩略图根因（真机复现取证，Pad 5 `43af8627`，01:48–01:56）
+
+- **现象**：等待网络中的「萤火之森」（电影）与「灼眼的夏娜 S1E2」（剧集）在下载页均只有类型图标占位；`files/images/` 为空。
+- **根因两层**：
+  1. 电影：`persistItemSnapshot` 的 Movie 分支不调度图片 worker，且 `videoImageUri(非剧集)` 只查本地 → 进行中/等待中永远无图（自身封面要等下载完成后的 `downloadExtras` 才落盘）；
+  2. 剧集：入队时只落节目 / 季海报（`ImagesDownloaderWorker` 实测 SUCCESS ×2、两个目录落盘），但**条目自身（episode）封面未落盘**；且进行中剧集因无完成态层级归属被当电影容器渲染 → 仍无图。
+- **旁证**：`ImagesDownloaderWorker` 链路本身正常（拉图落盘成功）；Coil 在线加载正常（详情页大海报可用）。
+
+### 21.3 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；
+- 8 任务逐个 `--rerun` 数 XML：app **136** / core **46** / data **45** / player:local **105** / film **40** / book **113** / music **114** = **599 项 / 0 失败 0 错误**（W56 基线 583 + 净增 16）；含新 `:player:core:testDebugUnitTest` 全量 **606 项 / 0 失败**；
+- 新增单测 16 项：`DownloadNetworkRulesTest` 5（core）/ `DownloadSpeedLimitRulesTest` 4（core）/ `DownloadArtworkRulesTest` 5（film）/ `PreferenceIntInputTest` 2（app）；
+- 红线：动 **`AppPreferences.kt`**（图片缓存默认 50 + 新键 `pref_download_speed_limit_mbps`，已申报）；`NavigationRoot.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:core` / `player:local` 未动。
+
+### 21.4 真机复验（Pad 5 `43af8627`，02:11–02:16；device-lock 已写释放与结论）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | 计费 Wi-Fi 立即下载 | ✅ 单集入队后立即开始（14.7 MB → 115 MB，1.2–2.3 MB/s），**不再「等待网络」** |
+| ② | 下载页缩略图 | ✅ 入队数秒后条目显示剧集海报；`files/images` 落 episode/season/show 三目录；**飞行模式下仍显示**（本地优先） |
+| ③ | 设置三项 | ✅ 并发输 99 → 收敛 8；限速输 500 → 收敛 100 MB/s；缓存默认显示 **50 MB**；已还原 2 / 0 |
+| ④ | 断网恢复 | ✅ 飞行模式 → 关飞行后自动续传（115 → 119 MB） |
+| ⑤ | 稳定性 / 还原 | ✅ 0 FATAL / 0 ANR；测试下载删除、`files/images` 随之清空、偏好还原、服务器只读 |
+
+### 21.5 遗留
+
+- 书籍条目封面本地落盘（`ReaderViewModel.downloadBook` 链路）未纳入本波：在线走服务器 URL 兜底、离线无本地图时用类型占位（Coil 磁盘缓存命中则仍可显示）；
+- 进行中剧集在下载页仍按「电影容器」渲染（无完成态层级归属，W51b / W52 既有遗留：下载中容器分组）；
+- 限速为「任务平均吞吐」语义（可小段突发），运行中任务不动态跟随新设置；
+- `ImagesDownloaderWorker` 仍无失败重试（入队幂等跳过已落盘文件）。

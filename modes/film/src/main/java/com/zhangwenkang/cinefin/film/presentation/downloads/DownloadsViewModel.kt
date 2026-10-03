@@ -320,7 +320,10 @@ constructor(
                             status = DownloadTaskStatus.COMPLETED,
                             sizeBytes = file.sizeBytes,
                             imageUri =
-                                localImage(file.itemId) ?: bookMetadata[file.itemId]?.imageUrl,
+                                DownloadArtworkRules.resolve(
+                                    localImage(file.itemId),
+                                    bookMetadata[file.itemId]?.imageUrl,
+                                ),
                             allowOffline = offlineAllowMap[file.itemId] ?: true,
                         )
                     }
@@ -455,7 +458,11 @@ constructor(
             albumName = song?.albumName ?: albumName,
             artist = song?.artist ?: artist,
             trackIndex = song?.indexNumber ?: 0,
-            imageUri = song?.imageUri ?: videoImageUri(episode != null, episode, itemId),
+            imageUri =
+                when {
+                    song != null -> DownloadArtworkRules.resolve(localImage(itemId), song.imageUri)
+                    else -> videoImageUri(episode != null, episode, itemId)
+                },
             showImageUri = localImage(episode?.seriesId),
             seasonImageUri = localImage(episode?.seasonId),
             allowOffline = offlineAllowMap[itemId] ?: true,
@@ -491,15 +498,17 @@ constructor(
             seasonIndex = episode?.seasonIndex ?: 0,
             imageUri =
                 when {
-                    song != null -> localImage(item.id) ?: song.imageUri
+                    song != null -> DownloadArtworkRules.resolve(localImage(item.id), song.imageUri)
                     mediaKind == DownloadMediaKind.BOOK ->
-                        localImage(item.id) ?: bookMetadata[item.id]?.imageUrl
+                        DownloadArtworkRules.resolve(
+                            localImage(item.id),
+                            bookMetadata[item.id]?.imageUrl,
+                        )
                     else ->
-                        localImage(item.id)
-                            ?: runCatching {
-                                repository.getPrimaryImageUrl(item.id)
-                            }
-                                .getOrNull()
+                        DownloadArtworkRules.resolve(
+                            localImage(item.id),
+                            runCatching { repository.getPrimaryImageUrl(item.id) }.getOrNull(),
+                        )
                 },
             showImageUri = localImage(episode?.seriesId),
             seasonImageUri = localImage(episode?.seasonId),
@@ -522,13 +531,16 @@ constructor(
         episode: DownloadedEpisodeHierarchy?,
         itemId: UUID,
     ): String? {
-        if (!isEpisode) return localImage(itemId)
-        return localImage(itemId)
-            ?: localImage(episode?.seasonId)
-            ?: localImage(episode?.seriesId)
-            ?: episode?.seriesId?.let { seriesId ->
-                runCatching { repository.getPrimaryImageUrl(seriesId) }.getOrNull()
-            }
+        if (!isEpisode) return DownloadArtworkRules.resolve(localImage(itemId), null)
+        return DownloadArtworkRules.videoFallback(
+            localItem = localImage(itemId),
+            localSeason = localImage(episode?.seasonId),
+            localSeries = localImage(episode?.seriesId),
+            remoteFallback =
+                episode?.seriesId?.let { seriesId ->
+                    runCatching { repository.getPrimaryImageUrl(seriesId) }.getOrNull()
+                },
+        )
     }
 
     /** W36：本地图片缓存是否存在（下载时由 ImagesDownloaderWorker 落盘；不存在返回 null → 图标占位）。 */

@@ -26,9 +26,12 @@
     <string name="settings_download_wifi_only">僅 Wi-Fi 下載</string>
     <string name="settings_download_wifi_only_summary">行動網路下不下載，關閉後允許使用行動數據</string>
     <string name="settings_download_concurrency">同時下載數</string>
-    <string name="settings_download_concurrency_summary">同時進行的下載任務數（1–3）</string>
+    <string name="settings_download_concurrency_summary">同時進行的下載任務數（1–8）</string>
     <string name="settings_download_complete_notification">下載完成通知</string>
     <string name="settings_download_complete_notification_summary">下載完成後發送通知</string>
+    <string name="settings_download_speed_limit">下載限速</string>
+    <string name="settings_download_speed_limit_summary">限制下載速度（0–100 MB/s，0 = 不限速）。對新開始的任務生效。</string>
+    <string name="mb_per_second">MB/s</string>
     <string name="mpv_player">mpv 播放器</string>
     <string name="gestures">手勢</string>
     <string name="player_gestures">撥放器手勢</string>

@@ -77,7 +77,8 @@ import timber.log.Timber
  * - 传输层：OkHttp + HTTP Range 真断点续传（暂停保留残片、恢复从残片继续、服务器忽略 Range 时安全重下）；
  * - 前台服务：由 [DownloadEngineWorker]（WorkManager 长时 worker）通过 `setForeground` 托管，规避 Android 14+
  *   后台启动前台服务限制，并复用 WorkManager 的重启 / 网络约束持久化；
- * - 队列：Room `sources` 为单一数据源，进程内并发数读偏好 `pref_download_concurrency`（1–3，默认 2）；
+ * - 队列：Room `sources` 为单一数据源，进程内并发数读偏好 `pref_download_concurrency`（1–8，默认 2）；
+ * - 限速：每次任务启动时读取偏好 `pref_download_speed_limit_mbps`（0–100 MB/s，0 = 不限速），运行中的任务不打断；
  * - 失败：分类 + 指数退避自动重试（网络类无限、服务器类限次、空间 / 鉴权不自动）；
  * - 兼容：旧 DownloadManager 进行中任务（engineVersion = 0）不做无缝接管，首次启动标记「需重下」； 已完成的完整文件继续按路径识别。
  */
@@ -395,6 +396,11 @@ class DownloaderImpl(
                         ))
             }
 
+            // W57 限速：每次任务启动时读取偏好；运行中的任务不打断（新任务 / 重试立即生效）。
+            val speedLimitBytesPerSecond =
+                DownloadSpeedLimitRules.bytesPerSecond(
+                    appPreferences.getValue(appPreferences.downloadSpeedLimitMbps)
+                )
             val result =
                 httpEngine.download(
                     url = mediaSource.path,
@@ -404,6 +410,7 @@ class DownloaderImpl(
                     existingBytes = offset,
                     validator = source.resumeValidator,
                     expectedTotalBytes = totalBytes,
+                    speedLimitBytesPerSecond = speedLimitBytesPerSecond,
                     onProgress = { downloaded, total, validator, _ ->
                         meter.onProgress(downloaded)
                         val eta = meter.etaSeconds(total, downloaded)
@@ -985,6 +992,10 @@ class DownloaderImpl(
                     existingBytes = 0L,
                     validator = null,
                     expectedTotalBytes = 0L,
+                    speedLimitBytesPerSecond =
+                        DownloadSpeedLimitRules.bytesPerSecond(
+                            appPreferences.getValue(appPreferences.downloadSpeedLimitMbps)
+                        ),
                     onProgress = { _, _, _, _ -> },
                 )
                 if (target.exists()) target.delete()
@@ -1050,6 +1061,8 @@ class DownloaderImpl(
                 startImagesDownloader(season)
             }
         }
+        // W57：所有条目入队即落盘自身封面——下载中 / 等待网络 / 离线时下载页也能出图。
+        startImagesDownloader(item)
         runCatching {
             database.insertUserData(item.toFindroidUserDataDto(jellyfinRepository.getUserId()))
         }
@@ -1199,21 +1212,33 @@ class DownloaderImpl(
             Timber.d("下载网络策略：无法读取活动网络能力，默认允许")
             return true
         }
-        // 「仅 Wi-Fi 下载」（默认开）复用既有键：pref_downloads_mobile_data=false 时拦截「系统判定为计费」的网络。
-        val metered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-        if (metered && !appPreferences.getValue(appPreferences.downloadOverMobileData)) {
-            Timber.i("下载网络策略：当前网络为计费网络且未允许移动数据，等待")
-            return false
-        }
+        // W57：「仅 Wi-Fi 下载」不再看系统计费标记——Wi-Fi / 以太网直接允许（修复家庭 Wi-Fi 被判计费时永远等待）。
+        val wifiOrEthernet =
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
         // 漫游只对蜂窝网络有意义（Wi-Fi 不因“无 NOT_ROAMING 能力”被误拦）。
         val cellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
         val roaming =
             cellular && !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
-        if (roaming && !appPreferences.getValue(appPreferences.downloadWhenRoaming)) {
-            Timber.i("下载网络策略：蜂窝漫游且未允许，等待")
-            return false
+        return when (
+            DownloadNetworkRules.decide(
+                isWifiOrEthernet = wifiOrEthernet,
+                isCellular = cellular,
+                isRoaming = roaming,
+                allowMobileData = appPreferences.getValue(appPreferences.downloadOverMobileData),
+                allowRoaming = appPreferences.getValue(appPreferences.downloadWhenRoaming),
+            )
+        ) {
+            DownloadNetworkDecision.ALLOW -> true
+            DownloadNetworkDecision.WAIT_FOR_MOBILE_DATA -> {
+                Timber.i("下载网络策略：非 Wi-Fi / 以太网且未允许移动数据，等待")
+                false
+            }
+            DownloadNetworkDecision.WAIT_FOR_ROAMING -> {
+                Timber.i("下载网络策略：蜂窝漫游且未允许，等待")
+                false
+            }
         }
-        return true
     }
 
     /** 当前是否有「已验证可用」的网络（断网退避判定用）。 */

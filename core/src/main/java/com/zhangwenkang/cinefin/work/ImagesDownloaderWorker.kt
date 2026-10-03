@@ -57,7 +57,14 @@ constructor(
                 val target = File(appContext.filesDir, "$basePath/$name")
                 if (target.isFile && target.length() > 0L) continue
 
-                val request = Request.Builder().url(uri.toString()).build()
+                val request =
+                    try {
+                        Request.Builder().url(uri.toString()).build()
+                    } catch (e: IllegalArgumentException) {
+                        // W57：单个非法地址（如本地合成 URI）不再让整个 worker 崩溃，其余图片继续。
+                        Timber.e(e, "忽略非法图片地址（%s）", name)
+                        continue
+                    }
 
                 val imageBytes =
                     try {
