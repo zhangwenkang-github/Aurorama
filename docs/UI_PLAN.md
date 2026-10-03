@@ -725,7 +725,15 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 - [x] **A 文案预算**：`NavLabel` = 16sp；168dp 行内文字可用宽度 = 168 − 2×10（侧栏内边距）− 2×14（行内边距）− 24（图标）− 12（间距）= **84dp** > 最长静态文案「客户端设置」≈80.5dp；「媒体库」行含 20dp 箭头 → 64dp > ≈48.5dp
 - [x] **B / C 静态核对**：四个一级页顶栏入口 = `ic_logo` 24dp + `content-desc="打开侧栏"`；`openDrawer` 在非 Compact = null；`gesturesEnabled = showNavigation && compactNavigation`；条目集合 / 排序 / 门控未动（`NavigationIaTest` 全绿）
 - [x] **D 静态核对**：`settings_category_music` / `settings_music_summary` 全仓 0 引用；「媒体库」子页按声明顺序输出首页 / 书架 / 音乐库三项（`SettingsGroupLayoutTest` 覆盖分桶与组内顺序）
-- [ ] **真机（待负责人调度）**：Pad 5 主——展开态侧轨 168dp 长文案不省略 / 74% 透明像素采样（衬底 `#08090C` + 74% `#111319` ≈ `#0F1016`）/ 左缘右滑不出抽屉 / 侧轨收起展开正常 / 顶栏无重复入口；`wm size` 覆盖手机形态——四页 logo 入口 + 抽屉正常 + 设置「媒体库」三项可选且生效；K60 抽验同款
+- [x] **真机（已完成）**：W46 合并验收（负责人，`device-lock` 14:02–14:08）已逐项取证；W47 回归（2026-10-03）再次复验 Pad 5——展开态侧轨 168dp 文案完整（首页 / 音乐 / 书架 / 媒体库 / 收起 / 电影 / 动漫 / 其他 / 书籍 / 书籍3 / 音乐 / 音乐测试 / Playlists / 下载 / 客户端设置）、收起展开正常、顶栏无重复入口；K60 顶栏 logo 入口正常。
+
+### W47 验收（2026-10-03，分支 `feature/w47-full-regression`，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+- [x] **设置 / 导航冒烟**：Pad 5 客户端设置分组（账号与服务器 / 网络 / 媒体库 / 下载与缓存 / 播放与音乐 / 主题与取色 / 离线模式）逐页正常；下载页 0/0/0 + 25.01 kB / 53.68 GB；搜索「w47」本地分区命中 3 条（W47Media 库，带「本地」徽标）——搜索含本地链路不回归。
+- [x] **Compact 自由窗口（W17/W20 遗留取证）**：`enable_freeform_support=1` + `am start --windowingMode 5` + `am task resize 0 0 1000 1600`（444dp 宽）→ `mode=freeform` 下播放器工具行纯图标无文字标签（`content-desc` 齐全）；造法与还原见踩坑 71。
+- [ ] **未覆盖**：W46 的 74% 透明像素采样与「左缘右滑不出抽屉」由负责人 W46 验收负责（本轮以文字 / 结构复核，不重复像素）。
+
+## 6. 踩坑库
 
 ## 6. 踩坑库
 
@@ -807,6 +815,9 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 68. **`ModalDrawerSheet` 的 Surface 底色会盖住 modifier 里的半透明层**（W46）：给 sheet 的 `modifier` 挂两层 `background`（先页底衬底、再 74% 面板）并不会生效——`ModalDrawerSheet` 内部是 `Surface(containerColor)`，它自己的 `background(color)` 画在传入 modifier **之后**，把半透明层整个盖住（真机表现为「抽屉还是实心石墨」）。修法 = `drawerContainerColor = Color.Transparent`，让 Surface 让位给 modifier 的两层底。同类组件（`Surface` / `Card` / `Scaffold`）都先查有没有自己的 `containerColor`。
 69. **形态切换后要主动收抽屉**（W46 顺手做）：平板形态把 `openDrawer` 置 null + 关手势之后，抽屉只剩「已经被打开」这一种存在方式——手机（或折叠屏展开）拉开的抽屉在窗口切成平板后仍留在屏幕上（它没有入口、也没有手势能关）。修法 = `LaunchedEffect(compactNavigation) { if (!compactNavigation && drawerState.isOpen) drawerState.close() }`。通用判据：凡是"某形态下入口被移除"的组件，都要检查它在该形态下**已打开**的状态怎么退出。
 70. **`Icon` 的 `tint` 默认会染色品牌图标**（W46）：顶栏入口从 `ic_menu`（单色）换成 `ic_logo`（极光青 → 辅光蓝渐变）时，若沿用 `tint = colors.onSurfaceVariant`，整枚图标会被染成次级灰、渐变全丢。`Icon` 的 `tint` 默认是 `LocalContentColor` 而不是 `Color.Unspecified`，品牌 / 多色图标必须显式传 `Color.Unspecified`。
+
+71. **MIUI 真机造「自由窗口（Compact）」的可复现方法**（W47，已实测跑通）：`settings put global enable_freeform_support 1`（写前记原值，收工 `settings delete global enable_freeform_support` 还原）→ `am start -n <pkg>/<MainActivity> --windowingMode 5` → `am task resize <taskId> 0 0 1000 1600`。`dumpsys activity activities` 应出现 `mode=freeform` 与缩小后的 `mBounds`；播放器「Compact」判据（`isInMultiWindowMode && windowWidthDp < fullWidthDp×3/4`）随之命中，工具行变纯图标。两个坑：①`am task resize` 收**任务号**（`Task{#9610166}`），不是 ActivityRecord；②忘记删除 `enable_freeform_support` 会让之后所有任务默认 freeform。
+72. **MIUI 杀前台进程不一定有 FATAL / ANR**（W47 读 2.36 GB PDF 时）：进程被 SIGKILL，logcat 无 Java / native 异常；判据是 `logcat -b events` 的 `killinfo: [<pid>,…]` + `am_proc_died` + `libprocessgroup: Successfully killed process cgroup` + `wm_finish_activity … proc died without state saved`，配套现象 = `pidof` 换号、`dumpsys meminfo` 读不到进程。排查内存爆增必须在操作**过程中**按秒采样 `dumpsys meminfo`（Native Heap + TOTAL PSS），等操作结束再取会错过峰值。
 
 ## 7. 日志
 

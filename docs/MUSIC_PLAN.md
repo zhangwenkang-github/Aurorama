@@ -716,6 +716,13 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 > 未覆盖（明示）：①歌词页下滑返回未在"歌词长列表非顶部"场景单独取证（与 W23 同款行为）；②K60 只做手势 + 面板抽验，未复跑 EQ / RG 落盘（同 APK、同共享组件，落盘链路由 Pad 5 取证 + 单测覆盖）；③滑杆的键盘 / TalkBack 步进未做人工走查（语义只提供 `setProgress`）。
 
+### 5.14 W47 回归抽验（2026-10-03，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，分支 `feature/w47-full-regression`）
+
+- 音乐页（Pad 5）105 专辑加载正常；播放 `Town of Windmill（风车小镇）` → `state=PLAYING(3)` + 迷你条 `0:02 / 2:19 · 正在播放`；K60 同款（4:07 上次播放续播位起播，`state=PLAYING(3)`，metadata = 曲名 / 专辑 / 艺人）。
+- 长列表滚动（105 专辑，4 次上滑）：`gfxinfo` 610 帧 / janky 17（2.79%）/ p50 7 ms / p90 12 ms（对照 W45 本地 125 项缓存命中 0.53%，本轮为服务器海报行 + 网络加载，未定义阈值）。
+- 离线模式（真断网：`svc wifi disable` + `cmd connectivity airplane-mode enable`）音乐页空态「离线模式还没有可播放的音乐 / 联网后在曲目菜单点『下载』…」正常；恢复网络与离线开关后回在线曲库。
+- 0 App FATAL / ANR；设备状态已还原（见 `TEST_PLAN` §7.4）。
+
 ## 6. 踩坑库
 
 1. **服务器没有 MusicAlbum 实体**（2026-09-30 实测，Jellyfin 10.11.8）：

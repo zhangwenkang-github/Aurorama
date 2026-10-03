@@ -58,6 +58,16 @@ object LocalThumbnailRules {
     fun failureMarker(filesDir: File, itemId: UUID): File = File(cacheDir(filesDir), "$itemId.fail")
 
     /**
+     * 删除一组条目的缩略图缓存与失败标记（W47：库 / 文件夹移除后清理，避免 `files/local_thumbs` 残留）。
+     *
+     * 只删 `<itemId>.jpg` / `<itemId>.fail` 两类文件，返回实际删除的文件数。
+     */
+    fun purgeThumbnails(filesDir: File, itemIds: Collection<UUID>): Int = itemIds.sumOf { itemId ->
+        (if (cacheFile(filesDir, itemId).delete()) 1 else 0) +
+            (if (failureMarker(filesDir, itemId).delete()) 1 else 0)
+    }
+
+    /**
      * 缩略图目标尺寸（长边 ≤ [maxSide]，保持比例，至少 1px）。
      *
      * 非正尺寸 / 非正上限返回 null（调用方回退类型图标）。

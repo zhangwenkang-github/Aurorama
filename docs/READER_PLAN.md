@@ -1307,6 +1307,21 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 - `/sdcard/w33_ui.xml` 与临时 APK 已删；App `force-stop`；**K60 未触碰**；
 - 保留的正常副作用：测试书阅读进度随走查前进（「虚构推理」本轮前进到 71-72 槽附近）。
 
+### 7.15 W47 回归复验（2026-10-03，Pad 5 `43af8627`，分支 `feature/w47-full-regression`）
+
+**7.15.1 金田一 2.36 GB（本地 MoonReader 副本，5006 页）**
+
+- 打开（滚动模式，tap → 内容区像素均值 >100）：**≈13.4 s**（首帧 ReaderActivity 启动 353 ms；`打开本地书籍 w47…` / `离线可读 · 2412.7 MB`）。
+- 双栏扫描：`reader spread layout pages=5006 slots=4973 landscape=4938 at=1,2,3,…` —— 本书为整页横版扫描件，98% 页被判为横版独占。
+- **触发 D-W47-1（P1）**：本地 SAF 打开时 `PdfPageSource(descriptor)` 不接 PdfBox（`layout = null`），双栏扫描回退**逐页 `PdfRenderer.openPage`**（W33 只修了 `File` 路径）→ Native Heap 21 MB → **1,586 MB**、PSS 1.72–2.45 GB → MIUI `killinfo` + SIGKILL，进程（pid 9617 / 13072）两次被杀（`wm_finish_activity … proc died without state saved`；无 Java / native crash）。修复建议见 `TEST_PLAN` §7.2。
+
+**7.15.2 自造 `/Rotate` 旋转页 PDF（`w47_rotate.pdf`：/Rotate 90 + 竖版 + 原生横版 + /Rotate 270，共 4 页）**
+
+- 打开 → 双栏扫描日志 `pages=4 slots=4 landscape=3 at=0,2,3`（三张横版页独占、竖版页单独成槽）——`/Rotate` 在本地打开链路的页尺寸判定与渲染一致；
+- 第 1 页白底页面区域截图量测宽高比 **1.43 ≈ 842/595**（旋转 90° 后按横版渲染，未被压扁）。
+
+**7.15.3 设备还原**：`files/books/*.part` 残片删除、阅读器偏好回「滚动」、App force-stop（见 `TEST_PLAN` §7.4）。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；

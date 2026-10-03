@@ -92,9 +92,16 @@ class LocalLibraryRepositoryImpl(
     override suspend fun deleteLibrary(id: Long) =
         withContext(Dispatchers.IO) {
             // 只解除关联：删除索引与文件夹关联，源文件不受影响。
+            val itemIds = runCatching {
+                database.getLocalMediaItems(id).map { it.itemId }
+            }
+                .getOrDefault(emptyList())
             database.deleteLocalLibraryItems(id)
             database.deleteLocalLibraryFolders(id)
             database.deleteLocalLibrary(id)
+            // W47：库删除后清掉对应缩略图 / 失败标记（W45 遗留「库删除后 local_thumbs 残留」）。
+            LocalThumbnailRules.purgeThumbnails(context.filesDir, itemIds)
+            Unit
         }
 
     override suspend fun addFolder(
@@ -133,8 +140,14 @@ class LocalLibraryRepositoryImpl(
     override suspend fun removeFolder(folderId: Long) =
         withContext(Dispatchers.IO) {
             // 只解除关联：删除该文件夹的索引条目与关联行，源文件不动。
+            val itemIds = runCatching {
+                database.getLocalMediaItemsByFolder(folderId).map { it.itemId }
+            }
+                .getOrDefault(emptyList())
             database.clearLocalMediaByFolder(folderId)
             database.deleteLocalLibraryFolder(folderId)
+            LocalThumbnailRules.purgeThumbnails(context.filesDir, itemIds)
+            Unit
         }
 
     override suspend fun setFolderBrowseMode(

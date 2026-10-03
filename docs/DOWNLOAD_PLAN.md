@@ -275,6 +275,6 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 
 ### 14.4 W45 遗留
 
-- 缩略图为**本 App 私有派生缓存**，不随库删除清理（同一个文件重新建库即命中）；如需「删除库即清缓存」另开小任务；
+- ~~缩略图为**本 App 私有派生缓存**，不随库删除清理（同一个文件重新建库即命中）；如需「删除库即清缓存」另开小任务~~ → **W47 已修**（`LocalThumbnailRules.purgeThumbnails` + `deleteLibrary` / `removeFolder` 调用 + DAO `getLocalMediaItemsByFolder`，data 单测净增 1 项：`purge` 只删目标条目 `<itemId>.jpg|.fail`、不动其他文件）；
 - 视频首帧固定取第 1 秒（黑场片源可能取到黑帧），未做「非黑帧搜索」；
 - CBZ 顺序流取「归档顺序第一张图」，未做自然序重排（与阅读器 `orderComicPageNames` 的差异仅在归档顺序异常时可见）。

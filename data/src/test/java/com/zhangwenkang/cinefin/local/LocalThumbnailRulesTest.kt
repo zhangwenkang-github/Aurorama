@@ -51,6 +51,32 @@ class LocalThumbnailRulesTest {
     }
 
     @Test
+    fun `purgeThumbnails 删除指定条目的缓存与失败标记且不动其他文件`() {
+        val filesDir = temp.newFolder("purge-files")
+        val removed = UUID.fromString("22222222-3333-4444-5555-666666666666")
+        val kept = UUID.fromString("77777777-8888-9999-aaaa-bbbbbbbbbbbb")
+        val removedCache =
+            LocalThumbnailRules.cacheFile(filesDir, removed).apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(1))
+            }
+        val removedMarker =
+            LocalThumbnailRules.failureMarker(filesDir, removed).apply {
+                writeBytes(byteArrayOf(2))
+            }
+        val keptCache =
+            LocalThumbnailRules.cacheFile(filesDir, kept).apply { writeBytes(byteArrayOf(3)) }
+
+        val deleted = LocalThumbnailRules.purgeThumbnails(filesDir, listOf(removed))
+
+        assertEquals(2, deleted)
+        assertFalse(removedCache.exists())
+        assertFalse(removedMarker.exists())
+        assertTrue(keptCache.exists())
+        assertEquals(0, LocalThumbnailRules.purgeThumbnails(filesDir, emptyList()))
+    }
+
+    @Test
     fun `缩放保持比例且不放大原图`() {
         assertEquals(512 to 288, LocalThumbnailRules.thumbSize(1920, 1080))
         assertEquals(288 to 512, LocalThumbnailRules.thumbSize(1080, 1920))

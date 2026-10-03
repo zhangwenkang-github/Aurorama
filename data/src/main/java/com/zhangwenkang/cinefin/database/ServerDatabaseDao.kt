@@ -410,6 +410,9 @@ interface ServerDatabaseDao {
     @Query("SELECT * FROM local_media_items WHERE libraryId = :libraryId ORDER BY relativePath ASC")
     suspend fun getLocalMediaItems(libraryId: Long): List<LocalMediaItemDto>
 
+    @Query("SELECT * FROM local_media_items WHERE folderId = :folderId ORDER BY relativePath ASC")
+    suspend fun getLocalMediaItemsByFolder(folderId: Long): List<LocalMediaItemDto>
+
     @Query("SELECT * FROM local_media_items ORDER BY relativePath ASC")
     suspend fun getAllLocalMediaItems(): List<LocalMediaItemDto>
 

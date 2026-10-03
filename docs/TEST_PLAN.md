@@ -290,3 +290,41 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 | 2026-09-30 | `Invoke-PerfBaseline.ps1` 首跑（Pad 5） | 基线数值见 §2.5；原始输出 `baseline\20260930-211820-43af8627\` |
 | 2026-09-30 | `Invoke-WaveRegression.ps1 -Wave W2` 冒烟 | `crashOrAnr=PASS`（logcat 尾部 2000 行无 FATAL/ANR）、前台 = `MainActivity`、TOTAL PSS = 253,777 kB；输出 `regression\W2-20260930-212247\` |
 | 2026-09-30 | 服务器只读核对（Items / Lyrics） | Books 4 条、Audio 100 条、MusicArtist 86、MusicAlbum 0、Playlist 0；三首歌词样例行数 83 / 27 / 57，与 `REQUIREMENTS.md` §5.1 一致 |
+
+---
+
+## 7. W47 全量回归报告（2026-10-03 · R4 回归会话）
+
+会话：分支 `feature/w47-full-regression`（worktree 3865，起点 master `046d99f`）；设备 Pad 5 `43af8627` 主 + K60 `8e875894` 抽验（device-lock 14:12 登记 / 16:xx 释放）；安装包 = 本 worktree `:app:phone:assembleDebug`（arm64-v8a，双机 `install -r`）；服务器全程只读（仅 UserData / Sessions 白名单路径）。
+所有 `adb` 命令带 `-s <serial>`；分辨率 / 密度 / 旋转 / 网络 / freeform 设置均按登记还原。
+
+### 7.1 A 组（无需用户配合）
+
+| # | 项目 | 结果 | 证据关键词 |
+|---|------|------|-----------|
+| A1 | 全链路冒烟（Pad 5 主 + K60 抽验） | ✅ 0 App FATAL / ANR | 逐页 dump：首页（继续观看 / 接下来 / 本地媒体）、媒体库（8 库 + 本地 2 库）、音乐（105 专辑）、书架（8 本）、下载（0/0/0 + 25.01 kB + 53.68 GB 可用）、客户端设置（账号 / 网络 / 媒体库 / 下载与缓存 / 播放与音乐 / 离线模式）、播放器、阅读器、搜索、离线；K60 首页 985 ms + 音乐 `state=PLAYING(3)` + 媒体库 8 库 |
+| A2 | 本地视频真实播放 | ✅ 通过 | `dumpsys media_session` `state=3` + `run-as` fd `187 -> /mnt/user/0/emulated/0/Download/W47Media/w47_big.mp4`（45.7 MB）+ `PlayerActivity$onCreate` UiState `path=content://…primary%3ADownload%2FW47Media%2Fw47_local.mp4`、`container=mp4`、`fileLoaded=true` |
+| A3 | 阅读大文档：金田一 2.36 GB（本地 SAF）+ 自造旋转页 PDF | 🟡 打开 ✅ / 双栏扫描触发 **D-W47-1**；旋转页 ✅ | 打开 ≈ **13.4 s**（滚动模式，tap → 内容区像素均值 >100）；双栏日志 `reader spread layout pages=5006 slots=4973 landscape=4938 at=1,2,3,4,5,6,7,8`；**扫描后 Native Heap 21 MB → 1,586 MB、PSS 1.72–2.45 GB → MIUI killinfo + SIGKILL（pid 9617 / 13072 两次被杀、`wm_finish_activity … proc died without state saved`）**；旋转页 PDF（`/Rotate` 90 / 270 各 1 页 + 原生横版 1 页 + 竖版 1 页）`pages=4 slots=4 landscape=3 at=0,2,3`，第 1 页白底区域宽高比 **1.43 ≈ 842/595**（旋转后按横版渲染） |
+| A4 | 播放器复验 | ✅ 2 项通过 + 1 项单测覆盖（1 项未触发见 7.3） | ①SRT「背景 + 描边」互斥：`AssSubtitleScriptTest.backgroundWinsWhenBackgroundAndOutlineBothSelected` 断言 `BorderStyle=3` + `OutlineColour=&H4C000000`（背景优先，不再画黑描边）；②end-帧 OFF 档（默认 `pref_player_stay_at_end_frame=false`）：本地单条目播完 → `PlayerViewModel: queue end: close player（队列播完）` + 返回 MainActivity + `state=1`、`queue size=0`；③Compact 自由窗口：`settings global enable_freeform_support=1` + `am start --windowingMode 5` + `am task resize … 0 0 1000 1600`（w444dp h711dp，`mode=freeform`）→ 工具行为纯图标（`content-desc` = 选择音轨 / 选择字幕轨 / 倍速 / 码率 / 解码 / 信息 / 睡眠 / 播放队列 / 画面比例 / 设置，无文字标签），本地视频 `state=3` 播放正常 |
+| A5 | 性能抽样 | 🟡 冷启动超阈值（D-W47-2） | 冷启动 `am start -W` TotalTime **1537 / 1268 / 1322 ms → 中位 1322 ms**（基线 1085 ms，**+21.8%，超 +15% 阈值**，`LaunchState=COLD`，首页已登录有内容）；音乐长列表（105 专辑，4 次上滑）`gfxinfo` **610 帧 / janky 17（2.79%）/ p50 7 ms / p90 12 ms**；双栏阅读 PSS：4 页 PDF 293 MB / Native 39 MB，金田一（本地 5006 页）见 D-W47-1 |
+| A6 | 缩略图清理遗留（W45） | ✅ 修复 + 单测 | `LocalThumbnailRules.purgeThumbnails`（删 `<itemId>.jpg|.fail`）＋ `deleteLibrary` / `removeFolder` 调用＋ DAO `getLocalMediaItemsByFolder`；data 单测净增 1 项（purge 只删目标条目、不动其他文件） |
+
+### 7.2 W47 新增缺陷
+
+| ID | 级别 | 现象 | 根因 / 定位 | 建议 |
+|----|------|------|------------|------|
+| D-W47-1 | **P1（内存 / 进程被杀）** | 本地媒体库（SAF `content://`）PDF 进双栏：金田一 5006 页时 Native Heap 1.59 GB、PSS 1.72–2.45 GB，随后被 MIUI 杀进程（2 次复现，无 Java / native crash，`killinfo` + `libprocessgroup` SIGKILL） | `PdfPageSource(descriptor)` 的 `layout = null` → `collectPageAspectRatios()` 回退**逐页 `PdfRenderer.openPage`**（W33 只给 `File` 路径接了 PdfBox `PdfLayoutSource`，本地 SAF 打开未覆盖） | ①把 SAF fd 接 `PdfLayoutSource`（`/proc/self/fd/N` 随机读或 PdfBox 流式 + 8 MB 溢出）；②兜底：大书（如 >1500 页）跳过逐页回退、直接固定两页划分；修复后按 W33 口径真机复验（Native ≤60 MB / PSS ≤310 MB） |
+| D-W47-2 | P2（性能阈值） | 冷启动中位 1322 ms，超基线 +15% 阈值（1248 ms） | 待定位；与 W2 基线相比应用状态更大（本地库 / 缩略图 / 更完整首屏）。debug 口径 | 负责人评审；需要时下一波复测并做启动 profile 抽样 |
+
+### 7.3 未触发项（B 组 / 故障窗口）
+
+- 下载 **FAILED 自动重试**（需服务器停机窗口）、**空间不足失败列表**（Pad 5 可用 53.68 GB）、**reboot 续传** —— 本轮无故障窗口，维持「未触发」。
+- **M4A 设备样本**：库内 0 个 m4a/mp4 曲目，ReplayGain 标签读取仍为单测覆盖，标「未覆盖」。
+- **end-帧 OFF 档的服务器缓流片尾**：本轮用本地单条目验证了 OFF 档目标动作（关闭播放页）；服务器直连流片尾 `state=6 buffering` 场景未复现（W24.5 原样挂账）。
+- libass 初始化失败注入、`sub-add` 网络失败注入（W19 / W18 既有遗留）：未触发。
+
+### 7.4 设备还原（2026-10-03 收工）
+
+- Pad 5 `43af8627`：删除测试库 **W47Media**（App 内删除 + `/sdcard/Download/W47Media` 源文件删除）、清 `/sdcard/w47*.xml`；阅读器偏好还原（`pref_reader_mode` 回「滚动」，离线模式 false）；Wi-Fi / 飞行模式 / freeform 全局开关还原；App `am force-stop`。
+- K60 `8e875894`：清 `/sdcard/w47k_ui.xml`、App `am force-stop`。
+- 服务器：未做任何写操作（白名单外零调用）。

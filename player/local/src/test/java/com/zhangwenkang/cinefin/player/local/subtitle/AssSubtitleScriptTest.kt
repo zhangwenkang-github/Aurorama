@@ -70,6 +70,26 @@ class AssSubtitleScriptTest {
     }
 
     @Test
+    fun backgroundWinsWhenBackgroundAndOutlineBothSelected() {
+        // 背景（70% 黑）+ 粗描边同时选择：ASS 样式里两者互斥，必须以背景框优先（W19 遗留项复验）。
+        val style = SubtitleStyle(backgroundIndex = 2, edgeIndex = 2)
+        val script =
+            AssSubtitleScript.forCues(
+                cues = listOf(SubtitleCue(0, 1_000, "x")),
+                style = style,
+                playResX = 1920,
+                playResY = 1080,
+                frameHeightPx = 1080,
+                density = 2f,
+            )
+        val styleLine = script.lineSequence().first { it.startsWith("Style: Default,") }
+        val fields = styleLine.removePrefix("Style: ").split(',')
+        assertEquals("3", fields[15]) // BorderStyle=3：不透明背景框
+        assertEquals("&H4C000000", fields[5]) // OutlineColour=背景色（backgroundIndex=2），不再画黑描边
+        assertTrue(fields[16].toInt() >= 1) // Outline 字段此时是背景框内边距
+    }
+
+    @Test
     fun escapesBracesAndNormalizesAssPassthrough() {
         assertEquals("(\\pos(0,0)) 你好", AssSubtitleScript.escapeText("{\\pos(0,0)} 你好"))
         assertEquals("x\n", AssSubtitleScript.normalize("\uFEFFx"))

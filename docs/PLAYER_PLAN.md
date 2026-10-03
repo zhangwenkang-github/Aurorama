@@ -1747,3 +1747,11 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 3. **侧载字幕语言靠文件名推断**，面板没有「导入时手动选语言」；语言优先级 / 选轨记忆对能识别文件名的样本已生效，纯中文命名（如 `w27_test.srt`）语言为空、不会被优先级命中（但默认仍会选中）。
 4. **mpv 重复注入已修**（pending 集合），但若某条 `sub-add` 失败且此后 track-list 不再变化，本次加载不会无限重试（换集 / 下次轨道变化再补）。
 5. W17 / W18 / W20 既有遗留继续挂账：Compact 自由窗口取证、libc++ 覆盖构建补丁复核、Trickplay 真数据回归。
+
+---
+
+## 25. W47 回归复验（2026-10-03 · R4 回归会话，分支 `feature/w47-full-regression`）
+
+1. **Compact 自由窗口取证（W17/W20 遗留，已补上）**：MIUI 上可用 `settings put global enable_freeform_support 1` + `am start … --windowingMode 5` 造出 freeform 任务，再 `am task resize <id> 0 0 1000 1600`（w444dp h711dp，`mode=freeform`）→ `isInMultiWindowMode=true`、`windowWidthDp < fullWidthDp×3/4` → `PlayerChromeLayout.Compact`。真机证据：播放器工具行只保留图标（`content-desc`＝选择音轨 / 选择字幕轨 / 倍速 / 码率 / 解码 / 信息 / 睡眠 / 播放队列 / 画面比例 / 设置，**无文字标签**），本地视频同窗 `state=PLAYING(3)`。收工已删除 `enable_freeform_support` 并 force-stop（§24.5-5 的该项遗留可勾销；`--bounds` 不需要，`am task resize` 足够）。
+2. **end-帧 OFF 档（`pref_player_stay_at_end_frame=false`，默认）**：本地单条目视频播完 → `PlayerViewModel: queue end: close player（队列播完）` + 返回 MainActivity + `state=1 / queue size=0`。**服务器直连流片尾 `state=6 buffering` 场景仍未复现**（§24.5-1 的一半遗留保留：服务器缓流档）。
+3. **SRT「背景 + 描边」互斥（§19.5-3 遗留）**：新增单测 `AssSubtitleScriptTest.backgroundWinsWhenBackgroundAndOutlineBothSelected`——背景（70% 黑）+ 粗描边同时选择时，生成样式 `BorderStyle=3`、`OutlineColour=&H4C000000`（背景色），不再输出黑描边；观测层仍未做真机像素复验（无内置 SRT 样本，建议下一波用 W27 侧载 SRT 流程补像素取证）。
