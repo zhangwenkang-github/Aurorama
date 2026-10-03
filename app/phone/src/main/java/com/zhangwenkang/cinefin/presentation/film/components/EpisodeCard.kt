@@ -54,7 +54,7 @@ fun EpisodeCard(episode: FindroidEpisode, onClick: () -> Unit, modifier: Modifie
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
             ) {
                 if (episode.isDownloaded()) DownloadedBadge()
-                if (episode.played) PlayedBadge()
+                ItemStatusBadge(episode)
             }
         }
         Spacer(Modifier.width(MaterialTheme.spacings.default / 2))

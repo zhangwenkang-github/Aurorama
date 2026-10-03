@@ -15,7 +15,7 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 fun ItemCountBadge(unplayedItemCount: Int, modifier: Modifier = Modifier) {
     BaseBadge(modifier = modifier) {
         Text(
-            text = unplayedItemCount.toString(),
+            text = unplayedItemCountText(unplayedItemCount),
             color = Color.White,
             style = CinefinType.LabelSmall,
             modifier = Modifier.align(Alignment.Center).padding(horizontal = CinefinSpacing.Space1),

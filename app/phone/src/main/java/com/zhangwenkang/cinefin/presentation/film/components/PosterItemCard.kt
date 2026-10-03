@@ -85,7 +85,7 @@ fun PosterItemCard(
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
                 if (item.isDownloaded()) DownloadedBadge()
-                item.unplayedItemCount?.takeIf { it > 0 }?.let { ItemCountBadge(it) }
+                ItemStatusBadge(item)
             }
 
             if (resumeFraction > 0f) {

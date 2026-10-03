@@ -114,8 +114,7 @@ fun LandscapeItemCard(
             horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
             if (item.isDownloaded()) DownloadedBadge()
-            if (item.played) PlayedBadge()
-            item.unplayedItemCount?.takeIf { it > 0 }?.let { ItemCountBadge(it) }
+            ItemStatusBadge(item)
         }
 
         Column(
