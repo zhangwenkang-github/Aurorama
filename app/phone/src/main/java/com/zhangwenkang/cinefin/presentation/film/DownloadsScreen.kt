@@ -769,7 +769,12 @@ private fun leafDetail(entry: DownloadHierarchyEntry): String {
         }
     val statusText =
         when (entry.status) {
-            DownloadTaskStatus.PENDING -> stringResource(CoreR.string.download_pending)
+            DownloadTaskStatus.PENDING ->
+                if (entry.task?.failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE) {
+                    stringResource(CoreR.string.download_waiting_network)
+                } else {
+                    stringResource(CoreR.string.download_pending)
+                }
             DownloadTaskStatus.RUNNING ->
                 "${stringResource(CoreR.string.download_downloading)} " +
                     "${((entry.task?.progress ?: 0f) * 100).toInt()}%"
@@ -876,9 +881,12 @@ private fun failureLabel(reason: DownloadFailureReason?): String =
         DownloadFailureReason.NETWORK_UNAVAILABLE ->
             stringResource(CoreR.string.download_failure_network)
         DownloadFailureReason.SERVER_ERROR -> stringResource(CoreR.string.download_failure_server)
+        DownloadFailureReason.AUTHENTICATION ->
+            stringResource(CoreR.string.download_failure_authentication)
         DownloadFailureReason.CANNOT_RESUME ->
             stringResource(CoreR.string.download_failure_cannot_resume)
         DownloadFailureReason.FILE_ERROR -> stringResource(CoreR.string.download_failure_file)
+        DownloadFailureReason.CANCELLED -> stringResource(CoreR.string.download_failure_cancelled)
         DownloadFailureReason.UNKNOWN,
         null -> stringResource(CoreR.string.download_failure_unknown)
     }

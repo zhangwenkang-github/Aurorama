@@ -1,6 +1,5 @@
 package com.zhangwenkang.cinefin.utils
 
-import android.app.DownloadManager
 import java.util.UUID
 
 /** W34 下载层级：条目所属媒体类型（下载列表层级化用）。 */
@@ -40,6 +39,14 @@ data class DownloadTask(
     /** W34：音乐层级。 */
     val albumName: String? = null,
     val artist: String? = null,
+    /** W50：滑动窗口速度（bytes/s，自研引擎内存态；进程重启后为 0）。 */
+    val speedBytesPerSecond: Long = 0,
+    /** W50：剩余时间（秒；速度或总大小未知时为 null）。 */
+    val etaSeconds: Long? = null,
+    /** W50：连续自动重试次数（指数退避）。 */
+    val retryCount: Int = 0,
+    /** W50：下一次自动重试时间（epoch ms；0 = 立即可运行）。 */
+    val nextRetryAt: Long = 0,
 ) {
     val progress: Float
         get() =
@@ -69,18 +76,22 @@ enum class DownloadFailureReason {
     NETWORK_UNAVAILABLE,
     /** 服务器返回错误（HTTP 数据错误 / 未知状态码 / 重定向过多）。 */
     SERVER_ERROR,
+    /** W50：鉴权失败（HTTP 401 / 403，令牌过期或权限不足），不自动重试。 */
+    AUTHENTICATION,
     /** 断点无法继续（DownloadManager 明确报告不能续传）。 */
     CANNOT_RESUME,
     /** 本地文件写入 / 目标文件冲突。 */
     FILE_ERROR,
+    /** W50：用户取消 / 旧引擎任务需重新下载。 */
+    CANCELLED,
     UNKNOWN,
 }
 
-/** 恢复策略：系统自愈续传 / 安全重试（重新入队）/ 空间不足时阻止。 */
+/** W50 恢复策略：残片续传 / 安全重下 / 空间不足阻止。 */
 enum class DownloadResumeStrategy {
-    /** 系统暂停（等待网络等），不动任务，网络恢复后 DownloadManager 自行续传。 */
-    WAIT_FOR_SYSTEM,
-    /** 删除残留后重新入队（安全重试；能否续传由服务器 Range 与系统决定）。 */
+    /** 从残片偏移继续（服务器支持 Range）。 */
+    RESUME,
+    /** 删除残片后从头重下（残片失效 / 服务器不接受 Range / 校验器变化）。 */
     RESTART,
     /** 空间不足，自动重试只会再次失败；需要用户先清理空间。 */
     BLOCKED,
@@ -93,73 +104,78 @@ data class DownloadStorageUsage(
 )
 
 /**
- * 下载任务状态机（纯函数，单测覆盖）。
+ * W50 自研下载引擎的任务状态机（纯函数，单测覆盖）。
  *
- * 输入只使用 DownloadManager 的状态 / reason 常量、持久化状态字符串与文件是否存在，输出可读状态与恢复策略。
+ * 状态不依赖任何 Android 运行时：持久化状态字符串 + 路径 / 文件事实 → 可读状态、恢复策略与退避时间。
  */
 object DownloadTaskRules {
+    /** 指数退避基数（首次失败 30s，逐次翻倍）。 */
+    const val BACKOFF_BASE_MS = 30_000L
+
+    /** 指数退避上限（30 分钟）。 */
+    const val BACKOFF_MAX_MS = 30 * 60_000L
+
+    /** 服务器类错误最多自动重试次数（超过后转手动重试）。 */
+    const val MAX_SERVER_RETRIES = 5
+
+    /** 残片失效（无法续传）最多自动安全重下次数。 */
+    const val MAX_RESUME_RETRIES = 3
+
+    /** W50 同时下载数下限 / 上限 / 默认值（偏好 `pref_download_concurrency`）。 */
+    const val MIN_CONCURRENT_TASKS = 1
+    const val MAX_CONCURRENT_TASKS = 3
+    const val DEFAULT_CONCURRENT_TASKS = 2
+
+    /** 同时下载数钳制到 1–3（缺省值由偏好键 default = 2 提供）。 */
+    fun coerceConcurrency(value: Int): Int =
+        value.coerceIn(MIN_CONCURRENT_TASKS, MAX_CONCURRENT_TASKS)
+
     fun resolveStatus(
         persistedStatus: String?,
-        managerStatus: Int?,
         pathIsPartial: Boolean,
     ): DownloadTaskStatus {
-        when (managerStatus) {
-            DownloadManager.STATUS_SUCCESSFUL -> return DownloadTaskStatus.COMPLETED
-            DownloadManager.STATUS_RUNNING -> return DownloadTaskStatus.RUNNING
-            DownloadManager.STATUS_PENDING -> return DownloadTaskStatus.PENDING
-            DownloadManager.STATUS_PAUSED -> return DownloadTaskStatus.PAUSED
-            DownloadManager.STATUS_FAILED -> return DownloadTaskStatus.FAILED
-        }
-
-        val persisted = persistedStatus?.toTaskStatus()
+        val persisted = parseStatus(persistedStatus)
         return when (persisted) {
             DownloadTaskStatus.COMPLETED -> DownloadTaskStatus.COMPLETED
             DownloadTaskStatus.FAILED -> DownloadTaskStatus.FAILED
-            // 用户暂停的任务：系统记录已被 remove，状态由数据库保持。
             DownloadTaskStatus.PAUSED -> DownloadTaskStatus.PAUSED
-            // 标记为进行中但系统任务已消失（被系统清理 / 异常中断）：视为失败，可重试。
             DownloadTaskStatus.PENDING,
-            DownloadTaskStatus.RUNNING -> DownloadTaskStatus.FAILED
-            // 旧数据没有状态列：路径仍是 .download = 失败残片，否则就是已经下载完成。
+            DownloadTaskStatus.RUNNING ->
+                // 进程重启后没有活动任务：降级为「等待调度」，由恢复逻辑续传。
+                DownloadTaskStatus.PENDING
+            // 旧数据没有状态列：路径仍是 .download = 失败残片（或需重下），否则视为已完成。
             null -> if (pathIsPartial) DownloadTaskStatus.FAILED else DownloadTaskStatus.COMPLETED
         }
     }
 
-    fun resolveFailureReason(
-        persistedReason: String?,
-        managerStatus: Int?,
-        managerReason: Int?,
-    ): DownloadFailureReason? {
-        if (
-            managerStatus == DownloadManager.STATUS_FAILED ||
-                managerStatus == DownloadManager.STATUS_PAUSED
-        ) {
-            when (managerReason) {
-                DownloadManager.ERROR_INSUFFICIENT_SPACE,
-                DownloadManager.ERROR_DEVICE_NOT_FOUND ->
-                    return DownloadFailureReason.STORAGE_INSUFFICIENT
-                DownloadManager.ERROR_FILE_ERROR,
-                DownloadManager.ERROR_FILE_ALREADY_EXISTS -> return DownloadFailureReason.FILE_ERROR
-                DownloadManager.ERROR_HTTP_DATA_ERROR,
-                DownloadManager.ERROR_UNHANDLED_HTTP_CODE,
-                DownloadManager.ERROR_TOO_MANY_REDIRECTS ->
-                    return DownloadFailureReason.SERVER_ERROR
-                DownloadManager.ERROR_CANNOT_RESUME -> return DownloadFailureReason.CANNOT_RESUME
-                DownloadManager.PAUSED_WAITING_FOR_NETWORK,
-                DownloadManager.PAUSED_WAITING_TO_RETRY,
-                DownloadManager.PAUSED_QUEUED_FOR_WIFI ->
-                    return DownloadFailureReason.NETWORK_UNAVAILABLE
-                DownloadManager.ERROR_UNKNOWN -> return DownloadFailureReason.UNKNOWN
-            }
+    /**
+     * 旧 DownloadManager 引擎的「进行中」任务：升级后不做无缝接管，标记为失败并提示重下。
+     *
+     * 判据 = engineVersion != 1（不是自研引擎写入的行）且存在系统 downloadId 痕迹。
+     */
+    fun requiresRedownloadAfterEngineUpgrade(
+        engineVersion: Int,
+        downloadId: Long?,
+        status: DownloadTaskStatus?,
+        pathIsPartial: Boolean,
+    ): Boolean {
+        if (engineVersion >= 1) return false
+        if (downloadId == null) return false
+        return when (status) {
+            null -> pathIsPartial
+            DownloadTaskStatus.COMPLETED,
+            DownloadTaskStatus.FAILED -> false
+            DownloadTaskStatus.PENDING,
+            DownloadTaskStatus.RUNNING,
+            DownloadTaskStatus.PAUSED -> true
         }
-        return persistedReason?.toFailureReason()
     }
 
     /**
      * 恢复判定：
-     * - 系统暂停（等待网络）→ 交给系统续传；
      * - 空间不足 → 阻止自动重试；
-     * - 其余失败 → 安全重试（重新入队）。
+     * - 暂停 / 可继续的失败 → 残片续传；
+     * - 其余失败 → 安全重下。
      */
     fun resumeStrategy(
         status: DownloadTaskStatus,
@@ -169,21 +185,55 @@ object DownloadTaskRules {
             status == DownloadTaskStatus.FAILED &&
                 failureReason == DownloadFailureReason.STORAGE_INSUFFICIENT ->
                 DownloadResumeStrategy.BLOCKED
-            status == DownloadTaskStatus.FAILED -> DownloadResumeStrategy.RESTART
-            status == DownloadTaskStatus.PAUSED &&
-                failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE ->
-                DownloadResumeStrategy.WAIT_FOR_SYSTEM
-            else -> DownloadResumeStrategy.WAIT_FOR_SYSTEM
+            status == DownloadTaskStatus.PAUSED -> DownloadResumeStrategy.RESUME
+            status == DownloadTaskStatus.PENDING || status == DownloadTaskStatus.RUNNING ->
+                DownloadResumeStrategy.RESUME
+            failureReason == DownloadFailureReason.CANNOT_RESUME -> DownloadResumeStrategy.RESTART
+            failureReason == DownloadFailureReason.FILE_ERROR -> DownloadResumeStrategy.RESTART
+            failureReason == DownloadFailureReason.CANCELLED -> DownloadResumeStrategy.RESTART
+            else -> DownloadResumeStrategy.RESUME
         }
 
-    /** 网络恢复后允许自动重试的失败原因（空间 / 文件类不自动重试，避免死循环）。 */
+    /**
+     * 自动重试资格：
+     * - 网络类：无限重试（退避封顶 30 分钟），网络恢复后由 CONNECTED 约束唤醒；
+     * - 服务器类：最多 [MAX_SERVER_RETRIES] 次；
+     * - 残片失效：最多 [MAX_RESUME_RETRIES] 次安全重下；
+     * - 空间 / 鉴权 / 用户取消：不自动重试。
+     */
     fun isAutoRetryEligible(
         status: DownloadTaskStatus,
         failureReason: DownloadFailureReason?,
-    ): Boolean =
-        status == DownloadTaskStatus.FAILED &&
-            (failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE ||
-                failureReason == DownloadFailureReason.SERVER_ERROR)
+        retryCount: Int = 0,
+    ): Boolean {
+        if (status != DownloadTaskStatus.FAILED && status != DownloadTaskStatus.PENDING)
+            return false
+        return when (failureReason) {
+            DownloadFailureReason.NETWORK_UNAVAILABLE -> true
+            DownloadFailureReason.SERVER_ERROR -> retryCount < MAX_SERVER_RETRIES
+            DownloadFailureReason.CANNOT_RESUME -> retryCount < MAX_RESUME_RETRIES
+            else -> false
+        }
+    }
+
+    /** 指数退避：30s、60s、120s … 封顶 30 分钟（retryCount = 已失败次数）。 */
+    fun backoffDelayMs(
+        retryCount: Int,
+        baseMs: Long = BACKOFF_BASE_MS,
+        maxMs: Long = BACKOFF_MAX_MS,
+    ): Long {
+        if (retryCount <= 0) return 0L
+        val shift = (retryCount - 1).coerceIn(0, 20)
+        val delay = baseMs * (1L shl shift)
+        return if (delay <= 0L) maxMs else delay.coerceAtMost(maxMs)
+    }
+
+    /** 续传起始偏移：优先信任持久化字节数，文件缺失归零，文件比记录短时按文件长度（截断残片）。 */
+    fun initialOffset(downloadedBytes: Long, fileExists: Boolean, fileLength: Long): Long {
+        if (!fileExists) return 0L
+        val recorded = downloadedBytes.coerceAtLeast(0L).takeIf { it > 0L } ?: fileLength
+        return recorded.coerceAtMost(fileLength.coerceAtLeast(0L))
+    }
 
     fun canPause(status: DownloadTaskStatus): Boolean =
         status == DownloadTaskStatus.PENDING || status == DownloadTaskStatus.RUNNING
@@ -200,6 +250,8 @@ object DownloadTaskRules {
             DownloadTaskStatus.FAILED -> DownloadTaskGroup.FAILED
             DownloadTaskStatus.COMPLETED -> DownloadTaskGroup.COMPLETED
         }
+
+    fun parseStatus(raw: String?): DownloadTaskStatus? = raw?.toTaskStatus()
 }
 
 enum class DownloadTaskGroup {
@@ -208,8 +260,8 @@ enum class DownloadTaskGroup {
     FAILED,
 }
 
-private fun String.toTaskStatus(): DownloadTaskStatus? =
+internal fun String?.toTaskStatus(): DownloadTaskStatus? =
     DownloadTaskStatus.entries.firstOrNull { it.name == this }
 
-private fun String.toFailureReason(): DownloadFailureReason? =
+internal fun String?.toFailureReason(): DownloadFailureReason? =
     DownloadFailureReason.entries.firstOrNull { it.name == this }

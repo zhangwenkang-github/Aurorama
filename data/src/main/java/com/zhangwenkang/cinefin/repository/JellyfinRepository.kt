@@ -113,6 +113,9 @@ interface JellyfinRepository {
 
     fun getBaseUrl(): String
 
+    /** W50：当前会话访问令牌（自研下载引擎请求头用；离线 / 未登录为 null）。 */
+    fun getAccessToken(): String?
+
     suspend fun updateDeviceName(name: String)
 
     suspend fun getUserConfiguration(): UserConfiguration?

@@ -1,6 +1,5 @@
 package com.zhangwenkang.cinefin.presentation.film
 
-import android.app.DownloadManager
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
 import com.zhangwenkang.cinefin.utils.DownloadResumeStrategy
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
@@ -8,150 +7,142 @@ import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** W32 下载任务状态机 / 恢复策略纯函数单测。 */
+/** W50 自研下载引擎任务状态机 / 恢复策略 / 退避纯函数单测。 */
 class DownloadTaskRulesTest {
 
     @Test
-    fun `DownloadManager 状态优先于持久化状态`() {
+    fun `持久化状态优先_无状态时按路径推断`() {
         assertEquals(
             DownloadTaskStatus.COMPLETED,
             DownloadTaskRules.resolveStatus(
-                persistedStatus = DownloadTaskStatus.PAUSED.name,
-                managerStatus = DownloadManager.STATUS_SUCCESSFUL,
-                pathIsPartial = true,
-            ),
-        )
-        assertEquals(
-            DownloadTaskStatus.RUNNING,
-            DownloadTaskRules.resolveStatus(
-                persistedStatus = null,
-                managerStatus = DownloadManager.STATUS_RUNNING,
-                pathIsPartial = true,
-            ),
-        )
-        assertEquals(
-            DownloadTaskStatus.PAUSED,
-            DownloadTaskRules.resolveStatus(
-                persistedStatus = null,
-                managerStatus = DownloadManager.STATUS_PAUSED,
+                persistedStatus = DownloadTaskStatus.COMPLETED.name,
                 pathIsPartial = true,
             ),
         )
         assertEquals(
             DownloadTaskStatus.FAILED,
             DownloadTaskRules.resolveStatus(
-                persistedStatus = null,
-                managerStatus = DownloadManager.STATUS_FAILED,
+                persistedStatus = DownloadTaskStatus.FAILED.name,
                 pathIsPartial = true,
             ),
+        )
+        assertEquals(
+            DownloadTaskStatus.PAUSED,
+            DownloadTaskRules.resolveStatus(
+                persistedStatus = DownloadTaskStatus.PAUSED.name,
+                pathIsPartial = true,
+            ),
+        )
+        assertEquals(
+            DownloadTaskStatus.COMPLETED,
+            DownloadTaskRules.resolveStatus(persistedStatus = null, pathIsPartial = false),
+        )
+        assertEquals(
+            DownloadTaskStatus.FAILED,
+            DownloadTaskRules.resolveStatus(persistedStatus = null, pathIsPartial = true),
         )
     }
 
     @Test
-    fun `没有系统任务时回落到持久化状态`() {
+    fun `中断的运行中任务降级为等待调度而不是失败`() {
         assertEquals(
-            DownloadTaskStatus.PAUSED,
-            DownloadTaskRules.resolveStatus(
-                persistedStatus = DownloadTaskStatus.PAUSED.name,
-                managerStatus = null,
-                pathIsPartial = true,
-            ),
-        )
-        assertEquals(
-            DownloadTaskStatus.FAILED,
-            DownloadTaskRules.resolveStatus(
-                persistedStatus = null,
-                managerStatus = null,
-                pathIsPartial = true,
-            ),
-        )
-        assertEquals(
-            DownloadTaskStatus.COMPLETED,
-            DownloadTaskRules.resolveStatus(
-                persistedStatus = null,
-                managerStatus = null,
-                pathIsPartial = false,
-            ),
-        )
-        assertEquals(
-            DownloadTaskStatus.FAILED,
+            DownloadTaskStatus.PENDING,
             DownloadTaskRules.resolveStatus(
                 persistedStatus = DownloadTaskStatus.RUNNING.name,
-                managerStatus = null,
+                pathIsPartial = true,
+            ),
+        )
+        assertEquals(
+            DownloadTaskStatus.PENDING,
+            DownloadTaskRules.resolveStatus(
+                persistedStatus = DownloadTaskStatus.PENDING.name,
                 pathIsPartial = true,
             ),
         )
     }
 
     @Test
-    fun `失败原因映射到可读分类`() {
-        assertEquals(
-            DownloadFailureReason.STORAGE_INSUFFICIENT,
-            DownloadTaskRules.resolveFailureReason(
-                persistedReason = null,
-                managerStatus = DownloadManager.STATUS_FAILED,
-                managerReason = DownloadManager.ERROR_INSUFFICIENT_SPACE,
-            ),
+    fun `旧DownloadManager进行中任务需重下_已完成与新引擎任务不误判`() {
+        assertTrue(
+            DownloadTaskRules.requiresRedownloadAfterEngineUpgrade(
+                engineVersion = 0,
+                downloadId = 42L,
+                status = DownloadTaskStatus.RUNNING,
+                pathIsPartial = true,
+            )
         )
-        assertEquals(
-            DownloadFailureReason.NETWORK_UNAVAILABLE,
-            DownloadTaskRules.resolveFailureReason(
-                persistedReason = null,
-                managerStatus = DownloadManager.STATUS_PAUSED,
-                managerReason = DownloadManager.PAUSED_WAITING_FOR_NETWORK,
-            ),
+        assertTrue(
+            DownloadTaskRules.requiresRedownloadAfterEngineUpgrade(
+                engineVersion = 0,
+                downloadId = 42L,
+                status = DownloadTaskStatus.PAUSED,
+                pathIsPartial = true,
+            )
         )
-        assertEquals(
-            DownloadFailureReason.NETWORK_UNAVAILABLE,
-            DownloadTaskRules.resolveFailureReason(
-                persistedReason = null,
-                managerStatus = DownloadManager.STATUS_PAUSED,
-                managerReason = DownloadManager.PAUSED_QUEUED_FOR_WIFI,
-            ),
+        assertTrue(
+            DownloadTaskRules.requiresRedownloadAfterEngineUpgrade(
+                engineVersion = 0,
+                downloadId = 42L,
+                status = null,
+                pathIsPartial = true,
+            )
         )
-        assertEquals(
-            DownloadFailureReason.SERVER_ERROR,
-            DownloadTaskRules.resolveFailureReason(
-                persistedReason = null,
-                managerStatus = DownloadManager.STATUS_FAILED,
-                managerReason = DownloadManager.ERROR_HTTP_DATA_ERROR,
-            ),
+        assertFalse(
+            DownloadTaskRules.requiresRedownloadAfterEngineUpgrade(
+                engineVersion = 0,
+                downloadId = 42L,
+                status = DownloadTaskStatus.COMPLETED,
+                pathIsPartial = false,
+            )
         )
-        assertEquals(
-            DownloadFailureReason.CANNOT_RESUME,
-            DownloadTaskRules.resolveFailureReason(
-                persistedReason = null,
-                managerStatus = DownloadManager.STATUS_FAILED,
-                managerReason = DownloadManager.ERROR_CANNOT_RESUME,
-            ),
+        assertFalse(
+            DownloadTaskRules.requiresRedownloadAfterEngineUpgrade(
+                engineVersion = 0,
+                downloadId = null,
+                status = DownloadTaskStatus.RUNNING,
+                pathIsPartial = true,
+            )
         )
-        assertNull(
-            DownloadTaskRules.resolveFailureReason(
-                persistedReason = null,
-                managerStatus = DownloadManager.STATUS_RUNNING,
-                managerReason = DownloadManager.ERROR_UNKNOWN,
+        assertFalse(
+            DownloadTaskRules.requiresRedownloadAfterEngineUpgrade(
+                engineVersion = 1,
+                downloadId = 42L,
+                status = DownloadTaskStatus.RUNNING,
+                pathIsPartial = true,
             )
         )
     }
 
     @Test
-    fun `持久化失败原因在系统任务缺失时保留`() {
+    fun `恢复策略_暂停续传_残片失效重下_空间不足阻止`() {
         assertEquals(
-            DownloadFailureReason.NETWORK_UNAVAILABLE,
-            DownloadTaskRules.resolveFailureReason(
-                persistedReason = DownloadFailureReason.NETWORK_UNAVAILABLE.name,
-                managerStatus = null,
-                managerReason = null,
+            DownloadResumeStrategy.RESUME,
+            DownloadTaskRules.resumeStrategy(DownloadTaskStatus.PAUSED, null),
+        )
+        assertEquals(
+            DownloadResumeStrategy.RESUME,
+            DownloadTaskRules.resumeStrategy(
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.NETWORK_UNAVAILABLE,
             ),
         )
-    }
-
-    @Test
-    fun `恢复策略_空间不足阻止自动重试_系统暂停等待网络自愈`() {
+        assertEquals(
+            DownloadResumeStrategy.RESTART,
+            DownloadTaskRules.resumeStrategy(
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.CANNOT_RESUME,
+            ),
+        )
+        assertEquals(
+            DownloadResumeStrategy.RESTART,
+            DownloadTaskRules.resumeStrategy(
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.CANCELLED,
+            ),
+        )
         assertEquals(
             DownloadResumeStrategy.BLOCKED,
             DownloadTaskRules.resumeStrategy(
@@ -159,48 +150,101 @@ class DownloadTaskRulesTest {
                 DownloadFailureReason.STORAGE_INSUFFICIENT,
             ),
         )
-        assertEquals(
-            DownloadResumeStrategy.RESTART,
-            DownloadTaskRules.resumeStrategy(
-                DownloadTaskStatus.FAILED,
-                DownloadFailureReason.NETWORK_UNAVAILABLE,
-            ),
-        )
-        assertEquals(
-            DownloadResumeStrategy.WAIT_FOR_SYSTEM,
-            DownloadTaskRules.resumeStrategy(
-                DownloadTaskStatus.PAUSED,
-                DownloadFailureReason.NETWORK_UNAVAILABLE,
-            ),
-        )
     }
 
     @Test
-    fun `只有网络与服务器类失败允许自动重试`() {
+    fun `自动重试资格_网络无限_服务器限次_鉴权与空间不自动`() {
         assertTrue(
             DownloadTaskRules.isAutoRetryEligible(
-                DownloadTaskStatus.FAILED,
+                DownloadTaskStatus.PENDING,
                 DownloadFailureReason.NETWORK_UNAVAILABLE,
+                retryCount = 99,
             )
         )
         assertTrue(
             DownloadTaskRules.isAutoRetryEligible(
                 DownloadTaskStatus.FAILED,
                 DownloadFailureReason.SERVER_ERROR,
+                retryCount = DownloadTaskRules.MAX_SERVER_RETRIES - 1,
+            )
+        )
+        assertFalse(
+            DownloadTaskRules.isAutoRetryEligible(
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.SERVER_ERROR,
+                retryCount = DownloadTaskRules.MAX_SERVER_RETRIES,
+            )
+        )
+        assertFalse(
+            DownloadTaskRules.isAutoRetryEligible(
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.AUTHENTICATION,
+                retryCount = 0,
             )
         )
         assertFalse(
             DownloadTaskRules.isAutoRetryEligible(
                 DownloadTaskStatus.FAILED,
                 DownloadFailureReason.STORAGE_INSUFFICIENT,
+                retryCount = 0,
+            )
+        )
+        assertTrue(
+            DownloadTaskRules.isAutoRetryEligible(
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.CANNOT_RESUME,
+                retryCount = DownloadTaskRules.MAX_RESUME_RETRIES - 1,
             )
         )
         assertFalse(
             DownloadTaskRules.isAutoRetryEligible(
-                DownloadTaskStatus.RUNNING,
-                DownloadFailureReason.NETWORK_UNAVAILABLE,
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.CANNOT_RESUME,
+                retryCount = DownloadTaskRules.MAX_RESUME_RETRIES,
             )
         )
+    }
+
+    @Test
+    fun `指数退避_30秒起步翻倍并封顶30分钟`() {
+        assertEquals(0L, DownloadTaskRules.backoffDelayMs(0))
+        assertEquals(30_000L, DownloadTaskRules.backoffDelayMs(1))
+        assertEquals(60_000L, DownloadTaskRules.backoffDelayMs(2))
+        assertEquals(120_000L, DownloadTaskRules.backoffDelayMs(3))
+        assertEquals(
+            DownloadTaskRules.BACKOFF_MAX_MS,
+            DownloadTaskRules.backoffDelayMs(20),
+        )
+    }
+
+    @Test
+    fun `续传偏移_文件缺失归零_记录超出截断`() {
+        assertEquals(
+            0L,
+            DownloadTaskRules.initialOffset(1_000L, fileExists = false, fileLength = 0L),
+        )
+        assertEquals(
+            1_000L,
+            DownloadTaskRules.initialOffset(1_000L, fileExists = true, fileLength = 1_000L),
+        )
+        assertEquals(
+            600L,
+            DownloadTaskRules.initialOffset(1_000L, fileExists = true, fileLength = 600L),
+        )
+        assertEquals(
+            600L,
+            DownloadTaskRules.initialOffset(0L, fileExists = true, fileLength = 600L),
+        )
+    }
+
+    @Test
+    fun `同时下载数钳制到1到3`() {
+        assertEquals(2, DownloadTaskRules.DEFAULT_CONCURRENT_TASKS)
+        assertEquals(1, DownloadTaskRules.coerceConcurrency(0))
+        assertEquals(1, DownloadTaskRules.coerceConcurrency(1))
+        assertEquals(2, DownloadTaskRules.coerceConcurrency(2))
+        assertEquals(3, DownloadTaskRules.coerceConcurrency(3))
+        assertEquals(3, DownloadTaskRules.coerceConcurrency(9))
     }
 
     @Test

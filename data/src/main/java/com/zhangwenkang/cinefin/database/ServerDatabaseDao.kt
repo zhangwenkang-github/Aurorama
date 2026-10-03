@@ -125,6 +125,36 @@ interface ServerDatabaseDao {
         updatedAt: Long,
     )
 
+    /** W50：按来源 id 查单条下载记录（自研引擎队列用）。 */
+    @Query("SELECT * FROM sources WHERE id = :id")
+    suspend fun getSource(id: String): FindroidSourceDto?
+
+    /** W50：刷新残片进度（已下载 / 总大小 + 更新时间）。 */
+    @Query(
+        "UPDATE sources SET downloadedBytes = :downloadedBytes, totalBytes = :totalBytes, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun setSourceProgress(
+        id: String,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        updatedAt: Long,
+    )
+
+    /** W50：记录断点续传校验器（ETag / Last-Modified）。 */
+    @Query("UPDATE sources SET resumeValidator = :validator WHERE id = :id")
+    suspend fun setSourceResumeValidator(id: String, validator: String?)
+
+    /** W50：记录失败次数与下一次可重试时间（指数退避）。 */
+    @Query(
+        "UPDATE sources SET retryCount = :retryCount, nextRetryAt = :nextRetryAt, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun setSourceRetry(
+        id: String,
+        retryCount: Int,
+        nextRetryAt: Long,
+        updatedAt: Long,
+    )
+
     @Query("DELETE FROM sources WHERE id = :id") suspend fun deleteSource(id: String)
 
     /** W36：切换单个下载来源的「允许离线模式观看」开关。 */

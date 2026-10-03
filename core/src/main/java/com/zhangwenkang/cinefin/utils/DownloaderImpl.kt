@@ -1,24 +1,32 @@
 package com.zhangwenkang.cinefin.utils
 
 import android.app.DownloadManager
+import android.app.NotificationManager
 import android.content.Context
-import android.net.Uri
+import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Environment
 import android.os.StatFs
 import android.text.format.Formatter
-import androidx.core.net.toUri
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidSourceDto
+import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidSources
 import com.zhangwenkang.cinefin.models.FindroidTrickplayInfo
 import com.zhangwenkang.cinefin.models.UiText
@@ -31,44 +39,78 @@ import com.zhangwenkang.cinefin.models.toFindroidSeasonDto
 import com.zhangwenkang.cinefin.models.toFindroidSegmentsDto
 import com.zhangwenkang.cinefin.models.toFindroidShowDto
 import com.zhangwenkang.cinefin.models.toFindroidSource
-import com.zhangwenkang.cinefin.models.toFindroidSourceDto
 import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.toFindroidUserDataDto
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
-import com.zhangwenkang.cinefin.work.DownloadRetryWorker
+import com.zhangwenkang.cinefin.work.DownloadEngineWorker
 import com.zhangwenkang.cinefin.work.ImagesDownloaderWorker
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.Exception
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import timber.log.Timber
 
+/**
+ * W50 自研下载引擎门面。
+ *
+ * 与旧 DownloadManager 实现的差异：
+ * - 传输层：OkHttp + HTTP Range 真断点续传（暂停保留残片、恢复从残片继续、服务器忽略 Range 时安全重下）；
+ * - 前台服务：由 [DownloadEngineWorker]（WorkManager 长时 worker）通过 `setForeground` 托管，规避 Android 14+
+ *   后台启动前台服务限制，并复用 WorkManager 的重启 / 网络约束持久化；
+ * - 队列：Room `sources` 为单一数据源，进程内并发数读偏好 `pref_download_concurrency`（1–3，默认 2）；
+ * - 失败：分类 + 指数退避自动重试（网络类无限、服务器类限次、空间 / 鉴权不自动）；
+ * - 兼容：旧 DownloadManager 进行中任务（engineVersion = 0）不做无缝接管，首次启动标记「需重下」； 已完成的完整文件继续按路径识别。
+ */
 class DownloaderImpl(
     private val context: Context,
     private val database: ServerDatabaseDao,
     private val jellyfinRepository: JellyfinRepository,
     private val appPreferences: AppPreferences,
     private val workManager: WorkManager,
+    httpClient: OkHttpClient,
 ) : Downloader {
-    private val downloadManager = context.getSystemService(DownloadManager::class.java)
-
-    /**
-     * W32：本进程内已经自动重试过的任务。
-     *
-     * 网络恢复 worker 可能被多次调度，用集合保证「每个任务每个进程只自动重试一次」，进程重启后重新获得一次机会。
-     */
-    private val autoRetriedSourceIds = ConcurrentHashMap.newKeySet<String>()
-
+    private val httpEngine = DownloadHttpEngine(httpClient)
+    private val notifications = DownloadNotifications(context)
+    private val notificationManager = context.getSystemService(NotificationManager::class.java)
     private val sidecar = DownloadMediaSidecar(context)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // TODO: We should probably move most (if not all) code to a worker.
-    //  At this moment it is possible that some things are not downloaded due to the user leaving
-    //  the current screen
+    /** sourceId → 运行中的下载协程。 */
+    private val activeJobs = ConcurrentHashMap<String, Job>()
+
+    /** sourceId → 内存运行态（速度 / ETA / 最新字节数）。 */
+    private val runtime = MutableStateFlow<Map<String, TaskRuntime>>(emptyMap())
+
+    /** 同时下载数（引擎并发上限；读「设置 → 下载 → 同时下载数」偏好）。 */
+    private val maxConcurrentTasks: Int
+        get() =
+            DownloadTaskRules.coerceConcurrency(
+                appPreferences.getValue(appPreferences.downloadConcurrency)
+            )
+
+    @Volatile private var lastNotificationAt = 0L
+
+    // ---------------------------------------------------------------------------------------------
+    // 入队 / 调度
+    // ---------------------------------------------------------------------------------------------
+
     override suspend fun downloadItem(
         item: FindroidItem,
         sourceId: String,
@@ -82,83 +124,57 @@ class DownloaderImpl(
         albumName: String?,
         artist: String?,
         trackIndex: Int,
-    ): Pair<Long, UiText?> = coroutineScope {
-        try {
-            val source =
-                jellyfinRepository.getMediaSources(item.id, true).first { it.id == sourceId }
-            val segments = jellyfinRepository.getSegments(item.id)
-            val trickplayInfo =
-                if (item is FindroidSources) {
-                    item.trickplayInfo?.get(sourceId)
-                } else {
-                    null
-                }
-            val storageLocation = context.getExternalFilesDirs(null)[storageIndex]
+    ): Pair<Long, UiText?> =
+        withContext(Dispatchers.IO) {
+            val handle = downloadTaskHandle(sourceId)
+            val storageLocation = context.getExternalFilesDirs(null).getOrNull(storageIndex)
             if (
                 storageLocation == null ||
                     Environment.getExternalStorageState(storageLocation) !=
                         Environment.MEDIA_MOUNTED
             ) {
-                return@coroutineScope Pair(
-                    -1,
+                return@withContext Pair(
+                    -1L,
                     UiText.StringResource(CoreR.string.storage_unavailable),
                 )
             }
-            val path =
-                Uri.fromFile(File(storageLocation, "downloads/${item.id}.${source.id}.download"))
-            val stats = StatFs(storageLocation.path)
-            if (stats.availableBytes < source.size) {
-                return@coroutineScope Pair(
-                    -1,
-                    UiText.StringResource(
-                        CoreR.string.not_enough_storage,
-                        Formatter.formatFileSize(context, source.size),
-                        Formatter.formatFileSize(context, stats.availableBytes),
-                    ),
+
+            val existing = database.getSource(sourceId)
+            val existingStatus = existing?.taskStatus.toTaskStatus()
+            if (
+                existingStatus == DownloadTaskStatus.PENDING ||
+                    existingStatus == DownloadTaskStatus.RUNNING ||
+                    existingStatus == DownloadTaskStatus.PAUSED
+            ) {
+                // 幂等：同一来源已在队列 / 下载中 / 暂停，不重置进度。
+                ensureEngineRunning()
+                return@withContext Pair(existing?.downloadId ?: handle, null)
+            }
+
+            val partialPath = File(storageLocation, "downloads/${item.id}.$sourceId.download").path
+            val partial = File(partialPath)
+            val existingBytes = if (partial.isFile) partial.length() else 0L
+
+            val sourceDto =
+                FindroidSourceDto(
+                    id = sourceId,
+                    itemId = item.id,
+                    name = item.name,
+                    type = FindroidSourceType.LOCAL,
+                    path = partialPath,
+                    downloadId = handle,
+                    taskStatus = DownloadTaskStatus.PENDING.name,
+                    failureReason = null,
+                    updatedAt = System.currentTimeMillis(),
+                    downloadedBytes = existingBytes,
+                    retryCount = 0,
+                    nextRetryAt = 0L,
+                    engineVersion = ENGINE_VERSION,
+                    allowOffline = existing?.allowOffline ?: true,
                 )
-            }
-            val request =
-                DownloadManager.Request(source.path.toUri())
-                    .setTitle(item.name)
-                    .setAllowedOverMetered(
-                        appPreferences.getValue(appPreferences.downloadOverMobileData)
-                    )
-                    .setAllowedOverRoaming(
-                        appPreferences.getValue(appPreferences.downloadWhenRoaming)
-                    )
-                    .setNotificationVisibility(
-                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                    )
-                    .setDestinationUri(path)
-            val downloadId = downloadManager.enqueue(request)
-
-            when (item) {
-                is FindroidMovie -> {
-                    database.insertMovie(
-                        item.toFindroidMovieDto(
-                            appPreferences.getValue(appPreferences.currentServer)
-                        )
-                    )
-                }
-                is FindroidEpisode -> {
-                    val show = jellyfinRepository.getShow(item.seriesId)
-                    database.insertShow(
-                        show.toFindroidShowDto(
-                            appPreferences.getValue(appPreferences.currentServer)
-                        )
-                    )
-                    val season = jellyfinRepository.getSeason(item.seasonId)
-                    database.insertSeason(season.toFindroidSeasonDto())
-                    database.insertEpisode(
-                        item.toFindroidEpisodeDto(
-                            appPreferences.getValue(appPreferences.currentServer)
-                        )
-                    )
-
-                    startImagesDownloader(show)
-                    startImagesDownloader(season)
-                }
-            }
+            database.insertSource(sourceDto)
+            runCatching { persistItemSnapshot(item) }
+                .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
 
             // W34：音乐曲目（专辑 / 艺人）写入侧车，供下载列表层级化与离线展示。
             if (albumName != null) {
@@ -173,51 +189,439 @@ class DownloaderImpl(
                 )
             }
 
-            val sourceDto = source.toFindroidSourceDto(item.id, path.path.orEmpty())
+            ensureEngineRunning()
+            Pair(handle, null)
+        }
 
-            database.insertSource(
-                sourceDto.copy(
-                    downloadId = downloadId,
-                    taskStatus = DownloadTaskStatus.PENDING.name,
-                    failureReason = null,
-                    updatedAt = System.currentTimeMillis(),
+    override suspend fun runQueue(): DownloadQueueOutcome {
+        var ran = 0
+        while (true) {
+            coroutineContext.ensureActive()
+            val slots = maxConcurrentTasks - activeJobs.size
+            val claimed = claimRunnableTasks(slots)
+            if (claimed.isEmpty()) break
+            supervisorScope {
+                claimed.map { source -> async { executeTask(source) } }.forEach { it.await() }
+            }
+            ran += claimed.size
+        }
+        val pendingSources =
+            withContext(Dispatchers.IO) {
+                database.getPendingSources().filter { source ->
+                    val status = source.taskStatus.toTaskStatus()
+                    source.engineVersion >= ENGINE_VERSION &&
+                        (status == DownloadTaskStatus.PENDING ||
+                            (status == DownloadTaskStatus.RUNNING &&
+                                !activeJobs.containsKey(source.id)))
+                }
+            }
+        if (pendingSources.isNotEmpty()) {
+            // 任务级指数退避：按最近一个 nextRetryAt 安排下一次唤醒（带 CONNECTED 约束）。
+            val now = System.currentTimeMillis()
+            val nextWakeAt = pendingSources.minOf { it.nextRetryAt }
+            enqueueEngineWork(delayMs = (nextWakeAt - now).coerceAtLeast(0L))
+        }
+        return DownloadQueueOutcome(
+            ranTasks = ran,
+            hasPendingTasks = pendingSources.isNotEmpty(),
+            shouldRetry = pendingSources.isNotEmpty(),
+        )
+    }
+
+    /** 领取可立即运行的 PENDING 任务并标记 RUNNING（受并发上限约束）。 */
+    private suspend fun claimRunnableTasks(limit: Int): List<FindroidSourceDto> {
+        if (limit <= 0) return emptyList()
+        val now = System.currentTimeMillis()
+        return withContext(Dispatchers.IO) {
+            database
+                .getPendingSources()
+                .filter { it.engineVersion >= ENGINE_VERSION }
+                .filter { source ->
+                    val status = source.taskStatus.toTaskStatus()
+                    // 进程中断后残留的 RUNNING（没有活动协程）同样可领取，实现自愈恢复。
+                    status == DownloadTaskStatus.PENDING ||
+                        (status == DownloadTaskStatus.RUNNING && !activeJobs.containsKey(source.id))
+                }
+                .filter { it.nextRetryAt <= now }
+                .filter { !activeJobs.containsKey(it.id) }
+                .sortedBy { it.updatedAt }
+                .take(limit)
+                .onEach { source ->
+                    database.setSourceTaskStatus(
+                        source.id,
+                        DownloadTaskStatus.RUNNING.name,
+                        null,
+                        now,
+                    )
+                }
+        }
+    }
+
+    /**
+     * 确保有一个下载引擎 worker 在运行。
+     *
+     * 唯一工作链上已有未完成工作时直接复用（避免页面轮询 / 重复点击导致工作链膨胀）。
+     */
+    private suspend fun ensureEngineRunning() {
+        val hasUnfinished =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    workManager.getWorkInfosForUniqueWorkFlow(DOWNLOAD_ENGINE_WORK_NAME).first()
+                }
+                    .getOrNull()
+                    ?.any { !it.state.isFinished } == true
+            }
+        if (!hasUnfinished) enqueueEngineWork(delayMs = 0L)
+    }
+
+    private fun enqueueEngineWork(delayMs: Long) {
+        val builder =
+            OneTimeWorkRequestBuilder<DownloadEngineWorker>()
+                .setConstraints(
+                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
                 )
-            )
-            database.insertUserData(item.toFindroidUserDataDto(jellyfinRepository.getUserId()))
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+        if (delayMs > 0L) {
+            builder.setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
+        }
+        workManager.enqueueUniqueWork(
+            DOWNLOAD_ENGINE_WORK_NAME,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            builder.build(),
+        )
+    }
 
-            downloadExternalMediaStreams(item, source, storageIndex)
+    // ---------------------------------------------------------------------------------------------
+    // 单任务执行
+    // ---------------------------------------------------------------------------------------------
 
-            segments.forEach { database.insertSegment(it.toFindroidSegmentsDto(item.id)) }
-
-            if (trickplayInfo != null) {
-                downloadTrickplayData(item.id, sourceId, trickplayInfo)
+    private suspend fun executeTask(source: FindroidSourceDto) {
+        val job = coroutineContext[Job]
+        if (job != null) {
+            val running = activeJobs.putIfAbsent(source.id, job)
+            if (running != null && running !== job) return
+        }
+        val meter = DownloadSpeedMeter()
+        var lastPersistAt = 0L
+        try {
+            val item =
+                findItem(source.itemId)
+                    ?: throw DownloadHttpException(
+                        DownloadFailureReason.FILE_ERROR,
+                        "任务对应的媒体条目缺失",
+                    )
+            val mediaSource = resolveRemoteSource(item, source.id)
+            val target = File(source.path)
+            val fileExists = target.isFile
+            val offset =
+                DownloadTaskRules.initialOffset(
+                    downloadedBytes = source.downloadedBytes,
+                    fileExists = fileExists,
+                    fileLength = if (fileExists) target.length() else 0L,
+                )
+            if (!networkPolicyAllows()) {
+                throw DownloadHttpException(
+                    DownloadFailureReason.NETWORK_UNAVAILABLE,
+                    "当前网络不允许下载（移动数据 / 漫游开关）",
+                )
             }
 
-            startImagesDownloader(item)
-            return@coroutineScope Pair(downloadId, null)
-        } catch (e: Exception) {
-            // W32：失败不再删除整条下载记录——保留任务并把可读原因写回，供下载管理页展示 / 重试。
-            archiveFailedSource(item.id, sourceId, classifyDownloadException(e))
-            Timber.e(e)
-            return@coroutineScope Pair(
-                -1,
-                if (e.message != null) UiText.DynamicString(e.message!!)
-                else UiText.StringResource(CoreR.string.unknown_error),
+            val totalBytes = mediaSource.size.takeIf { it > 0L } ?: source.totalBytes
+            val requiredBytes = (totalBytes - offset).coerceAtLeast(0L)
+            if (totalBytes > 0L && requiredBytes > 0L) {
+                val stats = StatFs(target.parentFile?.path ?: context.filesDir.path)
+                if (stats.availableBytes < requiredBytes) {
+                    throw DownloadHttpException(
+                        DownloadFailureReason.STORAGE_INSUFFICIENT,
+                        "存储空间不足：需要 ${Formatter.formatFileSize(context, requiredBytes)}，可用 ${Formatter.formatFileSize(context, stats.availableBytes)}",
+                    )
+                }
+            }
+
+            runtime.update {
+                it +
+                    (source.id to
+                        TaskRuntime(
+                            name = itemName(item, source.name),
+                            downloadedBytes = offset,
+                            totalBytes = totalBytes,
+                            speedBytesPerSecond = 0L,
+                            etaSeconds = null,
+                            validator = source.resumeValidator,
+                        ))
+            }
+
+            val result =
+                httpEngine.download(
+                    url = mediaSource.path,
+                    token = jellyfinRepository.getAccessToken(),
+                    baseUrl = jellyfinRepository.getBaseUrl(),
+                    target = target,
+                    existingBytes = offset,
+                    validator = source.resumeValidator,
+                    expectedTotalBytes = totalBytes,
+                    onProgress = { downloaded, total, validator, _ ->
+                        meter.onProgress(downloaded)
+                        val eta = meter.etaSeconds(total, downloaded)
+                        runtime.update {
+                            it +
+                                (source.id to
+                                    TaskRuntime(
+                                        name = itemName(item, source.name),
+                                        downloadedBytes = downloaded,
+                                        totalBytes = total,
+                                        speedBytesPerSecond = meter.speedBytesPerSecond(),
+                                        etaSeconds = eta,
+                                        validator = validator,
+                                    ))
+                        }
+                        val now = System.currentTimeMillis()
+                        if (now - lastPersistAt >= PERSIST_INTERVAL_MS) {
+                            lastPersistAt = now
+                            runCatching {
+                                database.setSourceProgress(source.id, downloaded, total, now)
+                            }
+                                .onFailure { Timber.w(it, "持久化下载进度失败 ${source.id}") }
+                            updateForegroundNotificationNow()
+                        }
+                    },
+                )
+            completeTask(source, item, mediaSource, target, result)
+        } catch (cancellation: CancellationException) {
+            // 取消（暂停 / 删除 / worker 停止）：清理写库需要 NonCancellable，否则会被立刻再次取消。
+            withContext(NonCancellable) { handleTaskCancellation(source) }
+        } catch (http: DownloadHttpException) {
+            handleTaskFailure(source, http)
+        } catch (error: Exception) {
+            handleTaskFailure(
+                source,
+                DownloadHttpException(DownloadFailureReason.UNKNOWN, error.message, error),
+            )
+        } finally {
+            if (job != null) activeJobs.remove(source.id, job)
+            runtime.update { it - source.id }
+            lastNotificationAt = 0L
+            updateForegroundNotificationNow()
+        }
+    }
+
+    private suspend fun completeTask(
+        source: FindroidSourceDto,
+        item: FindroidItem,
+        mediaSource: FindroidSource,
+        partial: File,
+        result: DownloadAttemptResult,
+    ) {
+        val finalFile =
+            if (partial.path.endsWith(".download")) {
+                File(partial.path.removeSuffix(".download"))
+            } else {
+                partial
+            }
+        if (finalFile.exists()) finalFile.delete()
+        val renamed = partial.renameTo(finalFile)
+        val now = System.currentTimeMillis()
+        if (!renamed) {
+            database.setSourceTaskStatus(
+                source.id,
+                DownloadTaskStatus.FAILED.name,
+                DownloadFailureReason.FILE_ERROR.name,
+                now,
+            )
+            notifications.notifyFailed(
+                buildTask(
+                    source,
+                    status = DownloadTaskStatus.FAILED,
+                    failureReason = DownloadFailureReason.FILE_ERROR,
+                    downloadedBytes = result.downloadedBytes,
+                    totalBytes = result.totalBytes,
+                )
+            )
+            return
+        }
+
+        database.setSourcePath(source.id, finalFile.path)
+        database.setSourceTaskStatus(source.id, DownloadTaskStatus.COMPLETED.name, null, now)
+        database.setSourceProgress(source.id, result.downloadedBytes, result.totalBytes, now)
+        database.setSourceResumeValidator(source.id, result.validator)
+        database.setSourceRetry(source.id, 0, 0L, now)
+        // 「下载完成通知」偏好（默认开）：关闭后只保留进行中的前台服务通知。
+        if (appPreferences.getValue(appPreferences.downloadCompleteNotification)) {
+            notifications.notifyCompleted(
+                buildTask(
+                    source.copy(path = finalFile.path),
+                    status = DownloadTaskStatus.COMPLETED,
+                    downloadedBytes = result.downloadedBytes,
+                    totalBytes = result.totalBytes,
+                )
+            )
+        }
+        Timber.i("下载完成：%s（%d 字节）", source.name, result.downloadedBytes)
+
+        runCatching { persistItemSnapshot(item) }
+            .onFailure { Timber.w(it, "补写下载条目快照失败 ${item.id}") }
+        runCatching { downloadExtras(item, mediaSource, source) }
+            .onFailure { Timber.w(it, "下载附属内容失败 ${item.id}") }
+    }
+
+    private suspend fun handleTaskCancellation(source: FindroidSourceDto) {
+        val now = System.currentTimeMillis()
+        val persisted = database.getSource(source.id)
+        val status = persisted?.taskStatus.toTaskStatus()
+        val bytes =
+            runtime.value[source.id]?.downloadedBytes
+                ?: persisted?.downloadedBytes
+                ?: partialFileSize(source.path)
+        if (status == DownloadTaskStatus.PAUSED || status == DownloadTaskStatus.COMPLETED) {
+            return
+        }
+        // 进程 / worker 中断：保留残片，回到等待调度，由下次 worker 续传。
+        runCatching {
+            database.setSourceProgress(source.id, bytes, persisted?.totalBytes ?: 0L, now)
+            database.setSourceTaskStatus(source.id, DownloadTaskStatus.PENDING.name, null, now)
+        }
+    }
+
+    private suspend fun handleTaskFailure(
+        source: FindroidSourceDto,
+        failure: DownloadHttpException,
+    ) {
+        val now = System.currentTimeMillis()
+        val reason = failure.reason
+        val retryCount = (database.getSource(source.id)?.retryCount ?: source.retryCount) + 1
+        val retryable =
+            DownloadTaskRules.isAutoRetryEligible(
+                status = DownloadTaskStatus.FAILED,
+                failureReason = reason,
+                retryCount = retryCount,
+            )
+        if (reason == DownloadFailureReason.CANNOT_RESUME) {
+            // 残片不可续：清掉残片，下一次从头安全重下。
+            deletePartialArtifacts(source.path)
+            runCatching { database.setSourceProgress(source.id, 0L, source.totalBytes, now) }
+        }
+        if (retryable) {
+            val delayMs = DownloadTaskRules.backoffDelayMs(retryCount)
+            database.setSourceTaskStatus(
+                source.id,
+                DownloadTaskStatus.PENDING.name,
+                reason.name,
+                now,
+            )
+            database.setSourceRetry(source.id, retryCount, now + delayMs, now)
+            Timber.i(
+                "下载失败将自动重试（%s，第 %d 次，%d ms 后）：%s",
+                reason,
+                retryCount,
+                delayMs,
+                source.name,
+            )
+        } else {
+            database.setSourceTaskStatus(
+                source.id,
+                DownloadTaskStatus.FAILED.name,
+                reason.name,
+                now,
+            )
+            database.setSourceRetry(source.id, retryCount, 0L, now)
+            Timber.w(failure, "下载失败（%s）：%s", reason, source.name)
+            notifications.notifyFailed(
+                buildTask(
+                    source,
+                    status = DownloadTaskStatus.FAILED,
+                    failureReason = reason,
+                    downloadedBytes =
+                        runtime.value[source.id]?.downloadedBytes ?: source.downloadedBytes,
+                    totalBytes = runtime.value[source.id]?.totalBytes ?: source.totalBytes,
+                )
             )
         }
     }
 
-    override suspend fun cancelDownload(item: FindroidItem, downloadId: Long) {
-        val source =
-            database.getSourceByDownloadId(downloadId)?.toFindroidSource(database) ?: return
-        if (source.downloadId != null) {
-            downloadManager.remove(source.downloadId!!)
+    // ---------------------------------------------------------------------------------------------
+    // 暂停 / 恢复 / 重试 / 删除
+    // ---------------------------------------------------------------------------------------------
+
+    override suspend fun pauseTask(task: DownloadTask): Boolean = pauseTaskById(task.sourceId)
+
+    override suspend fun pauseTaskById(sourceId: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val source = database.getSource(sourceId) ?: return@withContext false
+            val bytes =
+                runtime.value[sourceId]?.downloadedBytes
+                    ?: source.downloadedBytes.takeIf { it > 0L }
+                    ?: partialFileSize(source.path)
+            // 先写 PAUSED，再取消协程：取消处理据此保留状态与残片。
+            database.setSourceTaskStatus(sourceId, DownloadTaskStatus.PAUSED.name, null, now)
+            database.setSourceProgress(sourceId, bytes, source.totalBytes, now)
+            val job = activeJobs[sourceId]
+            job?.cancel(CancellationException("用户暂停下载"))
+            job?.join()
+            updateForegroundNotificationNow()
+            true
         }
-        deleteItem(item, source)
+
+    override suspend fun resumeTask(task: DownloadTask): Pair<Long, UiText?> =
+        withContext(Dispatchers.IO) {
+            val source = database.getSource(task.sourceId) ?: return@withContext Pair(-1L, null)
+            if (source.taskStatus.toTaskStatus() != DownloadTaskStatus.PAUSED) {
+                return@withContext Pair(source.downloadId ?: downloadTaskHandle(source.id), null)
+            }
+            database.setSourceTaskStatus(
+                source.id,
+                DownloadTaskStatus.PENDING.name,
+                null,
+                System.currentTimeMillis(),
+            )
+            database.setSourceRetry(source.id, source.retryCount, 0L, System.currentTimeMillis())
+            ensureEngineRunning()
+            Pair(source.downloadId ?: downloadTaskHandle(source.id), null)
+        }
+
+    override suspend fun retryTask(task: DownloadTask): Pair<Long, UiText?> =
+        withContext(Dispatchers.IO) {
+            val source = database.getSource(task.sourceId) ?: return@withContext Pair(-1L, null)
+            val now = System.currentTimeMillis()
+            database.setSourceTaskStatus(
+                source.id,
+                DownloadTaskStatus.PENDING.name,
+                null,
+                now,
+            )
+            database.setSourceRetry(source.id, 0, 0L, now)
+            ensureEngineRunning()
+            Pair(source.downloadId ?: downloadTaskHandle(source.id), null)
+        }
+
+    override suspend fun deleteTask(task: DownloadTask): Boolean = deleteTaskById(task.sourceId)
+
+    override suspend fun deleteTaskById(sourceId: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val source = database.getSource(sourceId) ?: return@withContext false
+            val job = activeJobs[sourceId]
+            job?.cancel(CancellationException("用户取消下载"))
+            job?.join()
+            deletePartialArtifacts(source.path)
+            sidecar.remove(source.itemId)
+            val item = findItem(source.itemId)
+            if (item != null) {
+                deleteItem(item, source.toFindroidSource(database))
+            } else {
+                deletePartialArtifacts(source.path)
+                database.deleteSource(sourceId)
+            }
+            runtime.update { it - sourceId }
+            updateForegroundNotificationNow()
+            true
+        }
+
+    override suspend fun cancelDownload(item: FindroidItem, downloadId: Long) {
+        val source = findSourceByHandle(downloadId) ?: return
+        deleteTaskById(source.id)
     }
 
     override suspend fun deleteItem(item: FindroidItem, source: FindroidSource) {
-        // W34：删除条目时同步清掉媒体侧车（音乐专辑 / 艺人元数据）。
         sidecar.remove(item.id)
         when (item) {
             is FindroidMovie -> {
@@ -258,196 +662,163 @@ class DownloaderImpl(
         File(context.filesDir, "images/${item.id}").deleteRecursively()
     }
 
-    override suspend fun getProgress(downloadId: Long?): Pair<Int, Int> {
-        var downloadStatus = -1
-        var progress = -1
-        if (downloadId == null) {
-            return Pair(downloadStatus, progress)
-        }
-        val query = DownloadManager.Query().setFilterById(downloadId)
-        downloadManager.query(query).use { cursor ->
-            if (cursor.moveToFirst()) {
-                downloadStatus =
-                    cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                when (downloadStatus) {
-                    DownloadManager.STATUS_RUNNING -> {
-                        val totalBytes =
-                            cursor.getLong(
-                                cursor.getColumnIndexOrThrow(
-                                    DownloadManager.COLUMN_TOTAL_SIZE_BYTES
-                                )
-                            )
-                        if (totalBytes > 0) {
-                            val downloadedBytes =
-                                cursor.getLong(
-                                    cursor.getColumnIndexOrThrow(
-                                        DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR
-                                    )
-                                )
-                            progress = downloadedBytes.times(100).div(totalBytes).toInt()
-                        }
-                    }
+    // ---------------------------------------------------------------------------------------------
+    // 查询 / 对账
+    // ---------------------------------------------------------------------------------------------
 
-                    DownloadManager.STATUS_SUCCESSFUL -> {
-                        progress = 100
-                    }
-                }
-            } else {
-                downloadStatus = DownloadManager.STATUS_FAILED
+    override suspend fun getProgress(downloadId: Long?): Pair<Int, Int> {
+        if (downloadId == null) return DownloadManager.STATUS_FAILED to -1
+        val source = findSourceByHandle(downloadId) ?: return DownloadManager.STATUS_FAILED to -1
+        val status = source.taskStatus.toTaskStatus() ?: return DownloadManager.STATUS_FAILED to -1
+        val taskRuntime = runtime.value[source.id]
+        val downloaded = taskRuntime?.downloadedBytes ?: source.downloadedBytes
+        val total = taskRuntime?.totalBytes ?: source.totalBytes
+        val progress =
+            when {
+                status == DownloadTaskStatus.COMPLETED -> 100
+                total > 0L -> (downloaded * 100L / total).coerceIn(0L, 100L).toInt()
+                else -> -1
             }
-        }
-        return Pair(downloadStatus, progress)
+        return status.toDownloadManagerStatus() to progress
     }
 
     override suspend fun refreshDownloadTasks(): List<DownloadTask> =
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
-            val tasks = mutableListOf<DownloadTask>()
             val mediaRecords = sidecar.records()
             val episodeHierarchy = runCatching {
                 database.getDownloadedEpisodeHierarchy().associateBy { it.episodeId }
             }
                 .getOrElse { emptyMap() }
+            val tasks = mutableListOf<DownloadTask>()
 
             for (source in database.getPendingSources()) {
-                val snapshot = downloadManager.querySnapshot(source.downloadId)
+                // 有运行中的协程就是 RUNNING（持久化状态在进程中断时会被恢复逻辑降级为 PENDING）。
                 val status =
-                    DownloadTaskRules.resolveStatus(
-                        persistedStatus = source.taskStatus,
-                        managerStatus = snapshot?.status,
-                        pathIsPartial = source.path.endsWith(".download"),
-                    )
-                val failureReason =
-                    DownloadTaskRules.resolveFailureReason(
-                        persistedReason = source.failureReason,
-                        managerStatus = snapshot?.status,
-                        managerReason = snapshot?.reason,
-                    )
-
-                if (status == DownloadTaskStatus.COMPLETED) {
-                    // 补偿 DownloadReceiver 漏掉的完成回调（进程被杀 / 广播丢失）：补重命名 + 落状态。
-                    finishDownloadedSource(database, source)
-                    continue
-                }
-
-                if (
-                    source.taskStatus != status.name || source.failureReason != failureReason?.name
-                ) {
-                    database.setSourceTaskStatus(
-                        source.id,
-                        status.name,
-                        failureReason?.name,
-                        now,
-                    )
-                }
-
+                    if (activeJobs.containsKey(source.id)) {
+                        DownloadTaskStatus.RUNNING
+                    } else {
+                        DownloadTaskRules.resolveStatus(
+                            persistedStatus = source.taskStatus,
+                            pathIsPartial = source.path.endsWith(".download"),
+                        )
+                    }
+                val runtimeState = runtime.value[source.id]
+                val downloaded =
+                    runtimeState?.downloadedBytes
+                        ?: source.downloadedBytes.takeIf { it > 0L }
+                        ?: partialFileSize(source.path)
+                val total = runtimeState?.totalBytes ?: source.totalBytes
+                val record = mediaRecords[source.itemId.toString()]
+                val hierarchy: DownloadedEpisodeHierarchy? = episodeHierarchy[source.itemId]
                 tasks +=
                     DownloadTask(
                         itemId = source.itemId,
                         sourceId = source.id,
-                        name = itemNameFor(source.itemId, source.name),
+                        name = runtimeState?.name ?: itemNameFor(source.itemId, source.name),
                         path = source.path,
-                        downloadId = source.downloadId,
+                        downloadId = source.downloadId ?: downloadTaskHandle(source.id),
                         status = status,
-                        failureReason = failureReason,
-                        downloadedBytes =
-                            (snapshot?.downloadedBytes ?: 0L).takeIf { it > 0L }
-                                ?: partialFileSize(source.path),
-                        totalBytes = snapshot?.totalBytes ?: 0L,
+                        failureReason = source.failureReason?.toFailureReason(),
+                        downloadedBytes = downloaded,
+                        totalBytes = total,
                         updatedAt = source.updatedAt.takeIf { it > 0L } ?: now,
-                        mediaKind =
-                            mediaRecords[source.itemId.toString()]?.kind ?: DownloadMediaKind.VIDEO,
-                        seriesId = episodeHierarchy[source.itemId]?.seriesId,
-                        seasonId = episodeHierarchy[source.itemId]?.seasonId,
-                        seriesName = episodeHierarchy[source.itemId]?.seriesName,
-                        seasonName = episodeHierarchy[source.itemId]?.seasonName,
-                        episodeIndex = episodeHierarchy[source.itemId]?.episodeIndex ?: 0,
-                        seasonIndex = episodeHierarchy[source.itemId]?.seasonIndex ?: 0,
-                        albumName = mediaRecords[source.itemId.toString()]?.albumName,
-                        artist = mediaRecords[source.itemId.toString()]?.artist,
+                        mediaKind = record?.kind ?: DownloadMediaKind.VIDEO,
+                        seriesId = hierarchy?.seriesId,
+                        seasonId = hierarchy?.seasonId,
+                        seriesName = hierarchy?.seriesName,
+                        seasonName = hierarchy?.seasonName,
+                        episodeIndex = hierarchy?.episodeIndex ?: 0,
+                        seasonIndex = hierarchy?.seasonIndex ?: 0,
+                        albumName = record?.albumName,
+                        artist = record?.artist,
+                        speedBytesPerSecond = runtimeState?.speedBytesPerSecond ?: 0L,
+                        etaSeconds = runtimeState?.etaSeconds,
+                        retryCount = source.retryCount,
+                        nextRetryAt = source.nextRetryAt,
                     )
             }
 
-            // 有网络类失败任务且本进程还没自动重试过：入队带 CONNECTED 约束的唯一 worker（网络恢复后执行）。
-            if (
-                tasks.any {
-                    DownloadTaskRules.isAutoRetryEligible(it.status, it.failureReason) &&
-                        it.sourceId !in autoRetriedSourceIds
-                }
-            ) {
-                enqueueRetryWorker()
+            if (tasks.any { it.status == DownloadTaskStatus.PENDING }) {
+                ensureEngineRunning()
             }
-
             tasks.sortedByDescending { it.updatedAt }
         }
 
-    override fun mediaSidecar(): DownloadMediaSidecar = sidecar
-
-    override suspend fun downloadedItemIds(): Set<UUID> =
+    override suspend fun recoverOnStartup(): Int =
         withContext(Dispatchers.IO) {
-            runCatching { database.getDownloadedItemIds().toSet() }.getOrElse { emptySet() }
-        }
-
-    override suspend fun pauseTask(task: DownloadTask): Boolean =
-        withContext(Dispatchers.IO) {
-            // 系统任务取消，但保留已写入的残片（进度大小供 UI 展示；恢复走安全重试）。
-            task.downloadId?.let { runCatching { downloadManager.remove(it) } }
-            // remove 会删除目标残片，但 sidecar（.download.js）可能残留：主动清干净。
-            deletePartialArtifacts(task.path)
-            database.setSourceTaskStatus(
-                task.sourceId,
-                DownloadTaskStatus.PAUSED.name,
-                null,
-                System.currentTimeMillis(),
-            )
-            true
-        }
-
-    override suspend fun resumeTask(task: DownloadTask): Pair<Long, UiText?> =
-        withContext(Dispatchers.IO) {
-            val waitingForNetwork =
-                task.status == DownloadTaskStatus.PAUSED &&
-                    task.failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE &&
-                    downloadManager.querySnapshot(task.downloadId) != null
-            if (waitingForNetwork) {
-                // 系统级暂停（等待网络 / 等待重试）：网络恢复后 DownloadManager 自行续传，无需重新入队。
-                return@withContext task.downloadId?.let { it to null } ?: (-1L to null)
+            val now = System.currentTimeMillis()
+            var recovered = 0
+            for (source in database.getPendingSources()) {
+                val status = source.taskStatus.toTaskStatus()
+                val pathIsPartial = source.path.endsWith(".download")
+                if (
+                    DownloadTaskRules.requiresRedownloadAfterEngineUpgrade(
+                        engineVersion = source.engineVersion,
+                        downloadId = source.downloadId,
+                        status = status,
+                        pathIsPartial = pathIsPartial,
+                    )
+                ) {
+                    // 旧 DownloadManager 进行中任务：不做无缝接管，提示需重下。
+                    database.setSourceTaskStatus(
+                        source.id,
+                        DownloadTaskStatus.FAILED.name,
+                        DownloadFailureReason.CANCELLED.name,
+                        now,
+                    )
+                    database.setSourceRetry(source.id, 0, 0L, now)
+                    recovered += 1
+                    continue
+                }
+                if (
+                    source.engineVersion >= ENGINE_VERSION &&
+                        (status == DownloadTaskStatus.RUNNING ||
+                            status == DownloadTaskStatus.PENDING) &&
+                        status != DownloadTaskStatus.COMPLETED
+                ) {
+                    val bytes =
+                        source.downloadedBytes.takeIf { it > 0L } ?: partialFileSize(source.path)
+                    database.setSourceProgress(source.id, bytes, source.totalBytes, now)
+                    database.setSourceTaskStatus(
+                        source.id,
+                        DownloadTaskStatus.PENDING.name,
+                        null,
+                        now,
+                    )
+                    recovered += 1
+                }
             }
-            restartTask(task)
-        }
-
-    override suspend fun retryTask(task: DownloadTask): Pair<Long, UiText?> =
-        withContext(Dispatchers.IO) { restartTask(task) }
-
-    override suspend fun deleteTask(task: DownloadTask): Boolean =
-        withContext(Dispatchers.IO) {
-            task.downloadId?.let { runCatching { downloadManager.remove(it) } }
-            deletePartialArtifacts(task.path)
-            sidecar.remove(task.itemId)
-            val source = database.getSources(task.itemId).firstOrNull { it.id == task.sourceId }
-            val item = findItem(task.itemId)
-            if (source != null && item != null) {
-                deleteItem(item, source.toFindroidSource(database))
-            } else {
-                deletePartialArtifacts(task.path)
-                database.deleteSource(task.sourceId)
-            }
-            true
+            if (recovered > 0) ensureEngineRunning()
+            recovered
         }
 
     override suspend fun retryNetworkFailures(): Int =
         withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
             var retried = 0
-            for (task in refreshDownloadTasks()) {
-                if (!DownloadTaskRules.isAutoRetryEligible(task.status, task.failureReason))
+            for (source in database.getPendingSources()) {
+                if (source.taskStatus.toTaskStatus() != DownloadTaskStatus.FAILED) continue
+                val reason = source.failureReason?.toFailureReason()
+                if (
+                    !DownloadTaskRules.isAutoRetryEligible(
+                        DownloadTaskStatus.FAILED,
+                        reason,
+                        source.retryCount,
+                    )
+                ) {
                     continue
-                if (!autoRetriedSourceIds.add(task.sourceId)) continue
-                val (downloadId, _) = restartTask(task)
-                if (downloadId != -1L) {
-                    retried += 1
-                    Timber.i("网络恢复自动重试下载：${task.name}（${task.failureReason}）")
                 }
+                database.setSourceTaskStatus(
+                    source.id,
+                    DownloadTaskStatus.PENDING.name,
+                    reason?.name,
+                    now,
+                )
+                database.setSourceRetry(source.id, source.retryCount, 0L, now)
+                retried += 1
             }
+            if (retried > 0) ensureEngineRunning()
             retried
         }
 
@@ -469,41 +840,166 @@ class DownloaderImpl(
             )
         }
 
-    /** 安全重试：清理残片后重新入队（进程被杀 / 暂停期间由 DownloadManager 自行延续的任务不经过这里）。 */
-    private suspend fun restartTask(task: DownloadTask): Pair<Long, UiText?> =
+    override fun mediaSidecar(): DownloadMediaSidecar = sidecar
+
+    override suspend fun downloadedItemIds(): Set<UUID> =
         withContext(Dispatchers.IO) {
-            val item =
-                findItem(task.itemId)
-                    ?: return@withContext Pair(
-                        -1L,
-                        UiText.StringResource(CoreR.string.download_task_item_missing),
-                    )
-            task.downloadId?.let { runCatching { downloadManager.remove(it) } }
-            deletePartialFile(task.path)
-            database.setSourceDownloadId(task.sourceId, null)
-            database.setSourceTaskStatus(
-                task.sourceId,
-                DownloadTaskStatus.PENDING.name,
-                null,
-                System.currentTimeMillis(),
-            )
-            downloadItem(item, task.sourceId, storageIndexFor(task.path))
+            runCatching { database.getDownloadedItemIds().toSet() }.getOrElse { emptySet() }
         }
 
-    private suspend fun archiveFailedSource(
+    override suspend fun foregroundInfo(): ForegroundInfo {
+        val tasks = snapshotActiveTasks()
+        val notification =
+            notifications.buildForeground(task = tasks.firstOrNull(), activeCount = tasks.size)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(
+                DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        } else {
+            ForegroundInfo(DownloadNotifications.FOREGROUND_NOTIFICATION_ID, notification)
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // 附属内容（外部字幕流 / 分段 / Trickplay / 图片缓存）
+    // ---------------------------------------------------------------------------------------------
+
+    private suspend fun downloadExtras(
+        item: FindroidItem,
+        source: FindroidSource,
+        sourceDto: FindroidSourceDto,
+    ) {
+        val storageIndex = storageIndexFor(sourceDto.path)
+        downloadExternalMediaStreams(item, source, storageIndex)
+        runCatching {
+            val segments = jellyfinRepository.getSegments(item.id)
+            segments.forEach { database.insertSegment(it.toFindroidSegmentsDto(item.id)) }
+        }
+            .onFailure { Timber.w(it, "下载分段信息失败 ${item.id}") }
+        if (item is FindroidSources) {
+            val trickplay = item.trickplayInfo?.get(source.id)
+            if (trickplay != null) {
+                runCatching { downloadTrickplayData(item.id, source.id, trickplay) }
+                    .onFailure { Timber.w(it, "下载 Trickplay 失败 ${item.id}") }
+            }
+        }
+        startImagesDownloader(item)
+    }
+
+    private suspend fun downloadExternalMediaStreams(
+        item: FindroidItem,
+        source: FindroidSource,
+        storageIndex: Int,
+    ) {
+        val storageLocation = context.getExternalFilesDirs(null).getOrNull(storageIndex) ?: return
+        for (mediaStream in source.mediaStreams.filter { it.isExternal && it.path != null }) {
+            runCatching {
+                val id = UUID.randomUUID()
+                val target = File(storageLocation, "downloads/${item.id}.${source.id}.$id")
+                val partial = File(target.path + ".download")
+                database.insertMediaStream(
+                    mediaStream.toFindroidMediaStreamDto(id, source.id, target.path)
+                )
+                httpEngine.download(
+                    url = mediaStream.path!!,
+                    token = jellyfinRepository.getAccessToken(),
+                    baseUrl = jellyfinRepository.getBaseUrl(),
+                    target = partial,
+                    existingBytes = 0L,
+                    validator = null,
+                    expectedTotalBytes = 0L,
+                    onProgress = { _, _, _, _ -> },
+                )
+                if (target.exists()) target.delete()
+                if (partial.renameTo(target)) {
+                    database.setMediaStreamPath(id, target.path)
+                } else {
+                    database.deleteMediaStream(id)
+                }
+            }
+                .onFailure { Timber.w(it, "下载外部媒体流失败 ${item.id}（${mediaStream.title}）") }
+        }
+    }
+
+    private suspend fun downloadTrickplayData(
         itemId: UUID,
         sourceId: String,
-        reason: DownloadFailureReason,
+        trickplayInfo: FindroidTrickplayInfo,
     ) {
-        val source =
-            runCatching { database.getSources(itemId).firstOrNull { it.id == sourceId } }
-                .getOrNull() ?: return
-        database.setSourceTaskStatus(
-            source.id,
-            DownloadTaskStatus.FAILED.name,
-            reason.name,
-            System.currentTimeMillis(),
-        )
+        val maxIndex =
+            ceil(
+                    trickplayInfo.thumbnailCount
+                        .toDouble()
+                        .div(trickplayInfo.tileWidth * trickplayInfo.tileHeight)
+                )
+                .toInt()
+        val byteArrays = mutableListOf<ByteArray>()
+        for (i in 0..maxIndex) {
+            jellyfinRepository.getTrickplayData(itemId, trickplayInfo.width, i)?.let { byteArray ->
+                byteArrays.add(byteArray)
+            }
+        }
+        val basePath = "trickplay/$itemId/$sourceId"
+        database.insertTrickplayInfo(trickplayInfo.toFindroidTrickplayInfoDto(sourceId))
+        File(context.filesDir, basePath).mkdirs()
+        for ((i, byteArray) in byteArrays.withIndex()) {
+            File(context.filesDir, "$basePath/$i").writeBytes(byteArray)
+        }
+    }
+
+    private fun startImagesDownloader(item: FindroidItem) {
+        val request =
+            OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
+                .setInputData(workDataOf(ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString()))
+                .build()
+        workManager.enqueue(request)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // 辅助
+    // ---------------------------------------------------------------------------------------------
+
+    private suspend fun persistItemSnapshot(item: FindroidItem) {
+        val serverId = appPreferences.getValue(appPreferences.currentServer)
+        when (item) {
+            is FindroidMovie -> database.insertMovie(item.toFindroidMovieDto(serverId))
+            is FindroidEpisode -> {
+                val show = jellyfinRepository.getShow(item.seriesId)
+                database.insertShow(show.toFindroidShowDto(serverId))
+                val season = jellyfinRepository.getSeason(item.seasonId)
+                database.insertSeason(season.toFindroidSeasonDto())
+                database.insertEpisode(item.toFindroidEpisodeDto(serverId))
+                startImagesDownloader(show)
+                startImagesDownloader(season)
+            }
+        }
+        runCatching {
+            database.insertUserData(item.toFindroidUserDataDto(jellyfinRepository.getUserId()))
+        }
+            .onFailure { Timber.w(it, "写入下载条目用户数据失败 ${item.id}") }
+    }
+
+    private suspend fun resolveRemoteSource(
+        item: FindroidItem,
+        sourceId: String,
+    ): FindroidSource {
+        val sources = runCatching {
+            jellyfinRepository.getMediaSources(item.id, true)
+        }
+            .getOrElse {
+                throw DownloadHttpException(
+                    DownloadFailureReason.NETWORK_UNAVAILABLE,
+                    it.message,
+                    it,
+                )
+            }
+        return sources.firstOrNull { it.id == sourceId }
+            ?: throw DownloadHttpException(
+                DownloadFailureReason.SERVER_ERROR,
+                "服务器未返回该媒体来源（sourceId=$sourceId）",
+            )
     }
 
     private suspend fun findItem(itemId: UUID): FindroidItem? {
@@ -528,6 +1024,9 @@ class DownloaderImpl(
         return fallback
     }
 
+    private fun itemName(item: FindroidItem, fallback: String): String =
+        item.name.takeIf { it.isNotBlank() } ?: fallback
+
     private fun storageIndexFor(path: String): Int {
         val index =
             context.getExternalFilesDirs(null).filterNotNull().indexOfFirst {
@@ -536,94 +1035,119 @@ class DownloaderImpl(
         return if (index >= 0) index else 0
     }
 
-    private fun enqueueRetryWorker() {
-        val constraints =
-            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-        val request =
-            OneTimeWorkRequestBuilder<DownloadRetryWorker>().setConstraints(constraints).build()
-        workManager.enqueueUniqueWork(
-            uniqueWorkName = DOWNLOAD_RETRY_WORK_NAME,
-            existingWorkPolicy = ExistingWorkPolicy.KEEP,
-            request = request,
+    private suspend fun findSourceByHandle(handle: Long): FindroidSourceDto? =
+        withContext(Dispatchers.IO) {
+            database.getAllSources().firstOrNull { downloadTaskHandle(it.id) == handle }
+        }
+
+    private fun buildTask(
+        source: FindroidSourceDto,
+        status: DownloadTaskStatus,
+        failureReason: DownloadFailureReason? = null,
+        downloadedBytes: Long = source.downloadedBytes,
+        totalBytes: Long = source.totalBytes,
+    ): DownloadTask {
+        val runtimeState = runtime.value[source.id]
+        return DownloadTask(
+            itemId = source.itemId,
+            sourceId = source.id,
+            name = runtimeState?.name ?: source.name,
+            path = source.path,
+            downloadId = source.downloadId ?: downloadTaskHandle(source.id),
+            status = status,
+            failureReason = failureReason ?: source.failureReason?.toFailureReason(),
+            downloadedBytes = downloadedBytes,
+            totalBytes = totalBytes,
+            updatedAt = System.currentTimeMillis(),
+            speedBytesPerSecond = runtimeState?.speedBytesPerSecond ?: 0L,
+            etaSeconds = runtimeState?.etaSeconds,
+            retryCount = source.retryCount,
+            nextRetryAt = source.nextRetryAt,
         )
     }
 
-    private suspend fun downloadExternalMediaStreams(
-        item: FindroidItem,
-        source: FindroidSource,
-        storageIndex: Int = 0,
-    ) {
-        val storageLocation = context.getExternalFilesDirs(null)[storageIndex]
-        for (mediaStream in source.mediaStreams.filter { it.isExternal }) {
-            val id = UUID.randomUUID()
-            val streamPath =
-                Uri.fromFile(
-                    File(storageLocation, "downloads/${item.id}.${source.id}.$id.download")
-                )
-            database.insertMediaStream(
-                mediaStream.toFindroidMediaStreamDto(id, source.id, streamPath.path.orEmpty())
+    private suspend fun snapshotActiveTasks(): List<DownloadTask> =
+        withContext(Dispatchers.IO) {
+            activeJobs.keys
+                .mapNotNull { database.getSource(it) }
+                .map { buildTask(it, DownloadTaskStatus.RUNNING) }
+        }
+
+    private fun updateForegroundNotificationNow() {
+        val entries = runtime.value.entries.toList()
+        val active = entries.size
+        if (active == 0) {
+            lastNotificationAt = 0L
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) return
+        lastNotificationAt = now
+        val (sourceId, state) = entries.first()
+        val first =
+            DownloadTask(
+                itemId = UUID(0L, 0L),
+                sourceId = sourceId,
+                name = state.name,
+                path = "",
+                downloadId = null,
+                status = DownloadTaskStatus.RUNNING,
+                failureReason = null,
+                downloadedBytes = state.downloadedBytes,
+                totalBytes = state.totalBytes,
+                updatedAt = 0L,
+                speedBytesPerSecond = state.speedBytesPerSecond,
+                etaSeconds = state.etaSeconds,
             )
-            val request =
-                DownloadManager.Request(mediaStream.path!!.toUri())
-                    .setTitle(mediaStream.title)
-                    .setAllowedOverMetered(
-                        appPreferences.getValue(appPreferences.downloadOverMobileData)
-                    )
-                    .setAllowedOverRoaming(
-                        appPreferences.getValue(appPreferences.downloadWhenRoaming)
-                    )
-                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
-                    .setDestinationUri(streamPath)
-            val downloadId = downloadManager.enqueue(request)
-            database.setMediaStreamDownloadId(id, downloadId)
-        }
+        notificationManager?.notify(
+            DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
+            notifications.buildForeground(task = first, activeCount = active),
+        )
     }
 
-    private suspend fun downloadTrickplayData(
-        itemId: UUID,
-        sourceId: String,
-        trickplayInfo: FindroidTrickplayInfo,
-    ) {
-        val maxIndex =
-            ceil(
-                    trickplayInfo.thumbnailCount
-                        .toDouble()
-                        .div(trickplayInfo.tileWidth * trickplayInfo.tileHeight)
-                )
-                .toInt()
-        val byteArrays = mutableListOf<ByteArray>()
-        for (i in 0..maxIndex) {
-            jellyfinRepository.getTrickplayData(itemId, trickplayInfo.width, i)?.let { byteArray ->
-                byteArrays.add(byteArray)
-            }
-        }
-        saveTrickplayData(itemId, sourceId, trickplayInfo, byteArrays)
+    private fun networkPolicyAllows(): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return true
+        val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
+        // 「仅 Wi-Fi 下载」（默认开）复用既有键：pref_downloads_mobile_data=false 即仅计费网络拦截放宽。
+        val metered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        if (metered && !appPreferences.getValue(appPreferences.downloadOverMobileData)) return false
+        val roaming = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
+        if (roaming && !appPreferences.getValue(appPreferences.downloadWhenRoaming)) return false
+        return true
     }
 
-    private suspend fun saveTrickplayData(
-        itemId: UUID,
-        sourceId: String,
-        trickplayInfo: FindroidTrickplayInfo,
-        byteArrays: List<ByteArray>,
-    ) {
-        val basePath = "trickplay/$itemId/$sourceId"
-        database.insertTrickplayInfo(trickplayInfo.toFindroidTrickplayInfoDto(sourceId))
-        File(context.filesDir, basePath).mkdirs()
-        for ((i, byteArray) in byteArrays.withIndex()) {
-            val file = File(context.filesDir, "$basePath/$i")
-            file.writeBytes(byteArray)
-        }
-    }
+    private data class TaskRuntime(
+        val name: String,
+        val downloadedBytes: Long,
+        val totalBytes: Long,
+        val speedBytesPerSecond: Long,
+        val etaSeconds: Long?,
+        val validator: String?,
+    )
 
-    private fun startImagesDownloader(item: FindroidItem) {
-        val downloadImagesRequest =
-            OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
-                .setInputData(workDataOf(ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString()))
-                .build()
+    private companion object {
+        /** 自研引擎写入 sources 行的版本标记（旧 DownloadManager 行为 0）。 */
+        const val ENGINE_VERSION = 1
 
-        workManager.enqueue(downloadImagesRequest)
+        /** 进度落库 / 通知刷新间隔。 */
+        const val PERSIST_INTERVAL_MS = 1_000L
+        const val NOTIFICATION_INTERVAL_MS = 1_000L
     }
 }
 
-/** W32 唯一的网络恢复重试任务名（KEEP 策略保证同一时间只有一份）。 */
-internal const val DOWNLOAD_RETRY_WORK_NAME = "downloadNetworkRetry"
+/** W50 唯一下载引擎任务名。 */
+internal const val DOWNLOAD_ENGINE_WORK_NAME = "downloadEngine"
+
+/** sourceId → 稳定的 UI 句柄（替代旧 DownloadManager id 语义，不持久化数值）。 */
+internal fun downloadTaskHandle(sourceId: String): Long =
+    sourceId.hashCode().toLong() and 0xFFFFFFFFL
+
+/** 自研引擎状态 → DownloadManager 常量（旧 UI 轮询兼容；仅常量映射，不调用系统下载器）。 */
+internal fun DownloadTaskStatus.toDownloadManagerStatus(): Int =
+    when (this) {
+        DownloadTaskStatus.PENDING -> DownloadManager.STATUS_PENDING
+        DownloadTaskStatus.RUNNING -> DownloadManager.STATUS_RUNNING
+        DownloadTaskStatus.PAUSED -> DownloadManager.STATUS_PAUSED
+        DownloadTaskStatus.COMPLETED -> DownloadManager.STATUS_SUCCESSFUL
+        DownloadTaskStatus.FAILED -> DownloadManager.STATUS_FAILED
+    }

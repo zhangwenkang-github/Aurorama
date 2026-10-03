@@ -170,6 +170,10 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)
     val downloadWhenRoaming = Preference("pref_downloads_roaming", false)
+    /** W50 自研下载引擎：同时下载数（1–3，默认 2）。设置 UI 由 W51 补。 */
+    val downloadConcurrency = Preference("pref_download_concurrency", 2)
+    /** W50 自研下载引擎：下载完成通知开关（默认开）；关闭后仍保留进行中前台服务通知。 */
+    val downloadCompleteNotification = Preference("pref_download_complete_notification", true)
 
     // Network
     val requestTimeout =

@@ -144,6 +144,14 @@
     <string name="download_waiting_network">Waiting for network</string>
     <string name="download_task_item_missing">The media item for this download is missing</string>
     <string name="download_section_summary">%1$d in progress · %2$d completed · %3$d failed</string>
+    <string name="download_failure_authentication">Sign-in expired, sign in again</string>
+    <string name="download_failure_cancelled">Cancelled, needs re-download</string>
+    <string name="download_notification_channel">Downloads</string>
+    <string name="download_notification_active_multi">Downloading %1$d items</string>
+    <string name="download_notification_pause">Pause</string>
+    <string name="download_notification_cancel">Cancel</string>
+    <string name="download_notification_completed">Download complete</string>
+    <string name="download_notification_failed">Download failed</string>
     <string name="title_music">Music</string>
     <string name="title_book_shelf">Books</string>
     <string name="title_more">More</string>

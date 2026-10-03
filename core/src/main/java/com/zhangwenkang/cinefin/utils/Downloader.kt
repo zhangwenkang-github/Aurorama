@@ -1,11 +1,17 @@
 package com.zhangwenkang.cinefin.utils
 
+import androidx.work.ForegroundInfo
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.UiText
 import java.util.UUID
 
 interface Downloader {
+    /**
+     * 入队下载；返回自研引擎的任务句柄（旧 DownloadManager id 语义已替换，UI 轮询 / 取消继续复用）。
+     *
+     * 返回 -1 表示入队失败。
+     */
     suspend fun downloadItem(
         item: FindroidItem,
         sourceId: String,
@@ -62,4 +68,34 @@ interface Downloader {
 
     /** W34：已经完成下载（LOCAL 完整文件）的条目 id 集合。 */
     suspend fun downloadedItemIds(): Set<UUID>
+
+    /**
+     * W50：运行下载队列，直到没有「当前可执行」的任务为止。
+     *
+     * 供 WorkManager 长时 worker 调用：worker 存活期间由前台服务托管常驻通知；队列为空时返回 [DownloadQueueOutcome.shouldRetry]
+     * = false，由 worker 结束自己。
+     */
+    suspend fun runQueue(): DownloadQueueOutcome
+
+    /** W50：启动恢复——旧引擎进行中任务标记「需重下」，自研引擎中断任务回队并触发调度；返回恢复数量。 */
+    suspend fun recoverOnStartup(): Int
+
+    /** W50：前台通知信息（WorkManager `setForeground` 用；无活动任务时展示「等待下载任务」）。 */
+    suspend fun foregroundInfo(): ForegroundInfo
+
+    /** W50：通知按钮——按 sourceId 暂停任务。 */
+    suspend fun pauseTaskById(sourceId: String): Boolean
+
+    /** W50：通知按钮——按 sourceId 取消并删除任务。 */
+    suspend fun deleteTaskById(sourceId: String): Boolean
 }
+
+/** W50 队列运行结果（WorkManager 重试决策）。 */
+data class DownloadQueueOutcome(
+    /** 本次实际执行的任务数。 */
+    val ranTasks: Int,
+    /** 结束后是否仍有待处理任务（含退避等待中的）。 */
+    val hasPendingTasks: Boolean,
+    /** 是否需要 WorkManager 再次唤醒（有 PENDING 任务时）。 */
+    val shouldRetry: Boolean,
+)

@@ -44,7 +44,7 @@ import com.zhangwenkang.cinefin.models.User
             LocalLibraryFolderDto::class,
             LocalMediaItemDto::class,
         ],
-    version = 11,
+    version = 12,
     autoMigrations =
         [
             AutoMigration(from = 2, to = 3),
@@ -55,6 +55,7 @@ import com.zhangwenkang.cinefin.models.User
             AutoMigration(from = 8, to = 9),
             AutoMigration(from = 9, to = 10),
             AutoMigration(from = 10, to = 11),
+            AutoMigration(from = 11, to = 12),
         ],
 )
 @ColumnTypeConverters(Converters::class)

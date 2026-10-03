@@ -26,6 +26,7 @@ import com.google.android.material.color.DynamicColors
 import com.zhangwenkang.cinefin.network.SharedPreferencesCertificateTrustStore
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
 import com.zhangwenkang.cinefin.work.ReaderProgressSyncWorker
 import com.zhangwenkang.cinefin.work.SyncWorker
@@ -33,6 +34,9 @@ import dagger.hilt.android.HiltAndroidApp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
 import timber.log.Timber
@@ -42,6 +46,8 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
     @Inject lateinit var appPreferences: AppPreferences
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject lateinit var downloader: Downloader
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -72,6 +78,11 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
 
         scheduleUserDataSync(workManager)
         scheduleReaderProgressSync(workManager)
+
+        // W50 下载引擎启动恢复：旧引擎进行中任务标记「需重下」；自研引擎中断任务从残片继续。
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching { downloader.recoverOnStartup() }.onFailure { Timber.w(it, "下载引擎启动恢复失败") }
+        }
 
         if (!appPreferences.getValue(appPreferences.mpvMigrated)) {
             scheduleMpvCleanup(workManager)

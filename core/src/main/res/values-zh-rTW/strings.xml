@@ -145,6 +145,14 @@
     <string name="download_waiting_network">等待網路</string>
     <string name="download_task_item_missing">找不到此下載對應的媒體項目</string>
     <string name="download_section_summary">%1$d 進行中 · %2$d 已完成 · %3$d 失敗</string>
+    <string name="download_failure_authentication">登入狀態失效，請重新登入</string>
+    <string name="download_failure_cancelled">已取消，需重新下載</string>
+    <string name="download_notification_channel">下載</string>
+    <string name="download_notification_active_multi">正在下載 %1$d 個任務</string>
+    <string name="download_notification_pause">暫停</string>
+    <string name="download_notification_cancel">取消</string>
+    <string name="download_notification_completed">下載完成</string>
+    <string name="download_notification_failed">下載失敗</string>
     <string name="title_music">音樂</string>
     <string name="title_book_shelf">書架</string>
     <string name="title_more">更多</string>

@@ -1,14 +1,14 @@
 # Cinefin · 下载 / 离线任务线（DOWNLOAD_PLAN）
 
 > **本文件是下载 / 离线线的唯一权威文档**：需求、决策、进度、验收、踩坑都写在这里，不新建零散 `.md`。
-> 维护会话：W37-LOCAL-LIBRARY（分支 `feature/w37-local-library`，基线 master `8fef16d`；W32/W34/W36 历史见 §4/§4.1）
+> 维护会话：W50-DOWNLOAD-ENGINE（分支 `feature/w50-download-engine`，基线 master `3dbca99`；W32/W34/W36/W37 历史见 §4/§4.1）
 > 最后更新：2026-10-03
 
 ## 1. 范围与现状
 
 | 项 | 说明 |
 |----|------|
-| 下载引擎 | 系统 `DownloadManager`（`core/utils/DownloaderImpl`），支持系统级任务持久化与 Range 断点续传 |
+| 下载引擎 | **W50 起 = 自研 OkHttp Range 引擎**（原系统 `DownloadManager` 已退役，见 §18；历史实现见 §4） |
 | 记录 | Room `sources` 表存 `downloadId` / `path`（进行中为 `.download` 后缀） |
 | 完成链路 | `DownloadReceiver` 收到 `DOWNLOAD_COMPLETE` → 重命名 → 更新 path |
 | 离线入口 | `JellyfinRepository.getDownloads()`（movies + shows），下载页 `app:phone/DownloadsScreen` |
@@ -188,6 +188,7 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 | 2026-10-03 | W36-OFFLINE | 离线闭环：`OfflineMediaRepository`（无账号可读）+ `sources.allowOffline` Room v10 + 书籍开关偏好 + 登录页 / 用户页 / 服务器页 / 欢迎页离线入口 + 登录成功自动退出 + 离线首页 / 媒体库 / 音乐 / 书架 IA 与空态 + W37 本地文件库占位；门禁全绿（app 70 / data 19 / film 6 / music 99 / book 106）；Pad 5 + K60 真机 8 组通过（见 §11） |
 | 2026-10-03 | W36-OFFLINE | 补充要求（负责人转达）：层级图规则（节目 / 季海报、剧集缩略图 + 回退）+ 离线媒体库只显示节目 + 本地媒体库占位 / 开关 + 时长快照；真机修复 2 处（离线 VM 缓存刷新、退出离线后音乐曲库不切换）+ 离线仓库 `getDownloads` 补剧集层级；下载测试数据已删、双机已还原 |
 | 2026-10-03 | W37-LOCAL-LIBRARY | 本地媒体库：Room v11 三表 + SAF 递归扫描（持久化权限 / 扩展名白名单 / 混合分组 / 每文件夹层级·平铺）+ 确定性 itemId + 合成 LOCAL 源（视频复用播放器）+ 阅读器 content:// 三路 + 音乐曲库来源筛选 / 混合同队列 / 来源徽标 + 媒体库与离线页常显入口 + 非破坏删除；顺手修 W36 两项遗留（下载刷新竞态 / 补拉图片）；门禁全绿（app 70 / core 16 / data 27 / film 6 / book 106 / music 99）；真机 Pad 5 + K60 抽验通过（见 §13） |
+| 2026-10-03 | W50-DOWNLOAD-ENGINE | **自研下载引擎替换**（推翻 D1/D2）：OkHttp Range 真断点续传 + 暂停保留残片 + Wi-Fi/漫游策略 + 失败分类退避 + 速度/ETA 数据模型 + Room v12 六列只追加 + 旧进行中任务标记需重下 + DownloadManagerSupport/DownloadReceiver 退役 + WM 长时 worker 托管前台通知（进度/暂停/取消）+ 完成/失败通知 + 三个下载设置接引擎；门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿，496 项单测 0 失败（W49 基线 486 + W50 净增 10）；真机清单见 §18.5，待负责人调度 |
 
 ## 10. W34 遗留
 
@@ -331,3 +332,72 @@ W45 遗留两条（§14.4）本波落地；**缓存与懒生成策略不变**（
    无 `.fail`）；归档序 `p10(蓝)/p2(红)/p1(绿)` 的 CBZ 缩略图 = 384×512 mean `[0,255,1]` = **自然序 p1**
    （不是归档首图 p10）。副作用还原：测试库 App 内删除 → 缩略图随库 purge（`files/local_thumbs` 只剩用户
    既有 4 张）、`/sdcard/Download/w49media` 删除、App force-stop；双机 0 FATAL / ANR。
+
+## 18. W50 自研下载引擎替换（2026-10-03，分支 `feature/w50-download-engine`，起点 master `3dbca99`，已 rebase 至 W49 `1222bef`）
+
+**背景**：用户 2026-10-03 决定不再使用系统下载工具（推翻 D1「只用 DownloadManager」）：真机已证实系统路径无法
+「暂停保留残片」、失败原因不可控、重试/进度能力受限。本波只做**引擎 + 数据层 + 现有下载动作接线**，下载界面
+改版与粒度入口留给 W51/W52。
+
+### 18.1 决策
+
+| 编号 | 决策 | 理由 / 后果 |
+|------|------|-------------|
+| D37 | **引擎 = 自研 OkHttp Range + Room 单一数据源**；前台服务由 **WorkManager 长时 worker `setForeground` 托管**（`DownloadEngineWorker`，`dataSync` 类型），不自建 Service | 官方长时任务推荐路径：Android 14+ 后台启动前台服务受限、Android 15+ dataSync 有 6h 配额；WM 自带设备重启恢复与网络约束，规避 `startForegroundService` 限制 |
+| D38 | **暂停 = 取消协程 + 保留残片 + `PAUSED`**；恢复 = `Range: bytes=N-`，有校验器时带 `If-Range`（ETag/Last-Modified）；服务器回 200（忽略 Range / 校验变化）→ 截断残片**安全重下**；416 → 残片已覆盖完整内容按完成处理，否则 `CANNOT_RESUME` 安全重下 | 真断点续传；不再出现 W32「暂停即丢进度」 |
+| D39 | **失败分类 + 任务级指数退避**：网络类无限重试（30s→60s→…封顶 30min）、服务器类 ≤5 次、残片失效 ≤3 次、空间/鉴权/用户取消不自动；退避由 `nextRetryAt` + `CONNECTED` 约束的下一次 worker 唤醒实现（不用 WM retry，避免双退避叠加） | 断网不空转、网络恢复即续；鉴权失败给「重新登录」文案 |
+| D40 | **迁移只追加**：Room v11→v12 `AutoMigration`，`sources` 追加 `downloadedBytes / totalBytes / retryCount / resumeValidator / nextRetryAt / engineVersion`；旧「进行中」（engineVersion=0 且 downloadId 非空）首次启动标记 `FAILED + CANCELLED`（UI「已取消，需重新下载」），**已完成文件按 path 继续识别** | 不做无缝接管（旧系统任务不可查询/不可控）；不删旧列、不写新表 |
+| D41 | **旧链路退役**：删除 `DownloadManagerSupport` / `DownloadReceiver`；新增 `DownloadActionReceiver` 承接前台通知的暂停/取消按钮；`downloadId` 列保留为**自研引擎句柄**（sourceId 稳定 hash，仅 UI 轮询兼容），engineVersion 区分新旧 | 保留读取旧 downloadId 的兼容路径；不再调用任何 DownloadManager API（仅保留状态常量映射给旧 UI） |
+| D42 | **并发上限读偏好 `pref_download_concurrency`（1–3，默认 2，见 D44）**；通知 = 前台单条（当前任务进度 + 暂停/取消 + 「N 个任务」标题）+ 完成/失败单任务通知；速度（5s 滑动窗口）与 ETA 进 `DownloadTask`（W52 UI 数据源） | 通知与 UI 行为可用即可，粒度优化留 W52 |
+| D43 | **凭据保持现状 + 更安全**：直链使用 SDK 生成的 `api_key` URL（与 DownloadManager 时代一致）；同主机请求额外带 `X-Emby-Token`，并用拦截器在跨主机重定向时剥离该头 | 不把令牌发给重定向目标 CDN；401/403 归类 AUTHENTICATION 提示重新登录 |
+| D44 | **三个下载设置接引擎**（负责人 2026-10-03 追加，设置 UI 由 W51 补）：①**仅 Wi-Fi 下载**（默认开）复用既有键 `pref_downloads_mobile_data`（false = 仅计费网络拦截放宽，尊重系统 `NET_CAPABILITY_NOT_METERED`）——**未新增重复键**；②**同时下载数**新增 `pref_download_concurrency`（1–3，默认 2，`DownloadTaskRules.coerceConcurrency` 钳制）；③**下载完成通知**新增 `pref_download_complete_notification`（默认 true，关闭后仅保留进行中前台服务通知） | 只追加不重排 `AppPreferences.kt`（红线申报）；W51 UI 绑定「仅 Wi-Fi」时对该键取反即可，避免新旧两个开关互相打架 |
+
+### 18.2 实现地图
+
+| 文件 | 作用 |
+|------|------|
+| `core/utils/DownloaderImpl.kt` | 引擎门面：入队 / 队列调度（并发读偏好）/ 暂停恢复重试删除 / 对账 / 启动恢复 / 前台通知信息 |
+| `core/utils/DownloadHttpEngine.kt` | OkHttp 传输：Range/If-Range/206 校验/416/200 安全重下/401 分类/重定向凭据剥离/64KB 缓冲 + 4s fsync |
+| `core/utils/DownloadSpeedEstimator.kt` | 滑动窗口速度 + ETA 纯函数（`DownloadSpeedRules` / `DownloadSpeedMeter`） |
+| `core/utils/DownloadTask.kt` | 任务模型（+速度/ETA/retryCount/nextRetryAt）+ 状态机 / 恢复策略 / 退避纯函数 |
+| `core/utils/DownloadNotifications.kt` | 下载通知渠道、前台通知（进度/暂停/取消）、完成 / 失败通知 |
+| `core/utils/DownloadActionReceiver.kt` | 通知按钮广播（@AndroidEntryPoint，不导出） |
+| `core/work/DownloadEngineWorker.kt` | WM 长时 worker：setForeground + `runQueue()` + 兜底 retry |
+| `data/.../FindroidSourceDto.kt` + `ServerDatabase.kt` + `ServerDatabaseDao.kt` | v12 六列只追加 + 进度/重试/校验器 DAO |
+| `data/.../JellyfinRepository*.kt` | `getAccessToken()`（在线返回会话令牌，离线 null） |
+| `app/phone/AndroidManifest.xml` | +`FOREGROUND_SERVICE_DATA_SYNC`、SystemForegroundService(dataSync) 覆盖、DownloadActionReceiver；−DownloadReceiver |
+| `app/phone/.../MainActivity.kt` | Android 13+ `POST_NOTIFICATIONS` 请求 |
+| `core/src/test/.../DownloadSpeedEstimatorTest.kt` / `DownloadContentRangeTest.kt` | 新增 8 项纯函数单测 |
+| `app/phone/src/test/.../DownloadTaskRulesTest.kt` | 重写为 9 项（状态机 / 旧任务迁移 / 恢复 / 退避 / 偏移 / 并发钳制） |
+
+### 18.3 门禁（2026-10-03）
+
+- 根 `assembleDebug`（含 TV）全绿；根 `ktfmtCheck` 全绿；
+- 单测逐个 `--rerun` 数 `build/test-results/*.xml`（rebase 到 W49 `1222bef` 后复跑）：core **37**（W50 新增 8）/ data **45**（W49 新增 2）/ film **6** / music **109** / book **113**（W49 新增 3）/ player:local **105** / app **81**（W50 净增 2）= **496 项 0 失败 0 错误**（W49 基线 486 + W50 净增 10）；
+- 红线：未动 `settings.gradle.kts` / `libs.versions.toml` / `NavigationRoot.kt` / `player:core` / `player:local`；`AppPreferences.kt` **只追加** `pref_download_concurrency` / `pref_download_complete_notification` 两键（未重排，仅 Wi-Fi 复用既有 `pref_downloads_mobile_data`）；`AndroidManifest.xml` 改动已按任务书先行申报（新增 dataSync 权限与前台服务覆盖、通知操作 Receiver，移除 DownloadReceiver）。
+
+### 18.4 迁移行为（旧数据）
+
+1. **已完成（含 W32/W34 下载）**：`sources.path` 指向完整文件 → 下载页「已完成」/ 离线媒体库行为不变；
+2. **旧进行中 / 暂停（DownloadManager 时代）**：首次启动（`BaseApplication.onCreate` → `recoverOnStartup()`）标记 `FAILED + CANCELLED`，下载页显示「已取消，需重新下载」，用户点重试即用新引擎重下（不做残片接管）；
+3. **自研引擎中断任务**：`RUNNING/PENDING` 且 engineVersion=1 → 保留残片回 `PENDING` 续传；进程被杀 / 设备重启 / force-stop 重开都走这条；
+4. `allowOffline` 等既有列在重下入队时保留用户设置。
+
+### 18.5 真机验收清单（待负责人统一调度；Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+1. 下载中**暂停 → 残片保留**（`files/downloads/*.download` 字节不消失）→ 恢复 → 从残片偏移继续；
+2. 下载中 **force-stop App** → 重开 → 恢复续传（不重下已有字节）；
+3. 下载中**重启设备** → 解锁后自动恢复续传；
+4. 开启飞行模式 → 任务显示「等待网络」（PENDING + 网络原因）→ 关飞行模式 → 自动续传；失败分类与退避日志正确；
+5. 通知：前台常驻进度 + 暂停/取消按钮可用；完成/失败通知出现；Android 13+ 首次启动弹通知权限；
+6. 三个设置项行为：仅 Wi-Fi 开关（默认开）打开时移动数据下不动、关闭后可下载；同时下载数 1 / 3 档生效（并发任务数变化）；完成通知开关关闭后无「下载完成」通知（前台服务通知仍在）；
+7. 现有动作回归：下载 / 批量暂停 / 恢复 / 重试 / 删除 / 容器删除 / 存储占用 / 已完成识别 / 离线播放；
+8. 全程 logcat 0 FATAL / 0 ANR；Room v11→v12 迁移后原服务器 / 账号 / 下载列表完整。
+
+### 18.6 遗留
+
+- 附属内容（外挂字幕流 / 分段 / Trickplay / 图片缓存）仍在主文件完成后执行：完成阶段进程被杀会缺失，下一次重下才补（与旧实现同级）；
+- 前台通知的操作按钮对「当前任务」生效，多任务需进下载页操作（W52 UI 波改进）；
+- 速度 / ETA 只在进程存活期有效（重启后归零，仍显示已下载字节）；
+- Android 15+ dataSync 前台服务 6 小时配额（超长单文件极端情况会被系统停止，WM 重启后从残片继续）；
+- 旧 `download_media.tsv` 侧车、书籍离线链路、`ImagesDownloaderWorker` 未动。

@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- W50 自研下载引擎：WorkManager 长时 worker 的前台服务类型（dataSync） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- W23-MUSIC 桌面歌词：在其他应用上层显示悬浮歌词 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -64,13 +66,16 @@
             android:name=".playback.MusicLyricsOverlayService"
             android:exported="false" />
 
+        <!-- W50 自研下载引擎：WorkManager 长时 worker 以 dataSync 类型托管前台通知 -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
+        <!-- W50 自研下载引擎：前台通知上的暂停 / 取消操作（不导出） -->
         <receiver
-            android:name=".utils.DownloadReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
-            </intent-filter>
-        </receiver>
+            android:name="com.zhangwenkang.cinefin.utils.DownloadActionReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

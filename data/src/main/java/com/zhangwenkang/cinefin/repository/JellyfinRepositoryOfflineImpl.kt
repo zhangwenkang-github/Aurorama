@@ -342,6 +342,8 @@ class JellyfinRepositoryOfflineImpl(
         return ""
     }
 
+    override fun getAccessToken(): String? = null
+
     override suspend fun updateDeviceName(name: String) {
         TODO("Not yet implemented")
     }
