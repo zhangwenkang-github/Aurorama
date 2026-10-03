@@ -668,8 +668,9 @@ constructor(
         }
 
     /**
-     * W37 本地媒体库书籍（`content://`）：PDF 走 `ParcelFileDescriptor` + PdfRenderer、CBZ 走顺序流页源、 其余（EPUB /
-     * 未知）交给 Readium 的 ContentResolver 资源链。
+     * W37 本地媒体库书籍（`content://`）：PDF 走 `ParcelFileDescriptor` + PdfRenderer（版式元数据由
+     * [PdfLayoutSource.forDescriptor] 用 dup fd 做 PdfBox 随机读，W48）、CBZ 走顺序流页源、 其余（EPUB / 未知） 交给
+     * Readium 的 ContentResolver 资源链。
      */
     private suspend fun openLocalDocument(uri: Uri, progress: ReadingProgress?): ReaderDocument =
         when (sniffBookFormat(context.contentResolver, uri)) {

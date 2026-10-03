@@ -43,6 +43,16 @@ interface PageSource : AutoCloseable {
      */
     suspend fun pageAspectRatios(): List<Float?>? = null
 
+    /**
+     * 逐页版式扫描回退的页数上限（W48，D-W47-1）。
+     *
+     * [pageAspectRatios] 返回 null / 页数不符时，调用方会逐页回退 [pageAspectRatio]；PDF 的逐页回退走
+     * `PdfRenderer.openPage`，其 native 内存随页数线性累积（W33 踩坑 29），因此 PDF 覆写该上限：超过时调用方 直接采用安全默认（全 null =
+     * 竖版两页一屏，见 [collectPageAspectRatios]），不再逐页扫描。
+     */
+    val perPageAspectScanMaxPages: Int
+        get() = Int.MAX_VALUE
+
     /** 渲染 / 解码一页，位图长边不超过 [maxSidePx]。 */
     suspend fun renderPage(index: Int, maxSidePx: Int): Bitmap?
 }
@@ -66,8 +76,13 @@ private constructor(
         PdfLayoutSource(file),
     )
 
-    /** SAF `content://` 打开（W37 本地媒体库）：没有 PdfBox 版式扫描，双栏回退逐页扫描。 */
-    constructor(descriptor: ParcelFileDescriptor) : this(descriptor, null)
+    /**
+     * SAF `content://` 打开（W37 本地媒体库 / W48）：版式元数据走 [PdfLayoutSource.forDescriptor]（dup 独立 fd 随机读）；fd
+     * 不可定位读时为 null，双栏按兜底策略处理。
+     */
+    constructor(
+        descriptor: ParcelFileDescriptor
+    ) : this(descriptor, PdfLayoutSource.forDescriptor(descriptor))
 
     private val renderer =
         try {
@@ -96,6 +111,9 @@ private constructor(
         layout?.pageAspectRatios()
     }
         .getOrNull()
+
+    /** 大书不再逐页 `openPage` 兜底（W48）：native 累积按页数线性增长，超阈值改用安全默认版式。 */
+    override val perPageAspectScanMaxPages: Int = PER_PAGE_LAYOUT_SCAN_MAX_PAGES
 
     override suspend fun renderPage(index: Int, maxSidePx: Int): Bitmap? =
         withContext(Dispatchers.IO) { mutex.withLock { renderPageLocked(index, maxSidePx) } }

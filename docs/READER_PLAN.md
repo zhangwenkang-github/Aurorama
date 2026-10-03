@@ -444,6 +444,34 @@
     （数据仍按逻辑页保存，切回单页 / 分页 / 未合并槽即可见；映射方案见 §9 遗留）；
   - 后续若要改粒度（文字选择 / 手绘 / 导出）：新增字段或抬 `version`，旧记录按矩形继续可读。
 
+### D24 · W48：SAF `content://` PDF 接 PdfBox 随机读（页缓存）+ 大书兜底阈值——**已落地**
+
+**背景**：W33 的 `PdfLayoutSource` 只覆盖本地缓存文件路径；W37 本地媒体库的书籍是 SAF `content://`
+（`ReaderViewModel.openLocalDocument` → `PdfPageSource(descriptor)`），`layout = null` → 进双栏回退逐页
+`PdfRenderer.openPage` → W47 在金田一 5006 页（2.53 GB）上复现 native 爆增（1.59 GB / PSS 2.45 GB，进程被
+MIUI 杀死）。
+
+**决策**：
+1. **SAF fd → PdfBox 随机读**：`PdfLayoutSource.forDescriptor(descriptor)`——`ParcelFileDescriptor.dup()` 出
+   **独立 fd**（原 fd 继续归 `PdfRenderer`，close 互不影响），`Os.pread` 定位读（不改共享文件偏移），构造期
+   用「长度 > 0 + 8 字节定位读探针」判定可用性；不可 seek（管道 / 代理 fd，`pread` 抛 `ESPIPE`）直接返回
+   null。载入走 `PDFParser(RandomAccessRead, ScratchFile)` + `getPDDocument()`（本 fork 没有
+   `PDDocument.load(RandomAccessRead)` 重载），与 `PDDocument.load(file, …)` 同一 8 MB 主缓冲 + 溢出临时文件
+   策略；`PDDocument.close()` 连带释放随机读源，未载入就 close 时由 `pendingSource` 兜底释放。
+2. **4 KB 页缓存（真机拦下的必需项）**：首版直接「一次 read = 一次 `pread`」在真机上出现 **CPU 100% 数分钟
+   不结束**——SAF fd 多为 FUSE 代理 fd，跨进程开销大，PdfBox 解析的小块读被打成系统调用风暴。改为
+   `PagedPositionalReader`（4 KB 页 + 256 页 LRU，与 PdfBox 自带 `RandomAccessBufferedFileInputStream` 同口径），
+   单字节 / 小块读合并成整页读后，2.53 GB / 5006 页在数秒内扫完（`PagedPositionalReaderTest` 锁定「连续 300
+   字节只打 1 次底层读 + 跨页读 + EOF」）。
+3. **大书兜底阈值**：批量路径不可用（fd 不开 / 不可 seek / PdfBox 解析失败）时，`PageSource` 新增
+   `perPageAspectScanMaxPages`（PDF = `PER_PAGE_LAYOUT_SCAN_MAX_PAGES` = **1500**，CBZ 默认 `Int.MAX_VALUE`
+   不受限）；`collectPageAspectRatios()` 对超阈值的大书**跳过逐页 `openPage` 回退**，直接返回安全默认（全
+   null = 竖版两页一屏，即 W26 之前的配对口径），并打 `reader spread layout skip-fallback pages=… max=…`；
+   小书仍逐页回退保正确性。取值依据：逐页 native 实测 0.19–0.31 MB/页，1500 页最坏 ≈0.3–0.5 GB 已接近
+   杀进程线，不再批准更大的逐页扫描。
+4. **边界**：渲染路径仍是 PdfRenderer（D14 不变）；版式扫描只在双栏挂载、惰性、随 `PdfPageSource.close()`
+   释放；扫描期间维持 W22 固定两页占位版式，完成后按横版页独占重排。
+
 ## 3. 接口契约（已落地）
 
 ```kotlin
@@ -1322,6 +1350,50 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 
 **7.15.3 设备还原**：`files/books/*.part` 残片删除、阅读器偏好回「滚动」、App force-stop（见 `TEST_PLAN` §7.4）。
 
+### 7.16 W48 SAF PDF 双栏扫描修复真机验证（2026-10-03 15:39–16:12，K60 `8e875894`，负责人转派窗口）——**完成**
+
+分支 `fix/w48-saf-pdf-scan-memory`（起点 master `1ebdbcc`），只动 `modes/book`（+ 文档）；安装包 = 本
+worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金田一 2.53 GB / 5006 页（从
+`test_files/` 推 `/sdcard/Download/W48Media/w48_kindaichi_5006p.pdf`；adb push 中文文件名到 `/sdcard` 失败，
+改 ASCII 目标名）+ `W22-Spread-Test.pdf`（36.1 MB / 30 页）。服务器只读；设备窗口见 device-lock
+（K60 15:39 登记 / 16:12 释放）。
+
+**7.16.1 金田一 5006 页（本地 SAF，双栏）**
+
+- 扫描日志与修复前**逐字一致**：`reader spread layout pages=5006 slots=4973 landscape=4938
+  at=1,2,3,4,5,6,7,8`（两次会话复现）；端到端数秒完成（页缓存修复后）。
+- 内存（`dumpsys meminfo`，同机同书）：滚动基线 Native 44.9 MB / PSS 316.3 MB → 双栏扫描完成后
+  Native **49.8 MB** / PSS **358.4 MB**（另一次会话 53.9 / 367.9），+60 s 三次采样 368.1 → 367.9 MB
+  **不增长**；双栏 → 滚动 → 分页 = 368.2 / 368.3 MB **持平回落**；全程 0 FATAL / ANR / 进程重启。
+- 对照（W47 修复前，Pad 5）：同操作 Native 21 MB → **1,586 MB**、PSS 1.72–2.45 GB → MIUI SIGKILL。
+- 备注：W33 的 Pad 5 口径（Native ≤60 MB / PSS ≤310 MB）中 PSS 一项在 K60 上绝对值更高（同机滚动基线
+  即 316.3 MB，屏 1440×3200 的 EGL + Graphics 就占 ≈189 MB），故以「与同机基线持平、60 s 不增长、可回落」
+  为准；Native 一项双机都 ≤60 MB。
+- 页指示：扫描完成后 `双栏 · 1/5006`，翻页步进 1 页（横版整页独占语义与 W26 一致）。
+
+**7.16.2 首版缺陷（本会话真机拦下）**：无页缓存版本在 2.53 GB SAF fd 上解析 8 分钟 CPU 100% 不结束
+（`pread` 逐次系统调用 + FUSE 代理开销，见 §8 踩坑 30）。加 4 KB 页缓存（`PagedPositionalReader`）后
+同一操作数秒完成，内存同 §7.16.1。
+
+**7.16.3 W22 回归（拆页对图 / 横版独占 / RTL）**
+
+- 版式：`pages=30 slots=16 landscape=2 at=14,15`（与 W33/W26 口径一致）。
+- **RTL 相位对图 8/8 命中**：`3-4 / 5-6 / 9-10 / 13-14 / 19-20 / 21-22 / 25-26 / 29-30`
+  （continuity 0.86–0.89 / corr 1.00 / diff 0.00 / trim=0/0）；0 误拼（1-2、7-8、11-12、17-18、23-24、
+  27-28 与两张横版页均无合并日志）；页指示全程带 `· 右起`。
+- **遗留观察（非本波引入）**：LTR 冷启动时「当次缓存建立瞬间所在槽位」的判定可能取到 null 并**被缓存**
+  （之后不再复算），表现为该槽位本轮不合并；同一页对在 RTL 相位 / 切模式重建缓存后重新命中。判定链路
+  （`pageSizePx` / `renderPage` / `spreadMergeDecision`）本波未改动，建议 W22/W26 线后续把 null 判定改为
+  可重试（例如不缓存 null，或下次 settle 重算）。
+
+**7.16.4 兜底阈值**：`PER_PAGE_LAYOUT_SCAN_MAX_PAGES = 1500` + `perPageAspectScanMaxPages` 由单测锁定
+（1500 允许逐页 / 1501 跳过并用安全默认）；真机无「不可 seek 的 SAF fd」样本，未做实机触发取证。
+
+**7.16.5 设备还原**：W48Books 测试库（App 内删除）+ `/sdcard/Download/W48Media`（2.53 GB）删除、
+`/sdcard/w48_ui.xml` 清理；阅读器偏好 `pref_reader_mode=scroll` / `pref_reader_rtl=false`（这些键本次
+会话首次生成，值即默认）；`accelerometer_rotation=1` / `user_rotation=0`；App force-stop；未改网络 /
+音量；服务器只读。
+
 ## 8. 踩坑库
 
 1. **Readium 包名是 `org.readium.r2.*`**，不是 `org.readium.navigator.*`；
@@ -1425,6 +1497,12 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
     两者口径要对齐：`/Rotate` 只接受 90 的倍数、非法值按 0（PdfRenderer 行为），90/270 交换宽高、
     缺省 `/CropBox` 回退 `/MediaBox`（PdfBox 自带）。`PdfLayoutSourceTest` 用 JVM 生成 PDF 锁定这三条。
     **教训：任何"全书扫描"先问一句"这是什么性质的数据"**，能读元数据就不要渲染。
+31. **SAF `content://` 的 fd 不能「一次 read 打一次系统调用」**（W48 真机拦下）：把 `dup` 出的 SAF fd 直接
+    接到 PdfBox（`Os.pread` 逐次调用）后，2.53 GB / 5006 页的 PDF 进双栏后 **CPU 100%、8 分钟不结束**——
+    SAF fd 多是 FUSE / 代理 fd，每次 `pread` 都有跨进程开销，而 PdfBox 解析（逐字节 token + 页树对象）
+    把小块读打成了系统调用风暴。改成 4 KB 页 + LRU 缓存（`PagedPositionalReader`，与 PdfBox 自带
+    `RandomAccessBufferedFileInputStream` 同口径）后，同一操作数秒完成、内存不变。
+    **教训：给随机访问接口做 fd 直连时，先对齐上游实现的缓冲粒度；「本地文件 11s」不等于「SAF fd 11s」。**
 
 ## 9. 未决问题与下一波
 
@@ -1557,6 +1635,13 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
   ④ 扫描时禁止 3649 页级大文档一次性扫描（超过阈值走分页语义并提示）。
   **开工前建议先在 5006 页金田一样本上复现一次**（本波只测了 3649 页 PDF 与 30/44 页小样本）。
 
+- ✅ **W47 发现的 D-W47-1：本地 SAF（`content://`）PDF 双栏仍走逐页扫描 → 大书被杀**（金田一 5006 页：
+  Native 1.59 GB / PSS 2.45 GB → MIUI SIGKILL；W33 只修了 File 路径）。**W48 已修复**（分支
+  `fix/w48-saf-pdf-scan-memory`，§2 D24 / §7.16）：SAF fd 经 `dup` + `Os.pread` 页缓存接
+  `PdfLayoutSource`（`PDFParser` + `ScratchFile`），K60 复验 Native 49.8–53.9 MB、PSS 与同机基线持平且
+  60 s 不增长、可回落，扫描日志 `pages=5006 slots=4973 landscape=4938` 与修复前一致；批量路径不可用时
+  的大书兜底阈值（1500 页）见 §2 D24 第 3 条。
+
 ## 10. 变更日志
 
 | 日期 | 变更 |
@@ -1576,3 +1661,4 @@ K60 归 W25 未触碰。素材：`W22-Spread-Test.pdf`（服务器 / 已有缓�
 | 2026-10-02 | **W29-R1（分支 `feature/w29-pdf-search-annot`）：PDF 搜索 + 本地高亮批注**（D22 / D23）——①搜索：引入 `PdfBox-Android 2.0.27.0`（Apache-2.0，无 native；依赖只加 `modes/book/build.gradle.kts` + `libs.versions.toml`），`PdfBoxPageTextSource`（8 MB 主缓冲 + 临时文件、Mutex 串行、逐页流式、空页补齐）+ `PdfSearchEngine`（单页 ≤6 / 整篇 ≤400、达上限即停、进度每 25 页、可取消）+ 搜索面板（去抖 400ms、LazyColumn 增量追加、命中词高亮）+ `PageOverlay` 命中矩形叠加；无文本层 / 上限 / 取消 / 失败均有明确文案；②批注：`ReaderAnnotation` + version 1 JSON 编解码 + `ReaderAnnotationStore`（`filesDir/reader/annotations/{itemId}.json`，原子写）+ 矩形框选 / 备注 / 列表跳转 / 删除，不写服务器、不用 Room、不依赖文本层；③单测 77 → **101**（新增 `PdfSearchTest` / `ReaderAnnotationTest` / `PageOverlayGeometryTest` 共 24 项）；④门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + app + book（101）四绿；⑤本地取证（未占真机）：桌面同源 PdfBox 实测（15 页文本层 152 ms/页；5006 页扫描件 0.2 s 空扫）与整包 A/B（**+13.04 MB**，102.40 → 115.45 MB），见 §7.12；真机窗口待负责人调度（§9 遗留） |
 | 2026-10-02 | **W29 真机验收（Pad 5 `43af8627`，负责人指派窗口）+ 真机缺陷修复**（分支 `fix/w29-search-hit-position`，基于整合版 master `e465a83`）——①**真机拦下的崩溃**：搜索「attention」触发 `IllegalArgumentException: Key "0-25-9" was already used`（同页两次命中片段位置相同 → 结果列表 LazyColumn key 重复）→ 修复 `buildSnippet` 为「原始下标 → 折叠后下标」逐字符映射 + key 加下标护栏（踩坑 28），补 2 项回归单测（101 → **103**），同命令复验 65 条命中无崩溃；②搜索真机：命中列表懒加载滚动、跳转 `分页 · 5/15` + 命中矩形像素取证（5 条色带 33 px 高、带内文字像素 5.9–13.4%）、无文本层提示（W22 PDF ≈1–2 s）、非 PDF 无入口、虚构推理 3649 页首扫 ≈14 s / 热扫 ≈1.3 ms/页、退后台取消（已扫描 2125/3649 → 已暂停）、搜索会话 Native ≈64 MB；③批注真机：新增（空/带备注）→ 文件 version 1 落盘、编辑回填原备注、弹窗与列表两路删除、列表跳转、页面叠加与存储矩形换算一致、RTL 双栏相位锚点一致（LTR x 347–601 / RTL x 1147–1401，高宽 y 相同）、合并槽 A/B 页面区域 0 差异；④**顺带发现 W26 线缺陷**（踩坑 29，未修）：3649 页 PDF 进双栏的版式扫描把 Native 58 → 716–748 MB（PSS 357 → 962 MB）且不回收，交 W26 线；⑤设备还原：批注文件 / 目录删除、prefs 回 `paged` + `rtl=false` + `eyecare` + 字号 0.9988、旋转未改、App force-stop、`/sdcard/w29.xml` 删除，K60 未触碰。详见 §7.13 |
 | 2026-10-02 | **W33-READER-PERF（分支 `fix/w33-spread-scan-memory`，起点 master `9738877`）：双栏版式扫描内存回归修复**——①根因：W26 进双栏逐页 `PdfRenderer.openPage` 读尺寸（踩坑 29），native 不回收；②方案：新增 `PdfLayoutSource`（PdfBox 页树元数据批量读：`/CropBox` 回退 `/MediaBox` + 继承 `/Rotate` 折算、8 MB 主缓冲 + 临时文件、失败回退逐页），`PageSource.pageAspectRatios()` 可选批量路径 + `collectPageAspectRatios()` 优先批量，渲染路径不变；③单测 103 → **106**（`PdfLayoutSourceTest`：旋转折算 / 页树批量读取与缺省回退 / 继承 Rotate）；④门禁四绿（`assembleDebug` + `ktfmtCheck` + app 61 + book 106）；⑤真机 Pad 5：虚构推理 3649 页切双栏 Native 55–57 MB / PSS 286–299 MB（修复前 748 MB / 962 MB）、能回落、扫描日志 `slots=1825 landscape=0`；W22 测试书 `landscape=2 at=14,15` + 对图 8/8 + 0 误拼 + RTL / 搜索 65 条 / 批注不回归；⑥设备副作用还原（见 §7.14） |
+| 2026-10-03 | **W48-READER-PERF（分支 `fix/w48-saf-pdf-scan-memory`，起点 master `1ebdbcc`）：本地 SAF PDF 双栏扫描内存爆增修复（D-W47-1）**——①根因：W33 只覆盖本地缓存文件路径，本地媒体库 `content://` 的 `PdfPageSource(descriptor)` 仍 `layout = null` → 双栏逐页 `PdfRenderer.openPage`（W47 金田一 5006 页 Native 1.59 GB / PSS 2.45 GB 被杀）；②方案（D24）：`PdfLayoutSource.forDescriptor()`——`dup` 独立 fd + `Os.pread` 定位读（探针判定可 seek）+ `PDFParser(RandomAccessRead, ScratchFile)`（8 MB 混合缓冲），**4 KB 页 + 256 页 LRU 缓存**（首版无缓存真机 CPU 100% 数分钟不结束，踩坑 31）；③兜底：`PageSource.perPageAspectScanMaxPages`（PDF = 1500），批量不可用时大书跳过逐页扫描用安全默认并打 `skip-fallback` 日志，小书仍逐页；④单测 476 项（book 106 → **110**：阈值边界 / fd 可用性判定 / 页缓存合并读与跨页 / 随机读源批量读取）；⑤门禁四绿（根 `assembleDebug` 含 TV + `ktfmtCheck` + 7 个测试任务 `--rerun` 476 项 0 失败）；⑥真机 K60：金田一 5006 页扫描日志与修复前逐字一致（`slots=4973 landscape=4938`），Native 49.8–53.9 MB / PSS 358–368 MB（同机滚动基线 316.3 MB）、60 s 不增长、可回落；W22 `landscape=2 at=14,15`、RTL 相位对图 8/8、0 误拼；⑦设备副作用还原（§7.16） |

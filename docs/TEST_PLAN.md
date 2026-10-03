@@ -316,6 +316,14 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 | D-W47-1 | **P1（内存 / 进程被杀）** | 本地媒体库（SAF `content://`）PDF 进双栏：金田一 5006 页时 Native Heap 1.59 GB、PSS 1.72–2.45 GB，随后被 MIUI 杀进程（2 次复现，无 Java / native crash，`killinfo` + `libprocessgroup` SIGKILL） | `PdfPageSource(descriptor)` 的 `layout = null` → `collectPageAspectRatios()` 回退**逐页 `PdfRenderer.openPage`**（W33 只给 `File` 路径接了 PdfBox `PdfLayoutSource`，本地 SAF 打开未覆盖） | ①把 SAF fd 接 `PdfLayoutSource`（`/proc/self/fd/N` 随机读或 PdfBox 流式 + 8 MB 溢出）；②兜底：大书（如 >1500 页）跳过逐页回退、直接固定两页划分；修复后按 W33 口径真机复验（Native ≤60 MB / PSS ≤310 MB） |
 | D-W47-2 | P2（性能阈值） | 冷启动中位 1322 ms，超基线 +15% 阈值（1248 ms） | 与 W2 基线相比应用状态更大（本地库 / 缩略图 / 更完整首屏）。debug 口径 | **用户 2026-10-03 拍板：接受 debug 新基线 1322 ms**；发布包（release / AAB）实测若仍超 +15% 阈值，再开性能定位波并做启动 profile 抽样 |
 
+**D-W47-1 修复（W48，2026-10-03，分支 `fix/w48-saf-pdf-scan-memory`，起点 master `1ebdbcc`）**：SAF fd 经
+`dup` + `Os.pread`（4 KB 页缓存）接 `PdfLayoutSource`（`PDFParser` + `ScratchFile` 8 MB 混合缓冲），批量路径
+不可用时大书（>1500 页）跳过逐页 `openPage`、用安全默认版式；渲染路径不变。K60 `8e875894` 复验（同一
+2.53 GB / 5006 页本地 SAF 样本）：扫描日志 `pages=5006 slots=4973 landscape=4938`（与修复前一致）、Native
+49.8–53.9 MB、PSS 358–368 MB（同机滚动基线 316.3 MB）、+60 s 不增长、双栏→滚动→分页可回落；W22 测试书
+`landscape=2 at=14,15`、RTL 相位对图 8/8、0 误拼；设备副作用全部还原。详见 `READER_PLAN` §2 D24 / §7.16 与
+`DOWNLOAD_PLAN` §15。
+
 ### 7.3 未触发项（B 组 / 故障窗口）
 
 - 下载 **FAILED 自动重试**（2026-10-03 B 组补验）：**纯设备侧断网不会产生 FAILED** —— 系统停在 `PAUSED_WAITING_FOR_NETWORK`（App 映射 `PAUSED` + `NETWORK_UNAVAILABLE`，下载页仍计「进行中」），恢复网络后由 **DownloadManager 自行续传**（116.8 → 186.7 MB / 40 s，无应用层日志）。应用层 `isAutoRetryEligible` 只接受 `FAILED`，故该路径在纯断网下无法触发 → 标「**部分覆盖**：系统自愈续传 ✅ / 应用层 FAILED 重试未触发」；补验需服务器错误注入或传输层故障窗口。

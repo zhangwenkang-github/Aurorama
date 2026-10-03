@@ -1,12 +1,15 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import com.tom_roush.pdfbox.io.RandomAccessBufferedFileInputStream
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import java.nio.file.Files
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -89,5 +92,82 @@ class PdfLayoutSourceTest {
         } finally {
             file.delete()
         }
+    }
+
+    @Test
+    fun `SAF fd 可用性判定：长度为正且定位读探针成功`() {
+        assertTrue(descriptorLayoutReadable(1024L, 8))
+        // 管道 / 代理 fd：pread 抛 ESPIPE，探针读数 ≤ 0
+        assertFalse(descriptorLayoutReadable(1024L, 0))
+        assertFalse(descriptorLayoutReadable(1024L, -1))
+        assertFalse(descriptorLayoutReadable(0L, 8))
+        assertFalse(descriptorLayoutReadable(-1L, 8))
+    }
+
+    @Test
+    fun `随机读源批量读取与 File 路径同口径（W48 SAF 路径）`() = runBlocking {
+        val file = Files.createTempFile("w48-layout-random-access", ".pdf").toFile()
+        try {
+            PDDocument().use { doc ->
+                doc.addPage(PDPage(PDRectangle(0f, 0f, 600f, 900f)))
+                doc.addPage(PDPage(PDRectangle(0f, 0f, 1200f, 800f)))
+                doc.addPage(PDPage(PDRectangle(0f, 0f, 800f, 1200f)).apply { rotation = 90 })
+                doc.save(file)
+            }
+
+            val aspects =
+                PdfLayoutSource(RandomAccessBufferedFileInputStream(file)).let { source ->
+                    try {
+                        source.pageAspectRatios()
+                    } finally {
+                        source.close()
+                    }
+                }
+
+            assertEquals(3, aspects.size)
+            assertEquals(600f / 900f, requireNotNull(aspects[0]), 0.0001f)
+            assertEquals(1.5f, requireNotNull(aspects[1]), 0.0001f)
+            assertEquals(1.5f, requireNotNull(aspects[2]), 0.0001f)
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun `页缓存定位读：单字节合并整页、跨页读与 EOF（W48）`() {
+        val bytes = ByteArray(10_000) { (it % 251).toByte() }
+        var bottomReads = 0
+        val reader =
+            PagedPositionalReader(
+                length = bytes.size.toLong(),
+                pageSize = 1024,
+                maxCachedPages = 4,
+            ) { buffer, offset, count, position ->
+                bottomReads++
+                val available = minOf(count.toLong(), bytes.size - position).toInt()
+                if (available <= 0) 0
+                else {
+                    System.arraycopy(bytes, position.toInt(), buffer, offset, available)
+                    available
+                }
+            }
+
+        val before = bottomReads
+        for (index in 0 until 300) {
+            assertEquals(bytes[index].toInt() and 0xFF, reader.byteAt(index.toLong()))
+        }
+        // 连续 300 字节落在同一页：只触发 1 次底层定位读
+        assertEquals(1, bottomReads - before)
+
+        // 跨页读：从 900 起读 1500 字节跨两页，内容与源一致
+        val out = ByteArray(1500)
+        assertEquals(1500, reader.read(out, 0, 1500, 900L))
+        for (index in out.indices) {
+            assertEquals(bytes[900 + index], out[index])
+        }
+
+        // EOF：越界读返回 0、单字节返回 -1
+        assertEquals(0, reader.read(ByteArray(8), 0, 8, bytes.size.toLong()))
+        assertEquals(-1, reader.byteAt(bytes.size.toLong()))
     }
 }

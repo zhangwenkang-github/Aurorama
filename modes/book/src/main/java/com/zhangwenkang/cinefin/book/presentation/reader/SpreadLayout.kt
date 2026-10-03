@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import timber.log.Timber
+
 /**
  * 双栏「横版整页独占」版式层（W26，EB-4 延伸）：把逻辑页序划分成双栏槽位（[SpreadSlot]）。
  *
@@ -100,5 +102,30 @@ internal suspend fun PageSource.collectPageAspectRatios(): List<Float?> {
     val count = pageCount
     if (count <= 0) return emptyList()
     pageAspectRatios()?.let { batch -> if (batch.size == count) return batch }
+    if (!allowPerPageLayoutScan(count, perPageAspectScanMaxPages)) {
+        Timber.w(
+            "reader spread layout skip-fallback pages=%d max=%d",
+            count,
+            perPageAspectScanMaxPages,
+        )
+        return List(count) { null }
+    }
     return List(count) { index -> runCatching { pageAspectRatio(index) }.getOrNull() }
 }
+
+/**
+ * 逐页版式扫描回退的页数上限（W48 / D-W47-1）。
+ *
+ * PDF 的逐页回退走 `PdfRenderer.openPage`，其 native 内存不随 `Page.close()` 回收（W33 踩坑 29：3649 页 抬升 ≈690 MB；W47
+ * 金田一 5006 页抬到 1.59 GB 后进程被杀）。批量元数据路径不可用（fd 不可 seek / PdfBox 解析失败）时，页数超此上限直接采用安全默认（全 null =
+ * 竖版两页一屏，即 W26 之前的配对口径），牺牲横版独占的 正确性换取不发生 native 爆增；小书仍逐页回退保正确性。
+ *
+ * 取值 1500：按实测 0.19–0.31 MB/页，1500 页最坏 ≈0.3–0.5 GB 峰值，已接近杀进程线，不再批准更大的逐页扫描。
+ */
+internal const val PER_PAGE_LAYOUT_SCAN_MAX_PAGES: Int = 1500
+
+/** 是否允许逐页回退扫描（纯函数，单测锁定阈值边界）。 */
+internal fun allowPerPageLayoutScan(
+    pageCount: Int,
+    maxPages: Int = PER_PAGE_LAYOUT_SCAN_MAX_PAGES,
+): Boolean = pageCount <= maxPages

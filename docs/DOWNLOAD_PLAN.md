@@ -286,3 +286,20 @@ W32 之前的问题：没有失败任务概念（失败即删记录）、没有�
 - **空间不足失败列表**：**跳过（用户确认 2026-10-03）**，原因 = 用户明确不方便、可不测或用其他方法；不算失败。
 - **reboot 续传**：✅ **通过（2026-10-03 16:03–16:10，用户配合窗口）** —— 重启前 201,328,281 B / 进行中（不暂停不删除）→ 重启 + 解锁后**系统自行续传**（16:06 494,962,329 B，+293.6 MB），30 s 采样持续增长至 16:10 完成，最终 **1,145,104,598 B**（`.download` 残片重命名）；下载页 `0 进行中 · 2 已完成 · 0 失败`、占用 1.15 GB 与文件一致；本地文件播放校验通过（PlayerActivity path/fd 指向 `files/downloads/beec8170-…`、`state=PLAYING(3)`）；测试下载经 App 删除流程清理。详见 `TEST_PLAN` §7.3/§7.5。
 - 清理：测试下载经 App 删除流程移除（`0 进行中 / 1 已完成（既有书籍）/ 0 失败`），`files/downloads` 空。
+
+## 16. W48 本地 SAF PDF 版式扫描修复（2026-10-03，分支 `fix/w48-saf-pdf-scan-memory`，起点 master `1ebdbcc`）
+
+**背景**：本地媒体库（W37，D27）的书籍是 SAF `content://`，阅读器 PDF 走 `ParcelFileDescriptor` + PdfRenderer；
+双栏「横版整页独占」需要全书页宽高比，W33 的 PdfBox 批量路径只接了本地缓存文件，本地 SAF 打开仍回退逐页
+`PdfRenderer.openPage` → W47 金田一 5006 页（2.53 GB）Native 1.59 GB / PSS 2.45 GB 被 MIUI 杀进程（D-W47-1）。
+
+**修复**（细节见 `READER_PLAN` §2 D24 / §7.16）：`PdfLayoutSource.forDescriptor()` 把 SAF fd `dup` 成独立 fd，
+用 `Os.pread` 定位读（4 KB 页 + 256 页 LRU 缓存）交给 PdfBox `PDFParser` + `ScratchFile(8 MB 混合)`；不可
+seek / 打不开 / 解析失败时按 `PER_PAGE_LAYOUT_SCAN_MAX_PAGES = 1500` 兜底——大书跳过逐页扫描用安全默认
+（竖版两页一屏）并打 `reader spread layout skip-fallback`，小书仍逐页回退。**本地来源语义未变**：索引只读、
+不拷贝源文件（D25），阅读器仍直接读用户文件夹（不复制到 `files/books`），只多了「版式元数据一次遍历」。
+
+**真机（K60 `8e875894`，2.53 GB / 5006 页本地 SAF）**：扫描日志 `pages=5006 slots=4973 landscape=4938`
+（与修复前逐页扫描一致）；Native 49.8–53.9 MB、PSS 358–368 MB（同机滚动基线 316.3 MB）、+60 s 不增长、
+双栏→滚动→分页持平可回落；W22 测试书 `landscape=2 at=14,15`、RTL 相位对图 8/8、0 误拼。设备还原：测试库
+删除 + `/sdcard/Download/W48Media`（2.53 GB 素材）删除、阅读器偏好回 `scroll` / `rtl=false`、App force-stop。

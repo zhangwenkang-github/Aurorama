@@ -110,4 +110,16 @@ class SpreadLayoutTest {
         assertTrue(slots.all { it.fullscreen })
         assertTrue(pagedSlots(0).isEmpty())
     }
+
+    @Test
+    fun `大书禁止逐页版式回退的阈值边界（W48）`() {
+        // 小书：仍允许逐页回退保正确性（1500 页含边界）
+        assertTrue(allowPerPageLayoutScan(1))
+        assertTrue(allowPerPageLayoutScan(1500))
+        // 大书：跳过逐页 openPage，改用安全默认（全 null → 竖版两页一屏）
+        assertFalse(allowPerPageLayoutScan(1501))
+        assertFalse(allowPerPageLayoutScan(5006))
+        // 默认上限对 CBZ 类数据源不设限（PageSource 默认 Int.MAX_VALUE）
+        assertTrue(allowPerPageLayoutScan(Int.MAX_VALUE - 1, Int.MAX_VALUE))
+    }
 }
