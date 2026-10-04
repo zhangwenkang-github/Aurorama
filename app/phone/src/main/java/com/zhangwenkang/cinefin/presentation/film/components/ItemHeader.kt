@@ -20,7 +20,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
@@ -207,12 +206,14 @@ internal fun HeroBackdropLayer(
                 .build()
     }
     Box(modifier = modifier.fillMaxWidth().height(height)) {
-        AsyncImage(
+        // W69：竖屏 hero backdrop 刷新时保留上一张图（不先置空）。
+        RetainedAsyncImage(
             model = backdropUri,
             contentDescription = null,
             modifier =
                 Modifier.fillMaxSize().parallaxLayoutModifier(scrollState = scrollState, rate = 2),
-            placeholder = ColorPainter(colors.surfaceContainer),
+            retainKey = item.id,
+            placeholderPainter = ColorPainter(colors.surfaceContainer),
             contentScale = ContentScale.Crop,
         )
         LumenBackdropScrims()
@@ -243,13 +244,15 @@ internal fun HeroBackdropLayer(
                 .build()
     }
     Box(modifier = modifier.fillMaxWidth().height(height)) {
-        AsyncImage(
+        // W69：竖屏 hero backdrop 刷新时保留上一张图（不先置空）。
+        RetainedAsyncImage(
             model = backdropUri,
             contentDescription = null,
             modifier =
                 Modifier.fillMaxSize()
                     .parallaxLayoutModifier(lazyListState = lazyListState, rate = 2),
-            placeholder = ColorPainter(colors.surfaceContainer),
+            retainKey = item.id,
+            placeholderPainter = ColorPainter(colors.surfaceContainer),
             contentScale = ContentScale.Crop,
         )
         LumenBackdropScrims()
