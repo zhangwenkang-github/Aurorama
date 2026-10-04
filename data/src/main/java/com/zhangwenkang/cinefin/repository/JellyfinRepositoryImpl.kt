@@ -86,70 +86,118 @@ class JellyfinRepositoryImpl(
     /** W62：库直接子项稳定计数（该服务器 `ChildCount` 随机；见 [stableLibraryItemCount]）。 */
     private val libraryItemCountCache = LibraryItemCountCache(CACHE_TTL_MS)
 
+    /** W69：会话级元数据缓存（按服务器地址 + 用户隔离；TTL 规则见 [MetadataCacheRules]）。 */
+    private val metadataCache =
+        MetadataCache(
+            namespace = { "${jellyfinApi.api.baseUrl.orEmpty()}|${jellyfinApi.userId ?: "-"}" }
+        )
+
+    /**
+     * W69：元数据读取的统一入口（stale-while-revalidate 的读侧）。
+     *
+     * TTL 内命中缓存直接返回（不发请求，页面不进入加载态）；过期 / 缺失才执行 [fetch]，成功后回填。
+     * 页面在刷新期间继续渲染自己保留的内容（不清列表、不置空图片），新数据回来后就地替换。
+     */
+    private suspend fun <T> cachedMetadata(
+        key: String,
+        ttlMs: Long = MetadataCacheRules.DEFAULT_TTL_MS,
+        fetch: suspend () -> T,
+    ): T {
+        metadataCache.get<T>(key)?.let { entry ->
+            if (MetadataCacheRules.isFresh(entry.fetchedAtMs, metadataCache.now(), ttlMs)) {
+                Timber.d("metadata cache hit: %s", key)
+                return entry.value
+            }
+        }
+        Timber.d("metadata cache miss (refreshing): %s", key)
+        val value = fetch()
+        metadataCache.put(key, value)
+        return value
+    }
+
+    /** W69：下拉刷新 / 用户主动刷新 = 强制失效缓存，后续读取直打服务器。 */
+    override fun invalidateMetadataCache() {
+        metadataCache.invalidateAll()
+        libraryItemCountCache.clear()
+    }
+
     override suspend fun getPublicSystemInfo(): PublicSystemInfo =
         withContext(Dispatchers.IO) { jellyfinApi.systemApi.getPublicSystemInfo().content }
 
     override suspend fun getUserViews(): List<BaseItemDto> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.viewsApi.getUserViews(jellyfinApi.userId!!).content.items
+        cachedMetadata(MetadataCacheKeys.VIEWS) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.viewsApi.getUserViews(jellyfinApi.userId!!).content.items
+            }
         }
 
     override suspend fun getEpisode(itemId: UUID): FindroidEpisode =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.userLibraryApi
-                .getItem(itemId, jellyfinApi.userId!!)
-                .content
-                .toFindroidEpisode(this@JellyfinRepositoryImpl, database)!!
+        cachedMetadata(MetadataCacheKeys.episode(itemId)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.userLibraryApi
+                    .getItem(itemId, jellyfinApi.userId!!)
+                    .content
+                    .toFindroidEpisode(this@JellyfinRepositoryImpl, database)!!
+            }
         }
 
     override suspend fun getMovie(itemId: UUID): FindroidMovie =
-        withContext(Dispatchers.IO) {
-            localLibrary.syntheticMovie(itemId)?.let {
-                return@withContext it
+        cachedMetadata(MetadataCacheKeys.movie(itemId)) {
+            withContext(Dispatchers.IO) {
+                localLibrary.syntheticMovie(itemId)?.let {
+                    return@withContext it
+                }
+                jellyfinApi.userLibraryApi
+                    .getItem(itemId, jellyfinApi.userId!!)
+                    .content
+                    .toFindroidMovie(this@JellyfinRepositoryImpl, database)
             }
-            jellyfinApi.userLibraryApi
-                .getItem(itemId, jellyfinApi.userId!!)
-                .content
-                .toFindroidMovie(this@JellyfinRepositoryImpl, database)
         }
 
     override suspend fun getShow(itemId: UUID): FindroidShow =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.userLibraryApi
-                .getItem(itemId, jellyfinApi.userId!!)
-                .content
-                .toFindroidShow(this@JellyfinRepositoryImpl)
+        cachedMetadata(MetadataCacheKeys.show(itemId)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.userLibraryApi
+                    .getItem(itemId, jellyfinApi.userId!!)
+                    .content
+                    .toFindroidShow(this@JellyfinRepositoryImpl)
+            }
         }
 
     override suspend fun getSeason(itemId: UUID): FindroidSeason =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.userLibraryApi
-                .getItem(itemId, jellyfinApi.userId!!)
-                .content
-                .toFindroidSeason(this@JellyfinRepositoryImpl)
+        cachedMetadata(MetadataCacheKeys.season(itemId)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.userLibraryApi
+                    .getItem(itemId, jellyfinApi.userId!!)
+                    .content
+                    .toFindroidSeason(this@JellyfinRepositoryImpl)
+            }
         }
 
     override suspend fun getLibraries(): List<FindroidCollection> =
-        withContext(Dispatchers.IO) {
-            val libraries =
-                jellyfinApi.itemsApi
-                    .getItems(
-                        jellyfinApi.userId!!,
-                        // W8-R3：媒体库卡片要显示"共 N 个项目"——库列表默认不返回 ChildCount，显式要一次
-                        // （W62 起只作为稳定计数缺失时的回退值，不再直接上屏）。
-                        fields = listOf(ItemFields.CHILD_COUNT),
-                    )
-                    .content
-                    .items
-                    .mapNotNull { it.toFindroidCollection(this@JellyfinRepositoryImpl) }
+        cachedMetadata(MetadataCacheKeys.LIBRARIES) {
+            withContext(Dispatchers.IO) {
+                val libraries =
+                    jellyfinApi.itemsApi
+                        .getItems(
+                            jellyfinApi.userId!!,
+                            // W8-R3：媒体库卡片要显示"共 N 个项目"——库列表默认不返回 ChildCount，显式要一次
+                            // （W62 起只作为稳定计数缺失时的回退值，不再直接上屏）。
+                            fields = listOf(ItemFields.CHILD_COUNT),
+                        )
+                        .content
+                        .items
+                        .mapNotNull { it.toFindroidCollection(this@JellyfinRepositoryImpl) }
 
-            // W62：ChildCount 在该服务器（10.11.8）对 UserView 随机波动（W61 回归 + 本波只读探针复核），
-            // 改用「按库直接子项查询」的稳定 TotalRecordCount，失败再回退 ChildCount。
-            val stableCounts = libraryItemCounts(libraries.map { it.id })
-            libraries.map { library ->
-                library.copy(
-                    itemCount = stableLibraryItemCount(stableCounts[library.id], library.itemCount)
-                )
+                // W62：ChildCount 在该服务器（10.11.8）对 UserView 随机波动（W61 回归 + 本波只读探针复核），
+                // 改用「按库直接子项查询」的稳定 TotalRecordCount，失败再回退 ChildCount。
+                val stableCounts = libraryItemCounts(libraries.map { it.id })
+                libraries.map { library ->
+                    library.copy(
+                        itemCount =
+                            stableLibraryItemCount(stableCounts[library.id], library.itemCount)
+                    )
+                }
             }
         }
 
@@ -190,14 +238,16 @@ class JellyfinRepositoryImpl(
     }
 
     override suspend fun getItem(itemId: UUID): FindroidItem? =
-        withContext(Dispatchers.IO) {
-            localLibrary.syntheticMovie(itemId)?.let {
-                return@withContext it
+        cachedMetadata(MetadataCacheKeys.item(itemId)) {
+            withContext(Dispatchers.IO) {
+                localLibrary.syntheticMovie(itemId)?.let {
+                    return@withContext it
+                }
+                jellyfinApi.userLibraryApi
+                    .getItem(itemId = itemId, userId = jellyfinApi.userId!!)
+                    .content
+                    .toFindroidItem(this@JellyfinRepositoryImpl, database)
             }
-            jellyfinApi.userLibraryApi
-                .getItem(itemId = itemId, userId = jellyfinApi.userId!!)
-                .content
-                .toFindroidItem(this@JellyfinRepositoryImpl, database)
         }
 
     override suspend fun getItems(
@@ -212,24 +262,42 @@ class JellyfinRepositoryImpl(
         genres: List<String>?,
         studios: List<String>?,
     ): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getItems(
-                    jellyfinApi.userId!!,
+        cachedMetadata(
+            key =
+                MetadataCacheKeys.items(
                     parentId = parentId,
-                    includeItemTypes = includeTypes,
+                    includeTypes = includeTypes,
                     recursive = recursive,
-                    sortBy = listOf(ItemSortBy.fromName(sortBy.sortString)),
-                    sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
+                    sortBy = sortBy,
+                    sortOrder = sortOrder,
                     startIndex = startIndex,
                     limit = limit,
                     filters = filters,
                     genres = genres,
                     studios = studios,
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+                ),
+            // 分页页片比列表元数据更"活"：用更短的 TTL，下拉刷新与滚动重取都能及时看到新数据。
+            ttlMs = MetadataCacheRules.PAGING_TTL_MS,
+        ) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        parentId = parentId,
+                        includeItemTypes = includeTypes,
+                        recursive = recursive,
+                        sortBy = listOf(ItemSortBy.fromName(sortBy.sortString)),
+                        sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
+                        startIndex = startIndex,
+                        limit = limit,
+                        filters = filters,
+                        genres = genres,
+                        studios = studios,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getItemsPaging(
@@ -269,22 +337,33 @@ class JellyfinRepositoryImpl(
         genres: List<String>?,
         studios: List<String>?,
     ): Int =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getItems(
-                    jellyfinApi.userId!!,
-                    parentId = parentId,
-                    includeItemTypes = includeTypes,
-                    recursive = recursive,
-                    filters = filters,
-                    genres = genres,
-                    studios = studios,
-                    // 只要总数：拿 1 条即可让服务器照常计算 TotalRecordCount（limit = 0 的语义各版本不一致）。
-                    limit = 1,
-                    enableTotalRecordCount = true,
-                )
-                .content
-                .totalRecordCount
+        cachedMetadata(
+            MetadataCacheKeys.itemCount(
+                parentId = parentId,
+                includeTypes = includeTypes,
+                recursive = recursive,
+                filters = filters,
+                genres = genres,
+                studios = studios,
+            )
+        ) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        parentId = parentId,
+                        includeItemTypes = includeTypes,
+                        recursive = recursive,
+                        filters = filters,
+                        genres = genres,
+                        studios = studios,
+                        // 只要总数：拿 1 条即可让服务器照常计算 TotalRecordCount（limit = 0 的语义各版本不一致）。
+                        limit = 1,
+                        enableTotalRecordCount = true,
+                    )
+                    .content
+                    .totalRecordCount
+            }
         }
 
     override suspend fun getLibrarySuggestions(
@@ -292,67 +371,85 @@ class JellyfinRepositoryImpl(
         includeTypes: List<BaseItemKind>?,
         limit: Int,
     ): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getItems(
-                    jellyfinApi.userId!!,
-                    parentId = parentId,
-                    includeItemTypes = includeTypes,
-                    recursive = true,
-                    sortBy = listOf(ItemSortBy.RANDOM),
-                    limit = limit,
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(
+            MetadataCacheKeys.librarySuggestions(
+                parentId = parentId,
+                includeTypes = includeTypes,
+                limit = limit,
+            )
+        ) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        parentId = parentId,
+                        includeItemTypes = includeTypes,
+                        recursive = true,
+                        sortBy = listOf(ItemSortBy.RANDOM),
+                        limit = limit,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getUpcomingEpisodes(parentId: UUID, limit: Int): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.showsApi
-                .getUpcomingEpisodes(jellyfinApi.userId!!, parentId = parentId, limit = limit)
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(MetadataCacheKeys.upcoming(parentId = parentId, limit = limit)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.showsApi
+                    .getUpcomingEpisodes(jellyfinApi.userId!!, parentId = parentId, limit = limit)
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getGenres(
         parentId: UUID,
         includeItemTypes: List<BaseItemKind>?,
     ): List<FindroidTag> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.genresApi
-                .getGenres(
-                    userId = jellyfinApi.userId!!,
-                    parentId = parentId,
-                    includeItemTypes = includeItemTypes,
-                    sortBy = listOf(ItemSortBy.SORT_NAME),
-                )
-                .content
-                .items
-                .mapNotNull { dto ->
-                    val name = dto.name ?: return@mapNotNull null
-                    FindroidTag(id = dto.id, name = name)
-                }
+        cachedMetadata(
+            MetadataCacheKeys.genres(parentId = parentId, includeItemTypes = includeItemTypes)
+        ) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.genresApi
+                    .getGenres(
+                        userId = jellyfinApi.userId!!,
+                        parentId = parentId,
+                        includeItemTypes = includeItemTypes,
+                        sortBy = listOf(ItemSortBy.SORT_NAME),
+                    )
+                    .content
+                    .items
+                    .mapNotNull { dto ->
+                        val name = dto.name ?: return@mapNotNull null
+                        FindroidTag(id = dto.id, name = name)
+                    }
+            }
         }
 
     override suspend fun getStudios(
         parentId: UUID,
         includeItemTypes: List<BaseItemKind>?,
     ): List<FindroidTag> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.studiosApi
-                .getStudios(
-                    userId = jellyfinApi.userId!!,
-                    parentId = parentId,
-                    includeItemTypes = includeItemTypes,
-                )
-                .content
-                .items
-                .mapNotNull { dto ->
-                    val name = dto.name ?: return@mapNotNull null
-                    FindroidTag(id = dto.id, name = name)
-                }
+        cachedMetadata(
+            MetadataCacheKeys.studios(parentId = parentId, includeItemTypes = includeItemTypes)
+        ) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.studiosApi
+                    .getStudios(
+                        userId = jellyfinApi.userId!!,
+                        parentId = parentId,
+                        includeItemTypes = includeItemTypes,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { dto ->
+                        val name = dto.name ?: return@mapNotNull null
+                        FindroidTag(id = dto.id, name = name)
+                    }
+            }
         }
 
     override suspend fun getPerson(personId: UUID): FindroidPerson =
@@ -368,112 +465,132 @@ class JellyfinRepositoryImpl(
         includeTypes: List<BaseItemKind>?,
         recursive: Boolean,
     ): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getItems(
-                    jellyfinApi.userId!!,
-                    personIds = personIds,
-                    includeItemTypes = includeTypes,
-                    recursive = recursive,
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(
+            MetadataCacheKeys.personItems(personIds = personIds, includeTypes = includeTypes)
+        ) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        personIds = personIds,
+                        includeItemTypes = includeTypes,
+                        recursive = recursive,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getFavoriteItems(
         sortBy: SortBy,
         sortOrder: SortOrder,
     ): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getItems(
-                    jellyfinApi.userId!!,
-                    filters = listOf(ItemFilter.IS_FAVORITE),
-                    includeItemTypes =
-                        listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.EPISODE),
-                    recursive = true,
-                    sortBy = listOf(ItemSortBy.fromName(sortBy.sortString)),
-                    sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(MetadataCacheKeys.favorites(sortBy = sortBy, sortOrder = sortOrder)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        filters = listOf(ItemFilter.IS_FAVORITE),
+                        includeItemTypes =
+                            listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.EPISODE),
+                        recursive = true,
+                        sortBy = listOf(ItemSortBy.fromName(sortBy.sortString)),
+                        sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getSearchItems(query: String): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getItems(
-                    jellyfinApi.userId!!,
-                    searchTerm = query,
-                    includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
-                    recursive = true,
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(MetadataCacheKeys.search(query)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        searchTerm = query,
+                        includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
+                        recursive = true,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getSuggestions(): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.suggestionsApi
-                .getSuggestions(
-                    jellyfinApi.userId!!,
-                    limit = 6,
-                    type = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(MetadataCacheKeys.SUGGESTIONS) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.suggestionsApi
+                    .getSuggestions(
+                        jellyfinApi.userId!!,
+                        limit = 6,
+                        type = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getResumeItems(includeItemTypes: List<BaseItemKind>): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getResumeItems(
-                    jellyfinApi.userId!!,
-                    limit = 12,
-                    includeItemTypes = includeItemTypes,
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(MetadataCacheKeys.resume(includeItemTypes)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.itemsApi
+                    .getResumeItems(
+                        jellyfinApi.userId!!,
+                        limit = 12,
+                        includeItemTypes = includeItemTypes,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getLatestMedia(parentId: UUID): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.userLibraryApi
-                .getLatestMedia(jellyfinApi.userId!!, parentId = parentId, limit = 16)
-                .content
-                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+        cachedMetadata(MetadataCacheKeys.latestMedia(parentId)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.userLibraryApi
+                    .getLatestMedia(jellyfinApi.userId!!, parentId = parentId, limit = 16)
+                    .content
+                    .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+            }
         }
 
     override suspend fun getSeasons(seriesId: UUID, offline: Boolean): List<FindroidSeason> =
-        withContext(Dispatchers.IO) {
-            if (!offline) {
-                jellyfinApi.showsApi.getSeasons(seriesId, jellyfinApi.userId!!).content.items.map {
-                    it.toFindroidSeason(this@JellyfinRepositoryImpl)
-                }
-            } else {
-                database.getSeasonsByShowId(seriesId).map {
-                    it.toFindroidSeason(database, jellyfinApi.userId!!)
+        cachedMetadata(MetadataCacheKeys.seasons(seriesId, offline)) {
+            withContext(Dispatchers.IO) {
+                if (!offline) {
+                    jellyfinApi.showsApi
+                        .getSeasons(seriesId, jellyfinApi.userId!!)
+                        .content
+                        .items
+                        .map { it.toFindroidSeason(this@JellyfinRepositoryImpl) }
+                } else {
+                    database.getSeasonsByShowId(seriesId).map {
+                        it.toFindroidSeason(database, jellyfinApi.userId!!)
+                    }
                 }
             }
         }
 
     override suspend fun getNextUp(seriesId: UUID?): List<FindroidEpisode> =
-        withContext(Dispatchers.IO) {
-            jellyfinApi.showsApi
-                .getNextUp(
-                    jellyfinApi.userId!!,
-                    limit = 24,
-                    seriesId = seriesId,
-                    enableResumable = false,
-                )
-                .content
-                .items
-                .mapNotNull { it.toFindroidEpisode(this@JellyfinRepositoryImpl) }
+        cachedMetadata(MetadataCacheKeys.nextUp(seriesId)) {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.showsApi
+                    .getNextUp(
+                        jellyfinApi.userId!!,
+                        limit = 24,
+                        seriesId = seriesId,
+                        enableResumable = false,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidEpisode(this@JellyfinRepositoryImpl) }
+            }
         }
 
     override suspend fun getEpisodes(
@@ -484,23 +601,34 @@ class JellyfinRepositoryImpl(
         limit: Int?,
         offline: Boolean,
     ): List<FindroidEpisode> =
-        withContext(Dispatchers.IO) {
-            if (!offline) {
-                jellyfinApi.showsApi
-                    .getEpisodes(
-                        seriesId,
-                        jellyfinApi.userId!!,
-                        seasonId = seasonId,
-                        fields = fields,
-                        startItemId = startItemId,
-                        limit = limit,
-                    )
-                    .content
-                    .items
-                    .mapNotNull { it.toFindroidEpisode(this@JellyfinRepositoryImpl, database) }
-            } else {
-                database.getEpisodesBySeasonId(seasonId).map {
-                    it.toFindroidEpisode(database, jellyfinApi.userId!!)
+        cachedMetadata(
+            MetadataCacheKeys.episodes(
+                seriesId = seriesId,
+                seasonId = seasonId,
+                fields = fields,
+                startItemId = startItemId,
+                limit = limit,
+                offline = offline,
+            )
+        ) {
+            withContext(Dispatchers.IO) {
+                if (!offline) {
+                    jellyfinApi.showsApi
+                        .getEpisodes(
+                            seriesId,
+                            jellyfinApi.userId!!,
+                            seasonId = seasonId,
+                            fields = fields,
+                            startItemId = startItemId,
+                            limit = limit,
+                        )
+                        .content
+                        .items
+                        .mapNotNull { it.toFindroidEpisode(this@JellyfinRepositoryImpl, database) }
+                } else {
+                    database.getEpisodesBySeasonId(seasonId).map {
+                        it.toFindroidEpisode(database, jellyfinApi.userId!!)
+                    }
                 }
             }
         }
@@ -712,6 +840,9 @@ class JellyfinRepositoryImpl(
         playedPercentage: Int,
     ) {
         Timber.d("Sending stop $itemId")
+        // W69：播放结束会改变「继续观看 / 下一次」的成员与已看状态，失效元数据缓存，
+        // 下一次读各列表（首页走廊 / 库网格 / 详情）静默拿最新值。
+        invalidateMetadataCache()
         // W37：本地媒体库条目不打服务器（进度由播放器内存态承载）。
         if (localLibrary.isLocalItem(itemId)) return
         withContext(Dispatchers.IO) {
@@ -769,6 +900,8 @@ class JellyfinRepositoryImpl(
     }
 
     override suspend fun markAsFavorite(itemId: UUID) {
+        // W69：收藏状态内嵌在各列表的条目里，本地落库后直接失效会话缓存（下一次读取静默取新值）。
+        invalidateMetadataCache()
         withContext(Dispatchers.IO) {
             database.setFavorite(jellyfinApi.userId!!, itemId, true)
             try {
@@ -782,6 +915,7 @@ class JellyfinRepositoryImpl(
     }
 
     override suspend fun unmarkAsFavorite(itemId: UUID) {
+        invalidateMetadataCache()
         withContext(Dispatchers.IO) {
             database.setFavorite(jellyfinApi.userId!!, itemId, false)
             try {
@@ -795,6 +929,7 @@ class JellyfinRepositoryImpl(
     }
 
     override suspend fun markAsPlayed(itemId: UUID) {
+        invalidateMetadataCache()
         withContext(Dispatchers.IO) {
             database.setPlayed(jellyfinApi.userId!!, itemId, true)
             try {
@@ -806,6 +941,7 @@ class JellyfinRepositoryImpl(
     }
 
     override suspend fun markAsUnplayed(itemId: UUID) {
+        invalidateMetadataCache()
         withContext(Dispatchers.IO) {
             database.setPlayed(jellyfinApi.userId!!, itemId, false)
             try {

@@ -386,6 +386,9 @@ class JellyfinRepositoryOfflineImpl(
         }
     }
 
+    /** W69：离线实现没有会话级元数据缓存，空操作（下拉刷新本就直读本地库）。 */
+    override fun invalidateMetadataCache() = Unit
+
     override fun getBaseUrl(): String {
         return ""
     }

@@ -177,6 +177,13 @@ interface JellyfinRepository {
 
     suspend fun markAsUnplayed(itemId: UUID)
 
+    /**
+     * W69：强制失效元数据缓存（下拉刷新 / 用户主动要求最新数据）。
+     *
+     * 在线实现清空会话缓存，之后的读取直接打服务器；离线实现是空操作（离线数据本就来自本地库）。
+     */
+    fun invalidateMetadataCache()
+
     fun getBaseUrl(): String
 
     /** W50：当前会话访问令牌（自研下载引擎请求头用；离线 / 未登录为 null）。 */
