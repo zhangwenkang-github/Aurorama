@@ -4,22 +4,16 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -33,13 +27,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -64,15 +55,11 @@ import com.zhangwenkang.cinefin.film.presentation.season.SeasonViewModel
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.BatchDownloadDialog
-import com.zhangwenkang.cinefin.presentation.film.components.Direction
+import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.EpisodeCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
-import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
-import com.zhangwenkang.cinefin.presentation.film.components.ItemPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
-import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
-import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
@@ -285,74 +272,49 @@ private fun SeasonScreenLayout(
                         }
                     }
                     item {
-                        ItemHeader(
+                        DetailHero(
                             item = season,
                             lazyListState = lazyListState,
-                            content = {
-                                Row(
-                                    modifier =
-                                        Modifier.align(Alignment.BottomStart)
-                                            .padding(start = paddingStart, end = paddingEnd),
-                                    verticalAlignment = Alignment.Bottom,
-                                ) {
-                                    ItemPoster(
-                                        item = season,
-                                        direction = Direction.VERTICAL,
-                                        modifier =
-                                            Modifier.width(120.dp).clip(MaterialTheme.shapes.small),
+                            eyebrow = season.seriesName,
+                            title = season.name,
+                            meta =
+                                if (state.episodes.isNotEmpty()) {
+                                    stringResource(CoreR.string.episodes_label) +
+                                        " · " +
+                                        state.episodes.size
+                                } else {
+                                    null
+                                },
+                        ) {
+                            ItemButtonsBar(
+                                item = season,
+                                onPlayClick = { startFromBeginning ->
+                                    onAction(
+                                        SeasonAction.Play(startFromBeginning = startFromBeginning)
                                     )
-                                    Spacer(Modifier.width(MaterialTheme.spacings.medium))
-                                    Column(modifier = Modifier) {
-                                        Text(
-                                            text = season.seriesName,
-                                            overflow = TextOverflow.Ellipsis,
-                                            maxLines = 1,
-                                            style =
-                                                MaterialTheme.typography.bodyLarge.lumenTextShadow(
-                                                    LumenTextShadow.Meta
-                                                ),
-                                        )
-                                        Text(
-                                            text = season.name,
-                                            overflow = TextOverflow.Ellipsis,
-                                            maxLines = 3,
-                                            style =
-                                                MaterialTheme.typography.headlineMedium
-                                                    .lumenTextShadow(LumenTextShadow.Title),
-                                        )
+                                },
+                                onMarkAsPlayedClick = {
+                                    when (season.played) {
+                                        true -> onAction(SeasonAction.UnmarkAsPlayed)
+                                        false -> onAction(SeasonAction.MarkAsPlayed)
                                     }
-                                }
-                            },
-                        )
-                        Spacer(Modifier.height(MaterialTheme.spacings.default.div(2)))
-                        ItemButtonsBar(
-                            item = season,
-                            onPlayClick = { startFromBeginning ->
-                                onAction(SeasonAction.Play(startFromBeginning = startFromBeginning))
-                            },
-                            onMarkAsPlayedClick = {
-                                when (season.played) {
-                                    true -> onAction(SeasonAction.UnmarkAsPlayed)
-                                    false -> onAction(SeasonAction.MarkAsPlayed)
-                                }
-                            },
-                            onMarkAsFavoriteClick = {
-                                when (season.favorite) {
-                                    true -> onAction(SeasonAction.UnmarkAsFavorite)
-                                    false -> onAction(SeasonAction.MarkAsFavorite)
-                                }
-                            },
-                            onTrailerClick = {},
-                            onDownloadClick = { onDownloadClick() },
-                            onDownloadCancelClick = {},
-                            onDownloadDeleteClick = {},
-                            modifier =
-                                Modifier.padding(start = paddingStart, end = paddingEnd)
-                                    .fillMaxWidth(),
-                            canPlay = state.episodes.isNotEmpty(),
-                            downloadState = downloadState,
-                            storageSelectionEnabled = false,
-                        )
+                                },
+                                onMarkAsFavoriteClick = {
+                                    when (season.favorite) {
+                                        true -> onAction(SeasonAction.UnmarkAsFavorite)
+                                        false -> onAction(SeasonAction.MarkAsFavorite)
+                                    }
+                                },
+                                onTrailerClick = {},
+                                onDownloadClick = { onDownloadClick() },
+                                onDownloadCancelClick = {},
+                                onDownloadDeleteClick = {},
+                                modifier = Modifier.fillMaxWidth(),
+                                canPlay = state.episodes.isNotEmpty(),
+                                downloadState = downloadState,
+                                storageSelectionEnabled = false,
+                            )
+                        }
                     }
                     items(items = state.episodes, key = { episode -> episode.id }) { episode ->
                         val episodeKey = episode.id.toString()
@@ -383,26 +345,7 @@ private fun SeasonScreenLayout(
                 hasHomeButton = true,
                 onBackClick = { onAction(SeasonAction.OnBackClick) },
                 onHomeClick = { onAction(SeasonAction.OnHomeClick) },
-            ) {
-                Spacer(modifier = Modifier.width(4.dp))
-                state.season?.let { season ->
-                    Button(
-                        onClick = { onAction(SeasonAction.NavigateToSeries(season.seriesId)) },
-                        modifier = Modifier.alpha(0.7f),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = Color.Black,
-                                contentColor = Color.White,
-                            ),
-                    ) {
-                        Text(
-                            text = season.seriesName,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
+            )
             CinefinSnackbarHost(
                 hostState = snackbarHostState,
                 modifier =
