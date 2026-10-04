@@ -138,7 +138,28 @@
 
 | D79 | **W69c 首页「最新 书籍 / 音乐」卡无封面（用户 2026-10-04 22:33 实物截图；同分支续）** | ①**根因（实物复现 + 只读定位）**：`HomeView`（「最新 · <库名>」走廊）**四个封面参数全部未接线**——`imageOverrideFor` / `placeholderIconResFor` / `onItemVisible` / `onServerImageFailed`，所以书卡既不显示本地封面、也从不触发 `requestBookCover`（真机改前 `Book cover fallback` 0 条、`files/book_covers` 无新增）；音乐墙 / 继续收听走廊也未传占位图标 → 无图时 `RetainedAsyncImage(model = null)` 画深色底 = **黑卡**。②**修**：`HomeView` 补齐四个参数（含 `LaunchedEffect(item.id) { onItemVisible(item) }`）；`HomeScreen` 新增纯函数 `libraryPlaceholderIconRes(库类型)`（书籍 = `ic_book` / 音乐 = `ic_music` / 其余 null，+1 单测）按库类型选占位；「最近添加 · 音乐」墙与「继续收听」走廊传 `ic_music`；书籍回调只对 `FindroidFolder` 触发（音乐 / 视频不做书籍解析，避免多余请求与 `.fail` 标记）。③**占位常驻底层**：`PosterItemCard` / `LandscapeItemCard` / `ItemPoster` 改为「类型占位（图标 + 媒体色底）常驻底层 + 图片覆盖上层」——无图、加载中与加载失败都露占位，**不再出现黑卡**；有图（服务器图或生成的本地封面）就绪后直接覆盖；书籍占位与 W64 口径一致、音乐占位与 W59 下载页 / W68 媒体会话同口径（`ic_music` + `media.container`，不新增位图）。 | 用户实物样本：W22-Spread-Test（书籍）/ m4a_60s_sample_file_574KB + 侧脸（音乐）黑卡；红线零改动；真机对照见 §4/§5 W69c。 |
 
+| D80 | **W70 本地媒体库体验修复（用户 2026-10-04 复验「平板侧柜没有本地媒体库」+「本地媒体库页上方有黑色图标」；三态取证后修）** | ①**平板（≥600dp）默认展开侧轨**：新增纯函数 `railDefaultExpandedFor(screenWidthDp)`（≥600dp 展开，+1 单测），`NavigationRoot` 的默认值从 `isWidthAtLeastBreakpoint(1200)` 改为它——W46 起平板本就「导航走常显侧轨」，但 1200dp 阈值让 Pad 5（711dp）开机即折叠 72dp，**服务器库与「本地媒体库」子分组全部不可见**；改后默认展开（213dp）、保留手动折叠，手机（<600dp）不受影响；「媒体库」组默认收起（W8-R3）保留——点一级项「媒体库」即自动展开组（既有交互）。②**建库后侧轨即时刷新**（真机拦下）：`LocalLibrarySection` 新增 `onLibrariesChanged` 回调，`LaunchedEffect(state.cards, state.hasHidden)` 在库集合 / 可见性变化时通知 `DrawerViewModel.refreshLocalLibraries()`（原机制只挂导航变化，SAF 返回不触发导航 → 侧轨不跟随）；SAF 回调的 `onOpenLibrary` 改状态驱动（`openAfterFolderPick` → `LaunchedEffect`）——真机拦下「建库后不跳详情页」（回调早于 RESUMED 时 `navigate` 被 Navigation 忽略）；`MediaScreen` / `OfflineLibraryScreen` 透传 `onLocalLibrariesChanged`。③**黑色图标未复现（取证记录）**：两机 9 处像素实测全部为设计色——详情页返回键 `onSurfaceVariant`(167,176,189) / 重扫 `Media.Bright`(237,182,128) / 封面卡类型图标(167,176,189) / 媒体库页搜索(152,162,179) / 库卡图标(152,162,179) / 类型徽标(152,162,179) / 隐藏库「眼睛」(92,225,210 极光青) / 侧轨库行图标(152,162,179) / 空态图标（代码 = `media.bright`）；代码层全部 `Icon` 均有显式 tint、`LocalCinefinColors` 默认 = `CinefinColorsDark`（无主题包裹也不会黑）。 | 三态取证（改前 Pad 5）：①默认折叠 72dp = 仅图标、无任何库行；②展开（组收起）= 无库行；③展开 + 组展开 = 服务器库 8 行可见、本地子分组缺失——**根因 = 该设备 `local_libraries` 0 行**（同帧媒体库页「还没有本地媒体库」；K60 有 1 个库故抽屉可见），「0 库整组隐藏」为 W53B 既定行为、非渲染 bug；改前实测「有库时侧轨正常显示子分组 + 行 + 选中态」，渲染链路完好。详见 §4/§5 W70。 |
+
 ## 4. 进度
+
+### W70 本地媒体库体验修复（2026-10-04，分支 `fix/w70-local-library-ui`，起点 master `e24d106`；Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，本会话自带真机）
+
+用户 2026-10-04 复验两条（决策见 D80）：
+
+- [x] **①平板侧柜没有「本地媒体库」——改前 Pad 5 三态取证**：
+  - 态①默认态（force-stop 重启）：侧轨折叠 **72dp / 162px**——仅 8 个导航图标，服务器库与本地库**全部不可见**（`railDefaultExpanded` 挂 1200dp，711dp 不达标）；
+  - 态②手动展开（媒体库组收起）：一级入口文字可见，库行不显示（W8-R3 默认收起）；
+  - 态③展开 + 「媒体库」组展开：**服务器库 8 行全部可见**（电影 17 项 / 动漫 94 项 / 其他2 2 项 / 书籍 8 项 / 书籍3 8 项 / 音乐 124 项 / 音乐测试 0 项 / Playlists 0 项），「本地媒体库」子分组缺失——拉设备 `servers` DB（主文件 + `-wal` 一起读）核对 **`local_libraries` 0 行** + 同帧媒体库页「还没有本地媒体库」→ **根因 = 本机无本地库数据**（0 库整组隐藏 = W53B 既定行为，非渲染 bug）；K60 有 1 个本地库（BOOK）= 用户「手机抽屉有」的来源。
+  - **实证渲染链路完好**：Pad 5 上建测试库（`/sdcard/w70_testlib` 空目录、默认名 / 混合类型）→ 展开态侧轨**正常显示**「本地媒体库」子分组 + 库行（名称优先 / 项目数让位规则生效）。
+- [x] **修**：①`railDefaultExpandedFor(screenWidthDp)` 纯函数（≥600dp 默认展开）+ `NavigationRoot` 接线——改后 force-stop 重启 = 默认展开（480px / 213.3dp、全文字标签），库列表默认一键可达；②建库即时刷新（`LocalLibrarySection.onLibrariesChanged` → `refreshLocalLibraries`）+ SAF 状态驱动导航（建库后自动跳详情页）+ `MediaScreen` / `OfflineLibraryScreen` 透传 + `NavigationRoot` 两处调用点接线。
+- [x] **②「本地媒体库页上方黑色图标」——未复现（两机 9 处取证全为设计色）**：像素明细见 D80；代码层核对 `LocalLibraryScreens.kt` / `NavigationRoot.kt` 相关 `Icon` 均显式 tint。留未覆盖：请用户指认具体页面 / 图标（本地媒体库列表 / 详情页 / 侧栏库行 / 眼睛显隐 / 重新扫描 / 返回键均已排查）。
+- [x] **真机（Pad 5 主 + K60 抽验，23:26–23:55，device-lock 已写释放与结论）**：
+  - Pad 5 改前 → 改后对照：默认折叠 72dp → **默认展开 213dp**；建库：SAF 返回**不跳转 + 侧轨不刷新** → **自动跳详情页 + 返回后侧轨即时出现本地行**；开关「在媒体库显示」关 → 侧轨行消失 / 开 → 恢复；删除库 → 侧轨行即时消失 + 自动返回媒体库页。
+  - K60 抽验：手机底部 tab / 抽屉不回归；抽屉「媒体库」组展开 → 本地行（书籍 · 0 个文件夹）→ 详情页正常；图标复测（返回 / 书籍 167,176,189、重扫 237,182,128）。
+  - 双机 **0 App FATAL / 0 ANR**（Pad 5 crash buffer 仅 `com.android.uiautomator` 工具自身 NPE，与 App 无关）。
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` = **811 / 0 失败 0 错误**（app 226 / core 89 / data 65 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 810 + 新增 1 = `railDefaultsToExpandedFromMediumWidth`）。
+- **红线申报**：动 `NavigationRoot.kt`（默认展开接线 + 2 处刷新回调 + 1 行 import，逐条申报）；`AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` 零改动；不新增配色 / 字体 / 位图 / 字符串。
+- **还原**：Pad 5 测试库删除（DB 复核 0 行）、`/sdcard/w70_testlib` + 全部 `/sdcard/w70_*` 临时文件删除、双机 force-stop；未改分辨率 / 旋转 / 网络 / 偏好。
 
 ### W69c 首页「最新 书籍 / 音乐」卡无封面修复（2026-10-04，同分支续，起点 master `55d0f0e`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
@@ -636,6 +657,21 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - 本期边界：音乐 / 书架 / 书籍库**页面内容**仍为各自皮肤（只有侧柜常驻 Lumen，见 D29）；`player:*`、`AppPreferences`、`settings.gradle.kts`、`libs.versions.toml`、`docs/web-console-skin.css`、`res/raw/web_console_skin.css` 零改动
 
 ## 5. 验收
+
+### W70 本地媒体库体验修复验收（2026-10-04，分支 `fix/w70-local-library-ui`，起点 master `e24d106`；Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，本会话自带真机）
+
+| # | 验收点 | 结果 |
+|---|--------|------|
+| 1 | Pad 5 默认态（force-stop 重启）侧轨可见库列表 | ✅ 改前 162px 折叠 / 仅图标 → 改后 480px / 213.3dp 展开（「首页…媒体库」全文字） |
+| 2 | 有本地库时侧轨「本地媒体库」子分组 + 行（展开 + 组展开） | ✅ 建库后：子分组 + 库行（名称优先 / 项目数让位）+ 选中态；0 库整组隐藏（W53B） |
+| 3 | 建库后侧轨即时跟随（不手动导航） | ✅ 改前 SAF 返回不刷新（需导航往返）→ 改后返回即出现 + 自动跳详情页 |
+| 4 | 「在媒体库显示」开关 → 侧轨跟随 | ✅ 关：行消失（媒体库页转「都已隐藏」+ 眼睛）；开：行恢复 |
+| 5 | 删除库 → 侧轨跟随 | ✅ 行即时消失 + 自动返回媒体库页 |
+| 6 | 本地媒体库页上下图标颜色（无黑色图标） | ✅ 返回 167,176,189 / 重扫 237,182,128 / 搜索 152,162,179 / 眼睛 92,225,210 / 侧轨行图标 152,162,179（K60 同值）；像素取证本地留存 `w70-evidence/` |
+| 7 | K60 手机抽屉 / 底部 tab 不回归 | ✅ 抽屉组展开 → 本地行 → 详情页；底部 tab 四入口正常 |
+| 8 | 双机稳定性 | ✅ 0 App FATAL / 0 ANR（Pad 5 crash buffer 仅 uiautomator 工具自身 NPE） |
+
+**未覆盖**：①「黑色图标」未复现——需用户指认具体页面 / 图标；②分屏 / 自由窗口形态（窗口宽度动态变化）未实测；③600–1199dp 之间其它设备形态未实测（Pad 5 711dp 已覆盖 Medium 分支）。
 
 ### W69c 首页「最新 书籍 / 音乐」卡无封面验收（2026-10-04，同分支续，起点 master `55d0f0e`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
@@ -1378,6 +1414,10 @@ token、不新增位图），与相邻真实书封并排不显黑块。实现 = 
 80. **`UiText.asString()` 的无参重载是 `@Composable`**（W51）：`Downloader.downloadItem` 失败返回 `UiText`，Snackbar 文案在非 Composable 的映射函数里拼字符串；无参 `asString()` 只能在 Composable 里调用，非 Composable 上下文必须用 `uiText.asString(context.resources)`（`Resources` 重载）。错误提示 / 通知等「事件 → 文案」的搬运层都要注意。
 
 81. **Kotlin 块注释可嵌套：KDoc 里写出 `/*` 会吞掉后文**（W58b）：`/** … */` 文档里出现「斜杠 + 星号」序列会开启**嵌套注释**，第一个 `*/` 只关掉内层，外层注释一直吞到文件尾 → 编译器先报某个文件的 `Syntax error: Unclosed comment`，同包其它文件同时变成一堆「Unresolved reference」（很容易误判成依赖 / 模块问题）。实例：注释里写「files/books 目录下的星号点 book」的原始写法（路径通配）触发。判据：多个互不相关的文件同时报 Unresolved reference，且其中之一报 Unclosed comment → 先全文搜注释里的 `/*`。
+
+82. **`uiautomator dump` 自己会崩，别把它当成 App 的 FATAL**（W70）：SAF 文件选择器打开 / 页面快速切换时 `uiautomator dump` 偶发输出 0 字节，`logcat -b crash` 里留下 `com.android.uiautomator` 的 `AccessibilityNodeInfoDumper` NPE（PID 是 uiautomator 进程、不是被测包）——**与 App 无关**，等界面稳定后重试即可。判据：crash 条目的进程名 / 堆栈来自 `com.android.commands.uiautomator`。另附带时序经验：SAF 打开瞬间 dump 必失败，先等 `mCurrentFocus` 变成 DocumentsUI 再 dump。
+
+83. **Room 的 WAL 数据库只拉主文件会读到「事务之前」**（W70）：设备上 `databases/servers`（主文件）+ `servers-wal`（活跃 WAL）并存，只 `cat servers` 拿到的主文件**不含最近提交**——本轮实测「UI 已删除本地库、主文件仍显示 1 行、把 `servers` + `servers-wal` 一起拉下来再读才是 0 行」。正确姿势：`servers` / `servers-wal`（必要时 `-shm` / `-journal`）**一起** `exec-out` 拉取、保持文件名 `xxx.db` + `xxx.db-wal` 再用 SQLite 打开。附带：`adb shell "run-as … cat … > /sdcard/out"` 在 MIUI 上实测产出 0 字节，改用 `adb exec-out run-as … cat … > local`（经 cmd.exe 重定向，二进制安全）。
 
 ## 7. 日志
 
