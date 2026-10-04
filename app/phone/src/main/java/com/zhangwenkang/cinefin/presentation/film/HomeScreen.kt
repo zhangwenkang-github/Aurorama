@@ -62,7 +62,6 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
-import com.zhangwenkang.cinefin.utils.BookCoverRules
 import java.util.UUID
 
 /** 版心：所有内容都对齐到这条页边线（含横屏时的刘海安全区）。 */
@@ -140,10 +139,9 @@ private fun HomeScreenLayout(
     val listeningRail = state.resumeListeningSection?.homeSection
     val nextUpRail = state.nextUpSection?.homeSection?.items?.takeIf { it.isNotEmpty() }
     val wallItems = state.recentlyAddedVideos
-    // W64：书籍条目（继续阅读 / 最近添加 · 书籍）本地封面覆盖 + 类型占位（与书架同源）。
-    val bookCoverOverride: (FindroidItem) -> String? = { item ->
-        BookCoverRules.coverOverride(item.images.primary?.toString(), bookCovers[item.id])
-    }
+    // W64（用户第 12 条）：书籍条目（继续阅读 / 最近添加 · 书籍）传本地封面，卡片按
+    // 「服务器图优先 → 本地封面 → 风格化类型占位」渲染；服务器图失败（离线）自动回落本地。
+    val bookLocalCover: (FindroidItem) -> String? = { item -> bookCovers[item.id] }
     val bookPlaceholderIcon: (FindroidItem) -> Int? = { CoreR.drawable.ic_book }
     val requestBookCover: (FindroidItem) -> Unit = { item ->
         onRequestBookCover(item.id, item.images.primary?.toString())
@@ -221,7 +219,7 @@ private fun HomeScreenLayout(
                                 downloadBadges = downloadBadges,
                                 onItemClick = onItemClick,
                                 onLibraryClick = onLibraryClick,
-                                imageOverrideFor = bookCoverOverride,
+                                imageOverrideFor = bookLocalCover,
                                 placeholderIconResFor = bookPlaceholderIcon,
                                 onItemVisible = requestBookCover,
                             )
@@ -282,7 +280,7 @@ private fun HomeScreenLayout(
                             items = state.recentlyAddedBooks,
                             onItemClick = onItemClick,
                             downloadBadges = downloadBadges,
-                            imageOverrideFor = bookCoverOverride,
+                            imageOverrideFor = bookLocalCover,
                             placeholderIconResFor = bookPlaceholderIcon,
                             onItemVisible = requestBookCover,
                         )

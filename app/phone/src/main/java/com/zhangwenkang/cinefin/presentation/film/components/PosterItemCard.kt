@@ -14,18 +14,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,6 +39,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.utils.BookCoverRules
 
 /**
  * 海报墙竖版卡（§8.4 PosterCard · Lumen）：双层嵌套外壳 + 2:3 海报 + 标题（两行）+ 3dp 进度。
@@ -79,27 +79,44 @@ fun PosterItemCard(
             emphasized = emphasized,
             container = colors.surfaceContainerHigh,
         ) {
+            // W64（用户第 12 条）：服务器图优先 → 本地封面 → 风格化类型占位；加载失败逐级回落。
             val serverImage =
                 if (item is FindroidEpisode) item.images.showPrimary else item.images.primary
-            val imageModel = if (!imageOverride.isNullOrBlank()) imageOverride else serverImage
-            if (imageModel == null && placeholderIconRes != null) {
-                // W64：无服务器图且本地封面不可用 → 类型占位（与 ItemPoster 同口径）。
-                Box(
-                    modifier = Modifier.fillMaxSize().background(colors.surfaceContainerHigh),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(placeholderIconRes),
-                        contentDescription = null,
-                        tint = colors.onSurfaceFaint,
-                        modifier = Modifier.size(28.dp),
-                    )
+            val localCover = imageOverride?.takeIf { it.isNotBlank() }
+            var serverImageFailed by remember(item.id) { mutableStateOf(false) }
+            var localCoverFailed by remember(item.id) { mutableStateOf(false) }
+            val coverSource =
+                BookCoverRules.displaySource(
+                    hasServerImage = serverImage != null,
+                    hasLocalCover = localCover != null,
+                    serverFailed = serverImageFailed,
+                    localFailed = localCoverFailed,
+                )
+            val imageModel =
+                when (coverSource) {
+                    BookCoverRules.CoverSource.SERVER_IMAGE -> serverImage
+                    BookCoverRules.CoverSource.GENERATED_CACHE -> localCover
+                    else -> null
                 }
+            if (imageModel == null && placeholderIconRes != null) {
+                BookCoverPlaceholder(
+                    iconRes = placeholderIconRes,
+                    modifier = Modifier.fillMaxSize(),
+                    iconSize = 36.dp,
+                )
             } else {
                 AsyncImage(
                     model = imageModel,
                     placeholder = ColorPainter(colors.surfaceContainerHigh),
                     error = ColorPainter(colors.surfaceContainerHigh),
+                    onError = {
+                        // 服务器图加载失败（离线等）→ 回落本地封面；本地封面失败 → 占位。
+                        if (coverSource == BookCoverRules.CoverSource.SERVER_IMAGE) {
+                            serverImageFailed = true
+                        } else {
+                            localCoverFailed = true
+                        }
+                    },
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),

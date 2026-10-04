@@ -85,6 +85,24 @@ object BookCoverRules {
     fun coverOverride(serverImageUrl: String?, generatedPath: String?): String? =
         if (!serverImageUrl.isNullOrBlank()) null else generatedPath?.takeIf { it.isNotBlank() }
 
+    /**
+     * 卡片封面的**显示来源**状态机（纯函数，用户 2026-10-04 第 12 条口径）： 服务器图优先 → 本地封面（已生成缓存 / 本地提取）→ 类型占位；加载失败逐级回落。
+     *
+     * - [serverFailed] = 服务器图加载失败（如离线）；有本地封面时回落本地，否则占位；
+     * - [localFailed] = 本地封面也加载失败 → 占位。
+     */
+    fun displaySource(
+        hasServerImage: Boolean,
+        hasLocalCover: Boolean,
+        serverFailed: Boolean = false,
+        localFailed: Boolean = false,
+    ): CoverSource =
+        when {
+            hasServerImage && !serverFailed -> CoverSource.SERVER_IMAGE
+            hasLocalCover && !localFailed -> CoverSource.GENERATED_CACHE
+            else -> CoverSource.PLACEHOLDER
+        }
+
     fun cacheDir(filesDir: File): File = File(filesDir, CACHE_DIR)
 
     /** 生成封面缓存：`files/book_covers/<itemId>.jpg`。 */

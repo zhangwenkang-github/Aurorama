@@ -50,6 +50,12 @@ constructor(
      */
     fun requestBookCover(itemId: UUID, serverImageUrl: String? = null) {
         val cached = bookCoverProvider.cached(itemId)
+        // 已有本地封面先暴露给卡片（服务器图加载失败 / 离线时逐级回落；不触发生成）。
+        if (cached != null) {
+            _bookCovers.update { covers ->
+                if (covers[itemId] == cached) covers else covers + (itemId to cached)
+            }
+        }
         when (
             BookCoverRules.planCover(
                 serverImageUrl = serverImageUrl,
@@ -57,16 +63,10 @@ constructor(
                 generationFailed = cached == null && bookCoverProvider.isMarkedFailed(itemId),
             )
         ) {
-            // 服务器图优先 / 生成失败占位：都不需要生成。
+            // 服务器图优先 / 生成失败占位：都不需要生成（本地缓存已在上方暴露）。
             BookCoverRules.CoverSource.SERVER_IMAGE,
             BookCoverRules.CoverSource.PLACEHOLDER -> return
-            BookCoverRules.CoverSource.GENERATED_CACHE -> {
-                val path = cached ?: return
-                _bookCovers.update { covers ->
-                    if (covers[itemId] == path) covers else covers + (itemId to path)
-                }
-                return
-            }
+            BookCoverRules.CoverSource.GENERATED_CACHE -> return
             BookCoverRules.CoverSource.GENERATE -> Unit
         }
         if (!requestedBookCovers.add(itemId)) return
