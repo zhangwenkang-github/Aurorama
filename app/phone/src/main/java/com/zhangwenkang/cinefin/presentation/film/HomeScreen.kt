@@ -96,7 +96,7 @@ fun HomeScreen(
         onItemClick = onItemClick,
         onLibraryClick = onLibraryClick,
         onOpenLocalLibrary = onOpenLocalLibrary,
-        onRetry = { viewModel.loadData() },
+        onRetry = { viewModel.loadData(force = true) },
         downloadBadges = downloadBadges,
         bookCovers = bookCovers,
         onRequestBookCover = viewModel::requestBookCover,
@@ -303,9 +303,19 @@ private fun HomeScreenLayout(
 
                 // 首屏加载过渡（W6-VIS D24）：数据到达前先铺骨架屏，就绪后骨架 220ms 淡出、卡片按
                 // `lumenEntrance` 错峰入场——不再出现"一片黑板直出"。
-                LumenSkeletonOverlay(
-                    visible = state.isLoading && heroItem == null && wallItems.isEmpty()
-                ) {
+                // W69：骨架只在"真的没有任何可渲染内容"时铺（缓存优先）——已上屏的走廊 / 海报墙 /
+                // 库行绝不被骨架盖住；刷新在有内容时是静默的，卡片原地更新。
+                val hasRenderableContent =
+                    heroItem != null ||
+                        resumeRail != null ||
+                        readingRail != null ||
+                        listeningRail != null ||
+                        nextUpRail != null ||
+                        wallItems.isNotEmpty() ||
+                        state.recentlyAddedBooks.isNotEmpty() ||
+                        state.recentlyAddedMusic.isNotEmpty() ||
+                        state.views.isNotEmpty()
+                LumenSkeletonOverlay(visible = state.isLoading && !hasRenderableContent) {
                     HomeSkeleton(
                         columns = columns,
                         gutterStart = gutterStart,

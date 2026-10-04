@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.presentation.utils.storedLibraryIdValue
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.MetadataCacheRules
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +45,8 @@ data class VideoState(
     val error: Exception? = null,
     val displayMode: VideoDisplayMode = VideoDisplayMode.defaultValue,
     val aggregateItems: Flow<PagingData<FindroidItem>> = flowOf(PagingData.empty()),
+    /** W69：最近一次成功加载库列表的时间（epoch ms）；TTL 内重进页面不重建聚合分页流。 */
+    val loadedAtMs: Long = 0L,
     /**
      * 临时库视图（W53 追加）：非空 = 侧栏点进来的某个视频库——顶栏显示「库名 + 类型 + 项目数」、 内容直显该库条目网格；返回键 / 「返回默认 ×」回默认视频页。不写偏好。
      */
@@ -99,9 +102,27 @@ constructor(
         super.onCleared()
     }
 
-    fun load(temporaryLibraryId: String? = null) {
+    /**
+     * 加载 / 复用视频库与聚合列表。
+     *
+     * W69（缓存优先 + 静默刷新）：库列表与聚合分页流都留在 ViewModel 内，TTL（[MetadataCacheRules.DEFAULT_TTL_MS]）
+     * 内再次进入页面（例如从剧集 / 季详情返回）**不重建分页流**——`LazyPagingItems` 的 `cachedIn` 数据原样复用， 网格不闪空、骨架不盖海报；[force]
+     * = 用户主动刷新（重试 / 下拉）时才失效缓存并重取。
+     */
+    fun load(temporaryLibraryId: String? = null, force: Boolean = false) {
+        val current = _state.value
+        val sameTemporaryLibrary = current.temporaryLibrary?.id?.toString() == temporaryLibraryId
+        if (
+            !force &&
+                current.loaded &&
+                sameTemporaryLibrary &&
+                MetadataCacheRules.isFresh(current.loadedAtMs, System.currentTimeMillis())
+        ) {
+            return
+        }
         viewModelScope.launch {
             val repository = repositoryProvider.get()
+            if (force) repository.invalidateMetadataCache()
             _state.value =
                 _state.value.copy(
                     isLoading = true,
@@ -126,6 +147,7 @@ constructor(
                             isLoading = false,
                             error = null,
                             aggregateItems = aggregateFlow(repository, visibleLibraries),
+                            loadedAtMs = System.currentTimeMillis(),
                         )
                 }
                 .onFailure { throwable ->

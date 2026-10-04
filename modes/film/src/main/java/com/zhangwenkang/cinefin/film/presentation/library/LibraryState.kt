@@ -35,4 +35,9 @@ data class LibraryState(
     val totalCount: Int? = null,
     /** W54-B：下拉刷新指示（真实重取：Paging 重建 + 计数 + 当前 tab）。 */
     val refreshing: Boolean = false,
+    /**
+     * W69：后台静默重取信号（TTL 外重进页面时自增）。页面据此调用 `LazyPagingItems.refresh()`—— 既拿到最新页，又保留已上屏的条目与海报（不重建
+     * Pager、不闪空）。
+     */
+    val refreshSignal: Int = 0,
 )

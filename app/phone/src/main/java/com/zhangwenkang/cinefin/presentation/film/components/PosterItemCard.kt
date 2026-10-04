@@ -28,7 +28,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
@@ -105,10 +104,12 @@ fun PosterItemCard(
                     iconSize = 36.dp,
                 )
             } else {
-                AsyncImage(
+                // W69：封面模型变化（刷新 / 服务器图失败回落本地封面）时保留上一张图 + 交叉淡入。
+                RetainedAsyncImage(
                     model = imageModel,
-                    placeholder = ColorPainter(colors.surfaceContainerHigh),
-                    error = ColorPainter(colors.surfaceContainerHigh),
+                    retainKey = item.id,
+                    placeholderPainter = ColorPainter(colors.surfaceContainerHigh),
+                    errorPainter = ColorPainter(colors.surfaceContainerHigh),
                     onError = {
                         // 服务器图加载失败（离线等）→ 回落本地封面；本地封面失败 → 占位。
                         if (coverSource == BookCoverRules.CoverSource.SERVER_IMAGE) {

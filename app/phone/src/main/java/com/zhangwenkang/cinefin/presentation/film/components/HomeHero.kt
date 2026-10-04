@@ -34,7 +34,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
-import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
@@ -98,10 +97,12 @@ fun HomeHero(
             shape = shape,
             container = colors.surfaceContainerLowest,
         ) {
-            AsyncImage(
+            // W69：主视觉剧照刷新时保留上一张图，避免首屏"海报先变黑"。
+            RetainedAsyncImage(
                 model = item.images.backdrop ?: item.images.primary,
-                placeholder = ColorPainter(colors.surfaceContainer),
-                error = ColorPainter(colors.surfaceContainer),
+                retainKey = item.id,
+                placeholderPainter = ColorPainter(colors.surfaceContainer),
+                errorPainter = ColorPainter(colors.surfaceContainer),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),

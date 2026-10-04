@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.MetadataCacheRules
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
 import com.zhangwenkang.cinefin.utils.BookCoverRules
@@ -56,6 +57,9 @@ constructor(
     private var countJob: Job? = null
     private var tabJob: Job? = null
 
+    /** W69：最近一次成功换入分页列表的时间（epoch ms）；TTL 内重进页面不重建 Pager。 */
+    private var itemsLoadedAtMs: Long = 0L
+
     fun setup(
         parentId: UUID,
         libraryType: CollectionType,
@@ -103,9 +107,33 @@ constructor(
         }
     }
 
-    fun loadItems() {
+    /**
+     * 换入分页列表。
+     *
+     * W69（缓存优先 + 静默刷新）：TTL（[MetadataCacheRules.DEFAULT_TTL_MS]）内且已有一份分页列表时直接复用—— 进入页面 / 从详情返回不再新建
+     * Pager（否则 `LazyPagingItems` 会先清空、骨架盖住整面海报）。 [force] = 下拉刷新 / 排序筛选变化 / 重试，先失效会话缓存再重取。
+     */
+    fun loadItems(force: Boolean = false) {
         val itemType = libraryItemTypes(libraryType)
         val recursive = libraryRecursive(itemType)
+
+        if (!force && itemsLoadedAtMs > 0L) {
+            // 已经上屏过一份分页列表：TTL 内直接复用（不请求、不重建 Pager）；
+            // TTL 外同样不重建——只发一个"静默重取"信号，页面保留现有海报，
+            // Paging 刷新回来后原地替换（重建 Pager 会先清空列表、骨架盖住整面海报）。
+            if (
+                MetadataCacheRules.shouldSilentlyRevalidate(
+                    loadedAtMs = itemsLoadedAtMs,
+                    nowMs = System.currentTimeMillis(),
+                )
+            ) {
+                itemsLoadedAtMs = System.currentTimeMillis()
+                _state.update { it.copy(refreshSignal = it.refreshSignal + 1) }
+                loadCount()
+            }
+            return
+        }
+        if (force) jellyfinRepository.invalidateMetadataCache()
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
@@ -127,6 +155,7 @@ constructor(
                         )
                         .cachedIn(viewModelScope)
                 _state.update { it.copy(items = items, isLoading = false) }
+                itemsLoadedAtMs = System.currentTimeMillis()
             } catch (e: Exception) {
                 _state.update { it.copy(error = e, isLoading = false) }
             }
@@ -137,6 +166,8 @@ constructor(
 
     /** 下拉刷新：计数与当前 tab 真实重取（分页列表由页面用 `LazyPagingItems.refresh()` 重取，避免重建 Pager 让列表闪空）。 */
     fun refresh() {
+        // W69：强制刷新 = 先失效元数据缓存，之后的计数 / tab / 分页读取直打服务器（静默替换，不清列表）。
+        jellyfinRepository.invalidateMetadataCache()
         viewModelScope.launch {
             _state.update { it.copy(refreshing = true) }
             try {
@@ -275,7 +306,7 @@ constructor(
 
     /** 排序 / 筛选 / 库内过滤变化后重新加载分页列表与计数。 */
     private fun reloadList() {
-        loadItems()
+        loadItems(force = true)
     }
 
     fun onAction(action: LibraryAction) {

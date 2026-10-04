@@ -59,13 +59,15 @@ fun ItemHeader(
         showLogo = showLogo,
         height = height,
         backdropImage = {
-            AsyncImage(
+            // W69：头图刷新时保留上一张图（不先置空）。
+            RetainedAsyncImage(
                 model = backdropUri,
                 contentDescription = null,
                 modifier =
                     Modifier.fillMaxSize()
                         .parallaxLayoutModifier(scrollState = scrollState, rate = 2),
-                placeholder = ColorPainter(colors.surfaceContainer),
+                retainKey = item.id,
+                placeholderPainter = ColorPainter(colors.surfaceContainer),
                 contentScale = ContentScale.Crop,
             )
         },
@@ -104,13 +106,15 @@ fun ItemHeader(
         showLogo = showLogo,
         height = height,
         backdropImage = {
-            AsyncImage(
+            // W69：头图刷新时保留上一张图（不先置空）。
+            RetainedAsyncImage(
                 model = backdropUri,
                 contentDescription = null,
                 modifier =
                     Modifier.fillMaxSize()
                         .parallaxLayoutModifier(lazyListState = lazyListState, rate = 2),
-                placeholder = ColorPainter(colors.surfaceContainer),
+                retainKey = item.id,
+                placeholderPainter = ColorPainter(colors.surfaceContainer),
                 contentScale = ContentScale.Crop,
             )
         },
@@ -141,7 +145,7 @@ private fun ItemHeaderBase(
         LumenBackdropScrims()
         content()
         if (showLogo) {
-            AsyncImage(
+            RetainedAsyncImage(
                 model = logoUri,
                 contentDescription = null,
                 modifier =
@@ -150,6 +154,9 @@ private fun ItemHeaderBase(
                         .height(100.dp)
                         .fillMaxWidth(),
                 contentScale = ContentScale.Fit,
+                retainKey = item.id,
+                placeholderPainter = null,
+                errorPainter = null,
             )
         }
     }

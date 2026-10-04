@@ -89,8 +89,15 @@ constructor(
     private val uiTextContinueListening = UiText.StringResource(FilmR.string.continue_listening)
     private val uiTextNextUp = UiText.StringResource(FilmR.string.next_up)
 
-    fun loadData() {
+    /**
+     * 加载首页各走廊。
+     *
+     * W69：读取全部走仓库的会话级元数据缓存（TTL 内不发请求），所以再次进入首页 / 从详情返回 都只是把**已有**内容重新铺一遍，不会出现"整面海报变黑"；[force] =
+     * 下拉刷新 / 重试， 先强制失效缓存再取服务器新值（静默替换）。
+     */
+    fun loadData(force: Boolean = false) {
         Timber.i("Loading data")
+        if (force) repository.invalidateMetadataCache()
         viewModelScope.launch(Dispatchers.Default) {
             _state.emit(_state.value.copy(isLoading = true, error = null))
             try {
@@ -307,7 +314,7 @@ constructor(
     fun onAction(action: HomeAction) {
         when (action) {
             is HomeAction.OnRetryClick -> {
-                loadData()
+                loadData(force = true)
             }
             else -> Unit
         }

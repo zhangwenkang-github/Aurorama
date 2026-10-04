@@ -10,7 +10,6 @@ import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -32,10 +31,12 @@ fun DetailPoster(
         shape = CinefinShapes.Md,
         container = colors.surfaceContainerHigh,
     ) {
-        AsyncImage(
+        // W69：详情海报刷新（含返回重进）时保留上一张图 + 交叉淡入。
+        RetainedAsyncImage(
             model = if (item is FindroidEpisode) item.images.showPrimary else item.images.primary,
-            placeholder = ColorPainter(colors.surfaceContainerHigh),
-            error = ColorPainter(colors.surfaceContainerHigh),
+            retainKey = item.id,
+            placeholderPainter = ColorPainter(colors.surfaceContainerHigh),
+            errorPainter = ColorPainter(colors.surfaceContainerHigh),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.matchParentSize(),

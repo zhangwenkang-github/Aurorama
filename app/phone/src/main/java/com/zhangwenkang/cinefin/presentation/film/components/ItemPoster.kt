@@ -10,11 +10,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -93,10 +93,13 @@ fun ItemPoster(
         return
     }
 
-    AsyncImage(
+    // W69：图片模型变化（刷新 / 回落本地封面）时保留上一张图，避免海报先变黑底。
+    RetainedAsyncImage(
         model = imageUri,
         contentDescription = null,
         contentScale = ContentScale.Crop,
+        retainKey = item.id,
+        placeholderPainter = ColorPainter(colors.surfaceContainerHigh),
         modifier = modifier.aspectRatio(aspectRatio).background(colors.surfaceContainerHigh),
     )
 }

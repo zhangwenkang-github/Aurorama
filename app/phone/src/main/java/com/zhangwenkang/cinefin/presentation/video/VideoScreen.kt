@@ -131,7 +131,7 @@ fun VideoScreen(
         state = state,
         onItemClick = onItemClick,
         onOpenDownloads = onOpenDownloads,
-        onRetry = { viewModel.load(temporaryLibraryId) },
+        onRetry = { viewModel.load(temporaryLibraryId, force = true) },
         onExitTemporaryLibrary = onExitTemporaryLibrary,
         onSelectLibrary = viewModel::selectLibrary,
         sleepTimerState = sleepTimerState,

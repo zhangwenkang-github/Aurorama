@@ -133,8 +133,6 @@ fun LibraryScreen(
     // W59：书籍封面自动生成结果（itemId → 本地绝对路径）。
     val bookCovers by viewModel.bookCovers.collectAsStateWithLifecycle()
 
-    var initialLoad by rememberSaveable { mutableStateOf(true) }
-
     LaunchedEffect(true) {
         viewModel.setup(
             parentId = libraryId,
@@ -142,10 +140,9 @@ fun LibraryScreen(
             initialSortBy = initialSortBy,
             initialSortOrder = initialSortOrder,
         )
-        if (initialLoad) {
-            viewModel.loadItems()
-            initialLoad = false
-        }
+        // W69：缓存优先——ViewModel 自己判断"已有一份分页列表且 TTL 内"就直接复用，
+        // 进入页面 / 从详情返回都不会重建 Pager（列表不闪空、骨架不盖海报）。
+        viewModel.loadItems()
     }
 
     LibraryScreenLayout(
@@ -237,6 +234,8 @@ private fun LibraryScreenLayout(
         }
 
     val items = state.items.collectAsLazyPagingItems()
+    // W69：TTL 外重进页面时 ViewModel 只发静默重取信号——刷新保留已上屏的条目与海报，不闪空。
+    LaunchedEffect(state.refreshSignal) { if (state.refreshSignal > 0) items.refresh() }
     val tabs = remember(libraryType, state.tabs) { state.tabs.ifEmpty { libraryTabs(libraryType) } }
     val toolbarSpec = remember(state.tab) { libraryToolbarSpec(state.tab) }
 
@@ -418,8 +417,10 @@ private fun LibraryScreenLayout(
         PullToRefreshBox(
             isRefreshing = state.refreshing,
             onRefresh = {
-                items.refresh()
+                // W69：先同步失效会话缓存（ViewModel.refresh 内），再让 Paging 重取——
+                // 保证下拉刷新拿到的是服务器新值，而不是缓存里的旧页片。
                 onAction(LibraryAction.Refresh)
+                items.refresh()
             },
             modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
