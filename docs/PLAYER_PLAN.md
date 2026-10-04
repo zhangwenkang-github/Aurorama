@@ -1935,3 +1935,19 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 - 恢复队列（Room 快照）不持久化 `artist`：进程重启后从快照恢复的队列，在曲目重新解析前媒体元数据可能没有歌手（拿不到不写，符合用户口径）；播放页 UI 的歌手仍从曲库快照取，不受影响。
 - 按返回键退出播放页（非 Home / 锁屏）后视频继续后台播放时，进度上报循环随 ViewModel 结束而停止；通知 / 锁屏的暂停、切集仍可用，回前台重新接管后恢复上报（任务书验证点为 Home / 锁屏场景）。
 - mpv 内核（用户手动切换）未验证后台 / 锁屏连续性：本次 WakeLock 修复只覆盖 ExoPlayer 路径；mpv 如后台断流，后续按需在 `MPVPlayer` 侧补 WakeLock（未在本波范围）。
+
+### 28.6 W68b 系统媒体面板「关闭」键（2026-10-04 · 用户复验追加）
+
+> 用户复验（master `dfddcc0`）：播放器 / 音乐播放时，系统通知栏（Android 13+ 媒体面板）与锁屏的播放面板没有「关闭」键，要求加上；语义与 App 内迷你条 × 对齐 = **停止播放并收起通知与前台服务**（不删除任何数据 / 不清队列快照）。
+
+| 编号 | 决策 |
+|------|------|
+| D57 | **5 槽位让位**：系统媒体面板最多 5 个动作——按负责人口径把「快退」让位给「关闭」（快进保留；播放 / 暂停、上一集、下一集保留）。动作列表 = 上一集 / 快进 / 播放暂停 / 下一集 / 关闭（`COMMAND_STOP`）；compact 视图（折叠态）= `(1,2,3)`（快进 / 播放 / 下一集）。`MediaSession.setCustomLayout` 的关闭键（原显示名「退出」）改为「关闭」（`core.R.string.close`），保留为系统面板的额外 custom 槽位。小米 / 澎湃桌面媒体胶囊为系统组件，不做任何 hack。 |
+
+- **落点**：`CinefinMediaNotificationProvider`（通知动作列表 + `setShowActionsInCompactView`）、`CinefinPlaybackService`（custom layout 显示名）。**本波新增单测 0**（纯 UI 配置，无纯函数逻辑；语义由真机取证覆盖）。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` **781 项 / 0 失败 / 0 错误**（rebase 后基线含 W66 / W66b / W67b 新增）。
+- **真机（2026-10-04 19:51–20:52，Pad 5 `43af8627` 主验证 + K60 `8e875894` 面板截图取证；device-lock 已写占用 / 释放 / 结论）**：
+  - **MIUI（HyperOS）系统媒体面板不显示应用自定义「关闭」键（结论性发现）**：三种机制实验——(a) 通知动作 5 槽位（第 5 位 = 关闭 `COMMAND_STOP`）、(b) compact view 含关闭 `(1,2,4)`、(c) `MediaSession` custom layout 改 `SessionCommand` 自定义命令——K60 通知栏 / K60 锁屏 / Pad 5 通知栏均只渲染系统固定三键（上一首 / 播放暂停 / 下一首）；`dumpsys media_session` 的 `custom actions` 恒为空。面板按钮由系统绘制，应用无法注入；截图本地留存 `…\.planning\cinefin-expansion\w68-shots\w68b_*`（3 张，不贴对话）。
+  - **「关闭」底层语义已实现并验证（Pad 5）**：`MediaSession.Callback.onPlayerCommandRequest` 拦截外部 STOP（通知动作 / 锁屏 / 蓝牙 / 车机）→ 音乐 `MusicPlaybackController.stop()`（与迷你条 × 一致）/ 视频 `stop()` + `clearMediaItems()` → 释放常驻自控制器 → `pauseAllPlayersAndStopSelf()`；实测 `KEYCODE_MEDIA_STOP`（等价关闭按钮）后 `Sessions Stack - have 0 sessions`、`cinefin_playback` 通知消失、`CinefinPlaybackService` 服务销毁，随后重新播放会话 / 服务 / 通知重建正常。
+  - **原生 Android 13+（非 MIUI）预期**：通知第 5 槽位 + compact `(1,2,4)`（含关闭）+ custom layout（`SessionCommand`）在支持 custom actions 的系统面板上应显示关闭键（无 Pixel 实机，列未覆盖）。
+  - 未覆盖：K60 关闭键交互（数字密码锁屏阻塞，需用户解锁后补）、视频前台播放页点关闭的 UI 表现。
