@@ -285,7 +285,7 @@ private fun SeasonScreenLayout(
                                 } else {
                                     null
                                 },
-                        ) {
+                        ) { heroLayout ->
                             ItemButtonsBar(
                                 item = season,
                                 onPlayClick = { startFromBeginning ->
@@ -313,6 +313,7 @@ private fun SeasonScreenLayout(
                                 canPlay = state.episodes.isNotEmpty(),
                                 downloadState = downloadState,
                                 storageSelectionEnabled = false,
+                                heroLayout = heroLayout,
                             )
                         }
                     }

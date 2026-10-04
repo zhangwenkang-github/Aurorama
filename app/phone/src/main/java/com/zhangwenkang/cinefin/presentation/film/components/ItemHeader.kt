@@ -127,7 +127,6 @@ private fun ItemHeaderBase(
     content: @Composable (BoxScope.() -> Unit) = {},
 ) {
     val colors = LocalCinefinColors.current
-    val backgroundColor = colors.surface
 
     val logoUri =
         when (item) {
@@ -139,15 +138,7 @@ private fun ItemHeaderBase(
     // 高于基准高度时由内容撑高，不再被压缩测量裁切（踩坑 29 同类）。
     Box(modifier = Modifier.fillMaxWidth().heightIn(min = height).clipToBounds()) {
         Box(modifier = Modifier.matchParentSize()) { backdropImage() }
-        // 左侧水平渐隐只在 Lumen 区域（电影 / 剧集详情）叠加，非 Lumen 详情页保持原观感
-        val lumenScrimColor = LocalLumenColors.current?.scrim
-        Canvas(modifier = Modifier.matchParentSize()) {
-            // Lumen：顶部光晕（内容即光源）+ 左侧水平渐隐（文字托底）+ 内暗角 + 底部渐隐，内容图向下溶进页面底色
-            drawRect(brush = lumenTopGlow)
-            lumenScrimColor?.let { drawRect(brush = lumenSideScrim(it)) }
-            drawRect(brush = lumenVignette)
-            drawRect(brush = lumenBottomScrim(backgroundColor))
-        }
+        LumenBackdropScrims()
         content()
         if (showLogo) {
             AsyncImage(
@@ -161,5 +152,99 @@ private fun ItemHeaderBase(
                 contentScale = ContentScale.Fit,
             )
         }
+    }
+}
+
+/**
+ * Lumen 背景全套 scrim（顶部光晕 + 侧向渐隐 + 暗角 + 底部渐隐到页面底色）。
+ *
+ * 左侧水平渐隐只在 Lumen 区域（电影 / 剧集详情）叠加，非 Lumen 详情页保持原观感；被 [ItemHeaderBase] 与 W66b 竖屏 hero 的独立 backdrop
+ * 图层（[HeroBackdropLayer]）共用。
+ */
+@Composable
+internal fun BoxScope.LumenBackdropScrims() {
+    val backgroundColor = LocalCinefinColors.current.surface
+    val lumenScrimColor = LocalLumenColors.current?.scrim
+    Canvas(modifier = Modifier.matchParentSize()) {
+        // Lumen：顶部光晕（内容即光源）+ 左侧水平渐隐（文字托底）+ 内暗角 + 底部渐隐，内容图向下溶进页面底色
+        drawRect(brush = lumenTopGlow)
+        lumenScrimColor?.let { drawRect(brush = lumenSideScrim(it)) }
+        drawRect(brush = lumenVignette)
+        drawRect(brush = lumenBottomScrim(backgroundColor))
+    }
+}
+
+/**
+ * W66b：竖屏 hero 的独立 backdrop 图层（整宽 + 自定高度 + 全套 Lumen scrim）——海报 / 标题块居中压在它上面，
+ * 底部渐变到页面底色。`ScrollState` / `LazyListState` 双入口保持与页面滚动视差一致。
+ */
+@Composable
+internal fun HeroBackdropLayer(
+    item: FindroidItem,
+    scrollState: ScrollState,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    val context = LocalContext.current
+    var backdropUri =
+        when (item) {
+            is FindroidEpisode -> item.images.primary
+            else -> item.images.backdrop
+        }
+    if (backdropUri?.scheme == null) {
+        backdropUri =
+            Uri.Builder()
+                .appendEncodedPath("${context.filesDir}")
+                .appendEncodedPath(backdropUri?.path)
+                .build()
+    }
+    Box(modifier = modifier.fillMaxWidth().height(height)) {
+        AsyncImage(
+            model = backdropUri,
+            contentDescription = null,
+            modifier =
+                Modifier.fillMaxSize().parallaxLayoutModifier(scrollState = scrollState, rate = 2),
+            placeholder = ColorPainter(colors.surfaceContainer),
+            contentScale = ContentScale.Crop,
+        )
+        LumenBackdropScrims()
+    }
+}
+
+/** [HeroBackdropLayer] 的 LazyListState 版本（季详情页 LazyColumn）。 */
+@Composable
+internal fun HeroBackdropLayer(
+    item: FindroidItem,
+    lazyListState: LazyListState,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    val context = LocalContext.current
+    var backdropUri =
+        when (item) {
+            is FindroidEpisode -> item.images.primary
+            is FindroidSeason -> item.images.showBackdrop
+            else -> item.images.backdrop
+        }
+    if (backdropUri?.scheme == null) {
+        backdropUri =
+            Uri.Builder()
+                .appendEncodedPath("${context.filesDir}")
+                .appendEncodedPath(backdropUri?.path)
+                .build()
+    }
+    Box(modifier = modifier.fillMaxWidth().height(height)) {
+        AsyncImage(
+            model = backdropUri,
+            contentDescription = null,
+            modifier =
+                Modifier.fillMaxSize()
+                    .parallaxLayoutModifier(lazyListState = lazyListState, rate = 2),
+            placeholder = ColorPainter(colors.surfaceContainer),
+            contentScale = ContentScale.Crop,
+        )
+        LumenBackdropScrims()
     }
 }

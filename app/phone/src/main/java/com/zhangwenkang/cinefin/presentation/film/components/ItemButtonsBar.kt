@@ -10,7 +10,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -28,9 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
@@ -79,8 +84,14 @@ fun ItemButtonsBar(
     storageSelectionEnabled: Boolean = true,
     /** W51：覆盖「未下载」态的可点性（容器批量下载不看单条目 `canDownload`，由对话框按剧集过滤）。 */
     downloadEnabled: Boolean = true,
+    /**
+     * W66b：竖屏 hero 布局（DetailHero 竖屏专用）——一行四键（播放 / 下载 / 已播放 / 收藏，图标上文字下、64dp）， 屏宽 <360dp
+     * 自动降级为「播放整行 + 三键一行」。默认 false = 既有两行布局（横屏 / 平板不变）。
+     */
+    heroLayout: Boolean = false,
 ) {
     val context = LocalContext.current
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp.toFloat()
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val compact =
         !windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
@@ -119,96 +130,121 @@ fun ItemButtonsBar(
     val showDownloadAction = if (isLegacy) downloaderState != null else true
     val downloadBusyNow = downloadBusy || (isLegacy && downloaderState?.isDownloading == true)
     val resolvedDownloadState = downloadState
+    /** W66b：hero 布局的下载键数据（与既有两行布局共用同一套三态 / legacy 语义）。 */
+    val downloadLabel: String? =
+        if (showDownloadAction) {
+            when {
+                isLegacy ->
+                    if (legacyDownloaded) {
+                        stringResource(CoreR.string.detail_action_downloaded)
+                    } else {
+                        stringResource(CoreR.string.detail_action_download)
+                    }
+                resolvedDownloadState == DetailDownloadState.DOWNLOADED ->
+                    stringResource(CoreR.string.detail_action_downloaded)
+                resolvedDownloadState == DetailDownloadState.IN_QUEUE ->
+                    stringResource(CoreR.string.detail_action_queued)
+                else -> stringResource(CoreR.string.detail_action_download)
+            }
+        } else {
+            null
+        }
+    val downloadSelected =
+        if (isLegacy) legacyDownloaded
+        else resolvedDownloadState != DetailDownloadState.NOT_DOWNLOADED
+    val downloadEnabledNow =
+        when {
+            downloadBusyNow -> false
+            isLegacy -> item.canDownload || legacyDownloaded
+            resolvedDownloadState == DetailDownloadState.NOT_DOWNLOADED -> downloadEnabled
+            else -> true
+        }
+    val onDownloadAction: () -> Unit = {
+        when {
+            downloadBusyNow -> Unit
+            isLegacy && legacyDownloaded -> deleteDownloadDialogOpen = true
+            isLegacy -> requestDownload()
+            resolvedDownloadState == DetailDownloadState.NOT_DOWNLOADED -> requestDownload()
+            else -> onDownloadClick(0)
+        }
+    }
 
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PlayButton(
+            if (heroLayout) {
+                DetailHeroActionButtons(
                     item = item,
-                    onClick = { onPlayClick(false) },
-                    modifier = if (compact) Modifier.weight(1f) else Modifier,
-                    enabled = item.canPlay && canPlay,
-                )
-                if (item.playbackPositionTicks.div(600000000) > 0) {
-                    DetailIconButton(
-                        icon = CoreR.drawable.ic_rotate_ccw,
-                        onClick = { onPlayClick(true) },
-                    )
-                }
-                trailerUri?.let { uri ->
-                    DetailIconButton(
-                        icon = CoreR.drawable.ic_film,
-                        onClick = { onTrailerClick(uri) },
-                    )
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (showDownloadAction) {
-                    val label =
-                        when {
-                            isLegacy ->
-                                if (legacyDownloaded) {
-                                    stringResource(CoreR.string.detail_action_downloaded)
-                                } else {
-                                    stringResource(CoreR.string.detail_action_download)
-                                }
-                            resolvedDownloadState == DetailDownloadState.DOWNLOADED ->
-                                stringResource(CoreR.string.detail_action_downloaded)
-                            resolvedDownloadState == DetailDownloadState.IN_QUEUE ->
-                                stringResource(CoreR.string.detail_action_queued)
-                            else -> stringResource(CoreR.string.detail_action_download)
-                        }
-                    val selected =
-                        if (isLegacy) legacyDownloaded
-                        else resolvedDownloadState != DetailDownloadState.NOT_DOWNLOADED
-                    val enabled =
-                        when {
-                            downloadBusyNow -> false
-                            isLegacy -> item.canDownload || legacyDownloaded
-                            resolvedDownloadState == DetailDownloadState.NOT_DOWNLOADED ->
-                                downloadEnabled
-                            else -> true
-                        }
-                    DetailLabeledButton(
-                        label = label,
-                        icon = CoreR.drawable.ic_download,
-                        selected = selected,
-                        enabled = enabled,
-                        onClick = {
-                            when {
-                                downloadBusyNow -> Unit
-                                isLegacy && legacyDownloaded -> deleteDownloadDialogOpen = true
-                                isLegacy -> requestDownload()
-                                resolvedDownloadState == DetailDownloadState.NOT_DOWNLOADED ->
-                                    requestDownload()
-                                else -> onDownloadClick(0)
-                            }
+                    canPlayNow = item.canPlay && canPlay,
+                    onPlayClick = { onPlayClick(false) },
+                    download =
+                        downloadLabel?.let { label ->
+                            HeroDownloadAction(
+                                label = label,
+                                selected = downloadSelected,
+                                enabled = downloadEnabledNow,
+                                onClick = onDownloadAction,
+                            )
                         },
+                    onMarkAsPlayedClick = onMarkAsPlayedClick,
+                    onMarkAsFavoriteClick = onMarkAsFavoriteClick,
+                    degraded = detailHeroActionsDegraded(screenWidthDp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlayButton(
+                        item = item,
+                        onClick = { onPlayClick(false) },
+                        modifier = if (compact) Modifier.weight(1f) else Modifier,
+                        enabled = item.canPlay && canPlay,
+                    )
+                    if (item.playbackPositionTicks.div(600000000) > 0) {
+                        DetailIconButton(
+                            icon = CoreR.drawable.ic_rotate_ccw,
+                            onClick = { onPlayClick(true) },
+                        )
+                    }
+                    trailerUri?.let { uri ->
+                        DetailIconButton(
+                            icon = CoreR.drawable.ic_film,
+                            onClick = { onTrailerClick(uri) },
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (showDownloadAction) {
+                        DetailLabeledButton(
+                            label = downloadLabel ?: "",
+                            icon = CoreR.drawable.ic_download,
+                            selected = downloadSelected,
+                            enabled = downloadEnabledNow,
+                            onClick = onDownloadAction,
+                        )
+                    }
+                    DetailLabeledButton(
+                        label = stringResource(CoreR.string.detail_action_played),
+                        icon = CoreR.drawable.ic_check,
+                        selected = item.played,
+                        onClick = onMarkAsPlayedClick,
+                    )
+                    DetailLabeledButton(
+                        label = stringResource(CoreR.string.detail_action_favorite),
+                        icon =
+                            if (item.favorite) CoreR.drawable.ic_bookmark_filled
+                            else CoreR.drawable.ic_bookmark,
+                        selected = item.favorite,
+                        onClick = onMarkAsFavoriteClick,
                     )
                 }
-                DetailLabeledButton(
-                    label = stringResource(CoreR.string.detail_action_played),
-                    icon = CoreR.drawable.ic_check,
-                    selected = item.played,
-                    onClick = onMarkAsPlayedClick,
-                )
-                DetailLabeledButton(
-                    label = stringResource(CoreR.string.detail_action_favorite),
-                    icon =
-                        if (item.favorite) CoreR.drawable.ic_bookmark_filled
-                        else CoreR.drawable.ic_bookmark,
-                    selected = item.favorite,
-                    onClick = onMarkAsFavoriteClick,
-                )
             }
             if (downloaderState != null) {
                 AnimatedVisibility(downloaderState.isDownloading) {
@@ -327,6 +363,185 @@ private fun DetailLabeledButton(
             style = CinefinType.LabelLarge,
             color = contentColor,
             maxLines = 1,
+        )
+    }
+}
+
+/** hero 布局的下载键数据（W66b；与两行布局共用同一套三态 / legacy 语义）。 */
+private class HeroDownloadAction(
+    val label: String,
+    val selected: Boolean,
+    val enabled: Boolean,
+    val onClick: () -> Unit,
+)
+
+/**
+ * W66b 竖屏 hero 动作区：一行四键（播放 / 下载 / 已播放 / 收藏）等宽、图标上文字下、64dp； 屏宽 <360dp 由 [degraded] 降级为「播放整行 + 三键一行」。
+ */
+@Composable
+private fun DetailHeroActionButtons(
+    item: FindroidItem,
+    canPlayNow: Boolean,
+    onPlayClick: () -> Unit,
+    download: HeroDownloadAction?,
+    onMarkAsPlayedClick: () -> Unit,
+    onMarkAsFavoriteClick: () -> Unit,
+    degraded: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val playLabel = stringResource(CoreR.string.play)
+    val playedLabel = stringResource(CoreR.string.detail_action_played)
+    val favoriteLabel = stringResource(CoreR.string.detail_action_favorite)
+    val favoriteIcon =
+        if (item.favorite) CoreR.drawable.ic_bookmark_filled else CoreR.drawable.ic_bookmark
+
+    if (degraded) {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+        ) {
+            HeroActionKey(
+                icon = CoreR.drawable.ic_play,
+                label = playLabel,
+                selected = false,
+                emphasized = true,
+                enabled = canPlayNow,
+                onClick = onPlayClick,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2)) {
+                download?.let { action ->
+                    HeroActionKey(
+                        icon = CoreR.drawable.ic_download,
+                        label = action.label,
+                        selected = action.selected,
+                        enabled = action.enabled,
+                        onClick = action.onClick,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                HeroActionKey(
+                    icon = CoreR.drawable.ic_check,
+                    label = playedLabel,
+                    selected = item.played,
+                    enabled = true,
+                    onClick = onMarkAsPlayedClick,
+                    modifier = Modifier.weight(1f),
+                )
+                HeroActionKey(
+                    icon = favoriteIcon,
+                    label = favoriteLabel,
+                    selected = item.favorite,
+                    enabled = true,
+                    onClick = onMarkAsFavoriteClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    } else {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+        ) {
+            HeroActionKey(
+                icon = CoreR.drawable.ic_play,
+                label = playLabel,
+                selected = false,
+                emphasized = true,
+                enabled = canPlayNow,
+                onClick = onPlayClick,
+                modifier = Modifier.weight(1f),
+            )
+            download?.let { action ->
+                HeroActionKey(
+                    icon = CoreR.drawable.ic_download,
+                    label = action.label,
+                    selected = action.selected,
+                    enabled = action.enabled,
+                    onClick = action.onClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            HeroActionKey(
+                icon = CoreR.drawable.ic_check,
+                label = playedLabel,
+                selected = item.played,
+                enabled = true,
+                onClick = onMarkAsPlayedClick,
+                modifier = Modifier.weight(1f),
+            )
+            HeroActionKey(
+                icon = favoriteIcon,
+                label = favoriteLabel,
+                selected = item.favorite,
+                enabled = true,
+                onClick = onMarkAsFavoriteClick,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/**
+ * hero 键（图标上 / 文字下，64dp）：[emphasized] = 播放键月白高亮；其余三键 = 1dp 描边 Outlined， 选中（已播放 / 收藏 / 已下载）走当前域容器 +
+ * 强调色。
+ */
+@Composable
+private fun HeroActionKey(
+    @DrawableRes icon: Int,
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false,
+) {
+    val media = LocalMediaColors.current
+    val colors = LocalCinefinColors.current
+    val contentColor =
+        when {
+            !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
+            emphasized -> colors.surface
+            selected -> media.bright
+            else -> colors.onSurfaceVariant
+        }
+    val containerColor =
+        when {
+            emphasized -> colors.onSurface
+            selected && enabled -> media.container
+            else -> Color.Transparent
+        }
+    val borderColor =
+        when {
+            emphasized -> Color.Transparent
+            selected && enabled -> media.outline
+            else -> colors.outline
+        }
+    Column(
+        modifier =
+            modifier
+                .height(64.dp)
+                .clip(CinefinShapes.Sm)
+                .background(containerColor)
+                .border(1.dp, borderColor, CinefinShapes.Sm)
+                .cinefinClickable(enabled = enabled, onClick = onClick)
+                .padding(vertical = CinefinSpacing.Space2),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.height(CinefinSpacing.Space1))
+        Text(
+            text = label,
+            style = CinefinType.LabelMedium,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

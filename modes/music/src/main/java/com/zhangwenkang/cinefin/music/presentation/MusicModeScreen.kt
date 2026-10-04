@@ -82,6 +82,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorChip
+import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -249,7 +250,6 @@ fun MusicModeScreen(
                     onOpenFavorites = viewModel::openFavorites,
                     onOpenRecent = viewModel::openRecent,
                     onOpenSleep = { sleepSheetOpen = true },
-                    onSelectMusicLibrary = viewModel::selectMusicLibrary,
                     onBatchSelectAll = viewModel::onBatchSelectAll,
                     onBatchSelectNone = viewModel::onBatchSelectNone,
                     onBatchExit = viewModel::onBatchExit,
@@ -259,7 +259,17 @@ fun MusicModeScreen(
                     OfflineMusicNotice(songCount = state.songs.size)
                 }
                 if (state.detail == null) {
-                    MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
+                    // W66b：库选择 chip 移到 Tab 行右侧（紧凑、只显示当前库名）；顶栏恢复标题 + 三图标键。
+                    MusicTabsRow(
+                        selected = state.tab,
+                        onSelect = viewModel::selectTab,
+                        libraryLabel = state.selectedMusicLibraryName,
+                        libraryOptions = state.musicLibraries,
+                        librarySelectedId = state.selectedMusicLibraryId,
+                        showLibrarySelector =
+                            onExitTemporaryLibrary == null && state.musicLibraries.size >= 3,
+                        onSelectMusicLibrary = viewModel::selectMusicLibrary,
+                    )
                     // W66：来源筛选 + 播放全部 / 随机并入一行；批量多选态整行隐藏（批量条接管）。
                     if (!batchSelection.selectionMode) {
                         MusicToolbarRow(
@@ -354,11 +364,9 @@ fun MusicModeScreen(
                                 ?.div(TICKS_PER_MS) ?: 0L,
                         sleepState = sleepState,
                         onOpenNowPlaying = { nowPlayingOpen = true },
-                        onPrevious = viewModel::skipToPrevious,
                         onPlayPause = viewModel::togglePlayPause,
                         onNext = viewModel::skipToNext,
                         onOpenLyrics = viewModel::openLyrics,
-                        onOpenQueue = { queueSheetOpen = true },
                         onClose = viewModel::dismissNowPlayingBar,
                     )
                 }
@@ -532,8 +540,6 @@ private fun MusicHeader(
     onOpenFavorites: () -> Unit,
     onOpenRecent: () -> Unit,
     onOpenSleep: () -> Unit,
-    /** W66：音乐库选择（null = 全部音乐库）；切换后重载当前 Tab 并更新标题语义。 */
-    onSelectMusicLibrary: (UUID?) -> Unit,
     onBatchSelectAll: () -> Unit,
     onBatchSelectNone: () -> Unit,
     onBatchExit: () -> Unit,
@@ -608,17 +614,6 @@ private fun MusicHeader(
             if (onExitTemporaryLibrary != null && detail == null) {
                 CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
             }
-            // W66：音乐库选择（「全部音乐库」+ 各库）；服务器只有 1 个音乐库时隐藏，临时库视图不显示。
-            if (
-                detail == null && onExitTemporaryLibrary == null && state.musicLibraries.size >= 3
-            ) {
-                LibrarySelectorChip(
-                    label = state.selectedMusicLibraryName ?: ALL_MUSIC_LIBRARIES_LABEL,
-                    options = state.musicLibraries,
-                    selectedId = state.selectedMusicLibraryId,
-                    onSelect = onSelectMusicLibrary,
-                )
-            }
             CinefinIconButton(onClick = onOpenFavorites) { tint ->
                 Icon(
                     painter =
@@ -655,24 +650,48 @@ private fun MusicHeader(
 }
 
 @Composable
-private fun MusicTabs(selected: MusicTab, onSelect: (MusicTab) -> Unit) {
-    CinefinSegmentedControl(
-        items = MusicTab.entries,
-        selected = selected,
-        onSelect = onSelect,
-        label = { tab ->
-            when (tab) {
-                MusicTab.ALBUMS -> "专辑"
-                MusicTab.ARTISTS -> "艺术家"
-                MusicTab.SONGS -> "歌曲"
-                MusicTab.PLAYLISTS -> "歌单"
-            }
-        },
+private fun MusicTabsRow(
+    selected: MusicTab,
+    onSelect: (MusicTab) -> Unit,
+    libraryLabel: String?,
+    libraryOptions: List<LibrarySelectorOption>,
+    librarySelectedId: UUID?,
+    showLibrarySelector: Boolean,
+    onSelectMusicLibrary: (UUID?) -> Unit,
+) {
+    Row(
         modifier =
             Modifier.padding(horizontal = CinefinSpacing.Space4)
                 .widthIn(max = 640.dp)
                 .fillMaxWidth(),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+    ) {
+        CinefinSegmentedControl(
+            items = MusicTab.entries,
+            selected = selected,
+            onSelect = onSelect,
+            label = { tab ->
+                when (tab) {
+                    MusicTab.ALBUMS -> "专辑"
+                    MusicTab.ARTISTS -> "艺术家"
+                    MusicTab.SONGS -> "歌曲"
+                    MusicTab.PLAYLISTS -> "歌单"
+                }
+            },
+            modifier = Modifier.weight(1f),
+        )
+        // W66b：库选择 chip 放 Tab 行右侧（紧凑、只显示当前库名、超长省略）；单库 / 临时库视图隐藏。
+        if (showLibrarySelector) {
+            LibrarySelectorChip(
+                label = libraryLabel ?: ALL_MUSIC_LIBRARIES_LABEL,
+                options = libraryOptions,
+                selectedId = librarySelectedId,
+                onSelect = onSelectMusicLibrary,
+                maxWidth = 132.dp,
+            )
+        }
+    }
 }
 
 /**
@@ -689,7 +708,8 @@ private fun MusicToolbarRow(
     onShuffleAll: () -> Unit,
 ) {
     val showSource = !state.offline
-    val showPlayAll = state.tab == MusicTab.SONGS && state.songs.isNotEmpty()
+    // W66b：播放全部扩展到所有 Tab（语义 = 按当前筛选与当前列表顺序播放整库曲目）。
+    val showPlayAll = state.songs.isNotEmpty()
     if (!showSource && !showPlayAll) return
     Row(
         modifier =
@@ -1275,11 +1295,9 @@ private fun NowPlayingBar(
     fallbackDurationMs: Long,
     sleepState: SleepTimerController.State,
     onOpenNowPlaying: () -> Unit,
-    onPrevious: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onOpenLyrics: () -> Unit,
-    onOpenQueue: () -> Unit,
     onClose: () -> Unit,
 ) {
     val item = queue?.currentItem ?: return
@@ -1287,11 +1305,8 @@ private fun NowPlayingBar(
     // 恢复态（重启后未点播放）没有播放器会话，位置与时长回落到快照 / 曲库元数据
     val currentMs = if (isRestored) item.playbackPosition else positionMs
     val totalMs = durationMs.takeIf { it > 0L } ?: fallbackDurationMs
-    val timeText = buildString {
-        append(formatPositionMs(currentMs))
-        append(" / ")
-        append(if (totalMs > 0L) formatPositionMs(totalMs) else "--:--")
-    }
+    // W66b：时间文本抽纯函数（单测覆盖）——不再与状态挤同一行被截断。
+    val timeText = musicMiniBarTimeText(currentMs = currentMs, totalMs = totalMs)
     val statusText = buildString {
         if (isRestored) append("上次播放") else append(if (isPlaying) "正在播放" else "已暂停")
         if (sleepState.active) {
@@ -1330,33 +1345,30 @@ private fun NowPlayingBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        text = "$timeText · $statusText",
-                        style = CinefinType.MonoDataSmall,
-                        color = colors.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = timeText,
+                            style = CinefinType.MonoDataSmall,
+                            color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                        // 状态（正在播放 / 已暂停 / 上次播放 [· 睡眠]）同行展示，放不下时省略——
+                        // 时间永不被截断（W66b 用户口径）。
+                        Spacer(modifier = Modifier.width(CinefinSpacing.Space1))
+                        Text(
+                            text = statusText,
+                            style = CinefinType.MonoDataSmall,
+                            color = colors.onSurfaceFaint,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                    }
                 }
-            }
-            CinefinIconButton(onClick = onOpenQueue) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_playlist),
-                    contentDescription = "播放队列",
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
             }
             CinefinIconButton(onClick = onOpenLyrics) { tint ->
                 Text(text = "词", style = CinefinType.LabelLarge, color = tint)
-            }
-            CinefinIconButton(onClick = onPrevious) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_skip_back),
-                    contentDescription = "上一曲",
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
             }
             CinefinIconButton(onClick = onPlayPause) { tint ->
                 Icon(

@@ -191,7 +191,7 @@ private fun EpisodeScreenLayout(
                         eyebrow = episodeHeroEyebrow(episode),
                         title = episode.name,
                         meta = episodeHeroMeta(episode),
-                    ) {
+                    ) { heroLayout ->
                         ItemButtonsBar(
                             item = episode,
                             downloaderState = downloaderState,
@@ -225,6 +225,7 @@ private fun EpisodeScreenLayout(
                             modifier = Modifier.fillMaxWidth(),
                             downloadState = downloadState,
                             downloadEnabled = episode.canDownload,
+                            heroLayout = heroLayout,
                         )
                     }
                     Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
