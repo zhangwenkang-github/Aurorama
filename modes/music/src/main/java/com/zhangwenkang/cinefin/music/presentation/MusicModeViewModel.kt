@@ -3,9 +3,11 @@ package com.zhangwenkang.cinefin.music.presentation
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
 import com.zhangwenkang.cinefin.core.selection.MultiSelectState
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.local.LocalMediaKind
+import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
@@ -160,6 +162,12 @@ constructor(
         val sourceFilter: MusicItemSourceFilter = MusicItemSourceFilter.ALL,
         /** W37：曲目行是否显示来源徽标。 */
         val showSourceBadge: Boolean = true,
+        /** W66：音乐库选择器候选（「全部音乐库」+ 各库；离线 / 未加载时为空 → 隐藏）。 */
+        val musicLibraries: List<LibrarySelectorOption> = emptyList(),
+        /** W66：当前选中的音乐库 id（null = 全部音乐库）。 */
+        val selectedMusicLibraryId: UUID? = null,
+        /** W66：当前选中音乐库名（null = 全部 → 顶栏沿用「音乐」标题）。 */
+        val selectedMusicLibraryName: String? = null,
         /** W37：本地曲目条数（筛选行副文案用）。 */
         val localSongCount: Int = 0,
         val serverSongCount: Int = 0,
@@ -799,6 +807,9 @@ constructor(
                         refreshing = false,
                         offline = true,
                         playlists = emptyList(),
+                        musicLibraries = emptyList(),
+                        selectedMusicLibraryId = null,
+                        selectedMusicLibraryName = null,
                         errorTitle = null,
                         errorMessage = null,
                     )
@@ -814,6 +825,13 @@ constructor(
             }
             try {
                 val (library, playlists) = loadLibraryWithRetry()
+                // W66：音乐库选择器候选（失败不阻塞曲库加载）。
+                val musicLibraries = loadMusicLibraryList()
+                val selectedMusicLibrary =
+                    resolveSelectedMusicLibrary(
+                        musicLibraries,
+                        appPreferences.getValue(appPreferences.uiMusicLibraryId),
+                    )
                 serverLibrary = library
                 localLibrary = loadLocalLibrary()
                 _uiState.update {
@@ -822,6 +840,9 @@ constructor(
                         refreshing = false,
                         offline = false,
                         playlists = playlists,
+                        musicLibraries = musicLibraryOptions(musicLibraries),
+                        selectedMusicLibraryId = selectedMusicLibrary?.id,
+                        selectedMusicLibraryName = selectedMusicLibrary?.name,
                         errorTitle = null,
                         errorMessage = null,
                     )
@@ -864,6 +885,15 @@ constructor(
     fun setShowSourceBadge(show: Boolean) {
         appPreferences.setValue(appPreferences.localLibrarySourceBadge, show)
         _uiState.update { it.copy(showSourceBadge = show) }
+    }
+
+    /** W66：顶栏音乐库选择（null = 「全部音乐库」）。先落盘（跨页面 / 重启保留）再即时重载当前 Tab： 关闭页内详情、退出多选，然后重新请求曲库（标题语义随选中库更新）。 */
+    fun selectMusicLibrary(libraryId: UUID?) {
+        if (_uiState.value.selectedMusicLibraryId == libraryId) return
+        appPreferences.setValue(appPreferences.uiMusicLibraryId, libraryId?.toString())
+        _batchSelection.value = MultiSelectState()
+        _uiState.update { it.copy(detail = null) }
+        refresh()
     }
 
     /** 当前筛选下的曲库视图（专辑 / 艺术家 / 歌曲三个维度同源重建）。 */
@@ -921,6 +951,13 @@ constructor(
         val library = repository.getLibrary(libraryId = libraryId)
         return library to repository.getPlaylists()
     }
+
+    /** W66：服务器音乐库列表（顶栏选择器候选；读取失败返回空列表，不阻塞曲库加载）。 */
+    private suspend fun loadMusicLibraryList(): List<FindroidCollection> = runCatching {
+        pickMusicLibraries(jellyfinRepository.getLibraries())
+    }
+        .onFailure { Timber.w(it, "读取音乐库列表失败") }
+        .getOrElse { emptyList() }
 
     /**
      * W36 离线曲库：本机已下载且「允许离线观看」的曲目（按专辑 / 艺术家聚合）。
