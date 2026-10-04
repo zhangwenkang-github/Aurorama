@@ -141,6 +141,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
+import com.zhangwenkang.cinefin.presentation.navigation.railDefaultExpandedFor
 import com.zhangwenkang.cinefin.presentation.navigation.railExpandedWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
 import com.zhangwenkang.cinefin.presentation.navigation.railLibraryLabelWidthDp
@@ -392,17 +393,20 @@ fun NavigationRoot(
     // 让侧轨 / 抽屉的「本地媒体库」子分组跟着建立 / 删除 /「在媒体库显示」开关变化。
     LaunchedEffect(navBackStackEntry) { drawerViewModel.refreshLocalLibraries() }
 
-    // 形态分级（§4.4）：Compact 底部 tab；Medium 起侧轨（≥1200dp 默认展开 164dp）
+    // 形态分级（§4.4）：Compact 底部 tab；Medium 起侧轨（W70 起 ≥600dp 默认展开）
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val compactNavigation =
         !windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
-    val railDefaultExpanded = windowSizeClass.isWidthAtLeastBreakpoint(1200)
-    var railExpanded by
-        rememberSaveable(railDefaultExpanded) { mutableStateOf(railDefaultExpanded) }
     // W65（用户 2026-10-04 拍板，全部按推荐）：侧栏宽度自适应——屏宽取窗口配置（旋转 / 分屏即时生效），
     // 宽度计算是纯函数（NavigationIa.kt + 单测）：侧轨展开 clamp(30%, 200, 240)dp、手机抽屉 clamp(55%, 208, 280)dp；
     // 折叠轨恒定 72dp。
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    // W70（用户 2026-10-04 复验「平板侧柜看不到本地媒体库」）：W46 起平板导航本就「走常显侧轨」，
+    // 但默认展开值一直挂在 1200dp——Pad 5（711dp）开机即折叠 72dp，库列表（含「本地媒体库」子分组）
+    // 完全不可见。改为平板（≥600dp）默认展开、保留手动折叠；手机（<600dp）形态不受影响。
+    val railDefaultExpanded = railDefaultExpandedFor(screenWidthDp)
+    var railExpanded by
+        rememberSaveable(railDefaultExpanded) { mutableStateOf(railDefaultExpanded) }
     val adaptiveRailWidthDp = railExpandedWidthDp(screenWidthDp)
     val adaptiveDrawerWidthDp = drawerWidthDp(screenWidthDp)
     val drawerLabelWidthDp = drawerLibraryLabelWidthDp(adaptiveDrawerWidthDp)
@@ -1096,6 +1100,8 @@ fun NavigationRoot(
                         onOpenLocalLibrary = { libraryId ->
                             navController.safeNavigate(LocalLibraryRoute(libraryId))
                         },
+                        // W70：本地库新建 / 删除 / 开关后刷新侧栏「本地媒体库」子分组。
+                        onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
                     )
                 } else {
                     ProvideLumen {
@@ -1111,6 +1117,8 @@ fun NavigationRoot(
                             onOpenLocalLibrary = { libraryId ->
                                 navController.safeNavigate(LocalLibraryRoute(libraryId))
                             },
+                            // W70：本地库新建 / 删除 / 开关后刷新侧栏「本地媒体库」子分组。
+                            onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
                             // W43：搜索结果打开本地条目（红线文件，已申报）——与本地库详情页同一链路。
                             onPlayLocalVideo = { itemId ->
                                 val intent = Intent(context, PlayerActivity::class.java)

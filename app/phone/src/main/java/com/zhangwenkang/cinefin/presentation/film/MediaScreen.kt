@@ -67,6 +67,8 @@ fun MediaScreen(
     onItemClick: (FindroidItem) -> Unit,
     /** W37：打开本地媒体库详情（媒体库页常显入口）。 */
     onOpenLocalLibrary: (Long) -> Unit = {},
+    /** W70：本地库集合 / 可见性变化 → 侧栏「本地媒体库」子分组只读刷新（新建库后侧轨即时跟随）。 */
+    onLocalLibrariesChanged: () -> Unit = {},
     /** W43：搜索命中本地条目的打开链路（与本地库详情页一致）—— 视频 → 播放器；书籍 → 阅读器；音乐 → 现有音乐播放链路（成功后跳音乐 Tab）。 */
     onPlayLocalVideo: (UUID) -> Unit = {},
     onOpenLocalBook: (UUID, String, String) -> Unit = { _, _, _ -> },
@@ -98,6 +100,7 @@ fun MediaScreen(
             viewModel.onAction(action)
         },
         onOpenLocalLibrary = onOpenLocalLibrary,
+        onLocalLibrariesChanged = onLocalLibrariesChanged,
         downloadBadges = downloadBadges,
         onSearchAction = { action ->
             when (action) {
@@ -141,6 +144,7 @@ private fun MediaScreenLayout(
     onSearchExpand: (Boolean) -> Unit,
     onAction: (MediaAction) -> Unit,
     onOpenLocalLibrary: (Long) -> Unit,
+    onLocalLibrariesChanged: () -> Unit,
     onSearchAction: (SearchAction) -> Unit,
     downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
@@ -223,7 +227,10 @@ private fun MediaScreenLayout(
                 ) {
                     // 两段式①：本地媒体库（标题行自带「＋ 新建」；无库时只留一行空态）。
                     item(span = { GridItemSpan(maxLineSpan) }, key = "local_library") {
-                        LocalLibrarySection(onOpenLibrary = onOpenLocalLibrary)
+                        LocalLibrarySection(
+                            onOpenLibrary = onOpenLocalLibrary,
+                            onLibrariesChanged = onLocalLibrariesChanged,
+                        )
                     }
                     // 两段式②：服务器媒体库（标题行 + 16:9 大卡，位置上移、首屏尽量露出）。
                     if (state.libraries.isNotEmpty()) {
@@ -292,6 +299,7 @@ private fun MediaScreenLayoutPreview() {
             onSearchExpand = {},
             onAction = {},
             onOpenLocalLibrary = {},
+            onLocalLibrariesChanged = {},
             onSearchAction = {},
         )
     }

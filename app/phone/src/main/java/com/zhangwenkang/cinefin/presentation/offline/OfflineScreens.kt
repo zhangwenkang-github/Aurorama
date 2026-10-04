@@ -257,6 +257,8 @@ fun OfflineLibraryScreen(
     onOpenBook: (itemId: UUID, title: String) -> Unit,
     /** W37：本地媒体库详情（离线同样常显入口）。 */
     onOpenLocalLibrary: (Long) -> Unit = {},
+    /** W70：本地库集合 / 可见性变化 → 侧栏「本地媒体库」子分组只读刷新。 */
+    onLocalLibrariesChanged: () -> Unit = {},
     viewModel: OfflineMediaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -346,6 +348,7 @@ fun OfflineLibraryScreen(
                     item(key = "local_library_section") {
                         LocalLibrarySection(
                             onOpenLibrary = onOpenLocalLibrary,
+                            onLibrariesChanged = onLocalLibrariesChanged,
                             modifier = Modifier.padding(horizontal = horizontalPadding),
                         )
                     }
@@ -431,7 +434,10 @@ fun OfflineLibraryScreen(
                     }
                     // W37：本地媒体库（离线常显入口；索引只读，不依赖服务器）。
                     item(key = "local_library_section") {
-                        LocalLibrarySection(onOpenLibrary = onOpenLocalLibrary)
+                        LocalLibrarySection(
+                            onOpenLibrary = onOpenLocalLibrary,
+                            onLibrariesChanged = onLocalLibrariesChanged,
+                        )
                     }
                 }
         }

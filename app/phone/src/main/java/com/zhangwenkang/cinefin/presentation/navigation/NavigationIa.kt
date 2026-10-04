@@ -207,6 +207,18 @@ fun railExpandedWidthDp(screenWidthDp: Int): Float =
 fun drawerWidthDp(screenWidthDp: Int): Float =
     (screenWidthDp * DRAWER_WIDTH_RATIO).coerceIn(DRAWER_WIDTH_MIN_DP, DRAWER_WIDTH_MAX_DP)
 
+/** 平板形态默认展开侧轨的最小屏宽（W70：Medium 断点 = 600dp）。 */
+const val RAIL_DEFAULT_EXPANDED_MIN_WIDTH_DP: Int = 600
+
+/**
+ * 平板形态（≥600dp）默认展开侧轨（W70 纯函数 + 单测）。
+ *
+ * W46 起平板导航「走常显侧轨」，但默认展开值曾挂在 1200dp——Pad 5（711dp）开机即折叠 72dp， 库列表（服务器库 + 「本地媒体库」子分组）完全不可见。 改为 Medium
+ * 断点（600dp）起默认展开，保留手动折叠；手机（<600dp）仍走底部 tab / 抽屉形态。
+ */
+fun railDefaultExpandedFor(screenWidthDp: Int): Boolean =
+    screenWidthDp >= RAIL_DEFAULT_EXPANDED_MIN_WIDTH_DP
+
 /** 侧轨导航列左右内边距（与 `CinefinSideNavigation` 的 `padding(horizontal)` 同源）。 */
 const val RAIL_COLUMN_PADDING_DP: Float = 10f
 

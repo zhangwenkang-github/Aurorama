@@ -295,23 +295,36 @@ private fun localCoverModel(cover: String?): Any? =
 fun LocalLibrarySection(
     onOpenLibrary: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    /** W70：本地库集合 / 可见性变化后通知侧栏只读刷新（新建库后 SAF 返回不触发导航变化，侧轨不刷新）。 */
+    onLibrariesChanged: () -> Unit = {},
     viewModel: LocalLibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.refresh() }
+    // W70：库集合（新建 / 删除）或可见性变化 → 侧栏「本地媒体库」子分组跟着刷新（真机拦下：新建库后
+    // SAF 返回时导航不变，只靠 navBackStackEntry 触发会漏掉这一次）。
+    LaunchedEffect(state.cards, state.hasHidden) { onLibrariesChanged() }
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var pendingLibraryId by rememberSaveable { mutableStateOf<Long?>(null) }
+    // W70：SAF 回调可能早于 RESUMED 分发——直接 navigate 会被 Navigation 忽略（真机拦下：建库后不跳详情页）。
+    // 改为状态驱动：先记下待打开的库，等回到组合（已 RESUMED）后再导航。
+    var openAfterFolderPick by rememberSaveable { mutableStateOf<Long?>(null) }
     val folderPicker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             val libraryId = pendingLibraryId
             pendingLibraryId = null
             if (uri != null && libraryId != null) {
                 viewModel.addFolder(libraryId, uri)
-                onOpenLibrary(libraryId)
+                openAfterFolderPick = libraryId
             }
         }
     LaunchedEffect(pendingLibraryId) { if (pendingLibraryId != null) folderPicker.launch(null) }
+    LaunchedEffect(openAfterFolderPick) {
+        val libraryId = openAfterFolderPick ?: return@LaunchedEffect
+        openAfterFolderPick = null
+        onOpenLibrary(libraryId)
+    }
 
     val colors = LocalCinefinColors.current
     Column(modifier = modifier.fillMaxWidth()) {

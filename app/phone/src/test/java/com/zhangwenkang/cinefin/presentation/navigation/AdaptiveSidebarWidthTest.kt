@@ -84,4 +84,15 @@ class AdaptiveSidebarWidthTest {
             )
         )
     }
+
+    @Test
+    fun railDefaultsToExpandedFromMediumWidth() {
+        // W70：平板（≥600dp）默认展开——Pad 5（711dp）开机即可见库列表（含「本地媒体库」子分组）。
+        assertTrue(railDefaultExpandedFor(600))
+        assertTrue(railDefaultExpandedFor(711))
+        assertTrue(railDefaultExpandedFor(1000))
+        // 手机（<600dp）仍走底部 tab / 抽屉形态，默认展开值不适用。
+        assertFalse(railDefaultExpandedFor(599))
+        assertFalse(railDefaultExpandedFor(411))
+    }
 }
