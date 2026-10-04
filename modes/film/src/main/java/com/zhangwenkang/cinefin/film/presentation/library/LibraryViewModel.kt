@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
+import timber.log.Timber
 
 /**
  * 库内容页 ViewModel（视频库 / 书籍库 / 书架共用）。
@@ -127,6 +128,7 @@ constructor(
             publishBookCover(itemId, cached)
             return
         }
+        Timber.d("Book cover fallback (server image unavailable): %s", itemId)
         val plan =
             BookCoverRules.planCover(
                 serverImageUrl = null,

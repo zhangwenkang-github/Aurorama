@@ -41,6 +41,7 @@ class MetadataPreloader(private val repositoryProvider: Provider<JellyfinReposit
 
     /** 预取单个条目的详情（同类条目并发上限 [PARALLELISM]，同 id 由仓库去重）。 */
     fun prefetchDetail(item: FindroidItem, source: String = "") {
+        Timber.d("prefetch detail: %s", item.id)
         launchPrefetch(source) {
             when (item) {
                 is FindroidMovie -> repositoryProvider.get().getMovie(item.id)
@@ -82,6 +83,7 @@ class MetadataPreloader(private val repositoryProvider: Provider<JellyfinReposit
         studios: List<String>? = null,
         source: String = "",
     ) {
+        Timber.d("prefetch items page: %s@%s", parentId, startIndex)
         launchPrefetch(source) {
             repositoryProvider
                 .get()

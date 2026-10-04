@@ -90,6 +90,7 @@ constructor(
             publishBookCover(itemId, cached)
             return
         }
+        Timber.d("Book cover fallback (server image unavailable): %s", itemId)
         val plan =
             BookCoverRules.planCover(
                 serverImageUrl = null,
