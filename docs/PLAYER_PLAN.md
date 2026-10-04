@@ -1875,3 +1875,55 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 3. 刻度对比度、吸附手感与轻触觉物理感受属人工感知条目（MIUI 不落 haptic 日志，`dumpsys vibrator_manager` 只留 NOTIFICATION 历史），交用户过目 / 体感确认。
 4. 章节刻度首章在 0 s 时落在进度条左缘、被播放头盖住（与既有 knob 同款边界行为），未单独处理。
 5. 「跟随系统」的时间格式在播放页内只于进入 / 换档时读一次 `Settings.System.TIME_12_24`，系统设置中途变更需重进播放页生效。
+
+---
+
+## 29. W68 后台 / 锁屏播放 + 音乐锁屏链路修复（2026-10-04 · 分支 `fix/w68-background-lockscreen`）
+
+> 用户 2026-10-04 全检要求（任务书 W68）：
+> ① **视频后台 / 锁屏播放（仅音频）**：视频播放中按 Home / 锁屏继续出声（无 PiP 的后台只出音频、不渲染画面），通知栏 + 锁屏可暂停 / 继续 / 快进退 / 切集；回前台画面恢复且进度连续；后台播放**默认开启**（播放器设置 / 设置页仍可关，关闭 = 旧行为）；既有 PiP 优先策略不变。
+> ② **音乐锁屏 / 通知点击路由**：音频条目 → 打开应用内音乐播放界面（与点迷你条一致的主界面覆盖层，不再进视频播放页）；视频条目 → 现有 `PlayerActivity`。
+> ③ **P1「退出后播放按钮失效」**：锁屏点音乐播放栏 → 打开（原为视频页）→ 返回退出 → 迷你条与播放界面点播放无响应。
+> ④ 用户补充澄清（2026-10-04）：MIUI / 澎湃桌面顶部媒体胶囊的宽窄由系统决定，**不改尺寸 / 不做仿制**，只优化应用 publish 的元数据（艺人 / 占位封面 / 副标题）。
+
+### 29.1 决策（D57–D60）
+
+| 编号 | 决策 |
+|------|------|
+| D57 | **后台播放默认开启 + 只出音频**：`pref_player_background_audio` 默认 `false → true`；后台继续播放由既有 `CinefinPlaybackService`（`mediaPlayback` 前台服务 + `MediaSession`）承载，播放页 `onPause` 不暂停、`onDestroy` 不停服务、`PlayerViewModel` 退出不释放共享实例。无 PiP 的 Home / 锁屏只有音频（Activity 不可见即停止渲染），**PiP 仍然画面优先**；回前台由同一实例接管，进度连续。 |
+| D58 | **会话点击路由按媒体类型分派**：音乐条目 → `MainActivity` + `EXTRA_OPEN_MUSIC_NOW_PLAYING`（导航到音乐 Tab 并展开全屏播放覆盖层，与点迷你条一致）；视频条目 → `PlayerActivity`（不带 `itemId`，接管现有会话不重新拉流）。通知内容点击（[`CinefinMediaNotificationProvider`]）与锁屏 / 蓝牙 / 车机点击（`MediaSession.setSessionActivity`）同源；音乐 ↔ 视频条目切换时由服务监听播放器事件更新。 |
+| D59 | **音乐会话共享实例保护**：音乐后台播放独立于视频页「后台播放」开关——`PlayerHolder.release()` 在 `musicSessionActive` 时拒绝释放；视频页 `onPause` / `onDestroy` / `releasePlayer` 在音乐会话活跃时不暂停、不停服务、不释放，也不把音乐进度重复写回（音乐链路自己上报）。修复「经锁屏误入视频页退出后，迷你条点播放无响应」。 |
+| D60 | **音乐会话元数据（桌面媒体胶囊口径）**：音乐 `MediaItem` 显式写 `setArtist`（`PlayerItem.artist` 来自曲库 / 本地条目，拿不到不写）+ 无封面时使用通用音符占位图 URI（`android.resource://`，PNG 资源）；通知副标题音乐 = 歌手（无则空）、视频 = 既有 S/E；播放 / 暂停状态与按钮集合保持现状。系统桌面媒体胶囊的尺寸 / 圆角 / 排版由系统决定，不侵入。 |
+
+### 29.2 实现落点
+
+| 模块 | 改动 |
+|------|------|
+| `settings` | `AppPreferences.playerBackgroundAudio` 默认值 `true`（已申报红线）；注释同步语义与开关位置。 |
+| `player:local` | `PlayerHolder`：`release()` 音乐会话保护 + 新增 `isCurrentItemMusic`（路由判定）与 `musicPlaceholderArtworkUri`（占位封面）；`PlayerViewModel`：`isMusicSessionActive`、`releasePlayer` 走 `shouldReleasePlayerOnExit`（新纯函数 + 3 单测）、`restorePlayWhenReady` 在后台播放 / 音乐会话时以播放器实际状态为准（后台用通知暂停后回前台不自动续播）；`MusicMediaItems`：`setArtist` + 占位封面；新增 `res/drawable-nodpi/ic_music_placeholder.png`。 |
+| `player:core` | `PlayerItem` 新增可选 `artist: String? = null`（**必要扩展，已在汇报中申报**；Parcelable 默认值向后兼容）。 |
+| `modes:music` | `MusicTrackResolver` 服务器 / 本地两条链路补 `artist`；`MusicModeScreen` 新增 `openNowPlayingSignal`（外部打开全屏播放；队列就绪后兑现，冷启动恢复队列同样生效）。 |
+| `app:phone` | `BasePlayerActivity`：音乐会话时 `onPause` 不暂停 / 不重复上报、`onDestroy` 不停服务；`playback/PlaybackSessionRouting`（新文件：路由分派纯函数 + `PendingIntent` 构建 + 2 单测）；`CinefinPlaybackService`：`sessionActivity` 按媒体类型分派并随条目切换更新；`CinefinMediaNotificationProvider`：内容点击分派 + 音乐副标题；`MainActivity`：消费 `EXTRA_OPEN_MUSIC_NOW_PLAYING`；`NavigationRoot`：等 NavHost 就绪后导航音乐 Tab + 递增打开信号。 |
+
+### 29.3 门禁与真机
+
+- 门禁（本会话）：待补（分支最终提交前填：根 `assembleDebug`（含 TV）+ `ktfmtCheck` + 8 任务 `--rerun` 全绿与新增单测数）。
+- 真机清单（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；按 device-lock 排队 W66 → W67 → W68）：
+  ① 视频开后台播放 → Home 与锁屏各 30 s 音频连续、通知可控（暂停 / 继续 / 快进退 / 切集）、回前台画面与进度连续；
+  ② 关开关 → 行为同旧版（离开播放页即暂停）；
+  ③ 音乐锁屏 / 通知点击 → 进音乐播放界面（非视频页）；
+  ④ 锁屏进音乐界面后返回退出 → 迷你条与播放界面点播放可用；音乐后台反复进出 UI 稳定；
+  ⑤ 桌面媒体胶囊改前 / 改后截图本地留存：歌手与封面完整显示、无空白图（胶囊宽度截断属系统行为，不作为缺陷）；
+  ⑥ 双机 0 FATAL / ANR。
+- 真机结果：待设备窗口（完成后按「已完成真机测试 / 未覆盖项」写回本小节与汇报）。
+
+### 29.4 电池与省电说明
+
+- 后台播放期间解码与音频输出仍在**同一进程 / 同一前台服务**（`mediaPlayback`）内，屏幕关闭后系统停止画面合成；相比前台播放省去屏幕与（多数场景下的）视频渲染功耗。
+- MIUI / HyperOS 的省电策略可能对后台进程做冻结 / 清理：若出现锁屏一段时间后中断，先在系统设置里对 Cinefin 关闭「省电限制」或允许后台运行（真机验证时记录实际表现，不静默改系统设置）。
+- 后台播放开关关闭时行为与旧版一致（离开播放页即暂停），不产生额外后台功耗；音乐后台播放不受该开关影响（由音乐链路与前台服务承载）。
+
+### 29.5 已知边界
+
+- 恢复队列（Room 快照）不持久化 `artist`：进程重启后从快照恢复的队列，在曲目重新解析前媒体元数据可能没有歌手（拿不到不写，符合用户口径）；播放页 UI 的歌手仍从曲库快照取，不受影响。
+- 按返回键退出播放页（非 Home / 锁屏）后视频继续后台播放时，进度上报循环随 ViewModel 结束而停止；通知 / 锁屏的暂停、切集仍可用，回前台重新接管后恢复上报（任务书验证点为 Home / 锁屏场景）。
