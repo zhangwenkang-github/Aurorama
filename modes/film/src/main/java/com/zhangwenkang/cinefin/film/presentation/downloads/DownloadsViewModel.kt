@@ -20,6 +20,8 @@ import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
+import com.zhangwenkang.cinefin.utils.ImageCacheStore
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
 import com.zhangwenkang.cinefin.utils.offlineBookDisplayName
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -61,6 +63,8 @@ constructor(
     private val offlineMediaRepository: OfflineMediaRepository,
     /** W59：书籍封面自动生成（下载页书籍条目 / 书架共用）。 */
     private val bookCoverProvider: BookCoverProvider,
+    /** W66：本地图片缓存（`files/images/<id>/primary` + `.meta`，与 worker 同一落点与判定规则）。 */
+    private val imageCacheStore: ImageCacheStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DownloadManagerState())
@@ -75,6 +79,9 @@ constructor(
     private val resolvedItemCache = mutableMapOf<UUID, FindroidItem>()
     /** W36：「允许离线模式观看」开关状态（itemId → allow），refresh 时重读。 */
     private var offlineAllowMap: Map<UUID, Boolean> = emptyMap()
+    /** W66：已完成一次「缺图 / 过期图后台补齐」决策的条目（避免 1.5s 轮询重复尝试）。 */
+    private val artworkBackfillAttempted = mutableSetOf<UUID>()
+    private var artworkBackfillJob: Job? = null
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
@@ -448,7 +455,8 @@ constructor(
                         task.toHierarchyEntry(
                             episodeHierarchy = episodeHierarchy,
                             musicById = musicById,
-                            allowRemoteImages = true,
+                            // W66：阶段 2 不再拉远程兜底图；缺图走阶段 3 本地补齐。
+                            allowRemoteImages = false,
                         )
                     }
             val failedEntries =
@@ -458,7 +466,7 @@ constructor(
                         task.toHierarchyEntry(
                             episodeHierarchy = episodeHierarchy,
                             musicById = musicById,
-                            allowRemoteImages = true,
+                            allowRemoteImages = false,
                         )
                     }
             val completedEntries =
@@ -468,7 +476,7 @@ constructor(
                             musicById = musicById,
                             bookMetadata = bookMetadata,
                             bookFiles = bookFiles,
-                            allowRemoteImages = true,
+                            allowRemoteImages = false,
                         )
                     }
                     .filterNotNull()
@@ -497,6 +505,15 @@ constructor(
                     selection = current.selection.intersect(validKeys),
                 )
             }
+
+            // ——— W66 阶段 3：缺图 / 过期图后台补齐（并发上限 4；完成后自动刷新一次，无需重进页面） ———
+            scheduleArtworkBackfill(
+                tasks = tasks,
+                completed = completed,
+                episodeHierarchy = episodeHierarchy,
+                musicById = musicById,
+                bookIds = completedBookIds,
+            )
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
             // 取消（离开页面）直接向上传播：不再走"保留上一次状态 + 清 loading"的失败路径。
             throw cancellation
@@ -614,12 +631,10 @@ constructor(
             trackIndex = song?.indexNumber ?: 0,
             imageUri =
                 when {
-                    song != null -> DownloadArtworkRules.resolve(localImage(itemId), song.imageUri)
+                    // W66：只认本地缓存图；缺图 → 类型图标占位（后台补齐后再显示，不拉远程慢图）。
+                    song != null -> localImage(itemId)
                     mediaKind == DownloadMediaKind.BOOK ->
-                        DownloadArtworkRules.resolve(
-                            localImage(itemId),
-                            bookCoverProvider.cached(itemId),
-                        )
+                        localImage(itemId) ?: bookCoverProvider.cached(itemId)
                     else -> videoImageUri(episode != null, itemId, allowRemoteImages)
                 },
             showImageUri =
@@ -668,12 +683,10 @@ constructor(
             seasonIndex = episode?.seasonIndex ?: 0,
             imageUri =
                 when {
-                    song != null -> DownloadArtworkRules.resolve(localImage(item.id), song.imageUri)
+                    // W66：只认本地缓存图（音乐曲目图同样由后台补齐落盘）。
+                    song != null -> localImage(item.id)
                     mediaKind == DownloadMediaKind.BOOK ->
-                        DownloadArtworkRules.resolve(
-                            localImage(item.id),
-                            bookMetadata[item.id]?.imageUrl,
-                        ) ?: bookCoverProvider.cached(item.id)
+                        localImage(item.id) ?: bookCoverProvider.cached(item.id)
                     else ->
                         DownloadArtworkRules.videoArtwork(
                             if (episode != null) DownloadArtworkRules.Level.EPISODE
@@ -795,9 +808,7 @@ constructor(
             mediaKind = DownloadMediaKind.BOOK,
             status = DownloadTaskStatus.COMPLETED,
             sizeBytes = sizeBytes,
-            imageUri =
-                DownloadArtworkRules.resolve(localImage(itemId), serverMetadata?.imageUrl)
-                    ?: bookCoverProvider.cached(itemId),
+            imageUri = localImage(itemId) ?: bookCoverProvider.cached(itemId),
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
 
@@ -811,6 +822,80 @@ constructor(
         return coroutineScope {
             map { item -> async { semaphore.withPermit { block(item) } } }.awaitAll()
         }
+    }
+
+    // ---- W66：下载页缩略图本地缓存补齐 / 过期替换 ----
+
+    /** 补齐候选：条目自身 + 剧集的节目 / 季海报（音乐条目直接用歌曲主图 URL）。 */
+    private data class ArtworkCandidate(val itemId: UUID, val knownUrl: String?)
+
+    /**
+     * 打开下载页后对「缺图 / 元数据缺失 / URL 变化 / 超 TTL」条目后台补齐一次（每个条目本 ViewModel 会话只尝试一次）。
+     *
+     * 补齐在独立协程里跑（不阻塞 1.5s 轮询）；完成后若确有图被落盘 / 替换，重扫一轮让 UI 从类型占位切到本地图。
+     */
+    private fun scheduleArtworkBackfill(
+        tasks: List<DownloadTask>,
+        completed: List<CompletedDownload>,
+        episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
+        musicById: Map<UUID, MusicTrackMetadata>,
+        bookIds: Set<UUID>,
+    ) {
+        if (artworkBackfillJob?.isActive == true) return
+        val ids = linkedSetOf<UUID>()
+        tasks.forEach { task ->
+            ids.add(task.itemId)
+            episodeHierarchy[task.itemId]?.let { episode ->
+                ids.add(episode.seriesId)
+                ids.add(episode.seasonId)
+            }
+        }
+        completed.forEach { entry ->
+            ids.add(entry.item.id)
+            entry.episode?.let { episode ->
+                ids.add(episode.seriesId)
+                ids.add(episode.seasonId)
+            }
+        }
+        val candidates =
+            ids.filter { id -> id !in bookIds && id !in artworkBackfillAttempted }
+                .map { id -> ArtworkCandidate(itemId = id, knownUrl = musicById[id]?.imageUri) }
+        if (candidates.isEmpty()) return
+        artworkBackfillAttempted.addAll(candidates.map { candidate -> candidate.itemId })
+        artworkBackfillJob = viewModelScope.launch {
+            val changed = backfillArtwork(candidates)
+            if (changed) {
+                refresh(showLoading = false)
+            }
+        }
+    }
+
+    /** 并发上限 4 的补齐：先本地判定，需要重拉才联网（URL 未知时补一次查询），原子替换后写 `.meta`。 */
+    private suspend fun backfillArtwork(candidates: List<ArtworkCandidate>): Boolean {
+        val now = System.currentTimeMillis()
+        val results =
+            candidates.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { candidate ->
+                val decision =
+                    imageCacheStore.decide(
+                        itemId = candidate.itemId,
+                        currentSourceUrl = candidate.knownUrl,
+                        nowMillis = now,
+                    )
+                if (!ImageCacheRules.shouldRefetch(decision)) return@mapBounded false
+                val url =
+                    candidate.knownUrl?.takeIf { value -> value.isNotBlank() }
+                        ?: remotePrimaryImage(candidate.itemId)
+                if (url.isNullOrBlank()) return@mapBounded false
+                runCatching {
+                    imageCacheStore.fetch(itemId = candidate.itemId, url = url)
+                }
+                    .getOrElse { error ->
+                        Timber.w(error, "下载页缩略图补齐失败（%s）", candidate.itemId)
+                        ImageCacheStore.FetchOutcome(changed = false, transientFailure = true)
+                    }
+                    .changed
+            }
+        return results.any { changed -> changed }
     }
 
     private data class BookMetadata(val name: String?, val imageUrl: String?)

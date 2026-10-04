@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
@@ -74,6 +75,7 @@ import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 
 /**
  * 纯函数（W60b）：任务是否处于「自动重试」窗口——等待下一次重试（PENDING）或正在重试（RUNNING）且已有重试计数。
@@ -911,8 +913,15 @@ internal fun DownloadArtwork(
         )
         if (resolved != null) {
             // 占位 = 类型图标：加载中 / 失败时露在图下层，加载完成后被图片覆盖（Coil 加载与占位规范）。
+            // W66：本地缓存路径的内存键带 mtime——过期替换（原子改名）后 key 变化，立即显示新图。
+            val request =
+                remember(resolved) {
+                    ImageCacheRules.artworkMemoryCacheKey(resolved)?.let { key ->
+                        ImageRequest.Builder(context).data(resolved).memoryCacheKey(key).build()
+                    } ?: resolved
+                }
             AsyncImage(
-                model = resolved,
+                model = request,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
