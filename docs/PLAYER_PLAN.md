@@ -1890,7 +1890,7 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 
 | 编号 | 决策 |
 |------|------|
-| D57 | **后台播放默认开启 + 只出音频**：`pref_player_background_audio` 默认 `false → true`；后台继续播放由既有 `CinefinPlaybackService`（`mediaPlayback` 前台服务 + `MediaSession`）承载，播放页 `onPause` 不暂停、`onDestroy` 不停服务、`PlayerViewModel` 退出不释放共享实例。无 PiP 的 Home / 锁屏只有音频（Activity 不可见即停止渲染），**PiP 仍然画面优先**；回前台由同一实例接管，进度连续。 |
+| D57 | **后台播放默认开启 + 只出音频 + 锁屏 WakeLock**：`pref_player_background_audio` 默认 `false → true`；后台继续播放由既有 `CinefinPlaybackService`（`mediaPlayback` 前台服务 + `MediaSession`）承载，播放页 `onPause` 不暂停、`onDestroy` 不停服务、`PlayerViewModel` 退出不释放共享实例。无 PiP 的 Home / 锁屏只有音频（Activity 不可见即停止渲染），**PiP 仍然画面优先**；回前台由同一实例接管，进度连续。**锁屏连续性**：真机复现「锁屏 Dozing 30 s 后停在 BUFFERING / speed=0、唤醒才恢复」= ExoPlayer 无 wake lock → 新增 `WAKE_LOCK` 权限 + `ExoPlayer.setWakeMode(C.WAKE_MODE_NETWORK)`（修复后 `dumpsys power` 可见 `ExoPlayer:WakeLockManager`，锁屏 30 s `PLAYING` + position 持续推进）。 |
 | D58 | **会话点击路由按媒体类型分派**：音乐条目 → `MainActivity` + `EXTRA_OPEN_MUSIC_NOW_PLAYING`（导航到音乐 Tab 并展开全屏播放覆盖层，与点迷你条一致）；视频条目 → `PlayerActivity`（不带 `itemId`，接管现有会话不重新拉流）。通知内容点击（[`CinefinMediaNotificationProvider`]）与锁屏 / 蓝牙 / 车机点击（`MediaSession.setSessionActivity`）同源；音乐 ↔ 视频条目切换时由服务监听播放器事件更新。 |
 | D59 | **音乐会话共享实例保护**：音乐后台播放独立于视频页「后台播放」开关——`PlayerHolder.release()` 在 `musicSessionActive` 时拒绝释放；视频页 `onPause` / `onDestroy` / `releasePlayer` 在音乐会话活跃时不暂停、不停服务、不释放，也不把音乐进度重复写回（音乐链路自己上报）。修复「经锁屏误入视频页退出后，迷你条点播放无响应」。 |
 | D60 | **音乐会话元数据（桌面媒体胶囊口径）**：音乐 `MediaItem` 显式写 `setArtist`（`PlayerItem.artist` 来自曲库 / 本地条目，拿不到不写）+ 无封面时使用通用音符占位图 URI（`android.resource://`，PNG 资源）；通知副标题音乐 = 歌手（无则空）、视频 = 既有 S/E；播放 / 暂停状态与按钮集合保持现状。系统桌面媒体胶囊的尺寸 / 圆角 / 排版由系统决定，不侵入。 |
@@ -1900,14 +1900,14 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 | 模块 | 改动 |
 |------|------|
 | `settings` | `AppPreferences.playerBackgroundAudio` 默认值 `true`（已申报红线）；注释同步语义与开关位置。 |
-| `player:local` | `PlayerHolder`：`release()` 音乐会话保护 + 新增 `isCurrentItemMusic`（路由判定）与 `musicPlaceholderArtworkUri`（占位封面）；`PlayerViewModel`：`isMusicSessionActive`、`releasePlayer` 走 `shouldReleasePlayerOnExit`（新纯函数 + 3 单测）、`restorePlayWhenReady` 在后台播放 / 音乐会话时以播放器实际状态为准（后台用通知暂停后回前台不自动续播）；`MusicMediaItems`：`setArtist` + 占位封面；新增 `res/drawable-nodpi/ic_music_placeholder.png`。 |
+| `player:local` | `PlayerHolder`：`release()` 音乐会话保护 + 新增 `isCurrentItemMusic`（路由判定）与 `musicPlaceholderArtworkUri`（占位封面）+ ExoPlayer `setWakeMode(C.WAKE_MODE_NETWORK)`（锁屏 WakeLock）；`PlayerViewModel`：`isMusicSessionActive`、`releasePlayer` 走 `shouldReleasePlayerOnExit`（新纯函数 + 3 单测）、`restorePlayWhenReady` 在后台播放 / 音乐会话时以播放器实际状态为准（后台用通知暂停后回前台不自动续播）；`MusicMediaItems`：`setArtist` + 占位封面；新增 `res/drawable-nodpi/ic_music_placeholder.png`。 |
 | `player:core` | `PlayerItem` 新增可选 `artist: String? = null`（**必要扩展，已在汇报中申报**；Parcelable 默认值向后兼容）。 |
 | `modes:music` | `MusicTrackResolver` 服务器 / 本地两条链路补 `artist`；`MusicModeScreen` 新增 `openNowPlayingSignal`（外部打开全屏播放；队列就绪后兑现，冷启动恢复队列同样生效）。 |
-| `app:phone` | `BasePlayerActivity`：音乐会话时 `onPause` 不暂停 / 不重复上报、`onDestroy` 不停服务；`playback/PlaybackSessionRouting`（新文件：路由分派纯函数 + `PendingIntent` 构建 + 2 单测）；`CinefinPlaybackService`：`sessionActivity` 按媒体类型分派并随条目切换更新；`CinefinMediaNotificationProvider`：内容点击分派 + 音乐副标题；`MainActivity`：消费 `EXTRA_OPEN_MUSIC_NOW_PLAYING`；`NavigationRoot`：等 NavHost 就绪后导航音乐 Tab + 递增打开信号。 |
+| `app:phone` | `BasePlayerActivity`：音乐会话时 `onPause` 不暂停 / 不重复上报、`onDestroy` 不停服务；`playback/PlaybackSessionRouting`（新文件：路由分派纯函数 + `PendingIntent` 构建 + 2 单测）；`CinefinPlaybackService`：`sessionActivity` 按媒体类型分派并随条目切换更新；`CinefinMediaNotificationProvider`：内容点击分派 + 音乐副标题；`MainActivity`：消费 `EXTRA_OPEN_MUSIC_NOW_PLAYING`；`NavigationRoot`：等 NavHost 就绪后导航音乐 Tab + 递增打开信号；`AndroidManifest.xml`：新增 `WAKE_LOCK` 普通权限（**申报**，锁屏 WakeLock 必需）。 |
 
 ### 29.3 门禁与真机
 
-- 门禁（本会话）：待补（分支最终提交前填：根 `assembleDebug`（含 TV）+ `ktfmtCheck` + 8 任务 `--rerun` 全绿与新增单测数）。
+- 门禁（本会话）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` **735 项 / 0 失败 / 0 错误**（app 181 / core 79 / data 50 / player:local 113 / film 53 / book 113 / music 134 + `player:core` 12；基线 730 + 新增 5 = 路由分派 2 + 实例释放策略 3）。
 - 真机清单（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；按 device-lock 排队 W66 → W67 → W68）：
   ① 视频开后台播放 → Home 与锁屏各 30 s 音频连续、通知可控（暂停 / 继续 / 快进退 / 切集）、回前台画面与进度连续；
   ② 关开关 → 行为同旧版（离开播放页即暂停）；
@@ -1915,7 +1915,14 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
   ④ 锁屏进音乐界面后返回退出 → 迷你条与播放界面点播放可用；音乐后台反复进出 UI 稳定；
   ⑤ 桌面媒体胶囊改前 / 改后截图本地留存：歌手与封面完整显示、无空白图（胶囊宽度截断属系统行为，不作为缺陷）；
   ⑥ 双机 0 FATAL / ANR。
-- 真机结果：待设备窗口（完成后按「已完成真机测试 / 未覆盖项」写回本小节与汇报）。
+- **真机结果（2026-10-04 17:22–18:03，K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；device-lock 已写占用 / 释放 / 结论）**：
+  - **复现与修复（锁屏断流）**：旧行为锁屏 30 s（Dozing）→ `BUFFERING` / `speed=0` / position 停滞，唤醒才恢复；修复（`setWakeMode(C.WAKE_MODE_NETWORK)` + `WAKE_LOCK`）后锁屏 30 s = `PLAYING`、position 34.3 s → 75.6 s（+41 s），`dumpsys power` = `PARTIAL_WAKE_LOCK 'ExoPlayer:WakeLockManager'` + `AudioDirectOut`；唤醒回前台画面 + 字幕恢复、进度连续。
+  - **后台播放默认开启**：装机后偏好 xml 无键（= 默认 true）；Home 30 s = `PLAYING` + position +30 s；媒体键暂停 / 继续 / 快进 +16 s / 快退 −5 s 全部生效；通知栏 5 键卡片正常。
+  - **关开关 = 旧行为**：关闭后前台 `PLAYING` → Home 后 `PAUSED`（position 停住）；测后恢复 true。
+  - **音乐锁屏 / 通知路由**：通知卡片 → `MainActivity` + 音乐全屏播放覆盖层（非视频页）；副标题 = 歌手、无封面 = 音符占位图；改前（W66 包）同曲目胶囊封面空白、改后完整（MIUI 胶囊宽度截断属系统行为）。
+  - **P1 退出后播放失效**：音乐播放中进视频页 → 返回退出 → 音乐仍 `PLAYING`；迷你条与全屏播放页播放 / 暂停均可用。
+  - **Pad 5 抽验**：视频续播 → Home 30 s = `PLAYING` + position 603.8 s → 678.6 s；双机 0 App FATAL / ANR。
+  - 未覆盖：mpv 内核后台 / 锁屏、蓝牙 / 车机真实入口、MIUI 深度省电长时间行为、Pad 5 音乐锁屏路由。
 
 ### 29.4 电池与省电说明
 
@@ -1927,3 +1934,4 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 
 - 恢复队列（Room 快照）不持久化 `artist`：进程重启后从快照恢复的队列，在曲目重新解析前媒体元数据可能没有歌手（拿不到不写，符合用户口径）；播放页 UI 的歌手仍从曲库快照取，不受影响。
 - 按返回键退出播放页（非 Home / 锁屏）后视频继续后台播放时，进度上报循环随 ViewModel 结束而停止；通知 / 锁屏的暂停、切集仍可用，回前台重新接管后恢复上报（任务书验证点为 Home / 锁屏场景）。
+- mpv 内核（用户手动切换）未验证后台 / 锁屏连续性：本次 WakeLock 修复只覆盖 ExoPlayer 路径；mpv 如后台断流，后续按需在 `MPVPlayer` 侧补 WakeLock（未在本波范围）。
