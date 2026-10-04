@@ -1,74 +1,108 @@
-![Findroid banner](images/findroid-banner.png)
+# 极光幕 · Aurorama
 
-# Findroid
-![GitHub release (with filter)](https://img.shields.io/github/v/release/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub repo stars](https://img.shields.io/github/stars/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub issues](https://img.shields.io/github/issues/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub all releases](https://img.shields.io/github/downloads/jarnedemeulemeester/findroid/total?style=for-the-badge)
-![GitHub](https://img.shields.io/github/license/jarnedemeulemeester/findroid?style=for-the-badge)
+第三方原生 Jellyfin 客户端 · 平板优先 · 深色影院风
 
-Findroid is third-party Android application for Jellyfin that provides a native user interface to browse and play movies and series.
+极光幕（Aurorama）是基于 [Findroid](https://github.com/jarnedemeulemeester/findroid)（GPL-3.0，基线 `a28ac9e`）改造的第三方 Jellyfin Android 客户端，面向手机与平板。
+以直接播放（Direct Play）为主、不做转码；在常规浏览 / 播放之外，重点实现了播放器手势体系、字幕渲染与语言记忆、阅读器（EPUB / PDF / CBZ）、音乐（歌词 / 音效）与本地媒体库。
 
-I am developing this application in my spare time.
+> 自用为主的开源项目；App 不收集、不上传任何数据（见 [PRIVACY](PRIVACY)）。
 
-**This project is in its early stages so expect bugs.**
+## 功能
 
-[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.zhangwenkang.cinefin)
-[<img src="https://user-images.githubusercontent.com/32322857/219019331-027a6775-7362-44bb-a026-281f71e9b37b.png" alt="Available at Amazon Appstore" height="80">](https://www.amazon.com/gp/product/B0BTWC8DNZ)
-[<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">](https://f-droid.org/packages/com.zhangwenkang.cinefin)
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80">](https://apt.izzysoft.de/fdroid/index/apk/com.zhangwenkang.cinefin)
+**影视**
 
-## Screenshots
-| Home                                | Library                             | Movie                           | Season                            | Episode                             |
-|-------------------------------------|-------------------------------------|---------------------------------|-----------------------------------|-------------------------------------|
-| ![Home](fastlane/metadata/android/en-US/images/phoneScreenshots/1_en-US.png) | ![Library](fastlane/metadata/android/en-US/images/phoneScreenshots/2_en-US.png) | ![Movie](fastlane/metadata/android/en-US/images/phoneScreenshots/3_en-US.png) | ![Season](fastlane/metadata/android/en-US/images/phoneScreenshots/4_en-US.png) | ![Episode](fastlane/metadata/android/en-US/images/phoneScreenshots/5_en-US.png) |
+- 首页 / 媒体库 / 搜索 / 收藏 / 下载 / 服务器控制台；电影、剧集、季、单集全链路
+- 播放内核：ExoPlayer（硬解）+ FFmpeg 软解，解码失败自动降级 libmpv（二级兜底）
+- 字幕：SRT / VTT / SSA-ASS（libass 渲染，支持特效字幕）、外挂字幕导入、字幕语言优先级与跨视频记忆
+- 手势：加载中也能用的双击 / 横滑快进快退（排队落点）、长按倍速、亮度 / 音量滑动、双指缩放
+- 画中画、章节刻度与跳转、Trickplay 预览、片头片尾跳过
+- 进度写回 Jellyfin；系统媒体面板可控（播放 / 暂停 / 上一集 / 下一集 / 关闭）
 
-## Features
-- Completely native interface
-- Supported media items: movies, series, seasons, episodes 
-  - Direct play only, (no transcoding)
-- Offline playback / downloads
-- ExoPlayer
-  - Video codecs: H.263, H.264, H.265, VP8, VP9, AV1 
-    - Support depends on Android device
-  - Audio codecs: Vorbis, Opus, FLAC, ALAC, PCM, MP3, AAC, AC-3, E-AC-3, DTS, DTS-HD, TrueHD 
-    - Support provided by ExoPlayer FFmpeg extension
-  - Subtitle codecs: SRT, VTT, SSA/ASS, PGSSUB
-    - SSA/ASS has limited styling support see [this issue](https://github.com/google/ExoPlayer/issues/8435)
-- mpv
-  - Container formats: mkv, mov, mp4, avi
-  - Video codecs: H.264, H.265, H.266, VP8, VP9, AV1
-  - Audio codecs: Opus, FLAC, MP3, AAC, AC-3, E-AC-3, TrueHD, DTS, DTS-HD
-  - Subtitle codecs: SRT, VTT, SSA/ASS, DVDSUB
-  - Optionally force software decoding when hardware decoding has issues.
-- Picture-in-picture mode
-- Media chapters
-  - Timeline markers
-  - Chapter navigation gestures
-- Trickplay (requires Jellyfin 10.9 or higher)
-- Media segments (requires Jellyfin 10.10 or higher)
-  - Skip button
-  - Auto skip
+**音乐**
 
-## Planned features
-- Android TV
-- Websocket connection (Syncplay)
-- Chromecast support
+- 音乐库浏览、播放队列、后台与锁屏播放
+- 歌词：内嵌 / 本地 LRC 导入与编辑、逐字歌词、悬浮歌词窗
+- 音效：均衡器、ReplayGain、交叉淡化
 
-## Translating
-[JDTech Weblate](https://weblate.jdtech.dev) is a self-hosted instance of Weblate where you can translate this project and future projects of mine.
+**阅读（EPUB / PDF / CBZ）**
 
-## Questions?
-We have a [Discord server](https://discord.gg/tg5VvTFwTV) to discuss future development or ask general questions.
+- EPUB（Readium）、PDF（PdfBox-Android，双栏整页 / 搜索 / 高亮批注）、CBZ 漫画自然序
+- 阅读进度与 Jellyfin 同步
 
-## License
-This project is licensed under [GPLv3](LICENSE).
+**下载 / 离线**
 
-The logo is a combination of the Jellyfin logo and the Android robot.
+- 自研断点续传引擎（HTTP Range、暂停保片、失败分类与退避、存储预检）
+- 整剧 / 整季 / 整专辑批量下载；剧集 → 季 → 集、专辑 → 曲目层级
+- 离线媒体库与逐项「允许离线观看」
 
-The Android robot is reproduced or modified from work created and shared by Google and used according to terms described in the Creative Commons 3.0 Attribution License.
+**本地媒体库**
 
-Android is a trademark of Google LLC.
+- SAF 建库（视频 / 音乐 / 书籍），本地媒体扫描、缩略图与封面生成
 
-Google Play and the Google Play logo are trademarks of Google LLC.
+**平板优先**
+
+- 常显侧轨（可手动折叠、宽度自适应）、库内容双列网格、横竖屏与分屏适配
+
+## 截图
+
+> 发布前统一重拍（W72），此处为占位。
+
+| 首页 | 媒体库 | 播放器 |
+|------|--------|--------|
+| _待补_ | _待补_ | _待补_ |
+
+| 阅读器 | 音乐 | 下载 |
+|--------|------|------|
+| _待补_ | _待补_ | _待补_ |
+
+## 下载
+
+签名 APK 见 [GitHub Releases](https://github.com/zhangwenkang-github/Cinefin/releases)：
+
+- `Aurorama-1.0.0-universal.apk` —— 全部 ABI（体积较大，兼容性最好）
+- `Aurorama-1.0.0-arm64-v8a.apk` —— 主流 64 位手机 / 平板
+
+要求：Android 9（API 28）及以上；Jellyfin 服务器（Trickplay 需 10.9+、媒体分段需 10.10+）。
+
+## 构建
+
+环境：JDK 21（`JAVA_HOME` 指向任意 JDK 21，如 Android Studio 自带 JBR）、Android SDK（compileSdk 37）。
+
+```powershell
+$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+
+# 调试包（applicationId 追加 .debug，可与正式包共存）
+.\gradlew.bat :app:phone:assembleDebug --console=plain
+
+# 发布包（release 签名需要仓库根 keystore.properties，见 docs/RELEASE_PLAN.md）
+.\gradlew.bat :app:phone:assembleLibreRelease -Paurorama.universalApk=true --console=plain
+```
+
+产物在 `app/phone/build/outputs/apk/libre/release/`：默认产出 4 个 ABI 分包（armeabi-v7a / arm64-v8a / x86 / x86_64），加 `-Paurorama.universalApk=true` 追加 universal 整包。
+
+发布流程（keystore、签名验证、GitHub Release 步骤）见 [docs/RELEASE_PLAN.md](docs/RELEASE_PLAN.md)。
+
+## 隐私
+
+极光幕是纯本地 Jellyfin 客户端：不收集、不上传任何数据；账号与服务器地址只存在本机。完整文本见 [PRIVACY](PRIVACY)。
+
+## 许可证与致谢
+
+本项目以 **GNU General Public License v3.0**（[LICENSE](LICENSE)）发布，基于 **Findroid** 改造：
+
+- Findroid — <https://github.com/jarnedemeulemeester/findroid>（GPL-3.0，基线 `a28ac9e`）
+- 功能与协议实现参考（未复制源码）：Jellyfin Android（GPL-2.0）、Next Player（GPL-3.0）
+
+第三方组件与许可证清单见 [NOTICE](NOTICE)（App 内「设置 → 关于」可查看完整列表）。主要组件：
+
+- **libass / ass-kt** —— SSA/ASS 特效字幕渲染
+- **AndroidX Media3 / ExoPlayer** —— 播放内核与媒体会话
+- **mpv / libmpv** —— 二级播放内核（解码失败兜底）
+- **Readium Kotlin Toolkit** —— EPUB 渲染
+- **PdfBox-Android** —— PDF 渲染 / 搜索
+- **Jellyfin SDK for Kotlin** —— 服务器 API
+- **Coil / OkHttp / Room / Hilt / Kotlinx** —— 图片、网络、数据库、依赖注入与序列化
+
+字体：MiSans（© Xiaomi Technology Co., Ltd.）、Literata（SIL OFL）。
+
+Jellyfin、Android 及相关商标归各自所有者。

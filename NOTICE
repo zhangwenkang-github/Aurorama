@@ -1,15 +1,68 @@
-Cinefin
+极光幕 · Aurorama
 Copyright (C) 2026 zhangwenkang
 
-本工程基于 Findroid 改造：
+本工程是 Findroid 的衍生作品，按 GNU General Public License v3.0 发布
+（完整许可证文本见 LICENSE 文件）：
+
     Findroid - https://github.com/jarnedemeulemeester/findroid
     Copyright (C) Jarné Demeulemeester 与贡献者
     许可证：GNU General Public License v3.0
     基线提交：a28ac9e
 
-依据 GPL-3.0，本工程（衍生作品）同样以 GNU General Public License v3.0 授权发布，
-完整许可证文本见 LICENSE 文件。
-
 功能与协议实现参考（未复制源码）：
     Jellyfin Android - https://github.com/jellyfin/jellyfin-android (GPL-2.0)
     Next Player - https://github.com/anilbeesetti/nextplayer (GPL-3.0)
+
+========================================================================
+第三方组件与许可证
+（按实际打包依赖整理；完整清单可在 App 内「设置 → 关于」查看）
+========================================================================
+
+播放与字幕
+    AndroidX Media3 / ExoPlayer 1.11.1          Apache-2.0
+        https://github.com/androidx/media
+    Jellyfin media3-ffmpeg-decoder 1.9.0+1      GPL-3.0-only
+        https://github.com/jellyfin/jellyfin-androidx-media
+    libmpv-android（mpv / libmpv）1.0.0         MIT（libmpv 本体 LGPL-2.1+）
+        https://github.com/jarnedemeulemeester/libmpv-android
+    ass-kt 0.5.1 + libass                       MIT / ISC
+        https://github.com/peerless2012/libass-android
+
+服务器与数据
+    Jellyfin SDK for Kotlin 1.8.12              LGPL-3.0
+        https://github.com/jellyfin/jellyfin-sdk-kotlin
+    OkHttp 5.5.0                                Apache-2.0
+        https://square.github.io/okhttp/
+    kotlinx.serialization 1.11.0                Apache-2.0
+    kotlinx.coroutines 1.11.0                   Apache-2.0
+    kotlinx-datetime 0.8.0                      Apache-2.0
+        https://github.com/Kotlin/kotlinx.serialization 等
+    Room 3.0.3（AndroidX）                      Apache-2.0
+    Hilt / Dagger 2.60.1                        Apache-2.0
+    WorkManager 2.11.2（AndroidX）              Apache-2.0
+
+阅读
+    Readium Kotlin Toolkit 3.4.0                BSD-3-Clause
+        https://github.com/readium/kotlin-toolkit
+    PdfBox-Android 2.0.27.0                     Apache-2.0
+        https://github.com/TomRoush/PdfBox-Android
+
+界面与工具
+    AndroidX（Compose / Navigation / Lifecycle / Paging / Window / AppCompat / Activity）
+                                                Apache-2.0
+    Material Components for Android 1.14.0      Apache-2.0
+    Coil 3.6.3                                  Apache-2.0
+        https://github.com/coil-kt/coil
+    AboutLibraries 15.2.0                       Apache-2.0
+        https://github.com/mikepenz/AboutLibraries
+    Timber 5.0.1                                Apache-2.0
+    SLF4J 2.0.19 / slf4j-android                MIT
+    jsoup 1.23.2                                MIT
+
+字体
+    MiSans                                      © Xiaomi Technology Co., Ltd.（免费商用授权）
+        https://hyperos.mi.com/font/
+    Literata                                    SIL Open Font License 1.1
+
+注：以上信息按 1.0.0 版本打包依赖整理；如依赖或版本变动，以构建产物内
+AboutLibraries 生成的清单为准。

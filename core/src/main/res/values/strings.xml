@@ -94,7 +94,7 @@
     <string name="delete_download">Delete download</string>
     <string name="delete_download_message">Are you sure you want to delete this download from you device?</string>
     <string name="stop_download">Stop download</string>
-    <string name="privacy_policy_notice">By using Aurorama you agree with the <a href='https://raw.githubusercontent.com/jarnedemeulemeester/findroid/main/PRIVACY'>Privacy Policy</a> which states that we do not collect any data</string>
+    <string name="privacy_policy_notice">By using Aurorama you agree with the <a href='https://raw.githubusercontent.com/zhangwenkang-github/Cinefin/master/PRIVACY'>Privacy Policy</a> which states that we do not collect any data</string>
     <string name="live_tv">Live TV</string>
     <string name="play">Play</string>
     <string name="watch_trailer">Watch trailer</string>
