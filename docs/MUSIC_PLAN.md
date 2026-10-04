@@ -882,9 +882,13 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   `setQueue` 起播 → 后台按序补队列，单曲解析失败跳过）；纯函数 `MusicBatchRules.playAllOrder(songs, shuffle, random)`
   （顺序 = 原列表；随机 = 客户端 `shuffled(random)`，`random` 可注入）锁死入队顺序；UI 在歌曲 Tab 顶部加
   「播放全部 / 随机播放」两键（多选态禁用，离线也可用）；③单测 +2（`MusicBatchRulesTest`：原序 / 确定性洗牌）；
-  ④门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun` **716 项 / 0 失败**（music 132 → 134）；
-  ⑤**真机待设备窗口**（K60 `8e875894` 未接入 adb + Pad 5 被 W63 占用）：首曲起播 + 队列顺序 + 随机首曲 +
+  ④门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun` **717 项 / 0 失败**（music 132 → 134）；
+  ⑤**真机通过（K60 `8e875894`，2026-10-04 14:02–14:31）**：歌曲 tab 顶部「播放全部 / 随机播放」两键；
+  「播放全部」首曲 = 列表第 1 首「我曾爱过一个人 (笛子版)」（media_session `PLAYING` + metadata 命中），
+  队列面板 01→02→03… = 列表序（13 → 15 首后台补齐中）；「随机播放」首曲 = 「出陣」（非列表第 1 首）、
+  队列 01 = 出陣（随机序）、`PLAYING` position 2,658 ms 增长；测后关闭面板停播（`state=NONE`）+ 迷你条收起；
   0 FATAL·ANR。未动 `player:*`（复用既有 queue / shuffle 链路）。
+  未覆盖：随机播放后续曲目逐曲随机性、124 首全部补齐完成（仅验证到 15 首顺序正确）。
 
 - **2026-10-04 W56 交互修正（本会话，`feature/w56-interaction-fixes`，起点 master `2ed356f`）**：①迷你播放条新增「关闭面板」×（`MusicModeViewModel.dismissNowPlayingBar()`：活动会话 `stop()` 停播清内存队列 / 恢复态只丢展示快照；存档只写不清；纯函数 `musicMiniBarDismissTarget` + 3 项单测）；②全屏播放页 `PlayerActionRow` 六键改五键（删「歌词」入口；点歌词行与左滑两条路径保留，迷你条「词」保留）；③设置 / 导航两处 UI 修正在 `UI_PLAN` D63–D64（账号卡并入「账号与服务器」组首行；顶层图标统一「回对应主页」，音乐覆盖层用 `reselectSignal` 收起）。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` 583 项 0 失败、全量 590 项 0 失败。真机待窗口（§5.16）。分支已推送未合并。
 
