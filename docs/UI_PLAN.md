@@ -1114,13 +1114,19 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 
 ①**缺陷**：书架能显示的书籍封面（W59 `BookCoverProvider`：服务器图优先 → 本地生成 → 类型占位）在首页
 「继续阅读 / 最近添加 · 书籍」卡片上不显示 —— `LandscapeItemCard` / `PosterItemCard` 只读 `item.images`，
-没有本地封面覆盖链路（`ItemCard` 有 `imageOverride`，但两条首页卡没有）。②**修法**（提交 `caa5288`）：
+没有本地封面覆盖链路（`ItemCard` 有 `imageOverride`，但两条首页卡没有）。②**修法**（提交 `caa5288` + `6d4bcd9`）：
 core 新增纯函数 `BookCoverRules.coverOverride`（服务器图优先 / 缺图回退生成封面）；`HomeViewModel`
 注入 `BookCoverProvider`（与书架 `LibraryViewModel` 同源）+ `bookCovers` 状态 + `requestBookCover`；
 `LandscapeItemCard` / `PosterItemCard` 支持 `imageOverride` + `placeholderIconRes`（无图回退 `ic_book`，
 与 `ItemPoster` 同口径）；`HomeSection` / `homePosterWall` 透传 + `LaunchedEffect(item.id)` 懒生成；
-书架两处内联三元改用同一纯函数。③单测 +1（core `BookCoverRulesTest`）；门禁 8 任务 **716 项 / 0 失败**；
-④**真机待设备窗口**：首页「继续阅读 / 最近添加 · 书籍」卡与书架封面一致（缓存命中 / 现场生成 / 类型占位三态）。
+书架两处内联三元改用同一纯函数。**③口径修订（用户 2026-10-04 第 12 条，提交 `6d4bcd9`）**：
+封面优先级 = **服务器图优先 → 本地封面（已生成缓存 / 本地提取）→ 占位**；服务器图加载失败（离线等）
+自动回落本地封面；**占位美观** = 书籍图标 + 当前域媒体色底（新增 `BookCoverPlaceholder`，复用既有矢量与
+token、不新增位图），与相邻真实书封并排不显黑块。实现 = `BookCoverRules.displaySource` 显示来源状态机
+（服务器 → 本地 → 占位、失败逐级回落）+ `HomeViewModel` 暴露已缓存本地封面（服务器图存在时不触发生成）。
+④单测 +2（core `BookCoverRulesTest`：覆盖值优先级 / 显示来源状态机）；门禁 8 任务 **717 项 / 0 失败**；
+⑤**真机待设备窗口**：首页「继续阅读 / 最近添加 · 书籍」卡与书架封面一致（缓存命中 / 现场生成 / 风格化占位
+三态 + 离线服务器图失败回落本地）。
 
 ## 6. 踩坑库
 
