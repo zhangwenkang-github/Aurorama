@@ -767,3 +767,51 @@ W50 已实现的三项下载设置没有 UI。本波按用户 2026-10-03 确认�
 - 下载页「重试中 · 第 N 次」文案接线（`DownloadRows.kt` 状态徽标）归 **W60b**：core 字符串与 `DownloadTask.retryCount` 已就绪；
 - 图片缓存 worker 重试的设备端故障注入（时序难控，本波以 4 项单测覆盖策略）；
 - 服务器类限次（5 次）与残片失效（3 次）的真实故障注入仍未做（既有遗留，需服务器 / 代理侧注入）。
+
+## 24. W60b 下载状态徽标 + 反馈统一（2026-10-04，提交 `c1f85d2`，起点（A 段）`7702f38`；Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
+
+### 24.1 需求与决策（用户 2026-10-04 拍板）
+
+- **下载状态徽标（列表 + 详情海报）**：下载中 = **进度环** / 已下载 = **完成角标** / 暂停 = **双竖线** / 失败 = **红色叹号**；与未看数 / 已看打勾**错位排布**（右上被收藏书签 / 未看数 / 已看打勾占用 → 右下）；覆盖库网格 / 首页走廊 / 搜索结果 / 详情海报 / 我的收藏页。
+- **反馈统一**：所有下载入口（详情页 / 整剧 / 全季 / 单集 / 电影 / 多选批量 / 音乐歌曲 / 专辑）→ Snackbar 三态（已加入队列 · N / 已在队列 / 已下载）+「**查看**」跳下载页 + 轻动画（角标淡入 / 进度环旋转 / 完成切换）。
+- **下载页「重试中 · 第 N 次」**接线（core 字符串 + `DownloadTask.retryCount` 就绪，W60 遗留）。
+- **音乐批量播放解析优化**（W58 遗留）：选中多曲逐首串行解析慢 → 4 首并发预取（保列表序入队，起播不被预取阻塞）。
+- **搜索结果条目显示收藏 / 下载角标**（与列表一致）。
+
+### 24.2 实现地图
+
+| 位置 | 内容 |
+|------|------|
+| `app/phone .../film/components/DownloadStatusBadge.kt` | 新增：`DownloadBadgeState`（NONE / IN_PROGRESS / PAUSED / FAILED / DOWNLOADED）+ `DownloadBadgeInfo`（progress / indeterminate）+ 纯函数 `downloadBadgeInfo(downloaded, taskStatus, progress, totalKnown)`（优先级：已下载 > 下载中 / 排队 > 暂停 > 失败）+ `downloadBadgeCorner(hasTopEndBadge)` 错位 + 详情三态映射 + `CardBadgeOverlay`（右上收藏书签 / 未看数 / 已看打勾，下载徽标按错位规则落角）+ `DownloadStatusBadge`（进度环 Canvas + 1100ms 旋转 / 完成角标 / 双竖线 / 红叹号）+ 淡入淡出 |
+| `app/phone .../presentation/downloads/DownloadStatusMonitor.kt` | 新增：`@Singleton` 监控（页面持有计数 acquire / release，1500ms 轮询 `Downloader.refreshDownloadTasks()` + `downloadedItemIds()` + 阅读器 `files/books` 离线书籍）+ 纯函数 `badgeMapFor(tasks, downloaded)`（同 itemId 取优先级最高）+ 页面级 `DownloadStatusViewModel` |
+| 卡片 / 页面接线 | `ItemCard` / `PosterItemCard` / `LandscapeItemCard`（错位时上移 48dp）/ `LibraryListRow` / `DetailPoster` 接 `CardBadgeOverlay`；`LibraryScreen` / `VideoScreen` / `HomeScreen`（含 `HomeSection` / `HomeView`）/ `SearchBar` / `FavoritesScreen` / `MovieScreen` / `ShowScreen` 传角标快照 |
+| `core/.../components/CinefinSnackbar.kt` | `CinefinSnackbarHost` 支持 `actionLabel`（动作文字 + `performAction()`） |
+| 反馈入口 | `app/phone`：`MovieScreen`（`DownloaderEvent.Queued` → Snackbar + 查看）/ `ShowScreen` / `SeasonScreen` / `EpisodeScreen`（既有三态 Snackbar 加「查看」；`DetailDownloadMessages.showsViewAction`：失败不给动作）/ `LibraryScreen` / `VideoScreen`（批量）+ 既有 `MediaBatchEvent` 文案；`modes:music`：`MusicModeViewModel.downloadQueued`（默认 / 批量 / 专辑三路）+ `MusicModeScreen` Snackbar + 查看 |
+| 重试文案 | `DownloadRows.showsRetryLabel(task)`（`retryCount > 0` 且 RUNNING / PENDING）→ 行内徽标显示「重试中 · 第 %d 次」 |
+| 音乐预取 | `MusicModeViewModel.playSelected`：其余曲目 `chunked(4)` + `async` 并发解析（`resolveQueueItem` 保序），逐批按列表序入队 |
+
+### 24.3 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；
+- 8 任务逐个 `--rerun`：app **171** / core **73** / data **45** / player:local **110** / film **48** / book **113** / music **132** / player:core **12** = **704 项 / 0 失败 0 错误**（A 段 688 → B 段 +16）；
+- 新增单测：`DownloadBadgeRulesTest` 6 / `DownloadStatusMonitorTest` 4 / `DownloadRetryLabelTest` 4 / `DetailDownloadMessageRulesTest` 2；
+- 红线：`core`（Snackbar / Downloader 事件）、`app/phone`（徽标 / 卡片 / 页面 / 监控）、`modes:music`（反馈 + 预取）、`NavigationRoot.kt`（我的收藏白名单 /「查看」回调）；`AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` 未动。
+
+### 24.4 真机验收（2026-10-04 07:40–09:05，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验；device-lock 已写释放与结论）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | 下载中 = 进度环 | 库网格「被狙击的学园」卡片右上出现空心底 + 媒体色弧线进度环（下载中） |
+| ② | 暂停 = 双竖线 | 下载页暂停任务 → 返回库网格，卡片角标切换为双竖线（深色圆角底 + 白色双杠） |
+| ③ | 已下载 = 完成角标 | K60 书架已下载书籍（`attention_is_all_you_need`）卡片右上出现下载箭头完成角标（阅读器 `.book` 离线链路并入数据源） |
+| ④ | Snackbar 三态 + 查看 | 电影详情「已加入下载队列」+ 查看 → 跳下载页；多选批量 2 部「已加入下载队列 · 2 项」+ 查看 → 2 进行中；音乐专辑「已加入下载队列 · 1 首」+ 查看 → 跳下载页 |
+| ⑤ | 重试中 · 第 N 次 | 下载中关闭 Wi-Fi → 下载页行内显示「重试中 · 第 1 次」（retryCount 就绪）→ 恢复 Wi-Fi 后续传（2% · 337 MB） |
+| ⑥ | 搜索角标 | 搜索结果卡片显示收藏书签角标（AURA；收藏 → 搜索命中一致） |
+| ⑦ | 音乐批量预取 | 全选 124 首 → 播放：首曲立即起播 + 队列面板 124 首按列表序（约 8s 内补齐） |
+| ⑧ | 0 FATAL / ANR | 双机 crash buffer + 主缓冲过滤为空；测试下载全部删除（0 进行中 · 5 已完成 · 662 MB）、收藏复原（0 项）、Wi-Fi / 飞行模式还原 |
+
+### 24.5 遗留
+
+- **失败徽标（红色叹号）**：真机未复现 FAILED 终态（网络类失败按设计进入重试）；需要服务器类故障注入（5 次限次）或代理侧在测；判定逻辑已由 `DownloadBadgeRulesTest` 单测覆盖；
+- 搜索结果下载角标：设备上无「已下载视频」样本（搜索只覆盖视频库，已下载的是书籍）；代码与网格共用同一份 `CardBadgeOverlay`；
+- 角标淡入动画未逐帧验证（进度环旋转可见）；音乐批量播放未做服务器压力上限（124 首为实测上限）。
