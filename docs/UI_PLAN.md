@@ -147,9 +147,14 @@
 - [x] **骨架不盖内容**：首页 `hasRenderableContent`（任一走廊 / 海报墙 / 库行有内容就绝不铺骨架）；库内容页 `items.itemCount == 0`、视频聚合页同款判定保留。
 - [x] **海报旧图保留 + 交叉淡入**：新增 `RetainedAsyncImage` 并替换 `ItemPoster` / `PosterItemCard` / `LandscapeItemCard` / `HomeHero` / `DetailPoster` / `ItemHeader`（backdrop + logo）里的裸 `AsyncImage`。
 - [x] **顺带核对**：搜索（重复查询命中缓存、加载期间保留上一次结果）、收藏页（`isLoading = items.isEmpty()` 本就保留旧列表）、媒体库总览（`getLibraries` 接入缓存）均无同类「清空再加载」问题。
-- [ ] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` = 全量 **793 / 0 失败 0 错误**（app 212 / core 88 / data 62 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 781 + 新增 12）。
-- [ ] **真机**（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；device-lock 已写占用 / 释放 / 结论）：三场景不再出现黑屏海报 / 下拉刷新期间海报保持可见 / 双机 0 FATAL·ANR。
-- 未覆盖（留档）：TTL 外重进页面的「静默重取」逐帧观感；服务器换图（同 URL 新内容）真机样本；macOS / 桌面端不涉及。
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` = 全量 **793 / 0 失败 0 错误**（app 212 / core 88 / data 62 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 781 + 新增 12）。
+- [x] **真机（先取证后修，K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；device-lock 已写占用 / 释放 / 结论；截图与 dump 本地留存 `w69-evidence/`）**：
+  - **关键对照（视频页 → 动漫库 → 超能力女儿 → 季 → 返回 ×2，K60 同一路径）**：**改前包返回后即时（≈1 s）dump = 42 节点 / 7 文本 / 网格标题 0**（网格清空、海报整体消失 ≈1.5–2 s 后恢复）；**改后包返回后即时 dump = 92 节点 / 17 文本 / 网格标题 4**，且 ≈1 / 2 / 4 s 三个时间点全部完整。
+  - **TTL 内不请求（logcat）**：视频页重进 **0 条** cache 行（VM 守卫直接复用）；首页重进 **13 hit / 0 miss**；详情返回 `show:` / `nextup:` / `seasons:` 全 hit；冷启动 25 miss（首次填充）。
+  - **下拉刷新静默替换（首页）**：强制刷新 7 条 miss（真实重取），刷新期间首页 17 文本节点（继续观看 / 继续阅读 / 最近添加…）全部保留。
+  - **冷启动首页**：改前 / 改后均 骨架（≈1.5 s 网格均值 19.5，84% 暗像）→ 内容（≈6 s 均值 67.2）——无缓存冷启动仍按骨架 → 出图（任务书允许）；**首页 → 详情 → 返回**改前 / 改后均即时保留内容（17 文本节点，未触发全屏骨架条件）。
+  - **Pad 5 抽验**：改后包冷启动首页完整；剧集详情 → 返回首页即时保留内容 + **13 hit**；双机 **0 FATAL / 0 ANR**。
+- 未覆盖（留档）：**库内容页下拉刷新手势**——adb 合成滑动（5 种几何 + `motionevent` 序列）均未触发（**改前 / 改后行为一致**，属既有合成输入 / 嵌套滚动手势特性，非本波引入；建议用户真手指抽验）；**同 URL 换图**真机样本（服务器无此类条目，`RetainedAsyncImage` 旧图保留路径仅代码 + 设计保证）；TTL 外重进页面的「静默重取」逐帧观感。
 
 ### W66b 竖屏 hero 重排 + 音乐顶栏 / 迷你条（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，提交 `0b5c0c2`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
@@ -606,6 +611,14 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - 本期边界：音乐 / 书架 / 书籍库**页面内容**仍为各自皮肤（只有侧柜常驻 Lumen，见 D29）；`player:*`、`AppPreferences`、`settings.gradle.kts`、`libs.versions.toml`、`docs/web-console-skin.css`、`res/raw/web_console_skin.css` 零改动
 
 ## 5. 验收
+
+### W69 元数据缓存优先 + 静默刷新验收（2026-10-04，分支 `fix/w69-metadata-cache-silent-refresh`，起点 master `dfddcc0`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
+
+- **交付**：4 代码/文档提交——`0587d51` 元数据缓存（`MetadataCache` / `MetadataCacheRules` / `MetadataCacheKeys` + 12 单测）/ `f81a331` 仓库 20 个读方法接线 + `invalidateMetadataCache()` + 用户动作失效 / `6a2bf73` 页面接线（缓存优先渲染、不重建分页流、骨架不盖内容、`RetainedAsyncImage` 海报旧图保留 + 交叉淡入）/ `23865fc` 文档（`ARCHITECTURE` §5.5 + 本节）/ `8559c7f` 竖屏 hero backdrop 接入 `RetainedAsyncImage`。
+- **先取证（改前包 = master `dfddcc0`）**：视频页 → 动漫库 → 超能力女儿 → 季 → 返回 ×2 后即时 dump = **42 节点 / 7 文本 / 网格标题 0**（网格清空 ≈1.5–2 s，即用户所述「海报整体变黑 / 空白」）；定位 = 返回时重建 `Pager` → `LazyPagingItems.itemCount` 归零 → `LumenSkeletonOverlay`（不透明底 + 骨架块）盖住内容区。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` = **793 / 0 失败 0 错误**（app 212 / core 88 / data 62 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 781 + 新增 12）。
+- **真机（K60 主 + Pad 5 抽验，20:28–20:47；device-lock 已写释放与结论）**：改后包返回后即时 dump **92 / 17 / 4** 且三个时间点全部完整（改前同点位 42/7/0）；TTL 内不请求（首页重进 13 hit / 0 miss、视频页重进 0 条 cache 行、详情返回 `show:`/`nextup:`/`seasons:` 全 hit、冷启动 25 miss）；首页下拉刷新 = 7 miss 强制重取且刷新期间内容全保留；双机 0 FATAL / 0 ANR；改前 / 改后截图与 dump 本地留存 `w69-evidence/`。
+- **未覆盖**：库内容页下拉刷新手势（adb 合成滑动未触发，改前 / 改后一致 → 既有特性，建议用户真手指抽验）；同 URL 换图真机样本；TTL 外静默重取逐帧观感。
 
 ### W66b 验收（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，提交 `0b5c0c2`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验）
 
