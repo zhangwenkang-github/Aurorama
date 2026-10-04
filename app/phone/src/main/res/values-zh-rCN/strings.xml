@@ -3,4 +3,10 @@
 <resources>
     <string name="player_chapter_snap">第 %1$d 章</string>
     <string name="player_chapter_snap_named">第 %1$d 章 · %2$s</string>
+    <!-- W67 补充：预计结束时刻 + 时间格式设置 -->
+    <string name="player_end_time_label">%1$s 结束</string>
+    <string name="player_settings_clock_format">时间格式</string>
+    <string name="player_clock_format_system">跟随系统</string>
+    <string name="player_clock_format_24">24 小时</string>
+    <string name="player_clock_format_12">12 小时</string>
 </resources>

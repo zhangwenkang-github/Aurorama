@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -59,6 +60,8 @@ data class PlayerSettingsSnapshot(
     val segmentsSkipButtonDuration: Long,
     val segmentsAutoSkip: Boolean,
     val chapterMarkers: Boolean,
+    /** W67 补充：时间格式（system / 24 / 12），供「预计结束时刻」等时钟显示共用 */
+    val clockFormat: String,
     /** W27 播放结束行为：自动下一集 */
     val autoNextEpisode: Boolean,
     /** W27 播放结束行为：队列播完停在结束帧 */
@@ -108,6 +111,14 @@ internal val AudioLanguagePresets =
  */
 internal val SegmentSkipDurations = listOf(3L, 5L, 8L, 10L)
 
+/** W67 补充：时间格式档位的标签资源（顺序与 [PlayerClockFormats] 一一对应）。 */
+private val ClockFormatLabelRes =
+    listOf(
+        AppR.string.player_clock_format_system,
+        AppR.string.player_clock_format_24,
+        AppR.string.player_clock_format_12,
+    )
+
 /**
  * 设置面板的读写器：值从 `SharedPreferences` 现读现写，面板 UI 只持有一份快照。
  *
@@ -141,6 +152,9 @@ class PlayerSettingsController(
         write(appPreferences.playerMediaSegmentsAutoSkip, value)
 
     fun setChapterMarkers(value: Boolean) = write(appPreferences.playerChapterMarkers, value)
+
+    /** W67 补充：时间格式（system / 24 / 12） */
+    fun setClockFormat(value: String) = write(appPreferences.playerClockFormat, value)
 
     /** W27：自动下一集（旧「播完暂停」的反向语义，写新键） */
     fun setAutoNextEpisode(value: Boolean) = write(PlayerExtraPreferences.autoNextEpisode, value)
@@ -234,6 +248,7 @@ class PlayerSettingsController(
                 appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButtonDuration),
             segmentsAutoSkip = appPreferences.getValue(appPreferences.playerMediaSegmentsAutoSkip),
             chapterMarkers = appPreferences.getValue(appPreferences.playerChapterMarkers),
+            clockFormat = appPreferences.getValue(appPreferences.playerClockFormat),
             autoNextEpisode = appPreferences.getValue(PlayerExtraPreferences.autoNextEpisode),
             stayAtEndOfFrame = appPreferences.getValue(PlayerExtraPreferences.stayAtEndOfFrame),
             backend = effectiveBackend(),
@@ -345,6 +360,21 @@ internal fun PlayerSettingsPanel(
                         label = stringResource(PlayerR.string.player_settings_chapter_markers),
                         checked = settings.chapterMarkers,
                         onCheckedChange = { controller.setChapterMarkers(it) },
+                    )
+                    /*
+                     * W67 补充：时间格式（跟随系统 / 24 小时 / 12 小时）——「预计结束时刻」等时钟显示共用同一
+                     * 解析与格式化；与「显示 / 时间」相关的行就近放置（章节刻度之后）。
+                     */
+                    PanelTitle(stringResource(AppR.string.player_settings_clock_format))
+                    PanelChipRow(
+                        options =
+                            ClockFormatLabelRes.mapIndexed { index, labelRes ->
+                                stringResource(labelRes) to
+                                    (settings.clockFormat == PlayerClockFormats[index])
+                            },
+                        onSelect = { index ->
+                            controller.setClockFormat(PlayerClockFormats[index])
+                        },
                     )
                     /*
                      * W27 播放结束行为：旧的「播完暂停」拆成两个更直白的开关

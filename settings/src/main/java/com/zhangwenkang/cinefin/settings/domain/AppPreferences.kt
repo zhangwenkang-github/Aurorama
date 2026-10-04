@@ -82,6 +82,11 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerSeekBackInc = Preference("pref_player_seek_back_inc", 5_000L)
     val playerSeekForwardInc = Preference("pref_player_seek_forward_inc", 15_000L)
     val playerChapterMarkers = Preference("pref_player_chapter_markers", true)
+    /**
+     * W67 补充（负责人特批新增键）：播放器时钟格式 = `system`（跟随系统 `Settings.System.TIME_12_24`）/ `24` / `12`。
+     * 供「预计结束时刻」等时钟显示共用；解析与格式化见 `PlayerClock.kt`。
+     */
+    val playerClockFormat = Preference("pref_player_clock_format", "system")
 
     // Player - Media Segments
     val playerMediaSegmentsSkipButton

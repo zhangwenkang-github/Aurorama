@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.player
 
 import android.graphics.Bitmap
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -650,6 +652,38 @@ fun PlayerControlOverlay(
     onToggleFullscreen: () -> Unit = {},
 ) {
     val runtime = rememberPlayerRuntime(player)
+    /*
+     * W67 补充：预计结束时刻。播放中每秒推进「当前时钟」→ 结束时刻稳定跟随播放推进；暂停后时钟冻结在暂停点
+     * （自洽口径：若就此继续，将在此刻结束），跳转 / 拖动后按冻结时钟重算。
+     */
+    var clockNowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(runtime.isPlaying) {
+        clockNowMs = System.currentTimeMillis()
+        while (runtime.isPlaying) {
+            delay(1000L)
+            clockNowMs = System.currentTimeMillis()
+        }
+    }
+    val context = LocalContext.current
+    val clockStyle =
+        remember(settingsController.state.clockFormat) {
+            resolveClockStyle(
+                settingsController.state.clockFormat,
+                Settings.System.getString(context.contentResolver, Settings.System.TIME_12_24),
+            )
+        }
+    val endTimeText =
+        if (runtime.duration > 0L) {
+            stringResource(
+                AppR.string.player_end_time_label,
+                formatClockTime(
+                    estimatedEndTimeMs(clockNowMs, runtime.position, runtime.duration),
+                    clockStyle,
+                ),
+            )
+        } else {
+            null
+        }
     var panel by remember { mutableStateOf(PlayerPanel.None) }
     // 抽屉退场动画期间保留最后一个面板的内容，避免「滑走的是一块空板」
     var lastPanel by remember { mutableStateOf(PlayerPanel.Speed) }
@@ -793,6 +827,7 @@ fun PlayerControlOverlay(
                 positionMs = runtime.position,
                 durationMs = runtime.duration,
                 bufferedMs = runtime.buffered,
+                endTimeText = endTimeText,
                 chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
                 trickplayIntervalMs = uiState.trickplayIntervalMs,
                 trickplayVersion = uiState.trickplayVersion,
@@ -1813,6 +1848,8 @@ private fun PlayerBottomBar(
     positionMs: Long,
     durationMs: Long,
     bufferedMs: Long,
+    /** W67 补充：预计结束时刻（如「23:45 结束」）；时长未知 / 直播时为 null，不占位。 */
+    endTimeText: String?,
     chapters: List<PlayerChapter>,
     trickplayIntervalMs: Int,
     trickplayVersion: Int,
@@ -1888,6 +1925,16 @@ private fun PlayerBottomBar(
                 style = CinefinType.MonoDataSmall,
                 color = colors.onSurfaceVariant,
             )
+            if (endTimeText != null) {
+                Spacer(Modifier.width(CinefinSpacing.Space2))
+                Text(
+                    text = endTimeText,
+                    style = CinefinType.MonoDataSmall,
+                    color = colors.onSurfaceFaint,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
         }
 
         Spacer(Modifier.height(CinefinSpacing.Space1))
@@ -2425,7 +2472,9 @@ internal fun PlayerSeekBar(
                         else -> colors.onSurface.copy(alpha = 0.85f)
                     }
                 Box(
-                    modifier = Modifier.fillMaxWidth(fraction).height(trackHeight),
+                    // 只按比例定位右缘：这里**不能**加 `.height(trackHeight)`——父容器会把子项高度夹到 6dp
+                    // 轨道高度，刻度就探不出轨道上下（真机发现并修复，W67）。
+                    modifier = Modifier.fillMaxWidth(fraction),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Box(

@@ -3,4 +3,10 @@
 <resources>
     <string name="player_chapter_snap">Chapter %1$d</string>
     <string name="player_chapter_snap_named">Chapter %1$d · %2$s</string>
+    <!-- W67 补充：预计结束时刻 + 时间格式设置 -->
+    <string name="player_end_time_label">Ends %1$s</string>
+    <string name="player_settings_clock_format">Time format</string>
+    <string name="player_clock_format_system">System</string>
+    <string name="player_clock_format_24">24-hour</string>
+    <string name="player_clock_format_12">12-hour</string>
 </resources>
