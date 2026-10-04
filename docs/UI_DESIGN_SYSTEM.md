@@ -623,6 +623,20 @@ val CinefinTypography = Typography(
 
 ---
 
+### 8.15 详情头图 DetailHero（W66）
+
+| 项 | 规格 |
+|----|------|
+| 组件 | `app/phone` `DetailHero`（电影 / 节目 / 季 / 剧集四页共用；`ScrollState` / `LazyListState` 双入口） |
+| 断点 | 平板 ≥840dp = 海报 216dp + 标题列（动作排内嵌）；竖屏 <840dp = 海报 `clamp(屏宽 × 26%, 96dp, 120dp)` + 标题行 + 动作排整宽底排 |
+| 头图高度 | 基准 400 / 300dp（`heightIn(min)`，内容更高时由内容撑高，不压缩测量裁切） |
+| 眉标 | LabelLarge + `Media.Bright` + `LumenTextShadow.Meta` |
+| 标题 | 平板 DisplaySmall / 竖屏 HeadlineMedium，≤3 行，`LumenTextShadow.Title` |
+| 原题 / 元信息 | BodyMedium（原题 ≤1 行）/ LabelMedium（元信息 ≤2 行），`OnSurfaceVariant` + Meta 阴影 |
+| 动作排 | `ItemButtonsBar`：播放行 + 下载 / 已播放 / 收藏三键（48dp 高、12dp 圆角、1dp 描边；见 §8.1） |
+| 背景 | `ItemHeader` 头图（背景图 + 顶部光晕 / 侧向渐隐 / 暗角 / 底部渐隐），内容左对齐、`Space5/6` 底距 |
+| 海报 | `DetailPoster` 2:3、`CinefinShapes.Md`、Lumen 双层面板 + 下载状态角标（见 §8.9） |
+
 ## 9. Compose 落地映射
 
 ### 9.1 文件结构

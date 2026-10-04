@@ -872,3 +872,41 @@ W61 全量回归 F2（P3）：「离线书架『已下载 4 本』与下载页�
 
 - 整剧 / 全季入队仍以「快照缓存 + 非取消」保证完整，若单条入队真失败（存储不可用等）Snackbar 只报最后一次失败文案，无逐条错误清单；
 - 阶段 2 服务器元数据补齐仍按条目逐条请求远程图（本地图缺失时），并发已限 4；后续可考虑持久化远程图 URL。
+
+---
+
+## 27. W66 缩略图本地补齐 + 过期替换（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，起点 master `f7fc66d`）
+
+**背景**：用户全检反馈「下载页缩略图仍慢」，强调**缩略图必须本地缓存，且要有过期替换机制**。W57 / W63 已做「入队即落盘 + 本地优先、无本地才远程兜底」；慢的主因 = ①历史存量下载无本地图（缺图走服务器实时出图，Jellyfin 首帧生成慢）②旧数据无元数据、无过期替换（有文件就跳过，坏图 / 过期图无法自愈）。
+
+### 27.1 机制（core 单一落点）
+
+| 层 | 内容 |
+|----|------|
+| 元数据 | `files/images/<id>/<name>.meta`（`sourceUrl` / `etag` / `lastModified` / `fetchedAt`；`key=value` 行格式，`ImageCacheRules.encodeMeta` / `decodeMeta`） |
+| 判定（纯函数，单测） | `ImageCacheRules.decide`：文件缺失 / 空文件 → 重拉；元数据缺失 → 重拉（历史存量首访即补）；源 URL 变化（`equals(ignoreCase = true)`，消除 worker `items/` 与仓库 `Items/` 口径差）→ 重拉；`now - fetchedAt > TTL_MS`（30 天，集中常量）→ 重拉；否则 KEEP |
+| 拉取 / 替换 | `ImageCacheStore.fetch`：带 `If-None-Match` / `If-Modified-Since` 条件请求；304 → 只把 `fetchedAt` 前移（原子写 meta）；200 / 有变 → 图片 `.part` + rename 原子替换 → 写 meta（`.part` + rename） |
+| 落点复用 | `ImagesDownloaderWorker`（入队即落图 / 重试；判定替代旧「存在即跳过」）；`DownloadsViewModel` 阶段 3 后台补齐（`mapBounded(4)`、每条目每 ViewModel 会话一次、完成后自动 `refresh` 一轮，无需重进页面） |
+| 显示 | 下载页 / 离线页不再直接拉远程兜底图（缺图 = 类型图标占位，任何网络都有图）；本地图 `AsyncImage` 内存键 = 路径 + mtime（`ImageCacheRules.artworkMemoryCacheKey`），替换后立即显示新图 |
+
+### 27.2 门禁与单测（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` = 7 门禁 **734 项** + `player:core` 12 → **746 / 0 失败 0 错误**（基线 730 + 新增 16）；
+- `ImageCacheRulesTest` 9 项：四类判定与优先级 + URL 大小写不敏感 + KEEP / URL 未知 + 编解码 round-trip / 非法输入 + mtime 内存键版本化。
+
+### 27.3 真机复验（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，16:21–16:5x；device-lock 已写释放与结论）
+
+| 步骤 | 结果 |
+|------|------|
+| 打开前基线 | K60 `files/images/` 3 个条目目录、3 个 `primary`、**0 个 `.meta`**（历史存量无元数据；下载列表为空 → 不触发补齐） |
+| 新下载落盘 | 「被狙击的学园」入队后 worker 落 `primary`（68,679 B）+ `primary.meta`（213 B；sourceUrl / lastModified / fetchedAt） |
+| 缺图补齐 | 删除 `images/47de9056…` 目录（模拟历史缺图）→ 重进下载页 ≈15 s 恢复 `primary` + `primary.meta`；条目行缩略图在页面内从占位切换为本地图（未重进页面） |
+| 过期替换 | `fetchedAt=1`（超 30 天 TTL）→ 重进下载页 → 条件请求 304（图未变）→ `fetchedAt` 前移为当前时间、图片字节未重传（lastModified 未变） |
+| 稳定性 / 清理 | 双机 0 FATAL / 0 ANR；测试下载删除（占用 3.81 GB → 784 MB 基线）；`files/downloads` 空；`images/47de9056…` 目录随删除清除 |
+
+### 27.4 未覆盖 / 遗留
+
+- 服务器图「内容变化」换图真机样本（本轮覆盖 304 未变路径；200 替换路径由 `.part` + rename 原子写与单测覆盖）；
+- 音乐曲目图补齐真机样本（与视频同 `ImageCacheStore` 路径；本次真机样本为视频电影）；
+- 补齐失败回落：服务器图 404 / 网络不可达 → 条目保持类型图标占位（无真机故障注入样本）；
+- 历史残留 `files/images/<id>/`（无对应下载记录）不会被补齐路径触及，保留原样。
