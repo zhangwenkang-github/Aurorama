@@ -815,3 +815,12 @@ W50 已实现的三项下载设置没有 UI。本波按用户 2026-10-03 确认�
 - **失败徽标（红色叹号）**：真机未复现 FAILED 终态（网络类失败按设计进入重试）；需要服务器类故障注入（5 次限次）或代理侧在测；判定逻辑已由 `DownloadBadgeRulesTest` 单测覆盖；
 - 搜索结果下载角标：设备上无「已下载视频」样本（搜索只覆盖视频库，已下载的是书籍）；代码与网格共用同一份 `CardBadgeOverlay`；
 - 角标淡入动画未逐帧验证（进度环旋转可见）；音乐批量播放未做服务器压力上限（124 首为实测上限）。
+
+## 25. W62 离线书籍清单口径（2026-10-04 · 分支 `fix/w62-regression-defects`）
+
+W61 全量回归 F2（P3）：「离线书架『已下载 4 本』与下载页书籍清单不一致（书架多「虚构推理 (2026) 639.6 MB」、少 `futuristic_tales` 703 KB）」。本波复核 + 修复 = **两处口径都对齐**：
+
+- **数据源**：两边本来就同源 = `ReaderRepository.listLocalFiles()`（`files/books` 下的 `.book` 文件），差异只在 ①过滤条件 ②显示名。
+- **过滤口径（修）**：离线书架原按 `allowOffline` 过滤（被关闭的书从离线界面消失），而下载页不过滤。本机实测 `pref_offline_blocked_books` 里正是 `futuristic_tales`（`6bbbb0ce…`，W36 以来遗留状态）→ 书架少 1 本，且书籍**没有管理视图出口**（离线媒体库只列视频）无法回开。改为书架列出**全部已下载书籍**（关闭项行内 `OfflineLeafCard` 既有置灰 + 开关可回开）；`OfflineMediaViewModel.UiState.downloadedBooks` 同一口径，离线首页「已下载 N 本」同步。视频 / 音乐的「管理视图」语义不变（`OfflineMediaVisibility.visibleEntries`）。
+- **显示名口径（修）**：下载页原「服务器元数据 → 「离线书籍 xxxxxxxx」占位」，离线时退化占位名 → 与书架（`.title` 侧车）不同名；统一为 `offlineBookDisplayName(serverName, sidecarTitle, itemId)` =「侧车优先 → 服务器名兜底 → 占位」（`core`，+3 单测）。
+- **真机（离线模式）**：书架「离线模式 · 已下载 **5 本**」= 下载页「已完成 · 书籍」**5 本同名**（attention_is_all_you_need / futuristic_tales / 雷普利全集 / Anda's Game / 虚构推理 (2026)）；详见 `TEST_PLAN` §7.6.6 F2。

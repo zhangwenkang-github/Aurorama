@@ -1789,3 +1789,11 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；7 任务逐个 `--rerun` **576 项 / 0 失败 / 0 错误**（app 130 / core 37 / data 45 / player:local 105 / film 35 / book 113 / music 111；music −1 = 旧 `MusicSleepTimerTest` 迁移）；新增 `:player:core:testDebugUnitTest` **7 项 / 0 失败**（分钟换算 / 1–240 边界 / 到点判定 / 取消清理 / 格式化），全量 **583 项 / 0 失败**。
 - 真机清单：① 音乐顶栏月亮 → 10 分钟 → 底栏 `睡眠 09:xx` 递减 → 到点暂停、文案消失；② 音乐自定义（如 37 分钟）→ 滑块 +「开始计时 · 37 分钟」生效，取消后不再暂停；③ 视频播放页右上睡眠键 → 面板（预设 + 自定义）→ 激活态点亮 → 到点暂停视频；④ 视频页顶栏睡眠对话框（非占位）设定后进入播放页状态连续；⑤ 熄屏 / 后台跨页面到点仍暂停（音乐 / 视频各一组）；⑥ 0 FATAL / ANR、播放页既有布局（D27 键序）不回归。
 - **负责人真机走查（2026-10-04 01:08，Pad 5 `43af8627`，master `64bcd8c`）**：§26.3 ①–⑥ 全通过——音乐自定义 1 分钟 → 底栏「睡眠 00:55」递减 → 到点自动暂停；视频页正式对话框设 20 分钟 → 播放器面板「到点自动暂停播放 · 剩余 18:26」状态连续 → 取消定时清零；后台（Home）60 秒到点 `dumpsys media_session` = `state=2`（PAUSED）；0 FATAL / ANR。详见 `device-lock.md`。
+
+## 27. W62 长按倍速复核（2026-10-04 · 分支 `fix/w62-regression-defects`）
+
+W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采样 `speed=0.0`）。本波只读复核 + 真机复测结论 = **不改代码，非缺陷**：
+
+- **实现复核**：长按识别无自定义参数（平台 `GestureDetector` 默认 500 ms 长按超时 + 触摸 slop 移动容差）；多点守卫 `currentNumberOfPointers > 1` 直接跳过；章节跳转手势（`pref_player_gestures_chapter_skip`，**默认关**）开启时左右 1/5 区域优先跳章节、其余回退倍速；`enableSpeedIncrease()` 仅 `player.isPlaying` 时生效，`releaseAction()` 在 UP / CANCEL 统一回填原速。
+- **真机复测**（Pad 5 `43af8627`，灼眼的夏娜 S1E2 HLS 播放中）：`adb shell input swipe x y x y 2600` 长按 → `dumpsys media_session` **speed 1.0 → 2.0（1.4 s / 2.3 s 两处采样）→ 释放回 1.0**；两次复测一致。
+- **结论**：W61 的 `speed=0.0` 说明采样瞬间播放器**不在播放态**（起播转码 / 缓冲窗口），长按倍速此时按设计不生效；人工复测步骤（播放中中央按住约 1 s，松手回 1×）见 `TEST_PLAN` §7.6.6 F4。

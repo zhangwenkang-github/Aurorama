@@ -427,3 +427,22 @@ M4A 样本 = 服务器 `m4a_60s_sample_file_574KB`（itemId `09805eb4-5342-457b-
 - Pad 5 偏好核对：`pref_reader_mode=scroll`、`pref_offline_mode=false`；倍速回落 1×；桌面歌词已关 + `SYSTEM_ALERT_WINDOW` appops 还原 `deny`；
 - 测试下载（A/Z|aLIEz 专辑 27.4 MB）经 App 批量删除清除（7 → 6 已完成、692 → 664 MB）；收藏测试条目经批量取消复原（「我的收藏」回 0）；
 - 服务器仅白名单动作（收藏 / 播放上报 / 阅读进度，属正常用户数据）；无越界写。
+
+#### 7.6.6 W62 修复记录（2026-10-04 · 分支 `fix/w62-regression-defects` · 开发会话）
+
+会话 = 分支 `fix/w62-regression-defects`（worktree afa9，起点 master `2cdaff8`）；设备 Pad 5 `43af8627` 主 + K60 `8e875894` 抽验（device-lock 10:32 登记 / 11:21 释放，命令全 `-s <serial>`）；测试包 = 本 worktree `:app:phone:assembleDebug`（arm64-v8a，11:12 构建，双机 `install -r`）；服务器只读（另做只读 API 探针 `/Items` 采样，零写）。
+
+| ID | 级别 | 结论（根因 / 修法 / 或「不改 + 原因」） | 证据 |
+|----|------|--------------------------------------------------------------------|------|
+| F1 | 中 · 服务器侧数据 + 客户端口径 | **修**。①只读探针复核：服务器 10.11.8 对 UserView 的 `ChildCount` 是**随机值**（同一请求连续采样：电影 8/4/6、动漫 4/5/2、书籍 9/5/3…），且 `RecursiveItemCount` 字段**根本不返回**（显式请求仍为空）→ 不能直接上屏。②稳定口径 = 按库直接子项查询的 `TotalRecordCount`（`parentId` + `recursive=false` + `limit=1`，两次采样完全一致：电影 **17** / 动漫 **94** / 其他2 **2** / 书籍 **8** / 书籍3 **8** / 音乐 **124** / 音乐测试 **0** / Playlists **0**），并发取数 + 60 s 进程内缓存（库列表在侧栏 / 视频页 / 媒体库页 / 书架各读一次），失败回退 `ChildCount`，两者皆无则不占位。③**未采用**「递归 TotalRecordCount」（动漫 2364 = 94 系列 + 2099 单集 + 171 季，与库内容页「1-94 / 94」不一致；音乐 / 书籍同理含容器层级）→ 新口径 = **进入该库后内容页看到的条目数**（电影 17 = 库页 `1-17 / 17`）。 | 只读探针 ×3 + 直接/递归对比；真机 Pad 媒体库 8 库全项、视频页 电影 17、K60 视频页 17 / 94，重进一致。代码 `data` `LibraryItemCount.kt`（纯函数 + TTL 缓存）+ `JellyfinRepositoryImpl.getLibraries()`；+5 单测 |
+| F2 | P3 | **修**（两处都改到位）。①**书单口径**：离线书架原按 `allowOffline` 过滤，下载页不过滤；实测 `pref_offline_blocked_books` 里正是 `futuristic_tales`（`6bbbb0ce…`，W36 以来遗留状态）→ 书架「4 本」且无处回开（离线媒体库只列视频、没有书籍管理视图）。改为书架**列出全部已下载书籍**（关闭项行内置灰 + 开关可回开），与下载页「已完成 · 书籍」对齐。②**书名口径**：下载页原优先服务器元数据，离线时退化成「离线书籍 xxxxxxxx」占位，与书架（`.title` 侧车）不同名 → 统一「侧车优先 → 服务器名兜底 → 占位」。 | 真机离线模式：书架「离线模式 · 已下载 **5 本**」= 下载页 5 本同名（attention_is_all_you_need / futuristic_tales / 雷普利全集 / Anda's Game / 虚构推理 (2026)）。代码 `core` `OfflineBookNaming.kt`（纯函数，+3 单测）+ `app/phone` `OfflineMediaVisibility.downloadedBooks()`（+1 单测）/ `OfflineMediaViewModel` / `OfflineShelfScreen` + `modes:film` `DownloadsViewModel` |
+| F3 | P3 | **不改（非 App 缺陷，素材也正常）**：Readium 3.4.0 Android 的 EPUB「滚动」= **每个 spine 资源内部垂直滚动 + 资源之间左右滑动翻页**（`EpubPreferences.scroll` 已生效；AAR 内 `R2BasicWebView.scrollLeft/scrollRight` + `disablePageTurnsWhileScrolling` 证实**没有**「纵向滚到底自动翻章」）。书首是封面 / 扉页 / 版权等**不足一屏**的资源，且资源滚到底后再上下滑不会有位移 → W61「上下滑无位移」。人工复测步骤：打开《雷普利全集》→ 左滑数次进正文 → 上下滑有位移；到章末 / 短页时用左右滑翻资源（分页档不受影响）。 | 真机 Pad 5（滚动档）：正文资源 `split_008/009/016` 上下滑 **18.7–22.7%** 像素位移；资源底部再滑 0.00–0.01%；左右滑翻资源 18.5–19.2%（logcat 资源名 `_split_009 → _split_010`）；EPUB = calibre 重排书（137 spine、无 `rendition:layout`、非固定版式） |
+| F4 | P3 | **不改**：长按倍速无自定义参数——平台 `GestureDetector` 默认 500 ms + 触摸 slop，多点守卫 `pointerCount > 1`，章节跳转手势默认关闭；`enableSpeedIncrease()` 只在 `isPlaying` 时生效，release 统一回填。W61「speed=0.0」= **采样瞬间播放器不在播放态**（缓冲 / 转码窗口），不是 adb 注入限制。人工复测步骤：播放中在画面中央按住约 1 s（左右 1/5 边缘 + 章节手势开启时会改为跳章节）→ 出「2×」角标，松手回 1×。 | 真机 Pad 5（adb `input swipe x y x y 2600` 长按）：`dumpsys media_session` **1.0 → 2.0（1.4 s / 2.3 s 两采样）→ 释放回 1.0** |
+
+**门禁（2026-10-04 11:12 · 本 worktree）**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` **713 项 / 0 失败 0 错误**（app **172** / core **76** / data **50** / player:local 110 / film 48 / book 113 / music 132 / player:core 12；基线 704 → **新增 9** = data 5 + core 3 + app 1）。
+
+**红线申报**：未动 `NavigationRoot.kt` / `AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:core` / `player:local`；改动 = `data`（库计数口径）、`core`（书籍显示名纯函数）、`modes:film`（下载页书名）、`app/phone`（离线书架书籍清单口径）。
+
+**未覆盖（转人工 / 后续）**：剧集库整剧批量下载真机（数据量）；本地媒体库条目「删除」置灰样本（本机本地库为书籍库）；搜索「已下载视频」角标样本（无已下载视频）；登录页离线入口（需登出，未破坏登录态）；F1 库卡在离线态的表现（离线库列表走既有空态，无样本）。
+
+**设备还原（2026-10-04 11:21）**：双机 App force-stop；`/sdcard/w62*.xml`、`k62*.xml`、`/data/local/tmp/w62_offline_on.sed` 清理；离线模式经 App 内「退出离线模式」还原 → `pref_offline_mode=false`（核对）；`pref_reader_mode=scroll` 保持 W61 基线；未改分辨率 / 旋转 / 网络；服务器仅白名单动作（阅读进度 / 播放进度上报）。
