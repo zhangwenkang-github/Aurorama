@@ -88,12 +88,18 @@ constructor(
      * 计划（[BookCoverRules.planCover]）：服务器图优先 → 已生成缓存 → 生成 → 失败占位； 生成路径 = 本地已下载书籍优先，其次 HTTP
      * Range；同一条目的并发请求合并为一次生成。
      */
-    suspend fun ensureCover(itemId: UUID, serverImageUrl: String? = null): String? =
+    suspend fun ensureCover(
+        itemId: UUID,
+        serverImageUrl: String? = null,
+        /** W69b：服务器图已确认取不到（404 / 加载失败）时跳过服务器图、直接走生成链路。 */
+        serverImageUnavailable: Boolean = false,
+    ): String? =
         when (
             BookCoverRules.planCover(
                 serverImageUrl = serverImageUrl,
                 generatedPath = cached(itemId),
                 generationFailed = cached(itemId) == null && isMarkedFailed(itemId),
+                serverImageUnavailable = serverImageUnavailable,
             )
         ) {
             // 服务器图优先：有服务器图时不需要生成。

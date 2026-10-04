@@ -57,6 +57,11 @@ fun PosterItemCard(
     imageOverride: String? = null,
     /** W64：无图时的类型占位图标（书籍 = `ic_book`）；null = 保持原有空色底。 */
     @DrawableRes placeholderIconRes: Int? = null,
+    /**
+     * W69b：**服务器图加载失败**（404 / 取图失败）时回调——书籍卡据此请求「本地生成」回落 （服务器给了 URL 但实际取不到时也要有封面）。null =
+     * 不需要回落（视频卡等）。
+     */
+    onServerImageFailed: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -114,6 +119,7 @@ fun PosterItemCard(
                         // 服务器图加载失败（离线等）→ 回落本地封面；本地封面失败 → 占位。
                         if (coverSource == BookCoverRules.CoverSource.SERVER_IMAGE) {
                             serverImageFailed = true
+                            onServerImageFailed?.invoke()
                         } else {
                             localCoverFailed = true
                         }

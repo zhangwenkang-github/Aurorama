@@ -32,6 +32,8 @@ fun HomeSection(
     @DrawableRes placeholderIconResFor: (FindroidItem) -> Int? = { null },
     /** W64：条目组合（可见）时回调——书籍卡用它触发懒生成封面。 */
     onItemVisible: (FindroidItem) -> Unit = {},
+    /** W69b：服务器图加载失败回调——书籍卡据此触发本地生成回落。 */
+    onServerImageFailed: (FindroidItem) -> Unit = {},
 ) {
     val gutter = rememberGridGutter()
     Column(modifier = modifier) {
@@ -52,6 +54,7 @@ fun HomeSection(
                     downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                     imageOverride = imageOverrideFor(item),
                     placeholderIconRes = placeholderIconResFor(item),
+                    onServerImageFailed = { onServerImageFailed(item) },
                 )
             }
         }

@@ -42,6 +42,7 @@ import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.film.presentation.home.HomeState
 import com.zhangwenkang.cinefin.film.presentation.home.HomeViewModel
 import com.zhangwenkang.cinefin.models.FindroidCollection
+import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.HomeSection
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
@@ -100,6 +101,7 @@ fun HomeScreen(
         downloadBadges = downloadBadges,
         bookCovers = bookCovers,
         onRequestBookCover = viewModel::requestBookCover,
+        onRequestBookCoverFallback = viewModel::requestBookCoverFallback,
     )
 }
 
@@ -122,6 +124,8 @@ private fun HomeScreenLayout(
     /** W64：书籍卡本地封面（itemId → `files/book_covers/<id>.jpg`）。 */
     bookCovers: Map<UUID, String> = emptyMap(),
     onRequestBookCover: (UUID, String?) -> Unit = { _, _ -> },
+    /** W69b：服务器图加载失败 → 忽略 URL 走本地生成（书籍卡回落）。 */
+    onRequestBookCoverFallback: (UUID) -> Unit = {},
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val gutter = rememberPageGutter()
@@ -145,6 +149,10 @@ private fun HomeScreenLayout(
     val bookPlaceholderIcon: (FindroidItem) -> Int? = { CoreR.drawable.ic_book }
     val requestBookCover: (FindroidItem) -> Unit = { item ->
         onRequestBookCover(item.id, item.images.primary?.toString())
+    }
+    val requestBookCoverFallback: (FindroidItem) -> Unit = { item ->
+        // 只有书籍（`FindroidFolder`）走封面生成回落；视频 / 音乐图的失败不触发下载解析。
+        if (item is FindroidFolder) onRequestBookCoverFallback(item.id)
     }
 
     ProvideLumen {
@@ -222,6 +230,7 @@ private fun HomeScreenLayout(
                                 imageOverrideFor = bookLocalCover,
                                 placeholderIconResFor = bookPlaceholderIcon,
                                 onItemVisible = requestBookCover,
+                                onCoverFallback = requestBookCoverFallback,
                             )
                         }
 
@@ -283,6 +292,7 @@ private fun HomeScreenLayout(
                             imageOverrideFor = bookLocalCover,
                             placeholderIconResFor = bookPlaceholderIcon,
                             onItemVisible = requestBookCover,
+                            onCoverFallback = requestBookCoverFallback,
                         )
                         homePosterWall(
                             keyPrefix = "recent_music",
@@ -350,6 +360,8 @@ private fun LazyGridScope.homeRail(
     imageOverrideFor: (FindroidItem) -> String? = { null },
     @DrawableRes placeholderIconResFor: (FindroidItem) -> Int? = { null },
     onItemVisible: (FindroidItem) -> Unit = {},
+    /** W69b：服务器图加载失败 → 本地生成回落。 */
+    onCoverFallback: (FindroidItem) -> Unit = {},
 ) {
     item(key = key, span = { GridItemSpan(maxLineSpan) }) {
         HomeSection(
@@ -359,6 +371,7 @@ private fun LazyGridScope.homeRail(
             imageOverrideFor = imageOverrideFor,
             placeholderIconResFor = placeholderIconResFor,
             onItemVisible = onItemVisible,
+            onServerImageFailed = onCoverFallback,
             onAction = { action -> action.dispatch(onItemClick, onLibraryClick) },
         )
     }
@@ -374,6 +387,8 @@ private fun LazyGridScope.homePosterWall(
     imageOverrideFor: (FindroidItem) -> String? = { null },
     @DrawableRes placeholderIconResFor: (FindroidItem) -> Int? = { null },
     onItemVisible: (FindroidItem) -> Unit = {},
+    /** W69b：服务器图加载失败 → 本地生成回落。 */
+    onCoverFallback: (FindroidItem) -> Unit = {},
 ) {
     if (items.isEmpty()) return
     item(key = "${keyPrefix}_title", span = { GridItemSpan(maxLineSpan) }) {
@@ -393,6 +408,7 @@ private fun LazyGridScope.homePosterWall(
             downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
             imageOverride = imageOverrideFor(item),
             placeholderIconRes = placeholderIconResFor(item),
+            onServerImageFailed = { onCoverFallback(item) },
         )
     }
 }

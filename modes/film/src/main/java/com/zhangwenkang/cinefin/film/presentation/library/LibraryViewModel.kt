@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.cachedIn
 import com.zhangwenkang.cinefin.models.CollectionType
+import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
+import com.zhangwenkang.cinefin.repository.ItemsPagingSource
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.MetadataCacheRules
+import com.zhangwenkang.cinefin.repository.MetadataPreloader
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
 import com.zhangwenkang.cinefin.utils.BookCoverRules
@@ -35,6 +38,8 @@ constructor(
     private val appPreferences: AppPreferences,
     /** W59：书籍封面自动生成（书籍库 / 书架条目可见时懒生成）。 */
     private val bookCoverProvider: BookCoverProvider,
+    /** W69b：元数据预加载（预取下一页 / 可见卡片详情）。 */
+    private val metadataPreloader: MetadataPreloader,
 ) : ViewModel() {
     private val _state = MutableStateFlow(LibraryState())
     val state = _state.asStateFlow()
@@ -59,6 +64,12 @@ constructor(
 
     /** W69：最近一次成功换入分页列表的时间（epoch ms）；TTL 内重进页面不重建 Pager。 */
     private var itemsLoadedAtMs: Long = 0L
+
+    /** W69b：本 ViewModel 例的预取来源键（页面销毁时只取消自己的在途预取）。 */
+    private val prefetchSource = "library-${hashCode()}"
+
+    /** W69b：最近一次「静默重取」信号时间——同页最小刷新冷却 30 s，避免反复重进触发刷新风暴。 */
+    private var lastSilentRevalidateAtMs: Long = 0L
 
     fun setup(
         parentId: UUID,
@@ -93,9 +104,7 @@ constructor(
             BookCoverRules.CoverSource.PLACEHOLDER -> return
             BookCoverRules.CoverSource.GENERATED_CACHE -> {
                 val path = cached ?: return
-                _bookCovers.update { covers ->
-                    if (covers[itemId] == path) covers else covers + (itemId to path)
-                }
+                publishBookCover(itemId, path)
                 return
             }
             BookCoverRules.CoverSource.GENERATE -> Unit
@@ -103,8 +112,57 @@ constructor(
         if (!requestedBookCovers.add(itemId)) return
         viewModelScope.launch {
             val path = bookCoverProvider.ensureCover(itemId, serverImageUrl)
-            if (path != null) _bookCovers.update { it + (itemId to path) }
+            publishBookCover(itemId, path)
         }
+    }
+
+    /**
+     * W69b：**服务器图确认不可用**（404 / 加载失败）时的回落——忽略服务器 URL，直接本地生成 （未下载在线书籍也生成）。与首页 / 书架共用
+     * `BookCoverProvider` 单一链路。
+     */
+    fun requestBookCoverFallback(itemId: UUID) {
+        if (!::libraryType.isInitialized || libraryType != CollectionType.Books) return
+        val cached = bookCoverProvider.cached(itemId)
+        if (cached != null) {
+            publishBookCover(itemId, cached)
+            return
+        }
+        val plan =
+            BookCoverRules.planCover(
+                serverImageUrl = null,
+                generatedPath = null,
+                generationFailed = bookCoverProvider.isMarkedFailed(itemId),
+                serverImageUnavailable = true,
+            )
+        if (plan != BookCoverRules.CoverSource.GENERATE) return
+        if (!requestedBookCovers.add(itemId)) return
+        viewModelScope.launch {
+            val path =
+                bookCoverProvider.ensureCover(
+                    itemId = itemId,
+                    serverImageUrl = null,
+                    serverImageUnavailable = true,
+                )
+            publishBookCover(itemId, path)
+        }
+    }
+
+    private fun publishBookCover(itemId: UUID, path: String?) {
+        if (path == null) return
+        _bookCovers.update { covers ->
+            if (covers[itemId] == path) covers else covers + (itemId to path)
+        }
+    }
+
+    /** W69b：可见卡片详情预取（详情页打开时命中缓存）；非视频条目直接忽略。 */
+    fun prefetchItemDetail(item: FindroidItem) {
+        metadataPreloader.prefetchDetail(item, source = prefetchSource)
+    }
+
+    override fun onCleared() {
+        // W69b：页面销毁 → 取消尚未完成的预取（已完成的缓存保留）。
+        metadataPreloader.cancel(prefetchSource)
+        super.onCleared()
     }
 
     /**
@@ -127,9 +185,13 @@ constructor(
                     nowMs = System.currentTimeMillis(),
                 )
             ) {
-                itemsLoadedAtMs = System.currentTimeMillis()
-                _state.update { it.copy(refreshSignal = it.refreshSignal + 1) }
-                loadCount()
+                val now = System.currentTimeMillis()
+                if (MetadataCacheRules.canRefresh(lastSilentRevalidateAtMs, now)) {
+                    lastSilentRevalidateAtMs = now
+                    itemsLoadedAtMs = now
+                    _state.update { it.copy(refreshSignal = it.refreshSignal + 1) }
+                    loadCount()
+                }
             }
             return
         }
@@ -156,12 +218,34 @@ constructor(
                         .cachedIn(viewModelScope)
                 _state.update { it.copy(items = items, isLoading = false) }
                 itemsLoadedAtMs = System.currentTimeMillis()
+                prefetchNextPage(itemType = itemType, recursive = recursive)
             } catch (e: Exception) {
                 _state.update { it.copy(error = e, isLoading = false) }
             }
 
             loadCount()
         }
+    }
+
+    /**
+     * W69b：首屏渲染后预取下一页（第二页）——只有在「明确还有更多条目」时才发（总数未知时也放行一次）， 之后 Paging 滚到页尾加载该页即命中缓存；失败静默（预取不参与页面状态）。
+     */
+    private fun prefetchNextPage(itemType: List<BaseItemKind>?, recursive: Boolean) {
+        val total = _state.value.totalCount
+        if (total != null && total <= ItemsPagingSource.PAGE_SIZE) return
+        metadataPreloader.prefetchItemsPage(
+            parentId = parentId,
+            includeTypes = itemType,
+            recursive = recursive,
+            sortBy = activeSortBy(),
+            sortOrder = activeSortOrder(),
+            startIndex = ItemsPagingSource.PAGE_SIZE,
+            limit = ItemsPagingSource.PAGE_SIZE,
+            filters = libraryFilterItemFilters(_state.value.filter),
+            genres = _state.value.genre?.let { listOf(it) },
+            studios = _state.value.studio?.let { listOf(it) },
+            source = prefetchSource,
+        )
     }
 
     /** 下拉刷新：计数与当前 tab 真实重取（分页列表由页面用 `LazyPagingItems.refresh()` 重取，避免重建 Pager 让列表闪空）。 */

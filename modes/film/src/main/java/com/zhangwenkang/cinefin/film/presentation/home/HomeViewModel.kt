@@ -9,6 +9,7 @@ import com.zhangwenkang.cinefin.models.HomeItem
 import com.zhangwenkang.cinefin.models.HomeSection
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.MetadataPreloader
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.models.HomeLibrarySettings
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
@@ -33,6 +34,8 @@ constructor(
     val appPreferences: AppPreferences,
     val database: ServerDatabaseDao,
     private val bookCoverProvider: BookCoverProvider,
+    /** W69b：元数据预加载（首屏渲染后低优先级预取详情字段）。 */
+    private val metadataPreloader: MetadataPreloader,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeState())
     val state = _state.asStateFlow()
@@ -41,6 +44,9 @@ constructor(
     private val _bookCovers = MutableStateFlow<Map<UUID, String>>(emptyMap())
     val bookCovers = _bookCovers.asStateFlow()
     private val requestedBookCovers = mutableSetOf<UUID>()
+
+    /** W69b：本次 ViewModel 例的预取来源键（页面销毁时只取消自己的在途预取）。 */
+    private val prefetchSource = "home-${hashCode()}"
 
     /**
      * W64：首页书籍条目（继续阅读 / 最近添加 · 书籍）可见时懒生成封面。
@@ -51,11 +57,7 @@ constructor(
     fun requestBookCover(itemId: UUID, serverImageUrl: String? = null) {
         val cached = bookCoverProvider.cached(itemId)
         // 已有本地封面先暴露给卡片（服务器图加载失败 / 离线时逐级回落；不触发生成）。
-        if (cached != null) {
-            _bookCovers.update { covers ->
-                if (covers[itemId] == cached) covers else covers + (itemId to cached)
-            }
-        }
+        publishBookCover(itemId, cached)
         when (
             BookCoverRules.planCover(
                 serverImageUrl = serverImageUrl,
@@ -72,7 +74,46 @@ constructor(
         if (!requestedBookCovers.add(itemId)) return
         viewModelScope.launch {
             val path = bookCoverProvider.ensureCover(itemId, serverImageUrl)
-            if (path != null) _bookCovers.update { it + (itemId to path) }
+            publishBookCover(itemId, path)
+        }
+    }
+
+    /**
+     * W69b：**服务器图确认不可用**（404 / 加载失败）时的回落——忽略服务器 URL，直接走本地生成 （未下载的在线书籍也生成：PDF 首页 / CBZ 第一图 / EPUB
+     * 封面，HTTP Range 懒生成）。
+     *
+     * 与 `LibraryViewModel.requestBookCoverFallback` 同一条 `BookCoverProvider` 链路，不新建第二套。
+     */
+    fun requestBookCoverFallback(itemId: UUID) {
+        val cached = bookCoverProvider.cached(itemId)
+        if (cached != null) {
+            publishBookCover(itemId, cached)
+            return
+        }
+        val plan =
+            BookCoverRules.planCover(
+                serverImageUrl = null,
+                generatedPath = null,
+                generationFailed = bookCoverProvider.isMarkedFailed(itemId),
+                serverImageUnavailable = true,
+            )
+        if (plan != BookCoverRules.CoverSource.GENERATE) return
+        if (!requestedBookCovers.add(itemId)) return
+        viewModelScope.launch {
+            val path =
+                bookCoverProvider.ensureCover(
+                    itemId = itemId,
+                    serverImageUrl = null,
+                    serverImageUnavailable = true,
+                )
+            publishBookCover(itemId, path)
+        }
+    }
+
+    private fun publishBookCover(itemId: UUID, path: String?) {
+        if (path == null) return
+        _bookCovers.update { covers ->
+            if (covers[itemId] == path) covers else covers + (itemId to path)
         }
     }
 
@@ -115,7 +156,29 @@ constructor(
                 _state.emit(_state.value.copy(error = e))
             }
             _state.emit(_state.value.copy(isLoading = false))
+            // W69b：首屏渲染后低优先级预取「最可能点开的条目」详情（英雄卡 + 各走廊前几张）。
+            prefetchVisibleDetails()
         }
+    }
+
+    /** W69b：预取首页英雄卡与走廊前几张卡的详情字段——详情页打开时直接命中缓存。 */
+    private fun prefetchVisibleDetails() {
+        val state = _state.value
+        val candidates = buildList {
+            state.resumeSection?.homeSection?.items?.firstOrNull()?.let { add(it) }
+            state.nextUpSection?.homeSection?.items?.firstOrNull()?.let { add(it) }
+            state.resumeSection?.homeSection?.items?.drop(1)?.take(2)?.let { addAll(it) }
+            state.recentlyAddedVideos.take(3).let { addAll(it) }
+        }
+        if (candidates.isEmpty()) return
+        Timber.d("Preloading detail metadata for %d home items", candidates.size)
+        metadataPreloader.prefetchDetails(candidates, source = prefetchSource)
+    }
+
+    override fun onCleared() {
+        // W69b：页面销毁 → 取消尚未完成的预取（已完成的请求结果保留在缓存里）。
+        metadataPreloader.cancel(prefetchSource)
+        super.onCleared()
     }
 
     private suspend fun loadServerName(serverId: String) {

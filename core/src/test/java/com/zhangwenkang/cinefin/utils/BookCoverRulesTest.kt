@@ -76,6 +76,50 @@ class BookCoverRulesTest {
     }
 
     @Test
+    fun `W69b 服务器图确认不可用时回落到生成链路`() {
+        // 服务器给了 URL 但取图 404：有生成缓存 → 用本地缓存。
+        assertEquals(
+            BookCoverRules.CoverSource.GENERATED_CACHE,
+            BookCoverRules.planCover(
+                serverImageUrl = "https://host/cover.jpg",
+                generatedPath = "/files/book_covers/a.jpg",
+                generationFailed = false,
+                serverImageUnavailable = true,
+            ),
+        )
+        // 服务器给了 URL 但取图 404 且没有本地缓存 → 触发本地生成。
+        assertEquals(
+            BookCoverRules.CoverSource.GENERATE,
+            BookCoverRules.planCover(
+                serverImageUrl = "https://host/cover.jpg",
+                generatedPath = null,
+                generationFailed = false,
+                serverImageUnavailable = true,
+            ),
+        )
+        // 生成也失败（.fail 标记）→ 类型占位，不再重试。
+        assertEquals(
+            BookCoverRules.CoverSource.PLACEHOLDER,
+            BookCoverRules.planCover(
+                serverImageUrl = "https://host/cover.jpg",
+                generatedPath = null,
+                generationFailed = true,
+                serverImageUnavailable = true,
+            ),
+        )
+        // 服务器图可用时行为不变（仍优先服务器图）。
+        assertEquals(
+            BookCoverRules.CoverSource.SERVER_IMAGE,
+            BookCoverRules.planCover(
+                serverImageUrl = "https://host/cover.jpg",
+                generatedPath = "/files/book_covers/a.jpg",
+                generationFailed = false,
+                serverImageUnavailable = false,
+            ),
+        )
+    }
+
+    @Test
     fun `缓存与失败标记路径分属 book_covers 目录`() {
         val filesDir = java.io.File("/tmp/files")
         val itemId = UUID.randomUUID()

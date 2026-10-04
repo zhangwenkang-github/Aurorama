@@ -101,6 +101,9 @@ import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
+/** W69b：进入页面时预取详情的卡片数（只取前几张可见卡，避免放大请求量）。 */
+private const val DETAIL_PREFETCH_COUNT = 6
+
 /**
  * 库内容页（视频库 / 书籍库 / 书架共用同一份实现，W54-B 扩展头部）。
  *
@@ -155,6 +158,8 @@ fun LibraryScreen(
         state = state,
         bookCovers = bookCovers,
         onRequestBookCover = viewModel::requestBookCover,
+        onRequestBookCoverFallback = viewModel::requestBookCoverFallback,
+        onPrefetchItem = viewModel::prefetchItemDetail,
         onOpenDownloads = onOpenDownloads,
         onAction = { action ->
             when (action) {
@@ -186,6 +191,10 @@ private fun LibraryScreenLayout(
     /** W59：书籍封面自动生成结果（itemId → 本地绝对路径）。 */
     bookCovers: Map<UUID, String> = emptyMap(),
     onRequestBookCover: (UUID, String?) -> Unit = { _, _ -> },
+    /** W69b：服务器图加载失败 → 忽略 URL 走本地生成（书籍卡回落）。 */
+    onRequestBookCoverFallback: (UUID) -> Unit = {},
+    /** W69b：可见条目详情预取（前几张卡）。 */
+    onPrefetchItem: (FindroidItem) -> Unit = {},
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
     onAction: (LibraryAction) -> Unit,
@@ -236,6 +245,8 @@ private fun LibraryScreenLayout(
     val items = state.items.collectAsLazyPagingItems()
     // W69：TTL 外重进页面时 ViewModel 只发静默重取信号——刷新保留已上屏的条目与海报，不闪空。
     LaunchedEffect(state.refreshSignal) { if (state.refreshSignal > 0) items.refresh() }
+    // W69b：服务器图 404 / 取图失败 → 书籍卡回落本地生成（同一 BookCoverProvider 链路）。
+    val coverFallback: (FindroidItem) -> Unit = { item -> onRequestBookCoverFallback(item.id) }
     val tabs = remember(libraryType, state.tabs) { state.tabs.ifEmpty { libraryTabs(libraryType) } }
     val toolbarSpec = remember(state.tab) { libraryToolbarSpec(state.tab) }
 
@@ -452,6 +463,8 @@ private fun LibraryScreenLayout(
                                             loadedItem.images.primary?.toString(),
                                         )
                                     }
+                                    // W69b：只预取前几张可见卡片的详情（每次进入一次，条数上限 6）。
+                                    if (index < DETAIL_PREFETCH_COUNT) onPrefetchItem(loadedItem)
                                 }
                                 LibraryListRow(
                                     item = loadedItem,
@@ -479,6 +492,11 @@ private fun LibraryScreenLayout(
                                         } else {
                                             null
                                         },
+                                    onServerImageFailed = {
+                                        if (libraryType == CollectionType.Books) {
+                                            coverFallback(loadedItem)
+                                        }
+                                    },
                                     onLongClick =
                                         if (batchMode != MediaBatchMode.NONE) {
                                             {
@@ -518,6 +536,8 @@ private fun LibraryScreenLayout(
                                             loadedItem.images.primary?.toString(),
                                         )
                                     }
+                                    // W69b：只预取前几张可见卡片的详情（每次进入一次，条数上限 6）。
+                                    if (index < DETAIL_PREFETCH_COUNT) onPrefetchItem(loadedItem)
                                 }
                                 ItemCard(
                                     item = loadedItem,
@@ -546,6 +566,11 @@ private fun LibraryScreenLayout(
                                         } else {
                                             null
                                         },
+                                    onServerImageFailed = {
+                                        if (libraryType == CollectionType.Books) {
+                                            coverFallback(loadedItem)
+                                        }
+                                    },
                                     onLongClick =
                                         if (batchMode != MediaBatchMode.NONE) {
                                             {
@@ -592,10 +617,17 @@ private fun LibraryScreenLayout(
                         items(count = tabItems.size, key = { index -> tabItems[index].id }) { index
                             ->
                             val item = tabItems[index]
+                            // W69b：Tab 列表也预取前几张卡片的详情（与库 tab 同口径）。
+                            LaunchedEffect(item.id) {
+                                if (index < DETAIL_PREFETCH_COUNT) onPrefetchItem(item)
+                            }
                             LibraryListRow(
                                 item = item,
                                 onClick = { onAction(LibraryAction.OnItemClick(item)) },
                                 modifier = Modifier.animateItem(),
+                                onServerImageFailed = {
+                                    if (libraryType == CollectionType.Books) coverFallback(item)
+                                },
                                 downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                             )
                         }
@@ -616,11 +648,18 @@ private fun LibraryScreenLayout(
                         items(count = tabItems.size, key = { index -> tabItems[index].id }) { index
                             ->
                             val item = tabItems[index]
+                            // W69b：Tab 网格也预取前几张卡片的详情（与库 tab 同口径）。
+                            LaunchedEffect(item.id) {
+                                if (index < DETAIL_PREFETCH_COUNT) onPrefetchItem(item)
+                            }
                             ItemCard(
                                 item = item,
                                 direction = direction,
                                 onClick = { onAction(LibraryAction.OnItemClick(item)) },
                                 modifier = Modifier.animateItem(),
+                                onServerImageFailed = {
+                                    if (libraryType == CollectionType.Books) coverFallback(item)
+                                },
                                 downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                             )
                         }

@@ -63,6 +63,8 @@ fun ItemCard(
     @DrawableRes placeholderIconRes: Int? = null,
     /** W60b：下载状态角标（下载中 / 暂停 / 失败 / 已下载）；默认无角标，既有调用零改动。 */
     downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
+    /** W69b：服务器图加载失败回调（书籍库 / 书架据此触发本地生成回落）。 */
+    onServerImageFailed: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -101,6 +103,7 @@ fun ItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 imageOverride = imageOverride,
                 placeholderIconRes = placeholderIconRes,
+                onServerImageFailed = onServerImageFailed,
             )
             if (selectionMode) {
                 CinefinSelectIndicator(

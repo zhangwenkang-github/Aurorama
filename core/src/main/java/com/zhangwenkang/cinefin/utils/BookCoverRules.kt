@@ -65,14 +65,17 @@ object BookCoverRules {
      * @param serverImageUrl 服务器图片地址（含本地落盘副本的地址）；非空即最高优先。
      * @param generatedPath 已生成的封面缓存路径；非空表示命中缓存。
      * @param generationFailed 失败标记存在（不再重试，直接占位）。
+     * @param serverImageUnavailable W69b：服务器图**已确认取不到**（404 / 加载失败）——即使 [serverImageUrl] 非空也跳到「生成缓存
+     *   → 生成 → 占位」链路（用户复验：服务器无图时首页书卡要有本地生成封面）。
      */
     fun planCover(
         serverImageUrl: String?,
         generatedPath: String?,
         generationFailed: Boolean,
+        serverImageUnavailable: Boolean = false,
     ): CoverSource =
         when {
-            !serverImageUrl.isNullOrBlank() -> CoverSource.SERVER_IMAGE
+            !serverImageUnavailable && !serverImageUrl.isNullOrBlank() -> CoverSource.SERVER_IMAGE
             !generatedPath.isNullOrBlank() -> CoverSource.GENERATED_CACHE
             generationFailed -> CoverSource.PLACEHOLDER
             else -> CoverSource.GENERATE
