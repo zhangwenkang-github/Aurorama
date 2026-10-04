@@ -132,7 +132,24 @@
 
 | D76 | **W66b 竖屏 hero 重排 + 音乐顶栏 / 迷你条（用户 2026-10-04 复验追加，全部按推荐）** | ①**竖屏 hero（<840dp）**：backdrop 整宽 **260dp**（底部渐变到页面底色；`HeroBackdropLayer` 从 `ItemHeader` 抽出共用）→ 海报 `clamp(屏宽×32%, 120, 140)dp`（K60 ≈131.5dp）**居中、半压 backdrop 下缘**（返回 / 主页悬浮键保持左上，不压海报）→ 标题块居中（眉标只留类型 `detailTypeEyebrow`、标题 ≤2 行、原题、元信息「年份 · 分级 · 时长」）→ 动作区 **一行四键**（播放月白高亮 + 下载 + 已播放 + 收藏，图标上文字下、64dp、等宽；`ItemButtonsBar(heroLayout = ...)`）；屏宽 **<360dp 降级**为「播放整行 + 三键一行」（`detailHeroActionsDegraded` 纯函数）。横屏 / 平板（≥840dp）**完全不动**。取舍：竖屏四键不含「重播 / 预告」独立键（重播可进播放器操作；预告入口按拍板布局收敛，如需恢复再排）。②**音乐顶栏**：移除顶栏文本 chip，恢复「标题 + 副标题 + 收藏 / 最近 / 睡眠三图标键」；`LibrarySelectorChip` 移至 **Tab 行右侧**（紧凑 `maxWidth = 132dp`、只显示当前库名、超长省略；单库 / 临时库视图隐藏规则不变）。③**播放全部扩展所有 Tab**（专辑 / 艺术家 / 歌单 / 歌曲；语义 = 按当前筛选与列表顺序播放整库曲目）。④**迷你条**：图标键 6 → **4**（词 / 播放·暂停 / 下一首 / ×；上一曲与队列入口保留在全屏播放界面与通知）；时间 `musicMiniBarTimeText`（mono、单独占位、**永不截断**）+ 状态放不下省略；高度 72dp 与点击语义不变。 | 用户复验「横屏正常、竖屏不好看」+ 音乐两条 UI 反馈；不新增配色 / 字体 / 位图。 |
 
+| D77 | **W69 元数据缓存优先 + 静默刷新（用户 2026-10-04 复验第 6 条「不要直接将海报全变黑」；先取证后修）** | ①**会话级元数据缓存**（`data` 新增 `MetadataCache` / `MetadataCacheRules` / `MetadataCacheKeys`）：TTL = 列表 / 详情 **10 分钟**、分页页片 **5 分钟**、LRU 上限 256 条，按「服务器地址 + 用户 id」命名空间隔离；仓库 20 个读方法（首页走廊 / 库列表 / 分页页片 / 详情 / 搜索 / 收藏 / 类型 / 制片发行商 …）统一走 `cachedMetadata`——**TTL 内直接复用、不发请求**；`invalidateMetadataCache()` 供下拉刷新 / 重试强制失效；收藏 / 取消收藏 / 已看 / 取消已看 / 播放结束自动全量失效。②**缓存优先渲染**：`VideoViewModel.load()` / `LibraryViewModel.loadItems()` 对已上屏内容在 TTL 内**直接复用**（不重建 `Pager`，`cachedIn` 数据原样保留），TTL 外只发 `refreshSignal` → `LazyPagingItems.refresh()`（保留现有条目，新页原地替换）；首页骨架条件改为「真的没有任何可渲染内容」才铺（`hasRenderableContent`），库内容页骨架仍以 `itemCount == 0` 为准、详情页仍以 `model == null` 为准。③**海报不置空**：新增 `RetainedAsyncImage`（保留上一张 `AsyncImagePainter.State.Success.painter` + `Crossfade` 160ms），`ItemPoster` / `PosterItemCard` / `LandscapeItemCard` / `HomeHero` / `DetailPoster` / `ItemHeader`（backdrop + logo）全部接入——图片模型变化（刷新 / 换图 / 回落本地封面）时先继续画旧图，新图就绪再交叉淡入，失败回落占位，绝不先变黑底。④单测：`MetadataCacheTest` 12 项（TTL 边界 / 时钟回拨 / LRU / 分组与全量失效 / 命名空间隔离 / 各键区分度 / 静默重取判定）。 | 用户原话「元数据加载与缓存策略要优化，要优先使用本地已缓存的元数据，从服务器加载元数据时，要静默，不要直接将海报全变黑了」；红线零改动（`AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` / `NavigationRoot.kt`）；数据层约定见 `ARCHITECTURE` §5.5；门禁与真机见 §4/§5 W69。 |
+
 ## 4. 进度
+
+### W69 元数据缓存优先 + 静默刷新（2026-10-04，分支 `fix/w69-metadata-cache-silent-refresh`，起点 master `dfddcc0`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
+
+用户 2026-10-04 复验第 6 条（「刚进入首页 / 进入季详情后返回库界面都会触发加载，加载期间海报整体变黑 / 空白」；决策见 D77）：
+
+- [x] **先取证**：改前包（master `dfddcc0`，`w69-evidence/before`）复现三场景并留档；改后包（本分支，`w69-evidence/after`）同场景对照——结论：**骨架层把已上屏内容整块盖住**是「海报整体变黑」的直接来源（`VideoViewModel.load()` 每次重进都重建 Pager → `LazyPagingItems.itemCount` 归零 → `LumenSkeletonOverlay` 全屏铺满；首页同理会因 `isLoading && heroItem == null && wallItems.isEmpty()` 在被清空前提前盖住）。
+- [x] **元数据会话缓存（TTL 内不请求）**：`data` 新增 `MetadataCacheRules`（TTL 常量集中定义）+ `MetadataCache`（LRU 256、命名空间、注入时钟）+ `MetadataCacheKeys`；`JellyfinRepositoryImpl` 20 个读方法统一 `cachedMetadata`，TTL 内命中即返回（Timber `metadata cache hit: <key>`）。
+- [x] **强制刷新语义**：`JellyfinRepository.invalidateMetadataCache()`（离线实现空操作）；下拉刷新 / 排序筛选 / 重试先失效；收藏 / 已看 / 播放结束由仓库内部失效。
+- [x] **缓存优先渲染（不重建分页流）**：`VideoViewModel.load()`（TTL + 库集合未变时直接复用聚合流）与 `LibraryViewModel.loadItems()`（TTL 外也只发 `refreshSignal`，页面 `items.refresh()` 保留现有海报）接线；`LibraryScreen` 去掉 `rememberSaveable initialLoad` 守卫（改由 ViewModel 判断，顺带修进程重建后不再加载的隐患）。
+- [x] **骨架不盖内容**：首页 `hasRenderableContent`（任一走廊 / 海报墙 / 库行有内容就绝不铺骨架）；库内容页 `items.itemCount == 0`、视频聚合页同款判定保留。
+- [x] **海报旧图保留 + 交叉淡入**：新增 `RetainedAsyncImage` 并替换 `ItemPoster` / `PosterItemCard` / `LandscapeItemCard` / `HomeHero` / `DetailPoster` / `ItemHeader`（backdrop + logo）里的裸 `AsyncImage`。
+- [x] **顺带核对**：搜索（重复查询命中缓存、加载期间保留上一次结果）、收藏页（`isLoading = items.isEmpty()` 本就保留旧列表）、媒体库总览（`getLibraries` 接入缓存）均无同类「清空再加载」问题。
+- [ ] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` = 全量 **793 / 0 失败 0 错误**（app 212 / core 88 / data 62 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 781 + 新增 12）。
+- [ ] **真机**（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；device-lock 已写占用 / 释放 / 结论）：三场景不再出现黑屏海报 / 下拉刷新期间海报保持可见 / 双机 0 FATAL·ANR。
+- 未覆盖（留档）：TTL 外重进页面的「静默重取」逐帧观感；服务器换图（同 URL 新内容）真机样本；macOS / 桌面端不涉及。
 
 ### W66b 竖屏 hero 重排 + 音乐顶栏 / 迷你条（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，提交 `0b5c0c2`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 

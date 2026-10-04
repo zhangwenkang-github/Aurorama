@@ -419,6 +419,40 @@ interface MusicRepository {
 - **测试服务备注**：PC 侧最终用 Python/OpenSSL 起服务；JBR `com.sun.net.httpserver.HttpsServer` 与 Android Conscrypt 的 engine socket 在 IP 直连时握手卡住（测试服务自身互通问题，与客户端无关）。
 - 遗留：WebView 控制台（`ConsoleViewModel`）与 `ImagesDownloaderWorker` 仍未接入信任；自签证书必须包含访问地址的 SAN。
 
+---
+
+### 5.5 元数据缓存与「缓存优先 + 静默刷新」（W69）
+
+**背景**：用户 2026-10-04 复验反馈——刚进首页 / 从季（剧集）详情返回库界面时会触发元数据加载，加载期间**整面海报变黑 / 空白**（「元数据加载与缓存策略要优化，要优先使用本地已缓存的元数据，从服务器加载元数据时，要静默」）。
+
+**规则**（`data/.../repository/MetadataCache.kt`，纯函数 + 常量集中定义，单测 `MetadataCacheTest` 12 项）：
+
+| 规则 | 值 / 行为 |
+|------|-----------|
+| 列表 / 详情 TTL | `MetadataCacheRules.DEFAULT_TTL_MS` = **10 分钟**（任务书建议 5–15 分钟） |
+| 分页页片 TTL | `MetadataCacheRules.PAGING_TTL_MS` = **5 分钟**（分页内容更"活"，更快看到新数据） |
+| 容量 | `DEFAULT_MAX_ENTRIES` = 256 条（LRU 淘汰；进程内存，不持久化） |
+| TTL 内 | **直接复用、不发请求**（Timber `metadata cache hit: <key>`） |
+| TTL 外 | 页面保留已上屏内容，读路径重新请求并回填（`metadata cache miss (refreshing)`）——刷新期间不清列表、不置空图片 |
+| 强制刷新 | `JellyfinRepository.invalidateMetadataCache()`：下拉刷新 / 重试 / 排序筛选变化先调用，再照常读取 |
+| 用户动作失效 | 收藏 / 取消收藏 / 标记已看 / 取消已看 / 播放结束（`postPlaybackStop`）→ 全量失效（状态内嵌在条目里） |
+
+**实现落点**：
+
+- `MetadataCache`：会话级（`JellyfinRepositoryImpl` 是 `@Singleton`）进程内存缓存，键按「服务器地址 + 用户 id」**命名空间隔离**（切换服务器 / 账号不串数据）；LRU 表加锁访问、时钟可注入（单测）。
+- `MetadataCacheKeys`：每个读方法的键（`views` / `latest:<库>` / `resume:<类型>` / `nextup:<剧>` / `items:<库|类型|排序|过滤|分页窗口>` / `show|season|movie|episode:<id>` / `seasons` / `episodes` / `favorites:<排序>` / `search:<关键词>` / `count` / 库内建议 / 即将播出 / 类型 / 制片发行商 / 演职人员条目），前缀常量同时用于分组失效。
+- 覆盖读方法：`getUserViews` / `getLibraries` / `getItem(s)`（含分页页片）/ `getItemCount` / `getLatestMedia` / `getResumeItems` / `getNextUp` / `getSuggestions` / `getFavoriteItems` / `getSearchItems` / `getLibrarySuggestions` / `getUpcomingEpisodes` / `getGenres` / `getStudios` / `getPersonItems` / `getShow` / `getSeason` / `getMovie` / `getEpisode` / `getSeasons` / `getEpisodes`。
+- **不缓存**：播放链路（`getMediaSources` / `getStreamUrl` / `getSegments` / `getTrickplayData`）与下载页自有短 TTL 链路（`getDownloads` / `getPrimaryImageUrl` / `ImagesDownloaderWorker`）。
+
+**页面层不变量**（后续新增列表 / 详情页照此办理）：
+
+1. **无缓存才骨架**：骨架只在"真的没有任何可渲染内容"时显示（首页 `hasRenderableContent`；库内容页 `items.itemCount == 0`；详情页 `model == null`）。
+2. **不重建分页流**：`VideoViewModel.load()` / `LibraryViewModel.loadItems()` 在 TTL 内直接复用已上屏的 `Pager`（`LazyPagingItems` + `cachedIn` 的数据原样保留）；TTL 外只发 `refreshSignal` 触发 `LazyPagingItems.refresh()`——保留现有条目，新页回来原地替换。
+3. **图片不置空**：海报 / 剧照 / 头图统一走 `RetainedAsyncImage`（`app:phone`）——模型变化时继续画上一张成功加载的图，新图就绪后 160ms 交叉淡入；失败回落占位，绝不先把海报变成黑底。
+4. **列表就地更新**：走廊 / 网格使用稳定 `key`（`item.id`），数据刷新只增删真正新增 / 删除的行。
+
+**取舍与未覆盖**：进程重启后没有内存缓存（首次进入仍按网络加载 → 骨架，任务书口径允许）；TTL 期间服务器新增条目要等下拉刷新或 TTL 过期；缓存不做持久化（Room 快照 / 上次会话快照留给后续按需）。
+
 ## 6. 并行开发边界（供 S3 排期）
 
 ### 6.1 必须串行（有硬依赖）
