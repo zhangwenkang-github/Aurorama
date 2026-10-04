@@ -104,6 +104,13 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
+**1.0.0 验收记录（2026-10-05，分支 `release/w71-packaging`）**
+
+- 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` **813 项 / 0 失败 0 错误**。
+- 签名：universal 与 arm64-v8a 两个 APK `apksigner verify` 通过（v2；v1 关闭），证书 SHA-256 = `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff`（与 §2 指纹一致）。
+- 真机冒烟（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，01:30–02:01）：release 与 debug 共存且数据互不影响；首启 → 登录 → 首页；播放（Hi10P → 静默转 HLS + ASS 字幕渲染；Pad 5 1080P HEVC 直放）；阅读 PDF / EPUB；音乐「播放全部」；下载页；关于页（隐私 / NOTICE 对话框）；**双机 0 FATAL / 0 ANR**。
+- 详细结论与未覆盖项见 `.planning/cinefin-expansion/device-lock.md` 对应条目。
+
 ## 8. 每次发布检查清单
 
 - [ ] `Versions.kt` 版本号已更新，`versionCode` 大于上一发布
