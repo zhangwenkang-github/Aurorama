@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -164,6 +165,8 @@ import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.video.VideoScreen
 import java.util.UUID
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -288,6 +291,10 @@ fun NavigationRoot(
     hasServers: Boolean,
     hasCurrentServer: Boolean,
     hasCurrentUser: Boolean,
+    /** W68：锁屏 / 通知点击音乐条目的请求——导航到音乐 Tab 并展开全屏播放覆盖层。 */
+    openMusicNowPlayingRequest: Boolean = false,
+    /** 请求已消费回调（MainActivity 清标记，避免重组时重复触发）。 */
+    onOpenMusicNowPlayingHandled: () -> Unit = {},
 ) {
     val isOfflineMode = LocalOfflineMode.current
     val offlineModeViewModel: OfflineModeViewModel = hiltViewModel()
@@ -523,6 +530,18 @@ fun NavigationRoot(
             }
         }
     }
+
+    // W68：锁屏 / 通知点击音乐条目（MediaSession sessionActivity / 通知内容 Intent）→ 音乐 Tab + 全屏播放覆盖层。
+    // 与 W52 下载通知同模式：NavHost 尚未组合时 currentBackStackEntry 为 null，等它就绪后再导航（冷启动路径）。
+    var musicOpenNowPlayingSignal by remember { mutableIntStateOf(0) }
+    LaunchedEffect(openMusicNowPlayingRequest) {
+        if (!openMusicNowPlayingRequest) return@LaunchedEffect
+        snapshotFlow { navController.currentBackStackEntry }.filterNotNull().first()
+        navigateTopLevel(MusicModeRoute)
+        musicOpenNowPlayingSignal++
+        onOpenMusicNowPlayingHandled()
+    }
+
     // 控制台两类入口不能用统一入口的 saveState / restoreState：popUpTo(saveState) + restoreState 是按
     // 目的地 id 恢复保存的条目，而两个入口共用 ConsoleRoute 目的地 id——点「媒体资料管理器」会把上一次
     // 保存的 `/dashboard` 条目恢复出来（args 被覆盖，见踩坑 30）。这里按 path 重新建条目。
@@ -1181,6 +1200,8 @@ fun NavigationRoot(
                     onOpenDrawer = openDrawer,
                     // W56：顶层「音乐」图标再点 = 回音乐主页（先收起全屏播放 / 歌词覆盖层，再退页内详情）。
                     reselectSignal = musicOverlayReselectSignal,
+                    // W68：锁屏 / 通知点击音乐条目 → 直接展开全屏播放覆盖层（与点迷你条一致）。
+                    openNowPlayingSignal = musicOpenNowPlayingSignal,
                     onInnerPageOpenChange = { musicInnerPageOpen = it },
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                 )

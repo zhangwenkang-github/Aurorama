@@ -10,7 +10,6 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionToken
-import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
@@ -38,10 +37,28 @@ class CinefinPlaybackService : MediaSessionService() {
     /** 常驻控制者：只为让媒体通知有"控制来源"，不参与命令分发（见 [connectSelfController]） */
     private var selfController: MediaController? = null
 
+    /** W68：当前会话点击路由是否指向音乐界面（只在媒体类型变化时才重设 sessionActivity）。 */
+    private var sessionActivityIsMusicItem = false
+
+    /**
+     * W68：音乐 / 视频共用同一个播放器实例，媒体项切换时同步会话点击路由。
+     *
+     * `onEvents` 覆盖媒体项 / 时间线 / 元数据的所有变化；[syncSessionActivityTarget] 内部先比较类型， 类型没变时不做任何事。
+     */
+    private val mediaTypeListener =
+        object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) {
+                syncSessionActivityTarget()
+            }
+        }
+
     override fun onCreate() {
         super.onCreate()
-        // 媒体样式通知（标题 / 副标题 / 进度 / 传输按钮）由自己的 provider 提供（阶段 4.2）
-        setMediaNotificationProvider(CinefinMediaNotificationProvider(this))
+        // 媒体样式通知（标题 / 副标题 / 进度 / 传输按钮）由自己的 provider 提供（阶段 4.2）；
+        // W68：通知内容点击按当前媒体类型分派（音乐 → 音乐界面，视频 → 视频播放页）。
+        setMediaNotificationProvider(
+            CinefinMediaNotificationProvider(this) { playerHolder.isCurrentItemMusic }
+        )
         // 优先复用"活动实例"：音乐会话期间实例已被 audioSession() 固定为 ExoPlayer，
         // 若这里按偏好重建（例如偏好 mpv）会把正在播放的音乐换掉
         val player = playerHolder.existingPlayer ?: playerHolder.player
@@ -63,27 +80,37 @@ class CinefinPlaybackService : MediaSessionService() {
 
     private fun rebuildSessionIfPlayerChanged() {
         val active = playerHolder.existingPlayer ?: return
-        if (mediaSession?.player === active) return
+        if (mediaSession?.player === active) {
+            // 同一实例也可能在音乐 / 视频条目之间切换：同步点击路由（W68）
+            syncSessionActivityTarget()
+            return
+        }
         Timber.i("播放器实例已切换，重建播放会话")
         selfController?.release()
         selfController = null
+        mediaSession?.player?.removeListener(mediaTypeListener)
         mediaSession?.release()
         mediaSession = buildMediaSession(active)
         connectSelfController()
     }
 
-    private fun buildMediaSession(player: Player): MediaSession =
-        MediaSession.Builder(this, player)
-            .setSessionActivity(sessionActivityIntent())
-            .setCustomLayout(
-                listOf(
-                    CommandButton.Builder(CoreR.drawable.ic_close)
-                        .setDisplayName(getString(PlayerR.string.player_controls_exit))
-                        .setPlayerCommand(Player.COMMAND_STOP)
-                        .build()
+    private fun buildMediaSession(player: Player): MediaSession {
+        sessionActivityIsMusicItem = playerHolder.isCurrentItemMusic
+        val session =
+            MediaSession.Builder(this, player)
+                .setSessionActivity(sessionActivityIntent(sessionActivityIsMusicItem))
+                .setCustomLayout(
+                    listOf(
+                        CommandButton.Builder(CoreR.drawable.ic_close)
+                            .setDisplayName(getString(PlayerR.string.player_controls_exit))
+                            .setPlayerCommand(Player.COMMAND_STOP)
+                            .build()
+                    )
                 )
-            )
-            .build()
+                .build()
+        player.addListener(mediaTypeListener)
+        return session
+    }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
@@ -133,31 +160,36 @@ class CinefinPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        mediaSession?.player?.removeListener(mediaTypeListener)
         selfController?.release()
         selfController = null
         mediaSession?.release()
         mediaSession = null
-        // 会话结束即释放播放器：避免"服务没了、播放器还在"的半死状态
+        // 会话结束即释放播放器：避免"服务没了、播放器还在"的半死状态。
+        // W68：音乐会话活跃时 [PlayerHolder.release] 内部会拒绝释放，保证退出 UI 后音乐继续可控。
         playerHolder.release()
         Timber.d("播放服务已停止")
         super.onDestroy()
     }
 
     /**
-     * 点通知回到播放页。
+     * W68：媒体类型切换时更新会话点击路由。
      *
-     * 刻意不带 `itemId`：播放页看到没有条目参数、而播放器里已有内容时，只把自己带会前台， 不重新拉流，避免"点一下通知进度就跳回开头"。
+     * 通知栏的内容点击由 [CinefinMediaNotificationProvider] 每次重建通知时计算；这里负责 MediaSession 的
+     * `sessionActivity`（锁屏 / 手表 / 蓝牙 / 车机等系统入口）。
      */
-    private fun sessionActivityIntent(): PendingIntent {
-        val intent =
-            Intent(this, PlayerActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-        return PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+    private fun syncSessionActivityTarget() {
+        val session = mediaSession ?: return
+        val isMusic = playerHolder.isCurrentItemMusic
+        if (isMusic == sessionActivityIsMusicItem) return
+        sessionActivityIsMusicItem = isMusic
+        session.setSessionActivity(sessionActivityIntent(isMusic))
+        Timber.i("播放条目类型切换：会话点击路由 → %s", if (isMusic) "音乐播放界面" else "视频播放页")
     }
+
+    private fun sessionActivityIntent(isMusicItem: Boolean): PendingIntent =
+        buildSessionActivityPendingIntent(
+            context = this,
+            isMusicItem = isMusicItem,
+        )
 }

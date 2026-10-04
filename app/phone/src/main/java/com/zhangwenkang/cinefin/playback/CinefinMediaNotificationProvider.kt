@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
@@ -20,7 +19,6 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
 import com.google.common.collect.ImmutableList
-import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
@@ -44,7 +42,11 @@ import timber.log.Timber
  *
  * Android 的媒体通知最多显示 5 个按钮，所以"关闭"不做成第 6 个按钮， 而是用通知的删除手势 + 播放页返回键承担。
  */
-class CinefinMediaNotificationProvider(private val context: Context) : MediaNotification.Provider {
+class CinefinMediaNotificationProvider(
+    private val context: Context,
+    /** W68：当前媒体项是否为音乐（决定通知内容点击的落点）。 */
+    private val isMusicItem: () -> Boolean,
+) : MediaNotification.Provider {
 
     companion object {
         const val NOTIFICATION_ID = 1001
@@ -80,6 +82,8 @@ class CinefinMediaNotificationProvider(private val context: Context) : MediaNoti
         val title = metadata.title?.toString().orEmpty().ifEmpty { CHANNEL_NAME }
         val subtitle =
             when {
+                // W68：音乐 → 歌手（无则空）；视频 → 现有季集副标题
+                isMusicItem() -> metadata.artist?.toString().orEmpty()
                 season >= 0 && episode >= 0 -> "S$season:E$episode"
                 else -> ""
             }
@@ -96,7 +100,7 @@ class CinefinMediaNotificationProvider(private val context: Context) : MediaNoti
                 .setSmallIcon(CoreR.drawable.ic_play)
                 .setContentTitle(title)
                 .setContentText(subtitle)
-                .setContentIntent(playerActivityIntent())
+                .setContentIntent(contentIntent())
                 .setDeleteIntent(actionFactory.createNotificationDismissalIntent(mediaSession))
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
@@ -270,17 +274,14 @@ class CinefinMediaNotificationProvider(private val context: Context) : MediaNoti
             command,
         )
 
-    /** 点通知回到播放页（不带 itemId：页面据此接管正在跑的会话，不重新拉流） */
-    private fun playerActivityIntent(): PendingIntent {
-        val intent =
-            Intent(context, PlayerActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-        return PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    /**
+     * 点通知回到对应界面（W68：音乐 → 音乐播放覆盖层；视频 → 视频播放页）。
+     *
+     * 刻意不带 `itemId`：页面看到没有条目参数、而播放器里已有内容时，只把自己带回前台， 不重新拉流，避免"点一下通知进度就跳回开头"。
+     */
+    private fun contentIntent(): PendingIntent =
+        buildSessionActivityPendingIntent(
+            context = context,
+            isMusicItem = isMusicItem(),
         )
-    }
 }

@@ -30,6 +30,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.playback.EXTRA_OPEN_MUSIC_NOW_PLAYING
 import com.zhangwenkang.cinefin.presentation.components.ColdStartSplash
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
@@ -47,10 +48,14 @@ class MainActivity : AppCompatActivity() {
     /** W52：多任务下载通知的「打开下载页」请求（冷启动读 Intent，热启动由 onNewIntent 写入）。 */
     private var openDownloadsRequest by mutableStateOf(false)
 
+    /** W68：锁屏 / 通知点击音乐条目的「打开音乐播放界面」请求（同上）。 */
+    private var openMusicNowPlayingRequest by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         openDownloadsRequest = consumeOpenDownloadsRequest(intent)
+        openMusicNowPlayingRequest = consumeOpenMusicNowPlayingRequest(intent)
         requestDownloadNotificationPermission()
 
         // 应用固定深色外观：状态栏/导航栏图标始终用浅色，
@@ -80,6 +85,8 @@ class MainActivity : AppCompatActivity() {
                             navController = navController,
                             openDownloadsRequest = openDownloadsRequest,
                             onOpenDownloadsHandled = { openDownloadsRequest = false },
+                            openMusicNowPlayingRequest = openMusicNowPlayingRequest,
+                            onOpenMusicNowPlayingHandled = { openMusicNowPlayingRequest = false },
                         )
                     }
                 }
@@ -93,12 +100,22 @@ class MainActivity : AppCompatActivity() {
         if (consumeOpenDownloadsRequest(intent)) {
             openDownloadsRequest = true
         }
+        if (consumeOpenMusicNowPlayingRequest(intent)) {
+            openMusicNowPlayingRequest = true
+        }
     }
 
     /** 读取并消费「打开下载页」标记：消费后同一个 Intent 不会重复触发导航。 */
     private fun consumeOpenDownloadsRequest(intent: Intent?): Boolean {
         val requested = intent?.getBooleanExtra(EXTRA_OPEN_DOWNLOADS, false) == true
         if (requested) intent.removeExtra(EXTRA_OPEN_DOWNLOADS)
+        return requested
+    }
+
+    /** W68：读取并消费「打开音乐播放界面」标记（消费后同一个 Intent 不会重复触发导航）。 */
+    private fun consumeOpenMusicNowPlayingRequest(intent: Intent?): Boolean {
+        val requested = intent?.getBooleanExtra(EXTRA_OPEN_MUSIC_NOW_PLAYING, false) == true
+        if (requested) intent.removeExtra(EXTRA_OPEN_MUSIC_NOW_PLAYING)
         return requested
     }
 
@@ -131,6 +148,8 @@ private fun MainContent(
     navController: NavHostController,
     openDownloadsRequest: Boolean,
     onOpenDownloadsHandled: () -> Unit,
+    openMusicNowPlayingRequest: Boolean,
+    onOpenMusicNowPlayingHandled: () -> Unit,
 ) {
     CompositionLocalProvider(LocalOfflineMode provides state.isOfflineMode) {
         NavigationRoot(
@@ -138,6 +157,8 @@ private fun MainContent(
             hasServers = state.hasServers,
             hasCurrentServer = state.hasCurrentServer,
             hasCurrentUser = state.hasCurrentUser,
+            openMusicNowPlayingRequest = openMusicNowPlayingRequest,
+            onOpenMusicNowPlayingHandled = onOpenMusicNowPlayingHandled,
         )
     }
     LaunchedEffect(openDownloadsRequest) {
