@@ -72,7 +72,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 2. 打开 <https://github.com/zhangwenkang-github/Aurorama/releases> → **Draft a new release** → 选择 tag `v1.0.0`。
 3. 上传两个 APK（步骤 3 的两个文件，按 `Aurorama-1.0.0-universal.apk` / `Aurorama-1.0.0-arm64-v8a.apk` 命名）。
-4. Release notes 模板（按需增删）：
+4. **粘贴 Release notes**：正文直接用 `docs/RELEASE_NOTES_v1.0.0.md`（中文草稿；含亮点 / 安装说明 / 签名指纹 / 已知限制）。简版模板（按需增删）：
 
    ```markdown
    ## 极光幕 · Aurorama 1.0.0
@@ -88,7 +88,8 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
    完整改动见 commit 记录；隐私说明见 PRIVACY。
    ```
 
-5. 发布后自检：Release 页面两个 APK 可下载、大小与本地一致（见 §7 体积记录）、`apksigner` 校验通过。
+5. 发布前自检：待上传 APK 的 SHA-256 / 体积与 §7 记录一致（`Get-FileHash`）。
+6. 发布后自检：Release 页面两个 APK 可下载、大小与本地一致（见 §7 体积记录）、`apksigner verify --print-certs` 通过且指纹 = §2。
 
 ## 6. 版本号规则
 
@@ -104,6 +105,17 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
+**1.0.0 发布资产校验（2026-10-05 · W72，分支 `release/w72-release-assets`，起点 master `9379574`）**
+
+| 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
+|--------------------|--------------------|---------|
+| `Aurorama-1.0.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,042,160 / 163.1 | `c379aefffdc6f0c3914b248f620ed7a45bec028bc482899d255ec85b5091bdae` |
+| `Aurorama-1.0.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,460,182 / 73.9 | `0a3946182cd875d1756141be09e33e6bfc35d9db4d3e029dbdcd21ea0239d089` |
+
+- `apksigner verify -v`：两份 APK 均 **v2 = true**（v1 / v3 / v4 = false，与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）。
+- 构建产物不入库，路径：`app/phone/build/outputs/apk/libre/release/`；每次重新构建哈希会变化，发布前以当次构建输出为准并回写本表。
+- 门禁（W72 复跑）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` = **813 项 / 0 失败 0 错误**；`assembleLibreRelease "-Paurorama.universalApk=true"` 成功。
+
 **1.0.0 验收记录（2026-10-05，分支 `release/w71-packaging`）**
 
 - 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` **813 项 / 0 失败 0 错误**。
@@ -117,7 +129,15 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [ ] 全量门禁绿：根 `assembleDebug`（含 TV）+ `ktfmtCheck` + 8 个单测任务
 - [ ] `assembleLibreRelease` 成功；`apksigner verify` 通过且指纹与 §2 一致
 - [ ] 真机冒烟（K60 主 + Pad 5 抽验）：首启 / 登录 / 首页 / 播放（HLS + 字幕）/ 阅读 / 音乐 / 下载，0 FATAL·ANR
-- [ ] `README.md` / `PRIVACY` / `NOTICE` / `LICENSE` 与当前版本一致；**`PRIVACY` / `NOTICE` 有改动时同步 `app/phone/src/main/res/raw/privacy_policy.txt` / `notice.txt` 应用内副本**
-- [ ] 关于页显示版本号 / 包名 / 许可 / 隐私 / 项目链接正确
-- [ ] 截图（W72 起）与实际界面一致
+- [x] `README.md` / `PRIVACY` / `NOTICE` / `LICENSE` 与当前版本一致；**`PRIVACY` / `NOTICE` 有改动时同步 `app/phone/src/main/res/raw/privacy_policy.txt` / `notice.txt` 应用内副本**（W71 完成；W72 仅改 README 截图段）
+- [x] 关于页显示版本号 / 包名 / 许可 / 隐私 / 项目链接正确（W71 完成；W72 双机复验链接指向 `zhangwenkang-github/Aurorama`）
+- [x] 截图（W72 起）与实际界面一致（W72：`images/release/` 9 张，实拍自 1.0.0 正式包，K60 + Pad 5）
 - [ ] 打 tag → 上传 APK → Release notes → 发布后自检
+
+> 1.0.0 的未勾选项（版本号已就位，tag / 上传 / Release notes 粘贴）由发布负责人在用户全检通过后执行；Release notes 正文用 `docs/RELEASE_NOTES_v1.0.0.md`。
+
+## 9. CI 发布（可选，后续）
+
+- `.github/workflows/publish.yaml` 原为上游 Findroid 的自动发布流程（`on: push: tags: v*`，依赖 `FINDROID_KEYSTORE` / Play API 凭据并调用 `fastlane publish`，会尝试发布 Google Play）。
+- **W72（2026-10-05）已将其改为仅 `workflow_dispatch` 触发**：推 `v*` tag 不再自动运行；该文件内的流水线仍是上游模板，**不要手动触发**（缺 secrets 且会尝试 Play 发布）。
+- 当前的 1.0.0 发布走 §5 的手动流程；CI 自动发布（构建 → 签名 → 建 Release 上传 APK）后续按需重建，届时改为使用本仓库 secrets（keystore 的 base64 + 密码）并去掉 Play 步骤。

@@ -1,67 +1,27 @@
-name: Publish
+# 极光幕 · Aurorama 发布流程（W72 起禁用自动触发）
+#
+# 背景：本文件原为上游 Findroid 的自动发布流水线（on: push tags v* + fastlane publish），
+# 依赖上游 secrets（FINDROID_KEYSTORE / FINDROID_PLAY_API_CREDENTIALS）并会尝试发布 Google Play；
+# 直接推 v1.0.0 tag 会失败且可能触发 Play 步骤，故 2026-10-05（W72）改为仅手动触发。
+#
+# 当前发布方式 = 手动（docs/RELEASE_PLAN.md §5）：
+#   打 tag v1.0.0 → GitHub Draft a new release → 上传 Aurorama-1.0.0-universal.apk /
+#   Aurorama-1.0.0-arm64-v8a.apk → 粘贴 docs/RELEASE_NOTES_v1.0.0.md 正文 → 发布后校验。
+#
+# CI 自动发布（构建 → 签名 → 建 Release → 上传 APK）后续按需重建，见 docs/RELEASE_PLAN.md §9；
+# 重建前请勿手动触发本工作流——它只打印说明，不执行任何发布动作。
+name: Publish (disabled)
 
 on:
-  push:
-    tags:
-      - v*
+  workflow_dispatch:
 
 jobs:
-  publish:
-    name: Publish
+  disabled:
+    name: Publish disabled — see docs/RELEASE_PLAN.md
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: 21
-          distribution: temurin
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Decode keystore file
-        uses: timheuer/base64-to-file@v2
-        id: findroid_keystore
-        with:
-          fileName: 'findroid-keystore.jks'
-          encodedString: ${{ secrets.FINDROID_KEYSTORE }}
-
-      - name: Decode Play API credentials file
-        uses: timheuer/base64-to-file@v2
-        id: findroid_play_api_credentials
-        with:
-          fileName: 'findroid-play-api-credentials.json'
-          encodedString: ${{ secrets.FINDROID_PLAY_API_CREDENTIALS }}
-
-      - name: Build and publish
-        run: bundle exec fastlane publish
-        env:
-          FINDROID_KEYSTORE: ${{ steps.findroid_keystore.outputs.filePath }}
-          FINDROID_KEYSTORE_PASSWORD: ${{ secrets.FINDROID_KEYSTORE_PASSWORD }}
-          FINDROID_KEY_ALIAS: ${{ secrets.FINDROID_KEY_ALIAS }}
-          FINDROID_KEY_PASSWORD: ${{ secrets.FINDROID_KEY_PASSWORD }}
-          FINDROID_PLAY_API_CREDENTIALS: ${{ steps.findroid_play_api_credentials.outputs.filePath }}
-
-      - name: Rename apk files
-        working-directory: ./app/phone/build/outputs/apk/libre/release/
+      - name: Notice
         run: |
-          rename -- 'phone' 'findroid' *.apk
-          rename -- '-release' '' *.apk
-
-      - name: Create release
-        uses: softprops/action-gh-release@v3
-        with:
-          draft: true
-          files: |
-            ./app/phone/build/outputs/apk/libre/release/findroid-${{ github.ref_name }}-libre-arm64-v8a.apk
-            ./app/phone/build/outputs/apk/libre/release/findroid-${{ github.ref_name }}-libre-armeabi-v7a.apk
-            ./app/phone/build/outputs/apk/libre/release/findroid-${{ github.ref_name }}-libre-x86_64.apk
-            ./app/phone/build/outputs/apk/libre/release/findroid-${{ github.ref_name }}-libre-x86.apk
+          echo "CI 自动发布已禁用（W72，2026-10-05）。"
+          echo "当前 1.0.0 手动发布步骤见 docs/RELEASE_PLAN.md §5；"
+          echo "Release notes 正文见 docs/RELEASE_NOTES_v1.0.0.md；CI 发布后续按需重建（§9）。"
