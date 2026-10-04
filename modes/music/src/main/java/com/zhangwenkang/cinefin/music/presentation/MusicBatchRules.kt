@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import java.util.UUID
+import kotlin.random.Random
 
 /** W58 音乐多选批量动作。 */
 enum class MusicBatchAction {
@@ -63,6 +64,20 @@ internal fun batchPlayOrder(songs: List<MusicSong>, selectedIds: Set<String>): L
     songs.filter {
         it.itemId.toString() in selectedIds
     }
+
+/**
+ * W64「播放全部 / 随机播放全部」的入队顺序：完整列表按序入队（不是选中集合）。
+ *
+ * - 顺序播放 = 当前列表原序，从第 1 首开始；
+ * - 随机播放 = 客户端先洗牌一次（首曲也随机），再配合内核 shuffle 模式（一轮内每首各一次）。
+ *
+ * [random] 注入以便单测锁死顺序。
+ */
+internal fun playAllOrder(
+    songs: List<MusicSong>,
+    shuffle: Boolean,
+    random: Random = Random.Default,
+): List<MusicSong> = if (shuffle) songs.shuffled(random) else songs
 
 /**
  * 批量「收藏」目标：任一所选条目未收藏 → 全部收藏；全部已收藏 → 全部取消（与单曲动作语义一致）。

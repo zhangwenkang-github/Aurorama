@@ -249,6 +249,15 @@ fun MusicModeScreen(
                             onToggleBadge = viewModel::setShowSourceBadge,
                         )
                     }
+                    // W64：歌曲 Tab 顶部「播放全部 / 随机播放」——当前列表按序入队，从第 1 首开始播。
+                    if (state.tab == MusicTab.SONGS && state.songs.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+                        SongPlayAllRow(
+                            enabled = !batchSelection.selectionMode,
+                            onPlayAll = { viewModel.playAll() },
+                            onShuffleAll = { viewModel.playAll(shuffle = true) },
+                        )
+                    }
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 }
 
@@ -670,6 +679,40 @@ private fun MusicSourceFilterRow(
             selected = state.showSourceBadge,
             compact = true,
             onClick = { onToggleBadge(!state.showSourceBadge) },
+        )
+    }
+}
+
+/** W64：歌曲 Tab 顶部「播放全部 / 随机播放」行；多选状态下禁用（避免与批量选中冲突）。 */
+@Composable
+private fun SongPlayAllRow(
+    enabled: Boolean,
+    onPlayAll: () -> Unit,
+    onShuffleAll: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier.padding(horizontal = CinefinSpacing.Space4)
+                .widthIn(max = 640.dp)
+                .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+    ) {
+        CinefinButton(
+            text = "播放全部",
+            onClick = onPlayAll,
+            modifier = Modifier.weight(1f),
+            variant = CinefinButtonVariant.Filled,
+            size = CinefinButtonSize.Small,
+            enabled = enabled,
+        )
+        CinefinButton(
+            text = "随机播放",
+            onClick = onShuffleAll,
+            modifier = Modifier.weight(1f),
+            variant = CinefinButtonVariant.Outlined,
+            size = CinefinButtonSize.Small,
+            enabled = enabled,
         )
     }
 }
