@@ -54,7 +54,10 @@ object ImageCacheRules {
             meta == null -> Decision.REFETCH_META_MISSING
             !currentSourceUrl.isNullOrBlank() &&
                 meta.sourceUrl.isNotBlank() &&
-                meta.sourceUrl != currentSourceUrl -> Decision.REFETCH_SOURCE_CHANGED
+                // Jellyfin 路由大小写不敏感（worker 侧 `items/` 与仓库侧 `Items/` 指向同一图）：
+                // 比较忽略大小写，避免两条落图路径互相判定「URL 变化」而反复重拉。
+                !meta.sourceUrl.equals(currentSourceUrl, ignoreCase = true) ->
+                Decision.REFETCH_SOURCE_CHANGED
             nowMillis - meta.fetchedAt > ttlMillis -> Decision.REFETCH_EXPIRED
             else -> Decision.KEEP
         }
