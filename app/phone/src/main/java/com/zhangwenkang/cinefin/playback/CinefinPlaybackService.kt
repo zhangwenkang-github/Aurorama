@@ -3,15 +3,20 @@ package com.zhangwenkang.cinefin.playback
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
+import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -30,7 +35,15 @@ import timber.log.Timber
 @AndroidEntryPoint
 class CinefinPlaybackService : MediaSessionService() {
 
+    private companion object {
+        /** W68b：系统媒体面板「关闭」键的会话自定义命令（= 停止播放，收起通知 / 前台服务）。 */
+        const val CUSTOM_ACTION_CLOSE = "com.zhangwenkang.cinefin.playback.CLOSE"
+    }
+
     @Inject lateinit var playerHolder: PlayerHolder
+
+    /** W68b：系统媒体面板「关闭」对音乐走与迷你条 × 相同的停止 / 收尾路径。 */
+    @Inject lateinit var musicPlaybackController: MusicPlaybackController
 
     private var mediaSession: MediaSession? = null
 
@@ -102,10 +115,41 @@ class CinefinPlaybackService : MediaSessionService() {
                 .setCustomLayout(
                     listOf(
                         CommandButton.Builder(CoreR.drawable.ic_close)
-                            .setDisplayName(getString(PlayerR.string.player_controls_exit))
-                            .setPlayerCommand(Player.COMMAND_STOP)
+                            // W68b：系统媒体面板的「关闭」键（= 停止并收起通知 / 前台服务）
+                            .setDisplayName(getString(CoreR.string.close))
+                            .setSessionCommand(SessionCommand(CUSTOM_ACTION_CLOSE, Bundle.EMPTY))
                             .build()
                     )
+                )
+                .setCallback(
+                    object : MediaSession.Callback {
+                        override fun onPlayerCommandRequest(
+                            session: MediaSession,
+                            controller: MediaSession.ControllerInfo,
+                            playerCommand: Int,
+                        ): Int {
+                            if (playerCommand == Player.COMMAND_STOP) {
+                                // W68b：外部「关闭 / 停止」（通知动作 / 锁屏 / 蓝牙 / 车机）走完整关闭语义
+                                closePlayback()
+                            }
+                            return super.onPlayerCommandRequest(session, controller, playerCommand)
+                        }
+
+                        override fun onCustomCommand(
+                            session: MediaSession,
+                            controller: MediaSession.ControllerInfo,
+                            customCommand: SessionCommand,
+                            args: Bundle,
+                        ): ListenableFuture<SessionResult> {
+                            if (customCommand.customAction == CUSTOM_ACTION_CLOSE) {
+                                closePlayback()
+                                return Futures.immediateFuture(
+                                    SessionResult(SessionResult.RESULT_SUCCESS)
+                                )
+                            }
+                            return super.onCustomCommand(session, controller, customCommand, args)
+                        }
+                    }
                 )
                 .build()
         player.addListener(mediaTypeListener)
@@ -192,4 +236,28 @@ class CinefinPlaybackService : MediaSessionService() {
             context = this,
             isMusicItem = isMusicItem,
         )
+
+    /**
+     * W68b：系统媒体面板「关闭 / 停止」的完整语义 = 停止播放 + 收起通知与前台服务。
+     *
+     * - 音乐：走 [MusicPlaybackController.stop]（与 App 内迷你条 × 一致：停播 + 清内存队列， Room 队列快照保留，随后重新播放正常）；
+     * - 视频：停止 + 清空媒体项（让 Media3 收起通知），随后停止服务（`onDestroy` 释放共享实例）。
+     *
+     * 只在**外部控制器**请求 STOP 时触发（[MediaSession.Callback.onPlayerCommandRequest] 与自定义关闭命令）， 不影响 App 内切内核
+     * / 音视频互斥等内部 stop 路径。
+     */
+    private fun closePlayback() {
+        val player = mediaSession?.player
+        if (player != null && playerHolder.isCurrentItemMusic) {
+            musicPlaybackController.stop()
+        } else {
+            player?.stop()
+            player?.clearMediaItems()
+        }
+        // 常驻自控制器持有服务绑定：先释放，服务才能真正停止
+        selfController?.release()
+        selfController = null
+        // 停止服务并移除前台通知；MediaSessionService 会在有 controller 绑定（SystemUI）时做正确收尾
+        pauseAllPlayersAndStopSelf()
+    }
 }

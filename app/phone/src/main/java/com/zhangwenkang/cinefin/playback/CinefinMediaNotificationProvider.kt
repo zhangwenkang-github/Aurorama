@@ -131,7 +131,13 @@ class CinefinMediaNotificationProvider(
             builder.setProgress(1000, ((position * 1000) / duration).toInt(), false)
         }
 
-        // 传输按钮：紧凑视图固定显示「快退 / 播放暂停 / 快进」三个
+        /*
+         * 传输按钮（W68b）：5 个槽位 = 上一集 / 快进 / 播放暂停 / 下一集 / 关闭。
+         *
+         * 用户 2026-10-04 复验要求系统媒体面板（通知栏 + 锁屏）出现「关闭」键；媒体面板最多 5 个动作，
+         * 因此按负责人口径把「快退」让位给「关闭」（快进保留，切集与播放/暂停保留）。
+         * 关闭 = COMMAND_STOP：停止播放并收起通知 / 前台服务，不删除任何数据、不清队列快照。
+         */
         builder.addAction(
             mediaAction(
                 actionFactory,
@@ -139,24 +145,6 @@ class CinefinMediaNotificationProvider(
                 CoreR.drawable.ic_skip_back,
                 PlayerR.string.player_controls_previous_episode,
                 Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-            )
-        )
-        builder.addAction(
-            mediaAction(
-                actionFactory,
-                mediaSession,
-                CoreR.drawable.ic_rewind,
-                PlayerR.string.player_controls_rewind,
-                Player.COMMAND_SEEK_BACK,
-            )
-        )
-        builder.addAction(
-            mediaAction(
-                actionFactory,
-                mediaSession,
-                if (player.isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play,
-                PlayerR.string.player_controls_play_pause,
-                Player.COMMAND_PLAY_PAUSE,
             )
         )
         builder.addAction(
@@ -172,15 +160,35 @@ class CinefinMediaNotificationProvider(
             mediaAction(
                 actionFactory,
                 mediaSession,
+                if (player.isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play,
+                PlayerR.string.player_controls_play_pause,
+                Player.COMMAND_PLAY_PAUSE,
+            )
+        )
+        builder.addAction(
+            mediaAction(
+                actionFactory,
+                mediaSession,
                 CoreR.drawable.ic_skip_forward,
                 PlayerR.string.player_controls_next_episode,
                 Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
             )
         )
+        builder.addAction(
+            mediaAction(
+                actionFactory,
+                mediaSession,
+                CoreR.drawable.ic_close,
+                CoreR.string.close,
+                Player.COMMAND_STOP,
+            )
+        )
 
+        // 紧凑视图（媒体面板折叠态）：快进 / 播放暂停 / 关闭（索引对应上方动作列表）。
+        // W68b 真机（K60 MIUI）实测：第 5 个展开动作不会出现在系统媒体卡片上，必须让「关闭」进 compact。
         builder.setStyle(
             MediaStyleNotificationHelper.MediaStyle(mediaSession)
-                .setShowActionsInCompactView(1, 2, 3)
+                .setShowActionsInCompactView(1, 2, 4)
         )
 
         return MediaNotification(NOTIFICATION_ID, builder.build())
