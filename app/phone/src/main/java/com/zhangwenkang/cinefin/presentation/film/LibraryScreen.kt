@@ -96,6 +96,7 @@ import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColum
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.utils.BookCoverRules
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -467,7 +468,10 @@ private fun LibraryScreenLayout(
                                     selectionMode = selectionMode,
                                     selected = batchSelection.isSelected(loadedItem.id.toString()),
                                     imageOverride =
-                                        if (loadedItem.images.primary == null) cover else null,
+                                        BookCoverRules.coverOverride(
+                                            loadedItem.images.primary?.toString(),
+                                            cover,
+                                        ),
                                     placeholderIconRes =
                                         if (libraryType == CollectionType.Books) {
                                             CoreR.drawable.ic_book
@@ -531,7 +535,10 @@ private fun LibraryScreenLayout(
                                     selectionMode = selectionMode,
                                     selected = batchSelection.isSelected(loadedItem.id.toString()),
                                     imageOverride =
-                                        if (loadedItem.images.primary == null) cover else null,
+                                        BookCoverRules.coverOverride(
+                                            loadedItem.images.primary?.toString(),
+                                            cover,
+                                        ),
                                     placeholderIconRes =
                                         if (libraryType == CollectionType.Books) {
                                             CoreR.drawable.ic_book

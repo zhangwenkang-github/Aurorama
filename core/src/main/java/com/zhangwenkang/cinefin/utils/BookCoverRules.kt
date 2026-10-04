@@ -78,6 +78,13 @@ object BookCoverRules {
             else -> CoverSource.GENERATE
         }
 
+    /**
+     * 卡片渲染的本地封面覆盖值（纯函数，书架 / 首页同源）： **服务器图优先**——服务器图存在时返回 null（卡片继续走服务器图）； 缺服务器图时返回已生成的本地封面路径（可能为
+     * null = 卡片回退类型占位）。
+     */
+    fun coverOverride(serverImageUrl: String?, generatedPath: String?): String? =
+        if (!serverImageUrl.isNullOrBlank()) null else generatedPath?.takeIf { it.isNotBlank() }
+
     fun cacheDir(filesDir: File): File = File(filesDir, CACHE_DIR)
 
     /** 生成封面缓存：`files/book_covers/<itemId>.jpg`。 */

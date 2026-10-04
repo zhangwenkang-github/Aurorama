@@ -147,4 +147,40 @@ class BookCoverRulesTest {
         )
         assertEquals("cover.jpg", EpubCoverRules.resolveHref("OPS/content.opf", "/cover.jpg"))
     }
+
+    @Test
+    fun `封面覆盖值 服务器图优先 缺图回退生成封面 无图返回空`() {
+        // 有服务器图：不使用本地生成封面（返回 null = 卡片走服务器图）。
+        assertEquals(
+            null,
+            BookCoverRules.coverOverride(
+                serverImageUrl = "https://host/cover.jpg",
+                generatedPath = "/files/book_covers/a.jpg",
+            ),
+        )
+        assertEquals(
+            "/files/book_covers/a.jpg",
+            BookCoverRules.coverOverride(
+                serverImageUrl = null,
+                generatedPath = "/files/book_covers/a.jpg",
+            ),
+        )
+        // 服务器图字段为空串 / 空白 = 视为缺图。
+        assertEquals(
+            "/files/book_covers/a.jpg",
+            BookCoverRules.coverOverride(
+                serverImageUrl = " ",
+                generatedPath = "/files/book_covers/a.jpg",
+            ),
+        )
+        // 都没有 → null（卡片回退类型占位）。
+        assertEquals(
+            null,
+            BookCoverRules.coverOverride(serverImageUrl = null, generatedPath = null),
+        )
+        assertEquals(
+            null,
+            BookCoverRules.coverOverride(serverImageUrl = null, generatedPath = " "),
+        )
+    }
 }
