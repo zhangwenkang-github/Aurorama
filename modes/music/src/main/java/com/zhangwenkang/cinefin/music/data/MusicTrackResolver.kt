@@ -28,6 +28,7 @@ class MusicTrackResolver @Inject constructor(private val repository: JellyfinRep
                 playbackPosition = resumePositionMs,
                 mediaSourceUri = uri,
                 thumbnailUri = imageUri,
+                artist = artist,
             )
         }
         val sources = repository.getMediaSources(itemId, includePath = true)
@@ -44,6 +45,7 @@ class MusicTrackResolver @Inject constructor(private val repository: JellyfinRep
             // 与视频一致：服务器判定要转码时优先走转码地址，否则直连原始文件
             mediaSourceUri = source.transcodingPath ?: source.path,
             thumbnailUri = imageUri,
+            artist = artist,
         )
     }
 

@@ -14,6 +14,12 @@ data class PlayerItem(
     val parentIndexNumber: Int? = null,
     val indexNumber: Int? = null,
     val indexNumberEnd: Int? = null,
+    /**
+     * 音乐条目的艺人名（W68：媒体会话 / 系统桌面媒体胶囊 / 锁屏显示；视频条目为 null）。
+     *
+     * 只用于媒体元数据展示，不参与播放；恢复队列（Room 快照）不含它，拿不到时留 null。
+     */
+    val artist: String? = null,
     /** 剧集 / 影片缩略图（Jellyfin 图片地址）：队列列表与通知封面共用 */
     val thumbnailUri: String? = null,
     val externalSubtitles: List<ExternalSubtitle> = emptyList(),

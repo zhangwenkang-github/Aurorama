@@ -228,7 +228,9 @@ constructor(
                 // setMediaItems 会抛 IllegalSeekPositionException → 起播失败。这里统一归一化。
                 val startIndex = normalizeStartIndex(latest.currentIndex, latest.items.size)
                 player.setMediaItems(
-                    latest.items.map { it.toMusicMediaItem() },
+                    latest.items.map {
+                        it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri)
+                    },
                     startIndex,
                     0L,
                 )
@@ -316,7 +318,10 @@ constructor(
         _queue.value = current.insertNext(item)
         val player = musicPlayer() ?: return
         val insertAt = (current.currentIndex + 1).coerceIn(0, player.mediaItemCount)
-        player.addMediaItem(insertAt, item.toMusicMediaItem())
+        player.addMediaItem(
+            insertAt,
+            item.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri),
+        )
     }
 
     override fun jumpTo(index: Int) {

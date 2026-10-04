@@ -20,16 +20,21 @@ internal const val MUSIC_MEDIA_EXTRA = "cinefin.music"
 /**
  * 音乐队列条目 → ExoPlayer 媒体项（纯映射）。
  *
- * 与视频不同：音乐没有字幕 / 章节 / trickplay，只带标题与封面（通知栏 / 锁屏要显示专辑图）。
+ * 与视频不同：音乐没有字幕 / 章节 / trickplay，只带标题 / 艺人 / 封面（通知栏 / 锁屏 / 系统桌面媒体胶囊要显示）。
+ *
+ * @param fallbackArtworkUri 没有专辑封面时的通用音符占位图 URI（W68）；null = 不写封面。
  */
-internal fun PlayerItem.toMusicMediaItem(): MediaItem =
+internal fun PlayerItem.toMusicMediaItem(fallbackArtworkUri: String? = null): MediaItem =
     MediaItem.Builder()
         .setMediaId(itemId.toString())
         .setUri(mediaSourceUri)
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(name)
-                .setArtworkUri(thumbnailUri?.let(Uri::parse))
+                // W68：显式写艺人（系统胶囊 / 锁屏优先读会话元数据；流内无 ID3 标签的曲目也能显示）
+                .setArtist(artist)
+                // W68：没有封面时用占位图，避免系统卡片出现空白 / 黑图
+                .setArtworkUri((thumbnailUri ?: fallbackArtworkUri)?.let(Uri::parse))
                 .setExtras(Bundle().apply { putBoolean(MUSIC_MEDIA_EXTRA, true) })
                 .build()
         )
