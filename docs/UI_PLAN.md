@@ -1125,6 +1125,18 @@ Pad 5 冷启动 1481 ms（装 137.55 MiB arm64 debug）。launcher 标签 / 图�
 
 - **负责人真机走查（2026-10-04 01:36–01:43，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验，master `8181921`）**：①账号卡「账号与服务器」组内首行（K60 同款）；②迷你条 × → `dumpsys media_session` = `state=0` 停播 + 收起，重选曲恢复「正在播放」；③全屏五键（播放队列 / 顺序播放 / 收藏 / 桌面歌词 / 音效）**无歌词入口**；点歌词区域 → 歌词页（纯音乐提示），迷你条「词」保留；④全屏播放 → 点「音乐」→ 回音乐主页（播放不中断）；歌词页 / 艺术家「Aimer」详情 / 电影库内容页 → 点对应图标均回主页；已在主页再点图标停留无副作用；⑤0 FATAL / ANR。未覆盖：音乐「专辑」tab 详情（用艺术家详情等效）、设置子页回主页（可选）。
 
+### W64 首页书籍封面 + 阅读 / 音乐修复验收（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`；静态 / 门禁，真机待设备窗口）
+
+①**缺陷**：书架能显示的书籍封面（W59 `BookCoverProvider`：服务器图优先 → 本地生成 → 类型占位）在首页
+「继续阅读 / 最近添加 · 书籍」卡片上不显示 —— `LandscapeItemCard` / `PosterItemCard` 只读 `item.images`，
+没有本地封面覆盖链路（`ItemCard` 有 `imageOverride`，但两条首页卡没有）。②**修法**（提交 `caa5288`）：
+core 新增纯函数 `BookCoverRules.coverOverride`（服务器图优先 / 缺图回退生成封面）；`HomeViewModel`
+注入 `BookCoverProvider`（与书架 `LibraryViewModel` 同源）+ `bookCovers` 状态 + `requestBookCover`；
+`LandscapeItemCard` / `PosterItemCard` 支持 `imageOverride` + `placeholderIconRes`（无图回退 `ic_book`，
+与 `ItemPoster` 同口径）；`HomeSection` / `homePosterWall` 透传 + `LaunchedEffect(item.id)` 懒生成；
+书架两处内联三元改用同一纯函数。③单测 +1（core `BookCoverRulesTest`）；门禁 8 任务 **716 项 / 0 失败**；
+④**真机待设备窗口**：首页「继续阅读 / 最近添加 · 书籍」卡与书架封面一致（缓存命中 / 现场生成 / 类型占位三态）。
+
 ## 6. 踩坑库
 
 1. **`Modifier.clickable(indication = null, onClick = …)` 不存在**：foundation 1.12 的两条重载里，带 `indication` 的那条必须显式传 `interactionSource`；封装 `Modifier.cinefinClickable` 统一处理（内部 `remember { MutableInteractionSource() }` + `indication = null`）。
