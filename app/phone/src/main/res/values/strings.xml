@@ -11,4 +11,13 @@
     <string name="player_clock_format_12">12-hour</string>
     <!-- W67b：竖屏内容区（选集 / 队列）收起键 -->
     <string name="player_bottom_content_collapse">Collapse episode panel</string>
+    <!-- W71：关于页 -->
+    <string name="about_package_name">Package name</string>
+    <string name="about_license">Open-source license</string>
+    <string name="about_license_summary">GPL-3.0 · Based on Findroid</string>
+    <string name="about_privacy">Privacy policy</string>
+    <string name="about_project_home">Project home</string>
+    <string name="about_releases">GitHub Releases</string>
+    <string name="about_third_party">Third-party components &amp; licenses</string>
+    <string name="about_close">Close</string>
 </resources>

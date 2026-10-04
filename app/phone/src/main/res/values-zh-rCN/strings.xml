@@ -11,4 +11,13 @@
     <string name="player_clock_format_12">12 小时</string>
     <!-- W67b：竖屏内容区（选集 / 队列）收起键 -->
     <string name="player_bottom_content_collapse">收起选集区</string>
+    <!-- W71：关于页 -->
+    <string name="about_package_name">包名</string>
+    <string name="about_license">开源许可</string>
+    <string name="about_license_summary">GPL-3.0 · 基于 Findroid 改造</string>
+    <string name="about_privacy">隐私政策</string>
+    <string name="about_project_home">项目主页</string>
+    <string name="about_releases">GitHub Releases</string>
+    <string name="about_third_party">第三方组件与许可证</string>
+    <string name="about_close">关闭</string>
 </resources>

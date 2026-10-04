@@ -1,0 +1,65 @@
+极光幕 · 隐私政策
+
+生效日期：2026-10-05
+
+极光幕（Aurorama）是一个纯本地的第三方 Jellyfin 客户端。本政策说明 App 如何处理你的信息。
+
+【我们收集什么】
+
+不收集任何数据。
+
+- 极光幕不收集、不上传、不共享任何个人信息或使用数据。
+- 没有第三方统计 SDK、广告 SDK 或崩溃上报服务。
+- App 没有任何向开发者回传数据的通道。
+
+【数据存在哪里】
+
+你的服务器地址、账号凭据（登录令牌）、播放与阅读进度、下载内容、本地媒体库索引与设置项全部只保存在你自己的设备上（App 私有存储与本地数据库）。
+
+- 这些数据只用于连接你自己的 Jellyfin 服务器并在本机显示。
+- 卸载 App 或在系统设置中清除应用数据即可删除全部本地数据。
+- 删除数据只会影响本机；Jellyfin 服务器上的数据由你自行在服务器侧管理。
+
+【网络通信】
+
+App 的网络请求仅指向：
+
+1. 你自行填写并确认的 Jellyfin 服务器地址；
+2. 你在 App 内主动点击打开的外部链接（项目主页、GitHub Releases 等，交由系统浏览器处理）。
+
+不存在其它后台上报或遥测请求。
+
+【权限】
+
+App 只申请功能所必需的权限，例如：网络访问（连接你的服务器）、本地媒体库目录访问（Android SAF 授权，仅限你选择的文件夹）、通知（下载进度与后台播放）。所有权限都可以在系统设置中随时撤销。
+
+【第三方组件】
+
+App 使用了若干开源库（详见本页「开源许可」与仓库 NOTICE）。这些库只在本地运行，不会向开发者或第三方发送数据。
+
+【政策变更】
+
+如本政策有更新，会以新的生效日期提交到本仓库；继续使用 App 即表示接受更新后的政策。
+
+【联系方式】
+
+任何疑问请通过 GitHub Issues 提出：
+https://github.com/zhangwenkang-github/Cinefin/issues
+
+---
+
+Aurorama — Privacy Policy
+
+Effective date: 2026-10-05
+
+Aurorama is a fully local third-party Jellyfin client.
+
+We collect nothing. The app does not collect, upload, or share any personal or usage data. There are no analytics, advertising, or crash-reporting SDKs, and no channel back to the developer.
+
+Your server address, credentials (login token), playback/reading progress, downloads, local library index, and settings are stored only on your own device and are used solely to connect to your own Jellyfin server. Uninstalling the app or clearing its data removes everything local.
+
+Network requests go only to: (1) the Jellyfin server address you enter and confirm, and (2) external links you explicitly open (handled by your system browser).
+
+The app requests only the permissions it needs (network, user-selected local media folders via the Android Storage Access Framework, notifications for downloads/background playback), and all can be revoked in system settings at any time.
+
+Questions? Open an issue at https://github.com/zhangwenkang-github/Cinefin/issues

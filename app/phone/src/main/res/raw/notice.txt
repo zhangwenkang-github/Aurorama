@@ -1,0 +1,53 @@
+极光幕 · Aurorama
+Copyright (C) 2026 zhangwenkang
+
+本工程是 Findroid 的衍生作品，按 GNU General Public License v3.0 发布：
+
+    Findroid - https://github.com/jarnedemeulemeester/findroid
+    Copyright (C) Jarné Demeulemeester 与贡献者
+    许可证：GNU General Public License v3.0
+    基线提交：a28ac9e
+
+功能与协议实现参考（未复制源码）：
+    Jellyfin Android - https://github.com/jellyfin/jellyfin-android (GPL-2.0)
+    Next Player - https://github.com/anilbeesetti/nextplayer (GPL-3.0)
+
+------------------------------------------------------------------------
+第三方组件与许可证（按实际打包依赖整理）
+------------------------------------------------------------------------
+
+播放与字幕
+    AndroidX Media3 / ExoPlayer 1.11.1          Apache-2.0
+    Jellyfin media3-ffmpeg-decoder 1.9.0+1      GPL-3.0-only
+    libmpv-android（mpv / libmpv）1.0.0         MIT（libmpv 本体 LGPL-2.1+）
+    ass-kt 0.5.1 + libass                       MIT / ISC
+
+服务器与数据
+    Jellyfin SDK for Kotlin 1.8.12              LGPL-3.0
+    OkHttp 5.5.0                                Apache-2.0
+    kotlinx.serialization / coroutines / datetime
+                                                Apache-2.0
+    Room 3.0.3（AndroidX）                      Apache-2.0
+    Hilt / Dagger 2.60.1                        Apache-2.0
+    WorkManager 2.11.2（AndroidX）              Apache-2.0
+
+阅读
+    Readium Kotlin Toolkit 3.4.0                BSD-3-Clause
+    PdfBox-Android 2.0.27.0                     Apache-2.0
+
+界面与工具
+    AndroidX（Compose / Navigation / Lifecycle / Paging / Window /
+    AppCompat / Activity）                      Apache-2.0
+    Material Components for Android 1.14.0      Apache-2.0
+    Coil 3.6.3                                  Apache-2.0
+    AboutLibraries 15.2.0                       Apache-2.0
+    Timber 5.0.1                                Apache-2.0
+    SLF4J 2.0.19 / slf4j-android                MIT
+    jsoup 1.23.2                                MIT
+
+字体
+    MiSans                                      © Xiaomi Technology Co., Ltd.（免费商用授权）
+    Literata                                    SIL Open Font License 1.1
+
+注：以上信息按 1.0.0 版本打包依赖整理；如依赖或版本变动，
+以本页下方 AboutLibraries 自动生成的清单与仓库 NOTICE 文件为准。
