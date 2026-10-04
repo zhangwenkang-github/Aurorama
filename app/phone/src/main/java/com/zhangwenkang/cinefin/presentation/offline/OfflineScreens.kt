@@ -449,7 +449,8 @@ fun OfflineShelfScreen(
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val pageGutter = rememberPageGutter()
     val horizontalPadding = safePadding.start + pageGutter
-    val books = state.visibleEntries.filter { it.kind == OfflineMediaEntryKind.BOOK }
+    // W62：书籍不过滤「允许离线」（无管理视图入口），与下载页「已完成 · 书籍」清单一致。
+    val books = state.downloadedBooks
 
     Column(modifier = Modifier.fillMaxSize().background(colors.surface)) {
         CinefinPageTopBar(

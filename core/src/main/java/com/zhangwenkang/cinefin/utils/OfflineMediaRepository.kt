@@ -168,7 +168,13 @@ class OfflineMediaRepositoryImpl(
                     entries +=
                         OfflineMediaEntry(
                             itemId = book.itemId,
-                            name = book.title ?: "离线书籍 ${book.itemId.toString().take(8)}",
+                            // W62：与下载页「已完成 · 书籍」统一显示名口径（侧车优先）。
+                            name =
+                                offlineBookDisplayName(
+                                    serverName = null,
+                                    sidecarTitle = book.title,
+                                    itemId = book.itemId,
+                                ),
                             kind = OfflineMediaEntryKind.BOOK,
                             sizeBytes = book.sizeBytes,
                             sourceId = null,

@@ -35,6 +35,18 @@ object OfflineMediaVisibility {
     fun videoOnly(entries: List<OfflineMediaEntry>): List<OfflineMediaEntry> = entries.filter {
         it.kind == OfflineMediaEntryKind.VIDEO
     }
+
+    /**
+     * W62：离线书架的书籍集合口径——**不按 [OfflineMediaEntry.allowOffline] 过滤**（下载了就在列）。
+     *
+     * 书籍没有「管理视图」可用：离线媒体库只列视频（[videoOnly]），若书籍也按 [visibleEntries] 过滤，被关闭
+     * 「允许离线模式观看」的书会从所有离线界面消失且无处重新打开；同时与下载页「已完成 · 书籍」清单对不上 （W61 F2：书架 4 本 vs 下载页 5 本，差的就是被关闭的
+     * `futuristic_tales`）。行内仍保留开关，被关闭的 行走 `OfflineLeafCard` 的置灰表现。
+     */
+    fun downloadedBooks(entries: List<OfflineMediaEntry>): List<OfflineMediaEntry> =
+        entries.filter {
+            it.kind == OfflineMediaEntryKind.BOOK
+        }
 }
 
 internal fun OfflineMediaEntry.toHierarchyEntry(): DownloadHierarchyEntry =

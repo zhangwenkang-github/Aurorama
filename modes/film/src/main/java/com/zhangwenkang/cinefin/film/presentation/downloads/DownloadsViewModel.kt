@@ -21,6 +21,7 @@ import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
+import com.zhangwenkang.cinefin.utils.offlineBookDisplayName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -413,9 +414,14 @@ constructor(
                     .map { file ->
                         DownloadHierarchyEntry(
                             itemId = file.itemId,
+                            // W62：与离线书架统一显示名口径（侧车优先），避免离线时退化成占位名导致两处清单
+                            // "看着不一致"。
                             name =
-                                bookMetadata[file.itemId]?.name
-                                    ?: "离线书籍 ${file.itemId.toString().take(8)}",
+                                offlineBookDisplayName(
+                                    serverName = bookMetadata[file.itemId]?.name,
+                                    sidecarTitle = file.title,
+                                    itemId = file.itemId,
+                                ),
                             mediaKind = DownloadMediaKind.BOOK,
                             status = DownloadTaskStatus.COMPLETED,
                             sizeBytes = file.sizeBytes,

@@ -128,6 +128,29 @@ class OfflineVisibilityTest {
         )
     }
 
+    @Test
+    fun downloadedBooksKeepsBlockedBooksAndDropsOtherKinds() {
+        // W62：离线书架列全部已下载书籍（关闭「允许离线」的也在列，行内置灰 + 开关可回开），只收书籍。
+        val entries =
+            listOf(
+                sampleVideo(name = "电影", allowOffline = false),
+                sampleMusic(name = "曲目", trackIndex = 1),
+                sampleBook(name = "关着的书", allowOffline = false),
+                sampleBook(name = "开着的书", allowOffline = true),
+            )
+
+        assertEquals(
+            listOf("关着的书", "开着的书"),
+            OfflineMediaVisibility.downloadedBooks(entries).map { it.name },
+        )
+        // 同一份输入下，旧的可见性过滤仍会藏起被关闭的书（管理视图语义不变）。
+        assertTrue(
+            OfflineMediaVisibility.visibleEntries(entries, includeHidden = false).none {
+                it.name == "关着的书"
+            }
+        )
+    }
+
     private fun sampleVideo(name: String, allowOffline: Boolean) =
         OfflineMediaEntry(
             itemId = UUID.randomUUID(),

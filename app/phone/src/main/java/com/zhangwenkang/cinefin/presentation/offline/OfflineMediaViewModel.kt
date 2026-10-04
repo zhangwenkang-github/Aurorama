@@ -53,8 +53,12 @@ constructor(
         val musicCount: Int
             get() = visibleEntries.count { it.kind == OfflineMediaEntryKind.MUSIC }
 
+        /** W62：离线书架 / 离线首页的书籍集合（不过滤「允许离线」，见 [OfflineMediaVisibility.downloadedBooks]）。 */
+        val downloadedBooks: List<OfflineMediaEntry>
+            get() = OfflineMediaVisibility.downloadedBooks(entries)
+
         val bookCount: Int
-            get() = visibleEntries.count { it.kind == OfflineMediaEntryKind.BOOK }
+            get() = downloadedBooks.size
 
         val hasAnyVisible: Boolean
             get() = visibleEntries.isNotEmpty()

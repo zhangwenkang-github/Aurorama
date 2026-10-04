@@ -35,6 +35,9 @@ import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -79,6 +82,9 @@ class JellyfinRepositoryImpl(
     private val musicTrackCache =
         java.util.concurrent.atomic.AtomicReference<Map<UUID, MusicTrackMetadata>>(emptyMap())
     private val musicTrackCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
+
+    /** W62：库直接子项稳定计数（该服务器 `ChildCount` 随机；见 [stableLibraryItemCount]）。 */
+    private val libraryItemCountCache = LibraryItemCountCache(CACHE_TTL_MS)
 
     override suspend fun getPublicSystemInfo(): PublicSystemInfo =
         withContext(Dispatchers.IO) { jellyfinApi.systemApi.getPublicSystemInfo().content }
@@ -125,17 +131,63 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getLibraries(): List<FindroidCollection> =
         withContext(Dispatchers.IO) {
-            jellyfinApi.itemsApi
-                .getItems(
-                    jellyfinApi.userId!!,
-                    // W8-R3：媒体库卡片要显示"共 N 个项目"——库列表默认不返回 ChildCount，显式要一次
-                    // （只影响这一个请求的体积，不额外发请求）。
-                    fields = listOf(ItemFields.CHILD_COUNT),
+            val libraries =
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        // W8-R3：媒体库卡片要显示"共 N 个项目"——库列表默认不返回 ChildCount，显式要一次
+                        // （W62 起只作为稳定计数缺失时的回退值，不再直接上屏）。
+                        fields = listOf(ItemFields.CHILD_COUNT),
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidCollection(this@JellyfinRepositoryImpl) }
+
+            // W62：ChildCount 在该服务器（10.11.8）对 UserView 随机波动（W61 回归 + 本波只读探针复核），
+            // 改用「按库直接子项查询」的稳定 TotalRecordCount，失败再回退 ChildCount。
+            val stableCounts = libraryItemCounts(libraries.map { it.id })
+            libraries.map { library ->
+                library.copy(
+                    itemCount = stableLibraryItemCount(stableCounts[library.id], library.itemCount)
                 )
-                .content
-                .items
-                .mapNotNull { it.toFindroidCollection(this@JellyfinRepositoryImpl) }
+            }
         }
+
+    /**
+     * W62：并发取每个库的稳定条目数。
+     *
+     * 口径 = `parentId=<库>&recursive=false&limit=1` 的 `TotalRecordCount`（= 库内直接条目数，探针两次采样一致，
+     * 且与进入库后内容页的总数一致）。命中 [libraryItemCountCache] 直接复用；单个库查询失败只影响它自己 （返回 null → 调用方回退 `ChildCount`）。
+     */
+    private suspend fun libraryItemCounts(libraryIds: List<UUID>): Map<UUID, Int> = coroutineScope {
+        libraryIds
+            .map { libraryId -> async { libraryItemCount(libraryId)?.let { libraryId to it } } }
+            .awaitAll()
+            .filterNotNull()
+            .toMap()
+    }
+
+    private suspend fun libraryItemCount(libraryId: UUID): Int? {
+        libraryItemCountCache.get(libraryId)?.let {
+            return it
+        }
+        val count =
+            runCatching {
+                jellyfinApi.itemsApi
+                    .getItems(
+                        jellyfinApi.userId!!,
+                        parentId = libraryId,
+                        recursive = false,
+                        limit = 1,
+                    )
+                    .content
+                    .totalRecordCount
+            }
+                .onFailure { Timber.w(it, "读取库 %s 的稳定条目数失败，回退 ChildCount", libraryId) }
+                .getOrNull() ?: return null
+        libraryItemCountCache.put(libraryId, count)
+        return count
+    }
 
     override suspend fun getItem(itemId: UUID): FindroidItem? =
         withContext(Dispatchers.IO) {
