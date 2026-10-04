@@ -21,6 +21,12 @@ class ItemsPagingSource(
     private val genres: List<String>? = null,
     private val studios: List<String>? = null,
 ) : PagingSource<Int, FindroidItem>() {
+
+    companion object {
+        /** 库内容页分页页片大小（预取下一页 / 计数门槛共用同一常量）。 */
+        const val PAGE_SIZE = 10
+    }
+
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, FindroidItem> {
         val position = params.key ?: 0
 

@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryImpl
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryOfflineImpl
+import com.zhangwenkang.cinefin.repository.MetadataPreloader
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.Module
 import dagger.Provides
@@ -68,4 +69,11 @@ object RepositoryModule {
             false -> jellyfinRepositoryImpl
         }
     }
+
+    /** W69b：元数据预加载器（每次取仓库都按当前在线 / 离线偏好解析，与页面一致）。 */
+    @Singleton
+    @Provides
+    fun provideMetadataPreloader(
+        repository: javax.inject.Provider<JellyfinRepository>
+    ): MetadataPreloader = MetadataPreloader(repository)
 }

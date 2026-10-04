@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.repository
 
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFilter
 
@@ -22,6 +23,14 @@ object MetadataCacheRules {
     /** 会话缓存条数上限（LRU 淘汰；进程内存，不做持久化）。 */
     const val DEFAULT_MAX_ENTRIES: Int = 256
 
+    /**
+     * W69b：同一 key 的**最小刷新冷却**（30 s，任务书建议 30–60 s）。
+     *
+     * 冷却期内即使缓存已过期，也先把旧值发回调用方、不重复打服务器——覆盖「返回页面 / 重进页面反复触发刷新」 与失败重试风暴；下拉刷新走
+     * [JellyfinRepository.invalidateMetadataCache] 清缓存，不受冷却限制。
+     */
+    const val MIN_REFRESH_COOLDOWN_MS: Long = 30 * 1000L
+
     /** 缓存是否仍在 TTL 内（可直接复用、不发请求）。时钟回拨按"过期"处理（宁可多拉一次）。 */
     fun isFresh(
         fetchedAtMs: Long,
@@ -35,6 +44,14 @@ object MetadataCacheRules {
         nowMs: Long,
         ttlMs: Long = DEFAULT_TTL_MS,
     ): Boolean = loadedAtMs > 0L && !isFresh(loadedAtMs, nowMs, ttlMs)
+
+    /** W69b：距上次刷新是否已超过冷却窗口（可再次发起请求）。从未刷新过 = true。 */
+    fun canRefresh(
+        lastRefreshAtMs: Long,
+        nowMs: Long,
+        cooldownMs: Long = MIN_REFRESH_COOLDOWN_MS,
+    ): Boolean =
+        lastRefreshAtMs <= 0L || nowMs < lastRefreshAtMs || nowMs - lastRefreshAtMs >= cooldownMs
 }
 
 /** 缓存条目：值 + 抓取时间戳（epoch ms）。 */
@@ -61,6 +78,9 @@ class MetadataCache(
             ): Boolean = size > maxEntries
         }
 
+    /** W69b：每个 key 最近一次「发起请求」的时间（发起即记，含失败）——冷却期内不再重复请求。 */
+    private val lastFetchAttemptAt = HashMap<String, Long>()
+
     /** 当前时间（与缓存写入同一时钟，便于单测）。 */
     fun now(): Long = clock()
 
@@ -82,11 +102,54 @@ class MetadataCache(
 
     /** 全部失效（收藏 / 已看 / 播放结束等跨列表的用户动作）。 */
     fun invalidateAll() {
-        synchronized(entries) { entries.clear() }
+        synchronized(entries) {
+            entries.clear()
+            lastFetchAttemptAt.clear()
+        }
+    }
+
+    /** W69b：冷却窗口内是否仍可发起请求（无记录 = 可以）。 */
+    fun canStartFetch(
+        key: String,
+        nowMs: Long,
+        cooldownMs: Long = MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS,
+    ): Boolean =
+        synchronized(entries) {
+            MetadataCacheRules.canRefresh(lastFetchAttemptAt[scoped(key)] ?: 0L, nowMs, cooldownMs)
+        }
+
+    /** W69b：记录一次真实的请求发起（成功 / 失败都算，防止失败风暴）。 */
+    fun markFetchStarted(key: String, nowMs: Long) {
+        synchronized(entries) { lastFetchAttemptAt[scoped(key)] = nowMs }
     }
 
     /** 当前条数（单测 / 诊断用）。 */
     fun size(): Int = synchronized(entries) { entries.size }
+}
+
+/**
+ * W69b：同 key 并发请求合并（去重）。
+ *
+ * 页面 / 预加载可能同时请求同一个 key（例如首页与预取、库网格与详情），这里保证**同一时刻只有一个请求在跑**： 第一个调用方成为 owner 执行请求，其余等待同一个
+ * [CompletableDeferred]；owner 成功/失败都会唤醒等待方 （等待方拿到异常后自行重试一次，避免因为别人的失败让自己也失败）。纯逻辑，JVM 单测覆盖。
+ */
+internal class InFlightRequests {
+    private val map = HashMap<String, CompletableDeferred<Any?>>()
+
+    /** 返回 (deferred, true) = 本调用是 owner；返回 (deferred, false) = 已有同 key 请求，await 即可。 */
+    fun join(key: String): Pair<CompletableDeferred<Any?>, Boolean> =
+        synchronized(map) {
+            map[key]?.let { it to false }
+                ?: CompletableDeferred<Any?>().also { map[key] = it } to true
+        }
+
+    /** owner 收尾：无论成败都要移除，后续请求才会重新发起。 */
+    fun finish(key: String, deferred: CompletableDeferred<Any?>) {
+        synchronized(map) { if (map[key] === deferred) map.remove(key) }
+    }
+
+    /** 当前在途条数（单测 / 诊断用）。 */
+    fun size(): Int = synchronized(map) { map.size }
 }
 
 /**

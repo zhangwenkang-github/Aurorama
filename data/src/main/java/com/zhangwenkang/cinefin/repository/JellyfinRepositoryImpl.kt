@@ -92,6 +92,9 @@ class JellyfinRepositoryImpl(
             namespace = { "${jellyfinApi.api.baseUrl.orEmpty()}|${jellyfinApi.userId ?: "-"}" }
         )
 
+    /** W69b：同 key 并发请求合并（去重）。 */
+    private val inFlightRequests = InFlightRequests()
+
     /**
      * W69：元数据读取的统一入口（stale-while-revalidate 的读侧）。
      *
@@ -101,15 +104,51 @@ class JellyfinRepositoryImpl(
     private suspend fun <T> cachedMetadata(
         key: String,
         ttlMs: Long = MetadataCacheRules.DEFAULT_TTL_MS,
+        allowJoin: Boolean = true,
         fetch: suspend () -> T,
     ): T {
+        val now = metadataCache.now()
         metadataCache.get<T>(key)?.let { entry ->
             if (MetadataCacheRules.isFresh(entry.fetchedAtMs, metadataCache.now(), ttlMs)) {
                 Timber.d("metadata cache hit: %s", key)
                 return entry.value
             }
+            // W69b：过期但仍在冷却窗口内——先复用旧值，避免返回页面 / 重进页面反复触发刷新。
+            if (!metadataCache.canStartFetch(key, now)) {
+                Timber.d("metadata cache hit (cooldown): %s", key)
+                return entry.value
+            }
+        }
+        // W69b：同 key 并发去重——第一个调用方执行请求，其余等待同一结果。
+        if (allowJoin) {
+            val (deferred, owner) = inFlightRequests.join(key)
+            if (!owner) {
+                Timber.d("metadata cache join in-flight: %s", key)
+                return try {
+                    @Suppress("UNCHECKED_CAST") deferred.await() as T
+                } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                    throw cancellation
+                } catch (_: Throwable) {
+                    // 领头请求失败：等待方自己补一次（不受别人失败牵连）。
+                    cachedMetadata(key, ttlMs, allowJoin = false, fetch = fetch)
+                }
+            }
+            return try {
+                Timber.d("metadata cache miss (refreshing): %s", key)
+                metadataCache.markFetchStarted(key, now)
+                val value = fetch()
+                metadataCache.put(key, value)
+                deferred.complete(value)
+                value
+            } catch (throwable: Throwable) {
+                deferred.completeExceptionally(throwable)
+                throw throwable
+            } finally {
+                inFlightRequests.finish(key, deferred)
+            }
         }
         Timber.d("metadata cache miss (refreshing): %s", key)
+        metadataCache.markFetchStarted(key, now)
         val value = fetch()
         metadataCache.put(key, value)
         return value
@@ -311,7 +350,11 @@ class JellyfinRepositoryImpl(
         studios: List<String>?,
     ): Flow<PagingData<FindroidItem>> {
         return Pager(
-                config = PagingConfig(pageSize = 10, enablePlaceholders = false),
+                config =
+                    PagingConfig(
+                        pageSize = ItemsPagingSource.PAGE_SIZE,
+                        enablePlaceholders = false,
+                    ),
                 pagingSourceFactory = {
                     ItemsPagingSource(
                         this,

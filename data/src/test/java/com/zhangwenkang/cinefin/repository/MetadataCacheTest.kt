@@ -65,6 +65,71 @@ class MetadataCacheTest {
     }
 
     @Test
+    fun `W69b 最小刷新冷却按窗口判定`() {
+        // 从未刷新过 → 允许。
+        assertTrue(MetadataCacheRules.canRefresh(lastRefreshAtMs = 0L, nowMs = 1_000L))
+        // 冷却窗口内 → 不允许（返回旧值，不打服务器）。
+        assertFalse(
+            MetadataCacheRules.canRefresh(
+                lastRefreshAtMs = 1_000L,
+                nowMs = 1_000L + MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS - 1,
+            )
+        )
+        // 到达 / 超过冷却 → 允许。
+        assertTrue(
+            MetadataCacheRules.canRefresh(
+                lastRefreshAtMs = 1_000L,
+                nowMs = 1_000L + MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS,
+            )
+        )
+        // 冷却常量落在任务书建议的 30–60 s 区间。
+        assertTrue(MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS >= 30_000L)
+        assertTrue(MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS <= 60_000L)
+    }
+
+    @Test
+    fun `W69b 缓存按 key 记录请求发起时间`() {
+        val cache = MetadataCache(clock = { 1_000L })
+        assertTrue(cache.canStartFetch("resume:Movie,Episode", nowMs = 1_000L))
+        cache.markFetchStarted("resume:Movie,Episode", nowMs = 1_000L)
+        assertFalse(cache.canStartFetch("resume:Movie,Episode", nowMs = 1_000L + 5_000L))
+        assertTrue(
+            cache.canStartFetch(
+                "resume:Movie,Episode",
+                nowMs = 1_000L + MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS,
+            )
+        )
+        // 其他 key 不受影响。
+        assertTrue(cache.canStartFetch("views", nowMs = 2_000L))
+        // 全量失效同时清掉冷却记录（下拉刷新后可以立刻重取）。
+        cache.invalidateAll()
+        assertTrue(cache.canStartFetch("resume:Movie,Episode", nowMs = 2_000L))
+    }
+
+    @Test
+    fun `W69b 同 key 并发请求只保留一个 owner`() {
+        val inFlight = InFlightRequests()
+        val (first, firstOwner) = inFlight.join("show:1")
+        val (second, secondOwner) = inFlight.join("show:1")
+        val (other, otherOwner) = inFlight.join("show:2")
+
+        assertTrue(firstOwner)
+        assertFalse(secondOwner)
+        assertTrue(second === first)
+        assertTrue(otherOwner)
+        assertFalse(other === first)
+        assertEquals(2, inFlight.size())
+
+        first.complete("done")
+        inFlight.finish("show:1", first)
+        assertEquals(1, inFlight.size())
+        // owner 收尾后同 key 可以重新发起。
+        val (again, againOwner) = inFlight.join("show:1")
+        assertTrue(againOwner)
+        assertFalse(again === first)
+    }
+
+    @Test
     fun `默认 TTL 落在任务要求的 5 到 15 分钟区间`() {
         assertTrue(MetadataCacheRules.DEFAULT_TTL_MS >= 5 * 60 * 1000L)
         assertTrue(MetadataCacheRules.DEFAULT_TTL_MS <= 15 * 60 * 1000L)
