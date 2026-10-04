@@ -60,6 +60,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -101,6 +102,21 @@ internal fun PlayerContentTabRow(
         Spacer(Modifier.weight(1f))
         trailing?.invoke()
     }
+}
+
+/**
+ * W67b：内容区（竖屏画面下方常驻区 / 平板覆盖层侧栏）的「收起」键。
+ *
+ * 只在 [PlayerContentTabRow.trailing] 槽位渲染，收起行为由调用方注入——同一处实现、同一套交互，不另造第二种关闭方式。
+ */
+@Composable
+private fun PlayerContentCloseButton(onClick: () -> Unit) {
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_close,
+        contentDescription = stringResource(AppR.string.player_bottom_content_collapse),
+        onClick = onClick,
+        glass = false,
+    )
 }
 
 @Composable
@@ -475,6 +491,12 @@ internal fun PlayerBottomContent(
     modifier: Modifier = Modifier,
     /** 折叠半开的下半屏是控制台，不需要「可上滑」的把手暗示 */
     showHandle: Boolean = true,
+    /**
+     * W67b：非空时在页签行尾显示「×」收起键（竖屏常驻内容区用；折叠半开下半屏是控制台，不传）。
+     *
+     * 与平板侧栏的收起键共用 [PlayerContentTabRow] 的 trailing 槽位——一处实现，两种骨架同一套交互。
+     */
+    onClose: (() -> Unit)? = null,
     /** 队列整理（§1.7）：队列页的拖拽 / 删除 / 清空 */
     onQueueMove: (Int, Int) -> Unit = { _, _ -> },
     onQueueRemove: (Int) -> Unit = {},
@@ -496,7 +518,16 @@ internal fun PlayerBottomContent(
                 )
             }
         }
-        PlayerContentTabRow(selected = tab, onSelect = { tab = it })
+        PlayerContentTabRow(
+            selected = tab,
+            onSelect = { tab = it },
+            trailing =
+                if (onClose != null) {
+                    { PlayerContentCloseButton(onClick = onClose) }
+                } else {
+                    null
+                },
+        )
         when (tab) {
             PlayerContentTab.Episodes ->
                 PlayerEpisodeCards(

@@ -280,4 +280,104 @@ class PlayerControlLayoutTest {
             )
         }
     }
+
+    // ---------- W67b：结束时间进左下工具行后的键集分级 ----------
+
+    @Test
+    fun bottomKeys_narrowPhoneWithEndTime_dropsBitrateAndDecode() {
+        // K60 竖屏 411dp：6 键 + 1× + 结束时间超预算 → 省「码率 / 解码」，保证结束时间完整
+        val spec = playerControlSpec(411f)
+        assertEquals(
+            "窄窗保留 音轨 · 字幕 · 倍率 · 详细信息 + 1× + 结束时间（顺序不变）",
+            listOf(
+                PlayerBottomKey.Audio,
+                PlayerBottomKey.Subtitle,
+                PlayerBottomKey.Speed,
+                PlayerBottomKey.Info,
+            ),
+            playerBottomKeysForWidth(
+                widthDp = 411f,
+                showLabels = false,
+                hasEndTime = true,
+                spec = spec,
+            ),
+        )
+    }
+
+    @Test
+    fun bottomKeys_narrowPhoneWithoutEndTime_keepsSixKeys() {
+        // 时长未知 / 直播：结束时间不占位 → 6 键照旧（W17 行为不回归）
+        val spec = playerControlSpec(411f)
+        assertEquals(
+            PLAYER_BOTTOM_KEY_ORDER,
+            playerBottomKeysForWidth(
+                widthDp = 411f,
+                showLabels = false,
+                hasEndTime = false,
+                spec = spec,
+            ),
+        )
+    }
+
+    @Test
+    fun bottomKeys_wideWindows_keepSixKeys() {
+        // K60 全屏横屏（914dp）与 Pad 5 横屏（1137dp）：带小字的 6 键 + 1× + 结束时间仍放得下
+        val phoneLandscape = playerControlSpec(914f)
+        assertEquals(
+            PLAYER_BOTTOM_KEY_ORDER,
+            playerBottomKeysForWidth(
+                914f,
+                showLabels = true,
+                hasEndTime = true,
+                spec = phoneLandscape,
+            ),
+        )
+        val tablet = playerControlSpec(1137f)
+        assertEquals(
+            PLAYER_BOTTOM_KEY_ORDER,
+            playerBottomKeysForWidth(1137f, showLabels = true, hasEndTime = true, spec = tablet),
+        )
+    }
+
+    @Test
+    fun bottomKeys_tierBoundaryFollowsWidthBudget() {
+        val spec = playerControlSpec(600f)
+        val budget =
+            spec.bottomRowWidthDp(showLabels = true, withEndTime = true) +
+                spec.toolRowPaddingDp * 2f
+        assertTrue("600dp 档的预算应超过 600dp（否则用例失去意义）", budget > 600f)
+        assertEquals(
+            "刚好放得下（含端点）时 6 键齐全",
+            PLAYER_BOTTOM_KEY_ORDER,
+            playerBottomKeysForWidth(budget, showLabels = true, hasEndTime = true, spec = spec),
+        )
+        assertEquals(
+            "差 1dp 就退到 4 键",
+            4,
+            playerBottomKeysForWidth(budget - 1f, showLabels = true, hasEndTime = true, spec = spec)
+                .size,
+        )
+    }
+
+    // ---------- W67b：竖屏内容区收起后的画面区 ----------
+
+    @Test
+    fun bottomContentCollapsed_letsVideoFillTheWindow() {
+        val expanded =
+            PlayerLayoutContext(
+                chrome = PlayerChromeLayout.SplitPortrait,
+                windowWidthDp = 411,
+                windowHeightDp = 914,
+            )
+        assertTrue("展开态：竖屏有常驻内容区", expanded.hasBottomContent)
+        assertEquals(
+            "展开态画面区 = max(16:9, 42% 窗口高)",
+            maxOf(411 * 9 / 16, 914 * 42 / 100),
+            expanded.videoHeightDp,
+        )
+
+        val collapsed = expanded.copy(bottomContentExpanded = false)
+        assertFalse("收起态：内容区不占位", collapsed.hasBottomContent)
+        assertEquals("收起态画面区铺满整窗", 914, collapsed.videoHeightDp)
+    }
 }

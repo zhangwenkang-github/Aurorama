@@ -165,6 +165,13 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private val sidePanelExpanded = mutableStateOf(false)
 
+    /**
+     * W67b：竖屏「画面下方的常驻内容区」（选集 / 队列）是否展开。
+     *
+     * 默认展开（保持既有竖屏骨架）；内容区右上角 × 收起后画面区铺满整窗，顶栏「选集」键可再次展开。
+     */
+    private val bottomContentExpanded = mutableStateOf(true)
+
     /** 全屏（W11 反馈⑥）：收紧常驻内容栏 + 强制横屏；同一个键按状态换图标 */
     private val fullscreenMode = mutableStateOf(false)
 
@@ -278,7 +285,10 @@ class PlayerActivity : BasePlayerActivity() {
                     val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
                     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
                     // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
-                    val layout = rememberPlayerLayoutContext(isPip = pipMode.value)
+                    // W67b：竖屏内容区展开 / 收起由页面状态参与布局（画面区高度、内容区占位一并生效）
+                    val layout =
+                        rememberPlayerLayoutContext(isPip = pipMode.value)
+                            .copy(bottomContentExpanded = bottomContentExpanded.value)
                     LaunchedEffect(layout, sidePanelExpanded.value) {
                         layoutContext = layout
                         applyVideoArea(layout)
@@ -290,6 +300,8 @@ class PlayerActivity : BasePlayerActivity() {
                         layout = layout,
                         sidePanelExpanded = sidePanelExpanded.value,
                         onToggleSidePanel = { sidePanelExpanded.value = !sidePanelExpanded.value },
+                        onCollapseBottomContent = { bottomContentExpanded.value = false },
+                        onExpandBottomContent = { bottomContentExpanded.value = true },
                         isPipSupported = isPipSupported,
                         isFullscreen = fullscreenMode.value,
                         onToggleFullscreen = { toggleFullscreen() },

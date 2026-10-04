@@ -25,6 +25,15 @@ object CinefinProgressVisuals {
     /** 光晕基色透明度（极轻同色柔光）。 */
     const val GlowAlpha = 0.45f
 
+    /**
+     * W67b：视频播放页进度条的**收敛档**柔光参数（用户拍板「与音乐页同款但更小」）。
+     *
+     * 半径系数 2.6 → 1.8、透明度 0.45 → 0.3：同样是 `media.base` 径向渐变，但观感比音乐页收敛； 两档放在同一处，避免播放页再复制一套魔法数造成漂移。
+     */
+    const val VideoGlowScale = 1.8f
+
+    const val VideoGlowAlpha = 0.3f
+
     /** 禁用态整体透明度。 */
     const val DisabledAlpha = 0.4f
 }

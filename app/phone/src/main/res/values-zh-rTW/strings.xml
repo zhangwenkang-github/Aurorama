@@ -9,4 +9,6 @@
     <string name="player_clock_format_system">跟隨系統</string>
     <string name="player_clock_format_24">24 小時</string>
     <string name="player_clock_format_12">12 小時</string>
+    <!-- W67b：豎屏內容區（選集 / 佇列）收合鍵 -->
+    <string name="player_bottom_content_collapse">收合選集區</string>
 </resources>

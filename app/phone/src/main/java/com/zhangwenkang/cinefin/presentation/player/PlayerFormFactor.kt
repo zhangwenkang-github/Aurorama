@@ -93,6 +93,12 @@ data class PlayerLayoutContext(
     val sidePanelWidthDp: Int = SIDE_PANEL_WIDTH_DP,
     /** 折叠半开：画面区高度 = 折痕上边缘 */
     val foldTopDp: Int? = null,
+    /**
+     * W67b：竖屏「画面下方的常驻内容区」（选集 / 队列）是否展开。
+     *
+     * 收起（内容区右上角 ×）后画面区铺满整窗、内容区不占位；顶栏「选集」键可再次展开。平板 / 折叠等其他骨架恒为 true（无此状态）。
+     */
+    val bottomContentExpanded: Boolean = true,
 ) {
     /** 画面区宽度：有侧栏时让出侧栏 */
     val videoWidthDp: Int
@@ -108,9 +114,14 @@ data class PlayerLayoutContext(
         get() =
             when (chrome) {
                 // 竖屏画面区：至少 42% 窗口高，保证「顶栏 + 中央播放键 + 进度条」三件套放得下；
-                // 视频本体仍是 16:9，多出来的高度用黑边/氛围底色承接
+                // 视频本体仍是 16:9，多出来的高度用黑边/氛围底色承接。
+                // W67b：内容区被 × 收起后画面区铺满整窗（视频区恢复）。
                 PlayerChromeLayout.SplitPortrait ->
-                    maxOf(windowWidthDp * 9 / 16, windowHeightDp * 42 / 100)
+                    if (bottomContentExpanded) {
+                        maxOf(windowWidthDp * 9 / 16, windowHeightDp * 42 / 100)
+                    } else {
+                        windowHeightDp
+                    }
                 PlayerChromeLayout.FoldHalfOpen -> foldTopDp ?: (windowHeightDp * 56 / 100)
                 else -> windowHeightDp
             }
@@ -119,7 +130,7 @@ data class PlayerLayoutContext(
         get() = chrome == PlayerChromeLayout.SplitSide
 
     val hasBottomContent: Boolean
-        get() = chrome == PlayerChromeLayout.SplitPortrait
+        get() = chrome == PlayerChromeLayout.SplitPortrait && bottomContentExpanded
 
     val isCompact: Boolean
         get() = chrome == PlayerChromeLayout.Compact

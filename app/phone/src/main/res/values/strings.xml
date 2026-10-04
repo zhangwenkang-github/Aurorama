@@ -9,4 +9,6 @@
     <string name="player_clock_format_system">System</string>
     <string name="player_clock_format_24">24-hour</string>
     <string name="player_clock_format_12">12-hour</string>
+    <!-- W67b：竖屏内容区（选集 / 队列）收起键 -->
+    <string name="player_bottom_content_collapse">Collapse episode panel</string>
 </resources>

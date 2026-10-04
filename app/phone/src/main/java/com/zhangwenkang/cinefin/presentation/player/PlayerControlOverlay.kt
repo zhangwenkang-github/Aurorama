@@ -59,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -88,6 +89,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinProgressVisuals
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
@@ -113,6 +115,8 @@ import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
+import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -184,6 +188,12 @@ private const val PLAYER_TOOL_KEY_LABEL_FONT_SIZE_SP = 10f
  */
 private const val PLAYER_SPEED_BADGE_WIDTH_DP = 48f
 
+/**
+ * W67b：预计结束时刻（「18:19 结束」= 13sp MonoDataSmall 的 5 位数字 + 空格 + 2 个中文字，两侧各 8dp 间距）在 底栏宽度预算里的估宽（dp）。只用于
+ * [PlayerControlSpec.bottomRowWidthDp] 的分级估算。
+ */
+private const val PLAYER_END_TIME_WIDTH_DP = 88f
+
 internal enum class PlayerPanel {
     None,
     Speed,
@@ -232,18 +242,25 @@ internal data class PlayerControlSpec(
     val bottomRowWidthDp: Float
         get() = bottomRowWidthDp(showLabels = false)
 
-    /** W17：底栏一行宽度预算。[showLabels] = true 时 6 个工具键按「图标 + 小字」的加宽键框计 （全屏键恒为纯图标，不参与加宽）。 */
-    fun bottomRowWidthDp(showLabels: Boolean): Float {
+    /**
+     * W17：底栏一行宽度预算。[showLabels] = true 时 6 个工具键按「图标 + 小字」的加宽键框计 （全屏键恒为纯图标，不参与加宽）。
+     *
+     * W67b：预计结束时刻移到这一行后，[withEndTime] = true 时再加「1× 徽标 + 结束时间文本 + 两侧 8dp 间距」， 供
+     * [playerBottomKeysForWidth] 做 6 键 / 4 键分级。
+     */
+    fun bottomRowWidthDp(showLabels: Boolean, withEndTime: Boolean = false): Float {
         val toolKeyWidth =
             if (showLabels) {
                 toolKeySizeDp + PLAYER_TOOL_KEY_LABEL_WIDTH_EXTRA_DP
             } else {
                 toolKeySizeDp
             }
-        return toolKeyWidth * 6f +
-            toolKeySizeDp +
-            maxOf(toolKeyWidth, PLAYER_SPEED_BADGE_WIDTH_DP) +
-            keyGapDp * 8f
+        val base =
+            toolKeyWidth * 6f +
+                toolKeySizeDp +
+                maxOf(toolKeyWidth, PLAYER_SPEED_BADGE_WIDTH_DP) +
+                keyGapDp * 8f
+        return if (withEndTime) base + PLAYER_END_TIME_WIDTH_DP else base
     }
 }
 
@@ -318,6 +335,27 @@ internal fun playerToolLabelsVisible(
             widthDp >= PLAYER_TOOL_ROW_WIDE_WIDTH_DP ||
             formFactor == PlayerFormFactor.Tablet ||
             formFactor == PlayerFormFactor.Foldable)
+
+/**
+ * W67b：左下工具行的键集分级。
+ *
+ * 预计结束时刻移到该行后，窄窗优先保证结束时间完整：行宽预算（键 + 1× 徽标 + 结束时刻 + 右下全屏键 + 间距 + 左右留白，见
+ * [PlayerControlSpec.bottomRowWidthDp]）放不下 6 键时，省略「码率 / 解码」两键—— 只剩 音轨 · 字幕 · 倍率 · 详细信息 + 1× +
+ * 结束时刻；宽窗 / 全屏 / 平板照旧全量 6 键。 返回恒为 [PLAYER_BOTTOM_KEY_ORDER] 的子序列（顺序不变）。
+ */
+internal fun playerBottomKeysForWidth(
+    widthDp: Float,
+    showLabels: Boolean,
+    /** 预计结束时刻是否存在（时长未知 / 直播 → false，不占位，也就不需要为它让宽） */
+    hasEndTime: Boolean,
+    spec: PlayerControlSpec,
+): List<PlayerBottomKey> {
+    val budget = spec.bottomRowWidthDp(showLabels, hasEndTime) + spec.toolRowPaddingDp * 2f
+    if (budget <= widthDp) return PLAYER_BOTTOM_KEY_ORDER
+    return PLAYER_BOTTOM_KEY_ORDER.filter {
+        it != PlayerBottomKey.Bitrate && it != PlayerBottomKey.Decode
+    }
+}
 
 /** 右上角 5 键的**固定顺序**（W12 终版布局，勿再变动）：画中画 · 睡眠 · 选集 · 画面 · 设置。 */
 internal enum class PlayerTopKey {
@@ -647,6 +685,10 @@ fun PlayerControlOverlay(
     sleepState: SleepTimerController.State = SleepTimerController.State(),
     /** 选择睡眠定时分钟；null = 取消 */
     onSelectSleepMinutes: (Int?) -> Unit = {},
+    /** W67b：竖屏内容区（选集 / 队列）收起 —— 由内容区右上角 × 触发，画面区铺满整窗 */
+    onCollapseBottomContent: () -> Unit = {},
+    /** W67b：竖屏内容区再次展开 —— 由顶栏「选集」键在收起态触发 */
+    onExpandBottomContent: () -> Unit = {},
     /** 全屏（W11 反馈⑥）：收起常驻内容栏 + 强制横屏；同一个键按状态换图标 */
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
@@ -840,6 +882,14 @@ fun PlayerControlOverlay(
                     settingsController.state.decodeMode == PlayerViewModel.DECODE_MODE_SOFTWARE ||
                         settingsController.state.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
                 spec = spec,
+                // W67b：结束时间进了工具行——窄窗按宽度预算省略码率 / 解码，优先保证 1× + 结束时间完整
+                bottomKeys =
+                    playerBottomKeysForWidth(
+                        widthDp = (layout.windowWidthDp - sidePanelInset.value).coerceAtLeast(0f),
+                        showLabels = toolLabelsVisible,
+                        hasEndTime = endTimeText != null,
+                        spec = spec,
+                    ),
                 isFullscreen = isFullscreen,
                 // W17：6 键恒定齐全；文字只在窄屏以外的形态出现
                 showLabels = toolLabelsVisible,
@@ -883,10 +933,14 @@ fun PlayerControlOverlay(
             onSleep = { navigatePanel(PlayerPanel.Sleep) },
             onOpenAspect = { navigatePanel(PlayerPanel.Aspect) },
             onOpenQueue =
-                if (hasSidePanel) {
-                    onToggleSidePanel
-                } else {
-                    { navigatePanel(PlayerPanel.Queue) }
+                when {
+                    hasSidePanel -> onToggleSidePanel
+                    // W67b：竖屏内容区被 × 收起后，选集键先把内容区展开回来（再按一次才进队列面板）
+                    layout.chrome == PlayerChromeLayout.SplitPortrait &&
+                        !layout.bottomContentExpanded -> onExpandBottomContent
+                    else -> {
+                        { navigatePanel(PlayerPanel.Queue) }
+                    }
                 },
             onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
             showLabels = toolLabelsVisible,
@@ -1134,6 +1188,8 @@ fun PlayerControlOverlay(
                 onQueueMove = onQueueMove,
                 onQueueRemove = onQueueRemove,
                 onQueueClear = onQueueClear,
+                // W67b：× 收起内容区（画面区铺满；顶栏「选集」键再展开）
+                onClose = onCollapseBottomContent,
                 modifier = Modifier.fillMaxSize().padding(top = videoHeight),
             )
         }
@@ -1864,6 +1920,8 @@ private fun PlayerBottomBar(
     decodeActive: Boolean,
     /** 版式规格（W12 反馈 A）：窄屏整体收一档 */
     spec: PlayerControlSpec,
+    /** W67b：本行实际渲染的左下工具键（窄窗省略码率 / 解码，给 1× + 预计结束时刻让位） */
+    bottomKeys: List<PlayerBottomKey>,
     isFullscreen: Boolean,
     /** W17 反馈⑤：是否在 6 键图标下加小字（窄屏 / Compact 只留图标） */
     showLabels: Boolean = false,
@@ -1884,6 +1942,8 @@ private fun PlayerBottomBar(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
+    // W67b：结束时刻压在亮画面上——按 Lumen Meta 阴影描边保证可读（§8.7 播放器控件）
+    val endTimeStyle = CinefinType.MonoDataSmall.lumenTextShadow(LumenTextShadow.Meta)
     Column(
         modifier =
             modifier
@@ -1925,16 +1985,6 @@ private fun PlayerBottomBar(
                 style = CinefinType.MonoDataSmall,
                 color = colors.onSurfaceVariant,
             )
-            if (endTimeText != null) {
-                Spacer(Modifier.width(CinefinSpacing.Space2))
-                Text(
-                    text = endTimeText,
-                    style = CinefinType.MonoDataSmall,
-                    color = colors.onSurfaceFaint,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
         }
 
         Spacer(Modifier.height(CinefinSpacing.Space1))
@@ -1958,8 +2008,9 @@ private fun PlayerBottomBar(
                 horizontalArrangement = Arrangement.spacedBy(spec.keyGapDp.dp),
                 modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
             ) {
-                // W17：6 键恒定齐全；showLabels 只控制图标下的小字，窄屏仍可点全部功能
-                PLAYER_BOTTOM_KEY_ORDER.forEach { key ->
+                // W17：宽窗 6 键齐全（showLabels 只控制图标下的小字）；W67b：窄窗按宽度预算省略码率 / 解码，
+                // 把宽度让给右侧固定的「1× · 预计结束时刻」；行内仍可横滑，不挤不重叠。
+                bottomKeys.forEach { key ->
                     when (key) {
                         PlayerBottomKey.Audio ->
                             PlayerIconButton(
@@ -2060,8 +2111,22 @@ private fun PlayerBottomBar(
                             )
                     }
                 }
-                // W13 反馈③ + W14 微调：当前倍率作为**纯展示徽标**固定在「详细信息」右侧，不可点击（倍速入口只有倍率图标键）
-                PlayerSpeedBadge(speed = speed)
+            }
+            /*
+             * W13 反馈③ + W14 微调：当前倍率作为**纯展示徽标**固定在键行右侧，不可点击（倍速入口只有倍率图标键）。
+             * W67b：1× 徽标与预计结束时刻**固定在键行外**（不参与横滑）——两个一起保证结束时间在最窄窗口也完整可见。
+             */
+            Spacer(Modifier.width(CinefinSpacing.Space2))
+            PlayerSpeedBadge(speed = speed)
+            if (endTimeText != null) {
+                Spacer(Modifier.width(CinefinSpacing.Space2))
+                Text(
+                    text = endTimeText,
+                    style = endTimeStyle,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                )
             }
             if (sleepActive) {
                 Spacer(Modifier.width(CinefinSpacing.Space1))
@@ -2458,8 +2523,51 @@ internal fun PlayerSeekBar(
                         .background(playerProgressBrush(accent, accentSecondary))
             )
             /*
-             * 章节刻度（W67 增强）：2×18dp 发丝线（轨道上下各探出一截）、白 85%；已播过的章节用媒体色 / 极光青区分；
-             * 拖动中被吸附的那条加粗到 3dp 并加亮（不加光晕，§2.6 第 3 条）。
+             * 拖动手柄（W67b：与音乐播放器同款圆形语言）。
+             *
+             * 9dp 白圆点 + 同色柔光（`media.base` 径向渐变，取 [CinefinProgressVisuals] 的**收敛档**参数：
+             * 半径与透明度都比音乐页小）；旧样式的「拖动放大到 20dp + 2dp 极光青描边圈」下线——那圈描边正是用户说的
+             * "光晕"。拖动时不再放大，仍能靠吸附刻度 / 气泡 / 触觉表达状态。
+             */
+            val thumbRadius = CinefinProgressVisuals.ThumbRadius
+            Box(
+                modifier = Modifier.fillMaxWidth(playedFraction),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Box(
+                    modifier =
+                        Modifier.size(thumbRadius * 2)
+                            .drawBehind {
+                                val glowRadius =
+                                    size.minDimension / 2f * CinefinProgressVisuals.VideoGlowScale
+                                drawCircle(
+                                    brush =
+                                        Brush.radialGradient(
+                                            colors =
+                                                listOf(
+                                                    media.base.copy(
+                                                        alpha =
+                                                            CinefinProgressVisuals.VideoGlowAlpha
+                                                    ),
+                                                    Color.Transparent,
+                                                ),
+                                            center = center,
+                                            radius = glowRadius,
+                                        ),
+                                    radius = glowRadius,
+                                    center = center,
+                                )
+                            }
+                            .clip(CircleShape)
+                            .background(colors.onSurface)
+                )
+            }
+            /*
+             * 章节刻度（W67 增强 / W67b 收敛高度）：2dp 宽、**与轨道同高（6dp）**的白 85% 发丝线；已播过的章节用
+             * 媒体色 / 极光青区分。
+             *
+             * 刻度画在手柄**之后**：吸附时那条加粗到 3dp 并取极光青满亮——刻度与拇指同高时它正好压在白色拇指上，
+             * 白上加白读不出来，用播放页的高亮色（极光青，与旧描边圈同源）才看得出「被吸附」；仍不加光晕（§2.6 第 3 条）。
              */
             chapters.forEachIndexed { index, chapter ->
                 val fraction = chapterTickFraction(chapter.startPosition, safeDuration)
@@ -2467,44 +2575,23 @@ internal fun PlayerSeekBar(
                 val snapped = scrubbing && index == snapIndex
                 val tickColor =
                     when {
-                        snapped -> colors.onSurface
-                        played -> accent
+                        // 吸附（3dp）与已播（2dp）都用媒体色 / 极光青
+                        snapped || played -> accent
                         else -> colors.onSurface.copy(alpha = 0.85f)
                     }
                 Box(
-                    // 只按比例定位右缘：这里**不能**加 `.height(trackHeight)`——父容器会把子项高度夹到 6dp
-                    // 轨道高度，刻度就探不出轨道上下（真机发现并修复，W67）。
+                    // 只按比例定位右缘（外层不加高度约束，刻度高度 = 轨道高度，W67b 起不再上下探出）
                     modifier = Modifier.fillMaxWidth(fraction),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Box(
                         modifier =
                             Modifier.width(if (snapped) 3.dp else 2.dp)
-                                .height(18.dp)
+                                .height(trackHeight)
                                 .clip(CinefinShapes.TwoXs)
                                 .background(tickColor)
                     )
                 }
-            }
-            // 拖动手柄
-            Box(
-                modifier = Modifier.fillMaxWidth(playedFraction),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Box(
-                    modifier =
-                        Modifier.size(if (scrubbing) 20.dp else 14.dp)
-                            .clip(CinefinShapes.TwoXs)
-                            .background(colors.onSurface)
-                            // 拖拽 / 焦点态：极光青描边圈住 knob（无发光）
-                            .then(
-                                if (scrubbing) {
-                                    Modifier.border(2.dp, media.base, CinefinShapes.TwoXs)
-                                } else {
-                                    Modifier
-                                }
-                            )
-                )
             }
         }
     }

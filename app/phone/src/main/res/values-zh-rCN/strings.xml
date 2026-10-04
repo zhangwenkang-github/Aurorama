@@ -9,4 +9,6 @@
     <string name="player_clock_format_system">跟随系统</string>
     <string name="player_clock_format_24">24 小时</string>
     <string name="player_clock_format_12">12 小时</string>
+    <!-- W67b：竖屏内容区（选集 / 队列）收起键 -->
+    <string name="player_bottom_content_collapse">收起选集区</string>
 </resources>
