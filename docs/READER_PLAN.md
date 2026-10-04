@@ -1683,7 +1683,70 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
   60 s 不增长、可回落，扫描日志 `pages=5006 slots=4973 landscape=4938` 与修复前一致；批量路径不可用时
   的大书兜底阈值（1500 页）见 §2 D24 第 3 条。
 
-## 10. 变更日志
+## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
+
+### 10.1 加载中返回仍占网络（修，提交 `06bd7d8`）
+
+**复现**：打开一本**未下载**的大书（如虚构推理 639.6 MB），在「正在下载 / 加载」阶段返回书架 ——
+网络请求继续把整本书下完，`files/books` 残片继续变大。
+
+**根因**：`ReaderRepositoryImpl.download()` 用阻塞 `OkHttp.call.execute()` 在 `Dispatchers.IO` 里跑；
+`viewModelScope` 取消只能让协程在挂起点退出，**不能中断线程里阻塞的 socket 读** → 下载一路跑完。
+
+**修法**：
+
+1. `data/ReaderRepositoryImpl.download()`：读循环每块 `ensureActive()`；注册当前 `Job` 完成回调 →
+   协程取消时 `call.cancel()` 立即中止在途 HTTP；`finally` 释放回调；catch 里 `ensureActive()`
+   把 cancel 抛出的 `IOException` 归一为 `CancellationException`，并删除 `.part` 残片（不留半截文件）。
+2. `modes/book/ReaderViewModel` 的 `open()` / `openLocal()` / `downloadBook()`：`runCatching` 改为
+   try/catch，`CancellationException` 直接重抛 —— 取消不再被写成「打开失败 / 下载失败」。
+
+**真机取证**：K60 `8e875894` 未接入 adb、Pad 5 `43af8627` 被 W63 会话占用 → **本波未完成，待设备窗口**。
+步骤：打开未下载的大书（虚构推理）→ 加载中立即返回 → 用 `adb shell cat /proc/<uid>/...` 或
+`logcat`（cancel 后无下载字节增长）取证「网络请求已停止、`.part` 已删除」。
+
+### 10.2 已下载的书打开偶尔慢（修，提交 `06bd7d8`）
+
+**根因**：打开路径 = 文件检查 → `getReadingProgress()` → 解析文档；其中 `getReadingProgress` 在
+网络活跃时**无条件同步查服务器**（`Items/{id}/UserData` + `Items/{id}` 两次请求，服务器偶发慢 /
+超时最长 30 s）—— 书已经下载完成，打开首帧却被网络拖住，表现为「偶尔很慢」。
+
+**修法**：`fetchRemoteProgress` 外包 `withTimeoutOrNull(2000ms)`，超时 / 失败回退本地进度
+（正常网络下多设备进度不受影响）；`fetchRunTimeTicks` 的 `runCatching` 重抛取消异常；
+`ReaderViewModel` 打开路径加分段耗时日志（文件 / 进度 / 文档 / 合计），供回归采样。
+
+**优化前后数字**：**待真机窗口实测**（同书同起点 3–5 次取中位数；对照组 = 飞行模式直开）。
+
+### 10.3 批注范围（只读核对 + 文案，提交 `06bd7d8`）
+
+**核对结论**：批注（与搜索）为 **PDF 专属** —— `ReaderScreen.pdfToolsAvailable` 只在
+`ReaderDocument.Simple.format == Pdf` 时为 true，顶栏「搜索 / 批注」仅此时出现；EPUB（Readium Rich）
+与 CBZ 都没有入口。用户看到的「虚构推理、W22-Spread-Test 有批注」= 两本都是 PDF；其他书没有入口
+是**当前设计**，不是缺陷。
+
+**文案**：`ReaderAnnotationSheet` 副题补「批注仅支持 PDF，EPUB / CBZ 暂不支持」；
+`ReaderSettingsPanel` 末尾加同口径说明（对 EPUB / CBZ 用户也能看到）。
+
+### 10.4 EPUB 批注成本评估（本波不实现，待负责人确认是否扩展）
+
+- **可行路径**：Readium 3.4 有 Decoration API（`DecorableNavigator`，`DecorationStyle` 高亮），
+  可复用现有 `ReaderAnnotation` JSON v1 存储与面板 UI。
+- **成本**（估 **5–8 人日**）：
+  1. 选择粒度从「矩形框选」改「文本选择」（Readium `Selection` / 选区监听）；
+  2. 锚点从「页面归一化矩形」改「Locator + 文本上下文」（progression 会随字号 / 排版漂移，
+     现有矩形锚点不能直接复用）；
+  3. 渲染 = Decoration 叠加（与现有 `PageOverlay` 是两套叠加路径），需覆盖双主题 / 字体 /
+     双栏布局回归与真机矩阵。
+- **建议**：本波不做（范围控制）；如确需 EPUB 批注，单开一波按上述方案细化。**请负责人确认。**
+
+### 10.5 工程与真机状态
+
+- 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` **716 项 / 0 失败 0 错误**
+  （基线 713 + 新增 3：core 1 + music 2）。
+- **真机测试未覆盖**（K60 未接入 adb + Pad 5 被 W63 占用）：10.1 取消取证、10.2 打开耗时前后数字、
+  批注文案真机走查均待设备窗口。测试服务器全程只读。
+
+## 11. 变更日志
 
 | 日期 | 变更 |
 |------|------|

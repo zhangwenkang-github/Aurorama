@@ -876,6 +876,16 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 ## 7. 会话日志
 
+- **2026-10-04 W64 音乐（本会话，`fix/w64-reader-music-home`，起点 master `a8a580f`）：歌曲 Tab「播放全部 / 随机播放」**——
+  ①需求：一键把当前歌曲列表**全部曲目按列表序**加入队列并从第 1 首开始播；随机播放 = 洗牌 + 切随机模式；
+  ②实现：`MusicModeViewModel.playAll(shuffle)` 复用 `playSong` 链路（抽 `startQueuePlayback` 共用：解析首曲 →
+  `setQueue` 起播 → 后台按序补队列，单曲解析失败跳过）；纯函数 `MusicBatchRules.playAllOrder(songs, shuffle, random)`
+  （顺序 = 原列表；随机 = 客户端 `shuffled(random)`，`random` 可注入）锁死入队顺序；UI 在歌曲 Tab 顶部加
+  「播放全部 / 随机播放」两键（多选态禁用，离线也可用）；③单测 +2（`MusicBatchRulesTest`：原序 / 确定性洗牌）；
+  ④门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun` **716 项 / 0 失败**（music 132 → 134）；
+  ⑤**真机待设备窗口**（K60 `8e875894` 未接入 adb + Pad 5 被 W63 占用）：首曲起播 + 队列顺序 + 随机首曲 +
+  0 FATAL·ANR。未动 `player:*`（复用既有 queue / shuffle 链路）。
+
 - **2026-10-04 W56 交互修正（本会话，`feature/w56-interaction-fixes`，起点 master `2ed356f`）**：①迷你播放条新增「关闭面板」×（`MusicModeViewModel.dismissNowPlayingBar()`：活动会话 `stop()` 停播清内存队列 / 恢复态只丢展示快照；存档只写不清；纯函数 `musicMiniBarDismissTarget` + 3 项单测）；②全屏播放页 `PlayerActionRow` 六键改五键（删「歌词」入口；点歌词行与左滑两条路径保留，迷你条「词」保留）；③设置 / 导航两处 UI 修正在 `UI_PLAN` D63–D64（账号卡并入「账号与服务器」组首行；顶层图标统一「回对应主页」，音乐覆盖层用 `reselectSignal` 收起）。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` 583 项 0 失败、全量 590 项 0 失败。真机待窗口（§5.16）。分支已推送未合并。
 
 - **2026-10-04 W55 睡眠定时统一（本会话，`feature/w55-sleep-timer`，起点 master `1aae466`）**：先只读核对音乐侧 `MusicSleepTimer`（W21，10/20/30/60 + 关闭、进程级、到点 `MusicPlaybackController.pause()`）与视频侧 `PlayerControlOverlay` 内的局部计时（`remember` + `LaunchedEffect`、档位同 10/20/30/60、到点 `player.pause()`），确认两侧到点行为一致 → 按「保留既有档位 + 自定义 1–240」落地统一：`player:core` 新增 `SleepTimerSpec` / `SleepTimerStateMachine`（7 项纯函数单测），`player:local` 新增进程级 `SleepTimerController`（唯一共享播放器实例到点暂停），core 新增 `CinefinSleepTimerOptions` 共享组件（复用 `CinefinListRow` / `CinefinSlider` / `CinefinButton`），三处宿主（音乐 sheet / 视频页对话框 / 播放器面板）接同一状态源。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、7 任务 `--rerun` 576 项 0 失败、全量 583 项 0 失败。真机待窗口（清单 `PLAYER_PLAN` §26.3）。分支已推送未合并。
