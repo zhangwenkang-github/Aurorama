@@ -99,6 +99,7 @@ class SidebarLocalLibraryTest {
     @Test
     fun railLabelWidthMatchesRailGeometry() {
         // 168 − 2×10（导航列内边距）− 16（子项缩进）− 2×14（条目内边距）− 24（图标）− 12（图标与文字间距）。
-        assertEquals(68f, railLibraryLabelWidthDp(), 0.001f)
+        // W65 起展开宽自适应，尺寸链按传入的当前轨宽实时计算（边界与比例单测见 AdaptiveSidebarWidthTest）。
+        assertEquals(68f, railLibraryLabelWidthDp(168f), 0.001f)
     }
 }

@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -124,11 +125,14 @@ import com.zhangwenkang.cinefin.presentation.navigation.CinefinDrawerHeader
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPANDED
 import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
+import com.zhangwenkang.cinefin.presentation.navigation.RAIL_COLLAPSED_WIDTH_DP
 import com.zhangwenkang.cinefin.presentation.navigation.RAIL_LIBRARY_COUNT_GAP_DP
 import com.zhangwenkang.cinefin.presentation.navigation.SidebarLocalLibrary
 import com.zhangwenkang.cinefin.presentation.navigation.TemporaryLibraryKind
 import com.zhangwenkang.cinefin.presentation.navigation.TopLevelTapAction
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
+import com.zhangwenkang.cinefin.presentation.navigation.drawerLibraryLabelWidthDp
+import com.zhangwenkang.cinefin.presentation.navigation.drawerWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.homeViewAllRoute
 import com.zhangwenkang.cinefin.presentation.navigation.libraryChildCountVisible
 import com.zhangwenkang.cinefin.presentation.navigation.libraryEntryRoute
@@ -136,6 +140,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.navigation.navEntryKeys
 import com.zhangwenkang.cinefin.presentation.navigation.navIcon
+import com.zhangwenkang.cinefin.presentation.navigation.railExpandedWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
 import com.zhangwenkang.cinefin.presentation.navigation.railLibraryLabelWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.topLevelTapAction
@@ -387,6 +392,13 @@ fun NavigationRoot(
     val railDefaultExpanded = windowSizeClass.isWidthAtLeastBreakpoint(1200)
     var railExpanded by
         rememberSaveable(railDefaultExpanded) { mutableStateOf(railDefaultExpanded) }
+    // W65（用户 2026-10-04 拍板，全部按推荐）：侧栏宽度自适应——屏宽取窗口配置（旋转 / 分屏即时生效），
+    // 宽度计算是纯函数（NavigationIa.kt + 单测）：侧轨展开 clamp(30%, 200, 240)dp、手机抽屉 clamp(55%, 208, 280)dp；
+    // 折叠轨恒定 72dp。
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val adaptiveRailWidthDp = railExpandedWidthDp(screenWidthDp)
+    val adaptiveDrawerWidthDp = drawerWidthDp(screenWidthDp)
+    val drawerLabelWidthDp = drawerLibraryLabelWidthDp(adaptiveDrawerWidthDp)
     // 「媒体库」二级分组默认**收起**（W8-R3 用户反馈 4，覆盖 W7-R3 的默认展开）：抽屉与侧轨共用，
     // 展开后才显示服务器的库列表——先给出「首页 / 音乐 / 书架 / 媒体库」四条一级入口。
     var mediaGroupExpanded by rememberSaveable { mutableStateOf(MEDIA_GROUP_DEFAULT_EXPANDED) }
@@ -808,7 +820,13 @@ fun NavigationRoot(
                                 icon = navIcon(libraryIconRes(library.type)),
                                 nested = true,
                                 // W53 Bug B 配套：同类型多库（书籍 / 书籍3、音乐 / 音乐测试）补项目数，便于区分。
-                                trailing = libraryChildCountTrailing(library.itemCount),
+                                // W65：抽屉变窄后同样走「完整名称优先」——放不下时省略项目数，不截断库名。
+                                trailing =
+                                    adaptiveLibraryCountTrailing(
+                                        name = library.name,
+                                        count = library.itemCount,
+                                        labelWidthDp = drawerLabelWidthDp,
+                                    ),
                             ),
                         selected = currentLibrary?.libraryId == library.id.toString(),
                         onClick = { openLibrary(library) },
@@ -821,7 +839,12 @@ fun NavigationRoot(
                                 label = library.name,
                                 icon = navIcon(library.type.iconRes()),
                                 nested = true,
-                                trailing = libraryChildCountTrailing(library.itemCount),
+                                trailing =
+                                    adaptiveLibraryCountTrailing(
+                                        name = library.name,
+                                        count = library.itemCount,
+                                        labelWidthDp = drawerLabelWidthDp,
+                                    ),
                             ),
                         selected = currentLocalLibraryId == library.id,
                         onClick = { openLocalLibrary(library) },
@@ -1441,6 +1464,8 @@ fun NavigationRoot(
         groups = drawerGroups,
         selectedIndex = drawerSelectedIndex,
         onSelect = { index -> drawerEntries.getOrNull(index)?.onClick?.invoke() },
+        // W65：手机抽屉宽自适应（clamp(55%, 208, 280)dp；K60 ≈ 216dp），平板形态不渲染抽屉。
+        drawerWidth = adaptiveDrawerWidthDp.dp,
         drawerSkin = { drawerContent -> LumenChrome(lumenChrome) { drawerContent() } },
     ) {
         when {
@@ -1494,6 +1519,7 @@ fun NavigationRoot(
                             onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
                             onOpenLibrary = openLibrary,
                             onOpenLocalLibrary = openLocalLibrary,
+                            expandedWidthDp = adaptiveRailWidthDp,
                             expanded = railExpanded,
                             onToggleExpanded = { railExpanded = !railExpanded },
                             groupBreaks = railBreaks,
@@ -1597,7 +1623,8 @@ private data class DrawerEntry(
 )
 
 /**
- * 平板侧导航（§8.6）：logo 38dp + 条目 48dp（二级子项 44dp）/ 圆角 14dp；W46 起折叠 72dp / 展开 168dp。
+ * 平板侧导航（§8.6）：logo 38dp + 条目 48dp（二级子项 44dp）/ 圆角 14dp；折叠恒定 [RAIL_COLLAPSED_WIDTH_DP]（72dp）， 展开宽 W65
+ * 起自适应（[railExpandedWidthDp]，Pad 5 ≈ 213dp）。
  *
  * IA（W6-R6N）：「媒体库」是二级分组，子项是服务器实际返回的库（同名多库逐条列出）。 折叠轨（72dp）只显示一级图标，展开后子项才出现——避免 72dp 宽出现半截库名。
  */
@@ -1612,6 +1639,8 @@ private fun CinefinSideNavigation(
     onToggleMediaGroup: () -> Unit,
     onOpenLibrary: (FindroidCollection) -> Unit,
     onOpenLocalLibrary: (SidebarLocalLibrary) -> Unit,
+    /** W65：展开态宽度（dp，`railExpandedWidthDp(屏宽dp)` 的结果）。 */
+    expandedWidthDp: Float,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
     groupBreaks: Set<Int> = emptySet(),
@@ -1619,11 +1648,13 @@ private fun CinefinSideNavigation(
 ) {
     val colors = LocalCinefinColors.current
     val lumen = LocalLumenColors.current
+    // W65：二级库子项的「项目数」让位判定按当前展开宽实时计算（不再固定 168dp 尺寸链）。
+    val railLabelWidthDp = railLibraryLabelWidthDp(expandedWidthDp)
     Column(
         modifier =
-            // W42：折叠 72dp；W46：展开 150 → 168dp（168dp 下最长的侧栏文案也不省略）。
+            // W42：折叠 72dp；W46 展开 168dp；W65：展开改自适应（clamp(30%, 200, 240)dp），折叠轨不变。
             // 底色 = 半透明石墨（W46 起 ~74%）+ 右缘发丝线 + 顶缘内高光。
-            Modifier.width(if (expanded) 168.dp else 72.dp)
+            Modifier.width((if (expanded) expandedWidthDp else RAIL_COLLAPSED_WIDTH_DP).dp)
                 .fillMaxHeight()
                 .background(lumen?.background ?: colors.surface)
                 .background(
@@ -1789,8 +1820,13 @@ private fun CinefinSideNavigation(
                             onClick = { onOpenLibrary(library) },
                             // 侧轨的 trailing 走组件参数（`CinefinNavigationItem(trailing = …)`），
                             // 与抽屉用的 `CinefinNavItem.trailing` 是两个槽位（W53 Bug B 配套）；
-                            // W53B 起按「完整名称优先」实测宽度决定是否显示项目数（168dp 轨宽取舍）。
-                            trailing = railLibraryCountTrailing(library.name, library.itemCount),
+                            // W53B 起按「完整名称优先」实测宽度决定是否显示项目数（W65 起按当前展开宽实时计算）。
+                            trailing =
+                                adaptiveLibraryCountTrailing(
+                                    name = library.name,
+                                    count = library.itemCount,
+                                    labelWidthDp = railLabelWidthDp,
+                                ),
                             modifier = Modifier.padding(start = CinefinSpacing.Space4),
                         )
                     }
@@ -1810,7 +1846,11 @@ private fun CinefinSideNavigation(
                                 compact = true,
                                 onClick = { onOpenLocalLibrary(library) },
                                 trailing =
-                                    railLibraryCountTrailing(library.name, library.itemCount),
+                                    adaptiveLibraryCountTrailing(
+                                        name = library.name,
+                                        count = library.itemCount,
+                                        labelWidthDp = railLabelWidthDp,
+                                    ),
                                 modifier = Modifier.padding(start = CinefinSpacing.Space4),
                             )
                         }
@@ -1903,14 +1943,18 @@ private fun libraryChildCountTrailing(count: Int?): (@Composable () -> Unit)? =
     }
 
 /**
- * 侧轨库子项的尾标（W53B）：先用 [rememberTextMeasurer] 量出「库名 / 项目数」的实际宽度，再按 [libraryChildCountVisible]
- * 的「完整名称优先」规则决定是否显示项目数 —— 168dp 展开轨下文字可用宽 [railLibraryLabelWidthDp]dp，名称 +
- * 项目数放不下时省略项目数（不把库名截断成「音乐测…」）。
+ * 库子项的「项目数」尾标（W53B，W65 起侧轨与抽屉共用）：先用 [rememberTextMeasurer] 量出「库名 / 项目数」的实际宽度， 再按
+ * [libraryChildCountVisible] 的「完整名称优先」规则决定是否显示项目数 —— 放不下时省略项目数（不把库名截断成「音乐测…」）。
  *
- * 抽屉宽 320dp、文字可用宽充裕，仍走 [libraryChildCountTrailing] 的既有「有值就显示」口径。
+ * [labelWidthDp] 由调用方按当前容器实时给出：侧轨 = [railLibraryLabelWidthDp]（展开宽函数的结果），抽屉 =
+ * [drawerLibraryLabelWidthDp]（抽屉宽函数的结果）。
  */
 @Composable
-private fun railLibraryCountTrailing(name: String, count: Int?): (@Composable () -> Unit)? {
+private fun adaptiveLibraryCountTrailing(
+    name: String,
+    count: Int?,
+    labelWidthDp: Float,
+): (@Composable () -> Unit)? {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val countText =
@@ -1938,7 +1982,7 @@ private fun railLibraryCountTrailing(name: String, count: Int?): (@Composable ()
     val show =
         count != null &&
             libraryChildCountVisible(
-                labelWidthDp = railLibraryLabelWidthDp(),
+                labelWidthDp = labelWidthDp,
                 nameWidthDp = nameWidthDp,
                 countWidthDp = countWidthDp,
                 gapDp = RAIL_LIBRARY_COUNT_GAP_DP,

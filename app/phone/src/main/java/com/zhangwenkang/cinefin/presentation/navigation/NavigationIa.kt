@@ -164,7 +164,7 @@ fun sidebarLocalLibraries(libraries: List<LocalLibrary>): List<SidebarLocalLibra
  * 侧轨展开态二级子项的「项目数」尾标是否显示（W53B，纯函数 + 单测）：**完整名称优先**。
  *
  * 名称放得下、且名称 + 间距 + 项目数一起放得下才显示项目数；否则省略项目数（不把库名截断成「音乐测…」）。 名称本身超出可用宽度时同样返回 false——此时名称仍走既有省略表现，属
- * 168dp 轨宽的尺寸边界。
+ * 当前展开轨宽的尺寸边界（W65 起轨宽自适应，可用宽由 [railLibraryLabelWidthDp] / [drawerLibraryLabelWidthDp] 实时算出）。
  */
 fun libraryChildCountVisible(
     labelWidthDp: Float,
@@ -173,8 +173,39 @@ fun libraryChildCountVisible(
     gapDp: Float = RAIL_LIBRARY_COUNT_GAP_DP,
 ): Boolean = nameWidthDp <= labelWidthDp && nameWidthDp + gapDp + countWidthDp <= labelWidthDp
 
-/** 侧轨展开态宽度（§4.2 / W46：168dp；与 `CinefinSideNavigation` 的 `Modifier.width` 同源）。 */
-const val RAIL_EXPANDED_WIDTH_DP: Float = 168f
+/** 侧轨折叠态宽度（W42 起固定 72dp；W65 自适应改造只影响展开态）。 */
+const val RAIL_COLLAPSED_WIDTH_DP: Float = 72f
+
+/** 侧轨展开宽 = clamp(屏宽dp × 比例, 下限, 上限)（W65 用户 2026-10-04 拍板）。 */
+const val RAIL_EXPANDED_WIDTH_RATIO: Float = 0.30f
+const val RAIL_EXPANDED_WIDTH_MIN_DP: Float = 200f
+const val RAIL_EXPANDED_WIDTH_MAX_DP: Float = 240f
+
+/** 手机抽屉宽 = clamp(屏宽dp × 比例, 下限, 上限)（W65 用户 2026-10-04 拍板）。 */
+const val DRAWER_WIDTH_RATIO: Float = 0.55f
+const val DRAWER_WIDTH_MIN_DP: Float = 208f
+const val DRAWER_WIDTH_MAX_DP: Float = 280f
+
+/**
+ * 侧轨展开态宽度（W65 自适应，纯函数 + 单测；与 `CinefinSideNavigation` 的 `Modifier.width` 同源）。
+ *
+ * `clamp(屏宽dp × 30%, 200dp, 240dp)`：Pad 5（711dp 宽）≈ 213dp——「库名 + X 项」能完整显示； 窄屏（<667dp）保持 200dp
+ * 下限，宽屏（>800dp）封顶 240dp，避免侧轨吞掉内容区。
+ */
+fun railExpandedWidthDp(screenWidthDp: Int): Float =
+    (screenWidthDp * RAIL_EXPANDED_WIDTH_RATIO).coerceIn(
+        RAIL_EXPANDED_WIDTH_MIN_DP,
+        RAIL_EXPANDED_WIDTH_MAX_DP,
+    )
+
+/**
+ * 手机抽屉宽（W65 自适应，纯函数 + 单测）。
+ *
+ * `clamp(屏宽dp × 55%, 208dp, 280dp)`：K60（393dp 宽）≈ 216dp（遮挡约一半、文字完整）； 窄屏（<379dp）保持 208dp
+ * 下限，宽屏（>509dp）封顶 280dp（平板形态本就不渲染抽屉）。
+ */
+fun drawerWidthDp(screenWidthDp: Int): Float =
+    (screenWidthDp * DRAWER_WIDTH_RATIO).coerceIn(DRAWER_WIDTH_MIN_DP, DRAWER_WIDTH_MAX_DP)
 
 /** 侧轨导航列左右内边距（与 `CinefinSideNavigation` 的 `padding(horizontal)` 同源）。 */
 const val RAIL_COLUMN_PADDING_DP: Float = 10f
@@ -194,21 +225,49 @@ const val NAV_ICON_GAP_DP: Float = 12f
 /** 名称与项目数之间的最小留白（不足时省略项目数，宁可少画也不要挤）。 */
 const val RAIL_LIBRARY_COUNT_GAP_DP: Float = 8f
 
+/** 抽屉条目左右外缘（core `CinefinDrawerItem` 的 `CinefinSpacing.Space3`）。 */
+const val DRAWER_ITEM_MARGIN_DP: Float = 12f
+
+/** 抽屉二级子项左缩进（`CinefinSpacing.Space4`）。 */
+const val DRAWER_SUBITEM_INDENT_DP: Float = 16f
+
+/** 抽屉条目左右内边距（core `CinefinDrawerItem` 的 `CinefinSpacing.Space4`）。 */
+const val DRAWER_ITEM_PADDING_DP: Float = 16f
+
+/** 抽屉图标与文字间距（`CinefinSpacing.Space4`；侧轨用的是 Space3）。 */
+const val DRAWER_ICON_GAP_DP: Float = 16f
+
 /**
- * 侧轨展开态二级子项的文字可用宽度（dp，W53B 纯函数 + 单测）。
+ * 侧轨展开态二级子项的文字可用宽度（dp，W53B 纯函数 + 单测；W65 起按当前展开宽实时计算）。
  *
- * 尺寸链 = 展开宽 [RAIL_EXPANDED_WIDTH_DP] − 导航列左右内边距 2×[RAIL_COLUMN_PADDING_DP] − 子项左缩进
+ * 尺寸链 = 展开宽 [railWidthDp]（= [railExpandedWidthDp] 的结果）− 导航列左右内边距 2×[RAIL_COLUMN_PADDING_DP] − 子项左缩进
  * [RAIL_SUBITEM_INDENT_DP] − 条目左右内边距 2×[NAV_ITEM_PADDING_DP] − 图标 [NAV_ICON_SIZE_DP] − 图标与文字间距
- * [NAV_ICON_GAP_DP]（168 − 20 − 16 − 28 − 24 − 12 = 68dp）。 任一处尺寸改动都要同步这里的常量（同 core
+ * [NAV_ICON_GAP_DP]（168dp 轨 = 68dp；W65 Pad 5 展开 213.3dp 轨 = 113.3dp）。 任一处尺寸改动都要同步这里的常量（同 core
  * `rememberPageGutter` 的阈值同步约定）。
  */
-fun railLibraryLabelWidthDp(): Float =
-    RAIL_EXPANDED_WIDTH_DP -
+fun railLibraryLabelWidthDp(railWidthDp: Float): Float =
+    railWidthDp -
         2 * RAIL_COLUMN_PADDING_DP -
         RAIL_SUBITEM_INDENT_DP -
         2 * NAV_ITEM_PADDING_DP -
         NAV_ICON_SIZE_DP -
         NAV_ICON_GAP_DP
+
+/**
+ * 抽屉二级库子项的文字可用宽度（dp，W65 纯函数 + 单测）。
+ *
+ * 尺寸链 = 抽屉宽 [drawerWidthDp]（= [drawerWidthDp] 函数的结果）− 条目左右外缘 2×[DRAWER_ITEM_MARGIN_DP] − 子项左缩进
+ * [DRAWER_SUBITEM_INDENT_DP] − 条目左右内边距 2×[DRAWER_ITEM_PADDING_DP] − 图标 [NAV_ICON_SIZE_DP] − 图标与文字间距
+ * [DRAWER_ICON_GAP_DP]（320dp 抽屉 = 208dp；W65 K60 216.15dp 抽屉 = 104.15dp）。 W53B 起抽屉宽充裕走「有值就显示」； W65
+ * 抽屉变窄后同样走「完整名称优先」的让位规则。
+ */
+fun drawerLibraryLabelWidthDp(drawerWidthDp: Float): Float =
+    drawerWidthDp -
+        2 * DRAWER_ITEM_MARGIN_DP -
+        DRAWER_SUBITEM_INDENT_DP -
+        2 * DRAWER_ITEM_PADDING_DP -
+        NAV_ICON_SIZE_DP -
+        DRAWER_ICON_GAP_DP
 
 /** 侧栏库子项 → 临时库视图归属（纯逻辑，单测覆盖）。 */
 fun temporaryLibraryKindOf(type: CollectionType): TemporaryLibraryKind? =

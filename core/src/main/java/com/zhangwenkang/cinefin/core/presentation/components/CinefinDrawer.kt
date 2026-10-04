@@ -36,6 +36,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
@@ -57,8 +58,9 @@ class CinefinDrawerGroup(
 )
 
 /**
- * Cinefin 抽屉（§8.6）：宽 320dp，底 = 页底衬底 + 石墨面板 @74%（W46，与平板侧轨同一透明度），header 96dp，条目 56dp / 圆角 12dp， 分组标题
- * `LabelSmall + OnSurfaceFaint`；无投影（`tonalElevation = 0`），遮罩用 `Scrim`。
+ * Cinefin 抽屉（§8.6）：默认宽 320dp（W65 起由调用方按窗口宽度传入 [drawerWidth]，手机 ≈ 55% 屏宽、夹取 208–280dp），底 = 页底衬底 +
+ * 石墨面板 @74%（W46，与平板侧轨同一透明度），header 96dp，条目 56dp / 圆角 12dp， 分组标题 `LabelSmall +
+ * OnSurfaceFaint`；无投影（`tonalElevation = 0`），遮罩用 `Scrim`。
  *
  * `selectedIndex` 按分组顺序拍平后计算；域页条目选中态为 `Media.Container + Media.Bright`。
  */
@@ -70,6 +72,8 @@ fun CinefinModalDrawer(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     gesturesEnabled: Boolean = true,
+    /** 抽屉内容宽（W65 自适应接入点；默认 320dp 保持既有预览 / 调用方行为）。 */
+    drawerWidth: Dp = 320.dp,
     modifier: Modifier = Modifier,
     /**
      * 抽屉内容的皮肤注入点（W6-VIS）：影视域页面用 `ProvideLumenColors` 包一层，音乐 / 阅读域保持 Prism。
@@ -90,7 +94,7 @@ fun CinefinModalDrawer(
                 val skin = LocalLumenColors.current
                 ModalDrawerSheet(
                     modifier =
-                        Modifier.width(320.dp)
+                        Modifier.width(drawerWidth)
                             // W46：与侧轨同款 74% 半透明——先铺页底衬底再叠面板，否则透明度会被抽屉壳的
                             // 同色底吃掉（踩坑 57）。
                             .background(skin?.background ?: colors.surface)
