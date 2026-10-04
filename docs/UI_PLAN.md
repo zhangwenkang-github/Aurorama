@@ -145,9 +145,9 @@
 - [x] **书籍封面完整回退链**：`planCover` 新增 `serverImageUnavailable`（服务器图 → 本地已有 → 本地生成 → 占位；URL 存在但 404 / 取图失败同样回落到生成）；首页 / 书架 `requestBookCoverFallback`（忽略 URL 直接 `BookCoverProvider.ensureCover`，未下载在线书籍走 HTTP Range 懒生成）；`PosterItemCard` / `LandscapeItemCard` / `ItemPoster`（→ `ItemCard` / `LibraryListRow` / `HomeSection`）新增 `onServerImageFailed`，服务器图失败即触发回落生成并把本地封面贴回卡片。
 - [x] **元数据预加载**：`data` 新增 `MetadataPreloader`（低优先级并发 2、失败静默、按来源 `cancel(source)` 可取消）；首页首屏后预取英雄卡 + 走廊 / 海报墙前 6 项详情；库内容页首屏后预取第二页 + 可见前 6 张卡详情；页面进入即 `metadata cache hit`。
 - [x] **加载降频**：`MIN_REFRESH_COOLDOWN_MS = 30 s`（常量 + 单测）；每 key 请求发起时间记录（冷却窗口内过期也复用旧值）；同 key 并发请求合并（`InFlightRequests`）；库内容页静默重取受冷却；下拉刷新走 `invalidateMetadataCache()` 不受限；返回页面不重建 Pager（W69 已有）。
-- [x] **先取证（改前包，K60）**：首页书籍卡图片状态 + `files/book_covers` 目录 + 生成 / 失败标记情况（本地留存截图，不贴对话）。
-- [ ] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` 全绿（新增单测自报：data +3 / core +1）。
-- [ ] **真机**（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；device-lock 已写占用 / 释放 / 结论）：首页书卡有封面（含服务器无图样本）/ 预取命中日志 / 请求次数下降 / 静默刷新不回归 / 双机 0 FATAL·ANR。
+- [x] **先取证（改前包，K60）**：首页书籍卡图片状态 + `files/book_covers` 目录 + 生成 / 失败标记情况（本地留存截图，不贴对话）——**「首页书卡没有封面」本机未复现**：同几何对照（书架「金田一」卡）改前 38.2 / 20.5 / 14.8 ≈ 改后 38.9 / 21.9 / 14.9（mean / gray_std / sat，两张包一致）；两轮运行 `files/book_covers` 均 4 个 `.jpg` / 0 个 `.fail` 且无新增；`Book cover fallback` 0 条 → 「服务器图 404 / 失败 → 本地生成」**真机触发分支未触发**（规则 + 接线由新增单测与代码覆盖）。
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` = 全量 **802 / 0 失败 0 错误**（app 217 / core 89 / data 65 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 798 + 新增 4 = data 3 + core 1）。
+- [x] **真机**（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，21:56–22:16；device-lock 已写释放与结论）：**预加载命中**——冷启动双机各 12 条 `prefetch detail`；点开首页卡片 → 详情页 `episode:<id>` **命中 1 / 未命中 0**；**并发去重** 18 `join` = 18 `miss`（无重复请求）、`libraries:all` 复用命中；**双机 0 FATAL / 0 ANR**；书封面视觉项见上（本机未复现，留未覆盖）。
 
 ### W69 元数据缓存优先 + 静默刷新（2026-10-04，分支 `fix/w69-metadata-cache-silent-refresh`，起点 master `dfddcc0`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
@@ -624,6 +624,13 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - 本期边界：音乐 / 书架 / 书籍库**页面内容**仍为各自皮肤（只有侧柜常驻 Lumen，见 D29）；`player:*`、`AppPreferences`、`settings.gradle.kts`、`libs.versions.toml`、`docs/web-console-skin.css`、`res/raw/web_console_skin.css` 零改动
 
 ## 5. 验收
+
+### W69b 书籍封面回落生成 + 元数据预加载 + 加载降频验收（2026-10-04，同分支 `fix/w69-metadata-cache-silent-refresh` 续，起点 master `a502fe5`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
+
+- **交付**：4 代码/文档提交——`d30ca4d` 预加载 + 并合去重 + 30 s 冷却（data 层）/ `a2241c0` 书籍封面回落生成 + 页面接线 / `4bc526c` 预取窗口与 Paging `initialLoadSize`（30/10）对齐 / 后续日志与文档提交。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` = **802 / 0 失败 0 错误**（app 217 / core 89 / data 65 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 798 + 新增 4：`MetadataCacheTest` +3 = 冷却判定 / 每 key 请求时间 / 并发 owner、`BookCoverRulesTest` +1 = 服务器图不可用回落）。
+- **真机（K60 主 + Pad 5 抽验，21:56–22:16；device-lock 已写释放与结论）**：**预加载**冷启动 12 条 `prefetch detail`（双机）、点开首页卡片 → `episode:<id>` 命中 1 / 未命中 0；**降频** 18 `join` = 18 `miss`（并发合并、无重复请求）、`libraries:all` 命中复用；双机 **0 FATAL / 0 ANR**。
+- **未覆盖 / 风险**：**「首页书卡没有封面」未能在本机复现**（同几何对照改前 ≈ 改后、`files/book_covers` 无新增、`Book cover fallback` 0 条）——「服务器图 404 / 失败 → 本地生成」真机触发分支未取证（建议坏图样本 / 用户复验原问题书）；库内容页「下一页预取命中」直接取证（未滚到页尾）；TTL 外冷却边界观感。
 
 ### W69 元数据缓存优先 + 静默刷新验收（2026-10-04，分支 `fix/w69-metadata-cache-silent-refresh`，起点 master `dfddcc0`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
