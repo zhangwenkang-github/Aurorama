@@ -1735,7 +1735,7 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 **文案**：`ReaderAnnotationSheet` 副题补「批注仅支持 PDF，EPUB / CBZ 暂不支持」；
 `ReaderSettingsPanel` 末尾加同口径说明（对 EPUB / CBZ 用户也能看到）。
 
-### 10.4 EPUB 批注成本评估（本波不实现，待负责人确认是否扩展）
+### 10.4 EPUB 批注成本评估（本波不实现；发布后按需）
 
 - **可行路径**：Readium 3.4 有 Decoration API（`DecorableNavigator`，`DecorationStyle` 高亮），
   可复用现有 `ReaderAnnotation` JSON v1 存储与面板 UI。
@@ -1745,7 +1745,7 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
      现有矩形锚点不能直接复用）；
   3. 渲染 = Decoration 叠加（与现有 `PageOverlay` 是两套叠加路径），需覆盖双主题 / 字体 /
      双栏布局回归与真机矩阵。
-- **建议**：本波不做（范围控制）；如确需 EPUB 批注，单开一波按上述方案细化。**请负责人确认。**
+- **决定（2026-10-04，用户拍板）**：本波不做（范围控制）；**EPUB 批注扩展放进「发布后按需」backlog** —— 发布后如需要，单开一波按上述方案细化（成本 5–8 人日）。
 
 ### 10.5 工程与真机
 

@@ -136,7 +136,7 @@
 - **落点**：`NavigationIa.kt`（`railExpandedWidthDp` / `drawerWidthDp` 纯函数 + `railLibraryLabelWidthDp(轨宽)` / `drawerLibraryLabelWidthDp(抽屉宽)` 尺寸链）、`NavigationRoot.kt`（**红线**：屏宽接线 + 侧轨 / 抽屉宽度 + 侧轨与抽屉共用的实测让位判定）、`core/CinefinDrawer.kt`（**红线**：`drawerWidth: Dp = 320.dp` 参数化）；`AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` 零改动；不新增配色 / 字体 / 位图 / 字符串。
 - **单测**：`AdaptiveSidebarWidthTest` 7 项（比例 / 上下限 / 360 / 393 / 600 / 711 / 1000dp 边界 / 两条尺寸链 / Pad 5 与 K60 让位样例）；`SidebarLocalLibraryTest` 尺寸链改传参。
 - **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` **730 项 / 0 失败 0 错误**（app 179 / core 79 / data 50 / player:local 110 / film 53 / book 113 / music 134 / player:core 12 = 基线 723 + 新增 7）。
-- **真机（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，15:00–15:22，device-lock 已写释放与结论）**：K60 抽屉 791px = 226.3dp = 54.9% 屏宽 + 库行「名称 + 项目数」完整；Pad 5 折叠 72dp / 展开 480px = 213.3dp + 库行「名称 + X 项」全部完整（修复前 168dp 下项目数被省略）；页面切换 / 分组展开正常、0 FATAL / ANR。
+- **真机（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，15:00–15:04，device-lock 已写释放与结论；时间窗按会话日志更正）**：K60 抽屉 791px = 226.3dp = 54.9% 屏宽 + 库行「名称 + 项目数」完整；Pad 5 折叠 72dp / 展开 480px = 213.3dp + 库行「名称 + X 项」全部完整（修复前 168dp 下项目数被省略）；页面切换 / 分组展开正常、0 FATAL / ANR。
 
 ### W63 下载域缺陷修复（2026-10-04，分支 `fix/w63-download-fixes`，起点 master `a8a580f`；Pad 5 `43af8627` 主，本会话自带真机）
 
