@@ -55,7 +55,7 @@ internal fun ReaderAnnotationSheet(
     ) {
         Text(text = "高亮批注", style = CinefinType.TitleMedium, color = contentColor)
         Text(
-            text = "矩形框选 + 备注，只存本地，不写服务器；没有文本层的扫描件同样可用。",
+            text = "矩形框选 + 备注，只存本地，不写服务器；没有文本层的扫描件同样可用。" + "批注仅支持 PDF，EPUB / CBZ 暂不支持。",
             style = CinefinType.LabelMedium,
             color = contentColor.copy(alpha = 0.72f),
         )
