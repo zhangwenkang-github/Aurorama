@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -48,9 +46,6 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderViewModel
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
@@ -61,20 +56,17 @@ import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
-import com.zhangwenkang.cinefin.presentation.film.components.DetailPoster
+import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeState
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
-import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
-import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
-import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
@@ -203,132 +195,52 @@ private fun MovieScreenLayout(
         Box(modifier = Modifier.fillMaxSize()) {
             state.movie?.let { movie ->
                 Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
-                    ItemHeader(
+                    DetailHero(
                         item = movie,
                         scrollState = scrollState,
-                        height = if (expanded) 400.dp else 300.dp,
-                        content = {
-                            Row(
-                                modifier =
-                                    Modifier.align(Alignment.BottomStart)
-                                        .fillMaxWidth()
-                                        .padding(
-                                            start = paddingStart,
-                                            end = paddingEnd,
-                                            bottom = CinefinSpacing.Space6,
-                                        ),
-                                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
-                                verticalAlignment = Alignment.Bottom,
-                            ) {
-                                if (expanded) {
-                                    DetailPoster(
-                                        item = movie,
-                                        width = 216.dp,
-                                        downloadBadge =
-                                            downloadBadges[movie.id]
-                                                ?: if (movie.isDownloaded()) {
-                                                    DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
-                                                } else {
-                                                    DownloadBadgeInfo()
-                                                },
-                                    )
+                        eyebrow = movie.detailEyebrow(),
+                        title = movie.name,
+                        originalTitle = movie.originalTitle,
+                        meta = movie.metaLine(),
+                        downloadBadge =
+                            downloadBadges[movie.id]
+                                ?: if (movie.isDownloaded()) {
+                                    DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
+                                } else {
+                                    DownloadBadgeInfo()
+                                },
+                    ) {
+                        ItemButtonsBar(
+                            item = movie,
+                            downloaderState = downloaderState,
+                            onPlayClick = { startFromBeginning ->
+                                onAction(MovieAction.Play(startFromBeginning = startFromBeginning))
+                            },
+                            onMarkAsPlayedClick = {
+                                when (movie.played) {
+                                    true -> onAction(MovieAction.UnmarkAsPlayed)
+                                    false -> onAction(MovieAction.MarkAsPlayed)
                                 }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement =
-                                        Arrangement.spacedBy(CinefinSpacing.Space2),
-                                ) {
-                                    movie.detailEyebrow()?.let { eyebrow ->
-                                        Text(
-                                            text = eyebrow,
-                                            style =
-                                                CinefinType.LabelLarge.lumenTextShadow(
-                                                    LumenTextShadow.Meta
-                                                ),
-                                            color = LocalMediaColors.current.bright,
-                                        )
-                                    }
-                                    Text(
-                                        text = movie.name,
-                                        overflow = TextOverflow.Ellipsis,
-                                        maxLines = 3,
-                                        style =
-                                            (if (expanded) CinefinType.DisplaySmall
-                                                else CinefinType.HeadlineMedium)
-                                                .lumenTextShadow(LumenTextShadow.Title),
-                                        color = LocalCinefinColors.current.onSurface,
-                                    )
-                                    movie.originalTitle
-                                        ?.takeIf { it.isNotBlank() && it != movie.name }
-                                        ?.let { originalTitle ->
-                                            Text(
-                                                text = originalTitle,
-                                                overflow = TextOverflow.Ellipsis,
-                                                maxLines = 1,
-                                                style =
-                                                    CinefinType.BodyMedium.lumenTextShadow(
-                                                        LumenTextShadow.Meta
-                                                    ),
-                                                color = LocalCinefinColors.current.onSurfaceVariant,
-                                            )
-                                        }
-                                    movie.metaLine()?.let { meta ->
-                                        Text(
-                                            text = meta,
-                                            style =
-                                                CinefinType.LabelMedium.lumenTextShadow(
-                                                    LumenTextShadow.Meta
-                                                ),
-                                            color = LocalCinefinColors.current.onSurfaceVariant,
-                                        )
-                                    }
-                                    Spacer(Modifier.height(CinefinSpacing.Space2))
-                                    ItemButtonsBar(
-                                        item = movie,
-                                        downloaderState = downloaderState,
-                                        onPlayClick = { startFromBeginning ->
-                                            onAction(
-                                                MovieAction.Play(
-                                                    startFromBeginning = startFromBeginning
-                                                )
-                                            )
-                                        },
-                                        onMarkAsPlayedClick = {
-                                            when (movie.played) {
-                                                true -> onAction(MovieAction.UnmarkAsPlayed)
-                                                false -> onAction(MovieAction.MarkAsPlayed)
-                                            }
-                                        },
-                                        onMarkAsFavoriteClick = {
-                                            when (movie.favorite) {
-                                                true -> onAction(MovieAction.UnmarkAsFavorite)
-                                                false -> onAction(MovieAction.MarkAsFavorite)
-                                            }
-                                        },
-                                        onTrailerClick = { uri ->
-                                            onAction(MovieAction.PlayTrailer(uri))
-                                        },
-                                        onDownloadClick = { storageIndex ->
-                                            onDownloaderAction(
-                                                DownloaderAction.Download(movie, storageIndex)
-                                            )
-                                        },
-                                        onDownloadCancelClick = {
-                                            onDownloaderAction(
-                                                DownloaderAction.CancelDownload(movie)
-                                            )
-                                        },
-                                        onDownloadDeleteClick = {
-                                            onDownloaderAction(
-                                                DownloaderAction.DeleteDownload(movie)
-                                            )
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
+                            },
+                            onMarkAsFavoriteClick = {
+                                when (movie.favorite) {
+                                    true -> onAction(MovieAction.UnmarkAsFavorite)
+                                    false -> onAction(MovieAction.MarkAsFavorite)
                                 }
-                            }
-                        },
-                    )
+                            },
+                            onTrailerClick = { uri -> onAction(MovieAction.PlayTrailer(uri)) },
+                            onDownloadClick = { storageIndex ->
+                                onDownloaderAction(DownloaderAction.Download(movie, storageIndex))
+                            },
+                            onDownloadCancelClick = {
+                                onDownloaderAction(DownloaderAction.CancelDownload(movie))
+                            },
+                            onDownloadDeleteClick = {
+                                onDownloaderAction(DownloaderAction.DeleteDownload(movie))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
 
                     Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
                         Spacer(Modifier.height(CinefinSpacing.Space8))

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
@@ -134,11 +135,13 @@ private fun ItemHeaderBase(
             else -> item.images.logo
         }
 
-    Box(modifier = Modifier.height(height).clipToBounds()) {
-        backdropImage()
+    // W66：由 `heightIn(min)` 替代固定高度——头图内容（统一 DetailHero 的海报 + 标题 + 动作排）
+    // 高于基准高度时由内容撑高，不再被压缩测量裁切（踩坑 29 同类）。
+    Box(modifier = Modifier.fillMaxWidth().heightIn(min = height).clipToBounds()) {
+        Box(modifier = Modifier.matchParentSize()) { backdropImage() }
         // 左侧水平渐隐只在 Lumen 区域（电影 / 剧集详情）叠加，非 Lumen 详情页保持原观感
         val lumenScrimColor = LocalLumenColors.current?.scrim
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.matchParentSize()) {
             // Lumen：顶部光晕（内容即光源）+ 左侧水平渐隐（文字托底）+ 内暗角 + 底部渐隐，内容图向下溶进页面底色
             drawRect(brush = lumenTopGlow)
             lumenScrimColor?.let { drawRect(brush = lumenSideScrim(it)) }

@@ -1,41 +1,29 @@
 package com.zhangwenkang.cinefin.presentation.film
 
 import android.content.Intent
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.toColorInt
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.PlayerActivity
@@ -59,15 +47,13 @@ import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
+import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
-import com.zhangwenkang.cinefin.presentation.film.components.ItemHeader
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
-import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
-import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
@@ -199,90 +185,13 @@ private fun EpisodeScreenLayout(
         Box(modifier = Modifier.fillMaxSize()) {
             state.episode?.let { episode ->
                 Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
-                    ItemHeader(
+                    DetailHero(
                         item = episode,
                         scrollState = scrollState,
-                        content = {
-                            Column(
-                                modifier =
-                                    Modifier.align(Alignment.BottomStart)
-                                        .padding(start = paddingStart, end = paddingEnd)
-                            ) {
-                                val seasonName =
-                                    episode.seasonName
-                                        ?: run {
-                                            stringResource(
-                                                CoreR.string.season_number,
-                                                episode.parentIndexNumber,
-                                            )
-                                        }
-                                Text(
-                                    text =
-                                        "$seasonName - " +
-                                            stringResource(
-                                                id = CoreR.string.episode_number,
-                                                episode.indexNumber,
-                                            ),
-                                    maxLines = 1,
-                                    style =
-                                        MaterialTheme.typography.labelLarge.lumenTextShadow(
-                                            LumenTextShadow.Meta
-                                        ),
-                                )
-                                Text(
-                                    text = episode.name,
-                                    overflow = TextOverflow.Ellipsis,
-                                    maxLines = 3,
-                                    style =
-                                        MaterialTheme.typography.headlineMedium.lumenTextShadow(
-                                            LumenTextShadow.Title
-                                        ),
-                                )
-                            }
-                        },
-                    )
-                    Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
-                        Spacer(Modifier.height(MaterialTheme.spacings.small))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement =
-                                Arrangement.spacedBy(MaterialTheme.spacings.small),
-                            verticalAlignment = Alignment.Bottom,
-                        ) {
-                            episode.premiereDate?.let { premiereDate ->
-                                Text(
-                                    text = premiereDate.format(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            }
-                            Text(
-                                text =
-                                    stringResource(
-                                        CoreR.string.runtime_minutes,
-                                        episode.runtimeTicks.div(600000000),
-                                    ),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            episode.communityRating?.let { communityRating ->
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Icon(
-                                        painter = painterResource(CoreR.drawable.ic_star),
-                                        contentDescription = null,
-                                        tint = Color("#F2C94C".toColorInt()),
-                                    )
-                                    Spacer(Modifier.width(MaterialTheme.spacings.extraSmall))
-                                    Text(
-                                        text = "%.1f".format(communityRating),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(MaterialTheme.spacings.small))
-                        state.videoMetadata?.let { videoMetadata ->
-                            VideoMetadataBar(videoMetadata)
-                            Spacer(Modifier.height(MaterialTheme.spacings.small))
-                        }
+                        eyebrow = episodeHeroEyebrow(episode),
+                        title = episode.name,
+                        meta = episodeHeroMeta(episode),
+                    ) {
                         ItemButtonsBar(
                             item = episode,
                             downloaderState = downloaderState,
@@ -317,7 +226,13 @@ private fun EpisodeScreenLayout(
                             downloadState = downloadState,
                             downloadEnabled = episode.canDownload,
                         )
+                    }
+                    Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
                         Spacer(Modifier.height(MaterialTheme.spacings.small))
+                        state.videoMetadata?.let { videoMetadata ->
+                            VideoMetadataBar(videoMetadata)
+                            Spacer(Modifier.height(MaterialTheme.spacings.small))
+                        }
                         if (state.displayExtraInfo && state.videoMetadata != null) {
                             ExtraInfoText(videoMetadata = state.videoMetadata!!)
                             Spacer(Modifier.height(MaterialTheme.spacings.medium))
@@ -350,30 +265,7 @@ private fun EpisodeScreenLayout(
                 hasHomeButton = true,
                 onBackClick = { onAction(EpisodeAction.OnBackClick) },
                 onHomeClick = { onAction(EpisodeAction.OnHomeClick) },
-            ) {
-                Spacer(modifier = Modifier.width(4.dp))
-                state.episode?.let { episode ->
-                    Button(
-                        onClick = { onAction(EpisodeAction.NavigateToSeason(episode.seasonId)) },
-                        modifier = Modifier.alpha(0.7f),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = Color.Black,
-                                contentColor = Color.White,
-                            ),
-                    ) {
-                        episode.seasonName?.let { seasonName -> Text(seasonName) }
-                            ?: run {
-                                Text(
-                                    stringResource(
-                                        CoreR.string.season_number,
-                                        episode.parentIndexNumber,
-                                    )
-                                )
-                            }
-                    }
-                }
-            }
+            )
             CinefinSnackbarHost(
                 hostState = snackbarHostState,
                 modifier =
@@ -383,6 +275,23 @@ private fun EpisodeScreenLayout(
         }
     }
 }
+
+/** W66：剧集详情头图眉标（季名 / 剧名 + 集号，纯文本展示，不再做跳转入口）。 */
+@Composable
+private fun episodeHeroEyebrow(episode: FindroidEpisode): String {
+    val seasonName =
+        episode.seasonName ?: stringResource(CoreR.string.season_number, episode.parentIndexNumber)
+    return "$seasonName - " + stringResource(id = CoreR.string.episode_number, episode.indexNumber)
+}
+
+/** W66：剧集详情头图元信息（日期 · 时长 · 评分），由原头图下方的元数据行收敛而来。 */
+@Composable
+private fun episodeHeroMeta(episode: FindroidEpisode): String = buildList {
+    episode.premiereDate?.let { add(it.format()) }
+    add(stringResource(CoreR.string.runtime_minutes, episode.runtimeTicks.div(600000000)))
+    episode.communityRating?.let { add("★ %.1f".format(it)) }
+}
+    .joinToString(" · ")
 
 @PreviewScreenSizes
 @Composable
