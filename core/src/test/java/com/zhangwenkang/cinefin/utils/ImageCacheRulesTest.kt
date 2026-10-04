@@ -74,6 +74,17 @@ class ImageCacheRulesTest {
                 nowMillis = now,
             ),
         )
+        // 大小写不同的同一 Jellyfin 路由（items / Items）不算变化：worker 与补齐路径口径统一。
+        assertEquals(
+            ImageCacheRules.Decision.KEEP,
+            ImageCacheRules.decide(
+                fileExists = true,
+                fileSizeBytes = 1024L,
+                meta = freshMeta,
+                currentSourceUrl = freshMeta.sourceUrl.replace("/Items/", "/items/"),
+                nowMillis = now,
+            ),
+        )
     }
 
     @Test
