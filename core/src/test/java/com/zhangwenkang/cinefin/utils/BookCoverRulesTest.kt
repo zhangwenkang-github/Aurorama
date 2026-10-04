@@ -183,4 +183,50 @@ class BookCoverRulesTest {
             BookCoverRules.coverOverride(serverImageUrl = null, generatedPath = " "),
         )
     }
+
+    @Test
+    fun `封面显示来源 服务器图优先 失败回退本地 再失败占位`() {
+        // 服务器图可用（即使本地封面也在）：服务器图优先。
+        assertEquals(
+            BookCoverRules.CoverSource.SERVER_IMAGE,
+            BookCoverRules.displaySource(hasServerImage = true, hasLocalCover = true),
+        )
+        // 服务器图加载失败（离线）→ 回落本地封面。
+        assertEquals(
+            BookCoverRules.CoverSource.GENERATED_CACHE,
+            BookCoverRules.displaySource(
+                hasServerImage = true,
+                hasLocalCover = true,
+                serverFailed = true,
+            ),
+        )
+        // 服务器图失败且无本地封面 → 占位。
+        assertEquals(
+            BookCoverRules.CoverSource.PLACEHOLDER,
+            BookCoverRules.displaySource(
+                hasServerImage = true,
+                hasLocalCover = false,
+                serverFailed = true,
+            ),
+        )
+        // 无服务器图 → 本地封面。
+        assertEquals(
+            BookCoverRules.CoverSource.GENERATED_CACHE,
+            BookCoverRules.displaySource(hasServerImage = false, hasLocalCover = true),
+        )
+        // 本地封面也失败 → 占位。
+        assertEquals(
+            BookCoverRules.CoverSource.PLACEHOLDER,
+            BookCoverRules.displaySource(
+                hasServerImage = false,
+                hasLocalCover = true,
+                localFailed = true,
+            ),
+        )
+        // 两者都没有 → 占位。
+        assertEquals(
+            BookCoverRules.CoverSource.PLACEHOLDER,
+            BookCoverRules.displaySource(hasServerImage = false, hasLocalCover = false),
+        )
+    }
 }
