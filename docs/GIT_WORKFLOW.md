@@ -7,7 +7,7 @@
 | 作者会话 | S2 · 架构与规范 |
 | 上游依据 | `docs/REQUIREMENTS.md` §11 / §12、`docs/DEV_ENVIRONMENT.md`、`.github/workflows/*`、`git log` 实测 |
 | 适用范围 | 全部开发会话与项目负责人 |
-| 仓库 | `https://github.com/zhangwenkang-github/Cinefin.git`（**public**） |
+| 仓库 | `https://github.com/zhangwenkang-github/Aurorama.git`（**public**） |
 
 > 本文件定义分支、worktree、提交、PR、CI 与凭据纪律。**凭据安全为最高优先级**：仓库是公开的，任何凭据泄露都必须立即轮换（见 §8）。
 

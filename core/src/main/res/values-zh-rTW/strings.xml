@@ -90,7 +90,7 @@
     <string name="video">視訊</string>
     <string name="audio">音訊</string>
     <string name="cancel_download_message">您確定要取消下載嗎？</string>
-    <string name="privacy_policy_notice">使用極光幕即表示您同意 <a href="https://raw.githubusercontent.com/zhangwenkang-github/Cinefin/master/PRIVACY">隱私政策</a>，其中聲明我們不收集任何數據</string>
+    <string name="privacy_policy_notice">使用極光幕即表示您同意 <a href="https://raw.githubusercontent.com/zhangwenkang-github/Aurorama/master/PRIVACY">隱私政策</a>，其中聲明我們不收集任何數據</string>
     <string name="console_back_to_app">返回極光幕</string>
     <string name="cancel_download">取消下載</string>
     <string name="downloaded_indicator">下載指示器</string>

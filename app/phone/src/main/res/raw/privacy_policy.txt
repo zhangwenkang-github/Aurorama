@@ -44,7 +44,7 @@ App 使用了若干开源库（详见本页「开源许可」与仓库 NOTICE）
 【联系方式】
 
 任何疑问请通过 GitHub Issues 提出：
-https://github.com/zhangwenkang-github/Cinefin/issues
+https://github.com/zhangwenkang-github/Aurorama/issues
 
 ---
 
@@ -62,4 +62,4 @@ Network requests go only to: (1) the Jellyfin server address you enter and confi
 
 The app requests only the permissions it needs (network, user-selected local media folders via the Android Storage Access Framework, notifications for downloads/background playback), and all can be revoked in system settings at any time.
 
-Questions? Open an issue at https://github.com/zhangwenkang-github/Cinefin/issues
+Questions? Open an issue at https://github.com/zhangwenkang-github/Aurorama/issues

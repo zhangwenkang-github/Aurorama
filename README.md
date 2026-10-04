@@ -57,7 +57,7 @@
 
 ## 下载
 
-签名 APK 见 [GitHub Releases](https://github.com/zhangwenkang-github/Cinefin/releases)：
+签名 APK 见 [GitHub Releases](https://github.com/zhangwenkang-github/Aurorama/releases)：
 
 - `Aurorama-1.0.0-universal.apk` —— 全部 ABI（体积较大，兼容性最好）
 - `Aurorama-1.0.0-arm64-v8a.apk` —— 主流 64 位手机 / 平板

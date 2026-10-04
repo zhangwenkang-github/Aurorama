@@ -70,7 +70,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
    git push origin v1.0.0
    ```
 
-2. 打开 <https://github.com/zhangwenkang-github/Cinefin/releases> → **Draft a new release** → 选择 tag `v1.0.0`。
+2. 打开 <https://github.com/zhangwenkang-github/Aurorama/releases> → **Draft a new release** → 选择 tag `v1.0.0`。
 3. 上传两个 APK（步骤 3 的两个文件，按 `Aurorama-1.0.0-universal.apk` / `Aurorama-1.0.0-arm64-v8a.apk` 命名）。
 4. Release notes 模板（按需增删）：
 

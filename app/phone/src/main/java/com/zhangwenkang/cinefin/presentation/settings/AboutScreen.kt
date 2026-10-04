@@ -52,7 +52,7 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.R as SettingsR
 
 /** W71 · 项目主页 / 发布页（公开 GitHub 仓库）。 */
-private const val PROJECT_HOME_URL = "https://github.com/zhangwenkang-github/Cinefin"
+private const val PROJECT_HOME_URL = "https://github.com/zhangwenkang-github/Aurorama"
 
 private const val PROJECT_RELEASES_URL = "$PROJECT_HOME_URL/releases"
 
