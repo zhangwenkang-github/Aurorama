@@ -63,6 +63,10 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.MediaBook
+import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.MediaFilm
+import com.zhangwenkang.cinefin.core.presentation.theme.MediaMusic
 import com.zhangwenkang.cinefin.local.LocalFolderBrowseMode
 import com.zhangwenkang.cinefin.local.LocalLibraryBrowse
 import com.zhangwenkang.cinefin.local.LocalLibraryEntry
@@ -163,15 +167,21 @@ private fun HomeLocalLibraryCard(
                         )
             )
         } else {
-            // 无封面：回退类型图标（不引入额外色块）。
+            // W70b：无封面回退类型图标 + 媒体色底（与库卡 / 详情封面卡同一套配色，不再是深灰）。
+            val placeholder = localLibraryPlaceholderMedia(card.type)
             Box(
-                modifier = Modifier.fillMaxSize().background(colors.surfaceContainerHigh),
+                modifier =
+                    Modifier.fillMaxSize()
+                        .background(colors.surfaceContainerHigh)
+                        .background(
+                            placeholder.base.copy(alpha = LocalLibraryPlaceholderTintAlpha)
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painter = painterResource(card.type.iconRes()),
                     contentDescription = card.type.label,
-                    tint = colors.onSurfaceVariant,
+                    tint = placeholder.bright,
                     modifier = Modifier.size(36.dp),
                 )
             }
@@ -231,12 +241,38 @@ private fun TypeBadge(type: LocalLibraryType, modifier: Modifier = Modifier) {
     }
 }
 
-/** W45：本地条目 / 库卡缩略图（默认 40dp 正方形，`corner-xs`）；无图回退类型图标。 */
+/** W70b：本地库占位底色的媒体色叠加强度（`surfaceContainerHigh` 之上的 `media.base` 透明度，12–18% 取中）。 */
+private const val LocalLibraryPlaceholderTintAlpha = 0.14f
+
+/**
+ * W70b：本地库类型 → 占位媒体色域（用户 2026-10-05 截图反馈「封面卡深灰 + 灰色图标」）。
+ *
+ * 视频 = 影视域、音乐 = 音乐域、书籍 = 阅读域；混合沿用既有 Neutral = 影视色口径（与首页 / 详情占位一致）。 无色板新增——全部复用设计系统既有媒体色。
+ */
+internal fun localLibraryPlaceholderMedia(type: LocalLibraryType): MediaColors =
+    when (type) {
+        LocalLibraryType.VIDEO,
+        LocalLibraryType.MIXED -> MediaFilm
+        LocalLibraryType.MUSIC -> MediaMusic
+        LocalLibraryType.BOOK -> MediaBook
+    }
+
+/** W70b：本地条目类型 → 占位媒体色域（库内条目行缩略图，与库卡 / 详情封面卡同一套配色）。 */
+internal fun localEntryPlaceholderMedia(kind: LocalMediaKind): MediaColors =
+    when (kind) {
+        LocalMediaKind.VIDEO -> MediaFilm
+        LocalMediaKind.MUSIC -> MediaMusic
+        LocalMediaKind.BOOK -> MediaBook
+    }
+
+/** W45：本地条目 / 库卡缩略图（默认 40dp 正方形，`corner-xs`）；无图回退类型图标 + 媒体色底（W70b）。 */
 @Composable
 internal fun LocalThumbnailTile(
     cover: String?,
     iconRes: Int,
     iconDescription: String?,
+    /** W70b：无封面占位的媒体色域（库卡传库类型 / 条目行传条目类型）。 */
+    placeholderMedia: MediaColors,
     modifier: Modifier = Modifier,
     size: Dp = 40.dp,
     iconSize: Dp = 20.dp,
@@ -251,7 +287,8 @@ internal fun LocalThumbnailTile(
             modifier
                 .size(width = width, height = height)
                 .clip(shape)
-                .background(colors.surfaceContainerHigh),
+                .background(colors.surfaceContainerHigh)
+                .background(placeholderMedia.base.copy(alpha = LocalLibraryPlaceholderTintAlpha)),
         contentAlignment = Alignment.Center,
     ) {
         if (cover != null) {
@@ -265,7 +302,7 @@ internal fun LocalThumbnailTile(
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = iconDescription,
-                tint = colors.onSurfaceVariant,
+                tint = placeholderMedia.bright,
                 modifier = Modifier.size(iconSize),
             )
         }
@@ -426,6 +463,7 @@ private fun LocalLibraryCard(
                 cover = cover,
                 iconRes = card.type.iconRes(),
                 iconDescription = card.type.label,
+                placeholderMedia = localLibraryPlaceholderMedia(card.type),
                 iconSize = 24.dp,
                 width = LocalLibraryCardThumbnailWidth,
                 height = LocalLibraryCardThumbnailHeight,
@@ -807,6 +845,7 @@ private fun BrowseRow(
                         cover = thumbnail,
                         iconRes = row.entry.kind.iconRes(),
                         iconDescription = row.entry.kind.label,
+                        placeholderMedia = localEntryPlaceholderMedia(row.entry.kind),
                     )
                 },
             )
@@ -823,6 +862,7 @@ private fun LocalLibraryHeaderCover(
     onCoverVisible: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
+    val placeholder = localLibraryPlaceholderMedia(type)
     // 条目数变化（新增文件夹 → 扫描完成）后重新请求。
     LaunchedEffect(type, itemCount) { onCoverVisible() }
     Box(
@@ -830,7 +870,8 @@ private fun LocalLibraryHeaderCover(
             Modifier.fillMaxWidth()
                 .height(140.dp)
                 .clip(CinefinShapes.Md)
-                .background(colors.surfaceContainerHigh),
+                .background(colors.surfaceContainerHigh)
+                .background(placeholder.base.copy(alpha = LocalLibraryPlaceholderTintAlpha)),
         contentAlignment = Alignment.Center,
     ) {
         if (cover != null) {
@@ -844,7 +885,7 @@ private fun LocalLibraryHeaderCover(
             Icon(
                 painter = painterResource(type.iconRes()),
                 contentDescription = type.label,
-                tint = colors.onSurfaceVariant,
+                tint = placeholder.bright,
                 modifier = Modifier.size(36.dp),
             )
         }
