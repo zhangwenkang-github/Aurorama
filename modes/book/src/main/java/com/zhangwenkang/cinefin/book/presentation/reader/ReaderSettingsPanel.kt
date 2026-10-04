@@ -147,6 +147,13 @@ internal fun ReaderSettingsPanel(
                 )
             }
         }
+
+        // W64：批注范围说明——用户反馈"为什么别的书没有批注"；搜索 / 批注只对 PDF 开放。
+        Text(
+            text = "搜索与批注仅支持 PDF；EPUB / CBZ 暂不支持。",
+            style = CinefinType.LabelSmall,
+            color = contentColor.copy(alpha = 0.6f),
+        )
     }
 }
 

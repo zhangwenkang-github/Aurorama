@@ -11,10 +11,15 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
@@ -94,7 +99,11 @@ class ReaderRepositoryImpl(
                 ?.toList() ?: emptyList()
         }
 
-    private fun download(
+    /**
+     * W64：下载改为**可取消**——协程取消（阅读页返回 / ViewModel 清理）时取消在途 OkHttp call， 否则阻塞的 `execute()`
+     * 会继续把整本书下完（用户观察到的"返回后仍占用网络"）。
+     */
+    private suspend fun download(
         target: File,
         itemId: UUID,
         onProgress: (Float) -> Unit,
@@ -110,26 +119,36 @@ class ReaderRepositoryImpl(
             val url = "${baseUrl.trimEnd('/')}/Items/$itemId/Download"
             val request = Request.Builder().url(url).header("X-Emby-Token", token).build()
 
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("下载书籍失败：HTTP ${response.code}（离线时请先联网下载）")
+            val call = httpClient.newCall(request)
+            val cancelHandle =
+                currentCoroutineContext()[Job]?.invokeOnCompletion { cause ->
+                    if (cause != null) call.cancel()
                 }
-                val totalBytes = response.body.contentLength()
-                var copiedBytes = 0L
-                response.body.byteStream().use { input ->
-                    partial.outputStream().use { output ->
-                        val buffer = ByteArray(DOWNLOAD_BUFFER_BYTES)
-                        while (true) {
-                            val read = input.read(buffer)
-                            if (read == -1) break
-                            output.write(buffer, 0, read)
-                            copiedBytes += read
-                            if (totalBytes > 0) {
-                                onProgress((copiedBytes.toDouble() / totalBytes).toFloat())
+            try {
+                call.execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException("下载书籍失败：HTTP ${response.code}（离线时请先联网下载）")
+                    }
+                    val totalBytes = response.body.contentLength()
+                    var copiedBytes = 0L
+                    response.body.byteStream().use { input ->
+                        partial.outputStream().use { output ->
+                            val buffer = ByteArray(DOWNLOAD_BUFFER_BYTES)
+                            while (true) {
+                                currentCoroutineContext().ensureActive()
+                                val read = input.read(buffer)
+                                if (read == -1) break
+                                output.write(buffer, 0, read)
+                                copiedBytes += read
+                                if (totalBytes > 0) {
+                                    onProgress((copiedBytes.toDouble() / totalBytes).toFloat())
+                                }
                             }
                         }
                     }
                 }
+            } finally {
+                cancelHandle?.dispose()
             }
 
             if (!partial.renameTo(target)) {
@@ -144,6 +163,9 @@ class ReaderRepositoryImpl(
             return target
         } catch (error: Throwable) {
             partial.delete()
+            // 取消路径：OkHttp 被 cancel 抛出的 IOException 归一成 CancellationException，
+            // 避免调用方把它当成"下载失败"展示。
+            currentCoroutineContext().ensureActive()
             throw error
         }
     }
@@ -161,13 +183,25 @@ class ReaderRepositoryImpl(
         withContext(Dispatchers.IO) {
             val local = progressStore.load(itemId)
             // 飞行模式 / 无网络时不发请求：直接用本地 locator 打开，避免打开阅读页先卡超时。
+            // W64：网络活跃但服务器偶发慢时，远程进度查询会拖住打开首帧（用户感知"打开偶尔很慢"）；
+            // 加 2s 上限，超时按"没有远程进度"处理，本地进度照常打开。
             val remote =
                 if (!hasActiveNetwork()) {
                     null
                 } else {
-                    runCatching { fetchRemoteProgress(itemId) }
-                        .onFailure { Timber.w(it, "读取阅读进度失败，回退本地进度") }
-                        .getOrNull()
+                    withTimeoutOrNull(REMOTE_PROGRESS_TIMEOUT_MS) {
+                            runCatching { fetchRemoteProgress(itemId) }
+                                .onFailure { error ->
+                                    if (error is CancellationException) throw error
+                                    Timber.w(error, "读取阅读进度失败，回退本地进度")
+                                }
+                                .getOrNull()
+                        }
+                        .also { result ->
+                            if (result == null) {
+                                Timber.i("远程阅读进度超时 / 失败（%s），本次用本地进度", itemId)
+                            }
+                        }
                 }
             resolveReadingProgress(itemId, local, remote)
         }
@@ -256,6 +290,7 @@ class ReaderRepositoryImpl(
         val userId = requireNotNull(jellyfinApi.userId) { "当前没有登录用户" }
         jellyfinApi.userLibraryApi.getItem(itemId, userId).content.runTimeTicks ?: 0L
     }
+        .onFailure { error -> if (error is CancellationException) throw error }
         .getOrDefault(0L)
 
     private suspend fun syncProgress(progress: ReadingProgress): Boolean =
@@ -323,6 +358,8 @@ class ReaderRepositoryImpl(
 
     private companion object {
         const val DOWNLOAD_BUFFER_BYTES = 64 * 1024
+        /** 打开书籍时远程进度查询的等待上限：超时回退本地进度（W64 打开耗时优化）。 */
+        const val REMOTE_PROGRESS_TIMEOUT_MS = 2_000L
     }
 }
 

@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -169,27 +170,42 @@ constructor(
         resetToolState()
 
         viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val file = readerRepository.ensureLocalFile(itemId)
-                    val progress = readerRepository.getReadingProgress(itemId)
-                    ReaderUiState.Ready(
-                        itemId = itemId,
-                        document = openDocument(file, progress),
-                        initialProgression = progress?.progression ?: 0.0,
-                    )
-                }
+            try {
+                val ready =
+                    withContext(Dispatchers.IO) {
+                        val startedAt = SystemClock.elapsedRealtime()
+                        // W64：未下载的书要等整本下载完成；返回 / 清理时协程取消，数据层会中止在途 HTTP。
+                        val file = readerRepository.ensureLocalFile(itemId)
+                        val fileAt = SystemClock.elapsedRealtime()
+                        val progress = readerRepository.getReadingProgress(itemId)
+                        val progressAt = SystemClock.elapsedRealtime()
+                        val document = openDocument(file, progress)
+                        val documentAt = SystemClock.elapsedRealtime()
+                        Timber.i(
+                            "打开书籍耗时：文件 %d ms / 进度 %d ms / 文档 %d ms / 合计 %d ms（%s）",
+                            fileAt - startedAt,
+                            progressAt - fileAt,
+                            documentAt - progressAt,
+                            documentAt - startedAt,
+                            itemId,
+                        )
+                        ReaderUiState.Ready(
+                            itemId = itemId,
+                            document = document,
+                            initialProgression = progress?.progression ?: 0.0,
+                        )
+                    }
+                _state.value = ready
+                refreshLocalState(itemId)
+                startPeriodicProgressReporter()
+            } catch (cancellation: CancellationException) {
+                // 返回 / Activity 销毁：不再写状态、不弹错误，交给 onCleared 释放资源。
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "打开书籍失败")
+                closeDocuments()
+                _state.value = ReaderUiState.Error(error.message ?: "打开书籍失败")
             }
-                .onSuccess {
-                    _state.value = it
-                    refreshLocalState(itemId)
-                    startPeriodicProgressReporter()
-                }
-                .onFailure {
-                    Timber.w(it, "打开书籍失败")
-                    closeDocuments()
-                    _state.value = ReaderUiState.Error(it.message ?: "打开书籍失败")
-                }
         }
     }
 
@@ -206,26 +222,37 @@ constructor(
         _state.value = ReaderUiState.Loading
         resetToolState()
         viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val progress = readerRepository.getReadingProgress(itemId)
-                    ReaderUiState.Ready(
-                        itemId = itemId,
-                        document = openLocalDocument(uri, progress),
-                        initialProgression = progress?.progression ?: 0.0,
-                    )
-                }
+            try {
+                val ready =
+                    withContext(Dispatchers.IO) {
+                        val startedAt = SystemClock.elapsedRealtime()
+                        val progress = readerRepository.getReadingProgress(itemId)
+                        val progressAt = SystemClock.elapsedRealtime()
+                        val document = openLocalDocument(uri, progress)
+                        val documentAt = SystemClock.elapsedRealtime()
+                        Timber.i(
+                            "打开本地书籍耗时：进度 %d ms / 文档 %d ms / 合计 %d ms（%s）",
+                            progressAt - startedAt,
+                            documentAt - progressAt,
+                            documentAt - startedAt,
+                            itemId,
+                        )
+                        ReaderUiState.Ready(
+                            itemId = itemId,
+                            document = document,
+                            initialProgression = progress?.progression ?: 0.0,
+                        )
+                    }
+                _state.value = ready
+                refreshLocalState(itemId)
+                startPeriodicProgressReporter()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "打开本地书籍失败")
+                closeDocuments()
+                _state.value = ReaderUiState.Error(error.message ?: "打开本地书籍失败")
             }
-                .onSuccess {
-                    _state.value = it
-                    refreshLocalState(itemId)
-                    startPeriodicProgressReporter()
-                }
-                .onFailure {
-                    Timber.w(it, "打开本地书籍失败")
-                    closeDocuments()
-                    _state.value = ReaderUiState.Error(it.message ?: "打开本地书籍失败")
-                }
         }
         // title 只用于日志 / 后续扩展：阅读页标题由 Activity 侧的 intent extra 渲染。
         Timber.d("打开本地书籍 %s（%s）", title, uri)
@@ -323,22 +350,23 @@ constructor(
         _downloadState.value = BookDownloadState.Downloading(0f)
         downloadJob = viewModelScope.launch {
             var lastPercent = -1
-            runCatching {
-                readerRepository.downloadLocalFile(itemId) { progress ->
-                    val percent = (progress * 100).toInt()
-                    if (percent != lastPercent) {
-                        lastPercent = percent
-                        _downloadState.value = BookDownloadState.Downloading(progress)
+            try {
+                val file =
+                    readerRepository.downloadLocalFile(itemId) { progress ->
+                        val percent = (progress * 100).toInt()
+                        if (percent != lastPercent) {
+                            lastPercent = percent
+                            _downloadState.value = BookDownloadState.Downloading(progress)
+                        }
                     }
-                }
+                _downloadState.value = BookDownloadState.Downloaded(file.length())
+            } catch (cancellation: CancellationException) {
+                // 离开阅读页时 onCleared 会取消下载并中止在途 HTTP；这是预期路径，不展示错误。
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "下载书籍失败")
+                _downloadState.value = BookDownloadState.Failed(error.message ?: "下载失败，请检查网络")
             }
-                .onSuccess { file ->
-                    _downloadState.value = BookDownloadState.Downloaded(file.length())
-                }
-                .onFailure {
-                    Timber.w(it, "下载书籍失败")
-                    _downloadState.value = BookDownloadState.Failed(it.message ?: "下载失败，请检查网络")
-                }
         }
     }
 
