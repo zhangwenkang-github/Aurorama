@@ -26,11 +26,12 @@ plugins {
  * 位置与备份说明见 docs/RELEASE_PLAN.md。
  */
 val releaseKeystorePropertiesFile = rootProject.file("keystore.properties")
-val releaseKeystoreProperties = Properties().apply {
-    if (releaseKeystorePropertiesFile.isFile) {
-        releaseKeystorePropertiesFile.inputStream().use { load(it) }
+val releaseKeystoreProperties =
+    Properties().apply {
+        if (releaseKeystorePropertiesFile.isFile) {
+            releaseKeystorePropertiesFile.inputStream().use { load(it) }
+        }
     }
-}
 val releaseSigningConfigured =
     releaseKeystorePropertiesFile.isFile &&
         listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all { key ->
