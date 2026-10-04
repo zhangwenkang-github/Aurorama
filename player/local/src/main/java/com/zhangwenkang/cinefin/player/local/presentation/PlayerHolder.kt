@@ -224,6 +224,12 @@ constructor(
                         )
                 ExoPlayer.Builder(application, renderersFactory)
                     .setAudioAttributes(audioAttributes, true)
+                    /*
+                     * W68：锁屏 / 后台继续播放（默认开启）必须持有 partial wake lock + wifi lock。
+                     * 真机实测（K60，锁屏 Dozing）未设置时播放会在缓冲中停滞（speed=0），唤醒才恢复；
+                     * setWakeMode 由 ExoPlayer 在播放期间自动申请 / 释放（WAKE_LOCK 权限见 AndroidManifest）。
+                     */
+                    .setWakeMode(C.WAKE_MODE_NETWORK)
                     .setTrackSelector(trackSelector)
                     // 拔耳机 / 蓝牙断开时自动暂停：不这样做会突然外放（阶段 4.4）
                     .setHandleAudioBecomingNoisy(true)
