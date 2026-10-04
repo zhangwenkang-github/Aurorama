@@ -119,33 +119,35 @@ fun LandscapeItemCard(
                 BookCoverRules.CoverSource.GENERATED_CACHE -> localCover
                 else -> null
             }
-        if (imageModel == null && placeholderIconRes != null) {
+        // W69c：类型占位常驻底层——无图 / 加载中 / 加载失败都露出「图标 + 媒体色底」，不出现黑卡。
+        if (placeholderIconRes != null) {
             BookCoverPlaceholder(
                 iconRes = placeholderIconRes,
                 modifier = Modifier.fillMaxSize(),
                 iconSize = 40.dp,
             )
-        } else {
-            // W69：剧照模型变化时保留上一张图 + 交叉淡入（刷新不清图）。
-            RetainedAsyncImage(
-                model = imageModel,
-                retainKey = item.id,
-                placeholderPainter = ColorPainter(colors.surfaceContainerHigh),
-                errorPainter = ColorPainter(colors.surfaceContainerHigh),
-                onError = {
-                    // 服务器图加载失败（离线等）→ 回落本地封面；本地封面失败 → 占位。
-                    if (coverSource == BookCoverRules.CoverSource.SERVER_IMAGE) {
-                        serverImageFailed = true
-                        onServerImageFailed?.invoke()
-                    } else {
-                        localCoverFailed = true
-                    }
-                },
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
         }
+        // W69：剧照模型变化时保留上一张图 + 交叉淡入（刷新不清图）。
+        RetainedAsyncImage(
+            model = imageModel,
+            retainKey = item.id,
+            placeholderPainter =
+                if (placeholderIconRes != null) null else ColorPainter(colors.surfaceContainerHigh),
+            errorPainter =
+                if (placeholderIconRes != null) null else ColorPainter(colors.surfaceContainerHigh),
+            onError = {
+                // 服务器图加载失败（离线等）→ 回落本地封面；本地封面失败 → 占位。
+                if (coverSource == BookCoverRules.CoverSource.SERVER_IMAGE) {
+                    serverImageFailed = true
+                    onServerImageFailed?.invoke()
+                } else {
+                    localCoverFailed = true
+                }
+            },
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
 
         Box(
             modifier =

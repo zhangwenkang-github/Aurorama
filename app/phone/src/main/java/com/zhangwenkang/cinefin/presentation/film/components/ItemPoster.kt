@@ -3,21 +3,17 @@ package com.zhangwenkang.cinefin.presentation.film.components
 import android.net.Uri
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -83,20 +79,14 @@ fun ItemPoster(
             Direction.SQUARE -> 1f
         }
 
-    if (imageUri == null && placeholderIconRes != null) {
-        // W59：生成失败 / 不可生成时回退类型占位图（不再是黑块空白）。
-        Box(
-            modifier = modifier.aspectRatio(aspectRatio).background(colors.surfaceContainerHigh),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(placeholderIconRes),
-                contentDescription = null,
-                tint = colors.onSurfaceFaint,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-        return
+    // W69c：类型占位常驻底层（书籍 = 书图标 / 音乐 = 音符 + 媒体色底）——无图 / 加载中 / 失败都不出黑块；
+    // 生成封面或服务器图就绪后覆盖在上层。
+    if (placeholderIconRes != null) {
+        BookCoverPlaceholder(
+            iconRes = placeholderIconRes,
+            modifier = modifier.aspectRatio(aspectRatio),
+            iconSize = 28.dp,
+        )
     }
 
     // W69：图片模型变化（刷新 / 回落本地封面）时保留上一张图，避免海报先变黑底。
@@ -105,7 +95,10 @@ fun ItemPoster(
         contentDescription = null,
         contentScale = ContentScale.Crop,
         retainKey = item.id,
-        placeholderPainter = ColorPainter(colors.surfaceContainerHigh),
+        placeholderPainter =
+            if (placeholderIconRes != null) null else ColorPainter(colors.surfaceContainerHigh),
+        errorPainter =
+            if (placeholderIconRes != null) null else ColorPainter(colors.surfaceContainerHigh),
         onError = {
             // W69b：服务器图取不到（404 等）→ 标记失败（书籍卡回退占位 / 触发本地生成回落）。
             if (imageOverride == null && serverUri != null && !serverImageFailed) {
@@ -113,6 +106,12 @@ fun ItemPoster(
                 onServerImageFailed?.invoke()
             }
         },
-        modifier = modifier.aspectRatio(aspectRatio).background(colors.surfaceContainerHigh),
+        modifier =
+            modifier
+                .aspectRatio(aspectRatio)
+                .background(
+                    if (placeholderIconRes != null) Color.Transparent
+                    else colors.surfaceContainerHigh
+                ),
     )
 }

@@ -464,6 +464,8 @@ interface MusicRepository {
 
 **书籍封面完整回退链（W69b，首页 / 书架 / 下载页同源）**：服务器图 → 本地已有 → **本地生成**（未下载在线书籍也生成：PDF 首页 / CBZ 第一图 / EPUB 封面，`Items/<id>/Download` HTTP Range 懒生成）→ 风格化类型占位；**服务器给了 URL 但取图 404 / 失败同样回落到生成**——`BookCoverRules.planCover(serverImageUnavailable = true)` + 卡片 `onServerImageFailed` 回调触发 `requestBookCoverFallback`，生成结果贴回卡片；失败写 `.fail` 不再重试。
 
+**W69c 补记（无图卡片不出现黑卡）**：所有「书 / 音乐」卡片组件（`PosterItemCard` / `LandscapeItemCard` / `ItemPoster`）把**类型占位常驻底层**——书籍 = `ic_book` + 媒体色底（`BookCoverPlaceholder`），音乐 = `ic_music` + 媒体色底（与 W59 下载页 / W68 媒体会话同口径），无图 / 加载中 / 加载失败都露占位，服务器图或生成的本地封面就绪后覆盖在上层；「最新 · <库名>」走廊（`HomeView`）与走廊 / 海报墙统一接线（本地封面 override / 占位图标 / 懒生成请求 / 服务器图失败回落），书籍回调只对 `FindroidFolder` 触发；按库类型选占位的映射是纯函数 `libraryPlaceholderIconRes`（单测覆盖）。
+
 ## 6. 并行开发边界（供 S3 排期）
 
 ### 6.1 必须串行（有硬依赖）

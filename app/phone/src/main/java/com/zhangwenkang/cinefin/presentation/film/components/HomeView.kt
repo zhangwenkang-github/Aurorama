@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -14,6 +16,7 @@ import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidImages
+import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.HomeItem
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import java.util.UUID
@@ -27,6 +30,14 @@ fun HomeView(
     modifier: Modifier = Modifier,
     /** W60b：下载状态角标（itemId → 角标）；默认空表 = 无角标，既有调用零改动。 */
     downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
+    /** W69c：书籍 / 音乐卡本地封面（服务器图缺失时覆盖）；默认 null = 走服务器图。 */
+    imageOverrideFor: (FindroidItem) -> String? = { null },
+    /** W69c：无图时的类型占位图标（书籍 = `ic_book` / 音乐 = `ic_music`）；null = 保持原有空色底。 */
+    @DrawableRes placeholderIconResFor: (FindroidItem) -> Int? = { null },
+    /** W69c：条目组合（可见）时回调——书籍卡用它触发懒生成封面。 */
+    onItemVisible: (FindroidItem) -> Unit = {},
+    /** W69c：服务器图加载失败回调——书籍卡据此触发本地生成回落。 */
+    onServerImageFailed: (FindroidItem) -> Unit = {},
 ) {
     val gutter = rememberGridGutter()
     Column(modifier = modifier) {
@@ -52,11 +63,15 @@ fun HomeView(
             horizontalArrangement = Arrangement.spacedBy(gutter),
         ) {
             itemsIndexed(view.view.items, key = { _, item -> item.id }) { index, item ->
+                LaunchedEffect(item.id) { onItemVisible(item) }
                 LandscapeItemCard(
                     item = item,
                     onClick = { onAction(HomeAction.OnItemClick(item)) },
                     index = index,
                     downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
+                    imageOverride = imageOverrideFor(item),
+                    placeholderIconRes = placeholderIconResFor(item),
+                    onServerImageFailed = { onServerImageFailed(item) },
                 )
             }
         }

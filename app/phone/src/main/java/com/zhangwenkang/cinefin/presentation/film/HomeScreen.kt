@@ -41,6 +41,7 @@ import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.film.presentation.home.HomeState
 import com.zhangwenkang.cinefin.film.presentation.home.HomeViewModel
+import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -57,6 +58,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.HomeTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.HomeView
 import com.zhangwenkang.cinefin.presentation.film.components.PosterItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
+import com.zhangwenkang.cinefin.presentation.film.components.libraryPlaceholderIconRes
 import com.zhangwenkang.cinefin.presentation.film.components.lumenEntrance
 import com.zhangwenkang.cinefin.presentation.local.HomeLocalMediaSection
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
@@ -147,12 +149,19 @@ private fun HomeScreenLayout(
     // 「服务器图优先 → 本地封面 → 风格化类型占位」渲染；服务器图失败（离线）自动回落本地。
     val bookLocalCover: (FindroidItem) -> String? = { item -> bookCovers[item.id] }
     val bookPlaceholderIcon: (FindroidItem) -> Int? = { CoreR.drawable.ic_book }
+    // W69c：音乐卡无图时的通用占位（音符 + 媒体色底，与 W59 下载页 / W68 媒体会话同口径）。
+    val musicPlaceholderIcon: (FindroidItem) -> Int? = { CoreR.drawable.ic_music }
+    // W69c：书籍才触发封面生成 / 回落（音乐 / 视频条目不做书籍解析，避免多余请求与失败标记）。
+    val bookOnly: (FindroidItem) -> Boolean = { item -> item is FindroidFolder }
     val requestBookCover: (FindroidItem) -> Unit = { item ->
-        onRequestBookCover(item.id, item.images.primary?.toString())
+        if (bookOnly(item)) onRequestBookCover(item.id, item.images.primary?.toString())
     }
     val requestBookCoverFallback: (FindroidItem) -> Unit = { item ->
-        // 只有书籍（`FindroidFolder`）走封面生成回落；视频 / 音乐图的失败不触发下载解析。
-        if (item is FindroidFolder) onRequestBookCoverFallback(item.id)
+        if (bookOnly(item)) onRequestBookCoverFallback(item.id)
+    }
+    // W69c：按库类型给「最新 · <库名>」走廊选占位（纯函数 `libraryPlaceholderIconRes`，单测覆盖）。
+    val libraryPlaceholderIcon: (CollectionType) -> (FindroidItem) -> Int? = { type ->
+        { _ -> libraryPlaceholderIconRes(type) }
     }
 
     ProvideLumen {
@@ -241,6 +250,7 @@ private fun HomeScreenLayout(
                                 downloadBadges = downloadBadges,
                                 onItemClick = onItemClick,
                                 onLibraryClick = onLibraryClick,
+                                placeholderIconResFor = musicPlaceholderIcon,
                             )
                         }
 
@@ -268,6 +278,10 @@ private fun HomeScreenLayout(
                                     view = view,
                                     itemsPadding = PaddingValues(),
                                     downloadBadges = downloadBadges,
+                                    imageOverrideFor = bookLocalCover,
+                                    placeholderIconResFor = libraryPlaceholderIcon(view.view.type),
+                                    onItemVisible = requestBookCover,
+                                    onServerImageFailed = requestBookCoverFallback,
                                     onAction = { action ->
                                         action.dispatch(onItemClick, onLibraryClick)
                                     },
@@ -300,6 +314,7 @@ private fun HomeScreenLayout(
                             items = state.recentlyAddedMusic,
                             onItemClick = onItemClick,
                             downloadBadges = downloadBadges,
+                            placeholderIconResFor = musicPlaceholderIcon,
                         )
                     }
                 }

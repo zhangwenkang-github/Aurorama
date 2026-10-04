@@ -136,7 +136,19 @@
 
 | D78 | **W69b 首页书籍封面回落生成 + 元数据预加载 + 加载降频（用户 2026-10-04 复验 ②③④；同分支续）** | ①**书籍封面完整回退链**：`BookCoverRules.planCover(..., serverImageUnavailable)`（服务器图 → 本地已有 → **本地生成** → 风格化占位；**服务器给了 URL 但取图 404 / 失败也回落到生成**）；`BookCoverProvider.ensureCover` 透传；首页 `HomeViewModel.requestBookCoverFallback` + 书架 `LibraryViewModel.requestBookCoverFallback`（忽略 URL → `generateOnce`：本地已下载文件 / 在线未下载 HTTP Range 懒生成，失败写 `.fail` 不再重试）；卡片 `PosterItemCard` / `LandscapeItemCard` / `ItemPoster`（含 `ItemCard` / `LibraryListRow` / `HomeSection`）新增 `onServerImageFailed` 回调，服务器图失败即由页面触发回落生成并把生成的本地路径贴回卡片；**单一 `BookCoverProvider` 链路**（首页 / 书架 / 下载页同源，下载页本就无 URL 直接生成）。②**元数据预加载**：`data` 新增 `MetadataPreloader`（`Dispatchers.IO.limitedParallelism(2)`、失败静默、按来源可取消）——首页首屏渲染后预取英雄卡 + 走廊 / 海报墙前 6 项**详情字段**；库内容页首屏后预取**第二页**（与 Paging 同 key，`ItemsPagingSource.PAGE_SIZE` 单一常量）+ 可见前 6 张卡详情；详情页 / 下一页加载因此命中 `metadata cache hit`。③**加载降频**：`MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS = 30 s`（常量集中定义 + 单测）；`MetadataCache` 记录每 key 最近一次请求发起时间——过期但仍在冷却窗口内直接复用旧值（下拉刷新先 `invalidateMetadataCache()` 不受限）；`InFlightRequests` **同 key 并发合并**（第一个执行、其余等待同一 `CompletableDeferred`，领头失败等待方自补一次）；库内容页「静默重取」信号受 30 s 冷却。④单测：`MetadataCacheTest` +3（冷却判定 / 每 key 请求时间 / 并发 owner）、`BookCoverRulesTest` +1（服务器图不可用回落）。 | 用户复验「首页书籍缩略图没有加载（服务器无图要本地生成）」+「加载要有预加载、次数不宜过高」；不新增配色 / 字体 / 位图；红线零改动（同上）；预加载 / 冷却约定见 `ARCHITECTURE` §5.5。 |
 
+| D79 | **W69c 首页「最新 书籍 / 音乐」卡无封面（用户 2026-10-04 22:33 实物截图；同分支续）** | ①**根因（实物复现 + 只读定位）**：`HomeView`（「最新 · <库名>」走廊）**四个封面参数全部未接线**——`imageOverrideFor` / `placeholderIconResFor` / `onItemVisible` / `onServerImageFailed`，所以书卡既不显示本地封面、也从不触发 `requestBookCover`（真机改前 `Book cover fallback` 0 条、`files/book_covers` 无新增）；音乐墙 / 继续收听走廊也未传占位图标 → 无图时 `RetainedAsyncImage(model = null)` 画深色底 = **黑卡**。②**修**：`HomeView` 补齐四个参数（含 `LaunchedEffect(item.id) { onItemVisible(item) }`）；`HomeScreen` 新增纯函数 `libraryPlaceholderIconRes(库类型)`（书籍 = `ic_book` / 音乐 = `ic_music` / 其余 null，+1 单测）按库类型选占位；「最近添加 · 音乐」墙与「继续收听」走廊传 `ic_music`；书籍回调只对 `FindroidFolder` 触发（音乐 / 视频不做书籍解析，避免多余请求与 `.fail` 标记）。③**占位常驻底层**：`PosterItemCard` / `LandscapeItemCard` / `ItemPoster` 改为「类型占位（图标 + 媒体色底）常驻底层 + 图片覆盖上层」——无图、加载中与加载失败都露占位，**不再出现黑卡**；有图（服务器图或生成的本地封面）就绪后直接覆盖；书籍占位与 W64 口径一致、音乐占位与 W59 下载页 / W68 媒体会话同口径（`ic_music` + `media.container`，不新增位图）。 | 用户实物样本：W22-Spread-Test（书籍）/ m4a_60s_sample_file_574KB + 侧脸（音乐）黑卡；红线零改动；真机对照见 §4/§5 W69c。 |
+
 ## 4. 进度
+
+### W69c 首页「最新 书籍 / 音乐」卡无封面修复（2026-10-04，同分支续，起点 master `55d0f0e`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
+
+用户 2026-10-04 22:33 实物截图（决策见 D79）：
+
+- [x] **改前取证（master `55d0f0e`，按实物样本）**：「最新 书籍」**W22-Spread-Test = 深色卡**（mean 27.6 / gray_std 12.9 / sat 9.0）+ `Book cover fallback` **0 条** + `W59 生成失败` 0 条（**生成从未被请求**）；「最近添加 · 音乐」**m4a_60s_sample_file_574KB / 侧脸 = 纯黑**（mean 27.7/27.8、gray_std 5.8/5.7、sat 9.7）；`files/book_covers` 4 `.jpg` / 0 `.fail` 不变。
+- [x] **定位**：`HomeView` 未接线四个封面参数（本地封面 / 占位 / 懒生成 / 服务器图失败回落）；音乐走廊未传占位图标。
+- [x] **修**：`HomeView` 补齐参数；`HomeScreen` 按库类型选占位（新增纯函数 `libraryPlaceholderIconRes` + 单测）；音乐墙 + 继续收听传 `ic_music`；书籍回调限 `FindroidFolder`；三个卡片组件改「占位常驻底层」（无图 / 加载中 / 失败都不黑）。
+- [x] **改后实测（K60）**：「最新 书籍」W22 两卡 = **78.3 / 79.4（gray_std 80.7 / 81.7、sat 23.6 / 25.8，真实封面）**；「最新 书籍3」同书 62.2 / 67.5；**「最新 音乐」m4a 卡 sat 19.7 + 中心亮于四周（61.3 vs 49.0）= 音符占位**；「最近添加 · 音乐」m4a / 侧脸 sat 25.6 / center 50.2（改前 9.7 / 27.8）；有专辑图卡 177.7 / 84.0 正常；书架 W22 59.7 / 72.7 一致；双机 **0 FATAL / 0 ANR**（Pad 5 冷启动 12 条预取）。
+- [x] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` = 全量 **810 / 0 失败 0 错误**（app 225 / core 89 / data 65 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 809 + 新增 1 = `LibraryPlaceholderIconsTest`）。
 
 ### W69b 首页书籍封面回落生成 + 元数据预加载 + 加载降频（2026-10-04，分支 `fix/w69-metadata-cache-silent-refresh` 续，起点 master `a502fe5`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
@@ -624,6 +636,15 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - 本期边界：音乐 / 书架 / 书籍库**页面内容**仍为各自皮肤（只有侧柜常驻 Lumen，见 D29）；`player:*`、`AppPreferences`、`settings.gradle.kts`、`libs.versions.toml`、`docs/web-console-skin.css`、`res/raw/web_console_skin.css` 零改动
 
 ## 5. 验收
+
+### W69c 首页「最新 书籍 / 音乐」卡无封面验收（2026-10-04，同分支续，起点 master `55d0f0e`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
+
+- **交付**：`HomeView` 四个封面参数接线 + `libraryPlaceholderIconRes` 纯函数（+1 单测）+ 音乐占位（墙 / 继续收听）+ 三个卡片组件「占位常驻底层」。**门禁 810 / 0**（基线 809 + 新增 1）。
+- **改前 → 改后（K60 同机、用户实物样本）**：
+  - 「最新 书籍」**W22-Spread-Test**：改前深色 27.6 / 12.9 / 9.0（`Book cover fallback` 0 条 → 生成从未被请求）→ 改后 **78.3 / 79.4（gray_std 80.7 / 81.7、sat 23.6 / 25.8）= 真实封面**；「最新 书籍3」同书 62.2 / 67.5。
+  - 「最新 音乐」**m4a_60s_sample_file_574KB**：改前纯黑 27.7 / 5.8 / 9.7 → 改后 **sat 19.7 + 中心亮于四周（61.3 vs 49.0）= 音符 + 媒体色底占位**；「最近添加 · 音乐」m4a / 侧脸 sat 25.6 / center 50.2；有专辑图卡 177.7 / 84.0 正常。
+  - 书架口径一致（W22 卡 59.7 / 72.7）；双机 **0 FATAL / 0 ANR**；Pad 5 冷启动 12 条预取、首页正常。
+- **未覆盖**：`files/book_covers` 本窗口未见新增生成（本机书籍均已有服务器图或已生成缓存）；下载页口径未重测（沿用 W66 链路的类型图标占位）。
 
 ### W69b 书籍封面回落生成 + 元数据预加载 + 加载降频验收（2026-10-04，同分支 `fix/w69-metadata-cache-silent-refresh` 续，起点 master `a502fe5`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
