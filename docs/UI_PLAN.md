@@ -134,7 +134,20 @@
 
 | D77 | **W69 元数据缓存优先 + 静默刷新（用户 2026-10-04 复验第 6 条「不要直接将海报全变黑」；先取证后修）** | ①**会话级元数据缓存**（`data` 新增 `MetadataCache` / `MetadataCacheRules` / `MetadataCacheKeys`）：TTL = 列表 / 详情 **10 分钟**、分页页片 **5 分钟**、LRU 上限 256 条，按「服务器地址 + 用户 id」命名空间隔离；仓库 20 个读方法（首页走廊 / 库列表 / 分页页片 / 详情 / 搜索 / 收藏 / 类型 / 制片发行商 …）统一走 `cachedMetadata`——**TTL 内直接复用、不发请求**；`invalidateMetadataCache()` 供下拉刷新 / 重试强制失效；收藏 / 取消收藏 / 已看 / 取消已看 / 播放结束自动全量失效。②**缓存优先渲染**：`VideoViewModel.load()` / `LibraryViewModel.loadItems()` 对已上屏内容在 TTL 内**直接复用**（不重建 `Pager`，`cachedIn` 数据原样保留），TTL 外只发 `refreshSignal` → `LazyPagingItems.refresh()`（保留现有条目，新页原地替换）；首页骨架条件改为「真的没有任何可渲染内容」才铺（`hasRenderableContent`），库内容页骨架仍以 `itemCount == 0` 为准、详情页仍以 `model == null` 为准。③**海报不置空**：新增 `RetainedAsyncImage`（保留上一张 `AsyncImagePainter.State.Success.painter` + `Crossfade` 160ms），`ItemPoster` / `PosterItemCard` / `LandscapeItemCard` / `HomeHero` / `DetailPoster` / `ItemHeader`（backdrop + logo）全部接入——图片模型变化（刷新 / 换图 / 回落本地封面）时先继续画旧图，新图就绪再交叉淡入，失败回落占位，绝不先变黑底。④单测：`MetadataCacheTest` 12 项（TTL 边界 / 时钟回拨 / LRU / 分组与全量失效 / 命名空间隔离 / 各键区分度 / 静默重取判定）。 | 用户原话「元数据加载与缓存策略要优化，要优先使用本地已缓存的元数据，从服务器加载元数据时，要静默，不要直接将海报全变黑了」；红线零改动（`AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` / `NavigationRoot.kt`）；数据层约定见 `ARCHITECTURE` §5.5；门禁与真机见 §4/§5 W69。 |
 
+| D78 | **W69b 首页书籍封面回落生成 + 元数据预加载 + 加载降频（用户 2026-10-04 复验 ②③④；同分支续）** | ①**书籍封面完整回退链**：`BookCoverRules.planCover(..., serverImageUnavailable)`（服务器图 → 本地已有 → **本地生成** → 风格化占位；**服务器给了 URL 但取图 404 / 失败也回落到生成**）；`BookCoverProvider.ensureCover` 透传；首页 `HomeViewModel.requestBookCoverFallback` + 书架 `LibraryViewModel.requestBookCoverFallback`（忽略 URL → `generateOnce`：本地已下载文件 / 在线未下载 HTTP Range 懒生成，失败写 `.fail` 不再重试）；卡片 `PosterItemCard` / `LandscapeItemCard` / `ItemPoster`（含 `ItemCard` / `LibraryListRow` / `HomeSection`）新增 `onServerImageFailed` 回调，服务器图失败即由页面触发回落生成并把生成的本地路径贴回卡片；**单一 `BookCoverProvider` 链路**（首页 / 书架 / 下载页同源，下载页本就无 URL 直接生成）。②**元数据预加载**：`data` 新增 `MetadataPreloader`（`Dispatchers.IO.limitedParallelism(2)`、失败静默、按来源可取消）——首页首屏渲染后预取英雄卡 + 走廊 / 海报墙前 6 项**详情字段**；库内容页首屏后预取**第二页**（与 Paging 同 key，`ItemsPagingSource.PAGE_SIZE` 单一常量）+ 可见前 6 张卡详情；详情页 / 下一页加载因此命中 `metadata cache hit`。③**加载降频**：`MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS = 30 s`（常量集中定义 + 单测）；`MetadataCache` 记录每 key 最近一次请求发起时间——过期但仍在冷却窗口内直接复用旧值（下拉刷新先 `invalidateMetadataCache()` 不受限）；`InFlightRequests` **同 key 并发合并**（第一个执行、其余等待同一 `CompletableDeferred`，领头失败等待方自补一次）；库内容页「静默重取」信号受 30 s 冷却。④单测：`MetadataCacheTest` +3（冷却判定 / 每 key 请求时间 / 并发 owner）、`BookCoverRulesTest` +1（服务器图不可用回落）。 | 用户复验「首页书籍缩略图没有加载（服务器无图要本地生成）」+「加载要有预加载、次数不宜过高」；不新增配色 / 字体 / 位图；红线零改动（同上）；预加载 / 冷却约定见 `ARCHITECTURE` §5.5。 |
+
 ## 4. 进度
+
+### W69b 首页书籍封面回落生成 + 元数据预加载 + 加载降频（2026-10-04，分支 `fix/w69-metadata-cache-silent-refresh` 续，起点 master `a502fe5`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
+
+用户 2026-10-04 复验三条（决策见 D78）：
+
+- [x] **书籍封面完整回退链**：`planCover` 新增 `serverImageUnavailable`（服务器图 → 本地已有 → 本地生成 → 占位；URL 存在但 404 / 取图失败同样回落到生成）；首页 / 书架 `requestBookCoverFallback`（忽略 URL 直接 `BookCoverProvider.ensureCover`，未下载在线书籍走 HTTP Range 懒生成）；`PosterItemCard` / `LandscapeItemCard` / `ItemPoster`（→ `ItemCard` / `LibraryListRow` / `HomeSection`）新增 `onServerImageFailed`，服务器图失败即触发回落生成并把本地封面贴回卡片。
+- [x] **元数据预加载**：`data` 新增 `MetadataPreloader`（低优先级并发 2、失败静默、按来源 `cancel(source)` 可取消）；首页首屏后预取英雄卡 + 走廊 / 海报墙前 6 项详情；库内容页首屏后预取第二页 + 可见前 6 张卡详情；页面进入即 `metadata cache hit`。
+- [x] **加载降频**：`MIN_REFRESH_COOLDOWN_MS = 30 s`（常量 + 单测）；每 key 请求发起时间记录（冷却窗口内过期也复用旧值）；同 key 并发请求合并（`InFlightRequests`）；库内容页静默重取受冷却；下拉刷新走 `invalidateMetadataCache()` 不受限；返回页面不重建 Pager（W69 已有）。
+- [x] **先取证（改前包，K60）**：首页书籍卡图片状态 + `files/book_covers` 目录 + 生成 / 失败标记情况（本地留存截图，不贴对话）。
+- [ ] **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务逐个 `--rerun` 全绿（新增单测自报：data +3 / core +1）。
+- [ ] **真机**（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验；device-lock 已写占用 / 释放 / 结论）：首页书卡有封面（含服务器无图样本）/ 预取命中日志 / 请求次数下降 / 静默刷新不回归 / 双机 0 FATAL·ANR。
 
 ### W69 元数据缓存优先 + 静默刷新（2026-10-04，分支 `fix/w69-metadata-cache-silent-refresh`，起点 master `dfddcc0`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 

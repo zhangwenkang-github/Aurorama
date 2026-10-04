@@ -453,6 +453,17 @@ interface MusicRepository {
 
 **取舍与未覆盖**：进程重启后没有内存缓存（首次进入仍按网络加载 → 骨架，任务书口径允许）；TTL 期间服务器新增条目要等下拉刷新或 TTL 过期；缓存不做持久化（Room 快照 / 上次会话快照留给后续按需）。
 
+#### 5.5.1 W69b 补充：预加载、并发去重与刷新冷却
+
+| 机制 | 约定 |
+|------|------|
+| 预加载（[MetadataPreloader](../../data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataPreloader.kt)） | 首屏渲染后**低优先级**预取（`Dispatchers.IO.limitedParallelism(2)`）：首页英雄卡 + 走廊 / 海报墙前 6 项详情；库内容页第二页（与 Paging 同 key）；失败静默；`cancel(source)` 按来源取消（页面 `onCleared` 调用） |
+| 并发去重（`InFlightRequests`） | 同 key 同时只跑一个请求：第一个调用方执行、其余等待同一 `CompletableDeferred`；领头失败时等待方自行补一次（不互相牵连） |
+| 刷新冷却（`MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS` = 30 s） | `MetadataCache` 记录每 key 最近一次**请求发起**时间：缓存过期但仍在冷却窗口内 → 直接复用旧值、不打服务器；下拉刷新 / 重试走 `invalidateMetadataCache()`（清缓存与冷却记录）不受限；库内容页「静默重取」信号受同一冷却 |
+| 分页页片大小 | `ItemsPagingSource.PAGE_SIZE = 10` 单一常量（Paging 与预取共用，保证缓存键一致） |
+
+**书籍封面完整回退链（W69b，首页 / 书架 / 下载页同源）**：服务器图 → 本地已有 → **本地生成**（未下载在线书籍也生成：PDF 首页 / CBZ 第一图 / EPUB 封面，`Items/<id>/Download` HTTP Range 懒生成）→ 风格化类型占位；**服务器给了 URL 但取图 404 / 失败同样回落到生成**——`BookCoverRules.planCover(serverImageUnavailable = true)` + 卡片 `onServerImageFailed` 回调触发 `requestBookCoverFallback`，生成结果贴回卡片；失败写 `.fail` 不再重试。
+
 ## 6. 并行开发边界（供 S3 排期）
 
 ### 6.1 必须串行（有硬依赖）
