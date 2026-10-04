@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -69,6 +73,10 @@ fun LandscapeItemCard(
     index: Int = 0,
     /** W60b：下载状态角标（下载中 / 暂停 / 失败 / 已下载）；默认无角标，既有调用零改动。 */
     downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
+    /** W64：本地生成封面（服务器图缺失时覆盖）；null = 走服务器图。 */
+    imageOverride: String? = null,
+    /** W64：无图时的类型占位图标（书籍 = `ic_book`）；null = 保持原有空色底。 */
+    @DrawableRes placeholderIconRes: Int? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -89,14 +97,31 @@ fun LandscapeItemCard(
         emphasized = emphasized,
         container = colors.surfaceContainerHigh,
     ) {
-        AsyncImage(
-            model = item.images.backdrop ?: item.images.primary,
-            placeholder = ColorPainter(colors.surfaceContainerHigh),
-            error = ColorPainter(colors.surfaceContainerHigh),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        val serverImage = item.images.backdrop ?: item.images.primary
+        val imageModel = if (!imageOverride.isNullOrBlank()) imageOverride else serverImage
+        if (imageModel == null && placeholderIconRes != null) {
+            // W64：无服务器图且本地封面不可用 → 类型占位（与 ItemPoster 同口径）。
+            Box(
+                modifier = Modifier.fillMaxSize().background(colors.surfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(placeholderIconRes),
+                    contentDescription = null,
+                    tint = colors.onSurfaceFaint,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+        } else {
+            AsyncImage(
+                model = imageModel,
+                placeholder = ColorPainter(colors.surfaceContainerHigh),
+                error = ColorPainter(colors.surfaceContainerHigh),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         Box(
             modifier =

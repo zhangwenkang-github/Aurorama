@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,6 +31,7 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeSection
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeView
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
@@ -60,6 +62,7 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.utils.BookCoverRules
 import java.util.UUID
 
 /** 版心：所有内容都对齐到这条页边线（含横屏时的刘海安全区）。 */
@@ -80,6 +83,8 @@ fun HomeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
     val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
+    // W64：首页书籍卡本地封面（与书架同一条 BookCoverProvider 链路）。
+    val bookCovers by viewModel.bookCovers.collectAsStateWithLifecycle()
 
     LaunchedEffect(true) { viewModel.loadData() }
     // W60b：收藏变更后重取首页走廊，卡片收藏角标即时一致。
@@ -94,6 +99,8 @@ fun HomeScreen(
         onOpenLocalLibrary = onOpenLocalLibrary,
         onRetry = { viewModel.loadData() },
         downloadBadges = downloadBadges,
+        bookCovers = bookCovers,
+        onRequestBookCover = viewModel::requestBookCover,
     )
 }
 
@@ -113,6 +120,9 @@ private fun HomeScreenLayout(
     onOpenLocalLibrary: (Long) -> Unit,
     onRetry: () -> Unit,
     downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
+    /** W64：书籍卡本地封面（itemId → `files/book_covers/<id>.jpg`）。 */
+    bookCovers: Map<UUID, String> = emptyMap(),
+    onRequestBookCover: (UUID, String?) -> Unit = { _, _ -> },
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val gutter = rememberPageGutter()
@@ -130,6 +140,14 @@ private fun HomeScreenLayout(
     val listeningRail = state.resumeListeningSection?.homeSection
     val nextUpRail = state.nextUpSection?.homeSection?.items?.takeIf { it.isNotEmpty() }
     val wallItems = state.recentlyAddedVideos
+    // W64：书籍条目（继续阅读 / 最近添加 · 书籍）本地封面覆盖 + 类型占位（与书架同源）。
+    val bookCoverOverride: (FindroidItem) -> String? = { item ->
+        BookCoverRules.coverOverride(item.images.primary?.toString(), bookCovers[item.id])
+    }
+    val bookPlaceholderIcon: (FindroidItem) -> Int? = { CoreR.drawable.ic_book }
+    val requestBookCover: (FindroidItem) -> Unit = { item ->
+        onRequestBookCover(item.id, item.images.primary?.toString())
+    }
 
     ProvideLumen {
         Column(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
@@ -203,6 +221,9 @@ private fun HomeScreenLayout(
                                 downloadBadges = downloadBadges,
                                 onItemClick = onItemClick,
                                 onLibraryClick = onLibraryClick,
+                                imageOverrideFor = bookCoverOverride,
+                                placeholderIconResFor = bookPlaceholderIcon,
+                                onItemVisible = requestBookCover,
                             )
                         }
 
@@ -261,6 +282,9 @@ private fun HomeScreenLayout(
                             items = state.recentlyAddedBooks,
                             onItemClick = onItemClick,
                             downloadBadges = downloadBadges,
+                            imageOverrideFor = bookCoverOverride,
+                            placeholderIconResFor = bookPlaceholderIcon,
+                            onItemVisible = requestBookCover,
                         )
                         homePosterWall(
                             keyPrefix = "recent_music",
@@ -315,12 +339,18 @@ private fun LazyGridScope.homeRail(
     downloadBadges: Map<UUID, DownloadBadgeInfo>,
     onItemClick: (FindroidItem) -> Unit,
     onLibraryClick: (FindroidCollection) -> Unit,
+    imageOverrideFor: (FindroidItem) -> String? = { null },
+    @DrawableRes placeholderIconResFor: (FindroidItem) -> Int? = { null },
+    onItemVisible: (FindroidItem) -> Unit = {},
 ) {
     item(key = key, span = { GridItemSpan(maxLineSpan) }) {
         HomeSection(
             section = section,
             itemsPadding = PaddingValues(),
             downloadBadges = downloadBadges,
+            imageOverrideFor = imageOverrideFor,
+            placeholderIconResFor = placeholderIconResFor,
+            onItemVisible = onItemVisible,
             onAction = { action -> action.dispatch(onItemClick, onLibraryClick) },
         )
     }
@@ -333,6 +363,9 @@ private fun LazyGridScope.homePosterWall(
     items: List<FindroidItem>,
     onItemClick: (FindroidItem) -> Unit,
     downloadBadges: Map<UUID, DownloadBadgeInfo>,
+    imageOverrideFor: (FindroidItem) -> String? = { null },
+    @DrawableRes placeholderIconResFor: (FindroidItem) -> Int? = { null },
+    onItemVisible: (FindroidItem) -> Unit = {},
 ) {
     if (items.isEmpty()) return
     item(key = "${keyPrefix}_title", span = { GridItemSpan(maxLineSpan) }) {
@@ -344,11 +377,14 @@ private fun LazyGridScope.homePosterWall(
         )
     }
     itemsIndexed(items, key = { _, item -> "${keyPrefix}_${item.id}" }) { index, item ->
+        LaunchedEffect(item.id) { onItemVisible(item) }
         PosterItemCard(
             item = item,
             onClick = onItemClick,
             index = index,
             downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
+            imageOverride = imageOverrideFor(item),
+            placeholderIconRes = placeholderIconResFor(item),
         )
     }
 }
