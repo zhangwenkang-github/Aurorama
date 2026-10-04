@@ -1797,3 +1797,68 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 - **实现复核**：长按识别无自定义参数（平台 `GestureDetector` 默认 500 ms 长按超时 + 触摸 slop 移动容差）；多点守卫 `currentNumberOfPointers > 1` 直接跳过；章节跳转手势（`pref_player_gestures_chapter_skip`，**默认关**）开启时左右 1/5 区域优先跳章节、其余回退倍速；`enableSpeedIncrease()` 仅 `player.isPlaying` 时生效，`releaseAction()` 在 UP / CANCEL 统一回填原速。
 - **真机复测**（Pad 5 `43af8627`，灼眼的夏娜 S1E2 HLS 播放中）：`adb shell input swipe x y x y 2600` 长按 → `dumpsys media_session` **speed 1.0 → 2.0（1.4 s / 2.3 s 两处采样）→ 释放回 1.0**；两次复测一致。
 - **结论**：W61 的 `speed=0.0` 说明采样瞬间播放器**不在播放态**（起播转码 / 缓冲窗口），长按倍速此时按设计不生效；人工复测步骤（播放中中央按住约 1 s，松手回 1×）见 `TEST_PLAN` §7.6.6 F4。
+
+---
+
+## 28. W67-PLAYER 落地记录（2026-10-04 · 分支 `fix/w67-chapter-marks-snap`）
+
+> 用户 2026-10-04 全检反馈（拍板「全部按推荐」）：进度条上的章节刻度太不明显、拖动无吸附；同日追加「播放器预计结束时间 +
+> 时间格式（12/24 小时制）设置」。本波只动 `app:phone` + `settings/AppPreferences.kt`（新增时钟格式键，**负责人特批**）；
+> `player:core` / `player:local` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `NavigationRoot.kt` 未动。
+
+### 28.1 决策（D53–D56）
+
+| 编号 | 决策 |
+|------|------|
+| D53 | **章节吸附**：对章节起点 `startPosition` 磁性吸附——进入阈值 ±2 s、已吸附后退出阈值 ±3 s（滞回：手指停在目标附近不被抖动甩开，推出 ±3 s 后可自由微调）；拖动与点击（tap）走同一 `resolveChapterSnap` 纯函数；松手 / 点击落点 = 吸附后的位置；吸附到新的章节时一次轻触觉（`HapticFeedbackType.TextHandleMove`，轻量、同章节内不重复触发）。 |
+| D54 | **刻度增强**：2dp 宽 × 18dp 高（轨道上下各探出 6dp）、白 85%；已播过的章节刻度改用媒体色 / 极光青（`accent = Lumen.Accent ?: Media.Base`）区分；拖动中被吸附的那条加粗到 3dp 并加亮（`OnSurface` 满值）。保持「发丝线」设计语言，不加 glow（`UI_DESIGN_SYSTEM` §2.6 第 3 条）。**不新增设置项**——显示与吸附都跟随既有「进度条显示章节刻度」开关（关闭 = 传空章节列表 = 无刻度且无吸附）；章节列表为空 = 旧版纯比例拖动，行为不变。**真机首轮发现并修复**：刻度外层 Box 的 `.height(trackHeight)` 会把 18dp 子项夹到 6dp（旧实现同样只渲染轨道高、从未真的「上下探出」）→ 去掉该高度约束后 18dp 成立。 |
+| D55 | **预计结束时刻**：进度条时间区在「总时长」右侧补一个小号辅助色时刻（`MonoDataSmall` + `OnSurfaceFaint`），口径 = 「当前时钟 + 剩余时长」；播放中每秒推进当前时钟 → 结束时刻稳定跟随播放推进，暂停后时钟冻结在暂停点（自洽：若就此继续，将在此刻结束），跳转 / 拖动后按冻结时钟重算；时长未知（直播 / 未加载）不占位。PiP 小窗不加。 |
+| D56 | **时间格式**：新增偏好键 `pref_player_clock_format`（`system` / `24` / `12`，默认 `system`；**负责人特批新增键**），入口 = 播放器设置面板「播放」组章节刻度之后的 chip 行；「跟随系统」读 `Settings.System.TIME_12_24`（`"12"` = 12 小时，其余按 24 小时）；24 小时零填充 `HH:mm`、12 小时 `h:mm AM/PM`（12 点档按 12 而非 0）；解析与格式化统一走同一纯函数，供播放器内时钟显示共用。 |
+
+### 28.2 实现落点
+
+| 文件 | 改动 |
+|------|------|
+| `app/phone/.../player/PlayerChapterSnap.kt`（新增） | 纯函数：`resolveChapterSnap`（±2 s 进入 / ±3 s 滞回 / 就近命中 / 空列表原样返回）、`chapterSnapDistance`（Double 计算，Long 极值不溢出）、`chapterSnapLabel`（序号从 1 计、空白名视为无名）、`chapterTickFraction`（Double 比例 + 0..1 收敛） |
+| `app/phone/.../player/PlayerControlOverlay.kt` | `PlayerSeekBar`：拖动 / 点击接吸附 + 轻触觉；气泡吸附时显示「第 N 章 · 章节名」（点击吸附后 1.5 s 收起，拖动中跟随）；刻度 2×18dp / 白 85%，已播 `accent`，吸附 3dp 加亮；`pointerInput` 以章节列表为 key（换集自动失效）；**刻度外层不再加高度约束**（真机发现的夹取缺陷）。时间区：新增预计结束时刻（D55） |
+| `app/phone/src/main/res/values{,-zh-rCN,-zh-rTW}/strings.xml`（新增） | `player_chapter_snap` / `player_chapter_snap_named` 三语言（默认英文），不占用 `player:local` 字符串域 |
+| `app/phone/src/test/.../PlayerChapterSnapTest.kt`（新增） | 19 项单测：±2 s 进入（含端点 / 前后侧）、±3 s 滞回（保持 / 解除 / 解除区不重吸 / 回进入区重吸 / 列表变短后旧序号失效）、最近章节、首章 0 s、拖到 0 / 结束、无章节、超大 duration 与 Long 极值、刻度比例收敛、气泡序号与空白名 |
+| `app/phone/.../player/PlayerClock.kt`（新增） | `CLOCK_FORMAT_SYSTEM/24H/12H` + `PlayerClockFormats`；`resolveClockStyle`（跟随系统 / 显式档位）；`formatClockTime`（24 零填充 / 12 带 AM/PM，可注入时区）；`estimatedEndTimeMs`（当前时钟 + 剩余，越界收敛） |
+| `app/phone/src/test/.../PlayerClockTest.kt`（新增） | 8 项单测：跟随系统（12/24/缺省）、显式档位覆盖系统、24 小时零填充（09:05 / 00:00）、12 小时 AM/PM（含 12:00 AM/PM）、播放中结束时刻稳定、暂停冻结不漂移、剩余 <1 分钟跨天（23:59:40+30 s → 00:00）、位置越界收敛 |
+| `settings/.../AppPreferences.kt` | 新增 `playerClockFormat`（`pref_player_clock_format`，默认 `"system"`，D56 负责人特批） |
+| `app/phone/.../player/PlayerSettingsPanel.kt` | 快照 + 控制器 + 「播放」组新增「时间格式」chip 行（跟随系统 / 24 小时 / 12 小时），改完即时生效 |
+| `app/phone/src/main/res/values{,-zh-rCN,-zh-rTW}/strings.xml` | `player_end_time_label`（「%1$s 结束」/ "Ends %1$s"）+ 设置项与三个档位文案 |
+
+### 28.3 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun` **757 项 / 0 失败 0 错误**（app **206**（基线 179 + 章节吸附 19 + 时钟 8）/ core 79 / data 50 / player:local 110 / film 53 / book 113 / music 134 + `player:core` 12）；新增单测 **27** 项。
+
+### 28.4 真机走查（2026-10-04 · Pad 5 `43af8627`，16:52–17:16；K60 `8e875894` 16:56 起 adb 掉线未参与）
+
+> 样本：棺姬嘉依卡 S1E1（服务器章节 0 / 91008 / 590048 / 1315981 / 1405988 / 1422004 ms）与灼眼的夏娜 S1E2（chapters=0）。
+> 前后对比与像素测量在本地完成（截图不入库、不贴对话）；结论以本地像素分析 + `dumpsys media_session` + `uiautomator dump` 为准。
+
+| # | 项 | 证据 |
+|---|----|------|
+| ① | 刻度增强（同一位置前后对比） | 改前：宽 3px（1.5dp）、高 21px（被父容器夹到轨道高）、峰值亮度 ≈158（白 45%）；改后：宽 5px（≈2.2dp）、高 41px（≈18.2dp，轨道上下各探出约 6dp）、峰值 ≈225（白 85%）；6 条刻度 x 与章节位置一一对齐（首章被播放头遮住） |
+| ② | 已播 / 未播刻度配色 | 已播章节刻度像素 (92,225,210) = 极光青；未播 = 白 85%（同屏取证） |
+| ③ | 拖动吸附（±2 s 进入） | 无先前吸附时拖到 x=1089 → 原始 592505 ms（+2457 ms，不吸附）；进入窗口内（x=1085）→ 590048 ms 逐毫秒命中 |
+| ④ | 滞回（±3 s 退出 / 可微调） | 先吸附再移到 x=1089 → 保持 590048 ms；移到 +3080 ms 处 → 解除为原始 593128 ms；松手落点 = 吸附后位置 |
+| ⑤ | 点击（tap）吸附 | tap x=1082 / 1083 / 1085 → 均落 590048 ms（章节起点） |
+| ⑥ | 气泡 | 拖动保持时 `uiautomator dump` 命中 **「第 3 章 · Chapter 03」**（序号从 1 计） |
+| ⑦ | 吸附中刻度加粗加亮 | 宽 8px（3dp+AA）、峰值 249（满白）vs 普通 5px / 225 |
+| ⑧ | 开关语义（关 = 无刻度 + 无吸附） | 关「进度条显示章节刻度」→ 刻度特征 0 条；同一 x=1083 tap = 588762 ms（原始）；重开 → 590048 ms（吸附）A/B |
+| ⑨ | 无章节视频不回归 | 灼眼的夏娜 S1E2（chapters=0）：无刻度；相隔 1px 两次 tap = 615185 / 615835 ms（Δ650 ms ≈ 理论 651 ms/px）纯比例 |
+| ⑩ | 稳定性 | Pad 5 crash buffer + 主缓冲 0 FATAL / 0 ANR |
+
+**K60 未参与**：16:56 起 adb `offline` → 从设备列表消失（Windows PnP 显示其 ADB Interface 状态 OK，属设备端 adbd 无响应），需人工重新插拔；本会话未对 K60 做任何写操作。
+**补充任务（预计结束时间 + 时间格式）真机窗口**：16:52–17:16 窗口已释放后设备归 W68（17:22 占用），按 device-lock 排队 **W68 → W67-补充** 轮入，结论待补。
+
+### 28.5 未决 / 移交项
+
+1. 吸附滞回按任务书口径实现：已吸附后离开 ±3 s 才解除，解除后要回到 ±2 s 内才重新吸附（解除区 2–3 s 内保持自由微调）。
+2. 吸附纯函数放在 `app:phone`；若其它入口（全屏横向滑动 seek 手势）也要吸附，需先申报再下沉 / 接线。
+3. 刻度对比度、吸附手感与轻触觉物理感受属人工感知条目（MIUI 不落 haptic 日志，`dumpsys vibrator_manager` 只留 NOTIFICATION 历史），交用户过目 / 体感确认。
+4. 章节刻度首章在 0 s 时落在进度条左缘、被播放头盖住（与既有 knob 同款边界行为），未单独处理。
+5. 「跟随系统」的时间格式在播放页内只于进入 / 换档时读一次 `Settings.System.TIME_12_24`，系统设置中途变更需重进播放页生效。

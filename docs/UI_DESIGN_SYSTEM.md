@@ -541,7 +541,8 @@ val CinefinTypography = Typography(
 | 主播放键 | 70dp、圆角 22dp；底 `OnSurface`、图标 `InverseOnSurface`；pressed 白 12% 状态层 |
 | 次级传输键（±15s 等） | 44dp；透明底；图标 `OnSurface`；hover 白 8% |
 | 覆盖层工具键 | 50dp、圆角 16dp；底黑 60% + blur 14dp；1dp 白 12%；图标 `OnSurface` |
-| 进度条（画面层） | 高 6dp；轨道白 18%；填充 `Media.Base`；knob 20dp、圆角 5dp、白；章节刻度 2×14dp 白 50%；buffered 白 24% |
+| 进度条（画面层） | 高 6dp；轨道白 18%；填充 `Media.Base`；knob 20dp、圆角 5dp、白；章节刻度 2×18dp 白 85%（W67：已播章节用媒体色 / 极光青；拖动吸附时 3dp 加亮）；buffered 白 24% |
+| 进度条时间区 | 当前时间 / 总时长 `MonoDataSmall`（`OnSurface` / `OnSurfaceVariant`）；右侧预计结束时刻「HH:mm 结束」`MonoDataSmall` `OnSurfaceFaint`（W67 补充；播放中每秒推进、暂停冻结在当前时钟；时长未知不占位；12/24 小时制跟随播放器「时间格式」设置） |
 | 进度条（面板内） | 高 5dp；轨道白 12%；填充 `Media.Base`；knob 16dp、圆角 4dp |
 | 右侧面板 | 宽 560dp；底 `#161B23`；左 1dp `Outline`；内边距 38/34dp；组标题 LabelSmall 13sp、字距 0.14em、`OnSurfaceFaint` |
 | 选项行 Option | 高 52dp；圆角 12dp；1dp `Outline`；底 `#1A2029`；选中：底 `Media.Container` + 描边 `Media.Outline` + 指示图标 `Media.Base`；pressed：`Media.ContainerPressed` |
