@@ -8,12 +8,14 @@ import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * W51 详情页（Show / Season / Episode）下载动作共用 ViewModel。
@@ -27,7 +29,8 @@ class DetailDownloadViewModel @Inject constructor(private val downloader: Downlo
     private val _state = MutableStateFlow(DetailDownloadSnapshot())
     val state = _state.asStateFlow()
 
-    private val eventsChannel = Channel<DetailDownloadEvent>()
+    /** W63：缓冲——批量入队用 `NonCancellable` 跑完（页面退出后事件可能无接收者）。 */
+    private val eventsChannel = Channel<DetailDownloadEvent>(Channel.BUFFERED)
     val events = eventsChannel.receiveAsFlow()
 
     /** 页面进入 / 入队成功后刷新快照。 */
@@ -68,25 +71,13 @@ class DetailDownloadViewModel @Inject constructor(private val downloader: Downlo
 
     private suspend fun enqueue(items: List<FindroidItem>, storageIndex: Int) {
         _state.update { it.copy(inFlight = true) }
-        val addedIds = mutableListOf<UUID>()
-        var lastError: UiText? = null
-        for (item in items) {
-            val sourceId = item.sources.firstOrNull()?.id
-            if (sourceId == null) continue
-            val result = runCatching {
-                downloader.downloadItem(
-                    item = item,
-                    sourceId = sourceId,
-                    storageIndex = storageIndex,
-                )
+        // W63：整批走应用级批量入队且不可取消——离开详情页 / ViewModel 清理不再把整剧下载截成前几集。
+        val batch =
+            withContext(NonCancellable) {
+                downloader.enqueueItems(items = items, storageIndex = storageIndex)
             }
-                .getOrNull()
-            if (result == null || result.first == -1L) {
-                lastError = result?.second
-                continue
-            }
-            addedIds += item.id
-        }
+        val addedIds = batch.addedIds
+        val lastError: UiText? = batch.lastError
         _state.update { current ->
             current.copy(inFlight = false, queuedIds = current.queuedIds + addedIds)
         }

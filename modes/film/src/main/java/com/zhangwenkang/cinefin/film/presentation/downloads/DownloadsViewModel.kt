@@ -28,12 +28,17 @@ import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import timber.log.Timber
 
 /**
@@ -380,59 +385,97 @@ constructor(
                     emptyList()
                 }
             val episodeHierarchy = loadEpisodeHierarchy()
-            val completed = runCatching {
-                loadCompleted(episodeHierarchy)
-            }
-                .getOrElse { emptyList() }
-            val musicById = loadMusicLibrary()
             val bookFiles = loadBookFiles()
             val completedBookIds = bookFiles.map { it.itemId }.toSet()
-            val bookMetadata = resolveBookMetadata(completedBookIds)
             val storage = runCatching {
                 downloader.getStorageUsage()
             }
                 .getOrElse { DownloadStorageUsage(0L, 0L, 0L) }
             val bookStorageBytes = bookFiles.sumOf { it.sizeBytes }
 
+            // ——— W63 阶段 1：本地数据（Room / 文件）先上屏，首帧不等待任何服务器接口 ———
+            val localActiveEntries =
+                tasks
+                    .filter { it.status != DownloadTaskStatus.FAILED }
+                    .map { task ->
+                        task.toHierarchyEntry(
+                            episodeHierarchy = episodeHierarchy,
+                            musicById = emptyMap(),
+                            allowRemoteImages = false,
+                        )
+                    }
+            val localFailedEntries =
+                tasks
+                    .filter { it.status == DownloadTaskStatus.FAILED }
+                    .map { task ->
+                        task.toHierarchyEntry(
+                            episodeHierarchy = episodeHierarchy,
+                            musicById = emptyMap(),
+                            allowRemoteImages = false,
+                        )
+                    }
+            val localBookEntries = bookFiles.map { file -> file.toBookEntry(serverMetadata = null) }
+            _state.update { current ->
+                current.copy(
+                    isLoading = false,
+                    activeTasks = tasks.filter { it.status != DownloadTaskStatus.FAILED },
+                    failedTasks = tasks.filter { it.status == DownloadTaskStatus.FAILED },
+                    activeContainers = DownloadHierarchyBuilder.build(localActiveEntries),
+                    failedContainers = DownloadHierarchyBuilder.build(localFailedEntries),
+                    bookStorageBytes = bookStorageBytes,
+                    storage = storage,
+                    selection =
+                        current.selection.intersect(
+                            (localActiveEntries + localFailedEntries + localBookEntries)
+                                .map { it.key }
+                                .toSet()
+                        ),
+                )
+            }
+
+            // ——— W63 阶段 2：服务器元数据异步补齐（已完成条目 / 曲库 / 书籍名与封面 / 远程兜底图） ———
+            val completed = runCatching {
+                loadCompleted(episodeHierarchy)
+            }
+                .getOrElse { emptyList() }
+            val musicById = loadMusicLibrary()
+            val bookMetadata = resolveBookMetadata(completedBookIds)
+
             val activeEntries =
                 tasks
                     .filter { it.status != DownloadTaskStatus.FAILED }
-                    .map { task -> task.toHierarchyEntry(episodeHierarchy, musicById) }
+                    .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+                        task.toHierarchyEntry(
+                            episodeHierarchy = episodeHierarchy,
+                            musicById = musicById,
+                            allowRemoteImages = true,
+                        )
+                    }
             val failedEntries =
                 tasks
                     .filter { it.status == DownloadTaskStatus.FAILED }
-                    .map { task -> task.toHierarchyEntry(episodeHierarchy, musicById) }
+                    .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+                        task.toHierarchyEntry(
+                            episodeHierarchy = episodeHierarchy,
+                            musicById = musicById,
+                            allowRemoteImages = true,
+                        )
+                    }
             val completedEntries =
                 completed
-                    .map { download ->
-                        download.toHierarchyEntry(musicById, bookMetadata, bookFiles)
+                    .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { download ->
+                        download.toHierarchyEntry(
+                            musicById = musicById,
+                            bookMetadata = bookMetadata,
+                            bookFiles = bookFiles,
+                            allowRemoteImages = true,
+                        )
                     }
                     .filterNotNull()
             val bookEntries =
                 bookFiles
                     .filter { file -> completedBookIds.contains(file.itemId) }
-                    .map { file ->
-                        DownloadHierarchyEntry(
-                            itemId = file.itemId,
-                            // W62：与离线书架统一显示名口径（侧车优先），避免离线时退化成占位名导致两处清单
-                            // "看着不一致"。
-                            name =
-                                offlineBookDisplayName(
-                                    serverName = bookMetadata[file.itemId]?.name,
-                                    sidecarTitle = file.title,
-                                    itemId = file.itemId,
-                                ),
-                            mediaKind = DownloadMediaKind.BOOK,
-                            status = DownloadTaskStatus.COMPLETED,
-                            sizeBytes = file.sizeBytes,
-                            imageUri =
-                                DownloadArtworkRules.resolve(
-                                    localImage(file.itemId),
-                                    bookMetadata[file.itemId]?.imageUrl,
-                                ) ?: bookCoverProvider.cached(file.itemId),
-                            allowOffline = offlineAllowMap[file.itemId] ?: true,
-                        )
-                    }
+                    .map { file -> file.toBookEntry(serverMetadata = bookMetadata[file.itemId]) }
 
             val validKeys =
                 (activeEntries + failedEntries + completedEntries + bookEntries)
@@ -539,6 +582,7 @@ constructor(
     private suspend fun DownloadTask.toHierarchyEntry(
         episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
         musicById: Map<UUID, MusicTrackMetadata>,
+        allowRemoteImages: Boolean = true,
     ): DownloadHierarchyEntry {
         val episode = episodeHierarchy[itemId]
         val song = musicById[itemId]
@@ -576,19 +620,19 @@ constructor(
                             localImage(itemId),
                             bookCoverProvider.cached(itemId),
                         )
-                    else -> videoImageUri(episode != null, itemId)
+                    else -> videoImageUri(episode != null, itemId, allowRemoteImages)
                 },
             showImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SHOW,
                     localImage(episode?.seriesId),
-                    remotePrimaryImage(episode?.seriesId),
+                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seriesId),
                 ),
             seasonImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SEASON,
                     localImage(episode?.seasonId),
-                    remotePrimaryImage(episode?.seasonId),
+                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seasonId),
                 ),
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
@@ -598,6 +642,7 @@ constructor(
         musicById: Map<UUID, MusicTrackMetadata>,
         bookMetadata: Map<UUID, BookMetadata>,
         bookFiles: List<LocalBookFile>,
+        allowRemoteImages: Boolean = true,
     ): DownloadHierarchyEntry {
         val song = musicById[item.id]
         val book = bookFiles.firstOrNull { it.itemId == item.id }
@@ -634,20 +679,20 @@ constructor(
                             if (episode != null) DownloadArtworkRules.Level.EPISODE
                             else DownloadArtworkRules.Level.MOVIE,
                             localImage(item.id),
-                            remotePrimaryImage(item.id),
+                            remotePrimaryImageIfAllowed(allowRemoteImages, item.id),
                         )
                 },
             showImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SHOW,
                     localImage(episode?.seriesId),
-                    remotePrimaryImage(episode?.seriesId),
+                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seriesId),
                 ),
             seasonImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SEASON,
                     localImage(episode?.seasonId),
-                    remotePrimaryImage(episode?.seasonId),
+                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seasonId),
                 ),
             runtimeTicks =
                 when (item) {
@@ -663,14 +708,31 @@ constructor(
     }
 
     /** W59 视频条目封面（严格同级，本地优先）： 电影 = 自身主图；剧集 = **自身缩略图（帧图）**——季 / 节目海报一律不作为回退（缺图即类型占位，防串图）。 */
-    private suspend fun videoImageUri(isEpisode: Boolean, itemId: UUID): String? =
-        DownloadArtworkRules.videoArtwork(
+    private suspend fun videoImageUri(
+        isEpisode: Boolean,
+        itemId: UUID,
+        allowRemote: Boolean = true,
+    ): String? {
+        val local = localImage(itemId)
+        return DownloadArtworkRules.videoArtwork(
             level =
                 if (isEpisode) DownloadArtworkRules.Level.EPISODE
                 else DownloadArtworkRules.Level.MOVIE,
-            ownLocal = localImage(itemId),
-            ownRemote = remotePrimaryImage(itemId),
+            ownLocal = local,
+            // W63：本地图已存在时不再打服务器接口；首帧阶段完全不请求远程。
+            ownRemote = if (allowRemote && local == null) remotePrimaryImage(itemId) else null,
         )
+    }
+
+    /** W63：本地图存在或本阶段不允许远程兜底时返回 null（避免无谓的服务器往返）。 */
+    private suspend fun remotePrimaryImageIfAllowed(
+        allowRemote: Boolean,
+        itemId: UUID?,
+    ): String? {
+        if (!allowRemote || itemId == null) return null
+        if (localImage(itemId) != null) return null
+        return remotePrimaryImage(itemId)
+    }
 
     /** W59：服务器主图 URL（会话级缓存；只在本地图缺失时调用，避免逐条打接口）。 */
     private suspend fun remotePrimaryImage(itemId: UUID?): String? {
@@ -719,6 +781,38 @@ constructor(
     private fun DownloadManagerState.allContainers(): List<DownloadHierarchyContainer> =
         activeContainers + completedContainers + failedContainers
 
+    /** W63：本地书籍文件 → 层级条目（服务器名 / 封面可缺失，缺失时用侧车标题与生成封面）。 */
+    private fun LocalBookFile.toBookEntry(serverMetadata: BookMetadata?): DownloadHierarchyEntry =
+        DownloadHierarchyEntry(
+            itemId = itemId,
+            // W62：与离线书架统一显示名口径（侧车优先），避免离线时退化成占位名导致两处清单"看着不一致"。
+            name =
+                offlineBookDisplayName(
+                    serverName = serverMetadata?.name,
+                    sidecarTitle = title,
+                    itemId = itemId,
+                ),
+            mediaKind = DownloadMediaKind.BOOK,
+            status = DownloadTaskStatus.COMPLETED,
+            sizeBytes = sizeBytes,
+            imageUri =
+                DownloadArtworkRules.resolve(localImage(itemId), serverMetadata?.imageUrl)
+                    ?: bookCoverProvider.cached(itemId),
+            allowOffline = offlineAllowMap[itemId] ?: true,
+        )
+
+    /** W63：带并发上限的 map（服务器元数据补齐阶段用，避免一次性打出几十个请求）。 */
+    private suspend fun <T, R> List<T>.mapBounded(
+        concurrency: Int,
+        block: suspend (T) -> R,
+    ): List<R> {
+        if (isEmpty()) return emptyList()
+        val semaphore = Semaphore(concurrency.coerceAtLeast(1))
+        return coroutineScope {
+            map { item -> async { semaphore.withPermit { block(item) } } }.awaitAll()
+        }
+    }
+
     private data class BookMetadata(val name: String?, val imageUrl: String?)
 
     override fun onCleared() {
@@ -728,5 +822,8 @@ constructor(
 
     private companion object {
         const val POLL_INTERVAL_MS = 1500L
+
+        /** W63：服务器元数据补齐阶段的并发上限。 */
+        const val REMOTE_PREFETCH_CONCURRENCY = 4
     }
 }

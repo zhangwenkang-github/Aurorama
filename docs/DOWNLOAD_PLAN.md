@@ -824,3 +824,51 @@ W61 全量回归 F2（P3）：「离线书架『已下载 4 本』与下载页�
 - **过滤口径（修）**：离线书架原按 `allowOffline` 过滤（被关闭的书从离线界面消失），而下载页不过滤。本机实测 `pref_offline_blocked_books` 里正是 `futuristic_tales`（`6bbbb0ce…`，W36 以来遗留状态）→ 书架少 1 本，且书籍**没有管理视图出口**（离线媒体库只列视频）无法回开。改为书架列出**全部已下载书籍**（关闭项行内 `OfflineLeafCard` 既有置灰 + 开关可回开）；`OfflineMediaViewModel.UiState.downloadedBooks` 同一口径，离线首页「已下载 N 本」同步。视频 / 音乐的「管理视图」语义不变（`OfflineMediaVisibility.visibleEntries`）。
 - **显示名口径（修）**：下载页原「服务器元数据 → 「离线书籍 xxxxxxxx」占位」，离线时退化占位名 → 与书架（`.title` 侧车）不同名；统一为 `offlineBookDisplayName(serverName, sidecarTitle, itemId)` =「侧车优先 → 服务器名兜底 → 占位」（`core`，+3 单测）。
 - **真机（离线模式）**：书架「离线模式 · 已下载 **5 本**」= 下载页「已完成 · 书籍」**5 本同名**（attention_is_all_you_need / futuristic_tales / 雷普利全集 / Anda's Game / 虚构推理 (2026)）；详见 `TEST_PLAN` §7.6.6 F2。
+
+## 26. W63 下载域缺陷修复（2026-10-04，分支 `fix/w63-download-fixes`，起点 master `a8a580f`）
+
+**背景**：用户发布前全检提交 7 条下载域问题（整剧 / 全季入队、季页 / 下载页长按多选、Snackbar 常驻、侧栏角标、下载页首屏慢）。本波按纪律**先真机复现 → 再定位修改 → 单测 → 真机复验**（Pad 5 `43af8627`，device-lock 已写释放与结论）。
+
+### 26.1 复现与根因（Pad 5 真机取证 + 只读 API 探针）
+
+| # | 现象（用户口径） | 真机复现 | 根因 | 修法 |
+|---|------------------|----------|------|------|
+| ① | Show / Season 页「下载」只入队 1 集 | 确认框数字本身**正确**（超能力女儿 12 集 / 只有神知道的世界 54 集，只读探针 12 集无重复、每集 1 个 MediaSource）；但**入队过程中离开详情页 → `JobCancellationException`，批量被截断**（DB 只落前几集）；单集入队每条都重新拉 show + 季（2 次网络、~2–3 s），54 集批量 = 分钟级 | `DetailDownloadViewModel.enqueue` 在页面 `viewModelScope` 内**串行**逐条 `downloadItem`；每条 `persistItemSnapshot` 重新解析节目 / 季快照 → 慢 + 页面退出即取消 | ① `Downloader.enqueueItems` 新增批量入口，`DownloaderImpl` 内**节目 / 季快照缓存（TTL 10 分钟）+ 首次并发拉取**（同剧第二集起近乎零网络）；② `DetailDownloadViewModel` 用 `withContext(NonCancellable)` 调批量入口（离开页面整批照常完成），事件通道改 `BUFFERED`；③ Snackbar 数 = 实际入队数（`DownloadBatchResult.addedIds`） |
+| ② | Season 页集列表无长按多选 | 长按无反应（旧实现只有单击进集详情） | 未接 W58 core 多选框架 | 复用 `rememberMultiSelectState` / `cinefinSelectable` / `CinefinSelectIndicator` / `CinefinBatchBar` / `MediaBatchTopBarActions`：长按进入并选中、单击切换、已加载全选 / 取消全选、× / 系统返回退出，底栏「下载」（仅补齐缺失集，与整季下载同口径） |
+| ③ | 下载页无长按多选（只能点右上「选择」） | 容器卡 / 条目长按无反应 | `CinefinCard` 只支持 `onClick`，下载页行组件未接长按 | `CinefinCard` 新增可选 `onLongClick`（`combinedClickable`）；`DownloadRows` 四个行组件（顶层卡 / 顶层行 / 季卡 / 集行）接 `onLongPress` → 复用既有 `ToggleSelection`（与「选择」按钮共用同一状态） |
+| ④ | Snackbar 不自动消失（P1） | 书架 / 详情页「已加入下载队列 · 12 集」常驻 >20 s | Material3 `showSnackbar` 带 `actionLabel`（「查看」）时默认 `Indefinite`，调用方未显式传 `duration` | core 新增 `DownloadSnackbarDuration = SnackbarDuration.Long`（≈10 s）；全域 8 处下载反馈调用（Show / Season / Episode / Movie / Library / Video / Favorites / 音乐）显式传入 |
+| ⑤ | 侧栏角标延迟大 + 数量错误 | 入队后角标要等首个快照网络 + 2 s 轮询才出现；活动快照里若残留「已落盘完成」条目会被计入 | ① 角标只在 `NavigationRoot` 2 s 轮询里刷新；② `activeItemIds()` 未剔除已下载条目 | ① `Downloader.queueChanges`（入队 / 完成 / 失败 / 删除时 `tryEmit`）+ `DownloadBadgeViewModel.init` 订阅 → 即时刷新（2 s 轮询保留兜底）；② 新纯函数 `DownloadBadgeRules.activeBadgeCount(activeItemIds, downloadedItemIds)` = 活动集去重 − 已下载集 |
+| ⑥ | 下载页首屏加载慢（不应取服务器数据） | 34 个任务时页面 **>60 s 不渲染**（只有 0/0/0）；OkHttp 日志逐条串行 `GET /Items/{id}`（每任务 2–3 个远程图请求，逐一约 1.4 s） | `refresh()` 单阶段：本地任务与服务器元数据（`getDownloads` / 曲库 / 书籍名与封面 / 逐条远程兜底图）串成一条链，全部完成才 `_state.update` | 拆两阶段：**阶段 1 只用 Room / 文件**（活动 / 失败任务 + 本地书籍 + 存储）立即上屏；**阶段 2** 服务器元数据补齐（`mapBounded` 并发上限 4）后二次上屏；且**本地图存在时不再打远程兜底**（`remotePrimaryImageIfAllowed`） |
+| ⑦ | W60b 下载反馈「基本没看到」 | 随 ④⑤⑥ 一并复验 | ④（常驻被忽略）/ ⑤（角标迟到）/ ⑥（页面无内容）叠加 | 见 ④⑤⑥ |
+
+### 26.2 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿（含 format 后复跑）；
+- 8 任务逐个 `--rerun`：app **172** / core **77** / data **50** / player:local **110** / film **53** / book **113** / music **132** / player:core **12** = **719 项 / 0 失败 0 错误**（基线 713 + 新增 **6**）；
+- 新增单测：`DownloadBadgeRulesTest` 5（film：去重 / 剔除已下载 / 空集 / 混合）+ `DownloadSnackbarDurationTest` 1（core：显式 `Long` 且非 `Indefinite`）；
+- 首屏渲染顺序不可单测 → 真机取证（见 26.3 ⑥）。
+
+### 26.3 真机复验（Pad 5 `43af8627`，13:39–14:40；device-lock 已写释放与结论）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | Show 整剧 + 立即离开页面 | ✅ 对话框「将加入 **12 集**」→ 确认后 2 s 内按返回离开详情页 → 20 s 后 DB `sources` 校验 **12/12 集全部入队**（旧包同操作被 `JobCancellationException` 截断）；多季剧对话框 **54 集**（与探针一致） |
+| ② | Season 全季 | ✅ 「将加入 **26 集**」→ 确认后 DB **26 行**（PENDING 25 + RUNNING 1），快照 26 集全落库 |
+| ③ | Season 长按多选 | ✅ 长按第 1 集 →「已选 1 项」+ 顶栏 全选 / × + 底栏「下载」；单击第 2 集 →「已选 2 项」；全选 →「已选 12 项」（按钮变「取消全选」）；批量下载 2 集 → Snackbar「**已加入下载队列 · 2 集**」+「查看」；12 集全在队列时再点 →「所有剧集都已在队列」（跳过口径生效，无重复入队） |
+| ④ | 下载页长按多选 | ✅ 长按 Show 容器卡 →「已选 **12 项**」（整容器）；另一部剧 →「已选 **26 项**」；底部批量条 = 暂停 / 继续 / 重试 / 删除；删除确认「确定删除选中的 12 项下载吗？」→ 删除后角标即时 14 → 2 |
+| ⑤ | Snackbar 自动消失 | ✅「已加入下载队列 · 2 集」+「查看」：t≈3 s 可见、**t≈14 s 已消失**（两次复验一致；`duration = Long`） |
+| ⑥ | 下载页首帧 | ✅ 冷启动 → 点侧栏「下载」，**2.9 s 内**已渲染活动任务卡（含 `uiautomator dump` 开销；修复前同队列 >60 s 仍空白）；本地任务先出，服务器元数据随后补齐（OkHttp 请求在首帧之后才出现） |
+| ⑦ | 侧栏角标 | ✅ 入队后即时更新：单批 12 → 徽标 12；再批量 2 集 → **14**（12+2，数量正确）；删除 12 项 → **2**；删除剩余 2 项 → 0；含「已下载」时不重复计数 |
+| ⑧ | 清理 / 稳定性 | ✅ 全部测试下载（12 + 2 + 26）经下载页多选删除清除：`0 进行中 · 完成态回 664 MB（含书籍 661 MB）`、`files/downloads` 为空；0 FATAL / 0 ANR；App force-stop、`/sdcard/w63*.xml` 删除；未改设备偏好 / 旋转 / 网络 |
+
+### 26.4 未覆盖项
+
+- 失败徽标（红叹号）真机样本（需服务器类故障注入，既有遗留）；
+- 音乐侧 Snackbar 时长的真机逐项复验（与视频侧同一常量，代码走查覆盖）；
+- K60 抽验（本波任务书 = Pad 5 主；K60 未接入，交叉抽验留负责人调度）；
+- 首帧「毫秒级」基准对比（本轮用 `uiautomator` 轮询取证，未接 `gfxinfo`）。
+
+### 26.5 遗留
+
+- 整剧 / 全季入队仍以「快照缓存 + 非取消」保证完整，若单条入队真失败（存储不可用等）Snackbar 只报最后一次失败文案，无逐条错误清单；
+- 阶段 2 服务器元数据补齐仍按条目逐条请求远程图（本地图缺失时），并发已限 4；后续可考虑持久化远程图 URL。

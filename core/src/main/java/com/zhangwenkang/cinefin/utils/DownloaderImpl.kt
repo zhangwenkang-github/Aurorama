@@ -26,6 +26,8 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidSeason
+import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceDto
 import com.zhangwenkang.cinefin.models.FindroidSourceType
@@ -60,8 +62,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -95,6 +101,19 @@ class DownloaderImpl(
     private val notificationManager = context.getSystemService(NotificationManager::class.java)
     private val sidecar = DownloadMediaSidecar(context)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** W63：批量入队的节目 / 季快照缓存（同剧 N 集只解析一次，避免逐集两次网络往返）。 */
+    private val showSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidShow>>()
+    private val seasonSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidSeason>>()
+
+    /** W63：队列活动集变化信号（入队 / 完成 / 失败 / 删除），侧栏角标即时刷新。 */
+    private val _queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
+    override val queueChanges: SharedFlow<Unit> = _queueChanges.asSharedFlow()
+
+    /** W63：队列活动集变化（尽力投递；无收集者时不阻塞）。 */
+    private fun notifyQueueChanged() {
+        _queueChanges.tryEmit(Unit)
+    }
 
     /** sourceId → 运行中的下载协程。 */
     private val activeJobs = ConcurrentHashMap<String, Job>()
@@ -206,6 +225,7 @@ class DownloaderImpl(
                     allowOffline = existing?.allowOffline ?: true,
                 )
             database.insertSource(sourceDto)
+            notifyQueueChanged()
 
             // W34：音乐曲目（专辑 / 艺人）写入侧车，供下载列表层级化与离线展示。
             if (albumName != null) {
@@ -222,6 +242,34 @@ class DownloaderImpl(
 
             ensureEngineRunning(forceStart = true)
             Pair(handle, null)
+        }
+
+    /**
+     * W63：批量入队。同剧的节目 / 季快照在批内只解析一次（[persistItemSnapshot] 的缓存）， 逐条入队逻辑沿用 [downloadItem]（幂等命中活动任务 /
+     * 已下载时不重复入队）。
+     */
+    override suspend fun enqueueItems(
+        items: List<FindroidItem>,
+        storageIndex: Int,
+    ): DownloadBatchResult =
+        withContext(Dispatchers.IO) {
+            val added = mutableListOf<UUID>()
+            var lastError: UiText? = null
+            for (item in items) {
+                coroutineContext.ensureActive()
+                val sourceId = item.sources.firstOrNull()?.id ?: continue
+                val result = runCatching {
+                    downloadItem(item, sourceId, storageIndex)
+                }
+                    .onFailure { Timber.w(it, "批量入队失败 ${item.id}") }
+                    .getOrNull()
+                if (result == null || result.first == -1L) {
+                    lastError = result?.second ?: lastError
+                    continue
+                }
+                added += item.id
+            }
+            DownloadBatchResult(addedIds = added.distinct(), lastError = lastError)
         }
 
     override suspend fun runQueue(): DownloadQueueOutcome {
@@ -496,6 +544,8 @@ class DownloaderImpl(
         database.setSourceProgress(source.id, result.downloadedBytes, result.totalBytes, now)
         database.setSourceResumeValidator(source.id, result.validator)
         database.setSourceRetry(source.id, 0, 0L, now)
+        // W63：完成后活动集变化——侧栏角标即时减一，不等 2s 轮询。
+        notifyQueueChanged()
         // 「下载完成通知」偏好（默认开）：关闭后只保留进行中的前台服务通知。
         if (appPreferences.getValue(appPreferences.downloadCompleteNotification)) {
             notifications.notifyCompleted(
@@ -582,6 +632,8 @@ class DownloaderImpl(
                 now,
             )
             database.setSourceRetry(source.id, retryCount, 0L, now)
+            // W63：进入终态失败——角标即时去掉该活动任务。
+            notifyQueueChanged()
             Timber.w(failure, "下载失败（%s）：%s", reason, source.name)
             notifications.notifyFailed(
                 buildTask(
@@ -671,6 +723,7 @@ class DownloaderImpl(
             }
             runtime.update { it - sourceId }
             updateForegroundNotificationNow()
+            notifyQueueChanged()
             true
         }
 
@@ -1053,9 +1106,35 @@ class DownloaderImpl(
         when (item) {
             is FindroidMovie -> database.insertMovie(item.toFindroidMovieDto(serverId))
             is FindroidEpisode -> {
-                val show = jellyfinRepository.getShow(item.seriesId)
+                // W63：整剧 / 全季批量入队时，同剧的节目 / 季快照只解析一次（批内缓存 + 首次并发拉取）。
+                val cachedShow = showSnapshotCache[item.seriesId]?.takeIf { it.isFresh() }?.value
+                val cachedSeason =
+                    seasonSnapshotCache[item.seasonId]?.takeIf { it.isFresh() }?.value
+                val resolved =
+                    if (cachedShow != null && cachedSeason != null) {
+                        cachedShow to cachedSeason
+                    } else {
+                        coroutineScope {
+                            val showDeferred =
+                                if (cachedShow != null) null
+                                else async { jellyfinRepository.getShow(item.seriesId) }
+                            val seasonDeferred =
+                                if (cachedSeason != null) null
+                                else async { jellyfinRepository.getSeason(item.seasonId) }
+                            (cachedShow ?: showDeferred!!.await()) to
+                                (cachedSeason ?: seasonDeferred!!.await())
+                        }
+                    }
+                val show = resolved.first
+                val season = resolved.second
+                val now = System.currentTimeMillis()
+                if (cachedShow == null) {
+                    showSnapshotCache[item.seriesId] = CachedSnapshot(show, now)
+                }
+                if (cachedSeason == null) {
+                    seasonSnapshotCache[item.seasonId] = CachedSnapshot(season, now)
+                }
                 database.insertShow(show.toFindroidShowDto(serverId))
-                val season = jellyfinRepository.getSeason(item.seasonId)
                 database.insertSeason(season.toFindroidSeasonDto())
                 database.insertEpisode(item.toFindroidEpisodeDto(serverId))
                 startImagesDownloader(show)
@@ -1282,6 +1361,11 @@ class DownloaderImpl(
         val validator: String?,
     )
 
+    /** W63：节目 / 季快照缓存条目（TTL 内同剧批量入队只网络拉取一次）。 */
+    private data class CachedSnapshot<T>(val value: T, val savedAt: Long) {
+        fun isFresh(): Boolean = System.currentTimeMillis() - savedAt <= SNAPSHOT_TTL_MS
+    }
+
     private companion object {
         /** 自研引擎写入 sources 行的版本标记（旧 DownloadManager 行为 0）。 */
         const val ENGINE_VERSION = 1
@@ -1289,6 +1373,9 @@ class DownloaderImpl(
         /** 进度落库 / 通知刷新间隔。 */
         const val PERSIST_INTERVAL_MS = 1_000L
         const val NOTIFICATION_INTERVAL_MS = 1_000L
+
+        /** W63：节目 / 季快照缓存有效期。 */
+        const val SNAPSHOT_TTL_MS = 10 * 60 * 1_000L
     }
 }
 

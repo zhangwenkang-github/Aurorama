@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
+import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderAction
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderEvent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
@@ -119,6 +120,7 @@ fun EpisodeScreen(
                 snackbarHostState.showSnackbar(
                     message = downloadEventMessage(context, event),
                     actionLabel = if (event.showsViewAction()) viewLabel else null,
+                    duration = DownloadSnackbarDuration,
                 )
             if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
         }

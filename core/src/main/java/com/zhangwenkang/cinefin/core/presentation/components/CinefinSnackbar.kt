@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -19,6 +20,14 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+
+/**
+ * W63：下载反馈 Snackbar 的统一显式时长。
+ *
+ * Material3 的 `showSnackbar` 在带 `actionLabel`（如「查看」）时默认 `Indefinite`——不点不消失（真机 P1 缺陷根因）。 所有下载 /
+ * 批量反馈必须显式传本常量（`Long` ≈ 10s，够看清又自动消失）。
+ */
+val DownloadSnackbarDuration: SnackbarDuration = SnackbarDuration.Long
 
 /**
  * Cinefin Snackbar（设计系统 §8.12）：反色底 + 反色文字、圆角 12dp、高 ≥52dp、宽 ≤480dp、无投影。

@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.UiText
 import java.util.UUID
+import kotlinx.coroutines.flow.SharedFlow
 
 interface Downloader {
     /**
@@ -31,6 +32,26 @@ interface Downloader {
         artist: String? = null,
         trackIndex: Int = 0,
     ): Pair<Long, UiText?> = downloadItem(item, sourceId, storageIndex)
+
+    /**
+     * W63：批量入队（整剧 / 全季 / 多选批量）。
+     *
+     * 与逐条调用 [downloadItem] 的区别：同剧的节目 / 季快照只在首批解析一次并在批内复用（后续条目近乎零网络）， 且调用方以 `NonCancellable`
+     * 调用时整批不会被页面退出打断（修复「整剧下载只入队第一集」）。
+     *
+     * @return 本次实际加入队列的条目 id（保序）+ 最后一次失败文案（无失败为 null）。
+     */
+    suspend fun enqueueItems(
+        items: List<FindroidItem>,
+        storageIndex: Int = 0,
+    ): DownloadBatchResult
+
+    /**
+     * W63：下载活动集变化信号（入队 / 完成 / 失败 / 暂停 / 恢复 / 删除）。
+     *
+     * 侧栏角标等即时 UI 收到信号后重读只读快照即可；不需要精确载荷。
+     */
+    val queueChanges: SharedFlow<Unit>
 
     suspend fun cancelDownload(item: FindroidItem, downloadId: Long)
 
@@ -105,4 +126,12 @@ data class DownloadQueueOutcome(
     val hasPendingTasks: Boolean,
     /** 是否需要 WorkManager 再次唤醒（有 PENDING 任务时）。 */
     val shouldRetry: Boolean,
+)
+
+/** W63 批量入队结果（整剧 / 全季 / 多选批量）。 */
+data class DownloadBatchResult(
+    /** 实际加入队列的条目 id（保序，已去重）。 */
+    val addedIds: List<UUID>,
+    /** 最后一次失败文案（全部成功为 null）。 */
+    val lastError: UiText? = null,
 )

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -78,6 +79,7 @@ internal fun resolveCardColors(
 fun CinefinCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     selected: Boolean = false,
     shape: Shape = CinefinShapes.Md,
     contentPadding: PaddingValues = PaddingValues(0.dp),
@@ -115,7 +117,14 @@ fun CinefinCard(
                 .cinefinTopHighlight(colors.topHighlight)
                 .border(1.dp, borderColor, shape)
                 .then(
-                    if (onClick != null) {
+                    if (onClick != null && onLongClick != null) {
+                        Modifier.combinedClickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onClick,
+                            onLongClick = onLongClick,
+                        )
+                    } else if (onClick != null) {
                         Modifier.clickable(
                             interactionSource = interactionSource,
                             indication = null,

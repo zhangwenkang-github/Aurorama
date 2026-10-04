@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.film
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,13 +11,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -33,6 +37,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -41,10 +46,15 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinBatchBar
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
+import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
+import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummySeason
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadViewModel
@@ -64,6 +74,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -89,6 +100,14 @@ fun SeasonScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchDialogVisible by remember { mutableStateOf(false) }
+    /** W63：季详情集列表长按多选（复用 W58 core 框架，与库网格同一交互）。 */
+    var batchSelection by rememberMultiSelectState()
+
+    val loadedEpisodeIds = state.episodes.map { episode -> episode.id.toString() }
+    LaunchedEffect(loadedEpisodeIds) {
+        batchSelection = batchSelection.retain(loadedEpisodeIds.toSet())
+    }
+    BackHandler(enabled = batchSelection.selectionMode) { batchSelection = batchSelection.clear() }
 
     LaunchedEffect(true) {
         viewModel.loadSeason(seasonId = seasonId)
@@ -101,6 +120,7 @@ fun SeasonScreen(
                 snackbarHostState.showSnackbar(
                     message = downloadEventMessage(context, event),
                     actionLabel = if (event.showsViewAction()) viewLabel else null,
+                    duration = DownloadSnackbarDuration,
                 )
             if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
         }
@@ -118,6 +138,36 @@ fun SeasonScreen(
         state = state,
         downloadState = seasonDownloadState,
         snackbarHostState = snackbarHostState,
+        selectionMode = batchSelection.selectionMode,
+        selectedCount = batchSelection.selectedCount,
+        selectedIds = batchSelection.selectedIds,
+        onSelectAll = { batchSelection = batchSelection.selectAll(loadedEpisodeIds) },
+        onSelectNone = { batchSelection = batchSelection.selectNone(loadedEpisodeIds) },
+        onExitSelection = { batchSelection = batchSelection.clear() },
+        onToggleEpisode = { key -> batchSelection = batchSelection.toggle(key) },
+        onLongPressEpisode = { key -> batchSelection = batchSelection.longPress(key) },
+        onBatchDownload = {
+            val selectedEpisodes =
+                state.episodes.filter { episode ->
+                    episode.id.toString() in batchSelection.selectedIds
+                }
+            val selection =
+                DetailDownloadRules.selectBatch(
+                    itemIds = selectedEpisodes.map { episode -> episode.id },
+                    downloaded = downloadSnapshot.downloadedIds,
+                    queued = downloadSnapshot.queuedIds,
+                    limit = null,
+                )
+            val targets = selectedEpisodes.filter { episode ->
+                episode.id in selection.selected.toSet()
+            }
+            if (targets.isEmpty()) {
+                detailDownloadViewModel.reportSkipped(selection)
+            } else {
+                detailDownloadViewModel.enqueueBatch(targets)
+            }
+            batchSelection = batchSelection.clear()
+        },
         onDownloadClick = {
             val selection =
                 DetailDownloadRules.selectBatch(
@@ -173,6 +223,15 @@ private fun SeasonScreenLayout(
     state: SeasonState,
     downloadState: DetailDownloadState,
     snackbarHostState: SnackbarHostState,
+    selectionMode: Boolean = false,
+    selectedCount: Int = 0,
+    onSelectAll: () -> Unit = {},
+    onSelectNone: () -> Unit = {},
+    onExitSelection: () -> Unit = {},
+    onBatchDownload: () -> Unit = {},
+    selectedIds: Set<String> = emptySet(),
+    onToggleEpisode: (String) -> Unit = {},
+    onLongPressEpisode: (String) -> Unit = {},
     onDownloadClick: () -> Unit,
     onAction: (SeasonAction) -> Unit,
 ) {
@@ -193,6 +252,38 @@ private fun SeasonScreenLayout(
                     contentPadding = PaddingValues(bottom = paddingBottom),
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
                 ) {
+                    if (selectionMode) {
+                        item(key = "selection-header") {
+                            Row(
+                                modifier =
+                                    Modifier.fillMaxWidth()
+                                        .padding(
+                                            start = paddingStart,
+                                            end = paddingEnd,
+                                            top = safePadding.top + 64.dp,
+                                        ),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text =
+                                        stringResource(
+                                            CoreR.string.download_selected_count,
+                                            selectedCount,
+                                        ),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                MediaBatchTopBarActions(
+                                    selectedCount = selectedCount,
+                                    visibleCount = state.episodes.size,
+                                    onSelectAll = onSelectAll,
+                                    onSelectNone = onSelectNone,
+                                    onExit = onExitSelection,
+                                )
+                            }
+                        }
+                    }
                     item {
                         ItemHeader(
                             item = season,
@@ -264,9 +355,16 @@ private fun SeasonScreenLayout(
                         )
                     }
                     items(items = state.episodes, key = { episode -> episode.id }) { episode ->
+                        val episodeKey = episode.id.toString()
                         EpisodeCard(
                             episode = episode,
-                            onClick = { onAction(SeasonAction.NavigateToItem(episode)) },
+                            selectionMode = selectionMode,
+                            selected = episodeKey in selectedIds,
+                            onClick = {
+                                if (selectionMode) onToggleEpisode(episodeKey)
+                                else onAction(SeasonAction.NavigateToItem(episode))
+                            },
+                            onLongClick = { onLongPressEpisode(episodeKey) },
                             modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
                         )
                     }
@@ -310,6 +408,21 @@ private fun SeasonScreenLayout(
                 modifier =
                     Modifier.align(Alignment.BottomCenter).padding(bottom = CinefinSpacing.Space6),
             )
+            if (selectionMode) {
+                CinefinBatchBar(
+                    selectedCount = selectedCount,
+                    modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+                ) {
+                    CinefinIconButton(onClick = onBatchDownload) { tint ->
+                        Icon(
+                            painter = painterResource(CoreR.drawable.ic_download),
+                            contentDescription = stringResource(FilmR.string.batch_action_download),
+                            tint = tint,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }

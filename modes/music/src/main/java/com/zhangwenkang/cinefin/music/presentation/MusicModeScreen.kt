@@ -79,6 +79,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
+import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -160,6 +161,7 @@ fun MusicModeScreen(
                 snackbarHostState.showSnackbar(
                     message = "已加入下载队列 · $count 首",
                     actionLabel = "查看",
+                    duration = DownloadSnackbarDuration,
                 )
             if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
         }

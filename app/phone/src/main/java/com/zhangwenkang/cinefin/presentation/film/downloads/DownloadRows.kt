@@ -127,6 +127,7 @@ internal fun DownloadTopLevelCard(
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
+    onLongPress: () -> Unit = onClick,
 ) {
     val colors = LocalCinefinColors.current
     val square = container.mediaKind == DownloadMediaKind.MUSIC
@@ -147,6 +148,7 @@ internal fun DownloadTopLevelCard(
     CinefinCard(
         modifier = modifier,
         onClick = onClick,
+        onLongClick = onLongPress,
         selected = selected,
         contentPadding = PaddingValues(0.dp),
     ) {
@@ -241,6 +243,7 @@ internal fun DownloadTopLevelRow(
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
+    onLongPress: () -> Unit = onClick,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: (key: String, title: String) -> Unit,
 ) {
@@ -260,6 +263,7 @@ internal fun DownloadTopLevelRow(
     CinefinCard(
         modifier = modifier,
         onClick = onClick,
+        onLongClick = onLongPress,
         selected = selected,
         contentPadding = PaddingValues(0.dp),
     ) {
@@ -543,11 +547,13 @@ internal fun DownloadSeasonCard(
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
+    onLongPress: () -> Unit = onClick,
 ) {
     val colors = LocalCinefinColors.current
     CinefinCard(
         modifier = modifier,
         onClick = onClick,
+        onLongClick = onLongPress,
         selected = selected,
         contentPadding = PaddingValues(0.dp),
     ) {
@@ -656,6 +662,7 @@ internal fun DownloadLeafCard(
     selected: Boolean,
     modifier: Modifier = Modifier,
     onToggleSelection: () -> Unit,
+    onLongPress: () -> Unit = onToggleSelection,
     onOpen: () -> Unit,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: (key: String, title: String) -> Unit,
@@ -673,6 +680,7 @@ internal fun DownloadLeafCard(
                 entry.mediaKind == DownloadMediaKind.BOOK || completed -> onOpen()
             }
         },
+        onLongClick = onLongPress,
         selected = selected,
         contentPadding = PaddingValues(0.dp),
     ) {

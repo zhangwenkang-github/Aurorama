@@ -454,6 +454,7 @@ private fun DownloadDetailPane(
                         expanded = row.expanded,
                         selectionMode = selectionMode,
                         selected = seasonKeys.any { it in selection },
+                        onLongPress = { onAction(DownloadAction.ToggleSelection(row.season.key)) },
                         onClick = {
                             when {
                                 selectionMode ->
@@ -472,6 +473,7 @@ private fun DownloadDetailPane(
                         selectionMode = selectionMode,
                         selected = entry.key in selection,
                         onToggleSelection = { onAction(DownloadAction.ToggleEntry(entry.key)) },
+                        onLongPress = { onAction(DownloadAction.ToggleEntry(entry.key)) },
                         onOpen = { onAction(DownloadAction.OpenEntry(entry.key)) },
                         onAction = onAction,
                         onRequestDelete = onRequestDeleteEntry,
@@ -643,6 +645,7 @@ private fun OverviewItem(
             selected = selected,
             modifier = modifier,
             onClick = onClick,
+            onLongPress = { onAction(DownloadAction.ToggleSelection(container.key)) },
         )
     } else {
         DownloadTopLevelRow(
@@ -651,6 +654,7 @@ private fun OverviewItem(
             selected = selected,
             modifier = modifier,
             onClick = onClick,
+            onLongPress = { onAction(DownloadAction.ToggleSelection(container.key)) },
             onAction = onAction,
             onRequestDelete = onRequestDeleteEntry,
         )

@@ -49,6 +49,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
+import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -236,6 +237,7 @@ private fun VideoScreenLayout(
                         message = message,
                         actionLabel =
                             if (event is MediaBatchEvent.DownloadQueued) viewLabel else null,
+                        duration = DownloadSnackbarDuration,
                     )
                 if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
             }

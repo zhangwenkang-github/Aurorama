@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,14 +24,30 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
 
+/**
+ * 季详情页单集卡。
+ *
+ * W63：支持长按进入多选（与库网格 W58 框架同一交互）——[selectionMode] / [selected] 由调用方状态驱动； [onLongClick]
+ * 为空时保持旧行为（长按等同单击）。
+ */
 @Composable
-fun EpisodeCard(episode: FindroidEpisode, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun EpisodeCard(
+    episode: FindroidEpisode,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+) {
     val backgroundColor = MaterialTheme.colorScheme.background
 
     Row(
@@ -41,8 +56,21 @@ fun EpisodeCard(episode: FindroidEpisode, onClick: () -> Unit, modifier: Modifie
                 .height(84.dp)
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
-                .clickable(onClick = onClick)
+                .cinefinSelectable(
+                    selected = selected,
+                    onClick = onClick,
+                    onLongPress = { onLongClick?.invoke() ?: onClick() },
+                )
     ) {
+        if (selectionMode) {
+            CinefinSelectIndicator(
+                selected = selected,
+                modifier =
+                    Modifier.align(Alignment.CenterVertically)
+                        .padding(start = CinefinSpacing.Space2),
+            )
+            Spacer(Modifier.width(CinefinSpacing.Space2))
+        }
         Box {
             ItemPoster(
                 item = episode,

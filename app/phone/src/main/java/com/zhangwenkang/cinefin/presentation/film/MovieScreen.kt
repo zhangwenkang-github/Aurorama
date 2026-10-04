@@ -40,6 +40,7 @@ import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
+import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderAction
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderEvent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
@@ -120,6 +121,7 @@ fun MovieScreen(
                         snackbarHostState.showSnackbar(
                             message = context.getString(CoreR.string.detail_download_added),
                             actionLabel = viewLabel,
+                            duration = DownloadSnackbarDuration,
                         )
                     if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
                 }
