@@ -57,10 +57,17 @@ abstract class BasePlayerActivity : AppCompatActivity() {
         } else {
             // 起播窗口内播放器的值不可信，不回存（bug ②）
             viewModel.rememberPlayWhenReady()
-            if (!isBackgroundAudioEnabled()) {
+            /*
+             * W68：音乐后台播放不受视频页「后台播放」开关控制——用户经锁屏 / 通知误入视频页时，
+             * 离开不能把音乐静音；视频页自己的后台播放仍由开关决定。
+             */
+            if (!isBackgroundAudioEnabled() && !viewModel.isMusicSessionActive) {
                 viewModel.player.playWhenReady = false
             }
-            viewModel.updatePlaybackProgress()
+            // 音乐会话的进度由音乐链路自己上报；视频页不重复写音乐条目。
+            if (!viewModel.isMusicSessionActive) {
+                viewModel.updatePlaybackProgress()
+            }
         }
     }
 
@@ -77,8 +84,9 @@ abstract class BasePlayerActivity : AppCompatActivity() {
         /*
          * 播放页真正结束（按返回键退出、换内核重启等）时收掉前台服务：
          * 开启后台播放的用户例外——服务要继续把播放交给通知栏与锁屏。
+         * W68：音乐会话同样例外——服务是音乐后台播放的通知 / 锁屏宿主，不能随视频页退出而停。
          */
-        if (!isBackgroundAudioEnabled()) {
+        if (!isBackgroundAudioEnabled() && !viewModel.isMusicSessionActive) {
             stopService(Intent(this, CinefinPlaybackService::class.java))
         }
     }

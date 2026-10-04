@@ -120,8 +120,13 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Player - PiP
     val playerPipGesture = Preference("pref_player_picture_in_picture_gesture", false)
 
-    /** 后台继续播放：离开播放页（锁屏 / 切到别的应用）时不暂停。 对应官方 Android 客户端「视频播放器 → 允许后台播放音频」。 */
-    val playerBackgroundAudio = Preference("pref_player_background_audio", false)
+    /**
+     * 后台继续播放：离开播放页（锁屏 / 切到别的应用）时不暂停。
+     *
+     * 对应官方 Android 客户端「视频播放器 → 允许后台播放音频」。W68 起**默认开启**（用户 2026-10-04 全检要求）；
+     * 播放页设置面板与设置页仍可关闭，关闭后行为与旧版一致（离开播放页即暂停）。
+     */
+    val playerBackgroundAudio = Preference("pref_player_background_audio", true)
 
     // Player - 字幕（延迟 / 双语 / 外观；§1.1）
     /** 字幕延迟（毫秒）：正 = 字幕延后出现，负 = 字幕提前出现；面板按 0.1s 步长调节，范围 ±10s */

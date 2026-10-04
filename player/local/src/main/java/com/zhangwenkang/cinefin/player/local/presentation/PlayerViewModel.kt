@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
+import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitle
@@ -282,6 +283,14 @@ constructor(
     var playWhenReady = true
 
     /**
+     * W68：当前是否有音乐会话正在使用共享播放器实例。
+     *
+     * 视频播放页（含用户经锁屏 / 通知误入的情况）用它避免打断音乐后台播放：退出时不停服务、不释放实例。
+     */
+    val isMusicSessionActive: Boolean
+        get() = playerHolder.musicSessionActive || playerHolder.isCurrentItemMusic
+
+    /**
      * 起播窗口：`initializePlayer` 已发出、但媒体还没真正交给播放器（还在拉流 / 建播放信息）。
      *
      * bug ②（打开视频不自动播）：这个窗口里播放器的 `playWhenReady` 还是默认值 false， 此时若发生 pause / resume（通知权限弹窗、
@@ -478,6 +487,17 @@ constructor(
      */
     fun restorePlayWhenReady() {
         if (startupInProgress) return
+        /*
+         * W68：后台播放（含音乐会话）期间，播放状态可能已被通知栏 / 锁屏 / 蓝牙改变；
+         * 回前台先以播放器实际状态为准，避免把「后台已暂停」覆盖成自动续播。
+         */
+        if (
+            appPreferences.getValue(appPreferences.playerBackgroundAudio) ||
+                playerHolder.musicSessionActive
+        ) {
+            playWhenReady = player.playWhenReady
+            return
+        }
         player.playWhenReady = playWhenReady
     }
 
@@ -702,9 +722,10 @@ constructor(
         playbackPosition = 0L
         currentMediaItemIndex = 0
         player.removeListener(this)
-        if (appPreferences.getValue(appPreferences.playerBackgroundAudio)) {
+        val backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio)
+        if (!shouldReleasePlayerOnExit(playerHolder.musicSessionActive, backgroundAudioEnabled)) {
             /*
-             * 后台播放开启：播放页关闭后实例继续由前台服务与通知栏控制，
+             * 后台播放开启 / 音乐会话活跃：播放页关闭后实例继续由前台服务与通知栏控制，
              * 这里只把最后位置写回，不能释放实例。
              */
             savedStateHandle["position"] = player.currentPosition

@@ -6,11 +6,13 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
+import com.zhangwenkang.cinefin.player.local.domain.isPlayingMusicItem
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
@@ -63,6 +65,24 @@ constructor(
     /** 当前实例使用的内核；还没创建实例时返回偏好里的值 */
     val backend: String
         get() = instanceBackend ?: appPreferences.getValue(appPreferences.playerBackend)
+
+    /**
+     * 当前实例的媒体项是否为音乐条目（W68：通知 / 锁屏 / 蓝牙 / 车机点击按媒体类型分派路由）。
+     *
+     * 以 MediaItem 里的 [com.zhangwenkang.cinefin.player.local.domain.MUSIC_MEDIA_EXTRA] 标记为准， 不信任
+     * [musicSessionActive]——视频路径直接 setMediaItems 抢用实例时，标志可能还没清零。
+     */
+    val isCurrentItemMusic: Boolean
+        get() = instance?.isPlayingMusicItem() == true
+
+    /**
+     * W68：音乐条目没有封面时，给媒体会话（系统桌面媒体胶囊 / 锁屏）的通用音符占位图 URI。
+     *
+     * 用本模块的 PNG 资源（系统与 Coil 都能按流解码），避免 `artworkUri == null` 时系统卡片空白 / 黑图；
+     * 有真实专辑图（[com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem.thumbnailUri]）时优先真实图。
+     */
+    val musicPlaceholderArtworkUri: String =
+        "android.resource://${application.packageName}/${R.drawable.ic_music_placeholder}"
 
     /** 播放器实例。按当前偏好创建；偏好里的内核变了（换内核重开播放页）会自动重建， 调用方拿到的永远是"对的内核 + 活的实例"。 */
     val player: Player
@@ -141,6 +161,16 @@ constructor(
 
     /** 释放实例。播放页关闭且不允许后台播放、或服务停止时调用。 */
     fun release() {
+        /*
+         * W68：音乐会话独立于视频页的「后台播放」开关。
+         *
+         * 音乐在后台播放时，用户可能经锁屏通知误入视频播放页；视频页退出 / 服务重建的释放请求
+         * 不能释放音乐正在使用的实例——否则队列与媒体会话失联，迷你条点播放无响应（P1 缺陷）。
+         */
+        if (musicSessionActive) {
+            Timber.w("音乐会话进行中，忽略释放播放器实例的请求")
+            return
+        }
         musicSessionActive = false
         musicAudioEffects.processor.sessionActive = false
         val player = instance ?: return
