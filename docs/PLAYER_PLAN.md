@@ -2002,3 +2002,54 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 1. 本窗口首轮进入播放页遇服务器 / 源侧失败（`ERROR_CODE_IO_UNSPECIFIED` → 重试成功）与长 BUFFERING，「播放中结束时刻推进」未在本窗口重采（W67 窗口已验证、代码路径未改）。
 2. 亮画面下「描边」的独立可见性不可与底栏 scrim 分离（以对比度实测代替）；音乐页光晕未同屏截图对比（按常量 + 实测半径推算）。
 3. 刻度与轨道同高后，**已播章节刻度**在已播渐变上仍是同色叠加（可读性弱，属用户拍板口径）；若后续要区分可改描边式或让渐变让位。
+
+---
+
+## 31. W67c-PLAYER 落地记录（2026-10-04 · 分支 `fix/w67-chapter-marks-snap` 续提交）
+
+> 用户复验反馈：视频播放时手势（双击快进 / 快退、横滑 seek）偶尔失灵，疑与加载有关；要求「即使还没加载完成也要能快进 / 快退」。
+> 本波只动 `app/phone`（`PlayerGestureHelper` + 新纯函数 / 单测）；`player:core` / `player:local` / `core` / 设置 / Manifest / 构建文件未动。
+
+### 31.1 只读核对 + 修前真机取证（K60 `8e875894`，master `a502fe5`）
+
+- 代码级三处缺陷：`fastForward` / `rewind` 用 `player?.currentPosition ?: 0`（未就绪时按 0 计算，落点错误）；横滑 seek 的
+  `newPos = (pos + Δ).coerceIn(0, duration)` 在 `duration = 0`（加载中）时恒为 0；`releaseAction` 的
+  `playerView.player?.seekTo(...)` 在 player 为 null 时静默丢弃；中键双击 `togglePlayback` 的 `!!` 在 player 为 null 时潜在 NPE。
+- 真机原始证据（同一路径 / 同一时序 / 有效坐标 y=300）：起播加载窗口内 session = `state=NONE(0)`、
+  `position=-9223372036854775807`（未知哨兵）、duration 未知；**双击右 +15s 无效果**（终值 = 恢复位置 02:45）、
+  **横滑 900px 无效果**（终值 = 恢复位置 02:45）。
+
+### 31.2 决策（D66–D67）
+
+| 编号 | 决策 |
+|------|------|
+| D66 | **手势 seek 不再依赖播放就绪**：双击 / 横滑统一走 `requestGestureSeek(delta)` 相对增量入口——已就绪立即 `seekTo(真实位置 + Δ)`（时长未知不做上界收敛，交给播放器夹取）；未就绪（未挂载 / 媒体未 prepared）**排队**（`pendingSeekMs`，±6h 饱和），100ms 轮询、30s 超时，就绪后按「真实位置 + 排队增量」一次落点；触摸反馈（双击涟漪 / 滑动 HUD）照常显示；中键双击改 null 安全。 |
+| D67 | **就绪判定要等位置可信**：真机发现「时长已知但续播位尚未生效」的瞬间 `currentPosition` 仍是 0，排队落点会以 0 为基准（丢恢复位置）→ 就绪 = 已挂载 + 时长已知（≥0）+ 非 IDLE + （`currentPosition > 0` 或 `STATE_READY`）；从头播（续播位 = 0）等到 READY 再落点，缓冲中（位置 > 0）仍可立即 seek。不改章节跳转手势 / 长按倍速语义 / 单双指规则 / 手势开关默认值。 |
+
+### 31.3 实现落点
+
+| 文件 | 改动 |
+|------|------|
+| `app/phone/.../utils/PlayerSeekGestureRules.kt`（新增） | `isGestureSeekReady`（D67 判定）/ `gestureSeekTarget`（相对落点 + 时长未知不上界 + 饱和加法）/ `accumulatePendingSeek`（±6h 饱和）/ `decideGestureSeek`（就绪立即落点并补投排队增量；未就绪只排队不丢弃） |
+| `app/phone/.../utils/PlayerGestureHelper.kt` | `fastForward` / `rewind` 改相对增量；横滑改记「相对增量」并在结束统一走 `requestGestureSeek`；新增 `pendingSeekMs` + `flushPendingSeek`（100ms 轮询 / 30s 超时 / 就绪落点）；`togglePlayback` null 安全；补排队 / 落点 Timber 日志 |
+| `app/phone/src/test/.../utils/PlayerSeekGestureRulesTest.kt`（新增） | 7 项单测：就绪判定（未挂载 / 时长未知 / IDLE / 续播位未生效 → 不就绪；缓冲中位置已知 / READY → 就绪）、落点（已知时长收敛 / 未知不上界 / 极端值饱和）、排队累加与饱和、就绪补投、未就绪排队后再就绪一次落点 |
+
+### 31.4 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun` **805 项 / 0 失败 0 错误**（app 224（含 W67c 新增 7）/ core 88 / data 62 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 798 + 7）。
+
+### 31.5 真机走查（2026-10-04 21:23–22:08 · K60 `8e875894`；Pad 5 未参与）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | 修前加载窗口手势 | 双击 +15s ✗ / 横滑 ✗（终值均 = 恢复位置 02:45，state NONE(0) + 未知位置哨兵） |
+| ② | 修后正常播放态回归 | 双击 **+15s**（01:16→01:34、18:33→18:50 两组）✓；横滑 **+95s**（21:49→23:24）✓ |
+| ③ | 修后加载窗口 | 双击**已生效**（终值 00:15 = +15s，不再被吞）；该样本落在「续播位未生效」瞬间 → 落点以 0 为基准（详见 D67 加严） |
+| ④ | 稳定性 | 双机 0 FATAL / 0 ANR |
+
+### 31.6 未决 / 移交项
+
+1. 起播窗口「排队落点 = 恢复位置 + Δ」的干净复现（D67 加严后本窗口因转场 / 服务器源失败未取得样本）；`state=BUFFERING` 且位置已知时的双击独立取证。
+2. Pad 5 抽验未做（本窗口全程 K60）。
+3. `PlayerGestureHelper` 的 Timber 日志在 MIUI 上不出现在 logcat（`log.tag.*=DEBUG` 后仍无该 tag）——证据以 UI / 位置为准；排查它不影响功能，留作后续。
