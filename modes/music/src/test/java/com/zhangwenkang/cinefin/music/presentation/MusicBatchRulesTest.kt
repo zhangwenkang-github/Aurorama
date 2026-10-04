@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import java.util.UUID
+import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -181,5 +182,28 @@ class MusicBatchRulesTest {
                 ),
             )
         assertEquals(listOf(songs[1]), targets)
+    }
+
+    @Test
+    fun `play all keeps the current list order and starts from the first song`() {
+        val songs = listOf(song("1"), song("2"), song("3"))
+        val ordered = playAllOrder(songs, shuffle = false)
+        assertEquals(songs, ordered)
+        assertEquals(songs.first(), ordered.first())
+    }
+
+    @Test
+    fun `shuffle play all keeps every song and reorders deterministically with an injected random`() {
+        val songs = listOf(song("1"), song("2"), song("3"), song("4"))
+        val shuffled = playAllOrder(songs, shuffle = true, random = ZeroRandom)
+        assertEquals(songs.toSet(), shuffled.toSet())
+        assertEquals(songs.size, shuffled.size)
+        // 全零随机 = Fisher-Yates 每轮都与首位交换：[1,2,3,4] → [2,3,4,1]。
+        assertEquals(listOf(songs[1], songs[2], songs[3], songs[0]), shuffled)
+    }
+
+    /** 每次 `nextInt` 都取 0 的确定性随机源，用于锁死洗牌顺序。 */
+    private object ZeroRandom : Random() {
+        override fun nextBits(bitCount: Int): Int = 0
     }
 }

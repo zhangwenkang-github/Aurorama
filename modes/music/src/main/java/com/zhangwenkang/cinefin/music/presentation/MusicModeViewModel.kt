@@ -1434,8 +1434,46 @@ constructor(
         val songs = detail?.songs ?: state.songs
         val startIndex = songs.indexOfFirst { it.itemId == song.itemId }
         if (startIndex < 0) return
-        val source = detail?.source ?: QueueSource.MANUAL
-        val sourceId = detail?.sourceId
+        startQueuePlayback(
+            song = song,
+            songs = songs,
+            startIndex = startIndex,
+            source = detail?.source ?: QueueSource.MANUAL,
+            sourceId = detail?.sourceId,
+        )
+    }
+
+    /**
+     * W64：歌曲 Tab「播放全部」——把当前列表完整按列表序入队，并从第 1 首开始播。
+     *
+     * [shuffle] = true 时客户端先洗牌（首曲也随机），并切换到随机播放模式（后续由内核 shuffle 决定）。 只在歌曲 Tab
+     * 主列表生效（详情页有自己的行点击语义，不提供该按钮）。
+     */
+    fun playAll(shuffle: Boolean = false) {
+        val state = _uiState.value
+        if (state.detail != null) return
+        val songs = state.songs
+        if (songs.isEmpty()) return
+        val ordered = playAllOrder(songs, shuffle)
+        startQueuePlayback(
+            song = ordered.first(),
+            songs = ordered,
+            startIndex = 0,
+            source = QueueSource.MANUAL,
+            sourceId = null,
+            playMode = if (shuffle) MusicPlayMode.SHUFFLE else null,
+        )
+    }
+
+    /** 起播共用路径：解析目标曲目 → `setQueue` 起播 → 后台按 [songs] 顺序补齐队列。 */
+    private fun startQueuePlayback(
+        song: MusicSong,
+        songs: List<MusicSong>,
+        startIndex: Int,
+        source: QueueSource,
+        sourceId: String?,
+        playMode: MusicPlayMode? = null,
+    ) {
         playJob?.cancel()
         playJob = viewModelScope.launch {
             val first =
@@ -1463,6 +1501,8 @@ constructor(
                 ),
                 startIndex = 0,
             )
+            // 随机全部：setQueue 后立即切模式；内核起播任务读取的是最新 queue 快照。
+            playMode?.let { mode -> setPlayMode(mode) }
             fillQueueAround(song, songs, startIndex)
         }
     }
