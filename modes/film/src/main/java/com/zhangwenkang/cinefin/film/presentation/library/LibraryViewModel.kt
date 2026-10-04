@@ -228,18 +228,19 @@ constructor(
     }
 
     /**
-     * W69b：首屏渲染后预取下一页（第二页）——只有在「明确还有更多条目」时才发（总数未知时也放行一次）， 之后 Paging 滚到页尾加载该页即命中缓存；失败静默（预取不参与页面状态）。
+     * W69b：首屏渲染后预取下一页（第二页）——起点 / 长度与 Paging 完全一致（首屏 `initialLoadSize` 之后的第一页： `startIndex =
+     * 30`、`limit = 10`）；只有「明确还有更多条目」时才发（总数未知时也放行一次）， 之后 Paging 滚到页尾加载该页即命中缓存；失败静默（预取不参与页面状态）。
      */
     private fun prefetchNextPage(itemType: List<BaseItemKind>?, recursive: Boolean) {
         val total = _state.value.totalCount
-        if (total != null && total <= ItemsPagingSource.PAGE_SIZE) return
+        if (total != null && total <= ItemsPagingSource.INITIAL_LOAD_SIZE) return
         metadataPreloader.prefetchItemsPage(
             parentId = parentId,
             includeTypes = itemType,
             recursive = recursive,
             sortBy = activeSortBy(),
             sortOrder = activeSortOrder(),
-            startIndex = ItemsPagingSource.PAGE_SIZE,
+            startIndex = ItemsPagingSource.INITIAL_LOAD_SIZE,
             limit = ItemsPagingSource.PAGE_SIZE,
             filters = libraryFilterItemFilters(_state.value.filter),
             genres = _state.value.genre?.let { listOf(it) },

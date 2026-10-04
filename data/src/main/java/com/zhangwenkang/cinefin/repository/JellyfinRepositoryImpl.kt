@@ -353,6 +353,7 @@ class JellyfinRepositoryImpl(
                 config =
                     PagingConfig(
                         pageSize = ItemsPagingSource.PAGE_SIZE,
+                        initialLoadSize = ItemsPagingSource.INITIAL_LOAD_SIZE,
                         enablePlaceholders = false,
                     ),
                 pagingSourceFactory = {

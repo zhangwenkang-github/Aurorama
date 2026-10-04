@@ -25,6 +25,9 @@ class ItemsPagingSource(
     companion object {
         /** 库内容页分页页片大小（预取下一页 / 计数门槛共用同一常量）。 */
         const val PAGE_SIZE = 10
+
+        /** 首屏一次取多少条（与 Paging `initialLoadSize` 一致：下一页的 `startIndex` = 30）。 */
+        const val INITIAL_LOAD_SIZE = PAGE_SIZE * 3
     }
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, FindroidItem> {
