@@ -32,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHostState
@@ -80,6 +81,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedCon
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
+import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorChip
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -247,6 +249,7 @@ fun MusicModeScreen(
                     onOpenFavorites = viewModel::openFavorites,
                     onOpenRecent = viewModel::openRecent,
                     onOpenSleep = { sleepSheetOpen = true },
+                    onSelectMusicLibrary = viewModel::selectMusicLibrary,
                     onBatchSelectAll = viewModel::onBatchSelectAll,
                     onBatchSelectNone = viewModel::onBatchSelectNone,
                     onBatchExit = viewModel::onBatchExit,
@@ -257,19 +260,12 @@ fun MusicModeScreen(
                 }
                 if (state.detail == null) {
                     MusicTabs(selected = state.tab, onSelect = viewModel::selectTab)
-                    // W37 在线融合：曲库来源筛选（全部 / 服务器 / 本地）+ 来源徽标开关。
-                    if (!state.offline) {
-                        MusicSourceFilterRow(
+                    // W66：来源筛选 + 播放全部 / 随机并入一行；批量多选态整行隐藏（批量条接管）。
+                    if (!batchSelection.selectionMode) {
+                        MusicToolbarRow(
                             state = state,
-                            onSelect = viewModel::setSourceFilter,
+                            onSelectSource = viewModel::setSourceFilter,
                             onToggleBadge = viewModel::setShowSourceBadge,
-                        )
-                    }
-                    // W64：歌曲 Tab 顶部「播放全部 / 随机播放」——当前列表按序入队，从第 1 首开始播。
-                    if (state.tab == MusicTab.SONGS && state.songs.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
-                        SongPlayAllRow(
-                            enabled = !batchSelection.selectionMode,
                             onPlayAll = { viewModel.playAll() },
                             onShuffleAll = { viewModel.playAll(shuffle = true) },
                         )
@@ -536,6 +532,8 @@ private fun MusicHeader(
     onOpenFavorites: () -> Unit,
     onOpenRecent: () -> Unit,
     onOpenSleep: () -> Unit,
+    /** W66：音乐库选择（null = 全部音乐库）；切换后重载当前 Tab 并更新标题语义。 */
+    onSelectMusicLibrary: (UUID?) -> Unit,
     onBatchSelectAll: () -> Unit,
     onBatchSelectNone: () -> Unit,
     onBatchExit: () -> Unit,
@@ -555,7 +553,11 @@ private fun MusicHeader(
     CinefinPageTopBar(
         title =
             if (batchMode) "已选 ${batchSelection.selectedCount} 项"
-            else detail?.title ?: libraryName?.takeIf { it.isNotBlank() } ?: "音乐",
+            else
+                detail?.title
+                    ?: libraryName?.takeIf { it.isNotBlank() }
+                    ?: state.selectedMusicLibraryName?.takeIf { it.isNotBlank() }
+                    ?: "音乐",
         subtitle =
             when {
                 batchMode -> null
@@ -605,6 +607,17 @@ private fun MusicHeader(
             }
             if (onExitTemporaryLibrary != null && detail == null) {
                 CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
+            }
+            // W66：音乐库选择（「全部音乐库」+ 各库）；服务器只有 1 个音乐库时隐藏，临时库视图不显示。
+            if (
+                detail == null && onExitTemporaryLibrary == null && state.musicLibraries.size >= 3
+            ) {
+                LibrarySelectorChip(
+                    label = state.selectedMusicLibraryName ?: ALL_MUSIC_LIBRARIES_LABEL,
+                    options = state.musicLibraries,
+                    selectedId = state.selectedMusicLibraryId,
+                    onSelect = onSelectMusicLibrary,
+                )
             }
             CinefinIconButton(onClick = onOpenFavorites) { tint ->
                 Icon(
@@ -663,49 +676,21 @@ private fun MusicTabs(selected: MusicTab, onSelect: (MusicTab) -> Unit) {
 }
 
 /**
- * W37 在线融合：曲库来源筛选行（全部 / 服务器 / 本地）+ 来源徽标开关。
+ * W66：音乐页工具行（一层）——左「来源▾」下拉 chip（全部 / 服务器 / 本地；来源徽标开关收进菜单项）， 右「播放全部」主键 + 「随机」图标键（仅歌曲 Tab、列表非空时）。
  *
- * 只影响浏览与队列来源展示：本地曲目与服务器曲目共用同一播放链路与同一队列模型。
+ * 批量多选态由调用方整行隐藏（批量条接管）；离线时不显示来源筛选（单一本地来源）。
  */
 @Composable
-private fun MusicSourceFilterRow(
+private fun MusicToolbarRow(
     state: MusicModeViewModel.UiState,
-    onSelect: (MusicItemSourceFilter) -> Unit,
+    onSelectSource: (MusicItemSourceFilter) -> Unit,
     onToggleBadge: (Boolean) -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier.padding(horizontal = CinefinSpacing.Space4)
-                .widthIn(max = 640.dp)
-                .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-    ) {
-        MusicItemSourceFilter.entries.forEach { filter ->
-            CinefinFilterChip(
-                text = filter.label,
-                selected = state.sourceFilter == filter,
-                compact = true,
-                onClick = { onSelect(filter) },
-            )
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        CinefinFilterChip(
-            text = "来源徽标",
-            selected = state.showSourceBadge,
-            compact = true,
-            onClick = { onToggleBadge(!state.showSourceBadge) },
-        )
-    }
-}
-
-/** W64：歌曲 Tab 顶部「播放全部 / 随机播放」行；多选状态下禁用（避免与批量选中冲突）。 */
-@Composable
-private fun SongPlayAllRow(
-    enabled: Boolean,
     onPlayAll: () -> Unit,
     onShuffleAll: () -> Unit,
 ) {
+    val showSource = !state.offline
+    val showPlayAll = state.tab == MusicTab.SONGS && state.songs.isNotEmpty()
+    if (!showSource && !showPlayAll) return
     Row(
         modifier =
             Modifier.padding(horizontal = CinefinSpacing.Space4)
@@ -714,22 +699,118 @@ private fun SongPlayAllRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
     ) {
-        CinefinButton(
-            text = "播放全部",
-            onClick = onPlayAll,
-            modifier = Modifier.weight(1f),
-            variant = CinefinButtonVariant.Filled,
-            size = CinefinButtonSize.Small,
-            enabled = enabled,
+        if (showSource) {
+            MusicSourceFilterMenuChip(
+                filter = state.sourceFilter,
+                showBadge = state.showSourceBadge,
+                onSelect = onSelectSource,
+                onToggleBadge = onToggleBadge,
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        if (showPlayAll) {
+            CinefinButton(
+                text = "播放全部",
+                onClick = onPlayAll,
+                variant = CinefinButtonVariant.Filled,
+                size = CinefinButtonSize.Small,
+            )
+            CinefinIconButton(onClick = onShuffleAll) { tint ->
+                Icon(
+                    painter = painterResource(R.drawable.ic_music_shuffle),
+                    contentDescription = "随机播放",
+                    tint = tint,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}
+
+/** W66：来源筛选下拉 chip（当前值常显 + ▾；菜单项 = 全部 / 服务器 / 本地 + 来源徽标开关）。 */
+@Composable
+private fun MusicSourceFilterMenuChip(
+    filter: MusicItemSourceFilter,
+    showBadge: Boolean,
+    onSelect: (MusicItemSourceFilter) -> Unit,
+    onToggleBadge: (Boolean) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Box {
+        CinefinFilterChip(
+            text = "来源 · ${filter.label}",
+            selected = filter != MusicItemSourceFilter.ALL,
+            compact = true,
+            onClick = { expanded = true },
+            icon = { tint ->
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_chevron_down),
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(16.dp),
+                )
+            },
         )
-        CinefinButton(
-            text = "随机播放",
-            onClick = onShuffleAll,
-            modifier = Modifier.weight(1f),
-            variant = CinefinButtonVariant.Outlined,
-            size = CinefinButtonSize.Small,
-            enabled = enabled,
-        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = CinefinShapes.Sm,
+            containerColor = colors.surfaceContainerHighest,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+        ) {
+            MusicItemSourceFilter.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = option.label,
+                            style = CinefinType.BodyMedium,
+                            color = colors.onSurface,
+                        )
+                    },
+                    trailingIcon = {
+                        if (option == filter) {
+                            Icon(
+                                painter = painterResource(CoreR.drawable.ic_check),
+                                contentDescription = null,
+                                tint = media.bright,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(option)
+                    },
+                )
+            }
+            HorizontalDivider(color = colors.outline)
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "来源徽标",
+                        style = CinefinType.BodyMedium,
+                        color = colors.onSurface,
+                    )
+                },
+                trailingIcon = {
+                    if (showBadge) {
+                        Icon(
+                            painter = painterResource(CoreR.drawable.ic_check),
+                            contentDescription = null,
+                            tint = media.bright,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                },
+                onClick = {
+                    expanded = false
+                    onToggleBadge(!showBadge)
+                },
+            )
+        }
     }
 }
 

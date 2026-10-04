@@ -1,5 +1,8 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
+import com.zhangwenkang.cinefin.models.CollectionType
+import com.zhangwenkang.cinefin.models.FindroidCollection
 import java.util.UUID
 import kotlinx.serialization.Serializable
 
@@ -30,3 +33,39 @@ internal fun resolveMusicLibraryId(
         .mapNotNull { raw -> raw?.takeIf { it.isNotBlank() } }
         .mapNotNull { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
         .firstOrNull()
+
+/** W66：「全部音乐库」选项文案（chip 与菜单一致；null = 不限定 parentId = 服务器全部音乐）。 */
+internal const val ALL_MUSIC_LIBRARIES_LABEL: String = "全部音乐库"
+
+/** W66：音乐库选择候选（纯函数，单测覆盖）：「全部音乐库」+ 各音乐库（服务器顺序，含项目数副文案）。 */
+internal fun musicLibraryOptions(libraries: List<FindroidCollection>): List<LibrarySelectorOption> =
+    buildList {
+        add(LibrarySelectorOption(id = null, label = ALL_MUSIC_LIBRARIES_LABEL))
+        libraries.forEach { library ->
+            add(
+                LibrarySelectorOption(
+                    id = library.id,
+                    label = library.name,
+                    detail = library.itemCount?.let { count -> "共 $count 项" },
+                )
+            )
+        }
+    }
+
+/** W66：服务器音乐库列表过滤（纯函数，单测覆盖）。 */
+internal fun pickMusicLibraries(libraries: List<FindroidCollection>): List<FindroidCollection> =
+    libraries.filter {
+        it.type == CollectionType.Music
+    }
+
+/** W66：按偏好解析当前选中音乐库——非法 / 已失效 / 为空 → null（全部音乐库，chip 不点亮）。 */
+internal fun resolveSelectedMusicLibrary(
+    libraries: List<FindroidCollection>,
+    preferredLibraryId: String?,
+): FindroidCollection? {
+    val id =
+        preferredLibraryId
+            ?.takeIf { it.isNotBlank() }
+            ?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() } ?: return null
+    return libraries.firstOrNull { it.id == id }
+}

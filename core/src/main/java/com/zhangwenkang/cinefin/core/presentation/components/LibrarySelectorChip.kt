@@ -1,4 +1,4 @@
-package com.zhangwenkang.cinefin.presentation.components
+package com.zhangwenkang.cinefin.core.presentation.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +18,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -34,10 +33,10 @@ data class LibrarySelectorOption(
 )
 
 /**
- * 顶栏「库选择」（W54-C，用户 2026-10-03 确认）：紧凑 chip 常显当前选择 + 下拉菜单列出「全部库 / 自动」与各库。
+ * 顶栏「库选择」（W54-C，用户 2026-10-03 确认；W66 下沉 core）：紧凑 chip 常显当前选择 + 下拉菜单列出「全部库 / 自动」与各库。
  *
  * 选中态走设计系统 §8.3（`CinefinFilterChip`）：未选择 = 中性色，选定某个库 = 当前域媒体色融入控件本体；菜单项行尾用 `ic_check`
- * 标出当前项。两处复用：视频页（全部库 / 各视频库）与书架页（自动 / 各书籍库）。
+ * 标出当前项。三处复用：视频页（全部库 / 各视频库）、书架页（自动 / 各书籍库）、音乐页（全部音乐库 / 各音乐库）。
  */
 @Composable
 fun LibrarySelectorChip(
