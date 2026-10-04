@@ -130,7 +130,22 @@
 
 | D75 | **W66 视频详情页统一 + 音乐选库/控件精简 + 下载页缩略图过期替换（用户 2026-10-04 全检拍板）** | ①**四页统一头图 `DetailHero`**（电影 / 节目 / 季 / 剧集共用）：竖屏（<840dp）= 海报（`clamp(屏宽 × 26%, 96dp, 120dp)` 随宽度自适应）+ 眉标 / 标题 / 原题 / 元信息 + 动作排（`ItemButtonsBar` 两行）全部在头图内底排；平板（≥840dp）= 海报 216dp + 标题列内嵌动作排（与既有 Show / Movie expanded 一致）；头图基准高度 400 / 300dp，`ItemHeader` 改 `heightIn(min)` 由内容撑高（防压缩裁切）；季 / 剧集页旧版式（固定 120dp 海报 + 头图下方动作排）下线。②**顶栏名称入口删除**：`SeasonScreen` 的 `seriesName` 按钮 / `EpisodeScreen` 的 `seasonName` 按钮移除（不做跳转；头图内剧名 / 季名保持纯文本；`navigateToSeries` / `navigateToSeason` 签名与 Action 保留，避免动 `NavigationRoot`）。③**音乐选库 chip**：`LibrarySelectorChip` 从 `app/phone` 下沉 `core`（视频 / 书架 / 音乐三处共用）；音乐顶栏 = 「全部音乐库（默认，null = 不限定 parentId）」+ 各音乐库（项目数副文案）；服务器只有 1 个音乐库时隐藏、临时库视图不显示；切换写 `pref_ui_music_library_id`（null = 清除）→ 关详情 / 退多选 / 重载当前 Tab + 标题语义（单库 → 库名，全部 → 「音乐」）。④**歌曲 Tab 控件一行**：左「来源 · <当前>▾」下拉 chip（菜单 = 全部 / 服务器 / 本地 + 「来源徽标」开关项）、右「播放全部」主键 + 「随机」图标键（`ic_music_shuffle`）；批量多选态整行隐藏（Tab 行保留）。⑤**下载页缩略图补齐 + 过期替换**：core `ImageCacheStore` 统一 `files/images/<id>/<name>.meta`（sourceUrl / etag / lastModified / fetchedAt）+ 判定纯函数 `ImageCacheRules.decide`（文件缺失 / 元数据缺失 / 源 URL 变化（忽略大小写）/ 超 TTL 30 天 → 重拉；`.part` + rename 原子替换；条件请求 304 只刷新 fetchedAt）；`ImagesDownloaderWorker` 与下载页后台补齐（并发 4，每条目每会话一次）共用；打开下载页自动补齐，无需重进页面（本地图内存键带 mtime）；显示层不再直接拉远程兜底图（缺图 = 类型图标占位）。 | 用户全检 6 条收口；不新增配色 / 字体 / 位图（复用 `ic_music_shuffle`，新增矢量图标 0 枚）；`AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` 零改动。 |
 
+| D76 | **W66b 竖屏 hero 重排 + 音乐顶栏 / 迷你条（用户 2026-10-04 复验追加，全部按推荐）** | ①**竖屏 hero（<840dp）**：backdrop 整宽 **260dp**（底部渐变到页面底色；`HeroBackdropLayer` 从 `ItemHeader` 抽出共用）→ 海报 `clamp(屏宽×32%, 120, 140)dp`（K60 ≈131.5dp）**居中、半压 backdrop 下缘**（返回 / 主页悬浮键保持左上，不压海报）→ 标题块居中（眉标只留类型 `detailTypeEyebrow`、标题 ≤2 行、原题、元信息「年份 · 分级 · 时长」）→ 动作区 **一行四键**（播放月白高亮 + 下载 + 已播放 + 收藏，图标上文字下、64dp、等宽；`ItemButtonsBar(heroLayout = ...)`）；屏宽 **<360dp 降级**为「播放整行 + 三键一行」（`detailHeroActionsDegraded` 纯函数）。横屏 / 平板（≥840dp）**完全不动**。取舍：竖屏四键不含「重播 / 预告」独立键（重播可进播放器操作；预告入口按拍板布局收敛，如需恢复再排）。②**音乐顶栏**：移除顶栏文本 chip，恢复「标题 + 副标题 + 收藏 / 最近 / 睡眠三图标键」；`LibrarySelectorChip` 移至 **Tab 行右侧**（紧凑 `maxWidth = 132dp`、只显示当前库名、超长省略；单库 / 临时库视图隐藏规则不变）。③**播放全部扩展所有 Tab**（专辑 / 艺术家 / 歌单 / 歌曲；语义 = 按当前筛选与列表顺序播放整库曲目）。④**迷你条**：图标键 6 → **4**（词 / 播放·暂停 / 下一首 / ×；上一曲与队列入口保留在全屏播放界面与通知）；时间 `musicMiniBarTimeText`（mono、单独占位、**永不截断**）+ 状态放不下省略；高度 72dp 与点击语义不变。 | 用户复验「横屏正常、竖屏不好看」+ 音乐两条 UI 反馈；不新增配色 / 字体 / 位图。 |
+
 ## 4. 进度
+
+### W66b 竖屏 hero 重排 + 音乐顶栏 / 迷你条（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，提交 `0b5c0c2`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
+
+用户复验「横屏正常、竖屏不好看」+ 音乐两条 UI 反馈（决策见 D76）：
+
+- [x] **竖屏 hero 重排（<840dp）**：`HeroBackdropLayer` 从 `ItemHeader` 抽出共用（backdrop 260dp + 全套 scrim）；海报 `clamp(屏宽×32%, 120, 140)dp`（K60 实测 131.5dp）**居中、半压 backdrop 下缘**；标题块居中（眉标只留类型、标题 ≤2 行、原题、元信息）；动作区 `ItemButtonsBar(heroLayout = true)` 一行四键（月白播放 + 下载 / 已播放 / 收藏，64dp、图标上文字下）；返回 / 主页悬浮键保持左上、不压海报。横屏 / 平板零改动。
+- [x] **`<360dp` 降级**：`detailHeroActionsDegraded` 纯函数（+1 单测）；K60 `wm size 1000x2400`（285.7dp）实测「播放整行 + 三键一行」、还原 1440x3200（411.4dp）四键一行。
+- [x] **音乐顶栏**：顶栏恢复「标题 + 副标题 + 三图标键」（无文本 chip）；`LibrarySelectorChip` 移至 Tab 行右侧（`maxWidth = 132dp`、只显示当前库名）。
+- [x] **播放全部全 Tab**：专辑 / 艺术家 / 歌单 / 歌曲均显示（专辑 Tab 实测与来源 chip 同行）。
+- [x] **迷你条 4 键**：词 / 播放·暂停 / 下一首 / ×（上一曲与队列入口保留在全屏与通知）；`musicMiniBarTimeText` 纯函数（+2 单测）；时间「0:35 / 1:25」完整显示、状态同行放不下省略；72dp 与点击语义不变。
+- [x] 门禁：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` = 7 门禁 **737 项** + `player:core` 12 → **749 / 0 失败 0 错误**（基线 746 + 新增 3：app 1 = 降级边界；music 2 = 时间文本）。
+- [x] 真机（K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，18:05–18:15；device-lock 已写释放与结论）：四页竖屏新版式 / 降级 / 音乐顶栏 + chip + 播放全部 / 迷你条 / 批量隐藏 / Pad 5 回归；双机 0 FATAL·ANR；改前 / 改后截图本地留存 `w66b-evidence/`。
+- 未覆盖：360–411dp 边界逐点取样（单测钉 360 边界）、迷你条「已暂停 / 恢复态」文字观感、超长库名 chip 省略观感。
 
 ### W66 视频详情页统一 + 音乐选库/控件 + 下载页缩略图（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，起点 master `f7fc66d`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验，本会话自带真机）
 
@@ -574,6 +589,13 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - 本期边界：音乐 / 书架 / 书籍库**页面内容**仍为各自皮肤（只有侧柜常驻 Lumen，见 D29）；`player:*`、`AppPreferences`、`settings.gradle.kts`、`libs.versions.toml`、`docs/web-console-skin.css`、`res/raw/web_console_skin.css` 零改动
 
 ## 5. 验收
+
+### W66b 验收（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，提交 `0b5c0c2`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验）
+
+- **静态 / 门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun` **737 + 12 = 749 项 / 0 失败 0 错误**（新增 3 = `detailHeroActionsDegraded` 边界 1 + `musicMiniBarTimeText` 2）。
+- **真机**：K60——四详情页竖屏新 hero（居中海报半压 backdrop 260dp / 居中标题块 / 一行四键 64dp；改前改后截图对照）；`wm size 1000x2400`（285.7dp）降级「播放整行 + 三键一行」+ 还原 1440x3200；音乐顶栏无 chip + Tab 行 chip（同排）+ 专辑 Tab 播放全部 + 迷你条 4 键与完整时间 + 批量多选隐藏；Pad 5——音乐页同构、电影页 216dp 旧版式零回归；双机 0 FATAL / ANR。
+- **未覆盖**：360–411dp 边界逐点取样；迷你条「已暂停 / 恢复态」文字观感；超长库名 chip 省略观感。
+- **人工感知类（交用户）**：竖屏 hero 整体观感（海报半压位置、标题居中、四键密度）；迷你条 4 键取舍（「词」保留、上一曲 / 队列移到全屏与通知）。
 
 ### W66 验收（2026-10-04，分支 `fix/w66-detail-hero-music-artwork`，起点 master `f7fc66d`；K60 `8e875894` 主 + Pad 5 `43af8627` 抽验）
 
