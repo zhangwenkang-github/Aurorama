@@ -541,8 +541,9 @@ val CinefinTypography = Typography(
 | 主播放键 | 70dp、圆角 22dp；底 `OnSurface`、图标 `InverseOnSurface`；pressed 白 12% 状态层 |
 | 次级传输键（±15s 等） | 44dp；透明底；图标 `OnSurface`；hover 白 8% |
 | 覆盖层工具键 | 50dp、圆角 16dp；底黑 60% + blur 14dp；1dp 白 12%；图标 `OnSurface` |
-| 进度条（画面层） | 高 6dp；轨道白 18%；填充 `Media.Base`；knob 20dp、圆角 5dp、白；章节刻度 2×18dp 白 85%（W67：已播章节用媒体色 / 极光青；拖动吸附时 3dp 加亮）；buffered 白 24% |
-| 进度条时间区 | 当前时间 / 总时长 `MonoDataSmall`（`OnSurface` / `OnSurfaceVariant`）；右侧预计结束时刻「HH:mm 结束」`MonoDataSmall` `OnSurfaceFaint`（W67 补充；播放中每秒推进、暂停冻结在当前时钟；时长未知不占位；12/24 小时制跟随播放器「时间格式」设置） |
+| 进度条（画面层） | 高 6dp；轨道白 18%；填充 `Media.Base`；**knob = 9dp 白圆点 + `Media.Base` 径向柔光（`CinefinProgressVisuals` 收敛档：`VideoGlowScale` 1.8 / `VideoGlowAlpha` 0.3，比音乐页更小；无描边圈）**；章节刻度 2×6dp（与轨道同高，W67b）白 85%——已播章节与拖动吸附用媒体色 / 极光青，吸附那条加粗到 3dp 且画在拇指之上（同高后压在白色拇指上，靠高亮色读出）；buffered 白 24% |
+| 进度条时间区 | 当前时间 / 总时长 `MonoDataSmall`（`OnSurface` / `OnSurfaceVariant`）；预计结束时刻 W67b 起移到左下工具行（见下一行） |
+| 左下工具行（播放器） | 音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息 + `1×` 徽标 + 「HH:mm 结束」`MonoDataSmall` `OnSurface` + Lumen Meta 阴影（黑 72% / 偏移 1dp / 模糊 6dp）保证压亮画面可读；窄窗按宽度预算省略码率 / 解码，`1×` 与结束时刻固定在键行外、不参与横滑；播放中每秒推进、暂停冻结在当前时钟、时长未知不占位；12/24 小时制跟随「时间格式」设置 |
 | 进度条（面板内） | 高 5dp；轨道白 12%；填充 `Media.Base`；knob 16dp、圆角 4dp |
 | 右侧面板 | 宽 560dp；底 `#161B23`；左 1dp `Outline`；内边距 38/34dp；组标题 LabelSmall 13sp、字距 0.14em、`OnSurfaceFaint` |
 | 选项行 Option | 高 52dp；圆角 12dp；1dp `Outline`；底 `#1A2029`；选中：底 `Media.Container` + 描边 `Media.Outline` + 指示图标 `Media.Base`；pressed：`Media.ContainerPressed` |

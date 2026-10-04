@@ -1868,6 +1868,57 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 
 未覆盖：轻触觉物理感受（MIUI 无 haptic 日志，交用户体感确认）、无名字章节气泡（库内 2579 条章节全部有名字、无真机样本，单测覆盖）。
 
+---
+
+## 29. W67b-PLAYER 落地记录（2026-10-04 · 分支 `fix/w67-chapter-marks-snap` 续提交）
+
+> 用户复验已合并的 W67 版本后提出四条微调，同一分支继续提交：①刻度改为与轨道同高；②预计结束时刻移到左下工具行（1× 徽标右侧）+
+> 文字描边；③竖屏内容区 / 平板侧栏补关闭键；④进度条滑块改音乐播放器同款（收敛档柔光）。`player:core` / `player:local` /
+> `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `NavigationRoot.kt` 未动；**动 `core`
+> （`CinefinProgressVisuals` 新增视频页收敛档参数，申报）**。
+
+### 29.1 决策（D57–D60）
+
+| 编号 | 决策 |
+|------|------|
+| D57 | **刻度与轨道同高**：章节刻度 2dp × 6dp（= 轨道高度），不再上下探出；白 85%；已播章节与吸附那条用媒体色 / 极光青。**真机发现并修正**：同高后吸附刻度被 18dp 白色拇指完全盖住、白上加白读不出 → 刻度层移到拇指之后绘制、吸附那条 3dp 用极光青满亮（仍不加光晕 / 描边圈）。 |
+| D58 | **结束时刻移左下工具行**：从进度条时间区移除，固定排在 `1×` 徽标右侧（顺序 … 详细信息 · 1× · HH:mm 结束）；窄窗按宽度预算（`playerBottomKeysForWidth`）省略码率 / 解码（保留 音轨 · 字幕 · 倍率 · 详细信息），`1×` 与结束时刻固定在键行外、不参与横滑；文字用 Lumen Meta 阴影（黑 72% / 偏移 1dp / 模糊 6dp）保证压亮画面可读；播放中每秒推进 / 暂停冻结 / 时长未知不占位口径不变，12·24 制跟随既有「时间格式」设置。 |
+| D59 | **内容区关闭键**：竖屏「画面下方的常驻内容区」在页签行尾（`PlayerContentTabRow.trailing`）补 `×` 收起键（content-desc「收起选集区」），收起后画面区铺满整窗（`PlayerLayoutContext.bottomContentExpanded`），顶栏「选集」键可再次展开；平板覆盖层侧栏沿用既有「收起侧栏」键——两处同一实现、不另造交互。 |
+| D60 | **滑块改音乐页同款**：视频页进度条 knob = 9dp 白圆点（`CinefinProgressVisuals.ThumbRadius`）+ `Media.Base` 径向柔光，取**收敛档**（`VideoGlowScale` 1.8 / `VideoGlowAlpha` 0.3，比音乐页 2.6 / 0.45 更小）；下线旧的「拖动放大 20dp + 2dp 极光青描边圈」；比例映射 / 吸附 / 气泡 / 触觉 / 刻度逻辑全部不变。 |
+
+### 29.2 实现落点
+
+| 文件 | 改动 |
+|------|------|
+| `app/phone/.../player/PlayerControlOverlay.kt` | 刻度 2×6dp + 绘制顺序移到拇指之后（吸附 3dp 极光青）；`PlayerBottomBar` 时间区移除结束时刻、工具行尾部固定 `1×` + 结束时刻（`lumenTextShadow(Meta)`），键集按 `playerBottomKeysForWidth` 分级；滑块改白圆 + 收敛档柔光；新增 `onCollapseBottomContent` / `onExpandBottomContent`，顶栏选集键在收起态先展开内容区 |
+| `app/phone/.../player/PlayerFormFactor.kt` | `PlayerLayoutContext.bottomContentExpanded`（默认 true）：`hasBottomContent` 与 `videoHeightDp` 随收起切到「画面区铺满整窗」 |
+| `app/phone/.../player/PlayerContentPanel.kt` | `PlayerBottomContent(onClose)` + `PlayerContentTabRow.trailing` 复用同一 `PlayerContentCloseButton`（`ic_close` + 新三语言文案） |
+| `app/phone/PlayerActivity.kt` | 新增 `bottomContentExpanded` 页面状态，参与 `layout.copy(...)` 与 `applyVideoArea` |
+| `core/.../components/CinefinProgressVisuals.kt` | 新增视频页收敛档柔光常量 `VideoGlowScale` / `VideoGlowAlpha`（core 文件，已申报） |
+| `app/phone/src/test/.../PlayerControlLayoutTest.kt` | +5 单测：窄窗带结束时间 → 4 键（顺序不变）/ 无结束时间或宽窗 → 6 键 / 宽度预算边界（刚好放得下 → 6 键、差 1dp → 4 键）/ 竖屏内容区收起后 `hasBottomContent=false` 且 `videoHeightDp=整窗` |
+
+### 29.3 门禁（2026-10-04）
+
+- 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun` **786 项 / 0 失败 0 错误**（app 217（含 W67b 新增 5）/ core 88 / data 50 / player:local 113 / film 53 / book 113 / music 140 + `player:core` 12；基线 781 + 5）。
+
+### 29.4 真机走查（2026-10-04 19:35–19:50 · K60 `8e875894` 主 + Pad 5 `43af8627` 抽验）
+
+| # | 项 | 证据 |
+|---|----|------|
+| ① | 刻度与轨道同高 | K60 竖屏 5 条刻度实测 7px 宽（2dp）× **21px 高（6dp = 轨道高）**、峰值 ≈240；真机拦下「同高后吸附刻度被 18dp 拇指盖住」→ 刻度改画在拇指之后，拖住吸附位实测拇指右缘 **11px（3dp）极光青条**、外圈无描边 |
+| ② | 吸附回归 | tap x=746 → **747038ms（12:27）逐毫秒命中**；拖动保持气泡「第 4 章 · Chapter 04」；松手落点 747038ms |
+| ③ | 结束时刻左下角 + 描边 | K60：`1×` + 「19:46 结束」同排（窄窗实测 4 键 + 1× + 结束）；12 小时 `7:46 PM 结束` / 24 小时 `19:46 结束` 即时切换；Pad 5 横屏：`1×` [2166,1479] + 「20:00 结束」[2236,1478]-[2396,1520]，6 键带小字全保留、间距 10dp；时长未知 `00:00` 样本不占位；底栏区实测被 scrim 压暗（均值 55–61）而文字 245 → 对比充足 |
+| ④ | 内容区关闭键 | K60 竖屏 `×`（「收起选集区」）→ 内容区消失、底栏 y≈1024 → 2882（画面铺满）、顶栏「播放队列」再展开 ✓；Pad 5 平板侧栏「收起侧栏」键收起 ✓ |
+| ⑤ | 滑块同款 | K60 圆形白点 18dp（白色像素计数 16/47/60/68/59/47/15）+ 极光青色柔光 ±30–40px 内可见、±55–60px 消失；Pad 5 40px 圆点同构；旧描边圈不再出现 |
+| ⑥ | 稳定性 | 双机 0 FATAL / 0 ANR；侧栏 / 内容区 / 吸附 / 气泡回归通过 |
+
+### 29.5 未决 / 移交项
+
+1. 本窗口首轮进入播放页遇服务器 / 源侧失败（`ERROR_CODE_IO_UNSPECIFIED` → 重试成功）与长 BUFFERING，「播放中结束时刻推进」未在本窗口重采（W67 窗口已验证、代码路径未改）。
+2. 亮画面下「描边」的独立可见性不可与底栏 scrim 分离（以对比度实测代替）；音乐页光晕未同屏截图对比（按常量 + 实测半径推算）。
+3. 刻度与轨道同高后，**已播章节刻度**在已播渐变上仍是同色叠加（可读性弱，属用户拍板口径）；若后续要区分可改描边式或让渐变让位。
+
 ### 28.5 未决 / 移交项
 
 1. 吸附滞回按任务书口径实现：已吸附后离开 ±3 s 才解除，解除后要回到 ±2 s 内才重新吸附（解除区 2–3 s 内保持自由微调）。
