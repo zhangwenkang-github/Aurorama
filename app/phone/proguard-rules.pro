@@ -23,6 +23,10 @@
 # Keep class names of all classes for easy debugging (and fix navigation route checking)
 -keepnames class com.zhangwenkang.cinefin.** { *; }
 
+# W71 · PdfBox 的 JPX（JPEG2000）滤镜引用可选编解码器 com.gemalto.jp2.*，本工程不打包该依赖
+# （debug 同样不存在，属已知可选路径）→ 只静默 R8 缺类告警，不影响其它 PDF 页面解码。
+-dontwarn com.gemalto.jp2.**
+
 # These classes are from okhttp and are not used in Android
 -dontwarn org.bouncycastle.jsse.BCSSLSocket
 -dontwarn org.bouncycastle.jsse.BCSSLParameters

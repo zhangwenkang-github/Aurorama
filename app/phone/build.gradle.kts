@@ -1,3 +1,4 @@
+import java.util.Properties
 import java.util.zip.ZipFile
 
 plugins {
@@ -10,6 +11,39 @@ plugins {
     alias(libs.plugins.aboutlibraries)
     alias(libs.plugins.aboutlibraries.android)
 }
+
+/*
+ * W71 · release 签名（2026-10-05）。
+ *
+ * 配置放**仓库根** `keystore.properties`（gitignored，不入库；密码只由 Gradle 读取，不打印）：
+ *     storeFile=.../aurorama-release.jks
+ *     storePassword=...
+ *     keyAlias=...
+ *     keyPassword=...
+ *
+ * 行为：存在且四个字段齐全 → release 变体启用签名（staging 保持不签名）；
+ *      缺失或不完整 → 打印清晰提示并跳过签名（产物为未签名 APK），不中断构建。
+ * 位置与备份说明见 docs/RELEASE_PLAN.md。
+ */
+val releaseKeystorePropertiesFile = rootProject.file("keystore.properties")
+val releaseKeystoreProperties = Properties().apply {
+    if (releaseKeystorePropertiesFile.isFile) {
+        releaseKeystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+val releaseSigningConfigured =
+    releaseKeystorePropertiesFile.isFile &&
+        listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all { key ->
+            !releaseKeystoreProperties.getProperty(key).isNullOrBlank()
+        }
+
+/*
+ * W71 · 发布产物开关：默认沿用 ABI 分包（armeabi-v7a / arm64-v8a / x86 / x86_64）。
+ * 打发布包时加 `-Paurorama.universalApk=true` 追加整包 universal APK（GitHub Releases 用）。
+ * 默认关闭，避免日常 assembleDebug / 单测被整包打包拖慢。
+ */
+val buildUniversalApk =
+    providers.gradleProperty("aurorama.universalApk").orNull?.toBoolean() == true
 
 android {
     namespace = "com.zhangwenkang.cinefin"
@@ -28,11 +62,28 @@ android {
         testInstrumentationRunner = "com.zhangwenkang.cinefin.HiltTestRunner"
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                // PKCS12（RSA 4096）；storeFile 由 properties 给出绝对路径。
+                storeFile = rootProject.file(releaseKeystoreProperties.getProperty("storeFile"))
+                storePassword = releaseKeystoreProperties.getProperty("storePassword")
+                keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
+                keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
+                enableV1Signing = false
+                enableV2Signing = true
+            }
+        }
+    }
+
     buildTypes {
         named("debug") { applicationIdSuffix = ".debug" }
         named("release") {
             isMinifyEnabled = true
             isShrinkResources = true
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -40,6 +91,8 @@ android {
         }
         register("staging") {
             initWith(getByName("release"))
+            // staging 是本地调试身份，保持不签名（沿用 W71 之前的产物形态）。
+            signingConfig = null
             applicationIdSuffix = ".staging"
         }
     }
@@ -64,6 +117,7 @@ android {
 
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = buildUniversalApk
         }
     }
 
