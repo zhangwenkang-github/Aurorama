@@ -29,12 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
@@ -57,6 +59,7 @@ import com.zhangwenkang.cinefin.presentation.local.LocalLibrarySection
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import com.zhangwenkang.cinefin.utils.OfflineMediaEntryKind
 import java.util.UUID
 
@@ -708,14 +711,22 @@ private fun OfflineArtwork(
     tint: Color = LocalCinefinColors.current.onSurfaceVariant,
 ) {
     val colors = LocalCinefinColors.current
+    val context = LocalContext.current
     Box(
         modifier =
             Modifier.size(size).clip(CinefinShapes.Xs).background(colors.surfaceContainerHigh),
         contentAlignment = Alignment.Center,
     ) {
         if (imageUri != null) {
+            // W66：本地缓存路径的内存键带 mtime——过期替换（原子改名）后 key 变化，立即显示新图。
+            val request =
+                remember(imageUri) {
+                    ImageCacheRules.artworkMemoryCacheKey(imageUri)?.let { key ->
+                        ImageRequest.Builder(context).data(imageUri).memoryCacheKey(key).build()
+                    } ?: imageUri
+                }
             AsyncImage(
-                model = imageUri,
+                model = request,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

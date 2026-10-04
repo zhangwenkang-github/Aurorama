@@ -5,16 +5,14 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
+import com.zhangwenkang.cinefin.utils.ImageCacheStore
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import java.io.File
-import java.io.IOException
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import timber.log.Timber
 
 /**
@@ -41,6 +39,8 @@ constructor(
     @Assisted private val appContext: Context,
     @Assisted private val params: WorkerParameters,
     private val repository: JellyfinRepository,
+    /** W66：图片缓存（含 `.meta` 与过期替换规则）单一落点。 */
+    private val imageCacheStore: ImageCacheStore,
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val rawItemId = params.inputData.getString(KEY_ITEM_ID)
@@ -65,75 +65,40 @@ constructor(
         return Result.success()
     }
 
-    /** 返回 true 表示存在网络类瞬时失败（可重试）；永久失败 / 无图返回 false。 */
+    /**
+     * 返回 true 表示存在网络类瞬时失败（可重试）；永久失败 / 无图返回 false。
+     *
+     * W66：判定改为 [ImageCacheRules]——文件缺失 / 元数据缺失 / 源 URL 变化 / 超 TTL 都会重新拉取并原子替换
+     * （不再「有文件就跳过」）；其余情况直接复用本地缓存（304 条件请求只刷新 `fetchedAt`）。
+     */
     private suspend fun downloadImages(itemId: UUID): Boolean =
         withContext(Dispatchers.IO) {
             var hadTransientFailure = false
             val item = repository.getItem(itemId) ?: return@withContext hadTransientFailure
 
-            val basePath = "images/${item.id}"
-
-            val baseDir = File(appContext.filesDir, basePath)
-
-            val client = OkHttpClient()
-            val uris = mapOf("primary" to item.images.primary, "backdrop" to item.images.backdrop)
-
-            try {
-                baseDir.mkdirs()
-            } catch (e: IOException) {
-                Timber.e(e)
-                return@withContext true
-            }
+            val uris =
+                mapOf(
+                    ImageCacheStore.PRIMARY to item.images.primary,
+                    ImageCacheStore.BACKDROP to item.images.backdrop,
+                )
 
             for ((name, uri) in uris) {
-                if (uri == null) {
-                    continue
-                }
+                val url = uri?.toString()?.takeIf { value -> value.isNotBlank() } ?: continue
 
-                // W37 遗留修复（W36 §12）：按文件补拉——旧实现"目录存在即跳过"，首次拉图部分失败后不再补。
-                val target = File(appContext.filesDir, "$basePath/$name")
-                if (target.isFile && target.length() > 0L) continue
+                val decision = imageCacheStore.decide(itemId, currentSourceUrl = url, name = name)
+                if (!ImageCacheRules.shouldRefetch(decision)) continue
 
-                val request =
+                val outcome =
                     try {
-                        Request.Builder().url(uri.toString()).build()
-                    } catch (e: IllegalArgumentException) {
+                        imageCacheStore.fetch(itemId = itemId, url = url, name = name)
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (error: Exception) {
                         // W57：单个非法地址（如本地合成 URI）不再让整个 worker 崩溃，其余图片继续。
-                        Timber.e(e, "忽略非法图片地址（%s）", name)
+                        Timber.w(error, "忽略非法图片地址（%s）", name)
                         continue
                     }
-
-                val imageBytes =
-                    try {
-                        client.newCall(request).execute().use { response ->
-                            if (!response.isSuccessful) {
-                                if (
-                                    ImagesDownloadRetryRules.isTransientHttpFailure(response.code)
-                                ) {
-                                    hadTransientFailure = true
-                                }
-                                Timber.e("Failed to download image: ${response.code}")
-                                continue
-                            }
-
-                            response.body.bytes()
-                        }
-                    } catch (e: IOException) {
-                        Timber.e(e)
-                        hadTransientFailure = true
-                        continue
-                    }
-
-                try {
-                    // 先写临时文件再改名：写失败留下的残片不会以「已缓存」身份被下一次尝试跳过。
-                    val temp = File(appContext.filesDir, "$basePath/$name.part")
-                    temp.writeBytes(imageBytes)
-                    if (!temp.renameTo(target)) {
-                        temp.delete()
-                        hadTransientFailure = true
-                    }
-                } catch (e: IOException) {
-                    Timber.e(e)
+                if (outcome.transientFailure) {
                     hadTransientFailure = true
                 }
             }
