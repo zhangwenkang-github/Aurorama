@@ -62,9 +62,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -82,6 +84,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.ui.AspectRatioFrameLayout
 import coil3.compose.AsyncImage
+import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
@@ -2226,6 +2229,14 @@ internal fun PlayerSeekBar(
 ) {
     var scrubbing by remember { mutableStateOf(false) }
     var scrubFraction by remember { mutableFloatStateOf(0f) }
+    /*
+     * W67 章节吸附：snapIndex = 本次拖动当前吸附的章节（-1 = 未吸附）；tapSnapIndex = 点击（tap）吸附后气泡的短暂展示。
+     * 每次手势开始时清零，滞回（±3 s）只在同一次拖动内生效，松手后重新判定。
+     */
+    var snapIndex by remember { mutableIntStateOf(CHAPTER_SNAP_NONE) }
+    var tapSnapIndex by remember { mutableIntStateOf(CHAPTER_SNAP_NONE) }
+    var tapSnapTicket by remember { mutableIntStateOf(0) }
+    val haptics = LocalHapticFeedback.current
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val lumen = LocalLumenColors.current
@@ -2247,28 +2258,63 @@ internal fun PlayerSeekBar(
             null
         }
 
+    /**
+     * 手指位置 → 最终落点：统一走 [resolveChapterSnap]（±2 s 进入 / ±3 s 滞回退出）。 chapters 为空（没有章节数据 /
+     * 关掉章节刻度开关）时纯函数原样返回，行为与旧版纯比例拖动一致。 吸附到新的章节时触发一次轻触觉反馈（轻量）。
+     */
+    fun snapTarget(rawMs: Long): Long {
+        val result = resolveChapterSnap(rawMs, chapters, snapIndex)
+        if (result.chapterIndex != CHAPTER_SNAP_NONE && result.chapterIndex != snapIndex) {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+        snapIndex = result.chapterIndex
+        return result.positionMs
+    }
+
+    // 吸附到章节时气泡显示「第 N 章 · 章节名」（无名字 → 「第 N 章」）；否则维持原来的时间提示
+    val snapLabel = chapterSnapLabel(chapters, if (scrubbing) snapIndex else tapSnapIndex)
+    val chapterBubbleText = snapLabel?.let { label ->
+        if (label.name == null) {
+            stringResource(AppR.string.player_chapter_snap, label.number)
+        } else {
+            stringResource(AppR.string.player_chapter_snap_named, label.number, label.name)
+        }
+    }
+    // 点击吸附后的气泡展示 1.5 s 再收起（拖动中的气泡本身跟随手势）
+    LaunchedEffect(tapSnapTicket) {
+        if (tapSnapTicket > 0) {
+            delay(1500)
+            tapSnapIndex = CHAPTER_SNAP_NONE
+        }
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
-        if (previewBitmap != null) {
+        if (previewBitmap != null || chapterBubbleText != null) {
             Row(
                 verticalAlignment = Alignment.Bottom,
                 modifier = Modifier.fillMaxWidth().padding(bottom = CinefinSpacing.Space2),
             ) {
-                Image(
-                    bitmap = previewBitmap.asImageBitmap(),
-                    contentDescription = null,
-                    modifier =
-                        Modifier.width(160.dp)
-                            .clip(CinefinShapes.Xs)
-                            .border(1.dp, colors.outline, CinefinShapes.Xs),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                )
-                Spacer(Modifier.width(CinefinSpacing.Space3))
+                if (previewBitmap != null) {
+                    Image(
+                        bitmap = previewBitmap.asImageBitmap(),
+                        contentDescription = null,
+                        modifier =
+                            Modifier.width(160.dp)
+                                .clip(CinefinShapes.Xs)
+                                .border(1.dp, colors.outline, CinefinShapes.Xs),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
+                    Spacer(Modifier.width(CinefinSpacing.Space3))
+                }
                 Text(
-                    text = formatTime(previewPosition),
+                    text = chapterBubbleText ?: formatTime(previewPosition),
                     style = CinefinType.MonoData,
                     color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier =
-                        Modifier.clip(CinefinShapes.Xs)
+                        Modifier.widthIn(max = 260.dp)
+                            .clip(CinefinShapes.Xs)
                             .background(colors.scrim.copy(alpha = 0.8f))
                             .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
                 )
@@ -2279,29 +2325,47 @@ internal fun PlayerSeekBar(
             modifier =
                 Modifier.fillMaxWidth()
                     .height(34.dp)
-                    .pointerInput(safeDuration) {
+                    .pointerInput(chapters, safeDuration) {
                         detectTapGestures { offset ->
-                            val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            val raw =
+                                ((offset.x / size.width).coerceIn(0f, 1f) * safeDuration)
+                                    .roundToLong()
+                            snapIndex = CHAPTER_SNAP_NONE
+                            val target = snapTarget(raw)
+                            tapSnapIndex = snapIndex
+                            tapSnapTicket++
                             onScrubStart()
-                            onScrub((fraction * safeDuration).roundToLong())
+                            onScrub(target)
                         }
                     }
-                    .pointerInput(safeDuration) {
+                    .pointerInput(chapters, safeDuration) {
                         detectDragGestures(
                             onDragStart = { offset ->
                                 scrubbing = true
+                                snapIndex = CHAPTER_SNAP_NONE
+                                tapSnapIndex = CHAPTER_SNAP_NONE
                                 scrubFraction = (offset.x / size.width).coerceIn(0f, 1f)
                                 onScrubStart()
                             },
                             onDrag = { change, _ ->
-                                scrubFraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                                onScrub((scrubFraction * safeDuration).roundToLong())
+                                val raw =
+                                    ((change.position.x / size.width).coerceIn(0f, 1f) *
+                                            safeDuration)
+                                        .roundToLong()
+                                val target = snapTarget(raw)
+                                scrubFraction = (target.toFloat() / safeDuration).coerceIn(0f, 1f)
+                                onScrub(target)
                             },
                             onDragEnd = {
-                                onScrub((scrubFraction * safeDuration).roundToLong())
+                                // 松手落点 = 吸附后的位置
+                                onScrub(snapTarget((scrubFraction * safeDuration).roundToLong()))
                                 scrubbing = false
+                                snapIndex = CHAPTER_SNAP_NONE
                             },
-                            onDragCancel = { scrubbing = false },
+                            onDragCancel = {
+                                scrubbing = false
+                                snapIndex = CHAPTER_SNAP_NONE
+                            },
                         )
                     },
             contentAlignment = Alignment.CenterStart,
@@ -2346,19 +2410,30 @@ internal fun PlayerSeekBar(
                         .clip(shape)
                         .background(playerProgressBrush(accent, accentSecondary))
             )
-            // 章节刻度：细白线，只做位置提示
-            chapters.forEach { chapter ->
-                val fraction = (chapter.startPosition.toFloat() / safeDuration).coerceIn(0f, 1f)
+            /*
+             * 章节刻度（W67 增强）：2×18dp 发丝线（轨道上下各探出一截）、白 85%；已播过的章节用媒体色 / 极光青区分；
+             * 拖动中被吸附的那条加粗到 3dp 并加亮（不加光晕，§2.6 第 3 条）。
+             */
+            chapters.forEachIndexed { index, chapter ->
+                val fraction = chapterTickFraction(chapter.startPosition, safeDuration)
+                val played = chapter.startPosition <= previewPosition
+                val snapped = scrubbing && index == snapIndex
+                val tickColor =
+                    when {
+                        snapped -> colors.onSurface
+                        played -> accent
+                        else -> colors.onSurface.copy(alpha = 0.85f)
+                    }
                 Box(
                     modifier = Modifier.fillMaxWidth(fraction).height(trackHeight),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Box(
                         modifier =
-                            Modifier.width(1.5.dp)
-                                .height(14.dp)
+                            Modifier.width(if (snapped) 3.dp else 2.dp)
+                                .height(18.dp)
                                 .clip(CinefinShapes.TwoXs)
-                                .background(colors.onSurface.copy(alpha = 0.45f))
+                                .background(tickColor)
                     )
                 }
             }

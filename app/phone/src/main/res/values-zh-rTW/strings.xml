@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- W67：進度條章節吸附氣泡 -->
+<resources>
+    <string name="player_chapter_snap">第 %1$d 章</string>
+    <string name="player_chapter_snap_named">第 %1$d 章 · %2$s</string>
+</resources>
