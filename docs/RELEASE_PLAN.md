@@ -105,12 +105,12 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
-**1.0.0 发布资产校验（2026-10-05 · W72，分支 `release/w72-release-assets`，起点 master `9379574`）**
+**1.0.0 发布资产校验（2026-10-05 · 发布构建，master 提交 `58e62fd`）**
 
 | 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
 |--------------------|--------------------|---------|
-| `Aurorama-1.0.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,042,160 / 163.1 | `c379aefffdc6f0c3914b248f620ed7a45bec028bc482899d255ec85b5091bdae` |
-| `Aurorama-1.0.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,460,182 / 73.9 | `0a3946182cd875d1756141be09e33e6bfc35d9db4d3e029dbdcd21ea0239d089` |
+| `Aurorama-1.0.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,042,160 / 163.1 | `d418bcd1fc448373d389a4b71b1e9e133bc89098fca5bf920d178c42aa8241dd` |
+| `Aurorama-1.0.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,460,182 / 73.9 | `4760c773f67a6f4a355bc944132fef67355ae4e2648f807f831ad2b182180308` |
 
 - `apksigner verify -v`：两份 APK 均 **v2 = true**（v1 / v3 / v4 = false，与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）。
 - 构建产物不入库，路径：`app/phone/build/outputs/apk/libre/release/`；每次重新构建哈希会变化，发布前以当次构建输出为准并回写本表。
