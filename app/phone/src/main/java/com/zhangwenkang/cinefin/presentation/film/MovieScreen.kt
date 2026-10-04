@@ -67,6 +67,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
+import com.zhangwenkang.cinefin.presentation.film.components.detailTypeEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
@@ -209,7 +210,8 @@ private fun MovieScreenLayout(
                                 } else {
                                     DownloadBadgeInfo()
                                 },
-                    ) {
+                        heroEyebrow = movie.detailTypeEyebrow(),
+                    ) { heroLayout ->
                         ItemButtonsBar(
                             item = movie,
                             downloaderState = downloaderState,
@@ -239,6 +241,7 @@ private fun MovieScreenLayout(
                                 onDownloaderAction(DownloaderAction.DeleteDownload(movie))
                             },
                             modifier = Modifier.fillMaxWidth(),
+                            heroLayout = heroLayout,
                         )
                     }
 

@@ -96,3 +96,6 @@ internal fun FindroidItem.detailEyebrow(extra: String? = null): String? {
     }
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
+
+/** W66b：竖屏 hero 眉标（只留类型，去掉与元信息重复的年份）；无类型返回 null 不占位。 */
+internal fun FindroidItem.detailTypeEyebrow(): String? = genreList().firstOrNull()

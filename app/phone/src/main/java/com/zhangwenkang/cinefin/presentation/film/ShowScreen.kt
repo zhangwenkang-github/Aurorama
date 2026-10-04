@@ -76,6 +76,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
+import com.zhangwenkang.cinefin.presentation.film.components.detailTypeEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
@@ -244,7 +245,8 @@ private fun ShowScreenLayout(
                         originalTitle = show.originalTitle,
                         meta = show.metaLine(),
                         downloadBadge = downloadBadges[show.id] ?: downloadBadgeInfo(downloadState),
-                    ) {
+                        heroEyebrow = show.detailTypeEyebrow(),
+                    ) { heroLayout ->
                         ItemButtonsBar(
                             item = show,
                             onPlayClick = { startFromBeginning ->
@@ -271,6 +273,7 @@ private fun ShowScreenLayout(
                             downloadState = downloadState,
                             downloadBusy = downloadBusy,
                             storageSelectionEnabled = false,
+                            heroLayout = heroLayout,
                         )
                     }
 

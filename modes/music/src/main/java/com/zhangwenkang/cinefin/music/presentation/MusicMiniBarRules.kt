@@ -23,3 +23,15 @@ internal fun musicMiniBarDismissTarget(
         hasRestoredQueue -> MusicMiniBarDismissTarget.DropRestoredQueue
         else -> MusicMiniBarDismissTarget.None
     }
+
+/**
+ * W66b：迷你条时间文本（纯函数，单测覆盖）——`02:31 / 04:56`；总时长未知（0）时回 `--:--`。
+ *
+ * 以等宽字体（`CinefinType.MonoDataSmall`）单独占位展示、永不被状态文本挤掉（用户 2026-10-04 口径： 时间必须完整显示；状态「正在播放 / 已暂停 /
+ * 上次播放」放不下时省略）。
+ */
+internal fun musicMiniBarTimeText(currentMs: Long, totalMs: Long): String = buildString {
+    append(formatPositionMs(currentMs))
+    append(" / ")
+    append(if (totalMs > 0L) formatPositionMs(totalMs) else "--:--")
+}

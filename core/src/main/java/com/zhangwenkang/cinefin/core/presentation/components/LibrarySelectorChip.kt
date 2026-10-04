@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
@@ -45,6 +46,8 @@ fun LibrarySelectorChip(
     selectedId: UUID?,
     onSelect: (UUID?) -> Unit,
     modifier: Modifier = Modifier,
+    /** W66b：chip 最大宽（音乐 Tab 行紧凑场景传 132dp）；默认 168dp = 视频 / 书架顶栏口径。 */
+    maxWidth: Dp = 168.dp,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -56,7 +59,7 @@ fun LibrarySelectorChip(
             selected = selectedId != null,
             compact = true,
             onClick = { expanded = true },
-            modifier = Modifier.widthIn(max = 168.dp),
+            modifier = Modifier.widthIn(max = maxWidth),
             icon = { tint ->
                 Icon(
                     painter = painterResource(CoreR.drawable.ic_library),
