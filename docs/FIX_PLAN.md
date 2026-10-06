@@ -160,7 +160,26 @@
 
 **W76-B11 执行修正（2026-10-07）**：真机实证主因 = 系列级入口在起播前**同步串行枚举整剧**（`getNextUp` → 逐季 `getEpisodes`，5 次串行 HTTP，实测 7.8 / 18.5 / 31.7 s）造成「空载」空白窗口（UI 逐字 = `00:00/00:00` + 队列为空 + 无提示）；静默兜底为同类隐患但三次运行均未命中。已交付 `b8935f3`：三处静默兜底取消（降级链 + 中文 `PlaybackStartException` Toast），系列级语义不变；**空白窗口消除 + 退出时 `JobCancellationException` Toast → W76-B11b**（落点 `PlayerViewModel`，须在 B10 合并后串行开）。**在 B11b 完成前，不对外声明「用户可见空载已消失」。**
 
-**W76-B11b 完成（2026-10-07，commit `080fd38`，待合并）**：系列级起播改「**先播后补队列**」（快路径 = NextUp + 起播集所在季；整剧枚举移至 `Playing MediaItem` 之后）+ 取消语义修复（`initializePlayer` 先放行 `CancellationException`；`runCatching` 不再连取消一起吞）；门禁 `:player:local` **169/0/0**（27 suites）+ ktfmt + `:app:phone:assembleDebug` 绿；K60 真机首帧 **31.7 s → 2.0 / 5.0 s**，加载中退出不再误报。**「用户可见空载已消失」的表述禁令随之解除**（最终以发布包复验实测为准）。
+**W76-B11b 已完成并合并 master（2026-10-07，`080fd38` rebase 后 `3b85d95`）**：系列级起播改「**先播后补队列**」（快路径 = NextUp + 起播集所在季；整剧枚举移至 `Playing MediaItem` 之后）+ 取消语义修复（`initializePlayer` 先放行 `CancellationException`；`runCatching` 不再连取消一起吞）；K60 真机首帧 **31.7 s → 2.0 / 5.0 s**，加载中退出不再误报；**终合并态门禁 920/0/0**（见 §5；`player:local` 169/0/0，含本波 +7 单测）。**「用户可见空载已消失」的表述以发布包复验实测为准**（复验清单见下）。
+
+### W76 修复后复验（清单已备 · 等用户放行 · 2026-10-07）
+
+> 用户 2026-10-07「回归前先停一下」——以下两卡**只准备、不启动**；用户放行后按卡派发（子代理一律 `deepseek-flash`）。对象 = **修复后重建的 1.1.0 release 签名包**（master `3b85d95` 构建；副本 `w76-evidence/Aurorama-1.1.0-*.apk`）。
+
+**W76-V1 发布包复验（K60 `8e875894`）**：
+
+1. 手续：`adb install -r` 修复重建包覆盖现 1.1.0（保留登录态）；装前记录 `dumpsys package` 与设置 / 下载计数，装后核对 `1.1.0 (2)`、免重登、设置保留；release 严格口径需要时先 `pm clear`（登录态用 Quick Connect 重建，见 R1 ⑤）。
+2. **B9 严格首下（本波主验收）**：清数据 / 首次安装后 → 冷启登录 → 视频 / 音乐 / 书籍各入队一条下载 → 预期真实进度与残片增长、**无「失败 / 0 B」**（修复前必失败）；暂停-恢复-删除清理，测后清空任务。
+3. **B11/B11b 系列级起播**：任一剧系列详情页「播放」→ 预期 **2–5 s 出画**（对照修复前 31.7 s 空白 + `00:00/00:00` + `队列为空`）；加载中 BACK 退出无错误 Toast；季 / 集级不回归。
+4. **B10 内核切换（抽验）**：先播音乐 → 同进程进视频（10-bit 片源）→ 解码面板切 mpv 立即生效（修复前选择被吞 /「播放失败」卡片）；退出后音乐隔离不回归。
+5. 稳定性 0 FATAL·ANR；还原：`force-stop`、删测试残片 / 通知、内核 / 码率偏好还原、进度副作用如实记录；device-lock 登记 / 释放。
+
+**W76-V2 阅读组补测（Pad 5 `43af8627`）**（R2 未覆盖组；书籍库已由用户建立 = Q3）：
+
+1. 在线书架：入口显示书籍；EPUB / PDF / CBZ 各开一本 → 出页正常、进度保存与返回恢复。
+2. 阅读设置（字体 / 亮度等）切换即时生效 + 重启保持（#19 阅读侧）。
+3. 离线：下载 1 本（顺带覆盖 B9 修复后的书籍下载）→ 飞行模式打开离线书 / 离线书架；下载页「已完成」逐条核对（R2 当时 0 条）。
+4. 0 FATAL·ANR；还原与副作用记录；device-lock 登记 / 释放。非目标：不重跑 R2 已通过的 8 组。
 
 ## 4. 决策记录
 
@@ -218,6 +237,8 @@
 | 2026-10-07 | **W76-B10 完成（分支 `fix/w76-b10-music-video`，commit `fb3707e`，未 push）**：`initializePlayer()` 第一句接上协调器 + 新纯判定 `MusicSessionVideoStartPolicy`（音乐真在播才停播并补发 Stopped；标志粘住只清标志、不误停视频）——修掉旧守卫 `!isPlayingMusicItem() → return` 导致标志**永久**粘住；`player:local` 155/0/0（+3 单测）+ `:app:phone:assembleDebug` 绿；Pad 5 真机：修复前 release A 侧选择被吞（无 mpv 日志）→ 修复后 mpv 出画 + 回退链落 mpv + W68 隔离（attach 退出后音乐仍 `PLAYING(3)`）+ 0 FATAL/ANR。遗留：错误卡片按钮未单独点按（同入口已证）；`releasePlayer()` 对音乐条目补发 Stopped 的观察 → §6.1 Q5。 |
 | 2026-10-07 | **W76-B9/B10/B11 合并态门禁（负责人）**：三支 rebase 后 ff 合并 master（`600be7a` / `d0942dc` / `1eb093f`）；合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **913 项 / 0 失败 0 错误**（app 272 / core 93 / data 68 / player:core 12 / player:local 162 / film 53 / book 113 / music 140；基线 899 + B9 4 + B10 3 + B11 7；日志 `w76-evidence/gate_merged_2.log`）。**W76-B11b 已派发**（起播不等整剧枚举 + `CancellationException` 重抛；`w76e` / `fix/w76-b11b-series-start`，复用 W76-B11 会话）；B11b 合并后跑终门禁 → **release 重建签名（哈希变化）** → 发布包复验（K60）+ 阅读组补测（Pad 5）。 |
 | 2026-10-07 | **W76-B11b 完成（分支 `fix/w76-b11b-series-start`，commit `080fd38`，待合并）**：系列级起播「先播后补队列」（快路径 = NextUp + 起播集所在季；整剧枚举落 `Playing MediaItem` 之后）+ 取消语义修复（`initializePlayer` 先放行 `CancellationException`；`runCatching` 不再吞取消）；门禁 `:player:local` **169/0/0**（27 suites）+ ktfmt + `:app:phone:assembleDebug` 绿；K60 真机首帧 **31.7 s → 2.0 / 5.0 s**、加载中退出不再误报；报告 `W76-B11b.md`。**负责人第七任按 35 万阈值交接（auto-compact 已触发）**：B11b 未合并；**回归暂停令**——用户「回归前先停一下」，发布包复验（K60）/ 阅读组补测（Pad 5）等用户放行后启动；移交摘要见记忆 `cinefin-v11-update` 与下表最新行。 |
+| 2026-10-07 | **W76-B11b 合并验收（第八任负责人）**：分支由 `080fd38` rebase 至 **`3b85d95`**（基座 `dec7d04`，内容与原件逐字节一致）→ ff 合并 master（`dec7d04` → `3b85d95`）；终合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **920 项 / 0 失败 0 错误**（app 272 / core 93 / data 68 / player:core 12 / player:local 169 / film 53 / book 113 / music 140；基线 913 + B11b 7；日志 `w76-evidence/gate_merged_3.log`）；已推送 CI（`dec7d04..3b85d95`）。 | 
+| 2026-10-07 | **1.1.0 修复后 release 重建签名（负责人）**：`assembleLibreRelease "-Paurorama.universalApk=true"` 成功（master `3b85d95`，日志 `w76-evidence/release_build_2.log`）——universal **171,141,648 B（163.2 MiB）`c00c3311…31ef2f46`** / arm64-v8a **77,559,670 B（74.0 MiB）`be25b209…efef3ec9`**；`apksigner verify` 两份均 **v2 = true**、证书 SHA-256 `e449c4aa…e155ff` 与 §2 一致；`RELEASE_PLAN` §7/§8 + `RELEASE_NOTES_v1.1.0.md`（B9/B10/B11b 已修口径）回写并推送；旧构建副本移入 `w76-evidence/superseded/`。**回归暂停令持续**：V1 发布包复验（K60）+ V2 阅读组补测（Pad 5）清单已备（§3），等用户放行。 | 
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 

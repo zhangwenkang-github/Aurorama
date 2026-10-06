@@ -102,20 +102,31 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 | 版本 | 日期 | versionCode | 构建命令 | universal | arm64-v8a |
 |------|------|-------------|----------|-----------|-----------|
 | 1.0.0 | 2026-10-05 | 1 | `assembleLibreRelease -Paurorama.universalApk=true` | 163.1 MB | 73.9 MB |
-| 1.1.0 | 2026-10-06 | 2 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.2 MB | 74.0 MB |
+| 1.1.0 | 2026-10-07（修复重建） | 2 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.2 MB | 74.0 MB |
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
-**1.1.0 发布资产校验（2026-10-06 · 发布构建，master 提交 `458eb9a`）**
+**1.1.0 发布资产校验 · ②（2026-10-07 · 修复重建，master 提交 `3b85d95`；本表为上传口径）**
 
 | 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
 |--------------------|--------------------|---------|
-| `Aurorama-1.1.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,125,240 / 163.2 | `9c20b06cb1a6b4c4e557c4860b374d27c1de1b1eed994f3d9b3c321245c58570` |
-| `Aurorama-1.1.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,543,262 / 74.0 | `d24df47ddc4839dc80820532115383d13657da9a36fd8fdf54ad508356566b0e` |
+| `Aurorama-1.1.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,141,648 / 163.2 | `c00c33115536e6592e7d519e7c07577bf4af46535b9a20191a27005a31ef2f46` |
+| `Aurorama-1.1.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,559,670 / 74.0 | `be25b20939629034e50cb369b8159a1370306e838e1df7556a3e5c47efef3ec9` |
 
+- 重建原因：B9（首次下载必失败）/ B10（音乐后换内核 / 回退失效）/ B11 + B11b（系列页「播放」空白窗口）修复并入 1.1.0（D-F9 方案B）→ 哈希与初版不同，**上传以本表为准**。
 - `apksigner verify`：两份 APK 均 **v2 = true**（v1 / v3 / v4 = false，与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）。
-- 合并态门禁（W76，master `458eb9a`）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **899 项 / 0 失败 0 错误**（app 272 / core 89 / data 68 / player:core 12 / player:local 152 / film 53 / book 113 / music 140）。
-- 构建产物不入库，路径：`app/phone/build/outputs/apk/libre/release/`；发布用副本在 `.planning/cinefin-expansion/w76-evidence/Aurorama-1.1.0-*.apk`（含 1.0.0 对照包）。
+- 合并态门禁（W76 终版，master `3b85d95`）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **920 项 / 0 失败 0 错误**（app 272 / core 93 / data 68 / player:core 12 / player:local 169 / film 53 / book 113 / music 140）。
+- 构建产物不入库，路径：`app/phone/build/outputs/apk/libre/release/`；发布用副本在 `.planning/cinefin-expansion/w76-evidence/Aurorama-1.1.0-*.apk`（含 1.0.0 对照包；初版副本在 `superseded/`）。
+
+**1.1.0 发布资产校验 · ①（2026-10-06 · 初版构建，master 提交 `458eb9a`）——已作废（勿上传）**
+
+| 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
+|--------------------|--------------------|---------|
+| `Aurorama-1.1.0-universal.apk`（初版） | 171,125,240 / 163.2 | `9c20b06cb1a6b4c4e557c4860b374d27c1de1b1eed994f3d9b3c321245c58570` |
+| `Aurorama-1.1.0-arm64-v8a.apk`（初版） | 77,543,262 / 74.0 | `d24df47ddc4839dc80820532115383d13657da9a36fd8fdf54ad508356566b0e` |
+
+- `apksigner verify`：两份均 v2 = true、指纹一致（同上）；合并态门禁 = 899 项 / 0 失败 0 错误（日志 `w76-evidence/gate_merged.log`）。
+- 作废原因：B9/B10/B11 修复合并后重新构建（见上方 ②）；初版副本已移至 `w76-evidence/superseded/`。
 
 **1.0.0 发布资产校验（2026-10-05 · 发布构建，master 提交 `58e62fd`）**
 
@@ -148,7 +159,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 > 1.0.0 的未勾选项（版本号已就位，tag / 上传 / Release notes 粘贴）由发布负责人在用户全检通过后执行；Release notes 正文用 `docs/RELEASE_NOTES_v1.0.0.md`。
 
-**1.1.0（W76，2026-10-06）检查状态**：版本号 `1.1.0 (2)` ✅；合并态门禁 **899 / 0 / 0** ✅；`assembleLibreRelease` + `apksigner verify`（v2、指纹一致）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机冒烟 = W76 回归 **R1（K60，发布面补验）已完成**：①覆盖升级 ✅ / ②真实下载 ❌（既有缺陷、非本轮回归，已单独登记）/ ③SAF 本地库 ✅ / ④mpv 兜底自动回退 ✅ / ⑤Quick Connect ✅，**0 FATAL·ANR**（报告 `w76-reports/W76-R1.md`）；**R2（Pad 5，核心回归）已完成**（报告 `w76-reports/W76-R2.md`，0 FATAL·ANR）。**W76-R1b 定级取证（2026-10-07）**：①**D1 = P2**（音乐会话标志粘住 → 同进程换内核/回退失效）②**D2 = P3**（系列详情页「播放」空载、静默兜底）③**下载首次必失败（B9）= App 本地层 `StatFs` 早于 `mkdirs`**（W50 `8f07ee8` 起，1.0.0 同结构）——三项均**非 1.1.0 引入**（报告 `w76-reports/W76-R1b.md`）；其中 **B9（首次下载必失败）是否列为 1.1.0 阻断项待用户拍板**。**tag `v1.1.0` / GitHub Release / 上传 APK 待用户全检通过后执行**；Release notes 正文用 `docs/RELEASE_NOTES_v1.1.0.md`。
+**1.1.0（W76，2026-10-06 初版 / 2026-10-07 修复重建）检查状态**：版本号 `1.1.0 (2)` ✅；**D-F9 方案B：B9 / B10 / B11 + B11b 修复已并入 1.1.0**（`600be7a` / `d0942dc` / `1eb093f` / `3b85d95`，终合并态门禁 **920 / 0 / 0** ✅）；`assembleLibreRelease` 修复重建 + `apksigner verify`（v2、指纹一致；新哈希见 §7 ②）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机冒烟 = W76 回归 **R1（K60，发布面补验）已完成**：①覆盖升级 ✅ / ②真实下载 ❌（既有缺陷 B9，**已修复、待修复包复验 V1**）/ ③SAF 本地库 ✅ / ④mpv 兜底自动回退 ✅ / ⑤Quick Connect ✅，**0 FATAL·ANR**（报告 `w76-reports/W76-R1.md`）；**R2（Pad 5，核心回归）已完成**（报告 `w76-reports/W76-R2.md`，0 FATAL·ANR；阅读组未覆盖 → 随修复包补测 V2）。**W76-R1b/R1c 定级取证**：D1 = P2（音乐会话粘住 → 已修 B10）/ D2 = P3（系列页「播放」空白 → 已修 B11/B11b）/ 首次下载必失败 B9（已修）——三项均**非 1.1.0 引入**。**回归暂停令（2026-10-07 用户）**：V1 发布包复验（K60）+ V2 阅读组补测（Pad 5）清单已备（`FIX_PLAN` §3），等用户放行；之后**用户全检 → 通过后打 tag `v1.1.0` + GitHub Release + 上传 APK（全检通过前不打 tag / 不发 Release）**；Release notes 正文用 `docs/RELEASE_NOTES_v1.1.0.md`。
 
 ## 9. CI 发布（可选，后续）
 
