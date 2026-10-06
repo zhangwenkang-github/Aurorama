@@ -17,11 +17,14 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -49,6 +52,8 @@ fun DetailHero(
     /** W66b：竖屏眉标（只留类型，去掉与元信息重复的年份）；默认与 [eyebrow] 相同。 */
     heroEyebrow: String? = eyebrow,
     downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
+    /** W76-Q1：眉标点击（剧集页「前往所属季」入口）。默认 null = 与 W66 一致的纯文本眉标，既有页面零变化； 非空时眉标追加 `›` 并整块可点。 */
+    onEyebrowClick: (() -> Unit)? = null,
     /** W66b：`heroLayout = true` 时页面把动作排换成 hero 键布局（`ItemButtonsBar(heroLayout = ...)`）。 */
     actions: @Composable ColumnScope.(heroLayout: Boolean) -> Unit,
 ) {
@@ -66,6 +71,7 @@ fun DetailHero(
                 originalTitle = originalTitle,
                 meta = meta,
                 downloadBadge = downloadBadge,
+                onEyebrowClick = onEyebrowClick,
                 actions = actions,
             )
         }
@@ -78,6 +84,7 @@ fun DetailHero(
             originalTitle = originalTitle,
             meta = meta,
             downloadBadge = downloadBadge,
+            onEyebrowClick = onEyebrowClick,
             actions = actions,
         )
     }
@@ -95,6 +102,8 @@ fun DetailHero(
     /** W66b：竖屏眉标（只留类型，去掉与元信息重复的年份）；默认与 [eyebrow] 相同。 */
     heroEyebrow: String? = eyebrow,
     downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
+    /** W76-Q1：眉标点击（剧集页「前往所属季」入口）；默认 null = 纯文本眉标。 */
+    onEyebrowClick: (() -> Unit)? = null,
     /** W66b：`heroLayout = true` 时页面把动作排换成 hero 键布局（`ItemButtonsBar(heroLayout = ...)`）。 */
     actions: @Composable ColumnScope.(heroLayout: Boolean) -> Unit,
 ) {
@@ -112,6 +121,7 @@ fun DetailHero(
                 originalTitle = originalTitle,
                 meta = meta,
                 downloadBadge = downloadBadge,
+                onEyebrowClick = onEyebrowClick,
                 actions = actions,
             )
         }
@@ -124,6 +134,7 @@ fun DetailHero(
             originalTitle = originalTitle,
             meta = meta,
             downloadBadge = downloadBadge,
+            onEyebrowClick = onEyebrowClick,
             actions = actions,
         )
     }
@@ -138,6 +149,7 @@ private fun BoxScope.DetailHeroExpandedForeground(
     originalTitle: String?,
     meta: String?,
     downloadBadge: DownloadBadgeInfo,
+    onEyebrowClick: (() -> Unit)?,
     actions: @Composable ColumnScope.(heroLayout: Boolean) -> Unit,
 ) {
     val safePadding = rememberSafePadding()
@@ -172,6 +184,7 @@ private fun BoxScope.DetailHeroExpandedForeground(
                 originalTitle = originalTitle,
                 meta = meta,
                 expanded = true,
+                onEyebrowClick = onEyebrowClick,
             )
             Spacer(Modifier.height(CinefinSpacing.Space2))
             actions(false)
@@ -194,6 +207,7 @@ private fun DetailHeroCompactForeground(
     originalTitle: String?,
     meta: String?,
     downloadBadge: DownloadBadgeInfo,
+    onEyebrowClick: (() -> Unit)?,
     actions: @Composable ColumnScope.(heroLayout: Boolean) -> Unit,
 ) {
     val safePadding = rememberSafePadding()
@@ -201,7 +215,6 @@ private fun DetailHeroCompactForeground(
     val paddingStart = safePadding.start + gutter
     val paddingEnd = safePadding.end + gutter
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val posterWidth = detailHeroPosterWidthDp(LocalConfiguration.current.screenWidthDp.toFloat()).dp
     // 海报中心落在 backdrop 底缘（半压）：列表顶部留白 = backdrop 高 − 海报高一半。
     val contentTopPadding = DetailHeroCompactBackdropHeight - posterWidth * 1.5f / 2f
@@ -240,11 +253,10 @@ private fun DetailHeroCompactForeground(
                 heroEyebrow
                     ?.takeIf { it.isNotBlank() }
                     ?.let { value ->
-                        Text(
+                        HeroEyebrow(
                             text = value,
-                            style = CinefinType.LabelLarge.lumenTextShadow(LumenTextShadow.Meta),
-                            color = media.bright,
                             textAlign = TextAlign.Center,
+                            onClick = onEyebrowClick,
                         )
                     }
                 Text(
@@ -294,15 +306,16 @@ private fun DetailHeroTitleColumn(
     originalTitle: String?,
     meta: String?,
     expanded: Boolean,
+    onEyebrowClick: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     eyebrow
         ?.takeIf { it.isNotBlank() }
         ?.let { value ->
-            Text(
+            HeroEyebrow(
                 text = value,
-                style = CinefinType.LabelLarge.lumenTextShadow(LumenTextShadow.Meta),
-                color = LocalMediaColors.current.bright,
+                textAlign = TextAlign.Start,
+                onClick = onEyebrowClick,
             )
         }
     Text(
@@ -337,6 +350,42 @@ private fun DetailHeroTitleColumn(
             )
         }
 }
+
+/**
+ * W76-Q1：头图眉标。
+ *
+ * [onClick] 为空 = 与 W66 完全一致的纯文本（电影 / 节目 / 季页不变）；非空时整块可点并追加 `›` 提示可深入 ——剧集页据此回到所属季。
+ */
+@Composable
+private fun HeroEyebrow(
+    text: String,
+    textAlign: TextAlign,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val style = CinefinType.LabelLarge.lumenTextShadow(LumenTextShadow.Meta)
+    val color = LocalMediaColors.current.bright
+    if (onClick == null) {
+        Text(text = text, style = style, color = color, textAlign = textAlign, modifier = modifier)
+        return
+    }
+    Text(
+        text = heroEyebrowLabel(text = text, clickable = true),
+        style = style,
+        color = color,
+        textAlign = textAlign,
+        modifier =
+            modifier
+                .clip(CinefinShapes.Sm)
+                .cinefinClickable(onClick = onClick)
+                // 眉标只有一行高，向内补一点内边距把命中区放大（视觉仅多出两侧留白）。
+                .padding(horizontal = CinefinSpacing.Space1, vertical = CinefinSpacing.Space1),
+    )
+}
+
+/** W76-Q1：眉标文案（纯函数，便于单测）——可点时追加 `›` 提示可深入，否则保持 W66 原文案（既有页面零变化）。 */
+internal fun heroEyebrowLabel(text: String, clickable: Boolean): String =
+    if (clickable) "$text \u203A" else text
 
 /** 平板头图海报宽（与既有 Show / Movie expanded 一致）。 */
 internal val DetailHeroPosterExpandedWidth = 216.dp

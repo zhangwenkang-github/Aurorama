@@ -192,6 +192,10 @@ private fun EpisodeScreenLayout(
                         eyebrow = episodeHeroEyebrow(episode),
                         title = episode.name,
                         meta = episodeHeroMeta(episode),
+                        // W76-Q1：点眉标「第 X 季 - 第 Y 集」回到所属季（W66 删掉的顶栏入口不在顶栏重建）。
+                        onEyebrowClick = {
+                            onAction(EpisodeAction.NavigateToSeason(episode.seasonId))
+                        },
                     ) { heroLayout ->
                         ItemButtonsBar(
                             item = episode,
@@ -278,7 +282,7 @@ private fun EpisodeScreenLayout(
     }
 }
 
-/** W66：剧集详情头图眉标（季名 / 剧名 + 集号，纯文本展示，不再做跳转入口）。 */
+/** W66：剧集详情头图眉标（季名 / 剧名 + 集号）。W76-Q1：整块可点 → 回到所属季（发射 `EpisodeAction.NavigateToSeason`）。 */
 @Composable
 private fun episodeHeroEyebrow(episode: FindroidEpisode): String {
     val seasonName =

@@ -41,4 +41,11 @@ class DetailHeroRulesTest {
         assertFalse(detailHeroActionsDegraded(360f))
         assertFalse(detailHeroActionsDegraded(411f))
     }
+
+    /** W76-Q1：可点眉标追加 `›`；不可点（电影 / 节目 / 季页）保持 W66 原文案。 */
+    @Test
+    fun `clickable eyebrow appends chevron and plain eyebrow stays untouched`() {
+        assertEquals("第 1 季 - 第 3 集", heroEyebrowLabel("第 1 季 - 第 3 集", clickable = false))
+        assertEquals("第 1 季 - 第 3 集 ›", heroEyebrowLabel("第 1 季 - 第 3 集", clickable = true))
+    }
 }
