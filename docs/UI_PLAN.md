@@ -706,6 +706,30 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 
 ## 5. 验收
 
+### W75-S3 全页搜索入口（#13）+ 详情评分（#12）验收（2026-10-06，分支 `fix/w75-search-rating`，代码提交 = 本提交 `fix(w75-search)`（代码 + 本回写同提交）；Xiaomi Pad 5 `43af8627` 单机，本会话自带真机）
+
+**#13 视频页 / 音乐 / 书架 / 库内容页顶栏搜索入口（复用现有搜索流程）**
+
+| 项 | 结论 |
+|----|------|
+| 口径 | 现有搜索流程 = 顶层 `searchExpanded` 状态 + 导航到 `MediaRoute` 后由 `MediaScreen` 展开 `FilmSearchBar`（D39 / D44）——**搜索逻辑与搜索范围零改动**。新增统一入口组件 `SearchTopBarAction`（`app/phone`，`ic_search` + 「搜索」无障碍文案），四个页面顶栏动作区各注入一个：`VideoScreen`（含临时库视图）/ `BookshelfScreen`（Ready 态 + 占位态两处）/ `MusicModeScreen`（`modes:music` 内用 `CinefinIconButton` 复刻同口径）/ 库内容页（`LibraryRoute` 的 `LibraryScreen` 经既有 `topBarActions` 注入） |
+| 落点（红线申报） | `NavigationRoot.kt` 新增 `openSearch`（`searchExpanded = true` + `safeNavigate(MediaRoute) { launchSingleTop = true }`，**不 popUpTo** → 原页留在回退栈，返回一次即回原页且状态保持）；**本文件仅新增 1 个 lambda + 9 处 screen 参数接线，未新增 / 修改任何路由定义、目的地 id 与 `popUpTo` 语义**（对照 W75-S2 的「+2 行已申报」口径） |
+| 真机（Pad 5 平板侧轨形态） | ①**视频页**顶栏 `搜索 [1470,97][1524,151]` → 点开「共 5 个媒体库 + 搜索媒体库与本地 + EditText」→ 输入 `9` 命中「服务器 1 · 9-nine- 支配者的王冠」→ 两次返回关浮层、第三次返回**回到视频页**（`视频 / 共 3 个媒体库`，卡片总览原样）；②**音乐**顶栏 `搜索 [1469,99][1519,149]` 同链路，返回后 `音乐 / 共 105 张专辑` 原样；③**库内容页**（视频页「库选择 → 电影」直达「电影库 · 共 17 个项目」临时库视图）顶栏 `搜索 [1470,97][1524,151]` 同链路；④**媒体库页既有搜索不回归**：顶栏 `搜索 [1470,97][1524,151]` 存在 → 点开 → 输入 `9` 命中同一条结果 |
+| 真机（手机形态 `wm 1080x2400`@420） | ⑤**书架**顶栏 `搜索 [938,103][1001,166]` 可见 → 点开搜索浮层 → 输入 `9` 命中「服务器 1」→ 三次返回**回到书架页**（`书架暂无书籍库` 空态原样） |
+| 未覆盖 / 边界 | `LibraryRoute → LibraryScreen` 二级库内容页在**本测试服务器不可达**：服务器 5 个库中视频类走 `TemporaryLibraryRoute(Video) → VideoScreen`（上面 ③ 已验），无 Mix / BoxSets 类库触发 `LibraryRoute`；其搜索入口与书架 Ready 态同走 `topBarActions`（同一行代码），已编译 + 静态核对，未做该形态真机点击。另：服务器无书籍库时「书架」常规入口被 `navEntryKeys(hasBooksLibrary=false)` 过滤（既有行为，非本次引入），⑤ 经冷启动窗口期进入该路由验证 |
+| 稳定性 | Pad 5 `logcat -b crash` 空 + 主缓冲 0 `FATAL EXCEPTION` / 0 `ANR in` |
+
+**#12 电影 / 剧集详情信息行评分（对齐单集页口径）**
+
+| 项 | 结论 |
+|----|------|
+| 口径 | 新增纯函数 `communityRatingText(rating: Float?)`（`presentation/film/components/CommunityRating.kt`）：有评分 → `★ x.x`（一位小数，`Locale.US` 固定 `.`）；`null` → 返回 `null`，调用方不渲染评分元素。**单集页 `episodeHeroMeta` 同步改用该函数**（口径单一化，行为不变），电影 / 剧集详情共用同一实现；3 项单测 `CommunityRatingTest` |
+| 落点 | 电影 `movieInfoRows`（展开态 `LumenInfoTable`）+ 折叠态 `InfoText`（新增 `rating` 参数，评分行排在类型 / 导演 / 编剧之后）；剧集 `showInfoRows` + `InfoText` 同构；详情页布局未重排，仅信息行增补。新增 core 文案 `rating`（默认 / zh-rCN / zh-rTW） |
+| 真机（Pad 5 711dp 折叠态） | ①**电影「乔西的虎与鱼」**：`风格: 剧情, 动画, 爱情` / `导演: 增田悟司` / **`评分: ★ 8.3` [54,1862][236,1907]**；②**剧集「超能力女儿」**：`风格: 动画, 喜剧, 奇幻` / `导演: 中田诚` / **`评分: ★ 8.7` [54,1864][234,1909]**；③**无评分不显示**：电影「被狙击的学园」详情信息行无「评分」元素（该条目 `CommunityRating` 为空） |
+| 未覆盖 | ≥840dp 宽屏展开态的 `LumenInfoTable`「评分」行未做真机点击（本会话无 ≥840dp 设备；该行与折叠态走同一纯函数，仅渲染容器不同） |
+
+门禁：`:app:phone:assembleDebug` + `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **887 项 / 0 失败 0 错误**（基线 884 + 3：`CommunityRatingTest`）。稳定性：Pad 5 crash buffer + 主缓冲 **0 FATAL / 0 ANR**。设备副作用已还原（`wm size/density reset` → `1600x2560 / 360`、App force-stop、`/sdcard/w75s3.xml` 已删、**release 包与其数据零接触**）。首次 `ktfmtCheck` 报 9 文件格式问题 → `ktfmtFormat` 后重跑全绿（仅动了本波改动的文件）。
+
 ### W75-S2 导航与入口（#5 保持滚动位置 + #2 管理员入口首开即显）验收（2026-10-06，分支 `fix/w75-nav-scroll`，代码提交 `f472e38`（+ 本回写提交）；Xiaomi Pad 5 `43af8627` 单机，本会话自带真机）
 
 **#5 进季 / 打开条目退出回到界面最上面**

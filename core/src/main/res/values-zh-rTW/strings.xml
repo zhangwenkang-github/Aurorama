@@ -21,6 +21,7 @@
     <string name="view_all">更多</string>
     <string name="retry">重試</string>
     <string name="genres">類型</string>
+    <string name="rating">評分</string>
     <string name="director">導演</string>
     <string name="writers">編劇</string>
     <string name="cast_amp_crew"><![CDATA[演職人員]]></string>

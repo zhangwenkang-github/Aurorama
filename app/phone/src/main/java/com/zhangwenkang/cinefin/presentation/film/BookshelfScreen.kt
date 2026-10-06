@@ -36,6 +36,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
+import com.zhangwenkang.cinefin.presentation.components.SearchTopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -59,6 +60,8 @@ fun BookshelfScreen(
     onExitTemporaryLibrary: (() -> Unit)? = null,
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
+    /** W75 #13：顶栏搜索入口（复用媒体库页现有搜索流程，导航由调用方负责）。 */
+    onSearchClick: () -> Unit = {},
     viewModel: BookshelfViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -93,6 +96,7 @@ fun BookshelfScreen(
                         showLibrarySelector = temporaryLibraryId == null,
                         onSelectLibrary = viewModel::selectLibrary,
                     )
+                    SearchTopBarAction(onClick = onSearchClick)
                 },
             )
         else ->
@@ -107,6 +111,7 @@ fun BookshelfScreen(
                         showLibrarySelector = temporaryLibraryId == null,
                         onSelectLibrary = viewModel::selectLibrary,
                     )
+                    SearchTopBarAction(onClick = onSearchClick)
                 },
             )
     }

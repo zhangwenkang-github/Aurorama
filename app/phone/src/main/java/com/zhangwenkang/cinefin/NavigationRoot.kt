@@ -107,6 +107,7 @@ import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
+import com.zhangwenkang.cinefin.presentation.components.SearchTopBarAction
 import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
 import com.zhangwenkang.cinefin.presentation.film.BookshelfScreen
 import com.zhangwenkang.cinefin.presentation.film.CollectionScreen
@@ -540,6 +541,14 @@ fun NavigationRoot(
                 navController.popBackStack(route, inclusive = false)
             }
         }
+    }
+
+    // W75 #13（红线 `NavigationRoot` 改动，已在提交说明 / 报告中申报）：全页搜索入口——复用首页同一条
+    // 「媒体页 + 搜索浮层」流程（`searchExpanded` + `MediaRoute`，搜索逻辑与范围本身零改动）。
+    // 不 popUpTo：原页留在回退栈，返回一次即回到原页且状态保持（列表 / 网格滚动由 `NavScrollMemory` 记忆）。
+    val openSearch: () -> Unit = {
+        searchExpanded = true
+        navController.safeNavigate(MediaRoute) { launchSingleTop = true }
     }
 
     // W68：锁屏 / 通知点击音乐条目（MediaSession sessionActivity / 通知内容 Intent）→ 音乐 Tab + 全屏播放覆盖层。
@@ -1090,6 +1099,7 @@ fun NavigationRoot(
                             )
                         },
                         onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                        onSearchClick = openSearch,
                     )
                 }
             }
@@ -1200,6 +1210,7 @@ fun NavigationRoot(
                         },
                         navigateBack = { navController.safePopBackStack() },
                         onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                        onSearchClick = openSearch,
                     )
                 }
             }
@@ -1226,6 +1237,7 @@ fun NavigationRoot(
                     openNowPlayingSignal = musicOpenNowPlayingSignal,
                     onInnerPageOpenChange = { musicInnerPageOpen = it },
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onSearchClick = openSearch,
                 )
             }
             composable<TemporaryLibraryRoute> { backStackEntry ->
@@ -1247,6 +1259,7 @@ fun NavigationRoot(
                                 temporaryLibraryId = route.libraryId,
                                 onExitTemporaryLibrary = { exitTemporaryLibrary(VideoRoute) },
                                 onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                                onSearchClick = openSearch,
                             )
                         }
                     TemporaryLibraryKind.Music ->
@@ -1262,6 +1275,7 @@ fun NavigationRoot(
                                 ),
                             onExitTemporaryLibrary = { exitTemporaryLibrary(MusicModeRoute) },
                             onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                            onSearchClick = openSearch,
                         )
                     TemporaryLibraryKind.Books ->
                         BookshelfScreen(
@@ -1277,6 +1291,7 @@ fun NavigationRoot(
                             temporaryLibraryId = route.libraryId,
                             onExitTemporaryLibrary = { exitTemporaryLibrary(BookshelfRoute) },
                             onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                            onSearchClick = openSearch,
                         )
                 }
             }
@@ -1306,7 +1321,7 @@ fun NavigationRoot(
                 val route: LibraryRoute = backStackEntry.toRoute()
                 if (route.libraryType == CollectionType.Music) {
                     // 兜底：任何残留路由落到音乐库时同样进音乐模式（见 libraryEntryRoute）
-                    MusicModeScreen(onOpenDrawer = openDrawer)
+                    MusicModeScreen(onOpenDrawer = openDrawer, onSearchClick = openSearch)
                 } else {
                     // 库内容页按域换皮（W6-VIS D23）：书籍库属阅读域、保持 Prism，影视类库走 Lumen
                     LumenPage(enabled = route.libraryType != CollectionType.Books) {
@@ -1332,6 +1347,8 @@ fun NavigationRoot(
                             },
                             navigateBack = { navController.safePopBackStack() },
                             onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                            // W75 #13：库内容页（二级）顶栏搜索入口——与视频页 / 音乐 / 书架同一套流程。
+                            topBarActions = { SearchTopBarAction(onClick = openSearch) },
                         )
                     }
                 }

@@ -66,6 +66,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
+import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.detailTypeEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
@@ -273,6 +274,7 @@ private fun MovieScreenLayout(
                                 genres = movie.genres,
                                 director = state.director,
                                 writers = state.writers,
+                                rating = movie.communityRating,
                             )
                             state.videoMetadata?.let { videoMetadata ->
                                 Spacer(Modifier.height(CinefinSpacing.Space4))
@@ -336,6 +338,9 @@ private fun movieInfoRows(movie: FindroidMovie, state: MovieState): List<Pair<St
         }
         if (movie.genres.isNotEmpty()) {
             add(stringResource(CoreR.string.genres) to movie.genres.joinToString(" / "))
+        }
+        communityRatingText(movie.communityRating)?.let { ratingText ->
+            add(stringResource(CoreR.string.rating) to ratingText)
         }
         state.videoMetadata?.let { videoMetadata -> addAll(fileInfoRows(context, videoMetadata)) }
     }

@@ -15,6 +15,7 @@
     <string name="show_stacktrace">Show stacktrace</string>
     <string name="retry">Retry</string>
     <string name="genres">Genres</string>
+    <string name="rating">Rating</string>
     <string name="director">Director</string>
     <string name="writers">Writers</string>
     <string name="cast_amp_crew"><![CDATA[Cast & Crew]]></string>

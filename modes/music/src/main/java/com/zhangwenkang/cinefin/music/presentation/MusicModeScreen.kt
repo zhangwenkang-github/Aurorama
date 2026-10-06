@@ -137,6 +137,8 @@ fun MusicModeScreen(
     onInnerPageOpenChange: ((Boolean) -> Unit)? = null,
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
+    /** W75 #13：顶栏搜索入口（复用媒体库页现有搜索流程，导航由调用方负责）。 */
+    onSearchClick: () -> Unit = {},
     viewModel: MusicModeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -250,6 +252,7 @@ fun MusicModeScreen(
                     onOpenFavorites = viewModel::openFavorites,
                     onOpenRecent = viewModel::openRecent,
                     onOpenSleep = { sleepSheetOpen = true },
+                    onSearchClick = onSearchClick,
                     onBatchSelectAll = viewModel::onBatchSelectAll,
                     onBatchSelectNone = viewModel::onBatchSelectNone,
                     onBatchExit = viewModel::onBatchExit,
@@ -540,6 +543,8 @@ private fun MusicHeader(
     onOpenFavorites: () -> Unit,
     onOpenRecent: () -> Unit,
     onOpenSleep: () -> Unit,
+    /** W75 #13：顶栏搜索入口（复用媒体库页现有搜索流程）。 */
+    onSearchClick: () -> Unit,
     onBatchSelectAll: () -> Unit,
     onBatchSelectNone: () -> Unit,
     onBatchExit: () -> Unit,
@@ -642,6 +647,15 @@ private fun MusicHeader(
                     painter = painterResource(R.drawable.ic_music_sleep),
                     contentDescription = "睡眠定时",
                     tint = if (sleepState.active) media.bright else tint,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            // W75 #13：全页搜索入口（与视频页 / 书架 / 库内容页同口径）。
+            CinefinIconButton(onClick = onSearchClick) { tint ->
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_search),
+                    contentDescription = "搜索",
+                    tint = tint,
                     modifier = Modifier.size(22.dp),
                 )
             }

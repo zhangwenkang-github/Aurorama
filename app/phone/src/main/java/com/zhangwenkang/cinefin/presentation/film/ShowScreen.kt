@@ -77,6 +77,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
+import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.detailTypeEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgeInfo
@@ -311,6 +312,7 @@ private fun ShowScreenLayout(
                                 genres = show.genres,
                                 director = state.director,
                                 writers = state.writers,
+                                rating = show.communityRating,
                             )
                         }
                         Spacer(Modifier.height(CinefinSpacing.Space8))
@@ -437,6 +439,9 @@ private fun showInfoRows(show: FindroidShow, state: ShowState): List<Pair<String
         }
         if (show.genres.isNotEmpty()) {
             add(stringResource(CoreR.string.genres) to show.genres.joinToString(" / "))
+        }
+        communityRatingText(show.communityRating)?.let { ratingText ->
+            add(stringResource(CoreR.string.rating) to ratingText)
         }
         state.director?.let { add(stringResource(CoreR.string.director) to it.name) }
         if (state.writers.isNotEmpty()) {

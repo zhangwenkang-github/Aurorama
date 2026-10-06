@@ -23,6 +23,7 @@
     <string name="error_loading_data">加载数据错误</string>
     <string name="retry">重试</string>
     <string name="director">导演</string>
+    <string name="rating">评分</string>
     <string name="genres">风格</string>
     <string name="cast_amp_crew"><![CDATA[演职人员]]></string>
     <string name="seasons">季</string>

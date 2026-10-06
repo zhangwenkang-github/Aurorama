@@ -15,6 +15,8 @@ fun InfoText(
     genres: List<String>,
     director: FindroidItemPerson?,
     writers: List<FindroidItemPerson>,
+    /** W75 #12：社区评分；null = 无评分，不渲染评分行。 */
+    rating: Float? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small)) {
         if (genres.isNotEmpty()) {
@@ -33,6 +35,12 @@ fun InfoText(
             Text(
                 text =
                     "${stringResource(CoreR.string.writers)}: ${writers.joinToString { it.name }}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        communityRatingText(rating)?.let { ratingText ->
+            Text(
+                text = "${stringResource(CoreR.string.rating)}: $ratingText",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

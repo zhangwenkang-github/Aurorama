@@ -66,6 +66,7 @@ import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
+import com.zhangwenkang.cinefin.presentation.components.SearchTopBarAction
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
@@ -121,6 +122,8 @@ fun VideoScreen(
     onOpenLibrary: (FindroidCollection) -> Unit = {},
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
+    /** W75 #13：顶栏搜索入口（复用媒体库页现有搜索流程，导航由调用方负责）。 */
+    onSearchClick: () -> Unit = {},
     viewModel: VideoViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -153,6 +156,7 @@ fun VideoScreen(
         },
         sleepTimerState = sleepTimerState,
         onSelectSleepMinutes = viewModel::selectSleepTimer,
+        onSearchClick = onSearchClick,
     )
 }
 
@@ -167,6 +171,7 @@ private fun VideoScreenLayout(
     onSelectLibrary: (UUID?) -> Unit = {},
     sleepTimerState: SleepTimerController.State = SleepTimerController.State(),
     onSelectSleepMinutes: (Int?) -> Unit = {},
+    onSearchClick: () -> Unit = {},
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val pageGutter = rememberPageGutter()
@@ -353,6 +358,8 @@ private fun VideoScreenLayout(
                     tint = if (sleepTimerState.active) LocalMediaColors.current.bright else null,
                     onClick = { showSleepTimer = true },
                 )
+                // W75 #13：全页搜索入口——与媒体库页顶栏同款图标，点击进入现有搜索流程。
+                SearchTopBarAction(onClick = onSearchClick)
             },
         )
         Spacer(Modifier.height(CinefinSpacing.Space2))

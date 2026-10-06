@@ -53,6 +53,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
+import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
@@ -290,7 +291,7 @@ private fun episodeHeroEyebrow(episode: FindroidEpisode): String {
 private fun episodeHeroMeta(episode: FindroidEpisode): String = buildList {
     episode.premiereDate?.let { add(it.format()) }
     add(stringResource(CoreR.string.runtime_minutes, episode.runtimeTicks.div(600000000)))
-    episode.communityRating?.let { add("★ %.1f".format(it)) }
+    communityRatingText(episode.communityRating)?.let { add(it) }
 }
     .joinToString(" · ")
 

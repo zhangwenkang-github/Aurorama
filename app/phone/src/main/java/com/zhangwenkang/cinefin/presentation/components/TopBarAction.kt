@@ -10,7 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -45,4 +47,18 @@ fun TopBarAction(
             )
         }
     }
+}
+
+/**
+ * W75 #13：全页搜索入口的统一顶栏图标键。
+ *
+ * 视频页 / 书架 / 库内容页共用同一图标与无障碍文案（音乐页在 `modes:music` 内用 `CinefinIconButton` 复刻同一口径），点击后走调用方注入的既有搜索流程。
+ */
+@Composable
+fun SearchTopBarAction(onClick: () -> Unit) {
+    TopBarAction(
+        icon = CoreR.drawable.ic_search,
+        contentDescription = stringResource(CoreR.string.search),
+        onClick = onClick,
+    )
 }
