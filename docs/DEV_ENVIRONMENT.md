@@ -24,7 +24,7 @@
 
 ## 3. 构建与设备
 
-- JDK：`D:\Android\Android Studio\jbr`（`$env:JAVA_HOME` 指向它）
+- JDK：`F:\Develop\Android\Android Studio\jbr`（`$env:JAVA_HOME` 指向它；2026-10-06 工具链由 `D:\Android` 迁至 `F:\Develop\Android`）
 - 编译验证：`.\gradlew.bat :app:phone:compileLibreDebugKotlin --console=plain`
 - 打包：`.\gradlew.bat :app:phone:assembleLibreDebug --console=plain`
 - 验收设备：Xiaomi Pad 5（Android 13，主）/ Redmi K60（Android 15）

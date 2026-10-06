@@ -115,7 +115,7 @@ chore: 导入 Findroid 基线（上游 a28ac9e）并补充工程文档
 ```powershell
 git fetch origin
 git rebase origin/master          # 包含 CI 修复与最新接口
-$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+$env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 .\gradlew.bat ktfmtFormat --console=plain
 .\gradlew.bat :app:phone:compileLibreDebugKotlin --console=plain     # 必跑
 .\gradlew.bat :app:phone:assembleLibreDebug --console=plain          # 涉及打包 / 依赖 / 资源时跑
@@ -243,7 +243,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 ```powershell
 # 1. 环境
-$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+$env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 # 2. 状态
 git worktree list

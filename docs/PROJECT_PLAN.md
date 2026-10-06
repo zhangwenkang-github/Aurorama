@@ -162,7 +162,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 ### 全局命令
 
 ```powershell
-$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+$env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 cd E:\codex_work\Android_Studio_Work_Space\Cinefin
 .\gradlew.bat :app:phone:assembleDebug --console=plain                         # 构建
 adb install -r app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk   # 装机（真机 arm64）

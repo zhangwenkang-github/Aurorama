@@ -89,7 +89,7 @@ adb -s 43af8627 shell am start -W -n io.github.zhangwenkang.aurorama.debug/com.z
 ### 2.4 APK 体积（可复现命令）
 
 ```powershell
-$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+$env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 .\gradlew.bat :app:phone:assembleDebug --console=plain
 .\tools\test\Measure-ApkSize.ps1          # 统计 apk 目录下全部 ABI 的 bytes/MiB/SHA1
 ```

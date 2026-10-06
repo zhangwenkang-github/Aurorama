@@ -40,7 +40,7 @@ keyPassword=***
 ## 3. 构建
 
 ```powershell
-$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+$env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 # 发布包（universal + 4 个 ABI 分包）
 .\gradlew.bat :app:phone:assembleLibreRelease -Paurorama.universalApk=true --console=plain
@@ -55,7 +55,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 ## 4. 签名验证（发布前必过）
 
 ```powershell
-& 'D:\Android\AndroidSDK\build-tools\37.0.0\apksigner.bat' verify --print-certs <apk>
+& 'F:\Develop\Android\AndroidSDK\build-tools\37.0.0\apksigner.bat' verify --print-certs <apk>
 ```
 
 - 期望 `certificate SHA-256 digest` = 上表证书指纹（十六进制小写形式 `e449c4aa…e155ff`）。
@@ -148,7 +148,7 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 
 > 1.0.0 的未勾选项（版本号已就位，tag / 上传 / Release notes 粘贴）由发布负责人在用户全检通过后执行；Release notes 正文用 `docs/RELEASE_NOTES_v1.0.0.md`。
 
-**1.1.0（W76，2026-10-06）检查状态**：版本号 `1.1.0 (2)` ✅；合并态门禁 **899 / 0 / 0** ✅；`assembleLibreRelease` + `apksigner verify`（v2、指纹一致）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机冒烟 = W76 回归（R1 K60 发布面补验 / R2 Pad 5 核心回归）进行中。**tag `v1.1.0` / GitHub Release / 上传 APK 待用户全检通过后执行**；Release notes 正文用 `docs/RELEASE_NOTES_v1.1.0.md`。
+**1.1.0（W76，2026-10-06）检查状态**：版本号 `1.1.0 (2)` ✅；合并态门禁 **899 / 0 / 0** ✅；`assembleLibreRelease` + `apksigner verify`（v2、指纹一致）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机冒烟 = W76 回归 **R1（K60，发布面补验）已完成**：①覆盖升级 ✅ / ②真实下载 ❌（既有缺陷、非本轮回归，已单独登记）/ ③SAF 本地库 ✅ / ④mpv 兜底自动回退 ✅ / ⑤Quick Connect ✅，**0 FATAL·ANR**（报告 `w76-reports/W76-R1.md`）；**R2（Pad 5，核心回归）已完成**（报告 `w76-reports/W76-R2.md`，0 FATAL·ANR）。**tag `v1.1.0` / GitHub Release / 上传 APK 待用户全检通过后执行**；Release notes 正文用 `docs/RELEASE_NOTES_v1.1.0.md`。
 
 ## 9. CI 发布（可选，后续）
 

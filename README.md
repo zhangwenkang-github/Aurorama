@@ -73,7 +73,7 @@
 环境：JDK 21（`JAVA_HOME` 指向任意 JDK 21，如 Android Studio 自带 JBR）、Android SDK（compileSdk 37）。
 
 ```powershell
-$env:JAVA_HOME='D:\Android\Android Studio\jbr'
+$env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 # 调试包（applicationId 追加 .debug，可与正式包共存）
 .\gradlew.bat :app:phone:assembleDebug --console=plain
