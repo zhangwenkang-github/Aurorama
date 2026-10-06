@@ -6,7 +6,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** W67 章节吸附纯函数测试：阈值（±2 s 进入）/ 滞回（±3 s 退出）/ 边界（首章 0 s、末章、无章节、拖到 0 与结束、 超大 duration）全覆盖。 */
+/**
+ * W67 章节吸附纯函数测试：阈值（±2 s 进入）/ 滞回（±3 s 退出）/ 边界（首章 0 s、末章、无章节、拖到 0 与结束、 超大 duration）全覆盖。
+ *
+ * W75（#1）追加：按片长派生的吸附窗口（[chapterSnapEnterMs] / [chapterSnapExitMs]）与「显式传入 enter / exit」的吸附判定。
+ */
 class PlayerChapterSnapTest {
 
     private fun chapterAt(positionMs: Long, name: String? = null) =
@@ -194,5 +198,148 @@ class PlayerChapterSnapTest {
         assertNull("未吸附（-1）不给气泡", chapterSnapLabel(chapters, CHAPTER_SNAP_NONE))
         assertNull("越界序号不给气泡", chapterSnapLabel(chapters, 3))
         assertNotNull(chapterSnapLabel(chapters, 0))
+    }
+
+    // ---------- W75（#1）：按片长派生的吸附窗口 ----------
+
+    @Test
+    fun enterMs_floorForShortDurations() {
+        assertEquals("片长 0 → 下限 ±2 s", 2_000L, chapterSnapEnterMs(0L))
+        assertEquals("1 分钟片 → 下限 ±2 s", 2_000L, chapterSnapEnterMs(60_000L))
+        // 恰好等于下限：100 s 的 2% = 2.000 s
+        assertEquals("100 s 片 → 刚好等于下限", 2_000L, chapterSnapEnterMs(100_000L))
+    }
+
+    @Test
+    fun enterMs_proportionalForLongDurations() {
+        assertEquals("24 分钟片 → 2% = ±28.8 s", 28_800L, chapterSnapEnterMs(1_440_000L))
+        assertEquals("2 小时片 → 2% = ±144 s", 144_000L, chapterSnapEnterMs(7_200_000L))
+    }
+
+    @Test
+    fun exitMs_floorAndProportional() {
+        assertEquals("1 分钟片 → 下限 ±3 s", 3_000L, chapterSnapExitMs(60_000L))
+        assertEquals("24 分钟片 → 3% = ±43.2 s", 43_200L, chapterSnapExitMs(1_440_000L))
+        assertEquals("2 小时片 → 3% = ±216 s", 216_000L, chapterSnapExitMs(7_200_000L))
+    }
+
+    @Test
+    fun exitMs_neverBelowEnterMs() {
+        // 滞回外沿必须 ≥ 内沿，否则「保持吸附」比「进入吸附」还难
+        val durations = listOf(0L, 1L, 30_000L, 100_000L, 1_440_000L, 7_200_000L)
+        durations.forEach { duration ->
+            val enter = chapterSnapEnterMs(duration)
+            val exit = chapterSnapExitMs(duration)
+            assertEquals("片长 $duration：exit ≥ enter", true, exit >= enter)
+        }
+    }
+
+    @Test
+    fun threshold_extremeDurationDoesNotOverflow() {
+        assertEquals(
+            "Long 极值片长按 2% 派生不溢出",
+            0.02,
+            chapterSnapEnterMs(Long.MAX_VALUE).toDouble() / Long.MAX_VALUE.toDouble(),
+            0.0001,
+        )
+        assertEquals(
+            "Long 极值片长按 3% 派生不溢出",
+            0.03,
+            chapterSnapExitMs(Long.MAX_VALUE).toDouble() / Long.MAX_VALUE.toDouble(),
+            0.0001,
+        )
+    }
+
+    // ---------- W75（#1）：显式窗口下的吸附 / 滞回 ----------
+
+    @Test
+    fun wideWindow_snapsFarFromChapterStart() {
+        val chapters = listOf(chapterAt(600_000L, "第 2 章"))
+        val enter = chapterSnapEnterMs(1_440_000L) // ±28.8 s
+        // 旧口径（±2 s）下不会吸附的 20 s 偏差，新窗口内应吸附到章节起点
+        assertEquals(
+            "偏差 20 s（±28.8 s 窗口内）→ 吸附章节起点",
+            ChapterSnap(0, 600_000L),
+            resolveChapterSnap(
+                620_000L,
+                chapters,
+                CHAPTER_SNAP_NONE,
+                enter,
+                chapterSnapExitMs(1_440_000L),
+            ),
+        )
+        assertEquals(
+            "偏差 20 s（前侧）→ 吸附章节起点",
+            ChapterSnap(0, 600_000L),
+            resolveChapterSnap(
+                580_000L,
+                chapters,
+                CHAPTER_SNAP_NONE,
+                enter,
+                chapterSnapExitMs(1_440_000L),
+            ),
+        )
+        assertEquals(
+            "偏差 30 s（窗口外）→ 不吸附",
+            CHAPTER_SNAP_NONE,
+            resolveChapterSnap(
+                    630_000L,
+                    chapters,
+                    CHAPTER_SNAP_NONE,
+                    enter,
+                    chapterSnapExitMs(1_440_000L),
+                )
+                .chapterIndex,
+        )
+    }
+
+    @Test
+    fun wideWindow_hysteresisKeepsAndReleases() {
+        val chapters = listOf(chapterAt(600_000L))
+        val enter = chapterSnapEnterMs(1_440_000L) // ±28.8 s
+        val exit = chapterSnapExitMs(1_440_000L) // ±43.2 s
+        // 已吸附，偏 40 s：在退出阈值内 → 保持
+        assertEquals(
+            "已吸附，偏差 40 s（< ±43.2 s）→ 保持",
+            ChapterSnap(0, 600_000L),
+            resolveChapterSnap(640_000L, chapters, 0, enter, exit),
+        )
+        // 偏 50 s：超出退出阈值 → 解除
+        assertEquals(
+            "已吸附，偏差 50 s（> ±43.2 s）→ 解除",
+            CHAPTER_SNAP_NONE,
+            resolveChapterSnap(650_000L, chapters, 0, enter, exit).chapterIndex,
+        )
+    }
+
+    @Test
+    fun wideWindow_nearestChapterWins() {
+        val chapters = listOf(chapterAt(600_000L), chapterAt(660_000L), chapterAt(720_000L))
+        val enter = 60_000L
+        val exit = 90_000L
+        // 610 s：离 600 s（10 s）比 660 s（50 s）近 → 吸 600 s
+        assertEquals(
+            ChapterSnap(0, 600_000L),
+            resolveChapterSnap(610_000L, chapters, CHAPTER_SNAP_NONE, enter, exit),
+        )
+        // 645 s：离 660 s（15 s）比 600 s（45 s）近 → 吸 660 s
+        assertEquals(
+            ChapterSnap(1, 660_000L),
+            resolveChapterSnap(645_000L, chapters, CHAPTER_SNAP_NONE, enter, exit),
+        )
+        // 700 s：离 720 s（20 s）比 660 s（40 s）近 → 吸 720 s
+        assertEquals(
+            ChapterSnap(2, 720_000L),
+            resolveChapterSnap(700_000L, chapters, CHAPTER_SNAP_NONE, enter, exit),
+        )
+    }
+
+    @Test
+    fun wideWindow_emptyChaptersStillPassthrough() {
+        assertEquals(
+            "显式窗口下无章节仍原样返回",
+            ChapterSnap(CHAPTER_SNAP_NONE, 123_456L),
+            resolveChapterSnap(123_456L, emptyList(), CHAPTER_SNAP_NONE, 30_000L, 45_000L),
+        )
     }
 }

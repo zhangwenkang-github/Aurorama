@@ -2397,13 +2397,21 @@ internal fun PlayerSeekBar(
         }
 
     /**
-     * 手指位置 → 最终落点：统一走 [resolveChapterSnap]（±2 s 进入 / ±3 s 滞回退出）。 chapters 为空（没有章节数据 /
-     * 关掉章节刻度开关）时纯函数原样返回，行为与旧版纯比例拖动一致。 吸附到新的章节时触发一次轻触觉反馈（轻量）。
+     * W75（#1）吸附窗口按片长派生：写死的 ±2 s 在 K60 竖屏（≈1.5 s/px）只有 ≈ ±1.3px，手指落不进去。 现在 = 片长的 2% / 3%（下限 ±2 s /
+     * ±3 s），24 分钟片 → ±29 s / ±44 s（屏上 ≈ ±6dp / ±10dp）。
+     */
+    val snapEnterMs = chapterSnapEnterMs(safeDuration)
+    val snapExitMs = chapterSnapExitMs(safeDuration)
+
+    /**
+     * 手指位置 → 最终落点：统一走 [resolveChapterSnap]（[snapEnterMs] 进入 / [snapExitMs] 滞回退出）。 chapters
+     * 为空（没有章节数据 / 关掉章节刻度开关）时纯函数原样返回，行为与旧版纯比例拖动一致。 吸附到新的章节时触发一次触觉反馈（W75 起用更强的
+     * [HapticFeedbackType.ContextClick]，原来的 TextHandleMove 太轻、用户「感觉不到」）。
      */
     fun snapTarget(rawMs: Long): Long {
-        val result = resolveChapterSnap(rawMs, chapters, snapIndex)
+        val result = resolveChapterSnap(rawMs, chapters, snapIndex, snapEnterMs, snapExitMs)
         if (result.chapterIndex != CHAPTER_SNAP_NONE && result.chapterIndex != snapIndex) {
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
         }
         snapIndex = result.chapterIndex
         return result.positionMs
@@ -2610,20 +2618,19 @@ internal fun PlayerSeekBar(
                 )
             }
             /*
-             * 章节刻度（W67 增强 / W67b 收敛高度）：2dp 宽、**与轨道同高（6dp）**的白 85% 发丝线；已播过的章节用
-             * 媒体色 / 极光青区分。
+             * 章节刻度（W67 增强 / W67b 收敛高度 / W75 #1 配色回白）：2dp 宽、**与轨道同高（6dp）**的白 85% 发丝线。
              *
-             * 刻度画在手柄**之后**：吸附时那条加粗到 3dp 并取极光青满亮——刻度与拇指同高时它正好压在白色拇指上，
-             * 白上加白读不出来，用播放页的高亮色（极光青，与旧描边圈同源）才看得出「被吸附」；仍不加光晕（§2.6 第 3 条）。
+             * W75（#1）：**已播过的章节刻度也回到白 85%**（推翻 D54 / D62 的「已播用媒体色」）——已播刻度与极光青
+             * 进度条同色，实际读不出来。现在只有**吸附中**那条加粗到 3dp 并取极光青满亮，作为唯一的强调色
+             * （刻度与拇指同高，白上加白读不出「被吸附」，故高亮色保留）；仍不加光晕（§2.6 第 3 条）。
              */
             chapters.forEachIndexed { index, chapter ->
                 val fraction = chapterTickFraction(chapter.startPosition, safeDuration)
-                val played = chapter.startPosition <= previewPosition
                 val snapped = scrubbing && index == snapIndex
                 val tickColor =
                     when {
-                        // 吸附（3dp）与已播（2dp）都用媒体色 / 极光青
-                        snapped || played -> accent
+                        // 只有吸附中那条（3dp）用高亮色；已播 / 未播一律白 85%
+                        snapped -> accent
                         else -> colors.onSurface.copy(alpha = 0.85f)
                     }
                 Box(

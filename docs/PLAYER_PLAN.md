@@ -2320,3 +2320,64 @@ Exo 自研管线里，主字幕由 libass 画布渲染（SRT 生成脚本 `margi
 
 - 本轮写入的偏好键全部删除（`pref_player_repeat_mode` / `pref_player_shuffle` / `pref_player_gestures_speed` / `pref_player_seek_back_inc` / `pref_player_background_audio` / `pref_audio_languages`），`pref_subtitle_languages` 还原成进入本轮前的 `ja,zh-Hans,zh-Hant,zh,en`，`pref_player_subtitle_manual_selection` 清空，`Player backend` 还原 `exoplayer`；App 已重启验证可正常进首页（登录态未受影响）。
 - 未还原（非本轮主动改动）：`pref_player_decode_mode=software` / `pref_player_mpv_hwdec` / `pref_player_decode_fallback_*` 等解码链键——播放失败自动回退自身会写，属旧残留 + 播放行为，未人工干预。
+
+---
+
+## 37. W75-S1 进度条：已播章节刻度回白 + 吸附手感增强（#1）（2026-10-06 · 分支 `fix/w75-progress-snap`）
+
+> 用户 2026-10-06 反馈 #1：「已播放刻度保持白色」+「感觉不到吸附」。本波只动 `app:phone`（`PlayerControlOverlay` /
+> `PlayerChapterSnap` 及其单测）；`player:core` / `player:local` / `AndroidManifest.xml` / `AppPreferences.kt` /
+> `NavigationRoot.kt` 未动；**刻度尺寸规格（2dp 宽 × 轨道同高 6dp、吸附那条 3dp）不变**。
+
+### 37.1 决策
+
+| 编号 | 决策 |
+|------|------|
+| D-F3 落地 | **已播章节刻度回归白 85%**（推翻 D54 / D62 的「已播用媒体色 / 极光青」）：全部刻度（已播 / 未播）都是 `onSurface @85%`；只有**吸附中**那条保留 3dp + 高亮色（极光青 `Lumen.Accent`）——刻度与 18dp 白色拇指同高，不加高亮就读不出「被吸附」，故高亮色保留现状。 |
+| W75 吸附口径 | **吸附窗口由「固定 ±2 s / ±3 s」改为按片长派生**：进入 = `max(2 s, 片长 × 2%)`、退出（滞回外沿）= `max(3 s, 片长 × 3%)`。K60 竖屏进度条 ≈ 1008px、24 分钟片 ≈ 1.45 s/px → 旧口径的 ±2 s 在屏上只有 **≈ ±1.4px**（手指落点精度达不到，磁吸形同不存在，这就是「感觉不到吸附」的根因）；新口径同片源 = ±29.3 s / ±44 s ≈ **±20px（≈ ±6.3dp）**，长片同样可感，< 100 s 的短片仍走 ±2 s / ±3 s 旧口径。 |
+| W75 触觉 | 吸附瞬间的触觉从 `HapticFeedbackType.TextHandleMove`（最轻一档）改为 `HapticFeedbackType.ContextClick`（更明显的一记「咔」）。保留「同一章内不重复触发、换章才响一次」语义。 |
+
+### 37.2 实现落点
+
+| 文件 | 改动 |
+|------|------|
+| `app/phone/.../player/PlayerChapterSnap.kt` | 常量改为「下限 + 比例」：`CHAPTER_SNAP_ENTER_FLOOR_MS`(2000) / `CHAPTER_SNAP_EXIT_FLOOR_MS`(3000) / `CHAPTER_SNAP_ENTER_FRACTION`(0.02) / `CHAPTER_SNAP_EXIT_FRACTION`(0.03)；新增纯函数 `chapterSnapEnterMs(durationMs)` / `chapterSnapExitMs(durationMs)`；`resolveChapterSnap` 增 `enterMs` / `exitMs` 参数（缺省 = 下限，行为向后兼容）。 |
+| `app/phone/.../player/PlayerControlOverlay.kt` | `PlayerSeekBar`：①刻度配色 `when { snapped -> accent; else -> onSurface@85% }`（删掉 `played` 分支与变量）；② `snapEnterMs` / `snapExitMs` 按 `safeDuration` 派生后传入 `resolveChapterSnap`；③ 触觉改 `ContextClick`。气泡 / 落点 / 3dp 高亮 / 刻度尺寸逻辑未动。 |
+| `app/phone/src/test/.../PlayerChapterSnapTest.kt` | +9 项单测：窗口下限（0 / 60 s / 100 s）、比例（24 分钟 → 28.8 s、2 小时 → 144 s）、退出比例与 ≥ 进入、`Long` 极值不溢出、显式窗口下的「远距吸附（±20 s 内吸 / 外不吸）」「滞回保持与解除」「最近章优先」「空章节原样返回」。 |
+
+### 37.3 门禁（2026-10-06）
+
+- 根 `assembleDebug` + `ktfmtCheck` 全绿（`ktfmtFormat` 后重跑）。
+- 8 任务逐个 `--rerun-tasks` **893 项 / 0 失败 0 错误**（app:phone **269**（基线 260 + 新增 9）/ core 89 / data 68 / player:core 12 / player:local 149 / film 53 / book 113 / music 140）；基线 884 + 9。
+- ⚠️ 任务书给的门禁命令里 `:player:core:testLibreDebugUnitTest` 与 `:player:local:testLibreDebugUnitTest` **不存在**（只有 `app:tv` / `core` / `app:phone` 带 `libre` flavor）；本轮按实际任务名 `:player:core:testDebugUnitTest` / `:player:local:testDebugUnitTest` 执行。
+
+### 37.4 真机走查（2026-10-06 · K60 `8e875894` 单机，改前 / 改后同机同位对比）
+
+> 样本：**冰海战记 S1E17「辅佐之人」**（duration 24:26 = 1466 s；刻度量得 ≈ 91 s / 180 s / **908991 ms = 15:08.99**（第 4 章，吸附实测命中值）/ 1371 s）与 **灼眼的夏娜 S1E4**（chapters = 0，无章节）。
+> 进度条几何（K60 竖屏）：轨道 x0 ≈ 228 → x1 ≈ 1225（≈ 1008 px，≈ 1.45 s/px）；像素值取轨道行 y = 1040 / 1056。
+
+| # | 项 | 证据（改前 = 基线 `7fa35e7` 构建；改后 = 本分支构建） |
+|---|----|------|
+| ① | 已播章节刻度配色 | **改前**：已播刻度 x=777 = **(92,225,210)**（极光青，与已播进度条 (91,224,209) 几乎同色 → 读不出）；未播刻度 = (242,245,249)。**改后**：已播刻度 x=281 / 342 / 835 = **(220,242,243)**（= 白 85% 合成在极光青进度上：0.85×(242,245,249) + 0.15×(91,224,209)）；未播刻度 x=1154 = (220,222,227)（同款白，仅背景不同）。截图对比：刻度在青色进度上呈明显白色竖条。 |
+| ② | 吸附中那条仍是 3dp 高亮 | 未改动（`snapped` 分支保留 `accent` + 3dp），W67b 已验（宽 8px ≈ 3dp、峰值 249）。 |
+| ③ | 吸附窗口（改前现状复现） | 基线包：同一刻度 x=835 tap → **902440 ms（原始，不吸附）**；x=834 → 900975；只有 x≈838–841（宽约 3px）才吸到 908991 → 与「±2 s ≈ ±1.4 px」的理论一致，**用户手指不可能命中**。 |
+| ④ | 吸附窗口（改后） | 暂停态 tap 探针（x → `media_session` position）：**835 → 908991**、**845 → 908991**、**858 → 908991**、**859 → 908991**、**860 → 939065（原始）**、862 → 941995、870 → 953715；窗口边界落在 x = 859/860 之间，与「章节起点 ±29.3 s ≈ ±20px」的理论边界（x ≈ 859.6）一致。**吸附窗由 ≈3px 扩到 ≈40px（约 15×）**。 |
+| ⑤ | 松手落点 = 吸附位置 | `input motionevent DOWN 850 → MOVE 840 → MOVE 837 → UP`：松手后 `position = 908991 ms`（逐毫秒等于章节起点）。 |
+| ⑥ | 气泡文案 | tap 吸附后 1.5 s 内截图：「**第 4 章 · Chapter 04**」（序号从 1 计）；同屏当前时间 = `15:08`（= 章节起点）。 |
+| ⑦ | 无章节片源不回归 | 灼眼的夏娜 S1E4：进度条 **0 条刻度**；tap 探针 600 → 564339、640 → 623588、680 → 682836、1140 → 1364191 —— 相邻 40px 差恒 **59248 / 59249 ms（1481 ms/px）**，跨 460px 也线性（Δ = 681355 ≈ 460×1481）→ 纯比例、无黏滞、无气泡。 |
+| ⑧ | 稳定性 | 整轮 `logcat -b crash` 空、主缓冲无 `FATAL EXCEPTION` / `ANR in`（`AndroidRuntime` 命中全部来自 `uiautomator` dump 进程）。0 FATAL / 0 ANR。 |
+
+### 37.5 未覆盖 / 移交项
+
+1. **吸附手感属人工感知条目 → 交用户体感确认**（见 `w75-reports/W75-S1.md` §四代测步骤）：MIUI 不落 haptic 日志，`ContextClick` 的实际力度、以及「±6.3dp 的磁吸区是否够明显 / 是否过黏」只能在真机上手判断。若觉得仍偏弱，可调的旋钮：把 `CHAPTER_SNAP_ENTER_FRACTION` 从 0.02 提到 0.03–0.04（窗口 → ±9–12dp），或把触觉换成 `HapticFeedbackType.Confirm`。
+2. **长片（电影）窗口未真机走**：2 小时片理论窗口 ±144 s（≈ ±20px，与 24 分钟片同屏宽），逻辑由单测覆盖，未取真机样本。
+3. **拖动手势取证受限**：`input swipe` 在 K60 上被外层横向手势层吃掉（不落吸附），本轮改用 `input motionevent DOWN/MOVE/UP` 才复现出拖动态吸附；`onDrag` 中间态的连续画面未逐帧取证。
+4. **无名字章节气泡**：库内章节全部有名字，无真机样本（单测覆盖，沿用 W67 移交项）。
+5. **手势 seek（左 / 右滑动 seek）不做吸附**：按任务卡非目标，仅进度条（拖动 / 点击）生效；若日后要求下沉，需先申报。
+6. 真机副作用：本轮在 E16 / E17 上反复 seek 与试播，`冰海战记` E16 / E17 / E18 的观看进度被改写（E17 期间还遇到一次 Exo `ERROR_CODE_PARSING_CONTAINER_MALFORMED` 源错误，点「重试」后恢复；与本轮改动无关，属流/网络侧现象）。进度无法回滚，请用户知晓。
+
+### 37.6 还原情况（K60）
+
+- App `force-stop`、`/sdcard/w75b_ui.xml` 删除、本地临时截图 33 个全删；**未改分辨率 / 旋转 / 网络**。
+- 测试期间用 `locksettings set-disabled true` 临时跳过锁屏，**已还原 `false`**（`get-disabled = false`）。
+- 未改动任何偏好键（本轮无新增键）。
