@@ -34,7 +34,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBatchBar
@@ -96,9 +99,15 @@ fun SeasonScreen(
     }
     BackHandler(enabled = batchSelection.selectionMode) { batchSelection = batchSelection.clear() }
 
-    LaunchedEffect(true) {
-        viewModel.loadSeason(seasonId = seasonId)
-        detailDownloadViewModel.refresh()
+    LaunchedEffect(true) { detailDownloadViewModel.refresh() }
+
+    // W73（#4）：播放器是独立 Activity，从播放器返回时本页组合不会重建——在 RESUMED 时重取一次，
+    // 配合「播放停止上报即失效元数据缓存」保证集列表的已看勾 / 进度在一次返回后就刷新。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.loadSeason(seasonId = seasonId)
+        }
     }
 
     LaunchedEffect(Unit) {

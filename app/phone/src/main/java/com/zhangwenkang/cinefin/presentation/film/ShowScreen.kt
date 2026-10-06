@@ -40,7 +40,10 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
@@ -111,9 +114,15 @@ fun ShowScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var batchDialogVisible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(true) {
-        viewModel.loadShow(showId = showId)
-        detailDownloadViewModel.refresh()
+    LaunchedEffect(true) { detailDownloadViewModel.refresh() }
+
+    // W73（#4）：播放器是独立 Activity，从播放器返回时本页组合不会重建——在 RESUMED 时重取一次，
+    // 配合「播放停止上报即失效元数据缓存」保证季卡打勾 / 播放进度在一次返回后就刷新。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.loadShow(showId = showId)
+        }
     }
 
     LaunchedEffect(Unit) {

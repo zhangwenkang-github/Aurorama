@@ -47,6 +47,15 @@ class ItemStatusBadgeTest {
     }
 
     @Test
+    fun container_unplayedCountWins_overPlayedFlag() {
+        // 未看计数比「已看」标记更新：还有未看条目时先显示数字（服务器的 UnplayedItemCount 口径）。
+        assertEquals(
+            PosterStatusBadge.UnplayedCount(3),
+            season(played = true, unplayedItemCount = 3).posterStatusBadge(),
+        )
+    }
+
+    @Test
     fun folder_withUnplayedChildren_reportsCount_andFullyWatchedReportsPlayed() {
         assertEquals(
             PosterStatusBadge.UnplayedCount(7),

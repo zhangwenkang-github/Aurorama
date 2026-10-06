@@ -28,6 +28,26 @@ enum class Direction {
     SQUARE,
 }
 
+/**
+ * W73（#10）：季的**海报位**取图口径（纯函数，便于单测）——季自身海报 → 剧集海报。
+ *
+ * 服务器的「未知季」（无季号的虚拟季分组）不生成任何图片，官方客户端同样回落显示剧集海报； 不回落就是一块深灰占位（用户 2026-10-06 截图 1 的「未知季」空卡、截图 2
+ * 的无图详情海报）。
+ */
+internal fun <T> seasonPosterImage(primary: T?, showPrimary: T?): T? = primary ?: showPrimary
+
+/**
+ * W73（#10）：季的**头图位**（hero / backdrop）取图口径——季 backdrop → 剧集 backdrop → 季海报 → 剧集海报。
+ *
+ * 与海报位同源：未知季自己没有 backdrop，回落剧集 backdrop（剧集也没有 backdrop 时再退到海报）， 保证季详情页头图不空白（用户 2026-10-06 截图 2）。
+ */
+internal fun <T> seasonBackdropImage(
+    backdrop: T?,
+    showBackdrop: T?,
+    primary: T?,
+    showPrimary: T?,
+): T? = backdrop ?: showBackdrop ?: primary ?: showPrimary
+
 @Composable
 fun ItemPoster(
     item: FindroidItem,
@@ -57,7 +77,8 @@ fun ItemPoster(
                     is FindroidEpisode -> item.images.showPrimary
                     // W73（#10）：季自身没有海报时回落剧集图——服务器的「未知季」分组不建图，
                     // 官方客户端同样显示剧集海报；剧集（Show）卡仍只用自身海报，不跨级回落。
-                    is FindroidSeason -> item.images.primary ?: item.images.showPrimary
+                    is FindroidSeason ->
+                        seasonPosterImage(item.images.primary, item.images.showPrimary)
                     else -> item.images.primary
                 }
             Direction.SQUARE -> item.images.primary

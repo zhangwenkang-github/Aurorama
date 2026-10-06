@@ -15,6 +15,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidSeason
 
 /** 详情页海报（Lumen 双层嵌套）：宽屏摆在标题左侧，与头图同心圆角。 */
 @Composable
@@ -33,7 +34,14 @@ fun DetailPoster(
     ) {
         // W69：详情海报刷新（含返回重进）时保留上一张图 + 交叉淡入。
         RetainedAsyncImage(
-            model = if (item is FindroidEpisode) item.images.showPrimary else item.images.primary,
+            model =
+                when (item) {
+                    is FindroidEpisode -> item.images.showPrimary
+                    // W73（#10）：未知季自身没有海报，回落剧集海报，不再留深灰空框。
+                    is FindroidSeason ->
+                        seasonPosterImage(item.images.primary, item.images.showPrimary)
+                    else -> item.images.primary
+                },
             retainKey = item.id,
             placeholderPainter = ColorPainter(colors.surfaceContainerHigh),
             errorPainter = ColorPainter(colors.surfaceContainerHigh),
