@@ -138,4 +138,43 @@ class SeriesPlaybackPlanTest {
         // 播放页把 localizedMessage 直接 Toast 出来：为空就等于「无提示」，正是本缺陷的现象
         assertTrue(error.localizedMessage?.isNotBlank() == true)
     }
+
+    /*
+     * W76-B11b：起播不再等整剧枚举——播放页先带着「只有起播集」的骨架队列起播，整剧队列由
+     * `PlaylistManager.expandPendingSeriesQueue()` 在后台补。下面钉死补全的定位规则。
+     */
+
+    @Test
+    fun `整剧补全后起播集仍在原位置（跨季）`() {
+        val anchor = queue[2] // S2 的第一集
+
+        val index = seriesQueueAnchorIndex(queue, anchor.id)
+
+        assertEquals(2, index)
+        assertEquals(anchor.id, queue[index].id)
+    }
+
+    @Test
+    fun `起播集不在整剧列表时返回 -1（调用方保持单条队列）`() {
+        // 被 missing 过滤 / 服务器换了条目：不能拿 -1 当队首，否则队列下标与播放器时间线错位
+        assertEquals(-1, seriesQueueAnchorIndex(queue, UUID.randomUUID()))
+        assertEquals(-1, seriesQueueAnchorIndex(emptyList(), queue.first().id))
+    }
+
+    @Test
+    fun `季级起播取这一季的第一集（列表已按季号集号排序）`() {
+        val episodes =
+            listOf(episode(seasonOneId, 1), episode(seasonOneId, 2), episode(seasonTwoId, 1))
+
+        assertEquals(episodes[0].id, pickSeasonStartEpisode(episodes, seasonOneId)!!.id)
+        assertEquals(episodes[2].id, pickSeasonStartEpisode(episodes, seasonTwoId)!!.id)
+    }
+
+    @Test
+    fun `季级起播在列表里找不到这一季时退回第一集`() {
+        val episodes = listOf(episode(seasonOneId, 1), episode(seasonOneId, 2))
+
+        assertEquals(episodes.first().id, pickSeasonStartEpisode(episodes, seasonTwoId)!!.id)
+        assertNull(pickSeasonStartEpisode(emptyList(), seasonOneId))
+    }
 }

@@ -68,6 +68,7 @@ import java.io.File
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -347,6 +348,9 @@ constructor(
     /** 后台补全播放队列的任务：重新起播时取消重来，避免两个任务同时插队 */
     private var queueFillJob: Job? = null
 
+    /** W76-B11b：整剧队列的后台枚举（先枚举、再 [fillQueueInBackground] 补进播放器） */
+    private var queueExpandJob: Job? = null
+
     /** 用户是否手动整理过队列（§1.7）：整理过之后不再让后台补片把删掉的条目补回来 */
     private var queueManuallyEdited = false
 
@@ -527,7 +531,14 @@ constructor(
                             startPositionMs = startPositionMs.takeIf { it > 0L },
                         )
                     }
+                } catch (e: CancellationException) {
+                    // W76-B11b：起播窗口内退出播放页 = 正常取消，不是解析失败。
+                    // 旧实现让 CancellationException 落进下面的通用 catch → 给用户弹一句英文 `Job was cancelled`。
+                    throw e
                 } catch (e: Exception) {
+                    // W76-B11b：协程已被取消时，网络层可能抛出「取消的副产品」而不是 CancellationException
+                    // （连接被中断的 IOException 等）。离开播放页时同样不该把它当成解析失败弹提示。
+                    if (!isActive) throw e
                     Timber.e(e)
                     Toast.makeText(application, e.localizedMessage, Toast.LENGTH_LONG).show()
                     null
@@ -567,8 +578,44 @@ constructor(
             // 媒体已交给播放器：之后的 playWhenReady 变化都算用户 / 系统意图，恢复正常回存
             startupInProgress = false
             // 起播之后再补全整剧队列（用户反馈：队列面板只显示当前一集）
-            fillQueueInBackground()
+            fillQueueInBackgroundAfterSeriesExpansion()
         }
+    }
+
+    /**
+     * W76-B11b：系列 / 季 / 集级入口起播后，**先把整剧队列补出来，再把队列条目补进播放器**。
+     *
+     * 起播时 [PlaylistManager] 只带一条起播集（[PlaylistManager.pendingSeriesQueueExpansion]），整剧枚举（
+     * `getSeasons` + 逐季 `getEpisodes`）挪到这里在后台跑：旧实现把它排在起播之前，真机实测首帧要等 7.8–31.7 s，且这段时间播放页是
+     * `00:00/00:00` + 队列为空 + 无提示的空白态。
+     *
+     * 枚举完成后必须**再**调一次 [fillQueueInBackground]（它是按 `queueSize` 一次性快照补条的，队列变长了要重跑）。
+     */
+    private fun fillQueueInBackgroundAfterSeriesExpansion() {
+        val pending = playlistManager.pendingSeriesQueueExpansion
+        if (pending == null) {
+            // 电影 / 显式队列播放：队列在起播前就是全的
+            fillQueueInBackground()
+            return
+        }
+
+        queueExpandJob?.cancel()
+        queueExpandJob =
+            viewModelScope.launch(Dispatchers.IO) {
+                val expanded =
+                    try {
+                        playlistManager.expandPendingSeriesQueue()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // 整剧补不出来不影响已经起播的这一集：保持单条队列，只留痕
+                        Timber.w(e, "整剧队列补全失败，保持单条队列（series=%s）", pending.seriesId)
+                        false
+                    }
+                if (expanded && isActive) {
+                    fillQueueInBackground()
+                }
+            }
     }
 
     /**
@@ -620,13 +667,6 @@ constructor(
                     }
                 if (queueSize <= 1 || currentIndex < 0) return@launch
 
-                // player 只能在主线程访问：先快照当前列表里的 mediaId，之后插入前用它去重（O(1)）
-                val knownMediaIds =
-                    withContext(Dispatchers.Main) {
-                        (0 until player.mediaItemCount).mapTo(mutableSetOf()) {
-                            player.getMediaItemAt(it).mediaId
-                        }
-                    }
                 var added = 0
                 var stoppedAtLimit = false
 
@@ -639,7 +679,7 @@ constructor(
                     }
                     val item = playlistManager.buildPlayerItemAt(index) ?: continue
                     if (!isActive) return@launch
-                    if (insertQueueItem(item, atFront = false, knownMediaIds)) added++
+                    if (insertQueueItem(item, atFront = false)) added++
                     delay(QUEUE_FILL_STEP_DELAY_MS)
                 }
                 if (!stoppedAtLimit) {
@@ -651,7 +691,7 @@ constructor(
                         }
                         val item = playlistManager.buildPlayerItemAt(index) ?: continue
                         if (!isActive) return@launch
-                        if (insertQueueItem(item, atFront = true, knownMediaIds)) added++
+                        if (insertQueueItem(item, atFront = true)) added++
                         delay(QUEUE_FILL_STEP_DELAY_MS)
                     }
                 }
@@ -665,21 +705,27 @@ constructor(
             }
     }
 
-    /** 在主线程把一条队列项插进播放器；[knownMediaIds] 只在主线程读写，用作 O(1) 去重。 返回是否真正插入（重复项返回 false）。 */
+    /**
+     * 在主线程把一条队列项插进播放器。**去重必须以播放器当前的时间线为准**：切集回调与后台补片会同时往时间线里插条目， 用「补片开始时的快照」去重会漏掉回调刚插进去的那一条 →
+     * 队列面板出现重复条目（W76-B11b 真机复现：E01 出现两次）。 只在主线程调用，返回是否真正插入（重复项返回 false）。
+     */
     private suspend fun insertQueueItem(
         item: PlayerItem,
         atFront: Boolean,
-        knownMediaIds: MutableSet<String>,
     ): Boolean =
         withContext(Dispatchers.Main) {
             val mediaId = item.itemId.toString()
-            if (!knownMediaIds.add(mediaId)) return@withContext false
+            if (hasMediaItem(mediaId)) return@withContext false
             // 显式给下标：不依赖 BasePlayer 对"无下标 addMediaItem"的封装（mpv 内核上它传过越界值）
             val index = if (atFront) 0 else player.mediaItemCount
             player.addMediaItem(index, item.toMediaItem())
             rememberQueueItem(item)
             true
         }
+
+    /** 播放器当前时间线里是否已有这个 mediaId。只在主线程调用。 */
+    private fun hasMediaItem(mediaId: String): Boolean =
+        (0 until player.mediaItemCount).any { player.getMediaItemAt(it).mediaId == mediaId }
 
     private fun rememberQueueItem(item: PlayerItem) {
         if (items.none { it.itemId == item.itemId }) {
@@ -1067,8 +1113,9 @@ constructor(
 
                     playlistManager.setCurrentMediaItemIndex(item.itemId)
 
+                    // W76-B11b：这两个插入没有历史去重（后台补片可能已经插过同一条），会让队列面板出现重复条目
                     val previousItem = playlistManager.getPreviousPlayerItem()
-                    if (previousItem != null) {
+                    if (previousItem != null && !hasMediaItem(previousItem.itemId.toString())) {
                         items.add(player.currentMediaItemIndex, previousItem)
                         player.addMediaItem(
                             player.currentMediaItemIndex,
@@ -1077,7 +1124,7 @@ constructor(
                     }
 
                     val nextItem = playlistManager.getNextPlayerItem()
-                    if (nextItem != null) {
+                    if (nextItem != null && !hasMediaItem(nextItem.itemId.toString())) {
                         items.add(player.currentMediaItemIndex + 1, nextItem)
                         player.addMediaItem(
                             player.currentMediaItemIndex + 1,

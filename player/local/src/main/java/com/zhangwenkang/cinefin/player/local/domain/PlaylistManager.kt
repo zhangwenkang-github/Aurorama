@@ -20,6 +20,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.TrickplayInfo
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.MediaStreamType
@@ -29,6 +30,18 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     private var startItem: FindroidItem? = null
     private var items: List<FindroidItem> = emptyList()
     private val playerItems: MutableList<PlayerItem> = mutableListOf()
+
+    /**
+     * W76-B11b：整剧队列的「后台补全」请求。
+     *
+     * 系列 / 季 / 集级入口起播时只带**一条**起播集，整剧枚举交给播放页在起播之后调 [expandPendingSeriesQueue]
+     * 补上——旧实现把枚举放在起播之前，是「点了播放先空白 7.8–31.7 s」的主因。
+     */
+    internal var pendingSeriesQueueExpansion: SeriesQueueExpansion? = null
+        private set
+
+    /** 队列枚举用的字段：章节 + Trickplay 与「后台补全」共用一份缓存键，避免重复请求。 */
+    private val seriesQueueFields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY)
 
     /** 构建播放信息失败过的条目：补队列时跳过，避免对同一集反复请求 */
     private val failedItemIds: MutableSet<UUID> = mutableSetOf()
@@ -44,6 +57,9 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     ): PlayerItem? {
         Timber.d("Retrieving initial player item")
 
+        // W76-B11b：每次解析新条目都先清掉上一次的「骨架队列」标记（电影 / 显式队列播放用不到它）
+        pendingSeriesQueueExpansion = null
+
         val initialItem =
             when (itemKind) {
                 BaseItemKind.MOVIE -> {
@@ -54,64 +70,106 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 }
                 BaseItemKind.SERIES -> {
                     /*
-                     * W76-B11：系列级「播放」= **续播**（服务器 NextUp）→ 否则**第一季第一集**。
-                     *
-                     * 旧实现把「NextUp / 季 / 集任一取空」收成 `return null`：播放页拿到 null 就停在空载态
-                     * （`00:00/00:00`、队列为空）且**全程无提示**。现在解析链上的每一步失败都只降级、不取空
-                     * （NextUp 取不到 → 第一季；归属季取不到 → 第一季），最终确实没有可播的集时抛
+                     * W76-B11：系列级「播放」= **续播**（服务器 NextUp）→ 否则**第一季第一集**；解析链上每一步失败
+                     * 都只降级、不取空（NextUp 取不到 → 第一季；归属季取不到 → 季号最小的季），确实没有可播的集时抛
                      * [PlaybackStartException]，由播放页把消息提示给用户。
+                     *
+                     * W76-B11b：拿到「续播那一集」就**先起播**，整剧队列交给播放页在起播之后调
+                     * [expandPendingSeriesQueue] 补。旧实现把整剧枚举排在起播之前（getNextUp → 逐季 getEpisodes，
+                     * 5 次串行 HTTP），真机实测这段时间播放页一直停在 `00:00/00:00` + 队列为空 + 无提示的空白态。
                      */
-                    val nextUpEpisode = runCatching {
+                    val nextUpEpisode = runCatchingCancellable {
                         repository.getNextUp(itemId).firstOrNull()
                     }
                         .onFailure { Timber.w(it, "系列级播放：拉取 NextUp 失败，回退第一季第一集") }
                         .getOrNull()
 
-                    val episodes =
-                        loadSeriesEpisodes(
-                            seriesId = itemId,
-                            fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
-                            fallbackSeasonId = resolveSeriesFallbackSeasonId(itemId, nextUpEpisode),
-                        )
+                    if (nextUpEpisode != null) {
+                        // 快路径：只解析这一集（补齐章节 / Trickplay；同一份季集响应会被后台整剧补全命中缓存）
+                        val startEpisode = enrichEpisodeWithFields(itemId, nextUpEpisode)
+                        pendingSeriesQueueExpansion =
+                            SeriesQueueExpansion(
+                                seriesId = itemId,
+                                anchorItemId = startEpisode.id,
+                                fallbackSeasonId = startEpisode.seasonId,
+                            )
+                        items = listOf(startEpisode)
+                        startEpisode
+                    } else {
+                        // 兜底：服务器没给续播（整部看完 / 无 NextUp）时仍然从第一季第一集起播（需枚举整剧）
+                        val episodes =
+                            loadSeriesEpisodes(
+                                seriesId = itemId,
+                                fields = seriesQueueFields,
+                                fallbackSeasonId = resolveSeriesFallbackSeasonId(itemId, null),
+                            )
+                        val plan =
+                            planSeriesPlayback(null, episodes)
+                                ?: throw PlaybackStartException("这部剧暂时没有可播放的剧集，请稍后重试")
 
-                    val plan =
-                        planSeriesPlayback(nextUpEpisode, episodes)
-                            ?: throw PlaybackStartException("这部剧暂时没有可播放的剧集，请稍后重试")
-
-                    items = plan.episodes
-                    plan.episodes[plan.startIndex]
+                        items = plan.episodes
+                        plan.episodes[plan.startIndex]
+                    }
                 }
                 BaseItemKind.SEASON -> {
                     val season = repository.getSeason(itemId)
-                    val episodes =
-                        loadSeriesEpisodes(
-                            seriesId = season.seriesId,
-                            fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
-                            fallbackSeasonId = season.id,
-                        )
 
-                    if (episodes.isEmpty()) {
-                        throw PlaybackStartException("这一季暂时没有可播放的剧集，请稍后重试")
+                    // W76-B11b：先只取「这一季」的集列表拿到起播集 → 立即起播；整剧队列后台补（同 SERIES 分支）
+                    val seasonEpisodes = runCatchingCancellable {
+                        repository
+                            .getEpisodes(
+                                seriesId = season.seriesId,
+                                seasonId = season.id,
+                                fields = seriesQueueFields,
+                            )
+                            .filter { !it.missing }
+                            .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
                     }
+                        .onFailure { Timber.w(it, "季级播放：拉取本季集列表失败，回退整剧枚举") }
+                        .getOrNull()
+                        .orEmpty()
 
-                    // 从这一季的第一集开始播
-                    val episode =
-                        episodes.firstOrNull { it.seasonId == season.id } ?: episodes.first()
+                    val startEpisode = seasonEpisodes.firstOrNull()
+                    if (startEpisode != null) {
+                        pendingSeriesQueueExpansion =
+                            SeriesQueueExpansion(
+                                seriesId = season.seriesId,
+                                anchorItemId = startEpisode.id,
+                                fallbackSeasonId = season.id,
+                            )
+                        items = listOf(startEpisode)
+                        startEpisode
+                    } else {
+                        val episodes =
+                            loadSeriesEpisodes(
+                                seriesId = season.seriesId,
+                                fields = seriesQueueFields,
+                                fallbackSeasonId = season.id,
+                            )
 
-                    items = episodes
-                    episode
+                        if (episodes.isEmpty()) {
+                            throw PlaybackStartException("这一季暂时没有可播放的剧集，请稍后重试")
+                        }
+
+                        // 从这一季的第一集开始播
+                        val episode =
+                            pickSeasonStartEpisode(episodes, season.id) ?: episodes.first()
+
+                        items = episodes
+                        episode
+                    }
                 }
                 BaseItemKind.EPISODE -> {
+                    // W76-B11b：单集入口同样先起播（只 1 次 getItem），整剧队列交给后台补全
                     val episode = repository.getEpisode(itemId)
 
-                    val episodes =
-                        loadSeriesEpisodes(
+                    pendingSeriesQueueExpansion =
+                        SeriesQueueExpansion(
                             seriesId = episode.seriesId,
-                            fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
+                            anchorItemId = episode.id,
                             fallbackSeasonId = episode.seasonId,
                         )
-
-                    items = episodes
+                    items = listOf(episode)
                     episode
                 }
                 // 未知类型不应该静默给一个空载播放页（W76-B11 的同类缺陷），直接给用户一句可见提示。
@@ -146,9 +204,11 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         startFromBeginning: Boolean = false,
         startPositionMs: Long? = null,
     ): PlayerItem? {
+        // W76-B11b：显式队列播放不走「骨架队列 + 后台补全」
+        pendingSeriesQueueExpansion = null
         if (entries.isEmpty()) return null
         val resolvedItems = entries.mapNotNull { entry ->
-            runCatching {
+            runCatchingCancellable {
                 when (entry.kind) {
                     BaseItemKind.MOVIE -> repository.getMovie(entry.itemId)
                     BaseItemKind.EPISODE -> repository.getEpisode(entry.itemId)
@@ -335,7 +395,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         seriesId: UUID,
         fields: List<ItemFields>,
         fallbackSeasonId: UUID? = null,
-    ): List<FindroidEpisode> = runCatching {
+    ): List<FindroidEpisode> = runCatchingCancellable {
         repository
             .getSeasons(seriesId)
             .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
@@ -368,17 +428,70 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         nextUpEpisode: FindroidEpisode?,
     ): UUID? {
         val nextUpSeason = nextUpEpisode?.let { episode ->
-            runCatching { repository.getSeason(episode.seasonId) }
+            runCatchingCancellable { repository.getSeason(episode.seasonId) }
                 .onFailure { Timber.w(it, "系列级播放：拉取 NextUp 归属季失败，回退第一季") }
                 .getOrNull()
         }
         if (nextUpSeason != null) return nextUpSeason.id
 
-        return runCatching { repository.getSeasons(seriesId) }
+        return runCatchingCancellable { repository.getSeasons(seriesId) }
             .onFailure { Timber.w(it, "系列级播放：拉取季列表失败（由整剧拉取兜底）") }
             .getOrNull()
             ?.let(::pickFallbackSeason)
             ?.id
+    }
+
+    /**
+     * W76-B11b：给「用轻量接口拿到的起播集」补齐章节 / Trickplay。
+     *
+     * `getNextUp` / `getItem` 都不带 `ItemFields`，直接拿它们起播会让这一集的章节刻度缺失。这里只多拉「它所属那一季」的
+     * 集列表——后台补全整剧时同一个缓存键（[seriesQueueFields] + 同 seasonId）会直接命中，不产生第二次请求。
+     * 拉不到就用原始条目起播（宁可少章节标记，也不能耽误起播）。
+     */
+    private suspend fun enrichEpisodeWithFields(
+        seriesId: UUID,
+        episode: FindroidEpisode,
+    ): FindroidEpisode =
+        runCatchingCancellable {
+            repository
+                .getEpisodes(
+                    seriesId = seriesId,
+                    seasonId = episode.seasonId,
+                    fields = seriesQueueFields,
+                )
+                .firstOrNull { it.id == episode.id }
+        }
+            .onFailure { Timber.w(it, "系列级播放：补齐起播集章节信息失败，用原始条目起播") }
+            .getOrNull() ?: episode
+
+    /**
+     * W76-B11b：把「骨架队列」（只有起播那一集）补成整剧队列。
+     *
+     * 由播放页在**起播之后**调用（见 `PlayerViewModel.fillQueueInBackground` 的调用点）。锚点集不在整剧列表里 （被 `missing`
+     * 过滤等）时不改 [items]，返回 false——宁可队列只有一条，也不能让 [currentItemIndex] 与播放器时间线错位。
+     */
+    suspend fun expandPendingSeriesQueue(): Boolean {
+        val request = pendingSeriesQueueExpansion ?: return false
+        pendingSeriesQueueExpansion = null
+        if (items.size > 1) return true
+
+        val episodes =
+            loadSeriesEpisodes(
+                seriesId = request.seriesId,
+                fields = seriesQueueFields,
+                fallbackSeasonId = request.fallbackSeasonId,
+            )
+        if (episodes.isEmpty()) return false
+
+        val anchorIndex = seriesQueueAnchorIndex(episodes, request.anchorItemId)
+        if (anchorIndex < 0) {
+            Timber.w("整剧队列补全：起播集 %s 不在整剧列表里，保持单条队列", request.anchorItemId)
+            return false
+        }
+
+        items = episodes
+        currentItemIndex = anchorIndex
+        return episodes.size > 1
     }
 
     private suspend fun FindroidItem.toPlayerItem(
@@ -538,6 +651,51 @@ internal data class SeriesPlaybackPlan(
     val episodes: List<FindroidEpisode>,
     val startIndex: Int,
 )
+
+/**
+ * W76-B11b：整剧队列的「后台补全」请求（[PlaylistManager.pendingSeriesQueueExpansion]）。
+ *
+ * [anchorItemId] = 已经起播的那一集的 id，补全后要保证它在 [PlaylistManager.currentItemIndex] 上原地不动；
+ * [fallbackSeasonId] 用于整剧拉取失败时至少还能补上这一季。
+ */
+internal data class SeriesQueueExpansion(
+    val seriesId: UUID,
+    val anchorItemId: UUID,
+    val fallbackSeasonId: UUID?,
+)
+
+/**
+ * W76-B11b：骨架队列补全后，**起播集**在整剧列表里的下标；不在列表里（被 `missing` 过滤等）返回 -1。
+ *
+ * 调用方据此决定「改不改 `currentItemIndex`」——返回 -1 时保持单条队列，宁可队列只有一条，也不能让队列下标 与播放器时间线错位（错位会导致「下一集」跳到别的集 /
+ * 自动连播串集）。纯函数，便于单测。
+ */
+internal fun seriesQueueAnchorIndex(episodes: List<FindroidEpisode>, anchorItemId: UUID): Int =
+    episodes.indexOfFirst {
+        it.id == anchorItemId
+    }
+
+/** W76-B11b：季级入口的起播集 = 这一季的第一集（[episodes] 已按「季号 → 集号」排好序）； 列表里没有这一季的集时退回列表第一集（沿用旧行为）。纯函数，便于单测。 */
+internal fun pickSeasonStartEpisode(
+    episodes: List<FindroidEpisode>,
+    seasonId: UUID,
+): FindroidEpisode? = episodes.firstOrNull { it.seasonId == seasonId } ?: episodes.firstOrNull()
+
+/**
+ * W76-B11b：**可取消**的 `runCatching`。
+ *
+ * 起播解析链上每一步失败都只降级（NextUp 取不到 → 第一季……），所以到处是 `runCatching`；但 `runCatching` 连 [CancellationException]
+ * 一起吞：在起播窗口内退出播放页时，被取消的请求会「伪装成空列表」，最后走到「这部剧暂时没有可播放的剧集」
+ * 的兜底提示——用户明明只是退出了播放页，却收到一句报错。这里把取消原样抛出，只让**真正的失败**参与降级。 纯函数，便于单测。
+ */
+internal inline fun <T> runCatchingCancellable(block: () -> T): Result<T> =
+    try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 
 /**
  * 系列级播放的「兜底季」= 季号最小的一季（= 第一季）。

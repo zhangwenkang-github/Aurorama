@@ -527,7 +527,14 @@ private class PlayerRuntime {
         duration = player.duration.let { if (it > 0L) it else 0L }
         buffered = player.bufferedPosition.coerceAtLeast(0L)
         isPlaying = player.isPlaying
-        isBuffering = player.playbackState == Player.STATE_BUFFERING
+        /*
+         * W76-B11b：除了「正在缓冲」，**还没有任何可播条目的准备窗口**也算加载中。
+         *
+         * 进播放页到第一个媒体项交给播放器之间（系列 / 季 / 集级入口要先解析起播集），播放器是 IDLE、没有媒体项，
+         * 以前这段只有 `00:00/00:00` + 队列为空 + 无提示，用户以为点了没反应。全屏唯一的加载图标就在播放键上
+         * （W11 反馈⑤），这里把它扩到准备窗口。
+         */
+        isBuffering = player.playbackState == Player.STATE_BUFFERING || player.mediaItemCount == 0
         speed = player.playbackParameters.speed
         tracks = player.currentTracks
         currentIndex = player.currentMediaItemIndex
