@@ -158,6 +158,8 @@
 
 **W76-B11 系列详情页「播放」空载（P3）**：根因 = `ShowScreen.kt:182` 传 series id → `PlaylistManager.getInitialItem` SERIES 分支（NextUp / Seasons / loadSeriesEpisodes 任一取空即）`return null` **静默**；真机 = `00:00/00:00` + 队列为空 + 无提示，季 / 集级正常。修 = 定位取空真因并修到「系列级播放能起播（NextUp 或回退第一集）」+ 解析失败改用户可见提示（禁止静默兜底）。非目标：本波不修 `EpisodeAction.NavigateToSeason` 无发射点（记入 §6.1 Q1）。落点 `player/local` PlaylistManager（+ `app/phone` ShowScreen 如需）；分支 `fix/w76-b11-series-play`，worktree `w76d`；设备暂不分配（K60 空闲时可用）。验收 = 单测 + 真机系列级播放出画或明确错误提示 + 季 / 集级不回归。
 
+**W76-B11 执行修正（2026-10-07）**：真机实证主因 = 系列级入口在起播前**同步串行枚举整剧**（`getNextUp` → 逐季 `getEpisodes`，5 次串行 HTTP，实测 7.8 / 18.5 / 31.7 s）造成「空载」空白窗口（UI 逐字 = `00:00/00:00` + 队列为空 + 无提示）；静默兜底为同类隐患但三次运行均未命中。已交付 `b8935f3`：三处静默兜底取消（降级链 + 中文 `PlaybackStartException` Toast），系列级语义不变；**空白窗口消除 + 退出时 `JobCancellationException` Toast → W76-B11b**（落点 `PlayerViewModel`，须在 B10 合并后串行开）。**在 B11b 完成前，不对外声明「用户可见空载已消失」。**
+
 ## 4. 决策记录
 
 | 编号 | 决策 | 来源 / 理由 |
@@ -209,6 +211,9 @@
 | 2026-10-07 | **W76-R1c 补充取证完成（K60 `8e875894` 独占，00:50–01:47 约 57 分钟，超 45 分钟预算 12 分钟，只诊断/只还原，0 FATAL / 0 ANR）**：①**D1 最终定级 = P2**——粘住态（先播音乐 → 同进程再进视频）+ 码率「原始画质」+ 10-bit Hi10P：竖屏播放页全黑 `00:00 / 24:43` 无提示；横屏全屏弹**「播放失败」**卡片（`MediaCodecVideoRenderer error … video/avc avc1.6E0032 … 10bit Luma/Chroma … format_supported=NO_EXCEEDS_CAPABILITIES` + `exoplayer · ERROR_CODE_DECODING_FAILED`）+ 按钮 **「重试」/「改用 mpv 内核」**；`media_session` = `ERROR(7)`。点「改用 mpv 内核」→ 卡片消失但**卡 `00:00 / 00:00` 无限缓冲**（`BUFFERING(6), buffered=0`，**无 mpv 日志**）= 选择被吞。对照 A：粘住态下改「自动」重进仍拿原盘 Hi10P 直连 → 同样 `ERROR_CODE_DECODING_FAILED`；对照 B：非粘住态 + ExoPlayer + 自动档（季页选集，同片源 Hi10P）**正常出画**。定 P2 依据 = 有明确错误卡片/提示 + 有可行绕过（冷启动 App）+ 触发面窄（先音乐→同进程再进视频 + 非默认原画质 + 10-bit 片源）；**注**：若「必须重启才能看某类片源」不可接受可上调 P1。②**D2 真机复验 = 已复现（维持 P3）**——中文搜索入口无法 adb 驱动（`input text` 抛 NPE、SEARCH intent 不可解析）→ 走 **媒体库 → 动漫库（94 项）→「灼眼的夏娜」卡片** 达**系列详情页** → 点系列级「播放」→ `uiautomator` 得 `00:00 / 00:00` + **`队列为空`** + 无提示 + 全黑，`media_session = NONE(0)/metadata=null`；对照：季「灼眼的夏娜」→「第 1 集」→ 播放 → **正常出画**（`06:18 / 24:43`、`PLAYING(3)`）→ 仅系列级播放坏。③**内核偏好还原 ✅**——冷启动 → 冰海战记 E1 → 全屏 → 解码面板选 **ExoPlayer** → 进度保留（`17:57`）+ `position≥0`（ExoPlayer 宿主）+ 正常出画 → R1b 的 mpv 副作用已还原为默认；**冷进程换内核正常**，反证 D1 只在粘住态。还原：`user_rotation=1` / `accelerometer_rotation=0`（全屏取证期间临时切过已复位）、App `force-stop`、`/sdcard/r1c_*` 与 `%TEMP%\r1c*` 残留 0、Pad 5 `43af8627` 零接触。副作用（不可回滚）：内核偏好 mpv→ExoPlayer（= 默认）、码率偏好 原始画质→自动（= 默认）、灼眼 S1E1/S1E6 观看进度被改写。报告 `.planning/cinefin-expansion/w76-reports/W76-R1b.md` §七（R1c 补充）。 |
 | 2026-10-07 | **用户拍板方案B（D-F9）**：B9 + B10 + B11 三项全部修入 1.1.0（不留给 1.1.1）；书籍媒体库已由用户建立 → R2 阅读组解封，补测并入本波。派发 **W76-B9**（`fix/w76-b9-download`，`w76b`，K60 `8e875894`）/ **W76-B10**（`fix/w76-b10-music-video`，`w76c`，Pad 5 `43af8627`）/ **W76-B11**（`fix/w76-b11-series-play`，`w76d`，设备暂缓）；均 `deepseek-flash`。后续 = 三支合并态门禁 → release 重建签名（哈希变化 → `RELEASE_PLAN` §7/§8 + Release notes 同步）→ 发布包复验（K60）+ 阅读组补测（Pad 5）→ 交用户全检。 |
 | 2026-10-07 | 环境收口：`AGENTS.md` 构建命令 F 盘化（`F:\Develop\Android\Android Studio\jbr`）；graphify 忽略项落库（`.gitignore` 加 `graphify-out/`、新增 `.graphifyignore`）——与 f25f1d4 同批补提交。 |
+| 2026-10-07 | **W76-B9 完成（分支 `fix/w76-b9-download`，commit `16f54a4`，未 push）**：新增纯函数 `DownloadStorageRules.resolveStatPath`（预检查前先建父目录 + 失败回落 `filesDir`）+ 通用 catch 前 `Timber.w` 留痕；`core` 93/0/0（+4 单测）；K60 debug 真机 A/B——目录缺失 → 点下载自动建目录 + 真实残片增长 5.06→14.63 MB（中途被无修复包反向对照复现「失败 · 0 B」旧症状）；release 严格口径（`pm clear` + 重登）并入发布包复验波；「失败原因落 DB/UI」仍为 §6.1 Q2。 |
+| 2026-10-07 | **W76-B11 完成（分支 `fix/w76-b11-series-play`，commit `b8935f3`，未 push）**：SERIES / SEASON / 未知类型三处静默兜底取消（能降级则降级：NextUp 失败→第一季、归属季失败→季号最小季；无内容→中文 `PlaybackStartException` Toast）；`player:local` 159/0/0（+7 单测）；K60 真机：系列级 31.7 s 后出画（`PLAYING(3)`）、季 4.6 s / 集 9.0 s 不回归。**主因修正** = 起播前同步串行枚举整剧的 8–32 s 空白窗口（见 §3 执行修正）→ 追加 **W76-B11b**（`PlayerViewModel`，B10 合并后串行；含 `JobCancellationException` 不再被当失败 Toast）。 |
+| 2026-10-07 | **W76-B10 完成（分支 `fix/w76-b10-music-video`，commit `fb3707e`，未 push）**：`initializePlayer()` 第一句接上协调器 + 新纯判定 `MusicSessionVideoStartPolicy`（音乐真在播才停播并补发 Stopped；标志粘住只清标志、不误停视频）——修掉旧守卫 `!isPlayingMusicItem() → return` 导致标志**永久**粘住；`player:local` 155/0/0（+3 单测）+ `:app:phone:assembleDebug` 绿；Pad 5 真机：修复前 release A 侧选择被吞（无 mpv 日志）→ 修复后 mpv 出画 + 回退链落 mpv + W68 隔离（attach 退出后音乐仍 `PLAYING(3)`）+ 0 FATAL/ANR。遗留：错误卡片按钮未单独点按（同入口已证）；`releasePlayer()` 对音乐条目补发 Stopped 的观察 → §6.1 Q5。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
@@ -219,6 +224,8 @@
 | Q1 | `EpisodeAction.NavigateToSeason` 自 W66 起无发射点（剧集页无法回季 / 剧集页）——是否单开需求 | W76-R1b §7.2 顺带发现 | 单开 1.2 波需求；本波不动 |
 | Q2 | 下载失败原因落 DB / UI（release 无 Timber 时用户只见「失败 / 0 B」） | W76-R1b §2 建议 | 随 B9 修复做最简留痕；超范围则 1.2 波评估 |
 | Q3 | 测试服务器书籍库（`/medi/书籍`）是否长期保留 | 2026-10-07 用户已建立，本波阅读组补测依赖 | 若为临时库，需在回收前完成补测并同步 R2 报告 |
+| Q4 | B11 主因（系列级起播等待整剧枚举 8–32 s）的定级与对外表述 | W76-B11.md；与 R1c「必须重启才能看」是两件事 | 本波按缺陷修（W76-B11b，负责人执行方案B）；Release notes 按修复后实测口径写 |
+| Q5 | B10 顺带观察（既有、非本波引入）：视频页 attach 到音乐会话后退出，`releasePlayer()` 对音乐条目补发一次 `Sessions/Playing/Stopped` | W76-B10.md 遗留③ | 建议单开 P3 / 并入 1.2 波；本波不动 |
 
 - **B1**（**已并入 W73-S2，命中**）视频库过滤器只认 `Movies` / `TvShows`（`pickVideoLibraries`）——混合内容 / 家庭视频库不进视频页「库选择」与聚合。
 - **B2**（**已随 W73-S2 修复**）媒体页库列表仅在首进加载一次（无 TTL / 无刷新）——改为每次 RESUMED 重取（仓库元数据缓存 TTL 10 分钟去重），侧栏同步在导航变化时只读刷新。
