@@ -52,6 +52,7 @@ import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
+import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldRestartTranscodeSession
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
@@ -839,7 +840,17 @@ constructor(
         val position = (activePlayer?.currentPosition ?: 0L).coerceAtLeast(0L)
         val duration = activePlayer?.duration ?: C.TIME_UNSET
         val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
-        if (itemId != null && duration != C.TIME_UNSET) {
+        /*
+         * W76-Q5：停止上报只归「本页自己启动的会话」。
+         *
+         * 经锁屏 / 通知误入播放页（attach 到音乐会话）时，`existingPlayer` 上是音乐条目；
+         * 音乐归音乐侧管理，这里再补一条 Stopped 会把仍在后台播放的音乐算成已停止（B10 遗留③）。
+         */
+        if (
+            shouldReportStopOnPlayerExit(playerHolder.isCurrentItemMusic) &&
+                itemId != null &&
+                duration != C.TIME_UNSET
+        ) {
             markStopReported(itemId)
             GlobalScope.launch(Dispatchers.IO) {
                 try {
