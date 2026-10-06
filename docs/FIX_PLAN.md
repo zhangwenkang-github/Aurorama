@@ -160,6 +160,8 @@
 
 **W76-B11 执行修正（2026-10-07）**：真机实证主因 = 系列级入口在起播前**同步串行枚举整剧**（`getNextUp` → 逐季 `getEpisodes`，5 次串行 HTTP，实测 7.8 / 18.5 / 31.7 s）造成「空载」空白窗口（UI 逐字 = `00:00/00:00` + 队列为空 + 无提示）；静默兜底为同类隐患但三次运行均未命中。已交付 `b8935f3`：三处静默兜底取消（降级链 + 中文 `PlaybackStartException` Toast），系列级语义不变；**空白窗口消除 + 退出时 `JobCancellationException` Toast → W76-B11b**（落点 `PlayerViewModel`，须在 B10 合并后串行开）。**在 B11b 完成前，不对外声明「用户可见空载已消失」。**
 
+**W76-B11b 完成（2026-10-07，commit `080fd38`，待合并）**：系列级起播改「**先播后补队列**」（快路径 = NextUp + 起播集所在季；整剧枚举移至 `Playing MediaItem` 之后）+ 取消语义修复（`initializePlayer` 先放行 `CancellationException`；`runCatching` 不再连取消一起吞）；门禁 `:player:local` **169/0/0**（27 suites）+ ktfmt + `:app:phone:assembleDebug` 绿；K60 真机首帧 **31.7 s → 2.0 / 5.0 s**，加载中退出不再误报。**「用户可见空载已消失」的表述禁令随之解除**（最终以发布包复验实测为准）。
+
 ## 4. 决策记录
 
 | 编号 | 决策 | 来源 / 理由 |
@@ -215,6 +217,7 @@
 | 2026-10-07 | **W76-B11 完成（分支 `fix/w76-b11-series-play`，commit `b8935f3`，未 push）**：SERIES / SEASON / 未知类型三处静默兜底取消（能降级则降级：NextUp 失败→第一季、归属季失败→季号最小季；无内容→中文 `PlaybackStartException` Toast）；`player:local` 159/0/0（+7 单测）；K60 真机：系列级 31.7 s 后出画（`PLAYING(3)`）、季 4.6 s / 集 9.0 s 不回归。**主因修正** = 起播前同步串行枚举整剧的 8–32 s 空白窗口（见 §3 执行修正）→ 追加 **W76-B11b**（`PlayerViewModel`，B10 合并后串行；含 `JobCancellationException` 不再被当失败 Toast）。 |
 | 2026-10-07 | **W76-B10 完成（分支 `fix/w76-b10-music-video`，commit `fb3707e`，未 push）**：`initializePlayer()` 第一句接上协调器 + 新纯判定 `MusicSessionVideoStartPolicy`（音乐真在播才停播并补发 Stopped；标志粘住只清标志、不误停视频）——修掉旧守卫 `!isPlayingMusicItem() → return` 导致标志**永久**粘住；`player:local` 155/0/0（+3 单测）+ `:app:phone:assembleDebug` 绿；Pad 5 真机：修复前 release A 侧选择被吞（无 mpv 日志）→ 修复后 mpv 出画 + 回退链落 mpv + W68 隔离（attach 退出后音乐仍 `PLAYING(3)`）+ 0 FATAL/ANR。遗留：错误卡片按钮未单独点按（同入口已证）；`releasePlayer()` 对音乐条目补发 Stopped 的观察 → §6.1 Q5。 |
 | 2026-10-07 | **W76-B9/B10/B11 合并态门禁（负责人）**：三支 rebase 后 ff 合并 master（`600be7a` / `d0942dc` / `1eb093f`）；合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **913 项 / 0 失败 0 错误**（app 272 / core 93 / data 68 / player:core 12 / player:local 162 / film 53 / book 113 / music 140；基线 899 + B9 4 + B10 3 + B11 7；日志 `w76-evidence/gate_merged_2.log`）。**W76-B11b 已派发**（起播不等整剧枚举 + `CancellationException` 重抛；`w76e` / `fix/w76-b11b-series-start`，复用 W76-B11 会话）；B11b 合并后跑终门禁 → **release 重建签名（哈希变化）** → 发布包复验（K60）+ 阅读组补测（Pad 5）。 |
+| 2026-10-07 | **W76-B11b 完成（分支 `fix/w76-b11b-series-start`，commit `080fd38`，待合并）**：系列级起播「先播后补队列」（快路径 = NextUp + 起播集所在季；整剧枚举落 `Playing MediaItem` 之后）+ 取消语义修复（`initializePlayer` 先放行 `CancellationException`；`runCatching` 不再吞取消）；门禁 `:player:local` **169/0/0**（27 suites）+ ktfmt + `:app:phone:assembleDebug` 绿；K60 真机首帧 **31.7 s → 2.0 / 5.0 s**、加载中退出不再误报；报告 `W76-B11b.md`。**负责人第七任按 35 万阈值交接（auto-compact 已触发）**：B11b 未合并；**回归暂停令**——用户「回归前先停一下」，发布包复验（K60）/ 阅读组补测（Pad 5）等用户放行后启动；移交摘要见记忆 `cinefin-v11-update` 与下表最新行。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
@@ -227,6 +230,8 @@
 | Q3 | 测试服务器书籍库（`/medi/书籍`）是否长期保留 | 2026-10-07 用户已建立，本波阅读组补测依赖 | 若为临时库，需在回收前完成补测并同步 R2 报告 |
 | Q4 | B11 主因（系列级起播等待整剧枚举 8–32 s）的定级与对外表述 | W76-B11.md；与 R1c「必须重启才能看」是两件事 | 本波按缺陷修（W76-B11b，负责人执行方案B）；Release notes 按修复后实测口径写 |
 | Q5 | B10 顺带观察（既有、非本波引入）：视频页 attach 到音乐会话后退出，`releasePlayer()` 对音乐条目补发一次 `Sessions/Playing/Stopped` | W76-B10.md 遗留③ | 建议单开 P3 / 并入 1.2 波；本波不动 |
+| Q6 | 后台补队列为整剧每集请求 `PlaybackInfo`（含转码会话）——补队列既有代价（与非本波无关） | W76-B11b.md；B11b 为保语义未改 | 1.2 波评估懒请求 / 去重；本波不动 |
+| Q7 | 下载任务删除后再次入队偶发不立即启动（疑似 WorkManager）——未复现、未定性 | W76-B9.md 遗留 3 | 留观；复现再立项 |
 
 - **B1**（**已并入 W73-S2，命中**）视频库过滤器只认 `Movies` / `TvShows`（`pickVideoLibraries`）——混合内容 / 家庭视频库不进视频页「库选择」与聚合。
 - **B2**（**已随 W73-S2 修复**）媒体页库列表仅在首进加载一次（无 TTL / 无刷新）——改为每次 RESUMED 重取（仓库元数据缓存 TTL 10 分钟去重），侧栏同步在导航变化时只读刷新。
