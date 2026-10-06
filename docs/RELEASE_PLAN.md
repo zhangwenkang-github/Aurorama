@@ -102,8 +102,20 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 | 版本 | 日期 | versionCode | 构建命令 | universal | arm64-v8a |
 |------|------|-------------|----------|-----------|-----------|
 | 1.0.0 | 2026-10-05 | 1 | `assembleLibreRelease -Paurorama.universalApk=true` | 163.1 MB | 73.9 MB |
+| 1.1.0 | 2026-10-06 | 2 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.2 MB | 74.0 MB |
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
+
+**1.1.0 发布资产校验（2026-10-06 · 发布构建，master 提交 `458eb9a`）**
+
+| 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
+|--------------------|--------------------|---------|
+| `Aurorama-1.1.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,125,240 / 163.2 | `9c20b06cb1a6b4c4e557c4860b374d27c1de1b1eed994f3d9b3c321245c58570` |
+| `Aurorama-1.1.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,543,262 / 74.0 | `d24df47ddc4839dc80820532115383d13657da9a36fd8fdf54ad508356566b0e` |
+
+- `apksigner verify`：两份 APK 均 **v2 = true**（v1 / v3 / v4 = false，与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）。
+- 合并态门禁（W76，master `458eb9a`）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **899 项 / 0 失败 0 错误**（app 272 / core 89 / data 68 / player:core 12 / player:local 152 / film 53 / book 113 / music 140）。
+- 构建产物不入库，路径：`app/phone/build/outputs/apk/libre/release/`；发布用副本在 `.planning/cinefin-expansion/w76-evidence/Aurorama-1.1.0-*.apk`（含 1.0.0 对照包）。
 
 **1.0.0 发布资产校验（2026-10-05 · 发布构建，master 提交 `58e62fd`）**
 
@@ -135,6 +147,8 @@ $env:JAVA_HOME='D:\Android\Android Studio\jbr'
 - [ ] 打 tag → 上传 APK → Release notes → 发布后自检
 
 > 1.0.0 的未勾选项（版本号已就位，tag / 上传 / Release notes 粘贴）由发布负责人在用户全检通过后执行；Release notes 正文用 `docs/RELEASE_NOTES_v1.0.0.md`。
+
+**1.1.0（W76，2026-10-06）检查状态**：版本号 `1.1.0 (2)` ✅；合并态门禁 **899 / 0 / 0** ✅；`assembleLibreRelease` + `apksigner verify`（v2、指纹一致）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机冒烟 = W76 回归（R1 K60 发布面补验 / R2 Pad 5 核心回归）进行中。**tag `v1.1.0` / GitHub Release / 上传 APK 待用户全检通过后执行**；Release notes 正文用 `docs/RELEASE_NOTES_v1.1.0.md`。
 
 ## 9. CI 发布（可选，后续）
 
