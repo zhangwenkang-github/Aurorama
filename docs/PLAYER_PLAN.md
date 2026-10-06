@@ -2161,3 +2161,54 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 3. **PGS / 位图字幕**（秒速5厘米 简体中文/繁体中文 PGS）走内核原生路径：只能吃到 `LanguageMatcher` 的检测修复（标题「简体中文 / 繁体中文」→ zh-Hans / zh-Hant），未在真机逐条回归。
 4. `pref_subtitle_languages` 的「记住手动选择」仍是**前置写**语义（手动选繁体 → 列表变 `zh-Hant,en`，后续所有片都优先繁体）。本轮按用户口径只改「识别与优先级」，未动这条既有设计；若用户认为「记住」应该只在同语言族内微调（而不是覆盖整表），需再拍板。
 5. 侧载字幕的**次字幕**选择在 `secondaryOptions` 里可见但语言靠文件名推断；纯中文文件名（如 `w74_gap.srt`）语言为空 → 不会被次字幕语言记忆命中（本轮未改）。
+
+---
+
+## 34. W74-S5 字幕布局：主/次叠行 → 上下两行（2026-10-06 · 分支 `fix/w74-subtitle-two-lines`）
+
+> 用户反馈（`docs/FIX_PLAN.md` 波 2 #20）：主字幕与次字幕相互叠加。落点 = `app/phone/.../player/PlayerSubtitleOverlay.kt`；单设备验证 K60 `8e875894`。
+
+### 34.1 根因（取证）
+
+Exo 自研管线里，主字幕由 libass 画布渲染（SRT 生成脚本 `marginV = bottomFraction × height`、原生 ASS 用脚本自身位置，均贴底），次字幕由 Compose 文本在 `bottom = maxHeight × style.bottomFraction` 渲染——两者底边对齐 → 视觉叠加。文本回退路径（libass 失败）Column 原顺序为「次在上、主在下」，与「主上、次下」相反。
+
+### 34.2 实现
+
+| 文件 | 改动 |
+|------|------|
+| `app/phone/.../player/SubtitleLift.kt`（新增） | 纯函数：`secondaryBlockHeightPx`（次字幕块高 = Text 实测布局高 + 固定垂直内边距 14dp）、`libassLiftPx`（上移量 = 次字幕块高 + 4dp 间隙，clamp 到 `[0, 最上方图元 y]`） |
+| `app/phone/.../player/PlayerSubtitleOverlay.kt` | ① libass 生效且次字幕非空时，Canvas 绘制 `top = rect.top + image.y - lift`（整体上移）；无次字幕 lift=0（零回归）；② 次字幕 Text 加 `onTextLayout` 实测多行高度（含换行）→ `secondaryTextHeightPx`；③ 文本回退 Column 顺序改 [主, 次]（主上、次下） |
+| 单测 | `SubtitleLiftTest`（8）= app/phone 237 → **245** |
+
+### 34.3 门禁（2026-10-06）
+
+- `:app:phone:assembleDebug` + `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun` **858 项 / 0 失败 0 错误**（app 245 / core 89 / data 68 / player:core 12 / player:local 138 / film 53 / book 113 / music 140；基线 850 + 本轮 8）。
+
+### 34.4 真机走查（K60 `8e875894`）
+
+素材：夏日幽灵 `0b834979…`（idx3 日本語 / idx4 简日双语 / idx5 繁日雙語，均 ASS 内嵌）。
+
+| # | 项 | 证据 |
+|---|----|------|
+| ① | 双字幕上下两行（主上、次下） | 改后选主「简日双语」（idx4）+ 次「日本語」（idx3）：次字幕 Compose Text「よかった」`bounds=[660,944][780,985]`（贴底）；主字幕（libass 位图）像素分析在 y 890–925（上移），两者分离、主在上；改前同场景字幕集中在 y 951–1009（叠行） |
+| ② | 单字幕不回归 | 关闭次字幕后主字幕贴底 y 994–1009，与改前（y 988–1009）一致 |
+| ③ | #15 句末清屏不回归 | 改后日志持续 `libass 句末清屏: position=Nms`（`nextLibassFrame` 未动） |
+| ④ | 样式 / 延迟不回归 | lift 只平移画布、不缩放不改样式；延迟仍由「播放位置 − 延迟」驱动，未改 |
+| ⑤ | 稳定性 | 整轮 0 FATAL / 0 ANR |
+| ⑥ | 副作用与还原 | 码率偏好 `pref_player_streaming_bitrate` 已写回测试前快照（删键恢复默认）；`/data/local/tmp/pref_*.xml`、`/sdcard/ui.xml` 已清；App force-stop |
+
+### 34.5 #21 证据（转码档字幕为空，只读取证未修）
+
+负责人已确认服务端 PlaybackInfo（3 Mbps + EnableTranscoding + HLS/ts）转码源字幕 `DeliveryUrl` 存在且直接 GET 返回 200 + 合法 ASS（冰海战记 S2E1 idx5/26/11/25 均正常）。本会话在 K60 补 App 侧取证：
+
+- 直写 `pref_player_streaming_bitrate=3` → 日志 `getMediaSources bitrate=3 maxStreamingBitrate=3000000 transcoding=true` + `Stream url .../master.m3u8?...&EnableSubtitlesInManifest=True&TranscodeReasons=ContainerBitrateExceedsLimit`（转码生效）。
+- 冰海战记 S1E2（当前服务器仅 S1，无 S2）：`自动选中主字幕（语言命中）: index=1 language=zh-Hant` + `自动选中次字幕（语言记忆）: index=0 language=zh` → `字幕解析完成: index=1, cues=442, ass=true` + `字幕解析完成: index=0, cues=442, ass=true` → `libass 字幕就绪：ASS 原文，script=31782 bytes`。
+- **未复现** W74-S1 的「转码档 `cues=0, ass=false`」：本会话转码档字幕正常（cues=442 / ass=true）。差异可能在于 W74-S1 观察的是 S2E1 的 idx25/26/idx11（当前服务器已无该季），或当时为临时网络/超时。结论：服务端交付正常，App 侧本窗口未复现空字幕。
+
+### 34.6 未覆盖项
+
+1. mpv 路径未动（mpv 原生 `secondary-sid`，本项仅 Exo 自研管线）。
+2. 未选轨 / 语言记忆 / 延迟 / 样式逻辑未改。
+3. #21 未复现空字幕，`#21` 若仍需单开，建议用含 S2 与 idx25/26/idx11 的素材复验；本会话服务器仅 S1。
+4. lift 的一帧滞后（次字幕首次出现的首帧主字幕抬升 18dp 垫底）未逐帧验证，真机 60fps 下肉眼不可见。
