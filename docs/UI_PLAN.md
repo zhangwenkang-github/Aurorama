@@ -145,6 +145,18 @@
 
 ## 4. 进度
 
+### W74-S3 黑块清零（#3 + #17）+ 视频页库选择直达（D-F7）（2026-10-06，分支 `fix/w74-blackcards`，起点 master `dba9e52`；Pad 5 `43af8627` 单机，本会话自带真机）
+
+FIX_PLAN 波 2 / S74-3（用户 2026-10-06 缺陷反馈 + 决策 D-F7）：
+
+- [x] **改前复现（Pad 5，基线 `dba9e52` debug）**：①媒体库总览「音乐 / Playlists」大卡无封面 = 深色块（mean 22.6 / sat 8.7，实际画的是 `ColorPainter(panelElevated)`）；②家庭视频库条目卡 = 纯黑卡（改前实测 mean 8–24）；③视频页顶栏「库选择」选「电影」只把库卡过滤成 1 张（`电影库 · 共 17 个项目`），不直达内容。
+- [x] **#3 修**：`LibraryEntryCard` 底层常驻「库类型图标 + 媒体域色底」占位——底 = `surfaceContainerHigh` + `media.base` **14%**（沿用 D81 / W70b 本地库口径）、图标 = `media.bright`（44dp）；`AsyncImage` 去掉深色 placeholder / error 画布（无封面 / 加载中 / 失败都露占位，封面就绪后覆盖在上层）。新增纯函数 `libraryPlaceholderMedia(CollectionType)`（音乐 = 音乐域、书籍 = 阅读域、其余含混合 / 播放列表 = 影视域，复用既有色板）。
+- [x] **#17 修**：库内容条目走 D79 既有「占位常驻底层」链路——视频页聚合 / 临时库网格传新增纯函数 `videoItemPlaceholderIconRes(item)`（电影 / 家庭视频 / 季 / 集 = 胶片、剧集 = 电视、合集 = 星标）；通用库内容页四处调用点（库网格 / 库列表 / tab 网格 / tab 列表）由「仅书籍传 `ic_book`」改为 `libraryIconRes(libraryType)`（书籍 / 播放列表 / 合集 / 通用库各自成图标）。加载中 / 无图 / 失败三态都不再出黑卡。
+- [x] **D-F7 修**：`VideoScreen` 顶栏「库选择」选中具体库 → 新回调 `onOpenLibrary` → `NavigationRoot` 复用 `navigateToItem` → `libraryEntryRoute`（与侧栏 / 媒体页**同一条**直达链路，落点 = 该库临时库视图 + 「返回默认」）；选「全部库」= 清历史偏好、保持卡片总览。`VideoViewModel` 新增纯函数 `resolveVideoLibrariesForMode`：库卡模式恒显示全部库卡（覆盖 D57「选中具体库 = 只过滤库卡」），聚合模式保留原语义；显示方式切换与库选择共用一个重算入口。
+- [x] **门禁**：`:app:phone:assembleDebug` + `ktfmtCheck` 全绿；8 任务 `--rerun` = **835 项 / 0 失败 0 错误**（app 237 / core 89 / data 68 / player:core 12 / player:local 123 / film 53 / book 113 / music 140；基线 830 + 新增 5）。
+- [x] **真机（Pad 5 `43af8627` 单机）**：明细见 §5 W74-S3。
+- **未覆盖**：①家庭视频库 1446 项中 **2 项**无 `Primary` 图（对应「无缩略图黑卡」），未定点滚到该 2 张卡取证，改以「断网 + 清图片缓存」的失败态 / 冷加载态实测同一渲染路径；②该库多数黑卡经只读探针核对是**服务器自身黑缩略图**（样本 `GET /Items/{id}/Images/Primary` mean 3.9），App 不做出图内容判别，不在本轮范围。
+
 ### W73-S2 媒体库入口一致性 + 选库直达内容（#16 + #6）（2026-10-06，分支 `fix/w73-library-entry`，起点 master `d773d8c`；Xiaomi Pad 5 `43af8627` 单机，本会话自带真机）
 
 用户 2026-10-06 报「侧栏媒体库显示全部；媒体页只显 2 个卡片；侧栏进入能显示全部但只能打开前两个；上方库选择只能选两个」+「选具体库时直接显示库内容，而不是卡片」。先复现后修（Pad 5 debug 1.0.0 装机 + 登录；服务器只读）。
@@ -693,6 +705,23 @@ W5-R3F 交接的踩坑 28 单独一波（小改动，只动 `NavigationRoot.kt` 
 - 本期边界：音乐 / 书架 / 书籍库**页面内容**仍为各自皮肤（只有侧柜常驻 Lumen，见 D29）；`player:*`、`AppPreferences`、`settings.gradle.kts`、`libs.versions.toml`、`docs/web-console-skin.css`、`res/raw/web_console_skin.css` 零改动
 
 ## 5. 验收
+
+### W74-S3 黑块清零 + 库选择直达验收（2026-10-06，分支 `fix/w74-blackcards`，代码提交 `2b87729`（+ 本回写提交）；Xiaomi Pad 5 `43af8627` 单机，本会话自带真机）
+
+| # | 验收点 | 结果 |
+|---|--------|------|
+| 1 | #3 媒体库总览大卡（无封面）| ✅ 「音乐」卡 = 域色底（Lumen 域色叠层，(29,52,55)）+ 松石图标峰值 (97,196,168)；「Playlists」卡 = 琥珀图标 (212,163,115)——改前两张都是 mean 22.6 / sat 8.7 的深色块 |
+| 2 | #3 加载中态 | ✅ 清空 Coil 图片缓存后重进媒体库：三张视频库大卡先露域色占位（mean 39–40），图片就绪后覆盖（mean 50–56，中心 119）——不再先画黑块 |
+| 3 | #17 库内容条目（加载中 / 失败）| ✅ 家庭视频库：清缓存后进库 = 可见 4 张卡全部露极光域色占位（mean 42–47 / sat 21，底 (29,52,55)）；`svc wifi disable` 后连拍同样全占位、无黑卡；恢复网络 + 滚动往返后图片正常回载（62–145） |
+| 4 | #17 无图条目 | ⚠️ 走同一占位链路（`videoItemPlaceholderIconRes` 恒非 null → 占位常驻底层）；该库仅 2 项无 `Primary` 图（只读探针），未定点滚到那 2 张卡（见未覆盖项） |
+| 5 | D-F7 选中具体库直达内容 | ✅ 视频页「库选择」→「电影」→ 直接进「电影库 · 共 17 个项目」内容网格（顶栏「返回默认」），中间不再出现卡片层；系统返回 → 回到视频页卡片总览 |
+| 6 | D-F7「全部库」+ 旧偏好迁移 | ✅ 视频页恒为「共 3 个媒体库 + 3 张库卡」；复现期写入的 `pref_ui_video_library_id`（电影）不再过滤库卡；选「全部库」后该偏好键为空（设备 prefs 复核 `<absent>`） |
+| 7 | 聚合显示方式回归 | ✅ 客户端设置切「聚合列表」→ 视频页显示全部库聚合网格（电影条目出图正常）；「库选择」→「动漫」→ 直达「剧集库 · 共 94 个项目」；已还原「库卡列表」（`pref_ui_video_display_mode=cards`） |
+| 8 | 稳定性 / 还原 | ✅ 0 App FATAL / ANR（crash buffer 仅 `com.android.uiautomator` 工具自身 NPE）；App force-stop、`/sdcard/{u,w,v,s}*.xml` 已删、Wi-Fi 已恢复、无分辨率 / 密度 / 旋转改动；release 包未碰 |
+
+门禁：`:app:phone:assembleDebug` + `ktfmtCheck` 全绿；8 任务 `--rerun` = **835 项 / 0 失败 0 错误**（基线 830 + 新增 5：`LibraryPlaceholderIconsTest` +2 / `VideoLibrarySelectionTest` +3）。
+
+**未覆盖**：①无图条目定点取证（该库 2 项位于聚合序第 73 / 1124 位，滚动成本高；改以失败态 / 冷加载态实测同一渲染路径）；②服务器黑色缩略图（只读探针：`GET /Items/{id}/Images/Primary` 样本 mean 3.9，黑卡来源是服务器出图内容，非 App 占位缺失；App 不做「黑图判别」）；③手机 Compact 形态（任务限定 Pad 5 单机）。
 
 ### W73-S2 验收（2026-10-06，分支 `fix/w73-library-entry`，代码提交 `16bfd1c`（+ 本回写提交）；Xiaomi Pad 5 `43af8627` 单机，本会话自带真机）
 
