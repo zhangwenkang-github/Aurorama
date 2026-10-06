@@ -35,6 +35,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
+import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinatorImpl
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
@@ -101,6 +102,13 @@ constructor(
     private val savedStateHandle: SavedStateHandle,
     /** W55 睡眠定时统一：进程级状态源（音乐 / 视频共用同一计时器）。 */
     private val sleepTimerController: SleepTimerController,
+    /**
+     * W76-B10：视频起播必须经音视频互斥仲裁收掉音乐会话。
+     *
+     * 用具体实现（而非 [com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinator] 接口）：绑定只在
+     * `modes:music`（电话端）；TV 端不含音乐模块，注入接口会缺绑定。
+     */
+    private val playbackCoordinator: PlaybackCoordinatorImpl,
 ) : ViewModel(), Player.Listener {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
@@ -454,6 +462,16 @@ constructor(
         queueEntries: List<PlaybackQueueEntry> = emptyList(),
     ) {
         /*
+         * W76-B10（= D1）：视频真正起播前先收掉可能粘住的音乐会话。
+         *
+         * 音乐后台播放会把 PlayerHolder.musicSessionActive 置真，该标志把 `player` 钉死在音频实例
+         * （PlayerHolder.player:93 的 `if (musicSessionActive) return audioSession()`）。不在碰播放器之前清掉，
+         * 同进程「先播音乐 → 进视频」之后换内核 / 回退链 / 错误卡片「改用 mpv 内核」全部被吞
+         * （真机 = 解码面板回弹 ExoPlayer、兜底按钮后卡 00:00 / 00:00）。
+         * 必须放在最前面：下面 prepareDecodeFallback 起就会访问 `player`（那时标志还在，实例会被钉住）。
+         */
+        playbackCoordinator.onVideoStartRequested()
+        /*
          * W19：回退档位按「播放会话」判定，必须在本会话拉取 PlaybackInfo 之前处理。
          *
          * 旧实现按 Intent 条目 id 判定「换条目」，但季 / 剧集入口与队列换集时 Intent 条目 ≠
@@ -674,6 +692,9 @@ constructor(
      *
      * 播放器实例、播放列表与进度都还在服务里跑，这里**不能**重新 `setMediaItems`（会跳回开头）。 只需要重新挂监听，再把 uiState
      * 里缺的标题补上；选集栏直接读播放器里的媒体项，不受影响。
+     *
+     * W68 / W76-B10 边界：这条路径**不能**调 `onVideoStartRequested()`——从锁屏 / 通知误入播放页时实例上
+     * 还是音乐条目，收掉会话会把后台音乐停掉（P1 回归）。
      */
     fun attachToExistingSession() {
         player.addListener(this)

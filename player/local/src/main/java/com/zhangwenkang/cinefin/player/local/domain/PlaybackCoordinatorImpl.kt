@@ -59,28 +59,43 @@ constructor(
         Timber.i("音乐起播：已停止视频会话")
     }
 
+    /**
+     * W76-B10（= D1）：视频起播前收掉音乐会话。
+     *
+     * 旧实现只在「标志为真 **且** 实例上仍是音乐条目」时处理，于是「先播音乐 → 同进程进视频」把实例抢走之后 标志就再也没人清 —— 视频被钉在音频实例上，换内核 / 回退链 /
+     * 错误卡片「改用 mpv 内核」全部失效。 现在按 [musicSessionActionOnVideoStart] 分档：音乐真在播才停播 + 上报，标志粘住则只清标志。
+     */
     override fun onVideoStartRequested() {
-        val player = playerHolder.existingPlayer ?: return
-        if (!playerHolder.musicSessionActive || !player.isPlayingMusicItem()) return
+        val player = playerHolder.existingPlayer
+        val action =
+            musicSessionActionOnVideoStart(
+                musicSessionActive = playerHolder.musicSessionActive,
+                currentItemIsMusic = player?.isPlayingMusicItem() == true,
+            )
+        if (action == MusicSessionVideoStartAction.NONE) return
 
-        val snapshot = playbackSnapshot(player)
         // 恢复视频的"播完一件暂停"（音乐期间被关掉，见 PlayerHolder.applyMusicPlaybackTuning）
         playerHolder.applyMusicPlaybackTuning(inMusicSession = false)
-        stopLocal(player)
-        playerHolder.musicSessionActive = false
-        if (snapshot != null) {
-            scope.launch {
-                runCatching {
-                    repository.postPlaybackStop(
-                        snapshot.itemId,
-                        playbackPositionTicks(snapshot.positionMs),
-                        playbackPercentage(snapshot.positionMs, snapshot.durationMs),
-                    )
+
+        if (action == MusicSessionVideoStartAction.STOP_MUSIC_AND_CLEAR_FLAG && player != null) {
+            val snapshot = playbackSnapshot(player)
+            stopLocal(player)
+            if (snapshot != null) {
+                scope.launch {
+                    runCatching {
+                        repository.postPlaybackStop(
+                            snapshot.itemId,
+                            playbackPositionTicks(snapshot.positionMs),
+                            playbackPercentage(snapshot.positionMs, snapshot.durationMs),
+                        )
+                    }
+                        .onFailure { Timber.w(it, "音乐停止上报失败") }
                 }
-                    .onFailure { Timber.w(it, "音乐停止上报失败") }
             }
         }
-        Timber.i("视频起播：已停止音乐会话")
+        // 必须清掉：标志留在真值上会把后续对 `PlayerHolder.player` 的访问钉死在音频实例
+        playerHolder.musicSessionActive = false
+        Timber.i("视频起播：已收掉音乐会话（%s）", action)
     }
 
     private fun stopLocal(player: Player) {
