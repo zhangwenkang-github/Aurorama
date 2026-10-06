@@ -148,7 +148,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 > 1.0.0 的未勾选项（版本号已就位，tag / 上传 / Release notes 粘贴）由发布负责人在用户全检通过后执行；Release notes 正文用 `docs/RELEASE_NOTES_v1.0.0.md`。
 
-**1.1.0（W76，2026-10-06）检查状态**：版本号 `1.1.0 (2)` ✅；合并态门禁 **899 / 0 / 0** ✅；`assembleLibreRelease` + `apksigner verify`（v2、指纹一致）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机冒烟 = W76 回归 **R1（K60，发布面补验）已完成**：①覆盖升级 ✅ / ②真实下载 ❌（既有缺陷、非本轮回归，已单独登记）/ ③SAF 本地库 ✅ / ④mpv 兜底自动回退 ✅ / ⑤Quick Connect ✅，**0 FATAL·ANR**（报告 `w76-reports/W76-R1.md`）；**R2（Pad 5，核心回归）已完成**（报告 `w76-reports/W76-R2.md`，0 FATAL·ANR）。**tag `v1.1.0` / GitHub Release / 上传 APK 待用户全检通过后执行**；Release notes 正文用 `docs/RELEASE_NOTES_v1.1.0.md`。
+**1.1.0（W76，2026-10-06）检查状态**：版本号 `1.1.0 (2)` ✅；合并态门禁 **899 / 0 / 0** ✅；`assembleLibreRelease` + `apksigner verify`（v2、指纹一致）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机冒烟 = W76 回归 **R1（K60，发布面补验）已完成**：①覆盖升级 ✅ / ②真实下载 ❌（既有缺陷、非本轮回归，已单独登记）/ ③SAF 本地库 ✅ / ④mpv 兜底自动回退 ✅ / ⑤Quick Connect ✅，**0 FATAL·ANR**（报告 `w76-reports/W76-R1.md`）；**R2（Pad 5，核心回归）已完成**（报告 `w76-reports/W76-R2.md`，0 FATAL·ANR）。**W76-R1b 定级取证（2026-10-07）**：①**D1 = P2**（音乐会话标志粘住 → 同进程换内核/回退失效）②**D2 = P3**（系列详情页「播放」空载、静默兜底）③**下载首次必失败（B9）= App 本地层 `StatFs` 早于 `mkdirs`**（W50 `8f07ee8` 起，1.0.0 同结构）——三项均**非 1.1.0 引入**（报告 `w76-reports/W76-R1b.md`）；其中 **B9（首次下载必失败）是否列为 1.1.0 阻断项待用户拍板**。**tag `v1.1.0` / GitHub Release / 上传 APK 待用户全检通过后执行**；Release notes 正文用 `docs/RELEASE_NOTES_v1.1.0.md`。
 
 ## 9. CI 发布（可选，后续）
 

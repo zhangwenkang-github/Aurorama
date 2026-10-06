@@ -446,3 +446,48 @@ M4A 样本 = 服务器 `m4a_60s_sample_file_574KB`（itemId `09805eb4-5342-457b-
 **未覆盖（转人工 / 后续）**：剧集库整剧批量下载真机（数据量）；本地媒体库条目「删除」置灰样本（本机本地库为书籍库）；搜索「已下载视频」角标样本（无已下载视频）；登录页离线入口（需登出，未破坏登录态）；F1 库卡在离线态的表现（离线库列表走既有空态，无样本）。
 
 **设备还原（2026-10-04 11:21）**：双机 App force-stop；`/sdcard/w62*.xml`、`k62*.xml`、`/data/local/tmp/w62_offline_on.sed` 清理；离线模式经 App 内「退出离线模式」还原 → `pref_offline_mode=false`（核对）；`pref_reader_mode=scroll` 保持 W61 基线；未改分辨率 / 旋转 / 网络；服务器仅白名单动作（阅读进度 / 播放进度上报）。
+
+### 7.7 W76 发布前全量回归（2026-10-06/07 · 对象 = 1.1.0 release 签名包）
+
+会话：**R2**（Pad 5 `43af8627` 核心回归，22:15–23:15）+ **R1**（K60 `8e875894` 发布面补验 B5，22:22–00:10）+ **R1b**（同机限时定性，00:15–00:43）。**纯验证无代码改动**；测试包 = `1.1.0 (2)` release（universal / arm64-v8a，签名指纹 `e449c4aa…e155ff`）；服务器只读（白名单：登录 / Quick Connect 授权 / 播放与阅读进度上报）。报告：`.planning/cinefin-expansion/w76-reports/W76-{R1,R1b,R2}.md`。
+
+#### 7.7.1 已完成回归项
+
+| 组 | 项目 | 结果 | 证据关键词 |
+|---|------|------|-----------|
+| R2 · 冒烟 | 首页 / 视频页（库卡·库选择·内容网格·返回）/ 音乐（专辑→播放）/ 媒体库（本地空态 + 服务器 5 库）/ 下载页 / 搜索（服务器分组）/ 收藏 / 设置（下载三项 + 关于 `1.1.0 (2)`） | ✅（书架无样本） | 1.0.0→1.1.0 覆盖安装后仍登录 `admin`、数据保留 |
+| R2 · 播放 | 直连 `/stream`（冰海战记 E1）+ HLS `master.m3u8`（灼眼 E5）；字幕自动选中 + 主次双语**上下两行**；倍速 1.5×（读数 + `media_session speed=1.5`）；双击 seek +15,000 ms；横滑 +39,051 ms | ✅ | release 无 Timber 日志，全部 UI / `dumpsys` 取证 |
+| R2 · 阅读 | EPUB / PDF / CBZ | ❌ **未覆盖** | 服务器当前**无 books 库**（本机两账号都只返回 5 个库）→ 无样本 |
+| R2 · 音乐 | 队列 / 歌词（服务端简体 + 混合行）/ EQ（5 段 + ReplayGain + 淡入淡出） | ✅ | |
+| R2 · 离线 | 开 → 书架离线可读（无书籍样本）→ 关（`pref_offline_mode=false` 复核） | ✅ / 部分 | 首页恢复常态 |
+| R2 · 下载页 | 0 进行中 · 0 已完成 · 0 失败；0 B / 49.2 GB | ✅ | 已完成列表为空（无样本） |
+| R2 · 性能 | 冷启动 ×3 = 440/377/386 → **中位 386 ms**；PSS 峰值 **270,566 kB**（+9.2% vs W2 基线，未超 +15%）；音乐滚动 **0.36% janky**（W61 1.07%，改善） | ✅ | release 包，异构建类型对照仅参照 |
+| R2 · 稳定性 | App **0 FATAL / 0 ANR** | ✅ | crash 缓冲 0 行；`uiautomator` 工具进程命中不计 |
+| R2 · v1.1.0 抽验 | #12 ★8.3 / #13 视频页搜索入口 / #5 返回位置保持 / #10 未知季有图且 OAD 可播 / #4 季卡打勾（只读）/ 双语上下两行 / #18 后台播放=关 | ✅ 7/7 | |
+| R1 · ① | **1.0.0 → 1.1.0 覆盖升级**：免重登、设置 / 下载记录保留、关于页 `1.1.0 (2)` | ✅ | |
+| R1 · ② | **release 真实下载任务**（视频 / 音乐 / 剧集三样本） | ❌ → 见 7.7.2 D-W76-1 | 全部 `失败 / 0 B / 0%`，无真实媒体 HTTP |
+| R1 · ③ | **SAF 本地媒体库授权重建**：批准 → 扫描 → 打开 → 播放 → 删库 | ✅ | 坑：`adb push` 中文名截断（改英文名即好） |
+| R1 · ④ | **mpv 内核兜底触发**：干净进程 + 码率「原始画质」，解码面板切 ExoPlayer 播 Hi10P → `10bit Luma/Chroma NO_EXCEEDS_CAPABILITIES` + `c2.qti.avc.decoder Decoder failed` → **无需干预自动回退 mpv 软解**并续播（`media_session` NONE→BUFFERING(99 s)→PLAYING(3)、`position=-1/speed=0.0` 为 mpv 特征；`[vd:v] Decoder format: 1920x1080 yuv420p10`） | ✅ | 全程无错误卡片、用户零干预 |
+| R1 · ⑤ | **Quick Connect 登录**：`pm clear` 冷装 → 6 位码 `296876` → 服务端 `POST /Users/AuthenticateByName` + `/QuickConnect/Authorize`（白名单）= true/200 → App 轮询自动登录 `zhangwenkang` | ✅ | 服务端 `GET /QuickConnect/Enabled` = true |
+
+#### 7.7.2 新发现缺陷（三条均**非 1.1.0 引入**，待用户决定是否纳入 1.1.0 / 后续波）
+
+| ID | 级别 | 现象 | 根因（已夹逼） | 建议 |
+|----|------|------|----------------|------|
+| **D-W76-1** | **P1（新装必现）** | 新装 / 清数据后首次下载 100% `失败 · 0 B`；文件系统无残片、无 `downloads/` 目录；服务器侧全部正常（`GET /Items/{id}/Download` = 206 + 1024 B、无 302；PlaybackInfo `SupportsDirectPlay=true`） | `core` `DownloaderImpl.executeTask`：`StatFs(target.parentFile?.path)` 在 `…/files/downloads` 未创建时抛 `IllegalArgumentException` → 通用 catch 收成 `UNKNOWN`；`mkdirs()` 排在其后（`DownloadHttpEngine.kt:92`）。**决定性 A/B**：仅 `mkdir …/files/downloads` 后重试 → 立刻真实下载（4.03 → 7.19 MB 残片）。v1.0.0 同结构（W50 `8f07ee8` 起）——此前机器上目录早已存在故未暴露，`pm clear` 后才 100% 复现 | 1 行修复（`StatFs` 前 `mkdirs` 或存在性守卫）+ 单测「首次下载 · 目标目录不存在」；修复后需重建 release 并复验「新装首下」 |
+| **D-W76-2** | P2 | 同进程「先音乐 → 后视频」后，换内核 / 回退链失效（面板回弹 ExoPlayer，实际仍 Exo）；`force-stop` 冷启后同一操作立即生效 | `PlaybackCoordinatorImpl.onVideoStartRequested()` **全仓库无调用点**（`MUSIC_PLAN:232` 的 W4 TODO 从未接线）→ `PlayerHolder.musicSessionActive` 粘住（`:93` 钉死实例、`:186` release 直返） | 单开一条：视频路径接线 + 音乐 / 视频双路径回归 |
+| **D-W76-3** | P3 | 系列详情页「播放」进入空载播放页（`00:00/00:00`、队列空、无提示） | `PlaylistManager` SERIES 分支语义 = 续播 → 第一季第一集；`return null` 是**静默**错误兜底；服务器该剧 3 季齐全、NextUp = S1E6 → 非数据缺失 | 单开一条：补提示 / 修解析；顺带记录 `EpisodeAction.NavigateToSeason` 自 W66 起无发射点（剧集页无法回季页，属有意移除则文档注明） |
+
+#### 7.7.3 未覆盖项
+
+- **阅读组 / 书架 / 离线书架书籍 / 搜索「本地」分组**：服务器当前无 `books` 类型库（本机两账号一致）→ 无样本，书籍库恢复后补测；
+- **真实下载的修复后复验**：待 D-W76-1 处置结论（若修复 → 重建包后复验「新装首下」）；
+- 平板两列大数据量视觉、片头尾动态触发、Trickplay（服务器无数据）、mpv stall 报错复现 —— 沿用 §7.6.3；
+- R1b 未能真机重触达「系列详情页」（`NavigateToSeason` 无发射点 + 动漫库 94 项定位成本高）→ D-W76-3 的「空载」现象沿用 R1 首手观察，标注**待复验**。
+
+#### 7.7.4 设备还原 / 副作用（不可回滚）
+
+- 观看进度被改写：冰海战记 S1E1、灼眼的夏娜 S1E1 / S1E5、ISUCA OAD、音乐《123我爱你》（admin 账号）等；
+- K60 release：`pm clear` 后用 Quick Connect 重建登录态（`zhangwenkang`，普通用户）；**播放内核偏好现为 mpv**（R1b D1 对照所致，可在解码面板切回）；R1b 手动创建的 `…/files/downloads/` 已删除；
+- Pad 5：账号切回 `admin`、`pref_offline_mode=false`、App force-stop；`.debug` 包全程零接触；
+- 双机 device-lock 均已回填释放时间 / 结论 / 还原清单；服务器仅白名单动作，零删除。
