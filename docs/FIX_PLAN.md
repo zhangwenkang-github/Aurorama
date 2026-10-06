@@ -41,8 +41,8 @@
 | 17 | 媒体库界面部分条目因无缩略图显示黑卡 | 无缩略图条目卡显示占位（图标 + 域色），无纯黑卡；与 #3 同波 | UI_PLAN | W74 | ✅ 已修复（S74-3，Pad 5：视频页聚合 / 临时库网格 + 通用库内容页四处调用点接域色占位；加载中 / 无图 / 失败三态实测无黑卡；注：服务器自身黑色缩略图不在 App 范围） |
 | 18 | 后台播放默认是开着的，现在要改为关 | `pref_player_background_audio` 默认回归 `false`；全新安装（清数据）播放器设置显示为关、退后台默认不出声；**已显式设置过的安装保留用户值** | PLAYER_PLAN | W74 | ⬜ |
 | 19 | （用户 2026-10-06 追加）所有播放、阅读等相关设置，都要有切换、重启保持 | 全量盘点播放器 + 阅读器设置项，逐项验证：a) 切换（离开 / 返回页面、换片 / 换集、切内核）后保持当前值；b) 冷启动 / 进程重启后保持；产出「设置项 → 存储键 → 切换保持 → 重启保持」盘点表，不保持的逐项修复；「切换」语义按此解读，若不符请指出 | PLAYER_PLAN / READER_PLAN | W74（S74-4） | 🟡 审计完成（64 条盘点 / 13 项不保持 = 7 条待修 + 6 条设计性；报告 `.planning/cinefin-expansion/w74-reports/W74-S4.md`） |
-| 20 | （用户 2026-10-06 追加）**主字幕与次字幕相互叠加**，应显示为**上下两行** | 双语字幕渲染为「主上、次下」两行、互不重叠（默认口径；如需主下 / 次上请指出）；主 / 次各自样式与延迟参数不回归；单字幕布局不受影响 | PLAYER_PLAN | W74-S5 | 🟡 进行中（K60，分支 `fix/w74-subtitle-two-lines`） |
-| 21 | （W74-S1 新发现）转码档（如 3 Mbps）下**服务端字幕交付内容为空**（HTTP 200 但 `cues=0, ass=false`），直连档同集正常 | 转码档字幕可用，或明确回落直连字幕交付；先只读取证服务端 `DeliveryUrl` / `SubtitleProfile` 行为 | PLAYER_PLAN / data | 新会话排期 | 🟡 取证中（负责人服务端已证交付正常，待 K60 App 侧证据） |
+| 20 | （用户 2026-10-06 追加）**主字幕与次字幕相互叠加**，应显示为**上下两行** | 双语字幕渲染为「主上、次下」两行、互不重叠（默认口径；如需主下 / 次上请指出）；主 / 次各自样式与延迟参数不回归；单字幕布局不受影响 | PLAYER_PLAN | W74-S5 | ✅ 已修复（K60：主 libass 上移 / 次文本贴底两行分离；单字幕与 #15 句末清屏不回归；合并 `19a1850`，合并态门禁 **858/0**；见 `PLAYER_PLAN` §34） |
+| 21 | （W74-S1 新发现）转码档（如 3 Mbps）下**服务端字幕交付内容为空**（HTTP 200 但 `cues=0, ass=false`），直连档同集正常 | 转码档字幕可用，或明确回落直连字幕交付；先只读取证服务端 `DeliveryUrl` / `SubtitleProfile` 行为 | PLAYER_PLAN / data | W74-S5（取证） | ✅ 已核验关闭（服务端：DeliveryUrl External + GET 200 + 合法 ASS；K60：3 Mbps 字幕正常 `cues=442`，**未复现空字幕** → W74-S1 观察归因一次性下载失败；「失败重试 + 异常日志」加固并入 W74-S7） |
 
 ### 2.1 补充说明（用户原话要点）
 
@@ -123,11 +123,11 @@
 
 ### W74 尾波（第五任负责人 · #20/#21 + S74-2/S74-7）
 
-**W74-S5 双语字幕叠行（#20）**：主上、次下两行不重叠；单字幕不回归；#15 句末清屏不回归；落点 `PlayerSubtitleOverlay`；K60 单机；分支 `fix/w74-subtitle-two-lines`（进行中）。
+**W74-S5 双语字幕叠行（#20）**：主上、次下两行不重叠；单字幕不回归；#15 句末清屏不回归；落点 `PlayerSubtitleOverlay`；K60 单机；分支 `fix/w74-subtitle-two-lines`——✅ 已合并 `19a1850`（合并态门禁 858/0，CI 已推送）。
 
-**W74-S2 播放继承与后台（#9 + #18）**：倍速会话内跨集继承 + `pref_player_background_audio` 默认 true→false（红线申报）；落点 `PlayerHolder` / `PlayerViewModel` / `AppPreferences.kt`；Pad 5 单机；分支 `fix/w74-playback-inherit`（进行中）。
+**W74-S2 播放继承与后台（#9 + #18）**：倍速会话内跨集继承 + `pref_player_background_audio` 默认 true→false（红线申报）；落点 `PlayerHolder` / `PlayerViewModel` / `AppPreferences.kt`；Pad 5 单机；分支 `fix/w74-playback-inherit`——**派发时误用 deepseek-v4-pro 已被叫停，改由 flash 接手会话 `w74_playback_inherit2`（同一 worktree，未提交改动保留）**；子代理模型一律 `deepseek-flash`。
 
-**W74-S7 设置即时生效（U2-B + U5 + U6 + U7）**：①U2 = 方案 B：新增 `pref_player_repeat_mode` / `pref_player_shuffle`，进播放页应用（切内核 / 重开 / 冷启动保持）；②U5 长按倍速档改「用时现读」；③U6 seek 步进 ±按钮 / 内核命令改现读偏好；④U7 设置页「首选语言」下拉值改由 plural 优先列表首项派生。落点 `PlayerControlOverlay` / `PlayerHolder` / `PlayerViewModel` / `PlayerGestureHelper` / 设置页；**须在 S74-2 合并后再开**（PlayerHolder / PlayerViewModel 咽喉文件串行）；K60 或 Pad 5 单机。
+**W74-S7 设置即时生效与加固（U2-B + U5 + U6 + U7 + #21 加固）**：①U2 = 方案 B：新增 `pref_player_repeat_mode` / `pref_player_shuffle`，进播放页应用（切内核 / 重开 / 冷启动保持）；②U5 长按倍速档改「用时现读」；③U6 seek 步进 ±按钮 / 内核命令改现读偏好；④U7 设置页「首选语言」下拉值改由 plural 优先列表首项派生；⑤#21 加固：字幕下载失败一次重试 + 失败日志带异常（落点 `PlayerSubtitleController`）。落点 `PlayerControlOverlay` / `PlayerHolder` / `PlayerViewModel` / `PlayerGestureHelper` / 设置页 / `PlayerSubtitleController`；**须在 S74-2 合并后再开**（PlayerHolder / PlayerViewModel 咽喉文件串行）；K60 或 Pad 5 单机。
 
 **W74-S6 转码档字幕（#21）**：先取证定性（服务端已证交付正常：DeliveryUrl External + GET 200 + 合法 ASS；待 K60 侧失败异常 / HTTP 码），再定修法（倾向 App 侧下载超时 / 无重试）；落点 `PlayerSubtitleController`；证据齐后开。
 
@@ -179,6 +179,8 @@
 | 2026-10-06 | **W74 波 2 合并验收**：S74-1 `e636531`（#15 句末清屏 + #14 简繁 / 码率保持 / 次字幕继承；+15 单测）+ S74-3 `2b87729`（#3/#17 占位不黑 + D-F7 库选择直达；+5 单测）合并 master `2f0055d`；合并态门禁 = `assembleDebug` + `ktfmtCheck` + 8 任务 `--rerun` **850 / 0 失败 0 错误**；已推送。S74-4 只读审计完成（64 条 / 13 项不保持，报告 `w74-reports/W74-S4.md`）。**用户新反馈 #20（字幕↔次字幕叠行 → 上下两行）与 #21（转码档字幕为空）已登记，移交新负责人会话**（2026-10-06 按用户指示开新会话交接）。 |
 | 2026-10-06 | **W74 尾波派发（第五任负责人）**：①**W74-S5**（#20 主/次字幕上下两行）K60 `8e875894`，分支 `fix/w74-subtitle-two-lines`，worktree `w74d`；②**W74-S2**（#9 倍速跨集继承 + #18 后台播放默认关）Pad 5 `43af8627`，分支 `fix/w74-playback-inherit`，worktree `w74e`；③负责人线：**#21 服务端只读取证**——用与 App 相同的 PlaybackInfo 请求（3 Mbps + EnableTranscoding + HLS/ts + EnableSubtitlesInManifest + SubtitleProfiles srt/ass External）复现：转码源字幕 `DeliveryUrl` 存在（Method=External）且直接 GET 返回 **HTTP 200 + 合法 ASS**（冰海战记 S2E1 idx5/26/11/25 均 <2s，12.8–17.8 KB）→ **服务端交付正常**，`cues=0` 需 App 侧证据（已交由 S74-5 在 K60 补只读日志取证）。设备与 worktree 已登记 device-lock。 |
 | 2026-10-06 | 用户拍板 **D-F8（U2 = 方案 B：视频循环 / 随机持久化）**；登记 W74-S7 任务卡（U2-B + U5/U6/U7，排期在 S74-2 合并后，咽喉文件串行）。负责人线保持「最小必要」：只做派发 / 收口核对 / 合并态门禁复跑 / 推送 CI / 文档回写，其余交子代理，避免重复劳动。 |
+| 2026-10-06 | **W74-S5 合并验收（#20）**：分支 `fix/w74-subtitle-two-lines` rebase 后合并 master `19a1850`；合并态门禁 = `assembleDebug` + `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **858 项 / 0 失败 0 错误**（app 245 / core 89 / data 68 / player:core 12 / player:local 138 / film 53 / book 113 / music 140）；已推送 CI。K60 真机：主 libass 上移 + 次文本贴底两行分离（改前叠行）、单字幕与 #15 句末清屏不回归、样式 / 延迟不回归；#21 同窗口取证 3 Mbps 字幕正常 `cues=442`（未复现空字幕）。证据落 `.planning/cinefin-expansion/w74-evidence/w74_s5/`；详见 `PLAYER_PLAN` §34 与 `w74-reports/W74-S5.md`。 |
+| 2026-10-06 | **子代理模型修正**：W74-S2 派发误用 `deepseek-v4-pro`（用户纠正应为 `deepseek-flash`）→ 已叫停该会话，未提交改动（MPVPlayer / PlayerViewModel / AppPreferences 三处）保留在 worktree，改由 flash 接手会话 `w74_playback_inherit2` 复核补全；**此后子代理一律 `deepseek-flash`**。另：本地 DeepSeek 代理加装 usage 只读日志（`logs/usage.log`：model/in/out/cached/reqBytes），实测子代理单请求 ~21–30 万 tokens、缓存命中率 ~99% → 成本主因 = 大上下文 × 高频往返。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
