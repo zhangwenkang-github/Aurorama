@@ -112,24 +112,10 @@ constructor(
                     repository.isCurrentUserAdministrator()
                 }
                     .getOrDefault(false)
-                val libraries = runCatching { repository.getLibraries() }.getOrDefault(emptyList())
+                val libraries = runCatching { repository.getLibraries() }.getOrNull()
                 // 媒体库目录缓存：设置模块不能依赖 data 层，设置页的「使用哪个媒体库」读这份缓存。
                 // 拉取失败（离线 / 服务器不可达）时保留上一次缓存，不写空值。
-                if (libraries.isNotEmpty()) {
-                    val catalog =
-                        LibraryCatalog.encode(
-                            libraries.map { library ->
-                                CatalogLibrary(
-                                    id = library.id.toString(),
-                                    name = library.name,
-                                    type = library.type.type,
-                                )
-                            }
-                        )
-                    if (catalog != appPreferences.getValue(appPreferences.uiLibraryCatalog)) {
-                        appPreferences.setValue(appPreferences.uiLibraryCatalog, catalog)
-                    }
-                }
+                libraries?.let(::publishLibraryCatalog)
                 // 用 copy 而不是新建：只覆盖服务器相关字段，保留 refreshLocalLibraries() 刚写入的本地库行。
                 _state.value =
                     _state.value.copy(
@@ -137,12 +123,46 @@ constructor(
                         serverAddress = address?.address,
                         userName = user?.name,
                         isAdministrator = isAdministrator,
-                        libraries = libraries,
+                        // W73 #16：拉取失败（无会话 / 网络）时保留上一次成功列表，不把侧栏库行清空。
+                        libraries = libraries ?: _state.value.libraries,
                         sidebarVisibility = readSidebarVisibility(),
                         hideBottomBar = appPreferences.getValue(appPreferences.hideBottomBar),
                     )
             }
                 .onFailure { Timber.w(it, "读取抽屉账号信息失败") }
+        }
+    }
+
+    /**
+     * 服务器库只读刷新（W73 #16：侧栏 / 媒体页 / 库选择器三处库集合一致）。
+     *
+     * 导航变化时顺手拉一次——仓库 `MetadataCache`（TTL 10 分钟）负责去重，缓存有效期内零网络请求； 覆盖「冷启动瞬间会话尚未就绪 →
+     * 首拉为空且之后长期不再刷新」的侧栏空库场景（平板侧轨不打开抽屉、没有其它刷新时机）。 拉取失败保留旧值（不清空侧栏）。
+     */
+    fun refreshServerLibraries() {
+        viewModelScope.launch {
+            val libraries =
+                runCatching { repositoryProvider.get().getLibraries() }.getOrNull() ?: return@launch
+            publishLibraryCatalog(libraries)
+            _state.value = _state.value.copy(libraries = libraries)
+        }
+    }
+
+    /** 媒体库目录缓存（`LibraryCatalog` 编码）：设置模块不能依赖 data 层，设置页的「使用哪个媒体库」读这份缓存。 */
+    private fun publishLibraryCatalog(libraries: List<FindroidCollection>) {
+        if (libraries.isEmpty()) return
+        val catalog =
+            LibraryCatalog.encode(
+                libraries.map { library ->
+                    CatalogLibrary(
+                        id = library.id.toString(),
+                        name = library.name,
+                        type = library.type.type,
+                    )
+                }
+            )
+        if (catalog != appPreferences.getValue(appPreferences.uiLibraryCatalog)) {
+            appPreferences.setValue(appPreferences.uiLibraryCatalog, catalog)
         }
     }
 

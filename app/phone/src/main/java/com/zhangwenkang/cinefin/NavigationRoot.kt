@@ -164,6 +164,7 @@ import com.zhangwenkang.cinefin.presentation.setup.users.UsersScreen
 import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.video.VideoScreen
+import com.zhangwenkang.cinefin.presentation.video.pickVideoLibraries
 import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
@@ -391,7 +392,11 @@ fun NavigationRoot(
     }
     // W53B：本地库不属于服务器数据——导航变化（进出本地库详情 / 媒体库页新建后离开）时只读刷新一次本地库行，
     // 让侧轨 / 抽屉的「本地媒体库」子分组跟着建立 / 删除 /「在媒体库显示」开关变化。
-    LaunchedEffect(navBackStackEntry) { drawerViewModel.refreshLocalLibraries() }
+    // W73 #16：同一时机顺手刷新服务器库行（仓库元数据缓存 TTL 去重），侧栏与媒体页 / 视频页保持同一集合。
+    LaunchedEffect(navBackStackEntry) {
+        drawerViewModel.refreshLocalLibraries()
+        drawerViewModel.refreshServerLibraries()
+    }
 
     // 形态分级（§4.4）：Compact 底部 tab；Medium 起侧轨（W70 起 ≥600dp 默认展开）
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -602,10 +607,8 @@ fun NavigationRoot(
         navEntryKeys(
             isAdministrator = drawerData.isAdministrator,
             librariesLoaded = drawerData.libraries.isNotEmpty(),
-            hasVideoLibrary =
-                drawerData.libraries.any {
-                    it.type == CollectionType.Movies || it.type == CollectionType.TvShows
-                },
+            // W73 #16：与视频页 `pickVideoLibraries` 同口径（movies / tvshows / homevideos / 混合）。
+            hasVideoLibrary = pickVideoLibraries(drawerData.libraries).isNotEmpty(),
             hasMusicLibrary = drawerData.libraries.any { it.type == CollectionType.Music },
             hasBooksLibrary = drawerData.libraries.any { it.type == CollectionType.Books },
         )

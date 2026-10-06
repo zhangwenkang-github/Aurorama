@@ -26,7 +26,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
@@ -84,7 +87,12 @@ fun MediaScreen(
     val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
     val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
 
-    LaunchedEffect(true) { viewModel.loadData() }
+    // W73 #16：媒体页每次回到前台（RESUMED）都重拉库列表——数据源是仓库共享元数据缓存（TTL 10 分钟，
+    // 缓存有效期内零网络），既修「库列表只在首进加载一次」，也与侧栏 / 视频页保持同一集合。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { viewModel.loadData() }
+    }
 
     MediaScreenLayout(
         onOpenDrawer = onOpenDrawer,

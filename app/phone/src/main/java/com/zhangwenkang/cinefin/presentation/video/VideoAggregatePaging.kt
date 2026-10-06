@@ -11,15 +11,28 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
 
-/** 视频模式页的库门控 / 聚合口径（W53）：只认 movies + tvshows 两类库。 */
+/**
+ * 视频模式页的库门控（W53；W73 #16 扩到全部「视频类」库）。
+ *
+ * 与 `temporaryLibraryKindOf` 的 `TemporaryLibraryKind.Video` 保持同一集合口径——movies / tvshows /
+ * homevideos（其他）/ 混合库都进视频页：侧栏 / 媒体库页点这些库同样落到视频页临时库视图，「侧栏 / 媒体页库卡 / 库选择器」三处集合一致。 音乐 / 书籍 /
+ * 播放列表等不属于视频域，仍走各自页面。
+ */
 internal fun pickVideoLibraries(libraries: List<FindroidCollection>): List<FindroidCollection> =
     libraries.filter {
-        it.type == CollectionType.Movies || it.type == CollectionType.TvShows
+        it.type == CollectionType.Movies ||
+            it.type == CollectionType.TvShows ||
+            it.type == CollectionType.HomeVideos ||
+            it.type == CollectionType.Mixed
     }
 
-/** 聚合列表的条目类型：电影 + 剧集。 */
+/**
+ * 聚合列表的条目类型：电影 + 剧集 + 家庭视频（`Video`）。
+ *
+ * W73 #16：homevideos 库（如「其他」）的条目是 `Video` 类型，聚合与临时库视图都要能取到，否则该库点开是空网格。
+ */
 internal val VIDEO_AGGREGATE_TYPES: List<BaseItemKind> =
-    listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES)
+    listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.VIDEO)
 
 /**
  * 聚合列表游标：[libraryIndex] = 当前库在视频库列表里的下标，[startIndex] = 该库内的偏移。

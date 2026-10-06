@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import java.util.UUID
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -13,15 +14,26 @@ import org.junit.Test
 /** W53 视频模式页：库门控 / 聚合游标 / 显示方式取值的纯逻辑。 */
 class VideoAggregateTest {
     @Test
-    fun picksOnlyMovieAndShowLibrariesInServerOrder() {
+    fun picksVideoLibrariesIncludingHomeVideosAndMixedInServerOrder() {
         val movies = library("电影", CollectionType.Movies)
-        val mixed = library("其他", CollectionType.Mixed)
+        val home = library("其他", CollectionType.HomeVideos)
+        val mixed = library("混剪", CollectionType.Mixed)
         val shows = library("动漫", CollectionType.TvShows)
         val music = library("音乐", CollectionType.Music)
+        val playlists = library("Playlists", CollectionType.Playlists)
 
-        val picked = pickVideoLibraries(listOf(movies, mixed, shows, music))
+        val picked = pickVideoLibraries(listOf(movies, home, mixed, shows, music, playlists))
 
-        assertEquals(listOf(movies, shows), picked)
+        assertEquals(listOf(movies, home, mixed, shows), picked)
+    }
+
+    @Test
+    fun aggregateItemTypesCoverHomeVideoEntries() {
+        // homevideos 库（「其他」）的条目是 `Video` 类型：不带上它该库点开是空网格（W73 #16）。
+        assertEquals(
+            listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.VIDEO),
+            VIDEO_AGGREGATE_TYPES,
+        )
     }
 
     @Test
