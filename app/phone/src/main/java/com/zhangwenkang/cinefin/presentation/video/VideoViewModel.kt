@@ -38,7 +38,11 @@ import timber.log.Timber
 data class VideoState(
     val allLibraries: List<FindroidCollection> = emptyList(),
     val libraries: List<FindroidCollection> = emptyList(),
-    /** 顶栏「库选择」（W54-C）：null = 全部库；服务器上找不到该库时同样回落 null。 */
+    /**
+     * 顶栏「库选择」（W54-C）：null = 全部库；服务器上找不到该库时同样回落 null。
+     *
+     * D-F7：库卡模式下恒为 null（选中具体库 = 直达内容）；聚合模式下 = 所选库。
+     */
     val selectedLibraryId: UUID? = null,
     val isLoading: Boolean = false,
     val loaded: Boolean = false,
@@ -82,10 +86,9 @@ constructor(
 
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            appPreferences.uiVideoDisplayMode.backendName ->
-                _state.value = _state.value.copy(displayMode = readDisplayMode())
-            appPreferences.uiVideoLibraryId.backendName ->
-                applyLibrarySelection(readStoredLibraryId())
+            // D-F7：显示方式变化同样要重算可见库（聚合 ↔ 库卡的选择语义不同）。
+            appPreferences.uiVideoDisplayMode.backendName,
+            appPreferences.uiVideoLibraryId.backendName -> applyCurrentSelection()
         }
     }
 
@@ -134,7 +137,12 @@ constructor(
                     val temporaryLibrary = temporaryLibraryId?.let { id ->
                         libraries.firstOrNull { it.id.toString() == id }
                     }
-                    val selection = resolveVideoLibrarySelection(libraries, readStoredLibraryId())
+                    val selection =
+                        resolveVideoLibrariesForMode(
+                            readDisplayMode(),
+                            libraries,
+                            readStoredLibraryId(),
+                        )
                     // 临时库视图只加载该库；库在服务器上找不到（被删 / 重建）时回落默认视图。
                     val visibleLibraries = temporaryLibrary?.let { listOf(it) } ?: selection.visible
                     _state.value =
@@ -162,24 +170,39 @@ constructor(
         }
     }
 
-    /** 顶栏「库选择」（W54-C）：null = 全部库。先落盘（跨页面 / 重启保留）再即时生效。 */
+    /**
+     * 顶栏「库选择」（W54-C）：null = 全部库。先落盘（跨页面 / 重启保留）再即时生效。
+     *
+     * D-F7：库卡模式下选中具体库改走「直达该库内容」的导航回调，不再调用本方法；聚合模式保持原语义。
+     */
     fun selectLibrary(libraryId: UUID?) {
         // 写偏好会触发监听器即时重算（与「视频显示方式」同一机制）；写入同样的值不会触发回调，
         // 页面本来也没有变化。
         appPreferences.setValue(appPreferences.uiVideoLibraryId, storedLibraryIdValue(libraryId))
     }
 
-    /** 偏好变化 / 手动选择共用的解析（不重新请求服务器）：更新可见库与聚合流。 */
-    private fun applyLibrarySelection(storedId: String?) {
+    /** 偏好变化（显示方式 / 库选择）共用的解析（不重新请求服务器）：更新可见库与聚合流。 */
+    private fun applyCurrentSelection() {
         val current = _state.value
-        val selection = resolveVideoLibrarySelection(current.allLibraries, storedId)
+        val displayMode = readDisplayMode()
+        val selection =
+            resolveVideoLibrariesForMode(
+                displayMode,
+                current.allLibraries,
+                readStoredLibraryId(),
+            )
         // 临时库视图只显示那一个库；选择仍照常解析（退出临时视图后按选择显示）。
         if (current.temporaryLibrary != null) {
-            _state.value = current.copy(selectedLibraryId = selection.selectedId)
+            _state.value =
+                current.copy(
+                    displayMode = displayMode,
+                    selectedLibraryId = selection.selectedId,
+                )
             return
         }
         _state.value =
             current.copy(
+                displayMode = displayMode,
                 selectedLibraryId = selection.selectedId,
                 libraries = selection.visible,
                 aggregateItems =

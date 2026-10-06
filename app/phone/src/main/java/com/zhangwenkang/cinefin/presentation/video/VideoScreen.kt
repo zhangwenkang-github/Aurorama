@@ -58,6 +58,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
+import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.presentation.components.BaseDialog
@@ -73,6 +74,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
+import com.zhangwenkang.cinefin.presentation.film.components.videoItemPlaceholderIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchActionBar
@@ -111,6 +113,11 @@ fun VideoScreen(
     temporaryLibraryId: String? = null,
     /** 临时库视图的「返回默认 ×」/ 系统返回键动作（回默认视频页）。 */
     onExitTemporaryLibrary: (() -> Unit)? = null,
+    /**
+     * D-F7：顶栏「库选择」**选中具体库** → 直达该库内容（导航由调用方负责，与侧栏 / 媒体页共用同一条 `libraryEntryRoute`
+     * 落点链路）；「全部库」保持卡片总览，不离开本页。
+     */
+    onOpenLibrary: (FindroidCollection) -> Unit = {},
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
     viewModel: VideoViewModel = hiltViewModel(),
@@ -133,7 +140,16 @@ fun VideoScreen(
         onOpenDownloads = onOpenDownloads,
         onRetry = { viewModel.load(temporaryLibraryId, force = true) },
         onExitTemporaryLibrary = onExitTemporaryLibrary,
-        onSelectLibrary = viewModel::selectLibrary,
+        // D-F7（用户 2026-10-06 拍板 B）：选中具体库 = 直达该库内容（不再只过滤库卡）；
+        // 选「全部库」= 清掉历史偏好，回到全部库卡片总览。
+        onSelectLibrary = { libraryId ->
+            val library = libraryId?.let { id -> state.allLibraries.firstOrNull { it.id == id } }
+            if (library != null) {
+                onOpenLibrary(library)
+            } else {
+                viewModel.selectLibrary(null)
+            }
+        },
         sleepTimerState = sleepTimerState,
         onSelectSleepMinutes = viewModel::selectSleepTimer,
     )
@@ -562,6 +578,8 @@ private fun AggregatedVideoGrid(
                     ItemCard(
                         item = loadedItem,
                         direction = Direction.VERTICAL,
+                        // W74（#17）：无缩略图（家庭视频等）不再出纯黑卡——常驻「影视域图标 + 域色底」占位。
+                        placeholderIconRes = videoItemPlaceholderIconRes(loadedItem),
                         onClick = {
                             if (selectionMode) onToggleSelection(loadedItem)
                             else onItemClick(loadedItem)

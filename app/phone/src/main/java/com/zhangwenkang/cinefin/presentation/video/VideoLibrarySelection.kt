@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.presentation.video
 
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.presentation.utils.parseStoredLibraryId
+import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import java.util.UUID
 
 /**
@@ -31,3 +32,20 @@ internal fun resolveVideoLibrarySelection(
         VideoLibrarySelection(selectedId = target.id, visible = listOf(target))
     }
 }
+
+/**
+ * D-F7（用户 2026-10-06 拍板 B）：视频页「库选择」按显示方式分流。
+ *
+ * - **库卡列表**：选中具体库 = 直达该库内容（由页面回调导航，不落偏好），页面本身就是「全部库」卡片 总览——因此历史偏好不再过滤库卡（覆盖 D57 的「选中具体库 =
+ *   只过滤库卡」语义，「全部库」永远回到总览）；
+ * - **聚合列表**：沿用 W54-C 口径——只合并所选库的条目，或「全部库」的全部条目。
+ */
+internal fun resolveVideoLibrariesForMode(
+    displayMode: VideoDisplayMode,
+    libraries: List<FindroidCollection>,
+    storedId: String?,
+): VideoLibrarySelection =
+    when (displayMode) {
+        VideoDisplayMode.Aggregated -> resolveVideoLibrarySelection(libraries, storedId)
+        VideoDisplayMode.Cards -> VideoLibrarySelection(selectedId = null, visible = libraries)
+    }

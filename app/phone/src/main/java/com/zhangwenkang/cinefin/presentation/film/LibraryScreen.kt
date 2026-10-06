@@ -78,6 +78,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.LibraryTabRow
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryTagTile
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryToolbarRow
 import com.zhangwenkang.cinefin.presentation.film.components.SortByPanel
+import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchActionBar
@@ -486,12 +487,9 @@ private fun LibraryScreenLayout(
                                             loadedItem.images.primary?.toString(),
                                             cover,
                                         ),
-                                    placeholderIconRes =
-                                        if (libraryType == CollectionType.Books) {
-                                            CoreR.drawable.ic_book
-                                        } else {
-                                            null
-                                        },
+                                    // W74（#17）：无缩略图条目不再出黑卡——占位图标与库类型同源
+                                    // （书籍 = 书、播放列表 = 列表、合集 = 星标、其余 = 通用库）。
+                                    placeholderIconRes = libraryIconRes(libraryType),
                                     onServerImageFailed = {
                                         if (libraryType == CollectionType.Books) {
                                             coverFallback(loadedItem)
@@ -560,12 +558,8 @@ private fun LibraryScreenLayout(
                                             loadedItem.images.primary?.toString(),
                                             cover,
                                         ),
-                                    placeholderIconRes =
-                                        if (libraryType == CollectionType.Books) {
-                                            CoreR.drawable.ic_book
-                                        } else {
-                                            null
-                                        },
+                                    // W74（#17）：同库 tab 网格——无缩略图条目露出域色占位。
+                                    placeholderIconRes = libraryIconRes(libraryType),
                                     onServerImageFailed = {
                                         if (libraryType == CollectionType.Books) {
                                             coverFallback(loadedItem)
@@ -625,6 +619,8 @@ private fun LibraryScreenLayout(
                                 item = item,
                                 onClick = { onAction(LibraryAction.OnItemClick(item)) },
                                 modifier = Modifier.animateItem(),
+                                // W74（#17）：列表形态同样露域色占位，不出现黑条。
+                                placeholderIconRes = libraryIconRes(libraryType),
                                 onServerImageFailed = {
                                     if (libraryType == CollectionType.Books) coverFallback(item)
                                 },
@@ -657,6 +653,8 @@ private fun LibraryScreenLayout(
                                 direction = direction,
                                 onClick = { onAction(LibraryAction.OnItemClick(item)) },
                                 modifier = Modifier.animateItem(),
+                                // W74（#17）：同库 tab 网格——无缩略图条目露出域色占位。
+                                placeholderIconRes = libraryIconRes(libraryType),
                                 onServerImageFailed = {
                                     if (libraryType == CollectionType.Books) coverFallback(item)
                                 },

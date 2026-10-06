@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -75,6 +74,10 @@ fun LibraryEntryCard(
     val scrim = lumen?.scrim ?: Color.Black
     val tileShape = CinefinShapes.Sm
     val collection = item as? FindroidCollection
+    // W74（#3）：无论库自身有没有封面，底层都常驻「库类型图标 + 媒体域色底」占位——
+    // 无封面 / 加载中 / 加载失败都不再出现纯黑（深色）块；真实封面就绪后覆盖在上层。
+    val libraryType = collection?.type ?: CollectionType.Mixed
+    val placeholderMedia = libraryPlaceholderMedia(libraryType)
     val itemCount = collection?.itemCount
 
     LumenCardFrame(
@@ -87,12 +90,29 @@ fun LibraryEntryCard(
         emphasized = hovered || pressed,
         container = lumen?.panel ?: colors.surfaceContainerHigh,
     ) {
+        Box(
+            modifier =
+                Modifier.fillMaxSize()
+                    .background(colors.surfaceContainerHigh)
+                    .background(
+                        placeholderMedia.base.copy(alpha = LibraryPlaceholderBaseTintAlpha)
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(libraryIconRes(libraryType)),
+                contentDescription = null,
+                tint = placeholderMedia.bright,
+                modifier = Modifier.size(44.dp),
+            )
+        }
+
         AsyncImage(
             model = item.images.backdrop ?: item.images.primary,
-            placeholder = ColorPainter(lumen?.panelElevated ?: colors.surfaceContainerHigh),
-            error = ColorPainter(lumen?.panelElevated ?: colors.surfaceContainerHigh),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            placeholder = null,
+            error = null,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -130,8 +150,7 @@ fun LibraryEntryCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter =
-                        painterResource(libraryIconRes(collection?.type ?: CollectionType.Mixed)),
+                    painter = painterResource(libraryIconRes(libraryType)),
                     contentDescription = null,
                     tint = media.base,
                     modifier = Modifier.size(22.dp),

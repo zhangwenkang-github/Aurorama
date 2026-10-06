@@ -1078,6 +1078,15 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
+                        // D-F7：顶栏「库选择」选中具体库 → 直达该库内容
+                        // （与侧栏 / 媒体页同一条 libraryEntryRoute 落点链路）。
+                        onOpenLibrary = { library ->
+                            navigateToItem(
+                                navController = navController,
+                                item = library,
+                                context = context,
+                            )
+                        },
                         onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                     )
                 }
