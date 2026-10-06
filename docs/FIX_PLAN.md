@@ -139,11 +139,16 @@
 
 **S75-3 搜索与评分（#13 + #12）**：视频页 / 音乐 / 书架 / 库内容页搜索入口 + 详情页评分；落点各页顶栏 + 详情页信息行。
 
-### W76 收口（负责人 + 回归）
+### W76 收口（第七任负责人 + 回归 · 2026-10-06）
 
-- 全量回归（`TEST_PLAN` 新增组）+ 发布面未覆盖项补验（release 下载 / SAF 重建 / mpv 兜底 / Quick Connect）。
-- `1.1.0` 构建（debug 门禁 + release 签名）+ 版本号（code 2）+ Release notes + 发布。
-- 文档收口：各线文档回写 + `PROJECT_PLAN` §3 历史波次瘦身（可选）。
+- **W76-F1 日志脱敏（B8）**：`PlayerViewModel.toMediaItem()` 的 `Timber.d("Stream url: $streamUrl")` 把转码 `api_key=…` 明文打进 logcat（debug）。修 = 脱敏纯函数（保留 host / path / 非敏感 query，`api_key` / `X-Emby-Token` 值 → `***`）+ 单测；K60 logcat 取证（改后无明文 key 且播放正常）；分支 `fix/w76-log-redact`。非目标：不改 release 日志树 / 不引入日志框架 / 不扩大改动面。
+- **版本与构建（负责人）**：`buildSrc/Versions.kt` → **1.1.0 / code 2** → 合并态门禁（8 任务 `--rerun-tasks`）→ `assembleLibreRelease -Paurorama.universalApk=true` → `apksigner verify`（指纹 `e449c4aa…e155ff`）→ `RELEASE_PLAN` §7 记体积 / 哈希。
+- **全量回归（对象 = 1.1.0 release 签名包）**：
+  - **R1（K60，B5 发布面补验）**：①release 真实下载任务（含 1.0.0 → 1.1.0 覆盖安装升级路径 / 用户数据保留）；②SAF 本地库授权重建（删库 → 重选目录 → 扫描 → 打开 / 播放 → 还原）；③mpv 内核兜底触发（回退链第 3 档真机端到端）；④Quick Connect 登录路径。
+  - **R2（Pad 5，核心回归）**：按 `TEST_PLAN` §7.6 框架轻量复跑——全链路冒烟（首页 / 视频 / 音乐 / 书架 / 媒体库 / 下载 / 搜索 / 收藏 / 设置）+ 播放（直连 + HLS 转码 + 字幕）+ 阅读（EPUB / PDF / CBZ）+ 音乐 + 离线 + 下载 + 性能（冷启动 ×3 / PSS / 滚动 jank）+ 稳定性（0 FATAL·ANR）。
+- **Release notes**：新建 `docs/RELEASE_NOTES_v1.1.0.md`（参照 v1.0.0 模板：亮点 / APK 选择建议 / 签名指纹 / 已知限制）。
+- **用户全检 → 发布**：1.1.0 release 装机交用户全检（含转用户代测项 #1 吸附手感 / #2 管理员入口）；通过后按 `RELEASE_PLAN` §5 打 tag `v1.1.0` + GitHub Release + 上传 APK。**全检通过前不打 tag / 不发 Release**。
+- 文档收口：各线文档回写 + `PROJECT_PLAN` §3 状态 + 记忆 `cinefin-v11-update`。
 
 ## 4. 决策记录
 
@@ -187,6 +192,7 @@
 | 2026-10-06 | **负责人交接阈值 + 观测升级（用户拍板）**：①负责人会话「上下文接近 **35 万 token** 主动交接」，交接文档（本进度日志 + `cinefin-v11-update` 记忆）**全程实时更新**，负责人只做少量任务（1–2 波）；②本地 DeepSeek 代理 usage 观测升级——压缩请求标 `kind=compact`（识别输入末条 user 文本的 `CONTEXT CHECKPOINT COMPACTION`，历史引用不误报）、新增 `hit=%`（cached/in）并在 API 缺失时派生 `missed=in−cached`；离线自测 `USAGE_TEST_OK`，线上已热重启（`healthz` 0.8s 恢复，实况行 `kind=normal hit=99.8% missed=220`）。回滚备份 `proxy.mjs.bak-compactobs-2026-10-06`。 |
 | 2026-10-06 | **压缩阈值回退（用户拍板）**：`models.json` 两模型 `auto_compact_token_limit` 250000 → `null`（恢复原值；当前文件与备份 `models.json.bak-compact-2026-10-06` 逐行一致，JSON 校验通过）。**需完全重启 Codex 生效**——20:45:31 启动的进程加载的仍是 250k 版。注意：`null` = 出厂默认（接近窗口时可能仍有内置兜底压缩），只是去掉了提前触发点；会话续命以「接近 35 万主动交接」为准。 |
 | 2026-10-06 | **W75-S1 + W75-S3 合并验收**：`ce82473`（#1 已播刻度白 85% + 吸附窗口按片长 2%/3% 派生（下限 ±2s/±3s，K60 触控区 ≈3px → ≈40px）+ 触觉升级；K60 真机、0 FATAL·ANR）+ `a874c04`（#13 全页搜索入口 + #12 详情评分；Pad 5 真机、0 FATAL·ANR；`NavigationRoot` +19 行已申报）rebase 后合并 master `a874c04`；合并态门禁 = `assembleDebug` + `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **896 项 / 0 失败 0 错误**（884 + 9 + 3）；已推送 CI。测试副作用：冰海战记 E16–E18 观看进度被改写（不可回滚，需用户知晓）。**下一步**：W76 收口（全量回归 + 发布面补验 + 1.1.0 构建签名 + Release notes → 用户全检后发布）。**转用户代测**：① #2 管理员入口首开即显（步骤见 `w75-reports/W75-S2.md`）；② W75-S1 吸附手感（步骤见 `w75-reports/W75-S1.md` §四）。 |
+| 2026-10-06 | **W76 收口开工（第七任负责人）**：接手态核对（master `7fb2472`、W75 全部合并、896/0；FIX_PLAN 全文 + `RELEASE_PLAN` + `TEST_PLAN` §7.6 + 记忆已读）。**W76 任务卡落档（§3）**：F1 日志脱敏（B8，K60）/ 版本 1.1.0+code2 / release 构建签名 / R1（K60 发布面补验 B5）/ R2（Pad 5 核心回归）/ Release notes / 用户全检后发布。已派发 **W76-F1**（分支 `fix/w76-log-redact`）；负责人线并行推进版本号与 Release notes 草稿。设备：F1 用 K60 `8e875894`，R2 预留 Pad 5 `43af8627`。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
