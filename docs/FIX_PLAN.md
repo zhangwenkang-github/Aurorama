@@ -121,6 +121,16 @@
 - 方法：读 `AppPreferences`（SharedPreferences）逐项核对存储键 + 落盘时机；真机行为验证两种场景（K60 或 Pad 5 单机）；产出盘点表；不保持的修复并补回归单测。
 - 非目标：①不做设置页 UI 重排；②不改任何默认值（后台播放默认关 = D-F2 已在 #18 处理）；③不引入新的配置存储框架。
 
+### W74 尾波（第五任负责人 · #20/#21 + S74-2/S74-7）
+
+**W74-S5 双语字幕叠行（#20）**：主上、次下两行不重叠；单字幕不回归；#15 句末清屏不回归；落点 `PlayerSubtitleOverlay`；K60 单机；分支 `fix/w74-subtitle-two-lines`（进行中）。
+
+**W74-S2 播放继承与后台（#9 + #18）**：倍速会话内跨集继承 + `pref_player_background_audio` 默认 true→false（红线申报）；落点 `PlayerHolder` / `PlayerViewModel` / `AppPreferences.kt`；Pad 5 单机；分支 `fix/w74-playback-inherit`（进行中）。
+
+**W74-S7 设置即时生效（U2-B + U5 + U6 + U7）**：①U2 = 方案 B：新增 `pref_player_repeat_mode` / `pref_player_shuffle`，进播放页应用（切内核 / 重开 / 冷启动保持）；②U5 长按倍速档改「用时现读」；③U6 seek 步进 ±按钮 / 内核命令改现读偏好；④U7 设置页「首选语言」下拉值改由 plural 优先列表首项派生。落点 `PlayerControlOverlay` / `PlayerHolder` / `PlayerViewModel` / `PlayerGestureHelper` / 设置页；**须在 S74-2 合并后再开**（PlayerHolder / PlayerViewModel 咽喉文件串行）；K60 或 Pad 5 单机。
+
+**W74-S6 转码档字幕（#21）**：先取证定性（服务端已证交付正常：DeliveryUrl External + GET 200 + 合法 ASS；待 K60 侧失败异常 / HTTP 码），再定修法（倾向 App 侧下载超时 / 无重试）；落点 `PlayerSubtitleController`；证据齐后开。
+
 ### W75 波 3（P1/P2 · 交互与增强）
 
 **S75-1 进度条（#1）**：已播刻度回白 + 吸附手感增强（阈值 / 触觉 / 气泡联动），必要时手势 seek 吸附下沉；落点 `PlayerControlOverlay` / `PlayerChapterSnap`；非目标：不做无章节吸附网格、不改刻度尺寸规格（W67b 已定稿）。
@@ -146,6 +156,7 @@
 | D-F5 | 文档结构：本文件为唯一入口，`PROJECT_PLAN` §3 挂线，细节回写各线文档 | 延续「一条线一个文档」，不新增零散文档 |
 | D-F6 | **不做大规模重构**；仅局部收敛（数据源 / 占位 / 字幕状态） | 刚发布 + 18 条覆盖咽喉文件，大重构放大回归面 |
 | D-F7 | 视频页顶栏「库选择」选中具体库 → **直达该库内容**（覆盖 D57 的「只过滤库卡」语义；选「全部库」时仍显示卡片总览） | 用户 2026-10-06 拍板「使用 B 方案」；**S74-3 已实现**：复用侧栏 / 媒体页同一条 `libraryEntryRoute` 直达链路（`VideoScreen.onOpenLibrary` → `navigateToItem`），库卡模式恒为「全部库」总览（历史偏好不再过滤库卡） |
+| D-F8 | 视频「循环·随机」**持久化**（方案 B）：新增 `pref_player_repeat_mode` / `pref_player_shuffle`，进播放页时应用（切内核 / 重开播放页 / 冷启动保持） | 用户 2026-10-06 拍板「按推荐的方案 B」；对齐 #19「切换 + 重启保持」与音乐侧队列持久化 |
 
 ## 5. 进度日志
 
@@ -167,6 +178,7 @@
 
 | 2026-10-06 | **W74 波 2 合并验收**：S74-1 `e636531`（#15 句末清屏 + #14 简繁 / 码率保持 / 次字幕继承；+15 单测）+ S74-3 `2b87729`（#3/#17 占位不黑 + D-F7 库选择直达；+5 单测）合并 master `2f0055d`；合并态门禁 = `assembleDebug` + `ktfmtCheck` + 8 任务 `--rerun` **850 / 0 失败 0 错误**；已推送。S74-4 只读审计完成（64 条 / 13 项不保持，报告 `w74-reports/W74-S4.md`）。**用户新反馈 #20（字幕↔次字幕叠行 → 上下两行）与 #21（转码档字幕为空）已登记，移交新负责人会话**（2026-10-06 按用户指示开新会话交接）。 |
 | 2026-10-06 | **W74 尾波派发（第五任负责人）**：①**W74-S5**（#20 主/次字幕上下两行）K60 `8e875894`，分支 `fix/w74-subtitle-two-lines`，worktree `w74d`；②**W74-S2**（#9 倍速跨集继承 + #18 后台播放默认关）Pad 5 `43af8627`，分支 `fix/w74-playback-inherit`，worktree `w74e`；③负责人线：**#21 服务端只读取证**——用与 App 相同的 PlaybackInfo 请求（3 Mbps + EnableTranscoding + HLS/ts + EnableSubtitlesInManifest + SubtitleProfiles srt/ass External）复现：转码源字幕 `DeliveryUrl` 存在（Method=External）且直接 GET 返回 **HTTP 200 + 合法 ASS**（冰海战记 S2E1 idx5/26/11/25 均 <2s，12.8–17.8 KB）→ **服务端交付正常**，`cues=0` 需 App 侧证据（已交由 S74-5 在 K60 补只读日志取证）。设备与 worktree 已登记 device-lock。 |
+| 2026-10-06 | 用户拍板 **D-F8（U2 = 方案 B：视频循环 / 随机持久化）**；登记 W74-S7 任务卡（U2-B + U5/U6/U7，排期在 S74-2 合并后，咽喉文件串行）。负责人线保持「最小必要」：只做派发 / 收口核对 / 合并态门禁复跑 / 推送 CI / 文档回写，其余交子代理，避免重复劳动。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
