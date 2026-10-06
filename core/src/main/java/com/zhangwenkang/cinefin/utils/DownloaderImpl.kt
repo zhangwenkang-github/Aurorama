@@ -422,7 +422,10 @@ class DownloaderImpl(
             val totalBytes = mediaSource.size.takeIf { it > 0L } ?: source.totalBytes
             val requiredBytes = (totalBytes - offset).coerceAtLeast(0L)
             if (totalBytes > 0L && requiredBytes > 0L) {
-                val stats = StatFs(target.parentFile?.path ?: context.filesDir.path)
+                // W76-B9：首次下载（新装 / 清数据）时 downloads 目录尚不存在，
+                // StatFs(不存在路径) 会抛 IllegalArgumentException；先建父目录，必要时回落 filesDir。
+                val statDirectory = DownloadStorageRules.resolveStatPath(target, context.filesDir)
+                val stats = StatFs(statDirectory.path)
                 if (stats.availableBytes < requiredBytes) {
                     throw DownloadHttpException(
                         DownloadFailureReason.STORAGE_INSUFFICIENT,
@@ -492,6 +495,8 @@ class DownloaderImpl(
         } catch (http: DownloadHttpException) {
             handleTaskFailure(source, http)
         } catch (error: Exception) {
+            // W76-B9：留痕未分类异常（release 无 Timber 时至少 logcat 可查 cause），避免只落 UNKNOWN 无从定位。
+            Timber.w(error, "下载任务未分类异常 ${source.id}")
             handleTaskFailure(
                 source,
                 DownloadHttpException(DownloadFailureReason.UNKNOWN, error.message, error),
