@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.models.FindroidChapter
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidSources
@@ -52,34 +53,33 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                     movie
                 }
                 BaseItemKind.SERIES -> {
-                    val nextUpEpisode = repository.getNextUp(itemId).firstOrNull()
-
-                    val season =
-                        if (nextUpEpisode != null) {
-                            repository.getSeason(nextUpEpisode.seasonId)
-                        } else {
-                            val seasons = repository.getSeasons(itemId)
-                            if (seasons.isEmpty()) {
-                                return null
-                            }
-                            seasons.first()
-                        }
+                    /*
+                     * W76-B11：系列级「播放」= **续播**（服务器 NextUp）→ 否则**第一季第一集**。
+                     *
+                     * 旧实现把「NextUp / 季 / 集任一取空」收成 `return null`：播放页拿到 null 就停在空载态
+                     * （`00:00/00:00`、队列为空）且**全程无提示**。现在解析链上的每一步失败都只降级、不取空
+                     * （NextUp 取不到 → 第一季；归属季取不到 → 第一季），最终确实没有可播的集时抛
+                     * [PlaybackStartException]，由播放页把消息提示给用户。
+                     */
+                    val nextUpEpisode = runCatching {
+                        repository.getNextUp(itemId).firstOrNull()
+                    }
+                        .onFailure { Timber.w(it, "系列级播放：拉取 NextUp 失败，回退第一季第一集") }
+                        .getOrNull()
 
                     val episodes =
                         loadSeriesEpisodes(
                             seriesId = itemId,
                             fields = listOf(ItemFields.CHAPTERS, ItemFields.TRICKPLAY),
-                            fallbackSeasonId = season.id,
+                            fallbackSeasonId = resolveSeriesFallbackSeasonId(itemId, nextUpEpisode),
                         )
 
-                    if (episodes.isEmpty()) {
-                        return null
-                    }
+                    val plan =
+                        planSeriesPlayback(nextUpEpisode, episodes)
+                            ?: throw PlaybackStartException("这部剧暂时没有可播放的剧集，请稍后重试")
 
-                    val episode = nextUpEpisode ?: episodes.first()
-
-                    items = episodes
-                    episode
+                    items = plan.episodes
+                    plan.episodes[plan.startIndex]
                 }
                 BaseItemKind.SEASON -> {
                     val season = repository.getSeason(itemId)
@@ -91,7 +91,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                         )
 
                     if (episodes.isEmpty()) {
-                        return null
+                        throw PlaybackStartException("这一季暂时没有可播放的剧集，请稍后重试")
                     }
 
                     // 从这一季的第一集开始播
@@ -114,12 +114,9 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                     items = episodes
                     episode
                 }
-                else -> null
+                // 未知类型不应该静默给一个空载播放页（W76-B11 的同类缺陷），直接给用户一句可见提示。
+                else -> throw PlaybackStartException("暂不支持播放该类型的条目")
             }
-
-        if (initialItem == null) {
-            return null
-        }
 
         startItem = initialItem
 
@@ -361,6 +358,29 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 .orEmpty()
         }
 
+    /**
+     * 系列级播放的「兜底季」：优先 NextUp 归属的那一季（整剧拉取失败时至少要能播这一季）， 否则按队列排序取季号最小的一季（= 第一季）。
+     *
+     * 两步都可能失败（网络 / 条目异常），失败只降级到下一步，不再返回 null 让播放页空载。
+     */
+    private suspend fun resolveSeriesFallbackSeasonId(
+        seriesId: UUID,
+        nextUpEpisode: FindroidEpisode?,
+    ): UUID? {
+        val nextUpSeason = nextUpEpisode?.let { episode ->
+            runCatching { repository.getSeason(episode.seasonId) }
+                .onFailure { Timber.w(it, "系列级播放：拉取 NextUp 归属季失败，回退第一季") }
+                .getOrNull()
+        }
+        if (nextUpSeason != null) return nextUpSeason.id
+
+        return runCatching { repository.getSeasons(seriesId) }
+            .onFailure { Timber.w(it, "系列级播放：拉取季列表失败（由整剧拉取兜底）") }
+            .getOrNull()
+            ?.let(::pickFallbackSeason)
+            ?.id
+    }
+
     private suspend fun FindroidItem.toPlayerItem(
         mediaSourceIndex: Int?,
         playbackPosition: Long,
@@ -507,4 +527,43 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             PlayerChapter(startPosition = chapter.startPosition, name = chapter.name)
         }
     }
+}
+
+/**
+ * W76-B11：系列级播放的规划结果。
+ *
+ * [startIndex] 是 [episodes] 里的起播下标（续播 / 第一集），[episodes] 即整剧播放队列。
+ */
+internal data class SeriesPlaybackPlan(
+    val episodes: List<FindroidEpisode>,
+    val startIndex: Int,
+)
+
+/**
+ * 系列级播放的「兜底季」= 季号最小的一季（= 第一季）。
+ *
+ * 排序口径与 [PlaylistManager] 的队列排序一致（`indexNumber` 升序，同号取先出现的）；拿不到季列表时返回 null， 由调用方决定降级。 纯函数，便于单测。
+ */
+internal fun pickFallbackSeason(seasons: List<FindroidSeason>): FindroidSeason? =
+    seasons.minByOrNull {
+        it.indexNumber
+    }
+
+/**
+ * 规划系列级播放：**优先 NextUp 续播**，NextUp 缺失 / 不在这一轮队列里时回退到队首（= 第一季第一集）。
+ *
+ * [episodes] 为空 = 这部剧没有可播的集 → 返回 null，调用方据此抛 [PlaybackStartException]（用户可见提示）， 不再静默返回 null
+ * 让播放页空载。纯函数，便于单测。
+ */
+internal fun planSeriesPlayback(
+    nextUpEpisode: FindroidEpisode?,
+    episodes: List<FindroidEpisode>,
+): SeriesPlaybackPlan? {
+    if (episodes.isEmpty()) return null
+    val nextUpIndex =
+        nextUpEpisode?.let { candidate -> episodes.indexOfFirst { it.id == candidate.id } } ?: -1
+    return SeriesPlaybackPlan(
+        episodes = episodes,
+        startIndex = if (nextUpIndex >= 0) nextUpIndex else 0,
+    )
 }
