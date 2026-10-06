@@ -1,0 +1,18 @@
+# graphify 扫描排除（方案 A：代码 + 文档入图）
+# 图片/位图资源不入图（图标、截图等低信息素材）
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.ico
+*.svg
+
+# fastlane 发布碎片（发布说明、发布截图）不入图
+fastlane/
+
+# 许可与法律文本不入图
+LICENSE*
+COPYING*
+NOTICE*
