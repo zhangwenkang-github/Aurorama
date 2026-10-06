@@ -118,6 +118,20 @@ class DownloaderImpl(
     /** sourceId → 运行中的下载协程。 */
     private val activeJobs = ConcurrentHashMap<String, Job>()
 
+    /**
+     * W76-Q7：入队方与运行中 worker 之间的「退出交接」状态（保护 [queueKickRequested] / [engineWorkerQuiesced]）。
+     *
+     * 见 [runQueue] 尾部与 [kickRunningEngineWorker]：两侧都在同一把锁内做决定，消除「新任务落库在 worker
+     * 判定队列为空与退出之间」导致的静默漏调度。
+     */
+    private val queueKickLock = Any()
+
+    /** 入队方请求运行中的 worker 退出前再确认一次队列。 */
+    private var queueKickRequested = false
+
+    /** 运行中的 worker 已判定队列为空、正准备退出（此刻起它不会再领取新任务）。 */
+    private var engineWorkerQuiesced = false
+
     /** sourceId → 内存运行态（速度 / ETA / 最新字节数）。 */
     private val runtime = MutableStateFlow<Map<String, TaskRuntime>>(emptyMap())
 
@@ -273,38 +287,67 @@ class DownloaderImpl(
         }
 
     override suspend fun runQueue(): DownloadQueueOutcome {
+        // W76-Q7：新一轮 worker 开始 → 复位调度交接状态（上一轮遗留的 kick / 静默标记作废）。
+        synchronized(queueKickLock) {
+            engineWorkerQuiesced = false
+            queueKickRequested = false
+        }
         var ran = 0
         while (true) {
-            coroutineContext.ensureActive()
-            val slots = maxConcurrentTasks - activeJobs.size
-            val claimed = claimRunnableTasks(slots)
-            if (claimed.isEmpty()) break
-            supervisorScope {
-                claimed.map { source -> async { executeTask(source) } }.forEach { it.await() }
-            }
-            ran += claimed.size
-        }
-        val pendingSources =
-            withContext(Dispatchers.IO) {
-                database.getPendingSources().filter { source ->
-                    val status = source.taskStatus.toTaskStatus()
-                    source.engineVersion >= ENGINE_VERSION &&
-                        (status == DownloadTaskStatus.PENDING ||
-                            (status == DownloadTaskStatus.RUNNING &&
-                                !activeJobs.containsKey(source.id)))
+            while (true) {
+                coroutineContext.ensureActive()
+                val slots = maxConcurrentTasks - activeJobs.size
+                val claimed = claimRunnableTasks(slots)
+                if (claimed.isEmpty()) break
+                supervisorScope {
+                    claimed.map { source -> async { executeTask(source) } }.forEach { it.await() }
                 }
+                ran += claimed.size
             }
-        if (pendingSources.isNotEmpty()) {
-            // 任务级指数退避：按最近一个 nextRetryAt 安排下一次唤醒（带 CONNECTED 约束）。
-            val now = System.currentTimeMillis()
-            val nextWakeAt = pendingSources.minOf { it.nextRetryAt }
-            enqueueEngineWork(delayMs = (nextWakeAt - now).coerceAtLeast(0L))
+            val pendingSources =
+                withContext(Dispatchers.IO) {
+                    database.getPendingSources().filter { source ->
+                        val status = source.taskStatus.toTaskStatus()
+                        source.engineVersion >= ENGINE_VERSION &&
+                            (status == DownloadTaskStatus.PENDING ||
+                                (status == DownloadTaskStatus.RUNNING &&
+                                    !activeJobs.containsKey(source.id)))
+                    }
+                }
+            if (pendingSources.isNotEmpty()) {
+                // 任务级指数退避：按最近一个 nextRetryAt 安排下一次唤醒（带 CONNECTED 约束）。
+                val now = System.currentTimeMillis()
+                val nextWakeAt = pendingSources.minOf { it.nextRetryAt }
+                enqueueEngineWork(delayMs = (nextWakeAt - now).coerceAtLeast(0L))
+                return DownloadQueueOutcome(
+                    ranTasks = ran,
+                    hasPendingTasks = true,
+                    shouldRetry = true,
+                )
+            }
+            /*
+             * W76-Q7：退出前的原子交接。竞态——新任务落库 PENDING 恰好发生在「claim 空」与「worker 真正结束」
+             * 之间时，入队方会观察到本 worker 仍 RUNNING → 走 REUSE_RUNNING 分支并置 queueKickRequested 而不另起
+             * worker；本处在锁内消费该标记：有则再跑一轮（新任务由下一轮 claim 领取），无则声明「本轮静默退出」
+             * （期间如有入队方观察到静默，它会自行补一个 worker）。由此窗口被两侧夹死。
+             */
+            val retry =
+                synchronized(queueKickLock) {
+                    if (queueKickRequested) {
+                        queueKickRequested = false
+                        true
+                    } else {
+                        engineWorkerQuiesced = true
+                        false
+                    }
+                }
+            if (!retry)
+                return DownloadQueueOutcome(
+                    ranTasks = ran,
+                    hasPendingTasks = false,
+                    shouldRetry = false,
+                )
         }
-        return DownloadQueueOutcome(
-            ranTasks = ran,
-            hasPendingTasks = pendingSources.isNotEmpty(),
-            shouldRetry = pendingSources.isNotEmpty(),
-        )
     }
 
     /** 领取可立即运行的 PENDING 任务并标记 RUNNING（受并发上限约束）。 */
@@ -355,13 +398,38 @@ class DownloaderImpl(
             enqueueEngineWork(delayMs = 0L)
             return
         }
-        if (infos.any { it.state == WorkInfo.State.RUNNING }) return
+        val hasRunning = infos.any { it.state == WorkInfo.State.RUNNING }
         val hasUnfinished = infos.any { !it.state.isFinished }
-        when {
-            !hasUnfinished -> enqueueEngineWork(delayMs = 0L)
-            forceStart -> enqueueEngineWork(delayMs = 0L, policy = ExistingWorkPolicy.REPLACE)
-            else -> Unit
+        when (DownloadEngineScheduleRules.decide(hasRunning, hasUnfinished, forceStart)) {
+            EngineScheduleDecision.REUSE_RUNNING ->
+                // W76-Q7：运行中的 worker 会继续领取，但要置一次 kick——它在退出前会再确认一次队列，
+                // 避免「新任务恰好落库在它判定空与退出之间」被漏掉。
+                kickRunningEngineWorker()
+            EngineScheduleDecision.ENQUEUE_NOW -> enqueueEngineWork(delayMs = 0L)
+            EngineScheduleDecision.RESTART_NOW ->
+                enqueueEngineWork(delayMs = 0L, policy = ExistingWorkPolicy.REPLACE)
+            EngineScheduleDecision.WAIT -> Unit
         }
+    }
+
+    /**
+     * W76-Q7：与运行中的引擎 worker 做一次「退出交接」。
+     *
+     * 若 worker 尚未决定退出 → 置 `queueKickRequested`，让它在本轮结束前再跑一轮； 若 worker 已声明静默退出（即将返回）→ 由本调用补一个即时
+     * worker，接管这次入队。
+     */
+    private fun kickRunningEngineWorker() {
+        val scheduleFresh =
+            synchronized(queueKickLock) {
+                if (engineWorkerQuiesced) {
+                    engineWorkerQuiesced = false
+                    true
+                } else {
+                    queueKickRequested = true
+                    false
+                }
+            }
+        if (scheduleFresh) enqueueEngineWork(delayMs = 0L)
     }
 
     private fun enqueueEngineWork(
