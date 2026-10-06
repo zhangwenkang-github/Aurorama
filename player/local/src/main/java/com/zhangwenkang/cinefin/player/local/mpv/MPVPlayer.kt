@@ -353,6 +353,15 @@ class MPVPlayer(
     private var currentTracks: Tracks = Tracks.EMPTY
     private var playbackParameters: PlaybackParameters = PlaybackParameters.DEFAULT
 
+    /**
+     * mpv `speed` 属性的当前值（本端最近一次写入，或 mpv 上报的变化）。
+     *
+     * 与 [playbackParameters] 分开维护：mpv 换集（loadfile）不会重置 `speed` 属性，而 [resetInternalState] 只把
+     * [playbackParameters] 复位成 1×——若只按 [playbackParameters] 判定要不要写属性，就会出现「字段已是 1×、mpv
+     * 仍停在旧速度」时被漏写（#9：面板读数 / 媒体会话速度与实际播放不一致，新会话回落 1× 不生效）。
+     */
+    private var mpvSpeed: Float = 1f
+
     // MPV Custom
     private var isPlayerReady: Boolean = false
     private var isSeekable: Boolean = false
@@ -522,7 +531,9 @@ class MPVPlayer(
         handler.post {
             when (property) {
                 "speed" -> {
-                    playbackParameters = playbackParameters.withSpeed(value.toFloat())
+                    val speed = value.toFloat()
+                    mpvSpeed = speed
+                    playbackParameters = playbackParameters.withSpeed(speed)
                     listeners.sendEvent(EVENT_PLAYBACK_PARAMETERS_CHANGED) { listener ->
                         listener.onPlaybackParametersChanged(playbackParameters)
                     }
@@ -1596,8 +1607,13 @@ class MPVPlayer(
      * @param playbackParameters The playback parameters.
      */
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
-        if (getPlaybackParameters().speed != playbackParameters.speed) {
-            mpvLib.setPropertyDouble("speed", playbackParameters.speed.toDouble())
+        // #9：内部字段与 mpv 属性一起同步。是否写属性按 [mpvSpeed]（mpv 一侧的真实值）判定，
+        // 不能按 [playbackParameters]——换集后它会被 resetInternalState 复位成 1×，与 mpv 实际速度脱节。
+        this.playbackParameters = playbackParameters
+        val speed = playbackParameters.speed
+        if (mpvSpeed != speed) {
+            mpvSpeed = speed
+            mpvLib.setPropertyDouble("speed", speed.toDouble())
         }
     }
 

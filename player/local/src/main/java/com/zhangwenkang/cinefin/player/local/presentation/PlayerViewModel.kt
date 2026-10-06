@@ -51,6 +51,7 @@ import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldRestartTranscodeSession
+import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitle
@@ -459,7 +460,14 @@ constructor(
          * 链路在「硬解失败 → 请求转码 → 重启」之间死循环（真机实测 60s 重启 7 次，永远到不了 mpv）。
          * 现在回退重启复用同一个会话 id，档位活过 Activity 重建；新开播放页 = 新会话 → 清零。
          */
-        prepareDecodeFallback(playbackSessionId)
+        /*
+         * #9：倍速是「播放会话内状态」——新会话（新开一部片 / 新开播放页）回落 1×，同会话
+         * （队列切集 / 回退重启复用同一 session id）保持。只写内存与播放器，不新增持久化键。
+         */
+        if (prepareDecodeFallback(playbackSessionId)) {
+            playbackSpeed = speedForPlaybackSession(playbackSpeed, isNewSession = true)
+            player.setPlaybackSpeed(playbackSpeed)
+        }
         Timber.d(
             "initializePlayer: itemId=%s kind=%s session=%s fallbackStage=%d",
             itemId,
@@ -952,6 +960,10 @@ constructor(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
+        // #9：倍速是「播放会话内状态」——同一剧集队列里切集（含自动下一集）后必须保持。
+        // mpv 换集走 prepareMediaItem → resetInternalState 会把 playbackParameters 复位为 1×，
+        // ExoPlayer 本身会继承，但这里统一重放一次会话倍速，两个内核都得到一致的面板读数与媒体会话速度。
+        player.setPlaybackSpeed(playbackSpeed)
         // W20（§1.11）：先把「上一条」的进度收尾（补 stop），再按新条目走后续流程
         reportOutgoingItemStop()
         // mpv 换集后重新对齐字幕开关（off → sid=no；auto / always → 按 slang 重选）
@@ -1493,15 +1505,18 @@ constructor(
      *
      * 回退 / 手动切内核的 Activity 重启会复用同一个会话 id → 档位与重启守卫都保留； 新开播放页（详情页 / 通知另起播放）使用新会话 id → 清空档位与守卫，链路从头走。
      * 旧实现按 Intent 条目 id 比对，季 / 剧集入口与队列换集时每次回退重启都会清零档位 → 死循环。
+     *
+     * @return 是否进入了新的播放会话（同一会话的回退重启复用 id，返回 false）。
      */
-    private fun prepareDecodeFallback(playbackSessionId: String) {
+    private fun prepareDecodeFallback(playbackSessionId: String): Boolean {
         val storedSession = appPreferences.getValue(appPreferences.playerDecodeFallbackSession)
-        if (storedSession == playbackSessionId) return
+        if (storedSession == playbackSessionId) return false
         if (storedSession.isNotBlank()) {
             Timber.d("播放会话切换（%s → %s），清空解码回退档位", storedSession, playbackSessionId)
         }
         appPreferences.setValue(appPreferences.playerDecodeFallbackSession, playbackSessionId)
         clearDecodeFallback()
+        return true
     }
 
     /**

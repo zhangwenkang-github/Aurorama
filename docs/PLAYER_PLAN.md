@@ -2212,3 +2212,59 @@ Exo 自研管线里，主字幕由 libass 画布渲染（SRT 生成脚本 `margi
 2. 未选轨 / 语言记忆 / 延迟 / 样式逻辑未改。
 3. #21 未复现空字幕，`#21` 若仍需单开，建议用含 S2 与 idx25/26/idx11 的素材复验；本会话服务器仅 S1。
 4. lift 的一帧滞后（次字幕首次出现的首帧主字幕抬升 18dp 垫底）未逐帧验证，真机 60fps 下肉眼不可见。
+
+---
+
+## 35. W74-S2 倍速跨集继承 + 后台播放默认关（#9 #18）（2026-10-06 · 分支 `fix/w74-playback-inherit`）
+
+> 用户反馈（`docs/FIX_PLAN.md` 波 2 S74-2）：**#9** 切换视频无法保持倍速（同一剧集队列切下一集应继承、新开一部片回落 1×）；**#18** 后台播放默认「开 → 关」（决策 `D-F2`，已给过用户值的安装保留）。
+> 单设备验证 Pad 5 `43af8627`；服务器只读（只读 `PlaybackInfo`）；落点 = `MPVPlayer` / `PlayerViewModel` / `AppPreferences`（**红线申报**：默认值改动）+ 新增纯函数 `PlaybackSpeedSession`。
+> **非目标**（任务卡）：不改音乐后台语义、不改锁屏 WakeLock 行为、**不新增持久化键**。
+
+### 35.1 根因（取证）
+
+| # | 根因 |
+|---|------|
+| ① #9 读数脱节（mpv） | 倍速在 mpv 侧只有一份「字段副本」`MPVPlayer.playbackParameters`。换集走 `prepareMediaItem → resetInternalState()` 把它复位成 1×，而 mpv 的 `speed` **属性不随 loadfile 变化** → 属性事件不触发，字段就停在 1×。面板徽标与媒体会话读的都是这个字段（`PlayerControlOverlay.PlayerRuntime.sync()` 读 `player.playbackParameters.speed`），于是「面板 / 会话读数」与实际播放速度脱节。 |
+| ② #9 写回被守卫吞掉（mpv） | 原 `setPlaybackParameters` 的守卫按**字段**判定（`getPlaybackParameters().speed != 请求速度`）：字段已被 `resetInternalState` 写回 1×、mpv 仍停在旧速度时，请求 1×（新会话回落）会被判成「无需写属性」→ mpv 一直停在旧速度，回落不生效。 |
+| ③ #9 新开一部片继承旧倍速 | `PlayerActivity` 是 `launchMode="singleTask"`：播放页存活时新开条目走 `onNewIntent` → **复用同一个 ViewModel**；`initializePlayer()` 只按新 session id 清解码回退档位，从不复位会话倍速 → 新片继承上一会话的倍速（`setMediaItems` 不会重置 `playbackParameters`，Exo / mpv 都继承）。 |
+| ④ #18 | 默认值写在 `AppPreferences.playerBackgroundAudio`（`true`），与 `D-F2` 拍板不符。键只有两条通路：`getValue`（键缺失才返回默认，**从不回写**）与设置页 / 播放面板的 `setValue`，**没有任何初始化 / 迁移路径写它**。 |
+
+### 35.2 实现
+
+| 文件 | 改动 |
+|------|------|
+| `player/local/.../mpv/MPVPlayer.kt` | 新增 `mpvSpeed`（mpv 一侧真实速度，由写入与属性事件共同维护）。`setPlaybackParameters` 无条件同步内部字段，**是否写属性按 `mpvSpeed` 判定**；`speed` 属性回调同时回写 `mpvSpeed`。这样「字段 1× / mpv 旧速度」的两个方向都能纠正：同队列切集把会话倍速推回 mpv，新会话把 1× 推回 mpv。 |
+| `player/local/.../presentation/PlayerViewModel.kt` | `prepareDecodeFallback()` 改为返回「是否新会话」（同会话的回退重启复用 id → `false`）；`initializePlayer()` 新会话时把会话倍速回落 1× 并 `setPlaybackSpeed`（**只写内存 + 播放器，不落盘**）；`onMediaItemTransition()` 统一重放一次会话倍速，两个内核拿到一致的面板 / 会话读数。 |
+| `settings/.../domain/AppPreferences.kt`（**红线**） | `pref_player_background_audio` 默认 `true → false`（`D-F2`），注释同步；不新增键、不加迁移。 |
+| `player/local/.../domain/PlaybackSpeedSession.kt`（新增） | 纯函数 `speedForPlaybackSession(会话倍速, 是否新会话)` + `DEFAULT_PLAYBACK_SPEED`，便于单测回归。 |
+| 单测 | `PlaybackSpeedSessionTest`（3 项）：player:local **138 → 141**。 |
+
+### 35.3 门禁（2026-10-06）
+
+- `:app:phone:assembleDebug` + `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun`：**853 项 / 0 失败 0 错误**（app 237 / core 89 / data 68 / player:core 12 / player:local **141** / film 53 / book 113 / music 140；基线 850 + 本轮 3）。
+
+### 35.4 真机走查（Pad 5 `43af8627`）
+
+素材：被狙击的学园 `47de9056…`（电影，直放）、冰海战记 S1:E1–E3 `27a77c53…` / `2e21ac78…`（剧集队列；直放 = `?static=true`，转码 = `master.m3u8` + `bitrate=3`）。判据 = 播放面板「倍速」徽标（读 `player.playbackParameters.speed`）+ `dumpsys media_session`。
+
+| # | 项 | 证据 |
+|---|----|------|
+| ① | #9 **直放档**切集继承 | S1:E1 设 **1.5×** → 面板 `1.5×`、`media_session speed=1.5` → 「下一集」→ S1:E2 面板 **`1.5×`**、`media_session state=3 speed=1.5 active item id=1`（直放取证：`Stream url … /stream?static=true…`） |
+| ② | #9 **转码档**切集继承 | 码率面板选 3 Mbps（`TranscodeReasons=ContainerBitrateExceedsLimit`、`master.m3u8`）→ 设 **1.5×** → 切集 → S1:E3 面板 **`1.5×`**、`media_session speed=1.5 active item id=3` |
+| ③ | #9 **mpv 内核**自动下一集 | 切内核 mpv（`Restart player with backend=mpv`）→ 设 **1.5×** → 播完 S1:E1 自动进 S1:E2 → 面板 **`1.5×`**（logcat `Playing MediaItem: 27a77c53… → 2e21ac78…`） |
+| ④ | #9 **新开一部片回落 1×** | Exo：电影详情页起播《被狙击的学园》→ 面板 `1×`、`media_session speed=1.0`。mpv：上一会话 1.5× 时 `onNewIntent` 投新 itemId（新 session `ace9508d…`）→ 面板 **`1×`**（未改前会保持 1.5×） |
+| ⑤ | #18 **显式「开」→ 退后台有声** | 播放面板开关 `checked=true`、prefs `true` → Home → `dumpsys audio` `AudioPlaybackConfiguration … u/pid:10015/… state:started`、`media_session state=3`；`install -r` 后仍为 `true` |
+| ⑥ | #18 **显式「关」→ 退后台无声** | 面板关掉（prefs `false`）→ Home → `state:paused`（AudioTrack 停）、`media_session state=2 (PAUSED)`，26 s 内稳定 |
+| ⑦ | #18 **清数据新装** | `pm clear` + 重开：全新 prefs **只有 `mpv_migrated`**，无 `pref_player_background_audio`（无任何初始化 / 迁移路径写默认值）；还原登录态（不含该键）后播放面板显示 **`checked=false`（关）** → 起播 → Home → `state:paused` + `state=2`（退后台不出声）；整个新装会话结束后 prefs 仍无该键 |
+| ⑧ | #18 **保留用户值** | 新装里显式打开 → `true` → `install -r`（不清数据）→ prefs 仍 `true`、面板 `checked=true`（默认值没有覆盖用户值） |
+| ⑨ | 回归 | 整轮 0 FATAL / 0 ANR（`logcat -b crash` 空、主缓冲无 `FATAL EXCEPTION` / `ANR in`）；直放 / 转码 / Exo / mpv 四种组合均可正常切集与回落 |
+
+### 35.5 未决 / 移交项
+
+1. **mpv 内核下 `dumpsys media_session` 的 `speed` 恒为 `0.0`、`position`/`active item id` 恒为 `-1`**（面板读数正确）。**非本轮引入**：把改动 stash 掉、用未改动的 master 代码重编同机复现了一模一样的读数；本改动只能影响 `playbackParameters` 字段，而面板读同一字段显示正确 → 属 `MPVPlayer` × media3 legacy session 的既有读数问题。建议单开一条（媒体会话对 mpv 的位置 / 速度上报），本轮不修。
+2. **内核 / 码率切换会回落 1×**：`restartPlaybackKeepingPosition()` 走 `viewModelStore.clear() + recreate()` → 新建 ViewModel，会话倍速（只存内存）随之回到 1×（同一 session id 也不例外）。在「不新增持久化键」的约束下没有跨 ViewModel 的载体；本轮未改，若用户在意需另行拍板（例如把会话倍速挂到 session 级内存单例）。
+3. 倍速仍是**会话内状态**：进程被杀 / 重开播放页一律回落 1×（按任务卡要求，未新增持久化键）。
+4. 只在 Pad 5 单机验证；K60 未覆盖；`app/tv` 共用同一个 `PlayerViewModel`（逻辑一致）但未在电视端走查。
+5. 顺带发现（非本轮引入、与本改动无关）：App 的 debug 日志会把转码 `Stream url` 连同 `ApiKey` 一起打进 logcat，建议后续收敛日志等级。
