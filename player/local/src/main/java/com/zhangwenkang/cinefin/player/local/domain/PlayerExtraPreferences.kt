@@ -33,6 +33,14 @@ object PlayerExtraPreferences {
 
     /** 停在结束帧（W27）：队列 / 整片播完停在最后一帧、不退出播放页。默认关（旧行为 = 关闭播放页） */
     val stayAtEndOfFrame = Preference("pref_player_stay_at_end_frame", false)
+
+    /**
+     * 手动选定的字幕记忆（W74 #14②）：`媒体 id|主字幕序号|次字幕序号`，`-1` = 该位置显式关闭。
+     *
+     * 切码率 / 换内核 / 解码回退都会重启播放页（清 ViewModel + recreate），字幕源清单随之重建； 用户手动选过的字幕必须在这个窗口里保持，否则每次切档都要重选一遍。
+     * 只记最后一次手动选择（单槽），按媒体 id 校验后才恢复。
+     */
+    val subtitleManualSelection = Preference("pref_player_subtitle_manual_selection", "")
 }
 
 /** 镜像模式的取值（与 [PlayerExtraPreferences.videoMirror] 对应） */

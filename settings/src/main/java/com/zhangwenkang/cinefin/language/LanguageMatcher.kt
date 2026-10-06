@@ -65,6 +65,10 @@ object LanguageMatcher {
                 "chs" to CHINESE_SIMPLIFIED,
                 "sc" to CHINESE_SIMPLIFIED,
                 "gb" to CHINESE_SIMPLIFIED,
+                // 单字线索（W74）：`简日双语` / `繁日雙語` / `简日[CHS-JPN]` 这类双语轨标题里
+                // 只有「简」/「繁」一个字能定简繁，靠更长的关键字匹配不到。
+                "简" to CHINESE_SIMPLIFIED,
+                "簡" to CHINESE_SIMPLIFIED,
                 // 繁体中文
                 "zh-hant" to CHINESE_TRADITIONAL,
                 "zh-tw" to CHINESE_TRADITIONAL,
@@ -84,6 +88,8 @@ object LanguageMatcher {
                 "cht" to CHINESE_TRADITIONAL,
                 "tc" to CHINESE_TRADITIONAL,
                 "big5" to CHINESE_TRADITIONAL,
+                // 单字线索（W74）：`繁日雙語` / `繁体` 这类标题里「繁」字即繁体
+                "繁" to CHINESE_TRADITIONAL,
                 // 中文（未区分简繁）
                 "zh" to CHINESE,
                 "chi" to CHINESE,
@@ -264,8 +270,21 @@ object LanguageMatcher {
         }
     }
 
-    /** 依次尝试多个线索，返回第一个可识别的结果 */
-    fun detect(vararg hints: String?): String? = hints.firstNotNullOfOrNull { normalize(it) }
+    /**
+     * 依次尝试多个线索，返回**最具体**的可识别结果（W74 #14）。
+     *
+     * Jellyfin 对中文字幕普遍只写泛化的语言码（`chi` / `zho`），此时「简体 / 繁体」的唯一线索在轨道标题里。
+     * 旧实现「第一个能识别的线索就返回」会被泛化的语言码抢占：简中和繁体字幕都被归一化成 `zh`， 落到同一优先级后只能靠轨道序号 / 默认轨决定，真机表现就是「自动选到了繁体」。
+     *
+     * 规则：语言码已经给出具体变体（`zh-Hans` / `zh-Hant`）时以它为准；只是泛化值时， 允许**同一语言族**里更具体的线索（标题 /
+     * 文件名）覆盖它。不同语言族之间保持「先给的线索优先」， 避免标题里的杂词把语言整个改掉。
+     */
+    fun detect(vararg hints: String?): String? {
+        val tags = hints.mapNotNull { normalize(it) }
+        val first = tags.firstOrNull() ?: return null
+        if (first.contains('-')) return first
+        return tags.firstOrNull { it != first && baseOf(it) == baseOf(first) } ?: first
+    }
 
     /** 从外挂字幕文件名推断语言，例如： `Movie.2013.zh-Hans.ass` → zh-Hans，`动画.chs.srt` → zh-Hans */
     fun fromFileName(fileName: String?): String? {

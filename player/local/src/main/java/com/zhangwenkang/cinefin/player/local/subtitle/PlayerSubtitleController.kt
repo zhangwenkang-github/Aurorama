@@ -3,8 +3,8 @@ package com.zhangwenkang.cinefin.player.local.subtitle
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
-import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 import java.io.File
 import java.net.HttpURLConnection
@@ -141,7 +141,22 @@ class PlayerSubtitleController(
         primaryLoading = false
         secondaryLoading = false
         disabledByUser = false
-        autoSelect()
+        /* W74 #14②：切码率 / 换内核会重启播放页并重建这份清单——用户手动选过的字幕先按记忆恢复，
+         * 没记忆（或记忆里的序号已不存在）才回到自动选择。 */
+        val restored =
+            PlayerSubtitleSelection.restore(
+                memory = readManualSelection(),
+                mediaId = mediaId,
+                sources = sources,
+            )
+        if (restored == null) {
+            autoSelect()
+        } else {
+            disabledByUser = restored.disabledByUser
+            applyPrimary(restored.primaryIndex, persist = false)
+            applySecondary(restored.secondaryIndex, persist = false)
+            publish()
+        }
     }
 
     /** 手动选主字幕；null = 关闭 */
@@ -151,6 +166,7 @@ class PlayerSubtitleController(
         if (secondaryIndex == index) {
             applySecondary(null, persist = false)
         }
+        rememberManualSelection()
         publish()
     }
 
@@ -158,6 +174,7 @@ class PlayerSubtitleController(
     fun selectSecondary(index: Int?) {
         if (index != null && index == primaryIndex) return
         applySecondary(index, persist = true)
+        rememberManualSelection()
         publish()
     }
 
@@ -191,89 +208,49 @@ class PlayerSubtitleController(
     // ---------- 内部：选择与加载 ----------
 
     private fun autoSelect() {
-        val primary = pickPrimary()
+        val primary =
+            PlayerSubtitleSelection.pickPrimary(
+                mode = appPreferences.getValue(appPreferences.subtitleMode),
+                priority =
+                    LanguageMatcher.parsePriority(
+                        appPreferences.getValue(appPreferences.preferredSubtitleLanguages),
+                        LanguageMatcher.DEFAULT_SUBTITLE_PRIORITY,
+                    ),
+                sources = sources,
+            )
         applyPrimary(primary?.index, persist = false)
         val secondary = pickSecondary(excludeIndex = primary?.index)
         applySecondary(secondary?.index, persist = false)
         publish()
     }
 
-    /**
-     * 主字幕：沿用设置里的字幕语言优先级；语言优先级都没命中时按「默认轨兜底」。
-     *
-     * 兜底是 bug ① 的修复点：片源语言识别为空（Jellyfin 没给 language、标题里也没有线索）时， 旧实现直接返回 null → 打开新片没有字幕。 现在 auto /
-     * always 都挑一条最像默认轨的字幕（优先默认轨、其次非强制字幕、最后按序号）， 保证「打开带字幕的片子就有字幕」，同时语言优先级仍然先生效。
-     */
-    private fun pickPrimary(): PlayerSubtitleSource? {
-        val mode = appPreferences.getValue(appPreferences.subtitleMode)
-        if (mode == Constants.SubtitleMode.OFF) return null
-
-        val priority =
-            LanguageMatcher.parsePriority(
-                appPreferences.getValue(appPreferences.preferredSubtitleLanguages),
-                LanguageMatcher.DEFAULT_SUBTITLE_PRIORITY,
-            )
-        val candidates = sources.filter { it.isTextBased }
-        if (candidates.isEmpty()) return null
-
-        val best =
-            candidates
-                .filter { source ->
-                    LanguageMatcher.priorityIndex(source.language, priority) != null
-                }
-                .sortedWith(
-                    compareBy(
-                        { LanguageMatcher.priorityIndex(it.language, priority) },
-                        // 同一语言下优先完整字幕（非强制字幕）
-                        { if (it.isForced) 1 else 0 },
-                        { if (it.isDefault) 0 else 1 },
-                    )
-                )
-                .firstOrNull()
-        if (best != null) {
-            Timber.d("自动选中主字幕（语言命中）: index=${best.index} language=${best.language}")
-            return best
-        }
-
-        // 没命中偏好语言（识别不出来 / 不在列表里）：默认轨兜底，别再让画面空着
-        val fallback =
-            candidates
-                .sortedWith(
-                    compareBy(
-                        { if (it.isDefault) 0 else 1 },
-                        // 强制字幕（Signs & Songs）只在没有完整字幕时才用
-                        { if (it.isForced) 1 else 0 },
-                        { it.index },
-                    )
-                )
-                .firstOrNull()
-        fallback?.let {
-            Timber.d(
-                "自动选中主字幕（默认轨兜底）: index=${it.index} language=${it.language} default=${it.isDefault}"
-            )
-        }
-        return fallback
-    }
-
     /** 次字幕：只在用户设置过次字幕语言时自动选；永远不与主字幕同源 */
     private fun pickSecondary(excludeIndex: Int?): PlayerSubtitleSource? {
         val raw = appPreferences.getValue(appPreferences.secondarySubtitleLanguages)
-        if (raw.isBlank()) return null
         val priority = LanguageMatcher.parsePriority(raw, emptyList())
-        if (priority.isEmpty()) return null
-
-        return sources
-            .filter { it.isTextBased && it.index != excludeIndex }
-            .filter { source -> LanguageMatcher.priorityIndex(source.language, priority) != null }
-            .sortedWith(
-                compareBy(
-                    { LanguageMatcher.priorityIndex(it.language, priority) },
-                    { if (it.isForced) 1 else 0 },
-                    { if (it.isDefault) 0 else 1 },
-                )
-            )
-            .firstOrNull()
+        return PlayerSubtitleSelection.pickSecondary(
+            priority = priority,
+            sources = sources,
+            excludeIndex = excludeIndex,
+        )
     }
+
+    /** 写入手动选择记忆（切码率 / 换内核重启后由 [reset] 恢复） */
+    private fun rememberManualSelection() {
+        if (mediaId.isBlank()) return
+        val selection =
+            SubtitleManualSelection(
+                mediaId = mediaId,
+                primaryIndex = primaryIndex ?: SubtitleManualSelection.NO_INDEX,
+                secondaryIndex = secondaryIndex ?: SubtitleManualSelection.NO_INDEX,
+            )
+        appPreferences.setValue(PlayerExtraPreferences.subtitleManualSelection, selection.encode())
+    }
+
+    private fun readManualSelection(): SubtitleManualSelection? =
+        SubtitleManualSelection.decode(
+            appPreferences.getValue(PlayerExtraPreferences.subtitleManualSelection)
+        )
 
     private fun applyPrimary(
         index: Int?,

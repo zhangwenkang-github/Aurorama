@@ -555,6 +555,8 @@ adb shell run-as io.github.zhangwenkang.aurorama.debug cat shared_prefs/io.githu
 | mpv `audio-delay` 符号 | 正值 = 声音延后（与面板「+ = 声音晚」一致），真机听感确认过；不要凭「delay 是不是补提前量」的直觉想当然 |
 | mpv 语言优先列表 | `alang` / `slang` 要传**整份**逗号分隔列表（`zh-Hans,zh-Hant,zh,en`）。旧代码 `firstOrNull().split("-").last()` 把 `zh-Hans` 截成 `Hans`，任何轨道都匹配不上（真机表现：打开新片自动选到日语字幕）；mpv 自己会做 ISO 639-1/639-2 与地区后缀归一化 |
 | 自动选字幕兜底 | `PlayerSubtitleController.pickPrimary()` 在「语言优先级没命中」时按「默认轨 > 非强制字幕 > 轨道序号」兜底，别再直接返回 null（旧行为 = 打开新片没字幕）。注意 `TrackSelectionEngine.pickTextTrack()` 仍是「auto 不选」，两处语义待统一（见 §10 遗留） |
+| ass-kt 在「该时刻没有图元」时返回 null（W74 #15） | `ass-kt` 0.5.1 的 JNI（`AssKt.c` 的 `nativeAssRenderFrame`）在 libass `ass_render_frame` 的 image 链表为 NULL 时**直接 return NULL**（`changed=2`），并不是回报「空帧」。调用侧若把 null 当「本帧无结果」而保留上一帧，真机表现就是**句末字幕一直挂到下一句**（SRT→ASS 生成脚本与 ASS 原文两条路径同样中招）。对策：`LibassSubtitleRenderer.renderFrame` 把「渲染器可用 + 原生返回 null」显式映射成 `LibassFrame(images = emptyList(), changed = true)`（= 清屏），只有渲染器失败 / 已释放才回报 null；覆盖层统一走纯函数 `nextLibassFrame(上一帧, 本帧)`（替换 / 复用 / 清屏三态） |
+| 泛化语言码抢占标题里的简繁线索（W74 #14①） | Jellyfin 对中文字幕普遍只写 `chi` / `zho`（归一化 = `zh`），简繁区别只在轨道标题（`简体中文` / `Chinese(Traditional)` / `简日双语` / `chs-01`）。`LanguageMatcher.detect` 旧实现是「第一个能识别的线索就返回」→ 语言字段先命中 `zh`、标题被忽略 → 简繁落到**同一优先级**，只能靠轨道序号 / 默认轨碰运气（冰海战记 25/26、夏日幽灵 4/5 都是靠序号才选对）。对策：首个线索是泛化值时，允许**同一语言族**里更具体的线索覆盖它（具体变体 > 泛化值，跨语言族不动）；关键字表补单字 `简` / `簡` / `繁`——`简日双语` / `繁日雙語` / `简日[CHS-JPN]` 这类标题只有单字线索 |
 | 打开即播与 pause/resume | `initializePlayer` 发出后、`play()` 落地前是**起播窗口**：播放器 `playWhenReady` 还是默认 false，此时 pause/resume（权限弹窗 / 切后台 / 切内核）会把 false 回存再写回、覆盖自动起播 → 打开视频要手点一次。窗口内一律不回存 / 不恢复（`PlayerViewModel.startupInProgress`） |
 | mpv 队列补片压主线程（ANR） | `fillQueueInBackground` 旧实现只在 IO 构建 PlayerItem，`player.addMediaItem` 仍在主线程；mpv 的 `addMediaItems` 同步执行 `mpvLib.command("loadfile")`，整季补片把主线程连续阻塞（dropbox：`Waited 5000ms for MotionEvent`，栈 `MPVPlayer.addMediaItems ← PlayerViewModel.addToQueueEnd ← fillQueueInBackground`）。修复：MPVPlayer 加 `HandlerThread("mpv-command")`，所有 command 按提交顺序异步执行；补片协程整体跑 IO、每条让出 50ms、单次上限 150 条、mediaId 集合 O(1) 去重。补片+点击场景主线程峰值 2584ms → 508ms |
 | mpv 命令异步化后的释放协议 | `release()` 不能直接 `destroy`（会与命令线程正在执行的命令并发打崩 native）。做法：`commandsClosed` 关闸 → `removeCallbacksAndMessages(null)` 丢排队命令 → 在命令线程上 `destroy` + `quitSafely`；`event()` / `onAudioFocusChange` 增加 `released` 短路；surface attach/detach 加主线程断言（命令线程只跑 command） |
@@ -2103,3 +2105,59 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 2. 断网恢复的「位置快照续播」只取证到画面继续播放（恢复时 UI dump 失败，未量化断网前 / 后时间码差）；建议补一次带 dump 的干净样本。
 3. 30 分钟连续播放的 #8 长稳观察未做满（本轮为 2 次断网实验 + 约 20 分钟播放 + 0 FATAL / ANR）。
 4. 直放的进度条拖动未单独取证（仅 ±键 + 转码流进度条）。
+
+---
+
+## 33. W74-S1 字幕链路：句末清屏 + 简繁选择 / 切档保持 / 次字幕继承（2026-10-06 · 分支 `fix/w74-subtitles`）
+
+> 用户反馈（`docs/FIX_PLAN.md` 波 2 S74-1）：#15 字幕到下一句才变（句末不消失）；#14 字幕选择不准（自动选到繁体）、切码率后要重选、切视频次字幕不继承。
+> 单设备验证 K60 `8e875894`；服务器只读（只读 API 取证 + 白名单进度上报）；落点 = `TrackSelectionEngine` / `LanguageMatcher` / `PlayerSubtitleController` / `PlayerSubtitleOverlay`。
+
+### 33.1 根因（取证）
+
+| # | 根因 |
+|---|------|
+| ① #15 | `ass-kt` 0.5.1 的 JNI 在 libass 该时刻没有图元（句末之后）时返回 `null`（见 §9 新增踩坑行）。`LibassSubtitleRenderer.renderFrame` 把它原样往上传，`PlayerSubtitleOverlay` 的 `frame != null && (changed || assFrame == null)` 判定「本帧无结果」→ **保留上一句的帧**，直到下一句渲染出非空帧才替换。真机取证：夏日幽灵（ASS 原文，idx4 简日双语）在 1:01.62–1:02.42 的台词结束后，暂停在 **47.933 s**（该句 45.48 s 结束、下一句 49.33 s 开始，中间 3.85 s 空档）画面仍显示「能见到你们就很开心了 / 会えるだけで嬉しいぜ」（`w74-evidence/w74_s1/before_gap47.png`） |
+| ② #14① | 语言的**具体线索被泛化线索抢占**：Jellyfin 给中文字幕的 `Language` 普遍是 `chi` / `zho`，简繁只写在标题里（`简体中文` / `Chinese(Traditional)` / `简日双语` / `繁日雙語`）。`LanguageMatcher.detect` 取「第一个能识别的线索」→ 直接返回 `zh`，标题被忽略；简繁因此落到同一优先级，改由 `isDefault` / 序号决定（冰海战记 E1 25=Chinese(Simplified) / 26=Chinese(Traditional) 并列、夏日幽灵 4=简日双语 / 5=繁日雙語 并列，都是「碰巧」才选到简体）。另：`简日双语` / `繁日雙語` / `简日[CHS-JPN]` 这类标题用更长的关键字（简体 / 繁体）也匹配不到 |
+| ③ #14② | 手动选轨只写在 `PlayerSubtitleController` 的内存里（`manualTrackSelectionMediaId` 在 ViewModel 上，重启即丢）。切码率走 `restartPlaybackKeepingPosition` → `viewModelStore.clear() + recreate()`，字幕源清单重建后 `reset()` 直接 `autoSelect()` → 手动选择被自动选择覆盖（mpv 侧本轮未动，见未覆盖项） |
+| ④ #14③ | 次字幕的「用户级记忆」本身是 `pref_secondary_subtitle_languages`（手动选次字幕时用 `rememberLanguage` 写入），但它的**语言标签同样被 ② 的泛化检测污染**（选「简日双语」记成 `zh`，下一部片可能命中繁体轨），且「关次字幕」不落记忆。本轮修 ② 后语言标签变具体（`zh-Hans` / `zh-Hant` / `ja`），跨视频继承才稳定 |
+
+### 33.2 实现
+
+| 文件 | 改动 |
+|------|------|
+| `settings/.../language/LanguageMatcher.kt` | `detect()` 改为「首个线索是泛化值时，允许同一语言族里更具体的线索覆盖」；关键字表补单字 `简` / `簡`（zh-Hans）与 `繁`（zh-Hant） |
+| `player/local/.../subtitle/PlayerSubtitleSelection.kt`（新增） | 纯函数模块：`pickPrimary`（主字幕：语言优先级 + 默认轨兜底，含日志）/ `pickSecondary`（次字幕：用户级语言记忆 + 「自动选中次字幕（语言记忆）」日志）/ `SubtitleManualSelection`（`媒体 id|主字幕|次字幕`，`-1` = 关闭）/ `restore`（按媒体恢复手动选择） |
+| `player/local/.../subtitle/PlayerSubtitleController.kt` | 选择逻辑改用上面的纯函数；`selectPrimary` / `selectSecondary` 写入手动记忆；`reset()` 先尝试恢复手动记忆（媒体不符 / 主字幕序号已不存在 → 回落 `autoSelect()`），「手动关字幕」也按媒体记住 |
+| `player/local/.../domain/PlayerExtraPreferences.kt` | 新增键 `pref_player_subtitle_manual_selection`（只追加） |
+| `player/local/.../subtitle/LibassSubtitleRenderer.kt` | 「渲染器可用 + 原生返回 null」→ 空帧（`images = emptyList(), changed = true`）；只有失败 / 已释放才返回 null |
+| `player/local/.../subtitle/LibassFramePolicy.kt`（新增） | 纯函数 `nextLibassFrame(上一帧, 本帧)`：null = 保持现状；`changed=false` = 复用上一帧；`changed=true`（含空帧）= 替换 → 空帧即清屏 |
+| `app/phone/.../player/PlayerSubtitleOverlay.kt` | 帧更新改用 `nextLibassFrame`；「有字 → 清屏」那一刻打一条 `libass 句末清屏: position=Nms`（每个句末一条，验收证据） |
+| 单测 | `PlayerSubtitleSelectionTest`（11）、`LibassFramePolicyTest`（4）= player:local 123 → **138** |
+
+### 33.3 门禁（2026-10-06）
+
+- `:app:phone:assembleDebug` + `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun` **845 项 / 0 失败 0 错误**（app 232 / core 89 / data 68 / player:core 12 / player:local 123 → **138** / film 53 / book 113 / music 140；基线 830 + 本轮 15）。
+
+### 33.4 真机走查（K60 `8e875894`）
+
+素材：夏日幽灵 `0b834979…`（原生 ASS，idx3 日本語 / idx4 简日双语 / idx5 繁日雙語，语言码都是 `zho`）、冰海战记 S2:E1 `bbec420e…`（25=Chinese(Simplified) / 26=Chinese(Traditional)）、乔西的虎与鱼 `4e06c2a3…`（侧载 SRT）。
+
+| # | 项 | 证据 |
+|---|----|------|
+| ① | #15 原生 ASS 句末清屏 | 改前：45.48 s 结束的台词在 **47.933 s** 仍在屏（`before_gap47.png`）。改后同位置（`after_gap47.png`）画面无字幕；日志 `libass 句末清屏: position=45519ms`（句末 45480 ms，**+39 ms ≈ 2 帧**）；另两条 `position=43252ms`（句末 43230 ms）、`position=13009ms` |
+| ② | #15 SRT→ASS 生成路径 | 侧载 `w74_gap.srt`（cue1 10–13 s、cue2 40–43 s）→ `字幕解析完成: index=100000, cues=2, ass=false` + `libass 字幕就绪：SRT 生成脚本，script=743 bytes`；日志 `libass 句末清屏: position=13009ms`（句末 13.000 s，**+9 ms**） |
+| ③ | #14① 简繁优先（原生 ASS） | 夏日幽灵：`自动选中主字幕（语言命中）: index=4 language=zh-Hans`（改前 `language=zh`）；冰海战记 E1（默认优先级）：`index=25 language=zh-Hans` = Chinese(Simplified)，`cues=201, ass=true` |
+| ④ | #14② 切码率保持手动选择 | 面板手动选「繁日雙語」（idx5）→ `pref_player_subtitle_manual_selection = 0b834979…|5|-1`；码率面板选 **3 Mbps** → 日志 `Restart player (streaming bitrate=3) from position=30000`（Activity 重建）→ 重启后 `字幕解析完成: index=5`（仍是繁体）且**没有**「自动选中主字幕」日志 = 走恢复路径；`pref_player_streaming_bitrate=3` |
+| ⑤ | #14③ 次字幕跨视频继承 | 夏日幽灵手动选次字幕「日本語」→ `pref_secondary_subtitle_languages = ja`；随后打开冰海战记 E1 → `自动选中次字幕（语言记忆）: index=11 language=ja`（该集日语轨） |
+| ⑥ | 回归 | 无字幕片源（无 `isTextBased` 轨）行为不变（回落内核渲染路径未动）；`TrackSelectionEngine` / mpv 原生路径本轮未改（见未覆盖项）；整轮 0 FATAL / 0 ANR |
+| ⑦ | 副作用与还原 | 测试写入的 prefs（`pref_subtitle_languages` / `pref_secondary_subtitle_languages` / `pref_player_subtitle_manual_selection` / `pref_player_streaming_bitrate`）已用「本地改文件 → push → `run-as … cat >`」方式写回测试前快照（1203 B，键序核对一致）；侧载测试文件 `files/player_subtitles/4e06c2a3…/` 已删除；App force-stop、`/sdcard/w74_*` 与 `/data/local/tmp/w74_*` 已清 |
+
+### 33.5 未决 / 移交项
+
+1. **转码档的字幕交付空内容（新发现，未修）**：`pref_player_streaming_bitrate=3`（服务器转码）时，冰海战记的 idx25/26、idx11 三条字幕 `字幕解析完成: cues=0, ass=false`（下载到 200 但内容不是可解析的 SRT/ASS）→ 转码档下自研字幕空白，等于「转码时没字幕」。直连档同一集 `cues=201, ass=true` 正常。疑与服务端转码会话的 `DeliveryUrl` / `SubtitleProfile` 有关，建议单开一条（先只读核对 `PlaybackInfo(transcode)` 的字幕交付地址与响应体）。
+2. **mpv 内核未覆盖**：次字幕（`secondary-sid`）与手动选轨在 mpv 下仍是「不落偏好」的旧行为；本轮落点按任务卡只在 Exo 自研管线（`PlayerSubtitleController` / `PlayerSubtitleOverlay`）。
+3. **PGS / 位图字幕**（秒速5厘米 简体中文/繁体中文 PGS）走内核原生路径：只能吃到 `LanguageMatcher` 的检测修复（标题「简体中文 / 繁体中文」→ zh-Hans / zh-Hant），未在真机逐条回归。
+4. `pref_subtitle_languages` 的「记住手动选择」仍是**前置写**语义（手动选繁体 → 列表变 `zh-Hant,en`，后续所有片都优先繁体）。本轮按用户口径只改「识别与优先级」，未动这条既有设计；若用户认为「记住」应该只在同语言族内微调（而不是覆盖整表），需再拍板。
+5. 侧载字幕的**次字幕**选择在 `secondaryOptions` 里可见但语言靠文件名推断；纯中文文件名（如 `w74_gap.srt`）语言为空 → 不会被次字幕语言记忆命中（本轮未改）。

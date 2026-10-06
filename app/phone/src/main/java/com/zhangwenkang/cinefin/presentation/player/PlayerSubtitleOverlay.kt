@@ -41,6 +41,7 @@ import com.zhangwenkang.cinefin.player.local.subtitle.LibassFrame
 import com.zhangwenkang.cinefin.player.local.subtitle.LibassSubtitleRenderer
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleCue
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
+import com.zhangwenkang.cinefin.player.local.subtitle.nextLibassFrame
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -198,8 +199,14 @@ fun PlayerSubtitleOverlay(
                 withContext(Dispatchers.Default) {
                     renderer.renderFrame((positionMs - state.delayMs).coerceAtLeast(0L))
                 }
-            if (frame != null && (frame.changed || assFrame == null)) {
-                assFrame = frame
+            // W74 #15：句末那一帧 libass 会回报「没有图元」的空帧，必须真的把它画出去（清屏），
+            // 否则上一句会一直挂到下一句（旧实现的真机缺陷）。
+            val next = nextLibassFrame(assFrame, frame)
+            if (next !== assFrame) {
+                if (assFrame?.images?.isNotEmpty() == true && next?.images?.isEmpty() == true) {
+                    Timber.d("libass 句末清屏: position=%dms", positionMs)
+                }
+                assFrame = next
             }
         }
     }

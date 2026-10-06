@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.player.local.subtitle
 
 import android.graphics.Bitmap
 import io.github.peerless2012.ass.Ass
-import io.github.peerless2012.ass.AssFrame
 import io.github.peerless2012.ass.AssRender
 import io.github.peerless2012.ass.AssTex
 import io.github.peerless2012.ass.AssTexType
@@ -122,19 +121,27 @@ class LibassSubtitleRenderer {
     /**
      * 渲染某一时刻的 ASS 帧（毫秒；调用方已扣掉字幕延迟）。
      *
-     * 返回 null = 没到时间 / 失败；[AssFrame.changed] == 0 = 与上一帧相同（可直接复用上一帧）。
+     * 返回 null = 渲染器不可用（初始化失败 / 已释放），调用方应保持现状； [LibassFrame.images] 为空 = 该时刻没有图元，调用方必须**清屏**；
+     * [LibassFrame.changed] == false = 与上一帧相同（调用方可直接复用上一帧）。
+     *
+     * W74 #15：ass-kt 的原生层（`AssKt.c`）在 libass 该时刻没有图元时直接返回 null—— 句末之后就是这种情况。旧实现把这个 null
+     * 原样往上传，调用方（覆盖层）拿它当「本帧无结果」 而继续显示上一帧，真机表现就是「字幕不消失，一直挂到下一句」。这里把「无图元」显式转成空帧。
      */
     fun renderFrame(positionMs: Long): LibassFrame? {
         if (failed || !isReady) return null
-        val frame =
+        val rendered =
             guarded("renderFrame") { render?.renderFrame(positionMs, AssTexType.BITMAP_ALPHA) }
-                ?: return null
+        if (rendered == null) {
+            // 渲染器不可用（内部异常 / 已被释放）时不要假装「空帧」，交给上层保持现状
+            if (failed || render == null) return null
+            return CLEAR_FRAME
+        }
         val images =
-            frame.images.orEmpty().mapNotNull { tex ->
+            rendered.images.orEmpty().mapNotNull { tex ->
                 val bitmap = bitmapOf(tex) ?: return@mapNotNull null
                 LibassImage(x = tex.x, y = tex.y, bitmap = bitmap, color = paintColorOf(tex))
             }
-        return LibassFrame(images = images, changed = frame.changed != 0)
+        return LibassFrame(images = images, changed = rendered.changed != 0)
     }
 
     fun release() {
@@ -167,6 +174,9 @@ class LibassSubtitleRenderer {
         }
 
     companion object {
+        /** 该时刻没有图元：明确回报「空帧」，不能像「无结果」那样保留上一帧（W74 #15） */
+        private val CLEAR_FRAME = LibassFrame(images = emptyList(), changed = true)
+
         /** 与 ass-media 默认配置一致：字形缓存条目上限 */
         private const val GLYPH_CACHE_MAX = 10_000
 
