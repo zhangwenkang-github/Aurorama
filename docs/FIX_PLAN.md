@@ -30,7 +30,7 @@
 | 6 | 选具体库时直接显示库内容，而不是卡片 | 从媒体库 / 侧栏选择某个具体库 → 直接进该库内容列表；与 #16 同链修复 | UI_PLAN | W73 | ✅ 主体已修（侧栏 / 媒体页选库直达内容）；**补充按用户 2026-10-06 拍板 B（决策 D-F7）**：视频页顶栏「库选择」选中具体库 → 直达该库内容 → **S74-3 已完成**（Pad 5：选「电影」直达「电影库 · 共 17 个项目」内容网格；「全部库」保持卡片总览） |
 | 7 | Exo 播放无法跳转 / 快进（退），回到视频开头 | Exo 内核下进度条拖动 / ±快进快退 / 手势 seek 均落目标位置（误差 ≤1s），不回 0；直放与转码（HLS）两种库都验 | PLAYER_PLAN | W73 | ✅ 已修复（K60 实测，见 S73-1 卡；分支 `fix/w73-player-seek`） |
 | 8 | 播放中突然退出回剧集详情页（偶发） | 连续播放 ≥30 分钟（含后台 / 切集）无非用户操作的退出；若复现，日志定性根因并修复 | PLAYER_PLAN | W73 | ✅ 根因已定性 + 兜底（断网复现链修复，长稳观察见未覆盖项） |
-| 9 | 切换视频无法保持倍速（同播放列表应继承） | 同一剧集队列切下一集后倍速保持（面板读数 + `dumpsys media_session` 一致）；新开一部片按既有语义回落 | PLAYER_PLAN | W74 | ⬜ |
+| 9 | 切换视频无法保持倍速（同播放列表应继承） | 同一剧集队列切下一集后倍速保持（面板读数 + `dumpsys media_session` 一致）；新开一部片按既有语义回落 | PLAYER_PLAN | W74-S2 | ✅ 已修复（Pad 5：直放 / 3 Mbps 转码 / mpv 三档切集均保持 1.5×；新开会话回落 1×；合并 `010cc79`，合并态门禁 **861/0**；见 `PLAYER_PLAN` §35） |
 | 10 | 一部分季没有图片（如 ISUCA 依丝卡）；追问：**未知季没有图且不能播放**，服务器上该季有图、有 1 个视频，其他播放器正常 | ①ISUCA「未知季」卡片显示服务器图片；②季详情列出该 1 集且可播放（与 Jellyfin 网页端一致）；③通用「季→剧集图」回落链修复 | PLAYER_PLAN / data | W73 | ✅ 已修复（K60 合并包：季卡 / 详情海报 = 剧集图；集列表列出 OAD；播放键可用，点播放进入 S0:E0 正常播放） |
 | 11 | 管理员账号首页没有继续播放；追问：**Jellyfin 网页端此前没有，现已开启** | 管理员首页出现「继续播放」走廊且能继续播放；若服务端开启后已正常则记录关闭 | UI_PLAN | W73（验证） | ✅ 结论关闭（服务端已开启：admin Resume=18；App 无管理员分支；K60 实测「继续观看」走廊出现 + 点击进入；注：K60 账号为普通用户，管理员账号真机文本未复核） |
 | 12 | 视频详情页没有评分 | 电影 / 剧集详情信息行显示「★ x.x」（无评分时不显示）；与单集页口径一致 | UI_PLAN | W75 | ⬜ |
@@ -39,7 +39,7 @@
 | 15 | 字幕不消失，到下一句才变 | 字幕在句末时间点消失，不拖到下一句；SRT 生成 ASS 与原生 ASS 两条渲染路径都验 | PLAYER_PLAN | W74 | ✅ 已修复（W74-S1，K60：根因 = `ass-kt` 该时刻无图元时返回 null，被上层当「本帧无结果」保留上一帧；修后两条路径句末 **+39 ms / +9 ms** 清屏，改前同位置仍显示上一句。详见 `PLAYER_PLAN.md` §33） |
 | 16 | 侧栏媒体库显示全部；媒体页只显 2 个卡片；侧栏进入能显示全部但只能打开前两个；上方库选择只能选两个 | 三处（侧栏 / 媒体页库卡 / 库选择器）库集合一致（数量 + 可打开性）；每个库可打开且内容一致 | UI_PLAN | W73 | ✅ |
 | 17 | 媒体库界面部分条目因无缩略图显示黑卡 | 无缩略图条目卡显示占位（图标 + 域色），无纯黑卡；与 #3 同波 | UI_PLAN | W74 | ✅ 已修复（S74-3，Pad 5：视频页聚合 / 临时库网格 + 通用库内容页四处调用点接域色占位；加载中 / 无图 / 失败三态实测无黑卡；注：服务器自身黑色缩略图不在 App 范围） |
-| 18 | 后台播放默认是开着的，现在要改为关 | `pref_player_background_audio` 默认回归 `false`；全新安装（清数据）播放器设置显示为关、退后台默认不出声；**已显式设置过的安装保留用户值** | PLAYER_PLAN | W74 | ⬜ |
+| 18 | 后台播放默认是开着的，现在要改为关 | `pref_player_background_audio` 默认回归 `false`；全新安装（清数据）播放器设置显示为关、退后台默认不出声；**已显式设置过的安装保留用户值** | PLAYER_PLAN | W74-S2 | ✅ 已修复（D-F2；清数据新装 prefs 无该键 → 面板「关」、退后台无声；显式开启后 `install -r` 保留 `true`；红线 `AppPreferences.kt` 已申报；合并 `010cc79`；见 `PLAYER_PLAN` §35） |
 | 19 | （用户 2026-10-06 追加）所有播放、阅读等相关设置，都要有切换、重启保持 | 全量盘点播放器 + 阅读器设置项，逐项验证：a) 切换（离开 / 返回页面、换片 / 换集、切内核）后保持当前值；b) 冷启动 / 进程重启后保持；产出「设置项 → 存储键 → 切换保持 → 重启保持」盘点表，不保持的逐项修复；「切换」语义按此解读，若不符请指出 | PLAYER_PLAN / READER_PLAN | W74（S74-4） | 🟡 审计完成（64 条盘点 / 13 项不保持 = 7 条待修 + 6 条设计性；报告 `.planning/cinefin-expansion/w74-reports/W74-S4.md`） |
 | 20 | （用户 2026-10-06 追加）**主字幕与次字幕相互叠加**，应显示为**上下两行** | 双语字幕渲染为「主上、次下」两行、互不重叠（默认口径；如需主下 / 次上请指出）；主 / 次各自样式与延迟参数不回归；单字幕布局不受影响 | PLAYER_PLAN | W74-S5 | ✅ 已修复（K60：主 libass 上移 / 次文本贴底两行分离；单字幕与 #15 句末清屏不回归；合并 `19a1850`，合并态门禁 **858/0**；见 `PLAYER_PLAN` §34） |
 | 21 | （W74-S1 新发现）转码档（如 3 Mbps）下**服务端字幕交付内容为空**（HTTP 200 但 `cues=0, ass=false`），直连档同集正常 | 转码档字幕可用，或明确回落直连字幕交付；先只读取证服务端 `DeliveryUrl` / `SubtitleProfile` 行为 | PLAYER_PLAN / data | W74-S5（取证） | ✅ 已核验关闭（服务端：DeliveryUrl External + GET 200 + 合法 ASS；K60：3 Mbps 字幕正常 `cues=442`，**未复现空字幕** → W74-S1 观察归因一次性下载失败；「失败重试 + 异常日志」加固并入 W74-S7） |
@@ -125,7 +125,7 @@
 
 **W74-S5 双语字幕叠行（#20）**：主上、次下两行不重叠；单字幕不回归；#15 句末清屏不回归；落点 `PlayerSubtitleOverlay`；K60 单机；分支 `fix/w74-subtitle-two-lines`——✅ 已合并 `19a1850`（合并态门禁 858/0，CI 已推送）。
 
-**W74-S2 播放继承与后台（#9 + #18）**：倍速会话内跨集继承 + `pref_player_background_audio` 默认 true→false（红线申报）；落点 `PlayerHolder` / `PlayerViewModel` / `AppPreferences.kt`；Pad 5 单机；分支 `fix/w74-playback-inherit`——**派发时误用 deepseek-v4-pro 已被叫停，改由 flash 接手会话 `w74_playback_inherit2`（同一 worktree，未提交改动保留）**；子代理模型一律 `deepseek-flash`。
+**W74-S2 播放继承与后台（#9 + #18）**：倍速会话内跨集继承 + `pref_player_background_audio` 默认 true→false（红线申报）；落点 `PlayerHolder` / `PlayerViewModel` / `AppPreferences.kt`；Pad 5 单机；分支 `fix/w74-playback-inherit`——✅ 已合并 `010cc79`（合并态门禁 861/0，CI 已推送）；派发时误用 v4-pro 已叫停并改由 flash 接手（详见 §5 日志）。
 
 **W74-S7 设置即时生效与加固（U2-B + U5 + U6 + U7 + #21 加固）**：①U2 = 方案 B：新增 `pref_player_repeat_mode` / `pref_player_shuffle`，进播放页应用（切内核 / 重开 / 冷启动保持）；②U5 长按倍速档改「用时现读」；③U6 seek 步进 ±按钮 / 内核命令改现读偏好；④U7 设置页「首选语言」下拉值改由 plural 优先列表首项派生；⑤#21 加固：字幕下载失败一次重试 + 失败日志带异常（落点 `PlayerSubtitleController`）。落点 `PlayerControlOverlay` / `PlayerHolder` / `PlayerViewModel` / `PlayerGestureHelper` / 设置页 / `PlayerSubtitleController`；**须在 S74-2 合并后再开**（PlayerHolder / PlayerViewModel 咽喉文件串行）；K60 或 Pad 5 单机。
 
@@ -181,6 +181,7 @@
 | 2026-10-06 | 用户拍板 **D-F8（U2 = 方案 B：视频循环 / 随机持久化）**；登记 W74-S7 任务卡（U2-B + U5/U6/U7，排期在 S74-2 合并后，咽喉文件串行）。负责人线保持「最小必要」：只做派发 / 收口核对 / 合并态门禁复跑 / 推送 CI / 文档回写，其余交子代理，避免重复劳动。 |
 | 2026-10-06 | **W74-S5 合并验收（#20）**：分支 `fix/w74-subtitle-two-lines` rebase 后合并 master `19a1850`；合并态门禁 = `assembleDebug` + `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **858 项 / 0 失败 0 错误**（app 245 / core 89 / data 68 / player:core 12 / player:local 138 / film 53 / book 113 / music 140）；已推送 CI。K60 真机：主 libass 上移 + 次文本贴底两行分离（改前叠行）、单字幕与 #15 句末清屏不回归、样式 / 延迟不回归；#21 同窗口取证 3 Mbps 字幕正常 `cues=442`（未复现空字幕）。证据落 `.planning/cinefin-expansion/w74-evidence/w74_s5/`；详见 `PLAYER_PLAN` §34 与 `w74-reports/W74-S5.md`。 |
 | 2026-10-06 | **子代理模型修正**：W74-S2 派发误用 `deepseek-v4-pro`（用户纠正应为 `deepseek-flash`）→ 已叫停该会话，未提交改动（MPVPlayer / PlayerViewModel / AppPreferences 三处）保留在 worktree，改由 flash 接手会话 `w74_playback_inherit2` 复核补全；**此后子代理一律 `deepseek-flash`**。另：本地 DeepSeek 代理加装 usage 只读日志（`logs/usage.log`：model/in/out/cached/reqBytes），实测子代理单请求 ~21–30 万 tokens、缓存命中率 ~99% → 成本主因 = 大上下文 × 高频往返。 |
+| 2026-10-06 | **W74-S2 合并验收（#9 + #18）**：flash 接手会话复核后补全（`onNewIntent` 新会话回落 1× + mpv 侧按 `mpvSpeed` 真实值判定 + 纯函数 `PlaybackSpeedSession` +3 单测）；rebase 解决 `PLAYER_PLAN` 章节冲突（S74-2 小节改为 §35）后合并 master `010cc79`；合并态门禁 = `assembleDebug` + `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **861 项 / 0 失败 0 错误**（858 + 3）；已推送 CI。Pad 5 真机 9 组全过（直放 / 3 Mbps 转码 / mpv 切集保持 1.5×、新开会话回落 1×、#18 显式开 / 关 / 清数据新装 / 保留用户值），0 FATAL·ANR。未覆盖：mpv `dumpsys media_session` 读数既有问题（B7）、内核 / 码率切换回落 1×（按任务卡语义）、K60/TV 未走查。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
@@ -190,3 +191,5 @@
 - **B4** `PlayerControlOverlay.kt`（约 2.4k 行）/ `NavigationRoot.kt`（约 2.2k 行）维护性差——建议 1.2.x 单独开重构波，本轮不做。
 - **B5** W71 / W72 发布面未覆盖回归（release 真实下载任务 / SAF 重建 / mpv 兜底 / Quick Connect）——建议纳入 W76 收口回归清单。
 - **B6** 冷启动中位 ~1394 ms（W61 记录 `D-W47-2`，未拍板）——待定。
+- **B7** mpv 内核下 `dumpsys media_session` 的 `speed` 恒 `0.0`、`position` / `active item id` 恒 `-1`（App 面板读数正常）——既有问题（S74-2 用未改动 master 同机对照复现，非本轮引入），建议单开一条。
+- **B8** debug 日志把转码 `Stream url` 连同 `ApiKey` 一起打进 logcat（S74-2 顺带发现，非本轮引入）——建议收敛日志等级 / 脱敏，release 前处理。
