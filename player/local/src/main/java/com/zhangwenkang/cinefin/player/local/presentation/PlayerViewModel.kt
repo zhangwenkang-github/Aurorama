@@ -48,6 +48,7 @@ import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
 import com.zhangwenkang.cinefin.player.local.domain.isSeekRequestReady
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
+import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldRestartTranscodeSession
@@ -727,7 +728,7 @@ constructor(
                 .build()
         }
 
-        Timber.d("Stream url: $streamUrl")
+        Timber.d("Stream url: ${redactUrlSecrets(streamUrl)}")
         val mediaItem =
             MediaItem.Builder()
                 .setMediaId(itemId.toString())

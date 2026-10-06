@@ -153,4 +153,65 @@ class PlayerMediaInfoFormatTest {
         assertNull(inferContainerFromUri("https://host/Videos/1/stream"))
         assertNull(inferContainerFromUri(null))
     }
+
+    @Test
+    fun `日志脱敏只替换鉴权 query 的值`() {
+        // 普通直链：只动 api_key，其余 query 与 path 逐字保留
+        assertEquals(
+            "https://jellyfins.zhangwenkang.com/Videos/abc/stream.mkv?api_key=***&static=true",
+            redactUrlSecrets(
+                "https://jellyfins.zhangwenkang.com/Videos/abc/stream.mkv?api_key=SECRET&static=true"
+            ),
+        )
+        // HLS 转码链：转码参数（非敏感）保持原样
+        assertEquals(
+            "http://host:8096/videos/1/master.m3u8?api_key=***&VideoCodec=h264&maxWidth=1920",
+            redactUrlSecrets(
+                "http://host:8096/videos/1/master.m3u8?api_key=abc123&VideoCodec=h264&maxWidth=1920"
+            ),
+        )
+        // 多个鉴权参数：全部替换，参数顺序不变
+        assertEquals(
+            "https://host/x?api_key=***&b=1&X-Emby-Token=***",
+            redactUrlSecrets("https://host/x?api_key=aaa&b=1&X-Emby-Token=bbb"),
+        )
+        // 无值的参数名保持原样（没有可泄露的值）
+        assertEquals("https://host/x?api_key", redactUrlSecrets("https://host/x?api_key"))
+    }
+
+    @Test
+    fun `日志脱敏命中大小写与分隔符混写`() {
+        assertEquals(
+            "https://host/videos/1/stream?ApiKey=***&X-Emby-Token=***&X-Emby-Authorization=***",
+            redactUrlSecrets(
+                "https://host/videos/1/stream?ApiKey=abc&X-Emby-Token=def&X-Emby-Authorization=ghi"
+            ),
+        )
+        assertEquals(
+            "https://host/videos/1/stream?API-KEY=***&Access_Token=***",
+            redactUrlSecrets("https://host/videos/1/stream?API-KEY=abc&Access_Token=def"),
+        )
+    }
+
+    @Test
+    fun `日志脱敏对无鉴权参数与非法输入原样返回不崩溃`() {
+        assertEquals(
+            "https://host/Videos/1/stream.mkv?static=true",
+            redactUrlSecrets("https://host/Videos/1/stream.mkv?static=true"),
+        )
+        assertEquals(
+            "https://host/Videos/1/stream.mkv",
+            redactUrlSecrets("https://host/Videos/1/stream.mkv"),
+        )
+        assertEquals("", redactUrlSecrets(""))
+        assertEquals("   ", redactUrlSecrets("   "))
+        assertEquals("not a url", redactUrlSecrets("not a url"))
+        assertEquals("https://host/videos/1?", redactUrlSecrets("https://host/videos/1?"))
+        assertEquals("api_key=abc", redactUrlSecrets("api_key=abc"))
+        // fragment 不参与参数解析，但原样保留
+        assertEquals(
+            "https://host/videos/1/stream?api_key=***#t=10",
+            redactUrlSecrets("https://host/videos/1/stream?api_key=abc#t=10"),
+        )
+    }
 }

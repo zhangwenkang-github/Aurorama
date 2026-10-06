@@ -185,6 +185,62 @@ fun inferContainerFromUri(uri: String?): String? {
 }
 
 /**
+ * 日志脱敏（W76-B8）：保留 scheme + host + path 与全部非敏感 query，只把鉴权参数的值替换成 `***`。
+ *
+ * `https://host/Videos/a/stream.m3u8?api_key=abc&VideoCodec=h264` →
+ * `…?api_key=***&VideoCodec=h264`。 参数名大小写 / 连字符 / 下划线混写都命中（`api_key` / `ApiKey` / `X-Emby-Token`
+ * …）； 没有鉴权参数、空串与非 URL 输入一律**原样返回**（不解析、不抛异常）。纯函数，可直接单测。
+ */
+fun redactUrlSecrets(url: String): String {
+    val queryStart = url.indexOf('?')
+    // 没有 query 或 '?' 之后为空 → 无可脱敏内容，原样返回
+    if (queryStart < 0 || queryStart == url.lastIndex) return url
+    val rest = url.substring(queryStart + 1)
+    val fragmentStart = rest.indexOf('#')
+    val query = if (fragmentStart >= 0) rest.substring(0, fragmentStart) else rest
+    val fragment = if (fragmentStart >= 0) rest.substring(fragmentStart) else ""
+    if (query.isEmpty()) return url
+    val redacted =
+        query.split('&').joinToString("&") { pair ->
+            val equals = pair.indexOf('=')
+            // 没有 '=' 的参数（或空名）没有值可泄露，保持原样
+            if (equals <= 0) {
+                pair
+            } else {
+                val name = pair.substring(0, equals)
+                if (isSecretQueryParamName(name)) "$name=***" else pair
+            }
+        }
+    return url.substring(0, queryStart + 1) + redacted + fragment
+}
+
+/**
+ * 鉴权 query 参数名判定：去掉 `-` / `_` / 大小写差异后比对， 于是 `api_key` / `ApiKey` / `API-KEY` / `X-Emby-Token` /
+ * `X-Emby-Authorization` 都会命中。
+ */
+private fun isSecretQueryParamName(name: String): Boolean {
+    val normalized = name.lowercase().filter { it.isLetterOrDigit() }
+    return normalized in URL_SECRET_QUERY_PARAM_NAMES
+}
+
+/** Jellyfin / Emby 侧会带凭据的 query 参数名（已归一化：小写且去掉分隔符） */
+private val URL_SECRET_QUERY_PARAM_NAMES =
+    setOf(
+        "apikey",
+        "token",
+        "accesstoken",
+        "refreshtoken",
+        "authorization",
+        "auth",
+        "apisecret",
+        "xembytokens",
+        "xembytoken",
+        "xembyauthorization",
+        "xmediabrowsertoken",
+        "password",
+    )
+
+/**
  * 从内核的视频参数判定动态范围（纯函数，便于单测）。
  *
  * @param codecs 编码串（含 `dvhe` / `dvh1` / `dav1` 视为杜比视界）

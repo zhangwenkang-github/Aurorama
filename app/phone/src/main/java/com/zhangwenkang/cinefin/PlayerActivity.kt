@@ -58,6 +58,7 @@ import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
 import com.zhangwenkang.cinefin.player.local.domain.letterboxFillScale
 import com.zhangwenkang.cinefin.player.local.domain.parsePlaybackQueueEntries
+import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.rotationFillScale
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
@@ -452,7 +453,8 @@ class PlayerActivity : BasePlayerActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.uiState.collect { uiState ->
-                        Timber.d("$uiState")
+                        // B8：UiState 里带 mediaInfo.path（转码直链含 ApiKey），先脱敏再打
+                        Timber.d(redactUrlSecrets(uiState.toString()))
                         uiState.apply {
                             // 氛围背景：跟随当前影片海报取色
                             currentItemId?.let { itemId ->
