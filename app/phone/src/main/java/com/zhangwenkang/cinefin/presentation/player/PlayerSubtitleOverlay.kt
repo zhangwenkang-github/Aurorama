@@ -83,6 +83,7 @@ fun PlayerSubtitleOverlay(
     var assFrame by remember { mutableStateOf<LibassFrame?>(null) }
     var libassFailed by remember { mutableStateOf(false) }
     var videoRect by remember { mutableStateOf(Rect()) }
+    var secondaryTextHeightPx by remember { mutableStateOf(0f) }
 
     val libassEnabled =
         state.primaryManaged && (state.primaryAssScript != null || state.primaryCues.isNotEmpty())
@@ -216,6 +217,19 @@ fun PlayerSubtitleOverlay(
     if (!hasText && !hasAss) return
 
     Box(modifier = modifier.fillMaxSize()) {
+        val verticalPaddingPx = with(density) { SECONDARY_LINE_VERTICAL_PADDING_DP.dp.toPx() }
+        val gapPx = with(density) { SUBTITLE_LINE_GAP_DP.dp.toPx() }
+        // 主字幕（libass）上移量：次字幕非空才抬升，无次字幕保持贴底（零回归）。
+        val liftPx =
+            if (secondaryText.isNotEmpty()) {
+                val secondaryHeight =
+                    secondaryBlockHeightPx(secondaryTextHeightPx, verticalPaddingPx)
+                val topmostY = assFrame?.images?.minOfOrNull { it.y }
+                libassLiftPx(secondaryHeight, gapPx, topmostY)
+            } else {
+                0
+            }
+
         if (hasAss) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val rect = videoRect
@@ -223,7 +237,7 @@ fun PlayerSubtitleOverlay(
                     val bitmap = image.bitmap
                     paint.color = image.color
                     val left = (rect.left + image.x).toFloat()
-                    val top = (rect.top + image.y).toFloat()
+                    val top = (rect.top + image.y - liftPx).toFloat()
                     drawIntoCanvas { canvas ->
                         canvas.nativeCanvas.drawBitmap(
                             bitmap,
@@ -264,19 +278,20 @@ fun PlayerSubtitleOverlay(
                             bottom = maxHeight * style.bottomFraction,
                         ),
                 ) {
-                    // 次字幕在主字幕上方，互不重叠
-                    if (secondaryText.isNotEmpty()) {
-                        SubtitleLine(
-                            text = secondaryText,
-                            style = style,
-                            fontSize = secondarySize,
-                        )
-                    }
+                    // W74 #20：主字幕在上、次字幕在下，互不重叠
                     if (primaryText.isNotEmpty()) {
                         SubtitleLine(
                             text = primaryText,
                             style = style,
                             fontSize = primarySize,
+                        )
+                    }
+                    if (secondaryText.isNotEmpty()) {
+                        SubtitleLine(
+                            text = secondaryText,
+                            style = style,
+                            fontSize = secondarySize,
+                            onTextMeasured = { height -> secondaryTextHeightPx = height },
                         )
                     }
                 }
@@ -303,6 +318,7 @@ private fun SubtitleLine(
     text: String,
     style: SubtitleStyle,
     fontSize: androidx.compose.ui.unit.TextUnit,
+    onTextMeasured: ((Float) -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val fillColor = Color(style.textColor)
@@ -337,6 +353,10 @@ private fun SubtitleLine(
             text = text,
             style = textStyle.copy(color = fillColor),
             textAlign = TextAlign.Center,
+            onTextLayout =
+                onTextMeasured?.let { callback ->
+                    { layoutResult -> callback(layoutResult.size.height.toFloat()) }
+                },
         )
     }
 }
