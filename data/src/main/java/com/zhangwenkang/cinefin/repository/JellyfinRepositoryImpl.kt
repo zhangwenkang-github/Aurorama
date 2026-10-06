@@ -668,7 +668,14 @@ class JellyfinRepositoryImpl(
                         )
                         .content
                         .items
-                        .mapNotNull { it.toFindroidEpisode(this@JellyfinRepositoryImpl, database) }
+                        .mapNotNull {
+                            // W73（#10）：未知季的集不带 SeasonId，用请求用的 seasonId 回落，别让整条被丢掉。
+                            it.toFindroidEpisode(
+                                this@JellyfinRepositoryImpl,
+                                database,
+                                fallbackSeasonId = seasonId,
+                            )
+                        }
                 } else {
                     database.getEpisodesBySeasonId(seasonId).map {
                         it.toFindroidEpisode(database, jellyfinApi.userId!!)

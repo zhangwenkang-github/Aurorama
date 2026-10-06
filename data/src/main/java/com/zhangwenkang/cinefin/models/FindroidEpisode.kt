@@ -40,7 +40,13 @@ data class FindroidEpisode(
 suspend fun BaseItemDto.toFindroidEpisode(
     jellyfinRepository: JellyfinRepository,
     database: ServerDatabaseDao? = null,
+    /**
+     * W73（#10）：服务端「未知季」（无季号）分组里的集**不返回 `SeasonId`**——按季取集时由调用方把请求用的 seasonId 作为回落值传进来；否则
+     * `seasonId!!` 抛 NPE、被下面的 catch 吞成 null、整条数据被 `mapNotNull` 丢掉 （真机表现：季详情没有集、播放键置灰）。
+     */
+    fallbackSeasonId: UUID? = null,
 ): FindroidEpisode? {
+    val resolvedSeasonId = resolveEpisodeSeasonId(seasonId, fallbackSeasonId) ?: return null
     val sources = mutableListOf<FindroidSource>()
     sources.addAll(mediaSources?.map { it.toFindroidSource(jellyfinRepository, id) } ?: emptyList())
     if (database != null) {
@@ -65,7 +71,7 @@ suspend fun BaseItemDto.toFindroidEpisode(
             premiereDate = premiereDate,
             seriesId = seriesId!!,
             seriesName = seriesName.orEmpty(),
-            seasonId = seasonId!!,
+            seasonId = resolvedSeasonId,
             seasonName = seasonName,
             communityRating = communityRating,
             people = people?.map { it.toFindroidPerson(jellyfinRepository) } ?: emptyList(),
@@ -79,6 +85,10 @@ suspend fun BaseItemDto.toFindroidEpisode(
         null
     }
 }
+
+/** 集的归属季 ID 取值口径（纯函数，便于单测）：服务器给的值优先，缺省时用调用方请求的季 ID 回落。 两者都没有（既不是按季取、服务端也没给）时返回 null，调用方据此丢弃该条。 */
+internal fun resolveEpisodeSeasonId(serverSeasonId: UUID?, requestedSeasonId: UUID?): UUID? =
+    serverSeasonId ?: requestedSeasonId
 
 suspend fun FindroidEpisodeDto.toFindroidEpisode(
     database: ServerDatabaseDao,

@@ -41,6 +41,10 @@ fun ItemHeader(
     var backdropUri =
         when (item) {
             is FindroidEpisode -> item.images.primary
+            // W73（#10）：季没有 backdrop / 海报时回落剧集图——服务器的「未知季」分组不建图，
+            // 否则季详情页整块头图空白（用户 2026-10-06 截图 2）。
+            is FindroidSeason ->
+                item.images.backdrop ?: item.images.primary ?: item.images.showPrimary
             else -> item.images.backdrop
         }
 

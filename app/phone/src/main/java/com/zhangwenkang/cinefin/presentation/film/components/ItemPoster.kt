@@ -19,6 +19,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidSeason
 
 enum class Direction {
     HORIZONTAL,
@@ -52,7 +53,13 @@ fun ItemPoster(
                 if (item is FindroidMovie) item.images.backdrop ?: item.images.primary
                 else item.images.primary
             Direction.VERTICAL ->
-                if (item is FindroidEpisode) item.images.showPrimary else item.images.primary
+                when (item) {
+                    is FindroidEpisode -> item.images.showPrimary
+                    // W73（#10）：季自身没有海报时回落剧集图——服务器的「未知季」分组不建图，
+                    // 官方客户端同样显示剧集海报；剧集（Show）卡仍只用自身海报，不跨级回落。
+                    is FindroidSeason -> item.images.primary ?: item.images.showPrimary
+                    else -> item.images.primary
+                }
             Direction.SQUARE -> item.images.primary
         }
     val imageUri: Any? =

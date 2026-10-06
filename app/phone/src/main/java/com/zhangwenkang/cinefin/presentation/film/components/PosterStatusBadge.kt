@@ -10,11 +10,14 @@ import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
 
 /**
- * 封面状态徽标（下载徽标之外的那一个）——口径与官方 Jellyfin 一致：
+ * 封面状态徽标（下载徽标之外的那一个）：
  *
- * - **容器类（Series / Season / 文件夹）**：显示未看条目数，`>0` 才显示；完全看完（计数为 0 或缺省）不显示任何徽标；
+ * - **容器类（Series / Season / 文件夹）**：未看条目数 `>0` 显示数字；**全部看完显示打勾**；
  * - **单片类（Movie / Episode）**：服务器只给 `UserData.Played`——已看打勾、未看不加角标；
  * - 其他（合集 / 相册等本波未纳入的类型）：不显示。
+ *
+ * W73（#4）口径变更：容器类「全部看完」由 [PosterStatusBadge.None] 改为打勾——用户 2026-10-06 「季里每集看完，季没有勾」。W56 的「0
+ * 就不显示」作废（当时按官方容器只显示未看数理解）。
  *
  * 依据：官方 OpenAPI `UserItemDataDto.UnplayedItemCount` 仅由容器类条目的 `UserData` 返回（2026-10-03 对 服务器 10.11.8
  * 的只读探针实测：Series / Season 有值，Movie / Episode / 库视图恒为空）。
@@ -36,12 +39,27 @@ internal fun FindroidItem.posterStatusBadge(): PosterStatusBadge =
         is FindroidShow,
         is FindroidSeason,
         is FindroidFolder ->
-            unplayedItemCount?.takeIf { it > 0 }?.let { PosterStatusBadge.UnplayedCount(it) }
-                ?: PosterStatusBadge.None
+            containerStatusBadge(played = played, unplayedItemCount = unplayedItemCount)
         is FindroidMovie,
         is FindroidEpisode -> if (played) PosterStatusBadge.Played else PosterStatusBadge.None
         else -> PosterStatusBadge.None
     }
+
+/**
+ * 容器类（剧集 / 季 / 文件夹）的徽标口径（抽成纯函数便于单测）：
+ *
+ * 1. 还有未看条目 → 未看数（服务器的 `UnplayedItemCount` 比 `Played` 更新）；
+ * 2. 计数为 0（服务器已统计过、没有未看子项）或服务器直接给了已看标记 → 打勾；
+ * 3. 计数缺省且未标记已看（如离线数据）→ 不显示。
+ */
+internal fun containerStatusBadge(played: Boolean, unplayedItemCount: Int?): PosterStatusBadge {
+    val unplayed = unplayedItemCount ?: 0
+    return when {
+        unplayed > 0 -> PosterStatusBadge.UnplayedCount(unplayed)
+        played || unplayedItemCount == 0 -> PosterStatusBadge.Played
+        else -> PosterStatusBadge.None
+    }
+}
 
 /** 未看数量文案：>99 收敛为 `99+`，避免长数字挤爆封面小胶囊。 */
 internal fun unplayedItemCountText(count: Int): String = if (count > 99) "99+" else count.toString()
