@@ -90,6 +90,7 @@ import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
+import com.zhangwenkang.cinefin.presentation.utils.rememberLazyGridScrollMemoryState
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
@@ -563,11 +564,14 @@ private fun AggregatedVideoGrid(
             else -> if (widthDp >= 1600) 6 else 5
         }
     var showPagingErrorDialog by rememberSaveable { mutableStateOf(false) }
+    // W75 #5：聚合网格的滚动位置按导航条目记忆——打开条目详情再返回时保持原位置（不置顶）。
+    val gridState = rememberLazyGridScrollMemoryState("video-grid")
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
             columns = GridCellsAdaptiveWithMinColumns(minSize = 176.dp, minColumns = 2),
             modifier = Modifier.fillMaxSize(),
+            state = gridState,
             contentPadding = contentPadding,
             horizontalArrangement = Arrangement.spacedBy(gridGutter),
             verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),

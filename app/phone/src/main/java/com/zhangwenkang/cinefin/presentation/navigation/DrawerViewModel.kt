@@ -65,6 +65,13 @@ constructor(
     private val _state = MutableStateFlow(DrawerState())
     val state = _state.asStateFlow()
 
+    /**
+     * 上一次已解析的当前账号 id（W75 #2）。
+     *
+     * 同进程内切换账号不会重建 Activity，本 ViewModel 跨账号存活——靠它识别「换账号了」， 从而在换账号时重新判定管理员能力（[refreshAccount]）。
+     */
+    private var resolvedUserId: String? = null
+
     /** 侧栏可见性开关：设置页改完偏好后主界面要立刻跟着变——靠 SharedPreferences 变更回调刷新， 不重启 Activity，也不重拉服务器数据。 */
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when {
@@ -88,7 +95,66 @@ constructor(
                 sidebarVisibility = readSidebarVisibility(),
                 hideBottomBar = appPreferences.getValue(appPreferences.hideBottomBar),
             )
+        // W75 #2：冷启动首帧就把「上次已确认过的管理员身份」带出来——不能等联网确认回来
+        seedAdministratorFromCache()
     }
+
+    /**
+     * W75 #2：管理员能力判定「首帧即正确」。
+     *
+     * 抽屉条目由 [DrawerState.isAdministrator] 门控，而联网确认（`isCurrentUserAdministrator()`） 有往返延迟：此前状态默认
+     * false，管理员第一次打开抽屉会先看到「没有控制台 / 资料管理」的一帧， 联网结果回来才补上（用户反馈「打开抽屉后才显示」）。这里在冷启动就先用**同一账号**的
+     * 缓存值（仓库侧每次成功查询都会写入）把状态填对，联网结果随后覆盖。
+     */
+    private fun seedAdministratorFromCache() {
+        viewModelScope.launch {
+            val serverId = appPreferences.getValue(appPreferences.currentServer) ?: return@launch
+            val userId = currentUserId(serverId)
+            resolvedUserId = userId
+            val cached = cachedAdministratorFlag(userId)
+            if (cached && !_state.value.isAdministrator) {
+                _state.value = _state.value.copy(isAdministrator = cached)
+            }
+        }
+    }
+
+    /**
+     * W75 #2：账号能力刷新（导航变化时调用）。
+     *
+     * - 当前账号与上次解析一致：只把缓存值同步回状态（零请求，首帧即正确）；
+     * - 换了账号（同进程内切换）：先用缓存值抹掉上一个账号留下的管理员入口、再向服务器确认一次。
+     */
+    fun refreshAccount() {
+        viewModelScope.launch {
+            val serverId = appPreferences.getValue(appPreferences.currentServer) ?: return@launch
+            val userId = currentUserId(serverId)
+            val cached = cachedAdministratorFlag(userId)
+            val switched = userId != resolvedUserId
+            resolvedUserId = userId
+            when {
+                switched -> {
+                    if (_state.value.isAdministrator != cached) {
+                        _state.value = _state.value.copy(isAdministrator = cached)
+                    }
+                    load()
+                }
+                cached && !_state.value.isAdministrator ->
+                    _state.value = _state.value.copy(isAdministrator = true)
+            }
+        }
+    }
+
+    private suspend fun currentUserId(serverId: String): String? = runCatching {
+        database.getServerCurrentUser(serverId)?.id?.toString()
+    }
+        .getOrNull()
+
+    private fun cachedAdministratorFlag(userId: String?): Boolean =
+        sidebarAdministratorFlag(
+            currentUserId = userId,
+            cachedUserId = appPreferences.getValue(appPreferences.currentUserIsAdministratorUserId),
+            cachedValue = appPreferences.getValue(appPreferences.currentUserIsAdministrator),
+        )
 
     override fun onCleared() {
         appPreferences.sharedPreferences.unregisterOnSharedPreferenceChangeListener(
@@ -107,6 +173,7 @@ constructor(
                 val server = runCatching { database.getServer(serverId) }.getOrNull()
                 val address = runCatching { database.getServerCurrentAddress(serverId) }.getOrNull()
                 val user = runCatching { database.getServerCurrentUser(serverId) }.getOrNull()
+                resolvedUserId = user?.id?.toString()
                 val repository = repositoryProvider.get()
                 val isAdministrator = runCatching {
                     repository.isCurrentUserAdministrator()
@@ -198,3 +265,15 @@ constructor(
         const val HIDE_BOTTOM_BAR_PREF_KEY = "pref_hide_bottom_bar"
     }
 }
+
+/**
+ * 侧栏「控制台 / 资料管理」的管理员门控值（纯函数，单测覆盖，W75 #2）。
+ *
+ * 缓存是「账号 id + 是否管理员」成对的：只有**当前账号就是缓存里那个账号**时缓存才作数， 否则一律按非管理员处理——既不会把上一个账号的管理员身份泄漏给普通账号，
+ * 也不会在账号未知（未登录 / 会话未就绪）时露出后台入口。
+ */
+internal fun sidebarAdministratorFlag(
+    currentUserId: String?,
+    cachedUserId: String?,
+    cachedValue: Boolean,
+): Boolean = currentUserId != null && currentUserId == cachedUserId && cachedValue

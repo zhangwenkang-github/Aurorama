@@ -95,6 +95,8 @@ import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
+import com.zhangwenkang.cinefin.presentation.utils.rememberLazyGridScrollMemoryState
+import com.zhangwenkang.cinefin.presentation.utils.rememberLazyScrollMemoryState
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.BookCoverRules
@@ -332,6 +334,9 @@ private fun LibraryScreenLayout(
 
     val isTagTab = state.tab == LibraryTab.Genres || state.tab == LibraryTab.Studios
     val tabItems = state.tabItems
+    // W75 #5：库内容列表 / 网格的滚动位置按导航条目记忆——打开条目详情再返回时保持原位置（不置顶）。
+    val libraryListState = rememberLazyScrollMemoryState("library-list:$libraryName")
+    val libraryGridState = rememberLazyGridScrollMemoryState("library-grid:$libraryName")
     val countText =
         if (state.tab == LibraryTab.Library) {
             libraryCountText(loadedCount = items.itemCount, totalCount = state.totalCount)
@@ -450,6 +455,7 @@ private fun LibraryScreenLayout(
                 state.tab == LibraryTab.Library && state.viewMode == LibraryViewMode.List -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
+                        state = libraryListState,
                         contentPadding = contentPadding,
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                     ) {
@@ -519,6 +525,7 @@ private fun LibraryScreenLayout(
                                 minColumns = 2,
                             ),
                         modifier = Modifier.fillMaxSize(),
+                        state = libraryGridState,
                         contentPadding = contentPadding,
                         horizontalArrangement = Arrangement.spacedBy(gridGutter),
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -87,6 +86,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.presentation.utils.rememberScrollMemoryState
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
 
@@ -164,6 +164,8 @@ fun ShowScreen(
 
     ShowScreenLayout(
         state = state,
+        // W75 #5：滚动位置按剧集 id 记忆——进季 / 进集再返回时保持原位置（不置顶）。
+        scrollKey = "show:$showId",
         downloadState = showDownloadState,
         downloadBadges = downloadBadges,
         downloadBusy = state.downloadTargetsLoading,
@@ -227,6 +229,8 @@ private fun ShowScreenLayout(
     snackbarHostState: SnackbarHostState,
     onDownloadClick: () -> Unit,
     onAction: (ShowAction) -> Unit,
+    /** W75 #5：滚动位置的记忆键（真实入口传 `show:<id>`，预览用默认值）。 */
+    scrollKey: String = "show:preview",
 ) {
     val safePadding = rememberSafePadding()
     val gutter = rememberPageGutter()
@@ -240,7 +244,7 @@ private fun ShowScreenLayout(
             .windowSizeClass
             .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 
-    val scrollState = rememberScrollState()
+    val scrollState = rememberScrollMemoryState(scrollKey)
 
     ProvideLumen {
         Box(modifier = Modifier.fillMaxSize()) {

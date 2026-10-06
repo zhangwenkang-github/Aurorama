@@ -396,6 +396,8 @@ fun NavigationRoot(
     LaunchedEffect(navBackStackEntry) {
         drawerViewModel.refreshLocalLibraries()
         drawerViewModel.refreshServerLibraries()
+        // W75 #2：账号切换（同进程内）后重新判定管理员能力——「控制台 / 资料管理」首开抽屉即在。
+        drawerViewModel.refreshAccount()
     }
 
     // 形态分级（§4.4）：Compact 底部 tab；Medium 起侧轨（W70 起 ≥600dp 默认展开）

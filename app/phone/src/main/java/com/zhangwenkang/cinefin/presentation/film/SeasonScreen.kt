@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -67,6 +66,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.presentation.utils.rememberLazyScrollMemoryState
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -132,6 +132,8 @@ fun SeasonScreen(
 
     SeasonScreenLayout(
         state = state,
+        // W75 #5：滚动位置按季 id 记忆——进集 / 返回时保持原位置（不置顶）。
+        scrollKey = "season:$seasonId",
         downloadState = seasonDownloadState,
         snackbarHostState = snackbarHostState,
         selectionMode = batchSelection.selectionMode,
@@ -230,6 +232,8 @@ private fun SeasonScreenLayout(
     onLongPressEpisode: (String) -> Unit = {},
     onDownloadClick: () -> Unit,
     onAction: (SeasonAction) -> Unit,
+    /** W75 #5：滚动位置的记忆键（真实入口传 `season:<id>`，预览用默认值）。 */
+    scrollKey: String = "season:preview",
 ) {
     val safePadding = rememberSafePadding()
 
@@ -237,7 +241,7 @@ private fun SeasonScreenLayout(
     val paddingEnd = safePadding.end + MaterialTheme.spacings.default
     val paddingBottom = safePadding.bottom + MaterialTheme.spacings.default
 
-    val lazyListState = rememberLazyListState()
+    val lazyListState = rememberLazyScrollMemoryState(scrollKey)
 
     ProvideLumen {
         Box(modifier = Modifier.fillMaxSize()) {
