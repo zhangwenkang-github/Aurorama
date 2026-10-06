@@ -239,6 +239,21 @@ object LanguageMatcher {
         return listOf(primary) + default.filterNot { baseOf(it) == base }
     }
 
+    /**
+     * 把优先级列表项（归一化 BCP-47 标签）映射回设置页下拉的选项值（W74 U7）。
+     *
+     * 设置页「首选语言」下拉的候选值域是 ISO 639-2 与 BCP-47 的混合（`chi` / `zh-Hans` / `eng` …）， 而优先级列表存的是归一化标签（`zh` /
+     * `zh-Hans` / `en` …）：先归一化再在候选值域里找第一项， 找不到时返回 null（下拉显示「未设置」）。这样手动选轨只改 `pref_*_languages`
+     * 也不会让设置页读数滞后。
+     */
+    fun optionValueFor(
+        tag: String?,
+        optionValues: List<String>,
+    ): String? {
+        val target = normalize(tag) ?: return null
+        return optionValues.firstOrNull { normalize(it) == target }
+    }
+
     /** 取语言基础码，例如 zh-Hans → zh、en-US → en */
     fun baseOf(tag: String): String = tag.substringBefore('-').lowercase()
 

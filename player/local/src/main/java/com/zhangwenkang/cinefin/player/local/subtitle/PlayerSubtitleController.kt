@@ -350,7 +350,14 @@ class PlayerSubtitleController(
                 withContext(Dispatchers.IO) {
                     runCatching {
                             // 下载与解析一起兜底：解析器异常（含 Error）绝不能带崩播放页
-                            val content = download(source.uri)
+                            // W74 #21：下载失败先短退避重试一次，避免瞬时抖动静默变成空字幕
+                            val content =
+                                retryOnce(
+                                    delayMs = SUBTITLE_DOWNLOAD_RETRY_DELAY_MS,
+                                    label = "字幕下载（index=${source.index}）",
+                                ) {
+                                    download(source.uri)
+                                }
                             LoadedSubtitle(
                                 cues = SubtitleParser.parse(content, source.codec),
                                 assScript = assScriptOf(content, source.codec),

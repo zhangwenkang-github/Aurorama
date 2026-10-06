@@ -986,8 +986,9 @@ fun PlayerControlOverlay(
                 isFullscreen = isFullscreen,
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
                 onPrevious = { player.seekToPreviousMediaItem() },
-                onRewind = { onSeekRelativeRequest(-player.seekBackIncrement) },
-                onForward = { onSeekRelativeRequest(player.seekForwardIncrement) },
+                // W74 U6：步进用时现读（设置页改完立即生效），不用实例创建时的快照
+                onRewind = { onSeekRelativeRequest(-settingsController.seekBackIncrementMs) },
+                onForward = { onSeekRelativeRequest(settingsController.seekForwardIncrementMs) },
                 onNext = { player.seekToNextMediaItem() },
                 onSeek = onSeekRequest,
                 onSeekFraction = onSeekFractionRequest,
@@ -1084,8 +1085,12 @@ fun PlayerControlOverlay(
                                     if (player.isPlaying) player.pause() else player.play()
                                 },
                                 onPrevious = { player.seekToPreviousMediaItem() },
-                                onRewind = { onSeekRelativeRequest(-player.seekBackIncrement) },
-                                onForward = { onSeekRelativeRequest(player.seekForwardIncrement) },
+                                onRewind = {
+                                    onSeekRelativeRequest(-settingsController.seekBackIncrementMs)
+                                },
+                                onForward = {
+                                    onSeekRelativeRequest(settingsController.seekForwardIncrementMs)
+                                },
                                 onNext = { player.seekToNextMediaItem() },
                                 modifier = Modifier.align(Alignment.Center),
                                 onSizeChanged = onCenterClusterSize,
@@ -1300,13 +1305,19 @@ fun PlayerControlOverlay(
                             onSelect = { mode, shuffle ->
                                 player.repeatMode = mode
                                 // mpv 后端的 setShuffleModeEnabled 还是 TODO，能力不足时不碰它
-                                if (
+                                val shuffleSupported =
                                     player.availableCommands.contains(
                                         Player.COMMAND_SET_SHUFFLE_MODE
                                     )
-                                ) {
+                                if (shuffleSupported) {
                                     player.shuffleModeEnabled = shuffle
                                 }
+                                /*
+                                 * W74 U2-B（D-F8）：面板改档同时落盘（新键见 PlayerExtraPreferences），
+                                 * 切内核 / 重开播放页 / 冷启动后由 PlayerViewModel.applySavedPlaybackMode() 套用。
+                                 */
+                                settingsController.setRepeatMode(mode)
+                                settingsController.setShuffleEnabled(shuffle)
                             },
                         )
                     PlayerPanel.Subtitle ->

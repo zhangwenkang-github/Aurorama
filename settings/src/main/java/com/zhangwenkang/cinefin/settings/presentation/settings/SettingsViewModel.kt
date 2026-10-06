@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.models.HomeLibrarySettings
 import com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog
+import com.zhangwenkang.cinefin.settings.domain.models.Preference
 import com.zhangwenkang.cinefin.settings.presentation.enums.DeviceType
 import com.zhangwenkang.cinefin.settings.presentation.models.HomeLibraryOrderEntry
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceAppLanguage
@@ -49,6 +50,26 @@ constructor(
 
     private val eventsChannel = Channel<SettingsEvent>()
     val events = eventsChannel.receiveAsFlow()
+
+    /** 「首选语言」下拉的候选值域：与 `R.array.languages_values` 同一份（ISO 639-2 与 BCP-47 混合） */
+    private val languageOptionValues =
+        context.resources.getStringArray(R.array.languages_values).toList()
+
+    /**
+     * 由语言优先级列表的首项推导下拉显示值（W74 U7）。
+     *
+     * 设置页读的遗留单值键 `pref_audio_language` / `pref_subtitle_language` 只在用下拉选择时被写入， 而手动选轨（播放页）只更新优先级列表
+     * `pref_*_languages` → 直读单值键会让读数滞后。这里以优先级列表为准。
+     */
+    private fun languagePriorityHead(
+        preference: Preference<String>,
+        default: List<String>,
+    ): String? =
+        LanguageMatcher.optionValueFor(
+            LanguageMatcher.parsePriority(appPreferences.getValue(preference), default)
+                .firstOrNull(),
+            languageOptionValues,
+        )
 
     /** 服务器媒体库目录（由 App 层写入偏好缓存）：用于「首页 / 音乐 / 书架使用哪个媒体库」的选项。 */
     private val libraryCatalog =
@@ -145,6 +166,14 @@ constructor(
                                                     options = R.array.languages,
                                                     optionValues = R.array.languages_values,
                                                     optionsIncludeNull = true,
+                                                    // W74 U7：读数由优先级列表首项派生（手动选轨只写
+                                                    // pref_audio_languages）
+                                                    valueProvider = {
+                                                        languagePriorityHead(
+                                                            appPreferences.preferredAudioLanguages,
+                                                            LanguageMatcher.DEFAULT_AUDIO_PRIORITY,
+                                                        )
+                                                    },
                                                     onUpdate = { value ->
                                                         // 首选语言置顶，其余沿用默认优先级
                                                         appPreferences.setValue(
@@ -169,6 +198,15 @@ constructor(
                                                     options = R.array.languages,
                                                     optionValues = R.array.languages_values,
                                                     optionsIncludeNull = true,
+                                                    // W74 U7：同音轨——手动选字幕轨只写 pref_subtitle_languages
+                                                    valueProvider = {
+                                                        languagePriorityHead(
+                                                            appPreferences
+                                                                .preferredSubtitleLanguages,
+                                                            LanguageMatcher
+                                                                .DEFAULT_SUBTITLE_PRIORITY,
+                                                        )
+                                                    },
                                                     onUpdate = { value ->
                                                         appPreferences.setValue(
                                                             appPreferences
@@ -1347,10 +1385,12 @@ constructor(
                                                             preference.dependencies.all {
                                                                 appPreferences.getValue(it)
                                                             },
+                                                    // W74 U7：首选语言这类项由优先级列表派生显示值
                                                     value =
-                                                        appPreferences.getValue(
-                                                            preference.backendPreference
-                                                        ),
+                                                        preference.valueProvider?.invoke()
+                                                            ?: appPreferences.getValue(
+                                                                preference.backendPreference
+                                                            ),
                                                 )
                                             }
                                             is PreferenceDynamicSelect -> {

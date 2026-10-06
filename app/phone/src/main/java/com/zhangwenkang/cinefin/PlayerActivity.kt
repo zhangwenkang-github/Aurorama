@@ -553,6 +553,17 @@ class PlayerActivity : BasePlayerActivity() {
         requestNotificationPermissionIfNeeded()
     }
 
+    /**
+     * W74 U6：回到播放页时把设置页可能改过的 seek 步进推给当前内核。
+     *
+     * ± 按钮走 ViewModel 的相对 seek（本就现读偏好）；内核自己的 `seekBack()` / `seekForward()`（通知栏 / 媒体会话 / 车机）
+     * 用的是实例里的值，只在构造期注入，这里补一次同步。
+     */
+    override fun onResume() {
+        super.onResume()
+        viewModel.syncSeekIncrements()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

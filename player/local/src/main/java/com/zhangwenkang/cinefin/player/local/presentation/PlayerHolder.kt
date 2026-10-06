@@ -159,6 +159,23 @@ constructor(
         if (delayMs != 0L) setAudioDelay(delayMs)
     }
 
+    /**
+     * W74 U6：把偏好里现读的 seek 步进推给活动实例。
+     *
+     * 步进原先只在 [create] 构造期注入：设置页改完，内核自己的 `seekBack()` / `seekForward()`（通知栏 / 媒体会话 / 车机的 ±） 仍按旧值走。±
+     * 按钮走 `PlayerViewModel` 的相对 seek，不受这里影响；本方法补齐「内核 seek 命令」这条通路。 实例不存在时什么都不做（下次创建时自然读到新值）。主线程调用，与
+     * Media3 约定一致。
+     */
+    fun applySeekIncrements() {
+        val backMs = appPreferences.getValue(appPreferences.playerSeekBackInc)
+        val forwardMs = appPreferences.getValue(appPreferences.playerSeekForwardInc)
+        (instance as? ExoPlayer)?.apply {
+            setSeekBackIncrementMs(backMs)
+            setSeekForwardIncrementMs(forwardMs)
+        }
+        (instance as? MPVPlayer)?.setSeekIncrements(backMs, forwardMs)
+    }
+
     /** 释放实例。播放页关闭且不允许后台播放、或服务停止时调用。 */
     fun release() {
         /*

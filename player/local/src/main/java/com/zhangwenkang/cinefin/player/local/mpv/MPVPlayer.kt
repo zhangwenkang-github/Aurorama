@@ -65,8 +65,8 @@ class MPVPlayer(
     private val handleAudioFocus: Boolean = true,
     private var trackSelectionParameters: TrackSelectionParameters =
         TrackSelectionParameters.DEFAULT,
-    private val seekBackIncrement: Long = C.DEFAULT_SEEK_BACK_INCREMENT_MS,
-    private val seekForwardIncrement: Long = C.DEFAULT_SEEK_FORWARD_INCREMENT_MS,
+    private var seekBackIncrement: Long = C.DEFAULT_SEEK_BACK_INCREMENT_MS,
+    private var seekForwardIncrement: Long = C.DEFAULT_SEEK_FORWARD_INCREMENT_MS,
     private val pauseAtEndOfMediaItems: Boolean = false,
     private val videoOutput: String = "gpu-next",
     audioOutput: String = "aaudio",
@@ -1590,6 +1590,21 @@ class MPVPlayer(
 
     override fun getSeekForwardIncrement(): Long {
         return seekForwardIncrement
+    }
+
+    /**
+     * W74 U6：更新 seek 步进（设置页改完立即生效）。
+     *
+     * Media3 的 `ExoPlayer` 有 `setSeekBackIncrementMs` / `setSeekForwardIncrementMs`， mpv
+     * 这个自研实现原先只在构造期注入一次， 通知栏 / 媒体会话的 ± 命令会一直用旧步进；这里补一个运行期入口，由 `PlayerHolder.applySeekIncrements()`
+     * 统一推送。
+     */
+    fun setSeekIncrements(
+        backMs: Long,
+        forwardMs: Long,
+    ) {
+        seekBackIncrement = backMs
+        seekForwardIncrement = forwardMs
     }
 
     override fun getMaxSeekToPreviousPosition(): Long {

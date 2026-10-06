@@ -2268,3 +2268,55 @@ Exo 自研管线里，主字幕由 libass 画布渲染（SRT 生成脚本 `margi
 3. 倍速仍是**会话内状态**：进程被杀 / 重开播放页一律回落 1×（按任务卡要求，未新增持久化键）。
 4. 只在 Pad 5 单机验证；K60 未覆盖；`app/tv` 共用同一个 `PlayerViewModel`（逻辑一致）但未在电视端走查。
 5. 顺带发现（非本轮引入、与本改动无关）：App 的 debug 日志会把转码 `Stream url` 连同 `ApiKey` 一起打进 logcat，建议后续收敛日志等级。
+
+## 36. W74-S7 播放设置即时生效与持久化 + 字幕下载重试（U2-B / U5 / U6 / U7 / #21）（2026-10-06 · 分支 `fix/w74-prefs-live`）
+
+> 任务卡：`docs/FIX_PLAN.md` 波 2 追加项（U2 = 决策 **D-F8** 方案 B：视频循环 / 随机持久化）+ 设置页即时生效遗留（U5/U6/U7）+ 字幕下载加固（#21）。
+> 单设备验证 K60 `8e875894`；服务器只读；**未动红线 `settings/.../AppPreferences.kt`**。
+> **非目标**（任务卡）：不改音乐后台语义、不动 mpv 原生字幕渲染路径、不做大重构。
+
+### 36.1 五项根因 → 修法
+
+| # | 根因 | 修法（文件） |
+|---|------|--------------|
+| U2-B | 循环 / 随机只改内存里的 `Player` 实例：重开播放页、切内核、冷启动全部回落默认（顺序 / 关）。 | 新键 `pref_player_repeat_mode`（与 `Player.REPEAT_MODE_*` 同值域）/ `pref_player_shuffle` 落在 `PlayerExtraPreferences`（不碰 `AppPreferences.kt`）；面板 `RepeatPanel.onSelect` 即刻写盘；`PlayerViewModel.applySavedPlaybackMode()` 在 `setMediaItems` **之后**套用（媒体项集齐才有 shuffle 顺序），并打一条 `应用循环 / 随机偏好: repeat=… shuffle=…(支持=…) backend=…` 便于取证。mpv 无 `COMMAND_SET_SHUFFLE_MODE` → 只套循环档，随机档跳过（与面板置灰同判据）。新增纯函数 `PlayerRepeatChoice`（四档 ↔ (repeatMode, shuffle) 换算）。 |
+| U5 | `PlayerGestureHelper.playbackSpeedIncrease` 在 Activity 创建时读一次偏好 → 页内改档位要重开播放页。 | 改成 `val … get() =` 用时现读，`enableSpeedIncrease()` 每次长按都取当前 `pref_player_gestures_speed`。 |
+| U6 | `pref_player_seek_back_inc` / `_forward_inc` 只在 `PlayerHolder.create()` 构造期注入：± 按钮用 `player.seekBackIncrement`（实例快照），通知栏 / 媒体会话的 `seekBack()`/`seekForward()` 同样停在旧值。 | ① `PlayerSettingsController.seekBackIncrementMs` / `seekForwardIncrementMs` 现读偏好，`PlayerControlOverlay` 两处 ± 改用它；② `PlayerHolder.applySeekIncrements()` 把现值推给活动实例（ExoPlayer `setSeekBackIncrementMs`，新增 `MPVPlayer.setSeekIncrements`），`PlayerActivity.onResume` 调 `viewModel.syncSeekIncrements()`。 |
+| U7 | 设置页两个「首选语言」下拉读遗留单值键 `pref_audio_language` / `pref_subtitle_language`，而手动选轨只更新优先级列表 `pref_*_languages` → 读数滞后（单值键缺失时显示「未设置」）。 | `LanguageMatcher.optionValueFor(tag, optionValues)`（归一化后回选项值域）+ `PreferenceSelect.valueProvider`（非空时优先于 `backendPreference` 直读）；两个下拉的显示值改由 `parsePriority(pref_*_languages, DEFAULT).firstOrNull()` 派生。 |
+| #21 | `PlayerSubtitleController.loadSubtitle` 的 `runCatching` 把下载失败兜成空字幕（`cues=0`），用户看到的是「这集没字幕」。 | 新增 `retryOnce(delayMs, label){}`（`SubtitleLoadRetry.kt`）：下载失败先 **500 ms 短退避重试一次**，仍失败则把异常原因写日志后抛出，交给原有兜底 → 成功路径行为不变。 |
+
+### 36.2 门禁（2026-10-06）
+
+- `:app:phone:assembleDebug` + `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun-tasks`：**873 项 / 0 失败 0 错误**（app 249 / core 89 / data 68 / player:core 12 / player:local 149 / film 53 / book 113 / music 140；基线 861 + 本轮 12）。
+- 新增单测：`PlayerRepeatPreferenceTest`（4，player:local）、`SubtitleLoadRetryTest`（4，player:local）、`LanguagePreferenceDisplayTest`（4，app:phone）。
+
+### 36.3 真机走查（K60 `8e875894`，ExoPlayer 为主）
+
+| # | 项 | 证据 |
+|---|----|------|
+| ① | U2-B 面板即写 | 面板选「单集循环」→ prefs `pref_player_repeat_mode=1` / `shuffle=false`；选「随机播放」→ `2` / `true`；改回「顺序播放」→ `0` / `false` |
+| ② | U2-B 冷启动保持 | `force-stop` → 重开 → 进播放页：logcat `应用循环 / 随机偏好: repeat=2 shuffle=true(支持=true) backend=exoplayer` |
+| ③ | U2-B 随机真实生效 | 同上会话按「下一集」（`cmd media_session dispatch next`）：`active item id` `1 → 16 → 20 → 16`（非顺序），标题随之跨集跳转 |
+| ④ | U2-B 切内核保持 | 设置页切 `Player backend=mpv` → 重开播放页（单集循环）：`应用循环 / 随机偏好: repeat=1 shuffle=false(支持=false) backend=mpv`，mpv 正常起播 |
+| ⑤ | U2-B 默认值 | 清掉本轮新键（等效全新安装）→ 进播放页：`repeat=0 shuffle=false`（顺序 / 关） |
+| ⑥ | U5 页内改档立即生效 | 播放页手势面板把「长按倍速」改成 `3.0`（prefs `pref_player_gestures_speed=3.0`）→ 长按画面：`dumpsys media_session speed=3.0` + HUD 文本 `3×`；松手回落 `1.0`（改前该值只在 Activity 创建时读一次） |
+| ⑦ | U6 ± 即刻用新步进 | 设置页把「快退步进」改成 `20000` 毫秒（播放器实例创建时该值为 `5000`，会话未重建）→ 暂停在 `77400` 按「快退」：`seek 落点：source=step target=57400` = **−20000**；改前基线同法测得 `131068 → 126068` = −5000 |
+| ⑧ | U7 读数与优先级一致 | 语言设置页（单值键完全不存在）：「偏好音频语言 = Chinese (Simplified)」「偏好字幕语言 = Japanese」——分别来自 `pref_audio_languages` 默认表头 `zh-Hans` 与 `pref_subtitle_languages` 表头 `ja`（改前会显示「未设置」）；播放页手动选「日语」音轨 → `pref_audio_languages=ja,…` → 设置页显示「Japanese」 |
+| ⑨ | #21 成功路径不回归 | `字幕解析完成: index=0, cues=442, ass=true`／`cues=383`（`cues>0`，ASS 原文交给 libass）；画面字幕照常渲染 |
+| ⑩ | #21 失败路径出现重试 + 记因 | 飞行模式 + 队列下一集（字幕清单重建、缓存已清）：`字幕下载（index=0） 失败，500ms 后重试一次`（index=1 同）→ `字幕加载失败（index=0）`（含 `UnknownHostException` 栈）→ `字幕解析完成: index=0, cues=0`（仍优雅降级、播放页不崩）；恢复网络后同集重新加载 `cues=383` |
+| ⑪ | 稳定性 | 整轮 0 FATAL / 0 ANR（`logcat` 无 `FATAL EXCEPTION` / `ANR in`）；Exo / mpv 两个内核均可正常起播 |
+
+### 36.4 未覆盖 / 移交项
+
+1. **内核自身 seek 命令**（通知栏 / 媒体会话的 ±）只做了代码路径补齐（`applySeekIncrements` + `onResume`），未做端到端真机取证：`dumpsys media_session` / `cmd media_session dispatch` 没有 seek-back / seek-forward 键位可投，本轮用 ± 按钮与暂停态精确增量证明「现读偏好」这条主链路。
+2. U7 的手动选轨用例走了**音轨**；字幕侧同一套派生逻辑由单测 + 「偏好字幕语言 = Japanese」（单值键缺失场景）覆盖，未再单独走一遍字幕选轨。
+3. 「重建播放器实例」用**切内核（mpv）**覆盖；解码回退链重启播放页未单独走查。
+4. `app/tv` 共用同一 `PlayerViewModel` / `PreferenceSelect`（逻辑一致）但未在电视端走查。
+5. mpv 内核下 `dumpsys media_session` 的 speed / position 读数问题（B7）仍在，与本轮无关。
+6. 真机副作用：随机档跳集把 `冰海战记` 若干集（E16 等）与 `灼眼的夏娜` E4 记为「已观看」，进度无法回滚。
+
+### 36.5 还原情况（K60）
+
+- 本轮写入的偏好键全部删除（`pref_player_repeat_mode` / `pref_player_shuffle` / `pref_player_gestures_speed` / `pref_player_seek_back_inc` / `pref_player_background_audio` / `pref_audio_languages`），`pref_subtitle_languages` 还原成进入本轮前的 `ja,zh-Hans,zh-Hant,zh,en`，`pref_player_subtitle_manual_selection` 清空，`Player backend` 还原 `exoplayer`；App 已重启验证可正常进首页（登录态未受影响）。
+- 未还原（非本轮主动改动）：`pref_player_decode_mode=software` / `pref_player_mpv_hwdec` / `pref_player_decode_fallback_*` 等解码链键——播放失败自动回退自身会写，属旧残留 + 播放行为，未人工干预。

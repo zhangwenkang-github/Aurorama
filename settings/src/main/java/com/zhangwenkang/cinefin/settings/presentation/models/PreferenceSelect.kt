@@ -18,4 +18,10 @@ data class PreferenceSelect(
     val optionValues: Int,
     val optionsIncludeNull: Boolean = false,
     val value: String? = null,
+    /**
+     * 显示值的动态来源（W74 U7）：非空时优先于直读 [backendPreference]。
+     *
+     * 「首选语言」这类读数要由另一个键（优先级列表 `pref_*_languages`）派生——手动选轨只改优先级列表， 直读遗留单值键会让设置页读数滞后。传 null（默认）时行为不变。
+     */
+    val valueProvider: (() -> String?)? = null,
 ) : Preference

@@ -540,6 +540,9 @@ constructor(
                 }
 
             player.setMediaItems(mediaItems, 0, startPosition)
+            // W74 U2-B（D-F8）：进播放页 / 重建播放器实例时套用保存的循环 / 随机模式。
+            // 必须在 setMediaItems 之后：媒体项集齐才会生成 shuffle 顺序，随机档才能真正排到队列上。
+            applySavedPlaybackMode()
             player.prepare()
             player.play()
             // 媒体已交给播放器：之后的 playWhenReady 变化都算用户 / 系统意图，恢复正常回存
@@ -1746,6 +1749,34 @@ constructor(
         } else {
             eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(readSubtitleStyle()))
         }
+    }
+
+    /**
+     * W74 U2-B（决策 D-F8）：把保存的循环 / 随机模式套用到当前实例。
+     *
+     * 面板改档已经即时写偏好，这里负责「进播放页 / 重建播放器实例（切内核、重开播放页、冷启动）后保持」。 mpv 内核没有
+     * `COMMAND_SET_SHUFFLE_MODE`，随机档不套用（与面板随机行置灰同一判据）；循环模式两个内核都支持。
+     */
+    private fun applySavedPlaybackMode() {
+        val savedRepeat = appPreferences.getValue(PlayerExtraPreferences.repeatMode)
+        val savedShuffle = appPreferences.getValue(PlayerExtraPreferences.shuffle)
+        val shuffleSupported = player.availableCommands.contains(Player.COMMAND_SET_SHUFFLE_MODE)
+        player.repeatMode = savedRepeat
+        if (shuffleSupported) {
+            player.shuffleModeEnabled = savedShuffle
+        }
+        Timber.i(
+            "应用循环 / 随机偏好: repeat=%d shuffle=%b(支持=%b) backend=%s",
+            savedRepeat,
+            savedShuffle,
+            shuffleSupported,
+            playerBackend,
+        )
+    }
+
+    /** W74 U6：设置页改完 seek 步进后（回播放页时）把新值推给内核，通知栏 / 媒体会话的 ± 命令立即生效 */
+    fun syncSeekIncrements() {
+        playerHolder.applySeekIncrements()
     }
 
     private fun readSubtitleStyle(): SubtitleStyle =

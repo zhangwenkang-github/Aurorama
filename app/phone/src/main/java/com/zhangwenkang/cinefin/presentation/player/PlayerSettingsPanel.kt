@@ -162,6 +162,12 @@ class PlayerSettingsController(
     /** W27：队列播完停在结束帧（不退出播放页） */
     fun setStayAtEndOfFrame(value: Boolean) = write(PlayerExtraPreferences.stayAtEndOfFrame, value)
 
+    /** W74 U2-B（D-F8）：循环模式（与 `Player.REPEAT_MODE_*` 同值域），面板改档即落盘 */
+    fun setRepeatMode(value: Int) = write(PlayerExtraPreferences.repeatMode, value)
+
+    /** W74 U2-B（D-F8）：随机播放开关，面板改档即落盘 */
+    fun setShuffleEnabled(value: Boolean) = write(PlayerExtraPreferences.shuffle, value)
+
     fun setMpvHwdec(value: String) = write(appPreferences.playerMpvHwdec, value)
 
     fun setSubtitleMode(value: String) = write(appPreferences.subtitleMode, value)
@@ -238,6 +244,17 @@ class PlayerSettingsController(
         appPreferences.setValue(preference, value)
         refresh()
     }
+
+    /**
+     * W74 U6：seek 步进「用时现读」。
+     *
+     * 内核实例的步进只在构造期注入一次，± 按钮不能再用 `player.seekBackIncrement`（那是创建时的快照）—— 设置页改完步进后在播放页点 ± 应当立即按新值走。
+     */
+    val seekBackIncrementMs: Long
+        get() = appPreferences.getValue(appPreferences.playerSeekBackInc)
+
+    val seekForwardIncrementMs: Long
+        get() = appPreferences.getValue(appPreferences.playerSeekForwardInc)
 
     private fun read(): PlayerSettingsSnapshot =
         PlayerSettingsSnapshot(

@@ -41,6 +41,16 @@ object PlayerExtraPreferences {
      * 只记最后一次手动选择（单槽），按媒体 id 校验后才恢复。
      */
     val subtitleManualSelection = Preference("pref_player_subtitle_manual_selection", "")
+
+    /**
+     * 循环模式（W74 U2-B / 决策 D-F8）：与 `Player.REPEAT_MODE_*` 同值域，默认 0 = 顺序播放。
+     *
+     * 面板改档即写；进播放页 / 重建播放器实例（切内核、重开播放页、冷启动）时套用到实例上。
+     */
+    val repeatMode = Preference("pref_player_repeat_mode", 0)
+
+    /** 随机播放开关（W74 U2-B / 决策 D-F8）：默认关。mpv 内核没有 `COMMAND_SET_SHUFFLE_MODE`，套用时跳过 */
+    val shuffle = Preference("pref_player_shuffle", false)
 }
 
 /** 镜像模式的取值（与 [PlayerExtraPreferences.videoMirror] 对应） */

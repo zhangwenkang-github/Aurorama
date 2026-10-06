@@ -90,8 +90,17 @@ class PlayerGestureHelper(
 
     private var lastScaleEvent: Long = 0
 
-    private var playbackSpeedIncrease: Float =
-        appPreferences.getValue(appPreferences.playerGesturesSpeedMultiplier).toFloatOrNull() ?: 2f
+    /**
+     * 长按倍速的档位（W74 U5）。
+     *
+     * 原先在 Activity 创建时读一次：播放页内改档位（设置面板 / 全局设置）要重开页面才生效。 改成「用时现读」——[enableSpeedIncrease]
+     * 每次按下时取当前偏好，改完档位下一次长按立即生效。
+     */
+    private val playbackSpeedIncrease: Float
+        get() =
+            appPreferences.getValue(appPreferences.playerGesturesSpeedMultiplier).toFloatOrNull()
+                ?: 2f
+
     private var lastPlaybackSpeed: Float = 0f
 
     private val screenWidth = Resources.getSystem().displayMetrics.widthPixels
