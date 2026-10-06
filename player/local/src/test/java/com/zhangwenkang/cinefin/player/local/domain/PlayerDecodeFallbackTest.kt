@@ -156,8 +156,8 @@ class PlayerDecodeFallbackTest {
     }
 
     @Test
-    fun serverTranscodeStageFailure_anyErrorFallsToLocalSoftware() {
-        // 第 2 档（服务器转码流）失败不挑错误码：断网 / 解码失败都要继续降到本地软解
+    fun serverTranscodeStageFailure_anyNonNetworkErrorFallsToLocalSoftware() {
+        // 第 2 档（服务器转码流）失败不挑错误码：解码失败等继续降到本地软解（网络错误除外，见下一条）
         for (codecError in listOf(true, false)) {
             assertEquals(
                 PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
@@ -166,9 +166,42 @@ class PlayerDecodeFallbackTest {
                     backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
                     bitratePreference = PlayerStreamingQuality.AUTO,
                     codecCapabilityError = codecError,
+                    networkError = false,
                 ),
             )
         }
+    }
+
+    @Test
+    fun networkError_neverFallsBackToAnotherBackend() {
+        // W73（#8）：网络 / IO 错误换内核救不了，任何档位都不回退（调用方原地重试 / 重开转码会话）
+        assertNull(
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_SERVER_TRANSCODE,
+                backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = false,
+                networkError = true,
+            )
+        )
+        assertNull(
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_NONE,
+                backend = PlayerDecodeFallback.BACKEND_EXOPLAYER,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = true,
+                networkError = true,
+            )
+        )
+        assertNull(
+            PlayerDecodeFallback.stageAfterFailure(
+                stage = PlayerDecodeFallback.STAGE_NONE,
+                backend = PlayerDecodeFallback.BACKEND_MPV,
+                bitratePreference = PlayerStreamingQuality.AUTO,
+                codecCapabilityError = false,
+                networkError = true,
+            )
+        )
     }
 
     @Test

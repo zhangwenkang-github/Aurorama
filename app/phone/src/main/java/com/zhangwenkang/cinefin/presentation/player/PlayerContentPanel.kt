@@ -683,6 +683,8 @@ internal fun PlayerCompactBar(
     onForward: () -> Unit,
     onNext: () -> Unit,
     onSeek: (Long) -> Unit,
+    /** W73（#7）：时长未知窗口的拖动比例（就绪后按真实时长换算落点） */
+    onSeekFraction: (Float) -> Unit = {},
     onScrubStart: () -> Unit,
     onToggleFullscreen: () -> Unit,
     /** 工具行（W11 反馈①：取消「更多」后，小窗用一行横向可滚的小键兜住全部入口） */
@@ -788,6 +790,7 @@ internal fun PlayerCompactBar(
             trickplayFrameAt = trickplayFrameAt,
             onScrubStart = onScrubStart,
             onScrub = onSeek,
+            onScrubFraction = onSeekFraction,
         )
     }
 }

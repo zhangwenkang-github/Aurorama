@@ -305,6 +305,14 @@ class PlayerActivity : BasePlayerActivity() {
                         isPipSupported = isPipSupported,
                         isFullscreen = fullscreenMode.value,
                         onToggleFullscreen = { toggleFullscreen() },
+                        // W73（#7）：seek 统一走 ViewModel——未就绪排队 + 转码超窗重开会话
+                        onSeekRequest = { target -> viewModel.requestSeek(target, "progress") },
+                        onSeekFractionRequest = { fraction ->
+                            viewModel.requestSeek(0L, "progress-unknown", fraction)
+                        },
+                        onSeekRelativeRequest = { delta ->
+                            viewModel.requestSeekRelative(delta, "step")
+                        },
                         // W55 睡眠定时统一：状态与选择都走进程级单例（音乐 / 视频共享）
                         sleepState = sleepTimerState,
                         onSelectSleepMinutes = { minutes -> viewModel.selectSleepTimer(minutes) },

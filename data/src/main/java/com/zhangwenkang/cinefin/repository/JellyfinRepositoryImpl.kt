@@ -677,7 +677,11 @@ class JellyfinRepositoryImpl(
             }
         }
 
-    override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
+    override suspend fun getMediaSources(
+        itemId: UUID,
+        includePath: Boolean,
+        startPositionTicks: Long,
+    ): List<FindroidSource> =
         withContext(Dispatchers.IO) {
             // W37：本地媒体库条目 → 合成 LOCAL 源（content:// 文档 URI，不落 sources 表）。
             localLibrary.syntheticSources(itemId)?.let {
@@ -727,12 +731,13 @@ class JellyfinRepositoryImpl(
                     emptyList()
                 }
             Timber.d(
-                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b profiles=%d",
+                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b profiles=%d startTimeTicks=%d",
                 streamingBitrate,
                 maxStreamingBitrate,
                 transcodingEnabled,
                 forceTranscode,
                 transcodingProfiles.size,
+                startPositionTicks,
             )
             val sources = mutableListOf<FindroidSource>()
             sources.addAll(
@@ -757,6 +762,11 @@ class JellyfinRepositoryImpl(
                                         ),
                                 ),
                             maxStreamingBitrate = maxStreamingBitrate,
+                            /*
+                             * W73（#7）：把起播 / seek 目标位置透传给服务器。转码会话据此从目标位置开始生成分片，
+                             * 客户端不必等转码任务从 0 追赶（实测窗口外 seek 会 BUFFERING 15–30 s）。
+                             */
+                            startTimeTicks = startPositionTicks.takeIf { it > 0L },
                             // 原始画质 = 只直连；自动 / 具体码率都允许服务器转码
                             enableTranscoding = transcodingEnabled,
                             // W16：回退档位 = 服务器转码时禁止直连 / 直传，逼服务器真的转码

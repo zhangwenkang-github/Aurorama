@@ -39,6 +39,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         itemKind: BaseItemKind,
         mediaSourceIndex: Int? = null,
         startFromBeginning: Boolean = false,
+        startPositionMs: Long? = null,
     ): PlayerItem? {
         Timber.d("Retrieving initial player item")
 
@@ -125,7 +126,11 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         currentItemIndex = items.indexOfFirst { it.id == initialItem.id }
 
         val playbackPosition =
-            if (!startFromBeginning) initialItem.playbackPositionTicks.div(10000) else 0
+            when {
+                startPositionMs != null && startPositionMs > 0L -> startPositionMs
+                !startFromBeginning -> initialItem.playbackPositionTicks.div(10000)
+                else -> 0L
+            }
         val playerItem = initialItem.toPlayerItem(mediaSourceIndex, playbackPosition)
         playerItems.add(playerItem)
 
@@ -142,6 +147,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         entries: List<PlaybackQueueEntry>,
         preferredItemId: UUID? = null,
         startFromBeginning: Boolean = false,
+        startPositionMs: Long? = null,
     ): PlayerItem? {
         if (entries.isEmpty()) return null
         val resolvedItems = entries.mapNotNull { entry ->
@@ -162,7 +168,11 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         startItem = initialItem
         currentItemIndex = startIndex
         val playbackPosition =
-            if (startFromBeginning) 0L else initialItem.playbackPositionTicks.div(10000)
+            when {
+                startPositionMs != null && startPositionMs > 0L -> startPositionMs
+                startFromBeginning -> 0L
+                else -> initialItem.playbackPositionTicks.div(10000)
+            }
         val playerItem = initialItem.toPlayerItem(null, playbackPosition)
         playerItems.add(playerItem)
         return playerItem
@@ -248,6 +258,34 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     fun getPlayerItem(itemId: UUID): PlayerItem? = playerItems.firstOrNull { it.itemId == itemId }
 
     /**
+     * W73（#7）：按目标位置重建条目播放信息（转码 seek 超出可用窗口时重开转码会话）。
+     *
+     * 重新请求 PlaybackInfo 并携 `startTimeTicks = positionMs × 10000`，服务器从目标位置开始生成分片；新条目写回 [playerItems]
+     * 缓存（同条目旧 URL 作废），播放侧用 `replaceMediaItem` 原位替换，不重启 Activity。
+     */
+    suspend fun rebuildPlayerItemForPosition(itemId: UUID, positionMs: Long): PlayerItem? {
+        val item =
+            items.firstOrNull { it.id == itemId }
+                ?: startItem?.takeIf { it.id == itemId }
+                ?: return null
+        return runCatching { item.toPlayerItem(null, positionMs.coerceAtLeast(0L)) }
+            .onSuccess { rebuilt ->
+                playerItems.removeAll { it.itemId == itemId }
+                playerItems.add(rebuilt)
+                failedItemIds.remove(itemId)
+            }
+            .onFailure {
+                Timber.w(
+                    it,
+                    "重建播放条目失败（转码 seek 重开会话）：item=%s position=%d",
+                    itemId,
+                    positionMs,
+                )
+            }
+            .getOrNull()
+    }
+
+    /**
      * W19：按条目 id 找队列里的原始条目（回退 / 手动切内核重启时用它把播放页恢复到正在播的那一条）。
      *
      * 季 / 剧集入口与队列换集时，Intent 里的原始条目和实际播放条目不是同一条。
@@ -329,7 +367,12 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     ): PlayerItem {
         Timber.d("Converting FindroidItem ${this.id} to PlayerItem")
 
-        val mediaSources = repository.getMediaSources(id, true)
+        /*
+         * W73（#7）：带起播位置请求播放信息——服务器转码会话从 [playbackPosition] 开始生成分片，
+         * 而不是恒从 0 开始追赶（窗口外 seek 长卡 / 回片头的根因）。
+         */
+        val mediaSources =
+            repository.getMediaSources(id, true, startPositionTicks = playbackPosition * 10000L)
         val mediaSource =
             if (mediaSourceIndex == null) {
                 mediaSources.firstOrNull { it.type == FindroidSourceType.LOCAL } ?: mediaSources[0]

@@ -692,6 +692,14 @@ fun PlayerControlOverlay(
     /** 全屏（W11 反馈⑥）：收起常驻内容栏 + 强制横屏；同一个键按状态换图标 */
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
+    /** W73（#7）：seek 请求统一走 ViewModel（未就绪排队 + 转码超窗重开会话）；默认保持直接落点。 */
+    onSeekRequest: (Long) -> Unit = { target -> player.seekTo(target) },
+    /** W73（#7）：进度条在「时长未知」窗口的拖动比例（就绪后按真实时长换算落点）。 */
+    onSeekFractionRequest: (Float) -> Unit = {},
+    /** W73（#7）：±键 / 快进快退的相对增量（未就绪排队 + 转码超窗重开会话）。 */
+    onSeekRelativeRequest: (Long) -> Unit = { delta ->
+        player.seekTo((player.currentPosition + delta).coerceAtLeast(0L))
+    },
 ) {
     val runtime = rememberPlayerRuntime(player)
     /*
@@ -893,7 +901,8 @@ fun PlayerControlOverlay(
                 isFullscreen = isFullscreen,
                 // W17：6 键恒定齐全；文字只在窄屏以外的形态出现
                 showLabels = toolLabelsVisible,
-                onSeek = { target -> player.seekTo(target) },
+                onSeek = onSeekRequest,
+                onSeekFraction = onSeekFractionRequest,
                 onScrubStart = { controls.show() },
                 onAudio = { navigatePanel(PlayerPanel.Audio) },
                 onSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
@@ -977,10 +986,11 @@ fun PlayerControlOverlay(
                 isFullscreen = isFullscreen,
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
                 onPrevious = { player.seekToPreviousMediaItem() },
-                onRewind = { player.seekBack() },
-                onForward = { player.seekForward() },
+                onRewind = { onSeekRelativeRequest(-player.seekBackIncrement) },
+                onForward = { onSeekRelativeRequest(player.seekForwardIncrement) },
                 onNext = { player.seekToNextMediaItem() },
-                onSeek = { target -> player.seekTo(target) },
+                onSeek = onSeekRequest,
+                onSeekFraction = onSeekFractionRequest,
                 onScrubStart = { controls.show() },
                 onToggleFullscreen = onToggleFullscreen,
                 tools = {
@@ -1074,8 +1084,8 @@ fun PlayerControlOverlay(
                                     if (player.isPlaying) player.pause() else player.play()
                                 },
                                 onPrevious = { player.seekToPreviousMediaItem() },
-                                onRewind = { player.seekBack() },
-                                onForward = { player.seekForward() },
+                                onRewind = { onSeekRelativeRequest(-player.seekBackIncrement) },
+                                onForward = { onSeekRelativeRequest(player.seekForwardIncrement) },
                                 onNext = { player.seekToNextMediaItem() },
                                 modifier = Modifier.align(Alignment.Center),
                                 onSizeChanged = onCenterClusterSize,
@@ -1926,6 +1936,8 @@ private fun PlayerBottomBar(
     /** W17 反馈⑤：是否在 6 键图标下加小字（窄屏 / Compact 只留图标） */
     showLabels: Boolean = false,
     onSeek: (Long) -> Unit,
+    /** W73（#7）：时长未知窗口的拖动比例（进度条就绪后按真实时长换算落点） */
+    onSeekFraction: (Float) -> Unit = {},
     onScrubStart: () -> Unit,
     onAudio: () -> Unit,
     onSubtitle: () -> Unit,
@@ -1978,6 +1990,7 @@ private fun PlayerBottomBar(
                     trickplayFrameAt = trickplayFrameAt,
                     onScrubStart = onScrubStart,
                     onScrub = { onSeek(it) },
+                    onScrubFraction = onSeekFraction,
                 )
             }
             Text(
@@ -2337,6 +2350,8 @@ internal fun PlayerSeekBar(
     trickplayFrameAt: (Long) -> Bitmap? = { null },
     onScrubStart: () -> Unit,
     onScrub: (Long) -> Unit,
+    /** W73（#7）：时长未知（进度条还没有有效 duration）时的拖动 / 点击比例，交给调用方排队。 */
+    onScrubFraction: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var scrubbing by remember { mutableStateOf(false) }
@@ -2381,6 +2396,21 @@ internal fun PlayerSeekBar(
         }
         snapIndex = result.chapterIndex
         return result.positionMs
+    }
+
+    val durationKnown = durationMs > 0L && durationMs != C.TIME_UNSET
+
+    /**
+     * W73（#7）：时长未知（媒体还没 prepared）时把拖动 / 点击位置按比例上报，由 ViewModel 排队、就绪后按真实时长换算落点； 时长已知保持 既有「章节吸附 +
+     * 绝对毫秒落点」行为。
+     */
+    fun emitScrub(rawFraction: Float) {
+        val fraction = rawFraction.coerceIn(0f, 1f)
+        if (!durationKnown) {
+            onScrubFraction(fraction)
+            return
+        }
+        onScrub(snapTarget((fraction * safeDuration).roundToLong()))
     }
 
     // 吸附到章节时气泡显示「第 N 章 · 章节名」（无名字 → 「第 N 章」）；否则维持原来的时间提示
@@ -2437,20 +2467,17 @@ internal fun PlayerSeekBar(
             modifier =
                 Modifier.fillMaxWidth()
                     .height(34.dp)
-                    .pointerInput(chapters, safeDuration) {
+                    .pointerInput(chapters, safeDuration, durationKnown) {
                         detectTapGestures { offset ->
-                            val raw =
-                                ((offset.x / size.width).coerceIn(0f, 1f) * safeDuration)
-                                    .roundToLong()
+                            val fraction = (offset.x / size.width).coerceIn(0f, 1f)
                             snapIndex = CHAPTER_SNAP_NONE
-                            val target = snapTarget(raw)
-                            tapSnapIndex = snapIndex
-                            tapSnapTicket++
                             onScrubStart()
-                            onScrub(target)
+                            emitScrub(fraction)
+                            tapSnapIndex = snapIndex
+                            if (durationKnown) tapSnapTicket++
                         }
                     }
-                    .pointerInput(chapters, safeDuration) {
+                    .pointerInput(chapters, safeDuration, durationKnown) {
                         detectDragGestures(
                             onDragStart = { offset ->
                                 scrubbing = true
@@ -2460,17 +2487,26 @@ internal fun PlayerSeekBar(
                                 onScrubStart()
                             },
                             onDrag = { change, _ ->
-                                val raw =
-                                    ((change.position.x / size.width).coerceIn(0f, 1f) *
-                                            safeDuration)
-                                        .roundToLong()
-                                val target = snapTarget(raw)
-                                scrubFraction = (target.toFloat() / safeDuration).coerceIn(0f, 1f)
-                                onScrub(target)
+                                val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                if (durationKnown) {
+                                    val target = snapTarget((fraction * safeDuration).roundToLong())
+                                    scrubFraction =
+                                        (target.toFloat() / safeDuration).coerceIn(0f, 1f)
+                                    onScrub(target)
+                                } else {
+                                    scrubFraction = fraction
+                                    onScrubFraction(fraction)
+                                }
                             },
                             onDragEnd = {
                                 // 松手落点 = 吸附后的位置
-                                onScrub(snapTarget((scrubFraction * safeDuration).roundToLong()))
+                                if (durationKnown) {
+                                    onScrub(
+                                        snapTarget((scrubFraction * safeDuration).roundToLong())
+                                    )
+                                } else {
+                                    onScrubFraction(scrubFraction)
+                                }
                                 scrubbing = false
                                 snapIndex = CHAPTER_SNAP_NONE
                             },

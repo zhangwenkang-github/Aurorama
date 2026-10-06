@@ -2053,3 +2053,53 @@ W61 全量回归记「长按倍速本次未复现 2×」（adb 长按 2.6 s 采�
 1. 起播窗口「排队落点 = 恢复位置 + Δ」的干净复现（D67 加严后本窗口因转场 / 服务器源失败未取得样本）；`state=BUFFERING` 且位置已知时的双击独立取证。
 2. Pad 5 抽验未做（本窗口全程 K60）。
 3. `PlayerGestureHelper` 的 Timber 日志在 MIUI 上不出现在 logcat（`log.tag.*=DEBUG` 后仍无该 tag）——证据以 UI / 位置为准；排查它不影响功能，留作后续。
+
+---
+
+## 32. W73-S1 播放内核：转码 seek + 网络抖动兜底（2026-10-06 · 分支 `fix/w73-player-seek`）
+
+> 用户反馈（`docs/FIX_PLAN.md` 波 1 S73-1）：#7 Exo 内核转码（10-bit H.264 → HLS）进度条 / ±键 / 手势 seek 长卡或回片头；
+> #8 播放中偶发退回剧集详情页。K60 `8e875894` 单机验证；服务器只读（白名单进度上报）。
+
+### 32.1 根因（取证）
+
+| # | 根因 |
+|---|------|
+| ① | `getMediaSources` 构造 `PlaybackInfoDto` 未传 `startTimeTicks` → 服务器转码会话恒从 0 开始生成分片；客户端在已生成窗口外 seek 要等转码从 0 追赶（实测 BUFFERING 15–30 s，落点最终正确但体验 = 无法跳转 / 回片头） |
+| ② | 进度条 drag/tap 的 seek 未入队（W67c 只覆盖手势）→ 切集 / 回退窗口内 seek 被随后到来的恢复位置覆盖 |
+| ③ | #8：网络瞬断（`SocketException`）等 IO 错误在「服务器转码」档位被当成链路失败 → 切 mpv + `viewModelStore.clear()+recreate()`；重建时网络未恢复（DNS 失败）→ `initializePlayer` 失败 → 页面空转 / 回退详情页；mpv 的无码错误（`ERROR_CODE_UNSPECIFIED`）同样触发该链条 |
+
+### 32.2 实现
+
+| 文件 | 改动 |
+|------|------|
+| `data/.../JellyfinRepository(+Impl/OfflineImpl)` | `getMediaSources` 增加 `startPositionTicks: Long = 0`，透传 `PlaybackInfoDto.startTimeTicks`（默认 0 兼容全部调用点） |
+| `player/local/.../PlaylistManager` | 起播 / 队列构建按续播位置传 ticks（`playbackPosition × 10000`）；新增 `rebuildPlayerItemForPosition`（带目标位置重拉播放信息并更新缓存） |
+| `player/local/.../domain/TranscodeSeekRules.kt`（新增） | 纯函数：HLS 转码流识别 / 就绪判定 / 是否超窗重开会话 / 排队比例换算（+9 单测） |
+| `player/local/.../PlayerViewModel` | ① 统一 `requestSeek`（进度条比例 / 相对增量排队，200 ms 轮询 / 30 s 超时）；② 转码超窗 → 150 ms 尾部去抖 + 原位 `replaceMediaItem` 重开会话（30 s 内上限 6 次，防循环；保持播放 / 暂停意图）；③ 直接 seek 看门狗（2.5 s 仍在缓冲 → 重开）；④ #8：网络类错误（含 `ERROR_CODE_UNSPECIFIED`）不进退回链，原地重试 ≤2 次（3 s 间隔去抖），转码流第二次带位置重开会话；恢复位置优先最近进度快照 |
+| `settings/.../PlayerDecodeFallback` | `stageAfterFailure` 增加 `networkError` 维度：网络类错误任何档位都返回 null（不换内核）；+1 单测组 |
+| `app/phone`（Overlay / SeekBar / CompactBar / Activity / 手势） | 所有 seek 入口（进度条 / ±键 / 中心簇 / 手势 / 章节 / 片头尾）统一走 ViewModel；时长未知的进度条拖动按比例排队 |
+
+### 32.3 门禁（2026-10-06）
+
+- `:app:phone:assembleDebug` + `ktfmtCheck` 全绿。
+- 8 任务逐个 `--rerun` **823 项 / 0 失败 0 错误**（app 228 / core 89 / data 65 / player:core 12 / player:local 123 / film 53 / book 113 / music 140；基线 813 + 本轮 10）。
+
+### 32.4 真机走查（K60 `8e875894` · 灼眼的夏娜 S1:E6 10-bit Hi10P → HLS 转码 / 东京残响直放）
+
+| # | 项 | 结果 |
+|---|----|------|
+| ① | 转码流进度条拖动（18 s → 19:07） | position **0.9 s** 落到目标；转码重开会话 1 次（`startTimeTicks=11471720000` 确认透传）；保持暂停；READY 8.6 s 后持续播放 |
+| ② | 转码流手势横滑（−62 s） | position **1.5 s** 落到目标；重开会话 1 次、`wasPlaying=true` 保持播放 |
+| ③ | 转码流进度条向后拖（19:07 → 2:32） | position **1.5 s** 落到目标；重开会话 1 次（目标早于会话起点） |
+| ④ | 转码流 ±键小步（+15 s，窗口内） | 直接落点 **<1 s**，不重开会话 |
+| ⑤ | 直放 ±键（+15 s） | 落点立即（0.8 s 内），无回归 |
+| ⑥ | #8 断网实验（飞行模式 55 s ×2） | 播放页**始终未退出**；日志无 `Restart player with backend=mpv`、无 `No start item`；网络恢复后自动续播（`STATE_READY`） |
+| ⑦ | 稳定性 | 0 FATAL / 0 ANR |
+
+### 32.5 未决 / 移交项
+
+1. **重开会话到可播（READY）实测 7.6–11.3 s**（Jellyfin 启动 ffmpeg + 生成首片）；「位置落点」达标（≤1.5 s），但「可播」未达 ≤2 s 口径。属服务端转码启动成本，客户端侧已做尾部去抖与提前调度；建议后续评估 HLS 分段长度 / 转码预热，或在 UI 上补「跳转中」状态。
+2. 断网恢复的「位置快照续播」只取证到画面继续播放（恢复时 UI dump 失败，未量化断网前 / 后时间码差）；建议补一次带 dump 的干净样本。
+3. 30 分钟连续播放的 #8 长稳观察未做满（本轮为 2 次断网实验 + 约 20 分钟播放 + 0 FATAL / ANR）。
+4. 直放的进度条拖动未单独取证（仅 ±键 + 转码流进度条）。

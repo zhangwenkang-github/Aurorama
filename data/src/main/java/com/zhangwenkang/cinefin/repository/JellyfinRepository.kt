@@ -153,7 +153,17 @@ interface JellyfinRepository {
         offline: Boolean = false,
     ): List<FindroidEpisode>
 
-    suspend fun getMediaSources(itemId: UUID, includePath: Boolean = false): List<FindroidSource>
+    /**
+     * 拉取条目的播放信息（PlaybackInfo）。
+     *
+     * @param startPositionTicks 起播位置（Jellyfin ticks，100 ns）。> 0 时透传给 PlaybackInfo 的
+     *   `startTimeTicks`，服务器转码会从该位置 开始生成分片（W73：#7 转码流 seek 失效的根因修复）。
+     */
+    suspend fun getMediaSources(
+        itemId: UUID,
+        includePath: Boolean = false,
+        startPositionTicks: Long = 0L,
+    ): List<FindroidSource>
 
     suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String
 

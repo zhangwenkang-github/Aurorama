@@ -140,7 +140,8 @@ class PlayerGestureHelper(
                 pendingSeekMs = 0L
                 pendingSeekRetries = 0
                 val target = gestureSeekTarget(player.currentPosition, delta, player.duration)
-                player.seekTo(target)
+                // W73（#7）：就绪后补投也走统一入口（转码流超窗 → 重开会话）
+                activity.viewModel.requestSeek(target, "gesture-pending")
                 Timber.d(
                     "手势 seek 排队落点：Δ=%d → %d ms（position=%d, duration=%d）",
                     delta,
@@ -329,7 +330,8 @@ class PlayerGestureHelper(
             )
         pendingSeekMs = decision.pendingMs
         if (decision.applyNow && player != null) {
-            player.seekTo(decision.targetMs)
+            // W73（#7）：落点统一走 ViewModel（转码流超窗 → 重开会话；直放行为不变）
+            activity.viewModel.requestSeek(decision.targetMs, "gesture")
             Timber.d(
                 "手势 seek：Δ=%d → %d ms（state=%d, isPlaying=%s, duration=%d）",
                 deltaMs,

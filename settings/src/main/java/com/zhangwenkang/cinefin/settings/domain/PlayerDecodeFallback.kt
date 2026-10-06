@@ -79,10 +79,17 @@ object PlayerDecodeFallback {
         backend: String?,
         bitratePreference: Long,
         codecCapabilityError: Boolean,
+        networkError: Boolean = false,
     ): Int? =
         when {
             // 第 3 档是最后一档：再失败就是「全部失败」，显示错误卡片
             normalize(stage) == STAGE_LOCAL_SOFTWARE -> null
+            /*
+             * W73（#8）：网络 / IO 类错误在任何档位都不换内核——换内核救不了网络，重启播放页反而会把
+             * 「偶发网络抖动」放大成「播放中退回详情页」（重启时网络未恢复 → 初始化失败）。
+             * 交给调用方原地重试 / 重开转码会话。
+             */
+            networkError -> null
             // 第 2 档（服务器转码流）失败：不挑错误码，一律继续降到本地软解
             normalize(stage) == STAGE_SERVER_TRANSCODE -> STAGE_LOCAL_SOFTWARE
             // 第 1 档：ExoPlayer 只接「解不了这个格式」类错误（网络 / DRM 换内核没用）

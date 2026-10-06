@@ -280,7 +280,11 @@ class JellyfinRepositoryOfflineImpl(
     /** W34：离线实现拿不到主库音频元数据，返回空表（层级退化为单条）。 */
     override suspend fun getMusicTrackMetadata(): Map<UUID, MusicTrackMetadata> = emptyMap()
 
-    override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
+    override suspend fun getMediaSources(
+        itemId: UUID,
+        includePath: Boolean,
+        startPositionTicks: Long,
+    ): List<FindroidSource> =
         withContext(Dispatchers.IO) {
             localLibrary.syntheticSources(itemId)?.let {
                 return@withContext it
