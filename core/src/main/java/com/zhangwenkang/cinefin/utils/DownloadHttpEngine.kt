@@ -221,8 +221,9 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                 throw http
             } catch (io: IOException) {
                 if (!coroutineContext.isActive) throw CancellationException("下载已取消")
+                // W76-Q2：可判定的本地 IO 失败（磁盘满 / 目标文件不可写）给具体原因，其余保持网络错误口径。
                 throw DownloadHttpException(
-                    DownloadFailureReason.NETWORK_UNAVAILABLE,
+                    DownloadFailureClassifier.classifyIo(io),
                     io.message,
                     io,
                 )

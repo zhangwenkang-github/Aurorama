@@ -495,11 +495,13 @@ class DownloaderImpl(
         } catch (http: DownloadHttpException) {
             handleTaskFailure(source, http)
         } catch (error: Exception) {
-            // W76-B9：留痕未分类异常（release 无 Timber 时至少 logcat 可查 cause），避免只落 UNKNOWN 无从定位。
-            Timber.w(error, "下载任务未分类异常 ${source.id}")
+            // W76-Q2：先按异常类型判定到具体原因；真未知才落 UNKNOWN。B9 留痕保留（release 无 Timber 时
+            // 至少 logcat 可查 cause），但不再一律收成 UNKNOWN。
+            val reason = DownloadFailureClassifier.classify(error)
+            Timber.w(error, "下载任务异常（%s）：%s", reason, source.id)
             handleTaskFailure(
                 source,
-                DownloadHttpException(DownloadFailureReason.UNKNOWN, error.message, error),
+                DownloadHttpException(reason, error.message, error),
             )
         } finally {
             if (job != null) activeJobs.remove(source.id, job)
@@ -1161,20 +1163,17 @@ class DownloaderImpl(
         val sources = runCatching {
             jellyfinRepository.getMediaSources(item.id, true)
         }
-            .getOrElse {
+            .getOrElse { error ->
+                // W76-Q2：先按异常类型判定（网络类 → NETWORK_UNAVAILABLE 等）；非传输层异常仍归服务器错误
+                // （保持「取媒体来源失败 = 服务器交互失败」的既有口径）。
+                val classified = DownloadFailureClassifier.classify(error)
                 val reason =
-                    when (it) {
-                        is java.net.UnknownHostException,
-                        is java.net.ConnectException,
-                        is java.net.SocketTimeoutException,
-                        is java.io.IOException -> DownloadFailureReason.NETWORK_UNAVAILABLE
-                        else -> DownloadFailureReason.SERVER_ERROR
+                    if (classified == DownloadFailureReason.UNKNOWN) {
+                        DownloadFailureReason.SERVER_ERROR
+                    } else {
+                        classified
                     }
-                throw DownloadHttpException(
-                    reason,
-                    it.message,
-                    it,
-                )
+                throw DownloadHttpException(reason, error.message, error)
             }
         return sources.firstOrNull { it.id == sourceId }
             ?: throw DownloadHttpException(
