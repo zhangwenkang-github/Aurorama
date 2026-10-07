@@ -1749,6 +1749,7 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - 产出：`w77-reports/W77-PDF-engine-research.md`（决策就绪：推荐路线 + 分阶段方案 + 需真机 spike 清单）；**不动生产代码**。
 
 **调研已完成（2026-10-07，W77-PDF-R）**：推荐 **PDFium**——`android.graphics.pdf.PdfRenderer` 本身即 native pdfium，「换引擎」实为**换字节供给**（fd → HTTP Range），渲染保真风险低、无需自写 JNI；`io.legere:pdfiumandroid:2.0.3` 的 `PdfiumSource`（`FPDF_LoadCustomDocument`）已验证到 API 级，可直接接 `HttpByteSource`。**修正：PDFium 许可 = BSD-3-Clause**（本条目初稿「Apache-2.0」系笔误）；MuPDF = AGPL（唯一法务决策点，GPLv3 §13 允许组合但带网络条款）；androidx.pdf 仍 beta、无 Range 源；成本 ≈ +5 MB/ABI（Phase 1）/ 可净 −8 MB（Phase 2 迁文本层去 PdfBox）；**9 项真机 spike 清单（≈3 人日，建议 x86_64 AVD）与 6 项决策点**见报告——待用户拍板后立实施波。
+**用户拍板（2026-10-07，D-F13）**：①采用 PDFium 路线 ✅（保留一个发布周期回退开关）；②**首开口径修正**——「先出第 1 页」保留，但**不做后台整本下载**：只按需 Range 预取「当前页 + 后面几页」（用户原话：「后台不能整本下载，只预加载当前和后面几页，不要一次性全部加载，这样会浪费流量」）；③Phase 1 保留 PdfBox、Phase 2 迁 PDFium 文本层 ✅；④MuPDF 仅记录在案、不投入 ✅；⑤双栏版式扫描改用 PDFium 批量页尺寸 ✅；⑥接受新增 native 依赖 ✅。→ **待排 PDF 实施波**（9 项真机 spike，≈3 人日，建议 x86_64 AVD）。
 
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
