@@ -1700,7 +1700,7 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 3. **PDF**：系统 PdfRenderer 要完整可寻址文件 → 需 spike：PdfBox（2.0.27.0，已在用）自定义 `RandomAccessRead`（HTTP Range 后端）渲染「当前页」预览，整本完成后无缝切回 PdfRenderer 路径；验证渲染一致性 / 内存 / 取消语义；风险最高。
 4. 通用：整本后台下载继续（保离线与后续翻页），下载完成热切换本地文件；打开遮罩显示下载进度（可选兜底 UX）。
 
-**排期（待用户决定，2026-10-07）**：A = 1.1.0 照发布，本项立为下一波头号项（建议，含 spike）；B = 并入 1.1.0（预计 +3–7 天，重开阅读组回归）。预估：spike 0.5–1 天；EPUB 0.5–1 天；CBZ 1–2 天；PDF 1–3 天；专项回归 + 重建包 ~1 天。
+**排期（2026-10-07 用户拍板：方案 A · D-F11）**：1.1.0 照原计划发布；本项 = **下一波头号项**，分阶段实施——阶段 0 **spike**（已派发，worktree `w77a`，报告 `.planning/cinefin-expansion/w77-reports/W77-R1-spike.md`）→ 阶段 1 EPUB 流式 → 阶段 2 CBZ 远端 zip → 阶段 3 PDF 预览 → 阶段 4 专项回归 + 新包。预估：spike 0.5–1 天；EPUB 0.5–1 天；CBZ 1–2 天；PDF 1–3 天；回归 + 重建包 ~1 天。B（并入 1.1.0）/ C（打开显示下载进度兜底）未采用。
 
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
