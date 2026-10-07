@@ -192,3 +192,4 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 - `.github/workflows/publish.yaml` 原为上游 Findroid 的自动发布流程（`on: push: tags: v*`，依赖 `FINDROID_KEYSTORE` / Play API 凭据并调用 `fastlane publish`，会尝试发布 Google Play）。
 - **W72（2026-10-05）已将其改为仅 `workflow_dispatch` 触发**：推 `v*` tag 不再自动运行；该文件内的流水线仍是上游模板，**不要手动触发**（缺 secrets 且会尝试 Play 发布）。
 - 当前的 1.0.0 发布走 §5 的手动流程；CI 自动发布（构建 → 签名 → 建 Release 上传 APK）后续按需重建，届时改为使用本仓库 secrets（keystore 的 base64 + 密码）并去掉 Play 步骤。
+- 发布状态（2026-10-07）：tag `v1.2.0` 已推送 + GitHub Release「极光幕 / Aurorama v1.2.0」已发布（双 APK）；**发布后自检 ✅**（重新下载两资产：sha256 / 体积与上表一致、`apksigner` v2 + 证书 `e449c4aa…e155ff` 复核通过）；用户全检通过（2026-10-07）。
