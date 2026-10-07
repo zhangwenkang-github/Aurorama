@@ -1847,6 +1847,44 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 `/sys/class/net/wlan0/statistics/rx_bytes`、`dumpsys netstats` 桶宽 7200 s），App 级用请求条数 + 文件系统证据；
 ⑤未做弱网（0.3 MB/s）；⑥PDF 仍整本下载（PDFium 后续波）。报告：`w77-reports/W77-3.md`。
 
+### W77-4C · CBZ 热切换主线程阻塞修复 + 版本号 1.2.0（2026-10-07，分支 `fix/w77-cbz-hotswap`，基座 master `72d55f8`）
+
+**背景（W77-4A 观察项 P3）**：CBZ 手动「下载整本」完成后的热切换实测 **4796 ms**（W77-2/3 同路径记 7–8 ms），
+其中主线程 `RemoteComicArchive.close` 阻塞 **≈2.5 s** 并触发 MIUI `APP_SCOUT_WARNING`（页码保留、无崩溃）。
+
+**根因（已复现）**：热切换在 `viewModelScope`（Main）里执行，`previousSource.close()` →
+`HttpByteSource.close()` 要 `synchronized(chunks)` 清缓存；同时远端页源的**预取协程**正卡在
+`chunkAt → fetchChunk → execute`（单次 Range 1.4–20 s）里**持有 `chunks` 监视器** → 主线程等锁 ≈ 一次在途请求的耗时。
+本次真机取证到同一时刻的栈（热切换日志与预取栈相差 1 ms）：`HttpByteSource.execute → fetchChunk → chunkAt → readAt`。
+
+**修法（最小改动，不动预取窗口 / 首开逻辑）**：`ReaderViewModel` 新增**后台回收作用域**
+`recycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)`（**故意不挂 `viewModelScope`**，离开阅读页也要把回收跑完）
+与私有 `recycleAsync(close: () -> Unit)`；热切换的 `previousSource?.close()`（CBZ）与 `previousAsset?.close()`（EPUB）
+改成 `recycleAsync`——**页源切换与 UI 不再等旧源关闭**。取消语义不变，仍由 `InFlightRequestRegistry`（粘性取消）兜底，
+`releaseRemoteClient()` 的 `cancelAll()` 放掉在途读后，后台 `close()` 自然返回。**零结构重构、零偏好键、零 UI 改动。**
+
+**真机实测（K60 `8e875894`，2026-10-07 17:25–17:36；测试服务器只读 GET / Range）**：
+
+| 项 | 修复前（W77-4A） | 修复后（W77-4C） |
+|----|------------------|------------------|
+| CBZ 热切换（`Anda's Game` 17.3 MB → 16.5 MB 本地） | **4796 ms** | **7 ms**（`第 7 页 / 24`） |
+| 主线程 `close` 阻塞 | ≈2.5 s + MIUI `APP_SCOUT_WARNING` | 移出主线程；窗口内 `APP_SCOUT` **0 条**、`Choreographer Skipped` **0 条** |
+| 热切换后新增 Range 请求 | — | **0**（旧源已在后台关闭；进程 pid 4682 未重启） |
+| EPUB 热切换（`飛野同學是笨蛋` 229 MB） | 1107 ms | **1289 ms**、`第 7 頁` 不回退（换源后画面与「本地重开」逐像素差 **0.28%**） |
+
+- **版本号**：`Versions.kt` = `APP_CODE 2 → 3` / `APP_NAME "1.1.0" → "1.2.0"`；构建产物
+  `aapt dump badging` + `dumpsys package` 双查 = `versionName=1.2.0` / `versionCode=3`（`install -r` 保留登录态）。
+- **取消 / 回退抽验（不回归）**：670 MB《虚构推理 (2026)》载入中返回 → onCleared 后 **0 新请求**、其后 15 s 内 `.part` 已清理；
+  `svc wifi disable` → 打开未下载书得错误态「打不开这本书」+「重试」/顶栏「重试下载」→ 恢复网络点「重试」→ `下载中 0%` + `.part` 增长（无死路）。
+- **门禁**：`:modes:book:ktfmtCheck` + 根 `ktfmtCheck` + `:modes:book:testDebugUnitTest`（**145**，基线=145，无新增用例）
+  + `:app:phone:assembleDebug`（arm64 debug 146,808,836 B，sha256 `04E78FB9…18F5`）四绿；**0 FATAL / 0 ANR**。
+- **观察（非缺陷，未修）**：①热切换后旧源的预取协程会以 **1 条 W 级「远端 CBZ 预取失败」栈**收口（旧源被后台关闭 +
+  在途请求取消的既有日志），功能无影响；②EPUB 热切换仍会在**文档重建 / 首次绘制**上花 ~1.2 s（同刻 1 条
+  `Choreographer: Skipped 56 frames`），该路径本次未动（非目标：不做结构重构），CBZ 路径为 0。
+- **未覆盖**：①`closeDocuments()` / `releaseRemoteClient()` 内的**其他**同步 `close()`（离开阅读页、远程回退）未一并异步化——
+  本次只按 P3 口径动热切换两条路径；②Pad 5 形态未走查（K60 单机）；③弱网（0.3 MB/s）未测；④未单测 `recycleAsync`
+  （依赖 `ViewModel` + Android 依赖；本次以真机前后数字取证）。报告：`w77-reports/W77-4C.md`。
+
 ### 2026-10-07 · PDF 引擎替换（用户拍板：以后做，现在先调研 · D-F12）
 
 **决议（用户 2026-10-07）**：PDF 快速首开不走「流式改造」（spike 已证不可行——PdfBox parse 全量物化），改走**替换 PDF 引擎**路线：**以后实施，当前先做调研**；与 W77 波解耦（W77 只做 EPUB / CBZ；**PDF 过渡态 = 整本下载 + 打开显示进度**）。
@@ -1958,3 +1996,4 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 | 2026-10-07 | **W77-1（分支 `feature/w77-epub-stream`，基座 master `cfb220f`，worktree `w77b`）：EPUB 远程流式首开 + 后台下载热切换**——①自建 OkHttp 版 Readium `HttpClient`（TOFU 自签信任 + `X-Emby-Token`；`DefaultHttpClient` 两者都没有）；②**HEAD 容错**：Jellyfin Download 端点 HEAD=405，改 `GET Range: bytes=0-0` + `Content-Range` 合成 200/`Content-Length`（Readium `HttpResource.length()` 依赖 HEAD）；③**`PreciseHttpResource`**：Readium 的 `HttpResource.read(range)` 会把有界读退化成开放式 `bytes=N-`（229 MB 实测响应头 `Content-Length: 229242026`，读不完 → 连接不可复用 + 30 s 读超时 + 服务端空转），改为有界 Range + 读完即关 + **1 MB 块缓存（LRU ≤12 MB）**，长度探测与首块合并为一次请求；④**取消兜底**：协程 Job 完成回调不能中止已在读响应体的 call（实测返回后 3.4 s 仍跑完）→ `InFlightRequestRegistry` + `onCleared.cancelAll()`；⑤热切换用 `pendingHotSwap` 处理竞态、`ReadiumEpubView` 导航器状态移进 `key(publication)`；⑥门禁四绿 + 单测 113 → **124**；⑦真机 K60：229 MB EPUB 远端就绪 **29.9–46.3 s / 3–5 请求 / ≈2.7–4.7 MB** vs 整本下载 ≈108 s，热切换 **1.26 s** 且页码 / 进度不变，返回后在途请求立即中止 + 95 MB `.part` 4 s 清理，离线回退错误态可重试，**0 FATAL / 0 ANR**。报告 `w77-reports/W77-1.md`；详见 §9「W77-1」条 | 
 | 2026-10-07 | **W77-2（分支 `feature/w77-cbz-remote`，基座 master `0683e86`，worktree `w77c`）：CBZ 远端页源**——①core 复用门面 `RemoteComicArchive`（生产 `HttpByteSource` + `ZipArchiveReader`；新增 `knownSize` 省一次长度探测、`HttpCallRegistry` 在途请求登记 / 取消）；②`RemoteComicPageSource : PageSource`（远端**跳过逐页版式扫描** / 页级重试 2 次 / **按需预取窗口 = 当前页 + 后 3 页** / 可取消）；③远端 **1 KB 首块嗅探**（`classifyRemoteHeader`）分流 `%PDF-` / ZIP，非规范 EPUB 由中央目录 `remoteZipIsEpub` 兜底；④**打开 CBZ 不再自动整本下载**（用户口径：三格式统一），手动「下载整本」完成后复用 hotSwap（实测 **7 ms**、页码不回退）；⑤`InFlightRequestRegistry` 改**粘性取消**（修「返回后仍发后续 Range 请求」缺陷）；⑥门禁四绿 + 单测 124 → **137**（新增 `RemoteComicPageSourceTest` 本地 Range 服务请求量断言）；⑦真机 K60：17.3 MB / 36.3 MB 两本 CBZ 远端就绪 **3.95–5.0 s**、首屏 ≈6–8 s、静默 20 s **0 新请求**、最大读取偏移 6.5–7 MB（**无整本下载**）、整本下载对照 36.3 MB/≈17.6 s、离线回退错误态可重试、**0 FATAL / 0 ANR**。报告 `w77-reports/W77-2.md`；详见 §9「W77-2」条 |
 | 2026-10-07 | **W77-3（分支 `feature/w77-stream-state`，基座 master `76909cc`，worktree `w77e`）：阅读载入状态 / 文案 / 进度 + 移除 EPUB 自动整本下载**——①**EPUB 打开不再自动整本下载**（D-F14 收口：`openRemote` 的 Epub 分支删 `startDownload`，`hotSwap` / `pendingHotSwap` 留给手动下载；失败 / 离线仍回退整本下载）；②新增 `ReaderStreamState{Local,StreamConnecting,Streaming}` 与纯函数 `readerStatusBadge` / `downloadPercent`，顶栏三态 = `流式载入中…` / `流式阅读中`+`下载` / `下载中 N%` / `离线可读 · 大小`（下载中 > 流式载入中 > 离线可读 > 失败 > 流式阅读中 > 可下载）；③`ReaderRepository.ensureLocalFile(itemId, onProgress)` 契约补口（原先丢弃进度；只在真下载时上报、开始前给 `0f`）→ **PDF 过渡态打开即显示进度**；④打开失败由 `Downloading` 转 `Failed`（顶栏不再停在「下载中 0%」）；⑤门禁四绿 + 单测 137 → **145**（新增 `ReaderStatusBadgeTest` 8 项）；⑥真机 K60：229 MB EPUB 打开 **5 个有界 Range / ≈3.9 MB / 静默 20 s App +0 请求 + 无 `.part`**（无自动整本下载）、顶栏三态逐帧取证、手动下载热切换 **1273 ms**（EPUB）/ **8 ms**（CBZ）页码不回退、670 MB PDF `下载中 0%→6%`、离线回退可重试、已下载本地打开 **1146 ms**、**0 FATAL / 0 ANR**。报告 `w77-reports/W77-3.md`；详见 §9「W77-3」条 |
+| 2026-10-07 | **W77-4C（分支 `fix/w77-cbz-hotswap`，基座 master `72d55f8`，worktree `w77f`）：CBZ 热切换主线程阻塞修复 + 版本号 1.2.0**——①根因（真机栈取证）= 热切换在 Main 上 `previousSource.close()` → `HttpByteSource.close()` 要 `synchronized(chunks)`，而旧远端页源的**预取协程正持有该监视器**卡在 `chunkAt → fetchChunk → execute`（单次 Range 1.4–20 s）→ 主线程等锁 ≈2.5 s + MIUI `APP_SCOUT_WARNING`；②修法（最小改动）= `ReaderViewModel` 新增**后台回收作用域** `recycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)`（不挂 `viewModelScope`，离开阅读页也跑完回收）与私有 `recycleAsync(close)`，热切换的 `previousSource?.close()`（CBZ）/ `previousAsset?.close()`（EPUB）改为**异步回收**，页源切换与 UI 不等旧源关闭；取消语义仍由 `InFlightRequestRegistry` 粘性取消兜底；③**版本号** `APP_CODE 2 → 3` / `APP_NAME "1.1.0" → "1.2.0"`（`aapt dump badging` + `dumpsys package` 双查一致）；④真机 K60：CBZ 热切换 **4796 ms → 7 ms**（`第 7 页 / 24` 不回退；窗口内 `APP_SCOUT` 0 / `Choreographer Skipped` 0 / 热切换后新增 Range **0** / pid 未重启），EPUB 229 MB 热切换 **1289 ms**、`第 7 頁` 不回退（与「本地重开」逐像素差 0.28%），取消（670 MB PDF 返回 → 0 新请求 + 其后 15 s 内 `.part` 已清理）、离线回退错误态「打不开这本书」+「重试」→ 恢复网络重试 `下载中 0%` 全部不回归，**0 FATAL / 0 ANR**；⑤门禁四绿（`:modes:book:ktfmtCheck` + 根 `ktfmtCheck` + `:modes:book:testDebugUnitTest` **145** + `:app:phone:assembleDebug`）。报告 `w77-reports/W77-4C.md`；详见 §9「W77-4C」条 |
