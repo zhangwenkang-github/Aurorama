@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.HomeSection
+import com.zhangwenkang.cinefin.models.bookSourcePath
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.HomeSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
@@ -65,6 +66,7 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.utils.BookCoverRules
 import java.util.UUID
 
 /** 版心：所有内容都对齐到这条页边线（含横屏时的刘海安全区）。 */
@@ -125,9 +127,10 @@ private fun HomeScreenLayout(
     downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
     /** W64：书籍卡本地封面（itemId → `files/book_covers/<id>.jpg`）。 */
     bookCovers: Map<UUID, String> = emptyMap(),
-    onRequestBookCover: (UUID, String?) -> Unit = { _, _ -> },
-    /** W69b：服务器图加载失败 → 忽略 URL 走本地生成（书籍卡回落）。 */
-    onRequestBookCoverFallback: (UUID) -> Unit = {},
+    /** W77-5：第三个参数 = 服务器元数据判定该书是 PDF（未下载时远端封面直接占位）。 */
+    onRequestBookCover: (UUID, String?, Boolean) -> Unit = { _, _, _ -> },
+    /** W69b：服务器图加载失败 → 忽略 URL 走本地生成（书籍卡回落）；W77-5：远端 PDF 直接占位。 */
+    onRequestBookCoverFallback: (UUID, Boolean) -> Unit = { _, _ -> },
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val gutter = rememberPageGutter()
@@ -154,10 +157,18 @@ private fun HomeScreenLayout(
     // W69c：书籍才触发封面生成 / 回落（音乐 / 视频条目不做书籍解析，避免多余请求与失败标记）。
     val bookOnly: (FindroidItem) -> Boolean = { item -> item is FindroidFolder }
     val requestBookCover: (FindroidItem) -> Unit = { item ->
-        if (bookOnly(item)) onRequestBookCover(item.id, item.images.primary?.toString())
+        if (bookOnly(item)) {
+            onRequestBookCover(
+                item.id,
+                item.images.primary?.toString(),
+                BookCoverRules.isPdfPath(item.bookSourcePath),
+            )
+        }
     }
     val requestBookCoverFallback: (FindroidItem) -> Unit = { item ->
-        if (bookOnly(item)) onRequestBookCoverFallback(item.id)
+        if (bookOnly(item)) {
+            onRequestBookCoverFallback(item.id, BookCoverRules.isPdfPath(item.bookSourcePath))
+        }
     }
     // W69c：按库类型给「最新 · <库名>」走廊选占位（纯函数 `libraryPlaceholderIconRes`，单测覆盖）。
     val libraryPlaceholderIcon: (CollectionType) -> (FindroidItem) -> Int? = { type ->

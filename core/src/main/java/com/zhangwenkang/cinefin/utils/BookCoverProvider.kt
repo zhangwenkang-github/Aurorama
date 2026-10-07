@@ -55,6 +55,8 @@ constructor(
 
     private val semaphore = Semaphore(BookCoverRules.MAX_CONCURRENT)
     private val failed = ConcurrentHashMap.newKeySet<UUID>()
+    /** W77-5：内容层嗅探判定为「远端 PDF」的条目。只在本次进程内记忆（**不落盘**，不写 `.fail`）， 避免同一进程内反复滚动书架时重复嗅探。 */
+    private val remotePdfSkipped = ConcurrentHashMap.newKeySet<UUID>()
     private val mutex = Mutex()
     private val inFlight = mutableMapOf<UUID, CompletableDeferred<String?>>()
 
@@ -93,21 +95,31 @@ constructor(
         serverImageUrl: String? = null,
         /** W69b：服务器图已确认取不到（404 / 加载失败）时跳过服务器图、直接走生成链路。 */
         serverImageUnavailable: Boolean = false,
-    ): String? =
-        when (
+        /**
+         * W77-5：服务器元数据判定该条目是 PDF（`BookCoverRules.isPdfPath`）。
+         *
+         * **未下载**（本地无 `files/books/<id>.book`）时直接回退类型占位——PdfBox 解析远端 PDF 会按 256 KB
+         * 分块**读遍整本**（W77-4E 实测 ≈0.35 MB/s、离开书架仍存续）；**已下载** PDF 仍走本地渲染。
+         */
+        bookIsPdf: Boolean = false,
+    ): String? {
+        val cachedPath = cached(itemId)
+        return when (
             BookCoverRules.planCover(
                 serverImageUrl = serverImageUrl,
-                generatedPath = cached(itemId),
-                generationFailed = cached(itemId) == null && isMarkedFailed(itemId),
+                generatedPath = cachedPath,
+                generationFailed = cachedPath == null && isMarkedFailed(itemId),
                 serverImageUnavailable = serverImageUnavailable,
+                remotePdf = bookIsPdf && !hasLocalCopy(itemId),
             )
         ) {
             // 服务器图优先：有服务器图时不需要生成。
             BookCoverRules.CoverSource.SERVER_IMAGE -> null
-            BookCoverRules.CoverSource.GENERATED_CACHE -> cached(itemId)
+            BookCoverRules.CoverSource.GENERATED_CACHE -> cachedPath
             BookCoverRules.CoverSource.PLACEHOLDER -> null
             BookCoverRules.CoverSource.GENERATE -> generateOnce(itemId)
         }
+    }
 
     private suspend fun generateOnce(itemId: UUID): String? {
         val (deferred, owner) =
@@ -134,14 +146,26 @@ constructor(
     // ------------------------------------------------------------ 生成
 
     private fun generate(itemId: UUID): String? {
-        val bitmap =
+        // W77-5：本次进程已判定为远端 PDF → 直接占位（零请求、零失败标记）。
+        if (itemId in remotePdfSkipped) return null
+        val outcome =
             try {
                 extract(itemId)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
                 Timber.w(error, "W59 书籍封面生成失败：$itemId")
-                null
+                ExtractOutcome.Failed
+            }
+        val bitmap =
+            when (outcome) {
+                is ExtractOutcome.Cover -> outcome.bitmap
+                // W77-5：远端 PDF 静默跳过——**不写** `.fail`（失败标记只留给真正的失败）。
+                ExtractOutcome.Skipped -> {
+                    remotePdfSkipped += itemId
+                    return null
+                }
+                ExtractOutcome.Failed -> null
             }
         if (bitmap == null) {
             markFailed(itemId)
@@ -153,18 +177,37 @@ constructor(
         return written
     }
 
-    private fun extract(itemId: UUID): Bitmap? {
-        val local = File(context.filesDir, "books/$itemId.book")
-        val source: ByteSource =
-            if (local.isFile && local.length() > 0L) FileByteSource(local)
-            else openRemoteSource(itemId)
+    private fun extract(itemId: UUID): ExtractOutcome {
+        val local = localBookFile(itemId)
+        val isRemote = !(local.isFile && local.length() > 0L)
+        val source: ByteSource = if (isRemote) openRemoteSource(itemId) else FileByteSource(local)
         source.use { bytes ->
-            return when (BookCoverRules.detectKind(bytes.readAt(0, PREFIX_BYTES))) {
-                BookCoverRules.Kind.PDF -> pdfCover(bytes)
-                BookCoverRules.Kind.ZIP -> zipCover(bytes)
-                BookCoverRules.Kind.UNKNOWN -> null
-            }
+            val kind = BookCoverRules.detectKind(bytes.readAt(0, PREFIX_BYTES))
+            // W77-5 兜底（扩展名判据没拦住：改名 / 命名不符的文件）：远端 PDF 不做封面渲染。
+            if (isRemote && kind == BookCoverRules.Kind.PDF) return ExtractOutcome.Skipped
+            val bitmap =
+                when (kind) {
+                    BookCoverRules.Kind.PDF -> pdfCover(bytes)
+                    BookCoverRules.Kind.ZIP -> zipCover(bytes)
+                    BookCoverRules.Kind.UNKNOWN -> null
+                }
+            return bitmap?.let { ExtractOutcome.Cover(it) } ?: ExtractOutcome.Failed
         }
+    }
+
+    /** 本地是否已有整本（`files/books/<itemId>.book`）：已下载的 PDF 仍走本地渲染。 */
+    private fun hasLocalCopy(itemId: UUID): Boolean =
+        localBookFile(itemId).let { it.isFile && it.length() > 0L }
+
+    private fun localBookFile(itemId: UUID): File = File(context.filesDir, "books/$itemId.book")
+
+    /** 生成结果：成功出图 / **有意跳过**（远端 PDF，不写 `.fail`）/ 真失败（写 `.fail`）。 */
+    private sealed interface ExtractOutcome {
+        data class Cover(val bitmap: Bitmap) : ExtractOutcome
+
+        data object Skipped : ExtractOutcome
+
+        data object Failed : ExtractOutcome
     }
 
     private fun openRemoteSource(itemId: UUID): ByteSource {

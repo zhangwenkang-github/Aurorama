@@ -62,6 +62,7 @@ import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
+import com.zhangwenkang.cinefin.models.bookSourcePath
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LibraryGridSkeleton
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
@@ -193,9 +194,10 @@ private fun LibraryScreenLayout(
     state: LibraryState,
     /** W59：书籍封面自动生成结果（itemId → 本地绝对路径）。 */
     bookCovers: Map<UUID, String> = emptyMap(),
-    onRequestBookCover: (UUID, String?) -> Unit = { _, _ -> },
-    /** W69b：服务器图加载失败 → 忽略 URL 走本地生成（书籍卡回落）。 */
-    onRequestBookCoverFallback: (UUID) -> Unit = {},
+    /** W77-5：第三个参数 = 服务器元数据判定该书是 PDF（未下载时远端封面直接占位）。 */
+    onRequestBookCover: (UUID, String?, Boolean) -> Unit = { _, _, _ -> },
+    /** W69b：服务器图加载失败 → 忽略 URL 走本地生成（书籍卡回落）；W77-5：远端 PDF 直接占位。 */
+    onRequestBookCoverFallback: (UUID, Boolean) -> Unit = { _, _ -> },
     /** W69b：可见条目详情预取（前几张卡）。 */
     onPrefetchItem: (FindroidItem) -> Unit = {},
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
@@ -249,7 +251,10 @@ private fun LibraryScreenLayout(
     // W69：TTL 外重进页面时 ViewModel 只发静默重取信号——刷新保留已上屏的条目与海报，不闪空。
     LaunchedEffect(state.refreshSignal) { if (state.refreshSignal > 0) items.refresh() }
     // W69b：服务器图 404 / 取图失败 → 书籍卡回落本地生成（同一 BookCoverProvider 链路）。
-    val coverFallback: (FindroidItem) -> Unit = { item -> onRequestBookCoverFallback(item.id) }
+    // W77-5：远端（未下载）PDF 不做生成，直接类型占位。
+    val coverFallback: (FindroidItem) -> Unit = { item ->
+        onRequestBookCoverFallback(item.id, BookCoverRules.isPdfPath(item.bookSourcePath))
+    }
     val tabs = remember(libraryType, state.tabs) { state.tabs.ifEmpty { libraryTabs(libraryType) } }
     val toolbarSpec = remember(state.tab) { libraryToolbarSpec(state.tab) }
 
@@ -468,6 +473,7 @@ private fun LibraryScreenLayout(
                                         onRequestBookCover(
                                             loadedItem.id,
                                             loadedItem.images.primary?.toString(),
+                                            BookCoverRules.isPdfPath(loadedItem.bookSourcePath),
                                         )
                                     }
                                     // W69b：只预取前几张可见卡片的详情（每次进入一次，条数上限 6）。
@@ -539,6 +545,7 @@ private fun LibraryScreenLayout(
                                         onRequestBookCover(
                                             loadedItem.id,
                                             loadedItem.images.primary?.toString(),
+                                            BookCoverRules.isPdfPath(loadedItem.bookSourcePath),
                                         )
                                     }
                                     // W69b：只预取前几张可见卡片的详情（每次进入一次，条数上限 6）。

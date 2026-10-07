@@ -67,17 +67,21 @@ object BookCoverRules {
      * @param generationFailed 失败标记存在（不再重试，直接占位）。
      * @param serverImageUnavailable W69b：服务器图**已确认取不到**（404 / 加载失败）——即使 [serverImageUrl] 非空也跳到「生成缓存
      *   → 生成 → 占位」链路（用户复验：服务器无图时首页书卡要有本地生成封面）。
+     * @param remotePdf W77-5：**远端（未下载）+ 无服务器封面 + 文件为 PDF** —— PdfBox 解析远端 PDF 会把整本按 256 KB 块 Range
+     *   读完 （W77-4E 实测 0.35 MB/s、离开书架仍存续），因此不走生成，直接回退类型占位。
      */
     fun planCover(
         serverImageUrl: String?,
         generatedPath: String?,
         generationFailed: Boolean,
         serverImageUnavailable: Boolean = false,
+        remotePdf: Boolean = false,
     ): CoverSource =
         when {
             !serverImageUnavailable && !serverImageUrl.isNullOrBlank() -> CoverSource.SERVER_IMAGE
             !generatedPath.isNullOrBlank() -> CoverSource.GENERATED_CACHE
             generationFailed -> CoverSource.PLACEHOLDER
+            remotePdf -> CoverSource.PLACEHOLDER
             else -> CoverSource.GENERATE
         }
 
@@ -138,6 +142,15 @@ object BookCoverRules {
         }
         return Kind.UNKNOWN
     }
+
+    /**
+     * W77-5：服务器元数据里的原始文件路径是否为 PDF（纯函数）。
+     *
+     * 只做扩展名判定：`/media/books/foo.pdf` → `true`；大小写不敏感；无扩展名 / null → `false`。 这是「远端 PDF
+     * 封面直接占位」的**零请求**判据（书架卡片不为此多发任何 Range 请求）； 文件头嗅探（[detectKind]）仍是内容层兜底（改扩展名 / 命名不符的文件）。
+     */
+    fun isPdfPath(path: String?): Boolean =
+        path?.trim()?.substringAfterLast('.', "")?.equals("pdf", ignoreCase = true) == true
 
     private val PDF_MAGIC = "%PDF-".toByteArray(Charsets.US_ASCII)
 

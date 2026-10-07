@@ -90,7 +90,12 @@ constructor(
      *
      * 非书籍库直接忽略；命中缓存 / 失败标记 / 已请求由 provider 与本类拦截，滚动回来不会重复生成。
      */
-    fun requestBookCover(itemId: UUID, serverImageUrl: String? = null) {
+    fun requestBookCover(
+        itemId: UUID,
+        serverImageUrl: String? = null,
+        /** W77-5：服务器元数据判定该条目是 PDF（未下载时远端封面直接回退占位，不做整本 Range 解析）。 */
+        bookIsPdf: Boolean = false,
+    ) {
         if (!::libraryType.isInitialized || libraryType != CollectionType.Books) return
         val cached = bookCoverProvider.cached(itemId)
         when (
@@ -112,7 +117,7 @@ constructor(
         }
         if (!requestedBookCovers.add(itemId)) return
         viewModelScope.launch {
-            val path = bookCoverProvider.ensureCover(itemId, serverImageUrl)
+            val path = bookCoverProvider.ensureCover(itemId, serverImageUrl, bookIsPdf = bookIsPdf)
             publishBookCover(itemId, path)
         }
     }
@@ -121,7 +126,7 @@ constructor(
      * W69b：**服务器图确认不可用**（404 / 加载失败）时的回落——忽略服务器 URL，直接本地生成 （未下载在线书籍也生成）。与首页 / 书架共用
      * `BookCoverProvider` 单一链路。
      */
-    fun requestBookCoverFallback(itemId: UUID) {
+    fun requestBookCoverFallback(itemId: UUID, bookIsPdf: Boolean = false) {
         if (!::libraryType.isInitialized || libraryType != CollectionType.Books) return
         val cached = bookCoverProvider.cached(itemId)
         if (cached != null) {
@@ -144,6 +149,7 @@ constructor(
                     itemId = itemId,
                     serverImageUrl = null,
                     serverImageUnavailable = true,
+                    bookIsPdf = bookIsPdf,
                 )
             publishBookCover(itemId, path)
         }

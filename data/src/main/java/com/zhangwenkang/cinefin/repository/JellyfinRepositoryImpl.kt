@@ -332,6 +332,8 @@ class JellyfinRepositoryImpl(
                         filters = filters,
                         genres = genres,
                         studios = studios,
+                        // W77-5：书架书籍卡零请求判断远端 PDF（`BookCoverRules.isPdfPath`）用；默认字段不含 Path。
+                        fields = listOf(ItemFields.PATH),
                     )
                     .content
                     .items
@@ -587,6 +589,8 @@ class JellyfinRepositoryImpl(
                         jellyfinApi.userId!!,
                         limit = 12,
                         includeItemTypes = includeItemTypes,
+                        // W77-5：首页「继续阅读」书籍卡零请求判断远端 PDF 用。
+                        fields = listOf(ItemFields.PATH),
                     )
                     .content
                     .items
@@ -598,7 +602,13 @@ class JellyfinRepositoryImpl(
         cachedMetadata(MetadataCacheKeys.latestMedia(parentId)) {
             withContext(Dispatchers.IO) {
                 jellyfinApi.userLibraryApi
-                    .getLatestMedia(jellyfinApi.userId!!, parentId = parentId, limit = 16)
+                    .getLatestMedia(
+                        jellyfinApi.userId!!,
+                        parentId = parentId,
+                        limit = 16,
+                        // W77-5：首页「最新 · 书籍」走廊零请求判断远端 PDF 用。
+                        fields = listOf(ItemFields.PATH),
+                    )
                     .content
                     .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
             }

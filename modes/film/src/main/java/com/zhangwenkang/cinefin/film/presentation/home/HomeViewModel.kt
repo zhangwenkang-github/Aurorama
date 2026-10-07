@@ -54,7 +54,12 @@ constructor(
      * 与书架 `LibraryViewModel` 同一条 `BookCoverProvider` 链路：服务器图优先 → 生成缓存 → 生成（本地已下载文件 / HTTP Range）→
      * 失败类型占位。
      */
-    fun requestBookCover(itemId: UUID, serverImageUrl: String? = null) {
+    fun requestBookCover(
+        itemId: UUID,
+        serverImageUrl: String? = null,
+        /** W77-5：服务器元数据判定该条目是 PDF（未下载时远端封面直接回退占位，不做整本 Range 解析）。 */
+        bookIsPdf: Boolean = false,
+    ) {
         val cached = bookCoverProvider.cached(itemId)
         // 已有本地封面先暴露给卡片（服务器图加载失败 / 离线时逐级回落；不触发生成）。
         publishBookCover(itemId, cached)
@@ -73,7 +78,7 @@ constructor(
         }
         if (!requestedBookCovers.add(itemId)) return
         viewModelScope.launch {
-            val path = bookCoverProvider.ensureCover(itemId, serverImageUrl)
+            val path = bookCoverProvider.ensureCover(itemId, serverImageUrl, bookIsPdf = bookIsPdf)
             publishBookCover(itemId, path)
         }
     }
@@ -84,7 +89,7 @@ constructor(
      *
      * 与 `LibraryViewModel.requestBookCoverFallback` 同一条 `BookCoverProvider` 链路，不新建第二套。
      */
-    fun requestBookCoverFallback(itemId: UUID) {
+    fun requestBookCoverFallback(itemId: UUID, bookIsPdf: Boolean = false) {
         val cached = bookCoverProvider.cached(itemId)
         if (cached != null) {
             publishBookCover(itemId, cached)
@@ -106,6 +111,7 @@ constructor(
                     itemId = itemId,
                     serverImageUrl = null,
                     serverImageUnavailable = true,
+                    bookIsPdf = bookIsPdf,
                 )
             publishBookCover(itemId, path)
         }

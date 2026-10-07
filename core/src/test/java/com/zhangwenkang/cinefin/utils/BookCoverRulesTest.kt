@@ -2,7 +2,9 @@ package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** W59 书籍封面计划 / 格式嗅探 / EPUB 封面定位（纯函数）。 */
@@ -117,6 +119,74 @@ class BookCoverRulesTest {
                 serverImageUnavailable = false,
             ),
         )
+    }
+
+    @Test
+    fun `W77-5 远端 PDF 直接占位 不触发整本 Range 解析`() {
+        // 未下载 + 无服务器封面 + PDF → 占位（不生成）。
+        assertEquals(
+            BookCoverRules.CoverSource.PLACEHOLDER,
+            BookCoverRules.planCover(
+                serverImageUrl = null,
+                generatedPath = null,
+                generationFailed = false,
+                remotePdf = true,
+            ),
+        )
+        // 服务器图确认不可用（404）时同样占位。
+        assertEquals(
+            BookCoverRules.CoverSource.PLACEHOLDER,
+            BookCoverRules.planCover(
+                serverImageUrl = "https://host/cover.jpg",
+                generatedPath = null,
+                generationFailed = false,
+                serverImageUnavailable = true,
+                remotePdf = true,
+            ),
+        )
+        // 已有生成缓存仍优先（已下载 / 曾生成成功过的条目不退化成占位）。
+        assertEquals(
+            BookCoverRules.CoverSource.GENERATED_CACHE,
+            BookCoverRules.planCover(
+                serverImageUrl = null,
+                generatedPath = "/files/book_covers/a.jpg",
+                generationFailed = false,
+                remotePdf = true,
+            ),
+        )
+        // 服务器图仍最高优先。
+        assertEquals(
+            BookCoverRules.CoverSource.SERVER_IMAGE,
+            BookCoverRules.planCover(
+                serverImageUrl = "https://host/cover.jpg",
+                generatedPath = null,
+                generationFailed = false,
+                remotePdf = true,
+            ),
+        )
+        // 非 PDF（EPUB / CBZ / 未知）行为不变 → 仍走生成。
+        assertEquals(
+            BookCoverRules.CoverSource.GENERATE,
+            BookCoverRules.planCover(
+                serverImageUrl = null,
+                generatedPath = null,
+                generationFailed = false,
+                remotePdf = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `W77-5 远端 PDF 判据只看扩展名 大小写不敏感`() {
+        assertTrue(BookCoverRules.isPdfPath("/media/books/虚构推理 (2026).pdf"))
+        assertTrue(BookCoverRules.isPdfPath("C:\\media\\books\\W22-Spread-Test.PDF"))
+        assertTrue(BookCoverRules.isPdfPath("  a.pdf  "))
+        assertFalse(BookCoverRules.isPdfPath(null))
+        assertFalse(BookCoverRules.isPdfPath(""))
+        assertFalse(BookCoverRules.isPdfPath("/media/books/W22-Spread-Test.cbz"))
+        assertFalse(BookCoverRules.isPdfPath("/media/books/飛野同學是笨蛋.epub"))
+        // 无扩展名 / 目录名里带 pdf 都不算 PDF 文件。
+        assertFalse(BookCoverRules.isPdfPath("/media/pdf/无扩展名"))
     }
 
     @Test

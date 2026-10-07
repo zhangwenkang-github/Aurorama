@@ -68,3 +68,11 @@ fun FindroidItem.isDownloaded(): Boolean {
         .filter { it.type == FindroidSourceType.LOCAL }
         .any { !it.path.endsWith(".download") }
 }
+
+/**
+ * W77-5：服务器侧原始文件路径（只有书籍等「容器」条目映射，见 [FindroidFolder.sourcePath]）。
+ *
+ * 书架 / 首页卡片用它零请求判断远端 PDF（`BookCoverRules.isPdfPath`），避免 PdfBox 整本 Range 解析封面。
+ */
+val FindroidItem.bookSourcePath: String?
+    get() = (this as? FindroidFolder)?.sourcePath

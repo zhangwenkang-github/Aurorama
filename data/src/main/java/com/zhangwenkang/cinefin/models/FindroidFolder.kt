@@ -25,6 +25,12 @@ data class FindroidFolder(
      * 极光幕用它决定「点开之后怎么走」：图书交给服务器自带的阅读器，其余按容器继续列子项。
      */
     val kind: String? = null,
+    /**
+     * W77-5：服务器侧原始文件路径（`BaseItemDto.Path`，需请求 `ItemFields.PATH`）。
+     *
+     * 只用于**零请求**判断远端书籍格式（例：`…/虚构推理 (2026).pdf` → PDF 不做远端封面生成）； 非书籍条目 / 服务器未返回该字段时为 null。
+     */
+    val sourcePath: String? = null,
 ) : FindroidItem
 
 fun BaseItemDto.toFindroidFolder(jellyfinRepository: JellyfinRepository): FindroidFolder {
@@ -37,5 +43,6 @@ fun BaseItemDto.toFindroidFolder(jellyfinRepository: JellyfinRepository): Findro
         unplayedItemCount = userData?.unplayedItemCount,
         images = toFindroidImages(jellyfinRepository),
         kind = type?.name,
+        sourcePath = path,
     )
 }
