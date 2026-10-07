@@ -1693,14 +1693,14 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - 分格式：**PDF** → 系统 `PdfRenderer` + `PdfPageSource`（需完整可寻址文件）；**CBZ** → `ZipFile` 随机读（`ComicPageSource`，需完整本地文件）；**EPUB** → Readium 3.4.0（已带 `DefaultHttpClient` / `AssetRetriever`，具备 HTTP 流式资产能力）。
 - 服务器 `GET /Items/{id}/Download` 支持 Range（206，§3 已记）。实测（W76-V2，126 MB PDF）：首开 6–8 min ≈ 当日带宽 0.3 MB/s 量级 → **瓶颈 = 整本下载等待**，非解析 / 渲染。
 
-**方案草图（按落地难度排序）**：
+**spike 结论（2026-10-07 完成，报告 `w77-reports/W77-R1-spike.md`；分支 `spike/w77-reader-stream`）**：
 
-1. **EPUB**：Readium 直接以 HTTP 资产（附 `X-Emby-Token`）流式打开、按需拉取；后台整本下载并行，完成后切本地（可行性最高）。
-2. **CBZ**：自研「远端 zip」——先取尾部 EOCD / 中央目录（Range），按页拉条目（存储型条目零解压直取）；中难度。
-3. **PDF**：系统 PdfRenderer 要完整可寻址文件 → 需 spike：PdfBox（2.0.27.0，已在用）自定义 `RandomAccessRead`（HTTP Range 后端）渲染「当前页」预览，整本完成后无缝切回 PdfRenderer 路径；验证渲染一致性 / 内存 / 取消语义；风险最高。
-4. 通用：整本后台下载继续（保离线与后续翻页），下载完成热切换本地文件；打开遮罩显示下载进度（可选兜底 UX）。
+1. **EPUB ✅ 可行**：`AssetRetriever.retrieve(AbsoluteUrl)` 一等路径；远程 ZIP 仅预取尾部 65557 B（EOCD+中央目录），条目级懒取。前置条件：`DefaultHttpClient` 无 header 注入参数（需 `Callback.onStartRequest`）且走 `HttpURLConnection`、**不吃本应用 TOFU 自签信任** → 需**自建 OkHttp 版 `HttpClient`**（`stream()` 单方法、`HttpResponse` 构造器 public，可行）；`HttpResource.length()` 依赖服务器 **HEAD**、`read(range)` 要求 **206**（待一次只读复验）。
+2. **CBZ ✅ 可行（难度下调）**：`core` 已有 `ZipArchiveReader` + `HttpByteSource`（HEAD + Range 探长、256 KB 分块 + LRU、可注入 header；W59 封面已上生产）。实测 36 MB 书：中央目录 2 请求 / 130 KB、取一页 4–5 请求 / ≈1 MB。新增 = `RemoteComicPageSource` + 取消 / 重试 + 远端跳过逐页版式扫描。
+3. **PDF ❌ 流式不可行（已证）**：PdfBox 2.0.27.0 `PDFParser.parse()` 从 trailer 出发物化整棵对象图（本地文件源行为同形；2.2 MB 样本请求 2.98 MB、覆盖全部 64 KB 桶）→ 首开流量下界 = 文件大小。**PDF 改为「整本下载 + 打开显示进度」**；另发现 W59 远端 PDF 封面同样整本拉取 → 单列 **W77-5**。
+4. 集成设计（远程源 ↔ 本地热切换、后台下载并行、取消语义、失败降级）见 spike 报告「设计」节。
 
-**排期（2026-10-07 用户拍板：方案 A · D-F11）**：1.1.0 照原计划发布；本项 = **下一波头号项**，分阶段实施——阶段 0 **spike**（已派发，worktree `w77a`，报告 `.planning/cinefin-expansion/w77-reports/W77-R1-spike.md`）→ 阶段 1 EPUB 流式 → 阶段 2 CBZ 远端 zip → 阶段 3 PDF 预览 → 阶段 4 专项回归 + 新包。预估：spike 0.5–1 天；EPUB 0.5–1 天；CBZ 1–2 天；PDF 1–3 天；回归 + 重建包 ~1 天。B（并入 1.1.0）/ C（打开显示下载进度兜底）未采用。
+**实施拆分（W77 波；待用户对 spike 未决项拍板后开工）**：**W77-1** EPUB 远程首开 + 后台下载热切换（P0，1–1.5 天）→ **W77-2** CBZ 远端页源（P0，1.5–2 天，可与 W77-1 并行）→ **W77-3** 状态 / 文案 / 进度（P1，0.5 天）→ **W77-4** 真机矩阵 + 新包（P1，1 天）；**W77-5** 远端 PDF 封面不再整本拉取（P2）。关键风险：自签证书（决定自建 OkHttp）、服务器 HEAD 支持、远端 CBZ 版式扫描、远端页源可取消性（W64 同坑）、热切换视觉抖动。
 
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
