@@ -50,7 +50,7 @@
 ## 4. 渲染复现命令
 
 ```powershell
-# 项目根目录（E:\Codex work\work space\c013\Cinefin）
+# 项目根目录（F:\Develop\code_data\work_tree\Aurorama\c013\Cinefin）
 pwsh docs/design/_src/render.ps1 -Dir s4-revision
 
 # 只重渲染单张（键名：home / detail / library / music / board-buttons / board-cards / board-list）

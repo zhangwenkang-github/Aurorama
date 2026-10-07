@@ -28,7 +28,7 @@
 ### 1.2 设备占用纪律（device-lock，硬约束）
 
 1. `adb` 真机**同一时刻只允许一个会话**占用；占用前在
-   `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\device-lock.md` 登记
+   `F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md` 登记
    （会话名 / 设备 / 开始时间 / 预计时长 / 用途），完成即清空。
 2. 超过 **45 分钟**未释放视为过期，可被接管；接管前确认对方无正在进行中的 adb 安装 / 测量进程。
 3. **同一波次的真机回归优先由 R4 统一执行**（本线负责），开发会话只做必要的最小验证，避免抢占。
@@ -110,7 +110,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 | 其他 ABI | armeabi-v7a 94.65 MiB / x86 99.70 MiB / x86_64 101.74 MiB（仅供参考，非验收口径） |
 
 **原始输出目录（本地，不入库）**：
-`E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\baseline\20260930-211820-43af8627\`
+`F:\Develop\codex_work\.planning\cinefin-expansion\baseline\20260930-211820-43af8627\`
 （`summary.json` / `coldstart.json` / `coldstart-raw.txt` / `mempeak.json` / `mempeak-raw.txt` / `apksize.json` / `info.json`）
 
 ### 2.6 脚本清单与用法（`tools/test/`）
@@ -139,7 +139,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 ## 3. 测试数据清单（🟡 待用户确认）
 
-### 3.1 本地测试文件（`E:\codex_work\Android_Studio_Work_Space\test_files`）
+### 3.1 本地测试文件（`F:\Develop\codex_work\test_files`）
 
 | 文件 | 大小 | 格式用途 | 服务器对应条目 |
 |------|------|---------|---------------|
@@ -278,7 +278,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 - **D2（2026-09-30）**：阈值定为冷启动 / 内存 +15%、APK +5%（同口径），超阈值需负责人评审；
   红线来自 `REQUIREMENTS.md` §12.2，量化口径由本线给出。
 - **D3（2026-09-30）**：原始输出一律落在
-  `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\`（baseline / regression），仓库只留脚本与数值表。
+  `F:\Develop\codex_work\.planning\cinefin-expansion\`（baseline / regression），仓库只留脚本与数值表。
 - **D4（2026-09-30）**：K60 未接入前，所有验收结论以 Pad 5 为准并在报告中标注「K60 未验证」。
 
 ### 6.2 取证与验证记录

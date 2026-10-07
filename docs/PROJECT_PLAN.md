@@ -154,7 +154,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 6. **文档纪律**：项目级状态只写本文件；任务线细节写各自文档；不新建零散 `.md`。
 7. **真机纪律（v3，2026-10-04 起 · 设备直接分配给开发会话）**：`adb` 真机同一时刻只允许一个会话使用。
    开波时由负责人**直接分配设备**给开发会话（写明 serial + 主 / 抽验）；开发会话在门禁全绿后**顺便完成真机测试**
-   （负责人本会话不复测，避免重复劳动）。使用前在 `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\device-lock.md`
+   （负责人本会话不复测，避免重复劳动）。使用前在 `F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md`
    登记（会话名 / 设备 / 开始时间 / 预计时长 / 回滚预案），完成后**立即写释放时间 + 结论 + 还原**。
    **禁止按超时自动接管**；设备冲突时由负责人明确指派。开发会话汇报必须**分列「已完成真机测试」与「未覆盖项」**，
    人工感知类条目转交用户代测；负责人验收只做范围核对 / 门禁复跑 / 合并 / CI / 文档。
@@ -164,7 +164,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 ```powershell
 $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
-cd E:\codex_work\Android_Studio_Work_Space\Cinefin
+cd F:\Develop\codex_work\project\Aurorama
 .\gradlew.bat :app:phone:assembleDebug --console=plain                         # 构建
 adb install -r app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk   # 装机（真机 arm64）
 adb shell dumpsys media_session | Select-String aurorama                      # 播放会话（W41 起包名 aurorama）

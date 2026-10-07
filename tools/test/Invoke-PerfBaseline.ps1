@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   对应 docs/TEST_PLAN.md §2。原始输出默认写到仓库外本地目录（不入库）：
-    E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\baseline\<时间戳>-<设备>
+    F:\Develop\codex_work\.planning\cinefin-expansion\baseline\<时间戳>-<设备>
   该目录下的 summary.json 是 TEST_PLAN §2.5 基线表的取证来源。
 
 .EXAMPLE
@@ -20,7 +20,7 @@ param(
     [int]$MemorySeconds = 60,
     [double]$MemoryIntervalSeconds = 2,
     [switch]$Rebuild,
-    [string]$OutputRoot = 'E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\baseline',
+    [string]$OutputRoot = 'F:\Develop\codex_work\.planning\cinefin-expansion\baseline',
     [string]$OutputDir = ''
 )
 

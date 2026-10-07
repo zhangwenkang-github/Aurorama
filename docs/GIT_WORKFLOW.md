@@ -39,10 +39,10 @@ master                  ← 唯一长期分支，受保护，只接受 PR 合并
 ### 2.1 现状（2026-09-29 实测）
 
 ```text
-E:/codex_work/Android_Studio_Work_Space/Cinefin   [master]                  ← 主工作区
-E:/Codex work/work space/1669/Cinefin             [feature/s1-ui-design]
-E:/Codex work/work space/5a92/Cinefin             [feature/s2-arch-docs]
-E:/Codex work/work space/b0a3/Cinefin             (detached HEAD)
+F:/Develop/codex_work/project/Aurorama   [master]                  ← 主工作区
+F:/Develop/code_data/work_tree/Aurorama/1669/Cinefin             [feature/s1-ui-design]
+F:/Develop/code_data/work_tree/Aurorama/5a92/Cinefin             [feature/s2-arch-docs]
+F:/Develop/code_data/work_tree/Aurorama/b0a3/Cinefin             (detached HEAD)
 ```
 
 ### 2.2 常用命令（PowerShell）
@@ -54,7 +54,7 @@ git branch -a
 
 # 新建：从最新 master 拉一条线
 git fetch origin
-git worktree add "E:\Codex work\work space\<会话id>\Cinefin" -b feature/reader-epub origin/master
+git worktree add "F:\Develop\code_data\work_tree\Aurorama\<会话id>\Cinefin" -b feature/reader-epub origin/master
 
 # 收工：提交并推送
 git add <本次改动文件>
@@ -62,7 +62,7 @@ git commit -m "feat(reader): EPUB 打开与渲染打通"
 git push -u origin feature/reader-epub
 
 # 收尾：合并后清理（本地）
-git worktree remove "E:\Codex work\work space\<会话id>\Cinefin"
+git worktree remove "F:\Develop\code_data\work_tree\Aurorama\<会话id>\Cinefin"
 git branch -d feature/reader-epub
 ```
 

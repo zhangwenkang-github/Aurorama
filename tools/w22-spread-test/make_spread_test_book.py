@@ -32,7 +32,7 @@ W26 profile（`--profile w26`，42 页 = 21 槽）在原 15 槽之后追加 6 �
 
 用法：
     python tools/w22-spread-test/make_spread_test_book.py \
-        --out-dir "E:\\codex_work\\Android_Studio_Work_Space\\test_files" [--profile w26]
+        --out-dir "F:\\Develop\\codex_work\\test_files" [--profile w26]
     python tools/w22-spread-test/make_spread_test_book.py --check-only <文件路径>
 
 依赖：Pillow（生成 + 解析 PDF 内嵌页图）。固定随机种子 → 产物可复现。
@@ -624,7 +624,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="生成 / 自测 W22/W26 拆页型对图测试书")
     parser.add_argument(
         "--out-dir",
-        default=r"E:\codex_work\Android_Studio_Work_Space\test_files",
+        default=r"F:\Develop\codex_work\test_files",
         help="输出目录（默认 = 真机测试素材目录，不入库）",
     )
     parser.add_argument(

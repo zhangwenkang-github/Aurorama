@@ -409,7 +409,7 @@ W45 遗留两条（§14.4）本波落地；**缓存与懒生成策略不变**（
 ### 18.7 真机验收（2026-10-03，Pad 5 `43af8627` 主 + K60 `8e875894` 抽验）
 
 构建：`8f07ee8` + 真机修复提交；测试服务器只读；device-lock 登记与释放见
-`E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\device-lock.md`。
+`F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md`。
 
 | # | 项 | 结果 |
 |---|----|------|

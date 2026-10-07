@@ -1036,7 +1036,7 @@ Anda's Game = 800×1280（封面）+ 1327×2039×23，ComicInfo.xml 只有 `Fron
 
 **7.9.4 W22 自造素材「拆页型对图」测试书（供真机终验）**
 
-产物放在 `E:\codex_work\Android_Studio_Work_Space\test_files\`（**不入库**，等用户上传 Jellyfin）：
+产物放在 `F:\Develop\codex_work\test_files\`（**不入库**，等用户上传 Jellyfin）：
 
 | 文件 | 体积 | 页数 | 说明 |
 |------|------|------|------|

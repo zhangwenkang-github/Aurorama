@@ -37,11 +37,11 @@
 <前置波次 / 接口冻结 / 测试数据>
 
 ## 代理与上下文纪律
-- 需要联网时读 `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\proxy.md` 取代理配置：
+- 需要联网时读 `F:\Develop\codex_work\.planning\cinefin-expansion\proxy.md` 取代理配置：
   命令行工具用 30001（`curl.exe -x "https://<user>:<pass>@proxy.zhangwenkang.com:30001" "<URL>"`），**Gradle 不配代理**（直连）；
   凭据只允许在命令变量中使用，**禁止写入仓库 / 文档 / 提交信息 / 会话输出**。
 - 工具输出必须裁剪（`-Last N` / `Select-String`）；不把截图 / 大图贴进对话；单会话上下文过半即交接。
-- **真机纪律（v2）**：使用 `adb` 真机前先读并登记 `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\device-lock.md`
+- **真机纪律（v2）**：使用 `adb` 真机前先读并登记 `F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md`
   （会话名 / 设备 / 开始时间 / 预计时长），完成后**立即清空并写释放时间**；同一时刻只允许一个会话占用真机；
   **禁止按超时自动接管，接管只能由负责人明确指派**；同波次真机回归优先由 R4 统一执行；第二台设备（K60）接入时按 serial 分配。
 
@@ -334,7 +334,7 @@
 
 ## 3. 统一代理说明（所有会话适用）
 
-1. 联网前读本地共享文件 `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\proxy.md`（仓库外，禁止提交）；
+1. 联网前读本地共享文件 `F:\Develop\codex_work\.planning\cinefin-expansion\proxy.md`（仓库外，禁止提交）；
 2. 命令行工具首选 30001：`curl.exe -x "https://<user>:<pass>@proxy.zhangwenkang.com:30001" "<目标 URL>"`；
 3. **Gradle 保持直连**（30000 走不通 Google Maven，会导致依赖解析失败）；
 4. 凭据只允许存在于命令变量中；**禁止写入仓库 / 文档 / 提交信息 / 会话输出**；

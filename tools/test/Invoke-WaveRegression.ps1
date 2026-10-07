@@ -19,7 +19,7 @@ param(
     [string]$Activity = 'com.zhangwenkang.cinefin.MainActivity',
     [int]$LogcatTailLines = 3000,
     [switch]$SkipUiDump,
-    [string]$OutputRoot = 'E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\regression',
+    [string]$OutputRoot = 'F:\Develop\codex_work\.planning\cinefin-expansion\regression',
     [string]$OutputDir = ''
 )
 

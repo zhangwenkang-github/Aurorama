@@ -37,7 +37,7 @@ Cinefin = 自用 Jellyfin 客户端（findroid 分支改造）。**本任务只�
 2. 构建（JDK 必须用这个，工程按 Java 21 编译）：
    ```powershell
    $env:JAVA_HOME='D:\Android\Android Studio\jbr'
-   cd E:\codex_work\Android_Studio_Work_Space\Cinefin
+   cd F:\Develop\codex_work\project\Aurorama
    .\gradlew.bat :app:phone:assembleDebug --console=plain
    ```
 3. **真机调试**（模拟器太卡已弃用；真机 = 小米平板 5 `nabu` / Android 13 / 1600×2560）：
@@ -489,7 +489,7 @@ PiP → 画面继续、控制层隐藏；车机 → 不退后台，保持前台�
 
 ```powershell
 $env:JAVA_HOME='D:\Android\Android Studio\jbr'
-cd E:\codex_work\Android_Studio_Work_Space\Cinefin
+cd F:\Develop\codex_work\project\Aurorama
 .\gradlew.bat :app:phone:assembleDebug --console=plain
 .\gradlew.bat :app:phone:installDebug
 .\gradlew.bat ktfmtFormat ; .\gradlew.bat :app:phone:lintDebug

@@ -20,7 +20,7 @@
 
 | 项 | 值 |
 |----|----|
-| 密钥文件 | `E:\codex_work\Android_Studio_Work_Space\.release-keys\aurorama-release.jks` |
+| 密钥文件 | `F:\Develop\codex_work\.release-keys\aurorama-release.jks` |
 | 类型 | PKCS12 · RSA 4096 · 有效期 10000 天 · alias `aurorama` |
 | 证书 SHA-256 | `E4:49:C4:AA:DD:E1:91:A7:89:FE:72:CA:8F:7E:C5:47:15:47:C2:14:46:DD:C0:4E:4B:7B:8B:23:CE:E1:55:FF` |
 | Gradle 配置 | 仓库根 `keystore.properties`（**gitignored，不入库**） |
@@ -28,7 +28,7 @@
 `keystore.properties` 字段（密码只由 Gradle 读取，**任何日志 / 汇报 / 文档不得回显密码内容**）：
 
 ```properties
-storeFile=E:\\codex_work\\Android_Studio_Work_Space\\.release-keys\\aurorama-release.jks
+storeFile=F:\\Develop\\codex_work\\.release-keys\\aurorama-release.jks
 storePassword=***
 keyAlias=***
 keyPassword=***

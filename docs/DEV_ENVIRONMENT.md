@@ -1,7 +1,7 @@
 # 开发环境说明（DEV_ENVIRONMENT）
 
 > 本文件不含任何密码。完整凭据（代理 / Jellyfin）存放在**本地共享文件**（不在仓库内，禁止提交）：
-> `E:\codex_work\Android_Studio_Work_Space\.planning\cinefin-expansion\proxy.md`
+> `F:\Develop\codex_work\.planning\cinefin-expansion\proxy.md`
 
 ## 1. 网络代理（用于访问被墙资源）
 
