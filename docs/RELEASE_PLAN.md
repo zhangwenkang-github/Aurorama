@@ -107,17 +107,17 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
-**1.2.0 发布资产校验 · 候选＝发布对象（2026-10-07 · W77 阅读流式波，master 提交 `98cd482`；本表为上传口径）**
+**1.2.0 发布资产校验 · 候选＝发布对象（2026-10-07 · W77 阅读流式波，master 提交 `6ef1901`（代码合并 `f4d4933`）；本表为上传口径）**
 
 | 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
 |--------------------|--------------------|---------|
-| `Aurorama-1.2.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,240,020 / 163.3 | `2c0ceed086bbbabe1a7406b0f0beb1a9ea8bc0429f9d9881df04970732ecac4b` |
-| `Aurorama-1.2.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,658,042 / 74.1 | `107e97c4661f551009d0aec1b07c34cf2210a79481cc3392a5f10b4c9cb09d48` |
+| `Aurorama-1.2.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,240,020 / 163.3 | `5b27d343fb6ba4aeb13e640c229d3c9510481b7d8ffbc2fa314396bc6df65fd5` |
+| `Aurorama-1.2.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,658,042 / 74.1 | `071a0ec4320702cc15d2f734c4db9823687636b1e1982e5668d4b6b595a351bd` |
 
-- 内容 = W77-1（EPUB 远程流式首开）+ W77-2（CBZ 远端页源）+ W77-3（三态状态 / 进度 + 移除 EPUB 自动整本下载）+ W77-4C（CBZ 热切换阻塞修复）+ 版本号 **1.2.0 (3)**；D-F14 三格式统一「不自动整本下载」。
+- 内容 = W77-1（EPUB 远程流式首开）+ W77-2（CBZ 远端页源）+ W77-3（三态状态 / 进度 + 移除 EPUB 自动整本下载）+ W77-4C（CBZ 热切换阻塞修复）+ W77-5（远端 PDF 封面不再整本 Range 拉取，回退类型占位）+ 版本号 **1.2.0 (3)**；D-F14 三格式统一「不自动整本下载」。
 - `apksigner verify`：两份均 **v2 = true**（与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）。
-- 终端合并态门禁（master `98cd482`）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **973 项 / 0 失败 0 错误**（app 273 / core 104 / data 68 / player:core 12 / player:local 178 / film 53 / book 145 / music 140；日志 `w77-evidence/gate_merged_w77_4c_*.log`）。
-- 回归与抽验：W77-4A（K60 8/8）+ W77-4B（Pad 5 12/12）+ W77-4C（P3 修复复测：CBZ 热切换 4796 ms → 7 ms）；候选包发布面抽验 **W77-4D**（报告 `w77-reports/W77-4D.md`）；**上传前待办 = 用户全检**（通过前不打 tag / 不发 Release）。
+- 终端合并态门禁（master `f4d4933` + 文档 `6ef1901`）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **975 项 / 0 失败 0 错误**（app 273 / core 106 / data 68 / player:core 12 / player:local 178 / film 53 / book 145 / music 140；日志 `w77-evidence/gate_merged_w77_5_*.log`）。
+- 回归与抽验：W77-4A（K60 8/8）+ W77-4B（Pad 5 12/12）+ W77-4C（P3 修复复测：CBZ 热切换 4796 ms → 7 ms）+ W77-5（K60：书架 PDF 封面流量 6.96 MB/20 s → **0 B**，报告 `w77-reports/W77-5.md`）；**1.2.0 候选（重建轮次）发布面抽验 = W77-4F**（报告 `w77-reports/W77-4F.md`）；**上传前待办 = 用户全检**（通过前不打 tag / 不发 Release）。
 - 发布用副本在 `.planning/cinefin-expansion/w77-evidence/candidate/Aurorama-1.2.0-*.apk`（候选即发布对象，不再重建）。
 
 **1.1.0 发布资产校验 · ③（2026-10-07 · Q 波后正式重建，master 提交 `61d13a8`；本表为上传口径）**
