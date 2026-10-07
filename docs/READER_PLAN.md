@@ -1702,6 +1702,42 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 
 **实施拆分（W77 波；待用户对 spike 未决项拍板后开工）**：**W77-1** EPUB 远程首开 + 后台下载热切换（P0，1–1.5 天）→ **W77-2** CBZ 远端页源（P0，1.5–2 天，可与 W77-1 并行）→ **W77-3** 状态 / 文案 / 进度（P1，0.5 天）→ **W77-4** 真机矩阵 + 新包（P1，1 天）；**W77-5** 远端 PDF 封面不再整本拉取（P2）。关键风险：自签证书（决定自建 OkHttp）、服务器 HEAD 支持、远端 CBZ 版式扫描、远端页源可取消性（W64 同坑）、热切换视觉抖动。
 
+### W77-1 · EPUB 远程流式首开 + 后台下载热切换（2026-10-07，分支 `feature/w77-epub-stream`，基座 master `cfb220f`）——**已落地（真机通过）**
+
+**结论**：未下载 EPUB「先出页 → 后台整本下载 → 完成后热切换本地 → 离开页面取消 / 失败回退整本下载」全链路跑通。
+样本 = 書庫《飛野同學是笨蛋》229,242,149 B：**远端就绪 29.9–46.3 s / 3–5 次 Range 请求 / ≈2.7–4.7 MB**，
+同书整本下载 **≈108 s（2.1 MB/s）**；下载完成 **1.26 s** 热切换且页码 / locator 不回退；返回阅读页在途请求立即中止、
+95 MB `.part` 4 s 内清理；离线 / 远程失败回退既有整本下载路径（错误态可重试，无死路）；**0 FATAL / 0 ANR**。
+
+**实现要点（4 条，都是真机逼出来的）**：
+
+1. **自建 OkHttp 版 Readium `HttpClient`**（`modes/book/.../ReadiumRemoteHttpClient.kt`）：`DefaultHttpClient` 走
+   `HttpURLConnection` + 系统信任库，拿不到本应用 TOFU 自签信任、也没有 header 注入参数；自建版复用
+   `ReaderRepositoryImpl` 的 `certificateTrustStore` 配置并注入 `X-Emby-Token`。
+2. **HEAD 容错（实测必需）**：Jellyfin 的 `GET /Items/{id}/Download` 对 **HEAD 返回 405**，而 Readium 的
+   `HttpResource.length()/properties()` 依赖 HEAD → 改发 `GET Range: bytes=0-0`，用 `Content-Range` 总长合成
+   200 + `Content-Length`。只读复验：`Range` = 206 + `Accept-Ranges: bytes`；服务端自报 `X-Response-Time-ms≈6 ms`
+   （慢在网络 / 代理链路：TLS 1.6–7.6 s、TTFB 1.9–10.2 s，复用连接 ≈1.4 s）。
+3. **精确 Range 资源 `PreciseHttpResource`（本卡的核心）**：Readium 的 `HttpResource.read(range)` 只把 `range.first`
+   变成 `Range: bytes=N-`（开放式）→ 服务器从 N 发到文件末尾（实测 `Content-Length: 229242026`），客户端只读几百字节
+   就丢弃响应：响应体读不完 → 连接不可复用（每次重新 TLS 握手，并撞到 30 s 读超时）、服务端空转写缓冲（14:25 一次
+   开书即因此失败）。改为**有界 Range + 读完即关**，并加 **1 MB 块缓存（LRU ≤12 MB）**——ZIP 通道按 8 KB 小步长读，
+   直接透传会把 324 KB 中央目录拆成约 40 个请求。长度探测与首块合并为一次请求。首开请求模式：`0-1048575`（含探测）
+   → `228589568-229242148`（尾部 + 中央目录）→ 首章 1 MB 块 ×1–3。
+4. **取消的最小兜底**：真机发现「协程 Job 完成回调」**不会**中止已在读响应体的 OkHttp call（返回后 3.4 s 请求仍跑完）；
+   补 `InFlightRequestRegistry` 登记在途 `Call`，`onCleared → cancelAll()`，复测请求立即中止。热切换另加
+   `pendingHotSwap` 处理「小书下载比远程首开更快」的竞态；`ReadiumEpubView` 把导航器状态移进 `key(publication)`
+   并对 tag 加 publication 身份，保证热切换后新导航器正常挂载。
+
+**门禁**：`:modes:book:ktfmtCheck` + 根 `ktfmtCheck` + `:modes:book:testDebugUnitTest`（113 → **124**）+
+`:app:phone:assembleDebug` 四绿。新增纯函数与单测：来源决策 / 只有 EPUB 走流式 / 下载 URL / 令牌头注入 /
+热切换判定 / `Content-Range` 解析 / 有界 Range 保留终点。
+
+**未覆盖 / 风险**：① 服务器链路延迟高，大书首开 30–46 s（远程等待上限设 90 s，超过回退整本下载）；② 首开期间顶栏
+仍显示「下载中 xx%」，无「流式中」标识（归 **W77-3**）；③ 块缓存 12 MB 上限未做 PSS 采样；④ DEFLATE 单条目内跳读
+退化未构造样本复验；⑤ CBZ / PDF 未接入（非 EPUB 一律回退整本下载）；⑥ EPUB 双栏 / RTL / 字体设置只做页面与进度抽验，
+未逐项走查；⑦ 未做 Pad 5 交叉与弱网（0.3 MB/s）场景。报告：`w77-reports/W77-1.md`。
+
 ### 2026-10-07 · PDF 引擎替换（用户拍板：以后做，现在先调研 · D-F12）
 
 **决议（用户 2026-10-07）**：PDF 快速首开不走「流式改造」（spike 已证不可行——PdfBox parse 全量物化），改走**替换 PDF 引擎**路线：**以后实施，当前先做调研**；与 W77 波解耦（W77 只做 EPUB / CBZ；**PDF 过渡态 = 整本下载 + 打开显示进度**）。
@@ -1809,3 +1845,4 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 | 2026-10-03 | **W48-READER-PERF（分支 `fix/w48-saf-pdf-scan-memory`，起点 master `1ebdbcc`）：本地 SAF PDF 双栏扫描内存爆增修复（D-W47-1）**——①根因：W33 只覆盖本地缓存文件路径，本地媒体库 `content://` 的 `PdfPageSource(descriptor)` 仍 `layout = null` → 双栏逐页 `PdfRenderer.openPage`（W47 金田一 5006 页 Native 1.59 GB / PSS 2.45 GB 被杀）；②方案（D24）：`PdfLayoutSource.forDescriptor()`——`dup` 独立 fd + `Os.pread` 定位读（探针判定可 seek）+ `PDFParser(RandomAccessRead, ScratchFile)`（8 MB 混合缓冲），**4 KB 页 + 256 页 LRU 缓存**（首版无缓存真机 CPU 100% 数分钟不结束，踩坑 31）；③兜底：`PageSource.perPageAspectScanMaxPages`（PDF = 1500），批量不可用时大书跳过逐页扫描用安全默认并打 `skip-fallback` 日志，小书仍逐页；④单测 476 项（book 106 → **110**：阈值边界 / fd 可用性判定 / 页缓存合并读与跨页 / 随机读源批量读取）；⑤门禁四绿（根 `assembleDebug` 含 TV + `ktfmtCheck` + 7 个测试任务 `--rerun` 476 项 0 失败）；⑥真机 K60：金田一 5006 页扫描日志与修复前逐字一致（`slots=4973 landscape=4938`），Native 49.8–53.9 MB / PSS 358–368 MB（同机滚动基线 316.3 MB）、60 s 不增长、可回落；W22 `landscape=2 at=14,15`、RTL 相位对图 8/8、0 误拼；⑦设备副作用还原（§7.16） |
 | 2026-10-03 | **W49-READER（分支 `fix/w49-leftover-cleanup`，起点 master `3dbca99`）：对图判定「null 不缓存 + 可重试」（D25）**——`SpreadMergeDecisionResult`（`Ready` / `NotReady`）+ `SpreadMergeDecisionMemo` 只缓存明确结论；`shouldRetry` + 250 ms 退避重试（上限 3 次）+ 停稳预取补当前槽；单测 110 → **113**（`SpreadMergeDecisionMemoTest` 3 项）；真机 LTR 冷启动 8/8 + 切 RTL 重建缓存 8/8 + `landscape=2 at=14,15` + 0 误拼（§7.17）；同波将 CBZ 页序自然序比较器下沉 data 共用（`DOWNLOAD_PLAN` §17） |
 | 2026-10-04 | **W62（分支 `fix/w62-regression-defects`）：EPUB「滚动」口径复核（非缺陷，不改代码）**——Readium 3.4.0 Android 的滚动 = **每个 spine 资源内部垂直滚动 + 资源之间左右滑动翻页**（无「纵向滚到底自动翻章」；AAR `R2BasicWebView.scrollLeft/scrollRight` + `disablePageTurnsWhileScrolling` 佐证）；真机 Pad 5（滚动档）：正文资源 `split_008/009/016` 上下滑 **18.7–22.7%** 像素位移、资源底部再滑 0.00–0.01%、左右滑翻资源 18.5–19.2%（logcat 资源名 `_split_009 → _split_010`）；W61「上下滑无位移」= 书首封面 / 扉页 / 版权等**不足一屏**资源 + 滚到边界。人工复测步骤见 `TEST_PLAN` §7.6.6 F3。 |
+| 2026-10-07 | **W77-1（分支 `feature/w77-epub-stream`，基座 master `cfb220f`，worktree `w77b`）：EPUB 远程流式首开 + 后台下载热切换**——①自建 OkHttp 版 Readium `HttpClient`（TOFU 自签信任 + `X-Emby-Token`；`DefaultHttpClient` 两者都没有）；②**HEAD 容错**：Jellyfin Download 端点 HEAD=405，改 `GET Range: bytes=0-0` + `Content-Range` 合成 200/`Content-Length`（Readium `HttpResource.length()` 依赖 HEAD）；③**`PreciseHttpResource`**：Readium 的 `HttpResource.read(range)` 会把有界读退化成开放式 `bytes=N-`（229 MB 实测响应头 `Content-Length: 229242026`，读不完 → 连接不可复用 + 30 s 读超时 + 服务端空转），改为有界 Range + 读完即关 + **1 MB 块缓存（LRU ≤12 MB）**，长度探测与首块合并为一次请求；④**取消兜底**：协程 Job 完成回调不能中止已在读响应体的 call（实测返回后 3.4 s 仍跑完）→ `InFlightRequestRegistry` + `onCleared.cancelAll()`；⑤热切换用 `pendingHotSwap` 处理竞态、`ReadiumEpubView` 导航器状态移进 `key(publication)`；⑥门禁四绿 + 单测 113 → **124**；⑦真机 K60：229 MB EPUB 远端就绪 **29.9–46.3 s / 3–5 请求 / ≈2.7–4.7 MB** vs 整本下载 ≈108 s，热切换 **1.26 s** 且页码 / 进度不变，返回后在途请求立即中止 + 95 MB `.part` 4 s 清理，离线回退错误态可重试，**0 FATAL / 0 ANR**。报告 `w77-reports/W77-1.md`；详见 §9「W77-1」条 | 

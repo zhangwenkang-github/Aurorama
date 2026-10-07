@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.repository
 import java.io.File
 import java.time.Instant
 import java.util.UUID
+import okhttp3.OkHttpClient
 
 /**
  * 阅读器数据契约（ARCHITECTURE §5.1）。
@@ -13,6 +14,21 @@ import java.util.UUID
 interface ReaderRepository {
     /** 打开书籍用：本地已有直接命中，否则整本下载到应用私有目录。 */
     suspend fun ensureLocalFile(itemId: UUID): File
+
+    /**
+     * W77 阅读流式：未下载书籍的远程读取入口（`GET /Items/{id}/Download` + 访问令牌）。
+     *
+     * 没有登录会话 / 服务器地址时返回 null，调用方按既有「整本下载」路径处理。
+     */
+    suspend fun remoteBookSource(itemId: UUID): RemoteBookSource?
+
+    /**
+     * W77 阅读流式：阅读页远程资产共用的 OkHttp 客户端（已应用应用级 TOFU 自签证书信任）。
+     *
+     * Readium 自带的 `DefaultHttpClient` 走 `HttpURLConnection` + 系统信任库，拿不到本应用的 TOFU 信任， 因此远程 EPUB
+     * 必须复用这里的客户端。调用方应在其基础上派生独立的 `Dispatcher` / `ConnectionPool`（避免「离开阅读页取消在途请求」时误伤其它网络任务）。
+     */
+    fun readerHttpClient(): OkHttpClient
 
     /** 显式下载（离线阅读 EB-11）：`onProgress` 为 0.0–1.0。 */
     suspend fun downloadLocalFile(itemId: UUID, onProgress: (Float) -> Unit = {}): File
@@ -41,6 +57,14 @@ interface ReaderRepository {
 
     suspend fun deleteBookmark(itemId: UUID, bookmarkId: String)
 }
+
+/** W77 阅读流式：远程书籍读取入口。 */
+data class RemoteBookSource(
+    /** `/Items/{id}/Download`（支持 HTTP Range）。 */
+    val url: String,
+    /** `X-Emby-Token` 访问令牌。 */
+    val token: String,
+)
 
 /** 已下载书籍的本地文件信息。W36：`title` 为下载时落盘的书名（缺省 = 旧数据没有标题侧车）。 */
 data class LocalBookFile(val itemId: UUID, val sizeBytes: Long, val title: String? = null)

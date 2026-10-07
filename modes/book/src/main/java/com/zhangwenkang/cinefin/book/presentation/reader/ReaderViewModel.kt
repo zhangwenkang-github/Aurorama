@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.SystemClock
 import android.provider.OpenableColumns
@@ -10,6 +11,7 @@ import com.zhangwenkang.cinefin.local.localItemIdFor
 import com.zhangwenkang.cinefin.repository.ReaderBookmark
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.repository.ReadingProgress
+import com.zhangwenkang.cinefin.repository.RemoteBookSource
 import com.zhangwenkang.cinefin.repository.progressionToTicks
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -37,7 +40,12 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
+import org.readium.r2.shared.util.asset.DefaultArchiveOpener
+import org.readium.r2.shared.util.asset.DefaultFormatSniffer
+import org.readium.r2.shared.util.asset.DefaultResourceFactory
+import org.readium.r2.shared.util.format.Specification
 import org.readium.r2.shared.util.http.DefaultHttpClient
+import org.readium.r2.shared.util.http.HttpClient
 import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 import timber.log.Timber
@@ -50,6 +58,15 @@ private const val PROGRESS_PERIODIC_MS = 30_000L
 
 /** 搜索输入去抖：输入停顿后才真正开始扫描（打字时立即取消上一条扫描，保证输入跟手）。 */
 private const val SEARCH_DEBOUNCE_MS = 400L
+
+/**
+ * W77 阅读流式：远程首开的等待上限。
+ *
+ * 取值依据实测（2026-10-07，K60 + 生产服务器）：单次 Range 请求 **1.4–20 s**（TLS 握手 2.5–7 s，热连接约 1.4 s， 服务端偶发 20 s
+ * 级抖动），而打开一本 229 MB EPUB 只需「首块（含长度探测）+ 尾部/中央目录 + 首章」个位数请求： 实测远端就绪 **46.3 s**（同书整本下载 ≈2 min）。90 s
+ * 是「仍明显优于整本下载」且不会无限卡 Loading 的折中。 超时会取消在途 HTTP（OkHttp call.cancel）并回退既有整本下载路径。
+ */
+private const val REMOTE_OPEN_TIMEOUT_MS = 90_000L
 
 sealed interface ReaderUiState {
     data object Loading : ReaderUiState
@@ -135,6 +152,17 @@ constructor(
 
     private var openedItemId: UUID? = null
     private var openedAsset: Asset? = null
+    /** W77：当前打开的文档是否来自远程流式资产（后台整本下载完成后据此热切换本地）。 */
+    private var openedFromRemote = false
+    /** W77：远程阅读的 OkHttp 客户端实例（离开阅读页时 `close()` 兜底取消在途请求）。 */
+    private var remoteHttpClient: ReadiumRemoteHttpClient? = null
+    /** W77：远程读取的在途请求登记表（`onCleared` 时确定性取消；协程取消回调在真机上不总能中断读体）。 */
+    private var remoteInFlight: InFlightRequestRegistry? = null
+    /**
+     * W77：后台整本下载已完成、但阅读页当时还没就绪（Loading）时暂存的待热切换目标 （itemId →
+     * 本地文件字节数）。阅读页就绪后立即补做热切换，避免「小书下载比远程首开还快」时漏切。
+     */
+    private var pendingHotSwap: Pair<UUID, Long>? = null
     private var openedPageSource: PageSource? = null
     private var openedBookFile: File? = null
     /** W37：本地媒体库书籍（SAF `content://`）；非空时源文件在用户文件夹里（索引只读，不拷贝）。 */
@@ -166,37 +194,19 @@ constructor(
         if (_state.value is ReaderUiState.Ready || openedItemId == itemId) return
         openedItemId = itemId
         localDocumentUri = null
+        pendingHotSwap = null
         _state.value = ReaderUiState.Loading
         resetToolState()
+        // 上一本若还挂着远程资产 / 客户端，先放掉（含超时回退留下的悬挂资产）。
+        releaseRemoteClient()
 
         viewModelScope.launch {
             try {
-                val ready =
-                    withContext(Dispatchers.IO) {
-                        val startedAt = SystemClock.elapsedRealtime()
-                        // W64：未下载的书要等整本下载完成；返回 / 清理时协程取消，数据层会中止在途 HTTP。
-                        val file = readerRepository.ensureLocalFile(itemId)
-                        val fileAt = SystemClock.elapsedRealtime()
-                        val progress = readerRepository.getReadingProgress(itemId)
-                        val progressAt = SystemClock.elapsedRealtime()
-                        val document = openDocument(file, progress)
-                        val documentAt = SystemClock.elapsedRealtime()
-                        Timber.i(
-                            "打开书籍耗时：文件 %d ms / 进度 %d ms / 文档 %d ms / 合计 %d ms（%s）",
-                            fileAt - startedAt,
-                            progressAt - fileAt,
-                            documentAt - progressAt,
-                            documentAt - startedAt,
-                            itemId,
-                        )
-                        ReaderUiState.Ready(
-                            itemId = itemId,
-                            document = document,
-                            initialProgression = progress?.progression ?: 0.0,
-                        )
-                    }
+                val ready = withContext(Dispatchers.IO) { openFromBestSource(itemId) }
                 _state.value = ready
                 refreshLocalState(itemId)
+                // 后台下载可能比远程首开更快（小书）：阅读页就绪后补做热切换。
+                hotSwapToLocal(itemId)
                 startPeriodicProgressReporter()
             } catch (cancellation: CancellationException) {
                 // 返回 / Activity 销毁：不再写状态、不弹错误，交给 onCleared 释放资源。
@@ -204,10 +214,157 @@ constructor(
             } catch (error: Exception) {
                 Timber.w(error, "打开书籍失败")
                 closeDocuments()
+                releaseRemoteClient()
                 _state.value = ReaderUiState.Error(error.message ?: "打开书籍失败")
             }
         }
     }
+
+    /**
+     * W77：打开入口的**来源决策**。
+     *
+     * 1. 本地已有整本文件 → 既有「本地打开」路径（W64 的 2 ms 级基线，零变化）；
+     * 2. 未下载 + 联网 + 有会话 → **先试**远程流式（本卡只覆盖 EPUB），并行起后台整本下载；
+     * 3. 远程不是 EPUB / 超时 / 失败 / 离线 → 回退既有「整本下载后打开」路径（不新增死路）。
+     */
+    private suspend fun openFromBestSource(itemId: UUID): ReaderUiState.Ready {
+        val startedAt = SystemClock.elapsedRealtime()
+        val hasLocalFile = runCatching { readerRepository.localFile(itemId) }.getOrNull() != null
+        val online = hasActiveNetwork()
+        val remote =
+            if (!hasLocalFile && online) {
+                runCatching { readerRepository.remoteBookSource(itemId) }.getOrNull()
+            } else {
+                null
+            }
+
+        if (
+            decideReaderOpenSource(hasLocalFile, online, remote != null) ==
+                ReaderOpenSource.RemoteCandidate && remote != null
+        ) {
+            // 后台并行整本下载：完成后热切换本地；失败不影响已经打开的远程阅读。
+            startDownload(itemId)
+            val progress = readerRepository.getReadingProgress(itemId)
+            openRemoteEpub(itemId, remote, progress, startedAt)?.let {
+                return it
+            }
+            releaseRemoteClient()
+            return openDownloaded(itemId, startedAt, progress)
+        }
+        return openDownloaded(itemId, startedAt, null)
+    }
+
+    /** 既有路径：整本下载到应用私有目录后本地打开（W64 取消语义不变）。 */
+    private suspend fun openDownloaded(
+        itemId: UUID,
+        startedAt: Long,
+        knownProgress: ReadingProgress?,
+    ): ReaderUiState.Ready {
+        // W64：未下载的书要等整本下载完成；返回 / 清理时协程取消，数据层会中止在途 HTTP。
+        val file = readerRepository.ensureLocalFile(itemId)
+        val fileAt = SystemClock.elapsedRealtime()
+        val progress = knownProgress ?: readerRepository.getReadingProgress(itemId)
+        val progressAt = SystemClock.elapsedRealtime()
+        val document = openDocument(file, progress)
+        val documentAt = SystemClock.elapsedRealtime()
+        openedFromRemote = false
+        Timber.i(
+            "打开书籍耗时：文件 %d ms / 进度 %d ms / 文档 %d ms / 合计 %d ms（%s）",
+            fileAt - startedAt,
+            progressAt - fileAt,
+            documentAt - progressAt,
+            documentAt - startedAt,
+            itemId,
+        )
+        return ReaderUiState.Ready(
+            itemId = itemId,
+            document = document,
+            initialProgression = progress?.progression ?: 0.0,
+        )
+    }
+
+    /**
+     * W77：远程流式首开（本卡只覆盖 EPUB）。
+     *
+     * 返回 null 表示远端不可用（离线 / 不是 EPUB / 超时 / 异常），调用方回退整本下载；本方法**不抛业务错误**。
+     */
+    private suspend fun openRemoteEpub(
+        itemId: UUID,
+        remote: RemoteBookSource,
+        progress: ReadingProgress?,
+        startedAt: Long,
+    ): ReaderUiState.Ready? =
+        withTimeoutOrNull(REMOTE_OPEN_TIMEOUT_MS) {
+            try {
+                val url =
+                    Url(remote.url) as? AbsoluteUrl
+                        ?: throw IllegalStateException("远程书籍地址非法：${remote.url}")
+                val inFlight = InFlightRequestRegistry()
+                remoteInFlight = inFlight
+                val httpClient =
+                    ReadiumRemoteHttpClient(
+                            readerRepository.readerHttpClient(),
+                            remote.token,
+                            inFlight,
+                        )
+                        .also { remoteHttpClient = it }
+                // 根资源走「精确 Range」实现（Readium 的 HttpResource 会把有界读退化成开放式 Range）。
+                val resourceFactory =
+                    RemoteFirstResourceFactory(
+                        delegate = DefaultResourceFactory(context.contentResolver, httpClient),
+                        client = readerRepository.readerHttpClient(),
+                        token = remote.token,
+                        inFlight = inFlight,
+                    )
+                val assetRetriever =
+                    AssetRetriever(
+                        resourceFactory,
+                        DefaultArchiveOpener(),
+                        DefaultFormatSniffer(),
+                    )
+                val assetResult = assetRetriever.retrieve(url)
+                val asset = assetResult.getOrNull()
+                if (asset == null) {
+                    Timber.w("阅读流式：远程资产嗅探失败 %s", assetResult.failureOrNull())
+                    return@withTimeoutOrNull null
+                }
+                if (!shouldStreamRemoteAsset(asset.format.conformsTo(Specification.Epub))) {
+                    Timber.i(
+                        "阅读流式：远程资产不是 EPUB（%s），回退整本下载（%s）",
+                        asset.format.mediaType,
+                        itemId,
+                    )
+                    asset.close()
+                    return@withTimeoutOrNull null
+                }
+
+                val publication = openPublication(assetRetriever, httpClient, asset)
+                openedAsset = asset
+                openedFromRemote = true
+                // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
+                val initialLocator =
+                    progress?.locatorJson?.toLocator()
+                        ?: progress
+                            ?.takeIf { it.progression > 0.0 }
+                            ?.let { locateByProgression(publication, it.progression) }
+                val readyAt = SystemClock.elapsedRealtime()
+                Timber.i(
+                    "阅读流式首开：远端就绪 %d ms（%s）",
+                    readyAt - startedAt,
+                    itemId,
+                )
+                ReaderUiState.Ready(
+                    itemId = itemId,
+                    document = ReaderDocument.Rich(publication, initialLocator),
+                    initialProgression = progress?.progression ?: 0.0,
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Throwable) {
+                Timber.w(error, "阅读流式：远程首开失败，回退整本下载（%s）", itemId)
+                null
+            }
+        }
 
     /**
      * W37 本地媒体库：直接打开用户文件夹里的书籍（`content://`，不拷贝源文件）。
@@ -219,8 +376,10 @@ constructor(
         if (_state.value is ReaderUiState.Ready && openedItemId == itemId) return
         openedItemId = itemId
         localDocumentUri = uri
+        pendingHotSwap = null
         _state.value = ReaderUiState.Loading
         resetToolState()
+        releaseRemoteClient()
         viewModelScope.launch {
             try {
                 val ready =
@@ -262,6 +421,7 @@ constructor(
         val itemId = openedItemId ?: return
         val localUri = localDocumentUri
         closeDocuments()
+        releaseRemoteClient()
         resetToolState()
         openedItemId = null
         if (localUri != null) openLocal(localUri, null) else open(itemId)
@@ -342,9 +502,20 @@ constructor(
         }
     }
 
-    /** 显式下载整本书（EB-11）：离线前先下好，飞行模式下也能打开。 */
+    /** 显式下载整本书（EB-11）：离线前先下好，飞行模式下也能打开。语义与 W3–W64 一致。 */
     fun downloadBook() {
         val itemId = openedItemId ?: return
+        startDownload(itemId)
+    }
+
+    /**
+     * W77：整本下载（「下载整本」按钮与远程首开的后台补下共用）。
+     *
+     * - 进度写入 [downloadState]（顶栏「下载中 xx%」）；
+     * - 完成后若当前打开的是**远程流式**文档，则热切换到本地文件（页码 / locator 不回退）；
+     * - 取消语义沿用 W64：离开阅读页 `onCleared` 取消 Job → 数据层 `call.cancel()` 中止在途 HTTP。
+     */
+    private fun startDownload(itemId: UUID) {
         if (_downloadState.value is BookDownloadState.Downloading) return
         downloadJob?.cancel()
         _downloadState.value = BookDownloadState.Downloading(0f)
@@ -360,14 +531,77 @@ constructor(
                         }
                     }
                 _downloadState.value = BookDownloadState.Downloaded(file.length())
+                pendingHotSwap = itemId to file.length()
+                hotSwapToLocal(itemId)
             } catch (cancellation: CancellationException) {
                 // 离开阅读页时 onCleared 会取消下载并中止在途 HTTP；这是预期路径，不展示错误。
                 throw cancellation
             } catch (error: Exception) {
                 Timber.w(error, "下载书籍失败")
+                // 远程流式已打开时下载失败不影响阅读，只在顶栏提示可重试。
                 _downloadState.value = BookDownloadState.Failed(error.message ?: "下载失败，请检查网络")
             }
         }
+    }
+
+    /**
+     * W77：后台整本下载完成后**热切换**到本地文件。
+     *
+     * 重建 `ReaderDocument.Rich`（新 publication 指向本地文件）并以当前 locator 复位，导航器 （`key(publication)` +
+     * `initialLocator`）重建到同一页——允许一帧重绘，但页码不回退。 任一步失败都保持远程文档可用（不清状态、不抛错）。
+     */
+    private suspend fun hotSwapToLocal(itemId: UUID) {
+        val pending = pendingHotSwap ?: return
+        if (pending.first != itemId) return
+        val downloadedBytes = pending.second
+        // 阅读页还没就绪（远程首开仍在进行）：保留 pending，等 `open()` 写状态后再补做。
+        val current = _state.value as? ReaderUiState.Ready ?: return
+        if (!shouldHotSwapToLocal(openedFromRemote, openedItemId == itemId, downloadedBytes)) {
+            // 当前不是远程文档（本地打开 / 已经切过）：无需热切换。
+            pendingHotSwap = null
+            return
+        }
+        if (current.document !is ReaderDocument.Rich) return
+
+        val startedAt = SystemClock.elapsedRealtime()
+        // 当前位置：优先当前 locator；退化到 progression（多设备 / 刚打开还未回调 locator）。
+        val locator = currentLocator
+        val progression =
+            locator?.locations?.totalProgression
+                ?: locator?.locations?.progression
+                ?: current.initialProgression
+        val progress =
+            ReadingProgress(
+                itemId = itemId,
+                locatorJson = locator?.toJSON()?.toString().orEmpty(),
+                progression = progression,
+                positionTicks = 0L,
+                updatedAt = Instant.now(),
+            )
+
+        // 先摘下远程资产引用：openDocument 会覆写 openedAsset，失败时要能回滚。
+        val previousAsset = openedAsset
+        openedAsset = null
+        val document =
+            try {
+                openDocument(readerRepository.ensureLocalFile(itemId), progress)
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                openedAsset = previousAsset
+                Timber.w(error, "阅读流式：热切换本地失败，保持远程阅读（%s）", itemId)
+                pendingHotSwap = null
+                return
+            }
+        previousAsset?.close()
+        openedFromRemote = false
+        pendingHotSwap = null
+        releaseRemoteClient()
+        _state.value = ReaderUiState.Ready(itemId, document, progression)
+        Timber.i(
+            "阅读流式：热切换本地完成 %d ms（%s）",
+            SystemClock.elapsedRealtime() - startedAt,
+            itemId,
+        )
     }
 
     fun addBookmark() {
@@ -615,6 +849,13 @@ constructor(
     }
 
     private suspend fun refreshLocalState(itemId: UUID) {
+        // W77：远程首开时会并行起后台整本下载；此时不能被「本地还没有文件」覆盖成 NotDownloaded。
+        if (_downloadState.value is BookDownloadState.Downloading) {
+            refreshBookmarks()
+            refreshAnnotations(itemId)
+            refreshPendingSyncCount()
+            return
+        }
         // 本地媒体库书籍：文件在用户文件夹（SAF），用文档大小显示「离线可读」。
         _downloadState.value =
             if (localDocumentUri != null) {
@@ -642,12 +883,14 @@ constructor(
         .getOrNull()
 
     override fun onCleared() {
+        Timber.i("阅读页 onCleared：取消在途请求与后台下载（%s）", openedItemId)
         progressJob?.cancel()
         simpleProgressJob?.cancel()
         periodicJob?.cancel()
         downloadJob?.cancel()
         resetToolState()
         closeDocuments()
+        releaseRemoteClient()
         super.onCleared()
     }
 
@@ -657,6 +900,33 @@ constructor(
         openedAsset = null
         openedPageSource?.close()
         openedPageSource = null
+        openedFromRemote = false
+        pendingHotSwap = null
+    }
+
+    /**
+     * W77：释放远程阅读客户端（离开阅读页时取消在途 HTTP，含 Readium 内部发起的章节 / 图片读取）。
+     *
+     * 远程文档仍在渲染时不能摘掉 `openedAsset`，因此只在「远程 doc 已不再使用」的路径调用 （打开新书 / 热切换完成 / 远端失败清理 /
+     * onCleared）。重复调用安全。
+     */
+    private fun releaseRemoteClient() {
+        remoteInFlight?.cancelAll()
+        remoteInFlight = null
+        remoteHttpClient?.close()
+        remoteHttpClient = null
+        if (openedFromRemote) {
+            // 远程资产还挂着但已不再作为当前文档（超时 / 回退路径）：一并关闭。
+            openedAsset?.close()
+            openedAsset = null
+            openedFromRemote = false
+        }
+    }
+
+    /** 当前是否有活跃网络（离线 → 直接走整本下载路径，不发起远程流式）。 */
+    private fun hasActiveNetwork(): Boolean {
+        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return true
+        return manager.activeNetwork != null
     }
 
     private suspend fun locateByProgression(
@@ -748,8 +1018,12 @@ constructor(
         val httpClient = DefaultHttpClient()
         val assetRetriever = AssetRetriever(context.contentResolver, httpClient)
         val assetResult = assetRetriever.retrieve(file)
-        val (asset, publication) = openPublication(assetRetriever, httpClient, assetResult)
+        val asset =
+            assetResult.getOrNull()
+                ?: throw IllegalStateException("无法识别书籍格式：${assetResult.failureOrNull()}")
+        val publication = openPublication(assetRetriever, httpClient, asset)
         openedAsset = asset
+        openedFromRemote = false
         // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
         val initialLocator =
             progress?.locatorJson?.toLocator()
@@ -766,8 +1040,12 @@ constructor(
         val url =
             Url(uri.toString()) as? AbsoluteUrl ?: throw IllegalStateException("无法识别本地书籍地址：$uri")
         val assetResult = assetRetriever.retrieve(url)
-        val (asset, publication) = openPublication(assetRetriever, httpClient, assetResult)
+        val asset =
+            assetResult.getOrNull()
+                ?: throw IllegalStateException("无法识别书籍格式：${assetResult.failureOrNull()}")
+        val publication = openPublication(assetRetriever, httpClient, asset)
         openedAsset = asset
+        openedFromRemote = false
         // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
         val initialLocator =
             progress?.locatorJson?.toLocator()
@@ -777,16 +1055,17 @@ constructor(
         return ReaderDocument.Rich(publication = publication, initialLocator = initialLocator)
     }
 
+    /**
+     * 解析出版物（本地 / 远程共用）。
+     *
+     * 失败时关闭 [asset]（远程资产会顺带释放 OkHttp 流），成功时把生命周期交给调用方 （`openedAsset` → `closeDocuments()`）。
+     */
     private suspend fun openPublication(
         assetRetriever: AssetRetriever,
-        httpClient: DefaultHttpClient,
-        assetResult: org.readium.r2.shared.util.Try<Asset, *>,
-    ): Pair<Asset, Publication> {
-        val asset =
-            assetResult.getOrNull()
-                ?: throw IllegalStateException("无法识别书籍格式：${assetResult.failureOrNull()}")
-
-        return try {
+        httpClient: HttpClient,
+        asset: Asset,
+    ): Publication =
+        try {
             val parser =
                 DefaultPublicationParser(
                     context = context,
@@ -799,12 +1078,11 @@ constructor(
             val publication =
                 publicationResult.getOrNull()
                     ?: throw IllegalStateException("解析书籍失败：${publicationResult.failureOrNull()}")
-            asset to publication
+            publication
         } catch (error: Throwable) {
             asset.close()
             throw error
         }
-    }
 
     private fun readSettings(): ReaderSettings =
         ReaderSettings(

@@ -56,6 +56,16 @@ class ReaderRepositoryImpl(
 
     override suspend fun ensureLocalFile(itemId: UUID): File = downloadLocalFile(itemId) {}
 
+    override fun readerHttpClient(): OkHttpClient = httpClient
+
+    /** W77：未下载书籍的远程流式入口。地址 / 令牌来自 `JellyfinApi`（与下载路径同源）， 只读 GET / Range，不写服务器。 */
+    override suspend fun remoteBookSource(itemId: UUID): RemoteBookSource? {
+        val baseUrl =
+            jellyfinApi.api.baseUrl?.trimEnd('/')?.takeIf { it.isNotEmpty() } ?: return null
+        val token = jellyfinApi.api.accessToken?.takeIf { it.isNotBlank() } ?: return null
+        return RemoteBookSource(url = "$baseUrl/Items/$itemId/Download", token = token)
+    }
+
     override suspend fun downloadLocalFile(itemId: UUID, onProgress: (Float) -> Unit): File =
         withContext(Dispatchers.IO) {
             downloadMutex.withLock {

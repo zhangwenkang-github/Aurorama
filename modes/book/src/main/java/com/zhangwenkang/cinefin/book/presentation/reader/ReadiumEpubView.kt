@@ -50,10 +50,12 @@ internal fun ReadiumEpubView(
     val currentOnLocationChanged = rememberUpdatedState(onLocationChanged)
     val currentOnJumpHandled = rememberUpdatedState(onJumpHandled)
     val currentOnNavigatorReady = rememberUpdatedState(onNavigatorReady)
-    var navigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
-    val listener =
-        remember(publication) {
+    // W77：`key(publication)` 内部持有导航器状态与效果——远程流式 → 本地热切换会换 publication
+    // （同一个 `AndroidView` 节点被重建），状态必须跟着 publication 重建，否则新导航器不会挂载。
+    key(publication) {
+        var navigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
+        val listener = remember {
             object : EpubNavigatorFragment.Listener, EpubNavigatorFragment.PaginationListener {
                 override fun onPageChanged(
                     pageIndex: Int,
@@ -69,25 +71,24 @@ internal fun ReadiumEpubView(
             }
         }
 
-    LaunchedEffect(navigator, settings, systemDark) {
-        navigator?.submitPreferences(settings.toEpubPreferences(systemDark))
-    }
+        LaunchedEffect(navigator, settings, systemDark) {
+            navigator?.submitPreferences(settings.toEpubPreferences(systemDark))
+        }
 
-    // 书签跳转：等导航器就绪后执行一次，避免 Fragment 还没 add 就 go 丢目标。
-    LaunchedEffect(navigator, jumpTarget) {
-        val target = jumpTarget ?: return@LaunchedEffect
-        val currentNavigator = navigator ?: return@LaunchedEffect
-        currentNavigator.go(target, animated = true)
-        currentOnJumpHandled.value()
-    }
+        // 书签跳转：等导航器就绪后执行一次，避免 Fragment 还没 add 就 go 丢目标。
+        LaunchedEffect(navigator, jumpTarget) {
+            val target = jumpTarget ?: return@LaunchedEffect
+            val currentNavigator = navigator ?: return@LaunchedEffect
+            currentNavigator.go(target, animated = true)
+            currentOnJumpHandled.value()
+        }
 
-    // 导航器就绪时上报当前位置：用户不翻页也能直接加书签（不触发进度写入）。
-    LaunchedEffect(navigator) {
-        val currentNavigator = navigator ?: return@LaunchedEffect
-        currentOnNavigatorReady.value(currentNavigator.currentLocator.value)
-    }
+        // 导航器就绪时上报当前位置：用户不翻页也能直接加书签（不触发进度写入）。
+        LaunchedEffect(navigator) {
+            val currentNavigator = navigator ?: return@LaunchedEffect
+            currentOnNavigatorReady.value(currentNavigator.currentLocator.value)
+        }
 
-    key(publication) {
         AndroidView(
             factory = { viewContext ->
                 val container = FragmentContainerView(viewContext)
@@ -119,9 +120,10 @@ internal fun ReadiumEpubView(
                             requireNotNull(publication.javaClass.classLoader),
                             EpubNavigatorFragment::class.java.name,
                         ) as EpubNavigatorFragment
+                    val tag = "$NAVIGATOR_TAG-${System.identityHashCode(publication)}"
                     activity.supportFragmentManager
                         .beginTransaction()
-                        .replace(container.id, fragment, NAVIGATOR_TAG)
+                        .replace(container.id, fragment, tag)
                         .commitNow()
                     navigator = fragment
                 }

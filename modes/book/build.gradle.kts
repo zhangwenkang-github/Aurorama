@@ -48,6 +48,8 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
     implementation(libs.kotlinx.serialization.json)
+    // W77：自建 Readium `HttpClient`（OkHttp 版，复用应用 TOFU 证书信任 + 注入令牌）。
+    implementation(libs.okhttp)
     implementation(libs.pdfbox.android)
     implementation(libs.readium.navigator)
     implementation(libs.readium.shared)
