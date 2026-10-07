@@ -1789,6 +1789,64 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 
 **口径统一（D-F14，2026-10-07 用户拍板「统一」）**：EPUB / CBZ / PDF 三格式统一为**不做自动整本下载**——远端打开只按需预取「当前 + 后面几页」；手动「下载整本」按钮语义保留（用户主动点才下载；完成后可热切换）；失败 / 离线回退整本下载的兜底保留。**W77-1（EPUB）的「打开即自动后台整本下载」是旧口径，移除并入 W77-3**；W77-2（CBZ）已按新口径施工（中途修正已下达）；PDFium 实施波按 D-F13 第 2 条执行。
 
+### W77-3 · 阅读载入状态 / 文案 / 进度 + 移除 EPUB 自动整本下载（2026-10-07，分支 `feature/w77-stream-state`，基座 master `76909cc`）——**真机通过（待负责人合并）**
+
+**结论**：①**EPUB 打开不再自动整本下载**（D-F14 收口，W77-1 未覆盖②关闭）；②顶栏三态与真实来源一致：`流式载入中…`
+→ `流式阅读中`（右侧保留手动「下载」）→ `下载中 N%` → `离线可读 · 大小`；③**PDF 过渡态「打开即显示进度」**完成
+（`ensureLocalFile` 的 `onProgress` 由丢弃改为写顶栏）；④打开失败不再停在「下载中 0%」（转「重试下载」）。
+
+**状态机与文案（最终口径）**：两个正交状态流决定顶栏 → `ReaderStreamState{Local, StreamConnecting, Streaming}`
+（阅读来源：本地 / 远端载入中 / 远端阅读中）× `BookDownloadState{NotDownloaded, Downloading, Downloaded, Failed}`（离线可读性）；
+分支决策收敛到纯函数 `readerStatusBadge(streamState, downloadState)`，优先级 = 下载中 > 流式载入中 > 离线可读 > 下载失败 >
+流式阅读中 > 可下载。文案：`流式载入中…` / `流式阅读中` + `下载` / `下载中 N%` / `重试下载` / `离线可读 · 218.6 MB` / `下载`
+（N 由 `downloadPercent` 向下取整，99.6% 不显示成 100%）。**关键判断**：不把「流式」塞进 `BookDownloadState` ——
+「流式阅读中」与「正在手动下载整本」可以同时成立，拆成正交状态流后组合可穷举、可单测。
+
+**实现要点（5 条）**：
+
+1. **移除自动整本下载**：`ReaderViewModel.openRemote()` 的 `RemoteStreamKind.Epub` 分支删掉 `startDownload(itemId)`；
+   `hotSwapToLocal` / `pendingHotSwap` 原样保留给「用户手动下载完成」；远程失败 / 离线仍回退整本下载（兜底口径不变）。
+2. **契约补口**：`ReaderRepository.ensureLocalFile(itemId, onProgress = {})` —— 打开路径原先把进度丢掉；新契约 =
+   **只在确实发生整本下载时上报**，且下载开始前先给一次 `0f`（无 `Content-Length` 的响应也能进「下载中」），
+   本地已有文件时只给一次 `1f` 后立即返回（调用方据此不闪「下载中 100%」）。
+3. **进度节流放在 ViewModel**：数据层每 64 KB 回调一次（100 MB ≈ 1600 次），`downloadProgressReporter()` 只在整数百分比
+   变化时写 `StateFlow`（否则整页 Compose 每块都重组）；`downloadLocalFile` 与 `ensureLocalFile` 共用同一条。
+4. **失败态不撒谎**：`open()` 的 catch 里若当时是 `Downloading` 则转 `Failed`（顶栏「重试下载」）——真机第一轮发现飞行模式
+   打开会让顶栏停在「下载中 0%」。
+5. **UI 零重构风险**：`DownloadAction` 只是把原来 `when(downloadState)` 之外加「流式」两条分支，样式沿用 Prism
+   顶栏既有 `CinefinType.LabelLarge` / `CinefinButton(Text, Small)`。
+
+**真机实测（K60 `8e875894`，2026-10-07 16:20–16:29；测试服务器只读 GET / Range）**：
+
+| 样本 | 大小 | 远端就绪 | 顶栏三态取证 | 静默 20 s |
+|------|------|----------|--------------|-----------|
+| `飛野同學是笨蛋.epub` | 229,242,149 B | **8,984 ms** / 5 个有界 Range（≈3.9 MB） | `流式载入中…` → `流式阅读中`+`下载` → `下载中 3%…` → `离线可读 · 218.6 MB` | App **+0 请求**、设备级 wlan0 **+7,452 B**、**无 `.part`** |
+| `Anda's Game.cbz`` | 17,345,707 B | **8,911 ms**（24 页） | `流式载入中…` → `流式阅读中`+`滚动 · 5/24` → 下载 → `离线可读 · 16.5 MB` | — |
+| `W26-Spread-Edge-Test.cbz` | — | **6,547 ms**（44 页） | `流式阅读中` + `滚动 · 1/44`（W77-2 不回归） | — |
+| `虚构推理 (2026).pdf` | 670,643,292 B | 不流式 → 回退 | `下载中 0%` → `下载中 6%`（`.part` 同步增长） | — |
+
+- **无自动整本下载的硬证据**：229 MB EPUB 打开全程只发**有界** Range（1 MB 首块含长度探测 + 尾部 652,581 B + 首章
+  1 MB ×3），无 `阅读流式：请求整本远程资源` 告警；静默 20 s 内 `files/books` **始终没有 `.part`**（旧口径的自动下载会
+  立刻产生 229 MB 级 `.part`）。
+- **手动下载 + 热切换**：EPUB 229 MB → `热切换本地完成 1273 ms`、「第 7 頁」不回退；CBZ 17 MB → `CBZ 热切换本地完成 8 ms
+  （第 5 页 / 24）`。
+- **取消（W64 语义保持）**：670 MB PDF 返回后 6 s 内 `.part`（当时 84,700,789 B / 11%）消失、其后 **0 新请求**。
+- **离线回退 + 重试（无死路）**：飞行模式 → 错误态「打不开这本书 / Unable to resolve host …」+「重试」/ 顶栏「重试下载」；
+  恢复网络点重试 → 嗅探 Pdf → 回退整本下载 → `下载中 0%`。
+- **已下载本地打开零变化**：W26 PDF `打开书籍耗时：文件 1 ms / 进度 1108 ms / 文档 37 ms / 合计 1146 ms`、
+  「离线可读 · 33.1 MB」+ 搜索 / 批注入口；**0 FATAL / 0 ANR**（crash buffer 空、dropbox 仅 2026-10-06 旧记录）。
+
+**门禁**：`:modes:book:ktfmtCheck` + 根 `ktfmtCheck` + `:modes:book:testDebugUnitTest`（137 → **145**：新增
+`ReaderStatusBadgeTest` 8 项，覆盖 8 组 (streamState, downloadState) → badge 组合 + `downloadPercent` 边界）+
+`:app:phone:assembleDebug` 四绿。
+
+**未覆盖 / 风险**：①**D 两项可选任务未做**——EPUB 远端章节预取（Readium 章节资产走 `PreciseHttpResource` 块缓存，预取要在
+导航器之外另挂驱动，成本 / 回归风险高）与 CBZ 位图预取窗口扩展（`PAGE_BITMAP_WINDOW = 3` 内存约束，留后续波）；
+②顶栏最长文案「离线可读 · 218.6 MB」只在 K60 竖屏走查，**横屏 / 窄屏 / Pad 5 未走查**；③下载失败时顶栏「重试下载」与错误页
+「重试」两个入口并存（语义一致但重复，留 W77-4 决定是否收口）；④静默期流量只有**设备级**计数（MIUI 拒绝
+`/sys/class/net/wlan0/statistics/rx_bytes`、`dumpsys netstats` 桶宽 7200 s），App 级用请求条数 + 文件系统证据；
+⑤未做弱网（0.3 MB/s）；⑥PDF 仍整本下载（PDFium 后续波）。报告：`w77-reports/W77-3.md`。
+
 ### 2026-10-07 · PDF 引擎替换（用户拍板：以后做，现在先调研 · D-F12）
 
 **决议（用户 2026-10-07）**：PDF 快速首开不走「流式改造」（spike 已证不可行——PdfBox parse 全量物化），改走**替换 PDF 引擎**路线：**以后实施，当前先做调研**；与 W77 波解耦（W77 只做 EPUB / CBZ；**PDF 过渡态 = 整本下载 + 打开显示进度**）。
@@ -1899,3 +1957,4 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 | 2026-10-04 | **W62（分支 `fix/w62-regression-defects`）：EPUB「滚动」口径复核（非缺陷，不改代码）**——Readium 3.4.0 Android 的滚动 = **每个 spine 资源内部垂直滚动 + 资源之间左右滑动翻页**（无「纵向滚到底自动翻章」；AAR `R2BasicWebView.scrollLeft/scrollRight` + `disablePageTurnsWhileScrolling` 佐证）；真机 Pad 5（滚动档）：正文资源 `split_008/009/016` 上下滑 **18.7–22.7%** 像素位移、资源底部再滑 0.00–0.01%、左右滑翻资源 18.5–19.2%（logcat 资源名 `_split_009 → _split_010`）；W61「上下滑无位移」= 书首封面 / 扉页 / 版权等**不足一屏**资源 + 滚到边界。人工复测步骤见 `TEST_PLAN` §7.6.6 F3。 |
 | 2026-10-07 | **W77-1（分支 `feature/w77-epub-stream`，基座 master `cfb220f`，worktree `w77b`）：EPUB 远程流式首开 + 后台下载热切换**——①自建 OkHttp 版 Readium `HttpClient`（TOFU 自签信任 + `X-Emby-Token`；`DefaultHttpClient` 两者都没有）；②**HEAD 容错**：Jellyfin Download 端点 HEAD=405，改 `GET Range: bytes=0-0` + `Content-Range` 合成 200/`Content-Length`（Readium `HttpResource.length()` 依赖 HEAD）；③**`PreciseHttpResource`**：Readium 的 `HttpResource.read(range)` 会把有界读退化成开放式 `bytes=N-`（229 MB 实测响应头 `Content-Length: 229242026`，读不完 → 连接不可复用 + 30 s 读超时 + 服务端空转），改为有界 Range + 读完即关 + **1 MB 块缓存（LRU ≤12 MB）**，长度探测与首块合并为一次请求；④**取消兜底**：协程 Job 完成回调不能中止已在读响应体的 call（实测返回后 3.4 s 仍跑完）→ `InFlightRequestRegistry` + `onCleared.cancelAll()`；⑤热切换用 `pendingHotSwap` 处理竞态、`ReadiumEpubView` 导航器状态移进 `key(publication)`；⑥门禁四绿 + 单测 113 → **124**；⑦真机 K60：229 MB EPUB 远端就绪 **29.9–46.3 s / 3–5 请求 / ≈2.7–4.7 MB** vs 整本下载 ≈108 s，热切换 **1.26 s** 且页码 / 进度不变，返回后在途请求立即中止 + 95 MB `.part` 4 s 清理，离线回退错误态可重试，**0 FATAL / 0 ANR**。报告 `w77-reports/W77-1.md`；详见 §9「W77-1」条 | 
 | 2026-10-07 | **W77-2（分支 `feature/w77-cbz-remote`，基座 master `0683e86`，worktree `w77c`）：CBZ 远端页源**——①core 复用门面 `RemoteComicArchive`（生产 `HttpByteSource` + `ZipArchiveReader`；新增 `knownSize` 省一次长度探测、`HttpCallRegistry` 在途请求登记 / 取消）；②`RemoteComicPageSource : PageSource`（远端**跳过逐页版式扫描** / 页级重试 2 次 / **按需预取窗口 = 当前页 + 后 3 页** / 可取消）；③远端 **1 KB 首块嗅探**（`classifyRemoteHeader`）分流 `%PDF-` / ZIP，非规范 EPUB 由中央目录 `remoteZipIsEpub` 兜底；④**打开 CBZ 不再自动整本下载**（用户口径：三格式统一），手动「下载整本」完成后复用 hotSwap（实测 **7 ms**、页码不回退）；⑤`InFlightRequestRegistry` 改**粘性取消**（修「返回后仍发后续 Range 请求」缺陷）；⑥门禁四绿 + 单测 124 → **137**（新增 `RemoteComicPageSourceTest` 本地 Range 服务请求量断言）；⑦真机 K60：17.3 MB / 36.3 MB 两本 CBZ 远端就绪 **3.95–5.0 s**、首屏 ≈6–8 s、静默 20 s **0 新请求**、最大读取偏移 6.5–7 MB（**无整本下载**）、整本下载对照 36.3 MB/≈17.6 s、离线回退错误态可重试、**0 FATAL / 0 ANR**。报告 `w77-reports/W77-2.md`；详见 §9「W77-2」条 |
+| 2026-10-07 | **W77-3（分支 `feature/w77-stream-state`，基座 master `76909cc`，worktree `w77e`）：阅读载入状态 / 文案 / 进度 + 移除 EPUB 自动整本下载**——①**EPUB 打开不再自动整本下载**（D-F14 收口：`openRemote` 的 Epub 分支删 `startDownload`，`hotSwap` / `pendingHotSwap` 留给手动下载；失败 / 离线仍回退整本下载）；②新增 `ReaderStreamState{Local,StreamConnecting,Streaming}` 与纯函数 `readerStatusBadge` / `downloadPercent`，顶栏三态 = `流式载入中…` / `流式阅读中`+`下载` / `下载中 N%` / `离线可读 · 大小`（下载中 > 流式载入中 > 离线可读 > 失败 > 流式阅读中 > 可下载）；③`ReaderRepository.ensureLocalFile(itemId, onProgress)` 契约补口（原先丢弃进度；只在真下载时上报、开始前给 `0f`）→ **PDF 过渡态打开即显示进度**；④打开失败由 `Downloading` 转 `Failed`（顶栏不再停在「下载中 0%」）；⑤门禁四绿 + 单测 137 → **145**（新增 `ReaderStatusBadgeTest` 8 项）；⑥真机 K60：229 MB EPUB 打开 **5 个有界 Range / ≈3.9 MB / 静默 20 s App +0 请求 + 无 `.part`**（无自动整本下载）、顶栏三态逐帧取证、手动下载热切换 **1273 ms**（EPUB）/ **8 ms**（CBZ）页码不回退、670 MB PDF `下载中 0%→6%`、离线回退可重试、已下载本地打开 **1146 ms**、**0 FATAL / 0 ANR**。报告 `w77-reports/W77-3.md`；详见 §9「W77-3」条 |

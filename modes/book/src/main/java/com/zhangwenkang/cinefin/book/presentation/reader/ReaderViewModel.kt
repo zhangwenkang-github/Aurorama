@@ -138,6 +138,15 @@ constructor(
         MutableStateFlow<BookDownloadState>(BookDownloadState.NotDownloaded)
     val downloadState: StateFlow<BookDownloadState> = _downloadState.asStateFlow()
 
+    /**
+     * W77-3：当前阅读来源态（顶栏三态文案的数据源之一，与 [downloadState] 一起决定渲染分支）。
+     *
+     * 本地 / 整本下载路径 = [ReaderStreamState.Local]；远端流式在嗅探与就绪期间 = [ReaderStreamState.StreamConnecting]，
+     * 远端文档真正打开后 = [ReaderStreamState.Streaming]；手动下载完成热切换本地后回到 [ReaderStreamState.Local]。
+     */
+    private val _streamState = MutableStateFlow(ReaderStreamState.Local)
+    val streamState: StateFlow<ReaderStreamState> = _streamState.asStateFlow()
+
     private val _bookmarks = MutableStateFlow<List<ReaderBookmark>>(emptyList())
     val bookmarks: StateFlow<List<ReaderBookmark>> = _bookmarks.asStateFlow()
 
@@ -207,6 +216,7 @@ constructor(
         openedItemId = itemId
         localDocumentUri = null
         pendingHotSwap = null
+        _streamState.value = ReaderStreamState.Local
         _state.value = ReaderUiState.Loading
         resetToolState()
         // 上一本若还挂着远程资产 / 客户端，先放掉（含超时回退留下的悬挂资产）。
@@ -227,6 +237,10 @@ constructor(
                 Timber.w(error, "打开书籍失败")
                 closeDocuments()
                 releaseRemoteClient()
+                // W77-3：整本下载失败（含离线回退）时顶栏不要停在「下载中 0%」，转成可重试的下载失败态。
+                if (_downloadState.value is BookDownloadState.Downloading) {
+                    _downloadState.value = BookDownloadState.Failed(error.message ?: "下载失败，请检查网络")
+                }
                 _state.value = ReaderUiState.Error(error.message ?: "打开书籍失败")
             }
         }
@@ -255,23 +269,41 @@ constructor(
                 ReaderOpenSource.RemoteCandidate && remote != null
         ) {
             val progress = readerRepository.getReadingProgress(itemId)
+            // W77-3：远端流式载入中 —— 顶栏显示「流式载入中…」，不再误显「下载中 xx%」（W77-1 未覆盖②）。
+            _streamState.value = ReaderStreamState.StreamConnecting
             openRemote(itemId, remote, progress, startedAt)?.let {
+                _streamState.value = ReaderStreamState.Streaming
                 return it
             }
+            // 远端不可用（PDF / 未知格式 / 超时 / 失败）：回到本地口径，回退既有整本下载（顶栏随即显示「下载中 xx%」）。
+            _streamState.value = ReaderStreamState.Local
             releaseRemoteClient()
             return openDownloaded(itemId, startedAt, progress)
         }
         return openDownloaded(itemId, startedAt, null)
     }
 
-    /** 既有路径：整本下载到应用私有目录后本地打开（W64 取消语义不变）。 */
+    /**
+     * 既有路径：整本下载到应用私有目录后本地打开（W64 取消语义不变）。
+     *
+     * W77-3：下载进度写进顶栏 —— 未下载 PDF（以及未知格式 / 离线回退）在 Loading 期间显示「下载中 xx%」，
+     * 不再是一个无信息量的转圈（`ensureLocalFile` 的 `onProgress` 原先被丢弃）。
+     */
     private suspend fun openDownloaded(
         itemId: UUID,
         startedAt: Long,
         knownProgress: ReadingProgress?,
     ): ReaderUiState.Ready {
+        _streamState.value = ReaderStreamState.Local
         // W64：未下载的书要等整本下载完成；返回 / 清理时协程取消，数据层会中止在途 HTTP。
-        val file = readerRepository.ensureLocalFile(itemId)
+        val reportProgress = downloadProgressReporter()
+        val file =
+            readerRepository.ensureLocalFile(itemId) { progress ->
+                // 本地已有整本文件时只有一次 1f（立即返回）：不因此闪「下载中 100%」。
+                if (progress < 1f) reportProgress(progress)
+            }
+        // 打开路径上文件已就绪（刚下完 / 本地命中）：顶栏转「离线可读」。
+        _downloadState.value = BookDownloadState.Downloaded(file.length())
         val fileAt = SystemClock.elapsedRealtime()
         val progress = knownProgress ?: readerRepository.getReadingProgress(itemId)
         val progressAt = SystemClock.elapsedRealtime()
@@ -312,12 +344,10 @@ constructor(
             remoteInFlight = inFlight
             try {
                 when (sniffRemoteStreamKind(remote, inFlight)) {
-                    RemoteStreamKind.Epub -> {
-                        // W77-1 口径暂未调整（用户 2026-10-07 已拍板「三格式统一不做自动整本下载」，EPUB 侧由负责人在
-                        // W77-3 统一排卡）：EPUB 打开时仍并行后台整本下载，完成后热切换本地。
-                        startDownload(itemId)
+                    // W77-3（D-F14 口径统一）：EPUB 打开**不再**自动后台整本下载，只按需取远端资产；
+                    // 「下载整本」按钮语义保留，用户主动点才下载，完成后仍复用 hotSwap 热切换本地。
+                    RemoteStreamKind.Epub ->
                         openRemoteEpub(itemId, remote, progress, startedAt, inFlight)
-                    }
 
                     // CBZ：只按需取页（当前页 + 预取窗口），**不自动整本下载**（用户 2026-10-07 口径锁定）。
                     RemoteStreamKind.ComicArchive ->
@@ -547,6 +577,7 @@ constructor(
         openedItemId = itemId
         localDocumentUri = uri
         pendingHotSwap = null
+        _streamState.value = ReaderStreamState.Local
         _state.value = ReaderUiState.Loading
         resetToolState()
         releaseRemoteClient()
@@ -690,16 +721,8 @@ constructor(
         downloadJob?.cancel()
         _downloadState.value = BookDownloadState.Downloading(0f)
         downloadJob = viewModelScope.launch {
-            var lastPercent = -1
             try {
-                val file =
-                    readerRepository.downloadLocalFile(itemId) { progress ->
-                        val percent = (progress * 100).toInt()
-                        if (percent != lastPercent) {
-                            lastPercent = percent
-                            _downloadState.value = BookDownloadState.Downloading(progress)
-                        }
-                    }
+                val file = readerRepository.downloadLocalFile(itemId, downloadProgressReporter())
                 _downloadState.value = BookDownloadState.Downloaded(file.length())
                 pendingHotSwap = itemId to file.length()
                 hotSwapToLocal(itemId)
@@ -710,6 +733,23 @@ constructor(
                 Timber.w(error, "下载书籍失败")
                 // 远程流式已打开时下载失败不影响阅读，只在顶栏提示可重试。
                 _downloadState.value = BookDownloadState.Failed(error.message ?: "下载失败，请检查网络")
+            }
+        }
+    }
+
+    /**
+     * W77-3：下载进度 → 顶栏状态（按**整数百分比**节流）。
+     *
+     * 数据层每 64 KB 回调一次（100 MB 的书 ≈1600 次），直连 `StateFlow` 会让整页 Compose 每块都重组；这里只在百分比
+     * 变化时写状态。`ensureLocalFile` 与 `downloadLocalFile` 共用。
+     */
+    private fun downloadProgressReporter(): (Float) -> Unit {
+        var lastPercent = -1
+        return { progress ->
+            val percent = downloadPercent(progress)
+            if (percent != lastPercent) {
+                lastPercent = percent
+                _downloadState.value = BookDownloadState.Downloading(progress)
             }
         }
     }
@@ -770,6 +810,7 @@ constructor(
             }
         previousAsset?.close()
         openedFromRemote = false
+        _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
         releaseRemoteClient()
         _state.value = ReaderUiState.Ready(itemId, document, progression)
@@ -829,6 +870,7 @@ constructor(
         }
         previousSource?.close()
         openedFromRemote = false
+        _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
         releaseRemoteClient()
         _state.value = ReaderUiState.Ready(itemId, document, progression)
@@ -1086,7 +1128,7 @@ constructor(
     }
 
     private suspend fun refreshLocalState(itemId: UUID) {
-        // W77：远程首开时会并行起后台整本下载；此时不能被「本地还没有文件」覆盖成 NotDownloaded。
+        // W77-3：整本下载在跑（手动下载 / PDF 等回退下载）时不能被「本地还没有文件」覆盖成 NotDownloaded。
         if (_downloadState.value is BookDownloadState.Downloading) {
             refreshBookmarks()
             refreshAnnotations(itemId)
@@ -1138,6 +1180,7 @@ constructor(
         openedPageSource?.close()
         openedPageSource = null
         openedFromRemote = false
+        _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
     }
 

@@ -68,6 +68,7 @@ fun ReaderScreen(
     title: String,
     systemDark: Boolean,
     downloadState: BookDownloadState,
+    streamState: ReaderStreamState,
     bookmarks: List<ReaderBookmark>,
     pendingSyncCount: Int,
     jumpTarget: Locator?,
@@ -127,6 +128,7 @@ fun ReaderScreen(
                         contentColor = contentColor,
                         chromeColor = chromeColor,
                         downloadState = downloadState,
+                        streamState = streamState,
                         onDownload = onDownload,
                         bookmarksEnabled = bookmarksAvailable,
                         onOpenBookmarks = { showBookmarks = true },
@@ -414,6 +416,7 @@ private fun ReaderTopBar(
     contentColor: Color,
     chromeColor: Color,
     downloadState: BookDownloadState,
+    streamState: ReaderStreamState,
     onDownload: () -> Unit,
     bookmarksEnabled: Boolean,
     onOpenBookmarks: () -> Unit,
@@ -442,6 +445,7 @@ private fun ReaderTopBar(
             )
             Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
             DownloadAction(
+                streamState = streamState,
                 downloadState = downloadState,
                 contentColor = contentColor,
                 onDownload = onDownload,
@@ -493,45 +497,83 @@ private fun ReaderTopBar(
     }
 }
 
-/** 离线阅读（EB-11）状态：未下载可点下载，下载中显示进度，已下载显示"离线可读"。 */
+/**
+ * 阅读页顶栏状态区（W77-3 三态）。
+ *
+ * ①远端流式：「流式载入中…」/「流式阅读中」（右侧保留手动「下载」入口）； ②整本下载中：「下载中 xx%」（手动触发；未下载 PDF 等回退下载也走这条）； ③本地已有整本：「离线可读 ·
+ * 大小」。分支决策在纯函数 [readerStatusBadge] 里，单测覆盖。
+ */
 @Composable
 private fun DownloadAction(
+    streamState: ReaderStreamState,
     downloadState: BookDownloadState,
     contentColor: Color,
     onDownload: () -> Unit,
 ) {
-    when (downloadState) {
-        BookDownloadState.NotDownloaded ->
-            CinefinButton(
-                text = "下载",
-                onClick = onDownload,
-                variant = CinefinButtonVariant.Text,
-                size = CinefinButtonSize.Small,
-            )
-
-        is BookDownloadState.Downloading ->
+    val badge = readerStatusBadge(streamState, downloadState)
+    when (badge) {
+        ReaderStatusBadge.StreamingLoading ->
             Text(
-                text = "下载中 ${(downloadState.progress * 100).toInt()}%",
+                text = "流式载入中…",
                 style = CinefinType.LabelLarge,
                 color = contentColor,
                 modifier = Modifier.padding(horizontal = CinefinSpacing.Space2),
             )
 
-        is BookDownloadState.Downloaded ->
-            Text(
-                text = "离线可读 · ${formatBookSize(downloadState.sizeBytes)}",
-                style = CinefinType.LabelLarge,
-                color = contentColor,
-                modifier = Modifier.padding(horizontal = CinefinSpacing.Space2),
-            )
+        ReaderStatusBadge.StreamingReading ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "流式阅读中",
+                    style = CinefinType.LabelLarge,
+                    color = contentColor,
+                    modifier = Modifier.padding(horizontal = CinefinSpacing.Space2),
+                )
+                CinefinButton(
+                    text = "下载",
+                    onClick = onDownload,
+                    variant = CinefinButtonVariant.Text,
+                    size = CinefinButtonSize.Small,
+                )
+            }
 
-        is BookDownloadState.Failed ->
-            CinefinButton(
-                text = "重试下载",
-                onClick = onDownload,
-                variant = CinefinButtonVariant.Text,
-                size = CinefinButtonSize.Small,
-            )
+        // 其余分支由 downloadState 决定（与纯函数一一对应）：下载中 / 离线可读 / 重试下载 / 可下载。
+        ReaderStatusBadge.Downloading,
+        ReaderStatusBadge.OfflineReadable,
+        ReaderStatusBadge.RetryDownload,
+        ReaderStatusBadge.DownloadAction ->
+            when (downloadState) {
+                is BookDownloadState.Downloading ->
+                    Text(
+                        text = "下载中 ${downloadPercent(downloadState.progress)}%",
+                        style = CinefinType.LabelLarge,
+                        color = contentColor,
+                        modifier = Modifier.padding(horizontal = CinefinSpacing.Space2),
+                    )
+
+                is BookDownloadState.Downloaded ->
+                    Text(
+                        text = "离线可读 · ${formatBookSize(downloadState.sizeBytes)}",
+                        style = CinefinType.LabelLarge,
+                        color = contentColor,
+                        modifier = Modifier.padding(horizontal = CinefinSpacing.Space2),
+                    )
+
+                is BookDownloadState.Failed ->
+                    CinefinButton(
+                        text = "重试下载",
+                        onClick = onDownload,
+                        variant = CinefinButtonVariant.Text,
+                        size = CinefinButtonSize.Small,
+                    )
+
+                BookDownloadState.NotDownloaded ->
+                    CinefinButton(
+                        text = "下载",
+                        onClick = onDownload,
+                        variant = CinefinButtonVariant.Text,
+                        size = CinefinButtonSize.Small,
+                    )
+            }
     }
 }
 

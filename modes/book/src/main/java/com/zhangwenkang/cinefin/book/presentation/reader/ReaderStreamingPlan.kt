@@ -208,3 +208,75 @@ fun rangeHeader(range: LongRange): String =
     } else {
         "bytes=${range.first}-${range.last}"
     }
+
+/**
+ * W77-3：阅读页顶栏「状态 / 下载」区的**阅读来源态**（运行时状态，不持久化）。
+ *
+ * - [Local]：本地打开 / 整本下载路径（含 PDF、未知格式与离线回退）——顶栏显示既有的下载三态；
+ * - [StreamConnecting]：远端流式**载入中**（首块嗅探 + 目标格式就绪，尚未出页）；
+ * - [Streaming]：远端流式**阅读中**（未下载整本，按需取页）。
+ */
+enum class ReaderStreamState {
+    Local,
+    StreamConnecting,
+    Streaming,
+}
+
+/**
+ * W77-3：顶栏状态区要渲染的分支（纯函数结果，便于单测）。
+ *
+ * 用户 2026-10-07 口径（D-F14 配套）：三态清晰 —— ①流式（远端）②正在下载（手动触发，显示进度）③离线可读（本地已有整本）。
+ */
+enum class ReaderStatusBadge {
+    /** ① 远端流式载入中：顶栏不再误显「下载中 0%」。 */
+    StreamingLoading,
+
+    /** ①' 远端流式阅读中：右侧仍保留手动「下载」入口（用户主动点才下载整本）。 */
+    StreamingReading,
+
+    /** ② 整本下载进行中（显示百分比）。 */
+    Downloading,
+
+    /** 未下载且非流式：可点「下载」。 */
+    DownloadAction,
+
+    /** ③ 本地已有整本文件：离线可读。 */
+    OfflineReadable,
+
+    /** 下载失败：提供「重试下载」。 */
+    RetryDownload,
+}
+
+/**
+ * W77-3：顶栏状态区分支决策（纯函数）。
+ *
+ * 优先级依据「哪条信息更影响用户当下判断」：
+ * 1. [BookDownloadState.Downloading] → 正在下载（手动触发的整本下载；PDF / 未知格式 / 离线回退也走这条）；
+ * 2. [ReaderStreamState.StreamConnecting] → 远端流式载入中（此时不会同时有整本下载，因为 W77-3 已移除自动整本下载）；
+ * 3. [BookDownloadState.Downloaded] → 离线可读（本地整本文件已是既成事实，含手动下载完成、热切换尚未落地的瞬间）；
+ * 4. [BookDownloadState.Failed] → 重试下载；
+ * 5. [ReaderStreamState.Streaming] → 流式阅读中（未下载）；
+ * 6. 其余 → 可下载（[ReaderStatusBadge.DownloadAction]）。
+ */
+fun readerStatusBadge(
+    streamState: ReaderStreamState,
+    downloadState: BookDownloadState,
+): ReaderStatusBadge =
+    when {
+        downloadState is BookDownloadState.Downloading -> ReaderStatusBadge.Downloading
+        streamState == ReaderStreamState.StreamConnecting -> ReaderStatusBadge.StreamingLoading
+        downloadState is BookDownloadState.Downloaded -> ReaderStatusBadge.OfflineReadable
+        downloadState is BookDownloadState.Failed -> ReaderStatusBadge.RetryDownload
+        streamState == ReaderStreamState.Streaming -> ReaderStatusBadge.StreamingReading
+        else -> ReaderStatusBadge.DownloadAction
+    }
+
+/**
+ * W77-3：下载进度 → 顶栏百分比（0–100，向下取整；越界与 NaN 归一到边界）。
+ *
+ * 取整（而非四舍五入）保证 99.6% 不会提前显示成「下载中 100%」——100% 只在下载真正完成时出现。
+ */
+fun downloadPercent(progress: Float): Int {
+    if (progress.isNaN()) return 0
+    return (progress.coerceIn(0f, 1f) * 100f).toInt().coerceIn(0, 100)
+}

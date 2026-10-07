@@ -32,6 +32,7 @@ class ReaderActivity : AppCompatActivity() {
             val state by viewModel.state.collectAsStateWithLifecycle()
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             val downloadState by viewModel.downloadState.collectAsStateWithLifecycle()
+            val streamState by viewModel.streamState.collectAsStateWithLifecycle()
             val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
             val pendingSyncCount by viewModel.pendingSyncCount.collectAsStateWithLifecycle()
             val jumpTarget by viewModel.jumpTarget.collectAsStateWithLifecycle()
@@ -44,6 +45,7 @@ class ReaderActivity : AppCompatActivity() {
                 title = title,
                 systemDark = isSystemInDarkTheme(),
                 downloadState = downloadState,
+                streamState = streamState,
                 bookmarks = bookmarks,
                 pendingSyncCount = pendingSyncCount,
                 jumpTarget = jumpTarget,

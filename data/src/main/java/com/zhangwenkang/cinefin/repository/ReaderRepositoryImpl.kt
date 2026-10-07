@@ -54,7 +54,9 @@ class ReaderRepositoryImpl(
         )
     private val downloadMutex = Mutex()
 
-    override suspend fun ensureLocalFile(itemId: UUID): File = downloadLocalFile(itemId) {}
+    /** W77-3：打开路径的整本下载，进度透传给阅读页顶栏（PDF 过渡态「打开即显示进度」）。 */
+    override suspend fun ensureLocalFile(itemId: UUID, onProgress: (Float) -> Unit): File =
+        downloadLocalFile(itemId, onProgress)
 
     override fun readerHttpClient(): OkHttpClient = httpClient
 
@@ -74,6 +76,8 @@ class ReaderRepositoryImpl(
                     onProgress(1f)
                     return@withContext target
                 }
+                // W77-3：先给一次 0f 表示「本次确实是整本下载」（响应没有 Content-Length 时调用方也能进「下载中」态）。
+                onProgress(0f)
                 download(target, itemId, onProgress)
             }
         }

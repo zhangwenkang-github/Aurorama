@@ -12,8 +12,13 @@ import okhttp3.OkHttpClient
  * D11：Room 迁移待 R2-LYRICS 释放数据库版本后再做，见 READER_PLAN）。
  */
 interface ReaderRepository {
-    /** 打开书籍用：本地已有直接命中，否则整本下载到应用私有目录。 */
-    suspend fun ensureLocalFile(itemId: UUID): File
+    /**
+     * 打开书籍用：本地已有直接命中，否则整本下载到应用私有目录。
+     *
+     * W77-3：`onProgress`（0.0–1.0）只在**确实发生整本下载**时上报，且下载开始前先给一次 `0f`（长度未知的响应也能进「下载中」 状态）；本地已有文件时只给一次
+     * `1f` 后立即返回 —— 调用方据此在 Loading 态显示「下载中 xx%」（PDF / 未知格式 / 离线回退 都走这条路径），不会为本地命中的书闪一次「下载中 100%」。
+     */
+    suspend fun ensureLocalFile(itemId: UUID, onProgress: (Float) -> Unit = {}): File
 
     /**
      * W77 阅读流式：未下载书籍的远程读取入口（`GET /Items/{id}/Download` + 访问令牌）。
