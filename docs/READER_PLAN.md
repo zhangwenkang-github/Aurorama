@@ -1885,7 +1885,7 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
   本次只按 P3 口径动热切换两条路径；②Pad 5 形态未走查（K60 单机）；③弱网（0.3 MB/s）未测；④未单测 `recycleAsync`
   （依赖 `ViewModel` + Android 依赖；本次以真机前后数字取证）。报告：`w77-reports/W77-4C.md`。
 
-### W77-5 · 远端 PDF 封面不再整本拉取（2026-10-07，分支 `fix/w77-5-pdf-cover`，基座 master `bf5121e`，worktree `w77g`）
+### W77-5 · 远端 PDF 封面不再整本拉取（2026-10-07，分支 `fix/w77-5-pdf-cover`，基座 master `bf5121e`，worktree `w77g`）——**已合并 master `f4d4933`（真机通过；合并态门禁 975/0/0）**
 
 **背景（W77-4E 定性 [OBS-1]）**：书架 `LazyVerticalGrid` 只组合可见卡片；一张「**未下载 + 服务器无封面**（`ImageTags.Primary` 缺席）」的
 **PDF** 卡片入视口时，`BookCoverProvider.extract → pdfCover` 用 PdfBox 2.0 `PDFParser.parse()` **逐 256 KB 块读遍整本远端 PDF**（HTTP Range），
@@ -1917,6 +1917,7 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - **0 FATAL / 0 ANR**：crash buffer 空、`/data/anr` 无新文件、全量 logcat 2,631 行 0 命中。
 - **门禁**：根 `ktfmtCheck` + `:core:testDebugUnitTest`（**106**）+ `:data:testDebugUnitTest`（**68**）+ `:modes:film:testDebugUnitTest`（**53**）
   + `:app:phone:assembleDebug`（arm64 debug 146,808,836 B、sha256 `2B1F64D6…FFBE`）全绿；**新增 core 单测 2 项**（`remotePdf` 计划口径 / `isPdfPath`）。
+- **合并态门禁（负责人，master `f4d4933`）**：rebase 至 master `6ca4f9d` 无冲突 → ff 合并；根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **975 项 / 0 失败 0 错误**（core 104 → 106；日志 `w77-evidence/gate_merged_w77_5_*.log`）；已推 CI + graphify 更新。
 
 **未覆盖 / 已知限制**：①本库**没有**「未下载 + 无服务器封面」的 EPUB / CBZ 样本 → 远端 ZIP 封面生成未在真机复跑（以「路径零改动 +
 `remotePdf=false → GENERATE` 单测 + 只在 `Kind.PDF` 短路」作静态证据）；②**旧 `.fail` 标记 + 后来才下载**的书仍停在占位（`generationFailed` 优先级高于 `GENERATE`，
