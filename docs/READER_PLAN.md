@@ -1885,6 +1885,44 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
   本次只按 P3 口径动热切换两条路径；②Pad 5 形态未走查（K60 单机）；③弱网（0.3 MB/s）未测；④未单测 `recycleAsync`
   （依赖 `ViewModel` + Android 依赖；本次以真机前后数字取证）。报告：`w77-reports/W77-4C.md`。
 
+### W77-5 · 远端 PDF 封面不再整本拉取（2026-10-07，分支 `fix/w77-5-pdf-cover`，基座 master `bf5121e`，worktree `w77g`）
+
+**背景（W77-4E 定性 [OBS-1]）**：书架 `LazyVerticalGrid` 只组合可见卡片；一张「**未下载 + 服务器无封面**（`ImageTags.Primary` 缺席）」的
+**PDF** 卡片入视口时，`BookCoverProvider.extract → pdfCover` 用 PdfBox 2.0 `PDFParser.parse()` **逐 256 KB 块读遍整本远端 PDF**（HTTP Range），
+`generateOnce` 内是纯阻塞 OkHttp 读、无挂起点 → 离开书架仍存续。实测 37.9 MB PDF：入视口 20 s **6.96 MB / 29 条 Range**，返回首页后仍
+**7.60 MB / 33 条**，`force-stop` 归零；670 MB 级 PDF 首访会静默拉数百 MB（**v1.1.0 起既有**，非 W77 回归）。
+
+**修法（最小改动，两层闸门）**：
+
+1. **策略层（零请求）**：`BookCoverRules.planCover` 新增 `remotePdf` —— 「未下载 + 无服务器封面 + PDF」直接判 `PLACEHOLDER`（**已下载** PDF 仍走本地首页渲染）；
+   判据 = 服务器 `ItemFields.PATH` 的扩展名（纯函数 `BookCoverRules.isPdfPath`）。
+2. **数据层**：`getItems`（书架分页）/ `getResumeItems`（首页继续阅读）/ `getLatestMedia`（首页最新·书籍）请求 `ItemFields.PATH`；
+   `FindroidFolder.sourcePath` + `FindroidItem.bookSourcePath` 承载（实测默认字段**不含** `Path`，必须显式请求）。
+3. **内容层兜底（不写 `.fail`）**：`BookCoverProvider.extract` 嗅探到远端 `%PDF-` 时返回 `ExtractOutcome.Skipped` → 静默占位、**不写失败标记**
+   （防「改名 / 命名不符的 PDF」绕过扩展名判据再整本读）；进程内 `remotePdfSkipped` 记忆，同一进程不重复嗅探。
+4. **接线面**：`BookCoverProvider.ensureCover(..., bookIsPdf)`；书架 `LibraryScreen` / 首页 `HomeScreen` 传 `BookCoverRules.isPdfPath(item.bookSourcePath)`；
+   **EPUB / CBZ 远端封面路径零改动**。
+
+**真机实测（K60 `8e875894`，2026-10-07 19:33–19:40；1.2.0(3) debug `install -r`，测试服务器只读 GET / Range）**：
+
+| 场景（20 s App 级增量，uid 10266） | 修复前（W77-4E 同机同 item） | 修复后（W77-5） |
+|----|----|----|
+| 滚动让「未下载 + 无服务器封面」PDF 卡片入视口 | **6,960,274 B / 29 条 `W77 书籍` Range** | **0 B / 0 条** |
+| 从书架返回首页 | **7,598,496 B / 33 条** | **0 B / 0 条** |
+| 继续下滚到 670 MB《虚构推理 (2026)》 | （按 0.35 MB/s 线性外推 30+ 分钟 / 数百 MB） | **0 B / 0 条** |
+
+- **占位正常**：「W22-Spread-Test」(PDF) 与《虚构推理 (2026)》卡片均为**书图标 + 媒体色**占位（截图像素：均值 ≈(62,55,52)、std ≈(17,12,7)、近黑像素 0%、亮点 ≈1%）；
+  对照右邻**有服务器图**的卡片 std ≈(91,87,78)、亮点 21%。**无黑块 / 无错图**。
+- **已下载 PDF 不回归**：移走 W26-Spread-Edge-Test（已下载 PDF）的本地封面 → 冷启动进书架**本地重渲染**，产出与移走前 **md5 完全一致**（`42FF4388…EB6F`），窗口内 0 条 Range。
+- **0 FATAL / 0 ANR**：crash buffer 空、`/data/anr` 无新文件、全量 logcat 2,631 行 0 命中。
+- **门禁**：根 `ktfmtCheck` + `:core:testDebugUnitTest`（**106**）+ `:data:testDebugUnitTest`（**68**）+ `:modes:film:testDebugUnitTest`（**53**）
+  + `:app:phone:assembleDebug`（arm64 debug 146,808,836 B、sha256 `2B1F64D6…FFBE`）全绿；**新增 core 单测 2 项**（`remotePdf` 计划口径 / `isPdfPath`）。
+
+**未覆盖 / 已知限制**：①本库**没有**「未下载 + 无服务器封面」的 EPUB / CBZ 样本 → 远端 ZIP 封面生成未在真机复跑（以「路径零改动 +
+`remotePdf=false → GENERATE` 单测 + 只在 `Kind.PDF` 短路」作静态证据）；②**旧 `.fail` 标记 + 后来才下载**的书仍停在占位（`generationFailed` 优先级高于 `GENERATE`，
+既有语义、本次未改，属可选的顺手清理项）；③Pad 5 未走查（K60 单机）；④未做「读取预算 / 可取消」改造（策略层已让该路径不再产生整本读，
+按「改动面大则只做第 1 点」口径暂缓）。报告：`w77-reports/W77-5.md`。
+
 ### 2026-10-07 · PDF 引擎替换（用户拍板：以后做，现在先调研 · D-F12）
 
 **决议（用户 2026-10-07）**：PDF 快速首开不走「流式改造」（spike 已证不可行——PdfBox parse 全量物化），改走**替换 PDF 引擎**路线：**以后实施，当前先做调研**；与 W77 波解耦（W77 只做 EPUB / CBZ；**PDF 过渡态 = 整本下载 + 打开显示进度**）。
@@ -1997,3 +2035,4 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 | 2026-10-07 | **W77-2（分支 `feature/w77-cbz-remote`，基座 master `0683e86`，worktree `w77c`）：CBZ 远端页源**——①core 复用门面 `RemoteComicArchive`（生产 `HttpByteSource` + `ZipArchiveReader`；新增 `knownSize` 省一次长度探测、`HttpCallRegistry` 在途请求登记 / 取消）；②`RemoteComicPageSource : PageSource`（远端**跳过逐页版式扫描** / 页级重试 2 次 / **按需预取窗口 = 当前页 + 后 3 页** / 可取消）；③远端 **1 KB 首块嗅探**（`classifyRemoteHeader`）分流 `%PDF-` / ZIP，非规范 EPUB 由中央目录 `remoteZipIsEpub` 兜底；④**打开 CBZ 不再自动整本下载**（用户口径：三格式统一），手动「下载整本」完成后复用 hotSwap（实测 **7 ms**、页码不回退）；⑤`InFlightRequestRegistry` 改**粘性取消**（修「返回后仍发后续 Range 请求」缺陷）；⑥门禁四绿 + 单测 124 → **137**（新增 `RemoteComicPageSourceTest` 本地 Range 服务请求量断言）；⑦真机 K60：17.3 MB / 36.3 MB 两本 CBZ 远端就绪 **3.95–5.0 s**、首屏 ≈6–8 s、静默 20 s **0 新请求**、最大读取偏移 6.5–7 MB（**无整本下载**）、整本下载对照 36.3 MB/≈17.6 s、离线回退错误态可重试、**0 FATAL / 0 ANR**。报告 `w77-reports/W77-2.md`；详见 §9「W77-2」条 |
 | 2026-10-07 | **W77-3（分支 `feature/w77-stream-state`，基座 master `76909cc`，worktree `w77e`）：阅读载入状态 / 文案 / 进度 + 移除 EPUB 自动整本下载**——①**EPUB 打开不再自动整本下载**（D-F14 收口：`openRemote` 的 Epub 分支删 `startDownload`，`hotSwap` / `pendingHotSwap` 留给手动下载；失败 / 离线仍回退整本下载）；②新增 `ReaderStreamState{Local,StreamConnecting,Streaming}` 与纯函数 `readerStatusBadge` / `downloadPercent`，顶栏三态 = `流式载入中…` / `流式阅读中`+`下载` / `下载中 N%` / `离线可读 · 大小`（下载中 > 流式载入中 > 离线可读 > 失败 > 流式阅读中 > 可下载）；③`ReaderRepository.ensureLocalFile(itemId, onProgress)` 契约补口（原先丢弃进度；只在真下载时上报、开始前给 `0f`）→ **PDF 过渡态打开即显示进度**；④打开失败由 `Downloading` 转 `Failed`（顶栏不再停在「下载中 0%」）；⑤门禁四绿 + 单测 137 → **145**（新增 `ReaderStatusBadgeTest` 8 项）；⑥真机 K60：229 MB EPUB 打开 **5 个有界 Range / ≈3.9 MB / 静默 20 s App +0 请求 + 无 `.part`**（无自动整本下载）、顶栏三态逐帧取证、手动下载热切换 **1273 ms**（EPUB）/ **8 ms**（CBZ）页码不回退、670 MB PDF `下载中 0%→6%`、离线回退可重试、已下载本地打开 **1146 ms**、**0 FATAL / 0 ANR**。报告 `w77-reports/W77-3.md`；详见 §9「W77-3」条 |
 | 2026-10-07 | **W77-4C（分支 `fix/w77-cbz-hotswap`，基座 master `72d55f8`，worktree `w77f`）：CBZ 热切换主线程阻塞修复 + 版本号 1.2.0**——①根因（真机栈取证）= 热切换在 Main 上 `previousSource.close()` → `HttpByteSource.close()` 要 `synchronized(chunks)`，而旧远端页源的**预取协程正持有该监视器**卡在 `chunkAt → fetchChunk → execute`（单次 Range 1.4–20 s）→ 主线程等锁 ≈2.5 s + MIUI `APP_SCOUT_WARNING`；②修法（最小改动）= `ReaderViewModel` 新增**后台回收作用域** `recycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)`（不挂 `viewModelScope`，离开阅读页也跑完回收）与私有 `recycleAsync(close)`，热切换的 `previousSource?.close()`（CBZ）/ `previousAsset?.close()`（EPUB）改为**异步回收**，页源切换与 UI 不等旧源关闭；取消语义仍由 `InFlightRequestRegistry` 粘性取消兜底；③**版本号** `APP_CODE 2 → 3` / `APP_NAME "1.1.0" → "1.2.0"`（`aapt dump badging` + `dumpsys package` 双查一致）；④真机 K60：CBZ 热切换 **4796 ms → 7 ms**（`第 7 页 / 24` 不回退；窗口内 `APP_SCOUT` 0 / `Choreographer Skipped` 0 / 热切换后新增 Range **0** / pid 未重启），EPUB 229 MB 热切换 **1289 ms**、`第 7 頁` 不回退（与「本地重开」逐像素差 0.28%），取消（670 MB PDF 返回 → 0 新请求 + 其后 15 s 内 `.part` 已清理）、离线回退错误态「打不开这本书」+「重试」→ 恢复网络重试 `下载中 0%` 全部不回归，**0 FATAL / 0 ANR**；⑤门禁四绿（`:modes:book:ktfmtCheck` + 根 `ktfmtCheck` + `:modes:book:testDebugUnitTest` **145** + `:app:phone:assembleDebug`）。报告 `w77-reports/W77-4C.md`；详见 §9「W77-4C」条 |
+| 2026-10-07 | **W77-5（分支 `fix/w77-5-pdf-cover`，基座 master `bf5121e`，worktree `w77g`）：远端 PDF 封面不再整本拉取**——①根因（W77-4E 定性）= 书架可见的「未下载 + 无服务器封面」PDF 卡片触发 `BookCoverProvider → pdfCover` 的 PdfBox 2.0 `PDFParser.parse()` **逐 256 KB 读遍整本 PDF**（37.9 MB → 6.96 MB/20 s + 29 条 Range；离开书架仍存续）；②修法（两层闸门）= ①**策略层零请求**：`BookCoverRules.planCover` 新增 `remotePdf`（未下载 + 无服务器封面 + PDF → `PLACEHOLDER`），判据 = 服务器 `ItemFields.PATH` 扩展名（`isPdfPath`），`getItems` / `getResumeItems` / `getLatestMedia` 补请求 `ItemFields.PATH` 并经 `FindroidFolder.sourcePath` 上抛；②**内容层兜底**：远端嗅探到 `%PDF-` → `ExtractOutcome.Skipped` **静默占位且不写 `.fail`**（防改名文件绕过扩展名判据）；**已下载** PDF 仍走本地渲染、**EPUB / CBZ 远端路径零改动**；③真机 K60（1.2.0(3) debug）：入视口 **6,960,274 B/29 条 → 0 B/0 条**、返回首页 **7,598,496 B/33 条 → 0 B/0 条**、继续下滚到 670 MB《虚构推理》仍 **0 B/0 条**；占位像素取证（书图标 + 媒体色、近黑 0%）；已下载 PDF 移走封面后本地重渲染 **md5 完全一致**；**0 FATAL / 0 ANR**；④门禁：根 `ktfmtCheck` + core **106** / data **68** / film **53** 单测 + `:app:phone:assembleDebug`（146,808,836 B、sha256 `2B1F64D6…FFBE`）全绿；新增 core 单测 2 项。报告 `w77-reports/W77-5.md`；详见 §9「W77-5」条 | 
