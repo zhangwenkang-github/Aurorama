@@ -188,7 +188,7 @@
 
 ### W76 修复后复验（回归已放行 · 排在 Q 波之后 · 2026-10-07）
 
-> **2026-10-07 更新（D-F10 + Q 波完成）**：对象 = **Q 波候选 release 包**——master `61d13a8` 构建，副本 `w76-evidence/candidate/Aurorama-1.1.0-candidate-*.apk`（universal `ef55c0af…b35fe26a` / arm64-v8a `c18815c2…6518f876`；v2 通过、指纹 `e449c4aa…e155ff` 一致；`3b85d95` 旧包仅作对照）。V1 增补播放组轻量复跑（Q5/Q6 影响面）+ Q7 5 次删 / 重入队正式验收 + Q1 所属季入口抽验。**已派发 V1（K60）/ V2（Pad 5）**（子代理一律 `deepseek-flash`）。
+> **2026-10-07 更新（D-F10 + Q 波完成）**：对象 = Q 波候选 release 包（master `61d13a8`，副本 `w76-evidence/candidate/`；universal `ef55c0af…b35fe26a` / arm64-v8a `c18815c2…6518f876`）。**复验已完成：V1 ✅（K60，含首帧 / Q5 口径裁减）与 V2 ✅（Pad 5，阅读组闭环）**——逐项结论见 §5 最后两行，新观察项见 §6.1（Q8–Q10）；正式重建签名 + 哈希落档随后执行（报告 `W76-V1.md` / `W76-V2.md`）。
 
 **W76-V1 发布包复验（K60 `8e875894`）**：
 
@@ -272,12 +272,14 @@
 | 2026-10-07 | **W76-Q5 完成（分支 `fix/w76-q5-stopped-report`，commit `08c0814`，未 push；worktree `w76h`；Pad 5 `43af8627` 独占；07:04–07:14）**：新增纯判定 `shouldReportStopOnPlayerExit(currentItemIsMusic) = !currentItemIsMusic`（口径同 `musicSessionActionOnVideoStart`，认 `MUSIC_MEDIA_EXTRA` 标志而非 `musicSessionActive`），`PlayerViewModel.releasePlayer()` 的 Stopped 上报加 gate → 只对「本页自己启动 / 播放的视频会话」补发；其余上报点、协调器结构、上报协议、B10 判定链路、下载域**零改动**（3 文件 +60/−1）。门禁 = `:player:local:ktfmtCheck` ✅ / `:player:local:testDebugUnitTest` **171 / 0 / 0**（基线 169，+2）/ `:app:phone:assembleDebug` ✅。Pad 5 双向取证：①音乐后台 `PLAYING(3)` → `am start …/PlayerActivity`（无 itemId = attach 路径，两轮）→ BACK 退出：logcat 仅 `Clearing Player ViewModel`、**无** `PlayerViewModel$releasePlayer: Sending playback stop`；音乐 `PLAYING(3)`（position 继续递增）+ `CinefinPlaybackService` 仍在（W68 隔离不回归）——attach 后播放页 uiState `currentItemTitle=我曾爱过一个人 (笛子版) / currentItemId=1b3500b3-…` 即退出瞬间实例上确是音乐条目；②对照本页自启视频（首页继续观看 → 冰海战记 S1·E17 HEVC）→ `initializePlayer: itemId=cd9457e9-…` + `视频起播：已收掉音乐会话（STOP_MUSIC_AND_CLEAR_FLAG）` → BACK 退出 **`Sending playback stop` 照常命中**（正确上报未误删）；③crash buffer 0 行、无 FATAL / ANR。**申报**：gate 落地为「当前媒体项不是音乐条目」——视频页 attach 后台**视频**会话退出仍按既有行为上报（未改）；「本页起播视频 → 音乐抢占实例 → 退出」同因同治不再误报。**还原**：`am force-stop`、`/sdcard/q5_ui.xml` 与 `%TEMP%\q5_ui.xml` 已删（`/sdcard/q5.xml` = 2026-09-30 旧包名遗留，非本会话产物，未删）、播放回退档位偏好（stage/media_id/guard/session）hand-edit 还原为测前值 + 冷启复核、旋转与其它偏好未改、release 包与 K60 零接触。**副作用（不可回滚）**：冰海战记 S1·E17「辅佐之人」观看进度被改写（退出时补发 Stopped 落库）；debug 包升级为本分支形态。报告 `w76-reports/W76-Q5.md`。**下一步：Q6（K60，待 Q5 合并后串行）→ 终门禁 → 候选 release → V1/V2 回归**。 |
 | 2026-10-07 | **W76-Q6 合并 + 终门禁（负责人）**：Q6 ff 合并 master（`4f0f820` → `61d13a8`）；**终合并态门禁** = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **941 项 / 0 失败 0 错误**（app 273 / core 104 / data 68 / player:core 12 / player:local 178 / film 53 / book 113 / music 140；基线 920 + Q1 1 + Q2/Q7 11 + Q5 2 + Q6 7；日志 `w76-evidence/gate_merged_final.log`）。 | 
 | 2026-10-07 | **Q 波候选 release 构建 + V1/V2 派发（负责人）**：`assembleLibreRelease "-Paurorama.universalApk=true"` 成功（master `61d13a8`，日志 `w76-evidence/release_build_candidate.log`）——候选 universal **171,141,668 B（163.2 MiB）`ef55c0af…b35fe26a`** / arm64-v8a **77,559,690 B（74.0 MiB）`c18815c2…6518f876`**；`apksigner verify` v2 通过、证书 `e449c4aa…e155ff` 一致；副本 `w76-evidence/candidate/Aurorama-1.1.0-candidate-*.apk`。**V1（K60）/ V2（Pad 5）已派发**（回归对象 = 本候选包）；正式重建签名 + 哈希落档待回归通过后执行。 | 
+| 2026-10-07 | **W76-V1 发布包复验完成（K60，10:48–11:47，候选包 `ef55c0af…`，0 FATAL·ANR）**：①覆盖安装 ✅（免重登、设置保留）②**B9 严格首下 ✅**（`pm clear` + Quick Connect 重建 → 视频 / 音乐 / 书籍真实进度、无「失败 / 0 B」）③B11b ✅（不再空载、直接出画；加载中 BACK ×2 无 Toast；季 / 集不回归；**首帧口径裁减**：release 无 Timber，屏幕采样实测 6.0–6.6 s @ 当日网络 0.5–1.2 MB/s，未复现 2–5 s，判为环境带宽成本）④B10 切内核 ✅（1.7 s 生效、无错误卡片、退出音乐隔离）⑤Q7 ✅（6 次删-重入队全部立即启动；2 次误触「暂停」已排除）⑥播放复跑 ✅（直连 + 转码、队列 E01–E12 完整、NEXT 顺序）⑦Q1 ✅（眉标 → 季页）⑧稳定性 ✅。**观察项 = Q8/Q9（§6.1）**；副作用：`pm clear` 清数据（Quick Connect 已重建）/ 通知权限复位「拒绝」/ 进度写入。报告 `W76-V1.md`。 | 
+| 2026-10-07 | **W76-V2 阅读组补测完成（Pad 5，候选包，0 FATAL·ANR）**：在线书架 ✅（8 本）/ EPUB·PDF·CBZ ✅ / 进度保存恢复 ✅（服务端已回传）/ 阅读设置保持 ✅（冷启仍保持）/ 离线下载 + 飞行模式 ✅（已下载 3 本）/「已完成」列表 ✅（3 条，R2 时为 0）/ 稳定性 ✅——**R2 阅读组缺口闭环**。**关键前置**：books 库只对 `zhangwenkang` 账号可见（`admin` 无）→ 全检看书架需先切账号。**观察项 = Q10（§6.1）+ 报告 O1/O5**；副作用：`zhangwenkang` 3 本书进度改写（不可回滚）；测试下载 875 MB 已删。报告 `W76-V2.md`。 | 
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
 ### 6.1 待用户决定（2026-10-07 记录 · 不阻塞）
 
-> **决议（2026-10-07 用户拍板，D-F10）——本表已全部闭环**：Q1–Q7 **全部修进 1.1.0**（不再延后）；**Q3 = 书籍库永久保留**（V2 补测 / 全检照常安排）；**Q4 按建议**（B11 主因合并定级 P2；对外文案简化）；**回归暂停令解除**——执行序 = Q 波修复（§3）→ 终门禁 → 候选 release → V1/V2 回归（+ 播放轻量复跑）→ **回归通过后**正式重建签名 / 哈希落档 → 用户全检 → tag `v1.1.0`。下表「建议」列保留为决策前记录。
+> **决议（2026-10-07 用户拍板，D-F10）——Q1–Q7 已全部闭环**：Q1–Q7 **全部修进 1.1.0**（不再延后）；**Q3 = 书籍库永久保留**（V2 补测 / 全检照常安排）；**Q4 按建议**（B11 主因合并定级 P2；对外文案简化）；**回归暂停令解除**——执行序 = Q 波修复（§3）→ 终门禁 → 候选 release → V1/V2 回归（+ 播放轻量复跑）→ **回归通过后**正式重建签名 / 哈希落档 → 用户全检 → tag `v1.1.0`。下表「建议」列保留为决策前记录；**Q8–Q10 = V1/V2 回归新观察项（2026-10-07 记录，不阻塞发布，待用户决定）**。
 
 | # | 事项 | 背景 | 建议 |
 |---|---|---|---|
@@ -288,6 +290,9 @@
 | Q5 | B10 顺带观察（既有、非本波引入）：视频页 attach 到音乐会话后退出，`releasePlayer()` 对音乐条目补发一次 `Sessions/Playing/Stopped` | W76-B10.md 遗留③ | 建议单开 P3 / 并入 1.2 波；本波不动 |
 | Q6 | 后台补队列为整剧每集请求 `PlaybackInfo`（含转码会话）——补队列既有代价（与非本波无关） | W76-B11b.md；B11b 为保语义未改 | 1.2 波评估懒请求 / 去重；本波不动 |
 | Q7 | 下载任务删除后再次入队偶发不立即启动（疑似 WorkManager）——未复现、未定性 | W76-B9.md 遗留 3 | 留观；复现再立项 |
+| Q8 | release 上 attach 播放页入口（`OPEN_MUSIC_NOW_PLAYING` / mini-player 展开）未打开播放页（V1 疑似观察项；debug 侧未经该入口） | W76-V1 §十一；与 Q5 同域 | 单开复核：debug / release 对照同一入口，定性后决定是否立项；本波不动 |
+| Q9 | 手机竖屏窄窗（<600dp）按 `playerBottomKeysForWidth` 省略「码率 / 解码」键——竖屏无法进解码面板（需横屏 / 宽窗） | W76-V1 §四取证注 | 确认是否预期设计；若非预期，1.2 评估窄窗保留「解码」键 |
+| Q10 | 阅读组观察三则：①设置面板无「亮度」项（#19 阅读侧口径待确认）②阅读器无流式预览（126 MB PDF 首开 6–8 min）③阅读设置存**全包全局** SharedPreferences（非按用户） | W76-V2 §二 O2/O3/O4 | 均不阻塞 1.1.0；1.2 波评估（②如改需流式加载，单独立项） |
 
 - **B1**（**已并入 W73-S2，命中**）视频库过滤器只认 `Movies` / `TvShows`（`pickVideoLibraries`）——混合内容 / 家庭视频库不进视频页「库选择」与聚合。
 - **B2**（**已随 W73-S2 修复**）媒体页库列表仅在首进加载一次（无 TTL / 无刷新）——改为每次 RESUMED 重取（仓库元数据缓存 TTL 10 分钟去重），侧栏同步在导航变化时只读刷新。
