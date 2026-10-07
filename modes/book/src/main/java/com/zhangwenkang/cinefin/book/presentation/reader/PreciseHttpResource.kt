@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import com.zhangwenkang.cinefin.utils.HttpCallRegistry
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -319,19 +320,34 @@ class RemoteFirstResourceFactory(
  * 协程 Job 的取消回调在真机上被观察到**没有**中止已经在读响应体的 OkHttp call（实测：返回后 3.4 s 请求仍完成）， 因此这里额外登记 call 本体，阅读页
  * `onCleared` 时确定性 `cancelAll()` —— 与 W64 同口径的「最小兜底」。
  */
-class InFlightRequestRegistry {
+class InFlightRequestRegistry : HttpCallRegistry {
     private val calls = Collections.newSetFromMap(ConcurrentHashMap<Call, Boolean>())
 
-    fun register(call: Call) {
+    /** 已取消（[cancelAll] 后置位）：此后再登记的任何请求**立即**取消，避免「取消后仍发出后续请求」。 */
+    @Volatile private var cancelled = false
+
+    override fun register(call: Call) {
+        if (cancelled) {
+            runCatching { call.cancel() }
+            return
+        }
         calls.add(call)
+        // 与 cancelAll 竞态：登记完成后若已取消，补一次取消。
+        if (cancelled && calls.remove(call)) {
+            runCatching { call.cancel() }
+        }
     }
 
-    fun unregister(call: Call) {
+    override fun unregister(call: Call) {
         calls.remove(call)
     }
 
+    /** 当前在途请求数（测试 / 取证用；正常应为 0）。 */
+    fun inFlightCount(): Int = calls.size
+
     /** 取消所有在途请求（幂等，重复调用安全）。 */
     fun cancelAll() {
+        cancelled = true
         calls.toList().forEach { call -> runCatching { call.cancel() } }
         calls.clear()
     }

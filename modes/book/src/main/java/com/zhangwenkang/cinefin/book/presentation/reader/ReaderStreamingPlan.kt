@@ -41,6 +41,106 @@ fun decideReaderOpenSource(
 fun shouldStreamRemoteAsset(isEpub: Boolean): Boolean = isEpub
 
 /**
+ * W77-2：远端首块能识别的流式格式。
+ *
+ * - [Pdf]：`%PDF-`（当前引擎不流式，回退整本下载）；
+ * - [Epub]：ZIP 且判定为 EPUB（Readium 路径）；
+ * - [ComicArchive]：ZIP 且非 EPUB（远端页源路径）；
+ * - [Unknown]：无法判定（回退整本下载）。
+ */
+enum class RemoteStreamKind {
+    Pdf,
+    Epub,
+    ComicArchive,
+    Unknown,
+}
+
+/**
+ * W77-2：远端首块的格式判定（纯函数）。
+ *
+ * 只读一小段文件头（几百字节到 1 KB）即可分流，避免为了判定 EPUB / CBZ 先读一遍中央目录：
+ * - ZIP（`PK\x03\x04`）：
+ *     - 第一个本地文件头条目名为 `mimetype`（EPUB 规范强制首条目、STORED）或首块含 `META-INF/container.xml` →
+ *       [RemoteStreamKind.Epub]；
+ *     - 其余 → [RemoteStreamKind.ComicArchive]（非规范 EPUB 由调用方读中央目录后用 [remoteZipIsEpub] 复核兜底）；
+ * - 前 1 KiB 含 `%PDF-` → [RemoteStreamKind.Pdf]；
+ * - 其余 → [RemoteStreamKind.Unknown]。
+ *
+ * ZIP 魔数先判（与 [sniffBookFormat] 同口径）：压缩包前 1 KB 恰好含 `%PDF-` 字节时不会误判成 PDF。
+ */
+fun classifyRemoteHeader(prefix: ByteArray): RemoteStreamKind {
+    if (prefix.startsWithBytes(ZIP_MAGIC)) {
+        if (zipFirstEntryName(prefix) == "mimetype") return RemoteStreamKind.Epub
+        if (prefix.containsSequence(EPUB_CONTAINER_MAGIC, prefix.size)) {
+            return RemoteStreamKind.Epub
+        }
+        return RemoteStreamKind.ComicArchive
+    }
+    if (prefix.size >= PDF_MAGIC.size && prefix.containsSequence(PDF_MAGIC, prefix.size)) {
+        return RemoteStreamKind.Pdf
+    }
+    return RemoteStreamKind.Unknown
+}
+
+/**
+ * W77-2：读中央目录后复核 ZIP 是否为 EPUB（纯函数）。
+ *
+ * 首块启发式（[classifyRemoteHeader]）可能把「首条目不是 `mimetype`」的非规范 EPUB 误判成 CBZ；读中央目录拿到
+ * **全部**条目名后用它兜底（`META-INF/container.xml` / `mimetype` 命中即 EPUB）。
+ */
+fun remoteZipIsEpub(entryNames: Collection<String>): Boolean = entryNames.any { name ->
+    name == "META-INF/container.xml" ||
+        name == "mimetype" ||
+        name.endsWith("/META-INF/container.xml")
+}
+
+/** 读取 ZIP 第一个本地文件头的条目名（`PK\x03\x04` + 偏移 26 的名字长度）；非 ZIP / 越界返回 null。 */
+internal fun zipFirstEntryName(prefix: ByteArray): String? {
+    if (prefix.size < ZIP_LOCAL_HEADER_BYTES) return null
+    if (!prefix.startsWithBytes(ZIP_MAGIC)) return null
+    val nameLength = u16le(prefix, 26)
+    if (nameLength <= 0 || ZIP_LOCAL_HEADER_BYTES + nameLength > prefix.size) return null
+    return String(prefix, ZIP_LOCAL_HEADER_BYTES, nameLength, Charsets.UTF_8)
+}
+
+private fun ByteArray.startsWithBytes(sequence: ByteArray): Boolean {
+    if (size < sequence.size) return false
+    for (index in sequence.indices) {
+        if (this[index] != sequence[index]) return false
+    }
+    return true
+}
+
+private fun u16le(bytes: ByteArray, offset: Int): Int =
+    (bytes[offset].toInt() and 0xFF) or ((bytes[offset + 1].toInt() and 0xFF) shl 8)
+
+/** 在 [length] 字节的有效范围内查找字节序列（避免把未读满的尾部当成数据）。 */
+private fun ByteArray.containsSequence(sequence: ByteArray, length: Int): Boolean {
+    val lastStart = length - sequence.size
+    if (lastStart < 0) return false
+    for (start in 0..lastStart) {
+        var matched = true
+        for (offset in sequence.indices) {
+            if (this[start + offset] != sequence[offset]) {
+                matched = false
+                break
+            }
+        }
+        if (matched) return true
+    }
+    return false
+}
+
+private val PDF_MAGIC = "%PDF-".toByteArray(Charsets.US_ASCII)
+
+private val ZIP_MAGIC = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
+
+private val EPUB_CONTAINER_MAGIC = "META-INF/container.xml".toByteArray(Charsets.US_ASCII)
+
+/** ZIP 本地文件头固定长度（名字 / 扩展区随其后）。 */
+private const val ZIP_LOCAL_HEADER_BYTES = 30
+
+/**
  * 后台整本下载完成后的热切换判定。
  *
  * @param remoteDocumentOpen 当前阅读页打开的确实是远程流式文档

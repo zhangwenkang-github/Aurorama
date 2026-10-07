@@ -14,6 +14,7 @@ import com.zhangwenkang.cinefin.repository.ReadingProgress
 import com.zhangwenkang.cinefin.repository.RemoteBookSource
 import com.zhangwenkang.cinefin.repository.progressionToTicks
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.RemoteComicArchive
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -23,7 +24,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +35,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.Request
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -67,6 +71,14 @@ private const val SEARCH_DEBOUNCE_MS = 400L
  * 是「仍明显优于整本下载」且不会无限卡 Loading 的折中。 超时会取消在途 HTTP（OkHttp call.cancel）并回退既有整本下载路径。
  */
 private const val REMOTE_OPEN_TIMEOUT_MS = 90_000L
+
+/**
+ * W77-2：远端首块嗅探读取的字节数。
+ *
+ * 1 KiB 足够判定 `%PDF-` / ZIP 魔数 / ZIP 第一条目名（EPUB 的 `mimetype` 固定在文件最前），一次有界 Range 请求即可分流
+ * EPUB（Readium）与 CBZ（远端页源），不必先读一遍中央目录。
+ */
+private const val REMOTE_SNIFF_BYTES = 1024
 
 sealed interface ReaderUiState {
     data object Loading : ReaderUiState
@@ -242,10 +254,8 @@ constructor(
             decideReaderOpenSource(hasLocalFile, online, remote != null) ==
                 ReaderOpenSource.RemoteCandidate && remote != null
         ) {
-            // 后台并行整本下载：完成后热切换本地；失败不影响已经打开的远程阅读。
-            startDownload(itemId)
             val progress = readerRepository.getReadingProgress(itemId)
-            openRemoteEpub(itemId, remote, progress, startedAt)?.let {
+            openRemote(itemId, remote, progress, startedAt)?.let {
                 return it
             }
             releaseRemoteClient()
@@ -284,86 +294,246 @@ constructor(
     }
 
     /**
-     * W77：远程流式首开（本卡只覆盖 EPUB）。
+     * W77：远端流式首开总入口（EPUB 走 Readium，CBZ 走远端页源）。
      *
-     * 返回 null 表示远端不可用（离线 / 不是 EPUB / 超时 / 异常），调用方回退整本下载；本方法**不抛业务错误**。
+     * 90 s 远程等待上限覆盖「首块嗅探 + 目标格式就绪」；返回 null 表示远端不可用（离线 / PDF / 未知 / 超时 /
+     * 异常），调用方回退既有整本下载路径；本方法**不抛业务错误**。
+     *
+     * 在途请求登记表在此创建并登记 [remoteInFlight]，EPUB 与 CBZ 两条路径共用同一份取消面。
      */
-    private suspend fun openRemoteEpub(
+    private suspend fun openRemote(
         itemId: UUID,
         remote: RemoteBookSource,
         progress: ReadingProgress?,
         startedAt: Long,
     ): ReaderUiState.Ready? =
         withTimeoutOrNull(REMOTE_OPEN_TIMEOUT_MS) {
+            val inFlight = InFlightRequestRegistry()
+            remoteInFlight = inFlight
             try {
-                val url =
-                    Url(remote.url) as? AbsoluteUrl
-                        ?: throw IllegalStateException("远程书籍地址非法：${remote.url}")
-                val inFlight = InFlightRequestRegistry()
-                remoteInFlight = inFlight
-                val httpClient =
-                    ReadiumRemoteHttpClient(
-                            readerRepository.readerHttpClient(),
-                            remote.token,
-                            inFlight,
-                        )
-                        .also { remoteHttpClient = it }
-                // 根资源走「精确 Range」实现（Readium 的 HttpResource 会把有界读退化成开放式 Range）。
-                val resourceFactory =
-                    RemoteFirstResourceFactory(
-                        delegate = DefaultResourceFactory(context.contentResolver, httpClient),
-                        client = readerRepository.readerHttpClient(),
-                        token = remote.token,
-                        inFlight = inFlight,
-                    )
-                val assetRetriever =
-                    AssetRetriever(
-                        resourceFactory,
-                        DefaultArchiveOpener(),
-                        DefaultFormatSniffer(),
-                    )
-                val assetResult = assetRetriever.retrieve(url)
-                val asset = assetResult.getOrNull()
-                if (asset == null) {
-                    Timber.w("阅读流式：远程资产嗅探失败 %s", assetResult.failureOrNull())
-                    return@withTimeoutOrNull null
-                }
-                if (!shouldStreamRemoteAsset(asset.format.conformsTo(Specification.Epub))) {
-                    Timber.i(
-                        "阅读流式：远程资产不是 EPUB（%s），回退整本下载（%s）",
-                        asset.format.mediaType,
-                        itemId,
-                    )
-                    asset.close()
-                    return@withTimeoutOrNull null
-                }
+                when (sniffRemoteStreamKind(remote, inFlight)) {
+                    RemoteStreamKind.Epub -> {
+                        // W77-1 口径暂未调整（用户 2026-10-07 已拍板「三格式统一不做自动整本下载」，EPUB 侧由负责人在
+                        // W77-3 统一排卡）：EPUB 打开时仍并行后台整本下载，完成后热切换本地。
+                        startDownload(itemId)
+                        openRemoteEpub(itemId, remote, progress, startedAt, inFlight)
+                    }
 
-                val publication = openPublication(assetRetriever, httpClient, asset)
-                openedAsset = asset
+                    // CBZ：只按需取页（当前页 + 预取窗口），**不自动整本下载**（用户 2026-10-07 口径锁定）。
+                    RemoteStreamKind.ComicArchive ->
+                        openRemoteComic(itemId, remote, progress, startedAt, inFlight)
+
+                    RemoteStreamKind.Pdf -> {
+                        Timber.i("阅读流式：远端是 PDF（当前引擎不流式），回退整本下载（%s）", itemId)
+                        null
+                    }
+
+                    RemoteStreamKind.Unknown,
+                    null -> {
+                        Timber.i("阅读流式：远端格式未识别，回退整本下载（%s）", itemId)
+                        null
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Throwable) {
+                currentCoroutineContext().ensureActive()
+                Timber.w(error, "阅读流式：远端首开失败，回退整本下载（%s）", itemId)
+                null
+            }
+        }
+
+    /**
+     * W77-2：远端首块嗅探（1 个有界 Range 请求）。
+     *
+     * 取文件头 [REMOTE_SNIFF_BYTES] 字节判定 PDF / EPUB / CBZ：EPUB 与 CBZ 都是 ZIP，必须先分流才能选对渲染路径 （EPUB →
+     * Readium；CBZ → 远端页源）。返回 null 表示不可用（非 206 / 异常），调用方回退整本下载。
+     */
+    private suspend fun sniffRemoteStreamKind(
+        remote: RemoteBookSource,
+        inFlight: InFlightRequestRegistry,
+    ): RemoteStreamKind? =
+        withContext(Dispatchers.IO) {
+            val request =
+                Request.Builder()
+                    .url(remote.url)
+                    .header(ACCESS_TOKEN_HEADER, remote.token)
+                    .header("Range", "bytes=0-${REMOTE_SNIFF_BYTES - 1}")
+                    .build()
+            val call = readerRepository.readerHttpClient().newCall(request)
+            inFlight.register(call)
+            try {
+                call.execute().use { response ->
+                    // 必须确认 206：服务器忽略 Range 时（200）body 是整本，读它会退化成整本下载。
+                    if (response.code != 206) {
+                        Timber.w(
+                            "阅读流式：远端嗅探未获 206（HTTP %d），回退整本下载",
+                            response.code,
+                        )
+                        return@withContext null
+                    }
+                    val kind = classifyRemoteHeader(response.body.bytes())
+                    Timber.i("阅读流式：远端首块嗅探 → %s（%s）", kind, remote.url)
+                    kind
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Throwable) {
+                // 返回阅读页（ViewModel 清理）时阻塞请求以 IOException 形式返回；此处还原取消语义，避免误判为「嗅探失败」。
+                currentCoroutineContext().ensureActive()
+                Timber.w(error, "阅读流式：远端首块嗅探失败，回退整本下载")
+                null
+            } finally {
+                inFlight.unregister(call)
+            }
+        }
+
+    /**
+     * W77-2：远端 CBZ 页源首开（未下载 CBZ 先出页）。
+     *
+     * 只读「尾部 + 中央目录 + 目标条目」，不整本下载；读中央目录后再用 [remoteZipIsEpub] 复核 （首块启发式可能漏判非规范 EPUB）。返回 null
+     * 表示失败，调用方回退整本下载；本方法不抛业务错误。
+     */
+    private suspend fun openRemoteComic(
+        itemId: UUID,
+        remote: RemoteBookSource,
+        progress: ReadingProgress?,
+        startedAt: Long,
+        inFlight: InFlightRequestRegistry,
+    ): ReaderUiState.Ready? =
+        withContext(Dispatchers.IO) {
+            val archive =
+                RemoteComicArchive.openRemote(
+                    client = readerRepository.readerHttpClient(),
+                    url = remote.url,
+                    headers = mapOf(ACCESS_TOKEN_HEADER to remote.token),
+                    callRegistry = inFlight,
+                )
+            var handedOff = false
+            try {
+                // 复核：首条目不是 mimetype 的非规范 EPUB 会被首块启发式误判成 CBZ，读中央目录兜底。
+                if (remoteZipIsEpub(archive.entries.map { it.name })) {
+                    Timber.i("阅读流式：远端 ZIP 实为 EPUB，改用 Readium 路径（%s）", itemId)
+                    archive.close()
+                    return@withContext openRemoteEpub(
+                        itemId,
+                        remote,
+                        progress,
+                        startedAt,
+                        inFlight,
+                    )
+                }
+                val pages = remoteComicPageNames(archive)
+                if (pages.isEmpty()) {
+                    Timber.w("阅读流式：远端 CBZ 没有可读页面，回退整本下载（%s）", itemId)
+                    return@withContext null
+                }
+                // 预取协程挂在阅读页作用域：离开阅读页随 ViewModel 一起取消（含在途预取）。
+                val source = RemoteComicPageSource(archive, pages, prefetchScope = viewModelScope)
                 openedFromRemote = true
-                // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
-                val initialLocator =
-                    progress?.locatorJson?.toLocator()
-                        ?: progress
-                            ?.takeIf { it.progression > 0.0 }
-                            ?.let { locateByProgression(publication, it.progression) }
-                val readyAt = SystemClock.elapsedRealtime()
+                // openSimple 接管页源生命周期（openedPageSource / 页数），并把进度换算成起始页。
+                val document = openSimple(source, SimpleBookFormat.ComicArchive, progress)
+                handedOff = true
                 Timber.i(
-                    "阅读流式首开：远端就绪 %d ms（%s）",
-                    readyAt - startedAt,
+                    "阅读流式首开：远端 CBZ 就绪 %d ms（%d 页，%s）",
+                    SystemClock.elapsedRealtime() - startedAt,
+                    source.pageCount,
                     itemId,
                 )
                 ReaderUiState.Ready(
                     itemId = itemId,
-                    document = ReaderDocument.Rich(publication, initialLocator),
+                    document = document,
                     initialProgression = progress?.progression ?: 0.0,
                 )
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
-                Timber.w(error, "阅读流式：远程首开失败，回退整本下载（%s）", itemId)
+                currentCoroutineContext().ensureActive()
+                Timber.w(error, "阅读流式：远端 CBZ 打开失败，回退整本下载（%s）", itemId)
                 null
+            } finally {
+                if (!handedOff) archive.close()
             }
+        }
+
+    /**
+     * W77-1：远端 EPUB 流式首开（Readium 远程资产）。
+     *
+     * 返回 null 表示远端不可用（不是 EPUB / 嗅探失败 / 异常），调用方回退整本下载；本方法**不抛业务错误**。
+     */
+    private suspend fun openRemoteEpub(
+        itemId: UUID,
+        remote: RemoteBookSource,
+        progress: ReadingProgress?,
+        startedAt: Long,
+        inFlight: InFlightRequestRegistry,
+    ): ReaderUiState.Ready? =
+        try {
+            val url =
+                Url(remote.url) as? AbsoluteUrl
+                    ?: throw IllegalStateException("远程书籍地址非法：${remote.url}")
+            val httpClient =
+                ReadiumRemoteHttpClient(
+                        readerRepository.readerHttpClient(),
+                        remote.token,
+                        inFlight,
+                    )
+                    .also { remoteHttpClient = it }
+            // 根资源走「精确 Range」实现（Readium 的 HttpResource 会把有界读退化成开放式 Range）。
+            val resourceFactory =
+                RemoteFirstResourceFactory(
+                    delegate = DefaultResourceFactory(context.contentResolver, httpClient),
+                    client = readerRepository.readerHttpClient(),
+                    token = remote.token,
+                    inFlight = inFlight,
+                )
+            val assetRetriever =
+                AssetRetriever(
+                    resourceFactory,
+                    DefaultArchiveOpener(),
+                    DefaultFormatSniffer(),
+                )
+            val assetResult = assetRetriever.retrieve(url)
+            val asset = assetResult.getOrNull()
+            if (asset == null) {
+                Timber.w("阅读流式：远程资产嗅探失败 %s", assetResult.failureOrNull())
+                return null
+            }
+            if (!shouldStreamRemoteAsset(asset.format.conformsTo(Specification.Epub))) {
+                Timber.i(
+                    "阅读流式：远程资产不是 EPUB（%s），回退整本下载（%s）",
+                    asset.format.mediaType,
+                    itemId,
+                )
+                asset.close()
+                return null
+            }
+
+            val publication = openPublication(assetRetriever, httpClient, asset)
+            openedAsset = asset
+            openedFromRemote = true
+            // 服务端进度较新时本地没有对应 locator，用整书 progression 定位（EB-9 多设备冲突）。
+            val initialLocator =
+                progress?.locatorJson?.toLocator()
+                    ?: progress
+                        ?.takeIf { it.progression > 0.0 }
+                        ?.let { locateByProgression(publication, it.progression) }
+            val readyAt = SystemClock.elapsedRealtime()
+            Timber.i(
+                "阅读流式首开：远端就绪 %d ms（%s）",
+                readyAt - startedAt,
+                itemId,
+            )
+            ReaderUiState.Ready(
+                itemId = itemId,
+                document = ReaderDocument.Rich(publication, initialLocator),
+                initialProgression = progress?.progression ?: 0.0,
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Throwable) {
+            Timber.w(error, "阅读流式：远程 EPUB 首开失败，回退整本下载（%s）", itemId)
+            null
         }
 
     /**
@@ -547,8 +717,8 @@ constructor(
     /**
      * W77：后台整本下载完成后**热切换**到本地文件。
      *
-     * 重建 `ReaderDocument.Rich`（新 publication 指向本地文件）并以当前 locator 复位，导航器 （`key(publication)` +
-     * `initialLocator`）重建到同一页——允许一帧重绘，但页码不回退。 任一步失败都保持远程文档可用（不清状态、不抛错）。
+     * EPUB 重建 `ReaderDocument.Rich`（新 publication 指向本地文件）并以当前 locator 复位；CBZ 换成本地页源并保持当前页索引
+     * ——允许一帧重绘，但页码 / locator 不回退。任一步失败都保持远程文档可用（不清状态、不抛错）。
      */
     private suspend fun hotSwapToLocal(itemId: UUID) {
         val pending = pendingHotSwap ?: return
@@ -561,8 +731,14 @@ constructor(
             pendingHotSwap = null
             return
         }
-        if (current.document !is ReaderDocument.Rich) return
+        when (current.document) {
+            is ReaderDocument.Rich -> hotSwapRichToLocal(itemId, current)
+            is ReaderDocument.Simple -> hotSwapSimpleToLocal(itemId, current)
+        }
+    }
 
+    /** W77-1：EPUB 远程 → 本地 publication 热切换（保持 locator）。 */
+    private suspend fun hotSwapRichToLocal(itemId: UUID, current: ReaderUiState.Ready) {
         val startedAt = SystemClock.elapsedRealtime()
         // 当前位置：优先当前 locator；退化到 progression（多设备 / 刚打开还未回调 locator）。
         val locator = currentLocator
@@ -600,6 +776,67 @@ constructor(
         Timber.i(
             "阅读流式：热切换本地完成 %d ms（%s）",
             SystemClock.elapsedRealtime() - startedAt,
+            itemId,
+        )
+    }
+
+    /**
+     * W77-2：CBZ 远程页源 → 本地页源热切换（保持当前页索引）。
+     *
+     * 远端页源与本地页源都是 [ReaderDocument.Simple]，重建只换 `PageSource`（`SimpleBookView` 会重建位图缓存）；页数不变，
+     * 位置按「当前页索引 / 总页数」换算成 progression 交给 [openSimple] 定位，页码不回退。
+     */
+    private suspend fun hotSwapSimpleToLocal(itemId: UUID, current: ReaderUiState.Ready) {
+        val startedAt = SystemClock.elapsedRealtime()
+        val pageCount = openedSimplePageCount
+        val page =
+            (currentSimplePage ?: (current.document as ReaderDocument.Simple).initialPage).coerceIn(
+                0,
+                maxOf(0, pageCount - 1),
+            )
+        val progression = progressionForPage(page, pageCount)
+        val progress =
+            ReadingProgress(
+                itemId = itemId,
+                locatorJson = "",
+                progression = progression,
+                positionTicks = 0L,
+                updatedAt = Instant.now(),
+            )
+
+        // 先摘下远端页源引用：openDocument 会覆写 openedPageSource，失败时要能回滚。
+        val previousSource = openedPageSource
+        openedPageSource = null
+        val document =
+            try {
+                openDocument(readerRepository.ensureLocalFile(itemId), progress)
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                openedPageSource = previousSource
+                Timber.w(error, "阅读流式：CBZ 热切换本地失败，保持远端阅读（%s）", itemId)
+                pendingHotSwap = null
+                return
+            }
+        if (document !is ReaderDocument.Simple) {
+            // 理论上不会：本地文件仍是同一本 CBZ。保险起见保持远端阅读。
+            runCatching { openedPageSource?.close() }
+            runCatching { openedAsset?.close() }
+            openedAsset = null
+            openedPageSource = previousSource
+            pendingHotSwap = null
+            Timber.w("阅读流式：CBZ 热切换得到非页序列文档，保持远端阅读（%s）", itemId)
+            return
+        }
+        previousSource?.close()
+        openedFromRemote = false
+        pendingHotSwap = null
+        releaseRemoteClient()
+        _state.value = ReaderUiState.Ready(itemId, document, progression)
+        Timber.i(
+            "阅读流式：CBZ 热切换本地完成 %d ms（第 %d 页 / %d，%s）",
+            SystemClock.elapsedRealtime() - startedAt,
+            page + 1,
+            pageCount,
             itemId,
         )
     }

@@ -73,10 +73,14 @@ internal class HttpByteSource(
     private val headers: Map<String, String> = emptyMap(),
     private val chunkSize: Int = DEFAULT_CHUNK_BYTES,
     private val maxCachedChunks: Int = DEFAULT_MAX_CHUNKS,
+    /** W77：已知文件总长（远端格式嗅探已拿到 `Content-Range` 时传入，省掉一次长度探测）。 */
+    private val knownSize: Long? = null,
+    /** W77：在途请求登记（阅读页离开时取消阻塞中的 Range 请求）。 */
+    private val callRegistry: HttpCallRegistry? = null,
 ) : ByteSource {
 
     private val httpUrl = url.toHttpUrlOrNull() ?: throw IOException("书籍下载地址非法：$url")
-    private val totalSize: Long by lazy { probeSize() }
+    private val totalSize: Long by lazy { knownSize?.takeIf { it > 0L } ?: probeSize() }
     private var closed = false
 
     private val chunks =
@@ -127,7 +131,7 @@ internal class HttpByteSource(
                 .apply { headers.forEach { (name, value) -> header(name, value) } }
                 .header("Range", "bytes=$start-$end")
                 .build()
-        client.newCall(request).execute().use { response ->
+        execute(request).use { response ->
             when (response.code) {
                 206 -> return response.body.bytes()
                 200 -> {
@@ -150,7 +154,7 @@ internal class HttpByteSource(
                 .apply { headers.forEach { (name, value) -> header(name, value) } }
                 .head()
                 .build()
-        client.newCall(head).execute().use { response ->
+        execute(head).use { response ->
             if (response.isSuccessful) {
                 response.header("Content-Length")?.toLongOrNull()?.let { if (it > 0L) return it }
             }
@@ -161,7 +165,7 @@ internal class HttpByteSource(
                 .apply { headers.forEach { (name, value) -> header(name, value) } }
                 .header("Range", "bytes=0-0")
                 .build()
-        client.newCall(probe).execute().use { response ->
+        execute(probe).use { response ->
             if (response.code == 206) {
                 parseContentRangeTotal(response.header("Content-Range"))?.let {
                     return it
@@ -172,6 +176,31 @@ internal class HttpByteSource(
             }
         }
         throw IOException("无法确定远程书籍大小（服务器不支持 Range / Content-Length）")
+    }
+
+    /**
+     * W77：执行一次请求并在 [callRegistry] 上登记 / 注销。
+     *
+     * 阅读页离开时 `cancelAll()` 会取消阻塞中的请求（阻塞 socket 读不响应协程取消，登记 call 是确定性兜底）。
+     */
+    private fun execute(request: Request): okhttp3.Response {
+        val call = client.newCall(request)
+        callRegistry?.register(call)
+        try {
+            val response = call.execute()
+            // W77 取证：进入 / 离开请求各记一行（含 Range，便于统计「打开 / 取某页」的请求数与字节数）。
+            timber.log.Timber.d(
+                "W77 书籍 Range %s %s Range=%s → HTTP %d · %s B",
+                request.method,
+                request.url.encodedPath,
+                request.header("Range") ?: "-",
+                response.code,
+                response.header("Content-Length") ?: "?",
+            )
+            return response
+        } finally {
+            callRegistry?.unregister(call)
+        }
     }
 
     companion object {

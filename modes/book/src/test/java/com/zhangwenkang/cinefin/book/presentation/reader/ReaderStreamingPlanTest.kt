@@ -1,8 +1,13 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import java.io.ByteArrayOutputStream
 import java.util.UUID
+import java.util.zip.CRC32
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -130,5 +135,76 @@ class ReaderStreamingPlanTest {
         assertEquals("bytes=0-0", rangeHeader(0L..0L))
         // 只有明确「读到结尾」才退化成开放式 Range。
         assertEquals("bytes=123-", rangeHeader(123L..Long.MAX_VALUE))
+    }
+
+    // ---------------------------------------------------------------- W77-2 远端格式嗅探
+
+    @Test
+    fun `首块是 PDF 头时判为 PDF`() {
+        assertEquals(
+            RemoteStreamKind.Pdf,
+            classifyRemoteHeader("%PDF-1.7\n%âãÏÓ".toByteArray(Charsets.ISO_8859_1)),
+        )
+    }
+
+    @Test
+    fun `ZIP 首条目为 mimetype 时判为 EPUB`() {
+        val epub = zipPrefix("mimetype" to "application/epub+zip".toByteArray(), storedFirst = true)
+        assertEquals(RemoteStreamKind.Epub, classifyRemoteHeader(epub))
+    }
+
+    @Test
+    fun `ZIP 首块含 container 路径时判为 EPUB`() {
+        val epub = zipPrefix("META-INF/container.xml" to "<container/>".toByteArray())
+        assertEquals(RemoteStreamKind.Epub, classifyRemoteHeader(epub))
+    }
+
+    @Test
+    fun `ZIP 首条目是页图时判为漫画包`() {
+        val cbz = zipPrefix("001.jpg" to ByteArray(64) { it.toByte() })
+        assertEquals(RemoteStreamKind.ComicArchive, classifyRemoteHeader(cbz))
+    }
+
+    @Test
+    fun `非 PDF 非 ZIP 判为未知`() {
+        assertEquals(RemoteStreamKind.Unknown, classifyRemoteHeader("not a book".toByteArray()))
+        assertEquals(RemoteStreamKind.Unknown, classifyRemoteHeader(ByteArray(2)))
+    }
+
+    @Test
+    fun `读取 ZIP 第一条目名`() {
+        assertEquals("mimetype", zipFirstEntryName(zipPrefix("mimetype" to ByteArray(4))))
+        assertEquals("001.jpg", zipFirstEntryName(zipPrefix("001.jpg" to ByteArray(4))))
+        assertNull(zipFirstEntryName("not a zip".toByteArray()))
+        assertNull(zipFirstEntryName(ByteArray(0)))
+    }
+
+    @Test
+    fun `中央目录复核识别非规范 EPUB`() {
+        assertTrue(remoteZipIsEpub(listOf("mimetype", "OPS/chapter1.xhtml")))
+        assertTrue(remoteZipIsEpub(listOf("META-INF/container.xml")))
+        assertTrue(remoteZipIsEpub(listOf("OEBPS/META-INF/container.xml")))
+        assertFalse(remoteZipIsEpub(listOf("001.jpg", "002.jpg", "ComicInfo.xml")))
+    }
+
+    /** 拼一个 ZIP 并只取前 1 KiB（模拟远端首块）；[storedFirst] 时首条目用 STORED（EPUB 的 `mimetype` 规范）。 */
+    private fun zipPrefix(
+        first: Pair<String, ByteArray>,
+        storedFirst: Boolean = false,
+    ): ByteArray {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            val entry = ZipEntry(first.first)
+            if (storedFirst) {
+                entry.method = ZipEntry.STORED
+                entry.size = first.second.size.toLong()
+                entry.compressedSize = first.second.size.toLong()
+                entry.crc = CRC32().apply { update(first.second) }.value
+            }
+            zip.putNextEntry(entry)
+            zip.write(first.second)
+            zip.closeEntry()
+        }
+        return output.toByteArray().copyOf(1024)
     }
 }
