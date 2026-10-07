@@ -703,6 +703,14 @@ constructor(
                 } else {
                     Timber.d("播放队列补全完成：本次新增 %d 项（播放器共 %d 项）", added, total)
                 }
+                // W76-Q6：请求瘦身取证——本次播放页实际打了几次 PlaybackInfo、省掉几次（整剧逐集 = queueSize 次）
+                val stats = playlistManager.playbackRequestStats()
+                Timber.d(
+                    "PlaybackInfo 统计：实际请求 %d 次、复用缓存 %d 次（队列 %d 项）",
+                    stats.requests,
+                    stats.hits,
+                    queueSize,
+                )
             }
     }
 

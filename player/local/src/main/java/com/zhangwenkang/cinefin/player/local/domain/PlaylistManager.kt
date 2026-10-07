@@ -46,6 +46,14 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     /** 构建播放信息失败过的条目：补队列时跳过，避免对同一集反复请求 */
     private val failedItemIds: MutableSet<UUID> = mutableSetOf()
 
+    /**
+     * W76-Q6：播放信息解析结果的「请求去重 / 复用」缓存。
+     *
+     * 同一条目 + 同一起播位置只请求一次 `PlaybackInfo`：既覆盖「起播集（快路径）与后台补队列撞车」，也覆盖 「重复入队 / 并发补片」——旧实现只靠
+     * `playerItems` 清单去重，两者都挡不住。
+     */
+    private val playbackRequestCache = PlaybackRequestCache()
+
     var currentItemIndex: Int = 0
 
     suspend fun getInitialItem(
@@ -325,7 +333,10 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             items.firstOrNull { it.id == itemId }
                 ?: startItem?.takeIf { it.id == itemId }
                 ?: return null
-        return runCatching { item.toPlayerItem(null, positionMs.coerceAtLeast(0L)) }
+        // W76-Q6：重开会话必须拿新地址，强制绕过缓存并覆盖旧结果。
+        return runCatching {
+            item.toPlayerItem(null, positionMs.coerceAtLeast(0L), forceRefresh = true)
+        }
             .onSuccess { rebuilt ->
                 playerItems.removeAll { it.itemId == itemId }
                 playerItems.add(rebuilt)
@@ -361,6 +372,9 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     /** 当前播放条目在队列里的位置（与 [queueSize] 同一坐标系） */
     val queueIndex: Int
         get() = currentItemIndex
+
+    /** W76-Q6：本播放页累计的播放信息「实际请求 / 复用缓存」次数（真机取证：对照整剧逐集请求的规模）。 */
+    internal fun playbackRequestStats(): PlaybackRequestStats = playbackRequestCache.stats()
 
     /**
      * 按队列位置构建播放条目：已经构建过的直接复用，构建失败记下来并返回 null（调用方跳过）。
@@ -495,6 +509,19 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     }
 
     private suspend fun FindroidItem.toPlayerItem(
+        mediaSourceIndex: Int?,
+        playbackPosition: Long,
+        forceRefresh: Boolean = false,
+    ): PlayerItem =
+        playbackRequestCache.resolve(
+            key = playbackRequestKey(id, mediaSourceIndex, playbackPosition * 10000L),
+            forceRefresh = forceRefresh,
+        ) {
+            buildPlayerItem(mediaSourceIndex, playbackPosition)
+        }
+
+    /** W76-Q6：缓存层之下的真正解析（请求 `PlaybackInfo` 并组装条目），只由 [toPlayerItem] 调用。 */
+    private suspend fun FindroidItem.buildPlayerItem(
         mediaSourceIndex: Int?,
         playbackPosition: Long,
     ): PlayerItem {
