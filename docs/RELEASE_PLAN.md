@@ -103,8 +103,22 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 |------|------|-------------|----------|-----------|-----------|
 | 1.0.0 | 2026-10-05 | 1 | `assembleLibreRelease -Paurorama.universalApk=true` | 163.1 MB | 73.9 MB |
 | 1.1.0 | 2026-10-07（Q 波后重建） | 2 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.2 MB | 74.0 MB |
+| 1.2.0 | 2026-10-07（候选＝发布对象） | 3 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.3 MB | 74.1 MB |
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
+
+**1.2.0 发布资产校验 · 候选＝发布对象（2026-10-07 · W77 阅读流式波，master 提交 `98cd482`；本表为上传口径）**
+
+| 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
+|--------------------|--------------------|---------|
+| `Aurorama-1.2.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,240,020 / 163.3 | `2c0ceed086bbbabe1a7406b0f0beb1a9ea8bc0429f9d9881df04970732ecac4b` |
+| `Aurorama-1.2.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,658,042 / 74.1 | `107e97c4661f551009d0aec1b07c34cf2210a79481cc3392a5f10b4c9cb09d48` |
+
+- 内容 = W77-1（EPUB 远程流式首开）+ W77-2（CBZ 远端页源）+ W77-3（三态状态 / 进度 + 移除 EPUB 自动整本下载）+ W77-4C（CBZ 热切换阻塞修复）+ 版本号 **1.2.0 (3)**；D-F14 三格式统一「不自动整本下载」。
+- `apksigner verify`：两份均 **v2 = true**（与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）。
+- 终端合并态门禁（master `98cd482`）：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿；8 任务 `--rerun-tasks` = **973 项 / 0 失败 0 错误**（app 273 / core 104 / data 68 / player:core 12 / player:local 178 / film 53 / book 145 / music 140；日志 `w77-evidence/gate_merged_w77_4c_*.log`）。
+- 回归与抽验：W77-4A（K60 8/8）+ W77-4B（Pad 5 12/12）+ W77-4C（P3 修复复测：CBZ 热切换 4796 ms → 7 ms）；候选包发布面抽验 **W77-4D**（报告 `w77-reports/W77-4D.md`）；**上传前待办 = 用户全检**（通过前不打 tag / 不发 Release）。
+- 发布用副本在 `.planning/cinefin-expansion/w77-evidence/candidate/Aurorama-1.2.0-*.apk`（候选即发布对象，不再重建）。
 
 **1.1.0 发布资产校验 · ③（2026-10-07 · Q 波后正式重建，master 提交 `61d13a8`；本表为上传口径）**
 
