@@ -1712,6 +1712,8 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - 每个候选评估：①「不整本下载、按需 Range 读」打开（API / 回调 / JNI 工作量）；②渲染保真与现 `PdfRenderer` 路径的差异；③功能面迁移（文本层 / 搜索 / 批注 / 版式扫描——PdfBox 是否保留做文本层、搜索在懒读下的策略）；④体积 / ABI / minSdk / NDK 构建成本；⑤许可合规（本项目 GPL-3.0）；⑥风险 + 实施草图 + 工作量预估。
 - 产出：`w77-reports/W77-PDF-engine-research.md`（决策就绪：推荐路线 + 分阶段方案 + 需真机 spike 清单）；**不动生产代码**。
 
+**调研已完成（2026-10-07，W77-PDF-R）**：推荐 **PDFium**——`android.graphics.pdf.PdfRenderer` 本身即 native pdfium，「换引擎」实为**换字节供给**（fd → HTTP Range），渲染保真风险低、无需自写 JNI；`io.legere:pdfiumandroid:2.0.3` 的 `PdfiumSource`（`FPDF_LoadCustomDocument`）已验证到 API 级，可直接接 `HttpByteSource`。**修正：PDFium 许可 = BSD-3-Clause**（本条目初稿「Apache-2.0」系笔误）；MuPDF = AGPL（唯一法务决策点，GPLv3 §13 允许组合但带网络条款）；androidx.pdf 仍 beta、无 Range 源；成本 ≈ +5 MB/ABI（Phase 1）/ 可净 −8 MB（Phase 2 迁文本层去 PdfBox）；**9 项真机 spike 清单（≈3 人日，建议 x86_64 AVD）与 6 项决策点**见报告——待用户拍板后立实施波。
+
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
 ### 10.1 加载中返回仍占网络（修，提交 `06bd7d8`）
