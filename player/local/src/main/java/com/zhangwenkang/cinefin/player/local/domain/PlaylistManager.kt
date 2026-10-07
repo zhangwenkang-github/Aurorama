@@ -390,7 +390,12 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             ?.let {
                 return it
             }
-        return runCatching { item.toPlayerItem(null, 0L) }
+        /*
+         * W76-Q6：取消必须穿过去。旧实现用 `runCatching` 吞掉取消（`JobCancellationException`），把被取消时**还没
+         * 构建**的整批条目全记进 [failedItemIds]——重复起播 / 重新入队（第一次补片的协程被第二次取消）时，这一页从此
+         * 再也补不出这些条目，队列被截断（真机：重复起播后队列只剩起播集 + 1 条）。
+         */
+        return runCatchingCancellable { item.toPlayerItem(null, 0L) }
             .onSuccess { playerItems.add(it) }
             .onFailure {
                 // 记下失败的条目，避免补队列时对同一集反复重试
