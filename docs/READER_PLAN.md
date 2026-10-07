@@ -1683,6 +1683,25 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
   60 s 不增长、可回落，扫描日志 `pages=5006 slots=4973 landscape=4938` 与修复前一致；批量路径不可用时
   的大书兜底阈值（1500 页）见 §2 D24 第 3 条。
 
+### 2026-10-07 · 大书首开慢（整本下载后才出页）→ 流式 / 按需加载（用户提出 · 待排期）
+
+**需求（用户原话）**：「阅读界面打开大书籍时过慢，需要优化，建议先加载显示需要的页，然后再慢慢根据阅读进度加载。」
+
+**现状诊断（第八任负责人 2026-10-07 只读核对）**：
+
+- 打开链 = `ReaderViewModel.open()` → `ReaderRepositoryImpl.ensureLocalFile()` = `downloadLocalFile()`（**整本 `GET /Items/{id}/Download` 流式落盘完成后**才 `openDocument()`）；Loading 态**不显示进度**（`onProgress` 被丢弃）。
+- 分格式：**PDF** → 系统 `PdfRenderer` + `PdfPageSource`（需完整可寻址文件）；**CBZ** → `ZipFile` 随机读（`ComicPageSource`，需完整本地文件）；**EPUB** → Readium 3.4.0（已带 `DefaultHttpClient` / `AssetRetriever`，具备 HTTP 流式资产能力）。
+- 服务器 `GET /Items/{id}/Download` 支持 Range（206，§3 已记）。实测（W76-V2，126 MB PDF）：首开 6–8 min ≈ 当日带宽 0.3 MB/s 量级 → **瓶颈 = 整本下载等待**，非解析 / 渲染。
+
+**方案草图（按落地难度排序）**：
+
+1. **EPUB**：Readium 直接以 HTTP 资产（附 `X-Emby-Token`）流式打开、按需拉取；后台整本下载并行，完成后切本地（可行性最高）。
+2. **CBZ**：自研「远端 zip」——先取尾部 EOCD / 中央目录（Range），按页拉条目（存储型条目零解压直取）；中难度。
+3. **PDF**：系统 PdfRenderer 要完整可寻址文件 → 需 spike：PdfBox（2.0.27.0，已在用）自定义 `RandomAccessRead`（HTTP Range 后端）渲染「当前页」预览，整本完成后无缝切回 PdfRenderer 路径；验证渲染一致性 / 内存 / 取消语义；风险最高。
+4. 通用：整本后台下载继续（保离线与后续翻页），下载完成热切换本地文件；打开遮罩显示下载进度（可选兜底 UX）。
+
+**排期（待用户决定，2026-10-07）**：A = 1.1.0 照发布，本项立为下一波头号项（建议，含 spike）；B = 并入 1.1.0（预计 +3–7 天，重开阅读组回归）。预估：spike 0.5–1 天；EPUB 0.5–1 天；CBZ 1–2 天；PDF 1–3 天；专项回归 + 重建包 ~1 天。
+
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
 ### 10.1 加载中返回仍占网络（修，提交 `06bd7d8`）
