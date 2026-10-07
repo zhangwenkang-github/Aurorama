@@ -1738,7 +1738,7 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 退化未构造样本复验；⑤ CBZ / PDF 未接入（非 EPUB 一律回退整本下载）；⑥ EPUB 双栏 / RTL / 字体设置只做页面与进度抽验，
 未逐项走查；⑦ 未做 Pad 5 交叉与弱网（0.3 MB/s）场景。报告：`w77-reports/W77-1.md`。
 
-### W77-2 · CBZ 远端页源（2026-10-07，分支 `feature/w77-cbz-remote`，基座 master `0683e86`）——**已落地（真机通过）**
+### W77-2 · CBZ 远端页源（2026-10-07，分支 `feature/w77-cbz-remote`，基座 master `0683e86`）——**已合并 master `dd12bfc`（真机通过）**
 
 **结论**：未下载 CBZ「先出页 → 按需预取窗口 → 失败回退整本下载」全链路跑通；打开**不再自动整本下载**
 （用户 2026-10-07 拍板「EPUB / CBZ / PDF 三格式统一不做自动整本下载」），只按「当前页 + 后 3 页」窗口按需取页；

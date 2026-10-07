@@ -284,6 +284,7 @@
 | 2026-10-07 | **W77-1 合并验收（第九任负责人）**：分支 rebase（`c8e8ce3` → `0683e86`，基座 master `11c5f96`；`READER_PLAN` §9 冲突解决 = 保两侧（W77-1 小节 + PDF 调研条目），W77-1 在前）→ ff 合并 master（`11c5f96` → `0683e86`）；合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **952 项 / 0 失败 0 错误**（app 273 / core 104 / data 68 / player:core 12 / player:local 178 / film 53 / book 124 / music 140；基线 941 + W77-1 11；日志 `w77-evidence/gate_merged_w77_1_build.log` / `gate_merged_w77_1_tests.log`）；已推送 CI（`11c5f96..0683e86`）。 |
 | 2026-10-07 | **PDF 6 决策点用户拍板（D-F13）+ Q8/Q9/Q10 处置（第九任负责人）**：①PDFium 路线全收（第 1/3/4/5/6 条按推荐）；②**第 2 条修正**——PDF 首开「先出第 1 页」保留，但**不做后台整本下载**，只按需 Range 预取「当前页 + 后面几页」（用户：浪费流量）；③Q9 关闭（竖屏省略「码率 / 解码」键 = 预期设计，避免画面拥挤）；④Q8 按推荐单开复核（debug / release 对照 attach 入口）、Q10 留 1.2 评估。→ 已同步提示 W77-2 会话「后台整本下载 / 热切换部分暂缓深入」；**EPUB/CBZ 是否统一为同一新口径（不自动整本下载）待用户确认**。 |
 | 2026-10-07 | **口径统一拍板（D-F14）+ W77-2 中途口径修正**：用户回「统一」——EPUB / CBZ / PDF 均**不做自动整本下载**，远端只按需预取「当前 + 后几页」；手动「下载整本」语义保留、失败回退保留。已下达 W77-2（真机验收前先改掉 CBZ 自动下载触发、加「静默期无整本流量」证据、重跑门禁）；W77-1（EPUB）的自动下载移除并入 **W77-3** 范围；PDF 按 D-F13。 |
+| 2026-10-07 | **W77-2 合并验收（第九任负责人）**：分支 rebase（`2575b97` → `dd12bfc`，基座 `56e5571`；`READER_PLAN` §9 冲突解决 = 保两侧（W77-2 小节在前、口径统一段在后））→ ff 合并 master（`56e5571` → `dd12bfc`）；合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **965 项 / 0 失败 0 错误**（app 273 / core 104 / data 68 / player:core 12 / player:local 178 / film 53 / book 137 / music 140；基线 952 + W77-2 13；日志 `w77-evidence/gate_merged_w77_2_*.log`）；已推送 CI（`56e5571..dd12bfc`）。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
