@@ -22,8 +22,10 @@ import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -179,6 +181,13 @@ constructor(
     private var remoteHttpClient: ReadiumRemoteHttpClient? = null
     /** W77：远程读取的在途请求登记表（`onCleared` 时确定性取消；协程取消回调在真机上不总能中断读体）。 */
     private var remoteInFlight: InFlightRequestRegistry? = null
+    /**
+     * W77-4C：旧页源 / 资产的后台回收作用域——**故意不挂在 `viewModelScope` 上**。
+     *
+     * 热切换时旧远端源的 `close()` 会与在途 Range 读争用 `HttpByteSource` 的分块锁（真机实测阻塞主线程 ≈2.5 s， 触发 MIUI
+     * `APP_SCOUT_WARNING`），所以回收丢到 IO 线程且不等待；即使紧接着离开阅读页也要让它跑完（否则丢句柄）。
+     */
+    private val recycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     /**
      * W77：后台整本下载已完成、但阅读页当时还没就绪（Loading）时暂存的待热切换目标 （itemId →
      * 本地文件字节数）。阅读页就绪后立即补做热切换，避免「小书下载比远程首开还快」时漏切。
@@ -808,7 +817,8 @@ constructor(
                 pendingHotSwap = null
                 return
             }
-        previousAsset?.close()
+        // W77-4C：旧远端资产后台回收——`close()` 会等在途 Range 读让出分块锁，绝不能在主线程等。
+        previousAsset?.let { asset -> recycleAsync(asset::close) }
         openedFromRemote = false
         _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
@@ -868,7 +878,8 @@ constructor(
             Timber.w("阅读流式：CBZ 热切换得到非页序列文档，保持远端阅读（%s）", itemId)
             return
         }
-        previousSource?.close()
+        // W77-4C：旧远端页源后台回收（同上）——切到本地页源后 UI 不再等待旧源关闭。
+        previousSource?.let { source -> recycleAsync(source::close) }
         openedFromRemote = false
         _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
@@ -1182,6 +1193,17 @@ constructor(
         openedFromRemote = false
         _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
+    }
+
+    /**
+     * W77-4C：把热切换淘汰下来的旧页源 / 资产丢给 [recycleScope] 后台回收，调用方**不等待**。
+     *
+     * 旧远端源的 `close()` 要等在途 Range 读让出 `HttpByteSource` 的分块锁（真机实测主线程阻塞 ≈2.5 s → MIUI
+     * `APP_SCOUT_WARNING`）；取消语义已由 [InFlightRequestRegistry] 的**粘性取消**兜底，`close()` 在后台自然返回， 所以 UI
+     * 与页源切换不必等它。失败只记日志（旧源已不再是当前文档，回收失败不影响阅读）。
+     */
+    private fun recycleAsync(close: () -> Unit) {
+        recycleScope.launch { runCatching { close() }.onFailure { Timber.w(it, "阅读流式：旧源后台回收失败") } }
     }
 
     /**
