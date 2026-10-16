@@ -56,14 +56,14 @@
 
 | # | 用户描述（摘要） | 解读 / 验收判据 | 归属线 | 波次 | 状态 |
 |---|------------------|------------------|--------|------|------|
-| 22 | 音乐播放时通知栏没有播放面板 | 标准媒体通知（封面 / 标题 / 播放暂停 / 上下一曲 / 进度可拖 / 点按回播放页）；先 `dumpsys` 取证；内核切换后不失效 | PLAYER / MUSIC | W78 | ⬜ |
+| 22 | 音乐播放时通知栏没有播放面板 | 标准媒体通知（封面 / 标题 / 播放暂停 / 上下一曲 / 进度可拖 / 点按回播放页）；先 `dumpsys` 取证；内核切换后不失效 | PLAYER / MUSIC | W78 | ✅ App 侧全项真机通过（截图 + 按钮实测）；**用户设备 release 包通知被系统关闭 → 需用户确认**，详见 §3 S78-1 |
 | 23 | 书籍长按点下载无反应；阅读页下载后下载界面不显示、直接「已完成」 | 两入口均有即时反馈；下载页出现书籍条目 + 进度 + 完成态（与「离线可读」一致） | DOWNLOAD / READER | W80 | ⬜ |
 | 24 | 打开 EPUB 滚动无效（实为分页）、双栏无效 | 目标 = 三档可感（滚动档长章连续滚动、双栏档真两列）；先取证（含 W77 回归核对） | READER | W80 | ⬜ |
 | 25 | 搜索无法搜索音乐和书籍 | 搜索类型扩全（Audio / Book 等，本地搜索并核）+ 分类展示 | film/search · data | W82 | ⬜ |
 | 26 | 歌词界面歌词没有居中 | 歌词页 / 面板 / 悬浮窗三处统一水平居中（当前行垂直居中保持） | MUSIC | W79 | ⬜ |
 | 27 | mpv 硬解：快进 / 快退 / 音量手势无效（偶发、触发条件不明） | 先复现攻坚（Pad 5 主）：logcat + 分区实验抓触发条件 → 修复后全屏任意区域有效 | PLAYER | W81 | ⬜ |
 | 28 | ExoPlayer 硬解：快退 / 快进仅左区有效 | 与 #27 同源嫌疑，同波取证 + 修复（全屏区域有效） | PLAYER | W81 | ⬜ |
-| 29 | 随机播放只能播放固定的几个 | 与 #38 同源排查（shuffle 序定型于 setMediaItems、队列异步补入）；修复后随机覆盖全队列 | MUSIC / player:local | W78 | ⬜ |
+| 29 | 随机播放只能播放固定的几个 | 与 #38 同源排查（shuffle 序定型于 setMediaItems、队列异步补入）；修复后随机覆盖全队列 | MUSIC / player:local | W78 | ✅ 根因 = 补齐中断（详见 #38）；修后随机 20 连点 **20/20 不重复**、散布 4–348 |
 | 30 | 搜索返回后回媒体库（应回进入前页面） | 返回栈修复：关闭 / 返回回进入前页；首页入口不丢栈 | film/nav | W82 | ⬜ |
 | 31 | 媒体库界面要求有下拉刷新 | 总览页复用既有 PTR 写法补齐；静默刷新不闪（W69 语义） | UI / film | W83 | ⬜ |
 | 32 | 书籍手势：双击中间适宽 / 双击右·左翻页 / 上下滑调亮度 | PDF/CBZ 全量；EPUB 映射（左右翻页 + 亮度；中间双击 = 单 / 双栏切换） | READER | W80 | ⬜ |
@@ -72,8 +72,8 @@
 | 35 | 歌词默认双语对照 | 默认开 + 无译文回落主行 + 存量显式偏好保留 | MUSIC | W79 | ⬜ |
 | 36 | 家庭视频缩略图显示进度条 | 库内容页补 UserData 进度 → 复用既有进度线组件；与续播一致 | film/data | W83 | ⬜ |
 | 37 | 歌词可调字体大小 / 间距并保存 | 新增偏好键；歌词页 + 面板生效（悬浮窗对齐）；重启保持 | MUSIC | W79 | ⬜ |
-| 38 | 播放队列 64 → >500 | 先取证「64」出处；补队列窗口 ≥500，随机 / 顺序均正确 | MUSIC / player | W78 | ⬜ |
-| 39 | 倍速支持 1.75x | 两处档位表统一为共享常量并补 1.75x | PLAYER | W78 | ⬜ |
+| 38 | 播放队列 64 → >500 | 先取证「64」出处；补队列窗口 ≥500，随机 / 顺序均正确 | MUSIC / player | W78 | ✅ 「64」取证为**补齐中断残量**（点 0:38 的歌实测停在 63 首）；修后 349/349 补齐；`SONG_LIMIT` 500→1000 |
+| 39 | 倍速支持 1.75x | 两处档位表统一为共享常量并补 1.75x | PLAYER | W78 | ✅ 三处档位表收敛到 `PlaybackSpeedOptions`；面板 / 设置档位均含 1.75× 且实测生效 |
 
 ### 2.3 W78–W83 批次原话与补充口径（2026-10-17）
 
@@ -270,6 +270,37 @@
 - 落点：`app/phone/presentation/player/PlayerControlOverlay.kt`、`settings` 档位资源。
 - 验收：播放页倍速菜单含 1.75x 且实测生效；长按倍速档位一致；门禁全绿。
 
+#### W78 实施记录（2026-10-17 · 分支 `feature/w78-music-core` · worktree `w78m` · 基座 master `899f85e`）
+
+**三张卡全部落地，K60 `8e875894` 真机验收通过；门禁 983 项 / 0 失败 + `ktfmtCheck` + 根 `assembleDebug` 全绿。**
+
+**S78-1 音乐通知播放面板（#22）—— App 侧全项通过，用户侧另有原因**
+
+- 真机场景矩阵（`dumpsys notification` / `dumpsys media_session` / 通知栏实拍）：冷启起播 ✅、队列补入期间持续更新 ✅、视频（mpv 内核）播放后回音乐 ✅、锁屏可见性 `vis=PUBLIC` ✅。
+- 通知栏实拍：封面 + 标题 `#Lov3 #Ngẫu Hứng` + 歌手 `1-6k, Hoaprox` + 上一曲 / 播放暂停 / 下一曲 + 进度 `00:21 / 02:07` 全部出现；**点通知上的「暂停」→ 会话 `PLAYING(3)→PAUSED(2)`；点「下一曲」→ `active item id 0→1` + 元数据变 `Nirvana`**（按钮链路有效）。
+- **未改通知代码**：调查结论 = `CinefinPlaybackService` / `CinefinMediaNotificationProvider` / `MediaSession` 对齐链路本身无缺陷（时序、实例重建、`sessionActivity` 路由都正确），用户看到「没有面板」的原因定位在设备侧：**同机 release 包 `io.github.zhangwenkang.aurorama` 的 App 级通知被系统关闭**（`AppSettings: importance=NONE userSet=true`；同机 debug 包 `importance=DEFAULT` 正常）→ **需用户确认是否曾手动关闭「极光幕」通知**；若确认非本人操作，再立项查 MIUI 通知策略。
+- 顺带收益：补齐批次化后，通知重建次数从「每首一次（349 次）」降到「每批一次（约 59 次）」，补齐期间 `startService` 高频唤醒同步下降。
+
+**S78-2 随机覆盖全队列 + 队列容量（#29 + #38）—— 根因单一：队列补齐被自动切歌打断**
+
+- **取证（真机，修复前）**：点「播放全部」（349 首）→ 队列面板 `播放队列（226）`；点 0:38 的短歌 → 补齐停在 **63** 首（用户报的「64」）。日志中补齐日志的最后一行与「第一首自然播完、播放器自动切到下一首」同秒。
+- **根因**：`MusicModeViewModel.fillQueueAround()` 用 `isCurrentQueueItem()`（当前曲目 == 被点那首）作中断判据，而**自动切歌同样让判据为 false** → 补齐被误判成「用户切歌」而退出；队列于是只剩「第一首播完前解析完的那几首」，随机播放也只能在这几首里循环。
+- **修法**：①补齐的终止条件改为「本次起播被取消（换队列 / 点新歌走 `playJob.cancel()`）」与「队列已清空」，与播到第几首无关；②新增**批量入队**原语 `MusicQueueEditor.appendToQueue / prependToQueue`（不再用依赖 `currentIndex` 的 `insertNext` + `move` 组合），批内并发解析、批次计划由纯函数 `musicQueueFillBatches` 给出（批间降序 / 批内升序，单测钉死）；③`playSelected()` 的非活动队列分支同样改用批量入队（同一隐患）。
+- **真机结果**：349/349 补齐（65 s，原 2.5 分钟且中断）；**点 0:38 短歌 → 自动切歌后仍跑满 349 首**（关键回归）；随机模式连点下一首 **20 次 = 20 首各不相同**，`active item id` 散布 4–348。
+- 容量：`SONG_LIMIT` 500 → **1000**（曲库 / 歌单拉取上限即队列长度上限，满足「>500」）。
+
+**S78-3 倍速 1.75x（#39）—— 三处档位表收敛为单一来源**
+
+- 新增 `settings/domain/PlaybackSpeedOptions`（`PLAYBACK` 9 档 / `LONG_PRESS` 4 档 / `storageValue` / `label`），替换：播放页面板 `SpeedOptions`、旧倍速对话框 `SpeedSelectionDialogFragment`、设置页「长按倍速档位」（资源数组 `gesture_speed_multiplier` + `_values` 已从 en / zh-rCN / zh-rTW 删除）、`PlayerGestureHelper` 的 HUD 文案。
+- `storageValue` 必须用 `Float.toString()`：`String.format("%.1f")` 会把 1.75 写成 `"1.8"`，读回档位就再也对不上；`Float.toString()` 与旧资源值（`1.5` / `2.0` / `3.0`）逐字兼容，**存量用户偏好无需迁移**。
+- 真机：播放页倍速面板 = 0.25 / 0.5 / 0.75 / 1 / 1.25 / 1.5 / **1.75** / 2 / 3×，选中 1.75× 后控制层读数变 `倍速 1.75×`；设置页档位 = 1.5 / **1.75** / 2 / 3×，选中后落盘 `pref_player_gestures_speed = "1.75"` 且回显 `1.75×`。
+
+**新增单测 +8**（合计 983）：`MusicQueueTest` +2（批量入队两批前后插 / 空列表）、`MusicQueueFillTest` +2（批次计划拼出列表序 / 首末曲边界）、`PlaybackSpeedOptionsTest` +4（1.75 存在与升序、落盘无损、文案）。
+
+**红线文件**：`player:local` 已改（`MusicQueueEditor` 接口 +2 方法、`MusicPlaybackControllerImpl` 实现、新增 `MusicQueueAdditions.kt`）——**申报项**；`NavigationRoot.kt` / `AppPreferences.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:core` **未触碰**。
+
+**未覆盖 → 见 §3 尾注与报告 `w78-reports/W78.md`。**
+
 ### W79 波（音乐界面与歌词 · K60 · 排 W78 之后）
 
 **S79-1 歌词居中 + 字号 / 行距设置并保存（#26 + #37）**
@@ -368,6 +399,7 @@
 | 2026-10-06 | **子代理通道复验通过（方案二生效）**：重启后代理访问日志见应用流量 `POST /responses -> 200`；spawn 探针返回 **`PAYLOAD_OK`**。W74 波 2 派发：**S74-1 字幕链路（#15+#14，K60）**、**S74-3 黑块清零+#6 库选择直达（D-F7，#3/#17，Pad 5）**、**S74-4 设置持久化盘点（#19，无设备先只读审计）**；S74-2（#9+#18）待 S74-1 合并后开（PlayerViewModel 咽喉文件串行）。 |
 | 2026-10-06 | **W74-S3 完成（#3 + #17 + D-F7，分支 `fix/w74-blackcards`）**：媒体库总览大卡 + 库内容条目卡统一「域色底 + 类型图标」占位（沿用 D81 口径），无封面 / 加载中 / 失败三态都不再出黑块；视频页「库选择」选中具体库改为**直达该库内容**（复用侧栏 / 媒体页同一条 `libraryEntryRoute` 链路，库卡模式恒为「全部库」总览）。门禁 835 项全绿（基线 830 + 5）；Pad 5 真机实测（含断网失败态、聚合显示方式回归、0 FATAL / ANR）。详见 `UI_PLAN` §4/§5 W74-S3 与 `.planning/cinefin-expansion/w74-reports/W74-S3.md`。 |
 | 2026-10-06 | W73-S3 只读取证（ISUCA 未知季结构 / 全看完季 userData / admin 与测试号 Resume）+ 复用前任 WIP `f4359c0` 并补全：季取图回落链（季卡 / 详情海报 / 两版 ItemHeader / 两版 HeroBackdropLayer）、未知季取集回落（`SeasonId=null`）、季「全看完打勾」、`ShowScreen`/`SeasonScreen` 返回 RESUMED 即刷新；门禁全绿（**819 项 / 0**）；K60 真机待设备窗口（#10② / #11 / 返回刷新）。证据：`w73-evidence/w73_watch_state/api-probe.md`。 |
+| 2026-10-17 | **W78 音乐播放核心完成（#22 + #29+#38 + #39，分支 `feature/w78-music-core`，K60 `8e875894`）**：①#38/#29 根因单一 —— 队列补齐用「当前曲目是否还是被点那首」作中断判据，**自动切歌同样命中** → 补齐退出（真机取证：点 2:07 的歌补到 **226/349**、点 0:38 的歌只补到 **63 首** = 用户报的「64」），修法 = 终止条件改为「起播被取消 / 队列清空」+ 新增批量入队原语（`appendToQueue` / `prependToQueue`，不再依赖 `currentIndex`）+ 批次计划纯函数；修后 349/349 补齐（65 s）、**短歌自动切歌后仍跑满**、随机连点 **20/20 不重复**；`SONG_LIMIT` 500→**1000**。②#39 三处倍速档位表收敛到 `PlaybackSpeedOptions`（面板 / 旧对话框 / 设置「长按倍速」），补 1.75×，落盘用 `Float.toString()` 保证 `"1.75"` 无损读回；面板与设置均真机实测生效。③#22 App 侧全项通过（通知栏实拍 + 按钮实测有效 + 场景矩阵），**未改通知代码** —— 用户「没有面板」定位到设备侧：同机 release 包 App 级通知被系统关闭（`importance=NONE userSet=true`）→ 待用户确认。门禁 983 项 / 0 失败 + `ktfmtCheck` + `assembleDebug` 全绿；红线 `player:local` 已改（申报）；新增 backlog B13。报告 `w78-reports/W78.md`。 |
 | 2026-10-06 | **W74-S1 完成（#15 + #14，分支 `fix/w74-subtitles`，K60 `8e875894` 单机）**：①#15 根因 = `ass-kt` 的 JNI 在 libass 该时刻无图元时返回 `null`（不是空帧），上层当「本帧无结果」保留上一帧 → 句末字幕挂到下一句；修 = 显式空帧清屏 + 覆盖层三态状态机（`LibassFramePolicy`）。②#14① 根因 = `LanguageMatcher.detect` 取「第一个能识别的线索」，Jellyfin 的泛化语言码 `chi`/`zho` 抢占了标题里的简繁线索（`简体中文` / `Chinese(Traditional)` / `简日双语` / `chs-01`）+ 单字「简 / 繁」关键字缺失；修后默认优先级自动命中 `zh-Hans`。③#14② 手动选择落新键 `pref_player_subtitle_manual_selection`，`reset()` 按媒体恢复（切 3 Mbps 重建播放页后仍保持）。④#14③ 次字幕语言记忆（`pref_secondary_subtitle_languages`）+ 检测修复跨视频继承（夏日幽灵 手动次字幕=日语 → 冰海战记 E1 自动选日语轨）。门禁见 `PLAYER_PLAN.md` §33.3；真机证据 `w74-evidence/w74_s1/`；**新发现**：转码档（3 Mbps）服务端字幕交付内容为空（`cues=0`）建议单开一条。 |
 
 | 2026-10-06 | **W74 波 2 合并验收**：S74-1 `e636531`（#15 句末清屏 + #14 简繁 / 码率保持 / 次字幕继承；+15 单测）+ S74-3 `2b87729`（#3/#17 占位不黑 + D-F7 库选择直达；+5 单测）合并 master `2f0055d`；合并态门禁 = `assembleDebug` + `ktfmtCheck` + 8 任务 `--rerun` **850 / 0 失败 0 错误**；已推送。S74-4 只读审计完成（64 条 / 13 项不保持，报告 `w74-reports/W74-S4.md`）。**用户新反馈 #20（字幕↔次字幕叠行 → 上下两行）与 #21（转码档字幕为空）已登记，移交新负责人会话**（2026-10-06 按用户指示开新会话交接）。 |
@@ -425,7 +457,7 @@
 | 2026-10-07 | **W77-4F 1.2.0 候选（重建轮）发布面抽验（K60，7/7 通过，0 FATAL·ANR）**：对象 = `Aurorama-1.2.0-arm64-v8a.apk`（sha256 复算一致）。①覆盖安装 ✅（5.42 s、`1.2.0 (3)`、`firstInstallTime` 保留、免重登、书架 8 本）；②**书架流量归零 ✅**（PDF 卡入视口 20 s **0 B** ← 对照 4E **6,960,274 B/29 条**；返回首页 **0 B** ← 对照 **7,598,496 B/33 条**；占位卡近黑 0%、亮点 2.6–6.2%）；③EPUB 流式 ✅（3.1 s 载入中 → 8.4 s 阅读中 → 18.3 s 第 6 頁；静默 20 s App 级 0 B）；④CBZ ✅（3.1 s 11/24 → 14/24）；⑤手动下载热切换 ✅（12.2 s → 离线可读 · 16.5 MB、页码不回退）；⑥PDF 进度 ✅（13→60→91% → 离线可读 36.1 MB）；⑦0 FATAL/ANR + v2 签名 ✅。口径调整：release 无 App 日志 → 「Range 0 条」改用 App 级 netstats 0 B + 像素形态；crash buffer 唯一 FATAL = `UiAutomation` 工具进程自崩（非 App）。报告 `w77-reports/W77-4F.md`；**下一步 = 用户全检（通过后 tag v1.2.0 + Release）**。 |
 | 2026-10-07 | **1.2.0 发布完成（第十任负责人）**：用户全检通过（2026-10-07）→ tag `v1.2.0` 推送 + GitHub Release「极光幕 / Aurorama v1.2.0」发布（universal `5b27d343…65fd5` / arm64-v8a `071a0ec4…a351bd`）；**发布后自检 ✅**（重新下载两资产：sha256 / 体积与 `RELEASE_PLAN` §7 一致、`apksigner` v2 + 证书 `e449c4aa…e155ff`）；W77 波闭环（1.2.0 内容 = W77-1/2/3/4C/5）。 |
 | 2026-10-17 | **第二批入册与开工（W78–W83）**：用户提交 18 项（9 bug + 9 需求）→ 三轮拷问确认（全按推荐；勘误 MVP=mpv / EOX=ExoPlayer；手势偶发、来源 = Pad 5）→ 入册 §2.2 **#22–#39** + §2.3 原话 + §3 任务卡 + 决策 D-F15–D-F20；结构审计落 `ARCHITECTURE` §1.3；`REQUIREMENTS` 升 v1.1；**W78（K60）/ W80（Pad 5）并行派发**（实现子代理，独立 QA 后续接棒）；CI 单测门禁（`.github/workflows/test.yaml`）生效。 | 
-| 2026-10-17 | **用户答复 + 双 QA 派发（第十一任负责人）**：①K60 release 通知总开关已由用户打开（自述「不会主动去关」→ 按系统/误关处理；用户建议 App 主动检测并引导 → 登记 §6 **B16**）；②测试服务器 books 库已恢复（只读探针 `Items?Recursive=true&IncludeItemTypes=Book` = **8 项**）→ W80 #23 端到端解封；③**独立 QA 并行派发**：QA-W78（K60 `8e875894`，分支 `feature/w78-music-core` @ `8018c3a`）+ QA-W80（Pad 5 `43af8627`，分支 `feature/w80-reader-books` @ `785b51f`），device-lock 已登记，报告将落 `w78-reports/W78-QA.md` / `w80-reports/W80-QA.md`。 |
+| 2026-10-17 | **用户答复 + 双 QA 派发（第十一任负责人）**：①K60 release 通知总开关已由用户打开（自述「不会主动去关」→ 按系统/误关处理；用户建议 App 主动检测并引导 → 登记 §6 **B17**）；②测试服务器 books 库已恢复（只读探针 `Items?Recursive=true&IncludeItemTypes=Book` = **8 项**）→ W80 #23 端到端解封；③**独立 QA 并行派发**：QA-W78（K60 `8e875894`，分支 `feature/w78-music-core` @ `8018c3a`）+ QA-W80（Pad 5 `43af8627`，分支 `feature/w80-reader-books` @ `785b51f`），device-lock 已登记，报告将落 `w78-reports/W78-QA.md` / `w80-reports/W80-QA.md`。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
@@ -459,4 +491,5 @@
 - **B10**（= **D1，P2 已确认**，非本轮引入）`PlayerHolder.musicSessionActive` 粘住 → 同进程内「换内核 / 回退链」全失效（`PlaybackCoordinatorImpl.onVideoStartRequested()` 全仓库无调用点；`PlayerHolder.kt:93/186`）。决定性命中见 W76-R1b §1.2 / §7.1；**R1c** 拿到明确用户可见面（横屏「播放失败」卡片 + 「改用 mpv 内核」按钮在粘住态失效 → 卡 `00:00 / 00:00`），建议单独立项。
 - **B11**（= **D2，P3 已归类**，非本轮引入）系列详情页「播放」进空载播放页——`ShowScreen` 传 series id、`PlaylistManager` SERIES 分支 `return null` **静默兜底无提示**；顺带 `EpisodeAction.NavigateToSeason` 自 W66 起无发射点（剧集页无法回季/剧集页）。建议单独立项（**R1c 已真机复现**，见 W76-R1b §7.2：系列级「播放」空载、季/集级正常出画）。
 - **B12**（W77-4B 发现，2026-10-07，**非 W77 引入**）横屏（Pad）侧栏展开「媒体库」后，「下载」条目被底部固定的「客户端设置 / 收起」挤出可视区（UI dump 无该节点；原坐标点击落到「电影库」）；折叠侧栏 / 竖屏 / 窄窗均正常。建议单开一条（1.2.x 或下波 UI 修复）。
-- **B16**（用户 2026-10-17 建议，源自 #22）**App 主动检测通知开关并引导**：用户「我应该不会主动去关……建议 app 应该主动弹出授权对话框」——K60 release 包 `AppSettings … importance=NONE userSet=true` 疑为 MIUI 自动管理/误关所致（用户已手动开启总开关）。建议实现 = 音乐 / 视频起播时检测通知可用性（`NotificationManagerCompat.areNotificationsEnabled()` + 媒体通知状态），关闭时给出显式引导（授权对话框 → 跳系统通知设置），避免「播放无面板」的静默失效。落点初判 `app/phone`（播放服务 / 权限引导）；排期建议随本批后续波次（W79 K60 顺带或单列小卡），待 QA / 合并后定。
+- **B13**（W78 发现，2026-10-17，**非本轮引入**）音乐补队列仍是「解析一首发一次 `PlaybackInfo`」：库 349 首补齐需约 60 s（批量 + 6 并发已比修前的 2.5 分钟快 5 倍），但 `SONG_LIMIT` 提到 1000 后，满库补齐会到 3 分钟量级 —— 期间「下一首」之后的曲目还不在队列里。建议下一波评估**懒补队列**（只补前 N 首 + 播到接近末端时续补）或并发度调优（需先量服务端 `PlaybackInfo` 并发承载）。**同源观察**：`MusicQueuePersister` 每次队列变化都整体落盘（补齐期间约每批一次写全量行），1000 首量级需复核写放大。
+- **B17**（用户 2026-10-17 建议，源自 #22；编号 B14–B16 预留给 W80 侧新增条目）**App 主动检测通知开关并引导**：用户「我应该不会主动去关……建议 app 应该主动弹出授权对话框」——K60 release 包 `AppSettings … importance=NONE userSet=true` 疑为 MIUI 自动管理/误关所致（用户已手动开启总开关）。建议实现 = 音乐 / 视频起播时检测通知可用性（`NotificationManagerCompat.areNotificationsEnabled()` + 媒体通知状态），关闭时给出显式引导（授权对话框 → 跳系统通知设置），避免「播放无面板」的静默失效。落点初判 `app/phone`（播放服务 / 权限引导）；排期建议随本批后续波次（W79 K60 顺带或单列小卡），待 QA / 合并后定。

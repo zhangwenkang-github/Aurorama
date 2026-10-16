@@ -173,7 +173,16 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D66 | **通用多选状态与组件落 `core`，三模式共用（音乐先落）**：状态 = `core/selection/MultiSelectState`（`selectionMode` + `selectedIds`，纯函数 `longPress` / `toggle` / `selectAll` / `selectNone` / `retain` / `clear`；**非多选态选中集合恒为空**，全不选自动退出）；组件 = `core/presentation/components/CinefinMultiSelect.kt`（`Modifier.cinefinSelectable` 长按手势、§8.5 `CinefinSelectIndicator` 20dp 勾选、下载页同款 `CinefinBatchBar`「已选 N 项」工具条）；`CinefinListRow` 增 `onLongClick` / `selectionMode` / `selected` 三个默认参数（老调用零改动）；新增文案 `selection_select_all` / `selection_select_none` / `selection_exit` / `selection_load_failed`（默认 / zh-rCN / zh-rTW） | 下载页的多选逻辑写死在 ViewModel + 私有组件里，三个新模式若各写一份会重演「选中集合增删 / 全选口径 / 删除门槛」三处判定；把状态提成纯数据类后可单测（13 项）、`retain()` 让分页 / 刷新后的选择自动与已加载列表求交集，不会出现「选中了看不见的条目」 |
 | D67 | **「全选」= 当前视图已加载条目**（`selectAll(visibleSongs)`），分页列表不拉全库；音乐落点 = 歌曲 Tab 与专辑 / 艺术家 / 歌单 / 收藏 / 最近播放详情（详情里选中作用域 = 详情列表） | 与用户 2026-10-04 口径一致（「当前视图已加载」）；把「已加载」由调用方显式传入，避免在纯函数层猜分页边界 |
 | D68 | **音乐批量动作五键：播放 / 下载 / 收藏 / 删除 / 从歌单移除**（§D66 工具条口径；可用性由 `MusicBatchRules` 纯函数判定，任一选中条目满足即可启用，与下载页一致）：①**播放 = 加入当前播放队列开始播**——按当前列表顺序（不是长按顺序）解析，已有队列则依次追加到队尾再跳过去起播第一首，队列为空则先建队列再补齐；单曲解析失败跳过、不计入失败；②**下载**跳过已下载 / 已在队列的曲目；③**收藏**任一所选未收藏 → 全部收藏、全部已收藏 → 全部取消；④**删除（红线）只删本地**——目标 = 已下载且**非本地媒体库**的服务器条目（本地媒体库曲目连入口都不出现），逐个 `Downloader.deleteItem` 删本机文件与索引，**不提供任何服务器媒体删除**；⑤**从歌单移除**只在歌单详情出现，走 `PlaylistsApi.removeItemFromPlaylist`（编辑歌单，不是删媒体），成功后本地移除该批曲目 | `batchPlayOrder` 纯函数把「按列表序而非点击序入队」钉死；下载 / 删除的分门槛（已下载 / 在队列 / 本地库）与批量目标筛选同源，避免 UI 可点而动作空转；删除沿用 W51/W57 的「只动本机」口径，服务器写操作仍只在既有白名单（已播放 / 喜欢 / 收藏 / 已读 / 下载 / 歌单编辑）内 |
-| D69 | **`MusicQueue.move()` 支持追加队尾**：`toIndex == items.size` 合法（摘出后再插入的语义 = 追加到末尾，`currentIndex` 相应移动），其余越界值仍返回自身；补 `player:core` 5 项单测 | 批量入队要把 `insertNext` 插到当前曲目之后的条目摆到队尾，旧实现 `toIndex !in items.indices` 会把 `size` 直接拒掉——批量播放永远把第二首留在当前曲目后面；修正后 `musicQueueFillOrder` 的补队列路径语义不变（其 `toIndex` 均 < size） |
+
+### 2.17 W78 本会话决策（音乐播放核心：#22 / #29+#38 / #39 · 2026-10-17）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D70 | **补队列改用「批量入队 + 起播世代」语义**：新增 `MusicQueueEditor.appendToQueue / prependToQueue`（按给定顺序追加队尾 / 前插队首，**不依赖 `currentIndex`**），补齐的终止条件只剩「本次起播被取消（`playJob.cancel()`）」与「队列已清空」；删掉 `isCurrentQueueItem` 判据 | 原判据把「第一首自然播完 → 播放器自动切歌」误判成「用户切歌」→ 补齐退出（真机：226/349、短歌 63 首）；`insertNext` + `move` 同样以 `currentIndex` 为锚点，自动切歌期间会移动错条目。取消语义本来就由 `playJob.cancel()` 承担（换队列 / 点新歌都会重建 job），不必再看"播到第几首" |
+| D71 | **批次计划抽纯函数 `musicQueueFillBatches(playedIndex, size, batchSize)`**（批间降序 / **批内升序**；追加批按列表序分批）+ 批内 **6 并发** `PlaybackInfo` 解析后一次性入队 | 「批量前插」的批内顺序写反会静默产出错序队列（真机只表现为"随机顺序很怪"），必须用纯函数 + 单测钉死；并发 + 批量把 349 首从 2.5 分钟压到 65 秒，同时把内核 `addMediaItems` 与媒体通知重建从每首一次降到每批一次 |
+| D72 | **`SONG_LIMIT` 500 → 1000** | 曲库 / 歌单拉取上限即音乐队列的实际上限（用户要求「>500」，#38）；1000 是"覆盖需求 + 控制单次 JSON 体量与持久化写放大"的折中。满库补齐耗时（约 3 分钟）记 B13 |
+| D73 | **倍速档位收敛到 `settings/domain/PlaybackSpeedOptions`**（`PLAYBACK` 9 档 / `LONG_PRESS` 4 档 / `storageValue` / `label`），删除 `gesture_speed_multiplier`(+`_values`) 资源数组 | 三处档位表此前互不一致（面板缺 1.75×、对话框缺 0.25×/3×、长按档位只有 1.5/2/3），用户要求「倍速支持 1.75x」；`storageValue` 用 `Float.toString()` 保证 `"1.75"` 无损读回且与旧资源值逐字兼容（存量偏好免迁移） |
+| D74 | **#22 不按"代码缺陷"处治**：通知链路（服务 / provider / 会话对齐 / 路由）真机全项通过且未改一行代码；用户设备上 release 包的 App 级通知被系统关闭（`importance=NONE userSet=true`） | 修代码不解决"通知被系统关掉"；先把结论与自查步骤交用户确认（是本人关闭 → 用户侧开回；非本人 → 再立项查 MIUI 通知策略）。**不替用户改系统设置** |
 
 ## 3. 任务清单
 
@@ -874,6 +883,21 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 42. **Media3 `seekToPrevious()` 的 3 秒语义 + 播放中 uiautomator 不 idle**（W35 真机操作踩到）：位置 > 3 秒时点「上一曲」只回到本曲开头，必须快速点两次才切上一首（音乐页上一曲走 `seekToPrevious`）——验证切歌时别误判按钮失灵。另外 K60 播放中 `uiautomator dump` 经常拿不到 idle 并**留下旧文件**（看起来"界面没变"），先 `input keyevent 85` 暂停（或发键后立刻 dump）再操作；日志取证要当轮 `logcat -d`，MIUI 会把 123 首队列信息刷满主缓冲。
 43. **空态不可滚动 → `PullToRefreshBox` 收不到下拉手势**（W39）：PTR 依赖子树的嵌套滚动事件，空态如果只是 `Box(fillMaxSize)` 居中放空状态，手指下拉没有任何可滚动节点消费，刷新永远不触发。修法：把空态包成 `Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Center)`——内容比视口小时仍居中、同时把手势转给 PTR；`CinefinEmptyState` 自身是 `fillMaxWidth + padding`，不会在无限高约束下崩。
 
+44. **补队列的中断判据不能拿「当前曲目」当锚点**（W78 真机取证）：`fillQueueAround` 原用 `queue.currentItem?.itemId == 被点曲目`
+     判断「用户还在听这首吗」，但**第一首自然播完 → 播放器自动切歌**同样让判据为 false，于是队列只补到「第一首播完前解析完的那几首」
+     （实测 2:07 的歌 226/349、0:38 的歌 63 首 —— 用户报的「队列只有 64 首 / 随机只播固定几个」）。同理 `insertNext` + `move`
+     这套组合也以 `currentIndex` 为锚点：自动切歌期间 `insertNext` 用新索引插入、调用方却按旧索引算 `move` 目标 → 移动错误的条目。
+     → 批量入队改走 `appendToQueue` / `prependToQueue`（只认队尾 / 队首，与当前曲目无关）；终止条件只留「起播被取消 / 队列已清空」，
+     取消交给 `playJob.cancel()`。**凡"用户还在不在那一项上"的判据，都要先问：自动推进会不会也命中它？**
+45. **批量前插：批间降序、批内升序**（W78 单测当场拦下）：`prependItems(items)` 的语义是「传入顺序即最终队首顺序」，所以按
+     `(playedIndex-1 downTo 0)` 分批时**每批内部必须反转成升序**，批次之间保持降序（先补靠近当前曲目的那批）。写反会静默产出错序队列，
+     真机上只表现为「随机播放的顺序很怪」，极难定位 → 抽纯函数 `musicQueueFillBatches` + 单测 + 「整段拼装 == 浏览列表序」断言兜住。
+46. **档位序号落盘别用 `String.format("%.1f")`**（W78）：1.75 会被写成 `"1.8"`，`toFloatOrNull()` 读回 1.8 —— 档位与选定值再也对不上。
+     用 `Float.toString()`（`1.5` / `1.75` / `2.0`），既无损又与旧资源数组 `gesture_speed_multiplier_values` 逐字兼容（存量偏好免迁移）。
+47. **`AppSettings importance=NONE userSet=true` = 该包通知被用户在系统里整体关掉**（W78 取证）：`dumpsys notification --noredact`
+     的 `AppSettings:` 段能直接读出。此状态下前台服务通知仍会 post（`NotificationRecord` 在、`actions=5`、`vis=PUBLIC`），
+     但 MIUI 不渲染媒体卡片。**排查「通知不显示」先比 `AppSettings` 的 `importance`，再怀疑代码。**
+
 ## 7. 会话日志
 
 - **2026-10-04 W64 音乐（本会话，`fix/w64-reader-music-home`，起点 master `a8a580f`）：歌曲 Tab「播放全部 / 随机播放」**——
@@ -968,3 +992,26 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   ⑥**K60 真机验收完成**（2026-10-02 23:10–23:35，见 §5.11）：RG 副本 -8.47 dB → 0.38x（面板「文件标签」）、原曲对照 NONE（「未检测到」）、覆盖 -6.0 → 0.50x / +6.0 → 2.00x / 双滑杆 -2.5 → 0.75x / 清除回落 -8.47、重启持久化；歌词 / 桌面歌词 / 队列 / 自然衔接回归；0 FATAL·ANR；
   ⑦**真机拦下的缺陷已修复并复验**：封面清除后回读偶发失败被负缓存（面板"未检测到"直到重启）→ `ReplayGainReadResult` 失败不缓存 + 换曲清旧标签 + 3s 重试 + 覆盖编码取整；重跑五项门禁全绿、重装复验；
   ⑧还原：prefs 逐键（RG=off / crossfade=0 / eq=false / preset=flat）、覆盖目录空、force-stop、`/sdcard/w35_ui*.xml` 清理；Pad 5 未占用；队列快照前进未回滚（先例一致）。**未决**：真交叉排期（§4.6 方案就绪）；M4A 设备端样本（库内 0 个）。
+
+- **2026-10-17 W78 音乐播放核心**（本会话，`feature/w78-music-core`，worktree `w78m`，起点 master `899f85e`，K60 `8e875894`）：
+  ①**#38/#29 根因单一（真机取证）**：`fillQueueAround` 的「还停在这首歌上吗」判据（`isCurrentQueueItem`）把**第一首自然播完、
+  播放器自动切到下一首**也当成「用户切歌」→ 补齐立即退出。实测：点 2:07 的歌补到 **226/349**；点 0:38 的歌补到 **63** 首
+  （= 用户报的「队列只能有 64 首」，其「随机只播固定几个」是同一根因的下游 —— 队列只有几十首时随机也在这几十首里循环）；
+  ②**修法（D-F17 灵活度优先）**：补齐的终止条件收敛为「本次起播被取消（`playJob.cancel()`，换队列 / 点新歌）」与「队列已清空」，
+  与播到第几首无关；新增**批量入队原语** `MusicQueueEditor.appendToQueue / prependToQueue`（不再用依赖 `currentIndex` 的
+  `insertNext` + `move` 组合 —— 那套在自动切歌时会把条目摆错位置）；批次计划抽纯函数 `musicQueueFillBatches`
+  （**批间降序、批内升序**，单测钉死；这是批量前插最容易写反的地方）；批内 **6 并发**解析后一次性入队；
+  ③**真机通过**：349/349 补齐（65 s，原 2.5 分钟且中断）；**点 0:38 短歌 → 自动切歌后仍跑满 349 首**（关键回归）；
+  随机模式连点下一首 **20 次 = 20 首互不重复**，`active item id` 散布 **4–348**；
+  ④**容量**：`SONG_LIMIT` 500 → **1000**（曲库 / 歌单拉取上限即队列长度上限，满足用户「>500」）；顺带 `playSelected()` 的
+  非活动队列分支改用同一批量路径（同一隐患）；
+  ⑤**#22 通知**：App 侧全项真机通过（通知栏实拍 = 封面 + 标题 + 歌手 + 上一曲 / 播放暂停 / 下一曲 + 进度；点通知「暂停」→
+  `PLAYING(3)→PAUSED(2)`、点「下一曲」→ `active item id 0→1` 且元数据变 `Nirvana`；场景矩阵含冷启 / 补齐中 / 视频（mpv）后回音乐）；
+  **未改通知代码** —— 用户「没有面板」定位到设备侧：同机 release 包 App 级通知被系统关闭（`importance=NONE userSet=true`），
+  待用户确认；补齐批次化顺带把通知重建从「每首一次」降到「每批一次」；
+  ⑥**#39 倍速**：三处档位表（播放页面板 / 旧倍速对话框 / 设置「长按倍速」）收敛到 `settings/domain/PlaybackSpeedOptions`，
+  补 **1.75×**；`storageValue` 用 `Float.toString()` 保证 `"1.75"` 无损读回（`%.1f` 会写成 `"1.8"`，档位再也对不上）；
+  设置侧资源数组 `gesture_speed_multiplier`(+`_values`) 从 en / zh-rCN / zh-rTW 删除；真机：面板 9 档含 1.75× 且选中后
+  控制层读数 `倍速 1.75×`、设置档位 4 档含 1.75× 且落盘 `pref_player_gestures_speed = "1.75"`；
+  ⑦新增单测 +8（`MusicQueueTest` +2 / `MusicQueueFillTest` +2 / `PlaybackSpeedOptionsTest` +4）；
+  门禁 983 项 / 0 失败 + `ktfmtCheck` + 根 `assembleDebug` 全绿；红线 `player:local` 已改（申报）；新增 backlog B13（懒补队列）。
