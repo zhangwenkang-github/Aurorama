@@ -33,6 +33,7 @@ import com.zhangwenkang.cinefin.isControlsLocked
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sign
@@ -238,7 +239,8 @@ class PlayerGestureHelper(
             if (it.isPlaying) {
                 lastPlaybackSpeed = it.playbackParameters.speed
                 it.setPlaybackSpeed(playbackSpeedIncrease)
-                activity.binding.gestureSpeedText.text = formatSpeedLabel(playbackSpeedIncrease)
+                activity.binding.gestureSpeedText.text =
+                    PlaybackSpeedOptions.label(playbackSpeedIncrease)
                 activity.binding.gestureSpeedLayout.visibility = View.VISIBLE
             }
         }
@@ -294,9 +296,6 @@ class PlayerGestureHelper(
     }
 
     /** 倍速显示：整数倍显示为 2×，半档显示为 1.5× */
-    private fun formatSpeedLabel(speed: Float): String =
-        if (speed % 1f == 0f) "${speed.toInt()}×" else "$speed×"
-
     private fun fastForward() {
         requestGestureSeek(appPreferences.getValue(appPreferences.playerSeekForwardInc))
         animateRipple(activity.binding.imageFfwdAnimationRipple)

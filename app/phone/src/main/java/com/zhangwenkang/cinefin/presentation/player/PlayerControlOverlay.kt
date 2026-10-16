@@ -118,6 +118,7 @@ import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.settings.domain.Constants
+import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlinx.coroutines.Dispatchers
@@ -159,9 +160,6 @@ internal fun playerBottomScrim(): Brush {
         )
     }
 }
-
-/** 可选倍速档位：与设置里的「长按倍速」共用同一批数值，保持一致 */
-private val SpeedOptions = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
 
 /**
  * 覆盖层控件「玻璃框」的不透明度（W12 反馈 A）。
@@ -2886,12 +2884,8 @@ internal fun formatTime(millis: Long): String {
 }
 
 internal fun formatSpeed(speed: Float): String {
-    val rounded = (speed * 100f).roundToLong() / 100f
-    return if (rounded == rounded.toLong().toFloat()) {
-        "${rounded.toLong()}×"
-    } else {
-        "$rounded×"
-    }
+    // W78：档位文案与设置页「长按倍速」共用同一份实现（PlaybackSpeedOptions.label）
+    return PlaybackSpeedOptions.label(speed)
 }
 
 // ---------- 面板 ----------
@@ -3138,7 +3132,7 @@ private fun SpeedPanel(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
-            SpeedOptions.forEach { speed ->
+            PlaybackSpeedOptions.PLAYBACK.forEach { speed ->
                 val selected = kotlin.math.abs(speed - current) < 0.01f
                 PanelRow(
                     label = formatSpeed(speed),

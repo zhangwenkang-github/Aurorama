@@ -9,12 +9,14 @@ import androidx.fragment.app.DialogFragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
 import java.lang.IllegalStateException
 
 class SpeedSelectionDialogFragment(private val viewModel: PlayerViewModel) : DialogFragment() {
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val speedTexts = listOf("0.5x", "0.75x", "1x", "1.25x", "1.5x", "1.75x", "2x")
-        val speedNumbers = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
+        // W78：档位表与播放页面板 / 设置页共用同一份常量（PlaybackSpeedOptions.PLAYBACK）
+        val speedNumbers = PlaybackSpeedOptions.PLAYBACK
+        val speedTexts = speedNumbers.map(PlaybackSpeedOptions::label)
 
         return activity?.let { activity ->
             val builder = MaterialAlertDialogBuilder(activity)

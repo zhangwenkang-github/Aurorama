@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
 import com.zhangwenkang.cinefin.settings.domain.models.HomeLibrarySettings
 import com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
@@ -745,7 +746,9 @@ constructor(
                                                     backendPreference =
                                                         appPreferences.playerGesturesZoom,
                                                 ),
-                                                PreferenceSelect(
+                                                // W78：档位表改为共享常量（PlaybackSpeedOptions.LONG_PRESS），
+                                                // 与播放页倍速面板同源；补 1.75×，落盘值仍与旧资源数组逐字兼容。
+                                                PreferenceDynamicSelect(
                                                     nameStringResource =
                                                         R.string.player_gestures_speed,
                                                     dependencies =
@@ -754,9 +757,19 @@ constructor(
                                                     backendPreference =
                                                         appPreferences
                                                             .playerGesturesSpeedMultiplier,
-                                                    options = R.array.gesture_speed_multiplier,
-                                                    optionValues =
-                                                        R.array.gesture_speed_multiplier_values,
+                                                    options =
+                                                        PlaybackSpeedOptions.LONG_PRESS.map { speed
+                                                            ->
+                                                            PreferenceDynamicOption(
+                                                                value =
+                                                                    PlaybackSpeedOptions
+                                                                        .storageValue(speed),
+                                                                label =
+                                                                    PlaybackSpeedOptions.label(
+                                                                        speed
+                                                                    ),
+                                                            )
+                                                        },
                                                 ),
                                                 PreferenceSelect(
                                                     nameStringResource =
