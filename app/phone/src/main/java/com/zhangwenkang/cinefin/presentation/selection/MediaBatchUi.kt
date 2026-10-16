@@ -148,6 +148,8 @@ internal fun mediaBatchEventMessage(context: Context, event: MediaBatchEvent): S
             batchResultText(context, event.queued, event.failed) { count ->
                 context.getString(FilmR.string.batch_download_added, count)
             }
+        // W80（#23）：无目标可选时也要给反馈，避免「点了没反应」。
+        MediaBatchEvent.DownloadSkipped -> context.getString(FilmR.string.batch_download_skipped)
         is MediaBatchEvent.Updated ->
             batchResultText(context, event.changed, event.failed) { count ->
                 context.getString(FilmR.string.batch_action_updated, count)

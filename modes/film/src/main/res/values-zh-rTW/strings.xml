@@ -33,4 +33,5 @@
     <string name="batch_delete_done">已刪除 %1$d 項本機下載</string>
     <string name="batch_partial_failure">有 %1$d 項失敗</string>
     <string name="batch_play_unavailable">選取項目沒有可播放的內容</string>
+    <string name="batch_download_skipped">所選項目均已下載或已在下載佇列中</string>
 </resources>

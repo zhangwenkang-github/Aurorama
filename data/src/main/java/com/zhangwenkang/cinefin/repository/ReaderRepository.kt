@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.repository
 import java.io.File
 import java.time.Instant
 import java.util.UUID
+import kotlinx.coroutines.flow.StateFlow
 import okhttp3.OkHttpClient
 
 /**
@@ -37,6 +38,34 @@ interface ReaderRepository {
 
     /** 显式下载（离线阅读 EB-11）：`onProgress` 为 0.0–1.0。 */
     suspend fun downloadLocalFile(itemId: UUID, onProgress: (Float) -> Unit = {}): File
+
+    /**
+     * W80（#23）：书籍整本下载任务表（进程内，`RUNNING` / `FAILED`）。
+     *
+     * 下载页据此把进行中的书籍下载显示成「下载中 xx%」条目（完成后由 [listLocalFiles] 的已完成列表接手）。
+     */
+    val bookDownloads: StateFlow<List<BookDownloadTask>>
+
+    /**
+     * W80（#23）：把整本下载登记为**后台任务**（App 作用域，离开阅读页 / 切换页面都不会取消）。
+     *
+     * 与 [downloadLocalFile] 的区别：后者绑定调用方协程（W64 语义：离开阅读页取消在途 HTTP），
+     * 用于"打开书时按需落盘"；用户**主动点下载**走本入口，任务继续跑并在下载页可见。
+     */
+    suspend fun enqueueBookDownload(
+        itemId: UUID,
+        title: String? = null,
+    ): BookDownloadEnqueueResult
+
+    /** W80（#23）：等待（必要时先入队）某本书的整本下载，`onProgress` 为 0.0–1.0。 */
+    suspend fun awaitBookDownload(
+        itemId: UUID,
+        title: String? = null,
+        onProgress: (Float) -> Unit = {},
+    ): File
+
+    /** W80（#23）：取消进行中的后台下载任务（没有任务时无操作）。 */
+    fun cancelBookDownload(itemId: UUID)
 
     /** 本地已下载书籍信息；未下载返回 null。 */
     suspend fun localFile(itemId: UUID): LocalBookFile?

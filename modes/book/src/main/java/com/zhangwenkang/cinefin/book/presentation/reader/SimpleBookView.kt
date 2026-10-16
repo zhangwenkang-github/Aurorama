@@ -86,6 +86,9 @@ internal fun SimpleBookView(
     onJumpHandled: () -> Unit = {},
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit = { _, _ -> },
     onAnnotationTap: (ReaderAnnotation) -> Unit = {},
+    /** W80（#32）：当前屏幕亮度（0–1），上下滑手势从这里起算。 */
+    brightnessProvider: () -> Float = { 1f },
+    onBrightness: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val pageCount = document.pageSource.pageCount
@@ -135,18 +138,23 @@ internal fun SimpleBookView(
     val twoColumnLayoutKey =
         remember(twoColumnLayout) { if (twoColumnLayout.any { it.fullscreen }) 1 else 0 }
     val pagedLayout = remember(pageCount) { pagedSlots(pageCount) }
+    // W80（#32）：双击中间 = 适宽（Fit width）开关；会话内状态（与双指缩放同一生命周期，不写偏好）。
+    var fitWidth by remember(document) { mutableStateOf(false) }
+    // 手势翻页（双击左 / 右）与搜索 / 批注跳页共用同一条「跳页」通道。
+    var gestureJumpPage by remember(document) { mutableStateOf<Int?>(null) }
+    val effectiveJumpPage = jumpTargetPage ?: gestureJumpPage
     // 搜索命中 / 批注按页索引分组：叠加层只关心当前页（命中上限 400 条，过滤成本可忽略）。
     val hitsByPage = remember(searchHits) { searchHits.groupBy { it.pageIndex } }
     val annotationsByPage = remember(annotations) { annotations.groupBy { it.pageIndex } }
 
     // 搜索命中 / 批注列表的跳页：更新当前页（Pager / 列表由各自的 LaunchedEffect 滚动到位）。
-    LaunchedEffect(jumpTargetPage) {
-        val target = jumpTargetPage ?: return@LaunchedEffect
+    LaunchedEffect(effectiveJumpPage) {
+        val target = effectiveJumpPage ?: return@LaunchedEffect
         if (target in 0 until pageCount) {
             currentPage = target
             currentSlotEnd = target
         }
-        onJumpHandled()
+        if (gestureJumpPage != null) gestureJumpPage = null else onJumpHandled()
     }
 
     fun report(firstPage: Int, lastPage: Int) {
@@ -155,73 +163,107 @@ internal fun SimpleBookView(
         onPageChanged(firstPage, pageCount)
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        when (settings.mode) {
-            ReaderMode.Scroll ->
-                ScrollPages(
-                    cache = cache,
-                    pageCount = pageCount,
-                    initialPage = currentPage,
-                    contentColor = contentColor,
-                    hitsByPage = hitsByPage,
-                    annotationsByPage = annotationsByPage,
-                    annotating = annotating,
-                    jumpTargetPage = jumpTargetPage,
-                    onPageChanged = { page -> report(page, page) },
-                    onAnnotationRequested = onAnnotationRequested,
-                    onAnnotationTap = onAnnotationTap,
-                )
+    /** 双击左 / 右的落点页：双栏按「槽位」（一屏两页）步进，其余按页步进；RTL 下左右语义镜像。 */
+    fun gestureTargetPage(step: Int): Int? {
+        if (pageCount <= 0) return null
+        val forward = if (isRtlPaging(settings.mode, settings.rtl)) -step else step
+        val target =
+            when (settings.mode) {
+                ReaderMode.TwoColumn -> {
+                    val slot = slotIndexForPage(twoColumnLayout, currentPage)
+                    twoColumnLayout.getOrNull(slot + forward)?.pages?.first()
+                }
 
-            ReaderMode.Paged ->
-                PagedPages(
-                    cache = cache,
-                    mergeCache = mergeCache,
-                    initialPage = currentPage,
-                    slots = pagedLayout,
-                    layoutKey = 0,
-                    rtl = settings.rtl,
-                    contentColor = contentColor,
-                    hitsByPage = hitsByPage,
-                    annotationsByPage = annotationsByPage,
-                    annotating = annotating,
-                    jumpTargetPage = jumpTargetPage,
-                    onPageChanged = ::report,
-                    onAnnotationRequested = onAnnotationRequested,
-                    onAnnotationTap = onAnnotationTap,
-                )
+                else -> currentPage + forward
+            } ?: return null
+        return target.coerceIn(0, pageCount - 1)
+    }
 
-            ReaderMode.TwoColumn ->
-                PagedPages(
-                    cache = cache,
-                    mergeCache = mergeCache,
-                    initialPage = currentPage,
-                    slots = twoColumnLayout,
-                    layoutKey = twoColumnLayoutKey,
-                    rtl = settings.rtl,
-                    contentColor = contentColor,
-                    hitsByPage = hitsByPage,
-                    annotationsByPage = annotationsByPage,
-                    annotating = annotating,
-                    jumpTargetPage = jumpTargetPage,
-                    onPageChanged = ::report,
-                    onAnnotationRequested = onAnnotationRequested,
-                    onAnnotationTap = onAnnotationTap,
-                )
+    ReaderGestureArea(
+        enabled = !annotating,
+        scrollMode = settings.mode == ReaderMode.Scroll,
+        brightnessProvider = brightnessProvider,
+        onBrightness = onBrightness,
+        onDoubleTap = { x, width ->
+            when (readerTapTarget(x, width)) {
+                ReaderTapTarget.ToggleFit -> fitWidth = !fitWidth
+                ReaderTapTarget.Next -> gestureTargetPage(1)?.let { gestureJumpPage = it }
+                ReaderTapTarget.Previous -> gestureTargetPage(-1)?.let { gestureJumpPage = it }
+            }
+        },
+        modifier = modifier.fillMaxSize(),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (settings.mode) {
+                ReaderMode.Scroll ->
+                    ScrollPages(
+                        cache = cache,
+                        pageCount = pageCount,
+                        initialPage = currentPage,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        fitWidth = fitWidth,
+                        jumpTargetPage = effectiveJumpPage,
+                        onPageChanged = { page -> report(page, page) },
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                    )
+
+                ReaderMode.Paged ->
+                    PagedPages(
+                        cache = cache,
+                        mergeCache = mergeCache,
+                        initialPage = currentPage,
+                        slots = pagedLayout,
+                        layoutKey = 0,
+                        rtl = settings.rtl,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        fitWidth = fitWidth,
+                        jumpTargetPage = effectiveJumpPage,
+                        onPageChanged = ::report,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                    )
+
+                ReaderMode.TwoColumn ->
+                    PagedPages(
+                        cache = cache,
+                        mergeCache = mergeCache,
+                        initialPage = currentPage,
+                        slots = twoColumnLayout,
+                        layoutKey = twoColumnLayoutKey,
+                        rtl = settings.rtl,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        fitWidth = fitWidth,
+                        jumpTargetPage = effectiveJumpPage,
+                        onPageChanged = ::report,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                    )
+            }
+
+            PageIndicator(
+                text =
+                    pageIndicatorText(
+                        mode = settings.mode,
+                        pageIndex = currentPage,
+                        pageCount = pageCount,
+                        rtl = settings.rtl,
+                        lastPageIndex = currentSlotEnd,
+                    ),
+                chromeColor = chromeColor,
+                contentColor = contentColor,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
-
-        PageIndicator(
-            text =
-                pageIndicatorText(
-                    mode = settings.mode,
-                    pageIndex = currentPage,
-                    pageCount = pageCount,
-                    rtl = settings.rtl,
-                    lastPageIndex = currentSlotEnd,
-                ),
-            chromeColor = chromeColor,
-            contentColor = contentColor,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 
@@ -239,6 +281,7 @@ private fun ScrollPages(
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
+    fitWidth: Boolean,
     jumpTargetPage: Int?,
     onPageChanged: (Int) -> Unit,
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
@@ -271,6 +314,7 @@ private fun ScrollPages(
                     cache = cache,
                     index = index,
                     contentColor = contentColor,
+                    fitWidth = fitWidth,
                     searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
                     annotations = annotationsByPage[index].orEmpty(),
                     annotating = annotating,
@@ -302,6 +346,7 @@ private fun PagedPages(
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
+    fitWidth: Boolean,
     jumpTargetPage: Int?,
     onPageChanged: (firstPage: Int, lastPage: Int) -> Unit,
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
@@ -367,6 +412,7 @@ private fun PagedPages(
                                 cache = cache,
                                 index = slot.pages.first(),
                                 contentColor = contentColor,
+                                fitWidth = fitWidth,
                                 searchRects =
                                     hitsByPage[slot.pages.first()].orEmpty().flatMap { it.rects },
                                 annotations = annotationsByPage[slot.pages.first()].orEmpty(),
@@ -383,6 +429,7 @@ private fun PagedPages(
                                 slot = slot,
                                 rtl = rtl,
                                 contentColor = contentColor,
+                                fitWidth = fitWidth,
                                 annotating = annotating,
                                 hitsByPage = hitsByPage,
                                 annotationsByPage = annotationsByPage,
@@ -395,6 +442,7 @@ private fun PagedPages(
                                 cache = cache,
                                 visualPages = visualSlotPages(slot, rtl),
                                 contentColor = contentColor,
+                                fitWidth = fitWidth,
                                 hitsByPage = hitsByPage,
                                 annotationsByPage = annotationsByPage,
                                 annotating = annotating,
@@ -414,6 +462,7 @@ private fun SpreadPages(
     cache: PageImageCache,
     visualPages: List<Int?>,
     contentColor: Color,
+    fitWidth: Boolean,
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
@@ -427,6 +476,7 @@ private fun SpreadPages(
                     cache = cache,
                     index = index,
                     contentColor = contentColor,
+                    fitWidth = fitWidth,
                     searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
                     annotations = annotationsByPage[index].orEmpty(),
                     annotating = annotating,
@@ -453,6 +503,7 @@ private fun MergedSpreadPage(
     slot: SpreadSlot,
     rtl: Boolean,
     contentColor: Color,
+    fitWidth: Boolean,
     annotating: Boolean,
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
@@ -477,6 +528,7 @@ private fun MergedSpreadPage(
             cache = cache,
             visualPages = visualSlotPages(slot, rtl),
             contentColor = contentColor,
+            fitWidth = fitWidth,
             hitsByPage = hitsByPage,
             annotationsByPage = annotationsByPage,
             annotating = annotating,
@@ -490,6 +542,9 @@ private fun MergedSpreadPage(
     ZoomableSlot(
         slotKey = "spread=$firstPage",
         logLabel = "spread=$firstPage",
+        fitWidth = fitWidth,
+        // 合并位图是两页拼接（横向）：适宽对它无意义（本身已满宽）。
+        pageAspect = image.width.toFloat() / image.height.coerceAtLeast(1),
         modifier = Modifier.fillMaxSize(),
     ) {
         Image(
@@ -512,6 +567,7 @@ private fun ZoomablePage(
     cache: PageImageCache,
     index: Int,
     contentColor: Color,
+    fitWidth: Boolean = false,
     searchRects: List<PageRect> = emptyList(),
     annotations: List<ReaderAnnotation> = emptyList(),
     annotating: Boolean = false,
@@ -519,10 +575,15 @@ private fun ZoomablePage(
     onAnnotationTap: (ReaderAnnotation) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    // 「适宽」只依赖页面宽高比（不加载位图，走页源元数据），拿到后按容器比例换算放大倍数。
+    var pageAspect by remember(index) { mutableStateOf<Float?>(null) }
+    LaunchedEffect(index) { pageAspect = cache.aspect(index) }
     ZoomableSlot(
         slotKey = index,
         logLabel = "index=$index",
         gesturesEnabled = !annotating,
+        fitWidth = fitWidth,
+        pageAspect = pageAspect,
         modifier = modifier,
     ) {
         PageContent(
@@ -549,11 +610,21 @@ private fun ZoomableSlot(
     slotKey: Any,
     logLabel: String,
     gesturesEnabled: Boolean = true,
+    fitWidth: Boolean = false,
+    pageAspect: Float? = null,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    var pageZoom by remember(slotKey) { mutableStateOf(PageZoom()) }
     var boxSize by remember(slotKey) { mutableStateOf(IntSize.Zero) }
+    // 「适宽」的基准倍数：位图 Fit 渲染后宽度撑满容器还需要放大的倍数（1 = 整页 Fit）。
+    val baseScale =
+        if (fitWidth && boxSize.width > 0 && boxSize.height > 0) {
+            fitWidthScale(pageAspect, boxSize.width.toFloat() / boxSize.height.toFloat())
+        } else {
+            1f
+        }
+    // 切换适宽 / 换页时归位（双指缩放仍叠乘在基准倍数上）。
+    var pageZoom by remember(slotKey, baseScale) { mutableStateOf(PageZoom()) }
     var lastLoggedScale by remember(slotKey) { mutableStateOf(1f) }
 
     Box(
@@ -565,15 +636,22 @@ private fun ZoomableSlot(
                     if (!gesturesEnabled) return@pointerInput
                     detectMultiTouchZoom { pan, zoomFactor ->
                         val next =
-                            pageZoom.transform(zoomFactor, pan, boxSize.width, boxSize.height)
+                            pageZoom.transform(
+                                zoom = zoomFactor,
+                                pan = pan,
+                                width = boxSize.width,
+                                height = boxSize.height,
+                                base = baseScale,
+                            )
                         pageZoom = next
                         // 数帧一次的调试轨迹：真机验收用 logcat 文本判断缩放手势确实生效（不贴截图）。
                         if (abs(next.scale - lastLoggedScale) >= ZOOM_LOG_STEP) {
                             lastLoggedScale = next.scale
                             Timber.d(
-                                "reader zoom %s scale=%.2f offset=(%.0f,%.0f)",
+                                "reader zoom %s scale=%.2f base=%.2f offset=(%.0f,%.0f)",
                                 logLabel,
                                 next.scale,
+                                baseScale,
                                 next.offset.x,
                                 next.offset.y,
                             )
@@ -585,8 +663,8 @@ private fun ZoomableSlot(
         Box(
             modifier =
                 Modifier.fillMaxSize().graphicsLayer {
-                    scaleX = pageZoom.scale
-                    scaleY = pageZoom.scale
+                    scaleX = baseScale * pageZoom.scale
+                    scaleY = baseScale * pageZoom.scale
                     translationX = pageZoom.offset.x
                     translationY = pageZoom.offset.y
                 }

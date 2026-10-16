@@ -9,6 +9,8 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSourceType
+import com.zhangwenkang.cinefin.repository.BookDownloadStatus
+import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
@@ -221,8 +223,13 @@ constructor(
             val entry = _state.value.findEntry(key) ?: return@launch
             when {
                 entry.task != null -> downloader.deleteTask(entry.task)
-                entry.mediaKind == DownloadMediaKind.BOOK ->
+                entry.mediaKind == DownloadMediaKind.BOOK -> {
+                    // W80（#23）：进行中的书籍下载先取消，否则 `.part` 会继续写并重新落盘。
+                    if (readerRepository.bookDownloads.value.any { it.itemId == entry.itemId }) {
+                        readerRepository.cancelBookDownload(entry.itemId)
+                    }
                     readerRepository.deleteLocalFile(entry.itemId)
+                }
                 else -> {
                     val completed =
                         _state.value.completed.firstOrNull { it.item.id == entry.itemId }
@@ -394,6 +401,11 @@ constructor(
             val episodeHierarchy = loadEpisodeHierarchy()
             val bookFiles = loadBookFiles()
             val completedBookIds = bookFiles.map { it.itemId }.toSet()
+            // W80（#23）：书籍整本下载任务（书架批量 / 阅读页「下载」共用）——进行中 / 失败的条目
+            // 与下载引擎任务一起进「未完成 / 失败」分组，书籍下载不再"点了看不见"。
+            val bookTasks = readerRepository.bookDownloads.value
+            val runningBookTasks = bookTasks.filter { it.status == BookDownloadStatus.RUNNING }
+            val failedBookTasks = bookTasks.filter { it.status == BookDownloadStatus.FAILED }
             val storage = runCatching {
                 downloader.getStorageUsage()
             }
@@ -422,18 +434,32 @@ constructor(
                         )
                     }
             val localBookEntries = bookFiles.map { file -> file.toBookEntry(serverMetadata = null) }
+            val localRunningBookEntries = runningBookTasks.map { task ->
+                task.toActiveBookEntry(serverName = null)
+            }
+            val localFailedBookEntries = failedBookTasks.map { task ->
+                task.toActiveBookEntry(serverName = null)
+            }
             _state.update { current ->
                 current.copy(
                     isLoading = false,
                     activeTasks = tasks.filter { it.status != DownloadTaskStatus.FAILED },
                     failedTasks = tasks.filter { it.status == DownloadTaskStatus.FAILED },
-                    activeContainers = DownloadHierarchyBuilder.build(localActiveEntries),
-                    failedContainers = DownloadHierarchyBuilder.build(localFailedEntries),
+                    activeContainers =
+                        DownloadHierarchyBuilder.build(
+                            localActiveEntries + localRunningBookEntries
+                        ),
+                    failedContainers =
+                        DownloadHierarchyBuilder.build(localFailedEntries + localFailedBookEntries),
                     bookStorageBytes = bookStorageBytes,
                     storage = storage,
                     selection =
                         current.selection.intersect(
-                            (localActiveEntries + localFailedEntries + localBookEntries)
+                            (localActiveEntries +
+                                    localFailedEntries +
+                                    localBookEntries +
+                                    localRunningBookEntries +
+                                    localFailedBookEntries)
                                 .map { it.key }
                                 .toSet()
                         ),
@@ -446,7 +472,8 @@ constructor(
             }
                 .getOrElse { emptyList() }
             val musicById = loadMusicLibrary()
-            val bookMetadata = resolveBookMetadata(completedBookIds)
+            val bookMetadata =
+                resolveBookMetadata(completedBookIds + runningBookTasks.map { it.itemId })
 
             val activeEntries =
                 tasks
@@ -484,9 +511,20 @@ constructor(
                 bookFiles
                     .filter { file -> completedBookIds.contains(file.itemId) }
                     .map { file -> file.toBookEntry(serverMetadata = bookMetadata[file.itemId]) }
+            val runningBookEntries = runningBookTasks.map { task ->
+                task.toActiveBookEntry(bookMetadata[task.itemId]?.name)
+            }
+            val failedBookEntries = failedBookTasks.map { task ->
+                task.toActiveBookEntry(bookMetadata[task.itemId]?.name)
+            }
 
             val validKeys =
-                (activeEntries + failedEntries + completedEntries + bookEntries)
+                (activeEntries +
+                        failedEntries +
+                        completedEntries +
+                        bookEntries +
+                        runningBookEntries +
+                        failedBookEntries)
                     .map { it.key }
                     .toSet()
 
@@ -496,10 +534,12 @@ constructor(
                     activeTasks = tasks.filter { it.status != DownloadTaskStatus.FAILED },
                     failedTasks = tasks.filter { it.status == DownloadTaskStatus.FAILED },
                     completed = completed,
-                    activeContainers = DownloadHierarchyBuilder.build(activeEntries),
+                    activeContainers =
+                        DownloadHierarchyBuilder.build(activeEntries + runningBookEntries),
                     completedContainers =
                         DownloadHierarchyBuilder.build(completedEntries + bookEntries),
-                    failedContainers = DownloadHierarchyBuilder.build(failedEntries),
+                    failedContainers =
+                        DownloadHierarchyBuilder.build(failedEntries + failedBookEntries),
                     bookStorageBytes = bookStorageBytes,
                     storage = storage,
                     selection = current.selection.intersect(validKeys),
@@ -811,6 +851,35 @@ constructor(
             imageUri = localImage(itemId) ?: bookCoverProvider.cached(itemId),
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
+
+    /**
+     * W80（#23）：进行中 / 失败的**书籍整本下载任务** → 下载页条目（与已完成书籍同一种 BOOK 形态）。
+     *
+     * 完成态仍由 [LocalBookFile.toBookEntry]（列出 `files/books` 下的 `.book` 文件）负责， 避免"任务已完成但文件未落盘"的空窗。
+     */
+    private fun BookDownloadTask.toActiveBookEntry(serverName: String?): DownloadHierarchyEntry {
+        val entryStatus =
+            if (status == BookDownloadStatus.FAILED) DownloadTaskStatus.FAILED
+            else DownloadTaskStatus.RUNNING
+        return DownloadHierarchyEntry(
+            itemId = itemId,
+            name =
+                offlineBookDisplayName(
+                    serverName = serverName,
+                    sidecarTitle = title,
+                    itemId = itemId,
+                ),
+            mediaKind = DownloadMediaKind.BOOK,
+            status = entryStatus,
+            sizeBytes = totalBytes,
+            downloadedBytes = downloadedBytes,
+            totalBytes = totalBytes,
+            updatedAt = updatedAtEpochMillis,
+            imageUri = bookCoverProvider.cached(itemId),
+            bookDetail = error,
+            allowOffline = offlineAllowMap[itemId] ?: true,
+        )
+    }
 
     /** W63：带并发上限的 map（服务器元数据补齐阶段用，避免一次性打出几十个请求）。 */
     private suspend fun <T, R> List<T>.mapBounded(

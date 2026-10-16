@@ -9,6 +9,7 @@ import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSourceType
+import com.zhangwenkang.cinefin.repository.BookDownloadEnqueueResult
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.Downloader
@@ -35,6 +36,9 @@ data class MediaDownloadState(
 /** 批量动作结果（页面据此弹提示 / 起播 / 刷新）。 */
 sealed interface MediaBatchEvent {
     data class DownloadQueued(val queued: Int, val failed: Int) : MediaBatchEvent
+
+    /** W80（#23）：所选条目都已在队列 / 已下载 —— 不能静默无反应。 */
+    data object DownloadSkipped : MediaBatchEvent
 
     data class Updated(val changed: Int, val failed: Int) : MediaBatchEvent
 
@@ -127,8 +131,13 @@ constructor(
     /** 批量下载：跳过已下载 / 已在队列的条目（目标由 [batchDownloadTargets] 过滤）。 */
     fun downloadSelected(items: List<FindroidItem>) {
         val targets = batchDownloadTargets(items, capsOf(items))
-        if (targets.isEmpty()) return
         viewModelScope.launch {
+            // W80（#23）：以前这里直接 return，用户点「下载」看起来毫无反应；
+            // 现在无论能不能入队都给一条反馈（下发 DownloadSkipped / DownloadQueued）。
+            if (targets.isEmpty()) {
+                eventsChannel.send(MediaBatchEvent.DownloadSkipped)
+                return@launch
+            }
             val repository = repositoryProvider.get()
             val state = _downloadState.value
             var queued = 0
@@ -136,8 +145,12 @@ constructor(
             // 书籍走阅读器离线文件链路（与下载页「书籍」分组同源），其余走下载引擎。
             val books = targets.filter { mediaItemIsBook(it) }
             for (book in books) {
-                runCatching { readerRepository.downloadLocalFile(book.id) }
-                    .onSuccess { queued++ }
+                // W80（#23）：改为登记**后台任务**（立即返回 + 下载页可见进度），
+                // 不再在页面协程里同步下完整本书（大书要几分钟，期间毫无反馈）。
+                runCatching { readerRepository.enqueueBookDownload(book.id, book.name) }
+                    .onSuccess { result ->
+                        if (result == BookDownloadEnqueueResult.Queued) queued++
+                    }
                     .onFailure { failed++ }
             }
             for (item in targets - books.toSet()) {
@@ -152,7 +165,10 @@ constructor(
                 failed += failedNow
             }
             refreshDownloadState()
-            eventsChannel.send(MediaBatchEvent.DownloadQueued(queued = queued, failed = failed))
+            eventsChannel.send(
+                if (queued == 0 && failed == 0) MediaBatchEvent.DownloadSkipped
+                else MediaBatchEvent.DownloadQueued(queued = queued, failed = failed)
+            )
         }
     }
 

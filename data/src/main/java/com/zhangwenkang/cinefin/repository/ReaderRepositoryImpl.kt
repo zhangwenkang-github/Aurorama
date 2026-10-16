@@ -12,10 +12,21 @@ import java.time.ZoneId
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -53,6 +64,145 @@ class ReaderRepositoryImpl(
             jellyfinApi.certificateTrustStore,
         )
     private val downloadMutex = Mutex()
+
+    // ---- W80（#23）：书籍整本下载任务表 ----
+    // 书架批量下载 / 阅读页「下载」都登记到这里：任务跑在 App 作用域（离开页面不取消），
+    // 下载页读 `bookDownloads` 显示「下载中 xx%」；完成后仍由 `listLocalFiles()` 的已完成列表接手。
+    private val bookDownloadTasks = MutableStateFlow<List<BookDownloadTask>>(emptyList())
+    private val bookDownloadLock = Mutex()
+    private val bookDownloadJobs = mutableMapOf<UUID, Job>()
+    private val bookDownloadResults = mutableMapOf<UUID, CompletableDeferred<File>>()
+    private val bookDownloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override val bookDownloads: StateFlow<List<BookDownloadTask>> = bookDownloadTasks.asStateFlow()
+
+    override suspend fun enqueueBookDownload(
+        itemId: UUID,
+        title: String?,
+    ): BookDownloadEnqueueResult = bookDownloadLock.withLock {
+        if (bookDownloadJobs.containsKey(itemId))
+            return@withLock BookDownloadEnqueueResult.AlreadyQueued
+        val target = localFileFor(itemId)
+        if (target.isFile && target.length() > 0) {
+            return@withLock BookDownloadEnqueueResult.AlreadyDownloaded
+        }
+        val result = CompletableDeferred<File>()
+        bookDownloadResults[itemId] = result
+        publishBookTask(
+            BookDownloadTask(
+                itemId = itemId,
+                title = title ?: readLocalTitle(itemId),
+                status = BookDownloadStatus.RUNNING,
+                updatedAtEpochMillis = System.currentTimeMillis(),
+            )
+        )
+        val job = bookDownloadScope.launch {
+            // 数据层每 64 KB 回调一次；任务表按**整数百分比**节流，避免下载页每块都重组。
+            var lastPercent = -2
+            try {
+                val file =
+                    download(target = target, itemId = itemId, onProgress = {}) { bytes, total ->
+                        val percent = if (total > 0L) ((bytes * 100) / total).toInt() else -1
+                        if (percent != lastPercent) {
+                            lastPercent = percent
+                            updateBookTask(itemId) { task ->
+                                task.copy(
+                                    downloadedBytes = bytes,
+                                    totalBytes = total,
+                                    updatedAtEpochMillis = System.currentTimeMillis(),
+                                )
+                            }
+                        }
+                    }
+                result.complete(file)
+                publishBookTask(
+                    BookDownloadTask(
+                        itemId = itemId,
+                        title = readLocalTitle(itemId),
+                        downloadedBytes = file.length(),
+                        totalBytes = file.length(),
+                        status = BookDownloadStatus.COMPLETED,
+                        updatedAtEpochMillis = System.currentTimeMillis(),
+                    )
+                )
+            } catch (cancellation: CancellationException) {
+                result.cancel(cancellation)
+                removeBookTask(itemId)
+                throw cancellation
+            } catch (error: Exception) {
+                result.completeExceptionally(error)
+                updateBookTask(itemId) { task ->
+                    task.copy(
+                        status = BookDownloadStatus.FAILED,
+                        error = error.message ?: "下载失败，请检查网络",
+                        updatedAtEpochMillis = System.currentTimeMillis(),
+                    )
+                }
+            } finally {
+                bookDownloadLock.withLock {
+                    bookDownloadJobs.remove(itemId)
+                    bookDownloadResults.remove(itemId)
+                }
+            }
+        }
+        bookDownloadJobs[itemId] = job
+        BookDownloadEnqueueResult.Queued
+    }
+
+    override suspend fun awaitBookDownload(
+        itemId: UUID,
+        title: String?,
+        onProgress: (Float) -> Unit,
+    ): File {
+        // 本地已有：直接命中，不进任务表（与 `downloadLocalFile` 的 1f 语义一致）。
+        val existing = localFileFor(itemId)
+        if (existing.isFile && existing.length() > 0) {
+            onProgress(1f)
+            return existing
+        }
+        return coroutineScope {
+            val watcher = launch {
+                bookDownloads
+                    .map { tasks -> tasks.firstOrNull { it.itemId == itemId } }
+                    .distinctUntilChanged()
+                    .collect { task -> task?.let { onProgress(it.progress) } }
+            }
+            try {
+                enqueueBookDownload(itemId, title)
+                val result =
+                    bookDownloadLock.withLock { bookDownloadResults[itemId] }
+                        ?: CompletableDeferred()
+                result.await()
+            } finally {
+                watcher.cancel()
+            }
+        }
+    }
+
+    override fun cancelBookDownload(itemId: UUID) {
+        // 主线程调用即可：`cancel()` 只投递取消，不阻塞等锁。
+        bookDownloadScope.launch {
+            val job = bookDownloadLock.withLock { bookDownloadJobs[itemId] }
+            job?.cancel()
+        }
+    }
+
+    private fun publishBookTask(task: BookDownloadTask) {
+        bookDownloadTasks.update { tasks -> tasks.filterNot { it.itemId == task.itemId } + task }
+    }
+
+    private fun updateBookTask(
+        itemId: UUID,
+        transform: (BookDownloadTask) -> BookDownloadTask,
+    ) {
+        bookDownloadTasks.update { tasks ->
+            tasks.map { task -> if (task.itemId == itemId) transform(task) else task }
+        }
+    }
+
+    private fun removeBookTask(itemId: UUID) {
+        bookDownloadTasks.update { tasks -> tasks.filterNot { it.itemId == itemId } }
+    }
 
     /** W77-3：打开路径的整本下载，进度透传给阅读页顶栏（PDF 过渡态「打开即显示进度」）。 */
     override suspend fun ensureLocalFile(itemId: UUID, onProgress: (Float) -> Unit): File =
@@ -121,6 +271,8 @@ class ReaderRepositoryImpl(
         target: File,
         itemId: UUID,
         onProgress: (Float) -> Unit,
+        /** W80（#23）：字节级进度（下载页显示"已下载 / 总大小"用）。 */
+        onBytes: (downloaded: Long, total: Long) -> Unit = { _, _ -> },
     ): File {
         target.parentFile?.mkdirs()
         // 先写 .part 再原子改名：中断的下载不会留下"看着像完整书"的半截文件。
@@ -145,6 +297,7 @@ class ReaderRepositoryImpl(
                     }
                     val totalBytes = response.body.contentLength()
                     var copiedBytes = 0L
+                    onBytes(0L, totalBytes.coerceAtLeast(0L))
                     response.body.byteStream().use { input ->
                         partial.outputStream().use { output ->
                             val buffer = ByteArray(DOWNLOAD_BUFFER_BYTES)
@@ -157,6 +310,7 @@ class ReaderRepositoryImpl(
                                 if (totalBytes > 0) {
                                     onProgress((copiedBytes.toDouble() / totalBytes).toFloat())
                                 }
+                                onBytes(copiedBytes, totalBytes.coerceAtLeast(0L))
                             }
                         }
                     }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -129,6 +131,8 @@ import com.zhangwenkang.cinefin.presentation.navigation.MEDIA_GROUP_DEFAULT_EXPA
 import com.zhangwenkang.cinefin.presentation.navigation.NavEntryKey
 import com.zhangwenkang.cinefin.presentation.navigation.RAIL_COLLAPSED_WIDTH_DP
 import com.zhangwenkang.cinefin.presentation.navigation.RAIL_LIBRARY_COUNT_GAP_DP
+import com.zhangwenkang.cinefin.presentation.navigation.RAIL_LOCAL_SUBGROUP_EXTRA_ROWS
+import com.zhangwenkang.cinefin.presentation.navigation.RAIL_ROW_HEIGHT_DP
 import com.zhangwenkang.cinefin.presentation.navigation.SidebarLocalLibrary
 import com.zhangwenkang.cinefin.presentation.navigation.TemporaryLibraryKind
 import com.zhangwenkang.cinefin.presentation.navigation.TopLevelTapAction
@@ -146,6 +150,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.railDefaultExpandedFor
 import com.zhangwenkang.cinefin.presentation.navigation.railExpandedWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
 import com.zhangwenkang.cinefin.presentation.navigation.railLibraryLabelWidthDp
+import com.zhangwenkang.cinefin.presentation.navigation.railMediaSubGroupMaxRows
 import com.zhangwenkang.cinefin.presentation.navigation.topLevelTapAction
 import com.zhangwenkang.cinefin.presentation.navigation.visibleRailKeys
 import com.zhangwenkang.cinefin.presentation.offline.OfflineHomeScreen
@@ -1795,124 +1800,150 @@ private fun CinefinSideNavigation(
                 )
             }
         }
-        Column(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(
-                        horizontal = if (expanded) 10.dp else 12.dp,
-                        vertical = CinefinSpacing.Space3,
-                    ),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            destinations.forEachIndexed { index, destination ->
-                // 末尾条目（客户端设置）固定到底部设置区（W42），不参与导航区排序。
-                if (pinnedTailCount > 0 && index >= destinations.size - pinnedTailCount) {
-                    return@forEachIndexed
-                }
-                if (index > 0 && groupBreaks.contains(index - 1)) {
-                    CinefinRailGroupDivider(expanded = expanded)
-                }
-                if (destination.key != NavEntryKey.Media) {
+        // W80（B12）：导航列可用高度交给 BoxWithConstraints 量出来，好让「媒体库」子分组限高（顶层条目优先占位），
+        // 横屏展开时「下载」不会再被子库列表挤出可视区。
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            val navAvailableDp = maxHeight.value.toInt()
+            val railTopLevelRows = destinations.size - pinnedTailCount.coerceAtLeast(0)
+            val mediaSubGroupRows =
+                mediaLibraries.size +
+                    localLibraries.size +
+                    if (localLibraries.isNotEmpty()) RAIL_LOCAL_SUBGROUP_EXTRA_ROWS else 0
+            val mediaSubGroupMaxRows =
+                railMediaSubGroupMaxRows(
+                    availableHeightDp = navAvailableDp,
+                    topLevelRows = railTopLevelRows,
+                    subRows = mediaSubGroupRows,
+                )
+            val mediaSubGroupMaxHeight = (mediaSubGroupMaxRows * RAIL_ROW_HEIGHT_DP).dp
+            Column(
+                modifier =
+                    Modifier.fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(
+                            horizontal = if (expanded) 10.dp else 12.dp,
+                            vertical = CinefinSpacing.Space3,
+                        ),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                destinations.forEachIndexed { index, destination ->
+                    // 末尾条目（客户端设置）固定到底部设置区（W42），不参与导航区排序。
+                    if (pinnedTailCount > 0 && index >= destinations.size - pinnedTailCount) {
+                        return@forEachIndexed
+                    }
+                    if (index > 0 && groupBreaks.contains(index - 1)) {
+                        CinefinRailGroupDivider(expanded = expanded)
+                    }
+                    if (destination.key != NavEntryKey.Media) {
+                        CinefinNavigationItem(
+                            item = destination.item,
+                            selected = destination.selected,
+                            expanded = expanded,
+                            onClick = destination.onClick,
+                        )
+                        return@forEachIndexed
+                    }
+
                     CinefinNavigationItem(
                         item = destination.item,
-                        selected = destination.selected,
+                        // 进入某个库时父项保持高亮（子项另有高亮），与「书架 → 书籍库」的既有行为一致。
+                        selected =
+                            destination.selected ||
+                                currentLibraryId != null ||
+                                currentLocalLibraryId != null,
                         expanded = expanded,
-                        onClick = destination.onClick,
+                        onClick = {
+                            destination.onClick()
+                            if (!mediaGroupExpanded) onToggleMediaGroup()
+                        },
+                        trailing =
+                            if (
+                                (mediaLibraries.isNotEmpty() || localLibraries.isNotEmpty()) &&
+                                    expanded
+                            ) {
+                                {
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                if (mediaGroupExpanded) CoreR.drawable.ic_chevron_up
+                                                else CoreR.drawable.ic_chevron_down
+                                            ),
+                                        contentDescription =
+                                            stringResource(
+                                                if (mediaGroupExpanded) CoreR.string.nav_collapse
+                                                else CoreR.string.nav_expand
+                                            ),
+                                        tint = colors.onSurfaceFaint,
+                                        modifier =
+                                            Modifier.size(20.dp)
+                                                .clickable(onClick = onToggleMediaGroup),
+                                    )
+                                }
+                            } else {
+                                null
+                            },
                     )
-                    return@forEachIndexed
-                }
-
-                CinefinNavigationItem(
-                    item = destination.item,
-                    // 进入某个库时父项保持高亮（子项另有高亮），与「书架 → 书籍库」的既有行为一致。
-                    selected =
-                        destination.selected ||
-                            currentLibraryId != null ||
-                            currentLocalLibraryId != null,
-                    expanded = expanded,
-                    onClick = {
-                        destination.onClick()
-                        if (!mediaGroupExpanded) onToggleMediaGroup()
-                    },
-                    trailing =
-                        if (
-                            (mediaLibraries.isNotEmpty() || localLibraries.isNotEmpty()) && expanded
+                    if (
+                        mediaGroupExpanded &&
+                            expanded &&
+                            (mediaLibraries.isNotEmpty() || localLibraries.isNotEmpty())
+                    ) {
+                        // W80（B12）：子库列表限高 + 自带滚动 —— 顶层条目（下载等）永远留在可视区。
+                        Column(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .heightIn(max = mediaSubGroupMaxHeight)
+                                    .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            {
-                                Icon(
-                                    painter =
-                                        painterResource(
-                                            if (mediaGroupExpanded) CoreR.drawable.ic_chevron_up
-                                            else CoreR.drawable.ic_chevron_down
+                            mediaLibraries.forEach { library ->
+                                CinefinNavigationItem(
+                                    item =
+                                        CinefinNavItem(
+                                            label = library.name,
+                                            icon = navIcon(libraryIconRes(library.type)),
                                         ),
-                                    contentDescription =
-                                        stringResource(
-                                            if (mediaGroupExpanded) CoreR.string.nav_collapse
-                                            else CoreR.string.nav_expand
+                                    selected = currentLibraryId == library.id.toString(),
+                                    expanded = true,
+                                    compact = true,
+                                    onClick = { onOpenLibrary(library) },
+                                    // 侧轨的 trailing 走组件参数（`CinefinNavigationItem(trailing = …)`），
+                                    // 与抽屉用的 `CinefinNavItem.trailing` 是两个槽位（W53 Bug B 配套）；
+                                    // W53B 起按「完整名称优先」实测宽度决定是否显示项目数（W65 起按当前展开宽实时计算）。
+                                    trailing =
+                                        adaptiveLibraryCountTrailing(
+                                            name = library.name,
+                                            count = library.itemCount,
+                                            labelWidthDp = railLabelWidthDp,
                                         ),
-                                    tint = colors.onSurfaceFaint,
-                                    modifier =
-                                        Modifier.size(20.dp)
-                                            .clickable(onClick = onToggleMediaGroup),
+                                    modifier = Modifier.padding(start = CinefinSpacing.Space4),
                                 )
                             }
-                        } else {
-                            null
-                        },
-                )
-                if (
-                    mediaGroupExpanded &&
-                        expanded &&
-                        (mediaLibraries.isNotEmpty() || localLibraries.isNotEmpty())
-                ) {
-                    mediaLibraries.forEach { library ->
-                        CinefinNavigationItem(
-                            item =
-                                CinefinNavItem(
-                                    label = library.name,
-                                    icon = navIcon(libraryIconRes(library.type)),
-                                ),
-                            selected = currentLibraryId == library.id.toString(),
-                            expanded = true,
-                            compact = true,
-                            onClick = { onOpenLibrary(library) },
-                            // 侧轨的 trailing 走组件参数（`CinefinNavigationItem(trailing = …)`），
-                            // 与抽屉用的 `CinefinNavItem.trailing` 是两个槽位（W53 Bug B 配套）；
-                            // W53B 起按「完整名称优先」实测宽度决定是否显示项目数（W65 起按当前展开宽实时计算）。
-                            trailing =
-                                adaptiveLibraryCountTrailing(
-                                    name = library.name,
-                                    count = library.itemCount,
-                                    labelWidthDp = railLabelWidthDp,
-                                ),
-                            modifier = Modifier.padding(start = CinefinSpacing.Space4),
-                        )
-                    }
-                    // W53B：服务器库之后 =「本地媒体库」子分组（分隔线 + 标题 + 每库一行）。
-                    if (localLibraries.isNotEmpty()) {
-                        CinefinRailGroupDivider(expanded = expanded)
-                        RailSubgroupTitle(text = LocalMediaGroupTitle)
-                        localLibraries.forEach { library ->
-                            CinefinNavigationItem(
-                                item =
-                                    CinefinNavItem(
-                                        label = library.name,
-                                        icon = navIcon(library.type.iconRes()),
-                                    ),
-                                selected = currentLocalLibraryId == library.id,
-                                expanded = true,
-                                compact = true,
-                                onClick = { onOpenLocalLibrary(library) },
-                                trailing =
-                                    adaptiveLibraryCountTrailing(
-                                        name = library.name,
-                                        count = library.itemCount,
-                                        labelWidthDp = railLabelWidthDp,
-                                    ),
-                                modifier = Modifier.padding(start = CinefinSpacing.Space4),
-                            )
+                            // W53B：服务器库之后 =「本地媒体库」子分组（分隔线 + 标题 + 每库一行）。
+                            if (localLibraries.isNotEmpty()) {
+                                CinefinRailGroupDivider(expanded = expanded)
+                                RailSubgroupTitle(text = LocalMediaGroupTitle)
+                                localLibraries.forEach { library ->
+                                    CinefinNavigationItem(
+                                        item =
+                                            CinefinNavItem(
+                                                label = library.name,
+                                                icon = navIcon(library.type.iconRes()),
+                                            ),
+                                        selected = currentLocalLibraryId == library.id,
+                                        expanded = true,
+                                        compact = true,
+                                        onClick = { onOpenLocalLibrary(library) },
+                                        trailing =
+                                            adaptiveLibraryCountTrailing(
+                                                name = library.name,
+                                                count = library.itemCount,
+                                                labelWidthDp = railLabelWidthDp,
+                                            ),
+                                        modifier = Modifier.padding(start = CinefinSpacing.Space4),
+                                    )
+                                }
+                            }
                         }
                     }
                 }

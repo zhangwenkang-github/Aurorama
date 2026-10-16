@@ -63,4 +63,5 @@
     <string name="batch_delete_done">Deleted %1$d local download(s)</string>
     <string name="batch_partial_failure">%1$d item(s) failed</string>
     <string name="batch_play_unavailable">No playable items in the selection</string>
+    <string name="batch_download_skipped">All selected items are already downloaded or queued</string>
 </resources>

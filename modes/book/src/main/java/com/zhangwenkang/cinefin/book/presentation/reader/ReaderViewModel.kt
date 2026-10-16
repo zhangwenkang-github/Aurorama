@@ -723,7 +723,8 @@ constructor(
      *
      * - 进度写入 [downloadState]（顶栏「下载中 xx%」）；
      * - 完成后若当前打开的是**远程流式**文档，则热切换到本地文件（页码 / locator 不回退）；
-     * - 取消语义沿用 W64：离开阅读页 `onCleared` 取消 Job → 数据层 `call.cancel()` 中止在途 HTTP。
+     * - W80（#23）：改用数据层 **App 作用域任务**（`awaitBookDownload`）——用户**主动点下载**后离开阅读页
+     *   不再中止，任务继续跑并在下载页显示进度（打开书籍时的"按需落盘"仍是页面协程语义，见 [openDownloaded]）。
      */
     private fun startDownload(itemId: UUID) {
         if (_downloadState.value is BookDownloadState.Downloading) return
@@ -731,12 +732,17 @@ constructor(
         _downloadState.value = BookDownloadState.Downloading(0f)
         downloadJob = viewModelScope.launch {
             try {
-                val file = readerRepository.downloadLocalFile(itemId, downloadProgressReporter())
+                val file =
+                    readerRepository.awaitBookDownload(
+                        itemId = itemId,
+                        title = null,
+                        onProgress = downloadProgressReporter(),
+                    )
                 _downloadState.value = BookDownloadState.Downloaded(file.length())
                 pendingHotSwap = itemId to file.length()
                 hotSwapToLocal(itemId)
             } catch (cancellation: CancellationException) {
-                // 离开阅读页时 onCleared 会取消下载并中止在途 HTTP；这是预期路径，不展示错误。
+                // 本页协程被取消（离开阅读页）不影响后台任务；不展示错误。
                 throw cancellation
             } catch (error: Exception) {
                 Timber.w(error, "下载书籍失败")

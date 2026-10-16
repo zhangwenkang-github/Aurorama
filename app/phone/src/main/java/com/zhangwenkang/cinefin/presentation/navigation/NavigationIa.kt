@@ -210,6 +210,43 @@ fun drawerWidthDp(screenWidthDp: Int): Float =
 /** 平板形态默认展开侧轨的最小屏宽（W70：Medium 断点 = 600dp）。 */
 const val RAIL_DEFAULT_EXPANDED_MIN_WIDTH_DP: Int = 600
 
+/** 侧轨单行高度（含行间距；按 Pad 5 实测行距 ≈52dp 取整：条目固定高 + `spacedBy(2.dp)`）。 */
+const val RAIL_ROW_HEIGHT_DP: Int = 52
+
+/** 「媒体库」子分组至少保留的行数（再挤也留两行，用户能认出这是库列表）。 */
+const val RAIL_MEDIA_SUBGROUP_MIN_ROWS: Int = 2
+
+/** 「本地媒体库」小分组在侧轨里额外占用的行数（一条分隔线 + 一行小标题）。 */
+const val RAIL_LOCAL_SUBGROUP_EXTRA_ROWS: Int = 2
+
+/**
+ * W80（B12）：侧轨「媒体库」子分组**最多**可以占用的行数。
+ *
+ * 背景（B12，W77-4B 发现）：横屏展开侧轨 + 展开「媒体库」后，子库列表把排在后面的顶层条目（下载等）挤出可视区 ——`uiautomator dump`
+ * 里连节点都没有，点原坐标会落到别的条目上。这里按可用高度反算子分组可用行数： 顶层条目优先占位，剩下的高度才给子库；子库超出部分由子分组自己的纵向滚动承接（不改条目语义与顺序）。
+ *
+ * @param availableHeightDp 侧轨导航列可用高度（不含底部常驻区）
+ * @param topLevelRows 顶层目的地行数（分组分隔线按每 4 行 1 条近似折算）
+ * @param subRows 子分组实际行数（服务器库 + 分隔线 / 「本地媒体库」小标题 + 本地库）
+ * @return 子分组最大行数；空间足够时等于 [subRows]（调用方据此跳过限高，行为与改动前一致）
+ */
+internal fun railMediaSubGroupMaxRows(
+    availableHeightDp: Int,
+    topLevelRows: Int,
+    subRows: Int,
+): Int {
+    if (subRows <= 0) return 0
+    if (availableHeightDp <= 0) return subRows
+    val topLevelRowsClamped = topLevelRows.coerceAtLeast(0)
+    val dividerRows = topLevelRowsClamped / 4
+    val reservedDp = (topLevelRowsClamped + dividerRows) * RAIL_ROW_HEIGHT_DP
+    val fitRows =
+        ((availableHeightDp - reservedDp) / RAIL_ROW_HEIGHT_DP).coerceAtLeast(
+            RAIL_MEDIA_SUBGROUP_MIN_ROWS
+        )
+    return minOf(subRows, fitRows)
+}
+
 /**
  * 平板形态（≥600dp）默认展开侧轨（W70 纯函数 + 单测）。
  *

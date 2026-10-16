@@ -94,14 +94,30 @@ internal fun pageIndicatorText(
  */
 internal data class PageZoom(val scale: Float = 1f, val offset: Offset = Offset.Zero) {
 
-    /** 推进一次双指手势：倍数夹取到 1×–[PAGE_MAX_ZOOM]，平移按放大后的可移动范围夹取（缩放回 1× 自动归零、居中）。 */
-    fun transform(zoom: Float, pan: Offset, width: Int, height: Int): PageZoom {
+    /**
+     * 推进一次双指手势：倍数夹取到 1×–[PAGE_MAX_ZOOM]，平移按放大后的可移动范围夹取（缩放回 1× 自动归零、居中）。
+     *
+     * [base] = 「适宽」（W80 #32）等基准倍数：`scale` 是叠加在基准之上的手动倍数，上限按 `PAGE_MAX_ZOOM / base` 收， 平移范围按**有效倍数**
+     * `base × scale` 夹取。`base = 1f` 即原有行为。
+     */
+    fun transform(
+        zoom: Float,
+        pan: Offset,
+        width: Int,
+        height: Int,
+        base: Float = 1f,
+    ): PageZoom {
+        val safeBase = if (base.isFinite() && base >= 1f) base else 1f
         val safeZoom = if (zoom.isFinite() && zoom > 0f) zoom else 1f
         val product = scale * safeZoom
-        val nextScale = (if (product.isFinite()) product else scale).coerceIn(1f, PAGE_MAX_ZOOM)
+        val maxScale = (PAGE_MAX_ZOOM / safeBase).coerceAtLeast(1f)
+        val nextScale = (if (product.isFinite()) product else scale).coerceIn(1f, maxScale)
         if (nextScale <= 1f) return PageZoom()
         val safePan = if (pan.x.isFinite() && pan.y.isFinite()) pan else Offset.Zero
-        return PageZoom(nextScale, clampPageOffset(offset + safePan, nextScale, width, height))
+        return PageZoom(
+            nextScale,
+            clampPageOffset(offset + safePan, safeBase * nextScale, width, height),
+        )
     }
 }
 

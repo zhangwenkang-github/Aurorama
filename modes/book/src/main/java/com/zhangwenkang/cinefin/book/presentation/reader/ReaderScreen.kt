@@ -1,5 +1,9 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +31,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
@@ -49,6 +56,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.repository.ReaderBookmark
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 
@@ -101,6 +110,29 @@ fun ReaderScreen(
     var annotating by remember { mutableStateOf(false) }
     var pendingAnnotation by remember { mutableStateOf<Pair<Int, PageRect>?>(null) }
     var editingAnnotation by remember { mutableStateOf<ReaderAnnotation?>(null) }
+    // W80（#32）：亮度手势 —— 只作用于阅读页窗口（离开阅读页即恢复系统亮度），不落偏好。
+    val view = LocalView.current
+    val readerActivity = remember(view) { view.context.readerActivity() }
+    var brightness by
+        remember(readerActivity) { mutableStateOf(readerWindowBrightness(readerActivity)) }
+    var brightnessHudToken by remember { mutableIntStateOf(0) }
+    var brightnessHudVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(brightness, readerActivity) {
+        val window = readerActivity?.window ?: return@LaunchedEffect
+        val attributes = window.attributes
+        attributes.screenBrightness = brightness
+        window.attributes = attributes
+    }
+    LaunchedEffect(brightnessHudToken) {
+        if (brightnessHudToken == 0) return@LaunchedEffect
+        brightnessHudVisible = true
+        delay(BRIGHTNESS_HUD_VISIBLE_MS)
+        brightnessHudVisible = false
+    }
+    val onBrightnessChange: (Float) -> Unit = { value ->
+        brightness = value
+        brightnessHudToken++
+    }
     val bookmarksAvailable = (state as? ReaderUiState.Ready)?.document is ReaderDocument.Rich
     /** 右起翻页（RTL）只对页序列文档（PDF / CBZ）开放；EPUB 的阅读方向由 Readium 出版物元数据决定。 */
     val pagingDirectionAvailable =
@@ -199,6 +231,21 @@ fun ReaderScreen(
                                             onLocationChanged = onLocationChanged,
                                             onJumpHandled = onJumpHandled,
                                             onNavigatorReady = onNavigatorReady,
+                                            brightnessProvider = { brightness },
+                                            onBrightness = onBrightnessChange,
+                                            onToggleTwoColumn = {
+                                                onSettingsChange(
+                                                    settings.copy(
+                                                        mode =
+                                                            if (
+                                                                settings.mode ==
+                                                                    ReaderMode.TwoColumn
+                                                            )
+                                                                ReaderMode.Paged
+                                                            else ReaderMode.TwoColumn
+                                                    )
+                                                )
+                                            },
                                             modifier = Modifier.fillMaxSize(),
                                         )
 
@@ -215,6 +262,8 @@ fun ReaderScreen(
                                             jumpTargetPage = pageJumpTarget,
                                             onPageChanged = onSimplePageChanged,
                                             onJumpHandled = onPageJumpHandled,
+                                            brightnessProvider = { brightness },
+                                            onBrightness = onBrightnessChange,
                                             onAnnotationRequested = { index, rect ->
                                                 pendingAnnotation = index to rect
                                             },
@@ -224,6 +273,15 @@ fun ReaderScreen(
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                 }
+                        }
+
+                        if (brightnessHudVisible) {
+                            BrightnessHud(
+                                percent = (brightness * 100f).roundToInt(),
+                                containerColor = chromeColor,
+                                contentColor = contentColor,
+                                modifier = Modifier.align(Alignment.Center),
+                            )
                         }
                     }
                 }
@@ -651,5 +709,58 @@ private fun BookmarkPanel(
                 }
             }
         }
+    }
+}
+
+/** 亮度提示条的停留时长（与播放器手势提示同量级，避免长期遮挡正文）。 */
+private const val BRIGHTNESS_HUD_VISIBLE_MS = 900L
+
+/** 阅读页所属 Activity（Compose 视图上下文里逐层回找）。 */
+private tailrec fun Context.readerActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.readerActivity()
+        else -> null
+    }
+
+/** 当前窗口亮度（0–1）：本页覆盖过就用覆盖值，否则回落系统亮度（与播放器手势同口径）， 这样「上下滑调亮度」是从用户现在看到的亮度继续增减。 */
+private fun readerWindowBrightness(activity: Activity?): Float {
+    val window = activity?.window ?: return 1f
+    val override = window.attributes.screenBrightness
+    if (override in 0f..1f) return override
+    val system = runCatching {
+        Settings.System.getFloat(
+            activity.contentResolver,
+            Settings.System.SCREEN_BRIGHTNESS,
+            255f,
+        ) / 255f
+    }
+        .getOrDefault(1f)
+    return system.coerceIn(ReaderBrightnessRange)
+}
+
+/** 亮度手势 HUD：居中胶囊 + 百分比（手势结束约 [BRIGHTNESS_HUD_VISIBLE_MS] 后自动隐藏）。 */
+@Composable
+private fun BrightnessHud(
+    percent: Int,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = CinefinShapes.Sm,
+        color = containerColor.copy(alpha = 0.92f),
+        contentColor = contentColor,
+    ) {
+        Text(
+            text = "亮度 ${percent}%",
+            style = CinefinType.TitleMedium,
+            modifier =
+                Modifier.padding(
+                    horizontal = CinefinSpacing.Space5,
+                    vertical = CinefinSpacing.Space3,
+                ),
+        )
     }
 }

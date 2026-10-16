@@ -63,4 +63,5 @@
     <string name="batch_delete_done">已删除 %1$d 项本地下载</string>
     <string name="batch_partial_failure">有 %1$d 项失败</string>
     <string name="batch_play_unavailable">选中项没有可播放的内容</string>
+    <string name="batch_download_skipped">所选条目均已下载或在下载队列中</string>
 </resources>
