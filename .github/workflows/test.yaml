@@ -1,0 +1,44 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+
+# 快速连续推送时取消过期构建，避免排队与重复通知
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: 21
+          distribution: temurin
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Run unit tests
+        run: >
+          ./gradlew
+          :app:phone:testLibreDebugUnitTest
+          :core:testLibreDebugUnitTest
+          :data:testDebugUnitTest
+          :modes:film:testDebugUnitTest
+          :modes:book:testDebugUnitTest
+          :modes:music:testDebugUnitTest
+          :player:core:testDebugUnitTest
+          :player:local:testDebugUnitTest
+          --continue --console=plain
