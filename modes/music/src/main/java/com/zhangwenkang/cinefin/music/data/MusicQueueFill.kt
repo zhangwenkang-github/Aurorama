@@ -15,3 +15,35 @@ internal fun musicQueueFillOrder(playedIndex: Int, size: Int): List<Int> {
     if (playedIndex !in 0 until size) return emptyList()
     return (playedIndex + 1 until size).toList() + (playedIndex - 1 downTo 0).toList()
 }
+
+/**
+ * 把 [musicQueueFillOrder] 的补入次序切成"批量入队"的批次（W78，纯函数，可 JVM 单测）。
+ *
+ * 批量入队（`appendToQueue` / `prependToQueue`）不再逐首 `insertNext` + `move`，所以"批次内部顺序"
+ * 就是最终队列顺序的一部分，写反会悄悄产出错序队列（真机上只表现为"随机播放的曲目顺序很怪"，极难定位）：
+ *
+ * - `append`：`(playedIndex+1 until size)` 升序分批 —— 按批次顺序追加到队尾即得列表序；
+ * - `prepend`：`(playedIndex-1 downTo 0)` **降序分批**（先补靠近当前曲目的那批），**每批内部再升序** ——
+ *   整批前插到队首后批内仍是列表序，逐批前插后批次之间也保持列表序。
+ */
+internal data class MusicQueueFillBatches(
+    val append: List<List<Int>>,
+    val prepend: List<List<Int>>,
+)
+
+internal fun musicQueueFillBatches(
+    playedIndex: Int,
+    size: Int,
+    batchSize: Int,
+): MusicQueueFillBatches {
+    require(batchSize > 0) { "batchSize 必须为正数" }
+    val order = musicQueueFillOrder(playedIndex, size)
+    return MusicQueueFillBatches(
+        append = order.filter { index -> index > playedIndex }.chunked(batchSize),
+        prepend =
+            order
+                .filter { index -> index < playedIndex }
+                .chunked(batchSize)
+                .map { batch -> batch.reversed() },
+    )
+}

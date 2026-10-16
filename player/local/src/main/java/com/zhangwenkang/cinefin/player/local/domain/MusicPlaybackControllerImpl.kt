@@ -324,6 +324,34 @@ constructor(
         )
     }
 
+    /**
+     * W78：批量追加到队尾（不依赖当前曲目索引）。
+     *
+     * 补队列走这里而不是 `insertNext` + `move`：后者以当前曲目索引为锚点，播放器自动切歌时会把条目 摆到错误位置；批量追加只认队尾。随机模式下
+     * `addMediaItems` 由内核自行把新条目插进 shuffle 顺序， 队列语义与随机语义都不受影响。
+     */
+    override fun appendToQueue(items: List<PlayerItem>) {
+        if (items.isEmpty()) return
+        val current = _queue.value ?: return
+        _queue.value = current.appendItems(items)
+        val player = musicPlayer() ?: return
+        player.addMediaItems(
+            items.map { it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri) }
+        )
+    }
+
+    /** W78：批量前插到队首；当前曲目索引整体后移（内核会同步移动当前媒体项，位置轮询只做一致性回写）。 */
+    override fun prependToQueue(items: List<PlayerItem>) {
+        if (items.isEmpty()) return
+        val current = _queue.value ?: return
+        _queue.value = current.prependItems(items)
+        val player = musicPlayer() ?: return
+        player.addMediaItems(
+            0,
+            items.map { it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri) },
+        )
+    }
+
     override fun jumpTo(index: Int) {
         val player = musicPlayer() ?: return
         if (index !in 0 until player.mediaItemCount) return

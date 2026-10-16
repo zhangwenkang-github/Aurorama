@@ -255,7 +255,12 @@ constructor(
         }
 
     private companion object {
-        const val SONG_LIMIT = 500
+        /**
+         * 单次曲库 / 歌单曲目拉取上限（W78：500 → 1000）。
+         *
+         * 音乐播放队列直接由曲库列表补齐，所以这个上限就是"队列能有多长"的实际上限； 用户 2026-10-17 要求「播放队列 > 500 首」（#38）。
+         */
+        const val SONG_LIMIT = 1000
         const val PLAYLIST_LIMIT = 200
         const val UNKNOWN_ALBUM = "未分类"
     }

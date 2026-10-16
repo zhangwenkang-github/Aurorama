@@ -53,4 +53,39 @@ class MusicQueueFillTest {
         assertEquals(playedIndex, queue.currentIndex)
         assertEquals(items[playedIndex], queue.currentItem)
     }
+
+    /**
+     * W78：批量入队的"批次计划"。
+     *
+     * 批量路径不再逐首 `insertNext` + `move`，所以批次内部顺序就是最终队列顺序的一部分： 追加批按列表序分批；前插批必须**批间降序、批内升序**
+     * ——写反（例如批内保持降序）会悄悄产出错序队列。
+     */
+    @Test
+    fun `批量计划拼出的队列顺序与浏览列表一致`() {
+        val size = 7
+        val playedIndex = 3
+
+        val batches = musicQueueFillBatches(playedIndex, size, batchSize = 2)
+
+        assertEquals(listOf(listOf(4, 5), listOf(6)), batches.append)
+        assertEquals(listOf(listOf(1, 2), listOf(0)), batches.prepend)
+
+        // 模拟内核入队：当前曲目先就位 → 追加批依次 append → 前插批依次 prepend
+        val queue = mutableListOf(playedIndex)
+        batches.append.forEach { batch -> queue.addAll(batch) }
+        batches.prepend.forEach { batch -> queue.addAll(0, batch) }
+
+        assertEquals((0 until size).toList(), queue)
+    }
+
+    @Test
+    fun `点首曲只追加点末曲只前插`() {
+        val first = musicQueueFillBatches(playedIndex = 0, size = 4, batchSize = 2)
+        assertTrue(first.prepend.isEmpty())
+        assertEquals(listOf(listOf(1, 2), listOf(3)), first.append)
+
+        val last = musicQueueFillBatches(playedIndex = 3, size = 4, batchSize = 2)
+        assertTrue(last.append.isEmpty())
+        assertEquals(listOf(listOf(1, 2), listOf(0)), last.prepend)
+    }
 }

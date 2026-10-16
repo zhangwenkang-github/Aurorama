@@ -40,7 +40,7 @@ import com.zhangwenkang.cinefin.music.data.lyrics.parseLyricOffsetMs
 import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricEditLines
 import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricWords
 import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
-import com.zhangwenkang.cinefin.music.data.musicQueueFillOrder
+import com.zhangwenkang.cinefin.music.data.musicQueueFillBatches
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
 import com.zhangwenkang.cinefin.music.data.next
 import com.zhangwenkang.cinefin.music.data.toLocalMusicSong
@@ -71,6 +71,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -1155,21 +1156,25 @@ constructor(
                     startIndex = 0,
                 )
             } else {
-                playbackController.insertNext(first)
-                playbackController.move(queueBefore.currentIndex + 1, queueBefore.items.size)
-                queueEditor.jumpTo(queueBefore.items.size)
+                // W78：批量追加到队尾后跳到它（不用 insertNext + move：那套以当前索引为锚点，播放器
+                // 自动切歌时会把条目摆到错误位置）
+                queueEditor.appendToQueue(listOf(first))
+                playbackController.queue.value?.items?.lastIndex?.let { index ->
+                    queueEditor.jumpTo(index)
+                }
             }
             _batchSelection.value = MultiSelectState()
             // W60b：其余曲目**并发预取**（每批 4 首，解析结果保持列表序），按批按顺序入队——
             // 逐首串行解析在选中几十首时要等很久；起播不被预取阻塞，入队顺序仍是列表序。
             for (chunk in songs.drop(1).chunked(QUEUE_PREFETCH_CONCURRENCY)) {
-                val resolved = chunk.map { song -> async { resolveQueueItem(song) } }.awaitAll()
-                for (item in resolved) {
-                    val queue = playbackController.queue.value ?: return@launch
-                    if (item == null) continue
-                    playbackController.insertNext(item)
-                    playbackController.move(queue.currentIndex + 1, queue.items.size)
-                }
+                if (playbackController.queue.value == null) return@launch
+                val resolved =
+                    chunk
+                        .map { song -> async { resolveQueueItem(song) } }
+                        .awaitAll()
+                        .filterNotNull()
+                if (resolved.isEmpty()) continue
+                queueEditor.appendToQueue(resolved)
             }
         }
     }
@@ -1540,43 +1545,54 @@ constructor(
             )
             // 随机全部：setQueue 后立即切模式；内核起播任务读取的是最新 queue 快照。
             playMode?.let { mode -> setPlayMode(mode) }
-            fillQueueAround(song, songs, startIndex)
+            fillQueueAround(songs, startIndex)
         }
     }
 
     /**
      * 起播后补齐队列（后台，按顺序，跳过解析失败的曲目）。
      *
-     * 队列最终顺序 = 浏览列表顺序：先补当前之后的曲目（`insertNext` 依次插到当前曲目之后）， 再补当前之前的曲目（`insertNext` 后 `move` 到队首）。
-     * 用户若在补队列期间切歌 / 换队列，则立即停止补齐，避免打乱新队列。
+     * 队列最终顺序 = 浏览列表顺序：先补"当前之后"的曲目（按列表序**批量追加队尾**）， 再补"当前之前"的曲目（按倒序**批量前插队首**，逐批前插后整体仍是列表序）。
+     *
+     * **W78 修正**：原中断判据是"当前曲目还是不是被点的那首"。但"第一首自然播完、播放器自动切到下一首" 同样会让判据为 false ——
+     * 队列于是只补到"第一首播完前解析完的那几首"（真机实测：点 2:07 的歌补到 226/349；点 0:38 的歌只补到 **63** 首，即用户报的「队列只有 64
+     * 首」、随机只能在少数几首里循环）。 现在补齐的终止条件只有"本次起播被取消"（换队列 / 点新歌走 `playJob?.cancel()`）与"队列已清空"，
+     * 与当前播到第几首无关，因此自动切歌不再打断补齐。
+     *
+     * 分批（[QUEUE_FILL_BATCH_SIZE]）并发解析后一次性入队：把 349 首串行解析的 ~2.5 分钟压到 ~30 秒， 同时把内核 `addMediaItems`
+     * 与媒体通知重建次数从 349 次降到约 1/6。
      */
     private suspend fun fillQueueAround(
-        current: MusicSong,
         songs: List<MusicSong>,
         startIndex: Int,
     ) {
-        for (index in musicQueueFillOrder(startIndex, songs.size)) {
-            if (!isCurrentQueueItem(current)) return
-            val item = resolveQueueItem(songs[index]) ?: continue
-            val queue = playbackController.queue.value ?: return
-            playbackController.insertNext(item)
-            // insertNext 固定插到 currentIndex + 1；再摆到最终位置：
-            // 当前之后的曲目追加到队尾，当前之前的曲目前移到队首（顺序见 musicQueueFillOrder）
-            val insertedAt = queue.currentIndex + 1
-            if (index < startIndex) {
-                playbackController.move(insertedAt, 0)
-            } else {
-                playbackController.move(insertedAt, queue.items.size)
-            }
+        // 批次计划由纯函数给出（见 musicQueueFillBatches），批次顺序有单测钉死
+        val batches = musicQueueFillBatches(startIndex, songs.size, QUEUE_FILL_BATCH_SIZE)
+        // 当前之后的曲目：按批次追加到队尾（第一批就含"下一首"，用户随时点下一首都有效）
+        for (batch in batches.append) {
+            if (playbackController.queue.value == null) return
+            val items = resolveQueueBatch(songs, batch)
+            if (items.isNotEmpty()) queueEditor.appendToQueue(items)
         }
-        if (isCurrentQueueItem(current)) {
-            Timber.d("音乐队列补齐完成：${songs.size} 首")
+        // 当前之前的曲目：按批次前插到队首（批间降序、批内升序 —— 见 musicQueueFillBatches）
+        for (batch in batches.prepend) {
+            if (playbackController.queue.value == null) return
+            val items = resolveQueueBatch(songs, batch)
+            if (items.isNotEmpty()) queueEditor.prependToQueue(items)
+        }
+        if (playbackController.queue.value != null) {
+            Timber.d("音乐队列补齐结束：目标 %d 首", songs.size)
         }
     }
 
-    /** 补队列期间用户是否还停在这首歌上（切歌 / 换队列时停止补齐）。 */
-    private fun isCurrentQueueItem(song: MusicSong): Boolean =
-        playbackController.queue.value?.currentItem?.itemId == song.itemId
+    /** 批内并发解析、结果保持批内顺序；解析失败的曲目不进队列（起播不因列表里某一首坏文件整体失败）。 */
+    private suspend fun resolveQueueBatch(
+        songs: List<MusicSong>,
+        indexes: List<Int>,
+    ): List<PlayerItem> = coroutineScope {
+        indexes.map { index -> async { resolveQueueItem(songs[index]) } }.awaitAll()
+    }
+        .filterNotNull()
 
     /** 单曲解析；失败只跳过该曲（起播不因列表里某一首坏文件而整体失败）。 */
     private suspend fun resolveQueueItem(song: MusicSong): PlayerItem? =
@@ -1944,5 +1960,13 @@ constructor(
 
         /** W60b 批量播放并发预取的并发度：兼顾服务器压力与解析速度（队列仍按列表序入队）。 */
         const val QUEUE_PREFETCH_CONCURRENCY = 4
+
+        /**
+         * W78 补队列的批大小 = 批内并发度。
+         *
+         * 兼顾三点：①"下一首"尽快就位（第一批就含它，约 0.5 s 入队）； ②服务器压力（同时最多 6 个 `PlaybackInfo`，与批量播放的 4 路预取同量级）； ③内核
+         * `addMediaItems` 与媒体通知的重建次数从"每首一次"降到"每批一次"。
+         */
+        const val QUEUE_FILL_BATCH_SIZE = 6
     }
 }
