@@ -57,8 +57,8 @@
 | # | 用户描述（摘要） | 解读 / 验收判据 | 归属线 | 波次 | 状态 |
 |---|------------------|------------------|--------|------|------|
 | 22 | 音乐播放时通知栏没有播放面板 | 标准媒体通知（封面 / 标题 / 播放暂停 / 上下一曲 / 进度可拖 / 点按回播放页）；先 `dumpsys` 取证；内核切换后不失效 | PLAYER / MUSIC | W78 | ✅ App 侧全项真机通过（截图 + 按钮实测）+ **QA-W78 独立复核通过**；用户设备 release 包通知曾被系统关闭 → 用户已打开总开关，QA 在 release 上抽验面板恢复出现；App 主动检测 / 引导列为 §6 **B17**；详见 §3 S78-1 |
-| 23 | 书籍长按点下载无反应；阅读页下载后下载界面不显示、直接「已完成」 | 两入口均有即时反馈；下载页出现书籍条目 + 进度 + 完成态（与「离线可读」一致） | DOWNLOAD / READER | W80 | ⬜ |
-| 24 | 打开 EPUB 滚动无效（实为分页）、双栏无效 | 目标 = 三档可感（滚动档长章连续滚动、双栏档真两列）；先取证（含 W77 回归核对） | READER | W80 | ⬜ |
+| 23 | 书籍长按点下载无反应；阅读页下载后下载界面不显示、直接「已完成」 | 两入口均有即时反馈；下载页出现书籍条目 + 进度 + 完成态（与「离线可读」一致） | DOWNLOAD / READER | W80 | 🟡 实现已落；W80b 已修鉴权（D1）+ D2/D3，待 QA 复验 #23 五步（见 §3 W80 / W80b） |
+| 24 | 打开 EPUB 滚动无效（实为分页）、双栏无效 | 目标 = 三档可感（滚动档长章连续滚动、双栏档真两列）；先取证（含 W77 回归核对） | READER | W80 | ✅ 真机通过（竖屏双栏真两列、滚动档长章连续滚动；QA-W80 独立复核通过，见 §3 W80 / S80-2） |
 | 25 | 搜索无法搜索音乐和书籍 | 搜索类型扩全（Audio / Book 等，本地搜索并核）+ 分类展示 | film/search · data | W82 | ⬜ |
 | 26 | 歌词界面歌词没有居中 | 歌词页 / 面板 / 悬浮窗三处统一水平居中（当前行垂直居中保持） | MUSIC | W79 | ⬜ |
 | 27 | mpv 硬解：快进 / 快退 / 音量手势无效（偶发、触发条件不明） | 先复现攻坚（Pad 5 主）：logcat + 分区实验抓触发条件 → 修复后全屏任意区域有效 | PLAYER | W81 | ⬜ |
@@ -66,7 +66,7 @@
 | 29 | 随机播放只能播放固定的几个 | 与 #38 同源排查（shuffle 序定型于 setMediaItems、队列异步补入）；修复后随机覆盖全队列 | MUSIC / player:local | W78 | ✅ 根因 = 补齐中断（详见 #38）；修后随机 20 连点 **20/20 不重复**、散布 4–348 |
 | 30 | 搜索返回后回媒体库（应回进入前页面） | 返回栈修复：关闭 / 返回回进入前页；首页入口不丢栈 | film/nav | W82 | ⬜ |
 | 31 | 媒体库界面要求有下拉刷新 | 总览页复用既有 PTR 写法补齐；静默刷新不闪（W69 语义） | UI / film | W83 | ⬜ |
-| 32 | 书籍手势：双击中间适宽 / 双击右·左翻页 / 上下滑调亮度 | PDF/CBZ 全量；EPUB 映射（左右翻页 + 亮度；中间双击 = 单 / 双栏切换） | READER | W80 | ⬜ |
+| 32 | 书籍手势：双击中间适宽 / 双击右·左翻页 / 上下滑调亮度 | PDF/CBZ 全量；EPUB 映射（左右翻页 + 亮度；中间双击 = 单 / 双栏切换） | READER | W80 | 🟡 实现已落（真机通过：PDF 适宽 / 左右翻页 / 亮度、EPUB 映射，见 §3 W80/S80-3） |
 | 33 | 歌曲分类每首歌显示缩略图 | SongRow 接封面（服务器专辑图 / 本地内嵌·同目录 → 音符占位） | MUSIC | W79 | ⬜ |
 | 34 | 进歌曲栏 / 切歌自动跳到当前播放曲 | 列表定位滚动（进入一次 + 切歌跟随）；手动滚动不被打断 | MUSIC | W79 | ⬜ |
 | 35 | 歌词默认双语对照 | 默认开 + 无译文回落主行 + 存量显式偏好保留 | MUSIC | W79 | ⬜ |
@@ -356,6 +356,32 @@
 - 非目标：不改侧栏宽度 / 让位策略其它语义。
 - 验收：Pad 5 横屏「下载」完整可见 + 角标正常；竖屏 / 折叠不回归。
 
+#### W80 波实施记录（2026-10-17，分支 `feature/w80-reader-books`，worktree `w80r`，基座 master `899f85e`；Pad 5 `43af8627`）
+
+**S80-1 书籍下载链路与反馈（#23）**
+- **取证（代码级 + 只读 API）**：①`MediaBatchViewModel.downloadSelected` 在 `targets.isEmpty()` 时**直接 return**（已下载 / 已在队列 → 点「下载」零反馈）；②书籍分支在**页面协程**里串行 `readerRepository.downloadLocalFile()`，整本下完才发 `DownloadQueued` —— 大书要几分钟，且离开页面即取消，用户看到的正是「无反应」；③下载页书籍数据源只有 `listLocalFiles()`（`files/books/*.book` 完成态），**没有"进行中"概念** → 阅读页下载期间下载页必然空白，完成后直接出现「已完成」。**另：只读探针复核 books 库 `/medi/书籍` 当前 0 项**（`Items?Recursive=true` → `TotalRecordCount=0`），本轮拿不到服务器书籍样本。
+- **落地**：①`data` 新增 `BookDownloadTask` / `BookDownloadStatus` / `BookDownloadEnqueueResult`，`ReaderRepository` 扩 `bookDownloads`（StateFlow）+ `enqueueBookDownload` / `awaitBookDownload` / `cancelBookDownload`；②`ReaderRepositoryImpl` 新增 **App 作用域下载任务表**（`SupervisorJob` + 进度按整数百分比节流，`download()` 补 `onBytes` 字节回调）；③批量下载的书籍分支改为 `enqueueBookDownload` 立即返回（`queued++` → Snackbar 即时），**无目标时新增 `MediaBatchEvent.DownloadSkipped`** → 「所选条目均已下载或在下载队列中」；④`DownloadsViewModel` 把进行中 / 失败任务映射成 BOOK 条目（进度条 + 失败态）进「未完成 / 失败」分组（1.5 s 轮询自动刷新），删除进行中条目会先 `cancelBookDownload`；⑤`ReaderViewModel.startDownload` 改走 `awaitBookDownload`（离开阅读页不再中断；打开书籍的按需落盘仍是页面协程语义）。
+- **语义变化（申报）**：**用户主动点「下载」**不再随离开阅读页取消（W64 的取消语义保留给"打开书时按需落盘"）；书籍下载任务为**进程内**状态（进程重启丢失，`.part` 清理语义不变）。
+- **真机**：**阻塞**——服务器书籍库为空，两个入口（书架批量 / 阅读页下载）无样本可跑；本轮只完成编译与单测（进度换算 4 项）。恢复样本后需按 §2.2 #23 判据复跑（下载中进度 → 完成态「离线可读 · x MB」→ 下载页条目）。
+
+**S80-2 EPUB 滚动 / 双栏（#24）**
+- **取证**：①长章节 EPUB（自造 `w80_reader_test.epub`：ch1/ch2 各 240 段）滚动档**滚动有效**（一次 500 px 上滑 → 画面垂直位移 420 px、`progress.json` 章节内 progression 前进）；②**竖屏双栏 = 单栏**（复现用户「双栏无效」）——根因 = Readium `ReadiumCSS-after.css` 里 `--USER__colCount` 只写在 `@media screen and (min-width:60em), …(36–47em 横屏)` 内，Pad 5 竖屏视口 44 em → 偏好被静默丢弃；③横屏双栏正常（天然命中 `min-width:60em`）。
+- **落地**：`ReadiumEpubView` 在「双栏档 + 视口 ≥ 640 dp」时给 `EpubNavigatorFragment.Configuration(readiumCssRsProperties = RsProperties(overrides = {"--RS__colCount": "2", "--RS__colWidth": "auto"}))` 压内部变量兜底；因该属性只在导航器构造时注入，`key(publication, forceTwoColumns)` 连带重建导航器并用 `liveLocator`（最近上报位置）续页，位置不回退。判据纯函数 `shouldForceEpubTwoColumns`（阈值 640 dp）+ 6 项单测。
+- **真机**：竖屏双栏**真两列**（中缝墨迹 0.0000、左右墨迹 0.1385 / 0.0846；改前为单栏满宽）；滚动档长章连续滚动；横屏不回归（旧路径）；导出 EPUB → 恢复单栏（双击中间切回）正常。
+- **未做**：滚动档「滚到资源末尾自动进下一章」（Readium 语义：资源内滚动 + 横滑 / 双击翻页衔接）→ 记 §6 backlog B14。
+
+**S80-3 阅读器手势（#32）**
+- **取证**：分页档双击右侧「无任何变化」（改前截图逐像素差 0.00、页码仍 1/15）；上下滑无亮度变化（无亮度入口）。
+- **落地**：新增 `ReaderGestures.kt`（纯规则 + `ReaderGestureArea` 手势层，`PointerEventPass.Initial` 先于子项拿事件、单指纵向拖动消费为亮度、单击不消费、双指直接退出交给缩放）：双击三等分 → 左 / 右翻页（双栏按槽位步进、RTL 自动镜像）、中间 = PDF/CBZ 适宽切换 / EPUB 单双栏切换；亮度 = 全屏上下滑（分页 / 双栏）或**左侧 1/4**（滚动档，避免抢纵向滚动），作用域为阅读页窗口（`window.attributes.screenBrightness`，与播放器同口径），带居中「亮度 xx%」HUD；`PageZoom.transform` 增 `base` 参数承载「适宽」倍数，双指缩放数学不变。
+- **真机（PDF）**：双击右 1/15→2/15、双击左 →1/15；双击中间适宽（内容墨迹宽度 843 px → 1993 px ≈ 2.36×，再双击回落 843 px）；上下滑出「亮度 65%」HUD；滚动档中心上下滑只滚动（1/15→2/15）、左侧上下滑只调亮度（HUD「亮度 100%」且页码不变）；批注框选仍可用（「添加批注（第 2 页）」弹窗）。
+- **真机（EPUB）**：双击中间 双栏↔分页 切换；双击右 / 左 → `progress.json` progression 0.0455→0.0909→0.0455；上下滑出亮度 HUD（同 PDF 路径）。
+- **未覆盖**：CBZ 真机（与 PDF 共用 `SimpleBookView` 同一路径，本轮只跑 PDF）；双指缩放手势真机复跑（多点注入工具不可用，见 §3 的未覆盖清单）。
+
+**S80-4 横屏侧栏「下载」被挤出（B12）**
+- **取证**：Pad 5 横屏（2560×1600）侧栏展开 + 展开「媒体库」→ 子库列表把「下载」挤出可视区（`uiautomator dump` 无该节点；W77-4B 记录点击落到「电影库」）；导航列本身可滚动，但顶层条目默认不可见。
+- **落地**：`railMediaSubGroupMaxRows`（纯函数 + 4 项单测）按导航列可用高度反算子分组可占行数（顶层条目优先、至少保留 2 行），子分组加 `heightIn(max) + verticalScroll` 自成滚动；空间足够时行为与改前完全一致。
+- **真机**：横屏展开侧栏 + 展开媒体库 → 「下载」常驻可见（`[136,1136]`，改前无节点）；子分组内部滚动可见「动漫 / 其他」等后续库；竖屏 / 折叠侧栏不回归。
+
 ### W81–W83 波（轮廓 · 开工前细化）
 
 - **W81 播放器手势（Pad 5 主）**：**S81-1 复现攻坚**（#27+#28：实验矩阵 = 内核 × 路径 × 控制层显隐 × 时序 + logcat / 调试层取证 → 触发条件与机制报告）→ **S81-2 修复**（全屏任意区域快进 / 快退 / 音量有效、两内核一致；修正分区 / 命中带）→ **S81-3 规则下沉**（识别→意图入 `PlayerSeekGestureRules` + 单测）。验收：触发清单 + 全区域有效 + 双击 / 亮度 / 长按倍速不回归。
@@ -461,6 +487,7 @@
 | 2026-10-07 | **W77-4F 1.2.0 候选（重建轮）发布面抽验（K60，7/7 通过，0 FATAL·ANR）**：对象 = `Aurorama-1.2.0-arm64-v8a.apk`（sha256 复算一致）。①覆盖安装 ✅（5.42 s、`1.2.0 (3)`、`firstInstallTime` 保留、免重登、书架 8 本）；②**书架流量归零 ✅**（PDF 卡入视口 20 s **0 B** ← 对照 4E **6,960,274 B/29 条**；返回首页 **0 B** ← 对照 **7,598,496 B/33 条**；占位卡近黑 0%、亮点 2.6–6.2%）；③EPUB 流式 ✅（3.1 s 载入中 → 8.4 s 阅读中 → 18.3 s 第 6 頁；静默 20 s App 级 0 B）；④CBZ ✅（3.1 s 11/24 → 14/24）；⑤手动下载热切换 ✅（12.2 s → 离线可读 · 16.5 MB、页码不回退）；⑥PDF 进度 ✅（13→60→91% → 离线可读 36.1 MB）；⑦0 FATAL/ANR + v2 签名 ✅。口径调整：release 无 App 日志 → 「Range 0 条」改用 App 级 netstats 0 B + 像素形态；crash buffer 唯一 FATAL = `UiAutomation` 工具进程自崩（非 App）。报告 `w77-reports/W77-4F.md`；**下一步 = 用户全检（通过后 tag v1.2.0 + Release）**。 |
 | 2026-10-07 | **1.2.0 发布完成（第十任负责人）**：用户全检通过（2026-10-07）→ tag `v1.2.0` 推送 + GitHub Release「极光幕 / Aurorama v1.2.0」发布（universal `5b27d343…65fd5` / arm64-v8a `071a0ec4…a351bd`）；**发布后自检 ✅**（重新下载两资产：sha256 / 体积与 `RELEASE_PLAN` §7 一致、`apksigner` v2 + 证书 `e449c4aa…e155ff`）；W77 波闭环（1.2.0 内容 = W77-1/2/3/4C/5）。 |
 | 2026-10-17 | **第二批入册与开工（W78–W83）**：用户提交 18 项（9 bug + 9 需求）→ 三轮拷问确认（全按推荐；勘误 MVP=mpv / EOX=ExoPlayer；手势偶发、来源 = Pad 5）→ 入册 §2.2 **#22–#39** + §2.3 原话 + §3 任务卡 + 决策 D-F15–D-F20；结构审计落 `ARCHITECTURE` §1.3；`REQUIREMENTS` 升 v1.1；**W78（K60）/ W80（Pad 5）并行派发**（实现子代理，独立 QA 后续接棒）；CI 单测门禁（`.github/workflows/test.yaml`）生效。 | 
+| 2026-10-17 | **W80 波实收（分支 `feature/w80-reader-books`，worktree `w80r`，基座 master `899f85e`；Pad 5 `43af8627` 独占）**：S80-1 书籍下载链路与反馈（#23）——`data` 新增 App 作用域书籍下载任务表（`BookDownloadTask` + `ReaderRepository.bookDownloads/enqueue/await/cancel`），批量下载书籍分支即时反馈 + 无目标时 `DownloadSkipped` 新反馈，下载页出现「下载中 xx% / 失败」书籍条目，阅读页主动下载不再随离开页面取消（**申报的语义变化**）；**真机端到端被阻塞**（books 库 `/medi/书籍` 只读探针复核 0 项 → 两个入口无样本）。S80-2 EPUB 滚动 / 双栏（#24）——根因 = Readium `--USER__colCount` 被 CSS 媒体查询丢弃（仅 ≥60em 或 36–47em 横屏），`ReadiumEpubView` 在 ≥640 dp 时压 `--RS__colCount/--RS__colWidth` 兜底并在切档时用最近 locator 重建导航器；真机竖屏双栏**真两列**（中缝墨迹 0.0000）、滚动档长章连续滚动。S80-3 阅读器手势（#32）——新增 `ReaderGestureArea` 手势层（双击三等分 = 左/右翻页 + 中间适宽/单双栏切换、上下滑亮度 + HUD、滚动档亮度只认左侧 1/4）；PDF 真机适宽（843→1993 px）、1/15↔2/15 翻页、亮度 65%/100% HUD、批注框选与中心滚动不回归；EPUB 映射真机通过（progression 0.0455↔0.0909）。S80-4 横屏侧栏「下载」可见（B12）——`railMediaSubGroupMaxRows` 限高 + 子分组自滚动；真机横屏展开媒体库后「下载」常驻可见。**未覆盖**：S80-1 真机两入口（缺样本）、双指缩放真机复跑（无多点注入工具）、CBZ 真机（与 PDF 同路径）、滚动档「章末自动进下一章」（记 B14）。证据 `w80-evidence/`，报告 `w80-reports/W80.md`。 |
 | 2026-10-17 | **用户答复 + 双 QA 派发（第十一任负责人）**：①K60 release 通知总开关已由用户打开（自述「不会主动去关」→ 按系统/误关处理；用户建议 App 主动检测并引导 → 登记 §6 **B17**）；②测试服务器 books 库已恢复（只读探针 `Items?Recursive=true&IncludeItemTypes=Book` = **8 项**）→ W80 #23 端到端解封；③**独立 QA 并行派发**：QA-W78（K60 `8e875894`，分支 `feature/w78-music-core` @ `8018c3a`）+ QA-W80（Pad 5 `43af8627`，分支 `feature/w80-reader-books` @ `785b51f`），device-lock 已登记，报告将落 `w78-reports/W78-QA.md` / `w80-reports/W80-QA.md`。 |
 | 2026-10-17 | **双 QA 完成（第十一任负责人）**：**QA-W78 通过**——三卡独立复跑全过（队列 349 补齐 / 短歌自动切歌后不中断 / 随机 20/20 distinct / 倍速 1.75× 冷启保持 / 通知面板实拍 + release 抽验恢复；无 P0–P2；报告 `w78-reports/W78-QA.md`）。**QA-W80**——#24 三档可感 / #32 手势全量 / B12 侧栏 通过；**#23 被 D1 阻塞：服务器 12.2.0 现只接受 `Authorization: MediaBrowser Token=`，`X-Emby-Token` / `api_key` / Bearer 全 401**（负责人只读复验一致；连带远端书籍 / 封面 / 视频下载 / 控制台；非 W80 引入）→ 派 **W80b**（D1 鉴权头统一 + D2 删除失败条目 + D3 失败文案；Pad 5）。 |
 | 2026-10-17 | **W78 合并验收（第十一任负责人）**：`feature/w78-music-core` rebase（`8018c3a` → `a531515`；FIX_PLAN 冲突解决 = 保留两侧 + 让号 B17）→ ff 合并 master（`986c292` → `a531515`）；合并态门禁（clean 后全量重建）= 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **983 / 0 / 0**（app 277 / core 106 / data 68 / player:core 12 / player:local 180 / film 53 / book 145 / music 142；日志 `w78-evidence/gate_merged_w78_build3.log` / `gate_merged_w78_tests.log`）；已推送 CI（`5377799..a531515`，Format / Build / Unit Tests 三路）。**环境坑**：主仓 `build/` 残留 E: 迁移旧根 → dex「different roots」失败，`clean` 全量重建解决（已记 `PROJECT_PLAN` §6）。 |
@@ -496,7 +523,10 @@
 - **B9**（**W76-R1b 定位，建议列为 1.1.0 阻断项 —— 待用户拍板**）下载任务首次必失败——`DownloaderImpl.kt:425` 的存储预检查 `StatFs(target.parentFile?.path ?: filesDir.path)` 排在 `DownloadHttpEngine.kt:92` 的 `mkdirs()` **之前**；`…/files/downloads` 不存在时抛 `IllegalArgumentException("Invalid path")` → 被 `executeTask` 通用 catch 收成 `DownloadFailureReason.UNKNOWN`（UI 只显「失败 / 0 B / 无总大小」）。既有缺陷：W50 `8f07ee8`（2026-10-03）起，1.0.0 同结构；**非 1.1.0 引入**。修复 = StatFs 前先 `target.parentFile?.mkdirs()`（或路径不存在时回落 `filesDir`）+ 补「首次下载·目标目录不存在」单测；建议 release 下把失败原因落 DB / UI（无 Timber）。
 - **B10**（= **D1，P2 已确认**，非本轮引入）`PlayerHolder.musicSessionActive` 粘住 → 同进程内「换内核 / 回退链」全失效（`PlaybackCoordinatorImpl.onVideoStartRequested()` 全仓库无调用点；`PlayerHolder.kt:93/186`）。决定性命中见 W76-R1b §1.2 / §7.1；**R1c** 拿到明确用户可见面（横屏「播放失败」卡片 + 「改用 mpv 内核」按钮在粘住态失效 → 卡 `00:00 / 00:00`），建议单独立项。
 - **B11**（= **D2，P3 已归类**，非本轮引入）系列详情页「播放」进空载播放页——`ShowScreen` 传 series id、`PlaylistManager` SERIES 分支 `return null` **静默兜底无提示**；顺带 `EpisodeAction.NavigateToSeason` 自 W66 起无发射点（剧集页无法回季/剧集页）。建议单独立项（**R1c 已真机复现**，见 W76-R1b §7.2：系列级「播放」空载、季/集级正常出画）。
-- **B12**（W77-4B 发现，2026-10-07，**非 W77 引入**）横屏（Pad）侧栏展开「媒体库」后，「下载」条目被底部固定的「客户端设置 / 收起」挤出可视区（UI dump 无该节点；原坐标点击落到「电影库」）；折叠侧栏 / 竖屏 / 窄窗均正常。建议单开一条（1.2.x 或下波 UI 修复）。
+- **B12**（W77-4B 发现，2026-10-07，**非 W77 引入**）横屏（Pad）侧栏展开「媒体库」后，「下载」条目被底部固定的「客户端设置 / 收起」挤出可视区（UI dump 无该节点；原坐标点击落到「电影库」）；折叠侧栏 / 竖屏 / 窄窗均正常。建议单开一条（1.2.x 或下波 UI 修复）。—— **W80（S80-4）已修**：`railMediaSubGroupMaxRows` 限高 + 子分组自滚动，真机横屏「下载」常驻可见。
 - **B13**（W78 发现，2026-10-17，**非本轮引入**）音乐补队列仍是「解析一首发一次 `PlaybackInfo`」：库 349 首补齐需约 60 s（批量 + 6 并发已比修前的 2.5 分钟快 5 倍），但 `SONG_LIMIT` 提到 1000 后，满库补齐会到 3 分钟量级 —— 期间「下一首」之后的曲目还不在队列里。建议下一波评估**懒补队列**（只补前 N 首 + 播到接近末端时续补）或并发度调优（需先量服务端 `PlaybackInfo` 并发承载）。**同源观察**：`MusicQueuePersister` 每次队列变化都整体落盘（补齐期间约每批一次写全量行），1000 首量级需复核写放大。
-- **B17**（用户 2026-10-17 建议，源自 #22；编号 B14–B16 预留给 W80 侧新增条目）**App 主动检测通知开关并引导**：用户「我应该不会主动去关……建议 app 应该主动弹出授权对话框」——K60 release 包 `AppSettings … importance=NONE userSet=true` 疑为 MIUI 自动管理/误关所致（用户已手动开启总开关）。建议实现 = 音乐 / 视频起播时检测通知可用性（`NotificationManagerCompat.areNotificationsEnabled()` + 媒体通知状态），关闭时给出显式引导（授权对话框 → 跳系统通知设置），避免「播放无面板」的静默失效。落点初判 `app/phone`（播放服务 / 权限引导）；排期建议随本批后续波次（W79 K60 顺带或单列小卡），待 QA / 合并后定。
+- **B14**（W80 发现，2026-10-17，**Readium 语义 / 非缺陷，但影响「滚动档」体验**）EPUB 滚动档在**资源末尾继续上下滑不会进入下一章**：Readium Android 3.4 的滚动 = 每个 spine 资源内部垂直滚动 + 资源之间横向翻页（`R2BasicWebView.scrollLeft/scrollRight`），`EpubNavigatorFragment.Configuration.disablePageTurnsWhileScrolling` 默认 `false` 也不改变"纵向到底不自动进下一章"。实测：两章短资源书滚到底后连续 6 次上滑，`progress.json` 的 `href` 仍停在 `ch1.xhtml`。W80 已把「双击右侧 = 下一章」做成显式入口（S80-3），**是否要「滚到底自动衔接下一章」需产品决定**（涉及误触与"翻过头"风险，建议下波评估）。
+- **B15**（W80 记录，2026-10-17）书籍整本下载任务表是**进程内**状态（`ReaderRepositoryImpl` 的 `MutableStateFlow`）：进程被杀后下载页不再显示「下载中」条目，`files/books/*.book.part` 残留（既有清理语义不变）。若要「重启后继续下载 / 仍显示进度」，需要持久化进 Room 或复用下载引擎（跨模块改动，本波按非目标未做）。
+- **B16**（W80 记录，2026-10-17）阅读器亮度手势只作用于**当前窗口**（不落偏好，与播放器「亮度记忆」开关不同口径）：离开阅读页即回系统亮度。若要「记住阅读亮度」，需新增偏好键（`AppPreferences` 红线文件，申报后做）。
+- **B17**（用户 2026-10-17 建议，源自 #22）**App 主动检测通知开关并引导**：用户「我应该不会主动去关……建议 app 应该主动弹出授权对话框」——K60 release 包 `AppSettings … importance=NONE userSet=true` 疑为 MIUI 自动管理/误关所致（用户已手动开启总开关）。建议实现 = 音乐 / 视频起播时检测通知可用性（`NotificationManagerCompat.areNotificationsEnabled()` + 媒体通知状态），关闭时给出显式引导（授权对话框 → 跳系统通知设置），避免「播放无面板」的静默失效。落点初判 `app/phone`（播放服务 / 权限引导）；排期建议随本批后续波次（W79 K60 顺带或单列小卡），待 QA / 合并后定。
 - **B18**（QA-W78 跨线观察，2026-10-17，**非 W78 范围**）debug 包首页「继续观看」显示 E16、同机 release 包仍 E17（两包本地视图不同步）；疑元数据刷新 / 本地缓存差异，建议视频线复核后决定是否立项。

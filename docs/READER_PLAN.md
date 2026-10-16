@@ -1953,6 +1953,40 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 **调研已完成（2026-10-07，W77-PDF-R）**：推荐 **PDFium**——`android.graphics.pdf.PdfRenderer` 本身即 native pdfium，「换引擎」实为**换字节供给**（fd → HTTP Range），渲染保真风险低、无需自写 JNI；`io.legere:pdfiumandroid:2.0.3` 的 `PdfiumSource`（`FPDF_LoadCustomDocument`）已验证到 API 级，可直接接 `HttpByteSource`。**修正：PDFium 许可 = BSD-3-Clause**（本条目初稿「Apache-2.0」系笔误）；MuPDF = AGPL（唯一法务决策点，GPLv3 §13 允许组合但带网络条款）；androidx.pdf 仍 beta、无 Range 源；成本 ≈ +5 MB/ABI（Phase 1）/ 可净 −8 MB（Phase 2 迁文本层去 PdfBox）；**9 项真机 spike 清单（≈3 人日，建议 x86_64 AVD）与 6 项决策点**见报告——待用户拍板后立实施波。
 **用户拍板（2026-10-07，D-F13）**：①采用 PDFium 路线 ✅（保留一个发布周期回退开关）；②**首开口径修正**——「先出第 1 页」保留，但**不做后台整本下载**：只按需 Range 预取「当前页 + 后面几页」（用户原话：「后台不能整本下载，只预加载当前和后面几页，不要一次性全部加载，这样会浪费流量」）；③Phase 1 保留 PdfBox、Phase 2 迁 PDFium 文本层 ✅；④MuPDF 仅记录在案、不投入 ✅；⑤双栏版式扫描改用 PDFium 批量页尺寸 ✅；⑥接受新增 native 依赖 ✅。→ **待排 PDF 实施波**（9 项真机 spike，≈3 人日，建议 x86_64 AVD）。
 
+### W80（S80-2 EPUB 滚动 / 双栏 + S80-3 阅读器手势 · 2026-10-17，分支 `feature/w80-reader-books`，worktree `w80r`，基座 master `899f85e`）
+
+**取证（Pad 5 `43af8627`；自造素材 `w80_reader_test.epub`：ch1 / ch2 各 240 段 + 短章 ch3；`attention_is_all_you_need.pdf` 15 页）**
+
+1. **EPUB「滚动」本身有效**：滚动档长章节连续滚动（一次 500 px 上滑 → 截图像素垂直位移 420 px，`files/reader/progress.json` 章节内 progression 随滚动前进）。W62 结论仍成立：Readium 的滚动 = **资源内**垂直滚动 + 资源之间横向翻页；资源短于一屏时纵向滑不动 —— 这正是「滚动无效、实际为分页」观感的来源。
+2. **EPUB「双栏」在竖屏静默失效（本波修复的真因）**：Readium AAR 的 `assets/readium/readium-css/ReadiumCSS-after.css` 把用户列数写在
+   `@media screen and (min-width:60em), screen and (min-device-width:36em) and (max-device-width:47em) and (orientation:landscape) { :root[style*="--USER__colCount: 2"] { column-count: var(--USER__colCount) } }`
+   内 —— Pad 5 竖屏视口 ≈ 44 em（711 dp）既不满足 `min-width:60em` 也非横屏 → `columnCount=TWO` 被丢弃，实际 1 栏（改前截图：单栏满宽）。横屏 1137 dp ≥ 60em，天然生效（本波复测两栏正常）。
+3. **章末衔接语义**（记 `FIX_PLAN` §6 B13）：滚动档滚到资源末尾继续上滑**不会**进下一章（两章短资源书连续 6 次上滑，`href` 仍 `ch1.xhtml`）。
+
+**落地**
+
+- `ReaderGestures.kt`（新）：纯规则 + 手势层 —— `readerTapTarget`（三等分；1/3、2/3 分界落在中间「适宽」区）、`readerBrightnessAfterDrag`（向上拖变亮，满屏 = 全量程）、`readerBrightnessDragAllowed`（分页 / 双栏整屏；**滚动档只认左侧 1/4**）、`fitWidthScale`（`a < b` 时 `b / a`，上限 `PAGE_MAX_ZOOM`）、`shouldForceEpubTwoColumns`（≥640 dp 兜底双栏）、`readerScrollChainStep`（章末衔接判据，留 B13 用）。
+- `ReaderGestureArea`：在 `PointerEventPass.Initial` 先于子项取事件 —— 单指纵向拖动消费为亮度；单击不消费（批注点击 / 链接照常）；**双指直接退出**，缩放仍走 `ZoomableSlot.detectMultiTouchZoom`；双击在抬手按 `doubleTapTimeoutMillis` 判定。
+- `SimpleBookView`：双击左 / 右翻页（双栏按槽位步进、`isRtlPaging` 下左右镜像，复用既有跳页通道），中间切「适宽」（会话内状态）；`ZoomableSlot` 增 `fitWidth / pageAspect` → `baseScale`；`PageZoom.transform` 增 `base` 参数（平移夹取按 `base × scale`，默认 1 保持原行为）。
+- `ReadiumEpubView`：同一手势层映射（左 / 右 `goBackward/goForward(animated=true)`、中间 `onToggleTwoColumn`）；双栏兜底 `RsProperties(overrides = {"--RS__colCount":"2", "--RS__colWidth":"auto"})` + `key(publication, forceTwoColumns)` 重建导航器（`liveLocator` 续页，位置不回退）。
+- `ReaderScreen`：亮度写窗口 `window.attributes.screenBrightness`（起始值回落系统亮度，与播放器同口径）+ 居中「亮度 xx%」HUD（900 ms 自动隐藏）；离开阅读页自动回系统亮度（不落偏好，见 B15）。
+
+**真机结果（Pad 5 `43af8627`，逐条）**
+
+| 项 | 结果 |
+|---|---|
+| EPUB 竖屏双栏 | ✅ **真两列**（列剖面中缝墨迹 0.0000、左右 0.1385 / 0.0846；`w80-evidence/shots/fix2_epub_twocol_port.png`） |
+| EPUB 滚动档 | ✅ 长章连续滚动（像素位移 + progression 前进）；短章纵向滑不动 = 引擎语义（B13） |
+| EPUB 双击 | ✅ 中间：双栏 ↔ 分页（顶栏模式文字变）；右：progression 0.0455 → 0.0909；左：回 0.0455 |
+| EPUB 亮度 | ✅ 上下滑出 HUD（实测「亮度 100%」）+ 窗口亮度变化（截图取证） |
+| PDF 双击 | ✅ 右：`分页 · 1/15 → 2/15`；左：回 `1/15`；中间：适宽（内容墨迹宽 843 px → 1993 px ≈ 2.36×，再双击回落 843 px） |
+| PDF 亮度 | ✅ 上下滑出 HUD「亮度 65%」（改前同一手势逐像素差 0.00） |
+| PDF 滚动档 | ✅ 中心上下滑只滚动（`滚动 · 1/15 → 2/15`、无 HUD）；左侧上下滑只调亮度（HUD「亮度 100%」、页码不变） |
+| PDF 批注回归 | ✅ 「批注 → 开始框选 → 拖矩形」仍弹「添加批注（第 2 页）」 |
+| 单测 | ✅ `ReaderGesturesTest` 13 项 + `PageMetrics` 既有项全绿（全量门禁 996 / 0 / 0） |
+
+**未覆盖**：CBZ 真机（与 PDF 共用 `SimpleBookView` 同一路径，本轮只跑 PDF）；双指缩放真机复跑（无多点注入工具；改动仅 `transform` 增默认 `base=1f` + 手势层对双指直接退出，`PageZoom` 数学有单测）；远端 EPUB 流式（本轮素材为本地文件，W77 路径零改动）。
+
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
 ### 10.1 加载中返回仍占网络（修，提交 `06bd7d8`）
@@ -2054,3 +2088,4 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 | 2026-10-07 | **W77-4C（分支 `fix/w77-cbz-hotswap`，基座 master `72d55f8`，worktree `w77f`）：CBZ 热切换主线程阻塞修复 + 版本号 1.2.0**——①根因（真机栈取证）= 热切换在 Main 上 `previousSource.close()` → `HttpByteSource.close()` 要 `synchronized(chunks)`，而旧远端页源的**预取协程正持有该监视器**卡在 `chunkAt → fetchChunk → execute`（单次 Range 1.4–20 s）→ 主线程等锁 ≈2.5 s + MIUI `APP_SCOUT_WARNING`；②修法（最小改动）= `ReaderViewModel` 新增**后台回收作用域** `recycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)`（不挂 `viewModelScope`，离开阅读页也跑完回收）与私有 `recycleAsync(close)`，热切换的 `previousSource?.close()`（CBZ）/ `previousAsset?.close()`（EPUB）改为**异步回收**，页源切换与 UI 不等旧源关闭；取消语义仍由 `InFlightRequestRegistry` 粘性取消兜底；③**版本号** `APP_CODE 2 → 3` / `APP_NAME "1.1.0" → "1.2.0"`（`aapt dump badging` + `dumpsys package` 双查一致）；④真机 K60：CBZ 热切换 **4796 ms → 7 ms**（`第 7 页 / 24` 不回退；窗口内 `APP_SCOUT` 0 / `Choreographer Skipped` 0 / 热切换后新增 Range **0** / pid 未重启），EPUB 229 MB 热切换 **1289 ms**、`第 7 頁` 不回退（与「本地重开」逐像素差 0.28%），取消（670 MB PDF 返回 → 0 新请求 + 其后 15 s 内 `.part` 已清理）、离线回退错误态「打不开这本书」+「重试」→ 恢复网络重试 `下载中 0%` 全部不回归，**0 FATAL / 0 ANR**；⑤门禁四绿（`:modes:book:ktfmtCheck` + 根 `ktfmtCheck` + `:modes:book:testDebugUnitTest` **145** + `:app:phone:assembleDebug`）。报告 `w77-reports/W77-4C.md`；详见 §9「W77-4C」条 |
 | 2026-10-07 | **W77-5（分支 `fix/w77-5-pdf-cover`，基座 master `bf5121e`，worktree `w77g`）：远端 PDF 封面不再整本拉取**——①根因（W77-4E 定性）= 书架可见的「未下载 + 无服务器封面」PDF 卡片触发 `BookCoverProvider → pdfCover` 的 PdfBox 2.0 `PDFParser.parse()` **逐 256 KB 读遍整本 PDF**（37.9 MB → 6.96 MB/20 s + 29 条 Range；离开书架仍存续）；②修法（两层闸门）= ①**策略层零请求**：`BookCoverRules.planCover` 新增 `remotePdf`（未下载 + 无服务器封面 + PDF → `PLACEHOLDER`），判据 = 服务器 `ItemFields.PATH` 扩展名（`isPdfPath`），`getItems` / `getResumeItems` / `getLatestMedia` 补请求 `ItemFields.PATH` 并经 `FindroidFolder.sourcePath` 上抛；②**内容层兜底**：远端嗅探到 `%PDF-` → `ExtractOutcome.Skipped` **静默占位且不写 `.fail`**（防改名文件绕过扩展名判据）；**已下载** PDF 仍走本地渲染、**EPUB / CBZ 远端路径零改动**；③真机 K60（1.2.0(3) debug）：入视口 **6,960,274 B/29 条 → 0 B/0 条**、返回首页 **7,598,496 B/33 条 → 0 B/0 条**、继续下滚到 670 MB《虚构推理》仍 **0 B/0 条**；占位像素取证（书图标 + 媒体色、近黑 0%）；已下载 PDF 移走封面后本地重渲染 **md5 完全一致**；**0 FATAL / 0 ANR**；④门禁：根 `ktfmtCheck` + core **106** / data **68** / film **53** 单测 + `:app:phone:assembleDebug`（146,808,836 B、sha256 `2B1F64D6…FFBE`）全绿；新增 core 单测 2 项。报告 `w77-reports/W77-5.md`；详见 §9「W77-5」条 | 
 | 2026-10-07 | **1.2.0 发布（W77 波闭环）**：用户全检通过（2026-10-07）→ tag `v1.2.0` + GitHub Release「极光幕 / Aurorama v1.2.0」双 APK（universal `5b27d343…65fd5` / arm64-v8a `071a0ec4…a351bd`）；发布后自检（重新下载：哈希 / 体积 / 签名一致）；W77-1/2/3/4C/5 全部合并，合并态门禁 975/0/0。 |
+| 2026-10-17 | **W80（S80-2 + S80-3，分支 `feature/w80-reader-books`，worktree `w80r`，基座 master `899f85e`）**：EPUB 双栏竖屏静默失效修复（Readium `--USER__colCount` 被 CSS 媒体查询丢弃 → ≥640 dp 压 `--RS__colCount/--RS__colWidth` 兜底 + 切档重建导航器续页）+ 阅读器手势层（双击三等分 = 左右翻页 / 中间适宽·单双栏切换、上下滑亮度 + HUD、滚动档亮度只认左侧 1/4、双击与双指缩放互不干扰）；新增 `ReaderGestures.kt` + 13 项单测；真机 Pad 5：竖屏双栏真两列、PDF 适宽 843→1993 px、1/15↔2/15 翻页、亮度 HUD 65% / 100%、批注与滚动不回归；全量门禁 **996 / 0 / 0**。详见 §9「W80」。 |

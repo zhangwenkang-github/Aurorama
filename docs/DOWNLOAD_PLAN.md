@@ -910,3 +910,37 @@ W61 全量回归 F2（P3）：「离线书架『已下载 4 本』与下载页�
 - 音乐曲目图补齐真机样本（与视频同 `ImageCacheStore` 路径；本次真机样本为视频电影）；
 - 补齐失败回落：服务器图 404 / 网络不可达 → 条目保持类型图标占位（无真机故障注入样本）；
 - 历史残留 `files/images/<id>/`（无对应下载记录）不会被补齐路径触及，保留原样。
+
+---
+
+## 28. W80 书籍下载链路与反馈（2026-10-17，分支 `feature/w80-reader-books`，worktree `w80r`，基座 master `899f85e`）
+
+**背景**：用户 2026-10-17 报「书籍界面长按选中后点『下载』无反应；打开书籍点上方『下载』后占用网络，但下载界面不显示，随后直接显示『已完成』」（`FIX_PLAN` #23 / S80-1）。本波按「先取证再修」执行。
+
+### 28.1 取证（代码级 + 只读 API）
+
+1. **书架批量下载无反馈**：`MediaBatchViewModel.downloadSelected` 在 `batchDownloadTargets` 为空（已下载 / 已在队列）时**直接 `return`**；书籍分支在**页面协程**里串行 `readerRepository.downloadLocalFile()`，整本下完才发 `DownloadQueued` —— 大书要分钟级，且离开页面即取消（`JobCancellationException` 路径），用户看到的就是「没反应」。
+2. **下载页看不见书籍下载**：书籍在下载页只有一条数据源 `ReaderRepository.listLocalFiles()`（`files/books` 下的 `.book` 完成态），**没有"进行中 / 失败"概念**；阅读页下载期间下载页必然空白，完成瞬间直接进「已完成 · 书籍」。
+3. **样本阻塞**：只读探针复核测试服务器 books 库（`/medi/书籍`）`Items?Recursive=true&IncludeItemTypes=Book` → `TotalRecordCount=0`（含按用户 `zhangwenkang` 维度查询同样为 0）→ 本轮**拿不到服务器书籍样本**，两个入口的端到端真机验证被阻塞（已在报告「未覆盖项」单列，恢复样本后可无损复跑）。
+
+### 28.2 落地（本波改动）
+
+| 层 | 改动 |
+|---|---|
+| `data` | 新增 `BookDownloadTask` / `BookDownloadStatus` / `BookDownloadEnqueueResult`；`ReaderRepository` 扩 `bookDownloads: StateFlow<List<BookDownloadTask>>` + `enqueueBookDownload` / `awaitBookDownload` / `cancelBookDownload` |
+| `data`（实现） | `ReaderRepositoryImpl` 新增 **App 作用域下载任务表**（`CoroutineScope(SupervisorJob + IO)`）：入队即登记 `RUNNING`、字节进度**按整数百分比节流**（避免下载页每 64 KB 重组）、完成 / 失败写回任务表；`download()` 增 `onBytes(downloaded, total)` 回调；`cancelBookDownload` 取消在途 call |
+| `app/phone` | `MediaBatchViewModel.downloadSelected`：书籍分支改 `enqueueBookDownload`（**立即返回** → Snackbar 即时）；`targets` 为空时新增 `MediaBatchEvent.DownloadSkipped` → 「所选条目均已下载或在下载队列中」（不再静默）；`MediaBatchUi` + 三语言字符串补齐 |
+| `modes/film` | `DownloadsViewModel.refresh()` 把 `bookDownloads` 的 `RUNNING / FAILED` 映射成 BOOK 条目（进度 / 失败态 + 本地封面）并进「未完成 / 失败」分组（复用既有 1.5 s 轮询 → 自动刷新）；`deleteEntry` 对进行中的书籍先 `cancelBookDownload`（否则 `.part` 继续写并重新落盘） |
+| `modes/book` | `ReaderViewModel.startDownload` 改走 `awaitBookDownload`（用户**主动**点下载后离开阅读页不再中断；打开书籍时的「按需落盘」语义不变） |
+
+### 28.3 语义变化与设计边界（重要）
+
+- **W64 的取消语义按入口拆分**：用户**主动点「下载」**= App 作用域后台任务（离开页面继续、下载页可见）；**打开未下载书籍时的按需落盘**仍绑定页面协程（离开即取消，避免"返回后仍占网络"）。两处不再共用同一条取消链。
+- 任务表是**进程内**状态：进程被杀后下载页不再显示「下载中」条目，`files/books/*.book.part` 残留按既有语义由下次下载清理（记 `FIX_PLAN` §6 B14，若要"重启续传"需持久化，属跨模块改动）。
+- 书籍「暂停 / 继续 / 重试」不提供（下载引擎是视频 / 音乐的链路，本波非目标）；**删除进行中条目** = 取消任务 + 删本地文件。
+- 单测：`BookDownloadTaskTest` 4 项（字节 → 进度、无 `Content-Length` 不除零、夹取、默认状态）。
+
+### 28.4 真机与未覆盖
+
+- **未做真机端到端**（books 库为空，见 28.1 ③）：待样本恢复后按 `FIX_PLAN` §3 W80/S80-1 判据复跑 —— ①书架长按选中 → 下载 → **即时 Snackbar**；②下载页出现「书籍 · 下载中 xx%」条目 → 完成后进「已完成 · 书籍」；③阅读页「下载」同链路；④删除进行中条目 = 取消且无残留；⑤「已下载」时再点下载 → 「所选条目均已下载或在下载队列中」。
+- 编译与单测证据：全量门禁 **996 / 0 / 0**（含新增 21 项：`ReaderGesturesTest` 13 + `RailFitRulesTest` 4 + `BookDownloadTaskTest` 4）。
