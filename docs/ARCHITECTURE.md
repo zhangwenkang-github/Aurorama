@@ -2,7 +2,7 @@
 
 | 项 | 值 |
 |----|----|
-| 文档版本 | v1.0（2026-09-29） |
+| 文档版本 | v1.1（2026-10-17：§1.1 / §1.2 基线校准 + §1.3 结构审计） |
 | 状态 | 已定稿，待项目负责人审查 |
 | 作者会话 | S2 · 架构与规范 |
 | 上游依据 | `docs/REQUIREMENTS.md` v1.0；`docs/design/s1-decision.md`；S2 代码走查与联网调查（见 §9） |
@@ -17,7 +17,7 @@
 
 ### 1.1 模块与依赖（`settings.gradle.kts` 实测）
 
-当前 9 个模块：`:app:phone`、`:app:tv`、`:core`、`:data`、`:player:core`、`:player:local`、`:setup`、`:modes:film`、`:settings`。
+当前 11 个模块：`:app:phone`、`:app:tv`、`:core`、`:data`、`:player:core`、`:player:local`、`:setup`、`:modes:film`、`:modes:book`、`:modes:music`、`:settings`。
 
 | 模块 | 职责 | 关键依赖 |
 |------|------|---------|
@@ -27,6 +27,8 @@
 | `player/core` | 播放领域模型：`PlayerItem`、`Track`、`PlayerSubtitleSource`、`PlayerChapter`、`TrickplayInfo` | 无（纯模型） |
 | `player/local` | 播放内核：`PlayerHolder`（单例，ExoPlayer/mpv 双内核）、`PlayerViewModel`、`PlaylistManager`、`TrackSelectionEngine`、`SubtitleParser` + `PlayerSubtitleController`、`MPVPlayer` | player:core、data、settings |
 | `modes/film` | 影视模式业务：Home / Library / Movie / Show / Season / Episode / Collection / Favorites / Downloads 的 State+Action+ViewModel | core、data、settings |
+| `modes/book` | 阅读模式业务：书架 / 阅读器 / 批注（Reader 状态与领域规则） | core、data、settings |
+| `modes/music` | 音乐模式业务：浏览 / 队列 / 歌词 / 离线（队列持久化与编辑） | core、data、settings、player:core、player:local |
 | `settings` | `AppPreferences`（SharedPreferences 封装）、语言匹配（`LanguageMatcher`）、设置 UI 模型 | 无 |
 | `app/tv` | TV 入口，**冻结**（仅保证可编译） | — |
 
@@ -39,9 +41,18 @@
 5. **设计系统当前散落两处**：`core/.../core/presentation/theme`（`Color`、`Spacings`）与 `app/phone/.../presentation/theme`（`Theme`、`Color`、`Typography`、`Shape`、`Spacing`、`Motion`）；`LocalSpacings` 由 `CinefinTheme` 提供。
 6. **阅读入口现状**：`NavigationRoot.navigateToItem()` 对 `FindroidFolder(kind == "Book")` 直接跳 `ConsoleRoute("/details?id=…")`（服务器 WebView 阅读器）——**本期要替换成原生阅读器**。
 7. **音乐现状**：无音乐模式与入口；音频只能被当作"视频"塞进视频播放器。音乐库类型（`CollectionType.Music`）已在 `supported` 列表内可浏览。
-8. **CI 现状**：Build 仅 `master` push 触发 + PR 触发、忽略 `docs/**` 与 `**.md`、带 concurrency 取消；Format 跑 `./gradlew ktfmtCheck`（`**.kt` / `**.kts`）。仓库当前**没有任何单元测试**（未找到 test 目录）。
+8. **CI 现状**：Build 仅 `master` push 触发 + PR 触发、忽略 `docs/**` 与 `**.md`、带 concurrency 取消；Format 跑 `./gradlew ktfmtCheck`（`**.kt` / `**.kts`）。仓库现有 **975 个 JVM 单测**（8 模块、纯 JUnit4；无 Robolectric / `androidTest`，Compose 层不可单测）；**单测门禁自 2026-10-17 起由 `.github/workflows/test.yaml` 承担**。
 
 ---
+
+### 1.3 结构审计与重构候选（2026-10-17）
+
+结论：**依赖图健康**（11 模块、无循环依赖，§2.3 五条规则未被违反）。拖慢修复的不是循环依赖，而是 —— ①**模块只拆了一半**：影视 UI 留在 `app/phone/presentation/film`（73 文件 / 1.3 万行），`modes/film` 只剩 ViewModel，`app` 模块 177 文件 / 3.66 万行；②**咽喉大文件**：`PlayerControlOverlay` 3861 行 / `PlayerViewModel` 2821 行 / `NavigationRoot` 2140 行（B4 已登记）；③**CI 不跑单测**（975 个 JVM 单测仅本地门禁；无 Robolectric / `androidTest`，Compose 层不可单测）。
+
+重构候选（按执行策略分档；政策见 `FIX_PLAN` D-F17，重构目标 = **更大灵活度、支撑后续新增需求**）：
+
+- 波内局部（低风险、随对应波做）：会话 / 通知展示状态收敛为单一数据类（W78）；手势「识别→意图」下沉 `PlayerSeekGestureRules`（W81）；缩略图策略收敛 `ImageCacheRules` + `app/phone` theme 3 文件并入 `core`（W83）。
+- 单独立项（本批后评估）：影视 UI 分批迁入 `modes:film`（让 `app/tv` 可复用）；`PlayerViewModel` 按职责拆分；`core` 拆 `:core:design` / `:core:download`；测试面扩展（CI 单测门禁已补，Robolectric / coroutines-test 后评估）。
 
 ## 2. 目标架构总览（to-be）
 
