@@ -64,6 +64,7 @@ fun CinefinTheme(
         LocalMediaColors provides media,
         LocalCinefinColors provides colors,
         LocalCinefinTypography provides typography,
+        LocalSpacings provides Spacings,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

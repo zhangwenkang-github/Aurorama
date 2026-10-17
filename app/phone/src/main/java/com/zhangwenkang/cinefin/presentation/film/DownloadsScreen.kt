@@ -47,6 +47,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
@@ -71,7 +72,6 @@ import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListSkeleton
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSeasonCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelRow
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind

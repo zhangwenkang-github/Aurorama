@@ -34,6 +34,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.User
@@ -41,7 +42,6 @@ import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.setup.components.UserItem
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersAction
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersEvent

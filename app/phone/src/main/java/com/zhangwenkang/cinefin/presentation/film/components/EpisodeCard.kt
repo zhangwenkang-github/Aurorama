@@ -28,10 +28,10 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndica
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.isDownloaded
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 /**
  * 季详情页单集卡。

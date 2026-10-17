@@ -25,9 +25,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServerAddress
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.models.ServerWithAddresses
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersAction
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersEvent
 import com.zhangwenkang.cinefin.setup.presentation.servers.ServersState

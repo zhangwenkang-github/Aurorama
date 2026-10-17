@@ -11,7 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 
 /**
  * 收藏角标（W60b）：条目已收藏时压在封面角上的实心书签（`ic_bookmark_filled`，§8.9 中性徽标）。

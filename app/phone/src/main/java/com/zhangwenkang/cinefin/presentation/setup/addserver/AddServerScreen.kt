@@ -40,6 +40,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
@@ -48,7 +49,6 @@ import com.zhangwenkang.cinefin.presentation.setup.components.DiscoveredServerIt
 import com.zhangwenkang.cinefin.presentation.setup.components.LoadingButton
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerAction
 import com.zhangwenkang.cinefin.setup.presentation.addserver.AddServerEvent

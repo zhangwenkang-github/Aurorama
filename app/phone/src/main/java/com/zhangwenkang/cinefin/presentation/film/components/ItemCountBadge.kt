@@ -8,8 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun ItemCountBadge(unplayedItemCount: Int, modifier: Modifier = Modifier) {

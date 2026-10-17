@@ -20,7 +20,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
 @Composable

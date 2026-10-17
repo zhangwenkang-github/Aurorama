@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.models
 
 import android.net.Uri
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemPerson
 import org.jellyfin.sdk.model.api.ImageType
@@ -10,16 +11,17 @@ import org.jellyfin.sdk.model.api.PersonKind
 data class FindroidItemPersonImage(val uri: Uri?, val blurHash: String?)
 
 fun BaseItemPerson.toFindroidImage(repository: JellyfinRepository): FindroidItemPersonImage {
-    val baseUrl = Uri.parse(repository.getBaseUrl())
+    val baseUrl = repository.getBaseUrl()
     return FindroidItemPersonImage(
         uri =
-            primaryImageTag?.let { tag ->
-                baseUrl
-                    .buildUpon()
-                    .appendEncodedPath("items/$id/Images/${ImageType.PRIMARY}")
-                    .appendQueryParameter("tag", tag)
-                    .build()
-            },
+            ImageCacheRules.itemImageUrl(
+                    baseUrl = baseUrl,
+                    itemId = id,
+                    variant = ImageCacheRules.ArtworkVariant.PRIMARY,
+                    tag = primaryImageTag,
+                    pathCase = ImageCacheRules.ItemPathCase.LOWER,
+                )
+                ?.let(Uri::parse),
         blurHash = imageBlurHashes?.get(ImageType.PRIMARY)?.get(primaryImageTag),
     )
 }

@@ -32,6 +32,7 @@ import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -1119,9 +1120,7 @@ class JellyfinRepositoryImpl(
                 .getOrNull()
                 ?.imageTags
                 ?.get(ImageType.PRIMARY)
-                ?.let { tag ->
-                    getBaseUrl().trimEnd('/') + "/Items/$itemId/Images/Primary?tag=$tag"
-                }
+                ?.let { tag -> ImageCacheRules.primaryImageUrl(getBaseUrl(), itemId, tag) }
             url?.let { primaryImageUrls[itemId] = it }
             url
         }
@@ -1167,7 +1166,7 @@ class JellyfinRepositoryImpl(
                         indexNumber = dto.indexNumber,
                         imageUri =
                             imageTag?.let { tag ->
-                                "$baseUrl/Items/${dto.id}/Images/Primary?tag=$tag"
+                                ImageCacheRules.primaryImageUrl(baseUrl, dto.id, tag)
                             },
                     )
                 }

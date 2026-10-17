@@ -43,7 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.BuildConfig
 import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive

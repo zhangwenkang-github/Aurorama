@@ -16,11 +16,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.models.AudioCodec
 import com.zhangwenkang.cinefin.models.DisplayProfile
 import com.zhangwenkang.cinefin.models.VideoMetadata
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
 fun VideoMetadataBar(videoMetadata: VideoMetadata) {

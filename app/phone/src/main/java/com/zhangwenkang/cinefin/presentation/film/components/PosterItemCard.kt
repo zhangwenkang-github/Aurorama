@@ -32,13 +32,13 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.utils.BookCoverRules
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 
 /**
  * 海报墙竖版卡（§8.4 PosterCard · Lumen）：双层嵌套外壳 + 2:3 海报 + 标题（两行）+ 3dp 进度。
@@ -89,19 +89,13 @@ fun PosterItemCard(
             val localCover = imageOverride?.takeIf { it.isNotBlank() }
             var serverImageFailed by remember(item.id) { mutableStateOf(false) }
             var localCoverFailed by remember(item.id) { mutableStateOf(false) }
-            val coverSource =
-                BookCoverRules.displaySource(
-                    hasServerImage = serverImage != null,
-                    hasLocalCover = localCover != null,
+            val artwork =
+                ImageCacheRules.selectArtwork(
+                    serverImage = serverImage,
+                    localCover = localCover,
                     serverFailed = serverImageFailed,
                     localFailed = localCoverFailed,
                 )
-            val imageModel =
-                when (coverSource) {
-                    BookCoverRules.CoverSource.SERVER_IMAGE -> serverImage
-                    BookCoverRules.CoverSource.GENERATED_CACHE -> localCover
-                    else -> null
-                }
             // W69c：类型占位常驻底层——无图 / 加载中 / 加载失败都露出「图标 + 媒体色底」，不出现黑卡。
             if (placeholderIconRes != null) {
                 BookCoverPlaceholder(
@@ -112,7 +106,7 @@ fun PosterItemCard(
             }
             // W69：封面模型变化（刷新 / 服务器图失败回落本地封面）时保留上一张图 + 交叉淡入。
             RetainedAsyncImage(
-                model = imageModel,
+                model = artwork.model,
                 retainKey = item.id,
                 placeholderPainter =
                     if (placeholderIconRes != null) null
@@ -122,7 +116,7 @@ fun PosterItemCard(
                     else ColorPainter(colors.surfaceContainerHigh),
                 onError = {
                     // 服务器图加载失败（离线等）→ 回落本地封面；本地封面失败 → 占位。
-                    if (coverSource == BookCoverRules.CoverSource.SERVER_IMAGE) {
+                    if (artwork.source == ImageCacheRules.ArtworkSource.SERVER_IMAGE) {
                         serverImageFailed = true
                         onServerImageFailed?.invoke()
                     } else {

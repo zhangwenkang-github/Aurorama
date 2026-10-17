@@ -24,6 +24,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.film.presentation.collection.CollectionAction
 import com.zhangwenkang.cinefin.film.presentation.collection.CollectionState
 import com.zhangwenkang.cinefin.film.presentation.collection.CollectionViewModel
@@ -31,7 +32,6 @@ import com.zhangwenkang.cinefin.models.CollectionSection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.presentation.film.components.CollectionGrid
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import java.util.UUID
 
 @Composable

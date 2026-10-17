@@ -14,8 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import java.util.UUID
 
 @Composable

@@ -31,6 +31,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVarian
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
@@ -38,7 +39,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import java.util.UUID
 
 /**

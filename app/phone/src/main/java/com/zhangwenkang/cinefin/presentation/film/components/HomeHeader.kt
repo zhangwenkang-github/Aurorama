@@ -30,8 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 
 @Composable

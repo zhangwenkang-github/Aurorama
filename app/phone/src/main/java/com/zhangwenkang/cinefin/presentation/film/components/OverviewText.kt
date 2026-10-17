@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 
 @Composable
 fun OverviewText(text: String, maxCollapsedLines: Int = Int.MAX_VALUE) {

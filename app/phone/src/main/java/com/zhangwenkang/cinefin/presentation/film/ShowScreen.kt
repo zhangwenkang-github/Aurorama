@@ -51,6 +51,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDur
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyShow
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
@@ -84,7 +85,6 @@ import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.presentation.utils.rememberScrollMemoryState

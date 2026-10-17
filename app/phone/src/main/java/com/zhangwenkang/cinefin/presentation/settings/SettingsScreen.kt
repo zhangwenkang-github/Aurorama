@@ -45,6 +45,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
@@ -53,7 +54,6 @@ import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerState
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsGroupCard
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.R as SettingsR

@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 
 @Composable
 fun LoadingButton(

@@ -41,12 +41,12 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsRow
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsRowHorizontalPadding
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.R as SettingsR

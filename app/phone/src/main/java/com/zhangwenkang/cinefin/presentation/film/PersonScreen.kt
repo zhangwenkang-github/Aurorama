@@ -36,6 +36,8 @@ import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyPersonDetail
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.film.presentation.person.PersonAction
 import com.zhangwenkang.cinefin.film.presentation.person.PersonState
 import com.zhangwenkang.cinefin.film.presentation.person.PersonViewModel
@@ -46,8 +48,6 @@ import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID
 

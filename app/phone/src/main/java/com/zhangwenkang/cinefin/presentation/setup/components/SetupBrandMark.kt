@@ -16,7 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.spacings
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 
 /**
  * 首次配置流程里的品牌标记。

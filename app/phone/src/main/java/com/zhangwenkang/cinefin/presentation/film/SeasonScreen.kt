@@ -46,7 +46,9 @@ import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDur
 import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummySeason
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
@@ -64,8 +66,6 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.rememberLazyScrollMemoryState
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID

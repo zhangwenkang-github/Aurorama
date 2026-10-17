@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.models
 
 import android.net.Uri
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.ImageType
@@ -16,51 +17,32 @@ data class FindroidImages(
 )
 
 fun BaseItemDto.toFindroidImages(jellyfinRepository: JellyfinRepository): FindroidImages {
-    val baseUrl = Uri.parse(jellyfinRepository.getBaseUrl())
+    val baseUrl = jellyfinRepository.getBaseUrl()
+    fun imageUrl(itemId: UUID, variant: ImageCacheRules.ArtworkVariant, tag: String?): Uri? =
+        ImageCacheRules.itemImageUrl(
+                baseUrl = baseUrl,
+                itemId = itemId,
+                variant = variant,
+                tag = tag,
+                index = if (variant == ImageCacheRules.ArtworkVariant.BACKDROP) 0 else null,
+                pathCase = ImageCacheRules.ItemPathCase.LOWER,
+            )
+            ?.let(Uri::parse)
+
     val primary =
-        imageTags?.get(ImageType.PRIMARY)?.let { tag ->
-            baseUrl
-                .buildUpon()
-                .appendEncodedPath("items/$id/Images/${ImageType.PRIMARY}")
-                .appendQueryParameter("tag", tag)
-                .build()
-        }
+        imageUrl(id, ImageCacheRules.ArtworkVariant.PRIMARY, imageTags?.get(ImageType.PRIMARY))
     val backdrop =
-        backdropImageTags?.firstOrNull()?.let { tag ->
-            baseUrl
-                .buildUpon()
-                .appendEncodedPath("items/$id/Images/${ImageType.BACKDROP}/0")
-                .appendQueryParameter("tag", tag)
-                .build()
-        }
-    val logo =
-        imageTags?.get(ImageType.LOGO)?.let { tag ->
-            baseUrl
-                .buildUpon()
-                .appendEncodedPath("items/$id/Images/${ImageType.LOGO}")
-                .appendQueryParameter("tag", tag)
-                .build()
-        }
-    val showPrimary = seriesPrimaryImageTag?.let { tag ->
-        baseUrl
-            .buildUpon()
-            .appendEncodedPath("items/$seriesId/Images/${ImageType.PRIMARY}")
-            .appendQueryParameter("tag", tag)
-            .build()
+        imageUrl(id, ImageCacheRules.ArtworkVariant.BACKDROP, backdropImageTags?.firstOrNull())
+    val logo = imageUrl(id, ImageCacheRules.ArtworkVariant.LOGO, imageTags?.get(ImageType.LOGO))
+    val seriesItemId = seriesId
+    val showPrimary = seriesItemId?.let {
+        imageUrl(it, ImageCacheRules.ArtworkVariant.PRIMARY, seriesPrimaryImageTag)
     }
-    val showBackdrop = seriesPrimaryImageTag?.let { tag ->
-        baseUrl
-            .buildUpon()
-            .appendEncodedPath("items/$seriesId/Images/${ImageType.BACKDROP}/0")
-            .appendQueryParameter("tag", tag)
-            .build()
+    val showBackdrop = seriesItemId?.let {
+        imageUrl(it, ImageCacheRules.ArtworkVariant.BACKDROP, seriesPrimaryImageTag)
     }
-    val showLogo = seriesPrimaryImageTag?.let { tag ->
-        baseUrl
-            .buildUpon()
-            .appendEncodedPath("items/$seriesId/Images/${ImageType.LOGO}")
-            .appendQueryParameter("tag", tag)
-            .build()
+    val showLogo = seriesItemId?.let {
+        imageUrl(it, ImageCacheRules.ArtworkVariant.LOGO, seriesPrimaryImageTag)
     }
 
     return FindroidImages(
@@ -75,32 +57,104 @@ fun BaseItemDto.toFindroidImages(jellyfinRepository: JellyfinRepository): Findro
 
 fun FindroidMovieDto.toLocalFindroidImages(itemId: UUID): FindroidImages {
     return FindroidImages(
-        primary = Uri.Builder().appendEncodedPath("images/$itemId/primary").build(),
-        backdrop = Uri.Builder().appendEncodedPath("images/$itemId/backdrop").build(),
+        primary =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.PRIMARY)
+                )
+                .build(),
+        backdrop =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.BACKDROP)
+                )
+                .build(),
     )
 }
 
 fun FindroidShowDto.toLocalFindroidImages(itemId: UUID): FindroidImages {
     return FindroidImages(
-        primary = Uri.Builder().appendEncodedPath("images/$itemId/primary").build(),
-        backdrop = Uri.Builder().appendEncodedPath("images/$itemId/backdrop").build(),
+        primary =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.PRIMARY)
+                )
+                .build(),
+        backdrop =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.BACKDROP)
+                )
+                .build(),
     )
 }
 
 fun FindroidSeasonDto.toLocalFindroidImages(itemId: UUID): FindroidImages {
     return FindroidImages(
-        primary = Uri.Builder().appendEncodedPath("images/$itemId/primary").build(),
-        backdrop = Uri.Builder().appendEncodedPath("images/$itemId/backdrop").build(),
-        showPrimary = Uri.Builder().appendEncodedPath("images/$seriesId/primary").build(),
-        showBackdrop = Uri.Builder().appendEncodedPath("images/$seriesId/backdrop").build(),
+        primary =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.PRIMARY)
+                )
+                .build(),
+        backdrop =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.BACKDROP)
+                )
+                .build(),
+        showPrimary =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(
+                        seriesId,
+                        ImageCacheRules.ArtworkVariant.PRIMARY,
+                    )
+                )
+                .build(),
+        showBackdrop =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(
+                        seriesId,
+                        ImageCacheRules.ArtworkVariant.BACKDROP,
+                    )
+                )
+                .build(),
     )
 }
 
 fun FindroidEpisodeDto.toLocalFindroidImages(itemId: UUID): FindroidImages {
     return FindroidImages(
-        primary = Uri.Builder().appendEncodedPath("images/$itemId/primary").build(),
-        backdrop = Uri.Builder().appendEncodedPath("images/$itemId/backdrop").build(),
-        showPrimary = Uri.Builder().appendEncodedPath("images/$seriesId/primary").build(),
-        showBackdrop = Uri.Builder().appendEncodedPath("images/$seriesId/backdrop").build(),
+        primary =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.PRIMARY)
+                )
+                .build(),
+        backdrop =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.BACKDROP)
+                )
+                .build(),
+        showPrimary =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(
+                        seriesId,
+                        ImageCacheRules.ArtworkVariant.PRIMARY,
+                    )
+                )
+                .build(),
+        showBackdrop =
+            Uri.Builder()
+                .appendEncodedPath(
+                    ImageCacheRules.localImagePath(
+                        seriesId,
+                        ImageCacheRules.ArtworkVariant.BACKDROP,
+                    )
+                )
+                .build(),
     )
 }

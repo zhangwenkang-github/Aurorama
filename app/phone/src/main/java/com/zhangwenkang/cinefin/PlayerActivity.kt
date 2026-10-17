@@ -48,6 +48,7 @@ import coil3.BitmapImage
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
@@ -72,7 +73,6 @@ import com.zhangwenkang.cinefin.presentation.player.PlayerSettingsController
 import com.zhangwenkang.cinefin.presentation.player.PlayerSubtitleOverlay
 import com.zhangwenkang.cinefin.presentation.player.keepsComposition
 import com.zhangwenkang.cinefin.presentation.player.rememberPlayerLayoutContext
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.AmbientColors

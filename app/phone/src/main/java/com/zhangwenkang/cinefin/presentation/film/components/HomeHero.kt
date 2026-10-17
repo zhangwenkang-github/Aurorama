@@ -44,6 +44,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
@@ -53,7 +54,6 @@ import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /** 主视觉高度上限：手机竖屏够不到，平板 / 横屏靠它兜底，避免头图吃掉整屏。 */
 private val heroMaxHeight = 420.dp

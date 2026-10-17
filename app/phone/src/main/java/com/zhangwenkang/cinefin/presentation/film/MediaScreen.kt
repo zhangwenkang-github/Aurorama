@@ -37,6 +37,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.media.MediaAction
@@ -51,7 +52,6 @@ import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.local.LocalLibrarySection
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding

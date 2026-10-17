@@ -29,10 +29,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.playback.EXTRA_OPEN_MUSIC_NOW_PLAYING
 import com.zhangwenkang.cinefin.presentation.components.ColdStartSplash
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.utils.EXTRA_OPEN_DOWNLOADS
 import com.zhangwenkang.cinefin.viewmodels.MainState

@@ -36,7 +36,9 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderViewModel
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadEvent
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
@@ -56,8 +58,6 @@ import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents

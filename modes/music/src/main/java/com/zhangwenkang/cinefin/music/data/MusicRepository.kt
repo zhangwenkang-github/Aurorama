@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.music.data
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.UserDataEvents
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -251,7 +252,7 @@ constructor(
 
     private fun BaseItemDto.imageUri(baseUrl: String): String? =
         imageTags?.get(ImageType.PRIMARY)?.let { tag ->
-            "$baseUrl/Items/$id/Images/Primary?tag=$tag"
+            ImageCacheRules.primaryImageUrl(baseUrl, id, tag)
         }
 
     private companion object {

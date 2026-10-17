@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderViewModel
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
@@ -70,7 +71,6 @@ import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.detailTypeEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding

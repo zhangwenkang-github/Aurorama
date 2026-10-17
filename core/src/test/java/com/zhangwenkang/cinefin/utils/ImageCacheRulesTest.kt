@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.io.File
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -187,5 +188,80 @@ class ImageCacheRulesTest {
         } finally {
             temp.delete()
         }
+    }
+
+    @Test
+    fun itemImageUrlKeepsBothLegacyPathCasesAndEncodesTag() {
+        val itemId = UUID.fromString("11111111-2222-3333-4444-555555555555")
+        assertEquals(
+            "https://server/Items/$itemId/Images/Primary?tag=a%20b",
+            ImageCacheRules.itemImageUrl(
+                baseUrl = "https://server/",
+                itemId = itemId,
+                variant = ImageCacheRules.ArtworkVariant.PRIMARY,
+                tag = "a b",
+            ),
+        )
+        assertEquals(
+            "https://server/items/$itemId/Images/Backdrop/0?tag=tag-1",
+            ImageCacheRules.itemImageUrl(
+                baseUrl = "https://server",
+                itemId = itemId,
+                variant = ImageCacheRules.ArtworkVariant.BACKDROP,
+                tag = "tag-1",
+                index = 0,
+                pathCase = ImageCacheRules.ItemPathCase.LOWER,
+            ),
+        )
+        assertNull(ImageCacheRules.primaryImageUrl("https://server", itemId, null))
+        assertNull(ImageCacheRules.primaryImageUrl("https://server", itemId, " "))
+    }
+
+    @Test
+    fun localImagePathMatchesExistingCacheDirectories() {
+        val itemId = UUID.fromString("11111111-2222-3333-4444-555555555555")
+        assertEquals(
+            "images/$itemId/primary",
+            ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.PRIMARY),
+        )
+        assertEquals(
+            "images/$itemId/backdrop",
+            ImageCacheRules.localImagePath(itemId, ImageCacheRules.ArtworkVariant.BACKDROP),
+        )
+    }
+
+    @Test
+    fun artworkSelectionFallsBackServerToLocalToPlaceholder() {
+        val server = "https://server/a.jpg"
+        val local = "/files/book_covers/a.jpg"
+        assertEquals(
+            ImageCacheRules.ArtworkSource.SERVER_IMAGE,
+            ImageCacheRules.selectArtwork(server, local).source,
+        )
+        assertEquals(
+            local,
+            ImageCacheRules.selectArtwork(server, local, serverFailed = true).model,
+        )
+        assertEquals(
+            ImageCacheRules.ArtworkSource.PLACEHOLDER,
+            ImageCacheRules.selectArtwork(server, local, serverFailed = true, localFailed = true)
+                .source,
+        )
+        assertEquals(
+            ImageCacheRules.ArtworkSource.LOCAL_COVER,
+            ImageCacheRules.selectArtwork(null, local).source,
+        )
+        assertEquals(
+            local,
+            ImageCacheRules.selectArtwork(server, local, preferLocal = true).model,
+        )
+        assertNull(ImageCacheRules.selectArtwork(null, null).model)
+    }
+
+    @Test
+    fun localCoverOverrideOnlyWhenServerImageMissing() {
+        assertNull(ImageCacheRules.localCoverOverride("https://server/a.jpg", "/tmp/a.jpg"))
+        assertEquals("/tmp/a.jpg", ImageCacheRules.localCoverOverride(null, "/tmp/a.jpg"))
+        assertNull(ImageCacheRules.localCoverOverride(null, " "))
     }
 }

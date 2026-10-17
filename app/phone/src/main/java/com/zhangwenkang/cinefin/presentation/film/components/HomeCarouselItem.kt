@@ -24,12 +24,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 
 @Composable
 fun HomeCarouselItem(item: FindroidItem, onAction: (HomeAction) -> Unit) {

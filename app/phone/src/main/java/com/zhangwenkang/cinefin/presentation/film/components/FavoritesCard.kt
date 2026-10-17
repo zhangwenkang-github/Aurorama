@@ -17,9 +17,9 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 @Composable
 fun FavoritesCard(onClick: () -> Unit, modifier: Modifier = Modifier) {

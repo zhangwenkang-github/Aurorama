@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
@@ -54,7 +55,6 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.isDownloaded
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /**
  * 详情页动作区（W51 重绘）。

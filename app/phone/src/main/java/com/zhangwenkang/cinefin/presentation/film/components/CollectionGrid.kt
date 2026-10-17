@@ -12,10 +12,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.film.presentation.collection.CollectionAction
 import com.zhangwenkang.cinefin.models.CollectionSection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
-import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 
 @Composable

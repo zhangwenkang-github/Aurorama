@@ -10,7 +10,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 
 @Composable
 fun PlayedBadge(modifier: Modifier = Modifier) {

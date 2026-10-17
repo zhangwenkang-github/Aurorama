@@ -38,6 +38,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
@@ -47,7 +48,6 @@ import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /**
  * 媒体库入口卡（Lumen 改版，W8-R3）：整列宽度 16:9 大图 + 底部渐隐 + 一层「类型图标 + 库名 + 项目数」信息条。

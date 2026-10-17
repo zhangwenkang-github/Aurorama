@@ -1,5 +1,8 @@
 package com.zhangwenkang.cinefin.utils
 
+import java.net.URLEncoder
+import java.util.UUID
+
 /**
  * W66：本地图片缓存（`files/images/<id>/primary`）的过期替换规则（纯函数 + 元数据编解码，单测覆盖）。
  *
@@ -13,6 +16,123 @@ object ImageCacheRules {
 
     /** 缓存有效期：30 天（用户 2026-10-04 口径建议值，集中定义）。 */
     const val TTL_MS: Long = 30L * 24 * 60 * 60 * 1000
+
+    /** 缩略图生成尺寸 / 压缩质量的唯一来源（在线书籍封面与本地媒体缩略图共用）。 */
+    const val THUMBNAIL_MAX_SIDE_PX: Int = 512
+    const val THUMBNAIL_JPEG_QUALITY: Int = 80
+
+    /** Jellyfin 图片位；[pathSegment] 与服务器路由一致。 */
+    enum class ArtworkVariant(val pathSegment: String) {
+        PRIMARY("Primary"),
+        BACKDROP("Backdrop"),
+        LOGO("Logo"),
+    }
+
+    /** 存量 URL 大小写兼容：`FindroidImages` 一直用 `items/`，下载 / 音乐链路用 `Items/`。 */
+    enum class ItemPathCase {
+        LOWER,
+        UPPER,
+    }
+
+    /** 卡片缩略图最终显示来源（服务器图 → 本地封面 → 类型占位）。 */
+    enum class ArtworkSource {
+        SERVER_IMAGE,
+        LOCAL_COVER,
+        PLACEHOLDER,
+    }
+
+    data class ArtworkSelection(
+        val source: ArtworkSource,
+        val serverModel: Any? = null,
+        val localModel: String? = null,
+    ) {
+        val model: Any?
+            get() =
+                when (source) {
+                    ArtworkSource.SERVER_IMAGE -> serverModel
+                    ArtworkSource.LOCAL_COVER -> localModel
+                    ArtworkSource.PLACEHOLDER -> null
+                }
+    }
+
+    /**
+     * 条目图片 URL（单一构造点）。
+     *
+     * [pathCase] 只用于兼容两条存量缓存路径；两条路由在 Jellyfin 上大小写不敏感。
+     */
+    fun itemImageUrl(
+        baseUrl: String,
+        itemId: UUID,
+        variant: ArtworkVariant,
+        tag: String?,
+        index: Int? = null,
+        pathCase: ItemPathCase = ItemPathCase.UPPER,
+    ): String? {
+        if (tag.isNullOrBlank()) return null
+        val itemsSegment =
+            when (pathCase) {
+                ItemPathCase.LOWER -> "items"
+                ItemPathCase.UPPER -> "Items"
+            }
+        val imageIndex = index?.let { "/$it" }.orEmpty()
+        val encodedTag = URLEncoder.encode(tag, Charsets.UTF_8.name()).replace("+", "%20")
+        return "${baseUrl.trimEnd('/')}/$itemsSegment/$itemId/Images/" +
+            "${variant.pathSegment}$imageIndex?tag=$encodedTag"
+    }
+
+    /** 主图 URL（下载 / 音乐链路）。 */
+    fun primaryImageUrl(
+        baseUrl: String,
+        itemId: UUID,
+        tag: String?,
+        pathCase: ItemPathCase = ItemPathCase.UPPER,
+    ): String? = itemImageUrl(baseUrl, itemId, ArtworkVariant.PRIMARY, tag, pathCase = pathCase)
+
+    /** 离线 / 本地落图相对路径：`images/<id>/<variant>`（小写，与既有缓存目录一致）。 */
+    fun localImagePath(itemId: UUID, variant: ArtworkVariant): String =
+        "images/$itemId/${variant.pathSegment.lowercase()}"
+
+    /** 缩略图显示来源（纯函数，卡片 / 书籍封面共用）。 */
+    fun artworkSource(
+        hasServerImage: Boolean,
+        hasLocalCover: Boolean,
+        serverFailed: Boolean = false,
+        localFailed: Boolean = false,
+    ): ArtworkSource =
+        when {
+            hasServerImage && !serverFailed -> ArtworkSource.SERVER_IMAGE
+            hasLocalCover && !localFailed -> ArtworkSource.LOCAL_COVER
+            else -> ArtworkSource.PLACEHOLDER
+        }
+
+    fun selectArtwork(
+        serverImage: Any?,
+        localCover: String?,
+        serverFailed: Boolean = false,
+        localFailed: Boolean = false,
+        preferLocal: Boolean = false,
+    ): ArtworkSelection {
+        val source =
+            if (preferLocal && !localCover.isNullOrBlank()) {
+                ArtworkSource.LOCAL_COVER
+            } else {
+                artworkSource(
+                    hasServerImage = serverImage != null,
+                    hasLocalCover = !localCover.isNullOrBlank(),
+                    serverFailed = serverFailed,
+                    localFailed = localFailed,
+                )
+            }
+        return ArtworkSelection(
+            source = source,
+            serverModel = serverImage,
+            localModel = localCover,
+        )
+    }
+
+    /** 服务器图存在时不再叠加本地生成图；否则用本地封面（既有书籍封面口径）。 */
+    fun localCoverOverride(serverImageUrl: String?, generatedPath: String?): String? =
+        if (!serverImageUrl.isNullOrBlank()) null else generatedPath?.takeIf { it.isNotBlank() }
 
     /** 图片缓存元数据（[sourceUrl] = 落盘时的服务器图片地址）。 */
     data class Meta(

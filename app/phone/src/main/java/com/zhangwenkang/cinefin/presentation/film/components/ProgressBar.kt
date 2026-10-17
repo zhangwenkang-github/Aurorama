@@ -11,10 +11,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /**
  * 图上进度条（§8.8）：宽度跟随卡片，不再依赖调用方传像素宽度。

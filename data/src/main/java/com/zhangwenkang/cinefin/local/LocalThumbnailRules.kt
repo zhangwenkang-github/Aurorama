@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.local
 
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.io.File
 import java.util.UUID
 import kotlin.math.max
@@ -23,10 +24,10 @@ object LocalThumbnailRules {
     const val CACHE_DIR = "local_thumbs"
 
     /** 生成位图最长边。 */
-    const val MAX_SIDE_PX = 512
+    const val MAX_SIDE_PX = ImageCacheRules.THUMBNAIL_MAX_SIDE_PX
 
     /** JPEG 压缩质量。 */
-    const val JPEG_QUALITY = 80
+    const val JPEG_QUALITY = ImageCacheRules.THUMBNAIL_JPEG_QUALITY
 
     /** 同时生成的缩略图数量上限（不阻塞主线程）。 */
     const val MAX_CONCURRENT = 2

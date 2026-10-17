@@ -19,10 +19,10 @@ object BookCoverRules {
     const val CACHE_DIR = "book_covers"
 
     /** 生成位图最长边（与本地书籍缩略图同口径）。 */
-    const val MAX_SIDE_PX = 512
+    const val MAX_SIDE_PX = ImageCacheRules.THUMBNAIL_MAX_SIDE_PX
 
     /** JPEG 压缩质量。 */
-    const val JPEG_QUALITY = 80
+    const val JPEG_QUALITY = ImageCacheRules.THUMBNAIL_JPEG_QUALITY
 
     /** 同时生成数量上限（懒生成不阻塞主线程）。 */
     const val MAX_CONCURRENT = 2
@@ -90,7 +90,7 @@ object BookCoverRules {
      * null = 卡片回退类型占位）。
      */
     fun coverOverride(serverImageUrl: String?, generatedPath: String?): String? =
-        if (!serverImageUrl.isNullOrBlank()) null else generatedPath?.takeIf { it.isNotBlank() }
+        ImageCacheRules.localCoverOverride(serverImageUrl, generatedPath)
 
     /**
      * 卡片封面的**显示来源**状态机（纯函数，用户 2026-10-04 第 12 条口径）： 服务器图优先 → 本地封面（已生成缓存 / 本地提取）→ 类型占位；加载失败逐级回落。
@@ -104,10 +104,17 @@ object BookCoverRules {
         serverFailed: Boolean = false,
         localFailed: Boolean = false,
     ): CoverSource =
-        when {
-            hasServerImage && !serverFailed -> CoverSource.SERVER_IMAGE
-            hasLocalCover && !localFailed -> CoverSource.GENERATED_CACHE
-            else -> CoverSource.PLACEHOLDER
+        when (
+            ImageCacheRules.artworkSource(
+                hasServerImage = hasServerImage,
+                hasLocalCover = hasLocalCover,
+                serverFailed = serverFailed,
+                localFailed = localFailed,
+            )
+        ) {
+            ImageCacheRules.ArtworkSource.SERVER_IMAGE -> CoverSource.SERVER_IMAGE
+            ImageCacheRules.ArtworkSource.LOCAL_COVER -> CoverSource.GENERATED_CACHE
+            ImageCacheRules.ArtworkSource.PLACEHOLDER -> CoverSource.PLACEHOLDER
         }
 
     fun cacheDir(filesDir: File): File = File(filesDir, CACHE_DIR)

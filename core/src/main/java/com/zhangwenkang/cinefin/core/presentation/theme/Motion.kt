@@ -1,4 +1,4 @@
-package com.zhangwenkang.cinefin.presentation.theme
+package com.zhangwenkang.cinefin.core.presentation.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
@@ -8,7 +8,7 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 /**
  * 动效规范：统一全应用的动画时长与缓动曲线，避免各处自定义导致节奏不一致。
  *
- * 设计取向为“电影感”：进入柔和、退出干脆，避免弹跳类动画带来的廉价感。
+ * 设计取向为“电影感”：进入柔和、退出干脆，避免弹跳类动画带来的廉价感。 W83 从 `app:phone` 并入 core，保留原 token 名称与数值。
  */
 object Motion {
     /** 微交互：按下反馈、图标切换 */

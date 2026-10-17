@@ -20,6 +20,7 @@ import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
+import com.zhangwenkang.cinefin.utils.ImageCacheRules
 
 enum class Direction {
     HORIZONTAL,
@@ -83,21 +84,30 @@ fun ItemPoster(
                 }
             Direction.SQUARE -> item.images.primary
         }
+    val artwork =
+        ImageCacheRules.selectArtwork(
+            serverImage = serverUri,
+            localCover = imageOverride,
+            serverFailed = serverImageFailed,
+            preferLocal = true,
+        )
     val imageUri: Any? =
-        when {
+        when (artwork.source) {
             // 生成封面是应用私有目录的绝对路径，直接交给 Coil（不能再拼 filesDir）。
-            imageOverride != null -> imageOverride
-            serverUri != null && !serverImageFailed ->
-                // Ugly workaround to append the files directory when loading local images
-                if (serverUri.scheme == null) {
-                    Uri.Builder()
-                        .appendEncodedPath("${context.filesDir}")
-                        .appendEncodedPath(serverUri.path)
-                        .build()
-                } else {
-                    serverUri
+            ImageCacheRules.ArtworkSource.LOCAL_COVER -> artwork.localModel
+            ImageCacheRules.ArtworkSource.SERVER_IMAGE ->
+                serverUri?.let { uri ->
+                    // Ugly workaround to append the files directory when loading local images
+                    if (uri.scheme == null) {
+                        Uri.Builder()
+                            .appendEncodedPath("${context.filesDir}")
+                            .appendEncodedPath(uri.path)
+                            .build()
+                    } else {
+                        uri
+                    }
                 }
-            else -> null
+            ImageCacheRules.ArtworkSource.PLACEHOLDER -> null
         }
 
     val aspectRatio =
@@ -129,7 +139,7 @@ fun ItemPoster(
             if (placeholderIconRes != null) null else ColorPainter(colors.surfaceContainerHigh),
         onError = {
             // W69b：服务器图取不到（404 等）→ 标记失败（书籍卡回退占位 / 触发本地生成回落）。
-            if (imageOverride == null && serverUri != null && !serverImageFailed) {
+            if (artwork.source == ImageCacheRules.ArtworkSource.SERVER_IMAGE) {
                 serverImageFailed = true
                 onServerImageFailed?.invoke()
             }

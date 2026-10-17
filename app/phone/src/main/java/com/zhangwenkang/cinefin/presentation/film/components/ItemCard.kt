@@ -30,11 +30,11 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 
 /**
  * 栅格条目卡：宽度由栅格列决定（不再固定 150 / 260 / 184dp），版式随方向切换。
