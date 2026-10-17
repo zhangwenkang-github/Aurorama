@@ -170,6 +170,7 @@
     <string name="player_subtitle_graphic">Graphic</string>
     <string name="player_subtitle_primary">Primary subtitle</string>
     <string name="player_subtitle_secondary">Secondary subtitle</string>
+    <string name="player_subtitle_secondary_space_note">Secondary subtitles shrink to 80%% when space is tight, then hide automatically.</string>
     <string name="player_subtitle_delay">Subtitle delay</string>
     <string name="player_subtitle_delay_earlier">Subtitle earlier by 0.1 s</string>
     <string name="player_subtitle_delay_later">Subtitle later by 0.1 s</string>

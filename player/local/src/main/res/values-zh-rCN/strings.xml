@@ -171,6 +171,7 @@
     <string name="player_subtitle_graphic">图形字幕</string>
     <string name="player_subtitle_primary">主字幕</string>
     <string name="player_subtitle_secondary">次字幕（双语）</string>
+    <string name="player_subtitle_secondary_space_note">空间不足时次字幕先缩到 80%，仍放不下会自动隐藏。</string>
     <string name="player_subtitle_delay">字幕延迟</string>
     <string name="player_subtitle_delay_earlier">字幕提前 0.1 秒</string>
     <string name="player_subtitle_delay_later">字幕延后 0.1 秒</string>

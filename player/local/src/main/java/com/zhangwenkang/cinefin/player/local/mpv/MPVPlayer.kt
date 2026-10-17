@@ -399,6 +399,15 @@ class MPVPlayer(
     /** App 字幕模式的自动选轨意图：true = sid=auto（按 slang / 默认轨选），false = sid=no */
     private var subtitleAutoSelect: Boolean = true
 
+    /** 最近一次落地的字幕外观；双字幕预留区按它重新计算 `sub-pos`。 */
+    private var appliedSubtitleStyle: SubtitleStyle = SubtitleStyle()
+
+    /** 进入双字幕前 mpv 的 `sub-ass-override`，退出双字幕时原样恢复。 */
+    private var savedSubAssOverride: String? = null
+
+    /** 当前是否正在为 Compose 次字幕预留主字幕位置；改字号 / 位置时沿用。 */
+    private var subtitleReservation: Float? = null
+
     /**
      * W18：错误上报的抑制预算。
      *
@@ -726,13 +735,56 @@ class MPVPlayer(
 
     /** 把面板的字幕外观档位翻译成 mpv 的 sub-* 属性 */
     fun applySubtitleStyle(style: SubtitleStyle) {
+        appliedSubtitleStyle = style
         // 字号：mpv 默认 55；直接按倍率缩放
         mpvLib.setPropertyDouble("sub-font-size", 55.0 * style.textScale)
         mpvLib.setPropertyString("sub-color", style.textColor.toMpvColor())
         mpvLib.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
         mpvLib.setPropertyDouble("sub-border-size", style.edgeWidthDp.toDouble())
         // sub-pos 是「距底部百分比」的互补值：100 = 贴底，65 = 靠上
-        mpvLib.setPropertyDouble("sub-pos", (100.0 - style.bottomFraction * 100.0))
+        applyMpvSubtitlePosition(reservedFraction = subtitleReservation)
+    }
+
+    /**
+     * 为 Compose 次字幕预留一条主字幕上方的安全区。
+     *
+     * [reservedFraction] = 次字幕块高 + 4dp 间隙占视频高度的比例；null = 退出双字幕，恢复面板位置。
+     *
+     * 双字幕期间临时使用 `sub-ass-override=strip` 去掉 ASS 原生 `\pos`，否则固定坐标可以越过 App 的统一安全区；主字幕仍保留文本内容与面板颜色 /
+     * 描边。单字幕时立即恢复进入双字幕前的 ASS override，不改变原有特效路径。
+     */
+    fun applySecondarySubtitleReservation(reservedFraction: Float?) {
+        if (released) return
+        // 原生次字幕轨已由 Compose 次字幕接管，避免同一句出现两次。
+        mpvLib.setPropertyString("secondary-sid", "no")
+        if (reservedFraction == null) {
+            subtitleReservation = null
+            savedSubAssOverride?.let { previous ->
+                setMpvString("sub-ass-override", previous)
+                savedSubAssOverride = null
+            }
+            applyMpvSubtitlePosition(reservedFraction = null)
+            return
+        }
+        subtitleReservation = reservedFraction
+        if (savedSubAssOverride == null) {
+            savedSubAssOverride = readMpvString("sub-ass-override") ?: "yes"
+        }
+        setMpvString("sub-ass-override", "strip")
+        applyMpvSubtitlePosition(
+            reservedFraction = reservedFraction.takeIf { it.isFinite() }?.coerceIn(0f, 1f)
+        )
+    }
+
+    private fun applyMpvSubtitlePosition(reservedFraction: Float?) {
+        val base = 100.0 - appliedSubtitleStyle.bottomFraction * 100.0
+        val position =
+            if (reservedFraction == null) {
+                base
+            } else {
+                base - reservedFraction.toDouble() * 100.0
+            }
+        mpvLib.setPropertyDouble("sub-pos", position.coerceIn(0.0, 100.0))
     }
 
     /**

@@ -1,12 +1,12 @@
 package com.zhangwenkang.cinefin.presentation.player
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** W74 #20：主/次字幕「上下两行」的几何计算单测（次字幕块高度推导 + libass 上移量 clamp）。 */
+/** 主/次字幕统一几何规则：测高、4dp 间隙、80% 降级、隐藏与 mpv 预留区。 */
 class SubtitleLiftTest {
-
-    // ---------- 次字幕块高度推导 ----------
 
     @Test
     fun secondaryBlockHeight_addsTextHeightAndPadding() {
@@ -20,39 +20,149 @@ class SubtitleLiftTest {
         assertEquals("负内边距抵消后 clamp 到 0", 0f, secondaryBlockHeightPx(10f, -20f), 0.001f)
     }
 
-    // ---------- libass 上移量 ----------
-
     @Test
-    fun lift_zeroWhenNoSecondaryAndNoGap() {
-        assertEquals(0, libassLiftPx(0f, 0f, topmostImageY = null))
+    fun plan_noPrimary_keepsSecondaryAtFullSize() {
+        val layout =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = null,
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+
+        assertTrue(layout.showSecondary)
+        assertEquals(1f, layout.secondaryScale, 0.001f)
+        assertEquals(120f, layout.secondaryHeightPx, 0.001f)
+        assertEquals(0f, layout.primaryLiftPx, 0.001f)
     }
 
     @Test
-    fun lift_sumsSecondaryHeightAndGap() {
-        assertEquals(110, libassLiftPx(100f, 10f, topmostImageY = null))
+    fun plan_libassPrimary_liftsSoGapIsExactAndKeepsFixedPositionAboveSecondary() {
+        // 次字幕底边 900，高 120 → 顶边 780；主字幕底边 700 已在上方，不需要抬升。
+        val alreadyAbove =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = PrimarySubtitleExtent.Libass(topPx = 650f, bottomPx = 700f),
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+        assertTrue(alreadyAbove.showSecondary)
+        assertEquals(0f, alreadyAbove.primaryLiftPx, 0.001f)
+
+        // 固定 \pos 把主字幕放在底部 850..900，与次字幕底边对齐 → 需要抬到 772 以下。
+        val fixedAtBottom =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = PrimarySubtitleExtent.Libass(topPx = 850f, bottomPx = 900f),
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+        assertTrue(fixedAtBottom.showSecondary)
+        assertEquals(128f, fixedAtBottom.primaryLiftPx, 0.001f)
     }
 
     @Test
-    fun lift_roundsToNearestPixel() {
-        assertEquals(16, libassLiftPx(10.4f, 5.6f, topmostImageY = null))
-        assertEquals(0, libassLiftPx(0.2f, 0.2f, topmostImageY = null))
+    fun plan_triesEightyPercentBeforeHiding() {
+        // 主字幕块 780，次字幕 100% 放不下，剩余空间只够 80% 的 96。
+        val layout =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = PrimarySubtitleExtent.Native(heightPx = 780f),
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+
+        assertTrue(layout.showSecondary)
+        assertEquals(SECONDARY_MIN_SCALE, layout.secondaryScale, 0.001f)
+        assertEquals(96f, layout.secondaryHeightPx, 0.001f)
+        assertEquals((96f + 8f) / 1000f, layout.secondaryReservedFraction, 0.0001f)
     }
 
     @Test
-    fun lift_clampsToTopmostImageYSoSubtitleStaysInsideVideo() {
-        // 次字幕太高时不能把主字幕顶出渲染区顶部
-        assertEquals(80, libassLiftPx(100f, 10f, topmostImageY = 80))
-        // topmostImageY 足够大时不 clamp
-        assertEquals(110, libassLiftPx(100f, 10f, topmostImageY = 200))
+    fun plan_hidesWhenEightyPercentStillDoesNotFit() {
+        val layout =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = PrimarySubtitleExtent.Native(heightPx = 850f),
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+
+        assertFalse(layout.showSecondary)
+        assertEquals(0f, layout.secondaryReservedFraction, 0.001f)
     }
 
     @Test
-    fun lift_clampsNegativeTopmostImageYToZero() {
-        assertEquals(0, libassLiftPx(100f, 10f, topmostImageY = -5))
+    fun plan_hidesWhenLiftingPrimaryWouldClipItsTop() {
+        val layout =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = PrimarySubtitleExtent.Libass(topPx = 50f, bottomPx = 900f),
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+
+        assertFalse(layout.showSecondary)
+        assertEquals(0f, layout.primaryLiftPx, 0.001f)
     }
 
     @Test
-    fun lift_ignoresClampWhenNoImages() {
-        assertEquals(110, libassLiftPx(100f, 10f, topmostImageY = null))
+    fun plan_composedPrimaryUsesTotalHeightWithoutLifting() {
+        val layout =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = PrimarySubtitleExtent.Composed(heightPx = 200f),
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+
+        assertTrue(layout.showSecondary)
+        assertEquals(0f, layout.primaryLiftPx, 0.001f)
+        assertEquals(0f, layout.secondaryReservedFraction, 0.001f)
+    }
+
+    @Test
+    fun plan_nativePrimaryReturnsReservedFractionForSubPos() {
+        val layout =
+            planDualSubtitleLayout(
+                videoHeightPx = 1000f,
+                bottomInsetPx = 100f,
+                gapPx = 8f,
+                primary = PrimarySubtitleExtent.Native(heightPx = 200f),
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+
+        assertTrue(layout.showSecondary)
+        assertEquals((120f + 8f) / 1000f, layout.secondaryReservedFraction, 0.0001f)
+    }
+
+    @Test
+    fun plan_invalidVideoHeightHidesSecondary() {
+        val layout =
+            planDualSubtitleLayout(
+                videoHeightPx = 0f,
+                bottomInsetPx = 0f,
+                gapPx = 8f,
+                primary = null,
+                secondaryFullHeightPx = 120f,
+                secondaryMinHeightPx = 96f,
+            )
+
+        assertFalse(layout.showSecondary)
     }
 }

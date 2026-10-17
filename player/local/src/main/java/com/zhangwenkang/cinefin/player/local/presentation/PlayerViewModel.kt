@@ -340,9 +340,6 @@ constructor(
     private val _audioPanelState = MutableStateFlow(AudioPanelState())
     val audioPanelState = _audioPanelState.asStateFlow()
 
-    /** mpv 内核当前使用的次字幕 track id（mpv 侧的状态，不落偏好） */
-    private var mpvSecondarySubtitleId: Int? = null
-
     /** 用户在当前媒体里手动选过轨后，不再自动干预 */
     private var manualTrackSelectionMediaId: String? = null
 
@@ -1098,7 +1095,6 @@ constructor(
                         item.itemId.toString(),
                         pipelineSourcesFor(item.itemId.toString(), item),
                     )
-                    mpvSecondarySubtitleId = null
                     val itemTitle =
                         if (item.parentIndexNumber != null && item.indexNumber != null) {
                             if (item.indexNumberEnd == null) {
@@ -1665,11 +1661,17 @@ constructor(
         manualTrackSelectionMediaId = player.currentMediaItem?.mediaId
         if (playerBackend == PLAYER_BACKEND_MPV) {
             val mpv = player as? MPVPlayer ?: return
-            if (mpvSecondarySubtitleId == id) {
-                mpvSecondarySubtitleId = null
-                mpv.setSecondarySubtitle(null)
+            // 次字幕由 Compose 负责；主字幕切到次字幕同一源时立即清掉次字幕，避免同句叠两次。
+            val primarySourceIndex = sourceIndexForMpvSubtitleId(id)
+            if (
+                primarySourceIndex != null &&
+                    primarySourceIndex == subtitleController.overlayState.value.secondaryIndex
+            ) {
+                subtitleController.selectSecondary(null)
             }
+            mpv.setSecondarySubtitle(null)
             mpv.selectSubtitleTrack(id)
+            subtitleController.syncPrimaryIndex(primarySourceIndex)
             publishSubtitlePanelState()
             return
         }
@@ -1681,8 +1683,23 @@ constructor(
     fun selectSubtitleSecondary(id: Int?) {
         if (playerBackend == PLAYER_BACKEND_MPV) {
             val mpv = player as? MPVPlayer ?: return
-            mpvSecondarySubtitleId = id
-            mpv.setSecondarySubtitle(id?.toString())
+            val source =
+                subtitleController.overlayState.value.sources.firstOrNull {
+                    it.index == id && it.isTextBased
+                }
+            if (id != null && source == null) {
+                // 拿不到独立文件 / 图形字幕无法由 Compose 渲染，保持关闭而不是偷偷退回原生双轨。
+                subtitleController.selectSecondary(null)
+                publishSubtitlePanelState()
+                return
+            }
+            if (source != null && source.index == currentMpvPrimarySourceIndex()) {
+                return
+            }
+            // mpv 原生 secondary-sid 不使用；次字幕统一走自研层，才能测高 / 80% / 隐藏。
+            mpv.setSecondarySubtitle(null)
+            subtitleController.syncPrimaryIndex(currentMpvPrimarySourceIndex())
+            subtitleController.selectSecondary(source?.index)
             publishSubtitlePanelState()
             return
         }
@@ -1908,14 +1925,19 @@ constructor(
     /**
      * 换集 / 换片 / 导入 / 移除后重建字幕管线：重载当前条目的侧载记录，自研管线整体替换源清单。
      *
-     * mpv 侧不经过自研管线，注入交给 [ensureMpvSideloadsInjected]。
+     * Exo 主 / 次字幕都走自研管线；mpv 主字幕仍由 `sid` 原生渲染，次字幕由同一份源清单交给 Compose， 才能共享测高 / 80% / 隐藏规则。mpv 侧载注入仍交给
+     * [ensureMpvSideloadsInjected]。
      */
     private fun applySubtitlePipelineForMedia(
         mediaId: String,
         sources: List<PlayerSubtitleSource>,
     ) {
         sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
-        subtitleController.reset(mediaId, sources)
+        subtitleController.reset(
+            mediaId = mediaId,
+            sources = sources,
+            autoSecondary = playerBackend != PLAYER_BACKEND_MPV,
+        )
         /*
          * W27：用户为这个条目导入过字幕，默认沿用第一条侧载（导入本身就是显式选择）；
          * 仍可在面板里切回服务器字幕或移除。mpv 侧由 sid / slang 决定，不需要这里选。
@@ -1926,13 +1948,14 @@ constructor(
         ensureMpvSideloadsInjected()
     }
 
-    /** 当前条目要给（Exo）自研字幕管线的源清单：服务器字幕 + 侧载字幕；mpv 返回空（native 接管） */
+    /** 当前条目的字幕源清单：服务器字幕 + 侧载字幕。mpv 只取次字幕，主字幕仍由 native sid 接管。 */
     private fun pipelineSourcesFor(
         mediaId: String,
         item: PlayerItem?,
     ): List<PlayerSubtitleSource> =
         when {
-            playerBackend == PLAYER_BACKEND_MPV -> emptyList()
+            playerBackend == PLAYER_BACKEND_MPV ->
+                item?.subtitleSources.orEmpty() + sideloadSourcesFor(mediaId)
             item != null -> subtitleSourcesForBackend(item)
             else -> sideloadSourcesFor(mediaId)
         }
@@ -2096,18 +2119,29 @@ constructor(
             val mpv = player as? MPVPlayer
             val sideloadTrackIds =
                 sideloads.mapNotNull { record -> mpv?.subtitleTrackIdForPath(record.path) }.toSet()
-            val options = nativeSubtitleOptions(sideloadTrackIds)
+            val primaryOptions = nativeSubtitleOptions(sideloadTrackIds)
+            val primarySourceIndex =
+                sourceIndexForMpvSubtitleId(primaryOptions.firstOrNull { it.selected }?.id)
+            val secondaryOptions =
+                state.sources
+                    .filter { it.isTextBased && it.index != primarySourceIndex }
+                    .map { source ->
+                        subtitleOptionOf(
+                            source,
+                            selected = source.index == state.secondaryIndex,
+                        )
+                    }
             _subtitlePanelState.value =
                 SubtitlePanelState(
-                    primaryOptions = options,
-                    secondaryOptions = options.filter { it.id != mpvSecondarySubtitleId },
-                    primaryId = options.firstOrNull { it.selected }?.id,
-                    secondaryId = mpvSecondarySubtitleId,
+                    primaryOptions = primaryOptions,
+                    secondaryOptions = secondaryOptions,
+                    primaryId = primaryOptions.firstOrNull { it.selected }?.id,
+                    secondaryId = state.secondaryIndex,
                     delayMs = delayMs,
                     style = style,
                     managed = false,
-                    controllable = options.isNotEmpty(),
-                    loading = false,
+                    controllable = primaryOptions.isNotEmpty() || secondaryOptions.isNotEmpty(),
+                    loading = state.loading,
                 )
             return
         }
@@ -2183,6 +2217,29 @@ constructor(
                     sideloaded = id in sideloadTrackIds,
                 )
             }
+
+    /**
+     * mpv 原生 track id → Jellyfin 字幕源序号。
+     *
+     * 面板主字幕仍使用 mpv 的 sid；次字幕改由 Compose 加载文件，需要把 sid 映射回 [PlayerSubtitleSource]。优先按同序号，再按标题 / 语言兜底。
+     */
+    private fun sourceIndexForMpvSubtitleId(id: Int?): Int? {
+        if (id == null) return null
+        val option = nativeSubtitleOptions().firstOrNull { it.id == id } ?: return null
+        val sources = subtitleController.overlayState.value.sources
+        return sources.firstOrNull { it.index == option.id }?.index
+            ?: sources.firstOrNull { it.isTextBased && it.title == option.label }?.index
+            ?: sources
+                .firstOrNull {
+                    it.isTextBased &&
+                        option.caption != null &&
+                        it.language.equals(option.caption, ignoreCase = true)
+                }
+                ?.index
+    }
+
+    private fun currentMpvPrimarySourceIndex(): Int? =
+        sourceIndexForMpvSubtitleId(nativeSubtitleOptions().firstOrNull { it.selected }?.id)
 
     // ---------- 音轨面板：延迟 + 轨道描述（§1.2） ----------
 

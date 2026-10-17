@@ -3430,6 +3430,16 @@ private fun SubtitlePanel(
                             },
                     )
                 }
+                Text(
+                    text = stringResource(PlayerR.string.player_subtitle_secondary_space_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        ),
+                )
             }
 
             // 外观：大小 / 颜色 / 背景 / 描边 / 位置

@@ -125,6 +125,8 @@ class PlayerSubtitleController(
     fun reset(
         mediaId: String,
         sources: List<PlayerSubtitleSource>,
+        /** mpv 继续由原生 `sid` 自动选主字幕；次字幕只在用户选择 / 手动记忆时加载。 */
+        autoSecondary: Boolean = true,
     ) {
         primaryLoadJob?.cancel()
         secondaryLoadJob?.cancel()
@@ -150,7 +152,7 @@ class PlayerSubtitleController(
                 sources = sources,
             )
         if (restored == null) {
-            autoSelect()
+            autoSelect(autoSecondary = autoSecondary)
         } else {
             disabledByUser = restored.disabledByUser
             applyPrimary(restored.primaryIndex, persist = false)
@@ -176,6 +178,11 @@ class PlayerSubtitleController(
         applySecondary(index, persist = true)
         rememberManualSelection()
         publish()
+    }
+
+    /** mpv 主字幕仍由原生 `sid` 选择；把对应源序号同步进来，只用于次字幕同源排除与手动选择记忆，不触发主字幕加载。 */
+    fun syncPrimaryIndex(index: Int?) {
+        primaryIndex = index
     }
 
     /** 从偏好重新读延迟 / 外观（设置页改动后调用） */
@@ -207,7 +214,7 @@ class PlayerSubtitleController(
 
     // ---------- 内部：选择与加载 ----------
 
-    private fun autoSelect() {
+    private fun autoSelect(autoSecondary: Boolean = true) {
         val primary =
             PlayerSubtitleSelection.pickPrimary(
                 mode = appPreferences.getValue(appPreferences.subtitleMode),
@@ -219,7 +226,12 @@ class PlayerSubtitleController(
                 sources = sources,
             )
         applyPrimary(primary?.index, persist = false)
-        val secondary = pickSecondary(excludeIndex = primary?.index)
+        val secondary =
+            if (autoSecondary) {
+                pickSecondary(excludeIndex = primary?.index)
+            } else {
+                null
+            }
         applySecondary(secondary?.index, persist = false)
         publish()
     }
