@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.provider.Settings
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,6 +78,7 @@ fun ReaderScreen(
     state: ReaderUiState,
     settings: ReaderSettings,
     title: String,
+    bookKey: String,
     systemDark: Boolean,
     downloadState: BookDownloadState,
     streamState: ReaderStreamState,
@@ -102,6 +106,7 @@ fun ReaderScreen(
     onAddAnnotation: (pageIndex: Int, rect: PageRect, note: String) -> Unit,
     onUpdateAnnotationNote: (annotationId: String, note: String) -> Unit,
     onRemoveAnnotation: (annotationId: String) -> Unit,
+    onBack: () -> Unit,
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
@@ -117,6 +122,19 @@ fun ReaderScreen(
         remember(readerActivity) { mutableStateOf(readerWindowBrightness(readerActivity)) }
     var brightnessHudToken by remember { mutableIntStateOf(0) }
     var brightnessHudVisible by remember { mutableStateOf(false) }
+    // READER_PLAN §9：PDF / CBZ 全本共享倍率，同一进程内按书保留；退出阅读页不丢，切书 / 重启回 1×。
+    val bookZoom = remember(bookKey) { BookZoomState(bookKey) }
+    var zoomBarVisible by remember(bookKey) { mutableStateOf(false) }
+    var zoomBarToken by remember(bookKey) { mutableIntStateOf(0) }
+    val zoomBarAvailable = (state as? ReaderUiState.Ready)?.document is ReaderDocument.Simple
+    // 文档就绪后才开始第一次「显示 3 秒再淡出」，避免慢加载时缩放条从未出现。
+    LaunchedEffect(zoomBarAvailable) { if (zoomBarAvailable) zoomBarToken++ }
+    LaunchedEffect(zoomBarToken) {
+        if (zoomBarToken == 0) return@LaunchedEffect
+        zoomBarVisible = true
+        delay(ZOOM_BAR_VISIBLE_MS)
+        zoomBarVisible = false
+    }
     LaunchedEffect(brightness, readerActivity) {
         val window = readerActivity?.window ?: return@LaunchedEffect
         val attributes = window.attributes
@@ -156,20 +174,9 @@ fun ReaderScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     ReaderTopBar(
                         title = title,
-                        settings = settings,
                         contentColor = contentColor,
                         chromeColor = chromeColor,
-                        downloadState = downloadState,
-                        streamState = streamState,
-                        onDownload = onDownload,
-                        bookmarksEnabled = bookmarksAvailable,
-                        onOpenBookmarks = { showBookmarks = true },
-                        pdfToolsEnabled = pdfToolsAvailable,
-                        onOpenSearch = { showSearch = true },
-                        onOpenAnnotations = { showAnnotations = true },
-                        onCycleMode = {
-                            onSettingsChange(settings.copy(mode = settings.mode.next()))
-                        },
+                        onBack = onBack,
                         onOpenSettings = { showSettings = true },
                     )
 
@@ -256,6 +263,7 @@ fun ReaderScreen(
                                             systemDark = systemDark,
                                             contentColor = contentColor,
                                             chromeColor = chromeColor,
+                                            bookZoom = bookZoom,
                                             searchHits = searchState.hits,
                                             annotations = annotations,
                                             annotating = annotating,
@@ -270,9 +278,41 @@ fun ReaderScreen(
                                             onAnnotationTap = { annotation ->
                                                 editingAnnotation = annotation
                                             },
+                                            onZoomInteraction = { zoomBarToken++ },
+                                            onBlankTap = { zoomBarToken++ },
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                 }
+                        }
+
+                        if (zoomBarAvailable) {
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = zoomBarVisible,
+                                enter = fadeIn(tween(160)),
+                                exit = fadeOut(tween(ZOOM_BAR_FADE_MS)),
+                                modifier =
+                                    Modifier.align(Alignment.BottomEnd)
+                                        .padding(
+                                            end = CinefinSpacing.Space4,
+                                            bottom = ZOOM_BAR_BOTTOM_PADDING,
+                                        ),
+                            ) {
+                                ReaderZoomBar(
+                                    percent = bookZoom.percent,
+                                    canZoomOut = bookZoom.canZoomOut,
+                                    canZoomIn = bookZoom.canZoomIn,
+                                    containerColor = chromeColor,
+                                    contentColor = contentColor,
+                                    onZoomOut = {
+                                        bookZoom.zoomOut()
+                                        zoomBarToken++
+                                    },
+                                    onZoomIn = {
+                                        bookZoom.zoomIn()
+                                        zoomBarToken++
+                                    },
+                                )
+                            }
                         }
 
                         if (brightnessHudVisible) {
@@ -315,6 +355,26 @@ fun ReaderScreen(
                             settings = settings,
                             systemDark = systemDark,
                             showRtl = pagingDirectionAvailable,
+                            tools =
+                                ReaderSettingsTools(
+                                    downloadState = downloadState,
+                                    streamState = streamState,
+                                    onDownload = onDownload,
+                                    bookmarksEnabled = bookmarksAvailable,
+                                    onOpenBookmarks = {
+                                        showSettings = false
+                                        showBookmarks = true
+                                    },
+                                    pdfToolsEnabled = pdfToolsAvailable,
+                                    onOpenSearch = {
+                                        showSettings = false
+                                        showSearch = true
+                                    },
+                                    onOpenAnnotations = {
+                                        showSettings = false
+                                        showAnnotations = true
+                                    },
+                                ),
                             onSettingsChange = onSettingsChange,
                         )
                     }
@@ -463,25 +523,16 @@ fun ReaderScreen(
 }
 
 /**
- * 阅读页顶栏：底 = 阅读器外壳色，标题 + 下载状态 + 「书签」+ 模式切换 + 「Aa」排版面板入口。
+ * 阅读页顶栏：只保留 **返回 + 书名 + 设置**（READER_PLAN §9 2026-10-18）。
  *
- * 下载状态（EB-11）与书签（EB-8）是 W3-R1 并入 Prism 外壳的离线能力。
+ * 下载、搜索、批注、书签、模式、翻页方向与显示设置全部收进「阅读设置」面板，顶栏不再承载工具入口。
  */
 @Composable
 private fun ReaderTopBar(
     title: String,
-    settings: ReaderSettings,
     contentColor: Color,
     chromeColor: Color,
-    downloadState: BookDownloadState,
-    streamState: ReaderStreamState,
-    onDownload: () -> Unit,
-    bookmarksEnabled: Boolean,
-    onOpenBookmarks: () -> Unit,
-    pdfToolsEnabled: Boolean,
-    onOpenSearch: () -> Unit,
-    onOpenAnnotations: () -> Unit,
-    onCycleMode: () -> Unit,
+    onBack: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(chromeColor)) {
@@ -493,6 +544,13 @@ private fun ReaderTopBar(
                     .padding(horizontal = CinefinSpacing.Space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            CinefinButton(
+                text = "返回",
+                onClick = onBack,
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Small,
+            )
+            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
             Text(
                 text = title,
                 modifier = Modifier.weight(1f),
@@ -502,47 +560,8 @@ private fun ReaderTopBar(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-            DownloadAction(
-                streamState = streamState,
-                downloadState = downloadState,
-                contentColor = contentColor,
-                onDownload = onDownload,
-            )
-            if (pdfToolsEnabled) {
-                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-                CinefinButton(
-                    text = "搜索",
-                    onClick = onOpenSearch,
-                    variant = CinefinButtonVariant.Text,
-                    size = CinefinButtonSize.Small,
-                )
-                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-                CinefinButton(
-                    text = "批注",
-                    onClick = onOpenAnnotations,
-                    variant = CinefinButtonVariant.Text,
-                    size = CinefinButtonSize.Small,
-                )
-            }
-            if (bookmarksEnabled) {
-                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-                CinefinButton(
-                    text = "书签",
-                    onClick = onOpenBookmarks,
-                    variant = CinefinButtonVariant.Text,
-                    size = CinefinButtonSize.Small,
-                )
-            }
-            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
             CinefinButton(
-                text = settings.mode.label,
-                onClick = onCycleMode,
-                variant = CinefinButtonVariant.Outlined,
-                size = CinefinButtonSize.Small,
-            )
-            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-            CinefinButton(
-                text = "Aa",
+                text = "设置",
                 onClick = onOpenSettings,
                 variant = CinefinButtonVariant.Text,
                 size = CinefinButtonSize.Small,
@@ -562,7 +581,7 @@ private fun ReaderTopBar(
  * 大小」。分支决策在纯函数 [readerStatusBadge] 里，单测覆盖。
  */
 @Composable
-private fun DownloadAction(
+internal fun DownloadAction(
     streamState: ReaderStreamState,
     downloadState: BookDownloadState,
     contentColor: Color,
@@ -632,6 +651,54 @@ private fun DownloadAction(
                         size = CinefinButtonSize.Small,
                     )
             }
+    }
+}
+
+/**
+ * PDF / CBZ 右下角悬浮缩放条（READER_PLAN §9）：`− 100% +`。
+ *
+ * 独立于顶栏与正文点击层：按钮按 25% 档位步进，1× 禁用 `−`、4× 禁用 `+`。约 [ZOOM_BAR_VISIBLE_MS] 无操作后淡出，单击正文空白重新唤回。
+ */
+@Composable
+private fun ReaderZoomBar(
+    percent: Int,
+    canZoomOut: Boolean,
+    canZoomIn: Boolean,
+    containerColor: Color,
+    contentColor: Color,
+    onZoomOut: () -> Unit,
+    onZoomIn: () -> Unit,
+) {
+    Surface(
+        shape = CinefinShapes.Sm,
+        color = containerColor.copy(alpha = 0.92f),
+        contentColor = contentColor,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = CinefinSpacing.Space1),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CinefinButton(
+                text = "−",
+                onClick = onZoomOut,
+                enabled = canZoomOut,
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Small,
+            )
+            Text(
+                text = "$percent%",
+                style = CinefinType.LabelLarge,
+                color = contentColor,
+                modifier = Modifier.padding(horizontal = CinefinSpacing.Space2),
+            )
+            CinefinButton(
+                text = "+",
+                onClick = onZoomIn,
+                enabled = canZoomIn,
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Small,
+            )
+        }
     }
 }
 
@@ -714,6 +781,15 @@ private fun BookmarkPanel(
 
 /** 亮度提示条的停留时长（与播放器手势提示同量级，避免长期遮挡正文）。 */
 private const val BRIGHTNESS_HUD_VISIBLE_MS = 900L
+
+/** 悬浮缩放条无操作自动淡出时长（READER_PLAN §9：约 3 秒）。 */
+private const val ZOOM_BAR_VISIBLE_MS = 3_000L
+
+/** 缩放条淡出动画时长。 */
+private const val ZOOM_BAR_FADE_MS = 280
+
+/** 缩放条距底部的距离：让开底部的页指示。 */
+private val ZOOM_BAR_BOTTOM_PADDING = 64.dp
 
 /** 阅读页所属 Activity（Compose 视图上下文里逐层回找）。 */
 private tailrec fun Context.readerActivity(): Activity? =

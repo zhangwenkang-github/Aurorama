@@ -1,10 +1,12 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
 import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
@@ -28,8 +30,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -41,6 +45,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -62,6 +67,9 @@ import timber.log.Timber
 /** 双指缩放调试日志的最小步进：真机验收用 logcat 文本判断缩放生效，又不会每帧刷屏。 */
 private const val ZOOM_LOG_STEP = 0.1f
 
+/** 双击适宽的回切判据：当前倍率与「撑满宽度」倍率的误差在此以内即视为已适宽。 */
+private const val FIT_SCALE_EPSILON = 0.02f
+
 /**
  * PDF / CBZ 阅读视图（EB-3 / EB-4）：滚动 / 横向分页 / 平板双栏三档模式。
  *
@@ -78,6 +86,7 @@ internal fun SimpleBookView(
     systemDark: Boolean,
     contentColor: Color,
     chromeColor: Color,
+    bookZoom: BookZoomState,
     searchHits: List<PdfSearchHit> = emptyList(),
     annotations: List<ReaderAnnotation> = emptyList(),
     annotating: Boolean = false,
@@ -89,6 +98,10 @@ internal fun SimpleBookView(
     /** W80（#32）：当前屏幕亮度（0–1），上下滑手势从这里起算。 */
     brightnessProvider: () -> Float = { 1f },
     onBrightness: (Float) -> Unit = {},
+    /** 任何缩放 / 翻页操作：阅读页用它重置悬浮缩放条的淡出计时。 */
+    onZoomInteraction: () -> Unit = {},
+    /** 单击正文空白：唤回悬浮缩放条（不消费事件，批注 / 搜索命中不受影响）。 */
+    onBlankTap: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val pageCount = document.pageSource.pageCount
@@ -113,6 +126,10 @@ internal fun SimpleBookView(
             mutableStateOf(document.initialPage.coerceIn(0, max(0, pageCount - 1)))
         }
     var currentSlotEnd by remember(document) { mutableStateOf(currentPage) }
+    // 双击「适宽」按当前页宽高比换算成共享倍率；比例取页源元数据，不依赖位图是否已解码。
+    var currentPageAspect by remember(document) { mutableStateOf<Float?>(null) }
+    var contentSize by remember(document) { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(currentPage) { currentPageAspect = cache.aspect(currentPage) }
     // 双栏版式（W26）：进入双栏时后台扫描每页宽高比，扫描完成前用 W22 的固定两页划分；
     // 完成后横版整页独占一屏（无横版页时版式不变，Pager 不重建）。
     var pageAspects by remember(document) { mutableStateOf<List<Float?>?>(null) }
@@ -138,8 +155,6 @@ internal fun SimpleBookView(
     val twoColumnLayoutKey =
         remember(twoColumnLayout) { if (twoColumnLayout.any { it.fullscreen }) 1 else 0 }
     val pagedLayout = remember(pageCount) { pagedSlots(pageCount) }
-    // W80（#32）：双击中间 = 适宽（Fit width）开关；会话内状态（与双指缩放同一生命周期，不写偏好）。
-    var fitWidth by remember(document) { mutableStateOf(false) }
     // 手势翻页（双击左 / 右）与搜索 / 批注跳页共用同一条「跳页」通道。
     var gestureJumpPage by remember(document) { mutableStateOf<Int?>(null) }
     val effectiveJumpPage = jumpTargetPage ?: gestureJumpPage
@@ -161,6 +176,24 @@ internal fun SimpleBookView(
         currentPage = firstPage
         currentSlotEnd = lastPage
         onPageChanged(firstPage, pageCount)
+        onZoomInteraction()
+    }
+
+    /**
+     * 双击中间 = 适宽开关（W80 #32）：适宽不再作为每页独立基准，而是把共享倍率落到「当前页撑满宽度」的倍数； 再双击回 100%。缩放条 / 双指缩放与它共用同一份
+     * [BookZoomState.scale]。
+     */
+    fun toggleFitWidth() {
+        val boxAspect =
+            if (contentSize.width > 0 && contentSize.height > 0) {
+                contentSize.width.toFloat() / contentSize.height.toFloat()
+            } else {
+                0f
+            }
+        val target = fitWidthScale(currentPageAspect, boxAspect)
+        val fitted = target > 1f && abs(bookZoom.scale - target) <= FIT_SCALE_EPSILON
+        bookZoom.snapTo(if (fitted) 1f else target)
+        onZoomInteraction()
     }
 
     /** 双击左 / 右的落点页：双栏按「槽位」（一屏两页）步进，其余按页步进；RTL 下左右语义镜像。 */
@@ -186,27 +219,29 @@ internal fun SimpleBookView(
         onBrightness = onBrightness,
         onDoubleTap = { x, width ->
             when (readerTapTarget(x, width)) {
-                ReaderTapTarget.ToggleFit -> fitWidth = !fitWidth
+                ReaderTapTarget.ToggleFit -> toggleFitWidth()
                 ReaderTapTarget.Next -> gestureTargetPage(1)?.let { gestureJumpPage = it }
                 ReaderTapTarget.Previous -> gestureTargetPage(-1)?.let { gestureJumpPage = it }
             }
         },
+        onSingleTap = { _, _ -> onBlankTap() },
         modifier = modifier.fillMaxSize(),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().onSizeChanged { contentSize = it }) {
             when (settings.mode) {
                 ReaderMode.Scroll ->
                     ScrollPages(
                         cache = cache,
+                        bookZoom = bookZoom,
                         pageCount = pageCount,
                         initialPage = currentPage,
                         contentColor = contentColor,
                         hitsByPage = hitsByPage,
                         annotationsByPage = annotationsByPage,
                         annotating = annotating,
-                        fitWidth = fitWidth,
                         jumpTargetPage = effectiveJumpPage,
                         onPageChanged = { page -> report(page, page) },
+                        onZoomGesture = onZoomInteraction,
                         onAnnotationRequested = onAnnotationRequested,
                         onAnnotationTap = onAnnotationTap,
                     )
@@ -214,6 +249,7 @@ internal fun SimpleBookView(
                 ReaderMode.Paged ->
                     PagedPages(
                         cache = cache,
+                        bookZoom = bookZoom,
                         mergeCache = mergeCache,
                         initialPage = currentPage,
                         slots = pagedLayout,
@@ -223,9 +259,9 @@ internal fun SimpleBookView(
                         hitsByPage = hitsByPage,
                         annotationsByPage = annotationsByPage,
                         annotating = annotating,
-                        fitWidth = fitWidth,
                         jumpTargetPage = effectiveJumpPage,
                         onPageChanged = ::report,
+                        onZoomGesture = onZoomInteraction,
                         onAnnotationRequested = onAnnotationRequested,
                         onAnnotationTap = onAnnotationTap,
                     )
@@ -233,6 +269,7 @@ internal fun SimpleBookView(
                 ReaderMode.TwoColumn ->
                     PagedPages(
                         cache = cache,
+                        bookZoom = bookZoom,
                         mergeCache = mergeCache,
                         initialPage = currentPage,
                         slots = twoColumnLayout,
@@ -242,9 +279,9 @@ internal fun SimpleBookView(
                         hitsByPage = hitsByPage,
                         annotationsByPage = annotationsByPage,
                         annotating = annotating,
-                        fitWidth = fitWidth,
                         jumpTargetPage = effectiveJumpPage,
                         onPageChanged = ::report,
+                        onZoomGesture = onZoomInteraction,
                         onAnnotationRequested = onAnnotationRequested,
                         onAnnotationTap = onAnnotationTap,
                     )
@@ -275,15 +312,16 @@ internal fun SimpleBookView(
 @Composable
 private fun ScrollPages(
     cache: PageImageCache,
+    bookZoom: BookZoomState,
     pageCount: Int,
     initialPage: Int,
     contentColor: Color,
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
-    fitWidth: Boolean,
     jumpTargetPage: Int?,
     onPageChanged: (Int) -> Unit,
+    onZoomGesture: () -> Unit,
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
     onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
@@ -313,11 +351,13 @@ private fun ScrollPages(
                 ZoomablePage(
                     cache = cache,
                     index = index,
+                    bookZoom = bookZoom,
                     contentColor = contentColor,
-                    fitWidth = fitWidth,
+                    panHorizontally = true,
                     searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
                     annotations = annotationsByPage[index].orEmpty(),
                     annotating = annotating,
+                    onZoomGesture = onZoomGesture,
                     onAnnotationRequested = onAnnotationRequested,
                     onAnnotationTap = onAnnotationTap,
                     modifier = Modifier.fillMaxWidth().aspectRatio(aspect),
@@ -337,6 +377,7 @@ private fun ScrollPages(
 @Composable
 private fun PagedPages(
     cache: PageImageCache,
+    bookZoom: BookZoomState,
     mergeCache: SpreadImageCache?,
     initialPage: Int,
     slots: List<SpreadSlot>,
@@ -346,9 +387,9 @@ private fun PagedPages(
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
-    fitWidth: Boolean,
     jumpTargetPage: Int?,
     onPageChanged: (firstPage: Int, lastPage: Int) -> Unit,
+    onZoomGesture: () -> Unit,
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
     onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
@@ -411,12 +452,13 @@ private fun PagedPages(
                             ZoomablePage(
                                 cache = cache,
                                 index = slot.pages.first(),
+                                bookZoom = bookZoom,
                                 contentColor = contentColor,
-                                fitWidth = fitWidth,
                                 searchRects =
                                     hitsByPage[slot.pages.first()].orEmpty().flatMap { it.rects },
                                 annotations = annotationsByPage[slot.pages.first()].orEmpty(),
                                 annotating = annotating,
+                                onZoomGesture = onZoomGesture,
                                 onAnnotationRequested = onAnnotationRequested,
                                 onAnnotationTap = onAnnotationTap,
                                 modifier = Modifier.fillMaxSize(),
@@ -428,11 +470,12 @@ private fun PagedPages(
                                 mergeCache = mergeCache,
                                 slot = slot,
                                 rtl = rtl,
+                                bookZoom = bookZoom,
                                 contentColor = contentColor,
-                                fitWidth = fitWidth,
                                 annotating = annotating,
                                 hitsByPage = hitsByPage,
                                 annotationsByPage = annotationsByPage,
+                                onZoomGesture = onZoomGesture,
                                 onAnnotationRequested = onAnnotationRequested,
                                 onAnnotationTap = onAnnotationTap,
                             )
@@ -441,11 +484,12 @@ private fun PagedPages(
                             SpreadPages(
                                 cache = cache,
                                 visualPages = visualSlotPages(slot, rtl),
+                                bookZoom = bookZoom,
                                 contentColor = contentColor,
-                                fitWidth = fitWidth,
                                 hitsByPage = hitsByPage,
                                 annotationsByPage = annotationsByPage,
                                 annotating = annotating,
+                                onZoomGesture = onZoomGesture,
                                 onAnnotationRequested = onAnnotationRequested,
                                 onAnnotationTap = onAnnotationTap,
                             )
@@ -461,11 +505,12 @@ private fun PagedPages(
 private fun SpreadPages(
     cache: PageImageCache,
     visualPages: List<Int?>,
+    bookZoom: BookZoomState,
     contentColor: Color,
-    fitWidth: Boolean,
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
+    onZoomGesture: () -> Unit,
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
     onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
@@ -475,11 +520,12 @@ private fun SpreadPages(
                 ZoomablePage(
                     cache = cache,
                     index = index,
+                    bookZoom = bookZoom,
                     contentColor = contentColor,
-                    fitWidth = fitWidth,
                     searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
                     annotations = annotationsByPage[index].orEmpty(),
                     annotating = annotating,
+                    onZoomGesture = onZoomGesture,
                     onAnnotationRequested = onAnnotationRequested,
                     onAnnotationTap = onAnnotationTap,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -502,11 +548,12 @@ private fun MergedSpreadPage(
     mergeCache: SpreadImageCache,
     slot: SpreadSlot,
     rtl: Boolean,
+    bookZoom: BookZoomState,
     contentColor: Color,
-    fitWidth: Boolean,
     annotating: Boolean,
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    onZoomGesture: () -> Unit,
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
     onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
@@ -527,11 +574,12 @@ private fun MergedSpreadPage(
         SpreadPages(
             cache = cache,
             visualPages = visualSlotPages(slot, rtl),
+            bookZoom = bookZoom,
             contentColor = contentColor,
-            fitWidth = fitWidth,
             hitsByPage = hitsByPage,
             annotationsByPage = annotationsByPage,
             annotating = annotating,
+            onZoomGesture = onZoomGesture,
             onAnnotationRequested = onAnnotationRequested,
             onAnnotationTap = onAnnotationTap,
         )
@@ -542,9 +590,8 @@ private fun MergedSpreadPage(
     ZoomableSlot(
         slotKey = "spread=$firstPage",
         logLabel = "spread=$firstPage",
-        fitWidth = fitWidth,
-        // 合并位图是两页拼接（横向）：适宽对它无意义（本身已满宽）。
-        pageAspect = image.width.toFloat() / image.height.coerceAtLeast(1),
+        bookZoom = bookZoom,
+        onZoomGesture = onZoomGesture,
         modifier = Modifier.fillMaxSize(),
     ) {
         Image(
@@ -566,24 +613,24 @@ private fun MergedSpreadPage(
 private fun ZoomablePage(
     cache: PageImageCache,
     index: Int,
+    bookZoom: BookZoomState,
     contentColor: Color,
-    fitWidth: Boolean = false,
+    panHorizontally: Boolean = false,
     searchRects: List<PageRect> = emptyList(),
     annotations: List<ReaderAnnotation> = emptyList(),
     annotating: Boolean = false,
+    onZoomGesture: () -> Unit = {},
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit = { _, _ -> },
     onAnnotationTap: (ReaderAnnotation) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    // 「适宽」只依赖页面宽高比（不加载位图，走页源元数据），拿到后按容器比例换算放大倍数。
-    var pageAspect by remember(index) { mutableStateOf<Float?>(null) }
-    LaunchedEffect(index) { pageAspect = cache.aspect(index) }
     ZoomableSlot(
         slotKey = index,
         logLabel = "index=$index",
+        bookZoom = bookZoom,
         gesturesEnabled = !annotating,
-        fitWidth = fitWidth,
-        pageAspect = pageAspect,
+        panHorizontally = panHorizontally,
+        onZoomGesture = onZoomGesture,
         modifier = modifier,
     ) {
         PageContent(
@@ -601,72 +648,89 @@ private fun ZoomablePage(
 }
 
 /**
- * 槽位的双指缩放 / 平移与裁剪：单页与合并图共用同一套 [PageZoom] 数学，范围一致（1×–4×）。
+ * 槽位的双指缩放 / 平移与裁剪：单页与合并图共用同一份文档级倍率（1×–4×）。
  *
- * [slotKey] 决定缩放状态的生命周期：单页用页索引、合并图用 spread 序号，切换内容时自动归位。
+ * [slotKey] 只决定**平移**的生命周期：单页用页索引、合并图用 spread 序号；倍率由 [BookZoomState] 跨页共享， 翻到新页时该槽平移为
+ * 0（重新居中），回访时保留它自己的平移。
  */
 @Composable
 private fun ZoomableSlot(
     slotKey: Any,
     logLabel: String,
+    bookZoom: BookZoomState,
     gesturesEnabled: Boolean = true,
-    fitWidth: Boolean = false,
-    pageAspect: Float? = null,
+    /** 滚动模式：放大后单指横向拖动平移当前页，纵向拖动仍留给 `LazyColumn`。 */
+    panHorizontally: Boolean = false,
+    onZoomGesture: () -> Unit = {},
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     var boxSize by remember(slotKey) { mutableStateOf(IntSize.Zero) }
-    // 「适宽」的基准倍数：位图 Fit 渲染后宽度撑满容器还需要放大的倍数（1 = 整页 Fit）。
-    val baseScale =
-        if (fitWidth && boxSize.width > 0 && boxSize.height > 0) {
-            fitWidthScale(pageAspect, boxSize.width.toFloat() / boxSize.height.toFloat())
-        } else {
-            1f
-        }
-    // 切换适宽 / 换页时归位（双指缩放仍叠乘在基准倍数上）。
-    var pageZoom by remember(slotKey, baseScale) { mutableStateOf(PageZoom()) }
     var lastLoggedScale by remember(slotKey) { mutableStateOf(1f) }
+    var lastNotifyAt by remember(slotKey) { mutableLongStateOf(0L) }
+    val currentScale = bookZoom.scale
+    val currentOnZoomGesture = rememberUpdatedState(onZoomGesture)
+    // 缩放条只需要「这是一次操作」的信号：限流到 200ms，避免双指每帧都触发外层重组与计时器重启。
+    fun notifyZoomGesture() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastNotifyAt < 200L) return
+        lastNotifyAt = now
+        currentOnZoomGesture.value()
+    }
 
     Box(
         modifier =
             modifier
                 .clipToBounds()
-                .onSizeChanged { boxSize = it }
+                .onSizeChanged {
+                    boxSize = it
+                    bookZoom.registerSize(slotKey, it)
+                }
                 .pointerInput(slotKey, gesturesEnabled) {
                     if (!gesturesEnabled) return@pointerInput
-                    detectMultiTouchZoom { pan, zoomFactor ->
-                        val next =
-                            pageZoom.transform(
-                                zoom = zoomFactor,
-                                pan = pan,
-                                width = boxSize.width,
-                                height = boxSize.height,
-                                base = baseScale,
-                            )
-                        pageZoom = next
+                    detectMultiTouchZoom { pan, zoomFactor, centroid ->
+                        val focus = centroid - Offset(boxSize.width / 2f, boxSize.height / 2f)
+                        bookZoom.transform(
+                            slotKey = slotKey,
+                            zoomFactor = zoomFactor,
+                            pan = pan,
+                            focus = focus,
+                        )
+                        notifyZoomGesture()
+                        val nextScale = bookZoom.scale
                         // 数帧一次的调试轨迹：真机验收用 logcat 文本判断缩放手势确实生效（不贴截图）。
-                        if (abs(next.scale - lastLoggedScale) >= ZOOM_LOG_STEP) {
-                            lastLoggedScale = next.scale
+                        if (abs(nextScale - lastLoggedScale) >= ZOOM_LOG_STEP) {
+                            lastLoggedScale = nextScale
+                            val offset = bookZoom.offsetFor(slotKey)
                             Timber.d(
-                                "reader zoom %s scale=%.2f base=%.2f offset=(%.0f,%.0f)",
+                                "reader zoom %s scale=%.2f offset=(%.0f,%.0f)",
                                 logLabel,
-                                next.scale,
-                                baseScale,
-                                next.offset.x,
-                                next.offset.y,
+                                nextScale,
+                                offset.x,
+                                offset.y,
                             )
                         }
+                    }
+                }
+                .pointerInput(slotKey, gesturesEnabled, panHorizontally, currentScale > 1f) {
+                    if (!gesturesEnabled || !panHorizontally || currentScale <= 1f) {
+                        return@pointerInput
+                    }
+                    detectHorizontalPan { dx ->
+                        bookZoom.panBy(slotKey, Offset(dx, 0f))
+                        notifyZoomGesture()
                     }
                 },
         contentAlignment = Alignment.Center,
     ) {
+        val offset = bookZoom.offsetFor(slotKey)
         Box(
             modifier =
                 Modifier.fillMaxSize().graphicsLayer {
-                    scaleX = baseScale * pageZoom.scale
-                    scaleY = baseScale * pageZoom.scale
-                    translationX = pageZoom.offset.x
-                    translationY = pageZoom.offset.y
+                    scaleX = currentScale
+                    scaleY = currentScale
+                    translationX = offset.x
+                    translationY = offset.y
                 }
         ) {
             content()
@@ -768,7 +832,7 @@ private fun PageIndicator(
  * `detectTransformGestures` 会把单指拖动也当成 pan 消费掉，导致 Pager 收不到翻页手势。
  */
 private suspend fun PointerInputScope.detectMultiTouchZoom(
-    onGesture: (pan: Offset, zoom: Float) -> Unit
+    onGesture: (pan: Offset, zoom: Float, centroid: Offset) -> Unit
 ) {
     awaitEachGesture {
         awaitFirstDown(requireUnconsumed = false)
@@ -777,11 +841,49 @@ private suspend fun PointerInputScope.detectMultiTouchZoom(
             if (event.changes.count { it.pressed } >= 2) {
                 val zoom = event.calculateZoom()
                 val pan = event.calculatePan()
+                // 双指焦点（页槽局部坐标）：缩放围绕手指位置，而不是页槽中心。
+                val centroid = event.calculateCentroid(useCurrent = true)
                 if (zoom != 1f || pan != Offset.Zero) {
-                    onGesture(pan, zoom)
+                    onGesture(pan, zoom, centroid)
                     event.changes.forEach { change ->
                         if (change.positionChanged()) change.consume()
                     }
+                }
+            }
+        } while (event.changes.any { it.pressed })
+    }
+}
+
+/**
+ * 放大后的单指横向平移（只用于滚动模式）。
+ *
+ * 方向锁定在手指移动超过 touch slop 时完成：横向占优才消费事件并平移页面，纵向事件完全不消费， 继续交给 `LazyColumn` 翻页滚动——两类手势不互相抢占。
+ */
+private suspend fun PointerInputScope.detectHorizontalPan(onPan: (dx: Float) -> Unit) {
+    val slop = viewConfiguration.touchSlop
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val start = down.position
+        var horizontal = false
+        var moved = false
+        do {
+            val event = awaitPointerEvent()
+            // 双指落下（缩放）时立刻退出，避免和双指手势抢事件。
+            if (event.changes.count { it.pressed } > 1) break
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            if (!change.pressed) break
+            if (!moved) {
+                val delta = change.position - start
+                if (delta.getDistance() > slop) {
+                    moved = true
+                    horizontal = abs(delta.x) > abs(delta.y) * 1.4f
+                }
+            }
+            if (horizontal) {
+                val dx = change.positionChange().x
+                if (dx != 0f) {
+                    onPan(dx)
+                    change.consume()
                 }
             }
         } while (event.changes.any { it.pressed })

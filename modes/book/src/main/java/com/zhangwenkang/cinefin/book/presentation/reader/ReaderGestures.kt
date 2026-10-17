@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -17,6 +18,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import kotlin.math.abs
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -137,6 +141,7 @@ internal fun readerScrollChainStep(
  * - **双击**：[onDoubleTap] 拿到落点（左 / 中 / 右由调用方用 [readerTapTarget] 判定）。
  * - **单指纵向拖动**：调亮度。滚动档只有左侧窄带（[readerBrightnessDragAllowed]）认，其余位移留给容器滚动； 分页 /
  *   双栏整屏可调。拖动态一旦成立就消费事件，避免同一次手势既调亮度又翻页 / 滚动。
+ * - **单击**：等双击窗口过去后回调 [onSingleTap]（PDF / CBZ 用来唤回悬浮缩放条）；不改动子项的点击命中。
  * - 双指缩放与子项点击（批注）不受影响：双指 / 已被子项消费的事件直接放过。
  */
 @Composable
@@ -146,6 +151,7 @@ internal fun ReaderGestureArea(
     brightnessProvider: () -> Float,
     onBrightness: (Float) -> Unit,
     onDoubleTap: (x: Float, width: Float) -> Unit,
+    onSingleTap: ((x: Float, y: Float) -> Unit)? = null,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -153,6 +159,9 @@ internal fun ReaderGestureArea(
     val currentBrightnessProvider = rememberUpdatedState(brightnessProvider)
     val currentOnBrightness = rememberUpdatedState(onBrightness)
     val currentOnDoubleTap = rememberUpdatedState(onDoubleTap)
+    val currentOnSingleTap = rememberUpdatedState(onSingleTap)
+    val tapScope = rememberCoroutineScope()
+    val pendingTapJob = remember { mutableStateOf<Job?>(null) }
     var lastTapAt by remember { mutableLongStateOf(0L) }
     var lastTapPosition by remember { mutableStateOf(Offset.Zero) }
 
@@ -246,10 +255,22 @@ internal fun ReaderGestureArea(
                                         touchSlop * 2f
                             if (isDouble) {
                                 lastTapAt = 0L
+                                pendingTapJob.value?.cancel()
+                                pendingTapJob.value = null
                                 currentOnDoubleTap.value(startPosition.x, startWidth)
                             } else {
                                 lastTapAt = upTime
                                 lastTapPosition = startPosition
+                                if (currentOnSingleTap.value != null) {
+                                    pendingTapJob.value?.cancel()
+                                    pendingTapJob.value = tapScope.launch {
+                                        delay(doubleTapTimeout + 80L)
+                                        currentOnSingleTap.value?.invoke(
+                                            startPosition.x,
+                                            startPosition.y,
+                                        )
+                                    }
+                                }
                             }
                         }
                         break

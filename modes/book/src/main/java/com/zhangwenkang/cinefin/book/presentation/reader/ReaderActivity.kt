@@ -27,6 +27,8 @@ class ReaderActivity : AppCompatActivity() {
         // W37：本地媒体库书籍（SAF content://）；与 itemId 二选一，本地优先。
         val localUri = intent.getStringExtra(EXTRA_LOCAL_URI)?.let(android.net.Uri::parse)
         val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "阅读器 PoC" }
+        // 页面倍率的进程内记忆键：同一本书（itemId / 本地 URI）重进保留，切书 / 重启回 1×（ADR-0002）。
+        val bookKey = itemId?.toString() ?: localUri?.toString() ?: title
 
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
@@ -43,6 +45,7 @@ class ReaderActivity : AppCompatActivity() {
                 state = state,
                 settings = settings,
                 title = title,
+                bookKey = bookKey,
                 systemDark = isSystemInDarkTheme(),
                 downloadState = downloadState,
                 streamState = streamState,
@@ -70,6 +73,7 @@ class ReaderActivity : AppCompatActivity() {
                 onAddAnnotation = viewModel::addAnnotation,
                 onUpdateAnnotationNote = viewModel::updateAnnotationNote,
                 onRemoveAnnotation = viewModel::removeAnnotation,
+                onBack = { finish() },
             )
         }
 

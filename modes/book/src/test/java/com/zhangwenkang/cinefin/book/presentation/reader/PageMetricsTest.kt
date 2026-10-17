@@ -122,4 +122,46 @@ class PageMetricsTest {
             )
         assertEquals(zoomed.offset, nanPan.offset)
     }
+
+    @Test
+    fun `按钮缩放按 25 百分比档位步进`() {
+        var scale = 1f
+        val visited = mutableListOf(scale)
+        repeat(PAGE_ZOOM_STEPS.lastIndex) {
+            scale = nextPageZoomStep(scale)
+            visited += scale
+        }
+        assertEquals(listOf(1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f, 4f), visited)
+        assertEquals(4f, nextPageZoomStep(4f), 0.0f)
+        assertEquals(1f, previousPageZoomStep(1f), 0.0f)
+        // 双指连续缩放落在档位之间时，按钮命中相邻的上一档 / 下一档。
+        assertEquals(2f, nextPageZoomStep(1.9f), 0.0001f)
+        assertEquals(1.25f, previousPageZoomStep(1.4f), 0.0001f)
+        assertEquals(4f, previousPageZoomStep(4f), 0.0001f)
+        assertEquals(1f, nextPageZoomStep(1f), 0.0001f)
+    }
+
+    @Test
+    fun `百分比读数与边界值`() {
+        assertEquals(100, zoomPercent(1f))
+        assertEquals(125, zoomPercent(1.25f))
+        assertEquals(249, zoomPercent(2.49f))
+        assertEquals(400, zoomPercent(9f))
+        assertEquals(100, zoomPercent(Float.NaN))
+    }
+
+    @Test
+    fun `缩放以视口中心或手指焦点为锚点`() {
+        val centered = anchorPageOffset(Offset(100f, -40f), 2f, 3f, Offset.Zero)
+        assertEquals(150f, centered.x, 0.01f)
+        assertEquals(-60f, centered.y, 0.01f)
+
+        // 焦点在右侧 200px：缩放前后焦点下的内容点保持不动。
+        val focus = Offset(200f, 0f)
+        val anchored = anchorPageOffset(Offset.Zero, 1f, 2f, focus)
+        assertEquals(-200f, anchored.x, 0.01f)
+
+        // 缩回 1× 时平移归零。
+        assertEquals(Offset.Zero, anchorPageOffset(Offset(90f, 20f), 2f, 1f, focus))
+    }
 }

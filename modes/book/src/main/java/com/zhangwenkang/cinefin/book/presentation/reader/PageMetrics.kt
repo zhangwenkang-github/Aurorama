@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 
 import androidx.compose.ui.geometry.Offset
 import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /**
  * 单页位图长边上限（ARCHITECTURE §3.4：按屏幕降采样，长边截断）。
@@ -16,6 +17,49 @@ const val PAGE_BITMAP_WINDOW: Int = 3
 
 /** 位图缩放上限（EB-3「缩放基础」）。 */
 const val PAGE_MAX_ZOOM: Float = 4f
+
+/**
+ * 全本缩放的按钮档位（READER_PLAN §9 2026-10-18）：25% 步进，200% 之后跨到 250% / 300% / 400%。
+ *
+ * 双指缩放可以落在任意连续值上，按钮从当前值出发命中「下一个 / 上一个」档位，保证每一击都精确落档。
+ */
+internal val PAGE_ZOOM_STEPS: List<Float> = listOf(1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f, 4f)
+
+/** 浮点比较容差：双指缩放后的 1.9999 仍应算「已在 200% 档」。 */
+private const val ZOOM_STEP_EPSILON = 1e-4f
+
+/** 当前倍率 → 下一个按钮档位；已在 4× 时保持 4×。 */
+internal fun nextPageZoomStep(scale: Float): Float {
+    val current = if (scale.isFinite()) scale.coerceIn(1f, PAGE_MAX_ZOOM) else 1f
+    return PAGE_ZOOM_STEPS.firstOrNull { it > current + ZOOM_STEP_EPSILON } ?: PAGE_MAX_ZOOM
+}
+
+/** 当前倍率 → 上一个按钮档位；已在 1× 时保持 1×。 */
+internal fun previousPageZoomStep(scale: Float): Float {
+    val current = if (scale.isFinite()) scale.coerceIn(1f, PAGE_MAX_ZOOM) else 1f
+    return PAGE_ZOOM_STEPS.lastOrNull { it < current - ZOOM_STEP_EPSILON } ?: 1f
+}
+
+/** 倍率 → 工具栏百分比（连续双指值四舍五入到整数）。 */
+internal fun zoomPercent(scale: Float): Int =
+    if (scale.isFinite()) (scale.coerceIn(1f, PAGE_MAX_ZOOM) * 100f).roundToInt() else 100
+
+/**
+ * 以视口内 [focus]（相对视口中心）为锚点缩放：焦点下的页面内容点在缩放前后保持不动。
+ *
+ * [offset] 是当前的视图平移量（像素），`focus = Offset.Zero` 即「当前视口中心」——按钮缩放走这条口径。
+ */
+internal fun anchorPageOffset(
+    offset: Offset,
+    scale: Float,
+    nextScale: Float,
+    focus: Offset,
+): Offset {
+    if (nextScale <= 1f) return Offset.Zero
+    if (!scale.isFinite() || scale <= 0f || !nextScale.isFinite()) return offset
+    val ratio = nextScale / scale
+    return offset * ratio + focus * (1f - ratio)
+}
 
 /**
  * BitmapFactory 降采样系数（2 的幂），保证长边不超过 [maxSide]。

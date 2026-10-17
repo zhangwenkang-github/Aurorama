@@ -25,6 +25,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
@@ -36,6 +39,22 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import java.util.Locale
 import kotlin.math.roundToInt
+
+/**
+ * 「阅读设置」面板里的工具区（READER_PLAN §9）：下载状态 / 动作、书签、搜索、批注。
+ *
+ * 工具项仍打开各自原有面板；顶栏不再保留这些入口。
+ */
+internal data class ReaderSettingsTools(
+    val downloadState: BookDownloadState,
+    val streamState: ReaderStreamState,
+    val onDownload: () -> Unit,
+    val bookmarksEnabled: Boolean,
+    val onOpenBookmarks: () -> Unit,
+    val pdfToolsEnabled: Boolean,
+    val onOpenSearch: () -> Unit,
+    val onOpenAnnotations: () -> Unit,
+)
 
 /**
  * 阅读器排版面板（UI_DESIGN_SYSTEM §8.14）。
@@ -51,6 +70,7 @@ internal fun ReaderSettingsPanel(
     settings: ReaderSettings,
     systemDark: Boolean,
     showRtl: Boolean,
+    tools: ReaderSettingsTools,
     onSettingsChange: (ReaderSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -70,25 +90,7 @@ internal fun ReaderSettingsPanel(
     ) {
         Text(text = "阅读设置", style = CinefinType.TitleMedium, color = contentColor)
 
-        SectionLabel("阅读模式", contentColor)
-        CinefinSegmentedControl(
-            items = ReaderMode.entries,
-            selected = settings.mode,
-            onSelect = { mode -> onSettingsChange(settings.copy(mode = mode)) },
-            label = { mode -> mode.label },
-        )
-
-        if (showRtl) {
-            SectionLabel("翻页方向", contentColor)
-            RtlSwitchRow(
-                checked = settings.rtl,
-                contentColor = contentColor,
-                accent = accent,
-                onAccent = settings.onAccentColor(systemDark),
-                onCheckedChange = { onSettingsChange(settings.copy(rtl = it)) },
-            )
-        }
-
+        SectionLabel("显示", contentColor)
         SliderRow(
             label = "字号",
             valueText = "${(settings.fontSize * 100).roundToInt()}%",
@@ -106,15 +108,6 @@ internal fun ReaderSettingsPanel(
             contentColor = contentColor,
             accent = accent,
             onValueChange = { onSettingsChange(settings.copy(lineHeight = it)) },
-        )
-        SliderRow(
-            label = "边距",
-            valueText = String.format(Locale.US, "%.1f", settings.pageMargins),
-            value = settings.pageMargins,
-            range = ReaderPageMarginsRange,
-            contentColor = contentColor,
-            accent = accent,
-            onValueChange = { onSettingsChange(settings.copy(pageMargins = it)) },
         )
 
         SectionLabel("字体", contentColor)
@@ -148,11 +141,112 @@ internal fun ReaderSettingsPanel(
             }
         }
 
+        SectionLabel("页面", contentColor)
+        CinefinSegmentedControl(
+            items = ReaderMode.entries,
+            selected = settings.mode,
+            onSelect = { mode -> onSettingsChange(settings.copy(mode = mode)) },
+            label = { mode -> mode.label },
+        )
+        if (showRtl) {
+            RtlSwitchRow(
+                checked = settings.rtl,
+                contentColor = contentColor,
+                accent = accent,
+                onAccent = settings.onAccentColor(systemDark),
+                onCheckedChange = { onSettingsChange(settings.copy(rtl = it)) },
+            )
+        }
+        SliderRow(
+            label = "边距",
+            valueText = String.format(Locale.US, "%.1f", settings.pageMargins),
+            value = settings.pageMargins,
+            range = ReaderPageMarginsRange,
+            contentColor = contentColor,
+            accent = accent,
+            onValueChange = { onSettingsChange(settings.copy(pageMargins = it)) },
+        )
+
+        SectionLabel("工具", contentColor)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+        ) {
+            Text(
+                text = "下载",
+                modifier = Modifier.weight(1f),
+                style = CinefinType.BodyMedium,
+                color = contentColor,
+            )
+            DownloadAction(
+                streamState = tools.streamState,
+                downloadState = tools.downloadState,
+                contentColor = contentColor,
+                onDownload = tools.onDownload,
+            )
+        }
+        if (tools.bookmarksEnabled) {
+            ToolRow(
+                title = "书签",
+                description = "添加当前页书签、跳转与删除",
+                contentColor = contentColor,
+                onClick = tools.onOpenBookmarks,
+            )
+        }
+        if (tools.pdfToolsEnabled) {
+            ToolRow(
+                title = "搜索",
+                description = "在 PDF 内查找文字并跳转命中",
+                contentColor = contentColor,
+                onClick = tools.onOpenSearch,
+            )
+            ToolRow(
+                title = "批注",
+                description = "框选页面、查看与编辑批注",
+                contentColor = contentColor,
+                onClick = tools.onOpenAnnotations,
+            )
+        }
+
         // W64：批注范围说明——用户反馈"为什么别的书没有批注"；搜索 / 批注只对 PDF 开放。
         Text(
             text = "搜索与批注仅支持 PDF；EPUB / CBZ 暂不支持。",
             style = CinefinType.LabelSmall,
             color = contentColor.copy(alpha = 0.6f),
+        )
+    }
+}
+
+/** 工具区一行：标题 + 说明 + 「打开」；沿用各组件的原有弹层。 */
+@Composable
+private fun ToolRow(
+    title: String,
+    description: String,
+    contentColor: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(text = title, style = CinefinType.BodyMedium, color = contentColor)
+            Text(
+                text = description,
+                style = CinefinType.LabelSmall,
+                color = contentColor.copy(alpha = 0.72f),
+            )
+        }
+        CinefinButton(
+            text = "打开",
+            onClick = onClick,
+            variant = CinefinButtonVariant.Text,
+            size = CinefinButtonSize.Small,
         )
     }
 }
