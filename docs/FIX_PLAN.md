@@ -382,6 +382,18 @@
 - **落地**：`railMediaSubGroupMaxRows`（纯函数 + 4 项单测）按导航列可用高度反算子分组可占行数（顶层条目优先、至少保留 2 行），子分组加 `heightIn(max) + verticalScroll` 自成滚动；空间足够时行为与改前完全一致。
 - **真机**：横屏展开侧栏 + 展开媒体库 → 「下载」常驻可见（`[136,1136]`，改前无节点）；子分组内部滚动可见「动漫 / 其他」等后续库；竖屏 / 折叠侧栏不回归。
 
+#### W80b 实施记录（2026-10-17，续分支 `feature/w80-reader-books`，worktree `w80r`，基线 `785b51f`；Pad 5 `43af8627`）
+
+**S80b-1 统一自定义 HTTP 鉴权头（D1 · P0）**
+- **取证（全仓库重扫，非 SDK 调用点全量）**：QA 已用只读探针钉死 —— 服务器 `Jellyfin 12.2.0` 只接受 `Authorization: MediaBrowser Token="…"`（`X-Emby-Token` 头 / `X-Emby-Authorization` 头 / `?api_key=` 查询 / `Bearer` 一律 401；带引号与不带引号均 206）。本波按 `X-Emby-Token|X-Emby-Authorization|api_key` 重扫，命中 **9 处**自定义调用：`ReaderRepositoryImpl.download`（书籍下载）、`ReaderRepositoryImpl.fetchItemTitle`（书名侧车）、`BookCoverProvider.openRemoteSource`（书籍封面）、`ReaderStreamingPlan`（Readium 适配层令牌常量）、`PreciseHttpResource.baseRequest`（PDF / CBZ 远端随机读）、`ReaderViewModel.sniffRemoteStreamKind` / `openRemoteComic`、`DownloadHttpEngine`（视频下载请求 + 跨主机重定向剥离）、`ConsoleViewModel.isTokenValid`（`/Users/Me` 探针）、`ReplayGainTagReader.fetchRange`（音乐只读 Range）。
+- **落地**：新增 `data/.../network/JellyfinAuth.kt` 作为**唯一**构造点（`HEADER = "Authorization"`、`headerValue(token) = "MediaBrowser Token=\"…\""`、`headers() / headerMap() / merge()`；另留 `LEGACY_HEADER = "X-Emby-Token"` 仅用于跨主机重定向兜底剥离）→ 上述 9 处全部改为引用它；`modes:book` 的本地常量 `ACCESS_TOKEN_HEADER` **删除**、`readiumHeadersWithToken` 收敛为 `JellyfinAuth.merge`（同名头大小写不敏感替换 + 清掉历史 `X-Emby-Token`，防新旧并存时服务器挑到被拒的头）。不改 Jellyfin SDK 调用路径、不顺手重构其它逻辑；未触碰红线文件。
+- **单测**：`data` 新增 `JellyfinAuthTest`（6 项：头值形态 / 空与空白令牌 / 多值形态 / 合并保留其它头 / 大小写替换 + 清历史头 / 无令牌原样返回）；`modes:book` 的 `ReaderStreamingPlanTest` 相应更新 2 项 + 新增 1 项。
+- **真机（Pad 5，books 库 8 项样本）**：两入口 #23 链路 + 远端 EPUB / CBZ / PDF 流式 + 书籍封面生成 + 视频下载 + ReplayGain 读取全部打通（明细见 §5 日志与本波报告 `w80-reports/W80b.md`）。
+
+**S80b-2 下载页失败条目删除（D2 · P3）与失败原因（D3 · P3）**
+- **D2**：`ReaderRepository` 新增 `removeBookDownload(itemId)`（取消在途 + **从任务表移除记录**），`DownloadsViewModel.deleteEntry` 的 BOOK 分支改调它 —— 失败任务没有 job 可取消，原实现只 `cancelBookDownload`，记录会留在 `bookDownloadTasks` 里，「失败」分组一直渲染到进程重启。
+- **D3**：`DownloadStatusBadge` 增 `failureDetail` 参数（`FAILED` 且非空时优先于 `failureLabel` 的「未知错误」），`DownloadTopLevelRow` 传 `entry.bookDetail`（= `BookDownloadTask.error`，如「下载书籍失败：HTTP 401…」）；标签加 `TextOverflow.Ellipsis` 兜长文案。
+
 ### W81–W83 波（轮廓 · 开工前细化）
 
 - **W81 播放器手势（Pad 5 主）**：**S81-1 复现攻坚**（#27+#28：实验矩阵 = 内核 × 路径 × 控制层显隐 × 时序 + logcat / 调试层取证 → 触发条件与机制报告）→ **S81-2 修复**（全屏任意区域快进 / 快退 / 音量有效、两内核一致；修正分区 / 命中带）→ **S81-3 规则下沉**（识别→意图入 `PlayerSeekGestureRules` + 单测）。验收：触发清单 + 全区域有效 + 双击 / 亮度 / 长按倍速不回归。
@@ -491,6 +503,7 @@
 | 2026-10-17 | **用户答复 + 双 QA 派发（第十一任负责人）**：①K60 release 通知总开关已由用户打开（自述「不会主动去关」→ 按系统/误关处理；用户建议 App 主动检测并引导 → 登记 §6 **B17**）；②测试服务器 books 库已恢复（只读探针 `Items?Recursive=true&IncludeItemTypes=Book` = **8 项**）→ W80 #23 端到端解封；③**独立 QA 并行派发**：QA-W78（K60 `8e875894`，分支 `feature/w78-music-core` @ `8018c3a`）+ QA-W80（Pad 5 `43af8627`，分支 `feature/w80-reader-books` @ `785b51f`），device-lock 已登记，报告将落 `w78-reports/W78-QA.md` / `w80-reports/W80-QA.md`。 |
 | 2026-10-17 | **双 QA 完成（第十一任负责人）**：**QA-W78 通过**——三卡独立复跑全过（队列 349 补齐 / 短歌自动切歌后不中断 / 随机 20/20 distinct / 倍速 1.75× 冷启保持 / 通知面板实拍 + release 抽验恢复；无 P0–P2；报告 `w78-reports/W78-QA.md`）。**QA-W80**——#24 三档可感 / #32 手势全量 / B12 侧栏 通过；**#23 被 D1 阻塞：服务器 12.2.0 现只接受 `Authorization: MediaBrowser Token=`，`X-Emby-Token` / `api_key` / Bearer 全 401**（负责人只读复验一致；连带远端书籍 / 封面 / 视频下载 / 控制台；非 W80 引入）→ 派 **W80b**（D1 鉴权头统一 + D2 删除失败条目 + D3 失败文案；Pad 5）。 |
 | 2026-10-17 | **W78 合并验收（第十一任负责人）**：`feature/w78-music-core` rebase（`8018c3a` → `a531515`；FIX_PLAN 冲突解决 = 保留两侧 + 让号 B17）→ ff 合并 master（`986c292` → `a531515`）；合并态门禁（clean 后全量重建）= 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **983 / 0 / 0**（app 277 / core 106 / data 68 / player:core 12 / player:local 180 / film 53 / book 145 / music 142；日志 `w78-evidence/gate_merged_w78_build3.log` / `gate_merged_w78_tests.log`）；已推送 CI（`5377799..a531515`，Format / Build / Unit Tests 三路）。**环境坑**：主仓 `build/` 残留 E: 迁移旧根 → dex「different roots」失败，`clean` 全量重建解决（已记 `PROJECT_PLAN` §6）。 |
+| 2026-10-17 | **W80b 修复波实收（续分支 `feature/w80-reader-books`，worktree `w80r`，基线 `785b51f`；Pad 5 `43af8627` 独占；07:30–08:20）**：**D1（P0）统一自定义 HTTP 鉴权头** —— 新增 `data/.../network/JellyfinAuth.kt` 单一构造点（`Authorization: MediaBrowser Token="…"`），全仓库 9 处非 SDK 调用点收敛（书籍下载 / 书名侧车 / 书籍封面 / Readium 适配层 / 远端随机读 / 远端嗅探 / 视频下载引擎 + 跨主机剥离 / 控制台令牌校验 / ReplayGain 只读 Range），`modes:book` 本地令牌常量删除。**真机 #23 两入口全通**：长按批量与阅读页顶栏「下载」都走出 Snackbar → 下载页「正在下载… xx% · a / b」（23→30→39→46→53→60%）→「离线可读 · 218.6 MB / 34.6 MB」→ 下载中删除 = 取消 + 无 `.part` 残留；远端 EPUB / CBZ / PDF 三本流式打开（改前一律 401）、书籍封面真实产出、视频下载进「下载中」（侧栏角标「1」）、ReplayGain 读取成功（来源=NONE 非失败）。**D2 / D3 通过**：失败条目删除即消失且计数归零；失败行显示真实原因（断网场景 `Unable to resolve host …`，改前恒为「未知错误」）。门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿 + 8 模块 `--rerun-tasks` **1003 / 0 / 0 / 0**（基线 996：+JellyfinAuth 6 + ReaderStreamingPlan 1）；全量 logcat `FATAL EXCEPTION|ANR in` **0**。**未覆盖**：Web 控制台（当前账号非管理员，侧栏无入口）、#23 ⑤ 的 Snackbar（全部已下载时按钮按既有规则置灰 → 记 §6 B19）；远端 CBZ / PDF 手势、双指缩放仍属人工项。报告 `w80-reports/W80b.md`，证据 `w80-evidence/w80b/`。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
@@ -530,3 +543,5 @@
 - **B16**（W80 记录，2026-10-17）阅读器亮度手势只作用于**当前窗口**（不落偏好，与播放器「亮度记忆」开关不同口径）：离开阅读页即回系统亮度。若要「记住阅读亮度」，需新增偏好键（`AppPreferences` 红线文件，申报后做）。
 - **B17**（用户 2026-10-17 建议，源自 #22）**App 主动检测通知开关并引导**：用户「我应该不会主动去关……建议 app 应该主动弹出授权对话框」——K60 release 包 `AppSettings … importance=NONE userSet=true` 疑为 MIUI 自动管理/误关所致（用户已手动开启总开关）。建议实现 = 音乐 / 视频起播时检测通知可用性（`NotificationManagerCompat.areNotificationsEnabled()` + 媒体通知状态），关闭时给出显式引导（授权对话框 → 跳系统通知设置），避免「播放无面板」的静默失效。落点初判 `app/phone`（播放服务 / 权限引导）；排期建议随本批后续波次（W79 K60 顺带或单列小卡），待 QA / 合并后定。
 - **B18**（QA-W78 跨线观察，2026-10-17，**非 W78 范围**）debug 包首页「继续观看」显示 E16、同机 release 包仍 E17（两包本地视图不同步）；疑元数据刷新 / 本地缓存差异，建议视频线复核后决定是否立项。
+- **B19**（W80b 实测，2026-10-17）**书籍批量「下载」的 `DownloadSkipped` 文案在常规路径不可触达**：书架长按批量动作条的「下载」按钮由 `mediaBatchActionEnabled` → `canDownload`（= 未下载且不在队列）门控，而 `downloadSelected` 用**同一判据**算目标集 —— 选中项全部已下载 / 已在队列时按钮本身就是**置灰**（`enabled=false`，真机 dump 取证），于是 W80 新增的「所选条目均已下载或在下载队列中」Snackbar 只在状态刷新竞态（UI 判据陈旧、VM 判据新鲜）下才会出现。两种收口方向待定：①承认「置灰即反馈」，删掉死分支；②让按钮保持可点、由 Snackbar 承担反馈（多一次无效点击，但文案可控）。均属小改，**不阻塞**。
+- **B20**（W80b 观察，2026-10-17）书籍下载失败的 `error` 文案是**引擎原文**：HTTP 分支是可读中文（「下载书籍失败：HTTP 401（离线时请先联网下载）」），断网 / DNS 分支则是 OkHttp 原文（实测 `Unable to resolve host "jellyfins.zhangwenkang.com": No address associated with hostname`，英文且较长）。若要与视频侧的 `DownloadFailureReason` 文案（「网络错误」等）对齐，需在 `ReaderRepositoryImpl.download` 的异常分类上补一层中文映射 —— D3 只要求「显示真实原因」，本波未做，**不阻塞**。
