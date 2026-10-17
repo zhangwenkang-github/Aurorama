@@ -1099,3 +1099,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 独立架构复审闭环：无 P0 / P1 / P2；`SongListSupportTest` 15 + `LyricsCenterScrollTest` 6 + `LyricsPresenterTest` 15 = **36/0/0/0**，编译、三项 ktfmt、`assembleDebug` 通过；锁定 APK 哈希复核一致。
 - 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 07:16:53`，K60 `8e875894` `07:17:05`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
 - release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，未执行真机测试 / 截图 / 视觉 QA，等待用户本人验收。
+
+### 8.8 真机第 3 条：点击歌词恢复跟随（2026-10-18）
+
+- **用户反馈**：手动滚动歌词导致「继续跟随」暂停后，点击任意歌词行应自动恢复跟随，不需要再额外点一次「继续跟随」。
+- **口径**：点击歌词时先清除手动滚动造成的暂停，再执行原有 `onLineClick(positionMs)` seek；若 `state.display.follow` 原本开启，点击后自动恢复跟随；若用户在设置抽屉里主动关闭了跟随，只清除手动暂停，不强行打开。
+- **实现**：`MusicLyricsPage.kt` 新增纯函数 `lyricsLineClickFollowOutcome()`，统一决定“清除暂停”和“是否需要跳过旧当前行的一次居中”。暂停期间点击另一行时，点击处理器记住被点击行并抑制紧接着的一次跟随 effect；`activeIndex` 更新到点击行后正常居中，避免先回弹旧行再跳到点击行。点击当前行则直接居中当前行。
+- 未改变歌词点击 seek 的时间语义、手动滚动暂停规则，也未改顶栏 / 抽屉 / 歌曲栏。
+- **测试**：`LyricsCenterScrollTest` 新增 3 条边界测试——点击清除手动暂停并抑制旧行居中、主动关闭跟随时不强行打开、点击当前行直接恢复；定向单测 `SongListSupportTest` 15 + `LyricsCenterScrollTest` 9 + `LyricsPresenterTest` 15 = **39 / 0 / 0 / 0**。
+- 代码提交：`db56fe2 fix(music): resume lyrics follow on line click`；父 `bd8c6ba`。
+- arm64 debug APK：`150,540,833 B`，SHA-256 `BCE69F0433D804F94941C323B7635A76DBECF627D13BF33B9520EB83F44C6C28`；v2 签名验证通过。
+- 未覆盖：未跑 adb / 真机 / App / 截图 / 完整测试套件；Compose 点击与“无回弹”手感仍需用户真机确认。
