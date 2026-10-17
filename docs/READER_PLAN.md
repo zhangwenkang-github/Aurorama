@@ -2031,8 +2031,12 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - 已知限制（P2-3 残余）：跨页捏合的平移只锚定当前页槽，另一页跟随共享倍率、按自己的已有平移渲染；真实双栏 / RTL / 合并图切换下的手势分发仍需真机验证。
 - 未覆盖（后续）：P3-1 同页适宽目标代次竞态、P3-2 非空白单击唤回、P3-3 按实际渲染内容尺寸夹取平移，本轮未改交互。
 - 门禁更正（2026-10-18）：`ba84c63` 的 `:modes:book:ktfmtCheckMain` 实际 **BUILD FAILED**（`BookZoom.kt:37` KDoc 长行），上一版报告写成通过是错误记录；`4b09720` 用 `:modes:book:ktfmtFormat` 折行后主 / 测试双门禁真实通过。单测 `PageMetricsTest` 14 + `BookZoomStateTest` 6 = **20/0/0/0**。
-- APK（`4b09720`）：`app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk`，148,479,617 bytes，SHA-256 `68160CEE3D7E917592FDDAE7D00C94B2A5B66030FF0749E0A157C0EBCE5C25BD`，`apksigner` v2 验签通过（arm64-v8a 单 ABI）。
-- 未覆盖：adb / 真机 / 启动 App / 截图 / 视觉 QA / 完整测试套件未跑；跨页捏合只有纯函数单测与静态路径核对。门禁与取证明细见 `F:\Develop\codex_work\.planning\cinefin-expansion\exp19-reader\report.md` 的「复审后定点修复」段；真机矩阵仍由用户执行。
+- APK（`4b09720`，历史记录，已被下方 `2e2a9c4` 最终锁定包取代）：148,479,617 bytes，SHA-256 `68160CEE3D7E917592FDDAE7D00C94B2A5B66030FF0749E0A157C0EBCE5C25BD`。
+- ✅ 闭环复审 P1（`2e2a9c4`）：半屏宽度不再缓存——首次检测到双指时用当前节点宽度 `spreadPageWidth(size.width, pageCount)` 现算，并把 `viewportSize` 加入外层 `pointerInput` key；旋转 / 分屏后同半页双指不会再被误判跨页、也不会双层应用。正常方向跨页双指、单指翻页、横向拖动、批注 / 搜索命中、按钮缩放、适宽与拖拽方向锁路径未改。
+- 回归测试：`旋转后跨页判定按当前视口宽度重算`（旧宽 1600 两指 700/900 判跨页；新宽 2400 同落点判同页）。单测 `PageMetricsTest` 15 + `BookZoomStateTest` 6 = **21/0/0/0**；编译与 ktfmt 主 / 测试双门禁均通过。
+- **最终锁定 APK**（`2e2a9c4`，唯一一次 canonical `clean :app:phone:assembleDebug`）：`app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk`，147,140,584 bytes，SHA-256 `BDA3E296032E41FAB522E10D0F27DE39C4A1E972EA2DC3C4F9CC05C62E21DC67`；`apksigner` v2 验签通过，`aapt2` 核对 `1.3.0 (4)` / `arm64-v8a` 单 ABI。取证后未再打包，复审只读现有文件。
+- **哈希口径**：debug APK 含构建时间戳等非确定输入，重打包会出现不同哈希（`68160CEE…` / `4E7727C5…` / `23BEA291…` 均为历史值）；**交付以最终锁定的 APK 文件为准**，文件一旦重建必须重新登记。
+- 未覆盖：adb / 真机 / 启动 App / 截图 / 视觉 QA / 完整测试套件未跑；旋转后手势分流只有纯函数回归测试与静态路径核对。门禁与取证明细见 `F:\Develop\codex_work\.planning\cinefin-expansion\exp19-reader\report.md` 的「EXP19 闭环复审修复」段；真机矩阵仍由用户执行。
 
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
