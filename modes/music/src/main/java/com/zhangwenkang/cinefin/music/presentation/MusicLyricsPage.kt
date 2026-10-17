@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -29,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,8 +46,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 
 /**
  * 全屏歌词页（W23-MUSIC · B 组）。
@@ -202,7 +197,12 @@ private fun LyricsLines(
     // W24 · B6：上下留半个视口，任何一行（含首行）都能滚到正中
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val verticalPadding = maxHeight / 2
-        LaunchedEffect(state.activeIndex, state.display.follow, state.rows.size) {
+        LaunchedEffect(
+            state.activeIndex,
+            state.display.follow,
+            state.rows.size,
+            state.text,
+        ) {
             if (!state.display.follow) return@LaunchedEffect
             listState.centerItem(state.activeIndex)
         }
@@ -218,7 +218,7 @@ private fun LyricsLines(
                 ),
             // W79 · #37：行块间距随「行距」档位加减（基准 = Space4）
             verticalArrangement =
-                Arrangement.spacedBy(CinefinSpacing.Space4 + state.text.gapDp(0f).dp),
+                Arrangement.spacedBy(state.text.gapDp(CinefinSpacing.Space4.value).dp),
         ) {
             itemsIndexed(state.rows) { index, row ->
                 val active = index == state.activeIndex
@@ -284,25 +284,5 @@ private fun LyricsLines(
                 }
             }
         }
-    }
-}
-
-/**
- * 把 [target] 行滚到视口正中（W24 · B6）。
- *
- * 先 `animateScrollToItem` 把目标行带进视口，再按它当前的实际高度做一次居中微调—— 比"按视口百分比估算"更准（双语行 / 多行文本高度不定），也修掉了首帧
- * `viewportSize.height == 0` 导致当前行停在最上方的问题。
- */
-internal suspend fun LazyListState.centerItem(target: Int) {
-    if (target < 0) return
-    animateScrollToItem(target)
-    val info = snapshotFlow {
-        layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
-    }
-        .filterNotNull()
-        .first()
-    val viewportHeight = layoutInfo.viewportSize.height
-    if (viewportHeight > 0) {
-        animateScrollBy(info.offset - (viewportHeight - info.size) / 2f)
     }
 }

@@ -177,7 +177,12 @@ private fun LyricsLines(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val verticalPadding = maxHeight / 2
         // 当前行变化 / 重开面板时把高亮行滚到视口中部；"跟随滚动"关闭后不再自动滚。
-        LaunchedEffect(state.activeIndex, state.display.follow, state.rows.size) {
+        LaunchedEffect(
+            state.activeIndex,
+            state.display.follow,
+            state.rows.size,
+            state.text,
+        ) {
             if (!state.display.follow) return@LaunchedEffect
             listState.centerItem(state.activeIndex)
         }
@@ -186,7 +191,7 @@ private fun LyricsLines(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = verticalPadding),
             // W79 · #37：行块间距随「行距」档位加减（基准 = 12dp）
-            verticalArrangement = Arrangement.spacedBy(12.dp + state.text.gapDp(0f).dp),
+            verticalArrangement = Arrangement.spacedBy(state.text.gapDp(12f).dp),
         ) {
             itemsIndexed(state.rows) { index, row ->
                 val active = index == state.activeIndex

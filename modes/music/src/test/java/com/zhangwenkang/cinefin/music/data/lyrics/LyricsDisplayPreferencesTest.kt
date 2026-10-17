@@ -93,6 +93,20 @@ class LyricsDisplayPreferencesTest {
     }
 
     @Test
+    fun `all line spacing tiers produce strictly increasing row pitch`() {
+        val bases = listOf(16f, 12f)
+
+        bases.forEach { base ->
+            val tight = LyricsTextSettings(lineSpacing = LyricsLineSpacing.TIGHT).gapDp(base)
+            val standard = LyricsTextSettings(lineSpacing = LyricsLineSpacing.STANDARD).gapDp(base)
+            val loose = LyricsTextSettings(lineSpacing = LyricsLineSpacing.LOOSE).gapDp(base)
+
+            assertTrue("base=$base: tight=$tight, standard=$standard", tight < standard)
+            assertTrue("base=$base: standard=$standard, loose=$loose", standard < loose)
+        }
+    }
+
+    @Test
     fun `settings restore from stored keys`() {
         assertEquals(
             LyricsTextSettings(LyricsFontScale.LARGE, LyricsLineSpacing.TIGHT),
