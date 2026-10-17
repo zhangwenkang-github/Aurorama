@@ -2044,6 +2044,11 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 07:05:40`，K60 `8e875894` `07:05:53`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
 - release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，未执行真机测试 / 截图 / 视觉 QA，等待用户本人验收。
 
+**用户验收（2026-10-18）**
+
+- 用户本人确认“阅读线通过”（未附缺陷清单）；EXP19 阅读线视为验收通过，转入收口队列。
+- 阅读分支保持 `codex/experience-reader`（代码 `2e2a9c4`，文档 HEAD `6ebce7e`）不合并 master；待音乐线也获用户确认后，再统一做 rebase / 全量门禁 / 合并准备。
+
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
 ### 10.1 加载中返回仍占网络（修，提交 `06bd7d8`）
