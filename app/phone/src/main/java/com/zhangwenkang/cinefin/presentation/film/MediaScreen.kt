@@ -14,7 +14,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -100,6 +102,7 @@ fun MediaScreen(
  *    位置上移、首屏尽量露出）；旧版整行「收藏」大卡与整块本地说明文案均已下线；
  * 3. **间距**：列距 16 / 26dp（随窗口），行距 24dp，区块间距 24–32dp。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MediaScreenLayout(
     onOpenDrawer: (() -> Unit)?,
@@ -156,75 +159,81 @@ private fun MediaScreenLayout(
         )
         Spacer(Modifier.height(CinefinSpacing.Space2))
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = minColumnSize),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding =
-                    PaddingValues(
-                        start = paddingStart,
-                        top = CinefinSpacing.Space6,
-                        end = paddingEnd,
-                        bottom = paddingBottom + CinefinSpacing.Space8,
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(gridGutter),
-                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
-            ) {
-                // 两段式①：本地媒体库（标题行自带「＋ 新建」；无库时只留一行空态）。
-                item(span = { GridItemSpan(maxLineSpan) }, key = "local_library") {
-                    LocalLibrarySection(
-                        onOpenLibrary = onOpenLocalLibrary,
-                        onLibrariesChanged = onLocalLibrariesChanged,
-                    )
-                }
-                // 两段式②：服务器媒体库（标题行 + 16:9 大卡，位置上移、首屏尽量露出）。
-                if (state.libraries.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "server_library_header") {
-                        SectionHeader(
-                            title = "服务器媒体库",
-                            modifier = Modifier.padding(top = CinefinSpacing.Space2),
+        PullToRefreshBox(
+            isRefreshing = state.refreshing,
+            onRefresh = { onAction(MediaAction.Refresh) },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = minColumnSize),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding =
+                        PaddingValues(
+                            start = paddingStart,
+                            top = CinefinSpacing.Space6,
+                            end = paddingEnd,
+                            bottom = paddingBottom + CinefinSpacing.Space8,
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(gridGutter),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+                ) {
+                    // 两段式①：本地媒体库（标题行自带「＋ 新建」；无库时只留一行空态）。
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "local_library") {
+                        LocalLibrarySection(
+                            onOpenLibrary = onOpenLocalLibrary,
+                            onLibrariesChanged = onLocalLibrariesChanged,
                         )
                     }
-                    itemsIndexed(state.libraries, key = { _, library -> library.id }) {
-                        index,
-                        library ->
-                        LibraryEntryCard(
-                            item = library,
-                            onClick = { onAction(MediaAction.OnItemClick(library)) },
-                            index = index,
-                        )
+                    // 两段式②：服务器媒体库（标题行 + 16:9 大卡，位置上移、首屏尽量露出）。
+                    if (state.libraries.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "server_library_header") {
+                            SectionHeader(
+                                title = "服务器媒体库",
+                                modifier = Modifier.padding(top = CinefinSpacing.Space2),
+                            )
+                        }
+                        itemsIndexed(state.libraries, key = { _, library -> library.id }) {
+                            index,
+                            library ->
+                            LibraryEntryCard(
+                                item = library,
+                                onClick = { onAction(MediaAction.OnItemClick(library)) },
+                                index = index,
+                            )
+                        }
                     }
                 }
-            }
-            // 媒体库加载过渡（W6-VIS D24）：库列表到达前用大卡骨架占位，到达后淡出
-            LumenSkeletonOverlay(visible = state.isLoading && state.libraries.isEmpty()) {
-                MediaLibrarySkeleton(
-                    gutterStart = paddingStart,
-                    gutterEnd = paddingEnd,
-                    columns = if (expanded) 2 else 1,
-                    modifier =
-                        Modifier.fillMaxSize()
-                            .padding(top = CinefinSpacing.Space6)
-                            .background(LocalCinefinColors.current.surface),
-                )
-            }
-            if (state.error != null) {
-                ErrorCard(
-                    onShowStacktrace = { showErrorDialog = true },
-                    onRetryClick = { onAction(MediaAction.OnRetryClick) },
-                    modifier =
-                        Modifier.fillMaxWidth()
-                            .padding(
-                                start = paddingStart,
-                                top = CinefinSpacing.Space4,
-                                end = paddingEnd,
-                            ),
-                )
-                if (showErrorDialog) {
-                    ErrorDialog(
-                        exception = state.error!!,
-                        onDismissRequest = { showErrorDialog = false },
+                // 媒体库加载过渡（W6-VIS D24）：仅首进且无内容时铺骨架；下拉刷新只显示 PTR。
+                LumenSkeletonOverlay(visible = state.isLoading && state.libraries.isEmpty()) {
+                    MediaLibrarySkeleton(
+                        gutterStart = paddingStart,
+                        gutterEnd = paddingEnd,
+                        columns = if (expanded) 2 else 1,
+                        modifier =
+                            Modifier.fillMaxSize()
+                                .padding(top = CinefinSpacing.Space6)
+                                .background(LocalCinefinColors.current.surface),
                     )
+                }
+                if (state.error != null) {
+                    ErrorCard(
+                        onShowStacktrace = { showErrorDialog = true },
+                        onRetryClick = { onAction(MediaAction.OnRetryClick) },
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(
+                                    start = paddingStart,
+                                    top = CinefinSpacing.Space4,
+                                    end = paddingEnd,
+                                ),
+                    )
+                    if (showErrorDialog) {
+                        ErrorDialog(
+                            exception = state.error!!,
+                            onDismissRequest = { showErrorDialog = false },
+                        )
+                    }
                 }
             }
         }
