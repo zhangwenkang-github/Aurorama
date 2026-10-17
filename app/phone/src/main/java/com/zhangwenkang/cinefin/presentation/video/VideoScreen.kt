@@ -58,6 +58,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
+import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
@@ -374,6 +375,7 @@ private fun VideoScreenLayout(
                     pagingItems = pagingItems,
                     onItemClick = onItemClick,
                     downloadBadges = downloadBadges,
+                    showResumeProgress = temporaryLibrary?.type == CollectionType.HomeVideos,
                     contentPadding = contentPadding,
                     gridGutter = gridGutter,
                     paddingStart = paddingStart,
@@ -553,6 +555,8 @@ private fun AggregatedVideoGrid(
     pagingItems: LazyPagingItems<FindroidItem>,
     onItemClick: (FindroidItem) -> Unit,
     downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
+    /** W83 #36：家庭视频库的条目显示续播进度线；电影 / 剧集聚合页保持原样。 */
+    showResumeProgress: Boolean = false,
     contentPadding: PaddingValues,
     gridGutter: Dp,
     paddingStart: Dp,
@@ -589,6 +593,7 @@ private fun AggregatedVideoGrid(
                     ItemCard(
                         item = loadedItem,
                         direction = Direction.VERTICAL,
+                        showResumeProgress = showResumeProgress,
                         // W74（#17）：无缩略图（家庭视频等）不再出纯黑卡——常驻「影视域图标 + 域色底」占位。
                         placeholderIconRes = videoItemPlaceholderIconRes(loadedItem),
                         onClick = {

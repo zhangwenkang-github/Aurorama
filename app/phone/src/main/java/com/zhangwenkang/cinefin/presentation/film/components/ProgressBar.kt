@@ -22,15 +22,23 @@ import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
  * 旧签名要调用方传"卡片宽度 - 内边距"，卡片一旦改成填充栅格列就会算错；现在统一 "轨道铺满 + 填充按比例"，卡片放到任何宽度都成立。
  */
 @Composable
-fun ProgressBar(item: FindroidItem, modifier: Modifier = Modifier) {
+fun ProgressBar(
+    item: FindroidItem,
+    modifier: Modifier = Modifier,
+    fractionOverride: Float? = null,
+) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val fraction =
-        if (item.runtimeTicks > 0) {
-            (item.playbackPositionTicks.toFloat() / item.runtimeTicks.toFloat()).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
+        fractionOverride
+            ?: if (item.runtimeTicks > 0) {
+                (item.playbackPositionTicks.toFloat() / item.runtimeTicks.toFloat()).coerceIn(
+                    0f,
+                    1f,
+                )
+            } else {
+                0f
+            }
     if (fraction <= 0f) return
     Box(
         modifier =
@@ -49,6 +57,12 @@ fun ProgressBar(item: FindroidItem, modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * 家庭视频缩略图续播进度：与首页走廊的续播语义一致——已看完（`played`）不再续播， 未看完优先按播放位置 / 时长，缺少时长时回退 `UserData.PlayedPercentage`。
+ */
+internal fun FindroidItem.homeVideoResumeFraction(): Float =
+    if (played) 0f else cardResumeFraction()
 
 @Preview(showBackground = true)
 @Composable

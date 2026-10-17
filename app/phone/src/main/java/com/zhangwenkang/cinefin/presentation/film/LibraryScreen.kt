@@ -554,6 +554,7 @@ private fun LibraryScreenLayout(
                                 ItemCard(
                                     item = loadedItem,
                                     direction = direction,
+                                    showResumeProgress = libraryType == CollectionType.HomeVideos,
                                     onClick = {
                                         if (selectionMode) {
                                             batchSelection =
@@ -665,6 +666,7 @@ private fun LibraryScreenLayout(
                             ItemCard(
                                 item = item,
                                 direction = direction,
+                                showResumeProgress = libraryType == CollectionType.HomeVideos,
                                 onClick = { onAction(LibraryAction.OnItemClick(item)) },
                                 modifier = Modifier.animateItem(),
                                 // W74（#17）：同库 tab 网格——无缩略图条目露出域色占位。

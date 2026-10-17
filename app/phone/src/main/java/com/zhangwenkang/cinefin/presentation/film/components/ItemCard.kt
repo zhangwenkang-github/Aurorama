@@ -65,6 +65,8 @@ fun ItemCard(
     downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
     /** W69b：服务器图加载失败回调（书籍库 / 书架据此触发本地生成回落）。 */
     onServerImageFailed: (() -> Unit)? = null,
+    /** W83 #36：家庭视频库显式开启续播进度线；默认 false = 横版卡仍沿用既有原始进度口径。 */
+    showResumeProgress: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -116,13 +118,15 @@ fun ItemCard(
                 downloadBadge = downloadBadge,
                 cornerPadding = CinefinSpacing.Space3,
             )
-            if (direction == Direction.HORIZONTAL) {
+            if (direction == Direction.HORIZONTAL || showResumeProgress) {
                 ProgressBar(
                     item = item,
                     modifier =
                         Modifier.align(Alignment.BottomStart)
                             .padding(horizontal = CinefinSpacing.Space3)
                             .padding(bottom = CinefinSpacing.Space3),
+                    fractionOverride =
+                        if (showResumeProgress) item.homeVideoResumeFraction() else null,
                 )
             }
         }
