@@ -2610,3 +2610,10 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 测试：新增“已表示源集合会排除侧载纯源行”，并保留纯源并集用例；定向单测 `30` 项，`0` 失败 / `0` 错误 / `0` 跳过。VM 级侧载路径映射未做设备级测试，纯函数侧验证“已表示集合”的去重语义。
 - 门禁：三条编译、七项 `ktfmtCheck`、`assembleDebug` 通过；`apksigner verify --verbose` 为 `Verifies`，v2 = true。新 APK `150,173,801 B`，SHA-256 `F7E8EE93F985D59AC1B4AAA878731A6494E8B3AFD595A2C06C49C90E6EA078E6`。
 - 未覆盖：仍未真机 / adb / 截图 / 视觉 QA；侧载路径映射只到达 ViewModel 代码路径，未在设备上验证重复行消失。
+
+**交测预装（2026-10-18 04:43）**
+
+- 独立架构复审最终结论“可交用户测试”：无 P0 / P1；`30` 项定向单测 `0` 失败，三条编译、七项 `ktfmtCheck`、`assembleDebug` 通过；`apksigner verify --verbose` 为 `Verifies`（v2 = true）。
+- 最终 APK：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`150,173,801 B`，SHA-256 `F7E8EE93F985D59AC1B4AAA878731A6494E8B3AFD595A2C06C49C90E6EA078E6`；`io.github.zhangwenkang.aurorama.debug` / `1.3.0 (4)` / `Aurorama Debug` / `arm64-v8a`。
+- 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 04:43:14`，K60 `8e875894` `04:43:25`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
+- release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，未执行真机测试 / 截图 / 视觉 QA，等待用户本人验收。
