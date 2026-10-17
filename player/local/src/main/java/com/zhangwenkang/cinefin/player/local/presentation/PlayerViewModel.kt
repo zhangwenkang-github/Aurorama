@@ -60,6 +60,7 @@ import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitle
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitleStore
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
+import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
@@ -1674,8 +1675,24 @@ constructor(
                 subtitleController.selectSecondary(null)
             }
             mpv.setSecondarySubtitle(null)
+            // 新主字幕映射不到源时，先关闭 Compose 次字幕再切 sid：不能等 track-list 异步回调，
+            // 否则新原生主字幕已经可见、旧次字幕还在画。
+            if (
+                shouldSuppressSecondaryForMpvPrimarySelection(
+                    selectedTrackId = id,
+                    mappedSourceIndex = primarySourceIndex,
+                )
+            ) {
+                subtitleController.suppressSecondaryForSafety()
+            }
             mpv.selectSubtitleTrack(id)
             subtitleController.syncPrimaryIndex(primarySourceIndex)
+            // 以用户意图先行更新「有原生主字幕」：旧 currentTracks 快照不能把它盖回 false。
+            subtitleController.setNativePrimaryActive(id != null)
+            if (id != null && primarySourceIndex != null) {
+                // 映射成功：立即开始 App 侧主字幕加载，不等 track-list 追上。
+                subtitleController.ensurePrimaryContentAvailable()
+            }
             publishSubtitlePanelState()
             return
         }
@@ -2130,8 +2147,8 @@ constructor(
             val sideloadTrackIds =
                 sideloads.mapNotNull { record -> mpv?.subtitleTrackIdForPath(record.path) }.toSet()
             val primaryOptions = nativeSubtitleOptions(sideloadTrackIds)
-            val primarySourceIndex =
-                sourceIndexForMpvSubtitleId(primaryOptions.firstOrNull { it.selected }?.id)
+            // 用同步 `sid` 反推，避免 track-list 回调前面板仍按旧选中轨过滤次字幕候选。
+            val primarySourceIndex = currentMpvPrimarySourceIndex()
             // 映射不到主字幕源时无法排除同源：只要原生主字幕仍选中，就整体禁用次字幕候选。
             val secondarySelectable = primarySourceIndex != null || !currentMpvPrimaryActive()
             val secondaryOptions =
@@ -2254,8 +2271,23 @@ constructor(
                 ?.index
     }
 
+    /**
+     * 当前 mpv 主字幕 track id。
+     *
+     * 优先读同步的 `sid` 属性：刚选完主字幕就能读到新 id，不会像 `currentTracks.selected` 那样在 `track-list` 回调前把旧选中轨回写成
+     * `primaryIndex`。只有 `sid` 读不到或仍是 `auto`（尚未解析）时 才退回轨道快照。
+     */
+    private fun currentMpvPrimaryTrackId(): Int? {
+        val raw = (player as? MPVPlayer)?.currentSubtitleSelection()
+        raw?.toIntOrNull()?.let {
+            return it
+        }
+        if (raw.equals("no", ignoreCase = true)) return null
+        return nativeSubtitleOptions().firstOrNull { it.selected }?.id
+    }
+
     private fun currentMpvPrimarySourceIndex(): Int? =
-        sourceIndexForMpvSubtitleId(nativeSubtitleOptions().firstOrNull { it.selected }?.id)
+        currentMpvPrimaryTrackId()?.let { sourceIndexForMpvSubtitleId(it) }
 
     /**
      * mpv 双字幕：主字幕改由 App 侧 libass 接管，需要与**当前 mpv `sid`** 对应的文本内容。
@@ -2285,10 +2317,7 @@ constructor(
     }
 
     /** mpv 当前是否有选中的原生字幕轨（与能否映射到 Jellyfin 源无关）。 */
-    private fun currentMpvPrimaryActive(): Boolean =
-        player.currentTracks.groups.any { group ->
-            group.type == C.TRACK_TYPE_TEXT && group.isSelected
-        }
+    private fun currentMpvPrimaryActive(): Boolean = currentMpvPrimaryTrackId() != null
 
     // ---------- 音轨面板：延迟 + 轨道描述（§1.2） ----------
 

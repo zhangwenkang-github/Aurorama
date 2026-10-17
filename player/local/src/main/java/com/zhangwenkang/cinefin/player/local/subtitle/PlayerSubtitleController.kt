@@ -73,6 +73,19 @@ data class SubtitleOverlayState(
 )
 
 /**
+ * 选择 mpv 主字幕时的安全路由（纯函数，便于单测）。
+ *
+ * - [selectedTrackId] 为 null：用户关闭主字幕，不抑制次字幕；
+ * - 新主字幕能映射到 Jellyfin 源（[mappedSourceIndex] 非 null）：走 App 侧接管，不抑制；
+ * - 新主字幕已选中但映射不到源：无法判断主 / 次是否同源，必须**立即**抑制次字幕， 不能等 `track-list` 异步回调（那段时间新原生主字幕已经可见、旧 Compose
+ *   次字幕还在绘制）。
+ */
+fun shouldSuppressSecondaryForMpvPrimarySelection(
+    selectedTrackId: Int?,
+    mappedSourceIndex: Int?,
+): Boolean = selectedTrackId != null && mappedSourceIndex == null
+
+/**
  * 自研字幕管线：下载字幕文件 → 解析成 cue → 交给 Compose 覆盖层渲染。
  *
  * 为什么要有它（而不是直接用 Media3 的 SubtitleView）：

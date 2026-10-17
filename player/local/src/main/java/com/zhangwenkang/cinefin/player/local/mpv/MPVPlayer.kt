@@ -711,6 +711,18 @@ class MPVPlayer(
         logSubtitleState()
     }
 
+    /**
+     * 当前 `sid` 的原始值（数字 / `no` / `auto`）；读不到返回 null。
+     *
+     * 与 [getCurrentTracks] 的 `selected` 快照不同，`sid` 是同步属性：刚写完立刻能读回新值， 可供渲染层在 `track-list`
+     * 异步回调之前判断主字幕是否已经切换。
+     */
+    fun currentSubtitleSelection(): String? = runCatching {
+        mpvLib.getPropertyString("sid")
+    }
+        .getOrNull()
+        ?.trim()
+
     /** 排障：打印 mpv 眼里的字幕状态（sid / 可见性 / 延迟 / 当前文本） */
     fun logSubtitleState() {
         val sid = mpvLib.getPropertyString("sid")

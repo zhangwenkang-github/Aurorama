@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.player
 
 import com.zhangwenkang.cinefin.player.local.subtitle.AssSubtitleScript
+import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -347,6 +348,31 @@ class SubtitleLiftTest {
         assertTrue(result.showSecondary)
         assertEquals(1f, result.secondaryScale, 0.001f)
         assertEquals(0f, result.secondaryReservedFraction, 0.001f)
+    }
+
+    @Test
+    fun mpvPrimarySelection_suppressesSecondaryOnlyWhenSelectedAndUnmapped() {
+        assertTrue(
+            "新主字幕映射不到源时必须立即抑制次字幕",
+            shouldSuppressSecondaryForMpvPrimarySelection(
+                selectedTrackId = 7,
+                mappedSourceIndex = null,
+            ),
+        )
+        assertFalse(
+            "映射成功走 App 侧接管，不抑制",
+            shouldSuppressSecondaryForMpvPrimarySelection(
+                selectedTrackId = 7,
+                mappedSourceIndex = 3,
+            ),
+        )
+        assertFalse(
+            "关闭主字幕不误关次字幕",
+            shouldSuppressSecondaryForMpvPrimarySelection(
+                selectedTrackId = null,
+                mappedSourceIndex = null,
+            ),
+        )
     }
 
     @Test
