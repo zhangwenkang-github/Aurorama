@@ -2507,3 +2507,4 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 已执行验证：`:app:phone:compileLibreDebugKotlin`、`:app:phone:compileLibreDebugUnitTestKotlin`、`:app:phone:ktfmtCheckMain`、`:app:phone:ktfmtCheckTest`、`:player:local:ktfmtCheckMain`、`:app:phone:assembleDebug`；`apksigner` v2 通过。按用户要求未执行单测 / 测试套件 / 真机 / 截图。
 - 图谱：`graphify update .` 完成（10808 nodes / 34112 edges / 390 communities；发布树内未产生待提交差异）。
 - debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`147,059,276 B`，SHA-256 `A2C3864CC7690F95F111ACD3BE4BE43531B8A3489634320B40618C27EBF94F16`；`aapt2` 显示 `1.3.0 (4)`、`arm64-v8a`、debuggable。
+- 用户测试包已预装（2026-10-18 00:45）：Pad 5 `43af8627` 与 K60 `8e875894` 均 `install -r` 成功；设备侧 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`，`lastUpdateTime` 分别为 `00:45:36` / `00:45:35`；release 包与数据未触碰。设备记录见 `device-lock.md` 顶部 EXP18 条目。
