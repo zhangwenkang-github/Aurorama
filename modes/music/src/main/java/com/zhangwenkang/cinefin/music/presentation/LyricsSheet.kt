@@ -36,12 +36,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 
 /**
  * 歌词面板（MU-5 W3-R2）。
  *
  * 能力：默认简体中文（[MusicModeViewModel.LyricsUiState.display] 决定）、原文 / 简中 / 繁中 / 日文 / 英文切换、 双语对照、当前行高亮 +
  * 跟随滚动、点击行跳转播放位置。
+ *
+ * W79：正文 **水平居中**（#26，与歌词页 / 悬浮窗统一）；新增字号 / 行距档位条（#37，与歌词页共用同一偏好键）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +56,8 @@ fun LyricsSheet(
     onSelectLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleBilingual: () -> Unit,
     onToggleFollow: () -> Unit,
+    onSelectFontScale: (LyricsFontScale) -> Unit,
+    onSelectLineSpacing: (LyricsLineSpacing) -> Unit,
     onLineClick: (Long) -> Unit,
 ) {
     // W25 真机拦下：K60 竖屏下列表区（0.82 屏高）高于 sheet 半展开锚点，打开时歌词行被挤出可视区；
@@ -67,6 +73,11 @@ fun LyricsSheet(
                 onSelectLanguage = onSelectLanguage,
                 onToggleBilingual = onToggleBilingual,
                 onToggleFollow = onToggleFollow,
+            )
+            LyricsTextSettingsBar(
+                settings = state.text,
+                onSelectFontScale = onSelectFontScale,
+                onSelectLineSpacing = onSelectLineSpacing,
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when {
@@ -174,7 +185,8 @@ private fun LyricsLines(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = verticalPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // W79 · #37：行块间距随「行距」档位加减（基准 = 12dp）
+            verticalArrangement = Arrangement.spacedBy(12.dp + state.text.gapDp(0f).dp),
         ) {
             itemsIndexed(state.rows) { index, row ->
                 val active = index == state.activeIndex
@@ -205,29 +217,37 @@ private fun LyricsLines(
                     if (activeWordText != null) {
                         Text(
                             text = activeWordText,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.lyricsScaled(state.text),
                             fontWeight = FontWeight.SemiBold,
+                            textAlign = lyricsTextAlign,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
                         Text(
                             text = row.mainText,
                             style =
-                                if (active) MaterialTheme.typography.titleMedium
-                                else MaterialTheme.typography.bodyLarge,
+                                (if (active) MaterialTheme.typography.titleMedium
+                                    else MaterialTheme.typography.bodyLarge)
+                                    .lyricsScaled(state.text),
                             color =
                                 if (active) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface,
                             fontWeight = if (active) FontWeight.SemiBold else null,
+                            textAlign = lyricsTextAlign,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     val sub = row.subText
                     if (sub != null) {
                         Text(
                             text = sub,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium.lyricsScaled(state.text),
                             color =
                                 if (active) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = lyricsTextAlign,
+                            modifier =
+                                Modifier.fillMaxWidth().padding(top = state.text.gapDp(0f).dp),
                         )
                     }
                 }

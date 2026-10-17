@@ -411,6 +411,8 @@ fun MusicModeScreen(
                     onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
                     onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
                     onToggleLyricsFollow = viewModel::toggleLyricsFollow,
+                    onSelectLyricsFontScale = viewModel::selectLyricsFontScale,
+                    onSelectLyricsLineSpacing = viewModel::selectLyricsLineSpacing,
                     onSeekLyricLine = viewModel::seekToLyricLine,
                 )
             }
@@ -424,6 +426,8 @@ fun MusicModeScreen(
                 onSelectLanguage = viewModel::selectLyricsLanguage,
                 onToggleBilingual = viewModel::toggleLyricsBilingual,
                 onToggleFollow = viewModel::toggleLyricsFollow,
+                onSelectFontScale = viewModel::selectLyricsFontScale,
+                onSelectLineSpacing = viewModel::selectLyricsLineSpacing,
                 onLineClick = viewModel::seekToLyricLine,
             )
         }

@@ -25,12 +25,16 @@ import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
 import com.zhangwenkang.cinefin.music.data.groupAlbums
 import com.zhangwenkang.cinefin.music.data.groupArtists
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricEditLine
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsBilingualPreference
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayState
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDocument
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsPresenter
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRepository
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsTextSettings
 import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLines
 import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLinesFromText
 import com.zhangwenkang.cinefin.music.data.lyrics.lyricEditLinesToLyricLines
@@ -189,7 +193,8 @@ constructor(
      * 歌词面板状态（MU-5）。
      *
      * [languages] 由逐行识别结果聚合（原文恒在末位）；[display] 默认简体中文（[LyricsPresenter.defaultDisplay]）；
-     * [activeIndex] 由 [LyricsPresenter.activeIndex] 根据播放位置算出，供高亮与跟随滚动使用。
+     * [activeIndex] 由 [LyricsPresenter.activeIndex] 根据播放位置算出，供高亮与跟随滚动使用。 [text] 是字号 / 行距档位（W79
+     * · #37，落偏好键，冷启保持）。
      */
     data class LyricsUiState(
         val open: Boolean = false,
@@ -198,6 +203,7 @@ constructor(
         val document: LyricsDocument? = null,
         val languages: List<LyricsDisplayLanguage> = emptyList(),
         val display: LyricsDisplayState = LyricsDisplayState(),
+        val text: LyricsTextSettings = LyricsTextSettings(),
         val rows: List<LyricsRow> = emptyList(),
         val activeIndex: Int = 0,
         /** 播放位置（毫秒）：逐字高亮推进用（W28-MUSIC）。 */
@@ -205,7 +211,7 @@ constructor(
         val message: String? = null,
     )
 
-    private val _lyricsState = MutableStateFlow(LyricsUiState())
+    private val _lyricsState = MutableStateFlow(LyricsUiState(text = storedLyricsText()))
     val lyricsState: StateFlow<LyricsUiState> = _lyricsState.asStateFlow()
 
     /**
@@ -426,7 +432,7 @@ constructor(
         if (item == null) {
             loadedLyricsItemId = null
             lastLoggedWord = null
-            _lyricsState.value = LyricsUiState()
+            _lyricsState.value = LyricsUiState(text = storedLyricsText())
             return
         }
         if (loadedLyricsItemId == item.itemId && _lyricsState.value.document != null) return
@@ -462,7 +468,11 @@ constructor(
                         message = "该曲目暂无歌词（本机覆盖 / 外挂 LRC / 服务端都没有）",
                     )
                 } else {
-                    val display = LyricsPresenter.defaultDisplay(document)
+                    val display =
+                        LyricsPresenter.defaultDisplay(
+                            document,
+                            bilingual = bilingualEnabled(),
+                        )
                     val rows = LyricsPresenter.rows(document, display)
                     val position = playbackController.positionMs.value
                     state.copy(
@@ -532,13 +542,31 @@ constructor(
         updateLyricsDisplay { it.copy(language = language) }
     }
 
+    /** 双语对照开关（W79 · #35）：首次操作即落显式偏好（`on` / `off`），此后冷启不再被"默认开"覆盖。 */
     fun toggleLyricsBilingual() {
-        updateLyricsDisplay { it.copy(bilingual = !it.bilingual) }
+        val bilingual = !_lyricsState.value.display.bilingual
+        appPreferences.setValue(
+            appPreferences.musicLyricsBilingual,
+            LyricsBilingualPreference.encode(bilingual),
+        )
+        updateLyricsDisplay { it.copy(bilingual = bilingual) }
     }
 
     /** 跟随滚动开关；关闭后高亮仍随播放位置变化，只是不自动滚动。 */
     fun toggleLyricsFollow() {
         updateLyricsDisplay { it.copy(follow = !it.follow) }
+    }
+
+    /** 歌词字号档位（W79 · #37）：即时生效 + 落盘（歌词页与面板共用同一档位）。 */
+    fun selectLyricsFontScale(scale: LyricsFontScale) {
+        appPreferences.setValue(appPreferences.musicLyricsFontScale, scale.key)
+        _lyricsState.update { it.copy(text = it.text.withFontScale(scale)) }
+    }
+
+    /** 歌词行距档位（W79 · #37）：即时生效 + 落盘。 */
+    fun selectLyricsLineSpacing(spacing: LyricsLineSpacing) {
+        appPreferences.setValue(appPreferences.musicLyricsLineSpacing, spacing.key)
+        _lyricsState.update { it.copy(text = it.text.withLineSpacing(spacing)) }
     }
 
     /** 点击歌词行：跳到该行时间戳（不改变播放 / 暂停状态）。 */
@@ -745,6 +773,19 @@ constructor(
         loadedLyricsItemId = null
         onCurrentItemChanged(item)
     }
+
+    /** 已落盘的歌词字号 / 行距档位（W79 · #37；未设置 / 未知值回落"标准"）。 */
+    private fun storedLyricsText(): LyricsTextSettings =
+        LyricsTextSettings.fromKeys(
+            appPreferences.getValue(appPreferences.musicLyricsFontScale),
+            appPreferences.getValue(appPreferences.musicLyricsLineSpacing),
+        )
+
+    /** 双语对照生效值（W79 · #35）：显式偏好优先，从未设置 → 默认开。 */
+    private fun bilingualEnabled(): Boolean =
+        LyricsBilingualPreference.resolve(
+            appPreferences.getValue(appPreferences.musicLyricsBilingual)
+        )
 
     private fun updateLyricsDisplay(transform: (LyricsDisplayState) -> LyricsDisplayState) {
         _lyricsState.update { state ->

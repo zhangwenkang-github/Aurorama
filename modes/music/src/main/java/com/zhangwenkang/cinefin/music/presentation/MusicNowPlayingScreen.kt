@@ -61,6 +61,8 @@ import com.zhangwenkang.cinefin.music.R
 import com.zhangwenkang.cinefin.music.data.MusicPlayMode
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsPresenter
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsWindow
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
@@ -99,6 +101,8 @@ fun MusicNowPlayingScreen(
     onSelectLyricsLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleLyricsBilingual: () -> Unit,
     onToggleLyricsFollow: () -> Unit,
+    onSelectLyricsFontScale: (LyricsFontScale) -> Unit,
+    onSelectLyricsLineSpacing: (LyricsLineSpacing) -> Unit,
     onSeekLyricLine: (Long) -> Unit,
 ) {
     val item = queue.currentItem ?: return
@@ -116,6 +120,8 @@ fun MusicNowPlayingScreen(
                 onSelectLanguage = onSelectLyricsLanguage,
                 onToggleBilingual = onToggleLyricsBilingual,
                 onToggleFollow = onToggleLyricsFollow,
+                onSelectFontScale = onSelectLyricsFontScale,
+                onSelectLineSpacing = onSelectLyricsLineSpacing,
                 onLineClick = onSeekLyricLine,
                 modifier =
                     Modifier.swipeGestures(

@@ -74,6 +74,22 @@ class LyricsPresenterTest {
     }
 
     @Test
+    fun `bilingual on but no translation falls back to the main line only`() {
+        // W79 · #35：单语歌词（无译文）开双语对照时不出空副行 —— 全部行 subText = null
+        val chineseOnly =
+            LyricsDocumentBuilder.build(
+                listOf(LyricLine(1_000, "时针一直倒数着"), LyricLine(5_000, "剩下的狂欢")),
+                LyricsSource.SERVER,
+            )
+        val display = LyricsPresenter.defaultDisplay(chineseOnly, bilingual = true)
+        val rows = LyricsPresenter.rows(chineseOnly, display)
+
+        assertEquals(true, display.bilingual)
+        assertEquals(listOf("时针一直倒数着", "剩下的狂欢"), rows.map { it.mainText })
+        assertTrue(rows.all { it.subText == null })
+    }
+
+    @Test
     fun `lyrics window shows previous current and next`() {
         val rows =
             listOf(

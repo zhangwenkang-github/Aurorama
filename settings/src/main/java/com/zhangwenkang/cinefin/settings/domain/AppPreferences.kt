@@ -359,6 +359,19 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 桌面歌词无操作自动隐藏的保持时长档位（`LyricsOverlayIdle` 的 key；`3s` 为默认，`always` = 常显）。 */
     val musicLyricsOverlayIdle = Preference("pref_music_lyrics_overlay_idle", "3s")
 
+    // Music（W79-MUSIC 歌词页 / 面板字号与行距 + 双语默认值；继续只追加 pref_music_* 前缀，不重排既有键）
+    /** 歌词页 / 歌词面板字号档位（`LyricsFontScale` 的 key；`standard` = 既有观感·默认）。 */
+    val musicLyricsFontScale = Preference("pref_music_lyrics_font_scale", "standard")
+
+    /** 歌词页 / 歌词面板行距档位（`LyricsLineSpacing` 的 key；`standard` = 既有行高·默认）。 */
+    val musicLyricsLineSpacing = Preference("pref_music_lyrics_line_spacing", "standard")
+
+    /**
+     * 歌词双语对照（W79-MUSIC · #35，**三态**）：`""` = 从未显式设置 → 生效值默认**开**； `on` / `off` =
+     * 用户显式选择（手动关过的一直保持关）。解析见 `LyricsBilingualPreference`。
+     */
+    val musicLyricsBilingual = Preference("pref_music_lyrics_bilingual", "")
+
     // Music（W30-MUSIC-FX 音乐音效 EQ / ReplayGain / 交叉淡化；继续只追加 pref_music_* 前缀，不重排既有键）
     /** 均衡器开关（W30-MUSIC-FX）。默认关，保持既有听感不变。 */
     val musicEqualizerEnabled = Preference("pref_music_eq_enabled", false)

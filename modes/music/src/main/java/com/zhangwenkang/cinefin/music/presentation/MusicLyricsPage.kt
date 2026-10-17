@@ -47,6 +47,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 
@@ -55,6 +57,8 @@ import kotlinx.coroutines.flow.first
  *
  * 跟随播放进度高亮当前行并居中滚动；点某一行跳到该行时间戳；语言 chip / 双语对照 / 跟随滚动
  * 与底栏「词」面板共用同一份显示状态（[MusicModeViewModel.LyricsUiState]）。 返回靠左上箭头、左滑手势或系统返回键。
+ *
+ * W79：正文 **水平居中**（#26，与面板 / 悬浮窗统一）；新增字号 / 行距档位条（#37，与面板共用同一偏好键）。
  */
 @Composable
 fun MusicLyricsPage(
@@ -64,6 +68,8 @@ fun MusicLyricsPage(
     onSelectLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleBilingual: () -> Unit,
     onToggleFollow: () -> Unit,
+    onSelectFontScale: (LyricsFontScale) -> Unit,
+    onSelectLineSpacing: (LyricsLineSpacing) -> Unit,
     onLineClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -155,6 +161,11 @@ fun MusicLyricsPage(
                     )
                 }
             }
+            LyricsTextSettingsBar(
+                settings = state.text,
+                onSelectFontScale = onSelectFontScale,
+                onSelectLineSpacing = onSelectLineSpacing,
+            )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.loading ->
@@ -205,7 +216,9 @@ private fun LyricsLines(
                     top = verticalPadding,
                     bottom = verticalPadding,
                 ),
-            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+            // W79 · #37：行块间距随「行距」档位加减（基准 = Space4）
+            verticalArrangement =
+                Arrangement.spacedBy(CinefinSpacing.Space4 + state.text.gapDp(0f).dp),
         ) {
             itemsIndexed(state.rows) { index, row ->
                 val active = index == state.activeIndex
@@ -233,27 +246,39 @@ private fun LyricsLines(
                     if (activeWordText != null) {
                         Text(
                             text = activeWordText,
-                            style = CinefinType.TitleLarge.copy(fontSize = 32.sp),
+                            style =
+                                CinefinType.TitleLarge.copy(fontSize = 32.sp)
+                                    .lyricsScaled(state.text),
                             fontWeight = FontWeight.SemiBold,
+                            textAlign = lyricsTextAlign,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
                         Text(
                             text = row.mainText,
                             style =
-                                if (active) CinefinType.TitleLarge.copy(fontSize = 32.sp)
-                                else CinefinType.TitleSmall.copy(fontSize = 21.sp),
+                                (if (active) CinefinType.TitleLarge.copy(fontSize = 32.sp)
+                                    else CinefinType.TitleSmall.copy(fontSize = 21.sp))
+                                    .lyricsScaled(state.text),
                             color =
                                 if (active) media.bright
                                 else colors.onSurfaceVariant.copy(alpha = 0.4f),
                             fontWeight = if (active) FontWeight.SemiBold else null,
+                            textAlign = lyricsTextAlign,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     val sub = row.subText
                     if (sub != null) {
                         Text(
                             text = sub,
-                            style = if (active) CinefinType.TitleMedium else CinefinType.BodyMedium,
+                            style =
+                                (if (active) CinefinType.TitleMedium else CinefinType.BodyMedium)
+                                    .lyricsScaled(state.text),
                             color = if (active) media.bright else colors.onSurfaceVariant,
+                            textAlign = lyricsTextAlign,
+                            modifier =
+                                Modifier.fillMaxWidth().padding(top = state.text.gapDp(0f).dp),
                         )
                     }
                 }
