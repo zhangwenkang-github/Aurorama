@@ -191,6 +191,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D75 | **歌词当前行居中统一用 LazyList 内容坐标**：`viewportCenter = (viewportStartOffset + viewportEndOffset) / 2f`、`itemCenter = item.offset + item.size / 2f`，滚动差 = `itemCenter - viewportCenter`；`animateScrollToItem()` 后等一帧再读实际行高；字号 / 行距加入 `LaunchedEffect` 依赖 | QA-W79 实测旧实现当前行贴底 +695.5 px。根因 = `visibleItemsInfo.offset`（内容坐标）与 `(viewportSize.height - item.size)/2`（纯视口高度）混用；半视口 `contentPadding` 下目标行已被带到中部，错误微调又把它推到底部。抽 `lyricsCenterScrollDelta()` + 3 单测钉住坐标系，避免以后改 padding / 行高再次回归 |
 | D76 | **行距档位作用在「基准间距」上**：`Arrangement.spacedBy(settings.gapDp(base))`，歌词页 base 16dp、面板 base 12dp；不再写 `base + gapDp(0f)` | `gapDp(0f)` 会把 tight 的 −4dp 钳成 0，导致「紧凑 = 标准」；QA-W79 实测两档逐行坐标完全一致。改后特大字号节距页 `216 < 226 < 268 px`、面板 `207 < 218 < 260 px`，三档可感 |
 | D77 | **双语偏好保持三态**：`""`（未设置 → 默认开）/ `on` / `off`，首次手动操作即落显式值；无译文只渲染主行 | 满足「默认双语」且不覆盖存量用户的显式关闭；单语歌曲不出现空副行 |
+| D78 | **歌曲行封面来源统一为「曲目图 → 同专辑图 → 音符占位」**：`SongRow` leading = 40dp `ArtworkThumb` + 自适应序号列；`resolveSongArtworkUri()` 只读已加载曲库快照做同专辑兜底，不新增网络请求；序号 `widthIn(min=22.dp)` + 单行 + 右对齐，支持 1000 首上限的 4 位数 | 服务器音频 `Primary` 图多数即专辑图，个别缺失时用同专辑图避免整列空占位；固定 22dp 会让三位数折行（QA-W79b P2），自适应宽度 + 单行是根因修复；40dp 封面不改变 88dp 行高与既有列表密度 |
+| D79 | **#34 自动定位只属于歌曲 Tab**：进入 Tab 定位一次；当前曲变化且未手动滚动时跟随；`NestedScrollConnection` 识别用户拖动 / 惯性后本次组合不再拉回；离开 Tab 重建组合后恢复一次定位；首 / 尾行尽量居中、受滚动边界钳制时保证完整可见，不加半屏空白 | 详情 / 收藏 / 最近播放不应被「当前播放曲」打乱阅读位置；手动滚动优先于自动跟随；首尾行加半屏空白会破坏歌曲列表的正常起始观感，P3 边界行为按设计口径接受 |
 
 ## 3. 任务清单
 
@@ -1032,3 +1034,11 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   ③**#35** 三态双语偏好（缺键默认开 / `on` / `off`），无译文回落单行；④合并态门禁 **1026 / 0 / 0**（music 157），
   已合并 master `2fa6203` 并推送（CI 三路跟进）；报告 `w79-reports/W79a.md` / `W79a-fix.md` / `W79-QA-R.md`；
   ⑤**#33 / #34** 由 W79b 接续（歌曲行缩略图 / 进歌曲 Tab 自动定位当前曲），分支 `feature/w79b-song-list`。
+
+- **2026-10-17 W79b 歌曲行封面 / 自动定位当前曲（第十二任负责人收口）**（`feature/w79b-song-list`，worktree `w79b`，K60 `8e875894`）：
+  ①**#33** `SongRow` = 40dp 封面 + 自适应序号（行高 88dp 不变）；曲目 `imageUri` → 同专辑图兜底 → 音符 + 媒体色底；
+  349 首真机滚动正常，预热 jank 0.25%（基线 0.75%）；QA-W79b 发现第 100–349 行三位序号在 22dp 定宽内折行（P2）→
+  W79b-FIX 改 `widthIn(min=22.dp)` + 单行 + 右对齐，343 / 100 / 101 / 多选均 60×40 px 单行，QA-W79b-R 复验通过；
+  ②**#34** 仅歌曲 Tab 自动定位：进入 / 重进 / 切歌偏差 0–0.5 px，手动滚到首见行 39 后切歌不拉回，空队列 / 筛选外不崩；
+  首尾 3 行受滚动边界钳制（P3：完整可见、不强制居中，不加半屏空白）；③合并态门禁 **1034 / 0 / 0**（music 165），
+  已合并 master `5f0795e`；报告 `w79-reports/W79b.md` / `W79-QA-B.md`，证据 `w79-evidence/w79b/` / `w79b-fix/` / `qa-w79b/` / `qa-w79b-r/`。
