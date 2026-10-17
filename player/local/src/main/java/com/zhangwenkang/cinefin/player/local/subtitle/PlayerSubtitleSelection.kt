@@ -149,13 +149,17 @@ object MpvSubtitleTrackMapping {
     ): MpvSubtitleTrackRef? =
         tracks.filter { sourceIndexForTrack(it, sources) == sourceIndex }.singleOrNull()
 
-    /** mpv 单列表里需要补成“仅次字幕可用”的纯源文本轨：没有任何 native 轨映射到它。 */
+    /**
+     * mpv 单列表里需要补成“仅次字幕可用”的纯源文本轨。
+     *
+     * [representedSourceIndices] 必须由调用方用**同一套** native sid 映射得出（包含侧载路径、 唯一标题 / 语言与同序号兜底）；这里不再自行按标题
+     * / 语言重算，避免侧载行重复出现。
+     */
     fun unmappedTextSources(
-        tracks: List<MpvSubtitleTrackRef>,
+        representedSourceIndices: Set<Int>,
         sources: List<PlayerSubtitleSource>,
-    ): List<PlayerSubtitleSource> {
-        val mapped = tracks.mapNotNull { sourceIndexForTrack(it, sources) }.toSet()
-        return sources.filter { it.isTextBased && it.index !in mapped }
+    ): List<PlayerSubtitleSource> = sources.filter {
+        it.isTextBased && it.index !in representedSourceIndices
     }
 
     private fun trackType(track: MpvSubtitleTrackRef): TrackType? {

@@ -378,20 +378,39 @@ class PlayerSubtitleSelectionTest {
                     .copy(),
                 source(index = 3, title = "未注入 SRT", language = "en").copy(codec = "subrip"),
             )
-        val tracks =
-            listOf(
-                MpvSubtitleTrackRef(
-                    id = 11,
-                    label = "源 ASS",
-                    language = "zh-Hans",
-                    codec = "ass",
-                ),
-                MpvSubtitleTrackRef(id = 12, label = "PGS", language = "zh-Hans", codec = "pgs"),
-            )
-
         assertEquals(
             listOf(3),
-            MpvSubtitleTrackMapping.unmappedTextSources(tracks, sources).map { it.index },
+            MpvSubtitleTrackMapping.unmappedTextSources(
+                    representedSourceIndices = setOf(1, 2),
+                    sources = sources,
+                )
+                .map { it.index },
+        )
+    }
+
+    @Test
+    fun `已表示源集合会排除侧载纯源行`() {
+        val sideloaded =
+            source(
+                index = SideloadedSubtitleStore.INDEX_BASE,
+                title = "侧载字幕",
+                language = "zh-Hans",
+            )
+
+        assertTrue(
+            MpvSubtitleTrackMapping.unmappedTextSources(
+                    representedSourceIndices = setOf(SideloadedSubtitleStore.INDEX_BASE),
+                    sources = listOf(sideloaded),
+                )
+                .isEmpty()
+        )
+        assertEquals(
+            listOf(SideloadedSubtitleStore.INDEX_BASE),
+            MpvSubtitleTrackMapping.unmappedTextSources(
+                    representedSourceIndices = emptySet(),
+                    sources = listOf(sideloaded),
+                )
+                .map { it.index },
         )
     }
 

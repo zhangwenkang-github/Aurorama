@@ -2294,9 +2294,14 @@ constructor(
             // 映射不到主字幕源时无法排除同源：只要原生主字幕仍选中，就整体禁用次字幕候选。
             val secondarySelectable = primarySourceIndex != null || currentSid == null
             val nativeTracks = nativeSubtitleTracks()
+            val sourceIndexBySid = nativeTracks.associate { track ->
+                track.id to sourceIndexForMpvSubtitleId(track.id)
+            }
+            // 侧载路径映射也在这份集合里：native 行与纯源行共用同一判重口径。
+            val representedSourceIndices = sourceIndexBySid.values.filterNotNull().toSet()
             val tracks =
                 nativeTracks.map { track ->
-                    val mappedSourceIndex = sourceIndexForMpvSubtitleId(track.id)
+                    val mappedSourceIndex = sourceIndexBySid[track.id]
                     val source = subtitleSource(mappedSourceIndex, state.sources)
                     val textAssignable = source?.isTextBased == true
                     val secondarySourceIndex =
@@ -2340,7 +2345,7 @@ constructor(
                     )
                 } +
                     MpvSubtitleTrackMapping.unmappedTextSources(
-                            nativeTracks.map { it.toRef() },
+                            representedSourceIndices,
                             state.sources,
                         )
                         .map { source ->
@@ -2489,7 +2494,8 @@ constructor(
     /**
      * mpv 原生 track id → Jellyfin 字幕源序号。
      *
-     * 面板主字幕仍使用 mpv 的 sid；次字幕改由 Compose 加载文件，需要把 sid 映射回 [PlayerSubtitleSource]。优先按同序号，再按标题 / 语言兜底。
+     * 面板主字幕仍使用 mpv 的 sid；次字幕改由 Compose 加载文件，需要把 sid 映射回 [PlayerSubtitleSource]。 顺序为类型约束下“标题 + 语言 →
+     * 唯一标题 → 唯一语言 → 同序号兜底”；侧载先按文件路径精确反查。
      */
     private fun sourceIndexForMpvSubtitleId(id: Int?): Int? {
         if (id == null) return null
