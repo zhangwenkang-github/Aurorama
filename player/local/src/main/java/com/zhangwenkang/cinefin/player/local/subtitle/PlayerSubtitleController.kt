@@ -309,6 +309,12 @@ class PlayerSubtitleController(
         publish()
     }
 
+    /** 用户手动把一条 mpv 源选为主字幕：像 Exo 一样记住主语言，供下一集自动选轨。 */
+    fun rememberPrimaryLanguage(index: Int) {
+        val source = sources.firstOrNull { it.index == index && !it.isGraphic } ?: return
+        rememberLanguage(appPreferences.preferredSubtitleLanguages, source, isSecondary = false)
+    }
+
     /**
      * 主字幕要占用当前次字幕轨时，清掉次路但不写手动记忆 / 不标记用户关闭。
      *
@@ -555,12 +561,13 @@ class PlayerSubtitleController(
         isSecondary: Boolean,
     ) {
         if (!appPreferences.getValue(appPreferences.rememberTrackSelection)) return
-        val tag = source.language.takeIf { it.isNotBlank() } ?: return
-        val default = if (isSecondary) emptyList() else LanguageMatcher.DEFAULT_SUBTITLE_PRIORITY
-        val current = LanguageMatcher.parsePriority(appPreferences.getValue(preference), default)
-        val base = LanguageMatcher.baseOf(tag)
-        val updated = listOf(tag) + current.filterNot { LanguageMatcher.baseOf(it) == base }
-        appPreferences.setValue(preference, LanguageMatcher.priorityToString(updated))
+        val updated =
+            PlayerSubtitleSelection.promotedLanguagePriority(
+                current = appPreferences.getValue(preference),
+                language = source.language,
+                isSecondary = isSecondary,
+            ) ?: return
+        appPreferences.setValue(preference, updated)
     }
 
     /** 下载 + 解析（cue 列表 + ASS 原文）；命中缓存直接回调，返回 null 表示没有异步任务 */

@@ -212,32 +212,98 @@ class PlayerSubtitleSelectionTest {
     }
 
     @Test
-    fun `mpv 原生 sid 按同序号标题语言映射到源，且能反查`() {
+    fun `mpv 映射先标题语言、再唯一标题语言，最后同序号兜底`() {
         val sources = summerGhostSources()
-        val sameIndex = MpvSubtitleTrackRef(id = 4, label = "任意", language = "jpn")
-        val byTitle = MpvSubtitleTrackRef(id = 90, label = "繁日雙語", language = "jpn")
+        val exact =
+            MpvSubtitleTrackRef(
+                id = 90,
+                label = "繁日雙語",
+                language = sources[2].language,
+                codec = "ass",
+            )
+        val byTitle = MpvSubtitleTrackRef(id = 91, label = "简日双语", language = "jpn", codec = "ass")
         val byLanguage =
-            MpvSubtitleTrackRef(id = 91, label = null, language = sources.first().language)
+            MpvSubtitleTrackRef(
+                id = 92,
+                label = null,
+                language = sources[0].language,
+                codec = "ass",
+            )
+        val bySameIndex =
+            MpvSubtitleTrackRef(id = 4, label = "无匹配", language = "eng", codec = "ass")
 
-        assertEquals(4, MpvSubtitleTrackMapping.sourceIndexForTrack(sameIndex, sources))
-        assertEquals(5, MpvSubtitleTrackMapping.sourceIndexForTrack(byTitle, sources))
+        assertEquals(5, MpvSubtitleTrackMapping.sourceIndexForTrack(exact, sources))
+        assertEquals(4, MpvSubtitleTrackMapping.sourceIndexForTrack(byTitle, sources))
         assertEquals(3, MpvSubtitleTrackMapping.sourceIndexForTrack(byLanguage, sources))
+        assertEquals(4, MpvSubtitleTrackMapping.sourceIndexForTrack(bySameIndex, sources))
         assertEquals(
             90,
-            MpvSubtitleTrackMapping.trackForSource(
-                    5,
-                    listOf(byTitle, byLanguage),
-                    sources,
-                )
-                ?.id,
+            MpvSubtitleTrackMapping.trackForSource(5, listOf(exact, byTitle), sources)?.id,
         )
-        assertNull(
-            MpvSubtitleTrackMapping.trackForSource(
-                99,
-                listOf(byTitle, byLanguage),
-                sources,
+        assertNull(MpvSubtitleTrackMapping.trackForSource(99, listOf(exact, byTitle), sources))
+    }
+
+    @Test
+    fun `mpv sid 与源序号碰撞时优先按标题语言区分`() {
+        val sources =
+            listOf(
+                source(index = 3, title = "English", language = "en").copy(codec = "subrip"),
+                source(index = 4, title = "简体中文", language = "zh-Hans").copy(codec = "ass"),
             )
-        )
+        val track =
+            MpvSubtitleTrackRef(
+                id = 3,
+                label = "简体中文",
+                language = "zh-Hans",
+                codec = "ass",
+            )
+
+        // 旧实现会先命中 index=3 的英文源；新实现必须命中标题 / 语言对应的 4。
+        assertEquals(4, MpvSubtitleTrackMapping.sourceIndexForTrack(track, sources))
+    }
+
+    @Test
+    fun `mpv 标题重复且语言不再唯一时返回歧义`() {
+        val sources =
+            listOf(
+                source(index = 1, title = "Commentary", language = "en").copy(codec = "ass"),
+                source(index = 2, title = "Commentary", language = "fr").copy(codec = "ass"),
+            )
+        val track =
+            MpvSubtitleTrackRef(
+                id = 2,
+                label = "Commentary",
+                language = "de",
+                codec = "ass",
+            )
+
+        assertNull(MpvSubtitleTrackMapping.sourceIndexForTrack(track, sources))
+        assertNull(MpvSubtitleTrackMapping.trackForSource(1, listOf(track), sources))
+    }
+
+    @Test
+    fun `mpv 图形轨不会映射到同序号的文本源`() {
+        val sources =
+            listOf(
+                source(index = 5, title = "中文文本", language = "zho").copy(codec = "ass"),
+                PlayerSubtitleSource(
+                        index = 9,
+                        title = "中文图形",
+                        language = "zho",
+                        uri = "https://server/Subtitles/9/Stream.sup",
+                        codec = "pgs",
+                        isGraphic = true,
+                    )
+                    .copy(),
+            )
+        val graphicTrack =
+            MpvSubtitleTrackRef(id = 5, label = "中文图形", language = "zho", codec = "pgs")
+        val unknownGraphic =
+            MpvSubtitleTrackRef(id = 5, label = "无匹配", language = "und", codec = "pgs")
+
+        assertEquals(9, MpvSubtitleTrackMapping.sourceIndexForTrack(graphicTrack, sources))
+        assertNull(MpvSubtitleTrackMapping.sourceIndexForTrack(unknownGraphic, sources))
+        assertNull(MpvSubtitleTrackMapping.secondarySourceIndexForTrack(graphicTrack, sources))
     }
 
     @Test
@@ -245,8 +311,18 @@ class PlayerSubtitleSelectionTest {
         val sources = summerGhostSources()
         val tracks =
             listOf(
-                MpvSubtitleTrackRef(id = 3, label = "日本語", language = "jpn"),
-                MpvSubtitleTrackRef(id = 4, label = "简日双语", language = "zho"),
+                MpvSubtitleTrackRef(
+                    id = 3,
+                    label = "日本語",
+                    language = sources[0].language,
+                    codec = "ass",
+                ),
+                MpvSubtitleTrackRef(
+                    id = 4,
+                    label = "简日双语",
+                    language = sources[1].language,
+                    codec = "ass",
+                ),
             )
         val primarySource = MpvSubtitleTrackMapping.sourceIndexForTrack(tracks[0], sources)
         val secondarySource = MpvSubtitleTrackMapping.sourceIndexForTrack(tracks[1], sources)
@@ -259,6 +335,83 @@ class PlayerSubtitleSelectionTest {
                 primarySource!!,
                 tracks.drop(1),
                 sources,
+            )
+        )
+    }
+
+    @Test
+    fun `多条 mpv 轨映射到同一源时反查返回歧义`() {
+        val sources = summerGhostSources()
+        val duplicateA =
+            MpvSubtitleTrackRef(
+                id = 10,
+                label = "简日双语",
+                language = sources[1].language,
+                codec = "ass",
+            )
+        val duplicateB =
+            MpvSubtitleTrackRef(
+                id = 11,
+                label = "简日双语",
+                language = sources[1].language,
+                codec = "ass",
+            )
+
+        assertNull(
+            MpvSubtitleTrackMapping.trackForSource(4, listOf(duplicateA, duplicateB), sources)
+        )
+    }
+
+    @Test
+    fun `mpv 纯源文本列表只补未映射的文本轨`() {
+        val sources =
+            listOf(
+                source(index = 1, title = "源 ASS", language = "zh-Hans").copy(codec = "ass"),
+                PlayerSubtitleSource(
+                        index = 2,
+                        title = "PGS",
+                        language = "zh-Hans",
+                        uri = "https://server/Subtitles/2/Stream.sup",
+                        codec = "pgs",
+                        isGraphic = true,
+                    )
+                    .copy(),
+                source(index = 3, title = "未注入 SRT", language = "en").copy(codec = "subrip"),
+            )
+        val tracks =
+            listOf(
+                MpvSubtitleTrackRef(
+                    id = 11,
+                    label = "源 ASS",
+                    language = "zh-Hans",
+                    codec = "ass",
+                ),
+                MpvSubtitleTrackRef(id = 12, label = "PGS", language = "zh-Hans", codec = "pgs"),
+            )
+
+        assertEquals(
+            listOf(3),
+            MpvSubtitleTrackMapping.unmappedTextSources(tracks, sources).map { it.index },
+        )
+    }
+
+    @Test
+    fun `手动主字幕语言会提到优先级最前且去重`() {
+        val updated =
+            PlayerSubtitleSelection.promotedLanguagePriority(
+                current = "en,zh-Hans",
+                language = "zh-Hans",
+                isSecondary = false,
+            )
+        val parsed = LanguageMatcher.parsePriority(updated!!, emptyList())
+
+        assertEquals("zh-Hans", parsed.first())
+        assertEquals(1, parsed.count { LanguageMatcher.baseOf(it) == "zh" })
+        assertNull(
+            PlayerSubtitleSelection.promotedLanguagePriority(
+                current = "en",
+                language = "",
+                isSecondary = false,
             )
         )
     }
@@ -278,7 +431,7 @@ class PlayerSubtitleSelectionTest {
         assertFalse(graphic.isTextBased)
         assertNull(
             MpvSubtitleTrackMapping.secondarySourceIndexForTrack(
-                MpvSubtitleTrackRef(9),
+                MpvSubtitleTrackRef(id = 9, codec = "pgs"),
                 listOf(graphic),
             )
         )

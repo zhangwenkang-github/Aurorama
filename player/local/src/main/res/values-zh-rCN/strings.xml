@@ -181,6 +181,8 @@
     <string name="player_subtitle_close">关闭</string>
     <string name="player_subtitle_native">原生</string>
     <string name="player_subtitle_native_only">仅原生</string>
+    <string name="player_subtitle_secondary_only">仅次字幕</string>
+    <string name="player_subtitle_primary_not_injected">主字幕未注入或无法唯一映射，仅可分配为次字幕</string>
     <string name="player_subtitle_graphic_no_secondary">图形字幕不支持次字幕</string>
     <string name="player_subtitle_ass_primary_only">ASS 特效仅主字幕保留</string>
     <string name="player_subtitle_options">字幕选项</string>

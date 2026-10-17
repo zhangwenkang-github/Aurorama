@@ -3650,11 +3650,16 @@ private fun SubtitleTrackRow(
             modifier = Modifier.fillMaxWidth().padding(top = CinefinSpacing.Space1),
         ) {
             if (option.textAssignable) {
-                PanelChip(
-                    label = stringResource(PlayerR.string.player_subtitle_assignment_primary),
-                    selected = option.assignment == PlayerViewModel.SubtitleAssignment.Primary,
-                    onClick = { onAssignPrimary(option.primaryActionId) },
-                )
+                option.primaryActionId?.let { primaryActionId ->
+                    PanelChip(
+                        label = stringResource(PlayerR.string.player_subtitle_assignment_primary),
+                        selected = option.assignment == PlayerViewModel.SubtitleAssignment.Primary,
+                        onClick = { onAssignPrimary(primaryActionId) },
+                    )
+                }
+                    ?: SubtitleTextBadge(
+                        stringResource(PlayerR.string.player_subtitle_secondary_only)
+                    )
                 option.secondaryActionId?.let { secondaryActionId ->
                     PanelChip(
                         label = stringResource(PlayerR.string.player_subtitle_assignment_secondary),
@@ -3664,12 +3669,21 @@ private fun SubtitleTrackRow(
                     )
                 }
             } else {
-                PanelChip(
-                    label = stringResource(PlayerR.string.player_subtitle_native),
-                    selected = option.assignment == PlayerViewModel.SubtitleAssignment.Native,
-                    onClick = { onAssignPrimary(option.primaryActionId) },
-                )
+                option.primaryActionId?.let { primaryActionId ->
+                    PanelChip(
+                        label = stringResource(PlayerR.string.player_subtitle_native),
+                        selected = option.assignment == PlayerViewModel.SubtitleAssignment.Native,
+                        onClick = { onAssignPrimary(primaryActionId) },
+                    )
+                }
             }
+        }
+        if (option.textAssignable && option.primaryActionId == null) {
+            Text(
+                text = stringResource(PlayerR.string.player_subtitle_primary_not_injected),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
         }
         if (option.graphic) {
             Text(

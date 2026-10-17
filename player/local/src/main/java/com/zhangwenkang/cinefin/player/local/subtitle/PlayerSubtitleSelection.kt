@@ -87,31 +87,50 @@ data class MpvSubtitleTrackRef(
     val id: Int,
     val label: String? = null,
     val language: String? = null,
+    /** mpv `Format.codecs` / `sampleMimeType`；用于图形 / 文本类型一致性校验。 */
+    val codec: String? = null,
 )
 
 /**
  * mpv 原生 sid 与 Jellyfin 字幕源序号的双向映射。
  *
- * 主字幕由 mpv `sid` 选择，次字幕由 Compose 按源文件加载；两者绝不能共用一个整数域。 映射优先同序号，其次标题，最后语言；只把可解析文本源当作次字幕候选。
+ * 主字幕由 mpv `sid` 选择，次字幕由 Compose 按源文件加载；两者绝不能共用一个整数域。 数值同序号只在最后兜底：mpv track id 与 Jellyfin
+ * 流序号本来就是两套编号，先比标题 / 语言并校验类型。 任何一级出现多个候选都视为歧义并返回 null，让面板保留原生选择而不是猜。
  */
 object MpvSubtitleTrackMapping {
+    private enum class TrackType {
+        Text,
+        Graphic,
+    }
+
     fun sourceIndexForTrack(
         track: MpvSubtitleTrackRef,
         sources: List<PlayerSubtitleSource>,
-    ): Int? =
-        sources.firstOrNull { it.index == track.id }?.index
-            ?: sources
-                .firstOrNull {
-                    it.isTextBased && !track.label.isNullOrBlank() && it.title == track.label
-                }
-                ?.index
-            ?: sources
-                .firstOrNull {
-                    it.isTextBased &&
-                        !track.language.isNullOrBlank() &&
-                        it.language.equals(track.language, ignoreCase = true)
-                }
-                ?.index
+    ): Int? {
+        val trackType = trackType(track) ?: return null
+        val typed = sources.filter { sourceType(it) == trackType }
+        if (typed.isEmpty()) return null
+
+        val label = track.label?.takeIf { it.isNotBlank() }
+        val language = track.language?.takeIf { it.isNotBlank() }
+        if (label != null && language != null) {
+            val exact = typed.filter { it.title == label && it.language.equals(language, true) }
+            if (exact.isNotEmpty()) return exact.singleOrNull()?.index
+        }
+
+        if (label != null) {
+            val titled = typed.filter { it.title == label }
+            if (titled.isNotEmpty()) return titled.singleOrNull()?.index
+        }
+
+        if (language != null) {
+            val languageMatched = typed.filter { it.language.equals(language, true) }
+            if (languageMatched.isNotEmpty()) return languageMatched.singleOrNull()?.index
+        }
+
+        // 最后才允许数值同序号；走到这里仍要求 codec 已知且类型一致（上面已过滤 typed）。
+        return typed.filter { it.index == track.id }.singleOrNull()?.index
+    }
 
     /** 次字幕只接受可解析文本源；图形轨即使能按序号映射，也不能进 Compose 双语层。 */
     fun secondarySourceIndexForTrack(
@@ -127,7 +146,38 @@ object MpvSubtitleTrackMapping {
         sourceIndex: Int,
         tracks: List<MpvSubtitleTrackRef>,
         sources: List<PlayerSubtitleSource>,
-    ): MpvSubtitleTrackRef? = tracks.firstOrNull { sourceIndexForTrack(it, sources) == sourceIndex }
+    ): MpvSubtitleTrackRef? =
+        tracks.filter { sourceIndexForTrack(it, sources) == sourceIndex }.singleOrNull()
+
+    /** mpv 单列表里需要补成“仅次字幕可用”的纯源文本轨：没有任何 native 轨映射到它。 */
+    fun unmappedTextSources(
+        tracks: List<MpvSubtitleTrackRef>,
+        sources: List<PlayerSubtitleSource>,
+    ): List<PlayerSubtitleSource> {
+        val mapped = tracks.mapNotNull { sourceIndexForTrack(it, sources) }.toSet()
+        return sources.filter { it.isTextBased && it.index !in mapped }
+    }
+
+    private fun trackType(track: MpvSubtitleTrackRef): TrackType? {
+        val codec = track.codec?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: return null
+        val normalized = codec.substringAfterLast('/')
+        return if (
+            PlayerSubtitleSource.isGraphicCodec(codec) ||
+                PlayerSubtitleSource.isGraphicCodec(normalized)
+        ) {
+            TrackType.Graphic
+        } else {
+            TrackType.Text
+        }
+    }
+
+    private fun sourceType(source: PlayerSubtitleSource): TrackType =
+        when {
+            source.isGraphic -> TrackType.Graphic
+            PlayerSubtitleSource.isGraphicCodec(source.codec) -> TrackType.Graphic
+            source.isTextBased -> TrackType.Text
+            else -> TrackType.Text
+        }
 }
 
 /**
@@ -137,6 +187,20 @@ object MpvSubtitleTrackMapping {
  * [SubtitleManualSelection]（同一媒体重启后恢复）与语言偏好（跨视频继承）。
  */
 object PlayerSubtitleSelection {
+
+    /** 手动选轨时把该语言提到优先级最前；纯函数供 controller 复用并单测。 */
+    fun promotedLanguagePriority(
+        current: String,
+        language: String,
+        isSecondary: Boolean,
+    ): String? {
+        val tag = language.takeIf { it.isNotBlank() } ?: return null
+        val default = if (isSecondary) emptyList() else LanguageMatcher.DEFAULT_SUBTITLE_PRIORITY
+        val priority = LanguageMatcher.parsePriority(current, default)
+        val base = LanguageMatcher.baseOf(tag)
+        val updated = listOf(tag) + priority.filterNot { LanguageMatcher.baseOf(it) == base }
+        return LanguageMatcher.priorityToString(updated)
+    }
 
     /**
      * 主字幕：沿用语言优先级；优先级都没命中时按「默认轨兜底」。

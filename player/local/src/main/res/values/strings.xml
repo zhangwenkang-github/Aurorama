@@ -180,6 +180,8 @@
     <string name="player_subtitle_close">Off</string>
     <string name="player_subtitle_native">Native</string>
     <string name="player_subtitle_native_only">Native only</string>
+    <string name="player_subtitle_secondary_only">Secondary only</string>
+    <string name="player_subtitle_primary_not_injected">Primary track is unavailable or ambiguous; secondary only</string>
     <string name="player_subtitle_graphic_no_secondary">Graphic subtitles cannot be assigned as secondary</string>
     <string name="player_subtitle_ass_primary_only">ASS effects are kept for the primary subtitle only</string>
     <string name="player_subtitle_options">Subtitle options</string>

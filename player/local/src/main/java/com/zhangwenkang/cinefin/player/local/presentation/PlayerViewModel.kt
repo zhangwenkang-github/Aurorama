@@ -276,8 +276,8 @@ constructor(
         val graphic: Boolean,
         /** W27：本机导入的侧载字幕（面板行尾给「移除」入口）。 */
         val sideloaded: Boolean = false,
-        /** 主路动作 id：Exo = 源序号；mpv = 原生 sid。 */
-        val primaryActionId: Int,
+        /** 主路动作 id：Exo = 源序号；mpv = 原生 sid；null = 该纯源轨尚未注入 mpv。 */
+        val primaryActionId: Int? = null,
         /** 次路动作 id：Exo = 源序号；mpv = 可解析源序号；null = 不可分配。 */
         val secondaryActionId: Int? = null,
         val assignment: SubtitleAssignment? = null,
@@ -1727,6 +1727,7 @@ constructor(
             }
             mpv.selectSubtitleTrack(id)
             subtitleController.syncPrimaryIndex(primarySourceIndex, rememberManual = true)
+            primarySourceIndex?.let(subtitleController::rememberPrimaryLanguage)
             // 以用户意图先行更新「有原生主字幕」：旧 currentTracks 快照不能把它盖回 false。
             subtitleController.setNativePrimaryActive(id != null)
             if (
@@ -1836,6 +1837,7 @@ constructor(
         mpv.setSecondarySubtitle(null)
         mpv.selectSubtitleTrack(secondaryTrackId)
         subtitleController.syncPrimaryIndex(secondarySourceIndex)
+        subtitleController.rememberPrimaryLanguage(secondarySourceIndex)
         subtitleController.setNativePrimaryActive(true)
         subtitleController.assignSecondary(primarySourceIndex)
         publishSubtitlePanelState()
@@ -1933,6 +1935,9 @@ constructor(
         if (playerBackend == PLAYER_BACKEND_MPV) {
             val mpv = player as? MPVPlayer
             sideloads.firstOrNull { record -> mpv?.subtitleTrackIdForPath(record.path) == optionId }
+                ?: sideloads.getOrNull(optionId - SideloadedSubtitleStore.INDEX_BASE)?.takeIf {
+                    optionId >= SideloadedSubtitleStore.INDEX_BASE
+                }
         } else {
             if (optionId < SideloadedSubtitleStore.INDEX_BASE) {
                 null
@@ -2262,9 +2267,18 @@ constructor(
         val id: Int,
         val label: String,
         val language: String,
+        val codec: String,
         val selected: Boolean,
         val sideloaded: Boolean,
     )
+
+    private fun MpvNativeSubtitleTrack.toRef(): MpvSubtitleTrackRef =
+        MpvSubtitleTrackRef(
+            id = id,
+            label = label,
+            language = language.takeIf { it.isNotBlank() },
+            codec = codec,
+        )
 
     /** 刷新字幕面板状态：两个内核在这里汇总成同一份 UI 数据 */
     private fun publishSubtitlePanelState(
@@ -2279,20 +2293,22 @@ constructor(
             val primarySourceIndex = currentSid?.let(::sourceIndexForMpvSubtitleId)
             // 映射不到主字幕源时无法排除同源：只要原生主字幕仍选中，就整体禁用次字幕候选。
             val secondarySelectable = primarySourceIndex != null || currentSid == null
+            val nativeTracks = nativeSubtitleTracks()
             val tracks =
-                nativeSubtitleTracks().map { track ->
+                nativeTracks.map { track ->
                     val mappedSourceIndex = sourceIndexForMpvSubtitleId(track.id)
-                    val secondarySourceIndex =
-                        MpvSubtitleTrackMapping.secondarySourceIndexForTrack(
-                            MpvSubtitleTrackRef(
-                                id = track.id,
-                                label = track.label,
-                                language = track.language.takeIf { it.isNotBlank() },
-                            ),
-                            state.sources,
-                        )
                     val source = subtitleSource(mappedSourceIndex, state.sources)
                     val textAssignable = source?.isTextBased == true
+                    val secondarySourceIndex =
+                        if (track.sideloaded) {
+                            // 侧载已由文件路径精确映射；通用标题 / 语言映射不参与。
+                            mappedSourceIndex.takeIf { textAssignable }
+                        } else {
+                            MpvSubtitleTrackMapping.secondarySourceIndexForTrack(
+                                track.toRef(),
+                                state.sources,
+                            )
+                        }
                     val isPrimary = currentSid != null && track.id == currentSid
                     val isSecondary =
                         !isPrimary &&
@@ -2322,7 +2338,30 @@ constructor(
                                 else -> null
                             },
                     )
-                }
+                } +
+                    MpvSubtitleTrackMapping.unmappedTextSources(
+                            nativeTracks.map { it.toRef() },
+                            state.sources,
+                        )
+                        .map { source ->
+                            SubtitleOption(
+                                id = source.index,
+                                label = source.title,
+                                language = source.language,
+                                format = source.formatLabel,
+                                origin = subtitleOriginOf(source),
+                                textAssignable = true,
+                                graphic = false,
+                                sideloaded = source.index >= SideloadedSubtitleStore.INDEX_BASE,
+                                // 未注入 mpv 的纯源没有可写的 sid：只允许放次路。
+                                primaryActionId = null,
+                                secondaryActionId = source.index.takeIf { secondarySelectable },
+                                assignment =
+                                    SubtitleAssignment.Secondary.takeIf {
+                                        source.index == state.secondaryIndex
+                                    },
+                            )
+                        }
             val primarySource = subtitleSource(primarySourceIndex, state.sources)
             val secondarySource = subtitleSource(state.secondaryIndex, state.sources)
             val swapBlockedReason =
@@ -2431,6 +2470,12 @@ constructor(
                             ?: format.language?.takeIf { it.isNotBlank() }
                             ?: application.getString(R.string.player_subtitle_track_fallback, id),
                     language = format.language.orEmpty(),
+                    codec =
+                        format.codecs?.takeIf { it.isNotBlank() }
+                            ?: format.sampleMimeType?.takeIf {
+                                it.isNotBlank() && !it.endsWith("/null")
+                            }
+                            ?: "",
                     selected = group.isSelected,
                     sideloaded = id in sideloadTrackIds,
                 )
@@ -2456,11 +2501,7 @@ constructor(
         }
         val sources = subtitleController.overlayState.value.sources
         return MpvSubtitleTrackMapping.sourceIndexForTrack(
-            MpvSubtitleTrackRef(
-                id = track.id,
-                label = track.label,
-                language = track.language.takeIf { it.isNotBlank() },
-            ),
+            track.toRef(),
             sources,
         )
     }
@@ -2474,14 +2515,7 @@ constructor(
         }
         return MpvSubtitleTrackMapping.trackForSource(
                 sourceIndex = sourceIndex,
-                tracks =
-                    nativeSubtitleTracks().map { track ->
-                        MpvSubtitleTrackRef(
-                            id = track.id,
-                            label = track.label,
-                            language = track.language.takeIf { it.isNotBlank() },
-                        )
-                    },
+                tracks = nativeSubtitleTracks().map { it.toRef() },
                 sources = subtitleController.overlayState.value.sources,
             )
             ?.id
