@@ -1043,7 +1043,7 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   首尾 3 行受滚动边界钳制（P3：完整可见、不强制居中，不加半屏空白）；③合并态门禁 **1034 / 0 / 0**（music 165），
   已合并 master `5f0795e`；报告 `w79-reports/W79b.md` / `W79-QA-B.md`，证据 `w79-evidence/w79b/` / `w79b-fix/` / `qa-w79b/` / `qa-w79b-r/`。
 
-## 8. 2026-10-18 歌词页与歌曲栏体验整改（待实现）
+## 8. 2026-10-18 歌词页与歌曲栏体验整改（已实现，EXP20 复审修复后待复验）
 
 > 用户 2026-10-18 反馈：歌词页顶栏控件杂乱、歌词垂直占比不足、当前行跟随不顺滑；歌曲栏切歌有延迟，列表会先上滑再下滑。真机测试全部由用户执行。
 
@@ -1082,3 +1082,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 不改队列补齐顺序、随机 / 循环语义、跨淡入淡出与音频内核。
 - 不改歌词面板 / 桌面悬浮窗的既有布局与字号同步口径。
 - 不把歌曲列表改成每次切歌强制居中。
+
+### 8.6 EXP20 复审定点修复（2026-10-18）
+
+- 复审对象：`7a6447f`；修复提交：`78b995e fix(music): preserve song reveal after manual scroll`（父 `7a6447f`，未 amend）。
+- **P1-A 上方不可见目标**：`songListRevealScrollOffset()` 的上方分支由 `+itemHeight` 改为 `0`，目标顶边贴住视口顶部；同步把单测从“目标底边贴顶部”改为断言 `targetTop == 0` 且目标完整可见。
+- **P1-B 手动滚动后补位失效**：`manualScrolled` 移出 `LaunchedEffect` key，只用于放弃进入歌曲 Tab 的一次性居中；后续点击被裁切行仍做最小补位，外部切到完全不可见曲目仍一次平滑贴最近边缘。§8.2 口径不变。
+- **P2 无当前曲的首次点击跳动**：进入歌曲 Tab 时若 `targetIndex < 0`，直接消费一次性定位（`hasLocatedOnce = true`），首次点击完整可见行不再误走居中分支。
+- **P3 未布局歌词行测量**：非高亮行沿用 `TitleSmall` 的实际 `fontWeight` 测量，不再因 `copy(fontWeight = null)` 被降为 Regular；`LyricsCenterScrollTest` 改为按真实行高独立计算目标坐标与期望 `delta`，并验证滚动后目标中心落回视口中心。
+- 定向单测 `SongListSupportTest` 15 + `LyricsCenterScrollTest` 6 + `LyricsPresenterTest` 15 = **36 / 0 / 0 / 0**；主代码与测试源码编译、三项 ktfmt、`assembleDebug`、`apksigner` v2 均通过。
+- arm64 debug APK：`150,536,669 B`，SHA-256 `435E42C4B7CD4DE8ED5107BB06E52358F03DDC1615CA7DA50BEDD759DF63AE2F`。
+- 未跑 adb / 真机 / App / 截图 / 完整测试套件；旧 P3-1（解析窗口内底栏新曲与动作指向旧队列）不在本轮范围。
