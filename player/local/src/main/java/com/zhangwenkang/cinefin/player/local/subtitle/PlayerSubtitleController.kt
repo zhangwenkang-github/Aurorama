@@ -47,6 +47,14 @@ data class SubtitleOverlayState(
     val style: SubtitleStyle = SubtitleStyle(),
     /** 主字幕是否由自研渲染接管；false = 交给播放内核原生渲染（或没有字幕） */
     val primaryManaged: Boolean = false,
+    /**
+     * 主字幕源是否有可交给 App 侧 libass 的文本内容。
+     *
+     * mpv 双字幕据此决定「接管主字幕」还是「保留原生 + 百分比兜底」：图形字幕没有文本，不能隐藏原生轨。
+     */
+    val primaryTextRenderable: Boolean = false,
+    /** 文本主字幕已尝试加载但拿不到可用内容：mpv 双字幕不能再隐藏原生轨，否则会整条字幕消失。 */
+    val primaryRenderFailed: Boolean = false,
     /** 次字幕是否存在（次字幕只走自研渲染） */
     val secondaryManaged: Boolean = false,
     /** 正在下载 / 解析字幕 */
@@ -88,6 +96,7 @@ class PlayerSubtitleController(
     private var primaryAssScript: String? = null
     private var secondaryCues: List<SubtitleCue> = emptyList()
     private var primaryManaged = false
+    private var primaryRenderFailed = false
     private var secondaryManaged = false
     private var primaryLoading = false
     private var secondaryLoading = false
@@ -139,6 +148,7 @@ class PlayerSubtitleController(
         primaryAssScript = null
         secondaryCues = emptyList()
         primaryManaged = false
+        primaryRenderFailed = false
         secondaryManaged = false
         primaryLoading = false
         secondaryLoading = false
@@ -180,9 +190,50 @@ class PlayerSubtitleController(
         publish()
     }
 
-    /** mpv 主字幕仍由原生 `sid` 选择；把对应源序号同步进来，只用于次字幕同源排除与手动选择记忆，不触发主字幕加载。 */
+    /**
+     * mpv 主字幕仍由原生 `sid` 选择；把对应源序号同步进来。
+     *
+     * 序号变化时丢掉上一条主字幕的内容：渲染层可能在双字幕期间用这份内容接管主字幕，留着旧源会画出与 `sid` 不一致的另一句。真正需要内容时由
+     * [ensurePrimaryContentAvailable] 按需加载，单字幕原生路径不额外下载。
+     */
     fun syncPrimaryIndex(index: Int?) {
+        if (primaryIndex == index) return
         primaryIndex = index
+        primaryLoadJob?.cancel()
+        primaryLoadJob = null
+        primaryCues = emptyList()
+        primaryAssScript = null
+        primaryManaged = false
+        primaryRenderFailed = false
+        primaryLoading = false
+        // 立刻让覆盖层丢掉上一条主字幕：切轨期间宁可短暂空一帧，也不能继续画旧轨的内容。
+        publish()
+    }
+
+    /**
+     * mpv 双字幕：主字幕改由 App 侧 libass 渲染时，按当前主字幕序号补加载文本内容。
+     *
+     * 只写渲染状态（cue / ASS / [SubtitleOverlayState.primaryManaged]），不改变选择、不写语言记忆、不触发自动选择；
+     * 单字幕仍由内核原生渲染时不会走到这里。图形字幕没有可交给 libass 的文本，保持原生兜底。
+     */
+    fun ensurePrimaryContentAvailable() {
+        if (primaryManaged || primaryLoadJob?.isActive == true) return
+        val source = sources.firstOrNull { it.index == primaryIndex } ?: return
+        if (!source.isTextBased) return
+        // 先发布加载态：面板与路由需要知道主字幕仍在准备；接管与否由 primaryTextRenderable 决定，不依赖加载时机。
+        primaryLoading = true
+        publish()
+        primaryLoadJob =
+            loadSubtitle(source, isPrimary = true) { loaded ->
+                primaryLoading = false
+                if (primaryIndex == source.index) {
+                    primaryCues = loaded.cues
+                    primaryAssScript = loaded.assScript
+                    primaryManaged = loaded.assScript != null || loaded.cues.isNotEmpty()
+                    primaryRenderFailed = !primaryManaged
+                }
+                publish()
+            }
     }
 
     /** 从偏好重新读延迟 / 外观（设置页改动后调用） */
@@ -277,6 +328,7 @@ class PlayerSubtitleController(
             primaryCues = emptyList()
             primaryAssScript = null
             primaryManaged = false
+            primaryRenderFailed = false
             primaryLoading = false
             return
         }
@@ -287,6 +339,7 @@ class PlayerSubtitleController(
         primaryCues = emptyList()
         primaryAssScript = null
         primaryManaged = false
+        primaryRenderFailed = false
         primaryLoadJob =
             loadSubtitle(source, isPrimary = true) { loaded ->
                 if (primaryIndex == source.index) {
@@ -294,6 +347,7 @@ class PlayerSubtitleController(
                     // ASS/SSA 原文直接给 libass；SRT 等由渲染层现场生成 ASS（同样走 libass）
                     primaryAssScript = loaded.assScript
                     primaryManaged = loaded.assScript != null || loaded.cues.isNotEmpty()
+                    primaryRenderFailed = !primaryManaged
                     publish()
                 }
             }
@@ -417,6 +471,9 @@ class PlayerSubtitleController(
                 delayMs = delayMs,
                 style = style,
                 primaryManaged = primaryManaged,
+                primaryTextRenderable =
+                    sources.firstOrNull { it.index == primaryIndex }?.isTextBased == true,
+                primaryRenderFailed = primaryRenderFailed,
                 secondaryManaged = secondaryManaged,
                 loading = loading,
                 primaryLoading = primaryLoading,

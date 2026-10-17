@@ -85,7 +85,18 @@ fun PlayerSubtitleOverlay(
     val textMeasurer = rememberTextMeasurer()
     val paint = remember { Paint() }
     val isMpv = player is MPVPlayer
-    val renderPrimary = !isMpv
+    /*
+     * 双字幕期间的渲染路由：
+     * - Exo：主字幕始终走 App 侧 libass；
+     * - mpv：单字幕仍由内核原生渲染（行为不变）；进入双字幕且主字幕源是文本
+     *   （[SubtitleOverlayState.primaryTextRenderable]）后改由 App 侧 libass 接管，与 Exo 共用同一套可见边界几何，
+     *   同时临时隐藏原生字幕，避免同一句出现两份。图形字幕没有可交给 libass 的文本，继续走原生兜底。
+     */
+    val appPrimaryPlanned =
+        !isMpv ||
+            (state.secondaryManaged && state.primaryTextRenderable && !state.primaryRenderFailed)
+    val appPrimaryActive = !isMpv || (appPrimaryPlanned && state.primaryManaged)
+    val nativePrimaryHidden = isMpv && appPrimaryPlanned
 
     var primaryText by remember { mutableStateOf("") }
     var secondaryText by remember { mutableStateOf("") }
@@ -95,16 +106,25 @@ fun PlayerSubtitleOverlay(
     var appliedReservationKey by remember { mutableStateOf<String?>(null) }
 
     val libassEnabled =
-        renderPrimary &&
+        appPrimaryActive &&
             state.primaryManaged &&
             (state.primaryAssScript != null || state.primaryCues.isNotEmpty())
 
     DisposableEffect(renderer) { onDispose { renderer.release() } }
 
+    /*
+     * mpv 双字幕由 App 侧接管主字幕时，原生字幕必须整体停用；退出双字幕 / 离开播放页时恢复进入前的可见性。
+     * 接管意图由「双字幕 + 文本主字幕源」决定，不等 libass 首帧：宁可短暂空一帧，也不允许原生与 App 两份同屏。
+     */
+    LaunchedEffect(player, nativePrimaryHidden) {
+        (player as? MPVPlayer)?.applyNativePrimarySubtitleVisible(!nativePrimaryHidden)
+    }
+
     DisposableEffect(player) {
         onDispose {
             // 离开播放页 / 切换内核时清掉为次字幕预留的 mpv 原生字幕位置。
             (player as? MPVPlayer)?.applySecondarySubtitleReservation(null)
+            (player as? MPVPlayer)?.applyNativePrimarySubtitleVisible(true)
         }
     }
 
@@ -140,7 +160,7 @@ fun PlayerSubtitleOverlay(
                     ""
                 }
             val nextPrimary =
-                if (renderPrimary && (!libassEnabled || libassFailed)) {
+                if (appPrimaryActive && (!libassEnabled || libassFailed)) {
                     visibleText(state.primaryCues, positionMs, state.delayMs)
                 } else {
                     ""
@@ -165,7 +185,8 @@ fun PlayerSubtitleOverlay(
             val textScale = state.style.textScale
             val key =
                 "$frameWidth x $frameHeight | $storageWidth x $storageHeight | $textScale | " +
-                    "${state.primaryAssScript?.length ?: -1}:${state.primaryCues.size}"
+                    "${state.primaryIndex}:${state.primaryAssScript?.length ?: -1}:" +
+                    "${state.primaryCues.size}"
             if (key != loadedKey) {
                 val script =
                     state.primaryAssScript
@@ -239,7 +260,15 @@ fun PlayerSubtitleOverlay(
     val secondaryBaseSize = primarySize * 0.9f
     val verticalPaddingPx = with(density) { SECONDARY_LINE_VERTICAL_PADDING_DP.dp.toPx() }
     val gapPx = with(density) { SUBTITLE_LINE_GAP_DP.dp.toPx() }
-    val strokePaddingPx = with(density) { style.edgeWidthDp.dp.toPx() * 2f }
+    val strokePx = with(density) { style.edgeWidthDp.dp.toPx() }
+    // 块顶 / 块底到可见内容边界的距离：外层透明留白 +（无背景时）内层留白 − 描边外扩。
+    val lineVisibleInsetPx =
+        subtitleVisibleTopInsetPx(
+            outerPaddingPx = with(density) { SECONDARY_LINE_OUTER_PADDING_DP.dp.toPx() },
+            innerPaddingPx = with(density) { SECONDARY_LINE_INNER_PADDING_DP.dp.toPx() },
+            strokePx = strokePx,
+            backgroundVisible = (style.backgroundColor ushr 24) != 0,
+        )
     // 68dp = 外层左右 24dp + 单行字幕内层左右 10dp；TextMeasurer 与 SubtitleLine 使用同一上限。
     val textMaxWidthPx =
         (videoWidthPx - with(density) { 68.dp.toPx() }).roundToInt().coerceAtLeast(1)
@@ -251,7 +280,6 @@ fun PlayerSubtitleOverlay(
                 text = secondaryText,
                 fontSize = secondaryBaseSize,
                 maxWidthPx = textMaxWidthPx,
-                strokePaddingPx = strokePaddingPx,
                 verticalPaddingPx = verticalPaddingPx,
             )
         } else {
@@ -264,31 +292,33 @@ fun PlayerSubtitleOverlay(
                 text = secondaryText,
                 fontSize = secondaryBaseSize * SECONDARY_MIN_SCALE,
                 maxWidthPx = textMaxWidthPx,
-                strokePaddingPx = strokePaddingPx,
                 verticalPaddingPx = verticalPaddingPx,
             )
         } else {
             0f
         }
     val primaryTextHeightPx =
-        if (rectUsable && renderPrimary && primaryText.isNotEmpty()) {
+        if (rectUsable && appPrimaryActive && primaryText.isNotEmpty()) {
             subtitleTextBlockHeightPx(
                 measurer = textMeasurer,
                 text = primaryText,
                 fontSize = primarySize,
                 maxWidthPx = textMaxWidthPx,
-                strokePaddingPx = strokePaddingPx,
                 verticalPaddingPx = verticalPaddingPx,
             )
         } else {
             0f
         }
+    val primaryVisibleHeightPx = subtitleVisibleHeightPx(primaryTextHeightPx, lineVisibleInsetPx)
     val primaryExtent =
         when {
             libassEnabled && !libassFailed -> assFrame?.subtitleExtent()
-            renderPrimary && primaryText.isNotEmpty() ->
-                PrimarySubtitleExtent.Composed(primaryTextHeightPx)
-            !renderPrimary && state.primaryManaged ->
+            appPrimaryActive && primaryText.isNotEmpty() ->
+                PrimarySubtitleExtent.Composed(
+                    heightPx = primaryVisibleHeightPx,
+                    visibleBottomInsetPx = lineVisibleInsetPx,
+                )
+            isMpv && state.secondaryManaged && state.primaryIndex != null ->
                 // mpv 原生主字幕无法逐帧拿到图元盒；按两行保守预留，避免大字号双行主字幕被顶部裁切。
                 PrimarySubtitleExtent.Native(
                     with(density) { (baseSize * style.textScale * 2f * 1.25f).toPx() }
@@ -304,27 +334,35 @@ fun PlayerSubtitleOverlay(
                 primary = primaryExtent,
                 secondaryFullHeightPx = secondaryFullHeightPx,
                 secondaryMinHeightPx = secondaryMinHeightPx,
+                secondaryVisibleTopInsetPx = lineVisibleInsetPx,
+                secondaryVisibleBottomInsetPx = lineVisibleInsetPx,
             )
         } else {
             DualSubtitleLayout.Hidden
         }
     val reservationKey =
-        if (!isMpv || !layout.showSecondary) {
+        if (!isMpv || appPrimaryPlanned || !layout.showSecondary) {
             "none"
         } else {
             "reserve:${layout.secondaryReservedFraction}"
         }
 
     LaunchedEffect(reservationKey, player) {
-        (player as? MPVPlayer)?.applySecondarySubtitleReservation(
-            if (layout.showSecondary) layout.secondaryReservedFraction else null
-        )
+        val reservation =
+            if (isMpv && !appPrimaryPlanned && layout.showSecondary) {
+                layout.secondaryReservedFraction
+            } else {
+                null
+            }
+        (player as? MPVPlayer)?.applySecondarySubtitleReservation(reservation)
         appliedReservationKey = reservationKey
     }
 
-    val showPrimaryText = renderPrimary && primaryText.isNotEmpty()
+    val showPrimaryText = appPrimaryActive && primaryText.isNotEmpty()
     val showSecondaryText =
-        layout.showSecondary && (!isMpv || appliedReservationKey == reservationKey)
+        layout.showSecondary &&
+            (!isMpv || appliedReservationKey == reservationKey) &&
+            (!appPrimaryPlanned || appPrimaryActive)
     val hasText = showPrimaryText || showSecondaryText
     val hasAss = libassEnabled && !libassFailed && assFrame != null
     if (!hasText && !hasAss) return
@@ -375,6 +413,11 @@ fun PlayerSubtitleOverlay(
                             text = primaryText,
                             style = style,
                             fontSize = primarySize,
+                            // 两条 Compose 行相邻时，块内透明留白已贡献一部分视觉间距，这里把差额压回透明区。
+                            modifier =
+                                Modifier.offset {
+                                    IntOffset(0, layout.primaryOffsetPx.roundToInt())
+                                },
                         )
                     }
                     if (showSecondaryText) {
@@ -413,7 +456,6 @@ private fun subtitleTextBlockHeightPx(
     text: String,
     fontSize: TextUnit,
     maxWidthPx: Int,
-    strokePaddingPx: Float,
     verticalPaddingPx: Float,
 ): Float {
     if (text.isEmpty()) return 0f
@@ -429,7 +471,7 @@ private fun subtitleTextBlockHeightPx(
             constraints = Constraints(maxWidth = maxWidthPx.coerceAtLeast(1)),
         )
     return secondaryBlockHeightPx(
-        textLayoutHeightPx = measured.size.height.toFloat() + strokePaddingPx,
+        textLayoutHeightPx = measured.size.height.toFloat(),
         verticalPaddingPx = verticalPaddingPx,
     )
 }
@@ -444,6 +486,7 @@ private fun SubtitleLine(
     text: String,
     style: SubtitleStyle,
     fontSize: androidx.compose.ui.unit.TextUnit,
+    modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
     val fillColor = Color(style.textColor)
@@ -458,7 +501,8 @@ private fun SubtitleLine(
 
     Box(
         modifier =
-            Modifier.padding(vertical = 3.dp)
+            modifier
+                .padding(vertical = 3.dp)
                 .clip(RoundedCornerShape(6.dp))
                 .background(backgroundColor)
                 .padding(horizontal = 10.dp, vertical = 4.dp)

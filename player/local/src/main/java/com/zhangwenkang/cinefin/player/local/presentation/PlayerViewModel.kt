@@ -444,6 +444,7 @@ constructor(
             subtitleController.overlayState.collect { state ->
                 publishSubtitlePanelState(state)
                 applySubtitleRoutingOnly()
+                ensureMpvPrimaryContent(state)
             }
         }
     }
@@ -1032,6 +1033,9 @@ constructor(
             ensureMpvSideloadsInjected(tracks)
             publishSubtitlePanelState()
             publishAudioPanelState()
+            // 双字幕期间主字幕改由 App 侧 libass 接管：轨道就绪后按实际 sid 补一次内容，
+            // 覆盖「次字幕先于轨道列表加载」的顺序。
+            ensureMpvPrimaryContent(subtitleController.overlayState.value)
             return
         }
         val mediaId = player.currentMediaItem?.mediaId ?: return
@@ -2240,6 +2244,25 @@ constructor(
 
     private fun currentMpvPrimarySourceIndex(): Int? =
         sourceIndexForMpvSubtitleId(nativeSubtitleOptions().firstOrNull { it.selected }?.id)
+
+    /**
+     * mpv 双字幕：主字幕改由 App 侧 libass 接管，需要与**当前 mpv `sid`** 对应的文本内容。
+     *
+     * 只在次字幕激活时按需加载；单字幕仍由内核原生渲染，不额外下载、不改变选择 / 语言记忆 / 延迟。
+     * 映射不到源（例如图形字幕）时清掉可能残留的文本内容，渲染层会退回原生兜底而不是画错一条字幕。
+     */
+    private fun ensureMpvPrimaryContent(state: SubtitleOverlayState) {
+        if (player !is MPVPlayer || !state.secondaryManaged) return
+        val primarySourceIndex = currentMpvPrimarySourceIndex()
+        if (primarySourceIndex == null) {
+            subtitleController.syncPrimaryIndex(null)
+            return
+        }
+        if (state.primaryIndex != primarySourceIndex) {
+            subtitleController.syncPrimaryIndex(primarySourceIndex)
+        }
+        subtitleController.ensurePrimaryContentAvailable()
+    }
 
     // ---------- 音轨面板：延迟 + 轨道描述（§1.2） ----------
 

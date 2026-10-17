@@ -405,6 +405,9 @@ class MPVPlayer(
     /** 进入双字幕前 mpv 的 `sub-ass-override`，退出双字幕时原样恢复。 */
     private var savedSubAssOverride: String? = null
 
+    /** App 侧 libass 接管主字幕前 mpv 的 `sub-visibility`；null = 当前没有接管。 */
+    private var savedNativeSubVisibility: String? = null
+
     /** 当前是否正在为 Compose 次字幕预留主字幕位置；改字号 / 位置时沿用。 */
     private var subtitleReservation: Float? = null
 
@@ -748,10 +751,13 @@ class MPVPlayer(
     /**
      * 为 Compose 次字幕预留一条主字幕上方的安全区。
      *
-     * [reservedFraction] = 次字幕块高 + 4dp 间隙占视频高度的比例；null = 退出双字幕，恢复面板位置。
+     * [reservedFraction] = 次字幕可见顶边到安全底边的距离 + 4dp 间隙占视频高度的比例；null = 退出双字幕，恢复面板位置。
      *
      * 双字幕期间临时使用 `sub-ass-override=strip` 去掉 ASS 原生 `\pos`，否则固定坐标可以越过 App 的统一安全区；主字幕仍保留文本内容与面板颜色 /
      * 描边。单字幕时立即恢复进入双字幕前的 ASS override，不改变原有特效路径。
+     *
+     * 文本主字幕进入双字幕后由 App 侧 libass 接管（见 [applyNativePrimarySubtitleVisible]），不再走这条百分比兜底； 只有图形字幕等无法交给
+     * libass 的主字幕才继续按 [reservedFraction] 预留。
      */
     fun applySecondarySubtitleReservation(reservedFraction: Float?) {
         if (released) return
@@ -774,6 +780,31 @@ class MPVPlayer(
         applyMpvSubtitlePosition(
             reservedFraction = reservedFraction.takeIf { it.isFinite() }?.coerceIn(0f, 1f)
         )
+    }
+
+    /**
+     * App 侧 libass 是否接管主字幕。
+     *
+     * 双字幕 + 文本主字幕时，主字幕和次字幕必须共用同一套可见边界几何；mpv 的 `sub-pos` 百分比既拿不到原生字幕的实际 包围盒，也无法与 Compose 的
+     * `videoRect` 对齐（手机 / 平板视频区高度不同，误差直接变成重叠或过大间距）。 因此接管期间临时把原生字幕整体隐藏，退出双字幕 / 离开播放页时恢复进入前的
+     * `sub-visibility`。
+     *
+     * 同一句绝不会出现「原生 + App」两份：接管请求先于 libass 首帧生效，次字幕也会等主字幕就绪后才绘制。
+     */
+    fun applyNativePrimarySubtitleVisible(visible: Boolean) {
+        if (released) return
+        if (!visible) {
+            if (savedNativeSubVisibility == null) {
+                savedNativeSubVisibility = readMpvString("sub-visibility") ?: "yes"
+            }
+            setMpvString("sub-visibility", "no")
+            // 原生已隐藏：清掉百分比预留，退出接管时不会残留上移过的 sub-pos。
+            subtitleReservation = null
+            applyMpvSubtitlePosition(reservedFraction = null)
+        } else {
+            savedNativeSubVisibility?.let { previous -> setMpvString("sub-visibility", previous) }
+            savedNativeSubVisibility = null
+        }
     }
 
     private fun applyMpvSubtitlePosition(reservedFraction: Float?) {
