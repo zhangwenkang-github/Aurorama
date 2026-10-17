@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -49,11 +50,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +68,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -103,6 +110,7 @@ import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
 
 /** 队列行高（拖动换算基准）：面板内所有行等高，拖动位移才能按整数行对齐。 */
 private val QueueRowHeight = 72.dp
@@ -871,6 +879,8 @@ private fun LibraryPane(
     onAlbumBatchLongPress: (MusicAlbum) -> Unit = {},
     onAlbumBatchToggle: (MusicAlbum) -> Unit = {},
 ) {
+    // W79b · #33：服务器个别曲目没有 Primary 图时，用同专辑封面兜底（只读已加载的曲库快照）。
+    val albumArtwork = remember(state.albums) { albumArtworkUris(state.albums) }
     // W39：空态按来源分支（本地 / 服务器 / 全部 / 离线），与下拉刷新提示一致。
     val emptyCopy =
         musicEmptyCopy(tab = state.tab, filter = state.sourceFilter, offline = state.offline)
@@ -895,6 +905,8 @@ private fun LibraryPane(
             SongList(
                 songs = state.songs,
                 currentItemId = currentItemId,
+                albumArtwork = albumArtwork,
+                autoLocateCurrent = true,
                 showAlbum = true,
                 emptyTitle = emptyCopy.title,
                 emptyMessage = emptyCopy.message,
@@ -1141,6 +1153,10 @@ private fun SongList(
     songs: List<MusicSong>,
     currentItemId: UUID?,
     showAlbum: Boolean,
+    /** W79b · #33：专辑名 → 封面兜底表（空 = 只用曲目自身封面）。 */
+    albumArtwork: Map<String, String> = emptyMap(),
+    /** W79b · #34：仅在库内「歌曲」Tab 启用——进入时定位一次，切歌跟随；手动滚动后本次不再拉回。 */
+    autoLocateCurrent: Boolean = false,
     /** W59：列表头部插槽（专辑详情用它放「下载专辑」头部）。 */
     header: (@Composable () -> Unit)? = null,
     emptyTitle: String = "这里还没有可播放的曲目",
@@ -1159,7 +1175,45 @@ private fun SongList(
         EmptyHint(title = emptyTitle, message = emptyMessage)
         return
     }
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    val listState = rememberLazyListState()
+    // 用户主动滚动（拖动 / 惯性）后，本次进入不再自动拉回；离开 Tab 重建组合后恢复一次定位。
+    val manualScrolled = remember { mutableStateOf(false) }
+    // 程序化居中也会走 scrollable，用这个标记把自身滚动排除在「用户滚动」之外。
+    val autoScrolling = remember { mutableStateOf(false) }
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && !autoScrolling.value) {
+                    manualScrolled.value = true
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (!autoScrolling.value) manualScrolled.value = true
+                return Velocity.Zero
+            }
+        }
+    }
+    val headerCount = if (header != null) 1 else 0
+    val targetIndex = songListAutoLocateIndex(songs, currentItemId, headerCount)
+    LaunchedEffect(autoLocateCurrent, currentItemId, targetIndex, manualScrolled.value) {
+        if (!shouldAutoLocateSong(autoLocateCurrent, targetIndex, manualScrolled.value)) {
+            return@LaunchedEffect
+        }
+        // 曲库是异步加载的：等目标行真正进入 LazyList 布局后再居中（只等一次，不轮询）。
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > targetIndex }
+        autoScrolling.value = true
+        try {
+            listState.centerItem(targetIndex)
+        } finally {
+            autoScrolling.value = false
+        }
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection),
+        state = listState,
+    ) {
         if (header != null) {
             item(key = "song-list-header") { header() }
         }
@@ -1169,6 +1223,12 @@ private fun SongList(
             SongRow(
                 index = index + 1,
                 song = song,
+                artworkUri =
+                    resolveSongArtworkUri(
+                        imageUri = song.imageUri,
+                        albumName = song.albumName,
+                        albumArtwork = albumArtwork,
+                    ),
                 subtitle = if (showAlbum) song.albumName else null,
                 isCurrent = song.itemId == currentItemId,
                 downloadLabel =
@@ -1205,6 +1265,7 @@ private fun SongList(
 private fun SongRow(
     index: Int,
     song: MusicSong,
+    artworkUri: String?,
     subtitle: String?,
     isCurrent: Boolean,
     downloadLabel: String?,
@@ -1235,11 +1296,14 @@ private fun SongRow(
         onClick = onClick,
         onLongClick = onLongClick,
         leading = {
-            Box(modifier = Modifier.width(28.dp), contentAlignment = Alignment.CenterStart) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ArtworkThumb(imageUri = artworkUri, title = song.name, size = 40.dp)
+                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
                 Text(
                     text = index.toString().padStart(2, '0'),
                     style = CinefinType.MonoDataSmall,
                     color = if (isCurrent) media.bright else colors.onSurfaceFaint,
+                    modifier = Modifier.width(22.dp),
                 )
             }
         },
