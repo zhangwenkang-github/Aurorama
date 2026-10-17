@@ -49,7 +49,9 @@ internal fun secondaryBlockHeightPx(
  * 分层顺序是「外层透明留白 → 背景框 → 内层留白 → 描边文字」：
  * - 外层留白永远透明，必须扣除；
  * - 有背景时背景框本身就是可见边界，只扣外层留白；
- * - 背景为「无」时内层留白也透明；但描边会向字形外侧扩出 [strokePx]，让可见内容比内层留白更靠近块边， 所以是「外层 + 内层 − 描边」（描边宽度不超过内层留白时可见内容仍在块内）。
+ * - 背景为「无」时内层留白也透明；但描边以字形路径为中心向两侧扩展，块顶一侧只外扩 [strokePx] / 2， 让可见内容比内层留白更靠近块边，所以是「外层 + 内层 − 描边 / 2」。
+ *
+ * 注意：块高来自 Compose 的排版盒（行高 1.25），不是字形墨迹的像素包围盒；这里保证的是布局可见边界， 真实字形 / 描边墨迹的间隙仍以真机视觉验收为准。
  */
 internal fun subtitleVisibleTopInsetPx(
     outerPaddingPx: Float,
@@ -65,7 +67,7 @@ internal fun subtitleVisibleTopInsetPx(
             innerPaddingPx.takeIf { it.isFinite() }?.coerceAtLeast(0f) ?: 0f
         }
     val stroke = strokePx.takeIf { it.isFinite() }?.coerceAtLeast(0f) ?: 0f
-    return if (backgroundVisible) outer else (outer + inner - stroke).coerceAtLeast(0f)
+    return if (backgroundVisible) outer else (outer + inner - stroke / 2f).coerceAtLeast(0f)
 }
 
 /** 文本块的可见高度（px）＝ 块高 − 上下两份可见内缩。 */

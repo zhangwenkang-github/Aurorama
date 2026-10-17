@@ -55,6 +55,13 @@ data class SubtitleOverlayState(
     val primaryTextRenderable: Boolean = false,
     /** 文本主字幕已尝试加载但拿不到可用内容：mpv 双字幕不能再隐藏原生轨，否则会整条字幕消失。 */
     val primaryRenderFailed: Boolean = false,
+    /**
+     * mpv 当前是否选中了原生字幕轨（包括映射不到 Jellyfin 源的情况）。
+     *
+     * 与 [primaryIndex] 是两件事：映射失败时 [primaryIndex] 为 null，但原生主字幕仍会渲染，双字幕必须为它预留空间； `sid=no`
+     * 时才是真的没有主字幕。
+     */
+    val nativePrimaryActive: Boolean = false,
     /** 次字幕是否存在（次字幕只走自研渲染） */
     val secondaryManaged: Boolean = false,
     /** 正在下载 / 解析字幕 */
@@ -97,6 +104,9 @@ class PlayerSubtitleController(
     private var secondaryCues: List<SubtitleCue> = emptyList()
     private var primaryManaged = false
     private var primaryRenderFailed = false
+    private var nativePrimaryActive = false
+    /** 已为哪个主字幕序号发起过加载：在 publish() 唤醒 collector 前占位，避免同一源并发两次 loadSubtitle。 */
+    private var primaryLoadStartedForIndex: Int? = null
     private var secondaryManaged = false
     private var primaryLoading = false
     private var secondaryLoading = false
@@ -149,6 +159,8 @@ class PlayerSubtitleController(
         secondaryCues = emptyList()
         primaryManaged = false
         primaryRenderFailed = false
+        nativePrimaryActive = false
+        primaryLoadStartedForIndex = null
         secondaryManaged = false
         primaryLoading = false
         secondaryLoading = false
@@ -191,6 +203,17 @@ class PlayerSubtitleController(
     }
 
     /**
+     * 仅因渲染安全临时关闭次字幕（mpv 主字幕无法映射到源，无法判断是否同源）。
+     *
+     * 不写手动选择记忆：问题解除后用户仍能按原记忆恢复次字幕。
+     */
+    fun suppressSecondaryForSafety() {
+        if (secondaryIndex == null && !secondaryManaged && !secondaryLoading) return
+        applySecondary(null, persist = false)
+        publish()
+    }
+
+    /**
      * mpv 主字幕仍由原生 `sid` 选择；把对应源序号同步进来。
      *
      * 序号变化时丢掉上一条主字幕的内容：渲染层可能在双字幕期间用这份内容接管主字幕，留着旧源会画出与 `sid` 不一致的另一句。真正需要内容时由
@@ -206,7 +229,20 @@ class PlayerSubtitleController(
         primaryManaged = false
         primaryRenderFailed = false
         primaryLoading = false
+        primaryLoadStartedForIndex = null
         // 立刻让覆盖层丢掉上一条主字幕：切轨期间宁可短暂空一帧，也不能继续画旧轨的内容。
+        publish()
+    }
+
+    /**
+     * 同步「mpv 是否选中了原生主字幕」。
+     *
+     * 由 ViewModel 从实际轨道状态得出，与 [syncPrimaryIndex] 的映射结果相互独立：映射失败时原生主字幕仍然存在，
+     * 渲染层需要据此走保守预留，而不是把它当成「没有主字幕」。
+     */
+    fun setNativePrimaryActive(active: Boolean) {
+        if (nativePrimaryActive == active) return
+        nativePrimaryActive = active
         publish()
     }
 
@@ -222,12 +258,16 @@ class PlayerSubtitleController(
         if (primaryManaged || primaryRenderFailed || primaryLoadJob?.isActive == true) return
         val source = sources.firstOrNull { it.index == primaryIndex } ?: return
         if (!source.isTextBased) return
+        // publish() 会唤醒同一个 collector；先按序号占位，避免它在 primaryLoadJob 赋值前再次进入并重复下载。
+        if (primaryLoadStartedForIndex == source.index) return
+        primaryLoadStartedForIndex = source.index
         // 先发布加载态：面板与路由需要知道主字幕仍在准备；接管与否由 primaryTextRenderable 决定，不依赖加载时机。
         primaryLoading = true
         publish()
         primaryLoadJob =
             loadSubtitle(source, isPrimary = true) { loaded ->
                 primaryLoading = false
+                primaryLoadStartedForIndex = null
                 if (primaryIndex == source.index) {
                     primaryCues = loaded.cues
                     primaryAssScript = loaded.assScript
@@ -324,6 +364,7 @@ class PlayerSubtitleController(
         primaryIndex = index
         primaryLoadJob?.cancel()
         primaryLoadJob = null
+        primaryLoadStartedForIndex = null
 
         val source = sources.firstOrNull { it.index == index }
         if (index == null || source == null || !source.isTextBased) {
@@ -476,6 +517,7 @@ class PlayerSubtitleController(
                 primaryTextRenderable =
                     sources.firstOrNull { it.index == primaryIndex }?.isTextBased == true,
                 primaryRenderFailed = primaryRenderFailed,
+                nativePrimaryActive = nativePrimaryActive,
                 secondaryManaged = secondaryManaged,
                 loading = loading,
                 primaryLoading = primaryLoading,

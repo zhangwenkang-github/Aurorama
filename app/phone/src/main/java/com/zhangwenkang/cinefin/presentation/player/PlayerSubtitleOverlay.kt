@@ -318,8 +318,10 @@ fun PlayerSubtitleOverlay(
                     heightPx = primaryVisibleHeightPx,
                     visibleBottomInsetPx = lineVisibleInsetPx,
                 )
-            isMpv && state.secondaryManaged && state.primaryIndex != null ->
-                // mpv 原生主字幕无法逐帧拿到图元盒；按两行保守预留，避免大字号双行主字幕被顶部裁切。
+            // mpv 有原生主字幕但映射不到源（或图形字幕）时仍要预留；`sid=no` 才是真的没有主字幕。
+            // App 侧已接管时不走这条，避免 cue 之间的空帧误触发预留 / 隐藏。
+            isMpv && state.nativePrimaryActive && !appPrimaryPlanned ->
+                // 原生字幕无法逐帧拿到图元盒；按两行保守预留，避免大字号双行主字幕被顶部裁切。
                 PrimarySubtitleExtent.Native(
                     with(density) { (baseSize * style.textScale * 2f * 1.25f).toPx() }
                 )

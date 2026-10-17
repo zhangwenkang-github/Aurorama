@@ -1687,6 +1687,12 @@ constructor(
     fun selectSubtitleSecondary(id: Int?) {
         if (playerBackend == PLAYER_BACKEND_MPV) {
             val mpv = player as? MPVPlayer ?: return
+            if (id != null && currentMpvPrimarySourceIndex() == null && currentMpvPrimaryActive()) {
+                // 主字幕映射不到源：不能猜测用户选的次字幕是否与它同源。保留原生主字幕，拒绝次字幕。
+                subtitleController.suppressSecondaryForSafety()
+                publishSubtitlePanelState()
+                return
+            }
             val source =
                 subtitleController.overlayState.value.sources.firstOrNull {
                     it.index == id && it.isTextBased
@@ -2126,15 +2132,21 @@ constructor(
             val primaryOptions = nativeSubtitleOptions(sideloadTrackIds)
             val primarySourceIndex =
                 sourceIndexForMpvSubtitleId(primaryOptions.firstOrNull { it.selected }?.id)
+            // 映射不到主字幕源时无法排除同源：只要原生主字幕仍选中，就整体禁用次字幕候选。
+            val secondarySelectable = primarySourceIndex != null || !currentMpvPrimaryActive()
             val secondaryOptions =
-                state.sources
-                    .filter { it.isTextBased && it.index != primarySourceIndex }
-                    .map { source ->
-                        subtitleOptionOf(
-                            source,
-                            selected = source.index == state.secondaryIndex,
-                        )
-                    }
+                if (!secondarySelectable) {
+                    emptyList()
+                } else {
+                    state.sources
+                        .filter { it.isTextBased && it.index != primarySourceIndex }
+                        .map { source ->
+                            subtitleOptionOf(
+                                source,
+                                selected = source.index == state.secondaryIndex,
+                            )
+                        }
+                }
             _subtitlePanelState.value =
                 SubtitlePanelState(
                     primaryOptions = primaryOptions,
@@ -2252,10 +2264,18 @@ constructor(
      * 映射不到源（例如图形字幕）时清掉可能残留的文本内容，渲染层会退回原生兜底而不是画错一条字幕。
      */
     private fun ensureMpvPrimaryContent(state: SubtitleOverlayState) {
-        if (player !is MPVPlayer || !state.secondaryManaged) return
+        if (player !is MPVPlayer) return
+        val nativePrimaryActive = currentMpvPrimaryActive()
+        subtitleController.setNativePrimaryActive(nativePrimaryActive)
+        if (!state.secondaryManaged) return
         val primarySourceIndex = currentMpvPrimarySourceIndex()
         if (primarySourceIndex == null) {
             subtitleController.syncPrimaryIndex(null)
+            if (nativePrimaryActive) {
+                // 映射不到主字幕源就无法判断主 / 次是否同源：保留原生主字幕，关闭次字幕，
+                // 绝不把同一句同时交给原生主字幕和 Compose 次字幕。
+                subtitleController.suppressSecondaryForSafety()
+            }
             return
         }
         if (state.primaryIndex != primarySourceIndex) {
@@ -2263,6 +2283,12 @@ constructor(
         }
         subtitleController.ensurePrimaryContentAvailable()
     }
+
+    /** mpv 当前是否有选中的原生字幕轨（与能否映射到 Jellyfin 源无关）。 */
+    private fun currentMpvPrimaryActive(): Boolean =
+        player.currentTracks.groups.any { group ->
+            group.type == C.TRACK_TYPE_TEXT && group.isSelected
+        }
 
     // ---------- 音轨面板：延迟 + 轨道描述（§1.2） ----------
 

@@ -10,6 +10,8 @@ import org.junit.Test
  * 主/次字幕统一几何规则：可见边界、4dp 间隙、80% 降级、隐藏与 mpv 原生兜底。
  *
  * 数值按手机（1080px 高 · 2.75x）与平板（1440px 高 · 2.0x）的典型视频矩形取， 字号沿用覆盖层公式 `画面高 × 4.2% × 档位 × 0.9`，行高 1.25。
+ *
+ * 断言的是**布局可见边界**；行高内的字形留白 / 墨迹边缘仍需真机视觉验收，单元测试不替代像素采样。
  */
 class SubtitleLiftTest {
 
@@ -22,14 +24,14 @@ class SubtitleLiftTest {
 
     private fun gapPx(density: Float): Float = SUBTITLE_LINE_GAP_DP * density
 
-    /** 与 SubtitleLine 的可见边界同口径：外层 3dp + （无背景时）内层 4dp + 描边 1 份。 */
-    private fun insetPx(density: Float, backgroundVisible: Boolean = false): Float =
-        subtitleVisibleTopInsetPx(
-            outerPaddingPx = SECONDARY_LINE_OUTER_PADDING_DP * density,
-            innerPaddingPx = SECONDARY_LINE_INNER_PADDING_DP * density,
-            strokePx = strokeDp * density,
-            backgroundVisible = backgroundVisible,
-        )
+    /**
+     * 与 SubtitleLine 的可见边界同口径，但**不复用生产公式**：外层 3dp；无背景再加内层 4dp； 描边以字形路径为中心，块顶一侧只外扩 stroke /
+     * 2。用来避免「测试用待验证函数自证」。
+     */
+    private fun insetPx(density: Float, backgroundVisible: Boolean = false): Float {
+        val insetDp = if (backgroundVisible) 3f else 3f + 4f - strokeDp / 2f
+        return insetDp * density
+    }
 
     /** 次字幕块高：文本行高 + 固定 14dp 垂直 padding（描边不占 Compose 布局高度）。 */
     private fun secondaryBlockPx(
@@ -106,8 +108,8 @@ class SubtitleLiftTest {
     @Test
     fun visibleInset_excludesTransparentPaddingAndStroke() {
         assertEquals(
-            "无背景：外层 3 + 内层 4 − 描边外扩 2 = 5dp",
-            5f,
+            "无背景：外层 3 + 内层 4 − 描边外扩 1 = 6dp",
+            6f,
             subtitleVisibleTopInsetPx(3f, 4f, 2f, backgroundVisible = false),
             0.001f,
         )
@@ -176,9 +178,10 @@ class SubtitleLiftTest {
         assertTrue(result.showSecondary)
         assertVisibleGap(tabletHeight, tabletDensity, result, primaryBottomBeforeLiftPx = 1300f)
 
-        // 回归证据：旧实现把「块顶」当可见边界，平板上的实际间距 = 4dp + 7dp 透明留白 + 2dp 描边 = 13dp。
-        val oldBlockBasedGapDp = SUBTITLE_LINE_GAP_DP + 7f + strokeDp
-        assertEquals(13f, oldBlockBasedGapDp, 0.001f)
+        // 回归证据：旧实现把「块顶」当可见边界，并多算了整份描边，实际间距
+        // = 4dp + 7dp 透明留白 + 1.5 × 2dp 描边 = 14dp。
+        val oldBlockBasedGapDp = SUBTITLE_LINE_GAP_DP + 7f + 1.5f * strokeDp
+        assertEquals(14f, oldBlockBasedGapDp, 0.001f)
     }
 
     @Test
@@ -311,6 +314,39 @@ class SubtitleLiftTest {
         val inset = insetPx(phoneDensity)
         val expected = (result.secondaryHeightPx - inset + gapPx(phoneDensity)) / phoneHeight
         assertEquals(expected, result.secondaryReservedFraction, 0.0001f)
+    }
+
+    @Test
+    fun unmappedNativePrimary_stillReservesSpaceForFallback() {
+        // sid 有原生主字幕但映射不到 Jellyfin 源：主字幕仍会渲染，双字幕必须预留。
+        val result =
+            layout(
+                videoHeightPx = phoneHeight,
+                density = phoneDensity,
+                textScale = 1f,
+                lines = 1,
+                primary = PrimarySubtitleExtent.Native(heightPx = 300f),
+            )
+
+        assertTrue(result.showSecondary)
+        assertTrue("原生主字幕存在时必须给出非零预留", result.secondaryReservedFraction > 0f)
+    }
+
+    @Test
+    fun noNativePrimary_doesNotReserveOrShrinkSecondary() {
+        // sid=no：没有主字幕，不预留、也不触发 80% / 隐藏。
+        val result =
+            layout(
+                videoHeightPx = phoneHeight,
+                density = phoneDensity,
+                textScale = 2f,
+                lines = 2,
+                primary = null,
+            )
+
+        assertTrue(result.showSecondary)
+        assertEquals(1f, result.secondaryScale, 0.001f)
+        assertEquals(0f, result.secondaryReservedFraction, 0.001f)
     }
 
     @Test
