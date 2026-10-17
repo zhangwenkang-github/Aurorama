@@ -2038,6 +2038,12 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - **哈希口径**：debug APK 含构建时间戳等非确定输入，重打包会出现不同哈希（`68160CEE…` / `4E7727C5…` / `23BEA291…` 均为历史值）；**交付以最终锁定的 APK 文件为准**，文件一旦重建必须重新登记。
 - 未覆盖：adb / 真机 / 启动 App / 截图 / 视觉 QA / 完整测试套件未跑；旋转后手势分流只有纯函数回归测试与静态路径核对。门禁与取证明细见 `F:\Develop\codex_work\.planning\cinefin-expansion\exp19-reader\report.md` 的「EXP19 闭环复审修复」段；真机矩阵仍由用户执行。
 
+**交测预装（2026-10-18 07:05）**
+
+- 最终独立复审结论“可交用户测试”：无 P0 / P1 / P2；`PageMetricsTest` 15 + `BookZoomStateTest` 6 = **21/0/0/0**，编译与 ktfmt 主 / 测试门禁通过；锁定 APK 哈希复核一致。
+- 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 07:05:40`，K60 `8e875894` `07:05:53`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
+- release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，未执行真机测试 / 截图 / 视觉 QA，等待用户本人验收。
+
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
 ### 10.1 加载中返回仍占网络（修，提交 `06bd7d8`）
