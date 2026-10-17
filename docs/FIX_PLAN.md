@@ -61,8 +61,8 @@
 | 24 | 打开 EPUB 滚动无效（实为分页）、双栏无效 | 目标 = 三档可感（滚动档长章连续滚动、双栏档真两列）；先取证（含 W77 回归核对） | READER | W80 | ✅ 真机通过（竖屏双栏真两列、滚动档长章连续滚动；QA-W80 独立复核通过，见 §3 W80 / S80-2） |
 | 25 | 搜索无法搜索音乐和书籍 | 搜索类型扩全（Audio / Book 等，本地搜索并核）+ 分类展示 | film/search · data | W82 | ⬜ |
 | 26 | 歌词界面歌词没有居中 | 歌词页 / 面板 / 悬浮窗三处统一水平居中（当前行垂直居中保持） | MUSIC | W79 | ✅ W79a：三处正文 `TextAlign.Center` + `fillMaxWidth`；真机墨迹中心 vs 中轴 ≤3 px（左对齐参照 −150/−173 px），悬浮窗两行 −1.0/−0.5 px。QA-W79 发现纵向 P1（当前行贴底）→ W79a-FIX 统一 LazyList 内容坐标后修复，QA-W79R 复验最大 **+4.5 px**；已合并 master `2fa6203`；详见 §3 |
-| 27 | mpv 硬解：快进 / 快退 / 音量手势无效（偶发、触发条件不明） | 先复现攻坚（Pad 5 主）：logcat + 分区实验抓触发条件 → 修复后全屏任意区域有效 | PLAYER | W81 | ⬜ |
-| 28 | ExoPlayer 硬解：快退 / 快进仅左区有效 | 与 #27 同源嫌疑，同波取证 + 修复（全屏区域有效） | PLAYER | W81 | ⬜ |
+| 27 | mpv 硬解：快进 / 快退 / 音量手势无效（偶发、触发条件不明） | 先复现攻坚（Pad 5 主）：logcat + 分区实验抓触发条件 → 修复后全屏任意区域有效 | PLAYER | W81 | ✅ S81-2/3 完成（Pad 5 自测；待独立 QA）：排除区改用当前 PlayerView 宽高 + insets；右缘 x=75/90% 音量、左缘亮度、x=85% 横滑、双击 / 长按均通过 |
+| 28 | ExoPlayer 硬解：快退 / 快进仅左区有效 | 与 #27 同源嫌疑，同波取证 + 修复（全屏区域有效） | PLAYER | W81 | ✅ S81-2/3 完成（Pad 5 自测；待独立 QA）：x=50/75/85/90% 左右横滑均落点；控制层空白区放行、中央按钮不穿透；旋转与内核切换回归通过 |
 | 29 | 随机播放只能播放固定的几个 | 与 #38 同源排查（shuffle 序定型于 setMediaItems、队列异步补入）；修复后随机覆盖全队列 | MUSIC / player:local | W78 | ✅ 根因 = 补齐中断（详见 #38）；修后随机 20 连点 **20/20 不重复**、散布 4–348 |
 | 30 | 搜索返回后回媒体库（应回进入前页面） | 返回栈修复：关闭 / 返回回进入前页；首页入口不丢栈 | film/nav | W82 | ⬜ |
 | 31 | 媒体库界面要求有下拉刷新 | 总览页复用既有 PTR 写法补齐；静默刷新不闪（W69 语义） | UI / film | W83 | ⬜ |
@@ -446,6 +446,7 @@
 ### W81–W83 波（轮廓 · 开工前细化）
 
 - **W81 播放器手势（Pad 5 主）**：**S81-1 复现攻坚**（#27+#28：实验矩阵 = 内核 × 路径 × 控制层显隐 × 时序 + logcat / 调试层取证 → 触发条件与机制报告）→ **S81-2 修复**（全屏任意区域快进 / 快退 / 音量有效、两内核一致；修正分区 / 命中带）→ **S81-3 规则下沉**（识别→意图入 `PlayerSeekGestureRules` + 单测）。验收：触发清单 + 全区域有效 + 双击 / 亮度 / 长按倍速不回归。
+  - **S81-2/S81-3 已实施（2026-10-17，代码 `bf983a4`）**：删除构造期 `Resources.getSystem().displayMetrics` 缓存；排除区改为事件时 `playerView.width/height` + `systemGestures | systemBars | displayCutout` 局部 insets（API 28 回退现有 24/48dp 常量）；双击 2:1:2、横滑比例、竖滑左右分区全部走当前 `viewWidth`。纯函数 `tapGestureZone` / `gestureStartExcluded` / `isHorizontalScroll` / `isVerticalScroll` / `verticalGestureSide` 入 `PlayerSeekGestureRules`。Pad 5：Exo x=50/75/85/90% 双向横滑、mpv 右缘音量 75→150/0、左缘亮度可测变化、两内核双击 5 分区各 3 次、长按 2.0×/1.0×、旋转往返与同进程切内核均通过；0 FATAL/ANR。门禁 **1041 / 0 / 0**（基线 1034，+7）。报告 `w81-reports/W81-fix.md`。
 - **W82 搜索与导航（K60）**：**S82-1 搜索全类型**（#25：`includeItemTypes` 扩 Audio/Book + 本地搜索并核 + 分类展示；真机可搜可跳）；**S82-2 返回栈**（#30：三入口 ×（返回 / ×）均回原页）。
 - **W83 媒体库体验（Pad 5）**：**S83-1 总览下拉刷新**（#31，复用 LibraryScreen 写法）；**S83-2 家庭视频进度条**（#36，补 UserData 字段 → 复用进度线组件）；**S83-3 收敛重构**（缩略图策略 → `ImageCacheRules`；phone theme 3 文件并入 `core`；零行为变化 + 门禁）。
 
@@ -561,6 +562,7 @@
 | 2026-10-17 | **W79b 实现波完成（未 push / 未 merge）**：分支 `feature/w79b-song-list`（基座 master `2fa6203`，worktree `w79b`，K60 `8e875894` 独占）交付 **#33 + #34**。①**#33** SongRow = 40dp 封面 + 22dp 序号（88dp 行高不变），曲目封面优先、同专辑封面兜底、无图音符占位；349 首真机渲染正常，滚动 jank 基线 0.75% → 首扫 0.83%（含取图）/ 预热 0.25%。②**#34** 仅歌曲 Tab 自动定位：进入 / 重进居中（偏差 0–0.5 px）、切歌跟随；手动滚到首见行 39 后切歌不再拉回；空队列 / 筛选外曲目不滚不崩。回归 0 FATAL/ANR；门禁 **1033 / 0 / 0**（music 157→164，+7）。报告 `w79-reports/W79b.md`。 |
 | 2026-10-17 | **W79b-FIX 修复 QA P2（三位序号折行，未 push / 未 merge）**：同分支 `feature/w79b-song-list`（起点 `f2efafc`）。100–349 行三位序号在 22dp 定宽内折成两行；改 `widthIn(min=22.dp)` + `maxLines=1` + `softWrap=false` + 右对齐，新增 `songRowIndexLabel()` 覆盖 3/4 位。K60 真机 343 / 100 / 101 与多选态 343 均单行（60×40 px），0 FATAL/ANR；门禁 **1034 / 0 / 0**（music 165，+1）。证据 `w79-evidence/w79b-fix/`。 |
 | 2026-10-17 | **W79b 合并验收（第十二任负责人）**：`feature/w79b-song-list` rebase 到 master `4d24c44`（FIX_PLAN 冲突 = 保留 W79a 合并与 W79b 实施双方记录）→ ff 合并 master（`4d24c44` → `5f0795e`，文档 `2b1cb39`）。**QA-W79b**：#34 通过（进入 / 重进 / 切歌 0–0.5 px、手动滚后不拉回、空队列不崩）；#33 P2 = 第 100–349 行三位序号在 22dp 定宽内折行 → W79b-FIX 修复，**QA-W79b-R 复验通过**（343 / 100 / 101 / 多选均 60×40 px 单行；#34 进入 +0.5 px、手滚不拉回；0 FATAL/ANR）。合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿、8 任务 `--rerun-tasks` **1034 / 0 / 0**（app 281 / core 106 / data 78 / player:core 12 / player:local 180 / film 53 / book 159 / music **165**；1026 + 8）；已推送 CI（`4d24c44..2b1cb39`）**三路全绿**（Build 3m40s / Format 1m11s / Unit Tests 3m29s）。graphify 已更新（10425 nodes / 31544 edges）。P3 设计口径：首 / 尾 3 行受滚动边界钳制，完整可见不强制居中。报告 `w79-reports/W79b.md` / `W79-QA-B.md`，证据 `w79-evidence/w79b/` / `w79b-fix/` / `qa-w79b/` / `qa-w79b-r/`。 |
+| 2026-10-17 | **W81-S2/S3 完成（#27/#28，未 push / 未 merge）**：分支 `feature/w81-player-gestures`，代码 `bf983a4`。删除手势排除区的构造期系统尺寸缓存，统一用当前 `PlayerView` 宽高 + 当前窗口 insets；`PlayerSeekGestureRules` 下沉双击分区 / 排除区 / 方向 / 竖滑左右 5 个纯函数 + 7 项回归单测。Pad 5：竖屏→全屏横屏后 Exo x=50/75/85/90% 双向横滑均落点、mpv x=75/90% 右缘音量与 10/25% 左缘亮度生效、两内核双击 5 分区各 3 次、长按 2.0×/1.0×、旋转往返与同进程切内核均通过；0 FATAL/ANR。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿、8 模块 **1041 / 0 / 0**（+7）。报告 `w81-reports/W81-fix.md`，证据 `w81-evidence/s81-2/`。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 

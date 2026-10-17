@@ -2407,3 +2407,47 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 ### 38.4 还原 / 副作用
 
 临时探针已还原并重建基线 APK；设备音量 0、`accelerometer_rotation=0`、`user_rotation=0`、`ROTATION_0`；debug 包 `force-stop`、`/sdcard/s81_*` 临时文件删除。正常播放触发服务器观看进度上报（无法无损回滚），未直接调用写 / 删 API；release 与 K60 零接触。证据目录：`F:\Develop\codex_work\.planning\cinefin-expansion\w81-evidence\s81-1\`。
+
+## 39. W81-S2/S3 手势修复与规则下沉（2026-10-17 · #27 / #28 · Pad 5）
+
+> 分支 `feature/w81-player-gestures`，起点 `62523ef`；代码 `bf983a4`。只动 `app/phone` 的手势 helper / 纯函数 / 单测，未碰 `player:local` / `player:core`。报告：`w81-reports/W81-fix.md`。
+
+### 39.1 修复机制
+
+- 删除 `PlayerGestureHelper` 构造期的 `Resources.getSystem().displayMetrics` 缓存；排除区在每次 `onScroll` 时读取当前 `playerView.width/height`。
+- API 30+ 取 `systemGestures | systemBars | displayCutout` 的 `getInsetsIgnoringVisibility`，与 PlayerView 局部坐标直接比较；API 28 回退现有 24dp 横 / 48dp 竖常量。物理屏宽 / 屏高不再参与。
+- 双击 / 长按 2:1:2 分区、横滑比例、竖滑左右分区统一使用同一个 `currentViewWidth()`；`currentViewHeight()` 用于竖滑灵敏度基准。
+- 保持 seek 排队 / 转码重开会话语义、手势偏好键与方向阈值不变；控制层命中仍由 `PlayerOverlayContainer` 优先消费，中央控件矩形不穿透，控件之间空白继续放行。
+
+### 39.2 规则与单测
+
+`PlayerSeekGestureRules.kt` 新增纯函数：
+
+- `tapGestureZone(x, viewWidth)` → `REWIND / TOGGLE / FORWARD / EDGE_OUTSIDE`，覆盖 0、1/5、2/5、3/5、4/5、width 与负数；
+- `gestureStartExcluded(...)` → 只按当前 view 尺寸 + 四边 insets 判定，边界放行；
+- `isHorizontalScroll` / `isVerticalScroll` → 沿用 `|dy| < / >= 2|dx|` 阈值，零位移不归类；
+- `verticalGestureSide(x, viewWidth)` → 中线归亮度，右侧音量。
+
+`PlayerSeekGestureRulesTest` 新增 7 项：横屏 2560×1600 + 历史系统度量 1600×2524 不误杀 x=2000；insets 边界；非法尺寸；双击 5 段边界；横竖方向零/极小/阈值；竖滑中线。门禁 8 模块 **1041 / 0 / 0**（基线 1034，+7）。
+
+### 39.3 真机验证（Pad 5 `43af8627`）
+
+| 场景 | 结果 |
+|---|---|
+| Exo 竖屏启动→全屏，控制层可见空白区上滑 | x=2200/1200 各 5 次，位置分别 +34,205ms；控制层中央按钮滑动位置不变 |
+| Exo 控制隐藏，x=50/75/85/90% 双向横滑 | 每点 5 右 + 5 左；右侧正向 +44,155ms（x=90% 为 +34,205ms），反向回到原位置 |
+| Exo 旋转往返（竖→横→竖→横） | x=90% 5 次 +34,214ms，右侧死区未回归 |
+| 同进程 Exo↔mpv | 切回 Exo 后 x=90% 5 次 +44,213ms；切到 mpv 后 x=85% 日志 5 次 Δ=8828ms |
+| mpv 右缘音量 | x=75/90% 上滑 75→150、下滑 150→0（各 5 次） |
+| mpv 左缘亮度 | x=10/25% 上下各 3 次，Display Brightness 0.031→0.826 / 0.117，再降至 0.129 |
+| 双击 | Exo / mpv 各 x=10/30/50/70/90% × 3 次：左区后退（步进 5s）、中区暂停切换、右区前进 15s |
+| 长按中央 | Exo 按住 speed=2.0 / 松开 1.0；mpv 按压 HUD 显 2× / 松手消失 |
+| 稳定性 | `FATAL EXCEPTION` / `ANR in` / `Input dispatching timed out` = 0 |
+
+**踩坑**：控制层可见时先点画面空白处可能只是显示/隐藏控制层，自动化测试需先确认 `controlsVisible` 再点底栏按钮；播放态控制层会 3 秒自动淡出，取时间码前应先暂停。mpv 的 `media_session.position` 仍为 -1，横滑落点以 `PlayerGestureHelper` seek 日志与 UI 进度为准。
+
+### 39.4 未覆盖 / 移交
+
+- 未复跑 HLS 转码 / 显式 BUFFERING 下的手感；本次修复只改坐标判定，未改 seek 排队与转码会话。
+- 未使用 K60（Pad 5 全部通过，按交接线不扩测）。
+- PiP / 锁屏 / 多片源只保留既有单测与历史回归；人工触感（边缘起手容错、双侧滑动灵敏度）交用户体感确认。
