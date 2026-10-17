@@ -2617,3 +2617,8 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 最终 APK：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`150,173,801 B`，SHA-256 `F7E8EE93F985D59AC1B4AAA878731A6494E8B3AFD595A2C06C49C90E6EA078E6`；`io.github.zhangwenkang.aurorama.debug` / `1.3.0 (4)` / `Aurorama Debug` / `arm64-v8a`。
 - 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 04:43:14`，K60 `8e875894` `04:43:25`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
 - release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，未执行真机测试 / 截图 / 视觉 QA，等待用户本人验收。
+
+**用户验收（2026-10-18）**
+
+- 用户本人确认“字幕线通过”（未附缺陷清单）；EXP20 方案 A 视为验收通过，转入收口队列。
+- 字幕分支保持 `codex/experience-subtitle-settings`（代码 `d354d29`，文档 HEAD `d21b6e6`）不合并 master；待阅读 / 音乐两线独立复审、分别装机并获用户确认后，再按串行顺序统一收口。
