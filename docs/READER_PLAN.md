@@ -2027,8 +2027,12 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - ✅ 低风险防御：`snapTo` / `anchorPageOffset` / `transform` / 平移夹取拒绝或夹取 NaN / Infinity，避免一次异常手势永久污染状态。
 - 验收口径（P2-2）：双栏两页比例不同时，以**当前页**为适宽基准，另一页共享同一倍率，允许留边或裁切；不引入百分比失真或独立“适宽基准”。
 - 验收口径（P2-5）：书签 / 搜索 / 批注继续按格式能力显示；本轮不为 PDF/CBZ 新增书签语义。
-- 未覆盖（后续）：P2-3 双栏跨页双指、P3-1 单击唤回与慢双击时序、P3-2 按实际渲染内容尺寸夹取平移，本轮未改交互。
-- 门禁与 APK 哈希见 `F:\Develop\codex_work\.planning\cinefin-expansion\exp19-reader\report.md` 的「独立审查修复」段；真机矩阵仍由用户执行。
+- ✅ P2-3（复审后补齐，`4b09720`）：`SpreadPages` 外层增加统一手势面，**仅当两指分别落在左右两半**时接管，焦点换算到当前页槽后调用同一个 `BookZoomState.transform`；同半页捏合仍由页槽自己的手势层处理，单指翻页 / 横向拖动 / 批注 / 搜索命中的事件路径不变。纯函数 `spreadPinchSpansPages` / `spreadPinchFocus` 各有单测。
+- 已知限制（P2-3 残余）：跨页捏合的平移只锚定当前页槽，另一页跟随共享倍率、按自己的已有平移渲染；真实双栏 / RTL / 合并图切换下的手势分发仍需真机验证。
+- 未覆盖（后续）：P3-1 同页适宽目标代次竞态、P3-2 非空白单击唤回、P3-3 按实际渲染内容尺寸夹取平移，本轮未改交互。
+- 门禁更正（2026-10-18）：`ba84c63` 的 `:modes:book:ktfmtCheckMain` 实际 **BUILD FAILED**（`BookZoom.kt:37` KDoc 长行），上一版报告写成通过是错误记录；`4b09720` 用 `:modes:book:ktfmtFormat` 折行后主 / 测试双门禁真实通过。单测 `PageMetricsTest` 14 + `BookZoomStateTest` 6 = **20/0/0/0**。
+- APK（`4b09720`）：`app\phone\build\outputs\apk\libre\debug\phone-libre-arm64-v8a-debug.apk`，148,479,617 bytes，SHA-256 `68160CEE3D7E917592FDDAE7D00C94B2A5B66030FF0749E0A157C0EBCE5C25BD`，`apksigner` v2 验签通过（arm64-v8a 单 ABI）。
+- 未覆盖：adb / 真机 / 启动 App / 截图 / 视觉 QA / 完整测试套件未跑；跨页捏合只有纯函数单测与静态路径核对。门禁与取证明细见 `F:\Develop\codex_work\.planning\cinefin-expansion\exp19-reader\report.md` 的「复审后定点修复」段；真机矩阵仍由用户执行。
 
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
