@@ -2532,7 +2532,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 未覆盖 / 待用户验收：真机双字幕 0/4/24dp、底部 0%/8%/30%、主/次 50%~200%、背景透明度/描边、预设/同步/恢复默认、退出重进保留与旧设置迁移观感；原始 ASS/SSA 的颜色/背景/描边仍由脚本决定（既有设计，字号可调）；PGS 图形字幕仍走内核原生；未运行单测 / 真机 / adb / 截图。
 - 残余风险：迁移只执行一次（回滚到旧版本会继续读旧键）；旧底部 35% 被新上限夹到 30%；SRT 非 100% 字号改为正确百分比后观感会变化；预览用固定画框近似真实播放，不反映 ASS 原文特效；外观卡较长，手机窄屏需滚动。
 
-### 40.9 EXP20 字幕轨道自由分配与面板重构（2026-10-18，方案 A 已实现 `7581ccb` + 复审修复 `c8eacfd`）
+### 40.9 EXP20 字幕轨道自由分配与面板重构（2026-10-18，方案 A 已实现 `7581ccb` + 复审修复 `c8eacfd` + 复验去重 `d354d29`）
 
 > 用户原话（2026-10-18）：“字幕轨道，现在是将ASS作为次字幕，要求有一种更灵活的选择方法。优化一下字幕设置界面的布局，看着有点乱，而且不方便。”
 >
@@ -2601,3 +2601,12 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - P2-3 测试：新增 controller 级 `PlayerSubtitleControllerTest`，覆盖换路不误写 `disabledByUser`、显式关闭仍写入关闭态、手动 mpv 主语言持久化；选择测试补齐序号碰撞、标题+语言唯一命中、重复标题歧义、图形 / 文本类型冲突、`trackForSource` 歧义、纯源并集和语言优先级纯函数。定向单测共 `29` 项，`0` 失败 / `0` 错误 / `0` 跳过。
 - 复审修复门禁：三条编译、七项 `ktfmtCheck`、`assembleDebug` 全部通过；`apksigner verify --verbose` 为 `Verifies`，v2 = true。新 APK `150,173,801 B`，SHA-256 `D2C2863FC7B4A05E363FEA520CB51CE5F8BA95E96137C48ACE3EA249CF897FF1`。
 - 复审修复后未覆盖：仍未真机 / adb / 截图 / 视觉 QA；真实 mpv `track-list id` 与 Jellyfin 流序号对应、交换、侧载和纯源行在设备上的表现待验收；标题或语言重复时按设计保留为“仅原生 / 歧义”，不猜测。
+
+**复验去重修复（2026-10-18，`d354d29`）**
+
+- mpv 面板先由 `nativeTracks` 计算 `sourceIndexBySid`，再以 `values.filterNotNull().toSet()` 得到 `representedSourceIndices`；该集合来自 `sourceIndexForMpvSubtitleId`，包含侧载 `subtitleTrackPath` 精确映射，因此侧载轨不会同时出现 native 行与纯源行。
+- `unmappedTextSources` 改为显式接收 `representedSourceIndices`，只返回 `isTextBased && index !in representedSourceIndices` 的源，不再自行按标题 / 语言重算。无法唯一映射的 native 轨仍不在集合内，继续保留“仅次字幕可用”的纯源行。
+- P3：`sourceIndexForMpvSubtitleId` 注释改为“类型约束下标题 + 语言 → 唯一标题 → 唯一语言 → 同序号兜底；侧载先按文件路径精确反查”。
+- 测试：新增“已表示源集合会排除侧载纯源行”，并保留纯源并集用例；定向单测 `30` 项，`0` 失败 / `0` 错误 / `0` 跳过。VM 级侧载路径映射未做设备级测试，纯函数侧验证“已表示集合”的去重语义。
+- 门禁：三条编译、七项 `ktfmtCheck`、`assembleDebug` 通过；`apksigner verify --verbose` 为 `Verifies`，v2 = true。新 APK `150,173,801 B`，SHA-256 `F7E8EE93F985D59AC1B4AAA878731A6494E8B3AFD595A2C06C49C90E6EA078E6`。
+- 未覆盖：仍未真机 / adb / 截图 / 视觉 QA；侧载路径映射只到达 ViewModel 代码路径，未在设备上验证重复行消失。
