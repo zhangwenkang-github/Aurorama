@@ -347,6 +347,16 @@
   - 未覆盖：字体族 / 彩色歌词 / 动效 / 在线翻译 / 逐字歌词（非目标）；悬浮窗字号档位未与歌词页合并（按任务卡约定）；TV / Pad 形态；悬浮窗 2 行同时折行时的居中（本库样本为单行）。
 - 还原：偏好复位（`font_scale=standard` / `line_spacing=standard` / `bilingual=on` = 默认行为 / `overlay=false`）；`SYSTEM_ALERT_WINDOW` appop 复位 `ignore`（为验证悬浮窗临时 `allow`）；`/sdcard/w79a_ui.xml` 已删；App force-stop。
 
+**W79a-FIX QA 缺陷修复（2026-10-17，K60 `8e875894`，代码 `2b209ec`）**
+- **W79-QA-D1（P1）根因**：共享 `centerItem()` 把 `visibleItemsInfo.offset`（内容坐标）与 `(viewportSize.height - item.size) / 2`（纯视口高度推导）混用；半视口 `contentPadding` 下 `animateScrollToItem()` 已把目标行带到中部，后续微调却按错误原点再次滚动，将当前行推到视口底部。修法 = 统一内容坐标：`viewportCenter = (viewportStartOffset + viewportEndOffset) / 2f`、`itemCenter = info.offset + info.size / 2f`，滚动 `itemCenter - viewportCenter`；抽纯函数 `lyricsCenterScrollDelta()`，`animateScrollToItem()` 后等一帧再读实际行高。两处 `LaunchedEffect` 增加 `state.text` 依赖，字号 / 行距切换后重新居中，且单次修正无重滚循环。
+- **W79-QA-D2（P2）根因**：两处均写成 `基准 + gapDp(0f)`，`tight` 的 `-4dp` 在 `gapDp(0f)` 内被下限钳成 0，故“紧凑 = 标准”；改为 `gapDp(Space4.value)`（歌词页，16dp）/ `gapDp(12f)`（面板）。折行 `lineHeight` 档位计算保持原样，未牺牲换行行距效果。
+- **单测（先红后绿）**：新增 `LyricsCenterScrollTest` 3 项（无 padding / 半视口 padding / 已居中），红阶段因 `lyricsCenterScrollDelta` 不存在而编译失败；`LyricsDisplayPreferencesTest` 补 1 项钉住 16dp / 12dp 基准下 `tight < standard < loose`。
+- **真机（跟随滚动开，当前行墨迹中心 - 滚动视口中心）**：歌词页标准播放 `+3.0 px`、标准暂停 `+3.0 px`、特大播放 `+3.0 px`、特大点歌词跳转 `+4.0 px`；面板标准 `+0.0 px`、特大三档 `0.0 / +1.0 / +0.5 px`、点歌词跳转 `-1.0 px`、播放稳定 `-0.5 px`。修复前 QA 基线为歌词页 `+695.5 px`、面板贴底约 `+626.5 px`。播放切行动画中途曾采到 `+127 px` 瞬态，动画结束后 3 秒复测 `-0.5 px`。
+- **行距真机（特大字号、暂停、连续行块起点）**：歌词页 `276 < 286 < 328 px`；面板 `207 < 218 < 260 px`（修复前紧凑 = 标准，分别为 209 / 218 px）。切换字号 / 行距后当前行仍居中。
+- **回归**：页 / 面板当前行水平偏差 `-1.5 / +0.5 px`；默认双语两行、显式关闭 `off` 冷启保持单行、`幻听` 单语单行无空行、无歌词页与面板占位正常；0 FATAL / ANR，crash buffer 0 行。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 `--rerun-tasks --continue` **998 / 0 / 0**（app 277 / core 106 / data 68 / film 53 / book 145 / music **157** / player:core 12 / player:local 180；W79a 基线 994，新增 4）。
+- **边界**：不 push / 不 merge；不改 #35 双语语义、三处水平居中、悬浮窗档位，不动通知 / 播放器代码。证据 `w79-evidence/w79a-fix/`，报告 `w79-reports/W79a-fix.md`。
+
 ### W80 波（阅读与书籍 · Pad 5 主 · 2026-10-17 派发，与 W78 并行）
 
 **S80-1 书籍下载链路与反馈（#23）**
@@ -525,6 +535,7 @@
 | 2026-10-17 | **QA-W80R 复验通过（第十一任负责人）**：独立复跑 #23 **两入口端到端**（书架批量 + 阅读页顶栏：Snackbar 0.5 s → 下载页 2→95% → 「离线可读 · 34.6 MB / 218.6 MB」→ 下载中删除取消 + 无 `.part`）；**D2/D3 ✅**；**W77 远端回归 ✅**（EPUB 首开 3.94 MB / 静默 +2.1 KB；CBZ 14 s / +4.66 MB / 静默 +1.15 KB；PDF 整本 33.1 MB 符合口径；书架无封面 PDF 卡 +6.3 KB）；工具栏三态 ✅；**新 P3 = B21**（书籍下载未计入侧栏角标）；0 FATAL/ANR。报告 `w80-reports/W80-QA2.md`，证据 `w80-evidence/qa2/`。 |
 | 2026-10-17 | **W80 合并验收（第十一任负责人）**：`feature/w80-reader-books` rebase 到 master `ef0716d`（FIX_PLAN 冲突解决 = 统一定序 B13–B20）→ ff 合并 master（`ef0716d` → `1bc1c0d`）；合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **1011 / 0 / 0**（app 281 / core 106 / data 78 / player:core 12 / player:local 180 / film 53 / book 159 / music 142；日志 `w80-evidence/gate_merged_w80_build.log` / `gate_merged_w80_tests.log`）；已推送 CI（`ef0716d..1bc1c0d`）**三路全绿**（Format 59 s / Unit Tests 3 m 29 s / Build 5 m 0 s）；graphify 已更新（10338 nodes / 31285 edges）。 |
 | 2026-10-17 | **W79a 实现波完成（未合并，负责人收口）**：`feature/w79-music-ui-lyrics`（基座 master `ef0716d`，worktree `w79a`，K60 `8e875894` 独占）交付 **#26 + #37 + #35**。①#26 歌词页 / 面板加 `TextAlign.Center + fillMaxWidth`（悬浮窗既有居中），真机墨迹中心 vs 中轴：歌词页 ≤3 px、面板 −10.5…+2 px、悬浮窗 −1.0/−0.5 px，左对齐参照 −150/−173 px；②#37 新增字号 4 档 / 行距 3 档 + 共用 chip 档位条，即时生效（字号 ×1.3、行块间距 +21 px、折行节距 96→119 px）且 `am force-stop` 冷启保持；**真机拦下的坑**：基准样式 lineHeight 低于字体自然行高 + 单行文本框裁 leading → 只改 lineHeight 等于档位失效，改按"实际字号 × 1.33"算行高并另加行块间距；③#35 双语三态键（未设置 → 默认开；显式 `off` 冷启保持）+ 单语歌曲单行不空行。**申报项**：`AppPreferences` 追加 `pref_music_lyrics_font_scale=standard` / `pref_music_lyrics_line_spacing=standard` / `pref_music_lyrics_bilingual=""`。**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 `--rerun-tasks` **994 / 0 / 0**（music 153，新增 11）。0 FATAL/ANR；偏好 / 悬浮窗权限 / 临时文件已还原；报告 `w79-reports/W79a.md`。 |
+| 2026-10-17 | **W79a-FIX 完成 QA P1/P2（未 push / 未 merge）**：代码 `2b209ec`。①**W79-QA-D1** = `centerItem()` 内容坐标 / 视口高度坐标系混用；改 `viewportStartOffset/EndOffset` 与 `item.offset/size` 同系求差，抽 `lyricsCenterScrollDelta()` + 3 单测，并在 `animateScrollToItem()` 后等一帧读新行高；字号 / 行距加入依赖。真机当前行偏差：歌词页 `+3.0…+5.0 px`（修前 QA `+695.5 px`）、面板 `-1.0…+1.0 px`（修前贴底约 `+626.5 px`）。②**W79-QA-D2** = `gapDp(0f)` 吞掉 tight 的 −4dp；改对 16dp / 12dp 基准调用 `gapDp`，补三档递增单测。特大字号连续行块：页 `276 < 286 < 328 px`、面板 `207 < 218 < 260 px`。③回归 #26 水平偏差 `−1.5 / +0.5 px`、#35 默认 / 关闭冷启 / 单语单行、无歌词占位全过，0 FATAL/ANR。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿，8 模块 **998 / 0 / 0**（+4）。报告 `w79-reports/W79a-fix.md`。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
