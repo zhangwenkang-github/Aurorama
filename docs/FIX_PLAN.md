@@ -451,6 +451,20 @@
 - **W83 媒体库体验（Pad 5）**：**S83-1 总览下拉刷新**（#31，复用 LibraryScreen 写法）；**S83-2 家庭视频进度条**（#36，补 UserData 字段 → 复用进度线组件）；**S83-3 收敛重构**（缩略图策略 → `ImageCacheRules`；phone theme 3 文件并入 `core`；零行为变化 + 门禁）。
   - **S83 实现 / QA / 合并（2026-10-17，master `5f13b74`）**：S83-1 `MediaViewModel` 增加 `refreshing` / 强制失效会话缓存 / 保留旧库卡，`MediaScreen` 套 `PullToRefreshBox`；S83-2 在家庭视频临时库网格为 `ItemCard` 显式开启 `homeVideoResumeFraction()`（已看完不画、缺时长回退 `PlayedPercentage`），续播线复用 `ProgressBar`；S83-3 图片 URL / 缩略图尺寸与压缩质量 / 占位来源 / 缓存 key 收敛到 `ImageCacheRules`（文件迁至 `data`，core 仍可用），phone theme 三文件并入 `core` 并批量更新引用。三个代码提交 `13a8a2d` / `acef121` / `9436e5a`。S83-QA 独立自建包 + 基线 `7a744d7` A/B 通过；S83-MERGE-PREP 与合并态门禁 **1055 / 0 / 0 / 0**；已 ff 合并并推送，CI 三路绿；graphify 10517 nodes / 31794 edges。详见 `w83-reports/W83.md` / `W83-QA.md` / `W83-MERGE-PREP.md`。
 
+### REL-1.3.0-FIX 发布阻塞：release 播放页工具控件无响应（2026-10-17 立卡）
+
+- **状态**：⬜ 未开始（下一会话唯一入口；用户 2026-10-17「按你说的方案继续」）。
+- **目标**：修复 1.3.0 release 包播放页顶部工具簇 / 底部工具行触摸无响应，让 release 与 debug 行为一致，重新产出可交付候选。
+- **非目标**：①不改 W78–W83 功能 / 交互；②不重开 P3 / backlog；③不做无关重构；④不打 tag / 不发 Release / 不触碰 v1.2.0；⑤不在本卡处理 #32 双指缩放（用户全检 / 代测）。
+- **复现**：K60 `8e875894` 装 `release-1.3.0-evidence/Aurorama-1.3.0-arm64-v8a.apk`（已在机）、Pad 5 `43af8627` 装 universal（已在机）；播放任意视频 → 点顶部「选集 / 设置」或底部「字幕 / 倍率 / 详细信息」→ 无响应；中央播放暂停 / 单击显隐 / 进度条正常。
+- **对照（必须保留）**：Pad 5 1.2.0 release 顶部「选集」正常；Pad 5 debug `5f13b74` 正常；K60 debug `490a7b0` 正常；`clean + assembleLibreRelease` 后哈希不变（universal `2be2dfc1…` / arm64 `48e45ce4…`），排除缓存。
+- **初步假设（按优先级）**：①R8 / release 打包导致 `PlayerOverlayContainer.shouldHandle` 的命中区状态（`controlsVisible` / `topBarHeightPx` / `bottomBarHeightPx` / `chrome` / `videoWidth/Height`）与 Compose 实际布局不一致；②Compose 控件回调 / `onRegionsChanged` 在 release 被优化；③release 资源 / 密度 / insets 计算差异。先加临时日志或对照 minify 关闭包定位，不要盲改。
+- **落点**：`PlayerActivity.kt`（`onRegionsChanged` / `controlOverlay` 状态同步）、`PlayerOverlayContainer.kt`（`dispatchTouchEvent` / `shouldHandle`）、`PlayerControlOverlay.kt`（顶 / 底工具行点击）、`PlayerGestureHelper.kt`（排除区）、`app/phone/proguard-rules.pro`（仅在证据指向 R8 时）。
+- **验收判据（release 包，K60 + Pad 5）**：顶部选集 / 画面 / 设置可开；底部音轨 / 字幕 / 倍速 / 码率 / 解码 / 详细信息 / 全屏 / 锁定可点；字幕面板可开；码率 3 Mbps 后播放信息容器 = HLS；中央播放暂停 / 进度条 / 双击 / 横滑不回归；0 FATAL / ANR / Input dispatch timeout；关于页仍 `1.3.0 (4)`；双 APK 重新构建并回填 `RELEASE_PLAN` §7。
+- **门禁**：`ktfmtCheck` + 根 `assembleDebug`（含 TV）+ 8 模块全量单测；release 构建 + apksigner；改动只限播放控件 / 打包，不夹带功能。
+- **证据**：`release-1.3.0-reports/RELEASE-1.3.0.md`、`release-1.3.0-evidence/`、`device-lock.md` R13。
+- **分支建议**：`fix/rel-1.3.0-player-controls`（从 `8170cc7` 起）；修复完成后再决定是否 ff 合并 master，候选重建前不 tag。
+
 ## 4. 决策记录
 
 | 编号 | 决策 | 来源 / 理由 |
@@ -475,6 +489,7 @@
 | D-F18 | **口径裁定（2026-10-17 按推荐）**：①EPUB 三档目标 =「可感知」（滚动档长章连续滚动、双栏档真两列），先取证含 W77 回归核对；②歌词居中 = 页 / 面板 / 悬浮窗统一水平居中（当前行垂直居中保持）；③书籍手势 = PDF/CBZ 全量 + EPUB 映射（左右翻页 + 亮度；中间双击 = 单 / 双栏切换）；④手势问题先复现攻坚（偶发、触发条件不明），Pad 5 主、K60 抽验 | 用户 2026-10-17 三轮答复 |
 | D-F19 | **术语勘误**：**MVP = mpv、EOX = ExoPlayer**（用户 2026-10-17 更正「之前是我写错了」）；手势问题来源设备 = **Pad 5**（手机少用未注意） | 用户 2026-10-17 原话 |
 | D-F20 | **文档回写（本批）**：`REQUIREMENTS` 升 v1.1（9 条增量 + 3 条口径修订）；`PROJECT_PLAN` §3 追加段；细节按线回写 `MUSIC_PLAN` / `READER_PLAN` / `DOWNLOAD_PLAN` / `PLAYER_PLAN`；不新建零散 md；ROADMAP / PARALLEL_PLAN 为历史冻结基线，本阶段以 `PROJECT_PLAN` §3 + 本文件为准 | 延续 D-F5（一条线一个文档）+ `REQUIREMENTS` §13 变更管理 |
+| D-F21 | **1.3.0 候选阻塞处置**：先修 release 专属播放页工具控件无响应（REL-1.3.0-FIX），修复后重建候选并重跑发布面冒烟；坏包不交付、不 tag / 不发 Release | 用户 2026-10-17「按你说的方案继续」；证据见 `release-1.3.0-reports/RELEASE-1.3.0.md` |
 
 ## 5. 进度日志
 
