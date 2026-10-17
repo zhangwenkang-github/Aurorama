@@ -34,7 +34,8 @@ internal object BookZoomSession {
 /**
  * 文档级缩放状态：倍率跨页 / 跨 spread / 跨三种模式共享，平移仍按页槽（[slotKey]）各自保留。
  *
- * 分页、双栏、滚动三档都读同一份 [scale]；翻到没访问过的页时该槽平移为 0（重新居中）， 回访已平移过的页时保留自己的平移。倍率变化按当前槽的视口焦点重算平移；`snapTo` 只清当前槽，其余槽按各自中心重算。
+ * 分页、双栏、滚动三档都读同一份 [scale]；翻到没访问过的页时该槽平移为 0（重新居中）， 回访已平移过的页时保留自己的平移。倍率变化按当前槽的视口焦点重算平移；`snapTo`
+ * 只清当前槽，其余槽按各自中心重算。
  */
 @Stable
 internal class BookZoomState(private val bookKey: String) {

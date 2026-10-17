@@ -243,3 +243,32 @@ internal fun spreadPageViewportFocus(
     val slotCenter = (visualIndex + 0.5f) * slotWidth
     return Offset(viewportWidth / 2f - slotCenter, 0f)
 }
+
+/** 双栏跨页捏合是否成立：两根以上手指分别落在左右两半（同半页捏合仍由页槽自己处理）。 */
+internal fun spreadPinchSpansPages(
+    xPositions: List<Float>,
+    pageWidth: Float,
+): Boolean {
+    if (pageWidth <= 0f || xPositions.size < 2) return false
+    return xPositions.any { it < pageWidth } && xPositions.any { it >= pageWidth }
+}
+
+/**
+ * 双栏跨页捏合的手指焦点：整屏坐标换算成当前页槽的局部焦点（相对页槽中心）。
+ *
+ * 与 [ZoomableSlot] 内单槽手势的焦点口径一致：`centroid - 页槽中心`，供 `BookZoomState.transform` 锚定缩放。
+ */
+internal fun spreadPinchFocus(
+    centroid: Offset,
+    viewportWidth: Int,
+    viewportHeight: Int,
+    visualIndex: Int,
+    visualCount: Int,
+): Offset? {
+    if (viewportWidth <= 0 || viewportHeight <= 0 || visualCount <= 0) return null
+    if (visualIndex !in 0 until visualCount) return null
+    if (!centroid.x.isFinite() || !centroid.y.isFinite()) return null
+    val slotWidth = viewportWidth.toFloat() / visualCount
+    val slotCenterX = (visualIndex + 0.5f) * slotWidth
+    return Offset(centroid.x - slotCenterX, centroid.y - viewportHeight / 2f)
+}

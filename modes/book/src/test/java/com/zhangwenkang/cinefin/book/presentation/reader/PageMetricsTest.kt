@@ -150,4 +150,34 @@ class PageMetricsTest {
         assertEquals(null, scrollViewportFocus(1500, 0, 0))
         assertEquals(null, spreadPageViewportFocus(2400, 2, 2))
     }
+
+    @Test
+    fun `跨页捏合只在两指分落左右半屏时成立`() {
+        // 左右各一指（含中缝边界）：跨页捏合，由双栏外层统一手势面接管。
+        assertTrue(spreadPinchSpansPages(listOf(100f, 900f), 800f))
+        assertTrue(spreadPinchSpansPages(listOf(799f, 800f), 800f))
+        // 同半页两指：交给页槽自己的手势层，外层不重复应用。
+        assertTrue(!spreadPinchSpansPages(listOf(100f, 700f), 800f))
+        assertTrue(!spreadPinchSpansPages(listOf(900f, 1500f), 800f))
+        // 单指 / 非法宽度：都不成立。
+        assertTrue(!spreadPinchSpansPages(listOf(100f), 800f))
+        assertTrue(!spreadPinchSpansPages(listOf(100f, 900f), 0f))
+    }
+
+    @Test
+    fun `跨页捏合焦点换算到当前页槽局部坐标`() {
+        // 屏幕 1600×800、双栏；手指落在整屏 (400, 300)。
+        // 左页槽中心 (400, 400) → 焦点 (0, -100)；右页槽中心 (1200, 400) → 焦点 (-800, -100)。
+        assertEquals(Offset(0f, -100f), spreadPinchFocus(Offset(400f, 300f), 1600, 800, 0, 2))
+        assertEquals(
+            Offset(-800f, -100f),
+            spreadPinchFocus(Offset(400f, 300f), 1600, 800, 1, 2),
+        )
+        assertEquals(null, spreadPinchFocus(Offset(400f, 300f), 1600, 800, 2, 2))
+        assertEquals(null, spreadPinchFocus(Offset(400f, 300f), 0, 800, 0, 2))
+        assertEquals(
+            null,
+            spreadPinchFocus(Offset(Float.NaN, 300f), 1600, 800, 0, 2),
+        )
+    }
 }

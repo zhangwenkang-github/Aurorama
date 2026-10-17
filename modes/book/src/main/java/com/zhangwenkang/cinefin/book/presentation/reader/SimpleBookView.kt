@@ -66,6 +66,8 @@ import timber.log.Timber
 
 /** 双指缩放调试日志的最小步进：真机验收用 logcat 文本判断缩放生效，又不会每帧刷屏。 */
 private const val ZOOM_LOG_STEP = 0.1f
+/** 缩放条只需知道「发生了一次操作」：双指每帧都回调会让外层重组与淡出计时器反复重启。 */
+private const val ZOOM_NOTIFY_INTERVAL_MS = 200L
 
 /**
  * PDF / CBZ 阅读视图（EB-3 / EB-4）：滚动 / 横向分页 / 平板双栏三档模式。
@@ -579,44 +581,97 @@ private fun SpreadPages(
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
     onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
-    Row(modifier = Modifier.fillMaxSize()) {
-        visualPages.forEach { index ->
-            if (index != null) {
-                val active = index == activePage
-                val visualIndex = visualPages.indexOf(index)
-                val slotSize =
-                    IntSize(
-                        width = viewportSize.width / visualPages.size.coerceAtLeast(1),
-                        height = viewportSize.height,
+    val activeVisualIndex = activePage?.let(visualPages::indexOf) ?: -1
+    val crossPageZoomEnabled = activeVisualIndex >= 0 && !annotating
+    val currentOnZoomGesture = rememberUpdatedState(onZoomGesture)
+    // 每页槽的手势层只拿得到落在本槽里的手指：跨页捏合由这一层统一接管，同半页 / 单指完全不碰。
+    Box(
+        modifier =
+            Modifier.fillMaxSize().pointerInput(
+                crossPageZoomEnabled,
+                activePage,
+                visualPages.size,
+                bookZoom,
+            ) {
+                if (!crossPageZoomEnabled) return@pointerInput
+                val slotKey = activePage ?: return@pointerInput
+                val pageWidth = size.width.toFloat() / visualPages.size.coerceAtLeast(1)
+                var lastNotifyAt = 0L
+                var lastLoggedScale = bookZoom.scale
+                detectSpreadPinchZoom(pageWidth) { pan, zoomFactor, centroid ->
+                    val focus =
+                        spreadPinchFocus(
+                            centroid = centroid,
+                            viewportWidth = size.width,
+                            viewportHeight = size.height,
+                            visualIndex = activeVisualIndex,
+                            visualCount = visualPages.size,
+                        ) ?: return@detectSpreadPinchZoom
+                    bookZoom.transform(
+                        slotKey = slotKey,
+                        zoomFactor = zoomFactor,
+                        pan = pan,
+                        focus = focus,
                     )
-                ZoomablePage(
-                    cache = cache,
-                    index = index,
-                    bookZoom = bookZoom,
-                    isFitActive = active,
-                    fitSlotSize = slotSize,
-                    activeViewportFocus =
-                        if (active) {
-                            spreadPageViewportFocus(
-                                viewportWidth = viewportSize.width,
-                                visualIndex = visualIndex,
-                                visualCount = visualPages.size,
-                            )
-                        } else {
-                            null
-                        },
-                    onFitWidthTargetChanged = onFitWidthTargetChanged,
-                    contentColor = contentColor,
-                    searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
-                    annotations = annotationsByPage[index].orEmpty(),
-                    annotating = annotating,
-                    onZoomGesture = onZoomGesture,
-                    onAnnotationRequested = onAnnotationRequested,
-                    onAnnotationTap = onAnnotationTap,
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                )
-            } else {
-                Box(modifier = Modifier.weight(1f).fillMaxHeight())
+                    val now = SystemClock.uptimeMillis()
+                    if (now - lastNotifyAt >= ZOOM_NOTIFY_INTERVAL_MS) {
+                        lastNotifyAt = now
+                        currentOnZoomGesture.value()
+                    }
+                    val nextScale = bookZoom.scale
+                    if (abs(nextScale - lastLoggedScale) >= ZOOM_LOG_STEP) {
+                        lastLoggedScale = nextScale
+                        val offset = bookZoom.offsetFor(slotKey)
+                        Timber.d(
+                            "reader zoom spread=%d scale=%.2f offset=(%.0f,%.0f)",
+                            slotKey,
+                            nextScale,
+                            offset.x,
+                            offset.y,
+                        )
+                    }
+                }
+            }
+    ) {
+        Row(modifier = Modifier.fillMaxSize()) {
+            visualPages.forEach { index ->
+                if (index != null) {
+                    val active = index == activePage
+                    val visualIndex = visualPages.indexOf(index)
+                    val slotSize =
+                        IntSize(
+                            width = viewportSize.width / visualPages.size.coerceAtLeast(1),
+                            height = viewportSize.height,
+                        )
+                    ZoomablePage(
+                        cache = cache,
+                        index = index,
+                        bookZoom = bookZoom,
+                        isFitActive = active,
+                        fitSlotSize = slotSize,
+                        activeViewportFocus =
+                            if (active) {
+                                spreadPageViewportFocus(
+                                    viewportWidth = viewportSize.width,
+                                    visualIndex = visualIndex,
+                                    visualCount = visualPages.size,
+                                )
+                            } else {
+                                null
+                            },
+                        onFitWidthTargetChanged = onFitWidthTargetChanged,
+                        contentColor = contentColor,
+                        searchRects = hitsByPage[index].orEmpty().flatMap { it.rects },
+                        annotations = annotationsByPage[index].orEmpty(),
+                        annotating = annotating,
+                        onZoomGesture = onZoomGesture,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    )
+                } else {
+                    Box(modifier = Modifier.weight(1f).fillMaxHeight())
+                }
             }
         }
     }
@@ -813,7 +868,7 @@ private fun ZoomableSlot(
     // 缩放条只需要「这是一次操作」的信号：限流到 200ms，避免双指每帧都触发外层重组与计时器重启。
     fun notifyZoomGesture() {
         val now = SystemClock.uptimeMillis()
-        if (now - lastNotifyAt < 200L) return
+        if (now - lastNotifyAt < ZOOM_NOTIFY_INTERVAL_MS) return
         lastNotifyAt = now
         currentOnZoomGesture.value()
     }
@@ -982,6 +1037,41 @@ private suspend fun PointerInputScope.detectMultiTouchZoom(
                 val zoom = event.calculateZoom()
                 val pan = event.calculatePan()
                 // 双指焦点（页槽局部坐标）：缩放围绕手指位置，而不是页槽中心。
+                val centroid = event.calculateCentroid(useCurrent = true)
+                if (zoom != 1f || pan != Offset.Zero) {
+                    onGesture(pan, zoom, centroid)
+                    event.changes.forEach { change ->
+                        if (change.positionChanged()) change.consume()
+                    }
+                }
+            }
+        } while (event.changes.any { it.pressed })
+    }
+}
+
+/**
+ * 双栏整屏的双指缩放：只在两根手指分别落在左右两半时接管。
+ *
+ * 页槽自己的 [detectMultiTouchZoom] 只看得到落在本槽里的手指，跨页捏合永远凑不齐两根；同半页捏合仍由页槽处理，
+ * 这里在手指落下时就判定并固定归属，避免同一次手势被父子两层各应用一次。
+ */
+private suspend fun PointerInputScope.detectSpreadPinchZoom(
+    pageWidth: Float,
+    onGesture: (pan: Offset, zoom: Float, centroid: Offset) -> Unit,
+) {
+    if (pageWidth <= 0f) return
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        var crossPage: Boolean? = null
+        do {
+            val event = awaitPointerEvent()
+            val pressed = event.changes.filter { it.pressed }
+            if (crossPage == null && pressed.size >= 2) {
+                crossPage = spreadPinchSpansPages(pressed.map { it.position.x }, pageWidth)
+            }
+            if (crossPage == true && pressed.size >= 2) {
+                val zoom = event.calculateZoom()
+                val pan = event.calculatePan()
                 val centroid = event.calculateCentroid(useCurrent = true)
                 if (zoom != 1f || pan != Offset.Zero) {
                     onGesture(pan, zoom, centroid)
