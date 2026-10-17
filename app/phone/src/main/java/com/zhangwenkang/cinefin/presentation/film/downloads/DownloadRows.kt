@@ -321,6 +321,8 @@ internal fun DownloadTopLevelRow(
                         failureReason = task?.failureReason,
                         retrying = showsRetryLabel(task),
                         retryCount = task?.retryCount ?: 0,
+                        // W80b（D3）：书籍下载失败带服务端原始原因（`BookDownloadTask.error`）。
+                        failureDetail = entry.bookDetail,
                     )
                     Spacer(Modifier.width(CinefinSpacing.Space2))
                     Text(
@@ -791,6 +793,11 @@ private fun DownloadStatusBadge(
     failureReason: DownloadFailureReason?,
     retrying: Boolean = false,
     retryCount: Int = 0,
+    /**
+     * 失败条目的**真实原因**（W80b / D3）。视频任务只有分类枚举（[failureReason]）， 书籍下载带的是服务端原始文案（如「下载书籍失败：HTTP
+     * 401…」）；有真实文案时优先显示它， 否则才回落「未知错误」占位。
+     */
+    failureDetail: String? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -837,7 +844,7 @@ private fun DownloadStatusBadge(
                 }
             status == DownloadTaskStatus.COMPLETED ->
                 stringResource(CoreR.string.download_tasks_completed)
-            else -> failureLabel(failureReason)
+            else -> failureDetail?.takeIf { it.isNotBlank() } ?: failureLabel(failureReason)
         }
     Row(
         modifier =
@@ -854,7 +861,13 @@ private fun DownloadStatusBadge(
             tint = contentColor,
             modifier = Modifier.size(12.dp),
         )
-        Text(text = label, style = CinefinType.LabelSmall, color = contentColor, maxLines = 1)
+        Text(
+            text = label,
+            style = CinefinType.LabelSmall,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

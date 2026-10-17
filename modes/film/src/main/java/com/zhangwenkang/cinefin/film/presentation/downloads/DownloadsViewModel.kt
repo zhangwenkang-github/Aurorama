@@ -225,8 +225,10 @@ constructor(
                 entry.task != null -> downloader.deleteTask(entry.task)
                 entry.mediaKind == DownloadMediaKind.BOOK -> {
                     // W80（#23）：进行中的书籍下载先取消，否则 `.part` 会继续写并重新落盘。
+                    // W80b（D2）：失败任务没有 job 可取消，只取消不会让条目消失——必须连任务记录一起移除，
+                    // 否则「失败」分组会一直渲染到进程重启（QA 实测的"删不掉"）。
                     if (readerRepository.bookDownloads.value.any { it.itemId == entry.itemId }) {
-                        readerRepository.cancelBookDownload(entry.itemId)
+                        readerRepository.removeBookDownload(entry.itemId)
                     }
                     readerRepository.deleteLocalFile(entry.itemId)
                 }

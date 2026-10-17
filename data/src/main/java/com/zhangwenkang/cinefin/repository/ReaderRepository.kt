@@ -67,6 +67,13 @@ interface ReaderRepository {
     /** W80（#23）：取消进行中的后台下载任务（没有任务时无操作）。 */
     fun cancelBookDownload(itemId: UUID)
 
+    /**
+     * W80b（D2）：取消并把任务**记录**从任务表移除（含已失败的结束态任务）。
+     *
+     * 下载页删除书籍条目走这里：失败的记录不会自己消失，只取消是不够的。
+     */
+    fun removeBookDownload(itemId: UUID)
+
     /** 本地已下载书籍信息；未下载返回 null。 */
     suspend fun localFile(itemId: UUID): LocalBookFile?
 
@@ -96,7 +103,7 @@ interface ReaderRepository {
 data class RemoteBookSource(
     /** `/Items/{id}/Download`（支持 HTTP Range）。 */
     val url: String,
-    /** `X-Emby-Token` 访问令牌。 */
+    /** Jellyfin 访问令牌；注入方式见 `JellyfinAuth`（`Authorization: MediaBrowser Token="…"`）。 */
     val token: String,
 )
 
