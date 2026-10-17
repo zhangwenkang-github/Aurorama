@@ -2519,3 +2519,15 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 已执行验证：`compileLibreDebugKotlin`、`compileLibreDebugUnitTestKotlin`、三个 ktfmtCheck、`assembleDebug`、`apksigner` v2 均通过；按用户要求未执行单测 / 测试套件 / 真机 / 截图。
 - debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`150,380,421 B`，SHA-256 `1B30778B4F60666AF3E4B69455E532E8FF5D381EC3DFC8050B4DACB8DBB1D4B6`；`Aurorama Debug` / `1.3.0 (4)`。
 - 未覆盖 / 残余风险：真实字形墨迹边界与像素采样、libass 首帧、PGS 图形字幕、`sid` 数字序号误配、App 侧 libass 与 mpv 原生的字体/特效视觉差异、安全抑制后旧次字幕不自动恢复；单字幕 `autoSelect()` 的既有一次自动主字幕加载不在本轮范围。
+
+### 40.8 EXP19 字幕外观与布局设置（2026-10-18，`c3ba3a3`）
+
+- 实现提交：`c3ba3a3`（`feat(player): add per-track subtitle appearance settings`）；分支 `codex/experience-subtitle-settings`，起点 `7a1ca02`（含 §40.7 的 `c9aeaf1`）。
+- 数据模型：`SubtitleStyle` 改为单轨真实外观（字号百分比 50~200 / ARGB 文字色 / 背景底色与不透明度 / 描边 0~4dp）；新增 `SubtitleLayout(gapDp, bottomPercent)` 与 `SubtitleAppearance(primary, secondary, layout)`；`SubtitleOverlayState` 分别携带主/次样式与共享布局。
+- 持久化与迁移：主/次两套新键 + `pref_player_subtitle_gap_dp` / `pref_player_subtitle_bottom_permille`；首次读取时把旧共享键迁移到主、次（次字幕字号按旧 0.9 倍观感吸附 5%），旧键保留不删，只写本机。迁移与读写集中在 `SubtitleAppearancePreferences`。
+- 渲染：主字幕 libass/Compose 用 primary，次字幕 Compose 用 secondary；`SubtitleLift` 的 gap 与底部位置来自共享布局；mpv 单字幕原生路径与 Exo 单字幕/图形字幕读 primary。并修正 SRT/VTT 生成脚本被 libass `fontScale` 二次放大字号的问题（原始 ASS/SSA 仍用 fontScale 套用面板字号；100% 档位无变化）。
+- 面板：字幕面板新增「字幕外观」卡，含两行实时预览与 `主字幕 | 次字幕 | 布局` 分段控件；主/次页支持字号、8 色 + 自定义取色、背景与透明度、描边；布局页支持间距/底部位置并在 0dp 提示贴连；提供标准 / 影院 / 贴底预设、主→次 / 次→主同步、主/次/布局分别恢复默认；全部即时保存。
+- 门禁：`:app:phone:compileLibreDebugKotlin`、`:app:phone:compileLibreDebugUnitTestKotlin`、`:player:local:compileDebugUnitTestKotlin`、`:app:phone:ktfmtCheckMain`、`:app:phone:ktfmtCheckTest`、`:player:local:ktfmtCheckMain`、`:player:local:ktfmtCheckTest`、`:player:core:ktfmtCheckMain`、`:player:core:ktfmtCheckTest`、`:settings:ktfmtCheckMain`、`:app:phone:assembleDebug` 全部通过；`apksigner` v2 通过。
+- debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`147,161,488 B`，SHA-256 `EE3BE1C250F2E81EA6CD208B19006B3C195BE60869B5C90EAFD38D28B20C27C6`；`aapt2` 显示 `1.3.0 (4)`、debug。
+- 未覆盖 / 待用户验收：真机双字幕 0/4/24dp、底部 0%/8%/30%、主/次 50%~200%、背景透明度/描边、预设/同步/恢复默认、退出重进保留与旧设置迁移观感；原始 ASS/SSA 的颜色/背景/描边仍由脚本决定（既有设计，字号可调）；PGS 图形字幕仍走内核原生；未运行单测 / 真机 / adb / 截图。
+- 残余风险：迁移只执行一次（回滚到旧版本会继续读旧键）；旧底部 35% 被新上限夹到 30%；SRT 非 100% 字号改为正确百分比后观感会变化；预览用固定画框近似真实播放，不反映 ASS 原文特效；外观卡较长，手机窄屏需滚动。
