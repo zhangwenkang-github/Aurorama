@@ -1110,3 +1110,9 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 代码提交：`db56fe2 fix(music): resume lyrics follow on line click`；父 `bd8c6ba`。
 - arm64 debug APK：`150,540,833 B`，SHA-256 `BCE69F0433D804F94941C323B7635A76DBECF627D13BF33B9520EB83F44C6C28`；v2 签名验证通过。
 - 未覆盖：未跑 adb / 真机 / App / 截图 / 完整测试套件；Compose 点击与“无回弹”手感仍需用户真机确认。
+
+### 8.9 点击恢复跟随复测包预装（2026-10-18 07:45）
+
+- 独立架构聚焦复审闭环：无 P0 / P1 / P2；点击顺序为“先清手动暂停，再 seek”，主动关闭跟随不会强行打开，旧行居中抑制只生效一次。`SongListSupportTest` 15 + `LyricsCenterScrollTest` 9 + `LyricsPresenterTest` 15 = **39/0/0/0**；编译与三项 ktfmt 通过，APK 哈希只读复核一致。
+- 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 07:45:00`，K60 `8e875894` `07:45:12`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
+- release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，等待用户复测点击歌词恢复跟随。
