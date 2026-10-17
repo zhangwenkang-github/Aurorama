@@ -2458,7 +2458,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - `feature/w81-player-gestures` @ `959ccaa` 已 ff 合并 master；合并态门禁 8 模块 **1041 / 0 / 0**；CI Build / Format / Unit Tests 三路绿；graphify 已更新（10445 nodes / 31581 edges）。
 - QA 未覆盖：HLS 转码 / 显式 BUFFERING、PiP / 锁屏 / 多片源、K60、mpv 控制层独立复跑。播放设置面板右上关闭键的 adb 注入未命中已记录为人工触摸复核项。报告 `w81-reports/W81-QA.md`。
 
-## 40. 2026-10-18 主/次字幕永不重叠（双内核 · 待实现）
+## 40. 2026-10-18 主/次字幕永不重叠（双内核 · 已实现，待用户测试）
 
 > 用户 2026-10-18 反馈：视频播放时主字幕与次字幕仍可能叠在一起，要求**任何时候都不能叠在一起**。本轮只做需求 / 设计收口，真机测试全部由用户执行。
 
@@ -2495,3 +2495,15 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 相关文件：`app/phone/.../presentation/player/PlayerSubtitleOverlay.kt`、`SubtitleLift.kt`、mpv 字幕注入 / `secondary-sid` 配置、字幕面板说明。
 - 设计决策：`docs/adr/0001-subtitle-no-overlap.md`。
 - 证据 / 测试：实现会话只提供 debug APK 与测试清单，真机和视觉判断由用户完成；0 截图主会话规则仍适用。
+
+### 40.6 实现记录（2026-10-18，`codex/experience-subtitles`）
+
+- 实现提交：`22214dd`（`fix(player): enforce non-overlapping dual subtitles`）；起点 `033b757`。
+- 共享几何：`SubtitleLift.kt` 新增 `planDualSubtitleLayout()`，统一输入主字幕实际包围盒 / Compose 块高 / mpv 原生保守块高，输出次字幕 100% → 80% → 隐藏、主字幕上移量或 mpv 预留比例；主字幕上移若会越过顶部则拒绝该次字幕布局，优先保证主字幕不裁切。
+- Exo：`PlayerSubtitleOverlay.kt` 改用 `TextMeasurer` 同步测量次字幕 100% / 80% 块高，libass 主字幕按本帧全部图元的实际 `top/bottom` 计算最小上移；次字幕在测量与布局完成前不绘制，避免首帧闪叠。
+- mpv：主字幕继续由原生 `sid` 渲染；次字幕改由 Compose 从同一份 Jellyfin 字幕源清单加载并渲染，`secondary-sid` 关闭；预留比例写入 `sub-pos`，使原生主字幕底边停在次字幕顶边上方 4dp。双字幕期间临时 `sub-ass-override=strip` 去掉原生 `\pos`，退出双字幕恢复进入前的值；单字幕路径保持原 ASS 行为。该取舍是为满足固定坐标 ASS 的硬约束，真机需重点确认双字幕下主字幕样式可接受。
+- 字幕面板：次字幕分组增加“空间不足时先缩到 80%，仍放不下会自动隐藏”说明；不改轨道选择入口。
+- 未覆盖 / 待用户测试：K60 / Pad 5 的 Exo / mpv 单行、两行、75% / 100% / 200% 主字号、固定 `\pos` ASS、首帧、80% / 隐藏、句末清屏、双语继承与简繁选择；mpv 双字幕 `strip` 后主字幕原生特效的视觉接受度；图形字幕（PGS 等）仍走内核原生路径，未纳入本轮双字幕 Compose 布局。
+- 已执行验证：`:app:phone:compileLibreDebugKotlin`、`:app:phone:compileLibreDebugUnitTestKotlin`、`:app:phone:ktfmtCheckMain`、`:app:phone:ktfmtCheckTest`、`:player:local:ktfmtCheckMain`、`:app:phone:assembleDebug`；`apksigner` v2 通过。按用户要求未执行单测 / 测试套件 / 真机 / 截图。
+- 图谱：`graphify update .` 完成（10808 nodes / 34112 edges / 390 communities；发布树内未产生待提交差异）。
+- debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`147,059,276 B`，SHA-256 `A2C3864CC7690F95F111ACD3BE4BE43531B8A3489634320B40618C27EBF94F16`；`aapt2` 显示 `1.3.0 (4)`、`arm64-v8a`、debuggable。
