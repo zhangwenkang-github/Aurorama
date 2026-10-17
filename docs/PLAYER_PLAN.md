@@ -2381,3 +2381,29 @@ Exo 自研管线里，主字幕由 libass 画布渲染（SRT 生成脚本 `margi
 - App `force-stop`、`/sdcard/w75b_ui.xml` 删除、本地临时截图 33 个全删；**未改分辨率 / 旋转 / 网络**。
 - 测试期间用 `locksettings set-disabled true` 临时跳过锁屏，**已还原 `false`**（`get-disabled = false`）。
 - 未改动任何偏好键（本轮无新增键）。
+
+## 38. W81-S1 手势失效复现攻坚（2026-10-17 · #27 / #28 · Pad 5）
+
+> 只诊断，不落正式修复。分支 `feature/w81-gesture-repro`，基线 `acec6fe`；完整报告在 worktree 外：`F:\Develop\codex_work\.planning\cinefin-expansion\w81-reports\W81-repro.md`。
+
+### 38.1 根因（已真机闭合）
+
+`PlayerGestureHelper` 在构造时缓存 `Resources.getSystem().displayMetrics.widthPixels/heightPixels`（基线 `:107-108`）；竖屏进入后再全屏，字段仍是 **1600×2524**，而横屏 `PlayerView` 是 **2560×1600**。`inExclusionArea()`（`:718-742`）用旧 `screenWidth` 当右界，导致 `firstEvent.x > 1600` 的横滑 / 右缘竖滑全部判为系统手势区。
+
+- Exo：x=1600 放行、x=1601 起拒绝；右侧 37.5% 横滑死区。双击只读 `playerView.measuredWidth`，x=90% 仍 +15s，说明不是双击分区问题。
+- mpv：同一排除区；左缘亮度与双击正常，右缘音量与右侧横滑失效；竖屏 x=90% 音量 75→150，随后全屏 x=90% 75→75。
+- “偶发”：取决于助手创建时的方向。横屏中切换内核会重建助手并重新取到 2560，x=2000 的 `excluded` 立即由 `true` 变 `false`；竖屏创建后再全屏则稳定复现。两内核同根因，不是 mpv/Exo 渲染差异。
+- 控制层是独立第二层条件：可见时中央播放簇 `handle=true`，从按钮起手的滑动不进手势层；画面空白区仍放行。两个 `GestureDetector` 同时收到 `onScroll`，但未互相消费，不是主因。
+
+### 38.2 真机覆盖（Pad 5 `43af8627`）
+
+Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/1280 × 双方向 × 5 次）：x=384/1280 全放行，x=2176 全拒绝；边界 x=1600/1601 精确翻转。另测：双击 5 分区各 5 次（两内核 25/25）、右缘音量 x=75%/90% 上下各 5 次、左缘亮度 10%/25% 上下各 5 次、控制层显隐、Exo BUFFERING 排队（READY 后落到 2982ms）、竖屏→全屏→竖屏→再全屏、长按倍速 2.0×/1.0× 回归。K60 未使用。未覆盖 HLS 转码与 mpv 显式 BUFFERING。
+
+### 38.3 移交 S81-2 / S81-3
+
+- S81-2：删除 `screenWidth/screenHeight` 缓存；排除区改为 `playerView.width/height` + 当前 `WindowInsets` 局部坐标；抽共享 `PlayerTouchRegions`，overlay 只消费实际控件矩形，空白区交给同一手势仲裁；全屏任意区域语义不按内核分支。
+- S81-3：把双击分区、横/竖方向、起手排除、左右边缘、滑动落点、控件命中下沉到 `PlayerSeekGestureRules` 纯函数，单测覆盖竖屏 1600 / 横屏 2560 / 旧系统度量 1600 / 边界 1600/1601 / 控制层显隐。
+
+### 38.4 还原 / 副作用
+
+临时探针已还原并重建基线 APK；设备音量 0、`accelerometer_rotation=0`、`user_rotation=0`、`ROTATION_0`；debug 包 `force-stop`、`/sdcard/s81_*` 临时文件删除。正常播放触发服务器观看进度上报（无法无损回滚），未直接调用写 / 删 API；release 与 K60 零接触。证据目录：`F:\Develop\codex_work\.planning\cinefin-expansion\w81-evidence\s81-1\`。
