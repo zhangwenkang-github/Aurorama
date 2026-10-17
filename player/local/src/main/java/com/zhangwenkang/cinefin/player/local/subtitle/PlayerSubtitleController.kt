@@ -217,7 +217,9 @@ class PlayerSubtitleController(
      * 单字幕仍由内核原生渲染时不会走到这里。图形字幕没有可交给 libass 的文本，保持原生兜底。
      */
     fun ensurePrimaryContentAvailable() {
-        if (primaryManaged || primaryLoadJob?.isActive == true) return
+        // 同一主字幕源加载失败后不再重试：渲染层会恢复 mpv 原生轨，避免「缓存空结果 → 同步回调 → publish」
+        // 在每个 overlay 状态上循环空转。换轨时 syncPrimaryIndex() 会重置失败态，重试只发生在换源之后。
+        if (primaryManaged || primaryRenderFailed || primaryLoadJob?.isActive == true) return
         val source = sources.firstOrNull { it.index == primaryIndex } ?: return
         if (!source.isTextBased) return
         // 先发布加载态：面板与路由需要知道主字幕仍在准备；接管与否由 primaryTextRenderable 决定，不依赖加载时机。
