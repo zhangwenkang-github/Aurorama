@@ -60,7 +60,7 @@
 | 23 | 书籍长按点下载无反应；阅读页下载后下载界面不显示、直接「已完成」 | 两入口均有即时反馈；下载页出现书籍条目 + 进度 + 完成态（与「离线可读」一致） | DOWNLOAD / READER | W80 | ✅ 两入口端到端通过（QA-W80R：Snackbar 0.5 s → 下载页进度 2→95% → 「离线可读 · 34.6 MB / 218.6 MB」→ 下载中删除取消无 `.part`）；D2/D3 复验通过；报告 `w80-reports/W80-QA2.md` |
 | 24 | 打开 EPUB 滚动无效（实为分页）、双栏无效 | 目标 = 三档可感（滚动档长章连续滚动、双栏档真两列）；先取证（含 W77 回归核对） | READER | W80 | ✅ 真机通过（竖屏双栏真两列、滚动档长章连续滚动；QA-W80 独立复核通过，见 §3 W80 / S80-2） |
 | 25 | 搜索无法搜索音乐和书籍 | 搜索类型扩全（Audio / Book 等，本地搜索并核）+ 分类展示 | film/search · data | W82 | ⬜ |
-| 26 | 歌词界面歌词没有居中 | 歌词页 / 面板 / 悬浮窗三处统一水平居中（当前行垂直居中保持） | MUSIC | W79 | ⬜ |
+| 26 | 歌词界面歌词没有居中 | 歌词页 / 面板 / 悬浮窗三处统一水平居中（当前行垂直居中保持） | MUSIC | W79 | ✅ W79a：三处正文 `TextAlign.Center` + `fillMaxWidth`；真机墨迹中心 vs 中轴 ≤3 px（左对齐参照 −150/−173 px），悬浮窗两行 −1.0/−0.5 px；详见 §3 |
 | 27 | mpv 硬解：快进 / 快退 / 音量手势无效（偶发、触发条件不明） | 先复现攻坚（Pad 5 主）：logcat + 分区实验抓触发条件 → 修复后全屏任意区域有效 | PLAYER | W81 | ⬜ |
 | 28 | ExoPlayer 硬解：快退 / 快进仅左区有效 | 与 #27 同源嫌疑，同波取证 + 修复（全屏区域有效） | PLAYER | W81 | ⬜ |
 | 29 | 随机播放只能播放固定的几个 | 与 #38 同源排查（shuffle 序定型于 setMediaItems、队列异步补入）；修复后随机覆盖全队列 | MUSIC / player:local | W78 | ✅ 根因 = 补齐中断（详见 #38）；修后随机 20 连点 **20/20 不重复**、散布 4–348 |
@@ -69,9 +69,9 @@
 | 32 | 书籍手势：双击中间适宽 / 双击右·左翻页 / 上下滑调亮度 | PDF/CBZ 全量；EPUB 映射（左右翻页 + 亮度；中间双击 = 单 / 双栏切换） | READER | W80 | 🟡 实现已落（真机通过：PDF 适宽 / 左右翻页 / 亮度、EPUB 映射，见 §3 W80/S80-3） |
 | 33 | 歌曲分类每首歌显示缩略图 | SongRow 接封面（服务器专辑图 / 本地内嵌·同目录 → 音符占位） | MUSIC | W79 | ⬜ |
 | 34 | 进歌曲栏 / 切歌自动跳到当前播放曲 | 列表定位滚动（进入一次 + 切歌跟随）；手动滚动不被打断 | MUSIC | W79 | ⬜ |
-| 35 | 歌词默认双语对照 | 默认开 + 无译文回落主行 + 存量显式偏好保留 | MUSIC | W79 | ⬜ |
+| 35 | 歌词默认双语对照 | 默认开 + 无译文回落主行 + 存量显式偏好保留 | MUSIC | W79 | ✅ W79a：三态键 `pref_music_lyrics_bilingual`（`""`=未设置→默认开 / `on` / `off`）；真机默认两行、手动关落 `off` 冷启保持、单语歌曲单行不空行；详见 §3 |
 | 36 | 家庭视频缩略图显示进度条 | 库内容页补 UserData 进度 → 复用既有进度线组件；与续播一致 | film/data | W83 | ⬜ |
-| 37 | 歌词可调字体大小 / 间距并保存 | 新增偏好键；歌词页 + 面板生效（悬浮窗对齐）；重启保持 | MUSIC | W79 | ⬜ |
+| 37 | 歌词可调字体大小 / 间距并保存 | 新增偏好键；歌词页 + 面板生效（悬浮窗对齐）；重启保持 | MUSIC | W79 | ✅ W79a：`pref_music_lyrics_font_scale` / `pref_music_lyrics_line_spacing` + 档位条；真机即时生效（字号 ×1.3、行距 +21 px/行块）、冷启保持；详见 §3 |
 | 38 | 播放队列 64 → >500 | 先取证「64」出处；补队列窗口 ≥500，随机 / 顺序均正确 | MUSIC / player | W78 | ✅ 「64」取证为**补齐中断残量**（点 0:38 的歌实测停在 63 首）；修后 349/349 补齐；`SONG_LIMIT` 500→1000 |
 | 39 | 倍速支持 1.75x | 两处档位表统一为共享常量并补 1.75x | PLAYER | W78 | ✅ 三处档位表收敛到 `PlaybackSpeedOptions`；面板 / 设置档位均含 1.75× 且实测生效 |
 
@@ -331,6 +331,22 @@
 - 落点：`modes/music`（MusicModeScreen LazyListState / MusicModeViewModel currentIndex 暴露）。
 - 验收：真机：进入自动定位一次；切歌跟随；手动滚动无强制拉回；空队列不异常。
 
+**W79a 实施记录（2026-10-17，分支 `feature/w79-music-ui-lyrics`，K60 `8e875894`，基座 master `ef0716d`）**
+- 范围：**#26** 歌词三处水平居中 + **#37** 字号 / 行距档位（歌词页 + 面板）+ **#35** 双语对照默认开（S79-1 / S79-2）。不 merge / 不 push（负责人收口）；S79-3 / S79-4 不在本会话。
+- 实现（`modes/music` 为主）：
+  - **#26**：`MusicLyricsPage` / `LyricsSheet` 正文 Text 改 `fillMaxWidth() + TextAlign.Center`（主行 / 逐字行 / 副行三处都加），与既有悬浮窗 `TextAlign.Center` 口径统一；`centerItem()` 垂直居中逻辑**未改动**。
+  - **#37**：新增纯函数层 `data/lyrics/LyricsDisplayPreferences.kt`（`LyricsFontScale` 4 档 ×1 `small/standard/large/xlarge` = 0.85/1/1.15/1.3、`LyricsLineSpacing` 3 档 `tight/standard/loose`）+ 共用档位条 `presentation/MusicLyricsTextControls.kt`（两排 FilterChip，风格对齐既有 chip 行），歌词页与面板各挂在语言 chip 行下方；`MusicModeViewModel` 读写偏好（`selectLyricsFontScale` / `selectLyricsLineSpacing`）。
+  - **#35**：三态偏好 `pref_music_lyrics_bilingual`（`""` 未设置 → 默认**开**；`on` / `off` 为用户显式选择，`toggleLyricsBilingual()` 首次操作即落盘 → 手动关过的不被默认值覆盖）；无译文时不产生副行（`LyricsPresenter.rows` 既有口径，补单测钉住）。
+- **真机拦下的坑（重要）**：行高 `lineHeight` 对"整句歌词的疏密"完全无效 —— ① 基准样式 lineHeight（32sp 字号配 28sp / 17sp 配 24sp）低于字体自然行高，渲染层忽略过小值；② 单行文本框的高度会被按文字本身裁剪，改 lineHeight 也改不动它。实测证据：标准 / 宽松两档的首行墨迹像素**完全一致**。修法 = 行高改按 `实际字号 × 1.33（字体自然行高比例）× 档位倍数` 计算（折行行距随即量得 96 px → 119 px），另给行块间距加 `Arrangement.spacedBy(基准 + 档位增量)`（+8 dp/行块，实测 +21 px）。**两条都要，只做一条等于档位半失效。**
+- 申报项（红线）：`settings/.../AppPreferences.kt` 只追加 3 键 —— `pref_music_lyrics_font_scale`（默认 `"standard"`）、`pref_music_lyrics_line_spacing`（默认 `"standard"`）、`pref_music_lyrics_bilingual`（默认 `""` = 未显式设置 → 生效值默认开）；不重排既有键。`NavigationRoot.kt` / `AndroidManifest.xml` / `settings.gradle.kts` / `libs.versions.toml` / `player:*` 未触碰。
+- 真机自测（K60 独占；证据 `w79-evidence/w79a/`，脚本 `w79ui.ps1` / `w79probe.py` / `w79rows.py`）：
+  - #26 三处水平居中：歌词页墨迹中心 vs 屏幕中轴 ≤ 3 px（少数行 −10…−15 px 系行末全角标点的字面侧空，同一句在两种行距档下偏移量完全一致）；面板 −10.5…+2 px；**悬浮窗两行 −1.0 / −0.5 px**（窗口 `frame=[24,904][655,1142]`，中心 339.5，用"开 / 关悬浮窗截图差分"隔离）；左对齐参照物（面板「来源」行、字号 chip 行）=−173 / −150 px，证明探针对齐分辨率足够。uiautomator 文本节点横向铺满内容区并对称落在中轴（歌词页 `[63,1017]`、面板 `[85,995]`）。
+  - #37 即时生效 + 冷启保持：字号 `特大` → 面板主行节点 60 → 77 px、歌词页折行节距 +24 px；行距 `宽松` → 每行块间距 +21 px（8 dp，截图差分对比 `gap_std.png` / `gap_loose.png`）；`am force-stop` 冷启后面板仍是"单行 + 特大 + 宽松"（键值 `xlarge` / `loose` 复核一致）。
+  - #35：未显式设置（键不存在）时默认**两行**双语（心做し：中文主行 + 日文副行，来源 = 服务端）；手动关 → 键落 `off`、行数变单行、冷启保持；单语歌曲（幻听，`来源：服务端　简体中文`）开双语 → 单行等高、间距一致、**无空行 / 无错位**。
+  - 破版回归：长句折行（`笑着活下去这样的事就会变的轻松吗？` 折 2 行）居中不破；无歌词（一路生花 / Lemon）面板与歌词页显示居中提示文案；logcat `FATAL EXCEPTION|ANR in` = 0（另查 crash 缓冲 0 条 aurorama 记录）。
+  - 未覆盖：字体族 / 彩色歌词 / 动效 / 在线翻译 / 逐字歌词（非目标）；悬浮窗字号档位未与歌词页合并（按任务卡约定）；TV / Pad 形态；悬浮窗 2 行同时折行时的居中（本库样本为单行）。
+- 还原：偏好复位（`font_scale=standard` / `line_spacing=standard` / `bilingual=on` = 默认行为 / `overlay=false`）；`SYSTEM_ALERT_WINDOW` appop 复位 `ignore`（为验证悬浮窗临时 `allow`）；`/sdcard/w79a_ui.xml` 已删；App force-stop。
+
 ### W80 波（阅读与书籍 · Pad 5 主 · 2026-10-17 派发，与 W78 并行）
 
 **S80-1 书籍下载链路与反馈（#23）**
@@ -508,6 +524,7 @@
 | 2026-10-17 | **W80b 修复波实收（续分支 `feature/w80-reader-books`，worktree `w80r`，基线 `785b51f`；Pad 5 `43af8627` 独占；07:30–08:20）**：**D1（P0）统一自定义 HTTP 鉴权头** —— 新增 `data/.../network/JellyfinAuth.kt` 单一构造点（`Authorization: MediaBrowser Token="…"`），全仓库 9 处非 SDK 调用点收敛（书籍下载 / 书名侧车 / 书籍封面 / Readium 适配层 / 远端随机读 / 远端嗅探 / 视频下载引擎 + 跨主机剥离 / 控制台令牌校验 / ReplayGain 只读 Range），`modes:book` 本地令牌常量删除。**真机 #23 两入口全通**：长按批量与阅读页顶栏「下载」都走出 Snackbar → 下载页「正在下载… xx% · a / b」（23→30→39→46→53→60%）→「离线可读 · 218.6 MB / 34.6 MB」→ 下载中删除 = 取消 + 无 `.part` 残留；远端 EPUB / CBZ / PDF 三本流式打开（改前一律 401）、书籍封面真实产出、视频下载进「下载中」（侧栏角标「1」）、ReplayGain 读取成功（来源=NONE 非失败）。**D2 / D3 通过**：失败条目删除即消失且计数归零；失败行显示真实原因（断网场景 `Unable to resolve host …`，改前恒为「未知错误」）。门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿 + 8 模块 `--rerun-tasks` **1003 / 0 / 0 / 0**（基线 996：+JellyfinAuth 6 + ReaderStreamingPlan 1）；全量 logcat `FATAL EXCEPTION|ANR in` **0**。**未覆盖**：Web 控制台（当前账号非管理员，侧栏无入口）、#23 ⑤ 的 Snackbar（全部已下载时按钮按既有规则置灰 → 记 §6 B19）；远端 CBZ / PDF 手势、双指缩放仍属人工项。报告 `w80-reports/W80b.md`，证据 `w80-evidence/w80b/`。 |
 | 2026-10-17 | **QA-W80R 复验通过（第十一任负责人）**：独立复跑 #23 **两入口端到端**（书架批量 + 阅读页顶栏：Snackbar 0.5 s → 下载页 2→95% → 「离线可读 · 34.6 MB / 218.6 MB」→ 下载中删除取消 + 无 `.part`）；**D2/D3 ✅**；**W77 远端回归 ✅**（EPUB 首开 3.94 MB / 静默 +2.1 KB；CBZ 14 s / +4.66 MB / 静默 +1.15 KB；PDF 整本 33.1 MB 符合口径；书架无封面 PDF 卡 +6.3 KB）；工具栏三态 ✅；**新 P3 = B21**（书籍下载未计入侧栏角标）；0 FATAL/ANR。报告 `w80-reports/W80-QA2.md`，证据 `w80-evidence/qa2/`。 |
 | 2026-10-17 | **W80 合并验收（第十一任负责人）**：`feature/w80-reader-books` rebase 到 master `ef0716d`（FIX_PLAN 冲突解决 = 统一定序 B13–B20）→ ff 合并 master（`ef0716d` → `1bc1c0d`）；合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **1011 / 0 / 0**（app 281 / core 106 / data 78 / player:core 12 / player:local 180 / film 53 / book 159 / music 142；日志 `w80-evidence/gate_merged_w80_build.log` / `gate_merged_w80_tests.log`）；已推送 CI（`ef0716d..1bc1c0d`）**三路全绿**（Format 59 s / Unit Tests 3 m 29 s / Build 5 m 0 s）；graphify 已更新（10338 nodes / 31285 edges）。 |
+| 2026-10-17 | **W79a 实现波完成（未合并，负责人收口）**：`feature/w79-music-ui-lyrics`（基座 master `ef0716d`，worktree `w79a`，K60 `8e875894` 独占）交付 **#26 + #37 + #35**。①#26 歌词页 / 面板加 `TextAlign.Center + fillMaxWidth`（悬浮窗既有居中），真机墨迹中心 vs 中轴：歌词页 ≤3 px、面板 −10.5…+2 px、悬浮窗 −1.0/−0.5 px，左对齐参照 −150/−173 px；②#37 新增字号 4 档 / 行距 3 档 + 共用 chip 档位条，即时生效（字号 ×1.3、行块间距 +21 px、折行节距 96→119 px）且 `am force-stop` 冷启保持；**真机拦下的坑**：基准样式 lineHeight 低于字体自然行高 + 单行文本框裁 leading → 只改 lineHeight 等于档位失效，改按"实际字号 × 1.33"算行高并另加行块间距；③#35 双语三态键（未设置 → 默认开；显式 `off` 冷启保持）+ 单语歌曲单行不空行。**申报项**：`AppPreferences` 追加 `pref_music_lyrics_font_scale=standard` / `pref_music_lyrics_line_spacing=standard` / `pref_music_lyrics_bilingual=""`。**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 `--rerun-tasks` **994 / 0 / 0**（music 153，新增 11）。0 FATAL/ANR；偏好 / 悬浮窗权限 / 临时文件已还原；报告 `w79-reports/W79a.md`。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
