@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.presentation.console
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.TimeUnit
@@ -72,7 +73,7 @@ constructor(
         val request =
             Request.Builder()
                 .url(baseUrl.trimEnd('/') + "/Users/Me")
-                .header("X-Emby-Token", token)
+                .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
                 .build()
         client.newCall(request).execute().use { it.isSuccessful }
     }

@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.utils.HttpCallRegistry
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -206,7 +207,9 @@ class PreciseHttpResource(
 
     private fun baseRequest(): Request {
         val builder = Request.Builder().url(sourceUrl.toString()).get()
-        if (!token.isNullOrBlank()) builder.header(ACCESS_TOKEN_HEADER, token)
+        if (!token.isNullOrBlank()) {
+            builder.header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
+        }
         return builder.build()
     }
 

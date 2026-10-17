@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.player.local.audio
 
 import android.content.Context
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -162,7 +163,7 @@ constructor(
         val connection = URL(url).openConnection() as HttpURLConnection
         return try {
             connection.requestMethod = "GET"
-            connection.setRequestProperty("X-Emby-Token", token)
+            connection.setRequestProperty(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
             connection.setRequestProperty("Range", range)
             connection.connectTimeout = READ_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS

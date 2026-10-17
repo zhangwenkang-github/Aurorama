@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.repository
 import android.content.Context
 import android.net.ConnectivityManager
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import java.io.File
 import java.io.IOException
@@ -187,6 +188,17 @@ class ReaderRepositoryImpl(
         }
     }
 
+    /**
+     * W80b（D2）：取消并把任务**记录**从任务表移除。
+     *
+     * `cancelBookDownload` 只对**在跑**的任务有意义；已结束（失败）的任务没有 job 可取消，记录会一直留在任务表里，
+     * 下载页的「失败」条目因此删不掉。用户主动删条目走这里：取消 + 立即移除记录。
+     */
+    override fun removeBookDownload(itemId: UUID) {
+        cancelBookDownload(itemId)
+        removeBookTask(itemId)
+    }
+
     private fun publishBookTask(task: BookDownloadTask) {
         bookDownloadTasks.update { tasks -> tasks.filterNot { it.itemId == task.itemId } + task }
     }
@@ -283,7 +295,11 @@ class ReaderRepositoryImpl(
             val baseUrl = requireNotNull(jellyfinApi.api.baseUrl) { "服务器地址为空" }
             val token = requireNotNull(jellyfinApi.api.accessToken) { "访问令牌为空" }
             val url = "${baseUrl.trimEnd('/')}/Items/$itemId/Download"
-            val request = Request.Builder().url(url).header("X-Emby-Token", token).build()
+            val request =
+                Request.Builder()
+                    .url(url)
+                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
+                    .build()
 
             val call = httpClient.newCall(request)
             val cancelHandle =
@@ -510,7 +526,11 @@ class ReaderRepositoryImpl(
                 jellyfinApi.userId?.let { userId ->
                     "${baseUrl.trimEnd('/')}/Users/$userId/Items/$itemId"
                 } ?: "${baseUrl.trimEnd('/')}/Items/$itemId"
-            val request = Request.Builder().url(url).header("X-Emby-Token", token).build()
+            val request =
+                Request.Builder()
+                    .url(url)
+                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
+                    .build()
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use null
                 JSONObject(response.body.string()).optString("Name").takeIf { it.isNotBlank() }

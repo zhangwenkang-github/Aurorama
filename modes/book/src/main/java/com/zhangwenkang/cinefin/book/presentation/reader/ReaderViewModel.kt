@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.local.localItemIdFor
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.repository.ReaderBookmark
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.repository.ReadingProgress
@@ -396,7 +397,7 @@ constructor(
             val request =
                 Request.Builder()
                     .url(remote.url)
-                    .header(ACCESS_TOKEN_HEADER, remote.token)
+                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(remote.token))
                     .header("Range", "bytes=0-${REMOTE_SNIFF_BYTES - 1}")
                     .build()
             val call = readerRepository.readerHttpClient().newCall(request)
@@ -445,7 +446,7 @@ constructor(
                 RemoteComicArchive.openRemote(
                     client = readerRepository.readerHttpClient(),
                     url = remote.url,
-                    headers = mapOf(ACCESS_TOKEN_HEADER to remote.token),
+                    headers = JellyfinAuth.headers(remote.token),
                     callRegistry = inFlight,
                 )
             var handedOff = false

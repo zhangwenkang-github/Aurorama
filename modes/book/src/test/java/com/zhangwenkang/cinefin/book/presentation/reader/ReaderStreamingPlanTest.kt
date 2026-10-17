@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import java.util.zip.CRC32
@@ -72,17 +73,31 @@ class ReaderStreamingPlanTest {
         val merged = readiumHeadersWithToken(original, "abc123")
         assertEquals(listOf("bytes=0-1023"), merged["Range"])
         assertEquals(listOf("*/*"), merged["Accept"])
-        assertEquals(listOf("abc123"), merged[ACCESS_TOKEN_HEADER])
+        // W80b：统一 `Authorization: MediaBrowser Token="…"`（服务器只认这一种形态）。
+        assertEquals(listOf("MediaBrowser Token=\"abc123\""), merged[JellyfinAuth.HEADER])
         // 不修改入参。
-        assertFalse(original.containsKey(ACCESS_TOKEN_HEADER))
+        assertFalse(original.containsKey(JellyfinAuth.HEADER))
     }
 
     @Test
     fun `令牌注入大小写不敏感地替换同名头`() {
-        val original = mapOf("x-emby-token" to listOf("old"))
+        val original = mapOf("authorization" to listOf("old"))
         val merged = readiumHeadersWithToken(original, "new")
         assertEquals(1, merged.size)
-        assertEquals(listOf("new"), merged.values.first())
+        assertEquals(listOf("MediaBrowser Token=\"new\""), merged.values.first())
+    }
+
+    @Test
+    fun `令牌注入清掉历史 X-Emby-Token 头`() {
+        val original =
+            mapOf(
+                "x-emby-token" to listOf("legacy"),
+                "Range" to listOf("bytes=0-"),
+            )
+        val merged = readiumHeadersWithToken(original, "new")
+        assertFalse(merged.containsKey("x-emby-token"))
+        assertEquals(listOf("bytes=0-"), merged["Range"])
+        assertEquals(listOf("MediaBrowser Token=\"new\""), merged[JellyfinAuth.HEADER])
     }
 
     @Test

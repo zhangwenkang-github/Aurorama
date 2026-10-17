@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.utils
 
 import android.os.SystemClock
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
@@ -22,9 +23,9 @@ import okhttp3.Response
 internal data class DownloadAllowedTokenHost(val host: String, val port: Int)
 
 /**
- * W50：把 `X-Emby-Token` 限定在请求原始主机上。
+ * W50：把 Jellyfin 凭据头（W80b 起为 `Authorization`，见 `JellyfinAuth`）限定在请求原始主机上。
  *
- * OkHttp 默认只对 `Authorization` 做跨主机剥离；自定义令牌头需要本拦截器兜底，避免服务器重定向到第三方 CDN 时泄露凭据。
+ * OkHttp 默认只对 `Authorization` 做跨主机剥离，这里显式再兜一层，并顺带清掉历史 `X-Emby-Token` （防旧代码残留的令牌随重定向外泄）。
  */
 internal class DownloadRedirectTokenInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -37,7 +38,13 @@ internal class DownloadRedirectTokenInterceptor : Interceptor {
         return if (sameHost) {
             chain.proceed(request)
         } else {
-            chain.proceed(request.newBuilder().removeHeader("X-Emby-Token").build())
+            chain.proceed(
+                request
+                    .newBuilder()
+                    .removeHeader(JellyfinAuth.HEADER)
+                    .removeHeader(JellyfinAuth.LEGACY_HEADER)
+                    .build()
+            )
         }
     }
 }
@@ -65,8 +72,8 @@ internal data class DownloadAttemptResult(
  * - 416：残片已 >= 服务器总长时按完成处理，否则报 [DownloadFailureReason.CANNOT_RESUME] 由引擎安全重下；
  * - 401 / 403：鉴权失败；5xx / 其他 4xx：服务器错误；连接中断：网络错误。
  *
- * 令牌只在同主机请求上使用 `X-Emby-Token`（跨主机重定向不携带凭据）；同时保留 Jellyfin 直链自带的 `api_key` 查询参数（与旧 DownloadManager
- * 行为一致）。
+ * 令牌只在同主机请求上使用 `Authorization: MediaBrowser Token="…"`（跨主机重定向不携带凭据）； 同时保留 Jellyfin 直链自带的 `api_key`
+ * 查询参数（与旧 DownloadManager 行为一致）。
  */
 internal class DownloadHttpEngine(private val client: OkHttpClient) {
 
@@ -246,7 +253,7 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                         DownloadAllowedTokenHost::class.java,
                         DownloadAllowedTokenHost(host = httpUrl.host, port = httpUrl.port),
                     )
-                    .header("X-Emby-Token", token)
+                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
             }
         }
         if (offset > 0L) {

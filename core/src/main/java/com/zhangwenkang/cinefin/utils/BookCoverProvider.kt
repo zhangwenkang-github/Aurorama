@@ -12,6 +12,7 @@ import com.tom_roush.pdfbox.pdfparser.PDFParser
 import com.tom_roush.pdfbox.rendering.PDFRenderer
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.local.LocalThumbnailRules
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -213,7 +214,7 @@ constructor(
     private fun openRemoteSource(itemId: UUID): ByteSource {
         val baseUrl = repository.getBaseUrl().trimEnd('/')
         val token = repository.getAccessToken()
-        val headers = if (token.isNullOrBlank()) emptyMap() else mapOf("X-Emby-Token" to token)
+        val headers = JellyfinAuth.headers(token)
         return HttpByteSource(
             client = httpClient,
             url = "$baseUrl/Items/$itemId/Download",

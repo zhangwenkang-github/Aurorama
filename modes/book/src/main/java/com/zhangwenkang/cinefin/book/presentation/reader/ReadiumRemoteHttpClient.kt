@@ -29,7 +29,7 @@ import timber.log.Timber
  *
  * 为什么不用 `DefaultHttpClient`：
  * 1. 它走 `java.net.HttpURLConnection` + **系统信任库**，拿不到本应用的 TOFU 自签证书信任（用户服务器可能自签）；
- * 2. 它没有注入额外请求头的参数，无法附加 Jellyfin 的 `X-Emby-Token`。
+ * 2. 它没有注入额外请求头的参数，无法附加 Jellyfin 的鉴权头（见 `JellyfinAuth`）。
  *
  * 取消语义（对齐 W64）：`stream()` 在协程里注册「Job 完成 → `call.cancel()`」，因此离开阅读页 （`viewModelScope` 取消）会**立刻**中止在途
  * HTTP；[close] 再做一次兜底（`Dispatcher.cancelAll()`）。

@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import java.util.UUID
 
 /**
@@ -164,23 +165,13 @@ fun readerDownloadUrl(baseUrl: String, itemId: UUID): String =
 /**
  * W77：把访问令牌并进 Readium 请求头（纯函数）。
  *
- * 服务器对所有媒体请求都要求 `X-Emby-Token`；Readium 自己只带 `Range` / `Accept` 等标准头， 令牌必须在适配层注入。大小写不敏感地替换已有同名头。
+ * 服务器对所有媒体请求都要求鉴权头；Readium 自己只带 `Range` / `Accept` 等标准头，令牌必须在适配层注入。 头名与形态的单一事实来源是
+ * `JellyfinAuth`（W80b 起统一为 `Authorization: MediaBrowser Token="…"`）。
  */
 fun readiumHeadersWithToken(
     headers: Map<String, List<String>>,
     token: String?,
-): Map<String, List<String>> {
-    if (token.isNullOrBlank()) return headers
-    val merged = LinkedHashMap<String, List<String>>(headers.size + 1)
-    headers.forEach { (name, values) ->
-        if (!name.equals(ACCESS_TOKEN_HEADER, ignoreCase = true)) merged[name] = values
-    }
-    merged[ACCESS_TOKEN_HEADER] = listOf(token)
-    return merged
-}
-
-/** Jellyfin 访问令牌请求头（与 `ReaderRepositoryImpl` 的下载路径保持一致）。 */
-const val ACCESS_TOKEN_HEADER: String = "X-Emby-Token"
+): Map<String, List<String>> = JellyfinAuth.merge(headers, token)
 
 /**
  * W77：解析 `Content-Range` 里的资源总长（纯函数）。
