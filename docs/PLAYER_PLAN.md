@@ -2508,3 +2508,14 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 图谱：`graphify update .` 完成（10808 nodes / 34112 edges / 390 communities；发布树内未产生待提交差异）。
 - debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`147,059,276 B`，SHA-256 `A2C3864CC7690F95F111ACD3BE4BE43531B8A3489634320B40618C27EBF94F16`；`aapt2` 显示 `1.3.0 (4)`、`arm64-v8a`、debuggable。
 - 用户测试包已预装（2026-10-18 00:45）：Pad 5 `43af8627` 与 K60 `8e875894` 均 `install -r` 成功；设备侧 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`，`lastUpdateTime` 分别为 `00:45:36` / `00:45:35`；release 包与数据未触碰。设备记录见 `device-lock.md` 顶部 EXP18 条目。
+
+### 40.7 EXP19 双字幕间距修复（2026-10-18，最终 `c9aeaf1`）
+
+> 用户验收反馈：K60 手机上双字幕仍重叠、Pad 5 平板上间距过大。本节覆盖 §40.6 中 mpv `sub-pos` 的旧实现说明；§40.6 保留为上一轮历史记录。
+
+- 根因：旧布局把 `SubtitleLine` 的块顶当可见边界，外层透明留白与描边把 4dp 放大；mpv 原生 `sub-pos` 百分比与 Compose 次字幕的 `videoRect` 没有共同坐标系，视频区高度不同会分别表现为重叠或间距过大。
+- 修法：双字幕文本主字幕统一走 App 侧 libass（mpv 双字幕期间临时隐藏原生 `sub-visibility`，退出/离开播放页恢复），与 Exo 共用可见边界几何；`SubtitleLift` 支持可见内缩、描边半宽与 Compose 兜底偏移；映射失败但有原生主字幕时走保守 Native 预留，映射失败时禁用次字幕同源候选；主字幕加载失败短路、加载中占位去重；单字幕 mpv 仍走原生且不预加载主字幕文本。
+- 提交链：`2c5e462`（几何与 mpv 接管）、`dda8b1e`（失败态短路）、`d8939d3`（映射失败兜底/同源保护/去重/描边半宽）、`72b94ef`（切轨时序）、`c9aeaf1`（单字幕不预加载）。均未合并 master。
+- 已执行验证：`compileLibreDebugKotlin`、`compileLibreDebugUnitTestKotlin`、三个 ktfmtCheck、`assembleDebug`、`apksigner` v2 均通过；按用户要求未执行单测 / 测试套件 / 真机 / 截图。
+- debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`150,380,421 B`，SHA-256 `1B30778B4F60666AF3E4B69455E532E8FF5D381EC3DFC8050B4DACB8DBB1D4B6`；`Aurorama Debug` / `1.3.0 (4)`。
+- 未覆盖 / 残余风险：真实字形墨迹边界与像素采样、libass 首帧、PGS 图形字幕、`sid` 数字序号误配、App 侧 libass 与 mpv 原生的字体/特效视觉差异、安全抑制后旧次字幕不自动恢复；单字幕 `autoSelect()` 的既有一次自动主字幕加载不在本轮范围。
