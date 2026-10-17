@@ -1,10 +1,10 @@
 import org.gradle.api.JavaVersion
 
 object Versions {
-    // W77（2026-10-07）：1.2.0 阅读流式更新（EPUB / CBZ 远端先出页、按需预取、顶栏三态与进度）。
+    // W78–W83（2026-10-17）：1.3.0 音乐、阅读、搜索、媒体库体验更新。
     // 后续每次发布 versionCode +1（见 docs/RELEASE_PLAN.md §6）。
-    const val APP_CODE = 3
-    const val APP_NAME = "1.2.0"
+    const val APP_CODE = 4
+    const val APP_NAME = "1.3.0"
 
     const val COMPILE_SDK = 37
     const val TARGET_SDK = 36
