@@ -46,3 +46,11 @@ internal fun shouldAutoLocateSong(
     targetIndex: Int,
     manualScrolled: Boolean,
 ): Boolean = enabled && targetIndex >= 0 && !manualScrolled
+
+/**
+ * 歌曲行序号文案（W79b-FIX）：至少两位，三位 / 四位数不截断。
+ *
+ * 列表上限 1000 首时最大为「1000」，渲染侧必须单行显示。
+ */
+internal fun songRowIndexLabel(index: Int): String =
+    index.coerceAtLeast(0).toString().padStart(2, '0')

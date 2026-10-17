@@ -66,6 +66,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
@@ -1300,10 +1301,13 @@ private fun SongRow(
                 ArtworkThumb(imageUri = artworkUri, title = song.name, size = 40.dp)
                 Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
                 Text(
-                    text = index.toString().padStart(2, '0'),
+                    text = songRowIndexLabel(index),
                     style = CinefinType.MonoDataSmall,
                     color = if (isCurrent) media.bright else colors.onSurfaceFaint,
-                    modifier = Modifier.width(22.dp),
+                    modifier = Modifier.widthIn(min = 22.dp),
+                    maxLines = 1,
+                    softWrap = false,
+                    textAlign = TextAlign.End,
                 )
             }
         },

@@ -79,6 +79,15 @@ class SongListSupportTest {
         assertFalse(shouldAutoLocateSong(enabled = true, targetIndex = 3, manualScrolled = true))
     }
 
+    @Test
+    fun `song row index keeps three and four digits on one label`() {
+        assertEquals("01", songRowIndexLabel(1))
+        assertEquals("99", songRowIndexLabel(99))
+        assertEquals("100", songRowIndexLabel(100))
+        assertEquals("343", songRowIndexLabel(343))
+        assertEquals("1000", songRowIndexLabel(1000))
+    }
+
     private fun song(name: String): MusicSong =
         MusicSong(
             itemId = UUID.randomUUID(),
