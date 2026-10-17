@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.utils
 
 import android.annotation.SuppressLint
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.media.AudioManager
 import android.os.Build
@@ -104,9 +103,6 @@ class PlayerGestureHelper(
 
     private var lastPlaybackSpeed: Float = 0f
 
-    private val screenWidth = Resources.getSystem().displayMetrics.widthPixels
-    private val screenHeight = Resources.getSystem().displayMetrics.heightPixels
-
     /**
      * W20（§1.11 Trickplay 按需加载）：手势 seek HUD 的预览图提供者。
      *
@@ -190,27 +186,11 @@ class PlayerGestureHelper(
                     // Disables double tap gestures if view is locked
                     if (isControlsLocked) return false
 
-                    val viewWidth = playerView.measuredWidth
-                    val areaWidth = viewWidth / 5 // Divide the view into 5 parts: 2:1:2
-
-                    // Define the areas and their boundaries
-                    val leftmostAreaStart = 0
-                    val middleAreaStart = areaWidth * 2
-                    val rightmostAreaStart = middleAreaStart + areaWidth
-
-                    when (e.x.toInt()) {
-                        in leftmostAreaStart until middleAreaStart -> {
-                            // Tapped on the leftmost area (seek backward)
-                            rewind()
-                        }
-                        in middleAreaStart until rightmostAreaStart -> {
-                            // Tapped on the middle area (toggle pause/unpause)
-                            togglePlayback()
-                        }
-                        in rightmostAreaStart until viewWidth -> {
-                            // Tapped on the rightmost area (seek forward)
-                            fastForward()
-                        }
+                    when (tapGestureZone(e.x, currentViewWidth())) {
+                        TapGestureZone.REWIND -> rewind()
+                        TapGestureZone.TOGGLE -> togglePlayback()
+                        TapGestureZone.FORWARD -> fastForward()
+                        TapGestureZone.EDGE_OUTSIDE -> Unit
                     }
                     return true
                 }
@@ -252,22 +232,14 @@ class PlayerGestureHelper(
             return false
         }
 
-        val viewWidth = playerView.measuredWidth
-        val areaWidth = viewWidth / 5 // Divide the view into 5 parts: 2:1:2
-
-        // Define the areas and their boundaries
-        val leftmostAreaStart = 0
-        val middleAreaStart = areaWidth * 2
-        val rightmostAreaStart = middleAreaStart + areaWidth
-
-        return when (e.x.toInt()) {
-            in leftmostAreaStart until middleAreaStart ->
+        return when (tapGestureZone(e.x, currentViewWidth())) {
+            TapGestureZone.REWIND ->
                 activity.viewModel.seekToPreviousChapter()?.let { chapter ->
                     displayChapter(chapter)
                     true
                 } ?: false
 
-            in rightmostAreaStart until viewWidth -> {
+            TapGestureZone.FORWARD -> {
                 val player = playerView.player
                 if (activity.viewModel.isLastChapter()) {
                     if (player != null && player.hasNextMediaItem()) {
@@ -284,7 +256,8 @@ class PlayerGestureHelper(
                 }
             }
 
-            else -> false
+            TapGestureZone.TOGGLE,
+            TapGestureZone.EDGE_OUTSIDE -> false
         }
     }
 
@@ -414,7 +387,7 @@ class PlayerGestureHelper(
                     if (isControlsLocked) return false
 
                     // Check whether swipe was oriented vertically
-                    if (abs(distanceY / distanceX) < 2) {
+                    if (isHorizontalScroll(distanceX, distanceY)) {
                         return if (
                             (abs(currentEvent.x - firstEvent.x) > 50 || swipeGestureProgressOpen) &&
                                 !swipeGestureBrightnessOpen &&
@@ -428,7 +401,7 @@ class PlayerGestureHelper(
                             // 小幅滑动用于精细调整，大幅滑动快速跨越较长时间
                             val swipeRatio =
                                 (currentEvent.x - firstEvent.x) /
-                                    playerView.measuredWidth.coerceAtLeast(1).toFloat()
+                                    currentViewWidth().coerceAtLeast(1).toFloat()
                             val acceleratedRatio =
                                 swipeRatio.sign *
                                     abs(swipeRatio).pow(Constants.SEEK_ACCELERATION_EXPONENT)
@@ -500,17 +473,15 @@ class PlayerGestureHelper(
                     // Disables volume gestures when player is locked
                     if (isControlsLocked) return false
 
-                    if (abs(distanceY / distanceX) < 2) return false
+                    if (!isVerticalScroll(distanceX, distanceY)) return false
 
                     if (swipeGestureValueTrackerProgress > -1 || swipeGestureProgressOpen) {
                         return false
                     }
 
-                    val viewCenterX = playerView.measuredWidth / 2
-
                     // Distance to swipe to go from min to max
                     val distanceFull =
-                        playerView.measuredHeight *
+                        currentViewHeight() *
                             Constants.GestureSensitivity.verticalScreenRatio(
                                 appPreferences.getValue(
                                     appPreferences.playerGesturesVerticalSensitivity
@@ -518,7 +489,10 @@ class PlayerGestureHelper(
                             )
                     val ratioChange = distanceY / distanceFull
 
-                    if (firstEvent.x.toInt() > viewCenterX) {
+                    if (
+                        verticalGestureSide(firstEvent.x, currentViewWidth()) ==
+                            VerticalGestureSide.VOLUME
+                    ) {
                         // Swiping on the right, change volume
 
                         val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -716,35 +690,45 @@ class PlayerGestureHelper(
 
     /** Check if [firstEvent] is in the gesture exclusion area */
     private fun inExclusionArea(firstEvent: MotionEvent): Boolean {
+        val viewWidth = currentViewWidth()
+        val viewHeight = currentViewHeight()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val insets =
-                playerView.rootWindowInsets.getInsetsIgnoringVisibility(
-                    WindowInsets.Type.systemGestures()
+                playerView.rootWindowInsets?.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.systemGestures() or
+                        WindowInsets.Type.systemBars() or
+                        WindowInsets.Type.displayCutout()
                 )
-
-            if (
-                (firstEvent.x < insets.left) ||
-                    (firstEvent.x > (screenWidth - insets.right)) ||
-                    (firstEvent.y < insets.top) ||
-                    (firstEvent.y > (screenHeight - insets.bottom))
-            ) {
-                return true
-            }
-        } else if (
-            firstEvent.y < playerView.resources.dip(Constants.GESTURE_EXCLUSION_AREA_VERTICAL) ||
-                firstEvent.y >
-                    screenHeight -
-                        playerView.resources.dip(Constants.GESTURE_EXCLUSION_AREA_VERTICAL) ||
-                firstEvent.x <
-                    playerView.resources.dip(Constants.GESTURE_EXCLUSION_AREA_HORIZONTAL) ||
-                firstEvent.x >
-                    screenWidth -
-                        playerView.resources.dip(Constants.GESTURE_EXCLUSION_AREA_HORIZONTAL)
-        ) {
-            return true
+            return gestureStartExcluded(
+                x = firstEvent.x,
+                y = firstEvent.y,
+                viewWidth = viewWidth,
+                viewHeight = viewHeight,
+                insetLeft = insets?.left ?: 0,
+                insetTop = insets?.top ?: 0,
+                insetRight = insets?.right ?: 0,
+                insetBottom = insets?.bottom ?: 0,
+            )
         }
-        return false
+        val edge = playerView.resources.dip(Constants.GESTURE_EXCLUSION_AREA_HORIZONTAL)
+        val vertical = playerView.resources.dip(Constants.GESTURE_EXCLUSION_AREA_VERTICAL)
+        return gestureStartExcluded(
+            x = firstEvent.x,
+            y = firstEvent.y,
+            viewWidth = viewWidth,
+            viewHeight = viewHeight,
+            insetLeft = edge,
+            insetTop = vertical,
+            insetRight = edge,
+            insetBottom = vertical,
+        )
     }
+
+    private fun currentViewWidth(): Int =
+        playerView.width.takeIf { it > 0 } ?: playerView.measuredWidth
+
+    private fun currentViewHeight(): Int =
+        playerView.height.takeIf { it > 0 } ?: playerView.measuredHeight
 
     fun updateTrickplayImage(position: Long) {
         try {

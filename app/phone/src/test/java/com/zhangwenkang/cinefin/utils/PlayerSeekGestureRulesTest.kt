@@ -9,6 +9,114 @@ import org.junit.Test
 /** W67c：手势 seek 排队 / 落点纯函数测试——覆盖起播前（未就绪排队）、缓冲中（就绪立即落点）、时长未知、 增量饱和与「就绪后补上排队增量」。 */
 class PlayerSeekGestureRulesTest {
 
+    // ---------- W81：双击 / 长按分区 ----------
+
+    @Test
+    fun tapZone_usesCurrentViewWidth_andHasClosedEdges() {
+        assertEquals(TapGestureZone.EDGE_OUTSIDE, tapGestureZone(-0.1f, 2560))
+        assertEquals(TapGestureZone.REWIND, tapGestureZone(0f, 2560))
+        assertEquals(TapGestureZone.REWIND, tapGestureZone(511.9f, 2560))
+        assertEquals(TapGestureZone.REWIND, tapGestureZone(512f, 2560))
+        assertEquals(TapGestureZone.TOGGLE, tapGestureZone(1024f, 2560))
+        assertEquals(TapGestureZone.TOGGLE, tapGestureZone(1535.9f, 2560))
+        assertEquals(TapGestureZone.FORWARD, tapGestureZone(1536f, 2560))
+        assertEquals(TapGestureZone.FORWARD, tapGestureZone(2048f, 2560))
+        assertEquals(TapGestureZone.FORWARD, tapGestureZone(2559.9f, 2560))
+        assertEquals(TapGestureZone.EDGE_OUTSIDE, tapGestureZone(2560f, 2560))
+    }
+
+    @Test
+    fun tapZone_portraitWidth_keepsSame2to1to2Semantics() {
+        assertEquals(TapGestureZone.REWIND, tapGestureZone(0f, 1600))
+        assertEquals(TapGestureZone.REWIND, tapGestureZone(320f, 1600))
+        assertEquals(TapGestureZone.TOGGLE, tapGestureZone(640f, 1600))
+        assertEquals(TapGestureZone.FORWARD, tapGestureZone(960f, 1600))
+        assertEquals(TapGestureZone.FORWARD, tapGestureZone(1280f, 1600))
+        assertEquals(TapGestureZone.EDGE_OUTSIDE, tapGestureZone(1600f, 1600))
+        assertEquals(TapGestureZone.EDGE_OUTSIDE, tapGestureZone(0f, 0))
+    }
+
+    // ---------- W81：排除区 / 方向 / 竖滑左右 ----------
+
+    @Test
+    fun exclusion_usesCurrentViewSize_notHistoricalDisplayMetrics() {
+        assertFalse(
+            "横屏 view=2560×1600，历史系统度量 1600×2524 不得把 x=2000 判为边缘",
+            gestureStartExcluded(
+                x = 2000f,
+                y = 800f,
+                viewWidth = 2560,
+                viewHeight = 1600,
+                insetLeft = 0,
+                insetTop = 0,
+                insetRight = 0,
+                insetBottom = 0,
+            ),
+        )
+        assertFalse(gestureStartExcluded(2559.9f, 1599.9f, 2560, 1600, 0, 0, 0, 0))
+        assertTrue(gestureStartExcluded(2560.1f, 800f, 2560, 1600, 0, 0, 0, 0))
+        assertTrue(gestureStartExcluded(2000f, 1600.1f, 2560, 1600, 0, 0, 0, 0))
+    }
+
+    @Test
+    fun exclusion_insetBoundaryIsAllowed_onlyOutsideIsRejected() {
+        fun excluded(x: Float, y: Float) =
+            gestureStartExcluded(
+                x = x,
+                y = y,
+                viewWidth = 2560,
+                viewHeight = 1600,
+                insetLeft = 24,
+                insetTop = 48,
+                insetRight = 24,
+                insetBottom = 48,
+            )
+
+        assertFalse(excluded(24f, 800f))
+        assertTrue(excluded(23.9f, 800f))
+        assertFalse(excluded(2536f, 800f))
+        assertTrue(excluded(2536.1f, 800f))
+        assertFalse(excluded(1200f, 48f))
+        assertTrue(excluded(1200f, 47.9f))
+        assertFalse(excluded(1200f, 1552f))
+        assertTrue(excluded(1200f, 1552.1f))
+    }
+
+    @Test
+    fun exclusion_invalidViewSize_doesNotBlock() {
+        assertFalse(gestureStartExcluded(0f, 0f, 0, 0, 24, 48, 24, 48))
+        assertFalse(gestureStartExcluded(100f, 100f, -1, 1600, 24, 48, 24, 48))
+    }
+
+    @Test
+    fun scrollDirection_usesExisting2to1Threshold_andRejectsZero() {
+        assertTrue(isHorizontalScroll(100f, 0f))
+        assertTrue(isHorizontalScroll(100f, 199.9f))
+        assertTrue(isHorizontalScroll(-100f, 50f))
+        assertTrue(isHorizontalScroll(1f, 0f))
+        assertFalse(isHorizontalScroll(0f, 100f))
+        assertFalse(isHorizontalScroll(100f, 200f))
+        assertFalse(isHorizontalScroll(0f, 0f))
+
+        assertTrue(isVerticalScroll(0f, 100f))
+        assertTrue(isVerticalScroll(100f, 200f))
+        assertTrue(isVerticalScroll(-100f, -200f))
+        assertFalse(isVerticalScroll(100f, 199.9f))
+        assertFalse(isVerticalScroll(100f, 0f))
+        assertFalse(isVerticalScroll(0f, 0f))
+    }
+
+    @Test
+    fun verticalSide_midlineBelongsToBrightness() {
+        assertEquals(VerticalGestureSide.BRIGHTNESS, verticalGestureSide(0f, 2560))
+        assertEquals(VerticalGestureSide.BRIGHTNESS, verticalGestureSide(1279f, 2560))
+        assertEquals(VerticalGestureSide.BRIGHTNESS, verticalGestureSide(1280f, 2560))
+        assertEquals(VerticalGestureSide.VOLUME, verticalGestureSide(1280.1f, 2560))
+        assertEquals(VerticalGestureSide.VOLUME, verticalGestureSide(2560f, 2560))
+        assertEquals(VerticalGestureSide.BRIGHTNESS, verticalGestureSide(799f, 1600))
+        assertEquals(VerticalGestureSide.VOLUME, verticalGestureSide(801f, 1600))
+    }
+
     // ---------- 就绪判定 ----------
 
     @Test
