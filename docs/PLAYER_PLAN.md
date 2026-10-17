@@ -2532,7 +2532,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 未覆盖 / 待用户验收：真机双字幕 0/4/24dp、底部 0%/8%/30%、主/次 50%~200%、背景透明度/描边、预设/同步/恢复默认、退出重进保留与旧设置迁移观感；原始 ASS/SSA 的颜色/背景/描边仍由脚本决定（既有设计，字号可调）；PGS 图形字幕仍走内核原生；未运行单测 / 真机 / adb / 截图。
 - 残余风险：迁移只执行一次（回滚到旧版本会继续读旧键）；旧底部 35% 被新上限夹到 30%；SRT 非 100% 字号改为正确百分比后观感会变化；预览用固定画框近似真实播放，不反映 ASS 原文特效；外观卡较长，手机窄屏需滚动。
 
-### 40.9 EXP20 字幕轨道自由分配与面板重构（2026-10-18，方案 A 已确认，待实现）
+### 40.9 EXP20 字幕轨道自由分配与面板重构（2026-10-18，方案 A 已实现 `7581ccb`）
 
 > 用户原话（2026-10-18）：“字幕轨道，现在是将ASS作为次字幕，要求有一种更灵活的选择方法。优化一下字幕设置界面的布局，看着有点乱，而且不方便。”
 >
@@ -2581,3 +2581,14 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 交换仅在主、次均为不同文本轨时可用；主为图形 / 原生不可解析时禁用并说明。
 - 分配冲突由专用 assign 入口处理：移到另一路时清空原路，不经过“先关闭再选择”的用户语义，避免误写 `disabledByUser`。
 - 外观页预览固定在页签下，编辑区滚动；快捷方案默认折叠。
+
+**实现记录（EXP20，2026-10-18）**
+
+- 代码提交：`7581ccb`（`feat(player): add free subtitle track assignment`）；文档提交：本文件所在 `docs(player)` 提交。仅字幕分支，未合并 master、未 push。
+- 轨道模型：`SubtitlePanelState` 收敛为单一 `tracks` 列表；每行携带名称、语言、格式、内嵌 / 外挂 / 侧载、文本可分配、图形 / 仅原生、侧载删除、当前落点，以及各自独立的 `primaryActionId`（Exo 源序号 / mpv 原生 sid）与 `secondaryActionId`（Exo 源序号 / mpv 可解析源序号）。面板不再消费主、次两套候选。
+- 分配路由：`SubtitleTrackAssignment` 纯函数负责主 / 次同轨冲突清理与交换；`PlayerSubtitleController` 新增专用 `assignPrimary` / `assignSecondary` / `swapPrimarySecondary` / `autoSelectAndForgetManual`。图形主字幕仍走源序号原生路由；mpv 主 `sid` 与次源序号分开传递，侧载按文件路径反查，映射不到源的 native 轨只保留原生选择。主路被移到次路、留下空主路时，Exo 路由按「次字幕自管」抑制内核文字轨，避免原生字幕重复叠加。
+- 面板布局：顶部固定 `轨道 | 外观`（`rememberSaveable`）。轨道页顺序为当前组合摘要（主 / 次名称与落点、关闭、交换、自动选择、紧凑延迟）→ 单一全部轨道列表 → 默认折叠的「字幕选项」；ASS 次字幕提示、仅原生 / 图形限制、交换禁用原因均在页内可见。外观页实时预览固定在页签下，`主字幕 | 次字幕 | 布局` 与编辑区在单一滚动区，底部「快捷方案」默认折叠。两页各只有一个 `verticalScroll`。
+- 测试：`PlayerSubtitleSelectionTest` / `PlayerSubtitleRoutingTest` 共 `20` 项，`0` 失败、`0` 错误；新增覆盖主→次 / 次→主冲突清理、交换、图形轨不可为次、mpv sid↔源序号双向映射、同源保护与主字幕不可映射时的次字幕安全抑制；既有 Exo 手动记忆恢复与语言优先级测试保留并通过。本次按卡片要求实际运行了定向单测。
+- 门禁：`compileLibreDebugKotlin`、`compileLibreDebugUnitTestKotlin`、`player:local:compileDebugUnitTestKotlin`、七个 `ktfmtCheck` 任务、`assembleDebug` 全部通过；`apksigner verify --verbose` 为 `Verifies`，APK Signature Scheme v2 = true，单签名者。
+- debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`150,172,613 B`，SHA-256 `EBB550DBD0CC7C055B3223BDC58972F9E71F20466354A9905A858DD847184D9C`；`aapt2` 显示 `io.github.zhangwenkang.aurorama.debug` / `1.3.0 (4)` / `Aurorama Debug`。
+- 未覆盖：未真机、未 adb、未启动 App、未截图、未做视觉 QA，也未运行真机测试套件；mpv 交换、侧载反查、图形原生与 ASS 次字幕文本降级仍待双机验收。mpv 次字幕源映射仍沿用同序号 / 标题 / 语言兜底，标题或语言重复时存在歧义风险；ASS 次字幕不新增特效层、PGS / VobSub 不进入 Compose 双语渲染（均为既定口径）。
