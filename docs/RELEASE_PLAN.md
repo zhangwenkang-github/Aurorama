@@ -104,8 +104,22 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 | 1.0.0 | 2026-10-05 | 1 | `assembleLibreRelease -Paurorama.universalApk=true` | 163.1 MB | 73.9 MB |
 | 1.1.0 | 2026-10-07（Q 波后重建） | 2 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.2 MB | 74.0 MB |
 | 1.2.0 | 2026-10-07（候选＝发布对象） | 3 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.3 MB | 74.1 MB |
+| 1.3.0 | 2026-10-17（候选） | 4 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.4 MB | 74.2 MB |
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
+
+**1.3.0 发布资产校验 · 候选（2026-10-17 · W78–W83，版本提交 `bbc464d`（代码合并 `5f13b74`）；本表为候选口径，用户全检通过后如需重建须重填）**
+
+| 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
+|--------------------|--------------------|---------|
+| `Aurorama-1.3.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,358,764 / 163.4 | `2be2dfc1744eddd0fb8a4c5e6a2a2ca63563478f0f316a7c4a4b299256691bfb` |
+| `Aurorama-1.3.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,776,786 / 74.2 | `48e45ce4a981f3e91d0547968c1aa90aa430c2a9471ee891cd9a8369709f8602` |
+
+- 内容 = W78（音乐通知面板 / 队列 >500 / 随机 / 1.75×）+ W79（歌词居中 / 默认双语 / 字号行距 / 缩略图 / 当前曲定位）+ W80（书籍下载反馈 / EPUB 滚动·双栏 / 阅读器手势）+ W81（mpv / Exo 全屏快进快退与音量手势）+ W82（搜索音乐·书籍 / 返回栈）+ W83（媒体库下拉刷新 / 家庭视频进度 / 零行为收敛重构）+ 版本号 **1.3.0 (4)**；共 18 项用户反馈（9 修复 + 9 需求）。
+- `apksigner verify`：两份均 **v2 = true**（v1 / v3 / v4 = false，与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）；包名 `io.github.zhangwenkang.aurorama`，`versionCode=4` / `versionName=1.3.0`（`aapt2 dump badging` 复核）。
+- 门禁：合并态 master `5f13b74` 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 **1055 / 0 / 0 / 0**；版本提交 `bbc464d` 仅改 `Versions.kt` 与 `docs/**`，候选 release 构建成功（6m37s，399 tasks），构建日志 `release-1.3.0-evidence/release-build.log`；`clean + assembleLibreRelease` 重建（5m6s，411 tasks）哈希与增量构建**完全一致**，排除缓存 / 增量构建问题。
+- **发布面冒烟：❌ 阻塞（P1 release 专属回归）**——K60 arm64 + Pad 5 universal 覆盖 1.2.0 成功、数据 / 登录保留，关于页 `1.3.0 (4)`；首页 / 阅读（流式阅读中 23/24）/ 音乐（`PLAYING`）/ 下载页通过，0 FATAL / ANR / Input dispatch timeout。但播放页顶部工具簇与底部工具行（选集 / 设置 / 字幕 / 码率 / 解码 / 详细信息 / 全屏 / 锁定）触摸无响应，中央播放暂停与单击显隐正常；字幕实际出画，但控件不可达导致无法切码率确认 HLS。A/B：Pad 5 1.2.0 release 可开队列、Pad 5 debug（`5f13b74`）可开、Pad 5 1.3.0 release 不可开；K60 debug（`490a7b0`）可开、K60 1.3.0 release 不可开。候选**不可交付用户全检**；不打 tag / 不发 Release，下一步单独立 R8 / release 播放控件回归修复卡（保留 debug 正常基线），修复后重走候选构建与发布面冒烟。证据 `release-1.3.0-evidence/`（`r13-pad-queue.png` / `r13-pad-130-queue.png` / `r13-pad-dbg-queue.png` / `r13-k60-player.png` 等）。
+- 发布用副本在 `.planning/cinefin-expansion/release-1.3.0-evidence/Aurorama-1.3.0-*.apk`（**当前仅作问题复现 / 对照，不可交付**；修复后重新构建并重填本节；用户全检通过前不打 tag / 不发 Release）。
 
 **1.2.0 发布资产校验 · 候选＝发布对象（2026-10-07 · W77 阅读流式波，master 提交 `6ef1901`（代码合并 `f4d4933`）；本表为上传口径）**
 
@@ -187,7 +201,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 **1.1.0（W76，2026-10-06 初版 / 2026-10-07 Q 波后正式重建）检查状态**：版本号 `1.1.0 (2)` ✅；**D-F9 方案B（B9 / B10 / B11 + B11b）+ D-F10（Q1–Q7）全部并入 1.1.0**（`600be7a` / `d0942dc` / `1eb093f` / `3b85d95` / `61d13a8`，终合并态门禁 **941 / 0 / 0** ✅）；`assembleLibreRelease` 正式重建 + `apksigner verify`（v2、指纹一致；新哈希见 §7 ③）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机回归 = **R1（K60 发布面补验）/ R2（Pad 5 核心回归）已完成**（`w76-reports/W76-R1.md` / `W76-R2.md`）；**V1（K60 发布包复验）✅**：覆盖升级 / B9 严格首下（`pm clear` + Quick Connect）/ B11b 起播 / B10 切内核 / Q7 5 次 / 播放复跑 / Q1 / 0 FATAL·ANR（首帧口径裁减：release 无 Timber，实测 6.0–6.6 s @ 当日 0.5–1.2 MB/s 网络；报告 `w76-reports/W76-V1.md`）；**V2（Pad 5 阅读组）✅**：书架 / EPUB·PDF·CBZ / 进度恢复 / 设置保持 / 离线 + 飞行模式 /「已完成」列表（报告 `w76-reports/W76-V2.md`；books 库需 `zhangwenkang` 账号）。**新观察项 Q8–Q10**（`FIX_PLAN` §6.1，不阻塞发布）。**用户全检（2026-10-07）✅ 通过**（含 ① #2 管理员入口代测 `w75-reports/W75-S2.md`；② #1 吸附手感代测 `w75-reports/W75-S1.md` §四）→ **已发布**：tag **`v1.1.0`** + GitHub Release「极光幕 / Aurorama v1.1.0」+ 双 APK 上传（assets 体积 / 哈希与 §7③ 一致）；发布后自检 ✅（assets 可下载；**实下载 SHA-256 与 §7③ 复核一致**）。Release notes 正文 = `docs/RELEASE_NOTES_v1.1.0.md`。
 
-**1.3.0（W78–W83，2026-10-17 候选）检查状态**：版本号 `1.3.0 (4)` ✅（`Versions.kt`，versionCode 3 → 4，未跳号）；Release notes `docs/RELEASE_NOTES_v1.3.0.md` ✅；候选构建 / 签名 / 真机发布面冒烟进行中（结果回填 §7）；#32 主要手势 QA 已过，双指缩放待用户全检 / 代测，不阻塞候选；**用户全检通过前不打 tag、不发 GitHub Release**。
+**1.3.0（W78–W83，2026-10-17 候选）检查状态**：版本号 `1.3.0 (4)` ✅（`Versions.kt`，versionCode 3 → 4，未跳号）；Release notes `docs/RELEASE_NOTES_v1.3.0.md` ✅；`assembleLibreRelease` 候选构建 ✅；双 APK `apksigner verify` v2 + 指纹一致 ✅（哈希 / 体积见 §7）；**真机发布面冒烟 ❌ 阻塞：release 播放页顶部 / 底部工具控件触摸无响应（debug 与 1.2.0 release 正常），候选不可交付**；需单独立卡修复 R8 / release 播放控件回归后重建；#32 主要手势 QA 已过，双指缩放待用户全检 / 代测；**未全检通过前不打 tag、不发 GitHub Release**。
 
 ## 9. CI 发布（可选，后续）
 
