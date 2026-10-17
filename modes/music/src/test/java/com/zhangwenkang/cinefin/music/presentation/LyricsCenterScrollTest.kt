@@ -44,4 +44,16 @@ class LyricsCenterScrollTest {
 
         assertEquals(0f, delta, 0.001f)
     }
+
+    @Test
+    fun `offscreen target uses one centered item offset`() {
+        assertEquals(-400, lyricsCenteredItemScrollOffset(viewportHeight = 1_000, itemHeight = 200))
+        assertEquals(-450, lyricsCenteredItemScrollOffset(viewportHeight = 1_000, itemHeight = 100))
+    }
+
+    @Test
+    fun `invalid viewport or item height falls back to top`() {
+        assertEquals(0, lyricsCenteredItemScrollOffset(viewportHeight = 0, itemHeight = 100))
+        assertEquals(0, lyricsCenteredItemScrollOffset(viewportHeight = 1_000, itemHeight = 0))
+    }
 }

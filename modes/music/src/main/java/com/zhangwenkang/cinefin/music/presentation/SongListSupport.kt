@@ -48,6 +48,52 @@ internal fun shouldAutoLocateSong(
 ): Boolean = enabled && targetIndex >= 0 && !manualScrolled
 
 /**
+ * 目标行已布局时，把它补到完整可见所需的最小滚动距离。
+ *
+ * 返回值沿用 LazyList 内容坐标系：负数向上滚、正数向下滚；完整可见时恒为 0，保证点击可见行不会产生任何列表位移。
+ */
+internal fun songListMinimalRevealDelta(
+    viewportStart: Int,
+    viewportEnd: Int,
+    itemOffset: Int,
+    itemSize: Int,
+): Int {
+    if (viewportEnd <= viewportStart || itemSize <= 0) return 0
+    return when {
+        itemOffset < viewportStart -> itemOffset - viewportStart
+        itemOffset + itemSize > viewportEnd -> itemOffset + itemSize - viewportEnd
+        else -> 0
+    }
+}
+
+/**
+ * 目标行尚未布局时，一次 `animateScrollToItem` 的目标 offset。
+ *
+ * 目标在下方时贴住视口底部、在上方时贴住视口顶部，不做居中；因此外部切歌不会出现「先到中间再回弹」。
+ */
+internal fun songListRevealScrollOffset(
+    targetIndex: Int,
+    firstVisibleIndex: Int,
+    lastVisibleIndex: Int,
+    viewportHeight: Int,
+    itemHeight: Int,
+): Int {
+    if (viewportHeight <= 0 || itemHeight <= 0) return 0
+    return when {
+        // 正 offset 表示目标继续向视口上方移动：目标在上方时把它的底边贴到视口顶部。
+        targetIndex < firstVisibleIndex -> itemHeight
+        targetIndex > lastVisibleIndex -> (viewportHeight - itemHeight).coerceAtMost(0)
+        else -> 0
+    }
+}
+
+/** 进入歌曲 Tab 时的一次性居中 offset（只用于首次定位，后续切歌不再居中）。 */
+internal fun songListCenteredScrollOffset(viewportHeight: Int, itemHeight: Int): Int {
+    if (viewportHeight <= 0 || itemHeight <= 0) return 0
+    return -((viewportHeight - itemHeight) / 2).coerceAtLeast(0)
+}
+
+/**
  * 歌曲行序号文案（W79b-FIX）：至少两位，三位 / 四位数不截断。
  *
  * 列表上限 1000 首时最大为「1000」，渲染侧必须单行显示。

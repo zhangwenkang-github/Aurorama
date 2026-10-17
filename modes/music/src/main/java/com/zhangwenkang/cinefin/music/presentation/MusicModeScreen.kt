@@ -6,8 +6,11 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -106,6 +110,7 @@ import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
+import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
@@ -154,6 +159,8 @@ fun MusicModeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val queue by viewModel.queue.collectAsState()
+    val optimisticCurrentItem by viewModel.optimisticCurrentItem.collectAsState()
+    val displayCurrentItem by viewModel.displayCurrentItem.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isRestored by viewModel.isRestored.collectAsState()
     val positionMs by viewModel.positionMs.collectAsState()
@@ -318,7 +325,7 @@ fun MusicModeScreen(
                         state.detail != null ->
                             DetailPane(
                                 detail = state.detail!!,
-                                currentItemId = queue?.currentItem?.itemId,
+                                currentItemId = displayCurrentItem?.itemId,
                                 downloadState = songDownloadState,
                                 showSourceBadge = state.showSourceBadge,
                                 batchSelection = batchSelection,
@@ -334,7 +341,7 @@ fun MusicModeScreen(
                         else ->
                             LibraryPane(
                                 state = state,
-                                currentItemId = queue?.currentItem?.itemId,
+                                currentItemId = displayCurrentItem?.itemId,
                                 downloadState = songDownloadState,
                                 showSourceBadge = state.showSourceBadge,
                                 batchSelection = batchSelection,
@@ -367,14 +374,14 @@ fun MusicModeScreen(
                     )
                 } else {
                     NowPlayingBar(
-                        queue = queue,
+                        item = displayCurrentItem,
                         isPlaying = isPlaying,
-                        isRestored = isRestored,
-                        positionMs = positionMs,
-                        durationMs = durationMs,
+                        isRestored = isRestored && optimisticCurrentItem == null,
+                        positionMs = if (optimisticCurrentItem == null) positionMs else 0L,
+                        durationMs = if (optimisticCurrentItem == null) durationMs else 0L,
                         fallbackDurationMs =
                             viewModel
-                                .songMeta(queue?.currentItem?.itemId)
+                                .songMeta(displayCurrentItem?.itemId)
                                 ?.runtimeTicks
                                 ?.div(TICKS_PER_MS) ?: 0L,
                         sleepState = sleepState,
@@ -1201,15 +1208,73 @@ private fun SongList(
     }
     val headerCount = if (header != null) 1 else 0
     val targetIndex = songListAutoLocateIndex(songs, currentItemId, headerCount)
+    // 进入歌曲 Tab 只居中一次；之后点击可见行零位移，只有目标被裁切 / 不在视口时才做最小补位。
+    val hasLocatedOnce = remember { mutableStateOf(false) }
     LaunchedEffect(autoLocateCurrent, currentItemId, targetIndex, manualScrolled.value) {
         if (!shouldAutoLocateSong(autoLocateCurrent, targetIndex, manualScrolled.value)) {
             return@LaunchedEffect
         }
-        // 曲库是异步加载的：等目标行真正进入 LazyList 布局后再居中（只等一次，不轮询）。
-        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > targetIndex }
+        // 曲库是异步加载的：等目标行进入 LazyList 布局后再定位（只等一次，不轮询）。
+        snapshotFlow { listState.layoutInfo }
+            .first { info ->
+                info.totalItemsCount > targetIndex && info.visibleItemsInfo.isNotEmpty()
+            }
+        withFrameNanos {}
+        val layout = listState.layoutInfo
+        val viewportHeight = layout.viewportEndOffset - layout.viewportStartOffset
+        val songRowHeight =
+            layout.visibleItemsInfo.firstOrNull { item -> item.index >= headerCount }?.size
+                ?: layout.visibleItemsInfo.firstOrNull()?.size
+                ?: 1
         autoScrolling.value = true
         try {
-            listState.centerItem(targetIndex)
+            if (!hasLocatedOnce.value) {
+                hasLocatedOnce.value = true
+                listState.animateScrollToItem(
+                    index = targetIndex,
+                    scrollOffset =
+                        songListCenteredScrollOffset(
+                            viewportHeight = viewportHeight,
+                            itemHeight = songRowHeight,
+                        ),
+                )
+            } else {
+                val visibleTarget =
+                    layout.visibleItemsInfo.firstOrNull { item -> item.index == targetIndex }
+                if (visibleTarget != null) {
+                    val delta =
+                        songListMinimalRevealDelta(
+                            viewportStart = layout.viewportStartOffset,
+                            viewportEnd = layout.viewportEndOffset,
+                            itemOffset = visibleTarget.offset,
+                            itemSize = visibleTarget.size,
+                        )
+                    if (delta != 0) {
+                        listState.animateScrollBy(
+                            delta.toFloat(),
+                            animationSpec =
+                                tween(
+                                    durationMillis = 240,
+                                    easing = FastOutSlowInEasing,
+                                ),
+                        )
+                    }
+                } else {
+                    val firstVisibleIndex = layout.visibleItemsInfo.first().index
+                    val lastVisibleIndex = layout.visibleItemsInfo.last().index
+                    listState.animateScrollToItem(
+                        index = targetIndex,
+                        scrollOffset =
+                            songListRevealScrollOffset(
+                                targetIndex = targetIndex,
+                                firstVisibleIndex = firstVisibleIndex,
+                                lastVisibleIndex = lastVisibleIndex,
+                                viewportHeight = viewportHeight,
+                                itemHeight = songRowHeight,
+                            ),
+                    )
+                }
+            }
         } finally {
             autoScrolling.value = false
         }
@@ -1376,7 +1441,7 @@ private fun SongRow(
 
 @Composable
 private fun NowPlayingBar(
-    queue: MusicQueue?,
+    item: PlayerItem?,
     isPlaying: Boolean,
     isRestored: Boolean,
     positionMs: Long,
@@ -1389,10 +1454,10 @@ private fun NowPlayingBar(
     onOpenLyrics: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val item = queue?.currentItem ?: return
+    val currentItem = item ?: return
     val colors = LocalCinefinColors.current
     // 恢复态（重启后未点播放）没有播放器会话，位置与时长回落到快照 / 曲库元数据
-    val currentMs = if (isRestored) item.playbackPosition else positionMs
+    val currentMs = if (isRestored) currentItem.playbackPosition else positionMs
     val totalMs = durationMs.takeIf { it > 0L } ?: fallbackDurationMs
     // W66b：时间文本抽纯函数（单测覆盖）——不再与状态挤同一行被截断。
     val timeText = musicMiniBarTimeText(currentMs = currentMs, totalMs = totalMs)
@@ -1422,13 +1487,13 @@ private fun NowPlayingBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ArtworkThumb(
-                    imageUri = item.thumbnailUri,
-                    title = item.name,
+                    imageUri = currentItem.thumbnailUri,
+                    title = currentItem.name,
                 )
                 Spacer(modifier = Modifier.width(CinefinSpacing.Space3))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = item.name,
+                        text = currentItem.name,
                         style = CinefinType.TitleSmall,
                         color = colors.onSurface,
                         maxLines = 1,

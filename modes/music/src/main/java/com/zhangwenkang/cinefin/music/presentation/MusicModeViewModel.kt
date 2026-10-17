@@ -243,6 +243,7 @@ constructor(
     private var lastLoggedWord: Pair<Int, Int>? = null
     private var refreshJob: Job? = null
     private var playJob: Job? = null
+    private var nextPlayRequestId = 0L
     /** W82 #25：搜索路由要求起播的曲目（曲库尚未加载时暂存，加载完成后再播）。 */
     private var pendingRouteSongId: UUID? = null
 
@@ -256,6 +257,20 @@ constructor(
     /** 正在播放的队列（当前曲目 / 播放模式 / 顺序）；无播放会话时回落到恢复快照，底栏与队列面板直接消费。 */
     val queue: StateFlow<MusicQueue?> =
         combine(playbackController.queue, _restoredQueue) { live, restored -> live ?: restored }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** 点歌后、目标曲解析完成前的乐观展示目标；只影响当前曲高亮与底部条，不碰真实播放队列。 */
+    private val _pendingPlayback = MutableStateFlow<PendingPlaybackUi?>(null)
+    val optimisticCurrentItem: StateFlow<PlayerItem?> =
+        _pendingPlayback
+            .map { pending -> pending?.item }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** 当前曲高亮 / 底部条使用的展示当前曲：乐观目标优先，否则回落到真实队列（或恢复快照）。 */
+    val displayCurrentItem: StateFlow<PlayerItem?> =
+        combine(queue, _pendingPlayback) { currentQueue, pending ->
+                displayPlaybackItem(pending, currentQueue?.currentItem)
+            }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** 恢复态（重启后尚未点播放）：底栏文案与播放键语义据此区分。 */
@@ -1600,6 +1615,14 @@ constructor(
         playMode: MusicPlayMode? = null,
     ) {
         playJob?.cancel()
+        val requestId = ++nextPlayRequestId
+        val pending =
+            PendingPlaybackUi(
+                requestId = requestId,
+                item = song.toPendingPlayerItem(),
+            )
+        // 先同步发布高亮 / 底栏目标；旧音频继续播放，直到下面解析完成才 setQueue。
+        _pendingPlayback.value = pending
         playJob = viewModelScope.launch {
             val first =
                 try {
@@ -1607,16 +1630,20 @@ constructor(
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
-                    _uiState.update {
-                        it.copy(
-                            errorTitle = "播放失败",
-                            errorMessage =
-                                error.message?.takeIf { message -> message.isNotBlank() }
-                                    ?: "无法解析「${song.name}」的播放地址",
-                        )
+                    if (_pendingPlayback.value?.requestId == requestId) {
+                        _pendingPlayback.value = pendingPlaybackAfterFailure(pending, requestId)
+                        _uiState.update {
+                            it.copy(
+                                errorTitle = "播放失败",
+                                errorMessage =
+                                    error.message?.takeIf { message -> message.isNotBlank() }
+                                        ?: "无法解析「${song.name}」的播放地址",
+                            )
+                        }
                     }
                     return@launch
                 }
+            if (_pendingPlayback.value?.requestId != requestId) return@launch
             playbackController.setQueue(
                 MusicQueue(
                     items = listOf(first),
@@ -1626,6 +1653,10 @@ constructor(
                 ),
                 startIndex = 0,
             )
+            // setQueue 已同步发布真实队列；清掉乐观目标后展示自然无缝落到同一首。
+            if (_pendingPlayback.value?.requestId == requestId) {
+                _pendingPlayback.value = null
+            }
             // 随机全部：setQueue 后立即切模式；内核起播任务读取的是最新 queue 快照。
             playMode?.let { mode -> setPlayMode(mode) }
             fillQueueAround(songs, startIndex)

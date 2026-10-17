@@ -21,19 +21,33 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zhangwenkang.cinefin.core.R as CoreR
@@ -50,11 +64,11 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 /**
  * 全屏歌词页（W23-MUSIC · B 组）。
  *
- * 跟随播放进度高亮当前行并居中滚动；点某一行跳到该行时间戳；语言 chip / 双语对照 / 跟随滚动
- * 与底栏「词」面板共用同一份显示状态（[MusicModeViewModel.LyricsUiState]）。 返回靠左上箭头、左滑手势或系统返回键。
+ * 顶栏只保留返回 / 歌名 / 显示设置；语言、双语、跟随与字号行距收进底部抽屉。 跟随播放进度高亮当前行并居中滚动；点某一行跳到该行时间戳。返回靠左上箭头、左滑手势或系统返回键。
  *
  * W79：正文 **水平居中**（#26，与面板 / 悬浮窗统一）；新增字号 / 行距档位条（#37，与面板共用同一偏好键）。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicLyricsPage(
     title: String,
@@ -69,7 +83,7 @@ fun MusicLyricsPage(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(
@@ -91,76 +105,23 @@ fun MusicLyricsPage(
                     )
                 }
                 Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = CinefinType.TitleMedium,
-                        color = colors.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    val source = state.document?.source?.label
-                    val languages =
-                        state.document?.availableLanguages?.joinToString(" / ") { it.label }
-                    Text(
-                        text = listOfNotNull(source?.let { "来源：$it" }, languages).joinToString("　"),
-                        style = CinefinType.BodySmall,
-                        color = colors.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                Text(
+                    text = title,
+                    style = CinefinType.TitleMedium,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                CinefinIconButton(onClick = { settingsOpen = true }) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_settings),
+                        contentDescription = "显示设置",
+                        tint = tint,
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = CinefinSpacing.Space5),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                items(state.languages.size) { index ->
-                    val language = state.languages[index]
-                    FilterChip(
-                        selected = state.display.language == language,
-                        onClick = { onSelectLanguage(language) },
-                        label = { Text(language.label) },
-                        colors =
-                            FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = media.container,
-                                selectedLabelColor = media.bright,
-                            ),
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = state.display.bilingual,
-                        onClick = onToggleBilingual,
-                        label = { Text("双语对照") },
-                        colors =
-                            FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = media.container,
-                                selectedLabelColor = media.bright,
-                            ),
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = state.display.follow,
-                        onClick = onToggleFollow,
-                        label = { Text("跟随滚动") },
-                        colors =
-                            FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = media.container,
-                                selectedLabelColor = media.bright,
-                            ),
-                    )
-                }
-            }
-            LyricsTextSettingsBar(
-                settings = state.text,
-                onSelectFontScale = onSelectFontScale,
-                onSelectLineSpacing = onSelectLineSpacing,
-            )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.loading ->
@@ -183,7 +144,111 @@ fun MusicLyricsPage(
                 }
             }
         }
+        if (settingsOpen) {
+            LyricsDisplaySettingsSheet(
+                state = state,
+                onDismiss = { settingsOpen = false },
+                onSelectLanguage = onSelectLanguage,
+                onToggleBilingual = onToggleBilingual,
+                onToggleFollow = onToggleFollow,
+                onSelectFontScale = onSelectFontScale,
+                onSelectLineSpacing = onSelectLineSpacing,
+            )
+        }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LyricsDisplaySettingsSheet(
+    state: MusicModeViewModel.LyricsUiState,
+    onDismiss: () -> Unit,
+    onSelectLanguage: (LyricsDisplayLanguage) -> Unit,
+    onToggleBilingual: () -> Unit,
+    onToggleFollow: () -> Unit,
+    onSelectFontScale: (LyricsFontScale) -> Unit,
+    onSelectLineSpacing: (LyricsLineSpacing) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(bottom = CinefinSpacing.Space5)) {
+            Text(
+                text = "显示设置",
+                style = CinefinType.TitleMedium,
+                color = colors.onSurface,
+                modifier =
+                    Modifier.padding(
+                        start = CinefinSpacing.Space5,
+                        end = CinefinSpacing.Space5,
+                        top = CinefinSpacing.Space2,
+                        bottom = CinefinSpacing.Space3,
+                    ),
+            )
+            if (state.languages.isNotEmpty()) {
+                Text(
+                    text = "语言",
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = CinefinSpacing.Space5),
+                )
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = CinefinSpacing.Space5),
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    items(state.languages.size) { index ->
+                        val language = state.languages[index]
+                        LyricsDisplayChip(
+                            label = language.label,
+                            selected = state.display.language == language,
+                            onClick = { onSelectLanguage(language) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+            }
+            Row(
+                modifier = Modifier.padding(horizontal = CinefinSpacing.Space5),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            ) {
+                LyricsDisplayChip(
+                    label = "双语对照",
+                    selected = state.display.bilingual,
+                    onClick = onToggleBilingual,
+                )
+                LyricsDisplayChip(
+                    label = "跟随滚动",
+                    selected = state.display.follow,
+                    onClick = onToggleFollow,
+                )
+            }
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+            LyricsTextSettingsBar(
+                settings = state.text,
+                onSelectFontScale = onSelectFontScale,
+                onSelectLineSpacing = onSelectLineSpacing,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LyricsDisplayChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val media = LocalMediaColors.current
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        colors =
+            FilterChipDefaults.filterChipColors(
+                selectedContainerColor = media.container,
+                selectedLabelColor = media.bright,
+            ),
+    )
 }
 
 @Composable
@@ -194,21 +259,51 @@ private fun LyricsLines(
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val listState = rememberLazyListState()
+    val followPausedByUser = remember { mutableStateOf(false) }
+    val autoScrolling = remember { mutableStateOf(false) }
+    val lastActiveItemHeight = remember { intArrayOf(0) }
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && !autoScrolling.value) {
+                    followPausedByUser.value = true
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (!autoScrolling.value) followPausedByUser.value = true
+                return Velocity.Zero
+            }
+        }
+    }
     // W24 · B6：上下留半个视口，任何一行（含首行）都能滚到正中
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val verticalPadding = maxHeight / 2
+        // 用户主动拖动 / 惯性后暂停跟随；只有再次开启「跟随滚动」才恢复。
+        LaunchedEffect(state.display.follow) {
+            if (state.display.follow) followPausedByUser.value = false
+        }
         LaunchedEffect(
             state.activeIndex,
-            state.display.follow,
+            state.display,
             state.rows.size,
             state.text,
         ) {
-            if (!state.display.follow) return@LaunchedEffect
-            listState.centerItem(state.activeIndex)
+            if (!state.display.follow || followPausedByUser.value) return@LaunchedEffect
+            autoScrolling.value = true
+            try {
+                listState.animateToCenteredItem(
+                    target = state.activeIndex,
+                    estimatedItemHeight = lastActiveItemHeight[0].takeIf { it > 0 },
+                )
+            } finally {
+                autoScrolling.value = false
+            }
         }
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection),
             contentPadding =
                 PaddingValues(
                     start = CinefinSpacing.Space6,
@@ -229,6 +324,9 @@ private fun LyricsLines(
                         Modifier.fillMaxWidth()
                             .clip(CinefinShapes.Xs)
                             .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
+                            .onSizeChanged { size ->
+                                if (active) lastActiveItemHeight[0] = size.height
+                            }
                             .padding(vertical = CinefinSpacing.Space1)
                 ) {
                     // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）

@@ -80,6 +80,73 @@ class SongListSupportTest {
     }
 
     @Test
+    fun `fully visible song needs no list movement`() {
+        assertEquals(
+            0,
+            songListMinimalRevealDelta(
+                viewportStart = 0,
+                viewportEnd = 800,
+                itemOffset = 120,
+                itemSize = 72,
+            ),
+        )
+    }
+
+    @Test
+    fun `clipped song reveals only the missing edge`() {
+        assertEquals(
+            -20,
+            songListMinimalRevealDelta(
+                viewportStart = 0,
+                viewportEnd = 800,
+                itemOffset = -20,
+                itemSize = 72,
+            ),
+        )
+        assertEquals(
+            24,
+            songListMinimalRevealDelta(
+                viewportStart = 0,
+                viewportEnd = 800,
+                itemOffset = 752,
+                itemSize = 72,
+            ),
+        )
+    }
+
+    @Test
+    fun `offscreen reveal aligns to nearest edge instead of centering`() {
+        assertEquals(
+            72,
+            songListRevealScrollOffset(
+                targetIndex = 2,
+                firstVisibleIndex = 5,
+                lastVisibleIndex = 12,
+                viewportHeight = 800,
+                itemHeight = 72,
+            ),
+        )
+        assertEquals(
+            728,
+            songListRevealScrollOffset(
+                targetIndex = 20,
+                firstVisibleIndex = 5,
+                lastVisibleIndex = 12,
+                viewportHeight = 800,
+                itemHeight = 72,
+            ),
+        )
+    }
+
+    @Test
+    fun `initial song tab locate centers without a second animation`() {
+        assertEquals(
+            -364,
+            songListCenteredScrollOffset(viewportHeight = 800, itemHeight = 72),
+        )
+    }
+
+    @Test
     fun `song row index keeps three and four digits on one label`() {
         assertEquals("01", songRowIndexLabel(1))
         assertEquals("99", songRowIndexLabel(99))
