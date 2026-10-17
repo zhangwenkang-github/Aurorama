@@ -180,4 +180,17 @@ class PageMetricsTest {
             spreadPinchFocus(Offset(Float.NaN, 300f), 1600, 800, 0, 2),
         )
     }
+
+    @Test
+    fun `旋转后跨页判定按当前视口宽度重算`() {
+        // 旧宽 1600（半屏 800）：两指 700 / 900 跨中缝，外层接管。
+        assertEquals(800f, spreadPageWidth(1600, 2), 0.01f)
+        assertTrue(spreadPinchSpansPages(listOf(700f, 900f), spreadPageWidth(1600, 2)))
+        // 旋转到宽 2400（半屏 1200）：同一对落点都在左页，外层不得接管，交给页槽自己处理。
+        assertEquals(1200f, spreadPageWidth(2400, 2), 0.01f)
+        assertTrue(!spreadPinchSpansPages(listOf(700f, 900f), spreadPageWidth(2400, 2)))
+        // 单槽 / 非法宽度。
+        assertEquals(2400f, spreadPageWidth(2400, 1), 0.01f)
+        assertEquals(0f, spreadPageWidth(0, 2), 0.01f)
+    }
 }

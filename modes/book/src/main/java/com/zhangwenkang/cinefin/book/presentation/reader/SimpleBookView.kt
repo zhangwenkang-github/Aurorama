@@ -591,14 +591,14 @@ private fun SpreadPages(
                 crossPageZoomEnabled,
                 activePage,
                 visualPages.size,
+                viewportSize,
                 bookZoom,
             ) {
                 if (!crossPageZoomEnabled) return@pointerInput
                 val slotKey = activePage ?: return@pointerInput
-                val pageWidth = size.width.toFloat() / visualPages.size.coerceAtLeast(1)
                 var lastNotifyAt = 0L
                 var lastLoggedScale = bookZoom.scale
-                detectSpreadPinchZoom(pageWidth) { pan, zoomFactor, centroid ->
+                detectSpreadPinchZoom(visualPages.size) { pan, zoomFactor, centroid ->
                     val focus =
                         spreadPinchFocus(
                             centroid = centroid,
@@ -1056,10 +1056,9 @@ private suspend fun PointerInputScope.detectMultiTouchZoom(
  * 这里在手指落下时就判定并固定归属，避免同一次手势被父子两层各应用一次。
  */
 private suspend fun PointerInputScope.detectSpreadPinchZoom(
-    pageWidth: Float,
+    pageCount: Int,
     onGesture: (pan: Offset, zoom: Float, centroid: Offset) -> Unit,
 ) {
-    if (pageWidth <= 0f) return
     awaitEachGesture {
         awaitFirstDown(requireUnconsumed = false)
         var crossPage: Boolean? = null
@@ -1067,6 +1066,8 @@ private suspend fun PointerInputScope.detectSpreadPinchZoom(
             val event = awaitPointerEvent()
             val pressed = event.changes.filter { it.pressed }
             if (crossPage == null && pressed.size >= 2) {
+                // 半屏宽度必须按当前节点宽度现算：旋转 / 分屏后 Activity 不重建，缓存旧宽度会误判同页双指。
+                val pageWidth = spreadPageWidth(size.width, pageCount)
                 crossPage = spreadPinchSpansPages(pressed.map { it.position.x }, pageWidth)
             }
             if (crossPage == true && pressed.size >= 2) {

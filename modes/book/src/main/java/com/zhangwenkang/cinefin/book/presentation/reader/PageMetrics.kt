@@ -254,6 +254,19 @@ internal fun spreadPinchSpansPages(
 }
 
 /**
+ * 双栏单个页槽的宽度。
+ *
+ * 必须按**当前**视口宽度计算：旋转 / 分屏后 Activity 不重建，缓存旧半屏宽度会把同页双指误判成跨页。
+ */
+internal fun spreadPageWidth(
+    viewportWidth: Int,
+    visualCount: Int,
+): Float {
+    if (viewportWidth <= 0 || visualCount <= 0) return 0f
+    return viewportWidth.toFloat() / visualCount
+}
+
+/**
  * 双栏跨页捏合的手指焦点：整屏坐标换算成当前页槽的局部焦点（相对页槽中心）。
  *
  * 与 [ZoomableSlot] 内单槽手势的焦点口径一致：`centroid - 页槽中心`，供 `BookZoomState.transform` 锚定缩放。
