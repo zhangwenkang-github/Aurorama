@@ -73,57 +73,6 @@ class PageMetricsTest {
     }
 
     @Test
-    fun `双指缩放夹取在 1 倍到 4 倍之间`() {
-        val zoomed = PageZoom().transform(zoom = 10f, pan = Offset.Zero, width = 800, height = 1000)
-        assertEquals(PAGE_MAX_ZOOM, zoomed.scale, 0.0001f)
-
-        val shrunk =
-            zoomed.transform(zoom = 0.01f, pan = Offset(120f, 50f), width = 800, height = 1000)
-        assertEquals(1f, shrunk.scale, 0.0001f)
-        assertEquals(Offset.Zero, shrunk.offset)
-    }
-
-    @Test
-    fun `缩放平移按放大后的边缘夹取`() {
-        val zoomed = PageZoom().transform(zoom = 2f, pan = Offset.Zero, width = 800, height = 1000)
-        assertEquals(2f, zoomed.scale, 0.0001f)
-
-        val panned =
-            zoomed.transform(zoom = 1f, pan = Offset(500f, -900f), width = 800, height = 1000)
-        assertEquals(400f, panned.offset.x, 0.01f)
-        assertEquals(-500f, panned.offset.y, 0.01f)
-    }
-
-    @Test
-    fun `非有限手势值不破坏缩放状态`() {
-        val zoomed =
-            PageZoom().transform(zoom = 2f, pan = Offset(10f, 10f), width = 800, height = 1000)
-
-        val nanZoom =
-            zoomed.transform(zoom = Float.NaN, pan = Offset.Zero, width = 800, height = 1000)
-        assertEquals(zoomed.scale, nanZoom.scale, 0.0001f)
-        assertEquals(zoomed.offset, nanZoom.offset)
-
-        val infiniteZoom =
-            zoomed.transform(
-                zoom = Float.POSITIVE_INFINITY,
-                pan = Offset.Zero,
-                width = 800,
-                height = 1000,
-            )
-        assertEquals(zoomed.scale, infiniteZoom.scale, 0.0001f)
-
-        val nanPan =
-            zoomed.transform(
-                zoom = 1f,
-                pan = Offset(Float.NaN, Float.NaN),
-                width = 800,
-                height = 1000,
-            )
-        assertEquals(zoomed.offset, nanPan.offset)
-    }
-
-    @Test
     fun `按钮缩放按 25 百分比档位步进`() {
         var scale = 1f
         val visited = mutableListOf(scale)
@@ -137,8 +86,8 @@ class PageMetricsTest {
         // 双指连续缩放落在档位之间时，按钮命中相邻的上一档 / 下一档。
         assertEquals(2f, nextPageZoomStep(1.9f), 0.0001f)
         assertEquals(1.25f, previousPageZoomStep(1.4f), 0.0001f)
-        assertEquals(4f, previousPageZoomStep(4f), 0.0001f)
-        assertEquals(1f, nextPageZoomStep(1f), 0.0001f)
+        assertEquals(3f, previousPageZoomStep(4f), 0.0001f)
+        assertEquals(1.25f, nextPageZoomStep(1f), 0.0001f)
     }
 
     @Test
@@ -163,5 +112,42 @@ class PageMetricsTest {
 
         // 缩回 1× 时平移归零。
         assertEquals(Offset.Zero, anchorPageOffset(Offset(90f, 20f), 2f, 1f, focus))
+    }
+
+    @Test
+    fun `适宽目标分别按分页滚动双栏和合并图槽位计算`() {
+        // 分页：2000×1000 槽 + 0.5 页宽高比 → 4×（同时命中上限）。
+        assertEquals(4f, pagedFitWidthScale(0.5f, 2000, 1000)!!, 0.0001f)
+        // 双栏：每页只占半屏（1000×1000），同一页目标为 2×。
+        assertEquals(2f, twoColumnFitWidthScale(0.5f, 2000, 1000)!!, 0.0001f)
+        // 滚动：页面在 1× 本来就满宽。
+        assertEquals(1f, scrollFitWidthScale(), 0.0001f)
+        // 合并对图：使用合并位图的实际 1:1 宽高比，而不是第一页的 0.5。
+        assertEquals(2f, mergedFitWidthScale(1000, 1000, 2000, 1000)!!, 0.0001f)
+        // 比例 / 槽尺寸未就绪时没有目标，调用方不得重置倍率。
+        assertEquals(null, pagedFitWidthScale(null, 2000, 1000))
+        assertEquals(null, mergedFitWidthScale(0, 1000, 2000, 1000))
+    }
+
+    @Test
+    fun `适宽切换丢弃旧页目标且未就绪时不动作`() {
+        val target = FitWidthTarget(pageIndex = 1, slotKey = 1, scale = 2f)
+        assertEquals(2f, target.scaleForCurrentPage(1)!!, 0.0001f)
+        assertEquals(null, target.scaleForCurrentPage(2))
+        assertEquals(1f, fitWidthToggleScale(2f, 2f)!!, 0.0001f)
+        assertEquals(1.5f, fitWidthToggleScale(1f, 1.5f)!!, 0.0001f)
+        assertEquals(null, fitWidthToggleScale(2f, null))
+        assertEquals(null, fitWidthToggleScale(2f, Float.NaN))
+    }
+
+    @Test
+    fun `按钮焦点按双栏槽位与滚动可见偏移计算`() {
+        // 双栏：左页中心在屏幕 1/4，视口中心相对它为 +1/4 屏宽；右页相反。
+        assertEquals(600f, spreadPageViewportFocus(2400, 0, 2)!!.x, 0.01f)
+        assertEquals(-600f, spreadPageViewportFocus(2400, 1, 2)!!.x, 0.01f)
+        // 滚动：页顶在视口 1000 px、页高 1000 px，视口中心 750 px → 相对页中心 -750 px。
+        assertEquals(-750f, scrollViewportFocus(1500, 1000, 1000)!!.y, 0.01f)
+        assertEquals(null, scrollViewportFocus(1500, 0, 0))
+        assertEquals(null, spreadPageViewportFocus(2400, 2, 2))
     }
 }

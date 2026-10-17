@@ -44,10 +44,79 @@ internal fun previousPageZoomStep(scale: Float): Float {
 internal fun zoomPercent(scale: Float): Int =
     if (scale.isFinite()) (scale.coerceIn(1f, PAGE_MAX_ZOOM) * 100f).roundToInt() else 100
 
+/** 「适宽」目标：当前页宽高比撑满当前页槽；宽高比 / 槽尺寸未就绪时返回 null。 */
+internal fun fitWidthScaleInSlot(
+    pageAspect: Float?,
+    slotWidth: Int,
+    slotHeight: Int,
+): Float? {
+    if (pageAspect == null || !pageAspect.isFinite() || pageAspect <= 0f) return null
+    if (slotWidth <= 0 || slotHeight <= 0) return null
+    val slotAspect = slotWidth.toFloat() / slotHeight.toFloat()
+    if (!slotAspect.isFinite() || slotAspect <= 0f) return null
+    return fitWidthScale(pageAspect, slotAspect)
+}
+
+/** 分页 / 横版整页：页槽 = 整个阅读区。 */
+internal fun pagedFitWidthScale(
+    pageAspect: Float?,
+    viewportWidth: Int,
+    viewportHeight: Int,
+): Float? = fitWidthScaleInSlot(pageAspect, viewportWidth, viewportHeight)
+
+/** 双栏逐页：页槽 = 半屏宽、整屏高。 */
+internal fun twoColumnFitWidthScale(
+    pageAspect: Float?,
+    viewportWidth: Int,
+    viewportHeight: Int,
+): Float? = fitWidthScaleInSlot(pageAspect, viewportWidth / 2, viewportHeight)
+
+/** 滚动档页面在 1× 时本来就满宽。 */
+internal fun scrollFitWidthScale(): Float = 1f
+
+/** 合并对图：按合并位图的实际宽高比撑满整屏槽，不用单页宽高比。 */
+internal fun mergedFitWidthScale(
+    imageWidth: Int,
+    imageHeight: Int,
+    viewportWidth: Int,
+    viewportHeight: Int,
+): Float? {
+    if (imageWidth <= 0 || imageHeight <= 0) return null
+    return fitWidthScaleInSlot(
+        imageWidth.toFloat() / imageHeight.toFloat(),
+        viewportWidth,
+        viewportHeight,
+    )
+}
+
+/** 适宽目标及其所属页；翻页后页号不匹配的旧目标必须丢弃。 */
+internal data class FitWidthTarget(
+    val pageIndex: Int,
+    val slotKey: Any,
+    val scale: Float,
+)
+
+internal fun FitWidthTarget.scaleForCurrentPage(currentPage: Int): Float? = scale.takeIf {
+    pageIndex == currentPage && it.isFinite() && it > 0f
+}
+
+private const val FIT_WIDTH_TOGGLE_EPSILON = 0.02f
+
+/** 双击适宽：已命中目标则回 1×；目标未就绪 / 非法时返回 null（调用方保持原倍率）。 */
+internal fun fitWidthToggleScale(
+    currentScale: Float,
+    target: Float?,
+): Float? {
+    if (target == null || !target.isFinite() || target <= 0f) return null
+    val safeCurrent = if (currentScale.isFinite()) currentScale.coerceIn(1f, PAGE_MAX_ZOOM) else 1f
+    val fitted = target > 1f && kotlin.math.abs(safeCurrent - target) <= FIT_WIDTH_TOGGLE_EPSILON
+    return if (fitted) 1f else target.coerceIn(1f, PAGE_MAX_ZOOM)
+}
+
 /**
- * 以视口内 [focus]（相对视口中心）为锚点缩放：焦点下的页面内容点在缩放前后保持不动。
+ * 以 [focus]（视口中心相对当前页槽中心的偏移）为锚点缩放：焦点下的页面内容点在缩放前后保持不动。
  *
- * [offset] 是当前的视图平移量（像素），`focus = Offset.Zero` 即「当前视口中心」——按钮缩放走这条口径。
+ * [offset] 是当前页槽的平移量（像素）；`focus = Offset.Zero` 只在页槽与视口重合时表示视口中心。
  */
 internal fun anchorPageOffset(
     offset: Offset,
@@ -57,6 +126,8 @@ internal fun anchorPageOffset(
 ): Offset {
     if (nextScale <= 1f) return Offset.Zero
     if (!scale.isFinite() || scale <= 0f || !nextScale.isFinite()) return offset
+    if (!offset.x.isFinite() || !offset.y.isFinite()) return Offset.Zero
+    if (!focus.x.isFinite() || !focus.y.isFinite()) return offset
     val ratio = nextScale / scale
     return offset * ratio + focus * (1f - ratio)
 }
@@ -131,40 +202,6 @@ internal fun pageIndicatorText(
     return base + suffix
 }
 
-/**
- * 缩放状态（分页 / 双栏 / 滚动三种模式共用同一套数学，保证范围一致：1×–[PAGE_MAX_ZOOM]）。
- *
- * 真机踩坑 18 的结论是"手势必须由页项消费、单指留给容器滚动"；本状态机只负责把每次双指事件 推进为新的缩放 / 平移，与手势来源解耦，可单测（READER_PLAN §7.7）。
- */
-internal data class PageZoom(val scale: Float = 1f, val offset: Offset = Offset.Zero) {
-
-    /**
-     * 推进一次双指手势：倍数夹取到 1×–[PAGE_MAX_ZOOM]，平移按放大后的可移动范围夹取（缩放回 1× 自动归零、居中）。
-     *
-     * [base] = 「适宽」（W80 #32）等基准倍数：`scale` 是叠加在基准之上的手动倍数，上限按 `PAGE_MAX_ZOOM / base` 收， 平移范围按**有效倍数**
-     * `base × scale` 夹取。`base = 1f` 即原有行为。
-     */
-    fun transform(
-        zoom: Float,
-        pan: Offset,
-        width: Int,
-        height: Int,
-        base: Float = 1f,
-    ): PageZoom {
-        val safeBase = if (base.isFinite() && base >= 1f) base else 1f
-        val safeZoom = if (zoom.isFinite() && zoom > 0f) zoom else 1f
-        val product = scale * safeZoom
-        val maxScale = (PAGE_MAX_ZOOM / safeBase).coerceAtLeast(1f)
-        val nextScale = (if (product.isFinite()) product else scale).coerceIn(1f, maxScale)
-        if (nextScale <= 1f) return PageZoom()
-        val safePan = if (pan.x.isFinite() && pan.y.isFinite()) pan else Offset.Zero
-        return PageZoom(
-            nextScale,
-            clampPageOffset(offset + safePan, safeBase * nextScale, width, height),
-        )
-    }
-}
-
 /** 缩放后的平移夹取：放大 [scale] 倍时，最多平移到放大出来的边缘（避免把页面拖出视野）。 缩放回到 1× 时平移自动归零。 */
 internal fun clampPageOffset(
     offset: Offset,
@@ -172,8 +209,37 @@ internal fun clampPageOffset(
     width: Int,
     height: Int,
 ): Offset {
-    if (scale <= 1f) return Offset.Zero
+    if (!scale.isFinite() || scale <= 1f) return Offset.Zero
+    if (width <= 0 || height <= 0) return Offset.Zero
+    if (!offset.x.isFinite() || !offset.y.isFinite()) return Offset.Zero
     val maxX = width * (scale - 1f) / 2f
     val maxY = height * (scale - 1f) / 2f
     return Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
+}
+
+/**
+ * 滚动档当前页只部分可见时，视口中心相对该页槽中心的焦点。
+ *
+ * 列表 item 的 [itemOffset] 是它相对视口顶部的偏移，item 中心 = offset + size / 2；结果为负表示视口中心在页槽中心上方。
+ */
+internal fun scrollViewportFocus(
+    viewportHeight: Int,
+    itemOffset: Int,
+    itemSize: Int,
+): Offset? {
+    if (viewportHeight <= 0 || itemSize <= 0) return null
+    val itemCenter = itemOffset.toFloat() + itemSize / 2f
+    return Offset(0f, viewportHeight / 2f - itemCenter)
+}
+
+/** 双栏当前页在等宽槽中的位置：视口中心相对该页槽中心的水平焦点。 */
+internal fun spreadPageViewportFocus(
+    viewportWidth: Int,
+    visualIndex: Int,
+    visualCount: Int,
+): Offset? {
+    if (viewportWidth <= 0 || visualCount <= 0 || visualIndex !in 0 until visualCount) return null
+    val slotWidth = viewportWidth.toFloat() / visualCount
+    val slotCenter = (visualIndex + 0.5f) * slotWidth
+    return Offset(viewportWidth / 2f - slotCenter, 0f)
 }

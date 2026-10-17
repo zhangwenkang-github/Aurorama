@@ -34,7 +34,7 @@ internal object BookZoomSession {
 /**
  * 文档级缩放状态：倍率跨页 / 跨 spread / 跨三种模式共享，平移仍按页槽（[slotKey]）各自保留。
  *
- * 分页、双栏、滚动三档都读同一份 [scale]；翻到没访问过的页时该槽平移为 0（重新居中）， 回访已平移过的页时保留自己的平移。倍率变化按视口焦点重算平移，缩放回 1× 时全部归零。
+ * 分页、双栏、滚动三档都读同一份 [scale]；翻到没访问过的页时该槽平移为 0（重新居中）， 回访已平移过的页时保留自己的平移。倍率变化按当前槽的视口焦点重算平移；`snapTo` 只清当前槽，其余槽按各自中心重算。
  */
 @Stable
 internal class BookZoomState(private val bookKey: String) {
@@ -43,6 +43,8 @@ internal class BookZoomState(private val bookKey: String) {
 
     private val offsets = mutableStateMapOf<Any, Offset>()
     private val sizes = mutableStateMapOf<Any, IntSize>()
+    private var activeSlotKey: Any? = null
+    private var activeViewportFocus = Offset.Zero
 
     val percent: Int
         get() = zoomPercent(scale)
@@ -53,7 +55,21 @@ internal class BookZoomState(private val bookKey: String) {
     val canZoomOut: Boolean
         get() = scale > 1f + ZOOM_EPSILON
 
-    fun offsetFor(slotKey: Any): Offset = offsets[slotKey] ?: Offset.Zero
+    fun offsetFor(slotKey: Any): Offset =
+        if (scale <= 1f) Offset.Zero else offsets[slotKey] ?: Offset.Zero
+
+    /**
+     * 当前页槽相对视口中心的焦点（页槽局部坐标）。
+     *
+     * 按钮缩放只用这份焦点；双栏当前页位于左 / 右半屏、滚动页只部分可见时，焦点都不是 `Offset.Zero`。
+     */
+    fun updateViewportFocus(
+        slotKey: Any,
+        focus: Offset,
+    ) {
+        activeSlotKey = slotKey
+        activeViewportFocus = focus.takeIf { it.isFinite() } ?: Offset.Zero
+    }
 
     /** 页槽布局尺寸（手势平移夹取用）；尺寸变化时顺手把已有平移夹回新范围。 */
     fun registerSize(
@@ -68,20 +84,24 @@ internal class BookZoomState(private val bookKey: String) {
         if (clamped != offset) offsets[slotKey] = clamped
     }
 
-    /** 按钮 +：命中下一个 25% 档位，以视口中心为锚点。 */
+    /** 按钮 +：命中下一个 25% 档位，以当前页槽上报的视口中心为锚点。 */
     fun zoomIn() {
         stepTo(nextPageZoomStep(scale))
     }
 
-    /** 按钮 −：命中上一个 25% 档位，以视口中心为锚点。 */
+    /** 按钮 −：命中上一个 25% 档位，以当前页槽上报的视口中心为锚点。 */
     fun zoomOut() {
         stepTo(previousPageZoomStep(scale))
     }
 
-    /** 双击「适宽」直接落到目标倍率并居中（不经过档位）。 */
-    fun snapTo(value: Float) {
+    /** 双击「适宽」直接落到目标倍率，并只清当前页槽的平移（不经过档位）。 */
+    fun snapTo(
+        value: Float,
+        slotKey: Any,
+    ) {
+        if (!value.isFinite()) return
         val next = value.coerceIn(1f, PAGE_MAX_ZOOM)
-        offsets.clear()
+        offsets.remove(slotKey)
         commitScale(next)
     }
 
@@ -104,7 +124,8 @@ internal class BookZoomState(private val bookKey: String) {
             return
         }
         val safePan = if (pan.x.isFinite() && pan.y.isFinite()) pan else Offset.Zero
-        val anchored = anchorPageOffset(offsetFor(slotKey), scale, next, focus) + safePan
+        val safeFocus = if (focus.isFinite()) focus else Offset.Zero
+        val anchored = anchorPageOffset(offsetFor(slotKey), scale, next, safeFocus) + safePan
         val size = sizes[slotKey]
         offsets[slotKey] =
             if (size != null) clampPageOffset(anchored, next, size.width, size.height) else anchored
@@ -129,6 +150,7 @@ internal class BookZoomState(private val bookKey: String) {
     }
 
     private fun stepTo(target: Float) {
+        if (!target.isFinite()) return
         val next = target.coerceIn(1f, PAGE_MAX_ZOOM)
         if (next <= 1f) {
             offsets.clear()
@@ -136,8 +158,12 @@ internal class BookZoomState(private val bookKey: String) {
             return
         }
         if (next == scale) return
-        offsets.keys.toList().forEach { key ->
-            val anchored = anchorPageOffset(offsetFor(key), scale, next, Offset.Zero)
+        val currentSlot = activeSlotKey
+        val currentFocus = activeViewportFocus.takeIf { it.isFinite() } ?: Offset.Zero
+        val keys = offsets.keys.toMutableSet().apply { currentSlot?.let(::add) }
+        keys.forEach { key ->
+            val focus = if (key == currentSlot) currentFocus else Offset.Zero
+            val anchored = anchorPageOffset(offsetFor(key), scale, next, focus)
             val size = sizes[key]
             offsets[key] =
                 if (size != null) {
@@ -150,6 +176,7 @@ internal class BookZoomState(private val bookKey: String) {
     }
 
     private fun commitScale(value: Float) {
+        if (!value.isFinite()) return
         scale = value
         BookZoomSession.remember(bookKey, value)
     }
@@ -158,3 +185,5 @@ internal class BookZoomState(private val bookKey: String) {
         const val ZOOM_EPSILON = 1e-4f
     }
 }
+
+private fun Offset.isFinite(): Boolean = x.isFinite() && y.isFinite()
