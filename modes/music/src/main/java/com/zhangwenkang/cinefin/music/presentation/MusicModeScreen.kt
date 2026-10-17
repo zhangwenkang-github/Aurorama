@@ -1187,7 +1187,7 @@ private fun SongList(
         return
     }
     val listState = rememberLazyListState()
-    // 用户主动滚动（拖动 / 惯性）后，本次进入不再自动拉回；离开 Tab 重建组合后恢复一次定位。
+    // 用户主动滚动（拖动 / 惯性）后，本次进入不再做一次性居中；可见行补位 / 不可见目标贴边仍保留。
     val manualScrolled = remember { mutableStateOf(false) }
     // 程序化居中也会走 scrollable，用这个标记把自身滚动排除在「用户滚动」之外。
     val autoScrolling = remember { mutableStateOf(false) }
@@ -1210,8 +1210,16 @@ private fun SongList(
     val targetIndex = songListAutoLocateIndex(songs, currentItemId, headerCount)
     // 进入歌曲 Tab 只居中一次；之后点击可见行零位移，只有目标被裁切 / 不在视口时才做最小补位。
     val hasLocatedOnce = remember { mutableStateOf(false) }
-    LaunchedEffect(autoLocateCurrent, currentItemId, targetIndex, manualScrolled.value) {
-        if (!shouldAutoLocateSong(autoLocateCurrent, targetIndex, manualScrolled.value)) {
+    LaunchedEffect(autoLocateCurrent, currentItemId, targetIndex) {
+        if (!autoLocateCurrent) return@LaunchedEffect
+        if (targetIndex < 0) {
+            // 没有可定位目标时同样消费一次性居中，避免首次点击完整可见行时误走居中分支。
+            hasLocatedOnce.value = true
+            return@LaunchedEffect
+        }
+        if (!hasLocatedOnce.value && manualScrolled.value) {
+            // 用户已手动滚动：只放弃本次进入的一次性居中，后续切歌仍要补位。
+            hasLocatedOnce.value = true
             return@LaunchedEffect
         }
         // 曲库是异步加载的：等目标行进入 LazyList 布局后再定位（只等一次，不轮询）。
@@ -1226,9 +1234,16 @@ private fun SongList(
             layout.visibleItemsInfo.firstOrNull { item -> item.index >= headerCount }?.size
                 ?: layout.visibleItemsInfo.firstOrNull()?.size
                 ?: 1
+        val centerOnEntry =
+            !hasLocatedOnce.value &&
+                shouldAutoLocateSong(autoLocateCurrent, targetIndex, manualScrolled.value)
+        if (!centerOnEntry && !hasLocatedOnce.value) {
+            hasLocatedOnce.value = true
+            return@LaunchedEffect
+        }
         autoScrolling.value = true
         try {
-            if (!hasLocatedOnce.value) {
+            if (centerOnEntry) {
                 hasLocatedOnce.value = true
                 listState.animateScrollToItem(
                     index = targetIndex,

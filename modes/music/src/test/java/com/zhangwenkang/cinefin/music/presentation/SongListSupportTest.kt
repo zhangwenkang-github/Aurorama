@@ -117,7 +117,7 @@ class SongListSupportTest {
     @Test
     fun `offscreen reveal aligns to nearest edge instead of centering`() {
         assertEquals(
-            72,
+            0,
             songListRevealScrollOffset(
                 targetIndex = 2,
                 firstVisibleIndex = 5,
@@ -159,7 +159,7 @@ class SongListSupportTest {
     }
 
     @Test
-    fun `above viewport offset puts the target bottom on the viewport top`() {
+    fun `above viewport offset puts the target top on the viewport top`() {
         val itemHeight = 72
         val scrollOffset =
             songListRevealScrollOffset(
@@ -171,7 +171,8 @@ class SongListSupportTest {
             )
 
         val targetTop = -scrollOffset
-        assertEquals(0, targetTop + itemHeight)
+        assertEquals(0, targetTop)
+        assertTrue(targetTop + itemHeight <= 800)
     }
 
     @Test

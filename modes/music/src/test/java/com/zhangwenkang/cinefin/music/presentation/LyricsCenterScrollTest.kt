@@ -82,7 +82,8 @@ class LyricsCenterScrollTest {
     fun `measured target height centers a far row exactly`() {
         val heights = intArrayOf(100, 140, 180, 220, 260)
         val target = 4
-        val viewportCenter = 0f
+        val viewportStart = -500
+        val viewportEnd = 500
         val itemOffset =
             lyricsTargetItemOffset(
                 firstVisibleIndex = 1,
@@ -94,15 +95,21 @@ class LyricsCenterScrollTest {
 
         val delta =
             lyricsCenterScrollDelta(
-                viewportStart = -500,
-                viewportEnd = 500,
+                viewportStart = viewportStart,
+                viewportEnd = viewportEnd,
                 itemOffset = itemOffset,
                 itemSize = heights[target],
             )
 
-        // 动画结束后的目标中心 = 当前中心 + delta，必须正好落在视口中心。
+        // 按首见行 offset 与中间各行真实高度独立算出目标坐标，再核对实际滚动距离。
+        val expectedTargetOffset = -30 + (140 + 8) + (180 + 8) + (220 + 8)
+        assertEquals(expectedTargetOffset, itemOffset)
+        assertEquals(664f, delta, 0.001f)
+
+        // animateScrollBy(delta) 会把目标中心移到视口中心。
         val itemCenter = itemOffset + heights[target] / 2f
-        assertEquals(0f, itemCenter - (viewportCenter + delta), 0.001f)
+        val viewportCenter = (viewportStart + viewportEnd) / 2f
+        assertEquals(viewportCenter, itemCenter - delta, 0.001f)
         assertTrue(delta > 0f)
     }
 }

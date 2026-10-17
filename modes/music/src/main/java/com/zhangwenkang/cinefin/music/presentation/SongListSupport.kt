@@ -80,8 +80,8 @@ internal fun songListRevealScrollOffset(
 ): Int {
     if (viewportHeight <= 0 || itemHeight <= 0) return 0
     return when {
-        // 正 offset 表示目标继续向视口上方移动：目标在上方时把它的底边贴到视口顶部。
-        targetIndex < firstVisibleIndex -> itemHeight
+        // 目标在上方时用 0 让目标顶边贴住视口顶部；正 offset 会把目标整行推到视口之上。
+        targetIndex < firstVisibleIndex -> 0
         // 目标在下方时取负值：item 起点落在视口底部上方一行高，底边贴住视口底部。
         targetIndex > lastVisibleIndex ->
             if (itemHeight >= viewportHeight) 0 else -(viewportHeight - itemHeight)

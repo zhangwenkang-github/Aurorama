@@ -471,7 +471,7 @@ private fun measureLyricsRowHeight(
                     else CinefinType.TitleSmall.copy(fontSize = 21.sp))
                     .lyricsScaled(text)
             )
-            .copy(fontWeight = if (active) FontWeight.SemiBold else null)
+            .let { style -> if (active) style.copy(fontWeight = FontWeight.SemiBold) else style }
     val mainHeight =
         textMeasurer
             .measure(
