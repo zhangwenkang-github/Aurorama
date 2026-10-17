@@ -38,7 +38,7 @@
 2. **视频队列**：`PlaylistManager` 负责"整剧 / 整季 / 单片"的队列构建，逐集按需构建 `PlayerItem`（不预先全量拉流）。
 3. **MVI 范式**：业务页统一 `Screen + State(data class) + Action(sealed) + ViewModel(@HiltViewModel)`，状态用 `MutableStateFlow` + `asStateFlow()`。
 4. **数据层**：`JellyfinRepository` 接口 + `JellyfinRepositoryImpl`（在线）/ `JellyfinRepositoryOfflineImpl`（离线，Room 缓存），`JellyfinApi` 用 jellyfin-sdk 1.8.12 的 `*Api` 扩展（`playStateApi`、`itemsApi`、`userLibraryApi`、`sessionApi` 等）。
-5. **设计系统当前散落两处**：`core/.../core/presentation/theme`（`Color`、`Spacings`）与 `app/phone/.../presentation/theme`（`Theme`、`Color`、`Typography`、`Shape`、`Spacing`、`Motion`）；`LocalSpacings` 由 `CinefinTheme` 提供。
+5. **设计系统已统一归 `core`**（W83，2026-10-17）：`core/.../core/presentation/theme` 承载颜色、排版、形状、间距、主题与动效；phone 侧原 `Theme` / `Spacing` / `Motion` 三文件已迁入 `core`，原 `app/phone/.../presentation/theme` 目录移除；`LocalSpacings` 仍由 `CinefinTheme` 提供，保留兼容层 `LegacySpacings`。
 6. **阅读入口现状**：`NavigationRoot.navigateToItem()` 对 `FindroidFolder(kind == "Book")` 直接跳 `ConsoleRoute("/details?id=…")`（服务器 WebView 阅读器）——**本期要替换成原生阅读器**。
 7. **音乐现状**：无音乐模式与入口；音频只能被当作"视频"塞进视频播放器。音乐库类型（`CollectionType.Music`）已在 `supported` 列表内可浏览。
 8. **CI 现状**：Build 仅 `master` push 触发 + PR 触发、忽略 `docs/**` 与 `**.md`、带 concurrency 取消；Format 跑 `./gradlew ktfmtCheck`（`**.kt` / `**.kts`）。仓库现有 **975 个 JVM 单测**（8 模块、纯 JUnit4；无 Robolectric / `androidTest`，Compose 层不可单测）；**单测门禁自 2026-10-17 起由 `.github/workflows/test.yaml` 承担**。
@@ -51,7 +51,7 @@
 
 重构候选（按执行策略分档；政策见 `FIX_PLAN` D-F17，重构目标 = **更大灵活度、支撑后续新增需求**）：
 
-- 波内局部（低风险、随对应波做）：会话 / 通知展示状态收敛为单一数据类（W78）；手势「识别→意图」下沉 `PlayerSeekGestureRules`（W81）；缩略图策略收敛 `ImageCacheRules` + `app/phone` theme 3 文件并入 `core`（W83）。
+- 波内局部（低风险、随对应波做）：会话 / 通知展示状态收敛为单一数据类（W78）；手势「识别→意图」下沉 `PlayerSeekGestureRules`（W81）；缩略图策略收敛 `ImageCacheRules` + phone theme 3 文件并入 `core`（W83，**已完成**：图片 URL / 尺寸质量 / 占位来源 / 缓存 key 单一来源；`core` 原依赖 `data`，无循环依赖）。
 - 单独立项（本批后评估）：影视 UI 分批迁入 `modes:film`（让 `app/tv` 可复用）；`PlayerViewModel` 按职责拆分；`core` 拆 `:core:design` / `:core:download`；测试面扩展（CI 单测门禁已补，Robolectric / coroutines-test 后评估）。
 
 ## 2. 目标架构总览（to-be）
@@ -107,7 +107,7 @@
 | 根 `build.gradle.kts`（`allprojects.repositories`） | R1（**必须新增 JitPack 仓库**给 pdfium 适配器） | 与模块注册同批提交，避免多条线各改一次 |
 | `app/phone/.../NavigationRoot.kt` | R1（书籍详情 / 阅读路由）、R2（音乐路由）、R3 | 路由注册分两次小提交，改前 rebase；同日改动需互相告知 |
 | `settings/.../AppPreferences.kt` | R1（阅读偏好）、R2（音乐 / 歌词偏好）、R3（界面偏好） | 前置约定 key 前缀（`reader_*` / `music_*`），一次提交只加自己前缀的 key |
-| 设计系统核心（`core/.../presentation/theme/*`、`app/phone/.../presentation/theme/*`） | R3 主改，R1/R2 只读 | **设计系统由 R3 串行独家改动**；R1/R2 只用 token，不新增 token。**Typography 归位（2026-09-30 负责人决策）**：设计系统核心统一归 `core`，`app:phone` 只保留入口包装，由 R3 在 W1 落地 |
+| 设计系统核心（`core/.../presentation/theme/*`） | R3 主改，R1/R2 只读 | **设计系统由 R3 串行独家改动**；R1/R2 只用 token，不新增 token。**Typography / Theme / Spacing / Motion 已统一归 `core`（W83，2026-10-17）**，phone 侧 theme 目录已移除 |
 | `app/phone/.../playback/CinefinPlaybackService.kt` | R2（通知行为） | 由 R2 单独改 |
 | `player/local/.../presentation/PlayerHolder.kt` | R2（音频后端策略）、播放器线 | 改动前与播放器线确认；改后必须跑视频回归 |
 | `core/.../utils/DownloaderImpl.kt` | R1（书籍下载）、R2（音乐下载）、下载线 | 由**一条线先做通用化**（见 §6.1），另一条线只加自己的分支 |
@@ -485,7 +485,7 @@ interface MusicRepository {
 2. **接口先行**：`data` 层新增接口（§5.1）+ `player/core` 新模型（§5.2）先合入，R1 / R2 才能并行填实现。
 3. **下载器通用化**：`core/utils/DownloaderImpl.kt` 由一条线先完成"通用条目下载"重构，另一条线再加自己的分支。
 4. **`NavigationRoot.kt`**：两次小提交（阅读路由、音乐路由），改前 rebase。
-5. **设计系统**：由 R3 独家串行改动 `core` / `app` 的 theme 文件；R1 / R2 只消费 token。
+5. **设计系统**：由 R3 独家串行改动 `core` 的 theme 文件；R1 / R2 只消费 token（W83 后 phone 侧 theme 目录已移除）。
 
 ### 6.2 可并行（无硬依赖）
 
