@@ -67,8 +67,8 @@
 | 30 | 搜索返回后回媒体库（应回进入前页面） | 返回栈修复：关闭 / 返回回进入前页；首页入口不丢栈 | film/nav | W82 | ⬜ |
 | 31 | 媒体库界面要求有下拉刷新 | 总览页复用既有 PTR 写法补齐；静默刷新不闪（W69 语义） | UI / film | W83 | ⬜ |
 | 32 | 书籍手势：双击中间适宽 / 双击右·左翻页 / 上下滑调亮度 | PDF/CBZ 全量；EPUB 映射（左右翻页 + 亮度；中间双击 = 单 / 双栏切换） | READER | W80 | 🟡 实现已落（真机通过：PDF 适宽 / 左右翻页 / 亮度、EPUB 映射，见 §3 W80/S80-3） |
-| 33 | 歌曲分类每首歌显示缩略图 | SongRow 接封面（服务器专辑图 / 本地内嵌·同目录 → 音符占位） | MUSIC | W79 | ⬜ |
-| 34 | 进歌曲栏 / 切歌自动跳到当前播放曲 | 列表定位滚动（进入一次 + 切歌跟随）；手动滚动不被打断 | MUSIC | W79 | ⬜ |
+| 33 | 歌曲分类每首歌显示缩略图 | SongRow 接封面（服务器专辑图 / 本地内嵌·同目录 → 音符占位） | MUSIC | W79 | ✅ W79b：SongRow 40dp 封面 + 22dp 序号（88dp 行高不变），曲目图 → 同专辑兜底 → 音符占位；349 首真机滚动渲染正常；详见 §3 |
+| 34 | 进歌曲栏 / 切歌自动跳到当前播放曲 | 列表定位滚动（进入一次 + 切歌跟随）；手动滚动不被打断 | MUSIC | W79 | ✅ W79b：仅歌曲 Tab 启用，进入/重进居中、切歌跟随；手动滚动后不拉回；空队列 / 筛选外曲目不滚不崩；偏差 0–0.5 px；详见 §3 |
 | 35 | 歌词默认双语对照 | 默认开 + 无译文回落主行 + 存量显式偏好保留 | MUSIC | W79 | ✅ W79a：三态键 `pref_music_lyrics_bilingual`（`""`=未设置→默认开 / `on` / `off`）；真机默认两行、手动关落 `off` 冷启保持、单语歌曲单行不空行；详见 §3 |
 | 36 | 家庭视频缩略图显示进度条 | 库内容页补 UserData 进度 → 复用既有进度线组件；与续播一致 | film/data | W83 | ⬜ |
 | 37 | 歌词可调字体大小 / 间距并保存 | 新增偏好键；歌词页 + 面板生效（悬浮窗对齐）；重启保持 | MUSIC | W79 | ✅ W79a：`pref_music_lyrics_font_scale` / `pref_music_lyrics_line_spacing` + 档位条；真机即时生效（字号 ×1.3、行距 +21 px/行块）、冷启保持。QA-W79 发现「紧凑=标准」P2 → W79a-FIX 改对基准调用后，页 `216<226<268 px` / 面板 `207<218<260 px`，QA-W79R 通过；已合并 master `2fa6203`；详见 §3 |
@@ -358,6 +358,16 @@
 - **边界**：不 push / 不 merge；不改 #35 双语语义、三处水平居中、悬浮窗档位，不动通知 / 播放器代码。证据 `w79-evidence/w79a-fix/`，报告 `w79-reports/W79a-fix.md`。
 
 **W79a 合并验收（2026-10-17，第十二任负责人）**：`feature/w79-music-ui-lyrics` rebase 到 master `893fd11`（FIX_PLAN §5 冲突解决 = 保留 W80b / QA-W80R / W80 合并与 W79a 双方记录）→ ff 合并 master（`893fd11` → `2fa6203`）。QA-W79R 独立复验 **通过**：D1 歌词页 / 面板 12 场景 × 3 稳定样本最大偏差 **+4.5 px**（播放切行动画过程帧 +77.5 px 不计），D2 页 **216 < 226 < 268 px** / 面板 **207 < 218 < 260 px**，切档后当前行仍居中；#26 水平居中、#37 四档字号 + 冷启、#35 三态、无歌词占位、面板开关 / 切歌 / 迷你条入口全部通过；全量 logcat 19.9 MB / 143,319 行，FATAL/ANR/crash **0**。合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **1026 / 0 / 0**（app 281 / core 106 / data 78 / player:core 12 / player:local 180 / film 53 / book 159 / music **157**；1011 基线 + W79 15）。已推送 master（`893fd11..2fa6203`），CI 跟进；QA 报告 `w79-reports/W79-QA-R.md`，证据 `w79-evidence/qa-r/`。**W79b（#33/#34）已在新 worktree `w79b` / 分支 `feature/w79b-song-list` 开工。**
+**W79b 实施记录（2026-10-17，分支 `feature/w79b-song-list`，K60 `8e875894`，基座 master `2fa6203`）**
+- 范围：**#33** 歌曲行缩略图 + **#34** 进「歌曲」Tab 自动定位当前曲。不 push / 不 merge（负责人收口）。
+- **#33 实现**：`SongRow` leading = 40dp `ArtworkThumb` + 22dp 序号（行高仍 88dp）；新增 `resolveSongArtworkUri()`：曲目 `imageUri` 优先（服务器 Primary 图 / 本地 `coverUri` 已含「内嵌标签 → 同目录封面」链），缺失时用 `albumArtworkUris(state.albums)` 的同专辑封面兜底（只读快照、不新增网络请求），再无图沿用音符 + 媒体色底占位。多选勾选、来源徽标、下载态、菜单行为不变。
+- **#34 实现**：`SongList` 新增 `autoLocateCurrent = false`，仅库内 SONGS 分支传 `true`；`rememberLazyListState()` + 上一波修好的 `centerItem(target)`。`songListAutoLocateIndex()` 处理列表头偏移与「当前曲不在当前筛选列表」，`shouldAutoLocateSong()` 控制启用 / 已手动滚动门禁；`NestedScrollConnection` 识别用户拖动 / 惯性，程序化居中期间用 `autoScrolling` 标记排除，拖动后本次组合不再跟随，离开 Tab 重建组合后恢复一次定位。首 / 尾曲由滚动边界钳制，保证尽量居中且完整可见，不加半屏空白。
+- **单测**：新增 `SongListSupportTest` 7 项：封面优先、同专辑兜底、空封面占位、专辑表跳空且同名首值优先、列表头偏移、空队列 / 筛选外曲目返回 `-1`、自动定位门禁。
+- **#33 真机**：349 首服务器曲目列表逐行显示封面（Lemon / 夜曲 / 幻听等），无图且同专辑无图的心做し显示统一音符占位，无黑块；行高 231 px = 88dp；多选态「勾选 + 封面 + 序号 + 标题」不挤坏。滚动帧：基线 1194 帧 / janky 0.75% / p99 12ms；带封面首扫 1210 帧 / 0.83% / p99 13ms，预热复扫 1219 帧 / **0.25%** / p99 11ms（首扫含网络取图）。
+- **#34 真机**：进入 Tab 当前行心做し视口 `[525,1998]`、中心偏差 **+0.5 px**；重进定位幻听 **0 px**；`cmd media_session dispatch next` 后有何不可 **0 px**；手动滚到首见行 39 后切歌（童年），首见行仍为 39 且 bounds 不变（无强制拉回）；离开再进入定位童年 **0 px**；关闭迷你条清空队列、筛选「本地」（0 首）与筛选外曲目进入均空态无崩溃。
+- **回归**：歌曲 Tab 点播 / 下一首 / 行菜单（下一首播放 · 收藏 · 下载）/ 长按多选（已选 1 项）正常；专辑、艺术家详情列表均从第 `01` 首顶部开始，无意外自动滚动；0 FATAL / ANR，crash buffer 0 行。
+- **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 `--rerun-tasks --continue` **1033 / 0 / 0**（app 281 / core 106 / data 78 / player:core 12 / player:local 180 / film 53 / book 159 / music **164**；基线 1026，新增 7）。
+- **边界 / 未测**：K60 本地媒体库为 0 首，本地封面「内嵌 → 同目录」未做运行时抽行（索引实现与 resolver 链路已核对）；收藏 / 下载仅核对菜单项，未触发服务器写（测试服务器只读）。证据 `w79-evidence/w79b/`，报告 `w79-reports/W79b.md`。
 
 ### W80 波（阅读与书籍 · Pad 5 主 · 2026-10-17 派发，与 W78 并行）
 
@@ -539,6 +549,7 @@
 | 2026-10-17 | **W79a 实现波完成（未合并，负责人收口）**：`feature/w79-music-ui-lyrics`（基座 master `ef0716d`，worktree `w79a`，K60 `8e875894` 独占）交付 **#26 + #37 + #35**。①#26 歌词页 / 面板加 `TextAlign.Center + fillMaxWidth`（悬浮窗既有居中），真机墨迹中心 vs 中轴：歌词页 ≤3 px、面板 −10.5…+2 px、悬浮窗 −1.0/−0.5 px，左对齐参照 −150/−173 px；②#37 新增字号 4 档 / 行距 3 档 + 共用 chip 档位条，即时生效（字号 ×1.3、行块间距 +21 px、折行节距 96→119 px）且 `am force-stop` 冷启保持；**真机拦下的坑**：基准样式 lineHeight 低于字体自然行高 + 单行文本框裁 leading → 只改 lineHeight 等于档位失效，改按"实际字号 × 1.33"算行高并另加行块间距；③#35 双语三态键（未设置 → 默认开；显式 `off` 冷启保持）+ 单语歌曲单行不空行。**申报项**：`AppPreferences` 追加 `pref_music_lyrics_font_scale=standard` / `pref_music_lyrics_line_spacing=standard` / `pref_music_lyrics_bilingual=""`。**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 `--rerun-tasks` **994 / 0 / 0**（music 153，新增 11）。0 FATAL/ANR；偏好 / 悬浮窗权限 / 临时文件已还原；报告 `w79-reports/W79a.md`。 |
 | 2026-10-17 | **W79a-FIX 完成 QA P1/P2（未 push / 未 merge）**：代码 `2b209ec`。①**W79-QA-D1** = `centerItem()` 内容坐标 / 视口高度坐标系混用；改 `viewportStartOffset/EndOffset` 与 `item.offset/size` 同系求差，抽 `lyricsCenterScrollDelta()` + 3 单测，并在 `animateScrollToItem()` 后等一帧读新行高；字号 / 行距加入依赖。真机当前行偏差：歌词页 `+3.0…+5.0 px`（修前 QA `+695.5 px`）、面板 `-1.0…+1.0 px`（修前贴底约 `+626.5 px`）。②**W79-QA-D2** = `gapDp(0f)` 吞掉 tight 的 −4dp；改对 16dp / 12dp 基准调用 `gapDp`，补三档递增单测。特大字号连续行块：页 `276 < 286 < 328 px`、面板 `207 < 218 < 260 px`。③回归 #26 水平偏差 `−1.5 / +0.5 px`、#35 默认 / 关闭冷启 / 单语单行、无歌词占位全过，0 FATAL/ANR。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿，8 模块 **998 / 0 / 0**（+4）。报告 `w79-reports/W79a-fix.md`。 |
 | 2026-10-17 | **W79a 合并验收（第十二任负责人）**：`feature/w79-music-ui-lyrics` rebase 到 master `893fd11`（FIX_PLAN 冲突 = 保留 W80b / QA-W80R / W80 合并与 W79a 双方记录）→ ff 合并 master（`893fd11` → `2fa6203`）。**QA-W79R 独立复验通过**：D1 页 / 面板 12 场景 × 3 稳定样本最大 **+4.5 px**（动画过程帧 +77.5 px 不计）、D2 页 **216 < 226 < 268 px** / 面板 **207 < 218 < 260 px**、切档后仍居中；#26 水平 / #37 四档 + 冷启 / #35 三态 / 无歌词全过；logcat 19.9 MB，FATAL/ANR/crash **0**。合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿、8 任务 `--rerun-tasks` **1026 / 0 / 0**（music 157；1011 + 15）；已推送 CI（`893fd11..2fa6203`，Build / Format / Unit Tests）。报告 `w79-reports/W79-QA-R.md`，证据 `w79-evidence/qa-r/`。**下一棒 = W79b（#33/#34，worktree `w79b` / 分支 `feature/w79b-song-list`）已派发。** |
+| 2026-10-17 | **W79b 实现波完成（未 push / 未 merge）**：分支 `feature/w79b-song-list`（基座 master `2fa6203`，worktree `w79b`，K60 `8e875894` 独占）交付 **#33 + #34**。①**#33** SongRow = 40dp 封面 + 22dp 序号（88dp 行高不变），曲目封面优先、同专辑封面兜底、无图音符占位；349 首真机渲染正常，滚动 jank 基线 0.75% → 首扫 0.83%（含取图）/ 预热 0.25%。②**#34** 仅歌曲 Tab 自动定位：进入 / 重进居中（偏差 0–0.5 px）、切歌跟随；手动滚到首见行 39 后切歌不再拉回；空队列 / 筛选外曲目不滚不崩。回归 0 FATAL/ANR；门禁 **1033 / 0 / 0**（music 157→164，+7）。报告 `w79-reports/W79b.md`。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
