@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.music.data.lyrics
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,6 +41,53 @@ class LyricsPresenterTest {
             listOf(LyricsDisplayLanguage.JAPANESE, LyricsDisplayLanguage.ORIGINAL),
             LyricsPresenter.displayLanguages(japaneseOnly),
         )
+    }
+
+    @Test
+    fun `new song keeps the previous language and follow setting`() {
+        val previous =
+            LyricsDisplayState(
+                language = LyricsDisplayLanguage.JAPANESE,
+                bilingual = true,
+                follow = false,
+            )
+
+        val display =
+            LyricsPresenter.displayForNewDocument(
+                document = bilingual,
+                previous = previous,
+                bilingual = true,
+            )
+
+        assertEquals(LyricsDisplayLanguage.JAPANESE, display.language)
+        assertTrue(display.bilingual)
+        assertFalse(display.follow)
+    }
+
+    @Test
+    fun `new song falls back when the previous language is absent but keeps follow`() {
+        val chineseOnly =
+            LyricsDocumentBuilder.build(
+                listOf(LyricLine(1_000, "时针一直倒数着")),
+                LyricsSource.SERVER,
+            )
+        val previous =
+            LyricsDisplayState(
+                language = LyricsDisplayLanguage.JAPANESE,
+                bilingual = false,
+                follow = false,
+            )
+
+        val display =
+            LyricsPresenter.displayForNewDocument(
+                document = chineseOnly,
+                previous = previous,
+                bilingual = false,
+            )
+
+        assertEquals(LyricsDisplayLanguage.SIMPLIFIED_CHINESE, display.language)
+        assertFalse(display.bilingual)
+        assertFalse(display.follow)
     }
 
     @Test

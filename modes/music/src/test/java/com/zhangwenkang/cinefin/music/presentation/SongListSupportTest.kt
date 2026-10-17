@@ -127,13 +127,63 @@ class SongListSupportTest {
             ),
         )
         assertEquals(
-            728,
+            -728,
             songListRevealScrollOffset(
                 targetIndex = 20,
                 firstVisibleIndex = 5,
                 lastVisibleIndex = 12,
                 viewportHeight = 800,
                 itemHeight = 72,
+            ),
+        )
+    }
+
+    @Test
+    fun `below viewport offset puts the target bottom on the viewport bottom`() {
+        val viewportHeight = 800
+        val itemHeight = 72
+        val scrollOffset =
+            songListRevealScrollOffset(
+                targetIndex = 20,
+                firstVisibleIndex = 5,
+                lastVisibleIndex = 12,
+                viewportHeight = viewportHeight,
+                itemHeight = itemHeight,
+            )
+
+        // LazyList 契约：正 scrollOffset 表示向前滚（目标起点移到视口上方），
+        // 因此目标在视口内的起点 = -scrollOffset。这里按真实坐标断言底边贴底。
+        val targetTop = -scrollOffset
+        assertEquals(viewportHeight, targetTop + itemHeight)
+        assertTrue(targetTop >= 0)
+    }
+
+    @Test
+    fun `above viewport offset puts the target bottom on the viewport top`() {
+        val itemHeight = 72
+        val scrollOffset =
+            songListRevealScrollOffset(
+                targetIndex = 2,
+                firstVisibleIndex = 5,
+                lastVisibleIndex = 12,
+                viewportHeight = 800,
+                itemHeight = itemHeight,
+            )
+
+        val targetTop = -scrollOffset
+        assertEquals(0, targetTop + itemHeight)
+    }
+
+    @Test
+    fun `row taller than viewport stays at the readable top edge`() {
+        assertEquals(
+            0,
+            songListRevealScrollOffset(
+                targetIndex = 20,
+                firstVisibleIndex = 5,
+                lastVisibleIndex = 12,
+                viewportHeight = 72,
+                itemHeight = 88,
             ),
         )
     }

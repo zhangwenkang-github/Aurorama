@@ -25,6 +25,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -33,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,10 +45,17 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,6 +69,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
+import com.zhangwenkang.cinefin.music.data.lyrics.LyricsTextSettings
 
 /**
  * 全屏歌词页（W23-MUSIC · B 组）。
@@ -84,6 +95,11 @@ fun MusicLyricsPage(
 ) {
     val colors = LocalCinefinColors.current
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var followPausedByUser by remember { mutableStateOf(false) }
+    val continueFollow = {
+        followPausedByUser = false
+        if (!state.display.follow) onToggleFollow()
+    }
     Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(
@@ -139,6 +155,8 @@ fun MusicLyricsPage(
                     else ->
                         LyricsLines(
                             state = state,
+                            followPausedByUser = followPausedByUser,
+                            onFollowPausedByUserChange = { followPausedByUser = it },
                             onLineClick = onLineClick,
                         )
                 }
@@ -147,10 +165,12 @@ fun MusicLyricsPage(
         if (settingsOpen) {
             LyricsDisplaySettingsSheet(
                 state = state,
+                followPausedByUser = followPausedByUser,
                 onDismiss = { settingsOpen = false },
                 onSelectLanguage = onSelectLanguage,
                 onToggleBilingual = onToggleBilingual,
                 onToggleFollow = onToggleFollow,
+                onContinueFollow = continueFollow,
                 onSelectFontScale = onSelectFontScale,
                 onSelectLineSpacing = onSelectLineSpacing,
             )
@@ -162,10 +182,12 @@ fun MusicLyricsPage(
 @Composable
 private fun LyricsDisplaySettingsSheet(
     state: MusicModeViewModel.LyricsUiState,
+    followPausedByUser: Boolean,
     onDismiss: () -> Unit,
     onSelectLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleBilingual: () -> Unit,
     onToggleFollow: () -> Unit,
+    onContinueFollow: () -> Unit,
     onSelectFontScale: (LyricsFontScale) -> Unit,
     onSelectLineSpacing: (LyricsLineSpacing) -> Unit,
 ) {
@@ -221,9 +243,22 @@ private fun LyricsDisplaySettingsSheet(
                     onClick = onToggleBilingual,
                 )
                 LyricsDisplayChip(
-                    label = "跟随滚动",
-                    selected = state.display.follow,
-                    onClick = onToggleFollow,
+                    label = if (followPausedByUser) "继续跟随" else "跟随滚动",
+                    selected = state.display.follow && !followPausedByUser,
+                    onClick = if (followPausedByUser) onContinueFollow else onToggleFollow,
+                )
+            }
+            if (followPausedByUser) {
+                Text(
+                    text = "已手动滚动，跟随已暂停",
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.padding(
+                            start = CinefinSpacing.Space5,
+                            end = CinefinSpacing.Space5,
+                            top = CinefinSpacing.Space1,
+                        ),
                 )
             }
             Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
@@ -254,52 +289,82 @@ private fun LyricsDisplayChip(label: String, selected: Boolean, onClick: () -> U
 @Composable
 private fun LyricsLines(
     state: MusicModeViewModel.LyricsUiState,
+    followPausedByUser: Boolean,
+    onFollowPausedByUserChange: (Boolean) -> Unit,
     onLineClick: (Long) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val listState = rememberLazyListState()
-    val followPausedByUser = remember { mutableStateOf(false) }
-    val autoScrolling = remember { mutableStateOf(false) }
-    val lastActiveItemHeight = remember { intArrayOf(0) }
+    val pauseCallback = rememberUpdatedState(onFollowPausedByUserChange)
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && !autoScrolling.value) {
-                    followPausedByUser.value = true
-                }
+                // 用户输入本身就足以区分程序化跟随；动画中拖动也必须立刻暂停。
+                if (source == NestedScrollSource.UserInput) pauseCallback.value(true)
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (!autoScrolling.value) followPausedByUser.value = true
+                pauseCallback.value(true)
                 return Velocity.Zero
             }
         }
     }
     // W24 · B6：上下留半个视口，任何一行（含首行）都能滚到正中
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val baseTextStyle = LocalTextStyle.current
+        val textMeasurer = rememberTextMeasurer()
         val verticalPadding = maxHeight / 2
+        val rowWidthPx =
+            with(density) {
+                (maxWidth - CinefinSpacing.Space6 * 2f).coerceAtLeast(1.dp).roundToPx()
+            }
+        val itemSpacingPx =
+            with(density) { state.text.gapDp(CinefinSpacing.Space4.value).dp.roundToPx() }
+        // 已布局行直接复用真实高度；未布局行用 TextMeasurer 按同一宽度 / 字号 / 行距测量。
+        // activeIndex 参与 key：当前行会从 32sp 切回 21sp，旧高度不能跨高亮态复用。
+        val rowHeights =
+            remember(state.rows, state.text, rowWidthPx, density, state.activeIndex) {
+                mutableMapOf<Int, Int>()
+            }
+        fun heightOf(index: Int): Int {
+            rowHeights[index]?.let {
+                return it
+            }
+            val row = state.rows.getOrNull(index) ?: return 1
+            val height =
+                measureLyricsRowHeight(
+                    textMeasurer = textMeasurer,
+                    row = row,
+                    active = index == state.activeIndex,
+                    text = state.text,
+                    baseStyle = baseTextStyle,
+                    widthPx = rowWidthPx,
+                    density = density,
+                )
+            rowHeights[index] = height
+            return height
+        }
         // 用户主动拖动 / 惯性后暂停跟随；只有再次开启「跟随滚动」才恢复。
         LaunchedEffect(state.display.follow) {
-            if (state.display.follow) followPausedByUser.value = false
+            if (state.display.follow) onFollowPausedByUserChange(false)
         }
         LaunchedEffect(
             state.activeIndex,
             state.display,
+            state.document,
             state.rows.size,
             state.text,
+            followPausedByUser,
         ) {
-            if (!state.display.follow || followPausedByUser.value) return@LaunchedEffect
-            autoScrolling.value = true
-            try {
-                listState.animateToCenteredItem(
-                    target = state.activeIndex,
-                    estimatedItemHeight = lastActiveItemHeight[0].takeIf { it > 0 },
-                )
-            } finally {
-                autoScrolling.value = false
-            }
+            if (!state.display.follow || followPausedByUser) return@LaunchedEffect
+            listState.animateToCenteredItem(
+                target = state.activeIndex,
+                itemSpacingPx = itemSpacingPx,
+                heightOf = ::heightOf,
+            )
         }
         LazyColumn(
             state = listState,
@@ -324,9 +389,7 @@ private fun LyricsLines(
                         Modifier.fillMaxWidth()
                             .clip(CinefinShapes.Xs)
                             .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
-                            .onSizeChanged { size ->
-                                if (active) lastActiveItemHeight[0] = size.height
-                            }
+                            .onSizeChanged { size -> rowHeights[index] = size.height }
                             .padding(vertical = CinefinSpacing.Space1)
                 ) {
                     // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）
@@ -383,4 +446,61 @@ private fun LyricsLines(
             }
         }
     }
+}
+
+/**
+ * 按歌词行的实际字体档位 / 可用宽度测量行高。
+ *
+ * 必须与 [LyricsLines] 的 Column + Text 布局逐项对应：主行样式、双语副行样式及间距、行块上下 padding。远跳只累加这里的真实高度，
+ * 不再用上一行或可见行平均值估算。
+ */
+private fun measureLyricsRowHeight(
+    textMeasurer: TextMeasurer,
+    row: LyricsRow,
+    active: Boolean,
+    text: LyricsTextSettings,
+    baseStyle: TextStyle,
+    widthPx: Int,
+    density: Density,
+): Int {
+    val constraints = Constraints(maxWidth = widthPx.coerceAtLeast(1))
+    val mainStyle =
+        baseStyle
+            .merge(
+                (if (active) CinefinType.TitleLarge.copy(fontSize = 32.sp)
+                    else CinefinType.TitleSmall.copy(fontSize = 21.sp))
+                    .lyricsScaled(text)
+            )
+            .copy(fontWeight = if (active) FontWeight.SemiBold else null)
+    val mainHeight =
+        textMeasurer
+            .measure(
+                text = AnnotatedString(row.mainText),
+                style = mainStyle,
+                constraints = constraints,
+            )
+            .size
+            .height
+    val subText = row.subText
+    val subHeight =
+        if (subText == null) {
+            0
+        } else {
+            val subStyle =
+                baseStyle.merge(
+                    (if (active) CinefinType.TitleMedium else CinefinType.BodyMedium).lyricsScaled(
+                        text
+                    )
+                )
+            textMeasurer
+                .measure(
+                    text = AnnotatedString(subText),
+                    style = subStyle,
+                    constraints = constraints,
+                )
+                .size
+                .height + with(density) { text.gapDp(0f).dp.roundToPx() }
+        }
+    val rowPadding = with(density) { CinefinSpacing.Space1.roundToPx() * 2 }
+    return mainHeight + subHeight + rowPadding
 }

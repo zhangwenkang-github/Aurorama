@@ -82,6 +82,23 @@ object LyricsPresenter {
         return LyricsDisplayState(language = language, bilingual = bilingual, follow = follow)
     }
 
+    /**
+     * 切曲后的显示设置：语言 / 跟随沿用上一首的 [previous]，双语仍取持久化偏好。
+     *
+     * §8 的“沿用现有偏好”只覆盖已有偏好键（双语 / 字号 / 行距）；页面没有语言 / 跟随的独立偏好键，因此这两项跨曲保持旧
+     * `display`。若上一首选择的语言在新歌词里不存在，回落到新歌词的默认语言。
+     */
+    fun displayForNewDocument(
+        document: LyricsDocument,
+        previous: LyricsDisplayState,
+        bilingual: Boolean,
+    ): LyricsDisplayState {
+        val fallback = defaultDisplay(document, bilingual = bilingual, follow = previous.follow)
+        val language =
+            previous.language.takeIf { it in displayLanguages(document) } ?: fallback.language
+        return fallback.copy(language = language)
+    }
+
     /** 按 [display] 把歌词块渲染成行列表。 */
     fun rows(document: LyricsDocument, display: LyricsDisplayState): List<LyricsRow> =
         document.blocks.map { block ->

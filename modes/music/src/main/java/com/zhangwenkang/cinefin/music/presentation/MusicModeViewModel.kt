@@ -524,9 +524,10 @@ constructor(
                     )
                 } else {
                     val display =
-                        LyricsPresenter.defaultDisplay(
+                        LyricsPresenter.displayForNewDocument(
                             document,
                             bilingual = bilingualEnabled(),
+                            previous = state.display,
                         )
                     val rows = LyricsPresenter.rows(document, display)
                     val position = playbackController.positionMs.value
