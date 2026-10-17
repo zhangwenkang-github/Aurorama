@@ -206,20 +206,117 @@ class PlayerSubtitleController(
 
     /** 手动选主字幕；null = 关闭 */
     fun selectPrimary(index: Int?) {
-        disabledByUser = index == null && sources.isNotEmpty()
-        applyPrimary(index, persist = index != null)
-        if (secondaryIndex == index) {
-            applySecondary(null, persist = false)
+        if (index != null) {
+            val source = sources.firstOrNull { it.index == index } ?: return
+            if (source.isTextBased) {
+                assignPrimary(index)
+                return
+            }
+            // 图形字幕没有可交给自研层的文本：保留在源序号上，由路由交给内核原生渲染。
+            disabledByUser = false
+            if (secondaryIndex == index) {
+                applySecondary(null, persist = false)
+            }
+            applyPrimary(index, persist = false)
+            rememberManualSelection()
+            publish()
+            return
         }
+        disabledByUser = sources.isNotEmpty()
+        applyPrimary(null, persist = false)
         rememberManualSelection()
         publish()
     }
 
     /** 手动选次字幕；null = 关闭 */
     fun selectSecondary(index: Int?) {
-        if (index != null && index == primaryIndex) return
+        if (index != null) {
+            assignSecondary(index)
+            return
+        }
         applySecondary(index, persist = true)
         rememberManualSelection()
+        publish()
+    }
+
+    /**
+     * 把一条文本轨分配到主路。
+     *
+     * 若它当前在次路，只清空次路，不经过「用户显式关闭」语义，避免把 [disabledByUser] 写脏。
+     */
+    fun assignPrimary(index: Int) {
+        val source = sources.firstOrNull { it.index == index && it.isTextBased } ?: return
+        val next =
+            SubtitleTrackAssignment.assignPrimary(
+                SubtitleTrackPair(primaryIndex, secondaryIndex),
+                source.index,
+            )
+        disabledByUser = false
+        if (next.secondaryIndex == null && secondaryIndex != null) {
+            applySecondary(null, persist = false)
+        }
+        applyPrimary(next.primaryIndex, persist = true)
+        rememberManualSelection()
+        publish()
+    }
+
+    /**
+     * 把一条文本轨分配到次路。
+     *
+     * 若它当前在主路，清空主路并保持「非用户关闭」状态；次路渲染会由路由层抑制内核文字轨。
+     */
+    fun assignSecondary(index: Int) {
+        val source = sources.firstOrNull { it.index == index && it.isTextBased } ?: return
+        val next =
+            SubtitleTrackAssignment.assignSecondary(
+                SubtitleTrackPair(primaryIndex, secondaryIndex),
+                source.index,
+            )
+        disabledByUser = false
+        if (next.primaryIndex == null && primaryIndex != null) {
+            applyPrimary(null, persist = false)
+        }
+        applySecondary(next.secondaryIndex, persist = true)
+        rememberManualSelection()
+        publish()
+    }
+
+    /** 主 / 次互换：调用方先确认两边都是不同文本轨。 */
+    fun swapPrimarySecondary() {
+        val next =
+            SubtitleTrackAssignment.swap(SubtitleTrackPair(primaryIndex, secondaryIndex)) ?: return
+        val primarySource = sources.firstOrNull { it.index == next.primaryIndex }
+        val secondarySource = sources.firstOrNull { it.index == next.secondaryIndex }
+        if (primarySource?.isTextBased != true || secondarySource?.isTextBased != true) return
+        disabledByUser = false
+        applyPrimary(next.primaryIndex, persist = true)
+        applySecondary(next.secondaryIndex, persist = true)
+        rememberManualSelection()
+        publish()
+    }
+
+    /** 「自动选择」入口：丢掉本媒体的手动记忆，按当前模式 / 语言优先级重新挑选。 */
+    fun autoSelectAndForgetManual(autoSecondary: Boolean = true) {
+        disabledByUser = false
+        appPreferences.setValue(PlayerExtraPreferences.subtitleManualSelection, "")
+        autoSelect(autoSecondary = autoSecondary)
+    }
+
+    /** 只丢掉手动记忆与关闭态，让内核自己重选（mpv `sid=auto` 用，避免预加载主字幕文件）。 */
+    fun forgetManualSelectionForAuto() {
+        disabledByUser = false
+        appPreferences.setValue(PlayerExtraPreferences.subtitleManualSelection, "")
+        publish()
+    }
+
+    /**
+     * 主字幕要占用当前次字幕轨时，清掉次路但不写手动记忆 / 不标记用户关闭。
+     *
+     * 供 mpv 主字幕切 `sid` 前使用；写入记忆由调用方在同步主字幕源序号后统一完成。
+     */
+    fun clearSecondaryForReassignment() {
+        if (secondaryIndex == null && !secondaryManaged && !secondaryLoading) return
+        applySecondary(null, persist = false)
         publish()
     }
 
@@ -240,8 +337,14 @@ class PlayerSubtitleController(
      * 序号变化时丢掉上一条主字幕的内容：渲染层可能在双字幕期间用这份内容接管主字幕，留着旧源会画出与 `sid` 不一致的另一句。真正需要内容时由
      * [ensurePrimaryContentAvailable] 按需加载，单字幕原生路径不额外下载。
      */
-    fun syncPrimaryIndex(index: Int?) {
-        if (primaryIndex == index) return
+    fun syncPrimaryIndex(
+        index: Int?,
+        rememberManual: Boolean = false,
+    ) {
+        if (primaryIndex == index) {
+            if (rememberManual) rememberManualSelection()
+            return
+        }
         primaryIndex = index
         primaryLoadJob?.cancel()
         primaryLoadJob = null
@@ -252,6 +355,7 @@ class PlayerSubtitleController(
         primaryLoading = false
         primaryLoadStartedForIndex = null
         // 立刻让覆盖层丢掉上一条主字幕：切轨期间宁可短暂空一帧，也不能继续画旧轨的内容。
+        if (rememberManual) rememberManualSelection()
         publish()
     }
 

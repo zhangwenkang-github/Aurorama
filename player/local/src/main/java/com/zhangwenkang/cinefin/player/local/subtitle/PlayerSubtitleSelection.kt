@@ -39,6 +39,97 @@ data class RestoredSubtitleSelection(
     val disabledByUser: Boolean,
 )
 
+/** 主 / 次字幕在 Jellyfin 源序号域的当前分配。 */
+data class SubtitleTrackPair(
+    val primaryIndex: Int? = null,
+    val secondaryIndex: Int? = null,
+) {
+    val hasDistinctTracks: Boolean
+        get() = primaryIndex != null && secondaryIndex != null && primaryIndex != secondaryIndex
+}
+
+/**
+ * 单列表自由分配的纯函数。
+ *
+ * 主 / 次共用同一组源序号；任何一端分配到另一端的同一轨时，**清空原端**而不是留下同源双份。 这里只处理序号域，图形 / 原生限制与手动记忆写入由调用方负责。
+ */
+object SubtitleTrackAssignment {
+    fun assignPrimary(
+        current: SubtitleTrackPair,
+        index: Int,
+    ): SubtitleTrackPair =
+        current.copy(
+            primaryIndex = index,
+            secondaryIndex = current.secondaryIndex.takeIf { it != index },
+        )
+
+    fun assignSecondary(
+        current: SubtitleTrackPair,
+        index: Int,
+    ): SubtitleTrackPair =
+        current.copy(
+            primaryIndex = current.primaryIndex.takeIf { it != index },
+            secondaryIndex = index,
+        )
+
+    /** 只有两端都是不同轨时才交换；否则返回 null，调用方据此禁用入口。 */
+    fun swap(current: SubtitleTrackPair): SubtitleTrackPair? {
+        if (!current.hasDistinctTracks) return null
+        return SubtitleTrackPair(
+            primaryIndex = current.secondaryIndex,
+            secondaryIndex = current.primaryIndex,
+        )
+    }
+}
+
+/** mpv `track-list` 里一条字幕轨的最小映射信息：`id` 是原生 sid，不是 Jellyfin 源序号。 */
+data class MpvSubtitleTrackRef(
+    val id: Int,
+    val label: String? = null,
+    val language: String? = null,
+)
+
+/**
+ * mpv 原生 sid 与 Jellyfin 字幕源序号的双向映射。
+ *
+ * 主字幕由 mpv `sid` 选择，次字幕由 Compose 按源文件加载；两者绝不能共用一个整数域。 映射优先同序号，其次标题，最后语言；只把可解析文本源当作次字幕候选。
+ */
+object MpvSubtitleTrackMapping {
+    fun sourceIndexForTrack(
+        track: MpvSubtitleTrackRef,
+        sources: List<PlayerSubtitleSource>,
+    ): Int? =
+        sources.firstOrNull { it.index == track.id }?.index
+            ?: sources
+                .firstOrNull {
+                    it.isTextBased && !track.label.isNullOrBlank() && it.title == track.label
+                }
+                ?.index
+            ?: sources
+                .firstOrNull {
+                    it.isTextBased &&
+                        !track.language.isNullOrBlank() &&
+                        it.language.equals(track.language, ignoreCase = true)
+                }
+                ?.index
+
+    /** 次字幕只接受可解析文本源；图形轨即使能按序号映射，也不能进 Compose 双语层。 */
+    fun secondarySourceIndexForTrack(
+        track: MpvSubtitleTrackRef,
+        sources: List<PlayerSubtitleSource>,
+    ): Int? {
+        val index = sourceIndexForTrack(track, sources) ?: return null
+        return index.takeIf { value -> sources.any { it.index == value && it.isTextBased } }
+    }
+
+    /** 把次字幕源序号反查回可选的 mpv 原生轨；映射不到时返回 null。 */
+    fun trackForSource(
+        sourceIndex: Int,
+        tracks: List<MpvSubtitleTrackRef>,
+        sources: List<PlayerSubtitleSource>,
+    ): MpvSubtitleTrackRef? = tracks.firstOrNull { sourceIndexForTrack(it, sources) == sourceIndex }
+}
+
 /**
  * 字幕选择逻辑（纯函数，便于单测钉死；W74 #14）。
  *

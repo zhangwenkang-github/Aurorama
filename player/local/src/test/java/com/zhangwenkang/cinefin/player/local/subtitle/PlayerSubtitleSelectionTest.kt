@@ -4,6 +4,7 @@ import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -171,5 +172,115 @@ class PlayerSubtitleSelectionTest {
         assertNull(SubtitleManualSelection.decode(""))
         assertNull(SubtitleManualSelection.decode("only-media-id"))
         assertNull(SubtitleManualSelection.decode("|4|5"))
+    }
+
+    @Test
+    fun `主路分配同一轨时清空原次路`() {
+        val next =
+            SubtitleTrackAssignment.assignPrimary(
+                SubtitleTrackPair(primaryIndex = 3, secondaryIndex = 5),
+                index = 5,
+            )
+
+        assertEquals(5, next.primaryIndex)
+        assertNull(next.secondaryIndex)
+    }
+
+    @Test
+    fun `次路分配同一轨时清空原主路`() {
+        val next =
+            SubtitleTrackAssignment.assignSecondary(
+                SubtitleTrackPair(primaryIndex = 4, secondaryIndex = 5),
+                index = 4,
+            )
+
+        assertNull(next.primaryIndex)
+        assertEquals(4, next.secondaryIndex)
+    }
+
+    @Test
+    fun `主次交换只在两条不同文本轨时成立`() {
+        val swapped =
+            SubtitleTrackAssignment.swap(SubtitleTrackPair(primaryIndex = 3, secondaryIndex = 5))
+
+        assertEquals(5, swapped?.primaryIndex)
+        assertEquals(3, swapped?.secondaryIndex)
+        assertNull(SubtitleTrackAssignment.swap(SubtitleTrackPair(primaryIndex = 3)))
+        assertNull(
+            SubtitleTrackAssignment.swap(SubtitleTrackPair(primaryIndex = 3, secondaryIndex = 3))
+        )
+    }
+
+    @Test
+    fun `mpv 原生 sid 按同序号标题语言映射到源，且能反查`() {
+        val sources = summerGhostSources()
+        val sameIndex = MpvSubtitleTrackRef(id = 4, label = "任意", language = "jpn")
+        val byTitle = MpvSubtitleTrackRef(id = 90, label = "繁日雙語", language = "jpn")
+        val byLanguage =
+            MpvSubtitleTrackRef(id = 91, label = null, language = sources.first().language)
+
+        assertEquals(4, MpvSubtitleTrackMapping.sourceIndexForTrack(sameIndex, sources))
+        assertEquals(5, MpvSubtitleTrackMapping.sourceIndexForTrack(byTitle, sources))
+        assertEquals(3, MpvSubtitleTrackMapping.sourceIndexForTrack(byLanguage, sources))
+        assertEquals(
+            90,
+            MpvSubtitleTrackMapping.trackForSource(
+                    5,
+                    listOf(byTitle, byLanguage),
+                    sources,
+                )
+                ?.id,
+        )
+        assertNull(
+            MpvSubtitleTrackMapping.trackForSource(
+                99,
+                listOf(byTitle, byLanguage),
+                sources,
+            )
+        )
+    }
+
+    @Test
+    fun `mpv 次字幕候选保留源序号并拒绝同源主次`() {
+        val sources = summerGhostSources()
+        val tracks =
+            listOf(
+                MpvSubtitleTrackRef(id = 3, label = "日本語", language = "jpn"),
+                MpvSubtitleTrackRef(id = 4, label = "简日双语", language = "zho"),
+            )
+        val primarySource = MpvSubtitleTrackMapping.sourceIndexForTrack(tracks[0], sources)
+        val secondarySource = MpvSubtitleTrackMapping.sourceIndexForTrack(tracks[1], sources)
+
+        assertEquals(3, primarySource)
+        assertEquals(4, secondarySource)
+        assertTrue(primarySource != secondarySource)
+        assertNull(
+            MpvSubtitleTrackMapping.trackForSource(
+                primarySource!!,
+                tracks.drop(1),
+                sources,
+            )
+        )
+    }
+
+    @Test
+    fun `图形字幕源不可作为次字幕文本`() {
+        val graphic =
+            PlayerSubtitleSource(
+                index = 9,
+                title = "PGS",
+                language = "zho",
+                uri = "https://server/Subtitles/9/Stream.sup",
+                codec = "pgs",
+                isGraphic = true,
+            )
+
+        assertFalse(graphic.isTextBased)
+        assertNull(
+            MpvSubtitleTrackMapping.secondarySourceIndexForTrack(
+                MpvSubtitleTrackRef(9),
+                listOf(graphic),
+            )
+        )
     }
 }

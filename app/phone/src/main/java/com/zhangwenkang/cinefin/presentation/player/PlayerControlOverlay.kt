@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -56,6 +58,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -614,10 +617,14 @@ fun PlayerControlOverlay(
     onSelectSpeed: (Float) -> Unit,
     /** 字幕面板状态（两个内核汇总后的同一份数据） */
     subtitlePanelState: PlayerViewModel.SubtitlePanelState,
-    /** 选主字幕；null 表示关闭 */
-    onSelectPrimarySubtitle: (Int?) -> Unit,
-    /** 选次字幕（双语）；null 表示关闭 */
-    onSelectSecondarySubtitle: (Int?) -> Unit,
+    /** 单列表「主」chip：Exo 为源序号，mpv 为原生 sid */
+    onAssignPrimarySubtitle: (Int) -> Unit,
+    /** 单列表「次」chip：两个内核都为 Jellyfin 源序号 */
+    onAssignSecondarySubtitle: (Int) -> Unit,
+    onClearPrimarySubtitle: () -> Unit,
+    onClearSecondarySubtitle: () -> Unit,
+    onSwapSubtitles: () -> Unit,
+    onAutoSelectSubtitles: () -> Unit,
     /** 字幕延迟步进（±100ms） */
     onAdjustSubtitleDelay: (Long) -> Unit,
     /** 字幕延迟归零 */
@@ -1335,8 +1342,12 @@ fun PlayerControlOverlay(
                     PlayerPanel.Subtitle ->
                         SubtitlePanel(
                             state = subtitlePanelState,
-                            onSelectPrimary = onSelectPrimarySubtitle,
-                            onSelectSecondary = onSelectSecondarySubtitle,
+                            onAssignPrimary = onAssignPrimarySubtitle,
+                            onAssignSecondary = onAssignSecondarySubtitle,
+                            onClearPrimary = onClearPrimarySubtitle,
+                            onClearSecondary = onClearSecondarySubtitle,
+                            onSwap = onSwapSubtitles,
+                            onAutoSelect = onAutoSelectSubtitles,
                             onAdjustDelay = onAdjustSubtitleDelay,
                             onResetDelay = onResetSubtitleDelay,
                             onUpdateAppearance = onUpdateSubtitleAppearance,
@@ -3241,15 +3252,19 @@ private fun AspectPanel(
 }
 
 /**
- * 字幕面板（§1.1）：主字幕 / 次字幕（双语）/ 延迟 ±0.1s / 外观。
+ * 字幕面板：顶部固定 `轨道 | 外观`，两页各自只有一个纵向滚动容器。
  *
- * 轨道清单由 ViewModel 汇总（ExoPlayer 读 Jellyfin 字幕源，mpv 读它的 sid）， 面板本身不区分内核。
+ * 轨道清单由 ViewModel 汇总成单一列表；每行明确区分「主路动作 id」与「次路动作 id」， 面板只消费动作 id，不自行猜测 mpv sid / 源序号。
  */
 @Composable
 private fun SubtitlePanel(
     state: PlayerViewModel.SubtitlePanelState,
-    onSelectPrimary: (Int?) -> Unit,
-    onSelectSecondary: (Int?) -> Unit,
+    onAssignPrimary: (Int) -> Unit,
+    onAssignSecondary: (Int) -> Unit,
+    onClearPrimary: () -> Unit,
+    onClearSecondary: () -> Unit,
+    onSwap: () -> Unit,
+    onAutoSelect: () -> Unit,
     onAdjustDelay: (Long) -> Unit,
     onResetDelay: () -> Unit,
     onUpdateAppearance: (SubtitleAppearance) -> Unit,
@@ -3258,78 +3273,84 @@ private fun SubtitlePanel(
     onSubtitleModeChanged: (String) -> Unit,
     /** W27：打开系统文件选择器导入侧载字幕 */
     onImport: () -> Unit,
-    /** W27：移除一条侧载字幕（id 与选择回调同一套 id） */
+    /** W27：移除一条侧载字幕（id 与行身份同一套 id） */
+    onRemoveSideloaded: (Int) -> Unit,
+) {
+    // 用 Int 而不是 enum：rememberSaveable 的自动 Saver 对基本类型最稳。
+    var tab by rememberSaveable { mutableStateOf(0) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        PanelChipRow(
+            options =
+                listOf(
+                    stringResource(PlayerR.string.player_subtitle_tab_tracks) to (tab == 0),
+                    stringResource(PlayerR.string.player_subtitle_tab_appearance) to (tab == 1),
+                ),
+            onSelect = { index -> tab = index },
+        )
+        when (tab) {
+            0 ->
+                SubtitleTracksPage(
+                    state = state,
+                    onAssignPrimary = onAssignPrimary,
+                    onAssignSecondary = onAssignSecondary,
+                    onClearPrimary = onClearPrimary,
+                    onClearSecondary = onClearSecondary,
+                    onSwap = onSwap,
+                    onAutoSelect = onAutoSelect,
+                    onAdjustDelay = onAdjustDelay,
+                    onResetDelay = onResetDelay,
+                    controller = controller,
+                    onSubtitleModeChanged = onSubtitleModeChanged,
+                    onImport = onImport,
+                    onRemoveSideloaded = onRemoveSideloaded,
+                )
+            else -> SubtitleAppearancePage(state = state, onUpdateAppearance = onUpdateAppearance)
+        }
+    }
+}
+
+@Composable
+private fun SubtitleTracksPage(
+    state: PlayerViewModel.SubtitlePanelState,
+    onAssignPrimary: (Int) -> Unit,
+    onAssignSecondary: (Int) -> Unit,
+    onClearPrimary: () -> Unit,
+    onClearSecondary: () -> Unit,
+    onSwap: () -> Unit,
+    onAutoSelect: () -> Unit,
+    onAdjustDelay: (Long) -> Unit,
+    onResetDelay: () -> Unit,
+    controller: PlayerSettingsController,
+    onSubtitleModeChanged: (String) -> Unit,
+    onImport: () -> Unit,
     onRemoveSideloaded: (Int) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
+    val primary =
+        state.tracks.firstOrNull {
+            it.assignment == PlayerViewModel.SubtitleAssignment.Primary ||
+                it.assignment == PlayerViewModel.SubtitleAssignment.Native
+        }
+    val secondary =
+        state.tracks.firstOrNull { it.assignment == PlayerViewModel.SubtitleAssignment.Secondary }
+    var optionsExpanded by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
-            // 字幕模式与「记住手动选择」（W12 反馈 B：从播放设置并入这里，全播放页只有这一个字幕入口）
-            PanelTitle(stringResource(PlayerR.string.player_settings_subtitle_mode))
-            val subtitleModes =
-                listOf(
-                    Constants.SubtitleMode.AUTO to PlayerR.string.player_settings_subtitle_auto,
-                    Constants.SubtitleMode.ALWAYS to PlayerR.string.player_settings_subtitle_always,
-                    Constants.SubtitleMode.OFF to PlayerR.string.player_settings_subtitle_off,
-                )
-            PanelChipRow(
-                options =
-                    subtitleModes.map { (value, labelRes) ->
-                        stringResource(labelRes) to (controller.state.subtitleMode == value)
-                    },
-                onSelect = { index ->
-                    val value = subtitleModes[index].first
-                    controller.setSubtitleMode(value)
-                    onSubtitleModeChanged(value)
-                },
+            SubtitleCurrentCombination(
+                state = state,
+                primary = primary,
+                secondary = secondary,
+                onClearPrimary = onClearPrimary,
+                onClearSecondary = onClearSecondary,
+                onSwap = onSwap,
+                onAutoSelect = onAutoSelect,
+                onAdjustDelay = onAdjustDelay,
+                onResetDelay = onResetDelay,
             )
-            PanelSwitchRow(
-                label = stringResource(PlayerR.string.player_settings_remember_track),
-                checked = controller.state.rememberTrackSelection,
-                onCheckedChange = { controller.setRememberTrackSelection(it) },
-            )
-            /*
-             * W27 字幕语言优先级：与音轨面板同一套预设与交互（同一组 chip、同样是「下一次选轨生效」），
-             * 写进既有 `pref_subtitle_languages`。
-             */
-            PanelTitle(stringResource(PlayerR.string.player_subtitle_language))
-            PanelChipRow(
-                options =
-                    AudioLanguagePresets.map { (value, labelRes) ->
-                        stringResource(labelRes) to
-                            (controller.state.subtitleLanguagePreset == value)
-                    },
-                onSelect = { index ->
-                    controller.setSubtitleLanguage(AudioLanguagePresets[index].first)
-                },
-            )
-            Text(
-                text = stringResource(PlayerR.string.player_subtitle_language_caption),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant,
-                modifier =
-                    Modifier.padding(
-                        horizontal = CinefinSpacing.Space5,
-                        vertical = CinefinSpacing.Space1,
-                    ),
-            )
-            // W27 侧载字幕：文件选择器导入，只保存在本机（面板主字幕列表里可直接切换 / 移除）
-            PanelTitle(stringResource(PlayerR.string.player_subtitle_sideload))
-            PanelRow(
-                label = stringResource(PlayerR.string.player_subtitle_import),
-                caption = stringResource(PlayerR.string.player_subtitle_import_caption),
-                selected = false,
-                onClick = onImport,
-            )
-            /*
-             * 延迟放最上面：调 ±0.1s 是字幕面板最高频的操作，
-             * 轨道多的时候（内嵌多语言字幕）不能让它被挤到滚动区下面。
-             */
-            PanelTitle(stringResource(PlayerR.string.player_subtitle_delay))
-            if (state.loading) {
+            if (state.assSecondaryHint) {
                 Text(
-                    text = stringResource(PlayerR.string.player_subtitle_loading),
+                    text = stringResource(PlayerR.string.player_subtitle_ass_primary_only),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
                     modifier =
@@ -3339,14 +3360,21 @@ private fun SubtitlePanel(
                         ),
                 )
             }
-            SubtitleDelayRow(
-                delayMs = state.delayMs,
-                onAdjust = onAdjustDelay,
-                onReset = onResetDelay,
-            )
+            if (state.secondaryAssignmentBlocked) {
+                Text(
+                    text = stringResource(PlayerR.string.player_subtitle_secondary_native_primary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        ),
+                )
+            }
 
-            if (state.primaryOptions.isEmpty()) {
-                PanelTitle(stringResource(PlayerR.string.player_subtitle_primary))
+            PanelTitle(stringResource(PlayerR.string.player_subtitle_all_tracks))
+            if (state.tracks.isEmpty()) {
                 Text(
                     text = stringResource(PlayerR.string.player_subtitle_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
@@ -3358,72 +3386,430 @@ private fun SubtitlePanel(
                         ),
                 )
             } else {
-                // 主字幕
-                PanelTitle(stringResource(PlayerR.string.player_subtitle_primary))
-                PanelRow(
-                    label = stringResource(PlayerR.string.player_controls_subtitle_off),
-                    selected = state.primaryId == null,
-                    onClick = { onSelectPrimary(null) },
-                )
-                state.primaryOptions.forEach { option ->
-                    PanelRow(
-                        label = option.label,
-                        caption = option.caption,
-                        selected = option.selected,
-                        onClick = { onSelectPrimary(option.id) },
-                        trailing =
-                            if (option.sideloaded) {
-                                { SideloadRemoveKey(id = option.id, onRemove = onRemoveSideloaded) }
-                            } else {
-                                null
-                            },
+                state.tracks.forEach { option ->
+                    SubtitleTrackRow(
+                        option = option,
+                        onAssignPrimary = onAssignPrimary,
+                        onAssignSecondary = onAssignSecondary,
+                        onRemoveSideloaded = onRemoveSideloaded,
                     )
                 }
             }
 
-            // 次字幕（双语）：只有在当前媒体有可自管字幕时才有意义
-            if (state.controllable) {
-                PanelTitle(stringResource(PlayerR.string.player_subtitle_secondary))
-                PanelRow(
-                    label = stringResource(PlayerR.string.player_controls_subtitle_off),
-                    selected = state.secondaryId == null,
-                    onClick = { onSelectSecondary(null) },
+            SubtitleExpandableSection(
+                title = stringResource(PlayerR.string.player_subtitle_options),
+                expanded = optionsExpanded,
+                onToggle = { optionsExpanded = !optionsExpanded },
+            ) {
+                SubtitleTrackOptions(
+                    controller = controller,
+                    onSubtitleModeChanged = onSubtitleModeChanged,
+                    onImport = onImport,
                 )
-                state.secondaryOptions.forEach { option ->
-                    PanelRow(
-                        label = option.label,
-                        caption = option.caption,
-                        selected = option.id == state.secondaryId,
-                        onClick = { onSelectSecondary(option.id) },
-                        trailing =
-                            if (option.sideloaded) {
-                                { SideloadRemoveKey(id = option.id, onRemove = onRemoveSideloaded) }
-                            } else {
-                                null
-                            },
-                    )
-                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SubtitleCurrentCombination(
+    state: PlayerViewModel.SubtitlePanelState,
+    primary: PlayerViewModel.SubtitleOption?,
+    secondary: PlayerViewModel.SubtitleOption?,
+    onClearPrimary: () -> Unit,
+    onClearSecondary: () -> Unit,
+    onSwap: () -> Unit,
+    onAutoSelect: () -> Unit,
+    onAdjustDelay: (Long) -> Unit,
+    onResetDelay: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val shape = CinefinShapes.Sm
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
+                .clip(shape)
+                .background(colors.surfaceContainerLow)
+                .border(1.dp, colors.outlineVariant, shape)
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
+    ) {
+        Text(
+            text = stringResource(PlayerR.string.player_subtitle_current_combo),
+            style = MaterialTheme.typography.labelSmall,
+            color = colors.onSurfaceFaint,
+        )
+        SubtitleCombinationLine(
+            label = stringResource(PlayerR.string.player_subtitle_primary),
+            option = primary,
+            onClear = onClearPrimary,
+        )
+        SubtitleCombinationLine(
+            label = stringResource(PlayerR.string.player_subtitle_secondary),
+            option = secondary,
+            onClear = onClearSecondary,
+        )
+        if (state.loading) {
+            Text(
+                text = stringResource(PlayerR.string.player_subtitle_loading),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+            modifier = Modifier.fillMaxWidth().padding(top = CinefinSpacing.Space1),
+        ) {
+            PanelChip(
+                label = stringResource(PlayerR.string.player_subtitle_swap),
+                selected = false,
+                enabled = state.swapBlockedReason == null,
+                onClick = onSwap,
+            )
+            PanelChip(
+                label = stringResource(PlayerR.string.player_subtitle_auto_select),
+                selected = false,
+                onClick = onAutoSelect,
+            )
+        }
+        state.swapBlockedReason?.let { reason ->
+            Text(
+                text = subtitleSwapBlockReason(reason),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(top = CinefinSpacing.Space1),
+            )
+        }
+        SubtitleDelayRow(
+            delayMs = state.delayMs,
+            onAdjust = onAdjustDelay,
+            onReset = onResetDelay,
+        )
+    }
+}
+
+@Composable
+private fun SubtitleCombinationLine(
+    label: String,
+    option: PlayerViewModel.SubtitleOption?,
+    onClear: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSurfaceFaint,
+            )
+            Text(
+                text = option?.label ?: stringResource(PlayerR.string.player_subtitle_unassigned),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            option?.let { selected ->
                 Text(
-                    text = stringResource(PlayerR.string.player_subtitle_secondary_space_note),
+                    text = subtitleTrackMeta(selected),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
-                    modifier =
-                        Modifier.padding(
-                            horizontal = CinefinSpacing.Space5,
-                            vertical = CinefinSpacing.Space1,
-                        ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        option?.assignment?.let { assignment -> SubtitleAssignmentBadge(assignment) }
+        PanelChip(
+            label = stringResource(PlayerR.string.player_subtitle_close),
+            selected = false,
+            enabled = option != null,
+            onClick = onClear,
+        )
+    }
+}
 
-            // 字幕外观（EXP19）：主 / 次各自独立，布局共享；改动即时生效并自动保存
-            PanelTitle(stringResource(PlayerR.string.player_subtitle_appearance))
-            SubtitleAppearanceCard(
-                appearance = state.appearance,
-                onChange = onUpdateAppearance,
+@Composable
+private fun SubtitleTrackOptions(
+    controller: PlayerSettingsController,
+    onSubtitleModeChanged: (String) -> Unit,
+    onImport: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    // 字幕模式与「记住手动选择」（W12 反馈 B：从播放设置并入这里，全播放页只有这一个字幕入口）
+    PanelTitle(stringResource(PlayerR.string.player_settings_subtitle_mode))
+    val subtitleModes =
+        listOf(
+            Constants.SubtitleMode.AUTO to PlayerR.string.player_settings_subtitle_auto,
+            Constants.SubtitleMode.ALWAYS to PlayerR.string.player_settings_subtitle_always,
+            Constants.SubtitleMode.OFF to PlayerR.string.player_settings_subtitle_off,
+        )
+    PanelChipRow(
+        options =
+            subtitleModes.map { (value, labelRes) ->
+                stringResource(labelRes) to (controller.state.subtitleMode == value)
+            },
+        onSelect = { index ->
+            val value = subtitleModes[index].first
+            controller.setSubtitleMode(value)
+            onSubtitleModeChanged(value)
+        },
+    )
+    PanelSwitchRow(
+        label = stringResource(PlayerR.string.player_settings_remember_track),
+        checked = controller.state.rememberTrackSelection,
+        onCheckedChange = { controller.setRememberTrackSelection(it) },
+    )
+    /*
+     * W27 字幕语言优先级：与音轨面板同一套预设与交互（同一组 chip、同样是「下一次选轨生效」），
+     * 写进既有 `pref_subtitle_languages`。
+     */
+    PanelTitle(stringResource(PlayerR.string.player_subtitle_language))
+    PanelChipRow(
+        options =
+            AudioLanguagePresets.map { (value, labelRes) ->
+                stringResource(labelRes) to (controller.state.subtitleLanguagePreset == value)
+            },
+        onSelect = { index -> controller.setSubtitleLanguage(AudioLanguagePresets[index].first) },
+    )
+    Text(
+        text = stringResource(PlayerR.string.player_subtitle_language_caption),
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.onSurfaceVariant,
+        modifier =
+            Modifier.padding(
+                horizontal = CinefinSpacing.Space5,
+                vertical = CinefinSpacing.Space1,
+            ),
+    )
+    // W27 侧载字幕：文件选择器导入，只保存在本机（轨道行尾可直接移除）
+    PanelTitle(stringResource(PlayerR.string.player_subtitle_sideload))
+    PanelRow(
+        label = stringResource(PlayerR.string.player_subtitle_import),
+        caption = stringResource(PlayerR.string.player_subtitle_import_caption),
+        selected = false,
+        onClick = onImport,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SubtitleTrackRow(
+    option: PlayerViewModel.SubtitleOption,
+    onAssignPrimary: (Int) -> Unit,
+    onAssignSecondary: (Int) -> Unit,
+    onRemoveSideloaded: (Int) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val shape = CinefinShapes.Sm
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space3, vertical = 2.dp)
+                .clip(shape)
+                .background(colors.surfaceContainerLow)
+                .border(1.dp, colors.outlineVariant, shape)
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
+    ) {
+        Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = option.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (!option.textAssignable) {
+                        Spacer(Modifier.width(CinefinSpacing.Space2))
+                        SubtitleTextBadge(
+                            stringResource(PlayerR.string.player_subtitle_native_only)
+                        )
+                    }
+                }
+                Text(
+                    text = subtitleTrackMeta(option),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            option.assignment?.let { assignment -> SubtitleAssignmentBadge(assignment) }
+            if (option.sideloaded) {
+                SideloadRemoveKey(id = option.id, onRemove = onRemoveSideloaded)
+            }
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+            modifier = Modifier.fillMaxWidth().padding(top = CinefinSpacing.Space1),
+        ) {
+            if (option.textAssignable) {
+                PanelChip(
+                    label = stringResource(PlayerR.string.player_subtitle_assignment_primary),
+                    selected = option.assignment == PlayerViewModel.SubtitleAssignment.Primary,
+                    onClick = { onAssignPrimary(option.primaryActionId) },
+                )
+                option.secondaryActionId?.let { secondaryActionId ->
+                    PanelChip(
+                        label = stringResource(PlayerR.string.player_subtitle_assignment_secondary),
+                        selected =
+                            option.assignment == PlayerViewModel.SubtitleAssignment.Secondary,
+                        onClick = { onAssignSecondary(secondaryActionId) },
+                    )
+                }
+            } else {
+                PanelChip(
+                    label = stringResource(PlayerR.string.player_subtitle_native),
+                    selected = option.assignment == PlayerViewModel.SubtitleAssignment.Native,
+                    onClick = { onAssignPrimary(option.primaryActionId) },
+                )
+            }
+        }
+        if (option.graphic) {
+            Text(
+                text = stringResource(PlayerR.string.player_subtitle_graphic_no_secondary),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
             )
         }
     }
 }
+
+@Composable
+private fun SubtitleTextBadge(label: String) {
+    val colors = LocalCinefinColors.current
+    val shape = CinefinShapes.Xs
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = colors.onSurfaceVariant,
+        modifier =
+            Modifier.clip(shape)
+                .border(1.dp, colors.outlineVariant, shape)
+                .padding(horizontal = CinefinSpacing.Space2, vertical = 1.dp),
+    )
+}
+
+@Composable
+private fun SubtitleAssignmentBadge(assignment: PlayerViewModel.SubtitleAssignment) {
+    val media = LocalMediaColors.current
+    val label =
+        when (assignment) {
+            PlayerViewModel.SubtitleAssignment.Primary ->
+                stringResource(PlayerR.string.player_subtitle_assignment_primary)
+            PlayerViewModel.SubtitleAssignment.Secondary ->
+                stringResource(PlayerR.string.player_subtitle_assignment_secondary)
+            PlayerViewModel.SubtitleAssignment.Native ->
+                stringResource(PlayerR.string.player_subtitle_native)
+        }
+    val shape = CinefinShapes.Xs
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = media.bright,
+        modifier =
+            Modifier.padding(end = CinefinSpacing.Space2)
+                .clip(shape)
+                .background(media.container)
+                .border(1.dp, media.outline, shape)
+                .padding(horizontal = CinefinSpacing.Space2, vertical = 1.dp),
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SubtitleExpandableSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier.fillMaxWidth()
+                    .clickable(onClick = onToggle)
+                    .padding(
+                        start = CinefinSpacing.Space5,
+                        end = CinefinSpacing.Space5,
+                        top = CinefinSpacing.Space3,
+                        bottom = CinefinSpacing.Space2,
+                    ),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSurfaceFaint,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text =
+                    stringResource(
+                        if (expanded) PlayerR.string.player_subtitle_collapse
+                        else PlayerR.string.player_subtitle_expand
+                    ),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
+        if (expanded) content()
+    }
+}
+
+@Composable
+private fun subtitleTrackMeta(option: PlayerViewModel.SubtitleOption): String {
+    val origin =
+        stringResource(
+            when (option.origin) {
+                PlayerViewModel.SubtitleOrigin.Embedded -> PlayerR.string.player_subtitle_embedded
+                PlayerViewModel.SubtitleOrigin.External -> PlayerR.string.player_subtitle_external
+                PlayerViewModel.SubtitleOrigin.Sideloaded ->
+                    PlayerR.string.player_subtitle_origin_sideload
+            }
+        )
+    val assignment =
+        option.assignment?.let { value ->
+            stringResource(
+                when (value) {
+                    PlayerViewModel.SubtitleAssignment.Primary ->
+                        PlayerR.string.player_subtitle_primary
+                    PlayerViewModel.SubtitleAssignment.Secondary ->
+                        PlayerR.string.player_subtitle_secondary
+                    PlayerViewModel.SubtitleAssignment.Native ->
+                        PlayerR.string.player_subtitle_native_only
+                }
+            )
+        }
+    return listOfNotNull(
+            option.language.takeIf { it.isNotBlank() },
+            option.format.takeIf { it.isNotBlank() },
+            origin,
+            assignment,
+        )
+        .joinToString(" · ")
+}
+
+@Composable
+private fun subtitleSwapBlockReason(reason: PlayerViewModel.SubtitleSwapBlock): String =
+    stringResource(
+        when (reason) {
+            PlayerViewModel.SubtitleSwapBlock.NoPrimary,
+            PlayerViewModel.SubtitleSwapBlock.PrimaryNativeOnly ->
+                PlayerR.string.player_subtitle_swap_no_primary
+            PlayerViewModel.SubtitleSwapBlock.NoSecondary,
+            PlayerViewModel.SubtitleSwapBlock.SecondaryNativeOnly ->
+                PlayerR.string.player_subtitle_swap_no_secondary
+            PlayerViewModel.SubtitleSwapBlock.SameTrack -> PlayerR.string.player_subtitle_swap_same
+        }
+    )
 
 /** 延迟一行：−0.1s / 当前值（点击归零）/ +0.1s */
 @Composable
@@ -3474,69 +3860,80 @@ private fun SideloadRemoveKey(
     )
 }
 
-private enum class SubtitleAppearanceTab {
-    Primary,
-    Secondary,
-    Layout,
-}
-
 /**
- * 字幕外观卡（EXP19）：两行实时预览 + 主 / 次 / 布局分段编辑 + 预设 / 同步 / 恢复默认。
+ * 字幕外观页：实时预览固定在页签下方，主 / 次 / 布局编辑与快捷方案在单一滚动区。
  *
  * 所有改动都通过 [onChange] 即时提交（ViewModel 落盘并应用），没有「应用」按钮。
  */
 @Composable
-private fun SubtitleAppearanceCard(
+private fun SubtitleAppearancePage(
+    state: PlayerViewModel.SubtitlePanelState,
+    onUpdateAppearance: (SubtitleAppearance) -> Unit,
+) {
+    var quickActionsExpanded by rememberSaveable { mutableStateOf(false) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 预览在滚动区外：窄屏编辑时仍能实时看到字号 / 颜色 / 间距变化。
+        SubtitleAppearancePreview(appearance = state.appearance)
+        PanelList {
+            SubtitleAppearanceEditor(
+                appearance = state.appearance,
+                onChange = onUpdateAppearance,
+            )
+            SubtitleExpandableSection(
+                title = stringResource(PlayerR.string.player_subtitle_quick_actions),
+                expanded = quickActionsExpanded,
+                onToggle = { quickActionsExpanded = !quickActionsExpanded },
+            ) {
+                SubtitleAppearanceActions(
+                    appearance = state.appearance,
+                    onChange = onUpdateAppearance,
+                )
+            }
+        }
+    }
+}
+
+/** 主 / 次 / 布局分段编辑；预设等快捷动作由外层折叠区承载。 */
+@Composable
+private fun SubtitleAppearanceEditor(
     appearance: SubtitleAppearance,
     onChange: (SubtitleAppearance) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val shape = CinefinShapes.Sm
-    var tab by remember { mutableStateOf(SubtitleAppearanceTab.Primary) }
+    var tabIndex by rememberSaveable { mutableStateOf(0) }
     Column(
         modifier =
             Modifier.fillMaxWidth()
-                .padding(horizontal = CinefinSpacing.Space3)
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
                 .clip(shape)
                 .background(colors.surfaceContainerLow)
                 .border(1.dp, colors.outlineVariant, shape)
                 .padding(vertical = CinefinSpacing.Space2)
     ) {
-        SubtitleAppearancePreview(appearance)
         PanelChipRow(
             options =
                 listOf(
-                    stringResource(PlayerR.string.player_subtitle_tab_primary) to
-                        (tab == SubtitleAppearanceTab.Primary),
-                    stringResource(PlayerR.string.player_subtitle_tab_secondary) to
-                        (tab == SubtitleAppearanceTab.Secondary),
-                    stringResource(PlayerR.string.player_subtitle_tab_layout) to
-                        (tab == SubtitleAppearanceTab.Layout),
+                    stringResource(PlayerR.string.player_subtitle_tab_primary) to (tabIndex == 0),
+                    stringResource(PlayerR.string.player_subtitle_tab_secondary) to (tabIndex == 1),
+                    stringResource(PlayerR.string.player_subtitle_tab_layout) to (tabIndex == 2),
                 ),
-            onSelect = { index ->
-                tab =
-                    when (index) {
-                        0 -> SubtitleAppearanceTab.Primary
-                        1 -> SubtitleAppearanceTab.Secondary
-                        else -> SubtitleAppearanceTab.Layout
-                    }
-            },
+            onSelect = { index -> tabIndex = index },
         )
-        when (tab) {
-            SubtitleAppearanceTab.Primary ->
+        when (tabIndex) {
+            0 ->
                 SubtitleStyleEditor(style = appearance.primary) { style ->
                     onChange(appearance.copy(primary = style))
                 }
-            SubtitleAppearanceTab.Secondary ->
+            1 ->
                 SubtitleStyleEditor(style = appearance.secondary) { style ->
                     onChange(appearance.copy(secondary = style))
                 }
-            SubtitleAppearanceTab.Layout ->
+            else ->
                 SubtitleLayoutEditor(layout = appearance.layout) { layout ->
                     onChange(appearance.copy(layout = layout))
                 }
         }
-        SubtitleAppearanceActions(appearance = appearance, onChange = onChange)
     }
 }
 
@@ -4044,6 +4441,7 @@ internal fun PanelChip(
     selected: Boolean,
     onClick: () -> Unit,
     contentDescription: String? = null,
+    enabled: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -4052,9 +4450,19 @@ internal fun PanelChip(
         contentAlignment = Alignment.Center,
         modifier =
             Modifier.clip(shape)
-                .background(if (selected) media.container else colors.surfaceContainer)
-                .border(1.dp, if (selected) media.outline else colors.outline, shape)
-                .clickable(onClick = onClick)
+                .background(
+                    when {
+                        !enabled -> colors.surfaceContainerLow
+                        selected -> media.container
+                        else -> colors.surfaceContainer
+                    }
+                )
+                .border(
+                    1.dp,
+                    if (selected && enabled) media.outline else colors.outlineVariant,
+                    shape,
+                )
+                .clickable(enabled = enabled, onClick = onClick)
                 .semantics {
                     this.selected = selected
                     if (contentDescription != null) {
@@ -4066,7 +4474,12 @@ internal fun PanelChip(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) media.bright else colors.onSurfaceVariant,
+            color =
+                when {
+                    !enabled -> colors.onSurfaceFaint
+                    selected -> media.bright
+                    else -> colors.onSurfaceVariant
+                },
         )
     }
 }

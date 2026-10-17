@@ -2,8 +2,10 @@ package com.zhangwenkang.cinefin.player.local.presentation
 
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
+import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import java.util.UUID
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,5 +42,27 @@ class PlayerSubtitleRoutingTest {
             playerSubtitleSourcesForBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER, item)
 
         assertEquals(listOf(4), sources.map { it.index })
+    }
+
+    @Test
+    fun `mpv 主字幕映射不到源时立即抑制次字幕`() {
+        assertTrue(
+            shouldSuppressSecondaryForMpvPrimarySelection(
+                selectedTrackId = 7,
+                mappedSourceIndex = null,
+            )
+        )
+        assertFalse(
+            shouldSuppressSecondaryForMpvPrimarySelection(
+                selectedTrackId = 7,
+                mappedSourceIndex = 4,
+            )
+        )
+        assertFalse(
+            shouldSuppressSecondaryForMpvPrimarySelection(
+                selectedTrackId = null,
+                mappedSourceIndex = null,
+            )
+        )
     }
 }
