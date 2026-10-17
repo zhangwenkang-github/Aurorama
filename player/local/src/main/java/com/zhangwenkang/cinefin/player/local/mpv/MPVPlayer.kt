@@ -40,6 +40,7 @@ import androidx.media3.common.util.Util
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SUBTITLE_SOURCES
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
@@ -401,6 +402,7 @@ class MPVPlayer(
 
     /** 最近一次落地的字幕外观；双字幕预留区按它重新计算 `sub-pos`。 */
     private var appliedSubtitleStyle: SubtitleStyle = SubtitleStyle()
+    private var appliedSubtitleLayout: SubtitleLayout = SubtitleLayout()
 
     /** 进入双字幕前 mpv 的 `sub-ass-override`，退出双字幕时原样恢复。 */
     private var savedSubAssOverride: String? = null
@@ -748,13 +750,17 @@ class MPVPlayer(
         mpvLib.setPropertyString("secondary-sid", value)
     }
 
-    /** 把面板的字幕外观档位翻译成 mpv 的 sub-* 属性 */
-    fun applySubtitleStyle(style: SubtitleStyle) {
+    /** 把面板的字幕外观（单字幕原生路径）翻译成 mpv 的 sub-* 属性 */
+    fun applySubtitleStyle(
+        style: SubtitleStyle,
+        layout: SubtitleLayout = SubtitleLayout(),
+    ) {
         appliedSubtitleStyle = style
+        appliedSubtitleLayout = layout
         // 字号：mpv 默认 55；直接按倍率缩放
         mpvLib.setPropertyDouble("sub-font-size", 55.0 * style.textScale)
         mpvLib.setPropertyString("sub-color", style.textColor.toMpvColor())
-        mpvLib.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
+        mpvLib.setPropertyString("sub-back-color", style.backgroundArgb.toMpvColor())
         mpvLib.setPropertyDouble("sub-border-size", style.edgeWidthDp.toDouble())
         // sub-pos 是「距底部百分比」的互补值：100 = 贴底，65 = 靠上
         applyMpvSubtitlePosition(reservedFraction = subtitleReservation)
@@ -820,7 +826,7 @@ class MPVPlayer(
     }
 
     private fun applyMpvSubtitlePosition(reservedFraction: Float?) {
-        val base = 100.0 - appliedSubtitleStyle.bottomFraction * 100.0
+        val base = 100.0 - appliedSubtitleLayout.bottomFraction * 100.0
         val position =
             if (reservedFraction == null) {
                 base

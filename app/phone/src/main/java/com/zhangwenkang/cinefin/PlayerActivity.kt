@@ -52,7 +52,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
-import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
@@ -64,6 +63,7 @@ import com.zhangwenkang.cinefin.player.local.domain.rotationFillScale
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferences
 import com.zhangwenkang.cinefin.presentation.player.PlayerChromeLayout
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlsState
@@ -325,7 +325,9 @@ class PlayerActivity : BasePlayerActivity() {
                         onSelectSecondarySubtitle = { id -> viewModel.selectSubtitleSecondary(id) },
                         onAdjustSubtitleDelay = { delta -> viewModel.adjustSubtitleDelay(delta) },
                         onResetSubtitleDelay = { viewModel.resetSubtitleDelay() },
-                        onUpdateSubtitleStyle = { style -> viewModel.updateSubtitleStyle(style) },
+                        onUpdateSubtitleAppearance = { appearance ->
+                            viewModel.updateSubtitleAppearance(appearance)
+                        },
                         audioPanelState = audioPanelState,
                         onSelectAudioTrack = { index -> viewModel.selectAudioTrack(index) },
                         onAdjustAudioDelay = { delta -> viewModel.adjustAudioDelay(delta) },
@@ -613,17 +615,18 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 原生字幕样式（走 Media3 渲染的那部分：图形字幕 / 没有独立文件的兜底字幕）。
      *
-     * 文本字幕归自研渲染层（PlayerSubtitleOverlay），外观直接读 SubtitleStyle； 这里把同一套「大小 / 颜色 / 背景 / 描边 / 位置」翻译成
-     * SubtitleView 的 API， 保证两类字幕在面板里调出来的观感一致。
+     * 文本字幕归自研渲染层（PlayerSubtitleOverlay），外观直接读主字幕样式；这里把同一套「大小 / 颜色 / 背景 / 描边 / 位置」翻译成 SubtitleView 的
+     * API， 保证两类字幕在面板里调出来的观感一致。
      */
     @androidx.annotation.OptIn(UnstableApi::class)
     private fun configureSubtitleStyle() {
-        val style = readSubtitleStyle()
+        val appearance = SubtitleAppearancePreferences.read(appPreferences)
+        val style = appearance.primary
         val subtitleView = binding.playerView.subtitleView ?: return
         subtitleView.setStyle(
             CaptionStyleCompat(
                 /* foregroundColor = */ style.textColor,
-                /* backgroundColor = */ style.backgroundColor,
+                /* backgroundColor = */ style.backgroundArgb,
                 /* windowColor = */ Color.TRANSPARENT,
                 /* edgeType = */ if (style.edgeWidthDp <= 0f) {
                     CaptionStyleCompat.EDGE_TYPE_NONE
@@ -636,21 +639,11 @@ class PlayerActivity : BasePlayerActivity() {
         )
         // 字号与位置：与自研渲染层用同一份档位（基准 4.2% 画面高度）
         subtitleView.setFractionalTextSize(0.042f * style.textScale, false)
-        subtitleView.setBottomPaddingFraction(style.bottomFraction)
+        subtitleView.setBottomPaddingFraction(appearance.layout.bottomFraction)
         // 面板里调了颜色/字号就应生效，不能让字幕自带的嵌入样式盖回去
         subtitleView.setApplyEmbeddedStyles(false)
         subtitleView.setApplyEmbeddedFontSizes(false)
     }
-
-    /** 读面板里保存的字幕外观档位（与 PlayerViewModel.readSubtitleStyle 一致） */
-    private fun readSubtitleStyle(): SubtitleStyle =
-        SubtitleStyle(
-            sizeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleSize),
-            colorIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleColor),
-            backgroundIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleBackground),
-            edgeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleEdge),
-            positionIndex = appPreferences.getValue(appPreferences.playerSubtitleStylePosition),
-        )
 
     /**
      * W27：读取系统文件选择器返回的侧载字幕（文件名 + 字节），交给 ViewModel 复制到 App 私有目录。

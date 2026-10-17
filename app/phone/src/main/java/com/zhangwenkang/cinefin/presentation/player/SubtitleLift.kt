@@ -5,7 +5,7 @@ package com.zhangwenkang.cinefin.presentation.player
  *
  * Exo 与 mpv 双字幕期间的主字幕都由 libass 画布渲染，次字幕由 Compose 文本渲染；两个内核必须遵守同一约束：
  *
- * 1. 主字幕在上、次字幕在下，两者**可见边界**之间保留 4dp 间隙；
+ * 1. 主字幕在上、次字幕在下，两者**可见边界**之间保留面板共享布局的间距（默认 4dp）；
  * 2. 先按次字幕当前字号排布；空间不足时只把次字幕缩到自身字号的 80%；
  * 3. 80% 仍放不下就隐藏次字幕；主字幕不缩小、不裁切、不被覆盖；
  * 4. 次字幕没有完成测量前不绘制，避免首帧闪叠。
@@ -23,9 +23,6 @@ internal const val SECONDARY_LINE_INNER_PADDING_DP = 4f
 /** 次字幕块的固定垂直内边距合计（dp）：外层 3×2 + 内层 4×2。 */
 internal const val SECONDARY_LINE_VERTICAL_PADDING_DP =
     (SECONDARY_LINE_OUTER_PADDING_DP + SECONDARY_LINE_INNER_PADDING_DP) * 2f
-
-/** 主/次字幕可见边界之间的间隙（dp） */
-internal const val SUBTITLE_LINE_GAP_DP = 4f
 
 /** 次字幕在空间不足时允许缩到的最小比例（相对当前字号）。 */
 internal const val SECONDARY_MIN_SCALE = 0.8f
@@ -99,8 +96,8 @@ internal sealed interface PrimarySubtitleExtent {
  * 一次双字幕排布结果。
  *
  * [primaryLiftPx] 只对 [PrimarySubtitleExtent.Libass] 有意义：libass 画布整体上移量。 [primaryOffsetPx] 只对
- * [PrimarySubtitleExtent.Composed] 有意义：主字幕块向下偏移量，用来抵掉两块各自的透明留白， 使两条 Compose 字幕的可见间距正好 4dp（偏移只落在透明
- * padding 里，不会压住文字 / 背景框）。 [secondaryReservedFraction] 只对 mpv
+ * [PrimarySubtitleExtent.Composed] 有意义：主字幕块向下偏移量，用来抵掉两块各自的透明留白， 使两条 Compose 字幕的可见间距正好等于传入的
+ * gap（偏移只落在透明 padding 里，不会压住文字 / 背景框）。 [secondaryReservedFraction] 只对 mpv
  * 原生主字幕兜底（图形字幕）有意义：需要从原生字幕底部位置里预留的视频高度比例。
  */
 internal data class DualSubtitleLayout(

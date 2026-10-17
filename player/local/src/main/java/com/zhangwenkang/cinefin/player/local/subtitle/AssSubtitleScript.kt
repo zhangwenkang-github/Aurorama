@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.player.local.subtitle
 
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -33,6 +34,7 @@ object AssSubtitleScript {
     fun forCues(
         cues: List<SubtitleCue>,
         style: SubtitleStyle,
+        layout: SubtitleLayout,
         playResX: Int,
         playResY: Int,
         frameHeightPx: Int,
@@ -47,8 +49,9 @@ object AssSubtitleScript {
         val fontSize = (BASE_FONT_FRACTION * height * style.textScale).roundToInt().coerceAtLeast(8)
         val outlineWidthPx = style.edgeWidthDp * density.coerceAtLeast(0.5f)
         val outlineScript = (outlineWidthPx * height / frameHeight).roundToInt().coerceAtLeast(0)
-        val marginV = (style.bottomFraction * height).roundToInt().coerceIn(0, height / 2)
-        val hasBackground = (style.backgroundColor ushr 24) != 0
+        val marginV = (layout.bottomFraction * height).roundToInt().coerceIn(0, height / 2)
+        val backgroundArgb = style.backgroundArgb
+        val hasBackground = (backgroundArgb ushr 24) != 0
 
         /*
          * 背景与描边在 ASS 样式里互斥（BorderStyle=3 的 Outline 值表示背景框内边距，
@@ -63,7 +66,7 @@ object AssSubtitleScript {
             } else {
                 outlineScript
             }
-        val outlineColor = if (hasBackground) style.backgroundColor else OPAQUE_BLACK
+        val outlineColor = if (hasBackground) backgroundArgb else OPAQUE_BLACK
 
         val builder = StringBuilder(1024 + cues.size * 96)
         builder

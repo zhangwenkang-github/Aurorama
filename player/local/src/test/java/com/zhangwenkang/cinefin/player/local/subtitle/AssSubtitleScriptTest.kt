@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.subtitle
 
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -31,11 +33,13 @@ class AssSubtitleScriptTest {
 
     @Test
     fun buildsDialogueLinesWithFontSizeAndMarginFromStyle() {
-        val style = SubtitleStyle() // 默认：缩放 1.0 / 白字 / 无背景 / 细描边 / 位置 0.08
+        val style = SubtitleStyle() // 默认：100% / 白字 / 无背景 / 2dp 描边
+        val layout = SubtitleLayout() // 默认：底部 8%
         val script =
             AssSubtitleScript.forCues(
                 cues = listOf(SubtitleCue(1_000, 3_000, "第一行\n第二行")),
                 style = style,
+                layout = layout,
                 playResX = 1920,
                 playResY = 1080,
                 frameHeightPx = 1080,
@@ -54,11 +58,17 @@ class AssSubtitleScriptTest {
 
     @Test
     fun backgroundStyleUsesOpaqueBoxAndTextKeepsStylesOut() {
-        val style = SubtitleStyle(backgroundIndex = 2, edgeIndex = 0)
+        val style =
+            SubtitleStyle(
+                backgroundColor = 0xFF000000.toInt(),
+                backgroundOpacityPercent = 70,
+                edgeWidthDp = 0,
+            )
         val script =
             AssSubtitleScript.forCues(
                 cues = listOf(SubtitleCue(0, 1_000, "x")),
                 style = style,
+                layout = SubtitleLayout(),
                 playResX = 1920,
                 playResY = 1080,
                 frameHeightPx = 1080,
@@ -72,11 +82,17 @@ class AssSubtitleScriptTest {
     @Test
     fun backgroundWinsWhenBackgroundAndOutlineBothSelected() {
         // 背景（70% 黑）+ 粗描边同时选择：ASS 样式里两者互斥，必须以背景框优先（W19 遗留项复验）。
-        val style = SubtitleStyle(backgroundIndex = 2, edgeIndex = 2)
+        val style =
+            SubtitleStyle(
+                backgroundColor = 0xFF000000.toInt(),
+                backgroundOpacityPercent = 70,
+                edgeWidthDp = 4,
+            )
         val script =
             AssSubtitleScript.forCues(
                 cues = listOf(SubtitleCue(0, 1_000, "x")),
                 style = style,
+                layout = SubtitleLayout(),
                 playResX = 1920,
                 playResY = 1080,
                 frameHeightPx = 1080,
@@ -85,8 +101,21 @@ class AssSubtitleScriptTest {
         val styleLine = script.lineSequence().first { it.startsWith("Style: Default,") }
         val fields = styleLine.removePrefix("Style: ").split(',')
         assertEquals("3", fields[15]) // BorderStyle=3：不透明背景框
-        assertEquals("&H4C000000", fields[5]) // OutlineColour=背景色（backgroundIndex=2），不再画黑描边
+        assertEquals("&H4C000000", fields[5]) // OutlineColour=背景色（70% 黑），不再画黑描边
         assertTrue(fields[16].toInt() >= 1) // Outline 字段此时是背景框内边距
+    }
+
+    @Test
+    fun defaultsKeepPerTrackStylesAndSharedLayout() {
+        val appearance = SubtitleAppearance.Default
+        assertEquals(100, appearance.primary.sizePercent)
+        assertEquals(90, appearance.secondary.sizePercent)
+        assertEquals(SubtitleStyle.DEFAULT_EDGE_WIDTH_DP, appearance.primary.edgeWidthDp)
+        assertEquals(SubtitleStyle.DEFAULT_EDGE_WIDTH_DP, appearance.secondary.edgeWidthDp)
+        assertEquals(0, appearance.primary.backgroundOpacityPercent)
+        assertEquals(0, appearance.secondary.backgroundOpacityPercent)
+        assertEquals(4, appearance.layout.gapDp)
+        assertEquals(0.08f, appearance.layout.bottomFraction, 0.0001f)
     }
 
     @Test

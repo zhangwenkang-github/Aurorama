@@ -135,7 +135,42 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 次字幕语言优先级（逗号分隔）；空串 = 关闭次字幕 */
     val secondarySubtitleLanguages = Preference("pref_secondary_subtitle_languages", "")
 
-    /** 字幕外观档位，取值见 player/core 的 SubtitleStyle（这里只存索引，两处默认值保持一致） */
+    /*
+     * 字幕外观：主 / 次字幕各一套（2026-10-18 EXP19）。
+     * 主、次不再共享一个 SubtitleStyle；旧键保留只用于一次性迁移，迁移逻辑见
+     * player/local 的 SubtitleAppearancePreferences。
+     */
+    val playerSubtitlePrimarySizePercent =
+        Preference("pref_player_subtitle_primary_size_percent", 100)
+    val playerSubtitlePrimaryColor =
+        Preference("pref_player_subtitle_primary_color", 0xFFFFFFFF.toInt())
+    val playerSubtitlePrimaryBackgroundColor =
+        Preference("pref_player_subtitle_primary_background_color", 0xFF000000.toInt())
+    val playerSubtitlePrimaryBackgroundOpacity =
+        Preference("pref_player_subtitle_primary_background_opacity", 0)
+    val playerSubtitlePrimaryEdgeDp = Preference("pref_player_subtitle_primary_edge_dp", 2)
+
+    val playerSubtitleSecondarySizePercent =
+        Preference("pref_player_subtitle_secondary_size_percent", 90)
+    val playerSubtitleSecondaryColor =
+        Preference("pref_player_subtitle_secondary_color", 0xFFFFFFFF.toInt())
+    val playerSubtitleSecondaryBackgroundColor =
+        Preference("pref_player_subtitle_secondary_background_color", 0xFF000000.toInt())
+    val playerSubtitleSecondaryBackgroundOpacity =
+        Preference("pref_player_subtitle_secondary_background_opacity", 0)
+    val playerSubtitleSecondaryEdgeDp = Preference("pref_player_subtitle_secondary_edge_dp", 2)
+
+    /** 主/次字幕间距（dp，0~24） */
+    val playerSubtitleGapDp = Preference("pref_player_subtitle_gap_dp", 4)
+
+    /** 字幕块底部距画面底部的千分比（0~300；面板按 1% 步进，即 10‰） */
+    val playerSubtitleBottomPermille = Preference("pref_player_subtitle_bottom_permille", 80)
+
+    /** 新旧字幕外观键的一次性迁移标记：迁移完成后不再用旧共享键覆盖主 / 次设置 */
+    val playerSubtitleAppearanceMigratedV2 =
+        Preference("pref_player_subtitle_appearance_migrated_v2", false)
+
+    /** 旧共享字幕外观键（只读迁移源，保留不删） */
     val playerSubtitleStyleSize = Preference("pref_player_subtitle_style_size", 1)
 
     val playerSubtitleStyleColor = Preference("pref_player_subtitle_style_color", 0)

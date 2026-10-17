@@ -2,6 +2,8 @@ package com.zhangwenkang.cinefin.player.local.subtitle
 
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -44,7 +46,13 @@ data class SubtitleOverlayState(
     /** 次字幕的完整 cue 列表 */
     val secondaryCues: List<SubtitleCue> = emptyList(),
     val delayMs: Long = 0L,
-    val style: SubtitleStyle = SubtitleStyle(),
+    /** 主字幕外观（libass / Compose / 内核原生单字幕统一使用） */
+    val primaryStyle: SubtitleStyle = SubtitleStyle(),
+    /** 次字幕外观（Compose 文本层使用） */
+    val secondaryStyle: SubtitleStyle =
+        SubtitleStyle(sizePercent = SubtitleStyle.SECONDARY_DEFAULT_SIZE_PERCENT),
+    /** 主/次共享布局：间距与底部位置 */
+    val layout: SubtitleLayout = SubtitleLayout(),
     /** 主字幕是否由自研渲染接管；false = 交给播放内核原生渲染（或没有字幕） */
     val primaryManaged: Boolean = false,
     /**
@@ -129,7 +137,7 @@ class PlayerSubtitleController(
     private var disabledByUser = false
 
     private var delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
-    private var style = readStyle()
+    private var appearance = SubtitleAppearancePreferences.read(appPreferences)
 
     /** 已下载 / 解析的字幕缓存：`媒体 id:源序号` → 内容（按媒体隔离，避免跨集串字幕） */
     private val subtitleCache = mutableMapOf<String, LoadedSubtitle>()
@@ -294,7 +302,7 @@ class PlayerSubtitleController(
     /** 从偏好重新读延迟 / 外观（设置页改动后调用） */
     fun refreshFromPreferences() {
         delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
-        style = readStyle()
+        appearance = SubtitleAppearancePreferences.read(appPreferences)
         publish()
     }
 
@@ -308,13 +316,10 @@ class PlayerSubtitleController(
         publish()
     }
 
-    fun updateStyle(style: SubtitleStyle) {
-        this.style = style
-        appPreferences.setValue(appPreferences.playerSubtitleStyleSize, style.sizeIndex)
-        appPreferences.setValue(appPreferences.playerSubtitleStyleColor, style.colorIndex)
-        appPreferences.setValue(appPreferences.playerSubtitleStyleBackground, style.backgroundIndex)
-        appPreferences.setValue(appPreferences.playerSubtitleStyleEdge, style.edgeIndex)
-        appPreferences.setValue(appPreferences.playerSubtitleStylePosition, style.positionIndex)
+    /** 主 / 次 / 布局一次性更新并自动保存（面板每次改动即时调用） */
+    fun updateAppearance(appearance: SubtitleAppearance) {
+        this.appearance = appearance
+        SubtitleAppearancePreferences.write(appPreferences, appearance)
         publish()
     }
 
@@ -525,7 +530,9 @@ class PlayerSubtitleController(
                 primaryAssScript = primaryAssScript,
                 secondaryCues = secondaryCues,
                 delayMs = delayMs,
-                style = style,
+                primaryStyle = appearance.primary,
+                secondaryStyle = appearance.secondary,
+                layout = appearance.layout,
                 primaryManaged = primaryManaged,
                 primaryTextRenderable =
                     sources.firstOrNull { it.index == primaryIndex }?.isTextBased == true,
@@ -537,15 +544,6 @@ class PlayerSubtitleController(
                 disabledByUser = disabledByUser,
             )
     }
-
-    private fun readStyle(): SubtitleStyle =
-        SubtitleStyle(
-            sizeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleSize),
-            colorIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleColor),
-            backgroundIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleBackground),
-            edgeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleEdge),
-            positionIndex = appPreferences.getValue(appPreferences.playerSubtitleStylePosition),
-        )
 
     // ---------- 文件下载与解码 ----------
 

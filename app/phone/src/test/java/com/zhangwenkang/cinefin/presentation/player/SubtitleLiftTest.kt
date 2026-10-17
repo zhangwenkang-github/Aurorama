@@ -16,6 +16,7 @@ import org.junit.Test
  */
 class SubtitleLiftTest {
 
+    private val gapDp = 4f
     private val phoneDensity = 2.75f
     private val phoneHeight = 1080f
     private val tabletDensity = 2f
@@ -23,7 +24,7 @@ class SubtitleLiftTest {
     private val bottomFraction = 0.08f
     private val strokeDp = 2f
 
-    private fun gapPx(density: Float): Float = SUBTITLE_LINE_GAP_DP * density
+    private fun gapPx(density: Float): Float = gapDp * density
 
     /**
      * 与 SubtitleLine 的可见边界同口径，但**不复用生产公式**：外层 3dp；无背景再加内层 4dp； 描边以字形路径为中心，块顶一侧只外扩 stroke /
@@ -181,7 +182,7 @@ class SubtitleLiftTest {
 
         // 回归证据：旧实现把「块顶」当可见边界，并多算了整份描边，实际间距
         // = 4dp + 7dp 透明留白 + 1.5 × 2dp 描边 = 14dp。
-        val oldBlockBasedGapDp = SUBTITLE_LINE_GAP_DP + 7f + 1.5f * strokeDp
+        val oldBlockBasedGapDp = gapDp + 7f + 1.5f * strokeDp
         assertEquals(14f, oldBlockBasedGapDp, 0.001f)
     }
 

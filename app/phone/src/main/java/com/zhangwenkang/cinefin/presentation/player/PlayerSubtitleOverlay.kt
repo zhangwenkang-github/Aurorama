@@ -136,7 +136,8 @@ fun PlayerSubtitleOverlay(
         state.secondaryCues,
         state.secondaryManaged,
         state.delayMs,
-        state.style,
+        state.primaryStyle,
+        state.layout,
         density,
     ) {
         if (!libassEnabled) {
@@ -182,9 +183,15 @@ fun PlayerSubtitleOverlay(
                     .roundToInt()
             val frameWidth = rect.width()
             val frameHeight = rect.height()
-            val textScale = state.style.textScale
+            val textScale = state.primaryStyle.textScale
+            val usesOriginalAss = state.primaryAssScript != null
+            /*
+             * SRT / VTT 生成的脚本已经把字号百分比写进 Style，libass 的 fontScale 不能再乘一次；
+             * 原始 ASS/SSA 无法改写作者的 Style，才用 fontScale 套用面板字号。
+             */
+            val fontScale = if (usesOriginalAss) textScale else 1f
             val key =
-                "$frameWidth x $frameHeight | $storageWidth x $storageHeight | $textScale | " +
+                "$frameWidth x $frameHeight | $storageWidth x $storageHeight | $fontScale | " +
                     "${state.primaryIndex}:${state.primaryAssScript?.length ?: -1}:" +
                     "${state.primaryCues.size}"
             if (key != loadedKey) {
@@ -192,7 +199,8 @@ fun PlayerSubtitleOverlay(
                     state.primaryAssScript
                         ?: AssSubtitleScript.forCues(
                             cues = state.primaryCues,
-                            style = state.style,
+                            style = state.primaryStyle,
+                            layout = state.layout,
                             playResX = storageWidth,
                             playResY = storageHeight,
                             frameHeightPx = frameHeight,
@@ -202,7 +210,7 @@ fun PlayerSubtitleOverlay(
                     withContext(Dispatchers.Default) {
                         renderer.load(
                             script = script,
-                            fontScale = textScale,
+                            fontScale = fontScale,
                             storageWidth = storageWidth,
                             storageHeight = storageHeight,
                             frameWidth = frameWidth,
@@ -251,23 +259,33 @@ fun PlayerSubtitleOverlay(
         }
     }
 
-    val style = state.style
+    val primaryStyle = state.primaryStyle
+    val secondaryStyle = state.secondaryStyle
+    val appearanceLayout = state.layout
     val rectUsable = videoRect.width() >= 2 && videoRect.height() >= 2
     val videoWidthPx = videoRect.width().toFloat()
     val videoHeightPx = videoRect.height().toFloat()
     val baseSize = with(density) { videoHeightPx.toDp() } * AssSubtitleScript.BASE_FONT_FRACTION
-    val primarySize = with(density) { (baseSize * style.textScale).toSp() }
-    val secondaryBaseSize = primarySize * 0.9f
+    val primarySize = with(density) { (baseSize * primaryStyle.textScale).toSp() }
+    val secondaryBaseSize = with(density) { (baseSize * secondaryStyle.textScale).toSp() }
     val verticalPaddingPx = with(density) { SECONDARY_LINE_VERTICAL_PADDING_DP.dp.toPx() }
-    val gapPx = with(density) { SUBTITLE_LINE_GAP_DP.dp.toPx() }
-    val strokePx = with(density) { style.edgeWidthDp.dp.toPx() }
+    val gapPx = with(density) { appearanceLayout.gapDp.dp.toPx() }
+    val primaryStrokePx = with(density) { primaryStyle.edgeWidthDp.dp.toPx() }
+    val secondaryStrokePx = with(density) { secondaryStyle.edgeWidthDp.dp.toPx() }
     // 块顶 / 块底到可见内容边界的距离：外层透明留白 +（无背景时）内层留白 − 描边外扩。
-    val lineVisibleInsetPx =
+    val primaryVisibleInsetPx =
         subtitleVisibleTopInsetPx(
             outerPaddingPx = with(density) { SECONDARY_LINE_OUTER_PADDING_DP.dp.toPx() },
             innerPaddingPx = with(density) { SECONDARY_LINE_INNER_PADDING_DP.dp.toPx() },
-            strokePx = strokePx,
-            backgroundVisible = (style.backgroundColor ushr 24) != 0,
+            strokePx = primaryStrokePx,
+            backgroundVisible = primaryStyle.hasBackground,
+        )
+    val secondaryVisibleInsetPx =
+        subtitleVisibleTopInsetPx(
+            outerPaddingPx = with(density) { SECONDARY_LINE_OUTER_PADDING_DP.dp.toPx() },
+            innerPaddingPx = with(density) { SECONDARY_LINE_INNER_PADDING_DP.dp.toPx() },
+            strokePx = secondaryStrokePx,
+            backgroundVisible = secondaryStyle.hasBackground,
         )
     // 68dp = 外层左右 24dp + 单行字幕内层左右 10dp；TextMeasurer 与 SubtitleLine 使用同一上限。
     val textMaxWidthPx =
@@ -309,21 +327,21 @@ fun PlayerSubtitleOverlay(
         } else {
             0f
         }
-    val primaryVisibleHeightPx = subtitleVisibleHeightPx(primaryTextHeightPx, lineVisibleInsetPx)
+    val primaryVisibleHeightPx = subtitleVisibleHeightPx(primaryTextHeightPx, primaryVisibleInsetPx)
     val primaryExtent =
         when {
             libassEnabled && !libassFailed -> assFrame?.subtitleExtent()
             appPrimaryActive && primaryText.isNotEmpty() ->
                 PrimarySubtitleExtent.Composed(
                     heightPx = primaryVisibleHeightPx,
-                    visibleBottomInsetPx = lineVisibleInsetPx,
+                    visibleBottomInsetPx = primaryVisibleInsetPx,
                 )
             // mpv 有原生主字幕但映射不到源（或图形字幕）时仍要预留；`sid=no` 才是真的没有主字幕。
             // App 侧已接管时不走这条，避免 cue 之间的空帧误触发预留 / 隐藏。
             isMpv && state.nativePrimaryActive && !appPrimaryPlanned ->
                 // 原生字幕无法逐帧拿到图元盒；按两行保守预留，避免大字号双行主字幕被顶部裁切。
                 PrimarySubtitleExtent.Native(
-                    with(density) { (baseSize * style.textScale * 2f * 1.25f).toPx() }
+                    with(density) { (baseSize * primaryStyle.textScale * 2f * 1.25f).toPx() }
                 )
             else -> null
         }
@@ -331,13 +349,13 @@ fun PlayerSubtitleOverlay(
         if (rectUsable) {
             planDualSubtitleLayout(
                 videoHeightPx = videoHeightPx,
-                bottomInsetPx = videoHeightPx * style.bottomFraction,
+                bottomInsetPx = videoHeightPx * appearanceLayout.bottomFraction,
                 gapPx = gapPx,
                 primary = primaryExtent,
                 secondaryFullHeightPx = secondaryFullHeightPx,
                 secondaryMinHeightPx = secondaryMinHeightPx,
-                secondaryVisibleTopInsetPx = lineVisibleInsetPx,
-                secondaryVisibleBottomInsetPx = lineVisibleInsetPx,
+                secondaryVisibleTopInsetPx = secondaryVisibleInsetPx,
+                secondaryVisibleBottomInsetPx = secondaryVisibleInsetPx,
             )
         } else {
             DualSubtitleLayout.Hidden
@@ -407,13 +425,15 @@ fun PlayerSubtitleOverlay(
                                 start = 24.dp,
                                 end = 24.dp,
                                 bottom =
-                                    with(density) { (videoHeightPx * style.bottomFraction).toDp() },
+                                    with(density) {
+                                        (videoHeightPx * appearanceLayout.bottomFraction).toDp()
+                                    },
                             ),
                 ) {
                     if (showPrimaryText) {
                         SubtitleLine(
                             text = primaryText,
-                            style = style,
+                            style = primaryStyle,
                             fontSize = primarySize,
                             // 两条 Compose 行相邻时，块内透明留白已贡献一部分视觉间距，这里把差额压回透明区。
                             modifier =
@@ -425,7 +445,7 @@ fun PlayerSubtitleOverlay(
                     if (showSecondaryText) {
                         SubtitleLine(
                             text = secondaryText,
-                            style = style,
+                            style = secondaryStyle,
                             fontSize = secondaryBaseSize * layout.secondaryScale,
                         )
                     }
@@ -492,7 +512,7 @@ private fun SubtitleLine(
 ) {
     val density = LocalDensity.current
     val fillColor = Color(style.textColor)
-    val backgroundColor = Color(style.backgroundColor)
+    val backgroundColor = Color(style.backgroundArgb)
     val strokeWidthPx = with(density) { style.edgeWidthDp.dp.toPx() }
     val textStyle =
         TextStyle(

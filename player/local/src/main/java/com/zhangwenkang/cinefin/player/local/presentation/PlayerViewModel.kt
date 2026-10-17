@@ -32,6 +32,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
@@ -59,6 +60,7 @@ import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitle
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitleStore
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferences
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -259,7 +261,7 @@ constructor(
         val primaryId: Int? = null,
         val secondaryId: Int? = null,
         val delayMs: Long = 0L,
-        val style: SubtitleStyle = SubtitleStyle(),
+        val appearance: SubtitleAppearance = SubtitleAppearance(),
         /** 主字幕是否由自研渲染接管（决定延迟是否即时生效、能否做双语） */
         val managed: Boolean = false,
         /** 当前媒体里存在可用的文字字幕（能调延迟 / 双语） */
@@ -1864,13 +1866,13 @@ constructor(
         publishSubtitlePanelState()
     }
 
-    /** 字幕外观：写偏好 + 应用到当前内核（自绘层直接读状态，原生层由 Activity 更新） */
-    fun updateSubtitleStyle(style: SubtitleStyle) {
-        subtitleController.updateStyle(style)
+    /** 字幕外观：主 / 次 / 布局即时写偏好并应用到当前内核（自绘层直接读状态，原生层由 Activity 更新） */
+    fun updateSubtitleAppearance(appearance: SubtitleAppearance) {
+        subtitleController.updateAppearance(appearance)
         if (playerBackend == PLAYER_BACKEND_MPV) {
-            (player as? MPVPlayer)?.applySubtitleStyle(style)
+            (player as? MPVPlayer)?.applySubtitleStyle(appearance.primary, appearance.layout)
         } else {
-            eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(style))
+            eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(appearance.primary))
         }
         publishSubtitlePanelState()
     }
@@ -1878,13 +1880,14 @@ constructor(
     /** 起播 / 接管会话时把已保存的延迟与外观应用到当前内核 */
     private fun applySavedSubtitlePreferences() {
         val delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
+        val appearance = readSubtitleAppearance()
         if (playerBackend == PLAYER_BACKEND_MPV) {
             (player as? MPVPlayer)?.let { mpv ->
                 mpv.setSubtitleDelay(delayMs)
-                mpv.applySubtitleStyle(readSubtitleStyle())
+                mpv.applySubtitleStyle(appearance.primary, appearance.layout)
             }
         } else {
-            eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(readSubtitleStyle()))
+            eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(appearance.primary))
         }
     }
 
@@ -1916,14 +1919,8 @@ constructor(
         playerHolder.applySeekIncrements()
     }
 
-    private fun readSubtitleStyle(): SubtitleStyle =
-        SubtitleStyle(
-            sizeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleSize),
-            colorIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleColor),
-            backgroundIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleBackground),
-            edgeIndex = appPreferences.getValue(appPreferences.playerSubtitleStyleEdge),
-            positionIndex = appPreferences.getValue(appPreferences.playerSubtitleStylePosition),
-        )
+    private fun readSubtitleAppearance(): SubtitleAppearance =
+        SubtitleAppearancePreferences.read(appPreferences)
 
     /**
      * 自研字幕只在 ExoPlayer 内核下接管。
@@ -2145,7 +2142,7 @@ constructor(
         state: SubtitleOverlayState = subtitleController.overlayState.value
     ) {
         val delayMs = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
-        val style = readSubtitleStyle()
+        val appearance = readSubtitleAppearance()
 
         if (playerBackend == PLAYER_BACKEND_MPV) {
             val mpv = player as? MPVPlayer
@@ -2176,7 +2173,7 @@ constructor(
                     primaryId = primaryOptions.firstOrNull { it.selected }?.id,
                     secondaryId = state.secondaryIndex,
                     delayMs = delayMs,
-                    style = style,
+                    appearance = appearance,
                     managed = false,
                     controllable = primaryOptions.isNotEmpty() || secondaryOptions.isNotEmpty(),
                     loading = state.loading,
@@ -2206,7 +2203,7 @@ constructor(
                 primaryId = state.primaryIndex,
                 secondaryId = state.secondaryIndex,
                 delayMs = delayMs,
-                style = style,
+                appearance = appearance,
                 managed = state.primaryManaged,
                 controllable = state.sources.any { it.isTextBased },
                 loading = state.loading,

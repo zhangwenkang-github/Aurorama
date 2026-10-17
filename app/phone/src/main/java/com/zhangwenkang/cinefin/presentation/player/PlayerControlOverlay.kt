@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -77,9 +79,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.C
@@ -104,6 +109,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NU
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
@@ -615,8 +622,8 @@ fun PlayerControlOverlay(
     onAdjustSubtitleDelay: (Long) -> Unit,
     /** 字幕延迟归零 */
     onResetSubtitleDelay: () -> Unit,
-    /** 字幕外观调整 */
-    onUpdateSubtitleStyle: (SubtitleStyle) -> Unit,
+    /** 字幕外观调整（主 / 次 / 共享布局，一次提交并自动保存） */
+    onUpdateSubtitleAppearance: (SubtitleAppearance) -> Unit,
     /** 音轨面板状态（音轨延迟 + 轨道描述） */
     audioPanelState: PlayerViewModel.AudioPanelState,
     /** 选音轨（音频轨道组下标） */
@@ -1332,7 +1339,7 @@ fun PlayerControlOverlay(
                             onSelectSecondary = onSelectSecondarySubtitle,
                             onAdjustDelay = onAdjustSubtitleDelay,
                             onResetDelay = onResetSubtitleDelay,
-                            onUpdateStyle = onUpdateSubtitleStyle,
+                            onUpdateAppearance = onUpdateSubtitleAppearance,
                             // W12 反馈 B：字幕模式 / 记忆选择并入主字幕面板，全播放页只有这一个字幕入口
                             controller = settingsController,
                             onSubtitleModeChanged = onSubtitleModeChanged,
@@ -3245,7 +3252,7 @@ private fun SubtitlePanel(
     onSelectSecondary: (Int?) -> Unit,
     onAdjustDelay: (Long) -> Unit,
     onResetDelay: () -> Unit,
-    onUpdateStyle: (SubtitleStyle) -> Unit,
+    onUpdateAppearance: (SubtitleAppearance) -> Unit,
     /** W12 反馈 B：字幕模式 / 记忆选择并入本面板（唯一字幕入口），控制器由 Activity 持有 */
     controller: PlayerSettingsController,
     onSubtitleModeChanged: (String) -> Unit,
@@ -3254,40 +3261,6 @@ private fun SubtitlePanel(
     /** W27：移除一条侧载字幕（id 与选择回调同一套 id） */
     onRemoveSideloaded: (Int) -> Unit,
 ) {
-    val colorLabels =
-        listOf(
-                PlayerR.string.player_subtitle_color_white,
-                PlayerR.string.player_subtitle_color_yellow,
-                PlayerR.string.player_subtitle_color_cyan,
-                PlayerR.string.player_subtitle_color_green,
-                PlayerR.string.player_subtitle_color_orange,
-            )
-            .map { stringResource(it) }
-    val backgroundLabels =
-        listOf(
-                PlayerR.string.player_subtitle_background_none,
-                PlayerR.string.player_subtitle_background_light,
-                PlayerR.string.player_subtitle_background_solid,
-                PlayerR.string.player_subtitle_background_opaque,
-            )
-            .map { stringResource(it) }
-    val edgeLabels =
-        listOf(
-                PlayerR.string.player_subtitle_edge_none,
-                PlayerR.string.player_subtitle_edge_thin,
-                PlayerR.string.player_subtitle_edge_thick,
-            )
-            .map { stringResource(it) }
-    val positionLabels =
-        listOf(
-                PlayerR.string.player_subtitle_position_low,
-                PlayerR.string.player_subtitle_position_mid_low,
-                PlayerR.string.player_subtitle_position_middle,
-                PlayerR.string.player_subtitle_position_mid_high,
-                PlayerR.string.player_subtitle_position_high,
-            )
-            .map { stringResource(it) }
-    val sizeLabels = SubtitleStyle.SIZES.map { "${(it * 100).roundToInt()}%" }
     val colors = LocalCinefinColors.current
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -3442,37 +3415,11 @@ private fun SubtitlePanel(
                 )
             }
 
-            // 外观：大小 / 颜色 / 背景 / 描边 / 位置
+            // 字幕外观（EXP19）：主 / 次各自独立，布局共享；改动即时生效并自动保存
             PanelTitle(stringResource(PlayerR.string.player_subtitle_appearance))
-            SubtitleStyleRow(
-                titleRes = PlayerR.string.player_subtitle_size,
-                labels = sizeLabels,
-                selectedIndex = state.style.sizeIndex,
-                onSelect = { onUpdateStyle(state.style.copy(sizeIndex = it)) },
-            )
-            SubtitleStyleRow(
-                titleRes = PlayerR.string.player_subtitle_color,
-                labels = colorLabels,
-                selectedIndex = state.style.colorIndex,
-                onSelect = { onUpdateStyle(state.style.copy(colorIndex = it)) },
-            )
-            SubtitleStyleRow(
-                titleRes = PlayerR.string.player_subtitle_background,
-                labels = backgroundLabels,
-                selectedIndex = state.style.backgroundIndex,
-                onSelect = { onUpdateStyle(state.style.copy(backgroundIndex = it)) },
-            )
-            SubtitleStyleRow(
-                titleRes = PlayerR.string.player_subtitle_edge,
-                labels = edgeLabels,
-                selectedIndex = state.style.edgeIndex,
-                onSelect = { onUpdateStyle(state.style.copy(edgeIndex = it)) },
-            )
-            SubtitleStyleRow(
-                titleRes = PlayerR.string.player_subtitle_position,
-                labels = positionLabels,
-                selectedIndex = state.style.positionIndex,
-                onSelect = { onUpdateStyle(state.style.copy(positionIndex = it)) },
+            SubtitleAppearanceCard(
+                appearance = state.appearance,
+                onChange = onUpdateAppearance,
             )
         }
     }
@@ -3527,18 +3474,294 @@ private fun SideloadRemoveKey(
     )
 }
 
-/** 外观里的一行档位：标题 + 可横向滚动的一组胶囊 */
+private enum class SubtitleAppearanceTab {
+    Primary,
+    Secondary,
+    Layout,
+}
+
+/**
+ * 字幕外观卡（EXP19）：两行实时预览 + 主 / 次 / 布局分段编辑 + 预设 / 同步 / 恢复默认。
+ *
+ * 所有改动都通过 [onChange] 即时提交（ViewModel 落盘并应用），没有「应用」按钮。
+ */
 @Composable
-private fun SubtitleStyleRow(
-    @StringRes titleRes: Int,
-    labels: List<String>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
+private fun SubtitleAppearanceCard(
+    appearance: SubtitleAppearance,
+    onChange: (SubtitleAppearance) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+    val shape = CinefinShapes.Sm
+    var tab by remember { mutableStateOf(SubtitleAppearanceTab.Primary) }
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space3)
+                .clip(shape)
+                .background(colors.surfaceContainerLow)
+                .border(1.dp, colors.outlineVariant, shape)
+                .padding(vertical = CinefinSpacing.Space2)
+    ) {
+        SubtitleAppearancePreview(appearance)
+        PanelChipRow(
+            options =
+                listOf(
+                    stringResource(PlayerR.string.player_subtitle_tab_primary) to
+                        (tab == SubtitleAppearanceTab.Primary),
+                    stringResource(PlayerR.string.player_subtitle_tab_secondary) to
+                        (tab == SubtitleAppearanceTab.Secondary),
+                    stringResource(PlayerR.string.player_subtitle_tab_layout) to
+                        (tab == SubtitleAppearanceTab.Layout),
+                ),
+            onSelect = { index ->
+                tab =
+                    when (index) {
+                        0 -> SubtitleAppearanceTab.Primary
+                        1 -> SubtitleAppearanceTab.Secondary
+                        else -> SubtitleAppearanceTab.Layout
+                    }
+            },
+        )
+        when (tab) {
+            SubtitleAppearanceTab.Primary ->
+                SubtitleStyleEditor(style = appearance.primary) { style ->
+                    onChange(appearance.copy(primary = style))
+                }
+            SubtitleAppearanceTab.Secondary ->
+                SubtitleStyleEditor(style = appearance.secondary) { style ->
+                    onChange(appearance.copy(secondary = style))
+                }
+            SubtitleAppearanceTab.Layout ->
+                SubtitleLayoutEditor(layout = appearance.layout) { layout ->
+                    onChange(appearance.copy(layout = layout))
+                }
+        }
+        SubtitleAppearanceActions(appearance = appearance, onChange = onChange)
+    }
+}
+
+/** 两行实时预览：字号 / 颜色 / 背景 / 描边 / 间距 / 底部位置都直接反映当前设置。 */
+@Composable
+private fun SubtitleAppearancePreview(
+    appearance: SubtitleAppearance,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    val shape = CinefinShapes.Sm
+    val previewHeight = 150.dp
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
+                .height(previewHeight)
+                .clip(shape)
+                .background(Brush.verticalGradient(listOf(Color(0xFF2B2F36), Color(0xFF15171B))))
+                .border(1.dp, colors.outlineVariant, shape)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier =
+                Modifier.align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = previewHeight * appearance.layout.bottomFraction),
+        ) {
+            SubtitlePreviewLine(
+                text = stringResource(PlayerR.string.player_subtitle_preview_primary),
+                style = appearance.primary,
+                fontSize = 11.sp * appearance.primary.textScale,
+            )
+            Spacer(Modifier.height(appearance.layout.gapDp.dp))
+            SubtitlePreviewLine(
+                text = stringResource(PlayerR.string.player_subtitle_preview_secondary),
+                style = appearance.secondary,
+                fontSize = 11.sp * appearance.secondary.textScale,
+            )
+        }
+        if (appearance.layout.gapDp == 0) {
+            Text(
+                text = stringResource(PlayerR.string.player_subtitle_gap_zero_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFE6E6E6),
+                modifier =
+                    Modifier.align(Alignment.TopCenter)
+                        .padding(top = CinefinSpacing.Space2)
+                        .clip(CinefinShapes.Xs)
+                        .background(Color(0x66000000))
+                        .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
+            )
+        }
+    }
+}
+
+/** 预览里的一行：与播放覆盖层同口径的「黑描边 + 填充 + 背景框」，去掉外层透明留白让间距可读。 */
+@Composable
+private fun SubtitlePreviewLine(
+    text: String,
+    style: SubtitleStyle,
+    fontSize: TextUnit,
+) {
+    val density = LocalDensity.current
+    val strokeWidthPx = with(density) { style.edgeWidthDp.dp.toPx() }
+    val textStyle =
+        TextStyle(
+            fontSize = fontSize,
+            lineHeight = fontSize * 1.25f,
+            textAlign = TextAlign.Center,
+        )
+    Box(
+        modifier =
+            Modifier.clip(RoundedCornerShape(4.dp))
+                .background(Color(style.backgroundArgb))
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        if (strokeWidthPx > 0f) {
+            Text(
+                text = text,
+                style =
+                    textStyle.copy(
+                        color = Color.Black,
+                        drawStyle = Stroke(width = strokeWidthPx),
+                    ),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+            )
+        }
         Text(
-            text = stringResource(titleRes),
+            text = text,
+            style = textStyle.copy(color = Color(style.textColor)),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
+    }
+}
+
+/** 主 / 次字幕各自的字号、颜色、背景、描边。 */
+@Composable
+private fun SubtitleStyleEditor(
+    style: SubtitleStyle,
+    onChange: (SubtitleStyle) -> Unit,
+) {
+    SubtitleSliderRow(
+        label = stringResource(PlayerR.string.player_subtitle_size_percent, style.sizePercent),
+        value = style.sizePercent.toFloat(),
+        valueRange =
+            SubtitleStyle.MIN_SIZE_PERCENT.toFloat()..SubtitleStyle.MAX_SIZE_PERCENT.toFloat(),
+        steps = 29,
+        onValueChange = { value ->
+            onChange(style.copy(sizePercent = SubtitleStyle.snapSizePercent(value.roundToInt())))
+        },
+    )
+
+    SubtitleSectionLabel(stringResource(PlayerR.string.player_subtitle_color))
+    SubtitleColorPicker(
+        selectedColor = style.textColor,
+        onSelect = { color -> onChange(style.copy(textColor = color)) },
+    )
+
+    SubtitleSectionLabel(stringResource(PlayerR.string.player_subtitle_background))
+    SubtitleBackgroundPicker(
+        style = style,
+        onChange = onChange,
+    )
+    SubtitleSliderRow(
+        label =
+            stringResource(
+                PlayerR.string.player_subtitle_background_opacity,
+                style.backgroundOpacityPercent,
+            ),
+        value = style.backgroundOpacityPercent.toFloat(),
+        valueRange =
+            SubtitleStyle.MIN_BACKGROUND_OPACITY_PERCENT.toFloat()..SubtitleStyle
+                    .MAX_BACKGROUND_OPACITY_PERCENT
+                    .toFloat(),
+        steps = 19,
+        enabled = style.hasBackground,
+        onValueChange = { value ->
+            onChange(
+                style.copy(backgroundOpacityPercent = (value / 5f).roundToInt().coerceIn(0, 20) * 5)
+            )
+        },
+    )
+
+    SubtitleSectionLabel(stringResource(PlayerR.string.player_subtitle_edge))
+    PanelChipRow(
+        options =
+            (SubtitleStyle.MIN_EDGE_WIDTH_DP..SubtitleStyle.MAX_EDGE_WIDTH_DP).map { dp ->
+                stringResource(PlayerR.string.player_subtitle_edge_value, dp) to
+                    (style.edgeWidthDp == dp)
+            },
+        onSelect = { index -> onChange(style.copy(edgeWidthDp = index)) },
+    )
+}
+
+/** 共享布局：主次间距 + 底部位置。 */
+@Composable
+private fun SubtitleLayoutEditor(
+    layout: SubtitleLayout,
+    onChange: (SubtitleLayout) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    SubtitleSliderRow(
+        label = stringResource(PlayerR.string.player_subtitle_gap, layout.gapDp),
+        value = layout.gapDp.toFloat(),
+        valueRange = SubtitleLayout.MIN_GAP_DP.toFloat()..SubtitleLayout.MAX_GAP_DP.toFloat(),
+        steps = 23,
+        onValueChange = { value ->
+            onChange(layout.copy(gapDp = value.roundToInt().coerceIn(0, 24)))
+        },
+    )
+    if (layout.gapDp == 0) {
+        Text(
+            text = stringResource(PlayerR.string.player_subtitle_gap_zero_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+            modifier =
+                Modifier.padding(
+                    start = CinefinSpacing.Space5,
+                    end = CinefinSpacing.Space5,
+                    bottom = CinefinSpacing.Space1,
+                ),
+        )
+    }
+    SubtitleSliderRow(
+        label = stringResource(PlayerR.string.player_subtitle_bottom, layout.bottomPercent),
+        value = layout.bottomPercent.toFloat(),
+        valueRange =
+            SubtitleLayout.MIN_BOTTOM_PERCENT.toFloat()..SubtitleLayout.MAX_BOTTOM_PERCENT
+                    .toFloat(),
+        steps = 29,
+        onValueChange = { value ->
+            onChange(layout.copy(bottomPercent = value.roundToInt().coerceIn(0, 30)))
+        },
+    )
+    Text(
+        text = stringResource(PlayerR.string.player_subtitle_bottom_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.onSurfaceVariant,
+        modifier =
+            Modifier.padding(
+                start = CinefinSpacing.Space5,
+                end = CinefinSpacing.Space5,
+                bottom = CinefinSpacing.Space1,
+            ),
+    )
+}
+
+@Composable
+private fun SubtitleSliderRow(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    enabled: Boolean = true,
+    onValueChange: (Float) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Column(modifier = Modifier.fillMaxWidth().padding(top = CinefinSpacing.Space1)) {
+        Text(
+            text = label,
             style = MaterialTheme.typography.bodyMedium,
             color = colors.onSurfaceVariant,
             modifier =
@@ -3548,22 +3771,270 @@ private fun SubtitleStyleRow(
                     bottom = CinefinSpacing.Space1,
                 ),
         )
+        CinefinSlider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            enabled = enabled,
+            modifier = Modifier.padding(horizontal = CinefinSpacing.Space5),
+        )
+    }
+}
+
+@Composable
+private fun SubtitleSectionLabel(text: String) {
+    val colors = LocalCinefinColors.current
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = colors.onSurfaceFaint,
+        modifier =
+            Modifier.padding(
+                start = CinefinSpacing.Space5,
+                end = CinefinSpacing.Space5,
+                top = CinefinSpacing.Space3,
+                bottom = CinefinSpacing.Space1,
+            ),
+    )
+}
+
+/** 8 个文字颜色预设 + 「自定义」简单取色器。 */
+@Composable
+private fun SubtitleColorPicker(
+    selectedColor: Int,
+    onSelect: (Int) -> Unit,
+) {
+    var customExpanded by remember { mutableStateOf(false) }
+    val presetLabels =
+        listOf(
+                PlayerR.string.player_subtitle_color_white,
+                PlayerR.string.player_subtitle_color_yellow,
+                PlayerR.string.player_subtitle_color_cyan,
+                PlayerR.string.player_subtitle_color_green,
+                PlayerR.string.player_subtitle_color_orange,
+                PlayerR.string.player_subtitle_color_pink,
+                PlayerR.string.player_subtitle_color_light_blue,
+                PlayerR.string.player_subtitle_color_light_purple,
+            )
+            .map { stringResource(it) }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier =
+            Modifier.fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 2.dp),
+    ) {
+        SubtitleStyle.COLORS.forEachIndexed { index, color ->
+            SubtitleColorChip(
+                label = presetLabels[index],
+                color = color,
+                selected = selectedColor == color,
+                onClick = {
+                    customExpanded = false
+                    onSelect(color)
+                },
+            )
+        }
+        val isCustom = selectedColor !in SubtitleStyle.COLORS
+        SubtitleColorChip(
+            label = stringResource(PlayerR.string.player_subtitle_custom_color),
+            color = selectedColor,
+            selected = isCustom || customExpanded,
+            onClick = { customExpanded = !customExpanded },
+        )
+    }
+    if (customExpanded) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier =
                 Modifier.fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 2.dp),
         ) {
-            labels.forEachIndexed { index, label ->
-                PanelChip(
-                    label = label,
-                    selected = index == selectedIndex,
-                    onClick = { onSelect(index) },
+            SubtitleStyle.CUSTOM_COLORS.forEach { color ->
+                SubtitleColorSwatch(
+                    color = color,
+                    selected = selectedColor == color,
+                    onClick = { onSelect(color) },
                 )
             }
         }
+        Text(
+            text =
+                stringResource(
+                    PlayerR.string.player_subtitle_custom_color_value,
+                    hexColor(selectedColor),
+                ),
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalCinefinColors.current.onSurfaceVariant,
+            modifier =
+                Modifier.padding(
+                    start = CinefinSpacing.Space5,
+                    end = CinefinSpacing.Space5,
+                    top = CinefinSpacing.Space1,
+                ),
+        )
     }
+}
+
+@Composable
+private fun SubtitleColorChip(
+    label: String,
+    color: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val shape = CinefinShapes.Sm
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier.clip(shape)
+                .background(if (selected) media.container else colors.surfaceContainer)
+                .border(1.dp, if (selected) media.outline else colors.outline, shape)
+                .clickable(onClick = onClick)
+                .semantics { this.selected = selected }
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2),
+    ) {
+        Box(
+            modifier =
+                Modifier.size(12.dp)
+                    .clip(CircleShape)
+                    .background(Color(color))
+                    .border(1.dp, colors.outline, CircleShape)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) media.bright else colors.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SubtitleColorSwatch(
+    color: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    Box(
+        modifier =
+            Modifier.size(28.dp)
+                .clip(CircleShape)
+                .background(Color(color))
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) media.bright else colors.outline,
+                    shape = CircleShape,
+                )
+                .clickable(onClick = onClick)
+                .semantics {
+                    this.selected = selected
+                    contentDescription = hexColor(color)
+                }
+    )
+}
+
+private fun hexColor(color: Int): String = String.format("#%06X", color and 0x00FFFFFF)
+
+/** 背景：无 / 黑 / 深灰 / 白；从不透明度 0 切到某个底色时自动给一个可见默认值。 */
+@Composable
+private fun SubtitleBackgroundPicker(
+    style: SubtitleStyle,
+    onChange: (SubtitleStyle) -> Unit,
+) {
+    val colorIndex =
+        if (!style.hasBackground) {
+            0
+        } else {
+            SubtitleStyle.BACKGROUND_COLORS.indexOf(style.backgroundColor)
+                .takeIf { it >= 0 }
+                ?.plus(1) ?: 0
+        }
+    PanelChipRow(
+        options =
+            listOf(
+                    stringResource(PlayerR.string.player_subtitle_background_none),
+                    stringResource(PlayerR.string.player_subtitle_background_black),
+                    stringResource(PlayerR.string.player_subtitle_background_dark_gray),
+                    stringResource(PlayerR.string.player_subtitle_background_white),
+                )
+                .mapIndexed { index, label -> label to (index == colorIndex) },
+        onSelect = { index ->
+            if (index == 0) {
+                onChange(style.copy(backgroundOpacityPercent = 0))
+            } else {
+                onChange(
+                    style.copy(
+                        backgroundColor = SubtitleStyle.BACKGROUND_COLORS[index - 1],
+                        backgroundOpacityPercent =
+                            style.backgroundOpacityPercent.takeIf { it > 0 }
+                                ?: SubtitleStyle.BACKGROUND_OPACITY_WHEN_ENABLED,
+                    )
+                )
+            }
+        },
+    )
+}
+
+/** 一键预设 / 同步样式 / 恢复默认。 */
+@Composable
+private fun SubtitleAppearanceActions(
+    appearance: SubtitleAppearance,
+    onChange: (SubtitleAppearance) -> Unit,
+) {
+    SubtitleSectionLabel(stringResource(PlayerR.string.player_subtitle_presets))
+    PanelChipRow(
+        options =
+            listOf(
+                stringResource(PlayerR.string.player_subtitle_preset_standard) to false,
+                stringResource(PlayerR.string.player_subtitle_preset_cinema) to false,
+                stringResource(PlayerR.string.player_subtitle_preset_bottom) to false,
+            ),
+        onSelect = { index ->
+            when (index) {
+                0 -> onChange(SubtitleAppearance.Standard)
+                1 -> onChange(SubtitleAppearance.Cinema)
+                else -> onChange(SubtitleAppearance.stickToBottom(appearance))
+            }
+        },
+    )
+    SubtitleSectionLabel(stringResource(PlayerR.string.player_subtitle_sync))
+    PanelChipRow(
+        options =
+            listOf(
+                stringResource(PlayerR.string.player_subtitle_sync_primary_to_secondary) to false,
+                stringResource(PlayerR.string.player_subtitle_sync_secondary_to_primary) to false,
+            ),
+        onSelect = { index ->
+            if (index == 0) {
+                onChange(appearance.copy(secondary = appearance.primary))
+            } else {
+                onChange(appearance.copy(primary = appearance.secondary))
+            }
+        },
+    )
+    SubtitleSectionLabel(stringResource(PlayerR.string.player_subtitle_reset))
+    PanelChipRow(
+        options =
+            listOf(
+                stringResource(PlayerR.string.player_subtitle_reset_primary) to false,
+                stringResource(PlayerR.string.player_subtitle_reset_secondary) to false,
+                stringResource(PlayerR.string.player_subtitle_reset_layout) to false,
+            ),
+        onSelect = { index ->
+            when (index) {
+                0 -> onChange(appearance.copy(primary = SubtitleAppearance.Default.primary))
+                1 -> onChange(appearance.copy(secondary = SubtitleAppearance.Default.secondary))
+                else -> onChange(appearance.copy(layout = SubtitleAppearance.Default.layout))
+            }
+        },
+    )
 }
 
 /** 面板里的小胶囊按钮（§8.3 Chip）：未选中中性底 + 描边，选中态媒体色融入控件本体。 */
