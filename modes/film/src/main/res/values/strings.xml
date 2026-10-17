@@ -18,6 +18,15 @@
     <string name="search_empty_query">No results for “%1$s”</string>
     <string name="search_section_server">Server</string>
     <string name="search_section_local">Local</string>
+    <string name="search_category_video">Video</string>
+    <string name="search_category_music">Music</string>
+    <string name="search_category_book">Books</string>
+    <string name="search_close">Close search</string>
+    <string name="search_clear">Clear search</string>
+    <string name="search_server_failed">Server results unavailable · showing local results</string>
+    <string name="search_error_title">Search failed</string>
+    <string name="search_error_message">Could not reach the server. Check the connection and try again.</string>
+    <string name="search_retry">Retry</string>
     <string name="library_count">%1$d libraries</string>
     <string name="library_item_count">%1$d items</string>
     <string name="bookshelf_item_count">%1$d books</string>

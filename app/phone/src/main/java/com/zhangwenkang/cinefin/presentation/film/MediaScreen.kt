@@ -40,28 +40,19 @@ import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.media.MediaAction
 import com.zhangwenkang.cinefin.film.presentation.media.MediaState
 import com.zhangwenkang.cinefin.film.presentation.media.MediaViewModel
-import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
-import com.zhangwenkang.cinefin.film.presentation.search.SearchState
-import com.zhangwenkang.cinefin.film.presentation.search.SearchViewModel
-import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonOverlay
 import com.zhangwenkang.cinefin.presentation.components.MediaLibrarySkeleton
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
-import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
-import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
-import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.local.LocalLibrarySection
-import com.zhangwenkang.cinefin.presentation.local.LocalSearchPlaybackViewModel
 import com.zhangwenkang.cinefin.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
-import java.util.UUID
 
 @Composable
 fun MediaScreen(
@@ -72,20 +63,11 @@ fun MediaScreen(
     onOpenLocalLibrary: (Long) -> Unit = {},
     /** W70：本地库集合 / 可见性变化 → 侧栏「本地媒体库」子分组只读刷新（新建库后侧轨即时跟随）。 */
     onLocalLibrariesChanged: () -> Unit = {},
-    /** W43：搜索命中本地条目的打开链路（与本地库详情页一致）—— 视频 → 播放器；书籍 → 阅读器；音乐 → 现有音乐播放链路（成功后跳音乐 Tab）。 */
-    onPlayLocalVideo: (UUID) -> Unit = {},
-    onOpenLocalBook: (UUID, String, String) -> Unit = { _, _, _ -> },
-    onLocalMusicStarted: () -> Unit = {},
-    searchExpanded: Boolean,
-    onSearchExpand: (Boolean) -> Unit,
+    /** W82 #30：搜索是独立目的地；媒体库页只负责把入口点击交给导航层。 */
+    onSearchClick: () -> Unit,
     viewModel: MediaViewModel = hiltViewModel(),
-    searchViewModel: SearchViewModel = hiltViewModel(),
-    playbackViewModel: LocalSearchPlaybackViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val searchState by searchViewModel.state.collectAsStateWithLifecycle()
-    val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
-    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
 
     // W73 #16：媒体页每次回到前台（RESUMED）都重拉库列表——数据源是仓库共享元数据缓存（TTL 10 分钟，
     // 缓存有效期内零网络），既修「库列表只在首进加载一次」，也与侧栏 / 视频页保持同一集合。
@@ -97,9 +79,7 @@ fun MediaScreen(
     MediaScreenLayout(
         onOpenDrawer = onOpenDrawer,
         state = state,
-        searchState = searchState,
-        searchExpanded = searchExpanded,
-        onSearchExpand = onSearchExpand,
+        onSearchClick = onSearchClick,
         onAction = { action ->
             when (action) {
                 is MediaAction.OnItemClick -> onItemClick(action.item)
@@ -109,29 +89,6 @@ fun MediaScreen(
         },
         onOpenLocalLibrary = onOpenLocalLibrary,
         onLocalLibrariesChanged = onLocalLibrariesChanged,
-        downloadBadges = downloadBadges,
-        onSearchAction = { action ->
-            when (action) {
-                is SearchAction.OnItemClick -> onItemClick(action.item)
-                is SearchAction.OnLocalItemClick ->
-                    when (action.hit.entry.kind) {
-                        LocalMediaKind.VIDEO -> onPlayLocalVideo(action.hit.entry.itemId)
-                        LocalMediaKind.BOOK ->
-                            onOpenLocalBook(
-                                action.hit.entry.itemId,
-                                action.hit.entry.displayName,
-                                action.hit.entry.documentUri,
-                            )
-                        LocalMediaKind.MUSIC ->
-                            playbackViewModel.playMusic(
-                                entry = action.hit.entry,
-                                onStarted = onLocalMusicStarted,
-                            )
-                    }
-                else -> Unit
-            }
-            searchViewModel.onAction(action)
-        },
     )
 }
 
@@ -147,14 +104,10 @@ fun MediaScreen(
 private fun MediaScreenLayout(
     onOpenDrawer: (() -> Unit)?,
     state: MediaState,
-    searchState: SearchState,
-    searchExpanded: Boolean,
-    onSearchExpand: (Boolean) -> Unit,
+    onSearchClick: () -> Unit,
     onAction: (MediaAction) -> Unit,
     onOpenLocalLibrary: (Long) -> Unit,
     onLocalLibrariesChanged: () -> Unit,
-    onSearchAction: (SearchAction) -> Unit,
-    downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
     val colors = LocalCinefinColors.current
@@ -196,99 +149,82 @@ private fun MediaScreenLayout(
             actions = {
                 TopBarAction(
                     icon = CoreR.drawable.ic_search,
-                    onClick = { onSearchExpand(true) },
+                    onClick = onSearchClick,
                     contentDescription = stringResource(CoreR.string.search),
                 )
             },
         )
         Spacer(Modifier.height(CinefinSpacing.Space2))
 
-        // W39：页内不再常显大搜索框（只保留顶栏图标入口）；点图标后才展开搜索浮层，
-        // 原有搜索流程（SearchBar + SearchViewModel）不变，关闭后回到两段式总览。
-        if (searchExpanded) {
-            FilmSearchBar(
-                state = searchState,
-                downloadBadges = downloadBadges,
-                expanded = true,
-                onExpand = onSearchExpand,
-                onAction = onSearchAction,
-                // 不要给 SearchBar 传 weight / 固定高度约束：M3 展开态要求父布局不限制尺寸
-                // （约束固定 min=max 会把输入框撑满、结果区压成 0 高）。它自己会占满剩余空间。
-                modifier = Modifier.fillMaxWidth(),
-                paddingStart = paddingStart,
-                paddingEnd = paddingEnd,
-            )
-        } else {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = minColumnSize),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding =
-                        PaddingValues(
-                            start = paddingStart,
-                            top = CinefinSpacing.Space6,
-                            end = paddingEnd,
-                            bottom = paddingBottom + CinefinSpacing.Space8,
-                        ),
-                    horizontalArrangement = Arrangement.spacedBy(gridGutter),
-                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
-                ) {
-                    // 两段式①：本地媒体库（标题行自带「＋ 新建」；无库时只留一行空态）。
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "local_library") {
-                        LocalLibrarySection(
-                            onOpenLibrary = onOpenLocalLibrary,
-                            onLibrariesChanged = onLocalLibrariesChanged,
-                        )
-                    }
-                    // 两段式②：服务器媒体库（标题行 + 16:9 大卡，位置上移、首屏尽量露出）。
-                    if (state.libraries.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, key = "server_library_header") {
-                            SectionHeader(
-                                title = "服务器媒体库",
-                                modifier = Modifier.padding(top = CinefinSpacing.Space2),
-                            )
-                        }
-                        itemsIndexed(state.libraries, key = { _, library -> library.id }) {
-                            index,
-                            library ->
-                            LibraryEntryCard(
-                                item = library,
-                                onClick = { onAction(MediaAction.OnItemClick(library)) },
-                                index = index,
-                            )
-                        }
-                    }
-                }
-                // 媒体库加载过渡（W6-VIS D24）：库列表到达前用大卡骨架占位，到达后淡出
-                LumenSkeletonOverlay(visible = state.isLoading && state.libraries.isEmpty()) {
-                    MediaLibrarySkeleton(
-                        gutterStart = paddingStart,
-                        gutterEnd = paddingEnd,
-                        columns = if (expanded) 2 else 1,
-                        modifier =
-                            Modifier.fillMaxSize()
-                                .padding(top = CinefinSpacing.Space6)
-                                .background(LocalCinefinColors.current.surface),
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = minColumnSize),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        start = paddingStart,
+                        top = CinefinSpacing.Space6,
+                        end = paddingEnd,
+                        bottom = paddingBottom + CinefinSpacing.Space8,
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(gridGutter),
+                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+            ) {
+                // 两段式①：本地媒体库（标题行自带「＋ 新建」；无库时只留一行空态）。
+                item(span = { GridItemSpan(maxLineSpan) }, key = "local_library") {
+                    LocalLibrarySection(
+                        onOpenLibrary = onOpenLocalLibrary,
+                        onLibrariesChanged = onLocalLibrariesChanged,
                     )
                 }
-                if (state.error != null) {
-                    ErrorCard(
-                        onShowStacktrace = { showErrorDialog = true },
-                        onRetryClick = { onAction(MediaAction.OnRetryClick) },
-                        modifier =
-                            Modifier.fillMaxWidth()
-                                .padding(
-                                    start = paddingStart,
-                                    top = CinefinSpacing.Space4,
-                                    end = paddingEnd,
-                                ),
-                    )
-                    if (showErrorDialog) {
-                        ErrorDialog(
-                            exception = state.error!!,
-                            onDismissRequest = { showErrorDialog = false },
+                // 两段式②：服务器媒体库（标题行 + 16:9 大卡，位置上移、首屏尽量露出）。
+                if (state.libraries.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "server_library_header") {
+                        SectionHeader(
+                            title = "服务器媒体库",
+                            modifier = Modifier.padding(top = CinefinSpacing.Space2),
                         )
                     }
+                    itemsIndexed(state.libraries, key = { _, library -> library.id }) {
+                        index,
+                        library ->
+                        LibraryEntryCard(
+                            item = library,
+                            onClick = { onAction(MediaAction.OnItemClick(library)) },
+                            index = index,
+                        )
+                    }
+                }
+            }
+            // 媒体库加载过渡（W6-VIS D24）：库列表到达前用大卡骨架占位，到达后淡出
+            LumenSkeletonOverlay(visible = state.isLoading && state.libraries.isEmpty()) {
+                MediaLibrarySkeleton(
+                    gutterStart = paddingStart,
+                    gutterEnd = paddingEnd,
+                    columns = if (expanded) 2 else 1,
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .padding(top = CinefinSpacing.Space6)
+                            .background(LocalCinefinColors.current.surface),
+                )
+            }
+            if (state.error != null) {
+                ErrorCard(
+                    onShowStacktrace = { showErrorDialog = true },
+                    onRetryClick = { onAction(MediaAction.OnRetryClick) },
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .padding(
+                                start = paddingStart,
+                                top = CinefinSpacing.Space4,
+                                end = paddingEnd,
+                            ),
+                )
+                if (showErrorDialog) {
+                    ErrorDialog(
+                        exception = state.error!!,
+                        onDismissRequest = { showErrorDialog = false },
+                    )
                 }
             }
         }
@@ -302,13 +238,10 @@ private fun MediaScreenLayoutPreview() {
         MediaScreenLayout(
             onOpenDrawer = {},
             state = MediaState(libraries = dummyCollections, error = null),
-            searchState = SearchState(),
-            searchExpanded = false,
-            onSearchExpand = {},
+            onSearchClick = {},
             onAction = {},
             onOpenLocalLibrary = {},
             onLocalLibrariesChanged = {},
-            onSearchAction = {},
         )
     }
 }

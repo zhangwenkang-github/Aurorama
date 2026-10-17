@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +46,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
+import com.zhangwenkang.cinefin.film.presentation.search.SearchCategory
 import com.zhangwenkang.cinefin.film.presentation.search.SearchState
 import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.local.LocalSearchHit
@@ -76,6 +78,8 @@ fun FilmSearchBar(
     val safePadding = rememberSafePadding()
 
     var query by rememberSaveable { mutableStateOf("") }
+    // 只在本页首次进入时自动聚焦；从结果详情返回时不重开输入法（否则系统返回要先收键盘）。
+    var focusRequested by rememberSaveable { mutableStateOf(false) }
 
     val searchBarPaddingStart by
         animateDpAsState(
@@ -102,8 +106,11 @@ fun FilmSearchBar(
         )
 
     LaunchedEffect(expanded) {
-        if (expanded) {
+        if (!expanded) {
+            focusRequested = false
+        } else if (!focusRequested) {
             focusRequester.requestFocus()
+            focusRequested = true
         }
     }
 
@@ -150,8 +157,8 @@ fun FilmSearchBar(
                                 contentAlignment = androidx.compose.ui.Alignment.Center,
                             ) {
                                 Icon(
-                                    painter = painterResource(CoreR.drawable.ic_arrow_left),
-                                    contentDescription = null,
+                                    painter = painterResource(CoreR.drawable.ic_close),
+                                    contentDescription = stringResource(FilmR.string.search_close),
                                 )
                             }
                         } else {
@@ -174,7 +181,7 @@ fun FilmSearchBar(
                         ) {
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_x),
-                                contentDescription = null,
+                                contentDescription = stringResource(FilmR.string.search_clear),
                             )
                         }
                     }
@@ -199,15 +206,33 @@ fun FilmSearchBar(
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
                 verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
             ) {
-                // W43：分区①服务器媒体库（沿用原 ItemCard 海报网格；无命中不渲染分区）。
-                if (state.serverItems.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "search-section-server") {
-                        SearchSectionHeader(
-                            title = stringResource(FilmR.string.search_section_server),
-                            count = state.serverItems.size,
+                if (state.serverFailed && !state.isEmpty) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "search-server-failed") {
+                        Text(
+                            text = stringResource(FilmR.string.search_server_failed),
+                            style = CinefinType.BodySmall,
+                            color = LocalCinefinColors.current.onSurfaceVariant,
                         )
                     }
-                    items(items = state.serverItems, key = { "server-${it.id}" }) { item ->
+                }
+                // W82 #25：先按影视 / 音乐 / 书籍分区；分区内服务器条目用既有海报卡，本地条目用整行。
+                SearchCategories.forEach { (category, titleRes) ->
+                    val serverItems = state.serverItemsIn(category)
+                    val localItems = state.localItemsIn(category)
+                    if (serverItems.isEmpty() && localItems.isEmpty()) return@forEach
+                    item(
+                        span = { GridItemSpan(maxLineSpan) },
+                        key = "search-section-${category.name}",
+                    ) {
+                        SearchSectionHeader(
+                            title = stringResource(titleRes),
+                            count = serverItems.size + localItems.size,
+                        )
+                    }
+                    items(
+                        items = serverItems,
+                        key = { "server-${category.name}-${it.id}" },
+                    ) { item ->
                         ItemCard(
                             item = item,
                             direction = Direction.VERTICAL,
@@ -216,18 +241,9 @@ fun FilmSearchBar(
                             downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                         )
                     }
-                }
-                // W43：分区②本地媒体库（整行：类型图标 + 名称 + 库/文件夹·大小·时长 +「本地」徽标）。
-                if (state.localItems.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "search-section-local") {
-                        SearchSectionHeader(
-                            title = stringResource(FilmR.string.search_section_local),
-                            count = state.localItems.size,
-                        )
-                    }
                     items(
-                        items = state.localItems,
-                        key = { "local-${it.entry.itemId}" },
+                        items = localItems,
+                        key = { "local-${category.name}-${it.entry.itemId}" },
                         span = { GridItemSpan(maxLineSpan) },
                     ) { hit ->
                         LocalSearchResultRow(
@@ -238,10 +254,19 @@ fun FilmSearchBar(
                     }
                 }
             }
-            if (query.isNotBlank() && state.isEmpty && !state.loading) {
+            if (query.isNotBlank() && state.loading && state.isEmpty) {
+                CircularProgressIndicator(
+                    color = media.base,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            } else if (query.isNotBlank() && state.isEmpty && !state.loading) {
                 CinefinEmptyState(
-                    title = stringResource(FilmR.string.search_empty_query, query),
-                    message = stringResource(FilmR.string.search_empty_message),
+                    title =
+                        if (state.serverFailed) stringResource(FilmR.string.search_error_title)
+                        else stringResource(FilmR.string.search_empty_query, query),
+                    message =
+                        if (state.serverFailed) stringResource(FilmR.string.search_error_message)
+                        else stringResource(FilmR.string.search_empty_message),
                     icon = { tint ->
                         Icon(
                             painter = painterResource(CoreR.drawable.ic_search),
@@ -250,12 +275,27 @@ fun FilmSearchBar(
                             modifier = Modifier.size(44.dp),
                         )
                     },
+                    action =
+                        if (state.serverFailed) {
+                            {
+                                TextButton(onClick = { onAction(SearchAction.Retry) }) {
+                                    Text(stringResource(FilmR.string.search_retry))
+                                }
+                            }
+                        } else null,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
         }
     }
 }
+
+private val SearchCategories =
+    listOf(
+        SearchCategory.VIDEO to FilmR.string.search_category_video,
+        SearchCategory.MUSIC to FilmR.string.search_category_music,
+        SearchCategory.BOOK to FilmR.string.search_category_book,
+    )
 
 /** W43 搜索结果分区标题：`服务器` / `本地` + 命中数量（无命中的分区不渲染）。 */
 @Composable

@@ -14,6 +14,9 @@ import kotlinx.serialization.Serializable
  */
 @Serializable data object MusicModeRoute
 
+/** W82 #25：搜索结果里的服务器 / 本地曲目 → 音乐页并起播（返回仍回搜索结果）。 */
+@Serializable data class MusicItemRoute(val itemId: String)
+
 /**
  * 「指定音乐库」的音乐模式目的地（W53 Bug B1）。
  *

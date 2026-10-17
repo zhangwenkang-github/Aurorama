@@ -107,6 +107,7 @@ import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
+import com.zhangwenkang.cinefin.music.presentation.MusicItemRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
 import com.zhangwenkang.cinefin.presentation.components.SearchTopBarAction
@@ -121,6 +122,7 @@ import com.zhangwenkang.cinefin.presentation.film.LibraryScreen
 import com.zhangwenkang.cinefin.presentation.film.MediaScreen
 import com.zhangwenkang.cinefin.presentation.film.MovieScreen
 import com.zhangwenkang.cinefin.presentation.film.PersonScreen
+import com.zhangwenkang.cinefin.presentation.film.SearchScreen
 import com.zhangwenkang.cinefin.presentation.film.SeasonScreen
 import com.zhangwenkang.cinefin.presentation.film.ShowScreen
 import com.zhangwenkang.cinefin.presentation.local.LocalLibraryDetailScreen
@@ -197,6 +199,9 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 @Serializable data object VideoRoute
 
 @Serializable data object MediaRoute
+
+/** W82 #30：独立搜索目的地；关闭 / 返回 = pop 回进入前的页面。 */
+@Serializable data object SearchRoute
 
 @Serializable data object DownloadsRoute
 
@@ -337,7 +342,6 @@ fun NavigationRoot(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
-    var searchExpanded by remember { mutableStateOf(false) }
     // W56：「顶层图标统一回对应主页」——音乐全屏播放 / 歌词页 / 专辑等详情都在音乐页内（不在导航栈里），
     // 点顶层「音乐」图标时用递增信号让它们收起；音乐页把「页内二级层是否打开」回报回来，用于区分
     // 「已在主页（不重复导航 / 只收二级层）」与「在二级页 / 其它入口（走既有顶层导航）」。
@@ -548,12 +552,11 @@ fun NavigationRoot(
         }
     }
 
-    // W75 #13（红线 `NavigationRoot` 改动，已在提交说明 / 报告中申报）：全页搜索入口——复用首页同一条
-    // 「媒体页 + 搜索浮层」流程（`searchExpanded` + `MediaRoute`，搜索逻辑与范围本身零改动）。
-    // 不 popUpTo：原页留在回退栈，返回一次即回到原页且状态保持（列表 / 网格滚动由 `NavScrollMemory` 记忆）。
+    // W82 #30：全页搜索改为独立目的地。入口页原样留在返回栈，关闭 / 系统返回 = pop 回入口页；
+    // 搜索结果详情压在搜索之上，返回先回搜索结果（查询与结果由 SearchRoute 的 ViewModel 保留）。
+    // 不 popUpTo / 不 saveState-restore，避免首页 / 跨 Tab / 详情入口被重写成媒体库路径。
     val openSearch: () -> Unit = {
-        searchExpanded = true
-        navController.safeNavigate(MediaRoute) { launchSingleTop = true }
+        navController.safeNavigate(SearchRoute) { launchSingleTop = true }
     }
 
     // W68：锁屏 / 通知点击音乐条目（MediaSession sessionActivity / 通知内容 Intent）→ 音乐 Tab + 全屏播放覆盖层。
@@ -1047,14 +1050,7 @@ fun NavigationRoot(
                 } else {
                     HomeScreen(
                         onOpenDrawer = openDrawer,
-                        onSearchClick = {
-                            searchExpanded = true
-                            navController.safeNavigate(MediaRoute) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
+                        onSearchClick = openSearch,
                         onItemClick = { item ->
                             navigateToItem(
                                 navController = navController,
@@ -1148,26 +1144,40 @@ fun NavigationRoot(
                             },
                             // W70：本地库新建 / 删除 / 开关后刷新侧栏「本地媒体库」子分组。
                             onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
-                            // W43：搜索结果打开本地条目（红线文件，已申报）——与本地库详情页同一链路。
-                            onPlayLocalVideo = { itemId ->
-                                val intent = Intent(context, PlayerActivity::class.java)
-                                intent.putExtra("itemId", itemId.toString())
-                                intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
-                                context.startActivity(intent)
-                            },
-                            onOpenLocalBook = { itemId, title, documentUri ->
-                                openReader(
-                                    context = context,
-                                    itemId = itemId.toString(),
-                                    title = title,
-                                    localUri = documentUri,
-                                )
-                            },
-                            onLocalMusicStarted = { navigateTopLevel(MusicModeRoute) },
-                            searchExpanded = searchExpanded,
-                            onSearchExpand = { searchExpanded = it },
+                            onSearchClick = openSearch,
                         )
                     }
+                }
+            }
+            composable<SearchRoute> {
+                ProvideLumen {
+                    SearchScreen(
+                        onClose = { navController.safePopBackStack() },
+                        onItemClick = { item ->
+                            navigateToItem(
+                                navController = navController,
+                                item = item,
+                                context = context,
+                            )
+                        },
+                        onPlayLocalVideo = { itemId ->
+                            val intent = Intent(context, PlayerActivity::class.java)
+                            intent.putExtra("itemId", itemId.toString())
+                            intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
+                            context.startActivity(intent)
+                        },
+                        onOpenLocalBook = { itemId, title, documentUri ->
+                            openReader(
+                                context = context,
+                                itemId = itemId.toString(),
+                                title = title,
+                                localUri = documentUri,
+                            )
+                        },
+                        onOpenMusic = { itemId ->
+                            navController.safeNavigate(MusicItemRoute(itemId.toString()))
+                        },
+                    )
                 }
             }
             composable<LocalLibraryRoute> { backStackEntry ->
@@ -1241,6 +1251,15 @@ fun NavigationRoot(
                     // W68：锁屏 / 通知点击音乐条目 → 直接展开全屏播放覆盖层（与点迷你条一致）。
                     openNowPlayingSignal = musicOpenNowPlayingSignal,
                     onInnerPageOpenChange = { musicInnerPageOpen = it },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onSearchClick = openSearch,
+                )
+            }
+            composable<MusicItemRoute> { backStackEntry ->
+                val route: MusicItemRoute = backStackEntry.toRoute()
+                MusicModeScreen(
+                    onOpenDrawer = openDrawer,
+                    initialSongId = route.itemId,
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                     onSearchClick = openSearch,
                 )

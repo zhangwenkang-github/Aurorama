@@ -33,6 +33,8 @@ data class FindroidMovie(
     override val images: FindroidImages,
     override val chapters: List<FindroidChapter>,
     override val trickplayInfo: Map<String, FindroidTrickplayInfo>?,
+    /** 服务器原始条目类型（例如 `AUDIO` / `VIDEO` / `MOVIE`）；本地合成条目为 null。 */
+    val kind: String? = null,
 ) : FindroidItem, FindroidSources
 
 suspend fun BaseItemDto.toFindroidMovie(
@@ -70,6 +72,7 @@ suspend fun BaseItemDto.toFindroidMovie(
         chapters = toFindroidChapters(),
         trickplayInfo =
             trickplay?.mapValues { it.value[it.value.keys.max()]!!.toFindroidTrickplayInfo() },
+        kind = type?.name,
     )
 }
 

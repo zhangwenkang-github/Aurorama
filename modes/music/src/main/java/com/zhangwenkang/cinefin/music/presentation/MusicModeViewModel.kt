@@ -243,6 +243,8 @@ constructor(
     private var lastLoggedWord: Pair<Int, Int>? = null
     private var refreshJob: Job? = null
     private var playJob: Job? = null
+    /** W82 #25：搜索路由要求起播的曲目（曲库尚未加载时暂存，加载完成后再播）。 */
+    private var pendingRouteSongId: UUID? = null
 
     /** W37：服务器（或离线已下载）曲库与本地媒体库曲库分开缓存，切换来源筛选不重新请求。 */
     private var serverLibrary: MusicLibrary = MusicLibrary(emptyList(), emptyList(), emptyList())
@@ -317,6 +319,44 @@ constructor(
                 .asSequence()
                 .flatMap { artist -> artist.songs.asSequence() }
                 .firstOrNull { it.itemId == itemId }
+    }
+
+    /** W82 #25：搜索结果打开曲目。直接从服务器 / 本地曲库快照起播，不受当前来源筛选影响； 曲库尚未加载时记下 id，等 [publishLibraries] 后补播一次。 */
+    fun playSongFromRoute(rawItemId: String) {
+        val itemId = runCatching { UUID.fromString(rawItemId) }.getOrNull() ?: return
+        playRouteSong(itemId)
+    }
+
+    private fun playRouteSong(itemId: UUID) {
+        val serverIndex = serverLibrary.songs.indexOfFirst { it.itemId == itemId }
+        if (serverIndex >= 0) {
+            pendingRouteSongId = null
+            startQueuePlayback(
+                song = serverLibrary.songs[serverIndex],
+                songs = serverLibrary.songs,
+                startIndex = serverIndex,
+                source = QueueSource.MANUAL,
+                sourceId = null,
+            )
+            return
+        }
+        val localIndex = localLibrary.songs.indexOfFirst { it.itemId == itemId }
+        if (localIndex >= 0) {
+            pendingRouteSongId = null
+            startQueuePlayback(
+                song = localLibrary.songs[localIndex],
+                songs = localLibrary.songs,
+                startIndex = localIndex,
+                source = QueueSource.MANUAL,
+                sourceId = null,
+            )
+            return
+        }
+        pendingRouteSongId = itemId
+    }
+
+    private fun playPendingRouteSong() {
+        pendingRouteSongId?.let(::playRouteSong)
     }
 
     /** W36：离线模式开关变化时曲库来源也跟着变（离线 = 本机已下载曲目，在线 = 服务器曲库）。 */
@@ -857,6 +897,7 @@ constructor(
                     )
                 }
                 publishLibraries()
+                playPendingRouteSong()
                 Timber.d(
                     "曲库刷新：完成 offline=true albums=%d songs=%d",
                     _uiState.value.albums.size,
@@ -890,6 +931,7 @@ constructor(
                     )
                 }
                 publishLibraries()
+                playPendingRouteSong()
                 Timber.d(
                     "曲库刷新：完成 offline=false albums=%d songs=%d",
                     _uiState.value.albums.size,

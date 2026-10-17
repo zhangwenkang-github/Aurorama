@@ -557,7 +557,7 @@ class JellyfinRepositoryImpl(
                     .getItems(
                         jellyfinApi.userId!!,
                         searchTerm = query,
-                        includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
+                        includeItemTypes = SearchQueryRules.includeItemTypes,
                         recursive = true,
                     )
                     .content
