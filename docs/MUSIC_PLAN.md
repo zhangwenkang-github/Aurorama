@@ -1093,3 +1093,9 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 定向单测 `SongListSupportTest` 15 + `LyricsCenterScrollTest` 6 + `LyricsPresenterTest` 15 = **36 / 0 / 0 / 0**；主代码与测试源码编译、三项 ktfmt、`assembleDebug`、`apksigner` v2 均通过。
 - arm64 debug APK：`150,536,669 B`，SHA-256 `435E42C4B7CD4DE8ED5107BB06E52358F03DDC1615CA7DA50BEDD759DF63AE2F`。
 - 未跑 adb / 真机 / App / 截图 / 完整测试套件；旧 P3-1（解析窗口内底栏新曲与动作指向旧队列）不在本轮范围。
+
+### 8.7 交测预装（2026-10-18 07:16）
+
+- 独立架构复审闭环：无 P0 / P1 / P2；`SongListSupportTest` 15 + `LyricsCenterScrollTest` 6 + `LyricsPresenterTest` 15 = **36/0/0/0**，编译、三项 ktfmt、`assembleDebug` 通过；锁定 APK 哈希复核一致。
+- 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 07:16:53`，K60 `8e875894` `07:17:05`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
+- release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，未执行真机测试 / 截图 / 视觉 QA，等待用户本人验收。
