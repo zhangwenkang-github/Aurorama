@@ -1689,8 +1689,13 @@ constructor(
             subtitleController.syncPrimaryIndex(primarySourceIndex)
             // 以用户意图先行更新「有原生主字幕」：旧 currentTracks 快照不能把它盖回 false。
             subtitleController.setNativePrimaryActive(id != null)
-            if (id != null && primarySourceIndex != null) {
-                // 映射成功：立即开始 App 侧主字幕加载，不等 track-list 追上。
+            if (
+                id != null &&
+                    primarySourceIndex != null &&
+                    subtitleController.overlayState.value.secondaryManaged
+            ) {
+                // 只有次字幕已激活才预加载：单字幕 mpv 仍走原生，不额外下载 / 解析主字幕。
+                // 用户之后开启次字幕时，overlay collector 里的 ensureMpvPrimaryContent() 会补加载。
                 subtitleController.ensurePrimaryContentAvailable()
             }
             publishSubtitlePanelState()
