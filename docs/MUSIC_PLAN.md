@@ -1116,3 +1116,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 - 独立架构聚焦复审闭环：无 P0 / P1 / P2；点击顺序为“先清手动暂停，再 seek”，主动关闭跟随不会强行打开，旧行居中抑制只生效一次。`SongListSupportTest` 15 + `LyricsCenterScrollTest` 9 + `LyricsPresenterTest` 15 = **39/0/0/0**；编译与三项 ktfmt 通过，APK 哈希只读复核一致。
 - 双机 `install -r` 均 Success：Pad 5 `43af8627` `lastUpdateTime=2026-10-18 07:45:00`，K60 `8e875894` `07:45:12`；双机 `versionName=1.3.0` / `versionCode=4` / `DEBUGGABLE`。
 - release 包时间戳未变：Pad 5 `2026-10-17 22:41:05`、K60 `2026-10-17 22:40:57`；`device-lock.md` 顶部已登记。App 未启动，等待用户复测点击歌词恢复跟随。
+
+### 8.10 用户验收（2026-10-18）
+
+- 用户本人确认“音乐线通过”（未附缺陷清单）；EXP19 音乐线视为验收通过。
+- 音乐分支保持 `codex/experience-music`（代码 `db56fe2`，文档 HEAD `ee6e0cb`）不单独合并；与字幕、阅读两线一起进入 rebase / 全量门禁 / ff-only 合并收口。
