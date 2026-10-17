@@ -238,7 +238,7 @@ fun FilmSearchBar(
                             direction = Direction.VERTICAL,
                             onClick = { onAction(SearchAction.OnItemClick(item)) },
                             modifier = Modifier.animateItem(),
-                            downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
+                            downloadBadge = searchCardDownloadBadge(item.id, downloadBadges),
                         )
                     }
                     items(

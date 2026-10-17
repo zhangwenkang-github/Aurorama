@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.film.presentation.search.SearchResultRules
 import com.zhangwenkang.cinefin.film.presentation.search.SearchViewModel
 import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
 import java.util.UUID
 
@@ -30,11 +31,14 @@ fun SearchScreen(
     onOpenLocalBook: (UUID, String, String) -> Unit,
     onOpenMusic: (UUID) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
+    downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
 
     FilmSearchBar(
         state = state,
+        downloadBadges = downloadBadges,
         expanded = true,
         onExpand = { expanded -> if (!expanded) onClose() },
         onAction = { action ->

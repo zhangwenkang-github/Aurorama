@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.presentation.film.components
 
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -9,6 +10,16 @@ import org.junit.Test
 
 /** W60b 下载状态徽标判定 + 错位规则（纯函数）单测。 */
 class DownloadBadgeRulesTest {
+
+    @Test
+    fun `search card badge follows matching snapshot and hides missing state`() {
+        val itemId = UUID.randomUUID()
+        val otherItemId = UUID.randomUUID()
+        val badges = mapOf(itemId to DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED))
+
+        assertEquals(DownloadBadgeState.DOWNLOADED, searchCardDownloadBadge(itemId, badges).state)
+        assertEquals(DownloadBadgeState.NONE, searchCardDownloadBadge(otherItemId, badges).state)
+    }
 
     @Test
     fun `running and pending map to progress ring`() {

@@ -39,6 +39,7 @@ import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.isDownloaded
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import java.util.UUID
 
 /**
  * 卡片 / 详情海报上的下载状态（W60b 用户口径）：
@@ -62,6 +63,17 @@ data class DownloadBadgeInfo(
     val progress: Float = 0f,
     val indeterminate: Boolean = false,
 )
+
+/**
+ * W82-FIX：搜索页结果卡片的下载角标查找。
+ *
+ * 有实时下载快照时复刻 W60b 原行为；不在快照里的条目返回 [DownloadBadgeState.NONE]， 由 `CardBadgeOverlay`
+ * 保持无角标，避免把其他条目的状态误套到搜索结果上。
+ */
+internal fun searchCardDownloadBadge(
+    itemId: UUID,
+    badges: Map<UUID, DownloadBadgeInfo>,
+): DownloadBadgeInfo = badges[itemId] ?: DownloadBadgeInfo()
 
 /**
  * 纯函数：引擎快照 → 角标状态。优先级 = 已下载 > 下载中 / 排队 > 暂停 > 失败 > 无。
