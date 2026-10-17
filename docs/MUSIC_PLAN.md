@@ -184,6 +184,14 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 | D73 | **倍速档位收敛到 `settings/domain/PlaybackSpeedOptions`**（`PLAYBACK` 9 档 / `LONG_PRESS` 4 档 / `storageValue` / `label`），删除 `gesture_speed_multiplier`(+`_values`) 资源数组 | 三处档位表此前互不一致（面板缺 1.75×、对话框缺 0.25×/3×、长按档位只有 1.5/2/3），用户要求「倍速支持 1.75x」；`storageValue` 用 `Float.toString()` 保证 `"1.75"` 无损读回且与旧资源值逐字兼容（存量偏好免迁移） |
 | D74 | **#22 不按"代码缺陷"处治**：通知链路（服务 / provider / 会话对齐 / 路由）真机全项通过且未改一行代码；用户设备上 release 包的 App 级通知被系统关闭（`importance=NONE userSet=true`） | 修代码不解决"通知被系统关掉"；先把结论与自查步骤交用户确认（是本人关闭 → 用户侧开回；非本人 → 再立项查 MIUI 通知策略）。**不替用户改系统设置** |
 
+### 2.18 W79 本会话决策（歌词界面 / 缩略图 / 当前曲定位 · 2026-10-17）
+
+| # | 决策 | 理由 |
+|---|------|------|
+| D75 | **歌词当前行居中统一用 LazyList 内容坐标**：`viewportCenter = (viewportStartOffset + viewportEndOffset) / 2f`、`itemCenter = item.offset + item.size / 2f`，滚动差 = `itemCenter - viewportCenter`；`animateScrollToItem()` 后等一帧再读实际行高；字号 / 行距加入 `LaunchedEffect` 依赖 | QA-W79 实测旧实现当前行贴底 +695.5 px。根因 = `visibleItemsInfo.offset`（内容坐标）与 `(viewportSize.height - item.size)/2`（纯视口高度）混用；半视口 `contentPadding` 下目标行已被带到中部，错误微调又把它推到底部。抽 `lyricsCenterScrollDelta()` + 3 单测钉住坐标系，避免以后改 padding / 行高再次回归 |
+| D76 | **行距档位作用在「基准间距」上**：`Arrangement.spacedBy(settings.gapDp(base))`，歌词页 base 16dp、面板 base 12dp；不再写 `base + gapDp(0f)` | `gapDp(0f)` 会把 tight 的 −4dp 钳成 0，导致「紧凑 = 标准」；QA-W79 实测两档逐行坐标完全一致。改后特大字号节距页 `216 < 226 < 268 px`、面板 `207 < 218 < 260 px`，三档可感 |
+| D77 | **双语偏好保持三态**：`""`（未设置 → 默认开）/ `on` / `off`，首次手动操作即落显式值；无译文只渲染主行 | 满足「默认双语」且不覆盖存量用户的显式关闭；单语歌曲不出现空副行 |
+
 ## 3. 任务清单
 
 ### W1（本会话，已交付）
@@ -1015,3 +1023,12 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
   控制层读数 `倍速 1.75×`、设置档位 4 档含 1.75× 且落盘 `pref_player_gestures_speed = "1.75"`；
   ⑦新增单测 +8（`MusicQueueTest` +2 / `MusicQueueFillTest` +2 / `PlaybackSpeedOptionsTest` +4）；
   门禁 983 项 / 0 失败 + `ktfmtCheck` + 根 `assembleDebug` 全绿；红线 `player:local` 已改（申报）；新增 backlog B13（懒补队列）。
+
+- **2026-10-17 W79a 歌词界面与歌词设置（第十二任负责人收口）**（`feature/w79-music-ui-lyrics`，worktree `w79a`，K60 `8e875894`）：
+  ①**#26** 页 / 面板正文水平居中 + 悬浮窗既有居中；QA-W79 发现当前行纵向贴底（+695.5 px）→ W79a-FIX 统一 LazyList 内容坐标，
+  抽 `lyricsCenterScrollDelta()` + 3 单测，`animateScrollToItem()` 后等一帧读新行高；QA-W79R 复验 12 场景 × 3 样本最大 **+4.5 px**；
+  ②**#37** 字号 4 档 / 行距 3 档共用档位条，落 `pref_music_lyrics_font_scale` / `pref_music_lyrics_line_spacing`；
+  QA 发现「紧凑 = 标准」→ 改对 16dp / 12dp 基准调用 `gapDp`，页 **216 < 226 < 268 px**、面板 **207 < 218 < 260 px**；
+  ③**#35** 三态双语偏好（缺键默认开 / `on` / `off`），无译文回落单行；④合并态门禁 **1026 / 0 / 0**（music 157），
+  已合并 master `2fa6203` 并推送（CI 三路跟进）；报告 `w79-reports/W79a.md` / `W79a-fix.md` / `W79-QA-R.md`；
+  ⑤**#33 / #34** 由 W79b 接续（歌曲行缩略图 / 进歌曲 Tab 自动定位当前曲），分支 `feature/w79b-song-list`。

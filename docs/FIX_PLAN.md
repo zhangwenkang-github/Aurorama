@@ -60,7 +60,7 @@
 | 23 | 书籍长按点下载无反应；阅读页下载后下载界面不显示、直接「已完成」 | 两入口均有即时反馈；下载页出现书籍条目 + 进度 + 完成态（与「离线可读」一致） | DOWNLOAD / READER | W80 | ✅ 两入口端到端通过（QA-W80R：Snackbar 0.5 s → 下载页进度 2→95% → 「离线可读 · 34.6 MB / 218.6 MB」→ 下载中删除取消无 `.part`）；D2/D3 复验通过；报告 `w80-reports/W80-QA2.md` |
 | 24 | 打开 EPUB 滚动无效（实为分页）、双栏无效 | 目标 = 三档可感（滚动档长章连续滚动、双栏档真两列）；先取证（含 W77 回归核对） | READER | W80 | ✅ 真机通过（竖屏双栏真两列、滚动档长章连续滚动；QA-W80 独立复核通过，见 §3 W80 / S80-2） |
 | 25 | 搜索无法搜索音乐和书籍 | 搜索类型扩全（Audio / Book 等，本地搜索并核）+ 分类展示 | film/search · data | W82 | ⬜ |
-| 26 | 歌词界面歌词没有居中 | 歌词页 / 面板 / 悬浮窗三处统一水平居中（当前行垂直居中保持） | MUSIC | W79 | ✅ W79a：三处正文 `TextAlign.Center` + `fillMaxWidth`；真机墨迹中心 vs 中轴 ≤3 px（左对齐参照 −150/−173 px），悬浮窗两行 −1.0/−0.5 px；详见 §3 |
+| 26 | 歌词界面歌词没有居中 | 歌词页 / 面板 / 悬浮窗三处统一水平居中（当前行垂直居中保持） | MUSIC | W79 | ✅ W79a：三处正文 `TextAlign.Center` + `fillMaxWidth`；真机墨迹中心 vs 中轴 ≤3 px（左对齐参照 −150/−173 px），悬浮窗两行 −1.0/−0.5 px。QA-W79 发现纵向 P1（当前行贴底）→ W79a-FIX 统一 LazyList 内容坐标后修复，QA-W79R 复验最大 **+4.5 px**；已合并 master `2fa6203`；详见 §3 |
 | 27 | mpv 硬解：快进 / 快退 / 音量手势无效（偶发、触发条件不明） | 先复现攻坚（Pad 5 主）：logcat + 分区实验抓触发条件 → 修复后全屏任意区域有效 | PLAYER | W81 | ⬜ |
 | 28 | ExoPlayer 硬解：快退 / 快进仅左区有效 | 与 #27 同源嫌疑，同波取证 + 修复（全屏区域有效） | PLAYER | W81 | ⬜ |
 | 29 | 随机播放只能播放固定的几个 | 与 #38 同源排查（shuffle 序定型于 setMediaItems、队列异步补入）；修复后随机覆盖全队列 | MUSIC / player:local | W78 | ✅ 根因 = 补齐中断（详见 #38）；修后随机 20 连点 **20/20 不重复**、散布 4–348 |
@@ -71,7 +71,7 @@
 | 34 | 进歌曲栏 / 切歌自动跳到当前播放曲 | 列表定位滚动（进入一次 + 切歌跟随）；手动滚动不被打断 | MUSIC | W79 | ⬜ |
 | 35 | 歌词默认双语对照 | 默认开 + 无译文回落主行 + 存量显式偏好保留 | MUSIC | W79 | ✅ W79a：三态键 `pref_music_lyrics_bilingual`（`""`=未设置→默认开 / `on` / `off`）；真机默认两行、手动关落 `off` 冷启保持、单语歌曲单行不空行；详见 §3 |
 | 36 | 家庭视频缩略图显示进度条 | 库内容页补 UserData 进度 → 复用既有进度线组件；与续播一致 | film/data | W83 | ⬜ |
-| 37 | 歌词可调字体大小 / 间距并保存 | 新增偏好键；歌词页 + 面板生效（悬浮窗对齐）；重启保持 | MUSIC | W79 | ✅ W79a：`pref_music_lyrics_font_scale` / `pref_music_lyrics_line_spacing` + 档位条；真机即时生效（字号 ×1.3、行距 +21 px/行块）、冷启保持；详见 §3 |
+| 37 | 歌词可调字体大小 / 间距并保存 | 新增偏好键；歌词页 + 面板生效（悬浮窗对齐）；重启保持 | MUSIC | W79 | ✅ W79a：`pref_music_lyrics_font_scale` / `pref_music_lyrics_line_spacing` + 档位条；真机即时生效（字号 ×1.3、行距 +21 px/行块）、冷启保持。QA-W79 发现「紧凑=标准」P2 → W79a-FIX 改对基准调用后，页 `216<226<268 px` / 面板 `207<218<260 px`，QA-W79R 通过；已合并 master `2fa6203`；详见 §3 |
 | 38 | 播放队列 64 → >500 | 先取证「64」出处；补队列窗口 ≥500，随机 / 顺序均正确 | MUSIC / player | W78 | ✅ 「64」取证为**补齐中断残量**（点 0:38 的歌实测停在 63 首）；修后 349/349 补齐；`SONG_LIMIT` 500→1000 |
 | 39 | 倍速支持 1.75x | 两处档位表统一为共享常量并补 1.75x | PLAYER | W78 | ✅ 三处档位表收敛到 `PlaybackSpeedOptions`；面板 / 设置档位均含 1.75× 且实测生效 |
 
@@ -357,6 +357,8 @@
 - **门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 `--rerun-tasks --continue` **998 / 0 / 0**（app 277 / core 106 / data 68 / film 53 / book 145 / music **157** / player:core 12 / player:local 180；W79a 基线 994，新增 4）。
 - **边界**：不 push / 不 merge；不改 #35 双语语义、三处水平居中、悬浮窗档位，不动通知 / 播放器代码。证据 `w79-evidence/w79a-fix/`，报告 `w79-reports/W79a-fix.md`。
 
+**W79a 合并验收（2026-10-17，第十二任负责人）**：`feature/w79-music-ui-lyrics` rebase 到 master `893fd11`（FIX_PLAN §5 冲突解决 = 保留 W80b / QA-W80R / W80 合并与 W79a 双方记录）→ ff 合并 master（`893fd11` → `2fa6203`）。QA-W79R 独立复验 **通过**：D1 歌词页 / 面板 12 场景 × 3 稳定样本最大偏差 **+4.5 px**（播放切行动画过程帧 +77.5 px 不计），D2 页 **216 < 226 < 268 px** / 面板 **207 < 218 < 260 px**，切档后当前行仍居中；#26 水平居中、#37 四档字号 + 冷启、#35 三态、无歌词占位、面板开关 / 切歌 / 迷你条入口全部通过；全量 logcat 19.9 MB / 143,319 行，FATAL/ANR/crash **0**。合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **1026 / 0 / 0**（app 281 / core 106 / data 78 / player:core 12 / player:local 180 / film 53 / book 159 / music **157**；1011 基线 + W79 15）。已推送 master（`893fd11..2fa6203`），CI 跟进；QA 报告 `w79-reports/W79-QA-R.md`，证据 `w79-evidence/qa-r/`。**W79b（#33/#34）已在新 worktree `w79b` / 分支 `feature/w79b-song-list` 开工。**
+
 ### W80 波（阅读与书籍 · Pad 5 主 · 2026-10-17 派发，与 W78 并行）
 
 **S80-1 书籍下载链路与反馈（#23）**
@@ -536,6 +538,7 @@
 | 2026-10-17 | **W80 合并验收（第十一任负责人）**：`feature/w80-reader-books` rebase 到 master `ef0716d`（FIX_PLAN 冲突解决 = 统一定序 B13–B20）→ ff 合并 master（`ef0716d` → `1bc1c0d`）；合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 全绿、8 任务 `--rerun-tasks` **1011 / 0 / 0**（app 281 / core 106 / data 78 / player:core 12 / player:local 180 / film 53 / book 159 / music 142；日志 `w80-evidence/gate_merged_w80_build.log` / `gate_merged_w80_tests.log`）；已推送 CI（`ef0716d..1bc1c0d`）**三路全绿**（Format 59 s / Unit Tests 3 m 29 s / Build 5 m 0 s）；graphify 已更新（10338 nodes / 31285 edges）。 |
 | 2026-10-17 | **W79a 实现波完成（未合并，负责人收口）**：`feature/w79-music-ui-lyrics`（基座 master `ef0716d`，worktree `w79a`，K60 `8e875894` 独占）交付 **#26 + #37 + #35**。①#26 歌词页 / 面板加 `TextAlign.Center + fillMaxWidth`（悬浮窗既有居中），真机墨迹中心 vs 中轴：歌词页 ≤3 px、面板 −10.5…+2 px、悬浮窗 −1.0/−0.5 px，左对齐参照 −150/−173 px；②#37 新增字号 4 档 / 行距 3 档 + 共用 chip 档位条，即时生效（字号 ×1.3、行块间距 +21 px、折行节距 96→119 px）且 `am force-stop` 冷启保持；**真机拦下的坑**：基准样式 lineHeight 低于字体自然行高 + 单行文本框裁 leading → 只改 lineHeight 等于档位失效，改按"实际字号 × 1.33"算行高并另加行块间距；③#35 双语三态键（未设置 → 默认开；显式 `off` 冷启保持）+ 单语歌曲单行不空行。**申报项**：`AppPreferences` 追加 `pref_music_lyrics_font_scale=standard` / `pref_music_lyrics_line_spacing=standard` / `pref_music_lyrics_bilingual=""`。**门禁**：根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿；8 模块 `--rerun-tasks` **994 / 0 / 0**（music 153，新增 11）。0 FATAL/ANR；偏好 / 悬浮窗权限 / 临时文件已还原；报告 `w79-reports/W79a.md`。 |
 | 2026-10-17 | **W79a-FIX 完成 QA P1/P2（未 push / 未 merge）**：代码 `2b209ec`。①**W79-QA-D1** = `centerItem()` 内容坐标 / 视口高度坐标系混用；改 `viewportStartOffset/EndOffset` 与 `item.offset/size` 同系求差，抽 `lyricsCenterScrollDelta()` + 3 单测，并在 `animateScrollToItem()` 后等一帧读新行高；字号 / 行距加入依赖。真机当前行偏差：歌词页 `+3.0…+5.0 px`（修前 QA `+695.5 px`）、面板 `-1.0…+1.0 px`（修前贴底约 `+626.5 px`）。②**W79-QA-D2** = `gapDp(0f)` 吞掉 tight 的 −4dp；改对 16dp / 12dp 基准调用 `gapDp`，补三档递增单测。特大字号连续行块：页 `276 < 286 < 328 px`、面板 `207 < 218 < 260 px`。③回归 #26 水平偏差 `−1.5 / +0.5 px`、#35 默认 / 关闭冷启 / 单语单行、无歌词占位全过，0 FATAL/ANR。门禁根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿，8 模块 **998 / 0 / 0**（+4）。报告 `w79-reports/W79a-fix.md`。 |
+| 2026-10-17 | **W79a 合并验收（第十二任负责人）**：`feature/w79-music-ui-lyrics` rebase 到 master `893fd11`（FIX_PLAN 冲突 = 保留 W80b / QA-W80R / W80 合并与 W79a 双方记录）→ ff 合并 master（`893fd11` → `2fa6203`）。**QA-W79R 独立复验通过**：D1 页 / 面板 12 场景 × 3 稳定样本最大 **+4.5 px**（动画过程帧 +77.5 px 不计）、D2 页 **216 < 226 < 268 px** / 面板 **207 < 218 < 260 px**、切档后仍居中；#26 水平 / #37 四档 + 冷启 / #35 三态 / 无歌词全过；logcat 19.9 MB，FATAL/ANR/crash **0**。合并态门禁 = 根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿、8 任务 `--rerun-tasks` **1026 / 0 / 0**（music 157；1011 + 15）；已推送 CI（`893fd11..2fa6203`，Build / Format / Unit Tests）。报告 `w79-reports/W79-QA-R.md`，证据 `w79-evidence/qa-r/`。**下一棒 = W79b（#33/#34，worktree `w79b` / 分支 `feature/w79b-song-list`）已派发。** |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
