@@ -2532,7 +2532,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 未覆盖 / 待用户验收：真机双字幕 0/4/24dp、底部 0%/8%/30%、主/次 50%~200%、背景透明度/描边、预设/同步/恢复默认、退出重进保留与旧设置迁移观感；原始 ASS/SSA 的颜色/背景/描边仍由脚本决定（既有设计，字号可调）；PGS 图形字幕仍走内核原生；未运行单测 / 真机 / adb / 截图。
 - 残余风险：迁移只执行一次（回滚到旧版本会继续读旧键）；旧底部 35% 被新上限夹到 30%；SRT 非 100% 字号改为正确百分比后观感会变化；预览用固定画框近似真实播放，不反映 ASS 原文特效；外观卡较长，手机窄屏需滚动。
 
-### 40.9 EXP20 字幕轨道自由分配与面板重构（2026-10-18，方案 A 已实现 `7581ccb`）
+### 40.9 EXP20 字幕轨道自由分配与面板重构（2026-10-18，方案 A 已实现 `7581ccb` + 复审修复 `c8eacfd`）
 
 > 用户原话（2026-10-18）：“字幕轨道，现在是将ASS作为次字幕，要求有一种更灵活的选择方法。优化一下字幕设置界面的布局，看着有点乱，而且不方便。”
 >
@@ -2592,3 +2592,12 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 门禁：`compileLibreDebugKotlin`、`compileLibreDebugUnitTestKotlin`、`player:local:compileDebugUnitTestKotlin`、七个 `ktfmtCheck` 任务、`assembleDebug` 全部通过；`apksigner verify --verbose` 为 `Verifies`，APK Signature Scheme v2 = true，单签名者。
 - debug APK（arm64-v8a）：`app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk`，`150,172,613 B`，SHA-256 `EBB550DBD0CC7C055B3223BDC58972F9E71F20466354A9905A858DD847184D9C`；`aapt2` 显示 `io.github.zhangwenkang.aurorama.debug` / `1.3.0 (4)` / `Aurorama Debug`。
 - 未覆盖：未真机、未 adb、未启动 App、未截图、未做视觉 QA，也未运行真机测试套件；mpv 交换、侧载反查、图形原生与 ASS 次字幕文本降级仍待双机验收。mpv 次字幕源映射仍沿用同序号 / 标题 / 语言兜底，标题或语言重复时存在歧义风险；ASS 次字幕不新增特效层、PGS / VobSub 不进入 Compose 双语渲染（均为既定口径）。
+
+**复审修复（2026-10-18，`c8eacfd`）**
+
+- P1 映射修复：`MpvSubtitleTrackRef` 增加 `codec`（mpv `Format.codecs` / `sampleMimeType`），`sourceIndexForTrack` 改为“标题+语言 → 唯一标题 → 唯一语言 → 同序号兜底”，每一级先按图形 / 文本类型过滤，任何多候选都返回 `null`；`trackForSource` 也改为唯一反查，歧义时禁用交换。侧载仍按文件路径精确映射；图形轨不会映射到文本源，`secondarySourceIndexForTrack` 继续只接受可解析文本。
+- P2-1 已确认可达：`maybeAddServerSubtitles()` 只在容器完全没有内嵌字幕时注入服务端文本字幕；容器已有任一内嵌字幕（含 PGS）会整体跳过，因此纯 Jellyfin 文本源可能不在 `currentTracks`。最小修复为 native 轨与未映射文本源的并集行：纯源行 `primaryActionId = null`，保留“次”分配并显示“主字幕未注入或无法唯一映射”，不改 mpv 主字幕渲染。
+- P2-2 修复：mpv 手动选主与交换后的新主字幕通过 `rememberPrimaryLanguage()` 更新主语言优先级；自动选轨与 `track-list` 同步路径不写语言偏好。
+- P2-3 测试：新增 controller 级 `PlayerSubtitleControllerTest`，覆盖换路不误写 `disabledByUser`、显式关闭仍写入关闭态、手动 mpv 主语言持久化；选择测试补齐序号碰撞、标题+语言唯一命中、重复标题歧义、图形 / 文本类型冲突、`trackForSource` 歧义、纯源并集和语言优先级纯函数。定向单测共 `29` 项，`0` 失败 / `0` 错误 / `0` 跳过。
+- 复审修复门禁：三条编译、七项 `ktfmtCheck`、`assembleDebug` 全部通过；`apksigner verify --verbose` 为 `Verifies`，v2 = true。新 APK `150,173,801 B`，SHA-256 `D2C2863FC7B4A05E363FEA520CB51CE5F8BA95E96137C48ACE3EA249CF897FF1`。
+- 复审修复后未覆盖：仍未真机 / adb / 截图 / 视觉 QA；真实 mpv `track-list id` 与 Jellyfin 流序号对应、交换、侧载和纯源行在设备上的表现待验收；标题或语言重复时按设计保留为“仅原生 / 歧义”，不猜测。
