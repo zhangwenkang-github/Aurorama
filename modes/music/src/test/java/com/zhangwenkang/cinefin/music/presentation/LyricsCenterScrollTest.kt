@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.music.presentation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -111,5 +113,47 @@ class LyricsCenterScrollTest {
         val viewportCenter = (viewportStart + viewportEnd) / 2f
         assertEquals(viewportCenter, itemCenter - delta, 0.001f)
         assertTrue(delta > 0f)
+    }
+
+    @Test
+    fun `line click clears manual pause and skips centering the old active row`() {
+        val outcome =
+            lyricsLineClickFollowOutcome(
+                followPausedByUser = true,
+                displayFollow = true,
+                clickedIndex = 7,
+                activeIndex = 3,
+            )
+
+        assertFalse(outcome.followPausedByUser)
+        assertEquals(7, outcome.suppressCenteringForIndex)
+    }
+
+    @Test
+    fun `line click keeps follow disabled when user turned it off`() {
+        val outcome =
+            lyricsLineClickFollowOutcome(
+                followPausedByUser = true,
+                displayFollow = false,
+                clickedIndex = 7,
+                activeIndex = 3,
+            )
+
+        assertFalse(outcome.followPausedByUser)
+        assertNull(outcome.suppressCenteringForIndex)
+    }
+
+    @Test
+    fun `line click on the active row resumes follow without suppression`() {
+        val outcome =
+            lyricsLineClickFollowOutcome(
+                followPausedByUser = true,
+                displayFollow = true,
+                clickedIndex = 3,
+                activeIndex = 3,
+            )
+
+        assertFalse(outcome.followPausedByUser)
+        assertNull(outcome.suppressCenteringForIndex)
     }
 }

@@ -72,6 +72,29 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsTextSettings
 
+/** 点击歌词后的跟随状态变更：清除手动暂停，并在需要时跳过旧当前行的一次居中。 */
+internal data class LyricsLineClickFollowOutcome(
+    val followPausedByUser: Boolean,
+    val suppressCenteringForIndex: Int?,
+)
+
+/**
+ * 点击歌词时始终清除手动滚动造成的暂停；只有跟随原本开启且点击行不是当前行时，才跳过紧接着的一次旧行居中， 等 seek 更新 activeIndex
+ * 后再跟随点击行，避免明显的回弹。跟随关闭时不会在这里强行打开。
+ */
+internal fun lyricsLineClickFollowOutcome(
+    followPausedByUser: Boolean,
+    displayFollow: Boolean,
+    clickedIndex: Int,
+    activeIndex: Int,
+): LyricsLineClickFollowOutcome {
+    val suppressCentering = followPausedByUser && displayFollow && clickedIndex != activeIndex
+    return LyricsLineClickFollowOutcome(
+        followPausedByUser = false,
+        suppressCenteringForIndex = clickedIndex.takeIf { suppressCentering },
+    )
+}
+
 /**
  * 全屏歌词页（W23-MUSIC · B 组）。
  *
@@ -297,6 +320,7 @@ private fun LyricsLines(
     val media = LocalMediaColors.current
     val listState = rememberLazyListState()
     val pauseCallback = rememberUpdatedState(onFollowPausedByUserChange)
+    var suppressCenteringForIndex by remember { mutableStateOf<Int?>(null) }
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -360,6 +384,11 @@ private fun LyricsLines(
             followPausedByUser,
         ) {
             if (!state.display.follow || followPausedByUser) return@LaunchedEffect
+            val suppressedIndex = suppressCenteringForIndex
+            if (suppressedIndex != null) {
+                suppressCenteringForIndex = null
+                if (state.activeIndex != suppressedIndex) return@LaunchedEffect
+            }
             listState.animateToCenteredItem(
                 target = state.activeIndex,
                 itemSpacingPx = itemSpacingPx,
@@ -388,7 +417,20 @@ private fun LyricsLines(
                     modifier =
                         Modifier.fillMaxWidth()
                             .clip(CinefinShapes.Xs)
-                            .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
+                            .clickable(enabled = startMs != null) {
+                                startMs?.let { positionMs ->
+                                    val outcome =
+                                        lyricsLineClickFollowOutcome(
+                                            followPausedByUser = followPausedByUser,
+                                            displayFollow = state.display.follow,
+                                            clickedIndex = index,
+                                            activeIndex = state.activeIndex,
+                                        )
+                                    onFollowPausedByUserChange(outcome.followPausedByUser)
+                                    suppressCenteringForIndex = outcome.suppressCenteringForIndex
+                                    onLineClick(positionMs)
+                                }
+                            }
                             .onSizeChanged { size -> rowHeights[index] = size.height }
                             .padding(vertical = CinefinSpacing.Space1)
                 ) {
