@@ -2049,6 +2049,11 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 - 用户本人确认“阅读线通过”（未附缺陷清单）；EXP19 阅读线视为验收通过，转入收口队列。
 - 阅读分支保持 `codex/experience-reader`（代码 `2e2a9c4`，文档 HEAD `6ebce7e`）不合并 master；待音乐线也获用户确认后，再统一做 rebase / 全量门禁 / 合并准备。
 
+**合并收口（2026-10-18）**
+
+- 阅读分支已 rebase 到字幕合并后的 master `6d2b024`，新 HEAD `fd0e54f`，无冲突、内容零丢失；随后 ff-only 合并 master。
+- 阅读线全量门禁 **1094 / 0 / 0 / 0**；三线合并态 master `ffd079c` 全量门禁 **1113 / 0 / 0 / 0**，CI Build / Format / Unit Tests 三路绿；release / tag / 已验收 APK 零触碰。
+
 ## 10. W64 阅读加载取消 / 打开耗时 / 批注范围（2026-10-04，分支 `fix/w64-reader-music-home`，起点 master `a8a580f`）
 
 ### 10.1 加载中返回仍占网络（修，提交 `06bd7d8`）

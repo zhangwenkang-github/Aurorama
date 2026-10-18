@@ -1121,3 +1121,8 @@ MusicModeScreen(专辑列表) ─▶ MusicModeViewModel ─▶ MusicRepository.g
 
 - 用户本人确认“音乐线通过”（未附缺陷清单）；EXP19 音乐线视为验收通过。
 - 音乐分支保持 `codex/experience-music`（代码 `db56fe2`，文档 HEAD `ee6e0cb`）不单独合并；与字幕、阅读两线一起进入 rebase / 全量门禁 / ff-only 合并收口。
+
+**合并收口（2026-10-18）**
+
+- 音乐分支已 rebase 到阅读合并后的 master `fd0e54f`，新 HEAD `ffd079c`，无冲突、内容零丢失；随后 ff-only 合并 master。
+- 音乐线全量门禁 **1113 / 0 / 0 / 0**；三线合并态 master `ffd079c` 全量门禁同数字，CI Build / Format / Unit Tests 三路绿；第 3 条“点击歌词恢复跟随”修复 `db56fe2` 已包含在合并树中。
