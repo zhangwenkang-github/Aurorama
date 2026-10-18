@@ -104,22 +104,24 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 | 1.0.0 | 2026-10-05 | 1 | `assembleLibreRelease -Paurorama.universalApk=true` | 163.1 MB | 73.9 MB |
 | 1.1.0 | 2026-10-07（Q 波后重建） | 2 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.2 MB | 74.0 MB |
 | 1.2.0 | 2026-10-07（候选＝发布对象） | 3 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.3 MB | 74.1 MB |
-| 1.3.0 | 2026-10-17（候选） | 4 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.4 MB | 74.2 MB |
+| 1.3.0 | 2026-10-18（最终） | 4 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.6 MiB | 74.4 MiB |
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
-**1.3.0 发布资产校验 · 复验候选（2026-10-17 · W78–W83，版本提交 `bbc464d`（代码合并 `5f13b74`）；REL-1.3.0-FIX 结论为测试时序误判、源码零差异，最终重建哈希如下；用户全检通过后如需重建须重填）**
+**1.3.0 发布资产校验 · 发布对象（2026-10-18 · W78–W83 + EXP19/EXP20；master `813542f`，代码合并 `ffd079c`；本表为上传口径）**
 
 | 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
 |--------------------|--------------------|---------|
-| `Aurorama-1.3.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,358,764 / 163.4 | `8eec33a0234d63bf9774a95d5dc45b6fbcc52d5e76f85466da92208fb85c17d7` |
-| `Aurorama-1.3.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 77,776,786 / 74.2 | `5e7c7f899c15c4219573308a86872983b10d6809d2ca610000e381a3f8c636c7` |
+| `Aurorama-1.3.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 171,582,604 / 163.6 | `db6ae7974eeb2909ff26dd959db2daa0afa72c497268fca4715ba94c99ae71f7` |
+| `Aurorama-1.3.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 78,000,626 / 74.4 | `5f066205a1558ef3528b9674ed45a418c719f74ccbb0778dcad3cb38fe809c98` |
 
-- 内容 = W78（音乐通知面板 / 队列 >500 / 随机 / 1.75×）+ W79（歌词居中 / 默认双语 / 字号行距 / 缩略图 / 当前曲定位）+ W80（书籍下载反馈 / EPUB 滚动·双栏 / 阅读器手势）+ W81（mpv / Exo 全屏快进快退与音量手势）+ W82（搜索音乐·书籍 / 返回栈）+ W83（媒体库下拉刷新 / 家庭视频进度 / 零行为收敛重构）+ 版本号 **1.3.0 (4)**；共 18 项用户反馈（9 修复 + 9 需求）。
-- `apksigner verify`：两份均 **v2 = true**（v1 / v3 / v4 = false，与 minSdk 28 口径一致）；证书 SHA-256 = `e449c4aa…e155ff`（与 §2 指纹一致）；包名 `io.github.zhangwenkang.aurorama`，`versionCode=4` / `versionName=1.3.0`（`aapt2 dump badging` 复核）。
-- 门禁：最终源码（代码合并 `5f13b74`，`git diff` 源码零差异）根 `assembleDebug`（含 TV）+ `ktfmtCheck` 绿（5m06s，414 tasks）；8 模块 `--rerun-tasks --continue` **1055 / 0 / 0 / 0**（app 293 / core 110 / data 79 / player:core 12 / player:local 180 / film 57 / book 159 / music 165；日志 `release-1.3.0-evidence/r14/gate-tests.log`）；`assembleLibreRelease "-Paurorama.universalApk=true"` 成功（2m38s，399 tasks，日志 `r14/final-release-build.log`），两份 `apksigner verify` v2 + 证书指纹一致。REL-1.3.0-FIX 文档收口已推送 origin/master（仅 `docs/**`，不触发路径过滤后的 CI）；代码提交 `bbc464d` 的 Build / Format / Unit Tests 三路均绿。
-- **发布面冒烟：✅ 通过（前次阻塞为测试时序误判，非 R8 / 打包 / Compose 回调回归）**——R13 问题包与设备上安装包 SHA-256 完全一致；K60 / Pad 5 冷启动后顶部选集 / 画面 / 设置、底部音轨 / 字幕 / 倍速 / 码率 / 解码 / 详细信息 / 全屏 / 锁定均可打开。最小日志定量：控制层 3.5 s 自动淡出后，落在工具栏位置的首个 DOWN 为 `handled=false controls=false`（该击只负责唤回控件），控件可见后的下一击为 `handled=true controls=true` 并打开面板；R13 的截图 / XML 恰好发生在唤回之后，形成“点了没反应”的假象。码率 3 Mbps 在 K60 与 Pad 5 均实测进入 HLS（K60 `容器 HLS` / 1920×1080；Pad5 `容器 HLS` / 1920×800），中央暂停恢复、横滑 seek、全屏旋转、锁定 / 解锁通过；字幕轨选择面板与 `chs/cht` 双语轨正常（实际出画沿用 R13 已确认结果）。关于页 `1.3.0 (4)`；0 FATAL / ANR / Input dispatch timeout。**#32 双指缩放仍列用户全检 / 代测。**
-- 发布用副本在 `.planning/cinefin-expansion/release-1.3.0-evidence/Aurorama-1.3.0-*.apk`；R13 旧哈希两份保留在 `superseded-before-clean/`。**用户全检通过前不打 tag / 不发 Release。**
+- 内容 = W78–W83（音乐面板 / 队列 / 歌词、书籍手势与 EPUB、播放器手势、搜索返回栈、媒体库刷新与家庭视频进度）+ EXP20 字幕轨道自由分配 / 交换与面板重构 + EXP19 PDF/CBZ 全本共享缩放 / 顶栏单入口 + EXP19 音乐歌词页 / 歌曲栏整改与点击歌词恢复跟随；版本号 **1.3.0 (4)**。
+- `aapt2 dump badging`：两份均为 `io.github.zhangwenkang.aurorama` / `versionCode=4` / `versionName=1.3.0` / minSdk 28 / targetSdk 36；universal ABI = arm64-v8a + armeabi-v7a + x86 + x86_64，arm64 分包仅 arm64-v8a。
+- `apksigner verify`：两份均 `Verifies`、**v2 = true**、单签名者；证书 SHA-256 = `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff`（与 §2 一致）。
+- 构建：最终 master `813542f` 执行 `assembleLibreRelease "-Paurorama.universalApk=true"` 成功（5m05s / 399 tasks；日志 `release-1.3.0-evidence/final/release-build-corrected.log`）；合并态门禁 **1113 / 0 / 0 / 0**（8 模块），代码合并 `ffd079c` 的 Build / Format / Unit Tests 三路 success；`813542f` 为 docs-only，路径过滤未触发新 CI。
+- 安装：Pad 5 `43af8627` 装 universal（`lastUpdateTime=2026-10-18 08:28:45`）、K60 `8e875894` 装 arm64-v8a（`08:28:40`）；均 `install -r` 保留数据，`versionName=1.3.0` / `versionCode=4`，pkgFlags 无 `DEBUGGABLE`。
+- **发布面冒烟 ✅**：字幕面板打开并把 `zh` / `zh-Hant` 两条 ASS 文本轨设为主 / 次后交换成功；PDF `Anda's Game` 125% 从 23/24→24/24 保持，CBZ `futuristic_tales` 150% 从 4/4→3/4 保持；音乐 `Victory` 手动滚动歌词后点击“军队正激战”，position 129.2 s→169.3 s 且保持 PLAYING；播放与阅读基本链路正常；双机 0 FATAL / ANR。
+- 发布用副本在 `.planning/cinefin-expansion/release-1.3.0-evidence/final/Aurorama-1.3.0-*.apk`；旧候选哈希不再作为发布对象。**tag / Release 在验证通过后执行。**
 
 **1.2.0 发布资产校验 · 候选＝发布对象（2026-10-07 · W77 阅读流式波，master 提交 `6ef1901`（代码合并 `f4d4933`）；本表为上传口径）**
 
@@ -201,7 +203,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 **1.1.0（W76，2026-10-06 初版 / 2026-10-07 Q 波后正式重建）检查状态**：版本号 `1.1.0 (2)` ✅；**D-F9 方案B（B9 / B10 / B11 + B11b）+ D-F10（Q1–Q7）全部并入 1.1.0**（`600be7a` / `d0942dc` / `1eb093f` / `3b85d95` / `61d13a8`，终合并态门禁 **941 / 0 / 0** ✅）；`assembleLibreRelease` 正式重建 + `apksigner verify`（v2、指纹一致；新哈希见 §7 ③）✅；`README` / `PRIVACY` / `NOTICE` / `LICENSE` 与 1.0.0 一致（W76 未改）✅；关于页版本号随构建显示 `1.1.0 (2)` ✅；截图沿用 1.0.0（`images/release/` 9 张；1.1.0 为缺陷修复 + 细节增强，未重拍）；真机回归 = **R1（K60 发布面补验）/ R2（Pad 5 核心回归）已完成**（`w76-reports/W76-R1.md` / `W76-R2.md`）；**V1（K60 发布包复验）✅**：覆盖升级 / B9 严格首下（`pm clear` + Quick Connect）/ B11b 起播 / B10 切内核 / Q7 5 次 / 播放复跑 / Q1 / 0 FATAL·ANR（首帧口径裁减：release 无 Timber，实测 6.0–6.6 s @ 当日 0.5–1.2 MB/s 网络；报告 `w76-reports/W76-V1.md`）；**V2（Pad 5 阅读组）✅**：书架 / EPUB·PDF·CBZ / 进度恢复 / 设置保持 / 离线 + 飞行模式 /「已完成」列表（报告 `w76-reports/W76-V2.md`；books 库需 `zhangwenkang` 账号）。**新观察项 Q8–Q10**（`FIX_PLAN` §6.1，不阻塞发布）。**用户全检（2026-10-07）✅ 通过**（含 ① #2 管理员入口代测 `w75-reports/W75-S2.md`；② #1 吸附手感代测 `w75-reports/W75-S1.md` §四）→ **已发布**：tag **`v1.1.0`** + GitHub Release「极光幕 / Aurorama v1.1.0」+ 双 APK 上传（assets 体积 / 哈希与 §7③ 一致）；发布后自检 ✅（assets 可下载；**实下载 SHA-256 与 §7③ 复核一致**）。Release notes 正文 = `docs/RELEASE_NOTES_v1.1.0.md`。
 
-**1.3.0（W78–W83，2026-10-17 复验候选）检查状态**：版本号 `1.3.0 (4)` ✅（`Versions.kt`，versionCode 3 → 4，未跳号）；Release notes `docs/RELEASE_NOTES_v1.3.0.md` ✅；`assembleLibreRelease` 最终重建 ✅；双 APK `apksigner verify` v2 + 指纹一致 ✅（新哈希 / 体积见 §7）；**真机发布面冒烟 ✅ 通过**——`REL-1.3.0-FIX` 复核证明前次“播放控件无响应”是控制层 3.5 s 自动淡出后的首个注入只负责唤回控件；控件可见时顶 / 底工具键、HLS 3 Mbps、全屏 / 锁定、关于页 `1.3.0 (4)` 与 0 FATAL / ANR 均通过；#32 双指缩放待用户全检 / 代测；**未全检通过前不打 tag、不发 GitHub Release**。
+**1.3.0（W78–W83 + EXP19/EXP20，2026-10-18 发布对象）检查状态**：版本号 `1.3.0 (4)` ✅（`Versions.kt`，versionCode 3 → 4，未跳号）；Release notes `docs/RELEASE_NOTES_v1.3.0.md` ✅；最终 master `813542f` 单次 release 构建成功（5m05s / 399 tasks）✅；双 APK `aapt2` / `apksigner` v2 + 指纹一致 ✅（哈希 / 体积见 §7）；Pad 5 / K60 覆盖安装后 `versionName=1.3.0` / `versionCode=4` / 非 `DEBUGGABLE` / `lastUpdateTime` 均核验 ✅；字幕主次分配与交换、PDF/CBZ 跨页共享缩放、音乐点击歌词 seek、播放/阅读基本链路、双机 0 FATAL / ANR ✅；代码合并 `ffd079c` 的 Build / Format / Unit Tests 三路 success，`813542f` docs-only 路径过滤未触发新 CI ✅。**下一步 = 打 `v1.3.0` tag → 创建 GitHub Release → 上传双 APK → 下载资产复核。**
 
 ## 9. CI 发布（可选，后续）
 

@@ -57,8 +57,8 @@
 
 | 下载文件 | 面向 | 建议 |
 |----------|------|------|
-| `Aurorama-1.3.0-universal.apk` | 全部 ABI（armeabi-v7a / arm64-v8a / x86 / x86_64） | 不确定机型 / 兼容性优先 |
-| `Aurorama-1.3.0-arm64-v8a.apk` | 仅 arm64-v8a | 2017 年后的主流 64 位手机 / 平板（体积约为整包一半） |
+| `Aurorama-1.3.0-universal.apk`（163.6 MiB） | 全部 ABI（armeabi-v7a / arm64-v8a / x86 / x86_64） | 不确定机型 / 兼容性优先 |
+| `Aurorama-1.3.0-arm64-v8a.apk`（74.4 MiB） | 仅 arm64-v8a | 2017 年后的主流 64 位手机 / 平板（体积约为整包一半） |
 
 > 两个包功能一致、同为 release 签名；**同一设备上请始终用同一签名的包升级**（换签名无法覆盖安装）。调试包（`.debug` 后缀）可与正式包共存、数据互相独立。各包体积与 SHA-256 见 `docs/RELEASE_PLAN.md` §7。
 
