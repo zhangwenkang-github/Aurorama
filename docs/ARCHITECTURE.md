@@ -42,6 +42,7 @@
 6. **阅读入口现状**：`NavigationRoot.navigateToItem()` 对 `FindroidFolder(kind == "Book")` 直接跳 `ConsoleRoute("/details?id=…")`（服务器 WebView 阅读器）——**本期要替换成原生阅读器**。
 7. **音乐现状**：无音乐模式与入口；音频只能被当作"视频"塞进视频播放器。音乐库类型（`CollectionType.Music`）已在 `supported` 列表内可浏览。
 8. **CI 现状**：Build 仅 `master` push 触发 + PR 触发、忽略 `docs/**` 与 `**.md`、带 concurrency 取消；Format 跑 `./gradlew ktfmtCheck`（`**.kt` / `**.kts`）。仓库现有 **975 个 JVM 单测**（8 模块、纯 JUnit4；无 Robolectric / `androidTest`，Compose 层不可单测）；**单测门禁自 2026-10-17 起由 `.github/workflows/test.yaml` 承担**。
+9. **Jellyfin 兼容基线（2026-10-21）**：当前测试服务器为 **12.2.0**；SDK 与自定义 OkHttp 的认证都必须兼容 `Authorization: MediaBrowser Token="…"`。文中 10.11.8 的实测数字保留为历史证据，不作为新实现继续沿用的唯一版本假设。
 
 ---
 
@@ -97,6 +98,7 @@
 | `core` 不得依赖 `modes/*` | 设计系统与工具保持通用 |
 | `modes/*` 之间不得互相依赖 | 阅读与音乐通过 data / player 解耦；需要共享的模型提升到 `core` 或 `player:core` |
 | UI 不得直接持有 SDK / File / ExoPlayer | 一律经 Repository / `PlayerHolder` |
+| 服务器写操作不得散落在 UI / ViewModel | 未来歌单互导与元数据修改统一经 data 层的服务器写网关；能力关闭时不存在可调用写路径 |
 
 ### 2.4 咽喉文件（多线共改，必须串行保护）
 
@@ -477,6 +479,42 @@ interface MusicRepository {
 
 **W69c 补记（无图卡片不出现黑卡）**：所有「书 / 音乐」卡片组件（`PosterItemCard` / `LandscapeItemCard` / `ItemPoster`）把**类型占位常驻底层**——书籍 = `ic_book` + 媒体色底（`BookCoverPlaceholder`），音乐 = `ic_music` + 媒体色底（与 W59 下载页 / W68 媒体会话同口径），无图 / 加载中 / 加载失败都露占位，服务器图或生成的本地封面就绪后覆盖在上层；「最新 · <库名>」走廊（`HomeView`）与走廊 / 海报墙统一接线（本地封面 override / 占位图标 / 懒生成请求 / 服务器图失败回落），书籍回调只对 `FindroidFolder` 触发；按库类型选占位的映射是纯函数 `libraryPlaceholderIconRes`（单测覆盖）。
 
+### 5.6 服务器写入与歌单互通扩展点（1.4.0 只预留，不实现）
+
+**边界**：当前生产测试服务器 `jellyfins.zhangwenkang.com` 仍为强只读；1.4.0 不增加写按钮、不发送写请求、不保存服务器凭据副本。未来只能由用户明确启用的测试服务器环境进入写路径。
+
+目标接口形态（名称可调整，职责不可散回 UI）：
+
+```text
+ServerCapabilities
+  -> supportsPlaylistWrite / supportsMetadataWrite / readOnly
+
+ServerMutationIntent
+  -> PlaylistCreate | PlaylistReplace | PlaylistAppend
+  -> MetadataUpdate
+
+ServerMutationGateway
+  -> preview(intent): MutationPreview
+  -> execute(intent, idempotencyKey): MutationResult
+
+MutationPolicy
+  -> writeEnabled = false（默认）
+  -> allowDestructive = false（默认）
+  -> requireDryRun = true
+```
+
+| 扩展点 | 约定 |
+|--------|------|
+| 能力探测 | 服务器地址 / 版本 / 用户权限决定 available；UI 不按 Jellyfin 版本号硬编码按钮 |
+| 写开关 | `writeEnabled` 默认 false；生产服务器即使误配也必须被硬性拒绝；测试服务器启用需显式配置 |
+| 幂等与审计 | 每次写意图携带稳定 `idempotencyKey`；本地保留结果审计，不把令牌写入日志 / 记忆 |
+| 预览与回滚 | 歌单互导先预览新增 / 冲突 / 缺失项；破坏性操作默认不允许，无法回滚的操作需用户显式确认 |
+| 歌单来源 | `PlaylistRef = Local(id) or Server(serverId,id)`；`TrackRef = Local(localLibraryId,itemId) or Server(serverId,itemId)`，标题 / 路径不能充当稳定身份 |
+| 交换格式 | Room 本地模型为真源；版本化 JSON 保存完整身份与顺序；M3U8 仅作兼容适配器，匹配失败保留不可用项 |
+| 认证基线 | Jellyfin 12.2 的自定义 HTTP 统一使用 `Authorization: MediaBrowser Token="…"`；SDK 路径跟随 SDK |
+
+**本批验收**：文档与依赖方向明确、默认只读策略可验证、未来写能力无需推翻本地歌单 / 下载 / 导航模型即可接入；不要求存在可用的写实现。
+
 ## 6. 并行开发边界（供 S3 排期）
 
 ### 6.1 必须串行（有硬依赖）
@@ -518,7 +556,7 @@ PDF 懒加载 spike（R1）──▶ 走 Readium PDF 或自研 PDF（二选一�
 | 3 | Readium `readium-navigator` 依赖 fragment / constraintlayout / webkit 等 View 体系库 | 与 Compose 混用复杂度 | `AndroidView` 封装成单一 Composable，Fragment 生命周期收敛在容器内 |
 | 4 | CBZ 在 Readium 为 🚧 | 漫画需求 | R1 先做可行性 spike，不达标自研（§3.5） |
 | 5 | 阅读进度字段与官方 Web 阅读器是否一致 | 跨端进度 | Web 读一段后对比 `UserData` 变化（待验证） |
-| 6 | 服务器 10.11.8 与 OpenAPI 12.1 规范存在差异 | 接口调用失败 | 已实测：读进度用 `/Users/{userId}/Items/{itemId}/UserData`；写进度 `POST /UserItems/{itemId}/UserData` 待首次实现验证 |
+| 6 | 当前 Jellyfin 12.2.0 与历史 10.11.8 实测 / SDK 规范可能存在差异 | 接口或鉴权调用失败 | 新功能以 12.2.0 只读实测为准；认证统一 `Authorization: MediaBrowser Token="…"`；历史 10.11.8 结论只作沿革，接口变化先只读复测 |
 | 7 | 歌词语言检测准确率（中英混排行） | 验收样例 | 用 `aLIEz` / `Brave Shine` / `爱的回归线` 三例做基线；必要时引入 Lingua |
 | 8 | 音频 gapless 在不同编码 / 采样率下表现 | MU-4 验收 | 真机听感 + 日志验证；不达标时把 crossfade 提前评估 |
 | 9 | `PlayerHolder` 单例被音乐复用后视频回归 | 稳定性 | `PlaybackCoordinator` 全量接管启停；每次改动跑视频冒烟 |
