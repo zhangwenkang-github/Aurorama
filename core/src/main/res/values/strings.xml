@@ -119,6 +119,16 @@
     <string name="drawer_section_user">Account</string>
     <string name="drawer_no_server">No server added</string>
     <string name="download_pending">Pending…</string>
+    <string name="download_preparing">Preparing download</string>
+    <string name="download_connecting">Connecting to server</string>
+    <string name="download_verifying">Verifying file</string>
+    <string name="download_waiting_retry">Waiting to retry</string>
+    <string name="download_next_retry_at"> · next attempt %1$s</string>
+    <string name="download_show_technical_details">Show technical details</string>
+    <string name="download_hide_technical_details">Hide technical details</string>
+    <string name="download_technical_details_title">Download task details</string>
+    <string name="download_next_retry_value">\nNext retry: %1$s</string>
+    <string name="download_technical_details">Reason code: %1$s\nRetries: %2$d\nTask source: %3$s</string>
     <string name="download_retry_in_progress">Retrying · attempt %1$d</string>
     <string name="download_paused">Paused</string>
     <string name="download_downloading">Downloading…</string>
@@ -135,6 +145,9 @@
     <string name="download_action_retry">Retry</string>
     <string name="download_action_delete">Delete</string>
     <string name="download_action_select">Select</string>
+    <string name="download_select_all">Select all</string>
+    <string name="download_select_all_failed">Select all failed</string>
+    <string name="download_retry_all_failed">Retry all failed</string>
     <string name="selection_select_all">Select all</string>
     <string name="selection_select_none">Deselect all</string>
     <string name="selection_exit">Exit selection</string>

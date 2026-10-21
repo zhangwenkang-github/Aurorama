@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,12 +73,17 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.expectedTotalBytes
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonBlock
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonLine
 import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
+import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadTask
+import com.zhangwenkang.cinefin.utils.DownloadTaskPhase
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * 纯函数（W60b）：任务是否处于「自动重试」窗口——等待下一次重试（PENDING）或正在重试（RUNNING）且已有重试计数。
@@ -253,6 +261,8 @@ internal fun DownloadTopLevelRow(
     val entry = container.allEntries().firstOrNull() ?: return
     val task = entry.task
     val completed = entry.status == DownloadTaskStatus.COMPLETED
+    val explanationText = taskExplanationText(task, entry.bookDetail)
+    var showTechnicalDetails by remember(task?.sourceId) { mutableStateOf(false) }
     val (artworkWidth, artworkHeight) = leafArtworkSize(entry)
 
     // W59：书籍行可见时懒生成一次封面（已下载书籍走本地文件；生成完成由 ViewModel 刷新出图）。
@@ -321,17 +331,31 @@ internal fun DownloadTopLevelRow(
                         failureReason = task?.failureReason,
                         retrying = showsRetryLabel(task),
                         retryCount = task?.retryCount ?: 0,
+                        phase =
+                            task?.let {
+                                DownloadControlPlaneRules.phase(
+                                    status = it.status,
+                                    downloadedBytes = it.downloadedBytes,
+                                    totalBytes = it.totalBytes,
+                                    failureReason = it.failureReason,
+                                    nextRetryAt = it.nextRetryAt,
+                                    nowMs = System.currentTimeMillis(),
+                                )
+                            },
                         // W80b（D3）：书籍下载失败带服务端原始原因（`BookDownloadTask.error`）。
                         failureDetail = entry.bookDetail,
                     )
                     Spacer(Modifier.width(CinefinSpacing.Space2))
                     Text(
-                        text = leafSizeLine(entry),
+                        text = explanationText ?: leafSizeLine(entry),
                         style = CinefinType.BodySmall,
                         color = colors.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                        modifier =
+                            Modifier.weight(1f).clickable(enabled = explanationText != null) {
+                                showTechnicalDetails = true
+                            },
                     )
                 }
                 if (task != null && task.isActive) {
@@ -375,6 +399,13 @@ internal fun DownloadTopLevelRow(
                 }
             }
         }
+    }
+    if (showTechnicalDetails && task != null) {
+        DownloadTechnicalDetailsDialog(
+            task = task,
+            failureDetail = entry.bookDetail,
+            onDismiss = { showTechnicalDetails = false },
+        )
     }
 }
 
@@ -742,6 +773,7 @@ internal fun DownloadLeafCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                DownloadTaskExplanationLine(task = task, failureDetail = entry.bookDetail)
                 if (task != null && task.isActive) {
                     Spacer(Modifier.height(CinefinSpacing.Space2))
                     DownloadProgressBar(
@@ -793,6 +825,7 @@ private fun DownloadStatusBadge(
     failureReason: DownloadFailureReason?,
     retrying: Boolean = false,
     retryCount: Int = 0,
+    phase: DownloadTaskPhase? = null,
     /**
      * 失败条目的**真实原因**（W80b / D3）。视频任务只有分类枚举（[failureReason]）， 书籍下载带的是服务端原始文案（如「下载书籍失败：HTTP
      * 401…」）；有真实文案时优先显示它， 否则才回落「未知错误」占位。
@@ -828,22 +861,29 @@ private fun DownloadStatusBadge(
             // W60b：自动重试（等待下一次 / 正在重试）优先显示「重试中 · 第 N 次」。
             retrying && retryCount > 0 ->
                 stringResource(CoreR.string.download_retry_in_progress, retryCount)
-            status == DownloadTaskStatus.PENDING ->
+            phase == DownloadTaskPhase.PREPARING -> stringResource(CoreR.string.download_preparing)
+            phase == DownloadTaskPhase.CONNECTING ->
+                stringResource(CoreR.string.download_connecting)
+            phase == DownloadTaskPhase.DOWNLOADING ->
+                stringResource(CoreR.string.download_downloading)
+            phase == DownloadTaskPhase.VERIFYING -> stringResource(CoreR.string.download_verifying)
+            phase == DownloadTaskPhase.WAITING_RETRY ->
                 if (failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE) {
                     stringResource(CoreR.string.download_waiting_network)
                 } else {
-                    stringResource(CoreR.string.download_pending)
+                    stringResource(CoreR.string.download_waiting_retry)
                 }
-            status == DownloadTaskStatus.RUNNING ->
-                stringResource(CoreR.string.download_downloading)
-            status == DownloadTaskStatus.PAUSED ->
+            phase == DownloadTaskPhase.PAUSED ->
                 if (failureReason == DownloadFailureReason.NETWORK_UNAVAILABLE) {
                     stringResource(CoreR.string.download_waiting_network)
                 } else {
                     stringResource(CoreR.string.download_paused)
                 }
-            status == DownloadTaskStatus.COMPLETED ->
+            phase == DownloadTaskPhase.COMPLETED ->
                 stringResource(CoreR.string.download_tasks_completed)
+            status == DownloadTaskStatus.PENDING -> stringResource(CoreR.string.download_pending)
+            status == DownloadTaskStatus.RUNNING ->
+                stringResource(CoreR.string.download_downloading)
             else -> failureDetail?.takeIf { it.isNotBlank() } ?: failureLabel(failureReason)
         }
     Row(
@@ -868,6 +908,128 @@ private fun DownloadStatusBadge(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/** W84：等待 / 失败原因与重试时间常显；技术字段按需展开。 */
+@Composable
+private fun DownloadTaskExplanationLine(
+    task: DownloadTask?,
+    failureDetail: String?,
+) {
+    task ?: return
+    val explanation = DownloadControlPlaneRules.explanation(task, System.currentTimeMillis())
+    explanation ?: return
+    val colors = LocalCinefinColors.current
+    var expanded by remember(task.sourceId) { mutableStateOf(false) }
+    val reason = failureDetail?.takeIf { it.isNotBlank() } ?: failureLabel(explanation.reason)
+    val retryAt =
+        explanation.nextRetryAt
+            .takeIf { it > System.currentTimeMillis() }
+            ?.let { timestamp ->
+                remember(timestamp) {
+                    SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
+                }
+            }
+    val retrySuffix =
+        retryAt?.let { stringResource(CoreR.string.download_next_retry_at, it) }.orEmpty()
+    Spacer(Modifier.height(CinefinSpacing.Space1))
+    Text(
+        text = reason + retrySuffix,
+        style = CinefinType.LabelSmall,
+        color = colors.onSurfaceVariant,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+    Text(
+        text =
+            stringResource(
+                if (expanded) CoreR.string.download_hide_technical_details
+                else CoreR.string.download_show_technical_details
+            ),
+        style = CinefinType.LabelSmall,
+        color = LocalMediaColors.current.bright,
+        modifier = Modifier.clickable { expanded = !expanded },
+    )
+    if (expanded) {
+        Text(
+            text =
+                stringResource(
+                    CoreR.string.download_technical_details,
+                    explanation.reason?.name ?: "UNKNOWN",
+                    explanation.retryCount,
+                    task.sourceId,
+                ),
+            style = CinefinType.LabelSmall,
+            color = colors.onSurfaceFaint,
+        )
+    }
+}
+
+@Composable
+private fun taskExplanationText(
+    task: DownloadTask?,
+    failureDetail: String?,
+): String? {
+    task ?: return null
+    val explanation = DownloadControlPlaneRules.explanation(task, System.currentTimeMillis())
+    explanation ?: return null
+    val reason = failureDetail?.takeIf { it.isNotBlank() } ?: failureLabel(explanation.reason)
+    val retryAt =
+        explanation.nextRetryAt
+            .takeIf { it > System.currentTimeMillis() }
+            ?.let { timestamp ->
+                SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
+            }
+    return reason +
+        retryAt?.let { stringResource(CoreR.string.download_next_retry_at, it) }.orEmpty()
+}
+
+@Composable
+private fun DownloadTechnicalDetailsDialog(
+    task: DownloadTask,
+    failureDetail: String?,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val retryAt =
+        task.nextRetryAt
+            .takeIf { it > 0L }
+            ?.let { timestamp ->
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
+            } ?: stringResource(CoreR.string.none)
+    val reason = failureDetail?.takeIf { it.isNotBlank() } ?: failureLabel(task.failureReason)
+    Dialog(onDismissRequest = onDismiss) {
+        CinefinCard(contentPadding = PaddingValues(CinefinSpacing.Space4)) {
+            Column(verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2)) {
+                Text(
+                    text = stringResource(CoreR.string.download_technical_details_title),
+                    style = CinefinType.TitleMedium,
+                    color = colors.onSurface,
+                )
+                Text(
+                    text = reason,
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
+                Text(
+                    text =
+                        stringResource(
+                            CoreR.string.download_technical_details,
+                            task.failureReason?.name ?: "UNKNOWN",
+                            task.retryCount,
+                            task.sourceId,
+                        ) + stringResource(CoreR.string.download_next_retry_value, retryAt),
+                    style = CinefinType.BodySmall,
+                    color = colors.onSurfaceFaint,
+                )
+                CinefinButton(
+                    text = stringResource(CoreR.string.close),
+                    onClick = onDismiss,
+                    variant = CinefinButtonVariant.Text,
+                )
+            }
+        }
     }
 }
 

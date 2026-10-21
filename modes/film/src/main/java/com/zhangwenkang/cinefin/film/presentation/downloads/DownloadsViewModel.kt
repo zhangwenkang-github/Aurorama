@@ -16,9 +16,11 @@ import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
+import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
+import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
@@ -165,9 +167,19 @@ constructor(
             is DownloadAction.EnsureBookCover -> ensureBookCover(action.itemId)
             DownloadAction.ToggleSelectionMode -> toggleSelectionMode()
             DownloadAction.ClearSelection -> clearSelection()
-            DownloadAction.PauseSelected -> runForSelectedTasks { downloader.pauseTask(it) }
-            DownloadAction.ResumeSelected -> runForSelectedTasks { downloader.resumeTask(it) }
-            DownloadAction.RetrySelected -> runForSelectedTasks { downloader.retryTask(it) }
+            DownloadAction.PauseSelected ->
+                runForSelectedTasks(DownloadTaskRules::canPause) { downloader.pauseTask(it) }
+            DownloadAction.ResumeSelected ->
+                runForSelectedTasks(DownloadTaskRules::canResume) { downloader.resumeTask(it) }
+            DownloadAction.RetrySelected -> retrySelected()
+            DownloadAction.RetryAllFailures -> retryAllFailures()
+            is DownloadAction.SelectKeys ->
+                _state.update { current ->
+                    current.copy(
+                        selectionMode = action.keys.isNotEmpty(),
+                        selection = action.keys,
+                    )
+                }
             DownloadAction.DeleteSelected -> deleteSelected()
             is DownloadAction.Pause -> runForTask(action.task) { downloader.pauseTask(it) }
             is DownloadAction.Resume -> runForTask(action.task) { downloader.resumeTask(it) }
@@ -294,11 +306,71 @@ constructor(
         }
     }
 
-    private fun runForSelectedTasks(block: suspend (DownloadTask) -> Any?) {
+    private fun runForSelectedTasks(
+        predicate: (DownloadTaskStatus) -> Boolean = { true },
+        block: suspend (DownloadTask) -> Any?,
+    ) {
         viewModelScope.launch {
-            val selected = _state.value.selectedTasks()
+            val selected = _state.value.selectedTasks().filter { predicate(it.status) }
             for (task in selected) {
                 block(task)
+            }
+            refresh(showLoading = false)
+        }
+    }
+
+    /** 失败页「重试全部失败」：目标与全选失败使用同一纯函数集合。 */
+    private fun retryAllFailures() {
+        val keys = DownloadSelectionRules.keysFor(_state.value, DownloadTaskGroup.FAILED)
+        val entries =
+            _state.value.allContainers
+                .flatMap { container ->
+                    container.children.flatMap { child ->
+                        when (child) {
+                            is DownloadHierarchyLeaf -> listOf(child.entry)
+                            is DownloadHierarchySubContainer -> child.children.map { it.entry }
+                        }
+                    }
+                }
+                .filter { it.key in keys }
+        val tasks =
+            entries
+                .mapNotNull { it.task }
+                .filter { DownloadTaskRules.canRetry(it.status) }
+                .distinctBy { it.itemId }
+        val books =
+            entries
+                .filter { entry ->
+                    entry.mediaKind == DownloadMediaKind.BOOK &&
+                        entry.status == DownloadTaskStatus.FAILED
+                }
+                .distinctBy { it.itemId }
+        clearSelection()
+        viewModelScope.launch {
+            for (task in tasks) {
+                downloader.retryTask(task)
+            }
+            for (book in books) {
+                readerRepository.enqueueBookDownload(book.itemId, book.name)
+            }
+            refresh(showLoading = false)
+        }
+    }
+
+    private fun retrySelected() {
+        val tasks =
+            _state.value
+                .selectedTasks()
+                .filter { DownloadTaskRules.canRetry(it.status) }
+                .distinctBy { it.itemId }
+        val books = DownloadSelectionRules.retryableBookEntries(_state.value)
+        if (tasks.isEmpty() && books.isEmpty()) return
+        viewModelScope.launch {
+            for (task in tasks) {
+                downloader.retryTask(task)
+            }
+            for (book in books) {
+                readerRepository.enqueueBookDownload(book.itemId, book.name)
             }
             refresh(showLoading = false)
         }
@@ -400,6 +472,13 @@ constructor(
                     Timber.w(error, "刷新下载任务失败")
                     emptyList()
                 }
+            val completedTaskIds = runCatching {
+                downloader.downloadedItemIds()
+            }
+                .getOrElse { emptySet() }
+            val activeEngineTasks =
+                DownloadControlPlaneRules.activeUniqueIntents(tasks, completedTaskIds)
+            val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)
             val episodeHierarchy = loadEpisodeHierarchy()
             val bookFiles = loadBookFiles()
             val completedBookIds = bookFiles.map { it.itemId }.toSet()
@@ -415,26 +494,20 @@ constructor(
             val bookStorageBytes = bookFiles.sumOf { it.sizeBytes }
 
             // ——— W63 阶段 1：本地数据（Room / 文件）先上屏，首帧不等待任何服务器接口 ———
-            val localActiveEntries =
-                tasks
-                    .filter { it.status != DownloadTaskStatus.FAILED }
-                    .map { task ->
-                        task.toHierarchyEntry(
-                            episodeHierarchy = episodeHierarchy,
-                            musicById = emptyMap(),
-                            allowRemoteImages = false,
-                        )
-                    }
-            val localFailedEntries =
-                tasks
-                    .filter { it.status == DownloadTaskStatus.FAILED }
-                    .map { task ->
-                        task.toHierarchyEntry(
-                            episodeHierarchy = episodeHierarchy,
-                            musicById = emptyMap(),
-                            allowRemoteImages = false,
-                        )
-                    }
+            val localActiveEntries = activeEngineTasks.map { task ->
+                task.toHierarchyEntry(
+                    episodeHierarchy = episodeHierarchy,
+                    musicById = emptyMap(),
+                    allowRemoteImages = false,
+                )
+            }
+            val localFailedEntries = failedEngineTasks.map { task ->
+                task.toHierarchyEntry(
+                    episodeHierarchy = episodeHierarchy,
+                    musicById = emptyMap(),
+                    allowRemoteImages = false,
+                )
+            }
             val localBookEntries = bookFiles.map { file -> file.toBookEntry(serverMetadata = null) }
             val localRunningBookEntries = runningBookTasks.map { task ->
                 task.toActiveBookEntry(serverName = null)
@@ -445,8 +518,8 @@ constructor(
             _state.update { current ->
                 current.copy(
                     isLoading = false,
-                    activeTasks = tasks.filter { it.status != DownloadTaskStatus.FAILED },
-                    failedTasks = tasks.filter { it.status == DownloadTaskStatus.FAILED },
+                    activeTasks = activeEngineTasks,
+                    failedTasks = failedEngineTasks,
                     activeContainers =
                         DownloadHierarchyBuilder.build(
                             localActiveEntries + localRunningBookEntries
@@ -478,26 +551,22 @@ constructor(
                 resolveBookMetadata(completedBookIds + runningBookTasks.map { it.itemId })
 
             val activeEntries =
-                tasks
-                    .filter { it.status != DownloadTaskStatus.FAILED }
-                    .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
-                        task.toHierarchyEntry(
-                            episodeHierarchy = episodeHierarchy,
-                            musicById = musicById,
-                            // W66：阶段 2 不再拉远程兜底图；缺图走阶段 3 本地补齐。
-                            allowRemoteImages = false,
-                        )
-                    }
+                activeEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+                    task.toHierarchyEntry(
+                        episodeHierarchy = episodeHierarchy,
+                        musicById = musicById,
+                        // W66：阶段 2 不再拉远程兜底图；缺图走阶段 3 本地补齐。
+                        allowRemoteImages = false,
+                    )
+                }
             val failedEntries =
-                tasks
-                    .filter { it.status == DownloadTaskStatus.FAILED }
-                    .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
-                        task.toHierarchyEntry(
-                            episodeHierarchy = episodeHierarchy,
-                            musicById = musicById,
-                            allowRemoteImages = false,
-                        )
-                    }
+                failedEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+                    task.toHierarchyEntry(
+                        episodeHierarchy = episodeHierarchy,
+                        musicById = musicById,
+                        allowRemoteImages = false,
+                    )
+                }
             val completedEntries =
                 completed
                     .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { download ->
@@ -533,8 +602,8 @@ constructor(
             _state.update { current ->
                 current.copy(
                     isLoading = false,
-                    activeTasks = tasks.filter { it.status != DownloadTaskStatus.FAILED },
-                    failedTasks = tasks.filter { it.status == DownloadTaskStatus.FAILED },
+                    activeTasks = activeEngineTasks,
+                    failedTasks = failedEngineTasks,
                     completed = completed,
                     activeContainers =
                         DownloadHierarchyBuilder.build(activeEntries + runningBookEntries),
@@ -550,7 +619,7 @@ constructor(
 
             // ——— W66 阶段 3：缺图 / 过期图后台补齐（并发上限 4；完成后自动刷新一次，无需重进页面） ———
             scheduleArtworkBackfill(
-                tasks = tasks,
+                tasks = activeEngineTasks + failedEngineTasks,
                 completed = completed,
                 episodeHierarchy = episodeHierarchy,
                 musicById = musicById,

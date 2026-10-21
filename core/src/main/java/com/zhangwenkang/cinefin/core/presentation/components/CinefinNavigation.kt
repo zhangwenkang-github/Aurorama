@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,6 +50,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
+import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 
 /**
  * 导航条目（§8.6）。
@@ -373,13 +373,9 @@ fun CinefinBottomTab(
 /** 导航图标槽：24dp 图标 + 可选右上角角标（W51 下载活动任务数）。 */
 @Composable
 private fun NavIconWithBadge(item: CinefinNavItem, selected: Boolean) {
-    Box(modifier = Modifier.size(24.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         item.icon(selected)
-        item.badge?.let { badge ->
-            Box(modifier = Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-7).dp)) {
-                badge()
-            }
-        }
+        item.badge?.let { badge -> Box(modifier = Modifier.padding(start = 4.dp)) { badge() } }
     }
 }
 
@@ -413,7 +409,7 @@ fun CinefinCountBadge(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (count > 99) "99+" else count.toString(),
+            text = DownloadControlPlaneRules.badgeText(count),
             style = CinefinType.LabelSmall,
             color = colors.surface,
             maxLines = 1,

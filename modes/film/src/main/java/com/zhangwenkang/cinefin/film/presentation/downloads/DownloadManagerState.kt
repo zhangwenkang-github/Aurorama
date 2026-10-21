@@ -36,13 +36,13 @@ data class DownloadManagerState(
     val selection: Set<String> = emptySet(),
 ) {
     val activeCount: Int
-        get() = activeContainers.size
+        get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.itemId }.size
 
     val completedCount: Int
         get() = completedContainers.size
 
     val failedCount: Int
-        get() = failedContainers.size
+        get() = failedContainers.flatMap { it.descendantEntries() }.distinctBy { it.itemId }.size
 
     val hasSelection: Boolean
         get() = selection.isNotEmpty()
@@ -161,6 +161,10 @@ sealed interface DownloadAction {
     data object ResumeSelected : DownloadAction
 
     data object RetrySelected : DownloadAction
+
+    data object RetryAllFailures : DownloadAction
+
+    data class SelectKeys(val keys: Set<String>) : DownloadAction
 
     data object DeleteSelected : DownloadAction
 

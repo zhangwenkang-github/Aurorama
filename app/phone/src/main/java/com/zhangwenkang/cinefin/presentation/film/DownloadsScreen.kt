@@ -58,6 +58,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyCon
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyRow
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadManagerState
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadMediaFilter
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadSelectionRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
 import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
 import com.zhangwenkang.cinefin.film.presentation.downloads.detailRows
@@ -78,6 +79,7 @@ import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 
 @Composable
 fun DownloadsScreen(
@@ -135,6 +137,9 @@ private fun DownloadsScreenLayout(
     /** W59：钻取详情页的容器 key；null = 顶层列表。 */
     var drilldownKey by rememberSaveable { mutableStateOf<String?>(null) }
     val drilldown = drilldownKey?.let { key -> state.containerFor(key) }
+    val selectableKeys = DownloadSelectionRules.keysFor(state, tab.group)
+    val allVisibleSelected =
+        selectableKeys.isNotEmpty() && state.selection.containsAll(selectableKeys)
 
     // 容器被删除 / 刷新后消失：自动回顶层列表，避免停在空详情。
     LaunchedEffect(drilldownKey, drilldown) {
@@ -173,7 +178,30 @@ private fun DownloadsScreenLayout(
             modifier = Modifier.padding(start = safePadding.start),
             actions = {
                 when {
-                    state.selectionMode ->
+                    state.selectionMode -> {
+                        CinefinIconButton(
+                            onClick = {
+                                onAction(
+                                    DownloadAction.SelectKeys(
+                                        if (allVisibleSelected) emptySet() else selectableKeys
+                                    )
+                                )
+                            }
+                        ) { tint ->
+                            Icon(
+                                painter = painterResource(CoreR.drawable.ic_check),
+                                contentDescription =
+                                    stringResource(
+                                        if (tab == DownloadTab.FAILED) {
+                                            CoreR.string.download_select_all_failed
+                                        } else {
+                                            CoreR.string.download_select_all
+                                        }
+                                    ),
+                                tint = tint,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                         CinefinIconButton(onClick = { onAction(DownloadAction.ClearSelection) }) {
                             tint ->
                             Icon(
@@ -183,7 +211,21 @@ private fun DownloadsScreenLayout(
                                 modifier = Modifier.size(20.dp),
                             )
                         }
-                    state.activeCount + state.completedCount + state.failedCount > 0 ->
+                    }
+                    state.activeCount + state.completedCount + state.failedCount > 0 -> {
+                        if (tab == DownloadTab.FAILED && state.failedCount > 0) {
+                            CinefinIconButton(
+                                onClick = { onAction(DownloadAction.RetryAllFailures) }
+                            ) { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_rotate_ccw),
+                                    contentDescription =
+                                        stringResource(CoreR.string.download_retry_all_failed),
+                                    tint = tint,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
                         CinefinIconButton(
                             onClick = { onAction(DownloadAction.ToggleSelectionMode) }
                         ) { tint ->
@@ -195,6 +237,7 @@ private fun DownloadsScreenLayout(
                                 modifier = Modifier.size(20.dp),
                             )
                         }
+                    }
                 }
             },
         )
@@ -710,6 +753,9 @@ private fun SelectionBar(
 ) {
     val colors = LocalCinefinColors.current
     val selectedTasks = state.selectedTasks
+    val canRetrySelected =
+        selectedTasks.any { DownloadTaskRules.canRetry(it.status) } ||
+            state.selectedEntries.any { it.status == DownloadTaskStatus.FAILED }
     Row(
         modifier =
             Modifier.fillMaxWidth()
@@ -748,7 +794,7 @@ private fun SelectionBar(
                 )
             }
             CinefinIconButton(
-                enabled = selectedTasks.any { DownloadTaskRules.canRetry(it.status) },
+                enabled = canRetrySelected,
                 onClick = { onAction(DownloadAction.RetrySelected) },
             ) { tint ->
                 Icon(

@@ -28,7 +28,7 @@ internal class DownloadNotifications(private val context: Context) {
 
     fun buildForeground(task: DownloadTask?, activeCount: Int): Notification {
         val title =
-            if (task != null && activeCount > 1) {
+            if (activeCount > 1) {
                 context.getString(CoreR.string.download_notification_active_multi, activeCount)
             } else {
                 task?.name ?: context.getString(CoreR.string.download_tasks_active)

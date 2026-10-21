@@ -47,6 +47,13 @@ interface Downloader {
     ): DownloadBatchResult
 
     /**
+     * W84：音乐批量点击的接收入口——先在同一事务内持久化全部新意图，随后后台解析媒体源与元数据。
+     *
+     * 返回值只表示「已受理」，不代表下载完成。
+     */
+    suspend fun receiveMusicBatch(requests: List<DownloadMusicIntentRequest>): DownloadBatchReceipt
+
+    /**
      * W63：下载活动集变化信号（入队 / 完成 / 失败 / 暂停 / 恢复 / 删除）。
      *
      * 侧栏角标等即时 UI 收到信号后重读只读快照即可；不需要精确载荷。

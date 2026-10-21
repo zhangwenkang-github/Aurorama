@@ -63,6 +63,7 @@ import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.DownloadMusicIntentRequest
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.OfflineMediaEntryKind
@@ -1299,11 +1300,18 @@ constructor(
         }
         if (plan.targets.isEmpty()) return
         viewModelScope.launch {
-            val failures = enqueueSongs(plan.targets)
+            val receipt = runCatching {
+                downloader.receiveMusicBatch(plan.targets.toIntentRequests())
+            }
+                .getOrElse {
+                    showBatchFailure("下载受理失败", it.message ?: "请稍后重试")
+                    return@launch
+                }
+            if (receipt.acceptedIds.isNotEmpty()) {
+                downloadQueuedChannel.send(receipt.acceptedIds.size)
+            }
             refreshDownloadState()
-            reportDownloadFailures(failures, plan.targets.size)
-            if (failures == 0) downloadQueuedChannel.send(plan.targets.size)
-            if (failures == 0 && plan.skippedByLimit > 0) {
+            if (plan.skippedByLimit > 0) {
                 showBatchFailure(
                     "单次上限 ${MusicAlbumDownloadRules.MAX_TRACKS_PER_REQUEST} 首",
                     "已加入前 ${plan.targets.size} 首，剩余 ${plan.skippedByLimit} 首请再次下载",
@@ -1318,11 +1326,18 @@ constructor(
         val plan = albumDownloadPlan(album)
         if (plan.targets.isEmpty()) return
         viewModelScope.launch {
-            val failures = enqueueSongs(plan.targets)
+            val receipt = runCatching {
+                downloader.receiveMusicBatch(plan.targets.toIntentRequests())
+            }
+                .getOrElse {
+                    showBatchFailure("下载受理失败", it.message ?: "请稍后重试")
+                    return@launch
+                }
+            if (receipt.acceptedIds.isNotEmpty()) {
+                downloadQueuedChannel.send(receipt.acceptedIds.size)
+            }
             refreshDownloadState()
-            reportDownloadFailures(failures, plan.targets.size)
-            if (failures == 0) downloadQueuedChannel.send(plan.targets.size)
-            if (failures == 0 && plan.skippedByLimit > 0) {
+            if (plan.skippedByLimit > 0) {
                 showBatchFailure(
                     "单次上限 ${MusicAlbumDownloadRules.MAX_TRACKS_PER_REQUEST} 首",
                     "已加入前 ${plan.targets.size} 首，剩余 ${plan.skippedByLimit} 首请再次下载",
@@ -1337,43 +1352,14 @@ constructor(
         return albumDownloadPlan(album).targets.size
     }
 
-    /** 逐首走既有批量下载链路（取条目 + 媒体源 → 入队），返回失败数。 */
-    private suspend fun enqueueSongs(songs: List<MusicSong>): Int {
-        var failures = 0
-        for (song in songs) {
-            val item = runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull()
-            val sourceId = runCatching {
-                jellyfinRepository.getMediaSources(song.itemId, true)
-            }
-                .getOrNull()
-                ?.firstOrNull()
-                ?.id
-            if (item == null || sourceId == null) {
-                failures++
-                continue
-            }
-            runCatching {
-                downloader.downloadItem(
-                    item = item,
-                    sourceId = sourceId,
-                    storageIndex = 0,
-                    albumName = song.albumName,
-                    artist = song.artist,
-                    trackIndex = song.indexNumber ?: 0,
-                )
-            }
-                .onFailure { failures++ }
-        }
-        return failures
-    }
-
-    private fun reportDownloadFailures(failures: Int, total: Int) {
-        if (failures > 0) {
-            showBatchFailure(
-                "部分下载未加入队列",
-                "有 $failures 首曲目读取失败，已加入其余 ${total - failures} 首",
-            )
-        }
+    private fun List<MusicSong>.toIntentRequests(): List<DownloadMusicIntentRequest> = map { song ->
+        DownloadMusicIntentRequest(
+            itemId = song.itemId,
+            name = song.name,
+            albumName = song.albumName,
+            artist = song.artist,
+            trackIndex = song.indexNumber ?: 0,
+        )
     }
 
     /** 批量收藏：任一所选未收藏 → 全部收藏；全部已收藏 → 全部取消。 */

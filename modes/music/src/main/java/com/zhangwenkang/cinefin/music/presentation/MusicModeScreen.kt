@@ -186,7 +186,7 @@ fun MusicModeScreen(
         viewModel.downloadQueued.collect { count ->
             val result =
                 snackbarHostState.showSnackbar(
-                    message = "已加入下载队列 · $count 首",
+                    message = "已受理下载 · $count 首",
                     actionLabel = "查看",
                     duration = DownloadSnackbarDuration,
                 )

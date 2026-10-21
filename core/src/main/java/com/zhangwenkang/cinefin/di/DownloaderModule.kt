@@ -6,6 +6,7 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.network.SharedPreferencesCertificateTrustStore
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.DownloadRedirectTokenInterceptor
 import com.zhangwenkang.cinefin.utils.Downloader
@@ -46,6 +47,7 @@ object DownloaderModule {
         application: Application,
         serverDatabase: ServerDatabaseDao,
         jellyfinRepository: JellyfinRepository,
+        readerRepository: ReaderRepository,
         appPreferences: AppPreferences,
         workManager: WorkManager,
         downloadHttpClient: OkHttpClient,
@@ -54,6 +56,7 @@ object DownloaderModule {
             application,
             serverDatabase,
             jellyfinRepository,
+            readerRepository,
             appPreferences,
             workManager,
             downloadHttpClient,

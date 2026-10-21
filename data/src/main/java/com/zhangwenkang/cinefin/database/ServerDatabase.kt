@@ -9,6 +9,7 @@ import androidx.room3.migration.AutoMigrationSpec
 import androidx.room3.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
+import com.zhangwenkang.cinefin.models.DownloadIntentDto
 import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidMediaStreamDto
 import com.zhangwenkang.cinefin.models.FindroidMovieDto
@@ -36,6 +37,7 @@ import com.zhangwenkang.cinefin.models.User
             FindroidSeasonDto::class,
             FindroidEpisodeDto::class,
             FindroidSourceDto::class,
+            DownloadIntentDto::class,
             FindroidMediaStreamDto::class,
             FindroidUserDataDto::class,
             FindroidTrickplayInfoDto::class,
@@ -44,7 +46,7 @@ import com.zhangwenkang.cinefin.models.User
             LocalLibraryFolderDto::class,
             LocalMediaItemDto::class,
         ],
-    version = 12,
+    version = 13,
     autoMigrations =
         [
             AutoMigration(from = 2, to = 3),
@@ -56,6 +58,7 @@ import com.zhangwenkang.cinefin.models.User
             AutoMigration(from = 9, to = 10),
             AutoMigration(from = 10, to = 11),
             AutoMigration(from = 11, to = 12),
+            AutoMigration(from = 12, to = 13),
         ],
 )
 @ColumnTypeConverters(Converters::class)

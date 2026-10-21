@@ -23,6 +23,8 @@ import androidx.work.workDataOf
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.models.DownloadIntentDto
+import com.zhangwenkang.cinefin.models.DownloadIntentStatus
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
@@ -45,7 +47,9 @@ import com.zhangwenkang.cinefin.models.toFindroidShowDto
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.toFindroidUserDataDto
+import com.zhangwenkang.cinefin.repository.BookDownloadStatus
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.DownloadEngineWorker
 import com.zhangwenkang.cinefin.work.ImagesDownloaderWorker
@@ -72,6 +76,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -92,6 +98,7 @@ class DownloaderImpl(
     private val context: Context,
     private val database: ServerDatabaseDao,
     private val jellyfinRepository: JellyfinRepository,
+    private val readerRepository: ReaderRepository,
     private val appPreferences: AppPreferences,
     private val workManager: WorkManager,
     httpClient: OkHttpClient,
@@ -105,6 +112,40 @@ class DownloaderImpl(
     /** W63：批量入队的节目 / 季快照缓存（同剧 N 集只解析一次，避免逐集两次网络往返）。 */
     private val showSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidShow>>()
     private val seasonSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidSeason>>()
+
+    /** W84：音乐接收意图批量门面；Room 的单事务由 [ServerDatabaseDao.saveDownloadIntents] 保证。 */
+    private val batchInbox =
+        DownloadBatchInbox(
+            store =
+                object : DownloadIntentStore {
+                    override suspend fun existingItemIds(itemIds: Set<UUID>): Set<UUID> =
+                        withContext(Dispatchers.IO) {
+                            (database.getDownloadIntentItemIds(itemIds) +
+                                    database.getSourceItemIds(itemIds))
+                                .toSet()
+                        }
+
+                    override suspend fun saveAll(requests: List<DownloadMusicIntentRequest>) =
+                        withContext(Dispatchers.IO) {
+                            val now = System.currentTimeMillis()
+                            database.saveDownloadIntents(
+                                requests.map { request ->
+                                    DownloadIntentDto(
+                                        itemId = request.itemId,
+                                        name = request.name,
+                                        albumName = request.albumName,
+                                        artist = request.artist,
+                                        trackIndex = request.trackIndex,
+                                        status = DownloadIntentStatus.RECEIVED.name,
+                                        createdAt = now,
+                                        updatedAt = now,
+                                    )
+                                }
+                            )
+                        }
+                }
+        )
+    private val receivedIntentLock = Mutex()
 
     /** W63：队列活动集变化信号（入队 / 完成 / 失败 / 删除），侧栏角标即时刷新。 */
     private val _queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
@@ -285,6 +326,95 @@ class DownloaderImpl(
             }
             DownloadBatchResult(addedIds = added.distinct(), lastError = lastError)
         }
+
+    override suspend fun receiveMusicBatch(
+        requests: List<DownloadMusicIntentRequest>
+    ): DownloadBatchReceipt =
+        withContext(Dispatchers.IO) {
+            val startedAt = System.nanoTime()
+            val receipt = batchInbox.accept(requests)
+            Timber.i(
+                "下载批次已受理：requested=%d accepted=%d duplicate=%d durationMs=%d",
+                requests.size,
+                receipt.acceptedIds.size,
+                receipt.alreadyAcceptedCount,
+                (System.nanoTime() - startedAt) / 1_000_000L,
+            )
+            if (receipt.acceptedIds.isNotEmpty()) {
+                notifyQueueChanged()
+                launchReceivedIntentProcessor()
+            }
+            receipt
+        }
+
+    /**
+     * 后台解析已受理意图。
+     *
+     * 页面协程退出、切后台或进程重启都不影响已落库的意图；成功写入 sources 后才删除意图行， 因此中途失败 / 被杀时可从持久化快照继续。
+     */
+    private fun launchReceivedIntentProcessor() {
+        scope.launch {
+            runCatching { processReceivedIntents() }.onFailure { Timber.w(it, "处理已受理下载意图失败") }
+        }
+    }
+
+    private suspend fun processReceivedIntents() = receivedIntentLock.withLock {
+        var processed = 0
+        while (true) {
+            val pending = withContext(Dispatchers.IO) { database.getReceivedDownloadIntents() }
+            if (pending.isEmpty()) break
+            pending.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
+                coroutineScope {
+                    chunk
+                        .map { intent -> async { resolveReceivedIntent(intent) } }
+                        .forEach { it.await() }
+                }
+            }
+            processed += pending.size
+            notifyQueueChanged()
+        }
+        if (processed > 0) {
+            Timber.i("已受理下载意图后台解析完成：%d 项", processed)
+        }
+    }
+
+    private suspend fun resolveReceivedIntent(intent: DownloadIntentDto) {
+        runCatching {
+            val item = jellyfinRepository.getItem(intent.itemId) ?: error("下载条目不存在")
+            val sourceId =
+                jellyfinRepository
+                    .getMediaSources(intent.itemId, includePath = true)
+                    .firstOrNull()
+                    ?.id ?: error("下载媒体源不存在")
+            val (handle, queueError) =
+                downloadItem(
+                    item = item,
+                    sourceId = sourceId,
+                    storageIndex = 0,
+                    albumName = intent.albumName,
+                    artist = intent.artist,
+                    trackIndex = intent.trackIndex,
+                )
+            if (handle == -1L) {
+                error("加入下载队列失败：${queueError ?: "未知错误"}")
+            }
+        }
+            .onSuccess {
+                withContext(Dispatchers.IO) { database.deleteDownloadIntent(intent.itemId) }
+            }
+            .onFailure { failure ->
+                withContext(Dispatchers.IO) {
+                    database.setDownloadIntentStatus(
+                        itemId = intent.itemId,
+                        status = DownloadIntentStatus.FAILED.name,
+                        failureReason = DownloadFailureReason.SERVER_ERROR.name,
+                        failureDetail = failure.message?.take(500),
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                }
+                Timber.w(failure, "解析下载意图失败：%s", intent.itemId)
+            }
+    }
 
     override suspend fun runQueue(): DownloadQueueOutcome {
         // W76-Q7：新一轮 worker 开始 → 复位调度交接状态（上一轮遗留的 kick / 静默标记作废）。
@@ -766,6 +896,13 @@ class DownloaderImpl(
 
     override suspend fun retryTask(task: DownloadTask): Pair<Long, UiText?> =
         withContext(Dispatchers.IO) {
+            if (task.sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
+                val now = System.currentTimeMillis()
+                database.retryDownloadIntent(task.itemId, now)
+                launchReceivedIntentProcessor()
+                notifyQueueChanged()
+                return@withContext Pair(downloadTaskHandle(task.sourceId), null)
+            }
             val source = database.getSource(task.sourceId) ?: return@withContext Pair(-1L, null)
             val now = System.currentTimeMillis()
             database.setSourceTaskStatus(
@@ -783,6 +920,12 @@ class DownloaderImpl(
 
     override suspend fun deleteTaskById(sourceId: String): Boolean =
         withContext(Dispatchers.IO) {
+            if (sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
+                val itemId = sourceId.removePrefix(INTENT_SOURCE_PREFIX).let(UUID::fromString)
+                database.deleteDownloadIntent(itemId)
+                notifyQueueChanged()
+                return@withContext true
+            }
             val source = database.getSource(sourceId) ?: return@withContext false
             val job = activeJobs[sourceId]
             job?.cancel(CancellationException("用户取消下载"))
@@ -926,6 +1069,43 @@ class DownloaderImpl(
                     )
             }
 
+            val sourceItemIds = tasks.mapTo(mutableSetOf()) { it.itemId }
+            tasks +=
+                database
+                    .getDownloadIntents()
+                    .asSequence()
+                    .filterNot { it.itemId in sourceItemIds }
+                    .map { intent ->
+                        DownloadTask(
+                            itemId = intent.itemId,
+                            sourceId = intentSourceId(intent.itemId),
+                            name = intent.name,
+                            path = "",
+                            downloadId = null,
+                            status =
+                                if (intent.status == DownloadIntentStatus.FAILED.name) {
+                                    DownloadTaskStatus.FAILED
+                                } else {
+                                    DownloadTaskStatus.PENDING
+                                },
+                            failureReason = intent.failureReason.toFailureReason(),
+                            downloadedBytes = 0L,
+                            totalBytes = 0L,
+                            updatedAt = intent.updatedAt,
+                            mediaKind = DownloadMediaKind.MUSIC,
+                            albumName = intent.albumName,
+                            artist = intent.artist,
+                            retryCount = 0,
+                            nextRetryAt = 0L,
+                        )
+                    }
+                    .toList()
+
+            val downloadedItemIds = database.getDownloadedItemIds().toSet()
+            tasks.removeAll { task ->
+                task.status != DownloadTaskStatus.FAILED && task.itemId in downloadedItemIds
+            }
+
             if (tasks.any { it.status == DownloadTaskStatus.PENDING }) {
                 ensureEngineRunning()
             }
@@ -979,6 +1159,9 @@ class DownloaderImpl(
                 }
             }
             if (recovered > 0) ensureEngineRunning(forceStart = true)
+            if (database.getReceivedDownloadIntents().isNotEmpty()) {
+                launchReceivedIntentProcessor()
+            }
             recovered
         }
 
@@ -1039,9 +1222,8 @@ class DownloaderImpl(
     override suspend fun activeItemIds(): Set<UUID> =
         withContext(Dispatchers.IO) {
             runCatching {
-                database
-                    .getPendingSources()
-                    .mapNotNull { source ->
+                val sourceIds =
+                    database.getPendingSources().mapNotNull { source ->
                         val status =
                             if (activeJobs.containsKey(source.id)) {
                                 DownloadTaskStatus.RUNNING
@@ -1053,15 +1235,24 @@ class DownloaderImpl(
                             }
                         source.itemId.takeIf { DownloadTaskRules.isActiveQueueStatus(status) }
                     }
-                    .toSet()
+                val receivedIntentIds = database.getReceivedDownloadIntents().map { it.itemId }
+                val runningBookIds =
+                    readerRepository.bookDownloads.value
+                        .filter { it.status == BookDownloadStatus.RUNNING }
+                        .map { it.itemId }
+                val downloadedItemIds = database.getDownloadedItemIds().toSet()
+                (sourceIds + receivedIntentIds + runningBookIds).filterNotTo(mutableSetOf()) {
+                    it in downloadedItemIds
+                }
             }
                 .getOrElse { emptySet() }
         }
 
     override suspend fun foregroundInfo(): ForegroundInfo {
         val tasks = snapshotActiveTasks()
+        val activeCount = activeItemIds().size
         val notification =
-            notifications.buildForeground(task = tasks.firstOrNull(), activeCount = tasks.size)
+            notifications.buildForeground(task = tasks.firstOrNull(), activeCount = activeCount)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
                 DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
@@ -1322,35 +1513,21 @@ class DownloaderImpl(
         }
 
     private fun updateForegroundNotificationNow() {
-        val entries = runtime.value.entries.toList()
-        val active = entries.size
-        if (active == 0) {
-            lastNotificationAt = 0L
-            return
-        }
         val now = System.currentTimeMillis()
         if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) return
         lastNotificationAt = now
-        val (sourceId, state) = entries.first()
-        val first =
-            DownloadTask(
-                itemId = UUID(0L, 0L),
-                sourceId = sourceId,
-                name = state.name,
-                path = "",
-                downloadId = null,
-                status = DownloadTaskStatus.RUNNING,
-                failureReason = null,
-                downloadedBytes = state.downloadedBytes,
-                totalBytes = state.totalBytes,
-                updatedAt = 0L,
-                speedBytesPerSecond = state.speedBytesPerSecond,
-                etaSeconds = state.etaSeconds,
+        scope.launch {
+            val active = activeItemIds().size
+            if (active == 0) {
+                lastNotificationAt = 0L
+                return@launch
+            }
+            val first = snapshotActiveTasks().firstOrNull()
+            notificationManager?.notify(
+                DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
+                notifications.buildForeground(task = first, activeCount = active),
             )
-        notificationManager?.notify(
-            DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
-            notifications.buildForeground(task = first, activeCount = active),
-        )
+        }
     }
 
     private fun networkPolicyAllows(): Boolean {
@@ -1448,6 +1625,9 @@ class DownloaderImpl(
 
         /** W63：节目 / 季快照缓存有效期。 */
         const val SNAPSHOT_TTL_MS = 10 * 60 * 1_000L
+
+        /** W84：持久化接收意图的后台解析并发上限。分片执行但不会截断批次。 */
+        const val INTENT_RESOLVE_CONCURRENCY = 6
     }
 }
 
@@ -1457,6 +1637,10 @@ internal const val DOWNLOAD_ENGINE_WORK_NAME = "downloadEngine"
 /** sourceId → 稳定的 UI 句柄（替代旧 DownloadManager id 语义，不持久化数值）。 */
 internal fun downloadTaskHandle(sourceId: String): Long =
     sourceId.hashCode().toLong() and 0xFFFFFFFFL
+
+internal const val INTENT_SOURCE_PREFIX = "intent:"
+
+internal fun intentSourceId(itemId: UUID): String = "$INTENT_SOURCE_PREFIX$itemId"
 
 /** 自研引擎状态 → DownloadManager 常量（旧 UI 轮询兼容；仅常量映射，不调用系统下载器）。 */
 internal fun DownloadTaskStatus.toDownloadManagerStatus(): Int =

@@ -6,6 +6,7 @@ import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Transaction
 import androidx.room3.Update
+import com.zhangwenkang.cinefin.models.DownloadIntentDto
 import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidMediaStreamDto
 import com.zhangwenkang.cinefin.models.FindroidMovieDto
@@ -91,6 +92,45 @@ interface ServerDatabaseDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSource(source: FindroidSourceDto)
+
+    @Query("SELECT itemId FROM sources WHERE itemId IN (:itemIds)")
+    suspend fun getSourceItemIds(itemIds: Set<UUID>): List<UUID>
+
+    @Query("SELECT * FROM downloadIntents")
+    suspend fun getDownloadIntents(): List<DownloadIntentDto>
+
+    @Query("SELECT * FROM downloadIntents WHERE status = 'RECEIVED' ORDER BY createdAt ASC")
+    suspend fun getReceivedDownloadIntents(): List<DownloadIntentDto>
+
+    @Query("SELECT itemId FROM downloadIntents WHERE itemId IN (:itemIds)")
+    suspend fun getDownloadIntentItemIds(itemIds: Set<UUID>): List<UUID>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertDownloadIntent(intent: DownloadIntentDto): Long
+
+    @Transaction
+    suspend fun saveDownloadIntents(intents: List<DownloadIntentDto>) {
+        intents.forEach { insertDownloadIntent(it) }
+    }
+
+    @Query("DELETE FROM downloadIntents WHERE itemId = :itemId")
+    suspend fun deleteDownloadIntent(itemId: UUID)
+
+    @Query(
+        "UPDATE downloadIntents SET status = :status, failureReason = :failureReason, failureDetail = :failureDetail, updatedAt = :updatedAt WHERE itemId = :itemId"
+    )
+    suspend fun setDownloadIntentStatus(
+        itemId: UUID,
+        status: String,
+        failureReason: String?,
+        failureDetail: String?,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE downloadIntents SET status = 'RECEIVED', failureReason = NULL, failureDetail = NULL, updatedAt = :updatedAt WHERE itemId = :itemId"
+    )
+    suspend fun retryDownloadIntent(itemId: UUID, updatedAt: Long)
 
     @Query("SELECT * FROM movies WHERE id = :id") suspend fun getMovie(id: UUID): FindroidMovieDto
 
