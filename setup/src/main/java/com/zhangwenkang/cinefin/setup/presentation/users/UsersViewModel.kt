@@ -2,6 +2,9 @@ package com.zhangwenkang.cinefin.setup.presentation.users
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.setup.domain.OfflineIdentityCoordinator
+import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationResult
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -13,12 +16,25 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class UsersViewModel @Inject constructor(private val repository: SetupRepository) : ViewModel() {
+class UsersViewModel
+@Inject
+constructor(
+    private val repository: SetupRepository,
+    appPreferences: AppPreferences,
+) : ViewModel() {
     private val _state = MutableStateFlow(UsersState())
     val state = _state.asStateFlow()
 
     private val eventsChannel = Channel<UsersEvent>()
     val events = eventsChannel.receiveAsFlow()
+
+    private val offlineIdentityCoordinator =
+        OfflineIdentityCoordinator(
+            authenticator = repository,
+            offlineModeController = { enabled ->
+                appPreferences.setValue(appPreferences.offlineMode, enabled)
+            },
+        )
 
     fun loadUsers() {
         viewModelScope.launch {
@@ -59,10 +75,34 @@ class UsersViewModel @Inject constructor(private val repository: SetupRepository
     }
 
     private fun loginAsUser(userId: UUID) {
+        if (_state.value.activatingUserId != null) return
         viewModelScope.launch {
-            repository.setCurrentUser(userId)
-
-            eventsChannel.send(UsersEvent.NavigateToHome)
+            _state.emit(
+                _state.value.copy(
+                    activatingUserId = userId,
+                    activationFailure = null,
+                )
+            )
+            when (val result = offlineIdentityCoordinator.activateSavedUser(userId)) {
+                is SavedUserActivationResult.Activated -> {
+                    _state.emit(
+                        _state.value.copy(
+                            currentUserId = result.user.id,
+                            activatingUserId = null,
+                            activationFailure = null,
+                        )
+                    )
+                    eventsChannel.send(UsersEvent.NavigateToHome)
+                }
+                is SavedUserActivationResult.Rejected -> {
+                    _state.emit(
+                        _state.value.copy(
+                            activatingUserId = null,
+                            activationFailure = result.failure,
+                        )
+                    )
+                }
+            }
         }
     }
 

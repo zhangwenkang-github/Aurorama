@@ -164,6 +164,8 @@
     <string name="settings_group_interface">外观与界面</string>
     <string name="settings_group_other">其他</string>
     <string name="settings_account_summary">管理用户与登录</string>
+    <string name="settings_offline_identity_summary">离线访问中 · 点按切换或登录用户</string>
+    <string name="settings_offline_identity_badge">未登录</string>
     <string name="settings_about_summary">版本与开源许可</string>
     <string name="settings_servers_summary">添加 / 切换服务器</string>
     <string name="settings_network_summary">请求与超时参数</string>

@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.setup.presentation.users
 
 import com.zhangwenkang.cinefin.models.User
+import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationFailure
 import java.util.UUID
 
 data class UsersState(
@@ -8,4 +9,6 @@ data class UsersState(
     val publicUsers: List<User> = emptyList(),
     val serverName: String? = null,
     val currentUserId: UUID? = null,
+    val activatingUserId: UUID? = null,
+    val activationFailure: SavedUserActivationFailure? = null,
 )

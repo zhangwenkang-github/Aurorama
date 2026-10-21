@@ -48,4 +48,9 @@
     <string name="certificate_trusted_empty">尚未信任任何憑證。</string>
     <string name="certificate_trust_clear">清除</string>
     <string name="users_current_badge">目前</string>
+    <string name="users_verifying">正在驗證使用者…</string>
+    <string name="users_activation_token_expired">儲存的登入已失效，請重新新增此使用者並輸入密碼</string>
+    <string name="users_activation_server_unavailable">無法連線伺服器，仍保持離線模式</string>
+    <string name="users_activation_user_unavailable">伺服器上找不到此使用者，仍保持離線模式</string>
+    <string name="users_activation_unknown">未能啟用此使用者，仍保持離線模式</string>
 </resources>

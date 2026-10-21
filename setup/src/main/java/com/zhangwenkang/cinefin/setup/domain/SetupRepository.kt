@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import org.jellyfin.sdk.model.api.QuickConnectResult
 import org.jellyfin.sdk.model.api.ServerDiscoveryInfo
 
-interface SetupRepository {
+interface SetupRepository : SavedUserAuthenticator {
     fun discoverServers(): Flow<ServerDiscoveryInfo>
 
     suspend fun getServers(): List<ServerWithAddresses>

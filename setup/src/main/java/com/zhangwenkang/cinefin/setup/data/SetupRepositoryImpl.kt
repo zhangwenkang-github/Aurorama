@@ -16,7 +16,10 @@ import com.zhangwenkang.cinefin.network.fingerprintsMatch
 import com.zhangwenkang.cinefin.network.httpsTargetOf
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.setup.R as SetupR
+import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationFailure
+import com.zhangwenkang.cinefin.setup.domain.SavedUserAuthenticationException
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
+import com.zhangwenkang.cinefin.setup.domain.classifySavedUserAuthenticationError
 import com.zhangwenkang.cinefin.setup.domain.nextCurrentUserIdAfterDelete
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -291,6 +294,52 @@ class SetupRepositoryImpl(
         val currentServer = getCurrentServer() ?: return null
         return database.getServerCurrentUser(currentServer.id)
     }
+
+    override suspend fun authenticate(userId: UUID): User =
+        withContext(Dispatchers.IO) {
+            val server =
+                getCurrentServer()
+                    ?: throw SavedUserAuthenticationException(
+                        SavedUserActivationFailure.USER_UNAVAILABLE
+                    )
+            val user =
+                database.getUser(userId)
+                    ?: throw SavedUserAuthenticationException(
+                        SavedUserActivationFailure.USER_UNAVAILABLE
+                    )
+            if (user.serverId != server.id) {
+                throw SavedUserAuthenticationException(SavedUserActivationFailure.USER_UNAVAILABLE)
+            }
+            val accessToken =
+                user.accessToken?.takeIf { it.isNotBlank() }
+                    ?: throw SavedUserAuthenticationException(
+                        SavedUserActivationFailure.TOKEN_EXPIRED
+                    )
+
+            val previousAccessToken = jellyfinApi.api.accessToken
+            val previousUserId = jellyfinApi.userId
+            jellyfinApi.api.update(accessToken = accessToken)
+            jellyfinApi.userId = user.id
+
+            try {
+                val remoteUser = jellyfinApi.userApi.getCurrentUser().content
+                if (remoteUser.id != user.id) {
+                    throw SavedUserAuthenticationException(
+                        SavedUserActivationFailure.USER_UNAVAILABLE
+                    )
+                }
+                database.updateServerCurrentUser(server.id, user.id)
+                user
+            } catch (error: Exception) {
+                jellyfinApi.api.update(accessToken = previousAccessToken)
+                jellyfinApi.userId = previousUserId
+                if (error is SavedUserAuthenticationException) throw error
+                throw SavedUserAuthenticationException(
+                    classifySavedUserAuthenticationError(error),
+                    error,
+                )
+            }
+        }
 
     override suspend fun deleteUser(userId: UUID) {
         val user = database.getUser(userId) ?: return

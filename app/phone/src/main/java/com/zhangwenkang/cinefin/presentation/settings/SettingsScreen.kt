@@ -54,6 +54,7 @@ import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerState
 import com.zhangwenkang.cinefin.presentation.navigation.DrawerViewModel
 import com.zhangwenkang.cinefin.presentation.settings.components.SettingsGroupCard
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.R as SettingsR
@@ -64,6 +65,8 @@ import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsAction
 import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsEvent
 import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsState
 import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsViewModel
+import com.zhangwenkang.cinefin.setup.domain.IdentityPresentation
+import com.zhangwenkang.cinefin.setup.domain.resolveIdentityPresentation
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents
 import com.zhangwenkang.cinefin.utils.restart
 import timber.log.Timber
@@ -75,6 +78,7 @@ fun SettingsScreen(
     navigateToSettingsFileEdit: (filePath: String) -> Unit,
     navigateToServers: () -> Unit,
     navigateToUsers: () -> Unit,
+    onOpenOfflineIdentity: (hasCurrentUser: Boolean) -> Unit = { navigateToUsers() },
     navigateToAbout: () -> Unit,
     navigateBack: () -> Unit,
     /** W42：紧凑形态（手机底部 Tab）才允许「隐藏底栏」；平板形态开关置灰 + 说明。 */
@@ -82,6 +86,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val isOfflineMode = LocalOfflineMode.current
 
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -143,8 +148,10 @@ fun SettingsScreen(
     SettingsScreenLayout(
         title = indexes.last(),
         state = state,
+        isOfflineMode = isOfflineMode,
         onReloadPreferences = { viewModel.loadPreferences(indexes, DeviceType.PHONE, compactForm) },
         onOpenUsers = navigateToUsers,
+        onOpenOfflineIdentity = onOpenOfflineIdentity,
         onAction = { action ->
             when (action) {
                 is SettingsAction.OnBackClick -> navigateBack()
@@ -166,8 +173,10 @@ fun SettingsScreen(
 private fun SettingsScreenLayout(
     @StringRes title: Int,
     state: SettingsState,
+    isOfflineMode: Boolean = false,
     onReloadPreferences: () -> Unit,
     onOpenUsers: () -> Unit,
+    onOpenOfflineIdentity: (hasCurrentUser: Boolean) -> Unit = {},
     onAction: (SettingsAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -246,7 +255,9 @@ private fun SettingsScreenLayout(
                                 {
                                     SettingsAccountHeader(
                                         state = accountState,
+                                        isOfflineMode = isOfflineMode,
                                         onClick = onOpenUsers,
+                                        onOpenOfflineIdentity = onOpenOfflineIdentity,
                                     )
                                 }
                             } else {
@@ -282,18 +293,35 @@ private fun SettingsScreenLayout(
 @Composable
 private fun SettingsAccountHeader(
     state: DrawerState,
+    isOfflineMode: Boolean = false,
     onClick: () -> Unit,
+    onOpenOfflineIdentity: (hasCurrentUser: Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
+    val hasCurrentUser = state.userName != null
+    val identity = resolveIdentityPresentation(isOfflineMode, hasCurrentUser)
     val isAdministrator = state.isAdministrator
-    val badgeColor = if (isAdministrator) colors.onSurface else colors.onSurfaceVariant
+    val badgeColor =
+        if (identity != IdentityPresentation.OFFLINE && isAdministrator) {
+            colors.onSurface
+        } else {
+            colors.onSurfaceVariant
+        }
 
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
-                .cinefinClickable(onClick = onClick)
+                .cinefinClickable(
+                    onClick = {
+                        if (identity == IdentityPresentation.OFFLINE) {
+                            onOpenOfflineIdentity(hasCurrentUser)
+                        } else {
+                            onClick()
+                        }
+                    }
+                )
                 .padding(CinefinSpacing.Space4)
     ) {
         Row(
@@ -310,7 +338,12 @@ private fun SettingsAccountHeader(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = state.userName?.trim()?.take(1)?.uppercase().orEmpty().ifEmpty { "?" },
+                    text =
+                        if (identity == IdentityPresentation.OFFLINE) {
+                            "离"
+                        } else {
+                            state.userName?.trim()?.take(1)?.uppercase().orEmpty().ifEmpty { "?" }
+                        },
                     style = CinefinType.TitleLarge,
                     color = colors.onSurface,
                 )
@@ -318,7 +351,12 @@ private fun SettingsAccountHeader(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = state.userName ?: stringResource(CoreR.string.not_set),
+                    text =
+                        if (identity == IdentityPresentation.OFFLINE) {
+                            stringResource(SettingsR.string.offline_mode)
+                        } else {
+                            state.userName ?: stringResource(CoreR.string.not_set)
+                        },
                     style = CinefinType.TitleMedium,
                     color = colors.onSurface,
                     maxLines = 1,
@@ -337,7 +375,14 @@ private fun SettingsAccountHeader(
                 }
                 // W42：账号卡承担「账号与服务器」组的入口语义——点卡片进入用户管理。
                 Text(
-                    text = stringResource(SettingsR.string.settings_account_summary),
+                    text =
+                        stringResource(
+                            if (identity == IdentityPresentation.OFFLINE) {
+                                SettingsR.string.settings_offline_identity_summary
+                            } else {
+                                SettingsR.string.settings_account_summary
+                            }
+                        ),
                     style = CinefinType.BodySmall,
                     color = colors.onSurfaceFaint,
                     maxLines = 1,
@@ -348,8 +393,12 @@ private fun SettingsAccountHeader(
             Text(
                 text =
                     stringResource(
-                        if (isAdministrator) CoreR.string.role_administrator
-                        else CoreR.string.role_regular_user
+                        when {
+                            identity == IdentityPresentation.OFFLINE ->
+                                SettingsR.string.settings_offline_identity_badge
+                            isAdministrator -> CoreR.string.role_administrator
+                            else -> CoreR.string.role_regular_user
+                        }
                     ),
                 style = CinefinType.LabelMedium,
                 color = badgeColor,

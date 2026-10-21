@@ -42,7 +42,9 @@ import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.setup.components.RootLayout
 import com.zhangwenkang.cinefin.presentation.setup.components.SetupBrandMark
 import com.zhangwenkang.cinefin.presentation.setup.components.UserItem
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.setup.R as SetupR
+import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationFailure
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersAction
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersEvent
 import com.zhangwenkang.cinefin.setup.presentation.users.UsersState
@@ -63,6 +65,7 @@ fun UsersScreen(
     viewModel: UsersViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isOfflineMode = LocalOfflineMode.current
 
     LaunchedEffect(true) { viewModel.loadUsers() }
 
@@ -75,6 +78,7 @@ fun UsersScreen(
     UsersScreenLayout(
         state = state,
         showBack = showBack,
+        isOfflineMode = isOfflineMode,
         onOfflineClick = onOfflineClick,
         onAction = { action ->
             when (action) {
@@ -93,6 +97,7 @@ fun UsersScreen(
 private fun UsersScreenLayout(
     state: UsersState,
     showBack: Boolean = true,
+    isOfflineMode: Boolean = false,
     onOfflineClick: () -> Unit = {},
     onAction: (UsersAction) -> Unit,
 ) {
@@ -138,7 +143,7 @@ private fun UsersScreenLayout(
                     items(state.users) { user ->
                         UserItem(
                             name = user.name,
-                            isCurrent = user.id == state.currentUserId,
+                            isCurrent = !isOfflineMode && user.id == state.currentUserId,
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { onAction(UsersAction.OnUserClick(userId = user.id)) },
                             onLongClick = {
@@ -158,6 +163,22 @@ private fun UsersScreenLayout(
                         )
                     }
                 }
+            }
+            if (state.activatingUserId != null) {
+                Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+                Text(
+                    text = stringResource(SetupR.string.users_verifying),
+                    style = CinefinType.BodySmall,
+                    color = LocalCinefinColors.current.onSurfaceVariant,
+                )
+            }
+            state.activationFailure?.let { failure ->
+                Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+                Text(
+                    text = stringResource(activationFailureStringRes(failure)),
+                    style = CinefinType.BodySmall,
+                    color = LocalCinefinColors.current.error,
+                )
             }
         }
         if (showBack) {
@@ -227,6 +248,16 @@ private fun UsersScreenLayout(
         }
     }
 }
+
+private fun activationFailureStringRes(failure: SavedUserActivationFailure): Int =
+    when (failure) {
+        SavedUserActivationFailure.TOKEN_EXPIRED -> SetupR.string.users_activation_token_expired
+        SavedUserActivationFailure.SERVER_UNAVAILABLE ->
+            SetupR.string.users_activation_server_unavailable
+        SavedUserActivationFailure.USER_UNAVAILABLE ->
+            SetupR.string.users_activation_user_unavailable
+        SavedUserActivationFailure.UNKNOWN -> SetupR.string.users_activation_unknown
+    }
 
 @PreviewScreenSizes
 @Composable

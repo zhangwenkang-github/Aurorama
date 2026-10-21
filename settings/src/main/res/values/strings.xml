@@ -170,6 +170,8 @@
     <string name="settings_group_interface">Appearance &amp; interface</string>
     <string name="settings_group_other">Other</string>
     <string name="settings_account_summary">Manage users and sign-in</string>
+    <string name="settings_offline_identity_summary">Offline access · Tap to switch or sign in</string>
+    <string name="settings_offline_identity_badge">Signed out</string>
     <string name="settings_about_summary">Version and licenses</string>
     <string name="settings_servers_summary">Add or switch servers</string>
     <string name="settings_network_summary">Requests and timeouts</string>

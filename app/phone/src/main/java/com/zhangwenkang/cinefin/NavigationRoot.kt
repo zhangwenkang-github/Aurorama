@@ -173,6 +173,8 @@ import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.video.VideoScreen
 import com.zhangwenkang.cinefin.presentation.video.pickVideoLibraries
+import com.zhangwenkang.cinefin.setup.domain.OfflineExitDestination
+import com.zhangwenkang.cinefin.setup.domain.resolveOfflineExitPlan
 import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
@@ -990,16 +992,16 @@ fun NavigationRoot(
                         },
                         onAddClick = { navController.safeNavigate(LoginRoute()) },
                         onBackClick = { navController.safePopBackStack() },
-                        onPublicUserClick = { username ->
-                            navController.safeNavigate(LoginRoute(username = username))
+                        onPublicUserClick = { _ ->
+                            // W85：登录页不预选任何用户；公开用户列表只负责进入登录。
+                            navController.safeNavigate(LoginRoute())
                         },
                         showBack = navController.previousBackStackEntry != null,
                         onOfflineClick = enterOfflineMode,
                     )
                 }
             }
-            composable<LoginRoute> { backStackEntry ->
-                val route: LoginRoute = backStackEntry.toRoute()
+            composable<LoginRoute> {
                 ProvideLumen {
                     LoginScreen(
                         onSuccess = {
@@ -1017,7 +1019,6 @@ fun NavigationRoot(
                             }
                         },
                         onBackClick = { navController.safePopBackStack() },
-                        prefilledUsername = route.username,
                         onOfflineClick = enterOfflineMode,
                     )
                 }
@@ -1510,6 +1511,45 @@ fun NavigationRoot(
                         },
                         navigateToServers = { navController.safeNavigate(ServersRoute) },
                         navigateToUsers = { navController.safeNavigate(UsersRoute) },
+                        onOpenOfflineIdentity = { hasCurrentUser ->
+                            if (hasCurrentUser) {
+                                navController.safeNavigate(UsersRoute)
+                            } else {
+                                val plan =
+                                    resolveOfflineExitPlan(
+                                        hasServers = hasServers,
+                                        hasCurrentServer = hasCurrentServer,
+                                        hasCurrentUser = false,
+                                    )
+                                if (plan.clearOfflineMode) {
+                                    offlineModeViewModel.exitOfflineMode()
+                                }
+                                when (plan.destination) {
+                                    OfflineExitDestination.LOGIN ->
+                                        navController.safeNavigate(
+                                            LoginRoute(username = plan.loginUsername)
+                                        ) {
+                                            popUpTo(0)
+                                            launchSingleTop = true
+                                        }
+                                    OfflineExitDestination.SERVERS ->
+                                        navController.safeNavigate(ServersRoute) {
+                                            popUpTo(0)
+                                            launchSingleTop = true
+                                        }
+                                    OfflineExitDestination.WELCOME ->
+                                        navController.safeNavigate(WelcomeRoute) {
+                                            popUpTo(0)
+                                            launchSingleTop = true
+                                        }
+                                    OfflineExitDestination.HOME ->
+                                        navController.safeNavigate(HomeRoute) {
+                                            popUpTo(0)
+                                            launchSingleTop = true
+                                        }
+                                }
+                            }
+                        },
                         navigateToAbout = { navController.safeNavigate(AboutRoute) },
                         navigateBack = { navController.safePopBackStack() },
                         // W42：平板形态没有底栏，「隐藏底栏」开关需要置灰并给出说明。
