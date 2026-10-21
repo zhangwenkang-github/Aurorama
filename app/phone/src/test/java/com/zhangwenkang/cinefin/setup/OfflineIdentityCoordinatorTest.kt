@@ -11,9 +11,13 @@ import com.zhangwenkang.cinefin.setup.domain.classifySavedUserAuthenticationErro
 import com.zhangwenkang.cinefin.setup.domain.resolveIdentityPresentation
 import com.zhangwenkang.cinefin.setup.domain.resolveOfflineExitPlan
 import java.io.IOException
+import java.net.ConnectException
+import java.net.UnknownHostException
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.api.client.exception.TimeoutException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -152,6 +156,57 @@ class OfflineIdentityCoordinatorTest {
         assertEquals(
             SavedUserActivationFailure.SERVER_UNAVAILABLE,
             classifySavedUserAuthenticationError(IOException("offline")),
+        )
+    }
+
+    @Test
+    fun `SDK 包装的网络异常沿完整 cause 链归类为服务器不可用`() {
+        assertEquals(
+            SavedUserActivationFailure.SERVER_UNAVAILABLE,
+            classifySavedUserAuthenticationError(
+                ApiClientException(
+                    "wrapped timeout",
+                    TimeoutException("request timeout", UnknownHostException("offline")),
+                )
+            ),
+        )
+        assertEquals(
+            SavedUserActivationFailure.SERVER_UNAVAILABLE,
+            classifySavedUserAuthenticationError(
+                ApiClientException("wrapped connect", ConnectException("refused"))
+            ),
+        )
+        assertEquals(
+            SavedUserActivationFailure.SERVER_UNAVAILABLE,
+            classifySavedUserAuthenticationError(
+                TimeoutException("wrapped io", IOException("socket closed"))
+            ),
+        )
+    }
+
+    @Test
+    fun `包装的 401 与 403 仍归类为登录失效`() {
+        assertEquals(
+            SavedUserActivationFailure.TOKEN_EXPIRED,
+            classifySavedUserAuthenticationError(
+                ApiClientException("wrapped 401", InvalidStatusException(401, null))
+            ),
+        )
+        assertEquals(
+            SavedUserActivationFailure.TOKEN_EXPIRED,
+            classifySavedUserAuthenticationError(
+                ApiClientException("wrapped 403", InvalidStatusException(403, null))
+            ),
+        )
+    }
+
+    @Test
+    fun `未知包装异常仍归类为未知`() {
+        assertEquals(
+            SavedUserActivationFailure.UNKNOWN,
+            classifySavedUserAuthenticationError(
+                ApiClientException("business failure", IllegalArgumentException("invalid"))
+            ),
         )
     }
 }

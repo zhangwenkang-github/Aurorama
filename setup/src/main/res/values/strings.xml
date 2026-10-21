@@ -50,7 +50,7 @@
    <string name="users_current_badge">Current</string>
    <string name="users_verifying">Verifying user…</string>
    <string name="users_activation_token_expired">The saved sign-in has expired. Add this user again and enter the password.</string>
-   <string name="users_activation_server_unavailable">Cannot reach the server. Offline mode remains enabled.</string>
+   <string name="users_activation_server_unavailable">Unable to connect to the server. Check your network and try again.</string>
    <string name="users_activation_user_unavailable">This user is unavailable on the server. Offline mode remains enabled.</string>
    <string name="users_activation_unknown">Could not activate this user. Offline mode remains enabled.</string>
 </resources>

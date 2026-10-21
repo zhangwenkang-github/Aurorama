@@ -22,6 +22,7 @@ import com.zhangwenkang.cinefin.setup.domain.SetupRepository
 import com.zhangwenkang.cinefin.setup.domain.classifySavedUserAuthenticationError
 import com.zhangwenkang.cinefin.setup.domain.nextCurrentUserIdAfterDelete
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -30,10 +31,58 @@ import org.jellyfin.sdk.discovery.RecommendedServerInfoScore
 import org.jellyfin.sdk.discovery.RecommendedServerIssue
 import org.jellyfin.sdk.model.api.AuthenticateUserByName
 import org.jellyfin.sdk.model.api.AuthenticationResult
+import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
 import org.jellyfin.sdk.model.api.ServerDiscoveryInfo
 import timber.log.Timber
+
+sealed interface ServerBootstrapResult {
+    data class Explicit(val systemInfo: PublicSystemInfo, val address: String) :
+        ServerBootstrapResult
+
+    data class Discovered(val servers: Collection<RecommendedServerInfo>) : ServerBootstrapResult
+}
+
+suspend fun resolveServerBootstrap(
+    address: String,
+    candidates: Collection<String>,
+    loadPublicInfo: suspend (baseUrl: String) -> PublicSystemInfo,
+    loadRecommendedServers: suspend () -> Collection<RecommendedServerInfo>,
+): ServerBootstrapResult {
+    val explicitBaseUrl =
+        if (
+            address.trim().startsWith("http://", ignoreCase = true) ||
+                address.trim().startsWith("https://", ignoreCase = true)
+        ) {
+            candidates.firstOrNull()
+        } else {
+            null
+        }
+
+    if (explicitBaseUrl != null) {
+        suspend fun loadPublicInfoOrNull(): PublicSystemInfo? =
+            try {
+                loadPublicInfo(explicitBaseUrl)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
+        // Pad 5 的首次直连 socket 偶发停留在 SYN-SENT；同一快速路径重试可避开旧连接，
+        // 仍失败时才进入原有候选发现。
+        val systemInfo = loadPublicInfoOrNull() ?: loadPublicInfoOrNull()
+        if (
+            systemInfo?.productName?.contains("Jellyfin", ignoreCase = true) == true &&
+                systemInfo.version?.isNotBlank() == true &&
+                systemInfo.id?.isNotBlank() == true
+        ) {
+            return ServerBootstrapResult.Explicit(systemInfo, explicitBaseUrl)
+        }
+    }
+
+    return ServerBootstrapResult.Discovered(loadRecommendedServers())
+}
 
 class SetupRepositoryImpl(
     private val jellyfinApi: JellyfinApi,
@@ -95,15 +144,33 @@ class SetupRepositoryImpl(
         }
 
         val candidates = jellyfinApi.jellyfin.discovery.getAddressCandidates(address)
-        val recommended =
-            try {
-                jellyfinApi.jellyfin.discovery.getRecommendedServers(
-                    candidates,
-                    RecommendedServerInfoScore.OK,
-                )
-            } catch (e: Exception) {
-                throw certificateTrustRequired(candidates) ?: e
-            }
+        val bootstrap =
+            resolveServerBootstrap(
+                address = address,
+                candidates = candidates,
+                loadPublicInfo = { baseUrl ->
+                    withContext(Dispatchers.IO) {
+                        jellyfinApi.api.update(baseUrl = baseUrl)
+                        val systemInfo by jellyfinApi.systemApi.getPublicSystemInfo()
+                        systemInfo
+                    }
+                },
+                loadRecommendedServers = {
+                    try {
+                        jellyfinApi.jellyfin.discovery.getRecommendedServers(
+                            candidates,
+                            RecommendedServerInfoScore.OK,
+                        )
+                    } catch (e: Exception) {
+                        throw certificateTrustRequired(candidates) ?: e
+                    }
+                },
+            )
+
+        if (bootstrap is ServerBootstrapResult.Explicit) {
+            return saveServerInDatabase(bootstrap.systemInfo, bootstrap.address)
+        }
+        val recommended = (bootstrap as ServerBootstrapResult.Discovered).servers
         val goodServers = mutableListOf<RecommendedServerInfo>()
         val okServers = mutableListOf<RecommendedServerInfo>()
 
@@ -141,7 +208,13 @@ class SetupRepositoryImpl(
                 ?: throw ExceptionUiText(
                     UiText.StringResource(SetupR.string.add_server_error_no_id)
                 )
+        return saveServerInDatabase(serverInfo, recommendedServerInfo.address)
+    }
 
+    private suspend fun saveServerInDatabase(
+        serverInfo: PublicSystemInfo,
+        address: String,
+    ): Server {
         Timber.d("Connecting to server: ${serverInfo.serverName}")
 
         val serverInDatabase = database.getServer(serverInfo.id!!)
@@ -152,12 +225,12 @@ class SetupRepositoryImpl(
             if (serverInDatabase != null) {
                 val addresses = database.getServerWithAddresses(serverInDatabase.id).addresses
                 // If address is not in database, add it
-                if (addresses.none { it.address == recommendedServerInfo.address }) {
+                if (addresses.none { it.address == address }) {
                     val serverAddress =
                         ServerAddress(
                             id = UUID.randomUUID(),
                             serverId = serverInDatabase.id,
-                            address = recommendedServerInfo.address,
+                            address = address,
                         )
 
                     database.insertServerAddress(serverAddress)
@@ -168,7 +241,7 @@ class SetupRepositoryImpl(
                     ServerAddress(
                         id = UUID.randomUUID(),
                         serverId = serverInfo.id!!,
-                        address = recommendedServerInfo.address,
+                        address = address,
                     )
 
                 val server =
@@ -184,9 +257,7 @@ class SetupRepositoryImpl(
                 server
             }
 
-        jellyfinApi.apply {
-            api.update(baseUrl = recommendedServerInfo.address, accessToken = null)
-        }
+        jellyfinApi.apply { api.update(baseUrl = address, accessToken = null) }
 
         return server
     }

@@ -511,6 +511,7 @@
 - 落点白名单：`settings` 离线 / 登录偏好、`data` 当前用户与令牌状态、`UsersViewModel`、`NavigationRoot` 登录 / 离线分支、设置页身份行与相关字符串。
 - 验收：无用户 → 可退出离线到不预选登录页；选有效用户 → `offlineMode=false` + 在线首页 + 用户域缓存正确；令牌 401 → 保持离线并显示原因；多用户 / 重启 / 离线内容入口不丢；0 FATAL / ANR。
 - 证据：`.planning\cinefin-expansion\w85-reports\`、`w85-evidence\`。
+- **2026-10-21 S85-FIX（待独立 QA / 合并）**：显式带 scheme 地址先直连基础 `/System/Info/Public`（同一快速路径允许一次 socket 重试），按 `ProductName + Version + Id` 校验成功即保存，失败才回退原候选发现；认证失败分类遍历完整 cause 链识别 SDK 包装网络异常，401/403 仍归登录失效，断网文案改为“无法连接服务器，请检查网络后重试”。Pad 5 真机完成公开信息直连、普通用户 200、真实 401、断网、在线冷启动；报告 `w85-reports\W85-FIX.md`。
 
 #### W86 播放连续性与媒体信息（待 W84/W85 后开工）
 

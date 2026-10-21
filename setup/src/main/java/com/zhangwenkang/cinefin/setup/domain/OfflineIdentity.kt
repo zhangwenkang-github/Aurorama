@@ -84,12 +84,22 @@ class SavedUserAuthenticationException(
 
 fun classifySavedUserAuthenticationError(error: Throwable): SavedUserActivationFailure =
     when {
-        error is InvalidStatusException && error.status in setOf(401, 403) ->
+        error.hasCauseMatching { it is InvalidStatusException && it.status in setOf(401, 403) } ->
             SavedUserActivationFailure.TOKEN_EXPIRED
-        error is IOException || error is CertificateTrustRequiredException ->
+        error.hasCauseMatching { it is IOException || it is CertificateTrustRequiredException } ->
             SavedUserActivationFailure.SERVER_UNAVAILABLE
         else -> SavedUserActivationFailure.UNKNOWN
     }
+
+private fun Throwable.hasCauseMatching(predicate: (Throwable) -> Boolean): Boolean {
+    val visited = mutableSetOf<Throwable>()
+    var current: Throwable? = this
+    while (current != null && visited.add(current)) {
+        if (predicate(current)) return true
+        current = current.cause
+    }
+    return false
+}
 
 fun interface SavedUserAuthenticator {
     suspend fun authenticate(userId: UUID): User
