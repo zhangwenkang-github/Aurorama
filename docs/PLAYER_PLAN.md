@@ -2799,3 +2799,80 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 2026-10-23 03:36：W86-B **DONE**。`master` 从 `3d62e335` ff-only 到 `f52429ac` 并推送；Build `39840800620`、Unit Tests `39840800605`、Format `39840800644` 三路 CI 均钉在该 commit 且 `success`。代码对象保持 `57b57549`，候选 APK `331B4B581E5541DF0DA174760ED1E546535DB0D802B809B3A88198EBC9AEAAF6`。
 - W86-B 最终证据：独立 QA 6/6、28/28，P0–P3=0；merge-prep 8 模块 1194/0/0/0；真实 `server=- / user=-` A/B 隔离、K60 紧凑布局独立次级轨 UI、其他内核 / 平台继续列未覆盖。未改 `Versions.kt`、未打 tag / Release。
 - 下一棒 = W86-C（seek 请求确认态），必须在 W86-B 合并后串行新建负责人；W86-B 的 worktree / 分支不再承载新功能。
+
+## 43. W86-C seek 请求确认态（2026-10-23 开工计划）
+
+### 43.1 对象与现状
+
+- 对象：`#45` 的 seek 部分；分支 `codex/w86-c-seek-state`，worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`。只读开工实况：`origin/master` / 本地起点 `235f67b5`，是 W86-B 合并提交 `f52429ac` 的后继文档提交；W86-B 代码对象 `57b57549` 已在 `origin/master` 祖先链内，三路 CI 结论仍只指向其原 run，不重新包装。
+- W86-C 唯一目标：所有用户发起的 seek 统一经过“请求 → 定位中 → 确认 / 失败” reducer，UI 只发意图并消费状态，不直接调用底层 seek；缓冲百分比、UI 乐观更新和未经证实的原生位置变化均不得冒充“确认”。
+- 当前进度条、手势、章节、片头尾入口和双内核实现必须在 spike 后按实际调用链接线；未读全量源码，不假定所有入口已经共享同一路径。
+
+### 43.2 目标与验收
+
+1. **唯一请求入口**：进度条点击 / 拖动、横向手势、章节跳转、片头尾跳过、±步进及现有媒体控制如果会改变播放位置，全部经 ViewModel 的单一 seek 命令进入 reducer；UI 内不得保留直接 `seekTo`调用。静态检索门禁须证明生产 UI 不再直接调用内核 seek。
+2. **状态与显示真源**：reducer 至少表达 `Idle`、`Seeking(target, generation)`、`Confirmed(position, generation)`、`Failed(target, reason, retryable, generation)`；请求后到确认前，时间文本、进度条、手势预览和章节状态保持请求目标，不接受迟到的 0 / 结尾 / 旧请求位置覆盖。确认后才能切回内核位置真源。
+3. **确认证据**：Exo / mpv 各自 adapter 返回可判定的确认、失败或“不支持该确认语义”；spike 必须给出事件名、触发时序、位置容差和代码证据。若引擎只能给出“请求已受理”而不能区分“定位完成”，必须显式标为不可可靠表达并停下 spike，禁止用 `BUFFERING`、缓冲进度或定时器伪造确认。
+4. **连续 seek**：每次请求递增 generation；旧 generation 的确认 / 失败 / 位置采样全部丢弃，只有最后一次目标能进入 `Confirmed`。快速连续 seek 的最终位置必须等于最后目标（允许播放期间正常推进），且不会短暂展示更早目标为已确认。
+5. **失败与重试**：引擎拒绝、适配器异常或确认超时进入可解释的 `Failed`；界面显示可重试原因，重试再次走同一 reducer 和同一目标，不清 0、不自动改跳其他位置。超时阈值由 spike 与转码实测决定并作为可注入配置，必须有假时钟单测，不能用真实 sleep 测试。
+6. **直放 / 转码**：直放覆盖目标 `300ms` 边界及请求后的首个 300ms 显示窗口，确认前不闪 0 / 结尾；转码超窗重开会话时保留同一请求目标及 generation，跨媒体源替换继续“定位中”，最终由新会话确认或明确失败。
+7. **双内核**：Pad 5 Exo 与 K60 mpv 都须有文本可判定的真机证据；任一内核无法表达确认时，它在 UI 中必须是可解释的失败 / 能力限制，不能被报告为通过。双机最终 App FATAL=0、ANR=0；未执行项单列。
+8. **测试层级**：纯 reducer 与 timeout / generation / clamp 逻辑用 TDD 单测；入口接线用 ViewModel / adapter 测试；真机验收只验证用户可见链路和引擎事件，不用单测冒充真机结论。P0 / P1 必须按证据分列，不得伪报 0。
+
+### 43.3 非目标
+
+- 不改 `Versions.kt`、版本号、tag、Release 或发布签名；不进入 W86-D–W89。
+- 不写生产服务器、Room schema 或用户数据；生产 `jellyfins.zhangwenkang.com` 只读，禁止 `POST` / `PUT` / `PATCH` / `DELETE`；凭据不落报告 / 日志 / memory。
+- 不重做 W86-A / W86-B，不改字幕作用域，不顺手重构整个播放页或换播放器。
+- 不把 W86-B 保留的真实 server A/B、user A/B、K60 紧凑布局独立次级轨 UI、其他内核 / 平台纳入本轮通过结论。
+- 不用截图做实现 / 修复 / 门禁取证；主负责人 0 截图、不使用 `view_image`。
+
+### 43.4 架构边界与实施顺序
+
+- reducer 是 seek 的唯一状态真源，放在可独立单测的纯 Kotlin 单元；ViewModel 持有当前 generation、目标与超时任务，Activity / Compose 只发送用户意图。
+- Exo 与 mpv 各自通过 `PlayerHolder` 后的 adapter 上报规范化事件；UI 不感知内核类型。播放器回调先进入 adapter，再以带 generation 的结果回送 ViewModel；不允许在 Activity 内补状态。
+- 转码重开会话由现有播放链路执行，但 reducer 的 target / generation 必须跨媒体源替换保留；若 adapter 在替换期间丢失上下文，则明确失败，不退回 0。
+- 新增接口优先只在 `player/local` 内闭环；`TranscodeSeekRules.kt` 保留转码规则职责，reducer / adapter 的状态职责不硬塞进 UI 或 `MPVPlayer`。最终文件边界以 spike 结论和最小可测实现为准。
+
+### 43.5 阶段、责任与门禁
+
+| 阶段 | 执行者 | 通过门 | 预计耗时 |
+|---|---|---|---|
+| P0 计划 / 基线 | 负责人 | 本计划落盘并回读；`git status / branch / worktree / rev-parse / adb devices / device-lock` 实况闭合；确认从 `origin/master` 起步 | 10–20 分钟 |
+| P1 只读 spike | 全新“资深 Android 播放器架构师（只读诊断 / spike）”代理，`deepseek-flash`、`fork_turns=none` | 对 Exo / mpv 分别给出确认、失败、超时和转码重开的可表达性结论；给事件 / 回调名、位置容差、代码指针、无法确认时的止损建议；只读、不改代码、不 commit | 30–60 分钟 |
+| P2 方案定稿 | 负责人 | 只消费 spike 压缩报告；确认可表达字段、超时阈值、adaptor 边界与测试矩阵；若无法可靠确认，停止实现并回写 BLOCKED | 15–30 分钟 |
+| P3 TDD 实现 | 全新“资深 Android 播放器状态机工程师”代理，`deepseek-flash`、`fork_turns=none` | 先红后绿；reducer / generation / timeout / retry / 转码保留目标测试；所有入口接入统一命令；目标模块测试、phone debug 构建、根 `ktfmtCheck`、`git diff --check` 通过；报告 commit / 文件 / 未覆盖项 | 3–5 小时 |
+| P4 独立 QA | 全新“资深移动端 QA 架构师 / 用户验收经理”代理，`deepseek-flash`、`fork_turns=none` | 独立于实现者，从用户入口重建矩阵；P0–P3 分列；双机文本证据、APK SHA、FATAL / ANR、还原结果落档；不改代码、不 commit | 2–3 小时 |
+| P5 merge-prep | 全新“移动端架构师”代理，`deepseek-flash`、`fork_turns=none` | rebase 最新 `origin/master`；全量模块门禁、phone debug、格式、diff 白名单；只做 prepare，不 merge / push | 45–90 分钟 |
+| P6 负责人合并 | 负责人 | 审查范围与 QA，ff-only 合并；同代码对象三路 CI 全绿；失败即停 | 30–60 分钟 |
+| P7 收口 | 负责人 | 回写本任务线 / handoff / Engramory，P0/P1 未执行项如实保留；只有 W86-C 完整收口后才创建 W86-D | 20–40 分钟 |
+
+合计预计 7–12 小时；机械门禁可并行读取，但设备、实现、QA、merge-prep 的职责串行。任何新 P0 / P1 或确认事件不可表达时，停止扩展并回到范围判断。
+
+### 43.6 上下文预算与检查点
+
+- 负责人开工实测（2026-10-23 03:40）：`98,690 / 1,048,576（9.4%）`、9 次请求。预计负责人到收口还需 80,000–160,000 tokens，按实际优先。
+- 各代理开工先报实际水位：spike 预计 40,000–80,000；实现 150,000–260,000；独立 QA 120,000–220,000；merge-prep 50,000–100,000。每阶段结束都必须落一行“实际水位 + 继续 / 收缩 / 交接”。
+- **25 万**：停止无判别力扩样、停止非必需重构，把已有结论与剩余动作写进本文件 / 报告。
+- **30 万**：停止新增阶段或测试项，写当前 commit、门禁、证据指针、剩余步骤和下一任身份，进入交接准备。
+- **35 万**：必须创建下一负责人会话并让旧负责人只做交接；不能继续功能、真机矩阵或 merge。50 万为全体止损上限。
+
+### 43.7 只读白名单
+
+- 负责人：handoff 顶部唯一 ACTIVE W86-C 段；`docs\PROJECT_PLAN.md` §2/§5；`docs\FIX_PLAN.md` W86-C / #45 命中段；本文件 §42.3 / §43；Engramory `MEMORY.md` 与 `aurorama-v14-requirements.md`、`leader-delegation-by-role.md`、`context-budget-two-tier.md`、`handoff-protocol.md`、`testing-delegation.md`、`screenshot-budget-visual-qa.md`；`git status / branch / worktree / rev-parse`；`adb devices -l`；`device-lock.md` 当前段。
+- spike 代理：本文件 §43、`FIX_PLAN` W86-C 卡；一次 `graphify query` 定位后只读 `TranscodeSeekRules.kt`、`PlayerViewModel`、`PlayerHolder`、`MPVPlayer`、`PlayerControlOverlay`、`PlayerGestureHelper` 的命中段及相关既有测试；不读完整历史报告 / 原始 logcat。
+- 实现代理：本文件 §43、spike 报告、上述命中文件与对应测试；只读实现所需局部源码。禁止读大文档全集、完整 UI dump 或生产服务器响应正文。
+- 独立 QA：W86-C 验收矩阵、候选 APK SHA、设备锁段和实现 / spike 的压缩结论；不读实现者源码或原始证据，独立重建用户入口。
+- merge-prep：本计划、分支 diff 摘要、实现 / QA 报告、关键逻辑文件与门禁输出；不读全量历史、截图或原始日志。
+
+### 43.8 证据路径与还原
+
+- spike：`F:\Develop\codex_work\.planning\cinefin-expansion\w86-reports\W86-C-SPIKE.md`，辅助证据 `...\w86c-evidence\spike\`。
+- 实现：`...\w86-reports\W86-C-IMPL.md`；QA：`...\W86-C-QA.md`；merge-prep：`...\W86-C-MERGE-PREP.md`；设备证据：`...\w86c-evidence\device\`、`...\qa\`。
+- 证据只保留 APK / 代码 SHA、设备 serial、安装时间、关键事件行、reducer 转移摘要、FATAL / ANR 汇总和还原哈希；不贴截图，不保存完整 dump 或凭据。
+- 任何设备操作前先在本文件同目录 `device-lock.md` 登记唯一锁并回读；完成后写释放时间、结论、APK / 偏好还原与未覆盖项。生产服务器只读；不启动在线写请求。
+
+### 43.9 执行日志（实时）
+
+- 2026-10-23 03:40：新负责人只读预检完成；交接 ACTIVE 唯一，实际 `HEAD = origin/master = 235f67b5`，其为 `f52429ac` 的后继文档提交；双机在线 `43af8627` / `8e875894`，当前锁已释放。已新建独立 worktree 与分支 `codex/w86-c-seek-state`，未改功能代码。
+- 2026-10-23 03:40：负责人水位 `98,690 / 1,048,576（9.4%）`；下一动作 = 派只读 spike，不先派实现。
