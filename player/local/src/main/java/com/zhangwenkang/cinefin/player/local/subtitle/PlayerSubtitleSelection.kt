@@ -5,11 +5,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import timber.log.Timber
 
-/**
- * 手动选定的字幕记忆（W74 #14②）。
- *
- * 存成 `媒体 id|主字幕序号|次字幕序号`：`-1` 表示该位置是「显式关闭 / 没有」。 切码率 / 换内核 / 解码回退会重启播放页并重建字幕源清单，这条记忆让用户的手动选择活过重启。
- */
+/** 旧单槽字幕记忆（W74 #14②）：只作为 W86-B 一次性迁移源，新写入不得使用。 */
 data class SubtitleManualSelection(
     val mediaId: String,
     val primaryIndex: Int,
@@ -29,6 +25,86 @@ data class SubtitleManualSelection(
             val secondary = parts[2].toIntOrNull() ?: return null
             return SubtitleManualSelection(mediaId, primary, secondary)
         }
+    }
+}
+
+/**
+ * 单片字幕偏好的隔离命名空间。
+ *
+ * 规范键严格为 `serverId|userId|itemId` 三段。缺失的 server / user 用 `-` 显式降级； itemId 不接受空值或占位符。任一段含 `|`
+ * 时无法无歧义编码，因此拒绝建键而不是猜测。
+ */
+data class SubtitleSelectionScope(
+    val serverId: String,
+    val userId: String,
+    val itemId: String,
+) {
+    fun encode(): String = "$serverId|$userId|$itemId"
+
+    companion object {
+        const val UNKNOWN = "-"
+
+        fun create(
+            serverId: String?,
+            userId: String?,
+            itemId: String,
+        ): SubtitleSelectionScope? {
+            val item = itemId.trim()
+            if (item.isBlank() || item == UNKNOWN || '|' in item) return null
+            val server = canonicalOptional(serverId) ?: return null
+            val user = canonicalOptional(userId) ?: return null
+            return SubtitleSelectionScope(server, user, item)
+        }
+
+        fun decode(raw: String?): SubtitleSelectionScope? {
+            val parts = raw?.split('|') ?: return null
+            if (parts.size != 3) return null
+            val server = parts[0]
+            val user = parts[1]
+            val item = parts[2]
+            if (server != server.trim() || user != user.trim() || item != item.trim()) return null
+            if (server.isBlank() || user.isBlank()) return null
+            if (item.isBlank() || item == UNKNOWN) return null
+            return SubtitleSelectionScope(server, user, item)
+        }
+
+        private fun canonicalOptional(value: String?): String? {
+            val trimmed = value?.trim()
+            if (trimmed.isNullOrEmpty()) return UNKNOWN
+            return trimmed.takeIf { '|' !in it }
+        }
+    }
+}
+
+/**
+ * 单片主 / 次字幕覆盖。
+ *
+ * 一行保存一条记录：`serverId|userId|itemId|primaryIndex|secondaryIndex`。 `-1`
+ * 表示该路显式关闭；任何负数、缺失段或非法键都令该行整体失效。
+ */
+data class ScopedSubtitleSelection(
+    val scope: SubtitleSelectionScope,
+    val primaryIndex: Int,
+    val secondaryIndex: Int,
+) {
+    fun encode(): String = "${scope.encode()}|$primaryIndex|$secondaryIndex"
+
+    companion object {
+        const val NO_INDEX = -1
+
+        fun decode(raw: String?): ScopedSubtitleSelection? {
+            val parts = raw?.split('|') ?: return null
+            if (parts.size != 5) return null
+            val scope =
+                SubtitleSelectionScope.decode(parts.subList(0, 3).joinToString("|")) ?: return null
+            val primary = parts[3].toIntOrNull()?.takeIf { it >= NO_INDEX } ?: return null
+            val secondary = parts[4].toIntOrNull()?.takeIf { it >= NO_INDEX } ?: return null
+            return ScopedSubtitleSelection(scope, primary, secondary)
+        }
+
+        /** 多行集合逐条解析；坏行只丢弃自己，不影响其他记录。 */
+        fun decodeAll(raw: String?): List<ScopedSubtitleSelection> =
+            raw.orEmpty().lineSequence().mapNotNull(::decode).toList()
     }
 }
 
@@ -311,7 +387,35 @@ object PlayerSubtitleSelection {
         return RestoredSubtitleSelection(
             primaryIndex = primary,
             secondaryIndex = secondary,
-            disabledByUser = memory.primaryIndex == SubtitleManualSelection.NO_INDEX,
+            disabledByUser =
+                memory.primaryIndex == SubtitleManualSelection.NO_INDEX &&
+                    memory.secondaryIndex == SubtitleManualSelection.NO_INDEX,
+        )
+    }
+
+    /** 按完整 server / user / item scope 恢复单片覆盖；scope 不完全相等时不读取。 */
+    fun restoreScoped(
+        selection: ScopedSubtitleSelection?,
+        scope: SubtitleSelectionScope,
+        sources: List<PlayerSubtitleSource>,
+    ): RestoredSubtitleSelection? {
+        if (selection == null || selection.scope != scope) return null
+        val primary =
+            when {
+                selection.primaryIndex == ScopedSubtitleSelection.NO_INDEX -> null
+                sources.any { it.index == selection.primaryIndex } -> selection.primaryIndex
+                else -> return null
+            }
+        val secondary =
+            selection.secondaryIndex
+                .takeIf { it != ScopedSubtitleSelection.NO_INDEX && it != primary }
+                ?.takeIf { index -> sources.any { it.index == index } }
+        return RestoredSubtitleSelection(
+            primaryIndex = primary,
+            secondaryIndex = secondary,
+            disabledByUser =
+                selection.primaryIndex == ScopedSubtitleSelection.NO_INDEX &&
+                    selection.secondaryIndex == ScopedSubtitleSelection.NO_INDEX,
         )
     }
 }

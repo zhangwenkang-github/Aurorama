@@ -146,6 +146,8 @@ class PlayerSubtitleController(
     private data class LoadedSubtitle(val cues: List<SubtitleCue>, val assScript: String?)
 
     private var mediaId: String = ""
+    private var selectionScope: SubtitleSelectionScope? = null
+    private var manualSelectionActive = false
 
     private var primaryLoadJob: Job? = null
     private var secondaryLoadJob: Job? = null
@@ -165,6 +167,7 @@ class PlayerSubtitleController(
     fun reset(
         mediaId: String,
         sources: List<PlayerSubtitleSource>,
+        selectionScope: SubtitleSelectionScope? = null,
         /** mpv 继续由原生 `sid` 自动选主字幕；次字幕只在用户选择 / 手动记忆时加载。 */
         autoSecondary: Boolean = true,
     ) {
@@ -172,6 +175,13 @@ class PlayerSubtitleController(
         secondaryLoadJob?.cancel()
         subtitleCache.clear()
         this.mediaId = mediaId
+        this.selectionScope =
+            selectionScope
+                ?: SubtitleSelectionScope.create(
+                    serverId = null,
+                    userId = null,
+                    itemId = mediaId,
+                )
         this.sources = sources
         primaryIndex = null
         secondaryIndex = null
@@ -186,17 +196,21 @@ class PlayerSubtitleController(
         primaryLoading = false
         secondaryLoading = false
         disabledByUser = false
-        /* W74 #14②：切码率 / 换内核会重启播放页并重建这份清单——用户手动选过的字幕先按记忆恢复，
-         * 没记忆（或记忆里的序号已不存在）才回到自动选择。 */
+        manualSelectionActive = false
+        migrateLegacySelectionIfMatching()
+        /* W86-B：有效单片覆盖先于全局模式 / 语言；没有记录或序号在当前清单失效才自动选择。 */
         val restored =
-            PlayerSubtitleSelection.restore(
-                memory = readManualSelection(),
-                mediaId = mediaId,
-                sources = sources,
-            )
+            this.selectionScope?.let { scope ->
+                PlayerSubtitleSelection.restoreScoped(
+                    selection = readScopedSelection(scope),
+                    scope = scope,
+                    sources = sources,
+                )
+            }
         if (restored == null) {
             autoSelect(autoSecondary = autoSecondary)
         } else {
+            manualSelectionActive = true
             disabledByUser = restored.disabledByUser
             applyPrimary(restored.primaryIndex, persist = false)
             applySecondary(restored.secondaryIndex, persist = false)
@@ -224,6 +238,7 @@ class PlayerSubtitleController(
         }
         disabledByUser = sources.isNotEmpty()
         applyPrimary(null, persist = false)
+        applySecondary(null, persist = false)
         rememberManualSelection()
         publish()
     }
@@ -298,16 +313,26 @@ class PlayerSubtitleController(
     /** 「自动选择」入口：丢掉本媒体的手动记忆，按当前模式 / 语言优先级重新挑选。 */
     fun autoSelectAndForgetManual(autoSecondary: Boolean = true) {
         disabledByUser = false
-        appPreferences.setValue(PlayerExtraPreferences.subtitleManualSelection, "")
+        manualSelectionActive = false
+        removeManualSelectionForCurrentItem()
         autoSelect(autoSecondary = autoSecondary)
     }
 
     /** 只丢掉手动记忆与关闭态，让内核自己重选（mpv `sid=auto` 用，避免预加载主字幕文件）。 */
     fun forgetManualSelectionForAuto() {
         disabledByUser = false
-        appPreferences.setValue(PlayerExtraPreferences.subtitleManualSelection, "")
+        manualSelectionActive = false
+        removeManualSelectionForCurrentItem()
         publish()
     }
+
+    /** 当前片是否有有效 / 显式关闭的手动覆盖；供 mpv 在轨道就绪后恢复原生 sid。 */
+    fun hasManualSelectionForCurrentItem(): Boolean =
+        manualSelectionActive && selectionScope?.let { readScopedSelection(it) != null } == true
+
+    /** 当前片的手动覆盖快照；无 scope 或无记录时为 null。 */
+    fun currentManualSelection(): ScopedSubtitleSelection? =
+        selectionScope?.let(::readScopedSelection)
 
     /** 用户手动把一条 mpv 源选为主字幕：像 Exo 一样记住主语言，供下一集自动选轨。 */
     fun rememberPrimaryLanguage(index: Int) {
@@ -470,20 +495,75 @@ class PlayerSubtitleController(
 
     /** 写入手动选择记忆（切码率 / 换内核重启后由 [reset] 恢复） */
     private fun rememberManualSelection() {
-        if (mediaId.isBlank()) return
+        val scope = selectionScope ?: return
+        manualSelectionActive = true
         val selection =
-            SubtitleManualSelection(
-                mediaId = mediaId,
-                primaryIndex = primaryIndex ?: SubtitleManualSelection.NO_INDEX,
-                secondaryIndex = secondaryIndex ?: SubtitleManualSelection.NO_INDEX,
+            ScopedSubtitleSelection(
+                scope = scope,
+                primaryIndex = primaryIndex ?: ScopedSubtitleSelection.NO_INDEX,
+                secondaryIndex = secondaryIndex ?: ScopedSubtitleSelection.NO_INDEX,
             )
-        appPreferences.setValue(PlayerExtraPreferences.subtitleManualSelection, selection.encode())
+        val existing =
+            ScopedSubtitleSelection.decodeAll(
+                    appPreferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+                )
+                .filterNot { it.scope == scope }
+        appPreferences.setValue(
+            PlayerExtraPreferences.subtitleManualSelectionsV2,
+            (existing + selection).joinToString("\n") { it.encode() },
+        )
     }
 
-    private fun readManualSelection(): SubtitleManualSelection? =
-        SubtitleManualSelection.decode(
-            appPreferences.getValue(PlayerExtraPreferences.subtitleManualSelection)
+    private fun readScopedSelection(scope: SubtitleSelectionScope): ScopedSubtitleSelection? =
+        ScopedSubtitleSelection.decodeAll(
+                appPreferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+            )
+            .lastOrNull { it.scope == scope }
+
+    private fun removeManualSelectionForCurrentItem() {
+        val scope = selectionScope ?: return
+        val remaining =
+            ScopedSubtitleSelection.decodeAll(
+                    appPreferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+                )
+                .filterNot { it.scope == scope }
+        appPreferences.setValue(
+            PlayerExtraPreferences.subtitleManualSelectionsV2,
+            remaining.joinToString("\n") { it.encode() },
         )
+    }
+
+    /**
+     * 旧键只保存 itemId；只有当前 item 命中时才写入当前 server / user 命名空间。
+     *
+     * V2 已有同 scope 记录时以新记录为准，旧键仅清除，避免旧值复活覆盖新选择。
+     */
+    private fun migrateLegacySelectionIfMatching() {
+        val scope = selectionScope ?: return
+        val legacy =
+            SubtitleManualSelection.decode(
+                appPreferences.getValue(PlayerExtraPreferences.subtitleManualSelection)
+            ) ?: return
+        if (legacy.mediaId != scope.itemId) return
+        if (readScopedSelection(scope) == null) {
+            val migrated =
+                ScopedSubtitleSelection(
+                    scope = scope,
+                    primaryIndex = legacy.primaryIndex,
+                    secondaryIndex = legacy.secondaryIndex,
+                )
+            val existing =
+                ScopedSubtitleSelection.decodeAll(
+                        appPreferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+                    )
+                    .filterNot { it.scope == scope }
+            appPreferences.setValue(
+                PlayerExtraPreferences.subtitleManualSelectionsV2,
+                (existing + migrated).joinToString("\n") { it.encode() },
+            )
+        }
+        appPreferences.setValue(PlayerExtraPreferences.subtitleManualSelection, "")
+    }
 
     private fun applyPrimary(
         index: Int?,

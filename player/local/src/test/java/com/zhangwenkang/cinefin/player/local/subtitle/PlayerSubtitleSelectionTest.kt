@@ -143,6 +143,129 @@ class PlayerSubtitleSelectionTest {
     }
 
     @Test
+    fun `规范键严格编码服务用户与媒体三段`() {
+        val scope =
+            SubtitleSelectionScope.create(
+                serverId = "server-a",
+                userId = "user-a",
+                itemId = "item-a",
+            )!!
+
+        assertEquals("server-a|user-a|item-a", scope.encode())
+        assertEquals(scope, SubtitleSelectionScope.decode(scope.encode()))
+        assertEquals(
+            "-|user-a|item-a",
+            SubtitleSelectionScope.create(
+                    serverId = null,
+                    userId = "user-a",
+                    itemId = "item-a",
+                )!!
+                .encode(),
+        )
+        assertEquals(
+            "server-a|-|item-a",
+            SubtitleSelectionScope.create(
+                    serverId = "server-a",
+                    userId = "",
+                    itemId = "item-a",
+                )!!
+                .encode(),
+        )
+    }
+
+    @Test
+    fun `规范键拒绝缺段空段额外段和非法媒体占位`() {
+        assertNull(SubtitleSelectionScope.decode(null))
+        assertNull(SubtitleSelectionScope.decode(""))
+        assertNull(SubtitleSelectionScope.decode("server-a|user-a"))
+        assertNull(SubtitleSelectionScope.decode("server-a|user-a|item-a|extra"))
+        assertNull(SubtitleSelectionScope.decode("server-a||item-a"))
+        assertNull(SubtitleSelectionScope.decode("|-|item-a"))
+        assertNull(SubtitleSelectionScope.decode("server-a|user-a|-"))
+        assertNull(SubtitleSelectionScope.decode(" server-a|user-a|item-a"))
+        assertNull(SubtitleSelectionScope.decode("server-a|user-a|item-a "))
+        assertNull(
+            SubtitleSelectionScope.create(
+                serverId = "bad|server",
+                userId = "user-a",
+                itemId = "item-a",
+            )
+        )
+    }
+
+    @Test
+    fun `单片主次与关闭记录严格编解码`() {
+        val scope =
+            SubtitleSelectionScope.create(
+                serverId = "server-a",
+                userId = "user-a",
+                itemId = "item-a",
+            )!!
+        val selection = ScopedSubtitleSelection(scope, primaryIndex = 4, secondaryIndex = -1)
+
+        assertEquals("server-a|user-a|item-a|4|-1", selection.encode())
+        assertEquals(selection, ScopedSubtitleSelection.decode(selection.encode()))
+        assertNull(ScopedSubtitleSelection.decode("server-a|user-a|item-a|4"))
+        assertNull(ScopedSubtitleSelection.decode("server-a|user-a|item-a|-2|-1"))
+        assertNull(ScopedSubtitleSelection.decode("server-a||item-a|4|-1"))
+    }
+
+    @Test
+    fun `多片记录逐行解析并逐条忽略坏记录`() {
+        val first =
+            ScopedSubtitleSelection(
+                SubtitleSelectionScope.create("server-a", "user-a", "item-a")!!,
+                primaryIndex = 4,
+                secondaryIndex = 3,
+            )
+        val second =
+            ScopedSubtitleSelection(
+                SubtitleSelectionScope.create("server-b", "user-b", "item-b")!!,
+                primaryIndex = -1,
+                secondaryIndex = -1,
+            )
+        val raw =
+            listOf(
+                    first.encode(),
+                    "broken",
+                    "server-a|user-a|item-c|not-int|-1",
+                    "server-a|user-a|item-c|-2|-1",
+                    second.encode(),
+                    "",
+                )
+                .joinToString("\n")
+
+        assertEquals(listOf(first, second), ScopedSubtitleSelection.decodeAll(raw))
+    }
+
+    @Test
+    fun `单片记录只在完整 scope 匹配时恢复`() {
+        val sources = summerGhostSources()
+        val scope = SubtitleSelectionScope.create("server-a", "user-a", "item-a")!!
+        val selection = ScopedSubtitleSelection(scope, primaryIndex = 5, secondaryIndex = 3)
+
+        val restored =
+            PlayerSubtitleSelection.restoreScoped(selection, scope = scope, sources = sources)
+
+        assertEquals(5, restored?.primaryIndex)
+        assertEquals(3, restored?.secondaryIndex)
+        assertNull(
+            PlayerSubtitleSelection.restoreScoped(
+                selection,
+                scope = scope.copy(userId = "user-b"),
+                sources = sources,
+            )
+        )
+        assertNull(
+            PlayerSubtitleSelection.restoreScoped(
+                selection,
+                scope = scope.copy(itemId = "item-b"),
+                sources = sources,
+            )
+        )
+    }
+
+    @Test
     fun `记忆里的序号在当前清单不存在时回落到自动选择`() {
         val memory = SubtitleManualSelection("media-a", primaryIndex = 99, secondaryIndex = -1)
 

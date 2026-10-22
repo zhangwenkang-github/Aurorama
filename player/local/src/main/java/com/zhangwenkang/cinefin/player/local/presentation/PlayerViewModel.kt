@@ -19,6 +19,7 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
+import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidMovie
@@ -69,10 +70,12 @@ import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackRef
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import com.zhangwenkang.cinefin.player.local.subtitle.ScopedSubtitleSelection
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitle
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitleStore
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferences
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSelectionScope
 import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -125,6 +128,8 @@ constructor(
      * `modes:music`（电话端）；TV 端不含音乐模块，注入接口会缺绑定。
      */
     private val playbackCoordinator: PlaybackCoordinatorImpl,
+    /** W86-B：当前用户 id 是字幕单片命名空间的权威来源，登录 / 切用户时由 SetupRepository 更新。 */
+    private val jellyfinApi: JellyfinApi,
 ) : ViewModel(), Player.Listener {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
@@ -1195,6 +1200,7 @@ constructor(
             ensureMpvSideloadsInjected(tracks)
             publishSubtitlePanelState()
             publishAudioPanelState()
+            applyMpvManualSubtitleSelection()
             // 双字幕期间主字幕改由 App 侧 libass 接管：轨道就绪后按实际 sid 补一次内容，
             // 覆盖「次字幕先于轨道列表加载」的顺序。
             ensureMpvPrimaryContent(subtitleController.overlayState.value)
@@ -1845,6 +1851,7 @@ constructor(
                 subtitleController.clearSecondaryForReassignment()
             }
             mpv.setSecondarySubtitle(null)
+            if (id == null) subtitleController.selectSecondary(null)
             // 新主字幕映射不到源时，先关闭 Compose 次字幕再切 sid：不能等 track-list 异步回调，
             // 否则新原生主字幕已经可见、旧次字幕还在画。
             if (
@@ -2216,6 +2223,7 @@ constructor(
         subtitleController.reset(
             mediaId = mediaId,
             sources = sources,
+            selectionScope = subtitleSelectionScope(mediaId),
             autoSecondary = playerBackend != PLAYER_BACKEND_MPV,
         )
         /*
@@ -2226,7 +2234,21 @@ constructor(
             subtitleController.selectPrimary(SideloadedSubtitleStore.INDEX_BASE)
         }
         ensureMpvSideloadsInjected()
+        applyMpvManualSubtitleSelection()
     }
+
+    /**
+     * 当前字幕单片的隔离命名空间。
+     *
+     * server 来自持久化当前服务器；user 来自 [JellyfinApi.userId]（登录 / 切换账号时由 SetupRepository 更新）。 缺任一项由 scope 写
+     * `-` 降级；此时无法承诺真实多服务器 / 多账号不出串。
+     */
+    private fun subtitleSelectionScope(mediaId: String): SubtitleSelectionScope? =
+        SubtitleSelectionScope.create(
+            serverId = appPreferences.getValue(appPreferences.currentServer),
+            userId = jellyfinApi.userId?.toString(),
+            itemId = mediaId,
+        )
 
     /** 当前条目的字幕源清单：服务器字幕 + 侧载字幕。mpv 只取次字幕，主字幕仍由 native sid 接管。 */
     private fun pipelineSourcesFor(
@@ -2676,6 +2698,31 @@ constructor(
         currentMpvPrimaryTrackId()?.let { sourceIndexForMpvSubtitleId(it) }
 
     /**
+     * mpv 在轨道列表就绪后应用当前片的有效手动覆盖。
+     *
+     * 主路序号有效时精确选回原生 sid；主路显式关闭时 `sid=no`。过期记录或自动模式不在这里抢全局规则。
+     */
+    private fun applyMpvManualSubtitleSelection() {
+        val mpv = player as? MPVPlayer ?: return
+        if (!subtitleController.hasManualSelectionForCurrentItem()) return
+        val selection = subtitleController.currentManualSelection() ?: return
+        if (selection.scope.itemId != currentPlaybackMediaId()) return
+        if (selection.primaryIndex == ScopedSubtitleSelection.NO_INDEX) {
+            if (currentMpvPrimaryTrackId() != null) {
+                mpv.setSubtitleAutoSelect(false)
+            }
+            subtitleController.setNativePrimaryActive(false)
+            return
+        }
+        val trackId = mpvTrackIdForSourceIndex(selection.primaryIndex) ?: return
+        if (currentMpvPrimaryTrackId() != trackId) {
+            mpv.selectSubtitleTrack(trackId)
+        }
+        subtitleController.syncPrimaryIndex(selection.primaryIndex)
+        subtitleController.setNativePrimaryActive(true)
+    }
+
+    /**
      * mpv 双字幕：主字幕改由 App 侧 libass 接管，需要与**当前 mpv `sid`** 对应的文本内容。
      *
      * 只在次字幕激活时按需加载；单字幕仍由内核原生渲染，不额外下载、不改变选择 / 语言记忆 / 延迟。
@@ -2939,6 +2986,10 @@ constructor(
      */
     private fun syncMpvSubtitleMode() {
         val mpv = player as? MPVPlayer ?: return
+        if (subtitleController.hasManualSelectionForCurrentItem()) {
+            applyMpvManualSubtitleSelection()
+            return
+        }
         val mode = appPreferences.getValue(appPreferences.subtitleMode)
         mpv.setSubtitleAutoSelect(mode != Constants.SubtitleMode.OFF)
     }
