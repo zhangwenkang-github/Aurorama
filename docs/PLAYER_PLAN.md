@@ -2711,6 +2711,16 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 实现（TDD 红→绿 + 真机）→ 独立 QA（不改代码）→ 独立 merge-prep（rebase、全量门禁、diff 白名单）→ 负责人 ff-only → 同代码 commit 三路 CI → 任务线 / handoff / Engramory → 串行创建 W86-C 下一负责人线程。
 - 未通过独立 QA 不合并；P0/P1 不得伪报为 0；真实账号隔离、真实第二服务器、未执行的人工项必须单列未覆盖。
 
+### 42.2 执行检查点（2026-10-23，35 万门禁交接）
+
+- 计划 commit `735a1dd9`；实现与三项真机回归修复位于 `codex/w86-b-subtitle-scope`，当前代码 HEAD `57b57549`，尚未 merge / push。
+- 已 TDD 红→绿修复三项 P1：首条侧载默认覆盖已恢复的单片主次；全局 `off/auto` 错误写穿当前单片行；自动选择清行后默认候选在重开时重新生成伪手动行。
+- 当前门禁：字幕 **48/0/0/0**；`:player:local` **232/0/0/0**；`:data` **84/0/0/0**；`:app:phone:assembleDebug`、根 `ktfmtCheck`、`git diff --check` 通过。
+- 真机已验证（修复前的中间 commit）：Pad A/B 两片不同主次、换片 / 强停保持、显式 `-1|-1`、全局 `auto→off→always→auto` 与全局主语言变化不覆盖单片、A 点自动选择只清 A。失败证据与逐轮结论见 `.planning\cinefin-expansion\w86-reports\W86-B-IMPL.md` 与 `w86b-evidence\device-closure-r2/r3`。
+- **当前未通过**：`57b57549` 尚未真机复验；A 自动选择后强停不得复活、无覆盖片全局行为、显式关闭、切码率、Pad Exo↔mpv、K60 mpv 核心链仍须在新 APK 上串行完成。未进入独立 QA、merge-prep、merge / CI。
+- 身份真机环境为 `server=- / user=-`；真实 server A/B、user A/B 隔离未覆盖，不得用单测冒充真机。
+- 负责人实测水位 **380,879 / 1,048,576（36.3%）**，按 35 万硬门禁停止；下一负责人先只读本段、报告 P4f/P4g 与记忆，再新建唯一设备锁启动真机闭环。设备当前已恢复原 APK / 偏好并释放，主截图预算仍为 0。
+
 - 目标：把字幕状态明确分成两层——外观 / 延迟 / 主次语言 / 模式是全局默认；主轨 / 次轨 / 显式关闭是单片覆盖。有效单片选择优先于全局，全局变更不得改写单片记录。
 - 当前三个缺口已定位：`PlayerExtraPreferences.subtitleManualSelection` 只有单槽，换片覆盖前片；旧键只含 itemId，不能隔离服务器 / 用户；`setSubtitleMode(OFF)` 调用清主 / 次字幕入口，把全局设置误写成单片手动关闭。
 - 设计：规范媒体键 = `serverId|userId|itemId`；偏好集合按该键保存主 / 次序号（`-1` = 显式关闭），严格解析并忽略坏记录。旧单槽只在当前 itemId 匹配时迁入当前命名空间，迁后清旧槽；无法匹配不恢复。“自动选择”删除当前片覆盖并回落到全局。
