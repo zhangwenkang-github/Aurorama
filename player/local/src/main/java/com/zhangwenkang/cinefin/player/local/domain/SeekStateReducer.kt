@@ -12,16 +12,6 @@ data class SeekConfirmationPolicy(
     val minimumTargetDisplayMs: Long,
 )
 
-data class SeekRequest(
-    val targetMs: Long,
-    val requestGeneration: Long,
-    val sourceEpoch: Long,
-    val mediaIdentity: SeekMediaIdentity,
-    val durationMs: Long,
-    val issuedAtMs: Long,
-    val policy: SeekConfirmationPolicy,
-)
-
 enum class SeekEngineEvidenceKind {
     SEEK_ACCEPTED,
     PLAYBACK_READY,
@@ -88,7 +78,46 @@ class SeekStateReducer {
     var state: SeekState = SeekState.Idle
         private set
 
-    fun request(request: SeekRequest) {
+    private var lastRequestGeneration = 0L
+
+    fun beginRequest(
+        targetMs: Long,
+        sourceEpoch: Long,
+        mediaIdentity: SeekMediaIdentity,
+        durationMs: Long,
+        issuedAtMs: Long,
+        policy: SeekConfirmationPolicy,
+    ): Long {
+        val generation = nextGeneration()
+        state =
+            SeekState.Seeking(
+                targetMs = clampTarget(targetMs, durationMs),
+                requestGeneration = generation,
+                sourceEpoch = sourceEpoch,
+                mediaIdentity = mediaIdentity,
+                requestedAtMs = issuedAtMs,
+                policy = policy,
+            )
+        return generation
+    }
+
+    fun retryRequest(nowElapsedMs: Long): Long? {
+        val failed = state as? SeekState.Failed ?: return null
+        if (!failed.retryable) return null
+        val generation = nextGeneration()
+        state =
+            SeekState.Seeking(
+                targetMs = failed.targetMs,
+                requestGeneration = generation,
+                sourceEpoch = failed.sourceEpoch,
+                mediaIdentity = failed.mediaIdentity,
+                requestedAtMs = nowElapsedMs,
+                policy = failed.policy,
+            )
+        return generation
+    }
+
+    private fun nextGeneration(): Long {
         val current = state
         val currentGeneration =
             when (current) {
@@ -97,24 +126,8 @@ class SeekStateReducer {
                 is SeekState.Failed -> current.requestGeneration
                 SeekState.Idle -> 0L
             }
-        if (request.requestGeneration <= currentGeneration) {
-            return
-        }
-        val targetMs =
-            if (request.durationMs > 0L) {
-                request.targetMs.coerceIn(0L, request.durationMs)
-            } else {
-                request.targetMs.coerceAtLeast(0L)
-            }
-        state =
-            SeekState.Seeking(
-                targetMs = targetMs,
-                requestGeneration = request.requestGeneration,
-                sourceEpoch = request.sourceEpoch,
-                mediaIdentity = request.mediaIdentity,
-                requestedAtMs = request.issuedAtMs,
-                policy = request.policy,
-            )
+        lastRequestGeneration = maxOf(lastRequestGeneration, currentGeneration) + 1L
+        return lastRequestGeneration
     }
 
     fun onAccepted(evidence: SeekEngineEvidence) {
@@ -184,20 +197,6 @@ class SeekStateReducer {
             )
     }
 
-    fun retryRequest(nowElapsedMs: Long): SeekRequest? {
-        val failed = state as? SeekState.Failed ?: return null
-        if (!failed.retryable) return null
-        return SeekRequest(
-            targetMs = failed.targetMs,
-            requestGeneration = failed.requestGeneration + 1L,
-            sourceEpoch = failed.sourceEpoch,
-            mediaIdentity = failed.mediaIdentity,
-            durationMs = 0L,
-            issuedAtMs = nowElapsedMs,
-            policy = failed.policy,
-        )
-    }
-
     fun onSourceReplaced(sourceEpoch: Long, mediaIdentity: SeekMediaIdentity) {
         val seeking = state as? SeekState.Seeking ?: return
         if (sourceEpoch <= seeking.sourceEpoch) return
@@ -209,10 +208,20 @@ class SeekStateReducer {
             )
     }
 
-    fun onTargetResolved(requestGeneration: Long, targetMs: Long) {
+    fun onTargetResolved(
+        requestGeneration: Long,
+        targetMs: Long,
+        durationMs: Long? = null,
+    ) {
         val seeking = state as? SeekState.Seeking ?: return
         if (seeking.requestGeneration != requestGeneration) return
-        state = seeking.copy(targetMs = targetMs.coerceAtLeast(0L), acceptedPositionMs = null)
+        val target =
+            if (durationMs != null && durationMs > 0L) {
+                targetMs.coerceIn(0L, durationMs)
+            } else {
+                targetMs.coerceAtLeast(0L)
+            }
+        state = seeking.copy(targetMs = target, acceptedPositionMs = null)
     }
 
     fun onDispatched(requestGeneration: Long, nowElapsedMs: Long) {
@@ -230,6 +239,13 @@ class SeekStateReducer {
         failure.requestGeneration == requestGeneration &&
             failure.sourceEpoch == sourceEpoch &&
             failure.mediaIdentity == mediaIdentity
+
+    private fun clampTarget(targetMs: Long, durationMs: Long): Long =
+        if (durationMs > 0L) {
+            targetMs.coerceIn(0L, durationMs)
+        } else {
+            targetMs.coerceAtLeast(0L)
+        }
 }
 
 fun seekDisplayPositionMs(
@@ -248,3 +264,17 @@ fun seekDisplayPositionMs(
             }
         else -> enginePositionMs
     }
+
+internal fun seekDispatchTargetMs(
+    state: SeekState,
+    requestGeneration: Long,
+    durationMs: Long,
+): Long? {
+    val seeking = state as? SeekState.Seeking ?: return null
+    if (seeking.requestGeneration != requestGeneration) return null
+    return if (durationMs > 0L) {
+        seeking.targetMs.coerceIn(0L, durationMs)
+    } else {
+        seeking.targetMs.coerceAtLeast(0L)
+    }
+}

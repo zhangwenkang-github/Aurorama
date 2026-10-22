@@ -58,7 +58,6 @@ import com.zhangwenkang.cinefin.player.local.domain.SeekEngineEvidenceKind
 import com.zhangwenkang.cinefin.player.local.domain.SeekEngineFailure
 import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
-import com.zhangwenkang.cinefin.player.local.domain.SeekRequest
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.SeekStateReducer
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
@@ -72,6 +71,7 @@ import com.zhangwenkang.cinefin.player.local.domain.isSeekRequestReady
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
+import com.zhangwenkang.cinefin.player.local.domain.seekDispatchTargetMs
 import com.zhangwenkang.cinefin.player.local.domain.seekDisplayPositionMs
 import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
@@ -170,9 +170,8 @@ constructor(
         /** W20：同一集「停止上报」的去重窗口（自然播完已报过 stop，换集回调不要再报一次） */
         private const val STOP_REPORT_DEDUPE_MS = 15_000L
 
-        /** W73（#7）：进度条 seek 在「未就绪窗口」的排队轮询间隔 / 超时（约 30 s） */
+        /** W73（#7）：进度条 seek 在「未就绪窗口」的排队轮询间隔；超时由 reducer policy 统一管理。 */
         private const val PENDING_SEEK_RETRY_MS = 200L
-        private const val PENDING_SEEK_MAX_RETRIES = 150
 
         /** W73（#7）：排队相对增量的饱和上限（±6 小时）。 */
         private const val PENDING_SEEK_DELTA_MAX_MS = 6L * 60L * 60L * 1000L
@@ -409,9 +408,8 @@ constructor(
     private var lastTranscodeRestartMediaId: String? = null
     private var transcodeSeekWatchdogJob: Job? = null
 
-    /** W86-C：reducer 是 seek 状态的唯一真源；generation 只增不减。 */
+    /** W86-C：reducer 是 seek 状态与 request generation 的唯一真源。 */
     private val seekStateReducer = SeekStateReducer()
-    private var nextSeekRequestGeneration = 0L
     private var seekSourceEpoch = 0L
     private var pendingSeekGeneration: Long? = null
     private var seekTimeoutJob: Job? = null
@@ -3305,6 +3303,7 @@ constructor(
     private fun armSeekTimeout() {
         seekTimeoutJob?.cancel()
         val seeking = seekStateReducer.state as? SeekState.Seeking ?: return
+        val generation = seeking.requestGeneration
         val remainingMs =
             (seeking.requestedAtMs + seeking.policy.completionTimeoutMs -
                     SystemClock.elapsedRealtime())
@@ -3314,6 +3313,13 @@ constructor(
                 delay(remainingMs)
                 seekStateReducer.onTick(SystemClock.elapsedRealtime())
                 publishSeekState()
+                val failed = seekStateReducer.state as? SeekState.Failed
+                if (
+                    failed?.requestGeneration == generation &&
+                        failed.reason == SeekFailureReason.TIMEOUT
+                ) {
+                    clearPendingSeek(generation)
+                }
             }
     }
 
@@ -3355,6 +3361,7 @@ constructor(
         retryable: Boolean = true,
     ) {
         val seeking = seekStateReducer.state as? SeekState.Seeking ?: return
+        val generation = seeking.requestGeneration
         seekTimeoutJob?.cancel()
         seekStateReducer.onFailure(
             SeekEngineFailure(
@@ -3367,6 +3374,7 @@ constructor(
             SystemClock.elapsedRealtime(),
         )
         publishSeekState()
+        clearPendingSeek(generation)
     }
 
     /**
@@ -3392,26 +3400,25 @@ constructor(
             return
         }
         seekTimeoutJob?.cancel()
+        cancelPendingSeekFlush()
         val item = currentPlaybackItem()
         val isTranscode = item?.let { isTranscodeStreamUri(it.mediaSourceUri) } == true
-        val generation = ++nextSeekRequestGeneration
-        seekStateReducer.request(
-            SeekRequest(
+        val generation =
+            seekStateReducer.beginRequest(
                 targetMs =
                     if (fraction != null && duration > 0L) {
                         seekTargetFromFraction(fraction, duration)
                     } else {
                         targetMs
                     },
-                requestGeneration = generation,
                 sourceEpoch = seekSourceEpoch,
                 mediaIdentity = identity,
                 durationMs = duration,
                 issuedAtMs = SystemClock.elapsedRealtime(),
                 policy = seekConfirmationPolicy(isTranscode),
             )
-        )
         publishSeekState()
+        armSeekTimeout()
         if (!isSeekRequestReady(attached, duration, state, position)) {
             when {
                 fraction != null -> mergePendingSeek(PendingSeek.Fraction(fraction))
@@ -3419,7 +3426,7 @@ constructor(
             }
             pendingSeekGeneration = generation
             pendingSeekSource = source
-            schedulePendingSeekFlush()
+            schedulePendingSeekFlush(generation)
             Timber.d(
                 "seek 排队：source=%s target=%d fraction=%s state=%d duration=%d position=%d",
                 source,
@@ -3431,7 +3438,7 @@ constructor(
             )
             return
         }
-        executeSeek(activePlayer!!, targetMs, source)
+        executeSeek(activePlayer!!, source)
     }
 
     /** 相对增量 seek（±键 / 快进快退键）：未就绪时并入排队，就绪后按真实位置一次落点。 */
@@ -3465,9 +3472,11 @@ constructor(
         )
 
     fun retrySeek() {
-        val retry = seekStateReducer.retryRequest(SystemClock.elapsedRealtime()) ?: return
-        seekStateReducer.request(retry)
+        val generation = seekStateReducer.retryRequest(SystemClock.elapsedRealtime()) ?: return
+        val retry = seekStateReducer.state as? SeekState.Seeking ?: return
+        cancelPendingSeekFlush()
         publishSeekState()
+        armSeekTimeout()
         val activePlayer = playerHolder.existingPlayer
         val ready =
             activePlayer != null &&
@@ -3477,13 +3486,13 @@ constructor(
                     playbackState = activePlayer.playbackState,
                     currentPositionMs = activePlayer.currentPosition,
                 )
-        if (ready && activePlayer != null) {
-            executeSeek(activePlayer, retry.targetMs, "seek-retry")
+        if (ready) {
+            executeSeek(requireNotNull(activePlayer), "seek-retry")
         } else {
             pendingSeek = PendingSeek.Absolute(retry.targetMs)
-            pendingSeekGeneration = retry.requestGeneration
+            pendingSeekGeneration = generation
             pendingSeekSource = "seek-retry"
-            schedulePendingSeekFlush()
+            schedulePendingSeekFlush(generation)
         }
     }
 
@@ -3513,21 +3522,19 @@ constructor(
 
     private fun beginMediaItemSeek(source: String, activePlayer: Player): Long? {
         seekTimeoutJob?.cancel()
+        cancelPendingSeekFlush()
         val identity = seekMediaIdentity() ?: return null
-        val generation = ++nextSeekRequestGeneration
         val item = currentPlaybackItem()
         val isTranscode = item?.let { isTranscodeStreamUri(it.mediaSourceUri) } == true
-        seekStateReducer.request(
-            SeekRequest(
+        val generation =
+            seekStateReducer.beginRequest(
                 targetMs = 0L,
-                requestGeneration = generation,
                 sourceEpoch = seekSourceEpoch,
                 mediaIdentity = identity,
                 durationMs = activePlayer.duration,
                 issuedAtMs = SystemClock.elapsedRealtime(),
                 policy = seekConfirmationPolicy(isTranscode),
             )
-        )
         pendingSeek = null
         pendingSeekGeneration = null
         pendingSeekSource = source
@@ -3536,7 +3543,7 @@ constructor(
     }
 
     /** 就绪后的实际落点：转码超窗重开会话，否则直接 seek。 */
-    private fun executeSeek(activePlayer: Player, targetMs: Long, source: String) {
+    private fun executeSeek(activePlayer: Player, source: String) {
         val generation =
             currentSeekGeneration()
                 ?: run {
@@ -3553,8 +3560,16 @@ constructor(
             }
         }
         val duration = activePlayer.duration
-        val upperBound = if (duration > 0L) duration else Long.MAX_VALUE
-        val target = targetMs.coerceIn(0L, upperBound)
+        val target =
+            seekDispatchTargetMs(
+                state = seekStateReducer.state,
+                requestGeneration = generation,
+                durationMs = duration,
+            )
+                ?: run {
+                    Timber.w("seek 目标已失效：source=%s generation=%d", source, generation)
+                    return
+                }
         val item = currentPlaybackItem()
         val isTranscode = item?.let { isTranscodeStreamUri(it.mediaSourceUri) } == true
         val isExoPlayer = playerBackend == PLAYER_BACKEND_EXOPLAYER
@@ -3603,12 +3618,12 @@ constructor(
         armTranscodeSeekWatchdog(target, source, enabled = isTranscode && isExoPlayer)
     }
 
-    private fun schedulePendingSeekFlush() {
-        if (pendingSeekFlushJob?.isActive == true) return
+    private fun schedulePendingSeekFlush(generation: Long) {
+        pendingSeekFlushJob?.cancel()
         pendingSeekFlushJob =
             viewModelScope.launch(Dispatchers.Main) {
-                var retries = 0
                 while (isActive) {
+                    if (pendingSeekGeneration != generation) return@launch
                     val activePlayer = playerHolder.existingPlayer
                     val ready =
                         activePlayer != null &&
@@ -3618,26 +3633,47 @@ constructor(
                                 playbackState = activePlayer.playbackState,
                                 currentPositionMs = activePlayer.currentPosition,
                             )
-                    if (ready && activePlayer != null) {
+                    if (ready) {
+                        if (pendingSeekGeneration != generation) return@launch
+                        val readyPlayer = requireNotNull(activePlayer)
                         val pending = pendingSeek ?: return@launch
-                        val target = resolvePendingSeek(pending, activePlayer) ?: return@launch
-                        pendingSeekGeneration?.let {
-                            seekStateReducer.onTargetResolved(it, target)
-                            publishSeekState()
+                        val target = resolvePendingSeek(pending, readyPlayer) ?: return@launch
+                        seekStateReducer.onTargetResolved(
+                            requestGeneration = generation,
+                            targetMs = target,
+                            durationMs = readyPlayer.duration,
+                        )
+                        publishSeekState()
+                        if (
+                            seekDispatchTargetMs(
+                                state = seekStateReducer.state,
+                                requestGeneration = generation,
+                                durationMs = readyPlayer.duration,
+                            ) == null
+                        ) {
+                            return@launch
                         }
-                        pendingSeekGeneration = null
-                        pendingSeek = null
-                        executeSeek(activePlayer, target, pendingSeekSource)
-                        return@launch
-                    }
-                    if (retries++ >= PENDING_SEEK_MAX_RETRIES) {
-                        Timber.w("seek 排队超时丢弃：%s", pendingSeek)
-                        pendingSeek = null
+                        val source = pendingSeekSource
+                        clearPendingSeek(generation, cancelFlush = false)
+                        executeSeek(readyPlayer, source)
                         return@launch
                     }
                     delay(PENDING_SEEK_RETRY_MS)
                 }
             }
+    }
+
+    private fun clearPendingSeek(generation: Long, cancelFlush: Boolean = true) {
+        if (pendingSeekGeneration != generation) return
+        if (cancelFlush) pendingSeekFlushJob?.cancel()
+        pendingSeek = null
+        pendingSeekGeneration = null
+        pendingSeekSource = ""
+    }
+
+    private fun cancelPendingSeekFlush() {
+        pendingSeekFlushJob?.cancel()
+        pendingSeekFlushJob = null
     }
 
     private fun resolvePendingSeek(pending: PendingSeek, activePlayer: Player): Long? =

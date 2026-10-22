@@ -8,17 +8,18 @@ class SeekStateReducerTest {
 
     private val identity = SeekMediaIdentity("item-a", "source-a", "uri-hash-a")
 
-    private fun request(
-        generation: Long,
+    private fun begin(
+        reducer: SeekStateReducer,
         targetMs: Long = 60_000L,
+        durationMs: Long = 120_000L,
         issuedAtMs: Long = 1_000L,
+        mediaIdentity: SeekMediaIdentity = identity,
     ) =
-        SeekRequest(
+        reducer.beginRequest(
             targetMs = targetMs,
-            requestGeneration = generation,
             sourceEpoch = 3L,
-            mediaIdentity = identity,
-            durationMs = 120_000L,
+            mediaIdentity = mediaIdentity,
+            durationMs = durationMs,
             issuedAtMs = issuedAtMs,
             policy =
                 SeekConfirmationPolicy(
@@ -31,7 +32,7 @@ class SeekStateReducerTest {
     @Test
     fun `request clamps target to duration and exposes seeking target`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 1L, targetMs = 125_000L))
+        begin(reducer, targetMs = 125_000L)
 
         val seeking = reducer.state as SeekState.Seeking
         assertEquals(120_000L, seeking.targetMs)
@@ -51,7 +52,7 @@ class SeekStateReducerTest {
     @Test
     fun `accepted seek then ready near target confirms`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 1L, targetMs = 60_000L))
+        begin(reducer)
 
         reducer.onAccepted(
             SeekEngineEvidence(
@@ -81,12 +82,12 @@ class SeekStateReducerTest {
     @Test
     fun `continuous seek keeps only the latest generation`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 2L, targetMs = 90_000L))
-        reducer.request(request(generation = 1L, targetMs = 20_000L))
+        begin(reducer, targetMs = 90_000L)
+        begin(reducer, targetMs = 20_000L)
 
         val seeking = reducer.state as SeekState.Seeking
         assertEquals(2L, seeking.requestGeneration)
-        assertEquals(90_000L, seeking.targetMs)
+        assertEquals(20_000L, seeking.targetMs)
 
         reducer.onAccepted(
             SeekEngineEvidence(
@@ -103,11 +104,11 @@ class SeekStateReducerTest {
     @Test
     fun `engine failure keeps request target and exposes retryability`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 5L, targetMs = 70_000L))
+        begin(reducer, targetMs = 70_000L)
 
         reducer.onFailure(
             SeekEngineFailure(
-                requestGeneration = 5L,
+                requestGeneration = 1L,
                 sourceEpoch = 3L,
                 mediaIdentity = identity,
                 reason = SeekFailureReason.ENGINE_ERROR,
@@ -118,7 +119,7 @@ class SeekStateReducerTest {
 
         val failed = reducer.state as SeekState.Failed
         assertEquals(70_000L, failed.targetMs)
-        assertEquals(5L, failed.requestGeneration)
+        assertEquals(1L, failed.requestGeneration)
         assertEquals(SeekFailureReason.ENGINE_ERROR, failed.reason)
         assertTrue(failed.retryable)
         assertEquals(
@@ -130,7 +131,7 @@ class SeekStateReducerTest {
     @Test
     fun `fake clock timeout fails as retryable and retry keeps original target`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 6L, targetMs = 42_000L, issuedAtMs = 1_000L))
+        begin(reducer, targetMs = 42_000L, issuedAtMs = 1_000L)
 
         reducer.onTick(nowElapsedMs = 4_999L)
         assertTrue(reducer.state is SeekState.Seeking)
@@ -140,38 +141,39 @@ class SeekStateReducerTest {
         assertEquals(SeekFailureReason.TIMEOUT, failed.reason)
         assertTrue(failed.retryable)
 
-        val retry = reducer.retryRequest(nowElapsedMs = 5_500L)!!
-        assertEquals(42_000L, retry.targetMs)
-        assertEquals(7L, retry.requestGeneration)
+        assertEquals(2L, reducer.retryRequest(nowElapsedMs = 5_500L))
+        val retrying = reducer.state as SeekState.Seeking
+        assertEquals(42_000L, retrying.targetMs)
+        assertEquals(2L, retrying.requestGeneration)
     }
 
     @Test
     fun `source replacement keeps target generation and requires a fresh anchor`() {
         val newIdentity = SeekMediaIdentity("item-a", "source-a", "uri-hash-b")
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 8L, targetMs = 80_000L))
+        begin(reducer, targetMs = 80_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(8L, 3L, identity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 3L, identity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
 
         reducer.onSourceReplaced(sourceEpoch = 4L, mediaIdentity = newIdentity)
         val seeking = reducer.state as SeekState.Seeking
-        assertEquals(8L, seeking.requestGeneration)
+        assertEquals(1L, seeking.requestGeneration)
         assertEquals(80_000L, seeking.targetMs)
         assertEquals(4L, seeking.sourceEpoch)
         assertEquals(null, seeking.acceptedPositionMs)
 
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(8L, 3L, identity, 80_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 3L, identity, 80_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 2_000L,
         )
         assertTrue(reducer.state is SeekState.Seeking)
 
         reducer.onAccepted(
-            SeekEngineEvidence(8L, 4L, newIdentity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 4L, newIdentity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(8L, 4L, newIdentity, 79_900L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 4L, newIdentity, 79_900L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 3_000L,
         )
         val confirmed = reducer.state as SeekState.Confirmed
@@ -182,12 +184,12 @@ class SeekStateReducerTest {
     @Test
     fun `display keeps target for minimum window then confirms engine position`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 9L, targetMs = 60_000L, issuedAtMs = 1_000L))
+        begin(reducer, targetMs = 60_000L, issuedAtMs = 1_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(9L, 3L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(9L, 3L, identity, 60_300L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 3L, identity, 60_300L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 1_100L,
         )
 
@@ -204,10 +206,10 @@ class SeekStateReducerTest {
     @Test
     fun `queued request resolves target and starts completion timeout when dispatched`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 10L, targetMs = 0L, issuedAtMs = 1_000L))
+        begin(reducer, targetMs = 0L, issuedAtMs = 1_000L)
 
-        reducer.onTargetResolved(requestGeneration = 10L, targetMs = 45_000L)
-        reducer.onDispatched(requestGeneration = 10L, nowElapsedMs = 5_000L)
+        reducer.onTargetResolved(requestGeneration = 1L, targetMs = 45_000L)
+        reducer.onDispatched(requestGeneration = 1L, nowElapsedMs = 5_000L)
         reducer.onTick(nowElapsedMs = 8_999L)
         assertTrue(reducer.state is SeekState.Seeking)
 
@@ -220,13 +222,13 @@ class SeekStateReducerTest {
     @Test
     fun `late ready after deadline fails instead of confirming`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 11L, targetMs = 60_000L, issuedAtMs = 1_000L))
+        begin(reducer, targetMs = 60_000L, issuedAtMs = 1_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(11L, 3L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
 
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(11L, 3L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 5_000L,
         )
 
@@ -235,23 +237,147 @@ class SeekStateReducerTest {
     }
 
     @Test
-    fun `stale generation cannot replace an already confirmed request`() {
+    fun `a new request replaces a confirmed request with the next generation`() {
         val reducer = SeekStateReducer()
-        reducer.request(request(generation = 5L, targetMs = 60_000L))
+        begin(reducer, targetMs = 60_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(5L, 3L, identity, 60_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 3L, identity, 60_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(5L, 3L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            nowElapsedMs = 2_000L,
+        )
+        assertTrue(reducer.state is SeekState.Confirmed)
+
+        begin(reducer, targetMs = 20_000L)
+
+        assertTrue(reducer.state is SeekState.Seeking)
+        assertEquals(
+            20_000L,
+            seekDisplayPositionMs(reducer.state, enginePositionMs = 60_100L, nowElapsedMs = 3_000L),
+        )
+    }
+
+    @Test
+    fun `retry and next seek receive three continuous generations from reducer`() {
+        val reducer = SeekStateReducer()
+        val firstGeneration = begin(reducer, targetMs = 30_000L)
+        reducer.onFailure(
+            SeekEngineFailure(
+                requestGeneration = firstGeneration,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                reason = SeekFailureReason.ENGINE_ERROR,
+                retryable = true,
+            ),
             nowElapsedMs = 2_000L,
         )
 
-        reducer.request(request(generation = 4L, targetMs = 20_000L))
+        val retryGeneration = reducer.retryRequest(nowElapsedMs = 3_000L)!!
+        assertEquals(2L, retryGeneration)
+        assertEquals(30_000L, (reducer.state as SeekState.Seeking).targetMs)
 
-        assertTrue(reducer.state is SeekState.Confirmed)
+        val nextGeneration = begin(reducer, targetMs = 75_000L, issuedAtMs = 4_000L)
+        assertEquals(3L, nextGeneration)
+
+        reducer.onAccepted(
+            SeekEngineEvidence(
+                requestGeneration = retryGeneration,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                positionMs = 30_000L,
+                kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
+            )
+        )
+        val seeking = reducer.state as SeekState.Seeking
+        assertEquals(3L, seeking.requestGeneration)
+        assertEquals(75_000L, seeking.targetMs)
+        assertEquals(null, seeking.acceptedPositionMs)
+
+        reducer.onAccepted(
+            SeekEngineEvidence(
+                requestGeneration = nextGeneration,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                positionMs = 75_100L,
+                kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
+            )
+        )
+        reducer.onCompletionEvidence(
+            SeekEngineEvidence(
+                requestGeneration = nextGeneration,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                positionMs = 75_200L,
+                kind = SeekEngineEvidenceKind.PLAYBACK_READY,
+            ),
+            nowElapsedMs = 4_500L,
+        )
+        assertEquals(3L, (reducer.state as SeekState.Confirmed).requestGeneration)
+    }
+
+    @Test
+    fun `queued timeout ignores stale resolution and retry keeps original target`() {
+        val reducer = SeekStateReducer()
+        val generation =
+            begin(
+                reducer,
+                targetMs = 42_000L,
+                durationMs = -1L,
+                issuedAtMs = 1_000L,
+            )
+
+        reducer.onTick(nowElapsedMs = 5_000L)
+        val failed = reducer.state as SeekState.Failed
+        assertEquals(SeekFailureReason.TIMEOUT, failed.reason)
+        assertTrue(failed.retryable)
+
+        reducer.onTargetResolved(
+            requestGeneration = generation,
+            targetMs = 99_000L,
+            durationMs = 120_000L,
+        )
+        val stillFailed = reducer.state as SeekState.Failed
+        assertEquals(42_000L, stillFailed.targetMs)
         assertEquals(
-            60_100L,
-            seekDisplayPositionMs(reducer.state, enginePositionMs = 60_100L, nowElapsedMs = 3_000L),
+            null,
+            seekDispatchTargetMs(
+                state = reducer.state,
+                requestGeneration = generation,
+                durationMs = 120_000L,
+            ),
+        )
+
+        val retryGeneration = reducer.retryRequest(nowElapsedMs = 6_000L)!!
+        val retrying = reducer.state as SeekState.Seeking
+        assertEquals(2L, retryGeneration)
+        assertEquals(42_000L, retrying.targetMs)
+    }
+
+    @Test
+    fun `dispatch uses the duration-clamped target resolved by reducer`() {
+        val reducer = SeekStateReducer()
+        val generation =
+            begin(
+                reducer,
+                targetMs = 0L,
+                durationMs = -1L,
+                issuedAtMs = 1_000L,
+            )
+
+        reducer.onTargetResolved(
+            requestGeneration = generation,
+            targetMs = 150_000L,
+            durationMs = 120_000L,
+        )
+
+        assertEquals(
+            120_000L,
+            seekDispatchTargetMs(
+                state = reducer.state,
+                requestGeneration = generation,
+                durationMs = 120_000L,
+            ),
         )
     }
 }
