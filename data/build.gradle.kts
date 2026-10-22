@@ -13,6 +13,7 @@ android {
 
     defaultConfig {
         minSdk = Versions.MIN_SDK
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("int", "VERSION_CODE", Versions.APP_CODE.toString())
         buildConfigField("String", "VERSION_NAME", "\"${Versions.APP_NAME}\"")
@@ -48,4 +49,7 @@ dependencies {
     implementation(libs.timber)
 
     testImplementation(libs.junit)
+    androidTestImplementation("androidx.room3:room3-testing:3.0.3")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }

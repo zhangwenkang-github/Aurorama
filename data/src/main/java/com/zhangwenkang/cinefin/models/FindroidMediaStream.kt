@@ -22,9 +22,21 @@ data class FindroidMediaStream(
     val index: Int = -1,
     val isDefault: Boolean = false,
     val isForced: Boolean = false,
+    /** 媒体流码率（bit/s）；null / 0 表示服务端未提供。 */
+    val bitRate: Int? = null,
+    /** 归一后的帧率；优先 reference -> average -> real。 */
+    val frameRate: Float? = null,
+    val bitDepth: Int? = null,
+    val channels: Int? = null,
+    val sampleRate: Int? = null,
+    val profile: String? = null,
 )
 
 fun MediaStream.toFindroidMediaStream(jellyfinRepository: JellyfinRepository): FindroidMediaStream {
+    return toFindroidMediaStream(baseUrl = jellyfinRepository.getBaseUrl())
+}
+
+internal fun MediaStream.toFindroidMediaStream(baseUrl: String): FindroidMediaStream {
     return FindroidMediaStream(
         title = title.orEmpty(),
         displayTitle = displayTitle,
@@ -34,7 +46,7 @@ fun MediaStream.toFindroidMediaStream(jellyfinRepository: JellyfinRepository): F
         isExternal = isExternal,
         // deliveryUrl 为空时不要拼出 "http://hostnull" 这种脏地址：这里直接给 null，
         // 调用方（外挂字幕 / 字幕面板）会按「拿不到文件」处理
-        path = deliveryUrl?.let { jellyfinRepository.getBaseUrl() + it },
+        path = deliveryUrl?.let { baseUrl + it },
         channelLayout = channelLayout,
         videoRangeType = videoRangeType,
         height = height,
@@ -43,6 +55,15 @@ fun MediaStream.toFindroidMediaStream(jellyfinRepository: JellyfinRepository): F
         index = index,
         isDefault = isDefault,
         isForced = isForced,
+        bitRate = bitRate.positiveOrNull(),
+        frameRate =
+            referenceFrameRate.positiveOrNull()
+                ?: averageFrameRate.positiveOrNull()
+                ?: realFrameRate.positiveOrNull(),
+        bitDepth = bitDepth.positiveOrNull(),
+        channels = channels.positiveOrNull(),
+        sampleRate = sampleRate.positiveOrNull(),
+        profile = profile?.takeIf { it.isNotBlank() },
     )
 }
 
@@ -65,5 +86,15 @@ fun FindroidMediaStreamDto.toFindroidMediaStream(): FindroidMediaStream {
         index = -1,
         isDefault = false,
         isForced = false,
+        bitRate = bitRate.positiveOrNull(),
+        frameRate = frameRate.positiveOrNull(),
+        bitDepth = bitDepth.positiveOrNull(),
+        channels = channels.positiveOrNull(),
+        sampleRate = sampleRate.positiveOrNull(),
+        profile = profile?.takeIf { it.isNotBlank() },
     )
 }
+
+private fun Int?.positiveOrNull(): Int? = this?.takeIf { it > 0 }
+
+private fun Float?.positiveOrNull(): Float? = this?.takeIf { it.isFinite() && it > 0f }

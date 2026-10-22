@@ -21,6 +21,10 @@ data class FindroidSource(
      * 极光幕：Hi10P（H.264 High 10）这类片源，设备硬解会输出黑画面但进度照走， 必须走服务器转码；播放时优先用它，下载仍然用 [path]（原始文件）。
      */
     val transcodingPath: String? = null,
+    /** 媒体源总码率（bit/s）；null / 0 表示未知。 */
+    val bitrate: Int? = null,
+    /** 服务端返回的真实容器名，例如 mkv / mp4 / hls。 */
+    val container: String? = null,
 )
 
 suspend fun MediaSourceInfo.toFindroidSource(
@@ -53,15 +57,53 @@ suspend fun MediaSourceInfo.toFindroidSource(
                 }
             }
 
+    return toFindroidSource(
+        baseUrl = jellyfinRepository.getBaseUrl(),
+        itemId = itemId,
+        resolvedPath = path,
+        resolvedTranscodingPath = resolvedTranscodingPath,
+    )
+}
+
+internal fun MediaSourceInfo.toFindroidSource(
+    baseUrl: String,
+    itemId: UUID,
+): FindroidSource {
+    val resolvedPath = if (protocol == MediaProtocol.HTTP) path.orEmpty() else ""
+    val resolvedTranscodingPath =
+        transcodingUrl
+            ?.takeIf { it.isNotBlank() }
+            ?.let { url ->
+                if (url.startsWith("http", ignoreCase = true)) {
+                    url
+                } else {
+                    baseUrl.trimEnd('/') + "/" + url.trimStart('/')
+                }
+            }
+    return toFindroidSource(
+        baseUrl = baseUrl,
+        itemId = itemId,
+        resolvedPath = resolvedPath,
+        resolvedTranscodingPath = resolvedTranscodingPath,
+    )
+}
+
+private fun MediaSourceInfo.toFindroidSource(
+    baseUrl: String,
+    itemId: UUID,
+    resolvedPath: String,
+    resolvedTranscodingPath: String?,
+): FindroidSource {
     return FindroidSource(
         id = id.orEmpty(),
         name = name.orEmpty(),
         type = FindroidSourceType.REMOTE,
-        path = path,
+        path = resolvedPath,
         size = size ?: 0,
-        mediaStreams =
-            mediaStreams?.map { it.toFindroidMediaStream(jellyfinRepository) } ?: emptyList(),
+        mediaStreams = mediaStreams?.map { it.toFindroidMediaStream(baseUrl) } ?: emptyList(),
         transcodingPath = resolvedTranscodingPath,
+        bitrate = bitrate?.takeIf { it > 0 },
+        container = container?.takeIf { it.isNotBlank() },
     )
 }
 
@@ -77,6 +119,8 @@ suspend fun FindroidSourceDto.toFindroidSource(
         mediaStreams =
             serverDatabaseDao.getMediaStreamsBySourceId(id).map { it.toFindroidMediaStream() },
         downloadId = downloadId,
+        bitrate = bitrate?.takeIf { it > 0 },
+        container = container?.takeIf { it.isNotBlank() },
     )
 }
 

@@ -253,6 +253,8 @@ class DownloaderImpl(
             val partialPath = File(storageLocation, "downloads/${item.id}.$sourceId.download").path
             val partial = File(partialPath)
             val existingBytes = if (partial.isFile) partial.length() else 0L
+            val sourceMetadata =
+                (item as? FindroidSources)?.sources?.firstOrNull { source -> source.id == sourceId }
 
             // W51b 竞态修复：条目快照必须先于队列行落库。
             //
@@ -278,6 +280,8 @@ class DownloaderImpl(
                     nextRetryAt = 0L,
                     engineVersion = ENGINE_VERSION,
                     allowOffline = existing?.allowOffline ?: true,
+                    bitrate = sourceMetadata?.bitrate,
+                    container = sourceMetadata?.container,
                 )
             database.insertSource(sourceDto)
             notifyQueueChanged()

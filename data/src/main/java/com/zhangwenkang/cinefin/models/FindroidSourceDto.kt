@@ -45,6 +45,10 @@ data class FindroidSourceDto(
     @ColumnInfo(defaultValue = "0") val totalBytes: Long = 0,
     /** W50：写入该行的引擎版本（0 = 旧 DownloadManager 时代，1 = 自研引擎）。 */
     @ColumnInfo(defaultValue = "0") val engineVersion: Int = 0,
+    /** Jellyfin MediaSourceInfo.bitrate；旧行迁移后为 null。 */
+    val bitrate: Int? = null,
+    /** Jellyfin MediaSourceInfo.container；旧行迁移后为 null。 */
+    val container: String? = null,
 )
 
 fun FindroidSource.toFindroidSourceDto(itemId: UUID, path: String): FindroidSourceDto {
@@ -54,5 +58,7 @@ fun FindroidSource.toFindroidSourceDto(itemId: UUID, path: String): FindroidSour
         name = name,
         type = FindroidSourceType.LOCAL,
         path = path,
+        bitrate = bitrate,
+        container = container,
     )
 }
