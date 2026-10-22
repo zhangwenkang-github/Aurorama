@@ -518,6 +518,8 @@
 
 **W86-A 档位证据与双层元数据（#42 / #43）**：资深 Android 播放工程师兼 Jellyfin 协议工程师；先从 Jellyfin 12.2 官方客户端 / 只读响应固化“档位 → 请求 bps / 目标分辨率上限”证据快照，再补源媒体与当前实际流两套信息。非目标：不按 Mbps 猜分辨率；不把源参数与当前流参数混成一个值。验收：每档同时显示 Mbps + 分辨率上限；详情显示宽高 / 码率 / 帧率 / 编码，播放面板显示当前流；未知统一 `—`，换源不串值。落点：`PlayerStreamingQuality.kt`、媒体流模型 / parser、`PlayerControlOverlay.kt`；档表或 SDK 字段无证据即停止。
 
+- **2026-10-22 阶段 1（只读证据）已完成，未施工**：官方 Android phone `v2.7.3` 与 master `3e660a84` 档表一致；其 `maxHeight` 仅用于菜单标签 / 按源尺寸过滤，PlaybackInfo 实际只传 `maxStreamingBitrate`。Jellyfin Server `12.2.0` 按编码、音频、帧率动态选择分辨率，没有“固定档位 → 硬分辨率上限”证据。现有 `1/2/3/5/8/12/20/40 Mbps` 不与 Android 或 Web 任一完整档表精确对齐，且 `List<Int>` 不能承载 1.5 Mbps / 720 kbps / 420 kbps。#43 已确认源码率 / 帧率在 `FindroidMediaStream`、Room、`PlaylistManager` 前置层断链，InfoPanel 存在源 / 当前流混用、Exo 非选中轨和同 item 切源 identity 缺口。独立 QA：P0=0 / P1=6 / P2=4 / P3=2；未编译、未跑单测、未真机。报告：`.planning/cinefin-expansion/w86-reports/W86-A-EVIDENCE.md`、`W86-A-QA.md`。**待用户选择 #42 口径：显示官方 Android 标签但不承诺硬上限，或坚持硬上限并继续阻塞；未决前不得进入实现。**
+
 **W86-B 字幕全局默认与单片覆盖（#45）**：资深播放器状态工程师；优先级固定为“单片手动轨道 / 明确关闭 > 全局语言与模式 > 服务器默认”。非目标：不把外观 / 延迟改成单片；不允许全局变更覆盖既有单片手动轨。验收：外观、延迟、语言全局持久化；单片主 / 次 / 关闭在重启、切码率、切 Exo / mpv 后保持；媒体键必须带服务器 / 用户命名空间。落点：`AppPreferences.kt`、字幕选择 / controller / `PlayerViewModel`；与 W86-C 串行。
 
 **W86-C seek 请求确认态（#45）**：播放器状态机工程师；进度条、手势、章节、片头尾 seek 全部经过“请求 → 定位中 → 确认 / 失败”reducer。非目标：UI 不直接调底层 seek；不把缓冲进度当确认。验收：松手后显示保持请求目标；直放 300ms、转码重开会话、两内核均不闪 0 / 结尾；连续 seek 只落最后目标；超时可解释并重试。落点：`TranscodeSeekRules.kt`、`PlayerViewModel`、`PlayerControlOverlay`、`PlayerGestureHelper`、`MPVPlayer`；确认事件不可表达时先 spike。
@@ -679,6 +681,7 @@
 | 2026-10-21 | **1.4.0 入册与开工**：用户确认 D-F22–D-F29 全部按推荐，补充 Jellyfin 12.2、未来服务器歌单互导与元数据写操作只预留。登记 §2.4 #40–#55、W84–W89 编排；W84 / W85 任务卡冻结并开始派发。当前测试服务器仍只读。 |
 | 2026-10-21 | **W85 实现交付，待真机安装确认**：分支 `codex/w85-offline-identity` / commit `48d3bc5`。离线模式与用户会话分离、无用户退出离线、登录不预选、选用户先只读 `/Users/Me` 再清标志、401/网络失败回退；根 `assembleDebug`（含 TV）+ `ktfmtCheck` + 8 模块 **1121 / 0 / 0 / 0** 通过。APK `147,468,536 B` / SHA-256 `C42A53B0…B8A1`。Pad 5 `43af8627` 被 MIUI“请验证身份确认安装”阻断，需设备本人确认；实际应用内真机 0 项，未合并。 |
 | 2026-10-21 | **W84 / W85 收口并合并**：W84 实现 `b955178` 经 rebase 为 `70b5567`；独立 QA 7/7、P0/P1=0，真实账号 100 项受理、离页 / 后台 / 杀进程恢复、通知 / 抽屉 / 页面同值、书籍失败占位，10 样本 P95 **215.921ms**，`connecting / verifying` 为静态核对 P2。W85 初版 `48d3bc5` 经独立 QA 发现父提交既有服务器发现问题与新增网络原因分类缺陷；诊断 A/B 后提交 `50532952` + `724506b`，QA-R 聚焦 5/5、P0–P3=0，生产显式 URL 2.81 秒、普通用户 `/Users/Me` 200、断网原因、401 与冷启动通过。master `70b5567` 合并态门禁 `assembleDebug`（含 TV）+ `ktfmtCheck` + 8 模块 **1142 / 0 / 0 / 0**；已推送，CI Build / Format / Unit Tests **三路绿**。下一步 = W86–W89。 |
+| 2026-10-22 | **W86-A 阶段 1 只读证据收口（未施工）**：取证与独立 QA 代理分离完成，业务代码零修改、生产零请求、0 截图。确认 Android `v2.7.3` 档表的 `maxHeight` 只是标签 / 过滤，Server 12.2.0 无固定硬上限；现有混合档表与 Web / Android 均不精确一致，`List<Int>` 无法承载亚 Mbps 档。确认 #43 源码率 / 帧率前置断链、InfoPanel 源 / 当前流混用、Exo 非选中轨与切源 identity 缺口；QA P0=0 / P1=6 / P2=4 / P3=2。报告 SHA-256：证据 `191384D716829DB4150983B3536EE00AFB2B141F6552002ECF1852848731F6A4`，QA `F5F2E5354CDEB70ECDC22B165D55CE48973FD4C515A2AD41BCBE86469ADD87D5`。待用户决定 #42 是“官方标签语义”还是“硬上限语义”；未决前不实现。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
