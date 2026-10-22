@@ -1,6 +1,6 @@
 # Cinefin · 项目总览与协作规程
 
-> **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-10-04　分支 `master`
+> **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-10-22　分支 `master`
 > 项目级状态、任务线地图、协作规程都在本文件；单个任务线内部的需求 / 进度 / 决策写各自的线文档。
 
 ## 1. 项目是什么
@@ -34,6 +34,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
 | **维护 / 缺陷修复**（v1.1.0，18 条 + 小增强） | `docs/FIX_PLAN.md`（W73 建线） | 🟢 v1.1.0 已发布（2026-10-07，tag + Release + 双 APK）；B9/B10/B11 修复已随版闭环 | W73–W75 全部合并（896/0）→ **W76**：B8 日志脱敏合并（master `f25f1d4`、合并态门禁 **899/0**）；`1.1.0 (2)` release 已构建签名（universal 163.2 MB / arm64 74.0 MB、指纹 `e449c4aa…e155ff`）；回归 = R2（Pad 5 核心，0 FATAL·ANR）+ R1（K60 发布面：覆盖升级 ✅ / SAF ✅ / mpv 兜底 ✅ / Quick Connect ✅ / 真实下载 ❌）；新发现 B9（P1 · 新装首次下载失败，根因已夹逼、建议随 1.1.0 修）/ B10（P2）/ B11（P3）——见 `FIX_PLAN` §6、`TEST_PLAN` §7.7；**v1.1.0 已发布（2026-10-07）；1.2.0 = W77 阅读流式波（见阅读器线）；2026-10-17 第二批 W78–W83（#22–#39）见 §3 追加段** |
+| **Aurorama 1.4.0（W84–W89）** | `docs/FIX_PLAN.md` §2.4 / §3 / §4 + `docs/PLAYER_PLAN.md` §41 | 🟡 W84 / W85 / W86-A 已合并（2026-10-22） | W86-A #42/#43 经独立 QA-R2 与 merge-prep 后，`358e6a4b` ff-only 合并；8 模块 **1173/0/0/0**，三路 CI 钉在该代码 commit 并绿。Room 13→14 设备 instrumentation、真实 HTTP 下载 / 外挂字幕删除、source A→B 真机、Exo 多轨与 #42 完整 14 档设备矩阵仍为 P2/P3。下一棒 W86-B（字幕全局默认 / 单片覆盖）→ W86-C（seek 请求确认态），共享 ViewModel / AppPreferences，必须串行；W87–W89 排队。全波与用户全检完成前禁止改 `Versions.kt`、打 tag 或发 Release。 |
 | **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W19 已合并**；**W19-PLAYER（已合并 master `93c72e9`）** 见 §22；**W27-PLAYER（已合并 master `e465a83`）：外挂字幕导入（双内核 libass）+ 字幕语言优先级 + 播放结束行为（自动下一集 / 停在结束帧）+ `PlayerDebugOverlay`，见 §24**；**W20-PLAYER（已合并 master `8d5a383`）：①进度写入 Jellyfin UserData（实测会话上报不落库 → 新增 `PlaybackPositionWriter` 直写 + 常驻上报 + 暂停/切集/退出落盘，退出 / 杀进程 / 切集 / 双内核取证）；②片头尾提示条读设置时长 + 修「控制层淡出把提示条藏掉」缺陷 + 播放面板补档位；③Trickplay 改按需拉当前精灵图 + LRU + 失败降级（纯函数 + 6 单测），见 §23**；待做：§15.5 / §16.5 / §20.5 / §21.5 / §22.5 / §23.5 / §24.5 遗留（Compact 自由窗口取证、mpv stall 不报错、回退档位按会话保留的语义取舍、服务器无 segments/trickplay 数据的真实回归、end-帧 OFF 档服务器缓流复验）+ 许可证 NOTICE（libass/ass-kt，release 前）；遗留：libc++ 覆盖构建补丁需在依赖升级后复核 |
 | **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
 | **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档（设计记入 `docs/ARCHITECTURE.md` §5.4） | 🟢 W31-CONN 已合并 master `9738877`；**K60 真机联调完成** | 自签证书 TOFU（指纹确认 / 记住 / 清除）与多用户（切换 / 删除顺延 / 当前标记）全流程在 K60 验证（见 ARCHITECTURE §5.4.1）；真机发现并修复「清除信任后 TLS 会话复用绕过校验」→ 分支 `fix/w31-trust-session-reuse`（待合并）。遗留：WebView 控制台 / `ImagesDownloaderWorker` 未接信任 |
