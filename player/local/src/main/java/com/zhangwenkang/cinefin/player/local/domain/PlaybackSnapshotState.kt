@@ -69,5 +69,16 @@ fun clearCurrentStreamSnapshot(
     return state.copy(currentStreamMediaInfo = null)
 }
 
+/**
+ * 轨道集变化会推进 current 的代次，但初始化完成前的空轨道回调没有 identity，不能推进。 mpv 会在媒体条目解析完成前先发出空轨道集；此时推进会让随后的正常初始化被误判为过期。
+ */
+fun advanceCurrentStreamRequest(
+    state: PlaybackSnapshotState
+): Pair<PlaybackSnapshotState, PlaybackRequestToken?> {
+    val identity = state.identity ?: return state to null
+    val token = PlaybackRequestToken(identity, state.generation + 1L)
+    return state.copy(generation = token.generation, currentStreamMediaInfo = null) to token
+}
+
 private fun PlaybackSnapshotState.matches(token: PlaybackRequestToken): Boolean =
     identity == token.identity && generation == token.generation

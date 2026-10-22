@@ -53,6 +53,7 @@ import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
 import com.zhangwenkang.cinefin.player.local.domain.acceptCurrentStreamSnapshot
+import com.zhangwenkang.cinefin.player.local.domain.advanceCurrentStreamRequest
 import com.zhangwenkang.cinefin.player.local.domain.beginPlaybackRequest
 import com.zhangwenkang.cinefin.player.local.domain.bindSourceSnapshot
 import com.zhangwenkang.cinefin.player.local.domain.isSeekRequestReady
@@ -555,17 +556,9 @@ constructor(
 
     /** 切轨 / 内核轨道集变化：保留 source，只清旧 current 并让旧异步结果失效。 */
     private fun advanceCurrentStreamGeneration(): PlaybackRequestToken? {
-        val identity = playbackSnapshots.identity
-        if (identity == null) {
-            resetPlaybackSnapshots()
-            return null
-        }
-        val token = PlaybackRequestToken(identity, playbackSnapshots.generation + 1L)
-        playbackSnapshots =
-            playbackSnapshots.copy(
-                generation = token.generation,
-                currentStreamMediaInfo = null,
-            )
+        val (snapshots, token) = advanceCurrentStreamRequest(playbackSnapshots)
+        playbackSnapshots = snapshots
+        if (token == null) return null
         activePlaybackToken = token
         publishPlaybackSnapshots()
         return token
@@ -585,6 +578,14 @@ constructor(
     }
 
     private fun refreshCurrentStreamSnapshot(token: PlaybackRequestToken) {
+        if (player !is MPVPlayer) {
+            // ExoPlayer.currentTracks 是主线程状态；放到 IO 读取会拿到空 / 旧选中态。
+            applyCurrentStreamSnapshot(
+                token,
+                runCatching { readKernelMediaInfo(player) }.getOrNull(),
+            )
+            return
+        }
         viewModelScope.launch {
             val info =
                 withContext(Dispatchers.IO) {

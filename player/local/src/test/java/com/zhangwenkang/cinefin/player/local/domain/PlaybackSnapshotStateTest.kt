@@ -83,4 +83,34 @@ class PlaybackSnapshotStateTest {
             )
         assertEquals(1920, accepted.currentStreamMediaInfo?.width)
     }
+
+    @Test
+    fun `初始化前的空轨道回调不推进 generation`() {
+        val initializing = PlaybackSnapshotState(generation = 9)
+
+        val (state, token) = advanceCurrentStreamRequest(initializing)
+
+        assertSame(initializing, state)
+        assertNull(token)
+        assertEquals(9, state.generation)
+    }
+
+    @Test
+    fun `已有 identity 的轨道变化保留 source 并清空 current`() {
+        val identity = PlaybackMediaIdentity(itemId, "source-a")
+        val state =
+            PlaybackSnapshotState(
+                identity = identity,
+                generation = 9,
+                sourceMediaInfo = PlayerMediaInfo(width = 3840, height = 2160),
+                currentStreamMediaInfo = PlayerMediaInfo(width = 1920, height = 1080),
+            )
+
+        val (advanced, token) = advanceCurrentStreamRequest(state)
+
+        assertEquals(PlaybackRequestToken(identity, 10), token)
+        assertEquals(10, advanced.generation)
+        assertEquals(3840, advanced.sourceMediaInfo?.width)
+        assertNull(advanced.currentStreamMediaInfo)
+    }
 }
