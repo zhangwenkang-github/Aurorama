@@ -2642,3 +2642,11 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - **2026-10-22 合并收口（最终状态）**：独立 QA-R2 结论为**通过 / 允许 merge-prep**，P0/P1=0。目标测试 **48/0/0/0**，8 模块 **1173/0/0/0**；根 `assembleDebug`（phone + TV）、`ktfmtCheck`、`git diff --check` 通过。Pad 5 Exo 本地 MP4 当前流实测 H.264 / 1080×2400 / 544 kbps / 8.187 fps / SDR；K60 mpv 实测 MP4 / H.264 / 1080×2400 / 8.187 fps / SDR，码率与音频未知；source 未知与 current 有值的反向隔离也在设备观察到。APK arm64 147,689,396 B / SHA-256 `D1DF2B62CD277ADFEE40FD00804FD3D9E8A9D09A24C9E2AB321324A598D53D84`，双机侧哈希一致。
 - **W86-A 合并 / CI**：独立 merge-prep 对最新 master rebase 为 no-op，51 文件 `+3354/−169`，未触碰 Versions / release workflow / W86-B/C / W87+。负责人完成范围审查后 `358e6a4b` ff-only 合并 master 并推送；Build / Format / Unit Tests 三路 CI 均钉在该代码 commit 并通过（`39805102308` / `39805102309` / `39805102319`）。graphify 更新为 11,108 nodes / 33,573 edges。
 - **未覆盖 / 非阻断残余**：Room 13→14 Android instrumentation 仍因 MIUI 人脸确认未执行；真实 HTTP 下载与真实外挂字幕下载 / 删除未跑；source A→B 与同 item generation 只有 pure reducer 证据；preferred source UI 无产品入口；Exo 多轨设备切换未覆盖；#42 完整 14 档设备矩阵未重跑。merge-prep 另指出：任务已置 `COMPLETED` 后、内嵌流元数据落库前若进程终止，离线元数据可能缺失且无自动补写；当前只记录 warning，不在本轮已验范围。以上均保持 P2/P3，不包装为通过。
+
+## 42. W86-B 字幕作用域与单片覆盖（2026-10-22 设计已批准，待实施）
+
+- 目标：把字幕状态明确分成两层——外观 / 延迟 / 主次语言 / 模式是全局默认；主轨 / 次轨 / 显式关闭是单片覆盖。有效单片选择优先于全局，全局变更不得改写单片记录。
+- 当前三个缺口已定位：`PlayerExtraPreferences.subtitleManualSelection` 只有单槽，换片覆盖前片；旧键只含 itemId，不能隔离服务器 / 用户；`setSubtitleMode(OFF)` 调用清主 / 次字幕入口，把全局设置误写成单片手动关闭。
+- 设计：规范媒体键 = `serverId|userId|itemId`；偏好集合按该键保存主 / 次序号（`-1` = 显式关闭），严格解析并忽略坏记录。旧单槽只在当前 itemId 匹配时迁入当前命名空间，迁后清旧槽；无法匹配不恢复。“自动选择”删除当前片覆盖并回落到全局。
+- 验收：不同影片各自恢复不同字幕组合；服务 A/B 或用户 A/B 不串；单片关闭、主次轨道、重启、切码率、Exo/mpv 切换均保持；全局模式 / 语言修改保留已有单片覆盖，只影响无覆盖影片；坏记录不崩溃。Pad 5 Exo 与 K60 mpv 真机各覆盖完整切换链，主会话 0 截图。
+- 非目标：不改服务器、不改 Room schema、不把外观 / 延迟改成单片、不实现 W86-C seek 状态机。实现 / QA 分代理，TDD 先红后绿；合并仍走独立 merge-prep、ff-only、三路 CI。
