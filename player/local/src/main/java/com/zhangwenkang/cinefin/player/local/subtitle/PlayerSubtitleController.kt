@@ -168,6 +168,8 @@ class PlayerSubtitleController(
         mediaId: String,
         sources: List<PlayerSubtitleSource>,
         selectionScope: SubtitleSelectionScope? = null,
+        /** 无有效手动覆盖时才采用的默认主字幕；已有主 / 次或显式关闭时不得覆盖。 */
+        defaultPrimaryIndex: Int? = null,
         /** mpv 继续由原生 `sid` 自动选主字幕；次字幕只在用户选择 / 手动记忆时加载。 */
         autoSecondary: Boolean = true,
     ) {
@@ -209,6 +211,7 @@ class PlayerSubtitleController(
             }
         if (restored == null) {
             autoSelect(autoSecondary = autoSecondary)
+            defaultPrimaryIndex?.let(::selectPrimary)
         } else {
             manualSelectionActive = true
             disabledByUser = restored.disabledByUser

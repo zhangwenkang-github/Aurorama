@@ -25,6 +25,22 @@ class PlayerSubtitleControllerTest {
             source(index = 4, title = "English", language = "en", codec = "subrip"),
         )
 
+    private val sideloadSources =
+        listOf(
+            source(
+                index = SideloadedSubtitleStore.INDEX_BASE,
+                title = "English",
+                language = "en",
+                codec = "subrip",
+            ),
+            source(
+                index = SideloadedSubtitleStore.INDEX_BASE + 1,
+                title = "简体",
+                language = "zh-Hans",
+                codec = "subrip",
+            ),
+        )
+
     private fun source(
         index: Int,
         title: String,
@@ -61,6 +77,19 @@ class PlayerSubtitleControllerTest {
             sources = sources,
             selectionScope = itemScope,
             autoSecondary = autoSecondary,
+        )
+    }
+
+    private fun PlaybackFixture.resetSideload(
+        itemScope: SubtitleSelectionScope,
+        defaultPrimaryIndex: Int? = null,
+    ) {
+        controller.reset(
+            mediaId = itemScope.itemId,
+            sources = sideloadSources,
+            selectionScope = itemScope,
+            autoSecondary = false,
+            defaultPrimaryIndex = defaultPrimaryIndex,
         )
     }
 
@@ -221,6 +250,125 @@ class PlayerSubtitleControllerTest {
             assertNull(reader.controller.overlayState.value.primaryIndex)
             assertNull(reader.controller.overlayState.value.secondaryIndex)
             assertTrue(reader.controller.overlayState.value.disabledByUser)
+        } finally {
+            reader.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `首条侧载默认项不得覆盖已恢复的单片主次选择`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemScope = scope(itemId = "item-b")
+        val writer = fixture(preferences)
+        try {
+            writer.resetSideload(itemScope)
+            writer.controller.assignPrimary(SideloadedSubtitleStore.INDEX_BASE + 1)
+            writer.controller.assignSecondary(SideloadedSubtitleStore.INDEX_BASE)
+        } finally {
+            writer.scope.cancel()
+        }
+
+        val reader = fixture(preferences)
+        try {
+            reader.resetSideload(
+                itemScope,
+                defaultPrimaryIndex = SideloadedSubtitleStore.INDEX_BASE,
+            )
+
+            assertEquals(
+                SideloadedSubtitleStore.INDEX_BASE + 1,
+                reader.controller.overlayState.value.primaryIndex,
+            )
+            assertEquals(
+                SideloadedSubtitleStore.INDEX_BASE,
+                reader.controller.overlayState.value.secondaryIndex,
+            )
+            assertEquals(
+                ScopedSubtitleSelection(
+                    scope = itemScope,
+                    primaryIndex = SideloadedSubtitleStore.INDEX_BASE + 1,
+                    secondaryIndex = SideloadedSubtitleStore.INDEX_BASE,
+                ),
+                ScopedSubtitleSelection.decodeAll(
+                        reader.preferences.getValue(
+                            PlayerExtraPreferences.subtitleManualSelectionsV2
+                        )
+                    )
+                    .single(),
+            )
+        } finally {
+            reader.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `首条侧载默认项不得复活已恢复的显式关闭`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemScope = scope(itemId = "item-b")
+        val writer = fixture(preferences)
+        try {
+            writer.resetSideload(itemScope)
+            writer.controller.selectPrimary(null)
+        } finally {
+            writer.scope.cancel()
+        }
+
+        val reader = fixture(preferences)
+        try {
+            reader.resetSideload(
+                itemScope,
+                defaultPrimaryIndex = SideloadedSubtitleStore.INDEX_BASE,
+            )
+
+            assertNull(reader.controller.overlayState.value.primaryIndex)
+            assertNull(reader.controller.overlayState.value.secondaryIndex)
+            assertTrue(reader.controller.overlayState.value.disabledByUser)
+            assertEquals(
+                ScopedSubtitleSelection(
+                    scope = itemScope,
+                    primaryIndex = ScopedSubtitleSelection.NO_INDEX,
+                    secondaryIndex = ScopedSubtitleSelection.NO_INDEX,
+                ),
+                ScopedSubtitleSelection.decodeAll(
+                        reader.preferences.getValue(
+                            PlayerExtraPreferences.subtitleManualSelectionsV2
+                        )
+                    )
+                    .single(),
+            )
+        } finally {
+            reader.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `无手动选择时首条侧载仍作为默认主字幕`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemScope = scope(itemId = "item-b")
+        val reader = fixture(preferences)
+        try {
+            reader.resetSideload(
+                itemScope,
+                defaultPrimaryIndex = SideloadedSubtitleStore.INDEX_BASE,
+            )
+
+            assertEquals(
+                SideloadedSubtitleStore.INDEX_BASE,
+                reader.controller.overlayState.value.primaryIndex,
+            )
+            assertEquals(
+                ScopedSubtitleSelection(
+                    scope = itemScope,
+                    primaryIndex = SideloadedSubtitleStore.INDEX_BASE,
+                    secondaryIndex = ScopedSubtitleSelection.NO_INDEX,
+                ),
+                ScopedSubtitleSelection.decodeAll(
+                        reader.preferences.getValue(
+                            PlayerExtraPreferences.subtitleManualSelectionsV2
+                        )
+                    )
+                    .single(),
+            )
         } finally {
             reader.scope.cancel()
         }

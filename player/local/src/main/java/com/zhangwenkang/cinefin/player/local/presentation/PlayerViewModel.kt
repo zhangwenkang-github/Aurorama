@@ -2224,15 +2224,17 @@ constructor(
             mediaId = mediaId,
             sources = sources,
             selectionScope = subtitleSelectionScope(mediaId),
+            /*
+             * W27：用户为这个条目导入过字幕，无单片手动记录时默认沿用第一条侧载
+             * （导入本身就是显式选择）；controller 在 scoped restore 之后才应用，
+             * 不能覆盖当前片已保存的主 / 次或显式关闭。
+             */
+            defaultPrimaryIndex =
+                SideloadedSubtitleStore.INDEX_BASE.takeIf {
+                    playerBackend != PLAYER_BACKEND_MPV && sideloads.isNotEmpty()
+                },
             autoSecondary = playerBackend != PLAYER_BACKEND_MPV,
         )
-        /*
-         * W27：用户为这个条目导入过字幕，默认沿用第一条侧载（导入本身就是显式选择）；
-         * 仍可在面板里切回服务器字幕或移除。mpv 侧由 sid / slang 决定，不需要这里选。
-         */
-        if (playerBackend != PLAYER_BACKEND_MPV && sideloads.isNotEmpty()) {
-            subtitleController.selectPrimary(SideloadedSubtitleStore.INDEX_BASE)
-        }
         ensureMpvSideloadsInjected()
         applyMpvManualSubtitleSelection()
     }
