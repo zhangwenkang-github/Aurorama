@@ -2796,3 +2796,6 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 负责人检查点：`148,703 / 1,048,576（14.2%）`；QA 门禁已满足，下一阶段 = 全新 merge-prep 代理 rebase 最新 master、8 模块全量门禁与 diff 白名单。
 - 2026-10-23 03:30：merge-prep **PASS**。`origin/master` = `3d62e335`，rebase no-op、冲突 0、代码改动 0；白名单 7 文件无越界；8 模块 **1194/0/0/0**，phone debug、根 `ktfmtCheck`、diff 检查全绿；worktree clean，P0/P1=0。报告 `W86-B-MERGE-PREP.md`。
 - 下一阶段 = 负责人仅 ff-only 合并，推送后核验同一代码对象的三路 CI；任何 CI 失败即停止，不以旧 run 或 docs-only 跳过冒充通过。
+- 2026-10-23 03:36：W86-B **DONE**。`master` 从 `3d62e335` ff-only 到 `f52429ac` 并推送；Build `39840800620`、Unit Tests `39840800605`、Format `39840800644` 三路 CI 均钉在该 commit 且 `success`。代码对象保持 `57b57549`，候选 APK `331B4B581E5541DF0DA174760ED1E546535DB0D802B809B3A88198EBC9AEAAF6`。
+- W86-B 最终证据：独立 QA 6/6、28/28，P0–P3=0；merge-prep 8 模块 1194/0/0/0；真实 `server=- / user=-` A/B 隔离、K60 紧凑布局独立次级轨 UI、其他内核 / 平台继续列未覆盖。未改 `Versions.kt`、未打 tag / Release。
+- 下一棒 = W86-C（seek 请求确认态），必须在 W86-B 合并后串行新建负责人；W86-B 的 worktree / 分支不再承载新功能。
