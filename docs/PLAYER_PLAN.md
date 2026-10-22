@@ -2645,6 +2645,72 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 ## 42. W86-B 字幕作用域与单片覆盖（2026-10-22 设计已批准，待实施）
 
+### 42.1 新负责人执行计划（2026-10-22，用户批准后落盘）
+
+**目标**
+
+- 用规范键 `serverId|userId|itemId` 保存多条单片字幕覆盖，主轨 / 次轨 / 显式关闭在换片、重启、切码率、Exo/mpv 切换后恢复。
+- 有效单片覆盖优先于全局模式 / 语言，全局模式 / 语言优先于内核默认；全局变化不得改写已有单片覆盖；“自动选择”只清当前片。
+- 旧 `媒体 id|主字幕序号|次字幕序号` 单槽只在当前 itemId 匹配时迁移；坏记录严格忽略且不崩溃。
+
+**非目标**
+
+- 不改服务器，不新增或修改 Room schema / migration，不做任何生产服务器写请求。
+- 不把外观、延迟、主次语言改成单片；不重做 W86-A，不进入 W86-C seek 状态机。
+- 不改 `Versions.kt`、不打 tag、不发 Release；不做共享播放器状态的大重构。
+- 没有有效服务器 / 用户身份时只做显式 `-` 降级并报告覆盖限制，不宣称真实多账号隔离已通过真机。
+- 不使用截图做功能判断；主负责人 0 截图，独立 QA 只回文字结论。
+
+**阶段、门禁与角色**
+
+| 阶段 | 执行角色 | 交付 / 门禁 | 预计 |
+|---|---|---|---|
+| P0 开工门 | 负责人 | 计划落盘；独立 worktree / 分支；`device-lock.md` 写唯一标题并回读；`adb devices -l` 双机在线；身份来源审计完成 | 20–30 分钟 |
+| P1 RED | 实现代理 | 先写纯领域 / controller 测试，运行并记录预期失败；至少覆盖多片、命名空间、主次 / 关闭、全局不覆盖、自动选择清当前片、坏记录、旧槽迁移 | 30–45 分钟 |
+| P2 GREEN | 实现代理 | 最小实现使 P1 全绿；只改任务线允许文件；无 Room / 服务器写入；提交可审查 commit | 60–100 分钟 |
+| P3 模块门禁 | 实现代理 | 目标测试、`:player:local`、`:settings`、`:data`、`:app:phone:assembleDebug`、`ktfmtCheck`、`git diff --check` 全绿 | 20–35 分钟 |
+| P4 真机链 | 实现代理 | 同一 APK 装 Pad 5 `43af8627`（Exo）与 K60 `8e875894`（mpv）；多片保持、显式关闭、重启、切码率、切内核；分列“已完成 / 未覆盖” | 45–75 分钟 |
+| P5 独立 QA | QA 代理（不得改代码 / commit） | 从用户视角独立建矩阵；P0/P1 必须为 0；复核双机目标链路；输出覆盖数、APK SHA、0 FATAL / 0 ANR、未覆盖项 | 60–90 分钟 |
+| P6 merge-prep | 独立架构代理 | fetch 最新 `origin/master` 后 rebase；8 模块全量单测、根构建、格式、diff 白名单；不 merge / push | 30–45 分钟 |
+| P7 收口 | 负责人 | 范围审查后 ff-only；同代码 commit 三路 CI；任务线 / handoff / Engramory 更新；创建 W86-C 下一负责人线程 | 30–60 分钟 |
+
+**身份 seam 与数据边界**
+
+- 只读核实结果：`serverId` 来源为 `AppPreferences.currentServer`；当前用户来源为 `JellyfinApi.userId`，`SetupRepositoryImpl` 在登录 / 切换用户时更新它，`JellyfinRepositoryImpl` 也以该用户 id 调服务器。
+- `PlayerViewModel` 通过现有 `player/local -> data` 依赖向字幕控制器传入不可变 `SubtitleSelectionScope`；控制器只做持久化与恢复，不直接访问服务器或数据库。
+- 规范键严格三段、非空、段内不得含 `|`；缺服务器写 `-`，缺用户写 `-`。`-` 表示未知命名空间，必须在实现和 QA 报告中如实标注；无法证明账号隔离时不得声称已覆盖。
+- 新记录保存在 `pref_player_subtitle_selections_v2`（字符串多行格式，逐行严格解析）；旧 `pref_player_subtitle_manual_selection` 只作为一次性迁移源。坏记录逐条忽略，不能使整个集合崩溃。
+- 单片覆盖记录定义主 / 次序号（`-1` = 该路显式关闭）；主路 `-1` 表示该片用户显式关闭字幕。恢复时只接受当前源清单中存在的非负序号；过期 / 冲突记录回落到全局规则，不恢复即不伪报成功。
+
+**只读白名单**
+
+- 实现代理：本 §42、`docs/FIX_PLAN.md` W86-B 段、`AppPreferences.kt`、`PlayerExtraPreferences.kt`、`PlayerSubtitleSelection.kt`、`PlayerSubtitleController.kt`、`PlayerViewModel.kt` 中字幕相关函数、`JellyfinApi.userId`、`SetupRepositoryImpl.getCurrentUser/setCurrentUser`、现有字幕单测与 `device-lock.md`。
+- QA 代理：本 §42、实现代理压缩报告、代码 commit / diff 摘要、APK 哈希、安装与测试命令、`device-lock.md`；自行从用户行为重建矩阵，不读实现者完整思考过程。
+- merge-prep：本 §42、`git diff --stat / --name-only`、关键字幕领域与 controller diff、全量门禁命令；不读历史大文档或原始设备日志。
+- 任何代理需要白名单外材料时，先向负责人请求具体文件 / 行号；禁止通读大文档、原始日志或整个玩家模块。
+
+**证据路径**
+
+- 实现报告：`F:\Develop\codex_work\.planning\cinefin-expansion\w86-reports\W86-B-IMPL.md`
+- 独立 QA：`F:\Develop\codex_work\.planning\cinefin-expansion\w86-reports\W86-B-QA.md`
+- merge-prep：`F:\Develop\codex_work\.planning\cinefin-expansion\w86-reports\W86-B-MERGE-PREP.md`
+- 设备文本证据：`F:\Develop\codex_work\.planning\cinefin-expansion\w86b-evidence\`
+- 设备占用 / 释放：`F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md`
+
+**上下文与检查点**
+
+- 开工实测：负责人 `154,820 / 1,048,576（14.8%）`；本波预计总耗时 4–7 小时。
+- 预计峰值：负责人 18–28 万；实现代理 20–28 万；QA 12–20 万；merge-prep 6–10 万。代理预计可能越过 30 万时不得接新任务。
+- **25 万**：负责人停止扩样与非判别性阅读，压缩报告只留结论 / SHA / 门禁 / 未覆盖项；实现代理开始固化检查点。
+- **30 万**：停止新增任务，先写进度、evidence 指针、剩余步骤与下一身份；未能收口则替换代理。
+- **35 万**：负责人必须创建新负责人线程并停止扩项；50 万为绝对止损线。
+- 每阶段结束在报告 / 本任务线记录实际水位、继续 / 收缩 / 交接判断。
+
+**固定收口顺序**
+
+- 实现（TDD 红→绿 + 真机）→ 独立 QA（不改代码）→ 独立 merge-prep（rebase、全量门禁、diff 白名单）→ 负责人 ff-only → 同代码 commit 三路 CI → 任务线 / handoff / Engramory → 串行创建 W86-C 下一负责人线程。
+- 未通过独立 QA 不合并；P0/P1 不得伪报为 0；真实账号隔离、真实第二服务器、未执行的人工项必须单列未覆盖。
+
 - 目标：把字幕状态明确分成两层——外观 / 延迟 / 主次语言 / 模式是全局默认；主轨 / 次轨 / 显式关闭是单片覆盖。有效单片选择优先于全局，全局变更不得改写单片记录。
 - 当前三个缺口已定位：`PlayerExtraPreferences.subtitleManualSelection` 只有单槽，换片覆盖前片；旧键只含 itemId，不能隔离服务器 / 用户；`setSubtitleMode(OFF)` 调用清主 / 次字幕入口，把全局设置误写成单片手动关闭。
 - 设计：规范媒体键 = `serverId|userId|itemId`；偏好集合按该键保存主 / 次序号（`-1` = 显式关闭），严格解析并忽略坏记录。旧单槽只在当前 itemId 匹配时迁入当前命名空间，迁后清旧槽；无法匹配不恢复。“自动选择”删除当前片覆盖并回落到全局。
