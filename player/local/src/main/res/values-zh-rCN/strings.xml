@@ -28,6 +28,8 @@
     <string name="player_controls_no_track">暂无可选轨道</string>
     <string name="player_controls_subtitle_off">关闭字幕</string>
     <string name="player_controls_info_title">标题</string>
+    <string name="player_controls_info_source_section">源媒体</string>
+    <string name="player_controls_info_current_section">当前流</string>
     <string name="player_controls_info_container">容器</string>
     <string name="player_controls_info_resolution">分辨率</string>
     <string name="player_controls_info_frame_rate">帧率</string>

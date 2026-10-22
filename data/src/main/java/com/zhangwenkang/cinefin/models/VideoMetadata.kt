@@ -11,6 +11,14 @@ data class VideoMetadata(
     val audioChannels: List<AudioChannel>,
     val audioCodecs: List<AudioCodec?>,
     val isAtmos: List<Boolean>,
+    /** 首个视频轨的精确源字段；未知为 null，UI 统一显示「—」。 */
+    val width: Int? = null,
+    val height: Int? = null,
+    val videoBitrate: Int? = null,
+    val frameRate: Float? = null,
+    val videoCodec: String? = null,
+    val sourceBitrate: Int? = null,
+    val container: String? = null,
 )
 
 enum class Resolution(val raw: String) {

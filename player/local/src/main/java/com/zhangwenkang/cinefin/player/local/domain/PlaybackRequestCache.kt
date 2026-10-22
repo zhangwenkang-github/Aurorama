@@ -16,6 +16,7 @@ internal data class PlaybackRequestKey(
     val itemId: UUID,
     val mediaSourceIndex: Int?,
     val startPositionTicks: Long,
+    val preferredMediaSourceId: String? = null,
 )
 
 /** 纯函数：解析播放信息的缓存键。位置按 Jellyfin ticks（100 ns）参与，负数（= 未指定 / 从 0）统一归一为 0。 */
@@ -23,11 +24,13 @@ internal fun playbackRequestKey(
     itemId: UUID,
     mediaSourceIndex: Int?,
     startPositionTicks: Long,
+    preferredMediaSourceId: String? = null,
 ): PlaybackRequestKey =
     PlaybackRequestKey(
         itemId = itemId,
         mediaSourceIndex = mediaSourceIndex,
         startPositionTicks = startPositionTicks.coerceAtLeast(0L),
+        preferredMediaSourceId = preferredMediaSourceId,
     )
 
 /** W76-Q6：缓存取证用的计数（实际发出的请求数 / 复用已解析结果的次数）。 */

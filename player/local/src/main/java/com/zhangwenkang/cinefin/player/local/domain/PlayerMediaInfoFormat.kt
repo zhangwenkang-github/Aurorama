@@ -175,6 +175,61 @@ fun mergePlayerMediaInfo(
     )
 }
 
+/** InfoPanel 的源媒体 / 当前流两区；current 字段只读 current，禁止借 source 补齐。 */
+data class PlayerMediaInfoSections(
+    val sourceContainer: String,
+    val sourceCodec: String,
+    val sourceResolution: String,
+    val sourceBitrate: String,
+    val sourceFrameRate: String,
+    val sourceHdr: String,
+    val sourceAudio: String,
+    val sourceFileSize: String,
+    val sourcePath: String,
+    val currentContainer: String,
+    val currentCodec: String,
+    val currentResolution: String,
+    val currentBitrate: String,
+    val currentFrameRate: String,
+    val currentHdr: String,
+    val currentAudio: String,
+)
+
+fun playerMediaInfoSections(
+    source: PlayerMediaInfo?,
+    current: PlayerMediaInfo?,
+): PlayerMediaInfoSections =
+    PlayerMediaInfoSections(
+        sourceContainer = PlayerMediaInfoFormat.container(source?.container),
+        sourceCodec = PlayerMediaInfoFormat.codec(source?.videoCodec),
+        sourceResolution = PlayerMediaInfoFormat.resolution(source?.width, source?.height),
+        sourceBitrate = PlayerMediaInfoFormat.bitrate(source?.videoBitrate),
+        sourceFrameRate = PlayerMediaInfoFormat.frameRate(source?.frameRate),
+        sourceHdr = PlayerMediaInfoFormat.hdr(source?.hdr),
+        sourceAudio =
+            PlayerMediaInfoFormat.audio(
+                codec = source?.audioCodec,
+                channels = source?.audioChannels,
+                bitrate = source?.audioBitrate,
+                sampleRate = source?.audioSampleRate,
+            ),
+        sourceFileSize = PlayerMediaInfoFormat.fileSize(source?.fileSizeBytes),
+        sourcePath = PlayerMediaInfoFormat.path(source?.path),
+        currentContainer = PlayerMediaInfoFormat.container(current?.container),
+        currentCodec = PlayerMediaInfoFormat.codec(current?.videoCodec),
+        currentResolution = PlayerMediaInfoFormat.resolution(current?.width, current?.height),
+        currentBitrate = PlayerMediaInfoFormat.bitrate(current?.videoBitrate),
+        currentFrameRate = PlayerMediaInfoFormat.frameRate(current?.frameRate),
+        currentHdr = PlayerMediaInfoFormat.hdr(current?.hdr),
+        currentAudio =
+            PlayerMediaInfoFormat.audio(
+                codec = current?.audioCodec,
+                channels = current?.audioChannels,
+                bitrate = current?.audioBitrate,
+                sampleRate = current?.audioSampleRate,
+            ),
+    )
+
 /** 从播放地址推断容器（Jellyfin / mpv 都可能不给容器名时的兜底） */
 fun inferContainerFromUri(uri: String?): String? {
     val raw = uri?.trim()?.takeIf { it.isNotEmpty() } ?: return null

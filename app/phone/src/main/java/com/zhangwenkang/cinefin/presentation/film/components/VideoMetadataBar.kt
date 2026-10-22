@@ -21,12 +21,17 @@ import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.models.AudioCodec
 import com.zhangwenkang.cinefin.models.DisplayProfile
 import com.zhangwenkang.cinefin.models.VideoMetadata
+import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
 
 @Composable
 fun VideoMetadataBar(videoMetadata: VideoMetadata) {
     Row(horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small)) {
-        videoMetadata.resolution.firstOrNull()?.apply { VideoMetadataBarItem(text = this.raw) }
-        videoMetadata.videoCodecs.firstOrNull()?.apply { VideoMetadataBarItem(text = this.raw) }
+        VideoMetadataBarItem(
+            text = PlayerMediaInfoFormat.resolution(videoMetadata.width, videoMetadata.height)
+        )
+        VideoMetadataBarItem(text = PlayerMediaInfoFormat.codec(videoMetadata.videoCodec))
+        VideoMetadataBarItem(text = PlayerMediaInfoFormat.bitrate(videoMetadata.videoBitrate))
+        VideoMetadataBarItem(text = PlayerMediaInfoFormat.frameRate(videoMetadata.frameRate))
         videoMetadata.displayProfiles.firstOrNull()?.apply {
             val icon =
                 when (this) {

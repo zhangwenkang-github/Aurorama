@@ -4,6 +4,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
+import com.zhangwenkang.cinefin.player.local.domain.hdrFromMpv
 import com.zhangwenkang.cinefin.player.local.domain.hdrFromVideo
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 
@@ -20,6 +21,37 @@ fun readKernelMediaInfo(player: Player): PlayerMediaInfo? =
         is MPVPlayer -> player.queryMediaInfo()
         else -> exoPlayerMediaInfo(player.currentTracks)
     }
+
+fun mpvMediaInfo(
+    container: String?,
+    videoCodec: String?,
+    width: Int?,
+    height: Int?,
+    videoBitrate: Double?,
+    frameRate: Double?,
+    gamma: String?,
+    primaries: String?,
+    dolbyVision: Boolean,
+    audioCodec: String?,
+    audioChannels: Int?,
+    audioSampleRate: Int?,
+    audioBitrate: Double?,
+    fileSizeBytes: Double?,
+): PlayerMediaInfo =
+    PlayerMediaInfo(
+        container = container?.takeIf { it.isNotBlank() },
+        videoCodec = videoCodec?.takeIf { it.isNotBlank() },
+        width = width?.takeIf { it > 0 },
+        height = height?.takeIf { it > 0 },
+        videoBitrate = videoBitrate?.takeIf { it > 0 }?.toInt(),
+        frameRate = frameRate?.takeIf { it.isFinite() && it > 0 }?.toFloat(),
+        hdr = hdrFromMpv(gamma = gamma, primaries = primaries, dolbyVision = dolbyVision),
+        audioCodec = audioCodec?.takeIf { it.isNotBlank() },
+        audioChannels = audioChannels?.takeIf { it > 0 },
+        audioSampleRate = audioSampleRate?.takeIf { it > 0 },
+        audioBitrate = audioBitrate?.takeIf { it > 0 }?.toInt(),
+        fileSizeBytes = fileSizeBytes?.takeIf { it > 0 }?.toLong(),
+    )
 
 /** ExoPlayer 的 [Tracks] → 信息快照（纯数据转换，便于单测与复用） */
 fun exoPlayerMediaInfo(tracks: Tracks?): PlayerMediaInfo? {

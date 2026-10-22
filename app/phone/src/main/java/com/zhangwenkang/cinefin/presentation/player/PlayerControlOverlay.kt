@@ -109,6 +109,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
+import com.zhangwenkang.cinefin.player.core.domain.models.PlaybackMediaIdentity
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
@@ -117,10 +118,9 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
-import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
-import com.zhangwenkang.cinefin.player.local.domain.mergePlayerMediaInfo
+import com.zhangwenkang.cinefin.player.local.domain.playerMediaInfoSections
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
@@ -1400,6 +1400,9 @@ fun PlayerControlOverlay(
                             runtime = runtime,
                             title = uiState.currentItemTitle,
                             sourceInfo = uiState.currentMediaInfo,
+                            currentStreamInfo = uiState.currentStreamMediaInfo,
+                            mediaIdentity = uiState.playbackMediaIdentity,
+                            generation = uiState.playbackRequestGeneration,
                         )
                     PlayerPanel.Queue ->
                         QueuePanel(
@@ -4627,18 +4630,23 @@ private fun InfoPanel(
     runtime: PlayerRuntime,
     title: String,
     sourceInfo: PlayerMediaInfo?,
+    currentStreamInfo: PlayerMediaInfo?,
+    mediaIdentity: PlaybackMediaIdentity?,
+    generation: Long,
 ) {
     /*
-     * 双内核信息快照（§1.8）：媒体源元数据（Jellyfin）+ 内核实测值，内核优先。
-     * mpv 的属性读取会走到 native，放到 IO 线程；ExoPlayer 读的是 currentTracks。
-     * 两个内核能取到的字段不同 → 取不到统一显示「—」，不隐藏行、不崩。
+     * 源媒体与当前流严格分区。内核值只写 current 区，绝不回退 source；
+     * 轨道集从 null → ready、选轨、换源或 generation 变化时先清旧值再重读。
      */
-    var kernelInfo by remember { mutableStateOf<PlayerMediaInfo?>(null) }
-    LaunchedEffect(player, runtime.currentIndex) {
+    var kernelInfo by
+        remember(player, mediaIdentity, generation) { mutableStateOf<PlayerMediaInfo?>(null) }
+    LaunchedEffect(player, runtime.tracks, mediaIdentity, generation) {
+        kernelInfo = null
         kernelInfo =
             withContext(Dispatchers.IO) { runCatching { readKernelMediaInfo(player) }.getOrNull() }
     }
-    val info = mergePlayerMediaInfo(sourceInfo, kernelInfo)
+    val currentInfo = kernelInfo ?: currentStreamInfo
+    val sections = playerMediaInfoSections(sourceInfo, currentInfo)
 
     val audioCount =
         runtime.tracks?.groups?.count { it.type == C.TRACK_TYPE_AUDIO && it.isSupported } ?: 0
@@ -4647,51 +4655,76 @@ private fun InfoPanel(
 
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
+            InfoSectionHeader(stringResource(PlayerR.string.player_controls_info_source_section))
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_title),
                 value = title.ifEmpty { runtime.title },
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_container),
-                value = PlayerMediaInfoFormat.container(info?.container),
+                value = sections.sourceContainer,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_codec),
-                value = PlayerMediaInfoFormat.codec(info?.videoCodec),
+                value = sections.sourceCodec,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_resolution),
-                value = PlayerMediaInfoFormat.resolution(info?.width, info?.height),
+                value = sections.sourceResolution,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_bitrate),
-                value = PlayerMediaInfoFormat.bitrate(info?.videoBitrate),
+                value = sections.sourceBitrate,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_frame_rate),
-                value = PlayerMediaInfoFormat.frameRate(info?.frameRate),
+                value = sections.sourceFrameRate,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_hdr),
-                value = PlayerMediaInfoFormat.hdr(info?.hdr),
+                value = sections.sourceHdr,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_audio_format),
-                value =
-                    PlayerMediaInfoFormat.audio(
-                        codec = info?.audioCodec,
-                        channels = info?.audioChannels,
-                        bitrate = info?.audioBitrate,
-                        sampleRate = info?.audioSampleRate,
-                    ),
+                value = sections.sourceAudio,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_file_size),
-                value = PlayerMediaInfoFormat.fileSize(info?.fileSizeBytes),
+                value = sections.sourceFileSize,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_path),
-                value = PlayerMediaInfoFormat.path(info?.path),
+                value = sections.sourcePath,
+            )
+
+            InfoSectionHeader(stringResource(PlayerR.string.player_controls_info_current_section))
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_container),
+                value = sections.currentContainer,
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_codec),
+                value = sections.currentCodec,
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_resolution),
+                value = sections.currentResolution,
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_bitrate),
+                value = sections.currentBitrate,
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_frame_rate),
+                value = sections.currentFrameRate,
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_hdr),
+                value = sections.currentHdr,
+            )
+            InfoRow(
+                label = stringResource(PlayerR.string.player_controls_info_audio_format),
+                value = sections.currentAudio,
             )
             InfoRow(
                 label = stringResource(PlayerR.string.player_controls_info_audio_tracks),
@@ -4715,6 +4748,21 @@ private fun InfoPanel(
             )
         }
     }
+}
+
+@Composable
+private fun InfoSectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(
+                    horizontal = CinefinSpacing.Space5,
+                    vertical = CinefinSpacing.Space3,
+                ),
+    )
 }
 
 @Composable

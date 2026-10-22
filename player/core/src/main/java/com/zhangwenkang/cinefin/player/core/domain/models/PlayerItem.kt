@@ -44,6 +44,9 @@ const val PLAYER_EXTRA_EPISODE_NUMBER = "cinefin.episodeNumber"
 /** MediaItem extras：播放信息面板的媒体元数据（[PlayerMediaInfo]） */
 const val PLAYER_EXTRA_MEDIA_INFO = "cinefin.mediaInfo"
 
+/** MediaItem extras：从 PlaybackInfo 选中的稳定 media source id。 */
+const val PLAYER_EXTRA_MEDIA_SOURCE_ID = "cinefin.mediaSourceId"
+
 /**
  * MediaItem extras：全部字幕源（[PlayerSubtitleSource] 的 Parcelable ArrayList）。
  *

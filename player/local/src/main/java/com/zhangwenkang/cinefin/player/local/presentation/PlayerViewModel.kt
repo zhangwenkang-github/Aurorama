@@ -26,8 +26,10 @@ import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_INFO
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SUBTITLE_SOURCES
+import com.zhangwenkang.cinefin.player.core.domain.models.PlaybackMediaIdentity
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
@@ -39,6 +41,8 @@ import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinatorImpl
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
+import com.zhangwenkang.cinefin.player.local.domain.PlaybackRequestToken
+import com.zhangwenkang.cinefin.player.local.domain.PlaybackSnapshotState
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerEndBehavior
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
@@ -48,8 +52,12 @@ import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
+import com.zhangwenkang.cinefin.player.local.domain.acceptCurrentStreamSnapshot
+import com.zhangwenkang.cinefin.player.local.domain.beginPlaybackRequest
+import com.zhangwenkang.cinefin.player.local.domain.bindSourceSnapshot
 import com.zhangwenkang.cinefin.player.local.domain.isSeekRequestReady
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
+import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
@@ -182,6 +190,9 @@ constructor(
         )
     val uiState = _uiState.asStateFlow()
 
+    private var playbackSnapshots = PlaybackSnapshotState()
+    private var activePlaybackToken: PlaybackRequestToken? = null
+
     /** W55 睡眠定时状态（统一状态源）：播放器睡眠键激活态与睡眠面板消费。 */
     val sleepTimerState = sleepTimerController.state
 
@@ -208,6 +219,10 @@ constructor(
         val currentItemId: UUID? = null,
         /** 当前条目的媒体源元数据（§1.8 信息面板；内核侧实测值由面板再合并一层） */
         val currentMediaInfo: PlayerMediaInfo? = null,
+        /** 当前播放内核实际读到的流参数；绝不回退 source。 */
+        val currentStreamMediaInfo: PlayerMediaInfo? = null,
+        val playbackMediaIdentity: PlaybackMediaIdentity? = null,
+        val playbackRequestGeneration: Long = 0L,
         val currentSegment: FindroidSegment?,
         val currentSkipButtonStringRes: Int,
         /**
@@ -496,6 +511,89 @@ constructor(
      *   表示按服务端记录续播。
      * @param queueEntries W58b 视频多选批量播放：非空 = 显式播放队列（电影 / 单集）， [itemId] 只用于在队列里找起播项（回退重启后仍指向实际播放条目）。
      */
+    private fun publishPlaybackSnapshots() {
+        val snapshots = playbackSnapshots
+        _uiState.update {
+            it.copy(
+                currentMediaInfo = snapshots.sourceMediaInfo,
+                currentStreamMediaInfo = snapshots.currentStreamMediaInfo,
+                playbackMediaIdentity = snapshots.identity,
+                playbackRequestGeneration = snapshots.generation,
+            )
+        }
+    }
+
+    /** 新请求开始：清空 source / current，并返回单调递增的代次。 */
+    private fun resetPlaybackSnapshots(): Long {
+        val generation = playbackSnapshots.generation + 1L
+        playbackSnapshots = PlaybackSnapshotState(generation = generation)
+        activePlaybackToken = null
+        publishPlaybackSnapshots()
+        return generation
+    }
+
+    private fun beginMediaSnapshot(identity: PlaybackMediaIdentity): PlaybackRequestToken {
+        val (snapshots, token) = beginPlaybackRequest(playbackSnapshots, identity)
+        playbackSnapshots = snapshots
+        activePlaybackToken = token
+        publishPlaybackSnapshots()
+        return token
+    }
+
+    private fun ensureMediaSnapshot(identity: PlaybackMediaIdentity): PlaybackRequestToken {
+        val active = activePlaybackToken
+        if (
+            active != null &&
+                active.identity == identity &&
+                playbackSnapshots.identity == identity &&
+                playbackSnapshots.generation == active.generation
+        ) {
+            return active
+        }
+        return beginMediaSnapshot(identity)
+    }
+
+    /** 切轨 / 内核轨道集变化：保留 source，只清旧 current 并让旧异步结果失效。 */
+    private fun advanceCurrentStreamGeneration(): PlaybackRequestToken? {
+        val identity = playbackSnapshots.identity
+        if (identity == null) {
+            resetPlaybackSnapshots()
+            return null
+        }
+        val token = PlaybackRequestToken(identity, playbackSnapshots.generation + 1L)
+        playbackSnapshots =
+            playbackSnapshots.copy(
+                generation = token.generation,
+                currentStreamMediaInfo = null,
+            )
+        activePlaybackToken = token
+        publishPlaybackSnapshots()
+        return token
+    }
+
+    private fun applySourceSnapshot(token: PlaybackRequestToken, source: PlayerMediaInfo?) {
+        playbackSnapshots = bindSourceSnapshot(playbackSnapshots, token, source)
+        publishPlaybackSnapshots()
+    }
+
+    private fun applyCurrentStreamSnapshot(
+        token: PlaybackRequestToken,
+        current: PlayerMediaInfo?,
+    ) {
+        playbackSnapshots = acceptCurrentStreamSnapshot(playbackSnapshots, token, current)
+        publishPlaybackSnapshots()
+    }
+
+    private fun refreshCurrentStreamSnapshot(token: PlaybackRequestToken) {
+        viewModelScope.launch {
+            val info =
+                withContext(Dispatchers.IO) {
+                    runCatching { readKernelMediaInfo(player) }.getOrNull()
+                }
+            applyCurrentStreamSnapshot(token, info)
+        }
+    }
+
     fun initializePlayer(
         itemId: UUID,
         itemKind: String,
@@ -542,6 +640,8 @@ constructor(
         // 打开条目就先声明「要播」的意图：起播窗口内不被 pause/resume 回存覆盖（bug ②）
         startupInProgress = true
         playWhenReady = true
+        // 新播放页 / 新码率 / 新内核请求：旧 source 与 current 立即失效。
+        val initializationGeneration = resetPlaybackSnapshots()
         player.addListener(this)
         applySavedSubtitlePreferences()
         syncMpvSubtitleMode()
@@ -588,6 +688,18 @@ constructor(
                 startupInProgress = false
                 return@launch
             }
+            if (playbackSnapshots.generation != initializationGeneration) {
+                Timber.d("Discard stale player initialization after generation advanced")
+                return@launch
+            }
+
+            val identity =
+                PlaybackMediaIdentity(
+                    itemId = startItem.itemId,
+                    mediaSourceId = startItem.mediaSourceId,
+                )
+            val sourceToken = beginMediaSnapshot(identity)
+            applySourceSnapshot(sourceToken, startItem.mediaInfo)
 
             items = listOfNotNull(startItem).toMutableList()
             currentMediaItemIndex = items.indexOf(startItem)
@@ -815,17 +927,24 @@ constructor(
         val mediaItem = player.currentMediaItem ?: return
         val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull()
         val extras = mediaItem.mediaMetadata.extras
+        val mediaSourceId = extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+        val identity = playbackMediaIdentity(itemId, mediaSourceId)
+        if (identity == null) {
+            resetPlaybackSnapshots()
+        } else {
+            val token = ensureMediaSnapshot(identity)
+            @Suppress("DEPRECATION")
+            val sourceInfo = extras?.getParcelable(PLAYER_EXTRA_MEDIA_INFO) as? PlayerMediaInfo
+            applySourceSnapshot(token, sourceInfo)
+        }
         val season = extras?.getInt(PLAYER_EXTRA_SEASON_NUMBER, -1) ?: -1
         val episode = extras?.getInt(PLAYER_EXTRA_EPISODE_NUMBER, -1) ?: -1
         val name = mediaItem.mediaMetadata.title?.toString().orEmpty()
         val title = if (season >= 0 && episode >= 0) "S$season:E$episode - $name" else name
-        @Suppress("DEPRECATION")
-        val mediaInfo = extras?.getParcelable(PLAYER_EXTRA_MEDIA_INFO) as? PlayerMediaInfo
         _uiState.update {
             it.copy(
                 currentItemTitle = title,
-                currentItemId = itemId ?: it.currentItemId,
-                currentMediaInfo = mediaInfo ?: it.currentMediaInfo,
+                currentItemId = itemId,
             )
         }
     }
@@ -857,6 +976,7 @@ constructor(
                             Bundle().apply {
                                 putInt(PLAYER_EXTRA_SEASON_NUMBER, parentIndexNumber ?: -1)
                                 putInt(PLAYER_EXTRA_EPISODE_NUMBER, indexNumber ?: -1)
+                                putString(PLAYER_EXTRA_MEDIA_SOURCE_ID, mediaSourceId)
                                 // 信息面板（§1.8）：媒体源元数据随媒体项一起带走
                                 mediaInfo?.let { putParcelable(PLAYER_EXTRA_MEDIA_INFO, it) }
                                 // mpv 转码场景的 libass 兜底：字幕清单随条目走，容器无内嵌字幕时 sub-add
@@ -1065,6 +1185,7 @@ constructor(
      * 同一媒体可能多次回调（例如外挂字幕稍后才挂载），因此每次都重新计算； 但用户在当前媒体里手动选过轨时不再干预。
      */
     override fun onTracksChanged(tracks: Tracks) {
+        val currentToken = advanceCurrentStreamGeneration()
         if (player !is ExoPlayer) {
             /*
              * mpv：字幕轨（sid）与音轨（aid）都来自这个回调，刷新面板跟上。
@@ -1076,6 +1197,7 @@ constructor(
             // 双字幕期间主字幕改由 App 侧 libass 接管：轨道就绪后按实际 sid 补一次内容，
             // 覆盖「次字幕先于轨道列表加载」的顺序。
             ensureMpvPrimaryContent(subtitleController.overlayState.value)
+            currentToken?.let(::refreshCurrentStreamSnapshot)
             return
         }
         val mediaId = player.currentMediaItem?.mediaId ?: return
@@ -1087,10 +1209,13 @@ constructor(
             applySubtitleRoutingOnly()
         }
         publishAudioPanelState()
+        currentToken?.let(::refreshCurrentStreamSnapshot)
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
+        // 条目 / 媒体源一变化先清空旧快照；后续只有同一 identity 的结果能重新填入。
+        refreshUiStateFromPlayer()
         // #9：倍速是「播放会话内状态」——同一剧集队列里切集（含自动下一集）后必须保持。
         // mpv 换集走 prepareMediaItem → resetInternalState 会把 playbackParameters 复位为 1×，
         // ExoPlayer 本身会继承，但这里统一重放一次会话倍速，两个内核都得到一致的面板读数与媒体会话速度。
@@ -1149,6 +1274,13 @@ constructor(
                         } else {
                             item.name
                         }
+                    val identity =
+                        PlaybackMediaIdentity(
+                            itemId = item.itemId,
+                            mediaSourceId = item.mediaSourceId,
+                        )
+                    val sourceToken = ensureMediaSnapshot(identity)
+                    applySourceSnapshot(sourceToken, item.mediaInfo)
                     _uiState.update {
                         it.copy(
                             currentItemTitle = itemTitle,
@@ -1156,8 +1288,6 @@ constructor(
                             currentSegment = null,
                             currentChapters = item.chapters,
                             fileLoaded = false,
-                            // 信息面板的媒体源元数据（§1.8）：跟着当前条目一起刷新
-                            currentMediaInfo = item.mediaInfo,
                         )
                     }
 

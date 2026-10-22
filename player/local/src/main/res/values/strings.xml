@@ -25,6 +25,8 @@
     <string name="player_controls_no_track">No track available</string>
     <string name="player_controls_subtitle_off">Off</string>
     <string name="player_controls_info_title">Title</string>
+    <string name="player_controls_info_source_section">Source media</string>
+    <string name="player_controls_info_current_section">Current stream</string>
     <string name="player_controls_info_container">Container</string>
     <string name="player_controls_info_resolution">Resolution</string>
     <string name="player_controls_info_frame_rate">Frame rate</string>

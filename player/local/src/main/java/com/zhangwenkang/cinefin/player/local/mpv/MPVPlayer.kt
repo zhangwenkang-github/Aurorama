@@ -44,8 +44,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
-import com.zhangwenkang.cinefin.player.local.domain.hdrFromMpv
 import com.zhangwenkang.cinefin.player.local.domain.mpvResizeProperties
+import com.zhangwenkang.cinefin.player.local.presentation.mpvMediaInfo
 import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvEvent
 import dev.jdtech.mpv.MPVLib.MpvFormat
@@ -1037,24 +1037,22 @@ class MPVPlayer(
             val gamma = mpvString("video-params/gamma")
             val primaries = mpvString("video-params/primaries")
             val dolbyVision = mpvString("video-params/dolbyvision") != null
-            PlayerMediaInfo(
+            mpvMediaInfo(
                 container = mpvString("file-format"),
                 videoCodec = mpvString("video-format"),
-                width = mpvInt("width")?.takeIf { it > 0 },
-                height = mpvInt("height")?.takeIf { it > 0 },
-                videoBitrate = mpvDouble("video-bitrate")?.takeIf { it > 0 }?.toInt(),
-                frameRate =
-                    (mpvDouble("container-fps") ?: mpvDouble("estimated-vf-fps"))
-                        ?.takeIf { it > 0 }
-                        ?.toFloat(),
-                hdr = hdrFromMpv(gamma = gamma, primaries = primaries, dolbyVision = dolbyVision),
+                width = mpvInt("width"),
+                height = mpvInt("height"),
+                videoBitrate = mpvDouble("video-bitrate"),
+                frameRate = mpvDouble("container-fps") ?: mpvDouble("estimated-vf-fps"),
+                gamma = gamma,
+                primaries = primaries,
+                dolbyVision = dolbyVision,
                 audioCodec = mpvString("audio-codec-name"),
                 audioChannels =
-                    (mpvInt("audio-params/channel-count") ?: mpvInt("audio-params/channels"))
-                        ?.takeIf { it > 0 },
-                audioSampleRate = mpvInt("audio-params/samplerate")?.takeIf { it > 0 },
-                audioBitrate = mpvDouble("audio-bitrate")?.takeIf { it > 0 }?.toInt(),
-                fileSizeBytes = mpvDouble("file-size")?.takeIf { it > 0 }?.toLong(),
+                    mpvInt("audio-params/channel-count") ?: mpvInt("audio-params/channels"),
+                audioSampleRate = mpvInt("audio-params/samplerate"),
+                audioBitrate = mpvDouble("audio-bitrate"),
+                fileSizeBytes = mpvDouble("file-size"),
             )
         }
             .onFailure { Timber.w(it, "mpv 媒体信息读取失败") }

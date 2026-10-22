@@ -12,6 +12,57 @@ import org.junit.Test
 class PlayerKernelMediaInfoTest {
 
     @Test
+    fun `mpv 原生属性纯映射保留当前流字段与未知语义`() {
+        val info =
+            mpvMediaInfo(
+                container = "matroska",
+                videoCodec = "hevc",
+                width = 3840,
+                height = 2160,
+                videoBitrate = 18_000_000.0,
+                frameRate = 23.976,
+                gamma = "pq",
+                primaries = "bt.2020",
+                dolbyVision = false,
+                audioCodec = "eac3",
+                audioChannels = 6,
+                audioSampleRate = 48_000,
+                audioBitrate = 640_000.0,
+                fileSizeBytes = 1024.0,
+            )
+
+        assertEquals(3840, info.width)
+        assertEquals(2160, info.height)
+        assertEquals(18_000_000, info.videoBitrate)
+        assertEquals(23.976f, info.frameRate!!, 0.001f)
+        assertEquals("HDR10", info.hdr)
+        assertEquals(6, info.audioChannels)
+        assertEquals(48_000, info.audioSampleRate)
+
+        val unknown =
+            mpvMediaInfo(
+                container = null,
+                videoCodec = null,
+                width = 0,
+                height = -1,
+                videoBitrate = 0.0,
+                frameRate = 0.0,
+                gamma = null,
+                primaries = null,
+                dolbyVision = false,
+                audioCodec = null,
+                audioChannels = 0,
+                audioSampleRate = 0,
+                audioBitrate = 0.0,
+                fileSizeBytes = 0.0,
+            )
+        assertNull(unknown.width)
+        assertNull(unknown.height)
+        assertNull(unknown.videoBitrate)
+        assertNull(unknown.frameRate)
+    }
+
+    @Test
     fun `视频读取已选中的第二组而不是首组`() {
         val unselected =
             group(

@@ -9,8 +9,8 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSource
-import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidSources
+import com.zhangwenkang.cinefin.models.selectFindroidSource
 import com.zhangwenkang.cinefin.player.core.domain.models.ExternalSubtitle
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
@@ -60,6 +60,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         itemId: UUID,
         itemKind: BaseItemKind,
         mediaSourceIndex: Int? = null,
+        preferredMediaSourceId: String? = null,
         startFromBeginning: Boolean = false,
         startPositionMs: Long? = null,
     ): PlayerItem? {
@@ -194,7 +195,12 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 !startFromBeginning -> initialItem.playbackPositionTicks.div(10000)
                 else -> 0L
             }
-        val playerItem = initialItem.toPlayerItem(mediaSourceIndex, playbackPosition)
+        val playerItem =
+            initialItem.toPlayerItem(
+                mediaSourceIndex = mediaSourceIndex,
+                playbackPosition = playbackPosition,
+                preferredMediaSourceId = preferredMediaSourceId,
+            )
         playerItems.add(playerItem)
 
         return playerItem
@@ -209,6 +215,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
     suspend fun getInitialItemForQueue(
         entries: List<PlaybackQueueEntry>,
         preferredItemId: UUID? = null,
+        preferredMediaSourceId: String? = null,
         startFromBeginning: Boolean = false,
         startPositionMs: Long? = null,
     ): PlayerItem? {
@@ -238,7 +245,12 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 startFromBeginning -> 0L
                 else -> initialItem.playbackPositionTicks.div(10000)
             }
-        val playerItem = initialItem.toPlayerItem(null, playbackPosition)
+        val playerItem =
+            initialItem.toPlayerItem(
+                mediaSourceIndex = null,
+                playbackPosition = playbackPosition,
+                preferredMediaSourceId = preferredMediaSourceId,
+            )
         playerItems.add(playerItem)
         return playerItem
     }
@@ -517,18 +529,26 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         mediaSourceIndex: Int?,
         playbackPosition: Long,
         forceRefresh: Boolean = false,
+        preferredMediaSourceId: String? = null,
     ): PlayerItem =
         playbackRequestCache.resolve(
-            key = playbackRequestKey(id, mediaSourceIndex, playbackPosition * 10000L),
+            key =
+                playbackRequestKey(
+                    itemId = id,
+                    mediaSourceIndex = mediaSourceIndex,
+                    startPositionTicks = playbackPosition * 10000L,
+                    preferredMediaSourceId = preferredMediaSourceId,
+                ),
             forceRefresh = forceRefresh,
         ) {
-            buildPlayerItem(mediaSourceIndex, playbackPosition)
+            buildPlayerItem(mediaSourceIndex, playbackPosition, preferredMediaSourceId)
         }
 
     /** W76-Q6：缓存层之下的真正解析（请求 `PlaybackInfo` 并组装条目），只由 [toPlayerItem] 调用。 */
     private suspend fun FindroidItem.buildPlayerItem(
         mediaSourceIndex: Int?,
         playbackPosition: Long,
+        preferredMediaSourceId: String?,
     ): PlayerItem {
         Timber.d("Converting FindroidItem ${this.id} to PlayerItem")
 
@@ -540,10 +560,10 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             repository.getMediaSources(id, true, startPositionTicks = playbackPosition * 10000L)
         val mediaSource =
             if (mediaSourceIndex == null) {
-                mediaSources.firstOrNull { it.type == FindroidSourceType.LOCAL } ?: mediaSources[0]
+                selectFindroidSource(mediaSources, preferredMediaSourceId)
             } else {
-                mediaSources[mediaSourceIndex]
-            }
+                mediaSources.getOrNull(mediaSourceIndex)
+            } ?: throw PlaybackStartException("这个条目暂时没有可播放的媒体源")
         val externalSubtitles =
             mediaSource.mediaStreams
                 .filter { mediaStream ->
@@ -654,14 +674,18 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         val video = source.mediaStreams.firstOrNull { it.type == MediaStreamType.VIDEO }
         val audio = source.mediaStreams.firstOrNull { it.type == MediaStreamType.AUDIO }
         return PlayerMediaInfo(
-            // 播放地址是 Jellyfin 的 /Videos/<id>/stream（没有后缀），容器名优先从源文件名猜
-            container = inferContainerFromUri(playbackUri) ?: inferContainerFromUri(source.name),
+            container = source.container?.takeIf { it.isNotBlank() },
             videoCodec = video?.codec?.takeIf { it.isNotBlank() },
             width = video?.width?.takeIf { it > 0 },
             height = video?.height?.takeIf { it > 0 },
+            videoBitrate = video?.bitRate?.takeIf { it > 0 },
+            frameRate = video?.frameRate?.takeIf { it.isFinite() && it > 0f },
             hdr = hdrFromJellyfin(video?.videoRangeType?.name, video?.videoDoViTitle),
             audioCodec = audio?.codec?.takeIf { it.isNotBlank() },
-            audioChannels = channelsFromLayout(audio?.channelLayout),
+            audioChannels =
+                audio?.channels?.takeIf { it > 0 } ?: channelsFromLayout(audio?.channelLayout),
+            audioBitrate = audio?.bitRate?.takeIf { it > 0 },
+            audioSampleRate = audio?.sampleRate?.takeIf { it > 0 },
             fileSizeBytes = source.size.takeIf { it > 0 },
             path = playbackUri.takeIf { it.isNotBlank() },
         )

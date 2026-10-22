@@ -54,6 +54,7 @@ import com.zhangwenkang.cinefin.film.presentation.movie.MovieViewModel
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.VideoMetadata
 import com.zhangwenkang.cinefin.models.isDownloaded
+import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
@@ -359,9 +360,19 @@ private fun fileInfoRows(
                     Formatter.formatFileSize(context, videoMetadata.size)
             )
         }
-        videoMetadata.videoTracks.firstOrNull()?.let {
-            add(stringResource(CoreR.string.video) to it)
-        }
+        add(
+            stringResource(CoreR.string.video) to
+                listOf(
+                        PlayerMediaInfoFormat.resolution(
+                            videoMetadata.width,
+                            videoMetadata.height,
+                        ),
+                        PlayerMediaInfoFormat.codec(videoMetadata.videoCodec),
+                        PlayerMediaInfoFormat.bitrate(videoMetadata.videoBitrate),
+                        PlayerMediaInfoFormat.frameRate(videoMetadata.frameRate),
+                    )
+                    .joinToString(" · ")
+        )
         if (videoMetadata.audioTracks.isNotEmpty()) {
             add(stringResource(CoreR.string.audio) to videoMetadata.audioTracks.joinToString(" / "))
         }

@@ -23,6 +23,8 @@ object VideoMetadataParser {
         val displayProfiles = mutableListOf<DisplayProfile>()
         val audioCodecs = mutableListOf<AudioCodec?>()
         val isAtmosAudio = mutableListOf<Boolean>()
+        val primaryVideo =
+            source.mediaStreams.firstOrNull { stream -> stream.type == MediaStreamType.VIDEO }
 
         withContext(Dispatchers.Default) {
             source.mediaStreams.forEach { stream ->
@@ -69,6 +71,8 @@ object VideoMetadataParser {
                     MediaStreamType.VIDEO -> {
                         with(stream) {
                             displayTitle?.let { videoTracks.add(it) }
+                            val streamHeight = height
+                            val streamWidth = width
 
                             /**
                              * Match dynamic range from
@@ -89,24 +93,21 @@ object VideoMetadataParser {
                                 else -> null
                             }?.let { displayProfiles.add(it) }
 
-                            /**
-                             * Force stream [org.jellyfin.sdk.model.api.MediaStream.height] and
-                             * [org.jellyfin.sdk.model.api.MediaStream.width] as not null since we
-                             * are inside [MediaStreamType.VIDEO] block
-                             */
-                            resolution.add(
-                                when {
-                                    height!! <= 1080 && width!! <= 1920 -> {
-                                        Resolution.HD
+                            if (
+                                streamHeight != null &&
+                                    streamWidth != null &&
+                                    streamHeight > 0 &&
+                                    streamWidth > 0
+                            ) {
+                                resolution.add(
+                                    when {
+                                        streamHeight <= 1080 && streamWidth <= 1920 -> Resolution.HD
+                                        streamHeight <= 2160 && streamWidth <= 3840 ->
+                                            Resolution.UHD
+                                        else -> Resolution.SD
                                     }
-
-                                    height!! <= 2160 && width!! <= 3840 -> {
-                                        Resolution.UHD
-                                    }
-
-                                    else -> Resolution.SD
-                                }
-                            )
+                                )
+                            }
 
                             videoCodecs.add(
                                 when (stream.codec.lowercase()) {
@@ -140,6 +141,13 @@ object VideoMetadataParser {
             audioChannels = audioChannels.toSet().toList(),
             audioCodecs = audioCodecs.toSet().toList(),
             isAtmos = isAtmosAudio,
+            width = primaryVideo?.width?.takeIf { it > 0 },
+            height = primaryVideo?.height?.takeIf { it > 0 },
+            videoBitrate = primaryVideo?.bitRate?.takeIf { it > 0 },
+            frameRate = primaryVideo?.frameRate?.takeIf { it.isFinite() && it > 0f },
+            videoCodec = primaryVideo?.codec?.takeIf { it.isNotBlank() },
+            sourceBitrate = source.bitrate?.takeIf { it > 0 },
+            container = source.container?.takeIf { it.isNotBlank() },
         )
     }
 }

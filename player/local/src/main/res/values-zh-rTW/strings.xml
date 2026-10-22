@@ -28,6 +28,8 @@
     <string name="player_controls_no_track">暫無可選軌道</string>
     <string name="player_controls_subtitle_off">關閉字幕</string>
     <string name="player_controls_info_title">標題</string>
+    <string name="player_controls_info_source_section">來源媒體</string>
+    <string name="player_controls_info_current_section">目前串流</string>
     <string name="player_controls_info_resolution">解析度</string>
     <string name="player_controls_info_frame_rate">幀率</string>
     <string name="player_controls_info_codec">編碼</string>

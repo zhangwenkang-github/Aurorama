@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.movie
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
+import com.zhangwenkang.cinefin.film.domain.selectSourceForMetadata
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -30,12 +31,15 @@ constructor(
 
     lateinit var movieId: UUID
 
-    fun loadMovie(movieId: UUID) {
+    fun loadMovie(movieId: UUID, preferredMediaSourceId: String? = null) {
         this.movieId = movieId
         viewModelScope.launch {
             try {
                 val movie = repository.getMovie(movieId)
-                val videoMetadata = videoMetadataParser.parse(movie.sources.first())
+                val videoMetadata =
+                    selectSourceForMetadata(movie.sources, preferredMediaSourceId)?.let { source ->
+                        videoMetadataParser.parse(source)
+                    }
                 val actors = getActors(movie)
                 val director = getDirector(movie)
                 val writers = getWriters(movie)
