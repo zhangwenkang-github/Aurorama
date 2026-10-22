@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 import java.io.File
 import java.net.HttpURLConnection
@@ -319,6 +320,23 @@ class PlayerSubtitleController(
         manualSelectionActive = false
         removeManualSelectionForCurrentItem()
         autoSelect(autoSecondary = autoSecondary)
+    }
+
+    /**
+     * 应用已写入偏好的全局模式 / 语言。
+     *
+     * 有效单片覆盖优先：存在时保持当前选择与 scoped 记录不变并返回 false。无覆盖时才按全局规则更新有效状态； 这里只更新当前 overlay，不写单片机记录，避免“全局
+     * off”被伪装成用户关闭当前片。
+     */
+    fun applyGlobalSelection(autoSecondary: Boolean = true): Boolean {
+        if (hasManualSelectionForCurrentItem()) {
+            publish()
+            return false
+        }
+        val mode = appPreferences.getValue(appPreferences.subtitleMode)
+        disabledByUser = mode == Constants.SubtitleMode.OFF && sources.isNotEmpty()
+        autoSelect(autoSecondary = autoSecondary && mode != Constants.SubtitleMode.OFF)
+        return true
     }
 
     /** 只丢掉手动记忆与关闭态，让内核自己重选（mpv `sid=auto` 用，避免预加载主字幕文件）。 */

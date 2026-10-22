@@ -2954,28 +2954,33 @@ constructor(
     }
 
     /**
-     * 页内改字幕模式（§1.9 设置面板的「字幕」组）：写偏好并立即重选 / 关闭字幕。
+     * 页内改字幕模式（§1.9 设置面板的「字幕」组）：写全局偏好并应用到无单片覆盖的状态。
      *
-     * - `off`：关掉主 / 次字幕（自研管线与内核字幕一起停）；
-     * - `auto` / `always`：清掉「手动选过轨」的标记，让语言引擎重新按优先级挑一条。
+     * 已有当前片手动主 / 次或显式关闭时保持单片选择；全局 `off` 不得写成该片手动关闭。
      */
     fun setSubtitleMode(mode: String) {
         appPreferences.setValue(appPreferences.subtitleMode, mode)
         Timber.d("Subtitle mode set to %s by settings panel", mode)
         val mpv = if (playerBackend == PLAYER_BACKEND_MPV) player as? MPVPlayer else null
-        if (mode == Constants.SubtitleMode.OFF) {
-            selectSubtitlePrimary(null)
-            selectSubtitleSecondary(null)
-            // 关闭后同时关掉「自动选轨」意图：否则转码注入字幕时 mpv 又按 slang 选回来
-            mpv?.setSubtitleAutoSelect(false)
-        } else {
-            manualTrackSelectionMediaId = null
+        val appliedToCurrentItem =
+            subtitleController.applyGlobalSelection(
+                autoSecondary = playerBackend != PLAYER_BACKEND_MPV
+            )
+        if (!appliedToCurrentItem) {
             if (mpv != null) {
-                // mpv 不走 TrackSelectionParameters：把 auto / always 都翻译成 sid=auto（按 slang 重选）
-                mpv.setSubtitleAutoSelect(true)
+                applyMpvManualSubtitleSelection()
             } else {
-                applyAutoSelectAndRoute()
+                applySubtitleRoutingOnly()
             }
+            publishSubtitlePanelState()
+            return
+        }
+        manualTrackSelectionMediaId = null
+        if (mpv != null) {
+            // mpv 不走 TrackSelectionParameters：把 off / auto / always 翻译成 sid 意图。
+            mpv.setSubtitleAutoSelect(mode != Constants.SubtitleMode.OFF)
+        } else {
+            applyAutoSelectAndRoute()
         }
         publishSubtitlePanelState()
     }

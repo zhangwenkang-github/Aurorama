@@ -485,6 +485,101 @@ class PlayerSubtitleControllerTest {
     }
 
     @Test
+    fun `全局关闭不覆盖已有单片主次且保留持久化行`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemA = scope(itemId = "item-a")
+        val itemB = scope(itemId = "item-b")
+        val writerA = fixture(preferences)
+        val writerB = fixture(preferences)
+        try {
+            writerA.reset(itemA)
+            writerA.controller.assignPrimary(4)
+            writerA.controller.assignSecondary(3)
+            writerB.reset(itemB)
+            writerB.controller.assignPrimary(3)
+            writerB.controller.assignSecondary(4)
+        } finally {
+            writerB.scope.cancel()
+        }
+        val savedRaw = preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+
+        preferences.setValue(preferences.subtitleMode, Constants.SubtitleMode.OFF)
+        try {
+            assertFalse(writerA.controller.applyGlobalSelection(autoSecondary = true))
+            val state = writerA.controller.overlayState.value
+            assertEquals(4, state.primaryIndex)
+            assertEquals(3, state.secondaryIndex)
+            assertFalse(state.disabledByUser)
+            assertEquals(
+                savedRaw,
+                preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2),
+            )
+        } finally {
+            writerA.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `无手动覆盖时全局关闭只清有效状态且不伪造持久化行`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemScope = scope()
+        val controller = fixture(preferences)
+        try {
+            controller.reset(itemScope)
+            assertTrue(
+                preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2).isEmpty()
+            )
+
+            preferences.setValue(preferences.subtitleMode, Constants.SubtitleMode.OFF)
+            assertTrue(controller.controller.applyGlobalSelection(autoSecondary = true))
+
+            val state = controller.controller.overlayState.value
+            assertNull(state.primaryIndex)
+            assertNull(state.secondaryIndex)
+            assertTrue(state.disabledByUser)
+            assertTrue(
+                preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2).isEmpty()
+            )
+        } finally {
+            controller.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `全局自动与语言变化不覆盖已有单片主次`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemScope = scope()
+        val writer = fixture(preferences)
+        try {
+            writer.reset(itemScope)
+            writer.controller.assignPrimary(4)
+            writer.controller.assignSecondary(3)
+        } finally {
+            writer.scope.cancel()
+        }
+        val savedRaw = preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+
+        val reader = fixture(preferences)
+        try {
+            reader.reset(itemScope)
+            preferences.setValue(preferences.subtitleMode, Constants.SubtitleMode.AUTO)
+            preferences.setValue(preferences.preferredSubtitleLanguages, "fr,en")
+            preferences.setValue(preferences.secondarySubtitleLanguages, "ja")
+
+            assertFalse(reader.controller.applyGlobalSelection(autoSecondary = true))
+            val state = reader.controller.overlayState.value
+            assertEquals(4, state.primaryIndex)
+            assertEquals(3, state.secondaryIndex)
+            assertEquals(
+                savedRaw,
+                preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2),
+            )
+        } finally {
+            reader.scope.cancel()
+        }
+    }
+
+    @Test
     fun `自动选择只清除当前片并保留其他片覆盖`() {
         val preferences = AppPreferences(FakeSharedPreferences())
         val itemA = scope(itemId = "item-a")
