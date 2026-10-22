@@ -121,6 +121,7 @@ import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.playerMediaInfoSections
+import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
@@ -4643,7 +4644,14 @@ private fun InfoPanel(
     LaunchedEffect(player, runtime.tracks, mediaIdentity, generation) {
         kernelInfo = null
         kernelInfo =
-            withContext(Dispatchers.IO) { runCatching { readKernelMediaInfo(player) }.getOrNull() }
+            if (player is MPVPlayer) {
+                withContext(Dispatchers.IO) {
+                    runCatching { readKernelMediaInfo(player) }.getOrNull()
+                }
+            } else {
+                // ExoPlayer.currentTracks 是主线程状态，必须在 Compose effect 的 Main 上读取。
+                runCatching { readKernelMediaInfo(player) }.getOrNull()
+            }
     }
     val currentInfo = kernelInfo ?: currentStreamInfo
     val sections = playerMediaInfoSections(sourceInfo, currentInfo)

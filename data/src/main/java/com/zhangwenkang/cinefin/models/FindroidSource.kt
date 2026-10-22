@@ -110,14 +110,17 @@ private fun MediaSourceInfo.toFindroidSource(
 suspend fun FindroidSourceDto.toFindroidSource(
     serverDatabaseDao: ServerDatabaseDao
 ): FindroidSource {
+    return toFindroidSource(serverDatabaseDao.getMediaStreamsBySourceId(id))
+}
+
+fun FindroidSourceDto.toFindroidSource(mediaStreams: List<FindroidMediaStreamDto>): FindroidSource {
     return FindroidSource(
         id = id,
         name = name,
         type = type,
         path = path,
         size = File(path).length(),
-        mediaStreams =
-            serverDatabaseDao.getMediaStreamsBySourceId(id).map { it.toFindroidMediaStream() },
+        mediaStreams = mediaStreams.map { it.toFindroidMediaStream() },
         downloadId = downloadId,
         bitrate = bitrate?.takeIf { it > 0 },
         container = container?.takeIf { it.isNotBlank() },

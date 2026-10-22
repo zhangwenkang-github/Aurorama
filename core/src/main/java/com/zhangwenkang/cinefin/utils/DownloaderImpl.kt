@@ -770,7 +770,7 @@ class DownloaderImpl(
 
         runCatching { persistItemSnapshot(item) }
             .onFailure { Timber.w(it, "补写下载条目快照失败 ${item.id}") }
-        runCatching { downloadExtras(item, mediaSource, source) }
+        runCatching { downloadExtras(item, mediaSource, source, finalFile.path) }
             .onFailure { Timber.w(it, "下载附属内容失败 ${item.id}") }
     }
 
@@ -1276,7 +1276,14 @@ class DownloaderImpl(
         item: FindroidItem,
         source: FindroidSource,
         sourceDto: FindroidSourceDto,
+        localPath: String,
     ) {
+        runCatching {
+            persistDownloadedMediaStreams(source, localPath) { mediaStream ->
+                database.insertMediaStream(mediaStream)
+            }
+        }
+            .onFailure { Timber.w(it, "持久化内嵌媒体流失败 ${item.id}") }
         val storageIndex = storageIndexFor(sourceDto.path)
         downloadExternalMediaStreams(item, source, storageIndex)
         runCatching {
