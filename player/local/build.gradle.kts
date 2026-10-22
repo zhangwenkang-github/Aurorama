@@ -21,6 +21,8 @@ android {
         sourceCompatibility = Versions.JAVA
         targetCompatibility = Versions.JAVA
     }
+
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 dependencies {

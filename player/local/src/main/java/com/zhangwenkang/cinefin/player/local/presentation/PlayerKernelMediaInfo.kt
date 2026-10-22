@@ -45,15 +45,12 @@ fun exoPlayerMediaInfo(tracks: Tracks?): PlayerMediaInfo? {
     )
 }
 
-/** 取第一个有实际参数的轨道格式（同类型里可能有多个空壳轨道） */
+/** 只读取当前已选中的轨道格式；没有选中轨时当前流未知，不能猜首轨。 */
 private fun Tracks.pickFormat(type: @C.TrackType Int) =
     groups
-        .firstOrNull { it.type == type }
-        ?.mediaTrackGroup
+        .firstOrNull { group -> group.type == type && group.isSelected }
         ?.let { group ->
             (0 until group.length)
-                .map { index -> group.getFormat(index) }
-                .firstOrNull { format ->
-                    format.width > 0 || format.height > 0 || format.channelCount > 0
-                } ?: group.getFormat(0)
+                .firstOrNull(group::isTrackSelected)
+                ?.let(group.mediaTrackGroup::getFormat)
         }
