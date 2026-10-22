@@ -212,7 +212,7 @@ class PlayerSubtitleController(
             }
         if (restored == null) {
             autoSelect(autoSecondary = autoSecondary)
-            defaultPrimaryIndex?.let(::selectPrimary)
+            defaultPrimaryIndex?.let(::applyDefaultPrimary)
         } else {
             manualSelectionActive = true
             disabledByUser = restored.disabledByUser
@@ -500,6 +500,27 @@ class PlayerSubtitleController(
                 null
             }
         applySecondary(secondary?.index, persist = false)
+        publish()
+    }
+
+    /** 默认候选只影响本次播放的有效主轨，不写入手动覆盖。 */
+    private fun applyDefaultPrimary(index: Int) {
+        val source = sources.firstOrNull { it.index == index } ?: return
+        disabledByUser = false
+        val primary =
+            if (source.isTextBased) {
+                SubtitleTrackAssignment.assignPrimary(
+                        SubtitleTrackPair(primaryIndex, secondaryIndex),
+                        index,
+                    )
+                    .primaryIndex
+            } else {
+                index
+            }
+        if (secondaryIndex == index) {
+            applySecondary(null, persist = false)
+        }
+        applyPrimary(primary, persist = false)
         publish()
     }
 

@@ -356,21 +356,76 @@ class PlayerSubtitleControllerTest {
                 SideloadedSubtitleStore.INDEX_BASE,
                 reader.controller.overlayState.value.primaryIndex,
             )
-            assertEquals(
-                ScopedSubtitleSelection(
-                    scope = itemScope,
-                    primaryIndex = SideloadedSubtitleStore.INDEX_BASE,
-                    secondaryIndex = ScopedSubtitleSelection.NO_INDEX,
-                ),
-                ScopedSubtitleSelection.decodeAll(
-                        reader.preferences.getValue(
-                            PlayerExtraPreferences.subtitleManualSelectionsV2
-                        )
-                    )
-                    .single(),
+            assertFalse(reader.controller.hasManualSelectionForCurrentItem())
+            assertTrue(
+                reader.preferences
+                    .getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+                    .isEmpty()
             )
         } finally {
             reader.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `自动清除后用首条侧载重建仍不恢复手动覆盖`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemA = scope(itemId = "item-a")
+        val itemB = scope(itemId = "item-b")
+        val writerA = fixture(preferences)
+        val writerB = fixture(preferences)
+        try {
+            writerA.resetSideload(itemA)
+            writerA.controller.assignPrimary(SideloadedSubtitleStore.INDEX_BASE + 1)
+            writerA.controller.assignSecondary(SideloadedSubtitleStore.INDEX_BASE)
+            writerB.resetSideload(itemB)
+            writerB.controller.assignPrimary(SideloadedSubtitleStore.INDEX_BASE)
+            writerB.controller.assignSecondary(SideloadedSubtitleStore.INDEX_BASE + 1)
+        } finally {
+            writerA.scope.cancel()
+            writerB.scope.cancel()
+        }
+
+        val auto = fixture(preferences)
+        try {
+            auto.resetSideload(itemA)
+            auto.controller.autoSelectAndForgetManual()
+        } finally {
+            auto.scope.cancel()
+        }
+        val onlyB =
+            ScopedSubtitleSelection(
+                scope = itemB,
+                primaryIndex = SideloadedSubtitleStore.INDEX_BASE,
+                secondaryIndex = SideloadedSubtitleStore.INDEX_BASE + 1,
+            )
+        assertEquals(
+            listOf(onlyB),
+            ScopedSubtitleSelection.decodeAll(
+                preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+            ),
+        )
+
+        val reopened = fixture(preferences)
+        try {
+            reopened.resetSideload(
+                itemA,
+                defaultPrimaryIndex = SideloadedSubtitleStore.INDEX_BASE,
+            )
+
+            assertEquals(
+                SideloadedSubtitleStore.INDEX_BASE,
+                reopened.controller.overlayState.value.primaryIndex,
+            )
+            assertFalse(reopened.controller.hasManualSelectionForCurrentItem())
+            assertEquals(
+                listOf(onlyB),
+                ScopedSubtitleSelection.decodeAll(
+                    preferences.getValue(PlayerExtraPreferences.subtitleManualSelectionsV2)
+                ),
+            )
+        } finally {
+            reopened.scope.cancel()
         }
     }
 
