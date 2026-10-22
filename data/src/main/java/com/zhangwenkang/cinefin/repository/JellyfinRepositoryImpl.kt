@@ -706,12 +706,13 @@ class JellyfinRepositoryImpl(
                 return@withContext it
             }
             /*
-             * 码率档位（W12 反馈 B）：0 = 自动（不设上限，服务器自行判断直连 / 转码）、
-             * -1 = 原始画质（只直连，明确禁用转码）、>0 = 具体 Mbps（按该上限请求服务器转码）。
+             * 码率档位：0 = 自动（不设上限，服务器自行判断直连 / 转码）、
+             * -1 = 原始画质（只直连，明确禁用转码）、>0 = 具体 bps（只映射 maxStreamingBitrate）。
              * 选具体码率且片源超过上限时，服务器会在 mediaSources 里给出 transcodingUrl，
-             * 播放侧（PlaylistManager）优先使用它——功能与 Jellyfin 官方客户端的「质量」档位一致。
+             * 播放侧（PlaylistManager）优先使用它。分辨率标签参考 Android client v2.7.3 快照，
+             * 是非协议硬限制标签，不会新增 maxWidth / maxHeight 请求。
              */
-            val streamingBitrate = appPreferences.getValue(appPreferences.playerStreamingBitrate)
+            val streamingBitrate = appPreferences.getPlayerStreamingBitrate()
             val maxStreamingBitrate =
                 PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
             val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)

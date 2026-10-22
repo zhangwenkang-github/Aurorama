@@ -2627,3 +2627,12 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 - 字幕分支已以 `6d2b024` 合并 master（父 `033b757`）；随后阅读 `fd0e54f`、音乐 `ffd079c` 依次 ff-only 合并。
 - 合并前字幕线全量门禁 **1082 / 0 / 0 / 0**；三线合并态 master `ffd079c` 全量门禁 **1113 / 0 / 0 / 0**，CI Build / Format / Unit Tests 三路绿；release / tag / 已验收 APK 零触碰。
+
+## 41. W86-A #42：Android 质量档位 bps 语义（2026-10-22）
+
+- 决策 D68（取代 D31 的偏好单位部分）：具体档位规范值改为 bps；档表固定采用 Android phone `v2.7.3` 的 14 档顺序，UI 显示官方标签高度 + 码率。该标签只表示官方客户端快照语义，不是服务端硬上限。
+- 偏好迁移植入 `PlayerStreamingQuality` 纯函数与 `AppPreferences`：旧 `pref_player_streaming_bitrate` 只在一次性迁移标记缺失时按整数 Mbps 解释；新 `pref_player_streaming_bitrate_bps` 只按 bps 读取。迁移写入使用同一 SharedPreferences editor 落 bps 值与标记，已迁移值不会再次乘 1,000,000。
+- 旧 `1/2/3/5/8/12/20/40` 按“先 Mbps→bps，再向下对齐官方档”迁为 `720k/1.5M/3M/4M/8M/10M/20M/40M`。`AUTO=0` / `ORIGINAL=-1` 的显示与请求语义不变。
+- 请求侧仍只把具体档位映射到 `maxStreamingBitrate`；未新增 `maxWidth` / `maxHeight`，不宣称服务端固定输出对应分辨率。
+- 门禁：`PlayerStreamingQualityTest` 9/0/0/0；`app/phone` 321、`data` 79、`player:local` 198（合计 598）全绿；根 `ktfmtCheck`、`:app:phone:assembleDebug` 通过。
+- 未覆盖：本阶段禁止装包 / adb / 截图 / 生产请求，因此真机档位选择、迁移后持久化与转码结果均待后续阶段验证；#43 源 / 当前流仍未实施。

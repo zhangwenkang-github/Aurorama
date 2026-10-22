@@ -1105,13 +1105,12 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     /**
-     * 码率档位（W12 反馈 B）：选具体 Mbps 时重新拉取播放信息，服务器返回 `transcodingPath`（HLS 转码流）后播放它。
+     * 码率档位：选具体 bps 档时重新拉取播放信息，服务器返回 `transcodingPath`（HLS 转码流）后播放它。
      *
-     * 偏好已由面板写入 [AppPreferences.playerStreamingBitrate]，data 层据此构造 PlaybackInfo 请求； 这里只需重启播放页让
-     * `getMediaSources` 重新走一遍（不清偏好，不重登）。
+     * 偏好已由面板写入 bps 新语义，data 层据此构造 PlaybackInfo 请求；这里只需重启播放页让 `getMediaSources` 重新走一遍（不清偏好，不重登）。
      */
     private fun selectStreamingBitrate(bitrate: Long) {
-        appPreferences.setValue(appPreferences.playerStreamingBitrate, bitrate)
+        appPreferences.setPlayerStreamingBitrate(bitrate)
         // 用户显式选码率：清空回退档位（自动档重新按优先级链走）
         viewModel.clearDecodeFallback()
         restartPlaybackKeepingPosition("streaming bitrate=$bitrate")

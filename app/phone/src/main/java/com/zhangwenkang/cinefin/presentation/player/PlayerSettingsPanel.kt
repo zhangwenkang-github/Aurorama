@@ -84,7 +84,7 @@ data class PlayerSettingsSnapshot(
     val gesturesSpeedMultiplier: String,
     val seekSensitivity: String,
     val verticalSensitivity: String,
-    /** 码率档位（W12 反馈 B）：0 / -1 / 具体 Mbps，见 [PlayerStreamingQuality] */
+    /** 码率档位：0 / -1 / 具体 bps，见 [PlayerStreamingQuality] */
     val streamingBitrate: Long,
     /** 解码策略：hardware / software（W12 反馈 B） */
     val decodeMode: String,
@@ -211,8 +211,11 @@ class PlayerSettingsController(
     fun setVerticalSensitivity(value: String) =
         write(appPreferences.playerGesturesVerticalSensitivity, value)
 
-    /** 码率档位：写偏好后由 Activity 重启播放页重新拉取播放信息（服务器转码生效） */
-    fun setStreamingBitrate(value: Long) = write(appPreferences.playerStreamingBitrate, value)
+    /** 码率档位：写 bps 新语义后由 Activity 重启播放页重新拉取播放信息（服务器转码生效） */
+    fun setStreamingBitrate(value: Long) {
+        appPreferences.setPlayerStreamingBitrate(value)
+        refresh()
+    }
 
     /** 解码策略：hardware / software（mpv 的硬解开关同步由面板写 playerMpvHwdec） */
     fun setDecodeMode(value: String) = write(appPreferences.playerDecodeMode, value)
@@ -291,7 +294,7 @@ class PlayerSettingsController(
             seekSensitivity = appPreferences.getValue(appPreferences.playerGesturesSeekSensitivity),
             verticalSensitivity =
                 appPreferences.getValue(appPreferences.playerGesturesVerticalSensitivity),
-            streamingBitrate = appPreferences.getValue(appPreferences.playerStreamingBitrate),
+            streamingBitrate = appPreferences.getPlayerStreamingBitrate(),
             decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode),
             decodeFallbackStage = appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
             autoFallback = appPreferences.getValue(appPreferences.playerAutoFallback),
@@ -794,10 +797,10 @@ internal fun PlayerDecodePanel(
 }
 
 /**
- * 码率面板（W12 反馈 B）：**自动 / 原始画质 / 具体 Mbps**（对齐 Jellyfin 官方客户端的质量档位）。
+ * 码率面板：**自动 / 原始画质 / 官方快照档位**。
  *
- * 选具体码率 = 请求服务器转码并播放返回的 `transcodingPath`；原始画质 = 只直连不转码。 选择后由宿主从当前位置重启播放（重新拉
- * PlaybackInfo），档位对下一次起播即时生效。
+ * 档位高度参考 Android client `v2.7.3` 快照，是非协议硬限制标签；实际只把 bps 作为 `maxStreamingBitrate` 请求服务器转码并播放返回的
+ * `transcodingPath`。原始画质 = 只直连不转码。
  */
 @Composable
 internal fun PlayerBitratePanel(
@@ -826,14 +829,13 @@ internal fun PlayerBitratePanel(
                 },
             )
             PanelTitle(stringResource(PlayerR.string.player_controls_bitrate_caption))
-            PlayerStreamingQuality.PRESET_MBPS.forEach { mbps ->
-                val value = mbps.toLong()
+            PlayerStreamingQuality.qualityPresets().forEach { preset ->
                 PanelRow(
-                    label = PlayerStreamingQuality.bitrateLabel(value),
-                    selected = current == value,
+                    label = PlayerStreamingQuality.bitrateLabel(preset.bitsPerSecond),
+                    selected = current == preset.bitsPerSecond,
                     onClick = {
-                        controller.setStreamingBitrate(value)
-                        onSelectBitrate(value)
+                        controller.setStreamingBitrate(preset.bitsPerSecond)
+                        onSelectBitrate(preset.bitsPerSecond)
                     },
                 )
             }

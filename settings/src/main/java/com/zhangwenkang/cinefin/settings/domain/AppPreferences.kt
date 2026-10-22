@@ -184,11 +184,19 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerAudioDelayMs = Preference("pref_player_audio_delay_ms", 0L)
 
     // Player - 码率 / 解码（W12：服务器转码档位 + 硬解/软解策略；只追加，不重排既有键）
-    /**
-     * 播放码率档位：0 = 自动（服务器自行判断直连 / 转码）、-1 = 原始画质（只直连，不转码）、 其余 = 具体 Mbps（按该码率请求服务器转码）。映射见
-     * [PlayerStreamingQuality]。
+    /*
+     * 播放码率档位（W86-A #42）：旧键只存整数 Mbps，只可用于一次性迁移；新键存 bps。
+     * 迁移标记保证已迁移值不会再次进入旧 Mbps 换算。
      */
-    val playerStreamingBitrate = Preference("pref_player_streaming_bitrate", 0L)
+    private val legacyPlayerStreamingBitrate =
+        Preference("pref_player_streaming_bitrate", PlayerStreamingQuality.AUTO)
+    private val playerStreamingBitrateBps =
+        Preference(
+            "pref_player_streaming_bitrate_bps",
+            PlayerStreamingQuality.AUTO,
+        )
+    private val playerStreamingBitrateIsBps =
+        Preference("pref_player_streaming_bitrate_is_bps", false)
 
     /** 解码策略：hardware = 硬解优先（失败自动回退）、software = 仅软解（FFmpeg / mpv） */
     val playerDecodeMode = Preference("pref_player_decode_mode", "hardware")
@@ -432,6 +440,45 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     /** 本地库条目在「继续观看 / 最近播放」是否显示视频首帧封面（本地生成，默认开）。 */
     val localLibraryVideoCover = Preference("pref_local_library_video_cover", true)
+
+    /**
+     * 读取播放码率偏好。
+     *
+     * 首次升级时从旧整数 Mbps 键迁移到新 bps 键，并在同一次 SharedPreferences 写入中落迁移标记；此后只读新键。
+     */
+    fun getPlayerStreamingBitrate(): Long {
+        val migrated = getValue(playerStreamingBitrateIsBps)
+        val value =
+            PlayerStreamingQuality.resolveStoredPreference(
+                legacyValue = getValue(legacyPlayerStreamingBitrate),
+                bitsPerSecondValue = getValue(playerStreamingBitrateBps),
+                migratedToBitsPerSecond = migrated,
+            )
+        if (!migrated) {
+            sharedPreferences
+                .edit()
+                .putLong(playerStreamingBitrateBps.backendName, value)
+                .putBoolean(playerStreamingBitrateIsBps.backendName, true)
+                .apply()
+        }
+        return value
+    }
+
+    /** 写入新 bps 语义；显式选档同时完成迁移，避免新值以后被旧 Mbps 规则二次换算。 */
+    fun setPlayerStreamingBitrate(value: Long) {
+        require(
+            value == PlayerStreamingQuality.AUTO ||
+                value == PlayerStreamingQuality.ORIGINAL ||
+                PlayerStreamingQuality.qualityPresets().any { it.bitsPerSecond == value }
+        ) {
+            "Unsupported player streaming bitrate: $value"
+        }
+        sharedPreferences
+            .edit()
+            .putLong(playerStreamingBitrateBps.backendName, value)
+            .putBoolean(playerStreamingBitrateIsBps.backendName, true)
+            .apply()
+    }
 
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {

@@ -33,11 +33,11 @@ class PlayerDecodeFallbackTest {
     }
 
     @Test
-    fun explicitMbpsAlreadyTranscodes_jumpsStraightToLocalSoftware() {
-        // 用户显式选了具体 Mbps：服务器本来就在转码，硬解再失败只能落到本地软解
+    fun explicitBitrateAlreadyTranscodes_jumpsStraightToLocalSoftware() {
+        // 用户显式选了具体 bps 档：服务器本来就在转码，硬解再失败只能落到本地软解
         assertEquals(
             PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
-            PlayerDecodeFallback.nextStage(PlayerDecodeFallback.STAGE_NONE, 8L),
+            PlayerDecodeFallback.nextStage(PlayerDecodeFallback.STAGE_NONE, 8_000_000L),
         )
         assertTrue(
             PlayerDecodeFallback.forcesLocalSoftware(PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE)
@@ -143,13 +143,13 @@ class PlayerDecodeFallbackTest {
                 codecCapabilityError = false,
             ),
         )
-        // 原始画质 / 具体 Mbps：本地已经不可能再硬解，直接落 mpv 软解
+        // 原始画质 / 具体码率：本地已经不可能再硬解，直接落 mpv 软解
         assertEquals(
             PlayerDecodeFallback.STAGE_LOCAL_SOFTWARE,
             PlayerDecodeFallback.stageAfterFailure(
                 stage = PlayerDecodeFallback.STAGE_NONE,
                 backend = PlayerDecodeFallback.BACKEND_MPV,
-                bitratePreference = 8L,
+                bitratePreference = 8_000_000L,
                 codecCapabilityError = false,
             ),
         )

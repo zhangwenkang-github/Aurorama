@@ -1491,8 +1491,7 @@ constructor(
      * 解码能力不足时的静默回退（W16 用户拍板的链路）：**本地硬解 → 服务器解码/转码 → 本地软解**。
      *
      * 场景：ExoPlayer 硬解不了的片源（10-bit H.264 等）会报 `NO_EXCEEDS_CAPABILITIES`。此时： ① 还没降级 + 码率是「自动」→
-     * 请求服务器转码（换一路 h264 流重发），重启播放页续播； ② 已经在服务器转码档 / 用户选了具体 Mbps / 原始画质 → 落到本地软解（mpv
-     * hwdec=no，最耗电放最后）。
+     * 请求服务器转码（换一路 h264 流重发），重启播放页续播； ② 已经在服务器转码档 / 用户选了具体码率 / 原始画质 → 落到本地软解（mpv hwdec=no，最耗电放最后）。
      *
      * 不弹提示（用户在观影，提示属于打扰）。档位落盘（[AppPreferences.playerDecodeFallbackStage]）是为了
      * 「重启播放页续播」不丢档位，同时天然防死循环：升到软解档后再报错也不再推进。换条目 / 用户显式改 码率、内核、解码策略时档位清 0。
@@ -1542,7 +1541,7 @@ constructor(
             PlayerDecodeFallback.stageAfterFailure(
                 stage = currentStage,
                 backend = backend,
-                bitratePreference = appPreferences.getValue(appPreferences.playerStreamingBitrate),
+                bitratePreference = appPreferences.getPlayerStreamingBitrate(),
                 codecCapabilityError = isCodecCapabilityError(error),
                 networkError = isNetworkOrSourceError(error),
             )

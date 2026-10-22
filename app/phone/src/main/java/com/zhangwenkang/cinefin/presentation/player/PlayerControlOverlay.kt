@@ -653,7 +653,7 @@ fun PlayerControlOverlay(
     onSelectDecodeMode: (String) -> Unit = {},
     /** 失败自动回退开关（W19）：开 = 既有回退链；关 = 强制所选内核，失败只提示错误 */
     onAutoFallbackChange: (Boolean) -> Unit = {},
-    /** 码率档位（自动 / 原始画质 / 具体 Mbps）：由 Activity 落偏好并重启播放页重新拉取播放信息（W12 反馈 B） */
+    /** 码率档位（自动 / 原始画质 / 具体 bps）：由 Activity 落偏好并重启播放页重新拉取播放信息 */
     onSelectBitrate: (Long) -> Unit = {},
     /** mpv 换硬件解码：即时写 mpv 属性 */
     onSelectMpvHwdec: (String) -> Unit,
@@ -1958,7 +1958,7 @@ private fun PlayerBottomBar(
     sleepActive: Boolean,
     /** 字幕键激活态（改在进度条下方这一行，W12 终版布局） */
     subtitleEnabled: Boolean,
-    /** 码率键激活态：选了具体 Mbps（服务器转码中） */
+    /** 码率键激活态：选了具体码率档（服务器转码中） */
     bitrateActive: Boolean,
     /** 解码键激活态：软解或 mpv 内核 */
     decodeActive: Boolean,
