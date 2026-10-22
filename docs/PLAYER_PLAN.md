@@ -2876,3 +2876,6 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 - 2026-10-23 03:40：新负责人只读预检完成；交接 ACTIVE 唯一，实际 `HEAD = origin/master = 235f67b5`，其为 `f52429ac` 的后继文档提交；双机在线 `43af8627` / `8e875894`，当前锁已释放。已新建独立 worktree 与分支 `codex/w86-c-seek-state`，未改功能代码。
 - 2026-10-23 03:40：负责人水位 `98,690 / 1,048,576（9.4%）`；下一动作 = 派只读 spike，不先派实现。
+- 2026-10-23 03:49：只读 spike **PARTIAL**，报告 `w86-reports\W86-C-SPIKE.md`。Exo 可表达：`onPositionDiscontinuity(SEEK)` 为受理锚点，同 generation 的 `STATE_READY` + 位置 / 媒体身份校验可确认；`onPlayerError` 可失败。mpv 可表达：fresh `MPV_EVENT_SEEK` 为受理，`MPV_EVENT_PLAYBACK_RESTART` + 位置校验可确认，非 EOF `END_FILE` 可失败；但当前 `MPVLib.command` 返回 `void`、command reply payload 未暴露，不能声称拿到命令级同步拒绝。转码重开仅有 Exo 路径。spike 终测 `250,137（23.9%）`，已在 25 万门禁停止新增调查。
+- 2026-10-23 03:50：**P2 方案门通过（带能力差异）**。实现按真实能力落矩阵：Exo 直放 / 转码重开使用“SEEK discontinuity + READY + generation / 媒体身份 + 位置容差”；mpv 使用“fresh SEEK + PLAYBACK_RESTART + generation / 媒体身份 + 位置容差”；mpv 命令级拒绝不伪造，统一落到可重试的 `Timeout` 或真实 `EngineError`，UI 文案不得声称同步拒绝。超时不是完成确认，所有无完成锚点的请求必须进入 `Failed`。
+- 2026-10-23 03:50：实现白名单追加 spike 报告；mpv 转码超窗新会话、命令 reply 归因和真实转码时序仍是未覆盖风险。负责人水位 `114,436 / 1,048,576（10.9%）`；下一步 = 派全新 TDD 实现代理，不占设备。
