@@ -2726,3 +2726,59 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 设计：规范媒体键 = `serverId|userId|itemId`；偏好集合按该键保存主 / 次序号（`-1` = 显式关闭），严格解析并忽略坏记录。旧单槽只在当前 itemId 匹配时迁入当前命名空间，迁后清旧槽；无法匹配不恢复。“自动选择”删除当前片覆盖并回落到全局。
 - 验收：不同影片各自恢复不同字幕组合；服务 A/B 或用户 A/B 不串；单片关闭、主次轨道、重启、切码率、Exo/mpv 切换均保持；全局模式 / 语言修改保留已有单片覆盖，只影响无覆盖影片；坏记录不崩溃。Pad 5 Exo 与 K60 mpv 真机各覆盖完整切换链，主会话 0 截图。
 - 非目标：不改服务器、不改 Room schema、不把外观 / 延迟改成单片、不实现 W86-C seek 状态机。实现 / QA 分代理，TDD 先红后绿；合并仍走独立 merge-prep、ff-only、三路 CI。
+
+### 42.3 最终闭环计划（2026-10-23，新负责人）
+
+**对象与责任**
+
+- 对象固定为分支 `codex/w86-b-subtitle-scope`、绝对 worktree `F:\Develop\code_data\work_tree\Aurorama\w86-b-subtitle-scope\Aurorama`；代码 commit `57b57549`，文档检查点 `e34403c2`。W86-A 已合并，禁止重做；不新建同名 worktree。
+- 负责人只做计划、设备锁、派单、压缩报告 / 范围审查、ff-only、CI 与文档 / 记忆收口，不手写功能代码。
+- 真机验证使用全新 `deepseek-flash`、`fork_turns=none` 代理；旧设备代理均已超过 30 万，禁止复用。独立 QA 与 merge-prep 也必须是新代理，不得由验证代理兼任。
+- 计划落盘前负责人实测 `88,314 / 1,048,576（8.4%）`、14 次请求；本计划预计负责人再消耗 70,000–140,000 tokens，真机代理预计 150,000–260,000，QA 100,000–180,000，merge-prep 40,000–90,000。若任务跨会话，均按各会话实际水位判断。
+
+**目标**
+
+1. 从当前代码树新建唯一 APK，设备回拉校验 SHA-256，在 Pad Exo 与 K60 mpv 完成最终双机矩阵；三项已修 P1 必须在真实链路复验，不以旧 APK、旧结论或单测冒充通过。
+2. Pad 覆盖两片不同主次、各自强停恢复、首条侧载默认不覆盖已恢复记录、A 自动选择只清 A 且强停不复活、B 不动、显式 `-1|-1` 强停保持、全局模式 / 语言不覆盖已有单片、无覆盖片不生成伪手动记录、切码率重启、Exo↔mpv 往返。
+3. K60 mpv 覆盖两片不同组合、各自强停、全局不覆盖已有单片、自动选择只清当前片；双机最终均要求 App FATAL=0、ANR=0。
+4. 真机通过后才进入独立用户视角 QA；QA 通过后才进入 merge-prep；随后负责人 ff-only、同代码 commit 三路 CI 全绿，再收口文档 / Engramory。
+
+**非目标**
+
+- 不改服务器数据，禁止 `POST` / `PUT` / `PATCH` / `DELETE`；不调用在线 `PlaybackInfo`，不输出凭据。
+- 不改 `Versions.kt`、Room schema、W86-A 或 W86-C；不打 tag、不发 Release，不提前创建 W86-C 负责人线程。
+- 验证代理不改功能代码、不 commit；QA 不改代码、不 commit。若真机发现新 P0/P1，立即停止剩余矩阵并交回实现，不在验证现场顺手修。
+- 不把 `server=- / user=-` 包装成真实账号隔离通过；不把未执行项写成 0，不以单测 / 静态检查冒充真机结果。
+
+**阶段、验收门与预计**
+
+| 阶段 | 执行者 | 动作与通过门 | 预计耗时 |
+|---|---|---|---|
+| P1 计划 / 预检 | 负责人 | 计划落盘并回读；git / worktree / ADB / 设备锁实况闭合；唯一新锁同名改后回读 | 10–15 分钟 |
+| P2 新 APK 双机矩阵 | 新真机代理 | 构建前证明 `57b57549..HEAD` 无代码差异；新 APK 设备回拉 SHA、包名 / 版本 / 安装时间落盘；完整矩阵全过；证据只留判定行 | 90–150 分钟 |
+| P3 独立 QA | 新 QA 代理 | 独立自建同代码 commit 包或使用负责人指定的候选 APK，从用户视角重跑验收；P0/P1 分列；不改代码 / 不 commit | 60–120 分钟 |
+| P4 merge-prep | 新架构代理 | rebase 最新 `origin/master`；8 模块全量门禁；`ktfmtCheck`、phone debug 构建、`diff --check`；diff 白名单与禁改文件审查 | 25–50 分钟 |
+| P5 合并 / CI | 负责人 | 仅 ff-only；推送后同代码 commit 三路 CI 全绿；失败即停，不以旧 run 代替 | 25–50 分钟 |
+| P6 收口 | 负责人 | 任务线、handoff ACTIVE/HISTORY、Engramory checkpoint；W86-B 合并后才串行创建 W86-C 新负责人 | 20–40 分钟 |
+
+全波预计 3.5–7 小时；任一门禁失败时总耗时以止损和还原为准，不为凑时延补跑无关项。
+
+**只读白名单**
+
+- 负责人：handoff 顶部唯一 ACTIVE W86-B 段；`docs\PROJECT_PLAN.md` §2/§5；`docs\PLAYER_PLAN.md` §42.2/§42.3；`W86-B-IMPL.md` P4f/P4g；Engramory 指定六条记忆；`git status / branch / worktree / rev-parse`；`adb devices -l`；`device-lock.md` 当前 W86-B 段。
+- 真机代理：本计划 §42.3、P4g 最小结论、设备锁当前段；既有本机 MP4 `F:\Develop\codex_work\.planning\cinefin-expansion\w79-evidence\qa-w79b\reenter_row02.mp4` 与 ASCII SRT 夹具；必要源码只定位字幕设置 / 偏好入口，禁止通读大文档、完整 uia 或原始 logcat。
+- QA：需求与验收矩阵、候选 APK SHA、验证代理压缩结论；从用户入口独立重建操作，不读实现者源码或原始证据。
+- merge-prep：本计划、分支 diff 摘要、P4h 与 QA 报告；只读必要关键源码和门禁输出，不读原始日志。
+
+**证据与还原**
+
+- 真机输出追加到 `F:\Develop\codex_work\.planning\cinefin-expansion\w86-reports\W86-B-IMPL.md` P4h；证据目录 `F:\Develop\codex_work\.planning\cinefin-expansion\w86b-evidence\final-device-r4\`。
+- QA 输出 `F:\Develop\codex_work\.planning\cinefin-expansion\w86-reports\W86-B-QA.md`，证据目录 `w86b-evidence\qa-r4\`；merge-prep 输出 `W86-B-MERGE-PREP.md`。
+- 证据只保留 APK SHA / `lastUpdateTime` / 关键 UI 文本 / 最小偏好判定行 / 过滤后的 FATAL、ANR 汇总，不保留截图、完整 dump 或敏感日志；主负责人 0 截图、不使用 `view_image`。
+- 开工前备份原 APK与原字幕偏好；收工恢复原 APK `D1DF2B62CD277ADFEE40FD00804FD3D9E8A9D09A24C9E2AB321324A598D53D84` 与偏好哈希，删除临时库 / 媒体 / 字幕，force-stop 双机，同锁标题写释放与“已完成 / 未覆盖”并回读。
+
+**上下文与失败门禁**
+
+- 每个负责人 / 代理阶段收尾记录实际水位。25 万停止扩项与无判别力复跑；30 万停止新增阶段、写检查点并准备交接；35 万必须创建替换代理，旧代理只做交接；50 万为止损上限。
+- 任一功能门禁失败：立即停止剩余功能矩阵，记录最小复现、受影响字段、关键证据和 FATAL / ANR，只做还原 / 释放 / 报告；不得把后续未执行项写成通过。
+- 验收结论必须分列“已完成真机测试”和“未覆盖项”。当前已知未覆盖基线：真实 server A/B、user A/B 隔离；若最终仍为 `server=- / user=-`，继续明确列未覆盖。
