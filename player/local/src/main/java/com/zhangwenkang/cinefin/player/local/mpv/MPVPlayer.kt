@@ -60,6 +60,12 @@ import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
 
+interface MpvSeekEventListener {
+    fun onMpvSeekAccepted()
+
+    fun onMpvPlaybackRestarted(positionMs: Long)
+}
+
 class MPVPlayer(
     context: Context,
     private val audioAttributes: AudioAttributes = AudioAttributes.DEFAULT,
@@ -91,6 +97,7 @@ class MPVPlayer(
     private val commandThread: HandlerThread = HandlerThread("mpv-command").apply { start() }
     private val commandHandler: Handler = Handler(commandThread.looper)
     private val commandsClosed = AtomicBoolean(false)
+    private val seekEventListeners = mutableSetOf<MpvSeekEventListener>()
 
     private constructor(
         builder: Builder
@@ -583,6 +590,7 @@ class MPVPlayer(
                         @Suppress("DEPRECATION")
                         listener.onPositionDiscontinuity(DISCONTINUITY_REASON_SEEK)
                     }
+                    seekEventListeners.toList().forEach { it.onMpvSeekAccepted() }
                 }
                 MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
                     if (!isPlayerReady) {
@@ -597,6 +605,13 @@ class MPVPlayer(
                         }
                     } else {
                         setPlayerStateAndNotifyIfChanged(playbackState = STATE_READY)
+                    }
+                    val restartedPositionMs =
+                        mpvLib.getPropertyDouble("time-pos")?.times(C.MILLIS_PER_SECOND)?.toLong()
+                            ?: currentPositionMs
+                            ?: 0L
+                    seekEventListeners.toList().forEach {
+                        it.onMpvPlaybackRestarted(restartedPositionMs)
                     }
                 }
                 /*
@@ -698,6 +713,14 @@ class MPVPlayer(
     fun setAudioDelay(delayMs: Long) {
         Timber.d("mpv 音频延迟 = %d ms", delayMs)
         mpvLib.setPropertyDouble("audio-delay", delayMs / 1000.0)
+    }
+
+    fun addSeekEventListener(listener: MpvSeekEventListener) {
+        seekEventListeners.add(listener)
+    }
+
+    fun removeSeekEventListener(listener: MpvSeekEventListener) {
+        seekEventListeners.remove(listener)
     }
 
     /** 字幕延迟（毫秒）；正 = 字幕延后出现 */
@@ -1751,6 +1774,7 @@ class MPVPlayer(
      */
     override fun release() {
         if (released) return
+        seekEventListeners.clear()
         // 先摘掉挂着的 TextureView 输出（此时 mpv 还活着，能正常 detach）；
         // 之后再置 released：TextureView 被 detach 时的回调不能再碰已销毁的 mpvLib
         // （真机上就是这里崩的：MPVLib is not initialized）

@@ -307,13 +307,40 @@ class PlayerActivity : BasePlayerActivity() {
                         isFullscreen = fullscreenMode.value,
                         onToggleFullscreen = { toggleFullscreen() },
                         // W73（#7）：seek 统一走 ViewModel——未就绪排队 + 转码超窗重开会话
-                        onSeekRequest = { target -> viewModel.requestSeek(target, "progress") },
+                        onSeekRequest = { target ->
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.Absolute(target),
+                                "progress",
+                            )
+                        },
                         onSeekFractionRequest = { fraction ->
-                            viewModel.requestSeek(0L, "progress-unknown", fraction)
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.Fraction(fraction),
+                                "progress-unknown",
+                            )
                         },
                         onSeekRelativeRequest = { delta ->
-                            viewModel.requestSeekRelative(delta, "step")
+                            viewModel.submitSeek(PlayerViewModel.SeekIntent.Relative(delta), "step")
                         },
+                        onPreviousMediaItem = {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = false),
+                                "previous",
+                            )
+                        },
+                        onNextMediaItem = {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = true),
+                                "next",
+                            )
+                        },
+                        onSelectMediaItem = { index ->
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.MediaItem(index),
+                                "queue",
+                            )
+                        },
+                        onRetrySeek = viewModel::retrySeek,
                         // W55 睡眠定时统一：状态与选择都走进程级单例（音乐 / 视频共享）
                         sleepState = sleepTimerState,
                         onSelectSleepMinutes = { minutes -> viewModel.selectSleepTimer(minutes) },

@@ -167,6 +167,9 @@
     <string name="player_controls_aspect_unsupported">当前播放核心不支持画面比例</string>
     <string name="player_controls_error_title">播放失败</string>
     <string name="player_controls_error_retry">重试</string>
+    <string name="player_seek_failed_title">定位失败</string>
+    <string name="player_seek_timeout_title">定位超时</string>
+    <string name="player_seek_failure_message">播放器未确认本次定位，请重试。</string>
     <string name="player_controls_error_switch_backend">改用 %1$s 内核</string>
     <string name="player_subtitle_external">外挂</string>
     <string name="player_subtitle_embedded">内嵌</string>

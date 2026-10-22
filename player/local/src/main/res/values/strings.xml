@@ -166,6 +166,9 @@
     <string name="player_controls_aspect_unsupported">Not supported by the current player core</string>
     <string name="player_controls_error_title">Playback failed</string>
     <string name="player_controls_error_retry">Retry</string>
+    <string name="player_seek_failed_title">Seek failed</string>
+    <string name="player_seek_timeout_title">Seek timed out</string>
+    <string name="player_seek_failure_message">The player did not confirm this seek. Try again.</string>
     <string name="player_controls_error_switch_backend">Switch to %1$s</string>
     <string name="player_subtitle_external">External</string>
     <string name="player_subtitle_embedded">Embedded</string>

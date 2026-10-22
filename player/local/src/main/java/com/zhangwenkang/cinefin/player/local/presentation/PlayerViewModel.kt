@@ -39,6 +39,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
+import com.zhangwenkang.cinefin.player.local.domain.ExoSeekAdapter
+import com.zhangwenkang.cinefin.player.local.domain.MpvSeekAdapter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinatorImpl
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
@@ -50,6 +52,15 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlayerQueueEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
+import com.zhangwenkang.cinefin.player.local.domain.SeekConfirmationPolicy
+import com.zhangwenkang.cinefin.player.local.domain.SeekEngineEvidence
+import com.zhangwenkang.cinefin.player.local.domain.SeekEngineEvidenceKind
+import com.zhangwenkang.cinefin.player.local.domain.SeekEngineFailure
+import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
+import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
+import com.zhangwenkang.cinefin.player.local.domain.SeekRequest
+import com.zhangwenkang.cinefin.player.local.domain.SeekState
+import com.zhangwenkang.cinefin.player.local.domain.SeekStateReducer
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
@@ -61,12 +72,14 @@ import com.zhangwenkang.cinefin.player.local.domain.isSeekRequestReady
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
+import com.zhangwenkang.cinefin.player.local.domain.seekDisplayPositionMs
 import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldRestartTranscodeSession
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
+import com.zhangwenkang.cinefin.player.local.mpv.MpvSeekEventListener
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackRef
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
@@ -130,7 +143,7 @@ constructor(
     private val playbackCoordinator: PlaybackCoordinatorImpl,
     /** W86-B：当前用户 id 是字幕单片命名空间的权威来源，登录 / 切用户时由 SetupRepository 更新。 */
     private val jellyfinApi: JellyfinApi,
-) : ViewModel(), Player.Listener {
+) : ViewModel(), Player.Listener, MpvSeekEventListener {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
         const val PLAYER_BACKEND_EXOPLAYER = "exoplayer"
@@ -174,6 +187,15 @@ constructor(
         /** W73（#7）：直接 seek 后若目标附近仍在缓冲，先观察这么久再决定是否重开会话。 */
         private const val TRANSCODE_SEEK_WATCHDOG_DELAY_MS = 2_500L
         private const val TRANSCODE_SEEK_WATCHDOG_TOLERANCE_MS = 8_000L
+
+        /** W86-C：确认超时只产生可重试失败，绝不把超时当成功。 */
+        private const val EXO_SEEK_TIMEOUT_MS = 4_000L
+        private const val MPV_SEEK_TIMEOUT_MS = 6_000L
+        private const val TRANSCODE_SEEK_TIMEOUT_MS = 35_000L
+        private const val EXO_SEEK_TOLERANCE_MS = 1_000L
+        private const val MPV_SEEK_TOLERANCE_MS = 2_000L
+        private const val TRANSCODE_SEEK_TOLERANCE_MS = 2_000L
+        private const val SEEK_TARGET_DISPLAY_MIN_MS = 300L
 
         /** W73（#8）：网络类播放错误的原地重试窗口 / 次数上限（超过则交给错误卡片，不换内核、不重启页面）。 */
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
@@ -248,6 +270,8 @@ constructor(
         val skipChipDurationMs: Long = 5_000L,
         /** 播放失败时的错误信息；非空时控制层显示错误卡片 */
         val playerError: PlayerErrorInfo? = null,
+        /** W86-C：seek 请求的唯一状态；UI 不再根据单次位置采样猜测完成。 */
+        val seekState: SeekState = SeekState.Idle,
     )
 
     /** 播放错误：给控制层的错误卡片用（阶段 1.3） */
@@ -259,6 +283,19 @@ constructor(
         /** 出错时使用的内核：exoplayer / mpv */
         val backend: String,
     )
+
+    /** W86-C：Activity / 手势只能提交这些意图，不能直接操作底层播放器位置。 */
+    sealed interface SeekIntent {
+        data class Absolute(val targetMs: Long) : SeekIntent
+
+        data class Fraction(val fraction: Float) : SeekIntent
+
+        data class Relative(val deltaMs: Long) : SeekIntent
+
+        data class MediaItem(val index: Int) : SeekIntent
+
+        data class AdjacentMediaItem(val forward: Boolean) : SeekIntent
+    }
 
     /** 字幕来源类别：面板行统一显示内嵌 / 外挂 / 侧载。 */
     enum class SubtitleOrigin {
@@ -371,6 +408,13 @@ constructor(
     private var transcodeRestartWindowCount = 0
     private var lastTranscodeRestartMediaId: String? = null
     private var transcodeSeekWatchdogJob: Job? = null
+
+    /** W86-C：reducer 是 seek 状态的唯一真源；generation 只增不减。 */
+    private val seekStateReducer = SeekStateReducer()
+    private var nextSeekRequestGeneration = 0L
+    private var seekSourceEpoch = 0L
+    private var pendingSeekGeneration: Long? = null
+    private var seekTimeoutJob: Job? = null
 
     /* ---------- W73（#8）：网络类播放错误的原地重试状态 ---------- */
 
@@ -649,6 +693,7 @@ constructor(
         // 新播放页 / 新码率 / 新内核请求：旧 source 与 current 立即失效。
         val initializationGeneration = resetPlaybackSnapshots()
         player.addListener(this)
+        (player as? MPVPlayer)?.addSeekEventListener(this)
         applySavedSubtitlePreferences()
         syncMpvSubtitleMode()
         publishSubtitlePanelState()
@@ -726,6 +771,7 @@ constructor(
                     playbackPosition
                 }
 
+            seekSourceEpoch++
             player.setMediaItems(mediaItems, 0, startPosition)
             // W74 U2-B（D-F8）：进播放页 / 重建播放器实例时套用保存的循环 / 随机模式。
             // 必须在 setMediaItems 之后：媒体项集齐才会生成 shuffle 顺序，随机档才能真正排到队列上。
@@ -909,6 +955,7 @@ constructor(
      */
     fun attachToExistingSession() {
         player.addListener(this)
+        (player as? MPVPlayer)?.addSeekEventListener(this)
         applySavedSubtitlePreferences()
         // W27：接管会话（通知 / 锁屏回前台）时补上侧载字幕；自研管线还没建立才重建，避免覆盖本次会话的手动选轨
         player.currentMediaItem?.mediaId?.let { mediaId ->
@@ -1046,6 +1093,7 @@ constructor(
         playbackPosition = 0L
         currentMediaItemIndex = 0
         player.removeListener(this)
+        (player as? MPVPlayer)?.removeSeekEventListener(this)
         val backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio)
         if (!shouldReleasePlayerOnExit(playerHolder.musicSessionActive, backgroundAudioEnabled)) {
             /*
@@ -1221,6 +1269,11 @@ constructor(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
+        seekSourceEpoch++
+        seekMediaIdentity(mediaItem)?.let { identity ->
+            seekStateReducer.onSourceReplaced(seekSourceEpoch, identity)
+            publishSeekState()
+        }
         // 条目 / 媒体源一变化先清空旧快照；后续只有同一 identity 的结果能重新填入。
         refreshUiStateFromPlayer()
         // #9：倍速是「播放会话内状态」——同一剧集队列里切集（含自动下一集）后必须保持。
@@ -1470,6 +1523,60 @@ constructor(
         }
     }
 
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
+        if (
+            playerBackend == PLAYER_BACKEND_EXOPLAYER && reason == Player.DISCONTINUITY_REASON_SEEK
+        ) {
+            val generation = currentSeekGeneration() ?: return
+            val identity = seekMediaIdentity(newPosition.mediaItem) ?: return
+            if (newPosition.positionMs < 0L) return
+            onSeekEvidence(
+                ExoSeekAdapter.onSeekDiscontinuity(
+                    requestGeneration = generation,
+                    sourceEpoch = seekSourceEpoch,
+                    mediaIdentity = identity,
+                    newPositionMs = newPosition.positionMs,
+                )
+            )
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onPositionDiscontinuity(reason: Int) {
+        if (playerBackend == PLAYER_BACKEND_MPV && reason == Player.DISCONTINUITY_REASON_SEEK) {
+            onMpvSeekAccepted()
+        }
+    }
+
+    override fun onMpvSeekAccepted() {
+        val generation = currentSeekGeneration() ?: return
+        val identity = seekMediaIdentity() ?: return
+        onSeekEvidence(
+            MpvSeekAdapter.onSeekAccepted(
+                requestGeneration = generation,
+                sourceEpoch = seekSourceEpoch,
+                mediaIdentity = identity,
+            )
+        )
+    }
+
+    override fun onMpvPlaybackRestarted(positionMs: Long) {
+        val generation = currentSeekGeneration() ?: return
+        val identity = seekMediaIdentity() ?: return
+        onSeekEvidence(
+            MpvSeekAdapter.onPlaybackRestart(
+                requestGeneration = generation,
+                sourceEpoch = seekSourceEpoch,
+                mediaIdentity = identity,
+                positionMs = positionMs,
+            )
+        )
+    }
+
     override fun onPlaybackStateChanged(state: Int) {
         var stateString = "UNKNOWN_STATE             -"
         when (state) {
@@ -1510,6 +1617,21 @@ constructor(
             }
         }
         Timber.d("Changed player state to $stateString")
+        if (state == Player.STATE_READY && playerBackend == PLAYER_BACKEND_EXOPLAYER) {
+            val generation = currentSeekGeneration()
+            val identity = seekMediaIdentity()
+            val activePlayer = playerHolder.existingPlayer
+            if (generation != null && identity != null && activePlayer != null) {
+                ExoSeekAdapter.onPlaybackStateChanged(
+                        requestGeneration = generation,
+                        sourceEpoch = seekSourceEpoch,
+                        mediaIdentity = identity,
+                        playbackState = state,
+                        positionMs = activePlayer.currentPosition,
+                    )
+                    ?.let(::onSeekEvidence)
+            }
+        }
     }
 
     /**
@@ -1533,6 +1655,7 @@ constructor(
              */
             if (handleCodecFallback(error)) return
         }
+        failActiveSeek(SeekFailureReason.ENGINE_ERROR, retryable = true)
         _uiState.update {
             it.copy(
                 playerError =
@@ -1582,7 +1705,8 @@ constructor(
             return false
         }
         networkRetryAttempts++
-        val position = currentResumePositionMs()
+        val position =
+            (seekStateReducer.state as? SeekState.Seeking)?.targetMs ?: currentResumePositionMs()
         val item = currentPlaybackItem()
         val isTranscode = item != null && isTranscodeStreamUri(item.mediaSourceUri)
         val restartTranscodeSession =
@@ -1602,7 +1726,7 @@ constructor(
                 networkRetryAttempts,
                 position,
             )
-            retryPlayback()
+            retryPlayback(position)
         }
         return true
     }
@@ -2903,8 +3027,8 @@ constructor(
      *
      * ExoPlayer 出错后停在 STATE_IDLE，重新 prepare 即重新拉流； mpv 的 prepare 会重新 loadfile 并回到片头，所以这里统一把位置挪回去。
      */
-    fun retryPlayback() {
-        val position = currentResumePositionMs()
+    fun retryPlayback(positionOverrideMs: Long? = null) {
+        val position = positionOverrideMs ?: currentResumePositionMs()
         Timber.d("Retrying playback on backend=$playerBackend from position=$position")
         _uiState.update { it.copy(playerError = null) }
         player.prepare()
@@ -3131,6 +3255,120 @@ constructor(
 
     /* ---------- W73（#7）：seek 排队 + 转码会话重开 ---------- */
 
+    private fun currentSeekGeneration(): Long? =
+        (seekStateReducer.state as? SeekState.Seeking)?.requestGeneration
+
+    private fun seekConfirmationPolicy(isTranscode: Boolean): SeekConfirmationPolicy =
+        when {
+            playerBackend == PLAYER_BACKEND_MPV ->
+                SeekConfirmationPolicy(
+                    completionTimeoutMs = MPV_SEEK_TIMEOUT_MS,
+                    positionToleranceMs = MPV_SEEK_TOLERANCE_MS,
+                    minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
+                )
+            isTranscode ->
+                SeekConfirmationPolicy(
+                    completionTimeoutMs = TRANSCODE_SEEK_TIMEOUT_MS,
+                    positionToleranceMs = TRANSCODE_SEEK_TOLERANCE_MS,
+                    minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
+                )
+            else ->
+                SeekConfirmationPolicy(
+                    completionTimeoutMs = EXO_SEEK_TIMEOUT_MS,
+                    positionToleranceMs = EXO_SEEK_TOLERANCE_MS,
+                    minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
+                )
+        }
+
+    /** 媒体 URI 只取不可逆短指纹，避免日志 / 状态泄漏播放地址中的查询参数。 */
+    private fun seekMediaIdentity(
+        mediaItem: MediaItem? = playerHolder.existingPlayer?.currentMediaItem
+    ): SeekMediaIdentity? {
+        val item = currentPlaybackItem()
+        val itemId = mediaItem?.mediaId ?: item?.itemId?.toString() ?: return null
+        val mediaSourceId =
+            mediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+                ?: item?.mediaSourceId.orEmpty()
+        val sourceUri =
+            mediaItem?.localConfiguration?.uri?.toString() ?: item?.mediaSourceUri.orEmpty()
+        val fingerprint =
+            Integer.toHexString(
+                "$sourceUri|$mediaSourceId|${item?.playbackPosition ?: 0L}".hashCode()
+            )
+        return SeekMediaIdentity(itemId, mediaSourceId, fingerprint)
+    }
+
+    private fun publishSeekState() {
+        _uiState.update { it.copy(seekState = seekStateReducer.state) }
+    }
+
+    private fun armSeekTimeout() {
+        seekTimeoutJob?.cancel()
+        val seeking = seekStateReducer.state as? SeekState.Seeking ?: return
+        val remainingMs =
+            (seeking.requestedAtMs + seeking.policy.completionTimeoutMs -
+                    SystemClock.elapsedRealtime())
+                .coerceAtLeast(1L)
+        seekTimeoutJob =
+            viewModelScope.launch(Dispatchers.Main) {
+                delay(remainingMs)
+                seekStateReducer.onTick(SystemClock.elapsedRealtime())
+                publishSeekState()
+            }
+    }
+
+    private fun onSeekEvidence(evidence: SeekEngineEvidence) {
+        val before = seekStateReducer.state
+        when (evidence.kind) {
+            SeekEngineEvidenceKind.SEEK_ACCEPTED -> seekStateReducer.onAccepted(evidence)
+            SeekEngineEvidenceKind.PLAYBACK_READY ->
+                seekStateReducer.onCompletionEvidence(
+                    evidence,
+                    SystemClock.elapsedRealtime(),
+                )
+        }
+        if (seekStateReducer.state != before) {
+            publishSeekState()
+            if (seekStateReducer.state is SeekState.Confirmed) seekTimeoutJob?.cancel()
+        }
+        val seeking = seekStateReducer.state as? SeekState.Seeking ?: return
+        if (evidence.kind == SeekEngineEvidenceKind.SEEK_ACCEPTED) {
+            val activePlayer = playerHolder.existingPlayer
+            if (
+                playerBackend == PLAYER_BACKEND_EXOPLAYER &&
+                    activePlayer?.playbackState == Player.STATE_READY
+            ) {
+                ExoSeekAdapter.onPlaybackStateChanged(
+                        requestGeneration = seeking.requestGeneration,
+                        sourceEpoch = seeking.sourceEpoch,
+                        mediaIdentity = seeking.mediaIdentity,
+                        playbackState = activePlayer.playbackState,
+                        positionMs = activePlayer.currentPosition,
+                    )
+                    ?.let(::onSeekEvidence)
+            }
+        }
+    }
+
+    private fun failActiveSeek(
+        reason: SeekFailureReason = SeekFailureReason.ENGINE_ERROR,
+        retryable: Boolean = true,
+    ) {
+        val seeking = seekStateReducer.state as? SeekState.Seeking ?: return
+        seekTimeoutJob?.cancel()
+        seekStateReducer.onFailure(
+            SeekEngineFailure(
+                requestGeneration = seeking.requestGeneration,
+                sourceEpoch = seeking.sourceEpoch,
+                mediaIdentity = seeking.mediaIdentity,
+                reason = reason,
+                retryable = retryable,
+            ),
+            SystemClock.elapsedRealtime(),
+        )
+        publishSeekState()
+    }
+
     /**
      * 统一 seek 入口（进度条 / ±键 / 手势 / 章节 / 片头尾跳过）。
      *
@@ -3148,15 +3386,38 @@ constructor(
         val duration = activePlayer?.duration ?: C.TIME_UNSET
         val state = activePlayer?.playbackState ?: Player.STATE_IDLE
         val position = activePlayer?.currentPosition ?: 0L
+        val identity = seekMediaIdentity()
+        if (identity == null) {
+            Timber.d("seek 请求等待媒体身份：source=%s target=%d", source, targetMs)
+            return
+        }
+        seekTimeoutJob?.cancel()
+        val item = currentPlaybackItem()
+        val isTranscode = item?.let { isTranscodeStreamUri(it.mediaSourceUri) } == true
+        val generation = ++nextSeekRequestGeneration
+        seekStateReducer.request(
+            SeekRequest(
+                targetMs =
+                    if (fraction != null && duration > 0L) {
+                        seekTargetFromFraction(fraction, duration)
+                    } else {
+                        targetMs
+                    },
+                requestGeneration = generation,
+                sourceEpoch = seekSourceEpoch,
+                mediaIdentity = identity,
+                durationMs = duration,
+                issuedAtMs = SystemClock.elapsedRealtime(),
+                policy = seekConfirmationPolicy(isTranscode),
+            )
+        )
+        publishSeekState()
         if (!isSeekRequestReady(attached, duration, state, position)) {
             when {
                 fraction != null -> mergePendingSeek(PendingSeek.Fraction(fraction))
-                targetMs > 0L -> mergePendingSeek(PendingSeek.Absolute(targetMs))
-                else -> {
-                    Timber.d("seek 排队忽略（目标不可用）：source=%s target=%d", source, targetMs)
-                    return
-                }
+                else -> mergePendingSeek(PendingSeek.Absolute(targetMs.coerceAtLeast(0L)))
             }
+            pendingSeekGeneration = generation
             pendingSeekSource = source
             schedulePendingSeekFlush()
             Timber.d(
@@ -3176,6 +3437,38 @@ constructor(
     /** 相对增量 seek（±键 / 快进快退键）：未就绪时并入排队，就绪后按真实位置一次落点。 */
     fun requestSeekRelative(deltaMs: Long, source: String) {
         val activePlayer = playerHolder.existingPlayer
+        val base =
+            seekDisplayPositionMs(
+                seekStateReducer.state,
+                activePlayer?.currentPosition ?: 0L,
+                SystemClock.elapsedRealtime(),
+            )
+        requestSeek(base + deltaMs, source)
+    }
+
+    fun submitSeek(intent: SeekIntent, source: String) {
+        when (intent) {
+            is SeekIntent.Absolute -> requestSeek(intent.targetMs, source)
+            is SeekIntent.Fraction -> requestSeek(0L, source, intent.fraction)
+            is SeekIntent.Relative -> requestSeekRelative(intent.deltaMs, source)
+            is SeekIntent.MediaItem -> requestMediaItemSeek(intent.index, source)
+            is SeekIntent.AdjacentMediaItem -> requestAdjacentMediaItemSeek(intent.forward, source)
+        }
+    }
+
+    /** 手势 HUD / 相对步进的统一基准：待决期间使用最后请求目标。 */
+    fun seekDisplayPositionMs(): Long =
+        seekDisplayPositionMs(
+            seekStateReducer.state,
+            playerHolder.existingPlayer?.currentPosition ?: 0L,
+            SystemClock.elapsedRealtime(),
+        )
+
+    fun retrySeek() {
+        val retry = seekStateReducer.retryRequest(SystemClock.elapsedRealtime()) ?: return
+        seekStateReducer.request(retry)
+        publishSeekState()
+        val activePlayer = playerHolder.existingPlayer
         val ready =
             activePlayer != null &&
                 isSeekRequestReady(
@@ -3185,17 +3478,80 @@ constructor(
                     currentPositionMs = activePlayer.currentPosition,
                 )
         if (ready && activePlayer != null) {
-            executeSeek(activePlayer, activePlayer.currentPosition + deltaMs, source)
-            return
+            executeSeek(activePlayer, retry.targetMs, "seek-retry")
+        } else {
+            pendingSeek = PendingSeek.Absolute(retry.targetMs)
+            pendingSeekGeneration = retry.requestGeneration
+            pendingSeekSource = "seek-retry"
+            schedulePendingSeekFlush()
         }
-        mergePendingSeek(PendingSeek.Relative(deltaMs))
+    }
+
+    private fun requestMediaItemSeek(index: Int, source: String) {
+        val activePlayer = playerHolder.existingPlayer ?: return
+        if (index !in 0 until activePlayer.mediaItemCount) return
+        val generation = beginMediaItemSeek(source, activePlayer)
+        if (generation == null) return
+        activePlayer.seekTo(index, 0L)
+        seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
+        publishSeekState()
+        armSeekTimeout()
+    }
+
+    private fun requestAdjacentMediaItemSeek(forward: Boolean, source: String) {
+        val activePlayer = playerHolder.existingPlayer ?: return
+        val hasTarget =
+            if (forward) activePlayer.hasNextMediaItem() else activePlayer.hasPreviousMediaItem()
+        if (!hasTarget) return
+        val generation = beginMediaItemSeek(source, activePlayer)
+        if (generation == null) return
+        if (forward) activePlayer.seekToNextMediaItem() else activePlayer.seekToPreviousMediaItem()
+        seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
+        publishSeekState()
+        armSeekTimeout()
+    }
+
+    private fun beginMediaItemSeek(source: String, activePlayer: Player): Long? {
+        seekTimeoutJob?.cancel()
+        val identity = seekMediaIdentity() ?: return null
+        val generation = ++nextSeekRequestGeneration
+        val item = currentPlaybackItem()
+        val isTranscode = item?.let { isTranscodeStreamUri(it.mediaSourceUri) } == true
+        seekStateReducer.request(
+            SeekRequest(
+                targetMs = 0L,
+                requestGeneration = generation,
+                sourceEpoch = seekSourceEpoch,
+                mediaIdentity = identity,
+                durationMs = activePlayer.duration,
+                issuedAtMs = SystemClock.elapsedRealtime(),
+                policy = seekConfirmationPolicy(isTranscode),
+            )
+        )
+        pendingSeek = null
+        pendingSeekGeneration = null
         pendingSeekSource = source
-        schedulePendingSeekFlush()
-        Timber.d("相对 seek 排队：source=%s Δ=%d", source, deltaMs)
+        publishSeekState()
+        return generation
     }
 
     /** 就绪后的实际落点：转码超窗重开会话，否则直接 seek。 */
     private fun executeSeek(activePlayer: Player, targetMs: Long, source: String) {
+        val generation =
+            currentSeekGeneration()
+                ?: run {
+                    Timber.w("seek 执行缺少 active generation：source=%s", source)
+                    return
+                }
+        val identity = seekMediaIdentity()
+        if (identity != null) {
+            val current = seekStateReducer.state as? SeekState.Seeking
+            if (current != null && current.mediaIdentity != identity) {
+                seekSourceEpoch++
+                seekStateReducer.onSourceReplaced(seekSourceEpoch, identity)
+                publishSeekState()
+            }
+        }
         val duration = activePlayer.duration
         val upperBound = if (duration > 0L) duration else Long.MAX_VALUE
         val target = targetMs.coerceIn(0L, upperBound)
@@ -3221,9 +3577,21 @@ constructor(
                 item?.playbackPosition,
             )
             scheduleTranscodeRestart(target, source)
+            seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
+            publishSeekState()
+            armSeekTimeout()
             return
         }
-        activePlayer.seekTo(target)
+        try {
+            activePlayer.seekTo(target)
+        } catch (error: RuntimeException) {
+            Timber.w(error, "seek 同步拒绝：source=%s target=%d", source, target)
+            failActiveSeek(SeekFailureReason.REJECTED, retryable = false)
+            return
+        }
+        seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
+        publishSeekState()
+        armSeekTimeout()
         Timber.d(
             "seek 落点：source=%s target=%d position=%d buffered=%d transcode=%s",
             source,
@@ -3253,6 +3621,11 @@ constructor(
                     if (ready && activePlayer != null) {
                         val pending = pendingSeek ?: return@launch
                         val target = resolvePendingSeek(pending, activePlayer) ?: return@launch
+                        pendingSeekGeneration?.let {
+                            seekStateReducer.onTargetResolved(it, target)
+                            publishSeekState()
+                        }
+                        pendingSeekGeneration = null
                         pendingSeek = null
                         executeSeek(activePlayer, target, pendingSeekSource)
                         return@launch
@@ -3393,6 +3766,11 @@ constructor(
                 if (itemIndex >= 0) {
                     items[itemIndex] = rebuilt
                 }
+                seekSourceEpoch++
+                seekMediaIdentity(rebuilt.toMediaItem())?.let { identity ->
+                    seekStateReducer.onSourceReplaced(seekSourceEpoch, identity)
+                    publishSeekState()
+                }
                 livePlayer.replaceMediaItem(index, rebuilt.toMediaItem())
                 // 先 seek 再 prepare：prepare 时从目标位置开始加载分片，不再从 0 请求
                 livePlayer.seekTo(index, targetMs)
@@ -3447,7 +3825,7 @@ constructor(
 
     fun skipSegment(segment: FindroidSegment) {
         if (shouldSkipToNextEpisode(segment)) {
-            player.seekToNextMediaItem()
+            requestAdjacentMediaItemSeek(forward = true, source = "skip-segment-next")
         } else {
             requestSeek(segment.endTicks, "skip-segment")
         }

@@ -19,7 +19,6 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import androidx.core.view.isVisible
-import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil3.load
@@ -31,6 +30,7 @@ import com.zhangwenkang.cinefin.core.Constants
 import com.zhangwenkang.cinefin.isControlsLocked
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
 import kotlin.math.abs
@@ -38,10 +38,6 @@ import kotlin.math.pow
 import kotlin.math.sign
 import kotlinx.coroutines.Dispatchers
 import timber.log.Timber
-
-/** W67c：排队 seek 的重试间隔 / 上限（约 30 s），期间触摸反馈照常显示。 */
-private const val PENDING_SEEK_RETRY_MS = 100L
-private const val PENDING_SEEK_MAX_RETRIES = 300
 
 class PlayerGestureHelper(
     private val appPreferences: AppPreferences,
@@ -80,10 +76,6 @@ class PlayerGestureHelper(
      */
     private var swipeGestureSeekDelta = 0L
 
-    /** W67c：播放器未就绪期间累计的手势 seek 增量（ms）。 */
-    private var pendingSeekMs = 0L
-    private var pendingSeekRetries = 0
-
     private var swipeGestureVolumeOpen = false
     private var swipeGestureBrightnessOpen = false
     private var swipeGestureProgressOpen = false
@@ -113,50 +105,6 @@ class PlayerGestureHelper(
     private var currentTrickplayBitmap: Bitmap? = null
 
     private var currentNumberOfPointers: Int = 0
-
-    /**
-     * W67c：就绪后补投排队 seek。
-     *
-     * 起播前 / 内核切换窗口里媒体未 prepared（`duration` 未知）或播放器未挂载，直接 seekTo 会被随后到来的 恢复位置覆盖；这里按
-     * [PENDING_SEEK_RETRY_MS] 轮询，一旦就绪就按「真实位置 + 排队增量」一次落点。
-     */
-    private val flushPendingSeek =
-        object : Runnable {
-            override fun run() {
-                if (pendingSeekMs == 0L) return
-                val player = playerView.player
-                val ready =
-                    isGestureSeekReady(
-                        playerAttached = player != null,
-                        durationMs = player?.duration ?: Long.MIN_VALUE,
-                        playbackState = player?.playbackState ?: Player.STATE_IDLE,
-                        currentPositionMs = player?.currentPosition ?: 0L,
-                    )
-                if (!ready || player == null) {
-                    if (pendingSeekRetries++ < PENDING_SEEK_MAX_RETRIES) {
-                        playerView.postDelayed(this, PENDING_SEEK_RETRY_MS)
-                    } else {
-                        Timber.w("手势 seek 排队超时丢弃：Δ=%d ms", pendingSeekMs)
-                        pendingSeekMs = 0L
-                        pendingSeekRetries = 0
-                    }
-                    return
-                }
-                val delta = pendingSeekMs
-                pendingSeekMs = 0L
-                pendingSeekRetries = 0
-                val target = gestureSeekTarget(player.currentPosition, delta, player.duration)
-                // W73（#7）：就绪后补投也走统一入口（转码流超窗 → 重开会话）
-                activity.viewModel.requestSeek(target, "gesture-pending")
-                Timber.d(
-                    "手势 seek 排队落点：Δ=%d → %d ms（position=%d, duration=%d）",
-                    delta,
-                    target,
-                    player.currentPosition,
-                    player.duration,
-                )
-            }
-        }
 
     private val tapGestureDetector =
         GestureDetector(
@@ -243,7 +191,10 @@ class PlayerGestureHelper(
                 val player = playerView.player
                 if (activity.viewModel.isLastChapter()) {
                     if (player != null && player.hasNextMediaItem()) {
-                        player.seekToNextMediaItem()
+                        activity.viewModel.submitSeek(
+                            PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = true),
+                            "chapter-next-item",
+                        )
                         true
                     } else {
                         false
@@ -287,54 +238,28 @@ class PlayerGestureHelper(
     /**
      * W67c：手势 seek 的统一入口（相对增量）。
      *
-     * - 播放器已就绪：立即 `seekTo(真实位置 + 增量)`——时长未知（直播 / 加载中）不做上界收敛，交给播放器夹取；
-     * - 未就绪（未挂载 / 媒体未 prepared）：增量排队，就绪后由 [flushPendingSeek] 补上，**不静默失败**。
+     * - 播放器已就绪：提交相对意图，由 reducer 统一 clamp 并等待确认；
+     * - 未就绪 / 连续点击：一律由 ViewModel reducer 排队并保留最后目标，手势层不再维护第二份状态。
      *
      * @return 供反馈显示的目标位置（未就绪时按当前已知位置计算的近似值）
      */
     private fun requestGestureSeek(deltaMs: Long): Long {
         val player = playerView.player
-        val ready =
-            isGestureSeekReady(
-                playerAttached = player != null,
-                durationMs = player?.duration ?: Long.MIN_VALUE,
-                playbackState = player?.playbackState ?: Player.STATE_IDLE,
-                currentPositionMs = player?.currentPosition ?: 0L,
-            )
-        val decision =
-            decideGestureSeek(
-                basePositionMs = player?.currentPosition ?: 0L,
-                durationMs = player?.duration ?: 0L,
-                deltaMs = deltaMs,
-                pendingMs = pendingSeekMs,
-                playerReady = ready,
-            )
-        pendingSeekMs = decision.pendingMs
-        if (decision.applyNow && player != null) {
-            // W73（#7）：落点统一走 ViewModel（转码流超窗 → 重开会话；直放行为不变）
-            activity.viewModel.requestSeek(decision.targetMs, "gesture")
-            Timber.d(
-                "手势 seek：Δ=%d → %d ms（state=%d, isPlaying=%s, duration=%d）",
-                deltaMs,
-                decision.targetMs,
-                player.playbackState,
-                player.isPlaying,
-                player.duration,
-            )
-        } else {
-            Timber.d(
-                "手势 seek 排队：Δ=%d（pending=%d, playerNull=%s, duration=%d, state=%d, isPlaying=%s）",
-                deltaMs,
-                pendingSeekMs,
-                player == null,
-                player?.duration ?: -1L,
-                player?.playbackState ?: -1,
-                player?.isPlaying ?: false,
-            )
-            playerView.removeCallbacks(flushPendingSeek)
-            playerView.postDelayed(flushPendingSeek, PENDING_SEEK_RETRY_MS)
-        }
-        return decision.targetMs
+        val basePositionMs = activity.viewModel.seekDisplayPositionMs()
+        val targetMs = gestureSeekTarget(basePositionMs, deltaMs, player?.duration ?: 0L)
+        activity.viewModel.submitSeek(
+            PlayerViewModel.SeekIntent.Relative(deltaMs),
+            "gesture",
+        )
+        Timber.d(
+            "手势 seek：Δ=%d → %d ms（state=%d, isPlaying=%s, duration=%d）",
+            deltaMs,
+            targetMs,
+            player?.playbackState ?: -1,
+            player?.isPlaying ?: false,
+            player?.duration ?: -1L,
+        )
+        return targetMs
     }
 
     private fun animateRipple(image: ImageView) {

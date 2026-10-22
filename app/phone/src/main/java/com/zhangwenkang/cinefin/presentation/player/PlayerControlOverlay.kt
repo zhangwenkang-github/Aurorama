@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.player
 
 import android.graphics.Bitmap
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -119,8 +120,11 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
+import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
+import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.playerMediaInfoSections
+import com.zhangwenkang.cinefin.player.local.domain.seekDisplayPositionMs
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
@@ -712,16 +716,26 @@ fun PlayerControlOverlay(
     /** 全屏（W11 反馈⑥）：收起常驻内容栏 + 强制横屏；同一个键按状态换图标 */
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
-    /** W73（#7）：seek 请求统一走 ViewModel（未就绪排队 + 转码超窗重开会话）；默认保持直接落点。 */
-    onSeekRequest: (Long) -> Unit = { target -> player.seekTo(target) },
+    /** W86-C：seek 意图只交给 ViewModel reducer；控制层不再直接落点。 */
+    onSeekRequest: (Long) -> Unit = {},
     /** W73（#7）：进度条在「时长未知」窗口的拖动比例（就绪后按真实时长换算落点）。 */
     onSeekFractionRequest: (Float) -> Unit = {},
     /** W73（#7）：±键 / 快进快退的相对增量（未就绪排队 + 转码超窗重开会话）。 */
-    onSeekRelativeRequest: (Long) -> Unit = { delta ->
-        player.seekTo((player.currentPosition + delta).coerceAtLeast(0L))
-    },
+    onSeekRelativeRequest: (Long) -> Unit = {},
+    onPreviousMediaItem: () -> Unit = {},
+    onNextMediaItem: () -> Unit = {},
+    onSelectMediaItem: (Int) -> Unit = {},
+    onRetrySeek: () -> Unit = {},
 ) {
     val runtime = rememberPlayerRuntime(player)
+    val displayPositionMs =
+        seekDisplayPositionMs(
+            uiState.seekState,
+            runtime.position,
+            SystemClock.elapsedRealtime(),
+        )
+    val seekFailed = uiState.seekState as? SeekState.Failed
+    val seekPending = uiState.seekState is SeekState.Seeking
     /*
      * W67 补充：预计结束时刻。播放中每秒推进「当前时钟」→ 结束时刻稳定跟随播放推进；暂停后时钟冻结在暂停点
      * （自洽口径：若就此继续，将在此刻结束），跳转 / 拖动后按冻结时钟重算。
@@ -747,7 +761,7 @@ fun PlayerControlOverlay(
             stringResource(
                 AppR.string.player_end_time_label,
                 formatClockTime(
-                    estimatedEndTimeMs(clockNowMs, runtime.position, runtime.duration),
+                    estimatedEndTimeMs(clockNowMs, displayPositionMs, runtime.duration),
                     clockStyle,
                 ),
             )
@@ -772,6 +786,8 @@ fun PlayerControlOverlay(
         panel,
         controls.locked,
         uiState.playerError,
+        seekFailed,
+        seekPending,
         runtime.isBuffering,
         skipChipVisible,
         debugOverlayVisible,
@@ -780,7 +796,7 @@ fun PlayerControlOverlay(
             controls.visible,
             panel != PlayerPanel.None,
             controls.locked,
-            uiState.playerError != null,
+            uiState.playerError != null || seekFailed != null,
             // 缓冲期间承载视图要保持合成：控件整层隐藏时还要画那一个独立的缓冲圈（反馈⑤）
             runtime.isBuffering,
             // W20（§6.1）：跳过提示条独立于控制层，可见时承载视图必须保持合成
@@ -822,20 +838,30 @@ fun PlayerControlOverlay(
     }
 
     // 出错时把控制层顶出来：错误卡片是模态的，用户点掉之前一直可见
-    LaunchedEffect(uiState.playerError) {
-        if (uiState.playerError != null) {
+    LaunchedEffect(uiState.playerError, seekFailed) {
+        if (uiState.playerError != null || seekFailed != null) {
             controls.show()
         }
     }
 
     // 3.5 秒无操作自动淡出：播放中、没有面板、没有错误时才淡出；
     // 小窗与折叠半开的控制区是常驻操作面（画面小、手势难落），不参与淡出
-    LaunchedEffect(controls.visible, runtime.isPlaying, panel, uiState.playerError, layout.chrome) {
+    LaunchedEffect(
+        controls.visible,
+        runtime.isPlaying,
+        panel,
+        uiState.playerError,
+        seekFailed,
+        seekPending,
+        layout.chrome,
+    ) {
         if (
             controls.visible &&
                 panel == PlayerPanel.None &&
                 runtime.isPlaying &&
                 uiState.playerError == null &&
+                seekFailed == null &&
+                !seekPending &&
                 !layout.isCompact &&
                 layout.chrome != PlayerChromeLayout.FoldHalfOpen
         ) {
@@ -894,7 +920,7 @@ fun PlayerControlOverlay(
     val bottomBar: @Composable (Modifier, Brush?, PlayerControlSpec) -> Unit =
         { barModifier, scrim, spec ->
             PlayerBottomBar(
-                positionMs = runtime.position,
+                positionMs = displayPositionMs,
                 durationMs = runtime.duration,
                 bufferedMs = runtime.buffered,
                 endTimeText = endTimeText,
@@ -996,7 +1022,7 @@ fun PlayerControlOverlay(
                 isPlaying = runtime.isPlaying,
                 buffering = runtime.isBuffering,
                 title = uiState.currentItemTitle.ifEmpty { runtime.title },
-                positionMs = runtime.position,
+                positionMs = displayPositionMs,
                 durationMs = runtime.duration,
                 bufferedMs = runtime.buffered,
                 chapters = if (showChapterMarkers) uiState.currentChapters else emptyList(),
@@ -1005,11 +1031,11 @@ fun PlayerControlOverlay(
                 trickplayFrameAt = trickplayFrameAt,
                 isFullscreen = isFullscreen,
                 onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
-                onPrevious = { player.seekToPreviousMediaItem() },
+                onPrevious = onPreviousMediaItem,
                 // W74 U6：步进用时现读（设置页改完立即生效），不用实例创建时的快照
                 onRewind = { onSeekRelativeRequest(-settingsController.seekBackIncrementMs) },
                 onForward = { onSeekRelativeRequest(settingsController.seekForwardIncrementMs) },
-                onNext = { player.seekToNextMediaItem() },
+                onNext = onNextMediaItem,
                 onSeek = onSeekRequest,
                 onSeekFraction = onSeekFractionRequest,
                 onScrubStart = { controls.show() },
@@ -1093,6 +1119,12 @@ fun PlayerControlOverlay(
                                 onSwitchBackend = onSwitchBackend,
                                 modifier = Modifier.align(Alignment.Center),
                             )
+                        } else if (seekFailed != null) {
+                            SeekFailureCard(
+                                failure = seekFailed,
+                                onRetry = onRetrySeek,
+                                modifier = Modifier.align(Alignment.Center),
+                            )
                         } else {
                             // 中央播放簇（W11 反馈③）：播放 / 快进 / 播放下一个 回到屏幕正中
                             PlayerCenterCluster(
@@ -1104,14 +1136,14 @@ fun PlayerControlOverlay(
                                 onPlayPause = {
                                     if (player.isPlaying) player.pause() else player.play()
                                 },
-                                onPrevious = { player.seekToPreviousMediaItem() },
+                                onPrevious = onPreviousMediaItem,
                                 onRewind = {
                                     onSeekRelativeRequest(-settingsController.seekBackIncrementMs)
                                 },
                                 onForward = {
                                     onSeekRelativeRequest(settingsController.seekForwardIncrementMs)
                                 },
-                                onNext = { player.seekToNextMediaItem() },
+                                onNext = onNextMediaItem,
                                 modifier = Modifier.align(Alignment.Center),
                                 onSizeChanged = onCenterClusterSize,
                             )
@@ -1194,7 +1226,7 @@ fun PlayerControlOverlay(
                     entries = runtime.queueEntries,
                     currentIndex = runtime.currentIndex,
                     onSelect = { index ->
-                        player.seekTo(index, 0L)
+                        onSelectMediaItem(index)
                         controls.show()
                     },
                     onCollapse = onToggleSidePanel,
@@ -1219,7 +1251,7 @@ fun PlayerControlOverlay(
             PlayerBottomContent(
                 entries = runtime.queueEntries,
                 currentIndex = runtime.currentIndex,
-                onSelect = { index -> player.seekTo(index, 0L) },
+                onSelect = onSelectMediaItem,
                 onQueueMove = onQueueMove,
                 onQueueRemove = onQueueRemove,
                 onQueueClear = onQueueClear,
@@ -1239,7 +1271,7 @@ fun PlayerControlOverlay(
                 PlayerBottomContent(
                     entries = runtime.queueEntries,
                     currentIndex = runtime.currentIndex,
-                    onSelect = { index -> player.seekTo(index, 0L) },
+                    onSelect = onSelectMediaItem,
                     onQueueMove = onQueueMove,
                     onQueueRemove = onQueueRemove,
                     onQueueClear = onQueueClear,
@@ -1410,7 +1442,7 @@ fun PlayerControlOverlay(
                             entries = runtime.queueEntries,
                             currentIndex = runtime.currentIndex,
                             // 反馈④：跳转不关面板，换集后仍可继续整理队列
-                            onSelect = { index -> player.seekTo(index, 0L) },
+                            onSelect = onSelectMediaItem,
                             onMove = onQueueMove,
                             onRemove = onQueueRemove,
                             onClear = onQueueClear,
@@ -1832,6 +1864,55 @@ private fun PlayerToolCluster(
                             },
                     )
             }
+        }
+    }
+}
+
+@Composable
+private fun SeekFailureCard(
+    failure: SeekState.Failed,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    val shape = CinefinShapes.Md
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier =
+            modifier
+                .widthIn(max = 420.dp)
+                .clip(shape)
+                .background(colors.surfaceContainer.copy(alpha = 0.96f))
+                .border(1.dp, colors.outline, shape)
+                .padding(horizontal = CinefinSpacing.Space6, vertical = CinefinSpacing.Space5),
+    ) {
+        Text(
+            text =
+                stringResource(
+                    if (failure.reason == SeekFailureReason.TIMEOUT) {
+                        PlayerR.string.player_seek_timeout_title
+                    } else {
+                        PlayerR.string.player_seek_failed_title
+                    }
+                ),
+            color = colors.onSurface,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+        Text(
+            text = stringResource(PlayerR.string.player_seek_failure_message),
+            color = colors.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+        )
+        if (failure.retryable) {
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
+            ErrorActionButton(
+                text = stringResource(PlayerR.string.player_controls_error_retry),
+                primary = true,
+                onClick = onRetry,
+            )
         }
     }
 }
