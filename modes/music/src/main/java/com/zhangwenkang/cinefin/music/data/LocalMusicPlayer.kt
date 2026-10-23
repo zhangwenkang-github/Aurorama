@@ -43,7 +43,7 @@ constructor(
 }
 
 /** 本地库条目 → 音乐曲目（专辑 / 艺人取内嵌标签；缺失回退「本地文件」分组）。 */
-fun LocalLibraryEntry.toLocalMusicSong(): MusicSong =
+fun LocalLibraryEntry.toLocalMusicSong(libraryId: Long? = null): MusicSong =
     MusicSong(
         itemId = itemId,
         name = displayName,
@@ -55,6 +55,7 @@ fun LocalLibraryEntry.toLocalMusicSong(): MusicSong =
         resumePositionMs = 0L,
         source = MusicItemSource.LOCAL,
         localUri = documentUri,
+        localLibraryId = libraryId,
     )
 
 private const val TICKS_PER_MS = 10_000L

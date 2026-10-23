@@ -51,6 +51,14 @@ data class MusicSong(
     val localUri: String? = null,
     /** W37：来源（在线融合的来源徽标 / 筛选）。 */
     val source: MusicItemSource = MusicItemSource.SERVER,
+    /** 本地媒体库 id；仅本地来源有值，进入本地歌单稳定身份时必须存在。 */
+    val localLibraryId: Long? = null,
+    /** 本地歌单投影附带的持久条目 id；不在歌单中的曲目为 null。 */
+    val playlistEntryId: String? = null,
+    /** 本地歌单持久身份；标题 / 路径 / URI 不参与该身份。 */
+    val trackRef: TrackRef? = null,
+    /** 当前曲库无法解析该持久身份时为 true，仍保留数据库行与快照。 */
+    val isPlaylistPlaceholder: Boolean = false,
 )
 
 /**
@@ -81,7 +89,13 @@ data class MusicPlaylist(
     val name: String,
     val imageUri: String?,
     val songCount: Int?,
+    val kind: MusicPlaylistKind = MusicPlaylistKind.SERVER,
 )
+
+enum class MusicPlaylistKind {
+    SERVER,
+    LOCAL,
+}
 
 /** 曲库快照：一次请求拿到的全部曲目 + 客户端聚合出的专辑 / 艺术家。 */
 data class MusicLibrary(

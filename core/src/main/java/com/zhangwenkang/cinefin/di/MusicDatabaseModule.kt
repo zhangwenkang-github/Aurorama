@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room3.Room
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import com.zhangwenkang.cinefin.database.music.LocalPlaylistDao
+import com.zhangwenkang.cinefin.database.music.LocalPlaylistStorage
+import com.zhangwenkang.cinefin.database.music.LocalPlaylistStorageImpl
 import com.zhangwenkang.cinefin.database.music.MusicDatabase
 import com.zhangwenkang.cinefin.database.music.MusicQueueDao
 import com.zhangwenkang.cinefin.database.music.MusicRecentDao
@@ -41,6 +43,11 @@ object MusicDatabaseModule {
     @Provides
     fun provideLocalPlaylistDao(database: MusicDatabase): LocalPlaylistDao =
         database.localPlaylistDao()
+
+    @Singleton
+    @Provides
+    fun provideLocalPlaylistStorage(dao: LocalPlaylistDao): LocalPlaylistStorage =
+        LocalPlaylistStorageImpl(dao)
 
     @Singleton
     @Provides
