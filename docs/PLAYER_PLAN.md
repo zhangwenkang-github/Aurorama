@@ -2919,12 +2919,12 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 2026-10-24 00:48：R9 新 APK 双机定向 QA **PASS**。Pad Exo：E06→E07 单代约 1.8s `Confirmed(0)`、连续不同目标仅末代、`gen9 TIMEOUT→gen10 retry Confirmed`、手势 / 进度通过。K60 mpv：`gen10→gen12→gen14` 快速目标仅末代 accepted / Confirmed，旧无位置 SEEK 未建 anchor；existing session 退出重进后队列 seek `gen1 accepted0→Confirmed` 无崩溃。双机 FATAL / ANR / input timeout=0，执行范围 P0–P3=0。
 - QA-R7 已恢复原包 `D1DF…D53D84`、force-stop / PID=0，临时媒体 / 库 / MediaStore / dump 清理；Pad 登录保持。证据 `w86c-evidence\qa\W86-C-QA-R7-R9-evidence.txt`。当前进入全新 merge-prep；负责人 25 万后只保留合并门禁。
 
-### 43.10 负责人交接检查点（2026-10-23）
+### 43.10 W86-C 收口检查点（2026-10-24 已完成）
 
 - **交接原因**：旧负责人已过 25 万收缩线并进入 30 万交接阈值；停止新增功能 / 扩样。新负责人线程 `01a168e0-5b2d-7553-91de-f073f51881a9` 已创建，从冷启动继续，不得重做 spike、R2、R3 或已通过的本地 QA。
-- **代码**：分支 `codex/w86-c-seek-state`（文档 HEAD 以 `git rev-parse` 实况为准；测试代码对象固定 `69341cbc`），`origin/master` 为 `235f67b5`；worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`，clean，未 merge / push。
+- **最终代码 / 合并**：功能修复提交 `91bc6794`；merge-prep 8 模块 **1233/0/0/0**、构建 / ktfmt / diff / graphify、16 文件白名单通过；ff-only 合并 / 推送 commit `45699c85`。Build `39991259823`、Unit Tests `39991259971`、Format `39991259718` 三路 CI 同 commit 全绿。
 - **已验证**：player/local 252/0/0、phone 321/0/0、phone debug、根 `ktfmtCheck`、diff、graphify；独立 QA 本地矩阵 P0–P3=0：Pad Exo `302ms → Confirmed(302)`，连续三目标只确认末代，K60 mpv `seeking → seek → playback-restart → Confirmed`。双机 FATAL=0 / ANR=0，原 APK / 偏好 / 设置已恢复。
 - **已完成 HLS 门**：独立 QA-R4 从 `69341cbc` 构建并覆盖安装候选，在 Pad 用既有 10-bit Jellyfin MKV 转 H.264 HLS 验证超窗重开；目标保持、仅末代 `Confirmed`、20ms 落点、无 0 / 结尾闪跳，P0–P3=0。证据见 `w86-reports\W86-C-QA.md` QA-R4。App 正常播放链路会发送现有 `PlaybackInfo`、进度与会话 POST，绝对方法级只读口径无法与真实播放验收同时满足。
-- **当前状态**：`91bc6794` 已通过 R9 复审与 QA-R7 双机定向回归，R9 两个 Important 均关闭；执行范围 P0–P3=0。下一动作 = 全新 merge-prep rebase / 全量门禁 / diff 白名单，负责人范围审查后 ff-only。
-- **仍不可宣告通过**：system notification / MediaSession seek，mpv command-level rejection / mpv 转码重开，真实 server / user A/B，其他内核 / 平台；旧引擎事件可能在连续请求中被当前 generation 重标的架构风险也保留。
-- **冷启动第一条只读动作**：读本节 → `W86-C-QA.md` QA-R7 → `W86-C-IMPL.md` R9 → `git status / rev-parse`。下一动作是全新 merge-prep，不重做已通过的定向 QA。
+- **当前状态**：W86-C **完整收口**。实现 / 复审 / QA / merge-prep / ff-only / push / 三路 CI 全部完成；W86-D 新负责人线程 `01a169b8-9399-75c2-801b-98d4a0ac351b` 已串行创建，先定义剩余 seek 通道任务卡。
+- **W86-C 未覆盖**：system notification / MediaSession seek、mpv command-level rejection / mpv 转码重开、真实 server/user A/B、TV / 其他平台；完整 `PlayerViewModel` JVM 实例化测试缺口由生产 listener bridge、R9 代码复审与 QA-R7 真机证据共同收窄，不写成自动化全覆盖。
+- **冷启动第一条只读动作**：W86-C 已结束；新会话读 W86-D ACTIVE / `W86-C-MERGE-PREP.md` / QA-R7，不重做 W86-C。
