@@ -1336,24 +1336,18 @@ private fun PlaylistList(
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit,
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit,
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item(key = "local-playlist-create") {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(CinefinSpacing.Space3),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                CinefinButton(
-                    text = "新建本地歌单",
-                    onClick = onCreateLocalPlaylist,
-                    size = CinefinButtonSize.Small,
-                    variant = CinefinButtonVariant.Outlined,
-                )
-            }
-        }
-        if (playlists.isEmpty()) {
-            item(key = "playlist-empty") {
+    if (playlists.isEmpty()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            PlaylistCreateAction(onCreateLocalPlaylist = onCreateLocalPlaylist)
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
             }
+        }
+        return
+    }
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item(key = "local-playlist-create") {
+            PlaylistCreateAction(onCreateLocalPlaylist = onCreateLocalPlaylist)
         }
         items(items = playlists, key = { playlist -> playlist.stableKey() }) { playlist ->
             var menuOpen by remember { mutableStateOf(false) }
@@ -1400,6 +1394,21 @@ private fun PlaylistList(
                     },
             )
         }
+    }
+}
+
+@Composable
+private fun PlaylistCreateAction(onCreateLocalPlaylist: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(CinefinSpacing.Space3),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        CinefinButton(
+            text = "新建本地歌单",
+            onClick = onCreateLocalPlaylist,
+            size = CinefinButtonSize.Small,
+            variant = CinefinButtonVariant.Outlined,
+        )
     }
 }
 
