@@ -3019,3 +3019,26 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - **保留未覆盖 / 能力限制**：K60 通知绝对 seek（SeekBar disabled、position/duration=-1）；K60 既有本地媒体库入口（库为空）；锁屏 / 蓝牙 / 车机 / 其他平台。libmpv 1.0.0 无 command reply payload / request_id，命令级同步拒绝不可表达；mpv HLS 重开与 `replaceMediaItems` 不在本卡。
 - **红线状态**：未改 `Versions.kt` / Room schema / tag / Release；生产 Jellyfin 未手工写；设备只 `install -r`，登录 session 保持，0 截图。
 - **下一棒**：W87 音乐歌单与队列。新负责人从 `origin/master` 重新建线，不复用 W86-D 设备窗口；W86-D 两项 BLOCKED 只在后续真实用户入口 / 媒体元数据具备时复验。
+
+## 45. W87 音乐歌单与队列
+
+### 45.1 W87-A 本地歌单真源（2026-10-24 实施中）
+
+**目标**：Room 成为“本地歌单 → 有序曲目”的唯一运行真源，支持创建、改名、加删、排序、删除；UI 只观察仓库并发送意图。
+
+**非目标**：不写 Jellyfin，不实现 JSON / M3U8（W87-B），不实现实际 shuffle / 队列首屏快照（W87-C），不改 `Versions.kt`、tag、Release 或其他 Room schema。
+
+**冻结口径**：
+
+- `MusicDatabase` v1 → v2；显式 `MIGRATION_1_2` 仅新增歌单与有序条目表，队列 / 最近播放表行值不变，移除音乐库破坏式迁移兜底。
+- `TrackRef` 不以标题或路径为身份：服务器至少 `serverId + userId + itemId`，本地至少 `libraryId + itemId`；名称、封面、URI 仅作展示 / 解析快照。
+- 创建、改名、加删、排序、删除由 app-scope 仓库统一执行；多步修改位于同一事务，重复点击幂等，相同 TrackRef 不重复插入。
+- 失效曲目保留数据库行并投影为占位；不得把解析失败写成删除成功。
+- 本卡服务器写请求数必须为 0；Android 迁移 instrumentation 由独立 QA 在锁定设备执行，实现 / 负责人不做真机测试，0 截图。
+
+**执行顺序**：A1 Schema / 迁移 / 队列表保留 → A2 仓库 / 身份隔离 / CRUD / 最小入口 → 全新独立 QA → 全新 merge-prep → 负责人 ff-only / CI / 文档。
+
+### 45.2 实时执行日志
+
+- 2026-10-24：用户批准 W87-A 短计划。新分支 `codex/w87-a-local-playlists`，基线 `25c92d9d`；`data` / `modes:music` 基线单元测试通过。实现、QA、merge-prep 分属全新 `deepseek-flash` 代理，串行。
+- 2026-10-24：用户新增流程要求——每次踩坑记录现象 / 根因 / 规避 / 证据，架构与实现前主动套用已有经验；已落 `docs/PROJECT_PLAN.md` §5.9 与 Engramory `record-pitfalls-for-reuse.md`，所有子代理 brief 必须执行。

@@ -537,6 +537,8 @@
 
 **W87-A 本地歌单真源（#44）**：音乐数据架构师兼资深 Android 工程师；Room 建立“本地歌单 → 有序曲目”真源，支持创建、改名、加删、排序、删除。非目标：本批不写服务器；不用文件作运行真源；不以标题 / 路径作稳定身份。验收：重启顺序一致；`TrackRef` 带本地库或服务器命名空间；失效曲目保留占位；操作原子、重复点击幂等；服务器写请求数 = 0。落点：`MusicDatabase` v1 → v2、DAO、music repository；迁移必须保留现有队列表。
 
+- **2026-10-24 开工（用户批准实施计划）**：分支 `codex/w87-a-local-playlists`，worktree `F:\Develop\code_data\work_tree\Aurorama\w87-a-local-playlists\Aurorama`，基线 `25c92d9d`。先落 Room v2 与显式 `MIGRATION_1_2`，移除音乐库破坏式迁移兜底；服务器曲目身份含 server / user，本地曲目身份含 local library，展示快照不作身份。按 A1 schema / 迁移 → A2 仓库 / 最小入口两波推进。实现、独立 QA、merge-prep 分属全新 `deepseek-flash` 代理；本轮不并行后续卡，0 截图，生产服务器只读。
+
 **W87-B JSON / M3U8 交换与冲突（#44）**：音乐互操作工程师；版本化 JSON 作为完整备份，M3U8 作为兼容适配器，服务器互导只留接口且 `writeEnabled=false`。非目标：不猜 Jellyfin 歌单字段；不覆盖同名本地歌单；M3U8 不承担完整身份备份。验收：JSON 往返保名、顺序、身份、占位；M3U8 仅按可证明身份解析；同名冲突生成副本；坏文件原子失败。落点：`PlaylistExchangeAdapter`、SAF 导入导出 UI、ARCHITECTURE §5.6 端口。
 
 **W87-C 实际随机序与首屏快照（#46）**：音乐播放状态工程师；持久化自然队列、当前曲、位置、模式与实际 shuffle 序；歌单首屏读快照，点击先解析目标曲并在后台补队列。非目标：恢复不自动出声；不等待整表解析才起播；不重写内核。验收：强制停止后队列 / 当前曲 / 位置 / 实际下几首顺序一致；快照命中不依赖网络；后台补齐顺序稳定。落点：`MusicQueue*`、`MusicQueuePersister`、`MusicModeViewModel`；Media3 随机序重建能力先只读核实。
