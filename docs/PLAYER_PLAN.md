@@ -2928,3 +2928,79 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - **当前状态**：W86-C **完整收口**。实现 / 复审 / QA / merge-prep / ff-only / push / 三路 CI 全部完成；W86-D 新负责人线程 `01a169b8-9399-75c2-801b-98d4a0ac351b` 已串行创建，先定义剩余 seek 通道任务卡。
 - **W86-C 未覆盖**：system notification / MediaSession seek、mpv command-level rejection / mpv 转码重开、真实 server/user A/B、TV / 其他平台；完整 `PlayerViewModel` JVM 实例化测试缺口由生产 listener bridge、R9 代码复审与 QA-R7 真机证据共同收窄，不写成自动化全覆盖。
 - **冷启动第一条只读动作**：W86-C 已结束；新会话读 W86-D ACTIVE / `W86-C-MERGE-PREP.md` / QA-R7，不重做 W86-C。
+
+## 44. W86-D 系统媒体 seek 通道统一（2026-10-24 冻结）
+
+### 44.1 目标
+
+- W86-D 唯一实施目标：系统通知 / 锁屏 / MediaSession 发起的绝对 seek、前后 ±、上一条 / 下一条，与 App 内入口进入**同一个进程级 seek sink 和同一 reducer**；系统入口不得再直接调用原生 `Player.seekTo` 绕过 `generation / mediaIdentity / sourceEpoch / accepted / READY / 容差 / deadline` 门。
+- 外部绝对目标必须保持“请求目标 → 定位中 → Confirmed / Failed”；外部相对 ± 以 reducer 的显示基准计算，不能从可能迟到的原始 `currentPosition=0` 计算。
+- 上 / 下一条必须以目标媒体身份建立请求；旧 generation 的 SEEK / READY / restart / error 不得在新条目上伪确认。
+- ExoPlayer HLS 转码超窗的外部绝对 seek 必须复用现有“重建 PlaybackInfo → sourceEpoch 推进 → 同 generation 等新会话确认”链路。
+
+### 44.2 只读取证结论
+
+- `CinefinPlaybackService` 当前把 `PlayerHolder` 的原生 `Player` 直接交给 `MediaSession.Builder`；`onPlayerCommandRequest` 只有 `playerCommand: Int`，没有绝对位置，除 STOP 外全部交给 `super`，因此系统 seek 会落到原生播放器。
+- Media3 1.11.1 本地字节码确认：系统 stub 的 `seekTo(position)` / `seekTo(index, position)` / `seekBack` / `seekForward` / 前后条最终调用绑定的 `Player`；Service callback 无法替代目标位置分发。`ForwardingPlayer` 可覆写这些公开 seek 方法，作为最小拦截边界。
+- W86-C reducer 当前由 Activity 作用域的 `PlayerViewModel` 持有；只在 Service callback 中加分支不够，必须让 UI 与 MediaSession 共享同一个进程级协调器 / command sink，否则 Activity 销毁或重建会出现第二状态机或后台丢请求。
+- `MPVLib.command(String[]): void`；`EventObserver.event(int)` 只有事件 id，没有 reply payload、错误码或 request_id。mpv command-level 同步拒绝**不可表达**，不得新增伪 `REJECTED` 或声称拿到了 native reply。
+- `TranscodeSeekRules` 与测试明确限定只有 ExoPlayer 重开转码会话；mpv 的 `replaceMediaItems()` 仍为 `TODO("Not yet implemented")`。本卡不强行打开 mpv HLS 重开，保留为已证明的能力限制 / 后续独立卡。
+
+### 44.3 非目标
+
+1. 不实现 mpv command reply / request_id / 命令级同步拒绝，不把 timeout 命名为拒绝；mpv 仍只以 fresh SEEK、PLAYBACK_RESTART、非 EOF END_FILE、投递异常和 deadline 作为证据。
+2. 不在本卡实现 mpv HLS 转码重开，不补 `MPVPlayer.replaceMediaItems()`；该缺口继续单列，不得包装成 W86-D 通过。
+3. 不改通知 5 槽布局，不新增快退按钮，不重做播放页 UI；系统控制器实际支持的命令以 Media3 暴露为准。
+4. 不改现有 timeout / 位置容差 / 300ms 最短展示，不降低 READY 门，不以 `BUFFERING`、缓冲百分比、位置轮询、UI 乐观更新或超时冒充确认。
+5. 不改 `Versions.kt`、Room schema、tag / Release / TV / 其他平台；真实 server/user A/B 继续单列。生产 Jellyfin 禁手工 `POST / PUT / PATCH / DELETE`；App 正常播放既有 PlaybackInfo、进度与会话 POST 口径如实保留。
+6. 不重做 W86-C 的本地入口、exact HLS QA 或已合并代码复审。
+
+### 44.4 架构与能力边界
+
+- Service 的 MediaSession 绑定 `ForwardingPlayer` facade；初次建会话和换内核重建会话都必须重新获取对应 facade，不能保留旧内核包装。
+- facade 将 `seekTo(position)`、`seekTo(index, position)`、default position、back / forward、previous / next 转换为 `SeekIntent`，投递到进程级 shared sink。除 reducer 授权后的实际引擎 dispatch 外，facade 的 seek 路径不得直接调用 delegate。
+- shared sink 必须持有与 `PlayerViewModel` 相同的 reducer / coordinator、source cursor、pending/dispatch、deadline 与 Exo HLS 重启驱动；ViewModel 只观察和消费状态，系统入口不创建旁路状态。最终文件边界以最小可测实现为准。
+- 现有策略值保持不变：Exo 直放 4s、mpv 直放 6s、Exo HLS 35s；位置容差 Exo 1s、mpv / HLS 2s；请求目标最短展示 300ms。若实现需要改任一策略，停止并回写负责人重新冻结。
+- 没有有效媒体身份时，系统 seek 必须显式失败 / 不支持，不能退回直接 delegate seek，也不能静默丢弃。
+
+### 44.5 可验收标准
+
+1. TDD 先红后绿：fake Player 证明 facade 对绝对、index、relative、adjacent 命令生成正确 intent，并在授权前不调用 delegate；Service 构造路径证明 MediaSession 使用 facade，而非 `PlayerHolder` 原生实例。
+2. 进程级 shared sink 单测证明 Activity / ViewModel 不在场、销毁后重建、切换内核时仍是同一 generation / source cursor / state；不得出现两个 coordinator。
+3. 系统绝对 seek 在 Exo 与 mpv 上分别产生唯一 `Seeking`；只有同 generation、同媒体身份、accepted 锚点、READY / PLAYBACK_RESTART 和位置容差成立才进入 `Confirmed`。
+4. system 快进 / 快退从 reducer 显示目标计算；连续外部目标只确认末代；延迟回调、旧 dispatch、旧 source 不得改写当前代。
+5. 外部上 / 下一条使用目标 media identity；旧条目事件不得在新条目上确认；目标不存在时显式失败 / 不支持。
+6. deadline 到期后进入可重试 `Failed(TIMEOUT)`；迟到 READY 不得翻成功；异常投递可解释失败。mpv 不伪造 command-level rejection。
+7. 外部 seek 到 Exo HLS 超窗时沿用同 generation / target 的 PlaybackInfo 重建；sourceEpoch 前进，旧源证据丢弃，新源重新 accepted + READY + 容差后确认。
+8. 自动化门禁至少覆盖 `player:local` 相关测试、`app:phone` 测试、phone libre debug、根 `ktfmtCheck`、`git diff --check`；最终独立 QA 以文本 `dumpsys media_session` / 过滤 logcat / 哈希取证，0 截图，双机 FATAL=0 / ANR=0。
+9. 真实用户路径抽验：Pad Exo 在通知 / 锁屏或等价外部控制器上绝对 seek、快进、上 / 下一条；K60 mpv 绝对 seek 与快进。若 ROM 或控制器不暴露某入口，明确列 BLOCKED / 未覆盖，不写成通过。
+
+### 44.6 阶段、责任与预算
+
+| 阶段 | 执行者 | 通过门 | 预计耗时 | 预计上下文 |
+|---|---|---|---|---|
+| P0 卡面 / 证据 | 负责人 | 本卡与 handoff 唯一 ACTIVE 落盘并回读；git / device-lock 实况核对 | 30–45 分钟 | 20–40k |
+| P1 TDD 实现 | 全新“资深 Android 播放器架构师 / 门面状态机工程师”，`deepseek-flash`、`fork_turns=none` | 先红后绿；facade + shared sink + ViewModel 接线；目标测试、phone debug、ktfmt、diff、graphify 通过；不 merge / push | 5–8 小时 | 120–180k |
+| P2 独立 QA | 全新“资深移动端 QA 架构师 / 用户验收经理”，`deepseek-flash`、`fork_turns=none` | 独立重建系统入口矩阵；双机文本证据、APK SHA、P0–P3、FATAL / ANR、还原；不改代码 | 2–3 小时 | 60–100k |
+| P3 merge-prep | 全新“移动端架构师”，`deepseek-flash`、`fork_turns=none` | rebase `origin/master`；全量模块门禁、格式、diff 白名单；只 prepare | 45–90 分钟 | 35–70k |
+| P4 负责人合并 | 负责人 | 范围 / QA 审查；ff-only merge；同代码对象三路 CI 全绿 | 30–60 分钟 | 20–40k |
+
+合计预计 8–12 小时。实现、QA、merge-prep 必须分别使用全新的不同子代理，串行执行；W87 不并行。每个阶段结束记录“实际水位 + 继续 / 收缩 / 交接”，25 万收缩、30 万检查点、35 万强制交接。
+
+### 44.7 只读白名单
+
+- 负责人：handoff 顶部 W86-D、本卡、`FIX_PLAN` W86-C/D 命中段、`W86-C-SPIKE.md` mpv / 转码命中段、git / device-lock；不重读 W86-C 全历史。
+- 实现代理：本卡、上面 44.2 的源码行号；`CinefinPlaybackService.kt`、`CinefinMediaNotificationProvider.kt`、`PlayerHolder.kt`、`PlayerViewModel` seek 命中段、`SeekPlayerEventListener.kt`、`SeekRequestCoordinator.kt`、`SeekStateReducer.kt`、`TranscodeSeekRules.kt`、`MPVPlayer` seek / 事件 / `postCommand` 命中段及对应测试；需要更多上下文时只向负责人要具体文件 / 行号。
+- QA：本卡、候选 commit / APK SHA、设备锁段、实现代理压缩报告；独立重建入口矩阵，不读实现源码。
+- merge-prep：本卡、分支 diff 摘要、实现 / QA 压缩报告、关键 facade / shared sink 文件与门禁输出；不读全量历史、原始日志或截图。
+
+### 44.8 证据与还原
+
+- 实现报告：`F:\Develop\codex_work\.planning\cinefin-expansion\w86-reports\W86-D-IMPL.md`；QA：`W86-D-QA.md`；merge-prep：`W86-D-MERGE-PREP.md`。
+- 设备证据：`...\w86d-evidence\`，只保留设备 serial、APK SHA、关键 media_session / logcat 判定行、generation / sourceEpoch / accepted / READY / 位置、FATAL / ANR 汇总；0 截图。
+- 设备操作前在共享 `device-lock.md` 建唯一标题并回读；只 `adb install -r`，保留登录 session，禁 `pm clear` / 卸载 / 导出 token；结束恢复原包、偏好与设置，并写释放 / 结论 / 还原。
+
+### 44.9 执行日志（实时）
+
+- 2026-10-24：只读证据完成；`origin/master` 为 W86-C 收口文档后继 `41194027`，代码对象仍为已合并 `45699c85`。双机 `43af8627` / `8e875894` 在线，最近 W86-C 锁均已释放；当前无 W86-D 代理、无设备锁。
+- 2026-10-24：负责人上下文实测 `232,107 / 1,048,576（22.1%）`，进入 25 万收缩准备；冻结本轮只做系统媒体 seek 统一，mpv command-level rejection 与 mpv HLS 重开按能力边界单列。
