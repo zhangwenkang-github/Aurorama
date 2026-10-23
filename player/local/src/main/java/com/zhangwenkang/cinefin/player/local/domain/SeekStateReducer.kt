@@ -132,10 +132,28 @@ class SeekStateReducer {
 
     fun onAccepted(evidence: SeekEngineEvidence) {
         val seeking = state as? SeekState.Seeking ?: return
-        if (!seeking.matches(evidence) || evidence.kind != SeekEngineEvidenceKind.SEEK_ACCEPTED) {
+        if (
+            evidence.requestGeneration != seeking.requestGeneration ||
+                evidence.sourceEpoch != seeking.sourceEpoch ||
+                evidence.kind != SeekEngineEvidenceKind.SEEK_ACCEPTED
+        ) {
             return
         }
-        state = seeking.copy(acceptedPositionMs = evidence.positionMs)
+        state =
+            if (evidence.mediaIdentity == seeking.mediaIdentity) {
+                seeking.copy(acceptedPositionMs = evidence.positionMs)
+            } else {
+                /*
+                 * ExoPlayer reports a cross-item seek discontinuity with the new media item before
+                 * MEDIA_ITEM_TRANSITION advances the app's source epoch. Rebase both together here
+                 * so the following transition is an idempotent no-op instead of clearing this anchor.
+                 */
+                seeking.copy(
+                    sourceEpoch = seeking.sourceEpoch + 1L,
+                    mediaIdentity = evidence.mediaIdentity,
+                    acceptedPositionMs = evidence.positionMs,
+                )
+            }
     }
 
     fun onCompletionEvidence(evidence: SeekEngineEvidence, nowElapsedMs: Long) {

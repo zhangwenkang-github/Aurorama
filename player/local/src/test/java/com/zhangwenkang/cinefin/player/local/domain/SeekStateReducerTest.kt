@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
+import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -460,6 +461,84 @@ class SeekStateReducerTest {
                 requestGeneration = generation,
                 durationMs = 120_000L,
             ),
+        )
+    }
+
+    @Test
+    fun `queue media item seek keeps accepted across source transition and confirms`() {
+        val oldIdentity = SeekMediaIdentity("episode-06", "source-06", "uri-hash-06")
+        val newIdentity = SeekMediaIdentity("episode-07", "source-07", "uri-hash-07")
+        val policy =
+            SeekConfirmationPolicy(
+                completionTimeoutMs = 35_000L,
+                positionToleranceMs = 1_000L,
+                minimumTargetDisplayMs = 300L,
+            )
+        val reducer = SeekStateReducer()
+        repeat(7) {
+            reducer.beginRequest(
+                targetMs = 60_000L,
+                sourceEpoch = 8L,
+                mediaIdentity = oldIdentity,
+                durationMs = 1_482_000L,
+                issuedAtMs = 900L,
+                policy = policy,
+            )
+        }
+        val generation =
+            reducer.beginRequest(
+                targetMs = 0L,
+                sourceEpoch = 8L,
+                mediaIdentity = oldIdentity,
+                durationMs = 1_482_000L,
+                issuedAtMs = 1_000L,
+                policy = policy,
+            )
+        assertEquals(8L, generation)
+        reducer.onDispatched(requestGeneration = generation, nowElapsedMs = 1_003L)
+
+        // Media3 reports the new item's SEEK discontinuity before MEDIA_ITEM_TRANSITION. At
+        // that boundary the media item is already E07 while the app's source epoch is still 8.
+        reducer.onAccepted(
+            ExoSeekAdapter.onSeekDiscontinuity(
+                requestGeneration = generation,
+                sourceEpoch = 8L,
+                mediaIdentity = newIdentity,
+                newPositionMs = 0L,
+            )
+        )
+        reducer.onSourceReplaced(sourceEpoch = 9L, mediaIdentity = newIdentity)
+        val transitionedSeeking = reducer.state as SeekState.Seeking
+        assertEquals(9L, transitionedSeeking.sourceEpoch)
+        assertEquals(newIdentity, transitionedSeeking.mediaIdentity)
+        assertEquals(0L, transitionedSeeking.acceptedPositionMs)
+
+        reducer.onCompletionEvidence(
+            requireNotNull(
+                ExoSeekAdapter.onPlaybackStateChanged(
+                    requestGeneration = generation,
+                    sourceEpoch = 9L,
+                    mediaIdentity = newIdentity,
+                    playbackState = Player.STATE_READY,
+                    positionMs = 40L,
+                )
+            ),
+            nowElapsedMs = 2_431L,
+        )
+
+        reducer.onTick(nowElapsedMs = 36_003L)
+
+        assertEquals(
+            SeekState.Confirmed(
+                targetMs = 0L,
+                positionMs = 40L,
+                requestGeneration = 8L,
+                sourceEpoch = 9L,
+                requestedAtMs = 1_003L,
+                confirmedAtMs = 2_431L,
+                policy = policy,
+            ),
+            reducer.state,
         )
     }
 }
