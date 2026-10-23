@@ -113,6 +113,25 @@ class LocalPlaylistRepositoryTest {
     }
 
     @Test
+    fun unavailableProjection_doesNotRemovePersistedEntry() = runBlocking {
+        val storage = FakeLocalPlaylistStorage()
+        val repository = LocalPlaylistRepositoryImpl(storage)
+        repository.create(playlistId, "Missing", now = 1)
+        repository.add(playlistId, serverTrack(itemId))
+        val entry = repository.entries(playlistId.toString()).firstValue().single()
+
+        val projected =
+            projectLocalPlaylistTrack(
+                entryId = entry.entryId,
+                track = entry.track,
+                isAvailable = false,
+            )
+
+        assertTrue(projected.isPlaylistPlaceholder)
+        assertEquals(entry, repository.entries(playlistId.toString()).firstValue().single())
+    }
+
+    @Test
     fun blankNames_areRejectedWithoutChangingTables() = runBlocking {
         val storage = FakeLocalPlaylistStorage()
         val repository = LocalPlaylistRepositoryImpl(storage)
