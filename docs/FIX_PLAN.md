@@ -531,6 +531,7 @@
 **W86-C seek 请求确认态（#45）**：播放器状态机工程师；进度条、手势、章节、片头尾 seek 全部经过“请求 → 定位中 → 确认 / 失败”reducer。非目标：UI 不直接调底层 seek；不把缓冲进度当确认。验收：松手后显示保持请求目标；直放 300ms、转码重开会话、两内核均不闪 0 / 结尾；连续 seek 只落最后目标；超时可解释并重试。落点：`TranscodeSeekRules.kt`、`PlayerViewModel`、`PlayerControlOverlay`、`PlayerGestureHelper`、`MPVPlayer`；确认事件不可表达时先 spike。
 
 - **2026-10-24 W86-C 已合并**：功能 commit `91bc6794`，merge-prep 8 模块 **1233/0/0/0**、16 文件白名单，ff-only / push `45699c85`；同 commit 三路 CI 绿（Build `39991259823` / Unit Tests `39991259971` / Format `39991259718`）。系统通知 / MediaSession seek、mpv command rejection / 转码重开等未覆盖项转 W86-D 定义，不写成 W86-C 全通过。
+- **2026-10-24 W86-D 已合并**：功能对象 `6414f5f1` 把系统通知 / 锁屏 / MediaSession 的绝对、相对、上下条 seek 接入与 App 同一进程级 sink / reducer；`ForwardingPlayer` facade、`PlayerHolder` 进程级 HLS bridge、generation / sourceEpoch / accepted / READY / deadline 门均保留。merge-prep 10 文件白名单 `+1757/-800`、8 模块 **1243/0/0/0**，ff-only / push `58189235`；Build `40004570951` / Unit Tests `40004570846` / Format `40004570746` 同 commit 全绿。独立 QA 覆盖范围内 **8 PASS / 2 BLOCKED / P0–P3=0**；K60 通知绝对 seek 与既有本地媒体库入口阻断、锁屏 / 蓝牙 / 车机未覆盖均保留。mpv command-level rejection 不可由当前 API 表达，mpv HLS 重开另列，不写成通过。下一棒 = W87。
 
 #### W87 音乐歌单与队列（W87-A 先落 Schema）
 
@@ -695,6 +696,7 @@
 | 2026-10-22 | **W86-A #42 实施完成（本地 commit，未 push）**：改为 Android phone `v2.7.3` 官方 14 档 bps 模型与标签；旧整数 Mbps 经新 bps 键 + 迁移标记一次性迁移，UI 支持 1.5 Mbps / 720 kbps / 420 kbps；请求仍只传 `maxStreamingBitrate`。门禁：9 项目标测试、三相关模块 **598/0/0/0**、根 `ktfmtCheck`、`:app:phone:assembleDebug` 全绿；真机 none。#43 与 W86-B/C 未触碰。 |
 | 2026-10-22 | **W86-A #42/#43 合并验收**：独立 QA-R2 P0/P1=0、目标 **48/0/0/0**、8 模块 **1173/0/0/0**，Pad Exo / K60 mpv 本地媒体 source/current 分离通过；P1 主媒体流持久化由 `2e10bade` 闭合。独立 merge-prep rebase no-op、51 文件白名单通过、报告 SHA-256 `B9242…A97A`。负责人范围审查后 `358e6a4b` ff-only 合并并推送；Build / Format / Unit Tests 三路绿（`39805102308` / `39805102309` / `39805102319`）。Room 13→14 instrumentation、真实下载 / 外挂字幕删除、source A→B 真机、Exo 多轨与完整 14 档设备矩阵继续列为 P2/P3；下一棒 W86-B。 |
 | 2026-10-24 | **W86-C 合并验收（#45）**：功能 `91bc6794` 经 R9 代码复审与 QA-R7 双机定向回归（Pad Exo 队列 / 连续 / timeout→retry，K60 mpv 连续目标 / attach existing），执行范围 P0–P3=0；merge-prep 8 模块 **1233/0/0/0**、16 文件白名单无越界，ff-only / push `45699c85`；Build / Unit Tests / Format 三路 CI 同 commit 全绿。系统通知 / MediaSession seek、mpv command rejection / 转码等由新 W86-D 线程 `01a169b8-9399-75c2-801b-98d4a0ac351b` 先定义。 |
+| 2026-10-24 | **W86-D 合并验收**：功能 `6414f5f1` 将系统媒体 seek 统一进进程级 facade / sink / reducer，R2 修复 ViewModel 销毁后 HLS bridge 解绑；独立 QA 覆盖内 8 PASS / 2 BLOCKED、P0–P3=0，双机 FATAL / ANR / input timeout=0。merge-prep 8 模块 **1243/0/0/0**、10 文件白名单，ff-only / push `58189235`；Build / Unit Tests / Format 三路 CI 同 commit 全绿。K60 通知绝对 seek、既有本地库入口及锁屏 / 蓝牙 / 车机继续未覆盖；mpv command reply/request_id 与 mpv HLS 重开保持能力限制。下一棒 = W87。 |
 
 ## 6. 候选缺陷 backlog（负责人审视 · 待用户决定是否纳入）
 
