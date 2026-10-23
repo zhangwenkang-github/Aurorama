@@ -39,6 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
@@ -108,6 +109,7 @@ import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
+import com.zhangwenkang.cinefin.music.data.MusicPlaylistKind
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
@@ -179,6 +181,12 @@ fun MusicModeScreen(
     // W68：外部打开请求先挂起，等队列就绪（冷启动恢复）后再展开
     var pendingOpenNowPlaying by remember { mutableStateOf(false) }
     var pendingBatchDelete by remember { mutableStateOf(false) }
+    var createPlaylistDialogOpen by rememberSaveable { mutableStateOf(false) }
+    var createPlaylistRequestId by rememberSaveable { mutableStateOf<String?>(null) }
+    var renamePlaylistDialogId by rememberSaveable { mutableStateOf<String?>(null) }
+    var renamePlaylistDialogName by rememberSaveable { mutableStateOf("") }
+    var deletePlaylistDialogId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingPlaylistSongs by remember { mutableStateOf<List<MusicSong>>(emptyList()) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // W60b：下载反馈统一（歌曲 / 专辑 / 批量）——「已加入下载队列 · N 首」+「查看」跳下载页。
@@ -337,6 +345,25 @@ fun MusicModeScreen(
                                 onBatchToggle = viewModel::onBatchToggle,
                                 onDownloadAlbum = viewModel::downloadAlbum,
                                 albumMissingCount = viewModel::albumDownloadMissingCount,
+                                onAddToLocalPlaylist = { song ->
+                                    pendingPlaylistSongs = listOf(song)
+                                },
+                                onMoveLocalEntry = { song, targetPosition ->
+                                    val detail = state.detail as? MusicDetail.Playlist
+                                    val playlistId = detail?.playlist?.id
+                                    val entryId = song.playlistEntryId
+                                    if (
+                                        playlistId != null &&
+                                            detail.playlist.kind == MusicPlaylistKind.LOCAL &&
+                                            entryId != null
+                                    ) {
+                                        viewModel.moveLocalPlaylistEntry(
+                                            playlistId,
+                                            entryId,
+                                            targetPosition,
+                                        )
+                                    }
+                                },
                             )
                         else ->
                             LibraryPane(
@@ -356,6 +383,20 @@ fun MusicModeScreen(
                                 onBatchToggle = viewModel::onBatchToggle,
                                 onAlbumBatchLongPress = viewModel::onAlbumBatchLongPress,
                                 onAlbumBatchToggle = viewModel::onAlbumBatchToggle,
+                                onAddToLocalPlaylist = { song ->
+                                    pendingPlaylistSongs = listOf(song)
+                                },
+                                onCreateLocalPlaylist = {
+                                    createPlaylistRequestId = UUID.randomUUID().toString()
+                                    createPlaylistDialogOpen = true
+                                },
+                                onRenameLocalPlaylist = { playlist ->
+                                    renamePlaylistDialogId = playlist.id.toString()
+                                    renamePlaylistDialogName = playlist.name
+                                },
+                                onDeleteLocalPlaylist = { playlist ->
+                                    deletePlaylistDialogId = playlist.id.toString()
+                                },
                             )
                     }
                 }
@@ -547,7 +588,162 @@ fun MusicModeScreen(
                 onDismiss = { overlayGuideOpen = false },
             )
         }
+
+        if (createPlaylistDialogOpen) {
+            PlaylistNameDialog(
+                title = "新建本地歌单",
+                initialName = "",
+                confirmLabel = "创建",
+                onConfirm = { name ->
+                    createPlaylistRequestId?.let { id ->
+                        viewModel.createLocalPlaylist(name, UUID.fromString(id))
+                    }
+                    createPlaylistRequestId = null
+                    createPlaylistDialogOpen = false
+                },
+                onDismiss = {
+                    createPlaylistDialogOpen = false
+                    createPlaylistRequestId = null
+                },
+            )
+        }
+
+        renamePlaylistDialogId?.let { playlistId ->
+            PlaylistNameDialog(
+                title = "重命名本地歌单",
+                initialName = renamePlaylistDialogName,
+                confirmLabel = "保存",
+                onConfirm = { name ->
+                    UUID.fromString(playlistId).let { id ->
+                        viewModel.renameLocalPlaylist(id, name)
+                    }
+                    renamePlaylistDialogId = null
+                },
+                onDismiss = { renamePlaylistDialogId = null },
+            )
+        }
+
+        deletePlaylistDialogId?.let { playlistId ->
+            DeleteLocalPlaylistDialog(
+                onConfirm = {
+                    UUID.fromString(playlistId).let { id -> viewModel.deleteLocalPlaylist(id) }
+                    deletePlaylistDialogId = null
+                },
+                onDismiss = { deletePlaylistDialogId = null },
+            )
+        }
+
+        if (pendingPlaylistSongs.isNotEmpty()) {
+            AddToLocalPlaylistDialog(
+                playlists = state.playlists.filter { it.kind == MusicPlaylistKind.LOCAL },
+                onSelect = { playlist ->
+                    viewModel.addSongsToLocalPlaylist(playlist.id, pendingPlaylistSongs)
+                    pendingPlaylistSongs = emptyList()
+                },
+                onDismiss = { pendingPlaylistSongs = emptyList() },
+            )
+        }
     }
+}
+
+@Composable
+private fun PlaylistNameDialog(
+    title: String,
+    initialName: String,
+    confirmLabel: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("歌单名") },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            CinefinButton(
+                text = confirmLabel,
+                onClick = { onConfirm(name) },
+                enabled = name.isNotBlank(),
+                size = CinefinButtonSize.Small,
+            )
+        },
+        dismissButton = {
+            CinefinButton(
+                text = "取消",
+                onClick = onDismiss,
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Small,
+            )
+        },
+    )
+}
+
+@Composable
+private fun DeleteLocalPlaylistDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("删除本地歌单") },
+        text = { Text("歌单条目会一并删除，音乐文件和服务器歌单不受影响。") },
+        confirmButton = {
+            CinefinButton(
+                text = "删除",
+                onClick = onConfirm,
+                size = CinefinButtonSize.Small,
+            )
+        },
+        dismissButton = {
+            CinefinButton(
+                text = "取消",
+                onClick = onDismiss,
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Small,
+            )
+        },
+    )
+}
+
+@Composable
+private fun AddToLocalPlaylistDialog(
+    playlists: List<MusicPlaylist>,
+    onSelect: (MusicPlaylist) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("加入本地歌单") },
+        text = {
+            if (playlists.isEmpty()) {
+                Text("还没有本地歌单，请先在「歌单」页新建。")
+            } else {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    playlists.forEach { playlist ->
+                        CinefinButton(
+                            text = playlist.name,
+                            onClick = { onSelect(playlist) },
+                            variant = CinefinButtonVariant.Text,
+                            size = CinefinButtonSize.Small,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            CinefinButton(
+                text = "取消",
+                onClick = onDismiss,
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Small,
+            )
+        },
+    )
 }
 
 @Composable
@@ -889,6 +1085,10 @@ private fun LibraryPane(
     onBatchToggle: (MusicSong) -> Unit,
     onAlbumBatchLongPress: (MusicAlbum) -> Unit = {},
     onAlbumBatchToggle: (MusicAlbum) -> Unit = {},
+    onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
+    onCreateLocalPlaylist: () -> Unit = {},
+    onRenameLocalPlaylist: (MusicPlaylist) -> Unit = {},
+    onDeleteLocalPlaylist: (MusicPlaylist) -> Unit = {},
 ) {
     // W79b · #33：服务器个别曲目没有 Primary 图时，用同专辑封面兜底（只读已加载的曲库快照）。
     val albumArtwork = remember(state.albums) { albumArtworkUris(state.albums) }
@@ -930,12 +1130,16 @@ private fun LibraryPane(
                 onToggleDownload = onToggleDownload,
                 onBatchLongPress = onBatchLongPress,
                 onBatchToggle = onBatchToggle,
+                onAddToLocalPlaylist = onAddToLocalPlaylist,
             )
         MusicTab.PLAYLISTS ->
             PlaylistList(
                 playlists = state.playlists,
                 emptyCopy = emptyCopy,
                 onPlaylistClick = onPlaylistClick,
+                onCreateLocalPlaylist = onCreateLocalPlaylist,
+                onRenameLocalPlaylist = onRenameLocalPlaylist,
+                onDeleteLocalPlaylist = onDeleteLocalPlaylist,
             )
     }
 }
@@ -955,6 +1159,8 @@ private fun DetailPane(
     onBatchToggle: (MusicSong) -> Unit,
     onDownloadAlbum: () -> Unit = {},
     albumMissingCount: () -> Int? = { null },
+    onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
+    onMoveLocalEntry: (MusicSong, Int) -> Unit = { _, _ -> },
 ) {
     if (
         (detail is MusicDetail.Playlist && detail.loading) ||
@@ -984,6 +1190,19 @@ private fun DetailPane(
         onToggleDownload = onToggleDownload,
         onBatchLongPress = onBatchLongPress,
         onBatchToggle = onBatchToggle,
+        onAddToLocalPlaylist = onAddToLocalPlaylist,
+        onMoveUp =
+            if (detail is MusicDetail.Playlist && detail.playlist.kind == MusicPlaylistKind.LOCAL) {
+                { song, index -> onMoveLocalEntry(song, index - 1) }
+            } else {
+                null
+            },
+        onMoveDown =
+            if (detail is MusicDetail.Playlist && detail.playlist.kind == MusicPlaylistKind.LOCAL) {
+                { song, index -> onMoveLocalEntry(song, index + 1) }
+            } else {
+                null
+            },
         header =
             (detail as? MusicDetail.Album)?.let { albumDetail ->
                 {
@@ -1113,18 +1332,72 @@ private fun PlaylistList(
     playlists: List<MusicPlaylist>,
     emptyCopy: MusicEmptyCopy,
     onPlaylistClick: (MusicPlaylist) -> Unit,
+    onCreateLocalPlaylist: () -> Unit,
+    onRenameLocalPlaylist: (MusicPlaylist) -> Unit,
+    onDeleteLocalPlaylist: (MusicPlaylist) -> Unit,
 ) {
-    if (playlists.isEmpty()) {
-        EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
-        return
-    }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(items = playlists, key = { playlist -> playlist.id.toString() }) { playlist ->
+        item(key = "local-playlist-create") {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(CinefinSpacing.Space3),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                CinefinButton(
+                    text = "新建本地歌单",
+                    onClick = onCreateLocalPlaylist,
+                    size = CinefinButtonSize.Small,
+                    variant = CinefinButtonVariant.Outlined,
+                )
+            }
+        }
+        if (playlists.isEmpty()) {
+            item(key = "playlist-empty") {
+                EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
+            }
+        }
+        items(items = playlists, key = { playlist -> playlist.stableKey() }) { playlist ->
+            var menuOpen by remember { mutableStateOf(false) }
             CinefinListRow(
                 title = playlist.name,
                 secondary = playlist.songCount?.let { count -> "$count 首" } ?: "歌单",
                 onClick = { onPlaylistClick(playlist) },
                 leading = { ArtworkThumb(imageUri = playlist.imageUri, title = playlist.name) },
+                badge = "本地".takeIf { playlist.kind == MusicPlaylistKind.LOCAL },
+                trailing =
+                    if (playlist.kind == MusicPlaylistKind.LOCAL) {
+                        {
+                            Box {
+                                CinefinIconButton(onClick = { menuOpen = true }) { tint ->
+                                    Text(
+                                        text = "⋮",
+                                        style = CinefinType.TitleMedium,
+                                        color = tint,
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = menuOpen,
+                                    onDismissRequest = { menuOpen = false },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("重命名") },
+                                        onClick = {
+                                            menuOpen = false
+                                            onRenameLocalPlaylist(playlist)
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("删除") },
+                                        onClick = {
+                                            menuOpen = false
+                                            onDeleteLocalPlaylist(playlist)
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        null
+                    },
             )
         }
     }
@@ -1181,6 +1454,9 @@ private fun SongList(
     onToggleDownload: (MusicSong) -> Unit = {},
     onBatchLongPress: (MusicSong) -> Unit = {},
     onBatchToggle: (MusicSong) -> Unit = {},
+    onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
+    onMoveUp: ((MusicSong, Int) -> Unit)? = null,
+    onMoveDown: ((MusicSong, Int) -> Unit)? = null,
 ) {
     if (songs.isEmpty()) {
         EmptyHint(title = emptyTitle, message = emptyMessage)
@@ -1330,9 +1606,14 @@ private fun SongList(
                         downloadState.isActive(song.itemId) -> "取消下载"
                         else -> "下载"
                     },
-                sourceBadge = song.source.label.takeIf { showSourceBadge },
+                sourceBadge =
+                    when {
+                        song.isPlaylistPlaceholder -> "不可用"
+                        showSourceBadge -> song.source.label
+                        else -> null
+                    },
                 selectionMode = batchSelection.selectionMode,
-                selected = batchSelection.isSelected(song.itemId.toString()),
+                selected = batchSelection.isSelected(song.playlistSelectionKey()),
                 onClick = {
                     if (batchSelection.selectionMode) onBatchToggle(song) else onSongClick(song)
                 },
@@ -1340,6 +1621,13 @@ private fun SongList(
                 onPlayNext = { onPlayNext(song) },
                 onToggleFavorite = { onToggleFavorite(song) },
                 onToggleDownload = { onToggleDownload(song) },
+                onAddToLocalPlaylist = onAddToLocalPlaylist?.let { callback -> { callback(song) } },
+                onMoveUp =
+                    onMoveUp?.takeIf { index > 0 }?.let { callback -> { callback(song, index) } },
+                onMoveDown =
+                    onMoveDown
+                        ?.takeIf { index < songs.lastIndex }
+                        ?.let { callback -> { callback(song, index) } },
             )
         }
     }
@@ -1362,6 +1650,9 @@ private fun SongRow(
     onPlayNext: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleDownload: () -> Unit,
+    onAddToLocalPlaylist: (() -> Unit)?,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -1433,6 +1724,39 @@ private fun SongRow(
                             onToggleFavorite()
                         },
                     )
+                    if (onAddToLocalPlaylist != null) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "加入本地歌单",
+                                    style = CinefinType.BodyMedium,
+                                    color = colors.onSurface,
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                onAddToLocalPlaylist()
+                            },
+                        )
+                    }
+                    if (onMoveUp != null) {
+                        DropdownMenuItem(
+                            text = { Text("上移") },
+                            onClick = {
+                                menuOpen = false
+                                onMoveUp()
+                            },
+                        )
+                    }
+                    if (onMoveDown != null) {
+                        DropdownMenuItem(
+                            text = { Text("下移") },
+                            onClick = {
+                                menuOpen = false
+                                onMoveDown()
+                            },
+                        )
+                    }
                     if (downloadMenuItem != null) {
                         DropdownMenuItem(
                             text = {

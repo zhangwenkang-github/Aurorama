@@ -4,6 +4,7 @@ import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 
 /** 曲库浏览的四个维度（MU-2）。 */
@@ -13,6 +14,18 @@ enum class MusicTab {
     SONGS,
     PLAYLISTS,
 }
+
+/** 多选 key：本地歌单条目必须用持久 entryId 区分同 itemId 的不同命名空间。 */
+fun MusicSong.playlistSelectionKey(): String =
+    playlistEntryId
+        ?: when (val ref = trackRef) {
+            is TrackRef.Server -> "server:${ref.serverId}:${ref.userId}:${ref.itemId}"
+            is TrackRef.Local -> "local:${ref.libraryId}:${ref.itemId}"
+            null -> itemId.toString()
+        }
+
+/** 本地 / 服务器歌单 id 可能同形，列表 key 必须带来源类别。 */
+fun MusicPlaylist.stableKey(): String = "${kind.name}:$id"
 
 /**
  * 曲目列表详情（专辑 / 艺术家 / 歌单三种来源）。

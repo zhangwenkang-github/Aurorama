@@ -87,13 +87,13 @@ class LocalPlaylistStorageImpl constructor(private val dao: LocalPlaylistDao) :
         if (dao.getPlaylist(id) != null) return true
         val inserted =
             dao.insertPlaylist(
-            LocalPlaylistEntity(
-                id = id,
-                name = name,
-                createdAt = createdAt,
-                updatedAt = updatedAt,
+                LocalPlaylistEntity(
+                    id = id,
+                    name = name,
+                    createdAt = createdAt,
+                    updatedAt = updatedAt,
+                )
             )
-        )
         return inserted >= 0L || dao.getPlaylist(id) != null
     }
 

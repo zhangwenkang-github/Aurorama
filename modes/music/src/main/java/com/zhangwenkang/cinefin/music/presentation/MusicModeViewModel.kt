@@ -9,6 +9,9 @@ import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidSourceType
+import com.zhangwenkang.cinefin.music.data.LocalPlaylist
+import com.zhangwenkang.cinefin.music.data.LocalPlaylistEntry
+import com.zhangwenkang.cinefin.music.data.LocalPlaylistRepositoryImpl
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
@@ -17,11 +20,13 @@ import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
 import com.zhangwenkang.cinefin.music.data.MusicPlayMode
 import com.zhangwenkang.cinefin.music.data.MusicPlaybackHistoryTracker
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
+import com.zhangwenkang.cinefin.music.data.MusicPlaylistKind
 import com.zhangwenkang.cinefin.music.data.MusicQueuePersister
 import com.zhangwenkang.cinefin.music.data.MusicRecentStore
 import com.zhangwenkang.cinefin.music.data.MusicRepository
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
+import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.music.data.groupAlbums
 import com.zhangwenkang.cinefin.music.data.groupArtists
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricEditLine
@@ -47,7 +52,9 @@ import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
 import com.zhangwenkang.cinefin.music.data.musicQueueFillBatches
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
 import com.zhangwenkang.cinefin.music.data.next
+import com.zhangwenkang.cinefin.music.data.projectLocalPlaylistTrack
 import com.zhangwenkang.cinefin.music.data.toLocalMusicSong
+import com.zhangwenkang.cinefin.music.data.toLocalPlaylistTrack
 import com.zhangwenkang.cinefin.music.data.toRepeatMode
 import com.zhangwenkang.cinefin.music.data.toShuffleEnabled
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
@@ -85,6 +92,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -123,6 +131,8 @@ constructor(
     private val offlineMediaRepository: OfflineMediaRepository,
     /** W37：本地媒体库（用户自选文件夹里的音乐并入曲库）。 */
     private val localLibraryRepository: LocalLibraryRepository,
+    /** W87-A：app-scope Room 本地歌单真源（ViewModel 只观察并转发意图）。 */
+    private val localPlaylistRepository: LocalPlaylistRepositoryImpl,
     /**
      * W53 Bug B1：从侧栏点具体音乐库进入时，路由参数（`libraryId`）随导航条目进 SavedStateHandle—— 这里按「路由参数 → 客户端设置偏好 →
      * 自动」的优先级解析要加载哪个音乐库。
@@ -251,6 +261,9 @@ constructor(
     /** W37：服务器（或离线已下载）曲库与本地媒体库曲库分开缓存，切换来源筛选不重新请求。 */
     private var serverLibrary: MusicLibrary = MusicLibrary(emptyList(), emptyList(), emptyList())
     private var localLibrary: MusicLibrary = MusicLibrary(emptyList(), emptyList(), emptyList())
+    private var serverPlaylists: List<MusicPlaylist> = emptyList()
+    private var localPlaylists: List<LocalPlaylist> = emptyList()
+    private var localPlaylistEntriesJob: Job? = null
 
     /** 上次会话的队列快照（W21-R2）：未点播放前只在本地展示 / 编辑。 */
     private val _restoredQueue = MutableStateFlow<MusicQueue?>(null)
@@ -398,6 +411,7 @@ constructor(
             )
         }
         refresh()
+        observeLocalPlaylists()
         observeLyrics()
         restoreQueue()
         observeRecent()
@@ -414,6 +428,19 @@ constructor(
             offlineModeListener
         )
         super.onCleared()
+    }
+
+    private fun observeLocalPlaylists() {
+        viewModelScope.launch {
+            localPlaylistRepository.playlists.collect { playlists ->
+                localPlaylists = playlists
+                publishPlaylists()
+                val detail = _uiState.value.detail as? MusicDetail.Playlist
+                if (detail?.playlist?.kind == MusicPlaylistKind.LOCAL) {
+                    refreshLocalPlaylistEntries(detail.playlist.id)
+                }
+            }
+        }
     }
 
     /**
@@ -900,12 +927,12 @@ constructor(
                         .onFailure { Timber.w(it, "读取离线曲库失败") }
                         .getOrElse { MusicLibrary(emptyList(), emptyList(), emptyList()) }
                 localLibrary = loadLocalLibrary()
+                serverPlaylists = emptyList()
                 _uiState.update {
                     it.copy(
                         loading = false,
                         refreshing = false,
                         offline = true,
-                        playlists = emptyList(),
                         musicLibraries = emptyList(),
                         selectedMusicLibraryId = null,
                         selectedMusicLibraryName = null,
@@ -913,6 +940,7 @@ constructor(
                         errorMessage = null,
                     )
                 }
+                publishPlaylists()
                 publishLibraries()
                 playPendingRouteSong()
                 Timber.d(
@@ -934,12 +962,12 @@ constructor(
                     )
                 serverLibrary = library
                 localLibrary = loadLocalLibrary()
+                serverPlaylists = playlists
                 _uiState.update {
                     it.copy(
                         loading = false,
                         refreshing = false,
                         offline = false,
-                        playlists = playlists,
                         musicLibraries = musicLibraryOptions(musicLibraries),
                         selectedMusicLibraryId = selectedMusicLibrary?.id,
                         selectedMusicLibraryName = selectedMusicLibrary?.name,
@@ -947,6 +975,7 @@ constructor(
                         errorMessage = null,
                     )
                 }
+                publishPlaylists()
                 publishLibraries()
                 playPendingRouteSong()
                 Timber.d(
@@ -1014,24 +1043,44 @@ constructor(
                 serverSongCount = serverLibrary.songs.size,
             )
         }
+        val detail = _uiState.value.detail as? MusicDetail.Playlist
+        if (detail?.playlist?.kind == MusicPlaylistKind.LOCAL) {
+            refreshLocalPlaylistEntries(detail.playlist.id)
+        }
     }
 
     /** W37：本地媒体库里的音乐条目 → 曲目（内嵌标签优先，缺失回退「本地文件」专辑）。 */
     private suspend fun loadLocalLibrary(): MusicLibrary {
         val songs = runCatching {
-            localLibraryRepository.allEntries()
+            localLibraryRepository.libraries().flatMap { library ->
+                localLibraryRepository
+                    .entries(library.id)
+                    .filter { entry -> entry.kind == LocalMediaKind.MUSIC }
+                    .map { entry -> entry.toLocalMusicSong(library.id) }
+            }
         }
             .onFailure { Timber.w(it, "读取本地媒体库失败") }
             .getOrElse { emptyList() }
-            .filter { it.kind == LocalMediaKind.MUSIC }
-            .sortedWith(compareBy({ it.album ?: "" }, { it.relativePath.lowercase() }))
-            .map { it.toLocalMusicSong() }
+            .sortedWith(compareBy({ it.albumName }, { it.indexNumber ?: 0 }, { it.name }))
         Timber.d("曲库刷新：重读本地媒体库索引 songs=%d", songs.size)
         return MusicLibrary(
             songs = songs,
             albums = groupAlbums(songs),
             artists = groupArtists(songs),
         )
+    }
+
+    private fun publishPlaylists() {
+        val localRows = localPlaylists.map { playlist ->
+            MusicPlaylist(
+                id = playlist.id,
+                name = playlist.name,
+                imageUri = null,
+                songCount = playlist.entryCount,
+                kind = MusicPlaylistKind.LOCAL,
+            )
+        }
+        _uiState.update { it.copy(playlists = localRows + serverPlaylists) }
     }
 
     /** 第一次失败视为偶发（服务端超时 / 弱网），自动重试一次后仍失败才抛给调用方。 */
@@ -1136,14 +1185,14 @@ constructor(
 
     /** 长按行：进入多选并把该曲目加入选中。 */
     fun onBatchLongPress(song: MusicSong) {
-        val ids = visibleSongs().map { it.itemId.toString() }.toSet()
-        _batchSelection.update { it.retain(ids).longPress(song.itemId.toString()) }
+        val ids = visibleSongs().map { it.playlistSelectionKey() }.toSet()
+        _batchSelection.update { it.retain(ids).longPress(song.playlistSelectionKey()) }
     }
 
     /** 多选态单击行：切换单曲选中。 */
     fun onBatchToggle(song: MusicSong) {
-        val ids = visibleSongs().map { it.itemId.toString() }.toSet()
-        _batchSelection.update { it.retain(ids).toggle(song.itemId.toString()) }
+        val ids = visibleSongs().map { it.playlistSelectionKey() }.toSet()
+        _batchSelection.update { it.retain(ids).toggle(song.playlistSelectionKey()) }
     }
 
     // ---- W59：专辑列表长按多选（批量下载整张；复用同一 MultiSelectState / 批量下载链路） ----
@@ -1175,7 +1224,7 @@ constructor(
     fun onBatchSelectAll() {
         val ids =
             if (albumBatchScope()) visibleAlbums().map { it.key }
-            else visibleSongs().map { it.itemId.toString() }
+            else visibleSongs().map { it.playlistSelectionKey() }
         _batchSelection.update { it.selectAll(ids) }
     }
 
@@ -1183,7 +1232,7 @@ constructor(
     fun onBatchSelectNone() {
         val ids =
             if (albumBatchScope()) visibleAlbums().map { it.key }
-            else visibleSongs().map { it.itemId.toString() }
+            else visibleSongs().map { it.playlistSelectionKey() }
         _batchSelection.update { it.selectNone(ids) }
     }
 
@@ -1219,7 +1268,7 @@ constructor(
 
     private fun selectedSongs(): List<MusicSong> {
         val selection = _batchSelection.value.selectedIds
-        return visibleSongs().filter { it.itemId.toString() in selection }
+        return visibleSongs().filter { it.playlistSelectionKey() in selection }
     }
 
     private fun batchCaps(song: MusicSong, downloadState: SongDownloadState): SongBatchCaps =
@@ -1419,6 +1468,27 @@ constructor(
         val detail = _uiState.value.detail as? MusicDetail.Playlist ?: return
         val selected = selectedSongs()
         if (selected.isEmpty()) return
+        if (detail.playlist.kind == MusicPlaylistKind.LOCAL) {
+            val entryIds = selected.mapNotNull { it.playlistEntryId }.toSet()
+            if (entryIds.isEmpty()) return
+            viewModelScope.launch {
+                runCatching { localPlaylistRepository.remove(detail.playlist.id, entryIds) }
+                    .onSuccess { removed ->
+                        if (removed) {
+                            _batchSelection.value = MultiSelectState()
+                        } else {
+                            showLocalPlaylistFailure("移出歌单失败", "本地歌单条目已变化，请重试")
+                        }
+                    }
+                    .onFailure { error ->
+                        showLocalPlaylistFailure(
+                            "移出歌单失败",
+                            error.message ?: "本地歌单写入失败，请稍后重试",
+                        )
+                    }
+            }
+            return
+        }
         viewModelScope.launch {
             runCatching {
                 selected.forEach { repository.removeFromPlaylist(detail.playlist.id, it.itemId) }
@@ -1506,6 +1576,18 @@ constructor(
     }
 
     fun openPlaylist(playlist: MusicPlaylist) {
+        if (playlist.kind == MusicPlaylistKind.LOCAL) {
+            _uiState.update {
+                it.copy(
+                    detail = MusicDetail.Playlist(playlist, emptyList(), loading = true),
+                    errorTitle = null,
+                    errorMessage = null,
+                )
+            }
+            _batchSelection.value = MultiSelectState()
+            refreshLocalPlaylistEntries(playlist.id)
+            return
+        }
         _uiState.update {
             it.copy(
                 detail = MusicDetail.Playlist(playlist, emptyList(), loading = true),
@@ -1541,6 +1623,169 @@ constructor(
         }
     }
 
+    fun createLocalPlaylist(name: String, id: UUID = UUID.randomUUID()) {
+        viewModelScope.launch {
+            runCatching { localPlaylistRepository.create(id, name) }
+                .onFailure { error ->
+                    showLocalPlaylistFailure(
+                        "新建本地歌单失败",
+                        error.message ?: "本地歌单写入失败，请稍后重试",
+                    )
+                }
+        }
+    }
+
+    fun renameLocalPlaylist(playlistId: UUID, name: String) {
+        viewModelScope.launch {
+            runCatching { localPlaylistRepository.rename(playlistId, name) }
+                .onSuccess { renamed ->
+                    if (!renamed) {
+                        showLocalPlaylistFailure("重命名失败", "歌单名不能为空或歌单已不存在")
+                    }
+                }
+                .onFailure { error ->
+                    showLocalPlaylistFailure(
+                        "重命名失败",
+                        error.message ?: "本地歌单写入失败，请稍后重试",
+                    )
+                }
+        }
+    }
+
+    fun deleteLocalPlaylist(playlistId: UUID) {
+        viewModelScope.launch {
+            runCatching { localPlaylistRepository.delete(playlistId) }
+                .onSuccess { deleted ->
+                    if (!deleted) {
+                        showLocalPlaylistFailure("删除歌单失败", "本地歌单不存在")
+                        return@onSuccess
+                    }
+                    val detail = _uiState.value.detail as? MusicDetail.Playlist
+                    if (detail?.playlist?.id == playlistId) closeDetail()
+                    _batchSelection.value = MultiSelectState()
+                }
+                .onFailure { error ->
+                    showLocalPlaylistFailure(
+                        "删除歌单失败",
+                        error.message ?: "本地歌单写入失败，请稍后重试",
+                    )
+                }
+        }
+    }
+
+    fun addSongsToLocalPlaylist(playlistId: UUID, songs: List<MusicSong>) {
+        if (songs.isEmpty()) return
+        val serverId = appPreferences.getValue(appPreferences.currentServer)
+        val userId = runCatching { jellyfinRepository.getUserId() }.getOrNull()
+        val tracks = runCatching {
+            songs
+                .map { song -> song.toLocalPlaylistTrack(serverId = serverId, userId = userId) }
+                .distinctBy { track -> track.ref }
+        }
+            .getOrElse { error ->
+                showLocalPlaylistFailure(
+                    "加入歌单失败",
+                    error.message ?: "曲目缺少稳定身份，无法加入本地歌单",
+                )
+                return
+            }
+        viewModelScope.launch {
+            runCatching { localPlaylistRepository.addAll(playlistId, tracks) }
+                .onSuccess { added ->
+                    if (added) {
+                        _batchSelection.value = MultiSelectState()
+                    } else {
+                        showLocalPlaylistFailure("加入歌单失败", "本地歌单已不存在")
+                    }
+                }
+                .onFailure { error ->
+                    showLocalPlaylistFailure(
+                        "加入歌单失败",
+                        error.message ?: "本地歌单写入失败，请稍后重试",
+                    )
+                }
+        }
+    }
+
+    fun moveLocalPlaylistEntry(
+        playlistId: UUID,
+        entryId: String,
+        targetPosition: Int,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                localPlaylistRepository.move(
+                    playlistId = playlistId,
+                    entryId = entryId,
+                    targetPosition = targetPosition,
+                )
+            }
+                .onSuccess { moved ->
+                    if (!moved) {
+                        showLocalPlaylistFailure("排序失败", "目标位置无效或条目已变化")
+                    }
+                }
+                .onFailure { error ->
+                    showLocalPlaylistFailure(
+                        "排序失败",
+                        error.message ?: "本地歌单排序失败，请稍后重试",
+                    )
+                }
+        }
+    }
+
+    private fun refreshLocalPlaylistEntries(playlistId: UUID) {
+        localPlaylistEntriesJob?.cancel()
+        localPlaylistEntriesJob = viewModelScope.launch {
+            localPlaylistRepository.entries(playlistId.toString()).collect { entries ->
+                val availableRefs = availablePlaylistTrackRefs()
+                val songs = entries.map { entry ->
+                    entry.toMusicSong(availableRefs = availableRefs)
+                }
+                _uiState.update { state ->
+                    val detail = state.detail as? MusicDetail.Playlist
+                    if (
+                        detail != null &&
+                            detail.playlist.id == playlistId &&
+                            detail.playlist.kind == MusicPlaylistKind.LOCAL
+                    ) {
+                        state.copy(
+                            detail = detail.copy(songs = songs, loading = false),
+                            errorTitle = null,
+                            errorMessage = null,
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+    }
+
+    private fun LocalPlaylistEntry.toMusicSong(availableRefs: Set<TrackRef>): MusicSong =
+        projectLocalPlaylistTrack(
+            entryId = entryId,
+            track = track,
+            isAvailable = track.ref in availableRefs,
+        )
+
+    private fun availablePlaylistTrackRefs(): Set<TrackRef> {
+        val serverId = appPreferences.getValue(appPreferences.currentServer)
+        val userId = runCatching { jellyfinRepository.getUserId() }.getOrNull()
+        return (serverLibrary.songs + localLibrary.songs)
+            .mapNotNull { song ->
+                runCatching {
+                    song.toLocalPlaylistTrack(serverId = serverId, userId = userId).ref
+                }
+                    .getOrNull()
+            }
+            .toSet()
+    }
+
+    private fun showLocalPlaylistFailure(title: String, message: String) {
+        _uiState.update { it.copy(errorTitle = title, errorMessage = message) }
+    }
+
     fun closeDetail() {
         _batchSelection.value = MultiSelectState()
         _uiState.update { it.copy(detail = null, errorTitle = null, errorMessage = null) }
@@ -1555,11 +1800,18 @@ constructor(
      * 2) 后台补队列：先补"当前之后"的曲目（下一首最先就位），再补"当前之前"的曲目； 单曲解析失败只跳过该曲，不影响已起播的播放。
      */
     fun playSong(song: MusicSong) {
+        if (song.isPlaylistPlaceholder) {
+            showLocalPlaylistFailure("曲目暂不可用", "已保留「${song.name}」的歌单条目和显示快照")
+            return
+        }
         val state = _uiState.value
+        val selectionKey = song.playlistSelectionKey()
         val detail =
-            state.detail?.takeIf { detail -> detail.songs.any { it.itemId == song.itemId } }
+            state.detail?.takeIf { detail ->
+                detail.songs.any { it.playlistSelectionKey() == selectionKey }
+            }
         val songs = detail?.songs ?: state.songs
-        val startIndex = songs.indexOfFirst { it.itemId == song.itemId }
+        val startIndex = songs.indexOfFirst { it.playlistSelectionKey() == selectionKey }
         if (startIndex < 0) return
         startQueuePlayback(
             song = song,
