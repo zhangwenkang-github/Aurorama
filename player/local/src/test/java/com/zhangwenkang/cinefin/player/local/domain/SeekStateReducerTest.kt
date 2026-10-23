@@ -80,6 +80,88 @@ class SeekStateReducerTest {
     }
 
     @Test
+    fun `synchronous accepted before dispatch survives dispatch and confirms before deadline`() {
+        val reducer = SeekStateReducer()
+        val policy =
+            SeekConfirmationPolicy(
+                completionTimeoutMs = 4_000L,
+                positionToleranceMs = 1_000L,
+                minimumTargetDisplayMs = 300L,
+            )
+        begin(reducer)
+        begin(reducer, targetMs = 180_182L, durationMs = 240_000L, issuedAtMs = 1_001L)
+
+        reducer.onAccepted(
+            SeekEngineEvidence(
+                requestGeneration = 2L,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                positionMs = 180_182L,
+                kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
+            )
+        )
+        // ExoPlayer emits SEEK_ACCEPTED synchronously from seekTo(), before the dispatch call
+        // returns.
+        reducer.onDispatched(requestGeneration = 2L, nowElapsedMs = 1_003L)
+        reducer.onCompletionEvidence(
+            SeekEngineEvidence(
+                requestGeneration = 2L,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                positionMs = 180_182L,
+                kind = SeekEngineEvidenceKind.PLAYBACK_READY,
+            ),
+            nowElapsedMs = 1_024L,
+        )
+        // A late tick must not turn a confirmed seek into a timeout.
+        reducer.onTick(nowElapsedMs = 5_003L)
+
+        assertEquals(
+            SeekState.Confirmed(
+                targetMs = 180_182L,
+                positionMs = 180_182L,
+                requestGeneration = 2L,
+                sourceEpoch = 3L,
+                requestedAtMs = 1_003L,
+                confirmedAtMs = 1_024L,
+                policy = policy,
+            ),
+            reducer.state,
+        )
+    }
+
+    @Test
+    fun `asynchronous accepted after dispatch confirms near target`() {
+        val reducer = SeekStateReducer()
+        begin(reducer)
+
+        reducer.onDispatched(requestGeneration = 1L, nowElapsedMs = 1_003L)
+        reducer.onAccepted(
+            SeekEngineEvidence(
+                requestGeneration = 1L,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                positionMs = 60_200L,
+                kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
+            )
+        )
+        reducer.onCompletionEvidence(
+            SeekEngineEvidence(
+                requestGeneration = 1L,
+                sourceEpoch = 3L,
+                mediaIdentity = identity,
+                positionMs = 60_700L,
+                kind = SeekEngineEvidenceKind.PLAYBACK_READY,
+            ),
+            nowElapsedMs = 2_000L,
+        )
+
+        val confirmed = reducer.state as SeekState.Confirmed
+        assertEquals(60_700L, confirmed.positionMs)
+        assertEquals(1_003L, confirmed.requestedAtMs)
+    }
+
+    @Test
     fun `continuous seek keeps only the latest generation`() {
         val reducer = SeekStateReducer()
         begin(reducer, targetMs = 90_000L)

@@ -3501,10 +3501,8 @@ constructor(
         if (index !in 0 until activePlayer.mediaItemCount) return
         val generation = beginMediaItemSeek(source, activePlayer)
         if (generation == null) return
+        markSeekDispatched(generation)
         activePlayer.seekTo(index, 0L)
-        seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
-        publishSeekState()
-        armSeekTimeout()
     }
 
     private fun requestAdjacentMediaItemSeek(forward: Boolean, source: String) {
@@ -3514,10 +3512,8 @@ constructor(
         if (!hasTarget) return
         val generation = beginMediaItemSeek(source, activePlayer)
         if (generation == null) return
+        markSeekDispatched(generation)
         if (forward) activePlayer.seekToNextMediaItem() else activePlayer.seekToPreviousMediaItem()
-        seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
-        publishSeekState()
-        armSeekTimeout()
     }
 
     private fun beginMediaItemSeek(source: String, activePlayer: Player): Long? {
@@ -3582,6 +3578,7 @@ constructor(
                 bufferedPositionMs = activePlayer.bufferedPosition,
                 sessionStartMs = item?.playbackPosition ?: 0L,
             )
+        markSeekDispatched(generation)
         if (restartSession) {
             Timber.d(
                 "转码 seek 超出可用窗口：source=%s target=%d position=%d buffered=%d sessionStart=%d",
@@ -3592,9 +3589,6 @@ constructor(
                 item?.playbackPosition,
             )
             scheduleTranscodeRestart(target, source)
-            seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
-            publishSeekState()
-            armSeekTimeout()
             return
         }
         try {
@@ -3604,9 +3598,6 @@ constructor(
             failActiveSeek(SeekFailureReason.REJECTED, retryable = false)
             return
         }
-        seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
-        publishSeekState()
-        armSeekTimeout()
         Timber.d(
             "seek 落点：source=%s target=%d position=%d buffered=%d transcode=%s",
             source,
@@ -3616,6 +3607,16 @@ constructor(
             isTranscode,
         )
         armTranscodeSeekWatchdog(target, source, enabled = isTranscode && isExoPlayer)
+    }
+
+    /**
+     * Dispatch state must be established before the engine action, which may emit SEEK_ACCEPTED
+     * synchronously.
+     */
+    private fun markSeekDispatched(generation: Long) {
+        seekStateReducer.onDispatched(generation, SystemClock.elapsedRealtime())
+        publishSeekState()
+        armSeekTimeout()
     }
 
     private fun schedulePendingSeekFlush(generation: Long) {

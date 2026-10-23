@@ -227,7 +227,8 @@ class SeekStateReducer {
     fun onDispatched(requestGeneration: Long, nowElapsedMs: Long) {
         val seeking = state as? SeekState.Seeking ?: return
         if (seeking.requestGeneration != requestGeneration) return
-        state = seeking.copy(requestedAtMs = nowElapsedMs, acceptedPositionMs = null)
+        // Media3 can deliver SEEK_ACCEPTED synchronously before the engine call returns.
+        state = seeking.copy(requestedAtMs = nowElapsedMs)
     }
 
     private fun SeekState.Seeking.matches(evidence: SeekEngineEvidence): Boolean =
