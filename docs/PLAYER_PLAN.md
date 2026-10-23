@@ -2903,3 +2903,12 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 2026-10-23 20:35：负责人水位 `294,433 / 1,048,576（28.1%）`。下一步需用户在双机 debug App 完成登录并告知，随后新建唯一安装 / HLS 验证锁，从 `69341cbc` 安装候选并只验 HLS；若届时进入 30 万，先写交接检查点，不由旧负责人继续扩项。
 - 2026-10-23 19:55：R3 **DONE（代码 / 自动化门禁，待独立 QA）**。先按真机顺序写 `accepted → onDispatched → READY` RED；当前实现实际落为 `Failed(TIMEOUT)`。GREEN 后 dispatch / deadline 统一在引擎操作前建立，`onDispatched` 不再清同代 accepted；直接 / retry / 队列经 `executeSeek`，上下集与转码重启调度均已前置。同步与异步 accepted、失败 / 超时 / retry / sourceEpoch 回归通过，全部门未降低。
 - R3 门禁：`player/local` **252/0/0**、phone **321/0/0**，phone debug、根 `ktfmtCheck`、`git diff --check` 通过；`graphify update .` 为 11,528 nodes / 36,453 edges / 404 communities。未占设备、0 截图、未 merge / push；独立 QA 尚未复验，P1 仍未关闭。
+
+### 43.10 负责人交接检查点（2026-10-23）
+
+- **交接原因**：旧负责人已过 25 万收缩线并进入 30 万交接阈值；停止新增功能 / 扩样。新负责人从冷启动继续，不得重做 spike、R2、R3 或已通过的本地 QA。
+- **代码**：分支 `codex/w86-c-seek-state` @ `1fb16ac9`（代码对象 `69341cbc`），相对 `origin/master` `235f67b5` ahead 11；worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`，clean，未 merge / push。
+- **已验证**：player/local 252/0/0、phone 321/0/0、phone debug、根 `ktfmtCheck`、diff、graphify；独立 QA 本地矩阵 P0–P3=0：Pad Exo `302ms → Confirmed(302)`，连续三目标只确认末代，K60 mpv `seeking → seek → playback-restart → Confirmed`。双机 FATAL=0 / ANR=0，原 APK / 偏好 / 设置已恢复。
+- **下一道门**：用户已在 debug App 登录后，仅验证真实 Jellyfin HLS 超窗转码重开：从 `69341cbc` 安装候选（`adb install -r`），保留设备 App 数据与登录 session；验证定位中保持目标、新会话确认、无 0 / 结尾闪现、最终落点与 FATAL / ANR。无凭据值、无 token 导出。
+- **仍不可宣告通过**：system notification / MediaSession seek，mpv command-level rejection / mpv 转码重开，真实 server / user A/B，其他内核 / 平台；旧引擎事件可能在连续请求中被当前 generation 重标的架构风险也保留。
+- **冷启动第一条只读动作**：读本节 → `W86-C-QA.md` QA-R2/R3 → `PLAYER_PLAN` §43.2 / §43.8 → `device-lock.md` 当前段；再读 `git status / rev-parse / adb devices -l`。确认锁后新派独立 HLS QA，不改代码。
