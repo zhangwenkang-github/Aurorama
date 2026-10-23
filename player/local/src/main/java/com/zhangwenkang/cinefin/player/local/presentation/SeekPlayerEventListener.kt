@@ -115,6 +115,7 @@ internal constructor(
     private val mediaIdentityProvider: (MediaItem) -> SeekMediaIdentity? =
         ::seekMediaIdentityFromItem,
     private val mediaSourceUriProvider: (MediaItem) -> String = ::seekSourceUriFromItem,
+    private val sessionBridge: SeekSessionBridge? = null,
 ) {
     private companion object {
         const val TRANSCODE_RESTART_WINDOW_MS = 30_000L
@@ -160,7 +161,6 @@ internal constructor(
     private var transcodeRestartWindowCount = 0
     private var lastTranscodeRestartMediaId: String? = null
     private var transcodeWatchdogJob: Job? = null
-    private var sessionBridge: SeekSessionBridge? = null
 
     private val seekEventListener =
         SeekPlayerEventListener(
@@ -230,14 +230,6 @@ internal constructor(
         deadlineJob?.cancel()
         deadlineJob = null
         cancelTranscodeWork()
-    }
-
-    internal fun bindSessionBridge(bridge: SeekSessionBridge) {
-        sessionBridge = bridge
-    }
-
-    internal fun unbindSessionBridge(bridge: SeekSessionBridge) {
-        if (sessionBridge === bridge) sessionBridge = null
     }
 
     fun submit(intent: PlayerViewModel.SeekIntent, source: String = "media-session") {
@@ -802,7 +794,7 @@ private fun seekSourceUriFromItem(item: MediaItem): String =
         ?: item.localConfiguration?.uri?.toString()
         ?: item.requestMetadata.mediaUri?.toString().orEmpty()
 
-private fun seekMediaIdentityFromItem(item: MediaItem): SeekMediaIdentity? {
+internal fun seekMediaIdentityFromItem(item: MediaItem): SeekMediaIdentity? {
     val itemId = item.mediaId.takeIf(String::isNotBlank) ?: return null
     val sourceUri = seekSourceUriFromItem(item)
     if (sourceUri.isBlank()) return null

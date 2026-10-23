@@ -108,7 +108,6 @@ class PlayerViewModel
 @Inject
 constructor(
     private val application: Application,
-    private val playlistManager: PlaylistManager,
     private val repository: JellyfinRepository,
     /**
      * W20（§1.11）：进度除了走会话上报，还要**直接写 UserData**——真机实测 `Sessions/Playing/Progress` 不落
@@ -131,6 +130,9 @@ constructor(
     /** W86-B：当前用户 id 是字幕单片命名空间的权威来源，登录 / 切用户时由 SetupRepository 更新。 */
     private val jellyfinApi: JellyfinApi,
 ) : ViewModel(), Player.Listener {
+    private val playlistManager
+        get() = playerHolder.playlistManager
+
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
         const val PLAYER_BACKEND_EXOPLAYER = "exoplayer"
@@ -348,37 +350,6 @@ constructor(
     private val seekSink
         get() = playerHolder.seekSink
 
-    private var rebuiltSeekItem: PlayerItem? = null
-
-    private val seekSessionBridge =
-        object : SeekSessionBridge {
-            override suspend fun rebuildForSeek(
-                itemId: String,
-                targetMs: Long,
-            ): SeekSessionReplacement? {
-                val current = currentPlaybackItem() ?: return null
-                if (current.itemId.toString() != itemId) return null
-                val rebuilt =
-                    withContext(Dispatchers.IO) {
-                        playlistManager.rebuildPlayerItemForPosition(current.itemId, targetMs)
-                    } ?: return null
-                val mediaItem = rebuilt.toMediaItem()
-                val identity = seekMediaIdentity(mediaItem) ?: return null
-                rebuiltSeekItem = rebuilt
-                return SeekSessionReplacement(
-                    mediaItem = mediaItem,
-                    mediaIdentity = identity,
-                )
-            }
-
-            override fun onSessionReplaced(replacement: SeekSessionReplacement) {
-                val rebuilt = rebuiltSeekItem ?: return
-                rebuiltSeekItem = null
-                val index = items.indexOfFirst { it.itemId == rebuilt.itemId }
-                if (index >= 0) items[index] = rebuilt
-            }
-        }
-
     /* ---------- W73（#8）：网络类播放错误的原地重试状态 ---------- */
 
     private var lastNetworkErrorMediaId: String? = null
@@ -476,7 +447,6 @@ constructor(
         get() = playerHolder.backend
 
     init {
-        seekSink.bindSessionBridge(seekSessionBridge)
         viewModelScope.launch {
             seekSink.stateFlow.collect { state -> _uiState.update { it.copy(seekState = state) } }
         }
@@ -724,7 +694,7 @@ constructor(
             val mediaItems = mutableListOf<MediaItem>()
             try {
                 for (item in items) {
-                    mediaItems.add(item.toMediaItem())
+                    mediaItems.add(item.toMediaItem(application))
                 }
             } catch (e: Exception) {
                 Timber.e(e)
@@ -895,7 +865,7 @@ constructor(
             if (hasMediaItem(mediaId)) return@withContext false
             // 显式给下标：不依赖 BasePlayer 对"无下标 addMediaItem"的封装（mpv 内核上它传过越界值）
             val index = if (atFront) 0 else player.mediaItemCount
-            player.addMediaItem(index, item.toMediaItem())
+            player.addMediaItem(index, item.toMediaItem(application))
             rememberQueueItem(item)
             true
         }
@@ -966,53 +936,6 @@ constructor(
                 currentItemId = itemId,
             )
         }
-    }
-
-    private fun PlayerItem.toMediaItem(): MediaItem {
-        val streamUrl = mediaSourceUri
-        val mediaSubtitles = externalSubtitles.map { externalSubtitle ->
-            MediaItem.SubtitleConfiguration.Builder(externalSubtitle.uri)
-                .setLabel(
-                    externalSubtitle.title.ifBlank { application.getString(R.string.external) }
-                )
-                .setMimeType(externalSubtitle.mimeType)
-                .setLanguage(externalSubtitle.language)
-                .build()
-        }
-
-        Timber.d("Stream url: ${redactUrlSecrets(streamUrl)}")
-        val mediaItem =
-            MediaItem.Builder()
-                .setMediaId(itemId.toString())
-                .setUri(streamUrl)
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(name)
-                        // 缩略图随媒体项一起带走：队列列表显示缩略图、通知显示封面都读它
-                        .setArtworkUri(thumbnailUri?.let { Uri.parse(it) })
-                        // 队列面板需要按季分组：把季号/集号随媒体项一起带过去
-                        .setExtras(
-                            Bundle().apply {
-                                putInt(PLAYER_EXTRA_SEASON_NUMBER, parentIndexNumber ?: -1)
-                                putInt(PLAYER_EXTRA_EPISODE_NUMBER, indexNumber ?: -1)
-                                putString(PLAYER_EXTRA_MEDIA_SOURCE_ID, mediaSourceId)
-                                putLong(PLAYER_EXTRA_SEEK_SESSION_START_MS, playbackPosition)
-                                putString(PLAYER_EXTRA_SEEK_SOURCE_URI, streamUrl)
-                                // 信息面板（§1.8）：媒体源元数据随媒体项一起带走
-                                mediaInfo?.let { putParcelable(PLAYER_EXTRA_MEDIA_INFO, it) }
-                                // mpv 转码场景的 libass 兜底：字幕清单随条目走，容器无内嵌字幕时 sub-add
-                                putParcelableArrayList(
-                                    PLAYER_EXTRA_SUBTITLE_SOURCES,
-                                    ArrayList(subtitleSources),
-                                )
-                            }
-                        )
-                        .build()
-                )
-                .setSubtitleConfigurations(mediaSubtitles)
-                .build()
-
-        return mediaItem
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -1330,7 +1253,7 @@ constructor(
                         items.add(player.currentMediaItemIndex, previousItem)
                         player.addMediaItem(
                             player.currentMediaItemIndex,
-                            previousItem.toMediaItem(),
+                            previousItem.toMediaItem(application),
                         )
                     }
 
@@ -1339,7 +1262,7 @@ constructor(
                         items.add(player.currentMediaItemIndex + 1, nextItem)
                         player.addMediaItem(
                             player.currentMediaItemIndex + 1,
-                            nextItem.toMediaItem(),
+                            nextItem.toMediaItem(application),
                         )
                     }
 
@@ -1844,7 +1767,6 @@ constructor(
     override fun onCleared() {
         super.onCleared()
         Timber.d("Clearing Player ViewModel")
-        seekSink.unbindSessionBridge(seekSessionBridge)
         releasePlayer()
     }
 
@@ -3325,6 +3247,48 @@ constructor(
         super.onIsPlayingChanged(isPlaying)
         eventsChannel.trySend(PlayerEvents.IsPlayingChanged(isPlaying))
     }
+}
+
+internal fun PlayerItem.toMediaItem(application: Application): MediaItem {
+    val streamUrl = mediaSourceUri
+    val mediaSubtitles = externalSubtitles.map { externalSubtitle ->
+        MediaItem.SubtitleConfiguration.Builder(externalSubtitle.uri)
+            .setLabel(externalSubtitle.title.ifBlank { application.getString(R.string.external) })
+            .setMimeType(externalSubtitle.mimeType)
+            .setLanguage(externalSubtitle.language)
+            .build()
+    }
+
+    Timber.d("Stream url: ${redactUrlSecrets(streamUrl)}")
+    return MediaItem.Builder()
+        .setMediaId(itemId.toString())
+        .setUri(streamUrl)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(name)
+                // 缩略图随媒体项一起带走：队列列表显示缩略图、通知显示封面都读它
+                .setArtworkUri(thumbnailUri?.let { Uri.parse(it) })
+                // 队列面板需要按季分组：把季号/集号随媒体项一起带过去
+                .setExtras(
+                    Bundle().apply {
+                        putInt(PLAYER_EXTRA_SEASON_NUMBER, parentIndexNumber ?: -1)
+                        putInt(PLAYER_EXTRA_EPISODE_NUMBER, indexNumber ?: -1)
+                        putString(PLAYER_EXTRA_MEDIA_SOURCE_ID, mediaSourceId)
+                        putLong(PLAYER_EXTRA_SEEK_SESSION_START_MS, playbackPosition)
+                        putString(PLAYER_EXTRA_SEEK_SOURCE_URI, streamUrl)
+                        // 信息面板（§1.8）：媒体源元数据随媒体项一起带走
+                        mediaInfo?.let { putParcelable(PLAYER_EXTRA_MEDIA_INFO, it) }
+                        // mpv 转码场景的 libass 兜底：字幕清单随条目走，容器无内嵌字幕时 sub-add
+                        putParcelableArrayList(
+                            PLAYER_EXTRA_SUBTITLE_SOURCES,
+                            ArrayList(subtitleSources),
+                        )
+                    }
+                )
+                .build()
+        )
+        .setSubtitleConfigurations(mediaSubtitles)
+        .build()
 }
 
 sealed interface PlayerEvents {

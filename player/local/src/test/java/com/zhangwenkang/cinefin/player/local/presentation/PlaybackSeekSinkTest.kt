@@ -150,17 +150,7 @@ class PlaybackSeekSinkTest {
                 mediaSourceUri = currentUri,
             )
         var applied = 0
-        val sink =
-            PlaybackSeekSink(
-                scope = CoroutineScope(Dispatchers.Unconfined),
-                engineProvider = { SeekEngine.EXOPLAYER },
-                clock = { now },
-                transcodeDebounceMs = 0L,
-                mediaIdentityProvider = { currentIdentity },
-                mediaSourceUriProvider = { currentUri },
-            )
-        sink.attach(player.player)
-        sink.bindSessionBridge(
+        val bridge =
             object : SeekSessionBridge {
                 override suspend fun rebuildForSeek(
                     itemId: String,
@@ -182,7 +172,17 @@ class PlaybackSeekSinkTest {
                     applied++
                 }
             }
-        )
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                transcodeDebounceMs = 0L,
+                mediaIdentityProvider = { currentIdentity },
+                mediaSourceUriProvider = { currentUri },
+                sessionBridge = bridge,
+            )
+        sink.attach(player.player)
 
         sink.submit(PlayerViewModel.SeekIntent.Absolute(60_000L))
         val seeking = sink.state as SeekState.Seeking
@@ -200,6 +200,175 @@ class PlaybackSeekSinkTest {
         assertEquals(seeking.requestGeneration, confirmed.requestGeneration)
         assertEquals(2L, confirmed.sourceEpoch)
         assertEquals(60_100L, confirmed.positionMs)
+    }
+
+    @Test
+    fun `process bridge rebuilds HLS without a view model binding`() {
+        var now = 5_000L
+        val original =
+            directItem(
+                id = "item-process",
+                sourceId = "source-process",
+                uri = "https://media.example/video/master.m3u8?StartTimeTicks=0",
+            )
+        val replacement =
+            directItem(
+                id = "item-process",
+                sourceId = "source-process",
+                uri = "https://media.example/video/master.m3u8?StartTimeTicks=900000000",
+                sessionStartMs = 90_000L,
+            )
+        val player =
+            FakePlayer(
+                mediaItem = original,
+                currentPositionMs = 1_000L,
+                bufferedPositionMs = 1_000L,
+            )
+        var currentUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
+        var currentIdentity =
+            com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                itemId = "item-process",
+                mediaSourceId = "source-process",
+                mediaSourceUri = currentUri,
+            )
+        val processBridge =
+            object : SeekSessionBridge {
+                override suspend fun rebuildForSeek(
+                    itemId: String,
+                    targetMs: Long,
+                ): SeekSessionReplacement {
+                    assertEquals("item-process", itemId)
+                    assertEquals(90_000L, targetMs)
+                    currentUri = "https://media.example/video/master.m3u8?StartTimeTicks=900000000"
+                    currentIdentity =
+                        com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                            itemId = "item-process",
+                            mediaSourceId = "source-process",
+                            mediaSourceUri = currentUri,
+                        )
+                    return SeekSessionReplacement(replacement, currentIdentity)
+                }
+
+                override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
+            }
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                transcodeDebounceMs = 0L,
+                mediaIdentityProvider = { currentIdentity },
+                mediaSourceUriProvider = { currentUri },
+                sessionBridge = processBridge,
+            )
+        sink.attach(player.player)
+
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(90_000L))
+
+        val seeking = sink.state as SeekState.Seeking
+        assertTrue(player.calls.contains("replaceMediaItem"))
+        assertEquals(2L, seeking.sourceEpoch)
+        player.playbackState = Player.STATE_BUFFERING
+        player.emitMediaItemTransition(replacement)
+        player.emitSeekAccepted(positionMs = 90_000L, mediaItem = replacement)
+        now = 5_100L
+        player.emitPlaybackReady(positionMs = 90_100L)
+
+        val confirmed = sink.state as SeekState.Confirmed
+        assertEquals(seeking.requestGeneration, confirmed.requestGeneration)
+        assertEquals(2L, confirmed.sourceEpoch)
+        assertEquals(90_100L, confirmed.positionMs)
+    }
+
+    @Test
+    fun `process bridge and coordinator survive a recreated view session`() {
+        var now = 6_000L
+        val player =
+            FakePlayer(
+                mediaItem =
+                    directItem(
+                        id = "item-lifecycle",
+                        sourceId = "source-lifecycle",
+                        uri = "https://media.example/video/master.m3u8?StartTimeTicks=0",
+                    ),
+                currentPositionMs = 1_000L,
+                bufferedPositionMs = 1_000L,
+            )
+        var currentUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
+        var currentIdentity =
+            com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                itemId = "item-lifecycle",
+                mediaSourceId = "source-lifecycle",
+                mediaSourceUri = currentUri,
+            )
+        var rebuilds = 0
+        val processBridge =
+            object : SeekSessionBridge {
+                override suspend fun rebuildForSeek(
+                    itemId: String,
+                    targetMs: Long,
+                ): SeekSessionReplacement {
+                    rebuilds++
+                    currentUri =
+                        "https://media.example/video/master.m3u8?StartTimeTicks=" +
+                            (targetMs * 10_000L)
+                    currentIdentity =
+                        com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                            itemId = itemId,
+                            mediaSourceId = "source-lifecycle",
+                            mediaSourceUri = currentUri,
+                        )
+                    return SeekSessionReplacement(
+                        directItem(
+                            id = itemId,
+                            sourceId = "source-lifecycle",
+                            uri = currentUri,
+                            sessionStartMs = targetMs,
+                        ),
+                        currentIdentity,
+                    )
+                }
+
+                override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
+            }
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                transcodeDebounceMs = 0L,
+                mediaIdentityProvider = { currentIdentity },
+                mediaSourceUriProvider = { currentUri },
+                sessionBridge = processBridge,
+            )
+        sink.attach(player.player)
+        val coordinator = sink.coordinator
+
+        val firstSession = MediaSessionSeekPlayer(player.player, sink::submit)
+        firstSession.seekTo(60_000L)
+        val firstSeeking = sink.state as SeekState.Seeking
+        val firstReplacement = player.mediaItem
+        player.playbackState = Player.STATE_BUFFERING
+        player.emitMediaItemTransition(firstReplacement)
+        player.emitSeekAccepted(positionMs = 60_000L, mediaItem = firstReplacement)
+        now = 6_100L
+        player.emitPlaybackReady(positionMs = 60_100L)
+        assertEquals(2L, (sink.state as SeekState.Confirmed).sourceEpoch)
+
+        val recreatedSession = MediaSessionSeekPlayer(player.player, sink::submit)
+        recreatedSession.seekTo(120_000L)
+        val secondSeeking = sink.state as SeekState.Seeking
+        val secondReplacement = player.mediaItem
+        player.playbackState = Player.STATE_BUFFERING
+        player.emitMediaItemTransition(secondReplacement)
+        player.emitSeekAccepted(positionMs = 120_000L, mediaItem = secondReplacement)
+        now = 6_200L
+        player.emitPlaybackReady(positionMs = 120_100L)
+
+        assertTrue(coordinator === sink.coordinator)
+        assertEquals(2, rebuilds)
+        assertEquals(firstSeeking.requestGeneration + 1L, secondSeeking.requestGeneration)
+        assertEquals(3L, (sink.state as SeekState.Confirmed).sourceEpoch)
     }
 
     @Test

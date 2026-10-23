@@ -11,17 +11,20 @@ import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
+import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.isPlayingMusicItem
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -37,6 +40,7 @@ class PlayerHolder
 @Inject
 constructor(
     private val application: Application,
+    val playlistManager: PlaylistManager,
     private val appPreferences: AppPreferences,
     private val musicAudioEffects: MusicAudioEffectsController,
 ) {
@@ -49,6 +53,26 @@ constructor(
     private var instance: Player? = null
     private var instanceBackend: String? = null
 
+    private val processSeekSessionBridge =
+        object : SeekSessionBridge {
+            override suspend fun rebuildForSeek(
+                itemId: String,
+                targetMs: Long,
+            ): SeekSessionReplacement? {
+                val parsedItemId =
+                    runCatching { UUID.fromString(itemId) }.getOrNull() ?: return null
+                val rebuilt =
+                    withContext(Dispatchers.IO) {
+                        playlistManager.rebuildPlayerItemForPosition(parsedItemId, targetMs)
+                    } ?: return null
+                val mediaItem = rebuilt.toMediaItem(application)
+                val mediaIdentity = seekMediaIdentityFromItem(mediaItem) ?: return null
+                return SeekSessionReplacement(mediaItem, mediaIdentity)
+            }
+
+            override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
+        }
+
     /** Process-scoped, shared by MediaSession and every playback ViewModel. */
     val seekSink: PlaybackSeekSink =
         PlaybackSeekSink(
@@ -56,6 +80,7 @@ constructor(
             engineProvider = {
                 if (backend == BACKEND_MPV) SeekEngine.MPV else SeekEngine.EXOPLAYER
             },
+            sessionBridge = processSeekSessionBridge,
         )
 
     private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
