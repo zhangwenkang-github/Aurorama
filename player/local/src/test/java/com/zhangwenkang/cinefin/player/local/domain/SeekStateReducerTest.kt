@@ -493,18 +493,9 @@ class SeekStateReducerTest {
         assertEquals(8L, generation)
         reducer.onDispatched(requestGeneration = generation, nowElapsedMs = 1_003L)
 
-        // Media3 reports the new item's SEEK discontinuity before MEDIA_ITEM_TRANSITION.
-        reducer.observeSource(newIdentity)
-        reducer.onAccepted(
-            SeekEngineEvidence(
-                requestGeneration = generation,
-                sourceEpoch = 2L,
-                mediaIdentity = newIdentity,
-                positionMs = 0L,
-                kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
-            )
-        )
-        reducer.onSourceReplaced(newIdentity)
+        // The coordinator holds an accepted anchor until Media3 reports the authoritative
+        // transition, then applies that anchor to the new source cursor.
+        reducer.onSourceReplaced(newIdentity, acceptedPositionMs = 0L)
         val transitionedSeeking = reducer.state as SeekState.Seeking
         assertEquals(2L, transitionedSeeking.sourceEpoch)
         assertEquals(newIdentity, transitionedSeeking.mediaIdentity)

@@ -6,6 +6,13 @@ data class SeekMediaIdentity(
     val sourceFingerprint: String,
 )
 
+data class SeekRequestLease(
+    val requestGeneration: Long,
+    val sourceEpoch: Long,
+    val mediaIdentity: SeekMediaIdentity,
+    val targetMs: Long,
+)
+
 data class SeekConfirmationPolicy(
     val completionTimeoutMs: Long,
     val positionToleranceMs: Long,
@@ -20,6 +27,7 @@ enum class SeekEngineEvidenceKind {
 enum class SeekFailureReason {
     REJECTED,
     ENGINE_ERROR,
+    SOURCE_CHANGED,
     SESSION_REBUILD_FAILED,
     TIMEOUT,
 }
@@ -89,22 +97,13 @@ class SeekStateReducer {
         get() = currentSourceMediaIdentity
 
     /**
-     * Source epoch and identity have one owner. Repeated observations of the same source are
-     * idempotent, so accepted-before-transition and transition-before-accepted both converge.
+     * An observation may initialize the cursor, but it can never move an already initialized
+     * cursor. Authoritative player transitions use [onSourceReplaced].
      */
     fun observeSource(mediaIdentity: SeekMediaIdentity): Boolean {
-        if (currentSourceMediaIdentity == mediaIdentity) return false
-        currentSourceEpoch += 1L
+        if (currentSourceMediaIdentity != null) return false
+        currentSourceEpoch = 1L
         currentSourceMediaIdentity = mediaIdentity
-        val seeking = state as? SeekState.Seeking
-        if (seeking != null) {
-            state =
-                seeking.copy(
-                    sourceEpoch = currentSourceEpoch,
-                    mediaIdentity = mediaIdentity,
-                    acceptedPositionMs = null,
-                )
-        }
         return true
     }
 
@@ -236,8 +235,28 @@ class SeekStateReducer {
             )
     }
 
-    fun onSourceReplaced(mediaIdentity: SeekMediaIdentity) {
-        observeSource(mediaIdentity)
+    fun onSourceReplaced(
+        mediaIdentity: SeekMediaIdentity,
+        acceptedPositionMs: Long? = null,
+    ): Boolean {
+        if (currentSourceMediaIdentity == mediaIdentity) {
+            val seeking = state as? SeekState.Seeking
+            if (seeking == null || seeking.acceptedPositionMs == acceptedPositionMs) return false
+            state = seeking.copy(acceptedPositionMs = acceptedPositionMs)
+            return true
+        }
+        currentSourceEpoch += 1L
+        currentSourceMediaIdentity = mediaIdentity
+        val seeking = state as? SeekState.Seeking
+        if (seeking != null) {
+            state =
+                seeking.copy(
+                    sourceEpoch = currentSourceEpoch,
+                    mediaIdentity = mediaIdentity,
+                    acceptedPositionMs = acceptedPositionMs,
+                )
+        }
+        return true
     }
 
     fun onTargetResolved(

@@ -98,6 +98,14 @@ class MPVPlayer(
     private val commandHandler: Handler = Handler(commandThread.looper)
     private val commandsClosed = AtomicBoolean(false)
     private val seekEventListeners = mutableSetOf<MpvSeekEventListener>()
+    private val seekEventRelay = MpvSeekEventRelay { event ->
+        when (event) {
+            MpvSeekEvent.SeekAccepted ->
+                seekEventListeners.toList().forEach { it.onMpvSeekAccepted() }
+            is MpvSeekEvent.PlaybackRestarted ->
+                seekEventListeners.toList().forEach { it.onMpvPlaybackRestarted(event.positionMs) }
+        }
+    }
 
     private constructor(
         builder: Builder
@@ -586,11 +594,7 @@ class MPVPlayer(
                 }
                 MpvEvent.MPV_EVENT_SEEK -> {
                     setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
-                    listeners.sendEvent(EVENT_POSITION_DISCONTINUITY) { listener ->
-                        @Suppress("DEPRECATION")
-                        listener.onPositionDiscontinuity(DISCONTINUITY_REASON_SEEK)
-                    }
-                    seekEventListeners.toList().forEach { it.onMpvSeekAccepted() }
+                    seekEventRelay.onSeekEvent()
                 }
                 MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
                     if (!isPlayerReady) {
@@ -610,9 +614,7 @@ class MPVPlayer(
                         mpvLib.getPropertyDouble("time-pos")?.times(C.MILLIS_PER_SECOND)?.toLong()
                             ?: currentPositionMs
                             ?: 0L
-                    seekEventListeners.toList().forEach {
-                        it.onMpvPlaybackRestarted(restartedPositionMs)
-                    }
+                    seekEventRelay.onPlaybackRestartedEvent(restartedPositionMs)
                 }
                 /*
                  * W18：mpv 的播放失败上报。

@@ -64,10 +64,10 @@ fun seekMediaIdentityFor(
 /**
  * Correlates callback-only engine events with the seek dispatch that caused them.
  *
- * Media3 and mpv do not attach a seek request id to their callbacks. Dispatches are therefore
- * consumed in call order, and an observation is accepted only when its engine, media identity,
- * target position and policy tolerance match. Superseded dispatches stay in the queue long enough
- * to absorb their late callbacks; only the current reducer generation may change visible state.
+ * Media3 and mpv do not attach a seek request id to their callbacks. An observation is accepted
+ * only when its engine, media identity, target position and policy tolerance match. Same-target
+ * dispatches are coalesced because engines may merge consecutive seeks; only the current reducer
+ * generation may change visible state.
  */
 class SeekRequestCoordinator {
     private val reducer = SeekStateReducer()
@@ -80,6 +80,7 @@ class SeekRequestCoordinator {
         val targetMs: Long,
         val positionToleranceMs: Long,
         var accepted: Boolean = false,
+        var acceptedPositionMs: Long? = null,
         var completed: Boolean = false,
     )
 
@@ -96,6 +97,13 @@ class SeekRequestCoordinator {
 
     fun observeSource(mediaIdentity: SeekMediaIdentity): Boolean =
         reducer.observeSource(mediaIdentity)
+
+    fun ensureSource(mediaIdentity: SeekMediaIdentity): Boolean =
+        when {
+            reducer.sourceMediaIdentity == null -> reducer.observeSource(mediaIdentity)
+            reducer.sourceMediaIdentity == mediaIdentity -> false
+            else -> onSourceTransition(mediaIdentity)
+        }
 
     fun beginRequest(
         targetMs: Long,
@@ -124,6 +132,24 @@ class SeekRequestCoordinator {
             policy = seekConfirmationPolicyForTarget(engine, targetSourceUri),
         )
 
+    fun beginRequestForTargetFromSource(
+        currentMediaIdentity: SeekMediaIdentity,
+        targetMs: Long,
+        durationMs: Long,
+        issuedAtMs: Long,
+        engine: SeekEngine,
+        targetSourceUri: String,
+    ): Long {
+        ensureSource(currentMediaIdentity)
+        return beginRequestForTarget(
+            targetMs = targetMs,
+            durationMs = durationMs,
+            issuedAtMs = issuedAtMs,
+            engine = engine,
+            targetSourceUri = targetSourceUri,
+        )
+    }
+
     fun onDispatched(
         requestGeneration: Long,
         engine: SeekEngine,
@@ -150,23 +176,26 @@ class SeekRequestCoordinator {
         mediaIdentity: SeekMediaIdentity,
         positionMs: Long?,
     ): Boolean {
-        val dispatch =
-            dispatches.firstOrNull {
-                !it.accepted &&
-                    !it.completed &&
-                    it.engine == engine &&
-                    it.expectedMediaIdentity == mediaIdentity &&
-                    (positionMs == null || abs(positionMs - it.targetMs) <= it.positionToleranceMs)
-            } ?: return false
-        dispatch.accepted = true
+        val matchingDispatches = dispatches.filter {
+            !it.accepted &&
+                !it.completed &&
+                it.engine == engine &&
+                it.expectedMediaIdentity == mediaIdentity &&
+                (positionMs == null || abs(positionMs - it.targetMs) <= it.positionToleranceMs)
+        }
+        if (matchingDispatches.isEmpty()) return false
+        matchingDispatches.forEach {
+            it.accepted = true
+            it.acceptedPositionMs = positionMs ?: it.targetMs
+        }
         val current = reducer.state as? SeekState.Seeking ?: return false
-        if (current.requestGeneration != dispatch.requestGeneration) return false
-        reducer.observeSource(mediaIdentity)
-        val observed = reducer.state as? SeekState.Seeking ?: return false
+        val dispatch =
+            matchingDispatches.firstOrNull { it.requestGeneration == current.requestGeneration }
+                ?: return false
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = dispatch.requestGeneration,
-                sourceEpoch = observed.sourceEpoch,
+                sourceEpoch = current.sourceEpoch,
                 mediaIdentity = mediaIdentity,
                 positionMs = positionMs ?: current.targetMs,
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
@@ -181,20 +210,23 @@ class SeekRequestCoordinator {
         positionMs: Long,
         nowElapsedMs: Long,
     ): Boolean {
-        val dispatch =
-            dispatches.firstOrNull {
-                it.accepted &&
-                    !it.completed &&
-                    it.engine == engine &&
-                    it.expectedMediaIdentity == mediaIdentity &&
-                    abs(positionMs - it.targetMs) <= it.positionToleranceMs
-            } ?: return false
+        val matchingDispatches = dispatches.filter {
+            it.accepted &&
+                !it.completed &&
+                it.engine == engine &&
+                it.expectedMediaIdentity == mediaIdentity &&
+                abs(positionMs - it.targetMs) <= it.positionToleranceMs
+        }
+        if (matchingDispatches.isEmpty()) return false
         val current = reducer.state as? SeekState.Seeking ?: return false
-        if (current.requestGeneration != dispatch.requestGeneration) {
-            dispatch.completed = true
+        val dispatch = matchingDispatches.firstOrNull {
+            it.requestGeneration == current.requestGeneration
+        }
+        if (dispatch == null) {
+            matchingDispatches.forEach { it.completed = true }
             return false
         }
-        dispatch.completed = true
+        matchingDispatches.forEach { it.completed = true }
         reducer.onCompletionEvidence(
             SeekEngineEvidence(
                 requestGeneration = dispatch.requestGeneration,
@@ -243,17 +275,66 @@ class SeekRequestCoordinator {
         return reducer.state is SeekState.Failed
     }
 
-    fun onSourceTransition(mediaIdentity: SeekMediaIdentity): Boolean {
-        val previousEpoch = reducer.sourceEpoch
-        reducer.onSourceReplaced(mediaIdentity)
-        return reducer.sourceEpoch != previousEpoch
+    fun onSourceTransition(
+        mediaIdentity: SeekMediaIdentity,
+        nowElapsedMs: Long = 0L,
+    ): Boolean {
+        val seeking = reducer.state as? SeekState.Seeking
+        val currentDispatch = seeking?.let { state ->
+            dispatches.firstOrNull { it.requestGeneration == state.requestGeneration }
+        }
+        val expectedIdentity = currentDispatch?.expectedMediaIdentity ?: seeking?.mediaIdentity
+        if (seeking != null && expectedIdentity != mediaIdentity) {
+            dispatches.removeAll { it.requestGeneration <= seeking.requestGeneration }
+            reducer.onSourceReplaced(mediaIdentity)
+            reducer.onFailure(
+                SeekEngineFailure(
+                    requestGeneration = seeking.requestGeneration,
+                    sourceEpoch = reducer.sourceEpoch,
+                    mediaIdentity = mediaIdentity,
+                    reason = SeekFailureReason.SOURCE_CHANGED,
+                    retryable = true,
+                ),
+                nowElapsedMs = nowElapsedMs,
+            )
+            return true
+        }
+        val acceptedPositionMs =
+            currentDispatch
+                ?.takeIf { it.expectedMediaIdentity == mediaIdentity && it.accepted }
+                ?.acceptedPositionMs
+        val changed = reducer.onSourceReplaced(mediaIdentity, acceptedPositionMs)
+        dispatches.removeAll { it.completed || it.expectedMediaIdentity != mediaIdentity }
+        return changed
     }
 
-    fun prepareSourceReplacement(mediaIdentity: SeekMediaIdentity): Boolean {
-        val changed = reducer.observeSource(mediaIdentity)
+    fun captureRequestLease(): SeekRequestLease? {
+        val seeking = reducer.state as? SeekState.Seeking ?: return null
+        return SeekRequestLease(
+            requestGeneration = seeking.requestGeneration,
+            sourceEpoch = seeking.sourceEpoch,
+            mediaIdentity = seeking.mediaIdentity,
+            targetMs = seeking.targetMs,
+        )
+    }
+
+    fun isCurrent(lease: SeekRequestLease): Boolean {
+        val seeking = reducer.state as? SeekState.Seeking ?: return false
+        return seeking.requestGeneration == lease.requestGeneration &&
+            seeking.sourceEpoch == lease.sourceEpoch &&
+            seeking.mediaIdentity == lease.mediaIdentity &&
+            seeking.targetMs == lease.targetMs
+    }
+
+    fun prepareSourceReplacement(
+        lease: SeekRequestLease,
+        mediaIdentity: SeekMediaIdentity,
+    ): Boolean {
+        if (!isCurrent(lease)) return false
+        val changed = reducer.onSourceReplaced(mediaIdentity)
         val seeking = reducer.state as? SeekState.Seeking ?: return changed
         val index = dispatches.indexOfLast {
-            it.requestGeneration == seeking.requestGeneration && !it.completed
+            it.requestGeneration == lease.requestGeneration && !it.completed
         }
         if (index >= 0) {
             dispatches[index] =
@@ -261,6 +342,7 @@ class SeekRequestCoordinator {
                     sourceEpoch = seeking.sourceEpoch,
                     expectedMediaIdentity = mediaIdentity,
                     accepted = false,
+                    acceptedPositionMs = null,
                 )
         }
         return changed
@@ -288,14 +370,29 @@ class SeekRequestCoordinator {
     }
 
     fun onTick(nowElapsedMs: Long) {
+        val dispatching = reducer.state as? SeekState.Seeking
+        val dispatchingGeneration = dispatching?.requestGeneration
         reducer.onTick(nowElapsedMs)
+        val timedOut =
+            reducer.state.let { state ->
+                state is SeekState.Failed &&
+                    state.requestGeneration == dispatchingGeneration &&
+                    state.reason == SeekFailureReason.TIMEOUT
+            }
+        if (timedOut && dispatchingGeneration != null) {
+            // A timed-out dispatch can never accept later evidence. Retire it together with all
+            // older unresolved dispatches so a same-target retry starts with a clean queue.
+            dispatches.removeAll { it.requestGeneration <= dispatchingGeneration }
+        }
     }
 
     fun failCurrent(
         reason: SeekFailureReason,
         retryable: Boolean,
         nowElapsedMs: Long,
+        lease: SeekRequestLease? = null,
     ): Boolean {
+        if (lease != null && !isCurrent(lease)) return false
         val seeking = reducer.state as? SeekState.Seeking ?: return false
         reducer.onFailure(
             SeekEngineFailure(

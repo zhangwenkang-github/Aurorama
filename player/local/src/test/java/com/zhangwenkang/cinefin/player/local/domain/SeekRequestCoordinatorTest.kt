@@ -88,70 +88,6 @@ class SeekRequestCoordinatorTest {
     }
 
     @Test
-    fun `same target late events are consumed by the superseded dispatch first`() {
-        val coordinator = SeekRequestCoordinator()
-        coordinator.observeSource(identity)
-        val first =
-            coordinator.beginRequest(
-                targetMs = 60_000L,
-                durationMs = 120_000L,
-                issuedAtMs = 1_000L,
-                policy = policy,
-            )
-        coordinator.onDispatched(
-            requestGeneration = first,
-            engine = SeekEngine.EXOPLAYER,
-            expectedMediaIdentity = identity,
-            nowElapsedMs = 1_003L,
-        )
-        val second =
-            coordinator.beginRequest(
-                targetMs = 60_000L,
-                durationMs = 120_000L,
-                issuedAtMs = 1_100L,
-                policy = policy,
-            )
-        coordinator.onDispatched(
-            requestGeneration = second,
-            engine = SeekEngine.EXOPLAYER,
-            expectedMediaIdentity = identity,
-            nowElapsedMs = 1_103L,
-        )
-
-        coordinator.onSeekAccepted(
-            engine = SeekEngine.EXOPLAYER,
-            mediaIdentity = identity,
-            positionMs = 60_000L,
-        )
-        coordinator.onPlaybackReady(
-            engine = SeekEngine.EXOPLAYER,
-            mediaIdentity = identity,
-            positionMs = 60_050L,
-            nowElapsedMs = 1_200L,
-        )
-
-        assertEquals(second, (coordinator.state as SeekState.Seeking).requestGeneration)
-        assertEquals(null, (coordinator.state as SeekState.Seeking).acceptedPositionMs)
-
-        coordinator.onSeekAccepted(
-            engine = SeekEngine.EXOPLAYER,
-            mediaIdentity = identity,
-            positionMs = 60_000L,
-        )
-        coordinator.onPlaybackReady(
-            engine = SeekEngine.EXOPLAYER,
-            mediaIdentity = identity,
-            positionMs = 60_100L,
-            nowElapsedMs = 1_300L,
-        )
-
-        assertEquals(
-            second,
-            (coordinator.state as SeekState.Confirmed).requestGeneration,
-        )
-    }
-
-    @Test
     fun `late mpv restart cannot complete a newer dispatch without its fresh seek anchor`() {
         val coordinator = SeekRequestCoordinator()
         coordinator.observeSource(identity)
@@ -236,6 +172,12 @@ class SeekRequestCoordinatorTest {
             mediaIdentity = nextIdentity,
             positionMs = 0L,
         )
+        val pendingTransition = coordinator.state as SeekState.Seeking
+        assertEquals(1L, pendingTransition.sourceEpoch)
+        assertEquals(identity, pendingTransition.mediaIdentity)
+        assertEquals(null, pendingTransition.acceptedPositionMs)
+
+        coordinator.onSourceTransition(nextIdentity)
         val accepted = coordinator.state as SeekState.Seeking
         assertEquals(2L, accepted.sourceEpoch)
         assertEquals(nextIdentity, accepted.mediaIdentity)
@@ -253,7 +195,6 @@ class SeekRequestCoordinatorTest {
         assertEquals(2L, followUpSeeking.sourceEpoch)
         assertEquals(nextIdentity, followUpSeeking.mediaIdentity)
 
-        coordinator.onSourceTransition(nextIdentity)
         val afterTransition = coordinator.state as SeekState.Seeking
         assertEquals(2L, afterTransition.sourceEpoch)
         assertEquals(nextIdentity, afterTransition.mediaIdentity)
@@ -368,8 +309,9 @@ class SeekRequestCoordinatorTest {
             expectedMediaIdentity = nextIdentity,
             nowElapsedMs = 1_003L,
         )
+        val lease = requireNotNull(coordinator.captureRequestLease())
 
-        coordinator.prepareSourceReplacement(nextIdentity)
+        coordinator.prepareSourceReplacement(lease, nextIdentity)
         val replaced = coordinator.state as SeekState.Seeking
         assertEquals(2L, replaced.sourceEpoch)
         assertEquals(nextIdentity, replaced.mediaIdentity)
@@ -550,7 +492,10 @@ class SeekRequestCoordinatorTest {
             expectedMediaIdentity = nextIdentity,
             nowElapsedMs = 1_003L,
         )
-        coordinator.prepareSourceReplacement(nextIdentity)
+        coordinator.prepareSourceReplacement(
+            requireNotNull(coordinator.captureRequestLease()),
+            nextIdentity,
+        )
         coordinator.onSeekAccepted(
             engine = SeekEngine.EXOPLAYER,
             mediaIdentity = nextIdentity,
@@ -618,5 +563,321 @@ class SeekRequestCoordinatorTest {
         assertEquals(2L, retrying.sourceEpoch)
         assertEquals(nextIdentity, retrying.mediaIdentity)
         assertEquals(null, retrying.acceptedPositionMs)
+    }
+
+    @Test
+    fun `timeout retires old dispatch before same target retry`() {
+        val coordinator = SeekRequestCoordinator()
+        coordinator.observeSource(identity)
+        val first =
+            coordinator.beginRequest(
+                targetMs = 60_000L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_000L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = first,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_000L,
+        )
+
+        coordinator.onTick(nowElapsedMs = 5_000L)
+        assertEquals(SeekFailureReason.TIMEOUT, (coordinator.state as SeekState.Failed).reason)
+
+        val retry = requireNotNull(coordinator.retryRequest(nowElapsedMs = 5_100L))
+        coordinator.onDispatched(
+            requestGeneration = retry,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 5_100L,
+        )
+
+        assertTrue(
+            coordinator.onSeekAccepted(
+                engine = SeekEngine.EXOPLAYER,
+                mediaIdentity = identity,
+                positionMs = 60_000L,
+            )
+        )
+        assertTrue(
+            coordinator.onPlaybackReady(
+                engine = SeekEngine.EXOPLAYER,
+                mediaIdentity = identity,
+                positionMs = 60_100L,
+                nowElapsedMs = 5_200L,
+            )
+        )
+        assertEquals(retry, (coordinator.state as SeekState.Confirmed).requestGeneration)
+    }
+
+    @Test
+    fun `one coalesced mpv seek and restart confirm the latest same target request`() {
+        val coordinator = SeekRequestCoordinator()
+        coordinator.observeSource(identity)
+        val first =
+            coordinator.beginRequest(
+                targetMs = 60_000L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_000L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = first,
+            engine = SeekEngine.MPV,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_000L,
+        )
+        val second =
+            coordinator.beginRequest(
+                targetMs = 60_000L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_100L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = second,
+            engine = SeekEngine.MPV,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_100L,
+        )
+
+        assertTrue(
+            coordinator.onSeekAccepted(
+                engine = SeekEngine.MPV,
+                mediaIdentity = identity,
+                positionMs = null,
+            )
+        )
+        assertTrue(
+            coordinator.onPlaybackReady(
+                engine = SeekEngine.MPV,
+                mediaIdentity = identity,
+                positionMs = 60_050L,
+                nowElapsedMs = 1_200L,
+            )
+        )
+        assertEquals(second, (coordinator.state as SeekState.Confirmed).requestGeneration)
+    }
+
+    @Test
+    fun `late source a evidence cannot pull the cursor back after transition to b`() {
+        val coordinator = SeekRequestCoordinator()
+        coordinator.observeSource(identity)
+        val generation =
+            coordinator.beginRequest(
+                targetMs = 45_000L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_000L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = generation,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_000L,
+        )
+
+        coordinator.onSourceTransition(nextIdentity)
+
+        val failed = coordinator.state as SeekState.Failed
+        assertEquals(generation, failed.requestGeneration)
+        assertEquals(45_000L, failed.targetMs)
+        assertTrue(failed.reason != SeekFailureReason.TIMEOUT)
+        assertEquals(nextIdentity, coordinator.sourceMediaIdentity)
+        assertEquals(2L, coordinator.sourceEpoch)
+
+        assertFalse(
+            coordinator.onSeekAccepted(
+                engine = SeekEngine.EXOPLAYER,
+                mediaIdentity = identity,
+                positionMs = 45_000L,
+            )
+        )
+        assertFalse(
+            coordinator.onPlaybackReady(
+                engine = SeekEngine.EXOPLAYER,
+                mediaIdentity = identity,
+                positionMs = 45_050L,
+                nowElapsedMs = 1_200L,
+            )
+        )
+        assertEquals(nextIdentity, coordinator.sourceMediaIdentity)
+        assertEquals(2L, coordinator.sourceEpoch)
+        assertTrue(coordinator.state is SeekState.Failed)
+    }
+
+    @Test
+    fun `old rebuild lease cannot replace a newer target request`() {
+        val coordinator = SeekRequestCoordinator()
+        coordinator.observeSource(identity)
+        val first =
+            coordinator.beginRequest(
+                targetMs = 45_000L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_000L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = first,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_000L,
+        )
+        val oldLease = requireNotNull(coordinator.captureRequestLease())
+
+        val second =
+            coordinator.beginRequest(
+                targetMs = 0L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_100L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = second,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = nextIdentity,
+            nowElapsedMs = 1_100L,
+        )
+
+        assertFalse(coordinator.isCurrent(oldLease))
+        assertFalse(coordinator.prepareSourceReplacement(oldLease, nextIdentity))
+        val current = coordinator.state as SeekState.Seeking
+        assertEquals(second, current.requestGeneration)
+        assertEquals(0L, current.targetMs)
+        assertEquals(identity, current.mediaIdentity)
+
+        coordinator.onSourceTransition(nextIdentity)
+        assertTrue(
+            coordinator.onSeekAccepted(
+                engine = SeekEngine.EXOPLAYER,
+                mediaIdentity = nextIdentity,
+                positionMs = 0L,
+            )
+        )
+        assertTrue(
+            coordinator.onPlaybackReady(
+                engine = SeekEngine.EXOPLAYER,
+                mediaIdentity = nextIdentity,
+                positionMs = 20L,
+                nowElapsedMs = 1_200L,
+            )
+        )
+        assertEquals(second, (coordinator.state as SeekState.Confirmed).requestGeneration)
+        assertEquals(0L, (coordinator.state as SeekState.Confirmed).targetMs)
+    }
+
+    @Test
+    fun `rebuild failure only fails its current lease and retry keeps target`() {
+        val coordinator = SeekRequestCoordinator()
+        coordinator.observeSource(identity)
+        val first =
+            coordinator.beginRequest(
+                targetMs = 45_000L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_000L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = first,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_000L,
+        )
+        val oldLease = requireNotNull(coordinator.captureRequestLease())
+
+        val second =
+            coordinator.beginRequest(
+                targetMs = 60_000L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_100L,
+                policy = policy,
+            )
+        coordinator.onDispatched(
+            requestGeneration = second,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_100L,
+        )
+        val currentLease = requireNotNull(coordinator.captureRequestLease())
+
+        assertFalse(
+            coordinator.failCurrent(
+                lease = oldLease,
+                reason = SeekFailureReason.SESSION_REBUILD_FAILED,
+                retryable = true,
+                nowElapsedMs = 1_200L,
+            )
+        )
+        assertEquals(second, (coordinator.state as SeekState.Seeking).requestGeneration)
+
+        assertTrue(
+            coordinator.failCurrent(
+                lease = currentLease,
+                reason = SeekFailureReason.SESSION_REBUILD_FAILED,
+                retryable = true,
+                nowElapsedMs = 1_300L,
+            )
+        )
+        val failed = coordinator.state as SeekState.Failed
+        assertEquals(second, failed.requestGeneration)
+        assertEquals(60_000L, failed.targetMs)
+        assertEquals(SeekFailureReason.SESSION_REBUILD_FAILED, failed.reason)
+
+        val retry = requireNotNull(coordinator.retryRequest(nowElapsedMs = 1_400L))
+        val retrying = coordinator.state as SeekState.Seeking
+        assertEquals(retry, retrying.requestGeneration)
+        assertEquals(60_000L, retrying.targetMs)
+    }
+
+    @Test
+    fun `attached current source can begin a media item request without a prior observation`() {
+        val coordinator = SeekRequestCoordinator()
+
+        val generation =
+            coordinator.beginRequestForTargetFromSource(
+                currentMediaIdentity = identity,
+                targetMs = 0L,
+                durationMs = 120_000L,
+                issuedAtMs = 1_000L,
+                engine = SeekEngine.EXOPLAYER,
+                targetSourceUri = "https://media.example/item/master.m3u8",
+            )
+
+        val seeking = coordinator.state as SeekState.Seeking
+        assertEquals(generation, seeking.requestGeneration)
+        assertEquals(identity, coordinator.sourceMediaIdentity)
+        assertEquals(1L, coordinator.sourceEpoch)
+        assertEquals(0L, seeking.targetMs)
+        assertEquals(35_000L, seeking.policy.completionTimeoutMs)
+    }
+
+    @Test
+    fun `engine error without an accepted seek anchor is not attributed to the request`() {
+        val coordinator = SeekRequestCoordinator()
+        coordinator.observeSource(identity)
+        coordinator.beginRequest(
+            targetMs = 30_000L,
+            durationMs = 120_000L,
+            issuedAtMs = 1_000L,
+            policy = policy,
+        )
+        coordinator.onDispatched(
+            requestGeneration = 1L,
+            engine = SeekEngine.EXOPLAYER,
+            expectedMediaIdentity = identity,
+            nowElapsedMs = 1_000L,
+        )
+
+        assertFalse(
+            coordinator.onEngineError(
+                engine = SeekEngine.EXOPLAYER,
+                mediaIdentity = identity,
+                retryable = true,
+                nowElapsedMs = 1_100L,
+            )
+        )
+        assertTrue(coordinator.state is SeekState.Seeking)
     }
 }

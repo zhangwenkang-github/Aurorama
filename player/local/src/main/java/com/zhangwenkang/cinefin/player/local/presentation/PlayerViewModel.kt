@@ -54,6 +54,7 @@ import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.SeekRequestCoordinator
+import com.zhangwenkang.cinefin.player.local.domain.SeekRequestLease
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
@@ -387,9 +388,10 @@ constructor(
     /** 转码重开会话的尾部去抖任务；拖动 / 连点只落最后一次目标。 */
     private var transcodeRestartDebounceJob: Job? = null
 
-    /** 重开会话进行中时又有新目标：记下来，完成后再合并执行一次。 */
-    private var transcodeRestartPendingTargetMs: Long? = null
-    private var transcodeRestartInFlight = false
+    /** 重开会话进行中时又有新目标：只允许同一个 seek lease 合并执行一次。 */
+    private var transcodeRestartPendingLease: SeekRequestLease? = null
+    private var transcodeRestartJob: Job? = null
+    private var transcodeRestartLease: SeekRequestLease? = null
     private var transcodeRestartWindowStartMs = 0L
     private var transcodeRestartWindowCount = 0
     private var lastTranscodeRestartMediaId: String? = null
@@ -399,6 +401,23 @@ constructor(
     private val seekCoordinator = SeekRequestCoordinator()
     private var pendingSeekGeneration: Long? = null
     private var seekTimeoutJob: Job? = null
+    private val seekPlayerEventListener by lazy {
+        SeekPlayerEventListener(
+            coordinator = seekCoordinator,
+            engine = ::currentSeekEngine,
+            mediaIdentity = ::seekMediaIdentity,
+            readyPositionMs = {
+                playerHolder.existingPlayer
+                    ?.takeIf { it.playbackState == Player.STATE_READY }
+                    ?.currentPosition
+            },
+            nowElapsedMs = SystemClock::elapsedRealtime,
+            onStateChanged = {
+                publishSeekState()
+                if (seekCoordinator.state is SeekState.Confirmed) seekTimeoutJob?.cancel()
+            },
+        )
+    }
 
     /* ---------- W73（#8）：网络类播放错误的原地重试状态 ---------- */
 
@@ -940,6 +959,7 @@ constructor(
     fun attachToExistingSession() {
         player.addListener(this)
         (player as? MPVPlayer)?.addSeekEventListener(this)
+        seekMediaIdentity()?.let(seekCoordinator::ensureSource)
         applySavedSubtitlePreferences()
         // W27：接管会话（通知 / 锁屏回前台）时补上侧载字幕；自研管线还没建立才重建，避免覆盖本次会话的手动选轨
         player.currentMediaItem?.mediaId?.let { mediaId ->
@@ -1256,6 +1276,13 @@ constructor(
         seekMediaIdentity(mediaItem)?.let { identity ->
             seekCoordinator.onSourceTransition(identity)
             publishSeekState()
+            if (
+                (seekCoordinator.state as? SeekState.Failed)?.reason ==
+                    SeekFailureReason.SOURCE_CHANGED
+            ) {
+                cancelTranscodeSeekWork()
+                seekTimeoutJob?.cancel()
+            }
         }
         // 条目 / 媒体源一变化先清空旧快照；后续只有同一 identity 的结果能重新填入。
         refreshUiStateFromPlayer()
@@ -1511,42 +1538,15 @@ constructor(
         newPosition: Player.PositionInfo,
         reason: Int,
     ) {
-        if (
-            playerBackend == PLAYER_BACKEND_EXOPLAYER && reason == Player.DISCONTINUITY_REASON_SEEK
-        ) {
-            val identity = seekMediaIdentity(newPosition.mediaItem) ?: return
-            if (newPosition.positionMs < 0L) return
-            onSeekAccepted(
-                engine = SeekEngine.EXOPLAYER,
-                identity = identity,
-                positionMs = newPosition.positionMs,
-            )
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    override fun onPositionDiscontinuity(reason: Int) {
-        if (playerBackend == PLAYER_BACKEND_MPV && reason == Player.DISCONTINUITY_REASON_SEEK) {
-            onMpvSeekAccepted()
-        }
+        seekPlayerEventListener.onPositionDiscontinuity(oldPosition, newPosition, reason)
     }
 
     override fun onMpvSeekAccepted() {
-        val identity = seekMediaIdentity() ?: return
-        onSeekAccepted(
-            engine = SeekEngine.MPV,
-            identity = identity,
-            positionMs = null,
-        )
+        seekPlayerEventListener.onMpvSeekAccepted()
     }
 
     override fun onMpvPlaybackRestarted(positionMs: Long) {
-        val identity = seekMediaIdentity() ?: return
-        onPlaybackReady(
-            engine = SeekEngine.MPV,
-            identity = identity,
-            positionMs = positionMs,
-        )
+        seekPlayerEventListener.onMpvPlaybackRestarted(positionMs)
     }
 
     override fun onPlaybackStateChanged(state: Int) {
@@ -1589,17 +1589,7 @@ constructor(
             }
         }
         Timber.d("Changed player state to $stateString")
-        if (state == Player.STATE_READY && playerBackend == PLAYER_BACKEND_EXOPLAYER) {
-            val identity = seekMediaIdentity()
-            val activePlayer = playerHolder.existingPlayer
-            if (identity != null && activePlayer != null) {
-                onPlaybackReady(
-                    engine = SeekEngine.EXOPLAYER,
-                    identity = identity,
-                    positionMs = activePlayer.currentPosition,
-                )
-            }
-        }
+        seekPlayerEventListener.onPlaybackStateChanged(state)
     }
 
     /**
@@ -1693,14 +1683,15 @@ constructor(
         val isTranscode = item != null && isTranscodeStreamUri(item.mediaSourceUri)
         val restartTranscodeSession =
             isTranscode && playerBackend == PLAYER_BACKEND_EXOPLAYER && networkRetryAttempts > 1
-        if (restartTranscodeSession) {
+        val seekLease = seekCoordinator.captureRequestLease()
+        if (restartTranscodeSession && seekLease != null) {
             Timber.w(
                 "网络错误（%s）第 %d 次：转码流带位置重开会话 target=%d",
                 error.errorCodeName,
                 networkRetryAttempts,
                 position,
             )
-            scheduleTranscodeRestart(position, "network-retry")
+            scheduleTranscodeRestart(seekLease, "network-retry")
         } else {
             Timber.w(
                 "网络错误（%s）第 %d 次：原地重试当前内核 position=%d",
@@ -3288,53 +3279,12 @@ constructor(
             }
     }
 
-    private fun onSeekAccepted(
-        engine: SeekEngine,
-        identity: SeekMediaIdentity,
-        positionMs: Long?,
-    ) {
-        val changed =
-            seekCoordinator.onSeekAccepted(
-                engine = engine,
-                mediaIdentity = identity,
-                positionMs = positionMs,
-            )
-        if (changed) {
-            publishSeekState()
-        }
-        if (engine != SeekEngine.EXOPLAYER || !changed) return
-        val activePlayer = playerHolder.existingPlayer
-        if (activePlayer?.playbackState == Player.STATE_READY) {
-            onPlaybackReady(
-                engine = engine,
-                identity = identity,
-                positionMs = activePlayer.currentPosition,
-            )
-        }
-    }
-
-    private fun onPlaybackReady(
-        engine: SeekEngine,
-        identity: SeekMediaIdentity,
-        positionMs: Long,
-    ) {
-        val changed =
-            seekCoordinator.onPlaybackReady(
-                engine = engine,
-                mediaIdentity = identity,
-                positionMs = positionMs,
-                nowElapsedMs = SystemClock.elapsedRealtime(),
-            )
-        if (changed) {
-            publishSeekState()
-            if (seekCoordinator.state is SeekState.Confirmed) seekTimeoutJob?.cancel()
-        }
-    }
-
     private fun failActiveSeek(
         reason: SeekFailureReason = SeekFailureReason.ENGINE_ERROR,
         retryable: Boolean = true,
+        lease: SeekRequestLease? = null,
     ) {
+        if (lease != null && !seekCoordinator.isCurrent(lease)) return
         val seeking = seekCoordinator.state as? SeekState.Seeking ?: return
         val generation = seeking.requestGeneration
         seekTimeoutJob?.cancel()
@@ -3342,6 +3292,7 @@ constructor(
             reason = reason,
             retryable = retryable,
             nowElapsedMs = SystemClock.elapsedRealtime(),
+            lease = lease,
         )
         publishSeekState()
         clearPendingSeek(generation)
@@ -3374,6 +3325,7 @@ constructor(
         }
         seekTimeoutJob?.cancel()
         cancelPendingSeekFlush()
+        cancelTranscodeSeekWork()
         val item = currentPlaybackItem()
         val targetSourceUri = item?.mediaSourceUri.orEmpty()
         val generation =
@@ -3447,6 +3399,7 @@ constructor(
         val generation = seekCoordinator.retryRequest(SystemClock.elapsedRealtime()) ?: return
         val retry = seekCoordinator.state as? SeekState.Seeking ?: return
         cancelPendingSeekFlush()
+        cancelTranscodeSeekWork()
         publishSeekState()
         armSeekTimeout()
         val activePlayer = playerHolder.existingPlayer
@@ -3501,10 +3454,12 @@ constructor(
     ): Long? {
         seekTimeoutJob?.cancel()
         cancelPendingSeekFlush()
+        cancelTranscodeSeekWork()
         val identity = seekMediaIdentity() ?: return null
         val targetSourceUri = targetMediaItem.localConfiguration?.uri?.toString().orEmpty()
         val generation =
-            seekCoordinator.beginRequestForTarget(
+            seekCoordinator.beginRequestForTargetFromSource(
+                currentMediaIdentity = identity,
                 targetMs = 0L,
                 durationMs = activePlayer.duration,
                 issuedAtMs = SystemClock.elapsedRealtime(),
@@ -3557,10 +3512,11 @@ constructor(
                 bufferedPositionMs = activePlayer.bufferedPosition,
                 sessionStartMs = item?.playbackPosition ?: 0L,
             )
-        markSeekDispatched(
-            generation,
-            seekCoordinator.sourceMediaIdentity ?: return,
-        )
+        val lease =
+            markSeekDispatched(
+                generation,
+                seekCoordinator.sourceMediaIdentity ?: return,
+            ) ?: return
         if (restartSession) {
             Timber.d(
                 "转码 seek 超出可用窗口：source=%s target=%d position=%d buffered=%d sessionStart=%d",
@@ -3570,7 +3526,7 @@ constructor(
                 activePlayer.bufferedPosition,
                 item?.playbackPosition,
             )
-            scheduleTranscodeRestart(target, source)
+            scheduleTranscodeRestart(lease, source)
             return
         }
         try {
@@ -3588,7 +3544,11 @@ constructor(
             activePlayer.bufferedPosition,
             isTranscode,
         )
-        armTranscodeSeekWatchdog(target, source, enabled = isTranscode && isExoPlayer)
+        armTranscodeSeekWatchdog(
+            lease = lease,
+            source = source,
+            enabled = isTranscode && isExoPlayer,
+        )
     }
 
     /**
@@ -3598,7 +3558,7 @@ constructor(
     private fun markSeekDispatched(
         generation: Long,
         expectedMediaIdentity: SeekMediaIdentity,
-    ) {
+    ): SeekRequestLease? {
         seekCoordinator.onDispatched(
             requestGeneration = generation,
             engine = currentSeekEngine(),
@@ -3607,6 +3567,7 @@ constructor(
         )
         publishSeekState()
         armSeekTimeout()
+        return seekCoordinator.captureRequestLease()
     }
 
     private fun schedulePendingSeekFlush(generation: Long) {
@@ -3667,6 +3628,17 @@ constructor(
         pendingSeekFlushJob = null
     }
 
+    private fun cancelTranscodeSeekWork() {
+        transcodeSeekWatchdogJob?.cancel()
+        transcodeSeekWatchdogJob = null
+        transcodeRestartDebounceJob?.cancel()
+        transcodeRestartDebounceJob = null
+        transcodeRestartJob?.cancel()
+        transcodeRestartJob = null
+        transcodeRestartPendingLease = null
+        transcodeRestartLease = null
+    }
+
     private fun resolvePendingSeek(pending: PendingSeek, activePlayer: Player): Long? =
         when (pending) {
             is PendingSeek.Absolute -> pending.targetMs
@@ -3707,17 +3679,22 @@ constructor(
             }
     }
 
-    /** 转码重开会话的尾部去抖入口：拖动 / 连点只执行最后一次目标。 */
-    private fun scheduleTranscodeRestart(targetMs: Long, source: String) {
-        transcodeRestartPendingTargetMs = targetMs
+    /** 转码重开会话的尾部去抖入口：拖动 / 连点只执行同一个 seek lease 的最后目标。 */
+    private fun scheduleTranscodeRestart(lease: SeekRequestLease, source: String) {
+        if (!seekCoordinator.isCurrent(lease)) return
+        transcodeRestartPendingLease = lease
         transcodeRestartDebounceJob?.cancel()
         transcodeRestartDebounceJob =
             viewModelScope.launch(Dispatchers.Main) {
                 delay(TRANSCODE_RESTART_DEBOUNCE_MS)
-                if (transcodeRestartInFlight) return@launch
-                val pendingTarget = transcodeRestartPendingTargetMs ?: return@launch
-                transcodeRestartPendingTargetMs = null
-                doRestartTranscodeSession(pendingTarget, source)
+                if (!seekCoordinator.isCurrent(lease)) return@launch
+                if (transcodeRestartJob?.isActive == true) return@launch
+                val pendingLease = transcodeRestartPendingLease ?: return@launch
+                if (pendingLease != lease || !seekCoordinator.isCurrent(pendingLease)) {
+                    return@launch
+                }
+                transcodeRestartPendingLease = null
+                doRestartTranscodeSession(lease, source)
             }
     }
 
@@ -3727,12 +3704,14 @@ constructor(
      * 不重启 Activity（不触发 viewModelStore.clear / recreate）；成功一次计数一次，同一媒体在
      * [TRANSCODE_RESTART_WINDOW_MS] 内超过 [TRANSCODE_RESTART_WINDOW_MAX] 次则降级为普通 seek，避免异常场景无限重开。
      */
-    private fun doRestartTranscodeSession(targetMs: Long, source: String) {
+    private fun doRestartTranscodeSession(lease: SeekRequestLease, source: String) {
+        if (!seekCoordinator.isCurrent(lease)) return
+        val targetMs = lease.targetMs
         val activePlayer = playerHolder.existingPlayer ?: return
         if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return
         val currentItem = currentPlaybackItem()
         if (currentItem == null) {
-            activePlayer.seekTo(targetMs)
+            if (seekCoordinator.isCurrent(lease)) activePlayer.seekTo(targetMs)
             return
         }
         val mediaId = currentItem.itemId.toString()
@@ -3753,98 +3732,127 @@ constructor(
                 targetMs,
                 source,
             )
-            activePlayer.seekTo(targetMs)
+            if (seekCoordinator.isCurrent(lease)) activePlayer.seekTo(targetMs)
             return
         }
         val index = activePlayer.currentMediaItemIndex
         val wasPlaying = activePlayer.playWhenReady
-        transcodeRestartInFlight = true
-        viewModelScope.launch(Dispatchers.Main) {
-            try {
-                val rebuilt = runCatching {
-                    withContext(Dispatchers.IO) {
-                        playlistManager.rebuildPlayerItemForPosition(
-                            currentItem.itemId,
-                            targetMs,
+        transcodeRestartLease = lease
+        val job =
+            viewModelScope.launch(Dispatchers.Main) {
+                try {
+                    val rebuilt = runCatching {
+                        withContext(Dispatchers.IO) {
+                            playlistManager.rebuildPlayerItemForPosition(
+                                currentItem.itemId,
+                                targetMs,
+                            )
+                        }
+                    }
+                        .onFailure { Timber.e(it, "转码重开会话：重建播放信息异常") }
+                        .getOrNull()
+                    if (!seekCoordinator.isCurrent(lease)) {
+                        Timber.d("转码重开会话丢弃：seek generation 已变化（%d）", lease.requestGeneration)
+                        return@launch
+                    }
+                    val livePlayer = playerHolder.existingPlayer
+                    if (livePlayer == null || livePlayer !== activePlayer) return@launch
+                    if (
+                        livePlayer.currentMediaItem?.mediaId != mediaId ||
+                            livePlayer.currentMediaItemIndex != index
+                    ) {
+                        Timber.d("转码重开会话丢弃：播放条目已切换（%s）", mediaId)
+                        return@launch
+                    }
+                    if (rebuilt == null) {
+                        Timber.w("转码重开会话失败（重建播放信息为空）：target=%d", targetMs)
+                        failActiveSeek(
+                            reason = SeekFailureReason.SESSION_REBUILD_FAILED,
+                            retryable = true,
+                            lease = lease,
                         )
+                        return@launch
+                    }
+                    val rebuiltIdentity =
+                        seekMediaIdentity(rebuilt.toMediaItem())
+                            ?: run {
+                                failActiveSeek(
+                                    reason = SeekFailureReason.SESSION_REBUILD_FAILED,
+                                    retryable = true,
+                                    lease = lease,
+                                )
+                                return@launch
+                            }
+                    if (!seekCoordinator.prepareSourceReplacement(lease, rebuiltIdentity)) {
+                        return@launch
+                    }
+                    val itemIndex = items.indexOfFirst { it.itemId == currentItem.itemId }
+                    if (itemIndex >= 0) {
+                        items[itemIndex] = rebuilt
+                    }
+                    publishSeekState()
+                    livePlayer.replaceMediaItem(index, rebuilt.toMediaItem())
+                    // 先 seek 再 prepare：prepare 时从目标位置开始加载分片，不再从 0 请求
+                    livePlayer.seekTo(index, targetMs)
+                    livePlayer.prepare()
+                    // 保持用户的播放 / 暂停意图：暂停中 seek 不自动起播
+                    if (wasPlaying) livePlayer.play() else livePlayer.pause()
+                    transcodeRestartWindowCount++
+                    Timber.d(
+                        "转码 seek 重开会话：item=%s target=%d source=%s index=%d count=%d wasPlaying=%s",
+                        mediaId,
+                        targetMs,
+                        source,
+                        index,
+                        transcodeRestartWindowCount,
+                        wasPlaying,
+                    )
+                } finally {
+                    if (transcodeRestartLease == lease) {
+                        transcodeRestartLease = null
+                        val merged = transcodeRestartPendingLease
+                        transcodeRestartPendingLease = null
+                        if (
+                            merged != null &&
+                                merged != lease &&
+                                seekCoordinator.isCurrent(merged) &&
+                                kotlin.math.abs(merged.targetMs - targetMs) > 2_000L
+                        ) {
+                            scheduleTranscodeRestart(merged, "merged")
+                        }
                     }
                 }
-                    .onFailure { Timber.e(it, "转码重开会话：重建播放信息异常") }
-                    .getOrNull()
-                val livePlayer = playerHolder.existingPlayer
-                if (livePlayer == null || livePlayer !== activePlayer) return@launch
-                if (
-                    livePlayer.currentMediaItem?.mediaId != mediaId ||
-                        livePlayer.currentMediaItemIndex != index
-                ) {
-                    Timber.d("转码重开会话丢弃：播放条目已切换（%s）", mediaId)
-                    return@launch
-                }
-                if (rebuilt == null) {
-                    /*
-                     * W73（#8）：播放信息拉取失败（典型是网络抖动）时不切内核 / 不重启页面，原地重试当前内核；
-                     * 播放器已在错误态时直接 seekTo 无效。
-                     */
-                    Timber.w("转码重开会话失败（重建播放信息为空），原地重试当前内核：target=%d", targetMs)
-                    retryPlayback()
-                    return@launch
-                }
-                val itemIndex = items.indexOfFirst { it.itemId == currentItem.itemId }
-                if (itemIndex >= 0) {
-                    items[itemIndex] = rebuilt
-                }
-                seekMediaIdentity(rebuilt.toMediaItem())?.let { identity ->
-                    seekCoordinator.prepareSourceReplacement(identity)
-                    publishSeekState()
-                }
-                livePlayer.replaceMediaItem(index, rebuilt.toMediaItem())
-                // 先 seek 再 prepare：prepare 时从目标位置开始加载分片，不再从 0 请求
-                livePlayer.seekTo(index, targetMs)
-                livePlayer.prepare()
-                // 保持用户的播放 / 暂停意图：暂停中 seek 不自动起播
-                if (wasPlaying) livePlayer.play() else livePlayer.pause()
-                transcodeRestartWindowCount++
-                Timber.d(
-                    "转码 seek 重开会话：item=%s target=%d source=%s index=%d count=%d wasPlaying=%s",
-                    mediaId,
-                    targetMs,
-                    source,
-                    index,
-                    transcodeRestartWindowCount,
-                    wasPlaying,
-                )
-            } finally {
-                transcodeRestartInFlight = false
-                val merged = transcodeRestartPendingTargetMs
-                transcodeRestartPendingTargetMs = null
-                if (merged != null && kotlin.math.abs(merged - targetMs) > 2_000L) {
-                    scheduleTranscodeRestart(merged, "merged")
-                }
             }
-        }
+        transcodeRestartJob = job
     }
 
     /** 转码流直接 seek 的看门狗：目标附近仍在缓冲且位置没有推进 → 判定为超出服务器已生成窗口，带目标重开会话兜底。 */
-    private fun armTranscodeSeekWatchdog(targetMs: Long, source: String, enabled: Boolean) {
+    private fun armTranscodeSeekWatchdog(
+        lease: SeekRequestLease,
+        source: String,
+        enabled: Boolean,
+    ) {
         transcodeSeekWatchdogJob?.cancel()
         if (!enabled) return
         transcodeSeekWatchdogJob =
             viewModelScope.launch(Dispatchers.Main) {
                 delay(TRANSCODE_SEEK_WATCHDOG_DELAY_MS)
+                if (!seekCoordinator.isCurrent(lease)) return@launch
                 val activePlayer = playerHolder.existingPlayer ?: return@launch
                 val position = activePlayer.currentPosition
                 val stalled =
                     activePlayer.playbackState == Player.STATE_BUFFERING &&
-                        kotlin.math.abs(position - targetMs) > TRANSCODE_SEEK_WATCHDOG_TOLERANCE_MS
+                        kotlin.math.abs(position - lease.targetMs) >
+                            TRANSCODE_SEEK_WATCHDOG_TOLERANCE_MS
                 if (stalled) {
                     Timber.w(
                         "转码 seek 看门狗：target=%d 仍在缓冲（position=%d buffered=%d source=%s），重开会话",
-                        targetMs,
+                        lease.targetMs,
                         position,
                         activePlayer.bufferedPosition,
                         source,
                     )
-                    scheduleTranscodeRestart(targetMs, "watchdog")
+                    scheduleTranscodeRestart(lease, "watchdog")
                 }
             }
     }
