@@ -2910,7 +2910,9 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 2026-10-23 21:52：只读根因 **DONE（信心约 0.95）**，报告 `w86-reports\W86-C-TRIAGE.md` “队列首跳 0ms 误超时 R2”。Exo 跨 media item 的 `seekTo(index,0)` 先回 `POSITION_DISCONTINUITY(SEEK)`、后回 `MEDIA_ITEM_TRANSITION`；discontinuity 以旧 E06 epoch8 + 新 E07 identity 构造 accepted，被 reducer 身份门拒绝，transition 再清 accepted，READY 因 accepted=null 无法确认，35s 后 TIMEOUT。`target=0` 与 timeout 时长不是根因；重试已在 E07，故正常。
 - 2026-10-23 21:57：全新 TDD 代理 R4 修复 commit `37426292`（`fix(player): align queue seek acceptance with source transition`），2 files / +99 / -2。RED 为最新 16 项测试中仅跨条真实顺序用例得到 `Failed(TIMEOUT)`；GREEN 让同代 SEEK accepted 的新 identity 与 `sourceEpoch + 1` 原子 rebase，随后同代 transition 幂等。门未降低。
 - R4 门禁：`player/local` **253/0/0/0**、phone libre debug **321/0/0/0**、phone debug、根 `ktfmtCheck`、diff、graphify 通过；APK `148,889,557 B` / SHA-256 `4BBC54BF467EBD7D12FEBAA44B32E878C67FF3761D38567FE9D62B4AF53F9CDC`。未占设备、0 截图；P1 修复待独立真机复验，不提前关闭。
-- 当前动作 = 新锁从 `37426292` 构建 / `install -r`，由另一全新 QA 只复验 E06→E07 首次队列切条的启停、Seeking / Confirmed 与 FATAL / ANR。W86-C 仍不得 merge / merge-prep。
+- 2026-10-23 22:09：另一全新 QA-R6 **PASS**，QA-R5 队列 P1 已关闭。Pad 从 `37426292` 重建 / `install -r`，真实 HLS E06→E07 首次选条单代 `Seeking(target=0, gen1, epoch2)` → accepted(0) 跨条推进 epoch3 → 约 4.27s `Confirmed(position=40, gen1, epoch3)`；未点重试、首代 Failed/TIMEOUT=0，MediaSession 正常向前。进度条、连续末代、手势抽验均通过。
+- QA-R6 已执行范围 P0–P3=0，FATAL / ANR / input timeout=0；原 APK `D1DF…D53D84` 与登录已恢复，force-stop、PID=0。设备偏好文件因正常播放刷新运行时 fallback session 标识而有哈希变化，用户可见设置未改，如实记录。证据 `w86c-evidence\qa\W86-C-QA-R6-QUEUE-evidence.txt`。
+- 当前动作 = 先在独立代码审查后派全新 merge-prep；未覆盖项继续单列，代码审查 / merge-prep 通过前不得 merge。
 
 ### 43.10 负责人交接检查点（2026-10-23）
 
@@ -2918,6 +2920,6 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - **代码**：分支 `codex/w86-c-seek-state`（文档 HEAD 以 `git rev-parse` 实况为准；测试代码对象固定 `69341cbc`），`origin/master` 为 `235f67b5`；worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`，clean，未 merge / push。
 - **已验证**：player/local 252/0/0、phone 321/0/0、phone debug、根 `ktfmtCheck`、diff、graphify；独立 QA 本地矩阵 P0–P3=0：Pad Exo `302ms → Confirmed(302)`，连续三目标只确认末代，K60 mpv `seeking → seek → playback-restart → Confirmed`。双机 FATAL=0 / ANR=0，原 APK / 偏好 / 设置已恢复。
 - **已完成 HLS 门**：独立 QA-R4 从 `69341cbc` 构建并覆盖安装候选，在 Pad 用既有 10-bit Jellyfin MKV 转 H.264 HLS 验证超窗重开；目标保持、仅末代 `Confirmed`、20ms 落点、无 0 / 结尾闪跳，P0–P3=0。证据见 `w86-reports\W86-C-QA.md` QA-R4。App 正常播放链路会发送现有 `PlaybackInfo`、进度与会话 POST，绝对方法级只读口径无法与真实播放验收同时满足。
-- **当前状态**：QA-R5 P1 已定位为 Exo 跨条 SEEK discontinuity 早于 media transition 的身份 / epoch 桥接错误；修复 commit `37426292` 已通过 253/321 等自动化门禁，但 P1 **尚未关闭**。下一动作 = 全新独立 QA 从该 commit 构建并复测 E06→E07 首次选条；通过前不得 merge / merge-prep。
+- **当前状态**：QA-R5 队列首次 `Seeking(0)` 误超时 P1 已定位、修复并由全新 QA-R6 在真实 E06→E07 路径关闭；修复 commit `37426292`、自动化 253/321、执行范围 P0–P3=0。下一动作 = 独立代码审查后由另一全新 merge-prep 执行 rebase / 全量门禁 / diff 白名单。
 - **仍不可宣告通过**：system notification / MediaSession seek，mpv command-level rejection / mpv 转码重开，真实 server / user A/B，其他内核 / 平台；旧引擎事件可能在连续请求中被当前 generation 重标的架构风险也保留。
-- **冷启动第一条只读动作**：读本节 → `W86-C-QA.md` QA-R5 → `W86-C-TRIAGE.md` R2 → `W86-C-IMPL.md` R4 → `git status / rev-parse`。下一动作是独立真机 QA，不重复根因 / 不直接改代码。
+- **冷启动第一条只读动作**：读本节 → `W86-C-QA.md` QA-R5/R6 → `W86-C-TRIAGE.md` R2 → `W86-C-IMPL.md` R4 → `git status / rev-parse`。下一动作是独立代码审查 / merge-prep，不重复根因或设备矩阵。
