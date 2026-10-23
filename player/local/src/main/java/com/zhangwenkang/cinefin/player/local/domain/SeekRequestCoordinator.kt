@@ -408,4 +408,10 @@ class SeekRequestCoordinator {
             true
         return reducer.state is SeekState.Failed
     }
+
+    fun failUnsupported(policy: SeekConfirmationPolicy): Boolean {
+        dispatches.clear()
+        reducer.onUnsupported(policy)
+        return reducer.state is SeekState.Failed
+    }
 }

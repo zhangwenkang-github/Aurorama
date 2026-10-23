@@ -11,6 +11,7 @@ import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
+import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.isPlayingMusicItem
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
@@ -18,6 +19,9 @@ import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import timber.log.Timber
 
 /**
@@ -44,6 +48,15 @@ constructor(
 
     private var instance: Player? = null
     private var instanceBackend: String? = null
+
+    /** Process-scoped, shared by MediaSession and every playback ViewModel. */
+    val seekSink: PlaybackSeekSink =
+        PlaybackSeekSink(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+            engineProvider = {
+                if (backend == BACKEND_MPV) SeekEngine.MPV else SeekEngine.EXOPLAYER
+            },
+        )
 
     private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
 
@@ -98,13 +111,10 @@ constructor(
             if (existing != null && instanceBackend == wanted) return existing
             if (existing != null) {
                 Timber.i("播放内核切换为 %s，重建播放器实例", wanted)
+                seekSink.onPlayerReleased()
                 runCatching { existing.release() }
             }
-            return create(wanted).also {
-                instance = it
-                instanceBackend = wanted
-                applySavedAudioDelay()
-            }
+            return install(wanted, create(wanted))
         }
 
     /**
@@ -118,13 +128,10 @@ constructor(
         if (existing != null && instanceBackend == BACKEND_EXOPLAYER) return existing
         if (existing != null) {
             Timber.i("音乐会话要求 ExoPlayer，重建播放器实例")
+            seekSink.onPlayerReleased()
             runCatching { existing.release() }
         }
-        return create(BACKEND_EXOPLAYER).also {
-            instance = it
-            instanceBackend = BACKEND_EXOPLAYER
-            applySavedAudioDelay()
-        }
+        return install(BACKEND_EXOPLAYER, create(BACKEND_EXOPLAYER))
     }
 
     /**
@@ -193,7 +200,16 @@ constructor(
         val player = instance ?: return
         instance = null
         instanceBackend = null
+        seekSink.onPlayerReleased()
         runCatching { player.release() }
+    }
+
+    private fun install(backend: String, player: Player): Player {
+        instance = player
+        instanceBackend = backend
+        applySavedAudioDelay()
+        seekSink.attach(player)
+        return player
     }
 
     private fun create(backend: String): Player {

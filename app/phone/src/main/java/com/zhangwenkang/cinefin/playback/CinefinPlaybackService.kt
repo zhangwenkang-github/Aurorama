@@ -17,7 +17,9 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
+import com.zhangwenkang.cinefin.player.local.presentation.MediaSessionSeekPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import timber.log.Timber
@@ -46,6 +48,7 @@ class CinefinPlaybackService : MediaSessionService() {
     @Inject lateinit var musicPlaybackController: MusicPlaybackController
 
     private var mediaSession: MediaSession? = null
+    private var mediaSessionDelegate: Player? = null
 
     /** 常驻控制者：只为让媒体通知有"控制来源"，不参与命令分发（见 [connectSelfController]） */
     private var selfController: MediaController? = null
@@ -93,7 +96,7 @@ class CinefinPlaybackService : MediaSessionService() {
 
     private fun rebuildSessionIfPlayerChanged() {
         val active = playerHolder.existingPlayer ?: return
-        if (mediaSession?.player === active) {
+        if (mediaSessionDelegate === active) {
             // 同一实例也可能在音乐 / 视频条目之间切换：同步点击路由（W68）
             syncSessionActivityTarget()
             return
@@ -101,7 +104,7 @@ class CinefinPlaybackService : MediaSessionService() {
         Timber.i("播放器实例已切换，重建播放会话")
         selfController?.release()
         selfController = null
-        mediaSession?.player?.removeListener(mediaTypeListener)
+        mediaSessionDelegate?.removeListener(mediaTypeListener)
         mediaSession?.release()
         mediaSession = buildMediaSession(active)
         connectSelfController()
@@ -109,8 +112,12 @@ class CinefinPlaybackService : MediaSessionService() {
 
     private fun buildMediaSession(player: Player): MediaSession {
         sessionActivityIsMusicItem = playerHolder.isCurrentItemMusic
+        val sessionPlayer =
+            mediaSessionSeekPlayerForSession(player) { intent ->
+                playerHolder.seekSink.submit(intent)
+            }
         val session =
-            MediaSession.Builder(this, player)
+            MediaSession.Builder(this, sessionPlayer)
                 .setSessionActivity(sessionActivityIntent(sessionActivityIsMusicItem))
                 .setCustomLayout(
                     listOf(
@@ -152,6 +159,7 @@ class CinefinPlaybackService : MediaSessionService() {
                     }
                 )
                 .build()
+        mediaSessionDelegate = player
         player.addListener(mediaTypeListener)
         return session
     }
@@ -204,7 +212,8 @@ class CinefinPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        mediaSession?.player?.removeListener(mediaTypeListener)
+        mediaSessionDelegate?.removeListener(mediaTypeListener)
+        mediaSessionDelegate = null
         selfController?.release()
         selfController = null
         mediaSession?.release()
@@ -261,3 +270,8 @@ class CinefinPlaybackService : MediaSessionService() {
         pauseAllPlayersAndStopSelf()
     }
 }
+
+internal fun mediaSessionSeekPlayerForSession(
+    player: Player,
+    submitSeek: (PlayerViewModel.SeekIntent) -> Unit,
+): MediaSessionSeekPlayer = MediaSessionSeekPlayer(player, submitSeek)

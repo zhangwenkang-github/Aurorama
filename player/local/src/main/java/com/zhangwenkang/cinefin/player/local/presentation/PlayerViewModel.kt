@@ -50,11 +50,7 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlayerQueueEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
-import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
-import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
-import com.zhangwenkang.cinefin.player.local.domain.SeekRequestCoordinator
-import com.zhangwenkang.cinefin.player.local.domain.SeekRequestLease
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
@@ -63,20 +59,14 @@ import com.zhangwenkang.cinefin.player.local.domain.acceptCurrentStreamSnapshot
 import com.zhangwenkang.cinefin.player.local.domain.advanceCurrentStreamRequest
 import com.zhangwenkang.cinefin.player.local.domain.beginPlaybackRequest
 import com.zhangwenkang.cinefin.player.local.domain.bindSourceSnapshot
-import com.zhangwenkang.cinefin.player.local.domain.isSeekRequestReady
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
-import com.zhangwenkang.cinefin.player.local.domain.seekDispatchTargetMs
-import com.zhangwenkang.cinefin.player.local.domain.seekDisplayPositionMs
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
-import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
-import com.zhangwenkang.cinefin.player.local.domain.shouldRestartTranscodeSession
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
-import com.zhangwenkang.cinefin.player.local.mpv.MpvSeekEventListener
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackRef
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
@@ -140,7 +130,7 @@ constructor(
     private val playbackCoordinator: PlaybackCoordinatorImpl,
     /** W86-B：当前用户 id 是字幕单片命名空间的权威来源，登录 / 切用户时由 SetupRepository 更新。 */
     private val jellyfinApi: JellyfinApi,
-) : ViewModel(), Player.Listener, MpvSeekEventListener {
+) : ViewModel(), Player.Listener {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
         const val PLAYER_BACKEND_EXOPLAYER = "exoplayer"
@@ -166,23 +156,6 @@ constructor(
 
         /** W20：同一集「停止上报」的去重窗口（自然播完已报过 stop，换集回调不要再报一次） */
         private const val STOP_REPORT_DEDUPE_MS = 15_000L
-
-        /** W73（#7）：进度条 seek 在「未就绪窗口」的排队轮询间隔；超时由 reducer policy 统一管理。 */
-        private const val PENDING_SEEK_RETRY_MS = 200L
-
-        /** W73（#7）：排队相对增量的饱和上限（±6 小时）。 */
-        private const val PENDING_SEEK_DELTA_MAX_MS = 6L * 60L * 60L * 1000L
-
-        /** W73（#7）：转码重开会话的尾部去抖（拖动中的连续 seek 只执行最后一次）。 */
-        private const val TRANSCODE_RESTART_DEBOUNCE_MS = 150L
-
-        /** W73（#7）：同一媒体的转码重开会话在窗口内的次数上限（防止异常时无限重开）。 */
-        private const val TRANSCODE_RESTART_WINDOW_MS = 30_000L
-        private const val TRANSCODE_RESTART_WINDOW_MAX = 6
-
-        /** W73（#7）：直接 seek 后若目标附近仍在缓冲，先观察这么久再决定是否重开会话。 */
-        private const val TRANSCODE_SEEK_WATCHDOG_DELAY_MS = 2_500L
-        private const val TRANSCODE_SEEK_WATCHDOG_TOLERANCE_MS = 8_000L
 
         /** W73（#8）：网络类播放错误的原地重试窗口 / 次数上限（超过则交给错误卡片，不换内核、不重启页面）。 */
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
@@ -279,7 +252,10 @@ constructor(
 
         data class Relative(val deltaMs: Long) : SeekIntent
 
-        data class MediaItem(val index: Int) : SeekIntent
+        data class MediaItem(
+            val index: Int,
+            val positionMs: Long = C.TIME_UNSET,
+        ) : SeekIntent
 
         data class AdjacentMediaItem(val forward: Boolean) : SeekIntent
     }
@@ -369,55 +345,39 @@ constructor(
 
     private var items: MutableList<PlayerItem> = mutableListOf()
 
-    /* ---------- W73（#7）：seek 排队 + 转码重开会话状态 ---------- */
+    private val seekSink
+        get() = playerHolder.seekSink
 
-    /** 未就绪窗口里排队的 seek：绝对目标 / 进度条比例 / 相对增量三选一；null = 无排队。 */
-    private sealed interface PendingSeek {
-        data class Absolute(val targetMs: Long) : PendingSeek
+    private var rebuiltSeekItem: PlayerItem? = null
 
-        data class Fraction(val fraction: Float) : PendingSeek
+    private val seekSessionBridge =
+        object : SeekSessionBridge {
+            override suspend fun rebuildForSeek(
+                itemId: String,
+                targetMs: Long,
+            ): SeekSessionReplacement? {
+                val current = currentPlaybackItem() ?: return null
+                if (current.itemId.toString() != itemId) return null
+                val rebuilt =
+                    withContext(Dispatchers.IO) {
+                        playlistManager.rebuildPlayerItemForPosition(current.itemId, targetMs)
+                    } ?: return null
+                val mediaItem = rebuilt.toMediaItem()
+                val identity = seekMediaIdentity(mediaItem) ?: return null
+                rebuiltSeekItem = rebuilt
+                return SeekSessionReplacement(
+                    mediaItem = mediaItem,
+                    mediaIdentity = identity,
+                )
+            }
 
-        data class Relative(val deltaMs: Long) : PendingSeek
-    }
-
-    private var pendingSeek: PendingSeek? = null
-
-    private var pendingSeekSource: String = ""
-    private var pendingSeekFlushJob: Job? = null
-
-    /** 转码重开会话的尾部去抖任务；拖动 / 连点只落最后一次目标。 */
-    private var transcodeRestartDebounceJob: Job? = null
-
-    /** 重开会话进行中时又有新目标：只允许同一个 seek lease 合并执行一次。 */
-    private var transcodeRestartPendingLease: SeekRequestLease? = null
-    private var transcodeRestartJob: Job? = null
-    private var transcodeRestartLease: SeekRequestLease? = null
-    private var transcodeRestartWindowStartMs = 0L
-    private var transcodeRestartWindowCount = 0
-    private var lastTranscodeRestartMediaId: String? = null
-    private var transcodeSeekWatchdogJob: Job? = null
-
-    /** W86-C：协调层统一持有 seek 状态、generation 与 source cursor。 */
-    private val seekCoordinator = SeekRequestCoordinator()
-    private var pendingSeekGeneration: Long? = null
-    private var seekTimeoutJob: Job? = null
-    private val seekPlayerEventListener by lazy {
-        SeekPlayerEventListener(
-            coordinator = seekCoordinator,
-            engine = ::currentSeekEngine,
-            mediaIdentity = ::seekMediaIdentity,
-            readyPositionMs = {
-                playerHolder.existingPlayer
-                    ?.takeIf { it.playbackState == Player.STATE_READY }
-                    ?.currentPosition
-            },
-            nowElapsedMs = SystemClock::elapsedRealtime,
-            onStateChanged = {
-                publishSeekState()
-                if (seekCoordinator.state is SeekState.Confirmed) seekTimeoutJob?.cancel()
-            },
-        )
-    }
+            override fun onSessionReplaced(replacement: SeekSessionReplacement) {
+                val rebuilt = rebuiltSeekItem ?: return
+                rebuiltSeekItem = null
+                val index = items.indexOfFirst { it.itemId == rebuilt.itemId }
+                if (index >= 0) items[index] = rebuilt
+            }
+        }
 
     /* ---------- W73（#8）：网络类播放错误的原地重试状态 ---------- */
 
@@ -516,6 +476,10 @@ constructor(
         get() = playerHolder.backend
 
     init {
+        seekSink.bindSessionBridge(seekSessionBridge)
+        viewModelScope.launch {
+            seekSink.stateFlow.collect { state -> _uiState.update { it.copy(seekState = state) } }
+        }
         migrateEndBehaviorPreferences()
         segmentsSkipButton = appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton)
         segmentsSkipButtonTypes =
@@ -696,7 +660,6 @@ constructor(
         // 新播放页 / 新码率 / 新内核请求：旧 source 与 current 立即失效。
         val initializationGeneration = resetPlaybackSnapshots()
         player.addListener(this)
-        (player as? MPVPlayer)?.addSeekEventListener(this)
         applySavedSubtitlePreferences()
         syncMpvSubtitleMode()
         publishSubtitlePanelState()
@@ -774,7 +737,7 @@ constructor(
                     playbackPosition
                 }
 
-            seekMediaIdentity(mediaItems.firstOrNull())?.let(seekCoordinator::observeSource)
+            seekSink.observeSource(mediaItems.firstOrNull())
             player.setMediaItems(mediaItems, 0, startPosition)
             // W74 U2-B（D-F8）：进播放页 / 重建播放器实例时套用保存的循环 / 随机模式。
             // 必须在 setMediaItems 之后：媒体项集齐才会生成 shuffle 顺序，随机档才能真正排到队列上。
@@ -958,8 +921,7 @@ constructor(
      */
     fun attachToExistingSession() {
         player.addListener(this)
-        (player as? MPVPlayer)?.addSeekEventListener(this)
-        seekMediaIdentity()?.let(seekCoordinator::ensureSource)
+        seekSink.observeSource(player.currentMediaItem)
         applySavedSubtitlePreferences()
         // W27：接管会话（通知 / 锁屏回前台）时补上侧载字幕；自研管线还没建立才重建，避免覆盖本次会话的手动选轨
         player.currentMediaItem?.mediaId?.let { mediaId ->
@@ -1034,6 +996,8 @@ constructor(
                                 putInt(PLAYER_EXTRA_SEASON_NUMBER, parentIndexNumber ?: -1)
                                 putInt(PLAYER_EXTRA_EPISODE_NUMBER, indexNumber ?: -1)
                                 putString(PLAYER_EXTRA_MEDIA_SOURCE_ID, mediaSourceId)
+                                putLong(PLAYER_EXTRA_SEEK_SESSION_START_MS, playbackPosition)
+                                putString(PLAYER_EXTRA_SEEK_SOURCE_URI, streamUrl)
                                 // 信息面板（§1.8）：媒体源元数据随媒体项一起带走
                                 mediaInfo?.let { putParcelable(PLAYER_EXTRA_MEDIA_INFO, it) }
                                 // mpv 转码场景的 libass 兜底：字幕清单随条目走，容器无内嵌字幕时 sub-add
@@ -1097,7 +1061,6 @@ constructor(
         playbackPosition = 0L
         currentMediaItemIndex = 0
         player.removeListener(this)
-        (player as? MPVPlayer)?.removeSeekEventListener(this)
         val backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio)
         if (!shouldReleasePlayerOnExit(playerHolder.musicSessionActive, backgroundAudioEnabled)) {
             /*
@@ -1273,17 +1236,6 @@ constructor(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
-        seekMediaIdentity(mediaItem)?.let { identity ->
-            seekCoordinator.onSourceTransition(identity)
-            publishSeekState()
-            if (
-                (seekCoordinator.state as? SeekState.Failed)?.reason ==
-                    SeekFailureReason.SOURCE_CHANGED
-            ) {
-                cancelTranscodeSeekWork()
-                seekTimeoutJob?.cancel()
-            }
-        }
         // 条目 / 媒体源一变化先清空旧快照；后续只有同一 identity 的结果能重新填入。
         refreshUiStateFromPlayer()
         // #9：倍速是「播放会话内状态」——同一剧集队列里切集（含自动下一集）后必须保持。
@@ -1533,22 +1485,6 @@ constructor(
         }
     }
 
-    override fun onPositionDiscontinuity(
-        oldPosition: Player.PositionInfo,
-        newPosition: Player.PositionInfo,
-        reason: Int,
-    ) {
-        seekPlayerEventListener.onPositionDiscontinuity(oldPosition, newPosition, reason)
-    }
-
-    override fun onMpvSeekAccepted() {
-        seekPlayerEventListener.onMpvSeekAccepted()
-    }
-
-    override fun onMpvPlaybackRestarted(positionMs: Long) {
-        seekPlayerEventListener.onMpvPlaybackRestarted(positionMs)
-    }
-
     override fun onPlaybackStateChanged(state: Int) {
         var stateString = "UNKNOWN_STATE             -"
         when (state) {
@@ -1589,7 +1525,6 @@ constructor(
             }
         }
         Timber.d("Changed player state to $stateString")
-        seekPlayerEventListener.onPlaybackStateChanged(state)
     }
 
     /**
@@ -1613,21 +1548,7 @@ constructor(
              */
             if (handleCodecFallback(error)) return
         }
-        val seekingGeneration = currentSeekGeneration()
-        val identity = seekMediaIdentity()
-        val correlatedSeekFailure =
-            identity != null &&
-                seekCoordinator.onEngineError(
-                    engine = currentSeekEngine(),
-                    mediaIdentity = identity,
-                    retryable = true,
-                    nowElapsedMs = SystemClock.elapsedRealtime(),
-                )
-        if (correlatedSeekFailure) {
-            publishSeekState()
-            seekTimeoutJob?.cancel()
-            seekingGeneration?.let(::clearPendingSeek)
-        }
+        seekSink.onEngineError(mediaIdentity = seekMediaIdentity(), retryable = true)
         _uiState.update {
             it.copy(
                 playerError =
@@ -1677,13 +1598,12 @@ constructor(
             return false
         }
         networkRetryAttempts++
-        val position =
-            (seekCoordinator.state as? SeekState.Seeking)?.targetMs ?: currentResumePositionMs()
+        val position = (seekSink.state as? SeekState.Seeking)?.targetMs ?: currentResumePositionMs()
         val item = currentPlaybackItem()
         val isTranscode = item != null && isTranscodeStreamUri(item.mediaSourceUri)
         val restartTranscodeSession =
             isTranscode && playerBackend == PLAYER_BACKEND_EXOPLAYER && networkRetryAttempts > 1
-        val seekLease = seekCoordinator.captureRequestLease()
+        val seekLease = seekSink.coordinator.captureRequestLease()
         if (restartTranscodeSession && seekLease != null) {
             Timber.w(
                 "网络错误（%s）第 %d 次：转码流带位置重开会话 target=%d",
@@ -1691,7 +1611,7 @@ constructor(
                 networkRetryAttempts,
                 position,
             )
-            scheduleTranscodeRestart(seekLease, "network-retry")
+            seekSink.restartTranscodeForNetwork(seekLease, "network-retry")
         } else {
             Timber.w(
                 "网络错误（%s）第 %d 次：原地重试当前内核 position=%d",
@@ -1924,6 +1844,7 @@ constructor(
     override fun onCleared() {
         super.onCleared()
         Timber.d("Clearing Player ViewModel")
+        seekSink.unbindSessionBridge(seekSessionBridge)
         releasePlayer()
     }
 
@@ -3228,23 +3149,20 @@ constructor(
 
     /* ---------- W73（#7）：seek 排队 + 转码会话重开 ---------- */
 
-    private fun currentSeekGeneration(): Long? =
-        (seekCoordinator.state as? SeekState.Seeking)?.requestGeneration
-
-    private fun currentSeekEngine(): SeekEngine =
-        if (playerBackend == PLAYER_BACKEND_MPV) SeekEngine.MPV else SeekEngine.EXOPLAYER
-
-    /** 媒体 URI 只取不可逆短指纹，避免日志 / 状态泄漏播放地址中的查询参数。 */
     private fun seekMediaIdentity(
         mediaItem: MediaItem? = playerHolder.existingPlayer?.currentMediaItem
     ): SeekMediaIdentity? {
-        val item = currentPlaybackItem()
-        val itemId = mediaItem?.mediaId ?: item?.itemId?.toString() ?: return null
+        val item = mediaItem ?: return null
+        val itemId = item.mediaId.takeIf(String::isNotBlank) ?: return null
         val mediaSourceId =
-            mediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
-                ?: item?.mediaSourceId.orEmpty()
+            item.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID).orEmpty()
         val sourceUri =
-            mediaItem?.localConfiguration?.uri?.toString() ?: item?.mediaSourceUri.orEmpty()
+            item.mediaMetadata.extras
+                ?.getString(PLAYER_EXTRA_SEEK_SOURCE_URI)
+                ?.takeIf(String::isNotBlank)
+                ?: item.localConfiguration?.uri?.toString()
+                ?: item.requestMetadata.mediaUri?.toString().orEmpty()
+        if (sourceUri.isBlank()) return null
         return seekMediaIdentityFor(
             itemId = itemId,
             mediaSourceId = mediaSourceId,
@@ -3252,614 +3170,31 @@ constructor(
         )
     }
 
-    private fun publishSeekState() {
-        _uiState.update { it.copy(seekState = seekCoordinator.state) }
-    }
-
-    private fun armSeekTimeout() {
-        seekTimeoutJob?.cancel()
-        val seeking = seekCoordinator.state as? SeekState.Seeking ?: return
-        val generation = seeking.requestGeneration
-        val remainingMs =
-            (seeking.requestedAtMs + seeking.policy.completionTimeoutMs -
-                    SystemClock.elapsedRealtime())
-                .coerceAtLeast(1L)
-        seekTimeoutJob =
-            viewModelScope.launch(Dispatchers.Main) {
-                delay(remainingMs)
-                seekCoordinator.onTick(SystemClock.elapsedRealtime())
-                publishSeekState()
-                val failed = seekCoordinator.state as? SeekState.Failed
-                if (
-                    failed?.requestGeneration == generation &&
-                        failed.reason == SeekFailureReason.TIMEOUT
-                ) {
-                    clearPendingSeek(generation)
-                }
-            }
-    }
-
-    private fun failActiveSeek(
-        reason: SeekFailureReason = SeekFailureReason.ENGINE_ERROR,
-        retryable: Boolean = true,
-        lease: SeekRequestLease? = null,
-    ) {
-        if (lease != null && !seekCoordinator.isCurrent(lease)) return
-        val seeking = seekCoordinator.state as? SeekState.Seeking ?: return
-        val generation = seeking.requestGeneration
-        seekTimeoutJob?.cancel()
-        seekCoordinator.failCurrent(
-            reason = reason,
-            retryable = retryable,
-            nowElapsedMs = SystemClock.elapsedRealtime(),
-            lease = lease,
-        )
-        publishSeekState()
-        clearPendingSeek(generation)
-    }
-
-    /**
-     * 统一 seek 入口（进度条 / ±键 / 手势 / 章节 / 片头尾跳过）。
-     *
-     * 之前只有手势 seek 有「未就绪窗口排队」（W67c），进度条 drag/tap 的 seek 在媒体未 prepared 时会被随后到来的恢复位置覆盖——切集后立刻 seek
-     * 就表现为「回退完成后从 0 开始播」。这里把排队语义下沉到 ViewModel：
-     *
-     * - 未就绪（未挂载 / 时长未知 / 媒体未 prepared）：按绝对目标、进度条比例或相对增量排队，就绪后补投，不静默丢失；
-     * - 已就绪：转码（HLS）流上目标超出当前转码会话可用窗口 → 带目标位置重开会话（服务器从目标开始转码）；否则直接落点。
-     *
-     * @param fraction 进度条拖动比例（0–1）。时长未知时用它排队，就绪后按真实时长换算落点；时长已知传 null。
-     */
+    /** All in-app seek controls enter the same process-scoped sink used by MediaSession. */
     fun requestSeek(targetMs: Long, source: String, fraction: Float? = null) {
-        val activePlayer = playerHolder.existingPlayer
-        val attached = activePlayer != null
-        val duration = activePlayer?.duration ?: C.TIME_UNSET
-        val state = activePlayer?.playbackState ?: Player.STATE_IDLE
-        val position = activePlayer?.currentPosition ?: 0L
-        val identity = seekMediaIdentity()
-        if (identity == null) {
-            Timber.d("seek 请求等待媒体身份：source=%s target=%d", source, targetMs)
-            return
-        }
-        if (seekCoordinator.sourceMediaIdentity != identity) {
-            seekCoordinator.onSourceTransition(identity)
-        }
-        seekTimeoutJob?.cancel()
-        cancelPendingSeekFlush()
-        cancelTranscodeSeekWork()
-        val item = currentPlaybackItem()
-        val targetSourceUri = item?.mediaSourceUri.orEmpty()
-        val generation =
-            seekCoordinator.beginRequestForTarget(
-                targetMs =
-                    if (fraction != null && duration > 0L) {
-                        seekTargetFromFraction(fraction, duration)
-                    } else {
-                        targetMs
-                    },
-                durationMs = duration,
-                issuedAtMs = SystemClock.elapsedRealtime(),
-                engine = currentSeekEngine(),
-                targetSourceUri = targetSourceUri,
-            )
-        publishSeekState()
-        armSeekTimeout()
-        if (!isSeekRequestReady(attached, duration, state, position)) {
-            when {
-                fraction != null -> mergePendingSeek(PendingSeek.Fraction(fraction))
-                else -> mergePendingSeek(PendingSeek.Absolute(targetMs.coerceAtLeast(0L)))
-            }
-            pendingSeekGeneration = generation
-            pendingSeekSource = source
-            schedulePendingSeekFlush(generation)
-            Timber.d(
-                "seek 排队：source=%s target=%d fraction=%s state=%d duration=%d position=%d",
-                source,
-                targetMs,
-                fraction,
-                state,
-                duration,
-                position,
-            )
-            return
-        }
-        executeSeek(activePlayer!!, source)
+        seekSink.requestSeek(targetMs, source, fraction)
     }
 
-    /** 相对增量 seek（±键 / 快进快退键）：未就绪时并入排队，就绪后按真实位置一次落点。 */
     fun requestSeekRelative(deltaMs: Long, source: String) {
-        val activePlayer = playerHolder.existingPlayer
-        val base =
-            seekDisplayPositionMs(
-                seekCoordinator.state,
-                activePlayer?.currentPosition ?: 0L,
-                SystemClock.elapsedRealtime(),
-            )
-        requestSeek(base + deltaMs, source)
+        seekSink.requestSeekRelative(deltaMs, source)
     }
 
     fun submitSeek(intent: SeekIntent, source: String) {
-        when (intent) {
-            is SeekIntent.Absolute -> requestSeek(intent.targetMs, source)
-            is SeekIntent.Fraction -> requestSeek(0L, source, intent.fraction)
-            is SeekIntent.Relative -> requestSeekRelative(intent.deltaMs, source)
-            is SeekIntent.MediaItem -> requestMediaItemSeek(intent.index, source)
-            is SeekIntent.AdjacentMediaItem -> requestAdjacentMediaItemSeek(intent.forward, source)
-        }
+        seekSink.submit(intent, source)
     }
 
-    /** 手势 HUD / 相对步进的统一基准：待决期间使用最后请求目标。 */
-    fun seekDisplayPositionMs(): Long =
-        seekDisplayPositionMs(
-            seekCoordinator.state,
-            playerHolder.existingPlayer?.currentPosition ?: 0L,
-            SystemClock.elapsedRealtime(),
-        )
+    fun seekDisplayPositionMs(): Long = seekSink.seekDisplayPositionMs()
 
     fun retrySeek() {
-        val generation = seekCoordinator.retryRequest(SystemClock.elapsedRealtime()) ?: return
-        val retry = seekCoordinator.state as? SeekState.Seeking ?: return
-        cancelPendingSeekFlush()
-        cancelTranscodeSeekWork()
-        publishSeekState()
-        armSeekTimeout()
-        val activePlayer = playerHolder.existingPlayer
-        val ready =
-            activePlayer != null &&
-                isSeekRequestReady(
-                    playerAttached = true,
-                    durationMs = activePlayer.duration,
-                    playbackState = activePlayer.playbackState,
-                    currentPositionMs = activePlayer.currentPosition,
-                )
-        if (ready) {
-            executeSeek(requireNotNull(activePlayer), "seek-retry")
-        } else {
-            pendingSeek = PendingSeek.Absolute(retry.targetMs)
-            pendingSeekGeneration = generation
-            pendingSeekSource = "seek-retry"
-            schedulePendingSeekFlush(generation)
-        }
-    }
-
-    private fun requestMediaItemSeek(index: Int, source: String) {
-        val activePlayer = playerHolder.existingPlayer ?: return
-        if (index !in 0 until activePlayer.mediaItemCount) return
-        val targetMediaItem = activePlayer.getMediaItemAt(index)
-        val targetIdentity = seekMediaIdentity(targetMediaItem) ?: return
-        val generation = beginMediaItemSeek(source, activePlayer, targetMediaItem)
-        if (generation == null) return
-        markSeekDispatched(generation, targetIdentity)
-        activePlayer.seekTo(index, 0L)
-    }
-
-    private fun requestAdjacentMediaItemSeek(forward: Boolean, source: String) {
-        val activePlayer = playerHolder.existingPlayer ?: return
-        val hasTarget =
-            if (forward) activePlayer.hasNextMediaItem() else activePlayer.hasPreviousMediaItem()
-        if (!hasTarget) return
-        val targetIndex =
-            if (forward) activePlayer.nextMediaItemIndex else activePlayer.previousMediaItemIndex
-        val targetMediaItem = activePlayer.getMediaItemAt(targetIndex)
-        val targetIdentity = seekMediaIdentity(targetMediaItem) ?: return
-        val generation = beginMediaItemSeek(source, activePlayer, targetMediaItem)
-        if (generation == null) return
-        markSeekDispatched(generation, targetIdentity)
-        if (forward) activePlayer.seekToNextMediaItem() else activePlayer.seekToPreviousMediaItem()
-    }
-
-    private fun beginMediaItemSeek(
-        source: String,
-        activePlayer: Player,
-        targetMediaItem: MediaItem,
-    ): Long? {
-        seekTimeoutJob?.cancel()
-        cancelPendingSeekFlush()
-        cancelTranscodeSeekWork()
-        val identity = seekMediaIdentity() ?: return null
-        val targetSourceUri = targetMediaItem.localConfiguration?.uri?.toString().orEmpty()
-        val generation =
-            seekCoordinator.beginRequestForTargetFromSource(
-                currentMediaIdentity = identity,
-                targetMs = 0L,
-                durationMs = activePlayer.duration,
-                issuedAtMs = SystemClock.elapsedRealtime(),
-                engine = currentSeekEngine(),
-                targetSourceUri = targetSourceUri,
-            )
-        pendingSeek = null
-        pendingSeekGeneration = null
-        pendingSeekSource = source
-        publishSeekState()
-        return generation
-    }
-
-    /** 就绪后的实际落点：转码超窗重开会话，否则直接 seek。 */
-    private fun executeSeek(activePlayer: Player, source: String) {
-        val generation =
-            currentSeekGeneration()
-                ?: run {
-                    Timber.w("seek 执行缺少 active generation：source=%s", source)
-                    return
-                }
-        val identity = seekMediaIdentity()
-        if (identity != null) {
-            val current = seekCoordinator.state as? SeekState.Seeking
-            if (current != null && current.mediaIdentity != identity) {
-                seekCoordinator.onSourceTransition(identity)
-                publishSeekState()
-            }
-        }
-        val duration = activePlayer.duration
-        val target =
-            seekDispatchTargetMs(
-                state = seekCoordinator.state,
-                requestGeneration = generation,
-                durationMs = duration,
-            )
-                ?: run {
-                    Timber.w("seek 目标已失效：source=%s generation=%d", source, generation)
-                    return
-                }
-        val item = currentPlaybackItem()
-        val isTranscode = item?.let { isTranscodeStreamUri(it.mediaSourceUri) } == true
-        val isExoPlayer = playerBackend == PLAYER_BACKEND_EXOPLAYER
-        val restartSession =
-            shouldRestartTranscodeSession(
-                isTranscodeStream = isTranscode,
-                isExoPlayer = isExoPlayer,
-                targetMs = target,
-                currentPositionMs = activePlayer.currentPosition,
-                bufferedPositionMs = activePlayer.bufferedPosition,
-                sessionStartMs = item?.playbackPosition ?: 0L,
-            )
-        val lease =
-            markSeekDispatched(
-                generation,
-                seekCoordinator.sourceMediaIdentity ?: return,
-            ) ?: return
-        if (restartSession) {
-            Timber.d(
-                "转码 seek 超出可用窗口：source=%s target=%d position=%d buffered=%d sessionStart=%d",
-                source,
-                target,
-                activePlayer.currentPosition,
-                activePlayer.bufferedPosition,
-                item?.playbackPosition,
-            )
-            scheduleTranscodeRestart(lease, source)
-            return
-        }
-        try {
-            activePlayer.seekTo(target)
-        } catch (error: RuntimeException) {
-            Timber.w(error, "seek 同步拒绝：source=%s target=%d", source, target)
-            failActiveSeek(SeekFailureReason.REJECTED, retryable = false)
-            return
-        }
-        Timber.d(
-            "seek 落点：source=%s target=%d position=%d buffered=%d transcode=%s",
-            source,
-            target,
-            activePlayer.currentPosition,
-            activePlayer.bufferedPosition,
-            isTranscode,
-        )
-        armTranscodeSeekWatchdog(
-            lease = lease,
-            source = source,
-            enabled = isTranscode && isExoPlayer,
-        )
-    }
-
-    /**
-     * Dispatch state must be established before the engine action, which may emit SEEK_ACCEPTED
-     * synchronously.
-     */
-    private fun markSeekDispatched(
-        generation: Long,
-        expectedMediaIdentity: SeekMediaIdentity,
-    ): SeekRequestLease? {
-        seekCoordinator.onDispatched(
-            requestGeneration = generation,
-            engine = currentSeekEngine(),
-            expectedMediaIdentity = expectedMediaIdentity,
-            nowElapsedMs = SystemClock.elapsedRealtime(),
-        )
-        publishSeekState()
-        armSeekTimeout()
-        return seekCoordinator.captureRequestLease()
-    }
-
-    private fun schedulePendingSeekFlush(generation: Long) {
-        pendingSeekFlushJob?.cancel()
-        pendingSeekFlushJob =
-            viewModelScope.launch(Dispatchers.Main) {
-                while (isActive) {
-                    if (pendingSeekGeneration != generation) return@launch
-                    val activePlayer = playerHolder.existingPlayer
-                    val ready =
-                        activePlayer != null &&
-                            isSeekRequestReady(
-                                playerAttached = true,
-                                durationMs = activePlayer.duration,
-                                playbackState = activePlayer.playbackState,
-                                currentPositionMs = activePlayer.currentPosition,
-                            )
-                    if (ready) {
-                        if (pendingSeekGeneration != generation) return@launch
-                        val readyPlayer = requireNotNull(activePlayer)
-                        val pending = pendingSeek ?: return@launch
-                        val target = resolvePendingSeek(pending, readyPlayer) ?: return@launch
-                        seekCoordinator.onTargetResolved(
-                            requestGeneration = generation,
-                            targetMs = target,
-                            durationMs = readyPlayer.duration,
-                        )
-                        publishSeekState()
-                        if (
-                            seekDispatchTargetMs(
-                                state = seekCoordinator.state,
-                                requestGeneration = generation,
-                                durationMs = readyPlayer.duration,
-                            ) == null
-                        ) {
-                            return@launch
-                        }
-                        val source = pendingSeekSource
-                        clearPendingSeek(generation, cancelFlush = false)
-                        executeSeek(readyPlayer, source)
-                        return@launch
-                    }
-                    delay(PENDING_SEEK_RETRY_MS)
-                }
-            }
-    }
-
-    private fun clearPendingSeek(generation: Long, cancelFlush: Boolean = true) {
-        if (pendingSeekGeneration != generation) return
-        if (cancelFlush) pendingSeekFlushJob?.cancel()
-        pendingSeek = null
-        pendingSeekGeneration = null
-        pendingSeekSource = ""
-    }
-
-    private fun cancelPendingSeekFlush() {
-        pendingSeekFlushJob?.cancel()
-        pendingSeekFlushJob = null
-    }
-
-    private fun cancelTranscodeSeekWork() {
-        transcodeSeekWatchdogJob?.cancel()
-        transcodeSeekWatchdogJob = null
-        transcodeRestartDebounceJob?.cancel()
-        transcodeRestartDebounceJob = null
-        transcodeRestartJob?.cancel()
-        transcodeRestartJob = null
-        transcodeRestartPendingLease = null
-        transcodeRestartLease = null
-    }
-
-    private fun resolvePendingSeek(pending: PendingSeek, activePlayer: Player): Long? =
-        when (pending) {
-            is PendingSeek.Absolute -> pending.targetMs
-            is PendingSeek.Fraction ->
-                seekTargetFromFraction(pending.fraction, activePlayer.duration)
-            is PendingSeek.Relative -> activePlayer.currentPosition + pending.deltaMs
-        }
-
-    private fun mergePendingSeek(next: PendingSeek) {
-        pendingSeek =
-            when (val current = pendingSeek) {
-                null -> next
-                is PendingSeek.Relative ->
-                    when (next) {
-                        is PendingSeek.Relative ->
-                            PendingSeek.Relative(
-                                (current.deltaMs + next.deltaMs).coerceIn(
-                                    -PENDING_SEEK_DELTA_MAX_MS,
-                                    PENDING_SEEK_DELTA_MAX_MS,
-                                )
-                            )
-                        else -> next
-                    }
-                is PendingSeek.Absolute ->
-                    when (next) {
-                        is PendingSeek.Relative ->
-                            PendingSeek.Absolute(
-                                (current.targetMs + next.deltaMs).coerceAtLeast(0L)
-                            )
-                        else -> next
-                    }
-                is PendingSeek.Fraction ->
-                    when (next) {
-                        // 时长未知时无法把增量换算成比例：保留比例，忽略增量（极边角场景）
-                        is PendingSeek.Relative -> current
-                        else -> next
-                    }
-            }
-    }
-
-    /** 转码重开会话的尾部去抖入口：拖动 / 连点只执行同一个 seek lease 的最后目标。 */
-    private fun scheduleTranscodeRestart(lease: SeekRequestLease, source: String) {
-        if (!seekCoordinator.isCurrent(lease)) return
-        transcodeRestartPendingLease = lease
-        transcodeRestartDebounceJob?.cancel()
-        transcodeRestartDebounceJob =
-            viewModelScope.launch(Dispatchers.Main) {
-                delay(TRANSCODE_RESTART_DEBOUNCE_MS)
-                if (!seekCoordinator.isCurrent(lease)) return@launch
-                if (transcodeRestartJob?.isActive == true) return@launch
-                val pendingLease = transcodeRestartPendingLease ?: return@launch
-                if (pendingLease != lease || !seekCoordinator.isCurrent(pendingLease)) {
-                    return@launch
-                }
-                transcodeRestartPendingLease = null
-                doRestartTranscodeSession(lease, source)
-            }
-    }
-
-    /**
-     * 原位重开转码会话：重新拉 PlaybackInfo（startTimeTicks = 目标位置）→ `replaceMediaItem` 替换当前条目 → 从目标位置起播。
-     *
-     * 不重启 Activity（不触发 viewModelStore.clear / recreate）；成功一次计数一次，同一媒体在
-     * [TRANSCODE_RESTART_WINDOW_MS] 内超过 [TRANSCODE_RESTART_WINDOW_MAX] 次则降级为普通 seek，避免异常场景无限重开。
-     */
-    private fun doRestartTranscodeSession(lease: SeekRequestLease, source: String) {
-        if (!seekCoordinator.isCurrent(lease)) return
-        val targetMs = lease.targetMs
-        val activePlayer = playerHolder.existingPlayer ?: return
-        if (playerBackend != PLAYER_BACKEND_EXOPLAYER) return
-        val currentItem = currentPlaybackItem()
-        if (currentItem == null) {
-            if (seekCoordinator.isCurrent(lease)) activePlayer.seekTo(targetMs)
-            return
-        }
-        val mediaId = currentItem.itemId.toString()
-        val now = SystemClock.elapsedRealtime()
-        if (mediaId != lastTranscodeRestartMediaId) {
-            lastTranscodeRestartMediaId = mediaId
-            transcodeRestartWindowStartMs = now
-            transcodeRestartWindowCount = 0
-        } else if (now - transcodeRestartWindowStartMs > TRANSCODE_RESTART_WINDOW_MS) {
-            transcodeRestartWindowStartMs = now
-            transcodeRestartWindowCount = 0
-        }
-        if (transcodeRestartWindowCount >= TRANSCODE_RESTART_WINDOW_MAX) {
-            Timber.w(
-                "转码重开会话过于频繁（%d 次 / %d ms），降级为普通 seek：target=%d source=%s",
-                transcodeRestartWindowCount,
-                TRANSCODE_RESTART_WINDOW_MS,
-                targetMs,
-                source,
-            )
-            if (seekCoordinator.isCurrent(lease)) activePlayer.seekTo(targetMs)
-            return
-        }
-        val index = activePlayer.currentMediaItemIndex
-        val wasPlaying = activePlayer.playWhenReady
-        transcodeRestartLease = lease
-        val job =
-            viewModelScope.launch(Dispatchers.Main) {
-                try {
-                    val rebuilt = runCatching {
-                        withContext(Dispatchers.IO) {
-                            playlistManager.rebuildPlayerItemForPosition(
-                                currentItem.itemId,
-                                targetMs,
-                            )
-                        }
-                    }
-                        .onFailure { Timber.e(it, "转码重开会话：重建播放信息异常") }
-                        .getOrNull()
-                    if (!seekCoordinator.isCurrent(lease)) {
-                        Timber.d("转码重开会话丢弃：seek generation 已变化（%d）", lease.requestGeneration)
-                        return@launch
-                    }
-                    val livePlayer = playerHolder.existingPlayer
-                    if (livePlayer == null || livePlayer !== activePlayer) return@launch
-                    if (
-                        livePlayer.currentMediaItem?.mediaId != mediaId ||
-                            livePlayer.currentMediaItemIndex != index
-                    ) {
-                        Timber.d("转码重开会话丢弃：播放条目已切换（%s）", mediaId)
-                        return@launch
-                    }
-                    if (rebuilt == null) {
-                        Timber.w("转码重开会话失败（重建播放信息为空）：target=%d", targetMs)
-                        failActiveSeek(
-                            reason = SeekFailureReason.SESSION_REBUILD_FAILED,
-                            retryable = true,
-                            lease = lease,
-                        )
-                        return@launch
-                    }
-                    val rebuiltIdentity =
-                        seekMediaIdentity(rebuilt.toMediaItem())
-                            ?: run {
-                                failActiveSeek(
-                                    reason = SeekFailureReason.SESSION_REBUILD_FAILED,
-                                    retryable = true,
-                                    lease = lease,
-                                )
-                                return@launch
-                            }
-                    if (!seekCoordinator.prepareSourceReplacement(lease, rebuiltIdentity)) {
-                        return@launch
-                    }
-                    val itemIndex = items.indexOfFirst { it.itemId == currentItem.itemId }
-                    if (itemIndex >= 0) {
-                        items[itemIndex] = rebuilt
-                    }
-                    publishSeekState()
-                    livePlayer.replaceMediaItem(index, rebuilt.toMediaItem())
-                    // 先 seek 再 prepare：prepare 时从目标位置开始加载分片，不再从 0 请求
-                    livePlayer.seekTo(index, targetMs)
-                    livePlayer.prepare()
-                    // 保持用户的播放 / 暂停意图：暂停中 seek 不自动起播
-                    if (wasPlaying) livePlayer.play() else livePlayer.pause()
-                    transcodeRestartWindowCount++
-                    Timber.d(
-                        "转码 seek 重开会话：item=%s target=%d source=%s index=%d count=%d wasPlaying=%s",
-                        mediaId,
-                        targetMs,
-                        source,
-                        index,
-                        transcodeRestartWindowCount,
-                        wasPlaying,
-                    )
-                } finally {
-                    if (transcodeRestartLease == lease) {
-                        transcodeRestartLease = null
-                        val merged = transcodeRestartPendingLease
-                        transcodeRestartPendingLease = null
-                        if (
-                            merged != null &&
-                                merged != lease &&
-                                seekCoordinator.isCurrent(merged) &&
-                                kotlin.math.abs(merged.targetMs - targetMs) > 2_000L
-                        ) {
-                            scheduleTranscodeRestart(merged, "merged")
-                        }
-                    }
-                }
-            }
-        transcodeRestartJob = job
-    }
-
-    /** 转码流直接 seek 的看门狗：目标附近仍在缓冲且位置没有推进 → 判定为超出服务器已生成窗口，带目标重开会话兜底。 */
-    private fun armTranscodeSeekWatchdog(
-        lease: SeekRequestLease,
-        source: String,
-        enabled: Boolean,
-    ) {
-        transcodeSeekWatchdogJob?.cancel()
-        if (!enabled) return
-        transcodeSeekWatchdogJob =
-            viewModelScope.launch(Dispatchers.Main) {
-                delay(TRANSCODE_SEEK_WATCHDOG_DELAY_MS)
-                if (!seekCoordinator.isCurrent(lease)) return@launch
-                val activePlayer = playerHolder.existingPlayer ?: return@launch
-                val position = activePlayer.currentPosition
-                val stalled =
-                    activePlayer.playbackState == Player.STATE_BUFFERING &&
-                        kotlin.math.abs(position - lease.targetMs) >
-                            TRANSCODE_SEEK_WATCHDOG_TOLERANCE_MS
-                if (stalled) {
-                    Timber.w(
-                        "转码 seek 看门狗：target=%d 仍在缓冲（position=%d buffered=%d source=%s），重开会话",
-                        lease.targetMs,
-                        position,
-                        activePlayer.bufferedPosition,
-                        source,
-                    )
-                    scheduleTranscodeRestart(lease, "watchdog")
-                }
-            }
+        seekSink.retrySeek()
     }
 
     fun skipSegment(segment: FindroidSegment) {
         if (shouldSkipToNextEpisode(segment)) {
-            requestAdjacentMediaItemSeek(forward = true, source = "skip-segment-next")
+            seekSink.submit(
+                SeekIntent.AdjacentMediaItem(forward = true),
+                source = "skip-segment-next",
+            )
         } else {
             requestSeek(segment.endTicks, "skip-segment")
         }

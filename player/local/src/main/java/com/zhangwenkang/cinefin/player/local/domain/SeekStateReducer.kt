@@ -29,6 +29,7 @@ enum class SeekFailureReason {
     ENGINE_ERROR,
     SOURCE_CHANGED,
     SESSION_REBUILD_FAILED,
+    UNSUPPORTED,
     TIMEOUT,
 }
 
@@ -75,7 +76,7 @@ sealed interface SeekState {
         val targetMs: Long,
         val requestGeneration: Long,
         val sourceEpoch: Long,
-        val mediaIdentity: SeekMediaIdentity,
+        val mediaIdentity: SeekMediaIdentity?,
         val reason: SeekFailureReason,
         val retryable: Boolean,
         val policy: SeekConfirmationPolicy,
@@ -273,6 +274,20 @@ class SeekStateReducer {
                 targetMs.coerceAtLeast(0L)
             }
         state = seeking.copy(targetMs = target, acceptedPositionMs = null)
+    }
+
+    fun onUnsupported(policy: SeekConfirmationPolicy) {
+        val generation = nextGeneration()
+        state =
+            SeekState.Failed(
+                targetMs = 0L,
+                requestGeneration = generation,
+                sourceEpoch = currentSourceEpoch,
+                mediaIdentity = null,
+                reason = SeekFailureReason.UNSUPPORTED,
+                retryable = false,
+                policy = policy,
+            )
     }
 
     fun onDispatched(requestGeneration: Long, nowElapsedMs: Long) {
