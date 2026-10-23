@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.androidx.paging)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.coil.compose)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)

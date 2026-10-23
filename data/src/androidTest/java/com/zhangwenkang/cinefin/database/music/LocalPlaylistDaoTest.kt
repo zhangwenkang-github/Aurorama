@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -132,6 +133,49 @@ class LocalPlaylistDaoTest {
 
             assertTrue(dao.getEntries(PLAYLIST_ID).isEmpty())
             assertEquals(listOf("entry-x"), dao.getEntries(OTHER_PLAYLIST_ID).map { it.id })
+        }
+    }
+
+    @Test
+    fun importPlaylist_insertsAllOrderedEntriesInOneTransaction() = runBlocking {
+        withDatabase { database ->
+            val dao = database.localPlaylistDao()
+
+            assertTrue(
+                dao.importPlaylist(
+                    playlist = playlist(PLAYLIST_ID),
+                    entries = entries("a", "b", "c"),
+                )
+            )
+
+            assertEquals("Playlist $PLAYLIST_ID", dao.getPlaylist(PLAYLIST_ID)?.name)
+            assertEquals(
+                listOf("a", "b", "c"),
+                dao.getEntries(PLAYLIST_ID).map { it.itemId },
+            )
+        }
+    }
+
+    @Test
+    fun importPlaylist_midEntryFailureRollsBackPlaylistAndEarlierEntries() = runBlocking {
+        withDatabase { database ->
+            val dao = database.localPlaylistDao()
+            val first = entry(id = "entry-a", itemId = SAME_ITEM)
+            val conflicting = first.copy(id = "entry-b", position = 1)
+
+            var failed = false
+            try {
+                dao.importPlaylist(
+                    playlist = playlist(PLAYLIST_ID),
+                    entries = listOf(first, conflicting),
+                )
+            } catch (_: IllegalStateException) {
+                failed = true
+            }
+
+            assertTrue(failed)
+            assertNull(dao.getPlaylist(PLAYLIST_ID))
+            assertTrue(dao.getEntries(PLAYLIST_ID).isEmpty())
         }
     }
 

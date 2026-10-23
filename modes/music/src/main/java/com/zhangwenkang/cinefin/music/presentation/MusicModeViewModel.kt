@@ -26,6 +26,10 @@ import com.zhangwenkang.cinefin.music.data.MusicRecentStore
 import com.zhangwenkang.cinefin.music.data.MusicRepository
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.MusicTrackResolver
+import com.zhangwenkang.cinefin.music.data.PlaylistExchangeAdapter
+import com.zhangwenkang.cinefin.music.data.PlaylistExchangeDocument
+import com.zhangwenkang.cinefin.music.data.PlaylistExchangeEntry
+import com.zhangwenkang.cinefin.music.data.PlaylistExchangeException
 import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.music.data.groupAlbums
 import com.zhangwenkang.cinefin.music.data.groupArtists
@@ -158,6 +162,13 @@ constructor(
     /** W60b：下载反馈（已加入队列 · N 首）→ 音乐页 Snackbar（带「查看」跳下载页）。 */
     private val downloadQueuedChannel = Channel<Int>(Channel.BUFFERED)
     val downloadQueued = downloadQueuedChannel.receiveAsFlow()
+
+    private val playlistExchangeFeedbackChannel =
+        Channel<PlaylistExchangeFeedback>(Channel.BUFFERED)
+    val playlistExchangeFeedback = playlistExchangeFeedbackChannel.receiveAsFlow()
+
+    private val playlistExportReadyChannel = Channel<PlaylistExportReady>(Channel.BUFFERED)
+    val playlistExportReady = playlistExportReadyChannel.receiveAsFlow()
 
     /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
     private val _batchSelection = MutableStateFlow(MultiSelectState())
@@ -1632,6 +1643,90 @@ constructor(
                         error.message ?: "本地歌单写入失败，请稍后重试",
                     )
                 }
+        }
+    }
+
+    /** 文件已在 UI 侧完整、有界读取；这里只有整份解析成功后才进入本地原子导入。 */
+    fun importLocalPlaylist(content: String) {
+        viewModelScope.launch {
+            try {
+                val format =
+                    PlaylistExchangeFileTypes.detect(content)
+                        ?: throw PlaylistExchangeException("无法识别歌单文件格式")
+                val document =
+                    when (format) {
+                        PlaylistExchangeFormat.JSON -> PlaylistExchangeAdapter.decodeJson(content)
+                        PlaylistExchangeFormat.M3U8 -> PlaylistExchangeAdapter.decodeM3u8(content)
+                    }
+                val summary = localPlaylistRepository.importPlaylist(document)
+                playlistExchangeFeedbackChannel.send(
+                    PlaylistExchangeFeedback("已导入「${summary.name}」 · ${summary.entryCount} 首")
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                playlistExchangeFeedbackChannel.send(
+                    PlaylistExchangeFeedback(
+                        error.message?.takeIf { it.isNotBlank() } ?: "歌单导入失败，未写入本地歌单"
+                    )
+                )
+            }
+        }
+    }
+
+    /** 仅导出当前打开的本地歌单；服务器歌单不会进入文件交换写路径。 */
+    fun exportLocalPlaylist(playlistId: UUID, format: PlaylistExchangeFormat) {
+        viewModelScope.launch {
+            try {
+                val detail =
+                    _uiState.value.detail as? MusicDetail.Playlist
+                        ?: throw IllegalStateException("没有打开的歌单")
+                if (
+                    detail.playlist.id != playlistId ||
+                        detail.playlist.kind != MusicPlaylistKind.LOCAL
+                ) {
+                    throw IllegalStateException("只能导出当前本地歌单")
+                }
+                val availableRefs = availablePlaylistTrackRefs()
+                val entries =
+                    localPlaylistRepository.entries(playlistId.toString()).first().map { entry ->
+                        PlaylistExchangeEntry(
+                            track = entry.track,
+                            unavailable =
+                                entry.track.ref is TrackRef.Unresolved ||
+                                    entry.track.ref !in availableRefs,
+                        )
+                    }
+                val document =
+                    PlaylistExchangeDocument(
+                        name = detail.playlist.name,
+                        entries = entries,
+                    )
+                val content =
+                    when (format) {
+                        PlaylistExchangeFormat.JSON -> PlaylistExchangeAdapter.encodeJson(document)
+                        PlaylistExchangeFormat.M3U8 -> PlaylistExchangeAdapter.encodeM3u8(document)
+                    }
+                playlistExportReadyChannel.send(
+                    PlaylistExportReady(
+                        fileName =
+                            PlaylistExchangeFileTypes.suggestedFileName(
+                                detail.playlist.name,
+                                format,
+                            ),
+                        format = format,
+                        content = content,
+                    )
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                playlistExchangeFeedbackChannel.send(
+                    PlaylistExchangeFeedback(
+                        error.message?.takeIf { it.isNotBlank() } ?: "歌单导出准备失败"
+                    )
+                )
+            }
         }
     }
 

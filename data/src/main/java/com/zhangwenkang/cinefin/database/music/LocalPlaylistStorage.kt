@@ -11,6 +11,8 @@ interface LocalPlaylistStorage {
 
     suspend fun getEntries(playlistId: String): List<StoredLocalPlaylistEntry>
 
+    suspend fun getPlaylistNames(): Set<String>
+
     suspend fun createPlaylist(
         id: String,
         name: String,
@@ -21,6 +23,12 @@ interface LocalPlaylistStorage {
     suspend fun renamePlaylist(id: String, name: String, updatedAt: Long): Boolean
 
     suspend fun addEntries(entries: List<StoredLocalPlaylistEntry>): Boolean
+
+    /** 一次事务创建歌单行与全部 entries；失败时不得留下空歌单或半份条目。 */
+    suspend fun importPlaylist(
+        playlist: StoredLocalPlaylist,
+        entries: List<StoredLocalPlaylistEntry>,
+    ): Boolean
 
     suspend fun removeEntries(playlistId: String, entryIds: Set<String>): Boolean
 
@@ -78,6 +86,8 @@ class LocalPlaylistStorageImpl constructor(private val dao: LocalPlaylistDao) :
     override suspend fun getEntries(playlistId: String): List<StoredLocalPlaylistEntry> =
         dao.getEntries(playlistId).map { it.toStored() }
 
+    override suspend fun getPlaylistNames(): Set<String> = dao.getPlaylistNames().toSet()
+
     override suspend fun createPlaylist(
         id: String,
         name: String,
@@ -102,6 +112,21 @@ class LocalPlaylistStorageImpl constructor(private val dao: LocalPlaylistDao) :
 
     override suspend fun addEntries(entries: List<StoredLocalPlaylistEntry>): Boolean =
         dao.addEntries(entries.map { it.toEntity(position = 0) })
+
+    override suspend fun importPlaylist(
+        playlist: StoredLocalPlaylist,
+        entries: List<StoredLocalPlaylistEntry>,
+    ): Boolean =
+        dao.importPlaylist(
+            playlist =
+                LocalPlaylistEntity(
+                    id = playlist.id,
+                    name = playlist.name,
+                    createdAt = playlist.createdAt,
+                    updatedAt = playlist.updatedAt,
+                ),
+            entries = entries.map { it.toEntity(position = 0) },
+        )
 
     override suspend fun removeEntries(
         playlistId: String,

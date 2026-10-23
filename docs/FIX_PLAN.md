@@ -544,6 +544,9 @@
 
 **W87-B JSON / M3U8 交换与冲突（#44）**：音乐互操作工程师；版本化 JSON 作为完整备份，M3U8 作为兼容适配器，服务器互导只留接口且 `writeEnabled=false`。非目标：不猜 Jellyfin 歌单字段；不覆盖同名本地歌单；M3U8 不承担完整身份备份。验收：JSON 往返保名、顺序、身份、占位；M3U8 仅按可证明身份解析；同名冲突生成副本；坏文件原子失败。落点：`PlaylistExchangeAdapter`、SAF 导入导出 UI、ARCHITECTURE §5.6 端口。
 
+- **2026-10-24 W87-B 实施中**：分支 `codex/w87-b-playlist-exchange`，基线 `90c975ea`。JSON schema v1 + 严格拒绝；M3U8 只认显式 Aurorama 身份扩展；副本名由导入临界区确定；`LocalPlaylistDao.importPlaylist` 单事务写歌单行与有序 entries；SAF 文件仅作交换。已通过 adapter / import / MIME 定向测试、`data` / `music` 单测及 `data` androidTest 编译；全量门禁、静态零写核验与提交待收尾，未改 schema。
+- **2026-10-24 W87-B 门禁收口**：专项 tests 15（adapter 9 / import 3 / SAF 类型 3）全绿；`data` XML 84/0/0/0、`music` XML 215/0/0/0；phone debug、根格式与 diff 检查通过。服务器写新增调用面静态为 0、fake counter 为 0，但运行时包级计数未插桩，保留 **1 BLOCKED**；Room 原子导入 instrumentation 已编译，0 adb 约束下未执行，交独立 QA。未改 schema。
+
 **W87-C 实际随机序与首屏快照（#46）**：音乐播放状态工程师；持久化自然队列、当前曲、位置、模式与实际 shuffle 序；歌单首屏读快照，点击先解析目标曲并在后台补队列。非目标：恢复不自动出声；不等待整表解析才起播；不重写内核。验收：强制停止后队列 / 当前曲 / 位置 / 实际下几首顺序一致；快照命中不依赖网络；后台补齐顺序稳定。落点：`MusicQueue*`、`MusicQueuePersister`、`MusicModeViewModel`；Media3 随机序重建能力先只读核实。
 
 #### W88 搜索与持久缓存（W88-A 等 W85 释放导航咽喉）

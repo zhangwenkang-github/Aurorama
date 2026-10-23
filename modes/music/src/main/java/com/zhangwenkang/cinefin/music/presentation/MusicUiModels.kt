@@ -21,6 +21,7 @@ fun MusicSong.playlistSelectionKey(): String =
         ?: when (val ref = trackRef) {
             is TrackRef.Server -> "server:${ref.serverId}:${ref.userId}:${ref.itemId}"
             is TrackRef.Local -> "local:${ref.libraryId}:${ref.itemId}"
+            is TrackRef.Unresolved -> "unresolved:${ref.placeholderKey}"
             null -> itemId.toString()
         }
 

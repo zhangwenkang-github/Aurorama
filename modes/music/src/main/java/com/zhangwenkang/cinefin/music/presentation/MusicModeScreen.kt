@@ -52,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -111,14 +112,20 @@ import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicPlaylistKind
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.music.data.PlaylistExchangeAdapter
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import java.io.IOException
 import java.util.UUID
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** 队列行高（拖动换算基准）：面板内所有行等高，拖动位移才能按整数行对齐。 */
 private val QueueRowHeight = 72.dp
@@ -212,12 +219,100 @@ fun MusicModeScreen(
     val effectsOverrideAlbumDb by viewModel.effectsOverrideAlbumDb.collectAsState()
     var overlayGuideOpen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    val exchangeScope = rememberCoroutineScope()
+    var pendingExport by remember { mutableStateOf<PlaylistExportReady?>(null) }
     // 权限页返回：复核权限，拿到了就直接开启（用户在引导弹窗里点过「去授权」）
     val overlayPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             viewModel.refreshLyricsOverlayPermission()
             if (Settings.canDrawOverlays(context)) viewModel.enableLyricsOverlay()
         }
+
+    val importPlaylistLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) {
+                exchangeScope.launch { snackbarHostState.showSnackbar("已取消导入歌单") }
+            } else {
+                exchangeScope.launch {
+                    try {
+                        val content =
+                            withContext(Dispatchers.IO) {
+                                context.contentResolver.openInputStream(uri)?.use { input ->
+                                    PlaylistExchangeAdapter.readBoundedUtf8(input)
+                                } ?: throw IOException("无法打开所选歌单文件")
+                            }
+                        viewModel.importLocalPlaylist(content)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        snackbarHostState.showSnackbar(
+                            error.message?.takeIf { it.isNotBlank() } ?: "读取歌单文件失败"
+                        )
+                    }
+                }
+            }
+        }
+
+    fun finishExport(uri: Uri?) {
+        val export = pendingExport
+        pendingExport = null
+        exchangeScope.launch {
+            if (uri == null || export == null) {
+                snackbarHostState.showSnackbar("已取消导出歌单")
+                return@launch
+            }
+            try {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                        output.write(export.content.toByteArray(Charsets.UTF_8))
+                        output.flush()
+                    } ?: throw IOException("无法创建歌单文件")
+                }
+                snackbarHostState.showSnackbar("已导出「${export.fileName}」")
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                snackbarHostState.showSnackbar(
+                    error.message?.takeIf { it.isNotBlank() } ?: "写出歌单文件失败"
+                )
+            }
+        }
+    }
+
+    val exportJsonLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument(PlaylistExchangeFormat.JSON.mimeType)
+        ) { uri ->
+            finishExport(uri)
+        }
+    val exportM3u8Launcher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument(PlaylistExchangeFormat.M3U8.mimeType)
+        ) { uri ->
+            finishExport(uri)
+        }
+
+    LaunchedEffect(viewModel) {
+        viewModel.playlistExchangeFeedback.collect { feedback ->
+            snackbarHostState.showSnackbar(feedback.message)
+        }
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.playlistExportReady.collect { export ->
+            pendingExport = export
+            try {
+                when (export.format) {
+                    PlaylistExchangeFormat.JSON -> exportJsonLauncher.launch(export.fileName)
+                    PlaylistExchangeFormat.M3U8 -> exportM3u8Launcher.launch(export.fileName)
+                }
+            } catch (error: Exception) {
+                pendingExport = null
+                snackbarHostState.showSnackbar(
+                    error.message?.takeIf { it.isNotBlank() } ?: "无法打开系统文件保存器"
+                )
+            }
+        }
+    }
 
     // 队列被清空（停止播放）时自动收起队列面板与全屏播放页
     LaunchedEffect(queue) {
@@ -364,6 +459,7 @@ fun MusicModeScreen(
                                         )
                                     }
                                 },
+                                onExportLocalPlaylist = viewModel::exportLocalPlaylist,
                             )
                         else ->
                             LibraryPane(
@@ -396,6 +492,20 @@ fun MusicModeScreen(
                                 },
                                 onDeleteLocalPlaylist = { playlist ->
                                     deletePlaylistDialogId = playlist.id.toString()
+                                },
+                                onImportLocalPlaylist = {
+                                    try {
+                                        importPlaylistLauncher.launch(
+                                            PlaylistExchangeFileTypes.importMimeTypes
+                                        )
+                                    } catch (error: Exception) {
+                                        exchangeScope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                error.message?.takeIf { it.isNotBlank() }
+                                                    ?: "无法打开系统文件选择器"
+                                            )
+                                        }
+                                    }
                                 },
                             )
                     }
@@ -1089,6 +1199,7 @@ private fun LibraryPane(
     onCreateLocalPlaylist: () -> Unit = {},
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit = {},
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit = {},
+    onImportLocalPlaylist: () -> Unit = {},
 ) {
     // W79b · #33：服务器个别曲目没有 Primary 图时，用同专辑封面兜底（只读已加载的曲库快照）。
     val albumArtwork = remember(state.albums) { albumArtworkUris(state.albums) }
@@ -1138,6 +1249,7 @@ private fun LibraryPane(
                 emptyCopy = emptyCopy,
                 onPlaylistClick = onPlaylistClick,
                 onCreateLocalPlaylist = onCreateLocalPlaylist,
+                onImportLocalPlaylist = onImportLocalPlaylist,
                 onRenameLocalPlaylist = onRenameLocalPlaylist,
                 onDeleteLocalPlaylist = onDeleteLocalPlaylist,
             )
@@ -1161,6 +1273,7 @@ private fun DetailPane(
     albumMissingCount: () -> Int? = { null },
     onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
     onMoveLocalEntry: (MusicSong, Int) -> Unit = { _, _ -> },
+    onExportLocalPlaylist: (UUID, PlaylistExchangeFormat) -> Unit = { _, _ -> },
 ) {
     if (
         (detail is MusicDetail.Playlist && detail.loading) ||
@@ -1204,14 +1317,36 @@ private fun DetailPane(
                 null
             },
         header =
-            (detail as? MusicDetail.Album)?.let { albumDetail ->
-                {
-                    AlbumDetailHeader(
-                        album = albumDetail.album,
-                        missingCount = albumMissingCount(),
-                        onDownloadAlbum = onDownloadAlbum,
-                    )
+            when {
+                detail is MusicDetail.Album -> {
+                    {
+                        AlbumDetailHeader(
+                            album = detail.album,
+                            missingCount = albumMissingCount(),
+                            onDownloadAlbum = onDownloadAlbum,
+                        )
+                    }
                 }
+                detail is MusicDetail.Playlist &&
+                    detail.playlist.kind == MusicPlaylistKind.LOCAL -> {
+                    {
+                        LocalPlaylistExchangeHeader(
+                            onExportJson = {
+                                onExportLocalPlaylist(
+                                    detail.playlist.id,
+                                    PlaylistExchangeFormat.JSON,
+                                )
+                            },
+                            onExportM3u8 = {
+                                onExportLocalPlaylist(
+                                    detail.playlist.id,
+                                    PlaylistExchangeFormat.M3U8,
+                                )
+                            },
+                        )
+                    }
+                }
+                else -> null
             },
     )
 }
@@ -1333,12 +1468,16 @@ private fun PlaylistList(
     emptyCopy: MusicEmptyCopy,
     onPlaylistClick: (MusicPlaylist) -> Unit,
     onCreateLocalPlaylist: () -> Unit,
+    onImportLocalPlaylist: () -> Unit,
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit,
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit,
 ) {
     if (playlists.isEmpty()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            PlaylistCreateAction(onCreateLocalPlaylist = onCreateLocalPlaylist)
+            PlaylistCreateAction(
+                onCreateLocalPlaylist = onCreateLocalPlaylist,
+                onImportLocalPlaylist = onImportLocalPlaylist,
+            )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 EmptyHint(title = emptyCopy.title, message = emptyCopy.message)
             }
@@ -1347,7 +1486,10 @@ private fun PlaylistList(
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item(key = "local-playlist-create") {
-            PlaylistCreateAction(onCreateLocalPlaylist = onCreateLocalPlaylist)
+            PlaylistCreateAction(
+                onCreateLocalPlaylist = onCreateLocalPlaylist,
+                onImportLocalPlaylist = onImportLocalPlaylist,
+            )
         }
         items(items = playlists, key = { playlist -> playlist.stableKey() }) { playlist ->
             var menuOpen by remember { mutableStateOf(false) }
@@ -1398,14 +1540,51 @@ private fun PlaylistList(
 }
 
 @Composable
-private fun PlaylistCreateAction(onCreateLocalPlaylist: () -> Unit) {
+private fun PlaylistCreateAction(
+    onCreateLocalPlaylist: () -> Unit,
+    onImportLocalPlaylist: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(CinefinSpacing.Space3),
         horizontalArrangement = Arrangement.End,
     ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2)) {
+            CinefinButton(
+                text = "导入 JSON/M3U8",
+                onClick = onImportLocalPlaylist,
+                size = CinefinButtonSize.Small,
+                variant = CinefinButtonVariant.Outlined,
+            )
+            CinefinButton(
+                text = "新建本地歌单",
+                onClick = onCreateLocalPlaylist,
+                size = CinefinButtonSize.Small,
+                variant = CinefinButtonVariant.Outlined,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LocalPlaylistExchangeHeader(
+    onExportJson: () -> Unit,
+    onExportM3u8: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2, Alignment.End),
+    ) {
         CinefinButton(
-            text = "新建本地歌单",
-            onClick = onCreateLocalPlaylist,
+            text = "导出 JSON",
+            onClick = onExportJson,
+            size = CinefinButtonSize.Small,
+            variant = CinefinButtonVariant.Outlined,
+        )
+        CinefinButton(
+            text = "导出 M3U8",
+            onClick = onExportM3u8,
             size = CinefinButtonSize.Small,
             variant = CinefinButtonVariant.Outlined,
         )

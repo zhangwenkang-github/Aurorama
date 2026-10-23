@@ -77,6 +77,8 @@ interface LocalPlaylistDao {
     @Query("SELECT * FROM local_playlists WHERE id = :playlistId")
     suspend fun getPlaylist(playlistId: String): LocalPlaylistEntity?
 
+    @Query("SELECT name FROM local_playlists") suspend fun getPlaylistNames(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPlaylist(playlist: LocalPlaylistEntity): Long
 
@@ -108,6 +110,27 @@ interface LocalPlaylistDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertEntry(entry: LocalPlaylistEntryEntity): Long
+
+    /**
+     * 文件导入的唯一持久化入口。
+     *
+     * 歌单行与全部有序条目的插入必须位于同一个 Room 事务中；任一条目失败时抛出异常，让 Room 回滚整份导入， 不留下空歌单或部分条目。
+     */
+    @Transaction
+    suspend fun importPlaylist(
+        playlist: LocalPlaylistEntity,
+        entries: List<LocalPlaylistEntryEntity>,
+    ): Boolean {
+        if (getPlaylist(playlist.id) != null) return false
+        if (insertPlaylist(playlist) < 0L) return false
+        entries.forEachIndexed { index, entry ->
+            require(entry.playlistId == playlist.id) { "导入条目属于其他歌单" }
+            if (insertEntry(entry.copy(position = index)) < 0L) {
+                throw IllegalStateException("导入歌单条目冲突")
+            }
+        }
+        return true
+    }
 
     @Query(
         "DELETE FROM local_playlist_entries WHERE playlistId = :playlistId AND id IN (:entryIds)"

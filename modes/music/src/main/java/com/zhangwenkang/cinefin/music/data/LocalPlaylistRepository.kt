@@ -8,6 +8,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 稳定曲目身份。
@@ -31,6 +33,9 @@ sealed interface TrackRef {
             require(libraryId > 0L) { "本地曲目缺少 libraryId，不能用 URI 代替身份" }
         }
     }
+
+    /** M3U8 中合法但无法证明稳定身份的条目；只用于本地占位，不参与可用性匹配。 */
+    data class Unresolved(val placeholderKey: UUID) : TrackRef
 }
 
 data class PlaylistTrackSnapshot(
@@ -61,9 +66,17 @@ data class LocalPlaylistEntry(
     val track: LocalPlaylistTrack,
 )
 
+data class PlaylistImportSummary(
+    val playlistId: UUID,
+    val name: String,
+    val entryCount: Int,
+)
+
 /** app-scope 本地歌单真源；实现不持有 UI 状态，也不依赖 Jellyfin 写 API。 */
 @Singleton
 class LocalPlaylistRepositoryImpl @Inject constructor(private val storage: LocalPlaylistStorage) {
+    private val importMutex = Mutex()
+
     val playlists: Flow<List<LocalPlaylist>> =
         storage.observePlaylists().map { rows -> rows.map { it.toDomain() } }
 
@@ -114,6 +127,50 @@ class LocalPlaylistRepositoryImpl @Inject constructor(private val storage: Local
 
     suspend fun delete(playlistId: UUID): Boolean = storage.deletePlaylist(playlistId.toString())
 
+    /**
+     * 导入已完整解析的文件文档。
+     *
+     * 名称冲突在导入临界区内按当前名称集合确定，避免连续导入覆盖；歌单行与全部 entries 只通过一个 storage 原子端口落库。 过程中抛出的 IO / DB /
+     * 取消异常原样向上传递，让上层显示失败终态且不产生半成品。
+     */
+    suspend fun importPlaylist(
+        document: PlaylistExchangeDocument,
+        playlistId: UUID = UUID.randomUUID(),
+        now: Long = System.currentTimeMillis(),
+    ): PlaylistImportSummary = importMutex.withLock {
+        PlaylistExchangeAdapter.validate(document)
+        val normalizedName = document.name.trim()
+        require(normalizedName.isNotEmpty()) { "歌单名不能为空" }
+        require(document.entries.size <= PlaylistExchangeAdapter.MAX_ENTRIES) { "歌单条目数超过上限" }
+        val importedName =
+            PlaylistExchangeAdapter.importCopyName(
+                originalName = normalizedName,
+                existingNames = storage.getPlaylistNames(),
+            )
+        val rows =
+            document.entries.mapIndexed { index, entry ->
+                entry.track.toStored(playlistId).copy(position = index)
+            }
+        val inserted =
+            storage.importPlaylist(
+                playlist =
+                    StoredLocalPlaylist(
+                        id = playlistId.toString(),
+                        name = importedName,
+                        createdAt = now,
+                        updatedAt = now,
+                        entryCount = rows.size,
+                    ),
+                entries = rows,
+            )
+        check(inserted) { "导入歌单写入失败" }
+        PlaylistImportSummary(
+            playlistId = playlistId,
+            name = importedName,
+            entryCount = rows.size,
+        )
+    }
+
     private fun StoredLocalPlaylist.toDomain() =
         LocalPlaylist(
             id = UUID.fromString(id),
@@ -139,6 +196,10 @@ class LocalPlaylistRepositoryImpl @Inject constructor(private val storage: Local
                             libraryId = libraryId,
                             itemId = UUID.fromString(itemId),
                         )
+                    }
+                        .getOrNull()
+                TRACK_UNRESOLVED -> runCatching {
+                        TrackRef.Unresolved(placeholderKey = UUID.fromString(itemId))
                     }
                         .getOrNull()
                 else -> null
@@ -179,6 +240,13 @@ class LocalPlaylistRepositoryImpl @Inject constructor(private val storage: Local
                         userId = NO_USER,
                         libraryId = identity.libraryId,
                     )
+                is TrackRef.Unresolved ->
+                    StoredIdentity(
+                        trackKind = TRACK_UNRESOLVED,
+                        serverId = NO_SERVER,
+                        userId = NO_USER,
+                        libraryId = NO_LOCAL_LIBRARY,
+                    )
             }
         return StoredLocalPlaylistEntry(
             id = UUID.randomUUID().toString(),
@@ -208,6 +276,7 @@ class LocalPlaylistRepositoryImpl @Inject constructor(private val storage: Local
     private companion object {
         const val TRACK_SERVER = "SERVER"
         const val TRACK_LOCAL = "LOCAL"
+        const val TRACK_UNRESOLVED = "UNRESOLVED"
         const val NO_SERVER = ""
         const val NO_USER = ""
         const val NO_LOCAL_LIBRARY = -1L
@@ -219,6 +288,7 @@ private val TrackRef.itemId: UUID
         when (this) {
             is TrackRef.Server -> itemId
             is TrackRef.Local -> itemId
+            is TrackRef.Unresolved -> placeholderKey
         }
 
 /** 从当前曲目构造持久身份；当前服务器 / 用户 / 本地库上下文缺失时显式失败。 */

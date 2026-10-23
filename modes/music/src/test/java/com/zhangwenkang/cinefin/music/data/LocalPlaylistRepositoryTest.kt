@@ -206,6 +206,9 @@ class LocalPlaylistRepositoryTest {
         override suspend fun getEntries(playlistId: String): List<StoredLocalPlaylistEntry> =
             entryRows.value.filter { it.playlistId == playlistId }.sortedBy { it.position }
 
+        override suspend fun getPlaylistNames(): Set<String> =
+            playlistRows.value.map { it.name }.toSet()
+
         override suspend fun createPlaylist(
             id: String,
             name: String,
@@ -253,6 +256,16 @@ class LocalPlaylistRepositoryTest {
                 }
                 result
             }
+            return true
+        }
+
+        override suspend fun importPlaylist(
+            playlist: StoredLocalPlaylist,
+            entries: List<StoredLocalPlaylistEntry>,
+        ): Boolean {
+            if (playlistRows.value.any { it.id == playlist.id }) return false
+            playlistRows.update { it + playlist.copy(entryCount = entries.size) }
+            entryRows.update { it + entries }
             return true
         }
 
