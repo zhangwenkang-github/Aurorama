@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.di
 import android.content.Context
 import androidx.room3.Room
 import androidx.sqlite.driver.AndroidSQLiteDriver
+import com.zhangwenkang.cinefin.database.music.LocalPlaylistDao
 import com.zhangwenkang.cinefin.database.music.MusicDatabase
 import com.zhangwenkang.cinefin.database.music.MusicQueueDao
 import com.zhangwenkang.cinefin.database.music.MusicRecentDao
@@ -18,8 +19,7 @@ import javax.inject.Singleton
 /**
  * 音乐线本地库（W21-R2）：独立于 `servers` 库的 `music` 库。
  *
- * 与 `DatabaseModule` 同款构建方式（AndroidSQLiteDriver + 破坏式迁移兜底）， 但单独成文件，避免动 W20 也会碰的
- * `DatabaseModule.kt`。
+ * 与 `DatabaseModule` 同款驱动构建，但迁移显式声明；队列、最近播放与 W87 本地歌单均不得因 schema 变化被自动清空。
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -29,7 +29,7 @@ object MusicDatabaseModule {
     fun provideMusicDatabase(@ApplicationContext app: Context): MusicDatabase =
         Room.databaseBuilder(app.applicationContext, MusicDatabase::class.java, "music")
             .setDriver(AndroidSQLiteDriver())
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .addMigrations(MusicDatabase.MIGRATION_1_2)
             .build()
 
     @Provides
@@ -37,6 +37,10 @@ object MusicDatabaseModule {
 
     @Provides
     fun provideMusicRecentDao(database: MusicDatabase): MusicRecentDao = database.musicRecentDao()
+
+    @Provides
+    fun provideLocalPlaylistDao(database: MusicDatabase): LocalPlaylistDao =
+        database.localPlaylistDao()
 
     @Singleton
     @Provides

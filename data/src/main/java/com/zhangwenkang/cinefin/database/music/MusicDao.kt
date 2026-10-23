@@ -55,3 +55,13 @@ interface MusicRecentDao {
     )
     suspend fun trim(keep: Int)
 }
+
+/** 本地歌单基础 DAO；事务化仓库操作在 W87-A 仓库层接入。 */
+@Dao
+interface LocalPlaylistDao {
+    @Query("SELECT * FROM local_playlists ORDER BY updatedAt DESC, id ASC")
+    suspend fun getPlaylists(): List<LocalPlaylistEntity>
+
+    @Query("SELECT * FROM local_playlist_entries WHERE playlistId = :playlistId ORDER BY position")
+    suspend fun getEntries(playlistId: String): List<LocalPlaylistEntryEntity>
+}

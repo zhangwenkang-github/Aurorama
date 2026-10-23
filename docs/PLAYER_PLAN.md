@@ -3042,3 +3042,4 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 - 2026-10-24：用户批准 W87-A 短计划。新分支 `codex/w87-a-local-playlists`，基线 `25c92d9d`；`data` / `modes:music` 基线单元测试通过。实现、QA、merge-prep 分属全新 `deepseek-flash` 代理，串行。
 - 2026-10-24：用户新增流程要求——每次踩坑记录现象 / 根因 / 规避 / 证据，架构与实现前主动套用已有经验；已落 `docs/PROJECT_PLAN.md` §5.9 与 Engramory `record-pitfalls-for-reuse.md`，所有子代理 brief 必须执行。
+- 2026-10-24：A1 schema / migration 完成。`MusicDatabase` 升至 v2，新增 `local_playlists`、`local_playlist_entries` 与三个索引；显式 `MIGRATION_1_2` 仅建新表 / 索引，音乐库破坏式迁移兜底已移除。真实 v1 schema 迁移测试、v2 schema 生成与 `:data:compileDebugAndroidTestKotlin` 已通过；设备 instrumentation 留独立 QA。
