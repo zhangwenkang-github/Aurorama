@@ -594,4 +594,29 @@ class SeekRequestCoordinatorTest {
         assertEquals(first, sameSource)
         assertTrue(first != rebuiltSource)
     }
+
+    @Test
+    fun `retry after source change reads the current source cursor`() {
+        val coordinator = SeekRequestCoordinator()
+        coordinator.observeSource(identity)
+        coordinator.beginRequest(
+            targetMs = 30_000L,
+            durationMs = 120_000L,
+            issuedAtMs = 1_000L,
+            policy = policy,
+        )
+        coordinator.failCurrent(
+            reason = SeekFailureReason.ENGINE_ERROR,
+            retryable = true,
+            nowElapsedMs = 1_200L,
+        )
+
+        coordinator.onSourceTransition(nextIdentity)
+        coordinator.retryRequest(nowElapsedMs = 1_300L)
+
+        val retrying = coordinator.state as SeekState.Seeking
+        assertEquals(2L, retrying.sourceEpoch)
+        assertEquals(nextIdentity, retrying.mediaIdentity)
+        assertEquals(null, retrying.acceptedPositionMs)
+    }
 }

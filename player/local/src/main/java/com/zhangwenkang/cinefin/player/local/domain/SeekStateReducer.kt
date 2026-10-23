@@ -134,13 +134,17 @@ class SeekStateReducer {
     fun retryRequest(nowElapsedMs: Long): Long? {
         val failed = state as? SeekState.Failed ?: return null
         if (!failed.retryable) return null
+        val mediaIdentity =
+            requireNotNull(currentSourceMediaIdentity) {
+                "A seek retry requires an observed media source"
+            }
         val generation = nextGeneration()
         state =
             SeekState.Seeking(
                 targetMs = failed.targetMs,
                 requestGeneration = generation,
-                sourceEpoch = failed.sourceEpoch,
-                mediaIdentity = failed.mediaIdentity,
+                sourceEpoch = currentSourceEpoch,
+                mediaIdentity = mediaIdentity,
                 requestedAtMs = nowElapsedMs,
                 policy = failed.policy,
             )
