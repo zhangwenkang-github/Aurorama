@@ -3002,6 +3002,8 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 ### 44.9 执行日志（实时）
 
+- 2026-10-24：W86-D 独立 QA 收口——覆盖范围内 **PASS**，10 个功能单元 **8 PASS / 2 BLOCKED**，P0–P3 = 0；Pad Exo 系统通知绝对 seek / HLS sourceEpoch 重开 / 连续目标只确认末代 / 上下条 / Activity·ViewModel 销毁后同一 coordinator 均通过；K60 mpv fast-forward 通过（超 6s deadline 正确保持 TIMEOUT，重试 Confirmed），但通知绝对 seek（SeekBar disabled、position/duration=-1）与既有本地媒体库入口（库为空）标 BLOCKED。双机 0 FATAL / ANR / input timeout；原 APK、系统设置与后台播放开关已还原，登录可用，临时 APK / 全量日志 / dump 已清理。详见 `w86-reports\W86-D-QA.md` 与 `w86d-evidence\qa\`；最终交付前实测水位 `324,652 / 1,048,576（31.0%）`，未 commit / merge / push。
+
 - 2026-10-24：只读证据完成；`origin/master` 为 W86-C 收口文档后继 `41194027`，代码对象仍为已合并 `45699c85`。双机 `43af8627` / `8e875894` 在线，最近 W86-C 锁均已释放；当前无 W86-D 代理、无设备锁。
 - 2026-10-24：负责人上下文实测 `232,107 / 1,048,576（22.1%）`，进入 25 万收缩准备；冻结本轮只做系统媒体 seek 统一，mpv command-level rejection 与 mpv HLS 重开按能力边界单列。
 - 2026-10-24：实现检查点（30 万门禁）——分支 `codex/w86-d-media-session-seek`，基线 `67a8faac`；已 RED→GREEN 7 项 system/facade/shared sink 测试，`player:local 278/0/0/0`、`app:phone 322/0/0/0`、debug APK 构建通过。实现已按负责人要求收缩：`PlayerHolder` 仅保留进程 sink 持有 / attach-detach，状态机归入既有 seek 边界；剩余 `ktfmtCheck` 复跑、diff 白名单、§44.9/报告收口与提交。实际水位 `317,059 / 1,048,576（30.2%）`，继续同一实现会话但停止扩项，35 万即交接。
