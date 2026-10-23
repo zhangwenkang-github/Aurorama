@@ -79,21 +79,51 @@ class SeekStateReducer {
         private set
 
     private var lastRequestGeneration = 0L
+    private var currentSourceEpoch = 0L
+    private var currentSourceMediaIdentity: SeekMediaIdentity? = null
+
+    val sourceEpoch: Long
+        get() = currentSourceEpoch
+
+    val sourceMediaIdentity: SeekMediaIdentity?
+        get() = currentSourceMediaIdentity
+
+    /**
+     * Source epoch and identity have one owner. Repeated observations of the same source are
+     * idempotent, so accepted-before-transition and transition-before-accepted both converge.
+     */
+    fun observeSource(mediaIdentity: SeekMediaIdentity): Boolean {
+        if (currentSourceMediaIdentity == mediaIdentity) return false
+        currentSourceEpoch += 1L
+        currentSourceMediaIdentity = mediaIdentity
+        val seeking = state as? SeekState.Seeking
+        if (seeking != null) {
+            state =
+                seeking.copy(
+                    sourceEpoch = currentSourceEpoch,
+                    mediaIdentity = mediaIdentity,
+                    acceptedPositionMs = null,
+                )
+        }
+        return true
+    }
 
     fun beginRequest(
         targetMs: Long,
-        sourceEpoch: Long,
-        mediaIdentity: SeekMediaIdentity,
         durationMs: Long,
         issuedAtMs: Long,
         policy: SeekConfirmationPolicy,
     ): Long {
+        val mediaIdentity =
+            requireNotNull(currentSourceMediaIdentity) {
+                "A seek request requires an observed media source"
+            }
         val generation = nextGeneration()
         state =
             SeekState.Seeking(
                 targetMs = clampTarget(targetMs, durationMs),
                 requestGeneration = generation,
-                sourceEpoch = sourceEpoch,
+                sourceEpoch = currentSourceEpoch,
                 mediaIdentity = mediaIdentity,
                 requestedAtMs = issuedAtMs,
                 policy = policy,
@@ -135,25 +165,12 @@ class SeekStateReducer {
         if (
             evidence.requestGeneration != seeking.requestGeneration ||
                 evidence.sourceEpoch != seeking.sourceEpoch ||
+                evidence.mediaIdentity != seeking.mediaIdentity ||
                 evidence.kind != SeekEngineEvidenceKind.SEEK_ACCEPTED
         ) {
             return
         }
-        state =
-            if (evidence.mediaIdentity == seeking.mediaIdentity) {
-                seeking.copy(acceptedPositionMs = evidence.positionMs)
-            } else {
-                /*
-                 * ExoPlayer reports a cross-item seek discontinuity with the new media item before
-                 * MEDIA_ITEM_TRANSITION advances the app's source epoch. Rebase both together here
-                 * so the following transition is an idempotent no-op instead of clearing this anchor.
-                 */
-                seeking.copy(
-                    sourceEpoch = seeking.sourceEpoch + 1L,
-                    mediaIdentity = evidence.mediaIdentity,
-                    acceptedPositionMs = evidence.positionMs,
-                )
-            }
+        state = seeking.copy(acceptedPositionMs = evidence.positionMs)
     }
 
     fun onCompletionEvidence(evidence: SeekEngineEvidence, nowElapsedMs: Long) {
@@ -215,15 +232,8 @@ class SeekStateReducer {
             )
     }
 
-    fun onSourceReplaced(sourceEpoch: Long, mediaIdentity: SeekMediaIdentity) {
-        val seeking = state as? SeekState.Seeking ?: return
-        if (sourceEpoch <= seeking.sourceEpoch) return
-        state =
-            seeking.copy(
-                sourceEpoch = sourceEpoch,
-                mediaIdentity = mediaIdentity,
-                acceptedPositionMs = null,
-            )
+    fun onSourceReplaced(mediaIdentity: SeekMediaIdentity) {
+        observeSource(mediaIdentity)
     }
 
     fun onTargetResolved(

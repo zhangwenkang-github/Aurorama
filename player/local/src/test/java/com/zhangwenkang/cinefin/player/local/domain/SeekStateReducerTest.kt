@@ -1,6 +1,5 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
-import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,11 +14,10 @@ class SeekStateReducerTest {
         durationMs: Long = 120_000L,
         issuedAtMs: Long = 1_000L,
         mediaIdentity: SeekMediaIdentity = identity,
-    ) =
-        reducer.beginRequest(
+    ): Long {
+        reducer.observeSource(mediaIdentity)
+        return reducer.beginRequest(
             targetMs = targetMs,
-            sourceEpoch = 3L,
-            mediaIdentity = mediaIdentity,
             durationMs = durationMs,
             issuedAtMs = issuedAtMs,
             policy =
@@ -29,6 +27,7 @@ class SeekStateReducerTest {
                     minimumTargetDisplayMs = 300L,
                 ),
         )
+    }
 
     @Test
     fun `request clamps target to duration and exposes seeking target`() {
@@ -38,7 +37,7 @@ class SeekStateReducerTest {
         val seeking = reducer.state as SeekState.Seeking
         assertEquals(120_000L, seeking.targetMs)
         assertEquals(1L, seeking.requestGeneration)
-        assertEquals(3L, seeking.sourceEpoch)
+        assertEquals(1L, seeking.sourceEpoch)
         assertEquals(
             120_000L,
             seekDisplayPositionMs(
@@ -58,7 +57,7 @@ class SeekStateReducerTest {
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = 1L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 60_200L,
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
@@ -67,7 +66,7 @@ class SeekStateReducerTest {
         reducer.onCompletionEvidence(
             SeekEngineEvidence(
                 requestGeneration = 1L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 60_700L,
                 kind = SeekEngineEvidenceKind.PLAYBACK_READY,
@@ -95,7 +94,7 @@ class SeekStateReducerTest {
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = 2L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 180_182L,
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
@@ -107,7 +106,7 @@ class SeekStateReducerTest {
         reducer.onCompletionEvidence(
             SeekEngineEvidence(
                 requestGeneration = 2L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 180_182L,
                 kind = SeekEngineEvidenceKind.PLAYBACK_READY,
@@ -122,7 +121,7 @@ class SeekStateReducerTest {
                 targetMs = 180_182L,
                 positionMs = 180_182L,
                 requestGeneration = 2L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 requestedAtMs = 1_003L,
                 confirmedAtMs = 1_024L,
                 policy = policy,
@@ -140,7 +139,7 @@ class SeekStateReducerTest {
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = 1L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 60_200L,
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
@@ -149,7 +148,7 @@ class SeekStateReducerTest {
         reducer.onCompletionEvidence(
             SeekEngineEvidence(
                 requestGeneration = 1L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 60_700L,
                 kind = SeekEngineEvidenceKind.PLAYBACK_READY,
@@ -175,7 +174,7 @@ class SeekStateReducerTest {
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = 1L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 20_000L,
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
@@ -192,7 +191,7 @@ class SeekStateReducerTest {
         reducer.onFailure(
             SeekEngineFailure(
                 requestGeneration = 1L,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 reason = SeekFailureReason.ENGINE_ERROR,
                 retryable = true,
@@ -236,32 +235,32 @@ class SeekStateReducerTest {
         val reducer = SeekStateReducer()
         begin(reducer, targetMs = 80_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(1L, 3L, identity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 1L, identity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
 
-        reducer.onSourceReplaced(sourceEpoch = 4L, mediaIdentity = newIdentity)
+        reducer.onSourceReplaced(newIdentity)
         val seeking = reducer.state as SeekState.Seeking
         assertEquals(1L, seeking.requestGeneration)
         assertEquals(80_000L, seeking.targetMs)
-        assertEquals(4L, seeking.sourceEpoch)
+        assertEquals(2L, seeking.sourceEpoch)
         assertEquals(null, seeking.acceptedPositionMs)
 
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(1L, 3L, identity, 80_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 1L, identity, 80_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 2_000L,
         )
         assertTrue(reducer.state is SeekState.Seeking)
 
         reducer.onAccepted(
-            SeekEngineEvidence(1L, 4L, newIdentity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 2L, newIdentity, 80_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(1L, 4L, newIdentity, 79_900L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 2L, newIdentity, 79_900L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 3_000L,
         )
         val confirmed = reducer.state as SeekState.Confirmed
         assertEquals(79_900L, confirmed.positionMs)
-        assertEquals(4L, confirmed.sourceEpoch)
+        assertEquals(2L, confirmed.sourceEpoch)
     }
 
     @Test
@@ -269,10 +268,10 @@ class SeekStateReducerTest {
         val reducer = SeekStateReducer()
         begin(reducer, targetMs = 60_000L, issuedAtMs = 1_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 1L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(1L, 3L, identity, 60_300L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 1L, identity, 60_300L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 1_100L,
         )
 
@@ -307,11 +306,11 @@ class SeekStateReducerTest {
         val reducer = SeekStateReducer()
         begin(reducer, targetMs = 60_000L, issuedAtMs = 1_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 1L, identity, 60_100L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
 
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 1L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 5_000L,
         )
 
@@ -324,10 +323,10 @@ class SeekStateReducerTest {
         val reducer = SeekStateReducer()
         begin(reducer, targetMs = 60_000L)
         reducer.onAccepted(
-            SeekEngineEvidence(1L, 3L, identity, 60_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
+            SeekEngineEvidence(1L, 1L, identity, 60_000L, SeekEngineEvidenceKind.SEEK_ACCEPTED)
         )
         reducer.onCompletionEvidence(
-            SeekEngineEvidence(1L, 3L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
+            SeekEngineEvidence(1L, 1L, identity, 60_100L, SeekEngineEvidenceKind.PLAYBACK_READY),
             nowElapsedMs = 2_000L,
         )
         assertTrue(reducer.state is SeekState.Confirmed)
@@ -348,7 +347,7 @@ class SeekStateReducerTest {
         reducer.onFailure(
             SeekEngineFailure(
                 requestGeneration = firstGeneration,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 reason = SeekFailureReason.ENGINE_ERROR,
                 retryable = true,
@@ -366,7 +365,7 @@ class SeekStateReducerTest {
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = retryGeneration,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 30_000L,
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
@@ -380,7 +379,7 @@ class SeekStateReducerTest {
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = nextGeneration,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 75_100L,
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
@@ -389,7 +388,7 @@ class SeekStateReducerTest {
         reducer.onCompletionEvidence(
             SeekEngineEvidence(
                 requestGeneration = nextGeneration,
-                sourceEpoch = 3L,
+                sourceEpoch = 1L,
                 mediaIdentity = identity,
                 positionMs = 75_200L,
                 kind = SeekEngineEvidenceKind.PLAYBACK_READY,
@@ -475,11 +474,10 @@ class SeekStateReducerTest {
                 minimumTargetDisplayMs = 300L,
             )
         val reducer = SeekStateReducer()
+        reducer.observeSource(oldIdentity)
         repeat(7) {
             reducer.beginRequest(
                 targetMs = 60_000L,
-                sourceEpoch = 8L,
-                mediaIdentity = oldIdentity,
                 durationMs = 1_482_000L,
                 issuedAtMs = 900L,
                 policy = policy,
@@ -488,8 +486,6 @@ class SeekStateReducerTest {
         val generation =
             reducer.beginRequest(
                 targetMs = 0L,
-                sourceEpoch = 8L,
-                mediaIdentity = oldIdentity,
                 durationMs = 1_482_000L,
                 issuedAtMs = 1_000L,
                 policy = policy,
@@ -497,31 +493,30 @@ class SeekStateReducerTest {
         assertEquals(8L, generation)
         reducer.onDispatched(requestGeneration = generation, nowElapsedMs = 1_003L)
 
-        // Media3 reports the new item's SEEK discontinuity before MEDIA_ITEM_TRANSITION. At
-        // that boundary the media item is already E07 while the app's source epoch is still 8.
+        // Media3 reports the new item's SEEK discontinuity before MEDIA_ITEM_TRANSITION.
+        reducer.observeSource(newIdentity)
         reducer.onAccepted(
-            ExoSeekAdapter.onSeekDiscontinuity(
+            SeekEngineEvidence(
                 requestGeneration = generation,
-                sourceEpoch = 8L,
+                sourceEpoch = 2L,
                 mediaIdentity = newIdentity,
-                newPositionMs = 0L,
+                positionMs = 0L,
+                kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
             )
         )
-        reducer.onSourceReplaced(sourceEpoch = 9L, mediaIdentity = newIdentity)
+        reducer.onSourceReplaced(newIdentity)
         val transitionedSeeking = reducer.state as SeekState.Seeking
-        assertEquals(9L, transitionedSeeking.sourceEpoch)
+        assertEquals(2L, transitionedSeeking.sourceEpoch)
         assertEquals(newIdentity, transitionedSeeking.mediaIdentity)
         assertEquals(0L, transitionedSeeking.acceptedPositionMs)
 
         reducer.onCompletionEvidence(
-            requireNotNull(
-                ExoSeekAdapter.onPlaybackStateChanged(
-                    requestGeneration = generation,
-                    sourceEpoch = 9L,
-                    mediaIdentity = newIdentity,
-                    playbackState = Player.STATE_READY,
-                    positionMs = 40L,
-                )
+            SeekEngineEvidence(
+                requestGeneration = generation,
+                sourceEpoch = 2L,
+                mediaIdentity = newIdentity,
+                positionMs = 40L,
+                kind = SeekEngineEvidenceKind.PLAYBACK_READY,
             ),
             nowElapsedMs = 2_431L,
         )
@@ -533,7 +528,7 @@ class SeekStateReducerTest {
                 targetMs = 0L,
                 positionMs = 40L,
                 requestGeneration = 8L,
-                sourceEpoch = 9L,
+                sourceEpoch = 2L,
                 requestedAtMs = 1_003L,
                 confirmedAtMs = 2_431L,
                 policy = policy,
