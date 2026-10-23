@@ -2907,7 +2907,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 ### 43.10 负责人交接检查点（2026-10-23）
 
 - **交接原因**：旧负责人已过 25 万收缩线并进入 30 万交接阈值；停止新增功能 / 扩样。新负责人线程 `01a168e0-5b2d-7553-91de-f073f51881a9` 已创建，从冷启动继续，不得重做 spike、R2、R3 或已通过的本地 QA。
-- **代码**：分支 `codex/w86-c-seek-state` @ `1fb16ac9`（代码对象 `69341cbc`），相对 `origin/master` `235f67b5` ahead 11；worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`，clean，未 merge / push。
+- **代码**：分支 `codex/w86-c-seek-state`（文档 HEAD 以 `git rev-parse` 实况为准；测试代码对象固定 `69341cbc`），`origin/master` 为 `235f67b5`；worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`，clean，未 merge / push。
 - **已验证**：player/local 252/0/0、phone 321/0/0、phone debug、根 `ktfmtCheck`、diff、graphify；独立 QA 本地矩阵 P0–P3=0：Pad Exo `302ms → Confirmed(302)`，连续三目标只确认末代，K60 mpv `seeking → seek → playback-restart → Confirmed`。双机 FATAL=0 / ANR=0，原 APK / 偏好 / 设置已恢复。
 - **下一道门**：用户已在 debug App 登录后，仅验证真实 Jellyfin HLS 超窗转码重开：从 `69341cbc` 安装候选（`adb install -r`），保留设备 App 数据与登录 session；验证定位中保持目标、新会话确认、无 0 / 结尾闪现、最终落点与 FATAL / ANR。无凭据值、无 token 导出。
 - **仍不可宣告通过**：system notification / MediaSession seek，mpv command-level rejection / mpv 转码重开，真实 server / user A/B，其他内核 / 平台；旧引擎事件可能在连续请求中被当前 generation 重标的架构风险也保留。
