@@ -2914,7 +2914,8 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - QA-R6 已执行范围 P0–P3=0，FATAL / ANR / input timeout=0；原 APK `D1DF…D53D84` 与登录已恢复，force-stop、PID=0。设备偏好文件因正常播放刷新运行时 fallback session 标识而有哈希变化，用户可见设置未改，如实记录。证据 `w86c-evidence\qa\W86-C-QA-R6-QUEUE-evidence.txt`。
 - 2026-10-23 22:18：完整独立代码审查 **FAIL / 不可合并**。范围 `origin/master 235f67b5..37426292`，两个 Critical：①无请求 ID 的迟到 SEEK / playback-restart / READY 回调在到达时取当前 generation，可能重标成新请求并在近目标时伪确认；②R4 在 reducer 内推进 epoch，但 ViewModel 仍持旧 `seekSourceEpoch`，构成双真源，transition 前再请求会用旧 epoch。Important：队列 / 上下集 policy 取当前而非目标条目、replacement 顺序测试缺位、错误 adapter 未接线、缺少 ViewModel 接线测试。报告在 `w86-reports\W86-C-IMPL.md` “独立代码审查”节。
 - 2026-10-23 23:18：R5 修复提交 `7bf1ff5a` / `da13f8c7` 后，**另一全新复审 R8 仍 FAIL**，5 个 Critical：mpv 同一 SEEK 被双 listener 上报可消费两代；timeout 未退休 dispatch，同 target 重试会被旧 dispatch 吞事件；A→B 后旧 A 回调仍可回拉 source；转码 watchdog / debounce / rebuild 未绑定 generation；`attachToExistingSession` 后 source 未观察，队列 / 上下集会 `requireNotNull` 崩溃。另有 rebuild-null 误等 35s、真实 listener 接线测试缺位等 Important。
-- 当前候选 `da13f8c7` 仍不可 QA / merge。下一步 = 全新 TDD 代理按 R8 逐项写行为 RED 并修；修后再次独立复审，不能把 261/321 自动化当成关闭。
+- 2026-10-24 00:03：第三波 TDD 提交 `91bc6794`，R6 报告声称 R8 五项均有行为 RED→GREEN：mpv 单事件 relay、timeout 退休旧 dispatch、source 只前进、异步 / watchdog / debounce / rebuild 绑定 lease、attach 先初始化 source；rebuild null 立即 `SESSION_REBUILD_FAILED`。`player/local` **271/0/0/0**、phone **321/0/0/0**，构建 / ktfmt / diff / graphify 通过；未占设备。
+- 当前候选 `91bc6794` 尚未经独立复审 / 新 APK 真机 QA，仍不可 merge。负责人水位 `247,502 / 1,048,576（23.6%）`，已达收缩线；只保留代码复审与核心回归，不再扩样。
 
 ### 43.10 负责人交接检查点（2026-10-23）
 
@@ -2922,6 +2923,6 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - **代码**：分支 `codex/w86-c-seek-state`（文档 HEAD 以 `git rev-parse` 实况为准；测试代码对象固定 `69341cbc`），`origin/master` 为 `235f67b5`；worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`，clean，未 merge / push。
 - **已验证**：player/local 252/0/0、phone 321/0/0、phone debug、根 `ktfmtCheck`、diff、graphify；独立 QA 本地矩阵 P0–P3=0：Pad Exo `302ms → Confirmed(302)`，连续三目标只确认末代，K60 mpv `seeking → seek → playback-restart → Confirmed`。双机 FATAL=0 / ANR=0，原 APK / 偏好 / 设置已恢复。
 - **已完成 HLS 门**：独立 QA-R4 从 `69341cbc` 构建并覆盖安装候选，在 Pad 用既有 10-bit Jellyfin MKV 转 H.264 HLS 验证超窗重开；目标保持、仅末代 `Confirmed`、20ms 落点、无 0 / 结尾闪跳，P0–P3=0。证据见 `w86-reports\W86-C-QA.md` QA-R4。App 正常播放链路会发送现有 `PlaybackInfo`、进度与会话 POST，绝对方法级只读口径无法与真实播放验收同时满足。
-- **当前状态**：R5 已修首轮审查项，但 R8 复审在 `da13f8c7` 又确认 5 个 Critical（mpv 双事件、timeout 旧 dispatch、旧源回拉、转码异步代际、attach 崩溃）及 2 个 Important；当前不可 QA / merge。下一动作 = 按 R8 做行为 RED + TDD 修复，再独立复审。
+- **当前状态**：R8 五项已由 `91bc6794` 的 TDD 提交声称修复，自动化 271/321 全绿，但尚无独立复审与新 APK 真机 QA；当前仍不可 merge。下一动作 = 全新只读复审，之后仅做核心真机回归。
 - **仍不可宣告通过**：system notification / MediaSession seek，mpv command-level rejection / mpv 转码重开，真实 server / user A/B，其他内核 / 平台；旧引擎事件可能在连续请求中被当前 generation 重标的架构风险也保留。
-- **冷启动第一条只读动作**：读本节 → `W86-C-IMPL.md` R5 / “独立代码复审 R8” → `W86-C-QA.md` QA-R5/R6 → `git status / rev-parse`。先关闭 R8 Critical，不直接 QA / merge-prep。
+- **冷启动第一条只读动作**：读本节 → `W86-C-IMPL.md` R6 / R8 → `git status / rev-parse`。先复审 `91bc6794`，不直接 QA / merge-prep；负责人已过 25 万收缩线。
