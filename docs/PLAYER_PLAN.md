@@ -2903,12 +2903,16 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 2026-10-23 20:35：负责人水位 `294,433 / 1,048,576（28.1%）`。下一步需用户在双机 debug App 完成登录并告知，随后新建唯一安装 / HLS 验证锁，从 `69341cbc` 安装候选并只验 HLS；若届时进入 30 万，先写交接检查点，不由旧负责人继续扩项。
 - 2026-10-23 19:55：R3 **DONE（代码 / 自动化门禁，待独立 QA）**。先按真机顺序写 `accepted → onDispatched → READY` RED；当前实现实际落为 `Failed(TIMEOUT)`。GREEN 后 dispatch / deadline 统一在引擎操作前建立，`onDispatched` 不再清同代 accepted；直接 / retry / 队列经 `executeSeek`，上下集与转码重启调度均已前置。同步与异步 accepted、失败 / 超时 / retry / sourceEpoch 回归通过，全部门未降低。
 - R3 门禁：`player/local` **252/0/0**、phone **321/0/0**，phone debug、根 `ktfmtCheck`、`git diff --check` 通过；`graphify update .` 为 11,528 nodes / 36,453 edges / 404 communities。未占设备、0 截图、未 merge / push；独立 QA 尚未复验，P1 仍未关闭。
+- 2026-10-23 21:22：独立 HLS QA-R4 **PASS（真实 HLS / 转码超窗范围）**。Pad `43af8627` 仅 `install -r` 安装代码对象 `69341cbc` 的 APK，SHA-256 `4BA36D8473C5A1A8949EF729907FCC3DA2079C76DEC15C9BDF67CE776FC39159`，`1.3.0 (4)` / DEBUGGABLE / v2 签名 / 宿主与回拉一致；登录 session 保持。既有 Jellyfin 10-bit MKV 转 H.264 HLS：`target=300090ms` 重开会话后 `Confirmed(300110ms)`；连续 `gen5=420556ms` / `gen6=539946ms` 超窗重开时 sourceEpoch `6→10` 始终保持末代目标，旧目标未确认，最终仅 `gen6 Confirmed(539966ms)`，误差 20ms，未闪 0 / 结尾，`Failed/TIMEOUT/FATAL/ANR=0`。
+- HLS 证据最小文本：`w86c-evidence\qa\W86-C-QA-R4-HLS-evidence.txt`；报告 `w86-reports\W86-C-QA.md` QA-R4。红线口径：QA 未发手工服务器写接口；App 正常播放链路按其现有实现发送 `PlaybackInfo`、进度与会话 POST，绝对“方法级只读”与真实 HLS 播放验收无法同时成立，已在报告中如实保留。
+- 当前下一门 = 另派全新用户视角独立 QA，复验统一 seek 用户流程与未覆盖边界；在其通过前仍不得 merge。
 
 ### 43.10 负责人交接检查点（2026-10-23）
 
 - **交接原因**：旧负责人已过 25 万收缩线并进入 30 万交接阈值；停止新增功能 / 扩样。新负责人线程 `01a168e0-5b2d-7553-91de-f073f51881a9` 已创建，从冷启动继续，不得重做 spike、R2、R3 或已通过的本地 QA。
 - **代码**：分支 `codex/w86-c-seek-state`（文档 HEAD 以 `git rev-parse` 实况为准；测试代码对象固定 `69341cbc`），`origin/master` 为 `235f67b5`；worktree `F:\Develop\code_data\work_tree\Aurorama\w86-c-seek-state\Aurorama`，clean，未 merge / push。
 - **已验证**：player/local 252/0/0、phone 321/0/0、phone debug、根 `ktfmtCheck`、diff、graphify；独立 QA 本地矩阵 P0–P3=0：Pad Exo `302ms → Confirmed(302)`，连续三目标只确认末代，K60 mpv `seeking → seek → playback-restart → Confirmed`。双机 FATAL=0 / ANR=0，原 APK / 偏好 / 设置已恢复。
-- **下一道门**：用户已在 debug App 登录后，仅验证真实 Jellyfin HLS 超窗转码重开：从 `69341cbc` 安装候选（`adb install -r`），保留设备 App 数据与登录 session；验证定位中保持目标、新会话确认、无 0 / 结尾闪现、最终落点与 FATAL / ANR。无凭据值、无 token 导出。
+- **已完成 HLS 门**：独立 QA-R4 从 `69341cbc` 构建并覆盖安装候选，在 Pad 用既有 10-bit Jellyfin MKV 转 H.264 HLS 验证超窗重开；目标保持、仅末代 `Confirmed`、20ms 落点、无 0 / 结尾闪跳，P0–P3=0。证据见 `w86-reports\W86-C-QA.md` QA-R4。App 正常播放链路会发送现有 `PlaybackInfo`、进度与会话 POST，绝对方法级只读口径无法与真实播放验收同时满足。
+- **下一道门**：另派全新、用户视角独立 QA；在其通过前 W86-C 仍不得 merge / merge-prep。
 - **仍不可宣告通过**：system notification / MediaSession seek，mpv command-level rejection / mpv 转码重开，真实 server / user A/B，其他内核 / 平台；旧引擎事件可能在连续请求中被当前 generation 重标的架构风险也保留。
-- **冷启动第一条只读动作**：读本节 → `W86-C-QA.md` QA-R2/R3 → `PLAYER_PLAN` §43.2 / §43.8 → `device-lock.md` 当前段；再读 `git status / rev-parse / adb devices -l`。确认锁后新派独立 HLS QA，不改代码。
+- **冷启动第一条只读动作**：读本节 → `W86-C-QA.md` QA-R2/R3/R4 → `PLAYER_PLAN` §43.2 / §43.8 → `device-lock.md` 当前段；再读 `git status / rev-parse / adb devices -l`。确认锁后新派用户视角独立 QA，不改代码。
