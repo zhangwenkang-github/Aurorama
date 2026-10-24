@@ -164,7 +164,10 @@ class JellyfinRepositoryOfflineImpl(
         sortOrder: SortOrder,
     ): List<FindroidItem> = emptyList()
 
-    override suspend fun getSearchItems(query: String): List<FindroidItem> {
+    override suspend fun getSearchItems(
+        query: String,
+        scope: SearchScope,
+    ): List<FindroidItem> {
         return withContext(Dispatchers.IO) {
             // W36：无账号（无当前服务器）时搜索返回空表，不抛异常。
             val serverId =

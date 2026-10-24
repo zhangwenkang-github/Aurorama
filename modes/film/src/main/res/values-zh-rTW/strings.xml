@@ -18,11 +18,15 @@
     <string name="search_category_video">影視</string>
     <string name="search_category_music">音樂</string>
     <string name="search_category_book">書籍</string>
+    <string name="search_scope_all">全部</string>
     <string name="search_close">關閉搜尋</string>
     <string name="search_clear">清空搜尋</string>
     <string name="search_server_failed">伺服器結果暫不可用 · 僅顯示本機結果</string>
+    <string name="search_local_failed">本機結果暫不可用 · 僅顯示伺服器結果</string>
     <string name="search_error_title">搜尋失敗</string>
     <string name="search_error_message">無法連線伺服器，請檢查網路後重試。</string>
+    <string name="search_local_error_message">無法讀取本機媒體庫，請檢查本機媒體庫存取權限後重試。</string>
+    <string name="search_both_sources_failed">伺服器與本機媒體庫均不可用，請檢查網路和本機媒體庫存取權限後重試。</string>
     <string name="search_retry">重試</string>
     <string name="video_library_all">全部媒體庫</string>
     <string name="library_favorite">收藏目前的媒體庫</string>

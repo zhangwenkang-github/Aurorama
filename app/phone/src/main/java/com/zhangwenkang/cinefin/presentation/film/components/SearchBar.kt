@@ -4,17 +4,22 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items as lazyRowItems
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -56,6 +61,7 @@ import com.zhangwenkang.cinefin.presentation.local.sizeText
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.repository.SearchScope
 import java.util.UUID
 import kotlinx.coroutines.delay
 
@@ -76,8 +82,9 @@ fun FilmSearchBar(
     val pageGutter = rememberPageGutter()
     val focusRequester = remember { FocusRequester() }
     val safePadding = rememberSafePadding()
+    val gridState = rememberLazyGridState()
 
-    var query by rememberSaveable { mutableStateOf("") }
+    val query = state.query
     // 只在本页首次进入时自动聚焦；从结果详情返回时不重开输入法（否则系统返回要先收键盘）。
     var focusRequested by rememberSaveable { mutableStateOf(false) }
 
@@ -129,7 +136,7 @@ fun FilmSearchBar(
         inputField = {
             SearchBarDefaults.InputField(
                 query = query,
-                onQueryChange = { query = it },
+                onQueryChange = { onAction(SearchAction.UpdateQuery(it)) },
                 onSearch = { onExpand(true) },
                 expanded = expanded,
                 onExpandedChange = { onExpand(it) },
@@ -176,7 +183,10 @@ fun FilmSearchBar(
                         }
                     } else if (query.isNotEmpty()) {
                         Box(
-                            modifier = Modifier.size(44.dp).cinefinClickable { query = "" },
+                            modifier =
+                                Modifier.size(44.dp).cinefinClickable {
+                                    onAction(SearchAction.UpdateQuery(""))
+                                },
                             contentAlignment = androidx.compose.ui.Alignment.Center,
                         ) {
                             Icon(
@@ -192,99 +202,147 @@ fun FilmSearchBar(
         onExpandedChange = { onExpand(it) },
         modifier = modifier.padding(start = searchBarPaddingStart, end = searchBarPaddingEnd),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyVerticalGrid(
-                columns = GridCellsAdaptiveWithMinColumns(minSize = 160.dp, minColumns = 2),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding =
-                    PaddingValues(
-                        start = safePadding.start + pageGutter,
-                        top = pageGutter,
-                        end = safePadding.end + pageGutter,
-                        bottom = safePadding.bottom + pageGutter,
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
-                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyRow(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .padding(
+                            start = safePadding.start + pageGutter,
+                            top = pageGutter,
+                            end = safePadding.end + pageGutter,
+                        ),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
-                if (state.serverFailed && !state.isEmpty) {
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "search-server-failed") {
-                        Text(
-                            text = stringResource(FilmR.string.search_server_failed),
-                            style = CinefinType.BodySmall,
-                            color = LocalCinefinColors.current.onSurfaceVariant,
-                        )
-                    }
-                }
-                // W82 #25：先按影视 / 音乐 / 书籍分区；分区内服务器条目用既有海报卡，本地条目用整行。
-                SearchCategories.forEach { (category, titleRes) ->
-                    val serverItems = state.serverItemsIn(category)
-                    val localItems = state.localItemsIn(category)
-                    if (serverItems.isEmpty() && localItems.isEmpty()) return@forEach
-                    item(
-                        span = { GridItemSpan(maxLineSpan) },
-                        key = "search-section-${category.name}",
-                    ) {
-                        SearchSectionHeader(
-                            title = stringResource(titleRes),
-                            count = serverItems.size + localItems.size,
-                        )
-                    }
-                    items(
-                        items = serverItems,
-                        key = { "server-${category.name}-${it.id}" },
-                    ) { item ->
-                        ItemCard(
-                            item = item,
-                            direction = Direction.VERTICAL,
-                            onClick = { onAction(SearchAction.OnItemClick(item)) },
-                            modifier = Modifier.animateItem(),
-                            downloadBadge = searchCardDownloadBadge(item.id, downloadBadges),
-                        )
-                    }
-                    items(
-                        items = localItems,
-                        key = { "local-${category.name}-${it.entry.itemId}" },
-                        span = { GridItemSpan(maxLineSpan) },
-                    ) { hit ->
-                        LocalSearchResultRow(
-                            hit = hit,
-                            onClick = { onAction(SearchAction.OnLocalItemClick(hit)) },
-                            modifier = Modifier.animateItem(),
-                        )
-                    }
+                lazyRowItems(SearchScopes, key = { it.first.name }) { (scope, titleRes) ->
+                    FilterChip(
+                        selected = state.scope == scope,
+                        onClick = { onAction(SearchAction.ChangeScope(scope)) },
+                        label = { Text(stringResource(titleRes)) },
+                    )
                 }
             }
-            if (query.isNotBlank() && state.loading && state.isEmpty) {
-                CircularProgressIndicator(
-                    color = media.base,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            } else if (query.isNotBlank() && state.isEmpty && !state.loading) {
-                CinefinEmptyState(
-                    title =
-                        if (state.serverFailed) stringResource(FilmR.string.search_error_title)
-                        else stringResource(FilmR.string.search_empty_query, query),
-                    message =
-                        if (state.serverFailed) stringResource(FilmR.string.search_error_message)
-                        else stringResource(FilmR.string.search_empty_message),
-                    icon = { tint ->
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_search),
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(44.dp),
-                        )
-                    },
-                    action =
-                        if (state.serverFailed) {
-                            {
-                                TextButton(onClick = { onAction(SearchAction.Retry) }) {
-                                    Text(stringResource(FilmR.string.search_retry))
-                                }
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                LazyVerticalGrid(
+                    columns = GridCellsAdaptiveWithMinColumns(minSize = 160.dp, minColumns = 2),
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding =
+                        PaddingValues(
+                            start = safePadding.start + pageGutter,
+                            top = CinefinSpacing.Space3,
+                            end = safePadding.end + pageGutter,
+                            bottom = safePadding.bottom + pageGutter,
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+                ) {
+                    if (state.serverFailed && !state.isEmpty) {
+                        item(
+                            span = { GridItemSpan(maxLineSpan) },
+                            key = "search-server-failed",
+                        ) {
+                            Text(
+                                text = stringResource(FilmR.string.search_server_failed),
+                                style = CinefinType.BodySmall,
+                                color = LocalCinefinColors.current.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (state.localFailed && !state.isEmpty) {
+                        item(
+                            span = { GridItemSpan(maxLineSpan) },
+                            key = "search-local-failed",
+                        ) {
+                            Text(
+                                text = stringResource(FilmR.string.search_local_failed),
+                                style = CinefinType.BodySmall,
+                                color = LocalCinefinColors.current.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    // W82 #25：分区布局不变；W88-A 只渲染当前 scope 的域。
+                    SearchCategories.filter { (category, _) -> category in state.visibleCategories }
+                        .forEach { (category, titleRes) ->
+                            val serverItems = state.serverItemsIn(category)
+                            val localItems = state.localItemsIn(category)
+                            if (serverItems.isEmpty() && localItems.isEmpty()) return@forEach
+                            item(
+                                span = { GridItemSpan(maxLineSpan) },
+                                key = "search-section-${category.name}",
+                            ) {
+                                SearchSectionHeader(
+                                    title = stringResource(titleRes),
+                                    count = serverItems.size + localItems.size,
+                                )
                             }
-                        } else null,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                            items(
+                                items = serverItems,
+                                key = { "server-${category.name}-${it.id}" },
+                            ) { item ->
+                                ItemCard(
+                                    item = item,
+                                    direction = Direction.VERTICAL,
+                                    onClick = { onAction(SearchAction.OnItemClick(item)) },
+                                    modifier = Modifier.animateItem(),
+                                    downloadBadge =
+                                        searchCardDownloadBadge(item.id, downloadBadges),
+                                )
+                            }
+                            items(
+                                items = localItems,
+                                key = { "local-${category.name}-${it.entry.itemId}" },
+                                span = { GridItemSpan(maxLineSpan) },
+                            ) { hit ->
+                                LocalSearchResultRow(
+                                    hit = hit,
+                                    onClick = { onAction(SearchAction.OnLocalItemClick(hit)) },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                        }
+                }
+                if (query.isNotBlank() && state.loading && state.isEmpty) {
+                    CircularProgressIndicator(
+                        color = media.base,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                } else if (query.isNotBlank() && state.isEmpty && !state.loading) {
+                    CinefinEmptyState(
+                        title =
+                            if (state.hasFailure) {
+                                stringResource(FilmR.string.search_error_title)
+                            } else {
+                                stringResource(FilmR.string.search_empty_query, query)
+                            },
+                        message =
+                            when {
+                                state.serverFailed && state.localFailed ->
+                                    stringResource(FilmR.string.search_both_sources_failed)
+                                state.serverFailed ->
+                                    stringResource(FilmR.string.search_error_message)
+                                state.localFailed ->
+                                    stringResource(FilmR.string.search_local_error_message)
+                                else -> stringResource(FilmR.string.search_empty_message)
+                            },
+                        icon = { tint ->
+                            Icon(
+                                painter = painterResource(CoreR.drawable.ic_search),
+                                contentDescription = null,
+                                tint = tint,
+                                modifier = Modifier.size(44.dp),
+                            )
+                        },
+                        action =
+                            if (state.hasFailure) {
+                                {
+                                    TextButton(onClick = { onAction(SearchAction.Retry) }) {
+                                        Text(stringResource(FilmR.string.search_retry))
+                                    }
+                                }
+                            } else null,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
             }
         }
     }
@@ -295,6 +353,14 @@ private val SearchCategories =
         SearchCategory.VIDEO to FilmR.string.search_category_video,
         SearchCategory.MUSIC to FilmR.string.search_category_music,
         SearchCategory.BOOK to FilmR.string.search_category_book,
+    )
+
+private val SearchScopes =
+    listOf(
+        SearchScope.ALL to FilmR.string.search_scope_all,
+        SearchScope.VIDEO to FilmR.string.search_category_video,
+        SearchScope.MUSIC to FilmR.string.search_category_music,
+        SearchScope.BOOK to FilmR.string.search_category_book,
     )
 
 /** W43 搜索结果分区标题：`服务器` / `本地` + 命中数量（无命中的分区不渲染）。 */

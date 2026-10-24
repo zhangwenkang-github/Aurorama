@@ -264,7 +264,8 @@ object MetadataCacheKeys {
     fun favorites(sortBy: Any?, sortOrder: Any?): String =
         "$FAVORITES_PREFIX${sortBy ?: "-"}|${sortOrder ?: "-"}"
 
-    fun search(query: String): String = "$SEARCH_PREFIX${query.trim().lowercase()}"
+    fun search(query: String, scope: SearchScope = SearchScope.ALL): String =
+        "$SEARCH_PREFIX${scope.name}:${query.trim().lowercase()}"
 
     private fun signature(parts: List<*>?): String =
         parts?.joinToString(",") { it?.toString() ?: "-" } ?: "-"

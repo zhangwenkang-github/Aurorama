@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.local
 
+import com.zhangwenkang.cinefin.repository.SearchScope
 import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -55,6 +56,33 @@ class LocalLibrarySearchTest {
         assertEquals(
             listOf("alpha.mp4", "delta.mp4", "beta.mp3", "gamma.pdf"),
             hits.map { it.name },
+        )
+    }
+
+    @Test
+    fun `scope 在本地结果域过滤而不是只由界面隐藏`() {
+        val entries =
+            listOf(
+                entry("sample.mp4", LocalMediaKind.VIDEO),
+                entry("sample.mp3", LocalMediaKind.MUSIC),
+                entry("sample.pdf", LocalMediaKind.BOOK),
+            )
+
+        assertEquals(
+            listOf("sample.mp4"),
+            LocalLibrarySearch.filter(entries, "sample", SearchScope.VIDEO).map { it.name },
+        )
+        assertEquals(
+            listOf("sample.mp3"),
+            LocalLibrarySearch.filter(entries, "sample", SearchScope.MUSIC).map { it.name },
+        )
+        assertEquals(
+            listOf("sample.pdf"),
+            LocalLibrarySearch.filter(entries, "sample", SearchScope.BOOK).map { it.name },
+        )
+        assertEquals(
+            3,
+            LocalLibrarySearch.filter(entries, "sample", SearchScope.ALL).size,
         )
     }
 

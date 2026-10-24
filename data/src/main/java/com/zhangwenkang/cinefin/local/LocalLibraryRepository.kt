@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.local
 import android.net.Uri
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.repository.SearchScope
 import java.util.UUID
 
 /** 本地媒体库（W37）：库 / 文件夹 / 索引条目 / 播放源合成。 */
@@ -84,7 +85,10 @@ interface LocalLibraryRepository {
     suspend fun allEntries(): List<LocalLibraryEntry>
 
     /** W43 搜索：按文件名 / 音乐内嵌标签标题匹配本地条目（大小写不敏感、含扩展名）， 返回条目 +「库名 · 文件夹名」来源标签；空白查询返回空列表。 */
-    suspend fun search(query: String): List<LocalSearchHit>
+    suspend fun search(
+        query: String,
+        scope: SearchScope = SearchScope.ALL,
+    ): List<LocalSearchHit>
 
     suspend fun entry(itemId: UUID): LocalLibraryEntry?
 

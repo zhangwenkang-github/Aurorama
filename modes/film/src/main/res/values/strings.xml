@@ -21,11 +21,15 @@
     <string name="search_category_video">Video</string>
     <string name="search_category_music">Music</string>
     <string name="search_category_book">Books</string>
+    <string name="search_scope_all">All</string>
     <string name="search_close">Close search</string>
     <string name="search_clear">Clear search</string>
     <string name="search_server_failed">Server results unavailable · showing local results</string>
+    <string name="search_local_failed">Local results unavailable · showing server results</string>
     <string name="search_error_title">Search failed</string>
     <string name="search_error_message">Could not reach the server. Check the connection and try again.</string>
+    <string name="search_local_error_message">Could not read the local media library. Check local library access and try again.</string>
+    <string name="search_both_sources_failed">Server and local media library are both unavailable. Check the connection and local library access, then try again.</string>
     <string name="search_retry">Retry</string>
     <string name="library_count">%1$d libraries</string>
     <string name="library_item_count">%1$d items</string>

@@ -21,11 +21,15 @@
     <string name="search_category_video">影视</string>
     <string name="search_category_music">音乐</string>
     <string name="search_category_book">书籍</string>
+    <string name="search_scope_all">全部</string>
     <string name="search_close">关闭搜索</string>
     <string name="search_clear">清空搜索</string>
     <string name="search_server_failed">服务器结果暂不可用 · 仅显示本地结果</string>
+    <string name="search_local_failed">本地结果暂不可用 · 仅显示服务器结果</string>
     <string name="search_error_title">搜索失败</string>
     <string name="search_error_message">无法连接服务器，请检查网络后重试。</string>
+    <string name="search_local_error_message">无法读取本地媒体库，请检查本地库访问权限后重试。</string>
+    <string name="search_both_sources_failed">服务器与本地媒体库均不可用，请检查网络和本地库访问权限后重试。</string>
     <string name="search_retry">重试</string>
     <string name="library_count">共 %1$d 个媒体库</string>
     <string name="library_item_count">共 %1$d 个项目</string>

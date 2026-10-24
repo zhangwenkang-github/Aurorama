@@ -15,4 +15,29 @@ class SearchQueryRulesTest {
         assertTrue(types.containsAll(listOf(BaseItemKind.AUDIO, BaseItemKind.BOOK)))
         assertEquals(types.size, types.distinct().size)
     }
+
+    @Test
+    fun `scope 只请求所属域且全部保留既有类型`() {
+        assertEquals(
+            listOf(BaseItemKind.AUDIO),
+            SearchQueryRules.itemTypes(SearchScope.MUSIC),
+        )
+        assertEquals(
+            listOf(BaseItemKind.BOOK),
+            SearchQueryRules.itemTypes(SearchScope.BOOK),
+        )
+        assertEquals(
+            listOf(
+                BaseItemKind.MOVIE,
+                BaseItemKind.SERIES,
+                BaseItemKind.EPISODE,
+                BaseItemKind.VIDEO,
+            ),
+            SearchQueryRules.itemTypes(SearchScope.VIDEO),
+        )
+        assertEquals(
+            SearchQueryRules.includeItemTypes,
+            SearchQueryRules.itemTypes(SearchScope.ALL),
+        )
+    }
 }

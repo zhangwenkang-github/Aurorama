@@ -173,6 +173,7 @@ import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.video.VideoScreen
 import com.zhangwenkang.cinefin.presentation.video.pickVideoLibraries
+import com.zhangwenkang.cinefin.repository.SearchScope
 import com.zhangwenkang.cinefin.setup.domain.OfflineExitDestination
 import com.zhangwenkang.cinefin.setup.domain.resolveOfflineExitPlan
 import java.util.UUID
@@ -202,8 +203,45 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 
 @Serializable data object MediaRoute
 
-/** W82 #30：独立搜索目的地；关闭 / 返回 = pop 回进入前的页面。 */
-@Serializable data object SearchRoute
+/** W82 #30：独立搜索目的地；关闭 / 返回 = pop 回进入前的页面。 W88-A：`initialScope` 只记录本次进入值，页内当前值由该目的地 ViewModel 保存。 */
+@Serializable data class SearchRoute(val initialScope: String = SearchScope.ALL.name)
+
+internal enum class SearchEntry {
+    HOME,
+    VIDEO,
+    MEDIA,
+    MUSIC,
+    BOOKS,
+    VIDEO_LIBRARY,
+    MUSIC_LIBRARY,
+    BOOK_LIBRARY,
+    MIXED_LIBRARY,
+}
+
+internal fun defaultSearchScope(entry: SearchEntry): SearchScope =
+    when (entry) {
+        SearchEntry.HOME,
+        SearchEntry.MEDIA,
+        SearchEntry.MIXED_LIBRARY -> SearchScope.ALL
+        SearchEntry.VIDEO,
+        SearchEntry.VIDEO_LIBRARY -> SearchScope.VIDEO
+        SearchEntry.MUSIC,
+        SearchEntry.MUSIC_LIBRARY -> SearchScope.MUSIC
+        SearchEntry.BOOKS,
+        SearchEntry.BOOK_LIBRARY -> SearchScope.BOOK
+    }
+
+internal fun searchScopeForLibraryType(type: CollectionType): SearchScope =
+    when (type) {
+        CollectionType.Movies,
+        CollectionType.TvShows,
+        CollectionType.HomeVideos -> SearchScope.VIDEO
+        CollectionType.Music -> SearchScope.MUSIC
+        CollectionType.Books -> SearchScope.BOOK
+        else -> SearchScope.ALL
+    }
+
+internal fun searchRoute(scope: SearchScope): SearchRoute = SearchRoute(initialScope = scope.name)
 
 @Serializable data object DownloadsRoute
 
@@ -557,9 +595,14 @@ fun NavigationRoot(
     // W82 #30：全页搜索改为独立目的地。入口页原样留在返回栈，关闭 / 系统返回 = pop 回入口页；
     // 搜索结果详情压在搜索之上，返回先回搜索结果（查询与结果由 SearchRoute 的 ViewModel 保留）。
     // 不 popUpTo / 不 saveState-restore，避免首页 / 跨 Tab / 详情入口被重写成媒体库路径。
-    val openSearch: () -> Unit = {
-        navController.safeNavigate(SearchRoute) { launchSingleTop = true }
+    val openSearch: (SearchScope) -> Unit = { scope ->
+        navController.safeNavigate(searchRoute(scope)) { launchSingleTop = true }
     }
+    val openHomeSearch = { openSearch(defaultSearchScope(SearchEntry.HOME)) }
+    val openVideoSearch = { openSearch(defaultSearchScope(SearchEntry.VIDEO)) }
+    val openMediaSearch = { openSearch(defaultSearchScope(SearchEntry.MEDIA)) }
+    val openMusicSearch = { openSearch(defaultSearchScope(SearchEntry.MUSIC)) }
+    val openBooksSearch = { openSearch(defaultSearchScope(SearchEntry.BOOKS)) }
 
     // W68：锁屏 / 通知点击音乐条目（MediaSession sessionActivity / 通知内容 Intent）→ 音乐 Tab + 全屏播放覆盖层。
     // 与 W52 下载通知同模式：NavHost 尚未组合时 currentBackStackEntry 为 null，等它就绪后再导航（冷启动路径）。
@@ -1051,7 +1094,7 @@ fun NavigationRoot(
                 } else {
                     HomeScreen(
                         onOpenDrawer = openDrawer,
-                        onSearchClick = openSearch,
+                        onSearchClick = openHomeSearch,
                         onItemClick = { item ->
                             navigateToItem(
                                 navController = navController,
@@ -1101,7 +1144,7 @@ fun NavigationRoot(
                             )
                         },
                         onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                        onSearchClick = openSearch,
+                        onSearchClick = openVideoSearch,
                     )
                 }
             }
@@ -1145,7 +1188,7 @@ fun NavigationRoot(
                             },
                             // W70：本地库新建 / 删除 / 开关后刷新侧栏「本地媒体库」子分组。
                             onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
-                            onSearchClick = openSearch,
+                            onSearchClick = openMediaSearch,
                         )
                     }
                 }
@@ -1226,7 +1269,7 @@ fun NavigationRoot(
                         },
                         navigateBack = { navController.safePopBackStack() },
                         onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                        onSearchClick = openSearch,
+                        onSearchClick = openBooksSearch,
                     )
                 }
             }
@@ -1253,7 +1296,7 @@ fun NavigationRoot(
                     openNowPlayingSignal = musicOpenNowPlayingSignal,
                     onInnerPageOpenChange = { musicInnerPageOpen = it },
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                    onSearchClick = openSearch,
+                    onSearchClick = openMusicSearch,
                 )
             }
             composable<MusicItemRoute> { backStackEntry ->
@@ -1262,7 +1305,7 @@ fun NavigationRoot(
                     onOpenDrawer = openDrawer,
                     initialSongId = route.itemId,
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                    onSearchClick = openSearch,
+                    onSearchClick = openMusicSearch,
                 )
             }
             composable<TemporaryLibraryRoute> { backStackEntry ->
@@ -1284,7 +1327,13 @@ fun NavigationRoot(
                                 temporaryLibraryId = route.libraryId,
                                 onExitTemporaryLibrary = { exitTemporaryLibrary(VideoRoute) },
                                 onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                                onSearchClick = openSearch,
+                                onSearchClick = {
+                                    openSearch(
+                                        searchScopeForLibraryType(
+                                            CollectionType.fromString(route.libraryType)
+                                        )
+                                    )
+                                },
                             )
                         }
                     TemporaryLibraryKind.Music ->
@@ -1300,7 +1349,7 @@ fun NavigationRoot(
                                 ),
                             onExitTemporaryLibrary = { exitTemporaryLibrary(MusicModeRoute) },
                             onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                            onSearchClick = openSearch,
+                            onSearchClick = openMusicSearch,
                         )
                     TemporaryLibraryKind.Books ->
                         BookshelfScreen(
@@ -1316,7 +1365,7 @@ fun NavigationRoot(
                             temporaryLibraryId = route.libraryId,
                             onExitTemporaryLibrary = { exitTemporaryLibrary(BookshelfRoute) },
                             onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                            onSearchClick = openSearch,
+                            onSearchClick = openBooksSearch,
                         )
                 }
             }
@@ -1346,7 +1395,7 @@ fun NavigationRoot(
                 val route: LibraryRoute = backStackEntry.toRoute()
                 if (route.libraryType == CollectionType.Music) {
                     // 兜底：任何残留路由落到音乐库时同样进音乐模式（见 libraryEntryRoute）
-                    MusicModeScreen(onOpenDrawer = openDrawer, onSearchClick = openSearch)
+                    MusicModeScreen(onOpenDrawer = openDrawer, onSearchClick = openMusicSearch)
                 } else {
                     // 库内容页按域换皮（W6-VIS D23）：书籍库属阅读域、保持 Prism，影视类库走 Lumen
                     LumenPage(enabled = route.libraryType != CollectionType.Books) {
@@ -1373,7 +1422,13 @@ fun NavigationRoot(
                             navigateBack = { navController.safePopBackStack() },
                             onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                             // W75 #13：库内容页（二级）顶栏搜索入口——与视频页 / 音乐 / 书架同一套流程。
-                            topBarActions = { SearchTopBarAction(onClick = openSearch) },
+                            topBarActions = {
+                                SearchTopBarAction(
+                                    onClick = {
+                                        openSearch(searchScopeForLibraryType(route.libraryType))
+                                    }
+                                )
+                            },
                         )
                     }
                 }

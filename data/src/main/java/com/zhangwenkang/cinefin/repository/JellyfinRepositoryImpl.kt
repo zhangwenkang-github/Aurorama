@@ -551,14 +551,17 @@ class JellyfinRepositoryImpl(
             }
         }
 
-    override suspend fun getSearchItems(query: String): List<FindroidItem> =
-        cachedMetadata(MetadataCacheKeys.search(query)) {
+    override suspend fun getSearchItems(
+        query: String,
+        scope: SearchScope,
+    ): List<FindroidItem> =
+        cachedMetadata(MetadataCacheKeys.search(query, scope)) {
             withContext(Dispatchers.IO) {
                 jellyfinApi.itemsApi
                     .getItems(
                         jellyfinApi.userId!!,
                         searchTerm = query,
-                        includeItemTypes = SearchQueryRules.includeItemTypes,
+                        includeItemTypes = SearchQueryRules.itemTypes(scope),
                         recursive = true,
                     )
                     .content

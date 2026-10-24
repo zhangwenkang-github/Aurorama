@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.local
 
+import com.zhangwenkang.cinefin.repository.SearchScope
 import java.util.Locale
 
 /** W43 搜索结果：条目 + 来源标签（`库名 · 文件夹名`；库 / 文件夹已删除时为 null）。 */
@@ -19,15 +20,28 @@ object LocalLibrarySearch {
     fun matches(entry: LocalLibraryEntry, query: String): Boolean =
         matchesNormalized(entry, normalize(query))
 
-    fun filter(entries: List<LocalLibraryEntry>, query: String): List<LocalLibraryEntry> {
+    fun filter(
+        entries: List<LocalLibraryEntry>,
+        query: String,
+        scope: SearchScope = SearchScope.ALL,
+    ): List<LocalLibraryEntry> {
         val normalized = normalize(query)
         if (normalized.isEmpty()) return emptyList()
         return entries
             .asSequence()
+            .filter { scope.accepts(it.kind) }
             .filter { matchesNormalized(it, normalized) }
             .sortedWith(compareBy({ it.kind.ordinal }, { normalize(it.name) }))
             .toList()
     }
+
+    private fun SearchScope.accepts(kind: LocalMediaKind): Boolean =
+        when (this) {
+            SearchScope.ALL -> true
+            SearchScope.VIDEO -> kind == LocalMediaKind.VIDEO
+            SearchScope.MUSIC -> kind == LocalMediaKind.MUSIC
+            SearchScope.BOOK -> kind == LocalMediaKind.BOOK
+        }
 
     private fun matchesNormalized(entry: LocalLibraryEntry, query: String): Boolean {
         if (query.isEmpty()) return false

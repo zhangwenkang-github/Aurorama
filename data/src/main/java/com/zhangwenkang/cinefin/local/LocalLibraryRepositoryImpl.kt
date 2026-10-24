@@ -15,6 +15,7 @@ import com.zhangwenkang.cinefin.models.LocalLibraryDto
 import com.zhangwenkang.cinefin.models.LocalLibraryFolderDto
 import com.zhangwenkang.cinefin.models.LocalMediaCountRow
 import com.zhangwenkang.cinefin.models.LocalMediaItemDto
+import com.zhangwenkang.cinefin.repository.SearchScope
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -176,28 +177,21 @@ class LocalLibraryRepositoryImpl(
     override suspend fun allEntries(): List<LocalLibraryEntry> =
         withContext(Dispatchers.IO) { database.getAllLocalMediaItems().map { it.toEntry() } }
 
-    override suspend fun search(query: String): List<LocalSearchHit> =
+    override suspend fun search(
+        query: String,
+        scope: SearchScope,
+    ): List<LocalSearchHit> =
         withContext(Dispatchers.IO) {
             if (LocalLibrarySearch.normalize(query).isEmpty()) return@withContext emptyList()
-            val dtos = runCatching {
-                database.getAllLocalMediaItems()
-            }
-                .getOrDefault(emptyList())
+            // 本地 DB 失败必须上抛给搜索状态机；吞成空列表会伪造“零命中”。
+            val dtos = database.getAllLocalMediaItems()
             val entries = dtos.map { it.toEntry() }
             if (entries.isEmpty()) return@withContext emptyList()
             // LocalLibraryEntry 不带 libraryId（W37 模型），按 itemId 回连 DTO 的归属库。
             val libraryIdByItem = dtos.associate { it.itemId to it.libraryId }
-            val libraryNames = runCatching {
-                database.getLocalLibraries()
-            }
-                .getOrDefault(emptyList())
-                .associate { it.id to it.name }
-            val folders = runCatching {
-                database.getAllLocalLibraryFolders()
-            }
-                .getOrDefault(emptyList())
-                .associateBy { it.id }
-            LocalLibrarySearch.filter(entries, query).map { entry ->
+            val libraryNames = database.getLocalLibraries().associate { it.id to it.name }
+            val folders = database.getAllLocalLibraryFolders().associateBy { it.id }
+            LocalLibrarySearch.filter(entries, query, scope).map { entry ->
                 val folder = folders[entry.folderId]
                 val libraryName = libraryIdByItem[entry.itemId]?.let(libraryNames::get)
                 val label =

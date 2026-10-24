@@ -273,6 +273,14 @@ class MetadataCacheTest {
     }
 
     @Test
+    fun `搜索键按 scope 隔离`() {
+        assertFalse(
+            MetadataCacheKeys.search("Dune", SearchScope.VIDEO) ==
+                MetadataCacheKeys.search("Dune", SearchScope.BOOK)
+        )
+    }
+
+    @Test
     fun `续播键按类型区分`() {
         assertFalse(
             MetadataCacheKeys.resume(listOf(BaseItemKind.BOOK)) ==
