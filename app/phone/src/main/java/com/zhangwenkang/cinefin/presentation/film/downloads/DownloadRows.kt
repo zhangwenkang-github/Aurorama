@@ -97,6 +97,10 @@ internal fun showsRetryLabel(task: DownloadTask?): Boolean =
         task.retryCount > 0 &&
         (task.status == DownloadTaskStatus.PENDING || task.status == DownloadTaskStatus.RUNNING)
 
+/** 已完成条目必须显示成功态，不能落入失败原因回落。 */
+internal fun showsCompletedDownloadLabel(status: DownloadTaskStatus): Boolean =
+    status == DownloadTaskStatus.COMPLETED
+
 /**
  * W59 下载页排版规格（`DOWNLOAD_PLAN.md` §22）。
  *
@@ -875,6 +879,8 @@ private fun DownloadStatusBadge(
         }
     val label =
         when {
+            showsCompletedDownloadLabel(status) ->
+                stringResource(CoreR.string.download_tasks_completed)
             // W60b：自动重试（等待下一次 / 正在重试）优先显示「重试中 · 第 N 次」。
             retrying && retryCount > 0 ->
                 stringResource(CoreR.string.download_retry_in_progress, retryCount)

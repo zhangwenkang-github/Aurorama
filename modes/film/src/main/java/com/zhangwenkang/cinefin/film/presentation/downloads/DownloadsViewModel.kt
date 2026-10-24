@@ -33,6 +33,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -203,6 +204,7 @@ constructor(
                     current.copy(
                         selectionMode = action.keys.isNotEmpty(),
                         selection = action.keys,
+                        actionFailure = null,
                     )
                 }
             DownloadAction.DeleteSelected -> deleteSelected()
@@ -285,50 +287,37 @@ constructor(
     private fun toggleSelectionMode() {
         _state.update { current ->
             if (current.selectionMode) {
-                current.copy(selectionMode = false, selection = emptySet())
+                current.copy(
+                    selectionMode = false,
+                    selection = emptyList(),
+                    actionFailure = null,
+                )
             } else {
-                current.copy(selectionMode = true)
+                current.copy(selectionMode = true, actionFailure = null)
             }
         }
     }
 
     private fun toggleSelection(key: String) {
         _state.update { current ->
-            // W59：容器 / 季卡选中 = 该容器内全部条目；条目行 = 单个条目。
-            val targets = current.selectionTargets(key)
-            val selection =
-                if (targets.isNotEmpty() && targets.all { it in current.selection }) {
-                    current.selection - targets
-                } else {
-                    current.selection + targets
-                }
-            current.copy(selection = selection, selectionMode = selection.isNotEmpty())
+            val selection = DownloadSelectionRules.toggleSelection(current, key)
+            current.copy(
+                selection = selection,
+                selectionMode = selection.isNotEmpty(),
+                actionFailure = null,
+            )
         }
-    }
-
-    /** 选中目标的条目 key 集合：容器 key → 全部后代条目；季 key → 该季剧集；条目 key → 自身。 */
-    private fun DownloadManagerState.selectionTargets(key: String): Set<String> {
-        allContainers
-            .firstOrNull { it.key == key }
-            ?.let { container ->
-                return container.allEntries().mapTo(mutableSetOf()) { it.key }
-            }
-        allContainers.forEach { container ->
-            container.children.filterIsInstance<DownloadHierarchySubContainer>().forEach { season ->
-                if (season.key == key) {
-                    return season.children.mapTo(mutableSetOf()) { it.key }
-                }
-            }
-        }
-        return setOf(key)
     }
 
     private fun clearSelection() {
-        _state.update { it.copy(selection = emptySet(), selectionMode = false) }
+        _state.update {
+            it.copy(selection = emptyList(), selectionMode = false, actionFailure = null)
+        }
     }
 
     private fun playSelected() {
         val current = _state.value
+        if (!DownloadSelectionRules.canStartSelectionAction(current)) return
         val plan = DownloadSelectionRules.playbackPlan(current) ?: return
         val keys = current.selectedEntries.map { it.key }.toSet()
         _state.update { it.beginPending(DownloadPendingAction.PLAY, keys) }
@@ -346,6 +335,10 @@ constructor(
                     }
                 _playbackRequests.emit(request)
                 clearSelection()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(DownloadPendingAction.PLAY, keys, error)
             } finally {
                 _state.update { it.finishPending(keys) }
             }
@@ -374,6 +367,7 @@ constructor(
         predicate: (DownloadTaskStatus) -> Boolean = { true },
         block: suspend (DownloadTask) -> Any?,
     ) {
+        if (!DownloadSelectionRules.canStartSelectionAction(_state.value)) return
         val selected = _state.value.selectedTasks.filter { predicate(it.status) }
         val keys = selected.map { itemKey(it.itemId) }.toSet()
         _state.update { it.beginPending(pendingAction, keys) }
@@ -383,6 +377,10 @@ constructor(
                     block(task)
                 }
                 refresh(showLoading = false)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(pendingAction, keys, error)
             } finally {
                 _state.update { it.finishPending(keys) }
             }
@@ -391,7 +389,8 @@ constructor(
 
     /** 失败页「重试全部失败」：目标与全选失败使用同一纯函数集合。 */
     private fun retryAllFailures() {
-        val keys = DownloadSelectionRules.keysFor(_state.value, DownloadTaskGroup.FAILED)
+        if (!DownloadSelectionRules.canStartSelectionAction(_state.value)) return
+        val selectableKeys = DownloadSelectionRules.keysFor(_state.value, DownloadTaskGroup.FAILED)
         val entries =
             _state.value.allContainers
                 .flatMap { container ->
@@ -402,7 +401,7 @@ constructor(
                         }
                     }
                 }
-                .filter { it.key in keys }
+                .filter { it.key in selectableKeys }
         val tasks =
             entries
                 .mapNotNull { it.task }
@@ -415,6 +414,7 @@ constructor(
                         entry.status == DownloadTaskStatus.FAILED
                 }
                 .distinctBy { it.itemId }
+        val keys = selectableKeys.toSet()
         _state.update { it.beginPending(DownloadPendingAction.RETRY, keys) }
         clearSelection()
         viewModelScope.launch {
@@ -433,6 +433,7 @@ constructor(
     }
 
     private fun retrySelected() {
+        if (!DownloadSelectionRules.canStartSelectionAction(_state.value)) return
         val tasks =
             _state.value
                 .selectedTasks()
@@ -451,6 +452,10 @@ constructor(
                     readerRepository.enqueueBookDownload(book.itemId, book.name)
                 }
                 refresh(showLoading = false)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(DownloadPendingAction.RETRY, keys, error)
             } finally {
                 _state.update { it.finishPending(keys) }
             }
@@ -510,6 +515,7 @@ constructor(
 
     private fun deleteSelected() {
         val current = _state.value
+        if (!DownloadSelectionRules.canStartSelectionAction(current)) return
         val entries = current.selectedEntries
         val keys = entries.map { it.key }.toSet()
         _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
@@ -518,10 +524,24 @@ constructor(
                 deleteEntries(entries)
                 clearSelection()
                 refresh(showLoading = false)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(DownloadPendingAction.DELETE, keys, error)
             } finally {
                 _state.update { it.finishPending(keys) }
             }
         }
+    }
+
+    private suspend fun failSelectionAction(
+        action: DownloadPendingAction,
+        keys: Set<String>,
+        error: Exception,
+    ) {
+        Timber.e(error, "下载批次动作失败：%s", action)
+        _state.update { it.failPending(action, keys) }
+        refresh(showLoading = false)
     }
 
     /** 删除一组层级条目：优先走任务删除，其次走已完成条目删除。 */
@@ -628,6 +648,14 @@ constructor(
             val localFailedBookEntries = failedBookTasks.map { task ->
                 task.toActiveBookEntry(serverName = null)
             }
+            val localKeys =
+                (localActiveEntries +
+                        localFailedEntries +
+                        localBookEntries +
+                        localRunningBookEntries +
+                        localFailedBookEntries)
+                    .map { it.key }
+                    .toSet()
             _state.update { current ->
                 current.copy(
                     isLoading = false,
@@ -642,15 +670,7 @@ constructor(
                     bookStorageBytes = bookStorageBytes,
                     storage = storage,
                     selection =
-                        current.selection.intersect(
-                            (localActiveEntries +
-                                    localFailedEntries +
-                                    localBookEntries +
-                                    localRunningBookEntries +
-                                    localFailedBookEntries)
-                                .map { it.key }
-                                .toSet()
-                        ),
+                        DownloadSelectionRules.selectionAfterLocalRefresh(current, localKeys),
                 )
             }
 
@@ -726,7 +746,7 @@ constructor(
                         DownloadHierarchyBuilder.build(failedEntries + failedBookEntries),
                     bookStorageBytes = bookStorageBytes,
                     storage = storage,
-                    selection = current.selection.intersect(validKeys),
+                    selection = current.selection.filter { it in validKeys },
                 )
             }
 

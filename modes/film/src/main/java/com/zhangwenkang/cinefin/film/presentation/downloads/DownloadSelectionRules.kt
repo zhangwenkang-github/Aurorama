@@ -31,6 +31,33 @@ object DownloadSelectionRules {
         }
     }
 
+    /** 任一批次动作仍在途时，选择栏与 ViewModel 都 fail-closed。 */
+    fun canStartSelectionAction(state: DownloadManagerState): Boolean =
+        state.pendingActions.isEmpty()
+
+    /** 本地数据先上屏时保留已完成键；完整服务器阶段仍由后续 validKeys 再裁剪。 */
+    fun selectionAfterLocalRefresh(
+        state: DownloadManagerState,
+        localKeys: Set<String>,
+    ): List<String> {
+        val completedKeys =
+            state.completedContainers
+                .flatMap { container -> container.allEntries() }
+                .mapTo(mutableSetOf()) { it.key }
+        return state.selection.filter { it in localKeys || it in completedKeys }
+    }
+
+    /** 容器 / 季选择展开为条目并追加到尾部；再次点击同一目标时整体移除。 */
+    fun toggleSelection(state: DownloadManagerState, key: String): List<String> {
+        val targets = state.selectionTargets(key)
+        if (targets.isEmpty()) return state.selection
+        return if (targets.all { it in state.selection }) {
+            state.selection.filterNot { it in targets }
+        } else {
+            (state.selection + targets.filterNot { it in state.selection }).distinct()
+        }
+    }
+
     /**
      * 当前分组 + 媒体筛选下的全集。
      *
@@ -39,7 +66,7 @@ object DownloadSelectionRules {
     fun keysFor(
         state: DownloadManagerState,
         group: DownloadTaskGroup,
-    ): Set<String> =
+    ): List<String> =
         state
             .containersFor(group)
             .flatMap { it.allEntries() }
@@ -48,7 +75,8 @@ object DownloadSelectionRules {
                 group != DownloadTaskGroup.FAILED || entry.status == DownloadTaskStatus.FAILED
             }
             .map { it.key }
-            .toSet()
+            .distinct()
+            .toList()
 
     fun retryableTasks(state: DownloadManagerState): List<DownloadTask> =
         state.selectedTasks
@@ -67,4 +95,24 @@ object DownloadSelectionRules {
             }
             .distinctBy { it.itemId }
             .toList()
+
+    private fun DownloadManagerState.selectionTargets(key: String): List<String> {
+        allContainers
+            .firstOrNull { it.key == key }
+            ?.let { container ->
+                return container.allEntries().map { it.key }
+            }
+        allContainers.forEach { container ->
+            container.children.filterIsInstance<DownloadHierarchySubContainer>().forEach { season ->
+                if (season.key == key) return season.children.map { it.key }
+            }
+        }
+        val knownEntry =
+            allContainers.flatMap { container -> container.allEntries() }.any { it.key == key }
+        return if (knownEntry) {
+            listOf(key)
+        } else {
+            emptyList()
+        }
+    }
 }

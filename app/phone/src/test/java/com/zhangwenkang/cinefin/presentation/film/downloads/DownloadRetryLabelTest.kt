@@ -33,6 +33,13 @@ class DownloadRetryLabelTest {
         assertFalse(showsRetryLabel(null))
     }
 
+    @Test
+    fun `completed entry always uses success label before failure fallback`() {
+        assertTrue(showsCompletedDownloadLabel(DownloadTaskStatus.COMPLETED))
+        assertFalse(showsCompletedDownloadLabel(DownloadTaskStatus.FAILED))
+        assertFalse(showsCompletedDownloadLabel(DownloadTaskStatus.RUNNING))
+    }
+
     private fun task(status: DownloadTaskStatus, retryCount: Int) =
         DownloadTask(
             itemId = UUID.randomUUID(),

@@ -33,9 +33,12 @@ data class DownloadManagerState(
     val bookStorageBytes: Long = 0L,
     val storage: DownloadStorageUsage = DownloadStorageUsage(0L, 0L, 0L),
     val selectionMode: Boolean = false,
-    val selection: Set<String> = emptySet(),
+    /** 用户点选顺序即播放计划顺序；同一 key 只出现一次。 */
+    val selection: List<String> = emptyList(),
     /** 本机已受理、仍等待任务调用 / 状态落地结果的下载动作。 */
     val pendingActions: Map<String, DownloadPendingAction> = emptyMap(),
+    /** 批次动作失败后的可见终态；下一次选择或动作开始时清除。 */
+    val actionFailure: DownloadActionFailure? = null,
 ) {
     val activeCount: Int
         get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.itemId }.size
@@ -77,11 +80,14 @@ data class DownloadManagerState(
 
     /** W34：当前选中的层级条目（供多选操作栏判断可暂停 / 可重试）。 */
     val selectedEntries: List<DownloadHierarchyEntry>
-        get() =
-            (activeContainers + completedContainers + failedContainers)
-                .flatMap { container -> container.descendantEntries() }
-                .filter { it.key in selection }
-                .distinctBy { it.key }
+        get() {
+            val byKey =
+                (activeContainers + completedContainers + failedContainers)
+                    .flatMap { container -> container.descendantEntries() }
+                    .distinctBy { it.key }
+                    .associateBy { it.key }
+            return selection.mapNotNull(byKey::get)
+        }
 
     val selectedTasks: List<DownloadTask>
         get() = selectedEntries.mapNotNull { entry -> entry.task }
@@ -95,13 +101,41 @@ enum class DownloadPendingAction {
     DELETE,
 }
 
+enum class DownloadActionFailure {
+    PLAY,
+    PAUSE,
+    RESUME,
+    RETRY,
+    DELETE,
+}
+
 fun DownloadManagerState.beginPending(
     action: DownloadPendingAction,
-    keys: Set<String> = selection,
-): DownloadManagerState = copy(pendingActions = pendingActions + keys.associateWith { action })
+    keys: Collection<String> = selection,
+): DownloadManagerState =
+    copy(
+        pendingActions = pendingActions + keys.associateWith { action },
+        actionFailure = null,
+    )
 
 fun DownloadManagerState.finishPending(keys: Set<String>): DownloadManagerState =
     copy(pendingActions = pendingActions - keys)
+
+fun DownloadManagerState.failPending(
+    action: DownloadPendingAction,
+    keys: Set<String>,
+): DownloadManagerState =
+    copy(
+        pendingActions = pendingActions - keys,
+        actionFailure =
+            when (action) {
+                DownloadPendingAction.PLAY -> DownloadActionFailure.PLAY
+                DownloadPendingAction.PAUSE -> DownloadActionFailure.PAUSE
+                DownloadPendingAction.RESUME -> DownloadActionFailure.RESUME
+                DownloadPendingAction.RETRY -> DownloadActionFailure.RETRY
+                DownloadPendingAction.DELETE -> DownloadActionFailure.DELETE
+            },
+    )
 
 private fun DownloadHierarchyContainer.descendantEntries(): List<DownloadHierarchyEntry> =
     children.flatMap { child ->
@@ -182,7 +216,7 @@ sealed interface DownloadAction {
 
     data object RetryAllFailures : DownloadAction
 
-    data class SelectKeys(val keys: Set<String>) : DownloadAction
+    data class SelectKeys(val keys: List<String>) : DownloadAction
 
     data object DeleteSelected : DownloadAction
 

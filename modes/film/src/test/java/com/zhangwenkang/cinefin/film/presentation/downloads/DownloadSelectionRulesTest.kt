@@ -7,7 +7,9 @@ import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** W84：下载管理页「全选当前筛选全集 / 失败仅全选可重试项」。 */
@@ -56,7 +58,7 @@ class DownloadSelectionRulesTest {
         assertEquals(3, keys.size)
         assertEquals(
             setOf(itemKey(first.itemId), itemKey(second.itemId), itemKey(third.itemId)),
-            keys,
+            keys.toSet(),
         )
     }
 
@@ -80,7 +82,7 @@ class DownloadSelectionRulesTest {
 
         val keys = DownloadSelectionRules.keysFor(state, DownloadTaskGroup.FAILED)
 
-        assertEquals(setOf(itemKey(music.itemId)), keys)
+        assertEquals(listOf(itemKey(music.itemId)), keys)
     }
 
     @Test
@@ -98,11 +100,11 @@ class DownloadSelectionRulesTest {
             DownloadManagerState(
                 isLoading = false,
                 failedContainers = DownloadHierarchyBuilder.build(listOf(book)),
-                selection = setOf(book.key),
+                selection = listOf(book.key),
             )
 
         assertEquals(
-            setOf(book.key),
+            listOf(book.key),
             DownloadSelectionRules.keysFor(state, DownloadTaskGroup.FAILED),
         )
         assertEquals(
@@ -129,7 +131,7 @@ class DownloadSelectionRulesTest {
                 activeContainers = DownloadHierarchyBuilder.build(listOf(entry(active))),
                 failedContainers = DownloadHierarchyBuilder.build(listOf(entry(failed))),
                 selectionMode = true,
-                selection = containers.flatMap { it.allEntries() }.map { it.key }.toSet(),
+                selection = containers.flatMap { it.allEntries() }.map { it.key },
             )
 
         val retryable = DownloadSelectionRules.retryableTasks(state)
@@ -138,7 +140,7 @@ class DownloadSelectionRulesTest {
     }
 
     @Test
-    fun `已完成的同类型选中曲目按列表顺序生成播放计划`() {
+    fun `已完成的同类型选中曲目按用户点选顺序生成播放计划`() {
         val first =
             DownloadHierarchyEntry(
                 itemId = UUID.randomUUID(),
@@ -165,15 +167,150 @@ class DownloadSelectionRulesTest {
                 isLoading = false,
                 completedContainers = containers,
                 selectionMode = true,
-                selection = setOf(second.key, first.key),
+                selection = listOf(second.key, first.key),
             )
 
         val plan = DownloadSelectionRules.playbackPlan(state)
 
         assertEquals(
-            listOf(first.itemId, second.itemId),
+            listOf(second.itemId, first.itemId),
             (plan as DownloadPlaybackPlan.Music).itemIds,
         )
+    }
+
+    @Test
+    fun `已完成的视频选中项按用户点选顺序生成播放计划`() {
+        val first =
+            DownloadHierarchyEntry(
+                itemId = UUID.randomUUID(),
+                name = "第一集",
+                mediaKind = DownloadMediaKind.VIDEO,
+                status = DownloadTaskStatus.COMPLETED,
+                sourceId = "local-first-video",
+                seriesId = UUID.randomUUID(),
+                seasonId = UUID.randomUUID(),
+                episodeIndex = 1,
+            )
+        val second =
+            first.copy(
+                itemId = UUID.randomUUID(),
+                name = "第二集",
+                sourceId = "local-second-video",
+                episodeIndex = 2,
+            )
+        val state =
+            DownloadManagerState(
+                isLoading = false,
+                completedContainers = DownloadHierarchyBuilder.build(listOf(first, second)),
+                selectionMode = true,
+                selection = listOf(second.key, first.key),
+            )
+
+        val plan = DownloadSelectionRules.playbackPlan(state)
+
+        assertEquals(
+            listOf(second.itemId, first.itemId),
+            (plan as DownloadPlaybackPlan.Video).itemIds,
+        )
+    }
+
+    @Test
+    fun `已完成选择在本地阶段刷新后保持选择顺序`() {
+        val first =
+            DownloadHierarchyEntry(
+                itemId = UUID.randomUUID(),
+                name = "第一首",
+                mediaKind = DownloadMediaKind.MUSIC,
+                status = DownloadTaskStatus.COMPLETED,
+                sourceId = "local-first",
+                albumName = "专辑",
+                trackIndex = 1,
+            )
+        val second =
+            first.copy(
+                itemId = UUID.randomUUID(),
+                name = "第二首",
+                sourceId = "local-second",
+                trackIndex = 2,
+            )
+        val state =
+            DownloadManagerState(
+                isLoading = false,
+                completedContainers = DownloadHierarchyBuilder.build(listOf(first, second)),
+                selectionMode = true,
+                selection = listOf(second.key, first.key),
+            )
+
+        val retained = DownloadSelectionRules.selectionAfterLocalRefresh(state, emptySet())
+
+        assertEquals(listOf(second.key, first.key), retained)
+    }
+
+    @Test
+    fun `容器后再选条目时保持显式追加顺序`() {
+        val first =
+            DownloadHierarchyEntry(
+                itemId = UUID.randomUUID(),
+                name = "第一首",
+                mediaKind = DownloadMediaKind.MUSIC,
+                status = DownloadTaskStatus.COMPLETED,
+                sourceId = "local-first",
+                albumName = "专辑",
+                trackIndex = 1,
+            )
+        val second =
+            first.copy(
+                itemId = UUID.randomUUID(),
+                name = "第二首",
+                sourceId = "local-second",
+                trackIndex = 2,
+            )
+        val containers = DownloadHierarchyBuilder.build(listOf(first, second))
+        val state = DownloadManagerState(isLoading = false, completedContainers = containers)
+
+        val selected = DownloadSelectionRules.toggleSelection(state, containers.single().key)
+
+        assertEquals(listOf(first.key, second.key), selected)
+    }
+
+    @Test
+    fun `连续点选两个容器时后点容器条目追加到尾部`() {
+        fun track(name: String, album: String) =
+            DownloadHierarchyEntry(
+                itemId = UUID.randomUUID(),
+                name = name,
+                mediaKind = DownloadMediaKind.MUSIC,
+                status = DownloadTaskStatus.COMPLETED,
+                sourceId = "local-$name",
+                albumName = album,
+                trackIndex = 1,
+            )
+
+        val first = track("第一首", "专辑 A")
+        val second = track("第二首", "专辑 B")
+        val containers = DownloadHierarchyBuilder.build(listOf(first, second))
+        val firstContainer = containers.first { container ->
+            container.allEntries().single() == first
+        }
+        val secondContainer = containers.first { container ->
+            container.allEntries().single() == second
+        }
+        val firstSelected =
+            DownloadSelectionRules.toggleSelection(
+                DownloadManagerState(isLoading = false, completedContainers = containers),
+                firstContainer.key,
+            )
+        val bothSelected =
+            DownloadSelectionRules.toggleSelection(
+                DownloadManagerState(
+                    isLoading = false,
+                    completedContainers = containers,
+                    selection = firstSelected,
+                ),
+                secondContainer.key,
+            )
+
+        assertEquals(listOf(first.key, second.key), bothSelected)
     }
 
     @Test
@@ -201,7 +338,7 @@ class DownloadSelectionRulesTest {
                 isLoading = false,
                 completedContainers = containers,
                 selectionMode = true,
-                selection = setOf(video.key, music.key),
+                selection = listOf(video.key, music.key),
             )
 
         assertNull(DownloadSelectionRules.playbackPlan(state))
@@ -217,7 +354,7 @@ class DownloadSelectionRulesTest {
                 activeTasks = listOf(running),
                 activeContainers = containers,
                 selectionMode = true,
-                selection = setOf(running.itemId.let(::itemKey)),
+                selection = listOf(running.itemId.let(::itemKey)),
             )
 
         assertNull(DownloadSelectionRules.playbackPlan(state))
@@ -232,7 +369,7 @@ class DownloadSelectionRulesTest {
                 activeTasks = listOf(task),
                 activeContainers = DownloadHierarchyBuilder.build(listOf(entry(task))),
                 selectionMode = true,
-                selection = setOf(itemKey(task.itemId)),
+                selection = listOf(itemKey(task.itemId)),
             )
 
         val pending = state.beginPending(DownloadPendingAction.RESUME)
@@ -252,5 +389,27 @@ class DownloadSelectionRulesTest {
         val finished = state.finishPending(setOf(key))
 
         assertNull(finished.pendingActions[key])
+    }
+
+    @Test
+    fun `任一批次 pending 都阻止选择栏再次发起动作`() {
+        val key = itemKey(UUID.randomUUID())
+        DownloadPendingAction.entries.forEach { action ->
+            val state = DownloadManagerState(pendingActions = mapOf(key to action))
+
+            assertFalse(DownloadSelectionRules.canStartSelectionAction(state))
+        }
+        assertTrue(DownloadSelectionRules.canStartSelectionAction(DownloadManagerState()))
+    }
+
+    @Test
+    fun `批次动作失败清除 pending 并留下可见失败终态`() {
+        val key = itemKey(UUID.randomUUID())
+        val state = DownloadManagerState(pendingActions = mapOf(key to DownloadPendingAction.RETRY))
+
+        val failed = state.failPending(DownloadPendingAction.RETRY, setOf(key))
+
+        assertNull(failed.pendingActions[key])
+        assertEquals(DownloadActionFailure.RETRY, failed.actionFailure)
     }
 }

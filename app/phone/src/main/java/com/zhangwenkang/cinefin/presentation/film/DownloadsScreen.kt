@@ -209,7 +209,7 @@ private fun DownloadsScreenLayout(
                             onClick = {
                                 onAction(
                                     DownloadAction.SelectKeys(
-                                        if (allVisibleSelected) emptySet() else selectableKeys
+                                        if (allVisibleSelected) emptyList() else selectableKeys
                                     )
                                 )
                             }
@@ -476,7 +476,7 @@ private fun DownloadDetailPane(
     container: DownloadHierarchyContainer,
     pageGutter: Dp,
     selectionMode: Boolean,
-    selection: Set<String>,
+    selection: List<String>,
     pendingActions: Map<String, DownloadPendingAction>,
     onAction: (DownloadAction) -> Unit,
     onRequestDeleteEntry: (key: String, title: String) -> Unit,
@@ -564,7 +564,7 @@ private fun OverviewList(
     emptyTitle: String,
     emptyIconRes: Int,
     selectionMode: Boolean,
-    selection: Set<String>,
+    selection: List<String>,
     pendingActions: Map<String, DownloadPendingAction>,
     pageGutter: Dp,
     compact: Boolean,
@@ -695,7 +695,7 @@ private fun OverviewItem(
     container: DownloadHierarchyContainer,
     compact: Boolean,
     selectionMode: Boolean,
-    selection: Set<String>,
+    selection: List<String>,
     pendingActions: Map<String, DownloadPendingAction>,
     onAction: (DownloadAction) -> Unit,
     onOpenDetail: (String) -> Unit,
@@ -792,6 +792,7 @@ private fun SelectionBar(
     val selectedTasks = state.selectedTasks
     val playbackPlan = DownloadSelectionRules.playbackPlan(state)
     val pendingActions = state.selectedEntries.mapNotNull { state.pendingActions[it.key] }.toSet()
+    val canStartSelectionAction = DownloadSelectionRules.canStartSelectionAction(state)
     val canRetrySelected =
         selectedTasks.any { DownloadTaskRules.canRetry(it.status) } ||
             state.selectedEntries.any { it.status == DownloadTaskStatus.FAILED }
@@ -805,42 +806,51 @@ private fun SelectionBar(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = stringResource(CoreR.string.download_selected_count, state.selection.size),
+            text =
+                if (state.actionFailure != null) {
+                    stringResource(CoreR.string.download_failed)
+                } else {
+                    stringResource(CoreR.string.download_selected_count, state.selection.size)
+                },
             style = CinefinType.BodyMedium,
-            color = colors.onSurface,
+            color = if (state.actionFailure != null) colors.error else colors.onSurface,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
             SelectionActionIcon(
                 pending = DownloadPendingAction.PLAY in pendingActions,
-                enabled = playbackPlan != null && pendingActions.isEmpty(),
+                enabled = canStartSelectionAction && playbackPlan != null,
                 description = "播放选中",
                 iconRes = CoreR.drawable.ic_play,
                 onClick = { onAction(DownloadAction.PlaySelected) },
             )
             SelectionActionIcon(
                 pending = DownloadPendingAction.PAUSE in pendingActions,
-                enabled = selectedTasks.any { DownloadTaskRules.canPause(it.status) },
+                enabled =
+                    canStartSelectionAction &&
+                        selectedTasks.any { DownloadTaskRules.canPause(it.status) },
                 description = stringResource(CoreR.string.download_action_pause),
                 iconRes = CoreR.drawable.ic_pause,
                 onClick = { onAction(DownloadAction.PauseSelected) },
             )
             SelectionActionIcon(
                 pending = DownloadPendingAction.RESUME in pendingActions,
-                enabled = selectedTasks.any { DownloadTaskRules.canResume(it.status) },
+                enabled =
+                    canStartSelectionAction &&
+                        selectedTasks.any { DownloadTaskRules.canResume(it.status) },
                 description = stringResource(CoreR.string.download_action_resume),
                 iconRes = CoreR.drawable.ic_play,
                 onClick = { onAction(DownloadAction.ResumeSelected) },
             )
             SelectionActionIcon(
                 pending = DownloadPendingAction.RETRY in pendingActions,
-                enabled = canRetrySelected,
+                enabled = canStartSelectionAction && canRetrySelected,
                 description = stringResource(CoreR.string.download_action_retry),
                 iconRes = CoreR.drawable.ic_rotate_ccw,
                 onClick = { onAction(DownloadAction.RetrySelected) },
             )
             SelectionActionIcon(
                 pending = DownloadPendingAction.DELETE in pendingActions,
-                enabled = state.hasSelection,
+                enabled = canStartSelectionAction && state.hasSelection,
                 description = stringResource(CoreR.string.download_action_delete),
                 iconRes = CoreR.drawable.ic_trash,
                 onClick = onRequestDelete,
