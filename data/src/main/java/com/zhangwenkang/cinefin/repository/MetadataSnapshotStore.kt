@@ -293,6 +293,15 @@ internal constructor(
         return MetadataSnapshotReadResult.Hit(value = value, savedAtEpochMs = savedAt)
     }
 
+    /** Remove one snapshot for a validated namespace and key without touching sibling keys. */
+    fun delete(namespace: MetadataNamespace, logicalKey: String): Boolean {
+        if (!isValidNamespace(namespace) || !isValidKey(logicalKey)) return false
+        val target = fileFor(namespace, logicalKey) ?: return false
+        return synchronized(namespaceLock(namespace)) {
+            runCatching { Files.deleteIfExists(target.toPath()) }.getOrDefault(false)
+        }
+    }
+
     /** Remove snapshots for one namespace only; other accounts remain independently readable. */
     fun invalidateNamespace(namespace: MetadataNamespace) {
         if (!isValidNamespace(namespace)) return

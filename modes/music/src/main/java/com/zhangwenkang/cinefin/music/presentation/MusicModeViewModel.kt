@@ -423,7 +423,7 @@ constructor(
                 showSourceBadge = appPreferences.getValue(appPreferences.localLibrarySourceBadge),
             )
         }
-        refresh()
+        refresh(forceServerPlaylistRefresh = false)
         observeLocalPlaylists()
         observeLyrics()
         restoreQueue()
@@ -937,7 +937,9 @@ constructor(
      *
      * W3-R3b：服务器偶发超时 / 弱网时先**自动重试一次**，两次都失败才进可重试错误态， 避免"间歇性曲库加载失败"直接把空列表丢给用户。
      */
-    fun refresh() {
+    fun refresh() = refresh(forceServerPlaylistRefresh = true)
+
+    private fun refresh(forceServerPlaylistRefresh: Boolean) {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             // W39 验收取证：下拉刷新 / 重试都走这里；logcat 关键词「曲库刷新」。
@@ -985,7 +987,7 @@ constructor(
                 return@launch
             }
             try {
-                val (library, playlists) = loadLibraryWithRetry()
+                val (library, playlists) = loadLibraryWithRetry(forceServerPlaylistRefresh)
                 // W66：音乐库选择器候选（失败不阻塞曲库加载）。
                 val musicLibraries = loadMusicLibraryList()
                 val selectedMusicLibrary =
@@ -1117,22 +1119,26 @@ constructor(
     }
 
     /** 第一次失败视为偶发（服务端超时 / 弱网），自动重试一次后仍失败才抛给调用方。 */
-    private suspend fun loadLibraryWithRetry(): Pair<MusicLibrary, List<MusicPlaylist>> =
+    private suspend fun loadLibraryWithRetry(
+        forceServerPlaylistRefresh: Boolean
+    ): Pair<MusicLibrary, List<MusicPlaylist>> =
         try {
-            loadLibraryOnce()
+            loadLibraryOnce(forceServerPlaylistRefresh)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (first: Exception) {
             Timber.w(first, "曲库加载失败，自动重试一次")
             delay(AUTO_RETRY_DELAY_MS)
-            loadLibraryOnce()
+            loadLibraryOnce(forceServerPlaylistRefresh)
         }
 
-    private suspend fun loadLibraryOnce(): Pair<MusicLibrary, List<MusicPlaylist>> {
+    private suspend fun loadLibraryOnce(
+        forceServerPlaylistRefresh: Boolean
+    ): Pair<MusicLibrary, List<MusicPlaylist>> {
         val libraryId = selectedMusicLibraryId()
         Timber.d("曲库刷新：重新请求服务器曲库 library=%s", libraryId)
         val library = repository.getLibrary(libraryId = libraryId)
-        return library to repository.getPlaylists()
+        return library to repository.getPlaylists(forceRefresh = forceServerPlaylistRefresh)
     }
 
     /** W66：服务器音乐库列表（顶栏选择器候选；读取失败返回空列表，不阻塞曲库加载）。 */

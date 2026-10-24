@@ -508,6 +508,58 @@ class MetadataSnapshotStoreTest {
         )
     }
 
+    @Test
+    fun `single key delete removes only that namespace and key`() {
+        val store = MetadataSnapshotStore(tempDirectory)
+        val otherNamespace = MetadataNamespace(serverId = "server-a", userId = "user-b")
+        assertTrue(
+            store.write(namespace, "playlists", "old") is MetadataSnapshotWriteResult.Success
+        )
+        assertTrue(store.write(namespace, "views", "keep") is MetadataSnapshotWriteResult.Success)
+        assertTrue(
+            store.write(otherNamespace, "playlists", "other-user")
+                is MetadataSnapshotWriteResult.Success
+        )
+
+        assertTrue(store.delete(namespace, "playlists"))
+        assertFalse(store.delete(namespace, "playlists"))
+
+        assertEquals(
+            MetadataSnapshotReadResult.Miss(MetadataSnapshotMissReason.NOT_FOUND),
+            store.read(namespace, "playlists", Long.MAX_VALUE),
+        )
+        assertEquals(
+            "keep",
+            (store.read(namespace, "views", Long.MAX_VALUE) as MetadataSnapshotReadResult.Hit)
+                .value,
+        )
+        assertEquals(
+            "other-user",
+            (store.read(otherNamespace, "playlists", Long.MAX_VALUE)
+                    as MetadataSnapshotReadResult.Hit)
+                .value,
+        )
+    }
+
+    @Test
+    fun `single key delete keeps hostile keys inside the store root`() {
+        val store = MetadataSnapshotStore(tempDirectory)
+        val hostileNamespace = MetadataNamespace(serverId = "..", userId = "..\\outside")
+        val hostileKey = "../../outside/secret"
+        val escapedFile = File(tempDirectory.parentFile, "outside/secret")
+        assertTrue(
+            store.write(hostileNamespace, hostileKey, "safe") is MetadataSnapshotWriteResult.Success
+        )
+
+        assertTrue(store.delete(hostileNamespace, hostileKey))
+
+        assertFalse(escapedFile.exists())
+        assertEquals(
+            MetadataSnapshotReadResult.Miss(MetadataSnapshotMissReason.NOT_FOUND),
+            store.read(hostileNamespace, hostileKey, Long.MAX_VALUE),
+        )
+    }
+
     private fun writeString(store: MetadataSnapshotStore, key: String, value: String) {
         assertTrue(store.write(namespace, key, value) is MetadataSnapshotWriteResult.Success)
     }

@@ -117,8 +117,8 @@ interface MusicRepository {
      */
     suspend fun getLibrary(libraryId: UUID? = null): MusicLibrary
 
-    /** 服务器歌单列表。 */
-    suspend fun getPlaylists(): List<MusicPlaylist>
+    /** 服务器歌单列表；用户主动刷新时 [forceRefresh] 绕过 fresh 摘要。 */
+    suspend fun getPlaylists(forceRefresh: Boolean = false): List<MusicPlaylist>
 
     /** 歌单内曲目（按服务器返回顺序）。 */
     suspend fun getPlaylistSongs(playlistId: UUID): List<MusicSong>
@@ -167,6 +167,9 @@ constructor(
                     savedAtEpochMs = savedAtMs,
                 )
             },
+            deleteSnapshot = { namespace, key ->
+                metadataSnapshotStore.delete(namespace = namespace, logicalKey = key)
+            },
         )
 
     override suspend fun getLibrary(libraryId: UUID?): MusicLibrary =
@@ -179,7 +182,7 @@ constructor(
             )
         }
 
-    override suspend fun getPlaylists(): List<MusicPlaylist> =
+    override suspend fun getPlaylists(forceRefresh: Boolean): List<MusicPlaylist> =
         withContext(Dispatchers.IO) {
             val namespace = currentNamespace() ?: return@withContext emptyList()
             val cards =
@@ -187,6 +190,7 @@ constructor(
                     namespace = namespace,
                     key = PLAYLIST_CARD_CACHE_KEY,
                     isCurrent = { currentNamespace() == namespace },
+                    forceRefresh = forceRefresh,
                     fetch = {
                         jellyfinApi.itemsApi
                             .getItems(
@@ -255,11 +259,13 @@ constructor(
     }
 
     override suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID) {
+        val namespace = currentNamespace()
         withContext(Dispatchers.IO) {
             jellyfinApi.playlistsApi.removeItemFromPlaylist(
                 playlistId = playlistId.toString(),
                 entryIds = listOf(itemId.toString()),
             )
+            namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
         }
     }
 

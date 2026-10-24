@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.music.data
 import com.zhangwenkang.cinefin.repository.MetadataNamespace
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.serialization.json.JsonArray
@@ -34,39 +35,70 @@ internal data class CachedPlaylistCards(
 internal class ServerPlaylistCardCache(
     private val readSnapshot: (MetadataNamespace, String, Long) -> CachedPlaylistCards?,
     private val writeSnapshot: (MetadataNamespace, String, List<CachedPlaylistCard>, Long) -> Unit,
+    private val deleteSnapshot: (MetadataNamespace, String) -> Unit,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
 
     private data class ScopedKey(val namespace: MetadataNamespace, val logicalKey: String)
 
+    private data class FlightEntry(
+        val deferred: CompletableDeferred<List<CachedPlaylistCard>>,
+        val owner: Boolean,
+        val prior: CachedPlaylistCards? = null,
+        val versionAtStart: Long = 0L,
+    )
+
     private val memory = ConcurrentHashMap<ScopedKey, CachedPlaylistCards>()
     private val flights =
         ConcurrentHashMap<ScopedKey, CompletableDeferred<List<CachedPlaylistCard>>>()
+    private val locks = ConcurrentHashMap<ScopedKey, Any>()
+    private val versions = ConcurrentHashMap<ScopedKey, AtomicLong>()
 
     suspend fun load(
         namespace: MetadataNamespace,
         key: String,
         isCurrent: () -> Boolean,
+        forceRefresh: Boolean = false,
         fetch: suspend () -> List<CachedPlaylistCard>,
     ): List<CachedPlaylistCard> {
         val scopedKey = ScopedKey(namespace, key)
-        val now = clock()
-        memory[scopedKey]?.let { snapshot ->
-            if (isFresh(snapshot.savedAtMs, now)) return snapshot.cards
-        }
-
-        val prior =
-            memory[scopedKey]
-                ?: runCatching { readSnapshot(namespace, key, TTL_MS) }
-                    .getOrNull()
-                    ?.also { memory[scopedKey] = it }
-        if (prior != null && isFresh(prior.savedAtMs, now)) return prior.cards
-
-        val deferred = CompletableDeferred<List<CachedPlaylistCard>>()
-        val joined = flights.putIfAbsent(scopedKey, deferred)
-        if (joined != null) {
+        val version = versionFor(scopedKey)
+        val entry =
+            synchronized(lockFor(scopedKey)) {
+                val existing = flights[scopedKey]
+                if (existing != null) {
+                    FlightEntry(deferred = existing, owner = false)
+                } else {
+                    val now = clock()
+                    val memorySnapshot = memory[scopedKey]
+                    if (
+                        !forceRefresh &&
+                            memorySnapshot != null &&
+                            isFresh(memorySnapshot.savedAtMs, now)
+                    ) {
+                        return memorySnapshot.cards
+                    }
+                    val prior =
+                        memorySnapshot
+                            ?: runCatching { readSnapshot(namespace, key, TTL_MS) }
+                                .getOrNull()
+                                ?.also { memory[scopedKey] = it }
+                    if (!forceRefresh && prior != null && isFresh(prior.savedAtMs, now)) {
+                        return prior.cards
+                    }
+                    val deferred = CompletableDeferred<List<CachedPlaylistCard>>()
+                    flights[scopedKey] = deferred
+                    FlightEntry(
+                        deferred = deferred,
+                        owner = true,
+                        prior = prior,
+                        versionAtStart = version.get(),
+                    )
+                }
+            }
+        if (!entry.owner) {
             return try {
-                joined.await()
+                entry.deferred.await()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
@@ -77,30 +109,53 @@ internal class ServerPlaylistCardCache(
 
         return try {
             val fresh = fetch()
-            if (!isCurrent()) {
-                throw CancellationException("server playlist namespace changed before commit")
+            synchronized(lockFor(scopedKey)) {
+                if (!isCurrent()) {
+                    throw CancellationException("server playlist namespace changed before commit")
+                }
+                if (version.get() != entry.versionAtStart) {
+                    throw CancellationException(
+                        "server playlist cache was invalidated before commit"
+                    )
+                }
+                val savedAt = clock()
+                runCatching { writeSnapshot(namespace, key, fresh, savedAt) }
+                memory[scopedKey] = CachedPlaylistCards(fresh, savedAt)
             }
-            val savedAt = clock()
-            runCatching { writeSnapshot(namespace, key, fresh, savedAt) }
-            memory[scopedKey] = CachedPlaylistCards(fresh, savedAt)
-            deferred.complete(fresh)
+            entry.deferred.complete(fresh)
             fresh
         } catch (cancellation: CancellationException) {
-            deferred.completeExceptionally(cancellation)
+            entry.deferred.completeExceptionally(cancellation)
             throw cancellation
         } catch (error: Throwable) {
-            val fallback = prior?.takeIf { isCurrent() }
+            val fallback =
+                entry.prior?.takeIf { isCurrent() && version.get() == entry.versionAtStart }
             if (fallback != null) {
-                deferred.complete(fallback.cards)
+                entry.deferred.complete(fallback.cards)
                 fallback.cards
             } else {
-                deferred.completeExceptionally(error)
+                entry.deferred.completeExceptionally(error)
                 throw error
             }
         } finally {
-            flights.remove(scopedKey, deferred)
+            flights.remove(scopedKey, entry.deferred)
         }
     }
+
+    fun invalidate(namespace: MetadataNamespace, key: String) {
+        val scopedKey = ScopedKey(namespace, key)
+        synchronized(lockFor(scopedKey)) {
+            versionFor(scopedKey).incrementAndGet()
+            memory.remove(scopedKey)
+            flights.remove(scopedKey)
+            runCatching { deleteSnapshot(namespace, key) }
+        }
+    }
+
+    private fun lockFor(key: ScopedKey): Any = locks.computeIfAbsent(key) { Any() }
+
+    private fun versionFor(key: ScopedKey): AtomicLong =
+        versions.computeIfAbsent(key) { AtomicLong() }
 
     companion object {
         const val TTL_MS: Long = 24L * 60L * 60L * 1000L
