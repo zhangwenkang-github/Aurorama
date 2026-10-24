@@ -243,6 +243,35 @@ class MetadataCacheTest {
     }
 
     @Test
+    fun `库计数按 namespace 与 generation 隔离`() {
+        var namespace = MetadataNamespace(serverId = "server-a", userId = "user-a")
+        val cache = MetadataCache(namespace = { namespace }, clock = { 1_000L })
+        val libraryId = UUID.randomUUID()
+        val countKey = MetadataCacheKeys.libraryItemCount(libraryId)
+        val oldFence = cache.currentFence()!!
+        cache.put(countKey, 7)
+
+        namespace = MetadataNamespace(serverId = "server-b", userId = "user-a")
+        assertNull(cache.get<Int>(countKey))
+        cache.put(countKey, 11)
+
+        namespace = MetadataNamespace(serverId = "server-a", userId = "user-b")
+        assertNull(cache.get<Int>(countKey))
+        cache.put(countKey, 13)
+
+        namespace = MetadataNamespace(serverId = "server-a", userId = "user-a")
+        assertEquals(7, cache.get<Int>(countKey)?.value)
+        cache.invalidateAll()
+
+        assertNull(cache.get<Int>(countKey))
+        assertFalse(cache.putIfCurrent(oldFence, countKey, 99))
+        namespace = MetadataNamespace(serverId = "server-b", userId = "user-a")
+        assertEquals(11, cache.get<Int>(countKey)?.value)
+        namespace = MetadataNamespace(serverId = "server-a", userId = "user-b")
+        assertEquals(13, cache.get<Int>(countKey)?.value)
+    }
+
+    @Test
     fun `分页键区分页码窗口与过滤条件`() {
         val parent = UUID.randomUUID()
         val firstPage =

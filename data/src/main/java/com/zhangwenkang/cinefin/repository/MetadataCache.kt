@@ -228,6 +228,7 @@ object MetadataCacheKeys {
     const val EPISODES_PREFIX = "episodes:"
     const val ITEMS_PREFIX = "items:"
     const val COUNT_PREFIX = "count:"
+    const val LIBRARY_ITEM_COUNT_PREFIX = "library-count:"
     const val LIBRARY_SUGGESTIONS_PREFIX = "library-suggestions:"
     const val UPCOMING_PREFIX = "upcoming:"
     const val GENRES_PREFIX = "genres:"
@@ -294,6 +295,8 @@ object MetadataCacheKeys {
     ): String =
         "$COUNT_PREFIX${parentId ?: "-"}|${signature(includeTypes)}|rec=$recursive|" +
             "${signature(filters)}|${signature(genres)}|${signature(studios)}"
+
+    fun libraryItemCount(libraryId: UUID): String = "$LIBRARY_ITEM_COUNT_PREFIX$libraryId"
 
     fun librarySuggestions(
         parentId: UUID,
