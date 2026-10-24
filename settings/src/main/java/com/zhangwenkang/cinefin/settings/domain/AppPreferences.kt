@@ -242,6 +242,13 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** W50 自研下载引擎：下载完成通知开关（默认开）；关闭后仍保留进行中前台服务通知。 */
     val downloadCompleteNotification = Preference("pref_download_complete_notification", true)
 
+    // Updates（W89-A：只持久化自动检查的小状态，不存下载 offset / 任务输入）
+    /** 最后一次自动检查尝试时间。网络或确定性解析失败也会先写入，用于保证自动检查最多每 24 小时一次。 0 = 从未尝试；手动检查不写此键。 */
+    val updateAutomaticCheckAttemptAt = Preference("pref_update_auto_check_attempt_at", 0L)
+
+    /** 最后一次成功完成发现（含“已是最新”）的时间；0 = 从未成功。 */
+    val updateLastSuccessfulCheckAt = Preference("pref_update_last_success_at", 0L)
+
     // Network
     val requestTimeout =
         Preference("pref_network_request_timeout", Constants.NETWORK_DEFAULT_REQUEST_TIMEOUT)
@@ -479,6 +486,20 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
             .putBoolean(playerStreamingBitrateIsBps.backendName, true)
             .apply()
     }
+
+    fun lastAutomaticUpdateCheckAttemptAt(): Long = getValue(updateAutomaticCheckAttemptAt)
+
+    fun lastSuccessfulUpdateCheckAt(): Long = getValue(updateLastSuccessfulCheckAt)
+
+    /** 自动检查门控必须先于网络写入磁盘；返回 false 时调用方不得发网络请求。 使用 commit 而不是 apply，避免“已发网络但门控尚未落盘”的跨进程窗口。 */
+    fun recordAutomaticUpdateCheckAttempt(epochMs: Long): Boolean =
+        sharedPreferences
+            .edit()
+            .putLong(updateAutomaticCheckAttemptAt.backendName, epochMs)
+            .commit()
+
+    fun recordSuccessfulUpdateCheck(epochMs: Long): Boolean =
+        sharedPreferences.edit().putLong(updateLastSuccessfulCheckAt.backendName, epochMs).commit()
 
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {
