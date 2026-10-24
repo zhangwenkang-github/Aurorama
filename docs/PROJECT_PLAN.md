@@ -185,6 +185,8 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 **2026-10-25 W90 方向 A 第一批代码检查点**：用户确认执行方向 A，并明确本版本**不做全 App UI 布局重做**；后续可能出现多主题，当前只要求保持语义 token / 组件边界可替换，不新增主题功能。隔离分支 `codex/w90-interaction-feedback` 基于 W89-C 文档 HEAD `c531f1d8`，代码候选 `45e2de77`。已完成歌词重入跟随恢复、下载页同类型完成项多选播放、下载动作同步 pending 与行尾 / 选择栏 spinner；W84 下载任务表、Worker、通知和 Downloader 契约未改。受影响 `modes:film` + `modes:music` 全量 JVM **53 XML / 342/0/0/0**，phone debug、三模块格式与 diff-check 通过。新增 debug APK 尚未装机，真实歌词样本与多选播放仍需另派独立 QA；下载提示 / 层级、主按钮间距、全 App 反馈审计未开始，UI 视觉迁移整体延期。W89-C 与发布写继续冻结。
 
+**2026-10-25 W90-FIRST-QA P1/P2 修复检查点（READY_FOR_VERIFICATION）**：首批独立 QA 的已完成页 0 选择、选择顺序丢失、完成视频“未知错误”与批次 pending 重入已形成最小修复候选 `3a92061f`。选择收敛为保序列表，阶段 1 刷新保留已完成键；播放计划按点选顺序供音乐 / 视频消费；完成态优先成功文案；任意 pending 全局锁住选择栏并在 VM 二次 fail-closed，失败留下可见终态。RED 后 GREEN：film+music **53 XML / 348/0/0/0**，含 phone **108 XML / 697/0/0/0**，phone debug、三模块 ktfmt、diff-check 均真实通过。Pad 实测点击、键盘、全选在多轮轮询后保持选择，且先点选的 Side A 先入播放；测试下载清理为 0/0/0、0 B，预修复 APK 恢复 SHA MATCH，正式 release 与 K60 零接触。独立 QA 仍须由负责人另派全新代理，重点补真实完成视频 / 视频批量、人为失败终态与 pending 帧级采样；禁止当前会话 merge / push / tag / Release / workflow。
+
 ## 4. 里程碑状态（源自旧 `docs/PLAN.md`，已合并）
 
 | 阶段 | 内容 | 状态 |

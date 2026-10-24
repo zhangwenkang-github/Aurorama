@@ -3108,4 +3108,6 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 **未覆盖**：新 debug APK 尚未装机；当前 Pad 1.4 release 样本为无歌词纯音乐，只确认歌词页可进入、返回和显示设置可读，未形成真实歌词跟随修复前后的真机 A/B。音乐 / 视频多选播放、pending 可见时长、真实下载暂停 / 删除均待独立 QA。下载提示时长 / 层级、音乐页主按钮间距、全 App 反馈审计与 UI 重做未开始。
 
+**W90-FIRST-QA P1/P2 修复检查点（2026-10-25，READY_FOR_VERIFICATION）**：代码 `3a92061f` 把下载选择改为去重保序列表，阶段 1 刷新保留已完成键，`selectedEntries` 按点选顺序投影；`COMPLETED` 显式显示成功态；任一批次 pending 时选择栏五个动作全禁用，ViewModel 入口拒绝重入，异常清 pending 并留下 `actionFailure`。RED 为 film / phone 目标测试编译失败；GREEN 定向 **15/0/0/0** 与 **5/0/0/0**，film+music **53 XML / 348/0/0/0**，含 phone **108 XML / 697/0/0/0**；phone debug **242 tasks / 5 executed**、三模块 ktfmt **12 tasks / 4 executed**、diff-check exit 0。Pad `43af8627` 实测点击 / 键盘 / 全选后经多轮轮询保持 **已选 2 项**，播放先进入后点选的 Side A 曲目；测试下载清理为 0/0/0、0 B，原 debug APK 恢复 SHA MATCH，release 未变。真实已完成视频叶子行、视频批量实播、人为失败终态与 pending 帧级采样仍待全新独立 QA；不自行清 P0–P3、不进入 merge-prep。
+
 **停止**：上下文已达 40.9%，超过 35 万强制交接线，移交新负责人；W89-C 候选、tag、Release、workflow 与生产服务继续保持未触碰。

@@ -620,6 +620,30 @@ K60 用户新增音乐无法播放：独立只读诊断在官方 1.3.0(4) 复现
 
 W89-C 当前候选技术 QA 仍有效，但用户全功能验收 FAIL / BLOCKED；tag、GitHub Release、workflow、K60 正式升级与任何发布写继续禁止。下一角色 = 新负责人 / Android 交互与 UI 架构负责人；先读本段、`PROJECT_PLAN` W90、`PLAYER_PLAN` 音乐与歌词段、`W89-C-QA.md` 和 handoff 唯一 ACTIVE，再实查当前候选 / 设备锁。第一步只读：建立交互清单与可测延迟判据，不直接重做视觉。
 
+**2026-10-25 W90-FIRST-QA 下载交互修复计划与能力矩阵（READY_FOR_VERIFICATION）**：
+
+- **P1-1 根因候选**：已完成条目只在 refresh 阶段 2 进入 `validKeys`，但 1.5s 轮询的阶段 1 先把选择与“进行中 / 失败 / 书籍”键求交；已完成键不在阶段 1 集合内，因此卡片点击、长按、全选与键盘 Enter 即使写入选择，也会被下一轮刷新清成 0。修复口径 = 阶段 1 同时保留当前已完成容器里的合法键，阶段 2 仍以完整真源做最终裁剪。
+- **P1-2 根因候选**：`selection` 使用无序 `Set`，`selectedEntries` 又按容器层级顺序反查，播放计划因此丢失用户点选顺序。修复口径 = 将选择收敛为去重、保序的键列表；容器选择按展示顺序追加，之后点选追加到尾部，刷新裁剪保序；音乐 `queueItemIds` 与视频批量项直接消费该顺序。
+- **P2-1 根因**：状态徽标只为 `FAILED` 进入失败原因回落，未单独处理无 `task / phase` 的 `COMPLETED`，最终显示 `failureLabel(null)` 的“未知错误”。修复口径 = `COMPLETED` 显式显示成功态，优先于失败原因回落。
+- **P2-2 根因**：选择栏每个按钮只看自己的 pending 类型，未做全局互斥；ViewModel 也没有批次动作入口守卫，失败只在 `finally` 清 pending，缺少可见失败终态。修复口径 = 任一批次 pending 时选择栏全部动作禁用，ViewModel 入口再次 fail-closed；失败清 pending 并在选择栏显示可见失败终态。
+
+| 能力 / 输入 | 唯一状态真源 | 验收断言 |
+|---|---|---|
+| 卡片点击、长按、顶部全选、键盘 Enter | 同一保序选择列表 | 操作后计数增加；两次 1.5s 刷新后仍保留 |
+| 音乐多选 | `selectedEntries` 按点选顺序 | `MusicItemRoute.queueItemIds` 顺序 = 实际点选顺序 |
+| 视频多选 | 同一播放计划顺序 | 批量视频队列顺序 = 实际点选顺序 |
+| 已完成视频 | `status=COMPLETED` | 行内显示“已完成”，不出现“未知错误” |
+| 选择栏暂停 / 继续 / 重试 / 删除 / 播放 | `pendingActions` 非空 | 任一 pending 时五项全部禁用，VM 重入调用不产生第二次任务 |
+| 批次动作失败 | pending 清除 + 可见错误态 | spinner 结束，选择栏显示“下载失败”，可继续下一操作 |
+
+实施顺序 = 先补保序选择、阶段 1 保留、已完成文案与全局 pending / 失败态 RED；再最小修改 `DownloadManagerState` / `DownloadSelectionRules` / `DownloadsViewModel` / `DownloadsScreen` / `DownloadRows`；最后跑受影响 JVM、phone debug、ktfmt、diff-check，并只用 Pad `43af8627` 做本批最小真机验证。非目标保持：W84 Downloader / 媒体下载表 / Worker / 通知契约、版本、发布、全 App UI 与主题。
+
+**实现检查点（2026-10-25，READY_FOR_VERIFICATION）**：代码候选 `3a92061f`（7 文件、`+358/-74`）。RED 已真实执行：film 目标测试因旧 `Set` 契约与缺失保序 / 刷新 / 闸门 API 编译失败；phone 目标测试因缺失已完成成功态规则失败。GREEN：定向 `DownloadSelectionRulesTest` **15/0/0/0**、`DownloadRetryLabelTest` **5/0/0/0**；受影响 `modes:film` + `modes:music` **53 XML / 348/0/0/0**，加 phone 后 **108 XML / 697/0/0/0**（210 tasks，14 executed）；`:app:phone:assembleDebug` **242 tasks，5 executed**；三模块 `ktfmtCheck` **12 tasks，4 executed**；`git diff --check` exit 0。arm64 debug **150,024,672 B / SHA-256 `86484650B1AA8E5F92C29CA2C91923BCB296E8250A3E1045751AD892D979C8C3`**。
+
+Pad `43af8627` 最小真机验证：同签名 `install -r` 后设备 SHA MATCH；两首已完成音乐在“选择 → 右侧 Side A 先点 → 左侧 A/Z 后点”后，经两轮 1.5s 轮询仍为 **已选 2 项**；键盘焦点落在左侧卡片后，Enter 实现 **2→1→2**；顶部全选再次保持 **已选 2 项**。播放选中后媒体会话从旧的 `aLIEz` 切到 `Ya Not Ready（Side A）`，与先点选的 Side A 一致，证明启动顺序不取界面列表顺序。暂停后立刻点删除未打开确认框，且任务进入“已暂停”，确认已清除重入路径。测试下载已全删并恢复 `0 进行中 / 0 已完成 / 0 失败`、`0 B`；App force-stop、PID 空、临时 XML 清零。预修复 debug APK 已重装并 SHA MATCH，正式 release `1.4.0(5)` / `lastUpdateTime=02:38:26` 未变；K60 零命令。
+
+本实现不宣告独立 QA 通过：真实**已完成视频叶子行**成功文案、真实视频批量播放、人为制造动作失败后的 spinner→“下载失败”终态、以及 pending 全按钮 disabled 的帧级采样仍待全新独立 QA。P0/P1/P2/P3 的独立结论保持首批 QA 原状，不得在本段自行清零。下一角色 = 与实现者不同的独立 QA；第一条只读动作 = 核对 `3a92061f`、本段证据目录与真实视频 / 失败态样本，不 merge-prep。
+
 **2026-10-25 W90 方向确认与第一批实现**：用户确认执行方向 A，同时明确**本版本不做全 App UI 布局重做**，留待后续版本；未来若提供多套 UI 主题，代码应先保持语义颜色 / 间距 / 组件边界低耦合，但本轮不增加主题开关或主题框架。第一批代码候选 `45e2de77`（基于 W89-C 文档 HEAD `c531f1d8`）只处理三项：
 
 - **歌词跟随**：歌词页每次真正重新进入时产生独立 entry token；若全局跟随开启，清除本次停留的手动暂停并强制执行一次当前行居中恢复；全局关闭时不擅自开启。
