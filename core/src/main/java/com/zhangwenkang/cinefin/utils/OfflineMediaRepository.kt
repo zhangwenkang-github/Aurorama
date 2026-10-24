@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.utils
 import android.content.Context
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidSourceType
+import com.zhangwenkang.cinefin.repository.MetadataNamespace
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import java.io.File
@@ -110,13 +111,15 @@ class OfflineMediaRepositoryImpl(
                                 allowOffline = allowOffline,
                                 isEpisode = true,
                                 imageUri =
-                                    localImage(itemId)
-                                        ?: localImage(episode.seasonId)
-                                        ?: localImage(episode.seriesId),
+                                    localImage(itemId, record?.provenance())
+                                        ?: localImage(episode.seasonId, record?.provenance())
+                                        ?: localImage(episode.seriesId, record?.provenance()),
                                 showImageUri =
-                                    localImage(episode.seriesId) ?: localImage(episode.seasonId),
+                                    localImage(episode.seriesId, record?.provenance())
+                                        ?: localImage(episode.seasonId, record?.provenance()),
                                 seasonImageUri =
-                                    localImage(episode.seasonId) ?: localImage(episode.seriesId),
+                                    localImage(episode.seasonId, record?.provenance())
+                                        ?: localImage(episode.seriesId, record?.provenance()),
                                 runtimeTicks = episode.runtimeTicks,
                                 seriesId = episode.seriesId,
                                 seasonId = episode.seasonId,
@@ -137,7 +140,7 @@ class OfflineMediaRepositoryImpl(
                                 sizeBytes = sizeBytes,
                                 sourceId = source.id,
                                 allowOffline = allowOffline,
-                                imageUri = localImage(itemId),
+                                imageUri = localImage(itemId, record.provenance()),
                                 runtimeTicks =
                                     runCatching { database.getMovie(itemId)?.runtimeTicks }
                                         .getOrNull() ?: 0L,
@@ -158,7 +161,7 @@ class OfflineMediaRepositoryImpl(
                                 sizeBytes = sizeBytes,
                                 sourceId = source.id,
                                 allowOffline = allowOffline,
-                                imageUri = localImage(itemId),
+                                imageUri = localImage(itemId, record?.provenance()),
                                 runtimeTicks =
                                     runCatching { database.getMovie(itemId)?.runtimeTicks }
                                         .getOrNull() ?: 0L,
@@ -187,17 +190,33 @@ class OfflineMediaRepositoryImpl(
                             sizeBytes = book.sizeBytes,
                             sourceId = null,
                             allowOffline = book.itemId.toString() !in blockedBooks,
-                            imageUri = localImage(book.itemId),
+                            imageUri =
+                                localImage(
+                                    book.itemId,
+                                    sidecarRecords
+                                        .lastOrNull { it.itemId == book.itemId.toString() }
+                                        ?.provenance(),
+                                ),
                         )
                 }
 
             entries
         }
 
-    /** W36：本地图片缓存（下载时由 ImagesDownloaderWorker 落盘）；不存在返回 null（UI 回退占位）。 */
-    private fun localImage(itemId: UUID?): String? {
-        if (itemId == null) return null
-        val file = File(context.filesDir, "images/$itemId/primary")
+    /** W88-C：只按下载侧车保存的原 server/user 身份取封面；旧记录来源未知，不猜测回填。 */
+    private fun localImage(itemId: UUID?, provenance: DownloadProvenance?): String? {
+        if (itemId == null || provenance == null) return null
+        val file =
+            ImageCacheRules.serverImageFile(
+                filesDir = context.filesDir,
+                namespace =
+                    MetadataNamespace(
+                        serverId = provenance.serverId,
+                        userId = provenance.userId.toString(),
+                    ),
+                itemId = itemId,
+                variant = ImageCacheRules.ArtworkVariant.PRIMARY,
+            )
         return if (file.isFile && file.length() > 0L) file.absolutePath else null
     }
 

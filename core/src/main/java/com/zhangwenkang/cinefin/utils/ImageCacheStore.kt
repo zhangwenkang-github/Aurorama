@@ -1,6 +1,9 @@
 package com.zhangwenkang.cinefin.utils
 
 import android.content.Context
+import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.repository.MetadataNamespace
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.ImagesDownloadRetryRules
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -15,13 +18,35 @@ import okhttp3.Request
 import timber.log.Timber
 
 /**
- * W66：本地图片缓存的读写与原子替换（`files/images/<id>/<name>` + `<name>.meta`）。
+ * W66 / W88-C：服务器图片缓存的读写与原子替换（server/user namespace + 条件请求）。
  *
  * 三处共用同一缓存路径与规则：`ImagesDownloaderWorker`（入队即落图 / 重试）、下载页缺图后台补齐 （并发上限 4）、后续任何需要保证图片新鲜的路径。写盘顺序 = 图片
  * `.part` + rename → 元数据 `.part` + rename，中途失败不会留下「半张图 + 新元数据」。
  */
 @Singleton
-class ImageCacheStore @Inject constructor(@ApplicationContext private val context: Context) {
+class ImageCacheStore
+private constructor(
+    @ApplicationContext private val context: Context,
+    private val namespaceProvider: () -> MetadataNamespace?,
+) {
+
+    @Inject
+    constructor(
+        @ApplicationContext context: Context,
+        appPreferences: AppPreferences,
+        jellyfinApi: JellyfinApi,
+    ) : this(
+        context = context,
+        namespaceProvider = {
+            val serverId = appPreferences.getValue(appPreferences.currentServer)
+            val userId = jellyfinApi.userId?.toString()
+            if (serverId.isNullOrBlank() || userId.isNullOrBlank()) {
+                null
+            } else {
+                MetadataNamespace(serverId = serverId, userId = userId)
+            }
+        },
+    )
 
     /** 一次拉取的结果：[changed] = 图片被替换（UI 需要刷新）；[transientFailure] = 网络类瞬时失败（可重试）。 */
     data class FetchOutcome(val changed: Boolean, val transientFailure: Boolean)
@@ -29,14 +54,23 @@ class ImageCacheStore @Inject constructor(@ApplicationContext private val contex
     /** 图片专用客户端（与 `ImagesDownloaderWorker` 旧实现一致：不挂业务拦截器，纯图片请求）。 */
     private val client: OkHttpClient by lazy { OkHttpClient() }
 
-    fun imageFile(itemId: UUID, name: String = PRIMARY): File =
-        File(context.filesDir, "images/$itemId/$name")
+    fun imageFile(itemId: UUID, name: String = PRIMARY): File? =
+        currentNamespace()?.let { namespace -> imageFile(namespace, itemId, name) }
 
-    fun metaFile(itemId: UUID, name: String = PRIMARY): File =
-        File(context.filesDir, "images/$itemId/$name.meta")
+    fun metaFile(itemId: UUID, name: String = PRIMARY): File? =
+        currentNamespace()?.let { namespace ->
+            File(
+                context.filesDir,
+                "${ImageCacheRules.serverImagePath(namespace, itemId, variant(name))}.meta",
+            )
+        }
+
+    /** 当前账号已缓存的图片；身份不完整或文件缺失时返回 null，由 UI 回退占位。 */
+    fun cachedImageFile(itemId: UUID, name: String = PRIMARY): File? =
+        imageFile(itemId, name)?.takeIf { it.isFile && it.length() > 0L }
 
     fun readMeta(itemId: UUID, name: String = PRIMARY): ImageCacheRules.Meta? {
-        val file = metaFile(itemId, name)
+        val file = metaFile(itemId, name) ?: return null
         if (!file.isFile) return null
         return runCatching { ImageCacheRules.decodeMeta(file.readText()) }.getOrNull()
     }
@@ -48,7 +82,8 @@ class ImageCacheStore @Inject constructor(@ApplicationContext private val contex
         name: String = PRIMARY,
         nowMillis: Long = System.currentTimeMillis(),
     ): ImageCacheRules.Decision {
-        val file = imageFile(itemId, name)
+        val file =
+            imageFile(itemId, name) ?: return ImageCacheRules.Decision.REFETCH_IDENTITY_MISSING
         val exists = file.isFile
         return ImageCacheRules.decide(
             fileExists = exists,
@@ -71,15 +106,11 @@ class ImageCacheStore @Inject constructor(@ApplicationContext private val contex
         nowMillis: Long = System.currentTimeMillis(),
     ): FetchOutcome =
         withContext(Dispatchers.IO) {
-            val target = imageFile(itemId, name)
-            val meta = readMeta(itemId, name)
+            val namespace = currentNamespace() ?: return@withContext FetchOutcome(false, false)
+            val target = imageFile(namespace, itemId, name)
+            val meta = readMeta(namespace, itemId, name)
             val builder = Request.Builder().url(url)
-            if (meta != null && meta.sourceUrl == url) {
-                meta.etag?.takeIf { it.isNotBlank() }?.let { builder.header("If-None-Match", it) }
-                meta.lastModified
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { builder.header("If-Modified-Since", it) }
-            }
+            ImageCacheRules.conditionalRequestHeaders(meta, url).forEach(builder::header)
 
             val response =
                 try {
@@ -93,8 +124,13 @@ class ImageCacheStore @Inject constructor(@ApplicationContext private val contex
                 when {
                     result.code == 304 -> {
                         // 服务端确认未变化：只把 fetchedAt 前移（元数据原子写），图片不动。
-                        val latest = meta ?: return@use FetchOutcome(false, false)
-                        writeMeta(itemId, name, latest.copy(fetchedAt = nowMillis))
+                        val latest =
+                            ImageCacheRules.refreshedMetaAfterNotModified(
+                                meta,
+                                url,
+                                nowMillis,
+                            ) ?: return@use FetchOutcome(false, false)
+                        writeMeta(namespace, itemId, name, latest)
                         FetchOutcome(changed = false, transientFailure = false)
                     }
                     result.isSuccessful -> {
@@ -105,6 +141,7 @@ class ImageCacheStore @Inject constructor(@ApplicationContext private val contex
                             val replaced = replaceImage(target, bytes, name)
                             if (replaced) {
                                 writeMeta(
+                                    namespace,
                                     itemId,
                                     name,
                                     ImageCacheRules.Meta(
@@ -146,10 +183,39 @@ class ImageCacheStore @Inject constructor(@ApplicationContext private val contex
             false
         }
 
+    private fun currentNamespace(): MetadataNamespace? =
+        namespaceProvider()?.takeIf { it.serverId.isNotBlank() && it.userId.isNotBlank() }
+
+    private fun imageFile(namespace: MetadataNamespace, itemId: UUID, name: String): File =
+        ImageCacheRules.serverImageFile(context.filesDir, namespace, itemId, variant(name))
+
+    private fun readMeta(
+        namespace: MetadataNamespace,
+        itemId: UUID,
+        name: String,
+    ): ImageCacheRules.Meta? {
+        val file =
+            File(
+                context.filesDir,
+                "${ImageCacheRules.serverImagePath(namespace, itemId, variant(name))}.meta",
+            )
+        if (!file.isFile) return null
+        return runCatching { ImageCacheRules.decodeMeta(file.readText()) }.getOrNull()
+    }
+
     /** 元数据 `.part` + rename 原子写。 */
-    private fun writeMeta(itemId: UUID, name: String, meta: ImageCacheRules.Meta) {
+    private fun writeMeta(
+        namespace: MetadataNamespace,
+        itemId: UUID,
+        name: String,
+        meta: ImageCacheRules.Meta,
+    ) {
         runCatching {
-            val target = metaFile(itemId, name)
+            val target =
+                File(
+                    context.filesDir,
+                    "${ImageCacheRules.serverImagePath(namespace, itemId, variant(name))}.meta",
+                )
             val dir = target.parentFile ?: return
             if (!dir.isDirectory && !dir.mkdirs()) return
             val temp = File(dir, "$name.meta.part")
@@ -160,6 +226,13 @@ class ImageCacheStore @Inject constructor(@ApplicationContext private val contex
         }
             .onFailure { Timber.w(it, "图片缓存元数据写入失败（%s / %s）", itemId, name) }
     }
+
+    private fun variant(name: String): ImageCacheRules.ArtworkVariant =
+        if (name == BACKDROP) {
+            ImageCacheRules.ArtworkVariant.BACKDROP
+        } else {
+            ImageCacheRules.ArtworkVariant.PRIMARY
+        }
 
     companion object {
         const val PRIMARY: String = "primary"

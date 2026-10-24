@@ -873,8 +873,7 @@ constructor(
     /** W36：本地图片缓存是否存在（下载时由 ImagesDownloaderWorker 落盘；不存在返回 null → 图标占位）。 */
     private fun localImage(itemId: UUID?): String? {
         if (itemId == null) return null
-        val file = File(context.filesDir, "images/$itemId/primary")
-        return if (file.isFile && file.length() > 0L) file.absolutePath else null
+        return imageCacheStore.cachedImageFile(itemId)?.absolutePath
     }
 
     /** 层级容器内的全部条目（含子容器）。 */

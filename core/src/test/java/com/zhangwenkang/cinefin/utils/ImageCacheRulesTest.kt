@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.utils
 
+import com.zhangwenkang.cinefin.repository.MetadataNamespace
 import java.io.File
 import java.util.UUID
 import org.junit.Assert.assertEquals
@@ -113,6 +114,104 @@ class ImageCacheRulesTest {
     }
 
     @Test
+    fun coverTtlKeepsAtThirtyDayBoundaryAndExpiresAfterIt() {
+        val thirtyDays = 30L * 24L * 60L * 60L * 1000L
+        assertEquals(thirtyDays, ImageCacheRules.TTL_MS)
+        assertEquals(
+            ImageCacheRules.Decision.KEEP,
+            ImageCacheRules.decide(
+                fileExists = true,
+                fileSizeBytes = 1024L,
+                meta = freshMeta,
+                currentSourceUrl = freshMeta.sourceUrl,
+                nowMillis = freshMeta.fetchedAt + ImageCacheRules.TTL_MS,
+            ),
+        )
+        assertEquals(
+            ImageCacheRules.Decision.REFETCH_EXPIRED,
+            ImageCacheRules.decide(
+                fileExists = true,
+                fileSizeBytes = 1024L,
+                meta = freshMeta,
+                currentSourceUrl = freshMeta.sourceUrl,
+                nowMillis = freshMeta.fetchedAt + ImageCacheRules.TTL_MS + 1L,
+            ),
+        )
+    }
+
+    @Test
+    fun conditionalHeadersOnlyReuseValidatorsForSameSource() {
+        assertEquals(
+            mapOf(
+                "If-None-Match" to "etag-1",
+                "If-Modified-Since" to "Wed, 01 Oct 2025 00:00:00 GMT",
+            ),
+            ImageCacheRules.conditionalRequestHeaders(freshMeta, freshMeta.sourceUrl),
+        )
+        assertTrue(
+            ImageCacheRules.conditionalRequestHeaders(
+                    freshMeta,
+                    "https://other-server/Items/a/Images/Primary?tag=2",
+                )
+                .isEmpty()
+        )
+        assertTrue(ImageCacheRules.conditionalRequestHeaders(null, freshMeta.sourceUrl).isEmpty())
+    }
+
+    @Test
+    fun notModifiedRefreshesFetchTimeWithoutReplacingArtworkIdentity() {
+        val refreshed =
+            ImageCacheRules.refreshedMetaAfterNotModified(
+                meta = freshMeta,
+                currentSourceUrl = freshMeta.sourceUrl,
+                nowMillis = now + 1234L,
+            )
+        assertEquals(freshMeta.sourceUrl, refreshed?.sourceUrl)
+        assertEquals(freshMeta.etag, refreshed?.etag)
+        assertEquals(freshMeta.lastModified, refreshed?.lastModified)
+        assertEquals(now + 1234L, refreshed?.fetchedAt)
+        assertNull(
+            ImageCacheRules.refreshedMetaAfterNotModified(
+                meta = freshMeta,
+                currentSourceUrl = "https://changed/Items/a/Images/Primary?tag=2",
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun serverCoverPathSeparatesServerAndUserForTheSameItemUuid() {
+        val itemId = UUID.fromString("11111111-2222-3333-4444-555555555555")
+        val userA = MetadataNamespace(serverId = "server-a", userId = "user-a")
+        val userB = MetadataNamespace(serverId = "server-a", userId = "user-b")
+        val serverB = MetadataNamespace(serverId = "server-b", userId = "user-a")
+        val pathA =
+            ImageCacheRules.serverImagePath(
+                userA,
+                itemId,
+                ImageCacheRules.ArtworkVariant.PRIMARY,
+            )
+        val pathB =
+            ImageCacheRules.serverImagePath(
+                userB,
+                itemId,
+                ImageCacheRules.ArtworkVariant.PRIMARY,
+            )
+        val otherServerPath =
+            ImageCacheRules.serverImagePath(
+                serverB,
+                itemId,
+                ImageCacheRules.ArtworkVariant.PRIMARY,
+            )
+
+        assertNotEquals(pathA, pathB)
+        assertNotEquals(pathA, otherServerPath)
+        assertFalse(pathA.contains("server-a"))
+        assertFalse(pathA.contains("user-a"))
+        assertTrue(pathA.endsWith("/$itemId/primary"))
+    }
+
+    @Test
     fun freshFileWithMetaAndSameUrlKeeps() {
         assertEquals(
             ImageCacheRules.Decision.KEEP,
@@ -142,6 +241,7 @@ class ImageCacheRulesTest {
         assertFalse(ImageCacheRules.shouldRefetch(ImageCacheRules.Decision.KEEP))
         assertTrue(ImageCacheRules.shouldRefetch(ImageCacheRules.Decision.REFETCH_FILE_MISSING))
         assertTrue(ImageCacheRules.shouldRefetch(ImageCacheRules.Decision.REFETCH_META_MISSING))
+        assertTrue(ImageCacheRules.shouldRefetch(ImageCacheRules.Decision.REFETCH_IDENTITY_MISSING))
         assertTrue(ImageCacheRules.shouldRefetch(ImageCacheRules.Decision.REFETCH_SOURCE_CHANGED))
         assertTrue(ImageCacheRules.shouldRefetch(ImageCacheRules.Decision.REFETCH_EXPIRED))
     }

@@ -1,16 +1,19 @@
 package com.zhangwenkang.cinefin.utils
 
+import com.zhangwenkang.cinefin.repository.MetadataNamespace
+import java.io.File
 import java.net.URLEncoder
+import java.security.MessageDigest
 import java.util.UUID
 
 /**
- * W66：本地图片缓存（`files/images/<id>/primary`）的过期替换规则（纯函数 + 元数据编解码，单测覆盖）。
+ * W66 / W88-C：服务器图片缓存的过期替换规则（纯函数 + 元数据编解码，单测覆盖）。
  *
  * 用户口径：缩略图必须本地缓存，且要有过期替换机制——**绝不「有文件就跳过」**。 判定 = 文件缺失 / 元数据缺失 / 源 URL 变化 / 超 TTL → 重新拉取并用 `.part` +
  * rename 原子替换。
  *
- * 元数据落盘在 `files/images/<id>/primary.meta`（[encodeMeta] / [decodeMeta]），记录来源 URL、ETag、 Last-Modified
- * 与拉取时间，供条件请求（`If-None-Match` / `If-Modified-Since`）与判定使用。
+ * 服务器封面落盘在 `files/images/server/<namespaceHash>/<id>/primary`，namespace 只保存 serverId + userId 的
+ * SHA-256 摘要，不把身份明文写入目录。元数据记录来源 URL、ETag、Last-Modified 与拉取时间，供条件请求与判定使用。
  */
 object ImageCacheRules {
 
@@ -92,6 +95,27 @@ object ImageCacheRules {
     fun localImagePath(itemId: UUID, variant: ArtworkVariant): String =
         "images/$itemId/${variant.pathSegment.lowercase()}"
 
+    /** 服务器封面缓存相对路径；同 itemId 在不同 server / user 下必须落到不同目录。 */
+    fun serverImagePath(
+        namespace: MetadataNamespace,
+        itemId: UUID,
+        variant: ArtworkVariant,
+    ): String {
+        val namespaceHash =
+            MessageDigest.getInstance("SHA-256")
+                .digest("${namespace.serverId}\u0000${namespace.userId}".toByteArray())
+                .take(16)
+                .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        return "images/server/$namespaceHash/$itemId/${variant.pathSegment.lowercase()}"
+    }
+
+    fun serverImageFile(
+        filesDir: File,
+        namespace: MetadataNamespace,
+        itemId: UUID,
+        variant: ArtworkVariant,
+    ): File = File(filesDir, serverImagePath(namespace, itemId, variant))
+
     /** 缩略图显示来源（纯函数，卡片 / 书籍封面共用）。 */
     fun artworkSource(
         hasServerImage: Boolean,
@@ -147,6 +171,7 @@ object ImageCacheRules {
         KEEP,
         REFETCH_FILE_MISSING,
         REFETCH_META_MISSING,
+        REFETCH_IDENTITY_MISSING,
         REFETCH_SOURCE_CHANGED,
         REFETCH_EXPIRED,
     }
@@ -184,6 +209,29 @@ object ImageCacheRules {
 
     /** 是否需要重新拉取（[Decision.KEEP] 之外全部要）。 */
     fun shouldRefetch(decision: Decision): Boolean = decision != Decision.KEEP
+
+    /** 仅对同一 source URL 复用条件请求头；身份或地址变化时不得携带旧验证器。 */
+    fun conditionalRequestHeaders(meta: Meta?, currentSourceUrl: String): Map<String, String> {
+        if (meta == null || !meta.sourceUrl.equals(currentSourceUrl, ignoreCase = true)) {
+            return emptyMap()
+        }
+        return buildMap {
+            meta.etag?.takeIf { it.isNotBlank() }?.let { put("If-None-Match", it) }
+            meta.lastModified?.takeIf { it.isNotBlank() }?.let { put("If-Modified-Since", it) }
+        }
+    }
+
+    /** 304 只确认当前图片仍有效，保留图片身份与验证器，仅推进 fetchedAt。 */
+    fun refreshedMetaAfterNotModified(
+        meta: Meta?,
+        currentSourceUrl: String,
+        nowMillis: Long,
+    ): Meta? {
+        if (meta == null || !meta.sourceUrl.equals(currentSourceUrl, ignoreCase = true)) {
+            return null
+        }
+        return meta.copy(fetchedAt = nowMillis)
+    }
 
     /**
      * UI 层内存缓存键（W66）：本地缓存路径带上文件 mtime——过期替换（`.part` + rename）后 mtime 变化， Coil 内存缓存键随之变化，下载页 /

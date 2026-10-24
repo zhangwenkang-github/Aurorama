@@ -35,8 +35,11 @@ class MetadataPreloader(private val repositoryProvider: Provider<JellyfinReposit
 
     /** 预取一批卡片的「详情」字段（首页走廊 / 库网格可见条目）：详情页打开时直接命中缓存。 */
     fun prefetchDetails(items: List<FindroidItem>, limit: Int = DETAIL_LIMIT, source: String = "") {
-        if (items.isEmpty()) return
-        items.distinctBy { it.id }.take(limit).forEach { item -> prefetchDetail(item, source) }
+        if (items.isEmpty() || limit <= 0) return
+        items
+            .distinctBy { it.id }
+            .take(limit.coerceAtMost(DETAIL_LIMIT))
+            .forEach { item -> prefetchDetail(item, source) }
     }
 
     /** 预取单个条目的详情（同类条目并发上限 [PARALLELISM]，同 id 由仓库去重）。 */
@@ -83,6 +86,7 @@ class MetadataPreloader(private val repositoryProvider: Provider<JellyfinReposit
         studios: List<String>? = null,
         source: String = "",
     ) {
+        if (!allowsPagePrefetch(startIndex = startIndex, limit = limit)) return
         Timber.d("prefetch items page: %s@%s", parentId, startIndex)
         launchPrefetch(source) {
             repositoryProvider
@@ -109,5 +113,12 @@ class MetadataPreloader(private val repositoryProvider: Provider<JellyfinReposit
 
         /** 一次预取多少张卡片的详情。 */
         const val DETAIL_LIMIT = 6
+
+        /** 单次预取页上限；只接受首屏与紧随其后的一页。 */
+        const val PAGE_PREFETCH_LIMIT = 30
+
+        fun allowsPagePrefetch(startIndex: Int, limit: Int): Boolean =
+            (startIndex == 0 || startIndex == PAGE_PREFETCH_LIMIT) &&
+                limit in 1..PAGE_PREFETCH_LIMIT
     }
 }

@@ -2,7 +2,11 @@ package com.zhangwenkang.cinefin.music.data
 
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.MetadataNamespace
+import com.zhangwenkang.cinefin.repository.MetadataSnapshotReadResult
+import com.zhangwenkang.cinefin.repository.MetadataSnapshotStore
 import com.zhangwenkang.cinefin.repository.UserDataEvents
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.util.UUID
 import javax.inject.Inject
@@ -135,7 +139,35 @@ class MusicRepositoryImpl
 constructor(
     private val jellyfinRepository: JellyfinRepository,
     private val jellyfinApi: JellyfinApi,
+    private val appPreferences: AppPreferences,
+    private val metadataSnapshotStore: MetadataSnapshotStore,
 ) : MusicRepository {
+
+    private val playlistCardCache =
+        ServerPlaylistCardCache(
+            readSnapshot = { namespace, key, maxAgeMs ->
+                val hit =
+                    metadataSnapshotStore.read(
+                        namespace = namespace,
+                        logicalKey = key,
+                        maxAgeMs = maxAgeMs,
+                    ) as? MetadataSnapshotReadResult.Hit
+                val raw = hit?.value as? String
+                raw?.let { encoded ->
+                    ServerPlaylistCardCache.decodeCards(encoded)?.let { cards ->
+                        CachedPlaylistCards(cards = cards, savedAtMs = hit.savedAtEpochMs)
+                    }
+                }
+            },
+            writeSnapshot = { namespace, key, cards, savedAtMs ->
+                metadataSnapshotStore.write(
+                    namespace = namespace,
+                    logicalKey = key,
+                    value = ServerPlaylistCardCache.encodeCards(cards),
+                    savedAtEpochMs = savedAtMs,
+                )
+            },
+        )
 
     override suspend fun getLibrary(libraryId: UUID?): MusicLibrary =
         withContext(Dispatchers.IO) {
@@ -149,28 +181,48 @@ constructor(
 
     override suspend fun getPlaylists(): List<MusicPlaylist> =
         withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId ?: return@withContext emptyList()
-            val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
-            jellyfinApi.itemsApi
-                .getItems(
-                    userId,
-                    includeItemTypes = listOf(BaseItemKind.PLAYLIST),
-                    recursive = true,
-                    sortBy = listOfNotNull(ItemSortBy.fromName("SortName")),
-                    sortOrder = listOfNotNull(SortOrder.fromName("Ascending")),
-                    limit = PLAYLIST_LIMIT,
+            val namespace = currentNamespace() ?: return@withContext emptyList()
+            val cards =
+                playlistCardCache.load(
+                    namespace = namespace,
+                    key = PLAYLIST_CARD_CACHE_KEY,
+                    isCurrent = { currentNamespace() == namespace },
+                    fetch = {
+                        jellyfinApi.itemsApi
+                            .getItems(
+                                UUID.fromString(namespace.userId),
+                                includeItemTypes = listOf(BaseItemKind.PLAYLIST),
+                                recursive = true,
+                                sortBy = listOfNotNull(ItemSortBy.fromName("SortName")),
+                                sortOrder = listOfNotNull(SortOrder.fromName("Ascending")),
+                                limit = PLAYLIST_LIMIT,
+                            )
+                            .content
+                            .items
+                            .mapNotNull { item ->
+                                val title =
+                                    item.name?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                                CachedPlaylistCard(
+                                    id = item.id,
+                                    name = title,
+                                    songCount = item.childCount,
+                                    imageTag = item.imageTags?.get(ImageType.PRIMARY),
+                                )
+                            }
+                    },
                 )
-                .content
-                .items
-                .mapNotNull { item ->
-                    val title = item.name?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                    MusicPlaylist(
-                        id = item.id,
-                        name = title,
-                        imageUri = item.imageUri(baseUrl),
-                        songCount = item.childCount,
-                    )
-                }
+            val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
+            cards.map { card ->
+                MusicPlaylist(
+                    id = card.id,
+                    name = card.name,
+                    imageUri =
+                        card.imageTag?.let { tag ->
+                            ImageCacheRules.primaryImageUrl(baseUrl, card.id, tag)
+                        },
+                    songCount = card.songCount,
+                )
+            }
         }
 
     override suspend fun getPlaylistSongs(playlistId: UUID): List<MusicSong> =
@@ -269,6 +321,13 @@ constructor(
             ImageCacheRules.primaryImageUrl(baseUrl, id, tag)
         }
 
+    private fun currentNamespace(): MetadataNamespace? {
+        val serverId = appPreferences.getValue(appPreferences.currentServer)
+        val userId = jellyfinApi.userId?.toString()
+        if (serverId.isNullOrBlank() || userId.isNullOrBlank()) return null
+        return MetadataNamespace(serverId = serverId, userId = userId)
+    }
+
     private companion object {
         /**
          * 单次曲库 / 歌单曲目拉取上限（W78：500 → 1000）。
@@ -277,6 +336,7 @@ constructor(
          */
         const val SONG_LIMIT = 1000
         const val PLAYLIST_LIMIT = 200
+        const val PLAYLIST_CARD_CACHE_KEY = "music-playlists:card:v1:200"
         const val UNKNOWN_ALBUM = "未分类"
     }
 }
