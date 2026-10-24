@@ -16,7 +16,7 @@ class MetadataCacheTest {
     @Test
     fun `TTL 内命中、到期即过期`() {
         var now = 1_000L
-        val cache = MetadataCache(clock = { now })
+        val cache = testCache(clock = { now })
         cache.put("views", listOf("a", "b"))
 
         now = 1_000L + MetadataCacheRules.DEFAULT_TTL_MS - 1
@@ -89,7 +89,7 @@ class MetadataCacheTest {
 
     @Test
     fun `W69b 缓存按 key 记录请求发起时间`() {
-        val cache = MetadataCache(clock = { 1_000L })
+        val cache = testCache(clock = { 1_000L })
         assertTrue(cache.canStartFetch("resume:Movie,Episode", nowMs = 1_000L))
         cache.markFetchStarted("resume:Movie,Episode", nowMs = 1_000L)
         assertFalse(cache.canStartFetch("resume:Movie,Episode", nowMs = 1_000L + 5_000L))
@@ -108,10 +108,11 @@ class MetadataCacheTest {
 
     @Test
     fun `W69b 同 key 并发请求只保留一个 owner`() {
-        val inFlight = InFlightRequests()
-        val (first, firstOwner) = inFlight.join("show:1")
-        val (second, secondOwner) = inFlight.join("show:1")
-        val (other, otherOwner) = inFlight.join("show:2")
+        val inFlight = MetadataRequestCoordinator()
+        val fence = testFence()
+        val (first, firstOwner) = inFlight.join(fence, "show:1")
+        val (second, secondOwner) = inFlight.join(fence, "show:1")
+        val (other, otherOwner) = inFlight.join(fence, "show:2")
 
         assertTrue(firstOwner)
         assertFalse(secondOwner)
@@ -121,10 +122,10 @@ class MetadataCacheTest {
         assertEquals(2, inFlight.size())
 
         first.complete("done")
-        inFlight.finish("show:1", first)
+        inFlight.finish(fence, "show:1", first)
         assertEquals(1, inFlight.size())
         // owner 收尾后同 key 可以重新发起。
-        val (again, againOwner) = inFlight.join("show:1")
+        val (again, againOwner) = inFlight.join(fence, "show:1")
         assertTrue(againOwner)
         assertFalse(again === first)
     }
@@ -139,7 +140,7 @@ class MetadataCacheTest {
     @Test
     fun `超过上限按最久未使用淘汰`() {
         var now = 1_000L
-        val cache = MetadataCache(maxEntries = 3, clock = { now })
+        val cache = testCache(maxEntries = 3, clock = { now })
         cache.put("a", 1)
         now += 1
         cache.put("b", 2)
@@ -160,7 +161,7 @@ class MetadataCacheTest {
 
     @Test
     fun `invalidate 只清指定前缀`() {
-        val cache = MetadataCache(clock = { 1_000L })
+        val cache = testCache(clock = { 1_000L })
         val libraryId = UUID.randomUUID()
         cache.put(MetadataCacheKeys.latestMedia(libraryId), "latest")
         cache.put(MetadataCacheKeys.resume(listOf(BaseItemKind.MOVIE)), "resume")
@@ -175,7 +176,7 @@ class MetadataCacheTest {
 
     @Test
     fun `invalidateAll 清空`() {
-        val cache = MetadataCache(clock = { 1_000L })
+        val cache = testCache(clock = { 1_000L })
         cache.put(MetadataCacheKeys.VIEWS, "views")
         cache.put(MetadataCacheKeys.SUGGESTIONS, "suggestions")
 
@@ -187,23 +188,58 @@ class MetadataCacheTest {
 
     @Test
     fun `服务器与用户命名空间互不可见`() {
-        var namespace = "srv-a|user-1|"
+        var namespace = MetadataNamespace(serverId = "server-a", userId = "user-1")
         val cache = MetadataCache(namespace = { namespace }, clock = { 1_000L })
         cache.put(MetadataCacheKeys.VIEWS, "views-a")
 
-        namespace = "srv-b|user-2|"
+        namespace = MetadataNamespace(serverId = "server-b", userId = "user-2")
         assertNull(cache.get<String>(MetadataCacheKeys.VIEWS))
         cache.put(MetadataCacheKeys.VIEWS, "views-b")
 
         // 切回旧账号仍能命中旧账号的缓存（没有被误删）。
-        namespace = "srv-a|user-1|"
+        namespace = MetadataNamespace(serverId = "server-a", userId = "user-1")
         assertEquals("views-a", cache.get<String>(MetadataCacheKeys.VIEWS)?.value)
-        // invalidateAll = 用户动作（收藏 / 已看 / 播放结束）的全量失效，跨命名空间一起清。
         cache.invalidateAll()
-        namespace = "srv-b|user-2|"
         assertNull(cache.get<String>(MetadataCacheKeys.VIEWS))
-        namespace = "srv-a|user-1|"
+        namespace = MetadataNamespace(serverId = "server-b", userId = "user-2")
+        assertEquals("views-b", cache.get<String>(MetadataCacheKeys.VIEWS)?.value)
+    }
+
+    @Test
+    fun `invalidate 当前 namespace 只清对应项`() {
+        var namespace = MetadataNamespace(serverId = "server-a", userId = "user-a")
+        val cache = MetadataCache(namespace = { namespace }, clock = { 1_000L })
+        val latestKey = MetadataCacheKeys.latestMedia(UUID.randomUUID())
+        cache.put(latestKey, "a-latest")
+        cache.put(MetadataCacheKeys.resume(listOf(BaseItemKind.MOVIE)), "a-resume")
+
+        namespace = MetadataNamespace(serverId = "server-b", userId = "user-b")
+        cache.put(MetadataCacheKeys.resume(listOf(BaseItemKind.MOVIE)), "b-resume")
+
+        namespace = MetadataNamespace(serverId = "server-a", userId = "user-a")
+        cache.invalidate(MetadataCacheKeys.RESUME_PREFIX)
+
+        assertNull(cache.get<String>(MetadataCacheKeys.resume(listOf(BaseItemKind.MOVIE))))
+        assertEquals("a-latest", cache.get<String>(latestKey)?.value)
+        assertEquals(2, cache.size())
+        namespace = MetadataNamespace(serverId = "server-b", userId = "user-b")
+        assertEquals(
+            "b-resume",
+            cache.get<String>(MetadataCacheKeys.resume(listOf(BaseItemKind.MOVIE)))?.value,
+        )
+    }
+
+    @Test
+    fun `旧代迟到成功不写当前 cache`() {
+        val cache = testCache(clock = { 1_000L })
+        val oldFence = cache.currentFence()!!
+
+        cache.invalidateAll()
+
+        assertFalse(cache.putIfCurrent(oldFence, MetadataCacheKeys.VIEWS, "old"))
         assertNull(cache.get<String>(MetadataCacheKeys.VIEWS))
+        cache.put(MetadataCacheKeys.VIEWS, "current")
+        assertEquals("current", cache.get<String>(MetadataCacheKeys.VIEWS)?.value)
     }
 
     @Test
@@ -323,4 +359,20 @@ class MetadataCacheTest {
         assertFalse(base == limited)
         assertFalse(base == otherSeason)
     }
+
+    private fun testCache(
+        maxEntries: Int = MetadataCacheRules.DEFAULT_MAX_ENTRIES,
+        clock: () -> Long,
+    ): MetadataCache =
+        MetadataCache(
+            namespace = { testFence().namespace },
+            maxEntries = maxEntries,
+            clock = clock,
+        )
+
+    private fun testFence(): MetadataFence =
+        MetadataFence(
+            namespace = MetadataNamespace(serverId = "server-a", userId = "user-a"),
+            contentGeneration = 1L,
+        )
 }

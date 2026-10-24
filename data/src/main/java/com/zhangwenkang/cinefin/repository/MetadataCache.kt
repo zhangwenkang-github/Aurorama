@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.repository
 
 import java.util.UUID
-import kotlinx.coroutines.CompletableDeferred
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFilter
 
@@ -61,50 +60,117 @@ data class MetadataCacheEntry<T>(val value: T, val fetchedAtMs: Long)
  * W69：会话级元数据缓存（进程内存）。
  *
  * 目标 = 「进入页面先用本地已缓存的元数据渲染，服务器刷新静默」：仓库读方法在 TTL 内命中缓存直接返回， 不再打服务器；页面因此不再进入加载态、不会把已上屏的海报清空。缓存按
- * [namespace] 隔离 （服务器地址 + 用户），切换服务器 / 账号自然不串数据；[invalidate] / [invalidateAll] 供用户动作 （收藏 / 已看 /
- * 播放结束）与下拉刷新强制失效。
+ * [namespace] 隔离（serverId + userId），generation 隔离同一身份下的内容代际；[invalidate] / [invalidateAll] 只作用于当前
+ * namespace。
  *
  * 线程安全：读写都走单调 LRU 表（LinkedHashMap accessOrder），加锁保护。
  */
 class MetadataCache(
-    private val namespace: () -> String = { "" },
+    private val namespace: () -> MetadataNamespace?,
     private val maxEntries: Int = MetadataCacheRules.DEFAULT_MAX_ENTRIES,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    private data class ScopedKey(val namespace: MetadataNamespace, val key: String)
+
+    private val lock = Any()
+
     private val entries =
-        object : LinkedHashMap<String, MetadataCacheEntry<Any?>>(16, 0.75f, true) {
+        object : LinkedHashMap<ScopedKey, MetadataCacheEntry<Any?>>(16, 0.75f, true) {
             override fun removeEldestEntry(
-                eldest: MutableMap.MutableEntry<String, MetadataCacheEntry<Any?>>
+                eldest: MutableMap.MutableEntry<ScopedKey, MetadataCacheEntry<Any?>>
             ): Boolean = size > maxEntries
         }
 
     /** W69b：每个 key 最近一次「发起请求」的时间（发起即记，含失败）——冷却期内不再重复请求。 */
-    private val lastFetchAttemptAt = HashMap<String, Long>()
+    private val lastFetchAttemptAt = HashMap<ScopedKey, Long>()
+
+    /** 每个 namespace 的内容代际；用户动作只递增当前 namespace。 */
+    private val generations = HashMap<MetadataNamespace, Long>()
 
     /** 当前时间（与缓存写入同一时钟，便于单测）。 */
     fun now(): Long = clock()
 
-    private fun scoped(key: String): String = "${namespace()}|$key"
+    /** 当前身份栅栏；serverId / userId 任一缺失时 fail-closed，不读写缓存。 */
+    fun currentFence(): MetadataFence? =
+        synchronized(lock) {
+            val activeNamespace =
+                namespace()?.takeIf { it.serverId.isNotBlank() && it.userId.isNotBlank() }
+                    ?: return@synchronized null
+            MetadataFence(
+                namespace = activeNamespace,
+                contentGeneration = generations.getOrPut(activeNamespace) { 0L },
+            )
+        }
+
+    fun isCurrent(fence: MetadataFence): Boolean =
+        synchronized(lock) { currentFenceLocked() == fence }
+
+    private fun currentFenceLocked(): MetadataFence? {
+        val activeNamespace =
+            namespace()?.takeIf { it.serverId.isNotBlank() && it.userId.isNotBlank() }
+                ?: return null
+        return MetadataFence(
+            namespace = activeNamespace,
+            contentGeneration = generations.getOrPut(activeNamespace) { 0L },
+        )
+    }
 
     @Suppress("UNCHECKED_CAST")
     fun <T> get(key: String): MetadataCacheEntry<T>? =
-        synchronized(entries) { entries[scoped(key)] as? MetadataCacheEntry<T> }
+        currentFence()?.let { fence -> get(fence, key) }
 
-    fun <T> put(key: String, value: T) {
-        synchronized(entries) { entries[scoped(key)] = MetadataCacheEntry(value, clock()) }
-    }
+    @Suppress("UNCHECKED_CAST")
+    fun <T> get(fence: MetadataFence, key: String): MetadataCacheEntry<T>? =
+        synchronized(lock) {
+            if (currentFenceLocked() != fence) {
+                null
+            } else {
+                entries[ScopedKey(fence.namespace, key)] as? MetadataCacheEntry<T>
+            }
+        }
 
-    /** 失效某一组（键前缀）缓存，例如 `favorites:` / `resume:`。 */
+    fun <T> put(key: String, value: T): Boolean =
+        currentFence()?.let { fence -> putIfCurrent(fence, key, value) } ?: false
+
+    /** 提交前校验 fence，并在同一把锁内写入；旧代结果不得覆盖当前内容。 */
+    fun <T> putIfCurrent(fence: MetadataFence, key: String, value: T): Boolean =
+        synchronized(lock) {
+            if (currentFenceLocked() != fence) {
+                false
+            } else {
+                entries[ScopedKey(fence.namespace, key)] = MetadataCacheEntry(value, clock())
+                true
+            }
+        }
+
+    /** 只清理当前 namespace 中当前代际的指定键前缀。 */
     fun invalidate(prefix: String) {
-        val scopedPrefix = "${namespace()}|$prefix"
-        synchronized(entries) { entries.keys.removeAll { it.startsWith(scopedPrefix) } }
+        val fence = currentFence() ?: return
+        synchronized(lock) {
+            if (currentFenceLocked() != fence) return@synchronized
+            val scopedPrefix = ScopedKey(fence.namespace, prefix)
+            entries.keys.removeAll {
+                it.namespace == fence.namespace && it.key.startsWith(scopedPrefix.key)
+            }
+            lastFetchAttemptAt.keys.removeAll {
+                it.namespace == fence.namespace && it.key.startsWith(scopedPrefix.key)
+            }
+        }
     }
 
-    /** 全部失效（收藏 / 已看 / 播放结束等跨列表的用户动作）。 */
+    /** 失效当前 namespace 的全部内容并递增 generation；其他 namespace 不受影响。 */
     fun invalidateAll() {
-        synchronized(entries) {
-            entries.clear()
-            lastFetchAttemptAt.clear()
+        val activeNamespace = currentFence()?.namespace ?: return
+        synchronized(lock) {
+            if (
+                namespace()?.takeIf { it.serverId.isNotBlank() && it.userId.isNotBlank() } !=
+                    activeNamespace
+            ) {
+                return@synchronized
+            }
+            generations[activeNamespace] = (generations[activeNamespace] ?: 0L) + 1L
+            entries.keys.removeAll { it.namespace == activeNamespace }
+            lastFetchAttemptAt.keys.removeAll { it.namespace == activeNamespace }
         }
     }
 
@@ -113,43 +179,30 @@ class MetadataCache(
         key: String,
         nowMs: Long,
         cooldownMs: Long = MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS,
-    ): Boolean =
-        synchronized(entries) {
-            MetadataCacheRules.canRefresh(lastFetchAttemptAt[scoped(key)] ?: 0L, nowMs, cooldownMs)
+    ): Boolean {
+        val fence = currentFence() ?: return false
+        return synchronized(lock) {
+            if (currentFenceLocked() != fence) return@synchronized false
+            MetadataCacheRules.canRefresh(
+                lastFetchAttemptAt[ScopedKey(fence.namespace, key)] ?: 0L,
+                nowMs,
+                cooldownMs,
+            )
         }
+    }
 
     /** W69b：记录一次真实的请求发起（成功 / 失败都算，防止失败风暴）。 */
     fun markFetchStarted(key: String, nowMs: Long) {
-        synchronized(entries) { lastFetchAttemptAt[scoped(key)] = nowMs }
+        val fence = currentFence() ?: return
+        synchronized(lock) {
+            if (currentFenceLocked() == fence) {
+                lastFetchAttemptAt[ScopedKey(fence.namespace, key)] = nowMs
+            }
+        }
     }
 
     /** 当前条数（单测 / 诊断用）。 */
-    fun size(): Int = synchronized(entries) { entries.size }
-}
-
-/**
- * W69b：同 key 并发请求合并（去重）。
- *
- * 页面 / 预加载可能同时请求同一个 key（例如首页与预取、库网格与详情），这里保证**同一时刻只有一个请求在跑**： 第一个调用方成为 owner 执行请求，其余等待同一个
- * [CompletableDeferred]；owner 成功/失败都会唤醒等待方 （等待方拿到异常后自行重试一次，避免因为别人的失败让自己也失败）。纯逻辑，JVM 单测覆盖。
- */
-internal class InFlightRequests {
-    private val map = HashMap<String, CompletableDeferred<Any?>>()
-
-    /** 返回 (deferred, true) = 本调用是 owner；返回 (deferred, false) = 已有同 key 请求，await 即可。 */
-    fun join(key: String): Pair<CompletableDeferred<Any?>, Boolean> =
-        synchronized(map) {
-            map[key]?.let { it to false }
-                ?: CompletableDeferred<Any?>().also { map[key] = it } to true
-        }
-
-    /** owner 收尾：无论成败都要移除，后续请求才会重新发起。 */
-    fun finish(key: String, deferred: CompletableDeferred<Any?>) {
-        synchronized(map) { if (map[key] === deferred) map.remove(key) }
-    }
-
-    /** 当前在途条数（单测 / 诊断用）。 */
-    fun size(): Int = synchronized(map) { map.size }
+    fun size(): Int = synchronized(lock) { entries.size }
 }
 
 /**

@@ -87,14 +87,22 @@ class JellyfinRepositoryImpl(
     /** W62：库直接子项稳定计数（该服务器 `ChildCount` 随机；见 [stableLibraryItemCount]）。 */
     private val libraryItemCountCache = LibraryItemCountCache(CACHE_TTL_MS)
 
-    /** W69：会话级元数据缓存（按服务器地址 + 用户隔离；TTL 规则见 [MetadataCacheRules]）。 */
+    /** W69 / W88-C：会话级元数据缓存（按 serverId + userId 隔离；TTL 规则见 [MetadataCacheRules]）。 */
     private val metadataCache =
         MetadataCache(
-            namespace = { "${jellyfinApi.api.baseUrl.orEmpty()}|${jellyfinApi.userId ?: "-"}" }
+            namespace = {
+                val serverId = appPreferences.getValue(appPreferences.currentServer)
+                val userId = jellyfinApi.userId?.toString()
+                if (serverId.isNullOrBlank() || userId.isNullOrBlank()) {
+                    null
+                } else {
+                    MetadataNamespace(serverId = serverId, userId = userId)
+                }
+            }
         )
 
-    /** W69b：同 key 并发请求合并（去重）。 */
-    private val inFlightRequests = InFlightRequests()
+    /** W69b：同 namespace + generation + key 并发请求合并（去重）。 */
+    private val inFlightRequests = MetadataRequestCoordinator()
 
     /**
      * W69：元数据读取的统一入口（stale-while-revalidate 的读侧）。
@@ -106,10 +114,17 @@ class JellyfinRepositoryImpl(
         key: String,
         ttlMs: Long = MetadataCacheRules.DEFAULT_TTL_MS,
         allowJoin: Boolean = true,
+        expectedFence: MetadataFence? = null,
         fetch: suspend () -> T,
     ): T {
+        val fence = expectedFence ?: metadataCache.currentFence() ?: return fetch()
+        if (!metadataCache.isCurrent(fence)) {
+            throw kotlinx.coroutines.CancellationException(
+                "metadata request fence changed before read"
+            )
+        }
         val now = metadataCache.now()
-        metadataCache.get<T>(key)?.let { entry ->
+        metadataCache.get<T>(fence, key)?.let { entry ->
             if (MetadataCacheRules.isFresh(entry.fetchedAtMs, metadataCache.now(), ttlMs)) {
                 Timber.d("metadata cache hit: %s", key)
                 return entry.value
@@ -120,9 +135,15 @@ class JellyfinRepositoryImpl(
                 return entry.value
             }
         }
-        // W69b：同 key 并发去重——第一个调用方执行请求，其余等待同一结果。
+        // 身份或内容代际如果在缓存查询期间变化，旧调用必须失败关闭。
+        if (!metadataCache.isCurrent(fence)) {
+            throw kotlinx.coroutines.CancellationException(
+                "metadata request fence changed before join"
+            )
+        }
+        // W69b：同 fence + key 并发去重——第一个调用方执行请求，其余等待同一结果。
         if (allowJoin) {
-            val (deferred, owner) = inFlightRequests.join(key)
+            val (deferred, owner) = inFlightRequests.join(fence, key)
             if (!owner) {
                 Timber.d("metadata cache join in-flight: %s", key)
                 return try {
@@ -130,28 +151,52 @@ class JellyfinRepositoryImpl(
                 } catch (cancellation: kotlinx.coroutines.CancellationException) {
                     throw cancellation
                 } catch (_: Throwable) {
-                    // 领头请求失败：等待方自己补一次（不受别人失败牵连）。
-                    cachedMetadata(key, ttlMs, allowJoin = false, fetch = fetch)
+                    // 领头请求失败：仍用原 fence 自己补一次；身份已变则取消旧调用者。
+                    if (!metadataCache.isCurrent(fence)) {
+                        throw kotlinx.coroutines.CancellationException(
+                            "metadata request fence changed after owner failure"
+                        )
+                    }
+                    cachedMetadata(
+                        key = key,
+                        ttlMs = ttlMs,
+                        allowJoin = false,
+                        expectedFence = fence,
+                        fetch = fetch,
+                    )
                 }
             }
             return try {
                 Timber.d("metadata cache miss (refreshing): %s", key)
                 metadataCache.markFetchStarted(key, now)
                 val value = fetch()
-                metadataCache.put(key, value)
+                if (!metadataCache.putIfCurrent(fence, key, value)) {
+                    throw kotlinx.coroutines.CancellationException(
+                        "metadata request fence changed before commit"
+                    )
+                }
                 deferred.complete(value)
                 value
             } catch (throwable: Throwable) {
-                deferred.completeExceptionally(throwable)
+                if (deferred.isActive) deferred.completeExceptionally(throwable)
                 throw throwable
             } finally {
-                inFlightRequests.finish(key, deferred)
+                inFlightRequests.finish(fence, key, deferred)
             }
+        }
+        if (!metadataCache.isCurrent(fence)) {
+            throw kotlinx.coroutines.CancellationException(
+                "metadata request fence changed before fetch"
+            )
         }
         Timber.d("metadata cache miss (refreshing): %s", key)
         metadataCache.markFetchStarted(key, now)
         val value = fetch()
-        metadataCache.put(key, value)
+        if (!metadataCache.putIfCurrent(fence, key, value)) {
+            throw kotlinx.coroutines.CancellationException(
+                "metadata request fence changed before commit"
+            )
+        }
         return value
     }
 
