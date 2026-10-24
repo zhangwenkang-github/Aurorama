@@ -96,9 +96,9 @@
 | 41 | 视频 / 音乐 / 书籍单独搜索，首页可搜全部库 | 搜索作用域 = 入口预设 + 页面内可切全部；首页默认全部；返回栈保持；服务器与本地来源分别报错 | film/search / data | W88 | ⬜ |
 | 42 | 视频码率选项显示对应分辨率 | 每档同时显示“目标分辨率上限 + Mbps”；映射以 Jellyfin 12.2 实测 / 官方行为快照为准，不用码率猜分辨率 | PLAYER | W86 | ⬜ |
 | 43 | 播放详细信息缺少码率、帧率 | 媒体详情显示源媒体精确宽高 / 码率 / 帧率 / 编码；播放器信息面板显示当前实际流；未知统一为 `—`，切换源后不串值 | PLAYER / data | W86 | ⬜ |
-| 44 | 服务器歌单之外可本地建歌单，并导入 / 导出 | 本地 Room 歌单为真源；版本化 JSON 完整备份 + M3U8 兼容；冲突不覆盖；失效曲目保留占位；未来服务器互通走适配器 | MUSIC / data | W87 | ⬜ |
+| 44 | 服务器歌单之外可本地建歌单，并导入 / 导出 | 本地 Room 歌单为真源；版本化 JSON 完整备份 + M3U8 兼容；冲突不覆盖；失效曲目保留占位；未来服务器互通走适配器 | MUSIC / data | W87 | ✅ 已合并 `033d68c6`；保留 W87-B P3 / server-write 计数 BLOCKED |
 | 45 | 字幕设置跨视频保存；seek 不得先跳结尾再回目标 | 外观 / 延迟 / 语言默认全局；单片手动轨道只覆盖本片且切码率、切内核保持；seek 只显示请求目标，确认前不得闪结尾 / 0 | PLAYER | W86 | ✅ |
-| 46 | 音乐保存播放顺序；播放列表加载不能久等 | 持久化队列顺序、当前曲、位置、模式与实际随机序；恢复不自动出声；歌单首屏本地快照，点击先解析目标曲并在后台补队列 | MUSIC / player:local | W87 | ⬜ |
+| 46 | 音乐保存播放顺序；播放列表加载不能久等 | 持久化队列顺序、当前曲、位置、模式与实际随机序；恢复不自动出声；歌单首屏本地快照，点击先解析目标曲并在后台补队列 | MUSIC / player:local | W87 | ✅ 已合并 `c435c177`；本地媒体强停恢复通过；BLOCKED=2 见 W87-C |
 | 47 | 无法退出离线；离线登录 UI / 身份错误 | 离线模式与 Jellyfin 用户分离；设置身份行显示离线模式；无用户也可退出到登录；登录不预选用户；选用户成功后才清离线标志 | settings / data / nav | W85 | ✅ 已合并 `724506b`；QA-R 5/5，P0–P3 = 0 |
 | 48 | 音乐批量下载无受理提示、建立任务超过 10 秒 | 点击后先原子持久化全部子意图并给“已受理 / 查看”回执；元数据解析与下载在后台；所有下载入口统一反馈 | DOWNLOAD / MUSIC | W84 | ✅ 已合并 |
 | 49 | 下载任务 >99 显示 99+，数字在图标右边 | 统一角标规则：0 隐藏、1–99 原数、>99 显示 `99+`；水平尾随图标不覆盖；各形态一致 | UI / DOWNLOAD | W84 | ✅ 已合并 |
@@ -554,6 +554,7 @@
 - **2026-10-24 W87-C 实施中**：分支 `codex/w87-c-queue-shuffle`，基线 `24dabd6d`。已用 Media3 1.11.1 AAR/javap 核实音频 ExoPlayer 可 `getShuffleOrder()` / `setShuffleOrder()`，`DefaultShuffleOrder(int[], long)` 可按完整置换重建，`getNextIndex()` 以 `-1` 终止。冻结 v2→v3 仅向 `music_queue_state` 增加 nullable 实际序与 seed；非法 / 旧行顺序显式降级。当前先完成能力矩阵与 TDD RED，未宣告行为通过。
 - **2026-10-24 W87-C 实现自测收口**：功能提交 `86bfe09b` / `e578a63a`。实现实际序四列能力矩阵、v3 两列迁移、结构编辑后 player 回读、自然队列保持、PLAYLIST 快照首屏 / 目标 URI 复用 / generation 防护。命中 5 模块 JVM **726/0/0/0**，AndroidTest APK / app debug / 根格式 / diff 通过；Pad Room raw status `numtests=2 / OK (2 tests)`，冷启动恢复 349 首队列当前 #05；原包与 prefs 回拉 / 哈希已还原，锁已释放。P0/P1/P2/P3=`0/0/0/0`；BLOCKED=1（既有 server-write 计数）。未做真实起播下几首端到端与独立 QA；设备 / 上下文边界见 `W87-C-IMPL.md`。
 - **2026-10-24 W87-C 独立 QA 通过，待 merge-prep**：候选 `67c9a51d`，5 个 JVM 任务 146 XML **926/0/0/0**，Room migration raw status 2 项 `code=0`；app debug、AndroidTest 编译、根格式 / diff、schema 白名单与静态禁止项均通过。Pad 5 隔离本地媒体实测自然序、实际随机序、force-stop 不自动出声、恢复后续播完整一致；airplane mode 本地歌单首屏与目标优先起播通过，0 FATAL / ANR / input timeout、0 截图。报告 `W87-C-QA.md`。新增 P3=2；保留 BLOCKED=2：服务器歌单端到端未在只读红线下执行、既有运行时 server-write 计数未插桩。负责人仅放行 merge-prep、不放行 1.4.0；QA 隔离测试覆盖原 349 首队列快照且不可重建，登录 / data 保留但不得宣称字节级还原。
+- **2026-10-24 W87-C 已合并，保留 BLOCKED / P3**：独立 merge-prep 在最新 `origin/master 24dabd6d` 上无 rebase，source/final HEAD `c435c177`，patch-id `a438994e…`；27 文件 `+1155/-85`、白名单 27/27、禁改项 0、schema 仅 `music_queue_state` 两 nullable 列。11 模块 JVM 195 XML **1287/0/0/0**、11 模块 debug `384/384 executed`、根格式 / diff / graphify 全通过。负责人 ff-only / push `24dabd6d..c435c177`；Build `40064814576` / Unit Tests `40064814626` / Format `40064814600` 同 commit success。W87-C P0/P1/P2/P3=`0/0/0/2`，W87-B P3=1；BLOCKED=2 只放行合并、不放行 1.4.0。下一卡 = W88，尚未启动。
 
 #### W88 搜索与持久缓存（W88-A 等 W85 释放导航咽喉）
 
