@@ -597,6 +597,12 @@
 
 **W89-C 发布契约与升级闭环（#40）**：发布负责人兼独立 QA 架构师；冻结包名、签名、ABI、版本与 SHA 清单，验证 1.3.0(4) → 1.4.0(5) 真实升级。非目标：全波未验收前不改 `Versions.kt`、不打 tag；不更换签名。验收：双 APK + 版本化清单；篡改 / 降级 / 异签名包均拒绝；升级保留数据；失败不破坏旧版。落点：`Versions.kt`、release 构建 / workflow、`RELEASE_PLAN.md`、update manifest。
 
+**2026-10-24 W88-C / W89-A 规划门通过，进入第一实现小波**：两条隔离分支均从 `origin/master=1cea01d3` 创建：`codex/w88-c-persistent-swr` 与 `codex/w89-a-update-discovery`，worktree 分别位于 `F:\Develop\code_data\work_tree\Aurorama\w88-c-persistent-swr\Aurorama`、`...\w89-a-update-discovery\Aurorama`。两份能力矩阵与 TDD 计划已写入对应 `*-IMPL.md` 并由负责人裁决：W88-C 采用版本化 JSON snapshot、namespace+generation 与 fail-closed，冷启动先返回旧值且后台只更新缓存（本轮不扩 Flow），浏览/搜索/歌单/封面保留上限为 7d/24h/24h/30d；封面 namespace、服务器歌单首屏与批量下载元数据最小接线获准，但仍不得改 W84 下载真源。W89-A 采用独立原子 metadata + `.part` 传输真源，失败也占 24h 自动检查门控，手动检查可绕过；不新增自动开关、不碰安装/校验/发布。A1 = namespace/in-flight 隔离，B1 = 稳定 Release/SemVer/ABI/URL 白名单，均由全新 `deepseek-flash`、`fork_turns=none` 实现代理先行；本阶段尚无实现提交、独立 QA、merge-prep 或合并证据。设备仍由 W88-C=Pad `43af8627`、W89-A=K60 `8e875894` 预留，第一小波为 JVM-only，未建锁。
+
+**2026-10-24 A1 / B1 实现小波收口，进入 A2 / B2**：A1 分支 HEAD `0d09c0df`，namespace+generation/in-flight fence 已接入真实 repository；额外移除只按 `libraryId` 的库计数缓存，统一走带 fence 的 metadata cache。data JVM `98/0/0/0`，目标 19/0，格式与 graphify 通过；P0–P3=`0/0/0/1`（P3=真实账号 A/B、设备并发与独立 QA 未覆盖）。B1 HEAD `c05db369`，稳定 Release/SemVer/ABI/URL 白名单完成；负责人复核抓到 `CancellationException` 被 TRANSPORT 吞掉，已先 RED 后修复。data JVM `107/0/0/0`、update 17 项、格式通过。`data` 实际单测任务为 `testDebugUnitTest`，负责人原预设的 `testLibreDebugUnitTest` 已纠正。A2 仅做版本化脱敏 JSON snapshot + 原子有界存储，B2 仅做独立状态文件 + Range `.part` 下载边界；两波仍 JVM-only、无设备锁、无独立 QA、未 merge/push。
+
+**2026-10-24 A2 / B2 收口，负责人按上下文门禁停止扩项（检查点）**：A 分支 HEAD `e917c8c6`，新增版本化 DTO 白名单 snapshot store / codec（SHA-256 namespace+key 路径、checksum、原子 fsync+rename、512 文件 / 32MiB LRU），data JVM `115/0/0/0`、目标 17/17；A1+A2 共 3 个本地提交，P0–P3=`0/0/0/1`，P3 为真实 Android 文件系统/崩溃时序/多进程与独立 QA 未覆盖。B 分支 HEAD `d1a6f8b9`，新增独立 release/transfer 状态、稳定 updateId、真实 `.part` offset、200/206/416 Range、强/弱 validator 与取消保留残片；data JVM `137/0/0/0`，B2 两套 13/17，分支共 3 个本地提交。两条均 clean、未 push、无设备锁。**尚未完成**：A3 repository 磁盘 SWR、A4 封面 namespace/歌单首屏/批量预取；B3 检查单飞/24h 门控/Workers、B4 设置入口/页面/启动接线；两轨全量构建、最小真机、独立 QA、merge-prep、ff-only/CI。负责人实测约 `295,810`，停止新增任务，下一角色见 ACTIVE；不得把中间 SHA 当合并候选。
+
 ## 4. 决策记录
 
 | 编号 | 决策 | 来源 / 理由 |
