@@ -8,6 +8,7 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryImpl
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryOfflineImpl
 import com.zhangwenkang.cinefin.repository.MetadataPreloader
+import com.zhangwenkang.cinefin.repository.MetadataSnapshotStore
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.Module
 import dagger.Provides
@@ -27,6 +28,7 @@ object RepositoryModule {
         serverDatabase: ServerDatabaseDao,
         appPreferences: AppPreferences,
         localLibrary: LocalLibraryRepository,
+        metadataSnapshotStore: MetadataSnapshotStore,
     ): JellyfinRepositoryImpl {
         println("Creating new jellyfinRepositoryImpl")
         return JellyfinRepositoryImpl(
@@ -35,8 +37,14 @@ object RepositoryModule {
             serverDatabase,
             appPreferences,
             localLibrary,
+            metadataSnapshotStore,
         )
     }
+
+    @Singleton
+    @Provides
+    fun provideMetadataSnapshotStore(application: Application): MetadataSnapshotStore =
+        MetadataSnapshotStore(application.filesDir)
 
     @Singleton
     @Provides

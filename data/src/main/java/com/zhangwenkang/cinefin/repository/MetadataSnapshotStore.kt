@@ -91,8 +91,9 @@ class MetadataSnapshotStore
 internal constructor(
     directory: File,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val maxFiles: Int = DEFAULT_MAX_FILES,
-    private val maxBytes: Long = DEFAULT_MAX_BYTES,
+    private val maxFiles: Int = MetadataSnapshotStoreLimits.maxFiles,
+    private val maxBytes: Long = MetadataSnapshotStoreLimits.maxBytes,
+    private val maxFileBytes: Long = minOf(maxBytes, DEFAULT_MAX_FILE_BYTES),
     private val atomicWriter: MetadataSnapshotAtomicWriter = AtomicSnapshotFileWriter,
     private val codec: MetadataSnapshotCodec = MetadataSnapshotCodec(),
 ) {
@@ -101,13 +102,14 @@ internal constructor(
     ) : this(
         directory = directory,
         clock = System::currentTimeMillis,
-        maxFiles = DEFAULT_MAX_FILES,
-        maxBytes = DEFAULT_MAX_BYTES,
+        maxFiles = MetadataSnapshotStoreLimits.maxFiles,
+        maxBytes = MetadataSnapshotStoreLimits.maxBytes,
+        maxFileBytes = DEFAULT_MAX_FILE_BYTES,
         atomicWriter = AtomicSnapshotFileWriter,
         codec = MetadataSnapshotCodec(),
     )
 
-    private val storeRoot = File(directory, "metadata-snapshots/v1")
+    private val storeRoot = File(directory, "metadata-snapshots/v2")
     private val canonicalStoreRoot = storeRoot.canonicalFile
     private val namespaceLocks = ConcurrentHashMap<String, Any>()
     private val envelopeJson = Json
@@ -115,6 +117,9 @@ internal constructor(
     init {
         require(maxFiles > 0) { "maxFiles must be positive" }
         require(maxBytes > 0) { "maxBytes must be positive" }
+        require(maxFileBytes > 0 && maxFileBytes <= maxBytes) {
+            "maxFileBytes must be positive and no greater than maxBytes"
+        }
     }
 
     fun write(
@@ -122,7 +127,21 @@ internal constructor(
         logicalKey: String,
         value: Any,
         savedAtEpochMs: Long = clock(),
+    ): MetadataSnapshotWriteResult =
+        write(
+            fence = MetadataFence(namespace, contentGeneration = 0L),
+            logicalKey = logicalKey,
+            value = value,
+            savedAtEpochMs = savedAtEpochMs,
+        )
+
+    fun write(
+        fence: MetadataFence,
+        logicalKey: String,
+        value: Any,
+        savedAtEpochMs: Long = clock(),
     ): MetadataSnapshotWriteResult {
+        val namespace = fence.namespace
         if (!isValidNamespace(namespace)) {
             return MetadataSnapshotWriteResult.Degraded(
                 reason = MetadataSnapshotWriteFailure.INVALID_IDENTITY,
@@ -147,6 +166,7 @@ internal constructor(
             put("schemaVersion", SCHEMA_VERSION)
             put("serverId", namespace.serverId)
             put("userId", namespace.userId)
+            put("contentGeneration", fence.contentGeneration)
             put("logicalKey", logicalKey)
             put("savedAt", savedAtEpochMs)
             put("payloadKind", encoded.kind.wireName)
@@ -154,7 +174,7 @@ internal constructor(
             put("payload", encoded.payload)
         }
         val bytes = envelope.toString().toByteArray(Charsets.UTF_8)
-        if (bytes.size.toLong() > maxBytes) {
+        if (bytes.size.toLong() > maxFileBytes) {
             return MetadataSnapshotWriteResult.Degraded(
                 reason = MetadataSnapshotWriteFailure.TOO_LARGE,
                 snapshotPersisted = false,
@@ -196,8 +216,20 @@ internal constructor(
         namespace: MetadataNamespace,
         logicalKey: String,
         maxAgeMs: Long,
+    ): MetadataSnapshotReadResult =
+        read(
+            fence = MetadataFence(namespace, contentGeneration = 0L),
+            logicalKey = logicalKey,
+            maxAgeMs = maxAgeMs,
+        )
+
+    fun read(
+        fence: MetadataFence,
+        logicalKey: String,
+        maxAgeMs: Long,
     ): MetadataSnapshotReadResult {
         require(maxAgeMs >= 0L) { "maxAgeMs must not be negative" }
+        val namespace = fence.namespace
         if (!isValidNamespace(namespace)) {
             return MetadataSnapshotReadResult.Miss(MetadataSnapshotMissReason.INVALID_IDENTITY)
         }
@@ -209,7 +241,7 @@ internal constructor(
         if (!file.isFile) {
             return MetadataSnapshotReadResult.Miss(MetadataSnapshotMissReason.NOT_FOUND)
         }
-        if (file.length() > maxBytes) {
+        if (file.length() > maxFileBytes) {
             return cleanupMiss(file, MetadataSnapshotMissReason.UNREADABLE)
         }
 
@@ -232,6 +264,9 @@ internal constructor(
         }
         if (envelope.string("logicalKey") != logicalKey) {
             return cleanupMiss(file, MetadataSnapshotMissReason.KEY_MISMATCH)
+        }
+        if (envelope.primitive("contentGeneration")?.longOrNull != fence.contentGeneration) {
+            return cleanupMiss(file, MetadataSnapshotMissReason.NAMESPACE_MISMATCH)
         }
 
         val payload = envelope["payload"]
@@ -256,6 +291,27 @@ internal constructor(
             return cleanupMiss(file, MetadataSnapshotMissReason.EXPIRED)
         }
         return MetadataSnapshotReadResult.Hit(value = value, savedAtEpochMs = savedAt)
+    }
+
+    /** Remove snapshots for one namespace only; other accounts remain independently readable. */
+    fun invalidateNamespace(namespace: MetadataNamespace) {
+        if (!isValidNamespace(namespace)) return
+        val namespaceDirectory = File(canonicalStoreRoot, sha256(namespaceIdentity(namespace)))
+        val rootPrefix = canonicalStoreRoot.canonicalPath + File.separator
+        val canonicalDirectory = namespaceDirectory.canonicalFile
+        if (!canonicalDirectory.path.startsWith(rootPrefix)) return
+        runCatching {
+            if (!canonicalDirectory.exists()) return@runCatching
+            canonicalDirectory
+                .walkBottomUp()
+                .filter { it != canonicalDirectory && it.isFile }
+                .forEach { file ->
+                    if (file.canonicalPath.startsWith(rootPrefix)) {
+                        Files.deleteIfExists(file.toPath())
+                    }
+                }
+            Files.deleteIfExists(canonicalDirectory.toPath())
+        }
     }
 
     internal fun fileFor(namespace: MetadataNamespace, logicalKey: String): File? {
@@ -288,7 +344,7 @@ internal constructor(
     }
 
     private fun candidate(file: File): Candidate? {
-        if (file.length() > maxBytes) {
+        if (file.length() > maxFileBytes) {
             runCatching { Files.deleteIfExists(file.toPath()) }
             return null
         }
@@ -340,8 +396,7 @@ internal constructor(
 
     private companion object {
         const val SCHEMA_VERSION = 1
-        const val DEFAULT_MAX_FILES = 512
-        const val DEFAULT_MAX_BYTES = 32L * 1024L * 1024L
+        const val DEFAULT_MAX_FILE_BYTES = 8L * 1024L * 1024L
 
         fun sha256(value: String): String =
             MessageDigest.getInstance("SHA-256")

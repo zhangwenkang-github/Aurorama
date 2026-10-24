@@ -23,6 +23,61 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MetadataSnapshotStoreTest {
+
+    @Test
+    fun `content generation mismatch is a miss and removes stale generation file`() {
+        val directory = Files.createTempDirectory("metadata-generation").toFile()
+        try {
+            val store = MetadataSnapshotStore(directory)
+            val namespace = MetadataNamespace("server-a", "user-a")
+            val generationZero = MetadataFence(namespace, contentGeneration = 0L)
+            val generationOne = MetadataFence(namespace, contentGeneration = 1L)
+
+            assertTrue(
+                store.write(generationZero, "views", "old-generation")
+                    is MetadataSnapshotWriteResult.Success
+            )
+
+            assertTrue(
+                store.read(generationOne, "views", Long.MAX_VALUE)
+                    is MetadataSnapshotReadResult.Miss
+            )
+            assertTrue(
+                store.read(generationOne, "views", Long.MAX_VALUE)
+                    is MetadataSnapshotReadResult.Miss
+            )
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `namespace invalidation removes only its own files`() {
+        val directory = Files.createTempDirectory("metadata-namespace-clear").toFile()
+        try {
+            val store = MetadataSnapshotStore(directory)
+            val namespaceA = MetadataNamespace("server-a", "user-a")
+            val namespaceB = MetadataNamespace("server-b", "user-b")
+            val fenceA = MetadataFence(namespaceA, 0L)
+            val fenceB = MetadataFence(namespaceB, 0L)
+            assertTrue(store.write(fenceA, "views", "a") is MetadataSnapshotWriteResult.Success)
+            assertTrue(store.write(fenceB, "views", "b") is MetadataSnapshotWriteResult.Success)
+
+            store.invalidateNamespace(namespaceA)
+
+            assertTrue(
+                store.read(fenceA, "views", Long.MAX_VALUE) is MetadataSnapshotReadResult.Miss
+            )
+            assertEquals(
+                "b",
+                (store.read(fenceB, "views", Long.MAX_VALUE) as MetadataSnapshotReadResult.Hit)
+                    .value,
+            )
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
     private val tempDirectory = createTempDirectory("metadata-snapshot-test").toFile()
     private val namespace = MetadataNamespace(serverId = "server-a", userId = "user-a")
     private val json = Json { ignoreUnknownKeys = true }

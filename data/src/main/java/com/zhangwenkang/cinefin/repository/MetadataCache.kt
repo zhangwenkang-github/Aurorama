@@ -16,6 +16,9 @@ object MetadataCacheRules {
     /** 列表 / 详情元数据默认 TTL：10 分钟（任务书建议 5–15 分钟，取中值）。 */
     const val DEFAULT_TTL_MS: Long = 10 * 60 * 1000L
 
+    /** W88-C：搜索结果首屏的软刷新阈值；离线快照保留上限由 snapshot policy 管理。 */
+    const val SEARCH_TTL_MS: Long = 10 * 60 * 1000L
+
     /** 分页页片 TTL：5 分钟——分页内容最"活"，过期后应更快看到新数据。 */
     const val PAGING_TTL_MS: Long = 5 * 60 * 1000L
 
@@ -134,11 +137,20 @@ class MetadataCache(
 
     /** 提交前校验 fence，并在同一把锁内写入；旧代结果不得覆盖当前内容。 */
     fun <T> putIfCurrent(fence: MetadataFence, key: String, value: T): Boolean =
+        putIfCurrent(fence, key, value, clock())
+
+    /** 磁盘命中回填时保留 envelope 的 savedAt，避免把旧快照误判成刚抓取。 */
+    fun <T> putIfCurrent(
+        fence: MetadataFence,
+        key: String,
+        value: T,
+        fetchedAtMs: Long,
+    ): Boolean =
         synchronized(lock) {
             if (currentFenceLocked() != fence) {
                 false
             } else {
-                entries[ScopedKey(fence.namespace, key)] = MetadataCacheEntry(value, clock())
+                entries[ScopedKey(fence.namespace, key)] = MetadataCacheEntry(value, fetchedAtMs)
                 true
             }
         }

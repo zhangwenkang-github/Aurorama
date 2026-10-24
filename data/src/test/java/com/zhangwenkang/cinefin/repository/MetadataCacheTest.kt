@@ -138,6 +138,22 @@ class MetadataCacheTest {
     }
 
     @Test
+    fun `W88-C snapshot policy uses approved soft refresh and max age windows`() {
+        val browsing = MetadataSnapshotTtlPolicy.forKey(MetadataCacheKeys.VIEWS)
+        val paging = MetadataSnapshotTtlPolicy.forKey("items:library|page=1")
+        val search = MetadataSnapshotTtlPolicy.forKey(MetadataCacheKeys.search("aurora"))
+
+        assertEquals(10 * 60 * 1000L, browsing.softTtlMs)
+        assertEquals(7L * 24 * 60 * 60 * 1000L, browsing.maxAgeMs)
+        assertEquals(5 * 60 * 1000L, paging.softTtlMs)
+        assertEquals(7L * 24 * 60 * 60 * 1000L, paging.maxAgeMs)
+        assertEquals(10 * 60 * 1000L, search.softTtlMs)
+        assertEquals(24L * 60 * 60 * 1000L, search.maxAgeMs)
+        assertEquals(4096, MetadataSnapshotStoreLimits.maxFiles)
+        assertEquals(256L * 1024L * 1024L, MetadataSnapshotStoreLimits.maxBytes)
+    }
+
+    @Test
     fun `超过上限按最久未使用淘汰`() {
         var now = 1_000L
         val cache = testCache(maxEntries = 3, clock = { now })
