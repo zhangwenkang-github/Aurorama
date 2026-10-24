@@ -581,6 +581,8 @@
 
 **2026-10-24 W88-B 独立 QA PASS（readiness=Yes，仅放行 merge-prep）**：QA 在 detached `016e4a0f` 独立重建 APK `EEA50C52…6AB77A` 并 `install -r`，Pad 5 四 scope、服务器来源标签、精确查询、失败下载不冒充完成、强停后登录 / data 保留均完成；App 0 FATAL / 0 ANR / 0 input timeout。core/data/film JVM `--rerun-tasks` 86/86 tasks、XML **312/0/0/0**；phone debug **242/242 executed**；根格式 **34/34 executed**；diff / 范围审计 PASS。P0/P1/P2/P3=`0/0/1/4`：P2 = 唯一书籍 GET 返回 404，成功下载后的真机 SOURCE 对账、v2 sidecar 强停持久与 SERVER+DOWNLOADED 标签未完成运行期验证；P3 = Room 单 item 主键、真实账号 A/B、APK 非字节稳定、sidecar 仅进程内锁。QA worktree clean、未改代码 / commit / merge / push；Pad 原包 `E3651D6F…3F9B66D` 恢复并哈希 MATCH，登录 / data 保留、force-stop，K60 零接触，QA 锁 RELEASED。报告 `.planning\cinefin-expansion\w88-reports\W88-B-QA.md`（SHA-256 `6CC288FF320FDAB82EEE9A3C0A3DE9809574B4DAB847DAC2A0F0B596B4AC5F7B`），证据 `.planning\cinefin-expansion\w88-evidence\W88-B-qa\`。readiness 不放行 1.4.0 发布；下一步 = 全新 merge-prep。
 
+**2026-10-24 35 万门禁主动交接检查点**：QA 收口 docs commit `89c30bac` 已 push，`master=origin/master=89c30bac`；W88-B 代码候选仍 `016e4a0f`。merge-prep detached worktree `F:\Develop\code_data\work_tree\Aurorama\w88-b-merge-prep\Aurorama` 已创建、HEAD=`016e4a0f`、clean；首个 merge-prep 代理在产生报告 / 证据前被中断，未 rebase、未改代码、未运行门禁。当前负责人实测 `353,404 / 1,048,576（33.7%）`，按 35 万硬门禁停止扩项，下一负责人必须重启全新 merge-prep，不得沿用旧代理。W88-C / W89 仍排队。
+
 **W88-C 持久化 SWR 与预取（#54）**：缓存一致性架构师；补磁盘快照与“立即旧值 + 后台刷新”，覆盖浏览元数据约 7 天、搜索 / 歌单首屏约 24 h，封面沿用约 30 天；用户动作和账号切换即时失效。非目标：不缓存令牌 / 播放直链；不全库预取；不让缓存替代歌单 / 下载 / 进度真源。验收：断网可先显示旧内容；切换账号首帧不泄漏；同 key 单请求；只预取首屏、下一页与批量下载元数据。落点：`MetadataCache`、repository、preloader、独立 snapshot store；现有 API 若不能先旧后新先做缓存 spike。
 
 #### W89 应用内更新（W84 下载契约冻结后）
