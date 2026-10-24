@@ -123,6 +123,17 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 - **发布面冒烟 ✅**：字幕面板打开并把 `zh` / `zh-Hant` 两条 ASS 文本轨设为主 / 次后交换成功；PDF `Anda's Game` 125% 从 23/24→24/24 保持，CBZ `futuristic_tales` 150% 从 4/4→3/4 保持；音乐 `Victory` 手动滚动歌词后点击“军队正激战”，position 129.2 s→169.3 s 且保持 PLAYING；播放与阅读基本链路正常；双机 0 FATAL / ANR。
 - 发布用副本在 `.planning/cinefin-expansion/release-1.3.0-evidence/final/Aurorama-1.3.0-*.apk`；旧候选哈希不再作为发布对象。**已发布 2026-10-18：tag `v1.3.0` + [GitHub Release](https://github.com/zhangwenkang-github/Aurorama/releases/tag/v1.3.0) + 双 APK；发布后下载资产的字节数、SHA-256、v2 签名与证书指纹复核一致。**
 
+**1.4.0 签名候选 · 未发布（2026-10-25 · 代码候选 `d18ed56`）**
+
+| 文件 | 体积（字节） | SHA-256 |
+|---|---:|---|
+| `Aurorama-1.4.0-arm64-v8a.apk` | 78,988,950 | `5A55855BE36FB39C755DAE6E2B8A5FBBD1F0C9E287F12B16E1AF8F5A7EB65EE2` |
+| `Aurorama-1.4.0-universal.apk` | 172,570,928 | `E07D7DD8D27779619CCE3AF4540450209161317F29AE4F3BA8F53C121E711F00` |
+
+- 包名 `io.github.zhangwenkang.aurorama`、versionCode 5、versionName 1.4.0、minSdk 28、targetSdk 36；arm64 仅 `arm64-v8a`，universal 含四 ABI；v2 证书 `e449c4aa…e155ff`。
+- 版本 / 构建 / APK 级断言已通过；独立 QA 尚未启动。该表是候选冻结，不是发布对象，未 tag、未创建 GitHub Release、未 push。
+- 证据：`.planning/cinefin-expansion/w89-evidence/W89-C-RELEASE/candidate/SHA256SUMS.txt` 与 `impl/23-apk-verification.log`。
+
 **1.2.0 发布资产校验 · 候选＝发布对象（2026-10-07 · W77 阅读流式波，master 提交 `6ef1901`（代码合并 `f4d4933`）；本表为上传口径）**
 
 | 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
