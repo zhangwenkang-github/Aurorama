@@ -560,6 +560,15 @@
 
 **W88-A 入口 scope 与返回栈（#41）**：搜索产品架构师兼导航工程师；首页默认全部，视频 / 音乐 / 书籍入口预设各自域，页面内可切全部，scope 随搜索目的地保存。非目标：不复制三套搜索页；不永久改写入口默认；不合并服务器 / 本地错误态。验收：入口映射正确；进详情返回保留查询、scope、结果、滚动；服务器与本地失败分别提示。落点：`SearchRoute`、`NavigationRoot.kt`、Search state / ViewModel、各入口顶栏。
 
+- **2026-10-24 W88-A 实现交付（未合并，后来 QA PASS 见下）**：分支 `codex/w88-a-search-scope`，功能提交 `86130dfb`；22 文件 `+700/−189`，单一 `SearchRoute(initialScope)`、入口域映射、页内切换、SavedStateHandle 状态保存、服务器 / 本地独立失败通道均已实现，禁止项 0。TDD 三条 RED 后最终三模块 `--rerun-tasks` **484/0/0/0**（data 87 / film 72 / phone 325），phone debug、根 `ktfmtCheck`、diff、graphify 通过；Pad 5 主验 + K60 抽验通过，0 FATAL/ANR/input timeout。实现 P0/P1/P2/P3=`0/0/0/2`，P3 = 最终 APK 非可复现（完整矩阵在早先同源包、最终哈希仅短冒烟）与真机未制造本地 DB 故障。报告 `.planning\cinefin-expansion\w88-reports\W88-A-IMPL.md`，证据 `w88-evidence\W88-A-impl\`。W87 两项 BLOCKED 与累计 P3 原样保留。
+
+- **2026-10-24 W88-A 独立 QA PASS（允许 merge-prep，未合并）**：全新 QA 线程在 `86130dfb` 独立重建 APK，SHA-256 `B9BC50FE…C268676`，完整关键真机矩阵全部改绑该包；JVM 79 XML **484/0/0/0/0**、phone debug + 根格式 `273/273 executed`、diff / 禁改范围通过。Pad 5 入口映射、四档切换、域过滤、详情返回 query/scope/结果/滚动、关闭回原页、断网错误与重试通过；K60 1080 宽四档完整可见。双机 0 FATAL/ANR/input timeout，已恢复原包并释放锁。W88-A P0/P1/P2/P3=`0/0/0/2`，P3 = APK 同源重构建非字节稳定、未破坏真实用户数据制造本地 Room 故障（后者由 4 个实际 executed JVM 用例覆盖）。QA 报告 `.planning\cinefin-expansion\w88-reports\W88-A-QA.md`；merge-prep / ff-only / push / CI 仍未完成。
+
+- **2026-10-24 W88-A merge-prep PASS（允许 ff-only，尚未 merge/push/CI）**：独立代理在 `codex/w88-a-merge-prep` 两次 fetch 后确认最新 `origin/master=841d1615`，候选 `86130dfb` ahead/behind `1/0`、patch-id 一致、无需 rebase；diff 精确 22 文件 `+700/−189`，白名单 22/22，禁改项 0。11 模块 JVM **280/280 tasks executed**、197 XML **1297/0/0/0**；11 模块 debug `384/384 executed`；根格式 `34/34`、diff、graphify 均通过。报告 `.planning\cinefin-expansion\w88-reports\W88-A-MERGE-PREP.md`；负责人 ff-only / push / 同 commit 三路 CI 仍待执行。
+
+- **2026-10-24 W88-A 已合并并三绿（收口）**：负责人复核后 ff-only / push `841d1615..86130dfb`，无 merge commit；`master=origin/master=86130dfb`。同代码 commit CI Build `40070789391` / Unit Tests `40070789409` / Format `40070789384` 全部 success。W88-A 交付入口 scope、页内切换、目的地状态保存、详情返回保留与双错误通道；P0/P1/P2/P3=`0/0/0/2`，W88-A BLOCKED=0。两项 P3 保留：APK 同源重构建非字节稳定、未破坏真实用户 data 制造本地 Room 故障。W87 两项 BLOCKED、W87-B P3 与 349 首队列快照偏差不清除。下一卡 = W88-B canonical identity 与去重；W88-C 仍排队，禁止进入 W89。
+
+
 **W88-B canonical identity 与去重（#41）**：领域身份工程师；结果唯一键由服务器 / 用户 / 本地库来源组成；下载副本只有可证明源映射时才与服务器合并。非目标：不按标题模糊合并；不虚构字段；不同服务器同 UUID 不互认。验收：跨用户不泄漏；有证据的副本折叠且标来源；无证据的相似项并列。落点：`SearchResultRules`、本地模型、下载 sidecar / source 映射；现有映射能力先核实。
 
 **W88-C 持久化 SWR 与预取（#54）**：缓存一致性架构师；补磁盘快照与“立即旧值 + 后台刷新”，覆盖浏览元数据约 7 天、搜索 / 歌单首屏约 24 h，封面沿用约 30 天；用户动作和账号切换即时失效。非目标：不缓存令牌 / 播放直链；不全库预取；不让缓存替代歌单 / 下载 / 进度真源。验收：断网可先显示旧内容；切换账号首帧不泄漏；同 key 单请求；只预取首屏、下一页与批量下载元数据。落点：`MetadataCache`、repository、preloader、独立 snapshot store；现有 API 若不能先旧后新先做缓存 spike。
