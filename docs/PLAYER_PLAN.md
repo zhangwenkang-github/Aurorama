@@ -3083,7 +3083,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - TDD RED 实际执行 `:player:core:testDebugUnitTest`、`:player:local:testDebugUnitTest`、`:modes:music:testDebugUnitTest --continue`，三模块均因新域字段 / 校验 API 尚不存在而编译失败；日志 `w87-evidence\W87-C-impl\tdd-red.log`。
 - 第一轮 GREEN：`player:core` 13、`player:local` 284、`modes:music` 220、`data` 84，均 0 failures / 0 errors / 0 skipped；v3 schema 已生成，identityHash=`313c71f04e6a4b8d26217649ed562ea0`。
 - 控制器接入后定向 JVM：`player:local` 284、`modes:music` 223，均 0/0/0；`data:compileDebugAndroidTestKotlin` 已通过。实际序读取 / 安装、结构变化失效、非法持久序降级、PLAYLIST 快照投影与 generation 防护已有定向测试。
-- 最终门禁（2026-10-24）：命中 5 模块 JVM `core 13 + core-libre 122 + local 284 + music 223 + data 84 = 726/0/0/0`；`data:assembleDebugAndroidTest`、`data:compileDebugAndroidTestKotlin`、`app:phone:assembleDebug`、根 `ktfmtCheck`、`git diff --check` 全通过。日志 `w87-evidence\W87-C-impl\full-gate.log`。
+- 最终门禁（2026-10-24）：命中 5 模块 JVM `core 13 + core-libre 122 + local 284 + music 223 + data 84 = 726/0/0/0`（115 XML）；`data:assembleDebugAndroidTest`、`data:compileDebugAndroidTestKotlin`、`app:phone:assembleDebug`、根 `ktfmtCheck`、`git diff --check` 全通过。日志 `w87-evidence\W87-C-impl\full-gate.log`。
 - Room 设备实测：Pad 5 直接 AndroidJUnitRunner `MusicDatabaseMigrationTest`，`numtests=2`，v1→v2 与 v2→v3 均 `code=0`、`OK (2 tests)`；v3 用例逐值保留队列 / 位置 / 模式 / 来源 / 最近播放，并验证两新列可写。日志 `room-migration-raw-status.txt`。
 - 设备实施自测：候选 arm64 APK `E3651D6F…3F9B66D` 通过 `install -r`；原包 `D1DF2B62…D53D84` 已覆盖恢复并回拉一致。冷启动音乐页显示恢复队列 349 首、当前 #05「我和你」、`0:00 / 3:11`、顺序播放；未起播 / 未发服务器写请求，FATAL / ANR=0。此后 force-stop 并释放唯一锁。
 - `graphify update .`：12,037 nodes / 38,027 edges / 408 communities；SQLite schema 身份 hash=`313c71f04e6a4b8d26217649ed562ea0`。
