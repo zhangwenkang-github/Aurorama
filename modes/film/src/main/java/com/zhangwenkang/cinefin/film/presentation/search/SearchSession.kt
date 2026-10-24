@@ -76,9 +76,13 @@ internal object DownloadSearchRules {
     }
 
     private fun DownloadMediaRecord.matchesNamespace(namespace: SearchNamespace?): Boolean {
-        val provenance = provenance() ?: return true
         if (namespace == null) return true
-        return provenance.serverId == namespace.serverId && provenance.userId == namespace.userId
+        val explicitServerId = serverId?.takeIf { it.isNotBlank() }
+        if (explicitServerId != null && explicitServerId != namespace.serverId) return false
+        val explicitUserId = userId?.let { value ->
+            runCatching { UUID.fromString(value) }.getOrNull()
+        }
+        return explicitUserId == null || explicitUserId == namespace.userId
     }
 }
 

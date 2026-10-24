@@ -192,6 +192,157 @@ class SearchSessionTest {
     }
 
     @Test
+    fun `显式其他 server 与 user 的部分视频下载在当前 namespace 隐藏`() {
+        val record =
+            downloadRecord(
+                name = "same",
+                serverId = "server-b",
+                userId = BOB,
+                sourceId = null,
+            )
+
+        val filtered =
+            DownloadSearchRules.filter(
+                request = SearchRequest("same", SearchScope.VIDEO),
+                namespace = SearchNamespace("server-a", ALICE),
+                downloads = listOf(record),
+            )
+
+        assertTrue(filtered.isEmpty())
+    }
+
+    @Test
+    fun `身份匹配但 video source 缺失时下载保持独立`() = runBlocking {
+        val itemId = UUID.fromString("11111111-1111-4111-8111-111111111111")
+        val record =
+            downloadRecord(
+                name = "sample",
+                itemId = itemId,
+                serverId = "server-a",
+                userId = ALICE,
+                sourceId = null,
+            )
+
+        val outcome =
+            executeSearch(
+                SearchRequest(query = "sample", scope = SearchScope.VIDEO),
+                serverSearch = { listOf(folder("sample").copy(id = itemId)) },
+                localSearch = { emptyList() },
+                namespace = SearchNamespace("server-a", ALICE),
+                downloads = listOf(record),
+            )
+
+        assertEquals(2, outcome.results.size)
+        assertEquals(setOf(SearchSource.SERVER), outcome.results.first().sources)
+        assertEquals(SearchSource.DOWNLOADED, outcome.results.last().sources.single())
+        assertEquals(record, (outcome.results.last() as SearchResult.Download).record)
+    }
+
+    @Test
+    fun `只有其他 server 的部分视频下载在当前 namespace 隐藏`() {
+        val record =
+            downloadRecord(
+                name = "same",
+                serverId = "server-b",
+                userId = null,
+                sourceId = null,
+            )
+
+        val filtered =
+            DownloadSearchRules.filter(
+                request = SearchRequest("same", SearchScope.VIDEO),
+                namespace = SearchNamespace("server-a", ALICE),
+                downloads = listOf(record),
+            )
+
+        assertTrue(filtered.isEmpty())
+    }
+
+    @Test
+    fun `只有其他 user 的部分视频下载在当前 namespace 隐藏`() {
+        val record =
+            downloadRecord(
+                name = "same",
+                serverId = null,
+                userId = BOB,
+                sourceId = null,
+            )
+
+        val filtered =
+            DownloadSearchRules.filter(
+                request = SearchRequest("same", SearchScope.VIDEO),
+                namespace = SearchNamespace("server-a", ALICE),
+                downloads = listOf(record),
+            )
+
+        assertTrue(filtered.isEmpty())
+    }
+
+    @Test
+    fun `身份缺失或损坏的部分下载保持来源未知可见`() {
+        val missing =
+            downloadRecord(
+                name = "same",
+                serverId = null,
+                userId = null,
+                sourceId = null,
+            )
+        val corrupt =
+            DownloadMediaRecord(
+                itemId = UUID.fromString("33333333-3333-4333-8333-333333333333").toString(),
+                kind = DownloadMediaKind.VIDEO,
+                serverId = "server-a",
+                userId = "not-a-uuid",
+                sourceId = null,
+                displayName = "same",
+            )
+
+        val filtered =
+            DownloadSearchRules.filter(
+                request = SearchRequest("same", SearchScope.VIDEO),
+                namespace = SearchNamespace("server-a", ALICE),
+                downloads = listOf(missing, corrupt),
+            )
+
+        assertEquals(listOf(missing, corrupt), filtered)
+    }
+
+    @Test
+    fun `namespace 过滤前仍遵守 query 与 scope`() {
+        val matching =
+            downloadRecord(
+                name = "keep",
+                serverId = "server-a",
+                userId = ALICE,
+                sourceId = null,
+            )
+        val wrongQuery =
+            downloadRecord(
+                name = "drop",
+                serverId = "server-a",
+                userId = ALICE,
+                sourceId = null,
+            )
+        val wrongScope =
+            downloadRecord(
+                name = "keep",
+                kind = DownloadMediaKind.MUSIC,
+                serverId = "server-a",
+                userId = ALICE,
+                sourceId = null,
+            )
+
+        val filtered =
+            DownloadSearchRules.filter(
+                request = SearchRequest("keep", SearchScope.VIDEO),
+                namespace = SearchNamespace("server-a", ALICE),
+                downloads = listOf(matching, wrongQuery, wrongScope),
+            )
+
+        assertEquals(listOf(matching), filtered)
+    }
+
+    @Test
     fun `无 namespace 时仍显示 query 命中的本地库结果`() = runBlocking {
         val local = hit("only-this.mp4", LocalMediaKind.VIDEO)
 
@@ -281,13 +432,14 @@ class SearchSessionTest {
         itemId: UUID = UUID.nameUUIDFromBytes(name.toByteArray()),
         serverId: String? = "server-a",
         userId: UUID? = ALICE,
+        sourceId: String? = if (kind == DownloadMediaKind.BOOK) null else "source-a",
     ) =
         DownloadMediaRecord(
             itemId = itemId.toString(),
             kind = kind,
             serverId = serverId,
             userId = userId?.toString(),
-            sourceId = if (kind == DownloadMediaKind.BOOK) null else "source-a",
+            sourceId = sourceId,
             displayName = name,
         )
 
