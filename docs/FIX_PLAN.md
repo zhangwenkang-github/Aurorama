@@ -607,6 +607,19 @@
 
 K60 用户新增音乐无法播放：独立只读诊断在官方 1.3.0(4) 复现 `Lemon` 点击后 ExoPlayer `Response code: 404` → `ERROR(7) / Source error`。网络 `VALIDATED`、`http_proxy=:0`、曲库 349 首与 `/PlaybackInfo` 可用，排除旧死代理 / DNS / TLS / 登录完全失效 / 蓝牙 / 解码。用户随后完成 A/B：Jellyfin Web 全部音乐失败并提示“播放错误，因为客户端不支持该媒体”，Pad 1.4.0(5) 与 K60 1.3.0(4) 测试多首音乐均无反应。故故障已不再局限于 K60 或 Aurorama 1.3，首要指向 Jellyfin 12.3.0 服务端媒体文件 / 音频格式、转码后端或反代音频路由；仍需服务端只读播放日志与 codec / container 元数据才能最终归因。记 **P0/P1/P2/P3=0/1/0/0**，正式用户验收阻断，K60 不得升级。用户报告证据 `w89-evidence\W89-C-RELEASE\incident-k60-music\a-b-user-report-20261025.txt`，设备日志同目录。用户全验、真实应用内下载 / 系统确认、K60 正式升级、merge / push、tag / Release / workflow 均未执行。
 
+**2026-10-25 W89-C 用户验收反馈 / W90 交接（BLOCKED_ACCEPTANCE）**：音乐 P1 已关闭根因：用户升级 TrueNAS 后媒体挂载丢失，修复挂载后音乐正常播放；这是服务端环境故障，不是 Aurorama 1.3 / 1.4 代码缺陷。新验收反馈转入 W90，不在已冻结的 W89-C 候选中直接扩项：
+
+- **W90-UX1（候选 P2）**：音乐页「全部播放」与上方栏距离过近，存在误触风险；需明确触控间距与主次操作层级。
+- **W90-UX2（候选 P1，回归）**：歌词页划走后滑回，当前播放歌词不会自动恢复“歌词跟随”；需定义重入 / 页面生命周期状态契约并回归上一版行为。
+- **W90-UX3（候选 P2）**：下载提示停留过久、视觉过重，遮挡内容；改为短时、低干扰、可被后续状态覆盖的反馈。
+- **W90-UX4（候选 P2）**：从歌曲栏发起的下载在下载页出现不必要的层级；下载页只保留一个清晰来源 / 状态视图，避免与歌曲页重复组织。
+- **W90-F1（候选 P1）**：下载页多选后无法播放；需明确“播放选中可播放项”的队列语义，不能无反馈失败。
+- **W90-F2（候选 P1）**：暂停、删除、继续按钮不能及时反馈，可能与网络延迟有关；所有操作先在本机即时进入 pressed / pending 状态，网络结果再确认或回滚，禁止等待远端后才改变 UI。
+- **W90-UX5（候选 P1）**：负责人要求审计其他交互卡顿 / 无响应按钮，以可感知的首次反馈延迟为门禁，不以最终网络完成时间冒充按钮响应。
+- **W90-UI（P2 Epic，分段）**：用户要求整体优化界面布局、易用性与美观，并参考成熟产品。该 Epic 不与其他修复一次性重写；先做交互与信息架构审计，再建立设计令牌 / 间距 / 触控目标 / 状态反馈规范，最后分页面迁移并逐页验收。
+
+W89-C 当前候选技术 QA 仍有效，但用户全功能验收 FAIL / BLOCKED；tag、GitHub Release、workflow、K60 正式升级与任何发布写继续禁止。下一角色 = 新负责人 / Android 交互与 UI 架构负责人；先读本段、`PROJECT_PLAN` W90、`PLAYER_PLAN` 音乐与歌词段、`W89-C-QA.md` 和 handoff 唯一 ACTIVE，再实查当前候选 / 设备锁。第一步只读：建立交互清单与可测延迟判据，不直接重做视觉。
+
 **2026-10-24 W88-C / W89-A 规划门通过，进入第一实现小波**：两条隔离分支均从 `origin/master=1cea01d3` 创建：`codex/w88-c-persistent-swr` 与 `codex/w89-a-update-discovery`，worktree 分别位于 `F:\Develop\code_data\work_tree\Aurorama\w88-c-persistent-swr\Aurorama`、`...\w89-a-update-discovery\Aurorama`。两份能力矩阵与 TDD 计划已写入对应 `*-IMPL.md` 并由负责人裁决：W88-C 采用版本化 JSON snapshot、namespace+generation 与 fail-closed，冷启动先返回旧值且后台只更新缓存（本轮不扩 Flow），浏览/搜索/歌单/封面保留上限为 7d/24h/24h/30d；封面 namespace、服务器歌单首屏与批量下载元数据最小接线获准，但仍不得改 W84 下载真源。W89-A 采用独立原子 metadata + `.part` 传输真源，失败也占 24h 自动检查门控，手动检查可绕过；不新增自动开关、不碰安装/校验/发布。A1 = namespace/in-flight 隔离，B1 = 稳定 Release/SemVer/ABI/URL 白名单，均由全新 `deepseek-flash`、`fork_turns=none` 实现代理先行；本阶段尚无实现提交、独立 QA、merge-prep 或合并证据。设备仍由 W88-C=Pad `43af8627`、W89-A=K60 `8e875894` 预留，第一小波为 JVM-only，未建锁。
 
 **2026-10-24 A1 / B1 实现小波收口，进入 A2 / B2**：A1 分支 HEAD `0d09c0df`，namespace+generation/in-flight fence 已接入真实 repository；额外移除只按 `libraryId` 的库计数缓存，统一走带 fence 的 metadata cache。data JVM `98/0/0/0`，目标 19/0，格式与 graphify 通过；P0–P3=`0/0/0/1`（P3=真实账号 A/B、设备并发与独立 QA 未覆盖）。B1 HEAD `c05db369`，稳定 Release/SemVer/ABI/URL 白名单完成；负责人复核抓到 `CancellationException` 被 TRANSPORT 吞掉，已先 RED 后修复。data JVM `107/0/0/0`、update 17 项、格式通过。`data` 实际单测任务为 `testDebugUnitTest`，负责人原预设的 `testLibreDebugUnitTest` 已纠正。A2 仅做版本化脱敏 JSON snapshot + 原子有界存储，B2 仅做独立状态文件 + Range `.part` 下载边界；两波仍 JVM-only、无设备锁、无独立 QA、未 merge/push。

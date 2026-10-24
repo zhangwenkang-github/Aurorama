@@ -132,7 +132,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 - 包名 `io.github.zhangwenkang.aurorama`、versionCode 5、versionName 1.4.0、minSdk 28、targetSdk 36；arm64 仅 `arm64-v8a`，universal 含四 ABI；v2 证书 `e449c4aa…e155ff`。
 - 版本 / 构建 / APK 级断言与独立 QA 已通过；8 模块 JVM `223 XML / 1505/0/0/0`、安全定向 26/26、格式与 phone debug 通过。Pad 仅显式 `-s 43af8627` 由官方 1.3.0(4) 同签名覆盖到 1.4.0(5)，系统 Success、首装时间保持、已装 APK SHA MATCH、进程冷启动；登录内容未验证，K60 仍为 1.3.0(4)。
-- K60 官方 1.3.0(4) 音乐 `Lemon` 实捕 HTTP 404 → `Source error`；用户 A/B 进一步确认 Jellyfin Web、Pad 1.4.0(5) 与 K60 1.3.0(4) 测试多首音乐均失败，Web 提示“客户端不支持该媒体”。故障已超出单一客户端，P1 阻断正式用户验收与 K60 升级；首要排查 Jellyfin 12.3.0 服务端媒体文件 / 音频格式、转码后端与反代路由，需只读服务端日志。该表仍是候选冻结，不是发布对象；未 tag、未创建 GitHub Release、未 push。
+- 音乐服务器 P1 已关闭：用户升级 TrueNAS 后媒体挂载丢失，恢复挂载后音乐正常；该故障不属于 Aurorama 代码。新的用户验收仍 FAIL：歌词跟随回归、下载多选不能播放、暂停/删除/继续反馈延迟、下载提示过重 / 层级重复、音乐页触控间距，以及全 App 即时反馈与 UI 布局优化要求。整改转入 W90，W89-C 候选继续冻结，不进入发布；未 tag、未创建 GitHub Release、未 push。
 - 证据：`.planning/cinefin-expansion/w89-evidence/W89-C-RELEASE/candidate/SHA256SUMS.txt`、`qa/`、`incident-k60-music/`（含 A/B 用户报告）；QA 报告 `.planning/cinefin-expansion/w89-reports/W89-C-QA.md`。
 
 **1.2.0 发布资产校验 · 候选＝发布对象（2026-10-07 · W77 阅读流式波，master 提交 `6ef1901`（代码合并 `f4d4933`）；本表为上传口径）**
