@@ -3060,7 +3060,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 2026-10-24：用户**按有条件接受**运行时包级 server-write 计数未插桩，边界为“只放行合并流程，不放行 1.4.0 发布”；该 BLOCKED 与 P3 均原样保留。全新 merge-prep 在 `origin/master b0e2d3e7` 上无冲突 rebase 到 `033d68c6`，功能 `211b925f → 74358cff` 且四提交 patch-id 一致；17 文件 `+1919/-12`，白名单 17/17、禁止项 0；11 模块 JVM 193 XML **1274/0/0/0**（280/280 executed）、11 模块 debug **384/384 executed**、根 `ktfmtCheck` 34/34、两项 diff 检查与 graphify 通过。报告 `W87-B-MERGE-PREP.md`；证据 `w87-evidence/W87-B-merge-prep/`。
 - 2026-10-24：负责人复核后 ff-only / push `b0e2d3e7..033d68c6`；Build `40055618716`、Unit Tests `40055618715`、Format `40055618726` 均钉在 `033d68c6` 且 success。W87-B 合并完成，但不算全通过：运行时包级 server-write 计数仍为 BLOCKED，最终 1.4.0 发布前必须关闭；主线程上限解码继续 P3。下一张 = W87-C，未启动。
 
-### 45.3 W87-C 实际随机序与首屏快照（实施中）
+### 45.3 W87-C 实际随机序与首屏快照（独立 QA 通过，待 merge-prep）
 
 **冻结范围**：`MusicDatabase` 仅 v2→v3，`music_queue_state` 只新增 nullable 实际 shuffle 序与恢复种子；保留旧队列、位置、模式、歌单、最近播放行值。不改 `Versions.kt`、tag、Release、workflow、播放器内核架构或生产服务器。
 
@@ -3088,3 +3088,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 设备实施自测：候选 arm64 APK `E3651D6F…3F9B66D` 通过 `install -r`；原包 `D1DF2B62…D53D84` 已覆盖恢复并回拉一致。冷启动音乐页显示恢复队列 349 首、当前 #05「我和你」、`0:00 / 3:11`、顺序播放；未起播 / 未发服务器写请求，FATAL / ANR=0。此后 force-stop 并释放唯一锁。
 - `graphify update .`：12,037 nodes / 38,027 edges / 408 communities；SQLite schema 身份 hash=`313c71f04e6a4b8d26217649ed562ea0`。
 - 边界：本卡实现自测完成，不是独立 QA。为避免生产 Jellyfin 播放上报写入，未做真实起播后的“下几首”端到端；ExoPlayer exact-order 安装 / 回读由 JVM AAR 能力测试与代码门禁覆盖。P0/P1/P2/P3=`0/0/0/0`；BLOCKED=1（既有运行时 server-write 计数未插桩，不因本卡清除），另列设备未覆盖项。上下文实测 `357,099 / 1,048,576（34.1%）`，到线停止。
+- 独立 QA（2026-10-24）：候选 `67c9a51d` 未改代码；5 个 JVM 任务 `--rerun-tasks` 实际 **926/0/0/0**（146 XML），Room migration raw status `numtests=2`、两项 `code=0` / `OK (2 tests)`；app debug、AndroidTest 编译、根格式与 diff 通过。Pad 5 用隔离本地 WAV / SAF 歌单实测自然序 `01→02→03→04→05`、首次随机 `01→05→03→04→02`；force-stop 不自动出声，恢复当前 `02`、随机模式与完整置换，后续 `02→01→05→03→04`；airplane mode 本地歌单首屏 5 首，点击后 485 ms 出现目标 MediaSession 并补齐 5 首。FATAL / ANR / input timeout=0，0 截图。报告 `W87-C-QA.md`；证据 `w87-evidence/W87-C-qa/`。
+- QA 新增 P0/P1/P2/P3=`0/0/0/2`：P3-1 = v2→v3 用例未完整插入并逐值断言歌单行 / 条目；P3-2 = 高并发旧请求取消仅 JVM，未设备注入。W87-B 既有 P3 继续保留。
+- 当前保留 **BLOCKED=2**：①服务器歌单快照 / 目标优先端到端未执行，因为产生服务器歌单队列须起播并触发生产上报写；本地歌单与 JVM 同类路径已覆盖，但不得改写成服务器运行期 PASS；②运行时包级 server-write 计数未插桩，静态新增写调用 0 不等于运行期 0。负责人裁决：只允许进入独立 merge-prep，**不得据此放行 1.4.0**；服务器端到端须在非生产写窗口或用户明确授权后补验，写计数发布门按既有决定关闭。
+- QA 清理偏差：App data / prefs / databases 与登录保留，但隔离测试覆盖了开工时 349 首恢复队列，临时队列 / 歌单已清理且原快照无法重建。该数据偏差必须带入交接，不宣称字节级还原。
