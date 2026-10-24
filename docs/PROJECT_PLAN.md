@@ -162,6 +162,18 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 **（2026-10-21 W84 / W85 合并：W84 下载控制面 `70b5567` 独立 QA 7/7、P0/P1=0，真实 100 项受理 / 离页杀进程 / 通知同值，10 样本 P95 215.921ms；W85 离线身份经 QA 发现并修复显式 URL 发现与网络原因分类，最终 `724506b` QA-R 5/5、P0–P3=0。master `70b5567` 合并态门禁 8 模块 **1142 / 0 / 0 / 0**，已推送，CI Build / Format / Unit Tests 三路绿。下一棒 = W86–W89；全波未验收前仍不改 Versions、不打 tag / 发 Release。）**
 
+**2026-10-24 W88-C A4 / W89-A B4 实施中**：A3/B3 中间候选和两份报告经新负责人只读复核，无新增 P0/P1、无白名单外改动；两 worktree 保持 clean，Pad/K60 在线，唯一实现锁已建立。A4 与 B4 分别使用全新 `deepseek-flash`、`fork_turns=none` 代理并行实现，均先写计划与 TDD，收口后才做本轨最小真机；实现者禁止自行 QA，负责人尚未派独立 QA，也未 merge-prep / merge / push。W88-B P2/P3、W87-C 两项 BLOCKED、W87-B/W88-A P3 与 349 首快照偏差均原样保留；本阶段不会改 `Versions.kt`、tag、workflow 或 Release。
+
+**2026-10-24 A4 / B4 检查点**：A4 候选 `85e3f1a3`、B4 候选 `009f76e0`，两轨均到 `READY_FOR_VERIFICATION` 并完成自身 JVM / debug 构建 / 最小真机与恢复，实现代理未自行 QA。负责人复核 B4 无新增 P0/P1、无 W89-B/C 越界，已启动全新独立 QA；A4 发现服务器歌单摘要在下拉刷新 / 删除后未即时失效的 P1，A4 暂不放行 QA，已派全新定向修复代理。W89-B 等待 A4 收口，W89-C 仍最后；两轨 merge-prep 可并行，但 ff-only / push / CI 必须按 SHA 串行。既有 P2/P3、两项 BLOCKED 与 349 首快照偏差均原样保留。
+
+**2026-10-24 B4 独立 QA FAIL**：`009f76e0` 在 K60 被独立 QA 判定 P1=2、不允许 merge-prep：手动检查终态被旧自动 Work 遮蔽；取消下载未持久化可重试状态。QA 已恢复原包并保留 data。已另派全新 B4 修复代理，先 RED 再 GREEN，修复后需再次全新 QA。A4 刷新失效修复继续；W89-B/C 未启动。
+
+**2026-10-24 A4 / B4 最终独立 QA PASS**：A4 最终候选 `92355658` 经独立 QA 关闭两次 P1（刷新失效、断网冷启动旧歌单未上屏），最终 product P0/P1/P2=0、P3=4，readiness=允许 A4 merge-prep。B4 最终候选 `c94fd599` 经多轮修复与短窗口 QA 关闭 Work 终态遮蔽、取消不可重试、auto RUNNING 仲裁，新增 P0–P3=0/0/0/0，readiness=允许 B4 merge-prep。两轨原包均恢复且 SHA MATCH，登录/data 保留。A/B merge-prep 已分别使用全新代理并行准备；最终 ff-only / push / CI 仍按 SHA 串行，A 先集成后 B 必须重检母版。W89-B/C 仍未启动，发布契约仍未触碰。
+
+**2026-10-24 A4 已合并三绿，B4 最终重检中**：W88-C A4 `cd0cd5da` 已 ff-only / push，25 文件、11 模块 JVM 1386/0/0/0、debug 384/384、格式 34/34；CI Build / Unit Tests / Format 同 commit 三绿。B4 首轮 merge-prep 发现 TV exhaustive `when` 编译 P1，最小 TV-only fix `347fec8b`（2 行）经 TV/phone 构建与独立 QA 通过。现从该候选 + A4 母版启动第二轮完整 merge-prep；未通过前不合并 B，W89-B/C 不启动。
+
+**2026-10-24 W88-C A4 / W89-A B4 合并闭环，主动交接 W89-B**：A `cd0cd5da`、B `ee4db833` 均 ff-only / push，无 merge commit；各自同 commit CI 三绿（B 为 Build `40105670131` / Unit `40105670194` / Format `40105670106`）。B merge-prep R2 为 41 文件、8/8 patch-id、11 模块 JVM 1476/0/0/0、debug 384/384。负责人实测 479,787 tokens，按用户 2026-10-24 新要求在当前自然边界主动创建新会话，不在旧会话继续 W89-B/C。下一会话只做 W89-B 安全校验 / 系统安装器；W89-C 必须另开最后会话。全波仍未发布，Versions/tag/workflow/Release 未动。
+
 ## 4. 里程碑状态（源自旧 `docs/PLAN.md`，已合并）
 
 | 阶段 | 内容 | 状态 |
