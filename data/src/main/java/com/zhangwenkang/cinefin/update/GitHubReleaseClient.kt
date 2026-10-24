@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.update
 
+import java.util.concurrent.CancellationException
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -14,6 +15,8 @@ class GitHubReleaseClient(private val fetcher: GitHubReleaseFetcher) {
         val response =
             try {
                 fetcher.fetch(request)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (exception: Exception) {
                 return ReleaseFetchResult.Failure(
                     reason = ReleaseFetchFailure.TRANSPORT,

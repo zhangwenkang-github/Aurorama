@@ -1,8 +1,11 @@
 package com.zhangwenkang.cinefin.update
 
 import java.io.IOException
+import java.util.concurrent.CancellationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class GitHubReleaseClientTest {
@@ -59,6 +62,19 @@ class GitHubReleaseClientTest {
             GitHubReleaseClient(fetcher = GitHubReleaseFetcher { throw IOException("offline") })
 
         assertTrue(client.fetchLatestRelease() is ReleaseFetchResult.Failure)
+    }
+
+    @Test
+    fun propagatesCancellationExceptionUnchanged() {
+        val cancellation = CancellationException("cancelled")
+        val client = GitHubReleaseClient(fetcher = GitHubReleaseFetcher { throw cancellation })
+
+        try {
+            client.fetchLatestRelease()
+            fail("CancellationException should not be converted to a transport failure")
+        } catch (actual: CancellationException) {
+            assertSame(cancellation, actual)
+        }
     }
 
     private companion object {
