@@ -571,6 +571,8 @@
 
 **W88-B canonical identity 与去重（#41）**：领域身份工程师；结果唯一键由服务器 / 用户 / 本地库来源组成；下载副本只有可证明源映射时才与服务器合并。非目标：不按标题模糊合并；不虚构字段；不同服务器同 UUID 不互认。验收：跨用户不泄漏；有证据的副本折叠且标来源；无证据的相似项并列。落点：`SearchResultRules`、本地模型、下载 sidecar / source 映射；现有映射能力先核实。
 
+**2026-10-24 W88-B 能力门 BLOCKED（未修改生产代码）**：隔离 worktree `F:\Develop\code_data\work_tree\Aurorama\w88-b-canonical-identity\Aurorama` / 分支 `codex/w88-b-canonical-identity` 钉在 `d2076bee` 且 clean；全新 `deepseek-flash`、`fork_turns=none` 实现代理只完成只读矩阵后因 30 万门禁退出。服务器原始 `serverId + userId + itemId` 可得但搜索模型未携带；本地查询有 `localLibraryId` 但 `LocalSearchHit` 丢弃；现有去重仅按 UUID。持久下载只有 `sources(sourceId,itemId)` 与五列 `download_media.tsv`，无 server/user provenance；内容快照的部分 serverId / userData 不能证明下载发起者。故完整下载折叠不可实现，命中“真源改造先停止”条件。能力评估 P0/P1/P2/P3=`0/0/2/1`、W88-B BLOCKED=1；P2 = 下载 provenance 缺失 + `InFlightRequests` 未按 namespace 隔离（后者归 W88-C 边界），P3 = 内容表单 item UUID 主键限制跨服务器同 UUID 持久并列。基线 `SearchResultRulesTest` 4/4、`SearchSessionTest` 4/4、`MetadataCacheTest` 16/16；film 70/70 tasks executed，data 8 executed / 29 up-to-date。报告 `.planning\cinefin-expansion\w88-reports\W88-B-IMPL.md`（SHA-256 `FD1CC0A4F1C74391F6ADCA5EAD9EF4E90F22BF455BE9EEAB0A947E46EB9D2F6E`），证据 `.planning\cinefin-expansion\w88-evidence\W88-B-capability\`（7 文件 / 12,194 B）。待用户裁决：A 批准版本化 sidecar / 等价下载真源且不扩 Room schema；B 拆分先交付 server/user + localLibrary 身份。未裁决前不进入 TDD，W88-C / W89 仍排队。
+
 **W88-C 持久化 SWR 与预取（#54）**：缓存一致性架构师；补磁盘快照与“立即旧值 + 后台刷新”，覆盖浏览元数据约 7 天、搜索 / 歌单首屏约 24 h，封面沿用约 30 天；用户动作和账号切换即时失效。非目标：不缓存令牌 / 播放直链；不全库预取；不让缓存替代歌单 / 下载 / 进度真源。验收：断网可先显示旧内容；切换账号首帧不泄漏；同 key 单请求；只预取首屏、下一页与批量下载元数据。落点：`MetadataCache`、repository、preloader、独立 snapshot store；现有 API 若不能先旧后新先做缓存 spike。
 
 #### W89 应用内更新（W84 下载契约冻结后）
