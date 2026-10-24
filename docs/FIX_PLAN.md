@@ -583,6 +583,8 @@
 
 **2026-10-24 35 万门禁主动交接检查点**：QA 收口 docs commit `89c30bac` 已 push，`master=origin/master=89c30bac`；W88-B 代码候选仍 `016e4a0f`。merge-prep detached worktree `F:\Develop\code_data\work_tree\Aurorama\w88-b-merge-prep\Aurorama` 已创建、HEAD=`016e4a0f`、clean；首个 merge-prep 代理在产生报告 / 证据前被中断，未 rebase、未改代码、未运行门禁。当前负责人实测 `353,404 / 1,048,576（33.7%）`，按 35 万硬门禁停止扩项，下一负责人必须重启全新 merge-prep，不得沿用旧代理。W88-C / W89 仍排队。
 
+**2026-10-24 W88-B merge-prep、ff-only、push 与三路 CI 完成（收口）**：全新 `deepseek-flash`、`fork_turns=none` merge-prep 从候选 `016e4a0f` 机械 rebase 最新 `origin/master=221db313` 到 `13a59a84`；三提交 `6e3b3366` / `359b66b2` / `016e4a0f` 与 rebase 后 `e166692f` / `dcb02afc` / `13a59a84` 的逐提交 patch-id 全部一致，范围保持 28 文件 `+2049/−246`。11 模块 JVM `280/280` actionable tasks executed、201 XML **1328/0/0/0**；11 模块 debug **384/384 executed**；根格式 `34/34`、三路 diff-check、graphify `12,195 nodes / 38,614 edges` 均通过，白名单 28/28、禁改项 0。负责人复核后 ff-only / push `221db313..13a59a84`，无 merge commit；同代码 commit CI Build `40081584607` / Unit Tests `40081584581` / Format `40081584573` 均 success，headSha 精确为 `13a59a84`。merge-prep 报告 `.planning\cinefin-expansion\w88-reports\W88-B-MERGE-PREP.md`，证据 `.planning\cinefin-expansion\w88-evidence\W88-B-merge-prep\`。W88-B P0/P1/P2/P3=`0/0/1/4` 与全部未覆盖项原样保留；P2（生产书籍 GET 404 导致成功下载后的真机 SOURCE 对账、v2 sidecar 强停持久与 SERVER+DOWNLOADED 标签未运行时验证）仍阻断发布，JVM 不替代真机链路。W87-C 两项 BLOCKED、`0/0/0/2` 与 349 首队列快照偏差均不清除。W88-B 已闭合，但 W88-C / W89 未开工，1.4.0 仍不可发布。
+
 **W88-C 持久化 SWR 与预取（#54）**：缓存一致性架构师；补磁盘快照与“立即旧值 + 后台刷新”，覆盖浏览元数据约 7 天、搜索 / 歌单首屏约 24 h，封面沿用约 30 天；用户动作和账号切换即时失效。非目标：不缓存令牌 / 播放直链；不全库预取；不让缓存替代歌单 / 下载 / 进度真源。验收：断网可先显示旧内容；切换账号首帧不泄漏；同 key 单请求；只预取首屏、下一页与批量下载元数据。落点：`MetadataCache`、repository、preloader、独立 snapshot store；现有 API 若不能先旧后新先做缓存 spike。
 
 #### W89 应用内更新（W84 下载契约冻结后）
