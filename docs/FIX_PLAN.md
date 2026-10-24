@@ -603,6 +603,10 @@
 
 **2026-10-24 A2 / B2 收口，负责人按上下文门禁停止扩项（检查点）**：A 分支 HEAD `e917c8c6`，新增版本化 DTO 白名单 snapshot store / codec（SHA-256 namespace+key 路径、checksum、原子 fsync+rename、512 文件 / 32MiB LRU），data JVM `115/0/0/0`、目标 17/17；A1+A2 共 3 个本地提交，P0–P3=`0/0/0/1`，P3 为真实 Android 文件系统/崩溃时序/多进程与独立 QA 未覆盖。B 分支 HEAD `d1a6f8b9`，新增独立 release/transfer 状态、稳定 updateId、真实 `.part` offset、200/206/416 Range、强/弱 validator 与取消保留残片；data JVM `137/0/0/0`，B2 两套 13/17，分支共 3 个本地提交。两条均 clean、未 push、无设备锁。**尚未完成**：A3 repository 磁盘 SWR、A4 封面 namespace/歌单首屏/批量预取；B3 检查单飞/24h 门控/Workers、B4 设置入口/页面/启动接线；两轨全量构建、最小真机、独立 QA、merge-prep、ff-only/CI。负责人实测约 `295,810`，停止新增任务，下一角色见 ACTIVE；不得把中间 SHA 当合并候选。
 
+**2026-10-24 用户放宽体积约束（续跑决策）**：用户确认可以继续，并明确 App 缓存空间与 App 体积不作为优先约束，体验优先；必要时允许引入成熟库或工具。W88-C 的 snapshot 默认容量改为宽松目标约 `256 MiB / 4096` 条（仍保留损坏/磁盘异常保护），不因体积删除离线体验；W89-A 可使用既有 WorkManager/OkHttp/serialization，确需新依赖时由负责人审核 Gradle / 版本目录。仍禁止全库预取、生产写、W89-B 校验安装、W89-C 发布契约；新增依赖不得改变 W84 媒体下载边界。
+
+**2026-10-24 A3 / B3 收口（准备 35 万交接）**：A 分支 HEAD `5717f9c7`，repository 已接真实 v2 磁盘快照：冷启动先返回旧值、软阈值后台单飞刷新、7d 浏览 / 24h 搜索上限、generation fence、当前 namespace 定向失效；DTO 命中后重新映射当前 Room / 本地来源，快照容量按用户新决策放宽至 256MiB / 4096。data JVM `124/0/0/0`，phone `assembleDebug` 成功，graphify 通过；P0–P3=`0/0/0/2`。B 分支 HEAD `e8d5474f`，完成检查 single-flight、失败也占 24h 的自动门控、手动绕门控、唯一 Work、前台下载 Worker 与小型 Data；data `147/0/0/0`、core `140/0/0/0`、phone debug 构建通过，P0–P3=`0/0/0/0`。两分支均 clean、未 push、无新增产品 P0/P1/BLOCKED。**仍未完成**：A4 封面 namespace / 服务器歌单首屏 / 批量下载预取；B4 设置入口 / 更新页面 / BaseApplication 启动接线；两条整轨尚未独立 QA、设备自测、merge-prep、ff-only/CI。负责人约 340k，按 35 万门禁创建下一负责人会话。
+
 ## 4. 决策记录
 
 | 编号 | 决策 | 来源 / 理由 |
