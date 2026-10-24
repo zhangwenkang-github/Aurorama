@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.presentation.update
 
 import android.text.format.Formatter
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +53,13 @@ fun UpdateScreen(
     val gutter = rememberPageGutter()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    val installLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            viewModel.onInstallerReturned()
+        }
+    LaunchedEffect(viewModel) {
+        viewModel.installLaunchRequests.collect { intent -> installLauncher.launch(intent) }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(colors.surface)) {
         CinefinPageTopBar(
@@ -80,7 +90,11 @@ fun UpdateScreen(
                     verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                 ) {
                     UpdateStatus(state)
-                    if (state.phase == UpdateUiPhase.CHECKING) {
+                    if (
+                        state.phase == UpdateUiPhase.CHECKING ||
+                            state.phase == UpdateUiPhase.VERIFYING ||
+                            state.phase == UpdateUiPhase.INSTALLER_LAUNCHED
+                    ) {
                         CircularProgressIndicator(
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
@@ -105,7 +119,7 @@ fun UpdateScreen(
                 }
             }
             Text(
-                text = stringResource(R.string.update_no_install),
+                text = stringResource(R.string.update_install_safety),
                 style = CinefinType.BodySmall,
                 color = colors.onSurfaceFaint,
             )
@@ -125,6 +139,14 @@ private fun UpdateStatus(state: UpdateUiState) {
                 stringResource(R.string.update_available, state.availableVersion.orEmpty())
             UpdateUiPhase.DOWNLOADING -> stringResource(R.string.update_downloading)
             UpdateUiPhase.READY_FOR_VERIFICATION -> stringResource(R.string.update_ready)
+            UpdateUiPhase.VERIFYING -> stringResource(R.string.update_verifying)
+            UpdateUiPhase.READY_TO_INSTALL -> stringResource(R.string.update_ready_to_install)
+            UpdateUiPhase.VERIFICATION_FAILED -> stringResource(R.string.update_verification_failed)
+            UpdateUiPhase.INSTALLER_LAUNCHED -> stringResource(R.string.update_installer_launched)
+            UpdateUiPhase.INSTALLED -> stringResource(R.string.update_installed)
+            UpdateUiPhase.INSTALL_CANCELLED_OR_UNCHANGED ->
+                stringResource(R.string.update_install_cancelled_or_unchanged)
+            UpdateUiPhase.INSTALL_RESULT_FAILED -> stringResource(R.string.update_install_failed)
             UpdateUiPhase.FAILED -> stringResource(R.string.update_failed)
             UpdateUiPhase.CANCELLED -> stringResource(R.string.update_cancelled)
         }
@@ -164,5 +186,7 @@ private fun PrimaryAction(
             Button(onClick = viewModel::checkForUpdates) {
                 Text(stringResource(R.string.update_retry_check))
             }
+        UpdatePrimaryAction.INSTALL ->
+            Button(onClick = viewModel::install) { Text(stringResource(R.string.update_install)) }
     }
 }

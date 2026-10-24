@@ -6,6 +6,7 @@ import com.zhangwenkang.cinefin.update.UpdateFailureCode
 import com.zhangwenkang.cinefin.update.UpdateTerminalResult
 import com.zhangwenkang.cinefin.update.UpdateTransferPhase
 import com.zhangwenkang.cinefin.update.UpdateTransferState
+import com.zhangwenkang.cinefin.update.UpdateVerificationFailure
 import com.zhangwenkang.cinefin.update.stableUpdateId
 
 enum class UpdateUiPhase {
@@ -15,6 +16,13 @@ enum class UpdateUiPhase {
     AVAILABLE,
     DOWNLOADING,
     READY_FOR_VERIFICATION,
+    VERIFYING,
+    READY_TO_INSTALL,
+    VERIFICATION_FAILED,
+    INSTALLER_LAUNCHED,
+    INSTALLED,
+    INSTALL_CANCELLED_OR_UNCHANGED,
+    INSTALL_RESULT_FAILED,
     FAILED,
     CANCELLED,
 }
@@ -25,7 +33,25 @@ enum class UpdatePrimaryAction {
     CANCEL,
     RETRY,
     RETRY_CHECK,
+    INSTALL,
 }
+
+enum class UpdateInstallUiPhase {
+    IDLE,
+    VERIFYING,
+    READY_TO_INSTALL,
+    VERIFICATION_FAILED,
+    INSTALLER_LAUNCHED,
+    INSTALLED,
+    CANCELLED_OR_UNCHANGED,
+    RESULT_FAILED,
+}
+
+data class UpdateInstallUiStatus(
+    val phase: UpdateInstallUiPhase = UpdateInstallUiPhase.IDLE,
+    val updateId: String? = null,
+    val verificationFailure: UpdateVerificationFailure? = null,
+)
 
 data class UpdateUiState(
     val phase: UpdateUiPhase = UpdateUiPhase.IDLE,
@@ -34,6 +60,7 @@ data class UpdateUiState(
     val downloadedBytes: Long = 0L,
     val totalBytes: Long = 0L,
     val failureCode: UpdateFailureCode? = null,
+    val verificationFailure: UpdateVerificationFailure? = null,
     val checkFailure: UpdateTerminalResult? = null,
     val primaryAction: UpdatePrimaryAction = UpdatePrimaryAction.NONE,
     val canCheck: Boolean = true,
@@ -45,6 +72,45 @@ data class UpdateUiState(
             } else {
                 null
             }
+}
+
+fun applyUpdateInstallUiStatus(
+    base: UpdateUiState,
+    status: UpdateInstallUiStatus,
+): UpdateUiState {
+    if (status.phase == UpdateInstallUiPhase.IDLE) return base
+    val phase =
+        when (status.phase) {
+            UpdateInstallUiPhase.IDLE -> return base
+            UpdateInstallUiPhase.VERIFYING -> UpdateUiPhase.VERIFYING
+            UpdateInstallUiPhase.READY_TO_INSTALL -> UpdateUiPhase.READY_TO_INSTALL
+            UpdateInstallUiPhase.VERIFICATION_FAILED -> UpdateUiPhase.VERIFICATION_FAILED
+            UpdateInstallUiPhase.INSTALLER_LAUNCHED -> UpdateUiPhase.INSTALLER_LAUNCHED
+            UpdateInstallUiPhase.INSTALLED -> UpdateUiPhase.INSTALLED
+            UpdateInstallUiPhase.CANCELLED_OR_UNCHANGED ->
+                UpdateUiPhase.INSTALL_CANCELLED_OR_UNCHANGED
+            UpdateInstallUiPhase.RESULT_FAILED -> UpdateUiPhase.INSTALL_RESULT_FAILED
+        }
+    val action =
+        when (status.phase) {
+            UpdateInstallUiPhase.IDLE,
+            UpdateInstallUiPhase.VERIFYING,
+            UpdateInstallUiPhase.INSTALLER_LAUNCHED,
+            UpdateInstallUiPhase.INSTALLED,
+            UpdateInstallUiPhase.CANCELLED_OR_UNCHANGED,
+            UpdateInstallUiPhase.RESULT_FAILED -> UpdatePrimaryAction.NONE
+            UpdateInstallUiPhase.READY_TO_INSTALL -> UpdatePrimaryAction.INSTALL
+            UpdateInstallUiPhase.VERIFICATION_FAILED -> UpdatePrimaryAction.RETRY
+        }
+    return base.copy(
+        phase = phase,
+        updateId = status.updateId ?: base.updateId,
+        verificationFailure = status.verificationFailure,
+        primaryAction = action,
+        canCheck =
+            status.phase != UpdateInstallUiPhase.VERIFYING &&
+                status.phase != UpdateInstallUiPhase.INSTALLER_LAUNCHED,
+    )
 }
 
 internal enum class UpdateCheckWorkStatus {

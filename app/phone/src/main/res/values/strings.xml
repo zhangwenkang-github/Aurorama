@@ -29,6 +29,13 @@
     <string name="update_downloading">Downloading update…</string>
     <string name="update_progress_bytes">%1$s of %2$s</string>
     <string name="update_ready">Download complete; waiting for verification.</string>
+    <string name="update_verifying">Verifying update package…</string>
+    <string name="update_ready_to_install">Package verified. You can open the system installer.</string>
+    <string name="update_verification_failed">Package verification failed. The file was removed; download it again.</string>
+    <string name="update_installer_launched">System installer opened; waiting for your confirmation.</string>
+    <string name="update_installed">Update installed and verified.</string>
+    <string name="update_install_cancelled_or_unchanged">Installation was cancelled or the app version did not change.</string>
+    <string name="update_install_failed">Could not verify the installed version after the system installer returned.</string>
     <string name="update_failed">The update could not be completed. Try again.</string>
     <string name="update_cancelled">Update download cancelled.</string>
     <string name="update_check">Check for updates</string>
@@ -36,5 +43,6 @@
     <string name="update_download">Download update</string>
     <string name="update_cancel">Cancel download</string>
     <string name="update_retry_download">Retry download</string>
-    <string name="update_no_install">This build cannot install updates yet.</string>
+    <string name="update_install">Open system installer</string>
+    <string name="update_install_safety">Installation is confirmed in the system UI. The app rechecks the installed version before reporting success.</string>
 </resources>

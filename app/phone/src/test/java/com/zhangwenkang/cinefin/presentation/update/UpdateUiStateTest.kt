@@ -6,6 +6,7 @@ import com.zhangwenkang.cinefin.update.UpdateFailureCode
 import com.zhangwenkang.cinefin.update.UpdateTerminalResult
 import com.zhangwenkang.cinefin.update.UpdateTransferPhase
 import com.zhangwenkang.cinefin.update.UpdateTransferState
+import com.zhangwenkang.cinefin.update.UpdateVerificationFailure
 import com.zhangwenkang.cinefin.update.releaseAssetUrl
 import com.zhangwenkang.cinefin.update.stableUpdateId
 import org.junit.Assert.assertEquals
@@ -269,6 +270,96 @@ class UpdateUiStateTest {
             assertFalse(selected.running)
             assertNull(selected.terminal)
         }
+    }
+
+    @Test
+    fun installFlowMapsEveryRequiredSemanticWithoutClaimingSuccessEarly() {
+        val base =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                transfer = transferState(phase = UpdateTransferPhase.READY_FOR_VERIFICATION),
+            )
+        val updateId = base.updateId!!
+        val expectations =
+            listOf(
+                UpdateInstallUiStatus(UpdateInstallUiPhase.VERIFYING, updateId) to
+                    (UpdateUiPhase.VERIFYING to UpdatePrimaryAction.NONE),
+                UpdateInstallUiStatus(UpdateInstallUiPhase.READY_TO_INSTALL, updateId) to
+                    (UpdateUiPhase.READY_TO_INSTALL to UpdatePrimaryAction.INSTALL),
+                UpdateInstallUiStatus(
+                    UpdateInstallUiPhase.VERIFICATION_FAILED,
+                    updateId,
+                    UpdateVerificationFailure.DIGEST_MISMATCH,
+                ) to (UpdateUiPhase.VERIFICATION_FAILED to UpdatePrimaryAction.RETRY),
+                UpdateInstallUiStatus(UpdateInstallUiPhase.INSTALLER_LAUNCHED, updateId) to
+                    (UpdateUiPhase.INSTALLER_LAUNCHED to UpdatePrimaryAction.NONE),
+                UpdateInstallUiStatus(UpdateInstallUiPhase.INSTALLED, updateId) to
+                    (UpdateUiPhase.INSTALLED to UpdatePrimaryAction.NONE),
+                UpdateInstallUiStatus(UpdateInstallUiPhase.CANCELLED_OR_UNCHANGED, updateId) to
+                    (UpdateUiPhase.INSTALL_CANCELLED_OR_UNCHANGED to UpdatePrimaryAction.NONE),
+                UpdateInstallUiStatus(UpdateInstallUiPhase.RESULT_FAILED, updateId) to
+                    (UpdateUiPhase.INSTALL_RESULT_FAILED to UpdatePrimaryAction.NONE),
+            )
+
+        expectations.forEach { (status, expected) ->
+            val actual = applyUpdateInstallUiStatus(base, status)
+
+            assertEquals(expected.first, actual.phase)
+            assertEquals(expected.second, actual.primaryAction)
+        }
+    }
+
+    @Test
+    fun installerLaunchDisablesCheckAndVerificationStatusKeepsFailureCode() {
+        val base =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                transfer = transferState(phase = UpdateTransferPhase.READY_FOR_VERIFICATION),
+            )
+        val updateId = base.updateId!!
+
+        val launched =
+            applyUpdateInstallUiStatus(
+                base,
+                UpdateInstallUiStatus(UpdateInstallUiPhase.INSTALLER_LAUNCHED, updateId),
+            )
+        val failed =
+            applyUpdateInstallUiStatus(
+                base,
+                UpdateInstallUiStatus(
+                    UpdateInstallUiPhase.VERIFICATION_FAILED,
+                    updateId,
+                    UpdateVerificationFailure.SIGNER_SET_MISMATCH,
+                ),
+            )
+
+        assertFalse(launched.canCheck)
+        assertEquals(UpdateUiPhase.INSTALLER_LAUNCHED, launched.phase)
+        assertEquals(UpdateVerificationFailure.SIGNER_SET_MISMATCH, failed.verificationFailure)
+    }
+
+    @Test
+    fun idleInstallStatusPreservesDownloadingAndCancelledSemantics() {
+        val downloading =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                transfer = transferState(phase = UpdateTransferPhase.DOWNLOADING),
+                downloadedBytes = 37,
+            )
+        val cancelled =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                transfer = transferState(phase = UpdateTransferPhase.CANCELLED),
+                downloadedBytes = 37,
+            )
+
+        assertEquals(downloading, applyUpdateInstallUiStatus(downloading, UpdateInstallUiStatus()))
+        assertEquals(cancelled, applyUpdateInstallUiStatus(cancelled, UpdateInstallUiStatus()))
+        assertEquals(UpdatePrimaryAction.RETRY, cancelled.primaryAction)
     }
 
     private fun releaseState(): StoredReleaseState {

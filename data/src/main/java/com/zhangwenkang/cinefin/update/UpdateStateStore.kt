@@ -425,6 +425,34 @@ class UpdateStateStore(
         )
     }
 
+    @Synchronized
+    fun markVerificationFailed(
+        transfer: UpdateTransferState,
+        nowEpochMs: Long = clock(),
+    ): UpdateStateWriteResult {
+        return when (val current = readState<UpdateTransferState>(TRANSFER_STATE_FILE)) {
+            UpdateStateReadResult.Absent ->
+                UpdateStateWriteResult.Failure("transfer state is absent")
+            is UpdateStateReadResult.Invalid -> UpdateStateWriteResult.Failure(current.reason)
+            is UpdateStateReadResult.Present -> {
+                if (
+                    current.value.updateId != transfer.updateId ||
+                        current.value.phase != UpdateTransferPhase.READY_FOR_VERIFICATION
+                ) {
+                    UpdateStateWriteResult.Failure("transfer is not ready for verification")
+                } else {
+                    writeTransfer(
+                        current.value.copy(
+                            phase = UpdateTransferPhase.FAILED,
+                            updatedAtEpochMs = maxOf(current.value.updatedAtEpochMs, nowEpochMs),
+                            failureCode = UpdateFailureCode.INVALID_RESPONSE,
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     fun resetPart(transfer: UpdateTransferState) {
         FileOutputStream(partFile(transfer), false).use { output -> output.fd.sync() }
     }
