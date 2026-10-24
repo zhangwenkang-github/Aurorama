@@ -203,6 +203,9 @@ constructor(
         /** 错误标题（错误态面板顶部文案：曲库加载 / 播放 / 歌单加载）。 */
         val errorTitle: String? = null,
         val errorMessage: String? = null,
+        /** 曲库 / 歌单来源加载错误；已有内容时作为非阻塞提示显示。 */
+        val loadErrorTitle: String? = null,
+        val loadErrorMessage: String? = null,
     ) {
         /** 当前详情页的曲目；无详情时为空。 */
         val detailSongs: List<MusicSong>
@@ -949,69 +952,140 @@ constructor(
             val firstLoad = _uiState.value.loading
             _uiState.update {
                 if (firstLoad) {
-                    it.copy(loading = true, errorTitle = null, errorMessage = null)
-                } else {
-                    it.copy(refreshing = true, errorTitle = null, errorMessage = null)
-                }
-            }
-            // W36：离线模式只读本机已下载曲目，不发任何网络请求。
-            if (offlineMode) {
-                Timber.d("曲库刷新：离线模式 → 只重读本机索引（不发服务器请求）")
-                serverLibrary =
-                    runCatching { loadOfflineLibrary() }
-                        .onFailure { Timber.w(it, "读取离线曲库失败") }
-                        .getOrElse { MusicLibrary(emptyList(), emptyList(), emptyList()) }
-                localLibrary = loadLocalLibrary()
-                serverPlaylists = emptyList()
-                _uiState.update {
                     it.copy(
-                        loading = false,
-                        refreshing = false,
-                        offline = true,
-                        musicLibraries = emptyList(),
-                        selectedMusicLibraryId = null,
-                        selectedMusicLibraryName = null,
+                        loading = true,
                         errorTitle = null,
                         errorMessage = null,
+                        loadErrorTitle = null,
+                        loadErrorMessage = null,
+                    )
+                } else {
+                    it.copy(
+                        refreshing = true,
+                        errorTitle = null,
+                        errorMessage = null,
+                        loadErrorTitle = null,
+                        loadErrorMessage = null,
                     )
                 }
-                publishPlaylists()
-                publishLibraries()
-                playPendingRouteSong()
-                Timber.d(
-                    "曲库刷新：完成 offline=true albums=%d songs=%d",
-                    _uiState.value.albums.size,
-                    _uiState.value.songs.size,
-                )
-                refreshDownloadState()
-                return@launch
             }
             try {
-                val (library, playlists) = loadLibraryWithRetry(forceServerPlaylistRefresh)
-                // W66：音乐库选择器候选（失败不阻塞曲库加载）。
-                val musicLibraries = loadMusicLibraryList()
-                val selectedMusicLibrary =
-                    resolveSelectedMusicLibrary(
-                        musicLibraries,
-                        appPreferences.getValue(appPreferences.uiMusicLibraryId),
+                // 曲库与歌单摘要独立加载：歌单命中磁盘摘要后可先上屏，不等待曲库请求或重试。
+                val sources =
+                    loadMusicLibrarySources(
+                        offline = offlineMode,
+                        forceServerPlaylistRefresh = forceServerPlaylistRefresh,
+                        loadLibrary = { loadLibraryWithRetry() },
+                        loadOfflineLibrary = {
+                            runCatching { loadOfflineLibrary() }
+                                .onFailure { Timber.w(it, "读取离线曲库失败") }
+                                .getOrElse { MusicLibrary(emptyList(), emptyList(), emptyList()) }
+                        },
+                        loadPlaylists = { forceRefresh ->
+                            repository.getPlaylists(forceRefresh = forceRefresh)
+                        },
+                        onLibraryLoaded = { library ->
+                            serverLibrary = library
+                            _uiState.update { it.copy(loading = false, offline = offlineMode) }
+                            publishLibraries()
+                            playPendingRouteSong()
+                        },
+                        onPlaylistsLoaded = { playlists ->
+                            serverPlaylists = playlists
+                            _uiState.update { it.copy(loading = false, offline = offlineMode) }
+                            publishPlaylists()
+                        },
                     )
-                serverLibrary = library
                 localLibrary = loadLocalLibrary()
-                serverPlaylists = playlists
+
+                if (offlineMode) {
+                    Timber.d("曲库刷新：离线模式 → 只重读本机索引（不发服务器请求）")
+                    serverPlaylists = emptyList()
+                    _uiState.update {
+                        it.copy(
+                            loading = false,
+                            refreshing = false,
+                            offline = true,
+                            musicLibraries = emptyList(),
+                            selectedMusicLibraryId = null,
+                            selectedMusicLibraryName = null,
+                            errorTitle = null,
+                            errorMessage = null,
+                            loadErrorTitle = null,
+                            loadErrorMessage = null,
+                        )
+                    }
+                    publishPlaylists()
+                    publishLibraries()
+                    playPendingRouteSong()
+                    Timber.d(
+                        "曲库刷新：完成 offline=true albums=%d songs=%d",
+                        _uiState.value.albums.size,
+                        _uiState.value.songs.size,
+                    )
+                    refreshDownloadState()
+                    return@launch
+                }
+
+                sources.library?.let { serverLibrary = it }
+                sources.playlists?.let { serverPlaylists = it }
+                val musicLibraries =
+                    if (sources.library != null) loadMusicLibraryList() else emptyList()
+                val selectedMusicLibrary =
+                    if (sources.library != null) {
+                        resolveSelectedMusicLibrary(
+                            musicLibraries,
+                            appPreferences.getValue(appPreferences.uiMusicLibraryId),
+                        )
+                    } else {
+                        null
+                    }
                 _uiState.update {
                     it.copy(
                         loading = false,
                         refreshing = false,
                         offline = false,
-                        musicLibraries = musicLibraryOptions(musicLibraries),
-                        selectedMusicLibraryId = selectedMusicLibrary?.id,
-                        selectedMusicLibraryName = selectedMusicLibrary?.name,
+                        musicLibraries =
+                            if (sources.library != null) {
+                                musicLibraryOptions(musicLibraries)
+                            } else {
+                                it.musicLibraries
+                            },
+                        selectedMusicLibraryId =
+                            if (sources.library != null) {
+                                selectedMusicLibrary?.id
+                            } else {
+                                it.selectedMusicLibraryId
+                            },
+                        selectedMusicLibraryName =
+                            if (sources.library != null) {
+                                selectedMusicLibrary?.name
+                            } else {
+                                it.selectedMusicLibraryName
+                            },
                         errorTitle = null,
                         errorMessage = null,
+                        loadErrorTitle = null,
+                        loadErrorMessage = null,
                     )
                 }
                 publishPlaylists()
                 publishLibraries()
+                val loadError = musicSourceLoadError(sources)
+                _uiState.update {
+                    it.copy(
+                        tab =
+                            musicTabAfterInitialSourceLoad(
+                                currentTab = it.tab,
+                                firstLoad = firstLoad,
+                                libraryFailed = sources.libraryError != null,
+                                albumCount = it.albums.size,
+                                playlistCount = serverPlaylists.size,
+                            ),
+                        loadErrorTitle = loadError?.first,
+                        loadErrorMessage = loadError?.second,
+                    )
+                }
                 playPendingRouteSong()
                 Timber.d(
                     "曲库刷新：完成 offline=false albums=%d songs=%d",
@@ -1025,6 +1099,7 @@ constructor(
                 // 服务器不可达时本地媒体库仍然可用（错误面板关闭后能看到本地曲目）。
                 localLibrary = loadLocalLibrary()
                 publishLibraries()
+                publishPlaylists()
                 _uiState.update {
                     it.copy(
                         loading = false,
@@ -1119,26 +1194,37 @@ constructor(
     }
 
     /** 第一次失败视为偶发（服务端超时 / 弱网），自动重试一次后仍失败才抛给调用方。 */
-    private suspend fun loadLibraryWithRetry(
-        forceServerPlaylistRefresh: Boolean
-    ): Pair<MusicLibrary, List<MusicPlaylist>> =
+    private suspend fun loadLibraryWithRetry(): MusicLibrary =
         try {
-            loadLibraryOnce(forceServerPlaylistRefresh)
+            loadLibraryOnce()
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (first: Exception) {
             Timber.w(first, "曲库加载失败，自动重试一次")
             delay(AUTO_RETRY_DELAY_MS)
-            loadLibraryOnce(forceServerPlaylistRefresh)
+            loadLibraryOnce()
         }
 
-    private suspend fun loadLibraryOnce(
-        forceServerPlaylistRefresh: Boolean
-    ): Pair<MusicLibrary, List<MusicPlaylist>> {
+    private suspend fun loadLibraryOnce(): MusicLibrary {
         val libraryId = selectedMusicLibraryId()
         Timber.d("曲库刷新：重新请求服务器曲库 library=%s", libraryId)
-        val library = repository.getLibrary(libraryId = libraryId)
-        return library to repository.getPlaylists(forceRefresh = forceServerPlaylistRefresh)
+        return repository.getLibrary(libraryId = libraryId)
+    }
+
+    private fun musicSourceLoadError(sources: MusicLibrarySources): Pair<String, String>? {
+        val libraryMessage =
+            sources.libraryError?.message?.takeIf { it.isNotBlank() }
+                ?: sources.libraryError?.let { "无法读取曲库，请稍后重试" }
+        val playlistMessage =
+            sources.playlistsError?.message?.takeIf { it.isNotBlank() }
+                ?: sources.playlistsError?.let { "无法读取歌单，请稍后重试" }
+        return when {
+            libraryMessage != null && playlistMessage != null ->
+                "曲库与歌单加载失败" to "曲库：$libraryMessage；歌单：$playlistMessage"
+            libraryMessage != null -> "曲库加载失败" to libraryMessage
+            playlistMessage != null -> "歌单加载失败" to playlistMessage
+            else -> null
+        }
     }
 
     /** W66：服务器音乐库列表（顶栏选择器候选；读取失败返回空列表，不阻塞曲库加载）。 */
@@ -2483,7 +2569,14 @@ constructor(
     fun selectCrossfadeSeconds(seconds: Int) = audioEffects.setCrossfadeSeconds(seconds)
 
     fun dismissError() {
-        _uiState.update { it.copy(errorTitle = null, errorMessage = null) }
+        _uiState.update {
+            it.copy(
+                errorTitle = null,
+                errorMessage = null,
+                loadErrorTitle = null,
+                loadErrorMessage = null,
+            )
+        }
     }
 
     private companion object {

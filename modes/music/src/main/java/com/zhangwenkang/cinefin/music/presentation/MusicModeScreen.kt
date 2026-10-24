@@ -408,18 +408,41 @@ fun MusicModeScreen(
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 }
 
+                val loadErrorMessage = state.loadErrorMessage
+                val operationErrorMessage = state.errorMessage
+                val hasRenderableContent = state.hasRenderableMusicContent()
+                if (loadErrorMessage != null && hasRenderableContent) {
+                    MusicSourceLoadErrorNotice(
+                        title = state.loadErrorTitle ?: "音乐内容加载失败",
+                        message = loadErrorMessage,
+                        onRetry = viewModel::refresh,
+                        onDismiss = viewModel::dismissError,
+                    )
+                }
+                val shouldBlockLoadError =
+                    shouldShowBlockingMusicError(
+                        errorMessage = loadErrorMessage,
+                        hasRenderableContent = hasRenderableContent,
+                    )
+
                 // W39：四个 tab 共用真实下拉刷新；离线模式 refresh() 只重读本机索引，不发服务器请求。
                 PullToRefreshBox(
                     isRefreshing = state.refreshing,
                     onRefresh = viewModel::refresh,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 ) {
-                    val error = state.errorMessage
                     when {
-                        error != null ->
+                        shouldBlockLoadError && loadErrorMessage != null ->
+                            ErrorPane(
+                                title = state.loadErrorTitle ?: "曲库加载失败",
+                                message = loadErrorMessage,
+                                onRetry = viewModel::refresh,
+                                onDismiss = viewModel::dismissError,
+                            )
+                        operationErrorMessage != null ->
                             ErrorPane(
                                 title = state.errorTitle ?: "曲库加载失败",
-                                message = error,
+                                message = operationErrorMessage,
                                 onRetry = viewModel::refresh,
                                 onDismiss = viewModel::dismissError,
                             )
@@ -2370,6 +2393,47 @@ private fun ErrorPane(
                     size = CinefinButtonSize.Medium,
                 )
             },
+        )
+    }
+}
+
+@Composable
+private fun MusicSourceLoadErrorNotice(
+    title: String,
+    message: String,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .background(colors.surfaceContainer)
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = CinefinType.LabelLarge, color = colors.onSurface)
+            Text(
+                text = message,
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = "重试",
+            style = CinefinType.LabelMedium,
+            color = media.bright,
+            modifier = Modifier.clickable(onClick = onRetry).padding(CinefinSpacing.Space2),
+        )
+        Text(
+            text = "关闭",
+            style = CinefinType.LabelMedium,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.clickable(onClick = onDismiss).padding(CinefinSpacing.Space2),
         )
     }
 }
