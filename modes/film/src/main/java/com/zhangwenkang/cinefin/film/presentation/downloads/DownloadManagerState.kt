@@ -34,6 +34,8 @@ data class DownloadManagerState(
     val storage: DownloadStorageUsage = DownloadStorageUsage(0L, 0L, 0L),
     val selectionMode: Boolean = false,
     val selection: Set<String> = emptySet(),
+    /** 本机已受理、仍等待任务调用 / 状态落地结果的下载动作。 */
+    val pendingActions: Map<String, DownloadPendingAction> = emptyMap(),
 ) {
     val activeCount: Int
         get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.itemId }.size
@@ -84,6 +86,22 @@ data class DownloadManagerState(
     val selectedTasks: List<DownloadTask>
         get() = selectedEntries.mapNotNull { entry -> entry.task }
 }
+
+enum class DownloadPendingAction {
+    PLAY,
+    PAUSE,
+    RESUME,
+    RETRY,
+    DELETE,
+}
+
+fun DownloadManagerState.beginPending(
+    action: DownloadPendingAction,
+    keys: Set<String> = selection,
+): DownloadManagerState = copy(pendingActions = pendingActions + keys.associateWith { action })
+
+fun DownloadManagerState.finishPending(keys: Set<String>): DownloadManagerState =
+    copy(pendingActions = pendingActions - keys)
 
 private fun DownloadHierarchyContainer.descendantEntries(): List<DownloadHierarchyEntry> =
     children.flatMap { child ->
@@ -168,6 +186,9 @@ sealed interface DownloadAction {
 
     data object DeleteSelected : DownloadAction
 
+    /** 播放当前选中的已完成同类型条目。 */
+    data object PlaySelected : DownloadAction
+
     data class Pause(val task: DownloadTask) : DownloadAction
 
     data class Resume(val task: DownloadTask) : DownloadAction
@@ -179,6 +200,12 @@ sealed interface DownloadAction {
     data class DeleteCompleted(val download: CompletedDownload) : DownloadAction
 
     data class Open(val item: FindroidItem) : DownloadAction
+}
+
+sealed interface DownloadPlaybackRequest {
+    data class Music(val itemIds: List<UUID>) : DownloadPlaybackRequest
+
+    data class Video(val items: List<FindroidItem>) : DownloadPlaybackRequest
 }
 
 fun taskKey(task: DownloadTask): String = "task:${task.sourceId}"

@@ -13,6 +13,22 @@ import kotlinx.coroutines.flow.first
 internal const val LYRICS_CENTER_SCROLL_DURATION_MS = 240
 
 /**
+ * 歌词页单次可见会话的跟随状态。
+ *
+ * [manualPause] 只表示本次停留中用户主动滚动；[restoreToken] 在重新进入且全局跟随开启时递增，用于强制恢复一次居中。
+ */
+internal data class LyricsFollowUiState(
+    val manualPause: Boolean = false,
+    val restoreToken: Long = 0L,
+)
+
+internal fun LyricsFollowUiState.onPageEntered(displayFollow: Boolean): LyricsFollowUiState =
+    copy(
+        manualPause = false,
+        restoreToken = if (displayFollow) restoreToken + 1L else restoreToken,
+    )
+
+/**
  * 当前歌词行相对滚动视口中心的位移（内容坐标系）。
  *
  * [LazyListState.layoutInfo] 的 item offset 与 viewport offset 同为内容坐标；不能把 item offset 和仅由 viewport

@@ -107,6 +107,7 @@ internal fun lyricsLineClickFollowOutcome(
 fun MusicLyricsPage(
     title: String,
     state: MusicModeViewModel.LyricsUiState,
+    entryToken: Long,
     onBack: () -> Unit,
     onSelectLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleBilingual: () -> Unit,
@@ -118,9 +119,12 @@ fun MusicLyricsPage(
 ) {
     val colors = LocalCinefinColors.current
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
-    var followPausedByUser by remember { mutableStateOf(false) }
+    var followState by
+        remember(entryToken) {
+            mutableStateOf(LyricsFollowUiState().onPageEntered(state.display.follow))
+        }
     val continueFollow = {
-        followPausedByUser = false
+        followState = followState.copy(manualPause = false)
         if (!state.display.follow) onToggleFollow()
     }
     Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
@@ -178,8 +182,11 @@ fun MusicLyricsPage(
                     else ->
                         LyricsLines(
                             state = state,
-                            followPausedByUser = followPausedByUser,
-                            onFollowPausedByUserChange = { followPausedByUser = it },
+                            followPausedByUser = followState.manualPause,
+                            followRestoreToken = followState.restoreToken,
+                            onFollowPausedByUserChange = {
+                                followState = followState.copy(manualPause = it)
+                            },
                             onLineClick = onLineClick,
                         )
                 }
@@ -188,7 +195,7 @@ fun MusicLyricsPage(
         if (settingsOpen) {
             LyricsDisplaySettingsSheet(
                 state = state,
-                followPausedByUser = followPausedByUser,
+                followPausedByUser = followState.manualPause,
                 onDismiss = { settingsOpen = false },
                 onSelectLanguage = onSelectLanguage,
                 onToggleBilingual = onToggleBilingual,
@@ -313,6 +320,7 @@ private fun LyricsDisplayChip(label: String, selected: Boolean, onClick: () -> U
 private fun LyricsLines(
     state: MusicModeViewModel.LyricsUiState,
     followPausedByUser: Boolean,
+    followRestoreToken: Long,
     onFollowPausedByUserChange: (Boolean) -> Unit,
     onLineClick: (Long) -> Unit,
 ) {
@@ -382,6 +390,7 @@ private fun LyricsLines(
             state.rows.size,
             state.text,
             followPausedByUser,
+            followRestoreToken,
         ) {
             if (!state.display.follow || followPausedByUser) return@LaunchedEffect
             val suppressedIndex = suppressCenteringForIndex

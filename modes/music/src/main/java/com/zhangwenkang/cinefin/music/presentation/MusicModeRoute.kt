@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.music.presentation
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
+import com.zhangwenkang.cinefin.music.data.MusicSong
 import java.util.UUID
 import kotlinx.serialization.Serializable
 
@@ -15,7 +16,33 @@ import kotlinx.serialization.Serializable
 @Serializable data object MusicModeRoute
 
 /** W82 #25：搜索结果里的服务器 / 本地曲目 → 音乐页并起播（返回仍回搜索结果）。 */
-@Serializable data class MusicItemRoute(val itemId: String)
+@Serializable data class MusicItemRoute(val itemId: String, val queueItemIds: String? = null)
+
+/** 下载页多选播放参数：保持选择顺序、去重，非法整体参数回落到首个曲目。 */
+internal fun parseMusicQueueIds(raw: String?, fallback: UUID): List<UUID> {
+    val parsed =
+        raw?.split(',')
+            ?.mapNotNull { token ->
+                token
+                    .trim()
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            }
+            .orEmpty()
+            .distinct()
+    return parsed.ifEmpty { listOf(fallback) }
+}
+
+/** 按下载页选择顺序组装曲目；同一 id 优先服务器曲库，再回落本地媒体库。 */
+internal fun orderedMusicSongs(
+    itemIds: List<UUID>,
+    serverSongs: List<MusicSong>,
+    localSongs: List<MusicSong>,
+): List<MusicSong> {
+    val serverById = serverSongs.associateBy { it.itemId }
+    val localById = localSongs.associateBy { it.itemId }
+    return itemIds.mapNotNull { id -> serverById[id] ?: localById[id] }
+}
 
 /**
  * 「指定音乐库」的音乐模式目的地（W53 Bug B1）。

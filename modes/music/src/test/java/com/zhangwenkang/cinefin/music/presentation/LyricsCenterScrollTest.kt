@@ -156,4 +156,24 @@ class LyricsCenterScrollTest {
         assertFalse(outcome.followPausedByUser)
         assertNull(outcome.suppressCenteringForIndex)
     }
+
+    @Test
+    fun `re-entering lyrics clears manual pause and requests recenter`() {
+        val before = LyricsFollowUiState(manualPause = true, restoreToken = 4L)
+
+        val after = before.onPageEntered(displayFollow = true)
+
+        assertFalse(after.manualPause)
+        assertEquals(5L, after.restoreToken)
+    }
+
+    @Test
+    fun `re-entering lyrics respects a globally disabled follow setting`() {
+        val before = LyricsFollowUiState(manualPause = true, restoreToken = 4L)
+
+        val after = before.onPageEntered(displayFollow = false)
+
+        assertFalse(after.manualPause)
+        assertEquals(4L, after.restoreToken)
+    }
 }

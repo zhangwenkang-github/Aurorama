@@ -1286,6 +1286,16 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
+                        onPlayMusicItemIds = { itemIds ->
+                            itemIds.firstOrNull()?.let { first ->
+                                navController.safeNavigate(
+                                    MusicItemRoute(
+                                        itemId = first.toString(),
+                                        queueItemIds = itemIds.joinToString(","),
+                                    )
+                                )
+                            }
+                        },
                     )
                 }
             }
@@ -1306,6 +1316,7 @@ fun NavigationRoot(
                 MusicModeScreen(
                     onOpenDrawer = openDrawer,
                     initialSongId = route.itemId,
+                    initialQueueItemIds = route.queueItemIds,
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
                     onSearchClick = openMusicSearch,
                 )

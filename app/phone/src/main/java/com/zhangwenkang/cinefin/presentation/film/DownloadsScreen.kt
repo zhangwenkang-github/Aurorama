@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +35,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -58,6 +60,8 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyCon
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyRow
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadManagerState
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadMediaFilter
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadPendingAction
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadPlaybackRequest
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadSelectionRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
 import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
@@ -73,6 +77,9 @@ import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListSkeleton
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSeasonCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelRow
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
+import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
+import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
@@ -80,18 +87,37 @@ import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import java.util.UUID
 
 @Composable
 fun DownloadsScreen(
     /** 抽屉入口；null = 当前形态没有抽屉（手机 Compact，W6-R6N）。 */
     onOpenDrawer: (() -> Unit)?,
     onItemClick: (item: FindroidItem) -> Unit,
+    onPlayMusicItemIds: (List<UUID>) -> Unit = {},
     viewModel: DownloadsViewModel = hiltViewModel(),
+    batchViewModel: MediaBatchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) { viewModel.start() }
     DisposableEffect(Unit) { onDispose { viewModel.stop() } }
+    LaunchedEffect(viewModel) {
+        viewModel.playbackRequests.collect { request ->
+            when (request) {
+                is DownloadPlaybackRequest.Music -> onPlayMusicItemIds(request.itemIds)
+                is DownloadPlaybackRequest.Video -> batchViewModel.playSelected(request.items)
+            }
+        }
+    }
+    LaunchedEffect(batchViewModel) {
+        batchViewModel.events.collect { event ->
+            if (event is MediaBatchEvent.PlayQueue) {
+                context.startVideoQueuePlayback(event.entries)
+            }
+        }
+    }
 
     DownloadsScreenLayout(
         onOpenDrawer = onOpenDrawer,
@@ -354,6 +380,7 @@ private fun DownloadsScreenLayout(
                                 },
                             selectionMode = state.selectionMode,
                             selection = state.selection,
+                            pendingActions = state.pendingActions,
                             pageGutter = horizontalPadding,
                             compact = compact,
                             onAction = onAction,
@@ -373,6 +400,7 @@ private fun DownloadsScreenLayout(
                 pageGutter = horizontalPadding,
                 selectionMode = state.selectionMode,
                 selection = state.selection,
+                pendingActions = state.pendingActions,
                 onAction = onAction,
                 onRequestDeleteEntry = { key, title ->
                     pendingDelete = PendingDelete.Entry(key, title)
@@ -449,6 +477,7 @@ private fun DownloadDetailPane(
     pageGutter: Dp,
     selectionMode: Boolean,
     selection: Set<String>,
+    pendingActions: Map<String, DownloadPendingAction>,
     onAction: (DownloadAction) -> Unit,
     onRequestDeleteEntry: (key: String, title: String) -> Unit,
     onRequestDeleteContainer: (key: String, title: String) -> Unit,
@@ -520,6 +549,7 @@ private fun DownloadDetailPane(
                         onOpen = { onAction(DownloadAction.OpenEntry(entry.key)) },
                         onAction = onAction,
                         onRequestDelete = onRequestDeleteEntry,
+                        pendingAction = pendingActions[entry.key],
                     )
                 }
             }
@@ -535,6 +565,7 @@ private fun OverviewList(
     emptyIconRes: Int,
     selectionMode: Boolean,
     selection: Set<String>,
+    pendingActions: Map<String, DownloadPendingAction>,
     pageGutter: Dp,
     compact: Boolean,
     onAction: (DownloadAction) -> Unit,
@@ -588,6 +619,7 @@ private fun OverviewList(
                     compact = true,
                     selectionMode = selectionMode,
                     selection = selection,
+                    pendingActions = pendingActions,
                     onAction = onAction,
                     onOpenDetail = onOpenDetail,
                     onRequestDeleteEntry = onRequestDeleteEntry,
@@ -619,6 +651,7 @@ private fun OverviewList(
                             compact = false,
                             selectionMode = selectionMode,
                             selection = selection,
+                            pendingActions = pendingActions,
                             onAction = onAction,
                             onOpenDetail = onOpenDetail,
                             onRequestDeleteEntry = onRequestDeleteEntry,
@@ -630,6 +663,7 @@ private fun OverviewList(
                             compact = false,
                             selectionMode = selectionMode,
                             selection = selection,
+                            pendingActions = pendingActions,
                             onAction = onAction,
                             onOpenDetail = onOpenDetail,
                             onRequestDeleteEntry = onRequestDeleteEntry,
@@ -644,6 +678,7 @@ private fun OverviewList(
                             compact = false,
                             selectionMode = selectionMode,
                             selection = selection,
+                            pendingActions = pendingActions,
                             onAction = onAction,
                             onOpenDetail = onOpenDetail,
                             onRequestDeleteEntry = onRequestDeleteEntry,
@@ -661,6 +696,7 @@ private fun OverviewItem(
     compact: Boolean,
     selectionMode: Boolean,
     selection: Set<String>,
+    pendingActions: Map<String, DownloadPendingAction>,
     onAction: (DownloadAction) -> Unit,
     onOpenDetail: (String) -> Unit,
     onRequestDeleteEntry: (key: String, title: String) -> Unit,
@@ -700,6 +736,7 @@ private fun OverviewItem(
             onLongPress = { onAction(DownloadAction.ToggleSelection(container.key)) },
             onAction = onAction,
             onRequestDelete = onRequestDeleteEntry,
+            pendingAction = entries.firstOrNull()?.key?.let(pendingActions::get),
         )
     }
 }
@@ -753,6 +790,8 @@ private fun SelectionBar(
 ) {
     val colors = LocalCinefinColors.current
     val selectedTasks = state.selectedTasks
+    val playbackPlan = DownloadSelectionRules.playbackPlan(state)
+    val pendingActions = state.selectedEntries.mapNotNull { state.pendingActions[it.key] }.toSet()
     val canRetrySelected =
         selectedTasks.any { DownloadTaskRules.canRetry(it.status) } ||
             state.selectedEntries.any { it.status == DownloadTaskStatus.FAILED }
@@ -771,50 +810,67 @@ private fun SelectionBar(
             color = colors.onSurface,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
-            CinefinIconButton(
+            SelectionActionIcon(
+                pending = DownloadPendingAction.PLAY in pendingActions,
+                enabled = playbackPlan != null && pendingActions.isEmpty(),
+                description = "播放选中",
+                iconRes = CoreR.drawable.ic_play,
+                onClick = { onAction(DownloadAction.PlaySelected) },
+            )
+            SelectionActionIcon(
+                pending = DownloadPendingAction.PAUSE in pendingActions,
                 enabled = selectedTasks.any { DownloadTaskRules.canPause(it.status) },
+                description = stringResource(CoreR.string.download_action_pause),
+                iconRes = CoreR.drawable.ic_pause,
                 onClick = { onAction(DownloadAction.PauseSelected) },
-            ) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_pause),
-                    contentDescription = stringResource(CoreR.string.download_action_pause),
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            CinefinIconButton(
+            )
+            SelectionActionIcon(
+                pending = DownloadPendingAction.RESUME in pendingActions,
                 enabled = selectedTasks.any { DownloadTaskRules.canResume(it.status) },
+                description = stringResource(CoreR.string.download_action_resume),
+                iconRes = CoreR.drawable.ic_play,
                 onClick = { onAction(DownloadAction.ResumeSelected) },
-            ) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_play),
-                    contentDescription = stringResource(CoreR.string.download_action_resume),
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            CinefinIconButton(
+            )
+            SelectionActionIcon(
+                pending = DownloadPendingAction.RETRY in pendingActions,
                 enabled = canRetrySelected,
+                description = stringResource(CoreR.string.download_action_retry),
+                iconRes = CoreR.drawable.ic_rotate_ccw,
                 onClick = { onAction(DownloadAction.RetrySelected) },
-            ) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_rotate_ccw),
-                    contentDescription = stringResource(CoreR.string.download_action_retry),
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            CinefinIconButton(
+            )
+            SelectionActionIcon(
+                pending = DownloadPendingAction.DELETE in pendingActions,
                 enabled = state.hasSelection,
+                description = stringResource(CoreR.string.download_action_delete),
+                iconRes = CoreR.drawable.ic_trash,
                 onClick = onRequestDelete,
-            ) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_trash),
-                    contentDescription = stringResource(CoreR.string.download_action_delete),
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionActionIcon(
+    pending: Boolean,
+    enabled: Boolean,
+    description: String,
+    iconRes: Int,
+    onClick: () -> Unit,
+) {
+    CinefinIconButton(enabled = enabled, onClick = onClick) { tint ->
+        if (pending) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = tint,
+            )
+        } else {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = description,
+                tint = tint,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }

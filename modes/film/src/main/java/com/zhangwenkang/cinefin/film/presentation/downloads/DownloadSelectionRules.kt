@@ -5,9 +5,31 @@ import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import java.util.UUID
+
+sealed interface DownloadPlaybackPlan {
+    data class Music(val itemIds: List<UUID>) : DownloadPlaybackPlan
+
+    data class Video(val itemIds: List<UUID>) : DownloadPlaybackPlan
+}
 
 /** W84：下载管理列表的全选口径。 */
 object DownloadSelectionRules {
+
+    /** 多选播放只接受全部已完成、且属于同一播放域的音乐或视频。 */
+    fun playbackPlan(state: DownloadManagerState): DownloadPlaybackPlan? {
+        val entries = state.selectedEntries
+        if (entries.isEmpty() || entries.any { it.status != DownloadTaskStatus.COMPLETED }) {
+            return null
+        }
+        val mediaKind = entries.map { it.mediaKind }.distinct().singleOrNull() ?: return null
+        val itemIds = entries.map { it.itemId }.distinct()
+        return when (mediaKind) {
+            DownloadMediaKind.MUSIC -> DownloadPlaybackPlan.Music(itemIds)
+            DownloadMediaKind.VIDEO -> DownloadPlaybackPlan.Video(itemIds)
+            DownloadMediaKind.BOOK -> null
+        }
+    }
 
     /**
      * 当前分组 + 媒体筛选下的全集。

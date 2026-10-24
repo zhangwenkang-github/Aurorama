@@ -272,6 +272,7 @@ constructor(
     private var nextPlayRequestId = 0L
     /** W82 #25：搜索路由要求起播的曲目（曲库尚未加载时暂存，加载完成后再播）。 */
     private var pendingRouteSongId: UUID? = null
+    private var pendingRouteSongIds: List<UUID>? = null
 
     /** W37：服务器（或离线已下载）曲库与本地媒体库曲库分开缓存，切换来源筛选不重新请求。 */
     private var serverLibrary: MusicLibrary = MusicLibrary(emptyList(), emptyList(), emptyList())
@@ -367,9 +368,13 @@ constructor(
     }
 
     /** W82 #25：搜索结果打开曲目。直接从服务器 / 本地曲库快照起播，不受当前来源筛选影响； 曲库尚未加载时记下 id，等 [publishLibraries] 后补播一次。 */
-    fun playSongFromRoute(rawItemId: String) {
+    fun playSongFromRoute(rawItemId: String, rawQueueItemIds: String? = null) {
         val itemId = runCatching { UUID.fromString(rawItemId) }.getOrNull() ?: return
-        playRouteSong(itemId)
+        if (rawQueueItemIds == null) {
+            playRouteSong(itemId)
+        } else {
+            playRouteSongs(parseMusicQueueIds(rawQueueItemIds, itemId))
+        }
     }
 
     private fun playRouteSong(itemId: UUID) {
@@ -402,6 +407,25 @@ constructor(
 
     private fun playPendingRouteSong() {
         pendingRouteSongId?.let(::playRouteSong)
+        pendingRouteSongIds?.let(::playRouteSongs)
+    }
+
+    /** 下载页多选播放：保持下载页选择顺序，只播放已解析到的本地 / 服务器曲目。 */
+    private fun playRouteSongs(itemIds: List<UUID>) {
+        val songs = orderedMusicSongs(itemIds, serverLibrary.songs, localLibrary.songs)
+        if (songs.isEmpty()) {
+            pendingRouteSongIds = itemIds
+            return
+        }
+        pendingRouteSongIds = null
+        pendingRouteSongId = null
+        startQueuePlayback(
+            song = songs.first(),
+            songs = songs,
+            startIndex = 0,
+            source = QueueSource.MANUAL,
+            sourceId = null,
+        )
     }
 
     /** W36：离线模式开关变化时曲库来源也跟着变（离线 = 本机已下载曲目，在线 = 服务器曲库）。 */

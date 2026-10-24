@@ -158,6 +158,7 @@ fun MusicModeScreen(
     openNowPlayingSignal: Int = 0,
     /** W82 #25：搜索结果打开曲目并起播（路由参数；null = 普通音乐页）。 */
     initialSongId: String? = null,
+    initialQueueItemIds: String? = null,
     /** W56：把「音乐页内二级层（全屏播放 / 歌词页 / 专辑·艺术家·歌单详情）是否打开」回报给导航层（决定再点图标是只收二级层还是不重复导航）。 */
     onInnerPageOpenChange: ((Boolean) -> Unit)? = null,
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
@@ -335,7 +336,9 @@ fun MusicModeScreen(
     LaunchedEffect(openNowPlayingSignal) {
         if (openNowPlayingSignal > 0) pendingOpenNowPlaying = true
     }
-    LaunchedEffect(initialSongId) { initialSongId?.let(viewModel::playSongFromRoute) }
+    LaunchedEffect(initialSongId, initialQueueItemIds) {
+        initialSongId?.let { viewModel.playSongFromRoute(it, initialQueueItemIds) }
+    }
     LaunchedEffect(pendingOpenNowPlaying, queue) {
         if (pendingOpenNowPlaying && queue != null) {
             nowPlayingOpen = true

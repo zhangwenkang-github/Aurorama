@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -109,6 +110,11 @@ fun MusicNowPlayingScreen(
     val colors = LocalCinefinColors.current
     // 歌词页与全屏播放页同属一个覆盖层（W44：左滑进歌词 / 歌词页右滑返回）
     var lyricsPage by rememberSaveable(item.itemId) { mutableStateOf(false) }
+    var lyricsEntryToken by rememberSaveable(item.itemId) { mutableLongStateOf(0L) }
+    val openLyrics = {
+        lyricsEntryToken += 1L
+        lyricsPage = true
+    }
     BackHandler { if (lyricsPage) lyricsPage = false else onClose() }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.surface)) {
@@ -116,6 +122,7 @@ fun MusicNowPlayingScreen(
             MusicLyricsPage(
                 title = item.name,
                 state = lyricsState,
+                entryToken = lyricsEntryToken,
                 onBack = { lyricsPage = false },
                 onSelectLanguage = onSelectLyricsLanguage,
                 onToggleBilingual = onToggleLyricsBilingual,
@@ -148,12 +155,12 @@ fun MusicNowPlayingScreen(
                 onCyclePlayMode = onCyclePlayMode,
                 onToggleLyricsOverlay = onToggleLyricsOverlay,
                 onOpenEffects = onOpenEffects,
-                onOpenLyrics = { lyricsPage = true },
+                onOpenLyrics = openLyrics,
                 onOpenQueue = onOpenQueue,
                 onToggleFavorite = onToggleFavorite,
                 modifier =
                     Modifier.swipeGestures(
-                        onSwipeLeft = { lyricsPage = true },
+                        onSwipeLeft = openLyrics,
                         onSwipeDown = onClose,
                     ),
             )

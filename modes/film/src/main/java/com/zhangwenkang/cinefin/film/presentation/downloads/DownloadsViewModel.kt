@@ -38,7 +38,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -73,6 +75,10 @@ constructor(
 
     private val _state = MutableStateFlow(DownloadManagerState())
     val state = _state.asStateFlow()
+
+    private val _playbackRequests =
+        MutableSharedFlow<DownloadPlaybackRequest>(extraBufferCapacity = 1)
+    val playbackRequests = _playbackRequests.asSharedFlow()
 
     private var pollingJob: Job? = null
     private var refreshing = false
@@ -157,22 +163,41 @@ constructor(
             is DownloadAction.ToggleOffline -> setOfflineAllowed(action.key)
             is DownloadAction.SetContainerOffline -> setContainerOffline(action.key, action.allow)
             is DownloadAction.PauseContainer ->
-                runForContainerTasks(action.key, DownloadTaskRules::canPause) {
+                runForContainerTasks(
+                    action.key,
+                    DownloadPendingAction.PAUSE,
+                    DownloadTaskRules::canPause,
+                ) {
                     downloader.pauseTask(it)
                 }
             is DownloadAction.ResumeContainer ->
-                runForContainerTasks(action.key, DownloadTaskRules::canResume) {
+                runForContainerTasks(
+                    action.key,
+                    DownloadPendingAction.RESUME,
+                    DownloadTaskRules::canResume,
+                ) {
                     downloader.resumeTask(it)
                 }
             is DownloadAction.EnsureBookCover -> ensureBookCover(action.itemId)
             DownloadAction.ToggleSelectionMode -> toggleSelectionMode()
             DownloadAction.ClearSelection -> clearSelection()
             DownloadAction.PauseSelected ->
-                runForSelectedTasks(DownloadTaskRules::canPause) { downloader.pauseTask(it) }
+                runForSelectedTasks(
+                    DownloadPendingAction.PAUSE,
+                    DownloadTaskRules::canPause,
+                ) {
+                    downloader.pauseTask(it)
+                }
             DownloadAction.ResumeSelected ->
-                runForSelectedTasks(DownloadTaskRules::canResume) { downloader.resumeTask(it) }
+                runForSelectedTasks(
+                    DownloadPendingAction.RESUME,
+                    DownloadTaskRules::canResume,
+                ) {
+                    downloader.resumeTask(it)
+                }
             DownloadAction.RetrySelected -> retrySelected()
             DownloadAction.RetryAllFailures -> retryAllFailures()
+            DownloadAction.PlaySelected -> playSelected()
             is DownloadAction.SelectKeys ->
                 _state.update { current ->
                     current.copy(
@@ -181,19 +206,15 @@ constructor(
                     )
                 }
             DownloadAction.DeleteSelected -> deleteSelected()
-            is DownloadAction.Pause -> runForTask(action.task) { downloader.pauseTask(it) }
-            is DownloadAction.Resume -> runForTask(action.task) { downloader.resumeTask(it) }
-            is DownloadAction.Retry -> runForTask(action.task) { downloader.retryTask(it) }
+            is DownloadAction.Pause ->
+                runForTask(action.task, DownloadPendingAction.PAUSE) { downloader.pauseTask(it) }
+            is DownloadAction.Resume ->
+                runForTask(action.task, DownloadPendingAction.RESUME) { downloader.resumeTask(it) }
+            is DownloadAction.Retry ->
+                runForTask(action.task, DownloadPendingAction.RETRY) { downloader.retryTask(it) }
             is DownloadAction.DeleteTask ->
-                viewModelScope.launch {
-                    downloader.deleteTask(action.task)
-                    refresh(showLoading = false)
-                }
-            is DownloadAction.DeleteCompleted ->
-                viewModelScope.launch {
-                    action.download.source?.let { downloader.deleteItem(action.download.item, it) }
-                    refresh(showLoading = false)
-                }
+                runForTask(action.task, DownloadPendingAction.DELETE) { downloader.deleteTask(it) }
+            is DownloadAction.DeleteCompleted -> runCompletedDeletion(action.download)
             is DownloadAction.Open -> Unit
             is DownloadAction.OpenEntry -> Unit
         }
@@ -231,26 +252,33 @@ constructor(
 
     /** W34：删除层级里的单个条目（任务 / 已完成媒体 / 阅读器离线书籍）。 */
     private fun deleteEntry(key: String) {
+        _state.update { it.beginPending(DownloadPendingAction.DELETE, setOf(key)) }
         viewModelScope.launch {
-            val entry = _state.value.findEntry(key) ?: return@launch
-            when {
-                entry.task != null -> downloader.deleteTask(entry.task)
-                entry.mediaKind == DownloadMediaKind.BOOK -> {
-                    // W80（#23）：进行中的书籍下载先取消，否则 `.part` 会继续写并重新落盘。
-                    // W80b（D2）：失败任务没有 job 可取消，只取消不会让条目消失——必须连任务记录一起移除，
-                    // 否则「失败」分组会一直渲染到进程重启（QA 实测的"删不掉"）。
-                    if (readerRepository.bookDownloads.value.any { it.itemId == entry.itemId }) {
-                        readerRepository.removeBookDownload(entry.itemId)
+            try {
+                val entry = _state.value.findEntry(key) ?: return@launch
+                when {
+                    entry.task != null -> downloader.deleteTask(entry.task)
+                    entry.mediaKind == DownloadMediaKind.BOOK -> {
+                        // W80（#23）：进行中的书籍下载先取消，否则 `.part` 会继续写并重新落盘。
+                        // W80b（D2）：失败任务没有 job 可取消，只取消不会让条目消失——必须连任务记录一起移除，
+                        // 否则「失败」分组会一直渲染到进程重启（QA 实测的"删不掉"）。
+                        if (
+                            readerRepository.bookDownloads.value.any { it.itemId == entry.itemId }
+                        ) {
+                            readerRepository.removeBookDownload(entry.itemId)
+                        }
+                        readerRepository.deleteLocalFile(entry.itemId)
                     }
-                    readerRepository.deleteLocalFile(entry.itemId)
+                    else -> {
+                        val completed =
+                            _state.value.completed.firstOrNull { it.item.id == entry.itemId }
+                        completed?.source?.let { downloader.deleteItem(completed.item, it) }
+                    }
                 }
-                else -> {
-                    val completed =
-                        _state.value.completed.firstOrNull { it.item.id == entry.itemId }
-                    completed?.source?.let { downloader.deleteItem(completed.item, it) }
-                }
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(setOf(key)) }
             }
-            refresh(showLoading = false)
         }
     }
 
@@ -299,23 +327,65 @@ constructor(
         _state.update { it.copy(selection = emptySet(), selectionMode = false) }
     }
 
-    private fun runForTask(task: DownloadTask, block: suspend (DownloadTask) -> Any?) {
+    private fun playSelected() {
+        val current = _state.value
+        val plan = DownloadSelectionRules.playbackPlan(current) ?: return
+        val keys = current.selectedEntries.map { it.key }.toSet()
+        _state.update { it.beginPending(DownloadPendingAction.PLAY, keys) }
         viewModelScope.launch {
-            block(task)
-            refresh(showLoading = false)
+            try {
+                val request =
+                    when (plan) {
+                        is DownloadPlaybackPlan.Music -> DownloadPlaybackRequest.Music(plan.itemIds)
+                        is DownloadPlaybackPlan.Video -> {
+                            val byId = _state.value.completed.associateBy { it.item.id }
+                            val items = plan.itemIds.mapNotNull { byId[it]?.item }
+                            if (items.size != plan.itemIds.size) return@launch
+                            DownloadPlaybackRequest.Video(items)
+                        }
+                    }
+                _playbackRequests.emit(request)
+                clearSelection()
+            } finally {
+                _state.update { it.finishPending(keys) }
+            }
+        }
+    }
+
+    private fun runForTask(
+        task: DownloadTask,
+        pendingAction: DownloadPendingAction,
+        block: suspend (DownloadTask) -> Any?,
+    ) {
+        val key = itemKey(task.itemId)
+        _state.update { it.beginPending(pendingAction, setOf(key)) }
+        viewModelScope.launch {
+            try {
+                block(task)
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(setOf(key)) }
+            }
         }
     }
 
     private fun runForSelectedTasks(
+        pendingAction: DownloadPendingAction,
         predicate: (DownloadTaskStatus) -> Boolean = { true },
         block: suspend (DownloadTask) -> Any?,
     ) {
+        val selected = _state.value.selectedTasks.filter { predicate(it.status) }
+        val keys = selected.map { itemKey(it.itemId) }.toSet()
+        _state.update { it.beginPending(pendingAction, keys) }
         viewModelScope.launch {
-            val selected = _state.value.selectedTasks().filter { predicate(it.status) }
-            for (task in selected) {
-                block(task)
+            try {
+                for (task in selected) {
+                    block(task)
+                }
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(keys) }
             }
-            refresh(showLoading = false)
         }
     }
 
@@ -345,15 +415,20 @@ constructor(
                         entry.status == DownloadTaskStatus.FAILED
                 }
                 .distinctBy { it.itemId }
+        _state.update { it.beginPending(DownloadPendingAction.RETRY, keys) }
         clearSelection()
         viewModelScope.launch {
-            for (task in tasks) {
-                downloader.retryTask(task)
+            try {
+                for (task in tasks) {
+                    downloader.retryTask(task)
+                }
+                for (book in books) {
+                    readerRepository.enqueueBookDownload(book.itemId, book.name)
+                }
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(keys) }
             }
-            for (book in books) {
-                readerRepository.enqueueBookDownload(book.itemId, book.name)
-            }
-            refresh(showLoading = false)
         }
     }
 
@@ -365,33 +440,61 @@ constructor(
                 .distinctBy { it.itemId }
         val books = DownloadSelectionRules.retryableBookEntries(_state.value)
         if (tasks.isEmpty() && books.isEmpty()) return
+        val keys = tasks.map { itemKey(it.itemId) }.toSet() + books.map { it.key }
+        _state.update { it.beginPending(DownloadPendingAction.RETRY, keys) }
         viewModelScope.launch {
-            for (task in tasks) {
-                downloader.retryTask(task)
+            try {
+                for (task in tasks) {
+                    downloader.retryTask(task)
+                }
+                for (book in books) {
+                    readerRepository.enqueueBookDownload(book.itemId, book.name)
+                }
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(keys) }
             }
-            for (book in books) {
-                readerRepository.enqueueBookDownload(book.itemId, book.name)
+        }
+    }
+
+    private fun runCompletedDeletion(download: CompletedDownload) {
+        val key = itemKey(download.item.id)
+        _state.update { it.beginPending(DownloadPendingAction.DELETE, setOf(key)) }
+        viewModelScope.launch {
+            try {
+                download.source?.let { downloader.deleteItem(download.item, it) }
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(setOf(key)) }
             }
-            refresh(showLoading = false)
         }
     }
 
     /** W59 详情页「全部暂停 / 全部继续」：对容器内所有可操作任务逐个执行。 */
     private fun runForContainerTasks(
         containerKey: String,
+        pendingAction: DownloadPendingAction,
         predicate: (DownloadTaskStatus) -> Boolean,
         block: suspend (DownloadTask) -> Any?,
     ) {
+        val container = _state.value.containerFor(containerKey)
+        val tasks =
+            container
+                ?.allEntries()
+                ?.mapNotNull { it.task }
+                ?.filter { predicate(it.status) }
+                .orEmpty()
+        val keys = tasks.map { itemKey(it.itemId) }.toSet()
+        _state.update { it.beginPending(pendingAction, keys) }
         viewModelScope.launch {
-            val container = _state.value.containerFor(containerKey) ?: return@launch
-            val tasks =
-                container.allEntries().mapNotNull { it.task }.filter { predicate(it.status) }
-            var changed = false
-            for (task in tasks) {
-                block(task)
-                changed = true
+            try {
+                for (task in tasks) {
+                    block(task)
+                }
+                if (tasks.isNotEmpty()) refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(keys) }
             }
-            if (changed) refresh(showLoading = false)
         }
     }
 
@@ -406,11 +509,18 @@ constructor(
     }
 
     private fun deleteSelected() {
+        val current = _state.value
+        val entries = current.selectedEntries
+        val keys = entries.map { it.key }.toSet()
+        _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
         viewModelScope.launch {
-            val current = _state.value
-            deleteEntries(current.selectedEntries())
-            clearSelection()
-            refresh(showLoading = false)
+            try {
+                deleteEntries(entries)
+                clearSelection()
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(keys) }
+            }
         }
     }
 
@@ -435,15 +545,18 @@ constructor(
 
     /** W34：删除容器 = 删除容器内所有可删条目（进行中 / 失败任务 + 单个已完成条目）。 */
     private fun deleteContainer(containerKey: String) {
+        val container = _state.value.containerFor(containerKey)
+        val entries = container?.let(::descendantEntries).orEmpty()
+        val keys = entries.map { it.key }.toSet()
+        _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
         viewModelScope.launch {
-            val container =
-                (_state.value.activeContainers +
-                        _state.value.completedContainers +
-                        _state.value.failedContainers)
-                    .firstOrNull { it.key == containerKey } ?: return@launch
-            deleteEntries(descendantEntries(container))
-            _state.update { it.copy(expandedKeys = it.expandedKeys - containerKey) }
-            refresh(showLoading = false)
+            try {
+                deleteEntries(entries)
+                _state.update { it.copy(expandedKeys = it.expandedKeys - containerKey) }
+                refresh(showLoading = false)
+            } finally {
+                _state.update { it.finishPending(keys) }
+            }
         }
     }
 

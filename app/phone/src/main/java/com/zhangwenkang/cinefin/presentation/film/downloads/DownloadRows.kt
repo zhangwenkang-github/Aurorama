@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -67,6 +68,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyCon
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyEntry
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyStatus
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchySubContainer
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadPendingAction
 import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
 import com.zhangwenkang.cinefin.film.presentation.downloads.effectiveDownloadedBytes
 import com.zhangwenkang.cinefin.film.presentation.downloads.expectedTotalBytes
@@ -256,6 +258,7 @@ internal fun DownloadTopLevelRow(
     onLongPress: () -> Unit = onClick,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: (key: String, title: String) -> Unit,
+    pendingAction: DownloadPendingAction? = null,
 ) {
     val colors = LocalCinefinColors.current
     val entry = container.allEntries().firstOrNull() ?: return
@@ -392,6 +395,7 @@ internal fun DownloadTopLevelRow(
                     }
                     DownloadTaskActionIcon(
                         task = task,
+                        pendingAction = pendingAction,
                         onAction = onAction,
                         onRequestDelete = { onRequestDelete(entry.key, entry.name) },
                         canDelete = entry.canDelete,
@@ -413,10 +417,21 @@ internal fun DownloadTopLevelRow(
 @Composable
 private fun DownloadTaskActionIcon(
     task: DownloadTask?,
+    pendingAction: DownloadPendingAction?,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: () -> Unit,
     canDelete: Boolean,
 ) {
+    if (pendingAction != null) {
+        CinefinIconButton(enabled = false, onClick = {}) { tint ->
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = tint,
+            )
+        }
+        return
+    }
     if (task != null) {
         when {
             DownloadTaskRules.canPause(task.status) ->
@@ -701,6 +716,7 @@ internal fun DownloadLeafCard(
     onOpen: () -> Unit,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: (key: String, title: String) -> Unit,
+    pendingAction: DownloadPendingAction? = null,
 ) {
     val colors = LocalCinefinColors.current
     val task = entry.task
@@ -808,6 +824,7 @@ internal fun DownloadLeafCard(
                     }
                     DownloadTaskActionIcon(
                         task = task,
+                        pendingAction = pendingAction,
                         onAction = onAction,
                         onRequestDelete = { onRequestDelete(entry.key, entry.name) },
                         canDelete = entry.canDelete,
