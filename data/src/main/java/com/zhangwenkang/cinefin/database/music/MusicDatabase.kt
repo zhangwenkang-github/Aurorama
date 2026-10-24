@@ -20,7 +20,7 @@ import androidx.sqlite.execSQL
             LocalPlaylistEntity::class,
             LocalPlaylistEntryEntity::class,
         ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class MusicDatabase : RoomDatabase() {
@@ -68,6 +68,19 @@ abstract class MusicDatabase : RoomDatabase() {
                         "CREATE UNIQUE INDEX IF NOT EXISTS " +
                             "`index_local_playlist_entries_position` " +
                             "ON `local_playlist_entries` (`playlistId`, `position`)"
+                    )
+                }
+            }
+
+        /** v2 → v3 只扩展队列状态行；所有旧值与歌单 / 最近播放行保持不变。 */
+        val MIGRATION_2_3 =
+            object : Migration(startVersion = 2, endVersion = 3) {
+                override suspend fun migrate(connection: SQLiteConnection) {
+                    connection.execSQL(
+                        "ALTER TABLE `music_queue_state` ADD COLUMN `shuffleOrder` TEXT"
+                    )
+                    connection.execSQL(
+                        "ALTER TABLE `music_queue_state` ADD COLUMN `shuffleSeed` INTEGER"
                     )
                 }
             }

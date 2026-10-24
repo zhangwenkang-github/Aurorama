@@ -182,7 +182,7 @@ class LocalPlaylistDaoTest {
     private fun openDatabase(): MusicDatabase =
         Room.databaseBuilder(context, MusicDatabase::class.java, DB_NAME)
             .setDriver(AndroidSQLiteDriver())
-            .addMigrations(MusicDatabase.MIGRATION_1_2)
+            .addMigrations(MusicDatabase.MIGRATION_1_2, MusicDatabase.MIGRATION_2_3)
             .build()
 
     private suspend fun <T> withDatabase(block: suspend (MusicDatabase) -> T): T {

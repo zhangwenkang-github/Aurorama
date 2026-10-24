@@ -143,6 +143,69 @@ class MusicDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate2To3_preservesAllQueueStateRowsAndAddsNullableShuffleColumns() = runBlocking {
+        helper.createDatabase(2).use { db ->
+            db.execSQL(
+                "INSERT INTO music_queue_items " +
+                    "(position, itemId, name, mediaSourceId, playbackPositionMs, " +
+                    "mediaSourceUri, thumbnailUri, indexNumber) VALUES " +
+                    "(0, '00000000-0000-0000-0000-000000000401', 'Keep', 'source-k', " +
+                    "4321, 'https://example.test/keep', NULL, 1)"
+            )
+            db.execSQL(
+                "INSERT INTO music_queue_state " +
+                    "(id, currentIndex, positionMs, repeatMode, shuffleEnabled, source, " +
+                    "sourceId, savedAt) VALUES " +
+                    "(0, 0, 4321, 'ALL', 1, 'PLAYLIST', " +
+                    "'00000000-0000-0000-0000-000000000402', 7654321)"
+            )
+            db.execSQL(
+                "INSERT INTO music_recent " +
+                    "(itemId, name, albumName, artist, imageUri, runtimeTicks, playedAt) " +
+                    "VALUES ('00000000-0000-0000-0000-000000000401', 'Keep', " +
+                    "'Album', 'Artist', NULL, 1800000000, 1700000000000)"
+            )
+        }
+
+        helper.runMigrationsAndValidate(3, listOf(MusicDatabase.MIGRATION_2_3)).use { db ->
+            db.prepare(
+                    "SELECT currentIndex, positionMs, repeatMode, shuffleEnabled, source, " +
+                        "sourceId, savedAt, shuffleOrder, shuffleSeed FROM music_queue_state"
+                )
+                .use { statement ->
+                    assertTrue(statement.step())
+                    assertEquals(0L, statement.getLong(0))
+                    assertEquals(4321L, statement.getLong(1))
+                    assertEquals("ALL", statement.getText(2))
+                    assertEquals(1L, statement.getLong(3))
+                    assertEquals("PLAYLIST", statement.getText(4))
+                    assertEquals("00000000-0000-0000-0000-000000000402", statement.getText(5))
+                    assertEquals(7654321L, statement.getLong(6))
+                    assertTrue(statement.isNull(7))
+                    assertTrue(statement.isNull(8))
+                }
+            db.prepare("SELECT name, playbackPositionMs FROM music_queue_items").use { statement ->
+                assertTrue(statement.step())
+                assertEquals("Keep", statement.getText(0))
+                assertEquals(4321L, statement.getLong(1))
+            }
+            db.prepare("SELECT name, playedAt FROM music_recent").use { statement ->
+                assertTrue(statement.step())
+                assertEquals("Keep", statement.getText(0))
+                assertEquals(1700000000000L, statement.getLong(1))
+            }
+            db.execSQL(
+                "UPDATE music_queue_state SET shuffleOrder = '0', shuffleSeed = 99 WHERE id = 0"
+            )
+            db.prepare("SELECT shuffleOrder, shuffleSeed FROM music_queue_state").use { statement ->
+                assertTrue(statement.step())
+                assertEquals("0", statement.getText(0))
+                assertEquals(99L, statement.getLong(1))
+            }
+        }
+    }
+
     private companion object {
         const val DB_NAME = "w87-a-music-migration-test.db"
     }

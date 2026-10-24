@@ -37,6 +37,8 @@ class MusicQueueStoreTest {
                 shuffleEnabled = true,
                 source = QueueSource.ALBUM,
                 sourceId = "album-1",
+                shuffleOrder = listOf(2, 0, 1),
+                shuffleSeed = 7_654_321L,
             )
 
         val snapshot = queue.toStored(positionMs = 12_345L, savedAt = 999L).toSnapshot()!!
@@ -50,9 +52,37 @@ class MusicQueueStoreTest {
         assertTrue(snapshot.queue.shuffleEnabled)
         assertEquals(QueueSource.ALBUM, snapshot.queue.source)
         assertEquals("album-1", snapshot.queue.sourceId)
+        assertEquals(listOf(2, 0, 1), snapshot.queue.shuffleOrder)
+        assertEquals(7_654_321L, snapshot.queue.shuffleSeed)
         // 非当前曲目的续播位置保持各自原值（切到该曲目时仍按 MU-9 续播）
         assertEquals(2_000L, snapshot.queue.items[2].playbackPosition)
         assertEquals(3, snapshot.queue.items[2].indexNumber)
+    }
+
+    @Test
+    fun `非法持久随机序显式降级但保留其他状态`() {
+        val queue =
+            MusicQueue(
+                items = (0 until 3).map(::item),
+                currentIndex = 2,
+                repeatMode = RepeatMode.ONE,
+                shuffleEnabled = true,
+                source = QueueSource.PLAYLIST,
+                sourceId = "playlist-1",
+                shuffleOrder = listOf(2, 0, 2),
+                shuffleSeed = 22L,
+            )
+
+        val snapshot = queue.toStored(positionMs = 33L, savedAt = 44L).toSnapshot()!!
+
+        assertEquals(listOf(0, 1, 2), snapshot.queue.items.map { it.indexNumber }.map { it!! - 1 })
+        assertEquals(2, snapshot.queue.currentIndex)
+        assertEquals(RepeatMode.ONE, snapshot.queue.repeatMode)
+        assertTrue(snapshot.queue.shuffleEnabled)
+        assertEquals(QueueSource.PLAYLIST, snapshot.queue.source)
+        assertEquals("playlist-1", snapshot.queue.sourceId)
+        assertEquals(null, snapshot.queue.shuffleOrder)
+        assertEquals(null, snapshot.queue.shuffleSeed)
     }
 
     @Test
@@ -85,6 +115,8 @@ class MusicQueueStoreTest {
                         source = QueueSource.MANUAL.name,
                         sourceId = null,
                         savedAt = 0L,
+                        shuffleOrder = null,
+                        shuffleSeed = null,
                     ),
             )
 

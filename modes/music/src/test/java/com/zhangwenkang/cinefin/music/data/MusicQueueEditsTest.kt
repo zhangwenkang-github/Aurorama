@@ -60,4 +60,19 @@ class MusicQueueEditsTest {
         val original = queue()
         assertSame(original, musicQueueRemoveAt(original, 5))
     }
+
+    @Test
+    fun `删除条目使旧实际随机序与种子失效`() {
+        val original =
+            queue()
+                .copy(
+                    shuffleOrder = listOf(2, 0, 1),
+                    shuffleSeed = 19L,
+                )
+
+        val updated = musicQueueRemoveAt(original, 0)!!
+
+        assertEquals(null, updated.shuffleOrder)
+        assertEquals(null, updated.shuffleSeed)
+    }
 }

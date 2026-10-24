@@ -29,6 +29,10 @@ data class MusicQueueStateEntity(
     val source: String,
     val sourceId: String?,
     val savedAt: Long,
+    /** 逗号分隔的 ExoPlayer 实际 shuffle 序；旧 v2 行为 null。 */
+    val shuffleOrder: String? = null,
+    /** 与 [shuffleOrder] 同代的恢复种子；无可恢复实际序时为 null。 */
+    val shuffleSeed: Long? = null,
 ) {
     companion object {
         const val SINGLETON_ID = 0

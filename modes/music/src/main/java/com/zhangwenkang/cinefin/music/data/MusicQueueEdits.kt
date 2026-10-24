@@ -18,5 +18,10 @@ fun musicQueueRemoveAt(queue: MusicQueue, index: Int): MusicQueue? {
             index == queue.currentIndex -> queue.currentIndex.coerceAtMost(items.lastIndex)
             else -> queue.currentIndex
         }
-    return queue.copy(items = items, currentIndex = currentIndex)
+    return queue.copy(
+        items = items,
+        currentIndex = currentIndex,
+        shuffleOrder = null,
+        shuffleSeed = null,
+    )
 }

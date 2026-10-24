@@ -8,6 +8,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,9 +44,12 @@ class MusicQueueStore @Inject constructor(private val storage: MusicStorage) {
     suspend fun clear() = withContext(Dispatchers.IO) { storage.clearQueue() }
 }
 
-internal fun MusicQueue.toStored(positionMs: Long, savedAt: Long): StoredQueue =
+internal fun MusicQueue.toStored(positionMs: Long, savedAt: Long): StoredQueue = run {
+    val storedItems = items.mapIndexedNotNull { index, item -> item.toStoredItem(position = index) }
+    val canPersistOrder =
+        storedItems.size == items.size && isValidShuffleOrder(shuffleOrder, items.size)
     StoredQueue(
-        items = items.mapIndexedNotNull { index, item -> item.toStoredItem(position = index) },
+        items = storedItems,
         state =
             StoredQueueState(
                 currentIndex = currentIndex,
@@ -55,8 +59,11 @@ internal fun MusicQueue.toStored(positionMs: Long, savedAt: Long): StoredQueue =
                 source = source.name,
                 sourceId = sourceId,
                 savedAt = savedAt,
+                shuffleOrder = shuffleOrder.takeIf { canPersistOrder }?.joinToString(","),
+                shuffleSeed = shuffleSeed.takeIf { canPersistOrder },
             ),
     )
+}
 
 internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
     val restoredItems =
@@ -64,6 +71,11 @@ internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
     if (restoredItems.isEmpty()) return null
     val positionMs = state.positionMs.coerceAtLeast(0L)
     val currentIndex = state.currentIndex.coerceIn(0, restoredItems.lastIndex)
+    val restoredShuffleOrder =
+        decodeShuffleOrder(state.shuffleOrder)?.takeIf { order ->
+            isValidShuffleOrder(order, restoredItems.size)
+        }
+    val restoredShuffleSeed = state.shuffleSeed.takeIf { restoredShuffleOrder != null }
     // 保存位置写回当前曲目：恢复播放时 setQueue 会按 PlayerItem.playbackPosition 续播（与 MU-9 同一条路径）。
     val itemsWithResume = restoredItems.mapIndexed { index, item ->
         if (index == currentIndex) item.copy(playbackPosition = positionMs) else item
@@ -77,10 +89,17 @@ internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
                 shuffleEnabled = state.shuffleEnabled,
                 source = parseQueueSource(state.source),
                 sourceId = state.sourceId,
+                shuffleOrder = restoredShuffleOrder,
+                shuffleSeed = restoredShuffleSeed,
             ),
         positionMs = positionMs,
         savedAt = state.savedAt,
     )
+}
+
+internal fun decodeShuffleOrder(raw: String?): List<Int>? {
+    if (raw.isNullOrBlank()) return null
+    return raw.split(',').map { part -> part.trim().toIntOrNull() ?: return null }
 }
 
 private fun PlayerItem.toStoredItem(position: Int): StoredQueueItem? {

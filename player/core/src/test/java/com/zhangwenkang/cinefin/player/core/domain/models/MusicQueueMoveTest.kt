@@ -60,4 +60,22 @@ class MusicQueueMoveTest {
         val moved = queue(4).move(fromIndex = 0, toIndex = 2)
         assertEquals(listOf("1", "2", "0", "3"), moved.items.map { it.name })
     }
+
+    @Test
+    fun `structural changes invalidate the old actual shuffle order`() {
+        val original =
+            queue(4)
+                .copy(
+                    shuffleOrder = listOf(2, 0, 3, 1),
+                    shuffleSeed = 42L,
+                )
+
+        val moved = original.move(fromIndex = 1, toIndex = 3)
+        val inserted = original.insertNext(item("x"))
+
+        assertEquals(null, moved.shuffleOrder)
+        assertEquals(null, moved.shuffleSeed)
+        assertEquals(null, inserted.shuffleOrder)
+        assertEquals(null, inserted.shuffleSeed)
+    }
 }

@@ -34,6 +34,10 @@ data class MusicQueue(
     val shuffleEnabled: Boolean = false,
     val source: QueueSource,
     val sourceId: String? = null,
+    /** ExoPlayer 当前实际 shuffle 顺序；null 表示旧快照或结构变化后待重建。 */
+    val shuffleOrder: List<Int>? = null,
+    /** 最近一次实际序的恢复种子；实际序仍是恢复的第一依据。 */
+    val shuffleSeed: Long? = null,
 ) {
     /** 当前曲目；队列为空时返回 null。 */
     val currentItem: PlayerItem?
@@ -59,12 +63,28 @@ data class MusicQueue(
                 fromIndex > currentIndex && toIndex <= currentIndex -> currentIndex + 1
                 else -> currentIndex
             }
-        return copy(items = reordered, currentIndex = newCurrentIndex)
+        return copy(
+            items = reordered,
+            currentIndex = newCurrentIndex,
+            shuffleOrder = null,
+            shuffleSeed = null,
+        )
     }
 
     /** 下一首播放：插到当前曲目之后（MU-3）。 */
     fun insertNext(item: PlayerItem): MusicQueue {
         val insertAt = (currentIndex + 1).coerceIn(0, items.size)
-        return copy(items = items.toMutableList().apply { add(insertAt, item) })
+        return copy(
+            items = items.toMutableList().apply { add(insertAt, item) },
+            shuffleOrder = null,
+            shuffleSeed = null,
+        )
     }
+}
+
+/** 实际 shuffle 序必须是 `0 until itemCount` 的完整置换。 */
+fun isValidShuffleOrder(order: List<Int>?, itemCount: Int): Boolean {
+    if (itemCount < 0 || order == null || order.size != itemCount) return false
+    if (order.any { index -> index !in 0 until itemCount }) return false
+    return order.toSet().size == itemCount
 }

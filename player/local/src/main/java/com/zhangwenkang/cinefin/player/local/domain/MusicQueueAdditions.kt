@@ -15,8 +15,20 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
  * 两者组合后队列顺序 = 浏览列表顺序，且**与"正在播第几首"完全无关**。
  */
 internal fun MusicQueue.appendItems(items: List<PlayerItem>): MusicQueue =
-    if (items.isEmpty()) this else copy(items = this.items + items)
+    if (items.isEmpty()) this
+    else
+        copy(
+            items = this.items + items,
+            shuffleOrder = null,
+            shuffleSeed = null,
+        )
 
 internal fun MusicQueue.prependItems(items: List<PlayerItem>): MusicQueue =
     if (items.isEmpty()) this
-    else copy(items = items + this.items, currentIndex = currentIndex + items.size)
+    else
+        copy(
+            items = items + this.items,
+            currentIndex = currentIndex + items.size,
+            shuffleOrder = null,
+            shuffleSeed = null,
+        )

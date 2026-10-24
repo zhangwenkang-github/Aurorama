@@ -116,4 +116,22 @@ class MusicQueueTest {
         assertSame(queue, queue.appendItems(emptyList()))
         assertSame(queue, queue.prependItems(emptyList()))
     }
+
+    @Test
+    fun `批量入队使旧实际随机序失效`() {
+        val queue =
+            queueOf("A", "B", "C")
+                .copy(
+                    shuffleOrder = listOf(2, 0, 1),
+                    shuffleSeed = 9L,
+                )
+
+        val appended = queue.appendItems(listOf(item("D")))
+        val prepended = queue.prependItems(listOf(item("X")))
+
+        assertEquals(null, appended.shuffleOrder)
+        assertEquals(null, appended.shuffleSeed)
+        assertEquals(null, prepended.shuffleOrder)
+        assertEquals(null, prepended.shuffleSeed)
+    }
 }

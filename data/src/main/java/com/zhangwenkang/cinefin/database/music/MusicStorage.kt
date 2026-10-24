@@ -52,6 +52,8 @@ constructor(
                     source = queue.state.source,
                     sourceId = queue.state.sourceId,
                     savedAt = queue.state.savedAt,
+                    shuffleOrder = queue.state.shuffleOrder,
+                    shuffleSeed = queue.state.shuffleSeed,
                 ),
         )
     }
@@ -83,6 +85,8 @@ constructor(
                     source = state.source,
                     sourceId = state.sourceId,
                     savedAt = state.savedAt,
+                    shuffleOrder = state.shuffleOrder,
+                    shuffleSeed = state.shuffleSeed,
                 ),
         )
     }

@@ -3059,3 +3059,23 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 - 2026-10-24：W87-B 独立 QA 覆盖通过，保留 **1 BLOCKED**。JVM 独立复跑 **299/0/0/0**（data 84 + music 215），Pad 5 实测服务器 `测试播放列表` 7 首只读打开、JSON 两连同名副本、M3U8 显式身份 / 不可证明占位、坏 JSON 零新增、取消反馈均通过；原本地歌单未覆盖，QA 临时歌单与交换文件已清理。候选 APK `C4975573…731097`（148,187,916 B）。用户明确授权后按人工安装路径装载 test APK `9BB9B8FD…10C64`，本人完成 MIUI 身份确认；直接 AndroidJUnitRunner **numtests=2**，两条 Room 事务 / 回滚用例均 `code=0`、`OK (2 tests)`，无 XML 以 raw status 取证。P0/P1/P2/P3=`0/0/0/1`，P3 为 2 MiB / 5,000 条上限文件的主线程解码未做压力验证；唯一 BLOCKED 为运行时包级 server-write 计数未插桩，静态新增写调用 0。正式 App / 登录 data 未变，锁释放；test APK 保留 userId 10319。需用户明确接受该 BLOCKED 后才可进入 merge-prep。报告 `W87-B-QA.md`；证据 `w87-evidence/W87-B-qa/`。
 - 2026-10-24：用户**按有条件接受**运行时包级 server-write 计数未插桩，边界为“只放行合并流程，不放行 1.4.0 发布”；该 BLOCKED 与 P3 均原样保留。全新 merge-prep 在 `origin/master b0e2d3e7` 上无冲突 rebase 到 `033d68c6`，功能 `211b925f → 74358cff` 且四提交 patch-id 一致；17 文件 `+1919/-12`，白名单 17/17、禁止项 0；11 模块 JVM 193 XML **1274/0/0/0**（280/280 executed）、11 模块 debug **384/384 executed**、根 `ktfmtCheck` 34/34、两项 diff 检查与 graphify 通过。报告 `W87-B-MERGE-PREP.md`；证据 `w87-evidence/W87-B-merge-prep/`。
 - 2026-10-24：负责人复核后 ff-only / push `b0e2d3e7..033d68c6`；Build `40055618716`、Unit Tests `40055618715`、Format `40055618726` 均钉在 `033d68c6` 且 success。W87-B 合并完成，但不算全通过：运行时包级 server-write 计数仍为 BLOCKED，最终 1.4.0 发布前必须关闭；主线程上限解码继续 P3。下一张 = W87-C，未启动。
+
+### 45.3 W87-C 实际随机序与首屏快照（实施中）
+
+**冻结范围**：`MusicDatabase` 仅 v2→v3，`music_queue_state` 只新增 nullable 实际 shuffle 序与恢复种子；保留旧队列、位置、模式、歌单、最近播放行值。不改 `Versions.kt`、tag、Release、workflow、播放器内核架构或生产服务器。
+
+**能力矩阵（2026-10-24 仅读 `media3-exoplayer-1.11.1.aar` / javap 核验）**：
+
+| 能力输入 | 受理锚点 | 完成锚点 | 失败或不可表达 |
+|---|---|---|---|
+| `ExoPlayer.getShuffleOrder()`；从 `getFirstIndex()` 逐项 `getNextIndex()`，`-1` 终止 | 播放器为音频 ExoPlayer，`getLength()` 与 `mediaItemCount`、队列条目数均为 n | 恰好读出 n 个索引且为 `0..n-1` 完整置换；否则不发布实际序 | mpv / 非 Exo、条目数不一致、越界、重复、提前/滞后终止均显式降级为无实际序 |
+| `ExoPlayer.setShuffleOrder(ShuffleOrder)` + `DefaultShuffleOrder(int[], long)` | 仅音频 Exo、同一 n 条目、持久序为完整置换 | 同步安装后回读并逐项等于目标序；无异步 ack，以回读为完成证据 | 非法序不安装；旧行无顺序时由内核重建一次并立即回读，不能伪造历史下一首 |
+| Room `music_queue_state` v3：实际序 + nullable seed | `MIGRATION_2_3` 只 ALTER 两列，单事务整份快照替换 | 队列、当前曲、位置、自然序、模式、seed、实际序往返逐值一致 | 空/非法持久序降级；旧行列为 NULL，不清空其他行；非整数编码拒绝 |
+| 歌单首屏磁盘快照 | `QueueSource.PLAYLIST` 且 `sourceId == playlist.id`，快照中有可播放目标 | 先发布本地 `MusicDetail.Playlist` 且不等待网络；点击目标可复用快照 URI 立即 `setQueue` | source/sourceId 不匹配或目标不可播放时只解析目标 / 回落网络；不得把别队列序冒充本歌单 |
+| 后台刷新与补齐 | 当前起播 request generation + 自然列顺序 + 批次顺序 | 所有批次完成且自然顺序稳定；单曲失败跳过，目标已先起播 | 取消、旧 generation、队列已替换均丢弃；不以超时或推测把未补齐写成完成 |
+
+**状态所有权**：播放器真实序由 app-scope `MusicPlaybackControllerImpl` 持有并发布到 `StateFlow`；`MusicQueuePersister` 只观察同一快照落盘。ViewModel 只发布恢复展示、转发目标起播与编辑意图。
+
+**竞态决策**：结构编辑先作用播放器，再以同一代 player 回读实际序并发布；过渡快照无有效实际序时 Persister 不把旧序绑定到新条目。恢复在 `setMediaItems` 后、`prepare/play` 前安装精确序，仍由 `_restoredQueue` 首屏展示，不自动出声。
+
+**执行状态**：能力矩阵完成；进入 TDD RED。

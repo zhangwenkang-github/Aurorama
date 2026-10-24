@@ -26,6 +26,8 @@ data class StoredQueueState(
     val source: String,
     val sourceId: String?,
     val savedAt: Long,
+    val shuffleOrder: String? = null,
+    val shuffleSeed: Long? = null,
 )
 
 /** 一份完整的队列快照（items 按 [StoredQueueItem.position] 升序）。 */
