@@ -4,6 +4,7 @@ import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.zhangwenkang.cinefin.work.UpdateCheckWorker
 import com.zhangwenkang.cinefin.work.UpdateDownloadWorker
@@ -25,6 +26,17 @@ internal interface UpdateWorkGateway {
     fun enqueue(command: UpdateWorkCommand)
 }
 
+/** UI / 启动入口依赖的最小调度能力；实现仍集中在唯一 Work 调度器。 */
+interface UpdateWorkScheduling {
+    fun scheduleAutomaticCheck()
+
+    fun scheduleManualCheck()
+
+    fun scheduleDownload(updateId: String)
+
+    fun cancelDownload()
+}
+
 /**
  * WorkManager 只承担协调：两次检查各有一个唯一 Work，下载也有独立唯一 Work；全部要求联网，均使用 KEEP， 避免重复点击创建并行任务。动态 offset /
  * validator / 发现结果不进入 Work Data。
@@ -33,7 +45,7 @@ class UpdateWorkScheduler
 internal constructor(
     private val gateway: UpdateWorkGateway,
     private val automaticCheckDelayMs: () -> Long,
-) {
+) : UpdateWorkScheduling {
     @Inject
     constructor(
         workManager: WorkManager,
@@ -43,20 +55,20 @@ internal constructor(
         automaticCheckDelayMs = { coordinator.automaticCheckDelayMillis() },
     )
 
-    fun scheduleAutomaticCheck() {
+    override fun scheduleAutomaticCheck() {
         gateway.enqueue(UpdateWorkCommand.AutomaticCheck(automaticCheckDelayMs()))
     }
 
-    fun scheduleManualCheck() {
+    override fun scheduleManualCheck() {
         gateway.enqueue(UpdateWorkCommand.ManualCheck)
     }
 
-    fun scheduleDownload(updateId: String) {
+    override fun scheduleDownload(updateId: String) {
         require(UPDATE_ID_PATTERN.matches(updateId)) { "invalid updateId" }
         gateway.enqueue(UpdateWorkCommand.Download(updateId))
     }
 
-    fun cancelDownload() {
+    override fun cancelDownload() {
         gateway.enqueue(UpdateWorkCommand.CancelDownload)
     }
 
@@ -121,3 +133,11 @@ private class WorkManagerUpdateWorkGateway(private val workManager: WorkManager)
 const val UPDATE_AUTO_CHECK_WORK_NAME = "update_check_auto"
 const val UPDATE_MANUAL_CHECK_WORK_NAME = "update_check_manual"
 const val UPDATE_DOWNLOAD_WORK_NAME = "update_download"
+
+/** 只读取 Worker 已公开的小终止枚举；不在 UI 侧泄露 Work Data 其它字段。 */
+fun updateTerminalResult(workInfo: WorkInfo): UpdateTerminalResult? =
+    when (workInfo.state) {
+        WorkInfo.State.SUCCEEDED,
+        WorkInfo.State.FAILED -> UpdateWorkData.parseResult(workInfo.outputData)
+        else -> null
+    }

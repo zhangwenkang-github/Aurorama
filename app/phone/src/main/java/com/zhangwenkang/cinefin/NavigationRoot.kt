@@ -170,6 +170,8 @@ import com.zhangwenkang.cinefin.presentation.setup.login.LoginScreen
 import com.zhangwenkang.cinefin.presentation.setup.servers.ServersScreen
 import com.zhangwenkang.cinefin.presentation.setup.users.UsersScreen
 import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
+import com.zhangwenkang.cinefin.presentation.update.UpdateRoute
+import com.zhangwenkang.cinefin.presentation.update.UpdateScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.video.VideoScreen
 import com.zhangwenkang.cinefin.presentation.video.pickVideoLibraries
@@ -1566,6 +1568,7 @@ fun NavigationRoot(
                         },
                         navigateToServers = { navController.safeNavigate(ServersRoute) },
                         navigateToUsers = { navController.safeNavigate(UsersRoute) },
+                        navigateToUpdate = { navController.safeNavigate(UpdateRoute) },
                         onOpenOfflineIdentity = { hasCurrentUser ->
                             if (hasCurrentUser) {
                                 navController.safeNavigate(UsersRoute)
@@ -1623,6 +1626,9 @@ fun NavigationRoot(
             }
             composable<AboutRoute> {
                 ProvideLumen { AboutScreen(navigateBack = { navController.safePopBackStack() }) }
+            }
+            composable<UpdateRoute> {
+                ProvideLumen { UpdateScreen(navigateBack = { navController.safePopBackStack() }) }
             }
         }
     }

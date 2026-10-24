@@ -173,6 +173,8 @@
     <string name="settings_offline_identity_summary">Offline access · Tap to switch or sign in</string>
     <string name="settings_offline_identity_badge">Signed out</string>
     <string name="settings_about_summary">Version and licenses</string>
+    <string name="settings_update">Check for updates</string>
+    <string name="settings_update_summary">Download stable releases from GitHub</string>
     <string name="settings_servers_summary">Add or switch servers</string>
     <string name="settings_network_summary">Requests and timeouts</string>
     <string name="settings_libraries_summary">Which library each section uses</string>

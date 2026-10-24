@@ -1203,6 +1203,16 @@ constructor(
             PreferenceGroup(
                 preferences =
                     listOf(
+                        updateSettingsCategory {
+                            viewModelScope.launch {
+                                eventsChannel.send(SettingsEvent.NavigateToUpdate)
+                            }
+                        }
+                    )
+            ),
+            PreferenceGroup(
+                preferences =
+                    listOf(
                         PreferenceCategory(
                             nameStringResource = R.string.about,
                             descriptionStringRes = R.string.settings_about_summary,
@@ -1637,3 +1647,13 @@ constructor(
             rawPreferenceGroups.flatMap { it.preferences } + hideBottomBar
         )
 }
+
+/** 设置页更新入口的单一描述，供手机设置、导航测试与后续平台复用。 */
+fun updateSettingsCategory(onOpenUpdate: () -> Unit): PreferenceCategory =
+    PreferenceCategory(
+        nameStringResource = R.string.settings_update,
+        descriptionStringRes = R.string.settings_update_summary,
+        iconDrawableId = R.drawable.ic_download,
+        supportedDeviceTypes = listOf(DeviceType.PHONE),
+        onClick = { onOpenUpdate() },
+    )

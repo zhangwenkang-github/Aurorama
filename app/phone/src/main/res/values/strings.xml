@@ -20,4 +20,20 @@
     <string name="about_releases">GitHub Releases</string>
     <string name="about_third_party">Third-party components &amp; licenses</string>
     <string name="about_close">Close</string>
+    <string name="update_title">Check for updates</string>
+    <string name="update_current_version">Current version: %1$s</string>
+    <string name="update_idle">Check for a stable GitHub release.</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_up_to_date">You’re up to date.</string>
+    <string name="update_available">Version %1$s is available.</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_progress_bytes">%1$s of %2$s</string>
+    <string name="update_ready">Download complete; waiting for verification.</string>
+    <string name="update_failed">The update could not be completed. Try again.</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_retry_check">Check again</string>
+    <string name="update_download">Download update</string>
+    <string name="update_cancel">Cancel download</string>
+    <string name="update_retry_download">Retry download</string>
+    <string name="update_no_install">This build cannot install updates yet.</string>
 </resources>

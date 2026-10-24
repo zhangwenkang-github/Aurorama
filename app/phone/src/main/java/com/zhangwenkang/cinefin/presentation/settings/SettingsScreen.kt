@@ -80,6 +80,7 @@ fun SettingsScreen(
     navigateToUsers: () -> Unit,
     onOpenOfflineIdentity: (hasCurrentUser: Boolean) -> Unit = { navigateToUsers() },
     navigateToAbout: () -> Unit,
+    navigateToUpdate: () -> Unit = {},
     navigateBack: () -> Unit,
     /** W42：紧凑形态（手机底部 Tab）才允许「隐藏底栏」；平板形态开关置灰 + 说明。 */
     compactForm: Boolean = true,
@@ -102,6 +103,7 @@ fun SettingsScreen(
             is SettingsEvent.NavigateToUsers -> navigateToUsers()
             is SettingsEvent.NavigateToServers -> navigateToServers()
             is SettingsEvent.NavigateToAbout -> navigateToAbout()
+            is SettingsEvent.NavigateToUpdate -> navigateToUpdate()
             is SettingsEvent.UpdateTheme -> {
                 val uiModeManager = context.getSystemService(UiModeManager::class.java)
                 val nightMode =

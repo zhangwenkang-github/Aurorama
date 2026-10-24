@@ -167,6 +167,8 @@
     <string name="settings_offline_identity_summary">离线访问中 · 点按切换或登录用户</string>
     <string name="settings_offline_identity_badge">未登录</string>
     <string name="settings_about_summary">版本与开源许可</string>
+    <string name="settings_update">检查更新</string>
+    <string name="settings_update_summary">从 GitHub 获取稳定版本</string>
     <string name="settings_servers_summary">添加 / 切换服务器</string>
     <string name="settings_network_summary">请求与超时参数</string>
     <string name="settings_libraries_summary">各区域使用哪个媒体库</string>

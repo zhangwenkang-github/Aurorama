@@ -25,7 +25,9 @@ import coil3.svg.SvgDecoder
 import com.google.android.material.color.DynamicColors
 import com.zhangwenkang.cinefin.network.SharedPreferencesCertificateTrustStore
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
+import com.zhangwenkang.cinefin.presentation.update.launchAutomaticUpdateCheck
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.update.UpdateWorkScheduler
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
 import com.zhangwenkang.cinefin.work.ReaderProgressSyncWorker
@@ -48,6 +50,8 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
     @Inject lateinit var workerFactory: HiltWorkerFactory
 
     @Inject lateinit var downloader: Downloader
+
+    @Inject lateinit var updateWorkScheduler: UpdateWorkScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -78,6 +82,7 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
 
         scheduleUserDataSync(workManager)
         scheduleReaderProgressSync(workManager)
+        launchAutomaticUpdateCheck(CoroutineScope(Dispatchers.IO), updateWorkScheduler).start()
 
         // W50 下载引擎启动恢复：旧引擎进行中任务标记「需重下」；自研引擎中断任务从残片继续。
         CoroutineScope(Dispatchers.IO).launch {
