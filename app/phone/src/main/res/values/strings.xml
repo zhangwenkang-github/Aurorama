@@ -30,6 +30,7 @@
     <string name="update_progress_bytes">%1$s of %2$s</string>
     <string name="update_ready">Download complete; waiting for verification.</string>
     <string name="update_failed">The update could not be completed. Try again.</string>
+    <string name="update_cancelled">Update download cancelled.</string>
     <string name="update_check">Check for updates</string>
     <string name="update_retry_check">Check again</string>
     <string name="update_download">Download update</string>

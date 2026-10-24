@@ -126,6 +126,7 @@ private fun UpdateStatus(state: UpdateUiState) {
             UpdateUiPhase.DOWNLOADING -> stringResource(R.string.update_downloading)
             UpdateUiPhase.READY_FOR_VERIFICATION -> stringResource(R.string.update_ready)
             UpdateUiPhase.FAILED -> stringResource(R.string.update_failed)
+            UpdateUiPhase.CANCELLED -> stringResource(R.string.update_cancelled)
         }
     Text(text = text, style = CinefinType.TitleMedium, color = colors.onSurface)
 }

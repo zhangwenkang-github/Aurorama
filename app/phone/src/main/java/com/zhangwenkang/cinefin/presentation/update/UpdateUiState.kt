@@ -16,6 +16,7 @@ enum class UpdateUiPhase {
     DOWNLOADING,
     READY_FOR_VERIFICATION,
     FAILED,
+    CANCELLED,
 }
 
 enum class UpdatePrimaryAction {
@@ -44,6 +45,50 @@ data class UpdateUiState(
             } else {
                 null
             }
+}
+
+internal enum class UpdateCheckWorkStatus {
+    ABSENT,
+    QUEUED,
+    RUNNING,
+    SUCCEEDED,
+    FAILED,
+    CANCELLED,
+    BLOCKED,
+}
+
+internal data class UpdateCheckWorkObservation(
+    val status: UpdateCheckWorkStatus = UpdateCheckWorkStatus.ABSENT,
+    val terminal: UpdateTerminalResult? = null,
+)
+
+internal data class UpdateCheckWorkSelection(
+    val running: Boolean = false,
+    val terminal: UpdateTerminalResult? = null,
+)
+
+/** 每个 unique work 名称先各自收敛，MANUAL 的最终意图优先于自动检查。 */
+internal fun resolveUpdateCheckWork(
+    automatic: UpdateCheckWorkObservation,
+    manual: UpdateCheckWorkObservation,
+): UpdateCheckWorkSelection {
+    if (
+        manual.status == UpdateCheckWorkStatus.QUEUED ||
+            manual.status == UpdateCheckWorkStatus.RUNNING ||
+            manual.status == UpdateCheckWorkStatus.BLOCKED
+    ) {
+        return UpdateCheckWorkSelection(running = true)
+    }
+    manual.terminal?.let {
+        return UpdateCheckWorkSelection(terminal = it)
+    }
+    if (automatic.status == UpdateCheckWorkStatus.RUNNING) {
+        return UpdateCheckWorkSelection(running = true)
+    }
+    automatic.terminal?.let {
+        return UpdateCheckWorkSelection(terminal = it)
+    }
+    return UpdateCheckWorkSelection()
 }
 
 /**
@@ -101,6 +146,15 @@ fun buildUpdateUiState(
                     downloadedBytes = downloaded,
                     totalBytes = total,
                     failureCode = applicableTransfer.failureCode,
+                    primaryAction = UpdatePrimaryAction.RETRY,
+                )
+            UpdateTransferPhase.CANCELLED ->
+                return UpdateUiState(
+                    phase = UpdateUiPhase.CANCELLED,
+                    availableVersion = applicableTransfer.version,
+                    updateId = updateId,
+                    downloadedBytes = downloaded,
+                    totalBytes = total,
                     primaryAction = UpdatePrimaryAction.RETRY,
                 )
         }

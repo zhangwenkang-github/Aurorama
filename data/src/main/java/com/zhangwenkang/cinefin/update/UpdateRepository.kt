@@ -1,5 +1,8 @@
 package com.zhangwenkang.cinefin.update
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 interface UpdateRepository {
     suspend fun check(mode: UpdateCheckMode): UpdateCheckResult
 
@@ -7,6 +10,14 @@ interface UpdateRepository {
         updateId: String,
         onProgress: (Long) -> Unit = {},
     ): UpdateDownloadResult
+
+    suspend fun cancel(updateId: String): UpdateCancelResult
+}
+
+sealed interface UpdateCancelResult {
+    data object Success : UpdateCancelResult
+
+    data class Failure(val reason: String) : UpdateCancelResult
 }
 
 fun interface UpdateDownloadExecutor {
@@ -50,4 +61,12 @@ class UpdateRepositoryImpl(
         }
         return downloader.download(transfer.release, onProgress)
     }
+
+    override suspend fun cancel(updateId: String): UpdateCancelResult =
+        withContext(Dispatchers.IO) {
+            when (val result = store.cancelDownload(updateId)) {
+                UpdateStateWriteResult.Success -> UpdateCancelResult.Success
+                is UpdateStateWriteResult.Failure -> UpdateCancelResult.Failure(result.reason)
+            }
+        }
 }

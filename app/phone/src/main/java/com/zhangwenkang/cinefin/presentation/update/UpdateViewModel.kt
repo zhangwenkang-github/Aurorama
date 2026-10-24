@@ -8,6 +8,7 @@ import com.zhangwenkang.cinefin.BuildConfig
 import com.zhangwenkang.cinefin.update.UPDATE_AUTO_CHECK_WORK_NAME
 import com.zhangwenkang.cinefin.update.UPDATE_DOWNLOAD_WORK_NAME
 import com.zhangwenkang.cinefin.update.UPDATE_MANUAL_CHECK_WORK_NAME
+import com.zhangwenkang.cinefin.update.UpdateRepository
 import com.zhangwenkang.cinefin.update.UpdateStateReadResult
 import com.zhangwenkang.cinefin.update.UpdateStateStore
 import com.zhangwenkang.cinefin.update.UpdateTerminalResult
@@ -32,6 +33,7 @@ class UpdateViewModel
 @Inject
 constructor(
     private val stateStore: UpdateStateStore,
+    private val repository: UpdateRepository,
     private val scheduler: UpdateWorkScheduler,
     private val workManager: WorkManager,
 ) : ViewModel() {
@@ -52,7 +54,12 @@ constructor(
     }
 
     fun cancelDownload() {
-        dispatchUpdateAction(UpdateAction.CANCEL, _state.value.updateId, scheduler)
+        val updateId = _state.value.updateId ?: return
+        viewModelScope.launch {
+            if (cancelUpdateDownload(updateId, repository, scheduler)) {
+                refreshState(lastSnapshot)
+            }
+        }
     }
 
     fun retryDownload() {
@@ -95,19 +102,25 @@ constructor(
                     transfer
                         ?.takeIf {
                             it.phase == UpdateTransferPhase.DOWNLOADING ||
-                                it.phase == UpdateTransferPhase.FAILED
+                                it.phase == UpdateTransferPhase.FAILED ||
+                                it.phase == UpdateTransferPhase.CANCELLED
                         }
                         ?.let { stateStore.partFile(it).length().coerceAtLeast(0L) } ?: 0L
                 Triple(release, transfer, downloaded)
             }
+        val check =
+            resolveUpdateCheckWork(
+                automatic = snapshot.automatic.latestCheckObservation(),
+                manual = snapshot.manual.latestCheckObservation(),
+            )
         _state.value =
             buildUpdateUiState(
                 currentVersion = BuildConfig.VERSION_NAME,
                 release = loaded.first,
                 transfer = loaded.second,
                 downloadedBytes = loaded.third,
-                checkRunning = snapshot.check.isRunning(),
-                checkTerminal = snapshot.check.terminalResult(),
+                checkRunning = check.running,
+                checkTerminal = check.terminal,
             )
     }
 
@@ -115,15 +128,27 @@ constructor(
         val automatic: List<WorkInfo> = emptyList(),
         val manual: List<WorkInfo> = emptyList(),
         val download: List<WorkInfo> = emptyList(),
-    ) {
-        val check: List<WorkInfo>
-            get() = automatic + manual
-    }
+    )
 }
 
 private fun List<WorkInfo>.isRunning(): Boolean = any { it.state == WorkInfo.State.RUNNING }
 
-private fun List<WorkInfo>.terminalResult(): UpdateTerminalResult? = maxByOrNull {
-    it.generation
+private fun List<WorkInfo>.latestCheckObservation(): UpdateCheckWorkObservation {
+    val latest = maxByOrNull { it.generation } ?: return UpdateCheckWorkObservation()
+    return when (latest.state) {
+        WorkInfo.State.ENQUEUED -> UpdateCheckWorkObservation(UpdateCheckWorkStatus.QUEUED)
+        WorkInfo.State.BLOCKED -> UpdateCheckWorkObservation(UpdateCheckWorkStatus.BLOCKED)
+        WorkInfo.State.RUNNING -> UpdateCheckWorkObservation(UpdateCheckWorkStatus.RUNNING)
+        WorkInfo.State.SUCCEEDED ->
+            UpdateCheckWorkObservation(
+                status = UpdateCheckWorkStatus.SUCCEEDED,
+                terminal = updateTerminalResult(latest) ?: UpdateTerminalResult.STATE_ERROR,
+            )
+        WorkInfo.State.FAILED ->
+            UpdateCheckWorkObservation(
+                status = UpdateCheckWorkStatus.FAILED,
+                terminal = updateTerminalResult(latest) ?: UpdateTerminalResult.STATE_ERROR,
+            )
+        WorkInfo.State.CANCELLED -> UpdateCheckWorkObservation(UpdateCheckWorkStatus.CANCELLED)
+    }
 }
-    ?.let(::updateTerminalResult)

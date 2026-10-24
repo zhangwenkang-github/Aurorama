@@ -9,6 +9,7 @@ import com.zhangwenkang.cinefin.update.UpdateTransferState
 import com.zhangwenkang.cinefin.update.releaseAssetUrl
 import com.zhangwenkang.cinefin.update.stableUpdateId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -66,6 +67,24 @@ class UpdateUiStateTest {
     }
 
     @Test
+    fun persistedCancelledStateRestoresAnIndependentRetryWithoutClaimingFailure() {
+        val transfer = transferState(phase = UpdateTransferPhase.CANCELLED)
+
+        val state =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                transfer = transfer,
+                downloadedBytes = 37,
+            )
+
+        assertEquals(UpdateUiPhase.CANCELLED, state.phase)
+        assertEquals(UpdatePrimaryAction.RETRY, state.primaryAction)
+        assertEquals(37L, state.downloadedBytes)
+        assertNull(state.failureCode)
+    }
+
+    @Test
     fun completedDownloadStopsAtReadyForVerification() {
         val transfer = transferState(phase = UpdateTransferPhase.READY_FOR_VERIFICATION)
 
@@ -111,6 +130,99 @@ class UpdateUiStateTest {
         assertEquals(UpdatePrimaryAction.NONE, checking.primaryAction)
         assertEquals(UpdateUiPhase.FAILED, failed.phase)
         assertEquals(UpdatePrimaryAction.RETRY_CHECK, failed.primaryAction)
+    }
+
+    @Test
+    fun manualTerminalWinsOverEveryAutomaticTerminalCombination() {
+        val combinations =
+            listOf(
+                UpdateTerminalResult.AVAILABLE to UpdateTerminalResult.UP_TO_DATE,
+                UpdateTerminalResult.UP_TO_DATE to UpdateTerminalResult.NETWORK_ERROR,
+                UpdateTerminalResult.NETWORK_ERROR to UpdateTerminalResult.AVAILABLE,
+            )
+
+        combinations.forEach { (automaticResult, manualResult) ->
+            val selected =
+                resolveUpdateCheckWork(
+                    automatic =
+                        UpdateCheckWorkObservation(
+                            status = UpdateCheckWorkStatus.SUCCEEDED,
+                            terminal = automaticResult,
+                        ),
+                    manual =
+                        UpdateCheckWorkObservation(
+                            status = UpdateCheckWorkStatus.SUCCEEDED,
+                            terminal = manualResult,
+                        ),
+                )
+
+            assertFalse(selected.running)
+            assertEquals(manualResult, selected.terminal)
+        }
+    }
+
+    @Test
+    fun manualQueuedOrRunningTakesPriorityOverAutomaticTerminal() {
+        val automaticTerminal =
+            UpdateCheckWorkObservation(
+                status = UpdateCheckWorkStatus.SUCCEEDED,
+                terminal = UpdateTerminalResult.AVAILABLE,
+            )
+
+        val queued =
+            resolveUpdateCheckWork(
+                automatic = automaticTerminal,
+                manual = UpdateCheckWorkObservation(status = UpdateCheckWorkStatus.QUEUED),
+            )
+        val running =
+            resolveUpdateCheckWork(
+                automatic = automaticTerminal,
+                manual = UpdateCheckWorkObservation(status = UpdateCheckWorkStatus.RUNNING),
+            )
+
+        assertTrue(queued.running)
+        assertNull(queued.terminal)
+        assertTrue(running.running)
+        assertNull(running.terminal)
+    }
+
+    @Test
+    fun queuedAutomaticWorkDoesNotShadowManualSuccess() {
+        val selected =
+            resolveUpdateCheckWork(
+                automatic = UpdateCheckWorkObservation(status = UpdateCheckWorkStatus.QUEUED),
+                manual =
+                    UpdateCheckWorkObservation(
+                        status = UpdateCheckWorkStatus.SUCCEEDED,
+                        terminal = UpdateTerminalResult.UP_TO_DATE,
+                    ),
+            )
+
+        assertFalse(selected.running)
+        assertEquals(UpdateTerminalResult.UP_TO_DATE, selected.terminal)
+    }
+
+    @Test
+    fun automaticTerminalRemainsVisibleButLongDelayQueuedAutomaticIsIdle() {
+        val terminal =
+            resolveUpdateCheckWork(
+                automatic =
+                    UpdateCheckWorkObservation(
+                        status = UpdateCheckWorkStatus.SUCCEEDED,
+                        terminal = UpdateTerminalResult.UP_TO_DATE,
+                    ),
+                manual = UpdateCheckWorkObservation(),
+            )
+        val queued =
+            resolveUpdateCheckWork(
+                automatic = UpdateCheckWorkObservation(status = UpdateCheckWorkStatus.QUEUED),
+                manual = UpdateCheckWorkObservation(),
+            )
+
+        assertFalse(terminal.running)
+        assertEquals(UpdateTerminalResult.UP_TO_DATE, terminal.terminal)
+        assertFalse(queued.running)
+        assertNull(queued.terminal)
     }
 
     private fun releaseState(): StoredReleaseState {

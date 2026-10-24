@@ -42,6 +42,7 @@ enum class UpdateTransferPhase {
     DOWNLOADING,
     READY_FOR_VERIFICATION,
     FAILED,
+    CANCELLED,
 }
 
 enum class UpdateFailureCode {
@@ -218,6 +219,7 @@ class UpdateStateStore(
     fun loadDiscoveredRelease(): UpdateStateReadResult<StoredReleaseState> =
         readState(RELEASE_STATE_FILE)
 
+    @Synchronized
     fun beginDownload(
         release: UpdateReleaseIdentity,
         nowEpochMs: Long = clock(),
@@ -277,6 +279,7 @@ class UpdateStateStore(
         return writeTransfer(transfer)
     }
 
+    @Synchronized
     fun loadTransfer(): UpdateStateReadResult<UpdateTransferState> {
         val loaded = readState<UpdateTransferState>(TRANSFER_STATE_FILE)
         if (loaded !is UpdateStateReadResult.Present) {
@@ -304,6 +307,32 @@ class UpdateStateStore(
             return UpdateStateReadResult.Invalid("ready state has no complete file")
         }
         return UpdateStateReadResult.Present(transfer)
+    }
+
+    @Synchronized
+    fun cancelDownload(
+        updateId: String,
+        nowEpochMs: Long = clock(),
+    ): UpdateStateWriteResult {
+        val transfer =
+            when (val loaded = loadTransfer()) {
+                is UpdateStateReadResult.Present -> loaded.value
+                is UpdateStateReadResult.Invalid,
+                UpdateStateReadResult.Absent -> null
+            } ?: return UpdateStateWriteResult.Failure("download transfer is absent or invalid")
+        if (transfer.updateId != updateId) {
+            return UpdateStateWriteResult.Failure("download identity mismatch")
+        }
+        if (transfer.phase != UpdateTransferPhase.DOWNLOADING) {
+            return UpdateStateWriteResult.Failure("download is not active")
+        }
+        return writeTransfer(
+            transfer.copy(
+                phase = UpdateTransferPhase.CANCELLED,
+                updatedAtEpochMs = maxOf(transfer.updatedAtEpochMs, nowEpochMs),
+                failureCode = null,
+            )
+        )
     }
 
     fun inspectTransferFiles(transfer: UpdateTransferState): TransferFileInspection {
@@ -336,13 +365,17 @@ class UpdateStateStore(
 
     fun completeFile(transfer: UpdateTransferState): File = completeFile(transfer.updateId)
 
+    @Synchronized
     fun recordValidators(
         transfer: UpdateTransferState,
         etag: String?,
         lastModified: String?,
         nowEpochMs: Long = clock(),
-    ): UpdateStateWriteResult =
-        writeTransfer(
+    ): UpdateStateWriteResult {
+        activeTransferFailure(transfer)?.let {
+            return it
+        }
+        return writeTransfer(
             transfer.copy(
                 phase = UpdateTransferPhase.DOWNLOADING,
                 etag = etag?.takeIf(String::isNotBlank),
@@ -351,24 +384,34 @@ class UpdateStateStore(
                 failureCode = null,
             )
         )
+    }
 
+    @Synchronized
     fun markFailed(
         transfer: UpdateTransferState,
         failureCode: UpdateFailureCode,
         nowEpochMs: Long = clock(),
-    ): UpdateStateWriteResult =
-        writeTransfer(
+    ): UpdateStateWriteResult {
+        activeTransferFailure(transfer)?.let {
+            return it
+        }
+        return writeTransfer(
             transfer.copy(
                 phase = UpdateTransferPhase.FAILED,
                 updatedAtEpochMs = maxOf(transfer.updatedAtEpochMs, nowEpochMs),
                 failureCode = failureCode,
             )
         )
+    }
 
+    @Synchronized
     fun markReady(
         transfer: UpdateTransferState,
         nowEpochMs: Long = clock(),
     ): UpdateStateWriteResult {
+        activeTransferFailure(transfer)?.let {
+            return it
+        }
         val complete = completeFile(transfer)
         if (!complete.isFile || complete.length() != transfer.assetSize) {
             return UpdateStateWriteResult.Failure("complete file size mismatch")
@@ -386,10 +429,14 @@ class UpdateStateStore(
         FileOutputStream(partFile(transfer), false).use { output -> output.fd.sync() }
     }
 
+    @Synchronized
     fun finalizePart(
         transfer: UpdateTransferState,
         nowEpochMs: Long = clock(),
     ): UpdateStateWriteResult {
+        activeTransferFailure(transfer)?.let {
+            return it
+        }
         val part = partFile(transfer)
         if (!part.isFile || part.length() != transfer.assetSize) {
             return UpdateStateWriteResult.Failure("part size mismatch")
@@ -464,6 +511,23 @@ class UpdateStateStore(
 
     private fun writeTransfer(transfer: UpdateTransferState): UpdateStateWriteResult =
         writeAtomic(TRANSFER_STATE_FILE, json.encodeToString(transfer))
+
+    private fun activeTransferFailure(
+        transfer: UpdateTransferState
+    ): UpdateStateWriteResult.Failure? =
+        when (val current = readState<UpdateTransferState>(TRANSFER_STATE_FILE)) {
+            UpdateStateReadResult.Absent ->
+                UpdateStateWriteResult.Failure("transfer state is absent")
+            is UpdateStateReadResult.Invalid -> UpdateStateWriteResult.Failure(current.reason)
+            is UpdateStateReadResult.Present ->
+                when {
+                    current.value.updateId != transfer.updateId ->
+                        UpdateStateWriteResult.Failure("download identity mismatch")
+                    current.value.phase != UpdateTransferPhase.DOWNLOADING ->
+                        UpdateStateWriteResult.Failure("download is not active")
+                    else -> null
+                }
+        }
 
     private fun writeAtomic(
         fileName: String,

@@ -30,6 +30,7 @@
     <string name="update_progress_bytes">已下载 %1$s / %2$s</string>
     <string name="update_ready">下载完成，等待校验。</string>
     <string name="update_failed">更新未完成，请重试。</string>
+    <string name="update_cancelled">更新下载已取消。</string>
     <string name="update_check">检查更新</string>
     <string name="update_retry_check">再次检查</string>
     <string name="update_download">下载更新</string>
