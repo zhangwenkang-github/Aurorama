@@ -15,6 +15,73 @@ data class SearchRequest(val query: String, val scope: SearchScope)
 /** 一次搜索固定使用的服务器 / 用户 namespace；不得在结果返回后再从当前会话改写。 */
 data class SearchNamespace(val serverId: String, val userId: UUID)
 
+/**
+ * 搜索结果落地前的 namespace 守卫。
+ *
+ * generation 防止旧请求覆盖新请求；requested==current 防止搜索途中切 server/user 后把旧域结果 emit 到新会话。
+ */
+internal class SearchNamespaceGuard {
+    private var generation = 0L
+    private var activeNamespace: SearchNamespace? = null
+    private var startedInNamespace = false
+
+    fun begin(requested: SearchNamespace?, current: SearchNamespace?): Long {
+        generation += 1
+        activeNamespace = requested
+        startedInNamespace = requested == current
+        return generation
+    }
+
+    fun invalidate() {
+        generation += 1
+        activeNamespace = null
+        startedInNamespace = false
+    }
+
+    fun isCurrent(generation: Long): Boolean = generation == this.generation
+
+    fun accepts(generation: Long, current: SearchNamespace?): Boolean =
+        isCurrent(generation) && startedInNamespace && activeNamespace == current
+}
+
+/** 下载项先按 query / scope / namespace 过滤，再参与搜索折叠。 */
+internal object DownloadSearchRules {
+    fun filter(
+        request: SearchRequest,
+        namespace: SearchNamespace?,
+        downloads: List<DownloadMediaRecord>,
+    ): List<DownloadMediaRecord> {
+        return downloads.filter { record ->
+            record.matches(request.scope, request.query) && record.matchesNamespace(namespace)
+        }
+    }
+
+    private fun DownloadMediaRecord.matches(scope: SearchScope, query: String): Boolean {
+        val normalized = query.trim()
+        if (
+            normalized.isNotEmpty() &&
+                listOfNotNull(displayName, albumName, artist).none { field ->
+                    field.contains(normalized, ignoreCase = true)
+                }
+        ) {
+            return false
+        }
+        val category = SearchResultRules.categoryOf(this)
+        return when (scope) {
+            SearchScope.ALL -> true
+            SearchScope.VIDEO -> category == SearchCategory.VIDEO
+            SearchScope.MUSIC -> category == SearchCategory.MUSIC
+            SearchScope.BOOK -> category == SearchCategory.BOOK
+        }
+    }
+
+    private fun DownloadMediaRecord.matchesNamespace(namespace: SearchNamespace?): Boolean {
+        val provenance = provenance() ?: return true
+        if (namespace == null) return true
+        return provenance.serverId == namespace.serverId && provenance.userId == namespace.userId
+    }
+}
+
 data class SearchOutcome(
     val serverItems: List<FindroidItem>,
     val localItems: List<LocalSearchHit>,
@@ -31,6 +98,7 @@ internal suspend fun executeSearch(
     namespace: SearchNamespace? = null,
     downloads: List<DownloadMediaRecord> = emptyList(),
 ): SearchOutcome = coroutineScope {
+    val filteredDownloads = DownloadSearchRules.filter(request, namespace, downloads)
     val server = async { captureSource("server search") { serverSearch(request) } }
     val local = async { captureSource("local search") { localSearch(request) } }
     val serverResult = server.await()
@@ -55,11 +123,17 @@ internal suspend fun executeSearch(
             SearchResultRules.fold(
                 serverItems = candidates,
                 localHits = dedupedLocal,
-                downloads = downloads,
+                downloads = filteredDownloads,
             )
         }
             ?: serverResult.items.distinctBy { it.id }.map { SearchResult.UnidentifiedServer(it) } +
-                downloads
+                dedupedLocal.map { hit ->
+                    SearchResult.LocalLibrary(
+                        identity = LocalLibraryItemIdentity(hit.libraryId, hit.entry.itemId),
+                        hit = hit,
+                    )
+                } +
+                filteredDownloads
                     .distinctBy { SearchResult.Download(it).stableKey }
                     .map { SearchResult.Download(it) }
     SearchOutcome(

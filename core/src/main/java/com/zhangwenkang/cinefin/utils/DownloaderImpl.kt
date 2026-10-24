@@ -1300,10 +1300,27 @@ class DownloaderImpl(
 
     override suspend fun downloadedMediaRecords(): List<DownloadMediaRecord> =
         withContext(Dispatchers.IO) {
-            val completed = database.getDownloadedItemIds().toSet()
-            sidecar
-                .allRecords()
-                .filter { record -> record.itemId.toUuidOrNull() in completed }
+            val completedLocalSources =
+                database
+                    .getAllSources()
+                    .asSequence()
+                    .filter { source ->
+                        source.type == FindroidSourceType.LOCAL &&
+                            DownloadTaskRules.resolveStatus(
+                                persistedStatus = source.taskStatus,
+                                pathIsPartial = source.path.endsWith(".download"),
+                            ) == DownloadTaskStatus.COMPLETED
+                    }
+                    .map { source -> DownloadedMediaSource(source.itemId, source.id) }
+                    .toSet()
+            DownloadedMediaRecordRules.completedRecords(
+                    records = sidecar.allRecords(),
+                    completedLocalSources = completedLocalSources,
+                    bookFileSize = { itemId ->
+                        File(context.filesDir, "books/$itemId.book").takeIf { it.isFile }?.length()
+                            ?: 0L
+                    },
+                )
                 .map { record ->
                     if (!record.displayName.isNullOrBlank()) {
                         record

@@ -152,6 +152,100 @@ class SearchSessionTest {
         assertEquals(SearchSource.DOWNLOADED, outcome.results.last().sources.single())
     }
 
+    @Test
+    fun `下载结果只保留匹配 query 与 scope 的条目`() {
+        val matching =
+            downloadRecord(
+                name = "only-this.flac",
+                kind = DownloadMediaKind.MUSIC,
+                itemId = UUID.fromString("11111111-1111-4111-8111-111111111111"),
+            )
+        val unrelated = downloadRecord(name = "unrelated.flac", kind = DownloadMediaKind.MUSIC)
+        val wrongScope = downloadRecord(name = "only-this.mp4", kind = DownloadMediaKind.VIDEO)
+
+        val filtered =
+            DownloadSearchRules.filter(
+                request = SearchRequest("only-this", SearchScope.MUSIC),
+                namespace = null,
+                downloads = listOf(matching, unrelated, wrongScope),
+            )
+
+        assertEquals(listOf(matching), filtered)
+    }
+
+    @Test
+    fun `显式其他 server 或 user 的下载隐藏而未知来源保留`() {
+        val namespace = SearchNamespace("server-a", ALICE)
+        val matching = downloadRecord(name = "same", serverId = "server-a", userId = ALICE)
+        val otherServer = downloadRecord(name = "same", serverId = "server-b", userId = ALICE)
+        val otherUser = downloadRecord(name = "same", serverId = "server-a", userId = BOB)
+        val unknown = downloadRecord(name = "same", serverId = null, userId = null)
+
+        val filtered =
+            DownloadSearchRules.filter(
+                request = SearchRequest("same", SearchScope.VIDEO),
+                namespace = namespace,
+                downloads = listOf(otherServer, matching, otherUser, unknown),
+            )
+
+        assertEquals(listOf(matching, unknown), filtered)
+    }
+
+    @Test
+    fun `无 namespace 时仍显示 query 命中的本地库结果`() = runBlocking {
+        val local = hit("only-this.mp4", LocalMediaKind.VIDEO)
+
+        val outcome =
+            executeSearch(
+                SearchRequest(query = "only-this", scope = SearchScope.VIDEO),
+                serverSearch = { emptyList() },
+                localSearch = { listOf(local) },
+                namespace = null,
+            )
+
+        assertEquals(listOf(local), outcome.localItems)
+        assertEquals(
+            listOf(
+                SearchResult.LocalLibrary(LocalLibraryItemIdentity(1L, local.entry.itemId), local)
+            ),
+            outcome.results,
+        )
+    }
+
+    @Test
+    fun `namespace generation 在切号或新请求后拒绝旧结果`() {
+        val guard = SearchNamespaceGuard()
+        val generation =
+            guard.begin(
+                requested = SearchNamespace("server-a", ALICE),
+                current = SearchNamespace("server-a", ALICE),
+            )
+
+        assertTrue(
+            guard.accepts(
+                generation,
+                current = SearchNamespace("server-a", ALICE),
+            )
+        )
+        assertFalse(
+            guard.accepts(
+                generation,
+                current = SearchNamespace("server-b", ALICE),
+            )
+        )
+        assertFalse(
+            guard.accepts(
+                generation,
+                current = SearchNamespace("server-a", BOB),
+            )
+        )
+
+        val current = SearchNamespace("server-a", ALICE)
+        val stale = guard.begin(requested = current, current = current)
+        guard.begin(requested = current, current = current)
+        assertFalse(guard.accepts(stale, current = current))
+    }
+
     private fun hit(name: String, kind: LocalMediaKind): LocalSearchHit =
         LocalSearchHit(
             entry =
@@ -180,4 +274,25 @@ class SearchSessionTest {
             images = FindroidImages(),
             kind = "VIDEO",
         )
+
+    private fun downloadRecord(
+        name: String,
+        kind: DownloadMediaKind = DownloadMediaKind.VIDEO,
+        itemId: UUID = UUID.nameUUIDFromBytes(name.toByteArray()),
+        serverId: String? = "server-a",
+        userId: UUID? = ALICE,
+    ) =
+        DownloadMediaRecord(
+            itemId = itemId.toString(),
+            kind = kind,
+            serverId = serverId,
+            userId = userId?.toString(),
+            sourceId = if (kind == DownloadMediaKind.BOOK) null else "source-a",
+            displayName = name,
+        )
+
+    private companion object {
+        val ALICE: UUID = UUID.fromString("22222222-2222-4222-8222-222222222222")
+        val BOB: UUID = UUID.fromString("44444444-4444-4444-8444-444444444444")
+    }
 }

@@ -9,6 +9,13 @@ import java.util.Base64
 import java.util.UUID
 import timber.log.Timber
 
+/** W34 下载层级：条目所属媒体类型（下载列表层级化用）。 */
+enum class DownloadMediaKind {
+    VIDEO,
+    MUSIC,
+    BOOK,
+}
+
 /** W88-B：下载创建时持久化的可证明来源；媒体源适用于视频 / 音乐。 */
 data class DownloadProvenance(
     val serverId: String,
@@ -58,8 +65,8 @@ data class DownloadMediaRecord(
  *
  * 每次写入均先落同目录临时文件再替换目标文件；[lock] 串行化同一进程内调用，避免并发 `put / remove` 互相覆盖。
  */
-class DownloadMediaSidecar(context: Context) {
-    private val file = File(context.filesDir, "download_media.tsv")
+class DownloadMediaSidecar private constructor(private val file: File) {
+    constructor(context: Context) : this(File(context.filesDir, "download_media.tsv"))
 
     /** 返回 itemId → 记录（读取失败按空处理，不影响下载列表）。 */
     fun records(): Map<String, DownloadMediaRecord> = allRecords().associateBy { it.itemId }
@@ -104,6 +111,23 @@ class DownloadMediaSidecar(context: Context) {
         update { records -> records.filterNot { it.itemId == itemId.toString() } }
     }
 
+    /** 书籍只有一个私有 `.book` 文件；成功重下时替换该 item 的旧 BOOK 来源。 */
+    fun replaceBook(record: DownloadMediaRecord) {
+        require(record.kind == DownloadMediaKind.BOOK)
+        update { records ->
+            records.filterNot { it.kind == DownloadMediaKind.BOOK && it.itemId == record.itemId } +
+                record
+        }
+    }
+
+    fun removeBook(itemId: UUID) {
+        update { records ->
+            records.filterNot {
+                it.kind == DownloadMediaKind.BOOK && it.itemId == itemId.toString()
+            }
+        }
+    }
+
     private fun update(transform: (List<DownloadMediaRecord>) -> List<DownloadMediaRecord>) {
         synchronized(lock) {
             runCatching {
@@ -133,13 +157,16 @@ class DownloadMediaSidecar(context: Context) {
         }
     }
 
-    private companion object {
+    internal companion object {
         /** 同一进程可能有下载器 / 离线仓库等多个实例，以全局对象串行化同一侧车文件。 */
         val lock = Any()
+
+        /** JVM 测试接缝；生产方只通过 Context 构造。 */
+        internal fun forFile(file: File): DownloadMediaSidecar = DownloadMediaSidecar(file)
     }
 }
 
-internal object DownloadMediaCodec {
+object DownloadMediaCodec {
     private const val SEPARATOR = "\t"
     private const val VERSION = "v2"
     private const val V2_COLUMN_COUNT = 10
@@ -226,7 +253,7 @@ internal object DownloadMediaCodec {
             }
 }
 
-internal fun String.toUuidOrNull(): UUID? = runCatching { UUID.fromString(this) }.getOrNull()
+fun String.toUuidOrNull(): UUID? = runCatching { UUID.fromString(this) }.getOrNull()
 
 private fun DownloadMediaRecord.storageKey(): String =
     listOf(kind.name, itemId, serverId.orEmpty(), userId.orEmpty(), sourceId.orEmpty())

@@ -2,13 +2,6 @@ package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
 
-/** W34 下载层级：条目所属媒体类型（下载列表层级化用）。 */
-enum class DownloadMediaKind {
-    VIDEO,
-    MUSIC,
-    BOOK,
-}
-
 /**
  * W32 下载任务（下载管理页的单一数据模型）。
  *
