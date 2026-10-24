@@ -552,6 +552,7 @@
 **W87-C 实际随机序与首屏快照（#46）**：音乐播放状态工程师；持久化自然队列、当前曲、位置、模式与实际 shuffle 序；歌单首屏读快照，点击先解析目标曲并在后台补队列。非目标：恢复不自动出声；不等待整表解析才起播；不重写内核。验收：强制停止后队列 / 当前曲 / 位置 / 实际下几首顺序一致；快照命中不依赖网络；后台补齐顺序稳定。落点：`MusicQueue*`、`MusicQueuePersister`、`MusicModeViewModel`；Media3 随机序重建能力先只读核实。
 
 - **2026-10-24 W87-C 实施中**：分支 `codex/w87-c-queue-shuffle`，基线 `24dabd6d`。已用 Media3 1.11.1 AAR/javap 核实音频 ExoPlayer 可 `getShuffleOrder()` / `setShuffleOrder()`，`DefaultShuffleOrder(int[], long)` 可按完整置换重建，`getNextIndex()` 以 `-1` 终止。冻结 v2→v3 仅向 `music_queue_state` 增加 nullable 实际序与 seed；非法 / 旧行顺序显式降级。当前先完成能力矩阵与 TDD RED，未宣告行为通过。
+- **2026-10-24 W87-C 实现自测收口**：功能提交 `86bfe09b` / `e578a63a`。实现实际序四列能力矩阵、v3 两列迁移、结构编辑后 player 回读、自然队列保持、PLAYLIST 快照首屏 / 目标 URI 复用 / generation 防护。命中 5 模块 JVM **726/0/0/0**，AndroidTest APK / app debug / 根格式 / diff 通过；Pad Room raw status `numtests=2 / OK (2 tests)`，冷启动恢复 349 首队列当前 #05；原包与 prefs 回拉 / 哈希已还原，锁已释放。P0/P1/P2/P3=`0/0/0/0`；BLOCKED=1（既有 server-write 计数）。未做真实起播下几首端到端与独立 QA；设备 / 上下文边界见 `W87-C-IMPL.md`。
 
 #### W88 搜索与持久缓存（W88-A 等 W85 释放导航咽喉）
 
