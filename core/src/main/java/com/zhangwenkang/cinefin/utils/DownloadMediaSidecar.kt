@@ -1,19 +1,49 @@
 package com.zhangwenkang.cinefin.utils
 
 import android.content.Context
-import android.util.Base64
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.Base64
 import java.util.UUID
 import timber.log.Timber
 
-/** W34 侧车记录：条目的媒体类型 + 音乐专辑 / 艺人。 */
+/** W88-B：下载创建时持久化的可证明来源；媒体源适用于视频 / 音乐。 */
+data class DownloadProvenance(
+    val serverId: String,
+    val userId: UUID,
+    val itemId: UUID,
+    val mediaSourceId: String?,
+)
+
+/** W34 / W88-B 侧车记录：媒体元数据 + 下载发起时的完整来源。 */
 data class DownloadMediaRecord(
     val itemId: String,
     val kind: DownloadMediaKind,
     val albumName: String? = null,
     val artist: String? = null,
     val trackIndex: Int = 0,
-)
+    val serverId: String? = null,
+    val userId: String? = null,
+    val sourceId: String? = null,
+    val displayName: String? = null,
+) {
+    /** 视频 / 音乐必须有媒体 sourceId；书籍没有媒体源，前三段完整即可。 旧五列记录或任一关键段无法解析时返回 null，调用方必须按来源未知处理。 */
+    fun provenance(): DownloadProvenance? {
+        val parsedItemId = itemId.toUuidOrNull() ?: return null
+        val parsedUserId = userId?.toUuidOrNull() ?: return null
+        val resolvedServerId = serverId?.takeIf { it.isNotBlank() } ?: return null
+        val resolvedSourceId = sourceId?.takeIf { it.isNotBlank() }
+        if (kind != DownloadMediaKind.BOOK && resolvedSourceId == null) return null
+        return DownloadProvenance(
+            serverId = resolvedServerId,
+            userId = parsedUserId,
+            itemId = parsedItemId,
+            mediaSourceId = resolvedSourceId,
+        )
+    }
+}
 
 /**
  * W34：音乐 / 书籍下载的本地元数据侧车（`filesDir/download_media.tsv`）。
@@ -21,81 +51,183 @@ data class DownloadMediaRecord(
  * 音乐曲目在本地库里只按 movies 表存标题，专辑名 / 艺人在离线读库时拿不到；书籍离线文件 （ReaderRepository 的 books 目录）也不经过 sources
  * 表。为了让下载列表在离线 / 重启后 仍能组织层级与封面，这里记录「媒体类型 + 专辑 / 艺人」。
  *
- * 编码：每行五列，用制表符分隔——kind、itemId、base64(album)、base64(artist)、trackIndex。
+ * 编码：
+ * - v2：`v2, kind, base64(itemId), base64(album), base64(artist), trackIndex, base64(serverId),
+ *   base64(userId), base64(sourceId), base64(displayName)`；
+ * - 旧五列记录继续可读，但不猜测 server / user / source，显式降级为来源未知。
+ *
+ * 每次写入均先落同目录临时文件再替换目标文件；[lock] 串行化同一进程内调用，避免并发 `put / remove` 互相覆盖。
  */
 class DownloadMediaSidecar(context: Context) {
     private val file = File(context.filesDir, "download_media.tsv")
 
     /** 返回 itemId → 记录（读取失败按空处理，不影响下载列表）。 */
-    fun records(): Map<String, DownloadMediaRecord> = runCatching {
-        if (!file.isFile) return emptyMap()
-        file.readLines().mapNotNull { line -> parseLine(line) }.associateBy { it.itemId }
-    }
-        .getOrElse {
-            Timber.w(it, "读取下载媒体侧车失败，按空处理")
-            emptyMap()
+    fun records(): Map<String, DownloadMediaRecord> = allRecords().associateBy { it.itemId }
+
+    /** 全部记录（保留文件顺序；同一 itemId 的不同来源不被 map 压扁）。 */
+    fun allRecords(): List<DownloadMediaRecord> =
+        synchronized(lock) {
+            runCatching {
+                if (!file.isFile) return@synchronized emptyList()
+                file.readLines().mapNotNull(DownloadMediaCodec::decodeLine)
+            }
+                .getOrElse {
+                    Timber.w(it, "读取下载媒体侧车失败，按空处理")
+                    emptyList()
+                }
         }
 
     fun put(record: DownloadMediaRecord) {
-        update { records -> records + (record.itemId to record) }
+        update { records ->
+            val withoutResolvedPlaceholder =
+                if (record.sourceId.isNullOrBlank()) {
+                    records
+                } else {
+                    records.filterNot { existing ->
+                        existing.itemId == record.itemId &&
+                            existing.serverId == record.serverId &&
+                            existing.userId == record.userId &&
+                            existing.sourceId.isNullOrBlank()
+                    }
+                }
+            val key = record.storageKey()
+            val existingIndex = withoutResolvedPlaceholder.indexOfFirst { it.storageKey() == key }
+            if (existingIndex >= 0) {
+                withoutResolvedPlaceholder.toMutableList().also { it[existingIndex] = record }
+            } else {
+                withoutResolvedPlaceholder + record
+            }
+        }
     }
 
     fun remove(itemId: UUID) {
-        update { records -> records - itemId.toString() }
+        update { records -> records.filterNot { it.itemId == itemId.toString() } }
     }
 
-    private inline fun update(
-        transform: (Map<String, DownloadMediaRecord>) -> Map<String, DownloadMediaRecord>
-    ) {
-        runCatching {
-            val next = transform(records())
-            file.parentFile?.mkdirs()
-            file.writeText(next.values.joinToString("\n") { encodeLine(it) })
+    private fun update(transform: (List<DownloadMediaRecord>) -> List<DownloadMediaRecord>) {
+        synchronized(lock) {
+            runCatching {
+                val next = transform(allRecords())
+                file.parentFile?.mkdirs()
+                val temp = File(file.parentFile, "${file.name}.tmp")
+                temp.writeText(next.joinToString("\n", transform = DownloadMediaCodec::encodeLine))
+                try {
+                    Files.move(
+                        temp.toPath(),
+                        file.toPath(),
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                } catch (_: AtomicMoveNotSupportedException) {
+                    Files.move(
+                        temp.toPath(),
+                        file.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                }
+            }
+                .onFailure { error ->
+                    File(file.parentFile, "${file.name}.tmp").delete()
+                    Timber.w(error, "写入下载媒体侧车失败")
+                }
         }
-            .onFailure { Timber.w(it, "写入下载媒体侧车失败") }
     }
 
     private companion object {
-        private const val SEPARATOR = "\t"
-
-        private fun encodeLine(record: DownloadMediaRecord): String =
-            listOf(
-                    record.kind.name,
-                    record.itemId,
-                    encode(record.albumName),
-                    encode(record.artist),
-                    record.trackIndex.toString(),
-                )
-                .joinToString(SEPARATOR)
-
-        private fun parseLine(line: String): DownloadMediaRecord? {
-            val parts = line.split(SEPARATOR)
-            if (parts.size < 5) return null
-            val kind = DownloadMediaKind.entries.firstOrNull { it.name == parts[0] } ?: return null
-            if (parts[1].isBlank()) return null
-            return DownloadMediaRecord(
-                itemId = parts[1],
-                kind = kind,
-                albumName = decode(parts[2]),
-                artist = decode(parts[3]),
-                trackIndex = parts[4].toIntOrNull() ?: 0,
-            )
-        }
-
-        private fun encode(value: String?): String =
-            value
-                ?.takeIf { it.isNotBlank() }
-                ?.let { Base64.encodeToString(it.toByteArray(Charsets.UTF_8), Base64.NO_WRAP) }
-                ?: ""
-
-        private fun decode(value: String): String? =
-            value
-                .takeIf { it.isNotBlank() }
-                ?.let {
-                    runCatching {
-                        String(Base64.decode(it, Base64.NO_WRAP), Charsets.UTF_8)
-                    }
-                        .getOrNull()
-                }
+        /** 同一进程可能有下载器 / 离线仓库等多个实例，以全局对象串行化同一侧车文件。 */
+        val lock = Any()
     }
 }
+
+internal object DownloadMediaCodec {
+    private const val SEPARATOR = "\t"
+    private const val VERSION = "v2"
+    private const val V2_COLUMN_COUNT = 10
+
+    fun encodeLine(record: DownloadMediaRecord): String =
+        listOf(
+                VERSION,
+                record.kind.name,
+                encode(record.itemId),
+                encode(record.albumName),
+                encode(record.artist),
+                record.trackIndex.toString(),
+                encode(record.serverId),
+                encode(record.userId),
+                encode(record.sourceId),
+                encode(record.displayName),
+            )
+            .joinToString(SEPARATOR)
+
+    fun decodeLine(line: String): DownloadMediaRecord? {
+        if (line.isBlank()) return null
+        val parts = line.split(SEPARATOR)
+        return if (parts.firstOrNull() == VERSION) decodeV2(parts) else decodeLegacy(parts)
+    }
+
+    private fun decodeV2(parts: List<String>): DownloadMediaRecord? {
+        if (parts.size != V2_COLUMN_COUNT) return null
+        val kind = parts[1].toKindOrNull() ?: return null
+        val itemId = decode(parts[2])?.takeIf { it.isNotBlank() } ?: return null
+        return DownloadMediaRecord(
+            itemId = itemId,
+            kind = kind,
+            albumName = decode(parts[3]),
+            artist = decode(parts[4]),
+            trackIndex = parts[5].toIntOrNull() ?: return null,
+            serverId = decode(parts[6]),
+            userId = decode(parts[7]),
+            sourceId = decode(parts[8]),
+            displayName = decode(parts[9]),
+        )
+    }
+
+    private fun decodeLegacy(parts: List<String>): DownloadMediaRecord? {
+        if (parts.size != 5) return null
+        val kind = parts[0].toKindOrNull() ?: return null
+        if (parts[1].isBlank()) return null
+        return DownloadMediaRecord(
+            itemId = parts[1],
+            kind = kind,
+            albumName = decodeLegacyValue(parts[2]),
+            artist = decodeLegacyValue(parts[3]),
+            trackIndex = parts[4].toIntOrNull() ?: 0,
+        )
+    }
+
+    private fun String.toKindOrNull(): DownloadMediaKind? =
+        DownloadMediaKind.entries.firstOrNull { it.name == this }
+
+    private fun encode(value: String?): String =
+        value
+            ?.takeIf { it.isNotBlank() }
+            ?.toByteArray(Charsets.UTF_8)
+            ?.let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) } ?: ""
+
+    private fun decode(value: String): String? =
+        value
+            .takeIf { it.isNotBlank() }
+            ?.let {
+                runCatching {
+                    Base64.getUrlDecoder().decode(it).toString(Charsets.UTF_8)
+                }
+                    .getOrNull()
+            }
+
+    /** v1 使用 Android Base64（可含 `+` / `/` / `=`）；v2 使用 URL-safe 无 padding。 */
+    private fun decodeLegacyValue(value: String): String? =
+        value
+            .takeIf { it.isNotBlank() }
+            ?.let {
+                runCatching {
+                    Base64.getMimeDecoder().decode(it).toString(Charsets.UTF_8)
+                }
+                    .getOrNull()
+            }
+}
+
+internal fun String.toUuidOrNull(): UUID? = runCatching { UUID.fromString(this) }.getOrNull()
+
+private fun DownloadMediaRecord.storageKey(): String =
+    listOf(kind.name, itemId, serverId.orEmpty(), userId.orEmpty(), sourceId.orEmpty())
+        .joinToString("\u0000")

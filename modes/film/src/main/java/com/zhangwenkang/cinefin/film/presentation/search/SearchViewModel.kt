@@ -6,13 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.SearchScope
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class SearchViewModel
@@ -21,6 +25,8 @@ constructor(
     private val repository: JellyfinRepository,
     /** W43：本地媒体库并入搜索（服务器 + 本地两来源并行查询）。 */
     private val localLibraryRepository: LocalLibraryRepository,
+    private val downloader: Downloader,
+    private val appPreferences: AppPreferences,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _state =
@@ -39,6 +45,7 @@ constructor(
 
     /** 已完成请求：返回搜索结果页时 `LaunchedEffect(query)` 会再触发一次，这里跳过重复请求。 */
     private var completedRequest: SearchRequest? = null
+    private var completedNamespace: SearchNamespace? = null
 
     private fun search(
         query: String,
@@ -46,28 +53,52 @@ constructor(
         force: Boolean = false,
     ) {
         val request = SearchRequest(query = query, scope = scope)
-        if (!force && request == completedRequest && currentJob?.isActive != true) return
+        val namespace =
+            appPreferences.getValue(appPreferences.currentServer)?.let { serverId ->
+                runCatching {
+                    SearchNamespace(
+                        serverId = serverId,
+                        userId = repository.getUserId(),
+                    )
+                }
+                    .getOrNull()
+            }
+        if (
+            !force &&
+                request == completedRequest &&
+                namespace == completedNamespace &&
+                currentJob?.isActive != true
+        ) {
+            return
+        }
         currentJob?.cancel()
         currentJob = viewModelScope.launch {
             try {
                 if (query.isBlank()) {
                     completedRequest = null
+                    completedNamespace = null
                     _state.emit(SearchState(loading = false, scope = scope))
                     return@launch
                 }
 
                 // 新 query / scope 先清掉上一轮结果，避免旧域结果在新域短暂泄漏。
                 _state.emit(SearchState(loading = true, query = query, scope = scope))
+                val downloadRecords =
+                    withContext(Dispatchers.IO) {
+                        runCatching { downloader.downloadedMediaRecords() }
+                            .getOrDefault(emptyList())
+                    }
                 val outcome =
                     executeSearch(
                         request = request,
                         serverSearch = { repository.getSearchItems(it.query, it.scope) },
                         localSearch = { localLibraryRepository.search(it.query, it.scope) },
+                        namespace = namespace,
+                        downloads = downloadRecords,
                     )
                 _state.emit(
                     SearchState(
-                        serverItems = outcome.serverItems,
-                        localItems = outcome.localItems,
+                        results = outcome.results,
                         loading = false,
                         query = query,
                         scope = scope,
@@ -76,6 +107,7 @@ constructor(
                     )
                 )
                 completedRequest = request
+                completedNamespace = namespace
             } catch (_: CancellationException) {} catch (_: Exception) {
                 _state.emit(
                     SearchState(
@@ -96,6 +128,7 @@ constructor(
                 if (action.query == _state.value.query) return
                 currentJob?.cancel()
                 completedRequest = null
+                completedNamespace = null
                 savedStateHandle[SEARCH_QUERY_KEY] = action.query
                 _state.value =
                     _state.value.copy(
@@ -110,12 +143,12 @@ constructor(
                 if (action.scope == _state.value.scope) return
                 currentJob?.cancel()
                 completedRequest = null
+                completedNamespace = null
                 savedStateHandle[SEARCH_SCOPE_KEY] = action.scope.name
                 _state.value =
                     _state.value.copy(
                         scope = action.scope,
-                        serverItems = emptyList(),
-                        localItems = emptyList(),
+                        results = emptyList(),
                         loading = _state.value.query.isNotBlank(),
                         serverFailed = false,
                         localFailed = false,

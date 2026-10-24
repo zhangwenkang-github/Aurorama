@@ -200,7 +200,11 @@ class LocalLibraryRepositoryImpl(
                         libraryName.isNullOrBlank() -> folder.displayName
                         else -> "$libraryName · ${folder.displayName}"
                     }
-                LocalSearchHit(entry = entry, folderLabel = label?.takeIf { it.isNotBlank() })
+                LocalSearchHit(
+                    entry = entry,
+                    folderLabel = label?.takeIf { it.isNotBlank() },
+                    libraryId = libraryIdByItem.getValue(entry.itemId),
+                )
             }
         }
 

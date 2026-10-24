@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.search
 import com.zhangwenkang.cinefin.local.LocalSearchHit
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.repository.SearchScope
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 
 sealed interface SearchAction {
     /** 输入框只更新当前目的地的 query；防抖后由 [Search] 发起查询。 */
@@ -20,4 +21,7 @@ sealed interface SearchAction {
 
     /** W43：点击本地条目（视频 → 播放器；书籍 → 阅读器；音乐 → 音乐播放链路）。 */
     data class OnLocalItemClick(val hit: LocalSearchHit) : SearchAction
+
+    /** W88-B：点击独立下载副本；来源未知时不按当前会话猜测服务器身份。 */
+    data class OnDownloadedItemClick(val record: DownloadMediaRecord) : SearchAction
 }

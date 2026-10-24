@@ -18,6 +18,10 @@
     <string name="search_empty_query">未找到「%1$s」</string>
     <string name="search_section_server">服务器</string>
     <string name="search_section_local">本地</string>
+    <string name="search_source_server">服务器</string>
+    <string name="search_source_local">本地库</string>
+    <string name="search_source_downloaded">已下载</string>
+    <string name="search_source_unknown">来源未知</string>
     <string name="search_category_video">影视</string>
     <string name="search_category_music">音乐</string>
     <string name="search_category_book">书籍</string>

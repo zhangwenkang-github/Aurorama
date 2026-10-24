@@ -52,6 +52,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
 import com.zhangwenkang.cinefin.film.presentation.search.SearchCategory
+import com.zhangwenkang.cinefin.film.presentation.search.SearchResult
+import com.zhangwenkang.cinefin.film.presentation.search.SearchSource
 import com.zhangwenkang.cinefin.film.presentation.search.SearchState
 import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.local.LocalSearchHit
@@ -62,6 +64,8 @@ import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColum
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.repository.SearchScope
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import java.util.UUID
 import kotlinx.coroutines.delay
 
@@ -263,41 +267,92 @@ fun FilmSearchBar(
                     // W82 #25：分区布局不变；W88-A 只渲染当前 scope 的域。
                     SearchCategories.filter { (category, _) -> category in state.visibleCategories }
                         .forEach { (category, titleRes) ->
-                            val serverItems = state.serverItemsIn(category)
-                            val localItems = state.localItemsIn(category)
-                            if (serverItems.isEmpty() && localItems.isEmpty()) return@forEach
+                            val results = state.resultsIn(category)
+                            if (results.isEmpty()) return@forEach
                             item(
                                 span = { GridItemSpan(maxLineSpan) },
                                 key = "search-section-${category.name}",
                             ) {
                                 SearchSectionHeader(
                                     title = stringResource(titleRes),
-                                    count = serverItems.size + localItems.size,
+                                    count = results.size,
                                 )
                             }
                             items(
-                                items = serverItems,
-                                key = { "server-${category.name}-${it.id}" },
-                            ) { item ->
-                                ItemCard(
-                                    item = item,
-                                    direction = Direction.VERTICAL,
-                                    onClick = { onAction(SearchAction.OnItemClick(item)) },
-                                    modifier = Modifier.animateItem(),
-                                    downloadBadge =
-                                        searchCardDownloadBadge(item.id, downloadBadges),
-                                )
-                            }
-                            items(
-                                items = localItems,
-                                key = { "local-${category.name}-${it.entry.itemId}" },
-                                span = { GridItemSpan(maxLineSpan) },
-                            ) { hit ->
-                                LocalSearchResultRow(
-                                    hit = hit,
-                                    onClick = { onAction(SearchAction.OnLocalItemClick(hit)) },
-                                    modifier = Modifier.animateItem(),
-                                )
+                                items = results,
+                                key = { "${category.name}-${it.stableKey}" },
+                                span = { result ->
+                                    if (
+                                        result is SearchResult.Server ||
+                                            result is SearchResult.UnidentifiedServer
+                                    ) {
+                                        GridItemSpan(1)
+                                    } else {
+                                        GridItemSpan(maxLineSpan)
+                                    }
+                                },
+                            ) { result ->
+                                when (result) {
+                                    is SearchResult.Server ->
+                                        Column(modifier = Modifier.animateItem()) {
+                                            Text(
+                                                text = searchSourceLabel(result.sources),
+                                                style = CinefinType.LabelSmall,
+                                                color = LocalCinefinColors.current.onSurfaceVariant,
+                                            )
+                                            ItemCard(
+                                                item = result.item,
+                                                direction = Direction.VERTICAL,
+                                                onClick = {
+                                                    onAction(SearchAction.OnItemClick(result.item))
+                                                },
+                                                downloadBadge =
+                                                    if (SearchSource.DOWNLOADED in result.sources) {
+                                                        searchCardDownloadBadge(
+                                                            result.item.id,
+                                                            downloadBadges,
+                                                        )
+                                                    } else {
+                                                        DownloadBadgeInfo()
+                                                    },
+                                            )
+                                        }
+                                    is SearchResult.UnidentifiedServer ->
+                                        Column(modifier = Modifier.animateItem()) {
+                                            Text(
+                                                text = searchSourceLabel(result.sources),
+                                                style = CinefinType.LabelSmall,
+                                                color = LocalCinefinColors.current.onSurfaceVariant,
+                                            )
+                                            ItemCard(
+                                                item = result.item,
+                                                direction = Direction.VERTICAL,
+                                                onClick = {
+                                                    onAction(SearchAction.OnItemClick(result.item))
+                                                },
+                                            )
+                                        }
+                                    is SearchResult.LocalLibrary ->
+                                        LocalSearchResultRow(
+                                            hit = result.hit,
+                                            onClick = {
+                                                onAction(SearchAction.OnLocalItemClick(result.hit))
+                                            },
+                                            modifier = Modifier.animateItem(),
+                                        )
+                                    is SearchResult.Download ->
+                                        DownloadSearchResultRow(
+                                            record = result.record,
+                                            onClick = {
+                                                onAction(
+                                                    SearchAction.OnDownloadedItemClick(
+                                                        result.record
+                                                    )
+                                                )
+                                            },
+                                            modifier = Modifier.animateItem(),
+                                        )
+                                }
                             }
                         }
                 }
@@ -419,4 +474,57 @@ private fun localSearchMeta(hit: LocalSearchHit): String {
     return listOfNotNull(hit.folderLabel, duration, sizeText(hit.entry.sizeBytes))
         .filter { it.isNotBlank() }
         .joinToString(" · ")
+}
+
+@Composable
+private fun searchSourceLabel(sources: Set<SearchSource>): String =
+    sources
+        .sortedBy { it.ordinal }
+        .map { source ->
+            when (source) {
+                SearchSource.SERVER -> stringResource(FilmR.string.search_source_server)
+                SearchSource.LOCAL_LIBRARY -> stringResource(FilmR.string.search_source_local)
+                SearchSource.DOWNLOADED -> stringResource(FilmR.string.search_source_downloaded)
+            }
+        }
+        .joinToString(" · ")
+
+@Composable
+private fun DownloadSearchResultRow(
+    record: DownloadMediaRecord,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    val localKind =
+        when (record.kind) {
+            DownloadMediaKind.VIDEO -> LocalMediaKind.VIDEO
+            DownloadMediaKind.MUSIC -> LocalMediaKind.MUSIC
+            DownloadMediaKind.BOOK -> LocalMediaKind.BOOK
+        }
+    val secondary =
+        listOfNotNull(
+                record.albumName,
+                record.artist,
+                if (record.provenance() == null) {
+                    stringResource(FilmR.string.search_source_unknown)
+                } else null,
+            )
+            .filter { it.isNotBlank() }
+            .joinToString(" · ")
+    CinefinListRow(
+        title = record.displayName ?: record.itemId.take(8),
+        secondary = secondary,
+        badge = stringResource(FilmR.string.search_source_downloaded),
+        onClick = onClick,
+        modifier = modifier,
+        leading = {
+            Icon(
+                painter = painterResource(localKind.iconRes()),
+                contentDescription = localKind.label,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        },
+    )
 }

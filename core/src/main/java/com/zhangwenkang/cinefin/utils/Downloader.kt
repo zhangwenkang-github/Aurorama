@@ -97,6 +97,9 @@ interface Downloader {
     /** W34：已经完成下载（LOCAL 完整文件）的条目 id 集合。 */
     suspend fun downloadedItemIds(): Set<UUID>
 
+    /** W88-B：已完成下载的 sidecar 快照。旧记录可补展示名，但 provenance 保持 null， 不得用当前服务器 / 用户回填。 */
+    suspend fun downloadedMediaRecords(): List<DownloadMediaRecord>
+
     /**
      * W51：只读队列快照——「活动任务」（排队 / 下载中 / 暂停）的条目 id 集合。
      *

@@ -3,8 +3,12 @@ package com.zhangwenkang.cinefin.local
 import com.zhangwenkang.cinefin.repository.SearchScope
 import java.util.Locale
 
-/** W43 搜索结果：条目 + 来源标签（`库名 · 文件夹名`；库 / 文件夹已删除时为 null）。 */
-data class LocalSearchHit(val entry: LocalLibraryEntry, val folderLabel: String?)
+/** W43 / W88-B 搜索结果：条目 + 来源标签 + 不可丢弃的本地库身份。 */
+data class LocalSearchHit(
+    val entry: LocalLibraryEntry,
+    val folderLabel: String?,
+    val libraryId: Long,
+)
 
 /**
  * W43 本地搜索匹配（纯函数，便于单测与内存过滤）：

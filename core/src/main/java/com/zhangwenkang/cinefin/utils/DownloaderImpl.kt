@@ -82,6 +82,11 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
+private data class FrozenDownloadOrigin(
+    val serverId: String?,
+    val userId: String?,
+)
+
 /**
  * W50 自研下载引擎门面。
  *
@@ -224,6 +229,32 @@ class DownloaderImpl(
         artist: String?,
         trackIndex: Int,
     ): Pair<Long, UiText?> =
+        enqueueItem(
+            item = item,
+            sourceId = sourceId,
+            storageIndex = storageIndex,
+            albumName = albumName,
+            artist = artist,
+            trackIndex = trackIndex,
+            origin = freezeDownloadOrigin(),
+        )
+
+    /** 在任何 suspend / IO 调度前冻结来源，避免入队途中切号污染下载 provenance。 */
+    private fun freezeDownloadOrigin() =
+        FrozenDownloadOrigin(
+            serverId = appPreferences.getValue(appPreferences.currentServer),
+            userId = runCatching { jellyfinRepository.getUserId().toString() }.getOrNull(),
+        )
+
+    private suspend fun enqueueItem(
+        item: FindroidItem,
+        sourceId: String,
+        storageIndex: Int,
+        albumName: String?,
+        artist: String?,
+        trackIndex: Int,
+        origin: FrozenDownloadOrigin,
+    ): Pair<Long, UiText?> =
         withContext(Dispatchers.IO) {
             val handle = downloadTaskHandle(sourceId)
             val storageLocation = context.getExternalFilesDirs(null).getOrNull(storageIndex)
@@ -264,6 +295,26 @@ class DownloaderImpl(
             runCatching { persistItemSnapshot(item) }
                 .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
 
+            val mediaKind =
+                if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
+                    DownloadMediaKind.MUSIC
+                } else {
+                    DownloadMediaKind.VIDEO
+                }
+            sidecar.put(
+                DownloadMediaRecord(
+                    itemId = item.id.toString(),
+                    kind = mediaKind,
+                    albumName = albumName,
+                    artist = artist,
+                    trackIndex = trackIndex,
+                    serverId = origin.serverId,
+                    userId = origin.userId,
+                    sourceId = sourceId,
+                    displayName = item.name,
+                )
+            )
+
             val sourceDto =
                 FindroidSourceDto(
                     id = sourceId,
@@ -286,19 +337,6 @@ class DownloaderImpl(
             database.insertSource(sourceDto)
             notifyQueueChanged()
 
-            // W34：音乐曲目（专辑 / 艺人）写入侧车，供下载列表层级化与离线展示。
-            if (albumName != null) {
-                sidecar.put(
-                    DownloadMediaRecord(
-                        itemId = item.id.toString(),
-                        kind = DownloadMediaKind.MUSIC,
-                        albumName = albumName,
-                        artist = artist,
-                        trackIndex = trackIndex,
-                    )
-                )
-            }
-
             ensureEngineRunning(forceStart = true)
             Pair(handle, null)
         }
@@ -310,15 +348,24 @@ class DownloaderImpl(
     override suspend fun enqueueItems(
         items: List<FindroidItem>,
         storageIndex: Int,
-    ): DownloadBatchResult =
-        withContext(Dispatchers.IO) {
+    ): DownloadBatchResult {
+        val origin = freezeDownloadOrigin()
+        return withContext(Dispatchers.IO) {
             val added = mutableListOf<UUID>()
             var lastError: UiText? = null
             for (item in items) {
                 coroutineContext.ensureActive()
                 val sourceId = item.sources.firstOrNull()?.id ?: continue
                 val result = runCatching {
-                    downloadItem(item, sourceId, storageIndex)
+                    enqueueItem(
+                        item = item,
+                        sourceId = sourceId,
+                        storageIndex = storageIndex,
+                        albumName = null,
+                        artist = null,
+                        trackIndex = 0,
+                        origin = origin,
+                    )
                 }
                     .onFailure { Timber.w(it, "批量入队失败 ${item.id}") }
                     .getOrNull()
@@ -330,13 +377,33 @@ class DownloaderImpl(
             }
             DownloadBatchResult(addedIds = added.distinct(), lastError = lastError)
         }
+    }
 
     override suspend fun receiveMusicBatch(
         requests: List<DownloadMusicIntentRequest>
-    ): DownloadBatchReceipt =
-        withContext(Dispatchers.IO) {
+    ): DownloadBatchReceipt {
+        val origin = freezeDownloadOrigin()
+        return withContext(Dispatchers.IO) {
             val startedAt = System.nanoTime()
             val receipt = batchInbox.accept(requests)
+            val accepted = receipt.acceptedIds.toSet()
+            requests
+                .filter { it.itemId in accepted }
+                .forEach { request ->
+                    sidecar.put(
+                        DownloadMediaRecord(
+                            itemId = request.itemId.toString(),
+                            kind = DownloadMediaKind.MUSIC,
+                            albumName = request.albumName,
+                            artist = request.artist,
+                            trackIndex = request.trackIndex,
+                            serverId = origin.serverId,
+                            userId = origin.userId,
+                            sourceId = null,
+                            displayName = request.name,
+                        )
+                    )
+                }
             Timber.i(
                 "下载批次已受理：requested=%d accepted=%d duplicate=%d durationMs=%d",
                 requests.size,
@@ -350,6 +417,7 @@ class DownloaderImpl(
             }
             receipt
         }
+    }
 
     /**
      * 后台解析已受理意图。
@@ -384,6 +452,12 @@ class DownloaderImpl(
 
     private suspend fun resolveReceivedIntent(intent: DownloadIntentDto) {
         runCatching {
+            val persistedOrigin =
+                sidecar
+                    .allRecords()
+                    .lastOrNull { it.itemId == intent.itemId.toString() }
+                    ?.let { record -> FrozenDownloadOrigin(record.serverId, record.userId) }
+                    ?: freezeDownloadOrigin()
             val item = jellyfinRepository.getItem(intent.itemId) ?: error("下载条目不存在")
             val sourceId =
                 jellyfinRepository
@@ -391,13 +465,14 @@ class DownloaderImpl(
                     .firstOrNull()
                     ?.id ?: error("下载媒体源不存在")
             val (handle, queueError) =
-                downloadItem(
+                enqueueItem(
                     item = item,
                     sourceId = sourceId,
                     storageIndex = 0,
                     albumName = intent.albumName,
                     artist = intent.artist,
                     trackIndex = intent.trackIndex,
+                    origin = persistedOrigin,
                 )
             if (handle == -1L) {
                 error("加入下载队列失败：${queueError ?: "未知错误"}")
@@ -1222,6 +1297,27 @@ class DownloaderImpl(
         withContext(Dispatchers.IO) {
             runCatching { database.getDownloadedItemIds().toSet() }.getOrElse { emptySet() }
         }
+
+    override suspend fun downloadedMediaRecords(): List<DownloadMediaRecord> =
+        withContext(Dispatchers.IO) {
+            val completed = database.getDownloadedItemIds().toSet()
+            sidecar
+                .allRecords()
+                .filter { record -> record.itemId.toUuidOrNull() in completed }
+                .map { record ->
+                    if (!record.displayName.isNullOrBlank()) {
+                        record
+                    } else {
+                        val itemId = record.itemId.toUuidOrNull() ?: return@map record
+                        record.copy(displayName = downloadDisplayName(itemId))
+                    }
+                }
+        }
+
+    private suspend fun downloadDisplayName(itemId: UUID): String? =
+        runCatching { database.getMovie(itemId)?.name }.getOrNull()
+            ?: runCatching { database.getEpisode(itemId)?.name }.getOrNull()
+            ?: runCatching { database.getShow(itemId)?.name }.getOrNull()
 
     override suspend fun activeItemIds(): Set<UUID> =
         withContext(Dispatchers.IO) {

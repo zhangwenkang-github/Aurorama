@@ -57,7 +57,11 @@ class SearchResultRulesTest {
         )
 
         val entry = hit("tone.flac", LocalMediaKind.MUSIC).entry
-        val localHits = listOf(LocalSearchHit(entry, "库"), LocalSearchHit(entry, "库 · 子目录"))
+        val localHits =
+            listOf(
+                LocalSearchHit(entry, "库", libraryId = 1L),
+                LocalSearchHit(entry, "库 · 子目录", libraryId = 1L),
+            )
         assertEquals(1, SearchResultRules.dedupeLocal(localHits).size)
     }
 
@@ -117,5 +121,6 @@ class SearchResultRulesTest {
                     lastModified = 0L,
                 ),
             folderLabel = "库",
+            libraryId = 1L,
         )
 }

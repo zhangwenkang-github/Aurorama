@@ -15,6 +15,10 @@
     <string name="search_placeholder">搜尋電影和電視節目</string>
     <string name="search_empty_title">找不到結果</string>
     <string name="search_empty_message">換個關鍵字試試 · 輸入即時搜尋</string>
+    <string name="search_source_server">伺服器</string>
+    <string name="search_source_local">本機媒體庫</string>
+    <string name="search_source_downloaded">已下載</string>
+    <string name="search_source_unknown">來源未知</string>
     <string name="search_category_video">影視</string>
     <string name="search_category_music">音樂</string>
     <string name="search_category_book">書籍</string>

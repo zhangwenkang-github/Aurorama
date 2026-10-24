@@ -53,6 +53,8 @@ data class OfflineMediaEntry(
     val albumName: String? = null,
     val artist: String? = null,
     val trackIndex: Int = 0,
+    /** W88-B：完整下载来源；null = 旧数据 / 记录损坏，只能按来源未知展示。 */
+    val provenance: DownloadProvenance? = null,
 )
 
 interface OfflineMediaRepository {
@@ -79,7 +81,7 @@ class OfflineMediaRepositoryImpl(
                 .onFailure { Timber.w(it, "读取下载来源失败，离线媒体库按空处理") }
                 .getOrElse { emptyList() }
                 .filter { it.type == FindroidSourceType.LOCAL && !it.path.endsWith(".download") }
-            val sidecarRecords = sidecar.records()
+            val sidecarRecords = sidecar.allRecords()
             val episodeHierarchy = runCatching {
                 database.getDownloadedEpisodeHierarchy()
             }
@@ -91,7 +93,10 @@ class OfflineMediaRepositoryImpl(
                 val source = itemSources.first()
                 val sizeBytes = runCatching { File(source.path).length() }.getOrDefault(0L)
                 val allowOffline = itemSources.all { it.allowOffline }
-                val record = sidecarRecords[itemId.toString()]
+                val record = sidecarRecords.lastOrNull {
+                    it.itemId == itemId.toString() &&
+                        (it.sourceId == source.id || it.sourceId == null)
+                }
                 val episode = episodeHierarchy[itemId]
                 entries +=
                     when {
@@ -119,6 +124,7 @@ class OfflineMediaRepositoryImpl(
                                 seasonName = episode.seasonName,
                                 episodeIndex = episode.episodeIndex,
                                 seasonIndex = episode.seasonIndex,
+                                provenance = record?.provenance(),
                             )
                         record?.kind == DownloadMediaKind.MUSIC -> {
                             val title =
@@ -138,6 +144,7 @@ class OfflineMediaRepositoryImpl(
                                 albumName = record.albumName,
                                 artist = record.artist,
                                 trackIndex = record.trackIndex,
+                                provenance = record.provenance(),
                             )
                         }
                         else -> {
@@ -155,6 +162,7 @@ class OfflineMediaRepositoryImpl(
                                 runtimeTicks =
                                     runCatching { database.getMovie(itemId)?.runtimeTicks }
                                         .getOrNull() ?: 0L,
+                                provenance = record?.provenance(),
                             )
                         }
                     }

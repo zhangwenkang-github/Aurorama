@@ -7,6 +7,8 @@ import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.repository.SearchScope
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
@@ -94,6 +96,62 @@ class SearchSessionTest {
         assertEquals(SearchCategory.entries, all.visibleCategories)
     }
 
+    @Test
+    fun `搜索会话冻结 namespace 并只折叠完整同源下载`() = runBlocking {
+        val itemId = UUID.fromString("11111111-1111-4111-8111-111111111111")
+        val userId = UUID.fromString("22222222-2222-4222-8222-222222222222")
+        val serverItem = folder("sample").copy(id = itemId, kind = "BOOK")
+        val record =
+            DownloadMediaRecord(
+                itemId = itemId.toString(),
+                kind = DownloadMediaKind.BOOK,
+                serverId = "server-a",
+                userId = userId.toString(),
+                sourceId = null,
+                displayName = "sample",
+            )
+
+        val outcome =
+            executeSearch(
+                SearchRequest(query = "sample", scope = SearchScope.BOOK),
+                serverSearch = { listOf(serverItem) },
+                localSearch = { emptyList() },
+                namespace = SearchNamespace("server-a", userId),
+                downloads = listOf(record),
+            )
+
+        assertEquals(
+            setOf(SearchSource.SERVER, SearchSource.DOWNLOADED),
+            outcome.results.single().sources,
+        )
+    }
+
+    @Test
+    fun `无 userId 的缓存服务器结果保留展示但绝不与下载折叠`() = runBlocking {
+        val itemId = UUID.fromString("11111111-1111-4111-8111-111111111111")
+        val record =
+            DownloadMediaRecord(
+                itemId = itemId.toString(),
+                kind = DownloadMediaKind.BOOK,
+                serverId = "server-a",
+                userId = UUID.randomUUID().toString(),
+                displayName = "sample",
+            )
+
+        val outcome =
+            executeSearch(
+                SearchRequest(query = "sample", scope = SearchScope.BOOK),
+                serverSearch = { listOf(folder("sample").copy(id = itemId, kind = "BOOK")) },
+                localSearch = { emptyList() },
+                namespace = null,
+                downloads = listOf(record),
+            )
+
+        assertEquals(2, outcome.results.size)
+        assertTrue(outcome.results.first() is SearchResult.UnidentifiedServer)
+        assertEquals(SearchSource.DOWNLOADED, outcome.results.last().sources.single())
+    }
+
     private fun hit(name: String, kind: LocalMediaKind): LocalSearchHit =
         LocalSearchHit(
             entry =
@@ -109,6 +167,7 @@ class SearchSessionTest {
                     title = null,
                 ),
             folderLabel = "Test",
+            libraryId = 1L,
         )
 
     private fun folder(name: String): FindroidFolder =

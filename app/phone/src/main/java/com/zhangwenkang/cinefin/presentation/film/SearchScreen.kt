@@ -14,6 +14,7 @@ import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import java.util.UUID
 
 /**
@@ -28,7 +29,7 @@ fun SearchScreen(
     onClose: () -> Unit,
     onItemClick: (FindroidItem) -> Unit,
     onPlayLocalVideo: (UUID) -> Unit,
-    onOpenLocalBook: (UUID, String, String) -> Unit,
+    onOpenLocalBook: (UUID, String, String?) -> Unit,
     onOpenMusic: (UUID) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
     downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel(),
@@ -60,6 +61,22 @@ fun SearchScreen(
                             )
                         LocalMediaKind.MUSIC -> onOpenMusic(action.hit.entry.itemId)
                     }
+                is SearchAction.OnDownloadedItemClick -> {
+                    val record = action.record
+                    val itemId = runCatching { UUID.fromString(record.itemId) }.getOrNull()
+                    if (itemId != null) {
+                        when (record.kind) {
+                            DownloadMediaKind.VIDEO -> onPlayLocalVideo(itemId)
+                            DownloadMediaKind.BOOK ->
+                                onOpenLocalBook(
+                                    itemId,
+                                    record.displayName ?: record.itemId.take(8),
+                                    null,
+                                )
+                            DownloadMediaKind.MUSIC -> onOpenMusic(itemId)
+                        }
+                    }
+                }
                 else -> Unit
             }
             viewModel.onAction(action)
