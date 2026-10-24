@@ -187,6 +187,38 @@ class UpdateUiStateTest {
     }
 
     @Test
+    fun automaticRunningTakesPriorityOverOldManualTerminal() {
+        val manualTerminals =
+            listOf(
+                UpdateCheckWorkStatus.SUCCEEDED to UpdateTerminalResult.UP_TO_DATE,
+                UpdateCheckWorkStatus.FAILED to UpdateTerminalResult.NETWORK_ERROR,
+            )
+
+        manualTerminals.forEach { (status, terminal) ->
+            val selected =
+                resolveUpdateCheckWork(
+                    automatic = UpdateCheckWorkObservation(status = UpdateCheckWorkStatus.RUNNING),
+                    manual = UpdateCheckWorkObservation(status = status, terminal = terminal),
+                )
+
+            assertTrue(selected.running)
+            assertNull(selected.terminal)
+        }
+    }
+
+    @Test
+    fun automaticAndManualRunningRemainChecking() {
+        val selected =
+            resolveUpdateCheckWork(
+                automatic = UpdateCheckWorkObservation(status = UpdateCheckWorkStatus.RUNNING),
+                manual = UpdateCheckWorkObservation(status = UpdateCheckWorkStatus.RUNNING),
+            )
+
+        assertTrue(selected.running)
+        assertNull(selected.terminal)
+    }
+
+    @Test
     fun queuedAutomaticWorkDoesNotShadowManualSuccess() {
         val selected =
             resolveUpdateCheckWork(
@@ -223,6 +255,20 @@ class UpdateUiStateTest {
         assertEquals(UpdateTerminalResult.UP_TO_DATE, terminal.terminal)
         assertFalse(queued.running)
         assertNull(queued.terminal)
+    }
+
+    @Test
+    fun automaticQueuedOrBlockedWithoutManualObservationIsIdle() {
+        listOf(UpdateCheckWorkStatus.QUEUED, UpdateCheckWorkStatus.BLOCKED).forEach { status ->
+            val selected =
+                resolveUpdateCheckWork(
+                    automatic = UpdateCheckWorkObservation(status = status),
+                    manual = UpdateCheckWorkObservation(),
+                )
+
+            assertFalse(selected.running)
+            assertNull(selected.terminal)
+        }
     }
 
     private fun releaseState(): StoredReleaseState {

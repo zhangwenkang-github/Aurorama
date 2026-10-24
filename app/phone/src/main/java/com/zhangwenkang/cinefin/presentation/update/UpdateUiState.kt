@@ -67,7 +67,11 @@ internal data class UpdateCheckWorkSelection(
     val terminal: UpdateTerminalResult? = null,
 )
 
-/** 每个 unique work 名称先各自收敛，MANUAL 的最终意图优先于自动检查。 */
+/**
+ * 每个 unique work 名称先各自收敛；manual 活动态优先，但旧 manual 终态不能遮蔽当前 auto 运行。
+ *
+ * 两组终态并存时 manual 优先，避免跨 unique-work 名称比较 generation。
+ */
 internal fun resolveUpdateCheckWork(
     automatic: UpdateCheckWorkObservation,
     manual: UpdateCheckWorkObservation,
@@ -79,11 +83,11 @@ internal fun resolveUpdateCheckWork(
     ) {
         return UpdateCheckWorkSelection(running = true)
     }
-    manual.terminal?.let {
-        return UpdateCheckWorkSelection(terminal = it)
-    }
     if (automatic.status == UpdateCheckWorkStatus.RUNNING) {
         return UpdateCheckWorkSelection(running = true)
+    }
+    manual.terminal?.let {
+        return UpdateCheckWorkSelection(terminal = it)
     }
     automatic.terminal?.let {
         return UpdateCheckWorkSelection(terminal = it)
