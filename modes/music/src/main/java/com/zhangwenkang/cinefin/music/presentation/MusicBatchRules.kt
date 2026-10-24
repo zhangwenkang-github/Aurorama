@@ -66,18 +66,15 @@ internal fun batchPlayOrder(songs: List<MusicSong>, selectedIds: Set<String>): L
     }
 
 /**
- * W64「播放全部 / 随机播放全部」的入队顺序：完整列表按序入队（不是选中集合）。
+ * W64「播放全部」首曲下标。
  *
- * - 顺序播放 = 当前列表原序，从第 1 首开始；
- * - 随机播放 = 客户端先洗牌一次（首曲也随机），再配合内核 shuffle 模式（一轮内每首各一次）。
- *
- * [random] 注入以便单测锁死顺序。
+ * 自然队列始终按视图原序入队；随机播放只随机首曲，由 ExoPlayer 生成可持久化的实际 shuffle 序。 [random] 注入以便单测。
  */
-internal fun playAllOrder(
-    songs: List<MusicSong>,
+internal fun playAllStartIndex(
+    size: Int,
     shuffle: Boolean,
     random: Random = Random.Default,
-): List<MusicSong> = if (shuffle) songs.shuffled(random) else songs
+): Int = if (shuffle && size > 0) random.nextInt(size) else 0
 
 /**
  * 批量「收藏」目标：任一所选条目未收藏 → 全部收藏；全部已收藏 → 全部取消（与单曲动作语义一致）。

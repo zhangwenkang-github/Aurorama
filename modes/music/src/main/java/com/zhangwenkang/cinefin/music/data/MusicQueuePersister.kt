@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.music.data
 
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
+import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import javax.inject.Inject
@@ -60,10 +61,12 @@ constructor(
 
     private suspend fun persist(queue: MusicQueue) {
         if (!enabled()) return
+        val liveQueuePresent = playbackController.queue.value != null
+        if (!queueCanPersistShuffleSnapshot(queue, liveQueuePresent)) return
         // 活动会话读实时位置；恢复态（播放器未装载）读快照里写回的续播位置，避免编辑队列时把位置清零。
         val positionMs =
             queuePersistPositionMs(
-                liveQueuePresent = playbackController.queue.value != null,
+                liveQueuePresent = liveQueuePresent,
                 livePositionMs = playbackController.positionMs.value,
                 restoredPositionMs = queue.currentItem?.playbackPosition ?: 0L,
             )
@@ -93,3 +96,11 @@ internal fun queuePersistPositionMs(
     } else {
         restoredPositionMs.coerceAtLeast(0L)
     }
+
+/**
+ * 活动队列只有在 player 回读完成后才可落盘。`setQueue` 会先发布新自然队列、随后安装 / 回读实际序；若这一过渡态也保存， Persister 可能把旧实际序错配到新条目。
+ */
+internal fun queueCanPersistShuffleSnapshot(
+    queue: MusicQueue,
+    liveQueuePresent: Boolean,
+): Boolean = !liveQueuePresent || isValidShuffleOrder(queue.shuffleOrder, queue.items.size)

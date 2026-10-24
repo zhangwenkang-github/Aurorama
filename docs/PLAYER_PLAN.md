@@ -3078,4 +3078,9 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 **竞态决策**：结构编辑先作用播放器，再以同一代 player 回读实际序并发布；过渡快照无有效实际序时 Persister 不把旧序绑定到新条目。恢复在 `setMediaItems` 后、`prepare/play` 前安装精确序，仍由 `_restoredQueue` 首屏展示，不自动出声。
 
-**执行状态**：能力矩阵完成；进入 TDD RED。
+**执行状态（2026-10-24）**：
+
+- TDD RED 实际执行 `:player:core:testDebugUnitTest`、`:player:local:testDebugUnitTest`、`:modes:music:testDebugUnitTest --continue`，三模块均因新域字段 / 校验 API 尚不存在而编译失败；日志 `w87-evidence\W87-C-impl\tdd-red.log`。
+- 第一轮 GREEN：`player:core` 13、`player:local` 284、`modes:music` 220、`data` 84，均 0 failures / 0 errors / 0 skipped；v3 schema 已生成，identityHash=`313c71f04e6a4b8d26217649ed562ea0`。
+- 控制器接入后定向 JVM：`player:local` 284、`modes:music` 223，均 0/0/0；`data:compileDebugAndroidTestKotlin` 已通过。实际序读取 / 安装、结构变化失效、非法持久序降级、PLAYLIST 快照投影与 generation 防护已有定向测试。
+- 待办：完整模块门禁、app debug、根格式 / diff、Room instrumentation 实际 executed、设备强停恢复冒烟与 graphify。

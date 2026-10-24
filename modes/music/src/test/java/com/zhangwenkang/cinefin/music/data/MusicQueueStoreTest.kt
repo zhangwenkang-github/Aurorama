@@ -153,4 +153,35 @@ class MusicQueueStoreTest {
             ),
         )
     }
+
+    @Test
+    fun `活动队列缺少完整实际序时暂不落盘`() {
+        assertEquals(
+            false,
+            queueCanPersistShuffleSnapshot(
+                queue = MusicQueue(items = (0 until 3).map(::item), source = QueueSource.MANUAL),
+                liveQueuePresent = true,
+            ),
+        )
+        assertEquals(
+            true,
+            queueCanPersistShuffleSnapshot(
+                queue =
+                    MusicQueue(
+                        items = (0 until 3).map(::item),
+                        source = QueueSource.MANUAL,
+                        shuffleOrder = listOf(2, 0, 1),
+                        shuffleSeed = 5L,
+                    ),
+                liveQueuePresent = true,
+            ),
+        )
+        assertEquals(
+            true,
+            queueCanPersistShuffleSnapshot(
+                queue = MusicQueue(items = (0 until 3).map(::item), source = QueueSource.MANUAL),
+                liveQueuePresent = false,
+            ),
+        )
+    }
 }

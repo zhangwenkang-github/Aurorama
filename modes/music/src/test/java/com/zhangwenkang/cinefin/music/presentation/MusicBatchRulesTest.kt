@@ -185,21 +185,14 @@ class MusicBatchRulesTest {
     }
 
     @Test
-    fun `play all keeps the current list order and starts from the first song`() {
-        val songs = listOf(song("1"), song("2"), song("3"))
-        val ordered = playAllOrder(songs, shuffle = false)
-        assertEquals(songs, ordered)
-        assertEquals(songs.first(), ordered.first())
+    fun `sequential play all starts from the first song`() {
+        assertEquals(0, playAllStartIndex(size = 3, shuffle = false))
     }
 
     @Test
-    fun `shuffle play all keeps every song and reorders deterministically with an injected random`() {
-        val songs = listOf(song("1"), song("2"), song("3"), song("4"))
-        val shuffled = playAllOrder(songs, shuffle = true, random = ZeroRandom)
-        assertEquals(songs.toSet(), shuffled.toSet())
-        assertEquals(songs.size, shuffled.size)
-        // 全零随机 = Fisher-Yates 每轮都与首位交换：[1,2,3,4] → [2,3,4,1]。
-        assertEquals(listOf(songs[1], songs[2], songs[3], songs[0]), shuffled)
+    fun `shuffle play all chooses only the first index so the natural queue stays intact`() {
+        assertEquals(0, playAllStartIndex(size = 4, shuffle = true, random = ZeroRandom))
+        assertEquals(0, playAllStartIndex(size = 0, shuffle = true, random = ZeroRandom))
     }
 
     /** 每次 `nextInt` 都取 0 的确定性随机源，用于锁死洗牌顺序。 */

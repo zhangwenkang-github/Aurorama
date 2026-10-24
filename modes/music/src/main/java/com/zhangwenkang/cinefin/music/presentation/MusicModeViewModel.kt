@@ -22,6 +22,7 @@ import com.zhangwenkang.cinefin.music.data.MusicPlaybackHistoryTracker
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicPlaylistKind
 import com.zhangwenkang.cinefin.music.data.MusicQueuePersister
+import com.zhangwenkang.cinefin.music.data.MusicQueueSnapshot
 import com.zhangwenkang.cinefin.music.data.MusicRecentStore
 import com.zhangwenkang.cinefin.music.data.MusicRepository
 import com.zhangwenkang.cinefin.music.data.MusicSong
@@ -275,6 +276,7 @@ constructor(
     private var serverPlaylists: List<MusicPlaylist> = emptyList()
     private var localPlaylists: List<LocalPlaylist> = emptyList()
     private var localPlaylistEntriesJob: Job? = null
+    private var restoredSnapshot: MusicQueueSnapshot? = null
 
     /** 上次会话的队列快照（W21-R2）：未点播放前只在本地展示 / 编辑。 */
     private val _restoredQueue = MutableStateFlow<MusicQueue?>(null)
@@ -476,12 +478,32 @@ constructor(
      */
     private fun restoreQueue() {
         viewModelScope.launch {
-            val snapshot = runCatching { persister.load() }.getOrNull() ?: return@launch
+            val snapshot = runCatching { persister.load() }.getOrNull()
+            restoredSnapshot = snapshot
+            if (snapshot == null) return@launch
             if (playbackController.queue.value == null) {
                 _restoredQueue.value = snapshot.queue
             }
         }
     }
+
+    /** 优先用活动队列，其次用本次恢复态编辑后的队列，最后才用磁盘只读快照。 */
+    private fun latestQueueSnapshot(): MusicQueueSnapshot? =
+        playbackController.queue.value?.let { queue ->
+            MusicQueueSnapshot(
+                queue = queue,
+                positionMs = playbackController.positionMs.value,
+                savedAt = 0L,
+            )
+        }
+            ?: _restoredQueue.value?.let { queue ->
+                MusicQueueSnapshot(
+                    queue = queue,
+                    positionMs = queue.currentItem?.playbackPosition ?: 0L,
+                    savedAt = restoredSnapshot?.savedAt ?: 0L,
+                )
+            }
+            ?: restoredSnapshot
 
     /** 当前曲目发生变化（起播 / 切歌）→ 记一条本地最近播放；恢复态不算"播放过"。 */
     private fun observeRecent() {
@@ -1587,26 +1609,34 @@ constructor(
     }
 
     fun openPlaylist(playlist: MusicPlaylist) {
-        if (playlist.kind == MusicPlaylistKind.LOCAL) {
-            _uiState.update {
-                it.copy(
-                    detail = MusicDetail.Playlist(playlist, emptyList(), loading = true),
-                    errorTitle = null,
-                    errorMessage = null,
-                )
-            }
-            _batchSelection.value = MultiSelectState()
-            refreshLocalPlaylistEntries(playlist.id)
-            return
-        }
+        val cachedSnapshot = latestQueueSnapshot()
+        val immediateSongs = playlistSnapshotSongs(playlist, cachedSnapshot)
         _uiState.update {
             it.copy(
-                detail = MusicDetail.Playlist(playlist, emptyList(), loading = true),
+                detail =
+                    MusicDetail.Playlist(
+                        playlist = playlist,
+                        songs = immediateSongs,
+                        loading = immediateSongs.isEmpty(),
+                    ),
                 errorTitle = null,
                 errorMessage = null,
             )
         }
+        _batchSelection.value = MultiSelectState()
+        if (playlist.kind == MusicPlaylistKind.LOCAL) {
+            refreshLocalPlaylistEntries(playlist.id)
+            return
+        }
         viewModelScope.launch {
+            val snapshot =
+                restoredSnapshot
+                    ?: runCatching { persister.load() }
+                        .getOrNull()
+                        ?.also { loaded -> restoredSnapshot = loaded }
+            if (immediateSongs.isEmpty()) {
+                publishPlaylistSnapshot(playlist, snapshot)
+            }
             runCatching { repository.getPlaylistSongs(playlist.id) }
                 .onSuccess { songs ->
                     _uiState.update { state ->
@@ -1621,16 +1651,45 @@ constructor(
                     }
                 }
                 .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            detail = null,
-                            errorTitle = "歌单加载失败",
-                            errorMessage =
-                                error.message?.takeIf { message -> message.isNotBlank() }
-                                    ?: "无法读取歌单内容，请稍后重试",
-                        )
+                    _uiState.update { state ->
+                        val detail = state.detail
+                        if (
+                            detail is MusicDetail.Playlist &&
+                                detail.playlist.id == playlist.id &&
+                                detail.songs.isNotEmpty()
+                        ) {
+                            state.copy(
+                                detail = detail.copy(loading = false),
+                                errorTitle = "歌单刷新失败",
+                                errorMessage = "当前显示本地快照，联网内容暂未刷新",
+                            )
+                        } else {
+                            state.copy(
+                                detail = null,
+                                errorTitle = "歌单加载失败",
+                                errorMessage =
+                                    error.message?.takeIf { message -> message.isNotBlank() }
+                                        ?: "无法读取歌单内容，请稍后重试",
+                            )
+                        }
                     }
                 }
+        }
+    }
+
+    private fun publishPlaylistSnapshot(
+        playlist: MusicPlaylist,
+        snapshot: MusicQueueSnapshot?,
+    ) {
+        val songs = playlistSnapshotSongs(playlist, snapshot)
+        if (songs.isEmpty()) return
+        _uiState.update { state ->
+            val detail = state.detail
+            if (detail is MusicDetail.Playlist && detail.playlist.id == playlist.id) {
+                state.copy(detail = detail.copy(songs = songs, loading = false))
+            } else {
+                state
+            }
         }
     }
 
@@ -1908,31 +1967,36 @@ constructor(
         val songs = detail?.songs ?: state.songs
         val startIndex = songs.indexOfFirst { it.playlistSelectionKey() == selectionKey }
         if (startIndex < 0) return
+        val snapshotItems =
+            (detail as? MusicDetail.Playlist)?.let { playlistDetail ->
+                playlistSnapshotPlaybackItems(playlistDetail.playlist, latestQueueSnapshot())
+            } ?: emptyMap()
         startQueuePlayback(
             song = song,
             songs = songs,
             startIndex = startIndex,
             source = detail?.source ?: QueueSource.MANUAL,
             sourceId = detail?.sourceId,
+            snapshotItems = snapshotItems,
         )
     }
 
     /**
      * W64：歌曲 Tab「播放全部」——把当前列表完整按列表序入队，并从第 1 首开始播。
      *
-     * [shuffle] = true 时客户端先洗牌（首曲也随机），并切换到随机播放模式（后续由内核 shuffle 决定）。 只在歌曲 Tab
-     * 主列表生效（详情页有自己的行点击语义，不提供该按钮）。
+     * [shuffle] = true 时只随机首曲，自然队列保持原列表序；实际随机序由 ExoPlayer 提供并持久化。 只在歌曲 Tab 主列表生效
+     * （详情页有自己的行点击语义，不提供该按钮）。
      */
     fun playAll(shuffle: Boolean = false) {
         val state = _uiState.value
         if (state.detail != null) return
         val songs = state.songs
         if (songs.isEmpty()) return
-        val ordered = playAllOrder(songs, shuffle)
+        val startIndex = playAllStartIndex(songs.size, shuffle)
         startQueuePlayback(
-            song = ordered.first(),
-            songs = ordered,
-            startIndex = 0,
+            song = songs[startIndex],
+            songs = songs,
+            startIndex = startIndex,
             source = QueueSource.MANUAL,
             sourceId = null,
             playMode = if (shuffle) MusicPlayMode.SHUFFLE else null,
@@ -1947,6 +2011,7 @@ constructor(
         source: QueueSource,
         sourceId: String?,
         playMode: MusicPlayMode? = null,
+        snapshotItems: Map<UUID, PlayerItem> = emptyMap(),
     ) {
         playJob?.cancel()
         val requestId = ++nextPlayRequestId
@@ -1960,7 +2025,7 @@ constructor(
         playJob = viewModelScope.launch {
             val first =
                 try {
-                    trackResolver.toPlayerItem(song)
+                    snapshotItems[song.itemId] ?: trackResolver.toPlayerItem(song)
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
@@ -1982,6 +2047,8 @@ constructor(
                 MusicQueue(
                     items = listOf(first),
                     currentIndex = 0,
+                    repeatMode = playMode?.toRepeatMode() ?: RepeatMode.OFF,
+                    shuffleEnabled = playMode?.toShuffleEnabled() ?: false,
                     source = source,
                     sourceId = sourceId,
                 ),
@@ -1993,7 +2060,7 @@ constructor(
             }
             // 随机全部：setQueue 后立即切模式；内核起播任务读取的是最新 queue 快照。
             playMode?.let { mode -> setPlayMode(mode) }
-            fillQueueAround(songs, startIndex)
+            fillQueueAround(songs, startIndex, requestId, snapshotItems)
         }
     }
 
@@ -2013,19 +2080,25 @@ constructor(
     private suspend fun fillQueueAround(
         songs: List<MusicSong>,
         startIndex: Int,
+        requestId: Long,
+        snapshotItems: Map<UUID, PlayerItem>,
     ) {
         // 批次计划由纯函数给出（见 musicQueueFillBatches），批次顺序有单测钉死
         val batches = musicQueueFillBatches(startIndex, songs.size, QUEUE_FILL_BATCH_SIZE)
         // 当前之后的曲目：按批次追加到队尾（第一批就含"下一首"，用户随时点下一首都有效）
         for (batch in batches.append) {
+            if (!isCurrentPlaybackRequest(requestId, nextPlayRequestId)) return
             if (playbackController.queue.value == null) return
-            val items = resolveQueueBatch(songs, batch)
+            val items = resolveQueueBatch(songs, batch, snapshotItems)
+            if (!isCurrentPlaybackRequest(requestId, nextPlayRequestId)) return
             if (items.isNotEmpty()) queueEditor.appendToQueue(items)
         }
         // 当前之前的曲目：按批次前插到队首（批间降序、批内升序 —— 见 musicQueueFillBatches）
         for (batch in batches.prepend) {
+            if (!isCurrentPlaybackRequest(requestId, nextPlayRequestId)) return
             if (playbackController.queue.value == null) return
-            val items = resolveQueueBatch(songs, batch)
+            val items = resolveQueueBatch(songs, batch, snapshotItems)
+            if (!isCurrentPlaybackRequest(requestId, nextPlayRequestId)) return
             if (items.isNotEmpty()) queueEditor.prependToQueue(items)
         }
         if (playbackController.queue.value != null) {
@@ -2037,21 +2110,26 @@ constructor(
     private suspend fun resolveQueueBatch(
         songs: List<MusicSong>,
         indexes: List<Int>,
+        snapshotItems: Map<UUID, PlayerItem>,
     ): List<PlayerItem> = coroutineScope {
-        indexes.map { index -> async { resolveQueueItem(songs[index]) } }.awaitAll()
+        indexes.map { index -> async { resolveQueueItem(songs[index], snapshotItems) } }.awaitAll()
     }
         .filterNotNull()
 
     /** 单曲解析；失败只跳过该曲（起播不因列表里某一首坏文件而整体失败）。 */
-    private suspend fun resolveQueueItem(song: MusicSong): PlayerItem? =
-        try {
-            trackResolver.toPlayerItem(song)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (error: Exception) {
-            Timber.w(error, "补队列失败，跳过「${song.name}」")
-            null
-        }
+    private suspend fun resolveQueueItem(
+        song: MusicSong,
+        snapshotItems: Map<UUID, PlayerItem> = emptyMap(),
+    ): PlayerItem? =
+        snapshotItems[song.itemId]
+            ?: try {
+                trackResolver.toPlayerItem(song)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "补队列失败，跳过「${song.name}」")
+                null
+            }
 
     /** 下一首播放（MU-3）：解析出可播放条目后插到当前曲目之后。 */
     fun playNext(song: MusicSong) {
