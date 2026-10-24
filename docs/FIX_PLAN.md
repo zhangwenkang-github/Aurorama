@@ -620,6 +620,14 @@ K60 用户新增音乐无法播放：独立只读诊断在官方 1.3.0(4) 复现
 
 W89-C 当前候选技术 QA 仍有效，但用户全功能验收 FAIL / BLOCKED；tag、GitHub Release、workflow、K60 正式升级与任何发布写继续禁止。下一角色 = 新负责人 / Android 交互与 UI 架构负责人；先读本段、`PROJECT_PLAN` W90、`PLAYER_PLAN` 音乐与歌词段、`W89-C-QA.md` 和 handoff 唯一 ACTIVE，再实查当前候选 / 设备锁。第一步只读：建立交互清单与可测延迟判据，不直接重做视觉。
 
+**2026-10-25 W90 方向确认与第一批实现**：用户确认执行方向 A，同时明确**本版本不做全 App UI 布局重做**，留待后续版本；未来若提供多套 UI 主题，代码应先保持语义颜色 / 间距 / 组件边界低耦合，但本轮不增加主题开关或主题框架。第一批代码候选 `45e2de77`（基于 W89-C 文档 HEAD `c531f1d8`）只处理三项：
+
+- **歌词跟随**：歌词页每次真正重新进入时产生独立 entry token；若全局跟随开启，清除本次停留的手动暂停并强制执行一次当前行居中恢复；全局关闭时不擅自开启。
+- **多选播放**：下载页选中项必须全部完成且同属音乐或视频时显示播放键；音乐按下载页选择顺序经 `MusicItemRoute.queueItemIds` 成队，视频复用既有批量视频队列；混合类型、书籍或未完成项不生成计划。
+- **即时反馈**：下载暂停 / 继续 / 重试 / 删除 / 多选播放先同步写入 per-item pending，再执行任务调用和刷新；选择栏及行尾按钮显示 pending，禁止等待网络或整页刷新后才变 UI。
+
+门禁：`modes:film` + `modes:music` 全量 JVM **53 XML / 342 executed / 0 failed / 0 error / 0 skipped**，`app:phone:assembleDebug`、三模块 `ktfmtCheck`、`git diff --check` 通过。未覆盖：新 debug APK 尚未装机；歌词测试曲目只有无歌词样本，真实歌词回页居中、音乐 / 视频多选播放、pending 可见时长都仍需独立 QA。下载提示时长 / 层级、音乐页主按钮间距与全 App 反馈审计未开始；W90-UI 按用户决定延期，不纳入本轮。W89-C 继续冻结，未 push / merge / tag / Release。
+
 **2026-10-24 W88-C / W89-A 规划门通过，进入第一实现小波**：两条隔离分支均从 `origin/master=1cea01d3` 创建：`codex/w88-c-persistent-swr` 与 `codex/w89-a-update-discovery`，worktree 分别位于 `F:\Develop\code_data\work_tree\Aurorama\w88-c-persistent-swr\Aurorama`、`...\w89-a-update-discovery\Aurorama`。两份能力矩阵与 TDD 计划已写入对应 `*-IMPL.md` 并由负责人裁决：W88-C 采用版本化 JSON snapshot、namespace+generation 与 fail-closed，冷启动先返回旧值且后台只更新缓存（本轮不扩 Flow），浏览/搜索/歌单/封面保留上限为 7d/24h/24h/30d；封面 namespace、服务器歌单首屏与批量下载元数据最小接线获准，但仍不得改 W84 下载真源。W89-A 采用独立原子 metadata + `.part` 传输真源，失败也占 24h 自动检查门控，手动检查可绕过；不新增自动开关、不碰安装/校验/发布。A1 = namespace/in-flight 隔离，B1 = 稳定 Release/SemVer/ABI/URL 白名单，均由全新 `deepseek-flash`、`fork_turns=none` 实现代理先行；本阶段尚无实现提交、独立 QA、merge-prep 或合并证据。设备仍由 W88-C=Pad `43af8627`、W89-A=K60 `8e875894` 预留，第一小波为 JVM-only，未建锁。
 
 **2026-10-24 A1 / B1 实现小波收口，进入 A2 / B2**：A1 分支 HEAD `0d09c0df`，namespace+generation/in-flight fence 已接入真实 repository；额外移除只按 `libraryId` 的库计数缓存，统一走带 fence 的 metadata cache。data JVM `98/0/0/0`，目标 19/0，格式与 graphify 通过；P0–P3=`0/0/0/1`（P3=真实账号 A/B、设备并发与独立 QA 未覆盖）。B1 HEAD `c05db369`，稳定 Release/SemVer/ABI/URL 白名单完成；负责人复核抓到 `CancellationException` 被 TRANSPORT 吞掉，已先 RED 后修复。data JVM `107/0/0/0`、update 17 项、格式通过。`data` 实际单测任务为 `testDebugUnitTest`，负责人原预设的 `testLibreDebugUnitTest` 已纠正。A2 仅做版本化脱敏 JSON snapshot + 原子有界存储，B2 仅做独立状态文件 + Range `.part` 下载边界；两波仍 JVM-only、无设备锁、无独立 QA、未 merge/push。
