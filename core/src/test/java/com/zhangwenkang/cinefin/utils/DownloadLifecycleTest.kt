@@ -387,6 +387,100 @@ class DownloadLifecycleTest {
     }
 
     @Test
+    fun `旧代次最终文件不阻塞新代次提交且新旧证据都可追踪`() = runBlocking {
+        val directory = Files.createTempDirectory("download-generation-targets").toFile()
+        val itemId = "00000000-0000-0000-0000-000000000001"
+        val sourceId = "source-generation"
+        val old =
+            DownloadCompletionCommitRules.downloadTargetFiles(
+                directory = directory,
+                itemId = itemId,
+                sourceId = sourceId,
+                generation = 8L,
+            )
+        old.first.apply {
+            parentFile?.mkdirs()
+            writeText("old payload")
+        }
+
+        runCatching {
+            DownloadCompletionCommitRules.commit(
+                partial = old.first,
+                finalFile = old.second,
+                canStart = { true },
+                commitState = { error("模拟旧代次 rename 后进程中断") },
+                sourceId = "source-generation",
+                generation = 8L,
+            )
+        }
+        val oldWitness = DownloadCompletionCommitRules.witnessFile(old.first, old.second)
+
+        val current =
+            DownloadCompletionCommitRules.downloadTargetFiles(
+                directory = directory,
+                itemId = itemId,
+                sourceId = sourceId,
+                generation = 9L,
+            )
+        assertFalse(
+            "新代次必须使用独立 final，旧 final 仍可能承载用户可恢复数据",
+            old.second.canonicalFile == current.second.canonicalFile,
+        )
+        current.first.apply {
+            parentFile?.mkdirs()
+            writeText("new payload")
+        }
+        val result =
+            DownloadCompletionCommitRules.commit(
+                partial = current.first,
+                finalFile = current.second,
+                canStart = { true },
+                commitState = { 1 },
+                sourceId = "source-generation",
+                generation = 9L,
+            )
+
+        assertEquals(DownloadCompletionCommit.COMMITTED, result)
+        assertEquals("old payload", old.second.readText())
+        assertTrue("旧 witness 必须作为旧 final 的可追踪证据保留", oldWitness.isFile)
+        assertEquals("new payload", current.second.readText())
+        directory.deleteRecursively()
+        Unit
+    }
+
+    @Test
+    fun `来源清理覆盖旧代次最终文件残片与 witness`() {
+        val directory = Files.createTempDirectory("download-source-artifacts").toFile()
+        val itemId = "00000000-0000-0000-0000-000000000001"
+        val sourceId = "source-cleanup"
+        val legacy = directory.resolve("$itemId.$sourceId").apply { writeText("legacy") }
+        val oldFinal = directory.resolve("$itemId.$sourceId.g8").apply { writeText("old") }
+        val currentPartial =
+            directory.resolve("$itemId.$sourceId.g9.download").apply { writeText("current") }
+        val unrelated = directory.resolve("$itemId.other-source.g8").apply { writeText("keep") }
+        val oldWitness =
+            DownloadCompletionCommitRules.witnessFile(
+                    directory.resolve("$itemId.$sourceId.g8.download"),
+                    oldFinal,
+                )
+                .apply { writeText("witness") }
+
+        val artifacts =
+            DownloadCompletionCommitRules.sourceArtifacts(
+                directory = directory,
+                itemId = itemId,
+                sourceId = sourceId,
+            )
+
+        assertTrue(legacy in artifacts)
+        assertTrue(oldFinal in artifacts)
+        assertTrue(currentPartial in artifacts)
+        assertTrue(oldWitness in artifacts)
+        assertFalse(unrelated in artifacts)
+        directory.deleteRecursively()
+    }
+
+    @Test
     fun `提交后 finalizer 执行在线完成同集合并报告失败项`() = runBlocking {
         val executed = mutableListOf<DownloadPostCommitEffect>()
         val failure = IllegalStateException("trickplay unavailable")
@@ -492,23 +586,46 @@ class DownloadLifecycleTest {
         val first =
             DownloadPostCommitRules.externalMediaStreamId(
                 sourceId = "source-external",
+                generation = 8L,
                 streamIndex = 7,
                 ordinal = 2,
             )
         val repeated =
             DownloadPostCommitRules.externalMediaStreamId(
                 sourceId = "source-external",
+                generation = 8L,
                 streamIndex = 7,
                 ordinal = 2,
             )
         val other =
             DownloadPostCommitRules.externalMediaStreamId(
                 sourceId = "source-external",
+                generation = 8L,
                 streamIndex = 8,
                 ordinal = 3,
             )
 
         assertEquals(first, repeated)
         assertTrue(first != other)
+    }
+
+    @Test
+    fun `外置流身份按来源代次隔离`() {
+        val old =
+            DownloadPostCommitRules.externalMediaStreamId(
+                sourceId = "source-external",
+                generation = 8L,
+                streamIndex = 7,
+                ordinal = 2,
+            )
+        val current =
+            DownloadPostCommitRules.externalMediaStreamId(
+                sourceId = "source-external",
+                generation = 9L,
+                streamIndex = 7,
+                ordinal = 2,
+            )
+
+        assertTrue("新代次不得复用旧代次外置字幕身份", old != current)
     }
 }

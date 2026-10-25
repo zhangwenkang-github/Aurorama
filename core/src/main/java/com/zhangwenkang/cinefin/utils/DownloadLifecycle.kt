@@ -144,12 +144,14 @@ object DownloadPostCommitRules {
 
     fun externalMediaStreamId(
         sourceId: String,
+        generation: Long,
         streamIndex: Int,
         ordinal: Int,
     ): UUID {
         val identity = if (streamIndex >= 0) "index=$streamIndex" else "ordinal=$ordinal"
         return UUID.nameUUIDFromBytes(
-            "$sourceId|external-subtitle|$identity".toByteArray(Charsets.UTF_8)
+            "$sourceId|generation=$generation|external-subtitle|$identity"
+                .toByteArray(Charsets.UTF_8)
         )
     }
 }
@@ -160,6 +162,40 @@ object DownloadPostCommitRules {
  * 顺序固定为 witness → 最终文件 → DB COMPLETED。进程若死在 rename 与 DB 之间，重启后可用 witness 重新提交；DB 永不记录不存在的最终文件。
  */
 object DownloadCompletionCommitRules {
+    fun downloadTargetFiles(
+        directory: File,
+        itemId: String,
+        sourceId: String,
+        generation: Long,
+    ): Pair<File, File> {
+        val finalFile = File(directory, "$itemId.$sourceId.g$generation")
+        return File(finalFile.path + ".download") to finalFile
+    }
+
+    fun sourceArtifacts(
+        directory: File,
+        itemId: String,
+        sourceId: String,
+    ): Set<File> {
+        val prefix = "$itemId.$sourceId"
+        val targetPattern =
+            Regex(
+                "^${Regex.escape(prefix)}(?:\\.g\\d+)?(?:\\.download)?$",
+                RegexOption.IGNORE_CASE,
+            )
+        val targets = directory.listFiles().orEmpty().filter { targetPattern.matches(it.name) }
+        return buildSet {
+            targets.forEach { target ->
+                add(target)
+                val partial =
+                    if (target.name.endsWith(".download")) target
+                    else File(target.path + ".download")
+                val finalFile = finalFile(target)
+                add(witnessFile(partial, finalFile))
+            }
+        }
+    }
+
     suspend fun commit(
         partial: File,
         finalFile: File,

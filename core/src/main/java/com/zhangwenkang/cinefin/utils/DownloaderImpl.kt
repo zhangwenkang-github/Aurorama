@@ -15,6 +15,7 @@ import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -87,6 +88,122 @@ private data class FrozenDownloadOrigin(
     val userId: String?,
 )
 
+internal data class DownloadTransferRequest(
+    val url: String,
+    val token: String?,
+    val baseUrl: String?,
+    val target: File,
+    val existingBytes: Long,
+    val validator: String?,
+    val expectedTotalBytes: Long,
+    val speedLimitBytesPerSecond: Long,
+    val onProgress:
+        suspend (
+            downloadedBytes: Long,
+            totalBytes: Long,
+            validator: String?,
+            resumed: Boolean,
+        ) -> Unit,
+)
+
+internal fun interface DownloadTransfer {
+    suspend fun download(request: DownloadTransferRequest): DownloadAttemptResult
+}
+
+private class HttpDownloadTransfer(private val engine: DownloadHttpEngine) : DownloadTransfer {
+    override suspend fun download(request: DownloadTransferRequest): DownloadAttemptResult =
+        engine.download(
+            url = request.url,
+            token = request.token,
+            baseUrl = request.baseUrl,
+            target = request.target,
+            existingBytes = request.existingBytes,
+            validator = request.validator,
+            expectedTotalBytes = request.expectedTotalBytes,
+            speedLimitBytesPerSecond = request.speedLimitBytesPerSecond,
+            onProgress = request.onProgress,
+        )
+}
+
+internal interface DownloadWorkGateway {
+    suspend fun uniqueWorkInfos(name: String): List<WorkInfo>
+
+    fun enqueueUnique(
+        name: String,
+        policy: ExistingWorkPolicy,
+        request: OneTimeWorkRequest,
+    )
+
+    fun cancelUnique(name: String)
+
+    fun enqueue(request: OneTimeWorkRequest)
+}
+
+internal fun interface DownloadImageFinalizationScheduler {
+    suspend fun schedule(item: FindroidItem, sourceId: String, generation: Long)
+}
+
+private class WorkManagerDownloadWorkGateway(private val workManager: WorkManager) :
+    DownloadWorkGateway {
+    override suspend fun uniqueWorkInfos(name: String): List<WorkInfo> =
+        workManager.getWorkInfosForUniqueWorkFlow(name).first()
+
+    override fun enqueueUnique(
+        name: String,
+        policy: ExistingWorkPolicy,
+        request: OneTimeWorkRequest,
+    ) {
+        workManager.enqueueUniqueWork(name, policy, request)
+    }
+
+    override fun cancelUnique(name: String) {
+        workManager.cancelUniqueWork(name)
+    }
+
+    override fun enqueue(request: OneTimeWorkRequest) {
+        workManager.enqueue(request)
+    }
+}
+
+private class WorkManagerImageFinalizationScheduler(private val workGateway: DownloadWorkGateway) :
+    DownloadImageFinalizationScheduler {
+    private val scheduled = ConcurrentHashMap.newKeySet<String>()
+
+    override suspend fun schedule(item: FindroidItem, sourceId: String, generation: Long) {
+        val finalizationKey = "$sourceId|$generation"
+        if (!scheduled.add(finalizationKey)) return
+        val workName = ImageDownloadWorkRules.uniqueWorkName(sourceId)
+        val alreadyScheduled =
+            withContext(Dispatchers.IO) {
+                runCatching { workGateway.uniqueWorkInfos(workName) }
+                    .getOrNull()
+                    ?.any { finalizationKey in it.tags }
+            }
+        if (alreadyScheduled == true) return
+        val request =
+            OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
+                .addTag(finalizationKey)
+                .setInputData(
+                    workDataOf(
+                        ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString(),
+                        ImagesDownloaderWorker.KEY_SOURCE_ID to sourceId,
+                        ImagesDownloaderWorker.KEY_GENERATION to generation,
+                    )
+                )
+                .build()
+        try {
+            workGateway.enqueueUnique(
+                workName,
+                ExistingWorkPolicy.REPLACE,
+                request,
+            )
+        } catch (error: Exception) {
+            scheduled.remove(finalizationKey)
+            throw error
+        }
+    }
+}
+
 /**
  * W50 自研下载引擎门面。
  *
@@ -111,6 +228,12 @@ private constructor(
     httpClient: OkHttpClient,
     private val notifications: DownloadNotificationGateway,
     private val registerNetworkCallback: (ConnectivityManager.NetworkCallback) -> Unit,
+    private val externalStorageState: (File) -> String,
+    private val availableBytes: (File) -> Long,
+    private val itemResolverOverride: (suspend (UUID) -> FindroidItem?)?,
+    workGatewayOverride: DownloadWorkGateway?,
+    downloadTransferOverride: DownloadTransfer?,
+    imageFinalizationSchedulerOverride: DownloadImageFinalizationScheduler?,
 ) : Downloader {
     constructor(
         context: Context,
@@ -136,9 +259,20 @@ private constructor(
                 .getSystemService(ConnectivityManager::class.java)
                 ?.registerDefaultNetworkCallback(callback)
         },
+        externalStorageState = { file -> Environment.getExternalStorageState(file) },
+        availableBytes = { directory -> StatFs(directory.path).availableBytes },
+        itemResolverOverride = null,
+        workGatewayOverride = null,
+        downloadTransferOverride = null,
+        imageFinalizationSchedulerOverride = null,
     )
 
-    private val httpEngine = DownloadHttpEngine(httpClient)
+    private val workGateway =
+        workGatewayOverride ?: WorkManagerDownloadWorkGateway(workManager = workManager)
+    private val downloadTransfer =
+        downloadTransferOverride ?: HttpDownloadTransfer(DownloadHttpEngine(httpClient))
+    private val imageFinalizationScheduler =
+        imageFinalizationSchedulerOverride ?: WorkManagerImageFinalizationScheduler(workGateway)
     private val sidecar = DownloadMediaSidecar(context)
     private val intentMutations =
         DownloadIntentMutations(
@@ -203,9 +337,6 @@ private constructor(
 
     /** 同 source 生命周期命令串行，并以代次 claim/fence 封锁迟到副作用。 */
     private val lifecycleControl = DownloadSourceControl()
-
-    /** 同一 source + generation 的图片副作用只调度一次；WorkManager 仍以 source 唯一名串行。 */
-    private val scheduledImageFinalizations = ConcurrentHashMap.newKeySet<String>()
 
     /**
      * W76-Q7：入队方与运行中 worker 之间的「退出交接」状态（保护 [queueKickRequested] / [engineWorkerQuiesced]）。
@@ -299,8 +430,7 @@ private constructor(
             val storageLocation = context.getExternalFilesDirs(null).getOrNull(storageIndex)
             if (
                 storageLocation == null ||
-                    Environment.getExternalStorageState(storageLocation) !=
-                        Environment.MEDIA_MOUNTED
+                    externalStorageState(storageLocation) != Environment.MEDIA_MOUNTED
             ) {
                 return@withContext Pair(
                     -1L,
@@ -320,7 +450,17 @@ private constructor(
                 return@withContext Pair(existing?.downloadId ?: handle, null)
             }
 
-            val partialPath = File(storageLocation, "downloads/${item.id}.$sourceId.download").path
+            val taskGeneration =
+                DownloadLifecycleRules.nextGeneration(existing?.taskGeneration ?: 0L)
+            val partialPath =
+                DownloadCompletionCommitRules.downloadTargetFiles(
+                        directory = File(storageLocation, "downloads"),
+                        itemId = item.id.toString(),
+                        sourceId = sourceId,
+                        generation = taskGeneration,
+                    )
+                    .first
+                    .path
             val partial = File(partialPath)
             val existingBytes = if (partial.isFile) partial.length() else 0L
             val sourceMetadata =
@@ -372,8 +512,7 @@ private constructor(
                     allowOffline = existing?.allowOffline ?: true,
                     bitrate = sourceMetadata?.bitrate,
                     container = sourceMetadata?.container,
-                    taskGeneration =
-                        DownloadLifecycleRules.nextGeneration(existing?.taskGeneration ?: 0L),
+                    taskGeneration = taskGeneration,
                 )
             database.insertSource(sourceDto)
             startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
@@ -639,18 +778,69 @@ private constructor(
                     .sortedBy { it.updatedAt }
             val claimed = mutableListOf<FindroidSourceDto>()
             for (source in candidates) {
+                var claimedSource = source
                 // 选择与更新之间可能被删除抢占；只有真正条件更新成功的行才能执行。
                 if (
                     lifecycleControl.claim(source.id, source.taskGeneration) {
-                        database.claimSourceRunning(source.id, source.taskGeneration, now) > 0
+                        val claimed =
+                            database.claimSourceRunning(source.id, source.taskGeneration, now) > 0
+                        if (claimed) {
+                            claimedSource =
+                                runCatching { normalizeLegacyTarget(source) }
+                                    .onFailure { Timber.w(it, "迁移旧代次下载目标失败：${source.id}") }
+                                    .getOrDefault(source)
+                        }
+                        claimed
                     }
                 ) {
-                    claimed += source
+                    claimed += claimedSource
                 }
                 if (claimed.size >= limit) break
             }
             claimed
         }
+    }
+
+    private suspend fun normalizeLegacyTarget(source: FindroidSourceDto): FindroidSourceDto {
+        val persisted = File(source.path)
+        val finalFile = DownloadCompletionCommitRules.finalFile(persisted)
+        val partial =
+            if (persisted.path.endsWith(".download")) persisted
+            else File(finalFile.path + ".download")
+        if (partial.path == persisted.path && !finalFile.exists()) return source
+        val parent = persisted.parentFile ?: return source
+        val expected =
+            DownloadCompletionCommitRules.downloadTargetFiles(
+                directory = parent,
+                itemId = source.itemId.toString(),
+                sourceId = source.id,
+                generation = source.taskGeneration,
+            )
+        if (
+            persisted.canonicalPath == expected.first.canonicalPath ||
+                persisted.canonicalPath == expected.second.canonicalPath
+        ) {
+            return source
+        }
+        if (
+            DownloadCompletionCommitRules.hasInterruptedFinalization(
+                partial = partial,
+                finalFile = finalFile,
+                sourceId = source.id,
+                generation = source.taskGeneration,
+            )
+        ) {
+            return source
+        }
+        val migrated =
+            when {
+                expected.first.isFile -> expected.first
+                !partial.isFile -> expected.first
+                partial.renameTo(expected.first) -> expected.first
+                else -> return source
+            }
+        database.setSourcePath(source.id, migrated.path)
+        return source.copy(path = migrated.path)
     }
 
     /**
@@ -663,10 +853,7 @@ private constructor(
     private suspend fun ensureEngineRunning(forceStart: Boolean = false) {
         val infos =
             withContext(Dispatchers.IO) {
-                runCatching {
-                    workManager.getWorkInfosForUniqueWorkFlow(DOWNLOAD_ENGINE_WORK_NAME).first()
-                }
-                    .getOrNull()
+                runCatching { workGateway.uniqueWorkInfos(DOWNLOAD_ENGINE_WORK_NAME) }.getOrNull()
             }
         if (infos == null) {
             enqueueEngineWork(delayMs = 0L)
@@ -720,7 +907,7 @@ private constructor(
         if (delayMs > 0L) {
             builder.setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
         }
-        workManager.enqueueUniqueWork(
+        workGateway.enqueueUnique(
             DOWNLOAD_ENGINE_WORK_NAME,
             policy,
             builder.build(),
@@ -791,11 +978,11 @@ private constructor(
                 // W76-B9：首次下载（新装 / 清数据）时 downloads 目录尚不存在，
                 // StatFs(不存在路径) 会抛 IllegalArgumentException；先建父目录，必要时回落 filesDir。
                 val statDirectory = DownloadStorageRules.resolveStatPath(target, context.filesDir)
-                val stats = StatFs(statDirectory.path)
-                if (stats.availableBytes < requiredBytes) {
+                val available = availableBytes(statDirectory)
+                if (available < requiredBytes) {
                     throw DownloadHttpException(
                         DownloadFailureReason.STORAGE_INSUFFICIENT,
-                        "存储空间不足：需要 ${Formatter.formatFileSize(context, requiredBytes)}，可用 ${Formatter.formatFileSize(context, stats.availableBytes)}",
+                        "存储空间不足：需要 ${Formatter.formatFileSize(context, requiredBytes)}，可用 ${Formatter.formatFileSize(context, available)}",
                     )
                 }
             }
@@ -825,55 +1012,58 @@ private constructor(
                     appPreferences.getValue(appPreferences.downloadSpeedLimitMbps)
                 )
             val result =
-                httpEngine.download(
-                    url = mediaSource.path,
-                    token = jellyfinRepository.getAccessToken(),
-                    baseUrl = jellyfinRepository.getBaseUrl(),
-                    target = target,
-                    existingBytes = offset,
-                    validator = source.resumeValidator,
-                    expectedTotalBytes = totalBytes,
-                    speedLimitBytesPerSecond = speedLimitBytesPerSecond,
-                    onProgress = { downloaded, total, validator, _ ->
-                        val accepted =
-                            lifecycleControl.withCurrentClaim(
-                                source.id,
-                                source.taskGeneration,
-                            ) {
-                                meter.onProgress(downloaded)
-                                val eta = meter.etaSeconds(total, downloaded)
-                                runtime.update {
-                                    it +
-                                        (source.id to
-                                            TaskRuntime(
-                                                name = itemName(item, source.name),
-                                                downloadedBytes = downloaded,
-                                                totalBytes = total,
-                                                speedBytesPerSecond = meter.speedBytesPerSecond(),
-                                                etaSeconds = eta,
-                                                validator = validator,
-                                            ))
-                                }
-                                val now = System.currentTimeMillis()
-                                if (now - lastPersistAt >= PERSIST_INTERVAL_MS) {
-                                    lastPersistAt = now
-                                    runCatching {
-                                        database.setSourceProgressIfCurrent(
-                                            source.id,
-                                            source.taskGeneration,
-                                            downloaded,
-                                            total,
-                                            now,
-                                        )
+                downloadTransfer.download(
+                    DownloadTransferRequest(
+                        url = mediaSource.path,
+                        token = jellyfinRepository.getAccessToken(),
+                        baseUrl = jellyfinRepository.getBaseUrl(),
+                        target = target,
+                        existingBytes = offset,
+                        validator = source.resumeValidator,
+                        expectedTotalBytes = totalBytes,
+                        speedLimitBytesPerSecond = speedLimitBytesPerSecond,
+                        onProgress = { downloaded, total, validator, _ ->
+                            val accepted =
+                                lifecycleControl.withCurrentClaim(
+                                    source.id,
+                                    source.taskGeneration,
+                                ) {
+                                    meter.onProgress(downloaded)
+                                    val eta = meter.etaSeconds(total, downloaded)
+                                    runtime.update {
+                                        it +
+                                            (source.id to
+                                                TaskRuntime(
+                                                    name = itemName(item, source.name),
+                                                    downloadedBytes = downloaded,
+                                                    totalBytes = total,
+                                                    speedBytesPerSecond =
+                                                        meter.speedBytesPerSecond(),
+                                                    etaSeconds = eta,
+                                                    validator = validator,
+                                                ))
                                     }
-                                        .onFailure { Timber.w(it, "持久化下载进度失败 ${source.id}") }
-                                    updateForegroundNotificationNow()
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastPersistAt >= PERSIST_INTERVAL_MS) {
+                                        lastPersistAt = now
+                                        runCatching {
+                                            database.setSourceProgressIfCurrent(
+                                                source.id,
+                                                source.taskGeneration,
+                                                downloaded,
+                                                total,
+                                                now,
+                                            )
+                                        }
+                                            .onFailure { Timber.w(it, "持久化下载进度失败 ${source.id}") }
+                                        updateForegroundNotificationNow()
+                                    }
                                 }
+                            if (accepted == null) {
+                                throw CancellationException("下载 claim 已被取消、删除或恢复")
                             }
-                        if (accepted == null) {
-                            throw CancellationException("下载 claim 已被取消、删除或恢复")
-                        }
-                    },
+                        },
+                    )
                 )
             completeTask(source, item, mediaSource, target, result)
         } catch (cancellation: CancellationException) {
@@ -1024,6 +1214,7 @@ private constructor(
                                 item = item,
                                 source = mediaSource,
                                 storageIndex = storageIndexFor(source.path),
+                                generation = source.taskGeneration,
                             )
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.SEGMENTS) {
@@ -1456,13 +1647,47 @@ private constructor(
             }
             val retried =
                 lifecycleControl.withCommand(task.sourceId, task.taskGeneration) {
-                    val row =
-                        database.beginSourceRetry(
-                            task.sourceId,
-                            task.taskGeneration,
-                            System.currentTimeMillis(),
+                    val now = System.currentTimeMillis()
+                    val latest = database.getSource(task.sourceId)
+                    if (latest != null && hasInterruptedFinalization(latest)) {
+                        val updated =
+                            database.setSourceTaskStatusIfCurrent(
+                                task.sourceId,
+                                task.taskGeneration,
+                                DownloadTaskStatus.PENDING.name,
+                                null,
+                                now,
+                            )
+                        if (updated > 0) {
+                            database.setSourceRetryIfCurrent(
+                                task.sourceId,
+                                task.taskGeneration,
+                                0,
+                                0L,
+                                now,
+                            )
+                        }
+                        DownloadSourceCommandResult(
+                            latest
+                                .copy(
+                                    taskStatus = DownloadTaskStatus.PENDING.name,
+                                    failureReason = null,
+                                    retryCount = 0,
+                                    nextRetryAt = 0L,
+                                    updatedAt = now,
+                                )
+                                .takeIf { updated > 0 },
+                            latest.taskGeneration.takeIf { updated > 0 },
                         )
-                    DownloadSourceCommandResult(row, row?.taskGeneration)
+                    } else {
+                        val row =
+                            database.beginSourceRetry(
+                                task.sourceId,
+                                task.taskGeneration,
+                                now,
+                            )
+                        DownloadSourceCommandResult(row, row?.taskGeneration)
+                    }
                 } ?: return@withContext Pair(-1L, null)
             lifecycleControl.withCurrentGeneration(task.sourceId, retried.taskGeneration) {
                 ensureEngineRunning(forceStart = true)
@@ -1621,14 +1846,14 @@ private constructor(
             job?.join()
             val cleanupSucceeded =
                 lifecycleControl.withCurrentGeneration(sourceId, source.taskGeneration) {
-                    workManager.cancelUniqueWork(ImageDownloadWorkRules.uniqueWorkName(sourceId))
+                    workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
                     deletePartialArtifacts(source.path)
                     val item = findItem(source.itemId)
                     if (item != null) {
                         deleteItem(item, source.toFindroidSource(database))
                     } else {
                         if (
-                            !deleteCompletionArtifacts(source.path) ||
+                            !deleteSourceCompletionArtifacts(source) ||
                                 !deletePartialSidecar(source.path)
                         ) {
                             return@withCurrentGeneration false
@@ -1774,14 +1999,15 @@ private constructor(
     override suspend fun deleteItem(item: FindroidItem, source: FindroidSource) {
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         val files = buildList {
-            add(File(source.path))
-            add(DownloadCompletionCommitRules.finalFile(File(source.path)))
-            add(
-                DownloadCompletionCommitRules.witnessFile(
-                    partial = File(source.path),
-                    finalFile = DownloadCompletionCommitRules.finalFile(File(source.path)),
+            File(source.path).parentFile?.let { directory ->
+                addAll(
+                    DownloadCompletionCommitRules.sourceArtifacts(
+                        directory = directory,
+                        itemId = item.id.toString(),
+                        sourceId = source.id,
+                    )
                 )
-            )
+            }
             mediaStreams.mapTo(this) { stream -> File(stream.path) }
         }
         for (file in files) {
@@ -2221,6 +2447,7 @@ private constructor(
         item: FindroidItem,
         source: FindroidSource,
         storageIndex: Int,
+        generation: Long,
     ) {
         val storageLocation = context.getExternalFilesDirs(null).getOrNull(storageIndex) ?: return
         val existing = database.getMediaStreamsBySourceId(source.id).associateBy { it.id }
@@ -2228,7 +2455,12 @@ private constructor(
         for ((ordinal, mediaStream) in
             source.mediaStreams.filter { it.isExternal && it.path != null }.withIndex()) {
             val id =
-                DownloadPostCommitRules.externalMediaStreamId(source.id, mediaStream.index, ordinal)
+                DownloadPostCommitRules.externalMediaStreamId(
+                    sourceId = source.id,
+                    generation = generation,
+                    streamIndex = mediaStream.index,
+                    ordinal = ordinal,
+                )
             val target = File(storageLocation, "downloads/${item.id}.${source.id}.$id")
             if (existing[id]?.path == target.path && target.isFile) continue
             try {
@@ -2236,19 +2468,21 @@ private constructor(
                 database.insertMediaStream(
                     mediaStream.toFindroidMediaStreamDto(id, source.id, target.path)
                 )
-                httpEngine.download(
-                    url = mediaStream.path!!,
-                    token = jellyfinRepository.getAccessToken(),
-                    baseUrl = jellyfinRepository.getBaseUrl(),
-                    target = partial,
-                    existingBytes = 0L,
-                    validator = null,
-                    expectedTotalBytes = 0L,
-                    speedLimitBytesPerSecond =
-                        DownloadSpeedLimitRules.bytesPerSecond(
-                            appPreferences.getValue(appPreferences.downloadSpeedLimitMbps)
-                        ),
-                    onProgress = { _, _, _, _ -> },
+                downloadTransfer.download(
+                    DownloadTransferRequest(
+                        url = mediaStream.path!!,
+                        token = jellyfinRepository.getAccessToken(),
+                        baseUrl = jellyfinRepository.getBaseUrl(),
+                        target = partial,
+                        existingBytes = 0L,
+                        validator = null,
+                        expectedTotalBytes = 0L,
+                        speedLimitBytesPerSecond =
+                            DownloadSpeedLimitRules.bytesPerSecond(
+                                appPreferences.getValue(appPreferences.downloadSpeedLimitMbps)
+                            ),
+                        onProgress = { _, _, _, _ -> },
+                    )
                 )
                 if (target.exists()) target.delete()
                 if (partial.renameTo(target)) {
@@ -2266,6 +2500,30 @@ private constructor(
             failures.drop(1).forEach(first::addSuppressed)
             throw first
         }
+        val currentIds =
+            source.mediaStreams
+                .filter { it.isExternal && it.path != null }
+                .withIndex()
+                .mapTo(mutableSetOf()) { (ordinal, mediaStream) ->
+                    DownloadPostCommitRules.externalMediaStreamId(
+                        sourceId = source.id,
+                        generation = generation,
+                        streamIndex = mediaStream.index,
+                        ordinal = ordinal,
+                    )
+                }
+        database
+            .getMediaStreamsBySourceId(source.id)
+            .filter { it.isExternal && it.id !in currentIds }
+            .forEach { stale ->
+                runCatching {
+                    val staleFile = File(stale.path)
+                    if (!staleFile.exists() || staleFile.delete()) {
+                        database.deleteMediaStream(stale.id)
+                    }
+                }
+                    .onFailure { Timber.w(it, "清理旧代外置媒体流失败：${stale.id}") }
+            }
     }
 
     private suspend fun downloadTrickplayData(
@@ -2299,37 +2557,7 @@ private constructor(
         sourceId: String,
         generation: Long,
     ) {
-        val finalizationKey = "$sourceId|$generation"
-        if (!scheduledImageFinalizations.add(finalizationKey)) return
-        val workName = ImageDownloadWorkRules.uniqueWorkName(sourceId)
-        val alreadyScheduled =
-            withContext(Dispatchers.IO) {
-                runCatching { workManager.getWorkInfosForUniqueWorkFlow(workName).first() }
-                    .getOrNull()
-                    ?.any { finalizationKey in it.tags }
-            }
-        if (alreadyScheduled == true) return
-        val request =
-            OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
-                .addTag(finalizationKey)
-                .setInputData(
-                    workDataOf(
-                        ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString(),
-                        ImagesDownloaderWorker.KEY_SOURCE_ID to sourceId,
-                        ImagesDownloaderWorker.KEY_GENERATION to generation,
-                    )
-                )
-                .build()
-        try {
-            workManager.enqueueUniqueWork(
-                workName,
-                ExistingWorkPolicy.REPLACE,
-                request,
-            )
-        } catch (error: Exception) {
-            scheduledImageFinalizations.remove(finalizationKey)
-            throw error
-        }
+        imageFinalizationScheduler.schedule(item, sourceId, generation)
     }
 
     private fun startImagesDownloader(item: FindroidItem) {
@@ -2337,7 +2565,7 @@ private constructor(
             OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
                 .setInputData(workDataOf(ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString()))
                 .build()
-        workManager.enqueue(request)
+        workGateway.enqueue(request)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -2414,6 +2642,9 @@ private constructor(
     }
 
     private suspend fun findItem(itemId: UUID): FindroidItem? {
+        itemResolverOverride?.let {
+            return it(itemId)
+        }
         val movie = runCatching { database.getMovie(itemId) }.getOrNull()
         if (movie != null) {
             return movie.toFindroidMovie(database, jellyfinRepository.getUserId())
@@ -2453,6 +2684,16 @@ private constructor(
             exact.isNotEmpty() -> exact.forEach { sidecar.remove(it.canonicalIdentity()) }
             records.size == 1 -> sidecar.remove(records.single().canonicalIdentity())
         }
+    }
+
+    private fun deleteSourceCompletionArtifacts(source: FindroidSourceDto): Boolean {
+        val parent = File(source.path).parentFile ?: return deleteCompletionArtifacts(source.path)
+        return DownloadCompletionCommitRules.sourceArtifacts(
+                directory = parent,
+                itemId = source.itemId.toString(),
+                sourceId = source.id,
+            )
+            .all { artifact -> !artifact.exists() || artifact.delete() }
     }
 
     private suspend fun findSourceByHandle(handle: Long): FindroidSourceDto? =
@@ -2510,7 +2751,9 @@ private constructor(
     }
 
     private fun networkPolicyAllows(): Boolean {
-        val manager = context.getSystemService(ConnectivityManager::class.java) ?: return true
+        val manager =
+            runCatching { context.getSystemService(ConnectivityManager::class.java) }.getOrNull()
+                ?: return true
         val capabilities = runCatching {
             manager.activeNetwork?.let { network -> manager.getNetworkCapabilities(network) }
         }
@@ -2612,6 +2855,12 @@ private constructor(
             httpClient: OkHttpClient,
             notifications: DownloadNotificationGateway,
             registerNetworkCallback: (ConnectivityManager.NetworkCallback) -> Unit,
+            externalStorageState: (File) -> String = { Environment.getExternalStorageState(it) },
+            availableBytes: (File) -> Long = { directory -> StatFs(directory.path).availableBytes },
+            itemResolverOverride: (suspend (UUID) -> FindroidItem?)? = null,
+            workGateway: DownloadWorkGateway? = null,
+            downloadTransfer: DownloadTransfer? = null,
+            imageFinalizationScheduler: DownloadImageFinalizationScheduler? = null,
         ): DownloaderImpl =
             DownloaderImpl(
                 context = context,
@@ -2624,6 +2873,12 @@ private constructor(
                 httpClient = httpClient,
                 notifications = notifications,
                 registerNetworkCallback = registerNetworkCallback,
+                externalStorageState = externalStorageState,
+                availableBytes = availableBytes,
+                itemResolverOverride = itemResolverOverride,
+                workGatewayOverride = workGateway,
+                downloadTransferOverride = downloadTransfer,
+                imageFinalizationSchedulerOverride = imageFinalizationScheduler,
             )
 
         /** 自研引擎写入 sources 行的版本标记（旧 DownloadManager 行为 0）。 */
