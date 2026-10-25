@@ -4,6 +4,7 @@ import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -110,7 +111,7 @@ class DownloadDeleteBatchTest {
         )
         assertEquals(3, store.batches.getValue("batch-1").size)
         assertEquals(3, store.receipts.size)
-        assertEquals(1_000L, store.finishedAt["batch-1"])
+        assertFalse("存在 FAILED receipt 的批次必须保留为可恢复状态", "batch-1" in store.finishedAt)
     }
 
     @Test

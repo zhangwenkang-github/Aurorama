@@ -103,21 +103,21 @@ class DownloadDeleteBatchProcessor(
         return process(id, normalized.mapIndexed { ordinal, request -> request to ordinal })
     }
 
-    /** 只重跑仍为 PENDING 的 receipt；成功落库后再次恢复会跳过该项。 */
+    /** 重跑 PENDING / FAILED receipt；成功落库后再次恢复会跳过该项。 */
     suspend fun resumeIncomplete(): List<DownloadDeleteBatchResult> =
         store.incomplete().mapNotNull { snapshot ->
-            val pending =
+            val retryable =
                 snapshot.receipts
-                    .filter { it.outcome == DownloadDeleteOutcome.PENDING }
+                    .filter { it.outcome != DownloadDeleteOutcome.SUCCEEDED }
                     .sortedBy(DownloadDeleteReceipt::ordinal)
-            if (pending.isEmpty()) {
+            if (retryable.isEmpty()) {
                 store.finish(snapshot.batchId, clock())
                 null
             } else {
                 process(
                     batchId = snapshot.batchId,
                     requests =
-                        pending.map { receipt ->
+                        retryable.map { receipt ->
                             DownloadDeleteRequest(
                                 itemId = receipt.itemId,
                                 sourceId = receipt.sourceId,
@@ -166,7 +166,9 @@ class DownloadDeleteBatchProcessor(
             store.record(receipt)
             receipts += receipt
         }
-        store.finish(batchId, clock())
+        if (receipts.all { it.outcome == DownloadDeleteOutcome.SUCCEEDED }) {
+            store.finish(batchId, clock())
+        }
         return DownloadDeleteBatchResult(batchId = batchId, receipts = receipts)
     }
 }

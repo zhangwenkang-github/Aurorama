@@ -2440,7 +2440,9 @@ private constructor(
                 val status = source.taskStatus.toTaskStatus()
                 val pathIsPartial = source.path.endsWith(".download")
                 if (status == DownloadTaskStatus.DELETING) {
-                    if (deleteTaskById(source.id)) recovered += 1
+                    if (deleteTaskAtGeneration(source.id, source.taskGeneration)) {
+                        recovered += 1
+                    }
                     continue
                 }
                 if (
@@ -2499,7 +2501,16 @@ private constructor(
                     recovered += 1
                 }
             }
-            if (recovered > 0) ensureEngineRunning(forceStart = true)
+            if (recovered > 0) {
+                try {
+                    resumePendingDeleteBatches()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "对账已删除来源的 receipt 失败")
+                }
+                ensureEngineRunning(forceStart = true)
+            }
             if (database.getReceivedDownloadIntents().isNotEmpty()) {
                 launchReceivedIntentProcessor()
             }

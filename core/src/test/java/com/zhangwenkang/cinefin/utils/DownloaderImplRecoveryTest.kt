@@ -492,6 +492,101 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `DELETING receipt失败后startup成功删行会将receipt收敛为成功`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+
+            val first =
+                fixture.downloader.deleteDownloads(
+                    listOf(
+                        DownloadDeleteRequest(
+                            itemId = ITEM_ID,
+                            sourceId = SOURCE_ID,
+                            mediaKind = DownloadMediaKind.VIDEO,
+                            serverId = SERVER_ID,
+                            userId = USER_ID.toString(),
+                        )
+                    )
+                )
+            val failed = first.receipts.single()
+            assertEquals(DownloadDeleteOutcome.FAILED, failed.outcome)
+            assertEquals(
+                DownloadTaskStatus.DELETING.name,
+                requireNotNull(fixture.dao.source).taskStatus,
+            )
+
+            assertTrue(File(blockedPath, "blocked").delete())
+            assertTrue(blockedPath.delete())
+            fixture.newDownloader().recoverOnStartup()
+
+            assertEquals("续删成功后 source 行必须移除", null, fixture.dao.source)
+            assertEquals(
+                "source 行已删除时对应 receipt 不得永久停留在 FAILED",
+                DownloadDeleteOutcome.SUCCEEDED.name,
+                requireNotNull(fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey))
+                    .outcome,
+            )
+            assertNotNull(fixture.dao.deleteBatch(first.batchId)?.completedAt)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `startup旧DELETING快照不得删除锁内已建立的新代`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+            assertNotNull(
+                runCatching { fixture.downloader.deleteTaskById(SOURCE_ID) }.exceptionOrNull()
+            )
+            val deleting = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.DELETING.name, deleting.taskStatus)
+            assertTrue(File(blockedPath, "blocked").delete())
+            assertTrue(blockedPath.delete())
+
+            fixture.dao.armPendingSourcesSnapshotGate()
+            val startup = async(Dispatchers.Default) { fixture.newDownloader().recoverOnStartup() }
+            assertTrue(
+                "startup 未取得旧 DELETING 快照",
+                withTimeoutOrNull(5_000L) {
+                    fixture.dao.pendingSourcesSnapshotStarted.await()
+                    true
+                } == true,
+            )
+
+            val (_, failure) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            assertEquals(null, failure)
+            val pending = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.PENDING.name, pending.taskStatus)
+            assertTrue(pending.taskGeneration > deleting.taskGeneration)
+
+            fixture.dao.releasePendingSourcesSnapshot.complete(Unit)
+            withTimeout(5_000L) { startup.await() }
+
+            val retained = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.PENDING.name, retained.taskStatus)
+            assertEquals(pending.taskGeneration, retained.taskGeneration)
+        } finally {
+            if (!fixture.dao.releasePendingSourcesSnapshot.isCompleted) {
+                fixture.dao.releasePendingSourcesSnapshot.complete(Unit)
+            }
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `删除剧集单个来源保留另一来源快照和父级层级`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -1875,6 +1970,9 @@ class DownloaderImplRecoveryTest {
         var sourceReadStarted = CompletableDeferred<Unit>()
         var releaseSourceRead = CompletableDeferred<Unit>()
         private var blockSourceRead = false
+        var pendingSourcesSnapshotStarted = CompletableDeferred<Unit>()
+        var releasePendingSourcesSnapshot = CompletableDeferred<Unit>()
+        private var blockPendingSourcesSnapshot = false
         private val insertedSources = mutableListOf<FindroidSourceDto>()
         val sourceEvents = mutableListOf<String>()
         private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
@@ -1940,10 +2038,18 @@ class DownloaderImplRecoveryTest {
                 InvocationHandler { _, method, rawArgs ->
                     val args = rawArgs ?: emptyArray()
                     when (method.name) {
-                        "getPendingSources" ->
-                            sources.values.filter {
-                                it.taskStatus != "COMPLETED" || it.path.endsWith(".download")
+                        "getPendingSources" -> {
+                            val snapshot =
+                                sources.values.filter {
+                                    it.taskStatus != "COMPLETED" || it.path.endsWith(".download")
+                                }
+                            if (blockPendingSourcesSnapshot) {
+                                blockPendingSourcesSnapshot = false
+                                pendingSourcesSnapshotStarted.complete(Unit)
+                                runBlocking { releasePendingSourcesSnapshot.await() }
                             }
+                            snapshot
+                        }
                         "getAllSources" -> sources.values.toList()
                         "getSource" -> {
                             if (blockSourceRead) {
@@ -2213,6 +2319,12 @@ class DownloaderImplRecoveryTest {
             blockSourceRead = true
             sourceReadStarted = CompletableDeferred()
             releaseSourceRead = CompletableDeferred()
+        }
+
+        fun armPendingSourcesSnapshotGate() {
+            blockPendingSourcesSnapshot = true
+            pendingSourcesSnapshotStarted = CompletableDeferred()
+            releasePendingSourcesSnapshot = CompletableDeferred()
         }
 
         fun lastInsertedSource(sourceId: String): FindroidSourceDto? = insertedSources.lastOrNull {
