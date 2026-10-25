@@ -169,8 +169,8 @@ class DownloaderImpl(
     /** 活跃 worker 内的单 claim pump；每个空槽变化都重新领取，而不是等待整批任务结束。 */
     private val queuePump = DownloadQueuePump()
 
-    /** 用户删除 / 取消 / 暂停后立即封闭进度与迟到回调；持久栅栏仍是最终真源。 */
-    private val lifecycleFences = ConcurrentHashMap.newKeySet<String>()
+    /** 同 source 生命周期命令串行，并以代次 claim/fence 封锁迟到副作用。 */
+    private val lifecycleControl = DownloadSourceControl()
 
     /**
      * W76-Q7：入队方与运行中 worker 之间的「退出交接」状态（保护 [queueKickRequested] / [engineWorkerQuiesced]）。
@@ -609,6 +609,7 @@ class DownloaderImpl(
             for (source in candidates) {
                 // 选择与更新之间可能被删除抢占；只有真正条件更新成功的行才能执行。
                 if (database.claimSourceRunning(source.id, source.taskGeneration, now) > 0) {
+                    lifecycleControl.activateClaim(source.id, source.taskGeneration)
                     claimed += source
                 }
                 if (claimed.size >= limit) break
@@ -742,17 +743,23 @@ class DownloaderImpl(
                 }
             }
 
-            runtime.update {
-                it +
-                    (source.id to
-                        TaskRuntime(
-                            name = itemName(item, source.name),
-                            downloadedBytes = offset,
-                            totalBytes = totalBytes,
-                            speedBytesPerSecond = 0L,
-                            etaSeconds = null,
-                            validator = source.resumeValidator,
-                        ))
+            val activated =
+                lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
+                    runtime.update {
+                        it +
+                            (source.id to
+                                TaskRuntime(
+                                    name = itemName(item, source.name),
+                                    downloadedBytes = offset,
+                                    totalBytes = totalBytes,
+                                    speedBytesPerSecond = 0L,
+                                    etaSeconds = null,
+                                    validator = source.resumeValidator,
+                                ))
+                    }
+                }
+            if (activated == null) {
+                throw CancellationException("下载 claim 已被新代次取代")
             }
 
             // W57 限速：每次任务启动时读取偏好；运行中的任务不打断（新任务 / 重试立即生效）。
@@ -771,37 +778,43 @@ class DownloaderImpl(
                     expectedTotalBytes = totalBytes,
                     speedLimitBytesPerSecond = speedLimitBytesPerSecond,
                     onProgress = { downloaded, total, validator, _ ->
-                        if (source.id in lifecycleFences) {
-                            throw CancellationException("下载已被取消或删除")
-                        }
-                        meter.onProgress(downloaded)
-                        val eta = meter.etaSeconds(total, downloaded)
-                        runtime.update {
-                            it +
-                                (source.id to
-                                    TaskRuntime(
-                                        name = itemName(item, source.name),
-                                        downloadedBytes = downloaded,
-                                        totalBytes = total,
-                                        speedBytesPerSecond = meter.speedBytesPerSecond(),
-                                        etaSeconds = eta,
-                                        validator = validator,
-                                    ))
-                        }
-                        val now = System.currentTimeMillis()
-                        if (now - lastPersistAt >= PERSIST_INTERVAL_MS) {
-                            lastPersistAt = now
-                            runCatching {
-                                database.setSourceProgressIfCurrent(
-                                    source.id,
-                                    source.taskGeneration,
-                                    downloaded,
-                                    total,
-                                    now,
-                                )
+                        val accepted =
+                            lifecycleControl.withCurrentClaim(
+                                source.id,
+                                source.taskGeneration,
+                            ) {
+                                meter.onProgress(downloaded)
+                                val eta = meter.etaSeconds(total, downloaded)
+                                runtime.update {
+                                    it +
+                                        (source.id to
+                                            TaskRuntime(
+                                                name = itemName(item, source.name),
+                                                downloadedBytes = downloaded,
+                                                totalBytes = total,
+                                                speedBytesPerSecond = meter.speedBytesPerSecond(),
+                                                etaSeconds = eta,
+                                                validator = validator,
+                                            ))
+                                }
+                                val now = System.currentTimeMillis()
+                                if (now - lastPersistAt >= PERSIST_INTERVAL_MS) {
+                                    lastPersistAt = now
+                                    runCatching {
+                                        database.setSourceProgressIfCurrent(
+                                            source.id,
+                                            source.taskGeneration,
+                                            downloaded,
+                                            total,
+                                            now,
+                                        )
+                                    }
+                                        .onFailure { Timber.w(it, "持久化下载进度失败 ${source.id}") }
+                                    updateForegroundNotificationNow()
+                                }
                             }
-                                .onFailure { Timber.w(it, "持久化下载进度失败 ${source.id}") }
-                            updateForegroundNotificationNow()
+                        if (accepted == null) {
+                            throw CancellationException("下载 claim 已被取消、删除或恢复")
                         }
                     },
                 )
@@ -822,9 +835,11 @@ class DownloaderImpl(
             )
         } finally {
             if (job != null) activeJobs.remove(source.id, job)
-            runtime.update { it - source.id }
-            lastNotificationAt = 0L
-            updateForegroundNotificationNow()
+            lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
+                runtime.update { it - source.id }
+                lastNotificationAt = 0L
+                updateForegroundNotificationNow()
+            }
         }
     }
 
@@ -879,25 +894,28 @@ class DownloaderImpl(
             }
         val now = System.currentTimeMillis()
         val commit =
-            DownloadCompletionCommitRules.commit(
-                partial = partial,
-                finalFile = finalFile,
-                canStart = {
-                    source.id !in lifecycleFences &&
-                        workerAccepts(source, DownloadLifecycleTransition.COMPLETION)
-                },
-                commitState = {
-                    database.completeSourceIfCurrent(
-                        id = source.id,
-                        generation = source.taskGeneration,
-                        path = finalFile.path,
-                        downloadedBytes = result.downloadedBytes,
-                        totalBytes = result.totalBytes,
-                        validator = result.validator,
-                        updatedAt = now,
+            lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
+                if (!workerAccepts(source, DownloadLifecycleTransition.COMPLETION)) {
+                    DownloadCompletionCommit.FENCED
+                } else {
+                    DownloadCompletionCommitRules.commit(
+                        partial = partial,
+                        finalFile = finalFile,
+                        canStart = { true },
+                        commitState = {
+                            database.completeSourceIfCurrent(
+                                id = source.id,
+                                generation = source.taskGeneration,
+                                path = finalFile.path,
+                                downloadedBytes = result.downloadedBytes,
+                                totalBytes = result.totalBytes,
+                                validator = result.validator,
+                                updatedAt = now,
+                            )
+                        },
                     )
-                },
-            )
+                }
+            } ?: DownloadCompletionCommit.FENCED
         if (commit == DownloadCompletionCommit.FENCED) return
         if (commit == DownloadCompletionCommit.RENAME_FAILED) {
             val updated =
@@ -920,7 +938,7 @@ class DownloaderImpl(
             )
             return
         }
-        if (source.id in lifecycleFences) return
+        if (lifecycleControl.isFenced(source.id, source.taskGeneration)) return
         // W63：完成后活动集变化——侧栏角标即时减一，不等 2s 轮询。
         notifyQueueChanged()
         // 「下载完成通知」偏好（默认开）：关闭后只保留进行中的前台服务通知。
@@ -936,7 +954,7 @@ class DownloaderImpl(
         }
         Timber.i("下载完成：%s（%d 字节）", source.name, result.downloadedBytes)
 
-        if (source.id in lifecycleFences) return
+        if (lifecycleControl.isFenced(source.id, source.taskGeneration)) return
         runCatching { persistItemSnapshot(item) }
             .onFailure { Timber.w(it, "补写下载条目快照失败 ${item.id}") }
         runCatching { downloadExtras(item, mediaSource, source, finalFile.path) }
@@ -944,6 +962,13 @@ class DownloaderImpl(
     }
 
     private suspend fun handleTaskCancellation(source: FindroidSourceDto) {
+        if (lifecycleControl.isFenced(source.id, source.taskGeneration)) return
+        lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
+            handleCurrentTaskCancellation(source)
+        }
+    }
+
+    private suspend fun handleCurrentTaskCancellation(source: FindroidSourceDto) {
         val now = System.currentTimeMillis()
         val persisted = database.getSource(source.id)
         val status = persisted?.taskStatus.toTaskStatus()
@@ -952,8 +977,7 @@ class DownloaderImpl(
                 ?: persisted?.downloadedBytes
                 ?: partialFileSize(source.path)
         if (
-            source.id in lifecycleFences ||
-                status == DownloadTaskStatus.PAUSED ||
+            status == DownloadTaskStatus.PAUSED ||
                 status == DownloadTaskStatus.FAILED ||
                 status == DownloadTaskStatus.COMPLETED ||
                 status == DownloadTaskStatus.DELETING
@@ -983,7 +1007,17 @@ class DownloaderImpl(
         source: FindroidSourceDto,
         failure: DownloadHttpException,
     ) {
-        if (source.id in lifecycleFences) return
+        lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
+            if (workerAccepts(source, DownloadLifecycleTransition.FAILURE)) {
+                handleCurrentTaskFailure(source, failure)
+            }
+        }
+    }
+
+    private suspend fun handleCurrentTaskFailure(
+        source: FindroidSourceDto,
+        failure: DownloadHttpException,
+    ) {
         val now = System.currentTimeMillis()
         val reason = failure.reason
         val retryCount = (database.getSource(source.id)?.retryCount ?: source.retryCount) + 1
@@ -1080,76 +1114,124 @@ class DownloaderImpl(
     override suspend fun pauseTask(task: DownloadTask): Boolean = pauseTaskById(task.sourceId)
 
     override suspend fun pauseTaskById(sourceId: String): Boolean =
-        withContext(Dispatchers.IO) {
-            val now = System.currentTimeMillis()
-            val source = database.getSource(sourceId) ?: return@withContext false
-            if (
-                source.taskStatus.toTaskStatus() != DownloadTaskStatus.PENDING &&
-                    source.taskStatus.toTaskStatus() != DownloadTaskStatus.RUNNING
-            ) {
-                return@withContext false
+        lifecycleControl.withCommand(sourceId) {
+            withContext(Dispatchers.IO) {
+                val now = System.currentTimeMillis()
+                val source = database.getSource(sourceId) ?: return@withContext false
+                if (
+                    source.taskStatus.toTaskStatus() != DownloadTaskStatus.PENDING &&
+                        source.taskStatus.toTaskStatus() != DownloadTaskStatus.RUNNING
+                ) {
+                    return@withContext false
+                }
+                if (!lifecycleControl.beginTransition(sourceId, source.taskGeneration)) {
+                    return@withContext false
+                }
+                try {
+                    val paused =
+                        database.beginSourcePause(sourceId, now) ?: return@withContext false
+                    lifecycleControl.advanceLifecycle(sourceId, paused.taskGeneration)
+                    val bytes =
+                        runtime.value[sourceId]?.downloadedBytes
+                            ?: source.downloadedBytes.takeIf { it > 0L }
+                            ?: partialFileSize(source.path)
+                    // 先写 PAUSED，再取消协程：取消处理据此保留状态与残片。
+                    val job = activeJobs[sourceId]
+                    job?.cancel(CancellationException("用户暂停下载"))
+                    job?.join()
+                    database.setSourceProgressIfCurrent(
+                        sourceId,
+                        paused.taskGeneration,
+                        bytes,
+                        source.totalBytes,
+                        now,
+                    )
+                    runtime.update { it - sourceId }
+                    updateForegroundNotificationNow()
+                    notifyQueueChanged()
+                    true
+                } finally {
+                    lifecycleControl.clearFence(sourceId, source.taskGeneration)
+                }
             }
-            lifecycleFences += sourceId
-            val paused =
-                database.beginSourcePause(sourceId, now)
-                    ?: run {
-                        lifecycleFences -= sourceId
-                        return@withContext false
-                    }
-            val bytes =
-                runtime.value[sourceId]?.downloadedBytes
-                    ?: source.downloadedBytes.takeIf { it > 0L }
-                    ?: partialFileSize(source.path)
-            // 先写 PAUSED，再取消协程：取消处理据此保留状态与残片。
-            val job = activeJobs[sourceId]
-            job?.cancel(CancellationException("用户暂停下载"))
-            job?.join()
-            database.setSourceProgressIfCurrent(
-                sourceId,
-                paused.taskGeneration,
-                bytes,
-                source.totalBytes,
-                now,
-            )
-            lifecycleFences -= sourceId
-            updateForegroundNotificationNow()
-            notifyQueueChanged()
-            true
         }
 
     override suspend fun resumeTask(task: DownloadTask): Pair<Long, UiText?> =
-        withContext(Dispatchers.IO) {
-            val source = database.getSource(task.sourceId) ?: return@withContext Pair(-1L, null)
-            if (source.taskStatus.toTaskStatus() != DownloadTaskStatus.PAUSED) {
-                return@withContext Pair(source.downloadId ?: downloadTaskHandle(source.id), null)
+        lifecycleControl.withCommand(task.sourceId) {
+            withContext(Dispatchers.IO) {
+                val source = database.getSource(task.sourceId) ?: return@withContext Pair(-1L, null)
+                when (
+                    DownloadLifecycleRules.resumeDecision(
+                        source.taskStatus.toTaskStatus() ?: return@withContext Pair(-1L, null)
+                    )
+                ) {
+                    DownloadResumeDecision.REUSE ->
+                        return@withContext Pair(
+                            source.downloadId ?: downloadTaskHandle(source.id),
+                            null,
+                        )
+                    DownloadResumeDecision.REJECT -> return@withContext Pair(-1L, null)
+                    DownloadResumeDecision.RESUME -> Unit
+                }
+                if (!lifecycleControl.beginTransition(source.id, task.taskGeneration)) {
+                    return@withContext Pair(-1L, null)
+                }
+                try {
+                    val retried =
+                        database.beginSourceResume(
+                            source.id,
+                            task.taskGeneration,
+                            System.currentTimeMillis(),
+                        ) ?: return@withContext Pair(-1L, null)
+                    lifecycleControl.advanceLifecycle(source.id, retried.taskGeneration)
+                    queuePump.kick()
+                    ensureEngineRunning(forceStart = true)
+                    notifyQueueChanged()
+                    Pair(retried.downloadId ?: downloadTaskHandle(retried.id), null)
+                } finally {
+                    lifecycleControl.clearFence(source.id, task.taskGeneration)
+                }
             }
-            val retried =
-                database.beginSourceResume(source.id, System.currentTimeMillis())
-                    ?: return@withContext Pair(-1L, null)
-            lifecycleFences -= source.id
-            queuePump.kick()
-            ensureEngineRunning(forceStart = true)
-            notifyQueueChanged()
-            Pair(retried.downloadId ?: downloadTaskHandle(retried.id), null)
         }
 
     override suspend fun retryTask(task: DownloadTask): Pair<Long, UiText?> =
-        withContext(Dispatchers.IO) {
-            if (task.sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
-                val now = System.currentTimeMillis()
-                database.retryDownloadIntent(task.itemId, now)
-                launchReceivedIntentProcessor()
-                notifyQueueChanged()
-                return@withContext Pair(downloadTaskHandle(task.sourceId), null)
+        lifecycleControl.withCommand(task.sourceId) {
+            withContext(Dispatchers.IO) {
+                if (task.sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
+                    val now = System.currentTimeMillis()
+                    database.retryDownloadIntent(task.itemId, now)
+                    launchReceivedIntentProcessor()
+                    notifyQueueChanged()
+                    return@withContext Pair(downloadTaskHandle(task.sourceId), null)
+                }
+                val current =
+                    database.getSource(task.sourceId) ?: return@withContext Pair(-1L, null)
+                val status = current.taskStatus.toTaskStatus()
+                if (status == DownloadTaskStatus.PENDING || status == DownloadTaskStatus.RUNNING) {
+                    return@withContext currentRetryHandle(task.sourceId)
+                }
+                if (
+                    status != DownloadTaskStatus.FAILED ||
+                        !lifecycleControl.beginTransition(
+                            task.sourceId,
+                            current.taskGeneration,
+                        )
+                ) {
+                    return@withContext currentRetryHandle(task.sourceId)
+                }
+                try {
+                    val now = System.currentTimeMillis()
+                    val retried =
+                        database.beginSourceRetry(task.sourceId, now)
+                            ?: return@withContext currentRetryHandle(task.sourceId)
+                    lifecycleControl.advanceLifecycle(task.sourceId, retried.taskGeneration)
+                    ensureEngineRunning(forceStart = true)
+                    notifyQueueChanged()
+                    Pair(retried.downloadId ?: downloadTaskHandle(retried.id), null)
+                } finally {
+                    lifecycleControl.clearFence(task.sourceId, current.taskGeneration)
+                }
             }
-            val now = System.currentTimeMillis()
-            val retried =
-                database.beginSourceRetry(task.sourceId, now)
-                    ?: return@withContext currentRetryHandle(task.sourceId)
-            lifecycleFences -= retried.id
-            ensureEngineRunning(forceStart = true)
-            notifyQueueChanged()
-            Pair(retried.downloadId ?: downloadTaskHandle(retried.id), null)
         }
 
     /** stale UI 显示 FAILED、但实际 worker 已 PENDING/RUNNING 时，重试是幂等复用而不是打断 worker。 */
@@ -1183,22 +1265,27 @@ class DownloaderImpl(
                 }
                 return@withContext true
             }
-            lifecycleFences += sourceId
-            val now = System.currentTimeMillis()
-            val cancelled =
-                database.beginSourceCancellation(sourceId, now)
-                    ?: run {
-                        lifecycleFences -= sourceId
-                        return@withContext false
-                    }
-            val job = activeJobs[sourceId]
-            job?.cancel(CancellationException("用户取消下载"))
-            job?.join()
-            lifecycleFences -= sourceId
-            runtime.update { it - sourceId }
-            updateForegroundNotificationNow()
-            notifyQueueChanged()
-            cancelled.taskStatus.toTaskStatus() == DownloadTaskStatus.FAILED
+            lifecycleControl.withCommand(sourceId) command@{
+                val source = database.getSource(sourceId) ?: return@command false
+                if (!lifecycleControl.beginTransition(sourceId, source.taskGeneration)) {
+                    return@command false
+                }
+                try {
+                    val cancelled =
+                        database.beginSourceCancellation(sourceId, System.currentTimeMillis())
+                            ?: return@command false
+                    lifecycleControl.advanceLifecycle(sourceId, cancelled.taskGeneration)
+                    val job = activeJobs[sourceId]
+                    job?.cancel(CancellationException("用户取消下载"))
+                    job?.join()
+                    runtime.update { it - sourceId }
+                    updateForegroundNotificationNow()
+                    notifyQueueChanged()
+                    cancelled.taskStatus.toTaskStatus() == DownloadTaskStatus.FAILED
+                } finally {
+                    lifecycleControl.clearFence(sourceId, source.taskGeneration)
+                }
+            }
         }
 
     override suspend fun deleteTaskById(sourceId: String): Boolean =
@@ -1231,37 +1318,43 @@ class DownloaderImpl(
                 }
                 return@withContext true
             }
-            lifecycleFences += sourceId
-            val source =
-                database.beginSourceDeletion(sourceId, System.currentTimeMillis())
-                    ?: run {
-                        // 行已不存在等价于删除已完成，批量重放也保持幂等。
-                        lifecycleFences -= sourceId
-                        return@withContext true
-                    }
-            val job = activeJobs[sourceId]
-            job?.cancel(CancellationException("用户取消下载"))
-            job?.join()
-            deletePartialArtifacts(source.path)
-            val item = findItem(source.itemId)
-            if (item != null) {
-                deleteItem(item, source.toFindroidSource(database))
-            } else {
-                if (!deletePartialFile(source.path) || !deletePartialSidecar(source.path)) {
-                    return@withContext false
+            lifecycleControl.withCommand(sourceId) command@{
+                val existing = database.getSource(sourceId) ?: return@command true
+                if (!lifecycleControl.beginTransition(sourceId, existing.taskGeneration)) {
+                    return@command false
                 }
-                database.deleteMediaStreamsBySourceId(sourceId)
-                database.deleteSource(sourceId)
-                removeSidecarForSource(itemId = source.itemId, sourceId = source.id)
+                try {
+                    val source =
+                        database.beginSourceDeletion(sourceId, System.currentTimeMillis())
+                            ?: return@command true
+                    lifecycleControl.advanceLifecycle(sourceId, source.taskGeneration)
+                    val job = activeJobs[sourceId]
+                    job?.cancel(CancellationException("用户取消下载"))
+                    job?.join()
+                    deletePartialArtifacts(source.path)
+                    val item = findItem(source.itemId)
+                    if (item != null) {
+                        deleteItem(item, source.toFindroidSource(database))
+                    } else {
+                        if (!deletePartialFile(source.path) || !deletePartialSidecar(source.path)) {
+                            return@command false
+                        }
+                        database.deleteMediaStreamsBySourceId(sourceId)
+                        database.deleteSource(sourceId)
+                        removeSidecarForSource(itemId = source.itemId, sourceId = source.id)
+                    }
+                    if (database.getSource(sourceId) != null) {
+                        return@command false
+                    }
+                    runtime.update { it - sourceId }
+                    updateForegroundNotificationNow()
+                    notifyQueueChanged()
+                    lifecycleControl.forget(sourceId)
+                    true
+                } finally {
+                    lifecycleControl.clearFence(sourceId, existing.taskGeneration)
+                }
             }
-            if (database.getSource(sourceId) != null) {
-                return@withContext false
-            }
-            runtime.update { it - sourceId }
-            lifecycleFences -= sourceId
-            updateForegroundNotificationNow()
-            notifyQueueChanged()
-            true
         }
 
     override suspend fun deleteDownloads(
@@ -1672,8 +1765,25 @@ class DownloaderImpl(
                 ) {
                     continue
                 }
-                if (database.beginSourceRetry(source.id, now) == null) continue
-                retried += 1
+                val transitioned =
+                    lifecycleControl.withCommand(source.id) {
+                        if (!lifecycleControl.beginTransition(source.id, source.taskGeneration)) {
+                            return@withCommand false
+                        }
+                        try {
+                            val current =
+                                database.beginSourceRetry(source.id, now)
+                                    ?: return@withCommand false
+                            lifecycleControl.advanceLifecycle(
+                                source.id,
+                                current.taskGeneration,
+                            )
+                            true
+                        } finally {
+                            lifecycleControl.clearFence(source.id, source.taskGeneration)
+                        }
+                    }
+                if (transitioned) retried += 1
             }
             if (retried > 0) ensureEngineRunning(forceStart = true)
             retried

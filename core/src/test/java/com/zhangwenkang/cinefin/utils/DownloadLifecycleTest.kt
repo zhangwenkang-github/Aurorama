@@ -150,6 +150,29 @@ class DownloadLifecycleTest {
     }
 
     @Test
+    fun `重复 resume 在 PENDING 时复用 handle 且其他状态拒绝`() {
+        val paused =
+            DownloadLifecycleState(
+                status = DownloadTaskStatus.PAUSED,
+                generation = 8L,
+            )
+        val resumed = requireNotNull(DownloadLifecycleRules.beginResume(paused))
+
+        assertEquals(
+            DownloadResumeDecision.REUSE,
+            DownloadLifecycleRules.resumeDecision(resumed.status),
+        )
+        assertEquals(
+            DownloadResumeDecision.REJECT,
+            DownloadLifecycleRules.resumeDecision(DownloadTaskStatus.FAILED),
+        )
+        assertEquals(
+            DownloadResumeDecision.RESUME,
+            DownloadLifecycleRules.resumeDecision(DownloadTaskStatus.PAUSED),
+        )
+    }
+
+    @Test
     fun `rename 后删除抢先落栅栏时最终文件被撤回`() = runBlocking {
         val directory = Files.createTempDirectory("download-complete-fence").toFile()
         val partial = directory.resolve("media.download").apply { writeText("payload") }
@@ -165,6 +188,27 @@ class DownloadLifecycleTest {
 
         assertEquals(DownloadCompletionCommit.FENCED, result)
         assertFalse("迟到完成不能留下最终文件", finalFile.exists())
+        directory.deleteRecursively()
+        Unit
+    }
+
+    @Test
+    fun `旧 completion 在开始校验失败时不得删除共享残片`() = runBlocking {
+        val directory = Files.createTempDirectory("download-stale-complete").toFile()
+        val partial = directory.resolve("media.download").apply { writeText("payload") }
+        val finalFile = directory.resolve("media")
+
+        val result =
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { false },
+                commitState = { error("旧完成不得提交状态") },
+            )
+
+        assertEquals(DownloadCompletionCommit.FENCED, result)
+        assertTrue("旧完成删除了仍由新代次使用的残片", partial.exists())
+        assertFalse(finalFile.exists())
         directory.deleteRecursively()
         Unit
     }

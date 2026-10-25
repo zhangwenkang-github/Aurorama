@@ -17,6 +17,12 @@ enum class DownloadLifecycleTransition {
     CANCELLATION,
 }
 
+enum class DownloadResumeDecision {
+    RESUME,
+    REUSE,
+    REJECT,
+}
+
 /** 下载任务生命周期纯规则：所有持久写回都必须先过同一代次检查。 */
 object DownloadLifecycleRules {
     fun claim(sourceId: String, runningGeneration: Long): DownloadLifecycleClaim =
@@ -56,6 +62,14 @@ object DownloadLifecycleRules {
             null
         }
 
+    fun resumeDecision(status: DownloadTaskStatus): DownloadResumeDecision =
+        when (status) {
+            DownloadTaskStatus.PAUSED -> DownloadResumeDecision.RESUME
+            DownloadTaskStatus.PENDING,
+            DownloadTaskStatus.RUNNING -> DownloadResumeDecision.REUSE
+            else -> DownloadResumeDecision.REJECT
+        }
+
     fun accepts(
         claim: DownloadLifecycleClaim,
         current: DownloadLifecycleState,
@@ -91,10 +105,7 @@ object DownloadCompletionCommitRules {
         canStart: suspend () -> Boolean,
         commitState: suspend () -> Int,
     ): DownloadCompletionCommit {
-        if (!canStart()) {
-            partial.delete()
-            return DownloadCompletionCommit.FENCED
-        }
+        if (!canStart()) return DownloadCompletionCommit.FENCED
         if (finalFile.exists() && !finalFile.delete()) {
             return DownloadCompletionCommit.RENAME_FAILED
         }

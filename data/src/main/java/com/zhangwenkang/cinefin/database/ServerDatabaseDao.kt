@@ -291,12 +291,13 @@ interface ServerDatabaseDao {
     @Query(MARK_SOURCE_RETRY_SQL) suspend fun markSourceRetry(id: String, now: Long): Int
 
     @Transaction
-    suspend fun beginSourceResume(id: String, now: Long): FindroidSourceDto? {
-        if (markSourceResume(id, now) <= 0) return null
+    suspend fun beginSourceResume(id: String, expectedGeneration: Long, now: Long): FindroidSourceDto? {
+        if (markSourceResume(id, expectedGeneration, now) <= 0) return null
         return getSource(id)
     }
 
-    @Query(MARK_SOURCE_RESUME_SQL) suspend fun markSourceResume(id: String, now: Long): Int
+    @Query(MARK_SOURCE_RESUME_SQL)
+    suspend fun markSourceResume(id: String, expectedGeneration: Long, now: Long): Int
 
     @Query("UPDATE sources SET downloadId = :downloadId WHERE id = :id")
     suspend fun setSourceDownloadId(id: String, downloadId: Long?)
@@ -750,6 +751,7 @@ interface ServerDatabaseDao {
             SET taskStatus = 'PENDING', failureReason = NULL, retryCount = 0,
                 nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
             WHERE id = :id AND taskStatus = 'PAUSED'
+                AND taskGeneration = :expectedGeneration
             """
     }
 }
