@@ -139,13 +139,15 @@ internal fun launchSelectedPlayback(
             cause: Throwable,
         ) {
             if (!isCurrentRequest(requestId)) return
-            val acceptedIds = acceptedSongs.mapTo(mutableSetOf()) { song -> song.itemId }
+            val acceptedKeys =
+                acceptedSongs.mapTo(mutableSetOf()) { song -> song.playlistSelectionKey() }
             onPartialFailure(
                 SelectedPlaybackFailure(
                     stage = SelectedPlaybackFailureStage.SUBSEQUENT_ADDITION,
                     triggerSong = triggerSong,
                     acceptedSongs = acceptedSongs,
-                    unacceptedSongs = songs.filter { song -> song.itemId !in acceptedIds },
+                    unacceptedSongs =
+                        songs.filter { song -> song.playlistSelectionKey() !in acceptedKeys },
                     cause = cause,
                 )
             )
@@ -176,7 +178,7 @@ internal fun launchSelectedPlayback(
         }
 
         val acceptedSongs = mutableListOf(firstSong)
-        val unresolved = mutableMapOf<java.util.UUID, SelectedPlaybackResolutionFailure>()
+        val unresolved = mutableMapOf<String, SelectedPlaybackResolutionFailure>()
         for (chunk in songs.drop(1).chunked(SELECTED_PLAYBACK_PREFETCH_CONCURRENCY)) {
             if (!isCurrentRequest(requestId) || !shouldContinue()) break
             val resolutions = coroutineScope {
@@ -206,7 +208,7 @@ internal fun launchSelectedPlayback(
             resolutions.forEach { resolution ->
                 val failure = resolution.failure
                 if (failure != null) {
-                    unresolved[resolution.song.itemId] =
+                    unresolved[resolution.song.playlistSelectionKey()] =
                         SelectedPlaybackResolutionFailure(
                             song = resolution.song,
                             cause = failure,

@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicItemSource
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
@@ -460,6 +461,74 @@ class MusicSelectedPlaybackTest {
         }
     }
 
+    @Test
+    fun `same item id in different playlist entries reports only failed selection`() {
+        runBlocking {
+            val sharedItemId = UUID.randomUUID()
+            val first =
+                playlistSong(
+                    itemId = sharedItemId,
+                    name = "共享 ID 首曲",
+                    playlistEntryId = "playlist-entry-first",
+                    trackRef =
+                        TrackRef.Server(
+                            serverId = "server-id",
+                            userId = UUID.randomUUID(),
+                            itemId = sharedItemId,
+                        ),
+                )
+            val failed =
+                playlistSong(
+                    itemId = sharedItemId,
+                    name = "共享 ID 失败",
+                    playlistEntryId = "playlist-entry-failed",
+                    trackRef = TrackRef.Local(libraryId = 7L, itemId = sharedItemId),
+                )
+            val succeeded = song("普通成功")
+            val songs = listOf(first, failed, succeeded)
+            assertTrue(first.playlistSelectionKey() != failed.playlistSelectionKey())
+            val pending = MutableStateFlow<PendingPlaybackUi?>(null)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            var failure: SelectedPlaybackFailure? = null
+
+            val job =
+                launchSelectedPlayback(
+                    scope = scope,
+                    songs = songs,
+                    pendingPlayback = pending,
+                    requestId = 43,
+                    resolve = { selected ->
+                        check(selected != failed) { "共享 ID 的另一播放列表项解析失败" }
+                        playerItem(selected)
+                    },
+                    onFirstResolved = {},
+                    onAccepted = {},
+                    appendItems = {},
+                    onFailure = { failure = it },
+                    onPartialFailure = { failure = it },
+                )
+            job?.join()
+            scope.cancel()
+
+            val partial = requireNotNull(failure)
+            assertEquals(SelectedPlaybackFailureStage.SUBSEQUENT_ADDITION, partial.stage)
+            assertEquals("共享 ID 失败", partial.triggerSong.name)
+            assertEquals(
+                listOf("共享 ID 首曲", "普通成功"),
+                partial.acceptedSongs.map(MusicSong::name),
+            )
+            assertEquals(1, partial.unacceptedSongs.size)
+            assertEquals(
+                listOf("共享 ID 失败"),
+                partial.unacceptedSongs.map(MusicSong::name),
+            )
+            assertEquals(
+                "已起播或已受理 2 首；1 首未能加入队列。",
+                selectedPlaybackFailureUi(partial).message,
+            )
+        }
+    }
+
     private fun song(name: String): MusicSong =
         MusicSong(
             itemId = UUID.randomUUID(),
@@ -470,6 +539,31 @@ class MusicSelectedPlaybackTest {
             runtimeTicks = 0L,
             imageUri = null,
             source = MusicItemSource.SERVER,
+        )
+
+    private fun playlistSong(
+        itemId: UUID,
+        name: String,
+        playlistEntryId: String,
+        trackRef: TrackRef,
+    ): MusicSong =
+        MusicSong(
+            itemId = itemId,
+            name = name,
+            albumName = "专辑",
+            artist = "歌手",
+            indexNumber = 1,
+            runtimeTicks = 0L,
+            imageUri = null,
+            source =
+                if (trackRef is TrackRef.Local) {
+                    MusicItemSource.LOCAL
+                } else {
+                    MusicItemSource.SERVER
+                },
+            localLibraryId = (trackRef as? TrackRef.Local)?.libraryId,
+            playlistEntryId = playlistEntryId,
+            trackRef = trackRef,
         )
 
     private fun playerItem(song: MusicSong): PlayerItem =
