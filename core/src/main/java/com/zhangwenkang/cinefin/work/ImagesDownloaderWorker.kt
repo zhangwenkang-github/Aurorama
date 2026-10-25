@@ -88,24 +88,23 @@ constructor(
     ): Boolean =
         withContext(Dispatchers.IO) {
             var hadTransientFailure = false
-            val currentSource = suspend {
+            suspend fun currentSource(): Boolean {
                 if (sourceId == null || generation < 0L) {
-                    database.getSources(itemId).isNotEmpty()
-                } else {
-                    val persisted = database.getSource(sourceId)
-                    ImageDownloadWorkRules.isCurrent(
-                        expectedSourceId = sourceId,
-                        expectedGeneration = generation,
-                        persisted =
-                            persisted?.let {
-                                ImageDownloadOwner(
-                                    sourceId = it.id,
-                                    status = it.taskStatus.orEmpty(),
-                                    generation = it.taskGeneration,
-                                )
-                            },
-                    )
+                    return database.getSources(itemId).isNotEmpty()
                 }
+                val persisted = database.getSource(sourceId)
+                return ImageDownloadWorkRules.isCurrent(
+                    expectedSourceId = sourceId,
+                    expectedGeneration = generation,
+                    persisted =
+                        persisted?.let {
+                            ImageDownloadOwner(
+                                sourceId = it.id,
+                                status = it.taskStatus.orEmpty(),
+                                generation = it.taskGeneration,
+                            )
+                        },
+                )
             }
             if (!currentSource()) return@withContext false
             val item = repository.getItem(itemId) ?: return@withContext hadTransientFailure
@@ -129,7 +128,7 @@ constructor(
                             itemId = itemId,
                             url = url,
                             name = name,
-                            commitGuard = currentSource,
+                            commitGuard = { currentSource() },
                         )
                     } catch (cancellation: CancellationException) {
                         throw cancellation
