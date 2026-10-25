@@ -116,15 +116,53 @@ internal class DownloadSourceControl {
             if (generations[sourceId] == generation) block() else null
         }
 
+    /**
+     * 接管已经持久化的删除代次。
+     *
+     * 进程重启或上次清理抛错后，DB 行已经是 `DELETING`；再次起删只会被 SQL 拒绝。这里不推进代次、不写 DB，只在同一 source lifecycle
+     * 锁内登记既有代次并短暂 fence，随后由完整操作锁继续幂等清理。
+     */
+    suspend fun <T> withPersistedGeneration(
+        sourceId: String,
+        generation: Long,
+        block: suspend () -> T,
+    ): T? =
+        lifecycleLock(sourceId).withLock {
+            val knownGeneration = generations[sourceId]
+            if (knownGeneration != null && knownGeneration != generation) {
+                return@withLock null
+            }
+            generations[sourceId] = generation
+            activeClaims.remove(sourceId)
+            fences[sourceId] = generation
+            try {
+                block()
+            } finally {
+                fences.remove(sourceId, generation)
+            }
+        }
+
+    /** 删除行已移除时仍以本进程见过的最后代次分配下一代，防止同 source 立即重入出现代次倒退。 */
+    suspend fun nextEnqueueGeneration(sourceId: String, persistedGeneration: Long): Long =
+        lifecycleLock(sourceId).withLock {
+            DownloadLifecycleRules.nextGeneration(
+                maxOf(persistedGeneration, generations[sourceId] ?: 0L)
+            )
+        }
+
     suspend fun releaseClaim(sourceId: String, generation: Long) {
         withContext(NonCancellable) {
             lifecycleLock(sourceId).withLock { activeClaims.remove(sourceId, generation) }
         }
     }
 
-    suspend fun forget(sourceId: String) {
+    suspend fun forget(sourceId: String, retainedGeneration: Long? = null) {
         lifecycleLock(sourceId).withLock {
-            generations.remove(sourceId)
+            if (retainedGeneration == null) {
+                generations.remove(sourceId)
+            } else {
+                generations[sourceId] = retainedGeneration
+            }
             activeClaims.remove(sourceId)
             fences.remove(sourceId)
         }

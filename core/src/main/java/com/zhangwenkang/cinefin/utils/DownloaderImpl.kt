@@ -535,35 +535,41 @@ private constructor(
                 )
             }
 
-            val existing = database.getSource(sourceId)
-            val existingStatus = existing?.taskStatus.toTaskStatus()
-            if (
-                existingStatus == DownloadTaskStatus.PENDING ||
-                    existingStatus == DownloadTaskStatus.RUNNING ||
-                    existingStatus == DownloadTaskStatus.PAUSED
-            ) {
-                // 幂等：同一来源已在队列 / 下载中 / 暂停，不重置进度。
-                ensureEngineRunning(forceStart = true)
-                return@withContext Pair(existing?.downloadId ?: handle, null)
-            }
-
-            val taskGeneration =
-                DownloadLifecycleRules.nextGeneration(existing?.taskGeneration ?: 0L)
-            val partialPath =
-                DownloadCompletionCommitRules.downloadTargetFiles(
-                        directory = File(storageLocation, "downloads"),
-                        itemId = item.id.toString(),
-                        sourceId = sourceId,
-                        generation = taskGeneration,
-                    )
-                    .first
-                    .path
-            val partial = File(partialPath)
-            val existingBytes = if (partial.isFile) partial.length() else 0L
-            val sourceMetadata =
-                (item as? FindroidSources)?.sources?.firstOrNull { source -> source.id == sourceId }
-
             lifecycleControl.withSourceOperation(sourceId) {
+                val existing = database.getSource(sourceId)
+                val existingStatus = existing?.taskStatus.toTaskStatus()
+                if (
+                    existingStatus == DownloadTaskStatus.PENDING ||
+                        existingStatus == DownloadTaskStatus.RUNNING ||
+                        existingStatus == DownloadTaskStatus.PAUSED
+                ) {
+                    // 幂等：同一来源已在队列 / 下载中 / 暂停，不重置进度。
+                    notifyQueueChanged()
+                    ensureEngineRunning(forceStart = true)
+                    return@withSourceOperation Pair(existing?.downloadId ?: handle, null)
+                }
+
+                val taskGeneration =
+                    lifecycleControl.nextEnqueueGeneration(
+                        sourceId,
+                        existing?.taskGeneration ?: 0L,
+                    )
+                val partialPath =
+                    DownloadCompletionCommitRules.downloadTargetFiles(
+                            directory = File(storageLocation, "downloads"),
+                            itemId = item.id.toString(),
+                            sourceId = sourceId,
+                            generation = taskGeneration,
+                        )
+                        .first
+                        .path
+                val partial = File(partialPath)
+                val existingBytes = if (partial.isFile) partial.length() else 0L
+                val sourceMetadata =
+                    (item as? FindroidSources)?.sources?.firstOrNull { source ->
+                        source.id == sourceId
+                    }
+
                 itemMutationLock(item.id).withLock {
                     // W51b 竞态修复：条目快照必须先于队列行落库。
                     //
@@ -616,11 +622,10 @@ private constructor(
                     database.insertSource(sourceDto)
                     startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
                 }
+                notifyQueueChanged()
+                ensureEngineRunning(forceStart = true)
+                Pair(handle, null)
             }
-            notifyQueueChanged()
-
-            ensureEngineRunning(forceStart = true)
-            Pair(handle, null)
         }
 
     /**
@@ -1943,17 +1948,28 @@ private constructor(
     private suspend fun deleteTaskAtGenerationSerialized(
         sourceId: String,
         expectedGeneration: Long,
+        knownItem: FindroidItem? = null,
     ): Boolean =
         withContext(Dispatchers.IO) {
+            val current = database.getSource(sourceId) ?: return@withContext true
+            if (current.taskGeneration != expectedGeneration) {
+                return@withContext false
+            }
             val source =
-                lifecycleControl.withCommand(sourceId, expectedGeneration) {
-                    val row =
-                        database.beginSourceDeletion(
-                            sourceId,
-                            expectedGeneration,
-                            System.currentTimeMillis(),
-                        )
-                    DownloadSourceCommandResult(row, row?.taskGeneration)
+                if (current.taskStatus.toTaskStatus() == DownloadTaskStatus.DELETING) {
+                    lifecycleControl.withPersistedGeneration(sourceId, expectedGeneration) {
+                        current
+                    }
+                } else {
+                    lifecycleControl.withCommand(sourceId, expectedGeneration) {
+                        val row =
+                            database.beginSourceDeletion(
+                                sourceId,
+                                expectedGeneration,
+                                System.currentTimeMillis(),
+                            )
+                        DownloadSourceCommandResult(row, row?.taskGeneration)
+                    }
                 } ?: return@withContext false
 
             val job = activeJobs[sourceId]
@@ -1966,7 +1982,7 @@ private constructor(
                     }
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
                     deletePartialArtifacts(source.path)
-                    val item = findItem(source.itemId, source.id)
+                    val item = knownItem ?: findItem(source.itemId, source.id)
                     if (item != null) {
                         deleteItem(
                             item,
@@ -1997,7 +2013,9 @@ private constructor(
                     notifyQueueChanged()
                     true
                 } ?: false
-            if (cleanupSucceeded) lifecycleControl.forget(sourceId)
+            if (cleanupSucceeded) {
+                lifecycleControl.forget(sourceId, source.taskGeneration)
+            }
             cleanupSucceeded
         }
 
@@ -2121,7 +2139,39 @@ private constructor(
     }
 
     override suspend fun deleteItem(item: FindroidItem, source: FindroidSource) {
-        itemMutationLock(item.id).withLock { deleteItemUnderItemLock(item, source) }
+        withContext(Dispatchers.IO) {
+            lifecycleControl.withSourceOperation(source.id) {
+                val current = database.getSource(source.id) ?: error("下载来源不存在或已清理：${source.id}")
+                val persisted =
+                    persistedOriginForSource(item.id, source.id)
+                        ?: error("下载来源缺少完整持久身份：${source.id}")
+                val expectedKind =
+                    if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
+                        DownloadMediaKind.MUSIC
+                    } else {
+                        DownloadMediaKind.VIDEO
+                    }
+                if (
+                    current.itemId != item.id ||
+                        current.type != FindroidSourceType.LOCAL ||
+                        source.type != FindroidSourceType.LOCAL ||
+                        current.path != source.path ||
+                        current.taskGeneration <= 0L ||
+                        persisted.kind != expectedKind
+                ) {
+                    error("下载来源身份与当前代次不匹配：${source.id}")
+                }
+                if (
+                    !deleteTaskAtGenerationSerialized(
+                        source.id,
+                        current.taskGeneration,
+                        knownItem = item,
+                    )
+                ) {
+                    error("下载来源删除未确认：${source.id}")
+                }
+            }
+        }
     }
 
     private suspend fun deleteItem(
@@ -3017,13 +3067,10 @@ private constructor(
         itemMutationLocks[(itemId.hashCode() and Int.MAX_VALUE) % itemMutationLocks.size]
 
     private fun removeSidecarForSource(itemId: UUID, sourceId: String) {
-        val records = sidecar.allRecords().filter { it.itemId == itemId.toString() }
-        val exact = records.filter { it.sourceId == sourceId }
-        when {
-            exact.isNotEmpty() -> exact.forEach { sidecar.remove(it.canonicalIdentity()) }
-            records.size == 1 && records.single().sourceId.isNullOrBlank() ->
-                sidecar.remove(records.single().canonicalIdentity())
-        }
+        sidecar
+            .allRecords()
+            .filter { it.itemId == itemId.toString() && it.sourceId == sourceId }
+            .forEach { sidecar.remove(it.canonicalIdentity()) }
     }
 
     private fun deleteSourceCompletionArtifacts(source: FindroidSourceDto): Boolean {

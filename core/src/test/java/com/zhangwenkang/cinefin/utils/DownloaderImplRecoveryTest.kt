@@ -8,6 +8,8 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.models.DownloadDeleteBatchDto
+import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidImages
@@ -28,6 +30,7 @@ import com.zhangwenkang.cinefin.models.FindroidSourceDto
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.FindroidUserDataDto
+import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -196,6 +199,7 @@ class DownloaderImplRecoveryTest {
             val movie = fixture.movie()
             fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
             fixture.dao.armSourceDeletionGate()
+            val insertCountBefore = fixture.dao.sourceInsertCount(SOURCE_ID)
 
             val deletion = async(Dispatchers.IO) { fixture.downloader.deleteTaskById(SOURCE_ID) }
             withTimeout(5_000) { fixture.dao.sourceDeleteStarted.await() }
@@ -203,8 +207,17 @@ class DownloaderImplRecoveryTest {
 
             val concurrentEnqueue =
                 async(Dispatchers.IO) { fixture.downloader.downloadItem(movie, SOURCE_ID, 0) }
-            // 旧实现会在删除持有时插入新行；新实现必须等待同一 source-lifecycle 临界区。
-            withTimeoutOrNull(500) { fixture.dao.concurrentSourceInserted.await() }
+            val insertedWhileDeleting =
+                withTimeoutOrNull(500) {
+                    fixture.dao.concurrentSourceInserted.await()
+                    true
+                }
+            assertFalse("新 source 不应在删除操作锁释放前插入", insertedWhileDeleting == true)
+            assertEquals(
+                "删除持锁期间 insert 调用次数必须保持为零",
+                insertCountBefore,
+                fixture.dao.sourceInsertCount(SOURCE_ID),
+            )
             fixture.dao.releaseSourceDelete.complete(Unit)
 
             assertTrue(deletion.await())
@@ -248,6 +261,231 @@ class DownloaderImplRecoveryTest {
                     }
                 )
             }
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `幂等入队读取与成功返回不得被删除提前穿插`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            fixture.dao.armSourceReadGate()
+            val completionOrder = CopyOnWriteArrayList<String>()
+
+            val enqueue =
+                async(Dispatchers.IO) {
+                    fixture.downloader.downloadItem(movie, SOURCE_ID, 0).also {
+                        completionOrder += "enqueue"
+                    }
+                }
+            withTimeout(5_000) { fixture.dao.sourceReadStarted.await() }
+            val deletion =
+                async(Dispatchers.IO) {
+                    fixture.downloader.deleteTaskById(SOURCE_ID).also {
+                        completionOrder += "delete"
+                    }
+                }
+            try {
+                val deletedBeforeEnqueueReturned =
+                    withTimeoutOrNull(500) {
+                        deletion.join()
+                        true
+                    }
+                assertFalse(
+                    "删除不得在幂等入队读取 / 成功返回前完成：$completionOrder",
+                    deletedBeforeEnqueueReturned == true,
+                )
+            } finally {
+                fixture.dao.releaseSourceRead.complete(Unit)
+            }
+
+            val (handle, error) = enqueue.await()
+            assertTrue("幂等入队应返回存活任务", handle >= 0L)
+            assertTrue("幂等入队不应报错", error == null)
+            assertTrue(deletion.await())
+            assertEquals(
+                "删除必须在 enqueue 完成线性化之后才返回",
+                listOf("enqueue", "delete"),
+                completionOrder,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy公开删除旧source身份不得删除同名新代`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val first = requireNotNull(fixture.dao.source)
+            val staleSource = first.toFindroidSource(emptyList())
+            fixture.dao.putSource(
+                first.copy(
+                    taskStatus = DownloadTaskStatus.FAILED.name,
+                    taskGeneration = first.taskGeneration + 1,
+                )
+            )
+
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val current = requireNotNull(fixture.dao.source)
+            assertTrue(current.taskGeneration > first.taskGeneration)
+            assertTrue(current.path != staleSource.path)
+
+            val failure = runCatching {
+                fixture.downloader.deleteItem(
+                    item = movie,
+                    source = staleSource,
+                )
+            }
+                .exceptionOrNull()
+
+            assertNotNull("旧 source 身份必须 fail-closed", failure)
+            assertEquals(
+                "旧 UI 调用不得删除同名新 generation",
+                current,
+                fixture.dao.source,
+            )
+            assertTrue(
+                "新 generation sidecar 不得被旧 UI 调用删除",
+                fixture.downloader.mediaSidecar().allRecords().any {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                },
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy公开删除blank sidecar必须失败关闭`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val source = requireNotNull(fixture.dao.source).toFindroidSource(emptyList())
+            val sidecar = fixture.downloader.mediaSidecar()
+            sidecar.allRecords().forEach { sidecar.remove(it.canonicalIdentity()) }
+            sidecar.put(
+                DownloadMediaRecord(
+                    itemId = ITEM_ID.toString(),
+                    kind = DownloadMediaKind.VIDEO,
+                    sourceId = null,
+                    displayName = ITEM_NAME,
+                )
+            )
+
+            val failure = runCatching {
+                fixture.downloader.deleteItem(movie, source)
+            }
+                .exceptionOrNull()
+
+            assertNotNull("blank sidecar 无法证明来源归属时必须失败关闭", failure)
+            assertNotNull("失败关闭不得删除 source", fixture.dao.source)
+            assertEquals(
+                "失败关闭不得删除 blank sidecar",
+                1,
+                sidecar.allRecords().count {
+                    it.itemId == ITEM_ID.toString() && it.sourceId.isNullOrBlank()
+                },
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy公开删除no generation必须失败关闭`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val current = requireNotNull(fixture.dao.source)
+            val source = current.toFindroidSource(emptyList())
+            fixture.dao.putSource(current.copy(taskGeneration = 0L))
+
+            val failure = runCatching {
+                fixture.downloader.deleteItem(movie, source)
+            }
+                .exceptionOrNull()
+
+            assertNotNull("缺 generation 的身份必须失败关闭", failure)
+            assertEquals(
+                "缺 generation 不得删除 source",
+                0L,
+                requireNotNull(fixture.dao.source).taskGeneration,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `DELETING清理抛错后新实例启动扫描可幂等续删`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+
+            val cleanupFailure = runCatching {
+                fixture.downloader.deleteTaskById(SOURCE_ID)
+            }
+                .exceptionOrNull()
+            assertNotNull("清理阻塞必须向调用方暴露失败", cleanupFailure)
+            val deleting = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.DELETING.name, deleting.taskStatus)
+
+            assertTrue(File(deleting.path, "blocked").delete())
+            assertTrue(File(deleting.path).delete())
+            val restarted = fixture.newDownloader()
+
+            assertTrue("重启后应续完当前 DELETING 代次", restarted.recoverOnStartup() > 0)
+            assertTrue("续删成功后 source 行必须移除", fixture.dao.source == null)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `DELETING清理抛错后pending receipt可续删并成功`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+            assertNotNull(
+                runCatching { fixture.downloader.deleteTaskById(SOURCE_ID) }.exceptionOrNull()
+            )
+            val deleting = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.DELETING.name, deleting.taskStatus)
+            fixture.dao.seedPendingDeleteBatch(
+                batchId = "delete-batch-$SOURCE_ID",
+                itemId = ITEM_ID,
+                sourceId = SOURCE_ID,
+            )
+
+            assertTrue(File(deleting.path, "blocked").delete())
+            assertTrue(File(deleting.path).delete())
+            val restarted = fixture.newDownloader()
+
+            assertEquals(1, restarted.resumePendingDeleteBatches())
+            assertTrue(fixture.dao.source == null)
+            assertEquals(
+                DownloadDeleteOutcome.SUCCEEDED.name,
+                fixture.dao.deleteReceipts("delete-batch-$SOURCE_ID").single().outcome,
+            )
+            assertNotNull(fixture.dao.deleteBatch("delete-batch-$SOURCE_ID")?.completedAt)
         } finally {
             fixture.close()
         }
@@ -373,7 +611,7 @@ class DownloaderImplRecoveryTest {
         try {
             val episode = fixture.episode()
             val source = fixture.episodeSource()
-            fixture.persistEpisodeOrigin(source.id)
+            fixture.seedCompletedSource(episode, source)
             fixture.dao.remainingEpisodes = emptyList()
             fixture.dao.remainingSeasons = emptyList()
 
@@ -401,7 +639,7 @@ class DownloaderImplRecoveryTest {
         try {
             val episode = fixture.episode()
             val source = fixture.episodeSource()
-            fixture.persistEpisodeOrigin(source.id)
+            fixture.seedCompletedSource(episode, source)
             fixture.dao.remainingEpisodes = listOf(Any())
             fixture.dao.remainingSeasons = listOf(Any())
 
@@ -554,15 +792,18 @@ class DownloaderImplRecoveryTest {
         try {
             fixture.dao.trackParentRows = true
             val deletingEpisode = fixture.episode()
-            val deletingSource = fixture.episodeSource()
+            val deletingQueueSource = fixture.episodeSource()
             val (handle, error) =
                 fixture.downloader.downloadItem(
                     item = deletingEpisode,
-                    sourceId = deletingSource.id,
+                    sourceId = deletingQueueSource.id,
                     storageIndex = 0,
                 )
             assertTrue(error == null)
             assertTrue(handle > 0L)
+            val deletingSource =
+                requireNotNull(fixture.dao.sourceById(deletingQueueSource.id))
+                    .toFindroidSource(emptyList())
             fixture.imageScheduler.resetParentObservations()
             fixture.dao.armSeasonDeleteGate()
 
@@ -630,6 +871,7 @@ class DownloaderImplRecoveryTest {
             )
             fixture.dao.remainingEpisodes = emptyList()
             fixture.dao.remainingSeasons = emptyList()
+            fixture.seedCompletedSource(episode, source, persistOrigin = false)
 
             fixture.downloader.deleteItem(item = episode, source = source)
 
@@ -673,12 +915,24 @@ class DownloaderImplRecoveryTest {
             )
             fixture.dao.remainingEpisodes = emptyList()
             fixture.dao.remainingSeasons = emptyList()
+            fixture.seedCompletedSource(episode, source, persistOrigin = false)
 
-            fixture.downloader.deleteItem(item = episode, source = source)
+            val failure = runCatching {
+                fixture.downloader.deleteItem(item = episode, source = source)
+            }
+                .exceptionOrNull()
 
             assertTrue(
-                "歧义身份不得猜当前会话：${fixture.imageScheduler.cancelledParentOwners}",
+                "歧义身份必须以删除失败暴露：${fixture.imageScheduler.cancelledParentOwners}",
+                failure != null,
+            )
+            assertTrue(
+                "歧义身份不得猜来源或清理父图",
                 fixture.imageScheduler.cancelledParentOwners.isEmpty(),
+            )
+            assertNotNull(
+                "歧义身份不得删除同名 source",
+                fixture.dao.sourceById(source.id),
             )
         } finally {
             fixture.close()
@@ -1104,7 +1358,14 @@ class DownloaderImplRecoveryTest {
         val imageScheduler = RecordingImageScheduler()
         val preferences = FakePreferences()
         val appPreferences = AppPreferences(preferences)
-        val downloader =
+        val downloader = newDownloader()
+
+        init {
+            Timber.plant(tree)
+            transfer.sourceIdForPath = dao::sourceIdByPath
+        }
+
+        fun newDownloader(): DownloaderImpl =
             DownloaderImpl.createForTest(
                 context = context,
                 database = dao.proxy,
@@ -1124,11 +1385,6 @@ class DownloaderImplRecoveryTest {
                 downloadTransfer = transfer,
                 imageFinalizationScheduler = imageScheduler,
             )
-
-        init {
-            Timber.plant(tree)
-            transfer.sourceIdForPath = dao::sourceIdByPath
-        }
 
         suspend fun seedConcurrentMovies(count: Int): List<SeededSource> =
             (0 until count).map { index ->
@@ -1312,6 +1568,30 @@ class DownloaderImplRecoveryTest {
             userId: UUID = USER_ID,
         ) {
             persistVideoOrigin(sourceId, itemId, serverId, userId)
+        }
+
+        fun seedCompletedSource(
+            item: FindroidItem,
+            source: FindroidSource,
+            persistOrigin: Boolean = true,
+        ) {
+            dao.putSource(
+                FindroidSourceDto(
+                    id = source.id,
+                    itemId = item.id,
+                    name = source.name,
+                    type = FindroidSourceType.LOCAL,
+                    path = source.path,
+                    taskStatus = DownloadTaskStatus.COMPLETED.name,
+                    updatedAt = 1L,
+                    engineVersion = DownloaderImpl.ENGINE_VERSION,
+                    container = source.container,
+                    taskGeneration = 1L,
+                )
+            )
+            if (persistOrigin) {
+                persistEpisodeOrigin(sourceId = source.id, itemId = item.id)
+            }
         }
 
         fun persistVideoOrigin(
@@ -1572,6 +1852,8 @@ class DownloaderImplRecoveryTest {
 
     private class RecordingDao {
         private val sources = linkedMapOf<String, FindroidSourceDto>()
+        private val deleteBatches = linkedMapOf<String, DownloadDeleteBatchDto>()
+        private val deleteReceipts = linkedMapOf<Pair<String, String>, DownloadDeleteReceiptDto>()
         var source: FindroidSourceDto?
             get() = sources[SOURCE_ID]
             set(value) {
@@ -1590,6 +1872,9 @@ class DownloaderImplRecoveryTest {
         var concurrentSourceInserted = CompletableDeferred<Unit>()
         var sourceDeletionGeneration = 0L
         private var blockSourceDelete = false
+        var sourceReadStarted = CompletableDeferred<Unit>()
+        var releaseSourceRead = CompletableDeferred<Unit>()
+        private var blockSourceRead = false
         private val insertedSources = mutableListOf<FindroidSourceDto>()
         val sourceEvents = mutableListOf<String>()
         private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
@@ -1660,7 +1945,14 @@ class DownloaderImplRecoveryTest {
                                 it.taskStatus != "COMPLETED" || it.path.endsWith(".download")
                             }
                         "getAllSources" -> sources.values.toList()
-                        "getSource" -> sources[args[0] as String]
+                        "getSource" -> {
+                            if (blockSourceRead) {
+                                blockSourceRead = false
+                                sourceReadStarted.complete(Unit)
+                                runBlocking { releaseSourceRead.await() }
+                            }
+                            sources[args[0] as String]
+                        }
                         "insertSource" -> {
                             val inserted = args[0] as FindroidSourceDto
                             insertedSources += inserted
@@ -1865,7 +2157,35 @@ class DownloaderImplRecoveryTest {
                             trickplayInfos[info.sourceId] = info
                             Unit
                         }
-                        "getIncompleteDownloadDeleteBatches" -> emptyList<Any>()
+                        "beginDownloadDeleteBatch" -> {
+                            val batch = args[0] as DownloadDeleteBatchDto
+                            deleteBatches[batch.id] = batch
+                            (args[1] as List<*>)
+                                .map { it as DownloadDeleteReceiptDto }
+                                .forEach { receipt ->
+                                    deleteReceipts[receipt.batchId to receipt.canonicalKey] =
+                                        receipt
+                                }
+                            Unit
+                        }
+                        "insertDownloadDeleteReceipt" -> {
+                            val receipt = args[0] as DownloadDeleteReceiptDto
+                            deleteReceipts[receipt.batchId to receipt.canonicalKey] = receipt
+                            Unit
+                        }
+                        "finishDownloadDeleteBatch" -> {
+                            val batchId = args[0] as String
+                            deleteBatches[batchId]?.let {
+                                deleteBatches[batchId] = it.copy(completedAt = args[1] as Long)
+                            }
+                            Unit
+                        }
+                        "getIncompleteDownloadDeleteBatches" ->
+                            deleteBatches.values.filter { it.completedAt == null }
+                        "getDownloadDeleteReceipts" ->
+                            deleteReceipts.values
+                                .filter { it.batchId == args[0] as String }
+                                .sortedBy { it.ordinal }
                         "getReceivedDownloadIntents" -> emptyList<Any>()
                         else -> error("unexpected DAO call: ${method.name}")
                     }
@@ -1889,9 +2209,17 @@ class DownloaderImplRecoveryTest {
             sourceDeletionGeneration = 0L
         }
 
+        fun armSourceReadGate() {
+            blockSourceRead = true
+            sourceReadStarted = CompletableDeferred()
+            releaseSourceRead = CompletableDeferred()
+        }
+
         fun lastInsertedSource(sourceId: String): FindroidSourceDto? = insertedSources.lastOrNull {
             it.id == sourceId
         }
+
+        fun sourceInsertCount(sourceId: String): Int = insertedSources.count { it.id == sourceId }
 
         fun hasEpisode(
             seasonId: UUID,
@@ -1924,6 +2252,53 @@ class DownloaderImplRecoveryTest {
             sources[source.id] = source
         }
 
+        fun seedPendingDeleteBatch(
+            batchId: String,
+            itemId: UUID,
+            sourceId: String,
+        ) {
+            deleteBatches[batchId] =
+                DownloadDeleteBatchDto(
+                    id = batchId,
+                    requestedCount = 1,
+                    createdAt = 1L,
+                )
+            val key =
+                DownloadDeletionIdentity.canonicalKey(
+                    DownloadDeleteRequest(
+                        itemId = itemId,
+                        sourceId = sourceId,
+                        mediaKind = DownloadMediaKind.VIDEO,
+                        serverId = SERVER_ID,
+                        userId = USER_ID.toString(),
+                    )
+                )
+            deleteReceipts[batchId to key] =
+                DownloadDeleteReceiptDto(
+                    batchId = batchId,
+                    canonicalKey = key,
+                    itemId = itemId,
+                    sourceId = sourceId,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    ordinal = 0,
+                    mediaKind = DownloadMediaKind.VIDEO.name,
+                    outcome = DownloadDeleteOutcome.PENDING.name,
+                    detail = null,
+                    updatedAt = 1L,
+                )
+        }
+
+        fun deleteBatch(batchId: String): DownloadDeleteBatchDto? = deleteBatches[batchId]
+
+        fun deleteReceipt(
+            batchId: String,
+            canonicalKey: String,
+        ): DownloadDeleteReceiptDto? = deleteReceipts[batchId to canonicalKey]
+
+        fun deleteReceipts(batchId: String): List<DownloadDeleteReceiptDto> =
+            deleteReceipts.values.filter { it.batchId == batchId }
+
         fun seedMovie(itemId: UUID) {
             snapshots[itemId] = movie.copy(id = itemId, name = "Concurrent $itemId")
         }
@@ -1955,6 +2330,8 @@ class DownloaderImplRecoveryTest {
         }
 
         private fun beginSourceDeletion(args: Array<Any?>): FindroidSourceDto? {
+            val sourceId = args[0] as String
+            if (sources[sourceId]?.taskStatus == DownloadTaskStatus.DELETING.name) return null
             val deleting =
                 updateSourceRow(args) {
                     it.copy(
