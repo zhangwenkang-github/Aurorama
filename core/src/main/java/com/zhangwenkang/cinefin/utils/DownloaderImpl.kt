@@ -114,6 +114,11 @@ class DownloaderImpl(
     private val notifications = DownloadNotifications(context)
     private val notificationManager = context.getSystemService(NotificationManager::class.java)
     private val sidecar = DownloadMediaSidecar(context)
+    private val intentMutations =
+        DownloadIntentMutations(
+            beginCancellation = database::beginDownloadIntentCancellation,
+            beginDeletion = database::beginDownloadIntentDeletion,
+        )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** W63：批量入队的节目 / 季快照缓存（同剧 N 集只解析一次，避免逐集两次网络往返）。 */
@@ -1356,7 +1361,7 @@ class DownloaderImpl(
     ): Boolean =
         withContext(Dispatchers.IO) {
             val cancelled =
-                database.beginDownloadIntentDeletion(
+                intentMutations.cancel(
                     itemId,
                     expectedGeneration,
                     System.currentTimeMillis(),
@@ -1413,7 +1418,7 @@ class DownloaderImpl(
     ): Boolean =
         withContext(Dispatchers.IO) {
             val cancelled =
-                database.beginDownloadIntentCancellation(
+                intentMutations.delete(
                     itemId,
                     expectedGeneration,
                     System.currentTimeMillis(),
@@ -2451,6 +2456,23 @@ internal fun downloadTaskHandle(sourceId: String): Long =
 internal const val INTENT_SOURCE_PREFIX = "intent:"
 
 internal fun intentSourceId(itemId: UUID): String = "$INTENT_SOURCE_PREFIX$itemId"
+
+internal class DownloadIntentMutations(
+    private val beginCancellation: suspend (UUID, Long, Long) -> DownloadIntentDto?,
+    private val beginDeletion: suspend (UUID, Long, Long) -> DownloadIntentDto?,
+) {
+    suspend fun cancel(
+        itemId: UUID,
+        expectedGeneration: Long,
+        updatedAt: Long,
+    ): DownloadIntentDto? = beginCancellation(itemId, expectedGeneration, updatedAt)
+
+    suspend fun delete(
+        itemId: UUID,
+        expectedGeneration: Long,
+        updatedAt: Long,
+    ): DownloadIntentDto? = beginDeletion(itemId, expectedGeneration, updatedAt)
+}
 
 /** 自研引擎状态 → DownloadManager 常量（旧 UI 轮询兼容；仅常量映射，不调用系统下载器）。 */
 internal fun DownloadTaskStatus.toDownloadManagerStatus(): Int =
