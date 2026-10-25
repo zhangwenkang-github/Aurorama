@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,8 +77,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick as semanticsOnClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -1080,7 +1083,6 @@ private fun MusicPlayAllHitTarget(
 ) {
     val density = LocalDensity.current
     val interaction = MusicPrimaryToolbarLayout.playAllInteraction
-    check(interaction.singleSemanticsNode)
     val interactionRole =
         when (interaction.role) {
             MusicInteractionRole.BUTTON -> Role.Button
@@ -1196,14 +1198,7 @@ private fun MusicToolbarRow(
         }
         Spacer(modifier = Modifier.weight(1f))
         if (showPlayAll) {
-            MusicPlayAllHitTarget(onClick = onPlayAll) {
-                CinefinButton(
-                    text = "播放全部",
-                    onClick = onPlayAll,
-                    variant = CinefinButtonVariant.Filled,
-                    size = CinefinButtonSize.Small,
-                )
-            }
+            MusicPlayAllHitTarget(onClick = onPlayAll) { MusicPlayAllVisualButton() }
             CinefinIconButton(onClick = onShuffleAll) { tint ->
                 Icon(
                     painter = painterResource(R.drawable.ic_music_shuffle),
@@ -1213,6 +1208,26 @@ private fun MusicToolbarRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MusicPlayAllVisualButton() {
+    val media = LocalMediaColors.current
+    Box(
+        modifier =
+            Modifier.height(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(media.base)
+                .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "播放全部",
+            style = CinefinType.LabelMedium,
+            color = media.onBase,
+            maxLines = 1,
+        )
     }
 }
 
@@ -2278,7 +2293,32 @@ private fun BatchActionButton(
     loading: Boolean = false,
     onClick: () -> Unit,
 ) {
-    CinefinIconButton(enabled = enabled, onClick = onClick) { tint ->
+    val accessibility =
+        musicBatchActionAccessibility(
+            label = label,
+            enabled = enabled,
+            loading = loading,
+        )
+    CinefinIconButton(
+        enabled = enabled,
+        onClick = onClick,
+        modifier =
+            Modifier.clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = accessibility.contentDescription
+                accessibility.stateDescription?.let { description ->
+                    stateDescription = description
+                }
+                if (accessibility.enabled) {
+                    semanticsOnClick(label = accessibility.contentDescription) {
+                        onClick()
+                        true
+                    }
+                } else {
+                    disabled()
+                }
+            },
+    ) { tint ->
         if (loading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),

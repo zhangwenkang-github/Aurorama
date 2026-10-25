@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.compose.ui.unit.Density
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -56,7 +57,6 @@ class MusicPrimaryToolbarLayoutTest {
         assertEquals(48f, interactiveHeightDp, 0f)
         assertEquals(MusicInteractionRole.BUTTON, plan.interaction.role)
         assertEquals("播放全部", plan.interaction.semanticsLabel)
-        assertTrue(plan.interaction.singleSemanticsNode)
     }
 
     @Test
@@ -69,5 +69,20 @@ class MusicPrimaryToolbarLayoutTest {
 
         assertEquals(104, plan.heightPx)
         assertEquals(MusicPlacement(xPx = 0, yPx = 0), plan.contentPlacement)
+    }
+
+    @Test
+    fun `play all visual layer accepts no click callback`() {
+        val owner = Class.forName("com.zhangwenkang.cinefin.music.presentation.MusicModeScreenKt")
+        val visualMethods =
+            owner.declaredMethods.filter { method -> method.name == "MusicPlayAllVisualButton" }
+
+        assertTrue("visual button composable must exist", visualMethods.isNotEmpty())
+        assertFalse(
+            "visual layer must not own another click callback",
+            visualMethods
+                .flatMap { method -> method.parameterTypes.asList() }
+                .any { type -> Function0::class.java.isAssignableFrom(type) },
+        )
     }
 }

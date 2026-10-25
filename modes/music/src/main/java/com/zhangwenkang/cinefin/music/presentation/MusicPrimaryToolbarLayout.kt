@@ -21,7 +21,6 @@ internal enum class MusicInteractionRole {
 internal data class MusicInteractionSpec(
     val role: MusicInteractionRole,
     val semanticsLabel: String,
-    val singleSemanticsNode: Boolean,
 )
 
 internal data class MusicPrimaryToolbarPlan(
@@ -38,6 +37,28 @@ internal data class MusicPlayAllPlan(
     val interaction: MusicInteractionSpec,
 )
 
+internal data class MusicBatchActionAccessibility(
+    val contentDescription: String,
+    val stateDescription: String?,
+    val enabled: Boolean,
+)
+
+internal fun musicBatchActionAccessibility(
+    label: String,
+    enabled: Boolean,
+    loading: Boolean,
+): MusicBatchActionAccessibility =
+    MusicBatchActionAccessibility(
+        contentDescription = label,
+        stateDescription =
+            when {
+                loading -> "正在处理"
+                !enabled -> "不可用"
+                else -> null
+            },
+        enabled = enabled && !loading,
+    )
+
 internal object MusicPrimaryToolbarLayout {
     val tabsToToolbarGap = CinefinSpacing.Space3
     val playAllMinInteractiveHeight = 48.dp
@@ -46,7 +67,6 @@ internal object MusicPrimaryToolbarLayout {
         MusicInteractionSpec(
             role = MusicInteractionRole.BUTTON,
             semanticsLabel = "播放全部",
-            singleSemanticsNode = true,
         )
 
     fun measurePrimary(
