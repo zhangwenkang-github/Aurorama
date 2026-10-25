@@ -5,6 +5,8 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.models.FindroidSeasonDto
+import com.zhangwenkang.cinefin.models.FindroidShowDto
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import com.zhangwenkang.cinefin.utils.ImageCacheStore
@@ -36,6 +38,24 @@ internal object ImagesDownloadRetryRules {
     /** 5xx / 408 / 429 视为瞬时失败；其余非 2xx 为永久失败（忽略该图，不重试）。 */
     fun isTransientHttpFailure(code: Int): Boolean = code == 408 || code == 429 || code >= 500
 }
+
+/** Worker 父级存在性 fence；查询异常必须交给 worker 外层决定取消或重试。 */
+internal suspend fun isParentSnapshotCurrent(
+    owner: ImageDownloadParentOwner,
+    getShow: suspend (UUID) -> FindroidShowDto,
+    getSeason: suspend (UUID) -> FindroidSeasonDto,
+): Boolean =
+    when (owner.kind) {
+        ImageDownloadParentKind.SHOW -> {
+            val show = getShow(owner.itemId)
+            show?.serverId == owner.serverId
+        }
+        ImageDownloadParentKind.SEASON -> {
+            val season = getSeason(owner.itemId)
+            val show = getShow(season.seriesId)
+            show?.serverId == owner.serverId
+        }
+    }
 
 @HiltWorker
 class ImagesDownloaderWorker
@@ -178,17 +198,11 @@ constructor(
         }
 
     private suspend fun parentScopeExists(owner: ImageDownloadParentOwner): Boolean =
-        when (owner.kind) {
-            ImageDownloadParentKind.SHOW -> {
-                val show = runCatching { database.getShow(owner.itemId) }.getOrNull()
-                show?.serverId == owner.serverId
-            }
-            ImageDownloadParentKind.SEASON -> {
-                val season = runCatching { database.getSeason(owner.itemId) }.getOrNull()
-                val show = season?.let { runCatching { database.getShow(it.seriesId) }.getOrNull() }
-                show?.serverId == owner.serverId
-            }
-        }
+        isParentSnapshotCurrent(
+            owner = owner,
+            getShow = database::getShow,
+            getSeason = database::getSeason,
+        )
 
     private fun logSkippedParent(reason: String): Result {
         Timber.w("父级图片缓存跳过：%s", reason)

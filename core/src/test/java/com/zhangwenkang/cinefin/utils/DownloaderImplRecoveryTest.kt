@@ -9,6 +9,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMediaStream
@@ -16,10 +17,12 @@ import com.zhangwenkang.cinefin.models.FindroidMediaStreamDto
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.FindroidSeason
+import com.zhangwenkang.cinefin.models.FindroidSeasonDto
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentDto
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.models.FindroidShow
+import com.zhangwenkang.cinefin.models.FindroidShowDto
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceDto
 import com.zhangwenkang.cinefin.models.FindroidSourceType
@@ -28,12 +31,19 @@ import com.zhangwenkang.cinefin.models.FindroidUserDataDto
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.work.ImagesDownloaderWorker
 import java.io.File
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArraySet
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -81,6 +91,51 @@ class DownloaderImplRecoveryTest {
                 ),
                 fixture.imageScheduler.parentOwners.toSet(),
             )
+            assertEquals(SERVER_ID, fixture.dao.showSnapshot?.serverId)
+            assertEquals(SHOW_ID, fixture.dao.seasonSnapshot?.seriesId)
+            assertEquals(SEASON_ID, fixture.dao.seasonSnapshot?.id)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `父图调度器写入完整WorkManager输入`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val gateway = RecordingWorkGateway()
+            val scheduler = WorkManagerImageFinalizationScheduler(gateway)
+            val owner =
+                ImageDownloadParentOwner(
+                    kind = ImageDownloadParentKind.SEASON,
+                    itemId = SEASON_ID,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                )
+
+            scheduler.scheduleParent(fixture.season(), owner)
+
+            assertEquals(
+                listOf(ImageDownloadWorkRules.parentWorkName(owner)),
+                gateway.uniqueRequests.map { it.first },
+            )
+            val data = gateway.uniqueRequests.single().third.workSpec.input
+            assertEquals(SEASON_ID.toString(), data.getString(ImagesDownloaderWorker.KEY_ITEM_ID))
+            assertEquals(
+                ImageDownloadParentKind.SEASON.name,
+                data.getString(ImagesDownloaderWorker.KEY_PARENT_KIND),
+            )
+            assertEquals(SERVER_ID, data.getString(ImagesDownloaderWorker.KEY_SERVER_ID))
+            assertEquals(
+                USER_ID.toString(),
+                data.getString(ImagesDownloaderWorker.KEY_USER_ID),
+            )
+
+            scheduler.cancelParent(owner)
+            assertEquals(
+                listOf(ImageDownloadWorkRules.parentWorkName(owner)),
+                gateway.cancelledNames,
+            )
         } finally {
             fixture.close()
         }
@@ -91,12 +146,14 @@ class DownloaderImplRecoveryTest {
         val fixture = Fixture()
         try {
             val episode = fixture.episode()
+            val source = fixture.episodeSource()
+            fixture.persistEpisodeOrigin(source.id)
             fixture.dao.remainingEpisodes = emptyList()
             fixture.dao.remainingSeasons = emptyList()
 
             fixture.downloader.deleteItem(
                 item = episode,
-                source = fixture.episodeSource(),
+                source = source,
             )
 
             assertEquals(
@@ -117,15 +174,186 @@ class DownloaderImplRecoveryTest {
         val fixture = Fixture()
         try {
             val episode = fixture.episode()
+            val source = fixture.episodeSource()
+            fixture.persistEpisodeOrigin(source.id)
             fixture.dao.remainingEpisodes = listOf(Any())
             fixture.dao.remainingSeasons = listOf(Any())
 
             fixture.downloader.deleteItem(
                 item = episode,
-                source = fixture.episodeSource(),
+                source = source,
             )
 
             assertTrue(fixture.imageScheduler.cancelledParentItemIds.isEmpty())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `完成恢复缺少sidecar时不回退当前会话调度父图`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            fixture.itemForResolution = episode
+            val (handle, error) =
+                fixture.downloader.downloadItem(
+                    item = episode,
+                    sourceId = SOURCE_ID,
+                    storageIndex = 0,
+                )
+            assertTrue(error == null)
+            assertTrue(handle > 0L)
+            val sidecar = fixture.downloader.mediaSidecar()
+            sidecar.allRecords().forEach { sidecar.remove(it.canonicalIdentity()) }
+            fixture.imageScheduler.parentOwners.clear()
+            fixture.imageScheduler.parentItemIds.clear()
+
+            fixture.downloader.runQueue()
+
+            assertTrue(
+                "sidecar 缺失不得借用当前 server/user：${fixture.imageScheduler.parentOwners}",
+                fixture.imageScheduler.parentOwners.isEmpty(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `最后剧集删除与新兄弟入队具备父级串行边界`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.dao.trackParentRows = true
+            val deletingEpisode = fixture.episode()
+            val deletingSource = fixture.episodeSource()
+            fixture.itemForResolution = deletingEpisode
+            val (handle, error) =
+                fixture.downloader.downloadItem(
+                    item = deletingEpisode,
+                    sourceId = deletingSource.id,
+                    storageIndex = 0,
+                )
+            assertTrue(error == null)
+            assertTrue(handle > 0L)
+            fixture.imageScheduler.resetParentObservations()
+            fixture.dao.armSeasonDeleteGate()
+
+            val deletion =
+                async(Dispatchers.IO) {
+                    fixture.downloader.deleteItem(deletingEpisode, deletingSource)
+                }
+            withTimeout(5_000) { fixture.dao.seasonDeleteStarted.await() }
+
+            val siblingEpisode = fixture.episode(itemId = SIBLING_ITEM_ID)
+            val siblingSource = fixture.episodeSource(id = SIBLING_SOURCE_ID)
+            fixture.itemForResolution = siblingEpisode
+            val siblingEnqueue =
+                async(Dispatchers.IO) {
+                    fixture.downloader.downloadItem(
+                        item = siblingEpisode,
+                        sourceId = siblingSource.id,
+                        storageIndex = 0,
+                    )
+                }
+            // 旧实现会在删除门内完成 sibling 调度；新串行实现则让 sibling 等待，
+            // 因此这里的超时只负责在新实现上释放仍由删除持有的父级锁。
+            withTimeoutOrNull(2_000) { fixture.imageScheduler.parentScheduled.await() }
+            fixture.dao.releaseSeasonDelete.complete(Unit)
+            deletion.await()
+            val (siblingHandle, siblingError) = siblingEnqueue.await()
+
+            assertTrue(siblingError == null)
+            assertTrue(siblingHandle > 0L)
+            assertTrue("新兄弟 episode 被删除", fixture.dao.hasEpisode(SEASON_ID, SIBLING_ITEM_ID))
+            assertTrue("新兄弟所属 season 被删除", fixture.dao.hasSeason(SHOW_ID, SEASON_ID))
+            assertEquals(
+                "新兄弟入队后的父图任务必须保留",
+                setOf(SHOW_ID, SEASON_ID),
+                fixture.imageScheduler.activeParentItemIds.toSet(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `删除父图按item和source拒绝同source的错误身份`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            val source = fixture.episodeSource()
+            val sidecar = fixture.downloader.mediaSidecar()
+            sidecar.put(
+                DownloadMediaRecord(
+                    itemId = ITEM_ID.toString(),
+                    kind = DownloadMediaKind.VIDEO,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    sourceId = source.id,
+                )
+            )
+            sidecar.put(
+                DownloadMediaRecord(
+                    itemId = OTHER_ITEM_ID.toString(),
+                    kind = DownloadMediaKind.VIDEO,
+                    serverId = "server-b",
+                    userId = OTHER_USER_ID.toString(),
+                    sourceId = source.id,
+                )
+            )
+            fixture.dao.remainingEpisodes = emptyList()
+            fixture.dao.remainingSeasons = emptyList()
+
+            fixture.downloader.deleteItem(item = episode, source = source)
+
+            assertEquals(
+                setOf(SERVER_ID),
+                fixture.imageScheduler.cancelledParentOwners.map { it.serverId }.toSet(),
+            )
+            assertEquals(
+                setOf(USER_ID.toString()),
+                fixture.imageScheduler.cancelledParentOwners.map { it.userId }.toSet(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `删除父图在完整身份歧义时失败关闭`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            val source = fixture.episodeSource()
+            val sidecar = fixture.downloader.mediaSidecar()
+            sidecar.put(
+                DownloadMediaRecord(
+                    itemId = ITEM_ID.toString(),
+                    kind = DownloadMediaKind.VIDEO,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    sourceId = source.id,
+                )
+            )
+            sidecar.put(
+                DownloadMediaRecord(
+                    itemId = ITEM_ID.toString(),
+                    kind = DownloadMediaKind.VIDEO,
+                    serverId = "server-b",
+                    userId = OTHER_USER_ID.toString(),
+                    sourceId = source.id,
+                )
+            )
+            fixture.dao.remainingEpisodes = emptyList()
+            fixture.dao.remainingSeasons = emptyList()
+
+            fixture.downloader.deleteItem(item = episode, source = source)
+
+            assertTrue(
+                "歧义身份不得猜当前会话：${fixture.imageScheduler.cancelledParentOwners}",
+                fixture.imageScheduler.cancelledParentOwners.isEmpty(),
+            )
         } finally {
             fixture.close()
         }
@@ -626,9 +854,12 @@ class DownloaderImplRecoveryTest {
             )
         }
 
-        fun episode(): FindroidEpisode =
+        fun episode(
+            itemId: UUID = ITEM_ID,
+            sourceId: String = SOURCE_ID,
+        ): FindroidEpisode =
             FindroidEpisode(
-                id = ITEM_ID,
+                id = itemId,
                 name = ITEM_NAME,
                 originalTitle = null,
                 overview = "",
@@ -638,7 +869,7 @@ class DownloaderImplRecoveryTest {
                 sources =
                     listOf(
                         FindroidSource(
-                            id = SOURCE_ID,
+                            id = sourceId,
                             name = SOURCE_NAME,
                             type = FindroidSourceType.REMOTE,
                             path = MEDIA_URL,
@@ -665,16 +896,35 @@ class DownloaderImplRecoveryTest {
                 trickplayInfo = emptyMap(),
             )
 
-        fun episodeSource(): FindroidSource =
+        fun episodeSource(id: String = "episode-local-source"): FindroidSource =
             FindroidSource(
-                id = "episode-local-source",
+                id = id,
                 name = "Episode",
                 type = FindroidSourceType.LOCAL,
-                path = File(root, "episode-local-source").path,
+                path = File(root, id).path,
                 size = 1L,
                 mediaStreams = emptyList(),
                 container = "mp4",
             )
+
+        fun persistEpisodeOrigin(
+            sourceId: String,
+            itemId: UUID = ITEM_ID,
+            serverId: String = SERVER_ID,
+            userId: UUID = USER_ID,
+        ) {
+            downloader
+                .mediaSidecar()
+                .put(
+                    DownloadMediaRecord(
+                        itemId = itemId.toString(),
+                        kind = DownloadMediaKind.VIDEO,
+                        serverId = serverId,
+                        userId = userId.toString(),
+                        sourceId = sourceId,
+                    )
+                )
+        }
 
         fun show(): FindroidShow =
             FindroidShow(
@@ -910,9 +1160,18 @@ class DownloaderImplRecoveryTest {
     private class RecordingDao {
         var source: FindroidSourceDto? = null
         var itemAvailable = true
+        var trackParentRows = false
         var remainingEpisodes: List<Any> = emptyList()
         var remainingSeasons: List<Any> = emptyList()
+        var seasonDeleteStarted = CompletableDeferred<Unit>()
+        var releaseSeasonDelete = CompletableDeferred<Unit>()
+        private var blockSeasonDelete = false
+        private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
+        private val seasonIdsByShow = linkedMapOf<UUID, MutableSet<UUID>>()
         var snapshotWrites = 0
+        var showSnapshot: FindroidShowDto? = null
+        var seasonSnapshot: FindroidSeasonDto? = null
+        var episodeSnapshot: FindroidEpisodeDto? = null
         var internalMediaStreamWrites = 0
         var externalMediaStreamWrites = 0
         var segmentWrites = 0
@@ -1020,14 +1279,69 @@ class DownloaderImplRecoveryTest {
                             }
                         "getMovie" -> movie.takeIf { itemAvailable && args[0] == ITEM_ID }
                         "getEpisode" -> null
-                        "insertShow",
-                        "insertSeason",
-                        "insertEpisode" -> Unit
-                        "getEpisodesBySeasonId" -> remainingEpisodes
-                        "getSeasonsByShowId" -> remainingSeasons
-                        "deleteEpisode",
-                        "deleteSeason",
-                        "deleteShow",
+                        "insertShow" -> {
+                            val show = args[0] as FindroidShowDto
+                            if (showSnapshot == null) showSnapshot = show
+                            Unit
+                        }
+                        "insertSeason" -> {
+                            val season = args[0] as FindroidSeasonDto
+                            if (seasonSnapshot == null) seasonSnapshot = season
+                            if (trackParentRows) {
+                                seasonIdsByShow
+                                    .getOrPut(season.seriesId, ::linkedSetOf)
+                                    .add(season.id)
+                            }
+                            Unit
+                        }
+                        "insertEpisode" -> {
+                            val episode = args[0] as FindroidEpisodeDto
+                            episodeSnapshot = episode
+                            if (trackParentRows) {
+                                episodeIdsBySeason
+                                    .getOrPut(episode.seasonId, ::linkedSetOf)
+                                    .add(episode.id)
+                            }
+                            Unit
+                        }
+                        "getEpisodesBySeasonId" ->
+                            if (trackParentRows) {
+                                episodeIdsBySeason[args[0] as UUID].orEmpty().map { Any() }
+                            } else {
+                                remainingEpisodes
+                            }
+                        "getSeasonsByShowId" ->
+                            if (trackParentRows) {
+                                seasonIdsByShow[args[0] as UUID].orEmpty().map { Any() }
+                            } else {
+                                remainingSeasons
+                            }
+                        "deleteEpisode" -> {
+                            if (trackParentRows) {
+                                val episodeId = args[0] as UUID
+                                episodeIdsBySeason.values.forEach { it.remove(episodeId) }
+                            }
+                            Unit
+                        }
+                        "deleteSeason" -> {
+                            if (blockSeasonDelete) {
+                                blockSeasonDelete = false
+                                seasonDeleteStarted.complete(Unit)
+                                runBlocking { releaseSeasonDelete.await() }
+                            }
+                            if (trackParentRows) {
+                                val seasonId = args[0] as UUID
+                                seasonIdsByShow.values.forEach { it.remove(seasonId) }
+                                episodeIdsBySeason.remove(seasonId)
+                            }
+                            Unit
+                        }
+                        "deleteShow" -> {
+                            if (trackParentRows) {
+                                seasonIdsByShow.remove(args[0] as UUID)
+                            }
+                            Unit
+                        }
                         "deleteMediaStreamsBySourceId",
                         "deleteSource",
                         "deleteUserData" -> Unit
@@ -1086,6 +1400,22 @@ class DownloaderImplRecoveryTest {
 
         fun externalStream(): FindroidMediaStreamDto? =
             mediaStreams.values.firstOrNull { it.isExternal }
+
+        fun armSeasonDeleteGate() {
+            blockSeasonDelete = true
+            seasonDeleteStarted = CompletableDeferred()
+            releaseSeasonDelete = CompletableDeferred()
+        }
+
+        fun hasEpisode(
+            seasonId: UUID,
+            episodeId: UUID,
+        ): Boolean = episodeIdsBySeason[seasonId].orEmpty().contains(episodeId)
+
+        fun hasSeason(
+            showId: UUID,
+            seasonId: UUID,
+        ): Boolean = seasonIdsByShow[showId].orEmpty().contains(seasonId)
 
         fun snapshotIds(): List<UUID> = snapshots.keys.toList()
 
@@ -1296,6 +1626,8 @@ class DownloaderImplRecoveryTest {
 
     private class RecordingWorkGateway : DownloadWorkGateway {
         val enqueuedNames = mutableListOf<String>()
+        val cancelledNames = mutableListOf<String>()
+        val uniqueRequests = mutableListOf<Triple<String, ExistingWorkPolicy, OneTimeWorkRequest>>()
 
         override suspend fun uniqueWorkInfos(name: String): List<WorkInfo> = emptyList()
 
@@ -1305,9 +1637,12 @@ class DownloaderImplRecoveryTest {
             request: OneTimeWorkRequest,
         ) {
             enqueuedNames += name
+            uniqueRequests += Triple(name, policy, request)
         }
 
-        override fun cancelUnique(name: String) = Unit
+        override fun cancelUnique(name: String) {
+            cancelledNames += name
+        }
 
         override fun enqueue(request: OneTimeWorkRequest) {
             enqueuedNames += request.id.toString()
@@ -1321,6 +1656,11 @@ class DownloaderImplRecoveryTest {
         val parentOwners = mutableListOf<ImageDownloadParentOwner>()
         val cancelledParentItemIds = mutableListOf<UUID>()
         val cancelledParentOwners = mutableListOf<ImageDownloadParentOwner>()
+        val activeParentOwners = CopyOnWriteArraySet<ImageDownloadParentOwner>()
+        val activeParentItemIds: Set<UUID>
+            get() = activeParentOwners.mapTo(mutableSetOf()) { it.itemId }
+
+        var parentScheduled = CompletableDeferred<Unit>()
         private val scheduled = mutableSetOf<String>()
 
         override suspend fun schedule(item: FindroidItem, sourceId: String, generation: Long) {
@@ -1335,11 +1675,23 @@ class DownloaderImplRecoveryTest {
         ) {
             parentItemIds += item.id
             parentOwners += owner
+            activeParentOwners += owner
+            parentScheduled.complete(Unit)
         }
 
         override suspend fun cancelParent(owner: ImageDownloadParentOwner) {
             cancelledParentItemIds += owner.itemId
             cancelledParentOwners += owner
+            activeParentOwners -= owner
+        }
+
+        fun resetParentObservations() {
+            parentItemIds.clear()
+            parentOwners.clear()
+            cancelledParentItemIds.clear()
+            cancelledParentOwners.clear()
+            activeParentOwners.clear()
+            parentScheduled = CompletableDeferred()
         }
     }
 
@@ -1419,10 +1771,14 @@ class DownloaderImplRecoveryTest {
 
     private companion object {
         val ITEM_ID: UUID = UUID(0L, 11L)
+        val OTHER_ITEM_ID: UUID = UUID(0L, 15L)
+        val SIBLING_ITEM_ID: UUID = UUID(0L, 17L)
         val USER_ID: UUID = UUID(0L, 12L)
+        val OTHER_USER_ID: UUID = UUID(0L, 16L)
         val SHOW_ID: UUID = UUID(0L, 13L)
         val SEASON_ID: UUID = UUID(0L, 14L)
         const val SOURCE_ID = "source-recovery"
+        const val SIBLING_SOURCE_ID = "source-sibling"
         const val SOURCE_NAME = "Recovery Source"
         const val ITEM_NAME = "Recovery Movie"
         const val SHOW_NAME = "Recovery Show"

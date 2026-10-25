@@ -172,7 +172,7 @@ private class WorkManagerDownloadWorkGateway(private val workManager: WorkManage
     }
 }
 
-private class WorkManagerImageFinalizationScheduler(private val workGateway: DownloadWorkGateway) :
+internal class WorkManagerImageFinalizationScheduler(private val workGateway: DownloadWorkGateway) :
     DownloadImageFinalizationScheduler {
     private val scheduled = ConcurrentHashMap.newKeySet<String>()
 
@@ -372,6 +372,9 @@ private constructor(
     /** 同 source 生命周期命令串行，并以代次 claim/fence 封锁迟到副作用。 */
     private val lifecycleControl = DownloadSourceControl()
 
+    /** 父级快照变更与父图任务调度共享 app-scope 串行边界，消除最后子项删除竞态。 */
+    private val parentImageMutationLock = Mutex()
+
     /**
      * W76-Q7：入队方与运行中 worker 之间的「退出交接」状态（保护 [queueKickRequested] / [engineWorkerQuiesced]）。
      *
@@ -450,13 +453,40 @@ private constructor(
             userId = runCatching { jellyfinRepository.getUserId().toString() }.getOrNull(),
         )
 
-    private fun downloadOriginForSource(sourceId: String): FrozenDownloadOrigin {
-        val current = freezeDownloadOrigin()
-        val record = sidecar.allRecords().lastOrNull { it.sourceId == sourceId }
-        return FrozenDownloadOrigin(
-            serverId = record?.serverId ?: current.serverId,
-            userId = record?.userId ?: current.userId,
-        )
+    private fun downloadOriginForSource(
+        item: FindroidItem,
+        sourceId: String,
+    ): FrozenDownloadOrigin? {
+        val expectedKind =
+            if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
+                DownloadMediaKind.MUSIC
+            } else {
+                DownloadMediaKind.VIDEO
+            }
+        val proven =
+            sidecar
+                .allRecords()
+                .asSequence()
+                .filter { record ->
+                    record.kind == expectedKind &&
+                        record.itemId == item.id.toString() &&
+                        record.sourceId == sourceId
+                }
+                .mapNotNull { record ->
+                    record.provenance()?.let { provenance ->
+                        if (provenance.itemId != item.id || provenance.mediaSourceId != sourceId) {
+                            null
+                        } else {
+                            FrozenDownloadOrigin(
+                                serverId = provenance.serverId,
+                                userId = provenance.userId.toString(),
+                            )
+                        }
+                    }
+                }
+                .distinct()
+                .toList()
+        return proven.singleOrNull()
     }
 
     private suspend fun enqueueItem(
@@ -1244,7 +1274,10 @@ private constructor(
                 DownloadPostCommitRules.finalize(
                     listOf(
                         DownloadPostCommitTask(DownloadPostCommitEffect.SNAPSHOT) {
-                            persistItemSnapshot(item, downloadOriginForSource(source.id))
+                            persistItemSnapshot(
+                                item,
+                                downloadOriginForSource(item, source.id),
+                            )
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.MEDIA_STREAMS) {
                             persistDownloadedMediaStreams(mediaSource, finalFile.path) { mediaStream
@@ -2040,7 +2073,7 @@ private constructor(
     }
 
     override suspend fun deleteItem(item: FindroidItem, source: FindroidSource) {
-        val parentOrigin = downloadOriginForSource(source.id)
+        val parentOrigin = downloadOriginForSource(item, source.id)
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         val files = buildList {
             File(source.path).parentFile?.let { directory ->
@@ -2068,29 +2101,31 @@ private constructor(
                 database.deleteMovie(item.id)
             }
             is FindroidEpisode -> {
-                database.deleteEpisode(item.id)
-                val remainingEpisodes = database.getEpisodesBySeasonId(item.seasonId)
-                if (remainingEpisodes.isEmpty()) {
-                    database.deleteSeason(item.seasonId)
-                    cancelParentImagesDownloader(
-                        kind = ImageDownloadParentKind.SEASON,
-                        itemId = item.seasonId,
-                        origin = parentOrigin,
-                    )
-                    database.deleteUserData(item.seasonId)
-                    File(context.filesDir, "trickplay/${item.seasonId}").deleteRecursively()
-                    File(context.filesDir, "images/${item.seasonId}").deleteRecursively()
-                    val remainingSeasons = database.getSeasonsByShowId(item.seriesId)
-                    if (remainingSeasons.isEmpty()) {
-                        database.deleteShow(item.seriesId)
+                parentImageMutationLock.withLock {
+                    database.deleteEpisode(item.id)
+                    val remainingEpisodes = database.getEpisodesBySeasonId(item.seasonId)
+                    if (remainingEpisodes.isEmpty()) {
+                        database.deleteSeason(item.seasonId)
                         cancelParentImagesDownloader(
-                            kind = ImageDownloadParentKind.SHOW,
-                            itemId = item.seriesId,
+                            kind = ImageDownloadParentKind.SEASON,
+                            itemId = item.seasonId,
                             origin = parentOrigin,
                         )
-                        database.deleteUserData(item.seriesId)
-                        File(context.filesDir, "trickplay/${item.seriesId}").deleteRecursively()
-                        File(context.filesDir, "images/${item.seriesId}").deleteRecursively()
+                        database.deleteUserData(item.seasonId)
+                        File(context.filesDir, "trickplay/${item.seasonId}").deleteRecursively()
+                        File(context.filesDir, "images/${item.seasonId}").deleteRecursively()
+                        val remainingSeasons = database.getSeasonsByShowId(item.seriesId)
+                        if (remainingSeasons.isEmpty()) {
+                            database.deleteShow(item.seriesId)
+                            cancelParentImagesDownloader(
+                                kind = ImageDownloadParentKind.SHOW,
+                                itemId = item.seriesId,
+                                origin = parentOrigin,
+                            )
+                            database.deleteUserData(item.seriesId)
+                            File(context.filesDir, "trickplay/${item.seriesId}").deleteRecursively()
+                            File(context.filesDir, "images/${item.seriesId}").deleteRecursively()
+                        }
                     }
                 }
             }
@@ -2647,8 +2682,12 @@ private constructor(
     private suspend fun cancelParentImagesDownloader(
         kind: ImageDownloadParentKind,
         itemId: UUID,
-        origin: FrozenDownloadOrigin,
+        origin: FrozenDownloadOrigin?,
     ) {
+        if (origin == null) {
+            Timber.w("父级图片取消跳过：缺少可证明的完整来源（%s）", itemId)
+            return
+        }
         val serverId = origin.serverId?.takeIf(String::isNotBlank)
         val userId = origin.userId?.takeIf(String::isNotBlank)
         if (serverId == null || userId == null) {
@@ -2672,10 +2711,10 @@ private constructor(
 
     private suspend fun persistItemSnapshot(
         item: FindroidItem,
-        origin: FrozenDownloadOrigin,
+        origin: FrozenDownloadOrigin?,
     ) {
         val serverId =
-            origin.serverId?.takeIf(String::isNotBlank)
+            origin?.serverId?.takeIf(String::isNotBlank)
                 ?: appPreferences.getValue(appPreferences.currentServer)
         when (item) {
             is FindroidMovie -> database.insertMovie(item.toFindroidMovieDto(serverId))
@@ -2708,11 +2747,15 @@ private constructor(
                 if (cachedSeason == null) {
                     seasonSnapshotCache[item.seasonId] = CachedSnapshot(season, now)
                 }
-                database.insertShow(show.toFindroidShowDto(serverId))
-                database.insertSeason(season.toFindroidSeasonDto())
-                database.insertEpisode(item.toFindroidEpisodeDto(serverId))
-                startParentImagesDownloader(show, origin)
-                startParentImagesDownloader(season, origin)
+                parentImageMutationLock.withLock {
+                    database.insertShow(show.toFindroidShowDto(serverId))
+                    database.insertSeason(season.toFindroidSeasonDto())
+                    database.insertEpisode(item.toFindroidEpisodeDto(serverId))
+                    if (origin != null) {
+                        startParentImagesDownloader(show, origin)
+                        startParentImagesDownloader(season, origin)
+                    }
+                }
             }
         }
         database.insertUserData(item.toFindroidUserDataDto(jellyfinRepository.getUserId()))
