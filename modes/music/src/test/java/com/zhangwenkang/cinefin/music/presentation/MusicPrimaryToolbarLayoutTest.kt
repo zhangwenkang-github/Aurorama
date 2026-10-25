@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.compose.ui.unit.Density
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -7,59 +8,66 @@ import org.junit.Test
 
 class MusicPrimaryToolbarLayoutTest {
 
+    private val density = Density(density = 2f, fontScale = 1f)
+
     @Test
-    fun `primary measure policy places toolbar twelve dp below measured tabs`() {
+    fun `primary measure policy converts production gap at density`() {
+        val tabs = MusicMeasuredBox(widthPx = 1200, heightPx = 88)
         val plan =
             MusicPrimaryToolbarLayout.measurePrimary(
-                tabs = MusicMeasuredBox(widthPx = 600, heightPx = 44),
-                toolbar = MusicMeasuredBox(widthPx = 600, heightPx = 48),
-                gapPx = 12,
+                tabs = tabs,
+                toolbar = MusicMeasuredBox(widthPx = 1200, heightPx = 96),
+                density = density,
             )
+        val gapDp = (plan.toolbarPlacement!!.yPx - tabs.heightPx).toFloat() / density.density
 
-        assertEquals(600, plan.widthPx)
-        assertEquals(104, plan.heightPx)
+        assertEquals(1200, plan.widthPx)
+        assertEquals(208, plan.heightPx)
         assertEquals(MusicPlacement(xPx = 0, yPx = 0), plan.tabsPlacement)
-        assertEquals(MusicPlacement(xPx = 0, yPx = 56), plan.toolbarPlacement)
+        assertEquals(MusicPlacement(xPx = 0, yPx = 112), plan.toolbarPlacement)
+        assertEquals(12f, gapDp, 0f)
     }
 
     @Test
-    fun `primary measure policy omits gap when toolbar is absent`() {
+    fun `primary measure policy omits production gap when toolbar is absent`() {
         val plan =
             MusicPrimaryToolbarLayout.measurePrimary(
-                tabs = MusicMeasuredBox(widthPx = 600, heightPx = 44),
+                tabs = MusicMeasuredBox(widthPx = 1200, heightPx = 88),
                 toolbar = null,
-                gapPx = 12,
+                density = density,
             )
 
-        assertEquals(44, plan.heightPx)
+        assertEquals(88, plan.heightPx)
         assertNull(plan.toolbarPlacement)
     }
 
     @Test
-    fun `play all measure policy provides forty eight dp interactive bounds`() {
+    fun `play all measure policy converts production minimum at density`() {
         val plan =
             MusicPrimaryToolbarLayout.measurePlayAll(
-                content = MusicMeasuredBox(widthPx = 100, heightPx = 38),
-                minimumPx = 48,
+                content = MusicMeasuredBox(widthPx = 200, heightPx = 76),
+                density = density,
             )
+        val interactiveHeightDp = plan.heightPx.toFloat() / density.density
 
-        assertEquals(100, plan.widthPx)
-        assertEquals(48, plan.heightPx)
-        assertEquals(MusicPlacement(xPx = 0, yPx = 5), plan.contentPlacement)
+        assertEquals(200, plan.widthPx)
+        assertEquals(96, plan.heightPx)
+        assertEquals(MusicPlacement(xPx = 0, yPx = 10), plan.contentPlacement)
+        assertEquals(48f, interactiveHeightDp, 0f)
         assertEquals(MusicInteractionRole.BUTTON, plan.interaction.role)
         assertEquals("播放全部", plan.interaction.semanticsLabel)
         assertTrue(plan.interaction.singleSemanticsNode)
     }
 
     @Test
-    fun `play all measure policy preserves content taller than minimum`() {
+    fun `play all measure policy preserves content taller than production minimum`() {
         val plan =
             MusicPrimaryToolbarLayout.measurePlayAll(
-                content = MusicMeasuredBox(widthPx = 120, heightPx = 52),
-                minimumPx = 48,
+                content = MusicMeasuredBox(widthPx = 240, heightPx = 104),
+                density = density,
             )
 
-        assertEquals(52, plan.heightPx)
+        assertEquals(104, plan.heightPx)
         assertEquals(MusicPlacement(xPx = 0, yPx = 0), plan.contentPlacement)
     }
 }

@@ -1039,8 +1039,7 @@ private fun MusicPrimaryToolbarSection(
     tabs: @Composable () -> Unit,
     toolbar: (@Composable () -> Unit)?,
 ) {
-    val gapPx =
-        with(LocalDensity.current) { MusicPrimaryToolbarLayout.tabsToToolbarGap.roundToPx() }
+    val density = LocalDensity.current
     Layout(
         content = {
             tabs()
@@ -1062,7 +1061,7 @@ private fun MusicPrimaryToolbarSection(
                     toolbarPlaceable?.let { placeable ->
                         MusicMeasuredBox(placeable.width, placeable.height)
                     },
-                gapPx = if (toolbarPlaceable == null) 0 else gapPx,
+                density = density,
             )
         layout(plan.widthPx, plan.heightPx) {
             tabsPlaceable.placeRelative(plan.tabsPlacement.xPx, plan.tabsPlacement.yPx)
@@ -1079,10 +1078,7 @@ private fun MusicPlayAllHitTarget(
     onClick: () -> Unit,
     button: @Composable () -> Unit,
 ) {
-    val minimumPx =
-        with(LocalDensity.current) {
-            MusicPrimaryToolbarLayout.playAllMinInteractiveHeight.roundToPx()
-        }
+    val density = LocalDensity.current
     val interaction = MusicPrimaryToolbarLayout.playAllInteraction
     check(interaction.singleSemanticsNode)
     val interactionRole =
@@ -1109,7 +1105,7 @@ private fun MusicPlayAllHitTarget(
         val plan =
             MusicPrimaryToolbarLayout.measurePlayAll(
                 content = MusicMeasuredBox(content.width, content.height),
-                minimumPx = minimumPx,
+                density = density,
             )
         layout(plan.widthPx, plan.heightPx) {
             content.placeRelative(

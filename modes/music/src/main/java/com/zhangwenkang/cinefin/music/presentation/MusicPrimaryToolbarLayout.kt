@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 
@@ -51,12 +52,13 @@ internal object MusicPrimaryToolbarLayout {
     fun measurePrimary(
         tabs: MusicMeasuredBox,
         toolbar: MusicMeasuredBox?,
-        gapPx: Int,
+        density: Density,
     ): MusicPrimaryToolbarPlan {
         val tabsWidth = tabs.widthPx.coerceAtLeast(0)
         val tabsHeight = tabs.heightPx.coerceAtLeast(0)
         val toolbarWidth = toolbar?.widthPx?.coerceAtLeast(0) ?: tabsWidth
         val toolbarHeight = toolbar?.heightPx?.coerceAtLeast(0) ?: 0
+        val gapPx = with(density) { tabsToToolbarGap.roundToPx() }
         val gap = if (toolbar == null) 0 else gapPx.coerceAtLeast(0)
         val toolbarTop = tabsHeight + gap
         return MusicPrimaryToolbarPlan(
@@ -67,9 +69,10 @@ internal object MusicPrimaryToolbarLayout {
         )
     }
 
-    fun measurePlayAll(content: MusicMeasuredBox, minimumPx: Int): MusicPlayAllPlan {
+    fun measurePlayAll(content: MusicMeasuredBox, density: Density): MusicPlayAllPlan {
         val width = content.widthPx.coerceAtLeast(0)
         val contentHeight = content.heightPx.coerceAtLeast(0)
+        val minimumPx = with(density) { playAllMinInteractiveHeight.roundToPx() }
         val interactiveHeight = maxOf(contentHeight, minimumPx.coerceAtLeast(0))
         return MusicPlayAllPlan(
             widthPx = width,

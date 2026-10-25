@@ -3133,3 +3133,5 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **未覆盖 / 边界**：无 adb、真机、截图、生产写；未验证真实服务器延迟下的视觉时长与手指命中，未启动独立 QA、merge、push、tag 或 Release。Compose UI Test 依赖不在模块中，UX1 使用由真实 `Layout` 消费的纯几何测量契约覆盖，未做设备级 bounds 采样。
 
 **Fix Round 1（2026-10-25，审查修复）**：队列受理、选择清理和后续追加全部进入受控失败路径；只有当前 requestId 才清 pending / 发布错误，旧请求晚到成功或失败既不启动队列也不覆盖新 pending；追加异常会清 pending、恢复本次被清空的批量选择并显示错误。RED 实际命中受理异常、追加异常、追加时选择未恢复及旧请求失败误报；UI 测试改为 fake measured boxes 直接断言生产 `Layout` 消费的 measure policy placements / 48dp interactive bounds / interaction spec，不再只接受未消费 helper。修正后 music **258/0/0/0**、phone **349/0/0/0**，格式、diff-check、debug 构建与 graphify 通过；Compose runtime semantics 与真实 bounds 仍需独立 QA。
+
+**Fix Round 2（2026-10-25，token ownership）**：生产 measure policy 自行持有 12dp / 48dp token 并完成 Dp→px；`MusicPrimaryToolbarSection` / `MusicPlayAllHitTarget` 只向 policy 提供 density 与实测 boxes，Screen 不再自行换算。RED 中临时调用方仍传 0 / 内容高时，两条 token ownership 断言失败；GREEN 测试在 density=2 下断言 toolbar gap 回算 **12dp**、播放全部 interactive height 回算 **48dp**。targeted P1 仍 **9/0/0/0**、layout **4/0/0/0**；music 全量 **258/0/0/0**、phone assemble 与格式 / diff-check / graphify 通过。Compose runtime semantics / 真实 bounds 仍待独立 QA。
