@@ -191,7 +191,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `完成恢复缺少sidecar时不回退当前会话调度父图`() = runBlocking {
+    fun `完成恢复缺少sidecar时不写当前namespace快照或父图`() = runBlocking {
         val fixture = Fixture()
         try {
             val episode = fixture.episode()
@@ -208,13 +208,77 @@ class DownloaderImplRecoveryTest {
             sidecar.allRecords().forEach { sidecar.remove(it.canonicalIdentity()) }
             fixture.imageScheduler.parentOwners.clear()
             fixture.imageScheduler.parentItemIds.clear()
+            fixture.resetEffectCalls()
+            fixture.preferences.currentServer = "server-b"
+            fixture.preferences.currentServerReads = 0
+            fixture.repository.userId = OTHER_USER_ID
+            fixture.repository.userIdReads = 0
+            fixture.repository.showReads = 0
+            fixture.repository.seasonReads = 0
 
             fixture.downloader.runQueue()
 
+            assertEquals(0, fixture.dao.showSnapshotWrites)
+            assertEquals(0, fixture.dao.seasonSnapshotWrites)
+            assertEquals(0, fixture.dao.episodeSnapshotWrites)
+            assertEquals(0, fixture.dao.userDataWrites)
+            assertEquals(0, fixture.preferences.currentServerReads)
+            assertEquals(0, fixture.repository.userIdReads)
+            assertEquals(0, fixture.repository.showReads)
+            assertEquals(0, fixture.repository.seasonReads)
             assertTrue(
                 "sidecar 缺失不得借用当前 server/user：${fixture.imageScheduler.parentOwners}",
                 fixture.imageScheduler.parentOwners.isEmpty(),
             )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `完成恢复完整sidecar使用持久namespace且仍调度父图`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            fixture.itemForResolution = episode
+            val (handle, error) =
+                fixture.downloader.downloadItem(
+                    item = episode,
+                    sourceId = SOURCE_ID,
+                    storageIndex = 0,
+                )
+            assertTrue(error == null)
+            assertTrue(handle > 0L)
+            fixture.imageScheduler.parentOwners.clear()
+            fixture.imageScheduler.parentItemIds.clear()
+            fixture.resetEffectCalls()
+            fixture.preferences.currentServer = "server-b"
+            fixture.preferences.currentServerReads = 0
+            fixture.repository.userId = OTHER_USER_ID
+            fixture.repository.userIdReads = 0
+
+            fixture.downloader.runQueue()
+
+            assertEquals(
+                setOf(
+                    ImageDownloadParentOwner(
+                        kind = ImageDownloadParentKind.SHOW,
+                        itemId = SHOW_ID,
+                        serverId = SERVER_ID,
+                        userId = USER_ID.toString(),
+                    ),
+                    ImageDownloadParentOwner(
+                        kind = ImageDownloadParentKind.SEASON,
+                        itemId = SEASON_ID,
+                        serverId = SERVER_ID,
+                        userId = USER_ID.toString(),
+                    ),
+                ),
+                fixture.imageScheduler.parentOwners.toSet(),
+            )
+            assertEquals(USER_ID, fixture.dao.userDataSnapshot?.userId)
+            assertEquals(0, fixture.preferences.currentServerReads)
+            assertEquals(0, fixture.repository.userIdReads)
         } finally {
             fixture.close()
         }
@@ -476,6 +540,7 @@ class DownloaderImplRecoveryTest {
         val fixture = Fixture()
         try {
             val oldEvidence = fixture.prepareLegacyTargetConflict()
+            fixture.persistVideoOrigin(SOURCE_ID)
             fixture.dao.source =
                 FindroidSourceDto(
                     id = SOURCE_ID,
@@ -774,6 +839,7 @@ class DownloaderImplRecoveryTest {
         val transfer = RecordingTransfer()
         val workGateway = RecordingWorkGateway()
         val imageScheduler = RecordingImageScheduler()
+        val preferences = FakePreferences()
         var itemForResolution: FindroidItem? = null
         val downloader =
             DownloaderImpl.createForTest(
@@ -781,7 +847,7 @@ class DownloaderImplRecoveryTest {
                 database = dao.proxy,
                 jellyfinRepository = repository.proxy,
                 readerRepository = unusedProxy(ReaderRepository::class.java),
-                appPreferences = AppPreferences(FakePreferences()),
+                appPreferences = AppPreferences(preferences),
                 imageCacheStore = allocate(),
                 workManager =
                     allocateClass(Class.forName("androidx.work.impl.WorkManagerImpl"))
@@ -913,6 +979,15 @@ class DownloaderImplRecoveryTest {
             serverId: String = SERVER_ID,
             userId: UUID = USER_ID,
         ) {
+            persistVideoOrigin(sourceId, itemId, serverId, userId)
+        }
+
+        fun persistVideoOrigin(
+            sourceId: String,
+            itemId: UUID = ITEM_ID,
+            serverId: String = SERVER_ID,
+            userId: UUID = USER_ID,
+        ) {
             downloader
                 .mediaSidecar()
                 .put(
@@ -971,6 +1046,7 @@ class DownloaderImplRecoveryTest {
             )
 
         suspend fun prepareInterruptedCompletion() {
+            persistVideoOrigin(SOURCE_ID)
             val target =
                 DownloadCompletionCommitRules.downloadTargetFiles(
                     directory = downloads,
@@ -1169,9 +1245,14 @@ class DownloaderImplRecoveryTest {
         private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
         private val seasonIdsByShow = linkedMapOf<UUID, MutableSet<UUID>>()
         var snapshotWrites = 0
+        var showSnapshotWrites = 0
+        var seasonSnapshotWrites = 0
+        var episodeSnapshotWrites = 0
+        var userDataWrites = 0
         var showSnapshot: FindroidShowDto? = null
         var seasonSnapshot: FindroidSeasonDto? = null
         var episodeSnapshot: FindroidEpisodeDto? = null
+        var userDataSnapshot: FindroidUserDataDto? = null
         var internalMediaStreamWrites = 0
         var externalMediaStreamWrites = 0
         var segmentWrites = 0
@@ -1281,11 +1362,13 @@ class DownloaderImplRecoveryTest {
                         "getEpisode" -> null
                         "insertShow" -> {
                             val show = args[0] as FindroidShowDto
+                            showSnapshotWrites += 1
                             if (showSnapshot == null) showSnapshot = show
                             Unit
                         }
                         "insertSeason" -> {
                             val season = args[0] as FindroidSeasonDto
+                            seasonSnapshotWrites += 1
                             if (seasonSnapshot == null) seasonSnapshot = season
                             if (trackParentRows) {
                                 seasonIdsByShow
@@ -1296,6 +1379,7 @@ class DownloaderImplRecoveryTest {
                         }
                         "insertEpisode" -> {
                             val episode = args[0] as FindroidEpisodeDto
+                            episodeSnapshotWrites += 1
                             episodeSnapshot = episode
                             if (trackParentRows) {
                                 episodeIdsBySeason
@@ -1355,7 +1439,11 @@ class DownloaderImplRecoveryTest {
                             snapshots.putIfAbsent(snapshot.id, snapshot)
                             Unit
                         }
-                        "insertUserData" -> Unit
+                        "insertUserData" -> {
+                            userDataWrites += 1
+                            userDataSnapshot = args[0] as FindroidUserDataDto
+                            Unit
+                        }
                         "insertMediaStream" -> {
                             val stream = args[0] as FindroidMediaStreamDto
                             if (stream.isExternal) {
@@ -1431,6 +1519,10 @@ class DownloaderImplRecoveryTest {
 
         fun resetEffectCalls() {
             snapshotWrites = 0
+            showSnapshotWrites = 0
+            seasonSnapshotWrites = 0
+            episodeSnapshotWrites = 0
+            userDataWrites = 0
             internalMediaStreamWrites = 0
             externalMediaStreamWrites = 0
             segmentWrites = 0
@@ -1516,6 +1608,10 @@ class DownloaderImplRecoveryTest {
         var segmentFailuresRemaining = 0
         var segmentReads = 0
         var trickplayReads = 0
+        var userId = USER_ID
+        var userIdReads = 0
+        var showReads = 0
+        var seasonReads = 0
 
         fun resetEffectCalls() {
             segmentReads = 0
@@ -1554,8 +1650,12 @@ class DownloaderImplRecoveryTest {
                         }
                         "getBaseUrl" -> "https://example.test"
                         "getAccessToken" -> "token"
-                        "getUserId" -> USER_ID
-                        "getShow" ->
+                        "getUserId" -> {
+                            userIdReads += 1
+                            userId
+                        }
+                        "getShow" -> {
+                            showReads += 1
                             FindroidShow(
                                 id = SHOW_ID,
                                 name = SHOW_NAME,
@@ -1579,7 +1679,9 @@ class DownloaderImplRecoveryTest {
                                 trailer = null,
                                 images = FindroidImages(),
                             )
-                        "getSeason" ->
+                        }
+                        "getSeason" -> {
+                            seasonReads += 1
                             FindroidSeason(
                                 id = SEASON_ID,
                                 name = SEASON_NAME,
@@ -1597,6 +1699,7 @@ class DownloaderImplRecoveryTest {
                                 unplayedItemCount = null,
                                 images = FindroidImages(),
                             )
+                        }
                         else -> error("unexpected repository call: ${method.name}")
                     }
                 },
@@ -1707,10 +1810,18 @@ class DownloaderImplRecoveryTest {
     }
 
     private class FakePreferences : SharedPreferences {
+        var currentServer = SERVER_ID
+        var currentServerReads = 0
+
         override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
 
         override fun getString(key: String?, defValue: String?): String? =
-            if (key == "pref_current_server") SERVER_ID else defValue
+            if (key == "pref_current_server") {
+                currentServerReads += 1
+                currentServer
+            } else {
+                defValue
+            }
 
         override fun getStringSet(
             key: String?,

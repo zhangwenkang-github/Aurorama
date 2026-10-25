@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.work
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidSeasonDto
@@ -39,21 +40,64 @@ internal object ImagesDownloadRetryRules {
     fun isTransientHttpFailure(code: Int): Boolean = code == 408 || code == 429 || code >= 500
 }
 
-/** Worker 父级存在性 fence；查询异常必须交给 worker 外层决定取消或重试。 */
+/** `doWork` 的异常与重试边界；行为测试必须穿过这里，而不是只验证父快照 helper。 */
+internal suspend fun runImageDownloadAttempt(
+    runAttemptCount: Int,
+    downloadImages: suspend () -> Boolean,
+): ListenableWorker.Result {
+    val hadTransientFailure =
+        try {
+            downloadImages()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            Timber.w(error, "图片缓存执行异常")
+            true
+        }
+    return if (ImagesDownloadRetryRules.shouldRetry(hadTransientFailure, runAttemptCount)) {
+        Timber.i("图片缓存失败，交由 WorkManager 退避重试（第 %d 次尝试）", runAttemptCount + 1)
+        ListenableWorker.Result.retry()
+    } else {
+        ListenableWorker.Result.success()
+    }
+}
+
+private const val ROOM_MISSING_REQUIRED_ROW_PREFIX =
+    "The query result was empty, but expected a single row to return a NON-NULL object of type '"
+
+private suspend fun <T : Any> requiredParentSnapshotOrNull(load: suspend () -> T): T? =
+    try {
+        load()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (error: Exception) {
+        if (
+            error is IllegalStateException &&
+                error.message?.startsWith(ROOM_MISSING_REQUIRED_ROW_PREFIX) == true
+        ) {
+            null
+        } else {
+            throw error
+        }
+    }
+
+/** Worker 父级存在性 fence；正常无行视为不匹配，真实查询异常交给 worker 外层重试。 */
 internal suspend fun isParentSnapshotCurrent(
     owner: ImageDownloadParentOwner,
     getShow: suspend (UUID) -> FindroidShowDto,
     getSeason: suspend (UUID) -> FindroidSeasonDto,
 ): Boolean =
     when (owner.kind) {
-        ImageDownloadParentKind.SHOW -> {
-            val show = getShow(owner.itemId)
-            show?.serverId == owner.serverId
-        }
+        ImageDownloadParentKind.SHOW ->
+            requiredParentSnapshotOrNull { getShow(owner.itemId) }?.serverId == owner.serverId
         ImageDownloadParentKind.SEASON -> {
-            val season = getSeason(owner.itemId)
-            val show = getShow(season.seriesId)
-            show?.serverId == owner.serverId
+            val season = requiredParentSnapshotOrNull { getSeason(owner.itemId) }
+            if (season == null) {
+                false
+            } else {
+                requiredParentSnapshotOrNull { getShow(season.seriesId) }?.serverId ==
+                    owner.serverId
+            }
         }
     }
 
@@ -95,25 +139,14 @@ constructor(
                 userId = userId,
             )
         }
-        val hadTransientFailure =
-            try {
-                downloadImages(
-                    itemId = itemId,
-                    sourceId = sourceId,
-                    generation = generation,
-                    parentOwner = parentOwner,
-                )
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (error: Exception) {
-                Timber.w(error, "图片缓存执行异常（%s）", itemId)
-                true
-            }
-        if (ImagesDownloadRetryRules.shouldRetry(hadTransientFailure, runAttemptCount)) {
-            Timber.i("图片缓存失败，交由 WorkManager 退避重试（第 %d 次尝试）：%s", runAttemptCount + 1, itemId)
-            return Result.retry()
+        return runImageDownloadAttempt(runAttemptCount) {
+            downloadImages(
+                itemId = itemId,
+                sourceId = sourceId,
+                generation = generation,
+                parentOwner = parentOwner,
+            )
         }
-        return Result.success()
     }
 
     /**

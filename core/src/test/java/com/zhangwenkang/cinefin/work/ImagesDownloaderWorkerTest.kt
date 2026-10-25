@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.work
 
+import androidx.work.ListenableWorker.Result
 import com.zhangwenkang.cinefin.models.FindroidSeasonDto
 import com.zhangwenkang.cinefin.models.FindroidShowDto
 import com.zhangwenkang.cinefin.utils.ImageDownloadParentKind
@@ -7,6 +8,7 @@ import com.zhangwenkang.cinefin.utils.ImageDownloadParentOwner
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -85,11 +87,87 @@ class ImagesDownloaderWorkerTest {
         }
     }
 
+    @Test
+    fun `父快照正常缺失返回不匹配`() {
+        val owner =
+            ImageDownloadParentOwner(
+                kind = ImageDownloadParentKind.SHOW,
+                itemId = SHOW_ID,
+                serverId = SERVER_ID,
+                userId = USER_ID,
+            )
+
+        assertFalse(
+            runBlocking {
+                isParentSnapshotCurrent(
+                    owner = owner,
+                    getShow = { throw missingRequiredRow(FindroidShowDto::class.java) },
+                    getSeason = { error("unused") },
+                )
+            }
+        )
+    }
+
+    @Test
+    fun `worker重试边界将正常父行缺失视为成功跳过`() {
+        val result = runBlocking {
+            runImageDownloadAttempt(runAttemptCount = 0) {
+                isParentSnapshotCurrent(
+                    owner = showOwner,
+                    getShow = { throw missingRequiredRow(FindroidShowDto::class.java) },
+                    getSeason = { error("unused") },
+                )
+                false
+            }
+        }
+
+        assertEquals(Result.success().toString(), result.toString())
+    }
+
+    @Test
+    fun `worker重试边界将真实数据库异常交给WorkManager重试`() {
+        val result = runBlocking {
+            runImageDownloadAttempt(runAttemptCount = 0) {
+                isParentSnapshotCurrent(
+                    owner = showOwner,
+                    getShow = { error("database temporarily unavailable") },
+                    getSeason = { error("unused") },
+                )
+                false
+            }
+        }
+
+        assertEquals(Result.retry().toString(), result.toString())
+    }
+
+    @Test
+    fun `worker重试边界不吞取消异常`() {
+        assertThrows(CancellationException::class.java) {
+            runBlocking {
+                runImageDownloadAttempt(runAttemptCount = 0) {
+                    isParentSnapshotCurrent(
+                        owner = showOwner,
+                        getShow = { throw CancellationException("worker stopped") },
+                        getSeason = { error("unused") },
+                    )
+                    false
+                }
+            }
+        }
+    }
+
     private companion object {
         val SHOW_ID: UUID = UUID(0L, 31L)
         val SEASON_ID: UUID = UUID(0L, 32L)
         const val SERVER_ID = "server-a"
         const val USER_ID = "user-a"
+        val showOwner =
+            ImageDownloadParentOwner(
+                kind = ImageDownloadParentKind.SHOW,
+                itemId = SHOW_ID,
+                serverId = SERVER_ID,
+                userId = USER_ID,
+            )
 
         val show =
             FindroidShowDto(
@@ -113,6 +191,12 @@ class ImagesDownloaderWorkerTest {
                 seriesName = "Show",
                 overview = "",
                 indexNumber = 1,
+            )
+
+        fun missingRequiredRow(type: Class<*>): Nothing =
+            error(
+                "The query result was empty, but expected a single row to return a " +
+                    "NON-NULL object of type '${type.name}'."
             )
     }
 }

@@ -2713,9 +2713,15 @@ private constructor(
         item: FindroidItem,
         origin: FrozenDownloadOrigin?,
     ) {
-        val serverId =
-            origin?.serverId?.takeIf(String::isNotBlank)
-                ?: appPreferences.getValue(appPreferences.currentServer)
+        val serverId = origin?.serverId?.takeIf(String::isNotBlank)
+        val userId =
+            origin?.userId?.takeIf(String::isNotBlank)?.let { raw ->
+                runCatching { UUID.fromString(raw) }.getOrNull()
+            }
+        if (serverId == null || userId == null) {
+            Timber.w("跳过下载快照：缺少可证明的完整持久身份（%s）", item.id)
+            return
+        }
         when (item) {
             is FindroidMovie -> database.insertMovie(item.toFindroidMovieDto(serverId))
             is FindroidEpisode -> {
@@ -2751,14 +2757,12 @@ private constructor(
                     database.insertShow(show.toFindroidShowDto(serverId))
                     database.insertSeason(season.toFindroidSeasonDto())
                     database.insertEpisode(item.toFindroidEpisodeDto(serverId))
-                    if (origin != null) {
-                        startParentImagesDownloader(show, origin)
-                        startParentImagesDownloader(season, origin)
-                    }
+                    startParentImagesDownloader(show, origin)
+                    startParentImagesDownloader(season, origin)
                 }
             }
         }
-        database.insertUserData(item.toFindroidUserDataDto(jellyfinRepository.getUserId()))
+        database.insertUserData(item.toFindroidUserDataDto(userId))
     }
 
     private suspend fun resolveRemoteSource(
