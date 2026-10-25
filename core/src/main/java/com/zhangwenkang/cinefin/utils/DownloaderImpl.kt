@@ -28,8 +28,11 @@ import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
 import com.zhangwenkang.cinefin.models.DownloadIntentDto
 import com.zhangwenkang.cinefin.models.DownloadIntentStatus
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
+import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
@@ -38,15 +41,14 @@ import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidSources
 import com.zhangwenkang.cinefin.models.FindroidTrickplayInfo
 import com.zhangwenkang.cinefin.models.UiText
-import com.zhangwenkang.cinefin.models.toFindroidEpisode
 import com.zhangwenkang.cinefin.models.toFindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.toFindroidMediaStreamDto
-import com.zhangwenkang.cinefin.models.toFindroidMovie
 import com.zhangwenkang.cinefin.models.toFindroidMovieDto
 import com.zhangwenkang.cinefin.models.toFindroidSeasonDto
 import com.zhangwenkang.cinefin.models.toFindroidSegmentsDto
 import com.zhangwenkang.cinefin.models.toFindroidShowDto
 import com.zhangwenkang.cinefin.models.toFindroidSource
+import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfo
 import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.toFindroidUserDataDto
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
@@ -86,6 +88,11 @@ import timber.log.Timber
 private data class FrozenDownloadOrigin(
     val serverId: String?,
     val userId: String?,
+)
+
+private data class PersistedDownloadIdentity(
+    val kind: DownloadMediaKind,
+    val origin: FrozenDownloadOrigin,
 )
 
 internal data class DownloadTransferRequest(
@@ -264,7 +271,6 @@ private constructor(
     private val registerNetworkCallback: (ConnectivityManager.NetworkCallback) -> Unit,
     private val externalStorageState: (File) -> String,
     private val availableBytes: (File) -> Long,
-    private val itemResolverOverride: (suspend (UUID) -> FindroidItem?)?,
     workGatewayOverride: DownloadWorkGateway?,
     downloadTransferOverride: DownloadTransfer?,
     imageFinalizationSchedulerOverride: DownloadImageFinalizationScheduler?,
@@ -295,7 +301,6 @@ private constructor(
         },
         externalStorageState = { file -> Environment.getExternalStorageState(file) },
         availableBytes = { directory -> StatFs(directory.path).availableBytes },
-        itemResolverOverride = null,
         workGatewayOverride = null,
         downloadTransferOverride = null,
         imageFinalizationSchedulerOverride = null,
@@ -1015,7 +1020,7 @@ private constructor(
                 )
             ) {
                 val item =
-                    findItem(source.itemId)
+                    findItem(source.itemId, source.id)
                         ?: throw DownloadHttpException(
                             DownloadFailureReason.FILE_ERROR,
                             "恢复完成副作用时媒体条目缺失",
@@ -1025,7 +1030,7 @@ private constructor(
                 return
             }
             val item =
-                findItem(source.itemId)
+                findItem(source.itemId, source.id)
                     ?: throw DownloadHttpException(
                         DownloadFailureReason.FILE_ERROR,
                         "任务对应的媒体条目缺失",
@@ -1924,7 +1929,7 @@ private constructor(
                 lifecycleControl.withCurrentGeneration(sourceId, source.taskGeneration) {
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
                     deletePartialArtifacts(source.path)
-                    val item = findItem(source.itemId)
+                    val item = findItem(source.itemId, source.id)
                     if (item != null) {
                         deleteItem(item, source.toFindroidSource(database))
                     } else {
@@ -2791,19 +2796,137 @@ private constructor(
             )
     }
 
-    private suspend fun findItem(itemId: UUID): FindroidItem? {
-        itemResolverOverride?.let {
-            return it(itemId)
-        }
+    private fun persistedOriginForSource(
+        itemId: UUID,
+        sourceId: String,
+    ): PersistedDownloadIdentity? =
+        sidecar
+            .allRecords()
+            .asSequence()
+            .filter { record -> record.itemId == itemId.toString() && record.sourceId == sourceId }
+            .mapNotNull { record ->
+                record
+                    .provenance()
+                    ?.takeIf { provenance ->
+                        provenance.itemId == itemId && provenance.mediaSourceId == sourceId
+                    }
+                    ?.let { provenance ->
+                        PersistedDownloadIdentity(
+                            kind = record.kind,
+                            origin =
+                                FrozenDownloadOrigin(
+                                    serverId = provenance.serverId,
+                                    userId = provenance.userId.toString(),
+                                ),
+                        )
+                    }
+            }
+            .distinct()
+            .toList()
+            .singleOrNull()
+
+    private suspend fun findItem(
+        itemId: UUID,
+        sourceId: String,
+    ): FindroidItem? {
+        val persisted = persistedOriginForSource(itemId, sourceId) ?: return null
+        val userId = UUID.fromString(checkNotNull(persisted.origin.userId))
         val movie = runCatching { database.getMovie(itemId) }.getOrNull()
         if (movie != null) {
-            return movie.toFindroidMovie(database, jellyfinRepository.getUserId())
+            return hydrateDownloadMovie(movie, persisted.kind, userId)
         }
         val episode = runCatching { database.getEpisode(itemId) }.getOrNull()
         if (episode != null) {
-            return episode.toFindroidEpisode(database, jellyfinRepository.getUserId())
+            return hydrateDownloadEpisode(episode, userId)
         }
         return null
+    }
+
+    private suspend fun hydrateDownloadMovie(
+        movie: FindroidMovieDto,
+        kind: DownloadMediaKind,
+        userId: UUID,
+    ): FindroidMovie {
+        val userData = database.getUserDataOrCreateNew(movie.id, userId)
+        val sources =
+            database.getSources(movie.id).map { source -> source.toFindroidSource(database) }
+        val trickplayInfo =
+            sources
+                .mapNotNull { source ->
+                    database.getTrickplayInfo(source.id)?.toFindroidTrickplayInfo()?.let { info ->
+                        source.id to info
+                    }
+                }
+                .toMap()
+        return FindroidMovie(
+            id = movie.id,
+            name = movie.name,
+            originalTitle = movie.originalTitle,
+            overview = movie.overview,
+            sources = sources,
+            played = userData.played,
+            favorite = userData.favorite,
+            canPlay = true,
+            canDownload = false,
+            runtimeTicks = movie.runtimeTicks,
+            playbackPositionTicks = userData.playbackPositionTicks,
+            premiereDate = movie.premiereDate,
+            people = emptyList(),
+            genres = emptyList(),
+            communityRating = movie.communityRating,
+            officialRating = movie.officialRating,
+            status = movie.status,
+            productionYear = movie.productionYear,
+            endDate = movie.endDate,
+            trailer = null,
+            images = FindroidImages(),
+            chapters = movie.chapters.orEmpty(),
+            trickplayInfo = trickplayInfo,
+            kind = if (kind == DownloadMediaKind.MUSIC) "AUDIO" else null,
+        )
+    }
+
+    private suspend fun hydrateDownloadEpisode(
+        episode: FindroidEpisodeDto,
+        userId: UUID,
+    ): FindroidEpisode {
+        val userData = database.getUserDataOrCreateNew(episode.id, userId)
+        val sources =
+            database.getSources(episode.id).map { source -> source.toFindroidSource(database) }
+        val trickplayInfo =
+            sources
+                .mapNotNull { source ->
+                    database.getTrickplayInfo(source.id)?.toFindroidTrickplayInfo()?.let { info ->
+                        source.id to info
+                    }
+                }
+                .toMap()
+        return FindroidEpisode(
+            id = episode.id,
+            name = episode.name,
+            originalTitle = null,
+            overview = episode.overview,
+            indexNumber = episode.indexNumber,
+            indexNumberEnd = episode.indexNumberEnd,
+            parentIndexNumber = episode.parentIndexNumber,
+            sources = sources,
+            played = userData.played,
+            favorite = userData.favorite,
+            canPlay = true,
+            canDownload = false,
+            runtimeTicks = episode.runtimeTicks,
+            playbackPositionTicks = userData.playbackPositionTicks,
+            premiereDate = episode.premiereDate,
+            seriesId = episode.seriesId,
+            seriesName = episode.seriesName,
+            seasonId = episode.seasonId,
+            seasonName = null,
+            communityRating = episode.communityRating,
+            people = emptyList(),
+            images = FindroidImages(),
+            chapters = episode.chapters.orEmpty(),
+            trickplayInfo = trickplayInfo,
+        )
     }
 
     private suspend fun itemNameFor(itemId: UUID, fallback: String): String {
@@ -3007,7 +3130,6 @@ private constructor(
             registerNetworkCallback: (ConnectivityManager.NetworkCallback) -> Unit,
             externalStorageState: (File) -> String = { Environment.getExternalStorageState(it) },
             availableBytes: (File) -> Long = { directory -> StatFs(directory.path).availableBytes },
-            itemResolverOverride: (suspend (UUID) -> FindroidItem?)? = null,
             workGateway: DownloadWorkGateway? = null,
             downloadTransfer: DownloadTransfer? = null,
             imageFinalizationScheduler: DownloadImageFinalizationScheduler? = null,
@@ -3025,7 +3147,6 @@ private constructor(
                 registerNetworkCallback = registerNetworkCallback,
                 externalStorageState = externalStorageState,
                 availableBytes = availableBytes,
-                itemResolverOverride = itemResolverOverride,
                 workGatewayOverride = workGateway,
                 downloadTransferOverride = downloadTransfer,
                 imageFinalizationSchedulerOverride = imageFinalizationScheduler,

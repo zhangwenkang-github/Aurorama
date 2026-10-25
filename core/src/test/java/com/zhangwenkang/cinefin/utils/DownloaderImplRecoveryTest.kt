@@ -59,7 +59,6 @@ class DownloaderImplRecoveryTest {
         val fixture = Fixture()
         try {
             val episode = fixture.episode()
-            fixture.itemForResolution = episode
 
             val (handle, error) =
                 fixture.downloader.downloadItem(
@@ -195,7 +194,6 @@ class DownloaderImplRecoveryTest {
         val fixture = Fixture()
         try {
             val episode = fixture.episode()
-            fixture.itemForResolution = episode
             val (handle, error) =
                 fixture.downloader.downloadItem(
                     item = episode,
@@ -236,11 +234,49 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `完成恢复sidecar身份歧义时失败关闭`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            val (handle, error) =
+                fixture.downloader.downloadItem(
+                    item = episode,
+                    sourceId = SOURCE_ID,
+                    storageIndex = 0,
+                )
+            assertTrue(error == null)
+            assertTrue(handle > 0L)
+            fixture.persistEpisodeOrigin(
+                sourceId = SOURCE_ID,
+                serverId = "server-b",
+                userId = OTHER_USER_ID,
+            )
+            fixture.imageScheduler.resetParentObservations()
+            fixture.resetEffectCalls()
+            fixture.preferences.currentServer = "server-c"
+            fixture.preferences.currentServerReads = 0
+            fixture.repository.userId = OTHER_USER_ID
+            fixture.repository.userIdReads = 0
+
+            fixture.downloader.runQueue()
+
+            assertEquals(0, fixture.dao.showSnapshotWrites)
+            assertEquals(0, fixture.dao.seasonSnapshotWrites)
+            assertEquals(0, fixture.dao.episodeSnapshotWrites)
+            assertEquals(0, fixture.dao.userDataWrites)
+            assertEquals(0, fixture.preferences.currentServerReads)
+            assertEquals(0, fixture.repository.userIdReads)
+            assertTrue(fixture.imageScheduler.parentOwners.isEmpty())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `完成恢复完整sidecar使用持久namespace且仍调度父图`() = runBlocking {
         val fixture = Fixture()
         try {
             val episode = fixture.episode()
-            fixture.itemForResolution = episode
             val (handle, error) =
                 fixture.downloader.downloadItem(
                     item = episode,
@@ -260,6 +296,7 @@ class DownloaderImplRecoveryTest {
             fixture.downloader.runQueue()
 
             assertEquals(
+                "source=${fixture.dao.source}, sidecar=${fixture.downloader.mediaSidecar().allRecords()}, logs=${fixture.logs}",
                 setOf(
                     ImageDownloadParentOwner(
                         kind = ImageDownloadParentKind.SHOW,
@@ -291,7 +328,6 @@ class DownloaderImplRecoveryTest {
             fixture.dao.trackParentRows = true
             val deletingEpisode = fixture.episode()
             val deletingSource = fixture.episodeSource()
-            fixture.itemForResolution = deletingEpisode
             val (handle, error) =
                 fixture.downloader.downloadItem(
                     item = deletingEpisode,
@@ -311,7 +347,6 @@ class DownloaderImplRecoveryTest {
 
             val siblingEpisode = fixture.episode(itemId = SIBLING_ITEM_ID)
             val siblingSource = fixture.episodeSource(id = SIBLING_SOURCE_ID)
-            fixture.itemForResolution = siblingEpisode
             val siblingEnqueue =
                 async(Dispatchers.IO) {
                     fixture.downloader.downloadItem(
@@ -840,7 +875,6 @@ class DownloaderImplRecoveryTest {
         val workGateway = RecordingWorkGateway()
         val imageScheduler = RecordingImageScheduler()
         val preferences = FakePreferences()
-        var itemForResolution: FindroidItem? = null
         val downloader =
             DownloaderImpl.createForTest(
                 context = TestContext(root),
@@ -857,9 +891,6 @@ class DownloaderImplRecoveryTest {
                 registerNetworkCallback = {},
                 externalStorageState = { "mounted" },
                 availableBytes = { Long.MAX_VALUE },
-                itemResolverOverride = {
-                    if (dao.itemAvailable) itemForResolution ?: movie() else null
-                },
                 workGateway = workGateway,
                 downloadTransfer = transfer,
                 imageFinalizationScheduler = imageScheduler,
@@ -1358,8 +1389,12 @@ class DownloaderImplRecoveryTest {
                                     nextRetryAt = 0L,
                                 )
                             }
-                        "getMovie" -> movie.takeIf { itemAvailable && args[0] == ITEM_ID }
-                        "getEpisode" -> null
+                        "getMovie" ->
+                            movie.takeIf {
+                                itemAvailable && episodeSnapshot == null && args[0] == ITEM_ID
+                            }
+                        "getEpisode" ->
+                            episodeSnapshot?.takeIf { itemAvailable && it.id == args[0] as UUID }
                         "insertShow" -> {
                             val show = args[0] as FindroidShowDto
                             showSnapshotWrites += 1
