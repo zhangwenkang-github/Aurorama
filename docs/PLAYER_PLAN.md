@@ -3118,7 +3118,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 **边界 / 下一步**：本次只证明 W90 下载交互子批可供 merge 决策，不等于整个 W90、W89-C 或 1.4.0 发布通过；DownloadManager 失败任务行、书籍成功下载 / 离线打开与像素级输入采样仍未覆盖。下一步只能由 W90 负责人对精确 merge-prep HEAD 作 merge / 不 merge 决策；本线程不自行 merge / push / tag / Release / workflow，也未接触设备或生产。证据见 `w90-reports/W90-DOWNLOADS-FIX-MERGE-PREP.md`。
 
-## 47. W90 音乐多选 pending 与主工具栏间距（2026-10-25，INDEPENDENT_QA_PASS / W89_C_BASELINE_ACCEPTED / MERGE_PREP_IN_PROGRESS）
+## 47. W90 音乐多选 pending 与主工具栏间距（2026-10-25，INDEPENDENT_QA_PASS / W89_C_BASELINE_ACCEPTED / MERGE_PREP_PASS）
 
 **范围**：两张紧耦合小卡，均只改 `modes:music`。卡 A 在音乐多选“播放”点击时，先同步发布既有 `PendingPlaybackUi`，再启动首曲远端解析；批量栏“播放”立即显示局部 spinner 并拒绝重入。成功后清 pending、清选择，按输入列表序起播并每批 4 首并发补齐；首曲失败清 pending、保留选择并走既有 `showBatchFailure`；后续单曲失败仍跳过，不中断已建队列。卡 B 只在音乐主工具栏局部将 Tab / 筛选行到工具栏间距固定为 12dp，并为“播放全部”增加 48dp 最小真实点击壳，视觉按钮尺寸与动作顺序不变。
 
@@ -3147,3 +3147,5 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **未覆盖（独立 QA）**：按当前授权零 adb / 真机 / 模拟器 / instrumentation / 截图 / 生产请求；Compose runtime semantics、TalkBack / 键盘焦点、真实 bounds、真实 resolver、失败提示时长、设备音频与 Media3 底层批次部分变更仍未运行，须留给用户显式设备验证。独立 QA 未改生产代码、未 commit / merge / push / 发布。
 
 **W89-C 基线裁决（2026-10-25，ACCEPTED）**：用户明确选择方案 1，接受继承提交 `d18ed56` 的 `Versions.kt` 1.4.0(5) 作为 W90 分支的合法组成部分。独立 QA 的范围 P2 因此以显式产品裁决关闭，身份行为矩阵与全量门禁结论保持 PASS；这不修改任何代码，也不等于接受 W90 整批用户验收、设备未覆盖项或最终发布。下一步只允许全新 merge-prep owner 对当前 docs HEAD 做隔离准备、范围 / patch-id 审计和全量门禁，仍禁止 merge / push / tag / Release / workflow 与设备操作。
+
+**Merge Prep（2026-10-25，PASS / MERGE_DECISION_PENDING）**：全新 merge-prep owner 从 source `9c33b27e` 创建 branch `codex/w90-music-identity-merge-prep` 与独立 worktree；fetch 后 target `e44dd424` 未漂移且已是祖先，未改写历史，source/final 均为 `9c33b27e`，22/22 stable patch-id matched。`target..HEAD` 为 22 commits / 28 files（24 code/build、4 docs，`+2627/-279`）：W89-C 继承 5 commits（生产仅用户已接受的 `d18ed56` / `Versions.kt`）、W90 下载 6 commits、W90 音乐 identity 11 commits。禁改路径：workflow / schema / 签名 / release 配置 / W84 Downloader / 下载表 / Worker / 通知 / 公共 UI 命中 0；`docs/RELEASE_PLAN.md` 的 12 行差异属于 W89-C 文档历史。新跑 CI 同口径 8 模块 JVM **247 tasks / 247 executed**、**228 XML / 1546/0/0/0**；根 `assembleDebug` **384/384 executed**；根 `ktfmtCheck` **34/34 executed**；两路 diff-check、graphify 通过；arm64 debug 149,107,675 B / SHA-256 `94F44B0E…255534`。merge-prep 新增 P0/P1/P2/P3=`0/0/0/0`、BLOCKED=0；下一步仅由负责人 / 用户决定是否 merge，本阶段未 merge / push / tag / Release / workflow，未接触设备或生产。
