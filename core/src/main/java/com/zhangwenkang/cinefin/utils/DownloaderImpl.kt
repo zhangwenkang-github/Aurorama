@@ -464,7 +464,9 @@ class DownloaderImpl(
             val persistedOrigin =
                 sidecar
                     .allRecords()
-                    .lastOrNull { it.itemId == intent.itemId.toString() }
+                    .lastOrNull {
+                        it.itemId == intent.itemId.toString() && it.sourceId.isNullOrBlank()
+                    }
                     ?.let { record -> FrozenDownloadOrigin(record.serverId, record.userId) }
                     ?: freezeDownloadOrigin()
             val item = jellyfinRepository.getItem(intent.itemId) ?: error("下载条目不存在")
@@ -1141,12 +1143,25 @@ class DownloaderImpl(
             }
             val now = System.currentTimeMillis()
             val retried =
-                database.beginSourceRetry(task.sourceId, now) ?: return@withContext Pair(-1L, null)
+                database.beginSourceRetry(task.sourceId, now)
+                    ?: return@withContext currentRetryHandle(task.sourceId)
             lifecycleFences -= retried.id
             ensureEngineRunning(forceStart = true)
             notifyQueueChanged()
             Pair(retried.downloadId ?: downloadTaskHandle(retried.id), null)
         }
+
+    /** stale UI 显示 FAILED、但实际 worker 已 PENDING/RUNNING 时，重试是幂等复用而不是打断 worker。 */
+    private suspend fun currentRetryHandle(sourceId: String): Pair<Long, UiText?> {
+        val current = database.getSource(sourceId) ?: return Pair(-1L, null)
+        val status = current.taskStatus.toTaskStatus()
+        return if (status == DownloadTaskStatus.PENDING || status == DownloadTaskStatus.RUNNING) {
+            ensureEngineRunning(forceStart = true)
+            Pair(current.downloadId ?: downloadTaskHandle(current.id), null)
+        } else {
+            Pair(-1L, null)
+        }
+    }
 
     override suspend fun deleteTask(task: DownloadTask): Boolean = deleteTaskById(task.sourceId)
 
@@ -1190,12 +1205,29 @@ class DownloaderImpl(
             if (sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
                 val itemId = sourceId.removePrefix(INTENT_SOURCE_PREFIX).let(UUID::fromString)
                 val now = System.currentTimeMillis()
-                database.cancelDownloadIntent(itemId, now)
-                receivedIntentLock.withLock {
-                    database.getSources(itemId).forEach { source -> deleteTaskById(source.id) }
-                    database.deleteDownloadIntent(itemId)
+                val cancelled =
+                    database.beginDownloadIntentCancellation(itemId, now) ?: return@withContext true
+                try {
+                    receivedIntentLock.withLock {
+                        val sourceIds = database.getSources(itemId).map { it.id }
+                        val result =
+                            DownloadIntentDeletionRules.deleteAllOrReport(
+                                sourceIds = sourceIds,
+                                deleteSource = { childSourceId -> deleteTaskById(childSourceId) },
+                                deleteIntent = {
+                                    database.deleteDownloadIntentIfCurrent(
+                                        itemId = itemId,
+                                        taskGeneration = cancelled.taskGeneration,
+                                    ) > 0 || database.getDownloadIntent(itemId) == null
+                                },
+                            )
+                        if (!result.confirmed) {
+                            throw result.failure ?: IllegalStateException("下载意图删除未确认")
+                        }
+                    }
+                } finally {
+                    notifyQueueChanged()
                 }
-                notifyQueueChanged()
                 return@withContext true
             }
             lifecycleFences += sourceId
@@ -1219,7 +1251,7 @@ class DownloaderImpl(
                 }
                 database.deleteMediaStreamsBySourceId(sourceId)
                 database.deleteSource(sourceId)
-                sidecar.remove(source.itemId)
+                removeSidecarForSource(itemId = source.itemId, sourceId = source.id)
             }
             if (database.getSource(sourceId) != null) {
                 return@withContext false
@@ -1234,48 +1266,102 @@ class DownloaderImpl(
     override suspend fun deleteDownloads(
         requests: List<DownloadDeleteRequest>
     ): DownloadDeleteBatchResult =
+        withContext(Dispatchers.IO) { deleteBatchProcessor().deleteAll(requests) }
+
+    override suspend fun resumePendingDeleteBatches(): Int =
         withContext(Dispatchers.IO) {
-            val store =
-                object : DownloadDeleteBatchStore {
-                    override suspend fun begin(
-                        batchId: String,
-                        canonicalKeys: List<String>,
-                        createdAtMs: Long,
-                    ) {
-                        database.insertDownloadDeleteBatch(
+            deleteBatchProcessor().resumeIncomplete().sumOf { result ->
+                result.receipts.count { it.outcome == DownloadDeleteOutcome.SUCCEEDED }
+            }
+        }
+
+    private fun deleteBatchProcessor(): DownloadDeleteBatchProcessor {
+        val store =
+            object : DownloadDeleteBatchStore {
+                override suspend fun begin(
+                    batchId: String,
+                    requests: List<DownloadDeleteRequest>,
+                    createdAtMs: Long,
+                ) {
+                    database.beginDownloadDeleteBatch(
+                        batch =
                             DownloadDeleteBatchDto(
                                 id = batchId,
-                                requestedCount = canonicalKeys.size,
+                                requestedCount = requests.size,
                                 createdAt = createdAtMs,
-                            )
-                        )
-                    }
-
-                    override suspend fun record(receipt: DownloadDeleteReceipt) {
-                        database.insertDownloadDeleteReceipt(
-                            DownloadDeleteReceiptDto(
-                                batchId = receipt.batchId,
-                                canonicalKey = receipt.canonicalKey,
-                                itemId = receipt.itemId,
-                                sourceId = receipt.sourceId,
-                                mediaKind = receipt.mediaKind.name,
-                                outcome = receipt.outcome.name,
-                                detail = receipt.detail,
-                                updatedAt = receipt.updatedAtMs,
-                            )
-                        )
-                    }
-
-                    override suspend fun finish(batchId: String, completedAtMs: Long) {
-                        database.finishDownloadDeleteBatch(batchId, completedAtMs)
-                    }
+                            ),
+                        pendingReceipts =
+                            requests.mapIndexed { ordinal, request ->
+                                DownloadDeleteReceiptDto(
+                                    batchId = batchId,
+                                    canonicalKey = DownloadDeletionIdentity.canonicalKey(request),
+                                    itemId = request.itemId,
+                                    sourceId = request.sourceId,
+                                    serverId = request.serverId,
+                                    userId = request.userId,
+                                    ordinal = ordinal,
+                                    mediaKind = request.mediaKind.name,
+                                    outcome = DownloadDeleteOutcome.PENDING.name,
+                                    detail = null,
+                                    updatedAt = createdAtMs,
+                                )
+                            },
+                    )
                 }
-            DownloadDeleteBatchProcessor(
-                    store = store,
-                    delete = ::deleteDownloadRequest,
-                )
-                .deleteAll(requests)
-        }
+
+                override suspend fun record(receipt: DownloadDeleteReceipt) {
+                    database.insertDownloadDeleteReceipt(
+                        DownloadDeleteReceiptDto(
+                            batchId = receipt.batchId,
+                            canonicalKey = receipt.canonicalKey,
+                            itemId = receipt.itemId,
+                            sourceId = receipt.sourceId,
+                            serverId = receipt.serverId,
+                            userId = receipt.userId,
+                            ordinal = receipt.ordinal,
+                            mediaKind = receipt.mediaKind.name,
+                            outcome = receipt.outcome.name,
+                            detail = receipt.detail,
+                            updatedAt = receipt.updatedAtMs,
+                        )
+                    )
+                }
+
+                override suspend fun finish(batchId: String, completedAtMs: Long) {
+                    database.finishDownloadDeleteBatch(batchId, completedAtMs)
+                }
+
+                override suspend fun incomplete(): List<DownloadDeleteBatchSnapshot> =
+                    database.getIncompleteDownloadDeleteBatches().map { batch ->
+                        DownloadDeleteBatchSnapshot(
+                            batchId = batch.id,
+                            receipts =
+                                database.getDownloadDeleteReceipts(batch.id).map { receipt ->
+                                    DownloadDeleteReceipt(
+                                        batchId = receipt.batchId,
+                                        canonicalKey = receipt.canonicalKey,
+                                        itemId = receipt.itemId,
+                                        sourceId = receipt.sourceId,
+                                        mediaKind =
+                                            DownloadMediaKind.entries.first {
+                                                it.name == receipt.mediaKind
+                                            },
+                                        serverId = receipt.serverId,
+                                        userId = receipt.userId,
+                                        ordinal = receipt.ordinal,
+                                        outcome =
+                                            DownloadDeleteOutcome.entries.first {
+                                                it.name == receipt.outcome
+                                            },
+                                        detail = receipt.detail,
+                                        updatedAtMs = receipt.updatedAt,
+                                    )
+                                },
+                        )
+                    }
+            }
+        return DownloadDeleteBatchProcessor(store = store, delete = ::deleteDownloadRequest)
+    }
 
     private suspend fun deleteDownloadRequest(request: DownloadDeleteRequest) {
         when (request.mediaKind) {
@@ -1340,7 +1426,7 @@ class DownloaderImpl(
         database.deleteMediaStreamsBySourceId(source.id)
         database.deleteSource(source.id)
         database.deleteUserData(item.id)
-        sidecar.remove(item.id)
+        removeSidecarForSource(itemId = item.id, sourceId = source.id)
 
         File(context.filesDir, "trickplay/${item.id}").deleteRecursively()
         File(context.filesDir, "images/${item.id}").deleteRecursively()
@@ -1394,7 +1480,10 @@ class DownloaderImpl(
                         ?: source.downloadedBytes.takeIf { it > 0L }
                         ?: partialFileSize(source.path)
                 val total = runtimeState?.totalBytes ?: source.totalBytes
-                val record = mediaRecords[source.itemId.toString()]
+                val record =
+                    mediaRecords.values.firstOrNull {
+                        it.itemId == source.itemId.toString() && it.sourceId == source.id
+                    }
                 val hierarchy: DownloadedEpisodeHierarchy? = episodeHierarchy[source.itemId]
                 tasks +=
                     DownloadTask(
@@ -1456,8 +1545,20 @@ class DownloaderImpl(
                             retryCount = 0,
                             nextRetryAt = 0L,
                             taskGeneration = intent.taskGeneration,
-                            serverId = mediaRecords[intent.itemId.toString()]?.serverId,
-                            userId = mediaRecords[intent.itemId.toString()]?.userId,
+                            serverId =
+                                mediaRecords.values
+                                    .firstOrNull {
+                                        it.itemId == intent.itemId.toString() &&
+                                            it.sourceId.isNullOrBlank()
+                                    }
+                                    ?.serverId,
+                            userId =
+                                mediaRecords.values
+                                    .firstOrNull {
+                                        it.itemId == intent.itemId.toString() &&
+                                            it.sourceId.isNullOrBlank()
+                                    }
+                                    ?.userId,
                         )
                     }
                     .toList()
@@ -1475,6 +1576,13 @@ class DownloaderImpl(
 
     override suspend fun recoverOnStartup(): Int =
         withContext(Dispatchers.IO) {
+            try {
+                resumePendingDeleteBatches()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "恢复未完成删除批次失败")
+            }
             val now = System.currentTimeMillis()
             var recovered = 0
             for (source in database.getPendingSources()) {
@@ -1893,6 +2001,15 @@ class DownloaderImpl(
                 path.startsWith(it.path)
             }
         return if (index >= 0) index else 0
+    }
+
+    private fun removeSidecarForSource(itemId: UUID, sourceId: String) {
+        val records = sidecar.allRecords().filter { it.itemId == itemId.toString() }
+        val exact = records.filter { it.sourceId == sourceId }
+        when {
+            exact.isNotEmpty() -> exact.forEach { sidecar.remove(it.canonicalIdentity()) }
+            records.size == 1 -> sidecar.remove(records.single().canonicalIdentity())
+        }
     }
 
     private suspend fun findSourceByHandle(handle: Long): FindroidSourceDto? =

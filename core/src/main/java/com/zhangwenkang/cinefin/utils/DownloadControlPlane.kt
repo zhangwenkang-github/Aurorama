@@ -79,22 +79,22 @@ object DownloadControlPlaneRules {
 
     fun activeUniqueIntents(
         tasks: List<DownloadTask>,
-        downloadedItemIds: Set<UUID>,
+        downloadedCanonicalKeys: Set<String>,
     ): List<DownloadTask> =
         tasks
             .asSequence()
             .filter { task ->
                 DownloadTaskRules.isActiveQueueStatus(task.status) &&
-                    task.itemId !in downloadedItemIds
+                    task.downloadIdentity().canonicalKey !in downloadedCanonicalKeys
             }
-            .distinctBy { it.itemId }
+            .distinctBy { it.downloadIdentity() }
             .toList()
 
     fun retryableFailureIntents(tasks: List<DownloadTask>): List<DownloadTask> =
         tasks
             .asSequence()
             .filter { task -> DownloadTaskRules.canRetry(task.status) }
-            .distinctBy { it.itemId }
+            .distinctBy { it.downloadIdentity() }
             .toList()
 
     fun badgeText(count: Int): String =

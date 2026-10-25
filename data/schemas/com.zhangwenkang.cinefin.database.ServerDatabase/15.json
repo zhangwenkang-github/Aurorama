@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 15,
-    "identityHash": "8a7491921d52cfb829c78a54f9bcee9c",
+    "identityHash": "0b3557649f333d7cf94281bd594749af",
     "entities": [
       {
         "tableName": "servers",
@@ -756,7 +756,7 @@
       },
       {
         "tableName": "downloadDeleteReceipts",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`batchId` TEXT NOT NULL, `canonicalKey` TEXT NOT NULL, `itemId` TEXT NOT NULL, `sourceId` TEXT, `mediaKind` TEXT NOT NULL, `outcome` TEXT NOT NULL, `detail` TEXT, `updatedAt` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`batchId`, `canonicalKey`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`batchId` TEXT NOT NULL, `canonicalKey` TEXT NOT NULL, `itemId` TEXT NOT NULL, `sourceId` TEXT, `serverId` TEXT, `userId` TEXT, `ordinal` INTEGER NOT NULL DEFAULT 0, `mediaKind` TEXT NOT NULL, `outcome` TEXT NOT NULL, `detail` TEXT, `updatedAt` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`batchId`, `canonicalKey`))",
         "fields": [
           {
             "fieldPath": "batchId",
@@ -780,6 +780,23 @@
             "fieldPath": "sourceId",
             "columnName": "sourceId",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           },
           {
             "fieldPath": "mediaKind",
@@ -1366,7 +1383,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8a7491921d52cfb829c78a54f9bcee9c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0b3557649f333d7cf94281bd594749af')"
     ]
   }
 }

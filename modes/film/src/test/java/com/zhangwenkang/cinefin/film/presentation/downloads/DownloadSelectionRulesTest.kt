@@ -57,7 +57,7 @@ class DownloadSelectionRulesTest {
 
         assertEquals(3, keys.size)
         assertEquals(
-            setOf(itemKey(first.itemId), itemKey(second.itemId), itemKey(third.itemId)),
+            setOf(taskKey(first), taskKey(second), taskKey(third)),
             keys.toSet(),
         )
     }
@@ -82,7 +82,42 @@ class DownloadSelectionRulesTest {
 
         val keys = DownloadSelectionRules.keysFor(state, DownloadTaskGroup.FAILED)
 
-        assertEquals(listOf(itemKey(music.itemId)), keys)
+        assertEquals(listOf(taskKey(music)), keys)
+    }
+
+    @Test
+    fun `删除失败后 intent key 刷新为真实 source 时仍保留同一项选择`() {
+        val itemId = UUID.randomUUID()
+        val intentTask =
+            failedTask("待删曲目", DownloadFailureReason.CANCELLED)
+                .copy(
+                    itemId = itemId,
+                    sourceId = "intent:$itemId",
+                    serverId = "server-a",
+                    userId = "user-a",
+                )
+        val sourceTask =
+            intentTask.copy(sourceId = "media-source", status = DownloadTaskStatus.DELETING)
+        val oldEntries = listOf(entry(intentTask))
+        val newEntries = listOf(entry(sourceTask))
+        val state =
+            DownloadManagerState(
+                failedTasks = listOf(intentTask),
+                failedContainers = DownloadHierarchyBuilder.build(oldEntries),
+                selectionMode = true,
+                selection = listOf(oldEntries.single().key),
+                pendingActions = mapOf(oldEntries.single().key to DownloadPendingAction.DELETE),
+                actionFailure = DownloadActionFailure.DELETE,
+            )
+
+        assertEquals(
+            listOf(newEntries.single().key),
+            DownloadSelectionRules.selectionAfterRefresh(
+                state = state,
+                validKeys = setOf(newEntries.single().key),
+                currentEntries = newEntries,
+            ),
+        )
     }
 
     @Test
@@ -369,14 +404,14 @@ class DownloadSelectionRulesTest {
                 activeTasks = listOf(task),
                 activeContainers = DownloadHierarchyBuilder.build(listOf(entry(task))),
                 selectionMode = true,
-                selection = listOf(itemKey(task.itemId)),
+                selection = listOf(taskKey(task)),
             )
 
         val pending = state.beginPending(DownloadPendingAction.RESUME)
 
         assertEquals(
             DownloadPendingAction.RESUME,
-            pending.pendingActions[itemKey(task.itemId)],
+            pending.pendingActions[taskKey(task)],
         )
     }
 

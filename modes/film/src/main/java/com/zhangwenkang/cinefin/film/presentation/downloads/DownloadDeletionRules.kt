@@ -23,6 +23,8 @@ object DownloadDeletionRules {
                 val task = entry.task
                 val record = mediaRecords.firstOrNull { record ->
                     record.itemId == entry.itemId.toString() &&
+                        (entry.serverId == null || record.serverId == entry.serverId) &&
+                        (entry.userId == null || record.userId == entry.userId) &&
                         (entry.sourceId == null ||
                             record.sourceId == entry.sourceId ||
                             (entry.mediaKind == DownloadMediaKind.BOOK && record.sourceId == null))
@@ -42,8 +44,8 @@ object DownloadDeletionRules {
                             itemId = entry.itemId,
                             sourceId = sourceId,
                             mediaKind = entry.mediaKind,
-                            serverId = task?.serverId ?: record?.serverId,
-                            userId = task?.userId ?: record?.userId,
+                            serverId = entry.serverId ?: task?.serverId ?: record?.serverId,
+                            userId = entry.userId ?: task?.userId ?: record?.userId,
                         ),
                 )
             }

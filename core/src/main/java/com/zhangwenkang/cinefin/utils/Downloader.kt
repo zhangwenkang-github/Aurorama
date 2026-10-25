@@ -98,6 +98,9 @@ interface Downloader {
      */
     suspend fun deleteDownloads(requests: List<DownloadDeleteRequest>): DownloadDeleteBatchResult
 
+    /** 进程重启后继续未完成的持久删除批次；返回本次补处理的 PENDING 项数。 */
+    suspend fun resumePendingDeleteBatches(): Int = 0
+
     /** W32：网络恢复后自动重试网络 / 服务器类失败任务，返回实际重试数量。 */
     suspend fun retryNetworkFailures(): Int
 

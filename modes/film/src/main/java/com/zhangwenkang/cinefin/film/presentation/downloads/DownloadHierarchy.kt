@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
+import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadSpeedRules
 import com.zhangwenkang.cinefin.utils.DownloadTask
@@ -20,6 +21,9 @@ data class DownloadHierarchyEntry(
     val status: DownloadTaskStatus,
     /** 已完成条目的 LOCAL source id；进行中 / 失败任务为 null。 */
     val sourceId: String? = null,
+    /** 下载创建时冻结的来源；旧记录 / 本地文件可为 null。 */
+    val serverId: String? = null,
+    val userId: String? = null,
     val task: DownloadTask? = null,
     val downloadId: Long? = null,
     val sizeBytes: Long = 0L,
@@ -54,8 +58,18 @@ data class DownloadHierarchyEntry(
     /** W36：该条目是否允许在离线模式观看（对应 sources.allowOffline / 书籍偏好）。 */
     val allowOffline: Boolean = true,
 ) {
+    val canonicalIdentity: DownloadCanonicalIdentity
+        get() =
+            DownloadCanonicalIdentity.of(
+                mediaKind = mediaKind,
+                itemId = itemId.toString(),
+                serverId = serverId ?: task?.serverId,
+                userId = userId ?: task?.userId,
+                sourceId = task?.sourceId ?: sourceId,
+            )
+
     val key: String
-        get() = itemKey(itemId)
+        get() = "item:${canonicalIdentity.canonicalKey}"
 
     val canDelete: Boolean
         get() = status != DownloadTaskStatus.COMPLETED || sourceId != null
@@ -218,7 +232,31 @@ sealed interface DownloadHierarchyRow {
     ) : DownloadHierarchyRow
 }
 
-fun itemKey(itemId: UUID): String = "item:$itemId"
+fun entryKey(
+    mediaKind: DownloadMediaKind,
+    itemId: UUID,
+    serverId: String?,
+    userId: String?,
+    sourceId: String?,
+): String =
+    "item:" +
+        DownloadCanonicalIdentity.of(
+                mediaKind = mediaKind,
+                itemId = itemId.toString(),
+                serverId = serverId,
+                userId = userId,
+                sourceId = sourceId,
+            )
+            .canonicalKey
+
+fun itemKey(itemId: UUID): String =
+    entryKey(
+        mediaKind = DownloadMediaKind.VIDEO,
+        itemId = itemId,
+        serverId = null,
+        userId = null,
+        sourceId = null,
+    )
 
 fun containerKey(kind: DownloadMediaKind, key: String): String = "container:${kind.name}:$key"
 
@@ -276,7 +314,7 @@ object DownloadHierarchyBuilder {
                 .map { entry ->
                     val aggregate = DownloadAggregateRules.of(listOf(entry))
                     DownloadHierarchyContainer(
-                        key = containerKey(DownloadMediaKind.VIDEO, "movie:${entry.itemId}"),
+                        key = containerKey(DownloadMediaKind.VIDEO, "movie:${entry.key}"),
                         title = entry.name,
                         detail = null,
                         mediaKind = DownloadMediaKind.VIDEO,
@@ -297,8 +335,14 @@ object DownloadHierarchyBuilder {
 
         val showContainers =
             episodes
-                .groupBy { it.seriesId!! }
-                .map { (seriesId, showEntries) -> buildShowContainer(seriesId, showEntries) }
+                .groupBy {
+                    VideoShowGroup(
+                        seriesId = it.seriesId!!,
+                        serverId = it.serverId,
+                        userId = it.userId,
+                    )
+                }
+                .map { (group, showEntries) -> buildShowContainer(group, showEntries) }
                 .sortedWith(
                     compareByDescending<DownloadHierarchyContainer> { it.updatedAtSort }
                         .thenBy { it.title }
@@ -318,7 +362,7 @@ object DownloadHierarchyBuilder {
             } ?: 0L
 
     private fun buildShowContainer(
-        seriesId: UUID,
+        group: VideoShowGroup,
         entries: List<DownloadHierarchyEntry>,
     ): DownloadHierarchyContainer {
         val seasons =
@@ -333,7 +377,16 @@ object DownloadHierarchyBuilder {
                     val completed = sorted.count { it.status == DownloadTaskStatus.COMPLETED }
                     val aggregate = DownloadAggregateRules.of(sorted)
                     DownloadHierarchySubContainer(
-                        key = childContainerKey(seriesId.toString(), "${seasonId ?: "unknown"}"),
+                        key =
+                            childContainerKey(
+                                listOf(
+                                        group.seriesId,
+                                        group.serverId,
+                                        group.userId,
+                                    )
+                                    .joinToString("|"),
+                                "${seasonId ?: "unknown"}",
+                            ),
                         title = sorted.first().seasonName ?: "未知季",
                         detail =
                             episodeDetail(
@@ -362,7 +415,11 @@ object DownloadHierarchyBuilder {
         val aggregate = DownloadAggregateRules.of(allEntries)
         val seriesName = entries.first().seriesName ?: entries.first().name
         return DownloadHierarchyContainer(
-            key = containerKey(DownloadMediaKind.VIDEO, seriesId.toString()),
+            key =
+                containerKey(
+                    DownloadMediaKind.VIDEO,
+                    listOf(group.seriesId, group.serverId, group.userId).joinToString("|"),
+                ),
             title = seriesName,
             detail = episodeDetail(completed, allEntries.size, aggregateStatus(statuses)),
             mediaKind = DownloadMediaKind.VIDEO,
@@ -402,8 +459,15 @@ object DownloadHierarchyBuilder {
         entries: List<DownloadHierarchyEntry>
     ): List<DownloadHierarchyContainer> =
         entries
-            .groupBy { it.albumName ?: "未分类" }
-            .map { (albumName, albumEntries) ->
+            .groupBy {
+                MusicAlbumGroup(
+                    albumName = it.albumName ?: "未分类",
+                    serverId = it.serverId,
+                    userId = it.userId,
+                )
+            }
+            .map { (group, albumEntries) ->
+                val albumName = group.albumName
                 val sorted =
                     albumEntries.sortedWith(
                         compareBy<DownloadHierarchyEntry> { it.trackIndex }.thenBy { it.name }
@@ -413,7 +477,11 @@ object DownloadHierarchyBuilder {
                 val artist = sorted.firstNotNullOfOrNull { it.artist }
                 val aggregate = DownloadAggregateRules.of(sorted)
                 DownloadHierarchyContainer(
-                    key = containerKey(DownloadMediaKind.MUSIC, albumName),
+                    key =
+                        containerKey(
+                            DownloadMediaKind.MUSIC,
+                            listOf(albumName, group.serverId, group.userId).joinToString("|"),
+                        ),
                     title = albumName,
                     detail =
                         listOfNotNull(
@@ -450,7 +518,7 @@ object DownloadHierarchyBuilder {
             .map { entry ->
                 val aggregate = DownloadAggregateRules.of(listOf(entry))
                 DownloadHierarchyContainer(
-                    key = containerKey(DownloadMediaKind.BOOK, entry.itemId.toString()),
+                    key = containerKey(DownloadMediaKind.BOOK, entry.key),
                     title = entry.name,
                     detail = entry.bookDetail,
                     mediaKind = DownloadMediaKind.BOOK,
@@ -469,6 +537,18 @@ object DownloadHierarchyBuilder {
                 )
             }
 }
+
+private data class VideoShowGroup(
+    val seriesId: UUID,
+    val serverId: String?,
+    val userId: String?,
+)
+
+private data class MusicAlbumGroup(
+    val albumName: String,
+    val serverId: String?,
+    val userId: String?,
+)
 
 /** 层级 → LazyColumn 行（容器可展开 / 折叠；深度供缩进）。 */
 object DownloadHierarchyFlattener {

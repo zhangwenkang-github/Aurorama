@@ -63,6 +63,9 @@ data class MusicSong(
     val trackRef: TrackRef? = null,
     /** 当前曲库无法解析该持久身份时为 true，仍保留数据库行与快照。 */
     val isPlaylistPlaceholder: Boolean = false,
+    /** 服务器曲目快照的持久来源；本地曲目为 null。 */
+    val serverId: String? = null,
+    val userId: String? = null,
 )
 
 /**
@@ -233,6 +236,7 @@ constructor(
         withContext(Dispatchers.IO) {
             val userId = jellyfinApi.userId ?: return@withContext emptyList()
             val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
+            val namespace = currentNamespace()
             jellyfinApi.playlistsApi
                 .getPlaylistItems(
                     playlistId = playlistId,
@@ -243,7 +247,7 @@ constructor(
                 )
                 .content
                 .items
-                .mapNotNull { item -> item.toMusicSong(baseUrl) }
+                .mapNotNull { item -> item.toMusicSong(baseUrl, namespace) }
         }
 
     override suspend fun setFavorite(itemId: UUID, favorite: Boolean) {
@@ -273,6 +277,7 @@ constructor(
         withContext(Dispatchers.IO) {
             val userId = jellyfinApi.userId ?: return@withContext emptyList()
             val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
+            val namespace = currentNamespace()
             jellyfinApi.itemsApi
                 .getItems(
                     userId,
@@ -284,12 +289,13 @@ constructor(
                 )
                 .content
                 .items
-                .mapNotNull { item -> item.toMusicSong(baseUrl) }
+                .mapNotNull { item -> item.toMusicSong(baseUrl, namespace) }
         }
 
     private suspend fun querySongs(libraryId: UUID?): List<MusicSong> {
         val userId = jellyfinApi.userId ?: return emptyList()
         val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
+        val namespace = currentNamespace()
         return jellyfinApi.itemsApi
             .getItems(
                 userId,
@@ -303,10 +309,13 @@ constructor(
             )
             .content
             .items
-            .mapNotNull { item -> item.toMusicSong(baseUrl) }
+            .mapNotNull { item -> item.toMusicSong(baseUrl, namespace) }
     }
 
-    private fun BaseItemDto.toMusicSong(baseUrl: String): MusicSong? {
+    private fun BaseItemDto.toMusicSong(
+        baseUrl: String,
+        namespace: MetadataNamespace?,
+    ): MusicSong? {
         val title = name?.takeIf { it.isNotBlank() } ?: return null
         val runtimeTicks = runTimeTicks ?: 0L
         return MusicSong(
@@ -319,6 +328,8 @@ constructor(
             imageUri = imageUri(baseUrl),
             resumePositionMs = resumePositionMs(userData?.playbackPositionTicks, runtimeTicks),
             isFavorite = userData?.isFavorite == true,
+            serverId = namespace?.serverId,
+            userId = namespace?.userId,
         )
     }
 

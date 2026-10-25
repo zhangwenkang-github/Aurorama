@@ -1922,21 +1922,18 @@ private fun SongList(
                 isCurrent = song.itemId == currentItemId,
                 downloadLabel =
                     when {
-                        downloadState.isDownloaded(song.itemId) -> "已下载"
-                        downloadState.activeStatus(song.itemId) == DownloadTaskStatus.DELETING ->
-                            "正在删除下载"
-                        downloadState.activeStatus(song.itemId) == DownloadTaskStatus.PAUSED ->
-                            "下载已暂停"
-                        downloadState.isActive(song.itemId) -> "下载中"
+                        downloadState.isDownloaded(song) -> "已下载"
+                        downloadState.activeStatus(song) == DownloadTaskStatus.DELETING -> "正在删除下载"
+                        downloadState.activeStatus(song) == DownloadTaskStatus.PAUSED -> "下载已暂停"
+                        downloadState.isActive(song) -> "下载中"
                         else -> null
                     },
                 downloadMenuItem =
                     when {
                         song.localUri != null -> null
-                        downloadState.isDownloaded(song.itemId) -> "删除下载"
-                        downloadState.activeStatus(song.itemId) == DownloadTaskStatus.DELETING ->
-                            null
-                        downloadState.isActive(song.itemId) -> "取消下载"
+                        downloadState.isDownloaded(song) -> "删除下载"
+                        downloadState.activeStatus(song) == DownloadTaskStatus.DELETING -> null
+                        downloadState.isActive(song) -> "取消下载"
                         else -> "下载"
                     },
                 sourceBadge =

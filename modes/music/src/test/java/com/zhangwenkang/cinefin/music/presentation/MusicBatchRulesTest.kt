@@ -2,6 +2,8 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
@@ -18,6 +20,8 @@ class MusicBatchRulesTest {
         id: String,
         favorite: Boolean = false,
         localUri: String? = null,
+        serverId: String? = null,
+        userId: String? = null,
     ): MusicSong =
         MusicSong(
             itemId = UUID.fromString("00000000-0000-0000-0000-00000000000$id"),
@@ -29,6 +33,8 @@ class MusicBatchRulesTest {
             imageUri = null,
             isFavorite = favorite,
             localUri = localUri,
+            serverId = serverId,
+            userId = userId,
         )
 
     private fun caps(
@@ -215,15 +221,58 @@ class MusicBatchRulesTest {
                 updatedAt = 1L,
             )
 
-        val activeItemIds = activeSongDownloadStatuses(listOf(cancelled)).keys
+        val active = activeSongDownloadStatuses(listOf(cancelled))
         val caps =
             musicSongBatchCaps(
                 song = item,
-                downloadedItemIds = emptySet(),
-                activeItemIds = activeItemIds,
+                downloadedRecords = emptyList(),
+                activeTasks = listOf(cancelled),
             )
 
+        assertTrue(active.isEmpty())
         assertTrue(caps.canDownload)
+    }
+
+    @Test
+    fun `同 UUID 不同 server 的 active 下载不折叠`() {
+        val serverA = song("1", serverId = "server-a", userId = "user-a")
+        val serverB = song("1", serverId = "server-b", userId = "user-a")
+        val taskA =
+            DownloadTask(
+                itemId = serverA.itemId,
+                sourceId = "source-a",
+                name = "A",
+                path = "/tmp/a.download",
+                downloadId = null,
+                status = DownloadTaskStatus.RUNNING,
+                failureReason = null,
+                downloadedBytes = 1L,
+                totalBytes = 2L,
+                updatedAt = 1L,
+                mediaKind = DownloadMediaKind.MUSIC,
+                serverId = "server-a",
+                userId = "user-a",
+            )
+        val taskB =
+            taskA.copy(
+                sourceId = "source-b",
+                serverId = "server-b",
+            )
+
+        assertEquals(2, activeSongDownloadStatuses(listOf(taskA, taskB)).size)
+        assertTrue(musicSongBatchCaps(serverA, emptyList(), listOf(taskA)).activeDownload)
+        assertFalse(musicSongBatchCaps(serverB, emptyList(), listOf(taskA)).activeDownload)
+
+        val downloadedA =
+            DownloadMediaRecord(
+                itemId = serverA.itemId.toString(),
+                kind = DownloadMediaKind.MUSIC,
+                serverId = "server-a",
+                userId = "user-a",
+                sourceId = "source-a",
+            )
+        assertTrue(musicSongBatchCaps(serverA, listOf(downloadedA), emptyList()).downloaded)
+        assertFalse(musicSongBatchCaps(serverB, listOf(downloadedA), emptyList()).downloaded)
     }
 
     /** 每次 `nextInt` 都取 0 的确定性随机源，用于锁死洗牌顺序。 */

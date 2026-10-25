@@ -34,28 +34,30 @@ class DownloadControlPlaneRulesTest {
         )
 
     @Test
-    fun `活动唯一意图按 itemId 去重并剔除已完成落盘`() {
+    fun `活动唯一意图按 canonical identity 去重并剔除已完成落盘`() {
         val active = UUID.randomUUID()
         val completed = UUID.randomUUID()
+        val completedTask =
+            task(
+                itemId = completed,
+                sourceId = "completed",
+                status = DownloadTaskStatus.PAUSED,
+            )
         val tasks =
             listOf(
                 task(itemId = active, sourceId = "active-a", status = DownloadTaskStatus.PENDING),
                 task(itemId = active, sourceId = "active-b", status = DownloadTaskStatus.RUNNING),
-                task(
-                    itemId = completed,
-                    sourceId = "completed",
-                    status = DownloadTaskStatus.PAUSED,
-                ),
+                completedTask,
                 task(sourceId = "failed", status = DownloadTaskStatus.FAILED),
             )
 
         val projection =
             DownloadControlPlaneRules.activeUniqueIntents(
                 tasks = tasks,
-                downloadedItemIds = setOf(completed),
+                downloadedCanonicalKeys = setOf(completedTask.downloadIdentity().canonicalKey),
             )
 
-        assertEquals(listOf(active), projection.map { it.itemId })
+        assertEquals(listOf("active-a", "active-b"), projection.map { it.sourceId })
     }
 
     @Test
@@ -209,7 +211,7 @@ class DownloadControlPlaneRulesTest {
     }
 
     @Test
-    fun `失败全集按可重试任务去重`() {
+    fun `失败全集按完整 canonical identity 去重`() {
         val itemId = UUID.randomUUID()
         val failedTasks =
             listOf(
@@ -219,8 +221,8 @@ class DownloadControlPlaneRulesTest {
             )
 
         assertEquals(
-            listOf(itemId),
-            DownloadControlPlaneRules.retryableFailureIntents(failedTasks).map { it.itemId },
+            listOf("a", "b"),
+            DownloadControlPlaneRules.retryableFailureIntents(failedTasks).map { it.sourceId },
         )
     }
 

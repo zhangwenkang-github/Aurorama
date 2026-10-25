@@ -273,6 +273,15 @@ enum class DownloadTaskGroup {
     FAILED,
 }
 
+fun DownloadTask.downloadIdentity(): DownloadCanonicalIdentity =
+    DownloadCanonicalIdentity.of(
+        mediaKind = mediaKind,
+        itemId = itemId.toString(),
+        serverId = serverId,
+        userId = userId,
+        sourceId = sourceId,
+    )
+
 internal fun String?.toTaskStatus(): DownloadTaskStatus? =
     DownloadTaskStatus.entries.firstOrNull { it.name == this }
 

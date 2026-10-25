@@ -137,7 +137,7 @@ class DownloadTaskRulesTest {
             ),
         )
         assertEquals(
-            DownloadResumeStrategy.RESTART,
+            DownloadResumeStrategy.RESUME,
             DownloadTaskRules.resumeStrategy(
                 DownloadTaskStatus.FAILED,
                 DownloadFailureReason.CANCELLED,

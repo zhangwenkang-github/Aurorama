@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -9,25 +10,61 @@ import org.junit.Test
 class DownloadDeleteBatchTest {
 
     private class MemoryStore : DownloadDeleteBatchStore {
-        val batches = mutableMapOf<String, List<String>>()
+        val batches = mutableMapOf<String, List<DownloadDeleteReceipt>>()
         val receipts = mutableListOf<DownloadDeleteReceipt>()
-        var finishedAt: Long? = null
+        val finishedAt = mutableMapOf<String, Long>()
 
         override suspend fun begin(
             batchId: String,
-            canonicalKeys: List<String>,
+            requests: List<DownloadDeleteRequest>,
             createdAtMs: Long,
         ) {
-            batches[batchId] = canonicalKeys
+            val pending = requests.mapIndexed { ordinal, request ->
+                DownloadDeleteReceipt(
+                    batchId = batchId,
+                    canonicalKey = DownloadDeletionIdentity.canonicalKey(request),
+                    itemId = request.itemId,
+                    sourceId = request.sourceId,
+                    mediaKind = request.mediaKind,
+                    serverId = request.serverId,
+                    userId = request.userId,
+                    ordinal = ordinal,
+                    outcome = DownloadDeleteOutcome.PENDING,
+                    detail = null,
+                    updatedAtMs = createdAtMs,
+                )
+            }
+            batches[batchId] = pending
+            receipts += pending
         }
 
         override suspend fun record(receipt: DownloadDeleteReceipt) {
+            receipts.removeAll {
+                it.batchId == receipt.batchId && it.canonicalKey == receipt.canonicalKey
+            }
             receipts += receipt
         }
 
         override suspend fun finish(batchId: String, completedAtMs: Long) {
-            finishedAt = completedAtMs
+            finishedAt[batchId] = completedAtMs
         }
+
+        override suspend fun incomplete(): List<DownloadDeleteBatchSnapshot> =
+            batches
+                .filterKeys { it !in finishedAt }
+                .map { (batchId, initial) ->
+                    DownloadDeleteBatchSnapshot(
+                        batchId = batchId,
+                        receipts =
+                            receipts.filter { it.batchId == batchId } +
+                                initial.filter { pending ->
+                                    receipts.none {
+                                        it.batchId == pending.batchId &&
+                                            it.canonicalKey == pending.canonicalKey
+                                    }
+                                },
+                    )
+                }
     }
 
     private fun request(
@@ -73,7 +110,7 @@ class DownloadDeleteBatchTest {
         )
         assertEquals(3, store.batches.getValue("batch-1").size)
         assertEquals(3, store.receipts.size)
-        assertEquals(1_000L, store.finishedAt)
+        assertEquals(1_000L, store.finishedAt["batch-1"])
     }
 
     @Test
@@ -95,5 +132,49 @@ class DownloadDeleteBatchTest {
         assertTrue(
             DownloadDeletionIdentity.canonicalKey(a) != DownloadDeletionIdentity.canonicalKey(c)
         )
+    }
+
+    @Test
+    fun `batch 在开始前持久化全部 pending receipt 且中断后只续跑未完成项`() = runBlocking {
+        val store = MemoryStore()
+        val processed = mutableListOf<String>()
+        val requests = (1..3).map(::request)
+        val firstProcessor =
+            DownloadDeleteBatchProcessor(
+                store = store,
+                clock = { 1_000L },
+                batchId = { "batch-crash" },
+                delete = { request ->
+                    processed += request.sourceId.orEmpty()
+                    if (request.itemId == UUID(0L, 2L)) {
+                        throw CancellationException("进程中断")
+                    }
+                },
+            )
+
+        runCatching { firstProcessor.deleteAll(requests) }
+
+        assertEquals(
+            listOf(
+                DownloadDeleteOutcome.SUCCEEDED,
+                DownloadDeleteOutcome.PENDING,
+                DownloadDeleteOutcome.PENDING,
+            ),
+            store.receipts.sortedBy(DownloadDeleteReceipt::ordinal).map { it.outcome },
+        )
+        assertTrue(store.finishedAt.isEmpty())
+
+        val resumed =
+            DownloadDeleteBatchProcessor(
+                    store = store,
+                    clock = { 2_000L },
+                    delete = { request -> processed += request.sourceId.orEmpty() },
+                )
+                .resumeIncomplete()
+
+        assertEquals(listOf("source-2", "source-3"), processed.drop(2))
+        assertEquals(listOf("batch-crash"), resumed.map { it.batchId })
+        assertEquals(2_000L, store.finishedAt["batch-crash"])
+        assertTrue(store.receipts.all { it.outcome != DownloadDeleteOutcome.PENDING })
     }
 }

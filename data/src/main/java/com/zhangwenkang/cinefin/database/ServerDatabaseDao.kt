@@ -136,6 +136,25 @@ interface ServerDatabaseDao {
     suspend fun finishDownloadDeleteBatch(batchId: String, completedAt: Long)
 
     @Query(
+        "SELECT * FROM downloadDeleteBatches WHERE completedAt IS NULL ORDER BY createdAt ASC, id ASC"
+    )
+    suspend fun getIncompleteDownloadDeleteBatches(): List<DownloadDeleteBatchDto>
+
+    @Query("SELECT * FROM downloadDeleteReceipts WHERE batchId = :batchId ORDER BY ordinal ASC")
+    suspend fun getDownloadDeleteReceipts(batchId: String): List<DownloadDeleteReceiptDto>
+
+    @Transaction
+    suspend fun beginDownloadDeleteBatch(
+        batch: DownloadDeleteBatchDto,
+        pendingReceipts: List<DownloadDeleteReceiptDto>,
+    ) {
+        insertDownloadDeleteBatch(batch)
+        for (receipt in pendingReceipts) {
+            insertDownloadDeleteReceipt(receipt)
+        }
+    }
+
+    @Query(
         """
         UPDATE downloadIntents
         SET status = :status, failureReason = :failureReason, failureDetail = :failureDetail,
@@ -269,15 +288,7 @@ interface ServerDatabaseDao {
         return getSource(id)
     }
 
-    @Query(
-        """
-        UPDATE sources
-        SET taskStatus = 'PENDING', failureReason = NULL, retryCount = 0,
-            nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
-        WHERE id = :id AND taskStatus != 'DELETING'
-        """
-    )
-    suspend fun markSourceRetry(id: String, now: Long): Int
+    @Query(MARK_SOURCE_RETRY_SQL) suspend fun markSourceRetry(id: String, now: Long): Int
 
     @Query("UPDATE sources SET downloadId = :downloadId WHERE id = :id")
     suspend fun setSourceDownloadId(id: String, downloadId: Long?)
@@ -715,4 +726,14 @@ interface ServerDatabaseDao {
         "SELECT libraryId AS libraryId, kind AS kind, COUNT(*) AS count FROM local_media_items GROUP BY libraryId, kind"
     )
     suspend fun getLocalMediaCounts(): List<LocalMediaCountRow>
+
+    companion object {
+        internal const val MARK_SOURCE_RETRY_SQL =
+            """
+            UPDATE sources
+            SET taskStatus = 'PENDING', failureReason = NULL, retryCount = 0,
+                nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
+            WHERE id = :id AND taskStatus = 'FAILED'
+            """
+    }
 }

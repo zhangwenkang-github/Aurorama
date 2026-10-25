@@ -1,9 +1,14 @@
 package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import com.zhangwenkang.cinefin.utils.canonicalIdentity
+import com.zhangwenkang.cinefin.utils.downloadIdentity
 import java.util.UUID
 import kotlin.random.Random
 
@@ -51,12 +56,54 @@ internal fun musicSongBatchCaps(
 /** 只有真正排队 / 下载 / 暂停 / 删除中的任务占用“不可重下”状态；失败与取消必须恢复按钮。 */
 internal fun activeSongDownloadStatuses(
     tasks: List<DownloadTask>
-): Map<java.util.UUID, DownloadTaskStatus> =
+): Map<DownloadCanonicalIdentity, DownloadTaskStatus> =
     tasks
         .asSequence()
         .filter { DownloadTaskRules.isActiveQueueStatus(it.status) }
-        .distinctBy { it.itemId }
-        .associate { it.itemId to it.status }
+        .associate { it.downloadIdentity() to it.status }
+
+internal fun musicSongBatchCaps(
+    song: MusicSong,
+    downloadedRecords: List<DownloadMediaRecord>,
+    activeTasks: List<DownloadTask>,
+    legacyDownloadedItemIds: Set<UUID> = emptySet(),
+    legacyActiveItemIds: Set<UUID> = emptySet(),
+): SongBatchCaps {
+    val identity = song.downloadIdentity()
+    return SongBatchCaps(
+        downloaded =
+            if (identity != null) {
+                downloadedRecords.any {
+                    it.kind == DownloadMediaKind.MUSIC &&
+                        it.canonicalIdentity().matchesProvenance(identity)
+                }
+            } else {
+                song.itemId in legacyDownloadedItemIds
+            },
+        activeDownload =
+            if (identity != null) {
+                activeTasks.any { task ->
+                    DownloadTaskRules.isActiveQueueStatus(task.status) &&
+                        task.downloadIdentity().matchesProvenance(identity)
+                }
+            } else {
+                song.itemId in legacyActiveItemIds
+            },
+        fromLocalLibrary = song.localUri != null,
+    )
+}
+
+internal fun MusicSong.downloadIdentity(): DownloadCanonicalIdentity? {
+    val serverId = serverId?.takeIf(String::isNotBlank) ?: return null
+    val userId = userId?.takeIf(String::isNotBlank) ?: return null
+    return DownloadCanonicalIdentity.of(
+        mediaKind = DownloadMediaKind.MUSIC,
+        itemId = itemId.toString(),
+        serverId = serverId,
+        userId = userId,
+        sourceId = null,
+    )
+}
 
 /** 批量动作条里某个动作是否可用（任一选中条目满足即可，与下载页口径一致）。 */
 internal fun musicBatchActionEnabled(

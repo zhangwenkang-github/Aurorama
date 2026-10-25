@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import com.zhangwenkang.cinefin.utils.downloadIdentity
 import java.util.UUID
 
 sealed interface DownloadPlaybackPlan {
@@ -39,12 +40,35 @@ object DownloadSelectionRules {
     fun selectionAfterLocalRefresh(
         state: DownloadManagerState,
         localKeys: Set<String>,
+    ): List<String> = selectionAfterRefresh(state, localKeys, state.allEntries())
+
+    /** 删除失败后可能从 intent 伪 source 变成真实 media source；按命名空间 + item 把选择映射到新 key，直到用户再次操作。 */
+    fun selectionAfterRefresh(
+        state: DownloadManagerState,
+        validKeys: Set<String>,
+        currentEntries: List<DownloadHierarchyEntry>,
     ): List<String> {
+        if (state.actionFailure == DownloadActionFailure.DELETE) {
+            val previous = state.allEntries().associateBy(DownloadHierarchyEntry::key)
+            return state.selection.mapNotNull { key ->
+                when {
+                    key in validKeys -> key
+                    else ->
+                        previous[key]?.canonicalIdentity?.let { identity ->
+                            val candidates = currentEntries.filter {
+                                it.canonicalIdentity.sameNamespace(identity)
+                            }
+                            candidates.firstOrNull { it.canonicalIdentity == identity }?.key
+                                ?: candidates.singleOrNull()?.key
+                        }
+                }
+            }
+        }
         val completedKeys =
             state.completedContainers
                 .flatMap { container -> container.allEntries() }
                 .mapTo(mutableSetOf()) { it.key }
-        return state.selection.filter { it in localKeys || it in completedKeys }
+        return state.selection.filter { it in validKeys || it in completedKeys }
     }
 
     /** 容器 / 季选择展开为条目并追加到尾部；再次点击同一目标时整体移除。 */
@@ -82,7 +106,7 @@ object DownloadSelectionRules {
         state.selectedTasks
             .asSequence()
             .filter { DownloadTaskRules.canRetry(it.status) }
-            .distinctBy { it.itemId }
+            .distinctBy { it.downloadIdentity() }
             .toList()
 
     /** 书籍下载没有 [DownloadTask]；失败重试直接回到 ReaderRepository 的整本下载队列。 */
@@ -93,7 +117,7 @@ object DownloadSelectionRules {
                 entry.mediaKind == DownloadMediaKind.BOOK &&
                     entry.status == DownloadTaskStatus.FAILED
             }
-            .distinctBy { it.itemId }
+            .distinctBy { it.key }
             .toList()
 
     private fun DownloadManagerState.selectionTargets(key: String): List<String> {
@@ -115,4 +139,14 @@ object DownloadSelectionRules {
             emptyList()
         }
     }
+
+    private fun DownloadManagerState.allEntries(): List<DownloadHierarchyEntry> =
+        allContainers.flatMap { container ->
+            container.children.flatMap { child ->
+                when (child) {
+                    is DownloadHierarchyLeaf -> listOf(child.entry)
+                    is DownloadHierarchySubContainer -> child.children.map { it.entry }
+                }
+            }
+        }
 }

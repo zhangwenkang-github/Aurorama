@@ -68,8 +68,9 @@ data class DownloadMediaRecord(
 class DownloadMediaSidecar private constructor(private val file: File) {
     constructor(context: Context) : this(File(context.filesDir, "download_media.tsv"))
 
-    /** 返回 itemId → 记录（读取失败按空处理，不影响下载列表）。 */
-    fun records(): Map<String, DownloadMediaRecord> = allRecords().associateBy { it.itemId }
+    /** 按完整 provenance canonical key 建索引；同 itemId 的不同来源保留为不同项。 */
+    fun records(): Map<String, DownloadMediaRecord> =
+        allRecords().associateBy { it.canonicalIdentity().canonicalKey }
 
     /** 全部记录（保留文件顺序；同一 itemId 的不同来源不被 map 压扁）。 */
     fun allRecords(): List<DownloadMediaRecord> =
@@ -107,8 +108,8 @@ class DownloadMediaSidecar private constructor(private val file: File) {
         }
     }
 
-    fun remove(itemId: UUID) {
-        update { records -> records.filterNot { it.itemId == itemId.toString() } }
+    fun remove(identity: DownloadCanonicalIdentity) {
+        update { records -> records.filterNot { it.canonicalIdentity() == identity } }
     }
 
     /** 书籍只有一个私有 `.book` 文件；成功重下时替换该 item 的旧 BOOK 来源。 */
@@ -255,6 +256,4 @@ object DownloadMediaCodec {
 
 fun String.toUuidOrNull(): UUID? = runCatching { UUID.fromString(this) }.getOrNull()
 
-private fun DownloadMediaRecord.storageKey(): String =
-    listOf(kind.name, itemId, serverId.orEmpty(), userId.orEmpty(), sourceId.orEmpty())
-        .joinToString("\u0000")
+private fun DownloadMediaRecord.storageKey(): String = canonicalIdentity().canonicalKey

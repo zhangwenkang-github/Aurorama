@@ -75,12 +75,18 @@ import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.DownloadMusicIntentRequest
+import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.OfflineMediaEntryKind
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
+import com.zhangwenkang.cinefin.utils.canonicalIdentity
+import com.zhangwenkang.cinefin.utils.downloadIdentity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -149,13 +155,30 @@ constructor(
     /** W34：曲目下载态（下载列表层级化要求音乐侧也能发起下载）。 */
     data class SongDownloadState(
         val downloadedItemIds: Set<UUID> = emptySet(),
-        val activeStatuses: Map<UUID, DownloadTaskStatus> = emptyMap(),
+        val activeStatuses: Map<DownloadCanonicalIdentity, DownloadTaskStatus> = emptyMap(),
+        val downloadedRecords: List<DownloadMediaRecord> = emptyList(),
+        val activeTasks: List<DownloadTask> = emptyList(),
     ) {
         fun isDownloaded(itemId: UUID): Boolean = itemId in downloadedItemIds
 
-        fun activeStatus(itemId: UUID): DownloadTaskStatus? = activeStatuses[itemId]
+        fun isDownloaded(song: MusicSong): Boolean =
+            song.downloadIdentity()?.let { identity ->
+                downloadedRecords.any { it.canonicalIdentity().sameNamespace(identity) }
+            } ?: isDownloaded(song.itemId)
 
-        fun isActive(itemId: UUID): Boolean = activeStatuses[itemId] != null
+        fun activeStatus(itemId: UUID): DownloadTaskStatus? =
+            activeStatuses.entries.firstOrNull { it.key.itemId == itemId.toString() }?.value
+
+        fun activeStatus(song: MusicSong): DownloadTaskStatus? {
+            val identity = song.downloadIdentity() ?: return activeStatus(song.itemId)
+            return activeStatuses.entries
+                .firstOrNull { (key) -> key.matchesProvenance(identity) }
+                ?.value
+        }
+
+        fun isActive(itemId: UUID): Boolean = activeStatus(itemId) != null
+
+        fun isActive(song: MusicSong): Boolean = activeStatus(song) != null
     }
 
     private val _downloadState = MutableStateFlow(SongDownloadState())
@@ -1319,10 +1342,17 @@ constructor(
                 val tasks = downloader.refreshDownloadTasks()
                 val active = activeSongDownloadStatuses(tasks)
                 val downloaded = downloader.downloadedItemIds()
+                val downloadedRecords = downloader.downloadedMediaRecords()
                 _downloadState.value =
                     SongDownloadState(
                         downloadedItemIds = downloaded,
                         activeStatuses = active,
+                        downloadedRecords = downloadedRecords,
+                        activeTasks =
+                            tasks.filter {
+                                DownloadTaskRules.isActiveQueueStatus(it.status) &&
+                                    it.mediaKind == DownloadMediaKind.MUSIC
+                            },
                     )
             }
                 .onFailure { Timber.w(it, "刷新曲目下载态失败") }
@@ -1435,7 +1465,7 @@ constructor(
         return MusicAlbumDownloadRules.plan(
             album = album,
             downloadedItemIds = downloadState.downloadedItemIds,
-            activeItemIds = downloadState.activeStatuses.keys,
+            activeItemIds = downloadState.activeItemIds(),
         )
     }
 
@@ -1447,8 +1477,10 @@ constructor(
     private fun batchCaps(song: MusicSong, downloadState: SongDownloadState): SongBatchCaps =
         musicSongBatchCaps(
             song = song,
-            downloadedItemIds = downloadState.downloadedItemIds,
-            activeItemIds = downloadState.activeStatuses.keys,
+            downloadedRecords = downloadState.downloadedRecords,
+            activeTasks = downloadState.activeTasks,
+            legacyDownloadedItemIds = downloadState.downloadedItemIds,
+            legacyActiveItemIds = downloadState.activeItemIds(),
         )
 
     /**
@@ -1534,7 +1566,7 @@ constructor(
                 MusicAlbumDownloadRules.planAlbums(
                     albums = selectedAlbums(),
                     downloadedItemIds = downloadState.downloadedItemIds,
-                    activeItemIds = downloadState.activeStatuses.keys,
+                    activeItemIds = downloadState.activeItemIds(),
                 )
         } else {
             val targets = batchDownloadTargets(selectedSongs(), batchCapsMap(downloadState))
@@ -1713,6 +1745,11 @@ constructor(
     private fun batchCapsMap(downloadState: SongDownloadState): Map<UUID, SongBatchCaps> =
         visibleSongs().associate { song -> song.itemId to batchCaps(song, downloadState) }
 
+    private fun SongDownloadState.activeItemIds(): Set<UUID> =
+        activeStatuses.keys.mapNotNullTo(mutableSetOf()) { identity ->
+            runCatching { UUID.fromString(identity.itemId) }.getOrNull()
+        }
+
     private fun showBatchFailure(title: String, message: String) {
         _uiState.update { it.copy(errorTitle = title, errorMessage = message) }
     }
@@ -1731,7 +1768,10 @@ constructor(
             }
             val activeTask =
                 downloader.refreshDownloadTasks().firstOrNull {
-                    it.itemId == song.itemId && DownloadTaskRules.isActiveQueueStatus(it.status)
+                    DownloadTaskRules.isActiveQueueStatus(it.status) &&
+                        (song.downloadIdentity()?.let { identity ->
+                            it.downloadIdentity().matchesProvenance(identity)
+                        } ?: (it.itemId == song.itemId))
                 }
             if (activeTask != null) {
                 downloader.cancelTask(activeTask)

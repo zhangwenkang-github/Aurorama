@@ -28,6 +28,8 @@ import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import com.zhangwenkang.cinefin.utils.ImageCacheStore
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
+import com.zhangwenkang.cinefin.utils.canonicalIdentity
+import com.zhangwenkang.cinefin.utils.downloadIdentity
 import com.zhangwenkang.cinefin.utils.offlineBookDisplayName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -352,7 +354,7 @@ constructor(
         pendingAction: DownloadPendingAction,
         block: suspend (DownloadTask) -> Any?,
     ) {
-        val key = itemKey(task.itemId)
+        val key = taskKey(task)
         _state.update { it.beginPending(pendingAction, setOf(key)) }
         viewModelScope.launch {
             try {
@@ -371,7 +373,7 @@ constructor(
     ) {
         if (!DownloadSelectionRules.canStartSelectionAction(_state.value)) return
         val selected = _state.value.selectedTasks.filter { predicate(it.status) }
-        val keys = selected.map { itemKey(it.itemId) }.toSet()
+        val keys = selected.map(::taskKey).toSet()
         _state.update { it.beginPending(pendingAction, keys) }
         viewModelScope.launch {
             try {
@@ -408,14 +410,14 @@ constructor(
             entries
                 .mapNotNull { it.task }
                 .filter { DownloadTaskRules.canRetry(it.status) }
-                .distinctBy { it.itemId }
+                .distinctBy { it.downloadIdentity() }
         val books =
             entries
                 .filter { entry ->
                     entry.mediaKind == DownloadMediaKind.BOOK &&
                         entry.status == DownloadTaskStatus.FAILED
                 }
-                .distinctBy { it.itemId }
+                .distinctBy { it.key }
         val keys = selectableKeys.toSet()
         _state.update { it.beginPending(DownloadPendingAction.RETRY, keys) }
         clearSelection()
@@ -440,10 +442,10 @@ constructor(
             _state.value
                 .selectedTasks()
                 .filter { DownloadTaskRules.canRetry(it.status) }
-                .distinctBy { it.itemId }
+                .distinctBy { it.downloadIdentity() }
         val books = DownloadSelectionRules.retryableBookEntries(_state.value)
         if (tasks.isEmpty() && books.isEmpty()) return
-        val keys = tasks.map { itemKey(it.itemId) }.toSet() + books.map { it.key }
+        val keys = tasks.map(::taskKey).toSet() + books.map { it.key }
         _state.update { it.beginPending(DownloadPendingAction.RETRY, keys) }
         viewModelScope.launch {
             try {
@@ -465,7 +467,17 @@ constructor(
     }
 
     private fun runCompletedDeletion(download: CompletedDownload) {
-        val key = itemKey(download.item.id)
+        val key =
+            _state.value
+                .allContainers()
+                .flatMap(::descendantEntries)
+                .firstOrNull { entry ->
+                    entry.itemId == download.item.id &&
+                        (entry.sourceId == null ||
+                            download.source?.id == null ||
+                            entry.sourceId == download.source.id)
+                }
+                ?.key ?: itemKey(download.item.id)
         _state.update { it.beginPending(DownloadPendingAction.DELETE, setOf(key)) }
         viewModelScope.launch {
             try {
@@ -491,7 +503,7 @@ constructor(
                 ?.mapNotNull { it.task }
                 ?.filter { predicate(it.status) }
                 .orEmpty()
-        val keys = tasks.map { itemKey(it.itemId) }.toSet()
+        val keys = tasks.map(::taskKey).toSet()
         _state.update { it.beginPending(pendingAction, keys) }
         viewModelScope.launch {
             try {
@@ -613,14 +625,14 @@ constructor(
                     Timber.w(error, "刷新下载任务失败")
                     emptyList()
                 }
-            val completedTaskIds = runCatching {
-                downloader.downloadedItemIds()
-            }
-                .getOrElse { emptySet() }
             completedMediaRecords =
                 runCatching { downloader.downloadedMediaRecords() }.getOrElse { emptyList() }
+            val completedCanonicalKeys =
+                completedMediaRecords.mapTo(mutableSetOf()) { record ->
+                    record.canonicalIdentity().canonicalKey
+                }
             val activeEngineTasks =
-                DownloadControlPlaneRules.activeUniqueIntents(tasks, completedTaskIds)
+                DownloadControlPlaneRules.activeUniqueIntents(tasks, completedCanonicalKeys)
             val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)
             val episodeHierarchy = loadEpisodeHierarchy()
             val bookFiles = loadBookFiles()
@@ -680,7 +692,16 @@ constructor(
                     bookStorageBytes = bookStorageBytes,
                     storage = storage,
                     selection =
-                        DownloadSelectionRules.selectionAfterLocalRefresh(current, localKeys),
+                        DownloadSelectionRules.selectionAfterRefresh(
+                            state = current,
+                            validKeys = localKeys,
+                            currentEntries =
+                                localActiveEntries +
+                                    localFailedEntries +
+                                    localBookEntries +
+                                    localRunningBookEntries +
+                                    localFailedBookEntries,
+                        ),
                 )
             }
 
@@ -756,7 +777,18 @@ constructor(
                         DownloadHierarchyBuilder.build(failedEntries + failedBookEntries),
                     bookStorageBytes = bookStorageBytes,
                     storage = storage,
-                    selection = current.selection.filter { it in validKeys },
+                    selection =
+                        DownloadSelectionRules.selectionAfterRefresh(
+                            state = current,
+                            validKeys = validKeys,
+                            currentEntries =
+                                activeEntries +
+                                    failedEntries +
+                                    completedEntries +
+                                    bookEntries +
+                                    runningBookEntries +
+                                    failedBookEntries,
+                        ),
                 )
             }
 
@@ -868,6 +900,9 @@ constructor(
                     else -> DownloadMediaKind.VIDEO
                 },
             status = status,
+            sourceId = sourceId,
+            serverId = serverId,
+            userId = userId,
             task = this,
             downloadId = downloadId,
             sizeBytes = if (status == DownloadTaskStatus.COMPLETED) downloadedBytes else totalBytes,
@@ -921,12 +956,19 @@ constructor(
                 book != null -> DownloadMediaKind.BOOK
                 else -> DownloadMediaKind.VIDEO
             }
+        val mediaRecord = completedMediaRecords.firstOrNull { record ->
+            record.itemId == item.id.toString() &&
+                (source?.id == null || record.sourceId == source.id) &&
+                record.kind == mediaKind
+        }
         return DownloadHierarchyEntry(
             itemId = item.id,
             name = item.name,
             mediaKind = mediaKind,
             status = DownloadTaskStatus.COMPLETED,
             sourceId = source?.id,
+            serverId = mediaRecord?.serverId,
+            userId = mediaRecord?.userId,
             sizeBytes = sizeBytes,
             updatedAt = 0L,
             seriesId = episode?.seriesId,

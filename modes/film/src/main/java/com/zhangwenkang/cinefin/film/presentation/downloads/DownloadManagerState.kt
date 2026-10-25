@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
+import com.zhangwenkang.cinefin.utils.downloadIdentity
 import java.util.UUID
 
 /** W34：媒体类型筛选（全部 / 视频 / 音乐 / 书籍）。 */
@@ -41,13 +42,13 @@ data class DownloadManagerState(
     val actionFailure: DownloadActionFailure? = null,
 ) {
     val activeCount: Int
-        get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.itemId }.size
+        get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.key }.size
 
     val completedCount: Int
         get() = completedContainers.size
 
     val failedCount: Int
-        get() = failedContainers.flatMap { it.descendantEntries() }.distinctBy { it.itemId }.size
+        get() = failedContainers.flatMap { it.descendantEntries() }.distinctBy { it.key }.size
 
     val hasSelection: Boolean
         get() = selection.isNotEmpty()
@@ -242,6 +243,6 @@ sealed interface DownloadPlaybackRequest {
     data class Video(val items: List<FindroidItem>) : DownloadPlaybackRequest
 }
 
-fun taskKey(task: DownloadTask): String = "task:${task.sourceId}"
+fun taskKey(task: DownloadTask): String = "item:" + task.downloadIdentity().canonicalKey
 
 fun completedKey(item: FindroidItem): String = "completed:${item.id}"
