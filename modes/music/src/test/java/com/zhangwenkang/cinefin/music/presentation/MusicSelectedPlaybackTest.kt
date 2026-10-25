@@ -42,7 +42,7 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = {},
                     onAccepted = {},
                     appendItems = {},
-                    onFailure = { _, _ -> },
+                    onFailure = {},
                 )
 
             assertNotNull("selection playback must start", job)
@@ -80,7 +80,7 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = {},
                     onAccepted = {},
                     appendItems = {},
-                    onFailure = { _, _ -> },
+                    onFailure = {},
                 )
             val repeatedJob =
                 launchSelectedPlayback(
@@ -92,7 +92,7 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = {},
                     onAccepted = {},
                     appendItems = {},
-                    onFailure = { _, _ -> },
+                    onFailure = {},
                 )
 
             assertNull("repeat click must be rejected", repeatedJob)
@@ -141,7 +141,7 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = { queued += it },
                     onAccepted = { selectionCleared = true },
                     appendItems = { queued += it },
-                    onFailure = { _, _ -> },
+                    onFailure = {},
                 )
 
             firstGate.complete(Unit)
@@ -170,6 +170,7 @@ class MusicSelectedPlaybackTest {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
             var selection = songs
             var visibleError: String? = null
+            var failure: SelectedPlaybackFailure? = null
             var queueStarted = false
 
             val job =
@@ -182,8 +183,9 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = { queueStarted = true },
                     onAccepted = { selection = emptyList() },
                     appendItems = {},
-                    onFailure = { failed, cause ->
-                        visibleError = "播放失败：${failed.name}：${cause.message}"
+                    onFailure = { rejected ->
+                        failure = rejected
+                        visibleError = "播放失败：${rejected.triggerSong.name}：${rejected.cause.message}"
                     },
                 )
             job?.join()
@@ -192,6 +194,8 @@ class MusicSelectedPlaybackTest {
             assertNull(pending.value)
             assertEquals(songs, selection)
             assertEquals("播放失败：坏文件：曲目没有可用的媒体源", visibleError)
+            assertEquals(SelectedPlaybackFailureStage.FIRST_RESOLUTION, failure?.stage)
+            assertEquals(songs, failure?.unacceptedSongs)
             assertTrue(queueStarted.not())
         }
     }
@@ -203,6 +207,7 @@ class MusicSelectedPlaybackTest {
             val pending = MutableStateFlow<PendingPlaybackUi?>(null)
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
             val queued = mutableListOf<PlayerItem>()
+            var failure: SelectedPlaybackFailure? = null
 
             val job =
                 launchSelectedPlayback(
@@ -217,13 +222,16 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = { queued += it },
                     onAccepted = {},
                     appendItems = { queued += it },
-                    onFailure = { _, _ -> },
+                    onFailure = { failure = it },
+                    onPartialFailure = { failure = it },
                 )
             job?.join()
             scope.cancel()
 
             assertNull(pending.value)
             assertEquals(listOf("第一首", "第三首"), queued.map(PlayerItem::name))
+            assertEquals(SelectedPlaybackFailureStage.SUBSEQUENT_ADDITION, failure?.stage)
+            assertEquals(listOf("坏文件"), failure?.unacceptedSongs?.map(MusicSong::name))
         }
     }
 
@@ -246,8 +254,8 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = { error("播放器队列不可用") },
                     onAccepted = { selection = emptyList() },
                     appendItems = {},
-                    onFailure = { failed, cause ->
-                        visibleError = "播放失败：${failed.name}：${cause.message}"
+                    onFailure = { failure ->
+                        visibleError = "播放失败：${failure.triggerSong.name}：${failure.cause.message}"
                     },
                 )
             job?.join()
@@ -265,8 +273,7 @@ class MusicSelectedPlaybackTest {
             val songs = listOf(song("第一首"), song("第二首"))
             val pending = MutableStateFlow<PendingPlaybackUi?>(null)
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-            var visibleError: String? = null
-            var selection = songs
+            var failure: SelectedPlaybackFailure? = null
             val queued = mutableListOf<PlayerItem>()
 
             val job =
@@ -277,20 +284,23 @@ class MusicSelectedPlaybackTest {
                     requestId = 12,
                     resolve = { playerItem(it) },
                     onFirstResolved = { queued += it },
-                    onAccepted = { selection = emptyList() },
+                    onAccepted = {},
                     appendItems = { error("队列追加失败") },
-                    onFailure = { failed, cause ->
-                        visibleError = "播放失败：${failed.name}：${cause.message}"
-                        selection = songs
-                    },
+                    onFailure = { failure = it },
+                    onPartialFailure = { failure = it },
                 )
             job?.join()
             scope.cancel()
 
             assertNull(pending.value)
             assertEquals(listOf("第一首"), queued.map(PlayerItem::name))
-            assertEquals("播放失败：第一首：队列追加失败", visibleError)
-            assertEquals(songs, selection)
+            assertEquals(SelectedPlaybackFailureStage.SUBSEQUENT_ADDITION, failure?.stage)
+            assertEquals("第二首", failure?.triggerSong?.name)
+            assertEquals(
+                songs.drop(1).map(MusicSong::name),
+                failure?.unacceptedSongs?.map(MusicSong::name),
+            )
+            assertEquals("部分歌曲未能加入队列", selectedPlaybackFailureUi(requireNotNull(failure)).title)
         }
     }
 
@@ -317,8 +327,8 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = {},
                     onAccepted = {},
                     appendItems = {},
-                    onFailure = { failed, cause ->
-                        visibleError = "${failed.name}：${cause.message}"
+                    onFailure = { failure ->
+                        visibleError = "${failure.triggerSong.name}：${failure.cause.message}"
                     },
                 )
             resolverStarted.await()
@@ -357,7 +367,7 @@ class MusicSelectedPlaybackTest {
                     onFirstResolved = { queueStarted = true },
                     onAccepted = { accepted = true },
                     appendItems = {},
-                    onFailure = { _, _ -> },
+                    onFailure = {},
                 )
             resolverStarted.await()
             val newer = PendingPlaybackUi(requestId = 31, item = song("新请求").toPendingPlayerItem())
@@ -369,6 +379,84 @@ class MusicSelectedPlaybackTest {
             assertEquals(newer, pending.value)
             assertTrue(queueStarted.not())
             assertTrue(accepted.not())
+        }
+    }
+
+    @Test
+    fun `subsequent append failure keeps accepted prefix and reports remaining songs`() {
+        runBlocking {
+            val songs =
+                listOf(
+                    song("第一首"),
+                    song("第二首"),
+                    song("第三首"),
+                    song("第四首"),
+                    song("第五首"),
+                )
+            val pending = MutableStateFlow<PendingPlaybackUi?>(null)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            var failure: SelectedPlaybackFailure? = null
+
+            val job =
+                launchSelectedPlayback(
+                    scope = scope,
+                    songs = songs,
+                    pendingPlayback = pending,
+                    requestId = 41,
+                    resolve = { playerItem(it) },
+                    onFirstResolved = {},
+                    onAccepted = {},
+                    appendItems = { error("队列追加失败") },
+                    onFailure = { failure = it },
+                    onPartialFailure = { failure = it },
+                )
+            job?.join()
+            scope.cancel()
+
+            val partial = requireNotNull(failure)
+            assertEquals(SelectedPlaybackFailureStage.SUBSEQUENT_ADDITION, partial.stage)
+            assertEquals("第二首", partial.triggerSong.name)
+            assertEquals(listOf("第一首"), partial.acceptedSongs.map(MusicSong::name))
+            assertEquals(
+                listOf("第二首", "第三首", "第四首", "第五首"),
+                partial.unacceptedSongs.map(MusicSong::name),
+            )
+            assertEquals("部分歌曲未能加入队列", selectedPlaybackFailureUi(partial).title)
+        }
+    }
+
+    @Test
+    fun `queue acceptance failure is distinct from first and subsequent failures`() {
+        runBlocking {
+            val songs = listOf(song("第一首"), song("第二首"))
+            val pending = MutableStateFlow<PendingPlaybackUi?>(null)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            var failure: SelectedPlaybackFailure? = null
+
+            val job =
+                launchSelectedPlayback(
+                    scope = scope,
+                    songs = songs,
+                    pendingPlayback = pending,
+                    requestId = 42,
+                    resolve = { playerItem(it) },
+                    onFirstResolved = { error("播放器队列不可用") },
+                    onAccepted = {},
+                    appendItems = {},
+                    onFailure = { failure = it },
+                    onPartialFailure = { failure = it },
+                )
+            job?.join()
+            scope.cancel()
+
+            val rejected = requireNotNull(failure)
+            assertEquals(SelectedPlaybackFailureStage.QUEUE_ACCEPTANCE, rejected.stage)
+            assertEquals("第一首", rejected.triggerSong.name)
+            assertTrue(rejected.acceptedSongs.isEmpty())
+            assertEquals(
+                listOf("第一首", "第二首"),
+                rejected.unacceptedSongs.map(MusicSong::name),
+            )
         }
     }
 

@@ -172,8 +172,15 @@ constructor(
     val playlistExportReady = playlistExportReadyChannel.receiveAsFlow()
 
     /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
-    private val _batchSelection = MutableStateFlow(MultiSelectState())
-    val batchSelection: StateFlow<MultiSelectState> = _batchSelection.asStateFlow()
+    private val _batchSelectionState = MutableStateFlow(MusicBatchSelectionState())
+    val batchSelection: StateFlow<MultiSelectState> =
+        _batchSelectionState
+            .map { state -> state.selection }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = MultiSelectState(),
+            )
 
     data class UiState(
         val loading: Boolean = true,
@@ -1142,6 +1149,7 @@ constructor(
     fun setSourceFilter(filter: MusicItemSourceFilter) {
         if (_uiState.value.sourceFilter == filter) return
         appPreferences.setValue(appPreferences.localLibraryMusicSource, filter.name)
+        _batchSelectionState.update { state -> state.userChanged(state.selection) }
         _uiState.update { it.copy(sourceFilter = filter) }
         publishLibraries()
     }
@@ -1155,7 +1163,7 @@ constructor(
     fun selectMusicLibrary(libraryId: UUID?) {
         if (_uiState.value.selectedMusicLibraryId == libraryId) return
         appPreferences.setValue(appPreferences.uiMusicLibraryId, libraryId?.toString())
-        _batchSelection.value = MultiSelectState()
+        clearBatchSelection()
         _uiState.update { it.copy(detail = null) }
         refresh()
     }
@@ -1296,7 +1304,7 @@ constructor(
         )
 
     fun selectTab(tab: MusicTab) {
-        _batchSelection.value = MultiSelectState()
+        clearBatchSelection()
         _uiState.update { it.copy(tab = tab, detail = null) }
     }
 
@@ -1328,20 +1336,35 @@ constructor(
         return state.detail?.songs ?: state.songs
     }
 
+    private fun updateBatchSelectionByUser(transform: (MultiSelectState) -> MultiSelectState) {
+        _batchSelectionState.update { state -> state.userChanged(transform(state.selection)) }
+    }
+
+    private fun clearBatchSelection() {
+        updateBatchSelectionByUser { MultiSelectState() }
+    }
+
     private fun syncBatchSelection(ids: Set<String>) {
-        _batchSelection.update { it.retain(ids) }
+        _batchSelectionState.update { state ->
+            val retained = state.selection.retain(ids)
+            if (retained == state.selection) state else state.userChanged(retained)
+        }
     }
 
     /** 长按行：进入多选并把该曲目加入选中。 */
     fun onBatchLongPress(song: MusicSong) {
         val ids = visibleSongs().map { it.playlistSelectionKey() }.toSet()
-        _batchSelection.update { it.retain(ids).longPress(song.playlistSelectionKey()) }
+        updateBatchSelectionByUser { selection ->
+            selection.retain(ids).longPress(song.playlistSelectionKey())
+        }
     }
 
     /** 多选态单击行：切换单曲选中。 */
     fun onBatchToggle(song: MusicSong) {
         val ids = visibleSongs().map { it.playlistSelectionKey() }.toSet()
-        _batchSelection.update { it.retain(ids).toggle(song.playlistSelectionKey()) }
+        updateBatchSelectionByUser { selection ->
+            selection.retain(ids).toggle(song.playlistSelectionKey())
+        }
     }
 
     // ---- W59：专辑列表长按多选（批量下载整张；复用同一 MultiSelectState / 批量下载链路） ----
@@ -1353,20 +1376,20 @@ constructor(
     private fun visibleAlbums(): List<MusicAlbum> = _uiState.value.albums
 
     private fun selectedAlbums(): List<MusicAlbum> {
-        val selection = _batchSelection.value.selectedIds
+        val selection = _batchSelectionState.value.selection.selectedIds
         return visibleAlbums().filter { it.key in selection }
     }
 
     /** W59：长按专辑进入多选（选中该专辑卡）。 */
     fun onAlbumBatchLongPress(album: MusicAlbum) {
         val ids = visibleAlbums().map { it.key }.toSet()
-        _batchSelection.update { it.retain(ids).longPress(album.key) }
+        updateBatchSelectionByUser { selection -> selection.retain(ids).longPress(album.key) }
     }
 
     /** W59：多选态点击专辑卡 = 切换该专辑选中。 */
     fun onAlbumBatchToggle(album: MusicAlbum) {
         val ids = visibleAlbums().map { it.key }.toSet()
-        _batchSelection.update { it.retain(ids).toggle(album.key) }
+        updateBatchSelectionByUser { selection -> selection.retain(ids).toggle(album.key) }
     }
 
     /** 全选当前视图已加载曲目（不拉全库）。 */
@@ -1374,7 +1397,7 @@ constructor(
         val ids =
             if (albumBatchScope()) visibleAlbums().map { it.key }
             else visibleSongs().map { it.playlistSelectionKey() }
-        _batchSelection.update { it.selectAll(ids) }
+        updateBatchSelectionByUser { selection -> selection.selectAll(ids) }
     }
 
     /** 取消全选（保留多选模式）。 */
@@ -1382,12 +1405,12 @@ constructor(
         val ids =
             if (albumBatchScope()) visibleAlbums().map { it.key }
             else visibleSongs().map { it.playlistSelectionKey() }
-        _batchSelection.update { it.selectNone(ids) }
+        updateBatchSelectionByUser { selection -> selection.selectNone(ids) }
     }
 
     /** 退出多选（清空选择）。 */
     fun onBatchExit() {
-        _batchSelection.value = MultiSelectState()
+        clearBatchSelection()
     }
 
     /** 批量动作条可用性（纯函数判定；UI 直接消费）。 */
@@ -1416,7 +1439,7 @@ constructor(
     }
 
     private fun selectedSongs(): List<MusicSong> {
-        val selection = _batchSelection.value.selectedIds
+        val selection = _batchSelectionState.value.selection.selectedIds
         return visibleSongs().filter { it.playlistSelectionKey() in selection }
     }
 
@@ -1437,6 +1460,7 @@ constructor(
         if (songs.isEmpty() || _pendingPlayback.value != null) return
         playJob?.cancel()
         val requestId = ++nextPlayRequestId
+        val selectionSnapshot = _batchSelectionState.value.snapshotForPlayback()
         playJob =
             launchSelectedPlayback(
                 scope = viewModelScope,
@@ -1464,24 +1488,34 @@ constructor(
                         }
                     }
                 },
-                onAccepted = { _batchSelection.value = MultiSelectState() },
+                onAccepted = {
+                    _batchSelectionState.update { state ->
+                        state.acceptedForPlayback(requestId, selectionSnapshot)
+                    }
+                },
                 appendItems = queueEditor::appendToQueue,
                 shouldContinue = { playbackController.queue.value != null },
                 isCurrentRequest = { activeRequestId -> activeRequestId == nextPlayRequestId },
-                onFailure = { song, error ->
-                    val currentSelection = _batchSelection.value
-                    if (!currentSelection.selectionMode && !currentSelection.hasSelection) {
-                        _batchSelection.value =
-                            MultiSelectState(
-                                selectionMode = true,
-                                selectedIds = songs.map { it.playlistSelectionKey() }.toSet(),
-                            )
+                onFailure = { failure ->
+                    val ui = selectedPlaybackFailureUi(failure)
+                    showBatchFailure(ui.title, ui.message)
+                },
+                onPartialFailure = { failure ->
+                    val unacceptedIds =
+                        failure.unacceptedSongs.mapTo(mutableSetOf()) { song ->
+                            song.playlistSelectionKey()
+                        }
+                    val visibleIds =
+                        visibleSongs().mapTo(mutableSetOf()) { song -> song.playlistSelectionKey() }
+                    _batchSelectionState.update { state ->
+                        state.restoreUnaccepted(
+                            requestId = requestId,
+                            unacceptedIds = unacceptedIds,
+                            visibleIds = visibleIds,
+                        )
                     }
-                    showBatchFailure(
-                        "播放失败",
-                        error.message?.takeIf { message -> message.isNotBlank() }
-                            ?: "无法解析「${song.name}」的播放地址",
-                    )
+                    val ui = selectedPlaybackFailureUi(failure)
+                    showBatchFailure(ui.title, ui.message)
                 },
             )
     }
@@ -1633,7 +1667,7 @@ constructor(
                 runCatching { localPlaylistRepository.remove(detail.playlist.id, entryIds) }
                     .onSuccess { removed ->
                         if (removed) {
-                            _batchSelection.value = MultiSelectState()
+                            clearBatchSelection()
                         } else {
                             showLocalPlaylistFailure("移出歌单失败", "本地歌单条目已变化，请重试")
                         }
@@ -1660,7 +1694,7 @@ constructor(
                                 current.copy(songs = current.songs.filter { it.itemId !in removed })
                         )
                     }
-                    _batchSelection.value = MultiSelectState()
+                    clearBatchSelection()
                 }
                 .onFailure { error ->
                     _uiState.update {
@@ -1748,7 +1782,7 @@ constructor(
                 errorMessage = null,
             )
         }
-        _batchSelection.value = MultiSelectState()
+        clearBatchSelection()
         if (playlist.kind == MusicPlaylistKind.LOCAL) {
             refreshLocalPlaylistEntries(playlist.id)
             return
@@ -1941,7 +1975,7 @@ constructor(
                     }
                     val detail = _uiState.value.detail as? MusicDetail.Playlist
                     if (detail?.playlist?.id == playlistId) closeDetail()
-                    _batchSelection.value = MultiSelectState()
+                    clearBatchSelection()
                 }
                 .onFailure { error ->
                     showLocalPlaylistFailure(
@@ -1972,7 +2006,7 @@ constructor(
             runCatching { localPlaylistRepository.addAll(playlistId, tracks) }
                 .onSuccess { added ->
                     if (added) {
-                        _batchSelection.value = MultiSelectState()
+                        clearBatchSelection()
                     } else {
                         showLocalPlaylistFailure("加入歌单失败", "本地歌单已不存在")
                     }
@@ -2066,7 +2100,7 @@ constructor(
     }
 
     fun closeDetail() {
-        _batchSelection.value = MultiSelectState()
+        clearBatchSelection()
         _uiState.update { it.copy(detail = null, errorTitle = null, errorMessage = null) }
     }
 

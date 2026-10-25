@@ -22,6 +22,53 @@ internal data class PendingPlaybackUi(
     val item: PlayerItem,
 )
 
+internal enum class SelectedPlaybackFailureStage {
+    FIRST_RESOLUTION,
+    QUEUE_ACCEPTANCE,
+    SUBSEQUENT_ADDITION,
+}
+
+internal data class SelectedPlaybackFailure(
+    val stage: SelectedPlaybackFailureStage,
+    val triggerSong: MusicSong,
+    val acceptedSongs: List<MusicSong>,
+    val unacceptedSongs: List<MusicSong>,
+    val cause: Throwable,
+)
+
+internal data class SelectedPlaybackFailureUi(
+    val title: String,
+    val message: String,
+)
+
+internal fun selectedPlaybackFailureUi(
+    failure: SelectedPlaybackFailure
+): SelectedPlaybackFailureUi =
+    when (failure.stage) {
+        SelectedPlaybackFailureStage.FIRST_RESOLUTION ->
+            SelectedPlaybackFailureUi(
+                title = "播放失败",
+                message =
+                    failure.cause.message?.takeIf { message -> message.isNotBlank() }
+                        ?: "无法解析「${failure.triggerSong.name}」的播放地址",
+            )
+        SelectedPlaybackFailureStage.QUEUE_ACCEPTANCE ->
+            SelectedPlaybackFailureUi(
+                title = "播放失败",
+                message =
+                    "播放队列受理失败：" +
+                        (failure.cause.message?.takeIf { message -> message.isNotBlank() }
+                            ?: "请稍后重试"),
+            )
+        SelectedPlaybackFailureStage.SUBSEQUENT_ADDITION ->
+            SelectedPlaybackFailureUi(
+                title = "部分歌曲未能加入队列",
+                message =
+                    "已起播或已受理 ${failure.acceptedSongs.size} 首；" +
+                        "${failure.unacceptedSongs.size} 首未能加入队列。",
+            )
+    }
+
 internal fun MusicSong.toPendingPlayerItem(): PlayerItem =
     PlayerItem(
         name = name,
@@ -56,7 +103,8 @@ internal fun launchSelectedPlayback(
     onAccepted: () -> Unit,
     appendItems: (List<PlayerItem>) -> Unit,
     shouldContinue: () -> Boolean = { true },
-    onFailure: (MusicSong, Throwable) -> Unit,
+    onFailure: (SelectedPlaybackFailure) -> Unit,
+    onPartialFailure: (SelectedPlaybackFailure) -> Unit = {},
     isCurrentRequest: (Long) -> Boolean = {
         pendingPlayback.value?.let { pending -> pending.requestId == it } ?: true
     },
@@ -66,12 +114,41 @@ internal fun launchSelectedPlayback(
     val pending = PendingPlaybackUi(requestId = requestId, item = firstSong.toPendingPlayerItem())
     pendingPlayback.value = pending
     return scope.launch {
-        fun failCurrent(error: Exception) {
+        fun failCurrent(
+            error: Exception,
+            stage: SelectedPlaybackFailureStage,
+        ) {
             if (!isCurrentRequest(requestId)) return
             if (pendingPlayback.value?.requestId == requestId) {
                 pendingPlayback.value = pendingPlaybackAfterFailure(pending, requestId)
             }
-            onFailure(firstSong, error)
+            onFailure(
+                SelectedPlaybackFailure(
+                    stage = stage,
+                    triggerSong = firstSong,
+                    acceptedSongs = emptyList(),
+                    unacceptedSongs = songs,
+                    cause = error,
+                )
+            )
+        }
+
+        fun reportPartialFailure(
+            triggerSong: MusicSong,
+            acceptedSongs: List<MusicSong>,
+            cause: Throwable,
+        ) {
+            if (!isCurrentRequest(requestId)) return
+            val acceptedIds = acceptedSongs.mapTo(mutableSetOf()) { song -> song.itemId }
+            onPartialFailure(
+                SelectedPlaybackFailure(
+                    stage = SelectedPlaybackFailureStage.SUBSEQUENT_ADDITION,
+                    triggerSong = triggerSong,
+                    acceptedSongs = acceptedSongs,
+                    unacceptedSongs = songs.filter { song -> song.itemId !in acceptedIds },
+                    cause = cause,
+                )
+            )
         }
 
         val first =
@@ -80,7 +157,7 @@ internal fun launchSelectedPlayback(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
-                failCurrent(error)
+                failCurrent(error, SelectedPlaybackFailureStage.FIRST_RESOLUTION)
                 return@launch
             }
         if (!isCurrentRequest(requestId) || pendingPlayback.value?.requestId != requestId) {
@@ -94,40 +171,89 @@ internal fun launchSelectedPlayback(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            failCurrent(error)
+            failCurrent(error, SelectedPlaybackFailureStage.QUEUE_ACCEPTANCE)
             return@launch
         }
+
+        val acceptedSongs = mutableListOf(firstSong)
+        val unresolved = mutableMapOf<java.util.UUID, SelectedPlaybackResolutionFailure>()
         for (chunk in songs.drop(1).chunked(SELECTED_PLAYBACK_PREFETCH_CONCURRENCY)) {
             if (!isCurrentRequest(requestId) || !shouldContinue()) break
-            val resolved = coroutineScope {
+            val resolutions = coroutineScope {
                 chunk
                     .map { song ->
                         async {
                             try {
-                                resolve(song)
+                                SelectedPlaybackResolution(
+                                    song = song,
+                                    item = resolve(song),
+                                    failure = null,
+                                )
                             } catch (cancellation: CancellationException) {
                                 throw cancellation
-                            } catch (_: Exception) {
-                                null
+                            } catch (error: Exception) {
+                                SelectedPlaybackResolution(
+                                    song = song,
+                                    item = null,
+                                    failure = error,
+                                )
                             }
                         }
                     }
                     .awaitAll()
-                    .filterNotNull()
             }
             if (!isCurrentRequest(requestId)) break
+            resolutions.forEach { resolution ->
+                val failure = resolution.failure
+                if (failure != null) {
+                    unresolved[resolution.song.itemId] =
+                        SelectedPlaybackResolutionFailure(
+                            song = resolution.song,
+                            cause = failure,
+                        )
+                }
+            }
+            val resolved = resolutions.mapNotNull(SelectedPlaybackResolution::item)
             if (resolved.isNotEmpty()) {
+                val resolvedSongs =
+                    resolutions
+                        .filter { resolution -> resolution.item != null }
+                        .map(SelectedPlaybackResolution::song)
                 try {
                     appendItems(resolved)
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
-                    failCurrent(error)
+                    reportPartialFailure(
+                        triggerSong = resolvedSongs.first(),
+                        acceptedSongs = acceptedSongs,
+                        cause = error,
+                    )
                     return@launch
                 }
+                acceptedSongs += resolvedSongs
             }
+        }
+        if (!isCurrentRequest(requestId)) return@launch
+        unresolved.values.firstOrNull()?.let { failure ->
+            reportPartialFailure(
+                triggerSong = failure.song,
+                acceptedSongs = acceptedSongs,
+                cause = failure.cause,
+            )
         }
     }
 }
+
+private data class SelectedPlaybackResolution(
+    val song: MusicSong,
+    val item: PlayerItem?,
+    val failure: Exception?,
+)
+
+private data class SelectedPlaybackResolutionFailure(
+    val song: MusicSong,
+    val cause: Exception,
+)
 
 private const val SELECTED_PLAYBACK_PREFETCH_CONCURRENCY = 4
