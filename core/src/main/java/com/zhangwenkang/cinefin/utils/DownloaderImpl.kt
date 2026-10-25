@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.utils
 
 import android.app.DownloadManager
-import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
@@ -100,7 +99,8 @@ private data class FrozenDownloadOrigin(
  * - 失败：分类 + 指数退避自动重试（网络类无限、服务器类限次、空间 / 鉴权不自动）；
  * - 兼容：旧 DownloadManager 进行中任务（engineVersion = 0）不做无缝接管，首次启动标记「需重下」； 已完成的完整文件继续按路径识别。
  */
-class DownloaderImpl(
+class DownloaderImpl
+private constructor(
     private val context: Context,
     private val database: ServerDatabaseDao,
     private val jellyfinRepository: JellyfinRepository,
@@ -109,11 +109,36 @@ class DownloaderImpl(
     private val imageCacheStore: ImageCacheStore,
     private val workManager: WorkManager,
     httpClient: OkHttpClient,
+    private val notifications: DownloadNotificationGateway,
+    private val registerNetworkCallback: (ConnectivityManager.NetworkCallback) -> Unit,
 ) : Downloader {
+    constructor(
+        context: Context,
+        database: ServerDatabaseDao,
+        jellyfinRepository: JellyfinRepository,
+        readerRepository: ReaderRepository,
+        appPreferences: AppPreferences,
+        imageCacheStore: ImageCacheStore,
+        workManager: WorkManager,
+        httpClient: OkHttpClient,
+    ) : this(
+        context = context,
+        database = database,
+        jellyfinRepository = jellyfinRepository,
+        readerRepository = readerRepository,
+        appPreferences = appPreferences,
+        imageCacheStore = imageCacheStore,
+        workManager = workManager,
+        httpClient = httpClient,
+        notifications = DownloadNotifications(context),
+        registerNetworkCallback = { callback ->
+            context
+                .getSystemService(ConnectivityManager::class.java)
+                ?.registerDefaultNetworkCallback(callback)
+        },
+    )
+
     private val httpEngine = DownloadHttpEngine(httpClient)
-    private val notifications = DownloadNotifications(context)
-    private val notificationManager =
-        context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
     private val sidecar = DownloadMediaSidecar(context)
     private val intentMutations =
         DownloadIntentMutations(
@@ -218,10 +243,7 @@ class DownloaderImpl(
         }
 
     init {
-        runCatching {
-            (context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)
-                ?.registerDefaultNetworkCallback(networkCallback)
-        }
+        runCatching { registerNetworkCallback(networkCallback) }
             .onFailure { Timber.w(it, "注册下载网络回调失败") }
     }
 
@@ -2332,10 +2354,7 @@ class DownloaderImpl(
                 return@launch
             }
             val first = snapshotActiveTasks().firstOrNull()
-            notificationManager?.notify(
-                DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
-                notifications.buildForeground(task = first, activeCount = active),
-            )
+            notifications.notifyForeground(task = first, activeCount = active)
         }
     }
 
@@ -2430,7 +2449,32 @@ class DownloaderImpl(
         fun isFresh(): Boolean = System.currentTimeMillis() - savedAt <= SNAPSHOT_TTL_MS
     }
 
-    private companion object {
+    internal companion object {
+        fun createForTest(
+            context: Context,
+            database: ServerDatabaseDao,
+            jellyfinRepository: JellyfinRepository,
+            readerRepository: ReaderRepository,
+            appPreferences: AppPreferences,
+            imageCacheStore: ImageCacheStore,
+            workManager: WorkManager,
+            httpClient: OkHttpClient,
+            notifications: DownloadNotificationGateway,
+            registerNetworkCallback: (ConnectivityManager.NetworkCallback) -> Unit,
+        ): DownloaderImpl =
+            DownloaderImpl(
+                context = context,
+                database = database,
+                jellyfinRepository = jellyfinRepository,
+                readerRepository = readerRepository,
+                appPreferences = appPreferences,
+                imageCacheStore = imageCacheStore,
+                workManager = workManager,
+                httpClient = httpClient,
+                notifications = notifications,
+                registerNetworkCallback = registerNetworkCallback,
+            )
+
         /** 自研引擎写入 sources 行的版本标记（旧 DownloadManager 行为 0）。 */
         const val ENGINE_VERSION = 1
 

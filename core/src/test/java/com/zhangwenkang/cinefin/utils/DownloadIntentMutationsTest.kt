@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.utils
 
+import android.app.Notification
 import android.content.ContextWrapper
+import android.net.ConnectivityManager
 import androidx.work.WorkManager
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
@@ -61,6 +63,7 @@ class DownloadIntentMutationsTest {
         assertTrue("insertDownloadDeleteReceipt" in fixture.dao.calls)
         assertTrue("finishDownloadDeleteBatch" in fixture.dao.calls)
         assertEquals("SUCCEEDED", fixture.dao.successfulReceipt?.outcome)
+        assertEquals(1, fixture.services.networkCallbackRegistrationCount)
     }
 
     @Test
@@ -95,6 +98,7 @@ class DownloadIntentMutationsTest {
         assertEquals("FAILED", fixture.dao.intent?.status)
         assertEquals("CANCELLED", fixture.dao.intent?.failureReason)
         assertEquals(4L, fixture.dao.intent?.taskGeneration)
+        assertEquals(1, fixture.services.networkCallbackRegistrationCount)
     }
 
     @Test
@@ -128,12 +132,14 @@ class DownloadIntentMutationsTest {
         assertTrue("deleteDownloadIntentIfCurrent" in fixture.dao.calls)
         assertFalse("cancelDownloadIntent" in fixture.dao.calls)
         assertEquals("SUCCEEDED", fixture.dao.successfulReceipt?.outcome)
+        assertEquals(1, fixture.services.networkCallbackRegistrationCount)
     }
 
     private class Fixture(status: String, generation: Long) {
         val dao = RecordingDao(status = status, generation = generation)
+        val services = FakeDownloadSystemServices()
         val downloader =
-            DownloaderImpl(
+            DownloaderImpl.createForTest(
                 context = TestContext(),
                 database = dao.proxy,
                 jellyfinRepository = unusedProxy(JellyfinRepository::class.java),
@@ -144,7 +150,29 @@ class DownloadIntentMutationsTest {
                     allocateClass(Class.forName("androidx.work.impl.WorkManagerImpl"))
                         as WorkManager,
                 httpClient = allocate(),
+                notifications = services.notifications,
+                registerNetworkCallback = services::registerNetworkCallback,
             )
+    }
+
+    private class FakeDownloadSystemServices {
+        val notifications = FakeNotificationGateway()
+        var networkCallbackRegistrationCount = 0
+
+        fun registerNetworkCallback(callback: ConnectivityManager.NetworkCallback) {
+            networkCallbackRegistrationCount += 1
+        }
+    }
+
+    private class FakeNotificationGateway : DownloadNotificationGateway {
+        override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification =
+            allocate()
+
+        override fun notifyForeground(task: DownloadTask?, activeCount: Int) = Unit
+
+        override fun notifyCompleted(task: DownloadTask) = Unit
+
+        override fun notifyFailed(task: DownloadTask) = Unit
     }
 
     private class RecordingDao(status: String, generation: Long) {
@@ -274,8 +302,6 @@ class DownloadIntentMutationsTest {
         private val files = Files.createTempDirectory("download-intent-test").toFile()
 
         override fun getFilesDir(): File = files
-
-        override fun getSystemService(name: String): Any? = null
     }
 
     private companion object {

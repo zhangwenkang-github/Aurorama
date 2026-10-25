@@ -19,15 +19,24 @@ import com.zhangwenkang.cinefin.core.R as CoreR
  *
  * W52：操作按钮仍只对「当前任务」生效；**多任务**时点击通知本体直接进下载页（不额外做多按钮）。
  */
-internal class DownloadNotifications(private val context: Context) {
-    private val manager =
-        context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+internal interface DownloadNotificationGateway {
+    fun buildForeground(task: DownloadTask?, activeCount: Int): Notification
+
+    fun notifyForeground(task: DownloadTask?, activeCount: Int)
+
+    fun notifyCompleted(task: DownloadTask)
+
+    fun notifyFailed(task: DownloadTask)
+}
+
+internal class DownloadNotifications(private val context: Context) : DownloadNotificationGateway {
+    private val manager = context.getSystemService(NotificationManager::class.java)
 
     init {
         createChannel()
     }
 
-    fun buildForeground(task: DownloadTask?, activeCount: Int): Notification {
+    override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification {
         val title =
             if (activeCount > 1) {
                 context.getString(CoreR.string.download_notification_active_multi, activeCount)
@@ -61,7 +70,14 @@ internal class DownloadNotifications(private val context: Context) {
         return builder.build()
     }
 
-    fun notifyCompleted(task: DownloadTask) {
+    override fun notifyForeground(task: DownloadTask?, activeCount: Int) {
+        manager.notify(
+            FOREGROUND_NOTIFICATION_ID,
+            buildForeground(task = task, activeCount = activeCount),
+        )
+    }
+
+    override fun notifyCompleted(task: DownloadTask) {
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
@@ -70,10 +86,10 @@ internal class DownloadNotifications(private val context: Context) {
                 .setAutoCancel(true)
                 .setContentIntent(openAppIntent())
                 .build()
-        manager?.notify(stateNotificationId(task.sourceId), notification)
+        manager.notify(stateNotificationId(task.sourceId), notification)
     }
 
-    fun notifyFailed(task: DownloadTask) {
+    override fun notifyFailed(task: DownloadTask) {
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_notify_error)
@@ -82,7 +98,7 @@ internal class DownloadNotifications(private val context: Context) {
                 .setAutoCancel(true)
                 .setContentIntent(openAppIntent())
                 .build()
-        manager?.notify(stateNotificationId(task.sourceId), notification)
+        manager.notify(stateNotificationId(task.sourceId), notification)
     }
 
     private fun DownloadTask.notificationText(): String {
@@ -155,7 +171,7 @@ internal class DownloadNotifications(private val context: Context) {
                 NotificationManager.IMPORTANCE_LOW,
             )
         channel.setShowBadge(false)
-        manager?.createNotificationChannel(channel)
+        manager.createNotificationChannel(channel)
     }
 
     companion object {
