@@ -291,7 +291,11 @@ interface ServerDatabaseDao {
     @Query(MARK_SOURCE_RETRY_SQL) suspend fun markSourceRetry(id: String, now: Long): Int
 
     @Transaction
-    suspend fun beginSourceResume(id: String, expectedGeneration: Long, now: Long): FindroidSourceDto? {
+    suspend fun beginSourceResume(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): FindroidSourceDto? {
         if (markSourceResume(id, expectedGeneration, now) <= 0) return null
         return getSource(id)
     }
