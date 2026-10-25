@@ -57,30 +57,48 @@ internal fun launchSelectedPlayback(
     appendItems: (List<PlayerItem>) -> Unit,
     shouldContinue: () -> Boolean = { true },
     onFailure: (MusicSong, Throwable) -> Unit,
+    isCurrentRequest: (Long) -> Boolean = {
+        pendingPlayback.value?.let { pending -> pending.requestId == it } ?: true
+    },
 ): Job? {
     if (songs.isEmpty() || pendingPlayback.value != null) return null
     val firstSong = songs.first()
     val pending = PendingPlaybackUi(requestId = requestId, item = firstSong.toPendingPlayerItem())
     pendingPlayback.value = pending
     return scope.launch {
+        fun failCurrent(error: Exception) {
+            if (!isCurrentRequest(requestId)) return
+            if (pendingPlayback.value?.requestId == requestId) {
+                pendingPlayback.value = pendingPlaybackAfterFailure(pending, requestId)
+            }
+            onFailure(firstSong, error)
+        }
+
         val first =
             try {
                 resolve(firstSong)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
-                if (pendingPlayback.value?.requestId == requestId) {
-                    pendingPlayback.value = pendingPlaybackAfterFailure(pending, requestId)
-                }
-                onFailure(firstSong, error)
+                failCurrent(error)
                 return@launch
             }
-        if (pendingPlayback.value?.requestId != requestId) return@launch
-        onFirstResolved(first)
-        pendingPlayback.value = null
-        onAccepted()
+        if (!isCurrentRequest(requestId) || pendingPlayback.value?.requestId != requestId) {
+            return@launch
+        }
+        try {
+            onFirstResolved(first)
+            if (!isCurrentRequest(requestId)) return@launch
+            pendingPlayback.value = null
+            onAccepted()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            failCurrent(error)
+            return@launch
+        }
         for (chunk in songs.drop(1).chunked(SELECTED_PLAYBACK_PREFETCH_CONCURRENCY)) {
-            if (!shouldContinue()) break
+            if (!isCurrentRequest(requestId) || !shouldContinue()) break
             val resolved = coroutineScope {
                 chunk
                     .map { song ->
@@ -97,7 +115,17 @@ internal fun launchSelectedPlayback(
                     .awaitAll()
                     .filterNotNull()
             }
-            if (resolved.isNotEmpty()) appendItems(resolved)
+            if (!isCurrentRequest(requestId)) break
+            if (resolved.isNotEmpty()) {
+                try {
+                    appendItems(resolved)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    failCurrent(error)
+                    return@launch
+                }
+            }
         }
     }
 }

@@ -1,35 +1,65 @@
 package com.zhangwenkang.cinefin.music.presentation
 
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MusicPrimaryToolbarLayoutTest {
 
     @Test
-    fun `primary toolbar starts twelve dp below tab filter row`() {
-        val layout =
-            musicPrimaryToolbarGeometry(
-                tabsHeightPx = 44,
-                toolbarHeightPx = 48,
-                gapPx = MusicPrimaryToolbarLayout.tabsToToolbarGap.roundToPxAtOneDensity(),
+    fun `primary measure policy places toolbar twelve dp below measured tabs`() {
+        val plan =
+            MusicPrimaryToolbarLayout.measurePrimary(
+                tabs = MusicMeasuredBox(widthPx = 600, heightPx = 44),
+                toolbar = MusicMeasuredBox(widthPx = 600, heightPx = 48),
+                gapPx = 12,
             )
 
-        assertEquals(12.dp, MusicPrimaryToolbarLayout.tabsToToolbarGap)
-        assertEquals(56, layout.toolbarTopPx)
-        assertEquals(104, layout.totalHeightPx)
+        assertEquals(600, plan.widthPx)
+        assertEquals(104, plan.heightPx)
+        assertEquals(MusicPlacement(xPx = 0, yPx = 0), plan.tabsPlacement)
+        assertEquals(MusicPlacement(xPx = 0, yPx = 56), plan.toolbarPlacement)
     }
 
     @Test
-    fun `play all clickable height is at least forty eight dp`() {
-        val minimumPx =
-            MusicPrimaryToolbarLayout.playAllMinInteractiveHeight.roundToPxAtOneDensity()
+    fun `primary measure policy omits gap when toolbar is absent`() {
+        val plan =
+            MusicPrimaryToolbarLayout.measurePrimary(
+                tabs = MusicMeasuredBox(widthPx = 600, heightPx = 44),
+                toolbar = null,
+                gapPx = 12,
+            )
 
-        assertEquals(48.dp, MusicPrimaryToolbarLayout.playAllMinInteractiveHeight)
-        assertEquals(48, musicPlayAllInteractiveHeight(contentHeightPx = 38, minimumPx))
-        assertTrue(musicPlayAllInteractiveHeight(contentHeightPx = 52, minimumPx) >= minimumPx)
+        assertEquals(44, plan.heightPx)
+        assertNull(plan.toolbarPlacement)
     }
 
-    private fun androidx.compose.ui.unit.Dp.roundToPxAtOneDensity(): Int = value.toInt()
+    @Test
+    fun `play all measure policy provides forty eight dp interactive bounds`() {
+        val plan =
+            MusicPrimaryToolbarLayout.measurePlayAll(
+                content = MusicMeasuredBox(widthPx = 100, heightPx = 38),
+                minimumPx = 48,
+            )
+
+        assertEquals(100, plan.widthPx)
+        assertEquals(48, plan.heightPx)
+        assertEquals(MusicPlacement(xPx = 0, yPx = 5), plan.contentPlacement)
+        assertEquals(MusicInteractionRole.BUTTON, plan.interaction.role)
+        assertEquals("播放全部", plan.interaction.semanticsLabel)
+        assertTrue(plan.interaction.singleSemanticsNode)
+    }
+
+    @Test
+    fun `play all measure policy preserves content taller than minimum`() {
+        val plan =
+            MusicPrimaryToolbarLayout.measurePlayAll(
+                content = MusicMeasuredBox(widthPx = 120, heightPx = 52),
+                minimumPx = 48,
+            )
+
+        assertEquals(52, plan.heightPx)
+        assertEquals(MusicPlacement(xPx = 0, yPx = 0), plan.contentPlacement)
+    }
 }

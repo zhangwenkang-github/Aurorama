@@ -1467,7 +1467,16 @@ constructor(
                 onAccepted = { _batchSelection.value = MultiSelectState() },
                 appendItems = queueEditor::appendToQueue,
                 shouldContinue = { playbackController.queue.value != null },
+                isCurrentRequest = { activeRequestId -> activeRequestId == nextPlayRequestId },
                 onFailure = { song, error ->
+                    val currentSelection = _batchSelection.value
+                    if (!currentSelection.selectionMode && !currentSelection.hasSelection) {
+                        _batchSelection.value =
+                            MultiSelectState(
+                                selectionMode = true,
+                                selectedIds = songs.map { it.playlistSelectionKey() }.toSet(),
+                            )
+                    }
                     showBatchFailure(
                         "播放失败",
                         error.message?.takeIf { message -> message.isNotBlank() }

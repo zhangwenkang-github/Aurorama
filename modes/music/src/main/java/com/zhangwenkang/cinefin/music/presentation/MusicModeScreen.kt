@@ -1055,15 +1055,21 @@ private fun MusicPrimaryToolbarSection(
             } else {
                 measurables.last().measure(constraints.copy(minHeight = 0))
             }
-        val geometry =
-            musicPrimaryToolbarGeometry(
-                tabsHeightPx = tabsPlaceable.height,
-                toolbarHeightPx = toolbarPlaceable?.height ?: 0,
+        val plan =
+            MusicPrimaryToolbarLayout.measurePrimary(
+                tabs = MusicMeasuredBox(tabsPlaceable.width, tabsPlaceable.height),
+                toolbar =
+                    toolbarPlaceable?.let { placeable ->
+                        MusicMeasuredBox(placeable.width, placeable.height)
+                    },
                 gapPx = if (toolbarPlaceable == null) 0 else gapPx,
             )
-        layout(constraints.maxWidth, geometry.totalHeightPx) {
-            tabsPlaceable.placeRelative(0, 0)
-            toolbarPlaceable?.placeRelative(0, geometry.toolbarTopPx)
+        layout(plan.widthPx, plan.heightPx) {
+            tabsPlaceable.placeRelative(plan.tabsPlacement.xPx, plan.tabsPlacement.yPx)
+            val toolbarPlacement = plan.toolbarPlacement
+            if (toolbarPlaceable != null && toolbarPlacement != null) {
+                toolbarPlaceable.placeRelative(toolbarPlacement.xPx, toolbarPlacement.yPx)
+            }
         }
     }
 }
@@ -1077,22 +1083,39 @@ private fun MusicPlayAllHitTarget(
         with(LocalDensity.current) {
             MusicPrimaryToolbarLayout.playAllMinInteractiveHeight.roundToPx()
         }
+    val interaction = MusicPrimaryToolbarLayout.playAllInteraction
+    check(interaction.singleSemanticsNode)
+    val interactionRole =
+        when (interaction.role) {
+            MusicInteractionRole.BUTTON -> Role.Button
+        }
     Layout(
         content = button,
         modifier =
-            Modifier.clickable(role = Role.Button, onClick = onClick).clearAndSetSemantics {
-                role = Role.Button
-                contentDescription = "播放全部"
-                semanticsOnClick(label = "播放全部") {
-                    onClick()
-                    true
-                }
-            },
+            Modifier.clickable(
+                    role = interactionRole,
+                    onClick = onClick,
+                )
+                .clearAndSetSemantics {
+                    role = interactionRole
+                    contentDescription = interaction.semanticsLabel
+                    semanticsOnClick(label = interaction.semanticsLabel) {
+                        onClick()
+                        true
+                    }
+                },
     ) { measurables, constraints ->
         val content = measurables.single().measure(constraints.copy(minHeight = 0))
-        val interactiveHeight = musicPlayAllInteractiveHeight(content.height, minimumPx)
-        layout(content.width, interactiveHeight) {
-            content.placeRelative(0, (interactiveHeight - content.height) / 2)
+        val plan =
+            MusicPrimaryToolbarLayout.measurePlayAll(
+                content = MusicMeasuredBox(content.width, content.height),
+                minimumPx = minimumPx,
+            )
+        layout(plan.widthPx, plan.heightPx) {
+            content.placeRelative(
+                plan.contentPlacement.xPx,
+                plan.contentPlacement.yPx,
+            )
         }
     }
 }

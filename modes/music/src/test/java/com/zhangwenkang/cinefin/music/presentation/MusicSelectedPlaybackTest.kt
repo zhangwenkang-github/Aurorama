@@ -227,6 +227,151 @@ class MusicSelectedPlaybackTest {
         }
     }
 
+    @Test
+    fun `queue acceptance failure clears pending keeps selection and reports error`() {
+        runBlocking {
+            val songs = listOf(song("第一首"), song("第二首"))
+            val pending = MutableStateFlow<PendingPlaybackUi?>(null)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            var selection = songs
+            var visibleError: String? = null
+
+            val job =
+                launchSelectedPlayback(
+                    scope = scope,
+                    songs = songs,
+                    pendingPlayback = pending,
+                    requestId = 11,
+                    resolve = { playerItem(it) },
+                    onFirstResolved = { error("播放器队列不可用") },
+                    onAccepted = { selection = emptyList() },
+                    appendItems = {},
+                    onFailure = { failed, cause ->
+                        visibleError = "播放失败：${failed.name}：${cause.message}"
+                    },
+                )
+            job?.join()
+            scope.cancel()
+
+            assertNull(pending.value)
+            assertEquals(songs, selection)
+            assertEquals("播放失败：第一首：播放器队列不可用", visibleError)
+        }
+    }
+
+    @Test
+    fun `queue append failure reports visible error without leaving pending`() {
+        runBlocking {
+            val songs = listOf(song("第一首"), song("第二首"))
+            val pending = MutableStateFlow<PendingPlaybackUi?>(null)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+            var visibleError: String? = null
+            var selection = songs
+            val queued = mutableListOf<PlayerItem>()
+
+            val job =
+                launchSelectedPlayback(
+                    scope = scope,
+                    songs = songs,
+                    pendingPlayback = pending,
+                    requestId = 12,
+                    resolve = { playerItem(it) },
+                    onFirstResolved = { queued += it },
+                    onAccepted = { selection = emptyList() },
+                    appendItems = { error("队列追加失败") },
+                    onFailure = { failed, cause ->
+                        visibleError = "播放失败：${failed.name}：${cause.message}"
+                        selection = songs
+                    },
+                )
+            job?.join()
+            scope.cancel()
+
+            assertNull(pending.value)
+            assertEquals(listOf("第一首"), queued.map(PlayerItem::name))
+            assertEquals("播放失败：第一首：队列追加失败", visibleError)
+            assertEquals(songs, selection)
+        }
+    }
+
+    @Test
+    fun `stale request failure cannot clear or report over newer pending`() {
+        runBlocking {
+            val songs = listOf(song("旧请求"))
+            val pending = MutableStateFlow<PendingPlaybackUi?>(null)
+            val resolverGate = CompletableDeferred<Unit>()
+            val resolverStarted = CompletableDeferred<Unit>()
+            var visibleError: String? = null
+
+            val job =
+                launchSelectedPlayback(
+                    scope = this,
+                    songs = songs,
+                    pendingPlayback = pending,
+                    requestId = 20,
+                    resolve = {
+                        resolverStarted.complete(Unit)
+                        resolverGate.await()
+                        error("旧请求失败")
+                    },
+                    onFirstResolved = {},
+                    onAccepted = {},
+                    appendItems = {},
+                    onFailure = { failed, cause ->
+                        visibleError = "${failed.name}：${cause.message}"
+                    },
+                )
+            resolverStarted.await()
+            val newer = PendingPlaybackUi(requestId = 21, item = song("新请求").toPendingPlayerItem())
+            pending.value = newer
+
+            resolverGate.complete(Unit)
+            job?.join()
+
+            assertEquals(newer, pending.value)
+            assertNull(visibleError)
+        }
+    }
+
+    @Test
+    fun `stale request success cannot start queue or clear newer pending`() {
+        runBlocking {
+            val songs = listOf(song("旧请求"))
+            val pending = MutableStateFlow<PendingPlaybackUi?>(null)
+            val resolverGate = CompletableDeferred<Unit>()
+            val resolverStarted = CompletableDeferred<Unit>()
+            var queueStarted = false
+            var accepted = false
+
+            val job =
+                launchSelectedPlayback(
+                    scope = this,
+                    songs = songs,
+                    pendingPlayback = pending,
+                    requestId = 30,
+                    resolve = {
+                        resolverStarted.complete(Unit)
+                        resolverGate.await()
+                        playerItem(it)
+                    },
+                    onFirstResolved = { queueStarted = true },
+                    onAccepted = { accepted = true },
+                    appendItems = {},
+                    onFailure = { _, _ -> },
+                )
+            resolverStarted.await()
+            val newer = PendingPlaybackUi(requestId = 31, item = song("新请求").toPendingPlayerItem())
+            pending.value = newer
+
+            resolverGate.complete(Unit)
+            job?.join()
+
+            assertEquals(newer, pending.value)
+            assertTrue(queueStarted.not())
+            assertTrue(accepted.not())
+        }
+    }
+
     private fun song(name: String): MusicSong =
         MusicSong(
             itemId = UUID.randomUUID(),

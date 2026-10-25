@@ -3131,3 +3131,5 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **门禁**：格式修正后最终执行 `:modes:music:testDebugUnitTest :app:phone:testLibreDebugUnitTest :app:phone:assembleDebug`，259 tasks / 23 executed；music **42 XML / 252/0/0/0**、phone **55 XML / 349/0/0/0**，均 0 failure / error / skipped。`:modes:music:ktfmtCheck :app:phone:ktfmtCheck` 9 tasks / 6 executed 通过；`git diff --check` 无输出。arm64 debug APK 150,611,012 B / SHA-256 `3B0FE01C…5CE7A7`。`graphify update .` 为 13,296 nodes / 41,792 edges / 447 communities。
 
 **未覆盖 / 边界**：无 adb、真机、截图、生产写；未验证真实服务器延迟下的视觉时长与手指命中，未启动独立 QA、merge、push、tag 或 Release。Compose UI Test 依赖不在模块中，UX1 使用由真实 `Layout` 消费的纯几何测量契约覆盖，未做设备级 bounds 采样。
+
+**Fix Round 1（2026-10-25，审查修复）**：队列受理、选择清理和后续追加全部进入受控失败路径；只有当前 requestId 才清 pending / 发布错误，旧请求晚到成功或失败既不启动队列也不覆盖新 pending；追加异常会清 pending、恢复本次被清空的批量选择并显示错误。RED 实际命中受理异常、追加异常、追加时选择未恢复及旧请求失败误报；UI 测试改为 fake measured boxes 直接断言生产 `Layout` 消费的 measure policy placements / 48dp interactive bounds / interaction spec，不再只接受未消费 helper。修正后 music **258/0/0/0**、phone **349/0/0/0**，格式、diff-check、debug 构建与 graphify 通过；Compose runtime semantics 与真实 bounds 仍需独立 QA。
