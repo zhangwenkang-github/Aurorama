@@ -3110,4 +3110,6 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 **W90-FIRST-QA P1/P2 修复检查点（2026-10-25，READY_FOR_VERIFICATION）**：代码 `3a92061f` 把下载选择改为去重保序列表，阶段 1 刷新保留已完成键，`selectedEntries` 按点选顺序投影；`COMPLETED` 显式显示成功态；任一批次 pending 时选择栏五个动作全禁用，ViewModel 入口拒绝重入，异常清 pending 并留下 `actionFailure`。RED 为 film / phone 目标测试编译失败；GREEN 定向 **15/0/0/0** 与 **5/0/0/0**，film+music **53 XML / 348/0/0/0**，含 phone **108 XML / 697/0/0/0**；phone debug **242 tasks / 5 executed**、三模块 ktfmt **12 tasks / 4 executed**、diff-check exit 0。Pad `43af8627` 实测点击 / 键盘 / 全选后经多轮轮询保持 **已选 2 项**，播放先进入后点选的 Side A 曲目；测试下载清理为 0/0/0、0 B，原 debug APK 恢复 SHA MATCH，release 未变。真实已完成视频叶子行、视频批量实播、人为失败终态与 pending 帧级采样仍待全新独立 QA；不自行清 P0–P3、不进入 merge-prep。
 
-**停止**：上下文已达 40.9%，超过 35 万强制交接线，移交新负责人；W89-C 候选、tag、Release、workflow 与生产服务继续保持未触碰。
+**W90 下载交互子批独立 QA 收口（2026-10-25，PASS / MERGE_PREP_PENDING）**：固定代码 `3a92061f`、文档 HEAD `a3a8df94`；独立 QA P0/P1/P2/P3=`0/0/0/2`。原有选择保持、音乐 / 视频实际顺序、真实完成视频文案、HTTP 404 spinner→失败→重试、W84 通知 / 单任务边界证据均有效。原 P2-2 由 QA-only Compose semantics 探针关闭：真实进行中视频已选 1 项，两次独立 instrumentation 均 `OK (1 test)`，pause / resume 首帧均为 `00000`，并回归 `00101/01001`；长持锁 uiautomator 方案因 MIUI 吞输入淘汰。保留两项 P3：完成卡片中央进度区拦截点击、debug APK 非字节稳定。测试包 / 下载 / 远端探针已清，原 debug APK SHA MATCH，release 与 K60 未变。报告 `w90-reports/W90-DOWNLOADS-FIX-QA.md` §9，证据 `w90-evidence/W90-DOWNLOADS-FIX-QA/continuation/`。
+
+**停止**：本会话水位 41.7%，超过 35 万强制交接线，停止扩项并移交全新 merge-prep owner。本子批只进入隔离 merge-prep，不自行 merge / push / tag / Release / workflow；W89-C 候选、生产服务与 W90 其余项继续保持未触碰。
