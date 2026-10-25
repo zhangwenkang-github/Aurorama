@@ -3153,3 +3153,13 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **Merge Result（2026-10-25，PASS_LOCAL_UNPUSHED）**：用户明确批准后，独立 merge owner 在 primary 的 `master` 执行一次 `git merge --ff-only 36ca73c1`，`e44dd424..36ca73c1` 快进成功、无 merge commit，本地 master 当时 ahead 23；远端 master 仍为 `e44dd424`，未 push / tag / Release / workflow。Merge 态新跑 8 模块 JVM **228 XML / 1546/0/0/0**（247 tasks / 246 executed / 1 up-to-date）、根 `assembleDebug` 384 tasks / 197 executed / 187 up-to-date、根 `ktfmtCheck` 34 tasks / 31 executed / 3 up-to-date，两路 diff-check 与 graphify 通过；arm64 debug SHA 仍为 `94F44B0E…255534`。tracked / staged clean，既有无关 untracked（`.codex/hooks.json`、`$null`、`0]')`）原样保留；新增 P0–P3=`0/0/0/0`、BLOCKED=0。设备 NOT_RUN，整个 W90 用户验收与 1.4.0 发布仍未通过；push / 发布须另行批准。
 
 **Push + CI（2026-10-25，PASS）**：用户进入下一步后，push owner 先 fetch 确认 origin 未漂移，再普通执行 `git push origin master`（`e44dd424..fe746fe6`，无 force / tags）。远端 master 与本地 `fe746fe6` 一致。三路同 SHA CI 均完成 success：Build `40170832194`、Unit Tests `40170832204`、Format `40170832264`，head 均为 `fe746fe6e44ae48bd7b732057b52fe1463e0f0c9`。tracked / staged clean，既有无关 untracked 原样保留；新增 P0–P3=`0/0/0/0`。CI 三绿不等于设备验收或发布通过：Compose runtime semantics、TalkBack、真实 bounds、resolver 与失败提示时长仍 NOT_RUN；tag / Release / workflow dispatch 未执行。
+
+## 48. W90-R2-A fix round 1（2026-10-25，READY_FOR_INDEPENDENT_QA）
+
+**范围**：仅修复 R2-A 审查确认的四项 finding，不改视频季集样式、动态并发、Versions / workflow / signing / release。代码候选 `eb1aa955031a124f868c275de79353bf3db038e9`，父 `a67af263`。
+
+**实现**：新增统一 `DownloadCanonicalIdentity(kind, serverId, userId, itemId, sourceId)`，接入 hierarchy、control-plane、selection、sidecar 与音乐下载状态；同 UUID 跨 server/user/source 不折叠。intent 删除改为逐 source 全尝试，任一 false/异常则 receipt FAILED 且保留 intent；仅全部确认后按当前 generation 删除 intent。`markSourceRetry` 只允许 FAILED，stale UI 对当前 PENDING/RUNNING 复用 handle。删除 batch 在 begin transaction 内写全部 PENDING receipts，启动恢复只续跑 PENDING；v15 原地追加 `serverId` / `userId` / `ordinal`，不新增 v16。
+
+**证据**：`a67af263..eb1aa955` 为 32 files / `+1313/-169`；core/data/film/music/phone JVM 合计 **175 XML / 1101/0/0/0**，phone debug assemble、根 `ktfmtCheck`、`git diff --check`、graphify（13,540 nodes / 42,538 edges）通过；禁改路径 0。arm64 debug APK 153,692,828 B / SHA-256 `9E149266…B2B8A0`。详细 fix report 见 `F:\Develop\codex_work\project\Aurorama\.superpowers\sdd\w90-r\2a-report.md` §10。
+
+**未覆盖 / 下一步**：Android Room instrumentation migration、真实进程中断与设备文件系统 delete/rename 时序未执行（本任务禁止 instrumentation / 设备）；graphify 既有 `ItemHeader/ItemTopBar` 两项警告保留。P0/P1/P2/P3=`0/0/2/1`，BLOCKED=0。下一步由负责人另派全新独立 QA，先只读 `a67af263..eb1aa955` 与 v15 schema；未获 QA / 设备授权前不得 merge / push / tag / Release / workflow 或生产写。
