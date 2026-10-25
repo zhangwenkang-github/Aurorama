@@ -9,6 +9,8 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import com.zhangwenkang.cinefin.utils.ImageCacheStore
 import com.zhangwenkang.cinefin.utils.ImageDownloadOwner
+import com.zhangwenkang.cinefin.utils.ImageDownloadParentKind
+import com.zhangwenkang.cinefin.utils.ImageDownloadParentOwner
 import com.zhangwenkang.cinefin.utils.ImageDownloadWorkRules
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -55,12 +57,31 @@ constructor(
         }
         val sourceId = params.inputData.getString(KEY_SOURCE_ID)?.takeIf(String::isNotBlank)
         val generation = params.inputData.getLong(KEY_GENERATION, -1L)
+        val rawParentKind = params.inputData.getString(KEY_PARENT_KIND)?.takeIf(String::isNotBlank)
+        val parentOwner = rawParentKind?.let { value ->
+            val kind =
+                runCatching { ImageDownloadParentKind.valueOf(value) }.getOrNull()
+                    ?: return@doWork logSkippedParent("父类型非法：$value")
+            val serverId =
+                params.inputData.getString(KEY_SERVER_ID)?.takeIf(String::isNotBlank)
+                    ?: return@doWork logSkippedParent("缺少 serverId")
+            val userId =
+                params.inputData.getString(KEY_USER_ID)?.takeIf(String::isNotBlank)
+                    ?: return@doWork logSkippedParent("缺少 userId")
+            ImageDownloadParentOwner(
+                kind = kind,
+                itemId = itemId,
+                serverId = serverId,
+                userId = userId,
+            )
+        }
         val hadTransientFailure =
             try {
                 downloadImages(
                     itemId = itemId,
                     sourceId = sourceId,
                     generation = generation,
+                    parentOwner = parentOwner,
                 )
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -85,12 +106,24 @@ constructor(
         itemId: UUID,
         sourceId: String?,
         generation: Long,
+        parentOwner: ImageDownloadParentOwner?,
     ): Boolean =
         withContext(Dispatchers.IO) {
             var hadTransientFailure = false
             suspend fun currentSource(): Boolean {
+                if (parentOwner != null) {
+                    val visibleNamespace = imageCacheStore.currentNamespaceOrNull()
+                    return ImageDownloadWorkRules.isParentCurrent(
+                        owner = parentOwner,
+                        visibleServerId = visibleNamespace?.serverId,
+                        visibleUserId = visibleNamespace?.userId,
+                        parentExists = parentScopeExists(parentOwner),
+                    )
+                }
                 if (sourceId == null || generation < 0L) {
-                    return database.getSources(itemId).isNotEmpty()
+                    // 旧版无 owner 的父图任务无法证明 server/user；显式拒绝，避免借用子项 source 猜测 provenance。
+                    Timber.w("图片缓存跳过：缺少 source 或父级 owner（%s）", itemId)
+                    return false
                 }
                 val persisted = database.getSource(sourceId)
                 return ImageDownloadWorkRules.isCurrent(
@@ -144,9 +177,30 @@ constructor(
             return@withContext hadTransientFailure
         }
 
+    private suspend fun parentScopeExists(owner: ImageDownloadParentOwner): Boolean =
+        when (owner.kind) {
+            ImageDownloadParentKind.SHOW -> {
+                val show = runCatching { database.getShow(owner.itemId) }.getOrNull()
+                show?.serverId == owner.serverId
+            }
+            ImageDownloadParentKind.SEASON -> {
+                val season = runCatching { database.getSeason(owner.itemId) }.getOrNull()
+                val show = season?.let { runCatching { database.getShow(it.seriesId) }.getOrNull() }
+                show?.serverId == owner.serverId
+            }
+        }
+
+    private fun logSkippedParent(reason: String): Result {
+        Timber.w("父级图片缓存跳过：%s", reason)
+        return Result.success()
+    }
+
     companion object {
         const val KEY_ITEM_ID = "KEY_ITEM_ID"
         const val KEY_SOURCE_ID = "KEY_SOURCE_ID"
         const val KEY_GENERATION = "KEY_GENERATION"
+        const val KEY_PARENT_KIND = "KEY_PARENT_KIND"
+        const val KEY_SERVER_ID = "KEY_SERVER_ID"
+        const val KEY_USER_ID = "KEY_USER_ID"
     }
 }

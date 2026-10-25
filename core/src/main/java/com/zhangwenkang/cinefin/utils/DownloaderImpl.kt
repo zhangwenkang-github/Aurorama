@@ -139,8 +139,15 @@ internal interface DownloadWorkGateway {
     fun enqueue(request: OneTimeWorkRequest)
 }
 
-internal fun interface DownloadImageFinalizationScheduler {
+internal interface DownloadImageFinalizationScheduler {
     suspend fun schedule(item: FindroidItem, sourceId: String, generation: Long)
+
+    suspend fun scheduleParent(
+        item: FindroidItem,
+        owner: ImageDownloadParentOwner,
+    )
+
+    suspend fun cancelParent(owner: ImageDownloadParentOwner)
 }
 
 private class WorkManagerDownloadWorkGateway(private val workManager: WorkManager) :
@@ -201,6 +208,33 @@ private class WorkManagerImageFinalizationScheduler(private val workGateway: Dow
             scheduled.remove(finalizationKey)
             throw error
         }
+    }
+
+    override suspend fun scheduleParent(
+        item: FindroidItem,
+        owner: ImageDownloadParentOwner,
+    ) {
+        val request =
+            OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
+                .addTag(ImageDownloadWorkRules.parentTag(owner))
+                .setInputData(
+                    workDataOf(
+                        ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString(),
+                        ImagesDownloaderWorker.KEY_PARENT_KIND to owner.kind.name,
+                        ImagesDownloaderWorker.KEY_SERVER_ID to owner.serverId,
+                        ImagesDownloaderWorker.KEY_USER_ID to owner.userId,
+                    )
+                )
+                .build()
+        workGateway.enqueueUnique(
+            ImageDownloadWorkRules.parentWorkName(owner),
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }
+
+    override suspend fun cancelParent(owner: ImageDownloadParentOwner) {
+        workGateway.cancelUnique(ImageDownloadWorkRules.parentWorkName(owner))
     }
 }
 
@@ -416,6 +450,15 @@ private constructor(
             userId = runCatching { jellyfinRepository.getUserId().toString() }.getOrNull(),
         )
 
+    private fun downloadOriginForSource(sourceId: String): FrozenDownloadOrigin {
+        val current = freezeDownloadOrigin()
+        val record = sidecar.allRecords().lastOrNull { it.sourceId == sourceId }
+        return FrozenDownloadOrigin(
+            serverId = record?.serverId ?: current.serverId,
+            userId = record?.userId ?: current.userId,
+        )
+    }
+
     private suspend fun enqueueItem(
         item: FindroidItem,
         sourceId: String,
@@ -471,7 +514,7 @@ private constructor(
             // 批量入队（整剧 / 全季）时引擎往往已在运行：若先插入 PENDING 队列行，再写快照（剧集要拉
             // show / season，两次网络往返），引擎会在快照落库前抢到该行 → findItem 读不到条目 →
             // FILE_ERROR「任务对应的媒体条目缺失」。真机批量入队 12 集时 11 集命中该竞态。
-            runCatching { persistItemSnapshot(item) }
+            runCatching { persistItemSnapshot(item, origin) }
                 .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
 
             val mediaKind =
@@ -1201,7 +1244,7 @@ private constructor(
                 DownloadPostCommitRules.finalize(
                     listOf(
                         DownloadPostCommitTask(DownloadPostCommitEffect.SNAPSHOT) {
-                            persistItemSnapshot(item)
+                            persistItemSnapshot(item, downloadOriginForSource(source.id))
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.MEDIA_STREAMS) {
                             persistDownloadedMediaStreams(mediaSource, finalFile.path) { mediaStream
@@ -1997,6 +2040,7 @@ private constructor(
     }
 
     override suspend fun deleteItem(item: FindroidItem, source: FindroidSource) {
+        val parentOrigin = downloadOriginForSource(source.id)
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         val files = buildList {
             File(source.path).parentFile?.let { directory ->
@@ -2028,12 +2072,22 @@ private constructor(
                 val remainingEpisodes = database.getEpisodesBySeasonId(item.seasonId)
                 if (remainingEpisodes.isEmpty()) {
                     database.deleteSeason(item.seasonId)
+                    cancelParentImagesDownloader(
+                        kind = ImageDownloadParentKind.SEASON,
+                        itemId = item.seasonId,
+                        origin = parentOrigin,
+                    )
                     database.deleteUserData(item.seasonId)
                     File(context.filesDir, "trickplay/${item.seasonId}").deleteRecursively()
                     File(context.filesDir, "images/${item.seasonId}").deleteRecursively()
                     val remainingSeasons = database.getSeasonsByShowId(item.seriesId)
                     if (remainingSeasons.isEmpty()) {
                         database.deleteShow(item.seriesId)
+                        cancelParentImagesDownloader(
+                            kind = ImageDownloadParentKind.SHOW,
+                            itemId = item.seriesId,
+                            origin = parentOrigin,
+                        )
                         database.deleteUserData(item.seriesId)
                         File(context.filesDir, "trickplay/${item.seriesId}").deleteRecursively()
                         File(context.filesDir, "images/${item.seriesId}").deleteRecursively()
@@ -2560,20 +2614,69 @@ private constructor(
         imageFinalizationScheduler.schedule(item, sourceId, generation)
     }
 
-    private fun startImagesDownloader(item: FindroidItem) {
-        val request =
-            OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
-                .setInputData(workDataOf(ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString()))
-                .build()
-        workGateway.enqueue(request)
+    private suspend fun startParentImagesDownloader(
+        item: FindroidItem,
+        origin: FrozenDownloadOrigin,
+    ) {
+        val kind =
+            when (item) {
+                is FindroidShow -> ImageDownloadParentKind.SHOW
+                is FindroidSeason -> ImageDownloadParentKind.SEASON
+                else -> {
+                    Timber.w("父级图片跳过：仅节目 / 季可建立父图 owner（%s）", item.id)
+                    return
+                }
+            }
+        val serverId = origin.serverId?.takeIf(String::isNotBlank)
+        val userId = origin.userId?.takeIf(String::isNotBlank)
+        if (serverId == null || userId == null) {
+            Timber.w("父级图片跳过：缺少真实 server/user namespace（%s）", item.id)
+            return
+        }
+        imageFinalizationScheduler.scheduleParent(
+            item,
+            ImageDownloadParentOwner(
+                kind = kind,
+                itemId = item.id,
+                serverId = serverId,
+                userId = userId,
+            ),
+        )
+    }
+
+    private suspend fun cancelParentImagesDownloader(
+        kind: ImageDownloadParentKind,
+        itemId: UUID,
+        origin: FrozenDownloadOrigin,
+    ) {
+        val serverId = origin.serverId?.takeIf(String::isNotBlank)
+        val userId = origin.userId?.takeIf(String::isNotBlank)
+        if (serverId == null || userId == null) {
+            // key 无法重建时不做猜测；持久父快照已在调用前删除，worker 的存在性 fence 仍会拒绝写入。
+            Timber.w("父级图片取消跳过：缺少真实 server/user namespace（%s）", itemId)
+            return
+        }
+        imageFinalizationScheduler.cancelParent(
+            ImageDownloadParentOwner(
+                kind = kind,
+                itemId = itemId,
+                serverId = serverId,
+                userId = userId,
+            )
+        )
     }
 
     // ---------------------------------------------------------------------------------------------
     // 辅助
     // ---------------------------------------------------------------------------------------------
 
-    private suspend fun persistItemSnapshot(item: FindroidItem) {
-        val serverId = appPreferences.getValue(appPreferences.currentServer)
+    private suspend fun persistItemSnapshot(
+        item: FindroidItem,
+        origin: FrozenDownloadOrigin,
+    ) {
+        val serverId =
+            origin.serverId?.takeIf(String::isNotBlank)
+                ?: appPreferences.getValue(appPreferences.currentServer)
         when (item) {
             is FindroidMovie -> database.insertMovie(item.toFindroidMovieDto(serverId))
             is FindroidEpisode -> {
@@ -2608,8 +2711,8 @@ private constructor(
                 database.insertShow(show.toFindroidShowDto(serverId))
                 database.insertSeason(season.toFindroidSeasonDto())
                 database.insertEpisode(item.toFindroidEpisodeDto(serverId))
-                startImagesDownloader(show)
-                startImagesDownloader(season)
+                startParentImagesDownloader(show, origin)
+                startParentImagesDownloader(season, origin)
             }
         }
         database.insertUserData(item.toFindroidUserDataDto(jellyfinRepository.getUserId()))

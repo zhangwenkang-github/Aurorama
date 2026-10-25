@@ -55,10 +55,10 @@ private constructor(
     private val client: OkHttpClient by lazy { OkHttpClient() }
 
     fun imageFile(itemId: UUID, name: String = PRIMARY): File? =
-        currentNamespace()?.let { namespace -> imageFile(namespace, itemId, name) }
+        currentNamespaceOrNull()?.let { namespace -> imageFile(namespace, itemId, name) }
 
     fun metaFile(itemId: UUID, name: String = PRIMARY): File? =
-        currentNamespace()?.let { namespace ->
+        currentNamespaceOrNull()?.let { namespace ->
             File(
                 context.filesDir,
                 "${ImageCacheRules.serverImagePath(namespace, itemId, variant(name))}.meta",
@@ -70,7 +70,7 @@ private constructor(
         imageFile(itemId, name)?.takeIf { it.isFile && it.length() > 0L }
 
     fun delete(itemId: UUID) {
-        val namespace = currentNamespace() ?: return
+        val namespace = currentNamespaceOrNull() ?: return
         listOf(PRIMARY, BACKDROP).forEach { name ->
             imageFile(namespace, itemId, name).delete()
             metaFile(namespace, itemId, name).delete()
@@ -115,7 +115,8 @@ private constructor(
         commitGuard: suspend () -> Boolean = { true },
     ): FetchOutcome =
         withContext(Dispatchers.IO) {
-            val namespace = currentNamespace() ?: return@withContext FetchOutcome(false, false)
+            val namespace =
+                currentNamespaceOrNull() ?: return@withContext FetchOutcome(false, false)
             val target = imageFile(namespace, itemId, name)
             val meta = readMeta(namespace, itemId, name)
             val builder = Request.Builder().url(url)
@@ -202,7 +203,7 @@ private constructor(
             false
         }
 
-    private fun currentNamespace(): MetadataNamespace? =
+    internal fun currentNamespaceOrNull(): MetadataNamespace? =
         namespaceProvider()?.takeIf { it.serverId.isNotBlank() && it.userId.isNotBlank() }
 
     private fun imageFile(namespace: MetadataNamespace, itemId: UUID, name: String): File =

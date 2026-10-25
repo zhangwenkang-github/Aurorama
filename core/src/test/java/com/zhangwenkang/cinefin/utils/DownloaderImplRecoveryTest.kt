@@ -8,15 +8,18 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMediaStream
 import com.zhangwenkang.cinefin.models.FindroidMediaStreamDto
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidMovieDto
+import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidSegmentDto
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
+import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceDto
 import com.zhangwenkang.cinefin.models.FindroidSourceType
@@ -40,6 +43,93 @@ import sun.misc.Unsafe
 import timber.log.Timber
 
 class DownloaderImplRecoveryTest {
+
+    @Test
+    fun `剧集入队为节目和季调度父级图片`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            fixture.itemForResolution = episode
+
+            val (handle, error) =
+                fixture.downloader.downloadItem(
+                    item = episode,
+                    sourceId = SOURCE_ID,
+                    storageIndex = 0,
+                )
+
+            assertTrue(error == null)
+            assertTrue(handle > 0L)
+            assertEquals(
+                setOf(SHOW_ID, SEASON_ID),
+                fixture.imageScheduler.parentItemIds.toSet(),
+            )
+            assertEquals(
+                setOf(
+                    ImageDownloadParentOwner(
+                        kind = ImageDownloadParentKind.SHOW,
+                        itemId = SHOW_ID,
+                        serverId = SERVER_ID,
+                        userId = USER_ID.toString(),
+                    ),
+                    ImageDownloadParentOwner(
+                        kind = ImageDownloadParentKind.SEASON,
+                        itemId = SEASON_ID,
+                        serverId = SERVER_ID,
+                        userId = USER_ID.toString(),
+                    ),
+                ),
+                fixture.imageScheduler.parentOwners.toSet(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `删除最后一个剧集取消节目和季父级图片`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            fixture.dao.remainingEpisodes = emptyList()
+            fixture.dao.remainingSeasons = emptyList()
+
+            fixture.downloader.deleteItem(
+                item = episode,
+                source = fixture.episodeSource(),
+            )
+
+            assertEquals(
+                setOf(SEASON_ID, SHOW_ID),
+                fixture.imageScheduler.cancelledParentItemIds.toSet(),
+            )
+            assertEquals(
+                setOf(ImageDownloadParentKind.SEASON, ImageDownloadParentKind.SHOW),
+                fixture.imageScheduler.cancelledParentOwners.map { it.kind }.toSet(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `删除仍有兄弟剧集时不取消同级父图`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val episode = fixture.episode()
+            fixture.dao.remainingEpisodes = listOf(Any())
+            fixture.dao.remainingSeasons = listOf(Any())
+
+            fixture.downloader.deleteItem(
+                item = episode,
+                source = fixture.episodeSource(),
+            )
+
+            assertTrue(fixture.imageScheduler.cancelledParentItemIds.isEmpty())
+        } finally {
+            fixture.close()
+        }
+    }
 
     @Test
     fun `在线入口按代次提交并真实执行六项副作用`() = runBlocking {
@@ -456,6 +546,7 @@ class DownloaderImplRecoveryTest {
         val transfer = RecordingTransfer()
         val workGateway = RecordingWorkGateway()
         val imageScheduler = RecordingImageScheduler()
+        var itemForResolution: FindroidItem? = null
         val downloader =
             DownloaderImpl.createForTest(
                 context = TestContext(root),
@@ -472,7 +563,9 @@ class DownloaderImplRecoveryTest {
                 registerNetworkCallback = {},
                 externalStorageState = { "mounted" },
                 availableBytes = { Long.MAX_VALUE },
-                itemResolverOverride = { if (dao.itemAvailable) movie() else null },
+                itemResolverOverride = {
+                    if (dao.itemAvailable) itemForResolution ?: movie() else null
+                },
                 workGateway = workGateway,
                 downloadTransfer = transfer,
                 imageFinalizationScheduler = imageScheduler,
@@ -532,6 +625,100 @@ class DownloaderImplRecoveryTest {
                 kind = "MOVIE",
             )
         }
+
+        fun episode(): FindroidEpisode =
+            FindroidEpisode(
+                id = ITEM_ID,
+                name = ITEM_NAME,
+                originalTitle = null,
+                overview = "",
+                indexNumber = 1,
+                indexNumberEnd = null,
+                parentIndexNumber = 1,
+                sources =
+                    listOf(
+                        FindroidSource(
+                            id = SOURCE_ID,
+                            name = SOURCE_NAME,
+                            type = FindroidSourceType.REMOTE,
+                            path = MEDIA_URL,
+                            size = MEDIA_BYTES.size.toLong(),
+                            mediaStreams = repository.mediaStreams,
+                            container = "mp4",
+                        )
+                    ),
+                played = false,
+                favorite = false,
+                canPlay = true,
+                canDownload = true,
+                runtimeTicks = 0L,
+                playbackPositionTicks = 0L,
+                premiereDate = null,
+                seriesId = SHOW_ID,
+                seriesName = SHOW_NAME,
+                seasonId = SEASON_ID,
+                seasonName = SEASON_NAME,
+                communityRating = null,
+                people = emptyList(),
+                images = FindroidImages(),
+                chapters = emptyList(),
+                trickplayInfo = emptyMap(),
+            )
+
+        fun episodeSource(): FindroidSource =
+            FindroidSource(
+                id = "episode-local-source",
+                name = "Episode",
+                type = FindroidSourceType.LOCAL,
+                path = File(root, "episode-local-source").path,
+                size = 1L,
+                mediaStreams = emptyList(),
+                container = "mp4",
+            )
+
+        fun show(): FindroidShow =
+            FindroidShow(
+                id = SHOW_ID,
+                name = SHOW_NAME,
+                originalTitle = null,
+                overview = "",
+                sources = emptyList(),
+                seasons = emptyList(),
+                played = false,
+                favorite = false,
+                canPlay = true,
+                canDownload = false,
+                unplayedItemCount = null,
+                genres = emptyList(),
+                people = emptyList(),
+                runtimeTicks = 0L,
+                communityRating = null,
+                officialRating = null,
+                status = "Continuing",
+                productionYear = null,
+                endDate = null,
+                trailer = null,
+                images = FindroidImages(),
+            )
+
+        fun season(): FindroidSeason =
+            FindroidSeason(
+                id = SEASON_ID,
+                name = SEASON_NAME,
+                seriesId = SHOW_ID,
+                seriesName = SHOW_NAME,
+                originalTitle = null,
+                overview = "",
+                sources = emptyList(),
+                indexNumber = 1,
+                episodes = emptyList(),
+                played = false,
+                favorite = false,
+                canPlay = true,
+                canDownload = false,
+                unplayedItemCount = null,
+                images = FindroidImages(),
+            )
 
         suspend fun prepareInterruptedCompletion() {
             val target =
@@ -723,6 +910,8 @@ class DownloaderImplRecoveryTest {
     private class RecordingDao {
         var source: FindroidSourceDto? = null
         var itemAvailable = true
+        var remainingEpisodes: List<Any> = emptyList()
+        var remainingSeasons: List<Any> = emptyList()
         var snapshotWrites = 0
         var internalMediaStreamWrites = 0
         var externalMediaStreamWrites = 0
@@ -831,6 +1020,17 @@ class DownloaderImplRecoveryTest {
                             }
                         "getMovie" -> movie.takeIf { itemAvailable && args[0] == ITEM_ID }
                         "getEpisode" -> null
+                        "insertShow",
+                        "insertSeason",
+                        "insertEpisode" -> Unit
+                        "getEpisodesBySeasonId" -> remainingEpisodes
+                        "getSeasonsByShowId" -> remainingSeasons
+                        "deleteEpisode",
+                        "deleteSeason",
+                        "deleteShow",
+                        "deleteMediaStreamsBySourceId",
+                        "deleteSource",
+                        "deleteUserData" -> Unit
                         "getUserDataOrCreateNew" -> userData
                         "getSources" ->
                             listOfNotNull(source).filter { it.itemId == args[0] as UUID }
@@ -1025,6 +1225,48 @@ class DownloaderImplRecoveryTest {
                         "getBaseUrl" -> "https://example.test"
                         "getAccessToken" -> "token"
                         "getUserId" -> USER_ID
+                        "getShow" ->
+                            FindroidShow(
+                                id = SHOW_ID,
+                                name = SHOW_NAME,
+                                originalTitle = null,
+                                overview = "",
+                                sources = emptyList(),
+                                seasons = emptyList(),
+                                played = false,
+                                favorite = false,
+                                canPlay = true,
+                                canDownload = false,
+                                unplayedItemCount = null,
+                                genres = emptyList(),
+                                people = emptyList(),
+                                runtimeTicks = 0L,
+                                communityRating = null,
+                                officialRating = null,
+                                status = "Continuing",
+                                productionYear = null,
+                                endDate = null,
+                                trailer = null,
+                                images = FindroidImages(),
+                            )
+                        "getSeason" ->
+                            FindroidSeason(
+                                id = SEASON_ID,
+                                name = SEASON_NAME,
+                                seriesId = SHOW_ID,
+                                seriesName = SHOW_NAME,
+                                originalTitle = null,
+                                overview = "",
+                                sources = emptyList(),
+                                indexNumber = 1,
+                                episodes = emptyList(),
+                                played = false,
+                                favorite = false,
+                                canPlay = true,
+                                canDownload = false,
+                                unplayedItemCount = null,
+                                images = FindroidImages(),
+                            )
                         else -> error("unexpected repository call: ${method.name}")
                     }
                 },
@@ -1075,12 +1317,29 @@ class DownloaderImplRecoveryTest {
     private class RecordingImageScheduler : DownloadImageFinalizationScheduler {
         var attempts = 0
         val requests = mutableListOf<Pair<String, Long>>()
+        val parentItemIds = mutableListOf<UUID>()
+        val parentOwners = mutableListOf<ImageDownloadParentOwner>()
+        val cancelledParentItemIds = mutableListOf<UUID>()
+        val cancelledParentOwners = mutableListOf<ImageDownloadParentOwner>()
         private val scheduled = mutableSetOf<String>()
 
         override suspend fun schedule(item: FindroidItem, sourceId: String, generation: Long) {
             attempts += 1
             if (!scheduled.add("$sourceId|$generation")) return
             requests += sourceId to generation
+        }
+
+        override suspend fun scheduleParent(
+            item: FindroidItem,
+            owner: ImageDownloadParentOwner,
+        ) {
+            parentItemIds += item.id
+            parentOwners += owner
+        }
+
+        override suspend fun cancelParent(owner: ImageDownloadParentOwner) {
+            cancelledParentItemIds += owner.itemId
+            cancelledParentOwners += owner
         }
     }
 
@@ -1098,7 +1357,8 @@ class DownloaderImplRecoveryTest {
     private class FakePreferences : SharedPreferences {
         override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
 
-        override fun getString(key: String?, defValue: String?): String? = defValue
+        override fun getString(key: String?, defValue: String?): String? =
+            if (key == "pref_current_server") SERVER_ID else defValue
 
         override fun getStringSet(
             key: String?,
@@ -1160,9 +1420,13 @@ class DownloaderImplRecoveryTest {
     private companion object {
         val ITEM_ID: UUID = UUID(0L, 11L)
         val USER_ID: UUID = UUID(0L, 12L)
+        val SHOW_ID: UUID = UUID(0L, 13L)
+        val SEASON_ID: UUID = UUID(0L, 14L)
         const val SOURCE_ID = "source-recovery"
         const val SOURCE_NAME = "Recovery Source"
         const val ITEM_NAME = "Recovery Movie"
+        const val SHOW_NAME = "Recovery Show"
+        const val SEASON_NAME = "Recovery Season"
         const val SERVER_ID = "server-a"
         const val GENERATION = 5L
         const val MEDIA_URL = "https://media.test/movie"
