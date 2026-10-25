@@ -1,7 +1,9 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -19,7 +21,8 @@ import kotlinx.coroutines.sync.withLock
 internal class DownloadQueuePump {
     private val claimMutex = Mutex()
     private val kickSignal = Channel<Unit>(capacity = Channel.CONFLATED)
-    private val running = ConcurrentHashMap<String, Job>()
+    private val running = ConcurrentHashMap<String, RunningTask>()
+    private val startSequence = AtomicLong()
 
     fun kick() {
         kickSignal.trySend(Unit)
@@ -30,26 +33,48 @@ internal class DownloadQueuePump {
         claim: suspend (Int) -> List<T>,
         key: (T) -> String,
         execute: suspend (T) -> Unit,
+        pause: suspend (String) -> Boolean = { false },
     ): Int = supervisorScope {
         var ran = 0
         while (coroutineContext.isActive) {
+            val limit = maxConcurrentTasks().coerceAtLeast(0)
+            val excess = (running.size - limit).coerceAtLeast(0)
+            if (excess > 0) {
+                running.entries
+                    .sortedByDescending { it.value.startSequence }
+                    .take(excess)
+                    .forEach { (taskKey, task) ->
+                        val paused = runCatching {
+                            pause(taskKey)
+                        }
+                            .onFailure { error -> if (error is CancellationException) throw error }
+                            .getOrDefault(false)
+                        if (!paused) {
+                            task.job.cancel(CancellationException("下载并发上限收缩"))
+                            task.job.join()
+                        }
+                    }
+            }
             val claimed = claimMutex.withLock {
-                val slots = (maxConcurrentTasks() - running.size).coerceAtLeast(0)
+                val slots = (limit - running.size).coerceAtLeast(0)
                 if (slots == 0) emptyList() else claim(slots)
             }
             claimed.forEach { task ->
                 val taskKey = key(task)
                 lateinit var job: Job
+                lateinit var runningTask: RunningTask
                 job =
                     launch(start = CoroutineStart.LAZY) {
                         try {
                             execute(task)
                         } finally {
-                            running.remove(taskKey, job)
+                            running.remove(taskKey, runningTask)
                             kick()
                         }
                     }
-                if (running.putIfAbsent(taskKey, job) == null) {
+                runningTask =
+                    RunningTask(job = job, startSequence = startSequence.incrementAndGet())
+                if (running.putIfAbsent(taskKey, runningTask) == null) {
                     job.start()
                     ran++
                 } else {
@@ -61,4 +86,9 @@ internal class DownloadQueuePump {
         }
         ran
     }
+
+    private data class RunningTask(
+        val job: Job,
+        val startSequence: Long,
+    )
 }

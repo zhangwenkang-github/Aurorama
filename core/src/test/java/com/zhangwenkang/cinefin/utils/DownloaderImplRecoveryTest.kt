@@ -37,22 +37,185 @@ import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import sun.misc.Unsafe
 import timber.log.Timber
 
 class DownloaderImplRecoveryTest {
+
+    @Test
+    fun `设置并发从二增到四会经公开偏好写入立即补槽`() = runBlocking {
+        val fixture = Fixture()
+        val sources = fixture.seedConcurrentMovies(4)
+        fixture.appPreferences.setValue(fixture.appPreferences.downloadConcurrency, 2)
+        fixture.transfer.holdDownloads()
+        val run = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
+        try {
+            assertTrue(
+                "初始并发 2 未启动两个下载：${fixture.transfer.startedPaths()}",
+                fixture.transfer.awaitStarted(2),
+            )
+
+            fixture.appPreferences.setValue(fixture.appPreferences.downloadConcurrency, 4)
+
+            assertTrue(
+                "公开设置写入 2→4 后未立即补齐到四个运行任务：${fixture.transfer.startedPaths()}",
+                fixture.transfer.awaitStarted(4),
+            )
+            assertEquals(
+                sources.take(4).map { it.source.id }.toSet(),
+                fixture.transfer.startedSourceIds().toSet(),
+            )
+            assertTrue("提高并发不应自动暂停任务", fixture.dao.pausedSourceIds().isEmpty())
+        } finally {
+            fixture.transfer.release()
+            withTimeoutOrNull(5_000L) { run.join() }
+            run.cancel()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `设置并发从八降到二会经公开偏好写入暂停最新六个并保留残片`() = runBlocking {
+        val fixture = Fixture()
+        val sources = fixture.seedConcurrentMovies(8)
+        fixture.appPreferences.setValue(fixture.appPreferences.downloadConcurrency, 8)
+        fixture.transfer.holdDownloads()
+        val run = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
+        try {
+            assertTrue(
+                "初始并发 8 未启动八个下载：${fixture.transfer.startedPaths()}",
+                fixture.transfer.awaitStarted(8),
+            )
+
+            fixture.appPreferences.setValue(fixture.appPreferences.downloadConcurrency, 2)
+            val paused =
+                withTimeoutOrNull(2_000L) {
+                    while (fixture.dao.pausedSourceIds().size < 6) delay(10L)
+                    fixture.dao.pausedSourceIds()
+                }
+            assertNotNull("公开设置写入 8→2 后两秒内未暂停六个多余任务", paused)
+
+            val retained = sources.take(2).map { it.source.id }.toSet()
+            val expectedPaused = sources.drop(2).map { it.source.id }.toSet()
+            assertEquals(expectedPaused, paused!!.toSet())
+            assertEquals(retained, fixture.dao.runningSourceIds().toSet())
+            expectedPaused.forEach { sourceId ->
+                val source = fixture.dao.sourceById(sourceId)!!
+                val partial = File(source.path)
+                assertTrue("暂停任务残片丢失：$sourceId", partial.isFile)
+                assertEquals("partial", partial.readText())
+            }
+        } finally {
+            fixture.transfer.release()
+            withTimeoutOrNull(5_000L) { run.join() }
+            run.cancel()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `删除同条目单个来源经生产入口保留另一来源共享恢复数据`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val second = fixture.seedAdditionalSource(index = 1)
+            fixture.persistVideoOrigin(second.source.id)
+            val imageMarker = fixture.markerFile("images/$ITEM_ID/cover")
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertEquals(listOf(second.source.id), fixture.dao.sourceIds())
+            assertTrue(
+                fixture.downloader.mediaSidecar().allRecords().any {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == second.source.id
+                }
+            )
+            assertFalse(
+                fixture.downloader.mediaSidecar().allRecords().any {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                }
+            )
+            assertEquals(
+                "删除一个 source 不得清理共享 movie 快照",
+                listOf(ITEM_ID),
+                fixture.dao.snapshotIds(),
+            )
+            assertFalse(
+                "删除一个 source 不得清理共享 userData",
+                ITEM_ID in fixture.dao.deletedUserDataIds(),
+            )
+            assertTrue("删除一个 source 不得清理共享图片", imageMarker.isFile)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `删除同条目最后一个来源经生产入口清理共享数据`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val second = fixture.seedAdditionalSource(index = 1)
+            fixture.persistVideoOrigin(second.source.id)
+            val imageMarker = fixture.markerFile("images/$ITEM_ID/cover")
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+            assertTrue(fixture.downloader.deleteTaskById(second.source.id))
+
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            assertTrue(fixture.dao.snapshotIds().isEmpty())
+            assertTrue(ITEM_ID in fixture.dao.deletedUserDataIds())
+            assertFalse(imageMarker.exists())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `删除剧集单个来源保留另一来源快照和父级层级`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.dao.trackParentRows = true
+            val episode = fixture.episode()
+            fixture.downloader.downloadItem(episode, SOURCE_ID, 0)
+            val second =
+                fixture.seedAdditionalSource(
+                    index = 1,
+                    sourceId = "episode-second-source",
+                )
+            fixture.persistEpisodeOrigin(second.source.id)
+            val imageMarker = fixture.markerFile("images/$ITEM_ID/cover")
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertEquals(listOf(second.source.id), fixture.dao.sourceIds())
+            assertNotNull("删除一个 source 不得清理共享 episode 快照", fixture.dao.episodeSnapshot)
+            assertTrue(fixture.dao.hasEpisode(SEASON_ID, ITEM_ID))
+            assertTrue(fixture.dao.hasSeason(SHOW_ID, SEASON_ID))
+            assertFalse(ITEM_ID in fixture.dao.deletedUserDataIds())
+            assertTrue(imageMarker.isFile)
+        } finally {
+            fixture.close()
+        }
+    }
 
     @Test
     fun `剧集入队为节目和季调度父级图片`() = runBlocking {
@@ -861,6 +1024,7 @@ class DownloaderImplRecoveryTest {
 
     private class Fixture {
         private val root = Files.createTempDirectory("downloader-recovery").toFile()
+        private val context = TestContext(root)
         val logs = java.util.Collections.synchronizedList(mutableListOf<String>())
         private val tree =
             object : Timber.Tree() {
@@ -875,14 +1039,15 @@ class DownloaderImplRecoveryTest {
         val workGateway = RecordingWorkGateway()
         val imageScheduler = RecordingImageScheduler()
         val preferences = FakePreferences()
+        val appPreferences = AppPreferences(preferences)
         val downloader =
             DownloaderImpl.createForTest(
-                context = TestContext(root),
+                context = context,
                 database = dao.proxy,
                 jellyfinRepository = repository.proxy,
                 readerRepository = unusedProxy(ReaderRepository::class.java),
-                appPreferences = AppPreferences(preferences),
-                imageCacheStore = allocate(),
+                appPreferences = appPreferences,
+                imageCacheStore = testImageCacheStore(context),
                 workManager =
                     allocateClass(Class.forName("androidx.work.impl.WorkManagerImpl"))
                         as WorkManager,
@@ -898,6 +1063,78 @@ class DownloaderImplRecoveryTest {
 
         init {
             Timber.plant(tree)
+            transfer.sourceIdForPath = dao::sourceIdByPath
+        }
+
+        suspend fun seedConcurrentMovies(count: Int): List<SeededSource> =
+            (0 until count).map { index ->
+                val itemId = UUID(1_000L, index.toLong() + 1L)
+                val sourceId = "concurrency-$index"
+                val source = sourceDto(itemId = itemId, sourceId = sourceId, index = index)
+                val repositorySource =
+                    FindroidSource(
+                        id = sourceId,
+                        name = "Concurrent $index",
+                        type = FindroidSourceType.REMOTE,
+                        path = "https://media.test/$sourceId",
+                        size = MEDIA_BYTES.size.toLong(),
+                        mediaStreams = repository.mediaStreams,
+                        container = "mp4",
+                    )
+                dao.putSource(source)
+                dao.seedMovie(itemId)
+                repository.putMediaSource(itemId, repositorySource)
+                persistVideoOrigin(
+                    sourceId = sourceId,
+                    itemId = itemId,
+                )
+                SeededSource(itemId = itemId, source = source)
+            }
+
+        fun seedAdditionalSource(
+            index: Int,
+            itemId: UUID = ITEM_ID,
+            sourceId: String = "source-second",
+        ): SeededSource {
+            val source = sourceDto(itemId = itemId, sourceId = sourceId, index = index)
+            dao.putSource(source)
+            return SeededSource(itemId = itemId, source = source)
+        }
+
+        fun markerFile(relativePath: String): File =
+            File(root, relativePath).apply {
+                parentFile?.mkdirs()
+                writeText("shared")
+            }
+
+        private fun sourceDto(
+            itemId: UUID,
+            sourceId: String,
+            index: Int,
+        ): FindroidSourceDto {
+            val generation = 1L
+            val partial =
+                DownloadCompletionCommitRules.downloadTargetFiles(
+                        directory = downloads,
+                        itemId = itemId.toString(),
+                        sourceId = sourceId,
+                        generation = generation,
+                    )
+                    .first
+            return FindroidSourceDto(
+                id = sourceId,
+                itemId = itemId,
+                name = "Concurrent $index",
+                type = FindroidSourceType.LOCAL,
+                path = partial.path,
+                taskStatus = DownloadTaskStatus.PENDING.name,
+                updatedAt = index.toLong() + 1L,
+                downloadedBytes = 0L,
+                totalBytes = MEDIA_BYTES.size.toLong(),
+                engineVersion = DownloaderImpl.ENGINE_VERSION,
+                container = "mp4",
+                taskGeneration = generation,
+            )
         }
 
         fun movie(): FindroidMovie {
@@ -1262,10 +1499,21 @@ class DownloaderImplRecoveryTest {
         }
     }
 
+    private data class SeededSource(
+        val itemId: UUID,
+        val source: FindroidSourceDto,
+    )
+
     private data class LegacyTargetEvidence(val legacyFinal: File, val legacyWitness: File)
 
     private class RecordingDao {
-        var source: FindroidSourceDto? = null
+        private val sources = linkedMapOf<String, FindroidSourceDto>()
+        var source: FindroidSourceDto?
+            get() = sources[SOURCE_ID]
+            set(value) {
+                if (value == null) sources.remove(SOURCE_ID) else sources[value.id] = value
+            }
+
         var itemAvailable = true
         var trackParentRows = false
         var remainingEpisodes: List<Any> = emptyList()
@@ -1289,6 +1537,7 @@ class DownloaderImplRecoveryTest {
         var segmentWrites = 0
         var trickplayWrites = 0
         private val snapshots = linkedMapOf<UUID, FindroidMovieDto>()
+        private val removedUserDataIds = linkedSetOf<UUID>()
         private val mediaStreams = linkedMapOf<UUID, FindroidMediaStreamDto>()
         private val segments = linkedMapOf<Pair<UUID, FindroidSegmentType>, FindroidSegmentDto>()
         private val trickplayInfos = linkedMapOf<String, FindroidTrickplayInfoDto>()
@@ -1336,23 +1585,40 @@ class DownloaderImplRecoveryTest {
                     val args = rawArgs ?: emptyArray()
                     when (method.name) {
                         "getPendingSources" ->
-                            listOfNotNull(source).filter {
+                            sources.values.filter {
                                 it.taskStatus != "COMPLETED" || it.path.endsWith(".download")
                             }
-                        "getAllSources" -> listOfNotNull(source)
-                        "getSource" -> source?.takeIf { it.id == args[0] }
+                        "getAllSources" -> sources.values.toList()
+                        "getSource" -> sources[args[0] as String]
                         "insertSource" -> {
-                            source = args[0] as FindroidSourceDto
+                            val inserted = args[0] as FindroidSourceDto
+                            sources[inserted.id] = inserted
                             Unit
                         }
                         "setSourcePath" -> {
-                            source =
-                                source?.takeIf { it.id == args[0] }?.copy(path = args[1] as String)
+                            val id = args[0] as String
+                            sources[id]?.let { sources[id] = it.copy(path = args[1] as String) }
                             Unit
                         }
                         "claimSourceRunning" ->
                             updateSource(args) {
                                 it.copy(taskStatus = "RUNNING", failureReason = null)
+                            }
+                        "beginSourcePause" ->
+                            updateSourceRow(args) {
+                                it.copy(
+                                    taskStatus = "PAUSED",
+                                    failureReason = null,
+                                    taskGeneration = it.taskGeneration + 1,
+                                )
+                            }
+                        "beginSourceDeletion" ->
+                            updateSourceRow(args) {
+                                it.copy(
+                                    taskStatus = "DELETING",
+                                    failureReason = null,
+                                    taskGeneration = it.taskGeneration + 1,
+                                )
                             }
                         "beginSourceRetry" -> retrySource(args)
                         "setSourceProgressIfCurrent" ->
@@ -1390,9 +1656,8 @@ class DownloaderImplRecoveryTest {
                                 )
                             }
                         "getMovie" ->
-                            movie.takeIf {
-                                itemAvailable && episodeSnapshot == null && args[0] == ITEM_ID
-                            }
+                            (snapshots[args[0] as UUID] ?: movie.takeIf { args[0] == ITEM_ID })
+                                ?.takeIf { itemAvailable && episodeSnapshot == null }
                         "getEpisode" ->
                             episodeSnapshot?.takeIf { itemAvailable && it.id == args[0] as UUID }
                         "insertShow" -> {
@@ -1436,6 +1701,7 @@ class DownloaderImplRecoveryTest {
                                 remainingSeasons
                             }
                         "deleteEpisode" -> {
+                            if (episodeSnapshot?.id == args[0] as UUID) episodeSnapshot = null
                             if (trackParentRows) {
                                 val episodeId = args[0] as UUID
                                 episodeIdsBySeason.values.forEach { it.remove(episodeId) }
@@ -1461,12 +1727,21 @@ class DownloaderImplRecoveryTest {
                             }
                             Unit
                         }
-                        "deleteMediaStreamsBySourceId",
-                        "deleteSource",
-                        "deleteUserData" -> Unit
+                        "deleteMovie" -> {
+                            snapshots.remove(args[0] as UUID)
+                            Unit
+                        }
+                        "deleteMediaStreamsBySourceId" -> Unit
+                        "deleteSource" -> {
+                            sources.remove(args[0] as String)
+                            Unit
+                        }
+                        "deleteUserData" -> {
+                            removedUserDataIds += args[0] as UUID
+                            Unit
+                        }
                         "getUserDataOrCreateNew" -> userData
-                        "getSources" ->
-                            listOfNotNull(source).filter { it.itemId == args[0] as UUID }
+                        "getSources" -> sources.values.filter { it.itemId == args[0] as UUID }
                         "getTrickplayInfo" -> trickplay.takeIf { args[0] == SOURCE_ID }
                         "insertMovie" -> {
                             snapshotWrites += 1
@@ -1542,6 +1817,29 @@ class DownloaderImplRecoveryTest {
 
         fun snapshotIds(): List<UUID> = snapshots.keys.toList()
 
+        fun sourceIds(): List<String> = sources.keys.toList()
+
+        fun sourceById(id: String): FindroidSourceDto? = sources[id]
+
+        fun sourceIdByPath(path: String): String? =
+            sources.values.firstOrNull { it.path == path }?.id
+
+        fun pausedSourceIds(): List<String> =
+            sources.values.filter { it.taskStatus == "PAUSED" }.map { it.id }
+
+        fun runningSourceIds(): List<String> =
+            sources.values.filter { it.taskStatus == "RUNNING" }.map { it.id }
+
+        fun deletedUserDataIds(): Set<UUID> = removedUserDataIds
+
+        fun putSource(source: FindroidSourceDto) {
+            sources[source.id] = source
+        }
+
+        fun seedMovie(itemId: UUID) {
+            snapshots[itemId] = movie.copy(id = itemId, name = "Concurrent $itemId")
+        }
+
         fun internalMediaStreams(): List<FindroidMediaStreamDto> =
             mediaStreams.values.filterNot { it.isExternal }
 
@@ -1569,12 +1867,8 @@ class DownloaderImplRecoveryTest {
         }
 
         private fun retrySource(args: Array<Any?>): FindroidSourceDto? {
-            val current = source ?: return null
-            if (
-                current.id != args[0] ||
-                    current.taskGeneration != args[1] ||
-                    current.taskStatus != "FAILED"
-            ) {
+            val current = sources[args[0] as String] ?: return null
+            if (current.taskGeneration != args[1] || current.taskStatus != "FAILED") {
                 return null
             }
             return current
@@ -1585,7 +1879,7 @@ class DownloaderImplRecoveryTest {
                     nextRetryAt = 0L,
                     taskGeneration = current.taskGeneration + 1,
                 )
-                .also { source = it }
+                .also { sources[it.id] = it }
         }
 
         private fun updateSource(
@@ -1593,16 +1887,24 @@ class DownloaderImplRecoveryTest {
             requireRunning: Boolean = false,
             transform: (FindroidSourceDto) -> FindroidSourceDto,
         ): Int {
-            val current = source ?: return 0
+            val current = sources[args[0] as String] ?: return 0
             if (
-                current.id != args[0] ||
-                    current.taskGeneration != args[1] ||
+                current.taskGeneration != args[1] ||
                     (requireRunning && current.taskStatus != "RUNNING")
             ) {
                 return 0
             }
-            source = transform(current)
+            sources[current.id] = transform(current)
             return 1
+        }
+
+        private fun updateSourceRow(
+            args: Array<Any?>,
+            transform: (FindroidSourceDto) -> FindroidSourceDto,
+        ): FindroidSourceDto? {
+            val current = sources[args[0] as String] ?: return null
+            if (current.taskGeneration != args[1]) return null
+            return transform(current).also { sources[it.id] = it }
         }
     }
 
@@ -1647,10 +1949,15 @@ class DownloaderImplRecoveryTest {
         var userIdReads = 0
         var showReads = 0
         var seasonReads = 0
+        private val mediaSourcesByItemId = linkedMapOf<UUID, FindroidSource>()
 
         fun resetEffectCalls() {
             segmentReads = 0
             trickplayReads = 0
+        }
+
+        fun putMediaSource(itemId: UUID, source: FindroidSource) {
+            mediaSourcesByItemId[itemId] = source
         }
 
         val proxy: JellyfinRepository =
@@ -1661,15 +1968,16 @@ class DownloaderImplRecoveryTest {
                     when (method.name) {
                         "getMediaSources" ->
                             listOf(
-                                FindroidSource(
-                                    id = SOURCE_ID,
-                                    name = SOURCE_NAME,
-                                    type = FindroidSourceType.REMOTE,
-                                    path = MEDIA_URL,
-                                    size = MEDIA_BYTES.size.toLong(),
-                                    mediaStreams = mediaStreams,
-                                    container = "mp4",
-                                )
+                                mediaSourcesByItemId[args[0] as UUID]
+                                    ?: FindroidSource(
+                                        id = SOURCE_ID,
+                                        name = SOURCE_NAME,
+                                        type = FindroidSourceType.REMOTE,
+                                        path = MEDIA_URL,
+                                        size = MEDIA_BYTES.size.toLong(),
+                                        mediaStreams = mediaStreams,
+                                        container = "mp4",
+                                    )
                             )
                         "getSegments" -> {
                             segmentReads += 1
@@ -1743,6 +2051,30 @@ class DownloaderImplRecoveryTest {
 
     private class RecordingTransfer : DownloadTransfer {
         var externalDownloads = 0
+        var sourceIdForPath: (String) -> String? = { null }
+        private val started = CopyOnWriteArrayList<String>()
+        private var held = false
+        private var releaseGate = CompletableDeferred<Unit>()
+
+        fun holdDownloads() {
+            held = true
+            releaseGate = CompletableDeferred()
+        }
+
+        fun release() {
+            held = false
+            releaseGate.complete(Unit)
+        }
+
+        fun startedPaths(): List<String> = started.toList()
+
+        fun startedSourceIds(): List<String> = started.mapNotNull { path -> sourceIdForPath(path) }
+
+        suspend fun awaitStarted(count: Int): Boolean =
+            withTimeoutOrNull(2_000L) {
+                while (started.size < count) delay(10L)
+                true
+            } ?: false
 
         override suspend fun download(request: DownloadTransferRequest): DownloadAttemptResult {
             val bytes =
@@ -1750,8 +2082,12 @@ class DownloaderImplRecoveryTest {
                     externalDownloads += 1
                     SUBTITLE_BYTES
                 } else {
+                    started += request.target.path
+                    request.target.parentFile?.mkdirs()
+                    request.target.writeText("partial")
                     MEDIA_BYTES
                 }
+            if (held) releaseGate.await()
             request.target.parentFile?.mkdirs()
             request.target.writeBytes(bytes)
             return DownloadAttemptResult(
@@ -1847,8 +2183,11 @@ class DownloaderImplRecoveryTest {
     private class FakePreferences : SharedPreferences {
         var currentServer = SERVER_ID
         var currentServerReads = 0
+        private val values = linkedMapOf<String, Any?>()
+        private val listeners =
+            CopyOnWriteArraySet<SharedPreferences.OnSharedPreferenceChangeListener>()
 
-        override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
+        override fun getAll(): MutableMap<String, *> = LinkedHashMap(values)
 
         override fun getString(key: String?, defValue: String?): String? =
             if (key == "pref_current_server") {
@@ -1861,52 +2200,114 @@ class DownloaderImplRecoveryTest {
         override fun getStringSet(
             key: String?,
             defValues: MutableSet<String>?,
-        ): MutableSet<String>? = defValues
+        ): MutableSet<String>? =
+            @Suppress("UNCHECKED_CAST") (values[key] as? MutableSet<String>) ?: defValues
 
-        override fun getInt(key: String?, defValue: Int): Int = defValue
+        override fun getInt(key: String?, defValue: Int): Int = (values[key] as? Int) ?: defValue
 
-        override fun getLong(key: String?, defValue: Long): Long = defValue
+        override fun getLong(key: String?, defValue: Long): Long =
+            (values[key] as? Long) ?: defValue
 
-        override fun getFloat(key: String?, defValue: Float): Float = defValue
+        override fun getFloat(key: String?, defValue: Float): Float =
+            (values[key] as? Float) ?: defValue
 
-        override fun getBoolean(key: String?, defValue: Boolean): Boolean = defValue
+        override fun getBoolean(key: String?, defValue: Boolean): Boolean =
+            (values[key] as? Boolean) ?: defValue
 
-        override fun contains(key: String?): Boolean = false
+        override fun contains(key: String?): Boolean = values.containsKey(key)
 
-        override fun edit(): SharedPreferences.Editor = FakeEditor()
+        override fun edit(): SharedPreferences.Editor = FakeEditor(this)
 
         override fun registerOnSharedPreferenceChangeListener(
             listener: SharedPreferences.OnSharedPreferenceChangeListener?
-        ) = Unit
+        ) {
+            if (listener != null) listeners += listener
+        }
 
         override fun unregisterOnSharedPreferenceChangeListener(
             listener: SharedPreferences.OnSharedPreferenceChangeListener?
-        ) = Unit
+        ) {
+            if (listener != null) listeners -= listener
+        }
+
+        fun applyEdits(
+            updated: Map<String, Any?>,
+            removed: Set<String>,
+            clear: Boolean,
+        ) {
+            val changed = linkedSetOf<String>()
+            if (clear) {
+                changed += values.keys
+                values.clear()
+            }
+            removed.forEach { key -> if (values.remove(key) != null) changed += key }
+            updated.forEach { (key, value) ->
+                values[key] = value
+                changed += key
+            }
+            changed.forEach { key -> listeners.forEach { it.onSharedPreferenceChanged(this, key) } }
+        }
     }
 
-    private class FakeEditor : SharedPreferences.Editor {
-        override fun putString(key: String?, value: String?): SharedPreferences.Editor = this
+    private class FakeEditor(private val preferences: FakePreferences) : SharedPreferences.Editor {
+        private val updated = linkedMapOf<String, Any?>()
+        private val removed = linkedSetOf<String>()
+        private var clear = false
+
+        override fun putString(key: String?, value: String?): SharedPreferences.Editor {
+            key?.let { updated[it] = value }
+            return this
+        }
 
         override fun putStringSet(
             key: String?,
             values: MutableSet<String>?,
-        ): SharedPreferences.Editor = this
+        ): SharedPreferences.Editor {
+            key?.let { updated[it] = values }
+            return this
+        }
 
-        override fun putInt(key: String?, value: Int): SharedPreferences.Editor = this
+        override fun putInt(key: String?, value: Int): SharedPreferences.Editor {
+            key?.let { updated[it] = value }
+            return this
+        }
 
-        override fun putLong(key: String?, value: Long): SharedPreferences.Editor = this
+        override fun putLong(key: String?, value: Long): SharedPreferences.Editor {
+            key?.let { updated[it] = value }
+            return this
+        }
 
-        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = this
+        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor {
+            key?.let { updated[it] = value }
+            return this
+        }
 
-        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = this
+        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor {
+            key?.let { updated[it] = value }
+            return this
+        }
 
-        override fun remove(key: String?): SharedPreferences.Editor = this
+        override fun remove(key: String?): SharedPreferences.Editor {
+            key?.let { removed += it }
+            return this
+        }
 
-        override fun clear(): SharedPreferences.Editor = this
+        override fun clear(): SharedPreferences.Editor {
+            clear = true
+            return this
+        }
 
-        override fun commit(): Boolean = true
+        override fun commit(): Boolean {
+            preferences.applyEdits(updated, removed, clear)
+            updated.clear()
+            removed.clear()
+            clear = false
+            return true
+        }
 
-        override fun apply() = Unit
+        override fun apply() {
+            commit()
+        }
     }
 
     private class TestContext(private val root: File) : ContextWrapper(null) {
@@ -1954,5 +2355,12 @@ class DownloaderImplRecoveryTest {
         inline fun <reified T : Any> allocate(): T = unsafe.allocateInstance(T::class.java) as T
 
         fun allocateClass(type: Class<*>): Any = unsafe.allocateInstance(type)
+
+        fun testImageCacheStore(context: ContextWrapper): ImageCacheStore {
+            val constructor =
+                ImageCacheStore::class.java.declaredConstructors.first { it.parameterCount == 2 }
+            constructor.isAccessible = true
+            return constructor.newInstance(context, { null }) as ImageCacheStore
+        }
     }
 }
