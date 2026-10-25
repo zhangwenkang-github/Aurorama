@@ -174,9 +174,10 @@ interface ServerDatabaseDao {
     @Transaction
     suspend fun beginDownloadIntentCancellation(
         itemId: UUID,
+        expectedGeneration: Long,
         updatedAt: Long,
     ): DownloadIntentDto? {
-        cancelDownloadIntent(itemId, updatedAt)
+        if (cancelDownloadIntent(itemId, expectedGeneration, updatedAt) <= 0) return null
         return getDownloadIntent(itemId)
     }
 
@@ -185,20 +186,29 @@ interface ServerDatabaseDao {
         UPDATE downloadIntents
         SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = NULL,
             taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
-        WHERE itemId = :itemId AND status = 'RECEIVED'
+        WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
+          AND status = 'RECEIVED'
         """
     )
-    suspend fun cancelDownloadIntent(itemId: UUID, updatedAt: Long): Int
+    suspend fun cancelDownloadIntent(
+        itemId: UUID,
+        expectedGeneration: Long,
+        updatedAt: Long,
+    ): Int
 
     @Query(
         """
         UPDATE downloadIntents
         SET status = 'RECEIVED', failureReason = NULL, failureDetail = NULL,
             taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
-        WHERE itemId = :itemId
+        WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
         """
     )
-    suspend fun retryDownloadIntent(itemId: UUID, updatedAt: Long)
+    suspend fun retryDownloadIntent(
+        itemId: UUID,
+        expectedGeneration: Long,
+        updatedAt: Long,
+    ): Int
 
     @Query("SELECT * FROM movies WHERE id = :id") suspend fun getMovie(id: UUID): FindroidMovieDto
 
@@ -235,60 +245,60 @@ interface ServerDatabaseDao {
 
     /** 删除栅栏先落库并推进代次；返回带新代次的行供清理继续使用。 */
     @Transaction
-    suspend fun beginSourceDeletion(id: String, now: Long): FindroidSourceDto? {
-        databaseMarkSourceDeleting(id, now)
+    suspend fun beginSourceDeletion(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): FindroidSourceDto? {
+        if (databaseMarkSourceDeleting(id, expectedGeneration, now) <= 0) return null
         return getSource(id)
     }
 
-    @Query(
-        """
-        UPDATE sources
-        SET taskStatus = 'DELETING', failureReason = NULL,
-            taskGeneration = taskGeneration + 1, updatedAt = :now
-        WHERE id = :id AND taskStatus != 'DELETING'
-        """
-    )
-    suspend fun databaseMarkSourceDeleting(id: String, now: Long): Int
+    @Query(MARK_SOURCE_DELETION_SQL)
+    suspend fun databaseMarkSourceDeleting(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): Int
 
     @Transaction
-    suspend fun beginSourceCancellation(id: String, now: Long): FindroidSourceDto? {
-        if (markSourceCancelled(id, now) <= 0) return null
+    suspend fun beginSourceCancellation(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): FindroidSourceDto? {
+        if (markSourceCancelled(id, expectedGeneration, now) <= 0) return null
         return getSource(id)
     }
 
-    @Query(
-        """
-        UPDATE sources
-        SET taskStatus = 'FAILED', failureReason = 'CANCELLED',
-            nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
-        WHERE id = :id AND taskStatus NOT IN ('COMPLETED', 'DELETING')
-        """
-    )
-    suspend fun markSourceCancelled(id: String, now: Long): Int
+    @Query(MARK_SOURCE_CANCELLATION_SQL)
+    suspend fun markSourceCancelled(id: String, expectedGeneration: Long, now: Long): Int
 
     @Transaction
-    suspend fun beginSourcePause(id: String, now: Long): FindroidSourceDto? {
-        if (markSourcePaused(id, now) <= 0) return null
+    suspend fun beginSourcePause(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): FindroidSourceDto? {
+        if (markSourcePaused(id, expectedGeneration, now) <= 0) return null
         return getSource(id)
     }
 
-    @Query(
-        """
-        UPDATE sources
-        SET taskStatus = 'PAUSED', failureReason = NULL,
-            taskGeneration = taskGeneration + 1, updatedAt = :now
-        WHERE id = :id AND taskStatus NOT IN ('DELETING', 'COMPLETED')
-        """
-    )
-    suspend fun markSourcePaused(id: String, now: Long): Int
+    @Query(MARK_SOURCE_PAUSE_SQL)
+    suspend fun markSourcePaused(id: String, expectedGeneration: Long, now: Long): Int
 
     @Transaction
-    suspend fun beginSourceRetry(id: String, now: Long): FindroidSourceDto? {
-        if (markSourceRetry(id, now) <= 0) return null
+    suspend fun beginSourceRetry(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): FindroidSourceDto? {
+        if (markSourceRetry(id, expectedGeneration, now) <= 0) return null
         return getSource(id)
     }
 
-    @Query(MARK_SOURCE_RETRY_SQL) suspend fun markSourceRetry(id: String, now: Long): Int
+    @Query(MARK_SOURCE_RETRY_SQL)
+    suspend fun markSourceRetry(id: String, expectedGeneration: Long, now: Long): Int
 
     @Transaction
     suspend fun beginSourceResume(
@@ -741,12 +751,40 @@ interface ServerDatabaseDao {
     suspend fun getLocalMediaCounts(): List<LocalMediaCountRow>
 
     companion object {
+        internal const val MARK_SOURCE_DELETION_SQL =
+            """
+            UPDATE sources
+            SET taskStatus = 'DELETING', failureReason = NULL,
+                taskGeneration = taskGeneration + 1, updatedAt = :now
+            WHERE id = :id AND taskGeneration = :expectedGeneration
+              AND taskStatus != 'DELETING'
+            """
+
+        internal const val MARK_SOURCE_CANCELLATION_SQL =
+            """
+            UPDATE sources
+            SET taskStatus = 'FAILED', failureReason = 'CANCELLED',
+                nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
+            WHERE id = :id AND taskGeneration = :expectedGeneration
+              AND taskStatus NOT IN ('COMPLETED', 'DELETING')
+            """
+
+        internal const val MARK_SOURCE_PAUSE_SQL =
+            """
+            UPDATE sources
+            SET taskStatus = 'PAUSED', failureReason = NULL,
+                taskGeneration = taskGeneration + 1, updatedAt = :now
+            WHERE id = :id AND taskGeneration = :expectedGeneration
+              AND taskStatus NOT IN ('DELETING', 'COMPLETED')
+            """
+
         internal const val MARK_SOURCE_RETRY_SQL =
             """
             UPDATE sources
             SET taskStatus = 'PENDING', failureReason = NULL, retryCount = 0,
                 nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
-            WHERE id = :id AND taskStatus = 'FAILED'
+            WHERE id = :id AND taskGeneration = :expectedGeneration
+              AND taskStatus = 'FAILED'
             """
 
         internal const val MARK_SOURCE_RESUME_SQL =

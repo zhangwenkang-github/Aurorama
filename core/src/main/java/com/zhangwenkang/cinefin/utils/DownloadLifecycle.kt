@@ -104,18 +104,17 @@ object DownloadCompletionCommitRules {
         finalFile: File,
         canStart: suspend () -> Boolean,
         commitState: suspend () -> Int,
+        onCommitted: suspend () -> Unit = {},
     ): DownloadCompletionCommit {
         if (!canStart()) return DownloadCompletionCommit.FENCED
+        if (commitState() <= 0) return DownloadCompletionCommit.FENCED
         if (finalFile.exists() && !finalFile.delete()) {
             return DownloadCompletionCommit.RENAME_FAILED
         }
         if (!partial.renameTo(finalFile)) {
             return DownloadCompletionCommit.RENAME_FAILED
         }
-        if (commitState() <= 0) {
-            finalFile.delete()
-            return DownloadCompletionCommit.FENCED
-        }
+        onCommitted()
         return DownloadCompletionCommit.COMMITTED
     }
 }

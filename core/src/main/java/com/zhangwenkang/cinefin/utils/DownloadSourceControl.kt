@@ -4,70 +4,118 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+internal data class DownloadSourceCommandResult<T>(
+    val value: T,
+    val nextGeneration: Long? = null,
+)
+
 /**
- * 同一 source 的 claim 副作用与生命周期命令共享围栏。
+ * 同一 source 的 claim、生命周期命令与 completion 副作用共享一把锁。
  *
- * 生命周期命令按 source 串行；worker 回调在 effects 锁内同时校验 claim 代次与 fence，避免“先检查、后落副作用”的竞态。
+ * DB 条件更新也必须在锁内执行。这样“DB 已 claim / transition，但内存尚未登记”的窗口不存在；迟到的旧 generation 只能看到新状态并被拒绝。命令释放 source
+ * 锁后才能取消并等待旧 worker，避免取消回调重入同一锁造成死锁。
  */
 internal class DownloadSourceControl {
-    private val claims = ConcurrentHashMap<String, Long>()
+    private val lifecycleLocks = Array(LOCK_STRIPES) { Mutex() }
+    private val generations = ConcurrentHashMap<String, Long>()
+    private val activeClaims = ConcurrentHashMap<String, Long>()
     private val fences = ConcurrentHashMap<String, Long>()
-    private val effectLocks = Array(LOCK_STRIPES) { Mutex() }
-    private val commandLocks = Array(LOCK_STRIPES) { Mutex() }
 
-    fun activateClaim(sourceId: String, generation: Long) {
-        claims[sourceId] = generation
-    }
+    /**
+     * 在 source 临界区内执行 DB 条件 claim；只有 DB 成功后才登记当前 worker claim。
+     *
+     * 已有活动 claim 或已知代次不匹配时不再调用 DB，因而同 source 不会被重复领取。
+     */
+    suspend fun claim(
+        sourceId: String,
+        generation: Long,
+        claim: suspend () -> Boolean,
+    ): Boolean =
+        lifecycleLock(sourceId).withLock {
+            if (activeClaims.containsKey(sourceId)) return@withLock false
+            val knownGeneration = generations[sourceId]
+            if (knownGeneration != null && knownGeneration != generation) {
+                return@withLock false
+            }
+            if (!claim()) return@withLock false
+            generations[sourceId] = generation
+            activeClaims[sourceId] = generation
+            true
+        }
 
-    fun forget(sourceId: String) {
-        claims.remove(sourceId)
-        fences.remove(sourceId)
-    }
+    /**
+     * 执行用户 / 调度生命周期命令。
+     *
+     * [expectedGeneration] 来自打开操作时的任务快照，而不是刚读到的当前行；DB CAS 与内存代次推进都在锁内完成。
+     */
+    suspend fun <T> withCommand(
+        sourceId: String,
+        expectedGeneration: Long,
+        block: suspend () -> DownloadSourceCommandResult<T>,
+    ): T? =
+        lifecycleLock(sourceId).withLock command@{
+            val knownGeneration = generations[sourceId]
+            val activeClaim = activeClaims[sourceId]
+            if (
+                (knownGeneration != null && knownGeneration != expectedGeneration) ||
+                    (activeClaim != null && activeClaim != expectedGeneration)
+            ) {
+                return@command null
+            }
+            fences[sourceId] = expectedGeneration
+            try {
+                val result = block()
+                result.nextGeneration?.let { nextGeneration ->
+                    generations[sourceId] = nextGeneration
+                    activeClaims.remove(sourceId, expectedGeneration)
+                }
+                result.value
+            } finally {
+                fences.remove(sourceId, expectedGeneration)
+            }
+        }
 
-    suspend fun advanceLifecycle(sourceId: String, generation: Long) {
-        effectLock(sourceId).withLock { claims[sourceId] = generation }
-    }
-
+    /** worker 副作用只可在当前 active claim 且未 fence 时执行；调用期间持有 source 锁，禁止命令插入。 */
     suspend fun <T> withCurrentClaim(
         sourceId: String,
         generation: Long,
         block: suspend () -> T,
     ): T? =
-        effectLock(sourceId).withLock {
-            if (claims[sourceId] != generation || fences[sourceId] == generation) {
+        lifecycleLock(sourceId).withLock {
+            if (
+                activeClaims[sourceId] != generation ||
+                    generations[sourceId] != generation ||
+                    fences[sourceId] == generation
+            ) {
                 null
             } else {
                 block()
             }
         }
 
-    suspend fun beginTransition(sourceId: String, expectedGeneration: Long): Boolean =
-        effectLock(sourceId).withLock {
-            val current = claims[sourceId]
-            if (current != null && current != expectedGeneration) {
-                false
-            } else {
-                fences[sourceId] = expectedGeneration
-                true
-            }
+    /** 命令落库后的收尾副作用；若后续命令已推进代次则跳过。 */
+    suspend fun <T> withCurrentGeneration(
+        sourceId: String,
+        generation: Long,
+        block: suspend () -> T,
+    ): T? =
+        lifecycleLock(sourceId).withLock {
+            if (generations[sourceId] == generation) block() else null
         }
 
-    fun fence(sourceId: String, generation: Long) {
-        fences[sourceId] = generation
+    suspend fun releaseClaim(sourceId: String, generation: Long) {
+        lifecycleLock(sourceId).withLock { activeClaims.remove(sourceId, generation) }
     }
 
-    fun clearFence(sourceId: String, generation: Long) {
-        fences.remove(sourceId, generation)
+    suspend fun forget(sourceId: String) {
+        lifecycleLock(sourceId).withLock {
+            generations.remove(sourceId)
+            activeClaims.remove(sourceId)
+            fences.remove(sourceId)
+        }
     }
 
-    fun isFenced(sourceId: String, generation: Long): Boolean = fences[sourceId] == generation
-
-    suspend fun <T> withCommand(sourceId: String, block: suspend () -> T): T =
-        commandLock(sourceId).withLock { block() }
-
-    private fun effectLock(sourceId: String): Mutex = effectLocks[lockIndex(sourceId)]
-
-    private fun commandLock(sourceId: String): Mutex = commandLocks[lockIndex(sourceId)]
+    private fun lifecycleLock(sourceId: String): Mutex = lifecycleLocks[lockIndex(sourceId)]
 
     private fun lockIndex(sourceId: String): Int =
         (sourceId.hashCode() and Int.MAX_VALUE) % LOCK_STRIPES

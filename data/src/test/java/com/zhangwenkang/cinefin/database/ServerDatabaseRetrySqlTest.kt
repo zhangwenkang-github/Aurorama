@@ -18,12 +18,30 @@ class ServerDatabaseRetrySqlTest {
             connection.insertSource(id = "completed", status = "COMPLETED", generation = 13)
             connection.insertSource(id = "deleting", status = "DELETING", generation = 15)
 
-            assertEquals(1, connection.markRetry("failed", now = 100L))
-            assertEquals(0, connection.markRetry("running", now = 100L))
-            assertEquals(0, connection.markRetry("pending", now = 100L))
-            assertEquals(0, connection.markRetry("paused", now = 100L))
-            assertEquals(0, connection.markRetry("completed", now = 100L))
-            assertEquals(0, connection.markRetry("deleting", now = 100L))
+            assertEquals(
+                1,
+                connection.markRetry("failed", expectedGeneration = 3, now = 100L),
+            )
+            assertEquals(
+                0,
+                connection.markRetry("running", expectedGeneration = 7, now = 100L),
+            )
+            assertEquals(
+                0,
+                connection.markRetry("pending", expectedGeneration = 9, now = 100L),
+            )
+            assertEquals(
+                0,
+                connection.markRetry("paused", expectedGeneration = 11, now = 100L),
+            )
+            assertEquals(
+                0,
+                connection.markRetry("completed", expectedGeneration = 13, now = 100L),
+            )
+            assertEquals(
+                0,
+                connection.markRetry("deleting", expectedGeneration = 15, now = 100L),
+            )
 
             assertEquals(
                 SourceState("PENDING", null, 4),
@@ -83,6 +101,63 @@ class ServerDatabaseRetrySqlTest {
         }
     }
 
+    @Test
+    fun `旧 PAUSED 代次不能暂停同状态的新代次`() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
+            connection.createSourcesTable()
+            connection.insertSource(id = "paused", status = "PAUSED", generation = 6)
+
+            assertEquals(0, connection.markPause("paused", expectedGeneration = 4, now = 100L))
+            assertEquals(SourceState("PAUSED", null, 6), connection.sourceState("paused"))
+        }
+    }
+
+    @Test
+    fun `旧 FAILED 代次不能重试同状态的新代次`() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
+            connection.createSourcesTable()
+            connection.insertSource(id = "failed", status = "FAILED", generation = 6)
+
+            assertEquals(
+                0,
+                connection.markRetry(
+                    "failed",
+                    expectedGeneration = 4,
+                    now = 100L,
+                ),
+            )
+            assertEquals(SourceState("FAILED", null, 6), connection.sourceState("failed"))
+        }
+    }
+
+    @Test
+    fun `旧 FAILED 代次不能取消同状态的新代次`() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
+            connection.createSourcesTable()
+            connection.insertSource(id = "failed", status = "FAILED", generation = 6)
+
+            assertEquals(
+                0,
+                connection.markCancel("failed", expectedGeneration = 4, now = 100L),
+            )
+            assertEquals(SourceState("FAILED", null, 6), connection.sourceState("failed"))
+        }
+    }
+
+    @Test
+    fun `旧 PENDING 代次不能删除新代次`() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
+            connection.createSourcesTable()
+            connection.insertSource(id = "pending", status = "PENDING", generation = 6)
+
+            assertEquals(
+                0,
+                connection.markDelete("pending", expectedGeneration = 4, now = 100L),
+            )
+            assertEquals(SourceState("PENDING", null, 6), connection.sourceState("pending"))
+        }
+    }
+
     private fun Connection.createSourcesTable() {
         createStatement().use { statement ->
             statement.execute(
@@ -115,13 +190,70 @@ class ServerDatabaseRetrySqlTest {
             }
     }
 
-    private fun Connection.markRetry(id: String, now: Long): Int {
-        val sql =
+    private fun Connection.markRetry(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): Int =
+        markWithGeneration(
+            ServerDatabaseDao.MARK_SOURCE_RETRY_SQL,
+            id,
+            expectedGeneration,
+            now,
+        )
+
+    private fun Connection.markPause(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): Int =
+        markWithGeneration(
+            ServerDatabaseDao.MARK_SOURCE_PAUSE_SQL,
+            id,
+            expectedGeneration,
+            now,
+        )
+
+    private fun Connection.markCancel(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): Int =
+        markWithGeneration(
+            ServerDatabaseDao.MARK_SOURCE_CANCELLATION_SQL,
+            id,
+            expectedGeneration,
+            now,
+        )
+
+    private fun Connection.markDelete(
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): Int =
+        markWithGeneration(
+            ServerDatabaseDao.MARK_SOURCE_DELETION_SQL,
+            id,
+            expectedGeneration,
+            now,
+        )
+
+    private fun Connection.markWithGeneration(
+        sql: String,
+        id: String,
+        expectedGeneration: Long,
+        now: Long,
+    ): Int {
+        val bound =
             bindNamedParameters(
-                ServerDatabaseDao.MARK_SOURCE_RETRY_SQL,
-                mapOf("id" to id, "now" to now),
+                sql,
+                mapOf(
+                    "id" to id,
+                    "expectedGeneration" to expectedGeneration,
+                    "now" to now,
+                ),
             )
-        return prepareStatement(sql).use { statement -> statement.executeUpdate() }
+        return prepareStatement(bound).use { statement -> statement.executeUpdate() }
     }
 
     private fun Connection.markResume(id: String, expectedGeneration: Long, now: Long): Int {

@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -209,6 +210,41 @@ class DownloadLifecycleTest {
         assertEquals(DownloadCompletionCommit.FENCED, result)
         assertTrue("旧完成删除了仍由新代次使用的残片", partial.exists())
         assertFalse(finalFile.exists())
+        directory.deleteRecursively()
+        Unit
+    }
+
+    @Test
+    fun `completion 条件提交失败时 rename 与后续副作用均不发生`() = runBlocking {
+        val directory = Files.createTempDirectory("download-completion-cas-lost").toFile()
+        val partial = directory.resolve("media.download").apply { writeText("payload") }
+        val finalFile = directory.resolve("media")
+        val notifications = AtomicInteger()
+        val snapshots = AtomicInteger()
+        val extras = AtomicInteger()
+        val images = AtomicInteger()
+
+        val result =
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = { 0 },
+                onCommitted = {
+                    notifications.incrementAndGet()
+                    snapshots.incrementAndGet()
+                    extras.incrementAndGet()
+                    images.incrementAndGet()
+                },
+            )
+
+        assertEquals(DownloadCompletionCommit.FENCED, result)
+        assertTrue("删除赢得 CAS 后不得 rename，残片必须原位保留", partial.exists())
+        assertFalse(finalFile.exists())
+        assertEquals(0, notifications.get())
+        assertEquals(0, snapshots.get())
+        assertEquals(0, extras.get())
+        assertEquals(0, images.get())
         directory.deleteRecursively()
         Unit
     }
