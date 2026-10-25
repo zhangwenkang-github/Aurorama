@@ -124,6 +124,32 @@ class DownloadLifecycleTest {
     }
 
     @Test
+    fun `resume 后旧 PAUSED claim 的进度失败完成均被拒绝`() {
+        val oldClaim = DownloadLifecycleRules.claim("source-resume", runningGeneration = 8L)
+        val paused =
+            DownloadLifecycleState(
+                status = DownloadTaskStatus.PAUSED,
+                generation = oldClaim.generation,
+            )
+
+        val resumed = requireNotNull(DownloadLifecycleRules.beginResume(paused))
+
+        assertEquals(DownloadTaskStatus.PENDING, resumed.status)
+        assertEquals(9L, resumed.generation)
+        listOf(
+                DownloadLifecycleTransition.PROGRESS,
+                DownloadLifecycleTransition.FAILURE,
+                DownloadLifecycleTransition.COMPLETION,
+            )
+            .forEach { transition ->
+                assertFalse(
+                    "恢复推进代次后旧 PAUSED claim 仍可写 $transition",
+                    DownloadLifecycleRules.accepts(oldClaim, resumed, transition),
+                )
+            }
+    }
+
+    @Test
     fun `rename 后删除抢先落栅栏时最终文件被撤回`() = runBlocking {
         val directory = Files.createTempDirectory("download-complete-fence").toFile()
         val partial = directory.resolve("media.download").apply { writeText("payload") }

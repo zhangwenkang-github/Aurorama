@@ -14,10 +14,16 @@ class ServerDatabaseRetrySqlTest {
             connection.insertSource(status = "FAILED", generation = 3)
             connection.insertSource(id = "running", status = "RUNNING", generation = 7)
             connection.insertSource(id = "pending", status = "PENDING", generation = 9)
+            connection.insertSource(id = "paused", status = "PAUSED", generation = 11)
+            connection.insertSource(id = "completed", status = "COMPLETED", generation = 13)
+            connection.insertSource(id = "deleting", status = "DELETING", generation = 15)
 
             assertEquals(1, connection.markRetry("failed", now = 100L))
             assertEquals(0, connection.markRetry("running", now = 100L))
             assertEquals(0, connection.markRetry("pending", now = 100L))
+            assertEquals(0, connection.markRetry("paused", now = 100L))
+            assertEquals(0, connection.markRetry("completed", now = 100L))
+            assertEquals(0, connection.markRetry("deleting", now = 100L))
 
             assertEquals(
                 SourceState("PENDING", null, 4),
@@ -25,6 +31,35 @@ class ServerDatabaseRetrySqlTest {
             )
             assertEquals(SourceState("RUNNING", null, 7), connection.sourceState("running"))
             assertEquals(SourceState("PENDING", null, 9), connection.sourceState("pending"))
+            assertEquals(SourceState("PAUSED", null, 11), connection.sourceState("paused"))
+            assertEquals(SourceState("COMPLETED", null, 13), connection.sourceState("completed"))
+            assertEquals(SourceState("DELETING", null, 15), connection.sourceState("deleting"))
+        }
+    }
+
+    @Test
+    fun `PAUSED 继续只接受 PAUSED 且推进一代`() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
+            connection.createSourcesTable()
+            connection.insertSource(id = "failed", status = "FAILED", generation = 2)
+            connection.insertSource(id = "paused", status = "PAUSED", generation = 4)
+            connection.insertSource(id = "running", status = "RUNNING", generation = 6)
+            connection.insertSource(id = "pending", status = "PENDING", generation = 8)
+            connection.insertSource(id = "completed", status = "COMPLETED", generation = 10)
+            connection.insertSource(id = "deleting", status = "DELETING", generation = 12)
+
+            assertEquals(0, connection.markResume("failed", now = 100L))
+            assertEquals(1, connection.markResume("paused", now = 100L))
+            assertEquals(0, connection.markResume("running", now = 100L))
+            assertEquals(0, connection.markResume("pending", now = 100L))
+            assertEquals(0, connection.markResume("completed", now = 100L))
+            assertEquals(0, connection.markResume("deleting", now = 100L))
+            assertEquals(SourceState("FAILED", null, 2), connection.sourceState("failed"))
+            assertEquals(SourceState("PENDING", null, 5), connection.sourceState("paused"))
+            assertEquals(SourceState("RUNNING", null, 6), connection.sourceState("running"))
+            assertEquals(SourceState("PENDING", null, 8), connection.sourceState("pending"))
+            assertEquals(SourceState("COMPLETED", null, 10), connection.sourceState("completed"))
+            assertEquals(SourceState("DELETING", null, 12), connection.sourceState("deleting"))
         }
     }
 
@@ -64,6 +99,15 @@ class ServerDatabaseRetrySqlTest {
         val sql =
             bindNamedParameters(
                 ServerDatabaseDao.MARK_SOURCE_RETRY_SQL,
+                mapOf("id" to id, "now" to now),
+            )
+        return prepareStatement(sql).use { statement -> statement.executeUpdate() }
+    }
+
+    private fun Connection.markResume(id: String, now: Long): Int {
+        val sql =
+            bindNamedParameters(
+                ServerDatabaseDao.MARK_SOURCE_RESUME_SQL,
                 mapOf("id" to id, "now" to now),
             )
         return prepareStatement(sql).use { statement -> statement.executeUpdate() }

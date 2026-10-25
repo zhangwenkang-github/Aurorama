@@ -77,7 +77,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -166,6 +165,9 @@ class DownloaderImpl(
 
     /** sourceId → 运行中的下载协程。 */
     private val activeJobs = ConcurrentHashMap<String, Job>()
+
+    /** 活跃 worker 内的单 claim pump；每个空槽变化都重新领取，而不是等待整批任务结束。 */
+    private val queuePump = DownloadQueuePump()
 
     /** 用户删除 / 取消 / 暂停后立即封闭进度与迟到回调；持久栅栏仍是最终真源。 */
     private val lifecycleFences = ConcurrentHashMap.newKeySet<String>()
@@ -531,16 +533,13 @@ class DownloaderImpl(
         }
         var ran = 0
         while (true) {
-            while (true) {
-                coroutineContext.ensureActive()
-                val slots = maxConcurrentTasks - activeJobs.size
-                val claimed = claimRunnableTasks(slots)
-                if (claimed.isEmpty()) break
-                supervisorScope {
-                    claimed.map { source -> async { executeTask(source) } }.forEach { it.await() }
-                }
-                ran += claimed.size
-            }
+            ran +=
+                queuePump.run(
+                    maxConcurrentTasks = { maxConcurrentTasks },
+                    claim = ::claimRunnableTasks,
+                    key = FindroidSourceDto::id,
+                    execute = ::executeTask,
+                )
             val pendingSources =
                 withContext(Dispatchers.IO) {
                     database.getPendingSources().filter { source ->
@@ -668,6 +667,7 @@ class DownloaderImpl(
                     false
                 }
             }
+        queuePump.kick()
         if (scheduleFresh) enqueueEngineWork(delayMs = 0L)
     }
 
@@ -1124,9 +1124,10 @@ class DownloaderImpl(
                 return@withContext Pair(source.downloadId ?: downloadTaskHandle(source.id), null)
             }
             val retried =
-                database.beginSourceRetry(source.id, System.currentTimeMillis())
+                database.beginSourceResume(source.id, System.currentTimeMillis())
                     ?: return@withContext Pair(-1L, null)
             lifecycleFences -= source.id
+            queuePump.kick()
             ensureEngineRunning(forceStart = true)
             notifyQueueChanged()
             Pair(retried.downloadId ?: downloadTaskHandle(retried.id), null)

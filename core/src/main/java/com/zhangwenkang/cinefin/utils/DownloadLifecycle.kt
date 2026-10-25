@@ -46,6 +46,16 @@ object DownloadLifecycleRules {
             generation = nextGeneration(state.generation),
         )
 
+    fun beginResume(state: DownloadLifecycleState): DownloadLifecycleState? =
+        if (state.status == DownloadTaskStatus.PAUSED) {
+            state.copy(
+                status = DownloadTaskStatus.PENDING,
+                generation = nextGeneration(state.generation),
+            )
+        } else {
+            null
+        }
+
     fun accepts(
         claim: DownloadLifecycleClaim,
         current: DownloadLifecycleState,
