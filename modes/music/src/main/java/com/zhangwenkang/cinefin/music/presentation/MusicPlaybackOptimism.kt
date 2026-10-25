@@ -2,6 +2,14 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * 点歌后的乐观展示状态（W84）。
@@ -37,3 +45,61 @@ internal fun pendingPlaybackAfterFailure(
     pending: PendingPlaybackUi?,
     failedRequestId: Long,
 ): PendingPlaybackUi? = pending?.takeUnless { it.requestId == failedRequestId }
+
+internal fun launchSelectedPlayback(
+    scope: CoroutineScope,
+    songs: List<MusicSong>,
+    pendingPlayback: MutableStateFlow<PendingPlaybackUi?>,
+    requestId: Long,
+    resolve: suspend (MusicSong) -> PlayerItem,
+    onFirstResolved: (PlayerItem) -> Unit,
+    onAccepted: () -> Unit,
+    appendItems: (List<PlayerItem>) -> Unit,
+    shouldContinue: () -> Boolean = { true },
+    onFailure: (MusicSong, Throwable) -> Unit,
+): Job? {
+    if (songs.isEmpty() || pendingPlayback.value != null) return null
+    val firstSong = songs.first()
+    val pending = PendingPlaybackUi(requestId = requestId, item = firstSong.toPendingPlayerItem())
+    pendingPlayback.value = pending
+    return scope.launch {
+        val first =
+            try {
+                resolve(firstSong)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                if (pendingPlayback.value?.requestId == requestId) {
+                    pendingPlayback.value = pendingPlaybackAfterFailure(pending, requestId)
+                }
+                onFailure(firstSong, error)
+                return@launch
+            }
+        if (pendingPlayback.value?.requestId != requestId) return@launch
+        onFirstResolved(first)
+        pendingPlayback.value = null
+        onAccepted()
+        for (chunk in songs.drop(1).chunked(SELECTED_PLAYBACK_PREFETCH_CONCURRENCY)) {
+            if (!shouldContinue()) break
+            val resolved = coroutineScope {
+                chunk
+                    .map { song ->
+                        async {
+                            try {
+                                resolve(song)
+                            } catch (cancellation: CancellationException) {
+                                throw cancellation
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                    }
+                    .awaitAll()
+                    .filterNotNull()
+            }
+            if (resolved.isNotEmpty()) appendItems(resolved)
+        }
+    }
+}
+
+private const val SELECTED_PLAYBACK_PREFETCH_CONCURRENCY = 4

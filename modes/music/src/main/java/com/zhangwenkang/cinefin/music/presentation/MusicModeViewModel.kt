@@ -1434,47 +1434,47 @@ constructor(
      */
     fun playSelected() {
         val songs = selectedSongs()
-        if (songs.isEmpty()) return
+        if (songs.isEmpty() || _pendingPlayback.value != null) return
         playJob?.cancel()
-        playJob = viewModelScope.launch {
-            val first = runCatching { trackResolver.toPlayerItem(songs.first()) }.getOrNull()
-            if (first == null) {
-                showBatchFailure("播放失败", "无法解析「${songs.first().name}」的播放地址")
-                return@launch
-            }
-            val queueBefore = playbackController.queue.value
-            if (queueBefore == null) {
-                playbackController.setQueue(
-                    MusicQueue(
-                        items = listOf(first),
-                        currentIndex = 0,
-                        source = QueueSource.MANUAL,
-                        sourceId = null,
-                    ),
-                    startIndex = 0,
-                )
-            } else {
-                // W78：批量追加到队尾后跳到它（不用 insertNext + move：那套以当前索引为锚点，播放器
-                // 自动切歌时会把条目摆到错误位置）
-                queueEditor.appendToQueue(listOf(first))
-                playbackController.queue.value?.items?.lastIndex?.let { index ->
-                    queueEditor.jumpTo(index)
-                }
-            }
-            _batchSelection.value = MultiSelectState()
-            // W60b：其余曲目**并发预取**（每批 4 首，解析结果保持列表序），按批按顺序入队——
-            // 逐首串行解析在选中几十首时要等很久；起播不被预取阻塞，入队顺序仍是列表序。
-            for (chunk in songs.drop(1).chunked(QUEUE_PREFETCH_CONCURRENCY)) {
-                if (playbackController.queue.value == null) return@launch
-                val resolved =
-                    chunk
-                        .map { song -> async { resolveQueueItem(song) } }
-                        .awaitAll()
-                        .filterNotNull()
-                if (resolved.isEmpty()) continue
-                queueEditor.appendToQueue(resolved)
-            }
-        }
+        val requestId = ++nextPlayRequestId
+        playJob =
+            launchSelectedPlayback(
+                scope = viewModelScope,
+                songs = songs,
+                pendingPlayback = _pendingPlayback,
+                requestId = requestId,
+                resolve = { song -> resolveQueueItem(song) ?: error("无法解析「${song.name}」的播放地址") },
+                onFirstResolved = { first ->
+                    val queueBefore = playbackController.queue.value
+                    if (queueBefore == null) {
+                        playbackController.setQueue(
+                            MusicQueue(
+                                items = listOf(first),
+                                currentIndex = 0,
+                                source = QueueSource.MANUAL,
+                                sourceId = null,
+                            ),
+                            startIndex = 0,
+                        )
+                    } else {
+                        // W78：先追加再跳转，避免自动切歌改变当前索引后条目落到错误位置。
+                        queueEditor.appendToQueue(listOf(first))
+                        playbackController.queue.value?.items?.lastIndex?.let { index ->
+                            queueEditor.jumpTo(index)
+                        }
+                    }
+                },
+                onAccepted = { _batchSelection.value = MultiSelectState() },
+                appendItems = queueEditor::appendToQueue,
+                shouldContinue = { playbackController.queue.value != null },
+                onFailure = { song, error ->
+                    showBatchFailure(
+                        "播放失败",
+                        error.message?.takeIf { message -> message.isNotBlank() }
+                            ?: "无法解析「${song.name}」的播放地址",
+                    )
+                },
+            )
     }
 
     /**
@@ -2606,9 +2606,6 @@ constructor(
     private companion object {
         /** 曲库加载失败后的自动重试等待（毫秒）：给弱网 / 服务端偶发超时一次恢复窗口。 */
         const val AUTO_RETRY_DELAY_MS = 1_200L
-
-        /** W60b 批量播放并发预取的并发度：兼顾服务器压力与解析速度（队列仍按列表序入队）。 */
-        const val QUEUE_PREFETCH_CONCURRENCY = 4
 
         /**
          * W78 补队列的批大小 = 批内并发度。

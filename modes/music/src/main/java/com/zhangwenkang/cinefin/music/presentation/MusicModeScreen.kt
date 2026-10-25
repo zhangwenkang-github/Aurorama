@@ -68,10 +68,16 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick as semanticsOnClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -388,26 +394,35 @@ fun MusicModeScreen(
                 }
                 if (state.detail == null) {
                     // W66b：库选择 chip 移到 Tab 行右侧（紧凑、只显示当前库名）；顶栏恢复标题 + 三图标键。
-                    MusicTabsRow(
-                        selected = state.tab,
-                        onSelect = viewModel::selectTab,
-                        libraryLabel = state.selectedMusicLibraryName,
-                        libraryOptions = state.musicLibraries,
-                        librarySelectedId = state.selectedMusicLibraryId,
-                        showLibrarySelector =
-                            onExitTemporaryLibrary == null && state.musicLibraries.size >= 3,
-                        onSelectMusicLibrary = viewModel::selectMusicLibrary,
+                    MusicPrimaryToolbarSection(
+                        tabs = {
+                            MusicTabsRow(
+                                selected = state.tab,
+                                onSelect = viewModel::selectTab,
+                                libraryLabel = state.selectedMusicLibraryName,
+                                libraryOptions = state.musicLibraries,
+                                librarySelectedId = state.selectedMusicLibraryId,
+                                showLibrarySelector =
+                                    onExitTemporaryLibrary == null &&
+                                        state.musicLibraries.size >= 3,
+                                onSelectMusicLibrary = viewModel::selectMusicLibrary,
+                            )
+                        },
+                        toolbar =
+                            if (batchSelection.selectionMode) {
+                                null
+                            } else {
+                                {
+                                    MusicToolbarRow(
+                                        state = state,
+                                        onSelectSource = viewModel::setSourceFilter,
+                                        onToggleBadge = viewModel::setShowSourceBadge,
+                                        onPlayAll = { viewModel.playAll() },
+                                        onShuffleAll = { viewModel.playAll(shuffle = true) },
+                                    )
+                                }
+                            },
                     )
-                    // W66：来源筛选 + 播放全部 / 随机并入一行；批量多选态整行隐藏（批量条接管）。
-                    if (!batchSelection.selectionMode) {
-                        MusicToolbarRow(
-                            state = state,
-                            onSelectSource = viewModel::setSourceFilter,
-                            onToggleBadge = viewModel::setShowSourceBadge,
-                            onPlayAll = { viewModel.playAll() },
-                            onShuffleAll = { viewModel.playAll(shuffle = true) },
-                        )
-                    }
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 }
 
@@ -540,6 +555,7 @@ fun MusicModeScreen(
                 if (batchSelection.selectionMode) {
                     MusicBatchActionBar(
                         selectedCount = batchSelection.selectedCount,
+                        playPending = optimisticCurrentItem != null,
                         isPlaylistDetail = state.detail is MusicDetail.Playlist,
                         albumsOnly = state.detail == null && state.tab == MusicTab.ALBUMS,
                         isEnabled = viewModel::batchEnabled,
@@ -1019,6 +1035,69 @@ private fun MusicHeader(
 }
 
 @Composable
+private fun MusicPrimaryToolbarSection(
+    tabs: @Composable () -> Unit,
+    toolbar: (@Composable () -> Unit)?,
+) {
+    val gapPx =
+        with(LocalDensity.current) { MusicPrimaryToolbarLayout.tabsToToolbarGap.roundToPx() }
+    Layout(
+        content = {
+            tabs()
+            toolbar?.invoke()
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) { measurables, constraints ->
+        val tabsPlaceable = measurables.first().measure(constraints.copy(minHeight = 0))
+        val toolbarPlaceable =
+            if (toolbar == null) {
+                null
+            } else {
+                measurables.last().measure(constraints.copy(minHeight = 0))
+            }
+        val geometry =
+            musicPrimaryToolbarGeometry(
+                tabsHeightPx = tabsPlaceable.height,
+                toolbarHeightPx = toolbarPlaceable?.height ?: 0,
+                gapPx = if (toolbarPlaceable == null) 0 else gapPx,
+            )
+        layout(constraints.maxWidth, geometry.totalHeightPx) {
+            tabsPlaceable.placeRelative(0, 0)
+            toolbarPlaceable?.placeRelative(0, geometry.toolbarTopPx)
+        }
+    }
+}
+
+@Composable
+private fun MusicPlayAllHitTarget(
+    onClick: () -> Unit,
+    button: @Composable () -> Unit,
+) {
+    val minimumPx =
+        with(LocalDensity.current) {
+            MusicPrimaryToolbarLayout.playAllMinInteractiveHeight.roundToPx()
+        }
+    Layout(
+        content = button,
+        modifier =
+            Modifier.clickable(role = Role.Button, onClick = onClick).clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = "播放全部"
+                semanticsOnClick(label = "播放全部") {
+                    onClick()
+                    true
+                }
+            },
+    ) { measurables, constraints ->
+        val content = measurables.single().measure(constraints.copy(minHeight = 0))
+        val interactiveHeight = musicPlayAllInteractiveHeight(content.height, minimumPx)
+        layout(content.width, interactiveHeight) {
+            content.placeRelative(0, (interactiveHeight - content.height) / 2)
+        }
+    }
+}
+
+@Composable
 private fun MusicTabsRow(
     selected: MusicTab,
     onSelect: (MusicTab) -> Unit,
@@ -1098,12 +1177,14 @@ private fun MusicToolbarRow(
         }
         Spacer(modifier = Modifier.weight(1f))
         if (showPlayAll) {
-            CinefinButton(
-                text = "播放全部",
-                onClick = onPlayAll,
-                variant = CinefinButtonVariant.Filled,
-                size = CinefinButtonSize.Small,
-            )
+            MusicPlayAllHitTarget(onClick = onPlayAll) {
+                CinefinButton(
+                    text = "播放全部",
+                    onClick = onPlayAll,
+                    variant = CinefinButtonVariant.Filled,
+                    size = CinefinButtonSize.Small,
+                )
+            }
             CinefinIconButton(onClick = onShuffleAll) { tint ->
                 Icon(
                     painter = painterResource(R.drawable.ic_music_shuffle),
@@ -2113,6 +2194,7 @@ private fun NowPlayingBar(
 @Composable
 private fun MusicBatchActionBar(
     selectedCount: Int,
+    playPending: Boolean,
     isPlaylistDetail: Boolean,
     /** W59：专辑多选（专辑列表 Tab）= 只提供「下载整张」。 */
     albumsOnly: Boolean = false,
@@ -2134,9 +2216,10 @@ private fun MusicBatchActionBar(
             return@CinefinBatchBar
         }
         BatchActionButton(
-            enabled = isEnabled(MusicBatchAction.PLAY),
+            enabled = !playPending && isEnabled(MusicBatchAction.PLAY),
             label = "播放",
             iconRes = CoreR.drawable.ic_play,
+            loading = playPending,
             onClick = onPlay,
         )
         BatchActionButton(
@@ -2173,15 +2256,24 @@ private fun BatchActionButton(
     enabled: Boolean,
     label: String,
     iconRes: Int,
+    loading: Boolean = false,
     onClick: () -> Unit,
 ) {
     CinefinIconButton(enabled = enabled, onClick = onClick) { tint ->
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = label,
-            tint = tint,
-            modifier = Modifier.size(20.dp),
-        )
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = tint,
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = label,
+                tint = tint,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

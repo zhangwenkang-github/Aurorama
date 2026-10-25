@@ -3117,3 +3117,17 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **W90 下载交互子批隔离 merge-prep（2026-10-25，PASS / MERGE_DECISION_PENDING）**：从 source `0ac8b7eb` 新建 `codex/w90-downloads-merge-prep` 与独立 worktree；fetch 后 target `e44dd424` 未漂移，rebase 为 no-op，source/final 5 个提交逐一 patch-id 匹配。W90 相对 `c531f1d8` 为 19 文件 / `+1042/-181`；固定生产候选 `3a92061f` 后只有 3 个 docs 文件，`Versions.kt`、schema、W84 Downloader / 下载表 / Worker / 通知、签名 / 发布配置与 workflow 均无改动。全仓 `ktfmtCheck` 239 tasks / 45 executed；CI 同口径 8 模块 JVM 303 tasks / 251 executed，224 XML / 1522/0/0/0；`assembleDebug` 460 tasks / 212 executed；两路 diff-check exit 0、`graphify update` exit 0。独立 arm64 debug 149,025,755 B / SHA-256 `01286159…B434`，`io.github.zhangwenkang.aurorama.debug`、1.4.0(5)、arm64-v8a、APK v2 通过。QA P0/P1/P2/P3=`0/0/0/2` 与两项 P3 不变。
 
 **边界 / 下一步**：本次只证明 W90 下载交互子批可供 merge 决策，不等于整个 W90、W89-C 或 1.4.0 发布通过；DownloadManager 失败任务行、书籍成功下载 / 离线打开与像素级输入采样仍未覆盖。下一步只能由 W90 负责人对精确 merge-prep HEAD 作 merge / 不 merge 决策；本线程不自行 merge / push / tag / Release / workflow，也未接触设备或生产。证据见 `w90-reports/W90-DOWNLOADS-FIX-MERGE-PREP.md`。
+
+## 47. W90 音乐多选 pending 与主工具栏间距（2026-10-25，READY_FOR_VERIFICATION）
+
+**范围**：两张紧耦合小卡，均只改 `modes:music`。卡 A 在音乐多选“播放”点击时，先同步发布既有 `PendingPlaybackUi`，再启动首曲远端解析；批量栏“播放”立即显示局部 spinner 并拒绝重入。成功后清 pending、清选择，按输入列表序起播并每批 4 首并发补齐；首曲失败清 pending、保留选择并走既有 `showBatchFailure`；后续单曲失败仍跳过，不中断已建队列。卡 B 只在音乐主工具栏局部将 Tab / 筛选行到工具栏间距固定为 12dp，并为“播放全部”增加 48dp 最小真实点击壳，视觉按钮尺寸与动作顺序不变。
+
+**TDD 证据**：
+
+- 卡 A 首条 RED：`:modes:music:testDebugUnitTest --tests com.zhangwenkang.cinefin.music.presentation.MusicSelectedPlaybackTest` 在 `compileDebugUnitTestKotlin` 因 `launchSelectedPlayback` 不存在失败；后续重入、成功保序、首曲失败、后续失败跳过均各自先跑出行为失败再 GREEN。
+- 卡 B RED：同一模块 `--tests com.zhangwenkang.cinefin.music.presentation.MusicPrimaryToolbarLayoutTest` 因几何 API 不存在编译失败。实现后纯几何函数由真实局部 `Layout` 调用：工具栏 top 由实测 Tab 高 + 12dp gap 计算；“播放全部”外层 clickable 高度取实测内容高与 48dp 的较大值，并用单一 Button semantics。
+- 定向 GREEN：新增 P1 **5/0/0/0**、既有 `MusicPlaybackOptimismTest` **4/0/0/0**、UX1 **2/0/0/0**。
+
+**门禁**：格式修正后最终执行 `:modes:music:testDebugUnitTest :app:phone:testLibreDebugUnitTest :app:phone:assembleDebug`，259 tasks / 23 executed；music **42 XML / 252/0/0/0**、phone **55 XML / 349/0/0/0**，均 0 failure / error / skipped。`:modes:music:ktfmtCheck :app:phone:ktfmtCheck` 9 tasks / 6 executed 通过；`git diff --check` 无输出。arm64 debug APK 150,611,012 B / SHA-256 `3B0FE01C…5CE7A7`。`graphify update .` 为 13,296 nodes / 41,792 edges / 447 communities。
+
+**未覆盖 / 边界**：无 adb、真机、截图、生产写；未验证真实服务器延迟下的视觉时长与手指命中，未启动独立 QA、merge、push、tag 或 Release。Compose UI Test 依赖不在模块中，UX1 使用由真实 `Layout` 消费的纯几何测量契约覆盖，未做设备级 bounds 采样。
