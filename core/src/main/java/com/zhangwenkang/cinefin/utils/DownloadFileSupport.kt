@@ -54,3 +54,11 @@ internal fun deletePartialArtifacts(path: String) {
     deletePartialFile(path)
     deletePartialSidecar(path)
 }
+
+/** 删除任务时同时清理已完成文件与 finalizing witness；失败重试不会把已 rename 的源文件当成残片误删。 */
+internal fun deleteCompletionArtifacts(path: String): Boolean {
+    val partial = File(path)
+    val finalFile = DownloadCompletionCommitRules.finalFile(partial)
+    val witness = DownloadCompletionCommitRules.witnessFile(partial, finalFile)
+    return listOf(partial, finalFile, witness).all { !it.exists() || it.delete() }
+}

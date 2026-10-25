@@ -4,6 +4,7 @@ import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -193,5 +194,36 @@ class DownloadSourceControlTest {
         )
 
         assertFalse(secondDatabaseClaim.get())
+    }
+
+    @Test
+    fun `Job 在 source 锁被占用时取消，finally 仍能释放 active claim`() = runBlocking {
+        val control = DownloadSourceControl()
+        val claimed = CompletableDeferred<Unit>()
+        val holderEntered = CompletableDeferred<Unit>()
+        val releaseHolder = CompletableDeferred<Unit>()
+        assertTrue(control.claim("source", generation = 6L) { true })
+        val holder = launch {
+            control.withCurrentClaim("source", generation = 6L) {
+                holderEntered.complete(Unit)
+                releaseHolder.await()
+            }
+        }
+        holderEntered.await()
+        val job = launch {
+            try {
+                claimed.complete(Unit)
+                awaitCancellation()
+            } finally {
+                control.releaseClaim("source", generation = 6L)
+            }
+        }
+        claimed.await()
+        job.cancel()
+        releaseHolder.complete(Unit)
+        holder.join()
+        job.join()
+
+        assertTrue("取消后的 releaseClaim 被跳过，source 永久占用", control.claim("source", 6L) { true })
     }
 }

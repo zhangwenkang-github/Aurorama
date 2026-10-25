@@ -92,7 +92,7 @@ class DownloadDeleteBatchTest {
                 batchId = { "batch-1" },
                 delete = { request ->
                     processed += request.sourceId.orEmpty()
-                    if (request.itemId == UUID(0L, 2L)) error("磁盘忙")
+                    request.itemId != UUID(0L, 2L)
                 },
             )
 
@@ -149,6 +149,7 @@ class DownloadDeleteBatchTest {
                     if (request.itemId == UUID(0L, 2L)) {
                         throw CancellationException("进程中断")
                     }
+                    true
                 },
             )
 
@@ -168,7 +169,10 @@ class DownloadDeleteBatchTest {
             DownloadDeleteBatchProcessor(
                     store = store,
                     clock = { 2_000L },
-                    delete = { request -> processed += request.sourceId.orEmpty() },
+                    delete = { request ->
+                        processed += request.sourceId.orEmpty()
+                        true
+                    },
                 )
                 .resumeIncomplete()
 

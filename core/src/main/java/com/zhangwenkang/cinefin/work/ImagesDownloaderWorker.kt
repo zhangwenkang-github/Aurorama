@@ -4,9 +4,12 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import com.zhangwenkang.cinefin.utils.ImageCacheStore
+import com.zhangwenkang.cinefin.utils.ImageDownloadOwner
+import com.zhangwenkang.cinefin.utils.ImageDownloadWorkRules
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.UUID
@@ -39,6 +42,7 @@ constructor(
     @Assisted private val appContext: Context,
     @Assisted private val params: WorkerParameters,
     private val repository: JellyfinRepository,
+    private val database: ServerDatabaseDao,
     /** W66：图片缓存（含 `.meta` 与过期替换规则）单一落点。 */
     private val imageCacheStore: ImageCacheStore,
 ) : CoroutineWorker(appContext, params) {
@@ -49,9 +53,15 @@ constructor(
             Timber.w("图片缓存跳过：缺少 / 非法条目 id")
             return Result.success()
         }
+        val sourceId = params.inputData.getString(KEY_SOURCE_ID)?.takeIf(String::isNotBlank)
+        val generation = params.inputData.getLong(KEY_GENERATION, -1L)
         val hadTransientFailure =
             try {
-                downloadImages(itemId = itemId)
+                downloadImages(
+                    itemId = itemId,
+                    sourceId = sourceId,
+                    generation = generation,
+                )
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
@@ -71,9 +81,33 @@ constructor(
      * W66：判定改为 [ImageCacheRules]——文件缺失 / 元数据缺失 / 源 URL 变化 / 超 TTL 都会重新拉取并原子替换
      * （不再「有文件就跳过」）；其余情况直接复用本地缓存（304 条件请求只刷新 `fetchedAt`）。
      */
-    private suspend fun downloadImages(itemId: UUID): Boolean =
+    private suspend fun downloadImages(
+        itemId: UUID,
+        sourceId: String?,
+        generation: Long,
+    ): Boolean =
         withContext(Dispatchers.IO) {
             var hadTransientFailure = false
+            val currentSource = suspend {
+                if (sourceId == null || generation < 0L) {
+                    database.getSources(itemId).isNotEmpty()
+                } else {
+                    val persisted = database.getSource(sourceId)
+                    ImageDownloadWorkRules.isCurrent(
+                        expectedSourceId = sourceId,
+                        expectedGeneration = generation,
+                        persisted =
+                            persisted?.let {
+                                ImageDownloadOwner(
+                                    sourceId = it.id,
+                                    status = it.taskStatus.orEmpty(),
+                                    generation = it.taskGeneration,
+                                )
+                            },
+                    )
+                }
+            }
+            if (!currentSource()) return@withContext false
             val item = repository.getItem(itemId) ?: return@withContext hadTransientFailure
 
             val uris =
@@ -84,13 +118,19 @@ constructor(
 
             for ((name, uri) in uris) {
                 val url = uri?.toString()?.takeIf { value -> value.isNotBlank() } ?: continue
+                if (!currentSource()) break
 
                 val decision = imageCacheStore.decide(itemId, currentSourceUrl = url, name = name)
                 if (!ImageCacheRules.shouldRefetch(decision)) continue
 
                 val outcome =
                     try {
-                        imageCacheStore.fetch(itemId = itemId, url = url, name = name)
+                        imageCacheStore.fetch(
+                            itemId = itemId,
+                            url = url,
+                            name = name,
+                            commitGuard = currentSource,
+                        )
                     } catch (cancellation: CancellationException) {
                         throw cancellation
                     } catch (error: Exception) {
@@ -107,5 +147,7 @@ constructor(
 
     companion object {
         const val KEY_ITEM_ID = "KEY_ITEM_ID"
+        const val KEY_SOURCE_ID = "KEY_SOURCE_ID"
+        const val KEY_GENERATION = "KEY_GENERATION"
     }
 }

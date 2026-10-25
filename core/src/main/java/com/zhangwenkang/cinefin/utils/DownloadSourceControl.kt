@@ -1,8 +1,10 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 internal data class DownloadSourceCommandResult<T>(
     val value: T,
@@ -104,7 +106,9 @@ internal class DownloadSourceControl {
         }
 
     suspend fun releaseClaim(sourceId: String, generation: Long) {
-        lifecycleLock(sourceId).withLock { activeClaims.remove(sourceId, generation) }
+        withContext(NonCancellable) {
+            lifecycleLock(sourceId).withLock { activeClaims.remove(sourceId, generation) }
+        }
     }
 
     suspend fun forget(sourceId: String) {

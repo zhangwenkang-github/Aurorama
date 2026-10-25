@@ -89,7 +89,7 @@ class DownloadDeleteBatchProcessor(
     private val store: DownloadDeleteBatchStore,
     private val clock: () -> Long = System::currentTimeMillis,
     private val batchId: () -> String = { UUID.randomUUID().toString() },
-    private val delete: suspend (DownloadDeleteRequest) -> Unit,
+    private val delete: suspend (DownloadDeleteRequest) -> Boolean,
 ) {
     suspend fun deleteAll(requests: List<DownloadDeleteRequest>): DownloadDeleteBatchResult {
         val normalized = requests.distinctBy(DownloadDeletionIdentity::canonicalKey)
@@ -138,8 +138,11 @@ class DownloadDeleteBatchProcessor(
         for ((request, ordinal) in requests) {
             val outcome =
                 try {
-                    delete(request)
-                    DownloadDeleteOutcome.SUCCEEDED to null
+                    if (delete(request)) {
+                        DownloadDeleteOutcome.SUCCEEDED to null
+                    } else {
+                        DownloadDeleteOutcome.FAILED to "删除未确认"
+                    }
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {

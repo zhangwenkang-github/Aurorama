@@ -181,6 +181,25 @@ interface ServerDatabaseDao {
         return getDownloadIntent(itemId)
     }
 
+    @Transaction
+    suspend fun beginDownloadIntentDeletion(
+        itemId: UUID,
+        expectedGeneration: Long,
+        updatedAt: Long,
+    ): DownloadIntentDto? {
+        if (markDownloadIntentDeletionIfCurrent(itemId, expectedGeneration, updatedAt) <= 0) {
+            return null
+        }
+        return getDownloadIntent(itemId)
+    }
+
+    @Query(MARK_DOWNLOAD_INTENT_DELETION_SQL)
+    suspend fun markDownloadIntentDeletionIfCurrent(
+        itemId: UUID,
+        expectedGeneration: Long,
+        updatedAt: Long,
+    ): Int
+
     @Query(
         """
         UPDATE downloadIntents
@@ -751,6 +770,15 @@ interface ServerDatabaseDao {
     suspend fun getLocalMediaCounts(): List<LocalMediaCountRow>
 
     companion object {
+        internal const val MARK_DOWNLOAD_INTENT_DELETION_SQL =
+            """
+            UPDATE downloadIntents
+            SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = NULL,
+                taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
+            WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
+              AND status IN ('RECEIVED', 'FAILED')
+            """
+
         internal const val MARK_SOURCE_DELETION_SQL =
             """
             UPDATE sources

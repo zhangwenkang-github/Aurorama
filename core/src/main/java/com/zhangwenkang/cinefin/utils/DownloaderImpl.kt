@@ -106,6 +106,7 @@ class DownloaderImpl(
     private val jellyfinRepository: JellyfinRepository,
     private val readerRepository: ReaderRepository,
     private val appPreferences: AppPreferences,
+    private val imageCacheStore: ImageCacheStore,
     private val workManager: WorkManager,
     httpClient: OkHttpClient,
 ) : Downloader {
@@ -345,6 +346,7 @@ class DownloaderImpl(
                         DownloadLifecycleRules.nextGeneration(existing?.taskGeneration ?: 0L),
                 )
             database.insertSource(sourceDto)
+            startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
             notifyQueueChanged()
 
             ensureEngineRunning(forceStart = true)
@@ -709,6 +711,19 @@ class DownloaderImpl(
         var lastPersistAt = 0L
         try {
             if (!workerAccepts(source, DownloadLifecycleTransition.PROGRESS)) return
+            val target = File(source.path)
+            val finalFile = DownloadCompletionCommitRules.finalFile(target)
+            if (
+                DownloadCompletionCommitRules.hasInterruptedFinalization(
+                    partial = target,
+                    finalFile = finalFile,
+                    sourceId = source.id,
+                    generation = source.taskGeneration,
+                )
+            ) {
+                recoverInterruptedCompletion(source, target, finalFile)
+                return
+            }
             val item =
                 findItem(source.itemId)
                     ?: throw DownloadHttpException(
@@ -716,7 +731,6 @@ class DownloaderImpl(
                         "任务对应的媒体条目缺失",
                     )
             val mediaSource = resolveRemoteSource(item, source.id)
-            val target = File(source.path)
             val fileExists = target.isFile
             val offset =
                 DownloadTaskRules.initialOffset(
@@ -838,12 +852,17 @@ class DownloaderImpl(
             )
         } finally {
             if (job != null) activeJobs.remove(source.id, job)
-            lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
-                runtime.update { it - source.id }
-                lastNotificationAt = 0L
-                updateForegroundNotificationNow()
+            try {
+                withContext(NonCancellable) {
+                    lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
+                        runtime.update { it - source.id }
+                        lastNotificationAt = 0L
+                        updateForegroundNotificationNow()
+                    }
+                }
+            } finally {
+                lifecycleControl.releaseClaim(source.id, source.taskGeneration)
             }
-            lifecycleControl.releaseClaim(source.id, source.taskGeneration)
         }
     }
 
@@ -868,6 +887,48 @@ class DownloaderImpl(
         )
     }
 
+    private suspend fun recoverInterruptedCompletion(
+        source: FindroidSourceDto,
+        partial: File,
+        finalFile: File,
+    ) {
+        val now = System.currentTimeMillis()
+        lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
+            val commit =
+                DownloadCompletionCommitRules.commit(
+                    partial = partial,
+                    finalFile = finalFile,
+                    canStart = { workerAccepts(source, DownloadLifecycleTransition.COMPLETION) },
+                    commitState = {
+                        database.completeSourceIfCurrent(
+                            id = source.id,
+                            generation = source.taskGeneration,
+                            path = finalFile.path,
+                            downloadedBytes = finalFile.length(),
+                            totalBytes = source.totalBytes.takeIf { it > 0L } ?: finalFile.length(),
+                            validator = source.resumeValidator,
+                            updatedAt = now,
+                        )
+                    },
+                    onCommitted = {
+                        notifyQueueChanged()
+                        Timber.i("下载完成提交已恢复：%s", source.name)
+                    },
+                    sourceId = source.id,
+                    generation = source.taskGeneration,
+                )
+            if (commit == DownloadCompletionCommit.RENAME_FAILED) {
+                database.setSourceTaskStatusIfCurrent(
+                    source.id,
+                    source.taskGeneration,
+                    DownloadTaskStatus.FAILED.name,
+                    DownloadFailureReason.FILE_ERROR.name,
+                    now,
+                )
+            }
+        }
+    }
+
     private suspend fun writeFailureIfCurrent(
         sourceId: String,
         generation: Long,
@@ -890,12 +951,7 @@ class DownloaderImpl(
         partial: File,
         result: DownloadAttemptResult,
     ) {
-        val finalFile =
-            if (partial.path.endsWith(".download")) {
-                File(partial.path.removeSuffix(".download"))
-            } else {
-                partial
-            }
+        val finalFile = DownloadCompletionCommitRules.finalFile(partial)
         val now = System.currentTimeMillis()
         lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
             if (!workerAccepts(source, DownloadLifecycleTransition.COMPLETION)) {
@@ -917,6 +973,8 @@ class DownloaderImpl(
                             updatedAt = now,
                         )
                     },
+                    sourceId = source.id,
+                    generation = source.taskGeneration,
                     onCommitted = {
                         // 完成后的全部可观察副作用与 completion CAS 共用同一 source 临界区。
                         notifyQueueChanged()
@@ -934,7 +992,13 @@ class DownloaderImpl(
                         runCatching { persistItemSnapshot(item) }
                             .onFailure { Timber.w(it, "补写下载条目快照失败 ${item.id}") }
                         runCatching {
-                            downloadExtras(item, mediaSource, source, finalFile.path)
+                            downloadExtras(
+                                item,
+                                mediaSource,
+                                source,
+                                finalFile.path,
+                                source.taskGeneration,
+                            )
                         }
                             .onFailure { Timber.w(it, "下载附属内容失败 ${item.id}") }
                     },
@@ -1292,7 +1356,7 @@ class DownloaderImpl(
     ): Boolean =
         withContext(Dispatchers.IO) {
             val cancelled =
-                database.beginDownloadIntentCancellation(
+                database.beginDownloadIntentDeletion(
                     itemId,
                     expectedGeneration,
                     System.currentTimeMillis(),
@@ -1399,12 +1463,16 @@ class DownloaderImpl(
             job?.join()
             val cleanupSucceeded =
                 lifecycleControl.withCurrentGeneration(sourceId, source.taskGeneration) {
+                    workManager.cancelUniqueWork(ImageDownloadWorkRules.uniqueWorkName(sourceId))
                     deletePartialArtifacts(source.path)
                     val item = findItem(source.itemId)
                     if (item != null) {
                         deleteItem(item, source.toFindroidSource(database))
                     } else {
-                        if (!deletePartialFile(source.path) || !deletePartialSidecar(source.path)) {
+                        if (
+                            !deleteCompletionArtifacts(source.path) ||
+                                !deletePartialSidecar(source.path)
+                        ) {
                             return@withCurrentGeneration false
                         }
                         database.deleteMediaStreamsBySourceId(sourceId)
@@ -1413,6 +1481,9 @@ class DownloaderImpl(
                     }
                     if (database.getSource(sourceId) != null) {
                         return@withCurrentGeneration false
+                    }
+                    if (item != null && database.getSources(item.id).isEmpty()) {
+                        imageCacheStore.delete(item.id)
                     }
                     runtime.update { it - sourceId }
                     updateForegroundNotificationNow()
@@ -1523,22 +1594,19 @@ class DownloaderImpl(
         return DownloadDeleteBatchProcessor(store = store, delete = ::deleteDownloadRequest)
     }
 
-    private suspend fun deleteDownloadRequest(request: DownloadDeleteRequest) {
+    private suspend fun deleteDownloadRequest(request: DownloadDeleteRequest): Boolean =
         when (request.mediaKind) {
             DownloadMediaKind.BOOK -> {
                 readerRepository.removeBookDownload(request.itemId)
                 readerRepository.deleteLocalFile(request.itemId)
-                return
+                true
             }
             DownloadMediaKind.MUSIC,
             DownloadMediaKind.VIDEO -> {
                 val sourceId = request.sourceId?.takeIf(String::isNotBlank) ?: error("下载来源缺失")
-                if (!deleteTaskById(sourceId)) {
-                    error("下载删除未确认")
-                }
+                deleteTaskById(sourceId)
             }
         }
-    }
 
     override suspend fun cancelDownload(item: FindroidItem, downloadId: Long) {
         val source = findSourceByHandle(downloadId) ?: return
@@ -1549,6 +1617,13 @@ class DownloaderImpl(
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         val files = buildList {
             add(File(source.path))
+            add(DownloadCompletionCommitRules.finalFile(File(source.path)))
+            add(
+                DownloadCompletionCommitRules.witnessFile(
+                    partial = File(source.path),
+                    finalFile = DownloadCompletionCommitRules.finalFile(File(source.path)),
+                )
+            )
             mediaStreams.mapTo(this) { stream -> File(stream.path) }
         }
         for (file in files) {
@@ -1964,6 +2039,7 @@ class DownloaderImpl(
         source: FindroidSource,
         sourceDto: FindroidSourceDto,
         localPath: String,
+        generation: Long,
     ) {
         runCatching {
             persistDownloadedMediaStreams(source, localPath) { mediaStream ->
@@ -1985,7 +2061,7 @@ class DownloaderImpl(
                     .onFailure { Timber.w(it, "下载 Trickplay 失败 ${item.id}") }
             }
         }
-        startImagesDownloader(item)
+        startImagesDownloader(item, source.id, generation)
     }
 
     private suspend fun downloadExternalMediaStreams(
@@ -2053,6 +2129,28 @@ class DownloaderImpl(
         }
     }
 
+    private fun startImagesDownloader(
+        item: FindroidItem,
+        sourceId: String,
+        generation: Long,
+    ) {
+        val request =
+            OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
+                .setInputData(
+                    workDataOf(
+                        ImagesDownloaderWorker.KEY_ITEM_ID to item.id.toString(),
+                        ImagesDownloaderWorker.KEY_SOURCE_ID to sourceId,
+                        ImagesDownloaderWorker.KEY_GENERATION to generation,
+                    )
+                )
+                .build()
+        workManager.enqueueUniqueWork(
+            ImageDownloadWorkRules.uniqueWorkName(sourceId),
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }
+
     private fun startImagesDownloader(item: FindroidItem) {
         val request =
             OneTimeWorkRequestBuilder<ImagesDownloaderWorker>()
@@ -2105,8 +2203,6 @@ class DownloaderImpl(
                 startImagesDownloader(season)
             }
         }
-        // W57：所有条目入队即落盘自身封面——下载中 / 等待网络 / 离线时下载页也能出图。
-        startImagesDownloader(item)
         runCatching {
             database.insertUserData(item.toFindroidUserDataDto(jellyfinRepository.getUserId()))
         }

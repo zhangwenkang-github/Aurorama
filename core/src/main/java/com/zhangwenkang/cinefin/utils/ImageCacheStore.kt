@@ -69,6 +69,14 @@ private constructor(
     fun cachedImageFile(itemId: UUID, name: String = PRIMARY): File? =
         imageFile(itemId, name)?.takeIf { it.isFile && it.length() > 0L }
 
+    fun delete(itemId: UUID) {
+        val namespace = currentNamespace() ?: return
+        listOf(PRIMARY, BACKDROP).forEach { name ->
+            imageFile(namespace, itemId, name).delete()
+            metaFile(namespace, itemId, name).delete()
+        }
+    }
+
     fun readMeta(itemId: UUID, name: String = PRIMARY): ImageCacheRules.Meta? {
         val file = metaFile(itemId, name) ?: return null
         if (!file.isFile) return null
@@ -104,6 +112,7 @@ private constructor(
         url: String,
         name: String = PRIMARY,
         nowMillis: Long = System.currentTimeMillis(),
+        commitGuard: suspend () -> Boolean = { true },
     ): FetchOutcome =
         withContext(Dispatchers.IO) {
             val namespace = currentNamespace() ?: return@withContext FetchOutcome(false, false)
@@ -130,7 +139,12 @@ private constructor(
                                 url,
                                 nowMillis,
                             ) ?: return@use FetchOutcome(false, false)
+                        if (!commitGuard()) return@use FetchOutcome(false, false)
                         writeMeta(namespace, itemId, name, latest)
+                        if (!commitGuard()) {
+                            deleteArtifacts(namespace, itemId, name)
+                            return@use FetchOutcome(false, false)
+                        }
                         FetchOutcome(changed = false, transientFailure = false)
                     }
                     result.isSuccessful -> {
@@ -138,6 +152,7 @@ private constructor(
                         if (bytes.isEmpty()) {
                             FetchOutcome(changed = false, transientFailure = false)
                         } else {
+                            if (!commitGuard()) return@use FetchOutcome(false, false)
                             val replaced = replaceImage(target, bytes, name)
                             if (replaced) {
                                 writeMeta(
@@ -151,6 +166,10 @@ private constructor(
                                         fetchedAt = nowMillis,
                                     ),
                                 )
+                                if (!commitGuard()) {
+                                    deleteArtifacts(namespace, itemId, name)
+                                    return@use FetchOutcome(false, false)
+                                }
                             }
                             FetchOutcome(changed = replaced, transientFailure = !replaced)
                         }
@@ -189,16 +208,23 @@ private constructor(
     private fun imageFile(namespace: MetadataNamespace, itemId: UUID, name: String): File =
         ImageCacheRules.serverImageFile(context.filesDir, namespace, itemId, variant(name))
 
+    private fun metaFile(namespace: MetadataNamespace, itemId: UUID, name: String): File =
+        File(
+            context.filesDir,
+            "${ImageCacheRules.serverImagePath(namespace, itemId, variant(name))}.meta",
+        )
+
+    private fun deleteArtifacts(namespace: MetadataNamespace, itemId: UUID, name: String) {
+        imageFile(namespace, itemId, name).delete()
+        metaFile(namespace, itemId, name).delete()
+    }
+
     private fun readMeta(
         namespace: MetadataNamespace,
         itemId: UUID,
         name: String,
     ): ImageCacheRules.Meta? {
-        val file =
-            File(
-                context.filesDir,
-                "${ImageCacheRules.serverImagePath(namespace, itemId, variant(name))}.meta",
-            )
+        val file = metaFile(namespace, itemId, name)
         if (!file.isFile) return null
         return runCatching { ImageCacheRules.decodeMeta(file.readText()) }.getOrNull()
     }
@@ -211,11 +237,7 @@ private constructor(
         meta: ImageCacheRules.Meta,
     ) {
         runCatching {
-            val target =
-                File(
-                    context.filesDir,
-                    "${ImageCacheRules.serverImagePath(namespace, itemId, variant(name))}.meta",
-                )
+            val target = metaFile(namespace, itemId, name)
             val dir = target.parentFile ?: return
             if (!dir.isDirectory && !dir.mkdirs()) return
             val temp = File(dir, "$name.meta.part")

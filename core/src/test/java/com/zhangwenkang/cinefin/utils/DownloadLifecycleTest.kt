@@ -248,4 +248,96 @@ class DownloadLifecycleTest {
         directory.deleteRecursively()
         Unit
     }
+
+    @Test
+    fun `完成状态只能在最终文件已经存在后提交`() = runBlocking {
+        val directory = Files.createTempDirectory("download-completion-order").toFile()
+        val partial = directory.resolve("media.download").apply { writeText("payload") }
+        val finalFile = directory.resolve("media")
+        var finalExistedAtCommit = false
+
+        val result =
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = {
+                    finalExistedAtCommit = finalFile.isFile
+                    1
+                },
+            )
+
+        assertEquals(DownloadCompletionCommit.COMMITTED, result)
+        assertTrue("DB 先于 rename 写成完成，进程中断会留下虚假完成", finalExistedAtCommit)
+        directory.deleteRecursively()
+        Unit
+    }
+
+    @Test
+    fun `rename 失败不得删除既有同名文件`() = runBlocking {
+        val directory = Files.createTempDirectory("download-completion-conflict").toFile()
+        val partial = directory.resolve("media.download").apply { writeText("new payload") }
+        val finalFile = directory.resolve("media").apply { writeText("existing payload") }
+
+        val result =
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = { 1 },
+            )
+
+        assertEquals(DownloadCompletionCommit.RENAME_FAILED, result)
+        assertEquals("existing payload", finalFile.readText())
+        assertEquals("new payload", partial.readText())
+        directory.deleteRecursively()
+        Unit
+    }
+
+    @Test
+    fun `DB 提交中断后可从 witness 与最终文件恢复`() = runBlocking {
+        val directory = Files.createTempDirectory("download-completion-recovery").toFile()
+        val partial = directory.resolve("media.download").apply { writeText("payload") }
+        val finalFile = directory.resolve("media")
+
+        runCatching {
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = { error("模拟进程在 rename 后中断") },
+                sourceId = "source-recovery",
+                generation = 9L,
+            )
+        }
+
+        assertTrue(
+            DownloadCompletionCommitRules.hasInterruptedFinalization(
+                partial = partial,
+                finalFile = finalFile,
+                sourceId = "source-recovery",
+                generation = 9L,
+            )
+        )
+        var committed = 0
+        val recovered =
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = {
+                    assertEquals("payload", finalFile.readText())
+                    committed++
+                    1
+                },
+                sourceId = "source-recovery",
+                generation = 9L,
+            )
+
+        assertEquals(DownloadCompletionCommit.COMMITTED, recovered)
+        assertEquals(1, committed)
+        assertFalse(DownloadCompletionCommitRules.witnessFile(partial, finalFile).exists())
+        directory.deleteRecursively()
+        Unit
+    }
 }

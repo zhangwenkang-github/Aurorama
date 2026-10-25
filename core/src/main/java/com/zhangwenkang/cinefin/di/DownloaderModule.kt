@@ -11,6 +11,7 @@ import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.DownloadRedirectTokenInterceptor
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.DownloaderImpl
+import com.zhangwenkang.cinefin.utils.ImageCacheStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,6 +50,7 @@ object DownloaderModule {
         jellyfinRepository: JellyfinRepository,
         readerRepository: ReaderRepository,
         appPreferences: AppPreferences,
+        imageCacheStore: ImageCacheStore,
         workManager: WorkManager,
         downloadHttpClient: OkHttpClient,
     ): Downloader {
@@ -58,6 +60,7 @@ object DownloaderModule {
             jellyfinRepository,
             readerRepository,
             appPreferences,
+            imageCacheStore,
             workManager,
             downloadHttpClient,
         )
