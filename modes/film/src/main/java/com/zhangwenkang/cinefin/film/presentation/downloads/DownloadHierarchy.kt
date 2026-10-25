@@ -243,6 +243,7 @@ fun DownloadHierarchyEntry.toHierarchyStatus(): DownloadHierarchyStatus =
         DownloadTaskStatus.PAUSED -> DownloadHierarchyStatus.PAUSED
         DownloadTaskStatus.FAILED -> DownloadHierarchyStatus.FAILED
         DownloadTaskStatus.COMPLETED -> DownloadHierarchyStatus.COMPLETED
+        DownloadTaskStatus.DELETING -> DownloadHierarchyStatus.PENDING
     }
 
 /** 层级构建器：按媒体类型输出容器列表（视频容器内再分季）。 */

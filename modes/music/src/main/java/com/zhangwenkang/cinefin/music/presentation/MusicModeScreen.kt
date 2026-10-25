@@ -1923,6 +1923,8 @@ private fun SongList(
                 downloadLabel =
                     when {
                         downloadState.isDownloaded(song.itemId) -> "已下载"
+                        downloadState.activeStatus(song.itemId) == DownloadTaskStatus.DELETING ->
+                            "正在删除下载"
                         downloadState.activeStatus(song.itemId) == DownloadTaskStatus.PAUSED ->
                             "下载已暂停"
                         downloadState.isActive(song.itemId) -> "下载中"
@@ -1932,6 +1934,8 @@ private fun SongList(
                     when {
                         song.localUri != null -> null
                         downloadState.isDownloaded(song.itemId) -> "删除下载"
+                        downloadState.activeStatus(song.itemId) == DownloadTaskStatus.DELETING ->
+                            null
                         downloadState.isActive(song.itemId) -> "取消下载"
                         else -> "下载"
                     },

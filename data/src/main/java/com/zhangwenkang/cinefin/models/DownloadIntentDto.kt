@@ -27,4 +27,6 @@ data class DownloadIntentDto(
     val failureDetail: String? = null,
     @ColumnInfo(defaultValue = "0") val createdAt: Long,
     @ColumnInfo(defaultValue = "0") val updatedAt: Long,
+    /** W90-R2：接收意图的取消 / 重试代次；旧解析结果不得越过新代落 source。 */
+    @ColumnInfo(defaultValue = "0") val taskGeneration: Long = 0,
 )

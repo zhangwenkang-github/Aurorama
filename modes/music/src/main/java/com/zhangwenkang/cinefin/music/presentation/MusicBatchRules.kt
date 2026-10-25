@@ -1,6 +1,9 @@
 package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.utils.DownloadTask
+import com.zhangwenkang.cinefin.utils.DownloadTaskRules
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import kotlin.random.Random
 
@@ -44,6 +47,16 @@ internal fun musicSongBatchCaps(
         activeDownload = song.itemId in activeItemIds,
         fromLocalLibrary = song.localUri != null,
     )
+
+/** 只有真正排队 / 下载 / 暂停 / 删除中的任务占用“不可重下”状态；失败与取消必须恢复按钮。 */
+internal fun activeSongDownloadStatuses(
+    tasks: List<DownloadTask>
+): Map<java.util.UUID, DownloadTaskStatus> =
+    tasks
+        .asSequence()
+        .filter { DownloadTaskRules.isActiveQueueStatus(it.status) }
+        .distinctBy { it.itemId }
+        .associate { it.itemId to it.status }
 
 /** 批量动作条里某个动作是否可用（任一选中条目满足即可，与下载页口径一致）。 */
 internal fun musicBatchActionEnabled(

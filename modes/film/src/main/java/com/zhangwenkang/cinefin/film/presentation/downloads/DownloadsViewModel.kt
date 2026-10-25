@@ -18,6 +18,7 @@ import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
@@ -93,6 +94,7 @@ constructor(
     /** W66：已完成一次「缺图 / 过期图后台补齐」决策的条目（避免 1.5s 轮询重复尝试）。 */
     private val artworkBackfillAttempted = mutableSetOf<UUID>()
     private var artworkBackfillJob: Job? = null
+    private var completedMediaRecords: List<DownloadMediaRecord> = emptyList()
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
@@ -521,8 +523,15 @@ constructor(
         _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
         viewModelScope.launch {
             try {
-                deleteEntries(entries)
-                clearSelection()
+                val failedKeys = deleteEntries(entries)
+                _state.update {
+                    it.copy(
+                        selection = it.selection.filter { key -> key in failedKeys },
+                        selectionMode = failedKeys.isNotEmpty(),
+                        actionFailure =
+                            if (failedKeys.isNotEmpty()) DownloadActionFailure.DELETE else null,
+                    )
+                }
                 refresh(showLoading = false)
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -545,22 +554,13 @@ constructor(
     }
 
     /** 删除一组层级条目：优先走任务删除，其次走已完成条目删除。 */
-    private suspend fun deleteEntries(entries: List<DownloadHierarchyEntry>) {
-        for (entry in entries) {
-            val task = entry.task
-            if (task != null) {
-                downloader.deleteTask(task)
-                continue
-            }
-            // W58b 顺手修复：书籍走阅读器离线文件链路（与单条目删除同一口径），
-            // 旧实现直接找 completed.source —— 书籍没有 sources 行，多选删除会空转。
-            if (entry.mediaKind == DownloadMediaKind.BOOK) {
-                readerRepository.deleteLocalFile(entry.itemId)
-                continue
-            }
-            val completed = _state.value.completed.firstOrNull { it.item.id == entry.itemId }
-            completed?.source?.let { downloader.deleteItem(completed.item, it) }
-        }
+    private suspend fun deleteEntries(entries: List<DownloadHierarchyEntry>): Set<String> {
+        val candidates = DownloadDeletionRules.candidates(entries, completedMediaRecords)
+        if (candidates.isEmpty()) return entries.mapTo(mutableSetOf()) { it.key }
+        val result = downloader.deleteDownloads(candidates.map { it.request })
+        return candidates
+            .filter { it.canonicalKey in result.failedKeys }
+            .mapTo(mutableSetOf()) { it.entryKey }
     }
 
     /** W34：删除容器 = 删除容器内所有可删条目（进行中 / 失败任务 + 单个已完成条目）。 */
@@ -571,8 +571,16 @@ constructor(
         _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
         viewModelScope.launch {
             try {
-                deleteEntries(entries)
-                _state.update { it.copy(expandedKeys = it.expandedKeys - containerKey) }
+                val failedKeys = deleteEntries(entries)
+                _state.update {
+                    it.copy(
+                        expandedKeys =
+                            if (failedKeys.isEmpty()) it.expandedKeys - containerKey
+                            else it.expandedKeys,
+                        actionFailure =
+                            if (failedKeys.isNotEmpty()) DownloadActionFailure.DELETE else null,
+                    )
+                }
                 refresh(showLoading = false)
             } finally {
                 _state.update { it.finishPending(keys) }
@@ -609,6 +617,8 @@ constructor(
                 downloader.downloadedItemIds()
             }
                 .getOrElse { emptySet() }
+            completedMediaRecords =
+                runCatching { downloader.downloadedMediaRecords() }.getOrElse { emptyList() }
             val activeEngineTasks =
                 DownloadControlPlaneRules.activeUniqueIntents(tasks, completedTaskIds)
             val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)

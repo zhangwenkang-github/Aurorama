@@ -121,6 +121,7 @@
     <string name="manage_servers">管理伺服器</string>
     <string name="download_pending">待機中…</string>
     <string name="download_preparing">正在準備下載</string>
+    <string name="download_deleting">正在刪除下載</string>
     <string name="download_connecting">正在連線伺服器</string>
     <string name="download_verifying">正在驗證檔案</string>
     <string name="download_waiting_retry">等待重試</string>

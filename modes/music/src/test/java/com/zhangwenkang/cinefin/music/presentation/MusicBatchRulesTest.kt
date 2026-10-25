@@ -1,6 +1,9 @@
 package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.utils.DownloadFailureReason
+import com.zhangwenkang.cinefin.utils.DownloadTask
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
@@ -193,6 +196,34 @@ class MusicBatchRulesTest {
     fun `shuffle play all chooses only the first index so the natural queue stays intact`() {
         assertEquals(0, playAllStartIndex(size = 4, shuffle = true, random = ZeroRandom))
         assertEquals(0, playAllStartIndex(size = 0, shuffle = true, random = ZeroRandom))
+    }
+
+    @Test
+    fun `跨页取消后的失败任务不再占用 active 状态使下载恢复可用`() {
+        val item = song("1")
+        val cancelled =
+            DownloadTask(
+                itemId = item.itemId,
+                sourceId = "source-1",
+                name = item.name,
+                path = "/tmp/source-1.download",
+                downloadId = null,
+                status = DownloadTaskStatus.FAILED,
+                failureReason = DownloadFailureReason.CANCELLED,
+                downloadedBytes = 10L,
+                totalBytes = 100L,
+                updatedAt = 1L,
+            )
+
+        val activeItemIds = activeSongDownloadStatuses(listOf(cancelled)).keys
+        val caps =
+            musicSongBatchCaps(
+                song = item,
+                downloadedItemIds = emptySet(),
+                activeItemIds = activeItemIds,
+            )
+
+        assertTrue(caps.canDownload)
     }
 
     /** 每次 `nextInt` 都取 0 的确定性随机源，用于锁死洗牌顺序。 */

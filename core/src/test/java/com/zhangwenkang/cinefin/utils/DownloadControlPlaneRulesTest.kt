@@ -223,4 +223,15 @@ class DownloadControlPlaneRulesTest {
             DownloadControlPlaneRules.retryableFailureIntents(failedTasks).map { it.itemId },
         )
     }
+
+    @Test
+    fun `取消保留残片而不是强制安全重下`() {
+        assertEquals(
+            DownloadResumeStrategy.RESUME,
+            DownloadTaskRules.resumeStrategy(
+                DownloadTaskStatus.FAILED,
+                DownloadFailureReason.CANCELLED,
+            ),
+        )
+    }
 }

@@ -14,6 +14,7 @@ enum class DownloadTaskPhase {
     PAUSED,
     FAILED,
     COMPLETED,
+    DELETING,
 }
 
 /** 等待 / 失败行的可解释信息；不包含 Android 资源，便于注入时钟单测。 */
@@ -115,6 +116,7 @@ object DownloadControlPlaneRules {
             DownloadTaskStatus.COMPLETED -> DownloadTaskPhase.COMPLETED
             DownloadTaskStatus.FAILED -> DownloadTaskPhase.FAILED
             DownloadTaskStatus.PAUSED -> DownloadTaskPhase.PAUSED
+            DownloadTaskStatus.DELETING -> DownloadTaskPhase.DELETING
             DownloadTaskStatus.PENDING ->
                 if (failureReason != null || nextRetryAt > nowMs) {
                     DownloadTaskPhase.WAITING_RETRY

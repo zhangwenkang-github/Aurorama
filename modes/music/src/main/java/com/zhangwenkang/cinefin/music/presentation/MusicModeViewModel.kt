@@ -76,6 +76,7 @@ import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.DownloadMusicIntentRequest
+import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.OfflineMediaEntryKind
@@ -159,6 +160,7 @@ constructor(
 
     private val _downloadState = MutableStateFlow(SongDownloadState())
     val downloadState: StateFlow<SongDownloadState> = _downloadState.asStateFlow()
+    private var downloadStateRefreshJob: Job? = null
 
     /** W60b：下载反馈（已加入队列 · N 首）→ 音乐页 Snackbar（带「查看」跳下载页）。 */
     private val downloadQueuedChannel = Channel<Int>(Channel.BUFFERED)
@@ -464,6 +466,7 @@ constructor(
         observeRecent()
         observeOverlayArtists()
         observeRestoredQueueCleanup()
+        viewModelScope.launch { downloader.queueChanges.collect { refreshDownloadState() } }
         // W36：进入页面后切离线 / 回在线也要立刻重载曲库（VM 复用同一实例）。
         appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
             offlineModeListener
@@ -1310,13 +1313,11 @@ constructor(
 
     /** W34：刷新曲目下载态（进行中任务 + 已下载条目）。 */
     fun refreshDownloadState() {
-        viewModelScope.launch {
+        downloadStateRefreshJob?.cancel()
+        downloadStateRefreshJob = viewModelScope.launch {
             runCatching {
                 val tasks = downloader.refreshDownloadTasks()
-                val active =
-                    tasks
-                        .filter { it.status != DownloadTaskStatus.COMPLETED }
-                        .associate { it.itemId to it.status }
+                val active = activeSongDownloadStatuses(tasks)
                 val downloaded = downloader.downloadedItemIds()
                 _downloadState.value =
                     SongDownloadState(
@@ -1730,10 +1731,10 @@ constructor(
             }
             val activeTask =
                 downloader.refreshDownloadTasks().firstOrNull {
-                    it.itemId == song.itemId && it.status != DownloadTaskStatus.COMPLETED
+                    it.itemId == song.itemId && DownloadTaskRules.isActiveQueueStatus(it.status)
                 }
             if (activeTask != null) {
-                downloader.deleteTask(activeTask)
+                downloader.cancelTask(activeTask)
                 refreshDownloadState()
                 return@launch
             }

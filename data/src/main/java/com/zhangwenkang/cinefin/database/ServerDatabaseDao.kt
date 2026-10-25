@@ -6,6 +6,8 @@ import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Transaction
 import androidx.room3.Update
+import com.zhangwenkang.cinefin.models.DownloadDeleteBatchDto
+import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
 import com.zhangwenkang.cinefin.models.DownloadIntentDto
 import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidMediaStreamDto
@@ -99,6 +101,9 @@ interface ServerDatabaseDao {
     @Query("SELECT * FROM downloadIntents")
     suspend fun getDownloadIntents(): List<DownloadIntentDto>
 
+    @Query("SELECT * FROM downloadIntents WHERE itemId = :itemId")
+    suspend fun getDownloadIntent(itemId: UUID): DownloadIntentDto?
+
     @Query("SELECT * FROM downloadIntents WHERE status = 'RECEIVED' ORDER BY createdAt ASC")
     suspend fun getReceivedDownloadIntents(): List<DownloadIntentDto>
 
@@ -117,18 +122,62 @@ interface ServerDatabaseDao {
     suspend fun deleteDownloadIntent(itemId: UUID)
 
     @Query(
-        "UPDATE downloadIntents SET status = :status, failureReason = :failureReason, failureDetail = :failureDetail, updatedAt = :updatedAt WHERE itemId = :itemId"
+        "DELETE FROM downloadIntents WHERE itemId = :itemId AND taskGeneration = :taskGeneration"
     )
-    suspend fun setDownloadIntentStatus(
+    suspend fun deleteDownloadIntentIfCurrent(itemId: UUID, taskGeneration: Long): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDownloadDeleteBatch(batch: DownloadDeleteBatchDto)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDownloadDeleteReceipt(receipt: DownloadDeleteReceiptDto)
+
+    @Query("UPDATE downloadDeleteBatches SET completedAt = :completedAt WHERE id = :batchId")
+    suspend fun finishDownloadDeleteBatch(batchId: String, completedAt: Long)
+
+    @Query(
+        """
+        UPDATE downloadIntents
+        SET status = :status, failureReason = :failureReason, failureDetail = :failureDetail,
+            updatedAt = :updatedAt
+        WHERE itemId = :itemId AND taskGeneration = :taskGeneration
+        """
+    )
+    suspend fun setDownloadIntentStatusIfCurrent(
         itemId: UUID,
+        taskGeneration: Long,
         status: String,
         failureReason: String?,
         failureDetail: String?,
         updatedAt: Long,
-    )
+    ): Int
+
+    @Transaction
+    suspend fun beginDownloadIntentCancellation(
+        itemId: UUID,
+        updatedAt: Long,
+    ): DownloadIntentDto? {
+        cancelDownloadIntent(itemId, updatedAt)
+        return getDownloadIntent(itemId)
+    }
 
     @Query(
-        "UPDATE downloadIntents SET status = 'RECEIVED', failureReason = NULL, failureDetail = NULL, updatedAt = :updatedAt WHERE itemId = :itemId"
+        """
+        UPDATE downloadIntents
+        SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = NULL,
+            taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
+        WHERE itemId = :itemId AND status = 'RECEIVED'
+        """
+    )
+    suspend fun cancelDownloadIntent(itemId: UUID, updatedAt: Long): Int
+
+    @Query(
+        """
+        UPDATE downloadIntents
+        SET status = 'RECEIVED', failureReason = NULL, failureDetail = NULL,
+            taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
+        WHERE itemId = :itemId
+        """
     )
     suspend fun retryDownloadIntent(itemId: UUID, updatedAt: Long)
 
@@ -152,6 +201,84 @@ interface ServerDatabaseDao {
     @Query("UPDATE sources SET path = :path WHERE id = :id")
     suspend fun setSourcePath(id: String, path: String)
 
+    /** 原子 claim；旧 claim 或已进入删除栅栏的行不会被重新标 RUNNING。 */
+    @Query(
+        """
+        UPDATE sources
+        SET taskStatus = 'RUNNING', failureReason = NULL, updatedAt = :now
+        WHERE id = :id
+          AND taskGeneration = :generation
+          AND taskStatus IN ('PENDING', 'RUNNING')
+          AND taskStatus != 'DELETING'
+        """
+    )
+    suspend fun claimSourceRunning(id: String, generation: Long, now: Long): Int
+
+    /** 删除栅栏先落库并推进代次；返回带新代次的行供清理继续使用。 */
+    @Transaction
+    suspend fun beginSourceDeletion(id: String, now: Long): FindroidSourceDto? {
+        databaseMarkSourceDeleting(id, now)
+        return getSource(id)
+    }
+
+    @Query(
+        """
+        UPDATE sources
+        SET taskStatus = 'DELETING', failureReason = NULL,
+            taskGeneration = taskGeneration + 1, updatedAt = :now
+        WHERE id = :id AND taskStatus != 'DELETING'
+        """
+    )
+    suspend fun databaseMarkSourceDeleting(id: String, now: Long): Int
+
+    @Transaction
+    suspend fun beginSourceCancellation(id: String, now: Long): FindroidSourceDto? {
+        if (markSourceCancelled(id, now) <= 0) return null
+        return getSource(id)
+    }
+
+    @Query(
+        """
+        UPDATE sources
+        SET taskStatus = 'FAILED', failureReason = 'CANCELLED',
+            nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
+        WHERE id = :id AND taskStatus NOT IN ('COMPLETED', 'DELETING')
+        """
+    )
+    suspend fun markSourceCancelled(id: String, now: Long): Int
+
+    @Transaction
+    suspend fun beginSourcePause(id: String, now: Long): FindroidSourceDto? {
+        if (markSourcePaused(id, now) <= 0) return null
+        return getSource(id)
+    }
+
+    @Query(
+        """
+        UPDATE sources
+        SET taskStatus = 'PAUSED', failureReason = NULL,
+            taskGeneration = taskGeneration + 1, updatedAt = :now
+        WHERE id = :id AND taskStatus NOT IN ('DELETING', 'COMPLETED')
+        """
+    )
+    suspend fun markSourcePaused(id: String, now: Long): Int
+
+    @Transaction
+    suspend fun beginSourceRetry(id: String, now: Long): FindroidSourceDto? {
+        if (markSourceRetry(id, now) <= 0) return null
+        return getSource(id)
+    }
+
+    @Query(
+        """
+        UPDATE sources
+        SET taskStatus = 'PENDING', failureReason = NULL, retryCount = 0,
+            nextRetryAt = 0, taskGeneration = taskGeneration + 1, updatedAt = :now
+        WHERE id = :id AND taskStatus != 'DELETING'
+        """
+    )
+    suspend fun markSourceRetry(id: String, now: Long): Int
+
     @Query("UPDATE sources SET downloadId = :downloadId WHERE id = :id")
     suspend fun setSourceDownloadId(id: String, downloadId: Long?)
 
@@ -164,6 +291,21 @@ interface ServerDatabaseDao {
         failureReason: String?,
         updatedAt: Long,
     )
+
+    @Query(
+        """
+        UPDATE sources
+        SET taskStatus = :status, failureReason = :failureReason, updatedAt = :updatedAt
+        WHERE id = :id AND taskGeneration = :generation AND taskStatus != 'DELETING'
+        """
+    )
+    suspend fun setSourceTaskStatusIfCurrent(
+        id: String,
+        generation: Long,
+        status: String?,
+        failureReason: String?,
+        updatedAt: Long,
+    ): Int
 
     /** W50：按来源 id 查单条下载记录（自研引擎队列用）。 */
     @Query("SELECT * FROM sources WHERE id = :id")
@@ -180,6 +322,21 @@ interface ServerDatabaseDao {
         updatedAt: Long,
     )
 
+    @Query(
+        """
+        UPDATE sources
+        SET downloadedBytes = :downloadedBytes, totalBytes = :totalBytes, updatedAt = :updatedAt
+        WHERE id = :id AND taskGeneration = :generation AND taskStatus != 'DELETING'
+        """
+    )
+    suspend fun setSourceProgressIfCurrent(
+        id: String,
+        generation: Long,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        updatedAt: Long,
+    ): Int
+
     /** W50：记录断点续传校验器（ETag / Last-Modified）。 */
     @Query("UPDATE sources SET resumeValidator = :validator WHERE id = :id")
     suspend fun setSourceResumeValidator(id: String, validator: String?)
@@ -194,6 +351,42 @@ interface ServerDatabaseDao {
         nextRetryAt: Long,
         updatedAt: Long,
     )
+
+    @Query(
+        """
+        UPDATE sources
+        SET retryCount = :retryCount, nextRetryAt = :nextRetryAt, updatedAt = :updatedAt
+        WHERE id = :id AND taskGeneration = :generation AND taskStatus != 'DELETING'
+        """
+    )
+    suspend fun setSourceRetryIfCurrent(
+        id: String,
+        generation: Long,
+        retryCount: Int,
+        nextRetryAt: Long,
+        updatedAt: Long,
+    ): Int
+
+    /** 完成提交与文件 rename 配对；返回 0 表示删除 / 取消已先赢得栅栏。 */
+    @Query(
+        """
+        UPDATE sources
+        SET path = :path, taskStatus = 'COMPLETED', failureReason = NULL,
+            downloadedBytes = :downloadedBytes, totalBytes = :totalBytes,
+            resumeValidator = :validator, retryCount = 0, nextRetryAt = 0,
+            updatedAt = :updatedAt
+        WHERE id = :id AND taskGeneration = :generation AND taskStatus = 'RUNNING'
+        """
+    )
+    suspend fun completeSourceIfCurrent(
+        id: String,
+        generation: Long,
+        path: String,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        validator: String?,
+        updatedAt: Long,
+    ): Int
 
     @Query("DELETE FROM sources WHERE id = :id") suspend fun deleteSource(id: String)
 

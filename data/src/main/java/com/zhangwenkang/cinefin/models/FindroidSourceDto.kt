@@ -49,6 +49,8 @@ data class FindroidSourceDto(
     val bitrate: Int? = null,
     /** Jellyfin MediaSourceInfo.container；旧行迁移后为 null。 */
     val container: String? = null,
+    /** W90-R2：下载生命周期代次；迟到 worker 的所有写回都按此判代。 */
+    @ColumnInfo(defaultValue = "0") val taskGeneration: Long = 0,
 )
 
 fun FindroidSource.toFindroidSourceDto(itemId: UUID, path: String): FindroidSourceDto {

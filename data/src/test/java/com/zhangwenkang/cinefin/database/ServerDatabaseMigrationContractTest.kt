@@ -15,6 +15,67 @@ import org.junit.Test
 class ServerDatabaseMigrationContractTest {
 
     @Test
+    fun `Room 14 到 15 只追加 generation 与持久删除批次表`() {
+        val schemaDir = locateSchemaDir(minVersion = 14)
+        val before = Json.parseToJsonElement(File(schemaDir, "14.json").readText()).jsonObject
+        val after = Json.parseToJsonElement(File(schemaDir, "15.json").readText()).jsonObject
+        val beforeTables = before.getValue("database").jsonObject.getValue("entities").jsonArray
+        val afterTables = after.getValue("database").jsonObject.getValue("entities").jsonArray
+        val oldColumns = tableColumns(beforeTables)
+        val newColumns = tableColumns(afterTables)
+
+        oldColumns.forEach { (table, columns) ->
+            assertTrue("迁移删除旧表 $table", newColumns.containsKey(table))
+            assertTrue("迁移删除旧列 $table", newColumns.getValue(table).containsAll(columns))
+        }
+        assertEquals(
+            setOf("taskGeneration"),
+            newColumns.getValue("sources") - oldColumns.getValue("sources"),
+        )
+        assertEquals(
+            setOf("taskGeneration"),
+            newColumns.getValue("downloadIntents") - oldColumns.getValue("downloadIntents"),
+        )
+        assertTrue("downloadDeleteBatches 未新增", newColumns.containsKey("downloadDeleteBatches"))
+        assertTrue("downloadDeleteReceipts 未新增", newColumns.containsKey("downloadDeleteReceipts"))
+        assertEquals(
+            setOf("id", "requestedCount", "createdAt", "completedAt"),
+            newColumns.getValue("downloadDeleteBatches"),
+        )
+        assertEquals(
+            setOf(
+                "batchId",
+                "canonicalKey",
+                "itemId",
+                "sourceId",
+                "mediaKind",
+                "outcome",
+                "detail",
+                "updatedAt",
+            ),
+            newColumns.getValue("downloadDeleteReceipts"),
+        )
+        assertField(
+            afterTables,
+            tableName = "sources",
+            columnName = "taskGeneration",
+            notNull = true,
+            defaultValue = "0",
+        )
+        assertField(
+            afterTables,
+            tableName = "downloadIntents",
+            columnName = "taskGeneration",
+            notNull = true,
+            defaultValue = "0",
+        )
+        assertEquals(
+            listOf("batchId", "canonicalKey"),
+            primaryKeyColumns(afterTables, "downloadDeleteReceipts"),
+        )
+    }
+
+    @Test
     fun `Room 13 到 14 只追加可空媒体元数据列并保留全部旧列`() {
         val schemaDir = locateSchemaDir()
         val before = Json.parseToJsonElement(File(schemaDir, "13.json").readText()).jsonObject
@@ -61,14 +122,15 @@ class ServerDatabaseMigrationContractTest {
         )
     }
 
-    private fun locateSchemaDir(): File {
+    private fun locateSchemaDir(minVersion: Int = 13): File {
         val relative = "data/schemas/com.zhangwenkang.cinefin.database.ServerDatabase"
         return generateSequence(File(System.getProperty("user.dir")!!).absoluteFile) {
                 it.parentFile
             }
             .map { it.resolve(relative) }
-            .firstOrNull { it.resolve("13.json").isFile && it.resolve("14.json").isFile }
-            ?: error("找不到 ServerDatabase schema 13/14；cwd=${System.getProperty("user.dir")!!}")
+            .firstOrNull {
+                it.resolve("${minVersion - 1}.json").isFile && it.resolve("$minVersion.json").isFile
+            } ?: error("找不到 ServerDatabase schema ${minVersion - 1}/$minVersion")
     }
 
     private fun tableColumns(entities: JsonArray): Map<String, Set<String>> = buildMap {
@@ -112,4 +174,35 @@ class ServerDatabaseMigrationContractTest {
             return
         }
     }
+
+    private fun assertField(
+        entities: JsonArray,
+        tableName: String,
+        columnName: String,
+        notNull: Boolean,
+        defaultValue: String?,
+    ) {
+        val table =
+            entities
+                .map { it.jsonObject }
+                .first { it.getValue("tableName").jsonPrimitive.content == tableName }
+        val field =
+            table
+                .getValue("fields")
+                .jsonArray
+                .map { it.jsonObject }
+                .first { it.getValue("columnName").jsonPrimitive.contentOrNull == columnName }
+        assertEquals(notNull, field["notNull"]?.jsonPrimitive?.boolean ?: false)
+        assertEquals(defaultValue, field["defaultValue"]?.jsonPrimitive?.contentOrNull)
+    }
+
+    private fun primaryKeyColumns(entities: JsonArray, tableName: String): List<String> =
+        entities
+            .map { it.jsonObject }
+            .first { it.getValue("tableName").jsonPrimitive.content == tableName }
+            .getValue("primaryKey")
+            .jsonObject
+            .getValue("columnNames")
+            .jsonArray
+            .map { it.jsonPrimitive.content }
 }

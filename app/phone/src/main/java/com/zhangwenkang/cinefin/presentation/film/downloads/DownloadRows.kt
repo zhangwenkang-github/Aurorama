@@ -876,6 +876,7 @@ private fun DownloadStatusBadge(
             DownloadTaskStatus.PAUSED -> CoreR.drawable.ic_pause
             DownloadTaskStatus.COMPLETED -> CoreR.drawable.ic_check
             DownloadTaskStatus.FAILED -> CoreR.drawable.ic_alert_circle
+            DownloadTaskStatus.DELETING -> CoreR.drawable.ic_trash
         }
     val label =
         when {
@@ -904,6 +905,7 @@ private fun DownloadStatusBadge(
                 }
             phase == DownloadTaskPhase.COMPLETED ->
                 stringResource(CoreR.string.download_tasks_completed)
+            phase == DownloadTaskPhase.DELETING -> stringResource(CoreR.string.download_deleting)
             status == DownloadTaskStatus.PENDING -> stringResource(CoreR.string.download_pending)
             status == DownloadTaskStatus.RUNNING ->
                 stringResource(CoreR.string.download_downloading)

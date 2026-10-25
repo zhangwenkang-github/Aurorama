@@ -40,6 +40,11 @@ data class DownloadTask(
     val retryCount: Int = 0,
     /** W50：下一次自动重试时间（epoch ms；0 = 立即可运行）。 */
     val nextRetryAt: Long = 0,
+    /** W90-R2：生命周期代次；删除 / 取消 / 暂停 / 重试推进，迟到 worker 必须被拒绝。 */
+    val taskGeneration: Long = 0,
+    /** W90-R2：删除 canonical identity 所需的持久来源段；旧记录为 null。 */
+    val serverId: String? = null,
+    val userId: String? = null,
 ) {
     val progress: Float
         get() =
@@ -59,6 +64,7 @@ enum class DownloadTaskStatus {
     PAUSED,
     COMPLETED,
     FAILED,
+    DELETING,
 }
 
 /** 失败原因分类：UI 文案与自动重试策略都以此为准。 */
@@ -131,7 +137,8 @@ object DownloadTaskRules {
     fun isActiveQueueStatus(status: DownloadTaskStatus): Boolean =
         status == DownloadTaskStatus.PENDING ||
             status == DownloadTaskStatus.RUNNING ||
-            status == DownloadTaskStatus.PAUSED
+            status == DownloadTaskStatus.PAUSED ||
+            status == DownloadTaskStatus.DELETING
 
     fun resolveStatus(
         persistedStatus: String?,
@@ -142,6 +149,7 @@ object DownloadTaskRules {
             DownloadTaskStatus.COMPLETED -> DownloadTaskStatus.COMPLETED
             DownloadTaskStatus.FAILED -> DownloadTaskStatus.FAILED
             DownloadTaskStatus.PAUSED -> DownloadTaskStatus.PAUSED
+            DownloadTaskStatus.DELETING -> DownloadTaskStatus.DELETING
             DownloadTaskStatus.PENDING,
             DownloadTaskStatus.RUNNING ->
                 // 进程重启后没有活动任务：降级为「等待调度」，由恢复逻辑续传。
@@ -167,7 +175,8 @@ object DownloadTaskRules {
         return when (status) {
             null -> pathIsPartial
             DownloadTaskStatus.COMPLETED,
-            DownloadTaskStatus.FAILED -> false
+            DownloadTaskStatus.FAILED,
+            DownloadTaskStatus.DELETING -> false
             DownloadTaskStatus.PENDING,
             DownloadTaskStatus.RUNNING,
             DownloadTaskStatus.PAUSED -> true
@@ -193,7 +202,7 @@ object DownloadTaskRules {
                 DownloadResumeStrategy.RESUME
             failureReason == DownloadFailureReason.CANNOT_RESUME -> DownloadResumeStrategy.RESTART
             failureReason == DownloadFailureReason.FILE_ERROR -> DownloadResumeStrategy.RESTART
-            failureReason == DownloadFailureReason.CANCELLED -> DownloadResumeStrategy.RESTART
+            failureReason == DownloadFailureReason.CANCELLED -> DownloadResumeStrategy.RESUME
             else -> DownloadResumeStrategy.RESUME
         }
 
@@ -249,7 +258,8 @@ object DownloadTaskRules {
         when (status) {
             DownloadTaskStatus.PENDING,
             DownloadTaskStatus.RUNNING,
-            DownloadTaskStatus.PAUSED -> DownloadTaskGroup.ACTIVE
+            DownloadTaskStatus.PAUSED,
+            DownloadTaskStatus.DELETING -> DownloadTaskGroup.ACTIVE
             DownloadTaskStatus.FAILED -> DownloadTaskGroup.FAILED
             DownloadTaskStatus.COMPLETED -> DownloadTaskGroup.COMPLETED
         }

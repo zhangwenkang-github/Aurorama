@@ -62,6 +62,12 @@ interface Downloader {
 
     suspend fun cancelDownload(item: FindroidItem, downloadId: Long)
 
+    /** W90-R2：取消保留残片与失败重试入口；删除文件请走 [deleteTask]。 */
+    suspend fun cancelTask(task: DownloadTask): Boolean
+
+    /** 通知栏 / 页面按 sourceId 取消；不删除残片。 */
+    suspend fun cancelTaskById(sourceId: String): Boolean
+
     suspend fun deleteItem(item: FindroidItem, source: FindroidSource)
 
     suspend fun getProgress(downloadId: Long?): Pair<Int, Int>
@@ -84,6 +90,13 @@ interface Downloader {
 
     /** W32：删除任务（含残片、DownloadManager 记录与离线索引）。 */
     suspend fun deleteTask(task: DownloadTask): Boolean
+
+    /**
+     * W90-R2：一个持久 batch、逐项 receipt 的批量删除。
+     *
+     * 单项失败不会中断后续项；只有成功项由各自删除链路移除。
+     */
+    suspend fun deleteDownloads(requests: List<DownloadDeleteRequest>): DownloadDeleteBatchResult
 
     /** W32：网络恢复后自动重试网络 / 服务器类失败任务，返回实际重试数量。 */
     suspend fun retryNetworkFailures(): Int

@@ -34,7 +34,7 @@ class DownloadActionReceiver : BroadcastReceiver() {
             try {
                 when (action) {
                     DownloadNotifications.ACTION_PAUSE -> downloader.pauseTaskById(sourceId)
-                    DownloadNotifications.ACTION_CANCEL -> downloader.deleteTaskById(sourceId)
+                    DownloadNotifications.ACTION_CANCEL -> downloader.cancelTaskById(sourceId)
                 }
             } catch (e: Exception) {
                 Timber.w(e, "下载通知操作失败 action=$action sourceId=$sourceId")
