@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.utils
 
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -339,5 +340,175 @@ class DownloadLifecycleTest {
         assertFalse(DownloadCompletionCommitRules.witnessFile(partial, finalFile).exists())
         directory.deleteRecursively()
         Unit
+    }
+
+    @Test
+    fun `旧代次 witness 不能在新代次被认证且保留旧最终文件证据`() = runBlocking {
+        val directory = Files.createTempDirectory("download-completion-stale-witness").toFile()
+        val partial = directory.resolve("media.download").apply { writeText("old payload") }
+        val finalFile = directory.resolve("media")
+
+        runCatching {
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = { error("模拟旧代次 rename 后进程中断") },
+                sourceId = "source-recovery",
+                generation = 8L,
+            )
+        }
+        val witness = DownloadCompletionCommitRules.witnessFile(partial, finalFile)
+
+        assertFalse(
+            "新代次不得把旧代次 witness 重新认证为当前完成",
+            DownloadCompletionCommitRules.hasInterruptedFinalization(
+                partial = partial,
+                finalFile = finalFile,
+                sourceId = "source-recovery",
+                generation = 9L,
+            ),
+        )
+        assertEquals(
+            DownloadCompletionCommit.RENAME_FAILED,
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = { error("旧 witness 不得提交新代次状态") },
+                sourceId = "source-recovery",
+                generation = 9L,
+            ),
+        )
+        assertEquals("old payload", finalFile.readText())
+        assertTrue("旧 witness 必须保留到新代次明确处理", witness.isFile)
+        directory.deleteRecursively()
+        Unit
+    }
+
+    @Test
+    fun `提交后 finalizer 执行在线完成同集合并报告失败项`() = runBlocking {
+        val executed = mutableListOf<DownloadPostCommitEffect>()
+        val failure = IllegalStateException("trickplay unavailable")
+
+        val result =
+            DownloadPostCommitRules.finalize(
+                listOf(
+                    DownloadPostCommitTask(DownloadPostCommitEffect.SNAPSHOT) {
+                        executed += DownloadPostCommitEffect.SNAPSHOT
+                    },
+                    DownloadPostCommitTask(DownloadPostCommitEffect.MEDIA_STREAMS) {
+                        executed += DownloadPostCommitEffect.MEDIA_STREAMS
+                    },
+                    DownloadPostCommitTask(DownloadPostCommitEffect.EXTERNAL_STREAMS) {
+                        executed += DownloadPostCommitEffect.EXTERNAL_STREAMS
+                    },
+                    DownloadPostCommitTask(DownloadPostCommitEffect.SEGMENTS) {
+                        executed += DownloadPostCommitEffect.SEGMENTS
+                    },
+                    DownloadPostCommitTask(DownloadPostCommitEffect.TRICKPLAY) {
+                        executed += DownloadPostCommitEffect.TRICKPLAY
+                        throw failure
+                    },
+                    DownloadPostCommitTask(DownloadPostCommitEffect.IMAGES) {
+                        executed += DownloadPostCommitEffect.IMAGES
+                    },
+                )
+            )
+
+        assertEquals(DownloadPostCommitEffect.entries, executed)
+        assertEquals(
+            setOf(DownloadPostCommitEffect.TRICKPLAY),
+            result.failures.mapTo(mutableSetOf()) { it.effect },
+        )
+        assertEquals(failure, result.failures.single().error)
+        assertFalse(result.isComplete)
+    }
+
+    @Test
+    fun `提交后 finalizer 不吞取消且允许后续恢复重跑同一集合`() = runBlocking {
+        var firstRunCalls = 0
+        runCatching {
+            DownloadPostCommitRules.finalize(
+                listOf(
+                    DownloadPostCommitTask(DownloadPostCommitEffect.SNAPSHOT) {
+                        firstRunCalls += 1
+                        throw CancellationException("worker stopped")
+                    },
+                    DownloadPostCommitTask(DownloadPostCommitEffect.IMAGES) { firstRunCalls += 1 },
+                )
+            )
+        }
+            .onFailure { assertTrue(it is CancellationException) }
+
+        var recoveryCalls = 0
+        val recovered =
+            DownloadPostCommitRules.finalize(
+                DownloadPostCommitEffect.entries.map { effect ->
+                    DownloadPostCommitTask(effect) { recoveryCalls += 1 }
+                }
+            )
+
+        assertEquals(1, firstRunCalls)
+        assertTrue(recovered.isComplete)
+        assertEquals(DownloadPostCommitEffect.entries.size, recoveryCalls)
+    }
+
+    @Test
+    fun `提交后 finalizer 失败保留 witness 并返回待重试而不是完成`() = runBlocking {
+        val directory = Files.createTempDirectory("download-post-commit-retry").toFile()
+        val partial = directory.resolve("media.download").apply { writeText("payload") }
+        val finalFile = directory.resolve("media")
+        val failure =
+            DownloadPostCommitResult(
+                listOf(
+                    DownloadPostCommitFailure(
+                        DownloadPostCommitEffect.SEGMENTS,
+                        IllegalStateException("segments unavailable"),
+                    )
+                )
+            )
+
+        val result =
+            DownloadCompletionCommitRules.commit(
+                partial = partial,
+                finalFile = finalFile,
+                canStart = { true },
+                commitState = { 1 },
+                onCommitted = { throw DownloadPostCommitIncompleteException(failure) },
+                sourceId = "source-post-commit",
+                generation = 3L,
+            )
+
+        assertEquals(DownloadCompletionCommit.SIDE_EFFECTS_FAILED, result)
+        assertTrue(finalFile.isFile)
+        assertTrue(DownloadCompletionCommitRules.witnessFile(partial, finalFile).isFile)
+        directory.deleteRecursively()
+        Unit
+    }
+
+    @Test
+    fun `外置流身份在重复恢复中保持稳定`() {
+        val first =
+            DownloadPostCommitRules.externalMediaStreamId(
+                sourceId = "source-external",
+                streamIndex = 7,
+                ordinal = 2,
+            )
+        val repeated =
+            DownloadPostCommitRules.externalMediaStreamId(
+                sourceId = "source-external",
+                streamIndex = 7,
+                ordinal = 2,
+            )
+        val other =
+            DownloadPostCommitRules.externalMediaStreamId(
+                sourceId = "source-external",
+                streamIndex = 8,
+                ordinal = 3,
+            )
+
+        assertEquals(first, repeated)
+        assertTrue(first != other)
     }
 }

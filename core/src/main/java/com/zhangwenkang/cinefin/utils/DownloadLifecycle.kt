@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.io.File
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 /** 一次 worker claim 的身份；generation 用于拒绝该 claim 之后的迟到回调。 */
 data class DownloadLifecycleClaim(val sourceId: String, val generation: Long)
@@ -95,6 +97,61 @@ enum class DownloadCompletionCommit {
     COMMITTED,
     FENCED,
     RENAME_FAILED,
+    SIDE_EFFECTS_FAILED,
+}
+
+enum class DownloadPostCommitEffect {
+    SNAPSHOT,
+    MEDIA_STREAMS,
+    EXTERNAL_STREAMS,
+    SEGMENTS,
+    TRICKPLAY,
+    IMAGES,
+}
+
+data class DownloadPostCommitTask(
+    val effect: DownloadPostCommitEffect,
+    val action: suspend () -> Unit,
+)
+
+data class DownloadPostCommitFailure(
+    val effect: DownloadPostCommitEffect,
+    val error: Throwable,
+)
+
+data class DownloadPostCommitResult(val failures: List<DownloadPostCommitFailure>) {
+    val isComplete: Boolean
+        get() = failures.isEmpty()
+}
+
+internal class DownloadPostCommitIncompleteException(val result: DownloadPostCommitResult) :
+    Exception("下载提交后副作用未完成：${result.failures.first().effect}")
+
+object DownloadPostCommitRules {
+    suspend fun finalize(tasks: List<DownloadPostCommitTask>): DownloadPostCommitResult {
+        val failures = mutableListOf<DownloadPostCommitFailure>()
+        for (task in tasks) {
+            try {
+                task.action()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failures += DownloadPostCommitFailure(task.effect, error)
+            }
+        }
+        return DownloadPostCommitResult(failures)
+    }
+
+    fun externalMediaStreamId(
+        sourceId: String,
+        streamIndex: Int,
+        ordinal: Int,
+    ): UUID {
+        val identity = if (streamIndex >= 0) "index=$streamIndex" else "ordinal=$ordinal"
+        return UUID.nameUUIDFromBytes(
+            "$sourceId|external-subtitle|$identity".toByteArray(Charsets.UTF_8)
+        )
+    }
 }
 
 /**
@@ -142,8 +199,12 @@ object DownloadCompletionCommitRules {
             }
             return DownloadCompletionCommit.FENCED
         }
+        try {
+            onCommitted()
+        } catch (incomplete: DownloadPostCommitIncompleteException) {
+            return DownloadCompletionCommit.SIDE_EFFECTS_FAILED
+        }
         witness.delete()
-        onCommitted()
         return DownloadCompletionCommit.COMMITTED
     }
 
@@ -206,7 +267,7 @@ object DownloadCompletionCommitRules {
                 ?.let { lines ->
                     lines.size == 4 &&
                         lines[0] == sourceId &&
-                        lines[1].toLongOrNull()?.let { it <= generation } == true &&
+                        lines[1].toLongOrNull() == generation &&
                         lines[2] == partial.canonicalPath &&
                         lines[3] == finalFile.canonicalPath
                 } == true
