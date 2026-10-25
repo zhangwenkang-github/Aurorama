@@ -112,7 +112,8 @@ class DownloaderImpl(
 ) : Downloader {
     private val httpEngine = DownloadHttpEngine(httpClient)
     private val notifications = DownloadNotifications(context)
-    private val notificationManager = context.getSystemService(NotificationManager::class.java)
+    private val notificationManager =
+        context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
     private val sidecar = DownloadMediaSidecar(context)
     private val intentMutations =
         DownloadIntentMutations(
@@ -218,8 +219,7 @@ class DownloaderImpl(
 
     init {
         runCatching {
-            context
-                .getSystemService(ConnectivityManager::class.java)
+            (context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)
                 ?.registerDefaultNetworkCallback(networkCallback)
         }
             .onFailure { Timber.w(it, "注册下载网络回调失败") }
