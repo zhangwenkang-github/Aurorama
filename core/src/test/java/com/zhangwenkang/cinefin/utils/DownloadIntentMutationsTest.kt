@@ -294,8 +294,6 @@ class DownloadIntentMutationsTest {
                 createdAt = 0L,
                 updatedAt = 0L,
                 taskGeneration = generation,
-                serverId = "server-a",
-                userId = USER_ID.toString(),
             )
 
         fun <T : Any> unusedProxy(type: Class<T>): T =
