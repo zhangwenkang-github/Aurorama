@@ -15,6 +15,7 @@ import com.zhangwenkang.cinefin.models.FindroidMediaStreamDto
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.FindroidSegment
+import com.zhangwenkang.cinefin.models.FindroidSegmentDto
 import com.zhangwenkang.cinefin.models.FindroidSegmentType
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceDto
@@ -62,6 +63,7 @@ class DownloaderImplRecoveryTest {
                 )
             assertEquals(queued.first.path, fixture.dao.source?.path)
 
+            fixture.resetEffectCalls()
             fixture.downloader.runQueue()
 
             assertEquals(
@@ -69,8 +71,19 @@ class DownloaderImplRecoveryTest {
                 "COMPLETED",
                 fixture.dao.source?.taskStatus,
             )
-            fixture.assertSixEffects()
-            assertEquals(2, fixture.imageScheduler.requests.size)
+            fixture.assertSixEffects(
+                EffectCalls(
+                    snapshotWrites = 1,
+                    internalMediaStreamWrites = 1,
+                    externalMediaStreamWrites = 1,
+                    externalDownloads = 1,
+                    segmentReads = 1,
+                    segmentWrites = 1,
+                    trickplayReads = 2,
+                    trickplayWrites = 1,
+                    imageAttempts = 1,
+                )
+            )
         } finally {
             fixture.close()
         }
@@ -122,7 +135,19 @@ class DownloaderImplRecoveryTest {
 
             assertEquals("COMPLETED", fixture.dao.source?.taskStatus)
             assertFalse(fixture.witness().exists())
-            fixture.assertSixEffects()
+            fixture.assertSixEffects(
+                EffectCalls(
+                    snapshotWrites = 1,
+                    internalMediaStreamWrites = 1,
+                    externalMediaStreamWrites = 1,
+                    externalDownloads = 1,
+                    segmentReads = 1,
+                    segmentWrites = 1,
+                    trickplayReads = 2,
+                    trickplayWrites = 1,
+                    imageAttempts = 1,
+                )
+            )
         } finally {
             fixture.close()
         }
@@ -172,7 +197,19 @@ class DownloaderImplRecoveryTest {
             assertTrue(oldEvidence.legacyFinal.isFile)
             assertEquals("old payload", oldEvidence.legacyFinal.readText())
             assertTrue(oldEvidence.legacyWitness.isFile)
-            fixture.assertSixEffects()
+            fixture.assertSixEffects(
+                EffectCalls(
+                    snapshotWrites = 1,
+                    internalMediaStreamWrites = 1,
+                    externalMediaStreamWrites = 1,
+                    externalDownloads = 1,
+                    segmentReads = 1,
+                    segmentWrites = 1,
+                    trickplayReads = 2,
+                    trickplayWrites = 1,
+                    imageAttempts = 1,
+                )
+            )
         } finally {
             fixture.close()
         }
@@ -212,6 +249,20 @@ class DownloaderImplRecoveryTest {
                 "外置流目标必须按当前代次隔离：$externalPath",
                 externalPath.endsWith(expectedExternalId.toString()),
             )
+            fixture.assertSixEffects(
+                EffectCalls(
+                    snapshotWrites = 1,
+                    internalMediaStreamWrites = 1,
+                    externalMediaStreamWrites = 1,
+                    externalDownloads = 1,
+                    segmentReads = 1,
+                    segmentWrites = 0,
+                    trickplayReads = 2,
+                    trickplayWrites = 1,
+                    imageAttempts = 1,
+                ),
+                segmentsPersisted = false,
+            )
 
             fixture.dao.source =
                 fixture.dao.source!!.copy(
@@ -224,19 +275,170 @@ class DownloaderImplRecoveryTest {
             assertFalse(fixture.witness().exists())
             assertEquals("重复恢复不得重新下载同一代外置流", 1, fixture.transfer.externalDownloads)
             assertEquals(externalPath, fixture.dao.externalStream()?.path)
-            fixture.assertSixEffects()
+            fixture.assertSixEffects(
+                EffectCalls(
+                    snapshotWrites = 2,
+                    internalMediaStreamWrites = 2,
+                    externalMediaStreamWrites = 1,
+                    externalDownloads = 1,
+                    segmentReads = 2,
+                    segmentWrites = 1,
+                    trickplayReads = 4,
+                    trickplayWrites = 2,
+                    imageAttempts = 2,
+                )
+            )
+            val completedArtifacts = fixture.artifacts()
+
+            fixture.leaveCompletedWitness()
+            fixture.downloader.recoverOnStartup()
+            fixture.downloader.runQueue()
+
+            assertEquals("COMPLETED", fixture.dao.source?.taskStatus)
+            assertFalse(fixture.witness().exists())
+            fixture.assertSixEffects(
+                EffectCalls(
+                    snapshotWrites = 3,
+                    internalMediaStreamWrites = 3,
+                    externalMediaStreamWrites = 1,
+                    externalDownloads = 1,
+                    segmentReads = 3,
+                    segmentWrites = 2,
+                    trickplayReads = 6,
+                    trickplayWrites = 3,
+                    imageAttempts = 3,
+                )
+            )
+            assertEquals(
+                "重复恢复不得增加快照 / 流 / 分段 / Trickplay / 图片 / 外置文件产物",
+                completedArtifacts,
+                fixture.artifacts(),
+            )
         } finally {
             fixture.close()
         }
     }
 
-    private fun Fixture.assertSixEffects() {
-        assertTrue("snapshot", dao.snapshotWrites > 0)
-        assertTrue("media streams", dao.mediaStreamWrites >= 2)
-        assertTrue("external streams", transfer.externalDownloads > 0)
-        assertTrue("segments", dao.segmentWrites > 0)
-        assertTrue("trickplay", dao.trickplayWrites > 0)
-        assertTrue("images", imageScheduler.requests.isNotEmpty())
+    private data class EffectCalls(
+        val snapshotWrites: Int,
+        val internalMediaStreamWrites: Int,
+        val externalMediaStreamWrites: Int,
+        val externalDownloads: Int,
+        val segmentReads: Int,
+        val segmentWrites: Int,
+        val trickplayReads: Int,
+        val trickplayWrites: Int,
+        val imageAttempts: Int,
+    )
+
+    private data class EffectArtifacts(
+        val movieIds: List<UUID>,
+        val internalMediaStreams: List<Pair<UUID, String>>,
+        val externalMediaStreams: List<Pair<UUID, String>>,
+        val segments: List<FindroidSegmentDto>,
+        val trickplay: List<FindroidTrickplayInfoDto>,
+        val files: List<Triple<String, Int, String>>,
+        val imageRequests: List<Pair<String, Long>>,
+    )
+
+    private fun Fixture.assertSixEffects(
+        expected: EffectCalls,
+        segmentsPersisted: Boolean = true,
+    ) {
+        val calls =
+            EffectCalls(
+                snapshotWrites = dao.snapshotWrites,
+                internalMediaStreamWrites = dao.internalMediaStreamWrites,
+                externalMediaStreamWrites = dao.externalMediaStreamWrites,
+                externalDownloads = transfer.externalDownloads,
+                segmentReads = repository.segmentReads,
+                segmentWrites = dao.segmentWrites,
+                trickplayReads = repository.trickplayReads,
+                trickplayWrites = dao.trickplayWrites,
+                imageAttempts = imageScheduler.attempts,
+            )
+        assertEquals("六项副作用调用次数", expected, calls)
+
+        val artifacts = artifacts()
+        assertEquals("SNAPSHOT 产物", listOf(ITEM_ID), artifacts.movieIds)
+        assertEquals(
+            "MEDIA_STREAMS 产物",
+            listOf(
+                UUID.nameUUIDFromBytes("$SOURCE_ID|VIDEO|index=0".toByteArray()) to
+                    checkNotNull(dao.source).path
+            ),
+            artifacts.internalMediaStreams,
+        )
+        assertEquals(
+            "主媒体终稿内容",
+            MEDIA_BYTES.toList(),
+            File(checkNotNull(dao.source).path).readBytes().toList(),
+        )
+        val generation = checkNotNull(dao.source).taskGeneration
+        val expectedExternalId =
+            DownloadPostCommitRules.externalMediaStreamId(
+                sourceId = SOURCE_ID,
+                generation = generation,
+                streamIndex = 1,
+                ordinal = 0,
+            )
+        assertEquals(
+            "EXTERNAL_STREAMS 产物",
+            listOf(expectedExternalId to dao.externalStream()!!.path),
+            artifacts.externalMediaStreams,
+        )
+        assertEquals(
+            "外置流文件内容",
+            SUBTITLE_BYTES.toList(),
+            File(dao.externalStream()!!.path).readBytes().toList(),
+        )
+        assertEquals(
+            "SEGMENTS 产物",
+            if (segmentsPersisted) {
+                listOf(
+                    FindroidSegmentDto(
+                        itemId = ITEM_ID,
+                        type = FindroidSegmentType.INTRO,
+                        startTicks = 0L,
+                        endTicks = 10L,
+                    )
+                )
+            } else {
+                emptyList()
+            },
+            artifacts.segments,
+        )
+        assertEquals(
+            "TRICKPLAY 产物",
+            listOf(
+                FindroidTrickplayInfoDto(
+                    sourceId = SOURCE_ID,
+                    width = 80,
+                    height = 45,
+                    tileWidth = 1,
+                    tileHeight = 1,
+                    thumbnailCount = 1,
+                    interval = 1_000,
+                    bandwidth = 1,
+                )
+            ),
+            artifacts.trickplay,
+        )
+        val trickplayFiles = trickplayFiles()
+        assertEquals("Trickplay 文件数", 2, trickplayFiles.size)
+        assertEquals(listOf("0", "1"), trickplayFiles.map { it.name })
+        trickplayFiles.forEach { file ->
+            assertEquals(
+                "Trickplay 文件内容：${file.name}",
+                listOf(1.toByte()),
+                file.readBytes().toList(),
+            )
+        }
+        assertEquals(
+            "IMAGES 产物",
+            listOf(SOURCE_ID to generation),
+            artifacts.imageRequests,
+        )
     }
 
     private class Fixture {
@@ -435,6 +637,81 @@ class DownloaderImplRecoveryTest {
                 finalFile = File(checkNotNull(dao.source).path),
             )
 
+        fun downloadTarget(): Pair<File, File> =
+            DownloadCompletionCommitRules.downloadTargetFiles(
+                directory = downloads,
+                itemId = ITEM_ID.toString(),
+                sourceId = SOURCE_ID,
+                generation = GENERATION,
+            )
+
+        fun leaveCompletedWitness() {
+            val target = downloadTarget()
+            dao.source =
+                checkNotNull(dao.source)
+                    .copy(
+                        path = target.second.path,
+                        taskStatus = DownloadTaskStatus.COMPLETED.name,
+                        failureReason = null,
+                        nextRetryAt = 0L,
+                    )
+            witness()
+                .writeText(
+                    listOf(
+                            SOURCE_ID,
+                            GENERATION.toString(),
+                            target.first.canonicalPath,
+                            target.second.canonicalPath,
+                        )
+                        .joinToString("\n")
+                )
+        }
+
+        fun resetEffectCalls() {
+            dao.resetEffectCalls()
+            repository.resetEffectCalls()
+            transfer.externalDownloads = 0
+            imageScheduler.attempts = 0
+        }
+
+        fun trickplayFiles(): List<File> =
+            File(root, "trickplay/$ITEM_ID/$SOURCE_ID").listFiles().orEmpty().sortedBy { it.name }
+
+        fun artifacts(): EffectArtifacts =
+            EffectArtifacts(
+                movieIds = dao.snapshotIds().sortedBy(UUID::toString),
+                internalMediaStreams =
+                    dao.internalMediaStreams()
+                        .map { stream -> stream.id to stream.path }
+                        .sortedBy { it.first.toString() },
+                externalMediaStreams =
+                    dao.externalMediaStreams()
+                        .map { stream -> stream.id to stream.path }
+                        .sortedBy { it.first.toString() },
+                segments = dao.segments().sortedWith(compareBy({ it.itemId }, { it.type })),
+                trickplay = dao.trickplayInfos().sortedBy { it.sourceId },
+                files = buildList {
+                        dao.externalMediaStreams()
+                            .map { File(it.path) }
+                            .plus(File(root, "trickplay/$ITEM_ID/$SOURCE_ID").listFiles().orEmpty())
+                            .filter { it.isFile }
+                            .sortedBy { it.path }
+                            .forEach { file ->
+                                add(
+                                    Triple(
+                                        file.relativeTo(root).invariantSeparatorsPath,
+                                        file.length().toInt(),
+                                        file.readBytes().joinToString("") { byte ->
+                                            "%02x".format(byte)
+                                        },
+                                    )
+                                )
+                            }
+                    }
+                        .sortedBy { it.first },
+                imageRequests = imageScheduler.requests.toList(),
+            )
+
         fun close() {
             Timber.uproot(tree)
             root.deleteRecursively()
@@ -447,10 +724,14 @@ class DownloaderImplRecoveryTest {
         var source: FindroidSourceDto? = null
         var itemAvailable = true
         var snapshotWrites = 0
-        var mediaStreamWrites = 0
+        var internalMediaStreamWrites = 0
+        var externalMediaStreamWrites = 0
         var segmentWrites = 0
         var trickplayWrites = 0
+        private val snapshots = linkedMapOf<UUID, FindroidMovieDto>()
         private val mediaStreams = linkedMapOf<UUID, FindroidMediaStreamDto>()
+        private val segments = linkedMapOf<Pair<UUID, FindroidSegmentType>, FindroidSegmentDto>()
+        private val trickplayInfos = linkedMapOf<String, FindroidTrickplayInfoDto>()
         private val movie =
             FindroidMovieDto(
                 id = ITEM_ID,
@@ -556,13 +837,19 @@ class DownloaderImplRecoveryTest {
                         "getTrickplayInfo" -> trickplay.takeIf { args[0] == SOURCE_ID }
                         "insertMovie" -> {
                             snapshotWrites += 1
+                            val snapshot = args[0] as FindroidMovieDto
+                            snapshots.putIfAbsent(snapshot.id, snapshot)
                             Unit
                         }
                         "insertUserData" -> Unit
                         "insertMediaStream" -> {
                             val stream = args[0] as FindroidMediaStreamDto
+                            if (stream.isExternal) {
+                                externalMediaStreamWrites += 1
+                            } else {
+                                internalMediaStreamWrites += 1
+                            }
                             mediaStreams[stream.id] = stream
-                            mediaStreamWrites += 1
                             Unit
                         }
                         "getMediaStreamsBySourceId" ->
@@ -579,11 +866,15 @@ class DownloaderImplRecoveryTest {
                             Unit
                         }
                         "insertSegment" -> {
+                            val segment = args[0] as FindroidSegmentDto
                             segmentWrites += 1
+                            segments[segment.itemId to segment.type] = segment
                             Unit
                         }
                         "insertTrickplayInfo" -> {
+                            val info = args[0] as FindroidTrickplayInfoDto
                             trickplayWrites += 1
+                            trickplayInfos[info.sourceId] = info
                             Unit
                         }
                         "getIncompleteDownloadDeleteBatches" -> emptyList<Any>()
@@ -595,6 +886,26 @@ class DownloaderImplRecoveryTest {
 
         fun externalStream(): FindroidMediaStreamDto? =
             mediaStreams.values.firstOrNull { it.isExternal }
+
+        fun snapshotIds(): List<UUID> = snapshots.keys.toList()
+
+        fun internalMediaStreams(): List<FindroidMediaStreamDto> =
+            mediaStreams.values.filterNot { it.isExternal }
+
+        fun externalMediaStreams(): List<FindroidMediaStreamDto> =
+            mediaStreams.values.filter { it.isExternal }
+
+        fun segments(): List<FindroidSegmentDto> = segments.values.toList()
+
+        fun trickplayInfos(): List<FindroidTrickplayInfoDto> = trickplayInfos.values.toList()
+
+        fun resetEffectCalls() {
+            snapshotWrites = 0
+            internalMediaStreamWrites = 0
+            externalMediaStreamWrites = 0
+            segmentWrites = 0
+            trickplayWrites = 0
+        }
 
         fun putMediaStream(stream: FindroidMediaStreamDto) {
             mediaStreams[stream.id] = stream
@@ -673,6 +984,13 @@ class DownloaderImplRecoveryTest {
                 ),
             )
         var segmentFailuresRemaining = 0
+        var segmentReads = 0
+        var trickplayReads = 0
+
+        fun resetEffectCalls() {
+            segmentReads = 0
+            trickplayReads = 0
+        }
 
         val proxy: JellyfinRepository =
             Proxy.newProxyInstance(
@@ -693,13 +1011,17 @@ class DownloaderImplRecoveryTest {
                                 )
                             )
                         "getSegments" -> {
+                            segmentReads += 1
                             if (segmentFailuresRemaining > 0) {
                                 segmentFailuresRemaining -= 1
                                 error("segments unavailable")
                             }
                             listOf(FindroidSegment(FindroidSegmentType.INTRO, 0L, 10L))
                         }
-                        "getTrickplayData" -> byteArrayOf(1)
+                        "getTrickplayData" -> {
+                            trickplayReads += 1
+                            byteArrayOf(1)
+                        }
                         "getBaseUrl" -> "https://example.test"
                         "getAccessToken" -> "token"
                         "getUserId" -> USER_ID
@@ -751,9 +1073,13 @@ class DownloaderImplRecoveryTest {
     }
 
     private class RecordingImageScheduler : DownloadImageFinalizationScheduler {
+        var attempts = 0
         val requests = mutableListOf<Pair<String, Long>>()
+        private val scheduled = mutableSetOf<String>()
 
         override suspend fun schedule(item: FindroidItem, sourceId: String, generation: Long) {
+            attempts += 1
+            if (!scheduled.add("$sourceId|$generation")) return
             requests += sourceId to generation
         }
     }
