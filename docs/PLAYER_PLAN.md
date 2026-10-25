@@ -3118,7 +3118,7 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 
 **边界 / 下一步**：本次只证明 W90 下载交互子批可供 merge 决策，不等于整个 W90、W89-C 或 1.4.0 发布通过；DownloadManager 失败任务行、书籍成功下载 / 离线打开与像素级输入采样仍未覆盖。下一步只能由 W90 负责人对精确 merge-prep HEAD 作 merge / 不 merge 决策；本线程不自行 merge / push / tag / Release / workflow，也未接触设备或生产。证据见 `w90-reports/W90-DOWNLOADS-FIX-MERGE-PREP.md`。
 
-## 47. W90 音乐多选 pending 与主工具栏间距（2026-10-25，INDEPENDENT_QA_BEHAVIOR_PASS / W89_C_BASELINE_DECISION_REQUIRED）
+## 47. W90 音乐多选 pending 与主工具栏间距（2026-10-25，INDEPENDENT_QA_PASS / W89_C_BASELINE_ACCEPTED / MERGE_PREP_IN_PROGRESS）
 
 **范围**：两张紧耦合小卡，均只改 `modes:music`。卡 A 在音乐多选“播放”点击时，先同步发布既有 `PendingPlaybackUi`，再启动首曲远端解析；批量栏“播放”立即显示局部 spinner 并拒绝重入。成功后清 pending、清选择，按输入列表序起播并每批 4 首并发补齐；首曲失败清 pending、保留选择并走既有 `showBatchFailure`；后续单曲失败仍跳过，不中断已建队列。卡 B 只在音乐主工具栏局部将 Tab / 筛选行到工具栏间距固定为 12dp，并为“播放全部”增加 48dp 最小真实点击壳，视觉按钮尺寸与动作顺序不变。
 
@@ -3145,3 +3145,5 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **Independent QA（2026-10-25，BEHAVIOR_PASS / BRANCH_SCOPE_FAIL_P2）**：与实现者、scoped reviewer 均不同的 QA 会话从固定 `27b82f57` 创建 detached worktree，独立重跑 focused 为 3 XML / 21/0/0/0；新增 QA-only 真实入口探针覆盖 playlist entry 不同、entry 均 null 的 server / local trackRef、共享 itemId 双失败、append 一成一败及复合 key / 可见性恢复，最终 **4/0/0/0**。全量门禁为 music **44 XML / 269/0/0/0**、phone **55 XML / 349/0/0/0**、assemble 259 tasks / 259 executed、ktfmt 9/9 executed、diff-check 与 graphify 通过；arm64 debug 149,107,675 B / SHA-256 `94F44B0E…255534`。身份行为 P0/P1=0/0，本次 residual 与 W90 专属范围均无版本 / schema / 签名 / release 越界。但字面 `e44dd424..27b82f57` 有 19 commits / 28 files，包含 W89-C 的 `d18ed56`，其唯一生产差异是把 `Versions.kt` 从 `1.3.0(4)` 升为 `1.4.0(5)`；因此 QA 对“整个候选可合并”的 P2 范围门判 FAIL。该继承提交不是本次 residual 或 W90 引入，但用户须先选择接受 W89-C 基线随 W90 继承，或把 W90 提交重新切到 target；裁决前不得 merge-prep / merge / push。QA 报告另指出 handoff 把生产候选误写成 ahead 20，实为生产候选 ahead 19、docs HEAD ahead 20；本收口已校正。
 
 **未覆盖（独立 QA）**：按当前授权零 adb / 真机 / 模拟器 / instrumentation / 截图 / 生产请求；Compose runtime semantics、TalkBack / 键盘焦点、真实 bounds、真实 resolver、失败提示时长、设备音频与 Media3 底层批次部分变更仍未运行，须留给用户显式设备验证。独立 QA 未改生产代码、未 commit / merge / push / 发布。
+
+**W89-C 基线裁决（2026-10-25，ACCEPTED）**：用户明确选择方案 1，接受继承提交 `d18ed56` 的 `Versions.kt` 1.4.0(5) 作为 W90 分支的合法组成部分。独立 QA 的范围 P2 因此以显式产品裁决关闭，身份行为矩阵与全量门禁结论保持 PASS；这不修改任何代码，也不等于接受 W90 整批用户验收、设备未覆盖项或最终发布。下一步只允许全新 merge-prep owner 对当前 docs HEAD 做隔离准备、范围 / patch-id 审计和全量门禁，仍禁止 merge / push / tag / Release / workflow 与设备操作。
