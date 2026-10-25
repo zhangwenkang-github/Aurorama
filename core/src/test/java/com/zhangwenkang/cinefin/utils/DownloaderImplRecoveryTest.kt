@@ -190,6 +190,70 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `删除中并发同来源入队不会让旧清理删除新代`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            fixture.dao.armSourceDeletionGate()
+
+            val deletion = async(Dispatchers.IO) { fixture.downloader.deleteTaskById(SOURCE_ID) }
+            withTimeout(5_000) { fixture.dao.sourceDeleteStarted.await() }
+            val deletingGeneration = fixture.dao.sourceDeletionGeneration
+
+            val concurrentEnqueue =
+                async(Dispatchers.IO) { fixture.downloader.downloadItem(movie, SOURCE_ID, 0) }
+            // 旧实现会在删除持有时插入新行；新实现必须等待同一 source-lifecycle 临界区。
+            withTimeoutOrNull(500) { fixture.dao.concurrentSourceInserted.await() }
+            fixture.dao.releaseSourceDelete.complete(Unit)
+
+            assertTrue(deletion.await())
+            val (firstHandle, firstError) = concurrentEnqueue.await()
+            if (firstHandle >= 0L) {
+                assertTrue("等待删除后入队应成功且无错误", firstError == null)
+                val inserted = requireNotNull(fixture.dao.lastInsertedSource(SOURCE_ID))
+                assertEquals(DownloadTaskStatus.PENDING.name, inserted.taskStatus)
+                assertTrue(
+                    "新 source 代次必须晚于删除代次：inserted=${inserted.taskGeneration} deleting=$deletingGeneration",
+                    inserted.taskGeneration > deletingGeneration,
+                )
+                assertNotNull("新 generation source 被旧清理删除", fixture.dao.sourceById(SOURCE_ID))
+                assertTrue(
+                    "新 generation sidecar 被旧清理删除",
+                    fixture.downloader.mediaSidecar().allRecords().any {
+                        it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                    },
+                )
+                val insertedAt =
+                    fixture.dao.sourceEvents.indexOf("INSERT:$SOURCE_ID:${inserted.taskGeneration}")
+                val lastMediaDeleteAt =
+                    fixture.dao.sourceEvents.indexOfLast { it == "DELETE_MEDIA:$SOURCE_ID" }
+                assertTrue(
+                    "旧 generation 的 media 清理不得发生在新 source 插入之后",
+                    insertedAt > lastMediaDeleteAt,
+                )
+            } else {
+                assertTrue("删除中拒绝入队必须向生产 UI 返回可重试错误", firstError != null)
+                assertTrue(fixture.dao.sourceById(SOURCE_ID) == null)
+
+                val (retryHandle, retryError) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+                assertTrue("删除完成后的重试应成功", retryHandle >= 0L && retryError == null)
+                val retried = requireNotNull(fixture.dao.lastInsertedSource(SOURCE_ID))
+                assertEquals(DownloadTaskStatus.PENDING.name, retried.taskStatus)
+                assertTrue(retried.taskGeneration > deletingGeneration)
+                assertNotNull(fixture.dao.sourceById(SOURCE_ID))
+                assertTrue(
+                    fixture.downloader.mediaSidecar().allRecords().any {
+                        it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                    }
+                )
+            }
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `删除剧集单个来源保留另一来源快照和父级层级`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -1521,6 +1585,13 @@ class DownloaderImplRecoveryTest {
         var seasonDeleteStarted = CompletableDeferred<Unit>()
         var releaseSeasonDelete = CompletableDeferred<Unit>()
         private var blockSeasonDelete = false
+        var sourceDeleteStarted = CompletableDeferred<Unit>()
+        var releaseSourceDelete = CompletableDeferred<Unit>()
+        var concurrentSourceInserted = CompletableDeferred<Unit>()
+        var sourceDeletionGeneration = 0L
+        private var blockSourceDelete = false
+        private val insertedSources = mutableListOf<FindroidSourceDto>()
+        val sourceEvents = mutableListOf<String>()
         private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
         private val seasonIdsByShow = linkedMapOf<UUID, MutableSet<UUID>>()
         var snapshotWrites = 0
@@ -1592,7 +1663,10 @@ class DownloaderImplRecoveryTest {
                         "getSource" -> sources[args[0] as String]
                         "insertSource" -> {
                             val inserted = args[0] as FindroidSourceDto
+                            insertedSources += inserted
                             sources[inserted.id] = inserted
+                            sourceEvents += "INSERT:${inserted.id}:${inserted.taskGeneration}"
+                            concurrentSourceInserted.complete(Unit)
                             Unit
                         }
                         "setSourcePath" -> {
@@ -1612,14 +1686,7 @@ class DownloaderImplRecoveryTest {
                                     taskGeneration = it.taskGeneration + 1,
                                 )
                             }
-                        "beginSourceDeletion" ->
-                            updateSourceRow(args) {
-                                it.copy(
-                                    taskStatus = "DELETING",
-                                    failureReason = null,
-                                    taskGeneration = it.taskGeneration + 1,
-                                )
-                            }
+                        "beginSourceDeletion" -> beginSourceDeletion(args)
                         "beginSourceRetry" -> retrySource(args)
                         "setSourceProgressIfCurrent" ->
                             updateSource(args) {
@@ -1731,9 +1798,18 @@ class DownloaderImplRecoveryTest {
                             snapshots.remove(args[0] as UUID)
                             Unit
                         }
-                        "deleteMediaStreamsBySourceId" -> Unit
+                        "deleteMediaStreamsBySourceId" -> {
+                            val sourceId = args[0] as String
+                            mediaStreams.entries.removeIf { (_, stream) ->
+                                stream.sourceId == sourceId
+                            }
+                            sourceEvents += "DELETE_MEDIA:$sourceId"
+                            Unit
+                        }
                         "deleteSource" -> {
-                            sources.remove(args[0] as String)
+                            val sourceId = args[0] as String
+                            sources.remove(sourceId)
+                            sourceEvents += "DELETE_SOURCE:$sourceId"
                             Unit
                         }
                         "deleteUserData" -> {
@@ -1805,6 +1881,18 @@ class DownloaderImplRecoveryTest {
             releaseSeasonDelete = CompletableDeferred()
         }
 
+        fun armSourceDeletionGate() {
+            blockSourceDelete = true
+            sourceDeleteStarted = CompletableDeferred()
+            releaseSourceDelete = CompletableDeferred()
+            concurrentSourceInserted = CompletableDeferred()
+            sourceDeletionGeneration = 0L
+        }
+
+        fun lastInsertedSource(sourceId: String): FindroidSourceDto? = insertedSources.lastOrNull {
+            it.id == sourceId
+        }
+
         fun hasEpisode(
             seasonId: UUID,
             episodeId: UUID,
@@ -1864,6 +1952,24 @@ class DownloaderImplRecoveryTest {
 
         fun putMediaStream(stream: FindroidMediaStreamDto) {
             mediaStreams[stream.id] = stream
+        }
+
+        private fun beginSourceDeletion(args: Array<Any?>): FindroidSourceDto? {
+            val deleting =
+                updateSourceRow(args) {
+                    it.copy(
+                        taskStatus = "DELETING",
+                        failureReason = null,
+                        taskGeneration = it.taskGeneration + 1,
+                    )
+                } ?: return null
+            if (blockSourceDelete) {
+                blockSourceDelete = false
+                sourceDeletionGeneration = deleting.taskGeneration
+                sourceDeleteStarted.complete(Unit)
+                runBlocking { releaseSourceDelete.await() }
+            }
+            return deleting
         }
 
         private fun retrySource(args: Array<Any?>): FindroidSourceDto? {

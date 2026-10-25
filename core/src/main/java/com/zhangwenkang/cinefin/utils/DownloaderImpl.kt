@@ -563,57 +563,59 @@ private constructor(
             val sourceMetadata =
                 (item as? FindroidSources)?.sources?.firstOrNull { source -> source.id == sourceId }
 
-            itemMutationLock(item.id).withLock {
-                // W51b 竞态修复：条目快照必须先于队列行落库。
-                //
-                // 批量入队（整剧 / 全季）时引擎往往已在运行：若先插入 PENDING 队列行，再写快照（剧集要拉
-                // show / season，两次网络往返），引擎会在快照落库前抢到该行 → findItem 读不到条目 →
-                // FILE_ERROR「任务对应的媒体条目缺失」。真机批量入队 12 集时 11 集命中该竞态。
-                runCatching { persistItemSnapshot(item, origin) }
-                    .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
+            lifecycleControl.withSourceOperation(sourceId) {
+                itemMutationLock(item.id).withLock {
+                    // W51b 竞态修复：条目快照必须先于队列行落库。
+                    //
+                    // 批量入队（整剧 / 全季）时引擎往往已在运行：若先插入 PENDING 队列行，再写快照（剧集要拉
+                    // show / season，两次网络往返），引擎会在快照落库前抢到该行 → findItem 读不到条目 →
+                    // FILE_ERROR「任务对应的媒体条目缺失」。真机批量入队 12 集时 11 集命中该竞态。
+                    runCatching { persistItemSnapshot(item, origin) }
+                        .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
 
-                val mediaKind =
-                    if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
-                        DownloadMediaKind.MUSIC
-                    } else {
-                        DownloadMediaKind.VIDEO
-                    }
-                sidecar.put(
-                    DownloadMediaRecord(
-                        itemId = item.id.toString(),
-                        kind = mediaKind,
-                        albumName = albumName,
-                        artist = artist,
-                        trackIndex = trackIndex,
-                        serverId = origin.serverId,
-                        userId = origin.userId,
-                        sourceId = sourceId,
-                        displayName = item.name,
+                    val mediaKind =
+                        if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
+                            DownloadMediaKind.MUSIC
+                        } else {
+                            DownloadMediaKind.VIDEO
+                        }
+                    sidecar.put(
+                        DownloadMediaRecord(
+                            itemId = item.id.toString(),
+                            kind = mediaKind,
+                            albumName = albumName,
+                            artist = artist,
+                            trackIndex = trackIndex,
+                            serverId = origin.serverId,
+                            userId = origin.userId,
+                            sourceId = sourceId,
+                            displayName = item.name,
+                        )
                     )
-                )
 
-                val sourceDto =
-                    FindroidSourceDto(
-                        id = sourceId,
-                        itemId = item.id,
-                        name = item.name,
-                        type = FindroidSourceType.LOCAL,
-                        path = partialPath,
-                        downloadId = handle,
-                        taskStatus = DownloadTaskStatus.PENDING.name,
-                        failureReason = null,
-                        updatedAt = System.currentTimeMillis(),
-                        downloadedBytes = existingBytes,
-                        retryCount = 0,
-                        nextRetryAt = 0L,
-                        engineVersion = ENGINE_VERSION,
-                        allowOffline = existing?.allowOffline ?: true,
-                        bitrate = sourceMetadata?.bitrate,
-                        container = sourceMetadata?.container,
-                        taskGeneration = taskGeneration,
-                    )
-                database.insertSource(sourceDto)
-                startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
+                    val sourceDto =
+                        FindroidSourceDto(
+                            id = sourceId,
+                            itemId = item.id,
+                            name = item.name,
+                            type = FindroidSourceType.LOCAL,
+                            path = partialPath,
+                            downloadId = handle,
+                            taskStatus = DownloadTaskStatus.PENDING.name,
+                            failureReason = null,
+                            updatedAt = System.currentTimeMillis(),
+                            downloadedBytes = existingBytes,
+                            retryCount = 0,
+                            nextRetryAt = 0L,
+                            engineVersion = ENGINE_VERSION,
+                            allowOffline = existing?.allowOffline ?: true,
+                            bitrate = sourceMetadata?.bitrate,
+                            container = sourceMetadata?.container,
+                            taskGeneration = taskGeneration,
+                        )
+                    database.insertSource(sourceDto)
+                    startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
+                }
             }
             notifyQueueChanged()
 
@@ -1889,8 +1891,10 @@ private constructor(
                 val current = database.getDownloadIntent(itemId) ?: return@withContext true
                 return@withContext deleteIntentAtGeneration(itemId, current.taskGeneration)
             }
-            val existing = database.getSource(sourceId) ?: return@withContext true
-            deleteTaskAtGeneration(sourceId, existing.taskGeneration)
+            lifecycleControl.withSourceOperation(sourceId) {
+                val existing = database.getSource(sourceId) ?: return@withSourceOperation true
+                deleteTaskAtGenerationSerialized(sourceId, existing.taskGeneration)
+            }
         }
 
     private suspend fun deleteIntentAtGeneration(
@@ -1932,6 +1936,14 @@ private constructor(
         sourceId: String,
         expectedGeneration: Long,
     ): Boolean =
+        lifecycleControl.withSourceOperation(sourceId) {
+            deleteTaskAtGenerationSerialized(sourceId, expectedGeneration)
+        }
+
+    private suspend fun deleteTaskAtGenerationSerialized(
+        sourceId: String,
+        expectedGeneration: Long,
+    ): Boolean =
         withContext(Dispatchers.IO) {
             val source =
                 lifecycleControl.withCommand(sourceId, expectedGeneration) {
@@ -1949,21 +1961,33 @@ private constructor(
             job?.join()
             val cleanupSucceeded =
                 lifecycleControl.withCurrentGeneration(sourceId, source.taskGeneration) {
+                    if (database.getSource(sourceId)?.taskGeneration != source.taskGeneration) {
+                        return@withCurrentGeneration false
+                    }
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
                     deletePartialArtifacts(source.path)
                     val item = findItem(source.itemId, source.id)
                     if (item != null) {
-                        deleteItem(item, source.toFindroidSource(database))
+                        deleteItem(
+                            item,
+                            source.toFindroidSource(database),
+                            source.taskGeneration,
+                        )
                     } else {
                         if (
                             !deleteSourceCompletionArtifacts(source) ||
-                                !deletePartialSidecar(source.path)
+                                !deletePartialSidecar(source.path) ||
+                                database.getSource(sourceId)?.taskGeneration !=
+                                    source.taskGeneration
                         ) {
                             return@withCurrentGeneration false
                         }
                         database.deleteMediaStreamsBySourceId(sourceId)
                         database.deleteSource(sourceId)
-                        removeSidecarForSource(itemId = source.itemId, sourceId = source.id)
+                        removeSidecarForSource(
+                            itemId = source.itemId,
+                            sourceId = source.id,
+                        )
                     }
                     if (database.getSource(sourceId) != null) {
                         return@withCurrentGeneration false
@@ -2097,75 +2121,91 @@ private constructor(
     }
 
     override suspend fun deleteItem(item: FindroidItem, source: FindroidSource) {
+        itemMutationLock(item.id).withLock { deleteItemUnderItemLock(item, source) }
+    }
+
+    private suspend fun deleteItem(
+        item: FindroidItem,
+        source: FindroidSource,
+        expectedGeneration: Long,
+    ): Boolean =
         itemMutationLock(item.id).withLock {
-            val parentOrigin = downloadOriginForSource(item, source.id)
-            val mediaStreams = database.getMediaStreamsBySourceId(source.id)
-            val files = buildList {
-                File(source.path).parentFile?.let { directory ->
-                    addAll(
-                        DownloadCompletionCommitRules.sourceArtifacts(
-                            directory = directory,
-                            itemId = item.id.toString(),
-                            sourceId = source.id,
-                        )
+            if (database.getSource(source.id)?.taskGeneration != expectedGeneration) {
+                return@withLock false
+            }
+            deleteItemUnderItemLock(item, source)
+            true
+        }
+
+    private suspend fun deleteItemUnderItemLock(
+        item: FindroidItem,
+        source: FindroidSource,
+    ) {
+        val parentOrigin = downloadOriginForSource(item, source.id)
+        val mediaStreams = database.getMediaStreamsBySourceId(source.id)
+        val files = buildList {
+            File(source.path).parentFile?.let { directory ->
+                addAll(
+                    DownloadCompletionCommitRules.sourceArtifacts(
+                        directory = directory,
+                        itemId = item.id.toString(),
+                        sourceId = source.id,
                     )
-                }
-                mediaStreams.mapTo(this) { stream -> File(stream.path) }
+                )
             }
-            for (file in files) {
-                if (file.exists() && !file.delete()) {
-                    error("无法删除下载文件：${file.path}")
-                }
+            mediaStreams.mapTo(this) { stream -> File(stream.path) }
+        }
+        for (file in files) {
+            if (file.exists() && !file.delete()) {
+                error("无法删除下载文件：${file.path}")
             }
-            if (!deletePartialSidecar(source.path)) {
-                error("无法删除下载断点信息：${source.path}")
-            }
+        }
+        if (!deletePartialSidecar(source.path)) {
+            error("无法删除下载断点信息：${source.path}")
+        }
 
-            database.deleteMediaStreamsBySourceId(source.id)
-            database.deleteSource(source.id)
-            removeSidecarForSource(itemId = item.id, sourceId = source.id)
-            if (database.getSources(item.id).isNotEmpty()) return@withLock
+        database.deleteMediaStreamsBySourceId(source.id)
+        database.deleteSource(source.id)
+        removeSidecarForSource(itemId = item.id, sourceId = source.id)
+        if (database.getSources(item.id).isNotEmpty()) return
 
-            when (item) {
-                is FindroidMovie -> database.deleteMovie(item.id)
-                is FindroidEpisode -> {
-                    parentImageMutationLock.withLock {
-                        database.deleteEpisode(item.id)
-                        val remainingEpisodes = database.getEpisodesBySeasonId(item.seasonId)
-                        if (remainingEpisodes.isEmpty()) {
-                            database.deleteSeason(item.seasonId)
+        when (item) {
+            is FindroidMovie -> database.deleteMovie(item.id)
+            is FindroidEpisode -> {
+                parentImageMutationLock.withLock {
+                    database.deleteEpisode(item.id)
+                    val remainingEpisodes = database.getEpisodesBySeasonId(item.seasonId)
+                    if (remainingEpisodes.isEmpty()) {
+                        database.deleteSeason(item.seasonId)
+                        cancelParentImagesDownloader(
+                            kind = ImageDownloadParentKind.SEASON,
+                            itemId = item.seasonId,
+                            origin = parentOrigin,
+                        )
+                        database.deleteUserData(item.seasonId)
+                        File(context.filesDir, "trickplay/${item.seasonId}").deleteRecursively()
+                        File(context.filesDir, "images/${item.seasonId}").deleteRecursively()
+                        val remainingSeasons = database.getSeasonsByShowId(item.seriesId)
+                        if (remainingSeasons.isEmpty()) {
+                            database.deleteShow(item.seriesId)
                             cancelParentImagesDownloader(
-                                kind = ImageDownloadParentKind.SEASON,
-                                itemId = item.seasonId,
+                                kind = ImageDownloadParentKind.SHOW,
+                                itemId = item.seriesId,
                                 origin = parentOrigin,
                             )
-                            database.deleteUserData(item.seasonId)
-                            File(context.filesDir, "trickplay/${item.seasonId}").deleteRecursively()
-                            File(context.filesDir, "images/${item.seasonId}").deleteRecursively()
-                            val remainingSeasons = database.getSeasonsByShowId(item.seriesId)
-                            if (remainingSeasons.isEmpty()) {
-                                database.deleteShow(item.seriesId)
-                                cancelParentImagesDownloader(
-                                    kind = ImageDownloadParentKind.SHOW,
-                                    itemId = item.seriesId,
-                                    origin = parentOrigin,
-                                )
-                                database.deleteUserData(item.seriesId)
-                                File(context.filesDir, "trickplay/${item.seriesId}")
-                                    .deleteRecursively()
-                                File(context.filesDir, "images/${item.seriesId}")
-                                    .deleteRecursively()
-                            }
+                            database.deleteUserData(item.seriesId)
+                            File(context.filesDir, "trickplay/${item.seriesId}").deleteRecursively()
+                            File(context.filesDir, "images/${item.seriesId}").deleteRecursively()
                         }
                     }
                 }
             }
-
-            database.deleteUserData(item.id)
-            File(context.filesDir, "trickplay/${item.id}").deleteRecursively()
-            File(context.filesDir, "images/${item.id}").deleteRecursively()
-            imageCacheStore.delete(item.id)
         }
+
+        database.deleteUserData(item.id)
+        File(context.filesDir, "trickplay/${item.id}").deleteRecursively()
+        File(context.filesDir, "images/${item.id}").deleteRecursively()
+        imageCacheStore.delete(item.id)
     }
 
     // ---------------------------------------------------------------------------------------------

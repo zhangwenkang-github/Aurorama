@@ -19,9 +19,20 @@ internal data class DownloadSourceCommandResult<T>(
  */
 internal class DownloadSourceControl {
     private val lifecycleLocks = Array(LOCK_STRIPES) { Mutex() }
+    private val operationLocks = Array(LOCK_STRIPES) { Mutex() }
     private val generations = ConcurrentHashMap<String, Long>()
     private val activeClaims = ConcurrentHashMap<String, Long>()
     private val fences = ConcurrentHashMap<String, Long>()
+
+    /**
+     * 同一 source 的入队与完整删除流程共享操作边界。
+     *
+     * 与细粒度 lifecycle 锁分离，避免删除在命令锁释放后取消旧 worker 的窗口被 enqueue 穿入；调用方可取消，不设置不可中断等待。
+     */
+    suspend fun <T> withSourceOperation(
+        sourceId: String,
+        block: suspend () -> T,
+    ): T = operationLock(sourceId).withLock { block() }
 
     /**
      * 在 source 临界区内执行 DB 条件 claim；只有 DB 成功后才登记当前 worker claim。
@@ -120,6 +131,8 @@ internal class DownloadSourceControl {
     }
 
     private fun lifecycleLock(sourceId: String): Mutex = lifecycleLocks[lockIndex(sourceId)]
+
+    private fun operationLock(sourceId: String): Mutex = operationLocks[lockIndex(sourceId)]
 
     private fun lockIndex(sourceId: String): Int =
         (sourceId.hashCode() and Int.MAX_VALUE) % LOCK_STRIPES
