@@ -33,6 +33,7 @@ class DownloadDeleteBatchTest {
                     outcome = DownloadDeleteOutcome.PENDING,
                     detail = null,
                     updatedAtMs = createdAtMs,
+                    expectedGeneration = request.expectedGeneration,
                 )
             }
             batches[batchId] = pending
@@ -91,9 +92,16 @@ class DownloadDeleteBatchTest {
                 store = store,
                 clock = { 1_000L },
                 batchId = { "batch-1" },
-                delete = { request ->
+                delete = { request, _ ->
                     processed += request.sourceId.orEmpty()
-                    request.itemId != UUID(0L, 2L)
+                    if (request.itemId != UUID(0L, 2L)) {
+                        DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
+                    } else {
+                        DownloadDeleteAttempt(
+                            outcome = DownloadDeleteOutcome.FAILED,
+                            detail = "删除未确认",
+                        )
+                    }
                 },
             )
 
@@ -145,12 +153,12 @@ class DownloadDeleteBatchTest {
                 store = store,
                 clock = { 1_000L },
                 batchId = { "batch-crash" },
-                delete = { request ->
+                delete = { request, _ ->
                     processed += request.sourceId.orEmpty()
                     if (request.itemId == UUID(0L, 2L)) {
                         throw CancellationException("进程中断")
                     }
-                    true
+                    DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
                 },
             )
 
@@ -170,9 +178,9 @@ class DownloadDeleteBatchTest {
             DownloadDeleteBatchProcessor(
                     store = store,
                     clock = { 2_000L },
-                    delete = { request ->
+                    delete = { request, _ ->
                         processed += request.sourceId.orEmpty()
-                        true
+                        DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
                     },
                 )
                 .resumeIncomplete()
@@ -181,5 +189,31 @@ class DownloadDeleteBatchTest {
         assertEquals(listOf("batch-crash"), resumed.map { it.batchId })
         assertEquals(2_000L, store.finishedAt["batch-crash"])
         assertTrue(store.receipts.all { it.outcome != DownloadDeleteOutcome.PENDING })
+    }
+
+    @Test
+    fun `superseded receipt 是终态且不会被失败选择或再次重试`() = runBlocking {
+        val store = MemoryStore()
+        val requests = listOf(request(1), request(2))
+        val processor =
+            DownloadDeleteBatchProcessor(
+                store = store,
+                clock = { 1_000L },
+                batchId = { "batch-superseded" },
+                delete = { request, _ ->
+                    if (request.itemId == UUID(0L, 1L)) {
+                        DownloadDeleteAttempt(DownloadDeleteOutcome.SUPERSEDED, "新代已替换")
+                    } else {
+                        DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
+                    }
+                },
+            )
+
+        val result = processor.deleteAll(requests)
+
+        assertEquals(1, result.supersededKeys.size)
+        assertTrue(result.failedKeys.isEmpty())
+        assertTrue(store.finishedAt.containsKey("batch-superseded"))
+        assertTrue(processor.resumeIncomplete().isEmpty())
     }
 }

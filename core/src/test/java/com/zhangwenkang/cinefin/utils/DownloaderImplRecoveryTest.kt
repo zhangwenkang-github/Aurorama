@@ -473,6 +473,7 @@ class DownloaderImplRecoveryTest {
                 batchId = "delete-batch-$SOURCE_ID",
                 itemId = ITEM_ID,
                 sourceId = SOURCE_ID,
+                expectedGeneration = deleting.taskGeneration,
             )
 
             assertTrue(File(deleting.path, "blocked").delete())
@@ -582,6 +583,162 @@ class DownloaderImplRecoveryTest {
             if (!fixture.dao.releasePendingSourcesSnapshot.isCompleted) {
                 fixture.dao.releasePendingSourcesSnapshot.complete(Unit)
             }
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `startup旧FAILED receipt不得删除已REPLACE的新代`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+
+            val first =
+                fixture.downloader.deleteDownloads(
+                    listOf(
+                        DownloadDeleteRequest(
+                            itemId = ITEM_ID,
+                            sourceId = SOURCE_ID,
+                            mediaKind = DownloadMediaKind.VIDEO,
+                            serverId = SERVER_ID,
+                            userId = USER_ID.toString(),
+                        )
+                    )
+                )
+            val failed = first.receipts.single()
+            assertEquals(DownloadDeleteOutcome.FAILED, failed.outcome)
+            val deleting = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.DELETING.name, deleting.taskStatus)
+
+            assertTrue(File(blockedPath, "blocked").delete())
+            assertTrue(blockedPath.delete())
+            val (_, enqueueFailure) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            assertEquals(null, enqueueFailure)
+            val pending = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.PENDING.name, pending.taskStatus)
+            assertTrue(pending.taskGeneration > deleting.taskGeneration)
+
+            fixture.persistVideoOrigin(SOURCE_ID)
+            val external = fixture.seedStaleExternal()
+            val imageMarker = fixture.markerFile("images/$ITEM_ID/cover")
+            fixture.dao.sourceEvents.clear()
+
+            fixture.newDownloader().recoverOnStartup()
+
+            val retainedRow = fixture.dao.sourceById(SOURCE_ID)
+            assertNotNull("旧 receipt 不得删除已 REPLACE 的新 generation source", retainedRow)
+            val retained = requireNotNull(retainedRow)
+            assertEquals(pending.taskGeneration, retained.taskGeneration)
+            assertTrue(
+                "旧 receipt 不得把新代推进到删除：${retained.taskStatus}",
+                retained.taskStatus != DownloadTaskStatus.DELETING.name,
+            )
+            assertTrue(
+                "旧 receipt 不得清理新 source",
+                fixture.dao.sourceEvents.none { it == "DELETE_SOURCE:$SOURCE_ID" },
+            )
+            assertTrue(
+                "旧 receipt 不得清理新 source 的 media",
+                fixture.dao.sourceEvents.none { it == "DELETE_MEDIA:$SOURCE_ID" },
+            )
+            assertTrue(
+                "旧 receipt 不得清理新 generation 的 sidecar",
+                fixture.downloader.mediaSidecar().allRecords().any {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                },
+            )
+            assertTrue("旧 receipt 不得清理新 generation 的外部 media", external.isFile)
+            assertTrue(
+                "旧 receipt 不得清理新 generation 的 media row",
+                fixture.dao.externalMediaStreams().any { it.path == external.path },
+            )
+            assertTrue("旧 receipt 不得清理共享 movie 快照", ITEM_ID in fixture.dao.snapshotIds())
+            assertFalse("旧 receipt 不得清理共享 userData", ITEM_ID in fixture.dao.deletedUserDataIds())
+            assertTrue("旧 receipt 不得清理共享图片", imageMarker.isFile)
+            assertEquals(
+                "superseded receipt 必须成为终态",
+                "SUPERSEDED",
+                requireNotNull(fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey))
+                    .outcome,
+            )
+            assertNotNull(
+                "superseded receipt 不得让 batch 永久卡在未完成",
+                fixture.dao.deleteBatch(first.batchId)?.completedAt,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `无generation旧receipt必须等待startup扫描验证代次`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+            assertNotNull(
+                runCatching { fixture.downloader.deleteTaskById(SOURCE_ID) }.exceptionOrNull()
+            )
+            val deleting = requireNotNull(fixture.dao.source)
+            assertEquals(DownloadTaskStatus.DELETING.name, deleting.taskStatus)
+            fixture.dao.seedPendingDeleteBatch(
+                batchId = "legacy-receipt-$SOURCE_ID",
+                itemId = ITEM_ID,
+                sourceId = SOURCE_ID,
+                expectedGeneration = null,
+            )
+
+            assertTrue(File(blockedPath, "blocked").delete())
+            assertTrue(blockedPath.delete())
+            fixture.dao.sourceEvents.clear()
+
+            assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+            val retained = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(deleting.taskGeneration, retained.taskGeneration)
+            assertEquals(DownloadTaskStatus.DELETING.name, retained.taskStatus)
+            assertTrue(
+                "无 generation 的旧 receipt 不得清理当前代",
+                fixture.dao.sourceEvents.none {
+                    it == "DELETE_SOURCE:$SOURCE_ID" || it == "DELETE_MEDIA:$SOURCE_ID"
+                },
+            )
+            assertEquals(
+                DownloadDeleteOutcome.FAILED.name,
+                requireNotNull(
+                        fixture.dao.deleteReceipt(
+                            "legacy-receipt-$SOURCE_ID",
+                            DownloadDeletionIdentity.canonicalKey(
+                                DownloadDeleteRequest(
+                                    itemId = ITEM_ID,
+                                    sourceId = SOURCE_ID,
+                                    mediaKind = DownloadMediaKind.VIDEO,
+                                    serverId = SERVER_ID,
+                                    userId = USER_ID.toString(),
+                                )
+                            ),
+                        )
+                    )
+                    .outcome,
+            )
+
+            fixture.newDownloader().recoverOnStartup()
+            assertTrue("startup scan 应完成已验证代次的删除", fixture.dao.sourceById(SOURCE_ID) == null)
+            assertEquals(
+                "source 行移除后 legacy receipt 必须收敛为成功",
+                DownloadDeleteOutcome.SUCCEEDED.name,
+                fixture.dao.deleteReceipts("legacy-receipt-$SOURCE_ID").single().outcome,
+            )
+            assertNotNull(fixture.dao.deleteBatch("legacy-receipt-$SOURCE_ID")?.completedAt)
+        } finally {
             fixture.close()
         }
     }
@@ -2368,6 +2525,7 @@ class DownloaderImplRecoveryTest {
             batchId: String,
             itemId: UUID,
             sourceId: String,
+            expectedGeneration: Long?,
         ) {
             deleteBatches[batchId] =
                 DownloadDeleteBatchDto(
@@ -2396,7 +2554,7 @@ class DownloaderImplRecoveryTest {
                     ordinal = 0,
                     mediaKind = DownloadMediaKind.VIDEO.name,
                     outcome = DownloadDeleteOutcome.PENDING.name,
-                    detail = null,
+                    detail = expectedGeneration?.let { "generation=$it" },
                     updatedAt = 1L,
                 )
         }
