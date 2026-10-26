@@ -105,6 +105,8 @@ private sealed interface PersistedOriginResolution {
     data class UniqueComplete(val identity: PersistedDownloadIdentity) : PersistedOriginResolution
 
     data class Ambiguous(val matchingRecordCount: Int) : PersistedOriginResolution
+
+    data class FailClosed(val detail: String) : PersistedOriginResolution
 }
 
 internal data class DownloadTransferRequest(
@@ -346,7 +348,7 @@ private constructor(
                     ): Set<String> =
                         withContext(Dispatchers.IO) {
                             val provenIdentities =
-                                sidecar.allRecords().mapTo(mutableSetOf()) {
+                                sidecar.allRecords().requireComplete().mapTo(mutableSetOf()) {
                                     it.canonicalIdentity()
                                 }
                             requests
@@ -539,6 +541,34 @@ private constructor(
                     ?: error("下载 sidecar 媒体类型不匹配：${item.id}/$sourceId")
             is PersistedOriginResolution.Ambiguous ->
                 error("下载 sidecar 来源身份歧义：${item.id}/$sourceId/" + resolution.matchingRecordCount)
+            is PersistedOriginResolution.FailClosed ->
+                throw DownloadHttpException(
+                    DownloadFailureReason.SERVER_ERROR,
+                    "下载 sidecar 不可证明来源身份：${resolution.detail}",
+                )
+        }
+    }
+
+    private fun frozenOriginForSource(
+        item: FindroidItem,
+        persistedOrigin: PersistedOriginResolution,
+    ): FrozenDownloadOrigin? {
+        val expectedKind =
+            if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
+                DownloadMediaKind.MUSIC
+            } else {
+                DownloadMediaKind.VIDEO
+            }
+        return when (persistedOrigin) {
+            PersistedOriginResolution.MissingLegacy -> null
+            is PersistedOriginResolution.UniqueComplete ->
+                persistedOrigin.identity.origin.takeIf {
+                    persistedOrigin.identity.kind == expectedKind
+                } ?: error("下载 sidecar 媒体类型不匹配：${item.id}")
+            is PersistedOriginResolution.Ambiguous ->
+                error("下载 sidecar 来源身份歧义：${item.id}/" + persistedOrigin.matchingRecordCount)
+            is PersistedOriginResolution.FailClosed ->
+                error("下载 sidecar 不可证明来源身份：${persistedOrigin.detail}")
         }
     }
 
@@ -636,7 +666,7 @@ private constructor(
                         )
                     check(sidecar.put(sidecarRecord)) { "下载 sidecar 持久化失败：${item.id}/$sourceId" }
                     check(
-                        sidecar.allRecords().any {
+                        sidecar.allRecords().requireComplete().any {
                             it.itemId == item.id.toString() &&
                                 it.sourceId == sourceId &&
                                 it.serverId == origin.serverId &&
@@ -754,12 +784,17 @@ private constructor(
                 receipt.alreadyAcceptedCount,
                 (System.nanoTime() - startedAt) / 1_000_000L,
             )
-            if (
-                receipt.acceptedRequests.isNotEmpty() ||
-                    sidecar.allRecords().any {
-                        it.kind == DownloadMediaKind.MUSIC && it.sourceId.isNullOrBlank()
-                    }
-            ) {
+            val sidecarNeedsProcessing =
+                when (val snapshot = sidecar.allRecords()) {
+                    DownloadMediaReadResult.Missing -> false
+                    is DownloadMediaReadResult.Complete ->
+                        snapshot.records.any {
+                            it.kind == DownloadMediaKind.MUSIC && it.sourceId.isNullOrBlank()
+                        }
+                    is DownloadMediaReadResult.Unreadable -> true
+                    is DownloadMediaReadResult.Corrupt -> true
+                }
+            if (receipt.acceptedRequests.isNotEmpty() || sidecarNeedsProcessing) {
                 notifyQueueChanged()
                 launchReceivedIntentProcessor()
             }
@@ -779,14 +814,28 @@ private constructor(
     }
 
     private suspend fun processReceivedIntents() = receivedIntentLock.withLock {
-        val pendingRecords =
-            withContext(Dispatchers.IO) {
-                sidecar.allRecords().filter {
-                    it.kind == DownloadMediaKind.MUSIC &&
-                        it.sourceId.isNullOrBlank() &&
-                        it.itemId.toUuidOrNull() != null
+        val snapshot = withContext(Dispatchers.IO) { sidecar.allRecords() }
+        val records =
+            when (snapshot) {
+                DownloadMediaReadResult.Missing -> emptyList()
+                is DownloadMediaReadResult.Complete -> snapshot.records
+                is DownloadMediaReadResult.Unreadable -> {
+                    Timber.w(snapshot.error, "下载 sidecar 不可读，保留 pending 等待重试")
+                    return@withLock
+                }
+                is DownloadMediaReadResult.Corrupt -> {
+                    Timber.w(
+                        "下载 sidecar 损坏，保留 pending 等待修复：%s",
+                        snapshot.invalidLineNumbers.joinToString(),
+                    )
+                    return@withLock
                 }
             }
+        val pendingRecords = records.filter {
+            it.kind == DownloadMediaKind.MUSIC &&
+                it.sourceId.isNullOrBlank() &&
+                it.itemId.toUuidOrNull() != null
+        }
         val pendingItemIds = pendingRecords.mapTo(mutableSetOf()) { it.itemId }
         pendingRecords.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
             coroutineScope {
@@ -810,8 +859,26 @@ private constructor(
         }
         val remainingPendingItemIds =
             withContext(Dispatchers.IO) {
-                sidecar
-                    .allRecords()
+                val remaining =
+                    when (val remainingSnapshot = sidecar.allRecords()) {
+                        DownloadMediaReadResult.Missing -> emptyList()
+                        is DownloadMediaReadResult.Complete -> remainingSnapshot.records
+                        is DownloadMediaReadResult.Unreadable -> {
+                            Timber.w(
+                                remainingSnapshot.error,
+                                "下载 sidecar 二次读取失败，保留 intent 等待重试",
+                            )
+                            return@withContext emptySet()
+                        }
+                        is DownloadMediaReadResult.Corrupt -> {
+                            Timber.w(
+                                "下载 sidecar 二次读取损坏，保留 intent 等待修复：%s",
+                                remainingSnapshot.invalidLineNumbers.joinToString(),
+                            )
+                            return@withContext emptySet()
+                        }
+                    }
+                remaining
                     .filter {
                         it.kind == DownloadMediaKind.MUSIC &&
                             it.sourceId.isNullOrBlank() &&
@@ -819,6 +886,16 @@ private constructor(
                     }
                     .mapTo(mutableSetOf()) { it.itemId }
             }
+        val latestSnapshot = sidecar.allRecords()
+        if (
+            latestSnapshot is DownloadMediaReadResult.Unreadable ||
+                latestSnapshot is DownloadMediaReadResult.Corrupt ||
+                (latestSnapshot == DownloadMediaReadResult.Missing &&
+                    snapshot != DownloadMediaReadResult.Missing)
+        ) {
+            Timber.w("下载 sidecar 在 intent 清理前失效，保留 pending 等待重试")
+            return@withLock
+        }
         withContext(Dispatchers.IO) {
             database.getDownloadIntents().forEach { intent ->
                 if (intent.itemId.toString() !in remainingPendingItemIds) {
@@ -845,7 +922,7 @@ private constructor(
                     return
                 }
         runCatching {
-            if (sidecar.allRecords().none { it == record }) return
+            if (!sidecarContains(record)) return
             val originRepository = originScopedRepository()
             val item =
                 originRepository.getItemForOrigin(itemId, origin)
@@ -861,7 +938,7 @@ private constructor(
                         "冻结来源媒体源缺失或歧义：${origin.serverId}/${origin.userId}/" +
                             "${record.sourceId ?: "implicit"}"
                     )
-            if (sidecar.allRecords().none { it == record }) return
+            if (!sidecarContains(record)) return
             val (handle, queueError) =
                 enqueueItem(
                     item = item,
@@ -878,6 +955,19 @@ private constructor(
         }
             .onFailure { failure -> Timber.w(failure, "解析 sidecar 下载意图失败：%s", itemId) }
     }
+
+    private fun sidecarContains(record: DownloadMediaRecord): Boolean =
+        when (val snapshot = sidecar.allRecords()) {
+            DownloadMediaReadResult.Missing -> false
+            is DownloadMediaReadResult.Complete -> record in snapshot.records
+            is DownloadMediaReadResult.Unreadable ->
+                throw IllegalStateException(
+                    "下载 sidecar 不可读，拒绝继续解析",
+                    snapshot.error,
+                )
+            is DownloadMediaReadResult.Corrupt ->
+                error("下载 sidecar 内容损坏，拒绝继续解析：行 " + snapshot.invalidLineNumbers.joinToString())
+        }
 
     private suspend fun resolveLegacyReceivedIntent(intent: DownloadIntentDto) {
         runCatching {
@@ -1169,6 +1259,7 @@ private constructor(
         var lastPersistAt = 0L
         try {
             if (!workerAccepts(source, DownloadLifecycleTransition.PROGRESS)) return
+            val persistedOrigin = persistedOriginForSource(source.itemId, source.id)
             val persistedTarget = File(source.path)
             val finalFile = DownloadCompletionCommitRules.finalFile(persistedTarget)
             val target =
@@ -1183,22 +1274,29 @@ private constructor(
                 )
             ) {
                 val item =
-                    findItem(source.itemId, source.id)
+                    findItem(source.itemId, source.id, persistedOrigin)
                         ?: throw DownloadHttpException(
                             DownloadFailureReason.FILE_ERROR,
                             "恢复完成副作用时媒体条目缺失",
                         )
-                val mediaSource = resolveRemoteSource(item, source.id)
-                recoverInterruptedCompletion(source, target, finalFile, item, mediaSource)
+                val mediaSource = resolveRemoteSource(item, source.id, persistedOrigin)
+                recoverInterruptedCompletion(
+                    source,
+                    target,
+                    finalFile,
+                    item,
+                    mediaSource,
+                    persistedOrigin,
+                )
                 return
             }
             val item =
-                findItem(source.itemId, source.id)
+                findItem(source.itemId, source.id, persistedOrigin)
                     ?: throw DownloadHttpException(
                         DownloadFailureReason.FILE_ERROR,
                         "任务对应的媒体条目缺失",
                     )
-            val mediaSource = resolveRemoteSource(item, source.id)
+            val mediaSource = resolveRemoteSource(item, source.id, persistedOrigin)
             val fileExists = target.isFile
             val offset =
                 DownloadTaskRules.initialOffset(
@@ -1252,7 +1350,15 @@ private constructor(
                 DownloadSpeedLimitRules.bytesPerSecond(
                     appPreferences.getValue(appPreferences.downloadSpeedLimitMbps)
                 )
-            val transferCredentials = credentialsForSource(source.itemId, source.id)
+            val revalidatedOrigin = persistedOriginForSource(source.itemId, source.id)
+            if (revalidatedOrigin != persistedOrigin) {
+                throw DownloadHttpException(
+                    DownloadFailureReason.SERVER_ERROR,
+                    "下载 sidecar 在解析与 transfer 之间发生变化：${source.id}",
+                )
+            }
+            val transferCredentials =
+                credentialsForSource(source.itemId, source.id, persistedOrigin)
             val result =
                 downloadTransfer.download(
                     DownloadTransferRequest(
@@ -1307,7 +1413,7 @@ private constructor(
                         },
                     )
                 )
-            completeTask(source, item, mediaSource, target, result)
+            completeTask(source, item, mediaSource, target, result, persistedOrigin)
         } catch (cancellation: CancellationException) {
             // 取消（暂停 / 删除 / worker 停止）：清理写库需要 NonCancellable，否则会被立刻再次取消。
             withContext(NonCancellable) { handleTaskCancellation(source) }
@@ -1379,6 +1485,7 @@ private constructor(
         finalFile: File,
         item: FindroidItem,
         mediaSource: FindroidSource,
+        persistedOrigin: PersistedOriginResolution,
     ) {
         val now = System.currentTimeMillis()
         val downloadedBytes = finalFile.length()
@@ -1408,6 +1515,7 @@ private constructor(
                             finalFile = finalFile,
                             downloadedBytes = downloadedBytes,
                             totalBytes = totalBytes,
+                            persistedOrigin = persistedOrigin,
                         )
                     },
                     sourceId = source.id,
@@ -1437,6 +1545,7 @@ private constructor(
         finalFile: File,
         downloadedBytes: Long,
         totalBytes: Long,
+        persistedOrigin: PersistedOriginResolution,
     ) {
         val finalization =
             withContext(NonCancellable) {
@@ -1445,7 +1554,7 @@ private constructor(
                         DownloadPostCommitTask(DownloadPostCommitEffect.SNAPSHOT) {
                             persistItemSnapshot(
                                 item,
-                                downloadOriginForSource(item, source.id),
+                                frozenOriginForSource(item, persistedOrigin),
                             )
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.MEDIA_STREAMS) {
@@ -1460,6 +1569,7 @@ private constructor(
                                 source = mediaSource,
                                 storageIndex = storageIndexFor(source.path),
                                 generation = source.taskGeneration,
+                                persistedOrigin = persistedOrigin,
                             )
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.SEGMENTS) {
@@ -1561,6 +1671,7 @@ private constructor(
         mediaSource: FindroidSource,
         partial: File,
         result: DownloadAttemptResult,
+        persistedOrigin: PersistedOriginResolution,
     ) {
         val finalFile = DownloadCompletionCommitRules.finalFile(partial)
         val now = System.currentTimeMillis()
@@ -1594,6 +1705,7 @@ private constructor(
                             finalFile = finalFile,
                             downloadedBytes = result.downloadedBytes,
                             totalBytes = result.totalBytes,
+                            persistedOrigin = persistedOrigin,
                         )
                     },
                 )
@@ -2067,6 +2179,7 @@ private constructor(
                     }
                     sidecar
                         .allRecords()
+                        .requireComplete()
                         .filter {
                             it.kind == DownloadMediaKind.MUSIC &&
                                 it.itemId == itemId.toString() &&
@@ -2480,6 +2593,8 @@ private constructor(
                         is PersistedOriginResolution.UniqueComplete -> resolution.identity
                         is PersistedOriginResolution.Ambiguous ->
                             error("下载来源持久身份歧义：${source.id}/" + resolution.matchingRecordCount)
+                        is PersistedOriginResolution.FailClosed ->
+                            error("下载来源持久身份不可证明：${source.id}/${resolution.detail}")
                     }
                 val expectedKind =
                     if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
@@ -2617,10 +2732,27 @@ private constructor(
     override suspend fun refreshDownloadTasks(): List<DownloadTask> =
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
-            val mediaRecords = sidecar.records()
+            val completeSidecarRecords =
+                when (val snapshot = sidecar.allRecords()) {
+                    DownloadMediaReadResult.Missing -> emptyList()
+                    is DownloadMediaReadResult.Complete -> snapshot.records
+                    is DownloadMediaReadResult.Unreadable -> {
+                        Timber.w(snapshot.error, "刷新下载任务时 sidecar 不可读，暂不折叠媒体记录")
+                        emptyList()
+                    }
+                    is DownloadMediaReadResult.Corrupt -> {
+                        Timber.w(
+                            "刷新下载任务时 sidecar 损坏，暂不折叠媒体记录：行 %s",
+                            snapshot.invalidLineNumbers.joinToString(),
+                        )
+                        emptyList()
+                    }
+                }
+            val mediaRecords = completeSidecarRecords.associateBy {
+                it.canonicalIdentity().canonicalKey
+            }
             val pendingIntentRecordsByItemId =
-                sidecar
-                    .allRecords()
+                completeSidecarRecords
                     .filter { it.kind == DownloadMediaKind.MUSIC && it.sourceId.isNullOrBlank() }
                     .groupBy(DownloadMediaRecord::itemId)
             val episodeHierarchy = runCatching {
@@ -2847,10 +2979,16 @@ private constructor(
             }
             val hasLegacyReceivedIntent = database.getReceivedDownloadIntents().isNotEmpty()
             val hasSidecarIntent =
-                sidecar.allRecords().any {
-                    it.kind == DownloadMediaKind.MUSIC &&
-                        it.sourceId.isNullOrBlank() &&
-                        it.itemId.toUuidOrNull() != null
+                when (val snapshot = sidecar.allRecords()) {
+                    DownloadMediaReadResult.Missing -> false
+                    is DownloadMediaReadResult.Complete ->
+                        snapshot.records.any {
+                            it.kind == DownloadMediaKind.MUSIC &&
+                                it.sourceId.isNullOrBlank() &&
+                                it.itemId.toUuidOrNull() != null
+                        }
+                    is DownloadMediaReadResult.Unreadable -> true
+                    is DownloadMediaReadResult.Corrupt -> true
                 }
             if (hasLegacyReceivedIntent || hasSidecarIntent) {
                 launchReceivedIntentProcessor()
@@ -2931,7 +3069,25 @@ private constructor(
                     .map { source -> DownloadedMediaSource(source.itemId, source.id) }
                     .toSet()
             DownloadedMediaRecordRules.completedRecords(
-                    records = sidecar.allRecords(),
+                    records =
+                        when (val snapshot = sidecar.allRecords()) {
+                            DownloadMediaReadResult.Missing -> emptyList()
+                            is DownloadMediaReadResult.Complete -> snapshot.records
+                            is DownloadMediaReadResult.Unreadable -> {
+                                Timber.w(
+                                    snapshot.error,
+                                    "读取已完成媒体记录时 sidecar 不可读，保留来源未知",
+                                )
+                                emptyList()
+                            }
+                            is DownloadMediaReadResult.Corrupt -> {
+                                Timber.w(
+                                    "读取已完成媒体记录时 sidecar 损坏，保留来源未知：行 %s",
+                                    snapshot.invalidLineNumbers.joinToString(),
+                                )
+                                emptyList()
+                            }
+                        },
                     completedLocalSources = completedLocalSources,
                     bookFileSize = { itemId ->
                         File(context.filesDir, "books/$itemId.book").takeIf { it.isFile }?.length()
@@ -3007,9 +3163,10 @@ private constructor(
         source: FindroidSource,
         storageIndex: Int,
         generation: Long,
+        persistedOrigin: PersistedOriginResolution,
     ) {
         val storageLocation = context.getExternalFilesDirs(null).getOrNull(storageIndex) ?: return
-        val transferCredentials = credentialsForSource(item.id, source.id)
+        val transferCredentials = credentialsForSource(item.id, source.id, persistedOrigin)
         val existing = database.getMediaStreamsBySourceId(source.id).associateBy { it.id }
         val failures = mutableListOf<Exception>()
         for ((ordinal, mediaStream) in
@@ -3239,9 +3396,10 @@ private constructor(
     private suspend fun resolveRemoteSource(
         item: FindroidItem,
         sourceId: String,
+        persistedOrigin: PersistedOriginResolution = persistedOriginForSource(item.id, sourceId),
     ): FindroidSource {
         val origin =
-            when (val resolution = persistedOriginForSource(item.id, sourceId)) {
+            when (val resolution = persistedOrigin) {
                 PersistedOriginResolution.MissingLegacy -> null
                 is PersistedOriginResolution.UniqueComplete ->
                     resolution.identity.origin.toJellyfinOriginOrNull()
@@ -3253,6 +3411,11 @@ private constructor(
                     throw DownloadHttpException(
                         DownloadFailureReason.SERVER_ERROR,
                         "下载 sidecar 来源身份歧义：${item.id}/$sourceId/" + resolution.matchingRecordCount,
+                    )
+                is PersistedOriginResolution.FailClosed ->
+                    throw DownloadHttpException(
+                        DownloadFailureReason.SERVER_ERROR,
+                        "下载 sidecar 不可证明来源身份：${resolution.detail}",
                     )
             }
         val sources = runCatching {
@@ -3285,8 +3448,9 @@ private constructor(
     private suspend fun credentialsForSource(
         itemId: UUID,
         sourceId: String,
+        persistedOrigin: PersistedOriginResolution = persistedOriginForSource(itemId, sourceId),
     ): JellyfinOriginCredentials {
-        return when (val resolution = persistedOriginForSource(itemId, sourceId)) {
+        return when (val resolution = persistedOrigin) {
             PersistedOriginResolution.MissingLegacy ->
                 JellyfinOriginCredentials(
                     baseUrl = jellyfinRepository.getBaseUrl(),
@@ -3306,6 +3470,11 @@ private constructor(
                     DownloadFailureReason.SERVER_ERROR,
                     "下载 sidecar 来源身份歧义：$itemId/$sourceId/" + resolution.matchingRecordCount,
                 )
+            is PersistedOriginResolution.FailClosed ->
+                throw DownloadHttpException(
+                    DownloadFailureReason.SERVER_ERROR,
+                    "下载 sidecar 不可证明来源身份：${resolution.detail}",
+                )
         }
     }
 
@@ -3313,9 +3482,21 @@ private constructor(
         itemId: UUID,
         sourceId: String,
     ): PersistedOriginResolution {
+        val records =
+            when (val snapshot = sidecar.allRecords()) {
+                DownloadMediaReadResult.Missing -> emptyList()
+                is DownloadMediaReadResult.Complete -> snapshot.records
+                is DownloadMediaReadResult.Unreadable ->
+                    return PersistedOriginResolution.FailClosed(
+                        "sidecar 不可读：${snapshot.error.message.orEmpty()}"
+                    )
+                is DownloadMediaReadResult.Corrupt ->
+                    return PersistedOriginResolution.FailClosed(
+                        "sidecar 损坏行：${snapshot.invalidLineNumbers.joinToString()}"
+                    )
+            }
         val matchingRecords =
-            sidecar
-                .allRecords()
+            records
                 .asSequence()
                 .filter { record ->
                     record.itemId == itemId.toString() && record.sourceId == sourceId
@@ -3349,15 +3530,21 @@ private constructor(
     private suspend fun findItem(
         itemId: UUID,
         sourceId: String,
+        persistedOrigin: PersistedOriginResolution = persistedOriginForSource(itemId, sourceId),
     ): FindroidItem? {
         val persisted =
-            when (val resolution = persistedOriginForSource(itemId, sourceId)) {
+            when (val resolution = persistedOrigin) {
                 PersistedOriginResolution.MissingLegacy -> return null
                 is PersistedOriginResolution.UniqueComplete -> resolution.identity
                 is PersistedOriginResolution.Ambiguous ->
                     throw DownloadHttpException(
                         DownloadFailureReason.SERVER_ERROR,
                         "下载 sidecar 来源身份歧义：$itemId/$sourceId/" + resolution.matchingRecordCount,
+                    )
+                is PersistedOriginResolution.FailClosed ->
+                    throw DownloadHttpException(
+                        DownloadFailureReason.SERVER_ERROR,
+                        "下载 sidecar 不可证明来源身份：${resolution.detail}",
                     )
             }
         val userId = UUID.fromString(checkNotNull(persisted.origin.userId))
@@ -3484,10 +3671,20 @@ private constructor(
         itemMutationLocks[(itemId.hashCode() and Int.MAX_VALUE) % itemMutationLocks.size]
 
     private fun removeSidecarForSource(itemId: UUID, sourceId: String) {
-        sidecar
-            .allRecords()
-            .filter { it.itemId == itemId.toString() && it.sourceId == sourceId }
-            .forEach { sidecar.remove(it.canonicalIdentity()) }
+        when (val snapshot = sidecar.allRecords()) {
+            DownloadMediaReadResult.Missing -> Unit
+            is DownloadMediaReadResult.Complete ->
+                snapshot.records
+                    .filter { it.itemId == itemId.toString() && it.sourceId == sourceId }
+                    .forEach { sidecar.remove(it.canonicalIdentity()) }
+            is DownloadMediaReadResult.Unreadable ->
+                Timber.w(snapshot.error, "删除下载来源时 sidecar 不可读，拒绝推断缺失记录")
+            is DownloadMediaReadResult.Corrupt ->
+                Timber.w(
+                    "删除下载来源时 sidecar 损坏，拒绝推断缺失记录：行 %s",
+                    snapshot.invalidLineNumbers.joinToString(),
+                )
+        }
     }
 
     private fun deleteSourceCompletionArtifacts(source: FindroidSourceDto): Boolean {

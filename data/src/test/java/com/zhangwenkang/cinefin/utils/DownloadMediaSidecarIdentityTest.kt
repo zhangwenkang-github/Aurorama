@@ -4,6 +4,8 @@ import java.io.File
 import java.nio.file.Files
 import java.util.UUID
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloadMediaSidecarIdentityTest {
@@ -24,7 +26,7 @@ class DownloadMediaSidecarIdentityTest {
                 )
             records.forEach(sidecar::put)
 
-            assertEquals(4, sidecar.allRecords().size)
+            assertEquals(4, sidecar.allRecords().requireComplete().size)
             assertEquals(4, sidecar.records().size)
             records.forEach { record ->
                 assertEquals(
@@ -59,7 +61,7 @@ class DownloadMediaSidecarIdentityTest {
 
             assertEquals(
                 listOf("未知专辑 A", "未知专辑 B"),
-                sidecar.allRecords().map { it.albumName },
+                sidecar.allRecords().requireComplete().map { it.albumName },
             )
         } finally {
             directory.deleteRecursively()
@@ -95,8 +97,38 @@ class DownloadMediaSidecarIdentityTest {
                         displayName = "legacy",
                     )
                 ),
-                sidecar.allRecords(),
+                sidecar.allRecords().requireComplete(),
             )
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `sidecar 读取结果区分缺失完整损坏与不可读且拒绝覆盖损坏文件`() {
+        val directory = Files.createTempDirectory("download-sidecar-read-result").toFile()
+        try {
+            val file = File(directory, "download_media.tsv")
+            val sidecar = DownloadMediaSidecar.forFile(file)
+            assertTrue(sidecar.allRecords() is DownloadMediaReadResult.Missing)
+
+            assertTrue(sidecar.put(record("server-a", "user-a", "source-a")))
+            assertTrue(sidecar.allRecords() is DownloadMediaReadResult.Complete)
+
+            val corrupted = file.readText() + "\nbroken-row"
+            file.writeText(corrupted)
+            val corrupt = sidecar.allRecords()
+            assertTrue(corrupt is DownloadMediaReadResult.Corrupt)
+            assertEquals(listOf(2), (corrupt as DownloadMediaReadResult.Corrupt).invalidLineNumbers)
+            assertFalse(
+                "损坏快照不得被下一次写入静默覆盖",
+                sidecar.put(record("server-b", "user-b", "source-b")),
+            )
+            assertEquals(corrupted, file.readText())
+
+            assertTrue(file.delete())
+            assertTrue(file.mkdirs())
+            assertTrue(sidecar.allRecords() is DownloadMediaReadResult.Unreadable)
         } finally {
             directory.deleteRecursively()
         }

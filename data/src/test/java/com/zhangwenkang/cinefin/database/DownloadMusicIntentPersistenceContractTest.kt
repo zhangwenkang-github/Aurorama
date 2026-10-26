@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.database
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.DownloadMediaSidecar
+import com.zhangwenkang.cinefin.utils.requireComplete
 import java.io.File
 import java.nio.file.Files
 import java.sql.DriverManager
@@ -69,7 +70,9 @@ class DownloadMusicIntentPersistenceContractTest {
 
             assertEquals(
                 setOf("server-a" to "user-a", "server-b" to "user-b"),
-                sidecar.allRecords().mapTo(mutableSetOf()) { it.serverId to it.userId },
+                sidecar.allRecords().requireComplete().mapTo(mutableSetOf()) {
+                    it.serverId to it.userId
+                },
             )
             assertFalse(
                 File("data/schemas/com.zhangwenkang.cinefin.database.ServerDatabase/16.json")

@@ -150,12 +150,12 @@ class DownloaderImplRecoveryTest {
 
             assertEquals(listOf(second.source.id), fixture.dao.sourceIds())
             assertTrue(
-                fixture.downloader.mediaSidecar().allRecords().any {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
                     it.itemId == ITEM_ID.toString() && it.sourceId == second.source.id
                 }
             )
             assertFalse(
-                fixture.downloader.mediaSidecar().allRecords().any {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
                     it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
                 }
             )
@@ -237,7 +237,7 @@ class DownloaderImplRecoveryTest {
                 assertNotNull("新 generation source 被旧清理删除", fixture.dao.sourceById(SOURCE_ID))
                 assertTrue(
                     "新 generation sidecar 被旧清理删除",
-                    fixture.downloader.mediaSidecar().allRecords().any {
+                    fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
                         it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
                     },
                 )
@@ -260,7 +260,7 @@ class DownloaderImplRecoveryTest {
                 assertTrue(retried.taskGeneration > deletingGeneration)
                 assertNotNull(fixture.dao.sourceById(SOURCE_ID))
                 assertTrue(
-                    fixture.downloader.mediaSidecar().allRecords().any {
+                    fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
                         it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
                     }
                 )
@@ -356,7 +356,7 @@ class DownloaderImplRecoveryTest {
             )
             assertTrue(
                 "新 generation sidecar 不得被旧 UI 调用删除",
-                fixture.downloader.mediaSidecar().allRecords().any {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
                     it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
                 },
             )
@@ -373,7 +373,9 @@ class DownloaderImplRecoveryTest {
             fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
             val source = requireNotNull(fixture.dao.source).toFindroidSource(emptyList())
             val sidecar = fixture.downloader.mediaSidecar()
-            sidecar.allRecords().forEach { sidecar.remove(it.canonicalIdentity()) }
+            sidecar.allRecords().requireComplete().forEach {
+                sidecar.remove(it.canonicalIdentity())
+            }
             sidecar.put(
                 DownloadMediaRecord(
                     itemId = ITEM_ID.toString(),
@@ -393,7 +395,7 @@ class DownloaderImplRecoveryTest {
             assertEquals(
                 "失败关闭不得删除 blank sidecar",
                 1,
-                sidecar.allRecords().count {
+                sidecar.allRecords().requireComplete().count {
                     it.itemId == ITEM_ID.toString() && it.sourceId.isNullOrBlank()
                 },
             )
@@ -693,7 +695,7 @@ class DownloaderImplRecoveryTest {
             )
             assertTrue(
                 "旧 receipt 不得清理新 generation 的 sidecar",
-                fixture.downloader.mediaSidecar().allRecords().any {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
                     it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
                 },
             )
@@ -813,7 +815,7 @@ class DownloaderImplRecoveryTest {
             assertTrue("自由文本 generation 不得触发任何 source 副作用", fixture.dao.sourceEvents.isEmpty())
             assertTrue(
                 "自由文本 generation 不得清理 sidecar",
-                fixture.downloader.mediaSidecar().allRecords().any {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
                     it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
                 },
             )
@@ -1084,7 +1086,9 @@ class DownloaderImplRecoveryTest {
             assertTrue(error == null)
             assertTrue(handle > 0L)
             val sidecar = fixture.downloader.mediaSidecar()
-            sidecar.allRecords().forEach { sidecar.remove(it.canonicalIdentity()) }
+            sidecar.allRecords().requireComplete().forEach {
+                sidecar.remove(it.canonicalIdentity())
+            }
             fixture.imageScheduler.parentOwners.clear()
             fixture.imageScheduler.parentItemIds.clear()
             fixture.resetEffectCalls()
@@ -1204,6 +1208,7 @@ class DownloaderImplRecoveryTest {
                 fixture.downloader
                     .mediaSidecar()
                     .allRecords()
+                    .requireComplete()
                     .filter { it.sourceId.isNullOrBlank() }
                     .filter { it.itemId == itemId.toString() }
                     .mapTo(mutableSetOf()) { it.serverId to it.userId },
@@ -1233,6 +1238,7 @@ class DownloaderImplRecoveryTest {
                 fixture.downloader
                     .mediaSidecar()
                     .allRecords()
+                    .requireComplete()
                     .filter { !it.sourceId.isNullOrBlank() }
                     .filter { it.itemId == itemId.toString() }
                     .associate { record ->
@@ -1345,6 +1351,7 @@ class DownloaderImplRecoveryTest {
                 fixture.downloader
                     .mediaSidecar()
                     .allRecords()
+                    .requireComplete()
                     .filter { it.itemId == itemId.toString() && it.sourceId == sourceId }
                     .mapTo(mutableSetOf()) { it.serverId },
             )
@@ -1471,7 +1478,7 @@ class DownloaderImplRecoveryTest {
             )
             assertEquals(
                 3,
-                fixture.downloader.mediaSidecar().allRecords().count {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
                     it.itemId == itemId.toString()
                 },
             )
@@ -1505,7 +1512,7 @@ class DownloaderImplRecoveryTest {
 
             assertEquals(1, receipt.acceptedRequests.size)
             val pending =
-                fixture.downloader.mediaSidecar().allRecords().single {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().single {
                     it.itemId == itemId.toString()
                 }
             assertEquals("不完整 origin 不得混拼 current user", null, pending.serverId)
@@ -1591,7 +1598,7 @@ class DownloaderImplRecoveryTest {
             assertEquals(listOf("source-key-b"), fixture.dao.sourceIds())
             assertTrue(
                 "A 的 sidecar key 必须保持 pending 以便重试",
-                sidecar.allRecords().any {
+                sidecar.allRecords().requireComplete().any {
                     it.serverId == originA.serverId && it.sourceId.isNullOrBlank()
                 },
             )
@@ -1682,12 +1689,12 @@ class DownloaderImplRecoveryTest {
             assertEquals(
                 "同一 sourceId 只能属于一个 namespace，另一 key 必须保持可重试",
                 1,
-                sidecar.allRecords().count {
+                sidecar.allRecords().requireComplete().count {
                     it.itemId == itemId.toString() && it.sourceId.isNullOrBlank()
                 },
             )
             val retained =
-                sidecar.allRecords().single {
+                sidecar.allRecords().requireComplete().single {
                     it.itemId == itemId.toString() && !it.sourceId.isNullOrBlank()
                 }
             val retainedServer = checkNotNull(retained.serverId)
@@ -1775,7 +1782,7 @@ class DownloaderImplRecoveryTest {
                 "Room 插入失败后必须补偿为可重试 pending",
                 withTimeoutOrNull(2_000L) {
                     while (
-                        sidecar.allRecords().none {
+                        sidecar.allRecords().requireComplete().none {
                             it.itemId == itemId.toString() &&
                                 it.serverId == origin.serverId &&
                                 it.userId == origin.userId.toString() &&
@@ -1790,7 +1797,7 @@ class DownloaderImplRecoveryTest {
             assertEquals(
                 "失败状态不得同时保留伪完整 sourceId",
                 0,
-                sidecar.allRecords().count {
+                sidecar.allRecords().requireComplete().count {
                     it.itemId == itemId.toString() && !it.sourceId.isNullOrBlank()
                 },
             )
@@ -1804,7 +1811,7 @@ class DownloaderImplRecoveryTest {
             assertEquals(listOf("source-insert-fail"), fixture.dao.sourceIds())
             assertTrue(
                 "成功插入 source 后 pending 必须被替换",
-                sidecar.allRecords().none {
+                sidecar.allRecords().requireComplete().none {
                     it.itemId == itemId.toString() && it.sourceId.isNullOrBlank()
                 },
             )
@@ -1860,7 +1867,7 @@ class DownloaderImplRecoveryTest {
             )
             assertTrue(
                 "sidecar 写入失败后必须保留可恢复的 pending 记录",
-                sidecar.allRecords().any {
+                sidecar.allRecords().requireComplete().any {
                     it.itemId == itemId.toString() && it.sourceId.isNullOrBlank()
                 },
             )
@@ -1898,12 +1905,12 @@ class DownloaderImplRecoveryTest {
             assertTrue(fixture.dao.awaitInsertedSourceCount(1))
             assertEquals(
                 1,
-                fixture.downloader.mediaSidecar().allRecords().count {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
                     it.itemId == itemId.toString()
                 },
             )
             val resolved =
-                fixture.downloader.mediaSidecar().allRecords().single {
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().single {
                     it.itemId == itemId.toString() && !it.sourceId.isNullOrBlank()
                 }
             assertEquals(null, resolved.serverId)
@@ -2435,6 +2442,136 @@ class DownloaderImplRecoveryTest {
         }
     }
 
+    @Test
+    fun `sidecar 坏行恢复必须保留 pending 且不启动 current fallback transfer`() = runBlocking {
+        assertCorruptPendingSidecarFailsClosed { original -> "$original\nbroken-row" }
+    }
+
+    @Test
+    fun `sidecar 坏 base64 恢复必须保留 pending 且不启动 current fallback transfer`() = runBlocking {
+        assertCorruptPendingSidecarFailsClosed { original ->
+            "$original\nv2\tMUSIC\t%%%\t\t\t1\t\t\t\t"
+        }
+    }
+
+    @Test
+    fun `sidecar torn 行恢复必须保留 pending 且不启动 current fallback transfer`() = runBlocking {
+        assertCorruptPendingSidecarFailsClosed { original -> "$original\nv2\tMUSIC\t" }
+    }
+
+    @Test
+    fun `sidecar 存储不可读恢复必须保留 pending 且不启动 current fallback transfer`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val (handle, error) =
+                fixture.downloader.downloadItem(
+                    item = fixture.movie(),
+                    sourceId = SOURCE_ID,
+                    storageIndex = 0,
+                )
+            assertTrue(error == null)
+            assertTrue(handle > 0L)
+            val sidecar = fixture.sidecarFile()
+            val backup = File(sidecar.parentFile, "${sidecar.name}.retained")
+            Files.move(sidecar.toPath(), backup.toPath())
+            assertTrue(sidecar.mkdirs())
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.runQueue()
+
+            assertTrue(
+                "不可读 sidecar 不得启动 transfer：${fixture.transfer.requestSnapshot()}",
+                fixture.transfer.requestSnapshot().isEmpty(),
+            )
+            fixture.assertCurrentOriginReadsZero()
+            assertTrue("pending 原始文件必须保留供修复后重试", backup.isFile)
+
+            assertTrue(sidecar.delete())
+            Files.move(backup.toPath(), sidecar.toPath())
+            fixture.dao.source = fixture.dao.source?.copy(taskStatus = "PENDING", nextRetryAt = 0L)
+            fixture.downloader.runQueue()
+
+            assertTrue("sidecar 修复后必须可重试", fixture.transfer.requestSnapshot().isNotEmpty())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `首次唯一完整 origin 后 sidecar 二次读取失败不得回退 current 且不得启动 transfer`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val (handle, error) =
+                fixture.downloader.downloadItem(
+                    item = fixture.movie(),
+                    sourceId = SOURCE_ID,
+                    storageIndex = 0,
+                )
+            assertTrue(error == null)
+            assertTrue(handle > 0L)
+            val sidecar = fixture.sidecarFile()
+            val backup = File(sidecar.parentFile, "${sidecar.name}.retained")
+            fixture.dao.onGetMovie = {
+                fixture.dao.onGetMovie = null
+                Files.move(sidecar.toPath(), backup.toPath())
+                sidecar.mkdirs()
+            }
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.runQueue()
+
+            assertTrue(
+                "二次读取失败不得启动 transfer：${fixture.transfer.requestSnapshot()}",
+                fixture.transfer.requestSnapshot().isEmpty(),
+            )
+            fixture.assertCurrentOriginReadsZero()
+
+            assertTrue(sidecar.delete())
+            Files.move(backup.toPath(), sidecar.toPath())
+            fixture.dao.source = fixture.dao.source?.copy(taskStatus = "PENDING", nextRetryAt = 0L)
+            fixture.downloader.runQueue()
+
+            assertTrue("sidecar 修复后必须可重试", fixture.transfer.requestSnapshot().isNotEmpty())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    private suspend fun assertCorruptPendingSidecarFailsClosed(corrupt: (String) -> String) {
+        val fixture = Fixture()
+        try {
+            fixture.preparePendingMusicOrigin()
+            val sidecar = fixture.sidecarFile()
+            val original = sidecar.readText()
+            val corrupted = corrupt(original)
+            sidecar.writeText(corrupted)
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.recoverOnStartup()
+            delay(200)
+            fixture.downloader.runQueue()
+
+            assertTrue(
+                "损坏 sidecar 不得插入 source：${fixture.dao.sourceIds()}",
+                fixture.dao.sourceIds().isEmpty(),
+            )
+            assertTrue(
+                "损坏 sidecar 不得启动 transfer：${fixture.transfer.requestSnapshot()}",
+                fixture.transfer.requestSnapshot().isEmpty(),
+            )
+            fixture.assertCurrentOriginReadsZero()
+            assertEquals("损坏 sidecar 不得被静默重写", corrupted, sidecar.readText())
+
+            sidecar.writeText(original)
+            fixture.downloader.recoverOnStartup()
+
+            assertTrue("sidecar 修复后必须重试并插入 source", fixture.dao.awaitInsertedSourceCount(1))
+            assertEquals(listOf(SOURCE_ID), fixture.dao.sourceIds())
+        } finally {
+            fixture.close()
+        }
+    }
+
     private data class EffectCalls(
         val snapshotWrites: Int,
         val internalMediaStreamWrites: Int,
@@ -2649,6 +2786,63 @@ class DownloaderImplRecoveryTest {
                 assertTrue(mkdirs())
                 File(this, "holder").writeText("block replace")
             }
+
+        fun sidecarFile(): File = File(root, "download_media.tsv")
+
+        suspend fun preparePendingMusicOrigin(): UUID {
+            val itemId = UUID.fromString("abababab-abab-4bab-8bab-abababababab")
+            val origin = JellyfinOrigin(SERVER_ID, USER_ID)
+            repository.putOriginItem(
+                itemId,
+                origin,
+                movie().copy(id = itemId, name = "round-four pending", kind = "AUDIO"),
+            )
+            repository.putOriginMediaSource(
+                itemId,
+                origin,
+                FindroidSource(
+                    id = SOURCE_ID,
+                    name = "round-four pending",
+                    type = FindroidSourceType.REMOTE,
+                    path = MEDIA_URL,
+                    size = MEDIA_BYTES.size.toLong(),
+                    mediaStreams = repository.mediaStreams,
+                    container = "mp3",
+                ),
+            )
+            val receipt =
+                downloader.receiveMusicBatch(
+                    listOf(
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "round-four pending",
+                            albumName = "Round 4",
+                            artist = "Fail closed",
+                            trackIndex = 4,
+                            serverId = SERVER_ID,
+                            userId = USER_ID.toString(),
+                        )
+                    )
+                )
+            assertEquals(1, receipt.acceptedRequests.size)
+            return itemId
+        }
+
+        fun resetCurrentOriginReads() {
+            preferences.currentServer = "server-current"
+            preferences.currentServerReads = 0
+            repository.userId = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
+            repository.userIdReads = 0
+            repository.baseUrlReads = 0
+            repository.accessTokenReads = 0
+        }
+
+        fun assertCurrentOriginReadsZero() {
+            assertEquals("不得读取 current server", 0, preferences.currentServerReads)
+            assertEquals("不得读取 current user", 0, repository.userIdReads)
+            assertEquals("不得读取 current baseUrl", 0, repository.baseUrlReads)
+            assertEquals("不得读取 current token", 0, repository.accessTokenReads)
+        }
 
         private fun sourceDto(
             itemId: UUID,
@@ -3114,6 +3308,7 @@ class DownloaderImplRecoveryTest {
             }
 
         var itemAvailable = true
+        var onGetMovie: (() -> Unit)? = null
         var trackParentRows = false
         var remainingEpisodes: List<Any> = emptyList()
         var remainingSeasons: List<Any> = emptyList()
@@ -3285,9 +3480,11 @@ class DownloaderImplRecoveryTest {
                                     nextRetryAt = 0L,
                                 )
                             }
-                        "getMovie" ->
+                        "getMovie" -> {
+                            onGetMovie?.invoke()
                             (snapshots[args[0] as UUID] ?: movie.takeIf { args[0] == ITEM_ID })
                                 ?.takeIf { itemAvailable && episodeSnapshot == null }
+                        }
                         "getEpisode" ->
                             episodeSnapshot?.takeIf { itemAvailable && it.id == args[0] as UUID }
                         "insertShow" -> {

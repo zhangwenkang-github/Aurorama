@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.utils
 
 import android.content.Context
 import java.io.File
+import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -52,6 +53,33 @@ data class DownloadMediaRecord(
     }
 }
 
+/** sidecar 的完整读取结果；只有 [Complete] 才能作为 provenance 或写回依据。 */
+sealed interface DownloadMediaReadResult {
+    /** 文件确实不存在，或完整空文件中确实没有记录。 */
+    data object Missing : DownloadMediaReadResult
+
+    /** 文件完整，且每一行都成功解析。 */
+    data class Complete(val records: List<DownloadMediaRecord>) : DownloadMediaReadResult
+
+    /** 存储层读取失败；未知状态不得等同于 legacy 缺失。 */
+    data class Unreadable(val error: Exception) : DownloadMediaReadResult
+
+    /** 至少有一行损坏或解析不完整；保留已解析行仅供诊断，禁止用于身份解析或写回。 */
+    data class Corrupt(
+        val records: List<DownloadMediaRecord>,
+        val invalidLineNumbers: List<Int>,
+    ) : DownloadMediaReadResult
+}
+
+fun DownloadMediaReadResult.requireComplete(): List<DownloadMediaRecord> =
+    when (this) {
+        DownloadMediaReadResult.Missing -> emptyList()
+        is DownloadMediaReadResult.Complete -> records
+        is DownloadMediaReadResult.Unreadable -> throw IllegalStateException("下载媒体侧车不可读", error)
+        is DownloadMediaReadResult.Corrupt ->
+            throw IllegalStateException("下载媒体侧车内容损坏：行 ${invalidLineNumbers.joinToString()}")
+    }
+
 /**
  * W34：音乐 / 书籍下载的本地元数据侧车（`filesDir/download_media.tsv`）。
  *
@@ -68,21 +96,46 @@ data class DownloadMediaRecord(
 class DownloadMediaSidecar private constructor(private val file: File) {
     constructor(context: Context) : this(File(context.filesDir, "download_media.tsv"))
 
-    /** 按完整 provenance canonical key 建索引；同 itemId 的不同来源保留为不同项。 */
+    /** 仅供完整快照消费；任何不可读 / 损坏状态都会显式失败。 */
     fun records(): Map<String, DownloadMediaRecord> =
-        allRecords().associateBy { it.canonicalIdentity().canonicalKey }
+        allRecords().requireComplete().associateBy { it.canonicalIdentity().canonicalKey }
 
-    /** 全部记录（保留文件顺序；同一 itemId 的不同来源不被 map 压扁）。 */
-    fun allRecords(): List<DownloadMediaRecord> =
+    /** 全部记录及其完整性状态；同一 itemId 的不同来源不被 map 压扁。 */
+    fun allRecords(): DownloadMediaReadResult =
         synchronized(lock) {
-            runCatching {
-                if (!file.isFile) return@synchronized emptyList()
-                file.readLines().mapNotNull(DownloadMediaCodec::decodeLine)
+            if (!file.exists()) return@synchronized DownloadMediaReadResult.Missing
+            if (!file.isFile) {
+                return@synchronized DownloadMediaReadResult.Unreadable(
+                    IOException("下载媒体侧车路径不是普通文件：$file")
+                )
             }
-                .getOrElse {
-                    Timber.w(it, "读取下载媒体侧车失败，按空处理")
-                    emptyList()
+            val lines = runCatching {
+                file.readLines()
+            }
+                .getOrElse { error ->
+                    Timber.w(error, "读取下载媒体侧车失败，保持未知状态")
+                    return@synchronized DownloadMediaReadResult.Unreadable(
+                        error as? Exception ?: RuntimeException(error)
+                    )
                 }
+            val records = ArrayList<DownloadMediaRecord>(lines.size)
+            val invalidLineNumbers = mutableListOf<Int>()
+            lines.forEachIndexed { index, line ->
+                val record = DownloadMediaCodec.decodeLine(line)
+                if (record == null) {
+                    invalidLineNumbers += index + 1
+                } else {
+                    records += record
+                }
+            }
+            if (invalidLineNumbers.isNotEmpty()) {
+                Timber.w("下载媒体侧车存在损坏行：%s", invalidLineNumbers.joinToString())
+                DownloadMediaReadResult.Corrupt(records, invalidLineNumbers)
+            } else if (records.isEmpty()) {
+                DownloadMediaReadResult.Missing
+            } else {
+                DownloadMediaReadResult.Complete(records)
+            }
         }
 
     fun put(record: DownloadMediaRecord): Boolean = updateResult { records ->
@@ -192,7 +245,19 @@ class DownloadMediaSidecar private constructor(private val file: File) {
     ): Boolean =
         synchronized(lock) {
             runCatching {
-                    val next = transform(allRecords())
+                    val existing =
+                        when (val read = allRecords()) {
+                            DownloadMediaReadResult.Missing -> emptyList()
+                            is DownloadMediaReadResult.Complete -> read.records
+                            is DownloadMediaReadResult.Unreadable ->
+                                throw IllegalStateException(
+                                    "下载媒体侧车不可读，拒绝覆盖",
+                                    read.error,
+                                )
+                            is DownloadMediaReadResult.Corrupt ->
+                                error("下载媒体侧车内容损坏，拒绝覆盖：行 " + read.invalidLineNumbers.joinToString())
+                        }
+                    val next = transform(existing)
                     file.parentFile?.mkdirs()
                     val temp = File(file.parentFile, "${file.name}.tmp")
                     temp.writeText(

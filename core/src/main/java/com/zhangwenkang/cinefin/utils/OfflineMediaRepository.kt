@@ -82,7 +82,22 @@ class OfflineMediaRepositoryImpl(
                 .onFailure { Timber.w(it, "读取下载来源失败，离线媒体库按空处理") }
                 .getOrElse { emptyList() }
                 .filter { it.type == FindroidSourceType.LOCAL && !it.path.endsWith(".download") }
-            val sidecarRecords = sidecar.allRecords()
+            val sidecarRecords =
+                when (val snapshot = sidecar.allRecords()) {
+                    DownloadMediaReadResult.Missing -> emptyList()
+                    is DownloadMediaReadResult.Complete -> snapshot.records
+                    is DownloadMediaReadResult.Unreadable -> {
+                        Timber.w(snapshot.error, "离线媒体库读取 sidecar 失败，按来源未知保留")
+                        emptyList()
+                    }
+                    is DownloadMediaReadResult.Corrupt -> {
+                        Timber.w(
+                            "离线媒体库 sidecar 损坏，按来源未知保留：行 %s",
+                            snapshot.invalidLineNumbers.joinToString(),
+                        )
+                        emptyList()
+                    }
+                }
             val episodeHierarchy = runCatching {
                 database.getDownloadedEpisodeHierarchy()
             }

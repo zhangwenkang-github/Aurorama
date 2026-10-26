@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.repository
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadMediaSidecar
 import com.zhangwenkang.cinefin.utils.DownloadProvenance
+import com.zhangwenkang.cinefin.utils.requireComplete
 import java.io.File
 import java.util.UUID
 import kotlin.io.path.createTempDirectory
@@ -28,7 +29,7 @@ class BookDownloadProvenanceTest {
 
             recordBookDownloadProvenance(sidecar = sidecar, origin = origin)
 
-            val record = sidecar.allRecords().single()
+            val record = sidecar.allRecords().requireComplete().single()
             assertEquals(DownloadMediaKind.BOOK, record.kind)
             assertEquals(ITEM_ID.toString(), record.itemId)
             assertEquals(SERVER_ID, record.serverId)
@@ -64,7 +65,7 @@ class BookDownloadProvenanceTest {
 
             recordBookDownloadProvenance(sidecar = sidecar, origin = origin)
 
-            assertTrue(sidecar.allRecords().isEmpty())
+            assertTrue(sidecar.allRecords().requireComplete().isEmpty())
         } finally {
             root.deleteRecursively()
         }
@@ -88,7 +89,7 @@ class BookDownloadProvenanceTest {
 
             clearBookDownloadProvenance(sidecar, ITEM_ID)
 
-            assertTrue(sidecar.allRecords().isEmpty())
+            assertTrue(sidecar.allRecords().requireComplete().isEmpty())
         } finally {
             root.deleteRecursively()
         }
