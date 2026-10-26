@@ -195,11 +195,17 @@ class DownloadMediaSidecar private constructor(private val file: File) {
                 records + record
             }
         }
+        val withoutSupersededIncomplete =
+            if (record.sourceId.isNullOrBlank()) {
+                records.filterNot(record::supersedesIncompletePendingPlaceholder)
+            } else {
+                records
+            }
         val withoutResolvedPlaceholder =
             if (record.sourceId.isNullOrBlank()) {
-                records
+                withoutSupersededIncomplete
             } else {
-                records.filterNot { existing ->
+                withoutSupersededIncomplete.filterNot { existing ->
                     existing.itemId == record.itemId &&
                         existing.serverId == record.serverId &&
                         existing.userId == record.userId &&
@@ -385,3 +391,28 @@ object DownloadMediaCodec {
 fun String.toUuidOrNull(): UUID? = runCatching { UUID.fromString(this) }.getOrNull()
 
 private fun DownloadMediaRecord.storageKey(): String = canonicalIdentity().canonicalKey
+
+/**
+ * 显式完整 pending 请求只替换可证明属于同一 namespace 的旧 partial 占位。
+ *
+ * 至少一个非空 server/user 段必须相等；冲突或不含 origin 线索的旧行保持独立，避免按裸 itemId 泛删。
+ */
+private fun DownloadMediaRecord.supersedesIncompletePendingPlaceholder(
+    existing: DownloadMediaRecord
+): Boolean {
+    if (!canonicalIdentity().hasCompleteNamespace || !sourceId.isNullOrBlank()) return false
+    val existingIdentity = existing.canonicalIdentity()
+    if (
+        existingIdentity.hasCompleteNamespace ||
+            existing.itemId != itemId ||
+            existing.kind != kind ||
+            !existing.sourceId.isNullOrBlank()
+    ) {
+        return false
+    }
+    val serverMatches = !existing.serverId.isNullOrBlank() && existing.serverId == serverId
+    val userMatches = !existing.userId.isNullOrBlank() && existing.userId == userId
+    val serverCompatible = existing.serverId.isNullOrBlank() || existing.serverId == serverId
+    val userCompatible = existing.userId.isNullOrBlank() || existing.userId == userId
+    return (serverMatches || userMatches) && serverCompatible && userCompatible
+}

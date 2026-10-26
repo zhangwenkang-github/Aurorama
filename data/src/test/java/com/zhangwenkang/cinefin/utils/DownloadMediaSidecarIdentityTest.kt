@@ -105,6 +105,45 @@ class DownloadMediaSidecarIdentityTest {
     }
 
     @Test
+    fun `完整 pending 只替换单段相符的 partial 并保留冲突来源`() {
+        val directory = Files.createTempDirectory("download-sidecar-partial-retry").toFile()
+        try {
+            val sidecar = DownloadMediaSidecar.forFile(File(directory, "download_media.tsv"))
+            val matchingPartial =
+                DownloadMediaRecord(
+                    itemId = itemId.toString(),
+                    kind = DownloadMediaKind.MUSIC,
+                    serverId = "server-a",
+                    displayName = "matching",
+                )
+            val conflictingPartial =
+                DownloadMediaRecord(
+                    itemId = itemId.toString(),
+                    kind = DownloadMediaKind.MUSIC,
+                    serverId = "server-b",
+                    displayName = "conflicting",
+                )
+            val complete =
+                DownloadMediaRecord(
+                    itemId = itemId.toString(),
+                    kind = DownloadMediaKind.MUSIC,
+                    serverId = "server-a",
+                    userId = "user-a",
+                    displayName = "complete",
+                )
+            assertTrue(sidecar.putAll(listOf(matchingPartial, conflictingPartial)))
+            assertTrue(sidecar.put(complete))
+
+            assertEquals(
+                listOf(conflictingPartial, complete),
+                sidecar.allRecords().requireComplete(),
+            )
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `sidecar 读取结果区分缺失完整损坏与不可读且拒绝覆盖损坏文件`() {
         val directory = Files.createTempDirectory("download-sidecar-read-result").toFile()
         try {

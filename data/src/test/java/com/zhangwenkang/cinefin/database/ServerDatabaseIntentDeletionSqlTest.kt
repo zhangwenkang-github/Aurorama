@@ -8,6 +8,33 @@ import org.junit.Test
 class ServerDatabaseIntentDeletionSqlTest {
 
     @Test
+    fun `完整重下只接管 RECEIVED 或 legacy FAILED 并推进 generation`() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
+            connection.createDownloadIntentsTable()
+            connection.insertIntent("received", status = "RECEIVED", generation = 3L)
+            connection.insertIntent(
+                "legacy",
+                status = "FAILED",
+                generation = 6L,
+                failureDetail = "legacy",
+            )
+            connection.insertIntent(
+                "ordinary",
+                status = "FAILED",
+                generation = 8L,
+                failureDetail = "ordinary",
+            )
+
+            assertEquals(1, connection.supersedeForCompleteRequest("received", "legacy"))
+            assertEquals(1, connection.supersedeForCompleteRequest("legacy", "legacy"))
+            assertEquals(0, connection.supersedeForCompleteRequest("ordinary", "legacy"))
+            assertEquals(IntentState("RECEIVED", 4L), connection.intentState("received"))
+            assertEquals(IntentState("RECEIVED", 7L), connection.intentState("legacy"))
+            assertEquals(IntentState("FAILED", 8L), connection.intentState("ordinary"))
+        }
+    }
+
+    @Test
     fun `FAILED intent 可按 expected generation 进入删除且旧代次被拒绝`() {
         DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
             connection.createDownloadIntentsTable()
@@ -31,6 +58,10 @@ class ServerDatabaseIntentDeletionSqlTest {
                 """
                 CREATE TABLE downloadIntents (
                     itemId TEXT NOT NULL PRIMARY KEY,
+                    name TEXT NOT NULL DEFAULT '',
+                    albumName TEXT,
+                    artist TEXT,
+                    trackIndex INTEGER NOT NULL DEFAULT 0,
                     status TEXT NOT NULL,
                     failureReason TEXT,
                     failureDetail TEXT,
@@ -46,20 +77,42 @@ class ServerDatabaseIntentDeletionSqlTest {
         itemId: String,
         status: String,
         generation: Long,
+        failureDetail: String? = null,
     ) {
         prepareStatement(
                 """
-                INSERT INTO downloadIntents(itemId, status, taskGeneration)
-                VALUES (?, ?, ?)
+                INSERT INTO downloadIntents(itemId, status, failureDetail, taskGeneration)
+                VALUES (?, ?, ?, ?)
                 """
             )
             .use { statement ->
                 statement.setString(1, itemId)
                 statement.setString(2, status)
-                statement.setLong(3, generation)
+                statement.setString(3, failureDetail)
+                statement.setLong(4, generation)
                 statement.executeUpdate()
             }
     }
+
+    private fun Connection.supersedeForCompleteRequest(
+        itemId: String,
+        legacyFailureDetail: String,
+    ): Int =
+        prepareStatement(
+                bindNamedParameters(
+                    ServerDatabaseDao.SUPERSEDE_DOWNLOAD_INTENT_FOR_COMPLETE_REQUEST_SQL,
+                    mapOf(
+                        "name" to "retry",
+                        "albumName" to "Retry",
+                        "artist" to "Provenance",
+                        "trackIndex" to 1,
+                        "updatedAt" to 100L,
+                        "itemId" to itemId,
+                        "legacyFailureDetail" to legacyFailureDetail,
+                    ),
+                )
+            )
+            .use { statement -> statement.executeUpdate() }
 
     private fun Connection.markIntentDeletion(
         itemId: String,

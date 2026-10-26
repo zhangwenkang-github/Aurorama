@@ -381,19 +381,25 @@ private constructor(
                             }
                             check(sidecar.putAll(placeholders)) { "下载意图 sidecar 持久化失败" }
                             database.saveDownloadIntents(
-                                requests.map { request ->
-                                    DownloadIntentDto(
-                                        itemId = request.itemId,
-                                        name = request.name,
-                                        albumName = request.albumName,
-                                        artist = request.artist,
-                                        trackIndex = request.trackIndex,
-                                        status = DownloadIntentStatus.RECEIVED.name,
-                                        createdAt = now,
-                                        updatedAt = now,
-                                        taskGeneration = 0L,
-                                    )
-                                }
+                                intents =
+                                    requests.map { request ->
+                                        DownloadIntentDto(
+                                            itemId = request.itemId,
+                                            name = request.name,
+                                            albumName = request.albumName,
+                                            artist = request.artist,
+                                            trackIndex = request.trackIndex,
+                                            status = DownloadIntentStatus.RECEIVED.name,
+                                            createdAt = now,
+                                            updatedAt = now,
+                                            taskGeneration = 0L,
+                                        )
+                                    },
+                                supersedableItemIds =
+                                    requests
+                                        .filter { it.canonicalIdentity.hasCompleteNamespace }
+                                        .mapTo(mutableSetOf()) { it.itemId },
+                                legacyFailureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
                             )
                         }
                 }
@@ -851,14 +857,8 @@ private constructor(
                 it.sourceId.isNullOrBlank() &&
                 it.itemId.toUuidOrNull() != null
         }
-        val incompletePendingItemIds =
-            pendingRecords
-                .filter {
-                    FrozenDownloadOrigin(it.serverId, it.userId).toJellyfinOriginOrNull() == null
-                }
-                .mapTo(mutableSetOf()) { it.itemId }
         val resolvablePendingRecords = pendingRecords.filterNot {
-            it.itemId in incompletePendingItemIds
+            FrozenDownloadOrigin(it.serverId, it.userId).toJellyfinOriginOrNull() == null
         }
         val resolvablePendingItemIds = resolvablePendingRecords.mapTo(mutableSetOf()) { it.itemId }
         resolvablePendingRecords.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
@@ -906,7 +906,9 @@ private constructor(
                     .filter {
                         it.kind == DownloadMediaKind.MUSIC &&
                             it.sourceId.isNullOrBlank() &&
-                            it.itemId.toUuidOrNull() != null
+                            it.itemId.toUuidOrNull() != null &&
+                            FrozenDownloadOrigin(it.serverId, it.userId).toJellyfinOriginOrNull() !=
+                                null
                     }
                     .mapTo(mutableSetOf()) { it.itemId }
             }

@@ -113,9 +113,42 @@ interface ServerDatabaseDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDownloadIntent(intent: DownloadIntentDto): Long
 
+    @Query(SUPERSEDE_DOWNLOAD_INTENT_FOR_COMPLETE_REQUEST_SQL)
+    suspend fun supersedeDownloadIntentForCompleteRequest(
+        itemId: UUID,
+        name: String,
+        albumName: String?,
+        artist: String?,
+        trackIndex: Int,
+        updatedAt: Long,
+        legacyFailureDetail: String,
+    ): Int
+
     @Transaction
-    suspend fun saveDownloadIntents(intents: List<DownloadIntentDto>) {
-        intents.forEach { insertDownloadIntent(it) }
+    suspend fun saveDownloadIntents(
+        intents: List<DownloadIntentDto>,
+        supersedableItemIds: Set<UUID>,
+        legacyFailureDetail: String,
+    ) {
+        intents.forEach { intent ->
+            val superseded =
+                if (intent.itemId in supersedableItemIds) {
+                    supersedeDownloadIntentForCompleteRequest(
+                        itemId = intent.itemId,
+                        name = intent.name,
+                        albumName = intent.albumName,
+                        artist = intent.artist,
+                        trackIndex = intent.trackIndex,
+                        updatedAt = intent.updatedAt,
+                        legacyFailureDetail = legacyFailureDetail,
+                    )
+                } else {
+                    0
+                }
+            if (superseded <= 0) {
+                insertDownloadIntent(intent)
+            }
+        }
     }
 
     @Query("DELETE FROM downloadIntents WHERE itemId = :itemId")
@@ -770,6 +803,19 @@ interface ServerDatabaseDao {
     suspend fun getLocalMediaCounts(): List<LocalMediaCountRow>
 
     companion object {
+        internal const val SUPERSEDE_DOWNLOAD_INTENT_FOR_COMPLETE_REQUEST_SQL =
+            """
+            UPDATE downloadIntents
+            SET name = :name, albumName = :albumName, artist = :artist, trackIndex = :trackIndex,
+                status = 'RECEIVED', failureReason = NULL, failureDetail = NULL,
+                taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
+            WHERE itemId = :itemId
+              AND (
+                status = 'RECEIVED'
+                OR (status = 'FAILED' AND failureDetail = :legacyFailureDetail)
+              )
+            """
+
         internal const val MARK_DOWNLOAD_INTENT_DELETION_SQL =
             """
             UPDATE downloadIntents

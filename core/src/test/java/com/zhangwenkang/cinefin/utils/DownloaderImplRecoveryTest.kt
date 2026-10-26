@@ -2225,6 +2225,140 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `partial namespace 首次失败后完整重下可替换旧占位且删除新源不复活失败`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("53535353-5353-4353-8353-535353535353")
+            fixture.dao.seedDownloadIntent(itemId)
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = null,
+                    serverId = SERVER_ID,
+                    displayName = "partial retry",
+                )
+            )
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                fixture.dao.downloadIntent(itemId)?.failureDetail,
+            )
+
+            fixture.prepareMusicOrigin(itemId, "partial retry")
+            val receipt =
+                fixture.downloader.receiveMusicBatch(
+                    listOf(
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "partial retry",
+                            albumName = "Retry",
+                            artist = "Provenance",
+                            trackIndex = 1,
+                            serverId = SERVER_ID,
+                            userId = USER_ID.toString(),
+                        )
+                    )
+                )
+            assertEquals(1, receipt.acceptedRequests.size)
+
+            assertTrue(
+                "完整重下必须替换 partial 占位并解析新 source：" +
+                    "intent=${fixture.dao.downloadIntent(itemId)} " +
+                    "sidecar=${fixture.downloader.mediaSidecar().allRecords()}",
+                fixture.dao.awaitInsertedSourceCount(1),
+            )
+            fixture.downloader.runQueue()
+            assertEquals(listOf(SOURCE_ID), fixture.dao.sourceIds())
+            assertTrue(fixture.transfer.requestSnapshot().isNotEmpty())
+            assertTrue(
+                withTimeoutOrNull(5_000L) {
+                    while (fixture.dao.downloadIntent(itemId) != null) delay(10L)
+                    true
+                } == true
+            )
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+            assertTrue(fixture.dao.sourceById(SOURCE_ID) == null)
+            assertEquals(null, fixture.dao.downloadIntent(itemId))
+            assertTrue(
+                "删除新 source 后旧 partial 不得残留：" + fixture.downloader.mediaSidecar().allRecords(),
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
+                    it.itemId == itemId.toString()
+                },
+            )
+            assertTrue(fixture.downloader.refreshDownloadTasks().none { it.itemId == itemId })
+
+            fixture.downloader.recoverOnStartup()
+            fixture.downloader.runQueue()
+            assertEquals(null, fixture.dao.downloadIntent(itemId))
+            assertTrue(fixture.downloader.refreshDownloadTasks().none { it.itemId == itemId })
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `missing sidecar 完整重下显式接管旧失败且删除新源不复活 ghost`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("54545454-5454-4454-8454-545454545454")
+            fixture.dao.seedDownloadIntent(itemId)
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                fixture.dao.downloadIntent(itemId)?.failureDetail,
+            )
+
+            fixture.prepareMusicOrigin(itemId, "missing retry")
+            val receipt =
+                fixture.downloader.receiveMusicBatch(
+                    listOf(
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "missing retry",
+                            albumName = "Retry",
+                            artist = "Provenance",
+                            trackIndex = 2,
+                            serverId = SERVER_ID,
+                            userId = USER_ID.toString(),
+                        )
+                    )
+                )
+            assertEquals(1, receipt.acceptedRequests.size)
+            assertTrue(fixture.dao.awaitInsertedSourceCount(1))
+            fixture.downloader.runQueue()
+            assertEquals(listOf(SOURCE_ID), fixture.dao.sourceIds())
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+            assertTrue(fixture.dao.sourceById(SOURCE_ID) == null)
+            assertTrue(
+                "完整重下必须显式 supersede 旧失败：" +
+                    "intent=${fixture.dao.downloadIntent(itemId)} " +
+                    "sidecar=${fixture.downloader.mediaSidecar().allRecords()}",
+                withTimeoutOrNull(5_000L) {
+                    while (fixture.dao.downloadIntent(itemId) != null) delay(10L)
+                    true
+                } == true,
+            )
+            assertTrue(
+                "删除新 source 后旧失败不得复活：" + fixture.downloader.refreshDownloadTasks(),
+                fixture.downloader.refreshDownloadTasks().none { it.itemId == itemId },
+            )
+
+            fixture.downloader.recoverOnStartup()
+            fixture.downloader.runQueue()
+            assertEquals(null, fixture.dao.downloadIntent(itemId))
+            assertTrue(fixture.downloader.refreshDownloadTasks().none { it.itemId == itemId })
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `失败 legacy intent 不得因同 item 的无关完整 source 静默消失`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -3844,20 +3978,19 @@ class DownloaderImplRecoveryTest {
         fun seedPendingSource(itemId: UUID, sourceId: String): FindroidSourceDto =
             sourceDto(itemId = itemId, sourceId = sourceId, index = 0).also(dao::putSource)
 
-        suspend fun preparePendingMusicOrigin(): UUID {
-            val itemId = UUID.fromString("abababab-abab-4bab-8bab-abababababab")
+        fun prepareMusicOrigin(itemId: UUID, name: String) {
             val origin = JellyfinOrigin(SERVER_ID, USER_ID)
             repository.putOriginItem(
                 itemId,
                 origin,
-                movie().copy(id = itemId, name = "round-four pending", kind = "AUDIO"),
+                movie().copy(id = itemId, name = name, kind = "AUDIO"),
             )
             repository.putOriginMediaSource(
                 itemId,
                 origin,
                 FindroidSource(
                     id = SOURCE_ID,
-                    name = "round-four pending",
+                    name = name,
                     type = FindroidSourceType.REMOTE,
                     path = MEDIA_URL,
                     size = MEDIA_BYTES.size.toLong(),
@@ -3865,6 +3998,11 @@ class DownloaderImplRecoveryTest {
                     container = "mp3",
                 ),
             )
+        }
+
+        suspend fun preparePendingMusicOrigin(): UUID {
+            val itemId = UUID.fromString("abababab-abab-4bab-8bab-abababababab")
+            prepareMusicOrigin(itemId, "round-four pending")
             val receipt =
                 downloader.receiveMusicBatch(
                     listOf(
@@ -4751,8 +4889,26 @@ class DownloaderImplRecoveryTest {
                                 .sortedBy { it.createdAt }
                         "saveDownloadIntents" -> {
                             @Suppress("UNCHECKED_CAST")
-                            (args[0] as List<DownloadIntentDto>).forEach { intent ->
-                                downloadIntents.putIfAbsent(intent.itemId, intent)
+                            val intents = args[0] as List<DownloadIntentDto>
+                            val supersedableItemIds =
+                                (args[1] as Set<*>).mapNotNullTo(mutableSetOf()) { it as? UUID }
+                            val legacyFailureDetail = args[2] as String
+                            intents.forEach { intent ->
+                                val current = downloadIntents[intent.itemId]
+                                if (
+                                    intent.itemId in supersedableItemIds &&
+                                        (current?.status == DownloadIntentStatus.RECEIVED.name ||
+                                            (current?.status == DownloadIntentStatus.FAILED.name &&
+                                                current.failureDetail == legacyFailureDetail))
+                                ) {
+                                    downloadIntents[intent.itemId] =
+                                        intent.copy(
+                                            createdAt = current.createdAt,
+                                            taskGeneration = current.taskGeneration + 1L,
+                                        )
+                                } else {
+                                    downloadIntents.putIfAbsent(intent.itemId, intent)
+                                }
                             }
                             Unit
                         }
