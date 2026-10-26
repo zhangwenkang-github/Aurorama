@@ -1209,11 +1209,14 @@ class DownloaderImplRecoveryTest {
                     .mapTo(mutableSetOf()) { it.serverId to it.userId },
             )
 
+            fixture.downloader.recoverOnStartup()
             assertTrue(fixture.repository.awaitItemLookup())
             fixture.preferences.currentServer = "server-c"
             fixture.repository.userId = UUID.fromString("33333333-3333-4333-8333-333333333333")
             fixture.preferences.currentServerReads = 0
             fixture.repository.userIdReads = 0
+            fixture.repository.baseUrlReads = 0
+            fixture.repository.accessTokenReads = 0
             fixture.repository.releaseItemLookup()
 
             assertTrue(
@@ -1236,6 +1239,17 @@ class DownloaderImplRecoveryTest {
                         checkNotNull(record.sourceId) to (record.serverId to record.userId)
                     },
             )
+            fixture.downloader.runQueue()
+            assertEquals(
+                mapOf(
+                    "https://server-a.test/song" to ("https://server-a.test" to "token-server-a"),
+                    "https://server-b.test/song" to ("https://server-b.test" to "token-server-b"),
+                ),
+                fixture.transfer
+                    .requestSnapshot()
+                    .filter { it.url.startsWith("https://server-") }
+                    .associate { request -> request.url to (request.baseUrl to request.token) },
+            )
             assertEquals(
                 "sidecar 恢复不得读取 current server",
                 0,
@@ -1246,6 +1260,133 @@ class DownloaderImplRecoveryTest {
                 0,
                 fixture.repository.userIdReads,
             )
+            assertEquals(0, fixture.repository.baseUrlReads)
+            assertEquals(0, fixture.repository.accessTokenReads)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `同 item source 双完整 origin 歧义时不得启动 transfer`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("14141414-1414-4414-8414-141414141414")
+            val sourceId = "source-ambiguous"
+            val originA =
+                JellyfinOrigin("server-a", UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"))
+            val originB =
+                JellyfinOrigin("server-b", UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"))
+            fixture.repository.putOriginItem(
+                itemId,
+                originA,
+                fixture.movie().copy(id = itemId, name = "A", kind = "AUDIO"),
+            )
+            fixture.repository.putOriginItem(
+                itemId,
+                originB,
+                fixture.movie().copy(id = itemId, name = "B", kind = "AUDIO"),
+            )
+            fixture.repository.putOriginMediaSource(
+                itemId,
+                originA,
+                FindroidSource(
+                    id = sourceId,
+                    name = "A",
+                    type = FindroidSourceType.REMOTE,
+                    path = "https://server-a.test/ambiguous",
+                    size = MEDIA_BYTES.size.toLong(),
+                    mediaStreams = fixture.repository.mediaStreams,
+                    container = "mp3",
+                ),
+            )
+            fixture.repository.putOriginMediaSource(
+                itemId,
+                originB,
+                FindroidSource(
+                    id = sourceId,
+                    name = "B",
+                    type = FindroidSourceType.REMOTE,
+                    path = "https://server-b.test/ambiguous",
+                    size = MEDIA_BYTES.size.toLong(),
+                    mediaStreams = fixture.repository.mediaStreams,
+                    container = "mp3",
+                ),
+            )
+
+            val receipt =
+                fixture.downloader.receiveMusicBatch(
+                    listOf(
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "A",
+                            albumName = null,
+                            artist = null,
+                            trackIndex = 1,
+                            serverId = originA.serverId,
+                            userId = originA.userId.toString(),
+                            sourceId = sourceId,
+                        ),
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "B",
+                            albumName = null,
+                            artist = null,
+                            trackIndex = 1,
+                            serverId = originB.serverId,
+                            userId = originB.userId.toString(),
+                            sourceId = sourceId,
+                        ),
+                    )
+                )
+            assertEquals(2, receipt.acceptedRequests.size)
+            assertEquals(
+                setOf(originA.serverId, originB.serverId),
+                fixture.downloader
+                    .mediaSidecar()
+                    .allRecords()
+                    .filter { it.itemId == itemId.toString() && it.sourceId == sourceId }
+                    .mapTo(mutableSetOf()) { it.serverId },
+            )
+            fixture.dao.putSource(
+                FindroidSourceDto(
+                    id = sourceId,
+                    itemId = itemId,
+                    name = "ambiguous",
+                    type = FindroidSourceType.LOCAL,
+                    path = File(fixture.downloads, "$itemId.$sourceId.1.download").path,
+                    taskStatus = DownloadTaskStatus.PENDING.name,
+                    updatedAt = 1L,
+                    downloadedBytes = 0L,
+                    totalBytes = MEDIA_BYTES.size.toLong(),
+                    engineVersion = DownloaderImpl.ENGINE_VERSION,
+                    container = "mp3",
+                    taskGeneration = 1L,
+                )
+            )
+            fixture.preferences.currentServer = "server-c"
+            fixture.repository.userId = UUID.fromString("33333333-3333-4333-8333-333333333333")
+            fixture.preferences.currentServerReads = 0
+            fixture.repository.userIdReads = 0
+            fixture.repository.baseUrlReads = 0
+            fixture.repository.accessTokenReads = 0
+
+            fixture.downloader.recoverOnStartup()
+            fixture.downloader.runQueue()
+
+            assertTrue(
+                "身份歧义不得启动任何 transfer：${fixture.transfer.requestSnapshot()}",
+                fixture.transfer.requestSnapshot().isEmpty(),
+            )
+            assertEquals(
+                "身份歧义必须可归因为服务器侧失败",
+                DownloadFailureReason.SERVER_ERROR.name,
+                fixture.dao.sourceById(sourceId)?.failureReason,
+            )
+            assertEquals(0, fixture.preferences.currentServerReads)
+            assertEquals(0, fixture.repository.userIdReads)
+            assertEquals(0, fixture.repository.baseUrlReads)
+            assertEquals(0, fixture.repository.accessTokenReads)
         } finally {
             fixture.close()
         }
@@ -1471,7 +1612,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `跨 namespace 复用同一 sourceId 时必须失败关闭而不是伪装已入队`() = runBlocking {
+    fun `跨 namespace 复用同一 sourceId 的生产 receipt 保留先到项且另一意图可重试`() = runBlocking {
         val fixture = Fixture()
         try {
             val itemId = UUID.fromString("13131313-1313-4313-8313-131313131313")
@@ -1501,33 +1642,169 @@ class DownloaderImplRecoveryTest {
             )
             fixture.repository.putOriginMediaSource(itemId, originA, sharedSource)
             fixture.repository.putOriginMediaSource(itemId, originB, sharedSource)
-            val sidecar = fixture.downloader.mediaSidecar()
-            sidecar.put(
-                DownloadMediaRecord(
-                    itemId = itemId.toString(),
-                    kind = DownloadMediaKind.MUSIC,
-                    serverId = originA.serverId,
-                    userId = originA.userId.toString(),
+            fixture.repository.blockNextItemLookup()
+            val receipt =
+                fixture.downloader.receiveMusicBatch(
+                    listOf(
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "A",
+                            albumName = null,
+                            artist = null,
+                            trackIndex = 1,
+                            serverId = originA.serverId,
+                            userId = originA.userId.toString(),
+                        ),
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "B",
+                            albumName = null,
+                            artist = null,
+                            trackIndex = 1,
+                            serverId = originB.serverId,
+                            userId = originB.userId.toString(),
+                        ),
+                    )
                 )
+            assertEquals(
+                "acceptedRequests 表示两条持久意图已受理，不代表两条 source 都已可见",
+                2,
+                receipt.acceptedRequests.size,
             )
-            sidecar.put(
-                DownloadMediaRecord(
-                    itemId = itemId.toString(),
-                    kind = DownloadMediaKind.MUSIC,
-                    serverId = originB.serverId,
-                    userId = originB.userId.toString(),
-                )
-            )
-
             fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.repository.awaitItemLookup())
+            fixture.repository.releaseItemLookup()
             assertTrue(fixture.dao.awaitInsertedSourceCount(1))
             delay(100)
 
             assertEquals(listOf("shared-source-id"), fixture.dao.sourceIds())
+            val sidecar = fixture.downloader.mediaSidecar()
             assertEquals(
                 "同一 sourceId 只能属于一个 namespace，另一 key 必须保持可重试",
                 1,
                 sidecar.allRecords().count {
+                    it.itemId == itemId.toString() && it.sourceId.isNullOrBlank()
+                },
+            )
+            val retained =
+                sidecar.allRecords().single {
+                    it.itemId == itemId.toString() && !it.sourceId.isNullOrBlank()
+                }
+            val retainedServer = checkNotNull(retained.serverId)
+            fixture.preferences.currentServer = "server-c"
+            fixture.repository.userId = UUID.fromString("33333333-3333-4333-8333-333333333333")
+            fixture.preferences.currentServerReads = 0
+            fixture.repository.userIdReads = 0
+            fixture.repository.baseUrlReads = 0
+            fixture.repository.accessTokenReads = 0
+
+            fixture.downloader.runQueue()
+
+            assertEquals(
+                listOf(
+                    "https://shared.test/song" to
+                        ("https://$retainedServer.test" to "token-$retainedServer")
+                ),
+                fixture.transfer
+                    .requestSnapshot()
+                    .filter { it.url == "https://shared.test/song" }
+                    .map { request -> request.url to (request.baseUrl to request.token) },
+            )
+            assertEquals(0, fixture.preferences.currentServerReads)
+            assertEquals(0, fixture.repository.userIdReads)
+            assertEquals(0, fixture.repository.baseUrlReads)
+            assertEquals(0, fixture.repository.accessTokenReads)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `sidecar 替换后 Room 插入失败必须补偿 pending 且重启可完成`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("15151515-1515-4515-8515-151515151515")
+            val origin =
+                JellyfinOrigin("server-a", UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"))
+            fixture.repository.putOriginItem(
+                itemId,
+                origin,
+                fixture.movie().copy(id = itemId, name = "insert-fail", kind = "AUDIO"),
+            )
+            fixture.repository.putOriginMediaSource(
+                itemId,
+                origin,
+                FindroidSource(
+                    id = "source-insert-fail",
+                    name = "insert-fail",
+                    type = FindroidSourceType.REMOTE,
+                    path = "https://server-a.test/insert-fail",
+                    size = MEDIA_BYTES.size.toLong(),
+                    mediaStreams = fixture.repository.mediaStreams,
+                    container = "mp3",
+                ),
+            )
+            fixture.repository.blockNextItemLookup()
+            fixture.dao.failSourceInsertions(2)
+            val receipt =
+                fixture.downloader.receiveMusicBatch(
+                    listOf(
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "insert-fail",
+                            albumName = null,
+                            artist = null,
+                            trackIndex = 1,
+                            serverId = origin.serverId,
+                            userId = origin.userId.toString(),
+                        )
+                    )
+                )
+            assertEquals(1, receipt.acceptedRequests.size)
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.repository.awaitItemLookup())
+            fixture.repository.releaseItemLookup()
+            assertTrue(fixture.dao.awaitSourceInsertAttempts(2))
+            assertTrue(
+                "Room 插入失败后不得出现可见 source：${fixture.dao.sourceIds()}",
+                fixture.dao.sourceIds().isEmpty(),
+            )
+            val sidecar = fixture.downloader.mediaSidecar()
+            assertTrue(
+                "Room 插入失败后必须补偿为可重试 pending",
+                withTimeoutOrNull(2_000L) {
+                    while (
+                        sidecar.allRecords().none {
+                            it.itemId == itemId.toString() &&
+                                it.serverId == origin.serverId &&
+                                it.userId == origin.userId.toString() &&
+                                it.sourceId.isNullOrBlank()
+                        }
+                    ) {
+                        delay(10L)
+                    }
+                    true
+                } ?: false,
+            )
+            assertEquals(
+                "失败状态不得同时保留伪完整 sourceId",
+                0,
+                sidecar.allRecords().count {
+                    it.itemId == itemId.toString() && !it.sourceId.isNullOrBlank()
+                },
+            )
+
+            fixture.newDownloader().recoverOnStartup()
+
+            assertTrue(
+                "解除 Room 失败后重启恢复必须再次完成：${fixture.dao.sourceIds()}",
+                fixture.dao.awaitInsertedSourceCount(1),
+            )
+            assertEquals(listOf("source-insert-fail"), fixture.dao.sourceIds())
+            assertTrue(
+                "成功插入 source 后 pending 必须被替换",
+                sidecar.allRecords().none {
                     it.itemId == itemId.toString() && it.sourceId.isNullOrBlank()
                 },
             )
@@ -2856,6 +3133,8 @@ class DownloaderImplRecoveryTest {
         private var blockPendingSourcesSnapshot = false
         private val insertedSources = mutableListOf<FindroidSourceDto>()
         val sourceEvents = mutableListOf<String>()
+        var sourceInsertAttempts = 0
+        private var sourceInsertFailuresRemaining = 0
         private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
         private val seasonIdsByShow = linkedMapOf<UUID, MutableSet<UUID>>()
         var snapshotWrites = 0
@@ -2941,6 +3220,11 @@ class DownloaderImplRecoveryTest {
                             sources[args[0] as String]
                         }
                         "insertSource" -> {
+                            sourceInsertAttempts += 1
+                            if (sourceInsertFailuresRemaining > 0) {
+                                sourceInsertFailuresRemaining -= 1
+                                error("模拟 Room insertSource 失败")
+                            }
                             val inserted = args[0] as FindroidSourceDto
                             insertedSources += inserted
                             sources[inserted.id] = inserted
@@ -3261,6 +3545,16 @@ class DownloaderImplRecoveryTest {
 
         fun sourceInsertCount(sourceId: String): Int = insertedSources.count { it.id == sourceId }
 
+        fun failSourceInsertions(count: Int) {
+            sourceInsertFailuresRemaining = count
+        }
+
+        suspend fun awaitSourceInsertAttempts(count: Int): Boolean =
+            withTimeoutOrNull(5_000L) {
+                while (sourceInsertAttempts < count) delay(10L)
+                true
+            } ?: false
+
         suspend fun awaitInsertedSourceCount(count: Int): Boolean =
             withTimeoutOrNull(5_000L) {
                 while (insertedSources.size < count) delay(10L)
@@ -3497,6 +3791,8 @@ class DownloaderImplRecoveryTest {
         var trickplayReads = 0
         var userId = USER_ID
         var userIdReads = 0
+        var baseUrlReads = 0
+        var accessTokenReads = 0
         var showReads = 0
         var seasonReads = 0
         val mediaSourcesByItemId = linkedMapOf<UUID, FindroidSource>()
@@ -3659,8 +3955,14 @@ class DownloaderImplRecoveryTest {
                             trickplayReads += 1
                             byteArrayOf(1)
                         }
-                        "getBaseUrl" -> "https://example.test"
-                        "getAccessToken" -> "token"
+                        "getBaseUrl" -> {
+                            baseUrlReads += 1
+                            "https://example.test"
+                        }
+                        "getAccessToken" -> {
+                            accessTokenReads += 1
+                            "token"
+                        }
                         "getUserId" -> {
                             userIdReads += 1
                             userId
@@ -3721,6 +4023,7 @@ class DownloaderImplRecoveryTest {
         var externalDownloads = 0
         var sourceIdForPath: (String) -> String? = { null }
         private val started = CopyOnWriteArrayList<String>()
+        private val requests = CopyOnWriteArrayList<DownloadTransferRequest>()
         private var held = false
         private var releaseGate = CompletableDeferred<Unit>()
 
@@ -3738,6 +4041,8 @@ class DownloaderImplRecoveryTest {
 
         fun startedSourceIds(): List<String> = started.mapNotNull { path -> sourceIdForPath(path) }
 
+        fun requestSnapshot(): List<DownloadTransferRequest> = requests.toList()
+
         suspend fun awaitStarted(count: Int): Boolean =
             withTimeoutOrNull(2_000L) {
                 while (started.size < count) delay(10L)
@@ -3745,6 +4050,7 @@ class DownloaderImplRecoveryTest {
             } ?: false
 
         override suspend fun download(request: DownloadTransferRequest): DownloadAttemptResult {
+            requests += request
             val bytes =
                 if (request.url == SUBTITLE_URL) {
                     externalDownloads += 1

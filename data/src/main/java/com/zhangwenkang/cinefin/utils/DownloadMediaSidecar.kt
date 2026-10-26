@@ -94,6 +94,28 @@ class DownloadMediaSidecar private constructor(private val file: File) {
         records.fold(existing) { current, record -> upsert(current, record) }
     }
 
+    /**
+     * Room source 插入失败后的补偿：把已冻结 sourceId 的记录原子替换回同一 namespace 的 pending。
+     *
+     * 只移除本次替换对应的 sourceId；同条目的其他已解析来源保持不变。
+     */
+    fun replaceResolvedWithPending(
+        pending: DownloadMediaRecord,
+        failedSourceId: String,
+    ): Boolean {
+        require(pending.sourceId.isNullOrBlank())
+        require(failedSourceId.isNotBlank())
+        return updateResult { records ->
+            records.filterNot { existing ->
+                existing.itemId == pending.itemId &&
+                    existing.kind == pending.kind &&
+                    existing.serverId == pending.serverId &&
+                    existing.userId == pending.userId &&
+                    existing.sourceId == failedSourceId
+            } + pending
+        }
+    }
+
     private fun upsert(
         records: List<DownloadMediaRecord>,
         record: DownloadMediaRecord,

@@ -99,6 +99,14 @@ private data class PersistedDownloadIdentity(
     val origin: FrozenDownloadOrigin,
 )
 
+private sealed interface PersistedOriginResolution {
+    data object MissingLegacy : PersistedOriginResolution
+
+    data class UniqueComplete(val identity: PersistedDownloadIdentity) : PersistedOriginResolution
+
+    data class Ambiguous(val matchingRecordCount: Int) : PersistedOriginResolution
+}
+
 internal data class DownloadTransferRequest(
     val url: String,
     val token: String?,
@@ -524,30 +532,14 @@ private constructor(
             } else {
                 DownloadMediaKind.VIDEO
             }
-        val proven =
-            sidecar
-                .allRecords()
-                .asSequence()
-                .filter { record ->
-                    record.kind == expectedKind &&
-                        record.itemId == item.id.toString() &&
-                        record.sourceId == sourceId
-                }
-                .mapNotNull { record ->
-                    record.provenance()?.let { provenance ->
-                        if (provenance.itemId != item.id || provenance.mediaSourceId != sourceId) {
-                            null
-                        } else {
-                            FrozenDownloadOrigin(
-                                serverId = provenance.serverId,
-                                userId = provenance.userId.toString(),
-                            )
-                        }
-                    }
-                }
-                .distinct()
-                .toList()
-        return proven.singleOrNull()
+        return when (val resolution = persistedOriginForSource(item.id, sourceId)) {
+            PersistedOriginResolution.MissingLegacy -> null
+            is PersistedOriginResolution.UniqueComplete ->
+                resolution.identity.origin.takeIf { resolution.identity.kind == expectedKind }
+                    ?: error("下载 sidecar 媒体类型不匹配：${item.id}/$sourceId")
+            is PersistedOriginResolution.Ambiguous ->
+                error("下载 sidecar 来源身份歧义：${item.id}/$sourceId/" + resolution.matchingRecordCount)
+        }
     }
 
     private suspend fun enqueueItem(
@@ -630,23 +622,19 @@ private constructor(
                         } else {
                             DownloadMediaKind.VIDEO
                         }
-                    check(
-                        sidecar.put(
-                            DownloadMediaRecord(
-                                itemId = item.id.toString(),
-                                kind = mediaKind,
-                                albumName = albumName,
-                                artist = artist,
-                                trackIndex = trackIndex,
-                                serverId = origin.serverId,
-                                userId = origin.userId,
-                                sourceId = sourceId,
-                                displayName = item.name,
-                            )
+                    val sidecarRecord =
+                        DownloadMediaRecord(
+                            itemId = item.id.toString(),
+                            kind = mediaKind,
+                            albumName = albumName,
+                            artist = artist,
+                            trackIndex = trackIndex,
+                            serverId = origin.serverId,
+                            userId = origin.userId,
+                            sourceId = sourceId,
+                            displayName = item.name,
                         )
-                    ) {
-                        "下载 sidecar 持久化失败：${item.id}/$sourceId"
-                    }
+                    check(sidecar.put(sidecarRecord)) { "下载 sidecar 持久化失败：${item.id}/$sourceId" }
                     check(
                         sidecar.allRecords().any {
                             it.itemId == item.id.toString() &&
@@ -678,7 +666,23 @@ private constructor(
                             container = sourceMetadata?.container,
                             taskGeneration = taskGeneration,
                         )
-                    database.insertSource(sourceDto)
+                    try {
+                        database.insertSource(sourceDto)
+                    } catch (failure: Exception) {
+                        if (
+                            !sidecar.replaceResolvedWithPending(
+                                pending = sidecarRecord.copy(sourceId = null),
+                                failedSourceId = sourceId,
+                            )
+                        ) {
+                            failure.addSuppressed(
+                                IllegalStateException(
+                                    "Room insertSource 失败后无法补偿下载 pending：" + "${item.id}/$sourceId"
+                                )
+                            )
+                        }
+                        throw failure
+                    }
                     startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
                 }
                 notifyQueueChanged()
@@ -2470,8 +2474,13 @@ private constructor(
             lifecycleControl.withSourceOperation(source.id) {
                 val current = database.getSource(source.id) ?: error("下载来源不存在或已清理：${source.id}")
                 val persisted =
-                    persistedOriginForSource(item.id, source.id)
-                        ?: error("下载来源缺少完整持久身份：${source.id}")
+                    when (val resolution = persistedOriginForSource(item.id, source.id)) {
+                        PersistedOriginResolution.MissingLegacy ->
+                            error("下载来源缺少完整持久身份：${source.id}")
+                        is PersistedOriginResolution.UniqueComplete -> resolution.identity
+                        is PersistedOriginResolution.Ambiguous ->
+                            error("下载来源持久身份歧义：${source.id}/" + resolution.matchingRecordCount)
+                    }
                 val expectedKind =
                     if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
                         DownloadMediaKind.MUSIC
@@ -3231,7 +3240,21 @@ private constructor(
         item: FindroidItem,
         sourceId: String,
     ): FindroidSource {
-        val origin = persistedOriginForSource(item.id, sourceId)?.origin?.toJellyfinOriginOrNull()
+        val origin =
+            when (val resolution = persistedOriginForSource(item.id, sourceId)) {
+                PersistedOriginResolution.MissingLegacy -> null
+                is PersistedOriginResolution.UniqueComplete ->
+                    resolution.identity.origin.toJellyfinOriginOrNull()
+                        ?: throw DownloadHttpException(
+                            DownloadFailureReason.SERVER_ERROR,
+                            "下载 sidecar 来源身份不完整：${item.id}/$sourceId",
+                        )
+                is PersistedOriginResolution.Ambiguous ->
+                    throw DownloadHttpException(
+                        DownloadFailureReason.SERVER_ERROR,
+                        "下载 sidecar 来源身份歧义：${item.id}/$sourceId/" + resolution.matchingRecordCount,
+                    )
+            }
         val sources = runCatching {
             if (origin != null) {
                 originScopedRepository().getMediaSourcesForOrigin(item.id, origin)
@@ -3263,51 +3286,80 @@ private constructor(
         itemId: UUID,
         sourceId: String,
     ): JellyfinOriginCredentials {
-        val origin = persistedOriginForSource(itemId, sourceId)?.origin?.toJellyfinOriginOrNull()
-        return if (origin != null) {
-            originScopedRepository().credentialsForOrigin(origin)
-        } else {
-            JellyfinOriginCredentials(
-                baseUrl = jellyfinRepository.getBaseUrl(),
-                accessToken = jellyfinRepository.getAccessToken(),
-            )
+        return when (val resolution = persistedOriginForSource(itemId, sourceId)) {
+            PersistedOriginResolution.MissingLegacy ->
+                JellyfinOriginCredentials(
+                    baseUrl = jellyfinRepository.getBaseUrl(),
+                    accessToken = jellyfinRepository.getAccessToken(),
+                )
+            is PersistedOriginResolution.UniqueComplete -> {
+                val origin =
+                    resolution.identity.origin.toJellyfinOriginOrNull()
+                        ?: throw DownloadHttpException(
+                            DownloadFailureReason.SERVER_ERROR,
+                            "下载 sidecar 来源身份不完整：$itemId/$sourceId",
+                        )
+                originScopedRepository().credentialsForOrigin(origin)
+            }
+            is PersistedOriginResolution.Ambiguous ->
+                throw DownloadHttpException(
+                    DownloadFailureReason.SERVER_ERROR,
+                    "下载 sidecar 来源身份歧义：$itemId/$sourceId/" + resolution.matchingRecordCount,
+                )
         }
     }
 
     private fun persistedOriginForSource(
         itemId: UUID,
         sourceId: String,
-    ): PersistedDownloadIdentity? =
-        sidecar
-            .allRecords()
-            .asSequence()
-            .filter { record -> record.itemId == itemId.toString() && record.sourceId == sourceId }
-            .mapNotNull { record ->
-                record
-                    .provenance()
-                    ?.takeIf { provenance ->
-                        provenance.itemId == itemId && provenance.mediaSourceId == sourceId
-                    }
-                    ?.let { provenance ->
-                        PersistedDownloadIdentity(
-                            kind = record.kind,
-                            origin =
-                                FrozenDownloadOrigin(
-                                    serverId = provenance.serverId,
-                                    userId = provenance.userId.toString(),
-                                ),
-                        )
-                    }
-            }
-            .distinct()
-            .toList()
-            .singleOrNull()
+    ): PersistedOriginResolution {
+        val matchingRecords =
+            sidecar
+                .allRecords()
+                .asSequence()
+                .filter { record ->
+                    record.itemId == itemId.toString() && record.sourceId == sourceId
+                }
+                .toList()
+        if (matchingRecords.isEmpty()) return PersistedOriginResolution.MissingLegacy
+        val complete =
+            matchingRecords
+                .mapNotNull { record ->
+                    record
+                        .provenance()
+                        ?.takeIf { provenance ->
+                            provenance.itemId == itemId && provenance.mediaSourceId == sourceId
+                        }
+                        ?.let { provenance ->
+                            PersistedDownloadIdentity(
+                                kind = record.kind,
+                                origin =
+                                    FrozenDownloadOrigin(
+                                        serverId = provenance.serverId,
+                                        userId = provenance.userId.toString(),
+                                    ),
+                            )
+                        }
+                }
+                .distinct()
+        return complete.singleOrNull()?.let(PersistedOriginResolution::UniqueComplete)
+            ?: PersistedOriginResolution.Ambiguous(matchingRecords.size)
+    }
 
     private suspend fun findItem(
         itemId: UUID,
         sourceId: String,
     ): FindroidItem? {
-        val persisted = persistedOriginForSource(itemId, sourceId) ?: return null
+        val persisted =
+            when (val resolution = persistedOriginForSource(itemId, sourceId)) {
+                PersistedOriginResolution.MissingLegacy -> return null
+                is PersistedOriginResolution.UniqueComplete -> resolution.identity
+                is PersistedOriginResolution.Ambiguous ->
+                    throw DownloadHttpException(
+                        DownloadFailureReason.SERVER_ERROR,
+                        "下载 sidecar 来源身份歧义：$itemId/$sourceId/" + resolution.matchingRecordCount,
+                    )
+            }
         val userId = UUID.fromString(checkNotNull(persisted.origin.userId))
         val movie = runCatching { database.getMovie(itemId) }.getOrNull()
         if (movie != null) {
