@@ -17,6 +17,8 @@ data class DownloadTask(
     val downloadId: Long?,
     val status: DownloadTaskStatus,
     val failureReason: DownloadFailureReason?,
+    /** 已完成解析的意图可携带用户可见失败详情；普通取消 / source 任务保持 null。 */
+    val failureDetail: String? = null,
     val downloadedBytes: Long,
     val totalBytes: Long,
     val updatedAt: Long,

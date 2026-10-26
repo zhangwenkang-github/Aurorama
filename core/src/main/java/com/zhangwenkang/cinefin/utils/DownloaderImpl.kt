@@ -2977,6 +2977,7 @@ private constructor(
                                     DownloadTaskStatus.PENDING
                                 },
                             failureReason = intent.failureReason.toFailureReason(),
+                            failureDetail = intent.failureDetail,
                             downloadedBytes = 0L,
                             totalBytes = 0L,
                             updatedAt = intent.updatedAt,

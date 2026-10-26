@@ -1,9 +1,12 @@
 package com.zhangwenkang.cinefin.presentation.film.downloads
 
+import com.zhangwenkang.cinefin.utils.DownloadFailureReason
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,7 +43,42 @@ class DownloadRetryLabelTest {
         assertFalse(showsCompletedDownloadLabel(DownloadTaskStatus.RUNNING))
     }
 
-    private fun task(status: DownloadTaskStatus, retryCount: Int) =
+    @Test
+    fun `legacy provenance detail is visible for failed music task`() {
+        assertEquals(
+            LEGACY_PROVENANCE_UNAVAILABLE,
+            visibleFailureDetail(
+                task(
+                    status = DownloadTaskStatus.FAILED,
+                    retryCount = 0,
+                    failureReason = DownloadFailureReason.CANCELLED,
+                    failureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
+                ),
+                bookDetail = null,
+            ),
+        )
+    }
+
+    @Test
+    fun `cancelled task without detail keeps generic fallback`() {
+        assertNull(
+            visibleFailureDetail(
+                task(
+                    status = DownloadTaskStatus.FAILED,
+                    retryCount = 0,
+                    failureReason = DownloadFailureReason.CANCELLED,
+                ),
+                bookDetail = null,
+            )
+        )
+    }
+
+    private fun task(
+        status: DownloadTaskStatus,
+        retryCount: Int,
+        failureReason: DownloadFailureReason? = null,
+        failureDetail: String? = null,
+    ) =
         DownloadTask(
             itemId = UUID.randomUUID(),
             sourceId = "source",
@@ -48,10 +86,15 @@ class DownloadRetryLabelTest {
             path = "/tmp/test.download",
             downloadId = null,
             status = status,
-            failureReason = null,
+            failureReason = failureReason,
+            failureDetail = failureDetail,
             downloadedBytes = 0L,
             totalBytes = 0L,
             updatedAt = 0L,
             retryCount = retryCount,
         )
+
+    private companion object {
+        const val LEGACY_PROVENANCE_UNAVAILABLE = "下载来源不可证明，请重新下载"
+    }
 }

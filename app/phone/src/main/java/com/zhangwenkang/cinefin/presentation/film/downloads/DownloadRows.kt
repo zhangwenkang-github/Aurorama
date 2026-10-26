@@ -101,6 +101,10 @@ internal fun showsRetryLabel(task: DownloadTask?): Boolean =
 internal fun showsCompletedDownloadLabel(status: DownloadTaskStatus): Boolean =
     status == DownloadTaskStatus.COMPLETED
 
+/** 任务 / 书籍的失败详情优先级；无详情时继续走既有 failureReason 文案。 */
+internal fun visibleFailureDetail(task: DownloadTask?, bookDetail: String?): String? =
+    task?.failureDetail?.takeIf { it.isNotBlank() } ?: bookDetail?.takeIf { it.isNotBlank() }
+
 /**
  * W59 下载页排版规格（`DOWNLOAD_PLAN.md` §22）。
  *
@@ -268,7 +272,8 @@ internal fun DownloadTopLevelRow(
     val entry = container.allEntries().firstOrNull() ?: return
     val task = entry.task
     val completed = entry.status == DownloadTaskStatus.COMPLETED
-    val explanationText = taskExplanationText(task, entry.bookDetail)
+    val failureDetail = visibleFailureDetail(task, entry.bookDetail)
+    val explanationText = taskExplanationText(task, failureDetail)
     var showTechnicalDetails by remember(task?.sourceId) { mutableStateOf(false) }
     val (artworkWidth, artworkHeight) = leafArtworkSize(entry)
 
@@ -350,7 +355,7 @@ internal fun DownloadTopLevelRow(
                                 )
                             },
                         // W80b（D3）：书籍下载失败带服务端原始原因（`BookDownloadTask.error`）。
-                        failureDetail = entry.bookDetail,
+                        failureDetail = failureDetail,
                     )
                     Spacer(Modifier.width(CinefinSpacing.Space2))
                     Text(
@@ -411,7 +416,7 @@ internal fun DownloadTopLevelRow(
     if (showTechnicalDetails && task != null) {
         DownloadTechnicalDetailsDialog(
             task = task,
-            failureDetail = entry.bookDetail,
+            failureDetail = failureDetail,
             onDismiss = { showTechnicalDetails = false },
         )
     }
@@ -793,7 +798,10 @@ internal fun DownloadLeafCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                DownloadTaskExplanationLine(task = task, failureDetail = entry.bookDetail)
+                DownloadTaskExplanationLine(
+                    task = task,
+                    failureDetail = visibleFailureDetail(task, entry.bookDetail),
+                )
                 if (task != null && task.isActive) {
                     Spacer(Modifier.height(CinefinSpacing.Space2))
                     DownloadProgressBar(

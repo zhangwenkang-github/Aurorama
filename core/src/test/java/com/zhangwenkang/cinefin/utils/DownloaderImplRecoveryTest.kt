@@ -1963,6 +1963,10 @@ class DownloaderImplRecoveryTest {
             val task = fixture.downloader.refreshDownloadTasks().single { it.itemId == itemId }
             assertEquals(DownloadTaskStatus.FAILED, task.status)
             assertEquals(DownloadFailureReason.CANCELLED, task.failureReason)
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                task.failureDetail,
+            )
             assertEquals(0, fixture.preferences.currentServerReads)
             assertEquals(0, fixture.repository.userIdReads)
 
