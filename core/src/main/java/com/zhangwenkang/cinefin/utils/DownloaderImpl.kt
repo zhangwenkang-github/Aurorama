@@ -830,7 +830,9 @@ private constructor(
                 is DownloadMediaReadResult.Complete -> snapshot.records
                 is DownloadMediaReadResult.Unreadable -> {
                     Timber.w(snapshot.error, "下载 sidecar 不可读，保留 pending 等待重试")
-                    failReceivedIntentsWithUnavailableProvenance()
+                    if (failReceivedIntentsWithUnavailableProvenance() > 0) {
+                        notifyQueueChanged()
+                    }
                     return@withLock
                 }
                 is DownloadMediaReadResult.Corrupt -> {
@@ -838,7 +840,9 @@ private constructor(
                         "下载 sidecar 损坏，保留 pending 等待修复：%s",
                         snapshot.invalidLineNumbers.joinToString(),
                     )
-                    failReceivedIntentsWithUnavailableProvenance()
+                    if (failReceivedIntentsWithUnavailableProvenance() > 0) {
+                        notifyQueueChanged()
+                    }
                     return@withLock
                 }
             }
@@ -847,8 +851,17 @@ private constructor(
                 it.sourceId.isNullOrBlank() &&
                 it.itemId.toUuidOrNull() != null
         }
-        val pendingItemIds = pendingRecords.mapTo(mutableSetOf()) { it.itemId }
-        pendingRecords.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
+        val incompletePendingItemIds =
+            pendingRecords
+                .filter {
+                    FrozenDownloadOrigin(it.serverId, it.userId).toJellyfinOriginOrNull() == null
+                }
+                .mapTo(mutableSetOf()) { it.itemId }
+        val resolvablePendingRecords = pendingRecords.filterNot {
+            it.itemId in incompletePendingItemIds
+        }
+        val resolvablePendingItemIds = resolvablePendingRecords.mapTo(mutableSetOf()) { it.itemId }
+        resolvablePendingRecords.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
             coroutineScope {
                 chunk
                     .map { record -> async { resolveSidecarIntent(record) } }
@@ -858,7 +871,7 @@ private constructor(
         val legacyPending =
             withContext(Dispatchers.IO) {
                 database.getReceivedDownloadIntents().filterNot {
-                    it.itemId.toString() in pendingItemIds
+                    it.itemId.toString() in resolvablePendingItemIds
                 }
             }
         legacyPending.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
@@ -912,15 +925,7 @@ private constructor(
                 val receivedWithoutPending =
                     intent.status == DownloadIntentStatus.RECEIVED.name &&
                         intent.itemId.toString() !in remainingPendingItemIds
-                val recoveredFailedIntent =
-                    intent.status == DownloadIntentStatus.FAILED.name &&
-                        intent.failureDetail == LEGACY_PROVENANCE_UNAVAILABLE &&
-                        intent.itemId.toString() !in remainingPendingItemIds &&
-                        database.getSources(intent.itemId).any { source ->
-                            persistedOriginForSource(intent.itemId, source.id) is
-                                PersistedOriginResolution.UniqueComplete
-                        }
-                if (receivedWithoutPending || recoveredFailedIntent) {
+                if (receivedWithoutPending) {
                     database.deleteDownloadIntentIfCurrent(
                         intent.itemId,
                         intent.taskGeneration,
@@ -935,13 +940,12 @@ private constructor(
         }
     }
 
-    private suspend fun failReceivedIntentsWithUnavailableProvenance() {
+    private suspend fun failReceivedIntentsWithUnavailableProvenance(): Int =
         withContext(Dispatchers.IO) {
-            database.getReceivedDownloadIntents().forEach { intent ->
+            database.getReceivedDownloadIntents().count { intent ->
                 resolveLegacyReceivedIntent(intent)
             }
         }
-    }
 
     private suspend fun resolveSidecarIntent(record: DownloadMediaRecord) {
         val itemId = record.itemId.toUuidOrNull() ?: return
@@ -999,8 +1003,8 @@ private constructor(
                 error("下载 sidecar 内容损坏，拒绝继续解析：行 " + snapshot.invalidLineNumbers.joinToString())
         }
 
-    private suspend fun resolveLegacyReceivedIntent(intent: DownloadIntentDto) {
-        if (!isReceivedIntentCurrent(intent)) return
+    private suspend fun resolveLegacyReceivedIntent(intent: DownloadIntentDto): Boolean {
+        if (!isReceivedIntentCurrent(intent)) return false
         val updated =
             withContext(Dispatchers.IO) {
                 database.setDownloadIntentStatusIfCurrent(
@@ -1012,9 +1016,10 @@ private constructor(
                     updatedAt = System.currentTimeMillis(),
                 )
             }
-        if (updated <= 0) return
+        if (updated <= 0) return false
         withContext(Dispatchers.IO) { cleanupUnknownSourceForLegacyIntent(intent) }
         Timber.w("legacy 下载意图来源不可证明，要求重新下载：%s", intent.itemId)
+        return true
     }
 
     private suspend fun cleanupUnknownSourceForLegacyIntent(intent: DownloadIntentDto) {
@@ -1067,37 +1072,34 @@ private constructor(
                             }
                         }
                         .distinct()
-                if (completeOrigins.size == 1) return@mapNotNull null
+                if (completeOrigins.isNotEmpty()) return@mapNotNull null
                 source to matching
             }
         if (exactIncomplete.size == 1) {
             val (source, matching) = exactIncomplete.single()
             val record = matching.singleOrNull()
             if (record != null && record.provenance() == null) {
-                val currentSource = database.getSource(source.id)
-                if (
-                    currentSource?.taskGeneration != source.taskGeneration ||
-                        currentSource.itemId != itemId ||
-                        currentSource.type != FindroidSourceType.LOCAL
-                ) {
-                    return
+                if (!deleteTaskAtGeneration(source.id, source.taskGeneration)) {
+                    Timber.w(
+                        "legacy 下载意图的未知 source 删除未确认，保留 tombstone 待重试：%s",
+                        source.id,
+                    )
                 }
-                deletePartialArtifacts(source.path)
-                database.deleteMediaStreamsBySourceId(source.id)
-                database.deleteSource(source.id)
-                sidecar.remove(record.canonicalIdentity())
                 return
             }
         }
-        val now = System.currentTimeMillis()
         exactIncomplete.forEach { (source, _) ->
-            database.setSourceTaskStatusIfCurrent(
-                source.id,
-                source.taskGeneration,
-                DownloadTaskStatus.FAILED.name,
-                DownloadFailureReason.CANCELLED.name,
-                now,
-            )
+            lifecycleControl.withSourceOperation(source.id) {
+                val current = database.getSource(source.id) ?: return@withSourceOperation
+                if (
+                    current.taskGeneration != source.taskGeneration ||
+                        current.itemId != itemId ||
+                        current.type != FindroidSourceType.LOCAL
+                ) {
+                    return@withSourceOperation
+                }
+                cancelTaskAtGeneration(source.id, current.taskGeneration)
+            }
         }
     }
 
@@ -2331,12 +2333,26 @@ private constructor(
             job?.join()
             val cleanupSucceeded =
                 lifecycleControl.withCurrentGeneration(sourceId, source.taskGeneration) {
-                    if (database.getSource(sourceId)?.taskGeneration != source.taskGeneration) {
+                    val fenced = database.getSource(sourceId)
+                    if (
+                        fenced == null ||
+                            fenced.taskGeneration != source.taskGeneration ||
+                            fenced.itemId != source.itemId ||
+                            fenced.type != source.type ||
+                            fenced.path != source.path
+                    ) {
                         return@withCurrentGeneration false
                     }
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
                     deletePartialArtifacts(source.path)
-                    val item = knownItem ?: findItem(source.itemId, source.id)
+                    val item =
+                        knownItem
+                            ?: run {
+                                if (!removeExactUnprovableSidecarForSource(source)) {
+                                    return@withCurrentGeneration false
+                                }
+                                findItem(source.itemId, source.id)
+                            }
                     if (item != null) {
                         deleteItem(
                             item,
@@ -2347,6 +2363,10 @@ private constructor(
                         if (
                             !deleteSourceCompletionArtifacts(source) ||
                                 !deletePartialSidecar(source.path) ||
+                                !removeSidecarForSource(
+                                    itemId = source.itemId,
+                                    sourceId = source.id,
+                                ) ||
                                 database.getSource(sourceId)?.taskGeneration !=
                                     source.taskGeneration
                         ) {
@@ -2354,10 +2374,6 @@ private constructor(
                         }
                         database.deleteMediaStreamsBySourceId(sourceId)
                         database.deleteSource(sourceId)
-                        removeSidecarForSource(
-                            itemId = source.itemId,
-                            sourceId = source.id,
-                        )
                     }
                     if (database.getSource(sourceId) != null) {
                         return@withCurrentGeneration false
@@ -2762,10 +2778,12 @@ private constructor(
         if (!deletePartialSidecar(source.path)) {
             error("无法删除下载断点信息：${source.path}")
         }
+        if (!removeSidecarForSource(itemId = item.id, sourceId = source.id)) {
+            error("无法删除下载来源侧车：${source.id}")
+        }
 
         database.deleteMediaStreamsBySourceId(source.id)
         database.deleteSource(source.id)
-        removeSidecarForSource(itemId = item.id, sourceId = source.id)
         if (database.getSources(item.id).isNotEmpty()) return
 
         when (item) {
@@ -3823,22 +3841,71 @@ private constructor(
     private fun itemMutationLock(itemId: UUID): Mutex =
         itemMutationLocks[(itemId.hashCode() and Int.MAX_VALUE) % itemMutationLocks.size]
 
-    private fun removeSidecarForSource(itemId: UUID, sourceId: String) {
+    private fun removeSidecarForSource(itemId: UUID, sourceId: String): Boolean =
         when (val snapshot = sidecar.allRecords()) {
-            DownloadMediaReadResult.Missing -> Unit
-            is DownloadMediaReadResult.Complete ->
-                snapshot.records
-                    .filter { it.itemId == itemId.toString() && it.sourceId == sourceId }
-                    .forEach { sidecar.remove(it.canonicalIdentity()) }
-            is DownloadMediaReadResult.Unreadable ->
-                Timber.w(snapshot.error, "删除下载来源时 sidecar 不可读，拒绝推断缺失记录")
-            is DownloadMediaReadResult.Corrupt ->
+            DownloadMediaReadResult.Missing -> true
+            is DownloadMediaReadResult.Complete -> {
+                val matching =
+                    snapshot.records.filter {
+                        it.itemId == itemId.toString() && it.sourceId == sourceId
+                    }
+                matching.all { record -> sidecar.remove(record.canonicalIdentity()) } &&
+                    sidecarMatchesNone(itemId, sourceId)
+            }
+            is DownloadMediaReadResult.Unreadable -> {
+                Timber.w(snapshot.error, "删除下载来源时 sidecar 不可读，保留 tombstone 等待重试")
+                false
+            }
+            is DownloadMediaReadResult.Corrupt -> {
                 Timber.w(
-                    "删除下载来源时 sidecar 损坏，拒绝推断缺失记录：行 %s",
+                    "删除下载来源时 sidecar 损坏，保留 tombstone 等待修复：行 %s",
                     snapshot.invalidLineNumbers.joinToString(),
                 )
+                false
+            }
         }
-    }
+
+    /**
+     * 已落到 DELETING 的 source 若没有任何可证明 provenance，允许按 item/source 精确移除这些未知记录。
+     *
+     * 只要存在一条完整记录就不能走这里；完整唯一来源继续由正常 findItem 路径处理，完整冲突仍失败关闭。
+     */
+    private fun removeExactUnprovableSidecarForSource(source: FindroidSourceDto): Boolean =
+        when (val snapshot = sidecar.allRecords()) {
+            DownloadMediaReadResult.Missing -> true
+            is DownloadMediaReadResult.Complete -> {
+                val matching =
+                    snapshot.records.filter {
+                        it.itemId == source.itemId.toString() && it.sourceId == source.id
+                    }
+                if (matching.isEmpty() || matching.any { it.provenance() != null }) {
+                    true
+                } else {
+                    matching.all { record -> sidecar.remove(record.canonicalIdentity()) } &&
+                        sidecarMatchesNone(source.itemId, source.id)
+                }
+            }
+            is DownloadMediaReadResult.Unreadable -> {
+                Timber.w(snapshot.error, "删除未知来源时 sidecar 不可读，保留 tombstone 等待重试")
+                false
+            }
+            is DownloadMediaReadResult.Corrupt -> {
+                Timber.w(
+                    "删除未知来源时 sidecar 损坏，保留 tombstone 等待修复：行 %s",
+                    snapshot.invalidLineNumbers.joinToString(),
+                )
+                false
+            }
+        }
+
+    private fun sidecarMatchesNone(itemId: UUID, sourceId: String): Boolean =
+        when (val snapshot = sidecar.allRecords()) {
+            DownloadMediaReadResult.Missing -> true
+            is DownloadMediaReadResult.Complete ->
+                snapshot.records.none { it.itemId == itemId.toString() && it.sourceId == sourceId }
+            is DownloadMediaReadResult.Unreadable,
+            is DownloadMediaReadResult.Corrupt -> false
+        }
 
     private fun deleteSourceCompletionArtifacts(source: FindroidSourceDto): Boolean {
         val parent = File(source.path).parentFile ?: return deleteCompletionArtifacts(source.path)

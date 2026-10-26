@@ -215,8 +215,8 @@ class DownloadMediaSidecar private constructor(private val file: File) {
         }
     }
 
-    fun remove(identity: DownloadCanonicalIdentity) {
-        update { records -> records.filterNot { it.canonicalIdentity() == identity } }
+    fun remove(identity: DownloadCanonicalIdentity): Boolean = updateResult { records ->
+        records.filterNot { it.canonicalIdentity() == identity }
     }
 
     /** 书籍只有一个私有 `.book` 文件；成功重下时替换该 item 的旧 BOOK 来源。 */

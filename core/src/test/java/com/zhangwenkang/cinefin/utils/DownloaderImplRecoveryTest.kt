@@ -11,6 +11,7 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.DownloadDeleteBatchDto
 import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
 import com.zhangwenkang.cinefin.models.DownloadIntentDto
+import com.zhangwenkang.cinefin.models.DownloadIntentStatus
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidImages
@@ -47,9 +48,11 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -1374,41 +1377,25 @@ class DownloaderImplRecoveryTest {
                 ),
             )
 
-            val receipt =
-                fixture.downloader.receiveMusicBatch(
-                    listOf(
-                        DownloadMusicIntentRequest(
-                            itemId = itemId,
-                            name = "A",
-                            albumName = null,
-                            artist = null,
-                            trackIndex = 1,
-                            serverId = originA.serverId,
-                            userId = originA.userId.toString(),
-                            sourceId = sourceId,
-                        ),
-                        DownloadMusicIntentRequest(
-                            itemId = itemId,
-                            name = "B",
-                            albumName = null,
-                            artist = null,
-                            trackIndex = 1,
-                            serverId = originB.serverId,
-                            userId = originB.userId.toString(),
-                            sourceId = sourceId,
-                        ),
-                    )
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = sourceId,
+                    serverId = originA.serverId,
+                    userId = originA.userId.toString(),
+                    displayName = "A",
                 )
-            assertEquals(2, receipt.acceptedRequests.size)
-            assertEquals(
-                setOf(originA.serverId, originB.serverId),
-                fixture.downloader
-                    .mediaSidecar()
-                    .allRecords()
-                    .requireComplete()
-                    .filter { it.itemId == itemId.toString() && it.sourceId == sourceId }
-                    .mapTo(mutableSetOf()) { it.serverId },
             )
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = sourceId,
+                    serverId = originB.serverId,
+                    userId = originB.userId.toString(),
+                    displayName = "B",
+                )
+            )
+            fixture.dao.seedDownloadIntent(itemId)
             fixture.dao.putSource(
                 FindroidSourceDto(
                     id = sourceId,
@@ -1432,7 +1419,12 @@ class DownloaderImplRecoveryTest {
             fixture.repository.baseUrlReads = 0
             fixture.repository.accessTokenReads = 0
 
+            val processed =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    fixture.downloader.queueChanges.first()
+                }
             fixture.downloader.recoverOnStartup()
+            withTimeout(5_000L) { processed.await() }
             fixture.downloader.runQueue()
 
             assertTrue(
@@ -2152,6 +2144,14 @@ class DownloaderImplRecoveryTest {
 
             fixture.downloader.recoverOnStartup()
             assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            withTimeout(5_000L) {
+                while (
+                    fixture.dao.sourceById("ambiguous-unknown")?.taskStatus !=
+                        DownloadTaskStatus.FAILED.name
+                ) {
+                    delay(10L)
+                }
+            }
             fixture.downloader.runQueue()
 
             assertEquals(setOf("ambiguous-unknown"), fixture.dao.sourceIds().toSet())
@@ -2172,6 +2172,291 @@ class DownloaderImplRecoveryTest {
             fixture.assertCurrentOriginReadsZero()
         } finally {
             fixture.close()
+        }
+    }
+
+    @Test
+    fun `sidecar namespace 不完整时旧 intent 收口失败且不进入队列`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("50505050-5050-4050-8050-505050505050")
+            fixture.dao.seedDownloadIntent(itemId)
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = null,
+                    serverId = SERVER_ID,
+                    displayName = "partial namespace",
+                )
+            )
+            fixture.resetCurrentOriginReads()
+
+            val processed =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    fixture.downloader.queueChanges.first()
+                }
+            fixture.downloader.recoverOnStartup()
+            withTimeout(5_000L) { processed.await() }
+            fixture.downloader.runQueue()
+
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
+            assertEquals(
+                DownloadIntentStatus.FAILED.name,
+                fixture.dao.downloadIntent(itemId)?.status,
+            )
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                fixture.dao.downloadIntent(itemId)?.failureDetail,
+            )
+            val task = fixture.downloader.refreshDownloadTasks().single { it.itemId == itemId }
+            assertEquals(DownloadTaskStatus.FAILED, task.status)
+            assertEquals(DownloadFailureReason.CANCELLED, task.failureReason)
+            fixture.assertCurrentOriginReadsZero()
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `失败 legacy intent 不得因同 item 的无关完整 source 静默消失`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val failedItemId = UUID.fromString("51515151-5151-4151-8151-515151515151")
+            val failedIntent =
+                fixture.dao
+                    .seedDownloadIntent(failedItemId, status = DownloadIntentStatus.FAILED.name)
+                    .copy(
+                        failureReason = DownloadFailureReason.CANCELLED.name,
+                        failureDetail = DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                    )
+            fixture.dao.putDownloadIntent(failedIntent)
+            val unrelatedSourceId = "unrelated-complete"
+            fixture.dao.putSource(fixture.seedPendingSource(failedItemId, unrelatedSourceId))
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = failedItemId,
+                    sourceId = unrelatedSourceId,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    displayName = "unrelated complete",
+                )
+            )
+
+            val triggerItemId = UUID.fromString("52525252-5252-4252-8252-525252525252")
+            val origin = JellyfinOrigin(SERVER_ID, USER_ID)
+            fixture.repository.putOriginItem(
+                triggerItemId,
+                origin,
+                fixture.movie().copy(id = triggerItemId, name = "trigger", kind = "AUDIO"),
+            )
+            fixture.repository.putOriginMediaSource(
+                triggerItemId,
+                origin,
+                FindroidSource(
+                    id = SOURCE_ID,
+                    name = "trigger",
+                    type = FindroidSourceType.REMOTE,
+                    path = MEDIA_URL,
+                    size = MEDIA_BYTES.size.toLong(),
+                    mediaStreams = fixture.repository.mediaStreams,
+                    container = "mp3",
+                ),
+            )
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = triggerItemId,
+                    sourceId = null,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    displayName = "trigger",
+                )
+            )
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitInsertedSourceCount(1))
+            withTimeoutOrNull(1_000L) {
+                while (fixture.dao.downloadIntent(failedItemId) != null) delay(10L)
+            }
+
+            assertEquals(
+                "无法证明新 source 与失败 intent 同代，失败状态必须保留",
+                failedIntent,
+                fixture.dao.downloadIntent(failedItemId),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy cleanup 与并发入队由同一 source operation 串行且不删新代`() = runBlocking {
+        val fixture = Fixture()
+        var gateReleased = false
+        try {
+            val movie = fixture.movie().copy(kind = "AUDIO")
+            fixture.repository.putItem(movie)
+            fixture.seedLegacyUnknownSource(ITEM_ID, SOURCE_ID, ITEM_NAME)
+            fixture.dao.armSourceDeletionGate()
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(
+                "legacy cleanup 必须进入正常删除的 generation 栅栏",
+                withTimeoutOrNull(5_000L) {
+                    fixture.dao.sourceDeleteStarted.await()
+                    true
+                } == true,
+            )
+            val deletionGeneration = fixture.dao.sourceDeletionGeneration
+            val concurrentEnqueue =
+                async(Dispatchers.IO) { fixture.downloader.downloadItem(movie, SOURCE_ID, 0) }
+            assertEquals(
+                "source operation 持锁期间不得插入新代",
+                null,
+                withTimeoutOrNull(300L) {
+                    fixture.dao.concurrentSourceInserted.await()
+                    true
+                },
+            )
+
+            fixture.dao.releaseSourceDelete.complete(Unit)
+            gateReleased = true
+            val (handle, error) = withTimeout(5_000L) { concurrentEnqueue.await() }
+            assertTrue(handle >= 0L)
+            assertEquals(null, error)
+            val inserted = requireNotNull(fixture.dao.lastInsertedSource(SOURCE_ID))
+            assertTrue(inserted.taskGeneration > deletionGeneration)
+            assertNotNull("旧 cleanup 删除了等待后的新代", fixture.dao.sourceById(SOURCE_ID))
+            assertTrue(
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
+                    it.itemId == ITEM_ID.toString() &&
+                        it.sourceId == SOURCE_ID &&
+                        it.provenance() != null
+                }
+            )
+        } finally {
+            if (!gateReleased) fixture.dao.releaseSourceDelete.complete(Unit)
+            fixture.transfer.release()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy cleanup 取消并等待同 source 活动任务`() = runBlocking {
+        val fixture = Fixture()
+        var gateReleased = false
+        try {
+            val movie = fixture.movie().copy(kind = "AUDIO")
+            fixture.repository.putItem(movie)
+            val (handle, error) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            assertTrue(handle >= 0L)
+            assertEquals(null, error)
+            fixture.transfer.holdDownloads()
+            val queueRun = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
+            assertTrue(fixture.transfer.awaitStarted(1))
+
+            fixture
+                .sidecarFile()
+                .writeText(
+                    DownloadMediaCodec.encodeLine(
+                        DownloadMediaRecord(
+                            itemId = ITEM_ID.toString(),
+                            kind = DownloadMediaKind.MUSIC,
+                            serverId = null,
+                            userId = null,
+                            sourceId = SOURCE_ID,
+                            displayName = ITEM_NAME,
+                        )
+                    )
+                )
+            fixture.dao.seedDownloadIntent(ITEM_ID)
+            fixture.dao.armSourceDeletionGate()
+            fixture.downloader.recoverOnStartup()
+            assertTrue(
+                "活动 job 清理必须先进入删除栅栏",
+                withTimeoutOrNull(5_000L) {
+                    fixture.dao.sourceDeleteStarted.await()
+                    true
+                } == true,
+            )
+
+            fixture.dao.releaseSourceDelete.complete(Unit)
+            gateReleased = true
+            withTimeout(5_000L) { queueRun.join() }
+            assertTrue("cleanup 必须取消并等待活动 job", fixture.awaitSourceRemoved(SOURCE_ID))
+        } finally {
+            if (!gateReleased) fixture.dao.releaseSourceDelete.complete(Unit)
+            fixture.transfer.release()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy cleanup sidecar 删除失败保留 DELETING 并可重启重试`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("53535353-5353-4353-8353-535353535353")
+            fixture.seedLegacyUnknownSource(itemId, "retry-sidecar", "retry sidecar")
+            val blockedReplace = fixture.blockSidecarReplace()
+
+            val firstProcessing =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    fixture.downloader.queueChanges.first()
+                }
+            fixture.downloader.recoverOnStartup()
+            withTimeout(5_000L) { firstProcessing.await() }
+            assertTrue(
+                "sidecar 未删除前必须保留可重试 tombstone",
+                fixture.awaitSourceStatus("retry-sidecar", DownloadTaskStatus.DELETING),
+            )
+            assertEquals(
+                DownloadTaskStatus.DELETING.name,
+                fixture.dao.sourceById("retry-sidecar")?.taskStatus,
+            )
+
+            assertTrue(blockedReplace.deleteRecursively())
+            fixture.downloader.recoverOnStartup()
+            assertTrue(
+                "sidecar 可写后必须续删 source",
+                fixture.awaitSourceRemoved("retry-sidecar"),
+            )
+            assertTrue(
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
+                    it.itemId == itemId.toString() && it.sourceId == "retry-sidecar"
+                }
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `不可读或损坏 sidecar 收口失败 intent 时发出一次队列刷新`() = runBlocking {
+        val itemIds =
+            listOf(
+                UUID.fromString("54545454-5454-4454-8454-545454545454"),
+                UUID.fromString("55555555-5555-4555-8555-555555555555"),
+            )
+        itemIds.forEachIndexed { index, itemId ->
+            val fixture = Fixture()
+            try {
+                fixture.dao.seedDownloadIntent(itemId)
+                if (index == 0) {
+                    assertTrue(fixture.sidecarFile().mkdirs())
+                } else {
+                    fixture.sidecarFile().writeText("v2,broken")
+                }
+
+                val queueChange =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        fixture.downloader.queueChanges.first()
+                    }
+                fixture.downloader.recoverOnStartup()
+                assertNotNull(withTimeoutOrNull(5_000L) { queueChange.await() })
+                assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            } finally {
+                fixture.close()
+            }
         }
     }
 
@@ -3346,6 +3631,50 @@ class DownloaderImplRecoveryTest {
 
         fun sidecarFile(): File = File(root, "download_media.tsv")
 
+        fun putMusicSidecar(
+            itemId: UUID,
+            sourceId: String?,
+            serverId: String? = null,
+            userId: String? = null,
+            displayName: String? = null,
+        ): Boolean =
+            downloader
+                .mediaSidecar()
+                .put(
+                    DownloadMediaRecord(
+                        itemId = itemId.toString(),
+                        kind = DownloadMediaKind.MUSIC,
+                        serverId = serverId,
+                        userId = userId,
+                        sourceId = sourceId,
+                        displayName = displayName,
+                    )
+                )
+
+        fun seedLegacyUnknownSource(
+            itemId: UUID,
+            sourceId: String,
+            displayName: String,
+        ): FindroidSourceDto {
+            dao.seedDownloadIntent(itemId)
+            return seedPendingSource(itemId, sourceId).also { source ->
+                assertTrue(putMusicSidecar(itemId, sourceId, displayName = displayName))
+                assertTrue(source.taskGeneration > 0L)
+            }
+        }
+
+        suspend fun awaitSourceStatus(sourceId: String, status: DownloadTaskStatus): Boolean =
+            withTimeoutOrNull(5_000L) {
+                while (dao.sourceById(sourceId)?.taskStatus != status.name) delay(10L)
+                true
+            } ?: false
+
+        suspend fun awaitSourceRemoved(sourceId: String): Boolean =
+            withTimeoutOrNull(5_000L) {
+                while (dao.sourceById(sourceId) != null) delay(10L)
+                true
+            } ?: false
+
         fun seedPendingSource(itemId: UUID, sourceId: String): FindroidSourceDto =
             sourceDto(itemId = itemId, sourceId = sourceId, index = 0).also(dao::putSource)
 
@@ -4004,6 +4333,15 @@ class DownloaderImplRecoveryTest {
                                     taskGeneration = it.taskGeneration + 1,
                                 )
                             }
+                        "beginSourceCancellation" ->
+                            updateSourceRow(args) {
+                                it.copy(
+                                    taskStatus = DownloadTaskStatus.FAILED.name,
+                                    failureReason = DownloadFailureReason.CANCELLED.name,
+                                    nextRetryAt = 0L,
+                                    taskGeneration = it.taskGeneration + 1,
+                                )
+                            }
                         "beginSourceDeletion" -> beginSourceDeletion(args)
                         "beginSourceRetry" -> retrySource(args)
                         "setSourceProgressIfCurrent" ->
@@ -4332,8 +4670,12 @@ class DownloaderImplRecoveryTest {
 
         fun downloadIntent(itemId: UUID): DownloadIntentDto? = downloadIntents[itemId]
 
-        fun seedDownloadIntent(itemId: UUID, status: String = "RECEIVED") {
-            downloadIntents[itemId] =
+        fun putDownloadIntent(intent: DownloadIntentDto) {
+            downloadIntents[intent.itemId] = intent
+        }
+
+        fun seedDownloadIntent(itemId: UUID, status: String = "RECEIVED"): DownloadIntentDto {
+            val intent =
                 DownloadIntentDto(
                     itemId = itemId,
                     name = "legacy 音乐",
@@ -4347,6 +4689,8 @@ class DownloaderImplRecoveryTest {
                     updatedAt = 1L,
                     taskGeneration = 0L,
                 )
+            downloadIntents[itemId] = intent
+            return intent
         }
 
         fun hasEpisode(
