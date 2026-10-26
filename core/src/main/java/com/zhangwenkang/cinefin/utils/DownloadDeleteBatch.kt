@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 
 data class DownloadDeleteRequest(
@@ -42,42 +43,6 @@ data class DownloadDeleteAttempt(
     init {
         require(outcome != DownloadDeleteOutcome.PENDING)
     }
-}
-
-internal object DownloadDeleteReceiptMetadata {
-    private const val GENERATION_PREFIX = "generation="
-
-    fun encode(
-        expectedGeneration: Long?,
-        detail: String?,
-    ): String? =
-        expectedGeneration?.let { generation ->
-            "$GENERATION_PREFIX$generation" + detail?.let { "\n$it" }.orEmpty()
-        } ?: detail
-
-    fun decode(storedDetail: String?): DecodedDetail {
-        if (storedDetail == null || !storedDetail.startsWith(GENERATION_PREFIX)) {
-            return DecodedDetail(expectedGeneration = null, detail = storedDetail)
-        }
-        val separator = storedDetail.indexOf('\n')
-        val generation =
-            (if (separator < 0) storedDetail else storedDetail.substring(0, separator))
-                .removePrefix(GENERATION_PREFIX)
-                .toLongOrNull()
-                ?: return DecodedDetail(expectedGeneration = null, detail = storedDetail)
-        val detail =
-            if (separator < 0) {
-                null
-            } else {
-                storedDetail.substring(separator + 1).takeIf(String::isNotEmpty)
-            }
-        return DecodedDetail(expectedGeneration = generation, detail = detail)
-    }
-
-    data class DecodedDetail(
-        val expectedGeneration: Long?,
-        val detail: String?,
-    )
 }
 
 data class DownloadDeleteBatchResult(
@@ -146,15 +111,31 @@ class DownloadDeleteBatchProcessor(
     private val batchId: () -> String = { UUID.randomUUID().toString() },
     private val delete: suspend (DownloadDeleteRequest, Boolean) -> DownloadDeleteAttempt,
 ) {
+    private val trustedGenerations = ConcurrentHashMap<ReceiptIdentity, Long>()
+
     suspend fun deleteAll(requests: List<DownloadDeleteRequest>): DownloadDeleteBatchResult {
         val normalized = requests.distinctBy(DownloadDeletionIdentity::canonicalKey)
         val id = batchId()
         val startedAt = clock()
-        store.begin(
-            batchId = id,
-            requests = normalized,
-            createdAtMs = startedAt,
-        )
+        val registered = normalized.mapNotNull { request ->
+            request.expectedGeneration?.let { generation ->
+                ReceiptIdentity(
+                    batchId = id,
+                    canonicalKey = DownloadDeletionIdentity.canonicalKey(request),
+                ) to generation
+            }
+        }
+        trustedGenerations.putAll(registered.toMap())
+        try {
+            store.begin(
+                batchId = id,
+                requests = normalized,
+                createdAtMs = startedAt,
+            )
+        } catch (error: Throwable) {
+            registered.forEach { (identity, _) -> trustedGenerations.remove(identity) }
+            throw error
+        }
         return process(
             id,
             normalized.mapIndexed { ordinal, request ->
@@ -174,6 +155,7 @@ class DownloadDeleteBatchProcessor(
                     }
                     .sortedBy(DownloadDeleteReceipt::ordinal)
             if (retryable.isEmpty()) {
+                forgetBatch(snapshot.batchId)
                 store.finish(snapshot.batchId, clock())
                 null
             } else {
@@ -189,7 +171,11 @@ class DownloadDeleteBatchProcessor(
                                         mediaKind = receipt.mediaKind,
                                         serverId = receipt.serverId,
                                         userId = receipt.userId,
-                                        expectedGeneration = receipt.expectedGeneration,
+                                        expectedGeneration =
+                                            trustedGeneration(
+                                                batchId = snapshot.batchId,
+                                                canonicalKey = receipt.canonicalKey,
+                                            ),
                                     ),
                                 ordinal = receipt.ordinal,
                                 resumed = true,
@@ -234,6 +220,19 @@ class DownloadDeleteBatchProcessor(
                     expectedGeneration = attempt.expectedGeneration ?: request.expectedGeneration,
                 )
             store.record(receipt)
+            when (receipt.outcome) {
+                DownloadDeleteOutcome.PENDING -> Unit
+                DownloadDeleteOutcome.FAILED ->
+                    receipt.expectedGeneration?.let {
+                        trustedGenerations.put(
+                            ReceiptIdentity(batchId, receipt.canonicalKey),
+                            it,
+                        )
+                    }
+                DownloadDeleteOutcome.SUCCEEDED,
+                DownloadDeleteOutcome.SUPERSEDED ->
+                    trustedGenerations.remove(ReceiptIdentity(batchId, receipt.canonicalKey))
+            }
             receipts += receipt
         }
         if (
@@ -246,6 +245,20 @@ class DownloadDeleteBatchProcessor(
         }
         return DownloadDeleteBatchResult(batchId = batchId, receipts = receipts)
     }
+
+    private fun trustedGeneration(
+        batchId: String,
+        canonicalKey: String,
+    ): Long? = trustedGenerations[ReceiptIdentity(batchId, canonicalKey)]
+
+    private fun forgetBatch(batchId: String) {
+        trustedGenerations.keys.removeIf { it.batchId == batchId }
+    }
+
+    private data class ReceiptIdentity(
+        val batchId: String,
+        val canonicalKey: String,
+    )
 
     private data class RetryEntry(
         val request: DownloadDeleteRequest,

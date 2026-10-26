@@ -2046,17 +2046,17 @@ private constructor(
                     )
                 }
             }
-            deleteBatchProcessor().deleteAll(prepared)
+            deleteBatchProcessor.deleteAll(prepared)
         }
 
     override suspend fun resumePendingDeleteBatches(): Int =
         withContext(Dispatchers.IO) {
-            deleteBatchProcessor().resumeIncomplete().sumOf { result ->
+            deleteBatchProcessor.resumeIncomplete().sumOf { result ->
                 result.receipts.count { it.outcome == DownloadDeleteOutcome.SUCCEEDED }
             }
         }
 
-    private fun deleteBatchProcessor(): DownloadDeleteBatchProcessor {
+    private val deleteBatchProcessor: DownloadDeleteBatchProcessor by lazy {
         val store =
             object : DownloadDeleteBatchStore {
                 override suspend fun begin(
@@ -2083,11 +2083,7 @@ private constructor(
                                     ordinal = ordinal,
                                     mediaKind = request.mediaKind.name,
                                     outcome = DownloadDeleteOutcome.PENDING.name,
-                                    detail =
-                                        DownloadDeleteReceiptMetadata.encode(
-                                            expectedGeneration = request.expectedGeneration,
-                                            detail = null,
-                                        ),
+                                    detail = null,
                                     updatedAt = createdAtMs,
                                 )
                             },
@@ -2106,11 +2102,7 @@ private constructor(
                             ordinal = receipt.ordinal,
                             mediaKind = receipt.mediaKind.name,
                             outcome = receipt.outcome.name,
-                            detail =
-                                DownloadDeleteReceiptMetadata.encode(
-                                    expectedGeneration = receipt.expectedGeneration,
-                                    detail = receipt.detail,
-                                ),
+                            detail = receipt.detail,
                             updatedAt = receipt.updatedAtMs,
                         )
                     )
@@ -2126,8 +2118,6 @@ private constructor(
                             batchId = batch.id,
                             receipts =
                                 database.getDownloadDeleteReceipts(batch.id).map { receipt ->
-                                    val metadata =
-                                        DownloadDeleteReceiptMetadata.decode(receipt.detail)
                                     DownloadDeleteReceipt(
                                         batchId = receipt.batchId,
                                         canonicalKey = receipt.canonicalKey,
@@ -2144,15 +2134,15 @@ private constructor(
                                             DownloadDeleteOutcome.entries.first {
                                                 it.name == receipt.outcome
                                             },
-                                        detail = metadata.detail,
+                                        detail = receipt.detail,
                                         updatedAtMs = receipt.updatedAt,
-                                        expectedGeneration = metadata.expectedGeneration,
+                                        expectedGeneration = null,
                                     )
                                 },
                         )
                     }
             }
-        return DownloadDeleteBatchProcessor(store = store, delete = ::deleteDownloadRequest)
+        DownloadDeleteBatchProcessor(store = store, delete = ::deleteDownloadRequest)
     }
 
     private suspend fun deleteDownloadRequest(

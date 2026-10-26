@@ -455,7 +455,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `DELETING清理抛错后pending receipt可续删并成功`() = runBlocking {
+    fun `DELETING旧receipt只由startup扫描续删并成功`() = runBlocking {
         val fixture = Fixture()
         try {
             val movie = fixture.movie()
@@ -480,13 +480,54 @@ class DownloaderImplRecoveryTest {
             assertTrue(File(deleting.path).delete())
             val restarted = fixture.newDownloader()
 
-            assertEquals(1, restarted.resumePendingDeleteBatches())
+            assertEquals(1, restarted.recoverOnStartup())
             assertTrue(fixture.dao.source == null)
             assertEquals(
                 DownloadDeleteOutcome.SUCCEEDED.name,
                 fixture.dao.deleteReceipts("delete-batch-$SOURCE_ID").single().outcome,
             )
             assertNotNull(fixture.dao.deleteBatch("delete-batch-$SOURCE_ID")?.completedAt)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `同实例FAILED receipt可复用强类型generation完成重试`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.downloader.downloadItem(fixture.movie(), SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+
+            val first =
+                fixture.downloader.deleteDownloads(
+                    listOf(
+                        DownloadDeleteRequest(
+                            itemId = ITEM_ID,
+                            sourceId = SOURCE_ID,
+                            mediaKind = DownloadMediaKind.VIDEO,
+                            serverId = SERVER_ID,
+                            userId = USER_ID.toString(),
+                        )
+                    )
+                )
+            val failed = first.receipts.single()
+            assertEquals(DownloadDeleteOutcome.FAILED, failed.outcome)
+            assertEquals(DownloadTaskStatus.DELETING.name, fixture.dao.source?.taskStatus)
+            assertTrue(File(blockedPath, "blocked").delete())
+            assertTrue(blockedPath.delete())
+
+            assertEquals(1, fixture.downloader.resumePendingDeleteBatches())
+
+            assertEquals(null, fixture.dao.source)
+            assertEquals(
+                DownloadDeleteOutcome.SUCCEEDED.name,
+                fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey)?.outcome,
+            )
+            assertNotNull(fixture.dao.deleteBatch(first.batchId)?.completedAt)
         } finally {
             fixture.close()
         }
@@ -740,6 +781,125 @@ class DownloaderImplRecoveryTest {
             assertNotNull(fixture.dao.deleteBatch("legacy-receipt-$SOURCE_ID")?.completedAt)
         } finally {
             fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy自由文本generation前缀不得触发receipt删除`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val deleting = fixture.seedDeletingSource()
+            fixture.persistVideoOrigin(SOURCE_ID)
+            val external = fixture.seedStaleExternal()
+            val imageMarker = fixture.markerFile("images/$ITEM_ID/cover")
+            fixture.dao.seedPendingDeleteBatch(
+                batchId = "legacy-generation-prefix-$SOURCE_ID",
+                itemId = ITEM_ID,
+                sourceId = SOURCE_ID,
+                expectedGeneration = null,
+                detail = "generation=${deleting.taskGeneration}",
+            )
+            fixture.dao.sourceEvents.clear()
+
+            assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+            val retained = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(deleting.taskGeneration, retained.taskGeneration)
+            assertEquals(DownloadTaskStatus.DELETING.name, retained.taskStatus)
+            assertTrue("自由文本 generation 不得触发任何 source 副作用", fixture.dao.sourceEvents.isEmpty())
+            assertTrue(
+                "自由文本 generation 不得清理 sidecar",
+                fixture.downloader.mediaSidecar().allRecords().any {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                },
+            )
+            assertTrue("自由文本 generation 不得清理 external media", external.isFile)
+            assertTrue(
+                "自由文本 generation 不得清理 media row",
+                fixture.dao.externalMediaStreams().any { it.path == external.path },
+            )
+            assertTrue("自由文本 generation 不得清理共享图片", imageMarker.isFile)
+            assertEquals(
+                DownloadDeleteOutcome.FAILED.name,
+                fixture.dao.deleteReceipts("legacy-generation-prefix-$SOURCE_ID").single().outcome,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy异常文本包含完整当前generation不得触发receipt删除`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val deleting = fixture.seedDeletingSource()
+            fixture.persistVideoOrigin(SOURCE_ID)
+            val external = fixture.seedStaleExternal()
+            fixture.dao.seedPendingDeleteBatch(
+                batchId = "legacy-generation-message-$SOURCE_ID",
+                itemId = ITEM_ID,
+                sourceId = SOURCE_ID,
+                expectedGeneration = null,
+                detail =
+                    "generation=${deleting.taskGeneration}\n" +
+                        "java.lang.IllegalStateException: cleanup failed at " +
+                        "generation=${deleting.taskGeneration}",
+            )
+            fixture.dao.sourceEvents.clear()
+
+            assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+            val retained = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(deleting.taskGeneration, retained.taskGeneration)
+            assertEquals(DownloadTaskStatus.DELETING.name, retained.taskStatus)
+            assertTrue("异常文本不得触发任何 source 副作用", fixture.dao.sourceEvents.isEmpty())
+            assertTrue("异常文本不得清理 external media", external.isFile)
+            assertTrue(
+                "异常文本不得清理 media row",
+                fixture.dao.externalMediaStreams().any { it.path == external.path },
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `旧receipt遇RUNNING或COMPLETED新代均SUPERSEDED且零副作用`() = runBlocking {
+        for (newStatus in listOf(DownloadTaskStatus.RUNNING, DownloadTaskStatus.COMPLETED)) {
+            val fixture = Fixture()
+            try {
+                val deleting = fixture.seedDeletingSource()
+                val batchId = "legacy-${newStatus.name.lowercase()}-$SOURCE_ID"
+                fixture.dao.seedPendingDeleteBatch(
+                    batchId = batchId,
+                    itemId = ITEM_ID,
+                    sourceId = SOURCE_ID,
+                    expectedGeneration = deleting.taskGeneration,
+                )
+                fixture.dao.putSource(
+                    deleting.copy(
+                        taskStatus = newStatus.name,
+                        taskGeneration = deleting.taskGeneration + 1L,
+                    )
+                )
+                fixture.dao.sourceEvents.clear()
+
+                assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+                val retained = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+                assertEquals(newStatus.name, retained.taskStatus)
+                assertEquals(deleting.taskGeneration + 1L, retained.taskGeneration)
+                assertTrue(
+                    "${newStatus.name} 新代不得被旧 receipt 删除",
+                    fixture.dao.sourceEvents.isEmpty(),
+                )
+                assertEquals(
+                    DownloadDeleteOutcome.SUPERSEDED.name,
+                    fixture.dao.deleteReceipts(batchId).single().outcome,
+                )
+            } finally {
+                fixture.close()
+            }
         }
     }
 
@@ -1760,6 +1920,20 @@ class DownloaderImplRecoveryTest {
             )
         }
 
+        suspend fun seedDeletingSource(): FindroidSourceDto {
+            downloader.downloadItem(movie(), SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+            assertNotNull(runCatching { downloader.deleteTaskById(SOURCE_ID) }.exceptionOrNull())
+            val deleting = requireNotNull(dao.source)
+            assertEquals(DownloadTaskStatus.DELETING.name, deleting.taskStatus)
+            assertTrue(File(blockedPath, "blocked").delete())
+            assertTrue(blockedPath.delete())
+            return deleting
+        }
+
         fun episode(
             itemId: UUID = ITEM_ID,
             sourceId: String = SOURCE_ID,
@@ -2526,6 +2700,7 @@ class DownloaderImplRecoveryTest {
             itemId: UUID,
             sourceId: String,
             expectedGeneration: Long?,
+            detail: String? = expectedGeneration?.let { "generation=$it" },
         ) {
             deleteBatches[batchId] =
                 DownloadDeleteBatchDto(
@@ -2554,7 +2729,7 @@ class DownloaderImplRecoveryTest {
                     ordinal = 0,
                     mediaKind = DownloadMediaKind.VIDEO.name,
                     outcome = DownloadDeleteOutcome.PENDING.name,
-                    detail = expectedGeneration?.let { "generation=$it" },
+                    detail = detail,
                     updatedAt = 1L,
                 )
         }
