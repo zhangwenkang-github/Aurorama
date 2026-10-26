@@ -123,6 +123,51 @@ class DownloadDeleteBatchTest {
     }
 
     @Test
+    fun `FAILED receipt 在 resume 前保持失败并可确认重试`() = runBlocking {
+        val store = MemoryStore()
+        val attempts = mutableListOf<Pair<String, Boolean>>()
+        val request = request(1).copy(expectedGeneration = 9L)
+        val processor =
+            DownloadDeleteBatchProcessor(
+                store = store,
+                clock = { 1_000L },
+                batchId = { "batch-failed" },
+                delete = { current, resumed ->
+                    attempts += current.sourceId.orEmpty() to resumed
+                    if (resumed) {
+                        DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
+                    } else {
+                        DownloadDeleteAttempt(
+                            outcome = DownloadDeleteOutcome.FAILED,
+                            detail = "删除未确认",
+                            expectedGeneration = current.expectedGeneration,
+                        )
+                    }
+                },
+            )
+
+        val first = processor.deleteAll(listOf(request))
+
+        assertEquals(DownloadDeleteOutcome.FAILED, first.receipts.single().outcome)
+        assertEquals(
+            "FAILED 不得在 resume 前伪装成 PENDING",
+            DownloadDeleteOutcome.FAILED,
+            store.receipts.single().outcome,
+        )
+        assertFalse("batch-failed" in store.finishedAt)
+
+        val resumed = processor.resumeIncomplete().single()
+
+        assertEquals(listOf("source-1" to false, "source-1" to true), attempts)
+        assertEquals(DownloadDeleteOutcome.SUCCEEDED, resumed.receipts.single().outcome)
+        assertEquals(
+            DownloadDeleteOutcome.SUCCEEDED,
+            store.receipts.single().outcome,
+        )
+        assertTrue("batch-failed" in store.finishedAt)
+    }
+
+    @Test
     fun `完整 canonical identity 跨 server 不折叠`() {
         val a = request(7, serverId = "server-a", sourceId = "source-7")
         val b = request(7, serverId = "server-b", sourceId = "source-7")

@@ -73,4 +73,45 @@ class DownloadIntentDeletionRulesTest {
         assertTrue(result.confirmed)
         assertTrue(intentDeleted)
     }
+
+    @Test
+    fun `混合结果保留父 intent 且全部重试确认后才移除`() = runBlocking {
+        val attempts = mutableListOf<String>()
+        var intentDeleted = false
+        val sourceIds = listOf("source-a", "source-b")
+
+        val partial =
+            DownloadIntentDeletionRules.deleteAllOrReport(
+                sourceIds = sourceIds,
+                deleteSource = { sourceId ->
+                    attempts += sourceId
+                    sourceId == "source-a"
+                },
+                deleteIntent = {
+                    intentDeleted = true
+                    true
+                },
+            )
+
+        assertFalse(partial.confirmed)
+        assertFalse("任一 child 未确认时父 intent 必须保留", intentDeleted)
+        assertEquals(sourceIds, attempts)
+
+        val complete =
+            DownloadIntentDeletionRules.deleteAllOrReport(
+                sourceIds = sourceIds,
+                deleteSource = { sourceId ->
+                    attempts += sourceId
+                    true
+                },
+                deleteIntent = {
+                    intentDeleted = true
+                    true
+                },
+            )
+
+        assertTrue(complete.confirmed)
+        assertTrue("全部 child 确认后才能移除父 intent", intentDeleted)
+        assertEquals(sourceIds + sourceIds, attempts)
+    }
 }

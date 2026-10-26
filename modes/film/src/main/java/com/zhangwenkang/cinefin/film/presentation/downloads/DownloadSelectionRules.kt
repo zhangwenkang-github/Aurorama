@@ -36,13 +36,45 @@ object DownloadSelectionRules {
     fun canStartSelectionAction(state: DownloadManagerState): Boolean =
         state.pendingActions.isEmpty()
 
+    /** 批次开始时冻结候选；后续 refresh 清空容器也不能抹掉失败项的恢复身份。 */
+    fun beginDeletion(
+        state: DownloadManagerState,
+        entries: List<DownloadHierarchyEntry>,
+    ): DownloadManagerState {
+        val keys = entries.mapTo(linkedSetOf()) { it.key }
+        return state
+            .beginPending(DownloadPendingAction.DELETE, keys)
+            .copy(
+                deletionRecoveryEntries =
+                    entries.distinctBy(DownloadHierarchyEntry::key).map { entry ->
+                        DownloadDeletionRecoveryEntry(
+                            entryKey = entry.key,
+                            canonicalIdentity = entry.canonicalIdentity,
+                        )
+                    }
+            )
+    }
+
+    /** 只保留 receipt 明确失败的候选；成功项必须同时退出 selection 与 recovery snapshot。 */
+    fun completeDeletion(
+        state: DownloadManagerState,
+        failedKeys: Set<String>,
+    ): DownloadManagerState =
+        state.copy(
+            selection = state.selection.filter { it in failedKeys },
+            selectionMode = failedKeys.isNotEmpty(),
+            actionFailure = if (failedKeys.isNotEmpty()) DownloadActionFailure.DELETE else null,
+            deletionRecoveryEntries =
+                state.deletionRecoveryEntries.filter { it.entryKey in failedKeys },
+        )
+
     /** 本地数据先上屏时保留已完成键；完整服务器阶段仍由后续 validKeys 再裁剪。 */
     fun selectionAfterLocalRefresh(
         state: DownloadManagerState,
         localKeys: Set<String>,
     ): List<String> = selectionAfterRefresh(state, localKeys, state.allEntries())
 
-    /** 删除失败后可能从 intent 伪 source 变成真实 media source；按命名空间 + item 把选择映射到新 key，直到用户再次操作。 */
+    /** 删除失败时优先从批次快照恢复原 key；旧状态才按命名空间 + item 兼容映射。 */
     fun selectionAfterRefresh(
         state: DownloadManagerState,
         validKeys: Set<String>,
@@ -50,12 +82,16 @@ object DownloadSelectionRules {
     ): List<String> {
         if (state.actionFailure == DownloadActionFailure.DELETE) {
             val previous = state.allEntries().associateBy(DownloadHierarchyEntry::key)
+            val recovery = state.deletionRecoveryEntries.associateBy { it.entryKey }
+            val recoverableEntries =
+                currentEntries + state.completedContainers.flatMap { it.allEntries() }
             return state.selection.mapNotNull { key ->
                 when {
                     key in validKeys -> key
+                    key in recovery -> recovery.getValue(key).entryKey
                     else ->
                         previous[key]?.canonicalIdentity?.let { identity ->
-                            val candidates = currentEntries.filter {
+                            val candidates = recoverableEntries.filter {
                                 it.canonicalIdentity.sameNamespace(identity)
                             }
                             candidates.firstOrNull { it.canonicalIdentity == identity }?.key

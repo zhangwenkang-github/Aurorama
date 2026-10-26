@@ -121,6 +121,130 @@ class DownloadSelectionRulesTest {
     }
 
     @Test
+    fun `已完成项删除失败经过两次空刷新仍恢复原选择`() {
+        val itemId = UUID.randomUUID()
+        val completed =
+            DownloadHierarchyEntry(
+                itemId = itemId,
+                name = "已完成视频",
+                mediaKind = DownloadMediaKind.VIDEO,
+                status = DownloadTaskStatus.COMPLETED,
+                sourceId = "media-source",
+                serverId = "server-a",
+                userId = "user-a",
+            )
+        val container = DownloadHierarchyBuilder.build(listOf(completed)).single()
+        val batchEntries = mutableListOf(completed)
+        val state =
+            DownloadSelectionRules.completeDeletion(
+                state =
+                    DownloadSelectionRules.beginDeletion(
+                        state =
+                            DownloadManagerState(
+                                completedContainers = listOf(container),
+                                selectionMode = true,
+                                selection = listOf(completed.key),
+                            ),
+                        entries = batchEntries,
+                    ),
+                failedKeys = setOf(completed.key),
+            )
+        batchEntries.clear()
+
+        val firstRefresh =
+            DownloadSelectionRules.selectionAfterRefresh(
+                state = state,
+                validKeys = emptySet(),
+                currentEntries = emptyList(),
+            )
+        val secondRefresh =
+            DownloadSelectionRules.selectionAfterRefresh(
+                state = state.copy(selection = firstRefresh, completedContainers = emptyList()),
+                validKeys = emptySet(),
+                currentEntries = emptyList(),
+            )
+
+        assertEquals(
+            listOf(completed.key),
+            secondRefresh,
+        )
+    }
+
+    @Test
+    fun `多选一成一败时失败项恢复原键且不得映射到成功项`() {
+        val itemId = UUID.randomUUID()
+        val succeeded =
+            DownloadHierarchyEntry(
+                itemId = itemId,
+                name = "成功来源",
+                mediaKind = DownloadMediaKind.VIDEO,
+                status = DownloadTaskStatus.COMPLETED,
+                sourceId = "source-succeeded",
+                serverId = "server-a",
+                userId = "user-a",
+            )
+        val failed =
+            DownloadHierarchyEntry(
+                itemId = itemId,
+                name = "失败来源",
+                mediaKind = DownloadMediaKind.VIDEO,
+                status = DownloadTaskStatus.COMPLETED,
+                sourceId = "source-failed",
+                serverId = "server-a",
+                userId = "user-a",
+            )
+        val state =
+            DownloadSelectionRules.completeDeletion(
+                state =
+                    DownloadSelectionRules.beginDeletion(
+                        state =
+                            DownloadManagerState(
+                                completedContainers =
+                                    DownloadHierarchyBuilder.build(listOf(succeeded)),
+                                failedContainers = DownloadHierarchyBuilder.build(listOf(failed)),
+                                selectionMode = true,
+                                selection = listOf(succeeded.key, failed.key),
+                            ),
+                        entries = listOf(succeeded, failed),
+                    ),
+                failedKeys = setOf(failed.key),
+            )
+
+        assertEquals(
+            "失败项只能恢复自身原 key，不能因同 item namespace 误投影到成功来源",
+            listOf(failed.key),
+            DownloadSelectionRules.selectionAfterRefresh(
+                state = state,
+                validKeys = setOf(succeeded.key),
+                currentEntries = listOf(succeeded),
+            ),
+        )
+        assertEquals(listOf(failed.key), state.selection)
+        assertTrue(state.selectionMode)
+        assertEquals(DownloadActionFailure.DELETE, state.actionFailure)
+        assertEquals(
+            listOf(failed.key),
+            state.deletionRecoveryEntries.map { it.entryKey },
+        )
+
+        val retryable = state.finishPending(setOf(succeeded.key, failed.key))
+        assertTrue(DownloadSelectionRules.canStartSelectionAction(retryable))
+        val retried =
+            DownloadSelectionRules.beginDeletion(
+                state = retryable,
+                entries = listOf(failed),
+            )
+        assertEquals(
+            DownloadPendingAction.DELETE,
+            retried.pendingActions[failed.key],
+        )
+        assertEquals(
+            listOf(failed.key),
+            retried.deletionRecoveryEntries.map { it.entryKey },
+        )
+    }
+
+    @Test
     fun `失败全选包含没有引擎任务对象的书籍失败条目`() {
         val book =
             DownloadHierarchyEntry(

@@ -209,6 +209,7 @@ constructor(
                         selectionMode = action.keys.isNotEmpty(),
                         selection = action.keys,
                         actionFailure = null,
+                        deletionRecoveryEntries = emptyList(),
                     )
                 }
             DownloadAction.DeleteSelected -> deleteSelected()
@@ -295,9 +296,14 @@ constructor(
                     selectionMode = false,
                     selection = emptyList(),
                     actionFailure = null,
+                    deletionRecoveryEntries = emptyList(),
                 )
             } else {
-                current.copy(selectionMode = true, actionFailure = null)
+                current.copy(
+                    selectionMode = true,
+                    actionFailure = null,
+                    deletionRecoveryEntries = emptyList(),
+                )
             }
         }
     }
@@ -309,13 +315,19 @@ constructor(
                 selection = selection,
                 selectionMode = selection.isNotEmpty(),
                 actionFailure = null,
+                deletionRecoveryEntries = emptyList(),
             )
         }
     }
 
     private fun clearSelection() {
         _state.update {
-            it.copy(selection = emptyList(), selectionMode = false, actionFailure = null)
+            it.copy(
+                selection = emptyList(),
+                selectionMode = false,
+                actionFailure = null,
+                deletionRecoveryEntries = emptyList(),
+            )
         }
     }
 
@@ -532,18 +544,11 @@ constructor(
         if (!DownloadSelectionRules.canStartSelectionAction(current)) return
         val entries = current.selectedEntries
         val keys = entries.map { it.key }.toSet()
-        _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
+        _state.update { DownloadSelectionRules.beginDeletion(it, entries) }
         viewModelScope.launch {
             try {
                 val failedKeys = deleteEntries(entries)
-                _state.update {
-                    it.copy(
-                        selection = it.selection.filter { key -> key in failedKeys },
-                        selectionMode = failedKeys.isNotEmpty(),
-                        actionFailure =
-                            if (failedKeys.isNotEmpty()) DownloadActionFailure.DELETE else null,
-                    )
-                }
+                _state.update { DownloadSelectionRules.completeDeletion(it, failedKeys) }
                 refresh(showLoading = false)
             } catch (cancellation: CancellationException) {
                 throw cancellation

@@ -540,6 +540,60 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `删除未确认后保留sidecar与DELETING且同一实例可再次删除`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.downloader.downloadItem(fixture.movie(), SOURCE_ID, 0)
+            val blockedPath = File(requireNotNull(fixture.dao.source).path)
+            blockedPath.delete()
+            assertTrue(blockedPath.mkdirs())
+            File(blockedPath, "blocked").writeText("hold")
+
+            val request =
+                DownloadDeleteRequest(
+                    itemId = ITEM_ID,
+                    sourceId = SOURCE_ID,
+                    mediaKind = DownloadMediaKind.VIDEO,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                )
+            val first = fixture.downloader.deleteDownloads(listOf(request))
+            val failed = first.receipts.single()
+
+            assertEquals(DownloadDeleteOutcome.FAILED, failed.outcome)
+            assertEquals(
+                DownloadTaskStatus.DELETING.name,
+                requireNotNull(fixture.dao.source).taskStatus,
+            )
+            assertTrue(
+                "未确认清理不得移除 source sidecar",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                },
+            )
+
+            assertTrue(File(blockedPath, "blocked").delete())
+            assertTrue(blockedPath.delete())
+            assertEquals(1, fixture.downloader.resumePendingDeleteBatches())
+
+            assertEquals("DELETING key 必须可再次删除", null, fixture.dao.source)
+            assertEquals(
+                DownloadDeleteOutcome.SUCCEEDED.name,
+                fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey)?.outcome,
+            )
+            assertTrue(
+                "成功确认后才移除 sidecar",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                },
+            )
+            assertNotNull(fixture.dao.deleteBatch(first.batchId)?.completedAt)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `DELETING receipt失败后startup成功删行会将receipt收敛为成功`() = runBlocking {
         val fixture = Fixture()
         try {

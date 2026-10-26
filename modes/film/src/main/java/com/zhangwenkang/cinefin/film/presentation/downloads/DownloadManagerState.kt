@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.downloads
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
@@ -17,6 +18,12 @@ enum class DownloadMediaFilter {
     MUSIC,
     BOOK,
 }
+
+/** 删除批次开始时冻结的失败恢复元数据；不依赖刷新后的容器快照。 */
+data class DownloadDeletionRecoveryEntry(
+    val entryKey: String,
+    val canonicalIdentity: DownloadCanonicalIdentity,
+)
 
 /** W32 下载管理页 UI 状态：进行中 / 已完成 / 失败三组 + 多选 + 存储占用；W34 追加层级容器。 */
 data class DownloadManagerState(
@@ -40,6 +47,8 @@ data class DownloadManagerState(
     val pendingActions: Map<String, DownloadPendingAction> = emptyMap(),
     /** 批次动作失败后的可见终态；下一次选择或动作开始时清除。 */
     val actionFailure: DownloadActionFailure? = null,
+    /** 本次删除批次开始时的不可变恢复元数据，只保留仍失败的候选。 */
+    val deletionRecoveryEntries: List<DownloadDeletionRecoveryEntry> = emptyList(),
 ) {
     val activeCount: Int
         get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.key }.size
