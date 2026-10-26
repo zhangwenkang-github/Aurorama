@@ -73,29 +73,21 @@ internal fun musicSongBatchCaps(
     song: MusicSong,
     downloadedRecords: List<DownloadMediaRecord>,
     activeTasks: List<DownloadTask>,
-    legacyDownloadedItemIds: Set<UUID> = emptySet(),
-    legacyActiveItemIds: Set<UUID> = emptySet(),
 ): SongBatchCaps {
     val identity = song.downloadIdentity()
     return SongBatchCaps(
         downloaded =
-            if (identity != null) {
+            identity != null &&
                 downloadedRecords.any {
                     it.kind == DownloadMediaKind.MUSIC &&
                         it.canonicalIdentity().matchesProvenance(identity)
-                }
-            } else {
-                song.itemId in legacyDownloadedItemIds
-            },
+                },
         activeDownload =
-            if (identity != null) {
+            identity != null &&
                 activeTasks.any { task ->
                     DownloadTaskRules.isActiveQueueStatus(task.status) &&
                         task.downloadIdentity().matchesProvenance(identity)
-                }
-            } else {
-                song.itemId in legacyActiveItemIds
-            },
+                },
         fromLocalLibrary = song.localUri != null,
     )
 }

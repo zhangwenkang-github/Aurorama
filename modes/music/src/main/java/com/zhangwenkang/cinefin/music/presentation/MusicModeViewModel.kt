@@ -164,13 +164,13 @@ constructor(
         fun isDownloaded(song: MusicSong): Boolean =
             song.downloadIdentity()?.let { identity ->
                 downloadedRecords.any { it.canonicalIdentity().sameNamespace(identity) }
-            } ?: isDownloaded(song.itemId)
+            } ?: false
 
         fun activeStatus(itemId: UUID): DownloadTaskStatus? =
             activeStatuses.entries.firstOrNull { it.key.itemId == itemId.toString() }?.value
 
         fun activeStatus(song: MusicSong): DownloadTaskStatus? {
-            val identity = song.downloadIdentity() ?: return activeStatus(song.itemId)
+            val identity = song.downloadIdentity() ?: return null
             return activeStatuses.entries
                 .firstOrNull { (key) -> key.matchesProvenance(identity) }
                 ?.value
@@ -1469,8 +1469,6 @@ constructor(
             album = album,
             downloadedIdentities = downloadState.downloadedIdentities(),
             activeIdentities = downloadState.activeStatuses.keys,
-            legacyDownloadedItemIds = downloadState.downloadedItemIds,
-            legacyActiveItemIds = downloadState.activeItemIds(),
         )
     }
 
@@ -1484,8 +1482,6 @@ constructor(
             song = song,
             downloadedRecords = downloadState.downloadedRecords,
             activeTasks = downloadState.activeTasks,
-            legacyDownloadedItemIds = downloadState.downloadedItemIds,
-            legacyActiveItemIds = downloadState.activeItemIds(),
         )
 
     /**
@@ -1572,8 +1568,6 @@ constructor(
                     albums = selectedAlbums(),
                     downloadedIdentities = downloadState.downloadedIdentities(),
                     activeIdentities = downloadState.activeStatuses.keys,
-                    legacyDownloadedItemIds = downloadState.downloadedItemIds,
-                    legacyActiveItemIds = downloadState.activeItemIds(),
                 )
         } else {
             val targets = batchDownloadTargets(batchCapabilities(selectedSongs(), downloadState))

@@ -33,16 +33,12 @@ object MusicAlbumDownloadRules {
         album: MusicAlbum,
         downloadedIdentities: Set<DownloadCanonicalIdentity>,
         activeIdentities: Set<DownloadCanonicalIdentity>,
-        legacyDownloadedItemIds: Set<java.util.UUID> = emptySet(),
-        legacyActiveItemIds: Set<java.util.UUID> = emptySet(),
         maxTracks: Int = MAX_TRACKS_PER_REQUEST,
     ): Plan =
         planAlbums(
             albums = listOf(album),
             downloadedIdentities = downloadedIdentities,
             activeIdentities = activeIdentities,
-            legacyDownloadedItemIds = legacyDownloadedItemIds,
-            legacyActiveItemIds = legacyActiveItemIds,
             maxTracks = maxTracks,
         )
 
@@ -51,8 +47,6 @@ object MusicAlbumDownloadRules {
         albums: List<MusicAlbum>,
         downloadedIdentities: Set<DownloadCanonicalIdentity>,
         activeIdentities: Set<DownloadCanonicalIdentity>,
-        legacyDownloadedItemIds: Set<java.util.UUID> = emptySet(),
-        legacyActiveItemIds: Set<java.util.UUID> = emptySet(),
         maxTracks: Int = MAX_TRACKS_PER_REQUEST,
     ): Plan {
         val limit = maxTracks.coerceAtLeast(0)
@@ -61,8 +55,6 @@ object MusicAlbumDownloadRules {
         val candidates = mutableListOf<MusicSong>()
         val seenCompleteNamespaces = mutableSetOf<String>()
         val seenUnknownRows = Collections.newSetFromMap(IdentityHashMap<MusicSong, Boolean>())
-        val itemIdCounts =
-            albums.flatMap(MusicAlbum::songs).groupingBy(MusicSong::itemId).eachCount()
         for (album in albums) {
             val ordered =
                 album.songs.sortedWith(
@@ -81,16 +73,12 @@ object MusicAlbumDownloadRules {
                 ) {
                     continue
                 }
-                val canUseLegacyFallback = identity == null && itemIdCounts[song.itemId] == 1
                 when {
                     identity != null &&
                         downloadedIdentities.any { it.matchesProvenance(identity) } ->
                         skippedDownloaded++
                     identity != null && activeIdentities.any { it.matchesProvenance(identity) } ->
                         skippedActive++
-                    canUseLegacyFallback && song.itemId in legacyDownloadedItemIds ->
-                        skippedDownloaded++
-                    canUseLegacyFallback && song.itemId in legacyActiveItemIds -> skippedActive++
                     else -> candidates += song
                 }
             }

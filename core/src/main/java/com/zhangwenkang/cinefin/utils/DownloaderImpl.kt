@@ -53,7 +53,10 @@ import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfo
 import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.toFindroidUserDataDto
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
+import com.zhangwenkang.cinefin.repository.JellyfinOrigin
+import com.zhangwenkang.cinefin.repository.JellyfinOriginCredentials
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.OriginScopedJellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.DownloadEngineWorker
@@ -338,21 +341,11 @@ private constructor(
                                 sidecar.allRecords().mapTo(mutableSetOf()) {
                                     it.canonicalIdentity()
                                 }
-                            val legacyIntentItemIds =
-                                database.getDownloadIntents().mapTo(mutableSetOf()) { it.itemId }
                             requests
                                 .filter { request ->
                                     val identity = request.canonicalIdentity
-                                    if (identity.hasCompleteNamespace) {
+                                    identity.hasCompleteNamespace &&
                                         provenIdentities.any { it.matchesProvenance(identity) }
-                                    } else {
-                                        legacyIntentItemIds.any { itemId ->
-                                            identity.matchesLegacyItemId(
-                                                DownloadMediaKind.MUSIC,
-                                                itemId.toString(),
-                                            )
-                                        }
-                                    }
                                 }
                                 .mapTo(mutableSetOf()) { it.acceptanceKey }
                         }
@@ -511,6 +504,16 @@ private constructor(
             userId = runCatching { jellyfinRepository.getUserId().toString() }.getOrNull(),
         )
 
+    private fun FrozenDownloadOrigin.toJellyfinOriginOrNull(): JellyfinOrigin? {
+        val server = serverId?.takeIf(String::isNotBlank) ?: return null
+        val user = userId?.toUuidOrNull() ?: return null
+        return JellyfinOrigin(serverId = server, userId = user)
+    }
+
+    private fun originScopedRepository(): OriginScopedJellyfinRepository =
+        jellyfinRepository as? OriginScopedJellyfinRepository
+            ?: error("JellyfinRepository 未提供 origin-scoped 下载恢复能力")
+
     private fun downloadOriginForSource(
         item: FindroidItem,
         sourceId: String,
@@ -571,6 +574,14 @@ private constructor(
 
             lifecycleControl.withSourceOperation(sourceId) {
                 val existing = database.getSource(sourceId)
+                val requestedOrigin = origin.toJellyfinOriginOrNull()
+                if (existing != null && requestedOrigin != null) {
+                    val existingOrigin =
+                        downloadOriginForSource(item, sourceId)?.toJellyfinOriginOrNull()
+                    check(existingOrigin == requestedOrigin) {
+                        "sourceId 已被其他 namespace 占用：$sourceId"
+                    }
+                }
                 val existingStatus = existing?.taskStatus.toTaskStatus()
                 if (
                     existingStatus == DownloadTaskStatus.PENDING ||
@@ -619,19 +630,33 @@ private constructor(
                         } else {
                             DownloadMediaKind.VIDEO
                         }
-                    sidecar.put(
-                        DownloadMediaRecord(
-                            itemId = item.id.toString(),
-                            kind = mediaKind,
-                            albumName = albumName,
-                            artist = artist,
-                            trackIndex = trackIndex,
-                            serverId = origin.serverId,
-                            userId = origin.userId,
-                            sourceId = sourceId,
-                            displayName = item.name,
+                    check(
+                        sidecar.put(
+                            DownloadMediaRecord(
+                                itemId = item.id.toString(),
+                                kind = mediaKind,
+                                albumName = albumName,
+                                artist = artist,
+                                trackIndex = trackIndex,
+                                serverId = origin.serverId,
+                                userId = origin.userId,
+                                sourceId = sourceId,
+                                displayName = item.name,
+                            )
                         )
-                    )
+                    ) {
+                        "下载 sidecar 持久化失败：${item.id}/$sourceId"
+                    }
+                    check(
+                        sidecar.allRecords().any {
+                            it.itemId == item.id.toString() &&
+                                it.sourceId == sourceId &&
+                                it.serverId == origin.serverId &&
+                                it.userId == origin.userId
+                        }
+                    ) {
+                        "下载 sidecar 写入后不可验证：${item.id}/$sourceId"
+                    }
 
                     val sourceDto =
                         FindroidSourceDto(
@@ -703,14 +728,19 @@ private constructor(
     override suspend fun receiveMusicBatch(
         requests: List<DownloadMusicIntentRequest>
     ): DownloadBatchReceipt {
-        val origin = freezeDownloadOrigin()
         return withContext(Dispatchers.IO) {
             val startedAt = System.nanoTime()
             val scopedRequests = requests.map { request ->
-                request.copy(
-                    serverId = request.serverId ?: origin.serverId,
-                    userId = request.userId ?: origin.userId,
-                )
+                val serverId = request.serverId?.takeIf(String::isNotBlank)
+                val userId = request.userId?.takeIf(String::isNotBlank)
+                if (serverId != null && userId != null) {
+                    request
+                } else if (serverId == null && userId == null) {
+                    request.copy(sourceId = null)
+                } else {
+                    // 只有一段不能证明 namespace；不从 current origin 补齐另一半。
+                    request.copy(serverId = null, userId = null, sourceId = null)
+                }
             }
             val receipt = batchInbox.accept(scopedRequests)
             Timber.i(
@@ -804,43 +834,45 @@ private constructor(
 
     private suspend fun resolveSidecarIntent(record: DownloadMediaRecord) {
         val itemId = record.itemId.toUuidOrNull() ?: return
+        val origin =
+            FrozenDownloadOrigin(record.serverId, record.userId).toJellyfinOriginOrNull()
+                ?: run {
+                    Timber.w("sidecar 缺少完整 namespace，保持可重试未知状态：%s", record)
+                    return
+                }
         runCatching {
             if (sidecar.allRecords().none { it == record }) return
-            val intent = database.getDownloadIntent(itemId)
-            if (intent != null && intent.status != DownloadIntentStatus.RECEIVED.name) return
-            val item = jellyfinRepository.getItem(itemId) ?: error("下载条目不存在")
-            val sourceId =
-                jellyfinRepository.getMediaSources(itemId, includePath = true).firstOrNull()?.id
-                    ?: error("下载媒体源不存在")
+            val originRepository = originScopedRepository()
+            val item =
+                originRepository.getItemForOrigin(itemId, origin)
+                    ?: error("冻结来源中下载条目不存在：${origin.serverId}/${origin.userId}")
+            val mediaSources = originRepository.getMediaSourcesForOrigin(itemId, origin)
+            val frozenSource =
+                when {
+                    record.sourceId != null ->
+                        mediaSources.singleOrNull { it.id == record.sourceId }
+                    else -> mediaSources.singleOrNull()
+                }
+                    ?: error(
+                        "冻结来源媒体源缺失或歧义：${origin.serverId}/${origin.userId}/" +
+                            "${record.sourceId ?: "implicit"}"
+                    )
             if (sidecar.allRecords().none { it == record }) return
             val (handle, queueError) =
                 enqueueItem(
                     item = item,
-                    sourceId = sourceId,
+                    sourceId = frozenSource.id,
                     storageIndex = 0,
                     albumName = record.albumName,
                     artist = record.artist,
                     trackIndex = record.trackIndex,
-                    origin = FrozenDownloadOrigin(record.serverId, record.userId),
+                    origin = FrozenDownloadOrigin(origin.serverId, origin.userId.toString()),
                 )
             if (handle == -1L) {
                 error("加入下载队列失败：${queueError ?: "未知错误"}")
             }
         }
-            .onFailure { failure ->
-                withContext(Dispatchers.IO) {
-                    val current = database.getDownloadIntent(itemId) ?: return@withContext
-                    database.setDownloadIntentStatusIfCurrent(
-                        itemId = itemId,
-                        taskGeneration = current.taskGeneration,
-                        status = DownloadIntentStatus.FAILED.name,
-                        failureReason = DownloadFailureReason.SERVER_ERROR.name,
-                        failureDetail = failure.message?.take(500),
-                        updatedAt = System.currentTimeMillis(),
-                    )
-                }
-                Timber.w(failure, "解析 sidecar 下载意图失败：%s", itemId)
-            }
+            .onFailure { failure -> Timber.w(failure, "解析 sidecar 下载意图失败：%s", itemId) }
     }
 
     private suspend fun resolveLegacyReceivedIntent(intent: DownloadIntentDto) {
@@ -1216,12 +1248,13 @@ private constructor(
                 DownloadSpeedLimitRules.bytesPerSecond(
                     appPreferences.getValue(appPreferences.downloadSpeedLimitMbps)
                 )
+            val transferCredentials = credentialsForSource(source.itemId, source.id)
             val result =
                 downloadTransfer.download(
                     DownloadTransferRequest(
                         url = mediaSource.path,
-                        token = jellyfinRepository.getAccessToken(),
-                        baseUrl = jellyfinRepository.getBaseUrl(),
+                        token = transferCredentials.accessToken,
+                        baseUrl = transferCredentials.baseUrl,
                         target = target,
                         existingBytes = offset,
                         validator = source.resumeValidator,
@@ -2967,6 +3000,7 @@ private constructor(
         generation: Long,
     ) {
         val storageLocation = context.getExternalFilesDirs(null).getOrNull(storageIndex) ?: return
+        val transferCredentials = credentialsForSource(item.id, source.id)
         val existing = database.getMediaStreamsBySourceId(source.id).associateBy { it.id }
         val failures = mutableListOf<Exception>()
         for ((ordinal, mediaStream) in
@@ -2988,8 +3022,8 @@ private constructor(
                 downloadTransfer.download(
                     DownloadTransferRequest(
                         url = mediaStream.path!!,
-                        token = jellyfinRepository.getAccessToken(),
-                        baseUrl = jellyfinRepository.getBaseUrl(),
+                        token = transferCredentials.accessToken,
+                        baseUrl = transferCredentials.baseUrl,
                         target = partial,
                         existingBytes = 0L,
                         validator = null,
@@ -3197,8 +3231,14 @@ private constructor(
         item: FindroidItem,
         sourceId: String,
     ): FindroidSource {
+        val origin = persistedOriginForSource(item.id, sourceId)?.origin?.toJellyfinOriginOrNull()
         val sources = runCatching {
-            jellyfinRepository.getMediaSources(item.id, true)
+            if (origin != null) {
+                originScopedRepository().getMediaSourcesForOrigin(item.id, origin)
+            } else {
+                // 无完整 sidecar 的旧记录是显式 legacy 回退，只有这条路径允许 current session。
+                jellyfinRepository.getMediaSources(item.id, true)
+            }
         }
             .getOrElse { error ->
                 // W76-Q2：先按异常类型判定（网络类 → NETWORK_UNAVAILABLE 等）；非传输层异常仍归服务器错误
@@ -3212,11 +3252,26 @@ private constructor(
                     }
                 throw DownloadHttpException(reason, error.message, error)
             }
-        return sources.firstOrNull { it.id == sourceId }
+        return sources.singleOrNull { it.id == sourceId }
             ?: throw DownloadHttpException(
                 DownloadFailureReason.SERVER_ERROR,
                 "服务器未返回该媒体来源（sourceId=$sourceId）",
             )
+    }
+
+    private suspend fun credentialsForSource(
+        itemId: UUID,
+        sourceId: String,
+    ): JellyfinOriginCredentials {
+        val origin = persistedOriginForSource(itemId, sourceId)?.origin?.toJellyfinOriginOrNull()
+        return if (origin != null) {
+            originScopedRepository().credentialsForOrigin(origin)
+        } else {
+            JellyfinOriginCredentials(
+                baseUrl = jellyfinRepository.getBaseUrl(),
+                accessToken = jellyfinRepository.getAccessToken(),
+            )
+        }
     }
 
     private fun persistedOriginForSource(

@@ -37,19 +37,17 @@ class MusicAlbumDownloadRulesTest {
 
     @Test
     fun `只补齐缺失 已下载与队列内跳过`() {
-        val downloaded = song(1)
-        val active = song(2)
-        val missingA = song(3)
-        val missingB = song(4)
+        val downloaded = song(1, serverId = "server-a", userId = "user-a")
+        val active = song(2, serverId = "server-a", userId = "user-a")
+        val missingA = song(3, serverId = "server-a", userId = "user-a")
+        val missingB = song(4, serverId = "server-a", userId = "user-a")
         val target = album("示例专辑", listOf(downloaded, active, missingA, missingB))
 
         val plan =
             MusicAlbumDownloadRules.plan(
                 album = target,
-                downloadedIdentities = emptySet(),
-                activeIdentities = emptySet(),
-                legacyDownloadedItemIds = setOf(downloaded.itemId),
-                legacyActiveItemIds = setOf(active.itemId),
+                downloadedIdentities = setOf(downloaded.downloadIdentity()!!),
+                activeIdentities = setOf(active.downloadIdentity()!!),
             )
 
         assertEquals(listOf(missingA.itemId, missingB.itemId), plan.targets.map { it.itemId })
@@ -78,7 +76,7 @@ class MusicAlbumDownloadRulesTest {
     }
 
     @Test
-    fun `全部已下载时计划为空`() {
+    fun `unknown 保持独立且不按 itemId 跳过`() {
         val songs = (1..3).map { index -> song(index) }
         val target = album("已完成专辑", songs)
         val plan =
@@ -86,10 +84,9 @@ class MusicAlbumDownloadRulesTest {
                 album = target,
                 downloadedIdentities = emptySet(),
                 activeIdentities = emptySet(),
-                legacyDownloadedItemIds = songs.mapTo(mutableSetOf()) { it.itemId },
             )
-        assertTrue(plan.isEmpty)
-        assertEquals(3, plan.skippedDownloaded)
+        assertEquals(songs, plan.targets)
+        assertEquals(0, plan.skippedDownloaded)
     }
 
     @Test
@@ -176,7 +173,7 @@ class MusicAlbumDownloadRulesTest {
     }
 
     @Test
-    fun `单条 legacy 曲目仍可按显式 itemId 跳过`() {
+    fun `单条 unknown 保持独立不按 itemId 跳过`() {
         val legacy = song(1)
 
         val plan =
@@ -184,10 +181,9 @@ class MusicAlbumDownloadRulesTest {
                 album = album("legacy", listOf(legacy)),
                 downloadedIdentities = emptySet(),
                 activeIdentities = emptySet(),
-                legacyDownloadedItemIds = setOf(legacy.itemId),
             )
 
-        assertTrue(plan.targets.isEmpty())
-        assertEquals(1, plan.skippedDownloaded)
+        assertEquals(listOf(legacy), plan.targets)
+        assertEquals(0, plan.skippedDownloaded)
     }
 }

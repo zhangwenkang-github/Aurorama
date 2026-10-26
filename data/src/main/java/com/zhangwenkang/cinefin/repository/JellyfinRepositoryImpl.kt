@@ -10,6 +10,7 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidPerson
@@ -52,6 +53,7 @@ import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.MediaProtocol
 import org.jellyfin.sdk.model.api.MediaStreamProtocol
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayMethod
@@ -78,13 +80,83 @@ class JellyfinRepositoryImpl(
     /** W37：本地媒体库（合成 LOCAL 源，播放链路零改动复用）。 */
     private val localLibrary: LocalLibraryRepository,
     metadataSnapshotStore: MetadataSnapshotStore,
-) : JellyfinRepository {
+) : JellyfinRepository, OriginScopedJellyfinRepository {
     /** W34：下载页轮询会重复取同一批封面 / 专辑元数据，用短 TTL 缓存避免每轮都打服务器。 */
     private val primaryImageUrls = java.util.concurrent.ConcurrentHashMap<UUID, String>()
     private val imageUrlCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
     private val musicTrackCache =
         java.util.concurrent.atomic.AtomicReference<Map<UUID, MusicTrackMetadata>>(emptyMap())
     private val musicTrackCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
+    private val originApis = java.util.concurrent.ConcurrentHashMap<JellyfinOrigin, JellyfinApi>()
+
+    private data class BoundOriginClient(
+        val api: JellyfinApi,
+        val baseUrl: String,
+        val accessToken: String?,
+        val userId: UUID,
+    )
+
+    private suspend fun bindOrigin(origin: JellyfinOrigin): BoundOriginClient =
+        withContext(Dispatchers.IO) {
+            val user =
+                database.getUser(origin.userId)?.takeIf { it.serverId == origin.serverId }
+                    ?: error("origin user 不属于冻结 server：${origin.serverId}/${origin.userId}")
+            val address =
+                database.getServerCurrentAddress(origin.serverId)
+                    ?: error("origin server 缺少可用地址：${origin.serverId}")
+            val api =
+                originApis[origin]
+                    ?: JellyfinApi(
+                            androidContext = context,
+                            requestTimeout = appPreferences.getValue(appPreferences.requestTimeout),
+                            connectTimeout = appPreferences.getValue(appPreferences.connectTimeout),
+                            socketTimeout = appPreferences.getValue(appPreferences.socketTimeout),
+                        )
+                        .also { originApis[origin] = it }
+            api.api.update(
+                baseUrl = address.address,
+                accessToken = user.accessToken,
+            )
+            api.userId = user.id
+            BoundOriginClient(
+                api = api,
+                baseUrl = address.address,
+                accessToken = user.accessToken,
+                userId = user.id,
+            )
+        }
+
+    override suspend fun credentialsForOrigin(origin: JellyfinOrigin): JellyfinOriginCredentials {
+        val bound = bindOrigin(origin)
+        return JellyfinOriginCredentials(
+            baseUrl = bound.baseUrl,
+            accessToken = bound.accessToken,
+        )
+    }
+
+    override suspend fun getItemForOrigin(
+        itemId: UUID,
+        origin: JellyfinOrigin,
+    ): FindroidItem? {
+        val bound = bindOrigin(origin)
+        val dto =
+            withContext(Dispatchers.IO) {
+                bound.api.userLibraryApi.getItem(itemId, bound.userId).content
+            }
+        val mapped =
+            withContext(Dispatchers.IO) {
+                dto.toFindroidItem(this@JellyfinRepositoryImpl, database)
+            } ?: return null
+        val sources = getMediaSourcesForOrigin(itemId, origin)
+        return when (mapped) {
+            is FindroidMovie ->
+                mapped.copy(
+                    sources = sources,
+                    images = FindroidImages(),
+                )
+            else -> mapped
+        }
+    }
 
     /** W69 / W88-C：会话级元数据缓存（按 serverId + userId 隔离；TTL 规则见 [MetadataCacheRules]）。 */
     private val metadataCache =
@@ -820,6 +892,95 @@ class JellyfinRepositoryImpl(
                 },
             )
         }
+
+    private fun playbackInfoForDownloads(
+        userId: UUID,
+        startPositionTicks: Long,
+    ): PlaybackInfoDto {
+        val streamingBitrate = appPreferences.getPlayerStreamingBitrate()
+        val maxStreamingBitrate =
+            PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
+        val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)
+        val forceTranscode =
+            PlayerDecodeFallback.forcesServerTranscode(
+                appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
+            )
+        val transcodingProfiles =
+            if (PlayerStreamingQuality.requestsTranscoding(streamingBitrate) || forceTranscode) {
+                listOf(
+                    TranscodingProfile(
+                        container = "ts",
+                        type = DlnaProfileType.VIDEO,
+                        videoCodec = "h264",
+                        audioCodec = "aac,mp3,ac3,opus",
+                        protocol = MediaStreamProtocol.HLS,
+                        context = EncodingContext.STREAMING,
+                        enableSubtitlesInManifest = true,
+                        conditions = emptyList(),
+                    )
+                )
+            } else {
+                emptyList()
+            }
+        return PlaybackInfoDto(
+            userId = userId,
+            deviceProfile =
+                DeviceProfile(
+                    name = "Direct play all",
+                    maxStaticBitrate = maxStreamingBitrate,
+                    maxStreamingBitrate = maxStreamingBitrate,
+                    codecProfiles = emptyList(),
+                    containerProfiles = emptyList(),
+                    directPlayProfiles = emptyList(),
+                    transcodingProfiles = transcodingProfiles,
+                    subtitleProfiles =
+                        listOf(
+                            SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),
+                            SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
+                        ),
+                ),
+            maxStreamingBitrate = maxStreamingBitrate,
+            startTimeTicks = startPositionTicks.takeIf { it > 0L },
+            enableTranscoding = transcodingEnabled,
+            enableDirectPlay = if (forceTranscode) false else null,
+            enableDirectStream = if (forceTranscode) false else null,
+            allowVideoStreamCopy = if (forceTranscode) false else null,
+            allowAudioStreamCopy = if (forceTranscode) false else null,
+        )
+    }
+
+    override suspend fun getMediaSourcesForOrigin(
+        itemId: UUID,
+        origin: JellyfinOrigin,
+    ): List<FindroidSource> {
+        val bound = bindOrigin(origin)
+        return withContext(Dispatchers.IO) {
+            bound.api.mediaInfoApi
+                .getPostedPlaybackInfo(
+                    itemId,
+                    playbackInfoForDownloads(
+                        userId = bound.userId,
+                        startPositionTicks = 0L,
+                    ),
+                )
+                .content
+                .mediaSources
+                .map { mediaSource ->
+                    val source = mediaSource.toFindroidSource(bound.baseUrl, itemId)
+                    if (mediaSource.protocol != MediaProtocol.FILE) {
+                        source
+                    } else {
+                        val path =
+                            bound.api.videosApi.getVideoStreamUrl(
+                                itemId,
+                                static = true,
+                                mediaSourceId = mediaSource.id.orEmpty(),
+                            )
+                        source.copy(path = path)
+                    }
+                }
+        }
+    }
 
     override suspend fun getMediaSources(
         itemId: UUID,

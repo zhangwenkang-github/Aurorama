@@ -85,8 +85,8 @@ class DownloadMediaSidecar private constructor(private val file: File) {
                 }
         }
 
-    fun put(record: DownloadMediaRecord) {
-        update { records -> upsert(records, record) }
+    fun put(record: DownloadMediaRecord): Boolean = updateResult { records ->
+        upsert(records, record)
     }
 
     /** 原子写入整批接受记录；返回 false 时调用方不得报告 accepted。 */

@@ -319,20 +319,83 @@ class MusicBatchRulesTest {
     }
 
     @Test
-    fun `同 UUID 的未知行分别绑定 caps 不共享下载状态`() {
+    fun `同 UUID 两条 unknown 经真实 caps 计算不共享下载状态`() {
         val itemId = UUID.randomUUID()
         val unknownA = song("1").copy(itemId = itemId, name = "A")
         val unknownB = song("2").copy(itemId = itemId, name = "B")
+        val completed =
+            DownloadMediaRecord(
+                itemId = itemId.toString(),
+                kind = DownloadMediaKind.MUSIC,
+                serverId = "server-a",
+                userId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                sourceId = "source-a",
+            )
         val capabilities =
             listOf(
-                MusicBatchTargetCapability(unknownA, caps(downloaded = true)),
-                MusicBatchTargetCapability(unknownB, caps()),
+                MusicBatchTargetCapability(
+                    unknownA,
+                    musicSongBatchCaps(
+                        song = unknownA,
+                        downloadedRecords = listOf(completed),
+                        activeTasks = emptyList(),
+                    ),
+                ),
+                MusicBatchTargetCapability(
+                    unknownB,
+                    musicSongBatchCaps(
+                        song = unknownB,
+                        downloadedRecords = listOf(completed),
+                        activeTasks = emptyList(),
+                    ),
+                ),
             )
 
         assertEquals(
-            listOf(unknownB),
+            listOf(unknownA, unknownB),
             batchDownloadTargets(capabilities),
         )
+    }
+
+    @Test
+    fun `unknown 不靠 complete 或全局集生成 downloaded 与 active caps`() {
+        val itemId = UUID.randomUUID()
+        val unknown = song("1").copy(itemId = itemId, serverId = "server-a")
+        val complete =
+            DownloadMediaRecord(
+                itemId = itemId.toString(),
+                kind = DownloadMediaKind.MUSIC,
+                serverId = "server-a",
+                userId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                sourceId = "source-a",
+            )
+        val active =
+            DownloadTask(
+                itemId = itemId,
+                sourceId = "source-a",
+                name = "A",
+                path = "/tmp/a.download",
+                downloadId = null,
+                status = DownloadTaskStatus.RUNNING,
+                failureReason = null,
+                downloadedBytes = 1L,
+                totalBytes = 2L,
+                updatedAt = 1L,
+                mediaKind = DownloadMediaKind.MUSIC,
+                serverId = "server-a",
+                userId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            )
+
+        val caps =
+            musicSongBatchCaps(
+                song = unknown,
+                downloadedRecords = listOf(complete),
+                activeTasks = listOf(active),
+            )
+
+        assertFalse(caps.downloaded)
+        assertFalse(caps.activeDownload)
+        assertTrue(caps.canDownload)
     }
 
     @Test
