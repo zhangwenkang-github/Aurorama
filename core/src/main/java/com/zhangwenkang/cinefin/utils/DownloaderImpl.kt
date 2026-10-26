@@ -949,6 +949,14 @@ private constructor(
 
     private suspend fun resolveSidecarIntent(record: DownloadMediaRecord) {
         val itemId = record.itemId.toUuidOrNull() ?: return
+        val currentIntent = withContext(Dispatchers.IO) { database.getDownloadIntent(itemId) }
+        if (
+            currentIntent?.status == DownloadIntentStatus.FAILED.name &&
+                currentIntent.failureReason == DownloadFailureReason.CANCELLED.name &&
+                currentIntent.failureDetail == null
+        ) {
+            return
+        }
         val origin =
             FrozenDownloadOrigin(record.serverId, record.userId).toJellyfinOriginOrNull()
                 ?: run {
@@ -2268,29 +2276,40 @@ private constructor(
                             sourceIds = sourceIds,
                             deleteSource = { childSourceId -> deleteTaskById(childSourceId) },
                             deleteIntent = {
-                                database.deleteDownloadIntentIfCurrent(
-                                    itemId = itemId,
-                                    taskGeneration = cancelled.taskGeneration,
-                                ) > 0 || database.getDownloadIntent(itemId) == null
+                                val pendingIdentities =
+                                    sidecar
+                                        .allRecords()
+                                        .requireComplete()
+                                        .filter {
+                                            it.kind == DownloadMediaKind.MUSIC &&
+                                                it.itemId == itemId.toString() &&
+                                                it.sourceId.isNullOrBlank()
+                                        }
+                                        .map { it.canonicalIdentity() }
+                                        .distinct()
+                                var removalsConfirmed = true
+                                pendingIdentities.forEach { identity ->
+                                    if (!sidecar.remove(identity)) {
+                                        removalsConfirmed = false
+                                    }
+                                }
+                                val identitiesAbsent =
+                                    sidecar.allRecords().requireComplete().none {
+                                        it.canonicalIdentity() in pendingIdentities
+                                    }
+                                removalsConfirmed &&
+                                    identitiesAbsent &&
+                                    (database.deleteDownloadIntentIfCurrent(
+                                        itemId = itemId,
+                                        taskGeneration = cancelled.taskGeneration,
+                                    ) > 0 || database.getDownloadIntent(itemId) == null)
                             },
                         )
-                    if (!result.confirmed) {
-                        throw result.failure ?: IllegalStateException("下载意图删除未确认")
-                    }
-                    sidecar
-                        .allRecords()
-                        .requireComplete()
-                        .filter {
-                            it.kind == DownloadMediaKind.MUSIC &&
-                                it.itemId == itemId.toString() &&
-                                it.sourceId.isNullOrBlank()
-                        }
-                        .forEach { sidecar.remove(it.canonicalIdentity()) }
+                    result.confirmed
                 }
             } finally {
                 notifyQueueChanged()
             }
-            true
         }
 
     private suspend fun deleteTaskAtGeneration(
@@ -2344,7 +2363,9 @@ private constructor(
                         return@withCurrentGeneration false
                     }
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
-                    deletePartialArtifacts(source.path)
+                    if (!deletePartialArtifacts(source.path)) {
+                        error("下载残片删除未确认：${source.path}")
+                    }
                     val item =
                         knownItem
                             ?: run {

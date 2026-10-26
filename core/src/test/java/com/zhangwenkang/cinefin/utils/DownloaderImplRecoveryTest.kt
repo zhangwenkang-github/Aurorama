@@ -51,7 +51,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -2415,7 +2417,7 @@ class DownloaderImplRecoveryTest {
             )
 
             assertTrue(blockedReplace.deleteRecursively())
-            fixture.downloader.recoverOnStartup()
+            fixture.newDownloader().recoverOnStartup()
             assertTrue(
                 "sidecar 可写后必须续删 source",
                 fixture.awaitSourceRemoved("retry-sidecar"),
@@ -2431,7 +2433,150 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `不可读或损坏 sidecar 收口失败 intent 时发出一次队列刷新`() = runBlocking {
+    fun `pending intent sidecar 删除失败保留 FAILED tombstone 且冷启动不复活`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("56565656-5656-4656-8656-565656565656")
+            fixture.dao.seedDownloadIntent(itemId)
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = null,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                )
+            )
+            val identity =
+                fixture.downloader
+                    .mediaSidecar()
+                    .allRecords()
+                    .requireComplete()
+                    .single { it.itemId == itemId.toString() && it.sourceId == null }
+                    .canonicalIdentity()
+            val blockedReplace = fixture.blockSidecarReplace()
+
+            assertFalse(
+                "sidecar 删除未确认时不得报告 intent 删除成功",
+                fixture.downloader.deleteTaskById(intentSourceId(itemId)),
+            )
+            val failed = requireNotNull(fixture.dao.downloadIntent(itemId))
+            assertEquals(DownloadIntentStatus.FAILED.name, failed.status)
+            assertEquals(DownloadFailureReason.CANCELLED.name, failed.failureReason)
+            assertTrue(
+                "sidecar 删除失败时必须保留目标 identity 供重试",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().any {
+                    it.canonicalIdentity() == identity
+                },
+            )
+
+            val restarted = fixture.newDownloader()
+            val processing =
+                async(start = CoroutineStart.UNDISPATCHED) { restarted.queueChanges.first() }
+            restarted.recoverOnStartup()
+            assertNotNull(withTimeoutOrNull(5_000L) { processing.await() })
+            restarted.runQueue()
+            assertTrue(
+                "FAILED tombstone 存在时冷启动不得用 pending sidecar 重建 source",
+                fixture.dao.sourceIds().isEmpty(),
+            )
+            assertTrue(
+                "FAILED tombstone 存在时冷启动不得启动 transfer",
+                fixture.transfer.requestSnapshot().isEmpty(),
+            )
+            assertNotNull(
+                "sidecar 写失败后的删除 intent 必须保留到重试",
+                fixture.dao.downloadIntent(itemId),
+            )
+
+            assertTrue(blockedReplace.deleteRecursively())
+            assertTrue(
+                "sidecar 可写后新 lifecycle 必须能完成删除",
+                fixture.newDownloader().deleteTaskById(intentSourceId(itemId)),
+            )
+            assertEquals(null, fixture.dao.downloadIntent(itemId))
+            assertTrue(
+                "成功删除 intent 后目标 sidecar identity 必须不存在",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
+                    it.canonicalIdentity() == identity
+                },
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy cleanup partial 文件删除失败保留 DELETING 并可冷启动重试`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.seedLegacyUnknownSource(
+                itemId = UUID.fromString("57575757-5757-4757-8757-575757575757"),
+                sourceId = "retry-partial",
+                displayName = "retry partial",
+            )
+            val source = requireNotNull(fixture.dao.sourceById("retry-partial"))
+            val blockedPartial =
+                File(fixture.downloads, "legacy-partial.orphan.download").apply {
+                    assertTrue(mkdirs())
+                    File(this, "holder").writeText("hold")
+                }
+            fixture.dao.putSource(source.copy(path = blockedPartial.path))
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.awaitIntentProcessingFailure())
+            assertEquals(
+                "partial 文件删除失败时必须保留 DELETING tombstone",
+                DownloadTaskStatus.DELETING.name,
+                fixture.dao.sourceById("retry-partial")?.taskStatus,
+            )
+
+            assertTrue(blockedPartial.deleteRecursively())
+            fixture.newDownloader().recoverOnStartup()
+            assertTrue(
+                "partial 文件可删后冷启动必须续删 source",
+                fixture.awaitSourceRemoved("retry-partial"),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy cleanup js sidecar 删除失败保留 DELETING 并可冷启动重试`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.seedLegacyUnknownSource(
+                itemId = UUID.fromString("58585858-5858-4858-8858-585858585858"),
+                sourceId = "retry-js",
+                displayName = "retry js",
+            )
+            val source = requireNotNull(fixture.dao.sourceById("retry-js"))
+            val blockedSidecar =
+                File("${source.path}.js").apply {
+                    assertTrue(mkdirs())
+                    File(this, "holder").writeText("hold")
+                }
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.awaitIntentProcessingFailure())
+            assertTrue(
+                "旧 .js sidecar 删除失败时必须保留 DELETING tombstone",
+                fixture.awaitSourceStatus("retry-js", DownloadTaskStatus.DELETING),
+            )
+
+            assertTrue(blockedSidecar.deleteRecursively())
+            fixture.newDownloader().recoverOnStartup()
+            assertTrue(
+                "旧 .js sidecar 可删后冷启动必须续删 source",
+                fixture.awaitSourceRemoved("retry-js"),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `不可读或损坏 sidecar 收口失败 intent 时恰好一次队列刷新`() = runBlocking {
         val itemIds =
             listOf(
                 UUID.fromString("54545454-5454-4454-8454-545454545454"),
@@ -2447,13 +2592,24 @@ class DownloaderImplRecoveryTest {
                     fixture.sidecarFile().writeText("v2,broken")
                 }
 
-                val queueChange =
-                    async(start = CoroutineStart.UNDISPATCHED) {
-                        fixture.downloader.queueChanges.first()
+                val observed = mutableListOf<Unit>()
+                val queueChanges =
+                    launch(start = CoroutineStart.UNDISPATCHED) {
+                        fixture.downloader.queueChanges.collect { observed += Unit }
                     }
-                fixture.downloader.recoverOnStartup()
-                assertNotNull(withTimeoutOrNull(5_000L) { queueChange.await() })
-                assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+                try {
+                    fixture.downloader.recoverOnStartup()
+                    assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+                    withTimeout(5_000L) { while (observed.isEmpty()) delay(10L) }
+                    withTimeoutOrNull(500L) { while (observed.size < 2) delay(10L) }
+                } finally {
+                    queueChanges.cancelAndJoin()
+                }
+                assertEquals(
+                    "整个收口流程结束后 queue change 必须恰好一次：${observed.size}",
+                    1,
+                    observed.size,
+                )
             } finally {
                 fixture.close()
             }
@@ -3675,6 +3831,12 @@ class DownloaderImplRecoveryTest {
                 true
             } ?: false
 
+        suspend fun awaitIntentProcessingFailure(): Boolean =
+            withTimeoutOrNull(5_000L) {
+                while (logs.none { it.startsWith("处理已受理下载意图失败") }) delay(10L)
+                true
+            } ?: false
+
         fun seedPendingSource(itemId: UUID, sourceId: String): FindroidSourceDto =
             sourceDto(itemId = itemId, sourceId = sourceId, index = 0).also(dao::putSource)
 
@@ -4554,6 +4716,31 @@ class DownloaderImplRecoveryTest {
                                 .sortedBy { it.ordinal }
                         "getDownloadIntents" -> downloadIntents.values.toList()
                         "getDownloadIntent" -> downloadIntents[args[0] as UUID]
+                        "beginDownloadIntentDeletion" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == generation &&
+                                    current.status in
+                                        setOf(
+                                            DownloadIntentStatus.RECEIVED.name,
+                                            DownloadIntentStatus.FAILED.name,
+                                        )
+                            ) {
+                                current
+                                    .copy(
+                                        status = DownloadIntentStatus.FAILED.name,
+                                        failureReason = DownloadFailureReason.CANCELLED.name,
+                                        failureDetail = null,
+                                        taskGeneration = generation + 1,
+                                        updatedAt = args[2] as Long,
+                                    )
+                                    .also { downloadIntents[itemId] = it }
+                            } else {
+                                null
+                            }
+                        }
                         "getReceivedDownloadIntents" ->
                             downloadIntents.values
                                 .filter { it.status == "RECEIVED" }

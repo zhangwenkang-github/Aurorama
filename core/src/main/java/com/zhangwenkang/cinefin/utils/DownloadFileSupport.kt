@@ -50,9 +50,10 @@ internal fun deletePartialSidecar(path: String): Boolean = runCatching {
 }
     .getOrDefault(false)
 
-internal fun deletePartialArtifacts(path: String) {
-    deletePartialFile(path)
-    deletePartialSidecar(path)
+internal fun deletePartialArtifacts(path: String): Boolean {
+    val partialDeleted = deletePartialFile(path)
+    val sidecarDeleted = deletePartialSidecar(path)
+    return partialDeleted && sidecarDeleted
 }
 
 /** 删除任务时同时清理已完成文件与 finalizing witness；失败重试不会把已 rename 的源文件当成残片误删。 */
