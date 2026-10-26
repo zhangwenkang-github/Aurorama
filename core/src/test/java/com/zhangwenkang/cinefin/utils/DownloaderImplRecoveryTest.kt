@@ -1949,12 +1949,18 @@ class DownloaderImplRecoveryTest {
 
             fixture.downloader.runQueue()
 
+            assertEquals("PENDING", fixture.dao.source?.taskStatus)
+            assertEquals(DownloadFailureReason.SERVER_ERROR.name, fixture.dao.source?.failureReason)
             assertEquals(0, fixture.dao.showSnapshotWrites)
             assertEquals(0, fixture.dao.seasonSnapshotWrites)
             assertEquals(0, fixture.dao.episodeSnapshotWrites)
             assertEquals(0, fixture.dao.userDataWrites)
             assertEquals(0, fixture.preferences.currentServerReads)
             assertEquals(0, fixture.repository.userIdReads)
+            assertEquals(0, fixture.repository.segmentReads)
+            assertEquals(0, fixture.repository.trickplayReads)
+            assertEquals(0, fixture.repository.showReads)
+            assertEquals(0, fixture.repository.seasonReads)
             assertTrue(fixture.imageScheduler.parentOwners.isEmpty())
         } finally {
             fixture.close()
@@ -1966,6 +1972,9 @@ class DownloaderImplRecoveryTest {
         val fixture = Fixture()
         try {
             val episode = fixture.episode()
+            val origin = JellyfinOrigin(SERVER_ID, USER_ID)
+            fixture.repository.putOriginShow(SHOW_ID, origin, fixture.show())
+            fixture.repository.putOriginSeason(SEASON_ID, origin, fixture.season())
             val (handle, error) =
                 fixture.downloader.downloadItem(
                     item = episode,
@@ -2005,8 +2014,284 @@ class DownloaderImplRecoveryTest {
             assertEquals(USER_ID, fixture.dao.userDataSnapshot?.userId)
             assertEquals(0, fixture.preferences.currentServerReads)
             assertEquals(0, fixture.repository.userIdReads)
+            assertEquals(0, fixture.repository.segmentReads)
+            assertEquals(0, fixture.repository.trickplayReads)
+            assertEquals(0, fixture.repository.showReads)
+            assertEquals(0, fixture.repository.seasonReads)
+            assertEquals(
+                listOf(SHOW_ID to JellyfinOrigin(SERVER_ID, USER_ID)),
+                fixture.repository.originShowLookups,
+            )
+            assertEquals(
+                listOf(SEASON_ID to JellyfinOrigin(SERVER_ID, USER_ID)),
+                fixture.repository.originSeasonLookups,
+            )
         } finally {
             fixture.close()
+        }
+    }
+
+    @Test
+    fun `UniqueComplete 的 segments 与 Trickplay 只从冻结 origin 读取`() = runBlocking {
+        val historicalOrigins =
+            listOf(
+                "server-a" to UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+                "server-b" to UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+            )
+        for ((serverId, userId) in historicalOrigins) {
+            val fixture = Fixture()
+            try {
+                val origin = JellyfinOrigin(serverId, userId)
+                val movie = fixture.movie()
+                val segment =
+                    FindroidSegment(
+                        FindroidSegmentType.INTRO,
+                        startTicks = if (serverId == "server-a") 101L else 201L,
+                        endTicks = if (serverId == "server-a") 102L else 202L,
+                    )
+                val trickplayByte = if (serverId == "server-a") 11.toByte() else 22.toByte()
+                fixture.repository.putOriginItem(movie.id, origin, movie)
+                fixture.repository.putOriginMediaSource(
+                    movie.id,
+                    origin,
+                    movie.sources.single(),
+                )
+                fixture.repository.putOriginSegments(movie.id, origin, listOf(segment))
+                fixture.repository.putOriginTrickplay(movie.id, origin, byteArrayOf(trickplayByte))
+                fixture.preferences.currentServer = serverId
+                fixture.repository.userId = userId
+
+                val (handle, error) =
+                    fixture.downloader.downloadItem(
+                        item = movie,
+                        sourceId = SOURCE_ID,
+                        storageIndex = 0,
+                    )
+                assertTrue(error == null)
+                assertTrue(handle > 0L)
+                fixture.resetEffectCalls()
+                fixture.resetCurrentOriginReads()
+
+                fixture.downloader.runQueue()
+
+                assertEquals(
+                    "source=${fixture.dao.source}, logs=${fixture.logs}",
+                    "COMPLETED",
+                    fixture.dao.source?.taskStatus,
+                )
+                assertEquals(
+                    "origin=$origin, lookups=${fixture.repository.originSegmentLookups}",
+                    listOf(segment),
+                    fixture.dao.segments().map {
+                        FindroidSegment(it.type, it.startTicks, it.endTicks)
+                    },
+                )
+                assertEquals(
+                    listOf(listOf(trickplayByte), listOf(trickplayByte)),
+                    fixture.trickplayFiles().map { file -> file.readBytes().toList() },
+                )
+                assertEquals(0, fixture.repository.segmentReads)
+                assertEquals(0, fixture.repository.trickplayReads)
+                assertEquals(0, fixture.repository.showReads)
+                assertEquals(0, fixture.repository.seasonReads)
+                assertEquals(1, fixture.repository.originSegmentReads)
+                assertEquals(2, fixture.repository.originTrickplayReads)
+                assertEquals(listOf(movie.id to origin), fixture.repository.originSegmentLookups)
+                assertEquals(
+                    listOf(movie.id to origin, movie.id to origin),
+                    fixture.repository.originTrickplayLookups,
+                )
+            } finally {
+                fixture.close()
+            }
+        }
+    }
+
+    @Test
+    fun `UniqueComplete 的剧集父快照只从冻结 origin 读取`() = runBlocking {
+        val historicalOrigins =
+            listOf(
+                "server-a" to UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+                "server-b" to UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+            )
+        for ((serverId, userId) in historicalOrigins) {
+            val fixture = Fixture()
+            try {
+                val origin = JellyfinOrigin(serverId, userId)
+                val episode = fixture.episode()
+                val show = fixture.show().copy(name = "Show $serverId")
+                val season =
+                    fixture
+                        .season()
+                        .copy(
+                            name = "Season $serverId",
+                            seriesName = "Show $serverId",
+                        )
+                fixture.repository.putOriginItem(episode.id, origin, episode)
+                fixture.repository.putOriginMediaSource(
+                    episode.id,
+                    origin,
+                    episode.sources.single(),
+                )
+                fixture.repository.putOriginShow(SHOW_ID, origin, show)
+                fixture.repository.putOriginSeason(SEASON_ID, origin, season)
+                fixture.preferences.currentServer = serverId
+                fixture.repository.userId = userId
+
+                val (handle, error) =
+                    fixture.downloader.downloadItem(
+                        item = episode,
+                        sourceId = SOURCE_ID,
+                        storageIndex = 0,
+                    )
+                assertTrue(error == null)
+                assertTrue(handle > 0L)
+                fixture.imageScheduler.parentOwners.clear()
+                fixture.imageScheduler.parentItemIds.clear()
+                fixture.resetEffectCalls()
+                fixture.resetCurrentOriginReads()
+                fixture.dao.showSnapshot = null
+                fixture.dao.seasonSnapshot = null
+
+                fixture.downloader.runQueue()
+
+                assertEquals(
+                    "source=${fixture.dao.source}, logs=${fixture.logs}",
+                    "COMPLETED",
+                    fixture.dao.source?.taskStatus,
+                )
+                assertEquals(show.name, fixture.dao.showSnapshot?.name)
+                assertEquals(season.name, fixture.dao.seasonSnapshot?.name)
+                assertEquals(
+                    setOf(
+                        ImageDownloadParentOwner(
+                            kind = ImageDownloadParentKind.SHOW,
+                            itemId = SHOW_ID,
+                            serverId = serverId,
+                            userId = userId.toString(),
+                        ),
+                        ImageDownloadParentOwner(
+                            kind = ImageDownloadParentKind.SEASON,
+                            itemId = SEASON_ID,
+                            serverId = serverId,
+                            userId = userId.toString(),
+                        ),
+                    ),
+                    fixture.imageScheduler.parentOwners.toSet(),
+                )
+                assertEquals(0, fixture.repository.segmentReads)
+                assertEquals(0, fixture.repository.trickplayReads)
+                assertEquals(0, fixture.repository.showReads)
+                assertEquals(0, fixture.repository.seasonReads)
+                assertEquals(listOf(SHOW_ID to origin), fixture.repository.originShowLookups)
+                assertEquals(listOf(SEASON_ID to origin), fixture.repository.originSeasonLookups)
+            } finally {
+                fixture.close()
+            }
+        }
+    }
+
+    @Test
+    fun `UniqueComplete 的 origin 元数据缺失或读取失败时保持 pending`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val origin = JellyfinOrigin(SERVER_ID, USER_ID)
+            val movie = fixture.movie()
+            fixture.repository.putOriginItem(movie.id, origin, movie)
+            fixture.repository.failNextOriginSegments()
+
+            fixture.downloader.downloadItem(
+                item = movie,
+                sourceId = SOURCE_ID,
+                storageIndex = 0,
+            )
+            fixture.resetEffectCalls()
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.runQueue()
+
+            assertEquals("PENDING", fixture.dao.source?.taskStatus)
+            assertEquals(DownloadFailureReason.SERVER_ERROR.name, fixture.dao.source?.failureReason)
+            assertTrue(fixture.witness().isFile)
+            assertTrue(fixture.dao.segments().isEmpty())
+            assertEquals(0, fixture.dao.segmentWrites)
+            assertEquals(0, fixture.repository.segmentReads)
+            assertEquals(1, fixture.repository.originSegmentReads)
+            assertEquals(0, fixture.repository.trickplayReads)
+            assertEquals(0, fixture.repository.showReads)
+            assertEquals(0, fixture.repository.seasonReads)
+        } finally {
+            fixture.close()
+        }
+
+        val missingTrickplayFixture = Fixture()
+        try {
+            val origin = JellyfinOrigin(SERVER_ID, USER_ID)
+            val movie = missingTrickplayFixture.movie()
+            missingTrickplayFixture.repository.putOriginItem(movie.id, origin, movie)
+            missingTrickplayFixture.repository.removeOriginTrickplay(movie.id, origin)
+
+            missingTrickplayFixture.downloader.downloadItem(
+                item = movie,
+                sourceId = SOURCE_ID,
+                storageIndex = 0,
+            )
+            missingTrickplayFixture.resetEffectCalls()
+            missingTrickplayFixture.resetCurrentOriginReads()
+
+            missingTrickplayFixture.downloader.runQueue()
+
+            assertEquals("PENDING", missingTrickplayFixture.dao.source?.taskStatus)
+            assertEquals(
+                DownloadFailureReason.SERVER_ERROR.name,
+                missingTrickplayFixture.dao.source?.failureReason,
+            )
+            assertTrue(missingTrickplayFixture.witness().isFile)
+            assertEquals(0, missingTrickplayFixture.dao.trickplayWrites)
+            assertTrue(missingTrickplayFixture.dao.trickplayInfos().isEmpty())
+            assertTrue(missingTrickplayFixture.trickplayFiles().isEmpty())
+            assertEquals(0, missingTrickplayFixture.repository.trickplayReads)
+            assertEquals(1, missingTrickplayFixture.repository.originTrickplayReads)
+            assertEquals(0, missingTrickplayFixture.repository.showReads)
+            assertEquals(0, missingTrickplayFixture.repository.seasonReads)
+        } finally {
+            missingTrickplayFixture.close()
+        }
+
+        val missingParentFixture = Fixture()
+        try {
+            val origin = JellyfinOrigin(SERVER_ID, USER_ID)
+            val episode = missingParentFixture.episode()
+            missingParentFixture.repository.putOriginItem(episode.id, origin, episode)
+            missingParentFixture.repository.putOriginMediaSource(
+                episode.id,
+                origin,
+                episode.sources.single(),
+            )
+
+            missingParentFixture.downloader.downloadItem(
+                item = episode,
+                sourceId = SOURCE_ID,
+                storageIndex = 0,
+            )
+            missingParentFixture.resetEffectCalls()
+            missingParentFixture.resetCurrentOriginReads()
+
+            missingParentFixture.downloader.runQueue()
+
+            assertEquals("PENDING", missingParentFixture.dao.source?.taskStatus)
+            assertEquals(
+                DownloadFailureReason.SERVER_ERROR.name,
+                missingParentFixture.dao.source?.failureReason,
+            )
+            assertTrue(missingParentFixture.witness().isFile)
+            assertEquals(0, missingParentFixture.dao.showSnapshotWrites)
+            assertEquals(0, missingParentFixture.dao.seasonSnapshotWrites)
+            assertEquals(0, missingParentFixture.repository.showReads)
+            assertEquals(0, missingParentFixture.repository.seasonReads)
+            assertEquals(1, missingParentFixture.repository.originShowReads)
+        } finally {
+            missingParentFixture.close()
         }
     }
 
@@ -2344,7 +2629,7 @@ class DownloaderImplRecoveryTest {
         try {
             fixture.prepareInterruptedCompletion()
             val staleExternal = fixture.seedStaleExternal()
-            fixture.repository.segmentFailuresRemaining = 1
+            fixture.repository.failNextOriginSegments()
 
             fixture.downloader.recoverOnStartup()
             fixture.downloader.runQueue()
@@ -2604,9 +2889,9 @@ class DownloaderImplRecoveryTest {
                 internalMediaStreamWrites = dao.internalMediaStreamWrites,
                 externalMediaStreamWrites = dao.externalMediaStreamWrites,
                 externalDownloads = transfer.externalDownloads,
-                segmentReads = repository.segmentReads,
+                segmentReads = repository.segmentReads + repository.originSegmentReads,
                 segmentWrites = dao.segmentWrites,
-                trickplayReads = repository.trickplayReads,
+                trickplayReads = repository.trickplayReads + repository.originTrickplayReads,
                 trickplayWrites = dao.trickplayWrites,
                 imageAttempts = imageScheduler.attempts,
             )
@@ -2829,7 +3114,7 @@ class DownloaderImplRecoveryTest {
         }
 
         fun resetCurrentOriginReads() {
-            preferences.currentServer = "server-current"
+            preferences.currentServer = "server-c"
             preferences.currentServerReads = 0
             repository.userId = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
             repository.userIdReads = 0
@@ -3992,12 +4277,27 @@ class DownloaderImplRecoveryTest {
         var accessTokenReads = 0
         var showReads = 0
         var seasonReads = 0
+        var originSegmentReads = 0
+        var originTrickplayReads = 0
+        var originShowReads = 0
+        var originSeasonReads = 0
+        private var originSegmentFailuresRemaining = 0
         val mediaSourcesByItemId = linkedMapOf<UUID, FindroidSource>()
         private val queuedMediaSourcesByItemId = linkedMapOf<UUID, ArrayDeque<FindroidSource>>()
         private val itemsById = linkedMapOf<UUID, FindroidItem>()
         private val originItems = linkedMapOf<Pair<UUID, JellyfinOrigin>, FindroidItem>()
         private val originMediaSources = linkedMapOf<Pair<UUID, JellyfinOrigin>, FindroidSource>()
+        private val originSegments =
+            linkedMapOf<Pair<UUID, JellyfinOrigin>, List<FindroidSegment>>()
+        private val originTrickplay = linkedMapOf<Pair<UUID, JellyfinOrigin>, ByteArray>()
+        private val missingOriginTrickplay = mutableSetOf<Pair<UUID, JellyfinOrigin>>()
+        private val originShows = linkedMapOf<Pair<UUID, JellyfinOrigin>, FindroidShow>()
+        private val originSeasons = linkedMapOf<Pair<UUID, JellyfinOrigin>, FindroidSeason>()
         private val originItemLookups = CopyOnWriteArrayList<Pair<UUID, JellyfinOrigin>>()
+        val originSegmentLookups = CopyOnWriteArrayList<Pair<UUID, JellyfinOrigin>>()
+        val originTrickplayLookups = CopyOnWriteArrayList<Pair<UUID, JellyfinOrigin>>()
+        val originShowLookups = CopyOnWriteArrayList<Pair<UUID, JellyfinOrigin>>()
+        val originSeasonLookups = CopyOnWriteArrayList<Pair<UUID, JellyfinOrigin>>()
         private val originFailures = mutableMapOf<JellyfinOrigin, Int>()
         private var itemLookupGate: CompletableDeferred<Unit>? = null
         private var itemLookupStarted = CompletableDeferred<Unit>()
@@ -4005,6 +4305,16 @@ class DownloaderImplRecoveryTest {
         fun resetEffectCalls() {
             segmentReads = 0
             trickplayReads = 0
+            showReads = 0
+            seasonReads = 0
+            originSegmentReads = 0
+            originTrickplayReads = 0
+            originShowReads = 0
+            originSeasonReads = 0
+            originSegmentLookups.clear()
+            originTrickplayLookups.clear()
+            originShowLookups.clear()
+            originSeasonLookups.clear()
         }
 
         fun putMediaSource(itemId: UUID, source: FindroidSource) {
@@ -4035,6 +4345,48 @@ class DownloaderImplRecoveryTest {
             source: FindroidSource,
         ) {
             originMediaSources[itemId to origin] = source
+        }
+
+        fun putOriginSegments(
+            itemId: UUID,
+            origin: JellyfinOrigin,
+            segments: List<FindroidSegment>,
+        ) {
+            originSegments[itemId to origin] = segments
+        }
+
+        fun putOriginTrickplay(
+            itemId: UUID,
+            origin: JellyfinOrigin,
+            bytes: ByteArray,
+        ) {
+            originTrickplay[itemId to origin] = bytes
+            missingOriginTrickplay.remove(itemId to origin)
+        }
+
+        fun removeOriginTrickplay(itemId: UUID, origin: JellyfinOrigin) {
+            originTrickplay.remove(itemId to origin)
+            missingOriginTrickplay += itemId to origin
+        }
+
+        fun putOriginShow(
+            itemId: UUID,
+            origin: JellyfinOrigin,
+            show: FindroidShow,
+        ) {
+            originShows[itemId to origin] = show
+        }
+
+        fun putOriginSeason(
+            itemId: UUID,
+            origin: JellyfinOrigin,
+            season: FindroidSeason,
+        ) {
+            originSeasons[itemId to origin] = season
+        }
+
+        fun failNextOriginSegments() {
+            originSegmentFailuresRemaining += 1
         }
 
         fun failNextOriginItem(origin: JellyfinOrigin) {
@@ -4148,9 +4500,32 @@ class DownloaderImplRecoveryTest {
                             }
                             listOf(FindroidSegment(FindroidSegmentType.INTRO, 0L, 10L))
                         }
+                        "getSegmentsForOrigin" -> {
+                            val itemId = args[0] as UUID
+                            val origin = args[1] as JellyfinOrigin
+                            originSegmentReads += 1
+                            originSegmentLookups += itemId to origin
+                            if (originSegmentFailuresRemaining > 0) {
+                                originSegmentFailuresRemaining -= 1
+                                error("origin segments unavailable: ${origin.serverId}")
+                            }
+                            originSegments[itemId to origin]
+                                ?: listOf(FindroidSegment(FindroidSegmentType.INTRO, 0L, 10L))
+                        }
                         "getTrickplayData" -> {
                             trickplayReads += 1
                             byteArrayOf(1)
+                        }
+                        "getTrickplayDataForOrigin" -> {
+                            val itemId = args[0] as UUID
+                            val origin = args[3] as JellyfinOrigin
+                            originTrickplayReads += 1
+                            originTrickplayLookups += itemId to origin
+                            if (itemId to origin in missingOriginTrickplay) {
+                                null
+                            } else {
+                                originTrickplay[itemId to origin] ?: byteArrayOf(1)
+                            }
                         }
                         "getBaseUrl" -> {
                             baseUrlReads += 1
@@ -4190,6 +4565,14 @@ class DownloaderImplRecoveryTest {
                                 images = FindroidImages(),
                             )
                         }
+                        "getShowForOrigin" -> {
+                            val itemId = args[0] as UUID
+                            val origin = args[1] as JellyfinOrigin
+                            originShowReads += 1
+                            originShowLookups += itemId to origin
+                            originShows[itemId to origin]
+                                ?: error("origin show unavailable: ${origin.serverId}")
+                        }
                         "getSeason" -> {
                             seasonReads += 1
                             FindroidSeason(
@@ -4209,6 +4592,14 @@ class DownloaderImplRecoveryTest {
                                 unplayedItemCount = null,
                                 images = FindroidImages(),
                             )
+                        }
+                        "getSeasonForOrigin" -> {
+                            val itemId = args[0] as UUID
+                            val origin = args[1] as JellyfinOrigin
+                            originSeasonReads += 1
+                            originSeasonLookups += itemId to origin
+                            originSeasons[itemId to origin]
+                                ?: error("origin season unavailable: ${origin.serverId}")
                         }
                         else -> error("unexpected repository call: ${method.name}")
                     }

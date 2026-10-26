@@ -56,6 +56,7 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.MediaProtocol
 import org.jellyfin.sdk.model.api.MediaStreamProtocol
 import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.api.PlayAccess
 import org.jellyfin.sdk.model.api.PlayMethod
 import org.jellyfin.sdk.model.api.PlaybackInfoDto
 import org.jellyfin.sdk.model.api.PlaybackOrder
@@ -157,6 +158,98 @@ class JellyfinRepositoryImpl(
             else -> mapped
         }
     }
+
+    override suspend fun getSegmentsForOrigin(
+        itemId: UUID,
+        origin: JellyfinOrigin,
+    ): List<FindroidSegment> {
+        val bound = bindOrigin(origin)
+        return withContext(Dispatchers.IO) {
+            bound.api.mediaSegmentsApi.getItemSegments(itemId).content.items.map {
+                it.toFindroidSegment()
+            }
+        }
+    }
+
+    override suspend fun getTrickplayDataForOrigin(
+        itemId: UUID,
+        width: Int,
+        index: Int,
+        origin: JellyfinOrigin,
+    ): ByteArray? {
+        val bound = bindOrigin(origin)
+        return withContext(Dispatchers.IO) {
+            bound.api.trickplayApi.getTrickplayTileImage(itemId, width, index).content
+        }
+    }
+
+    override suspend fun getShowForOrigin(
+        itemId: UUID,
+        origin: JellyfinOrigin,
+    ): FindroidShow {
+        val bound = bindOrigin(origin)
+        val dto =
+            withContext(Dispatchers.IO) {
+                bound.api.userLibraryApi.getItem(itemId, bound.userId).content
+            }
+        return withContext(Dispatchers.IO) { dto.toOriginScopedShow() }
+    }
+
+    override suspend fun getSeasonForOrigin(
+        itemId: UUID,
+        origin: JellyfinOrigin,
+    ): FindroidSeason {
+        val bound = bindOrigin(origin)
+        val dto =
+            withContext(Dispatchers.IO) {
+                bound.api.userLibraryApi.getItem(itemId, bound.userId).content
+            }
+        return withContext(Dispatchers.IO) { dto.toOriginScopedSeason() }
+    }
+
+    private fun BaseItemDto.toOriginScopedShow(): FindroidShow =
+        FindroidShow(
+            id = id,
+            name = name.orEmpty(),
+            originalTitle = originalTitle,
+            overview = overview.orEmpty(),
+            sources = emptyList(),
+            seasons = emptyList(),
+            played = userData?.played == true,
+            favorite = userData?.isFavorite == true,
+            canPlay = playAccess != PlayAccess.NONE,
+            canDownload = canDownload == true,
+            unplayedItemCount = userData?.unplayedItemCount,
+            genres = genres ?: emptyList(),
+            people = emptyList(),
+            runtimeTicks = runTimeTicks ?: 0L,
+            communityRating = communityRating,
+            officialRating = officialRating,
+            status = status ?: "Ended",
+            productionYear = productionYear,
+            endDate = endDate,
+            trailer = remoteTrailers?.getOrNull(0)?.url,
+            images = FindroidImages(),
+        )
+
+    private fun BaseItemDto.toOriginScopedSeason(): FindroidSeason =
+        FindroidSeason(
+            id = id,
+            name = name.orEmpty(),
+            seriesId = seriesId!!,
+            seriesName = seriesName.orEmpty(),
+            originalTitle = originalTitle,
+            overview = overview.orEmpty(),
+            sources = emptyList(),
+            indexNumber = indexNumber ?: 0,
+            episodes = emptyList(),
+            played = userData?.played == true,
+            favorite = userData?.isFavorite == true,
+            canPlay = playAccess != PlayAccess.NONE,
+            canDownload = canDownload == true,
+            unplayedItemCount = userData?.unplayedItemCount,
+            images = FindroidImages(),
+        )
 
     /** W69 / W88-C：会话级元数据缓存（按 serverId + userId 隔离；TTL 规则见 [MetadataCacheRules]）。 */
     private val metadataCache =

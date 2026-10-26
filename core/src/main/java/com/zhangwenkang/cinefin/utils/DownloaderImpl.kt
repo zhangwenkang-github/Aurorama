@@ -35,6 +35,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.FindroidSeason
+import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceDto
@@ -335,8 +336,10 @@ private constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** W63：批量入队的节目 / 季快照缓存（同剧 N 集只解析一次，避免逐集两次网络往返）。 */
-    private val showSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidShow>>()
-    private val seasonSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidSeason>>()
+    private val showSnapshotCache =
+        ConcurrentHashMap<SnapshotCacheKey, CachedSnapshot<FindroidShow>>()
+    private val seasonSnapshotCache =
+        ConcurrentHashMap<SnapshotCacheKey, CachedSnapshot<FindroidSeason>>()
 
     /** W84：音乐接收意图批量门面；完整来源以 sidecar 为真源，Room 仅作 legacy 兼容行。 */
     private val batchInbox =
@@ -643,7 +646,13 @@ private constructor(
                     // 批量入队（整剧 / 全季）时引擎往往已在运行：若先插入 PENDING 队列行，再写快照（剧集要拉
                     // show / season，两次网络往返），引擎会在快照落库前抢到该行 → findItem 读不到条目 →
                     // FILE_ERROR「任务对应的媒体条目缺失」。真机批量入队 12 集时 11 集命中该竞态。
-                    runCatching { persistItemSnapshot(item, origin) }
+                    runCatching {
+                        persistItemSnapshot(
+                            item = item,
+                            origin = origin,
+                            completionOrigin = null,
+                        )
+                    }
                         .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
 
                     val mediaKind =
@@ -1547,6 +1556,17 @@ private constructor(
         totalBytes: Long,
         persistedOrigin: PersistedOriginResolution,
     ) {
+        val frozenOrigin = frozenOriginForSource(item, persistedOrigin)
+        val completionOrigin =
+            frozenOrigin?.toJellyfinOriginOrNull()
+                ?: if (frozenOrigin == null) {
+                    null
+                } else {
+                    throw DownloadHttpException(
+                        DownloadFailureReason.SERVER_ERROR,
+                        "下载 sidecar 来源身份不完整：${item.id}/${source.id}",
+                    )
+                }
         val finalization =
             withContext(NonCancellable) {
                 DownloadPostCommitRules.finalize(
@@ -1554,7 +1574,8 @@ private constructor(
                         DownloadPostCommitTask(DownloadPostCommitEffect.SNAPSHOT) {
                             persistItemSnapshot(
                                 item,
-                                frozenOriginForSource(item, persistedOrigin),
+                                frozenOrigin,
+                                completionOrigin,
                             )
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.MEDIA_STREAMS) {
@@ -1573,14 +1594,19 @@ private constructor(
                             )
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.SEGMENTS) {
-                            jellyfinRepository.getSegments(item.id).forEach {
+                            segmentsForCompletion(item.id, completionOrigin).forEach {
                                 database.insertSegment(it.toFindroidSegmentsDto(item.id))
                             }
                         },
                         DownloadPostCommitTask(DownloadPostCommitEffect.TRICKPLAY) {
                             if (item is FindroidSources) {
                                 item.trickplayInfo?.get(mediaSource.id)?.let { trickplay ->
-                                    downloadTrickplayData(item.id, mediaSource.id, trickplay)
+                                    downloadTrickplayData(
+                                        item.id,
+                                        mediaSource.id,
+                                        trickplay,
+                                        completionOrigin,
+                                    )
                                 }
                             }
                         },
@@ -3247,6 +3273,7 @@ private constructor(
         itemId: UUID,
         sourceId: String,
         trickplayInfo: FindroidTrickplayInfo,
+        origin: JellyfinOrigin?,
     ) {
         val maxIndex =
             ceil(
@@ -3257,7 +3284,18 @@ private constructor(
                 .toInt()
         val byteArrays = mutableListOf<ByteArray>()
         for (i in 0..maxIndex) {
-            jellyfinRepository.getTrickplayData(itemId, trickplayInfo.width, i)?.let { byteArray ->
+            val byteArray =
+                if (origin == null) {
+                    jellyfinRepository.getTrickplayData(itemId, trickplayInfo.width, i)
+                } else {
+                    originScopedRepository()
+                        .getTrickplayDataForOrigin(itemId, trickplayInfo.width, i, origin)
+                        ?: throw DownloadHttpException(
+                            DownloadFailureReason.SERVER_ERROR,
+                            "冻结来源缺少 Trickplay 帧：${origin.serverId}/$itemId/$i",
+                        )
+                }
+            if (byteArray != null) {
                 byteArrays.add(byteArray)
             }
         }
@@ -3340,6 +3378,7 @@ private constructor(
     private suspend fun persistItemSnapshot(
         item: FindroidItem,
         origin: FrozenDownloadOrigin?,
+        completionOrigin: JellyfinOrigin?,
     ) {
         val serverId = origin?.serverId?.takeIf(String::isNotBlank)
         val userId =
@@ -3354,9 +3393,21 @@ private constructor(
             is FindroidMovie -> database.insertMovie(item.toFindroidMovieDto(serverId))
             is FindroidEpisode -> {
                 // W63：整剧 / 全季批量入队时，同剧的节目 / 季快照只解析一次（批内缓存 + 首次并发拉取）。
-                val cachedShow = showSnapshotCache[item.seriesId]?.takeIf { it.isFresh() }?.value
+                val showCacheKey =
+                    SnapshotCacheKey(
+                        serverId = completionOrigin?.serverId,
+                        userId = completionOrigin?.userId?.toString(),
+                        itemId = item.seriesId,
+                    )
+                val seasonCacheKey =
+                    SnapshotCacheKey(
+                        serverId = completionOrigin?.serverId,
+                        userId = completionOrigin?.userId?.toString(),
+                        itemId = item.seasonId,
+                    )
+                val cachedShow = showSnapshotCache[showCacheKey]?.takeIf { it.isFresh() }?.value
                 val cachedSeason =
-                    seasonSnapshotCache[item.seasonId]?.takeIf { it.isFresh() }?.value
+                    seasonSnapshotCache[seasonCacheKey]?.takeIf { it.isFresh() }?.value
                 val resolved =
                     if (cachedShow != null && cachedSeason != null) {
                         cachedShow to cachedSeason
@@ -3364,10 +3415,10 @@ private constructor(
                         coroutineScope {
                             val showDeferred =
                                 if (cachedShow != null) null
-                                else async { jellyfinRepository.getShow(item.seriesId) }
+                                else async { showForCompletion(item.seriesId, completionOrigin) }
                             val seasonDeferred =
                                 if (cachedSeason != null) null
-                                else async { jellyfinRepository.getSeason(item.seasonId) }
+                                else async { seasonForCompletion(item.seasonId, completionOrigin) }
                             (cachedShow ?: showDeferred!!.await()) to
                                 (cachedSeason ?: seasonDeferred!!.await())
                         }
@@ -3376,10 +3427,10 @@ private constructor(
                 val season = resolved.second
                 val now = System.currentTimeMillis()
                 if (cachedShow == null) {
-                    showSnapshotCache[item.seriesId] = CachedSnapshot(show, now)
+                    showSnapshotCache[showCacheKey] = CachedSnapshot(show, now)
                 }
                 if (cachedSeason == null) {
-                    seasonSnapshotCache[item.seasonId] = CachedSnapshot(season, now)
+                    seasonSnapshotCache[seasonCacheKey] = CachedSnapshot(season, now)
                 }
                 parentImageMutationLock.withLock {
                     database.insertShow(show.toFindroidShowDto(serverId))
@@ -3444,6 +3495,36 @@ private constructor(
                 "服务器未返回该媒体来源（sourceId=$sourceId）",
             )
     }
+
+    private suspend fun segmentsForCompletion(
+        itemId: UUID,
+        origin: JellyfinOrigin?,
+    ): List<FindroidSegment> =
+        if (origin == null) {
+            jellyfinRepository.getSegments(itemId)
+        } else {
+            originScopedRepository().getSegmentsForOrigin(itemId, origin)
+        }
+
+    private suspend fun showForCompletion(
+        itemId: UUID,
+        origin: JellyfinOrigin?,
+    ): FindroidShow =
+        if (origin == null) {
+            jellyfinRepository.getShow(itemId)
+        } else {
+            originScopedRepository().getShowForOrigin(itemId, origin)
+        }
+
+    private suspend fun seasonForCompletion(
+        itemId: UUID,
+        origin: JellyfinOrigin?,
+    ): FindroidSeason =
+        if (origin == null) {
+            jellyfinRepository.getSeason(itemId)
+        } else {
+            originScopedRepository().getSeasonForOrigin(itemId, origin)
+        }
 
     private suspend fun credentialsForSource(
         itemId: UUID,
@@ -3837,6 +3918,12 @@ private constructor(
         val speedBytesPerSecond: Long,
         val etaSeconds: Long?,
         val validator: String?,
+    )
+
+    private data class SnapshotCacheKey(
+        val serverId: String?,
+        val userId: String?,
+        val itemId: UUID,
     )
 
     /** W63：节目 / 季快照缓存条目（TTL 内同剧批量入队只网络拉取一次）。 */

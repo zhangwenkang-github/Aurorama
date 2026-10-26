@@ -1,6 +1,9 @@
 package com.zhangwenkang.cinefin.repository
 
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidSeason
+import com.zhangwenkang.cinefin.models.FindroidSegment
+import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
 import java.util.UUID
 
@@ -34,4 +37,17 @@ interface OriginScopedJellyfinRepository {
     ): List<FindroidSource>
 
     suspend fun credentialsForOrigin(origin: JellyfinOrigin): JellyfinOriginCredentials
+
+    suspend fun getSegmentsForOrigin(itemId: UUID, origin: JellyfinOrigin): List<FindroidSegment>
+
+    suspend fun getTrickplayDataForOrigin(
+        itemId: UUID,
+        width: Int,
+        index: Int,
+        origin: JellyfinOrigin,
+    ): ByteArray?
+
+    suspend fun getShowForOrigin(itemId: UUID, origin: JellyfinOrigin): FindroidShow
+
+    suspend fun getSeasonForOrigin(itemId: UUID, origin: JellyfinOrigin): FindroidSeason
 }
