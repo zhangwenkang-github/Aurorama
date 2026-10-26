@@ -830,6 +830,7 @@ private constructor(
                 is DownloadMediaReadResult.Complete -> snapshot.records
                 is DownloadMediaReadResult.Unreadable -> {
                     Timber.w(snapshot.error, "下载 sidecar 不可读，保留 pending 等待重试")
+                    failReceivedIntentsWithUnavailableProvenance()
                     return@withLock
                 }
                 is DownloadMediaReadResult.Corrupt -> {
@@ -837,6 +838,7 @@ private constructor(
                         "下载 sidecar 损坏，保留 pending 等待修复：%s",
                         snapshot.invalidLineNumbers.joinToString(),
                     )
+                    failReceivedIntentsWithUnavailableProvenance()
                     return@withLock
                 }
             }
@@ -907,7 +909,18 @@ private constructor(
         }
         withContext(Dispatchers.IO) {
             database.getDownloadIntents().forEach { intent ->
-                if (intent.itemId.toString() !in remainingPendingItemIds) {
+                val receivedWithoutPending =
+                    intent.status == DownloadIntentStatus.RECEIVED.name &&
+                        intent.itemId.toString() !in remainingPendingItemIds
+                val recoveredFailedIntent =
+                    intent.status == DownloadIntentStatus.FAILED.name &&
+                        intent.failureDetail == LEGACY_PROVENANCE_UNAVAILABLE &&
+                        intent.itemId.toString() !in remainingPendingItemIds &&
+                        database.getSources(intent.itemId).any { source ->
+                            persistedOriginForSource(intent.itemId, source.id) is
+                                PersistedOriginResolution.UniqueComplete
+                        }
+                if (receivedWithoutPending || recoveredFailedIntent) {
                     database.deleteDownloadIntentIfCurrent(
                         intent.itemId,
                         intent.taskGeneration,
@@ -919,6 +932,14 @@ private constructor(
         if (processed > 0) {
             notifyQueueChanged()
             Timber.i("已受理下载意图后台解析完成：%d 项", processed)
+        }
+    }
+
+    private suspend fun failReceivedIntentsWithUnavailableProvenance() {
+        withContext(Dispatchers.IO) {
+            database.getReceivedDownloadIntents().forEach { intent ->
+                resolveLegacyReceivedIntent(intent)
+            }
         }
     }
 
@@ -979,54 +1000,105 @@ private constructor(
         }
 
     private suspend fun resolveLegacyReceivedIntent(intent: DownloadIntentDto) {
-        runCatching {
-            if (!isReceivedIntentCurrent(intent)) return
-            val item = jellyfinRepository.getItem(intent.itemId) ?: error("下载条目不存在")
-            val sourceId =
-                jellyfinRepository
-                    .getMediaSources(intent.itemId, includePath = true)
-                    .firstOrNull()
-                    ?.id ?: error("下载媒体源不存在")
-            if (!isReceivedIntentCurrent(intent)) return
-            val (handle, queueError) =
-                enqueueItem(
-                    item = item,
-                    sourceId = sourceId,
-                    storageIndex = 0,
-                    albumName = intent.albumName,
-                    artist = intent.artist,
-                    trackIndex = intent.trackIndex,
-                    // legacy 缺少持久 provenance：显式降级 unknown，不用当前会话猜回。
-                    origin = FrozenDownloadOrigin(serverId = null, userId = null),
+        if (!isReceivedIntentCurrent(intent)) return
+        val updated =
+            withContext(Dispatchers.IO) {
+                database.setDownloadIntentStatusIfCurrent(
+                    itemId = intent.itemId,
+                    taskGeneration = intent.taskGeneration,
+                    status = DownloadIntentStatus.FAILED.name,
+                    failureReason = DownloadFailureReason.CANCELLED.name,
+                    failureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
+                    updatedAt = System.currentTimeMillis(),
                 )
-            if (handle == -1L) {
-                error("加入下载队列失败：${queueError ?: "未知错误"}")
             }
-            if (!isReceivedIntentCurrent(intent)) {
-                cancelTaskById(sourceId)
+        if (updated <= 0) return
+        withContext(Dispatchers.IO) { cleanupUnknownSourceForLegacyIntent(intent) }
+        Timber.w("legacy 下载意图来源不可证明，要求重新下载：%s", intent.itemId)
+    }
+
+    private suspend fun cleanupUnknownSourceForLegacyIntent(intent: DownloadIntentDto) {
+        val currentIntent = database.getDownloadIntent(intent.itemId)
+        if (
+            currentIntent?.taskGeneration != intent.taskGeneration ||
+                currentIntent.status != DownloadIntentStatus.FAILED.name ||
+                currentIntent.failureDetail != LEGACY_PROVENANCE_UNAVAILABLE
+        ) {
+            return
+        }
+        val itemId = intent.itemId
+        val records =
+            when (val snapshot = sidecar.allRecords()) {
+                DownloadMediaReadResult.Missing -> return
+                is DownloadMediaReadResult.Complete -> snapshot.records
+                is DownloadMediaReadResult.Unreadable -> {
+                    Timber.w(snapshot.error, "legacy 下载意图 sidecar 不可读，保留来源不明的 source")
+                    return
+                }
+                is DownloadMediaReadResult.Corrupt -> {
+                    Timber.w(
+                        "legacy 下载意图 sidecar 损坏，保留来源不明的 source：行 %s",
+                        snapshot.invalidLineNumbers.joinToString(),
+                    )
+                    return
+                }
+            }
+        val exactIncomplete =
+            database.getSources(itemId).mapNotNull { source ->
+                val status = source.taskStatus.toTaskStatus()
+                if (
+                    source.type != FindroidSourceType.LOCAL ||
+                        (status != DownloadTaskStatus.PENDING &&
+                            status != DownloadTaskStatus.RUNNING)
+                ) {
+                    return@mapNotNull null
+                }
+                val matching = records.filter {
+                    it.itemId == itemId.toString() &&
+                        it.kind == DownloadMediaKind.MUSIC &&
+                        it.sourceId == source.id
+                }
+                if (matching.isEmpty()) return@mapNotNull null
+                val completeOrigins =
+                    matching
+                        .mapNotNull { record ->
+                            record.provenance()?.takeIf {
+                                it.itemId == itemId && it.mediaSourceId == source.id
+                            }
+                        }
+                        .distinct()
+                if (completeOrigins.size == 1) return@mapNotNull null
+                source to matching
+            }
+        if (exactIncomplete.size == 1) {
+            val (source, matching) = exactIncomplete.single()
+            val record = matching.singleOrNull()
+            if (record != null && record.provenance() == null) {
+                val currentSource = database.getSource(source.id)
+                if (
+                    currentSource?.taskGeneration != source.taskGeneration ||
+                        currentSource.itemId != itemId ||
+                        currentSource.type != FindroidSourceType.LOCAL
+                ) {
+                    return
+                }
+                deletePartialArtifacts(source.path)
+                database.deleteMediaStreamsBySourceId(source.id)
+                database.deleteSource(source.id)
+                sidecar.remove(record.canonicalIdentity())
+                return
             }
         }
-            .onSuccess {
-                withContext(Dispatchers.IO) {
-                    database.deleteDownloadIntentIfCurrent(
-                        intent.itemId,
-                        intent.taskGeneration,
-                    )
-                }
-            }
-            .onFailure { failure ->
-                withContext(Dispatchers.IO) {
-                    database.setDownloadIntentStatusIfCurrent(
-                        itemId = intent.itemId,
-                        taskGeneration = intent.taskGeneration,
-                        status = DownloadIntentStatus.FAILED.name,
-                        failureReason = DownloadFailureReason.SERVER_ERROR.name,
-                        failureDetail = failure.message?.take(500),
-                        updatedAt = System.currentTimeMillis(),
-                    )
-                }
-                Timber.w(failure, "解析 legacy 下载意图失败：%s", intent.itemId)
-            }
+        val now = System.currentTimeMillis()
+        exactIncomplete.forEach { (source, _) ->
+            database.setSourceTaskStatusIfCurrent(
+                source.id,
+                source.taskGeneration,
+                DownloadTaskStatus.FAILED.name,
+                DownloadFailureReason.CANCELLED.name,
+                now,
+            )
+        }
     }
 
     private suspend fun isReceivedIntentCurrent(intent: DownloadIntentDto): Boolean {
@@ -3979,6 +4051,8 @@ private constructor(
 
         /** W84：持久化接收意图的后台解析并发上限。分片执行但不会截断批次。 */
         const val INTENT_RESOLVE_CONCURRENCY = 6
+
+        const val LEGACY_PROVENANCE_UNAVAILABLE = "下载来源不可证明，请重新下载"
     }
 }
 

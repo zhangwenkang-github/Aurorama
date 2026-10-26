@@ -1941,7 +1941,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `legacy intent 缺 sidecar 时保持来源未知而不借用当前会话`() = runBlocking {
+    fun `legacy intent 缺 sidecar 经恢复与队列后可见需重下且不插入源`() = runBlocking {
         val fixture = Fixture()
         try {
             val itemId = UUID.fromString("44444444-4444-4444-8444-444444444444")
@@ -1955,22 +1955,240 @@ class DownloaderImplRecoveryTest {
             fixture.repository.userIdReads = 0
 
             fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            fixture.downloader.runQueue()
 
-            assertTrue(fixture.dao.awaitInsertedSourceCount(1))
+            assertTrue(
+                "旧 intent 不得生成不可执行 source：${fixture.dao.sourceIds()}",
+                fixture.dao.sourceIds().isEmpty(),
+            )
+            assertTrue(
+                "旧 intent 不得启动 transfer：${fixture.transfer.requestSnapshot()}",
+                fixture.transfer.requestSnapshot().isEmpty(),
+            )
+            val task = fixture.downloader.refreshDownloadTasks().single { it.itemId == itemId }
+            assertEquals(DownloadTaskStatus.FAILED, task.status)
+            assertEquals(DownloadFailureReason.CANCELLED, task.failureReason)
+            assertEquals(0, fixture.preferences.currentServerReads)
+            assertEquals(0, fixture.repository.userIdReads)
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            fixture.downloader.runQueue()
+            assertTrue(fixture.dao.sourceIds().isEmpty())
             assertEquals(
-                1,
-                fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
+                DownloadFailureReason.CANCELLED,
+                fixture.dao.downloadIntent(itemId)?.failureReason.toFailureReason(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy intent 只清理精确未知 pending source 且重复恢复幂等`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("46464646-4646-4646-8646-464646464646")
+            fixture.repository.putItem(
+                fixture.movie().copy(id = itemId, name = "legacy cleanup", kind = "AUDIO")
+            )
+            fixture.dao.seedDownloadIntent(itemId)
+            fixture.dao.putSource(
+                fixture.seedPendingSource(itemId, "legacy-unknown").copy(taskStatus = "PENDING")
+            )
+            fixture.dao.putSource(
+                fixture.seedPendingSource(itemId, "other-unproven").copy(taskStatus = "FAILED")
+            )
+            fixture.downloader
+                .mediaSidecar()
+                .put(
+                    DownloadMediaRecord(
+                        itemId = itemId.toString(),
+                        kind = DownloadMediaKind.MUSIC,
+                        serverId = null,
+                        userId = null,
+                        sourceId = "legacy-unknown",
+                        displayName = "legacy cleanup",
+                    )
+                )
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+
+            assertEquals(setOf("other-unproven"), fixture.dao.sourceIds().toSet())
+            assertTrue(
+                "精确未知 sidecar 应随不可执行 source 清理",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
                     it.itemId == itemId.toString()
                 },
             )
-            val resolved =
-                fixture.downloader.mediaSidecar().allRecords().requireComplete().single {
-                    it.itemId == itemId.toString() && !it.sourceId.isNullOrBlank()
-                }
-            assertEquals(null, resolved.serverId)
-            assertEquals(null, resolved.userId)
-            assertEquals(0, fixture.preferences.currentServerReads)
-            assertEquals(0, fixture.repository.userIdReads)
+            assertEquals(
+                DownloadFailureReason.CANCELLED,
+                fixture.dao.downloadIntent(itemId)?.failureReason.toFailureReason(),
+            )
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                fixture.dao.downloadIntent(itemId)?.failureDetail,
+            )
+            fixture.assertCurrentOriginReadsZero()
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            fixture.downloader.runQueue()
+
+            assertEquals(setOf("other-unproven"), fixture.dao.sourceIds().toSet())
+            assertEquals(
+                DownloadFailureReason.CANCELLED,
+                fixture.dao.downloadIntent(itemId)?.failureReason.toFailureReason(),
+            )
+            fixture.assertCurrentOriginReadsZero()
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy intent 遇损坏 sidecar 仍可见失败且不插入源`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("47474747-4747-4747-8747-474747474747")
+            fixture.repository.putItem(
+                fixture.movie().copy(id = itemId, name = "legacy corrupt", kind = "AUDIO")
+            )
+            fixture.dao.seedDownloadIntent(itemId)
+            val sidecar = fixture.sidecarFile()
+            val corrupt = "v2,broken"
+            sidecar.writeText(corrupt)
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            fixture.downloader.runQueue()
+
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
+            assertEquals(corrupt, sidecar.readText())
+            val task = fixture.downloader.refreshDownloadTasks().single { it.itemId == itemId }
+            assertEquals(DownloadTaskStatus.FAILED, task.status)
+            assertEquals(DownloadFailureReason.CANCELLED, task.failureReason)
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                fixture.dao.downloadIntent(itemId)?.failureDetail,
+            )
+            fixture.assertCurrentOriginReadsZero()
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy intent 遇不可读 sidecar 仍可见失败且不插入源`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("49494949-4949-4949-8949-494949494949")
+            fixture.repository.putItem(
+                fixture.movie().copy(id = itemId, name = "legacy unreadable", kind = "AUDIO")
+            )
+            fixture.dao.seedDownloadIntent(itemId)
+            val sidecar = fixture.sidecarFile()
+            assertTrue(sidecar.mkdirs())
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            fixture.downloader.runQueue()
+
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
+            assertTrue(sidecar.isDirectory)
+            val task = fixture.downloader.refreshDownloadTasks().single { it.itemId == itemId }
+            assertEquals(DownloadTaskStatus.FAILED, task.status)
+            assertEquals(DownloadFailureReason.CANCELLED, task.failureReason)
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                fixture.dao.downloadIntent(itemId)?.failureDetail,
+            )
+            fixture.assertCurrentOriginReadsZero()
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy intent 歧义未知 source 保留但失败关闭且不入队`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("48484848-4848-4848-8848-484848484848")
+            fixture.repository.putItem(
+                fixture.movie().copy(id = itemId, name = "legacy ambiguous", kind = "AUDIO")
+            )
+            fixture.dao.seedDownloadIntent(itemId)
+            fixture.dao.putSource(fixture.seedPendingSource(itemId, "ambiguous-unknown"))
+            fixture.downloader
+                .mediaSidecar()
+                .putAll(
+                    listOf(
+                        DownloadMediaRecord(
+                            itemId = itemId.toString(),
+                            kind = DownloadMediaKind.MUSIC,
+                            albumName = "A",
+                            userId = null,
+                            sourceId = "ambiguous-unknown",
+                            displayName = "legacy ambiguous",
+                        ),
+                        DownloadMediaRecord(
+                            itemId = itemId.toString(),
+                            kind = DownloadMediaKind.MUSIC,
+                            albumName = "B",
+                            userId = null,
+                            sourceId = "ambiguous-unknown",
+                            displayName = "legacy ambiguous",
+                        ),
+                    )
+                )
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            fixture.downloader.runQueue()
+
+            assertEquals(setOf("ambiguous-unknown"), fixture.dao.sourceIds().toSet())
+            assertEquals("FAILED", fixture.dao.sourceById("ambiguous-unknown")?.taskStatus)
+            assertEquals(
+                DownloadFailureReason.CANCELLED.name,
+                fixture.dao.sourceById("ambiguous-unknown")?.failureReason,
+            )
+            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
+            assertEquals(
+                DownloadFailureReason.CANCELLED,
+                fixture.dao.downloadIntent(itemId)?.failureReason.toFailureReason(),
+            )
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                fixture.dao.downloadIntent(itemId)?.failureDetail,
+            )
+            fixture.assertCurrentOriginReadsZero()
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `完整 provenance 的接收意图仍正常入队执行`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = fixture.preparePendingMusicOrigin()
+            fixture.resetCurrentOriginReads()
+
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitInsertedSourceCount(1))
+            fixture.downloader.runQueue()
+
+            assertEquals(listOf(SOURCE_ID), fixture.dao.sourceIds())
+            assertTrue(fixture.transfer.requestSnapshot().isNotEmpty())
+            fixture.assertCurrentOriginReadsZero()
         } finally {
             fixture.close()
         }
@@ -3128,6 +3346,9 @@ class DownloaderImplRecoveryTest {
 
         fun sidecarFile(): File = File(root, "download_media.tsv")
 
+        fun seedPendingSource(itemId: UUID, sourceId: String): FindroidSourceDto =
+            sourceDto(itemId = itemId, sourceId = sourceId, index = 0).also(dao::putSource)
+
         suspend fun preparePendingMusicOrigin(): UUID {
             val itemId = UUID.fromString("abababab-abab-4bab-8bab-abababababab")
             val origin = JellyfinOrigin(SERVER_ID, USER_ID)
@@ -4041,6 +4262,10 @@ class DownloaderImplRecoveryTest {
                             @Suppress("UNCHECKED_CAST") val itemIds = args[0] as Set<UUID>
                             downloadIntents.keys.filter(itemIds::contains)
                         }
+                        "getDownloadedItemIds" ->
+                            sources.values
+                                .filter { it.taskStatus == DownloadTaskStatus.COMPLETED.name }
+                                .mapTo(mutableSetOf()) { it.itemId }
                         else -> error("unexpected DAO call: ${method.name}")
                     }
                 },
@@ -4097,7 +4322,15 @@ class DownloaderImplRecoveryTest {
                 true
             } ?: false
 
+        suspend fun awaitIntentNotReceived(itemId: UUID): Boolean =
+            withTimeoutOrNull(5_000L) {
+                while (downloadIntents[itemId]?.status == "RECEIVED") delay(10L)
+                true
+            } ?: false
+
         fun intentCount(): Int = downloadIntents.size
+
+        fun downloadIntent(itemId: UUID): DownloadIntentDto? = downloadIntents[itemId]
 
         fun seedDownloadIntent(itemId: UUID, status: String = "RECEIVED") {
             downloadIntents[itemId] =
