@@ -12,6 +12,19 @@ data class DownloadCanonicalIdentity(
     val userId: String?,
     val sourceId: String?,
 ) {
+    /** 只有 server + user + item 都已知时，两个来源才可证明为同一 namespace。 */
+    val hasCompleteNamespace: Boolean
+        get() = serverId != null && userId != null
+
+    /**
+     * 可供折叠 / 集合查找的完整身份键。
+     *
+     * 来源未知时不生成共享键，避免两个同 UUID 的 legacy 行互相覆盖。
+     */
+    val foldKey: String?
+        get() = canonicalKey.takeIf { hasCompleteNamespace }
+
+    /** 编码后的存储键；来源未知时仅用于单条记录表示，不可用于折叠或去重。 */
     val canonicalKey: String
         get() =
             listOf(
@@ -24,16 +37,22 @@ data class DownloadCanonicalIdentity(
                 .joinToString("|")
 
     fun sameNamespace(other: DownloadCanonicalIdentity): Boolean =
-        mediaKind == other.mediaKind &&
-            normalize(serverId) == normalize(other.serverId) &&
-            normalize(userId) == normalize(other.userId) &&
+        hasCompleteNamespace &&
+            other.hasCompleteNamespace &&
+            mediaKind == other.mediaKind &&
+            serverId == other.serverId &&
+            userId == other.userId &&
             itemId == other.itemId
 
     fun matchesProvenance(other: DownloadCanonicalIdentity): Boolean =
         sameNamespace(other) &&
-            (normalize(sourceId) == null ||
-                normalize(other.sourceId) == null ||
-                normalize(sourceId) == normalize(other.sourceId))
+            (sourceId == null || other.sourceId == null || sourceId == other.sourceId)
+
+    /** 显式 legacy 回退：仅在调用点明确允许时按媒体类型 + itemId 比较。 */
+    fun matchesLegacyItemId(
+        mediaKind: DownloadMediaKind,
+        itemId: String,
+    ): Boolean = this.mediaKind == mediaKind && this.itemId == itemId
 
     private fun encode(value: String?): String {
         val normalized = normalize(value) ?: return "n"
@@ -68,6 +87,3 @@ fun DownloadMediaRecord.canonicalIdentity(): DownloadCanonicalIdentity =
         userId = userId,
         sourceId = sourceId,
     )
-
-private fun DownloadCanonicalIdentity.normalize(value: String?): String? =
-    value?.takeIf(String::isNotBlank)

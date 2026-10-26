@@ -325,21 +325,55 @@ private constructor(
     private val showSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidShow>>()
     private val seasonSnapshotCache = ConcurrentHashMap<UUID, CachedSnapshot<FindroidSeason>>()
 
-    /** W84：音乐接收意图批量门面；Room 的单事务由 [ServerDatabaseDao.saveDownloadIntents] 保证。 */
+    /** W84：音乐接收意图批量门面；完整来源以 sidecar 为真源，Room 仅作 legacy 兼容行。 */
     private val batchInbox =
         DownloadBatchInbox(
             store =
                 object : DownloadIntentStore {
-                    override suspend fun existingItemIds(itemIds: Set<UUID>): Set<UUID> =
+                    override suspend fun existingCanonicalKeys(
+                        requests: List<DownloadMusicIntentRequest>
+                    ): Set<String> =
                         withContext(Dispatchers.IO) {
-                            (database.getDownloadIntentItemIds(itemIds) +
-                                    database.getSourceItemIds(itemIds))
-                                .toSet()
+                            val provenIdentities =
+                                sidecar.allRecords().mapTo(mutableSetOf()) {
+                                    it.canonicalIdentity()
+                                }
+                            val legacyIntentItemIds =
+                                database.getDownloadIntents().mapTo(mutableSetOf()) { it.itemId }
+                            requests
+                                .filter { request ->
+                                    val identity = request.canonicalIdentity
+                                    if (identity.hasCompleteNamespace) {
+                                        provenIdentities.any { it.matchesProvenance(identity) }
+                                    } else {
+                                        legacyIntentItemIds.any { itemId ->
+                                            identity.matchesLegacyItemId(
+                                                DownloadMediaKind.MUSIC,
+                                                itemId.toString(),
+                                            )
+                                        }
+                                    }
+                                }
+                                .mapTo(mutableSetOf()) { it.acceptanceKey }
                         }
 
                     override suspend fun saveAll(requests: List<DownloadMusicIntentRequest>) =
                         withContext(Dispatchers.IO) {
                             val now = System.currentTimeMillis()
+                            val placeholders = requests.map { request ->
+                                DownloadMediaRecord(
+                                    itemId = request.itemId.toString(),
+                                    kind = DownloadMediaKind.MUSIC,
+                                    albumName = request.albumName,
+                                    artist = request.artist,
+                                    trackIndex = request.trackIndex,
+                                    serverId = request.serverId,
+                                    userId = request.userId,
+                                    sourceId = request.sourceId,
+                                    displayName = request.name,
+                                )
+                            }
+                            check(sidecar.putAll(placeholders)) { "下载意图 sidecar 持久化失败" }
                             database.saveDownloadIntents(
                                 requests.map { request ->
                                     DownloadIntentDto(
@@ -672,33 +706,26 @@ private constructor(
         val origin = freezeDownloadOrigin()
         return withContext(Dispatchers.IO) {
             val startedAt = System.nanoTime()
-            val receipt = batchInbox.accept(requests)
-            val accepted = receipt.acceptedIds.toSet()
-            requests
-                .filter { it.itemId in accepted }
-                .forEach { request ->
-                    sidecar.put(
-                        DownloadMediaRecord(
-                            itemId = request.itemId.toString(),
-                            kind = DownloadMediaKind.MUSIC,
-                            albumName = request.albumName,
-                            artist = request.artist,
-                            trackIndex = request.trackIndex,
-                            serverId = origin.serverId,
-                            userId = origin.userId,
-                            sourceId = null,
-                            displayName = request.name,
-                        )
-                    )
-                }
+            val scopedRequests = requests.map { request ->
+                request.copy(
+                    serverId = request.serverId ?: origin.serverId,
+                    userId = request.userId ?: origin.userId,
+                )
+            }
+            val receipt = batchInbox.accept(scopedRequests)
             Timber.i(
                 "下载批次已受理：requested=%d accepted=%d duplicate=%d durationMs=%d",
-                requests.size,
-                receipt.acceptedIds.size,
+                scopedRequests.size,
+                receipt.acceptedRequests.size,
                 receipt.alreadyAcceptedCount,
                 (System.nanoTime() - startedAt) / 1_000_000L,
             )
-            if (receipt.acceptedIds.isNotEmpty()) {
+            if (
+                receipt.acceptedRequests.isNotEmpty() ||
+                    sidecar.allRecords().any {
+                        it.kind == DownloadMediaKind.MUSIC && it.sourceId.isNullOrBlank()
+                    }
+            ) {
                 notifyQueueChanged()
                 launchReceivedIntentProcessor()
             }
@@ -718,36 +745,107 @@ private constructor(
     }
 
     private suspend fun processReceivedIntents() = receivedIntentLock.withLock {
-        var processed = 0
-        while (true) {
-            val pending = withContext(Dispatchers.IO) { database.getReceivedDownloadIntents() }
-            if (pending.isEmpty()) break
-            pending.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
-                coroutineScope {
-                    chunk
-                        .map { intent -> async { resolveReceivedIntent(intent) } }
-                        .forEach { it.await() }
+        val pendingRecords =
+            withContext(Dispatchers.IO) {
+                sidecar.allRecords().filter {
+                    it.kind == DownloadMediaKind.MUSIC &&
+                        it.sourceId.isNullOrBlank() &&
+                        it.itemId.toUuidOrNull() != null
                 }
             }
-            processed += pending.size
-            notifyQueueChanged()
+        val pendingItemIds = pendingRecords.mapTo(mutableSetOf()) { it.itemId }
+        pendingRecords.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
+            coroutineScope {
+                chunk
+                    .map { record -> async { resolveSidecarIntent(record) } }
+                    .forEach { it.await() }
+            }
         }
+        val legacyPending =
+            withContext(Dispatchers.IO) {
+                database.getReceivedDownloadIntents().filterNot {
+                    it.itemId.toString() in pendingItemIds
+                }
+            }
+        legacyPending.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
+            coroutineScope {
+                chunk
+                    .map { intent -> async { resolveLegacyReceivedIntent(intent) } }
+                    .forEach { it.await() }
+            }
+        }
+        val remainingPendingItemIds =
+            withContext(Dispatchers.IO) {
+                sidecar
+                    .allRecords()
+                    .filter {
+                        it.kind == DownloadMediaKind.MUSIC &&
+                            it.sourceId.isNullOrBlank() &&
+                            it.itemId.toUuidOrNull() != null
+                    }
+                    .mapTo(mutableSetOf()) { it.itemId }
+            }
+        withContext(Dispatchers.IO) {
+            database.getDownloadIntents().forEach { intent ->
+                if (intent.itemId.toString() !in remainingPendingItemIds) {
+                    database.deleteDownloadIntentIfCurrent(
+                        intent.itemId,
+                        intent.taskGeneration,
+                    )
+                }
+            }
+        }
+        val processed = pendingRecords.size + legacyPending.size
         if (processed > 0) {
+            notifyQueueChanged()
             Timber.i("已受理下载意图后台解析完成：%d 项", processed)
         }
     }
 
-    private suspend fun resolveReceivedIntent(intent: DownloadIntentDto) {
+    private suspend fun resolveSidecarIntent(record: DownloadMediaRecord) {
+        val itemId = record.itemId.toUuidOrNull() ?: return
+        runCatching {
+            if (sidecar.allRecords().none { it == record }) return
+            val intent = database.getDownloadIntent(itemId)
+            if (intent != null && intent.status != DownloadIntentStatus.RECEIVED.name) return
+            val item = jellyfinRepository.getItem(itemId) ?: error("下载条目不存在")
+            val sourceId =
+                jellyfinRepository.getMediaSources(itemId, includePath = true).firstOrNull()?.id
+                    ?: error("下载媒体源不存在")
+            if (sidecar.allRecords().none { it == record }) return
+            val (handle, queueError) =
+                enqueueItem(
+                    item = item,
+                    sourceId = sourceId,
+                    storageIndex = 0,
+                    albumName = record.albumName,
+                    artist = record.artist,
+                    trackIndex = record.trackIndex,
+                    origin = FrozenDownloadOrigin(record.serverId, record.userId),
+                )
+            if (handle == -1L) {
+                error("加入下载队列失败：${queueError ?: "未知错误"}")
+            }
+        }
+            .onFailure { failure ->
+                withContext(Dispatchers.IO) {
+                    val current = database.getDownloadIntent(itemId) ?: return@withContext
+                    database.setDownloadIntentStatusIfCurrent(
+                        itemId = itemId,
+                        taskGeneration = current.taskGeneration,
+                        status = DownloadIntentStatus.FAILED.name,
+                        failureReason = DownloadFailureReason.SERVER_ERROR.name,
+                        failureDetail = failure.message?.take(500),
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                }
+                Timber.w(failure, "解析 sidecar 下载意图失败：%s", itemId)
+            }
+    }
+
+    private suspend fun resolveLegacyReceivedIntent(intent: DownloadIntentDto) {
         runCatching {
             if (!isReceivedIntentCurrent(intent)) return
-            val persistedOrigin =
-                sidecar
-                    .allRecords()
-                    .lastOrNull {
-                        it.itemId == intent.itemId.toString() && it.sourceId.isNullOrBlank()
-                    }
-                    ?.let { record -> FrozenDownloadOrigin(record.serverId, record.userId) }
-                    ?: freezeDownloadOrigin()
             val item = jellyfinRepository.getItem(intent.itemId) ?: error("下载条目不存在")
             val sourceId =
                 jellyfinRepository
@@ -763,14 +861,14 @@ private constructor(
                     albumName = intent.albumName,
                     artist = intent.artist,
                     trackIndex = intent.trackIndex,
-                    origin = persistedOrigin,
+                    // legacy 缺少持久 provenance：显式降级 unknown，不用当前会话猜回。
+                    origin = FrozenDownloadOrigin(serverId = null, userId = null),
                 )
             if (handle == -1L) {
                 error("加入下载队列失败：${queueError ?: "未知错误"}")
             }
             if (!isReceivedIntentCurrent(intent)) {
                 cancelTaskById(sourceId)
-                return
             }
         }
             .onSuccess {
@@ -792,7 +890,7 @@ private constructor(
                         updatedAt = System.currentTimeMillis(),
                     )
                 }
-                Timber.w(failure, "解析下载意图失败：%s", intent.itemId)
+                Timber.w(failure, "解析 legacy 下载意图失败：%s", intent.itemId)
             }
     }
 
@@ -1930,6 +2028,14 @@ private constructor(
                     if (!result.confirmed) {
                         throw result.failure ?: IllegalStateException("下载意图删除未确认")
                     }
+                    sidecar
+                        .allRecords()
+                        .filter {
+                            it.kind == DownloadMediaKind.MUSIC &&
+                                it.itemId == itemId.toString() &&
+                                it.sourceId.isNullOrBlank()
+                        }
+                        .forEach { sidecar.remove(it.canonicalIdentity()) }
                 }
             } finally {
                 notifyQueueChanged()
@@ -2470,6 +2576,11 @@ private constructor(
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
             val mediaRecords = sidecar.records()
+            val pendingIntentRecordsByItemId =
+                sidecar
+                    .allRecords()
+                    .filter { it.kind == DownloadMediaKind.MUSIC && it.sourceId.isNullOrBlank() }
+                    .groupBy(DownloadMediaRecord::itemId)
             val episodeHierarchy = runCatching {
                 // W59：进行中 / 已完成的剧集都要带归属（Show → 季 → 剧集钻取分组）。
                 database.getEpisodeHierarchyWithSources().associateBy { it.episodeId }
@@ -2537,6 +2648,11 @@ private constructor(
                     .asSequence()
                     .filterNot { it.itemId in sourceItemIds }
                     .map { intent ->
+                        val pendingRecords = pendingIntentRecordsByItemId[intent.itemId.toString()]
+                        val pendingRecord =
+                            pendingRecords
+                                ?.distinctBy { it.canonicalIdentity().canonicalKey }
+                                ?.singleOrNull()
                         DownloadTask(
                             itemId = intent.itemId,
                             sourceId = intentSourceId(intent.itemId),
@@ -2559,20 +2675,8 @@ private constructor(
                             retryCount = 0,
                             nextRetryAt = 0L,
                             taskGeneration = intent.taskGeneration,
-                            serverId =
-                                mediaRecords.values
-                                    .firstOrNull {
-                                        it.itemId == intent.itemId.toString() &&
-                                            it.sourceId.isNullOrBlank()
-                                    }
-                                    ?.serverId,
-                            userId =
-                                mediaRecords.values
-                                    .firstOrNull {
-                                        it.itemId == intent.itemId.toString() &&
-                                            it.sourceId.isNullOrBlank()
-                                    }
-                                    ?.userId,
+                            serverId = pendingRecord?.serverId,
+                            userId = pendingRecord?.userId,
                         )
                     }
                     .toList()
@@ -2699,7 +2803,14 @@ private constructor(
                 }
                 ensureEngineRunning(forceStart = true)
             }
-            if (database.getReceivedDownloadIntents().isNotEmpty()) {
+            val hasLegacyReceivedIntent = database.getReceivedDownloadIntents().isNotEmpty()
+            val hasSidecarIntent =
+                sidecar.allRecords().any {
+                    it.kind == DownloadMediaKind.MUSIC &&
+                        it.sourceId.isNullOrBlank() &&
+                        it.itemId.toUuidOrNull() != null
+                }
+            if (hasLegacyReceivedIntent || hasSidecarIntent) {
                 launchReceivedIntentProcessor()
             }
             recovered

@@ -179,6 +179,9 @@ constructor(
         fun isActive(itemId: UUID): Boolean = activeStatus(itemId) != null
 
         fun isActive(song: MusicSong): Boolean = activeStatus(song) != null
+
+        fun downloadedIdentities(): Set<DownloadCanonicalIdentity> =
+            downloadedRecords.mapTo(mutableSetOf()) { it.canonicalIdentity() }
     }
 
     private val _downloadState = MutableStateFlow(SongDownloadState())
@@ -1464,8 +1467,10 @@ constructor(
         val downloadState = _downloadState.value
         return MusicAlbumDownloadRules.plan(
             album = album,
-            downloadedItemIds = downloadState.downloadedItemIds,
-            activeItemIds = downloadState.activeItemIds(),
+            downloadedIdentities = downloadState.downloadedIdentities(),
+            activeIdentities = downloadState.activeStatuses.keys,
+            legacyDownloadedItemIds = downloadState.downloadedItemIds,
+            legacyActiveItemIds = downloadState.activeItemIds(),
         )
     }
 
@@ -1565,11 +1570,13 @@ constructor(
             plan =
                 MusicAlbumDownloadRules.planAlbums(
                     albums = selectedAlbums(),
-                    downloadedItemIds = downloadState.downloadedItemIds,
-                    activeItemIds = downloadState.activeItemIds(),
+                    downloadedIdentities = downloadState.downloadedIdentities(),
+                    activeIdentities = downloadState.activeStatuses.keys,
+                    legacyDownloadedItemIds = downloadState.downloadedItemIds,
+                    legacyActiveItemIds = downloadState.activeItemIds(),
                 )
         } else {
-            val targets = batchDownloadTargets(selectedSongs(), batchCapsMap(downloadState))
+            val targets = batchDownloadTargets(batchCapabilities(selectedSongs(), downloadState))
             plan = MusicAlbumDownloadRules.Plan(targets, 0, 0, 0)
         }
         if (plan.targets.isEmpty()) return
@@ -1626,15 +1633,8 @@ constructor(
         return albumDownloadPlan(album).targets.size
     }
 
-    private fun List<MusicSong>.toIntentRequests(): List<DownloadMusicIntentRequest> = map { song ->
-        DownloadMusicIntentRequest(
-            itemId = song.itemId,
-            name = song.name,
-            albumName = song.albumName,
-            artist = song.artist,
-            trackIndex = song.indexNumber ?: 0,
-        )
-    }
+    private fun List<MusicSong>.toIntentRequests(): List<DownloadMusicIntentRequest> =
+        musicIntentRequests(this)
 
     /** 批量收藏：任一所选未收藏 → 全部收藏；全部已收藏 → 全部取消。 */
     fun favoriteSelected() {
@@ -1659,7 +1659,7 @@ constructor(
 
     /** 批量删除：**只删本地**——已下载服务器条目逐个删除本地文件与索引；纯服务器条目不在目标内。 */
     fun deleteSelected() {
-        val targets = batchDeleteTargets(selectedSongs(), batchCapsMap(_downloadState.value))
+        val targets = batchDeleteTargets(batchCapabilities(selectedSongs(), _downloadState.value))
         if (targets.isEmpty()) return
         viewModelScope.launch {
             var failures = 0
@@ -1742,8 +1742,15 @@ constructor(
         }
     }
 
-    private fun batchCapsMap(downloadState: SongDownloadState): Map<UUID, SongBatchCaps> =
-        visibleSongs().associate { song -> song.itemId to batchCaps(song, downloadState) }
+    private fun batchCapabilities(
+        songs: List<MusicSong>,
+        downloadState: SongDownloadState,
+    ): List<MusicBatchTargetCapability> = songs.map { song ->
+        MusicBatchTargetCapability(
+            song = song,
+            caps = batchCaps(song, downloadState),
+        )
+    }
 
     private fun SongDownloadState.activeItemIds(): Set<UUID> =
         activeStatuses.keys.mapNotNullTo(mutableSetOf()) { identity ->

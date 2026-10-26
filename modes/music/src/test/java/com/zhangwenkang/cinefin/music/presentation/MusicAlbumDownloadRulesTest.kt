@@ -2,6 +2,8 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,15 +13,23 @@ import org.junit.Test
 /** W59 专辑下载计划（只补齐缺失 + 100 首上限 + 多专辑合并去重）。 */
 class MusicAlbumDownloadRulesTest {
 
-    private fun song(index: Int, name: String = "track$index") =
+    private fun song(
+        index: Int,
+        name: String = "track$index",
+        itemId: UUID = UUID.randomUUID(),
+        serverId: String? = null,
+        userId: String? = null,
+    ) =
         MusicSong(
-            itemId = UUID.randomUUID(),
+            itemId = itemId,
             name = name,
             albumName = "示例专辑",
             artist = "示例艺人",
             indexNumber = index,
             runtimeTicks = 0L,
             imageUri = null,
+            serverId = serverId,
+            userId = userId,
         )
 
     private fun album(name: String, songs: List<MusicSong>) =
@@ -36,8 +46,10 @@ class MusicAlbumDownloadRulesTest {
         val plan =
             MusicAlbumDownloadRules.plan(
                 album = target,
-                downloadedItemIds = setOf(downloaded.itemId),
-                activeItemIds = setOf(active.itemId),
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
+                legacyDownloadedItemIds = setOf(downloaded.itemId),
+                legacyActiveItemIds = setOf(active.itemId),
             )
 
         assertEquals(listOf(missingA.itemId, missingB.itemId), plan.targets.map { it.itemId })
@@ -55,8 +67,8 @@ class MusicAlbumDownloadRulesTest {
         val plan =
             MusicAlbumDownloadRules.plan(
                 album = target,
-                downloadedItemIds = emptySet(),
-                activeItemIds = emptySet(),
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
             )
 
         assertEquals(100, plan.targets.size)
@@ -72,8 +84,9 @@ class MusicAlbumDownloadRulesTest {
         val plan =
             MusicAlbumDownloadRules.plan(
                 album = target,
-                downloadedItemIds = songs.map { it.itemId }.toSet(),
-                activeItemIds = emptySet(),
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
+                legacyDownloadedItemIds = songs.mapTo(mutableSetOf()) { it.itemId },
             )
         assertTrue(plan.isEmpty)
         assertEquals(3, plan.skippedDownloaded)
@@ -89,12 +102,92 @@ class MusicAlbumDownloadRulesTest {
         val plan =
             MusicAlbumDownloadRules.planAlbums(
                 albums = listOf(first, duplicated),
-                downloadedItemIds = emptySet(),
-                activeItemIds = emptySet(),
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
                 maxTracks = 4,
             )
 
         assertEquals(listOf("A1", "A2", "A3", "B2"), plan.targets.map { it.name })
         assertEquals(1, plan.skippedByLimit)
+    }
+
+    @Test
+    fun `同 UUID 仅另一 server 已下载时当前 server 仍进入专辑计划`() {
+        val itemId = UUID.randomUUID()
+        val currentServerSong =
+            song(1, "B", itemId = itemId, serverId = "server-b", userId = "user-a")
+        val otherServerDownloaded =
+            song(1, "A", itemId = itemId, serverId = "server-a", userId = "user-a")
+
+        val plan =
+            MusicAlbumDownloadRules.plan(
+                album = album("跨服专辑", listOf(currentServerSong)),
+                downloadedIdentities = setOf(otherServerDownloaded.downloadIdentity()!!),
+                activeIdentities = emptySet(),
+            )
+
+        assertEquals(listOf(currentServerSong), plan.targets)
+        assertEquals(0, plan.skippedDownloaded)
+    }
+
+    @Test
+    fun `同 UUID 的两条未知来源不得折叠也不认作已下载`() {
+        val itemId = UUID.randomUUID()
+        val unknownA = song(1, "A", itemId = itemId)
+        val unknownB = song(2, "B", itemId = itemId)
+        val unknownIdentity =
+            DownloadCanonicalIdentity.of(
+                mediaKind = DownloadMediaKind.MUSIC,
+                itemId = itemId.toString(),
+                serverId = null,
+                userId = null,
+                sourceId = null,
+            )
+
+        val plan =
+            MusicAlbumDownloadRules.plan(
+                album = album("未知来源专辑", listOf(unknownA, unknownB)),
+                downloadedIdentities = setOf(unknownIdentity),
+                activeIdentities = emptySet(),
+            )
+
+        assertEquals(listOf(unknownA, unknownB), plan.targets)
+        assertEquals(0, plan.skippedDownloaded)
+    }
+
+    @Test
+    fun `本地媒体库曲目不被专辑下载计划隐式当作服务器曲目`() {
+        val local =
+            song(1, "本地曲目")
+                .copy(
+                    localUri = "content://local/song",
+                    source = com.zhangwenkang.cinefin.music.data.MusicItemSource.LOCAL,
+                    localLibraryId = 7L,
+                )
+
+        val plan =
+            MusicAlbumDownloadRules.plan(
+                album = album("混合专辑", listOf(local)),
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
+            )
+
+        assertTrue(plan.targets.isEmpty())
+    }
+
+    @Test
+    fun `单条 legacy 曲目仍可按显式 itemId 跳过`() {
+        val legacy = song(1)
+
+        val plan =
+            MusicAlbumDownloadRules.plan(
+                album = album("legacy", listOf(legacy)),
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
+                legacyDownloadedItemIds = setOf(legacy.itemId),
+            )
+
+        assertTrue(plan.targets.isEmpty())
+        assertEquals(1, plan.skippedDownloaded)
     }
 }

@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -15,29 +14,49 @@ import org.junit.Test
 class DownloadBatchInboxTest {
 
     private class MemoryIntentStore : DownloadIntentStore {
-        val intents = ConcurrentHashMap<UUID, DownloadMusicIntentRequest>()
+        val intents = mutableListOf<DownloadMusicIntentRequest>()
         private val saveAllCallCounter = AtomicInteger(0)
         val saveAllCalls: Int
             get() = saveAllCallCounter.get()
 
-        override suspend fun existingItemIds(itemIds: Set<UUID>): Set<UUID> {
+        override suspend fun existingCanonicalKeys(
+            requests: List<DownloadMusicIntentRequest>
+        ): Set<String> {
             delay(10)
-            return itemIds.filterTo(mutableSetOf()) { itemId -> intents.containsKey(itemId) }
+            return requests
+                .filter { request ->
+                    request.canonicalIdentity.hasCompleteNamespace &&
+                        intents.any {
+                            it.canonicalIdentity.matchesProvenance(request.canonicalIdentity)
+                        }
+                }
+                .mapNotNullTo(mutableSetOf()) { it.canonicalIdentity.foldKey }
         }
 
         override suspend fun saveAll(requests: List<DownloadMusicIntentRequest>) {
             saveAllCallCounter.incrementAndGet()
-            requests.forEach { request -> intents.putIfAbsent(request.itemId, request) }
+            requests.forEach { request ->
+                val key = request.canonicalIdentity.foldKey
+                if (key == null || intents.none { it.canonicalIdentity.foldKey == key }) {
+                    intents += request
+                }
+            }
         }
     }
 
-    private fun request(index: Int) =
+    private fun request(
+        index: Int,
+        serverId: String? = "server-a",
+        userId: String? = "user-a",
+    ) =
         DownloadMusicIntentRequest(
             itemId = UUID(0L, index.toLong()),
             name = "曲目 $index",
             albumName = "专辑",
             artist = "歌手",
             trackIndex = index,
+            serverId = serverId,
+            userId = userId,
         )
 
     @Test
@@ -84,4 +103,46 @@ class DownloadBatchInboxTest {
             assertEquals(100, receipts.sumOf { it.acceptedIds.size })
             assertEquals(900, receipts.sumOf { it.alreadyAcceptedCount })
         }
+
+    @Test
+    fun `同 UUID 不同 server 的意图按 canonical identity 分别受理`() = runBlocking {
+        val store = MemoryIntentStore()
+        val itemId = UUID(0L, 7L)
+        val receipt =
+            DownloadBatchInbox(store)
+                .accept(
+                    listOf(
+                        request(7, "server-a", "user-a").copy(itemId = itemId),
+                        request(7, "server-b", "user-a").copy(itemId = itemId),
+                    )
+                )
+
+        assertEquals(2, receipt.acceptedKeys.size)
+        assertEquals(2, store.intents.size)
+    }
+
+    @Test
+    fun `同 UUID 的未知意图逐条受理且不互相覆盖`() = runBlocking {
+        val store = MemoryIntentStore()
+        val itemId = UUID(0L, 9L)
+        val receipt =
+            DownloadBatchInbox(store)
+                .accept(
+                    listOf(
+                        request(9, serverId = null, userId = null)
+                            .copy(
+                                itemId = itemId,
+                                name = "A",
+                            ),
+                        request(9, serverId = null, userId = null)
+                            .copy(
+                                itemId = itemId,
+                                name = "B",
+                            ),
+                    )
+                )
+
+        assertEquals(2, receipt.acceptedIds.size)
+        assertEquals(listOf("A", "B"), store.intents.map { it.name })
+    }
 }

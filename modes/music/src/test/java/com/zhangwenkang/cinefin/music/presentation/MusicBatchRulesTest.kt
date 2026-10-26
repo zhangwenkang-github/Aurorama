@@ -168,12 +168,11 @@ class MusicBatchRulesTest {
         val songs = listOf(song("1"), song("2"), song("3"))
         val targets =
             batchDownloadTargets(
-                songs,
-                mapOf(
-                    songs[0].itemId to caps(),
-                    songs[1].itemId to caps(downloaded = true),
-                    songs[2].itemId to caps(active = true),
-                ),
+                listOf(
+                    MusicBatchTargetCapability(songs[0], caps()),
+                    MusicBatchTargetCapability(songs[1], caps(downloaded = true)),
+                    MusicBatchTargetCapability(songs[2], caps(active = true)),
+                )
             )
         assertEquals(listOf(songs[0]), targets)
     }
@@ -183,14 +182,26 @@ class MusicBatchRulesTest {
         val songs = listOf(song("1"), song("2"), song("3"))
         val targets =
             batchDeleteTargets(
-                songs,
-                mapOf(
-                    songs[0].itemId to caps(),
-                    songs[1].itemId to caps(downloaded = true),
-                    songs[2].itemId to caps(downloaded = true, local = true),
-                ),
+                listOf(
+                    MusicBatchTargetCapability(songs[0], caps()),
+                    MusicBatchTargetCapability(songs[1], caps(downloaded = true)),
+                    MusicBatchTargetCapability(
+                        songs[2],
+                        caps(downloaded = true, local = true),
+                    ),
+                )
             )
         assertEquals(listOf(songs[1]), targets)
+    }
+
+    @Test
+    fun `download targets explicitly exclude local library rows`() {
+        val local = song("1", localUri = "content://local/song")
+
+        assertTrue(
+            batchDownloadTargets(listOf(MusicBatchTargetCapability(local, caps(local = true))))
+                .isEmpty()
+        )
     }
 
     @Test
@@ -273,6 +284,76 @@ class MusicBatchRulesTest {
             )
         assertTrue(musicSongBatchCaps(serverA, listOf(downloadedA), emptyList()).downloaded)
         assertFalse(musicSongBatchCaps(serverB, listOf(downloadedA), emptyList()).downloaded)
+    }
+
+    @Test
+    fun `同 UUID 的下载态只跳过对应 server 的批量目标`() {
+        val itemId = UUID.randomUUID()
+        val serverA = song("1", serverId = "server-a", userId = "user-a").copy(itemId = itemId)
+        val serverB = song("1", serverId = "server-b", userId = "user-a").copy(itemId = itemId)
+
+        assertEquals(
+            listOf(serverB),
+            batchDownloadTargets(
+                listOf(
+                    MusicBatchTargetCapability(serverA, caps(downloaded = true)),
+                    MusicBatchTargetCapability(serverB, caps()),
+                )
+            ),
+        )
+    }
+
+    @Test
+    fun `intent 请求保留同 UUID 不同 server 的完整 provenance`() {
+        val itemId = UUID.randomUUID()
+        val serverA = song("1", serverId = "server-a", userId = "user-a").copy(itemId = itemId)
+        val serverB = song("1", serverId = "server-b", userId = "user-b").copy(itemId = itemId)
+
+        val requests = musicIntentRequests(listOf(serverA, serverB))
+
+        assertEquals(2, requests.map { it.canonicalIdentity }.distinct().size)
+        assertEquals("server-a", requests[0].serverId)
+        assertEquals("server-b", requests[1].serverId)
+        assertEquals("user-a", requests[0].userId)
+        assertEquals("user-b", requests[1].userId)
+    }
+
+    @Test
+    fun `同 UUID 的未知行分别绑定 caps 不共享下载状态`() {
+        val itemId = UUID.randomUUID()
+        val unknownA = song("1").copy(itemId = itemId, name = "A")
+        val unknownB = song("2").copy(itemId = itemId, name = "B")
+        val capabilities =
+            listOf(
+                MusicBatchTargetCapability(unknownA, caps(downloaded = true)),
+                MusicBatchTargetCapability(unknownB, caps()),
+            )
+
+        assertEquals(
+            listOf(unknownB),
+            batchDownloadTargets(capabilities),
+        )
+    }
+
+    @Test
+    fun `本地媒体库曲目不生成服务器下载 intent`() {
+        val local =
+            song("1")
+                .copy(
+                    localUri = "content://local/song",
+                    source = com.zhangwenkang.cinefin.music.data.MusicItemSource.LOCAL,
+                    localLibraryId = 7L,
+                )
+
+        assertTrue(musicIntentRequests(listOf(local)).isEmpty())
+    }
+
+    @Test
+    fun `专辑批量与 intent request 使用同一服务器曲目身份`() {
+        val serverSong = song("1", serverId = "server-a", userId = "user-a")
+        val request = musicIntentRequests(listOf(serverSong)).single()
+
+        assertEquals(serverSong.downloadIdentity(), request.canonicalIdentity)
     }
 
     /** 每次 `nextInt` 都取 0 的确定性随机源，用于锁死洗牌顺序。 */

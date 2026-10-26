@@ -2,7 +2,10 @@ package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloadCanonicalIdentityTest {
@@ -34,6 +37,33 @@ class DownloadCanonicalIdentityTest {
         val second = first.copy(sourceId = "source-b")
 
         assertNotEquals(first.downloadIdentity(), second.downloadIdentity())
+    }
+
+    @Test
+    fun `未知来源不得与另一未知或完整来源互认`() {
+        val unknownA =
+            DownloadCanonicalIdentity.of(
+                mediaKind = DownloadMediaKind.MUSIC,
+                itemId = itemId.toString(),
+                serverId = null,
+                userId = null,
+                sourceId = null,
+            )
+        val unknownB = unknownA.copy()
+        val complete =
+            DownloadCanonicalIdentity.of(
+                mediaKind = DownloadMediaKind.MUSIC,
+                itemId = itemId.toString(),
+                serverId = "server-a",
+                userId = "user-a",
+                sourceId = null,
+            )
+
+        assertFalse(unknownA.matchesProvenance(unknownB))
+        assertFalse(unknownA.matchesProvenance(complete))
+        assertFalse(complete.matchesProvenance(unknownA))
+        assertNull(unknownA.foldKey)
+        assertTrue(unknownA.matchesLegacyItemId(DownloadMediaKind.MUSIC, itemId.toString()))
     }
 
     private fun task(

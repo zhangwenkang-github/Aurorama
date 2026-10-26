@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.DownloadDeleteBatchDto
 import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
+import com.zhangwenkang.cinefin.models.DownloadIntentDto
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidImages
@@ -1105,6 +1106,143 @@ class DownloaderImplRecoveryTest {
                 "sidecar 缺失不得借用当前 server/user：${fixture.imageScheduler.parentOwners}",
                 fixture.imageScheduler.parentOwners.isEmpty(),
             )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `同 UUID 不同 namespace 经生产接收后按各自冻结来源逐条恢复`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("22222222-2222-4222-8222-222222222222")
+            fixture.repository.putItem(
+                fixture
+                    .movie()
+                    .copy(
+                        id = itemId,
+                        name = "同 UUID 音乐",
+                        kind = "AUDIO",
+                    )
+            )
+            fixture.repository.enqueueMediaSource(
+                itemId,
+                FindroidSource(
+                    id = "source-server-a",
+                    name = "A",
+                    type = FindroidSourceType.REMOTE,
+                    path = "https://server-a.test/song",
+                    size = MEDIA_BYTES.size.toLong(),
+                    mediaStreams = fixture.repository.mediaStreams,
+                    container = "mp3",
+                ),
+            )
+            fixture.repository.enqueueMediaSource(
+                itemId,
+                FindroidSource(
+                    id = "source-server-b",
+                    name = "B",
+                    type = FindroidSourceType.REMOTE,
+                    path = "https://server-b.test/song",
+                    size = MEDIA_BYTES.size.toLong(),
+                    mediaStreams = fixture.repository.mediaStreams,
+                    container = "mp3",
+                ),
+            )
+            fixture.repository.blockNextItemLookup()
+
+            val receipt =
+                fixture.downloader.receiveMusicBatch(
+                    listOf(
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "同 UUID 音乐",
+                            albumName = "专辑",
+                            artist = "歌手",
+                            trackIndex = 1,
+                            serverId = "server-a",
+                            userId = "user-a",
+                        ),
+                        DownloadMusicIntentRequest(
+                            itemId = itemId,
+                            name = "同 UUID 音乐",
+                            albumName = "专辑",
+                            artist = "歌手",
+                            trackIndex = 1,
+                            serverId = "server-b",
+                            userId = "user-b",
+                        ),
+                    )
+                )
+
+            assertEquals(2, receipt.acceptedIds.size)
+            assertEquals(1, fixture.dao.intentCount())
+            assertEquals(
+                setOf("server-a" to "user-a", "server-b" to "user-b"),
+                fixture.downloader
+                    .mediaSidecar()
+                    .allRecords()
+                    .filter { it.sourceId.isNullOrBlank() }
+                    .filter { it.itemId == itemId.toString() }
+                    .mapTo(mutableSetOf()) { it.serverId to it.userId },
+            )
+
+            assertTrue(fixture.repository.awaitItemLookup())
+            fixture.preferences.currentServer = "server-c"
+            fixture.repository.userId = UUID.fromString("33333333-3333-4333-8333-333333333333")
+            fixture.repository.releaseItemLookup()
+
+            assertTrue(
+                "两条已受理意图应分别进入下载队列；sources=${fixture.dao.sourceIds()} " +
+                    "sidecar=${fixture.downloader.mediaSidecar().allRecords()} " +
+                    "logs=${fixture.logs}",
+                fixture.dao.awaitInsertedSourceCount(2),
+            )
+            assertEquals(
+                setOf("server-a" to "user-a", "server-b" to "user-b"),
+                fixture.downloader
+                    .mediaSidecar()
+                    .allRecords()
+                    .filter { !it.sourceId.isNullOrBlank() }
+                    .filter { it.itemId == itemId.toString() }
+                    .mapTo(mutableSetOf()) { it.serverId to it.userId },
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `legacy intent 缺 sidecar 时保持来源未知而不借用当前会话`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("44444444-4444-4444-8444-444444444444")
+            fixture.repository.putItem(
+                fixture.movie().copy(id = itemId, name = "legacy 音乐", kind = "AUDIO")
+            )
+            fixture.dao.seedDownloadIntent(itemId)
+            fixture.preferences.currentServer = "server-current"
+            fixture.preferences.currentServerReads = 0
+            fixture.repository.userId = UUID.fromString("55555555-5555-4555-8555-555555555555")
+            fixture.repository.userIdReads = 0
+
+            fixture.downloader.recoverOnStartup()
+
+            assertTrue(fixture.dao.awaitInsertedSourceCount(1))
+            assertEquals(
+                1,
+                fixture.downloader.mediaSidecar().allRecords().count {
+                    it.itemId == itemId.toString()
+                },
+            )
+            val resolved =
+                fixture.downloader.mediaSidecar().allRecords().single {
+                    it.itemId == itemId.toString() && !it.sourceId.isNullOrBlank()
+                }
+            assertEquals(null, resolved.serverId)
+            assertEquals(null, resolved.userId)
+            assertEquals(0, fixture.preferences.currentServerReads)
+            assertEquals(0, fixture.repository.userIdReads)
         } finally {
             fixture.close()
         }
@@ -2280,6 +2418,7 @@ class DownloaderImplRecoveryTest {
         private val sources = linkedMapOf<String, FindroidSourceDto>()
         private val deleteBatches = linkedMapOf<String, DownloadDeleteBatchDto>()
         private val deleteReceipts = linkedMapOf<Pair<String, String>, DownloadDeleteReceiptDto>()
+        private val downloadIntents = linkedMapOf<UUID, DownloadIntentDto>()
         var source: FindroidSourceDto?
             get() = sources[SOURCE_ID]
             set(value) {
@@ -2623,7 +2762,54 @@ class DownloaderImplRecoveryTest {
                             deleteReceipts.values
                                 .filter { it.batchId == args[0] as String }
                                 .sortedBy { it.ordinal }
-                        "getReceivedDownloadIntents" -> emptyList<Any>()
+                        "getDownloadIntents" -> downloadIntents.values.toList()
+                        "getDownloadIntent" -> downloadIntents[args[0] as UUID]
+                        "getReceivedDownloadIntents" ->
+                            downloadIntents.values
+                                .filter { it.status == "RECEIVED" }
+                                .sortedBy { it.createdAt }
+                        "saveDownloadIntents" -> {
+                            @Suppress("UNCHECKED_CAST")
+                            (args[0] as List<DownloadIntentDto>).forEach { intent ->
+                                downloadIntents.putIfAbsent(intent.itemId, intent)
+                            }
+                            Unit
+                        }
+                        "deleteDownloadIntentIfCurrent" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            if (downloadIntents[itemId]?.taskGeneration == generation) {
+                                downloadIntents.remove(itemId)
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        "setDownloadIntentStatusIfCurrent" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (current?.taskGeneration == generation) {
+                                downloadIntents[itemId] =
+                                    current.copy(
+                                        status = args[2] as String,
+                                        failureReason = args[3] as String?,
+                                        failureDetail = args[4] as String?,
+                                        updatedAt = args[5] as Long,
+                                    )
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        "getSourceItemIds" -> {
+                            @Suppress("UNCHECKED_CAST") val itemIds = args[0] as Set<UUID>
+                            sources.values.mapNotNull { it.itemId.takeIf(itemIds::contains) }
+                        }
+                        "getDownloadIntentItemIds" -> {
+                            @Suppress("UNCHECKED_CAST") val itemIds = args[0] as Set<UUID>
+                            downloadIntents.keys.filter(itemIds::contains)
+                        }
                         else -> error("unexpected DAO call: ${method.name}")
                     }
                 },
@@ -2663,6 +2849,31 @@ class DownloaderImplRecoveryTest {
         }
 
         fun sourceInsertCount(sourceId: String): Int = insertedSources.count { it.id == sourceId }
+
+        suspend fun awaitInsertedSourceCount(count: Int): Boolean =
+            withTimeoutOrNull(5_000L) {
+                while (insertedSources.size < count) delay(10L)
+                true
+            } ?: false
+
+        fun intentCount(): Int = downloadIntents.size
+
+        fun seedDownloadIntent(itemId: UUID) {
+            downloadIntents[itemId] =
+                DownloadIntentDto(
+                    itemId = itemId,
+                    name = "legacy 音乐",
+                    albumName = null,
+                    artist = null,
+                    trackIndex = 0,
+                    status = "RECEIVED",
+                    failureReason = null,
+                    failureDetail = null,
+                    createdAt = 1L,
+                    updatedAt = 1L,
+                    taskGeneration = 0L,
+                )
+        }
 
         fun hasEpisode(
             seasonId: UUID,
@@ -2878,6 +3089,10 @@ class DownloaderImplRecoveryTest {
         var showReads = 0
         var seasonReads = 0
         private val mediaSourcesByItemId = linkedMapOf<UUID, FindroidSource>()
+        private val queuedMediaSourcesByItemId = linkedMapOf<UUID, ArrayDeque<FindroidSource>>()
+        private val itemsById = linkedMapOf<UUID, FindroidItem>()
+        private var itemLookupGate: CompletableDeferred<Unit>? = null
+        private var itemLookupStarted = CompletableDeferred<Unit>()
 
         fun resetEffectCalls() {
             segmentReads = 0
@@ -2888,15 +3103,53 @@ class DownloaderImplRecoveryTest {
             mediaSourcesByItemId[itemId] = source
         }
 
+        fun enqueueMediaSource(itemId: UUID, source: FindroidSource) {
+            synchronized(queuedMediaSourcesByItemId) {
+                queuedMediaSourcesByItemId.getOrPut(itemId, ::ArrayDeque).addLast(source)
+            }
+        }
+
+        fun putItem(item: FindroidItem) {
+            itemsById[item.id] = item
+        }
+
+        fun blockNextItemLookup() {
+            itemLookupGate = CompletableDeferred()
+            itemLookupStarted = CompletableDeferred()
+        }
+
+        suspend fun awaitItemLookup(): Boolean =
+            withTimeoutOrNull(2_000L) {
+                itemLookupStarted.await()
+                true
+            } ?: false
+
+        fun releaseItemLookup() {
+            itemLookupGate?.complete(Unit)
+            itemLookupGate = null
+        }
+
         val proxy: JellyfinRepository =
             Proxy.newProxyInstance(
                 JellyfinRepository::class.java.classLoader,
                 arrayOf(JellyfinRepository::class.java),
                 InvocationHandler { _, method, args ->
                     when (method.name) {
-                        "getMediaSources" ->
+                        "getItem" -> {
+                            val itemId = args[0] as UUID
+                            itemLookupGate?.let { gate ->
+                                itemLookupStarted.complete(Unit)
+                                runBlocking { gate.await() }
+                            }
+                            itemsById[itemId]
+                        }
+                        "getMediaSources" -> {
+                            val itemId = args[0] as UUID
                             listOf(
-                                mediaSourcesByItemId[args[0] as UUID]
+                                synchronized(queuedMediaSourcesByItemId) {
+                                    queuedMediaSourcesByItemId[itemId]?.removeFirstOrNull()
+                                }
+                                    ?: mediaSourcesByItemId[itemId]
                                     ?: FindroidSource(
                                         id = SOURCE_ID,
                                         name = SOURCE_NAME,
@@ -2907,6 +3160,7 @@ class DownloaderImplRecoveryTest {
                                         container = "mp4",
                                     )
                             )
+                        }
                         "getSegments" -> {
                             segmentReads += 1
                             if (segmentFailuresRemaining > 0) {

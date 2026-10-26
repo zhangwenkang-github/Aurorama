@@ -4,6 +4,7 @@ import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
+import com.zhangwenkang.cinefin.utils.DownloadMusicIntentRequest
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
@@ -41,6 +42,12 @@ internal data class SongBatchCaps(
     val canDelete: Boolean
         get() = downloaded && !fromLocalLibrary
 }
+
+/** caps 与它所属曲目行一一绑定，禁止再经可能为 null / 冲突的 canonical key 回查。 */
+internal data class MusicBatchTargetCapability(
+    val song: MusicSong,
+    val caps: SongBatchCaps,
+)
 
 internal fun musicSongBatchCaps(
     song: MusicSong,
@@ -145,13 +152,28 @@ internal fun batchFavoriteTarget(selected: List<MusicSong>): Boolean? =
     if (selected.isEmpty()) null else selected.any { !it.isFavorite }
 
 /** 批量「下载」目标：跳过已下载 / 已在下载队列的曲目。 */
-internal fun batchDownloadTargets(
-    selected: List<MusicSong>,
-    caps: Map<UUID, SongBatchCaps>,
-): List<MusicSong> = selected.filter { caps[it.itemId]?.canDownload == true }
+internal fun batchDownloadTargets(capabilities: List<MusicBatchTargetCapability>): List<MusicSong> =
+    capabilities
+        .filter { row -> !row.caps.fromLocalLibrary && row.caps.canDownload }
+        .map(MusicBatchTargetCapability::song)
 
 /** 批量「删除」目标：只保留「已下载且非本地媒体库」的服务器条目。 */
-internal fun batchDeleteTargets(
-    selected: List<MusicSong>,
-    caps: Map<UUID, SongBatchCaps>,
-): List<MusicSong> = selected.filter { caps[it.itemId]?.canDelete == true }
+internal fun batchDeleteTargets(capabilities: List<MusicBatchTargetCapability>): List<MusicSong> =
+    capabilities
+        .filter { row -> !row.caps.fromLocalLibrary && row.caps.canDelete }
+        .map(MusicBatchTargetCapability::song)
+
+internal fun musicIntentRequests(songs: List<MusicSong>): List<DownloadMusicIntentRequest> =
+    songs
+        .filter { song -> song.localUri == null }
+        .map { song ->
+            DownloadMusicIntentRequest(
+                itemId = song.itemId,
+                name = song.name,
+                albumName = song.albumName,
+                artist = song.artist,
+                trackIndex = song.indexNumber ?: 0,
+                serverId = song.serverId,
+                userId = song.userId,
+            )
+        }

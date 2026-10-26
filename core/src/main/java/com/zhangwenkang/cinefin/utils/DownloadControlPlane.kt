@@ -32,17 +32,36 @@ data class DownloadMusicIntentRequest(
     val albumName: String?,
     val artist: String?,
     val trackIndex: Int,
-)
+    val serverId: String? = null,
+    val userId: String? = null,
+    val sourceId: String? = null,
+) {
+    val canonicalIdentity: DownloadCanonicalIdentity
+        get() =
+            DownloadCanonicalIdentity.of(
+                mediaKind = DownloadMediaKind.MUSIC,
+                itemId = itemId.toString(),
+                serverId = serverId,
+                userId = userId,
+                sourceId = sourceId,
+            )
 
-/** 后台持久化入口；实际 Room 实现必须以单一事务写入 [saveAll]。 */
+    /** 持久化查重键；来源未知时只允许显式 legacy itemId 回退。 */
+    val acceptanceKey: String
+        get() = canonicalIdentity.foldKey ?: "legacy|${DownloadMediaKind.MUSIC.name}|$itemId"
+}
+
+/** 后台持久化入口；生产实现必须先原子写 sidecar，再同步 legacy Room 行。 */
 interface DownloadIntentStore {
-    suspend fun existingItemIds(itemIds: Set<UUID>): Set<UUID>
+    suspend fun existingCanonicalKeys(requests: List<DownloadMusicIntentRequest>): Set<String>
 
     suspend fun saveAll(requests: List<DownloadMusicIntentRequest>)
 }
 
 data class DownloadBatchReceipt(
     val acceptedIds: List<UUID>,
+    val acceptedKeys: List<String>,
+    val acceptedRequests: List<DownloadMusicIntentRequest>,
     val alreadyAcceptedCount: Int,
     val acceptedAtMs: Long,
 )
@@ -57,13 +76,15 @@ class DownloadBatchInbox(
     suspend fun accept(requests: List<DownloadMusicIntentRequest>): DownloadBatchReceipt =
         acceptMutex.withLock {
             val normalized = DownloadControlPlaneRules.normalizeMusicBatch(requests)
-            val existing = store.existingItemIds(normalized.mapTo(mutableSetOf()) { it.itemId })
-            val fresh = normalized.filterNot { it.itemId in existing }
+            val existing = store.existingCanonicalKeys(normalized)
+            val fresh = normalized.filter { request -> request.acceptanceKey !in existing }
             if (fresh.isNotEmpty()) {
                 store.saveAll(fresh)
             }
             DownloadBatchReceipt(
                 acceptedIds = fresh.map { it.itemId },
+                acceptedKeys = fresh.mapNotNull { it.canonicalIdentity.foldKey },
+                acceptedRequests = fresh,
                 alreadyAcceptedCount = normalized.size - fresh.size,
                 acceptedAtMs = clock(),
             )
@@ -157,5 +178,11 @@ object DownloadControlPlaneRules {
 
     fun normalizeMusicBatch(
         requests: List<DownloadMusicIntentRequest>
-    ): List<DownloadMusicIntentRequest> = requests.distinctBy { it.itemId }
+    ): List<DownloadMusicIntentRequest> {
+        val seenCompleteNamespaces = mutableSetOf<String>()
+        return requests.filter { request ->
+            val key = request.canonicalIdentity.foldKey ?: return@filter true
+            seenCompleteNamespaces.add(key)
+        }
+    }
 }

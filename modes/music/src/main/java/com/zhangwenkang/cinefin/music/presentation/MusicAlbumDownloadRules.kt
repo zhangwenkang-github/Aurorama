@@ -2,7 +2,9 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicSong
-import java.util.UUID
+import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
+import java.util.Collections
+import java.util.IdentityHashMap
 
 /**
  * W59 专辑下载计划（纯函数，单测覆盖）。
@@ -29,33 +31,66 @@ object MusicAlbumDownloadRules {
     /** 单张专辑：按音轨序号排序，跳过已下载 / 已在队列，取前 [maxTracks] 首。 */
     fun plan(
         album: MusicAlbum,
-        downloadedItemIds: Set<UUID>,
-        activeItemIds: Set<UUID>,
+        downloadedIdentities: Set<DownloadCanonicalIdentity>,
+        activeIdentities: Set<DownloadCanonicalIdentity>,
+        legacyDownloadedItemIds: Set<java.util.UUID> = emptySet(),
+        legacyActiveItemIds: Set<java.util.UUID> = emptySet(),
         maxTracks: Int = MAX_TRACKS_PER_REQUEST,
-    ): Plan = planAlbums(listOf(album), downloadedItemIds, activeItemIds, maxTracks)
+    ): Plan =
+        planAlbums(
+            albums = listOf(album),
+            downloadedIdentities = downloadedIdentities,
+            activeIdentities = activeIdentities,
+            legacyDownloadedItemIds = legacyDownloadedItemIds,
+            legacyActiveItemIds = legacyActiveItemIds,
+            maxTracks = maxTracks,
+        )
 
     /** 多张专辑（专辑列表多选）：按传入专辑顺序 + 专辑内音轨序合并、同一曲目去重、整批上限 [maxTracks]。 */
     fun planAlbums(
         albums: List<MusicAlbum>,
-        downloadedItemIds: Set<UUID>,
-        activeItemIds: Set<UUID>,
+        downloadedIdentities: Set<DownloadCanonicalIdentity>,
+        activeIdentities: Set<DownloadCanonicalIdentity>,
+        legacyDownloadedItemIds: Set<java.util.UUID> = emptySet(),
+        legacyActiveItemIds: Set<java.util.UUID> = emptySet(),
         maxTracks: Int = MAX_TRACKS_PER_REQUEST,
     ): Plan {
         val limit = maxTracks.coerceAtLeast(0)
         var skippedDownloaded = 0
         var skippedActive = 0
         val candidates = mutableListOf<MusicSong>()
-        val seen = mutableSetOf<UUID>()
+        val seenCompleteNamespaces = mutableSetOf<String>()
+        val seenUnknownRows = Collections.newSetFromMap(IdentityHashMap<MusicSong, Boolean>())
+        val itemIdCounts =
+            albums.flatMap(MusicAlbum::songs).groupingBy(MusicSong::itemId).eachCount()
         for (album in albums) {
             val ordered =
                 album.songs.sortedWith(
                     compareBy<MusicSong> { it.indexNumber ?: Int.MAX_VALUE }.thenBy { it.name }
                 )
             for (song in ordered) {
-                if (!seen.add(song.itemId)) continue
+                if (song.localUri != null) continue
+                val identity = song.downloadIdentity()
+                val completeKey = identity?.foldKey
+                if (
+                    if (completeKey != null) {
+                        !seenCompleteNamespaces.add(completeKey)
+                    } else {
+                        !seenUnknownRows.add(song)
+                    }
+                ) {
+                    continue
+                }
+                val canUseLegacyFallback = identity == null && itemIdCounts[song.itemId] == 1
                 when {
-                    song.itemId in downloadedItemIds -> skippedDownloaded++
-                    song.itemId in activeItemIds -> skippedActive++
+                    identity != null &&
+                        downloadedIdentities.any { it.matchesProvenance(identity) } ->
+                        skippedDownloaded++
+                    identity != null && activeIdentities.any { it.matchesProvenance(identity) } ->
+                        skippedActive++
+                    canUseLegacyFallback && song.itemId in legacyDownloadedItemIds ->
+                        skippedDownloaded++
+                    canUseLegacyFallback && song.itemId in legacyActiveItemIds -> skippedActive++
                     else -> candidates += song
                 }
             }

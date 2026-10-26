@@ -86,25 +86,57 @@ class DownloadMediaSidecar private constructor(private val file: File) {
         }
 
     fun put(record: DownloadMediaRecord) {
-        update { records ->
-            val withoutResolvedPlaceholder =
-                if (record.sourceId.isNullOrBlank()) {
-                    records
-                } else {
-                    records.filterNot { existing ->
-                        existing.itemId == record.itemId &&
-                            existing.serverId == record.serverId &&
-                            existing.userId == record.userId &&
-                            existing.sourceId.isNullOrBlank()
-                    }
-                }
-            val key = record.storageKey()
-            val existingIndex = withoutResolvedPlaceholder.indexOfFirst { it.storageKey() == key }
-            if (existingIndex >= 0) {
-                withoutResolvedPlaceholder.toMutableList().also { it[existingIndex] = record }
-            } else {
-                withoutResolvedPlaceholder + record
+        update { records -> upsert(records, record) }
+    }
+
+    /** 原子写入整批接受记录；返回 false 时调用方不得报告 accepted。 */
+    fun putAll(records: List<DownloadMediaRecord>): Boolean = updateResult { existing ->
+        records.fold(existing) { current, record -> upsert(current, record) }
+    }
+
+    private fun upsert(
+        records: List<DownloadMediaRecord>,
+        record: DownloadMediaRecord,
+    ): List<DownloadMediaRecord> {
+        val identity = record.canonicalIdentity()
+        if (!identity.hasCompleteNamespace) {
+            // 来源未知无法证明两行相同，只能显式保留为独立行。
+            if (record.sourceId.isNullOrBlank()) return records + record
+            val pendingIndex = records.indexOfFirst { existing ->
+                existing.canonicalIdentity().hasCompleteNamespace.not() &&
+                    existing.itemId == record.itemId &&
+                    existing.kind == record.kind &&
+                    existing.albumName == record.albumName &&
+                    existing.artist == record.artist &&
+                    existing.trackIndex == record.trackIndex &&
+                    existing.serverId == record.serverId &&
+                    existing.userId == record.userId &&
+                    existing.sourceId.isNullOrBlank() &&
+                    existing.displayName == record.displayName
             }
+            return if (pendingIndex >= 0) {
+                records.toMutableList().also { it[pendingIndex] = record }
+            } else {
+                records + record
+            }
+        }
+        val withoutResolvedPlaceholder =
+            if (record.sourceId.isNullOrBlank()) {
+                records
+            } else {
+                records.filterNot { existing ->
+                    existing.itemId == record.itemId &&
+                        existing.serverId == record.serverId &&
+                        existing.userId == record.userId &&
+                        existing.sourceId.isNullOrBlank()
+                }
+            }
+        val key = record.storageKey()
+        val existingIndex = withoutResolvedPlaceholder.indexOfFirst { it.storageKey() == key }
+        return if (existingIndex >= 0) {
+            withoutResolvedPlaceholder.toMutableList().also { it[existingIndex] = record }
+        } else {
+            withoutResolvedPlaceholder + record
         }
     }
 
@@ -130,33 +162,42 @@ class DownloadMediaSidecar private constructor(private val file: File) {
     }
 
     private fun update(transform: (List<DownloadMediaRecord>) -> List<DownloadMediaRecord>) {
+        updateResult(transform)
+    }
+
+    private fun updateResult(
+        transform: (List<DownloadMediaRecord>) -> List<DownloadMediaRecord>
+    ): Boolean =
         synchronized(lock) {
             runCatching {
-                val next = transform(allRecords())
-                file.parentFile?.mkdirs()
-                val temp = File(file.parentFile, "${file.name}.tmp")
-                temp.writeText(next.joinToString("\n", transform = DownloadMediaCodec::encodeLine))
-                try {
-                    Files.move(
-                        temp.toPath(),
-                        file.toPath(),
-                        StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.REPLACE_EXISTING,
+                    val next = transform(allRecords())
+                    file.parentFile?.mkdirs()
+                    val temp = File(file.parentFile, "${file.name}.tmp")
+                    temp.writeText(
+                        next.joinToString("\n", transform = DownloadMediaCodec::encodeLine)
                     )
-                } catch (_: AtomicMoveNotSupportedException) {
-                    Files.move(
-                        temp.toPath(),
-                        file.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING,
-                    )
+                    try {
+                        Files.move(
+                            temp.toPath(),
+                            file.toPath(),
+                            StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING,
+                        )
+                    } catch (_: AtomicMoveNotSupportedException) {
+                        Files.move(
+                            temp.toPath(),
+                            file.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING,
+                        )
+                    }
+                    true
                 }
-            }
                 .onFailure { error ->
                     File(file.parentFile, "${file.name}.tmp").delete()
                     Timber.w(error, "写入下载媒体侧车失败")
                 }
+                .getOrDefault(false)
         }
-    }
 
     internal companion object {
         /** 同一进程可能有下载器 / 离线仓库等多个实例，以全局对象串行化同一侧车文件。 */

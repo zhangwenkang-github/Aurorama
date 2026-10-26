@@ -200,8 +200,19 @@ class DownloadControlPlaneRulesTest {
                     albumName = "专辑",
                     artist = "歌手",
                     trackIndex = index,
+                    serverId = "server-a",
+                    userId = "user-a",
                 )
-            } + DownloadMusicIntentRequest(UUID(0L, 50L), "重复", "专辑", "歌手", 50)
+            } +
+                DownloadMusicIntentRequest(
+                    itemId = UUID(0L, 50L),
+                    name = "重复",
+                    albumName = "专辑",
+                    artist = "歌手",
+                    trackIndex = 50,
+                    serverId = "server-a",
+                    userId = "user-a",
+                )
 
         val normalized = DownloadControlPlaneRules.normalizeMusicBatch(requests)
 
