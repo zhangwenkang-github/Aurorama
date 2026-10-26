@@ -350,15 +350,26 @@ private constructor(
                         requests: List<DownloadMusicIntentRequest>
                     ): Set<String> =
                         withContext(Dispatchers.IO) {
-                            val provenIdentities =
-                                sidecar.allRecords().requireComplete().mapTo(mutableSetOf()) {
-                                    it.canonicalIdentity()
-                                }
+                            val records = sidecar.allRecords().requireComplete()
+                            val receivedIntentItemIds =
+                                database
+                                    .getDownloadIntents()
+                                    .filter { it.status == DownloadIntentStatus.RECEIVED.name }
+                                    .mapTo(mutableSetOf(), DownloadIntentDto::itemId)
                             requests
                                 .filter { request ->
                                     val identity = request.canonicalIdentity
                                     identity.hasCompleteNamespace &&
-                                        provenIdentities.any { it.matchesProvenance(identity) }
+                                        records.any { record ->
+                                            identity.matchesProvenance(
+                                                record.canonicalIdentity()
+                                            ) &&
+                                                (!record.sourceId.isNullOrBlank() ||
+                                                    record.itemId
+                                                        .toUuidOrNull()
+                                                        ?.let(receivedIntentItemIds::contains) ==
+                                                        true)
+                                        }
                                 }
                                 .mapTo(mutableSetOf()) { it.acceptanceKey }
                         }
@@ -401,6 +412,16 @@ private constructor(
                                         .mapTo(mutableSetOf()) { it.itemId },
                                 legacyFailureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
                             )
+                            val persisted =
+                                database.getDownloadIntents().associateBy(DownloadIntentDto::itemId)
+                            check(
+                                requests.all { request ->
+                                    persisted[request.itemId]?.status ==
+                                        DownloadIntentStatus.RECEIVED.name
+                                }
+                            ) {
+                                "下载意图 Room 接管未生效"
+                            }
                         }
                 }
         )
@@ -951,12 +972,9 @@ private constructor(
 
     private suspend fun resolveSidecarIntent(record: DownloadMediaRecord) {
         val itemId = record.itemId.toUuidOrNull() ?: return
-        val currentIntent = withContext(Dispatchers.IO) { database.getDownloadIntent(itemId) }
-        if (
-            currentIntent?.status == DownloadIntentStatus.FAILED.name &&
-                currentIntent.failureReason == DownloadFailureReason.CANCELLED.name &&
-                currentIntent.failureDetail == null
-        ) {
+        if (!sidecarContains(record)) return
+        if (!acceptCompleteSidecarIntentInRoom(record)) {
+            Timber.w("sidecar 下载意图未通过 Room 接管校验，拒绝生成 source：%s", itemId)
             return
         }
         val origin =
@@ -999,6 +1017,52 @@ private constructor(
         }
             .onFailure { failure -> Timber.w(failure, "解析 sidecar 下载意图失败：%s", itemId) }
     }
+
+    /**
+     * 完整 sidecar 是受理快照，但不能单独证明 legacy Room 行已完成 takeover。
+     *
+     * 冷启动先复用 DAO 的完整 namespace 条件更新推进 generation；Room 异常直接向上抛出，避免在旧 FAILED 代次尚未收口时创建 source。这里不回写
+     * sidecar，防止与删除栅栏竞争后复活 pending。
+     */
+    private suspend fun acceptCompleteSidecarIntentInRoom(record: DownloadMediaRecord): Boolean =
+        withContext(Dispatchers.IO) {
+            val itemId = record.itemId.toUuidOrNull() ?: return@withContext false
+            if (
+                FrozenDownloadOrigin(record.serverId, record.userId).toJellyfinOriginOrNull() ==
+                    null
+            ) {
+                return@withContext false
+            }
+            val current = database.getDownloadIntent(itemId)
+            if (current?.status == DownloadIntentStatus.RECEIVED.name) return@withContext true
+            if (
+                current != null &&
+                    (current.status != DownloadIntentStatus.FAILED.name ||
+                        current.failureDetail != LEGACY_PROVENANCE_UNAVAILABLE)
+            ) {
+                return@withContext false
+            }
+            val now = System.currentTimeMillis()
+            database.saveDownloadIntents(
+                intents =
+                    listOf(
+                        DownloadIntentDto(
+                            itemId = itemId,
+                            name = record.displayName.orEmpty(),
+                            albumName = record.albumName,
+                            artist = record.artist,
+                            trackIndex = record.trackIndex,
+                            status = DownloadIntentStatus.RECEIVED.name,
+                            createdAt = now,
+                            updatedAt = now,
+                            taskGeneration = 0L,
+                        )
+                    ),
+                supersedableItemIds = setOf(itemId),
+                legacyFailureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
+            )
+            database.getDownloadIntent(itemId)?.status == DownloadIntentStatus.RECEIVED.name
+        }
 
     private fun sidecarContains(record: DownloadMediaRecord): Boolean =
         when (val snapshot = sidecar.allRecords()) {

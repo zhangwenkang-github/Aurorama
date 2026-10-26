@@ -1616,7 +1616,13 @@ class DownloaderImplRecoveryTest {
                 ),
             )
             fixture.repository.failNextOriginItem(originA)
-            fixture.dao.seedDownloadIntent(itemId, status = "FAILED")
+            fixture.dao
+                .seedDownloadIntent(itemId, status = DownloadIntentStatus.FAILED.name)
+                .copy(
+                    failureReason = DownloadFailureReason.CANCELLED.name,
+                    failureDetail = DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                )
+                .also(fixture.dao::putDownloadIntent)
             val sidecar = fixture.downloader.mediaSidecar()
             sidecar.put(
                 DownloadMediaRecord(
@@ -2353,6 +2359,168 @@ class DownloaderImplRecoveryTest {
             fixture.downloader.runQueue()
             assertEquals(null, fixture.dao.downloadIntent(itemId))
             assertTrue(fixture.downloader.refreshDownloadTasks().none { it.itemId == itemId })
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `Room 保存失败后同一完整 batch 重试先接管旧代且删除新源不复活`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("56565656-5656-4656-8656-565656565656")
+            fixture.dao.seedDownloadIntent(itemId)
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            val legacyIntent = requireNotNull(fixture.dao.downloadIntent(itemId))
+            assertEquals(
+                DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
+                legacyIntent.failureDetail,
+            )
+
+            fixture.prepareMusicOrigin(itemId, "room failure retry")
+            val request = fixture.completeMusicRequest(itemId, "room failure retry")
+            fixture.dao.failDownloadIntentSaves(1)
+
+            val firstFailure = runCatching {
+                fixture.downloader.receiveMusicBatch(listOf(request))
+            }
+                .exceptionOrNull()
+            assertNotNull("Room 保存失败不得被吞成已受理", firstFailure)
+            assertEquals(1, fixture.dao.downloadIntentSaveAttempts)
+            assertEquals(
+                "sidecar 必须已完成，Room 事务才失败",
+                1,
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
+                    it.itemId == itemId.toString() &&
+                        it.serverId == SERVER_ID &&
+                        it.userId == USER_ID.toString() &&
+                        it.sourceId == null
+                },
+            )
+            assertEquals(legacyIntent, fixture.dao.downloadIntent(itemId))
+
+            val retryReceipt = fixture.downloader.receiveMusicBatch(listOf(request))
+            assertEquals(
+                "完整 pending sidecar 的 Room 失败不能被后续同 batch 永久误判为已受理",
+                1,
+                retryReceipt.acceptedRequests.size,
+            )
+            assertTrue(fixture.dao.awaitInsertedSourceCount(1))
+            assertEquals(2, fixture.dao.downloadIntentSaveAttempts)
+
+            fixture.downloader.runQueue()
+            assertTrue(fixture.transfer.requestSnapshot().isNotEmpty())
+            assertTrue(
+                withTimeoutOrNull(5_000L) {
+                    while (fixture.dao.downloadIntent(itemId) != null) delay(10L)
+                    true
+                } == true
+            )
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+            assertTrue(fixture.dao.sourceById(SOURCE_ID) == null)
+            assertEquals(null, fixture.dao.downloadIntent(itemId))
+            assertTrue(
+                "删除新 source 后旧 legacy failure 不得复活：" +
+                    fixture.downloader.mediaSidecar().allRecords(),
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
+                    it.itemId == itemId.toString()
+                },
+            )
+
+            fixture.downloader.recoverOnStartup()
+            fixture.downloader.runQueue()
+            assertTrue(
+                "删除新 source 后 refresh / cold recovery 不得出现 ghost：" +
+                    fixture.downloader.refreshDownloadTasks(),
+                fixture.downloader.refreshDownloadTasks().none { it.itemId == itemId },
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `Room 持续失败时冷启动不得绕过接管生成 source 且修复后可恢复`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemId = UUID.fromString("57575757-5757-4757-8757-575757575757")
+            fixture.dao.seedDownloadIntent(itemId)
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.dao.awaitIntentNotReceived(itemId))
+            val legacyIntent = requireNotNull(fixture.dao.downloadIntent(itemId))
+
+            fixture.prepareMusicOrigin(itemId, "sustained room failure")
+            val request = fixture.completeMusicRequest(itemId, "sustained room failure")
+            fixture.dao.failDownloadIntentSaves(1)
+            val firstFailure = runCatching {
+                fixture.downloader.receiveMusicBatch(listOf(request))
+            }
+                .exceptionOrNull()
+            assertNotNull("首次 Room 保存失败必须显式返回", firstFailure)
+
+            fixture.dao.failDownloadIntentSaves(20)
+            fixture.newDownloader().recoverOnStartup()
+            val failedClosed =
+                withTimeoutOrNull(2_000L) {
+                    while (
+                        fixture.dao.sourceIds().isEmpty() &&
+                            fixture.logs.none { it.startsWith("处理已受理下载意图失败") }
+                    ) {
+                        delay(10L)
+                    }
+                    fixture.logs.any { it.startsWith("处理已受理下载意图失败") }
+                }
+            assertTrue(
+                "Room 持续失败时必须显式中止接管且不得生成 source：" +
+                    "sources=${fixture.dao.sourceIds()} logs=${fixture.logs}",
+                failedClosed == true,
+            )
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
+            assertEquals(legacyIntent, fixture.dao.downloadIntent(itemId))
+            assertTrue(fixture.dao.downloadIntentSaveAttempts >= 2)
+            assertEquals(
+                "Room 持续失败时完整 pending sidecar 必须保留供重试",
+                1,
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
+                    it.itemId == itemId.toString() && it.sourceId == null
+                },
+            )
+
+            fixture.dao.clearDownloadIntentSaveFailures()
+            fixture.newDownloader().recoverOnStartup()
+            assertTrue(
+                "Room 恢复后 cold recovery 必须完成接管与 source 解析",
+                fixture.dao.awaitInsertedSourceCount(1),
+            )
+            fixture.downloader.runQueue()
+            assertTrue(fixture.transfer.requestSnapshot().isNotEmpty())
+            assertTrue(
+                withTimeoutOrNull(5_000L) {
+                    while (fixture.dao.downloadIntent(itemId) != null) delay(10L)
+                    true
+                } == true
+            )
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+            assertTrue(fixture.dao.sourceById(SOURCE_ID) == null)
+            assertEquals(null, fixture.dao.downloadIntent(itemId))
+            assertTrue(
+                "接管并删除新 source 后旧失败不得复活：" + fixture.downloader.mediaSidecar().allRecords(),
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
+                    it.itemId == itemId.toString()
+                },
+            )
+
+            fixture.newDownloader().recoverOnStartup()
+            fixture.downloader.runQueue()
+            assertTrue(
+                "接管后的 refresh / 再次 cold recovery 不得出现 ghost：" +
+                    fixture.downloader.refreshDownloadTasks(),
+                fixture.downloader.refreshDownloadTasks().none { it.itemId == itemId },
+            )
         } finally {
             fixture.close()
         }
@@ -4000,6 +4168,20 @@ class DownloaderImplRecoveryTest {
             )
         }
 
+        fun completeMusicRequest(
+            itemId: UUID,
+            name: String,
+        ): DownloadMusicIntentRequest =
+            DownloadMusicIntentRequest(
+                itemId = itemId,
+                name = name,
+                albumName = "Retry",
+                artist = "Provenance",
+                trackIndex = 1,
+                serverId = SERVER_ID,
+                userId = USER_ID.toString(),
+            )
+
         suspend fun preparePendingMusicOrigin(): UUID {
             val itemId = UUID.fromString("abababab-abab-4bab-8bab-abababababab")
             prepareMusicOrigin(itemId, "round-four pending")
@@ -4523,6 +4705,8 @@ class DownloaderImplRecoveryTest {
         val sourceEvents = mutableListOf<String>()
         var sourceInsertAttempts = 0
         private var sourceInsertFailuresRemaining = 0
+        var downloadIntentSaveAttempts = 0
+        private var downloadIntentSaveFailuresRemaining = 0
         private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
         private val seasonIdsByShow = linkedMapOf<UUID, MutableSet<UUID>>()
         var snapshotWrites = 0
@@ -4888,6 +5072,11 @@ class DownloaderImplRecoveryTest {
                                 .filter { it.status == "RECEIVED" }
                                 .sortedBy { it.createdAt }
                         "saveDownloadIntents" -> {
+                            downloadIntentSaveAttempts += 1
+                            if (downloadIntentSaveFailuresRemaining > 0) {
+                                downloadIntentSaveFailuresRemaining -= 1
+                                error("模拟 Room saveDownloadIntents 事务失败")
+                            }
                             @Suppress("UNCHECKED_CAST")
                             val intents = args[0] as List<DownloadIntentDto>
                             val supersedableItemIds =
@@ -4993,6 +5182,14 @@ class DownloaderImplRecoveryTest {
 
         fun failSourceInsertions(count: Int) {
             sourceInsertFailuresRemaining = count
+        }
+
+        fun failDownloadIntentSaves(count: Int) {
+            downloadIntentSaveFailuresRemaining = count
+        }
+
+        fun clearDownloadIntentSaveFailures() {
+            downloadIntentSaveFailuresRemaining = 0
         }
 
         suspend fun awaitSourceInsertAttempts(count: Int): Boolean =
