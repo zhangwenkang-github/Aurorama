@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.network.JellyfinAuth
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.net.URI
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,7 @@ internal class DownloadHttpException(
     val reason: DownloadFailureReason,
     message: String?,
     cause: Throwable? = null,
+    val marker: DownloadRequestMarker? = null,
 ) : IOException(message, cause)
 
 /** W50 一次传输尝试的结果。 */
@@ -61,6 +63,18 @@ internal data class DownloadAttemptResult(
     val downloadedBytes: Long,
     val totalBytes: Long,
     val validator: String?,
+    val marker: DownloadRequestMarker? = null,
+)
+
+/** 下载请求白盒证据；只含路由身份与结果，不记录令牌。 */
+internal data class DownloadRequestMarker(
+    val itemId: String?,
+    val sourceId: String?,
+    val protocol: String,
+    val pathKind: String,
+    val requestSent: Boolean,
+    val status: String,
+    val failureReason: DownloadFailureReason? = null,
 )
 
 /**
@@ -75,7 +89,10 @@ internal data class DownloadAttemptResult(
  * 令牌只在同主机请求上使用 `Authorization: MediaBrowser Token="…"`（跨主机重定向不携带凭据）； 同时保留 Jellyfin 直链自带的 `api_key`
  * 查询参数（与旧 DownloadManager 行为一致）。
  */
-internal class DownloadHttpEngine(private val client: OkHttpClient) {
+internal class DownloadHttpEngine(
+    private val client: OkHttpClient,
+    private val elapsedRealtimeMillis: () -> Long = { SystemClock.elapsedRealtime() },
+) {
 
     suspend fun download(
         url: String,
@@ -104,10 +121,18 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                 try {
                     buildRequest(url, token, baseUrl, offset, validator)
                 } catch (e: IllegalArgumentException) {
+                    val marker =
+                        requestMarker(
+                            url = url,
+                            requestSent = false,
+                            status = "REJECTED",
+                            failureReason = DownloadFailureReason.SERVER_ERROR,
+                        )
                     throw DownloadHttpException(
                         DownloadFailureReason.SERVER_ERROR,
                         "非法下载地址：${e.message}",
                         e,
+                        marker,
                     )
                 }
             val call = client.newCall(request)
@@ -116,6 +141,7 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                     if (cause is CancellationException) call.cancel()
                 }
             try {
+                val requestSent = true
                 call.execute().use { response ->
                     val code = response.code
                     when {
@@ -131,6 +157,12 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                                     downloadedBytes = offset,
                                     totalBytes = total,
                                     validator = response.validator(),
+                                    marker =
+                                        requestMarker(
+                                            url,
+                                            requestSent,
+                                            "SUCCESS",
+                                        ),
                                 )
                             }
                             throw DownloadHttpException(
@@ -183,8 +215,8 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                         onProgress(downloaded, totalBytes, validatorHeader, resumed)
 
                         val buffer = ByteArray(BUFFER_BYTES)
-                        var lastFlushAt = SystemClock.elapsedRealtime()
-                        val sessionStartedAt = SystemClock.elapsedRealtime()
+                        var lastFlushAt = elapsedRealtimeMillis()
+                        val sessionStartedAt = elapsedRealtimeMillis()
                         while (true) {
                             coroutineContext.ensureActive()
                             val read = input.read(buffer)
@@ -196,12 +228,11 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                             val waitMillis =
                                 DownloadThrottle.waitMillis(
                                     bytesSinceStart = downloaded - offset,
-                                    elapsedMillis =
-                                        SystemClock.elapsedRealtime() - sessionStartedAt,
+                                    elapsedMillis = elapsedRealtimeMillis() - sessionStartedAt,
                                     limitBytesPerSecond = speedLimitBytesPerSecond,
                                 )
                             if (waitMillis > 0L) delay(waitMillis)
-                            val now = SystemClock.elapsedRealtime()
+                            val now = elapsedRealtimeMillis()
                             if (now - lastFlushAt >= FLUSH_INTERVAL_MS) {
                                 file.fd.sync()
                                 lastFlushAt = now
@@ -219,20 +250,30 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
                             downloadedBytes = downloaded,
                             totalBytes = totalBytes,
                             validator = validatorHeader,
+                            marker = requestMarker(url, requestSent, "SUCCESS"),
                         )
                     }
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (http: DownloadHttpException) {
-                throw http
+                throw http.withMarker(
+                    requestMarker(
+                        url = url,
+                        requestSent = true,
+                        status = "FAILED",
+                        failureReason = http.reason,
+                    )
+                )
             } catch (io: IOException) {
                 if (!coroutineContext.isActive) throw CancellationException("下载已取消")
                 // W76-Q2：可判定的本地 IO 失败（磁盘满 / 目标文件不可写）给具体原因，其余保持网络错误口径。
+                val reason = DownloadFailureClassifier.classifyIo(io)
                 throw DownloadHttpException(
-                    DownloadFailureClassifier.classifyIo(io),
+                    reason,
                     io.message,
                     io,
+                    requestMarker(url, true, "FAILED", reason),
                 )
             }
         }
@@ -269,6 +310,9 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
         header("ETag")?.takeIf { it.isNotBlank() }
             ?: header("Last-Modified")?.takeIf { it.isNotBlank() }
 
+    private fun DownloadHttpException.withMarker(marker: DownloadRequestMarker) =
+        DownloadHttpException(reason, message, cause, marker)
+
     private companion object {
         /** 读写缓冲（64 KiB）。 */
         const val BUFFER_BYTES = 64 * 1024
@@ -281,6 +325,34 @@ internal class DownloadHttpEngine(private val client: OkHttpClient) {
             val a = url.toHttpUrlOrNull() ?: return false
             val b = baseUrl.toHttpUrlOrNull() ?: return false
             return a.host.equals(b.host, ignoreCase = true) && a.port == b.port
+        }
+
+        fun requestMarker(
+            url: String,
+            requestSent: Boolean,
+            status: String,
+            failureReason: DownloadFailureReason? = null,
+        ): DownloadRequestMarker {
+            val parsed = url.toHttpUrlOrNull()
+            val uriScheme = runCatching { URI(url).scheme }.getOrNull()
+            val videosIndex = parsed?.pathSegments?.indexOf("Videos") ?: -1
+            val pathKind =
+                when {
+                    url.isBlank() -> "EMPTY"
+                    parsed != null -> "ABSOLUTE_HTTP"
+                    uriScheme != null -> "NON_HTTP"
+                    else -> "INVALID"
+                }
+            return DownloadRequestMarker(
+                itemId =
+                    parsed?.pathSegments?.getOrNull(videosIndex + 1)?.takeIf { videosIndex >= 0 },
+                sourceId = parsed?.queryParameter("mediaSourceId"),
+                protocol = parsed?.scheme ?: uriScheme?.lowercase() ?: "INVALID",
+                pathKind = pathKind,
+                requestSent = requestSent,
+                status = status,
+                failureReason = failureReason,
+            )
         }
     }
 }

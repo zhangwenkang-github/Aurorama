@@ -53,7 +53,6 @@ import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
-import org.jellyfin.sdk.model.api.MediaProtocol
 import org.jellyfin.sdk.model.api.MediaStreamProtocol
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayAccess
@@ -1058,20 +1057,7 @@ class JellyfinRepositoryImpl(
                 )
                 .content
                 .mediaSources
-                .map { mediaSource ->
-                    val source = mediaSource.toFindroidSource(bound.baseUrl, itemId)
-                    if (mediaSource.protocol != MediaProtocol.FILE) {
-                        source
-                    } else {
-                        val path =
-                            bound.api.videosApi.getVideoStreamUrl(
-                                itemId,
-                                static = true,
-                                mediaSourceId = mediaSource.id.orEmpty(),
-                            )
-                        source.copy(path = path)
-                    }
-                }
+                .map { mediaSource -> mediaSource.toFindroidSource(bound.baseUrl, itemId) }
         }
     }
 
