@@ -9,6 +9,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSourceType
+import com.zhangwenkang.cinefin.repository.BookDownloadDeleteResult
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
 import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -52,6 +53,81 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import timber.log.Timber
+
+/** 书籍任务到下载页的纯投影规则；key 保留 canonical owner，内部 superseded 永不进入 UI。 */
+internal object BookDownloadProjectionRules {
+
+    fun visibleTasks(tasks: List<BookDownloadTask>): List<BookDownloadTask> =
+        tasks.filterNot(BookDownloadTask::isSupersededDeleteRecord)
+
+    fun activeTasks(tasks: List<BookDownloadTask>): List<BookDownloadTask> =
+        visibleTasks(tasks).filter { it.status == BookDownloadStatus.RUNNING }
+
+    fun failedTasks(tasks: List<BookDownloadTask>): List<BookDownloadTask> =
+        visibleTasks(tasks).filter { it.status == BookDownloadStatus.FAILED }
+
+    /** 只有唯一 canonical owner 才能作为裸 itemId 的默认删除目标。 */
+    fun ownerFor(tasks: List<BookDownloadTask>, itemId: UUID): BookDownloadTask? =
+        visibleTasks(tasks)
+            .filter { it.itemId == itemId }
+            .distinctBy(BookDownloadTask::canonicalKey)
+            .singleOrNull()
+
+    fun completedEntry(
+        file: LocalBookFile,
+        serverName: String?,
+        owner: BookDownloadTask?,
+        imageUri: String?,
+        allowOffline: Boolean,
+    ): DownloadHierarchyEntry =
+        DownloadHierarchyEntry(
+            itemId = file.itemId,
+            name =
+                offlineBookDisplayName(
+                    serverName = serverName,
+                    sidecarTitle = file.title,
+                    itemId = file.itemId,
+                ),
+            mediaKind = DownloadMediaKind.BOOK,
+            status = DownloadTaskStatus.COMPLETED,
+            sizeBytes = file.sizeBytes,
+            imageUri = imageUri,
+            serverId = owner?.serverId,
+            userId = owner?.userId?.toString(),
+            allowOffline = allowOffline,
+        )
+
+    fun activeEntry(
+        task: BookDownloadTask,
+        serverName: String?,
+        imageUri: String?,
+        allowOffline: Boolean,
+    ): DownloadHierarchyEntry {
+        val entryStatus =
+            if (task.status == BookDownloadStatus.FAILED) DownloadTaskStatus.FAILED
+            else DownloadTaskStatus.RUNNING
+        return DownloadHierarchyEntry(
+            itemId = task.itemId,
+            name =
+                offlineBookDisplayName(
+                    serverName = serverName,
+                    sidecarTitle = task.title,
+                    itemId = task.itemId,
+                ),
+            mediaKind = DownloadMediaKind.BOOK,
+            status = entryStatus,
+            sizeBytes = task.totalBytes,
+            downloadedBytes = task.downloadedBytes,
+            totalBytes = task.totalBytes,
+            updatedAt = task.updatedAtEpochMillis,
+            imageUri = imageUri,
+            bookDetail = task.error,
+            serverId = task.serverId,
+            userId = task.userId?.toString(),
+            allowOffline = allowOffline,
+        )
+    }
+}
 
 /**
  * W32 下载管理页 ViewModel。
@@ -277,15 +353,21 @@ constructor(
                 when {
                     entry.task != null -> downloader.deleteTask(entry.task)
                     entry.mediaKind == DownloadMediaKind.BOOK -> {
-                        // W80（#23）：进行中的书籍下载先取消，否则 `.part` 会继续写并重新落盘。
-                        // W80b（D2）：失败任务没有 job 可取消，只取消不会让条目消失——必须连任务记录一起移除，
-                        // 否则「失败」分组会一直渲染到进程重启（QA 实测的"删不掉"）。
-                        if (
-                            readerRepository.bookDownloads.value.any { it.itemId == entry.itemId }
-                        ) {
-                            readerRepository.removeBookDownload(entry.itemId)
+                        // 完成书籍的本地文件没有自己的 owner；只有唯一 book task 时才能安全补齐 canonical。
+                        val canonicalKey =
+                            entry.canonicalIdentity.canonicalKey.takeIf {
+                                entry.serverId != null && entry.userId != null
+                            }
+                        val result =
+                            readerRepository.deleteLocalFile(
+                                itemId = entry.itemId,
+                                canonicalKey = canonicalKey,
+                            )
+                        if (result != BookDownloadDeleteResult.Deleted) {
+                            _state.update { current ->
+                                current.failPending(DownloadPendingAction.DELETE, setOf(key))
+                            }
                         }
-                        readerRepository.deleteLocalFile(entry.itemId)
                     }
                     else -> {
                         val completed =
@@ -655,9 +737,10 @@ constructor(
             val completedBookIds = bookFiles.map { it.itemId }.toSet()
             // W80（#23）：书籍整本下载任务（书架批量 / 阅读页「下载」共用）——进行中 / 失败的条目
             // 与下载引擎任务一起进「未完成 / 失败」分组，书籍下载不再"点了看不见"。
-            val bookTasks = readerRepository.bookDownloads.value
-            val runningBookTasks = bookTasks.filter { it.status == BookDownloadStatus.RUNNING }
-            val failedBookTasks = bookTasks.filter { it.status == BookDownloadStatus.FAILED }
+            val bookTasks =
+                BookDownloadProjectionRules.visibleTasks(readerRepository.bookDownloads.value)
+            val runningBookTasks = BookDownloadProjectionRules.activeTasks(bookTasks)
+            val failedBookTasks = BookDownloadProjectionRules.failedTasks(bookTasks)
             val storage = runCatching {
                 downloader.getStorageUsage()
             }
@@ -679,7 +762,12 @@ constructor(
                     allowRemoteImages = false,
                 )
             }
-            val localBookEntries = bookFiles.map { file -> file.toBookEntry(serverMetadata = null) }
+            val localBookEntries = bookFiles.map { file ->
+                file.toBookEntry(
+                    serverMetadata = null,
+                    owner = BookDownloadProjectionRules.ownerFor(bookTasks, file.itemId),
+                )
+            }
             val localRunningBookEntries = runningBookTasks.map { task ->
                 task.toActiveBookEntry(serverName = null)
             }
@@ -761,7 +849,12 @@ constructor(
             val bookEntries =
                 bookFiles
                     .filter { file -> completedBookIds.contains(file.itemId) }
-                    .map { file -> file.toBookEntry(serverMetadata = bookMetadata[file.itemId]) }
+                    .map { file ->
+                        file.toBookEntry(
+                            serverMetadata = bookMetadata[file.itemId],
+                            owner = BookDownloadProjectionRules.ownerFor(bookTasks, file.itemId),
+                        )
+                    }
             val runningBookEntries = runningBookTasks.map { task ->
                 task.toActiveBookEntry(bookMetadata[task.itemId]?.name)
             }
@@ -1106,19 +1199,14 @@ constructor(
         activeContainers + completedContainers + failedContainers
 
     /** W63：本地书籍文件 → 层级条目（服务器名 / 封面可缺失，缺失时用侧车标题与生成封面）。 */
-    private fun LocalBookFile.toBookEntry(serverMetadata: BookMetadata?): DownloadHierarchyEntry =
-        DownloadHierarchyEntry(
-            itemId = itemId,
-            // W62：与离线书架统一显示名口径（侧车优先），避免离线时退化成占位名导致两处清单"看着不一致"。
-            name =
-                offlineBookDisplayName(
-                    serverName = serverMetadata?.name,
-                    sidecarTitle = title,
-                    itemId = itemId,
-                ),
-            mediaKind = DownloadMediaKind.BOOK,
-            status = DownloadTaskStatus.COMPLETED,
-            sizeBytes = sizeBytes,
+    private fun LocalBookFile.toBookEntry(
+        serverMetadata: BookMetadata?,
+        owner: BookDownloadTask?,
+    ): DownloadHierarchyEntry =
+        BookDownloadProjectionRules.completedEntry(
+            file = this,
+            serverName = serverMetadata?.name,
+            owner = owner,
             imageUri = localImage(itemId) ?: bookCoverProvider.cached(itemId),
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
@@ -1128,29 +1216,13 @@ constructor(
      *
      * 完成态仍由 [LocalBookFile.toBookEntry]（列出 `files/books` 下的 `.book` 文件）负责， 避免"任务已完成但文件未落盘"的空窗。
      */
-    private fun BookDownloadTask.toActiveBookEntry(serverName: String?): DownloadHierarchyEntry {
-        val entryStatus =
-            if (status == BookDownloadStatus.FAILED) DownloadTaskStatus.FAILED
-            else DownloadTaskStatus.RUNNING
-        return DownloadHierarchyEntry(
-            itemId = itemId,
-            name =
-                offlineBookDisplayName(
-                    serverName = serverName,
-                    sidecarTitle = title,
-                    itemId = itemId,
-                ),
-            mediaKind = DownloadMediaKind.BOOK,
-            status = entryStatus,
-            sizeBytes = totalBytes,
-            downloadedBytes = downloadedBytes,
-            totalBytes = totalBytes,
-            updatedAt = updatedAtEpochMillis,
+    private fun BookDownloadTask.toActiveBookEntry(serverName: String?): DownloadHierarchyEntry =
+        BookDownloadProjectionRules.activeEntry(
+            task = this,
+            serverName = serverName,
             imageUri = bookCoverProvider.cached(itemId),
-            bookDetail = error,
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
-    }
 
     /** W63：带并发上限的 map（服务器元数据补齐阶段用，避免一次性打出几十个请求）。 */
     private suspend fun <T, R> List<T>.mapBounded(

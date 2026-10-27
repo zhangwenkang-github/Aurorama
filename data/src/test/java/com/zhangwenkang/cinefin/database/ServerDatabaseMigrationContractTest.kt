@@ -15,6 +15,65 @@ import org.junit.Test
 class ServerDatabaseMigrationContractTest {
 
     @Test
+    fun `Room 15 到 16 仅追加书籍任务与删除代次且保留旧行`() {
+        val schemaDir = locateSchemaDir(minVersion = 15)
+        val before = Json.parseToJsonElement(File(schemaDir, "15.json").readText()).jsonObject
+        val after = Json.parseToJsonElement(File(schemaDir, "16.json").readText()).jsonObject
+        val beforeTables = before.getValue("database").jsonObject.getValue("entities").jsonArray
+        val afterTables = after.getValue("database").jsonObject.getValue("entities").jsonArray
+        val oldColumns = tableColumns(beforeTables)
+        val newColumns = tableColumns(afterTables)
+
+        oldColumns.forEach { (table, columns) ->
+            assertTrue("迁移删除旧表 $table", newColumns.containsKey(table))
+            assertTrue("迁移删除旧列 $table", newColumns.getValue(table).containsAll(columns))
+        }
+        assertEquals(setOf("bookDownloadTasks"), newColumns.keys - oldColumns.keys)
+        oldColumns.forEach { (table, columns) ->
+            val expectedAddedColumns =
+                if (table == "downloadDeleteReceipts") setOf("verifiedGeneration") else emptySet()
+            assertEquals(
+                "表 $table 的追加列不符合非破坏迁移合同",
+                expectedAddedColumns,
+                newColumns.getValue(table) - columns,
+            )
+        }
+        assertEquals(
+            setOf(
+                "canonicalKey",
+                "itemId",
+                "serverId",
+                "userId",
+                "title",
+                "targetPath",
+                "downloadedBytes",
+                "totalBytes",
+                "status",
+                "failureReason",
+                "resumeValidator",
+                "taskGeneration",
+                "createdAt",
+                "updatedAt",
+            ),
+            newColumns.getValue("bookDownloadTasks"),
+        )
+        assertNewColumnsNullable(
+            afterTables,
+            "downloadDeleteReceipts",
+            setOf("verifiedGeneration"),
+        )
+        assertNewColumnsNullable(
+            afterTables,
+            "bookDownloadTasks",
+            setOf("failureReason", "resumeValidator"),
+        )
+        assertEquals(
+            listOf("canonicalKey"),
+            primaryKeyColumns(afterTables, "bookDownloadTasks"),
+        )
+    }
+
+    @Test
     fun `Room 14 到 15 只追加 generation 与持久删除批次表`() {
         val schemaDir = locateSchemaDir(minVersion = 14)
         val before = Json.parseToJsonElement(File(schemaDir, "14.json").readText()).jsonObject

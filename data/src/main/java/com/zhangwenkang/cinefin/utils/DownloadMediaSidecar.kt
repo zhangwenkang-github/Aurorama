@@ -226,25 +226,25 @@ class DownloadMediaSidecar private constructor(private val file: File) {
     }
 
     /** 书籍只有一个私有 `.book` 文件；成功重下时替换该 item 的旧 BOOK 来源。 */
-    fun replaceBook(record: DownloadMediaRecord) {
+    fun replaceBook(record: DownloadMediaRecord): Boolean {
         require(record.kind == DownloadMediaKind.BOOK)
-        update { records ->
+        return update { records ->
             records.filterNot { it.kind == DownloadMediaKind.BOOK && it.itemId == record.itemId } +
                 record
         }
     }
 
-    fun removeBook(itemId: UUID) {
-        update { records ->
+    fun removeBook(itemId: UUID): Boolean {
+        return update { records ->
             records.filterNot {
                 it.kind == DownloadMediaKind.BOOK && it.itemId == itemId.toString()
             }
         }
     }
 
-    private fun update(transform: (List<DownloadMediaRecord>) -> List<DownloadMediaRecord>) {
-        updateResult(transform)
-    }
+    private fun update(
+        transform: (List<DownloadMediaRecord>) -> List<DownloadMediaRecord>
+    ): Boolean = updateResult(transform)
 
     private fun updateResult(
         transform: (List<DownloadMediaRecord>) -> List<DownloadMediaRecord>
