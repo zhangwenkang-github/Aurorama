@@ -3,35 +3,30 @@ package com.zhangwenkang.cinefin.repository
 import android.content.Context
 import android.net.ConnectivityManager
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.DownloadMediaSidecar
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import java.io.File
-import java.io.IOException
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
@@ -67,139 +62,72 @@ class ReaderRepositoryImpl(
                 .build(),
             jellyfinApi.certificateTrustStore,
         )
-    private val downloadMutex = Mutex()
     private val downloadSidecar = DownloadMediaSidecar(appContext)
 
-    // ---- W80（#23）：书籍整本下载任务表 ----
-    // 书架批量下载 / 阅读页「下载」都登记到这里：任务跑在 App 作用域（离开页面不取消），
-    // 下载页读 `bookDownloads` 显示「下载中 xx%」；完成后仍由 `listLocalFiles()` 的已完成列表接手。
-    private val bookDownloadTasks = MutableStateFlow<List<BookDownloadTask>>(emptyList())
-    private val bookDownloadLock = Mutex()
-    private val bookDownloadJobs = mutableMapOf<UUID, Job>()
-    private val bookDownloadResults = mutableMapOf<UUID, CompletableDeferred<File>>()
+    // 任务真源是 Room DAO；协调器固定在 App 作用域，页面销毁不会接管执行或取消。
     private val bookDownloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val bookDownloadManager =
+        BookDownloadManager(
+            store =
+                DaoBookDownloadTaskStore(
+                    EntryPointAccessors.fromApplication(
+                            appContext,
+                            BookDownloadTaskDaoEntryPoint::class.java,
+                        )
+                        .database()
+                ),
+            transfer = BookDownloadRangeTransfer(httpClient),
+            credentialsProvider = { freezeBookDownloadCredentials() },
+            localFileProvider = ::localFileFor,
+            partialFileProvider = ::partialFileFor,
+            scope = bookDownloadScope,
+            recordProvenance = { origin ->
+                recordBookDownloadProvenance(sidecar = downloadSidecar, origin = origin)
+            },
+            clearProvenance = { itemId -> clearBookDownloadProvenance(downloadSidecar, itemId) },
+            fetchTitle = { credentials, itemId ->
+                fetchItemTitle(
+                    baseUrl = credentials.baseUrl,
+                    token = credentials.accessToken,
+                    userId = credentials.userId,
+                    itemId = itemId,
+                )
+            },
+            writeTitle = ::writeLocalTitle,
+            readTitle = ::readLocalTitle,
+            deleteTitle = { itemId -> titleFileFor(itemId).delete() },
+        )
 
-    override val bookDownloads: StateFlow<List<BookDownloadTask>> = bookDownloadTasks.asStateFlow()
+    override val bookDownloads: StateFlow<List<BookDownloadTask>> = bookDownloadManager.tasks
 
     override suspend fun enqueueBookDownload(
         itemId: UUID,
         title: String?,
-    ): BookDownloadEnqueueResult {
-        // 在任何排队 / IO 调度前冻结账号身份；下载完成时不得重新读取 current server/user。
-        val origin = freezeBookDownloadOrigin(itemId = itemId, title = title)
-        return bookDownloadLock.withLock {
-            if (bookDownloadJobs.containsKey(itemId))
-                return@withLock BookDownloadEnqueueResult.AlreadyQueued
-            val target = localFileFor(itemId)
-            if (target.isFile && target.length() > 0) {
-                return@withLock BookDownloadEnqueueResult.AlreadyDownloaded
-            }
-            val result = CompletableDeferred<File>()
-            bookDownloadResults[itemId] = result
-            publishBookTask(
-                BookDownloadTask(
-                    itemId = itemId,
-                    title = title ?: readLocalTitle(itemId),
-                    status = BookDownloadStatus.RUNNING,
-                    updatedAtEpochMillis = System.currentTimeMillis(),
-                )
-            )
-            val job = bookDownloadScope.launch {
-                // 数据层每 64 KB 回调一次；任务表按**整数百分比**节流，避免下载页每块都重组。
-                var lastPercent = -2
-                try {
-                    val file =
-                        download(
-                            target = target,
-                            itemId = itemId,
-                            origin = origin,
-                            onProgress = {},
-                        ) { bytes, total ->
-                            val percent = if (total > 0L) ((bytes * 100) / total).toInt() else -1
-                            if (percent != lastPercent) {
-                                lastPercent = percent
-                                updateBookTask(itemId) { task ->
-                                    task.copy(
-                                        downloadedBytes = bytes,
-                                        totalBytes = total,
-                                        updatedAtEpochMillis = System.currentTimeMillis(),
-                                    )
-                                }
-                            }
-                        }
-                    result.complete(file)
-                    publishBookTask(
-                        BookDownloadTask(
-                            itemId = itemId,
-                            title = readLocalTitle(itemId),
-                            downloadedBytes = file.length(),
-                            totalBytes = file.length(),
-                            status = BookDownloadStatus.COMPLETED,
-                            updatedAtEpochMillis = System.currentTimeMillis(),
-                        )
-                    )
-                } catch (cancellation: CancellationException) {
-                    result.cancel(cancellation)
-                    removeBookTask(itemId)
-                    throw cancellation
-                } catch (error: Exception) {
-                    result.completeExceptionally(error)
-                    updateBookTask(itemId) { task ->
-                        task.copy(
-                            status = BookDownloadStatus.FAILED,
-                            error = error.message ?: "下载失败，请检查网络",
-                            updatedAtEpochMillis = System.currentTimeMillis(),
-                        )
-                    }
-                } finally {
-                    bookDownloadLock.withLock {
-                        bookDownloadJobs.remove(itemId)
-                        bookDownloadResults.remove(itemId)
-                    }
-                }
-            }
-            bookDownloadJobs[itemId] = job
-            BookDownloadEnqueueResult.Queued
-        }
-    }
+    ): BookDownloadEnqueueResult = bookDownloadManager.enqueueBookDownload(itemId, title)
 
     override suspend fun awaitBookDownload(
         itemId: UUID,
         title: String?,
         onProgress: (Float) -> Unit,
     ): File {
-        // 本地已有：直接命中，不进任务表（与 `downloadLocalFile` 的 1f 语义一致）。
-        val existing = localFileFor(itemId)
-        if (existing.isFile && existing.length() > 0) {
-            onProgress(1f)
-            return existing
-        }
         return coroutineScope {
             val watcher = launch {
-                bookDownloads
-                    .map { tasks -> tasks.firstOrNull { it.itemId == itemId } }
+                bookDownloadManager.tasks
+                    .map { tasks ->
+                        tasks.filter { it.itemId == itemId }.maxByOrNull { it.updatedAtEpochMillis }
+                    }
                     .distinctUntilChanged()
                     .collect { task -> task?.let { onProgress(it.progress) } }
             }
             try {
-                enqueueBookDownload(itemId, title)
-                val result =
-                    bookDownloadLock.withLock { bookDownloadResults[itemId] }
-                        ?: CompletableDeferred()
-                result.await()
+                bookDownloadManager.awaitBookDownload(itemId, title).also { onProgress(1f) }
             } finally {
                 watcher.cancel()
             }
         }
     }
 
-    override fun cancelBookDownload(itemId: UUID) {
-        // 主线程调用即可：`cancel()` 只投递取消，不阻塞等锁。
-        bookDownloadScope.launch {
-            val job = bookDownloadLock.withLock { bookDownloadJobs[itemId] }
-            job?.cancel()
-        }
-    }
+    override fun cancelBookDownload(itemId: UUID) = bookDownloadManager.cancelBookDownload(itemId)
 
     /**
      * W80b（D2）：取消并把任务**记录**从任务表移除。
@@ -208,25 +136,7 @@ class ReaderRepositoryImpl(
      * 下载页的「失败」条目因此删不掉。用户主动删条目走这里：取消 + 立即移除记录。
      */
     override fun removeBookDownload(itemId: UUID) {
-        cancelBookDownload(itemId)
-        removeBookTask(itemId)
-    }
-
-    private fun publishBookTask(task: BookDownloadTask) {
-        bookDownloadTasks.update { tasks -> tasks.filterNot { it.itemId == task.itemId } + task }
-    }
-
-    private fun updateBookTask(
-        itemId: UUID,
-        transform: (BookDownloadTask) -> BookDownloadTask,
-    ) {
-        bookDownloadTasks.update { tasks ->
-            tasks.map { task -> if (task.itemId == itemId) transform(task) else task }
-        }
-    }
-
-    private fun removeBookTask(itemId: UUID) {
-        bookDownloadTasks.update { tasks -> tasks.filterNot { it.itemId == itemId } }
+        bookDownloadScope.launch(Dispatchers.IO) { bookDownloadManager.deleteBookDownload(itemId) }
     }
 
     /** W77-3：打开路径的整本下载，进度透传给阅读页顶栏（PDF 过渡态「打开即显示进度」）。 */
@@ -243,24 +153,16 @@ class ReaderRepositoryImpl(
         return RemoteBookSource(url = "$baseUrl/Items/$itemId/Download", token = token)
     }
 
-    override suspend fun downloadLocalFile(itemId: UUID, onProgress: (Float) -> Unit): File =
-        withContext(Dispatchers.IO) {
-            downloadMutex.withLock {
-                val target = localFileFor(itemId)
-                if (target.isFile && target.length() > 0) {
-                    onProgress(1f)
-                    return@withContext target
-                }
-                // W77-3：先给一次 0f 表示「本次确实是整本下载」（响应没有 Content-Length 时调用方也能进「下载中」态）。
-                onProgress(0f)
-                download(
-                    target = target,
-                    itemId = itemId,
-                    origin = freezeBookDownloadOrigin(itemId = itemId, title = null),
-                    onProgress = onProgress,
-                )
-            }
+    override suspend fun downloadLocalFile(itemId: UUID, onProgress: (Float) -> Unit): File {
+        val existing = withContext(Dispatchers.IO) { localFileFor(itemId) }
+        if (existing.isFile && existing.length() > 0L) {
+            onProgress(1f)
+            return existing
         }
+        // 0f 表示本次确实发生整本下载；响应没有 Content-Length 时调用方也能进入「下载中」态。
+        onProgress(0f)
+        return bookDownloadManager.awaitBookDownload(itemId, title = null).also { onProgress(1f) }
+    }
 
     override suspend fun localFile(itemId: UUID): LocalBookFile? =
         withContext(Dispatchers.IO) {
@@ -293,115 +195,29 @@ class ReaderRepositoryImpl(
                 ?.toList() ?: emptyList()
         }
 
-    /**
-     * W64：下载改为**可取消**——协程取消（阅读页返回 / ViewModel 清理）时取消在途 OkHttp call， 否则阻塞的 `execute()`
-     * 会继续把整本书下完（用户观察到的"返回后仍占用网络"）。
-     */
-    private suspend fun download(
-        target: File,
-        itemId: UUID,
-        origin: BookDownloadOrigin,
-        onProgress: (Float) -> Unit,
-        /** W80（#23）：字节级进度（下载页显示"已下载 / 总大小"用）。 */
-        onBytes: (downloaded: Long, total: Long) -> Unit = { _, _ -> },
-    ): File {
-        target.parentFile?.mkdirs()
-        // 先写 .part 再原子改名：中断的下载不会留下"看着像完整书"的半截文件。
-        val partial = File(target.parentFile, "${target.name}.part")
-        partial.delete()
-
-        try {
-            val baseUrl = requireNotNull(jellyfinApi.api.baseUrl) { "服务器地址为空" }
-            val token = requireNotNull(jellyfinApi.api.accessToken) { "访问令牌为空" }
-            val url = "${baseUrl.trimEnd('/')}/Items/$itemId/Download"
-            val request =
-                Request.Builder()
-                    .url(url)
-                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
-                    .build()
-
-            val call = httpClient.newCall(request)
-            val cancelHandle =
-                currentCoroutineContext()[Job]?.invokeOnCompletion { cause ->
-                    if (cause != null) call.cancel()
-                }
-            try {
-                call.execute().use { response ->
-                    if (!response.isSuccessful) {
-                        throw IOException("下载书籍失败：HTTP ${response.code}（离线时请先联网下载）")
-                    }
-                    val totalBytes = response.body.contentLength()
-                    var copiedBytes = 0L
-                    onBytes(0L, totalBytes.coerceAtLeast(0L))
-                    response.body.byteStream().use { input ->
-                        partial.outputStream().use { output ->
-                            val buffer = ByteArray(DOWNLOAD_BUFFER_BYTES)
-                            while (true) {
-                                currentCoroutineContext().ensureActive()
-                                val read = input.read(buffer)
-                                if (read == -1) break
-                                output.write(buffer, 0, read)
-                                copiedBytes += read
-                                if (totalBytes > 0) {
-                                    onProgress((copiedBytes.toDouble() / totalBytes).toFloat())
-                                }
-                                onBytes(copiedBytes, totalBytes.coerceAtLeast(0L))
-                            }
-                        }
-                    }
-                }
-            } finally {
-                cancelHandle?.dispose()
-            }
-
-            if (!partial.renameTo(target)) {
-                partial.copyTo(target, overwrite = true)
-                partial.delete()
-            }
-            // W36：书名侧车——离线（无服务器会话）时离线书架 / 离线媒体库仍能显示真实书名。
-            val fetchedTitle =
-                fetchItemTitle(baseUrl = baseUrl, token = token, itemId = itemId)?.also { title ->
-                    writeLocalTitle(itemId, title)
-                }
-            // 只有完整文件原子 rename 成功后才形成可信下载来源；失败 / 取消路径不会触碰 sidecar。
-            recordBookDownloadProvenance(
-                sidecar = downloadSidecar,
-                origin =
-                    origin.copy(
-                        displayName = fetchedTitle ?: readLocalTitle(itemId) ?: origin.displayName
-                    ),
-            )
-            onProgress(1f)
-            return target
-        } catch (error: Throwable) {
-            partial.delete()
-            clearBookDownloadProvenance(downloadSidecar, itemId)
-            // 取消路径：OkHttp 被 cancel 抛出的 IOException 归一成 CancellationException，
-            // 避免调用方把它当成"下载失败"展示。
-            currentCoroutineContext().ensureActive()
-            throw error
-        }
-    }
-
     override suspend fun deleteLocalFile(itemId: UUID) {
-        withContext(Dispatchers.IO) {
-            val target = localFileFor(itemId)
-            target.delete()
-            File(target.parentFile, "${target.name}.part").delete()
-            titleFileFor(itemId).delete()
-            downloadSidecar.removeBook(itemId)
-        }
+        withContext(Dispatchers.IO) { bookDownloadManager.deleteBookDownload(itemId) }
     }
 
-    private fun freezeBookDownloadOrigin(
-        itemId: UUID,
-        title: String?,
-    ): BookDownloadOrigin =
-        BookDownloadOrigin(
-            serverId = appPreferences.getValue(appPreferences.currentServer),
-            userId = jellyfinApi.userId,
-            itemId = itemId,
-            displayName = title ?: readLocalTitle(itemId),
+    private fun freezeBookDownloadCredentials(): BookDownloadCredentials =
+        BookDownloadCredentials(
+            serverId =
+                requireNotNull(
+                    appPreferences.getValue(appPreferences.currentServer)?.takeIf {
+                        it.isNotBlank()
+                    }
+                ) {
+                    "当前没有登录服务器"
+                },
+            userId = requireNotNull(jellyfinApi.userId) { "当前没有登录用户" },
+            baseUrl =
+                requireNotNull(jellyfinApi.api.baseUrl?.trimEnd('/')?.takeIf { it.isNotBlank() }) {
+                    "服务器地址为空"
+                },
+            accessToken =
+                requireNotNull(jellyfinApi.api.accessToken?.takeIf { it.isNotBlank() }) {
+                    "访问令牌为空"
+                },
         )
 
     override suspend fun getReadingProgress(itemId: UUID): ReadingProgress? =
@@ -542,6 +358,9 @@ class ReaderRepositoryImpl(
 
     private fun localFileFor(itemId: UUID): File = File(appContext.filesDir, "books/$itemId.book")
 
+    private fun partialFileFor(itemId: UUID): File =
+        File(appContext.filesDir, "books/$itemId.book.part")
+
     private fun titleFileFor(itemId: UUID): File = File(appContext.filesDir, "books/$itemId.title")
 
     /** W36：读取书名侧车；旧数据（无侧车）返回 null，由调用方给占位名。 */
@@ -560,23 +379,24 @@ class ReaderRepositoryImpl(
     }
 
     /** 下载完成后补一次书名（失败不影响下载结果，只影响离线显示名）。 */
-    private fun fetchItemTitle(baseUrl: String, token: String, itemId: UUID): String? =
-        runCatching {
-            // 优先走 `/Users/{userId}/Items/{id}`（10.11.8 稳定接口）；没有账号时退回 `/Items/{id}`。
-            val url =
-                jellyfinApi.userId?.let { userId ->
-                    "${baseUrl.trimEnd('/')}/Users/$userId/Items/$itemId"
-                } ?: "${baseUrl.trimEnd('/')}/Items/$itemId"
-            val request =
-                Request.Builder()
-                    .url(url)
-                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
-                    .build()
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use null
-                JSONObject(response.body.string()).optString("Name").takeIf { it.isNotBlank() }
-            }
+    private fun fetchItemTitle(
+        baseUrl: String,
+        token: String,
+        userId: UUID,
+        itemId: UUID,
+    ): String? = runCatching {
+        // userId 来自入队时冻结的 origin；下载途中切号不得改写 provenance。
+        val url = "${baseUrl.trimEnd('/')}/Users/$userId/Items/$itemId"
+        val request =
+            Request.Builder()
+                .url(url)
+                .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(token))
+                .build()
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@use null
+            JSONObject(response.body.string()).optString("Name").takeIf { it.isNotBlank() }
         }
+    }
         .onFailure { Timber.w(it, "读取书籍标题失败") }
         .getOrNull()
 
@@ -586,10 +406,15 @@ class ReaderRepositoryImpl(
     }
 
     private companion object {
-        const val DOWNLOAD_BUFFER_BYTES = 64 * 1024
         /** 打开书籍时远程进度查询的等待上限：超时回退本地进度（W64 打开耗时优化）。 */
         const val REMOTE_PROGRESS_TIMEOUT_MS = 2_000L
     }
+}
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+internal interface BookDownloadTaskDaoEntryPoint {
+    fun database(): ServerDatabaseDao
 }
 
 private fun LocalDateTime.toInstant(): Instant = atZone(ZoneId.systemDefault()).toInstant()

@@ -5,9 +5,8 @@ import java.util.UUID
 /**
  * W80（#23）：书籍整本下载任务。
  *
- * 书籍不走下载引擎（视频 / 音乐那套 Room 任务表），历史上只有"下载完 = 出现一个 `.book` 文件"这一种状态，
- * 于是书架批量下载与阅读页「下载」在**下载页**上完全不可见。这里把进行中的书籍下载登记成进程内任务表， 供下载页显示进度 / 失败态；完成后仍由既有 `listLocalFiles()`
- * 的「已完成 · 书籍」接手。
+ * 书籍不走视频 / 音乐下载引擎，但任务本身持久化在专用 `bookDownloadTasks` 表；下载页据此显示进行中 / 失败态，进程重建后由
+ * `ReaderRepository.bookDownloads` 恢复。完成态仍由 `listLocalFiles()` 的「已完成 · 书籍」接手。
  */
 enum class BookDownloadStatus {
     RUNNING,
@@ -22,6 +21,14 @@ data class BookDownloadTask(
     val totalBytes: Long = 0L,
     val status: BookDownloadStatus = BookDownloadStatus.RUNNING,
     val error: String? = null,
+    val failureReason: String? = null,
+    val taskGeneration: Long = 0L,
+    val canonicalKey: String = itemId.toString(),
+    val serverId: String? = null,
+    val userId: UUID? = null,
+    val targetPath: String? = null,
+    val resumeValidator: String? = null,
+    val createdAtEpochMillis: Long = 0L,
     val updatedAtEpochMillis: Long = 0L,
 ) {
     /** 服务器未给 `Content-Length` 时为 0（界面按"已下载 x MB"显示）。 */

@@ -39,25 +39,24 @@ interface ReaderRepository {
     /** 显式下载（离线阅读 EB-11）：`onProgress` 为 0.0–1.0。 */
     suspend fun downloadLocalFile(itemId: UUID, onProgress: (Float) -> Unit = {}): File
 
-    /**
-     * W80（#23）：书籍整本下载任务表（进程内，`RUNNING` / `FAILED`）。
-     *
-     * 下载页据此把进行中的书籍下载显示成「下载中 xx%」条目（完成后由 [listLocalFiles] 的已完成列表接手）。
-     */
+    /** 书籍整本下载任务表；真源为 `bookDownloadTasks` DAO，进程重建后仍可恢复。 */
     val bookDownloads: StateFlow<List<BookDownloadTask>>
 
     /**
      * W80（#23）：把整本下载登记为**后台任务**（App 作用域，离开阅读页 / 切换页面都不会取消）。
      *
-     * 与 [downloadLocalFile] 的区别：后者绑定调用方协程（W64 语义：离开阅读页取消在途 HTTP），
-     * 用于"打开书时按需落盘"；用户**主动点下载**走本入口，任务继续跑并在下载页可见。
+     * [downloadLocalFile] 为避免出现第二套 Range / 恢复协议，也复用同一持久任务；是否等待完成只影响调用方，执行与文件提交始终由 App 作用域协调器持有。
      */
     suspend fun enqueueBookDownload(
         itemId: UUID,
         title: String? = null,
     ): BookDownloadEnqueueResult
 
-    /** W80（#23）：等待（必要时先入队）某本书的整本下载，`onProgress` 为 0.0–1.0。 */
+    /**
+     * 等待（必要时先入队）某本书的整本下载，`onProgress` 为 0.0–1.0。
+     *
+     * 若另一入口刚完成并让任务返回 [BookDownloadEnqueueResult.AlreadyDownloaded]，必须在有限 deadline 内返回实际文件。
+     */
     suspend fun awaitBookDownload(
         itemId: UUID,
         title: String? = null,
