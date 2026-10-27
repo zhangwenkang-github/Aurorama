@@ -95,7 +95,10 @@ class ReaderRepositoryImpl(
             },
             writeTitle = ::writeLocalTitle,
             readTitle = ::readLocalTitle,
-            deleteTitle = { itemId -> titleFileFor(itemId).delete() },
+            deleteTitle = { itemId ->
+                val title = titleFileFor(itemId)
+                runCatching { !title.exists() || title.delete() }.getOrDefault(false)
+            },
         )
 
     override val bookDownloads: StateFlow<List<BookDownloadTask>> = bookDownloadManager.tasks

@@ -24,7 +24,7 @@ internal fun recordBookDownloadProvenance(
 ): Boolean {
     val serverId = origin.serverId?.takeIf { it.isNotBlank() } ?: return false
     val userId = origin.userId ?: return false
-    sidecar.replaceBook(
+    return sidecar.replaceBook(
         DownloadMediaRecord(
             itemId = origin.itemId.toString(),
             kind = DownloadMediaKind.BOOK,
@@ -35,10 +35,10 @@ internal fun recordBookDownloadProvenance(
                 origin.displayName?.takeIf { it.isNotBlank() } ?: origin.itemId.toString(),
         )
     )
-    return true
 }
 
 /** 失败 / 取消只清掉该 item 的 BOOK 记录，不能留下看似完成的 provenance。 */
-internal fun clearBookDownloadProvenance(sidecar: DownloadMediaSidecar, itemId: UUID) {
-    sidecar.removeBook(itemId)
-}
+internal fun clearBookDownloadProvenance(
+    sidecar: DownloadMediaSidecar,
+    itemId: UUID,
+): Boolean = sidecar.removeBook(itemId)

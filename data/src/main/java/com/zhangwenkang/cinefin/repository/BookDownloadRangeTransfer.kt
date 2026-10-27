@@ -322,12 +322,15 @@ internal class BookDownloadManager(
     private val localFileProvider: (UUID) -> File,
     private val partialFileProvider: (UUID) -> File,
     private val scope: CoroutineScope,
-    private val recordProvenance: (BookDownloadOrigin) -> Unit = {},
-    private val clearProvenance: (UUID) -> Unit = {},
+    private val recordProvenance: (BookDownloadOrigin) -> Boolean = { true },
+    private val clearProvenance: (UUID) -> Boolean = { true },
     private val fetchTitle: suspend (BookDownloadCredentials, UUID) -> String? = { _, _ -> null },
     private val writeTitle: (UUID, String) -> Unit = { _, _ -> },
     private val readTitle: (UUID) -> String? = { null },
-    private val deleteTitle: (UUID) -> Unit = {},
+    private val deleteTitle: (UUID) -> Boolean = { true },
+    private val deleteFile: (File) -> Boolean = { file ->
+        !file.exists() || runCatching { file.delete() }.getOrDefault(false)
+    },
     private val clock: () -> Long = System::currentTimeMillis,
     private val alreadyDownloadedDeadlineMs: Long = 1_000L,
 ) {
@@ -335,7 +338,9 @@ internal class BookDownloadManager(
     val tasks: StateFlow<List<BookDownloadTask>> = mutableTasks.asStateFlow()
 
     private val lock = Mutex()
+    private val itemLifecycles = mutableMapOf<UUID, Mutex>()
     private val jobs = mutableMapOf<String, ActiveBookDownloadJob>()
+    private val retiringJobs = mutableMapOf<String, ActiveBookDownloadJob>()
     private val results = mutableMapOf<String, CompletableDeferred<File>>()
     private val restored = CompletableDeferred<Unit>()
 
@@ -350,26 +355,30 @@ internal class BookDownloadManager(
     suspend fun enqueueBookDownload(
         itemId: UUID,
         title: String?,
-    ): BookDownloadEnqueueResult {
-        val existing = localFileProvider(itemId)
-        if (existing.isComplete()) {
-            partialFileProvider(itemId).delete()
-            return BookDownloadEnqueueResult.AlreadyDownloaded
+    ): BookDownloadEnqueueResult =
+        restored.await().let {
+            itemLifecycle(itemId).withLock {
+                val existing = completedFileIfReady(itemId)
+                if (existing != null) {
+                    return@withLock BookDownloadEnqueueResult.AlreadyDownloaded
+                }
+                val credentials = credentialsProvider()
+                enqueueBookDownload(itemId, title, credentials)
+            }
         }
-        val credentials = credentialsProvider()
-        return enqueueBookDownload(itemId, title, credentials)
-    }
 
     suspend fun awaitBookDownload(
         itemId: UUID,
         title: String?,
     ): File {
-        val existing = localFileProvider(itemId)
-        if (existing.isComplete()) return existing
+        restored.await()
+        val existing = itemLifecycle(itemId).withLock { completedFileIfReady(itemId) }
+        if (existing != null) return existing
 
         val credentials = credentialsProvider()
-        val result = enqueueBookDownload(itemId, title, credentials)
         val canonicalKey = canonicalBookDownloadKey(credentials, itemId)
+        val result =
+            itemLifecycle(itemId).withLock { enqueueBookDownload(itemId, title, credentials) }
         if (result == BookDownloadEnqueueResult.AlreadyDownloaded) {
             return awaitVisibleFile(
                 fileProvider = { localFileProvider(itemId) },
@@ -397,33 +406,54 @@ internal class BookDownloadManager(
     }
 
     suspend fun deleteBookDownload(itemId: UUID) {
-        val credentials = runCatching { credentialsProvider() }.getOrNull()
-        val preferredKey = credentials?.let { canonicalBookDownloadKey(it, itemId) }
-        val activeJob = lock.withLock {
-            val candidates =
-                tasks.value
-                    .filter { it.itemId == itemId }
-                    .sortedByDescending { it.updatedAtEpochMillis }
-            val task =
-                candidates.firstOrNull { it.canonicalKey == preferredKey }
-                    ?: candidates.firstOrNull()
-            if (task == null) {
-                null
-            } else {
-                store.delete(task.canonicalKey)
-                mutableTasks.updateList { current ->
-                    current.filterNot { it.canonicalKey == task.canonicalKey }
+        restored.await()
+        itemLifecycle(itemId).withLock lifecycle@{
+            val credentials = runCatching { credentialsProvider() }.getOrNull()
+            val preferredKey = credentials?.let { canonicalBookDownloadKey(it, itemId) }
+            val deletion =
+                lock.withLock {
+                    val task =
+                        selectDeleteTaskLocked(itemId, preferredKey)
+                            ?: credentials?.let { deleteReceipt(itemId, it) }
+                            ?: return@withLock null
+                    saveLocked(
+                        task.copy(
+                            status = BookDownloadStatus.FAILED,
+                            failureReason = DELETE_PENDING,
+                            error = "正在清理书籍文件",
+                            updatedAtEpochMillis = clock(),
+                        )
+                    )
+                    results.remove(task.canonicalKey)?.cancel(CancellationException("书籍任务正在删除"))
+                    val activeJob =
+                        jobs.remove(task.canonicalKey)?.also {
+                            retiringJobs[task.canonicalKey] = it
+                        }
+                    task to activeJob
+                } ?: return@lifecycle
+            val (receipt, activeJob) = deletion
+            activeJob?.job?.cancel(CancellationException("书籍任务正在删除"))
+            activeJob?.job?.join()
+
+            val failures = withContext(NonCancellable) { deleteBookArtifacts(itemId, receipt) }
+            lock.withLock {
+                if (failures.isEmpty()) {
+                    store.delete(receipt.canonicalKey)
+                    mutableTasks.updateList { current ->
+                        current.filterNot { it.canonicalKey == receipt.canonicalKey }
+                    }
+                    results.remove(receipt.canonicalKey)?.cancel(CancellationException("书籍任务已删除"))
+                } else {
+                    saveLocked(
+                        receipt.copy(
+                            status = BookDownloadStatus.FAILED,
+                            failureReason = DELETE_FAILED,
+                            error = "未清理完成：${failures.joinToString()}",
+                            updatedAtEpochMillis = clock(),
+                        )
+                    )
                 }
-                results.remove(task.canonicalKey)
-                jobs.remove(task.canonicalKey)?.also { it.job.cancel() }
             }
-        }
-        activeJob?.job?.join()
-        withContext(NonCancellable) {
-            localFileProvider(itemId).delete()
-            partialFileProvider(itemId).delete()
-            deleteTitle(itemId)
-            clearProvenance(itemId)
         }
     }
 
@@ -433,7 +463,6 @@ internal class BookDownloadManager(
         credentials: BookDownloadCredentials,
     ): BookDownloadEnqueueResult {
         val canonicalKey = canonicalBookDownloadKey(credentials, itemId)
-        restored.await()
         return lock.withLock {
             if (jobs[canonicalKey]?.job?.isActive == true) {
                 return@withLock BookDownloadEnqueueResult.AlreadyQueued
@@ -444,8 +473,14 @@ internal class BookDownloadManager(
                 return@withLock BookDownloadEnqueueResult.AlreadyDownloaded
             }
             val existing = tasks.value.firstOrNull { it.canonicalKey == canonicalKey }
-            val partial = partialFileProvider(itemId)
             val generation = (existing?.taskGeneration ?: 0L) + 1L
+            val partial =
+                preparePartialFile(
+                    canonicalKey = canonicalKey,
+                    basePartial = partialFileProvider(itemId),
+                    existing = existing,
+                    generation = generation,
+                )
             val now = clock()
             val running =
                 BookDownloadTask(
@@ -486,19 +521,33 @@ internal class BookDownloadManager(
             }
 
             for (task in loaded) {
+                if (task.failureReason == DELETE_PENDING || task.failureReason == DELETE_FAILED) {
+                    retryDeletionDuringRestore(task)
+                    continue
+                }
                 val target = task.targetPath?.let(::File) ?: localFileProvider(task.itemId)
-                val partial = File(target.parentFile, "${target.name}.part")
-                if (task.status != BookDownloadStatus.COMPLETED && target.isComplete()) {
-                    partial.delete()
-                    recordProvenance(
-                        BookDownloadOrigin(
-                            serverId = task.serverId,
-                            userId = task.userId,
-                            itemId = task.itemId,
-                            displayName = task.title ?: readTitle(task.itemId),
+                val basePartial = File(target.parentFile, "${target.name}.part")
+                if (target.isComplete()) {
+                    val recorded =
+                        recordProvenance(
+                            BookDownloadOrigin(
+                                serverId = task.serverId,
+                                userId = task.userId,
+                                itemId = task.itemId,
+                                displayName = task.title ?: readTitle(task.itemId),
+                            )
                         )
-                    )
-                    transitionIfCurrent(task, BookDownloadStatus.COMPLETED, null, null)
+                    if (recorded) {
+                        basePartial.delete()
+                        transitionRecovered(task, BookDownloadStatus.COMPLETED, null, null)
+                    } else {
+                        transitionRecovered(
+                            task,
+                            BookDownloadStatus.FAILED,
+                            "PROVENANCE_WRITE_FAILED",
+                            "书籍已下载，但来源记录写入失败，将在重启或重试时补写",
+                        )
+                    }
                     continue
                 }
                 if (task.status != BookDownloadStatus.RUNNING) continue
@@ -523,7 +572,25 @@ internal class BookDownloadManager(
                     )
                     continue
                 }
-                lock.withLock { launchLocked(task, credentials, target, partial) }
+                val generation = task.taskGeneration + 1L
+                val partial =
+                    preparePartialFile(
+                        canonicalKey = task.canonicalKey,
+                        basePartial = basePartial,
+                        existing = task,
+                        generation = generation,
+                    )
+                val resumed =
+                    task.copy(
+                        status = BookDownloadStatus.RUNNING,
+                        failureReason = null,
+                        error = null,
+                        taskGeneration = generation,
+                        downloadedBytes = partial.takeIf { it.isFile }?.length() ?: 0L,
+                        targetPath = target.absolutePath,
+                        updatedAtEpochMillis = clock(),
+                    )
+                lock.withLock { launchLocked(resumed, credentials, target, partial) }
             }
         } finally {
             restored.complete(Unit)
@@ -542,16 +609,16 @@ internal class BookDownloadManager(
                 status = BookDownloadStatus.RUNNING,
                 failureReason = null,
                 error = null,
-                taskGeneration = task.taskGeneration + 1L,
                 downloadedBytes = partial.takeIf { it.isFile }?.length() ?: 0L,
                 targetPath = target.absolutePath,
                 updatedAtEpochMillis = clock(),
             )
+        val commitFile = commitFileFor(target, running.taskGeneration)
         saveLocked(running)
         val result = CompletableDeferred<File>()
         val job =
             scope.launch(start = CoroutineStart.LAZY) {
-                runDownload(running, credentials, target, partial, result)
+                runDownload(running, credentials, target, partial, commitFile, result)
             }
         results[running.canonicalKey] = result
         jobs[running.canonicalKey] = ActiveBookDownloadJob(running.taskGeneration, job)
@@ -563,6 +630,7 @@ internal class BookDownloadManager(
         credentials: BookDownloadCredentials,
         target: File,
         partial: File,
+        commitFile: File,
         result: CompletableDeferred<File>,
     ) {
         var lastPersistedBytes = task.downloadedBytes
@@ -572,7 +640,7 @@ internal class BookDownloadManager(
                     request =
                         BookDownloadTransferRequest(
                             itemId = task.itemId,
-                            targetFile = target,
+                            targetFile = commitFile,
                             partialFile = partial,
                             credentials = credentials,
                             resumeValidator = task.resumeValidator,
@@ -609,36 +677,65 @@ internal class BookDownloadManager(
 
             if (!isCurrent(task)) return
             currentCoroutineContext().ensureActive()
-            if (!target.isComplete()) {
+            if (!commitFile.isComplete()) {
                 throw IOException("下载 transfer 返回时完整文件尚未原子提交")
             }
             val fetchedTitle = runCatching { fetchTitle(credentials, task.itemId) }.getOrNull()
             if (!fetchedTitle.isNullOrBlank()) writeTitle(task.itemId, fetchedTitle)
-            if (!isCurrent(task)) return
-            currentCoroutineContext().ensureActive()
-            recordProvenance(
-                BookDownloadOrigin(
-                    serverId = credentials.serverId,
-                    userId = credentials.userId,
-                    itemId = task.itemId,
-                    displayName = fetchedTitle ?: task.title ?: readTitle(task.itemId),
-                )
-            )
-            if (!isCurrent(task)) return
-            currentCoroutineContext().ensureActive()
-            val completed =
-                updateIfCurrent(task) {
-                    it.copy(
-                        title = fetchedTitle ?: it.title ?: readTitle(it.itemId),
+            val committed = lock.withLock {
+                val current =
+                    tasks.value.firstOrNull { it.canonicalKey == task.canonicalKey }
+                        ?: return@withLock CommitOutcome.Superseded
+                if (
+                    current.taskGeneration != task.taskGeneration ||
+                        current.status != BookDownloadStatus.RUNNING
+                ) {
+                    return@withLock CommitOutcome.Superseded
+                }
+                atomicMove(commitFile, target)
+                val recorded =
+                    recordProvenance(
+                        BookDownloadOrigin(
+                            serverId = credentials.serverId,
+                            userId = credentials.userId,
+                            itemId = task.itemId,
+                            displayName = fetchedTitle ?: task.title ?: readTitle(task.itemId),
+                        )
+                    )
+                if (!recorded) {
+                    val failed =
+                        current.copy(
+                            title = fetchedTitle ?: current.title ?: readTitle(current.itemId),
+                            downloadedBytes = target.length(),
+                            totalBytes = target.length(),
+                            status = BookDownloadStatus.FAILED,
+                            error = "书籍已下载，但来源记录写入失败",
+                            failureReason = "PROVENANCE_WRITE_FAILED",
+                            updatedAtEpochMillis = clock(),
+                        )
+                    saveLocked(failed)
+                    return@withLock CommitOutcome.ProvenanceFailed
+                }
+                val completed =
+                    current.copy(
+                        title = fetchedTitle ?: current.title ?: readTitle(current.itemId),
                         downloadedBytes = target.length(),
                         totalBytes = target.length(),
                         status = BookDownloadStatus.COMPLETED,
                         error = null,
                         failureReason = null,
-                        resumeValidator = transferred.validator ?: it.resumeValidator,
+                        resumeValidator = transferred.validator ?: current.resumeValidator,
+                        updatedAtEpochMillis = clock(),
                     )
-                }
-            if (completed != null) result.complete(target)
+                saveLocked(completed)
+                CommitOutcome.Completed(completed)
+            }
+            when (committed) {
+                is CommitOutcome.Completed -> result.complete(target)
+                CommitOutcome.ProvenanceFailed ->
+                    result.completeExceptionally(IOException("书籍来源记录写入失败，任务保持可重试"))
+                CommitOutcome.Superseded -> Unit
+            }
         } catch (cancellation: CancellationException) {
             result.cancel(cancellation)
             if (isCurrent(task)) {
@@ -669,10 +766,14 @@ internal class BookDownloadManager(
                     if (jobs[task.canonicalKey]?.job == currentJob) {
                         jobs.remove(task.canonicalKey)
                     }
+                    if (retiringJobs[task.canonicalKey]?.job == currentJob) {
+                        retiringJobs.remove(task.canonicalKey)
+                    }
                     if (results[task.canonicalKey] == result) {
                         results.remove(task.canonicalKey)
                     }
                 }
+                commitFile.delete()
             }
         }
     }
@@ -694,7 +795,7 @@ internal class BookDownloadManager(
                 )
             saveLocked(failed)
             results.remove(canonicalKey)
-            jobs.remove(canonicalKey)
+            jobs.remove(canonicalKey)?.also { retiringJobs[canonicalKey] = it }
             activeJob
         }
         active?.job?.cancel(CancellationException("书籍下载已取消"))
@@ -747,6 +848,27 @@ internal class BookDownloadManager(
             )
         }
 
+    private suspend fun transitionRecovered(
+        expected: BookDownloadTask,
+        status: BookDownloadStatus,
+        failureReason: String?,
+        error: String?,
+    ): BookDownloadTask? = lock.withLock {
+        val current =
+            tasks.value.firstOrNull { it.canonicalKey == expected.canonicalKey }
+                ?: return@withLock null
+        if (current.taskGeneration != expected.taskGeneration) return@withLock null
+        val updated =
+            current.copy(
+                status = status,
+                failureReason = failureReason,
+                error = error,
+                updatedAtEpochMillis = clock(),
+            )
+        saveLocked(updated)
+        updated
+    }
+
     private suspend fun isCurrent(expected: BookDownloadTask): Boolean = lock.withLock {
         tasks.value.any {
             it.canonicalKey == expected.canonicalKey &&
@@ -784,12 +906,217 @@ internal class BookDownloadManager(
 
     private fun File.isComplete(): Boolean = isFile && length() > 0L
 
+    private suspend fun completedFileIfReady(itemId: UUID): File? = lock.withLock {
+        val target = localFileProvider(itemId)
+        if (!target.isComplete()) return@withLock null
+
+        val task =
+            tasks.value
+                .asSequence()
+                .filter { it.itemId == itemId }
+                .sortedByDescending { it.updatedAtEpochMillis }
+                .firstOrNull() ?: return@withLock target
+        if (task.failureReason == DELETE_PENDING || task.failureReason == DELETE_FAILED) {
+            throw IOException("书籍删除尚未完成，请重试删除")
+        }
+        if (
+            task.status == BookDownloadStatus.RUNNING &&
+                jobs[task.canonicalKey]?.job?.isActive == true
+        ) {
+            return@withLock null
+        }
+
+        val recorded =
+            recordProvenance(
+                BookDownloadOrigin(
+                    serverId = task.serverId,
+                    userId = task.userId,
+                    itemId = task.itemId,
+                    displayName = task.title ?: readTitle(task.itemId),
+                )
+            )
+        if (!recorded) {
+            if (task.failureReason != "PROVENANCE_WRITE_FAILED") {
+                saveLocked(
+                    task.copy(
+                        status = BookDownloadStatus.FAILED,
+                        failureReason = "PROVENANCE_WRITE_FAILED",
+                        error = "书籍已下载，但来源记录写入失败",
+                        updatedAtEpochMillis = clock(),
+                    )
+                )
+            }
+            throw IOException("书籍来源记录写入失败，任务保持可重试")
+        }
+
+        saveLocked(
+            task.copy(
+                downloadedBytes = target.length(),
+                totalBytes = target.length(),
+                status = BookDownloadStatus.COMPLETED,
+                failureReason = null,
+                error = null,
+                updatedAtEpochMillis = clock(),
+            )
+        )
+        val basePartial = File(target.parentFile, "${target.name}.part")
+        basePartial.delete()
+        target.parentFile?.let { parent -> deleteGeneratedSiblings(parent, "${basePartial.name}.") }
+        target
+    }
+
+    private fun itemLifecycle(itemId: UUID): Mutex =
+        synchronized(itemLifecycles) { itemLifecycles.getOrPut(itemId) { Mutex() } }
+
+    private fun selectDeleteTaskLocked(itemId: UUID, preferredKey: String?): BookDownloadTask? =
+        tasks.value
+            .asSequence()
+            .filter { it.itemId == itemId }
+            .sortedByDescending { it.updatedAtEpochMillis }
+            .firstOrNull { it.canonicalKey == preferredKey }
+            ?: tasks.value
+                .asSequence()
+                .filter { it.itemId == itemId }
+                .sortedByDescending { it.updatedAtEpochMillis }
+                .firstOrNull()
+
+    private fun deleteReceipt(
+        itemId: UUID,
+        credentials: BookDownloadCredentials,
+    ): BookDownloadTask {
+        val target = localFileProvider(itemId)
+        val now = clock()
+        return BookDownloadTask(
+            itemId = itemId,
+            title = readTitle(itemId),
+            status = BookDownloadStatus.FAILED,
+            failureReason = DELETE_PENDING,
+            error = "正在清理书籍文件",
+            canonicalKey = canonicalBookDownloadKey(credentials, itemId),
+            serverId = credentials.serverId,
+            userId = credentials.userId,
+            targetPath = target.absolutePath,
+            createdAtEpochMillis = now,
+            updatedAtEpochMillis = now,
+        )
+    }
+
+    private suspend fun retryDeletionDuringRestore(task: BookDownloadTask) {
+        itemLifecycle(task.itemId).withLock {
+            val failures = withContext(NonCancellable) { deleteBookArtifacts(task.itemId, task) }
+            lock.withLock {
+                if (failures.isEmpty()) {
+                    store.delete(task.canonicalKey)
+                    mutableTasks.updateList { current ->
+                        current.filterNot { it.canonicalKey == task.canonicalKey }
+                    }
+                } else {
+                    saveLocked(
+                        task.copy(
+                            status = BookDownloadStatus.FAILED,
+                            failureReason = DELETE_FAILED,
+                            error = "未清理完成：${failures.joinToString()}",
+                            updatedAtEpochMillis = clock(),
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private fun deleteBookArtifacts(
+        itemId: UUID,
+        receipt: BookDownloadTask,
+    ): List<String> {
+        val failures = mutableListOf<String>()
+        val targets = linkedSetOf(localFileProvider(itemId))
+        receipt.targetPath?.let { targets += File(it) }
+        val basePartials = linkedSetOf(partialFileProvider(itemId))
+        targets.mapTo(basePartials) { File(it.parentFile, "${it.name}.part") }
+
+        targets.forEach { file -> if (!deleteFile(file)) failures += "book:${file.name}" }
+        basePartials.forEach { file ->
+            if (!deleteFile(file)) failures += "part:${file.name}"
+            file.parentFile?.let { parent ->
+                deleteGeneratedSiblings(parent, "${file.name}.").forEach { name ->
+                    failures += "part:$name"
+                }
+            }
+        }
+        targets.forEach { file ->
+            file.parentFile?.let { parent ->
+                deleteGeneratedSiblings(parent, "${file.name}.commit.").forEach { name ->
+                    failures += "commit:$name"
+                }
+            }
+        }
+        if (!deleteTitle(itemId)) failures += "title"
+        if (!clearProvenance(itemId)) failures += "provenance"
+        return failures
+    }
+
+    private fun deleteGeneratedSiblings(parent: File, namePrefix: String): List<String> {
+        val failures = mutableListOf<String>()
+        parent
+            .listFiles()
+            ?.filter { file ->
+                file.name.startsWith(namePrefix) &&
+                    file.name.removePrefix(namePrefix).toLongOrNull() != null
+            }
+            ?.forEach { file -> if (!deleteFile(file)) failures += file.name }
+        return failures
+    }
+
+    private fun preparePartialFile(
+        canonicalKey: String,
+        basePartial: File,
+        existing: BookDownloadTask?,
+        generation: Long,
+    ): File {
+        val destination = generationPartialFile(basePartial, generation)
+        if (retiringJobs[canonicalKey]?.job?.isActive == true) return destination
+        val previous =
+            existing
+                ?.let { generationPartialFile(basePartial, it.taskGeneration) }
+                ?.takeIf { it.isFile }
+        val source = previous ?: basePartial.takeIf { it.isFile }
+        if (source != null && source != destination) {
+            runCatching { atomicMove(source, destination) }
+        }
+        return destination
+    }
+
+    private fun generationPartialFile(basePartial: File, generation: Long): File =
+        File(basePartial.parentFile, "${basePartial.name}.$generation")
+
+    private fun commitFileFor(target: File, generation: Long): File =
+        File(target.parentFile, "${target.name}.commit.$generation")
+
+    private fun atomicMove(source: File, target: File) {
+        Files.move(
+            source.toPath(),
+            target.toPath(),
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING,
+        )
+    }
+
     private data class ActiveBookDownloadJob(
         val generation: Long,
         val job: Job,
     )
 
+    private sealed interface CommitOutcome {
+        data class Completed(val task: BookDownloadTask) : CommitOutcome
+
+        data object ProvenanceFailed : CommitOutcome
+
+        data object Superseded : CommitOutcome
+    }
+
     private companion object {
+        const val DELETE_PENDING = "DELETE_PENDING"
+        const val DELETE_FAILED = "DELETE_FAILED"
         const val PROGRESS_SAVE_INTERVAL_BYTES = 1024L * 1024L
         const val FILE_VISIBILITY_POLL_MS = 10L
     }

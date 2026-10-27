@@ -65,7 +65,10 @@ class BookDownloadRecoveryTest {
                     localFileProvider = { target },
                     partialFileProvider = { partial },
                     scope = scope,
-                    recordProvenance = { provenances += it },
+                    recordProvenance = {
+                        provenances += it
+                        true
+                    },
                 )
             manager.awaitRestored()
             val completed =
@@ -176,14 +179,17 @@ class BookDownloadRecoveryTest {
                     onProgress: suspend (Long, Long) -> Unit,
                 ): BookDownloadTransferResult {
                     invocations += request.taskGeneration
-                    partial.writeBytes(byteArrayOf(request.taskGeneration.toByte()))
+                    request.partialFile.writeBytes(byteArrayOf(request.taskGeneration.toByte()))
                     if (invocations.size == 1) {
                         firstStarted.complete(Unit)
-                        withContext(NonCancellable) { releaseFirst.await() }
+                        withContext(NonCancellable) {
+                            releaseFirst.await()
+                            atomicMove(request.partialFile, request.targetFile)
+                        }
                     } else {
                         secondStarted.complete(Unit)
                         releaseSecond.await()
-                        target.writeBytes(byteArrayOf(1))
+                        atomicMove(request.partialFile, request.targetFile)
                     }
                     return BookDownloadTransferResult(totalBytes = 1, validator = "\"v\"")
                 }
@@ -226,7 +232,7 @@ class BookDownloadRecoveryTest {
             val duringSecond = manager.tasks.value.single { it.itemId == ITEM_ID }
             assertEquals(secondGeneration, duringSecond.taskGeneration)
             assertEquals(BookDownloadStatus.RUNNING, duringSecond.status)
-            assertTrue(partial.exists())
+            assertTrue(bookPartials(partial).isNotEmpty())
 
             releaseSecond.complete(Unit)
             val completed =
@@ -287,7 +293,10 @@ class BookDownloadRecoveryTest {
                     localFileProvider = { target },
                     partialFileProvider = { partial },
                     scope = scope,
-                    clearProvenance = { provenanceCleared++ },
+                    clearProvenance = {
+                        provenanceCleared++
+                        true
+                    },
                     deleteTitle = { title.delete() },
                 )
             manager.awaitRestored()
@@ -338,7 +347,10 @@ class BookDownloadRecoveryTest {
                     localFileProvider = { target },
                     partialFileProvider = { partial },
                     scope = scope,
-                    recordProvenance = { provenanceWrites++ },
+                    recordProvenance = {
+                        provenanceWrites++
+                        true
+                    },
                 )
             manager.awaitRestored()
             manager.enqueueBookDownload(ITEM_ID, "书")
@@ -350,7 +362,7 @@ class BookDownloadRecoveryTest {
 
             assertEquals(BookDownloadStatus.FAILED, failed.single().status)
             assertEquals(0, provenanceWrites)
-            assertTrue(partial.exists())
+            assertTrue(bookPartials(partial).isNotEmpty())
             assertTrue(!target.exists())
         } finally {
             scope.cancel()
@@ -398,7 +410,10 @@ class BookDownloadRecoveryTest {
                     localFileProvider = { target },
                     partialFileProvider = { partial },
                     scope = scope,
-                    recordProvenance = { provenances += it },
+                    recordProvenance = {
+                        provenances += it
+                        true
+                    },
                 )
             manager.awaitRestored()
 
@@ -448,6 +463,20 @@ class BookDownloadRecoveryTest {
             createdAt = 1,
             updatedAt = 1,
         )
+
+    private fun atomicMove(source: File, target: File) {
+        java.nio.file.Files.move(
+            source.toPath(),
+            target.toPath(),
+            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+        )
+    }
+
+    private fun bookPartials(basePartial: File): List<File> =
+        basePartial.parentFile?.listFiles().orEmpty().filter {
+            it.name == basePartial.name || it.name.startsWith("${basePartial.name}.")
+        }
 
     private companion object {
         val ITEM_ID: UUID = UUID.fromString("11111111-1111-4111-8111-111111111111")
