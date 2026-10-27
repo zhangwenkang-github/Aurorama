@@ -176,4 +176,119 @@ class LyricsCenterScrollTest {
         assertFalse(after.manualPause)
         assertEquals(4L, after.restoreToken)
     }
+
+    @Test
+    fun `manual scroll pauses follow while programmatic scroll leaves it untouched`() {
+        val following = LyricsFollowUiState().onPageEntered(displayFollow = true)
+
+        val programmatic = following.onScrollStarted(LyricsScrollOrigin.PROGRAMMATIC)
+        val userPaused = programmatic.onScrollStarted(LyricsScrollOrigin.USER)
+        val programmaticWhilePaused = userPaused.onScrollStarted(LyricsScrollOrigin.PROGRAMMATIC)
+
+        assertFalse(programmatic.manualPause)
+        assertTrue(userPaused.manualPause)
+        assertTrue(programmaticWhilePaused.manualPause)
+    }
+
+    @Test
+    fun `active line resumes only when sixty percent visible inside central sixty percent band`() {
+        val viewportStart = 0
+        val viewportEnd = 1_000
+
+        assertTrue(
+            lyricsLineCanResumeFollow(
+                viewportStart = viewportStart,
+                viewportEnd = viewportEnd,
+                itemOffset = 450,
+                itemSize = 100,
+            )
+        )
+        assertFalse(
+            lyricsLineCanResumeFollow(
+                viewportStart = viewportStart,
+                viewportEnd = viewportEnd,
+                itemOffset = 820,
+                itemSize = 100,
+            )
+        )
+        assertFalse(
+            lyricsLineCanResumeFollow(
+                viewportStart = viewportStart,
+                viewportEnd = viewportEnd,
+                itemOffset = -1_800,
+                itemSize = 4_000,
+            )
+        )
+    }
+
+    @Test
+    fun `scroll settles for 299ms stays paused and at 300ms resumes once`() {
+        val paused = LyricsFollowUiState().onScrollStarted(LyricsScrollOrigin.USER)
+
+        val beforeDelay =
+            paused.onUserScrollSettled(
+                displayFollow = true,
+                activeLineCanResume = true,
+                elapsedSinceStopMs = 299L,
+            )
+        val resumed =
+            beforeDelay.onUserScrollSettled(
+                displayFollow = true,
+                activeLineCanResume = true,
+                elapsedSinceStopMs = 300L,
+            )
+        val repeated =
+            resumed.onUserScrollSettled(
+                displayFollow = true,
+                activeLineCanResume = true,
+                elapsedSinceStopMs = 600L,
+            )
+
+        assertTrue(beforeDelay.manualPause)
+        assertFalse(resumed.manualPause)
+        assertEquals(paused.userScrollGeneration, resumed.autoResumeGeneration)
+        assertEquals(resumed, repeated)
+    }
+
+    @Test
+    fun `active index change while paused does not fight the user`() {
+        val paused = LyricsFollowUiState().onScrollStarted(LyricsScrollOrigin.USER)
+
+        val afterActiveLineChange = paused.onActiveLineChanged()
+
+        assertTrue(afterActiveLineChange.manualPause)
+        assertEquals(paused, afterActiveLineChange)
+    }
+
+    @Test
+    fun `global follow off never auto resumes`() {
+        val paused = LyricsFollowUiState().onScrollStarted(LyricsScrollOrigin.USER)
+
+        val afterSettle =
+            paused.onUserScrollSettled(
+                displayFollow = false,
+                activeLineCanResume = true,
+                elapsedSinceStopMs = 300L,
+            )
+
+        assertTrue(afterSettle.manualPause)
+    }
+
+    @Test
+    fun `first and last rows use the same content coordinate thresholds`() {
+        val viewportStart = -500
+        val viewportEnd = 500
+
+        val centered = { itemOffset: Int ->
+            lyricsLineCanResumeFollow(
+                viewportStart = viewportStart,
+                viewportEnd = viewportEnd,
+                itemOffset = itemOffset,
+                itemSize = 100,
+            )
+        }
+
+        assertTrue(centered(0))
+        assertTrue(centered(-50))
+    }
 }

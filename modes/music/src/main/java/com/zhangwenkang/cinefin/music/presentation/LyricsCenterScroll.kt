@@ -7,10 +7,18 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 
 internal const val LYRICS_CENTER_SCROLL_DURATION_MS = 240
+internal const val LYRICS_FOLLOW_RESUME_DELAY_MS = 300L
+
+internal enum class LyricsScrollOrigin {
+    USER,
+    PROGRAMMATIC,
+}
 
 /**
  * 歌词页单次可见会话的跟随状态。
@@ -20,6 +28,8 @@ internal const val LYRICS_CENTER_SCROLL_DURATION_MS = 240
 internal data class LyricsFollowUiState(
     val manualPause: Boolean = false,
     val restoreToken: Long = 0L,
+    val userScrollGeneration: Long = 0L,
+    val autoResumeGeneration: Long? = null,
 )
 
 internal fun LyricsFollowUiState.onPageEntered(displayFollow: Boolean): LyricsFollowUiState =
@@ -27,6 +37,65 @@ internal fun LyricsFollowUiState.onPageEntered(displayFollow: Boolean): LyricsFo
         manualPause = false,
         restoreToken = if (displayFollow) restoreToken + 1L else restoreToken,
     )
+
+internal fun LyricsFollowUiState.onScrollStarted(origin: LyricsScrollOrigin): LyricsFollowUiState =
+    if (origin == LyricsScrollOrigin.USER && !manualPause) {
+        copy(
+            manualPause = true,
+            userScrollGeneration = userScrollGeneration + 1L,
+            autoResumeGeneration = null,
+        )
+    } else {
+        this
+    }
+
+/**
+ * 用户停稳后延迟判定恢复。
+ *
+ * [elapsedSinceStopMs] 由调用方用真实停稳时钟提供；只有达到 300ms、全局跟随开启、局部已暂停、当前行满足双阈值时才恢复。 [autoResumeGeneration]
+ * 保证同一次暂停只恢复一次，后续延迟回调或布局变化不会重复抢回位置。
+ */
+internal fun LyricsFollowUiState.onUserScrollSettled(
+    displayFollow: Boolean,
+    activeLineCanResume: Boolean,
+    elapsedSinceStopMs: Long,
+): LyricsFollowUiState {
+    val shouldResume =
+        displayFollow &&
+            manualPause &&
+            activeLineCanResume &&
+            elapsedSinceStopMs >= LYRICS_FOLLOW_RESUME_DELAY_MS &&
+            autoResumeGeneration != userScrollGeneration
+    return if (shouldResume) {
+        copy(manualPause = false, autoResumeGeneration = userScrollGeneration)
+    } else {
+        this
+    }
+}
+
+internal fun LyricsFollowUiState.onActiveLineChanged(): LyricsFollowUiState = this
+
+/**
+ * 当前高亮行至少 60% 可见，且中心位于视口中央 60% 带内时才允许恢复跟随。
+ *
+ * 所有输入都使用同一内容坐标系，与 [lyricsCenterScrollDelta] 保持一致，因此首行、末行和中间行共用同一判据。
+ */
+internal fun lyricsLineCanResumeFollow(
+    viewportStart: Int,
+    viewportEnd: Int,
+    itemOffset: Int,
+    itemSize: Int,
+): Boolean {
+    if (itemSize <= 0 || viewportEnd <= viewportStart) return false
+    val visibleStart = max(itemOffset, viewportStart)
+    val visibleEnd = min(itemOffset + itemSize, viewportEnd)
+    val visibleFraction = (visibleEnd - visibleStart).coerceAtLeast(0).toFloat() / itemSize
+    val viewportHeight = (viewportEnd - viewportStart).toFloat()
+    val centralStart = viewportStart + viewportHeight * 0.2f
+    val centralEnd = viewportEnd - viewportHeight * 0.2f
+    val itemCenter = itemOffset + itemSize / 2f
+    return visibleFraction >= 0.6f && itemCenter in centralStart..centralEnd
+}
 
 /**
  * 当前歌词行相对滚动视口中心的位移（内容坐标系）。

@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +72,8 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsTextSettings
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 
 /** 点击歌词后的跟随状态变更：清除手动暂停，并在需要时跳过旧当前行的一次居中。 */
 internal data class LyricsLineClickFollowOutcome(
@@ -182,11 +185,8 @@ fun MusicLyricsPage(
                     else ->
                         LyricsLines(
                             state = state,
-                            followPausedByUser = followState.manualPause,
-                            followRestoreToken = followState.restoreToken,
-                            onFollowPausedByUserChange = {
-                                followState = followState.copy(manualPause = it)
-                            },
+                            followState = followState,
+                            onFollowStateChange = { followState = it },
                             onLineClick = onLineClick,
                         )
                 }
@@ -319,26 +319,38 @@ private fun LyricsDisplayChip(label: String, selected: Boolean, onClick: () -> U
 @Composable
 private fun LyricsLines(
     state: MusicModeViewModel.LyricsUiState,
-    followPausedByUser: Boolean,
-    followRestoreToken: Long,
-    onFollowPausedByUserChange: (Boolean) -> Unit,
+    followState: LyricsFollowUiState,
+    onFollowStateChange: (LyricsFollowUiState) -> Unit,
     onLineClick: (Long) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val listState = rememberLazyListState()
-    val pauseCallback = rememberUpdatedState(onFollowPausedByUserChange)
+    val followStateSnapshot = rememberUpdatedState(followState)
+    val followStateCallback = rememberUpdatedState(onFollowStateChange)
+    val activeIndexState = rememberUpdatedState(state.activeIndex)
+    val displayFollowState = rememberUpdatedState(state.display.follow)
     var suppressCenteringForIndex by remember { mutableStateOf<Int?>(null) }
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 // 用户输入本身就足以区分程序化跟随；动画中拖动也必须立刻暂停。
-                if (source == NestedScrollSource.UserInput) pauseCallback.value(true)
+                val origin =
+                    if (source == NestedScrollSource.UserInput) {
+                        LyricsScrollOrigin.USER
+                    } else {
+                        LyricsScrollOrigin.PROGRAMMATIC
+                    }
+                val current = followStateSnapshot.value
+                val next = current.onScrollStarted(origin)
+                if (next != current) followStateCallback.value(next)
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                pauseCallback.value(true)
+                val current = followStateSnapshot.value
+                val next = current.onScrollStarted(LyricsScrollOrigin.USER)
+                if (next != current) followStateCallback.value(next)
                 return Velocity.Zero
             }
         }
@@ -381,7 +393,44 @@ private fun LyricsLines(
         }
         // 用户主动拖动 / 惯性后暂停跟随；只有再次开启「跟随滚动」才恢复。
         LaunchedEffect(state.display.follow) {
-            if (state.display.follow) onFollowPausedByUserChange(false)
+            if (state.display.follow && followStateSnapshot.value.manualPause) {
+                followStateCallback.value(followStateSnapshot.value.copy(manualPause = false))
+            }
+        }
+        LaunchedEffect(
+            listState,
+            state.display.follow,
+            followState.manualPause,
+        ) {
+            if (!state.display.follow || !followState.manualPause) return@LaunchedEffect
+            snapshotFlow { listState.isScrollInProgress }
+                .collectLatest { scrolling ->
+                    if (scrolling) return@collectLatest
+                    delay(LYRICS_FOLLOW_RESUME_DELAY_MS)
+                    if (listState.isScrollInProgress) return@collectLatest
+                    val current = followStateSnapshot.value
+                    if (!current.manualPause) return@collectLatest
+                    val layout = listState.layoutInfo
+                    val activeItem =
+                        layout.visibleItemsInfo.firstOrNull { item ->
+                            item.index == activeIndexState.value
+                        }
+                    val activeLineCanResume =
+                        activeItem != null &&
+                            lyricsLineCanResumeFollow(
+                                viewportStart = layout.viewportStartOffset,
+                                viewportEnd = layout.viewportEndOffset,
+                                itemOffset = activeItem.offset,
+                                itemSize = activeItem.size,
+                            )
+                    val settled =
+                        current.onUserScrollSettled(
+                            displayFollow = displayFollowState.value,
+                            activeLineCanResume = activeLineCanResume,
+                            elapsedSinceStopMs = LYRICS_FOLLOW_RESUME_DELAY_MS,
+                        )
+                    if (settled != current) followStateCallback.value(settled)
+                }
         }
         LaunchedEffect(
             state.activeIndex,
@@ -389,10 +438,10 @@ private fun LyricsLines(
             state.document,
             state.rows.size,
             state.text,
-            followPausedByUser,
-            followRestoreToken,
+            followState.manualPause,
+            followState.restoreToken,
         ) {
-            if (!state.display.follow || followPausedByUser) return@LaunchedEffect
+            if (!state.display.follow || followState.manualPause) return@LaunchedEffect
             val suppressedIndex = suppressCenteringForIndex
             if (suppressedIndex != null) {
                 suppressCenteringForIndex = null
@@ -430,12 +479,16 @@ private fun LyricsLines(
                                 startMs?.let { positionMs ->
                                     val outcome =
                                         lyricsLineClickFollowOutcome(
-                                            followPausedByUser = followPausedByUser,
+                                            followPausedByUser = followState.manualPause,
                                             displayFollow = state.display.follow,
                                             clickedIndex = index,
                                             activeIndex = state.activeIndex,
                                         )
-                                    onFollowPausedByUserChange(outcome.followPausedByUser)
+                                    followStateCallback.value(
+                                        followStateSnapshot.value.copy(
+                                            manualPause = outcome.followPausedByUser
+                                        )
+                                    )
                                     suppressCenteringForIndex = outcome.suppressCenteringForIndex
                                     onLineClick(positionMs)
                                 }
