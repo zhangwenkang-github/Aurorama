@@ -6,6 +6,7 @@ import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Transaction
 import androidx.room3.Update
+import com.zhangwenkang.cinefin.models.BookDownloadTaskDto
 import com.zhangwenkang.cinefin.models.DownloadDeleteBatchDto
 import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
 import com.zhangwenkang.cinefin.models.DownloadIntentDto
@@ -153,6 +154,20 @@ interface ServerDatabaseDao {
 
     @Query("DELETE FROM downloadIntents WHERE itemId = :itemId")
     suspend fun deleteDownloadIntent(itemId: UUID)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBookDownloadTask(task: BookDownloadTaskDto)
+
+    @Update suspend fun updateBookDownloadTask(task: BookDownloadTaskDto)
+
+    @Query("SELECT * FROM bookDownloadTasks WHERE canonicalKey = :canonicalKey")
+    suspend fun getBookDownloadTask(canonicalKey: String): BookDownloadTaskDto?
+
+    @Query("SELECT * FROM bookDownloadTasks ORDER BY updatedAt ASC, canonicalKey ASC")
+    suspend fun getBookDownloadTasks(): List<BookDownloadTaskDto>
+
+    @Query("DELETE FROM bookDownloadTasks WHERE canonicalKey = :canonicalKey")
+    suspend fun deleteBookDownloadTask(canonicalKey: String)
 
     @Query(
         "DELETE FROM downloadIntents WHERE itemId = :itemId AND taskGeneration = :taskGeneration"

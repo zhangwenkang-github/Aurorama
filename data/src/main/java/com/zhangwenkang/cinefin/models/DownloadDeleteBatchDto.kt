@@ -29,4 +29,5 @@ data class DownloadDeleteReceiptDto(
     val outcome: String,
     val detail: String?,
     @ColumnInfo(defaultValue = "0") val updatedAt: Long,
+    val verifiedGeneration: Long? = null,
 )
