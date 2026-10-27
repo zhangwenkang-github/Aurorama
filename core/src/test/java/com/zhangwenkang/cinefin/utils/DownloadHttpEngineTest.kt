@@ -2,14 +2,18 @@ package com.zhangwenkang.cinefin.utils
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import com.zhangwenkang.cinefin.di.configureDownloadHttpClient
+import com.zhangwenkang.cinefin.network.JellyfinAuth
 import java.io.File
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.Collections
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -24,7 +28,11 @@ class DownloadHttpEngineTest {
         val server = MockWebServer(body = "0123456789".toByteArray(StandardCharsets.UTF_8))
         server.start()
         try {
-            val engine = DownloadHttpEngine(OkHttpClient(), elapsedRealtimeMillis = { 0L })
+            val engine =
+                DownloadHttpEngine(
+                    configureDownloadHttpClient(OkHttpClient.Builder()).build(),
+                    elapsedRealtimeMillis = { 0L },
+                )
             val url = server.url("/Videos/item-a/stream?static=true&mediaSourceId=source-a")
 
             val first =
@@ -79,7 +87,11 @@ class DownloadHttpEngineTest {
             )
         origin.start()
         try {
-            val engine = DownloadHttpEngine(OkHttpClient(), elapsedRealtimeMillis = { 0L })
+            val engine =
+                DownloadHttpEngine(
+                    configureDownloadHttpClient(OkHttpClient.Builder()).build(),
+                    elapsedRealtimeMillis = { 0L },
+                )
             val secret = "must-not-cross-origin"
             val result =
                 engine.download(
@@ -102,6 +114,140 @@ class DownloadHttpEngineTest {
         } finally {
             origin.close()
             destination.close()
+            workDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `连接前失败保持 requestSent false`() = runBlocking {
+        val workDir = Files.createTempDirectory("download-http-connect-failure").toFile()
+        val closedPort =
+            java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use {
+                it.localPort
+            }
+        val client =
+            OkHttpClient.Builder()
+                .connectTimeout(500, TimeUnit.MILLISECONDS)
+                .retryOnConnectionFailure(false)
+                .build()
+        val engine = DownloadHttpEngine(client, elapsedRealtimeMillis = { 0L })
+        try {
+            val failure = captureHttpFailure {
+                engine.download(
+                    url = "http://127.0.0.1:$closedPort/Videos/item/stream?static=true",
+                    token = null,
+                    baseUrl = "http://127.0.0.1:$closedPort",
+                    target = File(workDir, "unreachable.bin"),
+                    existingBytes = 0L,
+                    validator = null,
+                    expectedTotalBytes = 0L,
+                ) { _, _, _, _ ->
+                }
+            }
+
+            assertFalse(failure.marker?.requestSent ?: true)
+            assertEquals("FAILED", failure.marker?.status)
+        } finally {
+            workDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `production network interceptor 同 host 不同 port 剥离两类凭据`() = runBlocking {
+        val destination = MockWebServer(body = "ok".toByteArray(StandardCharsets.UTF_8))
+        destination.start()
+        val origin =
+            MockWebServer(
+                body = byteArrayOf(),
+                redirectTo = destination.url("/Videos/final/stream"),
+            )
+        origin.start()
+        try {
+            val secret = "interceptor-red-test"
+            val client = configureDownloadHttpClient(OkHttpClient.Builder()).build()
+            val request =
+                Request.Builder()
+                    .url(origin.url("/redirect"))
+                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(secret))
+                    .header(JellyfinAuth.LEGACY_HEADER, secret)
+                    .tag(
+                        DownloadAllowedTokenHost::class.java,
+                        DownloadAllowedTokenHost("127.0.0.1", origin.port),
+                    )
+                    .build()
+
+            client.newCall(request).execute().use { assertTrue(it.isSuccessful) }
+
+            assertTrue(origin.requests.single().authorization.orEmpty().contains(secret))
+            assertTrue(origin.requests.single().legacyAuthorization.orEmpty().contains(secret))
+            assertNull(destination.requests.single().authorization)
+            assertNull(destination.requests.single().legacyAuthorization)
+        } finally {
+            origin.close()
+            destination.close()
+        }
+    }
+
+    @Test
+    fun `production network interceptor 同 host 同 port 保留两类凭据`() = runBlocking {
+        val server = MockWebServer(body = "ok".toByteArray(StandardCharsets.UTF_8))
+        server.start()
+        server.redirectTo = server.url("/Videos/final/stream")
+        try {
+            val secret = "interceptor-preserve-test"
+            val client = configureDownloadHttpClient(OkHttpClient.Builder()).build()
+            val request =
+                Request.Builder()
+                    .url(server.url("/redirect"))
+                    .header(JellyfinAuth.HEADER, JellyfinAuth.headerValue(secret))
+                    .header(JellyfinAuth.LEGACY_HEADER, secret)
+                    .tag(
+                        DownloadAllowedTokenHost::class.java,
+                        DownloadAllowedTokenHost("127.0.0.1", server.port),
+                    )
+                    .build()
+
+            client.newCall(request).execute().use { assertTrue(it.isSuccessful) }
+
+            assertEquals(2, server.requests.size)
+            server.requests.forEach {
+                assertTrue(it.authorization.orEmpty().contains(secret))
+                assertTrue(it.legacyAuthorization.orEmpty().contains(secret))
+            }
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun `收到 HTTP 错误响应后 requestSent 为 true`() = runBlocking {
+        val workDir = Files.createTempDirectory("download-http-response-failure").toFile()
+        val server = MockWebServer(body = byteArrayOf(), responseCode = 500)
+        server.start()
+        try {
+            val engine =
+                DownloadHttpEngine(
+                    configureDownloadHttpClient(OkHttpClient.Builder()).build(),
+                    elapsedRealtimeMillis = { 0L },
+                )
+            val failure = captureHttpFailure {
+                engine.download(
+                    url = server.url("/Videos/item/stream?static=true"),
+                    token = null,
+                    baseUrl = server.baseUrl,
+                    target = File(workDir, "server-error.bin"),
+                    existingBytes = 0L,
+                    validator = null,
+                    expectedTotalBytes = 0L,
+                ) { _, _, _, _ ->
+                }
+            }
+
+            assertTrue(failure.marker?.requestSent == true)
+            assertEquals("FAILED", failure.marker?.status)
+            assertEquals(DownloadFailureReason.SERVER_ERROR, failure.reason)
+        } finally {
+            server.close()
             workDir.deleteRecursively()
         }
     }
@@ -168,14 +314,18 @@ class DownloadHttpEngineTest {
 
 private class MockWebServer(
     private val body: ByteArray,
-    private val redirectTo: String? = null,
+    redirectTo: String? = null,
+    private val responseCode: Int = 200,
 ) {
+    var redirectTo: String? = redirectTo
+
     data class Request(
         val method: String,
         val path: String,
         val range: String?,
         val ifRange: String?,
         val authorization: String?,
+        val legacyAuthorization: String?,
     )
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -189,6 +339,7 @@ private class MockWebServer(
                         range = exchange.requestHeaders.getFirst("Range"),
                         ifRange = exchange.requestHeaders.getFirst("If-Range"),
                         authorization = exchange.requestHeaders.getFirst("Authorization"),
+                        legacyAuthorization = exchange.requestHeaders.getFirst("X-Emby-Token"),
                     )
                 respond(exchange)
             }
@@ -198,6 +349,9 @@ private class MockWebServer(
     val requests = Collections.synchronizedList(mutableListOf<Request>())
     val baseUrl: String
         get() = "http://127.0.0.1:${httpServer.address.port}"
+
+    val port: Int
+        get() = httpServer.address.port
 
     fun url(path: String): String = baseUrl + path
 
@@ -211,9 +365,15 @@ private class MockWebServer(
     }
 
     private fun respond(exchange: HttpExchange) {
-        if (redirectTo != null) {
-            exchange.responseHeaders.add("Location", redirectTo)
+        val redirectTarget = redirectTo
+        if (redirectTarget != null && exchange.requestURI.path == "/redirect") {
+            exchange.responseHeaders.add("Location", redirectTarget)
             exchange.sendResponseHeaders(302, -1)
+            exchange.close()
+            return
+        }
+        if (responseCode !in 200..299) {
+            exchange.sendResponseHeaders(responseCode, -1)
             exchange.close()
             return
         }

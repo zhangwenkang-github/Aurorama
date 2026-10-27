@@ -6,6 +6,7 @@ import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
 import java.net.URI
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -135,13 +138,18 @@ internal class DownloadHttpEngine(
                         marker,
                     )
                 }
-            val call = client.newCall(request)
+            val requestState = DownloadRequestState()
+            val callClient =
+                client
+                    .newBuilder()
+                    .eventListener(DownloadRequestEventListener(requestState))
+                    .build()
+            val call = callClient.newCall(request)
             val cancellationHandle =
                 coroutineContext[Job]?.invokeOnCompletion { cause ->
                     if (cause is CancellationException) call.cancel()
                 }
             try {
-                val requestSent = true
                 call.execute().use { response ->
                     val code = response.code
                     when {
@@ -160,7 +168,7 @@ internal class DownloadHttpEngine(
                                     marker =
                                         requestMarker(
                                             url,
-                                            requestSent,
+                                            requestState.requestSent,
                                             "SUCCESS",
                                         ),
                                 )
@@ -250,7 +258,12 @@ internal class DownloadHttpEngine(
                             downloadedBytes = downloaded,
                             totalBytes = totalBytes,
                             validator = validatorHeader,
-                            marker = requestMarker(url, requestSent, "SUCCESS"),
+                            marker =
+                                requestMarker(
+                                    url,
+                                    requestState.requestSent,
+                                    "SUCCESS",
+                                ),
                         )
                     }
                 }
@@ -260,7 +273,7 @@ internal class DownloadHttpEngine(
                 throw http.withMarker(
                     requestMarker(
                         url = url,
-                        requestSent = true,
+                        requestSent = requestState.requestSent,
                         status = "FAILED",
                         failureReason = http.reason,
                     )
@@ -273,7 +286,7 @@ internal class DownloadHttpEngine(
                     reason,
                     io.message,
                     io,
-                    requestMarker(url, true, "FAILED", reason),
+                    requestMarker(url, requestState.requestSent, "FAILED", reason),
                 )
             }
         }
@@ -354,6 +367,34 @@ internal class DownloadHttpEngine(
                 failureReason = failureReason,
             )
         }
+    }
+}
+
+/** 网络层真正开始写请求头后才算 requestSent；DNS / TCP / TLS 失败不会触发。 */
+private class DownloadRequestState {
+    private val headersStarted = AtomicBoolean(false)
+    private val headersEnded = AtomicBoolean(false)
+
+    val requestSent: Boolean
+        get() = headersStarted.get() || headersEnded.get()
+
+    fun markHeadersStarted() {
+        headersStarted.set(true)
+    }
+
+    fun markHeadersEnded() {
+        headersEnded.set(true)
+    }
+}
+
+private class DownloadRequestEventListener(private val state: DownloadRequestState) :
+    EventListener() {
+    override fun requestHeadersStart(call: Call) {
+        state.markHeadersStarted()
+    }
+
+    override fun requestHeadersEnd(call: Call, request: Request) {
+        state.markHeadersEnded()
     }
 }
 

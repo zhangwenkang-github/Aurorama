@@ -54,6 +54,25 @@ class OriginScopedDownloadSourceTest {
     }
 
     @Test
+    fun `FILE stream URL 对 mediaSourceId 特殊字符编码`() {
+        val itemId = UUID.fromString("11111111-2222-3333-4444-555555555555")
+        val source =
+            mediaSource(
+                protocol = MediaProtocol.FILE,
+                id = "source id/part?x",
+                path = "/srv/jellyfin/movie.mkv",
+            )
+
+        val mapped = source.toFindroidSource(baseUrl = "https://origin.example", itemId = itemId)
+
+        assertEquals(
+            "https://origin.example/Videos/$itemId/stream" +
+                "?static=true&mediaSourceId=source%20id%2Fpart%3Fx",
+            mapped.path,
+        )
+    }
+
+    @Test
     fun `HTTP 相对 path 绝对化到冻结 origin`() {
         val source =
             mediaSource(protocol = MediaProtocol.HTTP, path = "media/library/movie.mkv?x=1")

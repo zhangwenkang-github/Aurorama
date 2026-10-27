@@ -20,6 +20,14 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
 
+internal fun configureDownloadHttpClient(builder: OkHttpClient.Builder): OkHttpClient.Builder =
+    builder
+        .addNetworkInterceptor(DownloadRedirectTokenInterceptor())
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DownloaderModule {
@@ -32,13 +40,7 @@ object DownloaderModule {
     @Provides
     fun provideDownloadHttpClient(application: Application): OkHttpClient =
         buildCertificateAwareOkHttpClient(
-            OkHttpClient.Builder()
-                .addInterceptor(DownloadRedirectTokenInterceptor())
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .retryOnConnectionFailure(true)
-                .build(),
+            configureDownloadHttpClient(OkHttpClient.Builder()).build(),
             SharedPreferencesCertificateTrustStore(application),
         )
 
