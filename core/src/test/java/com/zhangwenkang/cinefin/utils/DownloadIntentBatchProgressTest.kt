@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.utils
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -128,6 +129,20 @@ class DownloadIntentBatchProgressTest {
         )
         assertEquals(1, outcomes.await().count { it is DownloadIntentResolutionOutcome.Resolved })
     }
+
+    @Test
+    fun `processor pass rethrows cancellation instead of treating it as retryable failure`() =
+        runBlocking {
+            val captured = runCatching {
+                runIntentProcessorPass(block = { throw CancellationException("shutdown") })
+            }
+                .exceptionOrNull()
+
+            assertTrue(
+                "CancellationException 必须穿透 processor pass，实际=$captured",
+                captured is CancellationException,
+            )
+        }
 }
 
 internal object ImmediateDownloadIntentDeadlineScheduler : DownloadIntentDeadlineScheduler {

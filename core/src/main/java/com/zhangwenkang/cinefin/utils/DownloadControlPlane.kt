@@ -6,6 +6,9 @@ import kotlinx.coroutines.sync.withLock
 
 /** W84：对用户可见的下载阶段。底层任务状态仍由 [DownloadTaskStatus] 负责持久化与调度。 */
 enum class DownloadTaskPhase {
+    QUEUED,
+    RESOLVING,
+    SOURCE_PENDING,
     PREPARING,
     CONNECTING,
     DOWNLOADING,
@@ -132,6 +135,7 @@ object DownloadControlPlaneRules {
         failureReason: DownloadFailureReason?,
         nextRetryAt: Long,
         nowMs: Long,
+        intentPhase: DownloadIntentPhase? = null,
     ): DownloadTaskPhase =
         when (status) {
             DownloadTaskStatus.COMPLETED -> DownloadTaskPhase.COMPLETED
@@ -139,10 +143,13 @@ object DownloadControlPlaneRules {
             DownloadTaskStatus.PAUSED -> DownloadTaskPhase.PAUSED
             DownloadTaskStatus.DELETING -> DownloadTaskPhase.DELETING
             DownloadTaskStatus.PENDING ->
-                if (failureReason != null || nextRetryAt > nowMs) {
-                    DownloadTaskPhase.WAITING_RETRY
-                } else {
-                    DownloadTaskPhase.PREPARING
+                when {
+                    intentPhase == DownloadIntentPhase.QUEUED -> DownloadTaskPhase.QUEUED
+                    intentPhase == DownloadIntentPhase.RESOLVING -> DownloadTaskPhase.RESOLVING
+                    intentPhase == DownloadIntentPhase.SOURCE_PENDING ->
+                        DownloadTaskPhase.SOURCE_PENDING
+                    failureReason != null || nextRetryAt > nowMs -> DownloadTaskPhase.WAITING_RETRY
+                    else -> DownloadTaskPhase.PREPARING
                 }
             DownloadTaskStatus.RUNNING ->
                 when {
@@ -161,6 +168,7 @@ object DownloadControlPlaneRules {
                 failureReason = task.failureReason,
                 nextRetryAt = task.nextRetryAt,
                 nowMs = nowMs,
+                intentPhase = task.intentPhase,
             )
         if (
             currentPhase != DownloadTaskPhase.WAITING_RETRY &&

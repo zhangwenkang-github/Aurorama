@@ -964,8 +964,10 @@ private constructor(
             try {
                 do {
                     intentProcessorRequested.set(false)
-                    runCatching { processReceivedIntents() }
-                        .onFailure { Timber.w(it, "处理已受理下载意图失败") }
+                    runIntentProcessorPass(
+                        block = { processReceivedIntents() },
+                        onFailure = { Timber.w(it, "处理已受理下载意图失败") },
+                    )
                 } while (intentProcessorRequested.get())
             } finally {
                 intentProcessorRunning.set(false)
@@ -998,7 +1000,12 @@ private constructor(
                     return
                 }
             }
-        val pendingRecords = records.filter {
+        val roomIntents =
+            withContext(intentResolutionDispatcher) {
+                database.getDownloadIntents().associateBy(DownloadIntentDto::itemId)
+            }
+        val recoveredRecords = reconcileResolvingIntentCrashWindows(records, roomIntents)
+        val pendingRecords = recoveredRecords.filter {
             it.kind == DownloadMediaKind.MUSIC &&
                 it.sourceId.isNullOrBlank() &&
                 it.itemId.toUuidOrNull() != null
@@ -1012,10 +1019,6 @@ private constructor(
                 database.getReceivedDownloadIntents().filterNot {
                     it.itemId.toString() in resolvablePendingItemIds
                 }
-            }
-        val roomIntents =
-            withContext(intentResolutionDispatcher) {
-                database.getDownloadIntents().associateBy(DownloadIntentDto::itemId)
             }
         val pendingRecordsByItemId = resolvablePendingRecords.groupBy(DownloadMediaRecord::itemId)
         val work =
@@ -1127,6 +1130,141 @@ private constructor(
         if (processedCount.get() > 0) {
             notifyQueueChanged()
             Timber.i("已受理下载意图后台解析完成：%d 项", processedCount.get())
+        }
+    }
+
+    /**
+     * 修复 sidecar 已冻结、source 是否已落库而 Room 仍停在 RESOLVING 的非事务窗口。
+     *
+     * item mutation lock 会等待正在提交的 resolver；拿到后重新读取四项事实，避免把活跃解析误判为崩溃。 本函数只允许 item lock，绝不在锁内获取
+     * source-operation，以维持全文件统一锁序。
+     */
+    private suspend fun reconcileResolvingIntentCrashWindows(
+        records: List<DownloadMediaRecord>,
+        intents: Map<UUID, DownloadIntentDto>,
+    ): List<DownloadMediaRecord> {
+        fun recordsFor(itemId: UUID): List<DownloadMediaRecord> = records.filter {
+            it.kind == DownloadMediaKind.MUSIC && it.itemId == itemId.toString()
+        }
+
+        val candidates =
+            intents.values.filter { intent ->
+                intent.status == DownloadIntentStatus.RESOLVING.name &&
+                    recordsFor(intent.itemId).none { it.sourceId.isNullOrBlank() } &&
+                    recordsFor(intent.itemId).any { !it.sourceId.isNullOrBlank() }
+            }
+        if (candidates.isEmpty()) return records
+
+        var changed = false
+        withContext(intentResolutionDispatcher) {
+            candidates.forEach { candidate ->
+                itemMutationLock(candidate.itemId).withLock {
+                    val current = database.getDownloadIntent(candidate.itemId)
+                    if (
+                        current?.taskGeneration != candidate.taskGeneration ||
+                            current.status != DownloadIntentStatus.RESOLVING.name
+                    ) {
+                        return@withLock
+                    }
+                    val latestRecords =
+                        when (val snapshot = sidecar.allRecords()) {
+                            DownloadMediaReadResult.Missing -> return@withLock
+                            is DownloadMediaReadResult.Complete -> snapshot.records
+                            is DownloadMediaReadResult.Unreadable ->
+                                throw IllegalStateException(
+                                    "下载意图 reconciliation 时 sidecar 不可读",
+                                    snapshot.error,
+                                )
+                            is DownloadMediaReadResult.Corrupt ->
+                                error(
+                                    "下载意图 reconciliation 时 sidecar 损坏：" +
+                                        snapshot.invalidLineNumbers.joinToString()
+                                )
+                        }
+                    val latestForItem = latestRecords.filter {
+                        it.kind == DownloadMediaKind.MUSIC &&
+                            it.itemId == candidate.itemId.toString()
+                    }
+                    if (latestForItem.any { it.sourceId.isNullOrBlank() }) return@withLock
+                    val resolved =
+                        latestForItem
+                            .filter { !it.sourceId.isNullOrBlank() }
+                            .distinctBy { it.canonicalIdentity() }
+                    if (resolved.size != 1) {
+                        if (
+                            database.failDownloadIntentResolutionIfCurrent(
+                                itemId = candidate.itemId,
+                                taskGeneration = candidate.taskGeneration,
+                                failureReason = DownloadFailureReason.SERVER_ERROR.name,
+                                failureDetail = INTENT_RECONCILIATION_FAILED,
+                                updatedAt = System.currentTimeMillis(),
+                            ) > 0
+                        ) {
+                            changed = true
+                        }
+                        return@withLock
+                    }
+
+                    val resolvedRecord = resolved.single()
+                    val sourceId = checkNotNull(resolvedRecord.sourceId)
+                    val matchingSources =
+                        database.getSources(candidate.itemId).filter { it.id == sourceId }
+                    if (matchingSources.size == 1) {
+                        if (
+                            database.markDownloadIntentSourceCreatedIfCurrent(
+                                itemId = candidate.itemId,
+                                taskGeneration = candidate.taskGeneration,
+                                updatedAt = System.currentTimeMillis(),
+                            ) > 0
+                        ) {
+                            changed = true
+                        }
+                        return@withLock
+                    }
+
+                    val repaired =
+                        sidecar.replaceResolvedWithPending(
+                            pending = resolvedRecord.copy(sourceId = null),
+                            failedSourceId = sourceId,
+                        )
+                    if (!repaired) {
+                        if (
+                            database.failDownloadIntentResolutionIfCurrent(
+                                itemId = candidate.itemId,
+                                taskGeneration = candidate.taskGeneration,
+                                failureReason = DownloadFailureReason.SERVER_ERROR.name,
+                                failureDetail = INTENT_RECONCILIATION_FAILED,
+                                updatedAt = System.currentTimeMillis(),
+                            ) > 0
+                        ) {
+                            changed = true
+                        }
+                        return@withLock
+                    }
+                    check(
+                        database.requeueDownloadIntentResolutionIfCurrent(
+                            itemId = candidate.itemId,
+                            taskGeneration = candidate.taskGeneration,
+                            updatedAt = System.currentTimeMillis(),
+                        ) > 0
+                    ) {
+                        "下载意图已修复 sidecar 但无法 CAS 回 RECEIVED：${candidate.itemId}"
+                    }
+                    changed = true
+                }
+            }
+        }
+        if (!changed) return records
+        notifyQueueChanged()
+        return when (val snapshot = sidecar.allRecords()) {
+            DownloadMediaReadResult.Missing -> emptyList()
+            is DownloadMediaReadResult.Complete -> snapshot.records
+            is DownloadMediaReadResult.Unreadable ->
+                throw IllegalStateException("下载意图 reconciliation 后 sidecar 不可读", snapshot.error)
+            is DownloadMediaReadResult.Corrupt ->
+                error(
+                    "下载意图 reconciliation 后 sidecar 损坏：" + snapshot.invalidLineNumbers.joinToString()
+                )
         }
     }
 
@@ -2572,18 +2710,18 @@ private constructor(
         expectedGeneration: Long,
     ): Boolean =
         withContext(Dispatchers.IO) {
-            itemMutationLock(itemId).withLock {
-                val cancelled =
+            val cancelled =
+                itemMutationLock(itemId).withLock {
                     intentMutations.cancel(
                         itemId,
                         expectedGeneration,
                         System.currentTimeMillis(),
-                    ) ?: return@withLock false
-                notifyQueueChanged()
-                // 解析协程可能已越过首个代次检查；对它已落的 source 再执行同一取消语义。
-                database.getSources(itemId).forEach { source -> cancelTaskById(source.id) }
-                cancelled.status == "FAILED"
-            }
+                    )
+                } ?: return@withContext false
+            notifyQueueChanged()
+            // source-operation 必须在 item lock 外获取；CAS 已推进代次，迟到 resolver 不能再插 source。
+            database.getSources(itemId).forEach { source -> cancelTaskById(source.id) }
+            cancelled.status == "FAILED"
         }
 
     private suspend fun cancelTaskAtGeneration(
@@ -2631,53 +2769,53 @@ private constructor(
         expectedGeneration: Long,
     ): Boolean =
         withContext(Dispatchers.IO) {
-            itemMutationLock(itemId).withLock {
-                val cancelled =
+            val cancelled =
+                itemMutationLock(itemId).withLock {
                     intentMutations.delete(
                         itemId,
                         expectedGeneration,
                         System.currentTimeMillis(),
-                    ) ?: return@withLock false
-                try {
-                    val sourceIds = database.getSources(itemId).map { it.id }
-                    val result =
-                        DownloadIntentDeletionRules.deleteAllOrReport(
-                            sourceIds = sourceIds,
-                            deleteSource = { childSourceId -> deleteTaskById(childSourceId) },
-                            deleteIntent = {
-                                val pendingIdentities =
-                                    sidecar
-                                        .allRecords()
-                                        .requireComplete()
-                                        .filter {
-                                            it.kind == DownloadMediaKind.MUSIC &&
-                                                it.itemId == itemId.toString() &&
-                                                it.sourceId.isNullOrBlank()
-                                        }
-                                        .map { it.canonicalIdentity() }
-                                        .distinct()
-                                var removalsConfirmed = true
-                                pendingIdentities.forEach { identity ->
-                                    if (!sidecar.remove(identity)) {
-                                        removalsConfirmed = false
+                    )
+                } ?: return@withContext false
+            try {
+                val sourceIds = database.getSources(itemId).map { it.id }
+                val result =
+                    DownloadIntentDeletionRules.deleteAllOrReport(
+                        sourceIds = sourceIds,
+                        deleteSource = { childSourceId -> deleteTaskById(childSourceId) },
+                        deleteIntent = {
+                            val pendingIdentities =
+                                sidecar
+                                    .allRecords()
+                                    .requireComplete()
+                                    .filter {
+                                        it.kind == DownloadMediaKind.MUSIC &&
+                                            it.itemId == itemId.toString() &&
+                                            it.sourceId.isNullOrBlank()
                                     }
+                                    .map { it.canonicalIdentity() }
+                                    .distinct()
+                            var removalsConfirmed = true
+                            pendingIdentities.forEach { identity ->
+                                if (!sidecar.remove(identity)) {
+                                    removalsConfirmed = false
                                 }
-                                val identitiesAbsent =
-                                    sidecar.allRecords().requireComplete().none {
-                                        it.canonicalIdentity() in pendingIdentities
-                                    }
-                                removalsConfirmed &&
-                                    identitiesAbsent &&
-                                    (database.deleteDownloadIntentIfCurrent(
-                                        itemId = itemId,
-                                        taskGeneration = cancelled.taskGeneration,
-                                    ) > 0 || database.getDownloadIntent(itemId) == null)
-                            },
-                        )
-                    result.confirmed
-                } finally {
-                    notifyQueueChanged()
-                }
+                            }
+                            val identitiesAbsent =
+                                sidecar.allRecords().requireComplete().none {
+                                    it.canonicalIdentity() in pendingIdentities
+                                }
+                            removalsConfirmed &&
+                                identitiesAbsent &&
+                                (database.deleteDownloadIntentIfCurrent(
+                                    itemId = itemId,
+                                    taskGeneration = cancelled.taskGeneration,
+                                ) > 0 || database.getDownloadIntent(itemId) == null)
+                        },
+                    )
+                result.confirmed
+            } finally {
+                notifyQueueChanged()
             }
         }
 
@@ -3389,6 +3527,15 @@ private constructor(
                             taskGeneration = intent.taskGeneration,
                             serverId = pendingRecord?.serverId,
                             userId = pendingRecord?.userId,
+                            intentPhase =
+                                when (intent.status) {
+                                    DownloadIntentStatus.RECEIVED.name -> DownloadIntentPhase.QUEUED
+                                    DownloadIntentStatus.RESOLVING.name ->
+                                        DownloadIntentPhase.RESOLVING
+                                    DownloadIntentStatus.SOURCE_CREATED.name ->
+                                        DownloadIntentPhase.SOURCE_PENDING
+                                    else -> null
+                                },
                         )
                     }
                     .toList()
@@ -3515,7 +3662,12 @@ private constructor(
                 }
                 ensureEngineRunning(forceStart = true)
             }
-            val hasLegacyReceivedIntent = database.getReceivedDownloadIntents().isNotEmpty()
+            val hasIntentRecovery =
+                database.getDownloadIntents().any {
+                    it.status == DownloadIntentStatus.RECEIVED.name ||
+                        it.status == DownloadIntentStatus.RESOLVING.name ||
+                        it.status == DownloadIntentStatus.SOURCE_CREATED.name
+                }
             val hasSidecarIntent =
                 when (val snapshot = sidecar.allRecords()) {
                     DownloadMediaReadResult.Missing -> false
@@ -3528,7 +3680,7 @@ private constructor(
                     is DownloadMediaReadResult.Unreadable -> true
                     is DownloadMediaReadResult.Corrupt -> true
                 }
-            if (hasLegacyReceivedIntent || hasSidecarIntent) {
+            if (hasIntentRecovery || hasSidecarIntent) {
                 launchReceivedIntentProcessor()
             }
             recovered
@@ -4550,6 +4702,7 @@ private constructor(
         const val DEFAULT_INTENT_RESOLUTION_TIMEOUT_MS = 15_000L
 
         const val LEGACY_PROVENANCE_UNAVAILABLE = "下载来源不可证明，请重新下载"
+        const val INTENT_RECONCILIATION_FAILED = "下载来源恢复失败，请重试"
     }
 }
 

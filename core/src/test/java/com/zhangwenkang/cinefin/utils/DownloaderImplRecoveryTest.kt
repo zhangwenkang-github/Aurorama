@@ -4079,7 +4079,7 @@ class DownloaderImplRecoveryTest {
         val imageAttempts: Int,
     )
 
-    private data class EffectArtifacts(
+    internal data class EffectArtifacts(
         val movieIds: List<UUID>,
         val internalMediaStreams: List<Pair<UUID, String>>,
         val externalMediaStreams: List<Pair<UUID, String>>,
@@ -4189,7 +4189,7 @@ class DownloaderImplRecoveryTest {
         )
     }
 
-    private class Fixture(
+    internal class Fixture(
         private val resolutionDispatcher: CoroutineDispatcher = Dispatchers.IO,
         private val resolutionDeadlineScheduler: DownloadIntentDeadlineScheduler =
             CoroutineDownloadIntentDeadlineScheduler,
@@ -4377,6 +4377,106 @@ class DownloaderImplRecoveryTest {
 
         fun seedPendingSource(itemId: UUID, sourceId: String): FindroidSourceDto =
             sourceDto(itemId = itemId, sourceId = sourceId, index = 0).also(dao::putSource)
+
+        fun seedReceivedIntentWithPendingSidecar(
+            itemId: UUID,
+            sourceId: String,
+            name: String,
+        ): DownloadIntentDto {
+            val intent =
+                DownloadIntentDto(
+                    itemId = itemId,
+                    name = name,
+                    albumName = "Recovery",
+                    artist = "Locks",
+                    trackIndex = 0,
+                    status = DownloadIntentStatus.RECEIVED.name,
+                    createdAt = 1L,
+                    updatedAt = 1L,
+                    taskGeneration = 4L,
+                )
+            dao.putDownloadIntent(intent)
+            assertTrue(
+                putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = null,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    displayName = name,
+                )
+            )
+            return intent
+        }
+
+        fun seedResolvingIntentWithResolvedSidecar(
+            itemId: UUID,
+            sourceId: String,
+            name: String,
+            sourceExists: Boolean,
+        ): DownloadIntentDto {
+            val intent =
+                DownloadIntentDto(
+                    itemId = itemId,
+                    name = name,
+                    albumName = "Recovery",
+                    artist = "Crash",
+                    trackIndex = 0,
+                    status = DownloadIntentStatus.RESOLVING.name,
+                    createdAt = 1L,
+                    updatedAt = 1L,
+                    taskGeneration = 4L,
+                )
+            dao.putDownloadIntent(intent)
+            assertTrue(
+                putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = sourceId,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    displayName = name,
+                )
+            )
+            if (sourceExists) {
+                seedPendingSource(itemId, sourceId)
+            }
+            return intent
+        }
+
+        fun armIntentSourceReadGate(sourceId: String) {
+            dao.armIntentSourceReadGate(sourceId)
+        }
+
+        fun observeIntentSourceRead(sourceId: String) {
+            dao.observeIntentSourceRead(sourceId)
+        }
+
+        suspend fun awaitIntentSourceRead() {
+            withTimeout(5_000L) { dao.awaitIntentSourceRead() }
+        }
+
+        fun releaseIntentSourceRead() {
+            dao.releaseIntentSourceRead()
+        }
+
+        fun armIntentDeletionGate() {
+            dao.armIntentDeletionGate()
+        }
+
+        suspend fun awaitIntentDeletion() {
+            withTimeout(5_000L) { dao.awaitIntentDeletion() }
+        }
+
+        fun releaseIntentDeletion() {
+            dao.releaseIntentDeletion()
+        }
+
+        fun intent(itemId: UUID): DownloadIntentDto? = dao.downloadIntent(itemId)
+
+        fun sourceInsertCount(sourceId: String): Int = dao.sourceInsertCount(sourceId)
+
+        fun sourceIdsSnapshot(): List<String> = dao.sourceIds()
+
+        fun lastIntentDeletionGeneration(): Long? = dao.lastIntentDeletionGeneration
 
         fun prepareMusicOrigin(
             itemId: UUID,
@@ -4900,14 +5000,14 @@ class DownloaderImplRecoveryTest {
         }
     }
 
-    private data class SeededSource(
+    internal data class SeededSource(
         val itemId: UUID,
         val source: FindroidSourceDto,
     )
 
-    private data class LegacyTargetEvidence(val legacyFinal: File, val legacyWitness: File)
+    internal data class LegacyTargetEvidence(val legacyFinal: File, val legacyWitness: File)
 
-    private class RecordingDao {
+    internal class RecordingDao {
         private val sources = linkedMapOf<String, FindroidSourceDto>()
         private val deleteBatches = linkedMapOf<String, DownloadDeleteBatchDto>()
         private val deleteReceipts = linkedMapOf<Pair<String, String>, DownloadDeleteReceiptDto>()
@@ -4935,6 +5035,14 @@ class DownloaderImplRecoveryTest {
         var sourceReadStarted = CompletableDeferred<Unit>()
         var releaseSourceRead = CompletableDeferred<Unit>()
         private var blockSourceRead = false
+        private var observedIntentSourceReadId: String? = null
+        private var intentSourceReadStarted = CompletableDeferred<Unit>()
+        private var releaseIntentSourceRead = CompletableDeferred<Unit>()
+        private var blockIntentSourceRead = false
+        var intentDeletionStarted = CompletableDeferred<Unit>()
+        var releaseIntentDeletion = CompletableDeferred<Unit>()
+        private var blockIntentDeletion = false
+        var lastIntentDeletionGeneration: Long? = null
         var pendingSourcesSnapshotStarted = CompletableDeferred<Unit>()
         var releasePendingSourcesSnapshot = CompletableDeferred<Unit>()
         private var blockPendingSourcesSnapshot = false
@@ -5021,12 +5129,22 @@ class DownloaderImplRecoveryTest {
                         }
                         "getAllSources" -> sources.values.toList()
                         "getSource" -> {
+                            val sourceId = args[0] as String
+                            if (sourceId == observedIntentSourceReadId) {
+                                if (!intentSourceReadStarted.isCompleted) {
+                                    intentSourceReadStarted.complete(Unit)
+                                }
+                                if (blockIntentSourceRead) {
+                                    blockIntentSourceRead = false
+                                    runBlocking { releaseIntentSourceRead.await() }
+                                }
+                            }
                             if (blockSourceRead) {
                                 blockSourceRead = false
                                 sourceReadStarted.complete(Unit)
                                 runBlocking { releaseSourceRead.await() }
                             }
-                            sources[args[0] as String]
+                            sources[sourceId]
                         }
                         "insertSource" -> {
                             sourceInsertAttempts += 1
@@ -5280,6 +5398,11 @@ class DownloaderImplRecoveryTest {
                         "getDownloadIntents" -> downloadIntents.values.toList()
                         "getDownloadIntent" -> downloadIntents[args[0] as UUID]
                         "beginDownloadIntentDeletion" -> {
+                            if (blockIntentDeletion) {
+                                blockIntentDeletion = false
+                                intentDeletionStarted.complete(Unit)
+                                runBlocking { releaseIntentDeletion.await() }
+                            }
                             val itemId = args[0] as UUID
                             val generation = args[1] as Long
                             val current = downloadIntents[itemId]
@@ -5288,6 +5411,8 @@ class DownloaderImplRecoveryTest {
                                     current.status in
                                         setOf(
                                             DownloadIntentStatus.RECEIVED.name,
+                                            DownloadIntentStatus.RESOLVING.name,
+                                            DownloadIntentStatus.SOURCE_CREATED.name,
                                             DownloadIntentStatus.FAILED.name,
                                         )
                             ) {
@@ -5299,7 +5424,10 @@ class DownloaderImplRecoveryTest {
                                         taskGeneration = generation + 1,
                                         updatedAt = args[2] as Long,
                                     )
-                                    .also { downloadIntents[itemId] = it }
+                                    .also {
+                                        downloadIntents[itemId] = it
+                                        lastIntentDeletionGeneration = it.taskGeneration
+                                    }
                             } else {
                                 null
                             }
@@ -5314,6 +5442,7 @@ class DownloaderImplRecoveryTest {
                                         setOf(
                                             DownloadIntentStatus.RECEIVED.name,
                                             DownloadIntentStatus.RESOLVING.name,
+                                            DownloadIntentStatus.SOURCE_CREATED.name,
                                         )
                             ) {
                                 val cancelled =
@@ -5516,6 +5645,29 @@ class DownloaderImplRecoveryTest {
                                 0
                             }
                         }
+                        "requeueDownloadIntentResolutionIfCurrent" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == generation &&
+                                    current.status == DownloadIntentStatus.RESOLVING.name
+                            ) {
+                                val requeued =
+                                    current.copy(
+                                        status = DownloadIntentStatus.RECEIVED.name,
+                                        failureReason = null,
+                                        failureDetail = null,
+                                        updatedAt = args[2] as Long,
+                                    )
+                                downloadIntents[itemId] = requeued
+                                intentStatusEvents +=
+                                    "${requeued.status}:$itemId:${requeued.taskGeneration}"
+                                1
+                            } else {
+                                0
+                            }
+                        }
                         "getSourceItemIds" -> {
                             @Suppress("UNCHECKED_CAST") val itemIds = args[0] as Set<UUID>
                             sources.values.mapNotNull { it.itemId.takeIf(itemIds::contains) }
@@ -5623,6 +5775,44 @@ class DownloaderImplRecoveryTest {
 
         fun putDownloadIntent(intent: DownloadIntentDto) {
             downloadIntents[intent.itemId] = intent
+        }
+
+        fun observeIntentSourceRead(sourceId: String) {
+            observedIntentSourceReadId = sourceId
+            intentSourceReadStarted = CompletableDeferred()
+            releaseIntentSourceRead = CompletableDeferred()
+            blockIntentSourceRead = false
+        }
+
+        fun armIntentSourceReadGate(sourceId: String) {
+            observeIntentSourceRead(sourceId)
+            blockIntentSourceRead = true
+        }
+
+        suspend fun awaitIntentSourceRead() {
+            intentSourceReadStarted.await()
+        }
+
+        fun releaseIntentSourceRead() {
+            if (!releaseIntentSourceRead.isCompleted) {
+                releaseIntentSourceRead.complete(Unit)
+            }
+        }
+
+        fun armIntentDeletionGate() {
+            intentDeletionStarted = CompletableDeferred()
+            releaseIntentDeletion = CompletableDeferred()
+            blockIntentDeletion = true
+        }
+
+        suspend fun awaitIntentDeletion() {
+            intentDeletionStarted.await()
+        }
+
+        fun releaseIntentDeletion() {
+            if (!releaseIntentDeletion.isCompleted) {
+                releaseIntentDeletion.complete(Unit)
+            }
         }
 
         fun seedDownloadIntent(itemId: UUID, status: String = "RECEIVED"): DownloadIntentDto {
@@ -5816,7 +6006,7 @@ class DownloaderImplRecoveryTest {
         }
     }
 
-    private class RecordingRepository {
+    internal class RecordingRepository {
         private data class ItemLookupGate(
             val started: CompletableDeferred<Unit>,
             val release: CompletableDeferred<Unit>,
@@ -6220,7 +6410,7 @@ class DownloaderImplRecoveryTest {
             ) as JellyfinRepository
     }
 
-    private class RecordingTransfer : DownloadTransfer {
+    internal class RecordingTransfer : DownloadTransfer {
         var externalDownloads = 0
         var sourceIdForPath: (String) -> String? = { null }
         private val started = CopyOnWriteArrayList<String>()
@@ -6273,7 +6463,7 @@ class DownloaderImplRecoveryTest {
         }
     }
 
-    private class RecordingWorkGateway : DownloadWorkGateway {
+    internal class RecordingWorkGateway : DownloadWorkGateway {
         val enqueuedNames = mutableListOf<String>()
         val cancelledNames = mutableListOf<String>()
         val uniqueRequests = mutableListOf<Triple<String, ExistingWorkPolicy, OneTimeWorkRequest>>()
@@ -6298,7 +6488,7 @@ class DownloaderImplRecoveryTest {
         }
     }
 
-    private class RecordingImageScheduler : DownloadImageFinalizationScheduler {
+    internal class RecordingImageScheduler : DownloadImageFinalizationScheduler {
         var attempts = 0
         val requests = mutableListOf<Pair<String, Long>>()
         val parentItemIds = mutableListOf<UUID>()
@@ -6355,7 +6545,7 @@ class DownloaderImplRecoveryTest {
         override fun notifyFailed(task: DownloadTask) = Unit
     }
 
-    private class FakePreferences : SharedPreferences {
+    internal class FakePreferences : SharedPreferences {
         var currentServer = SERVER_ID
         var currentServerReads = 0
         private val values = linkedMapOf<String, Any?>()

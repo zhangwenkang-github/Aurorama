@@ -135,6 +135,74 @@ class DownloadIntentMutationsTest {
         assertEquals(1, fixture.services.networkCallbackRegistrationCount)
     }
 
+    @Test
+    fun `cancel matrix covers received resolving and source created with monotonic generation`() =
+        runBlocking {
+            listOf("RECEIVED", "RESOLVING", "SOURCE_CREATED").forEachIndexed { index, status ->
+                val generation = 10L + index
+                val fixture = Fixture(status = status, generation = generation)
+
+                val cancelled =
+                    fixture.downloader.cancelTask(
+                        DownloadTask(
+                            itemId = ITEM_ID,
+                            sourceId = intentSourceId(ITEM_ID),
+                            name = "Track",
+                            path = "",
+                            downloadId = null,
+                            status = DownloadTaskStatus.PENDING,
+                            failureReason = null,
+                            downloadedBytes = 0L,
+                            totalBytes = 0L,
+                            updatedAt = 0L,
+                            mediaKind = DownloadMediaKind.MUSIC,
+                            taskGeneration = generation,
+                        )
+                    )
+
+                assertTrue("$status cancel 必须成功：calls=${fixture.dao.calls}", cancelled)
+                assertEquals("FAILED", fixture.dao.intent?.status)
+                assertEquals("CANCELLED", fixture.dao.intent?.failureReason)
+                assertEquals(generation + 1L, fixture.dao.intent?.taskGeneration)
+                assertFalse(
+                    "cancel 后旧代迟到完成不得复活",
+                    fixture.dao.acceptLateSourceCreated(ITEM_ID, generation),
+                )
+                assertEquals("FAILED", fixture.dao.intent?.status)
+                assertEquals(generation + 1L, fixture.dao.intent?.taskGeneration)
+            }
+        }
+
+    @Test
+    fun `delete matrix covers received resolving and source created`() = runBlocking {
+        listOf("RECEIVED", "RESOLVING", "SOURCE_CREATED").forEachIndexed { index, status ->
+            val generation = 20L + index
+            val fixture = Fixture(status = status, generation = generation)
+
+            val result =
+                fixture.downloader.deleteDownloads(
+                    listOf(
+                        DownloadDeleteRequest(
+                            itemId = ITEM_ID,
+                            sourceId = intentSourceId(ITEM_ID),
+                            mediaKind = DownloadMediaKind.MUSIC,
+                            serverId = "server-a",
+                            userId = USER_ID.toString(),
+                        )
+                    )
+                )
+
+            assertEquals(
+                "$status delete 必须成功：calls=${fixture.dao.calls}, " +
+                    "detail=${result.receipts.single().detail}",
+                DownloadDeleteOutcome.SUCCEEDED,
+                result.receipts.single().outcome,
+            )
+            assertEquals(null, fixture.dao.intent)
+            assertEquals(generation + 1L, fixture.dao.lastDeleteExpectedGeneration)
+        }
+    }
+
     private class Fixture(status: String, generation: Long) {
         val dao = RecordingDao(status = status, generation = generation)
         val services = FakeDownloadSystemServices()
@@ -227,7 +295,7 @@ class DownloadIntentMutationsTest {
                 intent.takeIf {
                     it?.itemId == itemId &&
                         it.taskGeneration == expectedGeneration &&
-                        it.status == "RECEIVED"
+                        it.status in setOf("RECEIVED", "RESOLVING", "SOURCE_CREATED")
                 } ?: return null
             return current
                 .copy(
@@ -250,7 +318,7 @@ class DownloadIntentMutationsTest {
                 intent.takeIf {
                     it?.itemId == itemId &&
                         it.taskGeneration == expectedGeneration &&
-                        it.status in setOf("RECEIVED", "FAILED")
+                        it.status in setOf("RECEIVED", "RESOLVING", "SOURCE_CREATED", "FAILED")
                 } ?: return null
             return current
                 .copy(
@@ -267,7 +335,7 @@ class DownloadIntentMutationsTest {
             if (
                 intent?.itemId == itemId &&
                     intent?.taskGeneration == expectedGeneration &&
-                    intent?.status == "RECEIVED"
+                    intent?.status in setOf("RECEIVED", "RESOLVING", "SOURCE_CREATED")
             ) {
                 1
             } else {
@@ -278,7 +346,7 @@ class DownloadIntentMutationsTest {
             if (
                 intent?.itemId == itemId &&
                     intent?.taskGeneration == expectedGeneration &&
-                    intent?.status in setOf("RECEIVED", "FAILED")
+                    intent?.status in setOf("RECEIVED", "RESOLVING", "SOURCE_CREATED", "FAILED")
             ) {
                 intent = intent?.copy(status = "FAILED", updatedAt = updatedAt)
                 1
@@ -295,6 +363,14 @@ class DownloadIntentMutationsTest {
             } else {
                 0
             }
+        }
+
+        fun acceptLateSourceCreated(itemId: UUID, generation: Long): Boolean {
+            val current = intent ?: return false
+            if (current.itemId != itemId || current.taskGeneration != generation) return false
+            if (current.status != "RESOLVING") return false
+            intent = current.copy(status = "SOURCE_CREATED")
+            return true
         }
     }
 

@@ -120,6 +120,9 @@
     <string name="delete_download_message">您确定要从设备中删除此下载内容吗？</string>
     <string name="download_pending">正在等待…</string>
     <string name="download_preparing">正在准备下载</string>
+    <string name="download_intent_queued">已加入下载队列</string>
+    <string name="download_intent_resolving">正在解析媒体来源</string>
+    <string name="download_intent_source_pending">来源已就绪，正在启动下载</string>
     <string name="download_deleting">正在删除下载</string>
     <string name="download_connecting">正在连接服务器</string>
     <string name="download_verifying">正在校验文件</string>

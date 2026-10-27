@@ -120,6 +120,9 @@
     <string name="drawer_no_server">No server added</string>
     <string name="download_pending">Pending…</string>
     <string name="download_preparing">Preparing download</string>
+    <string name="download_intent_queued">Download queued</string>
+    <string name="download_intent_resolving">Resolving media source</string>
+    <string name="download_intent_source_pending">Source ready, starting download</string>
     <string name="download_deleting">Deleting download</string>
     <string name="download_connecting">Connecting to server</string>
     <string name="download_verifying">Verifying file</string>

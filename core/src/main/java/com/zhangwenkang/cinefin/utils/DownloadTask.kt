@@ -56,6 +56,8 @@ data class DownloadTask(
     /** W90-R2：删除 canonical identity 所需的持久来源段；旧记录为 null。 */
     val serverId: String? = null,
     val userId: String? = null,
+    /** 仅音乐 intent 行携带；普通 source task 保持 null，避免改变既有持久化状态。 */
+    val intentPhase: DownloadIntentPhase? = null,
 ) {
     val progress: Float
         get() =
@@ -76,6 +78,13 @@ enum class DownloadTaskStatus {
     COMPLETED,
     FAILED,
     DELETING,
+}
+
+/** 音乐接收意图在转成 source 前的可区分投影。 */
+enum class DownloadIntentPhase {
+    QUEUED,
+    RESOLVING,
+    SOURCE_PENDING,
 }
 
 /** 下载意图的幂等身份；同一逻辑键只有同 generation 的当前 attempt 可以落终态。 */
@@ -115,6 +124,20 @@ internal object CoroutineDownloadIntentDeadlineScheduler : DownloadIntentDeadlin
         timeoutMs: Long,
         block: suspend () -> T,
     ): T = withTimeout(timeoutMs) { block() }
+}
+
+/** processor 单轮异常边界：普通失败可记录并补跑，协程取消必须原样向上传播。 */
+internal suspend fun runIntentProcessorPass(
+    block: suspend () -> Unit,
+    onFailure: (Exception) -> Unit = {},
+) {
+    try {
+        block()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        onFailure(failure)
+    }
 }
 
 /**

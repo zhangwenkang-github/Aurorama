@@ -155,6 +155,36 @@ class DownloadControlPlaneRulesTest {
     }
 
     @Test
+    fun `persisted intent statuses produce queued resolving and source pending phases`() {
+        val phases =
+            listOf(
+                    DownloadIntentPhase.QUEUED,
+                    DownloadIntentPhase.RESOLVING,
+                    DownloadIntentPhase.SOURCE_PENDING,
+                )
+                .map { intentPhase ->
+                    DownloadControlPlaneRules.phase(
+                        status = DownloadTaskStatus.PENDING,
+                        downloadedBytes = 0L,
+                        totalBytes = 0L,
+                        failureReason = null,
+                        nextRetryAt = 0L,
+                        nowMs = 0L,
+                        intentPhase = intentPhase,
+                    )
+                }
+
+        assertEquals(
+            listOf(
+                DownloadTaskPhase.QUEUED,
+                DownloadTaskPhase.RESOLVING,
+                DownloadTaskPhase.SOURCE_PENDING,
+            ),
+            phases,
+        )
+    }
+
+    @Test
     fun `等待解释同时给出原因码与下次重试时间`() {
         val waiting =
             task(

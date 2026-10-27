@@ -287,6 +287,22 @@ interface ServerDatabaseDao {
         updatedAt: Long,
     ): Int
 
+    /** 崩溃点 1：sidecar 已冻结但 source 未落库时，把同代解析安全退回待处理。 */
+    @Query(
+        """
+        UPDATE downloadIntents
+        SET status = 'RECEIVED', failureReason = NULL, failureDetail = NULL,
+            updatedAt = :updatedAt
+        WHERE itemId = :itemId AND taskGeneration = :taskGeneration
+          AND status = 'RESOLVING'
+        """
+    )
+    suspend fun requeueDownloadIntentResolutionIfCurrent(
+        itemId: UUID,
+        taskGeneration: Long,
+        updatedAt: Long,
+    ): Int
+
     @Transaction
     suspend fun beginDownloadIntentCancellation(
         itemId: UUID,
@@ -322,7 +338,7 @@ interface ServerDatabaseDao {
         SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = NULL,
             taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
         WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
-          AND status IN ('RECEIVED', 'RESOLVING')
+          AND status IN ('RECEIVED', 'RESOLVING', 'SOURCE_CREATED')
         """
     )
     suspend fun cancelDownloadIntent(

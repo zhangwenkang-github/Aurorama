@@ -613,6 +613,7 @@ internal fun DownloadTopLevelRow(
                                         failureReason = it.failureReason,
                                         nextRetryAt = it.nextRetryAt,
                                         nowMs = System.currentTimeMillis(),
+                                        intentPhase = it.intentPhase,
                                     )
                                 },
                             // W80b（D3）：书籍下载失败带服务端原始原因（`BookDownloadTask.error`）。
@@ -1197,6 +1198,11 @@ private fun DownloadStatusBadge(
             // W60b：自动重试（等待下一次 / 正在重试）优先显示「重试中 · 第 N 次」。
             retrying && retryCount > 0 ->
                 stringResource(CoreR.string.download_retry_in_progress, retryCount)
+            phase == DownloadTaskPhase.QUEUED -> stringResource(CoreR.string.download_intent_queued)
+            phase == DownloadTaskPhase.RESOLVING ->
+                stringResource(CoreR.string.download_intent_resolving)
+            phase == DownloadTaskPhase.SOURCE_PENDING ->
+                stringResource(CoreR.string.download_intent_source_pending)
             phase == DownloadTaskPhase.PREPARING -> stringResource(CoreR.string.download_preparing)
             phase == DownloadTaskPhase.CONNECTING ->
                 stringResource(CoreR.string.download_connecting)
@@ -1247,6 +1253,14 @@ private fun DownloadStatusBadge(
         )
     }
 }
+
+internal fun downloadIntentPhaseLabel(phase: DownloadTaskPhase): Int? =
+    when (phase) {
+        DownloadTaskPhase.QUEUED -> CoreR.string.download_intent_queued
+        DownloadTaskPhase.RESOLVING -> CoreR.string.download_intent_resolving
+        DownloadTaskPhase.SOURCE_PENDING -> CoreR.string.download_intent_source_pending
+        else -> null
+    }
 
 /** W84：等待 / 失败原因与重试时间常显；技术字段按需展开。 */
 @Composable
