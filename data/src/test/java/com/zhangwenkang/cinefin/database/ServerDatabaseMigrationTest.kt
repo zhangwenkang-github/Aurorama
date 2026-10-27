@@ -53,6 +53,7 @@ class ServerDatabaseMigrationTest {
         val fixtureTableNames =
             listOf(
                 "servers",
+                "serverAddresses",
                 "users",
                 "sources",
                 "downloadIntents",
@@ -85,6 +86,12 @@ class ServerDatabaseMigrationTest {
                 """
                 INSERT INTO servers(id, name, currentServerAddressId, currentUserId)
                 VALUES ('server-a', 'Home', NULL, 'user-a')
+                """
+            )
+            statement.execute(
+                """
+                INSERT INTO serverAddresses(id, serverId, address)
+                VALUES ('address-a', 'server-a', 'https://jellyfin.example.test')
                 """
             )
             statement.execute(
@@ -163,7 +170,7 @@ class ServerDatabaseMigrationTest {
     }
 
     private fun Connection.assertMigratedRows() {
-        assertEquals(listOf(1, 1, 1, 1, 1, 1), tableCounts())
+        assertEquals(listOf(1, 1, 1, 1, 1, 1, 1), tableCounts())
         assertKeyValues(
             sql =
                 """
@@ -172,8 +179,17 @@ class ServerDatabaseMigrationTest {
             expected = listOf("Home", "user-a"),
         )
         assertKeyValues(
-            sql = "SELECT name, serverId FROM users WHERE id = 'user-a'",
-            expected = listOf("Reader", "server-a"),
+            sql =
+                """
+                SELECT id, serverId, address
+                FROM serverAddresses
+                WHERE serverId = 'server-a'
+                """,
+            expected = listOf("address-a", "server-a", "https://jellyfin.example.test"),
+        )
+        assertKeyValues(
+            sql = "SELECT name, serverId, accessToken FROM users WHERE id = 'user-a'",
+            expected = listOf("Reader", "server-a", "fixture-token"),
         )
         assertKeyValues(
             sql =
@@ -202,6 +218,15 @@ class ServerDatabaseMigrationTest {
         assertKeyValues(
             sql =
                 """
+                SELECT id, requestedCount, createdAt, completedAt
+                FROM downloadDeleteBatches
+                WHERE id = 'batch-a'
+                """,
+            expected = listOf("batch-a", 1L, 104L, null),
+        )
+        assertKeyValues(
+            sql =
+                """
                 SELECT canonicalKey, itemId, sourceId, outcome, detail, verifiedGeneration
                 FROM downloadDeleteReceipts
                 WHERE batchId = 'batch-a'
@@ -222,6 +247,7 @@ class ServerDatabaseMigrationTest {
     private fun Connection.tableCounts(): List<Int> =
         listOf(
                 "servers",
+                "serverAddresses",
                 "users",
                 "sources",
                 "downloadIntents",
