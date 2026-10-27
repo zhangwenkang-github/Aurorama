@@ -138,6 +138,8 @@ import com.zhangwenkang.cinefin.presentation.navigation.RAIL_ROW_HEIGHT_DP
 import com.zhangwenkang.cinefin.presentation.navigation.SidebarLocalLibrary
 import com.zhangwenkang.cinefin.presentation.navigation.TemporaryLibraryKind
 import com.zhangwenkang.cinefin.presentation.navigation.TopLevelTapAction
+import com.zhangwenkang.cinefin.presentation.navigation.VideoEntryPoint
+import com.zhangwenkang.cinefin.presentation.navigation.VideoLibrarySurface
 import com.zhangwenkang.cinefin.presentation.navigation.bottomNavKeys
 import com.zhangwenkang.cinefin.presentation.navigation.drawerLibraryLabelWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.drawerWidthDp
@@ -153,8 +155,10 @@ import com.zhangwenkang.cinefin.presentation.navigation.railExpandedWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.railGroupBreaks
 import com.zhangwenkang.cinefin.presentation.navigation.railLibraryLabelWidthDp
 import com.zhangwenkang.cinefin.presentation.navigation.railMediaSubGroupMaxRows
+import com.zhangwenkang.cinefin.presentation.navigation.resolveVideoLibrarySurface
 import com.zhangwenkang.cinefin.presentation.navigation.topLevelTapAction
 import com.zhangwenkang.cinefin.presentation.navigation.visibleRailKeys
+import com.zhangwenkang.cinefin.presentation.navigation.visibleServerLibraries
 import com.zhangwenkang.cinefin.presentation.offline.OfflineHomeScreen
 import com.zhangwenkang.cinefin.presentation.offline.OfflineLibraryScreen
 import com.zhangwenkang.cinefin.presentation.offline.OfflineModeViewModel
@@ -486,7 +490,9 @@ fun NavigationRoot(
         }
     }
 
-    val booksLibrary = drawerData.libraries.firstOrNull { it.type == CollectionType.Books }
+    // 离线首帧不能等待 drawerViewModel.load() 异步清空；服务器库在这里同步按来源过滤。
+    val navigationLibraries = visibleServerLibraries(drawerData.libraries, isOfflineMode)
+    val booksLibrary = navigationLibraries.firstOrNull { it.type == CollectionType.Books }
     val currentLibrary =
         if (currentDestination.isRoute<LibraryRoute>()) {
             runCatching { navBackStackEntry?.toRoute<LibraryRoute>() }.getOrNull()
@@ -650,6 +656,29 @@ fun NavigationRoot(
         // launchSingleTop：已在同一个本地库详情时再点（平板侧轨常显）不重复入栈。
         navController.safeNavigate(LocalLibraryRoute(library.id)) { launchSingleTop = true }
     }
+    // 离线视频唯一落点：底栏 Video（经 VideoRoute）、恢复的 VideoRoute 与临时视频库都复用 D21 目录。
+    val offlineVideoDirectory: @Composable () -> Unit = {
+        OfflineLibraryScreen(
+            onOpenDrawer = openDrawer,
+            onPlayVideo = { itemId, isEpisode ->
+                val intent = Intent(context, PlayerActivity::class.java)
+                intent.putExtra("itemId", itemId.toString())
+                intent.putExtra(
+                    "itemKind",
+                    if (isEpisode) BaseItemKind.EPISODE.serialName
+                    else BaseItemKind.MOVIE.serialName,
+                )
+                context.startActivity(intent)
+            },
+            onOpenBook = { itemId, title ->
+                openReader(context = context, itemId = itemId.toString(), title = title)
+            },
+            onOpenLocalLibrary = { libraryId ->
+                navController.safeNavigate(LocalLibraryRoute(libraryId))
+            },
+            onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
+        )
+    }
     // 临时库视图（W53 追加）：返回键 / 「返回默认 ×」= 回到该模式页的**默认库**（入口根页）——
     // 用「导航到默认入口 + popUpTo 临时条目 inclusive」替换当前条目，再按一次返回才会离开页面。
     val exitTemporaryLibrary: (Any) -> Unit = { defaultRoute ->
@@ -672,11 +701,11 @@ fun NavigationRoot(
     val navKeys =
         navEntryKeys(
             isAdministrator = drawerData.isAdministrator,
-            librariesLoaded = drawerData.libraries.isNotEmpty(),
+            librariesLoaded = navigationLibraries.isNotEmpty(),
             // W73 #16：与视频页 `pickVideoLibraries` 同口径（movies / tvshows / homevideos / 混合）。
-            hasVideoLibrary = pickVideoLibraries(drawerData.libraries).isNotEmpty(),
-            hasMusicLibrary = drawerData.libraries.any { it.type == CollectionType.Music },
-            hasBooksLibrary = drawerData.libraries.any { it.type == CollectionType.Books },
+            hasVideoLibrary = pickVideoLibraries(navigationLibraries).isNotEmpty(),
+            hasMusicLibrary = navigationLibraries.any { it.type == CollectionType.Music },
+            hasBooksLibrary = navigationLibraries.any { it.type == CollectionType.Books },
         )
     val consoleSpecByPath = consoleEntrySpecs(drawerData.isAdministrator).associateBy { it.path }
 
@@ -842,7 +871,7 @@ fun NavigationRoot(
     // W53B：子分组 = 服务器库（服务器返回）→「本地媒体库」标题 + 分隔 → 本地库行。本地库只读本机索引，
     // 离线模式下同样可展开（不再要求 `!isOfflineMode`）；两组都空时保持一级入口、无展开箭头。
     val hasMediaChildren =
-        drawerData.libraries.isNotEmpty() || drawerData.localLibraries.isNotEmpty()
+        navigationLibraries.isNotEmpty() || drawerData.localLibraries.isNotEmpty()
     val libraryChildrenVisible = mediaGroupExpanded && hasMediaChildren
     val drawerEntries: List<DrawerEntry> = railDestinations.flatMap { destination ->
         val topLevel =
@@ -904,7 +933,7 @@ fun NavigationRoot(
             listOf(parent)
         } else {
             listOf(parent) +
-                drawerData.libraries.map { library ->
+                navigationLibraries.map { library ->
                     DrawerEntry(
                         item =
                             CinefinNavItem(
@@ -1125,55 +1154,44 @@ fun NavigationRoot(
                 }
             }
             composable<VideoRoute> {
-                // 视频模式页（W53）：影视域页面走 Lumen 皮肤（D24），条目点击复用统一详情分发。
-                ProvideLumen {
-                    VideoScreen(
-                        onOpenDrawer = openDrawer,
-                        onItemClick = { item ->
-                            navigateToItem(
-                                navController = navController,
-                                item = item,
-                                context = context,
-                            )
-                        },
-                        // D-F7：顶栏「库选择」选中具体库 → 直达该库内容
-                        // （与侧栏 / 媒体页同一条 libraryEntryRoute 落点链路）。
-                        onOpenLibrary = { library ->
-                            navigateToItem(
-                                navController = navController,
-                                item = library,
-                                context = context,
-                            )
-                        },
-                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                        onSearchClick = openVideoSearch,
+                when (
+                    resolveVideoLibrarySurface(
+                        VideoEntryPoint.VideoRouteRestore,
+                        isOfflineMode,
                     )
+                ) {
+                    VideoLibrarySurface.OfflineDownloads -> offlineVideoDirectory()
+                    // 视频模式页（W53）：影视域页面走 Lumen 皮肤（D24），条目点击复用统一详情分发。
+                    VideoLibrarySurface.OnlineLibraries ->
+                        ProvideLumen {
+                            VideoScreen(
+                                onOpenDrawer = openDrawer,
+                                onItemClick = { item ->
+                                    navigateToItem(
+                                        navController = navController,
+                                        item = item,
+                                        context = context,
+                                    )
+                                },
+                                // D-F7：顶栏「库选择」选中具体库 → 直达该库内容
+                                // （与侧栏 / 媒体页同一条 libraryEntryRoute 落点链路）。
+                                onOpenLibrary = { library ->
+                                    navigateToItem(
+                                        navController = navController,
+                                        item = library,
+                                        context = context,
+                                    )
+                                },
+                                onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                                onSearchClick = openVideoSearch,
+                            )
+                        }
                 }
             }
             composable<MediaRoute> {
                 if (isOfflineMode) {
                     // W36 离线媒体库：只展示已下载媒体，点条目直接走本地文件。
-                    OfflineLibraryScreen(
-                        onOpenDrawer = openDrawer,
-                        onPlayVideo = { itemId, isEpisode ->
-                            val intent = Intent(context, PlayerActivity::class.java)
-                            intent.putExtra("itemId", itemId.toString())
-                            intent.putExtra(
-                                "itemKind",
-                                if (isEpisode) BaseItemKind.EPISODE.serialName
-                                else BaseItemKind.MOVIE.serialName,
-                            )
-                            context.startActivity(intent)
-                        },
-                        onOpenBook = { itemId, title ->
-                            openReader(context = context, itemId = itemId.toString(), title = title)
-                        },
-                        onOpenLocalLibrary = { libraryId ->
-                            navController.safeNavigate(LocalLibraryRoute(libraryId))
-                        },
-                        // W70：本地库新建 / 删除 / 开关后刷新侧栏「本地媒体库」子分组。
-                        onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
-                    )
+                    offlineVideoDirectory()
                 } else {
                     ProvideLumen {
                         MediaScreen(
@@ -1327,27 +1345,38 @@ fun NavigationRoot(
                 val route: TemporaryLibraryRoute = backStackEntry.toRoute()
                 when (route.kind) {
                     TemporaryLibraryKind.Video ->
-                        ProvideLumen {
-                            VideoScreen(
-                                onOpenDrawer = openDrawer,
-                                onItemClick = { item ->
-                                    navigateToItem(
-                                        navController = navController,
-                                        item = item,
-                                        context = context,
-                                    )
-                                },
-                                temporaryLibraryId = route.libraryId,
-                                onExitTemporaryLibrary = { exitTemporaryLibrary(VideoRoute) },
-                                onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
-                                onSearchClick = {
-                                    openSearch(
-                                        searchScopeForLibraryType(
-                                            CollectionType.fromString(route.libraryType)
-                                        )
-                                    )
-                                },
+                        when (
+                            resolveVideoLibrarySurface(
+                                VideoEntryPoint.TemporaryVideoRoute,
+                                isOfflineMode,
                             )
+                        ) {
+                            VideoLibrarySurface.OfflineDownloads -> offlineVideoDirectory()
+                            VideoLibrarySurface.OnlineLibraries ->
+                                ProvideLumen {
+                                    VideoScreen(
+                                        onOpenDrawer = openDrawer,
+                                        onItemClick = { item ->
+                                            navigateToItem(
+                                                navController = navController,
+                                                item = item,
+                                                context = context,
+                                            )
+                                        },
+                                        temporaryLibraryId = route.libraryId,
+                                        onExitTemporaryLibrary = {
+                                            exitTemporaryLibrary(VideoRoute)
+                                        },
+                                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                                        onSearchClick = {
+                                            openSearch(
+                                                searchScopeForLibraryType(
+                                                    CollectionType.fromString(route.libraryType)
+                                                )
+                                            )
+                                        },
+                                    )
+                                }
                         }
                     TemporaryLibraryKind.Music ->
                         MusicModeScreen(
@@ -1705,8 +1734,7 @@ fun NavigationRoot(
                     LumenChrome(lumenChrome) {
                         CinefinSideNavigation(
                             destinations = railDestinations,
-                            mediaLibraries =
-                                if (isOfflineMode) emptyList() else drawerData.libraries,
+                            mediaLibraries = navigationLibraries,
                             // W53B：本地库只读本机索引，离线模式也列出（与服务器库分开的子分组）。
                             localLibraries = drawerData.localLibraries,
                             currentLibraryId = currentLibrary?.libraryId,

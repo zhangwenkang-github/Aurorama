@@ -135,6 +135,30 @@ enum class TemporaryLibraryKind {
     Books,
 }
 
+internal enum class VideoEntryPoint {
+    BottomBar,
+    VideoRouteRestore,
+    TemporaryVideoRoute,
+}
+
+internal enum class VideoLibrarySurface {
+    OnlineLibraries,
+    OfflineDownloads,
+}
+
+/** 视频入口的离线身份解析：底栏、恢复栈与临时视频库必须共享同一结果。 */
+internal fun resolveVideoLibrarySurface(
+    @Suppress("UNUSED_PARAMETER") entry: VideoEntryPoint,
+    isOfflineMode: Boolean,
+): VideoLibrarySurface =
+    if (isOfflineMode) VideoLibrarySurface.OfflineDownloads else VideoLibrarySurface.OnlineLibraries
+
+/** 离线首帧同步隐藏服务器库；本地媒体库不经过此集合，始终可独立展示。 */
+internal fun <T> visibleServerLibraries(
+    libraries: List<T>,
+    isOfflineMode: Boolean,
+): List<T> = if (isOfflineMode) emptyList() else libraries
+
 /** 侧栏「本地媒体库」子分组的行（W53B）：本地库只在本机索引里，名称 + 项目数取自本地库数据。 */
 data class SidebarLocalLibrary(
     val id: Long,

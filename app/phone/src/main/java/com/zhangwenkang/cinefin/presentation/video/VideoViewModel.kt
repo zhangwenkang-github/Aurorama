@@ -26,6 +26,34 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
+enum class VideoLibrarySource {
+    Online,
+    Offline,
+}
+
+internal data class VideoLoadRequest(val serial: Long, val source: VideoLibrarySource)
+
+internal fun shouldReuseVideoCache(
+    cachedSource: VideoLibrarySource,
+    requestedSource: VideoLibrarySource,
+    loaded: Boolean,
+    sameTemporaryLibrary: Boolean,
+    force: Boolean,
+    loadedAtMs: Long,
+    nowMs: Long,
+): Boolean =
+    !force &&
+        loaded &&
+        cachedSource == requestedSource &&
+        sameTemporaryLibrary &&
+        MetadataCacheRules.isFresh(loadedAtMs, nowMs)
+
+internal fun isCurrentVideoLoad(
+    request: VideoLoadRequest,
+    currentSerial: Long,
+    currentSource: VideoLibrarySource,
+): Boolean = request.serial == currentSerial && request.source == currentSource
+
 /**
  * 视频模式页（W53）状态。
  *
@@ -36,6 +64,8 @@ import timber.log.Timber
  * - [aggregateItems]：聚合列表分页流；库列表为空时为 [PagingData.empty]。
  */
 data class VideoState(
+    /** 进程内缓存来源键；缓存与请求代际都按它隔离，不落盘。 */
+    val source: VideoLibrarySource = VideoLibrarySource.Online,
     val allLibraries: List<FindroidCollection> = emptyList(),
     val libraries: List<FindroidCollection> = emptyList(),
     /**
@@ -77,6 +107,7 @@ constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(VideoState())
     val state = _state.asStateFlow()
+    private var loadSerial = 0L
 
     /** W55 睡眠定时状态（视频页顶栏图标激活态 + 对话框）。 */
     val sleepTimerState = sleepTimerController.state
@@ -89,6 +120,7 @@ constructor(
             // D-F7：显示方式变化同样要重算可见库（聚合 ↔ 库卡的选择语义不同）。
             appPreferences.uiVideoDisplayMode.backendName,
             appPreferences.uiVideoLibraryId.backendName -> applyCurrentSelection()
+            appPreferences.offlineMode.backendName -> load()
         }
     }
 
@@ -113,27 +145,47 @@ constructor(
      * = 用户主动刷新（重试 / 下拉）时才失效缓存并重取。
      */
     fun load(temporaryLibraryId: String? = null, force: Boolean = false) {
+        val source = readSource()
         val current = _state.value
         val sameTemporaryLibrary = current.temporaryLibrary?.id?.toString() == temporaryLibraryId
         if (
-            !force &&
-                current.loaded &&
-                sameTemporaryLibrary &&
-                MetadataCacheRules.isFresh(current.loadedAtMs, System.currentTimeMillis())
-        ) {
+            shouldReuseVideoCache(
+                cachedSource = current.source,
+                requestedSource = source,
+                loaded = current.loaded,
+                sameTemporaryLibrary = sameTemporaryLibrary,
+                force = force,
+                loadedAtMs = current.loadedAtMs,
+                nowMs = System.currentTimeMillis(),
+            )
+        )
             return
-        }
+
+        val request = VideoLoadRequest(serial = ++loadSerial, source = source)
+        val sourceChanged = current.source != source
+        _state.value =
+            current.copy(
+                source = source,
+                allLibraries = if (sourceChanged) emptyList() else current.allLibraries,
+                libraries = if (sourceChanged) emptyList() else current.libraries,
+                selectedLibraryId = if (sourceChanged) null else current.selectedLibraryId,
+                temporaryLibrary = if (sourceChanged) null else current.temporaryLibrary,
+                isLoading = true,
+                loaded = if (sourceChanged) false else current.loaded,
+                error = null,
+                displayMode = readDisplayMode(),
+                aggregateItems =
+                    if (sourceChanged) flowOf(PagingData.empty()) else current.aggregateItems,
+                loadedAtMs = if (sourceChanged) 0L else current.loadedAtMs,
+            )
+
         viewModelScope.launch {
             val repository = repositoryProvider.get()
             if (force) repository.invalidateMetadataCache()
-            _state.value =
-                _state.value.copy(
-                    isLoading = true,
-                    error = null,
-                    displayMode = readDisplayMode(),
-                )
+            if (!isCurrentVideoLoad(request, loadSerial, readSource())) return@launch
             runCatching { pickVideoLibraries(repository.getLibraries()) }
                 .onSuccess { libraries ->
+                    if (!isCurrentVideoLoad(request, loadSerial, readSource())) return@onSuccess
                     val temporaryLibrary = temporaryLibraryId?.let { id ->
                         libraries.firstOrNull { it.id.toString() == id }
                     }
@@ -159,6 +211,7 @@ constructor(
                         )
                 }
                 .onFailure { throwable ->
+                    if (!isCurrentVideoLoad(request, loadSerial, readSource())) return@onFailure
                     Timber.w(throwable, "读取视频库失败")
                     // 拉取失败时保留上一次成功加载的库列表，只提示错误（不清空页面）。
                     _state.value =
@@ -231,6 +284,10 @@ constructor(
 
     private fun readDisplayMode(): VideoDisplayMode =
         VideoDisplayMode.fromString(appPreferences.getValue(appPreferences.uiVideoDisplayMode))
+
+    private fun readSource(): VideoLibrarySource =
+        if (appPreferences.getValue(appPreferences.offlineMode)) VideoLibrarySource.Offline
+        else VideoLibrarySource.Online
 
     private fun readStoredLibraryId(): String? =
         appPreferences.getValue(appPreferences.uiVideoLibraryId)

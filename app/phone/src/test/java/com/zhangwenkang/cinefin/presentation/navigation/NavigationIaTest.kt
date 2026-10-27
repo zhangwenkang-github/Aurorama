@@ -242,4 +242,39 @@ class NavigationIaTest {
         // W8-R3 用户反馈 4：抽屉 / 侧轨的二级库列表默认收起，展开后才显示（覆盖 W7-R3 的默认展开）。
         assertFalse(MEDIA_GROUP_DEFAULT_EXPANDED)
     }
+
+    @Test
+    fun offlineVideoEntryNeverResolvesToOnlineVideoScreen() {
+        listOf(
+                VideoEntryPoint.BottomBar,
+                VideoEntryPoint.VideoRouteRestore,
+                VideoEntryPoint.TemporaryVideoRoute,
+            )
+            .forEach { entry ->
+                assertEquals(
+                    VideoLibrarySurface.OfflineDownloads,
+                    resolveVideoLibrarySurface(entry, isOfflineMode = true),
+                )
+            }
+    }
+
+    @Test
+    fun restoredOnlineVideoDestinationCannotLeakServerLibrariesOnOfflineFirstFrame() {
+        val restoredLibraries = listOf("服务器电影库")
+        assertEquals(
+            VideoLibrarySurface.OfflineDownloads,
+            resolveVideoLibrarySurface(
+                VideoEntryPoint.VideoRouteRestore,
+                isOfflineMode = true,
+            ),
+        )
+        assertEquals(
+            emptyList<String>(),
+            visibleServerLibraries(restoredLibraries, isOfflineMode = true),
+        )
+        assertEquals(
+            restoredLibraries,
+            visibleServerLibraries(restoredLibraries, isOfflineMode = false),
+        )
+    }
 }
