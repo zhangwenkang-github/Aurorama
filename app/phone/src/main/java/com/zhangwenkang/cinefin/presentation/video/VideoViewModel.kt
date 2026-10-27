@@ -21,6 +21,7 @@ import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -94,26 +95,49 @@ data class VideoState(
  */
 @HiltViewModel
 class VideoViewModel
-@Inject
-constructor(
+private constructor(
     /**
      * 离线开关不重启 Activity（W6-R6N），所以这里按需取仓库：每次 load() 都按**当前**偏好解析 在线 / 离线实现 （踩坑 33）——离线模式下
      * `getLibraries()` 返回空列表，视频页给空态，而不是继续拉服务器内容。
      */
     private val repositoryProvider: Provider<JellyfinRepository>,
     private val appPreferences: AppPreferences,
-    /** W55 睡眠定时统一：视频页顶栏入口与播放器 / 音乐共享同一状态源。 */
-    private val sleepTimerController: SleepTimerController,
+    initialSleepTimerState: StateFlow<SleepTimerController.State>,
+    private val selectSleepTimerAction: (Int?) -> Unit,
 ) : ViewModel() {
+    @Inject
+    constructor(
+        repositoryProvider: Provider<JellyfinRepository>,
+        appPreferences: AppPreferences,
+        /** W55 睡眠定时统一：视频页顶栏入口与播放器 / 音乐共享同一状态源。 */
+        sleepTimerController: SleepTimerController,
+    ) : this(
+        repositoryProvider = repositoryProvider,
+        appPreferences = appPreferences,
+        initialSleepTimerState = sleepTimerController.state,
+        selectSleepTimerAction = sleepTimerController::select,
+    )
+
+    internal constructor(
+        repositoryProvider: Provider<JellyfinRepository>,
+        appPreferences: AppPreferences,
+        sleepTimerState: StateFlow<SleepTimerController.State>,
+    ) : this(
+        repositoryProvider = repositoryProvider,
+        appPreferences = appPreferences,
+        initialSleepTimerState = sleepTimerState,
+        selectSleepTimerAction = {},
+    )
+
     private val _state = MutableStateFlow(VideoState())
     val state = _state.asStateFlow()
     private var loadSerial = 0L
 
     /** W55 睡眠定时状态（视频页顶栏图标激活态 + 对话框）。 */
-    val sleepTimerState = sleepTimerController.state
+    val sleepTimerState = initialSleepTimerState
 
     /** W55：选择睡眠定时分钟；null = 取消。 */
-    fun selectSleepTimer(minutes: Int?) = sleepTimerController.select(minutes)
+    fun selectSleepTimer(minutes: Int?) = selectSleepTimerAction(minutes)
 
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {

@@ -136,7 +136,6 @@ enum class TemporaryLibraryKind {
 }
 
 internal enum class VideoEntryPoint {
-    BottomBar,
     VideoRouteRestore,
     TemporaryVideoRoute,
 }

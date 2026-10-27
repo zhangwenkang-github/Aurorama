@@ -216,6 +216,7 @@ dependencies {
 
     // 版本目录暂无 junit 别名（与 core 同口径）：只用于本模块的纯逻辑单测
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
 
 /*

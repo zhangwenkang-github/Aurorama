@@ -246,7 +246,6 @@ class NavigationIaTest {
     @Test
     fun offlineVideoEntryNeverResolvesToOnlineVideoScreen() {
         listOf(
-                VideoEntryPoint.BottomBar,
                 VideoEntryPoint.VideoRouteRestore,
                 VideoEntryPoint.TemporaryVideoRoute,
             )
