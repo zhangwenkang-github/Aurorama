@@ -512,8 +512,12 @@ private fun DownloadDetailPane(
         item(key = "detail-header") {
             DownloadDrilldownHeader(
                 container = container,
-                onPauseAll = { onAction(DownloadAction.PauseContainer(container.key)) },
-                onResumeAll = { onAction(DownloadAction.ResumeContainer(container.key)) },
+                onPauseAll = { eligibleTaskKeys ->
+                    onAction(DownloadAction.PauseContainer(container.key, eligibleTaskKeys))
+                },
+                onResumeAll = { eligibleTaskKeys ->
+                    onAction(DownloadAction.ResumeContainer(container.key, eligibleTaskKeys))
+                },
                 onRequestDelete = { onRequestDeleteContainer(container.key, container.title) },
             )
         }
@@ -725,6 +729,9 @@ private fun OverviewItem(
             modifier = modifier,
             onClick = onClick,
             onLongPress = { onAction(DownloadAction.ToggleSelection(container.key)) },
+            onAction = onAction,
+            onRequestDelete = { onRequestDeleteContainer(container.key, container.title) },
+            pendingAction = entries.firstNotNullOfOrNull { entry -> pendingActions[entry.key] },
         )
     } else {
         DownloadTopLevelRow(

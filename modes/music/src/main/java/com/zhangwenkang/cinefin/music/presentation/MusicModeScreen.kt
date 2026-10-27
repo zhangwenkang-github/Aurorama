@@ -136,6 +136,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+internal object MusicSongActionsAccessibility {
+    val contentDescriptionRes: Int = CoreR.string.music_song_actions
+}
+
 /** 队列行高（拖动换算基准）：面板内所有行等高，拖动位移才能按整数行对齐。 */
 private val QueueRowHeight = 72.dp
 
@@ -1987,6 +1991,7 @@ private fun SongRow(
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     var menuOpen by remember { mutableStateOf(false) }
+    val songActionsLabel = stringResource(MusicSongActionsAccessibility.contentDescriptionRes)
     CinefinListRow(
         title = song.name,
         badge = sourceBadge,
@@ -2018,7 +2023,12 @@ private fun SongRow(
         trailing = {
             Box {
                 CinefinIconButton(onClick = { menuOpen = true }) { tint ->
-                    Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
+                    Box(
+                        modifier =
+                            Modifier.clearAndSetSemantics { contentDescription = songActionsLabel }
+                    ) {
+                        Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
+                    }
                 }
                 DropdownMenu(
                     expanded = menuOpen,

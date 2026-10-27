@@ -179,6 +179,7 @@
     <string name="download_eta_remaining">剩余 %1$s</string>
     <!-- W59 下载页钻取式 IA / 层级图 / 书籍封面 -->
     <string name="download_detail_open">查看详情</string>
+    <string name="music_song_actions">歌曲操作</string>
     <string name="download_detail_pause_all">全部暂停</string>
     <string name="download_detail_resume_all">全部继续</string>
     <string name="download_count_episodes">%1$d/%2$d 集</string>

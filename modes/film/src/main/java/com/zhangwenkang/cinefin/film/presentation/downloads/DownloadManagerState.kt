@@ -8,6 +8,8 @@ import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
+import com.zhangwenkang.cinefin.utils.DownloadTaskRules
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.downloadIdentity
 import java.util.UUID
 
@@ -111,6 +113,45 @@ enum class DownloadPendingAction {
     DELETE,
 }
 
+enum class DownloadContainerTaskAction {
+    PAUSE,
+    RESUME,
+    RETRY,
+}
+
+data class DownloadContainerTaskActionSpec(
+    val action: DownloadContainerTaskAction,
+    val eligibleTaskKeys: Set<String>,
+)
+
+/** 顶层容器动作资格；按容器内真实任务状态计算，而不是复用聚合展示状态。 */
+fun DownloadHierarchyContainer.taskActionSpecs(): List<DownloadContainerTaskActionSpec> {
+    val tasks = allEntries().mapNotNull { it.task }
+    return DownloadContainerTaskAction.entries.mapNotNull { action ->
+        val eligibleTaskKeys = tasks.filter { it.status.supports(action) }.map(::taskKey).toSet()
+        if (eligibleTaskKeys.isEmpty()) null
+        else DownloadContainerTaskActionSpec(action, eligibleTaskKeys)
+    }
+}
+
+/** 只解析规格声明且当前仍可执行的任务；防止刷新竞态把动作扩散到其他状态。 */
+fun DownloadHierarchyContainer.tasksForTaskAction(
+    spec: DownloadContainerTaskActionSpec
+): List<DownloadTask> =
+    allEntries()
+        .mapNotNull { it.task }
+        .filter { task ->
+            taskKey(task) in spec.eligibleTaskKeys && task.status.supports(spec.action)
+        }
+        .distinctBy(::taskKey)
+
+private fun DownloadTaskStatus.supports(action: DownloadContainerTaskAction): Boolean =
+    when (action) {
+        DownloadContainerTaskAction.PAUSE -> DownloadTaskRules.canPause(this)
+        DownloadContainerTaskAction.RESUME -> DownloadTaskRules.canResume(this)
+        DownloadContainerTaskAction.RETRY -> DownloadTaskRules.canRetry(this)
+    }
+
 enum class DownloadActionFailure {
     PLAY,
     PAUSE,
@@ -210,10 +251,22 @@ sealed interface DownloadAction {
     data class SetContainerOffline(val key: String, val allow: Boolean) : DownloadAction
 
     /** W59：详情页「全部暂停」——容器内所有可暂停任务。 */
-    data class PauseContainer(val key: String) : DownloadAction
+    data class PauseContainer(
+        val key: String,
+        val eligibleTaskKeys: Set<String>,
+    ) : DownloadAction
 
     /** W59：详情页「全部继续」——容器内所有可继续任务。 */
-    data class ResumeContainer(val key: String) : DownloadAction
+    data class ResumeContainer(
+        val key: String,
+        val eligibleTaskKeys: Set<String>,
+    ) : DownloadAction
+
+    /** 顶层容器卡片的「重试」——只重试容器内处于失败态的任务。 */
+    data class RetryContainer(
+        val key: String,
+        val eligibleTaskKeys: Set<String>,
+    ) : DownloadAction
 
     /** W59：书籍行可见时触发一次封面懒生成（本地已下载书籍走本地文件，不联网）。 */
     data class EnsureBookCover(val itemId: UUID) : DownloadAction

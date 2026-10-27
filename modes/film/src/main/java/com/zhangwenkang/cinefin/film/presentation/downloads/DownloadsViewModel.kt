@@ -171,7 +171,8 @@ constructor(
                 runForContainerTasks(
                     action.key,
                     DownloadPendingAction.PAUSE,
-                    DownloadTaskRules::canPause,
+                    DownloadContainerTaskAction.PAUSE,
+                    action.eligibleTaskKeys,
                 ) {
                     downloader.pauseTask(it)
                 }
@@ -179,9 +180,19 @@ constructor(
                 runForContainerTasks(
                     action.key,
                     DownloadPendingAction.RESUME,
-                    DownloadTaskRules::canResume,
+                    DownloadContainerTaskAction.RESUME,
+                    action.eligibleTaskKeys,
                 ) {
                     downloader.resumeTask(it)
+                }
+            is DownloadAction.RetryContainer ->
+                runForContainerTasks(
+                    action.key,
+                    DownloadPendingAction.RETRY,
+                    DownloadContainerTaskAction.RETRY,
+                    action.eligibleTaskKeys,
+                ) {
+                    downloader.retryTask(it)
                 }
             is DownloadAction.EnsureBookCover -> ensureBookCover(action.itemId)
             DownloadAction.ToggleSelectionMode -> toggleSelectionMode()
@@ -505,16 +516,16 @@ constructor(
     private fun runForContainerTasks(
         containerKey: String,
         pendingAction: DownloadPendingAction,
-        predicate: (DownloadTaskStatus) -> Boolean,
+        taskAction: DownloadContainerTaskAction,
+        eligibleTaskKeys: Set<String>,
         block: suspend (DownloadTask) -> Any?,
     ) {
-        val container = _state.value.containerFor(containerKey)
         val tasks =
-            container
-                ?.allEntries()
-                ?.mapNotNull { it.task }
-                ?.filter { predicate(it.status) }
+            _state.value
+                .containerFor(containerKey)
+                ?.tasksForTaskAction(DownloadContainerTaskActionSpec(taskAction, eligibleTaskKeys))
                 .orEmpty()
+        if (tasks.isEmpty()) return
         val keys = tasks.map(::taskKey).toSet()
         _state.update { it.beginPending(pendingAction, keys) }
         viewModelScope.launch {
@@ -522,7 +533,7 @@ constructor(
                 for (task in tasks) {
                     block(task)
                 }
-                if (tasks.isNotEmpty()) refresh(showLoading = false)
+                refresh(showLoading = false)
             } finally {
                 _state.update { it.finishPending(keys) }
             }

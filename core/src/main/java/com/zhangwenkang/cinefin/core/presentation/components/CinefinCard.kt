@@ -83,11 +83,11 @@ fun CinefinCard(
     selected: Boolean = false,
     shape: Shape = CinefinShapes.Md,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
-    val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val pressed by interactionSource.collectIsPressedAsState()
