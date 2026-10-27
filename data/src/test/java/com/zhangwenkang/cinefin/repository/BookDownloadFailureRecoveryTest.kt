@@ -543,6 +543,247 @@ class BookDownloadFailureRecoveryTest {
                 restored.single { it.canonicalKey == localDeleteKey() }.failureReason,
             )
             assertTrue(restored.any { it.canonicalKey != localDeleteKey() })
+            assertTrue(
+                "superseded 是内部终态，不得进入 bookDownloads 投影",
+                manager.tasks.value.none { it.failureReason == "DELETE_SUPERSEDED" },
+            )
+        } finally {
+            scope.cancel()
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `按旧 superseded itemId 删除不得清理新 canonical target 与 provenance`() = runBlocking {
+        val root = createTempDirectory(prefix = "book-delete-superseded-stale-action").toFile()
+        val target = File(root, "$ITEM_ID.book")
+        val partial = File(root, "$ITEM_ID.book.part")
+        target.writeBytes(byteArrayOf(8, 9))
+        partial.writeBytes(byteArrayOf(1))
+        val clearedItems = CopyOnWriteArrayList<UUID>()
+        val store =
+            InMemoryBookDownloadTaskStore(
+                listOf(
+                    deleteReceipt(target = target, updatedAt = 2),
+                    task(
+                        status = BookDownloadStatus.COMPLETED,
+                        target = target,
+                        serverId = "server-b",
+                        userId = OTHER_USER_ID,
+                        title = "新来源",
+                        taskGeneration = 7,
+                        updatedAt = 3,
+                    ),
+                )
+            )
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val manager =
+                manager(
+                    store = store,
+                    transfer = completedFileTransfer(),
+                    target = target,
+                    partial = partial,
+                    scope = scope,
+                    clearProvenance = {
+                        clearedItems += it
+                        true
+                    },
+                )
+            manager.awaitRestored()
+
+            val result = manager.deleteBookDownload(ITEM_ID)
+
+            assertEquals(BookDownloadDeleteResult.AmbiguousOwnership, result)
+            assertTrue("旧 item-only 删除动作不得清理新 canonical 文件", target.isFile)
+            assertTrue("旧 item-only 删除动作不得清理新 canonical provenance", clearedItems.isEmpty())
+            assertTrue(store.snapshot().any { it.serverId == "server-b" })
+        } finally {
+            scope.cancel()
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `credential receipt 不被更旧 FAILED sibling supersede 且恢复时自动重试`() = runBlocking {
+        val root = createTempDirectory(prefix = "book-delete-current-receipt").toFile()
+        val target = File(root, "$ITEM_ID.book")
+        val siblingTarget = File(root, "old-server/$ITEM_ID.book")
+        val partial = File(root, "$ITEM_ID.book.part")
+        target.writeBytes(byteArrayOf(6))
+        val clearedItems = CopyOnWriteArrayList<UUID>()
+        val store =
+            InMemoryBookDownloadTaskStore(
+                listOf(
+                    task(
+                        status = BookDownloadStatus.FAILED,
+                        target = siblingTarget,
+                        serverId = "server-old",
+                        userId = OTHER_USER_ID,
+                        title = "旧失败 sibling",
+                        taskGeneration = 1,
+                        updatedAt = 1,
+                    ),
+                    credentialDeleteReceipt(
+                        target = target,
+                        serverId = SERVER_ID,
+                        userId = USER_ID,
+                        updatedAt = 2,
+                    ),
+                )
+            )
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val manager =
+                manager(
+                    store = store,
+                    transfer = completedFileTransfer(),
+                    target = target,
+                    partial = partial,
+                    scope = scope,
+                    clearProvenance = {
+                        clearedItems += it
+                        true
+                    },
+                )
+
+            manager.awaitRestored()
+
+            assertEquals("receipt 必须自动重试并从任务表移除", 1, store.snapshot().size)
+            assertEquals("server-old", store.snapshot().single().serverId)
+            assertEquals("FAILED", store.snapshot().single().status)
+            assertEquals(listOf(ITEM_ID), clearedItems.toList())
+            assertFalse("receipt 的目标应由其自身删除", target.exists())
+            assertEquals(
+                "旧 FAILED sibling 必须保留",
+                canonicalKey(ITEM_ID, "server-old", OTHER_USER_ID),
+                manager.tasks.value.single().canonicalKey,
+            )
+        } finally {
+            scope.cancel()
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `更旧或不同 target 的新任务都不得 supersede legacy receipt`() = runBlocking {
+        data class Case(val name: String, val newUpdatedAt: Long, val differentTarget: Boolean)
+
+        listOf(
+                Case(name = "new-task-older", newUpdatedAt = 4, differentTarget = false),
+                Case(name = "different-target", newUpdatedAt = 20, differentTarget = true),
+            )
+            .forEach { case ->
+                val root = createTempDirectory(prefix = "book-delete-${case.name}").toFile()
+                val receiptTarget = File(root, "$ITEM_ID.book")
+                val newTarget =
+                    if (case.differentTarget) File(root, "canonical-b/$ITEM_ID.book")
+                    else receiptTarget
+                val partial = File(root, "$ITEM_ID.book.part")
+                receiptTarget.writeBytes(byteArrayOf(1))
+                newTarget.parentFile?.mkdirs()
+                newTarget.writeBytes(byteArrayOf(2))
+                val clearedItems = CopyOnWriteArrayList<UUID>()
+                val store =
+                    InMemoryBookDownloadTaskStore(
+                        listOf(
+                            deleteReceipt(target = receiptTarget, updatedAt = 10),
+                            task(
+                                status = BookDownloadStatus.COMPLETED,
+                                target = newTarget,
+                                serverId = "server-b",
+                                userId = OTHER_USER_ID,
+                                taskGeneration = 7,
+                                updatedAt = case.newUpdatedAt,
+                            ),
+                        )
+                    )
+                val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+                try {
+                    val manager =
+                        manager(
+                            store = store,
+                            transfer = completedFileTransfer(),
+                            target = receiptTarget,
+                            partial = partial,
+                            scope = scope,
+                            clearProvenance = {
+                                clearedItems += it
+                                false
+                            },
+                        )
+
+                    manager.awaitRestored()
+
+                    assertEquals(
+                        "${case.name}: receipt 必须保持 DELETE_FAILED 并保留 fence",
+                        "DELETE_FAILED",
+                        store
+                            .snapshot()
+                            .single { it.canonicalKey == localDeleteKey() }
+                            .failureReason,
+                    )
+                    assertEquals(
+                        "${case.name}: 必须实际执行自动 retry",
+                        listOf(ITEM_ID),
+                        clearedItems.toList(),
+                    )
+                } finally {
+                    scope.cancel()
+                    root.deleteRecursively()
+                }
+            }
+    }
+
+    @Test
+    fun `裸 itemId 遇到多个 canonical owner 时拒绝删除文件与 provenance`() = runBlocking {
+        val root = createTempDirectory(prefix = "book-delete-multi-owner").toFile()
+        val target = File(root, "$ITEM_ID.book")
+        val partial = File(root, "$ITEM_ID.book.part")
+        target.writeBytes(byteArrayOf(1, 2, 3))
+        val clearedItems = CopyOnWriteArrayList<UUID>()
+        val store =
+            InMemoryBookDownloadTaskStore(
+                listOf(
+                    task(
+                        status = BookDownloadStatus.COMPLETED,
+                        target = target,
+                        serverId = "server-a",
+                        taskGeneration = 1,
+                        updatedAt = 1,
+                    ),
+                    task(
+                        status = BookDownloadStatus.COMPLETED,
+                        target = target,
+                        serverId = "server-b",
+                        userId = OTHER_USER_ID,
+                        taskGeneration = 2,
+                        updatedAt = 2,
+                    ),
+                )
+            )
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val manager =
+                manager(
+                    store = store,
+                    transfer = completedFileTransfer(),
+                    target = target,
+                    partial = partial,
+                    scope = scope,
+                    clearProvenance = {
+                        clearedItems += it
+                        true
+                    },
+                )
+            manager.awaitRestored()
+
+            val result = manager.deleteBookDownload(ITEM_ID)
+
+            assertEquals(BookDownloadDeleteResult.AmbiguousOwnership, result)
+            assertTrue("多 owner 裸 itemId 不得删除任何 canonical 文件", target.isFile)
+            assertTrue("多 owner 裸 itemId 不得清理 provenance", clearedItems.isEmpty())
+            assertEquals(2, store.snapshot().size)
         } finally {
             scope.cancel()
             root.deleteRecursively()
@@ -1015,6 +1256,25 @@ class BookDownloadFailureRecoveryTest {
             taskGeneration = taskGeneration,
             updatedAt = updatedAt,
             failureReason = failureReason,
+        )
+
+    private fun credentialDeleteReceipt(
+        target: File,
+        serverId: String,
+        userId: UUID,
+        itemId: UUID = ITEM_ID,
+        taskGeneration: Long = 3,
+        updatedAt: Long = 1,
+    ): BookDownloadTaskDto =
+        task(
+            status = BookDownloadStatus.FAILED,
+            target = target,
+            itemId = itemId,
+            serverId = serverId,
+            userId = userId,
+            taskGeneration = taskGeneration,
+            updatedAt = updatedAt,
+            failureReason = "DELETE_FAILED",
         )
 
     private fun canonicalKey(itemId: UUID, serverId: String, userId: UUID): String =

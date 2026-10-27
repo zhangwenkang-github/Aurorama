@@ -334,8 +334,12 @@ internal class BookDownloadManager(
     private val clock: () -> Long = System::currentTimeMillis,
     private val alreadyDownloadedDeadlineMs: Long = 1_000L,
 ) {
+    /** DAO 的任务真源快照，包含仅用于 fence 的内部 superseded 终态。 */
     private val mutableTasks = MutableStateFlow<List<BookDownloadTask>>(emptyList())
-    val tasks: StateFlow<List<BookDownloadTask>> = mutableTasks.asStateFlow()
+    private val mutableVisibleTasks = MutableStateFlow<List<BookDownloadTask>>(emptyList())
+
+    /** 用户可操作投影；内部 superseded receipt 永不从这里暴露。 */
+    val tasks: StateFlow<List<BookDownloadTask>> = mutableVisibleTasks.asStateFlow()
 
     private val lock = Mutex()
     private val itemLifecycles = mutableMapOf<UUID, Mutex>()
@@ -405,61 +409,96 @@ internal class BookDownloadManager(
                 runCatching { credentialsProvider() }
                     .getOrNull()
                     ?.let { canonicalBookDownloadKey(it, itemId) }
-                    ?: tasks.value
+                    ?: mutableTasks.value
                         .lastOrNull { it.itemId == itemId && !it.isDeleteRecord() }
                         ?.canonicalKey
-                    ?: tasks.value.lastOrNull { it.itemId == itemId }?.canonicalKey
+                    ?: mutableTasks.value.lastOrNull { it.itemId == itemId }?.canonicalKey
                     ?: return@launch
             cancelByKey(key)
         }
     }
 
-    suspend fun deleteBookDownload(itemId: UUID) {
+    suspend fun deleteBookDownload(
+        itemId: UUID,
+        canonicalKey: String? = null,
+    ): BookDownloadDeleteResult {
         restored.await()
-        itemLifecycle(itemId).withLock lifecycle@{
+        return itemLifecycle(itemId).withLock lifecycle@{
             val credentials = runCatching { credentialsProvider() }.getOrNull()
-            val preferredKey = credentials?.let { canonicalBookDownloadKey(it, itemId) }
             val deletion = lock.withLock {
-                val task =
-                    selectDeleteTaskLocked(itemId, preferredKey)
-                        ?: deleteReceipt(itemId, credentials)
-                val target = task.targetPath?.let(::File) ?: localFileProvider(itemId)
-                val receipt =
-                    task.copy(
-                        taskGeneration =
-                            task.taskGeneration.takeIf { it > 0L }
-                                ?: latestArtifactGeneration(
-                                    target = target,
-                                    basePartial = File(target.parentFile, "${target.name}.part"),
+                when (
+                    val selection =
+                        resolveDeleteOwnerLocked(
+                            itemId = itemId,
+                            requestedCanonicalKey = canonicalKey,
+                        )
+                ) {
+                    DeleteOwnerSelection.Ambiguous -> return@withLock DeleteStart.AmbiguousOwnership
+                    DeleteOwnerSelection.OwnershipUnavailable ->
+                        return@withLock DeleteStart.OwnershipUnavailable
+                    DeleteOwnerSelection.AlreadySuperseded ->
+                        return@withLock DeleteStart.AlreadySuperseded
+                    is DeleteOwnerSelection.Owned -> {
+                        val task =
+                            selection.task
+                                ?: deleteReceipt(
+                                    itemId = itemId,
+                                    credentials = credentials,
                                 )
-                    )
-                saveLocked(
-                    receipt.copy(
-                        status = BookDownloadStatus.FAILED,
-                        failureReason = DELETE_PENDING,
-                        error = "正在清理书籍文件",
-                        updatedAtEpochMillis = clock(),
-                    )
-                )
-                results.remove(receipt.canonicalKey)?.cancel(CancellationException("书籍任务正在删除"))
-                val activeJob =
-                    jobs.remove(receipt.canonicalKey)?.also {
-                        retiringJobs[receipt.canonicalKey] = it
+                        val target = task.targetPath?.let(::File) ?: localFileProvider(itemId)
+                        val receipt =
+                            task.copy(
+                                taskGeneration =
+                                    task.taskGeneration.takeIf { it > 0L }
+                                        ?: latestArtifactGeneration(
+                                            target = target,
+                                            basePartial =
+                                                File(target.parentFile, "${target.name}.part"),
+                                        )
+                            )
+                        saveLocked(
+                            receipt.copy(
+                                status = BookDownloadStatus.FAILED,
+                                failureReason = DELETE_PENDING,
+                                error = "正在清理书籍文件",
+                                updatedAtEpochMillis = clock(),
+                            )
+                        )
+                        results
+                            .remove(receipt.canonicalKey)
+                            ?.cancel(CancellationException("书籍任务正在删除"))
+                        val activeJob =
+                            jobs.remove(receipt.canonicalKey)?.also {
+                                retiringJobs[receipt.canonicalKey] = it
+                            }
+                        DeleteStart.Prepared(receipt, activeJob)
                     }
-                receipt to activeJob
+                }
             }
-            val (receipt, activeJob) = deletion
+            val prepared =
+                when (deletion) {
+                    DeleteStart.AmbiguousOwnership ->
+                        return@lifecycle BookDownloadDeleteResult.AmbiguousOwnership
+                    DeleteStart.OwnershipUnavailable ->
+                        return@lifecycle BookDownloadDeleteResult.OwnershipUnavailable
+                    DeleteStart.AlreadySuperseded ->
+                        return@lifecycle BookDownloadDeleteResult.AlreadySuperseded
+                    is DeleteStart.Prepared -> deletion
+                }
+            val (receipt, activeJob) = prepared
             activeJob?.job?.cancel(CancellationException("书籍任务正在删除"))
             activeJob?.job?.join()
 
             val failures = withContext(NonCancellable) { deleteBookArtifacts(itemId, receipt) }
-            lock.withLock {
+            return@lifecycle lock.withLock {
                 if (failures.isEmpty()) {
                     store.delete(receipt.canonicalKey)
                     mutableTasks.updateList { current ->
                         current.filterNot { it.canonicalKey == receipt.canonicalKey }
                     }
+                    publishVisibleTasksLocked()
                     results.remove(receipt.canonicalKey)?.cancel(CancellationException("书籍任务已删除"))
+                    BookDownloadDeleteResult.Deleted
                 } else {
                     saveLocked(
                         receipt.copy(
@@ -469,6 +508,7 @@ internal class BookDownloadManager(
                             updatedAtEpochMillis = clock(),
                         )
                     )
+                    BookDownloadDeleteResult.CleanupFailed
                 }
             }
         }
@@ -492,7 +532,7 @@ internal class BookDownloadManager(
                 partialFileProvider(itemId).delete()
                 return@withLock BookDownloadEnqueueResult.AlreadyDownloaded
             }
-            val existing = tasks.value.firstOrNull { it.canonicalKey == canonicalKey }
+            val existing = mutableTasks.value.firstOrNull { it.canonicalKey == canonicalKey }
             val generation = (existing?.taskGeneration ?: 0L) + 1L
             val partial =
                 preparePartialFile(
@@ -539,6 +579,7 @@ internal class BookDownloadManager(
                         compareBy<BookDownloadTask> { it.updatedAtEpochMillis }
                             .thenBy { it.canonicalKey }
                     )
+                publishVisibleTasksLocked()
             }
 
             for (task in reconciled) {
@@ -706,7 +747,7 @@ internal class BookDownloadManager(
             if (!fetchedTitle.isNullOrBlank()) writeTitle(task.itemId, fetchedTitle)
             val committed = lock.withLock {
                 val current =
-                    tasks.value.firstOrNull { it.canonicalKey == task.canonicalKey }
+                    mutableTasks.value.firstOrNull { it.canonicalKey == task.canonicalKey }
                         ?: return@withLock CommitOutcome.Superseded
                 if (
                     current.taskGeneration != task.taskGeneration ||
@@ -803,7 +844,7 @@ internal class BookDownloadManager(
     private suspend fun cancelByKey(canonicalKey: String) {
         val active = lock.withLock {
             val task =
-                tasks.value.firstOrNull {
+                mutableTasks.value.firstOrNull {
                     it.canonicalKey == canonicalKey && it.status == BookDownloadStatus.RUNNING
                 } ?: return@withLock null
             val activeJob = jobs[canonicalKey] ?: return@withLock null
@@ -829,7 +870,7 @@ internal class BookDownloadManager(
         transform: (BookDownloadTask) -> BookDownloadTask,
     ): BookDownloadTask? = lock.withLock {
         val current =
-            tasks.value.firstOrNull { it.canonicalKey == expected.canonicalKey }
+            mutableTasks.value.firstOrNull { it.canonicalKey == expected.canonicalKey }
                 ?: return@withLock null
         if (
             current.taskGeneration != expected.taskGeneration ||
@@ -845,7 +886,8 @@ internal class BookDownloadManager(
     private suspend fun persistIfCurrent(task: BookDownloadTask) {
         lock.withLock {
             val current =
-                tasks.value.firstOrNull { it.canonicalKey == task.canonicalKey } ?: return@withLock
+                mutableTasks.value.firstOrNull { it.canonicalKey == task.canonicalKey }
+                    ?: return@withLock
             if (
                 current.taskGeneration == task.taskGeneration &&
                     current.status == BookDownloadStatus.RUNNING
@@ -877,7 +919,7 @@ internal class BookDownloadManager(
         error: String?,
     ): BookDownloadTask? = lock.withLock {
         val current =
-            tasks.value.firstOrNull { it.canonicalKey == expected.canonicalKey }
+            mutableTasks.value.firstOrNull { it.canonicalKey == expected.canonicalKey }
                 ?: return@withLock null
         if (current.taskGeneration != expected.taskGeneration) return@withLock null
         val updated =
@@ -892,7 +934,7 @@ internal class BookDownloadManager(
     }
 
     private suspend fun isCurrent(expected: BookDownloadTask): Boolean = lock.withLock {
-        tasks.value.any {
+        mutableTasks.value.any {
             it.canonicalKey == expected.canonicalKey &&
                 it.taskGeneration == expected.taskGeneration &&
                 it.status == BookDownloadStatus.RUNNING
@@ -908,6 +950,17 @@ internal class BookDownloadManager(
         mutableTasks.updateList { tasks ->
             tasks.filterNot { it.canonicalKey == task.canonicalKey } + task
         }
+        publishVisibleTasksLocked()
+    }
+
+    private fun publishVisibleTasksLocked() {
+        mutableVisibleTasks.value =
+            mutableTasks.value
+                .filterNot(BookDownloadTask::isSupersededDeleteRecord)
+                .sortedWith(
+                    compareBy<BookDownloadTask> { it.updatedAtEpochMillis }
+                        .thenBy { it.canonicalKey }
+                )
     }
 
     private suspend fun awaitVisibleFile(
@@ -934,7 +987,7 @@ internal class BookDownloadManager(
         if (hasUnresolvedDeleteReceiptLocked(itemId)) return@withLock null
 
         val task =
-            tasks.value
+            mutableTasks.value
                 .asSequence()
                 .filter { it.itemId == itemId && !it.isDeleteRecord() }
                 .sortedByDescending { it.updatedAtEpochMillis }
@@ -988,27 +1041,31 @@ internal class BookDownloadManager(
     private fun itemLifecycle(itemId: UUID): Mutex =
         synchronized(itemLifecycles) { itemLifecycles.getOrPut(itemId) { Mutex() } }
 
-    private fun selectDeleteTaskLocked(itemId: UUID, preferredKey: String?): BookDownloadTask? =
-        tasks.value
-            .asSequence()
-            .filter { it.itemId == itemId && !it.isDeleteRecord() }
-            .sortedByDescending { it.updatedAtEpochMillis }
-            .firstOrNull { it.canonicalKey == preferredKey }
-            ?: tasks.value
-                .asSequence()
-                .filter { it.itemId == itemId && !it.isDeleteRecord() }
-                .sortedByDescending { it.updatedAtEpochMillis }
-                .firstOrNull()
-            ?: tasks.value
-                .asSequence()
-                .filter { it.itemId == itemId }
-                .sortedByDescending { it.updatedAtEpochMillis }
-                .firstOrNull { it.canonicalKey == preferredKey }
-            ?: tasks.value
-                .asSequence()
-                .filter { it.itemId == itemId }
-                .sortedByDescending { it.updatedAtEpochMillis }
-                .firstOrNull()
+    private fun resolveDeleteOwnerLocked(
+        itemId: UUID,
+        requestedCanonicalKey: String?,
+    ): DeleteOwnerSelection {
+        val records = mutableTasks.value.filter { it.itemId == itemId }
+        if (requestedCanonicalKey != null) {
+            val requested =
+                records.firstOrNull { it.canonicalKey == requestedCanonicalKey }
+                    ?: return DeleteOwnerSelection.OwnershipUnavailable
+            return if (requested.isSupersededDeleteRecord) {
+                DeleteOwnerSelection.AlreadySuperseded
+            } else {
+                DeleteOwnerSelection.Owned(requested)
+            }
+        }
+        if (records.map { it.canonicalKey }.distinct().size > 1) {
+            return DeleteOwnerSelection.Ambiguous
+        }
+        val record = records.singleOrNull()
+        return if (record?.isSupersededDeleteRecord == true) {
+            DeleteOwnerSelection.AlreadySuperseded
+        } else {
+            DeleteOwnerSelection.Owned(record)
+        }
+    }
 
     private fun deleteReceipt(
         itemId: UUID,
@@ -1052,6 +1109,7 @@ internal class BookDownloadManager(
                     mutableTasks.updateList { current ->
                         current.filterNot { it.canonicalKey == task.canonicalKey }
                     }
+                    publishVisibleTasksLocked()
                 } else {
                     saveLocked(
                         task.copy(
@@ -1138,7 +1196,7 @@ internal class BookDownloadManager(
             .maxOrNull() ?: 0L
 
     private fun hasUnresolvedDeleteReceiptLocked(itemId: UUID): Boolean =
-        tasks.value.any { it.itemId == itemId && it.isUnresolvedDeleteReceipt() }
+        mutableTasks.value.any { it.itemId == itemId && it.isUnresolvedDeleteReceipt() }
 
     private suspend fun reconcileCoexistingDeleteReceipts(
         loaded: List<BookDownloadTask>
@@ -1148,9 +1206,13 @@ internal class BookDownloadManager(
             loaded
                 .asSequence()
                 .filter { it.isUnresolvedDeleteReceipt() }
+                .filter { it.isCredentialIndependentLegacyReceipt() }
                 .filter { receipt ->
                     currentTasksByItem[receipt.itemId].orEmpty().any { task ->
-                        task.canonicalKey != receipt.canonicalKey
+                        task.canonicalKey != receipt.canonicalKey &&
+                            task.status != BookDownloadStatus.FAILED &&
+                            task.ownsTargetOf(receipt) &&
+                            task.createdAtEpochMillis > receipt.createdAtEpochMillis
                     }
                 }
                 .map { it.canonicalKey }
@@ -1179,6 +1241,16 @@ internal class BookDownloadManager(
     private fun BookDownloadTask.isDeleteRecord(): Boolean =
         isUnresolvedDeleteReceipt() || failureReason == DELETE_SUPERSEDED
 
+    private fun BookDownloadTask.isCredentialIndependentLegacyReceipt(): Boolean =
+        serverId == LOCAL_DELETE_SERVER_ID && userId == LOCAL_DELETE_USER_ID
+
+    /**
+     * 仅 target 绝对路径一致还不足以证明所有权；同时要求新任务在 receipt 之后创建。 credential-bound receipt 永不走此分支， 以免旧
+     * server/user 的 sibling 绕过真实删除 fence。
+     */
+    private fun BookDownloadTask.ownsTargetOf(receipt: BookDownloadTask): Boolean =
+        !targetPath.isNullOrBlank() && targetPath == receipt.targetPath
+
     private fun atomicMove(source: File, target: File) {
         Files.move(
             source.toPath(),
@@ -1192,6 +1264,29 @@ internal class BookDownloadManager(
         val generation: Long,
         val job: Job,
     )
+
+    private sealed interface DeleteOwnerSelection {
+        data class Owned(val task: BookDownloadTask?) : DeleteOwnerSelection
+
+        data object Ambiguous : DeleteOwnerSelection
+
+        data object OwnershipUnavailable : DeleteOwnerSelection
+
+        data object AlreadySuperseded : DeleteOwnerSelection
+    }
+
+    private sealed interface DeleteStart {
+        data class Prepared(
+            val receipt: BookDownloadTask,
+            val activeJob: ActiveBookDownloadJob?,
+        ) : DeleteStart
+
+        data object AmbiguousOwnership : DeleteStart
+
+        data object OwnershipUnavailable : DeleteStart
+
+        data object AlreadySuperseded : DeleteStart
+    }
 
     private sealed interface CommitOutcome {
         data class Completed(val task: BookDownloadTask) : CommitOutcome

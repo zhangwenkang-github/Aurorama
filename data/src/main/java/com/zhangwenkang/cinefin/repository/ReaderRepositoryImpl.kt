@@ -198,9 +198,11 @@ class ReaderRepositoryImpl(
                 ?.toList() ?: emptyList()
         }
 
-    override suspend fun deleteLocalFile(itemId: UUID) {
-        withContext(Dispatchers.IO) { bookDownloadManager.deleteBookDownload(itemId) }
-    }
+    override suspend fun deleteLocalFile(
+        itemId: UUID,
+        canonicalKey: String?,
+    ): BookDownloadDeleteResult =
+        withContext(Dispatchers.IO) { bookDownloadManager.deleteBookDownload(itemId, canonicalKey) }
 
     private fun freezeBookDownloadCredentials(): BookDownloadCredentials =
         BookDownloadCredentials(

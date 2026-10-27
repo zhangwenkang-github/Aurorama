@@ -35,6 +35,10 @@ data class BookDownloadTask(
     val progress: Float
         get() =
             if (totalBytes > 0L) (downloadedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) else 0f
+
+    /** 删除 receipt 已被同 item 的、可证明更新的 canonical owner 取代；仅内部持久化，不投影到用户列表。 */
+    val isSupersededDeleteRecord: Boolean
+        get() = failureReason == "DELETE_SUPERSEDED"
 }
 
 /** 入队结果：新入队 / 已在队列 / 本地已有文件 / 等待旧删除收口。 */
@@ -43,4 +47,13 @@ enum class BookDownloadEnqueueResult {
     AlreadyQueued,
     AlreadyDownloaded,
     BlockedByDelete,
+}
+
+/** `deleteBookDownload` 的可归因结果；裸 itemId 无法唯一归属时绝不任选。 */
+enum class BookDownloadDeleteResult {
+    Deleted,
+    CleanupFailed,
+    AmbiguousOwnership,
+    OwnershipUnavailable,
+    AlreadySuperseded,
 }

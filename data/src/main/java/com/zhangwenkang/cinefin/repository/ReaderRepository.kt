@@ -79,7 +79,16 @@ interface ReaderRepository {
     /** W34 下载列表：全部已离线书籍（下载页「书籍」层级用）。 */
     suspend fun listLocalFiles(): List<LocalBookFile>
 
-    suspend fun deleteLocalFile(itemId: UUID)
+    /**
+     * 删除书籍本地文件。完成文件若已带 canonical owner，必须同时传入 [canonicalKey]，防止同 item 多来源时误删。
+     *
+     * 不传 canonicalKey 的裸 itemId 仅在唯一 owner 时允许；存在多个 owner 时返回
+     * [BookDownloadDeleteResult.AmbiguousOwnership]，且不落任何文件 / provenance 副作用。
+     */
+    suspend fun deleteLocalFile(
+        itemId: UUID,
+        canonicalKey: String? = null,
+    ): BookDownloadDeleteResult
 
     suspend fun getReadingProgress(itemId: UUID): ReadingProgress?
 
