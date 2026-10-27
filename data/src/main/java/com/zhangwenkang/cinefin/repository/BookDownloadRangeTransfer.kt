@@ -410,27 +410,23 @@ internal class BookDownloadManager(
         itemLifecycle(itemId).withLock lifecycle@{
             val credentials = runCatching { credentialsProvider() }.getOrNull()
             val preferredKey = credentials?.let { canonicalBookDownloadKey(it, itemId) }
-            val deletion =
-                lock.withLock {
-                    val task =
-                        selectDeleteTaskLocked(itemId, preferredKey)
-                            ?: credentials?.let { deleteReceipt(itemId, it) }
-                            ?: return@withLock null
-                    saveLocked(
-                        task.copy(
-                            status = BookDownloadStatus.FAILED,
-                            failureReason = DELETE_PENDING,
-                            error = "正在清理书籍文件",
-                            updatedAtEpochMillis = clock(),
-                        )
+            val deletion = lock.withLock {
+                val task =
+                    selectDeleteTaskLocked(itemId, preferredKey)
+                        ?: deleteReceipt(itemId, credentials)
+                saveLocked(
+                    task.copy(
+                        status = BookDownloadStatus.FAILED,
+                        failureReason = DELETE_PENDING,
+                        error = "正在清理书籍文件",
+                        updatedAtEpochMillis = clock(),
                     )
-                    results.remove(task.canonicalKey)?.cancel(CancellationException("书籍任务正在删除"))
-                    val activeJob =
-                        jobs.remove(task.canonicalKey)?.also {
-                            retiringJobs[task.canonicalKey] = it
-                        }
-                    task to activeJob
-                } ?: return@lifecycle
+                )
+                results.remove(task.canonicalKey)?.cancel(CancellationException("书籍任务正在删除"))
+                val activeJob =
+                    jobs.remove(task.canonicalKey)?.also { retiringJobs[task.canonicalKey] = it }
+                task to activeJob
+            }
             val (receipt, activeJob) = deletion
             activeJob?.job?.cancel(CancellationException("书籍任务正在删除"))
             activeJob?.job?.join()
@@ -982,19 +978,29 @@ internal class BookDownloadManager(
 
     private fun deleteReceipt(
         itemId: UUID,
-        credentials: BookDownloadCredentials,
+        credentials: BookDownloadCredentials?,
     ): BookDownloadTask {
         val target = localFileProvider(itemId)
         val now = clock()
+        val serverId = credentials?.serverId ?: LOCAL_DELETE_SERVER_ID
+        val userId = credentials?.userId ?: LOCAL_DELETE_USER_ID
         return BookDownloadTask(
             itemId = itemId,
             title = readTitle(itemId),
             status = BookDownloadStatus.FAILED,
             failureReason = DELETE_PENDING,
             error = "正在清理书籍文件",
-            canonicalKey = canonicalBookDownloadKey(credentials, itemId),
-            serverId = credentials.serverId,
-            userId = credentials.userId,
+            canonicalKey =
+                DownloadCanonicalIdentity.of(
+                        mediaKind = DownloadMediaKind.BOOK,
+                        itemId = itemId.toString(),
+                        serverId = serverId,
+                        userId = userId.toString(),
+                        sourceId = null,
+                    )
+                    .canonicalKey,
+            serverId = serverId,
+            userId = userId,
             targetPath = target.absolutePath,
             createdAtEpochMillis = now,
             updatedAtEpochMillis = now,
@@ -1115,6 +1121,8 @@ internal class BookDownloadManager(
     }
 
     private companion object {
+        const val LOCAL_DELETE_SERVER_ID = "__book_local_delete__"
+        val LOCAL_DELETE_USER_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000000")
         const val DELETE_PENDING = "DELETE_PENDING"
         const val DELETE_FAILED = "DELETE_FAILED"
         const val PROGRESS_SAVE_INTERVAL_BYTES = 1024L * 1024L

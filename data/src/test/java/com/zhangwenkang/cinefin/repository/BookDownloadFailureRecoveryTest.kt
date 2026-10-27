@@ -322,6 +322,157 @@ class BookDownloadFailureRecoveryTest {
     }
 
     @Test
+    fun `无 credentials 且无 DAO task 时直接删除本地 legacy 四类 artifact`() = runBlocking {
+        val root = createTempDirectory(prefix = "book-legacy-delete").toFile()
+        val target = File(root, "$ITEM_ID.book")
+        val partial = File(root, "$ITEM_ID.book.part")
+        val generatedPartial = File(root, "${partial.name}.7")
+        val title = File(root, "$ITEM_ID.title")
+        target.writeBytes(byteArrayOf(1, 2, 3))
+        partial.writeBytes(byteArrayOf(4))
+        generatedPartial.writeBytes(byteArrayOf(5, 6))
+        title.writeText("书")
+        val sidecar = DownloadMediaSidecar.forFile(File(root, "download_media.tsv"))
+        assertTrue(
+            recordBookDownloadProvenance(
+                sidecar,
+                BookDownloadOrigin(SERVER_ID, USER_ID, ITEM_ID, "书"),
+            )
+        )
+        val store = InMemoryBookDownloadTaskStore()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val manager =
+                manager(
+                    store = store,
+                    transfer =
+                        object : BookDownloadTransfer {
+                            override suspend fun download(
+                                request: BookDownloadTransferRequest,
+                                onMetadata: suspend (String?, Long) -> Unit,
+                                onProgress: suspend (Long, Long) -> Unit,
+                            ): BookDownloadTransferResult = error("legacy 删除不得启动网络")
+                        },
+                    target = target,
+                    partial = partial,
+                    scope = scope,
+                    credentialsProvider = { error("legacy 删除不得依赖当前 origin") },
+                    clearProvenance = { clearBookDownloadProvenance(sidecar, it) },
+                    deleteTitle = { deleteFileIfPresent(title) },
+                )
+            manager.awaitRestored()
+
+            manager.deleteBookDownload(ITEM_ID)
+
+            assertTrue(store.snapshot().isEmpty())
+            assertTrue(manager.tasks.value.isEmpty())
+            assertTrue(!target.exists())
+            assertTrue(bookPartials(partial).isEmpty())
+            assertTrue(!title.exists())
+            assertTrue(sidecar.records().isEmpty())
+        } finally {
+            scope.cancel()
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `无 credentials 的 legacy 删除每类失败重启后自动重试`() = runBlocking {
+        CleanupFailure.entries.forEach { failure ->
+            val root = createTempDirectory(prefix = "book-legacy-delete-${failure.name}").toFile()
+            val target = File(root, "$ITEM_ID.book")
+            val partial = File(root, "$ITEM_ID.book.part")
+            val title = File(root, "$ITEM_ID.title")
+            target.writeBytes(byteArrayOf(1, 2, 3))
+            partial.writeBytes(byteArrayOf(4, 5))
+            title.writeText("书")
+            val provenance = AtomicBoolean(true)
+            val store = InMemoryBookDownloadTaskStore()
+            val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            try {
+                val first =
+                    manager(
+                        store = store,
+                        transfer =
+                            object : BookDownloadTransfer {
+                                override suspend fun download(
+                                    request: BookDownloadTransferRequest,
+                                    onMetadata: suspend (String?, Long) -> Unit,
+                                    onProgress: suspend (Long, Long) -> Unit,
+                                ): BookDownloadTransferResult = error("legacy 删除不得启动网络")
+                            },
+                        target = target,
+                        partial = partial,
+                        scope = firstScope,
+                        credentialsProvider = { error("legacy 删除不得依赖当前 origin") },
+                        clearProvenance = {
+                            if (failure != CleanupFailure.PROVENANCE) provenance.set(false)
+                            failure != CleanupFailure.PROVENANCE
+                        },
+                        deleteTitle = {
+                            if (failure == CleanupFailure.TITLE) false
+                            else deleteFileIfPresent(title)
+                        },
+                        deleteFile = { file ->
+                            when {
+                                failure == CleanupFailure.TARGET &&
+                                    file.absolutePath == target.absolutePath -> false
+                                failure == CleanupFailure.PARTIAL &&
+                                    bookPartials(partial).any {
+                                        it.absolutePath == file.absolutePath
+                                    } -> false
+                                else -> deleteFileIfPresent(file)
+                            }
+                        },
+                    )
+                first.awaitRestored()
+
+                first.deleteBookDownload(ITEM_ID)
+
+                assertEquals("DELETE_FAILED", store.snapshot().single().failureReason)
+                assertEquals(BookDownloadStatus.FAILED, first.tasks.value.single().status)
+                firstScope.cancel()
+
+                val retried =
+                    manager(
+                        store = store,
+                        transfer =
+                            object : BookDownloadTransfer {
+                                override suspend fun download(
+                                    request: BookDownloadTransferRequest,
+                                    onMetadata: suspend (String?, Long) -> Unit,
+                                    onProgress: suspend (Long, Long) -> Unit,
+                                ): BookDownloadTransferResult = error("删除恢复不得启动网络")
+                            },
+                        target = target,
+                        partial = partial,
+                        scope = secondScope,
+                        credentialsProvider = { error("legacy 恢复不得依赖当前 origin") },
+                        clearProvenance = {
+                            provenance.set(false)
+                            true
+                        },
+                        deleteTitle = { deleteFileIfPresent(title) },
+                        deleteFile = { deleteFileIfPresent(it) },
+                    )
+                retried.awaitRestored()
+
+                assertTrue(store.snapshot().isEmpty())
+                assertTrue(retried.tasks.value.isEmpty())
+                assertTrue(!target.exists())
+                assertTrue(bookPartials(partial).isEmpty())
+                assertTrue(!title.exists())
+                assertFalse(provenance.get())
+            } finally {
+                firstScope.cancel()
+                secondScope.cancel()
+                root.deleteRecursively()
+            }
+        }
+    }
+
+    @Test
     fun `RUNNING 每类清理失败都保留 DELETE_FAILED receipt 且重启可重试`() = runBlocking {
         CleanupFailure.entries.forEach { failure ->
             assertCleanupFailureRetry(BookDownloadStatus.RUNNING, failure)
