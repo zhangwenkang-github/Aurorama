@@ -9,7 +9,6 @@ import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
-import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.downloadIdentity
 import java.util.UUID
 
@@ -128,7 +127,7 @@ data class DownloadContainerTaskActionSpec(
 fun DownloadHierarchyContainer.taskActionSpecs(): List<DownloadContainerTaskActionSpec> {
     val tasks = allEntries().mapNotNull { it.task }
     return DownloadContainerTaskAction.entries.mapNotNull { action ->
-        val eligibleTaskKeys = tasks.filter { it.status.supports(action) }.map(::taskKey).toSet()
+        val eligibleTaskKeys = tasks.filter { it.supports(action) }.map(::taskKey).toSet()
         if (eligibleTaskKeys.isEmpty()) null
         else DownloadContainerTaskActionSpec(action, eligibleTaskKeys)
     }
@@ -140,16 +139,14 @@ fun DownloadHierarchyContainer.tasksForTaskAction(
 ): List<DownloadTask> =
     allEntries()
         .mapNotNull { it.task }
-        .filter { task ->
-            taskKey(task) in spec.eligibleTaskKeys && task.status.supports(spec.action)
-        }
+        .filter { task -> taskKey(task) in spec.eligibleTaskKeys && task.supports(spec.action) }
         .distinctBy(::taskKey)
 
-private fun DownloadTaskStatus.supports(action: DownloadContainerTaskAction): Boolean =
+private fun DownloadTask.supports(action: DownloadContainerTaskAction): Boolean =
     when (action) {
         DownloadContainerTaskAction.PAUSE -> DownloadTaskRules.canPause(this)
-        DownloadContainerTaskAction.RESUME -> DownloadTaskRules.canResume(this)
-        DownloadContainerTaskAction.RETRY -> DownloadTaskRules.canRetry(this)
+        DownloadContainerTaskAction.RESUME -> DownloadTaskRules.canResume(status)
+        DownloadContainerTaskAction.RETRY -> DownloadTaskRules.canRetry(status)
     }
 
 enum class DownloadActionFailure {

@@ -2,10 +2,14 @@ package com.zhangwenkang.cinefin.utils
 
 import com.zhangwenkang.cinefin.models.DownloadIntentStatus
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -125,14 +129,65 @@ class DownloadIntentRestartReconciliationTest {
             }
         }
 
+    @Test
+    fun `restart progress does not return while source-created CAS is still resolving`() =
+        runBlocking {
+            val fixture = DownloaderImplRecoveryTest.Fixture()
+            val itemId = UUID.fromString("82000000-0000-4000-8000-000000000003")
+            val sourceId = "restart-source-cas-mid-flight"
+            var recovery: kotlinx.coroutines.Deferred<Int>? = null
+            var progress: kotlinx.coroutines.Deferred<Unit>? = null
+            try {
+                fixture.prepareMusicOrigin(itemId, "restart-source-cas", sourceId)
+                fixture.seedResolvingIntentWithResolvedSidecar(
+                    itemId = itemId,
+                    sourceId = sourceId,
+                    name = "restart-source-cas",
+                    sourceExists = true,
+                )
+                fixture.armIntentSourceCreatedCasGate()
+                val restarted = fixture.newDownloader()
+                recovery = async(Dispatchers.IO) { restarted.recoverOnStartup() }
+                fixture.awaitIntentSourceCreatedCas()
+
+                assertEquals(
+                    "source 已出现但终态 CAS 未提交时必须仍是合法 RESOLVING",
+                    DownloadIntentStatus.RESOLVING.name,
+                    fixture.intent(itemId)?.status,
+                )
+                progress = async(Dispatchers.IO) { awaitRestartProgress(fixture, itemId, sourceId) }
+                val returnedTooEarly =
+                    withTimeoutOrNull(250L) {
+                        progress.await()
+                        true
+                    } ?: false
+                assertFalse(
+                    "stable restart progress must wait until intent is no longer RESOLVING",
+                    returnedTooEarly,
+                )
+            } finally {
+                fixture.releaseIntentSourceCreatedCas()
+                progress?.let { withTimeoutOrNull(5_000L) { it.await() } }
+                recovery?.let { withTimeoutOrNull(5_000L) { it.await() } }
+                assertEquals(
+                    "稳定终态后 source 仍必须唯一",
+                    1,
+                    fixture.sourceIdsSnapshot().count { it == sourceId },
+                )
+                fixture.close()
+            }
+        }
+
     private suspend fun awaitRestartProgress(
         fixture: DownloaderImplRecoveryTest.Fixture,
         itemId: UUID,
         sourceId: String,
     ) {
         awaitCondition {
-            fixture.sourceInsertCount(sourceId) == 1 ||
-                fixture.intent(itemId)?.status == DownloadIntentStatus.FAILED.name
+            val intentStatus = fixture.intent(itemId)?.status
+            intentStatus != DownloadIntentStatus.RESOLVING.name &&
+                (fixture.dao.sourceById(sourceId) != null ||
+                    intentStatus == DownloadIntentStatus.FAILED.name)
         }
     }
 

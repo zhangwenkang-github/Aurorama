@@ -392,6 +392,9 @@ object DownloadTaskRules {
     fun canPause(status: DownloadTaskStatus): Boolean =
         status == DownloadTaskStatus.PENDING || status == DownloadTaskStatus.RUNNING
 
+    /** intent 仍在解析 / 待启动时没有可暂停的真实引擎任务；删除 / 取消仍由行级动作提供。 */
+    fun canPause(task: DownloadTask): Boolean = task.intentPhase == null && canPause(task.status)
+
     fun canResume(status: DownloadTaskStatus): Boolean = status == DownloadTaskStatus.PAUSED
 
     fun canRetry(status: DownloadTaskStatus): Boolean = status == DownloadTaskStatus.FAILED

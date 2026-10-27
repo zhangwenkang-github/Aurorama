@@ -4189,6 +4189,64 @@ class DownloaderImplRecoveryTest {
         )
     }
 
+    @Test
+    fun `SOURCE_CREATED with visible source projects source pending on the source task`() =
+        runBlocking {
+            val fixture = Fixture()
+            val itemId = UUID.fromString("82828282-8282-4282-8282-828282828282")
+            val sourceId = "visible-source-pending"
+            try {
+                fixture.prepareMusicOrigin(itemId, "Visible source pending", sourceId)
+                fixture.dao.seedMovie(itemId)
+                fixture.dao.putSource(
+                    fixture
+                        .seedPendingSource(itemId, sourceId)
+                        .copy(taskStatus = DownloadTaskStatus.PENDING.name)
+                )
+                fixture.dao.putDownloadIntent(
+                    DownloadIntentDto(
+                        itemId = itemId,
+                        name = "Visible source pending",
+                        albumName = "Projection",
+                        artist = "Intent",
+                        trackIndex = 0,
+                        status = DownloadIntentStatus.SOURCE_CREATED.name,
+                        createdAt = 1L,
+                        updatedAt = 2L,
+                        taskGeneration = 7L,
+                    )
+                )
+                assertTrue(
+                    fixture.putMusicSidecar(
+                        itemId = itemId,
+                        sourceId = sourceId,
+                        serverId = SERVER_ID,
+                        userId = USER_ID.toString(),
+                        displayName = "Visible source pending",
+                    )
+                )
+
+                val task = fixture.downloader.refreshDownloadTasks().single { it.itemId == itemId }
+
+                assertEquals(sourceId, task.sourceId)
+                assertEquals(DownloadIntentPhase.SOURCE_PENDING, task.intentPhase)
+                assertEquals(
+                    DownloadTaskPhase.SOURCE_PENDING,
+                    DownloadControlPlaneRules.phase(
+                        status = task.status,
+                        downloadedBytes = task.downloadedBytes,
+                        totalBytes = task.totalBytes,
+                        failureReason = task.failureReason,
+                        nextRetryAt = task.nextRetryAt,
+                        nowMs = 0L,
+                        intentPhase = task.intentPhase,
+                    ),
+                )
+            } finally {
+                fixture.close()
+            }
+        }
+
     internal class Fixture(
         private val resolutionDispatcher: CoroutineDispatcher = Dispatchers.IO,
         private val resolutionDeadlineScheduler: DownloadIntentDeadlineScheduler =
@@ -4442,6 +4500,35 @@ class DownloaderImplRecoveryTest {
             return intent
         }
 
+        fun seedSourceCreatedIntentWithSource(
+            itemId: UUID,
+            sourceId: String,
+            name: String,
+        ): DownloadIntentDto {
+            dao.putSource(seedPendingSource(itemId, sourceId))
+            assertTrue(
+                putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = sourceId,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    displayName = name,
+                )
+            )
+            return DownloadIntentDto(
+                    itemId = itemId,
+                    name = name,
+                    albumName = "Snapshot",
+                    artist = "Intent",
+                    trackIndex = 0,
+                    status = DownloadIntentStatus.SOURCE_CREATED.name,
+                    createdAt = 1L,
+                    updatedAt = 1L,
+                    taskGeneration = 4L,
+                )
+                .also(dao::putDownloadIntent)
+        }
+
         fun armIntentSourceReadGate(sourceId: String) {
             dao.armIntentSourceReadGate(sourceId)
         }
@@ -4468,6 +4555,33 @@ class DownloaderImplRecoveryTest {
 
         fun releaseIntentDeletion() {
             dao.releaseIntentDeletion()
+        }
+
+        fun armIntentSourceCreatedCasGate() {
+            dao.armIntentSourceCreatedCasGate()
+        }
+
+        suspend fun awaitIntentSourceCreatedCas() {
+            withTimeout(5_000L) { dao.awaitIntentSourceCreatedCas() }
+        }
+
+        fun releaseIntentSourceCreatedCas() {
+            dao.releaseIntentSourceCreatedCas()
+        }
+
+        fun armIntentSourceSnapshotGate(
+            itemId: UUID,
+            replacementSourceId: String,
+        ) {
+            dao.armIntentSourceSnapshotGate(itemId, replacementSourceId)
+        }
+
+        suspend fun awaitIntentSourceSnapshot() {
+            withTimeout(5_000L) { dao.awaitIntentSourceSnapshot() }
+        }
+
+        fun releaseIntentSourceSnapshot() {
+            dao.releaseIntentSourceSnapshot()
         }
 
         fun intent(itemId: UUID): DownloadIntentDto? = dao.downloadIntent(itemId)
@@ -5042,6 +5156,14 @@ class DownloaderImplRecoveryTest {
         var intentDeletionStarted = CompletableDeferred<Unit>()
         var releaseIntentDeletion = CompletableDeferred<Unit>()
         private var blockIntentDeletion = false
+        var intentSourceCreatedCasStarted = CompletableDeferred<Unit>()
+        var releaseIntentSourceCreatedCas = CompletableDeferred<Unit>()
+        private var blockIntentSourceCreatedCas = false
+        var intentSourceSnapshotStarted = CompletableDeferred<Unit>()
+        var releaseIntentSourceSnapshot = CompletableDeferred<Unit>()
+        private var blockIntentSourceSnapshot = false
+        private var intentSourceSnapshotItemId: UUID? = null
+        private var intentSourceSnapshotReplacementId: String? = null
         var lastIntentDeletionGeneration: Long? = null
         var pendingSourcesSnapshotStarted = CompletableDeferred<Unit>()
         var releasePendingSourcesSnapshot = CompletableDeferred<Unit>()
@@ -5318,7 +5440,44 @@ class DownloaderImplRecoveryTest {
                             Unit
                         }
                         "getUserDataOrCreateNew" -> userData
-                        "getSources" -> sources.values.filter { it.itemId == args[0] as UUID }
+                        "getSources" -> {
+                            val snapshot = sources.values.filter { it.itemId == args[0] as UUID }
+                            if (blockIntentSourceSnapshot) {
+                                blockIntentSourceSnapshot = false
+                                intentSourceSnapshotStarted.complete(Unit)
+                                val itemId = checkNotNull(intentSourceSnapshotItemId)
+                                val retryAdvanced = runBlocking {
+                                    while (
+                                        downloadIntents[itemId]?.status !=
+                                            DownloadIntentStatus.RECEIVED.name &&
+                                            !releaseIntentSourceSnapshot.isCompleted
+                                    ) {
+                                        delay(5L)
+                                    }
+                                    downloadIntents[itemId]?.status ==
+                                        DownloadIntentStatus.RECEIVED.name
+                                }
+                                runBlocking { releaseIntentSourceSnapshot.await() }
+                                snapshot.firstOrNull()?.let { old ->
+                                    val replacementId =
+                                        checkNotNull(intentSourceSnapshotReplacementId)
+                                    sources[replacementId] =
+                                        old.copy(
+                                            id = replacementId,
+                                            taskStatus = DownloadTaskStatus.PENDING.name,
+                                            failureReason = null,
+                                            taskGeneration = old.taskGeneration + 1L,
+                                        )
+                                }
+                                if (retryAdvanced) {
+                                    sources.values.filter { it.itemId == itemId }
+                                } else {
+                                    snapshot
+                                }
+                            } else {
+                                snapshot
+                            }
+                        }
                         "getTrickplayInfo" -> trickplay.takeIf { args[0] == SOURCE_ID }
                         "insertMovie" -> {
                             snapshotWrites += 1
@@ -5598,6 +5757,11 @@ class DownloaderImplRecoveryTest {
                             }
                         }
                         "markDownloadIntentSourceCreatedIfCurrent" -> {
+                            if (blockIntentSourceCreatedCas) {
+                                blockIntentSourceCreatedCas = false
+                                intentSourceCreatedCasStarted.complete(Unit)
+                                runBlocking { releaseIntentSourceCreatedCas.await() }
+                            }
                             val itemId = args[0] as UUID
                             val generation = args[1] as Long
                             val current = downloadIntents[itemId]
@@ -5812,6 +5976,43 @@ class DownloaderImplRecoveryTest {
         fun releaseIntentDeletion() {
             if (!releaseIntentDeletion.isCompleted) {
                 releaseIntentDeletion.complete(Unit)
+            }
+        }
+
+        fun armIntentSourceCreatedCasGate() {
+            intentSourceCreatedCasStarted = CompletableDeferred()
+            releaseIntentSourceCreatedCas = CompletableDeferred()
+            blockIntentSourceCreatedCas = true
+        }
+
+        suspend fun awaitIntentSourceCreatedCas() {
+            intentSourceCreatedCasStarted.await()
+        }
+
+        fun releaseIntentSourceCreatedCas() {
+            if (!releaseIntentSourceCreatedCas.isCompleted) {
+                releaseIntentSourceCreatedCas.complete(Unit)
+            }
+        }
+
+        fun armIntentSourceSnapshotGate(
+            itemId: UUID,
+            replacementSourceId: String,
+        ) {
+            intentSourceSnapshotStarted = CompletableDeferred()
+            releaseIntentSourceSnapshot = CompletableDeferred()
+            blockIntentSourceSnapshot = true
+            intentSourceSnapshotItemId = itemId
+            intentSourceSnapshotReplacementId = replacementSourceId
+        }
+
+        suspend fun awaitIntentSourceSnapshot() {
+            intentSourceSnapshotStarted.await()
+        }
+
+        fun releaseIntentSourceSnapshot() {
+            if (!releaseIntentSourceSnapshot.isCompleted) {
+                releaseIntentSourceSnapshot.complete(Unit)
             }
         }
 

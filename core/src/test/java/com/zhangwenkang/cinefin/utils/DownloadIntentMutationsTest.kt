@@ -7,6 +7,8 @@ import androidx.work.WorkManager
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.DownloadDeleteReceiptDto
 import com.zhangwenkang.cinefin.models.DownloadIntentDto
+import com.zhangwenkang.cinefin.models.FindroidSourceDto
+import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import java.io.File
@@ -203,8 +205,96 @@ class DownloadIntentMutationsTest {
         }
     }
 
-    private class Fixture(status: String, generation: Long) {
-        val dao = RecordingDao(status = status, generation = generation)
+    @Test
+    fun `source cancellation refusal surfaces FAILED for the intent action`() = runBlocking {
+        val fixture =
+            Fixture(
+                status = "SOURCE_CREATED",
+                generation = 3L,
+                withSource = true,
+                denySourceCancellation = true,
+            )
+        fixture.dao.seedAdditionalSource("mutation-source-2")
+
+        val cancelled =
+            fixture.downloader.cancelTask(
+                DownloadTask(
+                    itemId = ITEM_ID,
+                    sourceId = intentSourceId(ITEM_ID),
+                    name = "Track",
+                    path = "",
+                    downloadId = null,
+                    status = DownloadTaskStatus.PENDING,
+                    failureReason = null,
+                    downloadedBytes = 0L,
+                    totalBytes = 0L,
+                    updatedAt = 0L,
+                    mediaKind = DownloadMediaKind.MUSIC,
+                    taskGeneration = 3L,
+                )
+            )
+
+        assertFalse(
+            "任一 source 取消未确认时不得把 intent cancel 报成成功：${fixture.dao.calls}",
+            cancelled,
+        )
+        assertEquals(
+            listOf(SOURCE_ID, "mutation-source-2"),
+            fixture.dao.sourceCancellationAttempts,
+        )
+        assertEquals(DownloadTaskStatus.PENDING.name, fixture.dao.source?.taskStatus)
+        assertEquals(3L, fixture.dao.source?.taskGeneration)
+        assertEquals(
+            DownloadTaskStatus.FAILED.name,
+            fixture.dao.sourceById("mutation-source-2")?.taskStatus,
+        )
+    }
+
+    @Test
+    fun `source cancellation success keeps the intent action confirmed`() = runBlocking {
+        val fixture =
+            Fixture(
+                status = "SOURCE_CREATED",
+                generation = 3L,
+                withSource = true,
+            )
+
+        val cancelled =
+            fixture.downloader.cancelTask(
+                DownloadTask(
+                    itemId = ITEM_ID,
+                    sourceId = intentSourceId(ITEM_ID),
+                    name = "Track",
+                    path = "",
+                    downloadId = null,
+                    status = DownloadTaskStatus.PENDING,
+                    failureReason = null,
+                    downloadedBytes = 0L,
+                    totalBytes = 0L,
+                    updatedAt = 0L,
+                    mediaKind = DownloadMediaKind.MUSIC,
+                    taskGeneration = 3L,
+                )
+            )
+
+        assertTrue("确认取消全部旧 source 后 intent action 必须成功", cancelled)
+        assertEquals(DownloadTaskStatus.FAILED.name, fixture.dao.source?.taskStatus)
+        assertEquals(4L, fixture.dao.source?.taskGeneration)
+    }
+
+    private class Fixture(
+        status: String,
+        generation: Long,
+        withSource: Boolean = false,
+        denySourceCancellation: Boolean = false,
+    ) {
+        val dao =
+            RecordingDao(
+                status = status,
+                generation = generation,
+                withSource = withSource,
+                denySourceCancellation = denySourceCancellation,
+            )
         val services = FakeDownloadSystemServices()
         val downloader =
             DownloaderImpl.createForTest(
@@ -243,9 +333,35 @@ class DownloadIntentMutationsTest {
         override fun notifyFailed(task: DownloadTask) = Unit
     }
 
-    private class RecordingDao(status: String, generation: Long) {
+    private class RecordingDao(
+        status: String,
+        generation: Long,
+        withSource: Boolean,
+        private val denySourceCancellation: Boolean,
+    ) {
         val calls = mutableListOf<String>()
         var intent: DownloadIntentDto? = intent(status, generation)
+        var source: FindroidSourceDto? =
+            FindroidSourceDto(
+                    id = SOURCE_ID,
+                    itemId = ITEM_ID,
+                    name = "Track",
+                    type = FindroidSourceType.LOCAL,
+                    path = "",
+                    downloadId = null,
+                    taskStatus = DownloadTaskStatus.PENDING.name,
+                    failureReason = null,
+                    updatedAt = 0L,
+                    downloadedBytes = 0L,
+                    retryCount = 0,
+                    nextRetryAt = 0L,
+                    engineVersion = 1,
+                    allowOffline = true,
+                    taskGeneration = generation,
+                )
+                .takeIf { withSource }
+        private val additionalSources = linkedMapOf<String, FindroidSourceDto>()
+        val sourceCancellationAttempts = mutableListOf<String>()
         var successfulReceipt: DownloadDeleteReceiptDto? = null
         var lastDeleteExpectedGeneration: Long? = null
         var lastDeleteActualGeneration: Long? = null
@@ -271,7 +387,12 @@ class DownloadIntentMutationsTest {
                         "markDownloadIntentDeletionIfCurrent" ->
                             markDeletionSql(args[0] as UUID, args[1] as Long, args[2] as Long)
                         "getDownloadIntent" -> intent.takeIf { it?.itemId == args[0] }
-                        "getSources" -> emptyList<Any>()
+                        "getSources" ->
+                            (listOfNotNull(source) + additionalSources.values).filter {
+                                it.itemId == args[0]
+                            }
+                        "getSource" -> sourceById(args[0] as String)
+                        "beginSourceCancellation" -> cancelSource(args)
                         "deleteDownloadIntentIfCurrent" ->
                             deleteIntentSql(args[0] as UUID, args[1] as Long)
                         "beginDownloadDeleteBatch" -> Unit
@@ -307,6 +428,49 @@ class DownloadIntentMutationsTest {
                 )
                 .also { intent = it }
         }
+
+        private fun cancelSource(args: Array<Any?>): FindroidSourceDto? {
+            val sourceId = args[0] as String
+            sourceCancellationAttempts += sourceId
+            if (denySourceCancellation && sourceId == SOURCE_ID) return null
+            val current = sourceById(sourceId) ?: return null
+            if (
+                current.id != args[0] ||
+                    current.taskGeneration != args[1] ||
+                    current.taskStatus !in
+                        setOf(
+                            DownloadTaskStatus.PENDING.name,
+                            DownloadTaskStatus.RUNNING.name,
+                        )
+            ) {
+                return null
+            }
+            return current
+                .copy(
+                    taskStatus = DownloadTaskStatus.FAILED.name,
+                    failureReason = DownloadFailureReason.CANCELLED.name,
+                    taskGeneration = current.taskGeneration + 1L,
+                )
+                .also { updated ->
+                    if (updated.id == SOURCE_ID) {
+                        source = updated
+                    } else {
+                        additionalSources[updated.id] = updated
+                    }
+                }
+        }
+
+        fun seedAdditionalSource(sourceId: String) {
+            val primary = requireNotNull(source)
+            additionalSources[sourceId] =
+                primary.copy(
+                    id = sourceId,
+                    path = primary.path.replace(SOURCE_ID, sourceId),
+                )
+        }
+
+        fun sourceById(sourceId: String): FindroidSourceDto? =
+            source?.takeIf { it.id == sourceId } ?: additionalSources[sourceId]
 
         private fun markDeletion(
             itemId: UUID,
@@ -383,6 +547,7 @@ class DownloadIntentMutationsTest {
     private companion object {
         val ITEM_ID: UUID = UUID(0L, 1L)
         val USER_ID: UUID = UUID(0L, 2L)
+        const val SOURCE_ID = "mutation-source"
 
         fun intent(status: String, generation: Long) =
             DownloadIntentDto(

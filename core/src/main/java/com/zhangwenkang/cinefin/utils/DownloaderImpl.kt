@@ -2710,19 +2710,58 @@ private constructor(
         expectedGeneration: Long,
     ): Boolean =
         withContext(Dispatchers.IO) {
-            val cancelled =
+            val mutation =
                 itemMutationLock(itemId).withLock {
-                    intentMutations.cancel(
-                        itemId,
-                        expectedGeneration,
-                        System.currentTimeMillis(),
-                    )
+                    val cancelled =
+                        intentMutations.cancel(
+                            itemId,
+                            expectedGeneration,
+                            System.currentTimeMillis(),
+                        ) ?: return@withLock null
+                    // 代次 CAS 成功后立即冻结旧代 source 所有权；锁外不得重新按 itemId 枚举。
+                    cancelled to
+                        database.getSources(itemId).map { source ->
+                            DownloadIntentSourceSnapshot(
+                                id = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        }
                 } ?: return@withContext false
+            val (cancelled, sources) = mutation
             notifyQueueChanged()
             // source-operation 必须在 item lock 外获取；CAS 已推进代次，迟到 resolver 不能再插 source。
-            database.getSources(itemId).forEach { source -> cancelTaskById(source.id) }
-            cancelled.status == "FAILED"
+            val sourcesCancelled = cancelIntentSources(sources)
+            cancelled.status == "FAILED" && sourcesCancelled
         }
+
+    /**
+     * intent cancel 只处理 item lock 内冻结的 source 快照。
+     *
+     * 每个 child 都尝试取消；拒绝或异常均保留为未确认失败，不能把父 intent 的 CAS 成功当成完整取消。
+     */
+    private suspend fun cancelIntentSources(sources: List<DownloadIntentSourceSnapshot>): Boolean {
+        var allConfirmed = true
+        sources
+            .distinctBy { it.id }
+            .forEach { source ->
+                try {
+                    if (!cancelTaskAtGeneration(source.id, source.generation)) {
+                        allConfirmed = false
+                        Timber.w(
+                            "下载意图的旧 source 取消未确认：%s/%d",
+                            source.id,
+                            source.generation,
+                        )
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    allConfirmed = false
+                    Timber.w(error, "下载意图的旧 source 取消失败：%s", source.id)
+                }
+            }
+        return allConfirmed
+    }
 
     private suspend fun cancelTaskAtGeneration(
         sourceId: String,
@@ -2769,20 +2808,34 @@ private constructor(
         expectedGeneration: Long,
     ): Boolean =
         withContext(Dispatchers.IO) {
-            val cancelled =
+            val mutation =
                 itemMutationLock(itemId).withLock {
-                    intentMutations.delete(
-                        itemId,
-                        expectedGeneration,
-                        System.currentTimeMillis(),
-                    )
+                    val cancelled =
+                        intentMutations.delete(
+                            itemId,
+                            expectedGeneration,
+                            System.currentTimeMillis(),
+                        ) ?: return@withLock null
+                    // delete 与 cancel 共用同一快照边界：旧操作只能处理旧代已存在的 child。
+                    cancelled to
+                        database.getSources(itemId).map { source ->
+                            DownloadIntentSourceSnapshot(
+                                id = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        }
                 } ?: return@withContext false
+            val (cancelled, sources) = mutation
             try {
-                val sourceIds = database.getSources(itemId).map { it.id }
                 val result =
                     DownloadIntentDeletionRules.deleteAllOrReport(
-                        sourceIds = sourceIds,
-                        deleteSource = { childSourceId -> deleteTaskById(childSourceId) },
+                        sourceIds = sources.map { source -> source.id },
+                        deleteSource = { childSourceId ->
+                            val frozen =
+                                sources.firstOrNull { source -> source.id == childSourceId }
+                                    ?: return@deleteAllOrReport false
+                            deleteTaskAtGeneration(frozen.id, frozen.generation)
+                        },
                         deleteIntent = {
                             val pendingIdentities =
                                 sidecar
@@ -3435,6 +3488,8 @@ private constructor(
                 database.getEpisodeHierarchyWithSources().associateBy { it.episodeId }
             }
                 .getOrElse { emptyMap() }
+            val intents = database.getDownloadIntents()
+            val intentsByItemId = intents.associateBy(DownloadIntentDto::itemId)
             val tasks = mutableListOf<DownloadTask>()
 
             for (source in database.getPendingSources()) {
@@ -3447,6 +3502,12 @@ private constructor(
                             persistedStatus = source.taskStatus,
                             pathIsPartial = source.path.endsWith(".download"),
                         )
+                    }
+                val intentPhase =
+                    if (status == DownloadTaskStatus.PENDING) {
+                        intentsByItemId[source.itemId]?.status.toDownloadIntentPhase()
+                    } else {
+                        null
                     }
                 val runtimeState = runtime.value[source.id]
                 val downloaded =
@@ -3487,13 +3548,13 @@ private constructor(
                         taskGeneration = source.taskGeneration,
                         serverId = record?.serverId,
                         userId = record?.userId,
+                        intentPhase = intentPhase,
                     )
             }
 
             val sourceItemIds = tasks.mapTo(mutableSetOf()) { it.itemId }
             tasks +=
-                database
-                    .getDownloadIntents()
+                intents
                     .asSequence()
                     .filterNot { it.itemId in sourceItemIds }
                     .map { intent ->
@@ -3527,15 +3588,7 @@ private constructor(
                             taskGeneration = intent.taskGeneration,
                             serverId = pendingRecord?.serverId,
                             userId = pendingRecord?.userId,
-                            intentPhase =
-                                when (intent.status) {
-                                    DownloadIntentStatus.RECEIVED.name -> DownloadIntentPhase.QUEUED
-                                    DownloadIntentStatus.RESOLVING.name ->
-                                        DownloadIntentPhase.RESOLVING
-                                    DownloadIntentStatus.SOURCE_CREATED.name ->
-                                        DownloadIntentPhase.SOURCE_PENDING
-                                    else -> null
-                                },
+                            intentPhase = intent.status.toDownloadIntentPhase(),
                         )
                     }
                     .toList()
@@ -3549,6 +3602,14 @@ private constructor(
                 ensureEngineRunning()
             }
             tasks.sortedByDescending { it.updatedAt }
+        }
+
+    private fun String?.toDownloadIntentPhase(): DownloadIntentPhase? =
+        when (this) {
+            DownloadIntentStatus.RECEIVED.name -> DownloadIntentPhase.QUEUED
+            DownloadIntentStatus.RESOLVING.name -> DownloadIntentPhase.RESOLVING
+            DownloadIntentStatus.SOURCE_CREATED.name -> DownloadIntentPhase.SOURCE_PENDING
+            else -> null
         }
 
     override suspend fun recoverOnStartup(): Int =
@@ -4716,6 +4777,11 @@ internal fun downloadTaskHandle(sourceId: String): Long =
 internal const val INTENT_SOURCE_PREFIX = "intent:"
 
 internal fun intentSourceId(itemId: UUID): String = "$INTENT_SOURCE_PREFIX$itemId"
+
+private data class DownloadIntentSourceSnapshot(
+    val id: String,
+    val generation: Long,
+)
 
 internal class DownloadIntentMutations(
     private val beginCancellation: suspend (UUID, Long, Long) -> DownloadIntentDto?,

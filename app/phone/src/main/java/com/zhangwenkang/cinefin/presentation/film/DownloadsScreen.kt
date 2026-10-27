@@ -833,8 +833,7 @@ private fun SelectionBar(
             SelectionActionIcon(
                 pending = DownloadPendingAction.PAUSE in pendingActions,
                 enabled =
-                    canStartSelectionAction &&
-                        selectedTasks.any { DownloadTaskRules.canPause(it.status) },
+                    canStartSelectionAction && selectedTasks.any { DownloadTaskRules.canPause(it) },
                 description = stringResource(CoreR.string.download_action_pause),
                 iconRes = CoreR.drawable.ic_pause,
                 onClick = { onAction(DownloadAction.PauseSelected) },

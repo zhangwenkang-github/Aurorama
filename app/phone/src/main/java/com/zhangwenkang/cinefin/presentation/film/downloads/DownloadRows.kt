@@ -88,6 +88,7 @@ import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonLine
 import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
+import com.zhangwenkang.cinefin.utils.DownloadIntentPhase
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskPhase
@@ -146,18 +147,21 @@ internal fun downloadRowActionSpecs(
     status: DownloadTaskStatus?,
     canDelete: Boolean,
     pending: Boolean,
+    intentPhase: DownloadIntentPhase? = null,
 ): List<DownloadRowActionSpec> {
     if (pending) return emptyList()
     return buildList {
         when (status) {
             DownloadTaskStatus.RUNNING,
             DownloadTaskStatus.PENDING ->
-                add(
-                    DownloadRowActionSpec(
-                        DownloadRowTaskAction.PAUSE,
-                        CoreR.string.download_action_pause,
+                if (intentPhase == null) {
+                    add(
+                        DownloadRowActionSpec(
+                            DownloadRowTaskAction.PAUSE,
+                            CoreR.string.download_action_pause,
+                        )
                     )
-                )
+                }
             DownloadTaskStatus.PAUSED ->
                 add(
                     DownloadRowActionSpec(
@@ -186,6 +190,18 @@ internal fun downloadRowActionSpecs(
         }
     }
 }
+
+internal fun downloadRowActionSpecs(
+    task: DownloadTask,
+    canDelete: Boolean,
+    pending: Boolean,
+): List<DownloadRowActionSpec> =
+    downloadRowActionSpecs(
+        status = task.status,
+        canDelete = canDelete,
+        pending = pending,
+        intentPhase = task.intentPhase,
+    )
 
 /** 顶层容器动作由真实任务能力生成，eligible keys 原样传给 ViewModel。 */
 internal fun downloadContainerRowActionSpecs(
@@ -695,11 +711,19 @@ private fun DownloadTaskActionIcon(
     canDelete: Boolean,
 ) {
     val actionSpecs =
-        downloadRowActionSpecs(
-            status = task?.status,
-            canDelete = canDelete,
-            pending = pendingAction != null,
-        )
+        if (task != null) {
+            downloadRowActionSpecs(
+                task = task,
+                canDelete = canDelete,
+                pending = pendingAction != null,
+            )
+        } else {
+            downloadRowActionSpecs(
+                status = null,
+                canDelete = canDelete,
+                pending = pendingAction != null,
+            )
+        }
     DownloadRowActionIcon(
         actionSpecs = actionSpecs,
         pendingAction = pendingAction,
@@ -1191,6 +1215,7 @@ private fun DownloadStatusBadge(
             DownloadTaskStatus.FAILED -> CoreR.drawable.ic_alert_circle
             DownloadTaskStatus.DELETING -> CoreR.drawable.ic_trash
         }
+    val intentPhaseLabel = phase?.let(::downloadIntentPhaseLabel)
     val label =
         when {
             showsCompletedDownloadLabel(status) ->
@@ -1198,11 +1223,7 @@ private fun DownloadStatusBadge(
             // W60b：自动重试（等待下一次 / 正在重试）优先显示「重试中 · 第 N 次」。
             retrying && retryCount > 0 ->
                 stringResource(CoreR.string.download_retry_in_progress, retryCount)
-            phase == DownloadTaskPhase.QUEUED -> stringResource(CoreR.string.download_intent_queued)
-            phase == DownloadTaskPhase.RESOLVING ->
-                stringResource(CoreR.string.download_intent_resolving)
-            phase == DownloadTaskPhase.SOURCE_PENDING ->
-                stringResource(CoreR.string.download_intent_source_pending)
+            intentPhaseLabel != null -> stringResource(intentPhaseLabel)
             phase == DownloadTaskPhase.PREPARING -> stringResource(CoreR.string.download_preparing)
             phase == DownloadTaskPhase.CONNECTING ->
                 stringResource(CoreR.string.download_connecting)
