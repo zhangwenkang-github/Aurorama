@@ -53,6 +53,7 @@ import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfo
 import com.zhangwenkang.cinefin.models.toFindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.toFindroidUserDataDto
+import com.zhangwenkang.cinefin.repository.BookDownloadDeleteResult
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
 import com.zhangwenkang.cinefin.repository.JellyfinOrigin
 import com.zhangwenkang.cinefin.repository.JellyfinOriginCredentials
@@ -2608,9 +2609,40 @@ private constructor(
     ): DownloadDeleteAttempt =
         when (request.mediaKind) {
             DownloadMediaKind.BOOK -> {
-                readerRepository.removeBookDownload(request.itemId)
-                readerRepository.deleteLocalFile(request.itemId)
-                DownloadDeleteAttempt(outcome = DownloadDeleteOutcome.SUCCEEDED)
+                val canonicalKey =
+                    if (!request.serverId.isNullOrBlank() && !request.userId.isNullOrBlank()) {
+                        DownloadCanonicalIdentity.of(
+                                mediaKind = DownloadMediaKind.BOOK,
+                                itemId = request.itemId.toString(),
+                                serverId = request.serverId,
+                                userId = request.userId,
+                                sourceId = null,
+                            )
+                            .canonicalKey
+                    } else {
+                        null
+                    }
+                when (readerRepository.deleteLocalFile(request.itemId, canonicalKey)) {
+                    BookDownloadDeleteResult.Deleted ->
+                        DownloadDeleteAttempt(outcome = DownloadDeleteOutcome.SUCCEEDED)
+                    BookDownloadDeleteResult.AlreadySuperseded ->
+                        DownloadDeleteAttempt(outcome = DownloadDeleteOutcome.SUPERSEDED)
+                    BookDownloadDeleteResult.CleanupFailed ->
+                        DownloadDeleteAttempt(
+                            outcome = DownloadDeleteOutcome.FAILED,
+                            detail = "书籍文件清理失败",
+                        )
+                    BookDownloadDeleteResult.AmbiguousOwnership ->
+                        DownloadDeleteAttempt(
+                            outcome = DownloadDeleteOutcome.FAILED,
+                            detail = "书籍下载归属不明确",
+                        )
+                    BookDownloadDeleteResult.OwnershipUnavailable ->
+                        DownloadDeleteAttempt(
+                            outcome = DownloadDeleteOutcome.FAILED,
+                            detail = "书籍下载归属不可用",
+                        )
+                }
             }
             DownloadMediaKind.MUSIC,
             DownloadMediaKind.VIDEO -> {
