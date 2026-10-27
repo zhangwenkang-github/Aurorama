@@ -88,7 +88,6 @@ import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonLine
 import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
-import com.zhangwenkang.cinefin.utils.DownloadIntentPhase
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskPhase
@@ -147,14 +146,14 @@ internal fun downloadRowActionSpecs(
     status: DownloadTaskStatus?,
     canDelete: Boolean,
     pending: Boolean,
-    intentPhase: DownloadIntentPhase? = null,
+    intentOnly: Boolean = false,
 ): List<DownloadRowActionSpec> {
     if (pending) return emptyList()
     return buildList {
         when (status) {
             DownloadTaskStatus.RUNNING,
             DownloadTaskStatus.PENDING ->
-                if (intentPhase == null) {
+                if (!intentOnly) {
                     add(
                         DownloadRowActionSpec(
                             DownloadRowTaskAction.PAUSE,
@@ -200,7 +199,7 @@ internal fun downloadRowActionSpecs(
         status = task.status,
         canDelete = canDelete,
         pending = pending,
-        intentPhase = task.intentPhase,
+        intentOnly = task.isIntentOnly,
     )
 
 /** 顶层容器动作由真实任务能力生成，eligible keys 原样传给 ViewModel。 */

@@ -38,6 +38,7 @@ import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -160,6 +161,11 @@ constructor(
         MutableSharedFlow<DownloadPlaybackRequest>(extraBufferCapacity = 1)
     val playbackRequests = _playbackRequests.asSharedFlow()
 
+    /** 本地 JVM action test 注入确定性作用域；生产保持 ViewModel 生命周期。 */
+    internal var actionScopeOverride: CoroutineScope? = null
+
+    private fun actionScope(): CoroutineScope = actionScopeOverride ?: viewModelScope
+
     private var pollingJob: Job? = null
     private var refreshing = false
     private val cachedBookMetadata = mutableMapOf<UUID, BookMetadata>()
@@ -177,13 +183,14 @@ constructor(
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
         if (pollingJob != null) return
-        viewModelScope.launch { refresh(showLoading = true) }
-        pollingJob = viewModelScope.launch {
-            while (isActive) {
-                delay(POLL_INTERVAL_MS)
-                refresh(showLoading = false)
+        actionScope().launch { refresh(showLoading = true) }
+        pollingJob =
+            actionScope().launch {
+                while (isActive) {
+                    delay(POLL_INTERVAL_MS)
+                    refresh(showLoading = false)
+                }
             }
-        }
     }
 
     /** 页面离开：停止轮询（下载任务本身不受影响）。 */
@@ -473,14 +480,14 @@ constructor(
 
     private fun runForSelectedTasks(
         pendingAction: DownloadPendingAction,
-        predicate: (DownloadTaskStatus) -> Boolean = { true },
+        predicate: (DownloadTask) -> Boolean = { true },
         block: suspend (DownloadTask) -> Any?,
     ) {
         if (!DownloadSelectionRules.canStartSelectionAction(_state.value)) return
-        val selected = _state.value.selectedTasks.filter { predicate(it.status) }
+        val selected = _state.value.selectedTasks.filter(predicate)
         val keys = selected.map(::taskKey).toSet()
         _state.update { it.beginPending(pendingAction, keys) }
-        viewModelScope.launch {
+        actionScope().launch {
             try {
                 for (task in selected) {
                     block(task)
@@ -1274,12 +1281,13 @@ constructor(
                 .map { id -> ArtworkCandidate(itemId = id, knownUrl = musicById[id]?.imageUri) }
         if (candidates.isEmpty()) return
         artworkBackfillAttempted.addAll(candidates.map { candidate -> candidate.itemId })
-        artworkBackfillJob = viewModelScope.launch {
-            val changed = backfillArtwork(candidates)
-            if (changed) {
-                refresh(showLoading = false)
+        artworkBackfillJob =
+            actionScope().launch {
+                val changed = backfillArtwork(candidates)
+                if (changed) {
+                    refresh(showLoading = false)
+                }
             }
-        }
     }
 
     /** 并发上限 4 的补齐：先本地判定，需要重拉才联网（URL 未知时补一次查询），原子替换后写 `.meta`。 */

@@ -45,6 +45,17 @@ class DownloadIntentTaskProjectionTest {
     }
 
     @Test
+    fun `source-created pending source keeps pause eligibility`() {
+        val task = pendingSourceTask().copy(intentPhase = DownloadIntentPhase.SOURCE_PENDING)
+
+        assertTrue(DownloadTaskRules.canPause(task))
+        assertEquals(
+            listOf(DownloadRowTaskAction.PAUSE, DownloadRowTaskAction.DELETE),
+            downloadRowActionSpecs(task, canDelete = true, pending = false).map { it.action },
+        )
+    }
+
+    @Test
     fun `intent only container action specs never offer pause`() {
         val task = pendingIntentTask(DownloadIntentPhase.SOURCE_PENDING)
         val container =

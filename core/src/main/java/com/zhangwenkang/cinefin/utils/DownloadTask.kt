@@ -69,6 +69,10 @@ data class DownloadTask(
 
     val isActive: Boolean
         get() = status == DownloadTaskStatus.PENDING || status == DownloadTaskStatus.RUNNING
+
+    /** intent 持久化后的占位行；它不是可暂停的真实 source。 */
+    val isIntentOnly: Boolean
+        get() = sourceId.startsWith(INTENT_SOURCE_PREFIX)
 }
 
 enum class DownloadTaskStatus {
@@ -392,12 +396,16 @@ object DownloadTaskRules {
     fun canPause(status: DownloadTaskStatus): Boolean =
         status == DownloadTaskStatus.PENDING || status == DownloadTaskStatus.RUNNING
 
-    /** intent 仍在解析 / 待启动时没有可暂停的真实引擎任务；删除 / 取消仍由行级动作提供。 */
-    fun canPause(task: DownloadTask): Boolean = task.intentPhase == null && canPause(task.status)
+    /** intent 占位行没有可暂停的真实引擎任务；带 phase 的真实 source 仍按状态判断。 */
+    fun canPause(task: DownloadTask): Boolean = !task.isIntentOnly && canPause(task.status)
 
     fun canResume(status: DownloadTaskStatus): Boolean = status == DownloadTaskStatus.PAUSED
 
+    fun canResume(task: DownloadTask): Boolean = canResume(task.status)
+
     fun canRetry(status: DownloadTaskStatus): Boolean = status == DownloadTaskStatus.FAILED
+
+    fun canRetry(task: DownloadTask): Boolean = canRetry(task.status)
 
     fun groupKey(status: DownloadTaskStatus): DownloadTaskGroup =
         when (status) {

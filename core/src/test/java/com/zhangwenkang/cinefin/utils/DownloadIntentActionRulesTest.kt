@@ -33,6 +33,18 @@ class DownloadIntentActionRulesTest {
         assertTrue(DownloadTaskRules.canPause(task))
     }
 
+    @Test
+    fun `source-created pending source keeps pause eligibility`() {
+        val task =
+            task(
+                sourceId = "visible-source",
+                status = DownloadTaskStatus.PENDING,
+                intentPhase = DownloadIntentPhase.SOURCE_PENDING,
+            )
+
+        assertTrue(DownloadTaskRules.canPause(task))
+    }
+
     private fun task(
         sourceId: String,
         status: DownloadTaskStatus,
