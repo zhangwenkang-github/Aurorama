@@ -48,6 +48,7 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -1333,6 +1334,191 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `单个 intent resolver 挂起时同批其它项仍推进到 source created`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val itemIds =
+                listOf(
+                    UUID.fromString("71000000-0000-4000-8000-000000000001"),
+                    UUID.fromString("71000000-0000-4000-8000-000000000002"),
+                    UUID.fromString("71000000-0000-4000-8000-000000000003"),
+                )
+            itemIds.forEachIndexed { index, itemId ->
+                fixture.prepareMusicOrigin(
+                    itemId = itemId,
+                    name = "intent-$index",
+                    sourceId = "intent-source-$index",
+                )
+            }
+            fixture.repository.blockItemLookup(itemIds[1])
+            fixture.downloader.receiveMusicBatch(
+                itemIds.mapIndexed { index, itemId ->
+                    fixture.completeMusicRequest(itemId, "intent-$index")
+                }
+            )
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.repository.awaitItemLookup(itemIds[1]))
+
+            assertTrue(
+                "第 1 / 3 项必须越过挂起的第 2 项完成：sources=${fixture.dao.sourceIds()} " +
+                    "events=${itemIds.map(fixture.dao::downloadIntentStatusEvents)} logs=${fixture.logs}",
+                fixture.dao.awaitInsertedSourceCount(2),
+            )
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING", "SOURCE_CREATED"),
+                fixture.dao.downloadIntentStatusEvents(itemIds[0]),
+            )
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING", "SOURCE_CREATED"),
+                fixture.dao.downloadIntentStatusEvents(itemIds[2]),
+            )
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING"),
+                fixture.dao.downloadIntentStatusEvents(itemIds[1]),
+            )
+        } finally {
+            fixture.repository.releaseAllItemLookups()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `单项 intent 超过 deadline 只失败本项且不生成 source`() = runBlocking {
+        val scheduler = ManualDownloadIntentDeadlineScheduler()
+        val fixture = Fixture(resolutionDeadlineScheduler = scheduler)
+        val slowItemId = UUID.fromString("72000000-0000-4000-8000-000000000001")
+        val fastItemId = UUID.fromString("72000000-0000-4000-8000-000000000002")
+        try {
+            fixture.prepareMusicOrigin(slowItemId, "slow", "timeout-source-slow")
+            fixture.prepareMusicOrigin(fastItemId, "fast", "timeout-source-fast")
+            fixture.repository.blockItemLookup(slowItemId)
+            fixture.downloader.receiveMusicBatch(
+                listOf(
+                    fixture.completeMusicRequest(slowItemId, "slow"),
+                    fixture.completeMusicRequest(fastItemId, "fast"),
+                )
+            )
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.repository.awaitItemLookup(slowItemId))
+            assertTrue(
+                "未被阻塞项必须先完成",
+                fixture.dao.awaitInsertedSourceCount(1),
+            )
+
+            scheduler.advanceTimeBy(15_000L)
+            fixture.repository.releaseAllItemLookups()
+
+            assertTrue(
+                "超时项必须落 FAILED",
+                fixture.awaitIntentStatus(slowItemId, DownloadIntentStatus.FAILED.name),
+            )
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING", "FAILED"),
+                fixture.dao.downloadIntentStatusEvents(slowItemId),
+            )
+            assertEquals(
+                DownloadFailureReason.NETWORK_UNAVAILABLE.name,
+                fixture.dao.downloadIntent(slowItemId)?.failureReason,
+            )
+            assertFalse(fixture.dao.sourceIds().contains("timeout-source-slow"))
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING", "SOURCE_CREATED"),
+                fixture.dao.downloadIntentStatusEvents(fastItemId, generation = 0L),
+            )
+        } finally {
+            fixture.repository.releaseAllItemLookups()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `旧 generation 迟到成功不得覆盖重试代或重复创建 source`() = runBlocking {
+        val fixture = Fixture()
+        val itemId = UUID.fromString("73000000-0000-4000-8000-000000000001")
+        try {
+            fixture.prepareMusicOrigin(itemId, "stale-success", "stale-success-source")
+            fixture.repository.blockItemLookup(itemId)
+            fixture.downloader.receiveMusicBatch(
+                listOf(fixture.completeMusicRequest(itemId, "stale-success"))
+            )
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.repository.awaitItemLookup(itemId))
+            assertEquals(0L, fixture.dao.downloadIntent(itemId)?.taskGeneration)
+
+            fixture.cancelIntent(itemId)
+            fixture.retryIntent(itemId)
+            assertEquals(2L, fixture.dao.downloadIntent(itemId)?.taskGeneration)
+            fixture.repository.releaseAllItemLookups()
+
+            assertTrue(
+                "重试代必须创建唯一 source",
+                fixture.dao.awaitInsertedSourceCount(1),
+            )
+            assertEquals(listOf("stale-success-source"), fixture.dao.sourceIds())
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING"),
+                fixture.dao.downloadIntentStatusEvents(itemId, generation = 0L),
+            )
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING", "SOURCE_CREATED"),
+                fixture.dao.downloadIntentStatusEvents(itemId, generation = 2L),
+            )
+        } finally {
+            fixture.repository.releaseAllItemLookups()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `旧 generation 迟到失败不得覆盖重试代`() = runBlocking {
+        val scheduler = ManualDownloadIntentDeadlineScheduler()
+        val fixture = Fixture(resolutionDeadlineScheduler = scheduler)
+        val itemId = UUID.fromString("74000000-0000-4000-8000-000000000001")
+        try {
+            fixture.prepareMusicOrigin(itemId, "stale-failure", "stale-failure-source")
+            fixture.repository.blockItemLookup(itemId)
+            fixture.downloader.receiveMusicBatch(
+                listOf(fixture.completeMusicRequest(itemId, "stale-failure"))
+            )
+            fixture.downloader.recoverOnStartup()
+            assertTrue(fixture.repository.awaitItemLookup(itemId))
+            val oldKey =
+                DownloadIntentResolutionKey(
+                    logicalKey =
+                        DownloadCanonicalIdentity.of(
+                                mediaKind = DownloadMediaKind.MUSIC,
+                                itemId = itemId.toString(),
+                                serverId = SERVER_ID,
+                                userId = USER_ID.toString(),
+                                sourceId = null,
+                            )
+                            .canonicalKey,
+                    generation = 0L,
+                )
+            scheduler.awaitArmed(oldKey)
+
+            fixture.cancelIntent(itemId)
+            fixture.retryIntent(itemId)
+            scheduler.timeOut(oldKey)
+            fixture.repository.releaseAllItemLookups()
+
+            assertTrue("旧代超时后新代仍须完成", fixture.dao.awaitInsertedSourceCount(1))
+            assertEquals(listOf("stale-failure-source"), fixture.dao.sourceIds())
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING"),
+                fixture.dao.downloadIntentStatusEvents(itemId, generation = 0L),
+            )
+            assertEquals(
+                listOf("RECEIVED", "RESOLVING", "SOURCE_CREATED"),
+                fixture.dao.downloadIntentStatusEvents(itemId, generation = 2L),
+            )
+        } finally {
+            fixture.repository.releaseAllItemLookups()
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `同 item source 双完整 origin 歧义时不得启动 transfer`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -1806,7 +1992,7 @@ class DownloaderImplRecoveryTest {
                 ),
             )
             fixture.repository.blockNextItemLookup()
-            fixture.dao.failSourceInsertions(2)
+            fixture.dao.failSourceInsertions(1)
             val receipt =
                 fixture.downloader.receiveMusicBatch(
                     listOf(
@@ -1826,7 +2012,7 @@ class DownloaderImplRecoveryTest {
             fixture.downloader.recoverOnStartup()
             assertTrue(fixture.repository.awaitItemLookup())
             fixture.repository.releaseItemLookup()
-            assertTrue(fixture.dao.awaitSourceInsertAttempts(2))
+            assertTrue(fixture.dao.awaitSourceInsertAttempts(1))
             assertTrue(
                 "Room 插入失败后不得出现可见 source：${fixture.dao.sourceIds()}",
                 fixture.dao.sourceIds().isEmpty(),
@@ -1856,6 +2042,7 @@ class DownloaderImplRecoveryTest {
                 },
             )
 
+            fixture.retryIntent(itemId)
             fixture.newDownloader().recoverOnStartup()
 
             assertTrue(
@@ -1928,6 +2115,7 @@ class DownloaderImplRecoveryTest {
 
             File(blockedTemp, "holder").delete()
             assertTrue(blockedTemp.delete())
+            fixture.retryIntent(itemId)
             fixture.downloader.recoverOnStartup()
 
             assertTrue(
@@ -2490,12 +2678,14 @@ class DownloaderImplRecoveryTest {
             )
 
             fixture.dao.clearDownloadIntentSaveFailures()
-            fixture.newDownloader().recoverOnStartup()
+            fixture.retryIntent(itemId)
+            val recovered = fixture.newDownloader()
+            recovered.recoverOnStartup()
             assertTrue(
                 "Room 恢复后 cold recovery 必须完成接管与 source 解析",
                 fixture.dao.awaitInsertedSourceCount(1),
             )
-            fixture.downloader.runQueue()
+            recovered.runQueue()
             assertTrue(fixture.transfer.requestSnapshot().isNotEmpty())
             assertTrue(
                 withTimeoutOrNull(5_000L) {
@@ -3844,7 +4034,7 @@ class DownloaderImplRecoveryTest {
     private suspend fun assertCorruptPendingSidecarFailsClosed(corrupt: (String) -> String) {
         val fixture = Fixture()
         try {
-            fixture.preparePendingMusicOrigin()
+            val itemId = fixture.preparePendingMusicOrigin()
             val sidecar = fixture.sidecarFile()
             val original = sidecar.readText()
             val corrupted = corrupt(original)
@@ -3867,6 +4057,7 @@ class DownloaderImplRecoveryTest {
             assertEquals("损坏 sidecar 不得被静默重写", corrupted, sidecar.readText())
 
             sidecar.writeText(original)
+            fixture.retryIntent(itemId)
             fixture.downloader.recoverOnStartup()
 
             assertTrue("sidecar 修复后必须重试并插入 source", fixture.dao.awaitInsertedSourceCount(1))
@@ -3998,7 +4189,12 @@ class DownloaderImplRecoveryTest {
         )
     }
 
-    private class Fixture {
+    private class Fixture(
+        private val resolutionDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        private val resolutionDeadlineScheduler: DownloadIntentDeadlineScheduler =
+            CoroutineDownloadIntentDeadlineScheduler,
+        private val resolutionTimeoutMs: Long = 15_000L,
+    ) {
         private val root = Files.createTempDirectory("downloader-recovery").toFile()
         private val context = TestContext(root)
         val logs = java.util.Collections.synchronizedList(mutableListOf<String>())
@@ -4042,6 +4238,9 @@ class DownloaderImplRecoveryTest {
                 workGateway = workGateway,
                 downloadTransfer = transfer,
                 imageFinalizationScheduler = imageScheduler,
+                intentResolutionDispatcher = resolutionDispatcher,
+                intentResolutionDeadlineScheduler = resolutionDeadlineScheduler,
+                intentResolutionTimeoutMs = resolutionTimeoutMs,
             )
 
         suspend fun seedConcurrentMovies(count: Int): List<SeededSource> =
@@ -4143,10 +4342,47 @@ class DownloaderImplRecoveryTest {
                 true
             } ?: false
 
+        suspend fun awaitIntentStatus(itemId: UUID, status: String): Boolean =
+            withTimeoutOrNull(5_000L) {
+                while (dao.downloadIntent(itemId)?.status != status) delay(10L)
+                true
+            } ?: false
+
+        suspend fun retryIntent(itemId: UUID) {
+            val intent = checkNotNull(dao.downloadIntent(itemId))
+            val (handle, error) =
+                downloader.retryTask(
+                    DownloadTask(
+                        itemId = itemId,
+                        sourceId = intentSourceId(itemId),
+                        name = intent.name,
+                        path = "",
+                        downloadId = null,
+                        status = DownloadTaskStatus.PENDING,
+                        failureReason = null,
+                        downloadedBytes = 0L,
+                        totalBytes = 0L,
+                        updatedAt = intent.updatedAt,
+                        mediaKind = DownloadMediaKind.MUSIC,
+                        taskGeneration = intent.taskGeneration,
+                    )
+                )
+            assertTrue("intent retry 应返回稳定句柄", handle >= 0L)
+            assertEquals(null, error)
+        }
+
+        suspend fun cancelIntent(itemId: UUID) {
+            assertTrue(downloader.cancelTaskById(intentSourceId(itemId)))
+        }
+
         fun seedPendingSource(itemId: UUID, sourceId: String): FindroidSourceDto =
             sourceDto(itemId = itemId, sourceId = sourceId, index = 0).also(dao::putSource)
 
-        fun prepareMusicOrigin(itemId: UUID, name: String) {
+        fun prepareMusicOrigin(
+            itemId: UUID,
+            name: String,
+            sourceId: String = SOURCE_ID,
+        ) {
             val origin = JellyfinOrigin(SERVER_ID, USER_ID)
             repository.putOriginItem(
                 itemId,
@@ -4157,7 +4393,7 @@ class DownloaderImplRecoveryTest {
                 itemId,
                 origin,
                 FindroidSource(
-                    id = SOURCE_ID,
+                    id = sourceId,
                     name = name,
                     type = FindroidSourceType.REMOTE,
                     path = MEDIA_URL,
@@ -4676,6 +4912,7 @@ class DownloaderImplRecoveryTest {
         private val deleteBatches = linkedMapOf<String, DownloadDeleteBatchDto>()
         private val deleteReceipts = linkedMapOf<Pair<String, String>, DownloadDeleteReceiptDto>()
         private val downloadIntents = linkedMapOf<UUID, DownloadIntentDto>()
+        private val intentStatusEvents = CopyOnWriteArrayList<String>()
         var source: FindroidSourceDto?
             get() = sources[SOURCE_ID]
             set(value) {
@@ -5067,9 +5304,40 @@ class DownloaderImplRecoveryTest {
                                 null
                             }
                         }
+                        "beginDownloadIntentCancellation" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == generation &&
+                                    current.status in
+                                        setOf(
+                                            DownloadIntentStatus.RECEIVED.name,
+                                            DownloadIntentStatus.RESOLVING.name,
+                                        )
+                            ) {
+                                val cancelled =
+                                    current.copy(
+                                        status = DownloadIntentStatus.FAILED.name,
+                                        failureReason = DownloadFailureReason.CANCELLED.name,
+                                        failureDetail = null,
+                                        taskGeneration = generation + 1L,
+                                        updatedAt = args[2] as Long,
+                                    )
+                                downloadIntents[itemId] = cancelled
+                                intentStatusEvents +=
+                                    "${cancelled.status}:$itemId:${cancelled.taskGeneration}"
+                                cancelled
+                            } else {
+                                null
+                            }
+                        }
                         "getReceivedDownloadIntents" ->
                             downloadIntents.values
-                                .filter { it.status == "RECEIVED" }
+                                .filter {
+                                    it.status == DownloadIntentStatus.RECEIVED.name ||
+                                        it.status == DownloadIntentStatus.RESOLVING.name
+                                }
                                 .sortedBy { it.createdAt }
                         "saveDownloadIntents" -> {
                             downloadIntentSaveAttempts += 1
@@ -5090,13 +5358,20 @@ class DownloaderImplRecoveryTest {
                                             (current?.status == DownloadIntentStatus.FAILED.name &&
                                                 current.failureDetail == legacyFailureDetail))
                                 ) {
-                                    downloadIntents[intent.itemId] =
+                                    val saved =
                                         intent.copy(
                                             createdAt = current.createdAt,
                                             taskGeneration = current.taskGeneration + 1L,
                                         )
+                                    downloadIntents[intent.itemId] = saved
+                                    intentStatusEvents +=
+                                        "${saved.status}:${saved.itemId}:${saved.taskGeneration}"
                                 } else {
                                     downloadIntents.putIfAbsent(intent.itemId, intent)
+                                    downloadIntents[intent.itemId]?.let { saved ->
+                                        intentStatusEvents +=
+                                            "${saved.status}:${saved.itemId}:${saved.taskGeneration}"
+                                    }
                                 }
                             }
                             Unit
@@ -5106,6 +5381,30 @@ class DownloaderImplRecoveryTest {
                             val generation = args[1] as Long
                             if (downloadIntents[itemId]?.taskGeneration == generation) {
                                 downloadIntents.remove(itemId)
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        "retryDownloadIntent" -> {
+                            val itemId = args[0] as UUID
+                            val expectedGeneration = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == expectedGeneration &&
+                                    current.status == DownloadIntentStatus.FAILED.name
+                            ) {
+                                val retried =
+                                    current.copy(
+                                        status = DownloadIntentStatus.RECEIVED.name,
+                                        failureReason = null,
+                                        failureDetail = null,
+                                        taskGeneration = expectedGeneration + 1L,
+                                        updatedAt = args[2] as Long,
+                                    )
+                                downloadIntents[itemId] = retried
+                                intentStatusEvents +=
+                                    "${retried.status}:$itemId:${retried.taskGeneration}"
                                 1
                             } else {
                                 0
@@ -5123,6 +5422,95 @@ class DownloaderImplRecoveryTest {
                                         failureDetail = args[4] as String?,
                                         updatedAt = args[5] as Long,
                                     )
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        "beginDownloadIntentResolutionIfCurrent" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == generation &&
+                                    current.status in
+                                        setOf(
+                                            DownloadIntentStatus.RECEIVED.name,
+                                            DownloadIntentStatus.RESOLVING.name,
+                                        )
+                            ) {
+                                val resolving =
+                                    current.copy(
+                                        status = DownloadIntentStatus.RESOLVING.name,
+                                        failureReason = null,
+                                        failureDetail = null,
+                                        updatedAt = args[2] as Long,
+                                    )
+                                downloadIntents[itemId] = resolving
+                                intentStatusEvents +=
+                                    "${resolving.status}:$itemId:${resolving.taskGeneration}"
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        "confirmDownloadIntentResolutionIfCurrent" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == generation &&
+                                    current.status == DownloadIntentStatus.RESOLVING.name
+                            ) {
+                                downloadIntents[itemId] = current.copy(updatedAt = args[2] as Long)
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        "markDownloadIntentSourceCreatedIfCurrent" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == generation &&
+                                    current.status == DownloadIntentStatus.RESOLVING.name
+                            ) {
+                                val created =
+                                    current.copy(
+                                        status = DownloadIntentStatus.SOURCE_CREATED.name,
+                                        updatedAt = args[2] as Long,
+                                    )
+                                downloadIntents[itemId] = created
+                                intentStatusEvents +=
+                                    "${created.status}:$itemId:${created.taskGeneration}"
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                        "failDownloadIntentResolutionIfCurrent" -> {
+                            val itemId = args[0] as UUID
+                            val generation = args[1] as Long
+                            val current = downloadIntents[itemId]
+                            if (
+                                current?.taskGeneration == generation &&
+                                    current.status in
+                                        setOf(
+                                            DownloadIntentStatus.RECEIVED.name,
+                                            DownloadIntentStatus.RESOLVING.name,
+                                        )
+                            ) {
+                                val failed =
+                                    current.copy(
+                                        status = DownloadIntentStatus.FAILED.name,
+                                        failureReason = args[2] as String,
+                                        failureDetail = args[3] as String,
+                                        updatedAt = args[4] as Long,
+                                    )
+                                downloadIntents[itemId] = failed
+                                intentStatusEvents +=
+                                    "${failed.status}:$itemId:${failed.taskGeneration}"
                                 1
                             } else {
                                 0
@@ -5206,11 +5594,30 @@ class DownloaderImplRecoveryTest {
 
         suspend fun awaitIntentNotReceived(itemId: UUID): Boolean =
             withTimeoutOrNull(5_000L) {
-                while (downloadIntents[itemId]?.status == "RECEIVED") delay(10L)
+                while (
+                    downloadIntents[itemId]?.status !in
+                        setOf(
+                            DownloadIntentStatus.FAILED.name,
+                            DownloadIntentStatus.SOURCE_CREATED.name,
+                        )
+                ) {
+                    delay(10L)
+                }
                 true
             } ?: false
 
         fun intentCount(): Int = downloadIntents.size
+
+        fun downloadIntentStatusEvents(itemId: UUID): List<String> =
+            downloadIntentStatusEvents(
+                itemId,
+                checkNotNull(downloadIntents[itemId]).taskGeneration,
+            )
+
+        fun downloadIntentStatusEvents(itemId: UUID, generation: Long): List<String> =
+            intentStatusEvents
+                .filter { it.endsWith(":$itemId:$generation") }
+                .map { it.substringBefore(':') }
 
         fun downloadIntent(itemId: UUID): DownloadIntentDto? = downloadIntents[itemId]
 
@@ -5410,6 +5817,11 @@ class DownloaderImplRecoveryTest {
     }
 
     private class RecordingRepository {
+        private data class ItemLookupGate(
+            val started: CompletableDeferred<Unit>,
+            val release: CompletableDeferred<Unit>,
+        )
+
         val mediaStreams =
             listOf(
                 FindroidMediaStream(
@@ -5476,6 +5888,7 @@ class DownloaderImplRecoveryTest {
         private val originFailures = mutableMapOf<JellyfinOrigin, Int>()
         private var itemLookupGate: CompletableDeferred<Unit>? = null
         private var itemLookupStarted = CompletableDeferred<Unit>()
+        private val itemLookupGates = java.util.concurrent.ConcurrentHashMap<UUID, ItemLookupGate>()
 
         fun resetEffectCalls() {
             segmentReads = 0
@@ -5579,6 +5992,27 @@ class DownloaderImplRecoveryTest {
             itemLookupStarted = CompletableDeferred()
         }
 
+        fun blockItemLookup(itemId: UUID) {
+            itemLookupGates[itemId] =
+                ItemLookupGate(
+                    started = CompletableDeferred(),
+                    release = CompletableDeferred(),
+                )
+        }
+
+        suspend fun awaitItemLookup(itemId: UUID): Boolean =
+            withTimeoutOrNull(2_000L) {
+                while (itemLookupGates[itemId]?.started?.isCompleted != true) {
+                    delay(10L)
+                }
+                true
+            } ?: false
+
+        fun releaseAllItemLookups() {
+            itemLookupGates.values.forEach { it.release.complete(Unit) }
+            itemLookupGates.clear()
+        }
+
         suspend fun awaitItemLookup(): Boolean =
             withTimeoutOrNull(2_000L) {
                 itemLookupStarted.await()
@@ -5610,6 +6044,10 @@ class DownloaderImplRecoveryTest {
                         "getItemForOrigin" -> {
                             val itemId = args[0] as UUID
                             val origin = args[1] as JellyfinOrigin
+                            itemLookupGates[itemId]?.let { gate ->
+                                gate.started.complete(Unit)
+                                runBlocking { gate.release.await() }
+                            }
                             itemLookupGate?.let { gate ->
                                 itemLookupStarted.complete(Unit)
                                 runBlocking { gate.await() }

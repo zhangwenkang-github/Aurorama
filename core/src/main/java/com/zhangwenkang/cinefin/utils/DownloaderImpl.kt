@@ -67,9 +67,11 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -110,6 +112,37 @@ private sealed interface PersistedOriginResolution {
 
     data class FailClosed(val detail: String) : PersistedOriginResolution
 }
+
+private sealed interface PendingIntentResolution {
+    val key: DownloadIntentResolutionKey
+
+    data class Sidecar(
+        val record: DownloadMediaRecord,
+        override val key: DownloadIntentResolutionKey,
+        val usesRoomFence: Boolean,
+    ) : PendingIntentResolution
+
+    data class Legacy(
+        val intent: DownloadIntentDto,
+        override val key: DownloadIntentResolutionKey,
+    ) : PendingIntentResolution
+}
+
+private data class ResolvedSidecarIntent(
+    val record: DownloadMediaRecord,
+    val intent: DownloadIntentDto,
+    val item: FindroidItem,
+    val sourceId: String,
+    val origin: FrozenDownloadOrigin,
+)
+
+private data class DownloadIntentSourceFence(
+    val itemId: UUID,
+    val generation: Long,
+)
+
+private const val INTENT_RESOLUTION_TIMEOUT_DETAIL = "解析下载意图超时（15 秒）"
+private const val INTENT_RESOLUTION_FAILURE_DETAIL = "解析下载意图失败，请重试"
 
 internal data class DownloadTransferRequest(
     val url: String,
@@ -290,6 +323,9 @@ private constructor(
     workGatewayOverride: DownloadWorkGateway?,
     downloadTransferOverride: DownloadTransfer?,
     imageFinalizationSchedulerOverride: DownloadImageFinalizationScheduler?,
+    private val intentResolutionDispatcher: CoroutineDispatcher,
+    private val intentResolutionDeadlineScheduler: DownloadIntentDeadlineScheduler,
+    private val intentResolutionTimeoutMs: Long,
 ) : Downloader {
     constructor(
         context: Context,
@@ -320,6 +356,9 @@ private constructor(
         workGatewayOverride = null,
         downloadTransferOverride = null,
         imageFinalizationSchedulerOverride = null,
+        intentResolutionDispatcher = Dispatchers.IO,
+        intentResolutionDeadlineScheduler = CoroutineDownloadIntentDeadlineScheduler,
+        intentResolutionTimeoutMs = DEFAULT_INTENT_RESOLUTION_TIMEOUT_MS,
     )
 
     private val workGateway =
@@ -335,6 +374,14 @@ private constructor(
             beginDeletion = database::beginDownloadIntentDeletion,
         )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val intentResolutionCoordinator =
+        DownloadIntentResolutionCoordinator(
+            maxConcurrency = INTENT_RESOLVE_CONCURRENCY,
+            timeoutMs = intentResolutionTimeoutMs,
+            deadlineScheduler = intentResolutionDeadlineScheduler,
+        )
+    private val intentProcessorRunning = AtomicBoolean(false)
+    private val intentProcessorRequested = AtomicBoolean(false)
 
     /** W63：批量入队的节目 / 季快照缓存（同剧 N 集只解析一次，避免逐集两次网络往返）。 */
     private val showSnapshotCache =
@@ -355,7 +402,10 @@ private constructor(
                             val receivedIntentItemIds =
                                 database
                                     .getDownloadIntents()
-                                    .filter { it.status == DownloadIntentStatus.RECEIVED.name }
+                                    .filter {
+                                        it.status == DownloadIntentStatus.RECEIVED.name ||
+                                            it.status == DownloadIntentStatus.RESOLVING.name
+                                    }
                                     .mapTo(mutableSetOf(), DownloadIntentDto::itemId)
                             requests
                                 .filter { request ->
@@ -417,8 +467,13 @@ private constructor(
                                 database.getDownloadIntents().associateBy(DownloadIntentDto::itemId)
                             check(
                                 requests.all { request ->
-                                    persisted[request.itemId]?.status ==
-                                        DownloadIntentStatus.RECEIVED.name
+                                    val status = persisted[request.itemId]?.status
+                                    if (request.canonicalIdentity.hasCompleteNamespace) {
+                                        status == DownloadIntentStatus.RECEIVED.name ||
+                                            status == DownloadIntentStatus.RESOLVING.name
+                                    } else {
+                                        status != null
+                                    }
                                 }
                             ) {
                                 "下载意图 Room 接管未生效"
@@ -426,8 +481,6 @@ private constructor(
                         }
                 }
         )
-    private val receivedIntentLock = Mutex()
-
     /** W63：队列活动集变化信号（入队 / 完成 / 失败 / 删除），侧栏角标即时刷新。 */
     private val _queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
     override val queueChanges: SharedFlow<Unit> = _queueChanges.asSharedFlow()
@@ -611,6 +664,7 @@ private constructor(
         artist: String?,
         trackIndex: Int,
         origin: FrozenDownloadOrigin,
+        intentFence: DownloadIntentSourceFence? = null,
     ): Pair<Long, UiText?> =
         withContext(Dispatchers.IO) {
             val handle = downloadTaskHandle(sourceId)
@@ -641,6 +695,16 @@ private constructor(
                         existingStatus == DownloadTaskStatus.RUNNING ||
                         existingStatus == DownloadTaskStatus.PAUSED
                 ) {
+                    if (intentFence != null) {
+                        val finalized =
+                            itemMutationLock(item.id).withLock {
+                                confirmAndPublishIntentSource(
+                                    intentFence,
+                                    sourceAlreadyPresent = true,
+                                )
+                            }
+                        if (!finalized) return@withSourceOperation Pair(-1L, null)
+                    }
                     // 幂等：同一来源已在队列 / 下载中 / 暂停，不重置进度。
                     notifyQueueChanged()
                     ensureEngineRunning(forceStart = true)
@@ -668,95 +732,144 @@ private constructor(
                         source.id == sourceId
                     }
 
-                itemMutationLock(item.id).withLock {
-                    // W51b 竞态修复：条目快照必须先于队列行落库。
-                    //
-                    // 批量入队（整剧 / 全季）时引擎往往已在运行：若先插入 PENDING 队列行，再写快照（剧集要拉
-                    // show / season，两次网络往返），引擎会在快照落库前抢到该行 → findItem 读不到条目 →
-                    // FILE_ERROR「任务对应的媒体条目缺失」。真机批量入队 12 集时 11 集命中该竞态。
-                    runCatching {
-                        persistItemSnapshot(
-                            item = item,
-                            origin = origin,
-                            completionOrigin = null,
-                        )
-                    }
-                        .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
-
-                    val mediaKind =
-                        if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
-                            DownloadMediaKind.MUSIC
-                        } else {
-                            DownloadMediaKind.VIDEO
-                        }
-                    val sidecarRecord =
-                        DownloadMediaRecord(
-                            itemId = item.id.toString(),
-                            kind = mediaKind,
-                            albumName = albumName,
-                            artist = artist,
-                            trackIndex = trackIndex,
-                            serverId = origin.serverId,
-                            userId = origin.userId,
-                            sourceId = sourceId,
-                            displayName = item.name,
-                        )
-                    check(sidecar.put(sidecarRecord)) { "下载 sidecar 持久化失败：${item.id}/$sourceId" }
-                    check(
-                        sidecar.allRecords().requireComplete().any {
-                            it.itemId == item.id.toString() &&
-                                it.sourceId == sourceId &&
-                                it.serverId == origin.serverId &&
-                                it.userId == origin.userId
-                        }
-                    ) {
-                        "下载 sidecar 写入后不可验证：${item.id}/$sourceId"
-                    }
-
-                    val sourceDto =
-                        FindroidSourceDto(
-                            id = sourceId,
-                            itemId = item.id,
-                            name = item.name,
-                            type = FindroidSourceType.LOCAL,
-                            path = partialPath,
-                            downloadId = handle,
-                            taskStatus = DownloadTaskStatus.PENDING.name,
-                            failureReason = null,
-                            updatedAt = System.currentTimeMillis(),
-                            downloadedBytes = existingBytes,
-                            retryCount = 0,
-                            nextRetryAt = 0L,
-                            engineVersion = ENGINE_VERSION,
-                            allowOffline = existing?.allowOffline ?: true,
-                            bitrate = sourceMetadata?.bitrate,
-                            container = sourceMetadata?.container,
-                            taskGeneration = taskGeneration,
-                        )
-                    try {
-                        database.insertSource(sourceDto)
-                    } catch (failure: Exception) {
+                val committed =
+                    itemMutationLock(item.id).withLock {
                         if (
-                            !sidecar.replaceResolvedWithPending(
-                                pending = sidecarRecord.copy(sourceId = null),
-                                failedSourceId = sourceId,
-                            )
+                            intentFence != null &&
+                                database.confirmDownloadIntentResolutionIfCurrent(
+                                    itemId = intentFence.itemId,
+                                    taskGeneration = intentFence.generation,
+                                    updatedAt = System.currentTimeMillis(),
+                                ) <= 0
                         ) {
-                            failure.addSuppressed(
-                                IllegalStateException(
-                                    "Room insertSource 失败后无法补偿下载 pending：" + "${item.id}/$sourceId"
-                                )
+                            return@withLock false
+                        }
+                        // W51b 竞态修复：条目快照必须先于队列行落库。
+                        //
+                        // 批量入队（整剧 / 全季）时引擎往往已在运行：若先插入 PENDING 队列行，再写快照（剧集要拉
+                        // show / season，两次网络往返），引擎会在快照落库前抢到该行 → findItem 读不到条目 →
+                        // FILE_ERROR「任务对应的媒体条目缺失」。真机批量入队 12 集时 11 集命中该竞态。
+                        runCatching {
+                            persistItemSnapshot(
+                                item = item,
+                                origin = origin,
+                                completionOrigin = null,
                             )
                         }
-                        throw failure
+                            .onFailure { Timber.w(it, "写入下载条目快照失败 ${item.id}") }
+
+                        val mediaKind =
+                            if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
+                                DownloadMediaKind.MUSIC
+                            } else {
+                                DownloadMediaKind.VIDEO
+                            }
+                        val sidecarRecord =
+                            DownloadMediaRecord(
+                                itemId = item.id.toString(),
+                                kind = mediaKind,
+                                albumName = albumName,
+                                artist = artist,
+                                trackIndex = trackIndex,
+                                serverId = origin.serverId,
+                                userId = origin.userId,
+                                sourceId = sourceId,
+                                displayName = item.name,
+                            )
+                        check(sidecar.put(sidecarRecord)) {
+                            "下载 sidecar 持久化失败：${item.id}/$sourceId"
+                        }
+                        check(
+                            sidecar.allRecords().requireComplete().any {
+                                it.itemId == item.id.toString() &&
+                                    it.sourceId == sourceId &&
+                                    it.serverId == origin.serverId &&
+                                    it.userId == origin.userId
+                            }
+                        ) {
+                            "下载 sidecar 写入后不可验证：${item.id}/$sourceId"
+                        }
+
+                        val sourceDto =
+                            FindroidSourceDto(
+                                id = sourceId,
+                                itemId = item.id,
+                                name = item.name,
+                                type = FindroidSourceType.LOCAL,
+                                path = partialPath,
+                                downloadId = handle,
+                                taskStatus = DownloadTaskStatus.PENDING.name,
+                                failureReason = null,
+                                updatedAt = System.currentTimeMillis(),
+                                downloadedBytes = existingBytes,
+                                retryCount = 0,
+                                nextRetryAt = 0L,
+                                engineVersion = ENGINE_VERSION,
+                                allowOffline = existing?.allowOffline ?: true,
+                                bitrate = sourceMetadata?.bitrate,
+                                container = sourceMetadata?.container,
+                                taskGeneration = taskGeneration,
+                            )
+                        try {
+                            database.insertSource(sourceDto)
+                        } catch (failure: Exception) {
+                            if (
+                                !sidecar.replaceResolvedWithPending(
+                                    pending = sidecarRecord.copy(sourceId = null),
+                                    failedSourceId = sourceId,
+                                )
+                            ) {
+                                failure.addSuppressed(
+                                    IllegalStateException(
+                                        "Room insertSource 失败后无法补偿下载 pending：" +
+                                            "${item.id}/$sourceId"
+                                    )
+                                )
+                            }
+                            throw failure
+                        }
+                        if (
+                            intentFence != null &&
+                                database.markDownloadIntentSourceCreatedIfCurrent(
+                                    itemId = intentFence.itemId,
+                                    taskGeneration = intentFence.generation,
+                                    updatedAt = System.currentTimeMillis(),
+                                ) <= 0
+                        ) {
+                            error("下载 source 已创建但 intent generation 终态提交失败：${item.id}")
+                        }
+                        startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
+                        true
                     }
-                    startImagesDownloader(item, sourceId, sourceDto.taskGeneration)
-                }
+                if (!committed) return@withSourceOperation Pair(-1L, null)
                 notifyQueueChanged()
                 ensureEngineRunning(forceStart = true)
                 Pair(handle, null)
             }
         }
+
+    private suspend fun confirmAndPublishIntentSource(
+        fence: DownloadIntentSourceFence,
+        sourceAlreadyPresent: Boolean,
+    ): Boolean {
+        if (
+            database.confirmDownloadIntentResolutionIfCurrent(
+                itemId = fence.itemId,
+                taskGeneration = fence.generation,
+                updatedAt = System.currentTimeMillis(),
+            ) <= 0
+        ) {
+            return false
+        }
+        if (sourceAlreadyPresent) {
+            return database.markDownloadIntentSourceCreatedIfCurrent(
+                itemId = fence.itemId,
+                taskGeneration = fence.generation,
+                updatedAt = System.currentTimeMillis(),
+            ) > 0
+        }
+        return true
+    }
 
     /**
      * W63：批量入队。同剧的节目 / 季快照在批内只解析一次（[persistItemSnapshot] 的缓存）， 逐条入队逻辑沿用 [downloadItem]（幂等命中活动任务 /
@@ -845,13 +958,24 @@ private constructor(
      * 页面协程退出、切后台或进程重启都不影响已落库的意图；成功写入 sources 后才删除意图行， 因此中途失败 / 被杀时可从持久化快照继续。
      */
     private fun launchReceivedIntentProcessor() {
-        scope.launch {
-            runCatching { processReceivedIntents() }.onFailure { Timber.w(it, "处理已受理下载意图失败") }
+        intentProcessorRequested.set(true)
+        if (!intentProcessorRunning.compareAndSet(false, true)) return
+        scope.launch(intentResolutionDispatcher) {
+            try {
+                do {
+                    intentProcessorRequested.set(false)
+                    runCatching { processReceivedIntents() }
+                        .onFailure { Timber.w(it, "处理已受理下载意图失败") }
+                } while (intentProcessorRequested.get())
+            } finally {
+                intentProcessorRunning.set(false)
+                if (intentProcessorRequested.get()) launchReceivedIntentProcessor()
+            }
         }
     }
 
-    private suspend fun processReceivedIntents() = receivedIntentLock.withLock {
-        val snapshot = withContext(Dispatchers.IO) { sidecar.allRecords() }
+    private suspend fun processReceivedIntents() {
+        val snapshot = withContext(intentResolutionDispatcher) { sidecar.allRecords() }
         val records =
             when (snapshot) {
                 DownloadMediaReadResult.Missing -> emptyList()
@@ -861,7 +985,7 @@ private constructor(
                     if (failReceivedIntentsWithUnavailableProvenance() > 0) {
                         notifyQueueChanged()
                     }
-                    return@withLock
+                    return
                 }
                 is DownloadMediaReadResult.Corrupt -> {
                     Timber.w(
@@ -871,7 +995,7 @@ private constructor(
                     if (failReceivedIntentsWithUnavailableProvenance() > 0) {
                         notifyQueueChanged()
                     }
-                    return@withLock
+                    return
                 }
             }
         val pendingRecords = records.filter {
@@ -883,28 +1007,70 @@ private constructor(
             FrozenDownloadOrigin(it.serverId, it.userId).toJellyfinOriginOrNull() == null
         }
         val resolvablePendingItemIds = resolvablePendingRecords.mapTo(mutableSetOf()) { it.itemId }
-        resolvablePendingRecords.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
-            coroutineScope {
-                chunk
-                    .map { record -> async { resolveSidecarIntent(record) } }
-                    .forEach { it.await() }
-            }
-        }
         val legacyPending =
-            withContext(Dispatchers.IO) {
+            withContext(intentResolutionDispatcher) {
                 database.getReceivedDownloadIntents().filterNot {
                     it.itemId.toString() in resolvablePendingItemIds
                 }
             }
-        legacyPending.chunked(INTENT_RESOLVE_CONCURRENCY).forEach { chunk ->
-            coroutineScope {
-                chunk
-                    .map { intent -> async { resolveLegacyReceivedIntent(intent) } }
-                    .forEach { it.await() }
+        val roomIntents =
+            withContext(intentResolutionDispatcher) {
+                database.getDownloadIntents().associateBy(DownloadIntentDto::itemId)
             }
-        }
+        val pendingRecordsByItemId = resolvablePendingRecords.groupBy(DownloadMediaRecord::itemId)
+        val work =
+            resolvablePendingRecords.map { record ->
+                val itemId = checkNotNull(record.itemId.toUuidOrNull())
+                PendingIntentResolution.Sidecar(
+                    record = record,
+                    key =
+                        DownloadIntentResolutionKey(
+                            logicalKey = record.canonicalIdentity().canonicalKey,
+                            generation = roomIntents[itemId]?.taskGeneration ?: 0L,
+                        ),
+                    usesRoomFence = pendingRecordsByItemId[record.itemId]?.size == 1,
+                )
+            } +
+                legacyPending.map { intent ->
+                    PendingIntentResolution.Legacy(
+                        intent = intent,
+                        key =
+                            DownloadIntentResolutionKey(
+                                logicalKey = "legacy|${DownloadMediaKind.MUSIC}|${intent.itemId}",
+                                generation = intent.taskGeneration,
+                            ),
+                    )
+                }
+        val processedCount = java.util.concurrent.atomic.AtomicInteger()
+        intentResolutionCoordinator.run(
+            items = work,
+            keyOf = PendingIntentResolution::key,
+            begin = { pending -> beginPendingIntentResolution(pending) },
+            resolve = { pending -> resolvePendingIntent(pending) },
+            onResult = { pending, outcome ->
+                processedCount.incrementAndGet()
+                when (outcome) {
+                    is DownloadIntentResolutionOutcome.Resolved ->
+                        completeResolvedIntent(pending, outcome.value)
+                    DownloadIntentResolutionOutcome.TimedOut ->
+                        failPendingIntent(
+                            pending,
+                            DownloadFailureReason.NETWORK_UNAVAILABLE,
+                            INTENT_RESOLUTION_TIMEOUT_DETAIL,
+                        )
+                    is DownloadIntentResolutionOutcome.Failed ->
+                        failPendingIntent(
+                            pending,
+                            DownloadFailureReason.SERVER_ERROR,
+                            INTENT_RESOLUTION_FAILURE_DETAIL,
+                        )
+                    DownloadIntentResolutionOutcome.Superseded,
+                    DownloadIntentResolutionOutcome.Duplicate -> Unit
+                }
+            },
+        )
         val remainingPendingItemIds =
-            withContext(Dispatchers.IO) {
+            withContext(intentResolutionDispatcher) {
                 val remaining =
                     when (val remainingSnapshot = sidecar.allRecords()) {
                         DownloadMediaReadResult.Missing -> emptyList()
@@ -942,12 +1108,13 @@ private constructor(
                     snapshot != DownloadMediaReadResult.Missing)
         ) {
             Timber.w("下载 sidecar 在 intent 清理前失效，保留 pending 等待重试")
-            return@withLock
+            return
         }
-        withContext(Dispatchers.IO) {
+        withContext(intentResolutionDispatcher) {
             database.getDownloadIntents().forEach { intent ->
                 val receivedWithoutPending =
-                    intent.status == DownloadIntentStatus.RECEIVED.name &&
+                    (intent.status == DownloadIntentStatus.RECEIVED.name ||
+                        intent.status == DownloadIntentStatus.SOURCE_CREATED.name) &&
                         intent.itemId.toString() !in remainingPendingItemIds
                 if (receivedWithoutPending) {
                     database.deleteDownloadIntentIfCurrent(
@@ -957,66 +1124,208 @@ private constructor(
                 }
             }
         }
-        val processed = pendingRecords.size + legacyPending.size
-        if (processed > 0) {
+        if (processedCount.get() > 0) {
             notifyQueueChanged()
-            Timber.i("已受理下载意图后台解析完成：%d 项", processed)
+            Timber.i("已受理下载意图后台解析完成：%d 项", processedCount.get())
         }
     }
 
     private suspend fun failReceivedIntentsWithUnavailableProvenance(): Int =
-        withContext(Dispatchers.IO) {
+        withContext(intentResolutionDispatcher) {
             database.getReceivedDownloadIntents().count { intent ->
-                resolveLegacyReceivedIntent(intent)
+                val resolving =
+                    database.beginDownloadIntentResolutionIfCurrent(
+                        itemId = intent.itemId,
+                        taskGeneration = intent.taskGeneration,
+                        updatedAt = System.currentTimeMillis(),
+                    ) > 0
+                if (!resolving) {
+                    false
+                } else {
+                    val failed =
+                        database.failDownloadIntentResolutionIfCurrent(
+                            itemId = intent.itemId,
+                            taskGeneration = intent.taskGeneration,
+                            failureReason = DownloadFailureReason.CANCELLED.name,
+                            failureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
+                            updatedAt = System.currentTimeMillis(),
+                        ) > 0
+                    if (failed) cleanupUnknownSourceForLegacyIntent(intent)
+                    failed
+                }
             }
         }
 
-    private suspend fun resolveSidecarIntent(record: DownloadMediaRecord) {
-        val itemId = record.itemId.toUuidOrNull() ?: return
-        if (!sidecarContains(record)) return
-        if (!acceptCompleteSidecarIntentInRoom(record)) {
-            Timber.w("sidecar 下载意图未通过 Room 接管校验，拒绝生成 source：%s", itemId)
+    private suspend fun beginPendingIntentResolution(pending: PendingIntentResolution): Boolean =
+        withContext(intentResolutionDispatcher) {
+            val begun =
+                when (pending) {
+                    is PendingIntentResolution.Sidecar -> {
+                        if (!pending.usesRoomFence) {
+                            acceptCompleteSidecarIntentInRoom(pending.record) != null
+                        } else {
+                            val accepted = acceptCompleteSidecarIntentInRoom(pending.record)
+                            if (
+                                accepted == null ||
+                                    accepted.taskGeneration != pending.key.generation
+                            ) {
+                                Timber.w(
+                                    "sidecar 下载意图未通过当前 generation 接管校验：%s",
+                                    pending.record.itemId,
+                                )
+                                return@withContext false
+                            }
+                            database.beginDownloadIntentResolutionIfCurrent(
+                                itemId = accepted.itemId,
+                                taskGeneration = accepted.taskGeneration,
+                                updatedAt = System.currentTimeMillis(),
+                            ) > 0
+                        }
+                    }
+                    is PendingIntentResolution.Legacy -> {
+                        database.beginDownloadIntentResolutionIfCurrent(
+                            itemId = pending.intent.itemId,
+                            taskGeneration = pending.intent.taskGeneration,
+                            updatedAt = System.currentTimeMillis(),
+                        ) > 0
+                    }
+                }
+            if (begun) notifyQueueChanged()
+            begun
+        }
+
+    private suspend fun resolvePendingIntent(
+        pending: PendingIntentResolution
+    ): ResolvedSidecarIntent? =
+        when (pending) {
+            is PendingIntentResolution.Sidecar -> resolveSidecarMedia(pending.record)
+            is PendingIntentResolution.Legacy -> null
+        }
+
+    private suspend fun resolveSidecarMedia(record: DownloadMediaRecord): ResolvedSidecarIntent {
+        val itemId = checkNotNull(record.itemId.toUuidOrNull())
+        val origin =
+            checkNotNull(
+                FrozenDownloadOrigin(record.serverId, record.userId).toJellyfinOriginOrNull()
+            )
+        if (!sidecarContains(record)) {
+            error("下载意图 sidecar 已变化：$itemId")
+        }
+        val intent =
+            withContext(intentResolutionDispatcher) { database.getDownloadIntent(itemId) }
+                ?: error("下载意图在解析期间消失：$itemId")
+        val originRepository = originScopedRepository()
+        val item =
+            originRepository.getItemForOrigin(itemId, origin)
+                ?: error("冻结来源中下载条目不存在：${origin.serverId}/${origin.userId}")
+        val mediaSources = originRepository.getMediaSourcesForOrigin(itemId, origin)
+        val frozenSource =
+            when {
+                record.sourceId != null -> mediaSources.singleOrNull { it.id == record.sourceId }
+                else -> mediaSources.singleOrNull()
+            }
+                ?: error(
+                    "冻结来源媒体源缺失或歧义：${origin.serverId}/${origin.userId}/" +
+                        "${record.sourceId ?: "implicit"}"
+                )
+        if (!sidecarContains(record)) {
+            error("下载意图 sidecar 在 resolver 返回后发生变化：$itemId")
+        }
+        return ResolvedSidecarIntent(
+            record = record,
+            intent = intent,
+            item = item,
+            sourceId = frozenSource.id,
+            origin = FrozenDownloadOrigin(origin.serverId, origin.userId.toString()),
+        )
+    }
+
+    private suspend fun completeResolvedIntent(
+        pending: PendingIntentResolution,
+        resolved: ResolvedSidecarIntent?,
+    ) {
+        if (pending is PendingIntentResolution.Legacy || resolved == null) {
+            failPendingIntent(
+                pending,
+                DownloadFailureReason.CANCELLED,
+                LEGACY_PROVENANCE_UNAVAILABLE,
+            )
             return
         }
-        val origin =
-            FrozenDownloadOrigin(record.serverId, record.userId).toJellyfinOriginOrNull()
-                ?: run {
-                    Timber.w("sidecar 缺少完整 namespace，保持可重试未知状态：%s", record)
-                    return
-                }
-        runCatching {
-            if (!sidecarContains(record)) return
-            val originRepository = originScopedRepository()
-            val item =
-                originRepository.getItemForOrigin(itemId, origin)
-                    ?: error("冻结来源中下载条目不存在：${origin.serverId}/${origin.userId}")
-            val mediaSources = originRepository.getMediaSourcesForOrigin(itemId, origin)
-            val frozenSource =
-                when {
-                    record.sourceId != null ->
-                        mediaSources.singleOrNull { it.id == record.sourceId }
-                    else -> mediaSources.singleOrNull()
-                }
-                    ?: error(
-                        "冻结来源媒体源缺失或歧义：${origin.serverId}/${origin.userId}/" +
-                            "${record.sourceId ?: "implicit"}"
-                    )
-            if (!sidecarContains(record)) return
+        try {
+            if (!sidecarContains(resolved.record)) {
+                failPendingIntent(
+                    pending,
+                    DownloadFailureReason.CANCELLED,
+                    INTENT_RESOLUTION_FAILURE_DETAIL,
+                )
+                return
+            }
             val (handle, queueError) =
                 enqueueItem(
-                    item = item,
-                    sourceId = frozenSource.id,
+                    item = resolved.item,
+                    sourceId = resolved.sourceId,
                     storageIndex = 0,
-                    albumName = record.albumName,
-                    artist = record.artist,
-                    trackIndex = record.trackIndex,
-                    origin = FrozenDownloadOrigin(origin.serverId, origin.userId.toString()),
+                    albumName = resolved.record.albumName,
+                    artist = resolved.record.artist,
+                    trackIndex = resolved.record.trackIndex,
+                    origin = resolved.origin,
+                    intentFence =
+                        (pending as? PendingIntentResolution.Sidecar)
+                            ?.takeIf(PendingIntentResolution.Sidecar::usesRoomFence)
+                            ?.let {
+                                DownloadIntentSourceFence(
+                                    itemId = resolved.intent.itemId,
+                                    generation = resolved.intent.taskGeneration,
+                                )
+                            },
                 )
             if (handle == -1L) {
                 error("加入下载队列失败：${queueError ?: "未知错误"}")
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Timber.w(failure, "解析 sidecar 下载意图失败：%s", resolved.intent.itemId)
+            failPendingIntent(
+                pending,
+                DownloadFailureReason.SERVER_ERROR,
+                INTENT_RESOLUTION_FAILURE_DETAIL,
+            )
         }
-            .onFailure { failure -> Timber.w(failure, "解析 sidecar 下载意图失败：%s", itemId) }
+    }
+
+    private suspend fun failPendingIntent(
+        pending: PendingIntentResolution,
+        reason: DownloadFailureReason,
+        detail: String,
+    ) {
+        if (pending is PendingIntentResolution.Sidecar && !pending.usesRoomFence) return
+        val intent =
+            when (pending) {
+                is PendingIntentResolution.Sidecar ->
+                    pending.record.itemId.toUuidOrNull()?.let { itemId ->
+                        withContext(intentResolutionDispatcher) {
+                            database.getDownloadIntent(itemId)
+                        }
+                    }
+                is PendingIntentResolution.Legacy -> pending.intent
+            } ?: return
+        if (intent.taskGeneration != pending.key.generation) return
+        val failed =
+            withContext(intentResolutionDispatcher) {
+                database.failDownloadIntentResolutionIfCurrent(
+                    itemId = intent.itemId,
+                    taskGeneration = intent.taskGeneration,
+                    failureReason = reason.name,
+                    failureDetail = detail,
+                    updatedAt = System.currentTimeMillis(),
+                )
+            }
+        if (failed > 0 && pending is PendingIntentResolution.Legacy) {
+            withContext(intentResolutionDispatcher) { cleanupUnknownSourceForLegacyIntent(intent) }
+        }
+        if (failed > 0) notifyQueueChanged()
     }
 
     /**
@@ -1025,23 +1334,30 @@ private constructor(
      * 冷启动先复用 DAO 的完整 namespace 条件更新推进 generation；Room 异常直接向上抛出，避免在旧 FAILED 代次尚未收口时创建 source。这里不回写
      * sidecar，防止与删除栅栏竞争后复活 pending。
      */
-    private suspend fun acceptCompleteSidecarIntentInRoom(record: DownloadMediaRecord): Boolean =
-        withContext(Dispatchers.IO) {
-            val itemId = record.itemId.toUuidOrNull() ?: return@withContext false
+    private suspend fun acceptCompleteSidecarIntentInRoom(
+        record: DownloadMediaRecord
+    ): DownloadIntentDto? =
+        withContext(intentResolutionDispatcher) {
+            val itemId = record.itemId.toUuidOrNull() ?: return@withContext null
             if (
                 FrozenDownloadOrigin(record.serverId, record.userId).toJellyfinOriginOrNull() ==
                     null
             ) {
-                return@withContext false
+                return@withContext null
             }
             val current = database.getDownloadIntent(itemId)
-            if (current?.status == DownloadIntentStatus.RECEIVED.name) return@withContext true
+            if (
+                current?.status == DownloadIntentStatus.RECEIVED.name ||
+                    current?.status == DownloadIntentStatus.RESOLVING.name
+            ) {
+                return@withContext current
+            }
             if (
                 current != null &&
                     (current.status != DownloadIntentStatus.FAILED.name ||
                         current.failureDetail != LEGACY_PROVENANCE_UNAVAILABLE)
             ) {
-                return@withContext false
+                return@withContext null
             }
             val now = System.currentTimeMillis()
             database.saveDownloadIntents(
@@ -1062,7 +1378,10 @@ private constructor(
                 supersedableItemIds = setOf(itemId),
                 legacyFailureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
             )
-            database.getDownloadIntent(itemId)?.status == DownloadIntentStatus.RECEIVED.name
+            database.getDownloadIntent(itemId)?.takeIf {
+                it.status == DownloadIntentStatus.RECEIVED.name ||
+                    it.status == DownloadIntentStatus.RESOLVING.name
+            }
         }
 
     private fun sidecarContains(record: DownloadMediaRecord): Boolean =
@@ -1077,25 +1396,6 @@ private constructor(
             is DownloadMediaReadResult.Corrupt ->
                 error("下载 sidecar 内容损坏，拒绝继续解析：行 " + snapshot.invalidLineNumbers.joinToString())
         }
-
-    private suspend fun resolveLegacyReceivedIntent(intent: DownloadIntentDto): Boolean {
-        if (!isReceivedIntentCurrent(intent)) return false
-        val updated =
-            withContext(Dispatchers.IO) {
-                database.setDownloadIntentStatusIfCurrent(
-                    itemId = intent.itemId,
-                    taskGeneration = intent.taskGeneration,
-                    status = DownloadIntentStatus.FAILED.name,
-                    failureReason = DownloadFailureReason.CANCELLED.name,
-                    failureDetail = LEGACY_PROVENANCE_UNAVAILABLE,
-                    updatedAt = System.currentTimeMillis(),
-                )
-            }
-        if (updated <= 0) return false
-        withContext(Dispatchers.IO) { cleanupUnknownSourceForLegacyIntent(intent) }
-        Timber.w("legacy 下载意图来源不可证明，要求重新下载：%s", intent.itemId)
-        return true
-    }
 
     private suspend fun cleanupUnknownSourceForLegacyIntent(intent: DownloadIntentDto) {
         val currentIntent = database.getDownloadIntent(intent.itemId)
@@ -2147,18 +2447,20 @@ private constructor(
         withContext(Dispatchers.IO) {
             if (task.sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
                 val now = System.currentTimeMillis()
-                return@withContext if (
-                    database.retryDownloadIntent(
-                        task.itemId,
-                        task.taskGeneration,
-                        now,
-                    ) > 0
-                ) {
-                    launchReceivedIntentProcessor()
-                    notifyQueueChanged()
-                    Pair(downloadTaskHandle(task.sourceId), null)
-                } else {
-                    Pair(-1L, null)
+                return@withContext itemMutationLock(task.itemId).withLock {
+                    if (
+                        database.retryDownloadIntent(
+                            task.itemId,
+                            task.taskGeneration,
+                            now,
+                        ) > 0
+                    ) {
+                        launchReceivedIntentProcessor()
+                        notifyQueueChanged()
+                        Pair(downloadTaskHandle(task.sourceId), null)
+                    } else {
+                        Pair(-1L, null)
+                    }
                 }
             }
             val current = database.getSource(task.sourceId) ?: return@withContext Pair(-1L, null)
@@ -2270,18 +2572,18 @@ private constructor(
         expectedGeneration: Long,
     ): Boolean =
         withContext(Dispatchers.IO) {
-            val cancelled =
-                intentMutations.cancel(
-                    itemId,
-                    expectedGeneration,
-                    System.currentTimeMillis(),
-                ) ?: return@withContext false
-            notifyQueueChanged()
-            // 解析协程可能已越过首个代次检查；对它已落的 source 再执行同一取消语义。
-            receivedIntentLock.withLock {
+            itemMutationLock(itemId).withLock {
+                val cancelled =
+                    intentMutations.cancel(
+                        itemId,
+                        expectedGeneration,
+                        System.currentTimeMillis(),
+                    ) ?: return@withLock false
+                notifyQueueChanged()
+                // 解析协程可能已越过首个代次检查；对它已落的 source 再执行同一取消语义。
                 database.getSources(itemId).forEach { source -> cancelTaskById(source.id) }
+                cancelled.status == "FAILED"
             }
-            cancelled.status == "FAILED"
         }
 
     private suspend fun cancelTaskAtGeneration(
@@ -2329,14 +2631,14 @@ private constructor(
         expectedGeneration: Long,
     ): Boolean =
         withContext(Dispatchers.IO) {
-            val cancelled =
-                intentMutations.delete(
-                    itemId,
-                    expectedGeneration,
-                    System.currentTimeMillis(),
-                ) ?: return@withContext false
-            try {
-                receivedIntentLock.withLock {
+            itemMutationLock(itemId).withLock {
+                val cancelled =
+                    intentMutations.delete(
+                        itemId,
+                        expectedGeneration,
+                        System.currentTimeMillis(),
+                    ) ?: return@withLock false
+                try {
                     val sourceIds = database.getSources(itemId).map { it.id }
                     val result =
                         DownloadIntentDeletionRules.deleteAllOrReport(
@@ -2373,9 +2675,9 @@ private constructor(
                             },
                         )
                     result.confirmed
+                } finally {
+                    notifyQueueChanged()
                 }
-            } finally {
-                notifyQueueChanged()
             }
         }
 
@@ -4207,6 +4509,10 @@ private constructor(
             workGateway: DownloadWorkGateway? = null,
             downloadTransfer: DownloadTransfer? = null,
             imageFinalizationScheduler: DownloadImageFinalizationScheduler? = null,
+            intentResolutionDispatcher: CoroutineDispatcher = Dispatchers.IO,
+            intentResolutionDeadlineScheduler: DownloadIntentDeadlineScheduler =
+                CoroutineDownloadIntentDeadlineScheduler,
+            intentResolutionTimeoutMs: Long = DEFAULT_INTENT_RESOLUTION_TIMEOUT_MS,
         ): DownloaderImpl =
             DownloaderImpl(
                 context = context,
@@ -4224,6 +4530,9 @@ private constructor(
                 workGatewayOverride = workGateway,
                 downloadTransferOverride = downloadTransfer,
                 imageFinalizationSchedulerOverride = imageFinalizationScheduler,
+                intentResolutionDispatcher = intentResolutionDispatcher,
+                intentResolutionDeadlineScheduler = intentResolutionDeadlineScheduler,
+                intentResolutionTimeoutMs = intentResolutionTimeoutMs,
             )
 
         /** 自研引擎写入 sources 行的版本标记（旧 DownloadManager 行为 0）。 */
@@ -4238,6 +4547,7 @@ private constructor(
 
         /** W84：持久化接收意图的后台解析并发上限。分片执行但不会截断批次。 */
         const val INTENT_RESOLVE_CONCURRENCY = 6
+        const val DEFAULT_INTENT_RESOLUTION_TIMEOUT_MS = 15_000L
 
         const val LEGACY_PROVENANCE_UNAVAILABLE = "下载来源不可证明，请重新下载"
     }

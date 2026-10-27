@@ -1,6 +1,15 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withTimeout
 
 /**
  * W32 下载任务（下载管理页的单一数据模型）。
@@ -67,6 +76,114 @@ enum class DownloadTaskStatus {
     COMPLETED,
     FAILED,
     DELETING,
+}
+
+/** 下载意图的幂等身份；同一逻辑键只有同 generation 的当前 attempt 可以落终态。 */
+internal data class DownloadIntentResolutionKey(
+    val logicalKey: String,
+    val generation: Long,
+)
+
+internal sealed interface DownloadIntentResolutionOutcome<out T> {
+    data class Resolved<T>(val value: T) : DownloadIntentResolutionOutcome<T>
+
+    data class Failed(val cause: Throwable) : DownloadIntentResolutionOutcome<Nothing>
+
+    data object TimedOut : DownloadIntentResolutionOutcome<Nothing>
+
+    /** DAO 的 generation CAS 已拒绝该 attempt，后续不得写 source 或终态。 */
+    data object Superseded : DownloadIntentResolutionOutcome<Nothing>
+
+    /** 同一 logical key + generation 已有 attempt 在飞。 */
+    data object Duplicate : DownloadIntentResolutionOutcome<Nothing>
+}
+
+internal class DownloadIntentDeadlineExceededException(val key: DownloadIntentResolutionKey) :
+    RuntimeException("下载意图解析超时：${key.logicalKey}/${key.generation}")
+
+internal interface DownloadIntentDeadlineScheduler {
+    suspend fun <T> withDeadline(
+        key: DownloadIntentResolutionKey,
+        timeoutMs: Long,
+        block: suspend () -> T,
+    ): T
+}
+
+internal object CoroutineDownloadIntentDeadlineScheduler : DownloadIntentDeadlineScheduler {
+    override suspend fun <T> withDeadline(
+        key: DownloadIntentResolutionKey,
+        timeoutMs: Long,
+        block: suspend () -> T,
+    ): T = withTimeout(timeoutMs) { block() }
+}
+
+/**
+ * 音乐 intent 解析协调器。
+ *
+ * 只保护单个 attempt 的短状态段；网络 resolver 在 6 个独立槽内并发，任一项结束就释放槽位， 不等待同批其它项。同一 key + generation 在飞期间只允许一个
+ * resolver，迟到结果是否可提交仍由调用方 DAO generation CAS 决定。
+ */
+internal class DownloadIntentResolutionCoordinator(
+    private val maxConcurrency: Int,
+    private val timeoutMs: Long = 15_000L,
+    private val deadlineScheduler: DownloadIntentDeadlineScheduler =
+        CoroutineDownloadIntentDeadlineScheduler,
+) {
+    private val active = ConcurrentHashMap<DownloadIntentResolutionKey, Long>()
+
+    init {
+        require(maxConcurrency > 0) { "下载意图解析并发必须大于 0" }
+        require(timeoutMs > 0) { "下载意图解析 deadline 必须大于 0" }
+    }
+
+    suspend fun <T, R> run(
+        items: List<T>,
+        keyOf: (T) -> DownloadIntentResolutionKey,
+        begin: suspend (T) -> Boolean,
+        resolve: suspend (T) -> R,
+        onResult: suspend (T, DownloadIntentResolutionOutcome<R>) -> Unit,
+    ): List<DownloadIntentResolutionOutcome<R>> = coroutineScope {
+        val semaphore = Semaphore(maxConcurrency)
+        items
+            .map { item ->
+                async {
+                    val key = keyOf(item)
+                    semaphore.withPermit {
+                        val startedAt = System.nanoTime()
+                        if (active.putIfAbsent(key, startedAt) != null) {
+                            return@withPermit DownloadIntentResolutionOutcome.Duplicate
+                        }
+                        try {
+                            val outcome =
+                                if (!begin(item)) {
+                                    DownloadIntentResolutionOutcome.Superseded
+                                } else {
+                                    try {
+                                        DownloadIntentResolutionOutcome.Resolved(
+                                            deadlineScheduler.withDeadline(key, timeoutMs) {
+                                                resolve(item)
+                                            }
+                                        )
+                                    } catch (timeout: DownloadIntentDeadlineExceededException) {
+                                        DownloadIntentResolutionOutcome.TimedOut
+                                    } catch (timeout: TimeoutCancellationException) {
+                                        DownloadIntentResolutionOutcome.TimedOut
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (failure: Throwable) {
+                                        DownloadIntentResolutionOutcome.Failed(failure)
+                                    }
+                                }
+                            onResult(item, outcome)
+                            outcome
+                        } finally {
+                            active.remove(key, startedAt)
+                        }
+                    }
+                }
+            }
+            .awaitAll()
+    }
 }
 
 /** 失败原因分类：UI 文案与自动重试策略都以此为准。 */

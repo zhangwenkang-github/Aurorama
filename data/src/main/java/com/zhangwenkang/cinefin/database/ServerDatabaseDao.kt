@@ -105,7 +105,10 @@ interface ServerDatabaseDao {
     @Query("SELECT * FROM downloadIntents WHERE itemId = :itemId")
     suspend fun getDownloadIntent(itemId: UUID): DownloadIntentDto?
 
-    @Query("SELECT * FROM downloadIntents WHERE status = 'RECEIVED' ORDER BY createdAt ASC")
+    @Query(
+        "SELECT * FROM downloadIntents WHERE status IN ('RECEIVED', 'RESOLVING') " +
+            "ORDER BY createdAt ASC"
+    )
     suspend fun getReceivedDownloadIntents(): List<DownloadIntentDto>
 
     @Query("SELECT itemId FROM downloadIntents WHERE itemId IN (:itemIds)")
@@ -219,6 +222,71 @@ interface ServerDatabaseDao {
         updatedAt: Long,
     ): Int
 
+    /** 单项解析开始；generation + 状态双 CAS 阻止迟到 attempt 覆盖新代。 */
+    @Query(
+        """
+        UPDATE downloadIntents
+        SET status = 'RESOLVING', failureReason = NULL, failureDetail = NULL,
+            updatedAt = :updatedAt
+        WHERE itemId = :itemId AND taskGeneration = :taskGeneration
+          AND status IN ('RECEIVED', 'RESOLVING')
+        """
+    )
+    suspend fun beginDownloadIntentResolutionIfCurrent(
+        itemId: UUID,
+        taskGeneration: Long,
+        updatedAt: Long,
+    ): Int
+
+    /** 插入 source 前的最后一道 generation fence；不匹配时调用方不得写 sidecar 或 source。 */
+    @Query(
+        """
+        UPDATE downloadIntents
+        SET updatedAt = :updatedAt
+        WHERE itemId = :itemId AND taskGeneration = :taskGeneration
+          AND status = 'RESOLVING'
+        """
+    )
+    suspend fun confirmDownloadIntentResolutionIfCurrent(
+        itemId: UUID,
+        taskGeneration: Long,
+        updatedAt: Long,
+    ): Int
+
+    /** source 已真实插入后发布成功终态；同样只允许当前 resolving generation。 */
+    @Query(
+        """
+        UPDATE downloadIntents
+        SET status = 'SOURCE_CREATED', failureReason = NULL, failureDetail = NULL,
+            updatedAt = :updatedAt
+        WHERE itemId = :itemId AND taskGeneration = :taskGeneration
+          AND status = 'RESOLVING'
+        """
+    )
+    suspend fun markDownloadIntentSourceCreatedIfCurrent(
+        itemId: UUID,
+        taskGeneration: Long,
+        updatedAt: Long,
+    ): Int
+
+    /** timeout / resolver 失败只收口当前 generation，绝不误写新代成功。 */
+    @Query(
+        """
+        UPDATE downloadIntents
+        SET status = 'FAILED', failureReason = :failureReason, failureDetail = :failureDetail,
+            updatedAt = :updatedAt
+        WHERE itemId = :itemId AND taskGeneration = :taskGeneration
+          AND status IN ('RECEIVED', 'RESOLVING')
+        """
+    )
+    suspend fun failDownloadIntentResolutionIfCurrent(
+        itemId: UUID,
+        taskGeneration: Long,
+        failureReason: String,
+        failureDetail: String,
+        updatedAt: Long,
+    ): Int
+
     @Transaction
     suspend fun beginDownloadIntentCancellation(
         itemId: UUID,
@@ -254,7 +322,7 @@ interface ServerDatabaseDao {
         SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = NULL,
             taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
         WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
-          AND status = 'RECEIVED'
+          AND status IN ('RECEIVED', 'RESOLVING')
         """
     )
     suspend fun cancelDownloadIntent(
@@ -269,6 +337,7 @@ interface ServerDatabaseDao {
         SET status = 'RECEIVED', failureReason = NULL, failureDetail = NULL,
             taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
         WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
+          AND status = 'FAILED'
         """
     )
     suspend fun retryDownloadIntent(
@@ -826,7 +895,7 @@ interface ServerDatabaseDao {
                 taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
             WHERE itemId = :itemId
               AND (
-                status = 'RECEIVED'
+                status IN ('RECEIVED', 'RESOLVING')
                 OR (status = 'FAILED' AND failureDetail = :legacyFailureDetail)
               )
             """
@@ -837,7 +906,7 @@ interface ServerDatabaseDao {
             SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = NULL,
                 taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
             WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
-              AND status IN ('RECEIVED', 'FAILED')
+              AND status IN ('RECEIVED', 'RESOLVING', 'SOURCE_CREATED', 'FAILED')
             """
 
         internal const val MARK_SOURCE_DELETION_SQL =

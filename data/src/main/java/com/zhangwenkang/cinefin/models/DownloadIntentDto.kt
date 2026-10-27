@@ -7,6 +7,8 @@ import java.util.UUID
 
 enum class DownloadIntentStatus {
     RECEIVED,
+    RESOLVING,
+    SOURCE_CREATED,
     FAILED,
 }
 
