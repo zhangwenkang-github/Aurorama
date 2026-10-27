@@ -143,6 +143,29 @@ internal object MusicSongActionsAccessibility {
 /** 队列行高（拖动换算基准）：面板内所有行等高，拖动位移才能按整数行对齐。 */
 private val QueueRowHeight = 72.dp
 
+internal data class MusicPrimaryToolbarVisibility(
+    val showsSource: Boolean,
+    val showsPlayAll: Boolean,
+) {
+    val hasToolbar: Boolean
+        get() = showsSource || showsPlayAll
+
+    companion object {
+        fun forState(
+            offline: Boolean,
+            songCount: Int,
+            detailPresent: Boolean,
+            batchMode: Boolean,
+        ): MusicPrimaryToolbarVisibility {
+            val toolbarRequested = !detailPresent && !batchMode
+            return MusicPrimaryToolbarVisibility(
+                showsSource = toolbarRequested && !offline,
+                showsPlayAll = toolbarRequested && songCount > 0,
+            )
+        }
+    }
+}
+
 /**
  * 音乐模式入口（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列面板，W3 R3 接入 Prism）。
  *
@@ -401,7 +424,15 @@ fun MusicModeScreen(
                 }
                 if (state.detail == null) {
                     // W66b：库选择 chip 移到 Tab 行右侧（紧凑、只显示当前库名）；顶栏恢复标题 + 三图标键。
+                    val toolbarVisibility =
+                        MusicPrimaryToolbarVisibility.forState(
+                            offline = state.offline,
+                            songCount = state.songs.size,
+                            detailPresent = false,
+                            batchMode = batchSelection.selectionMode,
+                        )
                     MusicPrimaryToolbarSection(
+                        showToolbar = toolbarVisibility.hasToolbar,
                         tabs = {
                             MusicTabsRow(
                                 selected = state.tab,
@@ -415,20 +446,16 @@ fun MusicModeScreen(
                                 onSelectMusicLibrary = viewModel::selectMusicLibrary,
                             )
                         },
-                        toolbar =
-                            if (batchSelection.selectionMode) {
-                                null
-                            } else {
-                                {
-                                    MusicToolbarRow(
-                                        state = state,
-                                        onSelectSource = viewModel::setSourceFilter,
-                                        onToggleBadge = viewModel::setShowSourceBadge,
-                                        onPlayAll = { viewModel.playAll() },
-                                        onShuffleAll = { viewModel.playAll(shuffle = true) },
-                                    )
-                                }
-                            },
+                        toolbar = {
+                            MusicToolbarRow(
+                                state = state,
+                                visibility = toolbarVisibility,
+                                onSelectSource = viewModel::setSourceFilter,
+                                onToggleBadge = viewModel::setShowSourceBadge,
+                                onPlayAll = { viewModel.playAll() },
+                                onShuffleAll = { viewModel.playAll(shuffle = true) },
+                            )
+                        },
                     )
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 }
@@ -1043,23 +1070,26 @@ private fun MusicHeader(
 
 @Composable
 private fun MusicPrimaryToolbarSection(
+    showToolbar: Boolean,
     tabs: @Composable () -> Unit,
-    toolbar: (@Composable () -> Unit)?,
+    toolbar: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
     Layout(
         content = {
             tabs()
-            toolbar?.invoke()
+            if (showToolbar) {
+                toolbar()
+            }
         },
         modifier = Modifier.fillMaxWidth(),
     ) { measurables, constraints ->
         val tabsPlaceable = measurables.first().measure(constraints.copy(minHeight = 0))
         val toolbarPlaceable =
-            if (toolbar == null) {
-                null
+            if (showToolbar) {
+                measurables.getOrNull(1)?.measure(constraints.copy(minHeight = 0))
             } else {
-                measurables.last().measure(constraints.copy(minHeight = 0))
+                null
             }
         val plan =
             MusicPrimaryToolbarLayout.measurePrimary(
@@ -1175,15 +1205,12 @@ private fun MusicTabsRow(
 @Composable
 private fun MusicToolbarRow(
     state: MusicModeViewModel.UiState,
+    visibility: MusicPrimaryToolbarVisibility,
     onSelectSource: (MusicItemSourceFilter) -> Unit,
     onToggleBadge: (Boolean) -> Unit,
     onPlayAll: () -> Unit,
     onShuffleAll: () -> Unit,
 ) {
-    val showSource = !state.offline
-    // W66b：播放全部扩展到所有 Tab（语义 = 按当前筛选与当前列表顺序播放整库曲目）。
-    val showPlayAll = state.songs.isNotEmpty()
-    if (!showSource && !showPlayAll) return
     Row(
         modifier =
             Modifier.padding(horizontal = CinefinSpacing.Space4)
@@ -1192,7 +1219,7 @@ private fun MusicToolbarRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
     ) {
-        if (showSource) {
+        if (visibility.showsSource) {
             MusicSourceFilterMenuChip(
                 filter = state.sourceFilter,
                 showBadge = state.showSourceBadge,
@@ -1201,7 +1228,7 @@ private fun MusicToolbarRow(
             )
         }
         Spacer(modifier = Modifier.weight(1f))
-        if (showPlayAll) {
+        if (visibility.showsPlayAll) {
             MusicPlayAllHitTarget(onClick = onPlayAll) { MusicPlayAllVisualButton() }
             CinefinIconButton(onClick = onShuffleAll) { tint ->
                 Icon(

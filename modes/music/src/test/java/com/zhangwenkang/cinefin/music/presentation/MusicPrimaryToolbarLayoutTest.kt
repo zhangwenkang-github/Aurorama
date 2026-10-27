@@ -85,4 +85,85 @@ class MusicPrimaryToolbarLayoutTest {
                 .any { type -> Function0::class.java.isAssignableFrom(type) },
         )
     }
+
+    @Test
+    fun `offline empty music omits toolbar measurable`() {
+        val visibility =
+            MusicPrimaryToolbarVisibility.forState(
+                offline = true,
+                songCount = 0,
+                detailPresent = false,
+                batchMode = false,
+            )
+
+        assertFalse(visibility.hasToolbar)
+        assertFalse(visibility.showsSource)
+        assertFalse(visibility.showsPlayAll)
+    }
+
+    @Test
+    fun `offline loading to zero never measures tabs twice`() {
+        val whileLoading =
+            MusicPrimaryToolbarVisibility.forState(
+                offline = true,
+                songCount = 0,
+                detailPresent = false,
+                batchMode = false,
+            )
+        val loadedZero =
+            MusicPrimaryToolbarVisibility.forState(
+                offline = true,
+                songCount = 0,
+                detailPresent = false,
+                batchMode = false,
+            )
+
+        assertFalse(whileLoading.hasToolbar)
+        assertFalse(loadedZero.hasToolbar)
+    }
+
+    @Test
+    fun `offline has songs measures play all only`() {
+        val visibility =
+            MusicPrimaryToolbarVisibility.forState(
+                offline = true,
+                songCount = 1,
+                detailPresent = false,
+                batchMode = false,
+            )
+
+        assertTrue(visibility.hasToolbar)
+        assertFalse(visibility.showsSource)
+        assertTrue(visibility.showsPlayAll)
+    }
+
+    @Test
+    fun `online empty keeps source toolbar`() {
+        val visibility =
+            MusicPrimaryToolbarVisibility.forState(
+                offline = false,
+                songCount = 0,
+                detailPresent = false,
+                batchMode = false,
+            )
+
+        assertTrue(visibility.hasToolbar)
+        assertTrue(visibility.showsSource)
+        assertFalse(visibility.showsPlayAll)
+    }
+
+    @Test
+    fun `batch mode has no toolbar measurable`() {
+        val visibility =
+            MusicPrimaryToolbarVisibility.forState(
+                offline = false,
+                songCount = 1,
+                detailPresent = false,
+                batchMode = true,
+            )
+
+        assertFalse(visibility.hasToolbar)
+        assertFalse(visibility.showsSource)
+        assertFalse(visibility.showsPlayAll)
+    }
 }
