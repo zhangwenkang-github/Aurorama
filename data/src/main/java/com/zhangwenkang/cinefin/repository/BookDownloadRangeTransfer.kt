@@ -358,6 +358,9 @@ internal class BookDownloadManager(
     ): BookDownloadEnqueueResult =
         restored.await().let {
             itemLifecycle(itemId).withLock {
+                if (lock.withLock { hasUnresolvedDeleteReceiptLocked(itemId) }) {
+                    return@withLock BookDownloadEnqueueResult.BlockedByDelete
+                }
                 val existing = completedFileIfReady(itemId)
                 if (existing != null) {
                     return@withLock BookDownloadEnqueueResult.AlreadyDownloaded
@@ -379,6 +382,9 @@ internal class BookDownloadManager(
         val canonicalKey = canonicalBookDownloadKey(credentials, itemId)
         val result =
             itemLifecycle(itemId).withLock { enqueueBookDownload(itemId, title, credentials) }
+        if (result == BookDownloadEnqueueResult.BlockedByDelete) {
+            throw IOException("书籍删除尚未完成，请重试删除")
+        }
         if (result == BookDownloadEnqueueResult.AlreadyDownloaded) {
             return awaitVisibleFile(
                 fileProvider = { localFileProvider(itemId) },
@@ -399,6 +405,9 @@ internal class BookDownloadManager(
                 runCatching { credentialsProvider() }
                     .getOrNull()
                     ?.let { canonicalBookDownloadKey(it, itemId) }
+                    ?: tasks.value
+                        .lastOrNull { it.itemId == itemId && !it.isDeleteRecord() }
+                        ?.canonicalKey
                     ?: tasks.value.lastOrNull { it.itemId == itemId }?.canonicalKey
                     ?: return@launch
             cancelByKey(key)
@@ -414,18 +423,30 @@ internal class BookDownloadManager(
                 val task =
                     selectDeleteTaskLocked(itemId, preferredKey)
                         ?: deleteReceipt(itemId, credentials)
-                saveLocked(
+                val target = task.targetPath?.let(::File) ?: localFileProvider(itemId)
+                val receipt =
                     task.copy(
+                        taskGeneration =
+                            task.taskGeneration.takeIf { it > 0L }
+                                ?: latestArtifactGeneration(
+                                    target = target,
+                                    basePartial = File(target.parentFile, "${target.name}.part"),
+                                )
+                    )
+                saveLocked(
+                    receipt.copy(
                         status = BookDownloadStatus.FAILED,
                         failureReason = DELETE_PENDING,
                         error = "正在清理书籍文件",
                         updatedAtEpochMillis = clock(),
                     )
                 )
-                results.remove(task.canonicalKey)?.cancel(CancellationException("书籍任务正在删除"))
+                results.remove(receipt.canonicalKey)?.cancel(CancellationException("书籍任务正在删除"))
                 val activeJob =
-                    jobs.remove(task.canonicalKey)?.also { retiringJobs[task.canonicalKey] = it }
-                task to activeJob
+                    jobs.remove(receipt.canonicalKey)?.also {
+                        retiringJobs[receipt.canonicalKey] = it
+                    }
+                receipt to activeJob
             }
             val (receipt, activeJob) = deletion
             activeJob?.job?.cancel(CancellationException("书籍任务正在删除"))
@@ -460,6 +481,9 @@ internal class BookDownloadManager(
     ): BookDownloadEnqueueResult {
         val canonicalKey = canonicalBookDownloadKey(credentials, itemId)
         return lock.withLock {
+            if (hasUnresolvedDeleteReceiptLocked(itemId)) {
+                return@withLock BookDownloadEnqueueResult.BlockedByDelete
+            }
             if (jobs[canonicalKey]?.job?.isActive == true) {
                 return@withLock BookDownloadEnqueueResult.AlreadyQueued
             }
@@ -508,19 +532,21 @@ internal class BookDownloadManager(
                 store.load().mapNotNull { dto ->
                     runCatching { dto.toBookDownloadTask() }.getOrNull()
                 }
+            val reconciled = reconcileCoexistingDeleteReceipts(loaded)
             lock.withLock {
                 mutableTasks.value =
-                    loaded.sortedWith(
+                    reconciled.sortedWith(
                         compareBy<BookDownloadTask> { it.updatedAtEpochMillis }
                             .thenBy { it.canonicalKey }
                     )
             }
 
-            for (task in loaded) {
-                if (task.failureReason == DELETE_PENDING || task.failureReason == DELETE_FAILED) {
+            for (task in reconciled) {
+                if (task.isUnresolvedDeleteReceipt()) {
                     retryDeletionDuringRestore(task)
                     continue
                 }
+                if (task.failureReason == DELETE_SUPERSEDED) continue
                 val target = task.targetPath?.let(::File) ?: localFileProvider(task.itemId)
                 val basePartial = File(target.parentFile, "${target.name}.part")
                 if (target.isComplete()) {
@@ -905,16 +931,14 @@ internal class BookDownloadManager(
     private suspend fun completedFileIfReady(itemId: UUID): File? = lock.withLock {
         val target = localFileProvider(itemId)
         if (!target.isComplete()) return@withLock null
+        if (hasUnresolvedDeleteReceiptLocked(itemId)) return@withLock null
 
         val task =
             tasks.value
                 .asSequence()
-                .filter { it.itemId == itemId }
+                .filter { it.itemId == itemId && !it.isDeleteRecord() }
                 .sortedByDescending { it.updatedAtEpochMillis }
                 .firstOrNull() ?: return@withLock target
-        if (task.failureReason == DELETE_PENDING || task.failureReason == DELETE_FAILED) {
-            throw IOException("书籍删除尚未完成，请重试删除")
-        }
         if (
             task.status == BookDownloadStatus.RUNNING &&
                 jobs[task.canonicalKey]?.job?.isActive == true
@@ -967,9 +991,19 @@ internal class BookDownloadManager(
     private fun selectDeleteTaskLocked(itemId: UUID, preferredKey: String?): BookDownloadTask? =
         tasks.value
             .asSequence()
-            .filter { it.itemId == itemId }
+            .filter { it.itemId == itemId && !it.isDeleteRecord() }
             .sortedByDescending { it.updatedAtEpochMillis }
             .firstOrNull { it.canonicalKey == preferredKey }
+            ?: tasks.value
+                .asSequence()
+                .filter { it.itemId == itemId && !it.isDeleteRecord() }
+                .sortedByDescending { it.updatedAtEpochMillis }
+                .firstOrNull()
+            ?: tasks.value
+                .asSequence()
+                .filter { it.itemId == itemId }
+                .sortedByDescending { it.updatedAtEpochMillis }
+                .firstOrNull { it.canonicalKey == preferredKey }
             ?: tasks.value
                 .asSequence()
                 .filter { it.itemId == itemId }
@@ -981,6 +1015,7 @@ internal class BookDownloadManager(
         credentials: BookDownloadCredentials?,
     ): BookDownloadTask {
         val target = localFileProvider(itemId)
+        val basePartial = partialFileProvider(itemId)
         val now = clock()
         val serverId = credentials?.serverId ?: LOCAL_DELETE_SERVER_ID
         val userId = credentials?.userId ?: LOCAL_DELETE_USER_ID
@@ -1002,6 +1037,7 @@ internal class BookDownloadManager(
             serverId = serverId,
             userId = userId,
             targetPath = target.absolutePath,
+            taskGeneration = latestArtifactGeneration(target, basePartial),
             createdAtEpochMillis = now,
             updatedAtEpochMillis = now,
         )
@@ -1035,27 +1071,15 @@ internal class BookDownloadManager(
         receipt: BookDownloadTask,
     ): List<String> {
         val failures = mutableListOf<String>()
-        val targets = linkedSetOf(localFileProvider(itemId))
-        receipt.targetPath?.let { targets += File(it) }
-        val basePartials = linkedSetOf(partialFileProvider(itemId))
-        targets.mapTo(basePartials) { File(it.parentFile, "${it.name}.part") }
+        val target = receipt.targetPath?.let(::File) ?: localFileProvider(itemId)
+        val basePartial = File(target.parentFile, "${target.name}.part")
+        val partial = generationPartialFile(basePartial, receipt.taskGeneration)
+        val commit = commitFileFor(target, receipt.taskGeneration)
 
-        targets.forEach { file -> if (!deleteFile(file)) failures += "book:${file.name}" }
-        basePartials.forEach { file ->
-            if (!deleteFile(file)) failures += "part:${file.name}"
-            file.parentFile?.let { parent ->
-                deleteGeneratedSiblings(parent, "${file.name}.").forEach { name ->
-                    failures += "part:$name"
-                }
-            }
-        }
-        targets.forEach { file ->
-            file.parentFile?.let { parent ->
-                deleteGeneratedSiblings(parent, "${file.name}.commit.").forEach { name ->
-                    failures += "commit:$name"
-                }
-            }
-        }
+        if (!deleteFile(target)) failures += "book:${target.name}"
+        if (!deleteFile(basePartial)) failures += "part:${basePartial.name}"
+        if (!deleteFile(partial)) failures += "part:${partial.name}"
+        if (!deleteFile(commit)) failures += "commit:${commit.name}"
         if (!deleteTitle(itemId)) failures += "title"
         if (!clearProvenance(itemId)) failures += "provenance"
         return failures
@@ -1098,6 +1122,63 @@ internal class BookDownloadManager(
     private fun commitFileFor(target: File, generation: Long): File =
         File(target.parentFile, "${target.name}.commit.$generation")
 
+    private fun latestArtifactGeneration(target: File, basePartial: File): Long =
+        target.parentFile
+            ?.listFiles()
+            .orEmpty()
+            .mapNotNull { file ->
+                when {
+                    file.name.startsWith("${basePartial.name}.") ->
+                        file.name.removePrefix("${basePartial.name}.").toLongOrNull()
+                    file.name.startsWith("${target.name}.commit.") ->
+                        file.name.removePrefix("${target.name}.commit.").toLongOrNull()
+                    else -> null
+                }
+            }
+            .maxOrNull() ?: 0L
+
+    private fun hasUnresolvedDeleteReceiptLocked(itemId: UUID): Boolean =
+        tasks.value.any { it.itemId == itemId && it.isUnresolvedDeleteReceipt() }
+
+    private suspend fun reconcileCoexistingDeleteReceipts(
+        loaded: List<BookDownloadTask>
+    ): List<BookDownloadTask> {
+        val currentTasksByItem = loaded.filterNot { it.isDeleteRecord() }.groupBy { it.itemId }
+        val supersededKeys =
+            loaded
+                .asSequence()
+                .filter { it.isUnresolvedDeleteReceipt() }
+                .filter { receipt ->
+                    currentTasksByItem[receipt.itemId].orEmpty().any { task ->
+                        task.canonicalKey != receipt.canonicalKey
+                    }
+                }
+                .map { it.canonicalKey }
+                .toSet()
+        if (supersededKeys.isEmpty()) return loaded
+
+        return loaded.map { task ->
+            if (task.canonicalKey !in supersededKeys) {
+                task
+            } else {
+                task
+                    .copy(
+                        status = BookDownloadStatus.FAILED,
+                        failureReason = DELETE_SUPERSEDED,
+                        error = "旧删除请求已由同 item 的新下载取代",
+                        updatedAtEpochMillis = maxOf(task.updatedAtEpochMillis, clock()),
+                    )
+                    .also { store.save(it.toDto()) }
+            }
+        }
+    }
+
+    private fun BookDownloadTask.isUnresolvedDeleteReceipt(): Boolean =
+        failureReason == DELETE_PENDING || failureReason == DELETE_FAILED
+
+    private fun BookDownloadTask.isDeleteRecord(): Boolean =
+        isUnresolvedDeleteReceipt() || failureReason == DELETE_SUPERSEDED
+
     private fun atomicMove(source: File, target: File) {
         Files.move(
             source.toPath(),
@@ -1125,6 +1206,7 @@ internal class BookDownloadManager(
         val LOCAL_DELETE_USER_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000000")
         const val DELETE_PENDING = "DELETE_PENDING"
         const val DELETE_FAILED = "DELETE_FAILED"
+        const val DELETE_SUPERSEDED = "DELETE_SUPERSEDED"
         const val PROGRESS_SAVE_INTERVAL_BYTES = 1024L * 1024L
         const val FILE_VISIBILITY_POLL_MS = 10L
     }

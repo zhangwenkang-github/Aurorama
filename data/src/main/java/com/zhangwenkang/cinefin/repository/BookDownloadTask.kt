@@ -37,9 +37,10 @@ data class BookDownloadTask(
             if (totalBytes > 0L) (downloadedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) else 0f
 }
 
-/** 入队结果：新入队 / 已在队列 / 本地已有文件。 */
+/** 入队结果：新入队 / 已在队列 / 本地已有文件 / 等待旧删除收口。 */
 enum class BookDownloadEnqueueResult {
     Queued,
     AlreadyQueued,
     AlreadyDownloaded,
+    BlockedByDelete,
 }
