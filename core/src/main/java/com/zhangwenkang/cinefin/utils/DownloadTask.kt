@@ -157,10 +157,12 @@ internal class DownloadIntentResolutionCoordinator(
         CoroutineDownloadIntentDeadlineScheduler,
 ) {
     private val active = ConcurrentHashMap<DownloadIntentResolutionKey, Long>()
+    private val semaphore: Semaphore
 
     init {
         require(maxConcurrency > 0) { "下载意图解析并发必须大于 0" }
         require(timeoutMs > 0) { "下载意图解析 deadline 必须大于 0" }
+        semaphore = Semaphore(maxConcurrency)
     }
 
     suspend fun <T, R> run(
@@ -170,7 +172,6 @@ internal class DownloadIntentResolutionCoordinator(
         resolve: suspend (T) -> R,
         onResult: suspend (T, DownloadIntentResolutionOutcome<R>) -> Unit,
     ): List<DownloadIntentResolutionOutcome<R>> = coroutineScope {
-        val semaphore = Semaphore(maxConcurrency)
         items
             .map { item ->
                 async {

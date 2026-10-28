@@ -5,15 +5,121 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloadIntentBatchProgressTest {
+    @Test
+    fun `concurrent runs share the coordinator concurrency limit`() = runBlocking {
+        val coordinator =
+            DownloadIntentResolutionCoordinator(
+                maxConcurrency = 6,
+                deadlineScheduler = ImmediateDownloadIntentDeadlineScheduler,
+            )
+        val firstWaveStarted = CompletableDeferred<Unit>()
+        val twelfthResolverStarted = CompletableDeferred<Unit>()
+        val releaseResolvers = CompletableDeferred<Unit>()
+        val started = AtomicInteger()
+        val active = AtomicInteger()
+        val maxActive = AtomicInteger()
+
+        suspend fun resolve(item: String): String {
+            val currentActive = active.incrementAndGet()
+            maxActive.getAndUpdate { previous -> maxOf(previous, currentActive) }
+            when (started.incrementAndGet()) {
+                6 -> firstWaveStarted.complete(Unit)
+                12 -> twelfthResolverStarted.complete(Unit)
+            }
+            try {
+                releaseResolvers.await()
+                return item
+            } finally {
+                active.decrementAndGet()
+            }
+        }
+
+        val firstRun = async {
+            coordinator.run(
+                items = (1..6).map { "first-$it" },
+                keyOf = { item -> DownloadIntentResolutionKey(logicalKey = item, generation = 1L) },
+                begin = { true },
+                resolve = ::resolve,
+                onResult = { _, _ -> },
+            )
+        }
+        val secondRun = async {
+            coordinator.run(
+                items = (1..6).map { "second-$it" },
+                keyOf = { item -> DownloadIntentResolutionKey(logicalKey = item, generation = 2L) },
+                begin = { true },
+                resolve = ::resolve,
+                onResult = { _, _ -> },
+            )
+        }
+
+        withTimeout(2_000) { firstWaveStarted.await() }
+        withTimeoutOrNull(500) { twelfthResolverStarted.await() }
+        releaseResolvers.complete(Unit)
+
+        val outcomes = firstRun.await() + secondRun.await()
+        assertTrue(
+            "两个并发 run 的 resolver 全局最多只能有 6 个，实际=${maxActive.get()}",
+            maxActive.get() <= 6,
+        )
+        assertEquals(
+            12,
+            outcomes.count { it is DownloadIntentResolutionOutcome.Resolved },
+        )
+    }
+
+    @Test
+    fun `cancelled run releases its coordinator permit`() = runBlocking {
+        val coordinator =
+            DownloadIntentResolutionCoordinator(
+                maxConcurrency = 1,
+                deadlineScheduler = ImmediateDownloadIntentDeadlineScheduler,
+            )
+        val firstStarted = CompletableDeferred<Unit>()
+        val cancelledRun = async {
+            coordinator.run(
+                items = listOf("cancelled"),
+                keyOf = { item -> DownloadIntentResolutionKey(item, generation = 1L) },
+                begin = { true },
+                resolve = {
+                    firstStarted.complete(Unit)
+                    awaitCancellation()
+                },
+                onResult = { _, _ -> },
+            )
+        }
+
+        withTimeout(2_000) { firstStarted.await() }
+        cancelledRun.cancelAndJoin()
+        val nextOutcomes =
+            withTimeout(2_000) {
+                coordinator.run(
+                    items = listOf("after-cancel"),
+                    keyOf = { item -> DownloadIntentResolutionKey(item, generation = 2L) },
+                    begin = { true },
+                    resolve = { it },
+                    onResult = { _, _ -> },
+                )
+            }
+
+        assertEquals(
+            1,
+            nextOutcomes.count { it is DownloadIntentResolutionOutcome.Resolved },
+        )
+    }
+
     @Test
     fun `stalled second resolver does not block peers or the seventh item`() = runBlocking {
         val coordinator =
