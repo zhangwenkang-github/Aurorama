@@ -1041,19 +1041,32 @@ private constructor(
                 }
             }
         val pendingRecordsByItemId = resolvablePendingRecords.groupBy(DownloadMediaRecord::itemId)
-        val allWork =
-            resolvablePendingRecords.map { record ->
+        val toSidecarWork: (DownloadMediaRecord) -> PendingIntentResolution.Sidecar = { record ->
+            val itemId = checkNotNull(record.itemId.toUuidOrNull())
+            PendingIntentResolution.Sidecar(
+                record = record,
+                key =
+                    DownloadIntentResolutionKey(
+                        logicalKey = record.canonicalIdentity().canonicalKey,
+                        generation = roomIntents[itemId]?.taskGeneration ?: 0L,
+                    ),
+                usesRoomFence = pendingRecordsByItemId[record.itemId]?.size == 1,
+            )
+        }
+        val (eligiblePendingRecords, unassignablePendingRecords) =
+            resolvablePendingRecords.partition { record ->
                 val itemId = checkNotNull(record.itemId.toUuidOrNull())
-                PendingIntentResolution.Sidecar(
-                    record = record,
-                    key =
-                        DownloadIntentResolutionKey(
-                            logicalKey = record.canonicalIdentity().canonicalKey,
-                            generation = roomIntents[itemId]?.taskGeneration ?: 0L,
-                        ),
-                    usesRoomFence = pendingRecordsByItemId[record.itemId]?.size == 1,
-                )
-            } +
+                val roomIntent = roomIntents[itemId]
+                roomIntent == null ||
+                    roomIntent.status == DownloadIntentStatus.RECEIVED.name ||
+                    roomIntent.status == DownloadIntentStatus.RESOLVING.name ||
+                    (roomIntent.status == DownloadIntentStatus.FAILED.name &&
+                        roomIntent.failureDetail == LEGACY_PROVENANCE_UNAVAILABLE)
+            }
+        // 可执行项优先；普通 FAILED / 不可接管项不得占据有界批次头部。无 Room 行仍是崩溃恢复候选，
+        // legacy provenance FAILED 保留既有 takeover，显式 retry 则把普通失败恢复为 RECEIVED。
+        val eligibleWork =
+            eligiblePendingRecords.map(toSidecarWork) +
                 legacyPending.map { intent ->
                     PendingIntentResolution.Legacy(
                         intent = intent,
@@ -1064,7 +1077,11 @@ private constructor(
                             ),
                     )
                 }
+        // 无 eligible 时只做一次有界观测，让 tombstone / stale generation 走既有 Superseded
+        // 分支产生一致性通知；这些项不参与 hasPendingIntents，绝不能形成续链。
+        val allWork = eligibleWork.ifEmpty { unassignablePendingRecords.map(toSidecarWork) }
         val work = allWork.take(INTENT_RESOLVE_BATCH_SIZE)
+        val hasMoreEligibleWork = eligibleWork.size > INTENT_RESOLVE_BATCH_SIZE
         val processedCount = java.util.concurrent.atomic.AtomicInteger()
         intentResolutionCoordinator.run(
             items = work,
@@ -1134,7 +1151,7 @@ private constructor(
             Timber.w("下载 sidecar 在 intent 清理前失效，保留 pending 等待重试")
             return DownloadIntentQueueOutcome(
                 processedIntents = processedCount.get(),
-                hasPendingIntents = allWork.size > work.size,
+                hasPendingIntents = hasMoreEligibleWork,
             )
         }
         withContext(intentResolutionDispatcher) {
@@ -1157,7 +1174,7 @@ private constructor(
         }
         return DownloadIntentQueueOutcome(
             processedIntents = processedCount.get(),
-            hasPendingIntents = allWork.size > work.size,
+            hasPendingIntents = hasMoreEligibleWork,
         )
     }
 
