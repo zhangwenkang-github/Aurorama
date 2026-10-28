@@ -3706,6 +3706,181 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun ordinaryRenameFailurePublishesOneQueueChangeAfterCasSuccess() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.downloader.downloadItem(
+                item = fixture.movie(),
+                sourceId = SOURCE_ID,
+                storageIndex = 0,
+            )
+            val source = requireNotNull(fixture.dao.source)
+            val finalFile = DownloadCompletionCommitRules.finalFile(File(source.path))
+            finalFile.writeText("occupied final")
+
+            val changes = CopyOnWriteArrayList<Unit>()
+            val changesJob =
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    fixture.downloader.queueChanges.collect { changes += Unit }
+                }
+            fixture.transfer.holdDownloads()
+            val run = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
+            try {
+                assertTrue(fixture.transfer.awaitStarted(1))
+                changes.clear()
+                fixture.transfer.release()
+                withTimeout(5_000L) { run.join() }
+
+                assertEquals(
+                    "rename 失败必须由普通 completeTask 落 FAILED/FILE_ERROR：${fixture.logs}",
+                    DownloadTaskStatus.FAILED.name,
+                    fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+                )
+                assertEquals(
+                    DownloadFailureReason.FILE_ERROR.name,
+                    fixture.dao.sourceById(SOURCE_ID)?.failureReason,
+                )
+                assertTrue(
+                    "普通 completeTask CAS 成功后必须发一次 queue event",
+                    withTimeoutOrNull(1_000L) {
+                        while (changes.isEmpty()) delay(10L)
+                        true
+                    } == true,
+                )
+                assertEquals("queue event 必须恰好一次", 1, changes.size)
+                assertEquals("occupied final", finalFile.readText())
+            } finally {
+                fixture.transfer.release()
+                run.cancelAndJoin()
+                changesJob.cancelAndJoin()
+            }
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun ordinaryRenameFailureCasMissPublishesNoQueueChange() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.downloader.downloadItem(
+                item = fixture.movie(),
+                sourceId = SOURCE_ID,
+                storageIndex = 0,
+            )
+            val source = requireNotNull(fixture.dao.source)
+            val finalFile = DownloadCompletionCommitRules.finalFile(File(source.path))
+            finalFile.writeText("occupied final")
+            fixture.dao.sourceTaskStatusUpdateResult = 0
+
+            val changes = CopyOnWriteArrayList<Unit>()
+            val changesJob =
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    fixture.downloader.queueChanges.collect { changes += Unit }
+                }
+            fixture.transfer.holdDownloads()
+            val run = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
+            try {
+                assertTrue(fixture.transfer.awaitStarted(1))
+                changes.clear()
+                fixture.transfer.release()
+                delay(300L)
+
+                assertEquals(
+                    DownloadTaskStatus.RUNNING.name,
+                    fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+                )
+                assertEquals("CAS updated<=0 不得发 queue event", 0, changes.size)
+            } finally {
+                fixture.transfer.release()
+                run.cancelAndJoin()
+                changesJob.cancelAndJoin()
+            }
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun ordinaryCompletionSuccessPublishesNoRenameQueueChange() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.downloader.downloadItem(
+                item = fixture.movie(),
+                sourceId = SOURCE_ID,
+                storageIndex = 0,
+            )
+
+            val changes = CopyOnWriteArrayList<Unit>()
+            val changesJob =
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    fixture.downloader.queueChanges.collect { changes += Unit }
+                }
+            fixture.transfer.holdDownloads()
+            val run = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
+            try {
+                assertTrue(fixture.transfer.awaitStarted(1))
+                changes.clear()
+                fixture.transfer.release()
+                withTimeout(5_000L) { run.join() }
+
+                assertEquals(
+                    DownloadTaskStatus.COMPLETED.name,
+                    fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+                )
+                delay(200L)
+                assertEquals(
+                    "非 rename 分支只保留既有完成事件，不得追加 rename 事件",
+                    1,
+                    changes.size,
+                )
+            } finally {
+                fixture.transfer.release()
+                run.cancelAndJoin()
+                changesJob.cancelAndJoin()
+            }
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun interruptedCompletionRecoveryPublishesSingleQueueChange() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.prepareInterruptedCompletion()
+            fixture.downloader.recoverOnStartup()
+
+            val changes = CopyOnWriteArrayList<Unit>()
+            val changesJob =
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    fixture.downloader.queueChanges.collect { changes += Unit }
+                }
+            try {
+                fixture.downloader.runQueue()
+
+                assertEquals(
+                    DownloadTaskStatus.COMPLETED.name,
+                    fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+                )
+                assertTrue(
+                    "恢复完成必须保留既有 queue event",
+                    withTimeoutOrNull(1_000L) {
+                        while (changes.isEmpty()) delay(10L)
+                        true
+                    } == true,
+                )
+                delay(200L)
+                assertEquals("恢复完成 queue event 不得重复", 1, changes.size)
+            } finally {
+                changesJob.cancelAndJoin()
+            }
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `恢复前置失败后的手动 retry 保持 witness 代次并完成 finalizer`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -5134,6 +5309,7 @@ class DownloaderImplRecoveryTest {
             }
 
         var itemAvailable = true
+        var sourceTaskStatusUpdateResult: Int? = null
         var onGetMovie: (() -> Unit)? = null
         var trackParentRows = false
         var remainingEpisodes: List<Any> = emptyList()
@@ -5316,13 +5492,19 @@ class DownloaderImplRecoveryTest {
                                     totalBytes = args[3] as Long,
                                 )
                             }
-                        "setSourceTaskStatusIfCurrent" ->
-                            updateSource(args) {
-                                it.copy(
-                                    taskStatus = args[2] as String?,
-                                    failureReason = args[3] as String?,
-                                )
+                        "setSourceTaskStatusIfCurrent" -> {
+                            val override = sourceTaskStatusUpdateResult
+                            if (override != null) {
+                                override
+                            } else {
+                                updateSource(args) {
+                                    it.copy(
+                                        taskStatus = args[2] as String?,
+                                        failureReason = args[3] as String?,
+                                    )
+                                }
                             }
+                        }
                         "setSourceRetryIfCurrent" ->
                             updateSource(args) {
                                 it.copy(

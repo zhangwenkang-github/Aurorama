@@ -256,6 +256,14 @@ data class DownloadsRoute(
     val requestId: Long = 0L,
 )
 
+internal fun downloadsTopLevelEntryIsHome(
+    current: DownloadsRoute?,
+    target: DownloadsRoute,
+): Boolean {
+    current ?: return false
+    return current == target && target.initialTab == DownloadTab.ACTIVE && target.requestId == 0L
+}
+
 /** 顶部「书架」Tab 的独立目的地：页面自己解析书籍库，不依赖抽屉是否打开过（见 BookshelfScreen）。 */
 @Serializable data object BookshelfRoute
 
@@ -573,8 +581,12 @@ fun NavigationRoot(
                 FavoritesRoute -> currentDestination.isRoute<FavoritesRoute>()
                 is DownloadsRoute ->
                     currentDestination.isRoute<DownloadsRoute>() &&
-                        route.initialTab == DownloadTab.ACTIVE &&
-                        route.requestId == 0L
+                        downloadsTopLevelEntryIsHome(
+                            current =
+                                runCatching { navBackStackEntry?.toRoute<DownloadsRoute>() }
+                                    .getOrNull(),
+                            target = route,
+                        )
                 // 设置子页 = 同一目的地的不同参数（indexes），只有根参数才算「已在主页」。
                 is SettingsRoute ->
                     currentDestination.isRoute<SettingsRoute>() &&

@@ -2406,6 +2406,7 @@ private constructor(
                     now,
                 )
             if (updated > 0) {
+                notifyQueueChanged()
                 notifications.notifyFailed(
                     buildTask(
                         source,

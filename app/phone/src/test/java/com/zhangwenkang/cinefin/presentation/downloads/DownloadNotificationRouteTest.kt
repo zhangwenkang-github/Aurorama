@@ -2,8 +2,11 @@ package com.zhangwenkang.cinefin.presentation.downloads
 
 import com.zhangwenkang.cinefin.DownloadsLaunchRequestState
 import com.zhangwenkang.cinefin.DownloadsRoute
+import com.zhangwenkang.cinefin.downloadsTopLevelEntryIsHome
 import com.zhangwenkang.cinefin.parseDownloadsLaunchTab
 import com.zhangwenkang.cinefin.presentation.film.DownloadTab
+import com.zhangwenkang.cinefin.presentation.navigation.TopLevelTapAction
+import com.zhangwenkang.cinefin.presentation.navigation.topLevelTapAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
@@ -23,6 +26,65 @@ class DownloadNotificationRouteTest {
 
         assertEquals(DownloadTab.ACTIVE, route.initialTab)
         assertEquals(0L, route.requestId)
+    }
+
+    @Test
+    fun `ordinary entry navigates away from failed notification parameters`() {
+        val current = DownloadsRoute(initialTab = DownloadTab.FAILED, requestId = 41L)
+        val target = DownloadsRoute(initialTab = DownloadTab.ACTIVE, requestId = 0L)
+
+        assertEquals(
+            "当前 FAILED/41 到普通 ACTIVE/0 入口必须导航：current=$current target=$target",
+            TopLevelTapAction.Navigate,
+            topLevelTapAction(
+                isOnEntryHome = downloadsTopLevelEntryIsHome(current, target),
+                hasInPageOverlay = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `ordinary entry navigates away from consumed active request id`() {
+        val current = DownloadsRoute(initialTab = DownloadTab.ACTIVE, requestId = 17L)
+        val target = DownloadsRoute(initialTab = DownloadTab.ACTIVE, requestId = 0L)
+
+        assertEquals(
+            "当前 ACTIVE/17 到普通 ACTIVE/0 入口必须导航：current=$current target=$target",
+            TopLevelTapAction.Navigate,
+            topLevelTapAction(
+                isOnEntryHome = downloadsTopLevelEntryIsHome(current, target),
+                hasInPageOverlay = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `ordinary entry stays on identical ordinary parameters`() {
+        val current = DownloadsRoute(initialTab = DownloadTab.ACTIVE, requestId = 0L)
+        val target = DownloadsRoute(initialTab = DownloadTab.ACTIVE, requestId = 0L)
+
+        assertEquals(
+            TopLevelTapAction.Stay,
+            topLevelTapAction(
+                isOnEntryHome = downloadsTopLevelEntryIsHome(current, target),
+                hasInPageOverlay = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeated notification command keeps its new request id`() {
+        val current = DownloadsRoute(initialTab = DownloadTab.FAILED, requestId = 41L)
+        val target = DownloadsRoute(initialTab = DownloadTab.FAILED, requestId = 42L)
+
+        assertEquals(42L, target.requestId)
+        assertEquals(
+            TopLevelTapAction.Navigate,
+            topLevelTapAction(
+                isOnEntryHome = downloadsTopLevelEntryIsHome(current, target),
+                hasInPageOverlay = false,
+            ),
+        )
     }
 
     @Test
