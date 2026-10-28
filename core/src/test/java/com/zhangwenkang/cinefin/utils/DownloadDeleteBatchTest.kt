@@ -2,9 +2,16 @@ package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -123,10 +130,11 @@ class DownloadDeleteBatchTest {
     }
 
     @Test
-    fun `FAILED receipt 在 resume 前保持失败并可确认重试`() = runBlocking {
+    fun `启动恢复只重跑 PENDING 并保留 FAILED 供显式重试`() = runBlocking {
         val store = MemoryStore()
         val attempts = mutableListOf<Pair<String, Boolean>>()
-        val request = request(1).copy(expectedGeneration = 9L)
+        val firstRequest = request(1).copy(expectedGeneration = 9L)
+        val secondRequest = request(2).copy(expectedGeneration = 10L)
         val processor =
             DownloadDeleteBatchProcessor(
                 store = store,
@@ -134,37 +142,121 @@ class DownloadDeleteBatchTest {
                 batchId = { "batch-failed" },
                 delete = { current, resumed ->
                     attempts += current.sourceId.orEmpty() to resumed
-                    if (resumed) {
-                        DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
-                    } else {
+                    if (current.itemId == firstRequest.itemId) {
                         DownloadDeleteAttempt(
                             outcome = DownloadDeleteOutcome.FAILED,
                             detail = "删除未确认",
                             expectedGeneration = current.expectedGeneration,
                         )
+                    } else {
+                        throw CancellationException("进程中断")
                     }
                 },
             )
 
-        val first = processor.deleteAll(listOf(request))
+        runCatching { processor.deleteAll(listOf(firstRequest, secondRequest)) }
 
-        assertEquals(DownloadDeleteOutcome.FAILED, first.receipts.single().outcome)
         assertEquals(
-            "FAILED 不得在 resume 前伪装成 PENDING",
-            DownloadDeleteOutcome.FAILED,
-            store.receipts.single().outcome,
+            listOf(DownloadDeleteOutcome.FAILED, DownloadDeleteOutcome.PENDING),
+            store.receipts.sortedBy(DownloadDeleteReceipt::ordinal).map { it.outcome },
         )
         assertFalse("batch-failed" in store.finishedAt)
 
-        val resumed = processor.resumeIncomplete().single()
+        val restarted =
+            DownloadDeleteBatchProcessor(
+                    store = store,
+                    clock = { 2_000L },
+                    delete = { current, resumed ->
+                        attempts += current.sourceId.orEmpty() to resumed
+                        DownloadDeleteAttempt(
+                            outcome = DownloadDeleteOutcome.SUCCEEDED,
+                            expectedGeneration = current.expectedGeneration,
+                        )
+                    },
+                )
+                .resumeIncomplete()
 
-        assertEquals(listOf("source-1" to false, "source-1" to true), attempts)
-        assertEquals(DownloadDeleteOutcome.SUCCEEDED, resumed.receipts.single().outcome)
         assertEquals(
-            DownloadDeleteOutcome.SUCCEEDED,
-            store.receipts.single().outcome,
+            listOf("source-1" to false, "source-2" to false, "source-2" to true),
+            attempts,
         )
-        assertTrue("batch-failed" in store.finishedAt)
+        assertEquals("source-2", restarted.single().receipts.single().sourceId)
+        assertEquals(
+            listOf(DownloadDeleteOutcome.FAILED, DownloadDeleteOutcome.SUCCEEDED),
+            store.receipts.sortedBy(DownloadDeleteReceipt::ordinal).map { it.outcome },
+        )
+        assertFalse("FAILED receipt 必须保留，批次不能被自动完成", "batch-failed" in store.finishedAt)
+    }
+
+    @Test
+    fun `单项 deadline 超时只失败该项并继续后续项`() = runBlocking {
+        val store = MemoryStore()
+        val processed = mutableListOf<String>()
+        val requests = listOf(request(1), request(2))
+        val processor =
+            DownloadDeleteBatchProcessor(
+                store = store,
+                clock = { 1_000L },
+                batchId = { "batch-deadline" },
+                delete = { request, _ ->
+                    processed += request.sourceId.orEmpty()
+                    if (request.itemId == requests.first().itemId) {
+                        awaitCancellation()
+                    }
+                    DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
+                },
+            )
+
+        val result = withTimeoutOrNull(20_000L) { processor.deleteAll(requests) }
+
+        assertNotNull("旧实现串行等待首项，后续项永远得不到 receipt", result)
+        assertEquals(listOf("source-1", "source-2"), processed)
+        assertEquals(
+            listOf(DownloadDeleteOutcome.FAILED, DownloadDeleteOutcome.SUCCEEDED),
+            requireNotNull(result).receipts.map { it.outcome },
+        )
+    }
+
+    @Test
+    fun `外部取消向上传播且不写 FAILED receipt`() = runBlocking {
+        val store = MemoryStore()
+        val started = CompletableDeferred<Unit>()
+        val processor =
+            DownloadDeleteBatchProcessor(
+                store = store,
+                batchId = { "batch-cancel" },
+                delete = { _, _ ->
+                    started.complete(Unit)
+                    awaitCancellation()
+                },
+            )
+
+        val deletion = async { processor.deleteAll(listOf(request(1))) }
+        started.await()
+        deletion.cancel()
+        runCatching { deletion.await() }
+
+        assertEquals(DownloadDeleteOutcome.PENDING, store.receipts.single().outcome)
+        assertFalse(store.receipts.any { it.outcome == DownloadDeleteOutcome.FAILED })
+    }
+
+    @Test
+    fun `外部 timeout cancellation 不被误判为单项 deadline`() = runBlocking {
+        val store = MemoryStore()
+        val processor =
+            DownloadDeleteBatchProcessor(
+                store = store,
+                batchId = { "batch-external-timeout" },
+                delete = { _, _ -> awaitCancellation() },
+            )
+
+        val outcome = runCatching { withTimeout(100L) { processor.deleteAll(listOf(request(1))) } }
+
+        assertTrue(
+            "外部取消必须抛回调用方",
+            outcome.exceptionOrNull() is TimeoutCancellationException,
+        )
+        assertEquals(DownloadDeleteOutcome.PENDING, store.receipts.single().outcome)
     }
 
     @Test

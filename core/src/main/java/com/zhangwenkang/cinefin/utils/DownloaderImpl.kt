@@ -3111,6 +3111,7 @@ private constructor(
                                     outcome = DownloadDeleteOutcome.PENDING.name,
                                     detail = null,
                                     updatedAt = createdAtMs,
+                                    verifiedGeneration = request.expectedGeneration,
                                 )
                             },
                     )
@@ -3130,6 +3131,7 @@ private constructor(
                             outcome = receipt.outcome.name,
                             detail = receipt.detail,
                             updatedAt = receipt.updatedAtMs,
+                            verifiedGeneration = receipt.expectedGeneration,
                         )
                     )
                 }
@@ -3162,7 +3164,7 @@ private constructor(
                                             },
                                         detail = receipt.detail,
                                         updatedAtMs = receipt.updatedAt,
-                                        expectedGeneration = null,
+                                        expectedGeneration = receipt.verifiedGeneration,
                                     )
                                 },
                         )

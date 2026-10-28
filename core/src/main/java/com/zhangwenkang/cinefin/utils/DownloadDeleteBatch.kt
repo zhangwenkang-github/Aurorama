@@ -3,6 +3,10 @@ package com.zhangwenkang.cinefin.utils
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeout
 
 data class DownloadDeleteRequest(
     val itemId: UUID,
@@ -109,8 +113,13 @@ class DownloadDeleteBatchProcessor(
     private val store: DownloadDeleteBatchStore,
     private val clock: () -> Long = System::currentTimeMillis,
     private val batchId: () -> String = { UUID.randomUUID().toString() },
+    private val itemTimeoutMs: Long = 15_000L,
     private val delete: suspend (DownloadDeleteRequest, Boolean) -> DownloadDeleteAttempt,
 ) {
+    init {
+        require(itemTimeoutMs > 0L) { "删除单项 deadline 必须大于 0" }
+    }
+
     private val trustedGenerations = ConcurrentHashMap<ReceiptIdentity, Long>()
 
     suspend fun deleteAll(requests: List<DownloadDeleteRequest>): DownloadDeleteBatchResult {
@@ -144,19 +153,19 @@ class DownloadDeleteBatchProcessor(
         )
     }
 
-    /** 重跑 PENDING / FAILED receipt；成功落库后再次恢复会跳过该项。 */
+    /** 启动恢复只重跑 PENDING；FAILED 保留给用户显式重试。 */
     suspend fun resumeIncomplete(): List<DownloadDeleteBatchResult> =
         store.incomplete().mapNotNull { snapshot ->
             val retryable =
                 snapshot.receipts
-                    .filter {
-                        it.outcome == DownloadDeleteOutcome.PENDING ||
-                            it.outcome == DownloadDeleteOutcome.FAILED
-                    }
+                    .filter { it.outcome == DownloadDeleteOutcome.PENDING }
                     .sortedBy(DownloadDeleteReceipt::ordinal)
+            val hasFailed = snapshot.receipts.any { it.outcome == DownloadDeleteOutcome.FAILED }
             if (retryable.isEmpty()) {
-                forgetBatch(snapshot.batchId)
-                store.finish(snapshot.batchId, clock())
+                if (!hasFailed) {
+                    forgetBatch(snapshot.batchId)
+                    store.finish(snapshot.batchId, clock())
+                }
                 null
             } else {
                 process(
@@ -172,15 +181,17 @@ class DownloadDeleteBatchProcessor(
                                         serverId = receipt.serverId,
                                         userId = receipt.userId,
                                         expectedGeneration =
-                                            trustedGeneration(
-                                                batchId = snapshot.batchId,
-                                                canonicalKey = receipt.canonicalKey,
-                                            ),
+                                            receipt.expectedGeneration
+                                                ?: trustedGeneration(
+                                                    batchId = snapshot.batchId,
+                                                    canonicalKey = receipt.canonicalKey,
+                                                ),
                                     ),
                                 ordinal = receipt.ordinal,
                                 resumed = true,
                             )
                         },
+                    finishIfNoRetryableFailures = !hasFailed,
                 )
             }
         }
@@ -188,12 +199,20 @@ class DownloadDeleteBatchProcessor(
     private suspend fun process(
         batchId: String,
         requests: List<RetryEntry>,
+        finishIfNoRetryableFailures: Boolean = true,
     ): DownloadDeleteBatchResult {
         val receipts = mutableListOf<DownloadDeleteReceipt>()
         for ((request, ordinal, resumed) in requests) {
             val attempt =
                 try {
-                    delete(request, resumed)
+                    withTimeout(itemTimeoutMs) { delete(request, resumed) }
+                } catch (timeout: TimeoutCancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    DownloadDeleteAttempt(
+                        outcome = DownloadDeleteOutcome.FAILED,
+                        detail = "删除超过单一项 ${itemTimeoutMs}ms 期限",
+                        expectedGeneration = request.expectedGeneration,
+                    )
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
@@ -236,10 +255,11 @@ class DownloadDeleteBatchProcessor(
             receipts += receipt
         }
         if (
-            receipts.all {
-                it.outcome == DownloadDeleteOutcome.SUCCEEDED ||
-                    it.outcome == DownloadDeleteOutcome.SUPERSEDED
-            }
+            finishIfNoRetryableFailures &&
+                receipts.all {
+                    it.outcome == DownloadDeleteOutcome.SUCCEEDED ||
+                        it.outcome == DownloadDeleteOutcome.SUPERSEDED
+                }
         ) {
             store.finish(batchId, clock())
         }

@@ -505,7 +505,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `同实例FAILED receipt可复用强类型generation完成重试`() = runBlocking {
+    fun `FAILED receipt不自动恢复且显式删除可复用强类型generation重试`() = runBlocking {
         val fixture = Fixture()
         try {
             fixture.downloader.downloadItem(fixture.movie(), SOURCE_ID, 0)
@@ -514,32 +514,38 @@ class DownloaderImplRecoveryTest {
             assertTrue(blockedPath.mkdirs())
             File(blockedPath, "blocked").writeText("hold")
 
-            val first =
-                fixture.downloader.deleteDownloads(
-                    listOf(
-                        DownloadDeleteRequest(
-                            itemId = ITEM_ID,
-                            sourceId = SOURCE_ID,
-                            mediaKind = DownloadMediaKind.VIDEO,
-                            serverId = SERVER_ID,
-                            userId = USER_ID.toString(),
-                        )
-                    )
+            val request =
+                DownloadDeleteRequest(
+                    itemId = ITEM_ID,
+                    sourceId = SOURCE_ID,
+                    mediaKind = DownloadMediaKind.VIDEO,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
                 )
+            val first = fixture.downloader.deleteDownloads(listOf(request))
             val failed = first.receipts.single()
             assertEquals(DownloadDeleteOutcome.FAILED, failed.outcome)
             assertEquals(DownloadTaskStatus.DELETING.name, fixture.dao.source?.taskStatus)
             assertTrue(File(blockedPath, "blocked").delete())
             assertTrue(blockedPath.delete())
 
-            assertEquals(1, fixture.downloader.resumePendingDeleteBatches())
+            assertEquals(0, fixture.downloader.resumePendingDeleteBatches())
+            assertEquals(
+                DownloadDeleteOutcome.FAILED.name,
+                fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey)?.outcome,
+            )
+
+            val retried = fixture.downloader.deleteDownloads(listOf(request))
 
             assertEquals(null, fixture.dao.source)
             assertEquals(
                 DownloadDeleteOutcome.SUCCEEDED.name,
+                retried.receipts.single().outcome.name,
+            )
+            assertEquals(
+                DownloadDeleteOutcome.FAILED.name,
                 fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey)?.outcome,
             )
-            assertNotNull(fixture.dao.deleteBatch(first.batchId)?.completedAt)
         } finally {
             fixture.close()
         }
@@ -580,12 +586,19 @@ class DownloaderImplRecoveryTest {
 
             assertTrue(File(blockedPath, "blocked").delete())
             assertTrue(blockedPath.delete())
-            assertEquals(1, fixture.downloader.resumePendingDeleteBatches())
+            assertEquals(0, fixture.downloader.resumePendingDeleteBatches())
+            assertTrue(
+                "FAILED receipt 不得被启动恢复自动重跑",
+                fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey)?.outcome ==
+                    DownloadDeleteOutcome.FAILED.name,
+            )
+
+            val retried = fixture.downloader.deleteDownloads(listOf(request))
 
             assertEquals("DELETING key 必须可再次删除", null, fixture.dao.source)
             assertEquals(
                 DownloadDeleteOutcome.SUCCEEDED.name,
-                fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey)?.outcome,
+                retried.receipts.single().outcome.name,
             )
             assertTrue(
                 "成功确认后才移除 sidecar",
@@ -593,14 +606,17 @@ class DownloaderImplRecoveryTest {
                     it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
                 },
             )
-            assertNotNull(fixture.dao.deleteBatch(first.batchId)?.completedAt)
+            assertEquals(
+                DownloadDeleteOutcome.FAILED.name,
+                fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey)?.outcome,
+            )
         } finally {
             fixture.close()
         }
     }
 
     @Test
-    fun `DELETING receipt失败后startup成功删行会将receipt收敛为成功`() = runBlocking {
+    fun `DELETING receipt失败后startup扫描删行仍不自动重跑FAILED`() = runBlocking {
         val fixture = Fixture()
         try {
             val movie = fixture.movie()
@@ -635,12 +651,12 @@ class DownloaderImplRecoveryTest {
 
             assertEquals("续删成功后 source 行必须移除", null, fixture.dao.source)
             assertEquals(
-                "source 行已删除时对应 receipt 不得永久停留在 FAILED",
-                DownloadDeleteOutcome.SUCCEEDED.name,
+                "FAILED receipt 必须等待显式重试，不得被启动扫描改写",
+                DownloadDeleteOutcome.FAILED.name,
                 requireNotNull(fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey))
                     .outcome,
             )
-            assertNotNull(fixture.dao.deleteBatch(first.batchId)?.completedAt)
+            assertEquals(null, fixture.dao.deleteBatch(first.batchId)?.completedAt)
         } finally {
             fixture.close()
         }
@@ -695,7 +711,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `startup旧FAILED receipt不得删除已REPLACE的新代`() = runBlocking {
+    fun `startup旧FAILED receipt不自动重跑且不得删除已REPLACE的新代`() = runBlocking {
         val fixture = Fixture()
         try {
             val movie = fixture.movie()
@@ -768,13 +784,14 @@ class DownloaderImplRecoveryTest {
             assertFalse("旧 receipt 不得清理共享 userData", ITEM_ID in fixture.dao.deletedUserDataIds())
             assertTrue("旧 receipt 不得清理共享图片", imageMarker.isFile)
             assertEquals(
-                "superseded receipt 必须成为终态",
-                "SUPERSEDED",
+                "FAILED receipt 必须保留为显式重试输入",
+                "FAILED",
                 requireNotNull(fixture.dao.deleteReceipt(first.batchId, failed.canonicalKey))
                     .outcome,
             )
-            assertNotNull(
-                "superseded receipt 不得让 batch 永久卡在未完成",
+            assertEquals(
+                "FAILED receipt 批次不得被启动恢复自动完成",
+                null,
                 fixture.dao.deleteBatch(first.batchId)?.completedAt,
             )
         } finally {
@@ -783,7 +800,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `无generation旧receipt必须等待startup扫描验证代次`() = runBlocking {
+    fun `无generation旧receipt保持FAILED并等待显式重试`() = runBlocking {
         val fixture = Fixture()
         try {
             val movie = fixture.movie()
@@ -840,11 +857,14 @@ class DownloaderImplRecoveryTest {
             fixture.newDownloader().recoverOnStartup()
             assertTrue("startup scan 应完成已验证代次的删除", fixture.dao.sourceById(SOURCE_ID) == null)
             assertEquals(
-                "source 行移除后 legacy receipt 必须收敛为成功",
-                DownloadDeleteOutcome.SUCCEEDED.name,
+                "无 generation 的 FAILED receipt 不得被启动恢复自动重跑",
+                DownloadDeleteOutcome.FAILED.name,
                 fixture.dao.deleteReceipts("legacy-receipt-$SOURCE_ID").single().outcome,
             )
-            assertNotNull(fixture.dao.deleteBatch("legacy-receipt-$SOURCE_ID")?.completedAt)
+            assertEquals(
+                null,
+                fixture.dao.deleteBatch("legacy-receipt-$SOURCE_ID")?.completedAt,
+            )
         } finally {
             fixture.close()
         }
@@ -6253,6 +6273,7 @@ class DownloaderImplRecoveryTest {
             itemId: UUID,
             sourceId: String,
             expectedGeneration: Long?,
+            mediaKind: DownloadMediaKind = DownloadMediaKind.VIDEO,
             detail: String? = expectedGeneration?.let { "generation=$it" },
         ) {
             deleteBatches[batchId] =
@@ -6266,7 +6287,7 @@ class DownloaderImplRecoveryTest {
                     DownloadDeleteRequest(
                         itemId = itemId,
                         sourceId = sourceId,
-                        mediaKind = DownloadMediaKind.VIDEO,
+                        mediaKind = mediaKind,
                         serverId = SERVER_ID,
                         userId = USER_ID.toString(),
                     )
@@ -6280,10 +6301,11 @@ class DownloaderImplRecoveryTest {
                     serverId = SERVER_ID,
                     userId = USER_ID.toString(),
                     ordinal = 0,
-                    mediaKind = DownloadMediaKind.VIDEO.name,
+                    mediaKind = mediaKind.name,
                     outcome = DownloadDeleteOutcome.PENDING.name,
                     detail = detail,
                     updatedAt = 1L,
+                    verifiedGeneration = expectedGeneration,
                 )
         }
 
@@ -6296,6 +6318,9 @@ class DownloaderImplRecoveryTest {
 
         fun deleteReceipts(batchId: String): List<DownloadDeleteReceiptDto> =
             deleteReceipts.values.filter { it.batchId == batchId }
+
+        fun pendingDeleteReceipts(): List<DownloadDeleteReceiptDto> =
+            deleteReceipts.values.filter { it.outcome == DownloadDeleteOutcome.PENDING.name }
 
         fun seedMovie(itemId: UUID) {
             snapshots[itemId] = movie.copy(id = itemId, name = "Concurrent $itemId")
