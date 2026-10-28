@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.utils
 
 import com.zhangwenkang.cinefin.models.DownloadIntentStatus
+import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -12,6 +13,100 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloaderImplDeleteReceiptRecoveryTest {
+
+    @Test
+    fun `ordinary cancel wins after intent delete claim before CAS`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val itemId = UUID(0L, 899L)
+            val intent =
+                fixture.seedReceivedIntentWithPendingSidecar(
+                    itemId = itemId,
+                    sourceId = intentSourceId(itemId),
+                    name = "intent-cancel-wins",
+                )
+            val child = fixture.seedPendingSource(itemId, "cancel-wins-child")
+            val childFile =
+                File(child.path).apply {
+                    parentFile?.mkdirs()
+                    writeText("child payload")
+                }
+            assertTrue(
+                fixture.putMusicSidecar(
+                    itemId = itemId,
+                    sourceId = child.id,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    displayName = "cancel-wins-child",
+                )
+            )
+            fixture.dao.armIntentDeletionInterruptionBeforeCommit()
+
+            val deletion =
+                async(Dispatchers.IO) {
+                    fixture.downloader.deleteDownloads(
+                        listOf(
+                            DownloadDeleteRequest(
+                                itemId = itemId,
+                                sourceId = intentSourceId(itemId),
+                                mediaKind = DownloadMediaKind.MUSIC,
+                                serverId = SERVER_ID,
+                                userId = USER_ID.toString(),
+                            )
+                        )
+                    )
+                }
+            withTimeout(5_000L) { fixture.dao.awaitIntentDeletion() }
+            assertTrue(
+                runCatching { deletion.await() }.exceptionOrNull()
+                    is kotlinx.coroutines.CancellationException
+            )
+
+            val pending = fixture.dao.pendingDeleteReceipts().single()
+            assertEquals(intent.taskGeneration + 1L, pending.verifiedGeneration)
+            assertEquals(
+                intentDeletionOwnershipDetail(
+                    intent.taskGeneration + 1L,
+                    downloadDeleteOwnershipToken(
+                        batchId = pending.batchId,
+                        canonicalKey = pending.canonicalKey,
+                    ),
+                ),
+                pending.detail,
+            )
+
+            fixture.cancelIntent(itemId)
+            val cancelled = requireNotNull(fixture.dao.downloadIntent(itemId))
+            assertEquals(intent.taskGeneration + 1L, cancelled.taskGeneration)
+            assertEquals(DownloadIntentStatus.FAILED.name, cancelled.status)
+            assertEquals("CANCELLED", cancelled.failureReason)
+            assertNull(cancelled.failureDetail)
+            assertEquals(
+                pending,
+                fixture.dao.pendingDeleteReceipts().single(),
+            )
+
+            val sourceBefore = requireNotNull(fixture.dao.sourceById(child.id))
+            val sourceIdsBefore = fixture.dao.sourceIds()
+            val sidecarBefore = fixture.downloader.mediaSidecar().allRecords()
+            val fileBefore = childFile.readBytes()
+            val batchId = pending.batchId
+
+            assertEquals(0, fixture.newDownloader().recoverOnStartup())
+
+            assertEquals(cancelled, fixture.dao.downloadIntent(itemId))
+            assertEquals(sourceBefore, fixture.dao.sourceById(child.id))
+            assertEquals(sourceIdsBefore, fixture.dao.sourceIds())
+            assertEquals(sidecarBefore, fixture.downloader.mediaSidecar().allRecords())
+            assertTrue(childFile.isFile)
+            assertTrue(fileBefore.contentEquals(childFile.readBytes()))
+            val receipt = fixture.dao.deleteReceipts(batchId).single()
+            assertEquals(DownloadDeleteOutcome.SUPERSEDED.name, receipt.outcome)
+            assertTrue(receipt.detail?.contains("w90-") != true)
+        } finally {
+            fixture.close()
+        }
+    }
 
     @Test
     fun `batch begin writes pending verifiedGeneration and terminal record keeps it`() =
@@ -243,9 +338,31 @@ class DownloaderImplDeleteReceiptRecoveryTest {
                 val pending = fixture.dao.pendingDeleteReceipts().single()
                 assertEquals(DownloadDeleteOutcome.PENDING.name, pending.outcome)
                 assertEquals(
-                    intentDeletionOwnershipDetail(intent.taskGeneration + 1L),
+                    intentDeletionOwnershipDetail(
+                        intent.taskGeneration + 1L,
+                        downloadDeleteOwnershipToken(
+                            batchId = pending.batchId,
+                            canonicalKey = pending.canonicalKey,
+                        ),
+                    ),
                     pending.detail,
                 )
+                assertEquals(
+                    intentDeletionCasOwnershipDetail(
+                        intent.taskGeneration + 1L,
+                        downloadDeleteOwnershipToken(
+                            batchId = pending.batchId,
+                            canonicalKey = pending.canonicalKey,
+                        ),
+                    ),
+                    fenced.failureDetail,
+                )
+                val projected =
+                    fixture.newDownloader().refreshDownloadTasks().single {
+                        it.sourceId == intentSourceId(itemId)
+                    }
+                assertEquals(DownloadFailureReason.CANCELLED, projected.failureReason)
+                assertNull(projected.failureDetail)
                 val batchId = pending.batchId
 
                 val recovered = fixture.newDownloader().recoverOnStartup()
@@ -303,7 +420,13 @@ class DownloaderImplDeleteReceiptRecoveryTest {
             val pending = fixture.dao.pendingDeleteReceipts().single()
             assertEquals(intent.taskGeneration + 1L, pending.verifiedGeneration)
             assertEquals(
-                intentDeletionOwnershipDetail(intent.taskGeneration + 1L),
+                intentDeletionOwnershipDetail(
+                    intent.taskGeneration + 1L,
+                    downloadDeleteOwnershipToken(
+                        batchId = pending.batchId,
+                        canonicalKey = pending.canonicalKey,
+                    ),
+                ),
                 pending.detail,
             )
             val batchId = pending.batchId

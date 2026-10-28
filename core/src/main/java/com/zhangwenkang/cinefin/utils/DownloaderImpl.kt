@@ -2882,6 +2882,7 @@ private constructor(
         itemId: UUID,
         expectedGeneration: Long,
         resumeOwnedGeneration: Boolean = false,
+        intentOwnershipToken: String? = null,
         beforeDeleteFence: suspend (Long) -> Unit = {},
     ): Boolean =
         withContext(Dispatchers.IO) {
@@ -2890,11 +2891,19 @@ private constructor(
                     val current = database.getDownloadIntent(itemId) ?: return@withLock null
                     val ownedDeletionCommitted =
                         resumeOwnedGeneration &&
+                            intentOwnershipToken != null &&
                             current.taskGeneration == expectedGeneration &&
                             current.status == DownloadIntentStatus.FAILED.name &&
-                            current.failureReason == DownloadFailureReason.CANCELLED.name
+                            current.failureReason == DownloadFailureReason.CANCELLED.name &&
+                            current.failureDetail ==
+                                intentDeletionCasOwnershipDetail(
+                                    expectedGeneration,
+                                    intentOwnershipToken,
+                                )
                     val ownedBeforeFence =
-                        resumeOwnedGeneration && expectedGeneration == current.taskGeneration + 1L
+                        resumeOwnedGeneration &&
+                            intentOwnershipToken != null &&
+                            expectedGeneration == current.taskGeneration + 1L
                     if (
                         if (resumeOwnedGeneration) {
                             !ownedDeletionCommitted && !ownedBeforeFence
@@ -2913,6 +2922,12 @@ private constructor(
                                 itemId,
                                 current.taskGeneration,
                                 System.currentTimeMillis(),
+                                intentOwnershipToken?.let { token ->
+                                    intentDeletionCasOwnershipDetail(
+                                        current.taskGeneration + 1L,
+                                        token,
+                                    )
+                                },
                             ) ?: return@withLock null
                         }
                     // delete 与 cancel 共用同一快照边界：旧操作只能处理旧代已存在的 child。
@@ -3280,12 +3295,16 @@ private constructor(
                     current.taskGeneration
                 }
         val ownership = request.expectedGenerationOwnership
+        val ownershipToken = request.ownershipToken
         val sameGeneration = current.taskGeneration == expectedGeneration
         val ownedDeletionCommitted =
             ownership == DownloadDeleteOwnedGeneration.INTENT &&
+                ownershipToken != null &&
                 sameGeneration &&
                 current.status == DownloadIntentStatus.FAILED.name &&
-                current.failureReason == DownloadFailureReason.CANCELLED.name
+                current.failureReason == DownloadFailureReason.CANCELLED.name &&
+                current.failureDetail ==
+                    intentDeletionCasOwnershipDetail(expectedGeneration, ownershipToken)
         val ownedBeforeFence =
             ownership == DownloadDeleteOwnedGeneration.INTENT &&
                 expectedGeneration == current.taskGeneration + 1L
@@ -3326,6 +3345,7 @@ private constructor(
                     itemId = itemId,
                     expectedGeneration = expectedGeneration,
                     resumeOwnedGeneration = ownership == DownloadDeleteOwnedGeneration.INTENT,
+                    intentOwnershipToken = ownershipToken,
                     beforeDeleteFence = { generation ->
                         claimGeneration(DownloadDeleteOwnedGeneration.INTENT, generation)
                     },
@@ -3759,7 +3779,8 @@ private constructor(
                                     DownloadTaskStatus.PENDING
                                 },
                             failureReason = intent.failureReason.toFailureReason(),
-                            failureDetail = intent.failureDetail,
+                            failureDetail =
+                                intent.failureDetail.takeUnless(::isInternalIntentDeletionDetail),
                             downloadedBytes = 0L,
                             totalBytes = 0L,
                             updatedAt = intent.updatedAt,
@@ -4981,7 +5002,7 @@ private data class DownloadIntentSourceSnapshot(
 
 internal class DownloadIntentMutations(
     private val beginCancellation: suspend (UUID, Long, Long) -> DownloadIntentDto?,
-    private val beginDeletion: suspend (UUID, Long, Long) -> DownloadIntentDto?,
+    private val beginDeletion: suspend (UUID, Long, Long, String?) -> DownloadIntentDto?,
 ) {
     suspend fun cancel(
         itemId: UUID,
@@ -4993,7 +5014,8 @@ internal class DownloadIntentMutations(
         itemId: UUID,
         expectedGeneration: Long,
         updatedAt: Long,
-    ): DownloadIntentDto? = beginDeletion(itemId, expectedGeneration, updatedAt)
+        failureDetail: String?,
+    ): DownloadIntentDto? = beginDeletion(itemId, expectedGeneration, updatedAt, failureDetail)
 }
 
 /** 自研引擎状态 → DownloadManager 常量（旧 UI 轮询兼容；仅常量映射，不调用系统下载器）。 */

@@ -65,6 +65,19 @@ class DownloadIntentMutationsTest {
         assertTrue("insertDownloadDeleteReceipt" in fixture.dao.calls)
         assertTrue("finishDownloadDeleteBatch" in fixture.dao.calls)
         assertEquals("SUCCEEDED", fixture.dao.successfulReceipt?.outcome)
+        assertEquals(
+            intentDeletionCasOwnershipDetail(
+                generation = 7L,
+                ownershipToken =
+                    requireNotNull(fixture.dao.successfulReceipt).let { receipt ->
+                        downloadDeleteOwnershipToken(
+                            batchId = receipt.batchId,
+                            canonicalKey = receipt.canonicalKey,
+                        )
+                    },
+            ),
+            fixture.dao.lastDeleteFailureDetail,
+        )
         assertEquals(1, fixture.services.networkCallbackRegistrationCount)
     }
 
@@ -99,6 +112,7 @@ class DownloadIntentMutationsTest {
         assertFalse("deleteDownloadIntentIfCurrent" in fixture.dao.calls)
         assertEquals("FAILED", fixture.dao.intent?.status)
         assertEquals("CANCELLED", fixture.dao.intent?.failureReason)
+        assertEquals(null, fixture.dao.intent?.failureDetail)
         assertEquals(4L, fixture.dao.intent?.taskGeneration)
         assertEquals(1, fixture.services.networkCallbackRegistrationCount)
     }
@@ -366,6 +380,7 @@ class DownloadIntentMutationsTest {
         var lastDeleteExpectedGeneration: Long? = null
         var lastDeleteActualGeneration: Long? = null
         var lastMutationReturn: DownloadIntentDto? = null
+        var lastDeleteFailureDetail: String? = null
 
         val proxy: ServerDatabaseDao =
             Proxy.newProxyInstance(
@@ -380,12 +395,21 @@ class DownloadIntentMutationsTest {
                                 lastMutationReturn = it
                             }
                         "beginDownloadIntentDeletion" ->
-                            markDeletion(args[0] as UUID, args[1] as Long, args[2] as Long).also {
-                                lastMutationReturn = it
-                            }
+                            markDeletion(
+                                    args[0] as UUID,
+                                    args[1] as Long,
+                                    args[2] as Long,
+                                    args[3] as String?,
+                                )
+                                .also { lastMutationReturn = it }
                         "cancelDownloadIntent" -> cancelSql(args[0] as UUID, args[1] as Long)
                         "markDownloadIntentDeletionIfCurrent" ->
-                            markDeletionSql(args[0] as UUID, args[1] as Long, args[2] as Long)
+                            markDeletionSql(
+                                args[0] as UUID,
+                                args[1] as Long,
+                                args[2] as Long,
+                                args[3] as String?,
+                            )
                         "getDownloadIntent" -> intent.takeIf { it?.itemId == args[0] }
                         "getSources" ->
                             (listOfNotNull(source) + additionalSources.values).filter {
@@ -476,8 +500,10 @@ class DownloadIntentMutationsTest {
             itemId: UUID,
             expectedGeneration: Long,
             updatedAt: Long,
+            failureDetail: String?,
         ): DownloadIntentDto? {
             calls += "markDownloadIntentDeletionIfCurrent"
+            lastDeleteFailureDetail = failureDetail
             val current =
                 intent.takeIf {
                     it?.itemId == itemId &&
@@ -488,7 +514,7 @@ class DownloadIntentMutationsTest {
                 .copy(
                     status = "FAILED",
                     failureReason = "CANCELLED",
-                    failureDetail = null,
+                    failureDetail = failureDetail,
                     taskGeneration = current.taskGeneration + 1,
                     updatedAt = updatedAt,
                 )
@@ -506,13 +532,23 @@ class DownloadIntentMutationsTest {
                 0
             }
 
-        private fun markDeletionSql(itemId: UUID, expectedGeneration: Long, updatedAt: Long): Int =
+        private fun markDeletionSql(
+            itemId: UUID,
+            expectedGeneration: Long,
+            updatedAt: Long,
+            failureDetail: String?,
+        ): Int =
             if (
                 intent?.itemId == itemId &&
                     intent?.taskGeneration == expectedGeneration &&
                     intent?.status in setOf("RECEIVED", "RESOLVING", "SOURCE_CREATED", "FAILED")
             ) {
-                intent = intent?.copy(status = "FAILED", updatedAt = updatedAt)
+                intent =
+                    intent?.copy(
+                        status = "FAILED",
+                        failureDetail = failureDetail,
+                        updatedAt = updatedAt,
+                    )
                 1
             } else {
                 0

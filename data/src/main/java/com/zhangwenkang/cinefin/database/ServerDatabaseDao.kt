@@ -318,8 +318,16 @@ interface ServerDatabaseDao {
         itemId: UUID,
         expectedGeneration: Long,
         updatedAt: Long,
+        failureDetail: String?,
     ): DownloadIntentDto? {
-        if (markDownloadIntentDeletionIfCurrent(itemId, expectedGeneration, updatedAt) <= 0) {
+        if (
+            markDownloadIntentDeletionIfCurrent(
+                itemId,
+                expectedGeneration,
+                updatedAt,
+                failureDetail,
+            ) <= 0
+        ) {
             return null
         }
         return getDownloadIntent(itemId)
@@ -330,6 +338,7 @@ interface ServerDatabaseDao {
         itemId: UUID,
         expectedGeneration: Long,
         updatedAt: Long,
+        failureDetail: String?,
     ): Int
 
     @Query(
@@ -919,7 +928,7 @@ interface ServerDatabaseDao {
         internal const val MARK_DOWNLOAD_INTENT_DELETION_SQL =
             """
             UPDATE downloadIntents
-            SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = NULL,
+            SET status = 'FAILED', failureReason = 'CANCELLED', failureDetail = :failureDetail,
                 taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
             WHERE itemId = :itemId AND taskGeneration = :expectedGeneration
               AND status IN ('RECEIVED', 'RESOLVING', 'SOURCE_CREATED', 'FAILED')

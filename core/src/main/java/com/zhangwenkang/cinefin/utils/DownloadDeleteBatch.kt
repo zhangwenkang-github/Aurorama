@@ -21,6 +21,7 @@ data class DownloadDeleteRequest(
     val userId: String?,
     val expectedGeneration: Long? = null,
     val expectedGenerationOwnership: DownloadDeleteOwnedGeneration? = null,
+    internal val ownershipToken: String? = null,
 )
 
 enum class DownloadDeleteOutcome {
@@ -96,6 +97,25 @@ internal fun sourceDeletionOwnershipDetail(generation: Long): String =
 internal fun intentDeletionOwnershipDetail(generation: Long): String =
     "w90-intent-delete-owned:$generation"
 
+internal fun intentDeletionOwnershipDetail(
+    generation: Long,
+    ownershipToken: String,
+): String = "${intentDeletionOwnershipDetail(generation)}:$ownershipToken"
+
+internal fun intentDeletionCasOwnershipDetail(
+    generation: Long,
+    ownershipToken: String,
+): String = "w90-intent-delete-cas:$generation:$ownershipToken"
+
+internal fun downloadDeleteOwnershipToken(
+    batchId: String,
+    canonicalKey: String,
+): String = "$batchId:$canonicalKey"
+
+internal fun isInternalIntentDeletionDetail(detail: String?): Boolean =
+    detail?.startsWith("w90-intent-delete-owned:") == true ||
+        detail?.startsWith("w90-intent-delete-cas:") == true
+
 data class DownloadDeleteBatchSnapshot(
     val batchId: String,
     val receipts: List<DownloadDeleteReceipt>,
@@ -142,8 +162,17 @@ class DownloadDeleteBatchProcessor(
     suspend fun deleteAll(requests: List<DownloadDeleteRequest>): DownloadDeleteBatchResult {
         val normalized = requests.distinctBy(DownloadDeletionIdentity::canonicalKey)
         val id = batchId()
+        val ownedRequests = normalized.map { request ->
+            request.copy(
+                ownershipToken =
+                    downloadDeleteOwnershipToken(
+                        batchId = id,
+                        canonicalKey = DownloadDeletionIdentity.canonicalKey(request),
+                    )
+            )
+        }
         val startedAt = clock()
-        val registered = normalized.mapNotNull { request ->
+        val registered = ownedRequests.mapNotNull { request ->
             request.expectedGeneration?.let { generation ->
                 ReceiptIdentity(
                     batchId = id,
@@ -155,7 +184,7 @@ class DownloadDeleteBatchProcessor(
         try {
             store.begin(
                 batchId = id,
-                requests = normalized,
+                requests = ownedRequests,
                 createdAtMs = startedAt,
             )
         } catch (error: Throwable) {
@@ -164,7 +193,7 @@ class DownloadDeleteBatchProcessor(
         }
         return process(
             id,
-            normalized.mapIndexed { ordinal, request ->
+            ownedRequests.mapIndexed { ordinal, request ->
                 RetryEntry(request = request, ordinal = ordinal, resumed = false)
             },
         )
@@ -204,6 +233,11 @@ class DownloadDeleteBatchProcessor(
                                                     canonicalKey = receipt.canonicalKey,
                                                 ),
                                         expectedGenerationOwnership = ownedGeneration(receipt),
+                                        ownershipToken =
+                                            downloadDeleteOwnershipToken(
+                                                batchId = snapshot.batchId,
+                                                canonicalKey = receipt.canonicalKey,
+                                            ),
                                     ),
                                 ordinal = receipt.ordinal,
                                 resumed = true,
@@ -241,7 +275,10 @@ class DownloadDeleteBatchProcessor(
                                     DownloadDeleteOwnedGeneration.SOURCE ->
                                         sourceDeletionOwnershipDetail(generation)
                                     DownloadDeleteOwnedGeneration.INTENT ->
-                                        intentDeletionOwnershipDetail(generation)
+                                        intentDeletionOwnershipDetail(
+                                            generation,
+                                            requireNotNull(request.ownershipToken),
+                                        )
                                 },
                             updatedAtMs = clock(),
                             expectedGeneration = generation,
@@ -324,7 +361,14 @@ class DownloadDeleteBatchProcessor(
         receipt.expectedGeneration?.let { generation ->
             when (receipt.detail) {
                 sourceDeletionOwnershipDetail(generation) -> DownloadDeleteOwnedGeneration.SOURCE
-                intentDeletionOwnershipDetail(generation) -> DownloadDeleteOwnedGeneration.INTENT
+                intentDeletionOwnershipDetail(generation),
+                intentDeletionOwnershipDetail(
+                    generation,
+                    downloadDeleteOwnershipToken(
+                        batchId = receipt.batchId,
+                        canonicalKey = receipt.canonicalKey,
+                    ),
+                ) -> DownloadDeleteOwnedGeneration.INTENT
                 else -> null
             }
         }

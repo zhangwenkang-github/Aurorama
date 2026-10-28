@@ -5791,7 +5791,7 @@ class DownloaderImplRecoveryTest {
                                     current.copy(
                                         status = DownloadIntentStatus.FAILED.name,
                                         failureReason = DownloadFailureReason.CANCELLED.name,
-                                        failureDetail = null,
+                                        failureDetail = args[3] as String?,
                                         taskGeneration = generation + 1,
                                         updatedAt = args[2] as Long,
                                     )

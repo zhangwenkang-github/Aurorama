@@ -189,6 +189,48 @@ class DownloadDeleteBatchTest {
     }
 
     @Test
+    fun `batch ownership token stays exact across interruption and resume`() = runBlocking {
+        val store = MemoryStore()
+        val seen = mutableListOf<Pair<Boolean, String?>>()
+        val first =
+            DownloadDeleteBatchProcessor(
+                store = store,
+                batchId = { "batch-token" },
+                delete = { request, resumed, _ ->
+                    seen += resumed to request.ownershipToken
+                    throw CancellationException("进程中断")
+                },
+            )
+
+        runCatching { first.deleteAll(listOf(request(1))) }
+
+        DownloadDeleteBatchProcessor(
+                store = store,
+                delete = { request, resumed, _ ->
+                    seen += resumed to request.ownershipToken
+                    DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
+                },
+            )
+            .resumeIncomplete()
+
+        assertEquals(
+            listOf(
+                false to
+                    downloadDeleteOwnershipToken(
+                        batchId = "batch-token",
+                        canonicalKey = DownloadDeletionIdentity.canonicalKey(request(1)),
+                    ),
+                true to
+                    downloadDeleteOwnershipToken(
+                        batchId = "batch-token",
+                        canonicalKey = DownloadDeletionIdentity.canonicalKey(request(1)),
+                    ),
+            ),
+            seen,
+        )
+    }
+
+    @Test
     fun `单项 deadline 超时只失败该项并继续后续项`() = runBlocking {
         val store = MemoryStore()
         val processed = mutableListOf<String>()
