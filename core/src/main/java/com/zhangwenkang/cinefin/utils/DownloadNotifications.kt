@@ -10,6 +10,120 @@ import android.os.Build
 import android.text.format.Formatter
 import androidx.core.app.NotificationCompat
 import com.zhangwenkang.cinefin.core.R as CoreR
+import java.net.URI
+
+internal enum class DownloadNotificationDestination {
+    HOME,
+    ACTIVE,
+    FAILED,
+}
+
+internal data class DownloadNotificationTarget(
+    val requestCode: Int,
+    val openDownloads: Boolean,
+    val tab: String?,
+)
+
+internal data class DownloadFailureNotificationContent(
+    val text: String,
+    val expandedText: String,
+)
+
+internal fun downloadNotificationTarget(
+    destination: DownloadNotificationDestination
+): DownloadNotificationTarget =
+    when (destination) {
+        DownloadNotificationDestination.HOME ->
+            DownloadNotificationTarget(
+                requestCode = REQUEST_OPEN_HOME,
+                openDownloads = false,
+                tab = null,
+            )
+        DownloadNotificationDestination.ACTIVE ->
+            DownloadNotificationTarget(
+                requestCode = REQUEST_OPEN_ACTIVE_DOWNLOADS,
+                openDownloads = true,
+                tab = DOWNLOADS_TAB_ACTIVE,
+            )
+        DownloadNotificationDestination.FAILED ->
+            DownloadNotificationTarget(
+                requestCode = REQUEST_OPEN_FAILED_DOWNLOADS,
+                openDownloads = true,
+                tab = DOWNLOADS_TAB_FAILED,
+            )
+    }
+
+internal fun failureNotificationContent(
+    taskName: String,
+    localizedReason: String,
+    detail: String?,
+): DownloadFailureNotificationContent {
+    val safeName = taskName.ifBlank { localizedReason }
+    val safeDetail = sanitizeDownloadFailureDetail(detail)
+    return DownloadFailureNotificationContent(
+        text = "$safeName · $localizedReason",
+        expandedText =
+            listOf(safeName, localizedReason, safeDetail)
+                .filter(String::isNotBlank)
+                .joinToString("\n"),
+    )
+}
+
+internal fun sanitizeDownloadFailureDetail(rawDetail: String?): String {
+    val singleLine = collapseToSingleLine(rawDetail.orEmpty())
+    val withoutUrlSecrets =
+        httpUrlPattern.replace(singleLine) { match -> sanitizeHttpUrl(match.value) }
+    val collapsed = collapseToSingleLine(withoutUrlSecrets)
+    return if (collapsed.length <= MAX_FAILURE_DETAIL_LENGTH) {
+        collapsed
+    } else {
+        collapsed.take(MAX_FAILURE_DETAIL_LENGTH - 1).trimEnd() + "…"
+    }
+}
+
+private fun collapseToSingleLine(value: String): String =
+    buildString(value.length) {
+        var pendingSeparator = false
+        for (character in value) {
+            val separator =
+                character.isISOControl() ||
+                    character.isWhitespace() ||
+                    character == '\u2028' ||
+                    character == '\u2029'
+            if (separator) {
+                pendingSeparator = isNotEmpty()
+            } else {
+                if (pendingSeparator) append(' ')
+                append(character)
+                pendingSeparator = false
+            }
+        }
+    }
+
+private fun sanitizeHttpUrl(rawUrl: String): String {
+    val parsed = runCatching { URI(rawUrl) }.getOrNull()
+    val scheme = parsed?.scheme?.lowercase() ?: "https"
+    val host = parsed?.host?.takeIf(String::isNotBlank) ?: return "$scheme://[redacted]"
+    val port = parsed.port.takeIf { it >= 0 }?.let { ":$it" }.orEmpty()
+    val path = parsed.rawPath.orEmpty()
+    return "$scheme://$host$port$path"
+}
+
+internal fun downloadFailureReasonLabelRes(reason: DownloadFailureReason?): Int =
+    reason.localizedLabelRes()
+
+private fun DownloadFailureReason?.localizedLabelRes(): Int =
+    when (this) {
+        DownloadFailureReason.STORAGE_INSUFFICIENT -> CoreR.string.download_failure_storage
+        DownloadFailureReason.NETWORK_UNAVAILABLE -> CoreR.string.download_failure_network
+        DownloadFailureReason.SERVER_ERROR -> CoreR.string.download_failure_server
+        DownloadFailureReason.AUTHENTICATION -> CoreR.string.download_failure_authentication
+        DownloadFailureReason.CANNOT_RESUME -> CoreR.string.download_failure_cannot_resume
+        DownloadFailureReason.FILE_ERROR -> CoreR.string.download_failure_file
+        DownloadFailureReason.CANCELLED -> CoreR.string.download_failure_cancelled
+        DownloadFailureReason.UNKNOWN,
+        null -> CoreR.string.download_failure_unknown
+    }
 
 /**
  * W50 下载通知中心。
@@ -52,7 +166,15 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
-                .setContentIntent(openAppIntent(openDownloads = activeCount > 1))
+                .setContentIntent(
+                    openAppIntent(
+                        if (activeCount > 1) {
+                            DownloadNotificationDestination.ACTIVE
+                        } else {
+                            DownloadNotificationDestination.HOME
+                        }
+                    )
+                )
                 .setProgress(100, task?.progressPercent() ?: 0, task?.totalBytes == 0L)
         if (task != null) {
             builder
@@ -84,19 +206,26 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
                 .setContentTitle(context.getString(CoreR.string.download_notification_completed))
                 .setContentText(task.name)
                 .setAutoCancel(true)
-                .setContentIntent(openAppIntent())
+                .setContentIntent(openAppIntent(DownloadNotificationDestination.HOME))
                 .build()
         manager.notify(stateNotificationId(task.sourceId), notification)
     }
 
     override fun notifyFailed(task: DownloadTask) {
+        val content =
+            failureNotificationContent(
+                taskName = task.name,
+                localizedReason = context.getString(task.failureReason.localizedLabelRes()),
+                detail = task.failureDetail,
+            )
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_notify_error)
                 .setContentTitle(context.getString(CoreR.string.download_notification_failed))
-                .setContentText(task.name)
+                .setContentText(content.text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(content.expandedText))
                 .setAutoCancel(true)
-                .setContentIntent(openAppIntent())
+                .setContentIntent(openAppIntent(DownloadNotificationDestination.FAILED))
                 .build()
         manager.notify(stateNotificationId(task.sourceId), notification)
     }
@@ -131,16 +260,20 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
         }
     }
 
-    private fun openAppIntent(openDownloads: Boolean = false): PendingIntent {
+    private fun openAppIntent(destination: DownloadNotificationDestination): PendingIntent {
+        val target = downloadNotificationTarget(destination)
         val launch =
             context.packageManager.getLaunchIntentForPackage(context.packageName)
                 ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
-        // W52：单实例 + SINGLE_TOP，进程活着时把「进下载页」的请求交给 onNewIntent（冷启动走 onCreate）。
-        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        if (openDownloads) launch.putExtra(EXTRA_OPEN_DOWNLOADS, true)
+        // CLEAR_TOP 覆盖 playback Activity 仍在 MainActivity 之上的栈形。
+        launch.addFlags(downloadNotificationLaunchFlags)
+        if (target.openDownloads) {
+            launch.putExtra(EXTRA_OPEN_DOWNLOADS, true)
+            target.tab?.let { launch.putExtra(EXTRA_DOWNLOADS_TAB, it) }
+        }
         return PendingIntent.getActivity(
             context,
-            REQUEST_OPEN_APP,
+            target.requestCode,
             launch,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
@@ -184,9 +317,21 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
         const val ACTION_CANCEL = "com.zhangwenkang.cinefin.action.DOWNLOAD_CANCEL"
 
         private const val STATE_NOTIFICATION_BASE = 4500
-        private const val REQUEST_OPEN_APP = 100
     }
 }
 
 /** W52：多任务前台通知点击时，把「打开下载页」意图经启动 Intent 传给 [com.zhangwenkang.cinefin.MainActivity]。 */
 const val EXTRA_OPEN_DOWNLOADS = "com.zhangwenkang.cinefin.extra.OPEN_DOWNLOADS"
+const val EXTRA_DOWNLOADS_TAB = "com.zhangwenkang.cinefin.extra.DOWNLOADS_TAB"
+const val DOWNLOADS_TAB_ACTIVE = "ACTIVE"
+const val DOWNLOADS_TAB_FAILED = "FAILED"
+
+private const val REQUEST_OPEN_HOME = 100
+private const val REQUEST_OPEN_ACTIVE_DOWNLOADS = 101
+private const val REQUEST_OPEN_FAILED_DOWNLOADS = 102
+private const val MAX_FAILURE_DETAIL_LENGTH = 180
+private val httpUrlPattern = Regex("""https?://[^\s]+""", RegexOption.IGNORE_CASE)
+internal val downloadNotificationLaunchFlags =
+    Intent.FLAG_ACTIVITY_NEW_TASK or
+        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+        Intent.FLAG_ACTIVITY_CLEAR_TOP

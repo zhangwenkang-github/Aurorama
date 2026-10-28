@@ -2190,13 +2190,15 @@ private constructor(
                     generation = source.taskGeneration,
                 )
             if (commit == DownloadCompletionCommit.RENAME_FAILED) {
-                database.setSourceTaskStatusIfCurrent(
-                    source.id,
-                    source.taskGeneration,
-                    DownloadTaskStatus.FAILED.name,
-                    DownloadFailureReason.FILE_ERROR.name,
-                    now,
-                )
+                val updated =
+                    database.setSourceTaskStatusIfCurrent(
+                        source.id,
+                        source.taskGeneration,
+                        DownloadTaskStatus.FAILED.name,
+                        DownloadFailureReason.FILE_ERROR.name,
+                        now,
+                    )
+                if (updated > 0) notifyQueueChanged()
             }
         }
     }

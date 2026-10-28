@@ -4,25 +4,33 @@ import androidx.lifecycle.ViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeState
 import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgeInfo
-import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgePriority
+import com.zhangwenkang.cinefin.repository.BookDownloadStatus
+import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.DownloadTask
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 /**
  * 下载状态角标数据源（W60b）：单例轮询下载引擎的只读快照（任务状态 + 进度 + 已下载集合）， 供库网格 / 首页走廊 / 搜索结果 / 详情海报 / 我的收藏页的卡片角标共用。
@@ -41,7 +49,8 @@ constructor(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val listeners = AtomicInteger(0)
-    private var pollJob: Job? = null
+    private var monitorJob: Job? = null
+    private var refreshSignals: Channel<Unit>? = null
 
     fun acquire() {
         if (listeners.incrementAndGet() == 1) start()
@@ -55,39 +64,64 @@ constructor(
     }
 
     private fun start() {
-        if (pollJob?.isActive == true) return
-        pollJob = scope.launch {
-            while (isActive) {
-                refresh()
-                delay(POLL_INTERVAL_MS)
+        if (monitorJob?.isActive == true) return
+        val signals = Channel<Unit>(capacity = Channel.CONFLATED)
+        refreshSignals = signals
+        monitorJob = scope.launch {
+            supervisorScope {
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    downloader.queueChanges.collect { signals.trySend(Unit) }
+                }
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    readerRepository.bookDownloads.drop(1).collect { signals.trySend(Unit) }
+                }
+                launch {
+                    while (isActive) {
+                        signals.send(Unit)
+                        delay(POLL_INTERVAL_MS)
+                    }
+                }
+                for (ignored in signals) {
+                    refresh()
+                }
             }
         }
     }
 
     private fun stop() {
-        pollJob?.cancel()
-        pollJob = null
+        monitorJob?.cancel()
+        monitorJob = null
+        refreshSignals?.close()
+        refreshSignals = null
         _badges.value = emptyMap()
     }
 
     private suspend fun refresh() {
-        val tasks = runCatching {
-            downloader.refreshDownloadTasks()
-        }
-            .getOrElse {
-                return
-            }
-        val downloaded = runCatching {
-            downloader.downloadedItemIds()
-        }
-            .getOrElse { emptySet<UUID>() }
+        val tasks = readOrNull { downloader.refreshDownloadTasks() } ?: return
+        val downloaded = readOrNull { downloader.downloadedItemIds() } ?: emptySet()
         // W59 阅读器离线链路（files/books/*.book）：书籍不走下载引擎，角标数据源要把本机书籍并进来。
-        val localBooks = runCatching {
-            readerRepository.listLocalFiles().map { file -> file.itemId }.toSet()
-        }
-            .getOrElse { emptySet() }
-        _badges.value = badgeMapFor(tasks, downloaded + localBooks)
+        val bookTasks = readerRepository.bookDownloads.value
+        val localBooks =
+            readOrNull { readerRepository.listLocalFiles().map { file -> file.itemId }.toSet() }
+                ?: emptySet()
+        _badges.value =
+            downloadStatusProjectionFor(
+                    tasks = tasks,
+                    downloaded = downloaded,
+                    bookTasks = bookTasks,
+                    localBookIds = localBooks,
+                )
+                .badges
     }
+
+    private suspend fun <T> readOrNull(block: suspend () -> T): T? =
+        try {
+            block()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
 
     private companion object {
         const val POLL_INTERVAL_MS = 1500L
@@ -113,35 +147,120 @@ class DownloadStatusViewModel @Inject constructor(private val monitor: DownloadS
 /**
  * 纯函数：任务快照 + 已下载集合 → `itemId → 徽标`。
  *
- * 同一 `itemId` 可能有多条任务（重试 / 换源残留），取优先级最高的那条；已下载条目即使没有任务也补一枚完成角标。
+ * 同一 `itemId` 可能有多条任务（重试 / 换源残留），先按 generation / updatedAt 规范化为最新任务， 再从同一快照生成 active / failed /
+ * badges。已下载条目即使没有任务也补一枚完成角标。
  */
 internal fun badgeMapFor(
     tasks: List<DownloadTask>,
     downloaded: Set<UUID>,
-): Map<UUID, DownloadBadgeInfo> {
+    bookTasks: List<BookDownloadTask> = emptyList(),
+    localBookIds: Set<UUID> = emptySet(),
+): Map<UUID, DownloadBadgeInfo> =
+    downloadStatusProjectionFor(tasks, downloaded, bookTasks, localBookIds).badges
+
+internal data class DownloadStatusProjection(
+    val activeItemIds: Set<UUID>,
+    val failedItemIds: Set<UUID>,
+    val badges: Map<UUID, DownloadBadgeInfo>,
+)
+
+internal fun downloadStatusProjectionFor(
+    tasks: List<DownloadTask>,
+    downloaded: Set<UUID>,
+    bookTasks: List<BookDownloadTask> = emptyList(),
+    localBookIds: Set<UUID> = emptySet(),
+): DownloadStatusProjection {
+    val completedIds = downloaded + localBookIds
+    val latestTasks =
+        tasks
+            .groupBy(DownloadTask::itemId)
+            .mapValues { (_, duplicates) -> duplicates.maxWithOrNull(downloadTaskRecency) }
+            .mapNotNull { (_, task) -> task }
+    val visibleBooks = bookTasks.filterNot(BookDownloadTask::isSupersededDeleteRecord)
+    val latestBooks =
+        visibleBooks
+            .groupBy(BookDownloadTask::itemId)
+            .mapValues { (_, duplicates) -> duplicates.maxWithOrNull(bookTaskRecency) }
+            .mapNotNull { (_, task) -> task }
     val map = mutableMapOf<UUID, DownloadBadgeInfo>()
-    fun put(itemId: UUID, info: DownloadBadgeInfo) {
-        val existing = map[itemId]
-        if (
-            existing == null ||
-                downloadBadgePriority(info.state) > downloadBadgePriority(existing.state)
-        ) {
-            map[itemId] = info
-        }
+    for (itemId in completedIds) {
+        map[itemId] = DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
     }
-    for (task in tasks) {
-        put(
-            task.itemId,
+    for (task in latestTasks) {
+        map[task.itemId] =
             downloadBadgeInfo(
-                downloaded = task.itemId in downloaded,
+                downloaded = task.itemId in completedIds,
                 taskStatus = task.status,
                 progress = task.progress,
                 totalKnown = task.totalBytes > 0L,
-            ),
-        )
+            )
     }
-    for (id in downloaded) {
-        if (id !in map) map[id] = DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
+    for (task in latestBooks) {
+        if (task.itemId in completedIds) continue
+        val info =
+            when (task.status) {
+                BookDownloadStatus.RUNNING ->
+                    DownloadBadgeInfo(
+                        state = DownloadBadgeState.IN_PROGRESS,
+                        progress = task.progress,
+                        indeterminate = task.totalBytes <= 0L,
+                    )
+                BookDownloadStatus.FAILED -> DownloadBadgeInfo(DownloadBadgeState.FAILED)
+                BookDownloadStatus.COMPLETED -> DownloadBadgeInfo()
+            }
+        if (map[task.itemId]?.state != DownloadBadgeState.DOWNLOADED) {
+            map[task.itemId] = info
+        }
     }
-    return map
+    return DownloadStatusProjection(
+        activeItemIds =
+            latestTasks
+                .filter {
+                    it.status == DownloadTaskStatus.RUNNING ||
+                        it.status == DownloadTaskStatus.PENDING
+                }
+                .mapTo(linkedSetOf(), DownloadTask::itemId) +
+                latestBooks
+                    .filter { it.status == BookDownloadStatus.RUNNING }
+                    .mapTo(linkedSetOf(), BookDownloadTask::itemId),
+        failedItemIds =
+            latestTasks
+                .filter { it.status == DownloadTaskStatus.FAILED }
+                .mapTo(linkedSetOf(), DownloadTask::itemId) +
+                latestBooks
+                    .filter { it.status == BookDownloadStatus.FAILED }
+                    .mapTo(linkedSetOf(), BookDownloadTask::itemId),
+        badges = map,
+    )
 }
+
+private val downloadTaskRecency =
+    compareBy<DownloadTask>(
+        { it.taskGeneration },
+        { it.updatedAt },
+        { downloadStatusRank(it.status) },
+    )
+
+private val bookTaskRecency =
+    compareBy<BookDownloadTask>(
+        { it.taskGeneration },
+        { it.updatedAtEpochMillis },
+        { bookStatusRank(it.status) },
+    )
+
+private fun downloadStatusRank(status: DownloadTaskStatus): Int =
+    when (status) {
+        DownloadTaskStatus.FAILED -> 4
+        DownloadTaskStatus.COMPLETED -> 3
+        DownloadTaskStatus.RUNNING -> 2
+        DownloadTaskStatus.PENDING -> 1
+        DownloadTaskStatus.PAUSED,
+        DownloadTaskStatus.DELETING -> 0
+    }
+
+private fun bookStatusRank(status: BookDownloadStatus): Int =
+    when (status) {
+        BookDownloadStatus.FAILED -> 2
+        BookDownloadStatus.RUNNING -> 1
+        BookDownloadStatus.COMPLETED -> 0
+    }

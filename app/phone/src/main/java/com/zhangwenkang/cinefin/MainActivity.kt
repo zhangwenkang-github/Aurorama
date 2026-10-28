@@ -33,7 +33,10 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.playback.EXTRA_OPEN_MUSIC_NOW_PLAYING
 import com.zhangwenkang.cinefin.presentation.components.ColdStartSplash
+import com.zhangwenkang.cinefin.presentation.film.DownloadTab
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
+import com.zhangwenkang.cinefin.utils.DOWNLOADS_TAB_FAILED
+import com.zhangwenkang.cinefin.utils.EXTRA_DOWNLOADS_TAB
 import com.zhangwenkang.cinefin.utils.EXTRA_OPEN_DOWNLOADS
 import com.zhangwenkang.cinefin.viewmodels.MainState
 import com.zhangwenkang.cinefin.viewmodels.MainViewModel
@@ -45,8 +48,10 @@ import kotlinx.coroutines.flow.first
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
-    /** W52：多任务下载通知的「打开下载页」请求（冷启动读 Intent，热启动由 onNewIntent 写入）。 */
-    private var openDownloadsRequest by mutableStateOf(false)
+    /** W52 / W90-A2：下载通知的「打开指定页签」请求（冷启动读 Intent，热启动由 onNewIntent 写入）。 */
+    private var openDownloadsRequest by mutableStateOf<DownloadsRoute?>(null)
+    private val downloadsLaunchRequests =
+        DownloadsLaunchRequestState(lastRequestId = System.nanoTime())
 
     /** W68：锁屏 / 通知点击音乐条目的「打开音乐播放界面」请求（同上）。 */
     private var openMusicNowPlayingRequest by mutableStateOf(false)
@@ -84,7 +89,7 @@ class MainActivity : AppCompatActivity() {
                             state = state,
                             navController = navController,
                             openDownloadsRequest = openDownloadsRequest,
-                            onOpenDownloadsHandled = { openDownloadsRequest = false },
+                            onOpenDownloadsHandled = { openDownloadsRequest = null },
                             openMusicNowPlayingRequest = openMusicNowPlayingRequest,
                             onOpenMusicNowPlayingHandled = { openMusicNowPlayingRequest = false },
                         )
@@ -97,19 +102,24 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (consumeOpenDownloadsRequest(intent)) {
-            openDownloadsRequest = true
-        }
+        consumeOpenDownloadsRequest(intent)?.let { openDownloadsRequest = it }
         if (consumeOpenMusicNowPlayingRequest(intent)) {
             openMusicNowPlayingRequest = true
         }
     }
 
     /** 读取并消费「打开下载页」标记：消费后同一个 Intent 不会重复触发导航。 */
-    private fun consumeOpenDownloadsRequest(intent: Intent?): Boolean {
-        val requested = intent?.getBooleanExtra(EXTRA_OPEN_DOWNLOADS, false) == true
-        if (requested) intent.removeExtra(EXTRA_OPEN_DOWNLOADS)
-        return requested
+    private fun consumeOpenDownloadsRequest(intent: Intent?): DownloadsRoute? {
+        val request =
+            downloadsLaunchRequests.consume(
+                openDownloads = intent?.getBooleanExtra(EXTRA_OPEN_DOWNLOADS, false) == true,
+                requestedTab = intent?.getStringExtra(EXTRA_DOWNLOADS_TAB),
+            )
+        if (request != null && intent != null) {
+            intent.removeExtra(EXTRA_OPEN_DOWNLOADS)
+            intent.removeExtra(EXTRA_DOWNLOADS_TAB)
+        }
+        return request
     }
 
     /** W68：读取并消费「打开音乐播放界面」标记（消费后同一个 Intent 不会重复触发导航）。 */
@@ -146,7 +156,7 @@ class MainActivity : AppCompatActivity() {
 private fun MainContent(
     state: MainState,
     navController: NavHostController,
-    openDownloadsRequest: Boolean,
+    openDownloadsRequest: DownloadsRoute?,
     onOpenDownloadsHandled: () -> Unit,
     openMusicNowPlayingRequest: Boolean,
     onOpenMusicNowPlayingHandled: () -> Unit,
@@ -161,11 +171,35 @@ private fun MainContent(
             onOpenMusicNowPlayingHandled = onOpenMusicNowPlayingHandled,
         )
     }
-    LaunchedEffect(openDownloadsRequest) {
-        if (!openDownloadsRequest) return@LaunchedEffect
+    LaunchedEffect(openDownloadsRequest?.requestId) {
+        val request = openDownloadsRequest ?: return@LaunchedEffect
         // NavHost 尚未组合时 currentBackStackEntry 为 null；等它就绪后再跳（冷启动路径）。
         snapshotFlow { navController.currentBackStackEntry }.filterNotNull().first()
-        navController.navigate(DownloadsRoute) { launchSingleTop = true }
+        navController.navigate(request) {
+            popUpTo<DownloadsRoute> { inclusive = true }
+            launchSingleTop = true
+        }
         onOpenDownloadsHandled()
+    }
+}
+
+internal fun parseDownloadsLaunchTab(
+    openDownloads: Boolean,
+    requestedTab: String?,
+): DownloadTab? =
+    when {
+        !openDownloads -> null
+        requestedTab == DOWNLOADS_TAB_FAILED -> DownloadTab.FAILED
+        else -> DownloadTab.ACTIVE
+    }
+
+internal class DownloadsLaunchRequestState(private var lastRequestId: Long) {
+    fun consume(
+        openDownloads: Boolean,
+        requestedTab: String?,
+    ): DownloadsRoute? {
+        val tab = parseDownloadsLaunchTab(openDownloads, requestedTab) ?: return null
+        lastRequestId = if (lastRequestId == Long.MAX_VALUE) 1L else lastRequestId + 1L
+        return DownloadsRoute(initialTab = tab, requestId = lastRequestId)
     }
 }

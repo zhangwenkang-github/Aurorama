@@ -114,6 +114,7 @@ import com.zhangwenkang.cinefin.presentation.components.SearchTopBarAction
 import com.zhangwenkang.cinefin.presentation.console.WebConsoleScreen
 import com.zhangwenkang.cinefin.presentation.film.BookshelfScreen
 import com.zhangwenkang.cinefin.presentation.film.CollectionScreen
+import com.zhangwenkang.cinefin.presentation.film.DownloadTab
 import com.zhangwenkang.cinefin.presentation.film.DownloadsScreen
 import com.zhangwenkang.cinefin.presentation.film.EpisodeScreen
 import com.zhangwenkang.cinefin.presentation.film.FavoritesScreen
@@ -249,7 +250,11 @@ internal fun searchScopeForLibraryType(type: CollectionType): SearchScope =
 
 internal fun searchRoute(scope: SearchScope): SearchRoute = SearchRoute(initialScope = scope.name)
 
-@Serializable data object DownloadsRoute
+@Serializable
+data class DownloadsRoute(
+    val initialTab: DownloadTab = DownloadTab.ACTIVE,
+    val requestId: Long = 0L,
+)
 
 /** 顶部「书架」Tab 的独立目的地：页面自己解析书籍库，不依赖抽屉是否打开过（见 BookshelfScreen）。 */
 @Serializable data object BookshelfRoute
@@ -341,7 +346,7 @@ val downloadsTab =
     TabBarItem(
         title = CoreR.string.title_download,
         icon = CoreR.drawable.ic_download,
-        route = DownloadsRoute,
+        route = DownloadsRoute(),
     )
 
 @Composable
@@ -566,7 +571,10 @@ fun NavigationRoot(
                 MusicModeRoute -> currentDestination.isRoute<MusicModeRoute>()
                 BookshelfRoute -> currentDestination.isRoute<BookshelfRoute>()
                 FavoritesRoute -> currentDestination.isRoute<FavoritesRoute>()
-                DownloadsRoute -> currentDestination.isRoute<DownloadsRoute>()
+                is DownloadsRoute ->
+                    currentDestination.isRoute<DownloadsRoute>() &&
+                        route.initialTab == DownloadTab.ACTIVE &&
+                        route.requestId == 0L
                 // 设置子页 = 同一目的地的不同参数（indexes），只有根参数才算「已在主页」。
                 is SettingsRoute ->
                     currentDestination.isRoute<SettingsRoute>() &&
@@ -592,7 +600,8 @@ fun NavigationRoot(
                 navController.safeNavigate(route) {
                     popUpTo(navController.graph.startDestinationId) { saveState = true }
                     launchSingleTop = true
-                    restoreState = true
+                    // 下载页的参数就是一次命令；普通入口不得恢复上次 FAILED / requestId。
+                    restoreState = route !is DownloadsRoute
                 }
                 // 带子页面（库内容 / 专辑详情等）时弹回根页；已在根页的情况上面已提前返回。
                 navController.popBackStack(route, inclusive = false)
@@ -821,7 +830,7 @@ fun NavigationRoot(
                     selected = downloadsSelected,
                     bottom = false,
                 ) {
-                    navigateTopLevel(DownloadsRoute)
+                    navigateTopLevel(DownloadsRoute())
                 }
             NavEntryKey.Console,
             NavEntryKey.Metadata -> {
@@ -1182,7 +1191,7 @@ fun NavigationRoot(
                                         context = context,
                                     )
                                 },
-                                onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                                onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                                 onSearchClick = openVideoSearch,
                             )
                         }
@@ -1288,12 +1297,13 @@ fun NavigationRoot(
                             )
                         },
                         navigateBack = { navController.safePopBackStack() },
-                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                        onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                         onSearchClick = openBooksSearch,
                     )
                 }
             }
-            composable<DownloadsRoute> {
+            composable<DownloadsRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<DownloadsRoute>()
                 ProvideLumen {
                     DownloadsScreen(
                         onOpenDrawer = openDrawer,
@@ -1314,6 +1324,8 @@ fun NavigationRoot(
                                 )
                             }
                         },
+                        initialTab = route.initialTab,
+                        requestId = route.requestId,
                     )
                 }
             }
@@ -1325,7 +1337,7 @@ fun NavigationRoot(
                     // W68：锁屏 / 通知点击音乐条目 → 直接展开全屏播放覆盖层（与点迷你条一致）。
                     openNowPlayingSignal = musicOpenNowPlayingSignal,
                     onInnerPageOpenChange = { musicInnerPageOpen = it },
-                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                     onSearchClick = openMusicSearch,
                 )
             }
@@ -1335,7 +1347,7 @@ fun NavigationRoot(
                     onOpenDrawer = openDrawer,
                     initialSongId = route.itemId,
                     initialQueueItemIds = route.queueItemIds,
-                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                     onSearchClick = openMusicSearch,
                 )
             }
@@ -1367,7 +1379,7 @@ fun NavigationRoot(
                                         onExitTemporaryLibrary = {
                                             exitTemporaryLibrary(VideoRoute)
                                         },
-                                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                                        onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                                         onSearchClick = {
                                             openSearch(
                                                 searchScopeForLibraryType(
@@ -1390,7 +1402,7 @@ fun NavigationRoot(
                                     )
                                 ),
                             onExitTemporaryLibrary = { exitTemporaryLibrary(MusicModeRoute) },
-                            onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                            onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                             onSearchClick = openMusicSearch,
                         )
                     TemporaryLibraryKind.Books ->
@@ -1406,7 +1418,7 @@ fun NavigationRoot(
                             navigateBack = { navController.safePopBackStack() },
                             temporaryLibraryId = route.libraryId,
                             onExitTemporaryLibrary = { exitTemporaryLibrary(BookshelfRoute) },
-                            onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                            onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                             onSearchClick = openBooksSearch,
                         )
                 }
@@ -1462,7 +1474,7 @@ fun NavigationRoot(
                                 )
                             },
                             navigateBack = { navController.safePopBackStack() },
-                            onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                            onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                             // W75 #13：库内容页（二级）顶栏搜索入口——与视频页 / 音乐 / 书架同一套流程。
                             topBarActions = {
                                 SearchTopBarAction(
@@ -1503,7 +1515,7 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
-                        onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                        onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                     )
                 }
             }
@@ -1516,7 +1528,7 @@ fun NavigationRoot(
                     navigateToPerson = { personId ->
                         navController.safeNavigate(PersonRoute(personId.toString()))
                     },
-                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                 )
             }
             composable<ShowRoute> { backStackEntry ->
@@ -1535,7 +1547,7 @@ fun NavigationRoot(
                     navigateToPerson = { personId ->
                         navController.safeNavigate(PersonRoute(personId.toString()))
                     },
-                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                 )
             }
             composable<SeasonRoute> { backStackEntry ->
@@ -1557,7 +1569,7 @@ fun NavigationRoot(
                             launchSingleTop = true
                         }
                     },
-                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                 )
             }
             composable<EpisodeRoute> { backStackEntry ->
@@ -1575,7 +1587,7 @@ fun NavigationRoot(
                             launchSingleTop = true
                         }
                     },
-                    onOpenDownloads = { navigateTopLevel(DownloadsRoute) },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                 )
             }
             composable<PersonRoute> { backStackEntry ->

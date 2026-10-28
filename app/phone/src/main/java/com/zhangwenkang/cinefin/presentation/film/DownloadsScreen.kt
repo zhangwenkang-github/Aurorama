@@ -88,6 +88,7 @@ import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 @Composable
 fun DownloadsScreen(
@@ -95,6 +96,8 @@ fun DownloadsScreen(
     onOpenDrawer: (() -> Unit)?,
     onItemClick: (item: FindroidItem) -> Unit,
     onPlayMusicItemIds: (List<UUID>) -> Unit = {},
+    initialTab: DownloadTab = DownloadTab.ACTIVE,
+    requestId: Long = 0L,
     viewModel: DownloadsViewModel = hiltViewModel(),
     batchViewModel: MediaBatchViewModel = hiltViewModel(),
 ) {
@@ -122,6 +125,8 @@ fun DownloadsScreen(
     DownloadsScreenLayout(
         onOpenDrawer = onOpenDrawer,
         state = state,
+        initialTab = initialTab,
+        requestId = requestId,
         onAction = { action ->
             when (action) {
                 is DownloadAction.Open -> onItemClick(action.item)
@@ -133,7 +138,8 @@ fun DownloadsScreen(
 }
 
 /** W59 页签顺序 = 用户口径「进行中 → 失败 → 已完成」。 */
-private enum class DownloadTab {
+@Serializable
+enum class DownloadTab {
     ACTIVE,
     FAILED,
     COMPLETED,
@@ -151,6 +157,8 @@ private sealed interface PendingDelete {
 private fun DownloadsScreenLayout(
     onOpenDrawer: (() -> Unit)?,
     state: DownloadManagerState,
+    initialTab: DownloadTab,
+    requestId: Long,
     onAction: (DownloadAction) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
@@ -166,6 +174,13 @@ private fun DownloadsScreenLayout(
     val selectableKeys = DownloadSelectionRules.keysFor(state, tab.group)
     val allVisibleSelected =
         selectableKeys.isNotEmpty() && state.selection.containsAll(selectableKeys)
+
+    LaunchedEffect(requestId, initialTab) {
+        tab = initialTab
+        drilldownKey = null
+        pendingDelete = null
+        onAction(DownloadAction.ClearSelection)
+    }
 
     // 容器被删除 / 刷新后消失：自动回顶层列表，避免停在空详情。
     LaunchedEffect(drilldownKey, drilldown) {
@@ -898,6 +913,8 @@ private fun DownloadsScreenLayoutPreview() {
         DownloadsScreenLayout(
             onOpenDrawer = {},
             state = DownloadManagerState(isLoading = false),
+            initialTab = DownloadTab.ACTIVE,
+            requestId = 0L,
             onAction = {},
         )
     }
