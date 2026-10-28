@@ -8,6 +8,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeout
 
+enum class DownloadDeleteOwnedGeneration {
+    SOURCE,
+    INTENT,
+}
+
 data class DownloadDeleteRequest(
     val itemId: UUID,
     val sourceId: String?,
@@ -15,7 +20,7 @@ data class DownloadDeleteRequest(
     val serverId: String?,
     val userId: String?,
     val expectedGeneration: Long? = null,
-    val expectedGenerationOwned: Boolean = false,
+    val expectedGenerationOwnership: DownloadDeleteOwnedGeneration? = null,
 )
 
 enum class DownloadDeleteOutcome {
@@ -88,6 +93,9 @@ object DownloadDeletionIdentity {
 internal fun sourceDeletionOwnershipDetail(generation: Long): String =
     "w90-source-delete-owned:$generation"
 
+internal fun intentDeletionOwnershipDetail(generation: Long): String =
+    "w90-intent-delete-owned:$generation"
+
 data class DownloadDeleteBatchSnapshot(
     val batchId: String,
     val receipts: List<DownloadDeleteReceipt>,
@@ -122,7 +130,7 @@ class DownloadDeleteBatchProcessor(
         suspend (
             DownloadDeleteRequest,
             Boolean,
-            suspend (Long) -> Unit,
+            suspend (DownloadDeleteOwnedGeneration, Long) -> Unit,
         ) -> DownloadDeleteAttempt,
 ) {
     init {
@@ -195,10 +203,7 @@ class DownloadDeleteBatchProcessor(
                                                     batchId = snapshot.batchId,
                                                     canonicalKey = receipt.canonicalKey,
                                                 ),
-                                        expectedGenerationOwned =
-                                            receipt.expectedGeneration?.let {
-                                                receipt.detail == sourceDeletionOwnershipDetail(it)
-                                            } ?: false,
+                                        expectedGenerationOwnership = ownedGeneration(receipt),
                                     ),
                                 ordinal = receipt.ordinal,
                                 resumed = true,
@@ -217,29 +222,36 @@ class DownloadDeleteBatchProcessor(
         val receipts = mutableListOf<DownloadDeleteReceipt>()
         for ((request, ordinal, resumed) in requests) {
             var ownedGeneration = request.expectedGeneration
-            val claimGeneration: suspend (Long) -> Unit = { generation ->
-                ownedGeneration = generation
-                store.record(
-                    DownloadDeleteReceipt(
-                        batchId = batchId,
-                        canonicalKey = DownloadDeletionIdentity.canonicalKey(request),
-                        itemId = request.itemId,
-                        sourceId = request.sourceId,
-                        mediaKind = request.mediaKind,
-                        serverId = request.serverId,
-                        userId = request.userId,
-                        ordinal = ordinal,
-                        outcome = DownloadDeleteOutcome.PENDING,
-                        detail = sourceDeletionOwnershipDetail(generation),
-                        updatedAtMs = clock(),
-                        expectedGeneration = generation,
+            val claimGeneration: suspend (DownloadDeleteOwnedGeneration, Long) -> Unit =
+                { ownership, generation ->
+                    ownedGeneration = generation
+                    store.record(
+                        DownloadDeleteReceipt(
+                            batchId = batchId,
+                            canonicalKey = DownloadDeletionIdentity.canonicalKey(request),
+                            itemId = request.itemId,
+                            sourceId = request.sourceId,
+                            mediaKind = request.mediaKind,
+                            serverId = request.serverId,
+                            userId = request.userId,
+                            ordinal = ordinal,
+                            outcome = DownloadDeleteOutcome.PENDING,
+                            detail =
+                                when (ownership) {
+                                    DownloadDeleteOwnedGeneration.SOURCE ->
+                                        sourceDeletionOwnershipDetail(generation)
+                                    DownloadDeleteOwnedGeneration.INTENT ->
+                                        intentDeletionOwnershipDetail(generation)
+                                },
+                            updatedAtMs = clock(),
+                            expectedGeneration = generation,
+                        )
                     )
-                )
-                trustedGenerations.put(
-                    ReceiptIdentity(batchId, DownloadDeletionIdentity.canonicalKey(request)),
-                    generation,
-                )
-            }
+                    trustedGenerations.put(
+                        ReceiptIdentity(batchId, DownloadDeletionIdentity.canonicalKey(request)),
+                        generation,
+                    )
+                }
             val attempt =
                 try {
                     withTimeout(itemTimeoutMs) { delete(request, resumed, claimGeneration) }
@@ -307,6 +319,15 @@ class DownloadDeleteBatchProcessor(
         batchId: String,
         canonicalKey: String,
     ): Long? = trustedGenerations[ReceiptIdentity(batchId, canonicalKey)]
+
+    private fun ownedGeneration(receipt: DownloadDeleteReceipt): DownloadDeleteOwnedGeneration? =
+        receipt.expectedGeneration?.let { generation ->
+            when (receipt.detail) {
+                sourceDeletionOwnershipDetail(generation) -> DownloadDeleteOwnedGeneration.SOURCE
+                intentDeletionOwnershipDetail(generation) -> DownloadDeleteOwnedGeneration.INTENT
+                else -> null
+            }
+        }
 
     private fun forgetBatch(batchId: String) {
         trustedGenerations.keys.removeIf { it.batchId == batchId }

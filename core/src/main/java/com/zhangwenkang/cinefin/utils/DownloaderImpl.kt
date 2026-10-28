@@ -2881,16 +2881,40 @@ private constructor(
     private suspend fun deleteIntentAtGeneration(
         itemId: UUID,
         expectedGeneration: Long,
+        resumeOwnedGeneration: Boolean = false,
+        beforeDeleteFence: suspend (Long) -> Unit = {},
     ): Boolean =
         withContext(Dispatchers.IO) {
             val mutation =
                 itemMutationLock(itemId).withLock {
+                    val current = database.getDownloadIntent(itemId) ?: return@withLock null
+                    val ownedDeletionCommitted =
+                        resumeOwnedGeneration &&
+                            current.taskGeneration == expectedGeneration &&
+                            current.status == DownloadIntentStatus.FAILED.name &&
+                            current.failureReason == DownloadFailureReason.CANCELLED.name
+                    val ownedBeforeFence =
+                        resumeOwnedGeneration && expectedGeneration == current.taskGeneration + 1L
+                    if (
+                        if (resumeOwnedGeneration) {
+                            !ownedDeletionCommitted && !ownedBeforeFence
+                        } else {
+                            current.taskGeneration != expectedGeneration
+                        }
+                    ) {
+                        return@withLock null
+                    }
                     val cancelled =
-                        intentMutations.delete(
-                            itemId,
-                            expectedGeneration,
-                            System.currentTimeMillis(),
-                        ) ?: return@withLock null
+                        if (ownedDeletionCommitted) {
+                            current
+                        } else {
+                            beforeDeleteFence(current.taskGeneration + 1L)
+                            intentMutations.delete(
+                                itemId,
+                                current.taskGeneration,
+                                System.currentTimeMillis(),
+                            ) ?: return@withLock null
+                        }
                     // delete 与 cancel 共用同一快照边界：旧操作只能处理旧代已存在的 child。
                     cancelled to
                         database.getSources(itemId).map { source ->
@@ -3178,7 +3202,7 @@ private constructor(
     private suspend fun deleteDownloadRequest(
         request: DownloadDeleteRequest,
         resumed: Boolean,
-        claimGeneration: suspend (Long) -> Unit,
+        claimGeneration: suspend (DownloadDeleteOwnedGeneration, Long) -> Unit,
     ): DownloadDeleteAttempt =
         when (request.mediaKind) {
             DownloadMediaKind.BOOK -> {
@@ -3221,7 +3245,7 @@ private constructor(
             DownloadMediaKind.VIDEO -> {
                 val sourceId = request.sourceId?.takeIf(String::isNotBlank) ?: error("下载来源缺失")
                 if (sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
-                    deleteIntentForReceipt(sourceId, request, resumed)
+                    deleteIntentForReceipt(sourceId, request, resumed, claimGeneration)
                 } else {
                     deleteSourceForReceipt(sourceId, request, resumed, claimGeneration)
                 }
@@ -3232,6 +3256,7 @@ private constructor(
         sourceId: String,
         request: DownloadDeleteRequest,
         resumed: Boolean,
+        claimGeneration: suspend (DownloadDeleteOwnedGeneration, Long) -> Unit,
     ): DownloadDeleteAttempt {
         val itemId = sourceId.removePrefix(INTENT_SOURCE_PREFIX).let(UUID::fromString)
         val current =
@@ -3254,25 +3279,68 @@ private constructor(
                 } else {
                     current.taskGeneration
                 }
-        if (current.taskGeneration != expectedGeneration) {
+        val ownership = request.expectedGenerationOwnership
+        val sameGeneration = current.taskGeneration == expectedGeneration
+        val ownedDeletionCommitted =
+            ownership == DownloadDeleteOwnedGeneration.INTENT &&
+                sameGeneration &&
+                current.status == DownloadIntentStatus.FAILED.name &&
+                current.failureReason == DownloadFailureReason.CANCELLED.name
+        val ownedBeforeFence =
+            ownership == DownloadDeleteOwnedGeneration.INTENT &&
+                expectedGeneration == current.taskGeneration + 1L
+        val validResume =
+            when (ownership) {
+                DownloadDeleteOwnedGeneration.INTENT -> ownedDeletionCommitted || ownedBeforeFence
+                DownloadDeleteOwnedGeneration.SOURCE -> false
+                null -> sameGeneration
+            }
+        if (resumed && !validResume) {
+            return DownloadDeleteAttempt(
+                outcome = DownloadDeleteOutcome.SUPERSEDED,
+                detail =
+                    if (ownership == DownloadDeleteOwnedGeneration.SOURCE) {
+                        "删除所有权类型不匹配"
+                    } else {
+                        "下载意图删除代次不归该 receipt 所有或已被新代替换"
+                    },
+                expectedGeneration = expectedGeneration,
+            )
+        }
+        if (!resumed && !sameGeneration) {
             return DownloadDeleteAttempt(
                 outcome = DownloadDeleteOutcome.SUPERSEDED,
                 detail = "下载意图删除代次已被替换",
                 expectedGeneration = expectedGeneration,
             )
         }
+        val deletionGeneration =
+            if (ownedDeletionCommitted || ownedBeforeFence) {
+                expectedGeneration
+            } else {
+                expectedGeneration + 1L
+            }
         return try {
-            if (deleteIntentAtGeneration(itemId, expectedGeneration)) {
+            if (
+                deleteIntentAtGeneration(
+                    itemId = itemId,
+                    expectedGeneration = expectedGeneration,
+                    resumeOwnedGeneration = ownership == DownloadDeleteOwnedGeneration.INTENT,
+                    beforeDeleteFence = { generation ->
+                        claimGeneration(DownloadDeleteOwnedGeneration.INTENT, generation)
+                    },
+                )
+            ) {
                 DownloadDeleteAttempt(
                     outcome = DownloadDeleteOutcome.SUCCEEDED,
-                    expectedGeneration = expectedGeneration,
+                    expectedGeneration = deletionGeneration,
                 )
             } else {
                 DownloadDeleteAttempt(
                     outcome = DownloadDeleteOutcome.FAILED,
                     detail = "下载意图删除未确认",
                     expectedGeneration =
-                        database.getDownloadIntent(itemId)?.taskGeneration ?: expectedGeneration,
+                        database.getDownloadIntent(itemId)?.taskGeneration ?: deletionGeneration,
                 )
             }
         } catch (cancellation: CancellationException) {
@@ -3282,7 +3350,7 @@ private constructor(
                 outcome = DownloadDeleteOutcome.FAILED,
                 detail = error.message?.takeIf(String::isNotBlank) ?: error::class.simpleName,
                 expectedGeneration =
-                    database.getDownloadIntent(itemId)?.taskGeneration ?: expectedGeneration,
+                    database.getDownloadIntent(itemId)?.taskGeneration ?: deletionGeneration,
             )
         }
     }
@@ -3291,9 +3359,19 @@ private constructor(
         sourceId: String,
         request: DownloadDeleteRequest,
         resumed: Boolean,
-        claimGeneration: suspend (Long) -> Unit,
+        claimGeneration: suspend (DownloadDeleteOwnedGeneration, Long) -> Unit,
     ): DownloadDeleteAttempt =
         lifecycleControl.withSourceOperation(sourceId) {
+            if (
+                request.expectedGenerationOwnership != null &&
+                    request.expectedGenerationOwnership != DownloadDeleteOwnedGeneration.SOURCE
+            ) {
+                return@withSourceOperation DownloadDeleteAttempt(
+                    outcome = DownloadDeleteOutcome.SUPERSEDED,
+                    detail = "删除所有权类型不匹配",
+                    expectedGeneration = request.expectedGeneration,
+                )
+            }
             val current =
                 database.getSource(sourceId)
                     ?: return@withSourceOperation DownloadDeleteAttempt(
@@ -3312,7 +3390,7 @@ private constructor(
                 requestedGeneration == current.taskGeneration &&
                     currentStatus == DownloadTaskStatus.DELETING
             val ownedBeforeFence =
-                request.expectedGenerationOwned &&
+                request.expectedGenerationOwnership == DownloadDeleteOwnedGeneration.SOURCE &&
                     requestedGeneration == current.taskGeneration + 1L &&
                     currentStatus != DownloadTaskStatus.DELETING
             val validResume = sameDeletingGeneration || ownedBeforeFence
@@ -3366,7 +3444,9 @@ private constructor(
                     deleteTaskAtGenerationSerialized(
                         sourceId = sourceId,
                         expectedGeneration = current.taskGeneration,
-                        beforeDeleteFence = claimGeneration,
+                        beforeDeleteFence = { generation ->
+                            claimGeneration(DownloadDeleteOwnedGeneration.SOURCE, generation)
+                        },
                     )
                 ) {
                     DownloadDeleteAttempt(

@@ -5354,6 +5354,9 @@ class DownloaderImplRecoveryTest {
         var intentDeletionStarted = CompletableDeferred<Unit>()
         var releaseIntentDeletion = CompletableDeferred<Unit>()
         private var blockIntentDeletion = false
+        var intentDeletionCommitted = CompletableDeferred<Unit>()
+        private var interruptIntentDeletionAfterCommit = false
+        private var interruptIntentDeletionBeforeCommit = false
         var intentSourceCreatedCasStarted = CompletableDeferred<Unit>()
         var releaseIntentSourceCreatedCas = CompletableDeferred<Unit>()
         private var blockIntentSourceCreatedCas = false
@@ -5761,6 +5764,11 @@ class DownloaderImplRecoveryTest {
                         "getDownloadIntents" -> downloadIntents.values.toList()
                         "getDownloadIntent" -> downloadIntents[args[0] as UUID]
                         "beginDownloadIntentDeletion" -> {
+                            if (interruptIntentDeletionBeforeCommit) {
+                                interruptIntentDeletionBeforeCommit = false
+                                intentDeletionStarted.complete(Unit)
+                                throw CancellationException("模拟 intent CAS 前进程中断")
+                            }
                             if (blockIntentDeletion) {
                                 blockIntentDeletion = false
                                 intentDeletionStarted.complete(Unit)
@@ -5779,18 +5787,22 @@ class DownloaderImplRecoveryTest {
                                             DownloadIntentStatus.FAILED.name,
                                         )
                             ) {
-                                current
-                                    .copy(
+                                val deleted =
+                                    current.copy(
                                         status = DownloadIntentStatus.FAILED.name,
                                         failureReason = DownloadFailureReason.CANCELLED.name,
                                         failureDetail = null,
                                         taskGeneration = generation + 1,
                                         updatedAt = args[2] as Long,
                                     )
-                                    .also {
-                                        downloadIntents[itemId] = it
-                                        lastIntentDeletionGeneration = it.taskGeneration
-                                    }
+                                downloadIntents[itemId] = deleted
+                                lastIntentDeletionGeneration = deleted.taskGeneration
+                                if (interruptIntentDeletionAfterCommit) {
+                                    interruptIntentDeletionAfterCommit = false
+                                    intentDeletionCommitted.complete(Unit)
+                                    throw CancellationException("模拟 intent CAS 后进程中断")
+                                }
+                                deleted
                             } else {
                                 null
                             }
@@ -6186,6 +6198,20 @@ class DownloaderImplRecoveryTest {
             if (!releaseIntentDeletion.isCompleted) {
                 releaseIntentDeletion.complete(Unit)
             }
+        }
+
+        fun armIntentDeletionInterruptionAfterCommit() {
+            intentDeletionCommitted = CompletableDeferred()
+            interruptIntentDeletionAfterCommit = true
+        }
+
+        fun armIntentDeletionInterruptionBeforeCommit() {
+            intentDeletionStarted = CompletableDeferred()
+            interruptIntentDeletionBeforeCommit = true
+        }
+
+        suspend fun awaitIntentDeletionCommitted() {
+            intentDeletionCommitted.await()
         }
 
         fun armIntentSourceCreatedCasGate() {

@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.utils
 
+import com.zhangwenkang.cinefin.models.DownloadIntentStatus
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -203,6 +204,245 @@ class DownloaderImplDeleteReceiptRecoveryTest {
     }
 
     @Test
+    fun `process interruption after intent delete CAS resumes its owned generation`() =
+        runBlocking {
+            val fixture = DownloaderImplRecoveryTest.Fixture()
+            try {
+                val itemId = UUID(0L, 903L)
+                val intent =
+                    fixture.seedReceivedIntentWithPendingSidecar(
+                        itemId = itemId,
+                        sourceId = intentSourceId(itemId),
+                        name = "intent-post-cas",
+                    )
+                fixture.dao.armIntentDeletionInterruptionAfterCommit()
+
+                val deletion =
+                    async(Dispatchers.IO) {
+                        fixture.downloader.deleteDownloads(
+                            listOf(
+                                DownloadDeleteRequest(
+                                    itemId = itemId,
+                                    sourceId = intentSourceId(itemId),
+                                    mediaKind = DownloadMediaKind.MUSIC,
+                                    serverId = SERVER_ID,
+                                    userId = USER_ID.toString(),
+                                )
+                            )
+                        )
+                    }
+                withTimeout(5_000L) { fixture.dao.awaitIntentDeletionCommitted() }
+                val fenced = requireNotNull(fixture.dao.downloadIntent(itemId))
+                assertEquals(intent.taskGeneration + 1L, fenced.taskGeneration)
+                assertEquals(DownloadIntentStatus.FAILED.name, fenced.status)
+                assertTrue(
+                    runCatching { deletion.await() }.exceptionOrNull()
+                        is kotlinx.coroutines.CancellationException
+                )
+
+                val pending = fixture.dao.pendingDeleteReceipts().single()
+                assertEquals(DownloadDeleteOutcome.PENDING.name, pending.outcome)
+                assertEquals(
+                    intentDeletionOwnershipDetail(intent.taskGeneration + 1L),
+                    pending.detail,
+                )
+                val batchId = pending.batchId
+
+                val recovered = fixture.newDownloader().recoverOnStartup()
+                val receipt = fixture.dao.deleteReceipts(batchId).single()
+
+                assertEquals(
+                    "同一 intent 删除拥有的 ${intent.taskGeneration + 1L} 代必须续删到真实终态；" +
+                        "receipt=${receipt.outcome}/${receipt.detail}",
+                    DownloadDeleteOutcome.SUCCEEDED.name,
+                    receipt.outcome,
+                )
+                assertEquals(intent.taskGeneration + 1L, receipt.verifiedGeneration)
+                assertNull(receipt.detail)
+                assertNull(fixture.dao.downloadIntent(itemId))
+                assertEquals(1, recovered)
+            } finally {
+                fixture.close()
+            }
+        }
+
+    @Test
+    fun `process interruption after intent claim retries the owned CAS`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val itemId = UUID(0L, 905L)
+            val intent =
+                fixture.seedReceivedIntentWithPendingSidecar(
+                    itemId = itemId,
+                    sourceId = intentSourceId(itemId),
+                    name = "intent-pre-cas",
+                )
+            fixture.dao.armIntentDeletionInterruptionBeforeCommit()
+
+            val deletion =
+                async(Dispatchers.IO) {
+                    fixture.downloader.deleteDownloads(
+                        listOf(
+                            DownloadDeleteRequest(
+                                itemId = itemId,
+                                sourceId = intentSourceId(itemId),
+                                mediaKind = DownloadMediaKind.MUSIC,
+                                serverId = SERVER_ID,
+                                userId = USER_ID.toString(),
+                            )
+                        )
+                    )
+                }
+            withTimeout(5_000L) { fixture.dao.awaitIntentDeletion() }
+            assertTrue(
+                runCatching { deletion.await() }.exceptionOrNull()
+                    is kotlinx.coroutines.CancellationException
+            )
+
+            assertEquals(intent, fixture.dao.downloadIntent(itemId))
+            val pending = fixture.dao.pendingDeleteReceipts().single()
+            assertEquals(intent.taskGeneration + 1L, pending.verifiedGeneration)
+            assertEquals(
+                intentDeletionOwnershipDetail(intent.taskGeneration + 1L),
+                pending.detail,
+            )
+            val batchId = pending.batchId
+
+            val recovered = fixture.newDownloader().recoverOnStartup()
+            val receipt = fixture.dao.deleteReceipts(batchId).single()
+
+            assertEquals(DownloadDeleteOutcome.SUCCEEDED.name, receipt.outcome)
+            assertEquals(intent.taskGeneration + 1L, receipt.verifiedGeneration)
+            assertNull(receipt.detail)
+            assertNull(fixture.dao.downloadIntent(itemId))
+            assertEquals(1, recovered)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `owned intent receipt does not absorb a later generation`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val itemId = UUID(0L, 904L)
+            val intent =
+                fixture.seedReceivedIntentWithPendingSidecar(
+                    itemId = itemId,
+                    sourceId = intentSourceId(itemId),
+                    name = "intent-later-generation",
+                )
+            fixture.dao.armIntentDeletionInterruptionAfterCommit()
+
+            val deletion =
+                async(Dispatchers.IO) {
+                    fixture.downloader.deleteDownloads(
+                        listOf(
+                            DownloadDeleteRequest(
+                                itemId = itemId,
+                                sourceId = intentSourceId(itemId),
+                                mediaKind = DownloadMediaKind.MUSIC,
+                                serverId = SERVER_ID,
+                                userId = USER_ID.toString(),
+                            )
+                        )
+                    )
+                }
+            withTimeout(5_000L) { fixture.dao.awaitIntentDeletionCommitted() }
+            assertTrue(
+                runCatching { deletion.await() }.exceptionOrNull()
+                    is kotlinx.coroutines.CancellationException
+            )
+
+            val owned = requireNotNull(fixture.dao.downloadIntent(itemId))
+            val later =
+                owned.copy(
+                    status = DownloadIntentStatus.RECEIVED.name,
+                    failureReason = null,
+                    failureDetail = null,
+                    taskGeneration = owned.taskGeneration + 1L,
+                    updatedAt = owned.updatedAt + 1L,
+                )
+            fixture.dao.putDownloadIntent(later)
+            val sidecarBefore = fixture.downloader.mediaSidecar().allRecords()
+            val sourcesBefore = fixture.dao.sourceIds()
+            val batchId = fixture.dao.pendingDeleteReceipts().single().batchId
+
+            assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+            assertEquals(later, fixture.dao.downloadIntent(itemId))
+            assertEquals(sidecarBefore, fixture.downloader.mediaSidecar().allRecords())
+            assertEquals(sourcesBefore, fixture.dao.sourceIds())
+            assertEquals(
+                DownloadDeleteOutcome.SUPERSEDED.name,
+                fixture.dao.deleteReceipts(batchId).single().outcome,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `owned intent receipt does not absorb another action at the same generation`() =
+        runBlocking {
+            val fixture = DownloaderImplRecoveryTest.Fixture()
+            try {
+                val itemId = UUID(0L, 906L)
+                fixture.seedReceivedIntentWithPendingSidecar(
+                    itemId = itemId,
+                    sourceId = intentSourceId(itemId),
+                    name = "intent-other-owner-same-generation",
+                )
+                fixture.dao.armIntentDeletionInterruptionAfterCommit()
+
+                val deletion =
+                    async(Dispatchers.IO) {
+                        fixture.downloader.deleteDownloads(
+                            listOf(
+                                DownloadDeleteRequest(
+                                    itemId = itemId,
+                                    sourceId = intentSourceId(itemId),
+                                    mediaKind = DownloadMediaKind.MUSIC,
+                                    serverId = SERVER_ID,
+                                    userId = USER_ID.toString(),
+                                )
+                            )
+                        )
+                    }
+                withTimeout(5_000L) { fixture.dao.awaitIntentDeletionCommitted() }
+                assertTrue(
+                    runCatching { deletion.await() }.exceptionOrNull()
+                        is kotlinx.coroutines.CancellationException
+                )
+
+                val owned = requireNotNull(fixture.dao.downloadIntent(itemId))
+                val otherOwner =
+                    owned.copy(
+                        status = DownloadIntentStatus.RECEIVED.name,
+                        failureReason = null,
+                        failureDetail = null,
+                        updatedAt = owned.updatedAt + 1L,
+                    )
+                fixture.dao.putDownloadIntent(otherOwner)
+                val sidecarBefore = fixture.downloader.mediaSidecar().allRecords()
+                val sourcesBefore = fixture.dao.sourceIds()
+                val batchId = fixture.dao.pendingDeleteReceipts().single().batchId
+
+                assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+                assertEquals(otherOwner, fixture.dao.downloadIntent(itemId))
+                assertEquals(sidecarBefore, fixture.downloader.mediaSidecar().allRecords())
+                assertEquals(sourcesBefore, fixture.dao.sourceIds())
+                assertEquals(
+                    DownloadDeleteOutcome.SUPERSEDED.name,
+                    fixture.dao.deleteReceipts(batchId).single().outcome,
+                )
+            } finally {
+                fixture.close()
+            }
+        }
+
+    @Test
     fun `new instance supersedes changed intent generation with no side effects`() = runBlocking {
         val fixture = DownloaderImplRecoveryTest.Fixture()
         try {
@@ -299,6 +539,110 @@ class DownloaderImplDeleteReceiptRecoveryTest {
                 fixture.close()
             }
         }
+
+    @Test
+    fun `source ownership marker cannot claim an intent deletion`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val itemId = UUID(0L, 907L)
+            val intent =
+                fixture.seedReceivedIntentWithPendingSidecar(
+                    itemId = itemId,
+                    sourceId = intentSourceId(itemId),
+                    name = "source-marker-isolation",
+                )
+            val expected = intent.taskGeneration + 1L
+            fixture.dao.seedPendingDeleteBatch(
+                batchId = "intent-source-marker",
+                itemId = itemId,
+                sourceId = intentSourceId(itemId),
+                expectedGeneration = expected,
+                mediaKind = DownloadMediaKind.MUSIC,
+                detail = sourceDeletionOwnershipDetail(expected),
+            )
+            val sidecarBefore = fixture.downloader.mediaSidecar().allRecords()
+
+            assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+            assertEquals(intent, fixture.dao.downloadIntent(itemId))
+            assertEquals(sidecarBefore, fixture.downloader.mediaSidecar().allRecords())
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            val receipt = fixture.dao.deleteReceipts("intent-source-marker").single()
+            assertEquals(DownloadDeleteOutcome.SUPERSEDED.name, receipt.outcome)
+            assertTrue(receipt.detail?.contains("w90-") != true)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `intent ownership marker cannot claim a source deletion`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val deleting = fixture.seedDeletingSource()
+            fixture.dao.seedPendingDeleteBatch(
+                batchId = "source-intent-marker",
+                itemId = deleting.itemId,
+                sourceId = deleting.id,
+                expectedGeneration = deleting.taskGeneration,
+                detail = intentDeletionOwnershipDetail(deleting.taskGeneration),
+            )
+            fixture.dao.sourceEvents.clear()
+
+            assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+            assertEquals(deleting, fixture.dao.sourceById(deleting.id))
+            assertTrue(fixture.dao.sourceEvents.isEmpty())
+            val receipt = fixture.dao.deleteReceipts("source-intent-marker").single()
+            assertEquals(DownloadDeleteOutcome.SUPERSEDED.name, receipt.outcome)
+            assertTrue(receipt.detail?.contains("w90-") != true)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `intent terminal and new batch clear the internal ownership marker`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val itemId = UUID(0L, 908L)
+            fixture.seedReceivedIntentWithPendingSidecar(
+                itemId = itemId,
+                sourceId = intentSourceId(itemId),
+                name = "marker-lifecycle",
+            )
+            val request =
+                DownloadDeleteRequest(
+                    itemId = itemId,
+                    sourceId = intentSourceId(itemId),
+                    mediaKind = DownloadMediaKind.MUSIC,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                )
+            val blockedReplace = fixture.blockSidecarReplace()
+
+            val failedBatch = fixture.downloader.deleteDownloads(listOf(request))
+            val failedReceipt = failedBatch.receipts.single()
+
+            assertEquals(DownloadDeleteOutcome.FAILED, failedReceipt.outcome)
+            assertTrue(failedReceipt.detail?.isNotBlank() == true)
+            assertTrue(failedReceipt.detail?.contains("w90-") != true)
+            assertEquals(
+                DownloadIntentStatus.FAILED.name,
+                fixture.dao.downloadIntent(itemId)?.status,
+            )
+
+            assertTrue(blockedReplace.deleteRecursively())
+            val retriedBatch = fixture.newDownloader().deleteDownloads(listOf(request))
+            val retriedReceipt = retriedBatch.receipts.single()
+
+            assertEquals(DownloadDeleteOutcome.SUCCEEDED, retriedReceipt.outcome)
+            assertNull(retriedReceipt.detail)
+            assertNull(fixture.dao.downloadIntent(itemId))
+        } finally {
+            fixture.close()
+        }
+    }
 
     private companion object {
         const val SOURCE_ID = "source-recovery"
