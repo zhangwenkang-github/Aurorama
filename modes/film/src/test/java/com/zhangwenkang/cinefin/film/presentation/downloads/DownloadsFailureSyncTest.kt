@@ -6,6 +6,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
 import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
@@ -22,9 +23,12 @@ import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.createTempDirectory
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -60,13 +64,152 @@ class DownloadsFailureSyncTest {
 
             fixture.releaseRemote()
             fixture.awaitRemoteIdle()
-            Thread.sleep(150)
 
             val state = fixture.viewModel.state.value
             assertTrue("stale remote restored the running projection", state.activeTasks.isEmpty())
             assertEquals(
                 listOf(DownloadTaskStatus.FAILED),
                 state.failedTasks.map(DownloadTask::status),
+            )
+        }
+    }
+
+    @Test
+    fun `burst book and queue events use one bounded refresh and one trailing refresh`() {
+        Fixture().use { fixture ->
+            fixture.allowRemoteImmediately()
+            fixture.start()
+            fixture.waitUntil("initial running task was not published") {
+                fixture.viewModel.state.value.activeTasks.singleOrNull()?.status ==
+                    DownloadTaskStatus.RUNNING
+            }
+            fixture.awaitRemoteIdle()
+
+            val baselineRefreshCount = fixture.refreshCount.get()
+            val baselineActiveChildren = fixture.activeSessionChildCount()
+            fixture.resetExternalRefreshIngress()
+            fixture.blockNextLocalRefresh()
+
+            assertTrue("queue event was not accepted", fixture.queueChanges.tryEmit(Unit))
+            fixture.awaitLocalRefreshBlocked()
+
+            repeat(12) { progress ->
+                fixture.books.value =
+                    listOf(
+                        bookTask(
+                            itemId = BOOK_ID,
+                            status = BookDownloadStatus.RUNNING,
+                            generation = 1,
+                            updatedAt = 100,
+                            downloadedBytes = (progress + 1) * 10L,
+                        )
+                    )
+                assertTrue(
+                    "queue event burst was not accepted",
+                    fixture.queueChanges.tryEmit(Unit),
+                )
+            }
+            fixture.waitUntil("external refresh ingress did not drain") {
+                fixture.externalRefreshIngressCount() >= 13
+            }
+
+            fixture.releaseLocalRefresh()
+            fixture.waitUntil("trailing refresh did not run") {
+                fixture.refreshCount.get() - baselineRefreshCount >= 2
+            }
+            fixture.waitUntil("refresh work did not become quiescent") {
+                fixture.activeSessionChildCount() == baselineActiveChildren
+            }
+
+            assertEquals(
+                "a burst must run once immediately and only one trailing refresh",
+                2,
+                fixture.refreshCount.get() - baselineRefreshCount,
+            )
+        }
+    }
+
+    @Test
+    fun `changed completion and progress projection cannot be overwritten by blocked remote`() {
+        Fixture().use { fixture ->
+            fixture.books.value =
+                listOf(
+                    bookTask(
+                        itemId = BOOK_ID,
+                        status = BookDownloadStatus.RUNNING,
+                        generation = 1,
+                        updatedAt = 100,
+                        downloadedBytes = 25,
+                    )
+                )
+            fixture.start()
+            fixture.awaitRemoteStarted()
+            fixture.waitUntil("initial book progress was not published") {
+                fixture.viewModel.state.value.activeContainers
+                    .flatMap { it.allEntries() }
+                    .any { it.itemId == BOOK_ID && it.downloadedBytes == 25L }
+            }
+
+            fixture.tasks.value =
+                listOf(
+                    videoTask(
+                        status = DownloadTaskStatus.RUNNING,
+                        generation = 1,
+                        updatedAt = 100,
+                        downloadedBytes = 50,
+                    )
+                )
+            fixture.books.value =
+                listOf(
+                    bookTask(
+                        itemId = BOOK_ID,
+                        status = BookDownloadStatus.RUNNING,
+                        generation = 1,
+                        updatedAt = 100,
+                        downloadedBytes = 50,
+                    )
+                )
+            fixture.bookFiles.set(
+                listOf(LocalBookFile(itemId = BOOK_ID, sizeBytes = 42, title = "Fresh book"))
+            )
+            assertTrue("queue event was not accepted", fixture.queueChanges.tryEmit(Unit))
+
+            fixture.waitUntil(
+                "new completion and progress projection was not published before remote finished",
+                failureDetail = {
+                    Triple(
+                        fixture.viewModel.state.value,
+                        fixture.externalRefreshIngressCount(),
+                        fixture.bookFiles.get(),
+                    )
+                },
+            ) {
+                val state = fixture.viewModel.state.value
+                state.activeTasks.singleOrNull()?.downloadedBytes == 50L &&
+                    state.activeContainers
+                        .flatMap { it.allEntries() }
+                        .any { it.itemId == BOOK_ID && it.downloadedBytes == 50L } &&
+                    state.bookStorageBytes == 42L
+            }
+
+            fixture.releaseRemote()
+            fixture.awaitRemoteIdle()
+
+            val state = fixture.viewModel.state.value
+            assertEquals(
+                "stale remote overwrote newer task progress",
+                50L,
+                state.activeTasks.singleOrNull()?.downloadedBytes,
+            )
+            assertTrue(
+                "stale remote overwrote newer book progress",
+                state.activeContainers
+                    .flatMap { it.allEntries() }
+                    .any { it.itemId == BOOK_ID && it.downloadedBytes == 50L },
+            )
+            assertTrue(
+                "stale remote restored an old completed-book projection",
+                state.completedContainers.flatMap { it.allEntries() }.any { it.itemId == BOOK_ID },
             )
         }
     }
@@ -158,6 +301,7 @@ class DownloadsFailureSyncTest {
     fun `stop cancels polling and event collection`() {
         Fixture().use { fixture ->
             fixture.start()
+            fixture.start()
             fixture.awaitRemoteStarted()
             fixture.waitUntil("queue collector was not started") {
                 fixture.queueChanges.subscriptionCount.value == 1
@@ -167,24 +311,36 @@ class DownloadsFailureSyncTest {
                     DownloadTaskStatus.RUNNING
             }
 
+            fixture.resetExternalRefreshIngress()
+            fixture.blockNextLocalRefresh()
+            assertTrue("queue event was not accepted", fixture.queueChanges.tryEmit(Unit))
+            fixture.awaitLocalRefreshBlocked()
+            fixture.waitUntil("queue ingress did not reach the ViewModel") {
+                fixture.externalRefreshIngressCount() == 1
+            }
+
+            fixture.viewModel.stop()
             fixture.viewModel.stop()
             fixture.waitUntil("queue collector remained active after stop") {
                 fixture.queueChanges.subscriptionCount.value == 0
             }
             val refreshCountAfterStop = fixture.refreshCount.get()
+            val ingressAfterStop = fixture.externalRefreshIngressCount()
 
             fixture.tasks.value = listOf(failedVideoTask(generation = 2, updatedAt = 200))
             assertTrue("queue event was not accepted", fixture.queueChanges.tryEmit(Unit))
-            Thread.sleep(200)
+            fixture.releaseLocalRefresh()
+            fixture.releaseRemote()
+            fixture.waitUntil("session jobs remained active after stop") {
+                fixture.activeSessionChildCount() == 0
+            }
 
             assertEquals(refreshCountAfterStop, fixture.refreshCount.get())
+            assertEquals(ingressAfterStop, fixture.externalRefreshIngressCount())
             assertEquals(
                 DownloadTaskStatus.RUNNING,
                 fixture.viewModel.state.value.activeTasks.single().status,
             )
-
-            Thread.sleep(1_700)
-            assertEquals(refreshCountAfterStop, fixture.refreshCount.get())
         }
     }
 
@@ -201,6 +357,7 @@ class DownloadsFailureSyncTest {
         generation: Long,
         updatedAt: Long,
         failureReason: DownloadFailureReason? = null,
+        downloadedBytes: Long = 25,
     ) =
         DownloadTask(
             itemId = VIDEO_ID,
@@ -210,7 +367,7 @@ class DownloadsFailureSyncTest {
             downloadId = null,
             status = status,
             failureReason = failureReason,
-            downloadedBytes = 25,
+            downloadedBytes = downloadedBytes,
             totalBytes = 100,
             updatedAt = updatedAt,
             mediaKind = DownloadMediaKind.VIDEO,
@@ -227,11 +384,12 @@ class DownloadsFailureSyncTest {
         canonicalKey: String = itemId.toString(),
         failureReason: String? = null,
         error: String? = null,
+        downloadedBytes: Long = 25,
     ) =
         BookDownloadTask(
             itemId = itemId,
             title = "Book",
-            downloadedBytes = 25,
+            downloadedBytes = downloadedBytes,
             totalBytes = 100,
             status = status,
             error = error,
@@ -250,12 +408,16 @@ class DownloadsFailureSyncTest {
         private val context = TestContext(createTempDirectory().toFile())
         private val remoteStarted = CountDownLatch(1)
         private val releaseRemote = CountDownLatch(1)
-        private val remoteFinished = CountDownLatch(1)
         private val remoteAllowed = AtomicInteger(0)
+        private val localRefreshEntered = CountDownLatch(1)
+        private val releaseLocalRefresh = CountDownLatch(1)
+        private val blockNextLocalRefresh = AtomicBoolean(false)
+        private val externalRefreshIngress = AtomicInteger(0)
 
         val tasks = MutableStateFlow(listOf(runningVideoTask()))
         val books = MutableStateFlow(emptyList<BookDownloadTask>())
-        val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
+        val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
+        val bookFiles = AtomicReference<List<LocalBookFile>>(emptyList())
         val refreshCount = AtomicInteger(0)
 
         val viewModel: DownloadsViewModel
@@ -267,6 +429,12 @@ class DownloadsFailureSyncTest {
                         "getQueueChanges" -> queueChanges
                         "refreshDownloadTasks" -> {
                             refreshCount.incrementAndGet()
+                            if (blockNextLocalRefresh.compareAndSet(true, false)) {
+                                localRefreshEntered.countDown()
+                                check(releaseLocalRefresh.await(5, TimeUnit.SECONDS)) {
+                                    "local refresh gate was not released"
+                                }
+                            }
                             tasks.value
                         }
                         "downloadedMediaRecords" -> emptyList<Any>()
@@ -287,7 +455,7 @@ class DownloadsFailureSyncTest {
                 proxy(ReaderRepository::class.java) { method, _ ->
                     when (method.name) {
                         "getBookDownloads" -> books
-                        "listLocalFiles" -> emptyList<Any>()
+                        "listLocalFiles" -> bookFiles.get()
                         else -> defaultValue(method.returnType)
                     }
                 }
@@ -309,6 +477,9 @@ class DownloadsFailureSyncTest {
                     imageCacheStore = imageCacheStore(context),
                 )
             viewModel.actionScopeOverride = scope
+            viewModel.externalRefreshIngressObserverForTest = {
+                externalRefreshIngress.incrementAndGet()
+            }
         }
 
         fun start() {
@@ -320,9 +491,7 @@ class DownloadsFailureSyncTest {
         }
 
         fun awaitRemoteIdle() {
-            waitUntil("remote metadata did not finish") {
-                remoteFinished.await(0, TimeUnit.MILLISECONDS)
-            }
+            waitUntil("remote metadata did not finish") { viewModel.isRemoteRefreshIdleForTest() }
         }
 
         fun allowRemoteImmediately() {
@@ -332,6 +501,36 @@ class DownloadsFailureSyncTest {
 
         fun releaseRemote() {
             releaseRemote.countDown()
+        }
+
+        fun blockNextLocalRefresh() {
+            check(blockNextLocalRefresh.compareAndSet(false, true)) {
+                "local refresh was already configured to block"
+            }
+        }
+
+        fun awaitLocalRefreshBlocked() {
+            assertTrue(
+                "local refresh did not reach the blocked read",
+                localRefreshEntered.await(5, TimeUnit.SECONDS),
+            )
+        }
+
+        fun releaseLocalRefresh() {
+            releaseLocalRefresh.countDown()
+        }
+
+        fun resetExternalRefreshIngress() {
+            externalRefreshIngress.set(0)
+        }
+
+        fun externalRefreshIngressCount(): Int = externalRefreshIngress.get()
+
+        fun activeSessionChildCount(): Int {
+            val field = DownloadsViewModel::class.java.getDeclaredField("sessionJob")
+            field.isAccessible = true
+            val session = field.get(viewModel) as? Job ?: return 0
+            return session.children.count { it.isActive }
         }
 
         fun waitUntil(
@@ -351,20 +550,18 @@ class DownloadsFailureSyncTest {
         private fun awaitRemoteAndReturnDownloads(): List<FindroidItem> {
             if (remoteAllowed.get() == 0) {
                 remoteStarted.countDown()
-                try {
-                    releaseRemote.await(5, TimeUnit.SECONDS)
-                } finally {
-                    remoteFinished.countDown()
+                check(releaseRemote.await(5, TimeUnit.SECONDS)) {
+                    "remote metadata gate was not released"
                 }
             } else {
                 remoteStarted.countDown()
-                remoteFinished.countDown()
             }
             return emptyList()
         }
 
         override fun close() {
             releaseRemote()
+            releaseLocalRefresh()
             scope.cancel()
             executor.shutdownNow()
         }
@@ -372,6 +569,7 @@ class DownloadsFailureSyncTest {
 
     private companion object {
         val VIDEO_ID: UUID = UUID.nameUUIDFromBytes("failure-sync-video".toByteArray())
+        val BOOK_ID: UUID = UUID.nameUUIDFromBytes("failure-sync-book".toByteArray())
         val USER_ID: UUID = UUID.nameUUIDFromBytes("failure-sync-user".toByteArray())
 
         fun runningVideoTask() =

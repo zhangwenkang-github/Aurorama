@@ -44,6 +44,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -172,13 +173,20 @@ constructor(
     /** 本地 JVM action test 注入确定性作用域；生产保持 ViewModel 生命周期。 */
     internal var actionScopeOverride: CoroutineScope? = null
 
+    /** 包内测试屏障：确认 queue / book 事件已到达 ingress，不改变生产语义。 */
+    internal var externalRefreshIngressObserverForTest: (() -> Unit)? = null
+
     private fun actionScope(): CoroutineScope = actionScopeOverride ?: viewModelScope
 
     private var sessionJob: Job? = null
     private var pollingJob: Job? = null
     private var queueChangesJob: Job? = null
     private var bookDownloadsJob: Job? = null
+    private var externalRefreshRequestsJob: Job? = null
+    @Volatile private var externalRefreshRequests: Channel<Unit>? = null
     private var remoteRefreshJob: Job? = null
+    private val remoteRefreshLock = Any()
+    private var pendingRemoteSnapshot: LocalDownloadSnapshot? = null
     private val localRefreshMutex = Mutex()
     @Volatile private var localSnapshotToken: String? = null
     private val cachedBookMetadata = mutableMapOf<UUID, BookMetadata>()
@@ -199,6 +207,13 @@ constructor(
         val session = SupervisorJob(actionScope().coroutineContext[Job])
         sessionJob = session
         val scope = CoroutineScope(actionScope().coroutineContext + session)
+        val refreshRequests = Channel<Unit>(Channel.CONFLATED)
+        externalRefreshRequests = refreshRequests
+        externalRefreshRequestsJob = scope.launch {
+            for (ignored in refreshRequests) {
+                refresh(showLoading = false)
+            }
+        }
         queueChangesJob = scope.launch {
             downloader.queueChanges.collect { requestExternalRefresh() }
         }
@@ -222,18 +237,32 @@ constructor(
         queueChangesJob = null
         bookDownloadsJob?.cancel()
         bookDownloadsJob = null
-        remoteRefreshJob?.cancel()
-        remoteRefreshJob = null
+        externalRefreshRequests?.close()
+        externalRefreshRequests = null
+        externalRefreshRequestsJob?.cancel()
+        externalRefreshRequestsJob = null
+        val pendingRemoteJob =
+            synchronized(remoteRefreshLock) {
+                pendingRemoteSnapshot = null
+                remoteRefreshJob.also { remoteRefreshJob = null }
+            }
+        pendingRemoteJob?.cancel()
         sessionJob?.cancel()
         sessionJob = null
     }
 
     private fun requestExternalRefresh() {
-        val session = sessionJob ?: return
-        CoroutineScope(actionScope().coroutineContext + session).launch {
-            refresh(showLoading = false)
+        if (sessionJob == null) return
+        if (externalRefreshRequests?.trySend(Unit)?.isSuccess == true) {
+            externalRefreshIngressObserverForTest?.invoke()
         }
     }
+
+    /** 包内测试屏障：remote job 及其 mapping / 最终发布路径均已结束。 */
+    internal fun isRemoteRefreshIdleForTest(): Boolean =
+        synchronized(remoteRefreshLock) {
+            remoteRefreshJob == null && pendingRemoteSnapshot == null
+        }
 
     /** W34：层级条目对应的媒体条目（用于打开详情 / 阅读器）。 */
     fun itemForEntry(key: String): FindroidItem? {
@@ -758,9 +787,7 @@ constructor(
     private suspend fun refresh(showLoading: Boolean) {
         try {
             val snapshot = localRefreshMutex.withLock { refreshLocal(showLoading) }
-            if (remoteRefreshJob?.isActive != true) {
-                launchRemoteRefresh(snapshot)
-            }
+            enqueueRemoteRefresh(snapshot)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
@@ -852,6 +879,8 @@ constructor(
                 tasks = tasks,
                 completedCanonicalKeys = completedCanonicalKeys,
                 bookTasks = bookTasks,
+                bookFiles = bookFiles,
+                completedBookIds = completedBookIds,
             )
         currentCoroutineContext().ensureActive()
         _state.update { current ->
@@ -889,27 +918,60 @@ constructor(
         )
     }
 
-    private fun launchRemoteRefresh(snapshot: LocalDownloadSnapshot) {
+    private fun enqueueRemoteRefresh(snapshot: LocalDownloadSnapshot) {
         val session = sessionJob ?: return
-        val scope = CoroutineScope(actionScope().coroutineContext + session)
-        val job =
-            scope.launch(start = CoroutineStart.LAZY) {
-                try {
-                    refreshRemote(snapshot)
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (error: Exception) {
-                    Timber.e(error, "下载页远程元数据刷新失败")
-                    _state.update { it.copy(isLoading = false) }
+        var jobToStart: Job? = null
+        synchronized(remoteRefreshLock) {
+            if (sessionJob !== session || !session.isActive) return
+            if (remoteRefreshJob != null) {
+                pendingRemoteSnapshot = snapshot
+                return
+            }
+            val scope = CoroutineScope(actionScope().coroutineContext + session)
+            val job =
+                scope.launch(start = CoroutineStart.LAZY) {
+                    runRemoteRefreshLoop(session, snapshot)
+                }
+            remoteRefreshJob = job
+            job.invokeOnCompletion {
+                synchronized(remoteRefreshLock) {
+                    if (remoteRefreshJob === job) {
+                        remoteRefreshJob = null
+                    }
                 }
             }
-        remoteRefreshJob = job
-        job.invokeOnCompletion {
-            if (remoteRefreshJob === job) {
-                remoteRefreshJob = null
-            }
+            jobToStart = job
         }
-        job.start()
+        jobToStart?.start()
+    }
+
+    private suspend fun runRemoteRefreshLoop(session: Job, initial: LocalDownloadSnapshot) {
+        val runningJob = currentCoroutineContext()[Job]
+        var snapshot: LocalDownloadSnapshot? = initial
+        while (snapshot != null) {
+            try {
+                refreshRemote(snapshot)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.e(error, "下载页远程元数据刷新失败")
+                _state.update { it.copy(isLoading = false) }
+            }
+            snapshot =
+                synchronized(remoteRefreshLock) {
+                    if (sessionJob !== session || !session.isActive) {
+                        pendingRemoteSnapshot = null
+                        null
+                    } else {
+                        pendingRemoteSnapshot.also {
+                            pendingRemoteSnapshot = null
+                            if (it == null && remoteRefreshJob === runningJob) {
+                                remoteRefreshJob = null
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     private suspend fun refreshRemote(snapshot: LocalDownloadSnapshot) {
@@ -1026,36 +1088,106 @@ constructor(
         tasks: List<DownloadTask>,
         completedCanonicalKeys: Set<String>,
         bookTasks: List<BookDownloadTask>,
+        bookFiles: List<LocalBookFile>,
+        completedBookIds: Set<UUID>,
     ): String {
-        val taskToken =
+        val taskRows =
             tasks
                 .map { task ->
-                    listOf(
-                            task.downloadIdentity().canonicalKey,
-                            task.taskGeneration.toString(),
-                            task.updatedAt.toString(),
-                            task.status.name,
-                            task.failureReason?.name.orEmpty(),
-                        )
-                        .joinToString(":")
+                    stableFingerprint(
+                        task.downloadIdentity().canonicalKey,
+                        task.itemId,
+                        task.sourceId,
+                        task.name,
+                        task.path,
+                        task.downloadId,
+                        task.status,
+                        task.failureReason,
+                        task.failureDetail,
+                        task.downloadedBytes,
+                        task.totalBytes,
+                        task.progress,
+                        task.updatedAt,
+                        task.mediaKind,
+                        task.seriesId,
+                        task.seasonId,
+                        task.seriesName,
+                        task.seasonName,
+                        task.episodeIndex,
+                        task.seasonIndex,
+                        task.albumName,
+                        task.artist,
+                        task.speedBytesPerSecond,
+                        task.etaSeconds,
+                        task.retryCount,
+                        task.nextRetryAt,
+                        task.taskGeneration,
+                        task.serverId,
+                        task.userId,
+                        task.intentPhase,
+                    )
                 }
                 .sorted()
-                .joinToString(";")
-        val bookToken =
+        val bookTaskRows =
             bookTasks
                 .map { task ->
-                    listOf(
-                            task.canonicalKey,
-                            task.taskGeneration.toString(),
-                            task.updatedAtEpochMillis.toString(),
-                            task.status.name,
-                            task.failureReason.orEmpty(),
-                        )
-                        .joinToString(":")
+                    stableFingerprint(
+                        task.canonicalKey,
+                        task.itemId,
+                        task.title,
+                        task.downloadedBytes,
+                        task.totalBytes,
+                        task.progress,
+                        task.status,
+                        task.error,
+                        task.failureReason,
+                        task.taskGeneration,
+                        task.serverId,
+                        task.userId,
+                        task.targetPath,
+                        task.resumeValidator,
+                        task.createdAtEpochMillis,
+                        task.updatedAtEpochMillis,
+                    )
                 }
                 .sorted()
-                .joinToString(";")
-        return "tasks=$taskToken|completed=${completedCanonicalKeys.sorted().joinToString(";")}|books=$bookToken"
+        val bookFileRows =
+            bookFiles
+                .map { file ->
+                    stableFingerprint(
+                        file.itemId,
+                        file.sizeBytes,
+                        file.title,
+                    )
+                }
+                .sorted()
+        return stableFingerprint(
+            "tasks",
+            stableFingerprint(*taskRows.toTypedArray()),
+            "completedCanonicalKeys",
+            stableFingerprint(*completedCanonicalKeys.sorted().toTypedArray()),
+            "bookTasks",
+            stableFingerprint(*bookTaskRows.toTypedArray()),
+            "completedBookIds",
+            stableFingerprint(*completedBookIds.map(UUID::toString).sorted().toTypedArray()),
+            "bookFiles",
+            stableFingerprint(*bookFileRows.toTypedArray()),
+        )
+    }
+
+    private fun stableFingerprint(vararg values: Any?): String = buildString {
+        values.forEach { value ->
+            if (value == null) {
+                append("n;")
+            } else {
+                val text = value.toString()
+                append('v')
+                append(text.length)
+                append(':')
+                append(text)
+                append(';')
+            }
+        }
     }
 
     private suspend fun <T> runCatchingCancellable(block: suspend () -> T): Result<T> =
