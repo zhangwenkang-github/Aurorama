@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.utils
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -64,4 +66,49 @@ class DownloadEngineScheduleRulesTest {
             ),
         )
     }
+
+    @Test
+    fun `只有非 intent PENDING task 才算可启动 Engine 的真实 source`() {
+        val intentOnly =
+            downloadTask(
+                sourceId = intentSourceId(java.util.UUID(0L, 821L)),
+                status = DownloadTaskStatus.PENDING,
+            )
+        val sourceBacked =
+            downloadTask(
+                sourceId = "real-source",
+                status = DownloadTaskStatus.PENDING,
+            )
+        val pausedSource =
+            downloadTask(
+                sourceId = "paused-source",
+                status = DownloadTaskStatus.PAUSED,
+            )
+
+        assertFalse(
+            DownloadControlPlaneRules.hasRunnableEngineTasks(listOf(intentOnly, pausedSource))
+        )
+        assertTrue(
+            DownloadControlPlaneRules.hasRunnableEngineTasks(listOf(intentOnly, sourceBacked))
+        )
+    }
+
+    private fun downloadTask(
+        sourceId: String,
+        status: DownloadTaskStatus,
+    ) =
+        DownloadTask(
+            itemId = java.util.UUID(0L, 822L),
+            sourceId = sourceId,
+            name = "schedule-rule",
+            path = "",
+            downloadId = null,
+            status = status,
+            failureReason = null,
+            downloadedBytes = 0L,
+            totalBytes = 0L,
+            updatedAt = 0L,
+            mediaKind = DownloadMediaKind.MUSIC,
+            taskGeneration = 1L,
+        )
 }

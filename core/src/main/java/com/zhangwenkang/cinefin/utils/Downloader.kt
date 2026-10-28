@@ -131,6 +131,13 @@ interface Downloader {
      */
     suspend fun runQueue(): DownloadQueueOutcome
 
+    /**
+     * W90-A2：执行一轮有界下载意图解析。
+     *
+     * 该入口只处理 intent 到 source 的反馈，不启动传输、不创建前台服务，也不写下载完成态。
+     */
+    suspend fun runIntentQueue(): DownloadIntentQueueOutcome
+
     /** W50：启动恢复——旧引擎进行中任务标记「需重下」，自研引擎中断任务回队并触发调度；返回恢复数量。 */
     suspend fun recoverOnStartup(): Int
 
@@ -152,6 +159,12 @@ data class DownloadQueueOutcome(
     val hasPendingTasks: Boolean,
     /** 是否需要 WorkManager 再次唤醒（有 PENDING 任务时）。 */
     val shouldRetry: Boolean,
+)
+
+/** 一轮 intent 解析结果；`hasPendingIntents` 只表示同一有界快照仍有后续分片。 */
+data class DownloadIntentQueueOutcome(
+    val processedIntents: Int,
+    val hasPendingIntents: Boolean,
 )
 
 /** W63 批量入队结果（整剧 / 全季 / 多选批量）。 */

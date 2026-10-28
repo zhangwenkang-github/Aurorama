@@ -62,6 +62,7 @@ import com.zhangwenkang.cinefin.repository.OriginScopedJellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.DownloadEngineWorker
+import com.zhangwenkang.cinefin.work.DownloadIntentWorker
 import com.zhangwenkang.cinefin.work.ImagesDownloaderWorker
 import java.io.File
 import java.util.UUID
@@ -382,7 +383,6 @@ private constructor(
         )
     private val intentProcessorRunning = AtomicBoolean(false)
     private val intentProcessorRequested = AtomicBoolean(false)
-
     /** W63：批量入队的节目 / 季快照缓存（同剧 N 集只解析一次，避免逐集两次网络往返）。 */
     private val showSnapshotCache =
         ConcurrentHashMap<SnapshotCacheKey, CachedSnapshot<FindroidShow>>()
@@ -955,9 +955,11 @@ private constructor(
     /**
      * 后台解析已受理意图。
      *
-     * 页面协程退出、切后台或进程重启都不影响已落库的意图；成功写入 sources 后才删除意图行， 因此中途失败 / 被杀时可从持久化快照继续。
+     * 唯一持久工作链是无前台的 [DownloadIntentWorker]；进程内快路径复用同一个有界反馈入口以保留即时进度。 页面协程退出、切后台或进程重启都不影响已落库的意图； 成功写入
+     * sources 后才删除意图行，因此中途失败 / 被杀时可从持久化快照继续。该路径绝不直接启动 Engine。
      */
     private fun launchReceivedIntentProcessor() {
+        enqueueIntentWork()
         intentProcessorRequested.set(true)
         if (!intentProcessorRunning.compareAndSet(false, true)) return
         scope.launch(intentResolutionDispatcher) {
@@ -965,7 +967,11 @@ private constructor(
                 do {
                     intentProcessorRequested.set(false)
                     runIntentProcessorPass(
-                        block = { processReceivedIntents() },
+                        block = {
+                            do {
+                                val outcome = processReceivedIntents()
+                            } while (outcome.hasPendingIntents)
+                        },
                         onFailure = { Timber.w(it, "处理已受理下载意图失败") },
                     )
                 } while (intentProcessorRequested.get())
@@ -976,7 +982,15 @@ private constructor(
         }
     }
 
-    private suspend fun processReceivedIntents() {
+    override suspend fun runIntentQueue(): DownloadIntentQueueOutcome {
+        val outcome = processReceivedIntents()
+        if (outcome.hasPendingIntents) {
+            enqueueIntentWork(policy = ExistingWorkPolicy.APPEND_OR_REPLACE)
+        }
+        return outcome
+    }
+
+    private suspend fun processReceivedIntents(): DownloadIntentQueueOutcome {
         val snapshot = withContext(intentResolutionDispatcher) { sidecar.allRecords() }
         val records =
             when (snapshot) {
@@ -987,7 +1001,10 @@ private constructor(
                     if (failReceivedIntentsWithUnavailableProvenance() > 0) {
                         notifyQueueChanged()
                     }
-                    return
+                    return DownloadIntentQueueOutcome(
+                        processedIntents = 0,
+                        hasPendingIntents = false,
+                    )
                 }
                 is DownloadMediaReadResult.Corrupt -> {
                     Timber.w(
@@ -997,7 +1014,10 @@ private constructor(
                     if (failReceivedIntentsWithUnavailableProvenance() > 0) {
                         notifyQueueChanged()
                     }
-                    return
+                    return DownloadIntentQueueOutcome(
+                        processedIntents = 0,
+                        hasPendingIntents = false,
+                    )
                 }
             }
         val roomIntents =
@@ -1021,7 +1041,7 @@ private constructor(
                 }
             }
         val pendingRecordsByItemId = resolvablePendingRecords.groupBy(DownloadMediaRecord::itemId)
-        val work =
+        val allWork =
             resolvablePendingRecords.map { record ->
                 val itemId = checkNotNull(record.itemId.toUuidOrNull())
                 PendingIntentResolution.Sidecar(
@@ -1044,6 +1064,7 @@ private constructor(
                             ),
                     )
                 }
+        val work = allWork.take(INTENT_RESOLVE_BATCH_SIZE)
         val processedCount = java.util.concurrent.atomic.AtomicInteger()
         intentResolutionCoordinator.run(
             items = work,
@@ -1111,7 +1132,10 @@ private constructor(
                     snapshot != DownloadMediaReadResult.Missing)
         ) {
             Timber.w("下载 sidecar 在 intent 清理前失效，保留 pending 等待重试")
-            return
+            return DownloadIntentQueueOutcome(
+                processedIntents = processedCount.get(),
+                hasPendingIntents = allWork.size > work.size,
+            )
         }
         withContext(intentResolutionDispatcher) {
             database.getDownloadIntents().forEach { intent ->
@@ -1131,6 +1155,10 @@ private constructor(
             notifyQueueChanged()
             Timber.i("已受理下载意图后台解析完成：%d 项", processedCount.get())
         }
+        return DownloadIntentQueueOutcome(
+            processedIntents = processedCount.get(),
+            hasPendingIntents = allWork.size > work.size,
+        )
     }
 
     /**
@@ -1778,6 +1806,7 @@ private constructor(
      * - 链上已无未完成工作：入队即时 worker。
      */
     private suspend fun ensureEngineRunning(forceStart: Boolean = false) {
+        if (!hasRunnableEngineSource()) return
         val infos =
             withContext(Dispatchers.IO) {
                 runCatching { workGateway.uniqueWorkInfos(DOWNLOAD_ENGINE_WORK_NAME) }.getOrNull()
@@ -1799,6 +1828,17 @@ private constructor(
             EngineScheduleDecision.WAIT -> Unit
         }
     }
+
+    private suspend fun hasRunnableEngineSource(): Boolean =
+        withContext(Dispatchers.IO) {
+            database.getPendingSources().any { source ->
+                val status = source.taskStatus.toTaskStatus()
+                source.engineVersion >= ENGINE_VERSION &&
+                    (status == DownloadTaskStatus.PENDING ||
+                        (status == DownloadTaskStatus.RUNNING &&
+                            !activeJobs.containsKey(source.id)))
+            }
+        }
 
     /**
      * W76-Q7：与运行中的引擎 worker 做一次「退出交接」。
@@ -1838,6 +1878,21 @@ private constructor(
             DOWNLOAD_ENGINE_WORK_NAME,
             policy,
             builder.build(),
+        )
+    }
+
+    private fun enqueueIntentWork(policy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP) {
+        val request =
+            OneTimeWorkRequestBuilder<DownloadIntentWorker>()
+                .setConstraints(
+                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+                )
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                .build()
+        workGateway.enqueueUnique(
+            DOWNLOAD_INTENT_WORK_NAME,
+            policy,
+            request,
         )
     }
 
@@ -3598,8 +3653,16 @@ private constructor(
                 task.status != DownloadTaskStatus.FAILED && task.itemId in downloadedItemIds
             }
 
-            if (tasks.any { it.status == DownloadTaskStatus.PENDING }) {
+            if (DownloadControlPlaneRules.hasRunnableEngineTasks(tasks)) {
                 ensureEngineRunning()
+            }
+            if (
+                tasks.any { task ->
+                    task.sourceId.startsWith(INTENT_SOURCE_PREFIX) &&
+                        task.status == DownloadTaskStatus.PENDING
+                }
+            ) {
+                launchReceivedIntentProcessor()
             }
             tasks.sortedByDescending { it.updatedAt }
         }
@@ -4758,8 +4821,9 @@ private constructor(
         /** W63：节目 / 季快照缓存有效期。 */
         const val SNAPSHOT_TTL_MS = 10 * 60 * 1_000L
 
-        /** W84：持久化接收意图的后台解析并发上限。分片执行但不会截断批次。 */
+        /** W84/W90-A2：持久化接收意图的后台解析并发与单轮快照上限。 */
         const val INTENT_RESOLVE_CONCURRENCY = 6
+        const val INTENT_RESOLVE_BATCH_SIZE = 64
         const val DEFAULT_INTENT_RESOLUTION_TIMEOUT_MS = 15_000L
 
         const val LEGACY_PROVENANCE_UNAVAILABLE = "下载来源不可证明，请重新下载"
@@ -4769,6 +4833,9 @@ private constructor(
 
 /** W50 唯一下载引擎任务名。 */
 internal const val DOWNLOAD_ENGINE_WORK_NAME = "downloadEngine"
+
+/** W90-A2：无前台 intent 解析唯一工作链。 */
+internal const val DOWNLOAD_INTENT_WORK_NAME = "downloadIntent"
 
 /** sourceId → 稳定的 UI 句柄（替代旧 DownloadManager id 语义，不持久化数值）。 */
 internal fun downloadTaskHandle(sourceId: String): Long =

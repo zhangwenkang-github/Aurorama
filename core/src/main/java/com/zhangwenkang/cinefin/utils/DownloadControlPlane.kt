@@ -101,6 +101,11 @@ class DownloadBatchInbox(
  */
 object DownloadControlPlaneRules {
 
+    /** 只有非 intent-only 的 PENDING task 才允许启动传输 Engine。 */
+    fun hasRunnableEngineTasks(tasks: List<DownloadTask>): Boolean = tasks.any { task ->
+        task.status == DownloadTaskStatus.PENDING && !task.sourceId.startsWith(INTENT_SOURCE_PREFIX)
+    }
+
     fun activeUniqueIntents(
         tasks: List<DownloadTask>,
         downloadedCanonicalKeys: Set<String>,
