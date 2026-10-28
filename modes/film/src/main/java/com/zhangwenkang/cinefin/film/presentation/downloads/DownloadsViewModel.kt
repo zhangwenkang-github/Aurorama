@@ -176,6 +176,12 @@ constructor(
     /** 包内测试屏障：确认 queue / book 事件已到达 ingress，不改变生产语义。 */
     internal var externalRefreshIngressObserverForTest: (() -> Unit)? = null
 
+    /** 包内测试屏障：remote mapping 已完成，但最终发布锁检查尚未开始。 */
+    @Volatile internal var remoteMappingCompleteObserverForTest: (() -> Unit)? = null
+
+    /** 包内测试屏障：一次 remote 结果已经通过最终锁并发布，pending 补跑尚未开始。 */
+    @Volatile internal var remotePublishObserverForTest: (() -> Unit)? = null
+
     /** 本地 JVM 测试可放大轮询间隔，避免精确 single-flight 计数与真实 1.5s 轮询混时。 */
     @Volatile internal var pollIntervalMsOverrideForTest: Long? = null
 
@@ -192,7 +198,7 @@ constructor(
     private var pendingRemoteSnapshot: LocalDownloadSnapshot? = null
     private var remoteSnapshotSequence: Long? = null
     private val localRefreshMutex = Mutex()
-    private var nextLocalSnapshotSequence = 0L
+    @Volatile private var nextLocalSnapshotSequence = 0L
     @Volatile private var localSnapshotToken: String? = null
     private val cachedBookMetadata = mutableMapOf<UUID, BookMetadata>()
     /** W59：服务器主图 URL 会话级缓存（只在本地图缺失时查询，避免逐条打接口）。 */
@@ -269,6 +275,9 @@ constructor(
         synchronized(remoteRefreshLock) {
             remoteRefreshJob == null && pendingRemoteSnapshot == null
         }
+
+    /** 包内测试屏障：确认最近一次本地 refresh 已完整发布 snapshot。 */
+    internal fun localSnapshotSequenceForTest(): Long = nextLocalSnapshotSequence
 
     /** W34：层级条目对应的媒体条目（用于打开详情 / 阅读器）。 */
     fun itemForEntry(key: String): FindroidItem? {
@@ -780,6 +789,18 @@ constructor(
         }
     }
 
+    /** 本地 artwork 的可见 URI 与文件 revision；remote mapping 只能消费该冻结值。 */
+    private data class ArtworkRevision(
+        val uri: String,
+        val sizeBytes: Long,
+        val lastModifiedMillis: Long,
+    )
+
+    private data class LocalArtworkSnapshot(
+        val localImage: ArtworkRevision? = null,
+        val generatedCover: ArtworkRevision? = null,
+    )
+
     private data class LocalDownloadSnapshot(
         val sequence: Long,
         val token: String,
@@ -795,6 +816,7 @@ constructor(
         val offlineAllowMap: Map<UUID, Boolean>,
         val storage: DownloadStorageUsage,
         val bookStorageBytes: Long,
+        val artworkById: Map<UUID, LocalArtworkSnapshot>,
     )
 
     private suspend fun refresh(showLoading: Boolean) {
@@ -852,6 +874,31 @@ constructor(
         }
             .getOrElse { DownloadStorageUsage(0L, 0L, 0L) }
         val bookStorageBytes = bookFiles.sumOf { it.sizeBytes }
+        val artworkIds = buildSet {
+            tasks.forEach { task -> add(task.itemId) }
+            completedMediaRecords.mapNotNullTo(this) { record ->
+                runCatching { UUID.fromString(record.itemId) }.getOrNull()
+            }
+            episodeHierarchy.values.forEach { episode ->
+                add(episode.episodeId)
+                add(episode.seriesId)
+                add(episode.seasonId)
+            }
+            bookFiles.forEach { file -> add(file.itemId) }
+            bookTasks.forEach { task -> add(task.itemId) }
+            _state.value.completed.forEach { download ->
+                add(download.item.id)
+                download.episode?.let { episode ->
+                    add(episode.seriesId)
+                    add(episode.seasonId)
+                }
+            }
+        }
+        val generatedCoverIds = buildSet {
+            bookFiles.forEach { file -> add(file.itemId) }
+            bookTasks.forEach { task -> add(task.itemId) }
+        }
+        val artworkById = loadArtworkSnapshot(artworkIds, generatedCoverIds)
 
         // ——— W63 阶段 1：本地数据（Room / 文件）先上屏，首帧不等待任何服务器接口 ———
         val localActiveEntries = activeEngineTasks.map { task ->
@@ -859,6 +906,7 @@ constructor(
                 episodeHierarchy = episodeHierarchy,
                 musicById = emptyMap(),
                 offlineAllowMap = loadedOfflineAllowMap,
+                artworkById = artworkById,
                 allowRemoteImages = false,
             )
         }
@@ -867,6 +915,7 @@ constructor(
                 episodeHierarchy = episodeHierarchy,
                 musicById = emptyMap(),
                 offlineAllowMap = loadedOfflineAllowMap,
+                artworkById = artworkById,
                 allowRemoteImages = false,
             )
         }
@@ -875,18 +924,21 @@ constructor(
                 serverMetadata = null,
                 owner = BookDownloadProjectionRules.ownerFor(bookTasks, file.itemId),
                 offlineAllowMap = loadedOfflineAllowMap,
+                artwork = artworkById[file.itemId],
             )
         }
         val localRunningBookEntries = runningBookTasks.map { task ->
             task.toActiveBookEntry(
                 serverName = null,
                 offlineAllowMap = loadedOfflineAllowMap,
+                artwork = artworkById[task.itemId],
             )
         }
         val localFailedBookEntries = failedBookTasks.map { task ->
             task.toActiveBookEntry(
                 serverName = null,
                 offlineAllowMap = loadedOfflineAllowMap,
+                artwork = artworkById[task.itemId],
             )
         }
         val localEntries =
@@ -908,6 +960,7 @@ constructor(
                 offlineAllowMap = loadedOfflineAllowMap,
                 storage = storage,
                 bookStorageBytes = bookStorageBytes,
+                artworkById = artworkById,
             )
         currentCoroutineContext().ensureActive()
         _state.update { current ->
@@ -945,6 +998,7 @@ constructor(
             offlineAllowMap = loadedOfflineAllowMap,
             storage = storage,
             bookStorageBytes = bookStorageBytes,
+            artworkById = artworkById,
         )
     }
 
@@ -1036,6 +1090,7 @@ constructor(
                     episodeHierarchy = snapshot.episodeHierarchy,
                     musicById = musicById,
                     offlineAllowMap = snapshot.offlineAllowMap,
+                    artworkById = snapshot.artworkById,
                     // W66：阶段 2 不再拉远程兜底图；缺图走阶段 3 本地补齐。
                     allowRemoteImages = false,
                 )
@@ -1046,6 +1101,7 @@ constructor(
                     episodeHierarchy = snapshot.episodeHierarchy,
                     musicById = musicById,
                     offlineAllowMap = snapshot.offlineAllowMap,
+                    artworkById = snapshot.artworkById,
                     allowRemoteImages = false,
                 )
             }
@@ -1058,6 +1114,7 @@ constructor(
                         bookFiles = snapshot.bookFiles,
                         completedMediaRecords = snapshot.completedMediaRecords,
                         offlineAllowMap = snapshot.offlineAllowMap,
+                        artworkById = snapshot.artworkById,
                         allowRemoteImages = false,
                     )
                 }
@@ -1071,6 +1128,7 @@ constructor(
                         owner =
                             BookDownloadProjectionRules.ownerFor(snapshot.bookTasks, file.itemId),
                         offlineAllowMap = snapshot.offlineAllowMap,
+                        artwork = snapshot.artworkById[file.itemId],
                     )
                 }
         val runningBookEntries =
@@ -1078,6 +1136,7 @@ constructor(
                 task.toActiveBookEntry(
                     serverName = bookMetadata[task.itemId]?.name,
                     offlineAllowMap = snapshot.offlineAllowMap,
+                    artwork = snapshot.artworkById[task.itemId],
                 )
             }
         val failedBookEntries =
@@ -1085,6 +1144,7 @@ constructor(
                 task.toActiveBookEntry(
                     serverName = bookMetadata[task.itemId]?.name,
                     offlineAllowMap = snapshot.offlineAllowMap,
+                    artwork = snapshot.artworkById[task.itemId],
                 )
             }
         val remoteEntries =
@@ -1095,6 +1155,7 @@ constructor(
                 runningBookEntries +
                 failedBookEntries
         val validKeys = remoteEntries.map { it.key }.toSet()
+        remoteMappingCompleteObserverForTest?.invoke()
 
         val published = localRefreshMutex.withLock {
             if (sessionJob?.isActive != true || localSnapshotToken != snapshot.token) {
@@ -1127,6 +1188,8 @@ constructor(
         }
         if (!published) return
 
+        remotePublishObserverForTest?.invoke()
+
         // ——— W66 阶段 3：缺图 / 过期图后台补齐（并发上限 4；完成后自动刷新一次，无需重进页面） ———
         scheduleArtworkBackfill(
             tasks = snapshot.activeEngineTasks + snapshot.failedEngineTasks,
@@ -1148,6 +1211,7 @@ constructor(
         offlineAllowMap: Map<UUID, Boolean>,
         storage: DownloadStorageUsage,
         bookStorageBytes: Long,
+        artworkById: Map<UUID, LocalArtworkSnapshot>,
     ): String {
         val taskRows =
             tasks
@@ -1255,6 +1319,20 @@ constructor(
             offlineAllowMap
                 .map { (itemId, allowOffline) -> stableFingerprint(itemId, allowOffline) }
                 .sorted()
+        val artworkRows =
+            artworkById
+                .map { (itemId, artwork) ->
+                    stableFingerprint(
+                        itemId,
+                        artwork.localImage?.uri,
+                        artwork.localImage?.sizeBytes,
+                        artwork.localImage?.lastModifiedMillis,
+                        artwork.generatedCover?.uri,
+                        artwork.generatedCover?.sizeBytes,
+                        artwork.generatedCover?.lastModifiedMillis,
+                    )
+                }
+                .sorted()
         return stableFingerprint(
             "tasks",
             stableFingerprint(*taskRows.toTypedArray()),
@@ -1276,6 +1354,8 @@ constructor(
             stableFingerprint(storage.usedBytes, storage.availableBytes, storage.totalBytes),
             "bookStorageBytes",
             stableFingerprint(bookStorageBytes),
+            "artwork",
+            stableFingerprint(*artworkRows.toTypedArray()),
         )
     }
 
@@ -1355,6 +1435,31 @@ constructor(
         .onFailure { Timber.w(it, "读取离线开关状态失败") }
         .getOrElse { emptyMap() }
 
+    /** 一次性冻结 artwork 的可见 URI 与文件 revision，供 local / remote 两个阶段共用。 */
+    private fun loadArtworkSnapshot(
+        ids: Set<UUID>,
+        generatedCoverIds: Set<UUID>,
+    ): Map<UUID, LocalArtworkSnapshot> = ids.associateWith { itemId ->
+        LocalArtworkSnapshot(
+            localImage = imageCacheStore.cachedImageFile(itemId).toArtworkRevision(),
+            generatedCover =
+                if (itemId in generatedCoverIds) {
+                    bookCoverProvider.cached(itemId)?.let(::File).toArtworkRevision()
+                } else {
+                    null
+                },
+        )
+    }
+
+    private fun File?.toArtworkRevision(): ArtworkRevision? {
+        if (this == null || !isFile || length() <= 0L) return null
+        return ArtworkRevision(
+            uri = absoluteFile.normalize().path,
+            sizeBytes = length(),
+            lastModifiedMillis = lastModified(),
+        )
+    }
+
     /** 书籍元数据（名字 / 封面）：会话级缓存，离线拿不到时给占位名。 */
     private suspend fun resolveBookMetadata(bookIds: Set<UUID>): Map<UUID, BookMetadata> {
         if (bookIds.isEmpty()) return emptyMap()
@@ -1373,10 +1478,16 @@ constructor(
         return cachedBookMetadata.filterKeys { it in bookIds }
     }
 
+    private fun Map<UUID, LocalArtworkSnapshot>.localImageUri(itemId: UUID?): String? =
+        itemId?.let {
+            this[it]?.localImage?.uri
+        }
+
     private suspend fun DownloadTask.toHierarchyEntry(
         episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
         musicById: Map<UUID, MusicTrackMetadata>,
         offlineAllowMap: Map<UUID, Boolean>,
+        artworkById: Map<UUID, LocalArtworkSnapshot>,
         allowRemoteImages: Boolean = true,
     ): DownloadHierarchyEntry {
         val episode = episodeHierarchy[itemId]
@@ -1413,22 +1524,37 @@ constructor(
             imageUri =
                 when {
                     // W66：只认本地缓存图；缺图 → 类型图标占位（后台补齐后再显示，不拉远程慢图）。
-                    song != null -> localImage(itemId)
+                    song != null -> artworkById[itemId]?.localImage?.uri
                     mediaKind == DownloadMediaKind.BOOK ->
-                        localImage(itemId) ?: bookCoverProvider.cached(itemId)
-                    else -> videoImageUri(episode != null, itemId, allowRemoteImages)
+                        artworkById[itemId]?.localImage?.uri
+                            ?: artworkById[itemId]?.generatedCover?.uri
+                    else ->
+                        videoImageUri(
+                            isEpisode = episode != null,
+                            itemId = itemId,
+                            artworkById = artworkById,
+                            allowRemote = allowRemoteImages,
+                        )
                 },
             showImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SHOW,
-                    localImage(episode?.seriesId),
-                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seriesId),
+                    artworkById.localImageUri(episode?.seriesId),
+                    remotePrimaryImageIfAllowed(
+                        localImageUri = artworkById.localImageUri(episode?.seriesId),
+                        allowRemote = allowRemoteImages,
+                        itemId = episode?.seriesId,
+                    ),
                 ),
             seasonImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SEASON,
-                    localImage(episode?.seasonId),
-                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seasonId),
+                    artworkById.localImageUri(episode?.seasonId),
+                    remotePrimaryImageIfAllowed(
+                        localImageUri = artworkById.localImageUri(episode?.seasonId),
+                        allowRemote = allowRemoteImages,
+                        itemId = episode?.seasonId,
+                    ),
                 ),
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
@@ -1440,6 +1566,7 @@ constructor(
         bookFiles: List<LocalBookFile>,
         completedMediaRecords: List<DownloadMediaRecord>,
         offlineAllowMap: Map<UUID, Boolean>,
+        artworkById: Map<UUID, LocalArtworkSnapshot>,
         allowRemoteImages: Boolean = true,
     ): DownloadHierarchyEntry {
         val song = musicById[item.id]
@@ -1474,28 +1601,41 @@ constructor(
             imageUri =
                 when {
                     // W66：只认本地缓存图（音乐曲目图同样由后台补齐落盘）。
-                    song != null -> localImage(item.id)
+                    song != null -> artworkById[item.id]?.localImage?.uri
                     mediaKind == DownloadMediaKind.BOOK ->
-                        localImage(item.id) ?: bookCoverProvider.cached(item.id)
+                        artworkById[item.id]?.localImage?.uri
+                            ?: artworkById[item.id]?.generatedCover?.uri
                     else ->
                         DownloadArtworkRules.videoArtwork(
                             if (episode != null) DownloadArtworkRules.Level.EPISODE
                             else DownloadArtworkRules.Level.MOVIE,
-                            localImage(item.id),
-                            remotePrimaryImageIfAllowed(allowRemoteImages, item.id),
+                            artworkById[item.id]?.localImage?.uri,
+                            remotePrimaryImageIfAllowed(
+                                localImageUri = artworkById[item.id]?.localImage?.uri,
+                                allowRemote = allowRemoteImages,
+                                itemId = item.id,
+                            ),
                         )
                 },
             showImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SHOW,
-                    localImage(episode?.seriesId),
-                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seriesId),
+                    artworkById.localImageUri(episode?.seriesId),
+                    remotePrimaryImageIfAllowed(
+                        localImageUri = artworkById.localImageUri(episode?.seriesId),
+                        allowRemote = allowRemoteImages,
+                        itemId = episode?.seriesId,
+                    ),
                 ),
             seasonImageUri =
                 DownloadArtworkRules.videoArtwork(
                     DownloadArtworkRules.Level.SEASON,
-                    localImage(episode?.seasonId),
-                    remotePrimaryImageIfAllowed(allowRemoteImages, episode?.seasonId),
+                    artworkById.localImageUri(episode?.seasonId),
+                    remotePrimaryImageIfAllowed(
+                        localImageUri = artworkById.localImageUri(episode?.seasonId),
+                        allowRemote = allowRemoteImages,
+                        itemId = episode?.seasonId,
+                    ),
                 ),
             runtimeTicks =
                 when (item) {
@@ -1514,9 +1654,10 @@ constructor(
     private suspend fun videoImageUri(
         isEpisode: Boolean,
         itemId: UUID,
+        artworkById: Map<UUID, LocalArtworkSnapshot>,
         allowRemote: Boolean = true,
     ): String? {
-        val local = localImage(itemId)
+        val local = artworkById[itemId]?.localImage?.uri
         return DownloadArtworkRules.videoArtwork(
             level =
                 if (isEpisode) DownloadArtworkRules.Level.EPISODE
@@ -1529,11 +1670,12 @@ constructor(
 
     /** W63：本地图存在或本阶段不允许远程兜底时返回 null（避免无谓的服务器往返）。 */
     private suspend fun remotePrimaryImageIfAllowed(
+        localImageUri: String?,
         allowRemote: Boolean,
         itemId: UUID?,
     ): String? {
         if (!allowRemote || itemId == null) return null
-        if (localImage(itemId) != null) return null
+        if (localImageUri != null) return null
         return remotePrimaryImage(itemId)
     }
 
@@ -1547,12 +1689,6 @@ constructor(
         val url = runCatchingCancellable { repository.getPrimaryImageUrl(itemId) }.getOrNull()
         remoteImageCache[itemId] = url
         return url
-    }
-
-    /** W36：本地图片缓存是否存在（下载时由 ImagesDownloaderWorker 落盘；不存在返回 null → 图标占位）。 */
-    private fun localImage(itemId: UUID?): String? {
-        if (itemId == null) return null
-        return imageCacheStore.cachedImageFile(itemId)?.absolutePath
     }
 
     /** 层级容器内的全部条目（含子容器）。 */
@@ -1588,12 +1724,13 @@ constructor(
         serverMetadata: BookMetadata?,
         owner: BookDownloadTask?,
         offlineAllowMap: Map<UUID, Boolean>,
+        artwork: LocalArtworkSnapshot?,
     ): DownloadHierarchyEntry =
         BookDownloadProjectionRules.completedEntry(
             file = this,
             serverName = serverMetadata?.name,
             owner = owner,
-            imageUri = localImage(itemId) ?: bookCoverProvider.cached(itemId),
+            imageUri = artwork?.localImage?.uri ?: artwork?.generatedCover?.uri,
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
 
@@ -1605,11 +1742,12 @@ constructor(
     private fun BookDownloadTask.toActiveBookEntry(
         serverName: String?,
         offlineAllowMap: Map<UUID, Boolean>,
+        artwork: LocalArtworkSnapshot?,
     ): DownloadHierarchyEntry =
         BookDownloadProjectionRules.activeEntry(
             task = this,
             serverName = serverName,
-            imageUri = bookCoverProvider.cached(itemId),
+            imageUri = artwork?.generatedCover?.uri,
             allowOffline = offlineAllowMap[itemId] ?: true,
         )
 

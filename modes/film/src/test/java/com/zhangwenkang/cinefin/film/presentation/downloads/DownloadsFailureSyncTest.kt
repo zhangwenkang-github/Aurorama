@@ -11,6 +11,7 @@ import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MetadataNamespace
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
+import com.zhangwenkang.cinefin.utils.BookCoverRules
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
@@ -365,21 +366,42 @@ class DownloadsFailureSyncTest {
     @Test
     fun `completed book projection alone survives blocked remote`() {
         Fixture().use { fixture ->
+            fixture.blockRemoteMapping()
+            fixture.observeRemotePublish()
             fixture.start()
             fixture.awaitRemoteStarted()
             fixture.waitUntil("initial task projection was not published") {
                 fixture.viewModel.state.value.activeTasks.singleOrNull()?.downloadedBytes == 25L
             }
+            val initialToken = fixture.snapshotToken()
 
+            fixture.allowRemoteImmediately()
+            fixture.awaitRemoteMappingBlocked()
             fixture.bookFiles.set(
                 listOf(LocalBookFile(itemId = BOOK_ID, sizeBytes = 42, title = "Fresh book"))
             )
+            val initialSequence = fixture.localSnapshotSequence()
             assertTrue("queue event was not accepted", fixture.queueChanges.tryEmit(Unit))
-            fixture.waitUntil("completed book inputs were not published locally") {
-                fixture.viewModel.state.value.bookStorageBytes == 42L
+            fixture.waitUntil("completed book inputs were not opened into a local snapshot") {
+                fixture.localSnapshotSequence() > initialSequence
             }
+            val latestToken = fixture.snapshotToken()
+            assertTrue(
+                "completed-book-only change did not separate snapshot tokens: " +
+                    "initialToken=$initialToken latestToken=$latestToken",
+                initialToken != latestToken,
+            )
 
-            fixture.releaseRemote()
+            fixture.releaseRemoteMapping()
+            fixture.awaitRemotePublished()
+            val firstPublishedBook = fixture.entry(BOOK_ID)
+            assertTrue(
+                "old remote projection was published before the pending completed-book refresh: " +
+                    "firstPublishedBook=$firstPublishedBook",
+                firstPublishedBook?.status == DownloadTaskStatus.COMPLETED &&
+                    firstPublishedBook.sizeBytes == 42L,
+            )
+            fixture.releaseRemotePublish()
             fixture.awaitRemoteIdle()
 
             val state = fixture.viewModel.state.value
@@ -393,6 +415,92 @@ class DownloadsFailureSyncTest {
                 completedBook?.status == DownloadTaskStatus.COMPLETED &&
                     completedBook.sizeBytes == 42L &&
                     state.bookStorageBytes == 42L,
+            )
+        }
+    }
+
+    @Test
+    fun `local artwork revision cannot be overwritten by blocked remote`() {
+        Fixture(imageNamespace = MetadataNamespace(serverId = "server", userId = "user")).use {
+            fixture ->
+            fixture.disablePolling()
+            fixture.blockRemoteMapping()
+            fixture.observeRemotePublish()
+            fixture.start()
+            fixture.awaitRemoteStarted()
+            val initialToken = fixture.snapshotToken()
+
+            fixture.allowRemoteImmediately()
+            fixture.awaitRemoteMappingBlocked()
+            val artworkFile = fixture.writeLocalArtwork(VIDEO_ID)
+            val initialSequence = fixture.localSnapshotSequence()
+            assertTrue("queue event was not accepted", fixture.queueChanges.tryEmit(Unit))
+            fixture.waitUntil("new local artwork was not published before remote finished") {
+                fixture.entry(VIDEO_ID)?.imageUri == artworkFile.absolutePath
+            }
+            val latestToken = fixture.snapshotToken()
+
+            fixture.releaseRemoteMapping()
+            fixture.awaitRemotePublished()
+            val firstPublishedImage = fixture.entry(VIDEO_ID)?.imageUri
+            assertTrue(
+                "old remote overwrote the newer local artwork before pending refresh: " +
+                    "initialSequence=$initialSequence latestSequence=${fixture.localSnapshotSequence()} " +
+                    "initialToken=$initialToken latestToken=$latestToken " +
+                    "firstPublishedImage=$firstPublishedImage expected=${artworkFile.absolutePath}",
+                firstPublishedImage == artworkFile.absolutePath,
+            )
+            fixture.releaseRemotePublish()
+            fixture.awaitRemoteIdle()
+
+            assertEquals(artworkFile.absolutePath, fixture.entry(VIDEO_ID)?.imageUri)
+            assertTrue(
+                "artwork-only change was omitted from the snapshot token",
+                fixture.snapshotToken() != initialToken,
+            )
+        }
+    }
+
+    @Test
+    fun `generated book cover cannot be overwritten by blocked remote`() {
+        Fixture(imageNamespace = MetadataNamespace(serverId = "server", userId = "user")).use {
+            fixture ->
+            fixture.disablePolling()
+            fixture.bookFiles.set(
+                listOf(LocalBookFile(itemId = BOOK_ID, sizeBytes = 42, title = "Book"))
+            )
+            fixture.blockRemoteMapping()
+            fixture.observeRemotePublish()
+            fixture.start()
+            fixture.awaitRemoteStarted()
+            val initialToken = fixture.snapshotToken()
+
+            fixture.allowRemoteImmediately()
+            fixture.awaitRemoteMappingBlocked()
+            val coverFile = fixture.writeGeneratedCover(BOOK_ID)
+            val initialSequence = fixture.localSnapshotSequence()
+            assertTrue("queue event was not accepted", fixture.queueChanges.tryEmit(Unit))
+            fixture.waitUntil("generated cover change was not opened into a local snapshot") {
+                fixture.localSnapshotSequence() > initialSequence
+            }
+            val latestToken = fixture.snapshotToken()
+
+            fixture.releaseRemoteMapping()
+            fixture.awaitRemotePublished()
+            val firstPublishedImage = fixture.entry(BOOK_ID)?.imageUri
+            assertTrue(
+                "old remote overwrote the newer generated cover before pending refresh: " +
+                    "initialToken=$initialToken latestToken=$latestToken " +
+                    "firstPublishedImage=$firstPublishedImage expected=${coverFile.absolutePath}",
+                firstPublishedImage == coverFile.absolutePath,
+            )
+            fixture.releaseRemotePublish()
+            fixture.awaitRemoteIdle()
+
+            assertEquals(coverFile.absolutePath, fixture.entry(BOOK_ID)?.imageUri)
+            assertTrue(
+                "generated-cover-only change was omitted from the snapshot token",
+                fixture.snapshotToken() != initialToken,
             )
         }
     }
@@ -656,6 +764,10 @@ class DownloadsFailureSyncTest {
         private val remoteStarted = CountDownLatch(1)
         private val releaseRemote = CountDownLatch(1)
         private val remoteAllowed = AtomicInteger(0)
+        private val remoteMappingBlocked = CountDownLatch(1)
+        private val releaseRemoteMapping = CountDownLatch(1)
+        private val remotePublished = CountDownLatch(1)
+        private val releaseRemotePublish = CountDownLatch(1)
         private val localRefreshEntered = CountDownLatch(1)
         private val releaseLocalRefresh = CountDownLatch(1)
         private val blockNextLocalRefresh = AtomicBoolean(false)
@@ -672,6 +784,7 @@ class DownloadsFailureSyncTest {
                 DownloadStorageUsage(usedBytes = 0L, availableBytes = 0L, totalBytes = 0L)
             )
         val refreshCount = AtomicInteger(0)
+        private val cacheStore = imageCacheStore(context, imageNamespace)
 
         val viewModel: DownloadsViewModel
 
@@ -728,7 +841,7 @@ class DownloadsFailureSyncTest {
                     readerRepository = readerRepository,
                     offlineMediaRepository = offlineRepository,
                     bookCoverProvider = bookCoverProvider(context),
-                    imageCacheStore = imageCacheStore(context, imageNamespace),
+                    imageCacheStore = cacheStore,
                 )
             viewModel.actionScopeOverride = scope
             viewModel.externalRefreshIngressObserverForTest = {
@@ -761,6 +874,46 @@ class DownloadsFailureSyncTest {
             releaseRemote.countDown()
         }
 
+        fun blockRemoteMapping() {
+            viewModel.remoteMappingCompleteObserverForTest = {
+                remoteMappingBlocked.countDown()
+                check(releaseRemoteMapping.await(5, TimeUnit.SECONDS)) {
+                    "remote mapping gate was not released"
+                }
+            }
+        }
+
+        fun awaitRemoteMappingBlocked() {
+            assertTrue(
+                "remote mapping did not reach the blocked final publish boundary",
+                remoteMappingBlocked.await(5, TimeUnit.SECONDS),
+            )
+        }
+
+        fun releaseRemoteMapping() {
+            releaseRemoteMapping.countDown()
+        }
+
+        fun observeRemotePublish() {
+            viewModel.remotePublishObserverForTest = {
+                remotePublished.countDown()
+                check(releaseRemotePublish.await(5, TimeUnit.SECONDS)) {
+                    "remote publish gate was not released"
+                }
+            }
+        }
+
+        fun awaitRemotePublished() {
+            assertTrue(
+                "remote result was not published",
+                remotePublished.await(5, TimeUnit.SECONDS),
+            )
+        }
+
+        fun releaseRemotePublish() {
+            releaseRemotePublish.countDown()
+        }
+
         fun blockNextLocalRefresh() {
             check(blockNextLocalRefresh.compareAndSet(false, true)) {
                 "local refresh was already configured to block"
@@ -789,6 +942,26 @@ class DownloadsFailureSyncTest {
             field.isAccessible = true
             return field.get(viewModel) as? String
         }
+
+        fun localSnapshotSequence(): Long = viewModel.localSnapshotSequenceForTest()
+
+        fun writeLocalArtwork(itemId: UUID): File =
+            checkNotNull(cacheStore.imageFile(itemId)).apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(0x11, 0x22, 0x33))
+            }
+
+        fun writeGeneratedCover(itemId: UUID): File =
+            BookCoverRules.cacheFile(context.filesDir, itemId).apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(0x44, 0x55, 0x66))
+            }
+
+        fun entry(itemId: UUID) =
+            viewModel.state.value
+                .let { it.activeContainers + it.completedContainers + it.failedContainers }
+                .flatMap { it.allEntries() }
+                .firstOrNull { it.itemId == itemId }
 
         fun activeSessionChildCount(): Int {
             val field = DownloadsViewModel::class.java.getDeclaredField("sessionJob")
@@ -828,6 +1001,8 @@ class DownloadsFailureSyncTest {
 
         override fun close() {
             releaseRemote()
+            releaseRemoteMapping()
+            releaseRemotePublish()
             releaseLocalRefresh()
             scope.cancel()
             executor.shutdownNow()
