@@ -39,19 +39,27 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import timber.log.Timber
 
@@ -166,8 +174,13 @@ constructor(
 
     private fun actionScope(): CoroutineScope = actionScopeOverride ?: viewModelScope
 
+    private var sessionJob: Job? = null
     private var pollingJob: Job? = null
-    private var refreshing = false
+    private var queueChangesJob: Job? = null
+    private var bookDownloadsJob: Job? = null
+    private var remoteRefreshJob: Job? = null
+    private val localRefreshMutex = Mutex()
+    @Volatile private var localSnapshotToken: String? = null
     private val cachedBookMetadata = mutableMapOf<UUID, BookMetadata>()
     /** W59：服务器主图 URL 会话级缓存（只在本地图缺失时查询，避免逐条打接口）。 */
     private val remoteImageCache = mutableMapOf<UUID, String?>()
@@ -182,21 +195,44 @@ constructor(
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
-        if (pollingJob != null) return
-        actionScope().launch { refresh(showLoading = true) }
-        pollingJob =
-            actionScope().launch {
-                while (isActive) {
-                    delay(POLL_INTERVAL_MS)
-                    refresh(showLoading = false)
-                }
+        if (sessionJob != null) return
+        val session = SupervisorJob(actionScope().coroutineContext[Job])
+        sessionJob = session
+        val scope = CoroutineScope(actionScope().coroutineContext + session)
+        queueChangesJob = scope.launch {
+            downloader.queueChanges.collect { requestExternalRefresh() }
+        }
+        bookDownloadsJob = scope.launch {
+            readerRepository.bookDownloads.drop(1).collect { requestExternalRefresh() }
+        }
+        scope.launch { refresh(showLoading = true) }
+        pollingJob = scope.launch {
+            while (isActive) {
+                delay(POLL_INTERVAL_MS)
+                refresh(showLoading = false)
             }
+        }
     }
 
     /** 页面离开：停止轮询（下载任务本身不受影响）。 */
     fun stop() {
         pollingJob?.cancel()
         pollingJob = null
+        queueChangesJob?.cancel()
+        queueChangesJob = null
+        bookDownloadsJob?.cancel()
+        bookDownloadsJob = null
+        remoteRefreshJob?.cancel()
+        remoteRefreshJob = null
+        sessionJob?.cancel()
+        sessionJob = null
+    }
+
+    private fun requestExternalRefresh() {
+        val session = sessionJob ?: return
+        CoroutineScope(actionScope().coroutineContext + session).launch {
+            refresh(showLoading = false)
+        }
     }
 
     /** W34：层级条目对应的媒体条目（用于打开详情 / 阅读器）。 */
@@ -705,228 +741,331 @@ constructor(
         }
     }
 
+    private data class LocalDownloadSnapshot(
+        val token: String,
+        val activeEngineTasks: List<DownloadTask>,
+        val failedEngineTasks: List<DownloadTask>,
+        val episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
+        val bookFiles: List<LocalBookFile>,
+        val completedBookIds: Set<UUID>,
+        val bookTasks: List<BookDownloadTask>,
+        val runningBookTasks: List<BookDownloadTask>,
+        val failedBookTasks: List<BookDownloadTask>,
+        val storage: DownloadStorageUsage,
+        val bookStorageBytes: Long,
+    )
+
     private suspend fun refresh(showLoading: Boolean) {
-        if (refreshing) return
-        refreshing = true
         try {
-            if (
-                showLoading &&
-                    _state.value.activeTasks.isEmpty() &&
-                    _state.value.completed.isEmpty()
-            ) {
-                _state.update { it.copy(isLoading = true) }
+            val snapshot = localRefreshMutex.withLock { refreshLocal(showLoading) }
+            if (remoteRefreshJob?.isActive != true) {
+                launchRemoteRefresh(snapshot)
             }
-
-            // W34：每个数据源单独兜底——曲库 / 书籍元数据拉取失败时不能把下载任务整页清空。
-            // W36：「允许离线模式观看」开关状态（sources / 书籍偏好），供条目行与容器开关显示。
-            offlineAllowMap = loadOfflineAllowMap()
-            // W37 遗留修复（W36 §12）：取消（快速切页）不能被吞掉，否则会把页面刷成 0 条后靠下一次轮询自愈。
-            val tasks =
-                try {
-                    downloader.refreshDownloadTasks()
-                } catch (cancellation: kotlinx.coroutines.CancellationException) {
-                    throw cancellation
-                } catch (error: Exception) {
-                    Timber.w(error, "刷新下载任务失败")
-                    emptyList()
-                }
-            completedMediaRecords =
-                runCatching { downloader.downloadedMediaRecords() }.getOrElse { emptyList() }
-            val completedCanonicalKeys =
-                completedMediaRecords.mapTo(mutableSetOf()) { record ->
-                    record.canonicalIdentity().canonicalKey
-                }
-            val activeEngineTasks =
-                DownloadControlPlaneRules.activeUniqueIntents(tasks, completedCanonicalKeys)
-            val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)
-            val episodeHierarchy = loadEpisodeHierarchy()
-            val bookFiles = loadBookFiles()
-            val completedBookIds = bookFiles.map { it.itemId }.toSet()
-            // W80（#23）：书籍整本下载任务（书架批量 / 阅读页「下载」共用）——进行中 / 失败的条目
-            // 与下载引擎任务一起进「未完成 / 失败」分组，书籍下载不再"点了看不见"。
-            val bookTasks =
-                BookDownloadProjectionRules.visibleTasks(readerRepository.bookDownloads.value)
-            val runningBookTasks = BookDownloadProjectionRules.activeTasks(bookTasks)
-            val failedBookTasks = BookDownloadProjectionRules.failedTasks(bookTasks)
-            val storage = runCatching {
-                downloader.getStorageUsage()
-            }
-                .getOrElse { DownloadStorageUsage(0L, 0L, 0L) }
-            val bookStorageBytes = bookFiles.sumOf { it.sizeBytes }
-
-            // ——— W63 阶段 1：本地数据（Room / 文件）先上屏，首帧不等待任何服务器接口 ———
-            val localActiveEntries = activeEngineTasks.map { task ->
-                task.toHierarchyEntry(
-                    episodeHierarchy = episodeHierarchy,
-                    musicById = emptyMap(),
-                    allowRemoteImages = false,
-                )
-            }
-            val localFailedEntries = failedEngineTasks.map { task ->
-                task.toHierarchyEntry(
-                    episodeHierarchy = episodeHierarchy,
-                    musicById = emptyMap(),
-                    allowRemoteImages = false,
-                )
-            }
-            val localBookEntries = bookFiles.map { file ->
-                file.toBookEntry(
-                    serverMetadata = null,
-                    owner = BookDownloadProjectionRules.ownerFor(bookTasks, file.itemId),
-                )
-            }
-            val localRunningBookEntries = runningBookTasks.map { task ->
-                task.toActiveBookEntry(serverName = null)
-            }
-            val localFailedBookEntries = failedBookTasks.map { task ->
-                task.toActiveBookEntry(serverName = null)
-            }
-            val localKeys =
-                (localActiveEntries +
-                        localFailedEntries +
-                        localBookEntries +
-                        localRunningBookEntries +
-                        localFailedBookEntries)
-                    .map { it.key }
-                    .toSet()
-            _state.update { current ->
-                current.copy(
-                    isLoading = false,
-                    activeTasks = activeEngineTasks,
-                    failedTasks = failedEngineTasks,
-                    activeContainers =
-                        DownloadHierarchyBuilder.build(
-                            localActiveEntries + localRunningBookEntries
-                        ),
-                    failedContainers =
-                        DownloadHierarchyBuilder.build(localFailedEntries + localFailedBookEntries),
-                    bookStorageBytes = bookStorageBytes,
-                    storage = storage,
-                    selection =
-                        DownloadSelectionRules.selectionAfterRefresh(
-                            state = current,
-                            validKeys = localKeys,
-                            currentEntries =
-                                localActiveEntries +
-                                    localFailedEntries +
-                                    localBookEntries +
-                                    localRunningBookEntries +
-                                    localFailedBookEntries,
-                        ),
-                )
-            }
-
-            // ——— W63 阶段 2：服务器元数据异步补齐（已完成条目 / 曲库 / 书籍名与封面 / 远程兜底图） ———
-            val completed = runCatching {
-                loadCompleted(episodeHierarchy)
-            }
-                .getOrElse { emptyList() }
-            val musicById = loadMusicLibrary()
-            val bookMetadata =
-                resolveBookMetadata(completedBookIds + runningBookTasks.map { it.itemId })
-
-            val activeEntries =
-                activeEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
-                    task.toHierarchyEntry(
-                        episodeHierarchy = episodeHierarchy,
-                        musicById = musicById,
-                        // W66：阶段 2 不再拉远程兜底图；缺图走阶段 3 本地补齐。
-                        allowRemoteImages = false,
-                    )
-                }
-            val failedEntries =
-                failedEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
-                    task.toHierarchyEntry(
-                        episodeHierarchy = episodeHierarchy,
-                        musicById = musicById,
-                        allowRemoteImages = false,
-                    )
-                }
-            val completedEntries =
-                completed
-                    .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { download ->
-                        download.toHierarchyEntry(
-                            musicById = musicById,
-                            bookMetadata = bookMetadata,
-                            bookFiles = bookFiles,
-                            allowRemoteImages = false,
-                        )
-                    }
-                    .filterNotNull()
-            val bookEntries =
-                bookFiles
-                    .filter { file -> completedBookIds.contains(file.itemId) }
-                    .map { file ->
-                        file.toBookEntry(
-                            serverMetadata = bookMetadata[file.itemId],
-                            owner = BookDownloadProjectionRules.ownerFor(bookTasks, file.itemId),
-                        )
-                    }
-            val runningBookEntries = runningBookTasks.map { task ->
-                task.toActiveBookEntry(bookMetadata[task.itemId]?.name)
-            }
-            val failedBookEntries = failedBookTasks.map { task ->
-                task.toActiveBookEntry(bookMetadata[task.itemId]?.name)
-            }
-
-            val validKeys =
-                (activeEntries +
-                        failedEntries +
-                        completedEntries +
-                        bookEntries +
-                        runningBookEntries +
-                        failedBookEntries)
-                    .map { it.key }
-                    .toSet()
-
-            _state.update { current ->
-                current.copy(
-                    isLoading = false,
-                    activeTasks = activeEngineTasks,
-                    failedTasks = failedEngineTasks,
-                    completed = completed,
-                    activeContainers =
-                        DownloadHierarchyBuilder.build(activeEntries + runningBookEntries),
-                    completedContainers =
-                        DownloadHierarchyBuilder.build(completedEntries + bookEntries),
-                    failedContainers =
-                        DownloadHierarchyBuilder.build(failedEntries + failedBookEntries),
-                    bookStorageBytes = bookStorageBytes,
-                    storage = storage,
-                    selection =
-                        DownloadSelectionRules.selectionAfterRefresh(
-                            state = current,
-                            validKeys = validKeys,
-                            currentEntries =
-                                activeEntries +
-                                    failedEntries +
-                                    completedEntries +
-                                    bookEntries +
-                                    runningBookEntries +
-                                    failedBookEntries,
-                        ),
-                )
-            }
-
-            // ——— W66 阶段 3：缺图 / 过期图后台补齐（并发上限 4；完成后自动刷新一次，无需重进页面） ———
-            scheduleArtworkBackfill(
-                tasks = activeEngineTasks + failedEngineTasks,
-                completed = completed,
-                episodeHierarchy = episodeHierarchy,
-                musicById = musicById,
-                bookIds = completedBookIds,
-            )
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
-            // 取消（离开页面）直接向上传播：不再走"保留上一次状态 + 清 loading"的失败路径。
+        } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            // W34 调试：刷新失败不再静默，打印后保留上一次可用状态，避免整页变空。
             Timber.e(error, "下载页刷新失败")
             _state.update { it.copy(isLoading = false) }
-        } finally {
-            refreshing = false
         }
     }
+
+    private suspend fun refreshLocal(showLoading: Boolean): LocalDownloadSnapshot {
+        if (showLoading && _state.value.activeTasks.isEmpty() && _state.value.completed.isEmpty()) {
+            _state.update { it.copy(isLoading = true) }
+        }
+
+        // W34：每个数据源单独兜底——曲库 / 书籍元数据拉取失败时不能把下载任务整页清空。
+        // W36：「允许离线模式观看」开关状态（sources / 书籍偏好），供条目行与容器开关显示。
+        offlineAllowMap = loadOfflineAllowMap()
+        // W37 遗留修复（W36 §12）：取消（快速切页）不能被吞掉，否则会把页面刷成 0 条后靠下一次轮询自愈。
+        val tasks =
+            try {
+                downloader.refreshDownloadTasks()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "刷新下载任务失败")
+                emptyList()
+            }
+        completedMediaRecords =
+            runCatchingCancellable { downloader.downloadedMediaRecords() }
+                .onFailure { Timber.w(it, "读取已完成下载快照失败") }
+                .getOrElse { emptyList() }
+        val completedCanonicalKeys =
+            completedMediaRecords.mapTo(mutableSetOf()) { record ->
+                record.canonicalIdentity().canonicalKey
+            }
+        val activeEngineTasks =
+            DownloadControlPlaneRules.activeUniqueIntents(tasks, completedCanonicalKeys)
+        val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)
+        val episodeHierarchy = loadEpisodeHierarchy()
+        val bookFiles = loadBookFiles()
+        val completedBookIds = bookFiles.map { it.itemId }.toSet()
+        // W80（#23）：书籍整本下载任务（书架批量 / 阅读页「下载」共用）——进行中 / 失败的条目
+        // 与下载引擎任务一起进「未完成 / 失败」分组，书籍下载不再"点了看不见"。
+        val bookTasks =
+            BookDownloadProjectionRules.visibleTasks(readerRepository.bookDownloads.value)
+        val runningBookTasks = BookDownloadProjectionRules.activeTasks(bookTasks)
+        val failedBookTasks = BookDownloadProjectionRules.failedTasks(bookTasks)
+        val storage = runCatchingCancellable {
+            downloader.getStorageUsage()
+        }
+            .getOrElse { DownloadStorageUsage(0L, 0L, 0L) }
+        val bookStorageBytes = bookFiles.sumOf { it.sizeBytes }
+
+        // ——— W63 阶段 1：本地数据（Room / 文件）先上屏，首帧不等待任何服务器接口 ———
+        val localActiveEntries = activeEngineTasks.map { task ->
+            task.toHierarchyEntry(
+                episodeHierarchy = episodeHierarchy,
+                musicById = emptyMap(),
+                allowRemoteImages = false,
+            )
+        }
+        val localFailedEntries = failedEngineTasks.map { task ->
+            task.toHierarchyEntry(
+                episodeHierarchy = episodeHierarchy,
+                musicById = emptyMap(),
+                allowRemoteImages = false,
+            )
+        }
+        val localBookEntries = bookFiles.map { file ->
+            file.toBookEntry(
+                serverMetadata = null,
+                owner = BookDownloadProjectionRules.ownerFor(bookTasks, file.itemId),
+            )
+        }
+        val localRunningBookEntries = runningBookTasks.map { task ->
+            task.toActiveBookEntry(serverName = null)
+        }
+        val localFailedBookEntries = failedBookTasks.map { task ->
+            task.toActiveBookEntry(serverName = null)
+        }
+        val localEntries =
+            localActiveEntries +
+                localFailedEntries +
+                localBookEntries +
+                localRunningBookEntries +
+                localFailedBookEntries
+        val localKeys = localEntries.map { it.key }.toSet()
+        val snapshotToken =
+            downloadSnapshotToken(
+                tasks = tasks,
+                completedCanonicalKeys = completedCanonicalKeys,
+                bookTasks = bookTasks,
+            )
+        currentCoroutineContext().ensureActive()
+        _state.update { current ->
+            current.copy(
+                isLoading = false,
+                activeTasks = activeEngineTasks,
+                failedTasks = failedEngineTasks,
+                activeContainers =
+                    DownloadHierarchyBuilder.build(localActiveEntries + localRunningBookEntries),
+                failedContainers =
+                    DownloadHierarchyBuilder.build(localFailedEntries + localFailedBookEntries),
+                bookStorageBytes = bookStorageBytes,
+                storage = storage,
+                selection =
+                    DownloadSelectionRules.selectionAfterRefresh(
+                        state = current,
+                        validKeys = localKeys,
+                        currentEntries = localEntries,
+                    ),
+            )
+        }
+        localSnapshotToken = snapshotToken
+        return LocalDownloadSnapshot(
+            token = snapshotToken,
+            activeEngineTasks = activeEngineTasks,
+            failedEngineTasks = failedEngineTasks,
+            episodeHierarchy = episodeHierarchy,
+            bookFiles = bookFiles,
+            completedBookIds = completedBookIds,
+            bookTasks = bookTasks,
+            runningBookTasks = runningBookTasks,
+            failedBookTasks = failedBookTasks,
+            storage = storage,
+            bookStorageBytes = bookStorageBytes,
+        )
+    }
+
+    private fun launchRemoteRefresh(snapshot: LocalDownloadSnapshot) {
+        val session = sessionJob ?: return
+        val scope = CoroutineScope(actionScope().coroutineContext + session)
+        val job =
+            scope.launch(start = CoroutineStart.LAZY) {
+                try {
+                    refreshRemote(snapshot)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.e(error, "下载页远程元数据刷新失败")
+                    _state.update { it.copy(isLoading = false) }
+                }
+            }
+        remoteRefreshJob = job
+        job.invokeOnCompletion {
+            if (remoteRefreshJob === job) {
+                remoteRefreshJob = null
+            }
+        }
+        job.start()
+    }
+
+    private suspend fun refreshRemote(snapshot: LocalDownloadSnapshot) {
+        if (localSnapshotToken != snapshot.token) return
+
+        // ——— W63 阶段 2：服务器元数据异步补齐（已完成条目 / 曲库 / 书籍名与封面 / 远程兜底图） ———
+        val completed = runCatchingCancellable {
+            loadCompleted(snapshot.episodeHierarchy)
+        }
+            .getOrElse { emptyList() }
+        val musicById = loadMusicLibrary()
+        val bookMetadata =
+            resolveBookMetadata(
+                snapshot.completedBookIds + snapshot.runningBookTasks.map { it.itemId }
+            )
+
+        val activeEntries =
+            snapshot.activeEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+                task.toHierarchyEntry(
+                    episodeHierarchy = snapshot.episodeHierarchy,
+                    musicById = musicById,
+                    // W66：阶段 2 不再拉远程兜底图；缺图走阶段 3 本地补齐。
+                    allowRemoteImages = false,
+                )
+            }
+        val failedEntries =
+            snapshot.failedEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+                task.toHierarchyEntry(
+                    episodeHierarchy = snapshot.episodeHierarchy,
+                    musicById = musicById,
+                    allowRemoteImages = false,
+                )
+            }
+        val completedEntries =
+            completed
+                .mapBounded(REMOTE_PREFETCH_CONCURRENCY) { download ->
+                    download.toHierarchyEntry(
+                        musicById = musicById,
+                        bookMetadata = bookMetadata,
+                        bookFiles = snapshot.bookFiles,
+                        allowRemoteImages = false,
+                    )
+                }
+                .filterNotNull()
+        val bookEntries =
+            snapshot.bookFiles
+                .filter { file -> snapshot.completedBookIds.contains(file.itemId) }
+                .map { file ->
+                    file.toBookEntry(
+                        serverMetadata = bookMetadata[file.itemId],
+                        owner =
+                            BookDownloadProjectionRules.ownerFor(snapshot.bookTasks, file.itemId),
+                    )
+                }
+        val runningBookEntries =
+            snapshot.runningBookTasks.map { task ->
+                task.toActiveBookEntry(bookMetadata[task.itemId]?.name)
+            }
+        val failedBookEntries =
+            snapshot.failedBookTasks.map { task ->
+                task.toActiveBookEntry(bookMetadata[task.itemId]?.name)
+            }
+        val remoteEntries =
+            activeEntries +
+                failedEntries +
+                completedEntries +
+                bookEntries +
+                runningBookEntries +
+                failedBookEntries
+        val validKeys = remoteEntries.map { it.key }.toSet()
+
+        val published = localRefreshMutex.withLock {
+            if (sessionJob?.isActive != true || localSnapshotToken != snapshot.token) {
+                false
+            } else {
+                _state.update { current ->
+                    current.copy(
+                        isLoading = false,
+                        activeTasks = snapshot.activeEngineTasks,
+                        failedTasks = snapshot.failedEngineTasks,
+                        completed = completed,
+                        activeContainers =
+                            DownloadHierarchyBuilder.build(activeEntries + runningBookEntries),
+                        completedContainers =
+                            DownloadHierarchyBuilder.build(completedEntries + bookEntries),
+                        failedContainers =
+                            DownloadHierarchyBuilder.build(failedEntries + failedBookEntries),
+                        bookStorageBytes = snapshot.bookStorageBytes,
+                        storage = snapshot.storage,
+                        selection =
+                            DownloadSelectionRules.selectionAfterRefresh(
+                                state = current,
+                                validKeys = validKeys,
+                                currentEntries = remoteEntries,
+                            ),
+                    )
+                }
+                true
+            }
+        }
+        if (!published) return
+
+        // ——— W66 阶段 3：缺图 / 过期图后台补齐（并发上限 4；完成后自动刷新一次，无需重进页面） ———
+        scheduleArtworkBackfill(
+            tasks = snapshot.activeEngineTasks + snapshot.failedEngineTasks,
+            completed = completed,
+            episodeHierarchy = snapshot.episodeHierarchy,
+            musicById = musicById,
+            bookIds = snapshot.completedBookIds,
+        )
+    }
+
+    private fun downloadSnapshotToken(
+        tasks: List<DownloadTask>,
+        completedCanonicalKeys: Set<String>,
+        bookTasks: List<BookDownloadTask>,
+    ): String {
+        val taskToken =
+            tasks
+                .map { task ->
+                    listOf(
+                            task.downloadIdentity().canonicalKey,
+                            task.taskGeneration.toString(),
+                            task.updatedAt.toString(),
+                            task.status.name,
+                            task.failureReason?.name.orEmpty(),
+                        )
+                        .joinToString(":")
+                }
+                .sorted()
+                .joinToString(";")
+        val bookToken =
+            bookTasks
+                .map { task ->
+                    listOf(
+                            task.canonicalKey,
+                            task.taskGeneration.toString(),
+                            task.updatedAtEpochMillis.toString(),
+                            task.status.name,
+                            task.failureReason.orEmpty(),
+                        )
+                        .joinToString(":")
+                }
+                .sorted()
+                .joinToString(";")
+        return "tasks=$taskToken|completed=${completedCanonicalKeys.sorted().joinToString(";")}|books=$bookToken"
+    }
+
+    private suspend fun <T> runCatchingCancellable(block: suspend () -> T): Result<T> =
+        try {
+            Result.success(block())
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
 
     private suspend fun loadCompleted(
         episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>
@@ -956,25 +1095,25 @@ constructor(
      * W59：改用「有来源即纳入」的口径——进行中 / 暂停 / 失败任务也有归属，Show 卡与详情页 才能在下载中就被正确分组（旧口径只认完成文件，进行中剧集会被当成电影平条）。
      */
     private suspend fun loadEpisodeHierarchy(): Map<UUID, DownloadedEpisodeHierarchy> =
-        runCatching {
+        runCatchingCancellable {
             repository.getEpisodeHierarchyWithSources().associateBy { it.episodeId }
         }
         .getOrElse { emptyMap() }
 
     /** W34：主库曲目快照（专辑 / 艺人 / 封面）。 */
-    private suspend fun loadMusicLibrary(): Map<UUID, MusicTrackMetadata> = runCatching {
+    private suspend fun loadMusicLibrary(): Map<UUID, MusicTrackMetadata> = runCatchingCancellable {
         repository.getMusicTrackMetadata()
     }
         .getOrElse { emptyMap() }
 
-    private suspend fun loadBookFiles(): List<LocalBookFile> = runCatching {
+    private suspend fun loadBookFiles(): List<LocalBookFile> = runCatchingCancellable {
         readerRepository.listLocalFiles()
     }
         .onFailure { Timber.w(it, "下载页书籍离线列表读取失败") }
         .getOrElse { emptyList() }
 
     /** W36：离线开关状态（视频 / 音乐在 sources 表，书籍在偏好里）；失败按「全部允许」。 */
-    private suspend fun loadOfflineAllowMap(): Map<UUID, Boolean> = runCatching {
+    private suspend fun loadOfflineAllowMap(): Map<UUID, Boolean> = runCatchingCancellable {
         offlineMediaRepository.listEntries().associate { it.itemId to it.allowOffline }
     }
         .onFailure { Timber.w(it, "读取离线开关状态失败") }
@@ -985,12 +1124,12 @@ constructor(
         if (bookIds.isEmpty()) return emptyMap()
         for (id in bookIds) {
             if (cachedBookMetadata.containsKey(id)) continue
-            val name = runCatching {
+            val name = runCatchingCancellable {
                 repository.getItem(id)?.name
             }
                 .getOrNull()
                 ?.takeIf { it.isNotBlank() }
-            val imageUrl = runCatching { repository.getPrimaryImageUrl(id) }.getOrNull()
+            val imageUrl = runCatchingCancellable { repository.getPrimaryImageUrl(id) }.getOrNull()
             if (name != null || imageUrl != null) {
                 cachedBookMetadata[id] = BookMetadata(name = name, imageUrl = imageUrl)
             }
