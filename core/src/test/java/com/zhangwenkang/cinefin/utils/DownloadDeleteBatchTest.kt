@@ -99,7 +99,7 @@ class DownloadDeleteBatchTest {
                 store = store,
                 clock = { 1_000L },
                 batchId = { "batch-1" },
-                delete = { request, _ ->
+                delete = { request, _, _ ->
                     processed += request.sourceId.orEmpty()
                     if (request.itemId != UUID(0L, 2L)) {
                         DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
@@ -140,7 +140,7 @@ class DownloadDeleteBatchTest {
                 store = store,
                 clock = { 1_000L },
                 batchId = { "batch-failed" },
-                delete = { current, resumed ->
+                delete = { current, resumed, _ ->
                     attempts += current.sourceId.orEmpty() to resumed
                     if (current.itemId == firstRequest.itemId) {
                         DownloadDeleteAttempt(
@@ -166,7 +166,7 @@ class DownloadDeleteBatchTest {
             DownloadDeleteBatchProcessor(
                     store = store,
                     clock = { 2_000L },
-                    delete = { current, resumed ->
+                    delete = { current, resumed, _ ->
                         attempts += current.sourceId.orEmpty() to resumed
                         DownloadDeleteAttempt(
                             outcome = DownloadDeleteOutcome.SUCCEEDED,
@@ -198,7 +198,8 @@ class DownloadDeleteBatchTest {
                 store = store,
                 clock = { 1_000L },
                 batchId = { "batch-deadline" },
-                delete = { request, _ ->
+                itemTimeoutMs = 100L,
+                delete = { request, _, _ ->
                     processed += request.sourceId.orEmpty()
                     if (request.itemId == requests.first().itemId) {
                         awaitCancellation()
@@ -207,9 +208,9 @@ class DownloadDeleteBatchTest {
                 },
             )
 
-        val result = withTimeoutOrNull(20_000L) { processor.deleteAll(requests) }
+        val result = withTimeoutOrNull(2_000L) { processor.deleteAll(requests) }
 
-        assertNotNull("旧实现串行等待首项，后续项永远得不到 receipt", result)
+        assertNotNull("processor 必须在短 deadline 后继续处理后续项", result)
         assertEquals(listOf("source-1", "source-2"), processed)
         assertEquals(
             listOf(DownloadDeleteOutcome.FAILED, DownloadDeleteOutcome.SUCCEEDED),
@@ -225,7 +226,7 @@ class DownloadDeleteBatchTest {
             DownloadDeleteBatchProcessor(
                 store = store,
                 batchId = { "batch-cancel" },
-                delete = { _, _ ->
+                delete = { _, _, _ ->
                     started.complete(Unit)
                     awaitCancellation()
                 },
@@ -247,7 +248,7 @@ class DownloadDeleteBatchTest {
             DownloadDeleteBatchProcessor(
                 store = store,
                 batchId = { "batch-external-timeout" },
-                delete = { _, _ -> awaitCancellation() },
+                delete = { _, _, _ -> awaitCancellation() },
             )
 
         val outcome = runCatching { withTimeout(100L) { processor.deleteAll(listOf(request(1))) } }
@@ -290,7 +291,7 @@ class DownloadDeleteBatchTest {
                 store = store,
                 clock = { 1_000L },
                 batchId = { "batch-crash" },
-                delete = { request, _ ->
+                delete = { request, _, _ ->
                     processed += request.sourceId.orEmpty()
                     if (request.itemId == UUID(0L, 2L)) {
                         throw CancellationException("进程中断")
@@ -315,7 +316,7 @@ class DownloadDeleteBatchTest {
             DownloadDeleteBatchProcessor(
                     store = store,
                     clock = { 2_000L },
-                    delete = { request, _ ->
+                    delete = { request, _, _ ->
                         processed += request.sourceId.orEmpty()
                         DownloadDeleteAttempt(DownloadDeleteOutcome.SUCCEEDED)
                     },
@@ -337,7 +338,7 @@ class DownloadDeleteBatchTest {
                 store = store,
                 clock = { 1_000L },
                 batchId = { "batch-superseded" },
-                delete = { request, _ ->
+                delete = { request, _, _ ->
                     if (request.itemId == UUID(0L, 1L)) {
                         DownloadDeleteAttempt(DownloadDeleteOutcome.SUPERSEDED, "新代已替换")
                     } else {

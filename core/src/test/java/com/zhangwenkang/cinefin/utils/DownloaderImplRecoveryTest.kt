@@ -47,6 +47,7 @@ import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
@@ -5342,6 +5343,7 @@ class DownloaderImplRecoveryTest {
         var concurrentSourceInserted = CompletableDeferred<Unit>()
         var sourceDeletionGeneration = 0L
         private var blockSourceDelete = false
+        private var interruptSourceDeleteAfterCommit = false
         var sourceReadStarted = CompletableDeferred<Unit>()
         var releaseSourceRead = CompletableDeferred<Unit>()
         private var blockSourceRead = false
@@ -6068,6 +6070,11 @@ class DownloaderImplRecoveryTest {
             sourceDeletionGeneration = 0L
         }
 
+        fun armSourceDeletionInterruption() {
+            armSourceDeletionGate()
+            interruptSourceDeleteAfterCommit = true
+        }
+
         fun armSourceReadGate() {
             blockSourceRead = true
             sourceReadStarted = CompletableDeferred()
@@ -6368,6 +6375,10 @@ class DownloaderImplRecoveryTest {
                 sourceDeletionGeneration = deleting.taskGeneration
                 sourceDeleteStarted.complete(Unit)
                 runBlocking { releaseSourceDelete.await() }
+            }
+            if (interruptSourceDeleteAfterCommit) {
+                interruptSourceDeleteAfterCommit = false
+                throw CancellationException("模拟 source 删除栅栏提交后进程中断")
             }
             return deleting
         }

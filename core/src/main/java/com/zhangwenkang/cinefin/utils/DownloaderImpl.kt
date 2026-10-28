@@ -2959,6 +2959,7 @@ private constructor(
         sourceId: String,
         expectedGeneration: Long,
         knownItem: FindroidItem? = null,
+        beforeDeleteFence: suspend (Long) -> Unit = {},
     ): Boolean =
         withContext(Dispatchers.IO) {
             val current = database.getSource(sourceId) ?: return@withContext true
@@ -2972,6 +2973,7 @@ private constructor(
                     }
                 } else {
                     lifecycleControl.withCommand(sourceId, expectedGeneration) {
+                        beforeDeleteFence(expectedGeneration + 1L)
                         val row =
                             database.beginSourceDeletion(
                                 sourceId,
@@ -3176,6 +3178,7 @@ private constructor(
     private suspend fun deleteDownloadRequest(
         request: DownloadDeleteRequest,
         resumed: Boolean,
+        claimGeneration: suspend (Long) -> Unit,
     ): DownloadDeleteAttempt =
         when (request.mediaKind) {
             DownloadMediaKind.BOOK -> {
@@ -3220,7 +3223,7 @@ private constructor(
                 if (sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
                     deleteIntentForReceipt(sourceId, request, resumed)
                 } else {
-                    deleteSourceForReceipt(sourceId, request, resumed)
+                    deleteSourceForReceipt(sourceId, request, resumed, claimGeneration)
                 }
             }
         }
@@ -3288,6 +3291,7 @@ private constructor(
         sourceId: String,
         request: DownloadDeleteRequest,
         resumed: Boolean,
+        claimGeneration: suspend (Long) -> Unit,
     ): DownloadDeleteAttempt =
         lifecycleControl.withSourceOperation(sourceId) {
             val current =
@@ -3304,45 +3308,67 @@ private constructor(
             }
             val requestedGeneration = request.expectedGeneration
             val currentStatus = current.taskStatus.toTaskStatus()
-            val deletionGeneration =
-                if (resumed) {
-                    requestedGeneration
-                        ?: if (currentStatus == DownloadTaskStatus.DELETING) {
-                            return@withSourceOperation DownloadDeleteAttempt(
-                                outcome = DownloadDeleteOutcome.FAILED,
-                                detail = "缺少可验证的删除代次，等待启动扫描",
-                            )
-                        } else {
-                            return@withSourceOperation DownloadDeleteAttempt(
-                                outcome = DownloadDeleteOutcome.SUPERSEDED,
-                                detail = "当前 source 已不是待删除代次",
-                            )
-                        }
-                } else {
-                    if (
-                        requestedGeneration != null && current.taskGeneration != requestedGeneration
-                    ) {
-                        return@withSourceOperation DownloadDeleteAttempt(
-                            outcome = DownloadDeleteOutcome.SUPERSEDED,
-                            detail = "删除代次已被新入队替换",
-                            expectedGeneration = requestedGeneration,
-                        )
-                    }
-                    current.taskGeneration
-                }
+            val sameDeletingGeneration =
+                requestedGeneration == current.taskGeneration &&
+                    currentStatus == DownloadTaskStatus.DELETING
+            val ownedBeforeFence =
+                request.expectedGenerationOwned &&
+                    requestedGeneration == current.taskGeneration + 1L &&
+                    currentStatus != DownloadTaskStatus.DELETING
+            val validResume = sameDeletingGeneration || ownedBeforeFence
             if (
                 resumed &&
-                    (current.taskGeneration != deletionGeneration ||
-                        currentStatus != DownloadTaskStatus.DELETING)
+                    (requestedGeneration == null || requestedGeneration <= 0L || !validResume)
+            ) {
+                val detail =
+                    if (requestedGeneration == null) {
+                        if (currentStatus == DownloadTaskStatus.DELETING) {
+                            "缺少可验证的删除代次，等待启动扫描"
+                        } else {
+                            "当前 source 已不是待删除代次"
+                        }
+                    } else {
+                        "删除代次不归该 receipt 所有或已被新代替换"
+                    }
+                return@withSourceOperation DownloadDeleteAttempt(
+                    outcome =
+                        if (
+                            requestedGeneration == null &&
+                                currentStatus == DownloadTaskStatus.DELETING
+                        ) {
+                            DownloadDeleteOutcome.FAILED
+                        } else {
+                            DownloadDeleteOutcome.SUPERSEDED
+                        },
+                    detail = detail,
+                    expectedGeneration = requestedGeneration,
+                )
+            }
+            if (
+                !resumed &&
+                    requestedGeneration != null &&
+                    current.taskGeneration != requestedGeneration
             ) {
                 return@withSourceOperation DownloadDeleteAttempt(
                     outcome = DownloadDeleteOutcome.SUPERSEDED,
-                    detail = "删除代次已完成或被新入队替换",
-                    expectedGeneration = deletionGeneration,
+                    detail = "删除代次已被新入队替换",
+                    expectedGeneration = requestedGeneration,
                 )
             }
+            val deletionGeneration =
+                if (currentStatus == DownloadTaskStatus.DELETING) {
+                    current.taskGeneration
+                } else {
+                    current.taskGeneration + 1L
+                }
             try {
-                if (deleteTaskAtGenerationSerialized(sourceId, deletionGeneration)) {
+                if (
+                    deleteTaskAtGenerationSerialized(
+                        sourceId = sourceId,
+                        expectedGeneration = current.taskGeneration,
+                        beforeDeleteFence = claimGeneration,
+                    )
+                ) {
                     DownloadDeleteAttempt(
                         outcome = DownloadDeleteOutcome.SUCCEEDED,
                         expectedGeneration = deletionGeneration,
@@ -3699,15 +3725,16 @@ private constructor(
 
     override suspend fun recoverOnStartup(): Int =
         withContext(Dispatchers.IO) {
-            try {
-                resumePendingDeleteBatches()
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (error: Exception) {
-                Timber.w(error, "恢复未完成删除批次失败")
-            }
+            var recovered =
+                try {
+                    resumePendingDeleteBatches()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "恢复未完成删除批次失败")
+                    0
+                }
             val now = System.currentTimeMillis()
-            var recovered = 0
             for (source in database.getAllSources()) {
                 val status = source.taskStatus.toTaskStatus()
                 if (status != DownloadTaskStatus.COMPLETED && status != DownloadTaskStatus.FAILED) {

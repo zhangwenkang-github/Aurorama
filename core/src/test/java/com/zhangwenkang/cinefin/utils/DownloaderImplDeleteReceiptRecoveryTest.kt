@@ -40,8 +40,8 @@ class DownloaderImplDeleteReceiptRecoveryTest {
 
                     assertEquals(DownloadDeleteOutcome.PENDING.name, pending.outcome)
                     assertEquals(
-                        "batch begin 必须在同一持久 receipt 中写入 validated generation",
-                        source.taskGeneration,
+                        "source 删除栅栏前必须持久化该 delete 拥有的目标 generation",
+                        source.taskGeneration + 1L,
                         pending.verifiedGeneration,
                     )
                 } finally {
@@ -57,11 +57,117 @@ class DownloaderImplDeleteReceiptRecoveryTest {
                         )
                     )
                 assertEquals(DownloadDeleteOutcome.SUCCEEDED.name, terminal.outcome)
-                assertEquals(source.taskGeneration, terminal.verifiedGeneration)
+                assertEquals(source.taskGeneration + 1L, terminal.verifiedGeneration)
             } finally {
                 fixture.close()
             }
         }
+
+    @Test
+    fun `process interruption after source fence resumes its owned generation`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val movie = fixture.movie()
+            val (_, downloadError) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            assertNull(downloadError)
+            val original = requireNotNull(fixture.dao.source)
+            val request =
+                DownloadDeleteRequest(
+                    itemId = original.itemId,
+                    sourceId = original.id,
+                    mediaKind = DownloadMediaKind.VIDEO,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    expectedGeneration = original.taskGeneration,
+                )
+            fixture.dao.armSourceDeletionInterruption()
+
+            val interrupted =
+                async(Dispatchers.IO) {
+                    runCatching { fixture.downloader.deleteDownloads(listOf(request)) }
+                }
+            try {
+                withTimeout(5_000L) { fixture.dao.sourceDeleteStarted.await() }
+                val fenced = requireNotNull(fixture.dao.source)
+                assertEquals(DownloadTaskStatus.DELETING.name, fenced.taskStatus)
+                assertEquals(original.taskGeneration + 1L, fenced.taskGeneration)
+            } finally {
+                fixture.dao.releaseSourceDelete.complete(Unit)
+            }
+            val interruption = interrupted.await().exceptionOrNull()
+            assertTrue(interruption is kotlinx.coroutines.CancellationException)
+            val pending = fixture.dao.pendingDeleteReceipts().single()
+            assertEquals(DownloadDeleteOutcome.PENDING.name, pending.outcome)
+            val batchId = pending.batchId
+
+            val recovered = fixture.newDownloader().recoverOnStartup()
+            val receipt = fixture.dao.deleteReceipts(batchId).single()
+
+            assertEquals(
+                "同一删除拥有的 ${original.taskGeneration + 1L} 代必须续删到真实终态；" +
+                    "receipt=${receipt.outcome}/${receipt.detail}",
+                DownloadDeleteOutcome.SUCCEEDED.name,
+                receipt.outcome,
+            )
+            assertEquals(original.taskGeneration + 1L, receipt.verifiedGeneration)
+            assertNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(1, recovered)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `owned receipt does not absorb a later deleting generation`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        try {
+            val movie = fixture.movie()
+            val (_, downloadError) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            assertNull(downloadError)
+            val original = requireNotNull(fixture.dao.source)
+            val request =
+                DownloadDeleteRequest(
+                    itemId = original.itemId,
+                    sourceId = original.id,
+                    mediaKind = DownloadMediaKind.VIDEO,
+                    serverId = SERVER_ID,
+                    userId = USER_ID.toString(),
+                    expectedGeneration = original.taskGeneration,
+                )
+            fixture.dao.armSourceDeletionInterruption()
+            val interrupted =
+                async(Dispatchers.IO) {
+                    runCatching { fixture.downloader.deleteDownloads(listOf(request)) }
+                }
+            try {
+                withTimeout(5_000L) { fixture.dao.sourceDeleteStarted.await() }
+            } finally {
+                fixture.dao.releaseSourceDelete.complete(Unit)
+            }
+            assertTrue(
+                interrupted.await().exceptionOrNull() is kotlinx.coroutines.CancellationException
+            )
+            val owned = requireNotNull(fixture.dao.source)
+            assertEquals(original.taskGeneration + 1L, owned.taskGeneration)
+            assertEquals(DownloadTaskStatus.DELETING.name, owned.taskStatus)
+            val batchId = fixture.dao.pendingDeleteReceipts().single().batchId
+            fixture.dao.putSource(owned.copy(taskGeneration = owned.taskGeneration + 1L))
+            fixture.dao.sourceEvents.clear()
+
+            assertEquals(0, fixture.newDownloader().resumePendingDeleteBatches())
+
+            val retained = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(owned.taskGeneration + 1L, retained.taskGeneration)
+            assertEquals(DownloadTaskStatus.DELETING.name, retained.taskStatus)
+            assertTrue("后续删除代次不得被旧 receipt 清理", fixture.dao.sourceEvents.isEmpty())
+            assertEquals(
+                DownloadDeleteOutcome.SUPERSEDED.name,
+                fixture.dao.deleteReceipts(batchId).single().outcome,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
 
     @Test
     fun `new instance resumes intent receipt only for the verified generation`() = runBlocking {

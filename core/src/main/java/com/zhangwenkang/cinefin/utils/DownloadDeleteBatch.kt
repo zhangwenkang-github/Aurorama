@@ -15,6 +15,7 @@ data class DownloadDeleteRequest(
     val serverId: String?,
     val userId: String?,
     val expectedGeneration: Long? = null,
+    val expectedGenerationOwned: Boolean = false,
 )
 
 enum class DownloadDeleteOutcome {
@@ -84,6 +85,9 @@ object DownloadDeletionIdentity {
             .canonicalKey
 }
 
+internal fun sourceDeletionOwnershipDetail(generation: Long): String =
+    "w90-source-delete-owned:$generation"
+
 data class DownloadDeleteBatchSnapshot(
     val batchId: String,
     val receipts: List<DownloadDeleteReceipt>,
@@ -114,7 +118,12 @@ class DownloadDeleteBatchProcessor(
     private val clock: () -> Long = System::currentTimeMillis,
     private val batchId: () -> String = { UUID.randomUUID().toString() },
     private val itemTimeoutMs: Long = 15_000L,
-    private val delete: suspend (DownloadDeleteRequest, Boolean) -> DownloadDeleteAttempt,
+    private val delete:
+        suspend (
+            DownloadDeleteRequest,
+            Boolean,
+            suspend (Long) -> Unit,
+        ) -> DownloadDeleteAttempt,
 ) {
     init {
         require(itemTimeoutMs > 0L) { "删除单项 deadline 必须大于 0" }
@@ -186,6 +195,10 @@ class DownloadDeleteBatchProcessor(
                                                     batchId = snapshot.batchId,
                                                     canonicalKey = receipt.canonicalKey,
                                                 ),
+                                        expectedGenerationOwned =
+                                            receipt.expectedGeneration?.let {
+                                                receipt.detail == sourceDeletionOwnershipDetail(it)
+                                            } ?: false,
                                     ),
                                 ordinal = receipt.ordinal,
                                 resumed = true,
@@ -203,15 +216,39 @@ class DownloadDeleteBatchProcessor(
     ): DownloadDeleteBatchResult {
         val receipts = mutableListOf<DownloadDeleteReceipt>()
         for ((request, ordinal, resumed) in requests) {
+            var ownedGeneration = request.expectedGeneration
+            val claimGeneration: suspend (Long) -> Unit = { generation ->
+                ownedGeneration = generation
+                store.record(
+                    DownloadDeleteReceipt(
+                        batchId = batchId,
+                        canonicalKey = DownloadDeletionIdentity.canonicalKey(request),
+                        itemId = request.itemId,
+                        sourceId = request.sourceId,
+                        mediaKind = request.mediaKind,
+                        serverId = request.serverId,
+                        userId = request.userId,
+                        ordinal = ordinal,
+                        outcome = DownloadDeleteOutcome.PENDING,
+                        detail = sourceDeletionOwnershipDetail(generation),
+                        updatedAtMs = clock(),
+                        expectedGeneration = generation,
+                    )
+                )
+                trustedGenerations.put(
+                    ReceiptIdentity(batchId, DownloadDeletionIdentity.canonicalKey(request)),
+                    generation,
+                )
+            }
             val attempt =
                 try {
-                    withTimeout(itemTimeoutMs) { delete(request, resumed) }
+                    withTimeout(itemTimeoutMs) { delete(request, resumed, claimGeneration) }
                 } catch (timeout: TimeoutCancellationException) {
                     currentCoroutineContext().ensureActive()
                     DownloadDeleteAttempt(
                         outcome = DownloadDeleteOutcome.FAILED,
                         detail = "删除超过单一项 ${itemTimeoutMs}ms 期限",
-                        expectedGeneration = request.expectedGeneration,
+                        expectedGeneration = ownedGeneration,
                     )
                 } catch (cancellation: CancellationException) {
                     throw cancellation
@@ -220,7 +257,7 @@ class DownloadDeleteBatchProcessor(
                         outcome = DownloadDeleteOutcome.FAILED,
                         detail =
                             error.message?.takeIf(String::isNotBlank) ?: error::class.simpleName,
-                        expectedGeneration = request.expectedGeneration,
+                        expectedGeneration = ownedGeneration,
                     )
                 }
             val receipt =
@@ -236,7 +273,7 @@ class DownloadDeleteBatchProcessor(
                     outcome = attempt.outcome,
                     detail = attempt.detail,
                     updatedAtMs = clock(),
-                    expectedGeneration = attempt.expectedGeneration ?: request.expectedGeneration,
+                    expectedGeneration = attempt.expectedGeneration ?: ownedGeneration,
                 )
             store.record(receipt)
             when (receipt.outcome) {
