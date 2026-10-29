@@ -51,6 +51,10 @@ data class FindroidSourceDto(
     val container: String? = null,
     /** W90-R2：下载生命周期代次；迟到 worker 的所有写回都按此判代。 */
     @ColumnInfo(defaultValue = "0") val taskGeneration: Long = 0,
+    /** 创建该 source task 时冻结的 Jellyfin serverId；旧行保持 null。 */
+    val originServerId: String? = null,
+    /** 创建 source task 时冻结的 Jellyfin userId；旧行保持 null。 */
+    val originUserId: String? = null,
 )
 
 fun FindroidSource.toFindroidSourceDto(itemId: UUID, path: String): FindroidSourceDto {

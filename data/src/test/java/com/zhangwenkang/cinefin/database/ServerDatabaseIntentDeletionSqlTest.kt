@@ -11,12 +11,20 @@ class ServerDatabaseIntentDeletionSqlTest {
     fun `完整重下只接管 RECEIVED 或 legacy FAILED 并推进 generation`() {
         DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
             connection.createDownloadIntentsTable()
-            connection.insertIntent("received", status = "RECEIVED", generation = 3L)
+            connection.insertIntent(
+                "received",
+                status = "RECEIVED",
+                generation = 3L,
+                originServerId = "stale-server",
+                originUserId = "stale-user",
+            )
             connection.insertIntent(
                 "legacy",
                 status = "FAILED",
                 generation = 6L,
                 failureDetail = "legacy",
+                originServerId = "stale-server",
+                originUserId = "stale-user",
             )
             connection.insertIntent(
                 "ordinary",
@@ -43,6 +51,8 @@ class ServerDatabaseIntentDeletionSqlTest {
                     albumName = "Retry",
                     artist = "Provenance",
                     trackIndex = 1,
+                    originServerId = "requested-server",
+                    originUserId = "requested-user",
                 ),
                 connection.intentState("received"),
             )
@@ -54,6 +64,8 @@ class ServerDatabaseIntentDeletionSqlTest {
                     albumName = "Retry",
                     artist = "Provenance",
                     trackIndex = 1,
+                    originServerId = "requested-server",
+                    originUserId = "requested-user",
                 ),
                 connection.intentState("legacy"),
             )
@@ -103,6 +115,8 @@ class ServerDatabaseIntentDeletionSqlTest {
         val trackIndex: Int = 0,
         val failureReason: String? = null,
         val failureDetail: String? = null,
+        val originServerId: String? = null,
+        val originUserId: String? = null,
     )
 
     private fun Connection.createDownloadIntentsTable() {
@@ -119,7 +133,9 @@ class ServerDatabaseIntentDeletionSqlTest {
                     failureReason TEXT,
                     failureDetail TEXT,
                     taskGeneration INTEGER NOT NULL DEFAULT 0,
-                    updatedAt INTEGER NOT NULL DEFAULT 0
+                    updatedAt INTEGER NOT NULL DEFAULT 0,
+                    originServerId TEXT,
+                    originUserId TEXT
                 )
                 """
             )
@@ -132,13 +148,16 @@ class ServerDatabaseIntentDeletionSqlTest {
         generation: Long,
         failureReason: String? = null,
         failureDetail: String? = null,
+        originServerId: String? = null,
+        originUserId: String? = null,
     ) {
         prepareStatement(
                 """
                 INSERT INTO downloadIntents(
-                    itemId, status, failureReason, failureDetail, taskGeneration
+                    itemId, status, failureReason, failureDetail, taskGeneration,
+                    originServerId, originUserId
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
             )
             .use { statement ->
@@ -147,6 +166,8 @@ class ServerDatabaseIntentDeletionSqlTest {
                 statement.setString(3, failureReason)
                 statement.setString(4, failureDetail)
                 statement.setLong(5, generation)
+                statement.setString(6, originServerId)
+                statement.setString(7, originUserId)
                 statement.executeUpdate()
             }
     }
@@ -163,6 +184,8 @@ class ServerDatabaseIntentDeletionSqlTest {
                         "albumName" to "Retry",
                         "artist" to "Provenance",
                         "trackIndex" to 1,
+                        "originServerId" to "requested-server",
+                        "originUserId" to "requested-user",
                         "updatedAt" to 100L,
                         "itemId" to itemId,
                         "legacyFailureDetail" to legacyFailureDetail,
@@ -206,7 +229,7 @@ class ServerDatabaseIntentDeletionSqlTest {
                 """
                 SELECT
                     status, taskGeneration, name, albumName, artist, trackIndex,
-                    failureReason, failureDetail
+                    failureReason, failureDetail, originServerId, originUserId
                 FROM downloadIntents
                 WHERE itemId = ?
                 """
@@ -226,6 +249,8 @@ class ServerDatabaseIntentDeletionSqlTest {
                             trackIndex = result.getInt("trackIndex"),
                             failureReason = result.getString("failureReason"),
                             failureDetail = result.getString("failureDetail"),
+                            originServerId = result.getString("originServerId"),
+                            originUserId = result.getString("originUserId"),
                         )
                     }
                 }

@@ -31,4 +31,8 @@ data class DownloadIntentDto(
     @ColumnInfo(defaultValue = "0") val updatedAt: Long,
     /** W90-R2：接收意图的取消 / 重试代次；旧解析结果不得越过新代落 source。 */
     @ColumnInfo(defaultValue = "0") val taskGeneration: Long = 0,
+    /** 接收 pending intent 时冻结的 Jellyfin serverId；旧行保持 null。 */
+    val originServerId: String? = null,
+    /** 接收 pending intent 时冻结的 Jellyfin userId；旧行保持 null。 */
+    val originUserId: String? = null,
 )

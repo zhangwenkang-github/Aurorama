@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.database
 import java.io.File
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -13,6 +14,60 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerDatabaseMigrationContractTest {
+
+    @Test
+    fun `Room 16 到 17 只为 sources 与 downloadIntents 追加可空 origin anchor 文本列`() {
+        val schemaDir = locateSchemaDir(minVersion = 16)
+        val afterFile = File(schemaDir, "17.json")
+        assertTrue("缺少 ServerDatabase 17.json", afterFile.isFile)
+        if (!afterFile.isFile) return
+
+        val before = Json.parseToJsonElement(File(schemaDir, "16.json").readText()).jsonObject
+        val after = Json.parseToJsonElement(afterFile.readText()).jsonObject
+        val beforeTables = before.getValue("database").jsonObject.getValue("entities").jsonArray
+        val afterTables = after.getValue("database").jsonObject.getValue("entities").jsonArray
+        val oldColumns = tableColumns(beforeTables)
+        val newColumns = tableColumns(afterTables)
+        val expectedAdded =
+            mapOf(
+                "sources" to setOf("originServerId", "originUserId"),
+                "downloadIntents" to setOf("originServerId", "originUserId"),
+            )
+
+        assertEquals(oldColumns.keys, newColumns.keys)
+        oldColumns.forEach { (table, columns) ->
+            assertTrue("迁移删除旧列 $table", newColumns.getValue(table).containsAll(columns))
+            assertEquals(
+                "表 $table 的追加列不符合 origin anchor 契约",
+                expectedAdded[table].orEmpty(),
+                newColumns.getValue(table) - columns,
+            )
+        }
+        assertEquals(
+            expectedAdded.getValue("sources"),
+            columnNames(afterTables, "sources").takeLast(2).toSet(),
+        )
+        assertEquals(
+            expectedAdded.getValue("downloadIntents"),
+            columnNames(afterTables, "downloadIntents").takeLast(2).toSet(),
+        )
+        expectedAdded.forEach { (table, columns) ->
+            assertNullTextFields(afterTables, table, columns)
+        }
+        assertEquals(schemaStructure(beforeTables), schemaStructure(afterTables))
+    }
+
+    @Test
+    fun `download intent supersede SQL 写入 anchor 并继续推进 generation`() {
+        val sql = ServerDatabaseDao.SUPERSEDE_DOWNLOAD_INTENT_FOR_COMPLETE_REQUEST_SQL
+
+        assertTrue("supersede 未写入 originServerId", sql.contains("originServerId = :originServerId"))
+        assertTrue("supersede 未写入 originUserId", sql.contains("originUserId = :originUserId"))
+        assertTrue(
+            "supersede 未继续推进 generation",
+            sql.contains("taskGeneration = taskGeneration + 1"),
+        )
+    }
 
     @Test
     fun `Room 15 到 16 仅追加书籍任务与删除代次且保留旧行`() {
@@ -209,6 +264,59 @@ class ServerDatabaseMigrationContractTest {
             )
         }
     }
+
+    private fun columnNames(entities: JsonArray, tableName: String): List<String> =
+        entities
+            .map { it.jsonObject }
+            .first { it.getValue("tableName").jsonPrimitive.content == tableName }
+            .getValue("fields")
+            .jsonArray
+            .map { it.jsonObject.getValue("columnName").jsonPrimitive.content }
+
+    private fun assertNullTextFields(
+        entities: JsonArray,
+        tableName: String,
+        expected: Set<String>,
+    ) {
+        val fields =
+            entities
+                .map { it.jsonObject }
+                .first { it.getValue("tableName").jsonPrimitive.content == tableName }
+                .getValue("fields")
+                .jsonArray
+                .map { it.jsonObject }
+                .associateBy { it.getValue("columnName").jsonPrimitive.content }
+        expected.forEach { column ->
+            val field = fields.getValue(column)
+            assertEquals(
+                "$tableName.$column 类型",
+                "TEXT",
+                field.getValue("affinity").jsonPrimitive.content,
+            )
+            assertTrue(
+                "$tableName.$column 必须可空",
+                field["notNull"]?.jsonPrimitive?.boolean != true,
+            )
+            assertTrue(
+                "$tableName.$column 不得设置默认值",
+                field["defaultValue"]?.jsonPrimitive?.contentOrNull == null,
+            )
+        }
+    }
+
+    private fun schemaStructure(entities: JsonArray): Map<String, JsonObject> =
+        entities.associate { entityElement ->
+            val entity = entityElement.jsonObject
+            val tableName = entity.getValue("tableName").jsonPrimitive.content
+            tableName to
+                JsonObject(
+                    buildMap {
+                        entity["primaryKey"]?.let { put("primaryKey", it) }
+                        entity["indices"]?.let { put("indices", it) }
+                        entity["foreignKeys"]?.let { put("foreignKeys", it) }
+                    }
+                )
+        }
 
     private fun assertNewColumnsNullable(
         entities: JsonArray,

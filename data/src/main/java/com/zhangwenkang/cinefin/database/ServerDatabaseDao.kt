@@ -124,6 +124,8 @@ interface ServerDatabaseDao {
         albumName: String?,
         artist: String?,
         trackIndex: Int,
+        originServerId: String?,
+        originUserId: String?,
         updatedAt: Long,
         legacyFailureDetail: String,
     ): Int
@@ -143,6 +145,8 @@ interface ServerDatabaseDao {
                         albumName = intent.albumName,
                         artist = intent.artist,
                         trackIndex = intent.trackIndex,
+                        originServerId = intent.originServerId,
+                        originUserId = intent.originUserId,
                         updatedAt = intent.updatedAt,
                         legacyFailureDetail = legacyFailureDetail,
                     )
@@ -916,6 +920,7 @@ interface ServerDatabaseDao {
             """
             UPDATE downloadIntents
             SET name = :name, albumName = :albumName, artist = :artist, trackIndex = :trackIndex,
+                originServerId = :originServerId, originUserId = :originUserId,
                 status = 'RECEIVED', failureReason = NULL, failureDetail = NULL,
                 taskGeneration = taskGeneration + 1, updatedAt = :updatedAt
             WHERE itemId = :itemId
