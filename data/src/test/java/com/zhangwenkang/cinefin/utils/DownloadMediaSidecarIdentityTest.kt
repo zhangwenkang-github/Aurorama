@@ -104,6 +104,37 @@ class DownloadMediaSidecarIdentityTest {
     }
 
     @Test
+    fun `真实 sidecar 将非法 placement 字段报告为 Corrupt`() {
+        val invalidUtf8 = url64(byteArrayOf(0xC3.toByte(), 0x28))
+        val invalidLines =
+            listOf(
+                "malformed batchId" to v3Line(batchId = "not-base64!", workKey = ""),
+                "malformed workKey" to v3Line(batchId = "", workKey = "not-base64!"),
+                "non UTF-8 batchId" to v3Line(batchId = invalidUtf8, workKey = ""),
+                "non UTF-8 workKey" to v3Line(batchId = "", workKey = invalidUtf8),
+            )
+
+        invalidLines.forEach { (field, line) ->
+            val directory = Files.createTempDirectory("download-sidecar-invalid-placement").toFile()
+            try {
+                val file = File(directory, "download_media.tsv")
+                file.writeText(line)
+
+                val read = DownloadMediaSidecar.forFile(file).allRecords()
+
+                assertTrue("$field 必须使整行损坏", read is DownloadMediaReadResult.Corrupt)
+                assertEquals(
+                    "$field 必须定位损坏行",
+                    listOf(1),
+                    (read as DownloadMediaReadResult.Corrupt).invalidLineNumbers,
+                )
+            } finally {
+                directory.deleteRecursively()
+            }
+        }
+    }
+
+    @Test
     fun `真实 sidecar 文件不会用未知身份折叠同 UUID 的两条待处理记录`() {
         val directory = Files.createTempDirectory("download-sidecar-unknown").toFile()
         try {
@@ -246,6 +277,29 @@ class DownloadMediaSidecarIdentityTest {
             sourceId = sourceId,
         )
 
-    private fun url64(value: String): String =
-        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray())
+    private fun v3Line(
+        batchId: String,
+        workKey: String,
+    ): String =
+        listOf(
+                "v3",
+                "MUSIC",
+                url64(itemId.toString()),
+                "",
+                "",
+                "0",
+                url64("server-a"),
+                url64("user-a"),
+                url64("source-a"),
+                url64("title"),
+                batchId,
+                ContainerPolicy.FLAT.name,
+                workKey,
+            )
+            .joinToString("\t")
+
+    private fun url64(value: String): String = url64(value.toByteArray())
+
+    private fun url64(value: ByteArray): String =
+        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value)
 }

@@ -3,6 +3,8 @@ package com.zhangwenkang.cinefin.utils
 import android.content.Context
 import java.io.File
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -370,12 +372,24 @@ object DownloadMediaCodec {
     private fun decodeV3(parts: List<String>): DownloadMediaRecord? {
         if (parts.size != V3_COLUMN_COUNT) return null
         val policy = ContainerPolicy.entries.firstOrNull { it.name == parts[11] } ?: return null
+        val batchId =
+            when (val decoded = decodePlacementValue(parts[10])) {
+                OptionalPlacementValue.Absent -> null
+                OptionalPlacementValue.Invalid -> return null
+                is OptionalPlacementValue.Decoded -> decoded.value
+            }
+        val workKey =
+            when (val decoded = decodePlacementValue(parts[12])) {
+                OptionalPlacementValue.Absent -> null
+                OptionalPlacementValue.Invalid -> return null
+                is OptionalPlacementValue.Decoded -> decoded.value
+            }
         return decodeCurrent(
             parts,
             DownloadPlacement(
-                batchId = decode(parts[10]),
+                batchId = batchId,
                 policy = policy,
-                workKey = decode(parts[12]),
+                workKey = workKey,
             ),
         )
     }
@@ -422,6 +436,21 @@ object DownloadMediaCodec {
             ?.toByteArray(Charsets.UTF_8)
             ?.let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) } ?: ""
 
+    private fun decodePlacementValue(value: String): OptionalPlacementValue {
+        if (value.isEmpty()) return OptionalPlacementValue.Absent
+        return runCatching {
+            val bytes = Base64.getUrlDecoder().decode(value)
+            val text =
+                Charsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes))
+                    .toString()
+            OptionalPlacementValue.Decoded(text)
+        }
+            .getOrElse { OptionalPlacementValue.Invalid }
+    }
+
     private fun decode(value: String): String? =
         value
             .takeIf { it.isNotBlank() }
@@ -442,6 +471,14 @@ object DownloadMediaCodec {
                 }
                     .getOrNull()
             }
+
+    private sealed interface OptionalPlacementValue {
+        data object Absent : OptionalPlacementValue
+
+        data object Invalid : OptionalPlacementValue
+
+        data class Decoded(val value: String) : OptionalPlacementValue
+    }
 }
 
 fun String.toUuidOrNull(): UUID? = runCatching { UUID.fromString(this) }.getOrNull()

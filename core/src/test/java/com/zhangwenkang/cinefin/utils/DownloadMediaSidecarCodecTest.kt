@@ -125,6 +125,36 @@ class DownloadMediaSidecarCodecTest {
     }
 
     @Test
+    fun `v3 空 placement 字段解码为 null`() {
+        val decoded = DownloadMediaCodec.decodeLine(v3Line(batchId = "", workKey = ""))
+
+        assertEquals(DownloadPlacement(policy = ContainerPolicy.FLAT), decoded?.placement)
+    }
+
+    @Test
+    fun `v3 malformed batch id Base64 拒绝整行`() {
+        assertNull(DownloadMediaCodec.decodeLine(v3Line(batchId = "not-base64!", workKey = "")))
+    }
+
+    @Test
+    fun `v3 malformed work key Base64 拒绝整行`() {
+        assertNull(DownloadMediaCodec.decodeLine(v3Line(batchId = "", workKey = "not-base64!")))
+    }
+
+    @Test
+    fun `v3 合法 Base64 但非法 UTF-8 拒绝整行`() {
+        val invalidUtf8 = url64(byteArrayOf(0xC3.toByte(), 0x28))
+
+        listOf(
+                "batchId" to v3Line(batchId = invalidUtf8, workKey = ""),
+                "workKey" to v3Line(batchId = "", workKey = invalidUtf8),
+            )
+            .forEach { (field, line) ->
+                assertNull("$field 含非法 UTF-8 时必须拒绝整行", DownloadMediaCodec.decodeLine(line))
+            }
+    }
+
+    @Test
     fun `同 server user item 不同 media source 保持不同记录与身份`() {
         val first =
             DownloadMediaRecord(
@@ -144,8 +174,31 @@ class DownloadMediaSidecarCodecTest {
         assertNotEquals(decodedFirst?.provenance(), decodedSecond?.provenance())
     }
 
-    private fun url64(value: String): String =
-        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray())
+    private fun v3Line(
+        batchId: String,
+        workKey: String,
+    ): String =
+        listOf(
+                "v3",
+                "MUSIC",
+                url64(ITEM_ID.toString()),
+                "",
+                "",
+                "0",
+                url64(SERVER_ID),
+                url64(USER_ID.toString()),
+                url64(SOURCE_ID),
+                url64("title"),
+                batchId,
+                ContainerPolicy.FLAT.name,
+                workKey,
+            )
+            .joinToString("\t")
+
+    private fun url64(value: String): String = url64(value.toByteArray())
+
+    private fun url64(value: ByteArray): String =
+        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value)
 
     private companion object {
         val ITEM_ID: UUID = UUID.fromString("11111111-1111-4111-8111-111111111111")
