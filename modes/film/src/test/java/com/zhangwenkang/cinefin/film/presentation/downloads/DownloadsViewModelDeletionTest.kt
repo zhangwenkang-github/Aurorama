@@ -326,6 +326,135 @@ class DownloadsViewModelDeletionTest {
     }
 
     @Test
+    fun `container intent refresh moves pending ownership and rejects overlap`() {
+        val itemId = UUID.randomUUID()
+        val intent = task("intent", "intent:$itemId", itemId = itemId)
+        val source = task("source", "source-real", itemId = itemId)
+        val fixture =
+            Fixture(
+                tasks = listOf(intent),
+                outcomes = mapOf("intent:$itemId" to DownloadDeleteOutcome.SUCCEEDED),
+            )
+        try {
+            fixture.start()
+            val intentContainer = fixture.viewModel.state.value.activeContainers.single()
+            fixture.deleteGates["intent:$itemId"] = CompletableDeferred()
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(intentContainer.key))
+            fixture.waitUntil("container delete was not started") {
+                fixture.deleteRequests.size == 1
+            }
+
+            fixture.tasks.value = listOf(source)
+            assertTrue(fixture.queueChanges.tryEmit(Unit))
+            val sourceKey = taskKey(source)
+            fixture.waitUntil("container refresh did not publish the source") {
+                fixture.viewModel.state.value.allContainers
+                    .flatMap { it.allEntries() }
+                    .any { it.key == sourceKey }
+            }
+
+            val state = fixture.viewModel.state.value
+            val migratedBatchId = state.deletionPendingBatches[sourceKey]
+            assertTrue(
+                "container pending did not follow the visible source: " +
+                    "pending=${state.pendingActions}",
+                state.pendingActions == mapOf(sourceKey to DownloadPendingAction.DELETE),
+            )
+            assertTrue(
+                "container pending batch owner did not follow the visible source: " +
+                    "owners=${state.deletionPendingBatches}",
+                migratedBatchId != null,
+            )
+
+            val sourceContainer =
+                state.activeContainers.first { container ->
+                    container.allEntries().any { it.key == sourceKey }
+                }
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(sourceContainer.key))
+            assertEquals(
+                "source container must still overlap its migrated intent owner",
+                1,
+                fixture.deleteRequests.size,
+            )
+            assertEquals(
+                mapOf(sourceKey to migratedBatchId),
+                fixture.viewModel.state.value.deletionPendingBatches,
+            )
+        } finally {
+            fixture.deleteGates.values.forEach { it.complete(Unit) }
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `finished failed batch leaves no consumable alias for a fresh intent success`() {
+        val itemId = UUID.randomUUID()
+        val intent = task("intent", "intent:$itemId", itemId = itemId)
+        val source = task("old-source", "old-source", itemId = itemId)
+        val fixture =
+            Fixture(
+                tasks = listOf(intent),
+                outcomes = mapOf("intent:$itemId" to DownloadDeleteOutcome.FAILED),
+            )
+        try {
+            fixture.start()
+            val intentKey = taskKey(intent)
+            fixture.viewModel.onAction(DownloadAction.SelectKeys(listOf(intentKey)))
+            fixture.viewModel.onAction(DownloadAction.DeleteSelected)
+            fixture.waitUntil("failed delete did not finish") {
+                fixture.deleteRequests.size == 1 &&
+                    fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            fixture.tasks.value = listOf(source)
+            assertTrue(fixture.queueChanges.tryEmit(Unit))
+            fixture.waitUntil("source refresh did not finish") {
+                fixture.viewModel.state.value.allContainers
+                    .flatMap { it.allEntries() }
+                    .any { it.key == taskKey(source) }
+            }
+            assertTrue(
+                "a finished batch must not leave an alias: " +
+                    "aliases=${fixture.viewModel.state.value.deletionAliases}",
+                fixture.viewModel.state.value.deletionAliases.isEmpty(),
+            )
+
+            fixture.tasks.value = listOf(intent)
+            assertTrue(fixture.queueChanges.tryEmit(Unit))
+            fixture.waitUntil("fresh intent was not published") {
+                fixture.viewModel.state.value.allContainers
+                    .flatMap { it.allEntries() }
+                    .any { it.key == intentKey }
+            }
+            fixture.outcomes = mapOf("intent:$itemId" to DownloadDeleteOutcome.SUCCEEDED)
+            fixture.viewModel.onAction(DownloadAction.SelectKeys(listOf(intentKey)))
+            fixture.viewModel.onAction(DownloadAction.DeleteSelected)
+            fixture.waitUntil("fresh intent delete did not finish") {
+                fixture.deleteRequests.size == 2 &&
+                    fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            val state = fixture.viewModel.state.value
+            assertTrue(
+                "fresh intent success retained selection: ${state.selection}",
+                state.selection.isEmpty(),
+            )
+            assertTrue(
+                "fresh intent success retained recovery: " +
+                    "${state.deletionRecoveryEntries.map { it.entryKey }}",
+                state.deletionRecoveryEntries.isEmpty(),
+            )
+            assertTrue(
+                "fresh intent success retained pending: ${state.pendingActions}",
+                state.pendingActions.isEmpty(),
+            )
+            assertNull("fresh intent success retained action failure", state.actionFailure)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `hidden failed selection retries from frozen recovery snapshot`() {
         val selected = task("selected", "source-selected")
         val fixture =
@@ -394,7 +523,7 @@ class DownloadsViewModelDeletionTest {
 
     private class Fixture(
         tasks: List<DownloadTask>,
-        private val outcomes: Map<String, DownloadDeleteOutcome>,
+        var outcomes: Map<String, DownloadDeleteOutcome>,
     ) {
         val tasks = MutableStateFlow(tasks)
         val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)

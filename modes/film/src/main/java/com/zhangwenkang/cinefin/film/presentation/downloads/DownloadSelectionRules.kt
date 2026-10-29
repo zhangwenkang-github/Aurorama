@@ -65,14 +65,18 @@ object DownloadSelectionRules {
             } else {
                 state.beginDeletionBatch(batchId, keys)
             }
+        val activeRecovery =
+            state.deletionRecoveryEntries.filter { entry ->
+                entry.entryKey in state.deletionPendingBatches
+            }
+        val newRecovery = entries.map { entry ->
+            DownloadDeletionRecoveryEntry(
+                entryKey = entry.key,
+                canonicalIdentity = entry.canonicalIdentity,
+            )
+        }
         return begun.copy(
-            deletionRecoveryEntries =
-                entries.distinctBy(DownloadHierarchyEntry::key).map { entry ->
-                    DownloadDeletionRecoveryEntry(
-                        entryKey = entry.key,
-                        canonicalIdentity = entry.canonicalIdentity,
-                    )
-                }
+            deletionRecoveryEntries = (activeRecovery + newRecovery).distinctBy { it.entryKey }
         )
     }
 
@@ -153,14 +157,22 @@ object DownloadSelectionRules {
         val selection = mutableListOf<String>()
         val migrated = linkedMapOf<String, DownloadHierarchyEntry>()
         val ambiguous = linkedSetOf<String>()
-        state.selection.forEach { key ->
+        val selectedKeys = state.selection.toSet()
+        val keysToReconcile =
+            state.selection +
+                state.deletionPendingBatches.keys.filterNot { pendingKey ->
+                    pendingKey in selectedKeys
+                }
+        keysToReconcile.forEach { key ->
             when {
-                key in validKeys || key in completedKeys -> selection += key
+                key in validKeys || key in completedKeys -> {
+                    if (key in selectedKeys) selection += key
+                }
                 else ->
                     recovery[key]?.let { entry ->
                         val identity = entry.canonicalIdentity
                         if (!identity.isIntentSource()) {
-                            selection += key
+                            if (key in selectedKeys) selection += key
                             return@forEach
                         }
                         val sourceCandidates =
@@ -172,10 +184,10 @@ object DownloadSelectionRules {
                                 .distinctBy { candidate -> candidate.canonicalIdentity }
                         val target = sourceCandidates.singleOrNull()
                         if (target == null) {
-                            selection += key
+                            if (key in selectedKeys) selection += key
                             ambiguous += key
                         } else {
-                            selection += target.key
+                            if (key in selectedKeys) selection += target.key
                             migrated[key] = target
                         }
                     }

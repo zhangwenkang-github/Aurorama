@@ -199,6 +199,9 @@ fun DownloadManagerState.finishPending(keys: Set<String>): DownloadManagerState 
     copy(
         pendingActions = pendingActions - keys,
         deletionPendingBatches = deletionPendingBatches - keys,
+        deletionAliases =
+            deletionAliases -
+                deletionAliases.filterValues { currentKey -> currentKey in keys }.keys,
     )
 
 internal fun DownloadManagerState.finishDeletionBatch(batchId: Long): DownloadManagerState {
@@ -212,7 +215,7 @@ internal fun DownloadManagerState.finishDeletionBatch(batchId: Long): DownloadMa
 }
 
 internal fun DownloadManagerState.resolveDeletionKey(key: String): String =
-    deletionAliases[key] ?: key
+    deletionAliases[key]?.takeIf { currentKey -> currentKey in deletionPendingBatches } ?: key
 
 internal fun DownloadManagerState.resolveDeletionResult(
     result: DownloadDeletionResult
@@ -230,6 +233,9 @@ fun DownloadManagerState.failPending(
     copy(
         pendingActions = pendingActions - keys,
         deletionPendingBatches = deletionPendingBatches - keys,
+        deletionAliases =
+            deletionAliases -
+                deletionAliases.filterValues { currentKey -> currentKey in keys }.keys,
         actionFailure =
             when (action) {
                 DownloadPendingAction.PLAY -> DownloadActionFailure.PLAY

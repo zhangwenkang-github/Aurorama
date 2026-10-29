@@ -194,13 +194,24 @@ constructor(
         result: DownloadSelectionRefreshResult
     ): DownloadManagerState {
         val migrated = result.migratedEntries
+        val migratedOwners = deletionPendingBatches.mapKeys { (key, _) ->
+            migrated[key]?.key ?: key
+        }
+        val activeAliases =
+            deletionAliases
+                .mapValues { (_, currentKey) -> migrated[currentKey]?.key ?: currentKey }
+                .filterValues { currentKey -> currentKey in migratedOwners }
+        val migratedAliases =
+            migrated
+                .filterKeys { requestKey -> requestKey in deletionPendingBatches }
+                .mapValues { (_, entry) -> entry.key }
+                .filterValues { currentKey -> currentKey in migratedOwners }
         return copy(
             selection = result.selection,
             selectionMode = result.selection.isNotEmpty(),
             pendingActions = pendingActions.mapKeys { (key, _) -> migrated[key]?.key ?: key },
-            deletionPendingBatches =
-                deletionPendingBatches.mapKeys { (key, _) -> migrated[key]?.key ?: key },
-            deletionAliases = deletionAliases + migrated.mapValues { it.value.key },
+            deletionPendingBatches = migratedOwners,
+            deletionAliases = activeAliases + migratedAliases,
             actionFailure =
                 if (result.ambiguousIntentKeys.isNotEmpty()) {
                     DownloadActionFailure.DELETE
@@ -866,7 +877,7 @@ constructor(
                     null
                 } else {
                     val batchId = ++nextDeletionBatchId
-                    _state.update { it.beginDeletionBatch(batchId, keys) }
+                    _state.update { DownloadSelectionRules.beginDeletion(it, entries, batchId) }
                     batchId to entries
                 }
             } ?: return
@@ -898,6 +909,10 @@ constructor(
                                 DownloadDeletionFailureReason.SUPERSEDED
                             } else {
                                 it.deletionFailureReason
+                            },
+                        deletionRecoveryEntries =
+                            it.deletionRecoveryEntries.filterNot { entry ->
+                                entry.entryKey in resolved.succeededKeys
                             },
                     )
                 }
