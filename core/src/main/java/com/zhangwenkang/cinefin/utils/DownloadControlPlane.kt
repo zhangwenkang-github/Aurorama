@@ -38,6 +38,8 @@ data class DownloadMusicIntentRequest(
     val serverId: String? = null,
     val userId: String? = null,
     val sourceId: String? = null,
+    /** 容器位置只随意图传递，不参与 canonical identity / 去重。 */
+    val placement: DownloadPlacement = DownloadPlacement.LEGACY,
 ) {
     val canonicalIdentity: DownloadCanonicalIdentity
         get() =

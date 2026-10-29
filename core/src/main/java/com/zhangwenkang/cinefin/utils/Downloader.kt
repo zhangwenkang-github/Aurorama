@@ -20,6 +20,18 @@ interface Downloader {
     ): Pair<Long, UiText?>
 
     /**
+     * 带显式容器位置的单项入队入口。
+     *
+     * 旧三参数入口继续表示 [DownloadPlacement.LEGACY]；需要新层级语义的调用方必须显式传入 placement。
+     */
+    suspend fun downloadItem(
+        item: FindroidItem,
+        sourceId: String,
+        storageIndex: Int,
+        placement: DownloadPlacement,
+    ): Pair<Long, UiText?>
+
+    /**
      * W34：音乐曲目下载（带专辑 / 艺人侧车元数据）。
      *
      * 默认实现忽略元数据并走普通 [downloadItem]，只有真正的下载器实现才写入侧车。
@@ -33,6 +45,17 @@ interface Downloader {
         trackIndex: Int = 0,
     ): Pair<Long, UiText?> = downloadItem(item, sourceId, storageIndex)
 
+    /** 带音乐侧车元数据与显式容器位置的单项入队入口。 */
+    suspend fun downloadItem(
+        item: FindroidItem,
+        sourceId: String,
+        storageIndex: Int,
+        albumName: String?,
+        artist: String?,
+        trackIndex: Int,
+        placement: DownloadPlacement,
+    ): Pair<Long, UiText?>
+
     /**
      * W63：批量入队（整剧 / 全季 / 多选批量）。
      *
@@ -44,6 +67,13 @@ interface Downloader {
     suspend fun enqueueItems(
         items: List<FindroidItem>,
         storageIndex: Int = 0,
+    ): DownloadBatchResult
+
+    /** 带显式容器位置的批量入队入口；旧两参数入口保持 [DownloadPlacement.LEGACY]。 */
+    suspend fun enqueueItems(
+        items: List<FindroidItem>,
+        storageIndex: Int,
+        placement: DownloadPlacement,
     ): DownloadBatchResult
 
     /**

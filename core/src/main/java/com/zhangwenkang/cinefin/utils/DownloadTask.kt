@@ -58,6 +58,8 @@ data class DownloadTask(
     val userId: String? = null,
     /** 仅音乐 intent 行携带；普通 source task 保持 null，避免改变既有持久化状态。 */
     val intentPhase: DownloadIntentPhase? = null,
+    /** 从持久 sidecar 读取的容器位置；旧数据与未接线入口回落 LEGACY。 */
+    val placement: DownloadPlacement = DownloadPlacement.LEGACY,
 ) {
     val progress: Float
         get() =

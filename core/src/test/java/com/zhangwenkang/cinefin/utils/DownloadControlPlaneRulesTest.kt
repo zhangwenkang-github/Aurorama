@@ -252,6 +252,44 @@ class DownloadControlPlaneRulesTest {
     }
 
     @Test
+    fun `placement 不参与意图 identity 与去重`() {
+        val itemId = UUID(0L, 501L)
+        val first =
+            DownloadMusicIntentRequest(
+                itemId = itemId,
+                name = "曲目",
+                albumName = "专辑",
+                artist = "歌手",
+                trackIndex = 1,
+                serverId = "server-a",
+                userId = "user-a",
+                sourceId = "source-a",
+                placement = DownloadPlacement("batch-a", ContainerPolicy.ALBUM_BATCH, "work-a"),
+            )
+        val second =
+            first.copy(placement = DownloadPlacement("batch-b", ContainerPolicy.FLAT, "work-b"))
+
+        assertEquals(first.canonicalIdentity, second.canonicalIdentity)
+        assertEquals(first.acceptanceKey, second.acceptanceKey)
+        assertEquals(
+            listOf(first),
+            DownloadControlPlaneRules.normalizeMusicBatch(listOf(first, second)),
+        )
+        val legacy =
+            DownloadMusicIntentRequest(
+                itemId = itemId,
+                name = "曲目",
+                albumName = "专辑",
+                artist = "歌手",
+                trackIndex = 1,
+                serverId = "server-a",
+                userId = "user-a",
+                sourceId = "source-a",
+            )
+        assertEquals(DownloadPlacement.LEGACY, legacy.placement)
+    }
+
+    @Test
     fun `失败全集按完整 canonical identity 去重`() {
         val itemId = UUID.randomUUID()
         val failedTasks =

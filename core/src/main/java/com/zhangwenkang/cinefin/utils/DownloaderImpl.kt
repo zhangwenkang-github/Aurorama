@@ -439,6 +439,7 @@ private constructor(
                                     userId = request.userId,
                                     sourceId = request.sourceId,
                                     displayName = request.name,
+                                    placement = request.placement,
                                 )
                             }
                             check(sidecar.putAll(placeholders)) { "下载意图 sidecar 持久化失败" }
@@ -571,7 +572,32 @@ private constructor(
         item: FindroidItem,
         sourceId: String,
         storageIndex: Int,
-    ): Pair<Long, UiText?> = downloadItem(item, sourceId, storageIndex, null, null, 0)
+    ): Pair<Long, UiText?> =
+        downloadItem(
+            item = item,
+            sourceId = sourceId,
+            storageIndex = storageIndex,
+            albumName = null,
+            artist = null,
+            trackIndex = 0,
+            placement = DownloadPlacement.LEGACY,
+        )
+
+    override suspend fun downloadItem(
+        item: FindroidItem,
+        sourceId: String,
+        storageIndex: Int,
+        placement: DownloadPlacement,
+    ): Pair<Long, UiText?> =
+        downloadItem(
+            item = item,
+            sourceId = sourceId,
+            storageIndex = storageIndex,
+            albumName = null,
+            artist = null,
+            trackIndex = 0,
+            placement = placement,
+        )
 
     override suspend fun downloadItem(
         item: FindroidItem,
@@ -581,6 +607,25 @@ private constructor(
         artist: String?,
         trackIndex: Int,
     ): Pair<Long, UiText?> =
+        downloadItem(
+            item = item,
+            sourceId = sourceId,
+            storageIndex = storageIndex,
+            albumName = albumName,
+            artist = artist,
+            trackIndex = trackIndex,
+            placement = DownloadPlacement.LEGACY,
+        )
+
+    override suspend fun downloadItem(
+        item: FindroidItem,
+        sourceId: String,
+        storageIndex: Int,
+        albumName: String?,
+        artist: String?,
+        trackIndex: Int,
+        placement: DownloadPlacement,
+    ): Pair<Long, UiText?> =
         enqueueItem(
             item = item,
             sourceId = sourceId,
@@ -589,6 +634,7 @@ private constructor(
             artist = artist,
             trackIndex = trackIndex,
             origin = freezeDownloadOrigin(),
+            placement = placement,
         )
 
     /** 在任何 suspend / IO 调度前冻结来源，避免入队途中切号污染下载 provenance。 */
@@ -664,6 +710,7 @@ private constructor(
         artist: String?,
         trackIndex: Int,
         origin: FrozenDownloadOrigin,
+        placement: DownloadPlacement,
         intentFence: DownloadIntentSourceFence? = null,
     ): Pair<Long, UiText?> =
         withContext(Dispatchers.IO) {
@@ -775,6 +822,7 @@ private constructor(
                                 userId = origin.userId,
                                 sourceId = sourceId,
                                 displayName = item.name,
+                                placement = placement,
                             )
                         check(sidecar.put(sidecarRecord)) {
                             "下载 sidecar 持久化失败：${item.id}/$sourceId"
@@ -784,7 +832,8 @@ private constructor(
                                 it.itemId == item.id.toString() &&
                                     it.sourceId == sourceId &&
                                     it.serverId == origin.serverId &&
-                                    it.userId == origin.userId
+                                    it.userId == origin.userId &&
+                                    it.placement == placement
                             }
                         ) {
                             "下载 sidecar 写入后不可验证：${item.id}/$sourceId"
@@ -878,6 +927,17 @@ private constructor(
     override suspend fun enqueueItems(
         items: List<FindroidItem>,
         storageIndex: Int,
+    ): DownloadBatchResult =
+        enqueueItems(
+            items = items,
+            storageIndex = storageIndex,
+            placement = DownloadPlacement.LEGACY,
+        )
+
+    override suspend fun enqueueItems(
+        items: List<FindroidItem>,
+        storageIndex: Int,
+        placement: DownloadPlacement,
     ): DownloadBatchResult {
         val origin = freezeDownloadOrigin()
         return withContext(Dispatchers.IO) {
@@ -895,6 +955,7 @@ private constructor(
                         artist = null,
                         trackIndex = 0,
                         origin = origin,
+                        placement = placement,
                     )
                 }
                     .onFailure { Timber.w(it, "批量入队失败 ${item.id}") }
@@ -1453,6 +1514,7 @@ private constructor(
                     artist = resolved.record.artist,
                     trackIndex = resolved.record.trackIndex,
                     origin = resolved.origin,
+                    placement = resolved.record.placement,
                     intentFence =
                         (pending as? PendingIntentResolution.Sidecar)
                             ?.takeIf(PendingIntentResolution.Sidecar::usesRoomFence)
@@ -3752,6 +3814,7 @@ private constructor(
                         serverId = record?.serverId,
                         userId = record?.userId,
                         intentPhase = intentPhase,
+                        placement = record?.placement ?: DownloadPlacement.LEGACY,
                     )
             }
 
@@ -3793,6 +3856,7 @@ private constructor(
                             serverId = pendingRecord?.serverId,
                             userId = pendingRecord?.userId,
                             intentPhase = intent.status.toDownloadIntentPhase(),
+                            placement = pendingRecord?.placement ?: DownloadPlacement.LEGACY,
                         )
                     }
                     .toList()
@@ -4794,7 +4858,16 @@ private constructor(
             retryCount = source.retryCount,
             nextRetryAt = source.nextRetryAt,
             taskGeneration = source.taskGeneration,
+            placement = sidecarPlacementFor(source),
         )
+    }
+
+    private fun sidecarPlacementFor(source: FindroidSourceDto): DownloadPlacement {
+        val snapshot = sidecar.allRecords()
+        if (snapshot !is DownloadMediaReadResult.Complete) return DownloadPlacement.LEGACY
+        return snapshot.records
+            .firstOrNull { it.itemId == source.itemId.toString() && it.sourceId == source.id }
+            ?.placement ?: DownloadPlacement.LEGACY
     }
 
     private suspend fun snapshotActiveTasks(): List<DownloadTask> =
