@@ -1306,16 +1306,13 @@ class DownloaderImplRecoveryTest {
             fixture.repository.releaseItemLookup()
 
             assertTrue(
-                "两条已受理意图应分别进入下载队列；sources=${fixture.dao.sourceIds()} " +
+                "同一 item 的旧 namespace 应被新 intent supersede；sources=${fixture.dao.sourceIds()} " +
                     "sidecar=${fixture.downloader.mediaSidecar().allRecords()} " +
                     "logs=${fixture.logs}",
-                fixture.dao.awaitInsertedSourceCount(2),
+                fixture.dao.awaitInsertedSourceCount(1),
             )
             assertEquals(
-                mapOf(
-                    "source-server-a" to (originA.serverId to originA.userId.toString()),
-                    "source-server-b" to (originB.serverId to originB.userId.toString()),
-                ),
+                mapOf("source-server-b" to (originB.serverId to originB.userId.toString())),
                 fixture.downloader
                     .mediaSidecar()
                     .allRecords()
@@ -1329,8 +1326,7 @@ class DownloaderImplRecoveryTest {
             fixture.downloader.runQueue()
             assertEquals(
                 mapOf(
-                    "https://server-a.test/song" to ("https://server-a.test" to "token-server-a"),
-                    "https://server-b.test/song" to ("https://server-b.test" to "token-server-b"),
+                    "https://server-b.test/song" to ("https://server-b.test" to "token-server-b")
                 ),
                 fixture.transfer
                     .requestSnapshot()
@@ -1695,7 +1691,7 @@ class DownloaderImplRecoveryTest {
                         )
                     )
                 )
-            val unknown =
+            val unknown = runCatching {
                 fixture.downloader.receiveMusicBatch(
                     listOf(
                         DownloadMusicIntentRequest(
@@ -1707,6 +1703,14 @@ class DownloaderImplRecoveryTest {
                         )
                     )
                 )
+            }
+                .getOrElse { failure ->
+                    throw IllegalStateException(
+                        "unknown 批受理失败：intent=${fixture.dao.downloadIntent(itemId)} " +
+                            "sidecar=${fixture.downloader.mediaSidecar().allRecords()}",
+                        failure,
+                    )
+                }
             val anotherUnknown =
                 fixture.downloader.receiveMusicBatch(
                     listOf(
@@ -1726,13 +1730,10 @@ class DownloaderImplRecoveryTest {
                 1,
                 unknown.acceptedRequests.size,
             )
+            assertEquals(0, anotherUnknown.acceptedRequests.size)
+            assertEquals(1, anotherUnknown.alreadyAcceptedCount)
             assertEquals(
-                "另一条 unknown 不得被前一条 Room 兼容行吞掉：$anotherUnknown",
-                1,
-                anotherUnknown.acceptedRequests.size,
-            )
-            assertEquals(
-                3,
+                2,
                 fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
                     it.itemId == itemId.toString()
                 },
@@ -1778,7 +1779,7 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
-    fun `同 UUID 的 sidecar key 失败不得阻断另一 key 且失败 key 可重试`() = runBlocking {
+    fun `同 UUID 的 sidecar key 隔离且只采用 Room anchor namespace`() = runBlocking {
         val fixture = Fixture()
         try {
             val itemId = UUID.fromString("99999999-9999-4999-8999-999999999999")
@@ -1822,14 +1823,12 @@ class DownloaderImplRecoveryTest {
                     container = "mp3",
                 ),
             )
-            fixture.repository.failNextOriginItem(originA)
-            fixture.dao
-                .seedDownloadIntent(itemId, status = DownloadIntentStatus.FAILED.name)
-                .copy(
-                    failureReason = DownloadFailureReason.CANCELLED.name,
-                    failureDetail = DownloaderImpl.LEGACY_PROVENANCE_UNAVAILABLE,
-                )
-                .also(fixture.dao::putDownloadIntent)
+            fixture.seedAnchoredIntent(
+                itemId = itemId,
+                name = "B",
+                serverId = originB.serverId,
+                userId = originB.userId,
+            )
             val sidecar = fixture.downloader.mediaSidecar()
             sidecar.put(
                 DownloadMediaRecord(
@@ -1853,12 +1852,12 @@ class DownloaderImplRecoveryTest {
             fixture.downloader.recoverOnStartup()
 
             assertTrue(
-                "A 失败后 B 仍应入队：sources=${fixture.dao.sourceIds()} logs=${fixture.logs}",
+                "Room anchor 指定的 B 必须入队：sources=${fixture.dao.sourceIds()} logs=${fixture.logs}",
                 fixture.dao.awaitInsertedSourceCount(1),
             )
             assertEquals(listOf("source-key-b"), fixture.dao.sourceIds())
             assertTrue(
-                "A 的 sidecar key 必须保持 pending 以便重试",
+                "wrong namespace 的 A sidecar 不得被采用或删除",
                 sidecar.allRecords().requireComplete().any {
                     it.serverId == originA.serverId && it.sourceId.isNullOrBlank()
                 },
@@ -1866,14 +1865,7 @@ class DownloaderImplRecoveryTest {
 
             fixture.downloader.recoverOnStartup()
 
-            assertTrue(
-                "A 后续重试应成功且不与 B 折叠：sources=${fixture.dao.sourceIds()}",
-                fixture.dao.awaitInsertedSourceCount(2),
-            )
-            assertEquals(
-                setOf("source-key-a", "source-key-b"),
-                fixture.dao.sourceIds().toSet(),
-            )
+            assertEquals(setOf("source-key-b"), fixture.dao.sourceIds().toSet())
         } finally {
             fixture.close()
         }
@@ -2107,6 +2099,7 @@ class DownloaderImplRecoveryTest {
                     container = "mp3",
                 ),
             )
+            fixture.seedAnchoredIntent(itemId, "sidecar-fail", userId = origin.userId)
             val sidecar = fixture.downloader.mediaSidecar()
             sidecar.put(
                 DownloadMediaRecord(
@@ -2114,6 +2107,7 @@ class DownloaderImplRecoveryTest {
                     kind = DownloadMediaKind.MUSIC,
                     serverId = origin.serverId,
                     userId = origin.userId.toString(),
+                    sourceId = null,
                     displayName = "sidecar-fail",
                 )
             )
@@ -2208,10 +2202,22 @@ class DownloaderImplRecoveryTest {
             )
             fixture.dao.seedDownloadIntent(itemId)
             fixture.dao.putSource(
-                fixture.seedPendingSource(itemId, "legacy-unknown").copy(taskStatus = "PENDING")
+                fixture
+                    .seedPendingSource(itemId, "legacy-unknown")
+                    .copy(
+                        taskStatus = "PENDING",
+                        originServerId = null,
+                        originUserId = null,
+                    )
             )
             fixture.dao.putSource(
-                fixture.seedPendingSource(itemId, "other-unproven").copy(taskStatus = "FAILED")
+                fixture
+                    .seedPendingSource(itemId, "other-unproven")
+                    .copy(
+                        taskStatus = "FAILED",
+                        originServerId = null,
+                        originUserId = null,
+                    )
             )
             fixture.downloader
                 .mediaSidecar()
@@ -2598,8 +2604,8 @@ class DownloaderImplRecoveryTest {
             assertNotNull("Room 保存失败不得被吞成已受理", firstFailure)
             assertEquals(1, fixture.dao.downloadIntentSaveAttempts)
             assertEquals(
-                "sidecar 必须已完成，Room 事务才失败",
-                1,
+                "普通 Room 事务失败必须精确清理本次 placeholder",
+                0,
                 fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
                     it.itemId == itemId.toString() &&
                         it.serverId == SERVER_ID &&
@@ -2662,44 +2668,39 @@ class DownloaderImplRecoveryTest {
 
             fixture.prepareMusicOrigin(itemId, "sustained room failure")
             val request = fixture.completeMusicRequest(itemId, "sustained room failure")
-            fixture.dao.failDownloadIntentSaves(1)
+            fixture.dao.failDownloadIntentSaves(20)
             val firstFailure = runCatching {
                 fixture.downloader.receiveMusicBatch(listOf(request))
             }
                 .exceptionOrNull()
             assertNotNull("首次 Room 保存失败必须显式返回", firstFailure)
-
-            fixture.dao.failDownloadIntentSaves(20)
-            fixture.newDownloader().recoverOnStartup()
-            val failedClosed =
-                withTimeoutOrNull(2_000L) {
-                    while (
-                        fixture.dao.sourceIds().isEmpty() &&
-                            fixture.logs.none { it.startsWith("处理已受理下载意图失败") }
-                    ) {
-                        delay(10L)
-                    }
-                    fixture.logs.any { it.startsWith("处理已受理下载意图失败") }
-                }
             assertTrue(
-                "Room 持续失败时必须显式中止接管且不得生成 source：" +
-                    "sources=${fixture.dao.sourceIds()} logs=${fixture.logs}",
-                failedClosed == true,
-            )
-            assertTrue(fixture.dao.sourceIds().isEmpty())
-            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
-            assertEquals(legacyIntent, fixture.dao.downloadIntent(itemId))
-            assertTrue(fixture.dao.downloadIntentSaveAttempts >= 2)
-            assertEquals(
-                "Room 持续失败时完整 pending sidecar 必须保留供重试",
-                1,
-                fixture.downloader.mediaSidecar().allRecords().requireComplete().count {
+                "普通 Room 保存失败不得留下无 Room 权威的 pending sidecar",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
                     it.itemId == itemId.toString() && it.sourceId == null
                 },
             )
 
+            fixture.newDownloader().recoverOnStartup()
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
+            assertEquals(legacyIntent, fixture.dao.downloadIntent(itemId))
+            assertEquals(1, fixture.dao.downloadIntentSaveAttempts)
+
+            val secondFailure = runCatching {
+                fixture.downloader.receiveMusicBatch(listOf(request))
+            }
+                .exceptionOrNull()
+            assertNotNull("持续 Room 保存失败必须持续显式返回", secondFailure)
+            assertEquals(2, fixture.dao.downloadIntentSaveAttempts)
+            assertTrue(fixture.dao.sourceIds().isEmpty())
+            assertTrue(fixture.transfer.requestSnapshot().isEmpty())
+            assertEquals(legacyIntent, fixture.dao.downloadIntent(itemId))
+
             fixture.dao.clearDownloadIntentSaveFailures()
-            fixture.retryIntent(itemId)
+            val retryReceipt = fixture.downloader.receiveMusicBatch(listOf(request))
+            assertEquals(1, retryReceipt.acceptedRequests.size)
+            assertEquals(3, fixture.dao.downloadIntentSaveAttempts)
             val recovered = fixture.newDownloader()
             recovered.recoverOnStartup()
             assertTrue(
@@ -2782,6 +2783,7 @@ class DownloaderImplRecoveryTest {
                     container = "mp3",
                 ),
             )
+            fixture.seedAnchoredIntent(triggerItemId, "trigger")
             assertTrue(
                 fixture.putMusicSidecar(
                     itemId = triggerItemId,
@@ -2872,7 +2874,13 @@ class DownloaderImplRecoveryTest {
             assertEquals(null, error)
             fixture.transfer.holdDownloads()
             val queueRun = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
-            assertTrue(fixture.transfer.awaitStarted(1))
+            assertTrue(
+                "source 必须已经启动后才能模拟 legacy cleanup：" +
+                    "source=${fixture.dao.source} records=${fixture.downloader.mediaSidecar().allRecords()}",
+                fixture.transfer.awaitStarted(1),
+            )
+            fixture.dao.source =
+                requireNotNull(fixture.dao.source).copy(originServerId = null, originUserId = null)
 
             fixture
                 .sidecarFile()
@@ -2987,10 +2995,8 @@ class DownloaderImplRecoveryTest {
             )
 
             val restarted = fixture.newDownloader()
-            val processing =
-                async(start = CoroutineStart.UNDISPATCHED) { restarted.queueChanges.first() }
             restarted.recoverOnStartup()
-            assertNotNull(withTimeoutOrNull(5_000L) { processing.await() })
+            withTimeoutOrNull(500L) { while (fixture.dao.sourceIds().isEmpty()) delay(10L) }
             restarted.runQueue()
             assertTrue(
                 "FAILED tombstone 存在时冷启动不得用 pending sidecar 重建 source",
@@ -3633,25 +3639,22 @@ class DownloaderImplRecoveryTest {
         try {
             val episode = fixture.episode()
             val source = fixture.episodeSource()
-            val sidecar = fixture.downloader.mediaSidecar()
-            sidecar.put(
+            val first =
                 DownloadMediaRecord(
                     itemId = ITEM_ID.toString(),
                     kind = DownloadMediaKind.VIDEO,
                     serverId = SERVER_ID,
                     userId = USER_ID.toString(),
                     sourceId = source.id,
+                    albumName = "first",
                 )
-            )
-            sidecar.put(
-                DownloadMediaRecord(
-                    itemId = ITEM_ID.toString(),
-                    kind = DownloadMediaKind.VIDEO,
-                    serverId = "server-b",
-                    userId = OTHER_USER_ID.toString(),
-                    sourceId = source.id,
+            val second = first.copy(albumName = "second")
+            fixture
+                .sidecarFile()
+                .writeText(
+                    listOf(first, second)
+                        .joinToString("\n", transform = DownloadMediaCodec::encodeLine)
                 )
-            )
             fixture.dao.remainingEpisodes = emptyList()
             fixture.dao.remainingSeasons = emptyList()
             fixture.seedCompletedSource(episode, source, persistOrigin = false)
@@ -3989,6 +3992,8 @@ class DownloaderImplRecoveryTest {
                     totalBytes = MEDIA_BYTES.size.toLong(),
                     engineVersion = DownloaderImpl.ENGINE_VERSION,
                     taskGeneration = GENERATION,
+                    originServerId = SERVER_ID,
+                    originUserId = USER_ID.toString(),
                 )
 
             fixture.downloader.runQueue()
@@ -4552,19 +4557,29 @@ class DownloaderImplRecoveryTest {
             serverId: String? = null,
             userId: String? = null,
             displayName: String? = null,
+            albumName: String? = null,
+            artist: String? = null,
+            placement: DownloadPlacement = DownloadPlacement.LEGACY,
+            kind: DownloadMediaKind = DownloadMediaKind.MUSIC,
         ): Boolean =
             downloader
                 .mediaSidecar()
                 .put(
                     DownloadMediaRecord(
                         itemId = itemId.toString(),
-                        kind = DownloadMediaKind.MUSIC,
+                        kind = kind,
+                        albumName = albumName,
+                        artist = artist,
                         serverId = serverId,
                         userId = userId,
                         sourceId = sourceId,
                         displayName = displayName,
+                        placement = placement,
                     )
                 )
+
+        fun putMusicRecord(record: DownloadMediaRecord): Boolean =
+            downloader.mediaSidecar().put(record)
 
         fun seedLegacyUnknownSource(
             itemId: UUID,
@@ -4572,10 +4587,13 @@ class DownloaderImplRecoveryTest {
             displayName: String,
         ): FindroidSourceDto {
             dao.seedDownloadIntent(itemId)
-            return seedPendingSource(itemId, sourceId).also { source ->
-                assertTrue(putMusicSidecar(itemId, sourceId, displayName = displayName))
-                assertTrue(source.taskGeneration > 0L)
-            }
+            return seedPendingSource(itemId, sourceId)
+                .also { source ->
+                    assertTrue(putMusicSidecar(itemId, sourceId, displayName = displayName))
+                    assertTrue(source.taskGeneration > 0L)
+                }
+                .copy(originServerId = null, originUserId = null)
+                .also(dao::putSource)
         }
 
         suspend fun awaitSourceStatus(sourceId: String, status: DownloadTaskStatus): Boolean =
@@ -4632,6 +4650,48 @@ class DownloaderImplRecoveryTest {
         fun seedPendingSource(itemId: UUID, sourceId: String): FindroidSourceDto =
             sourceDto(itemId = itemId, sourceId = sourceId, index = 0).also(dao::putSource)
 
+        fun seedAnchoredSource(
+            itemId: UUID,
+            sourceId: String,
+            serverId: String = SERVER_ID,
+            userId: UUID = USER_ID,
+            generation: Long = 1L,
+            status: DownloadTaskStatus = DownloadTaskStatus.PENDING,
+        ): FindroidSourceDto =
+            seedPendingSource(itemId, sourceId)
+                .copy(
+                    originServerId = serverId,
+                    originUserId = userId.toString(),
+                    taskGeneration = generation,
+                    taskStatus = status.name,
+                )
+                .also(dao::putSource)
+
+        fun seedAnchoredIntent(
+            itemId: UUID,
+            name: String,
+            serverId: String = SERVER_ID,
+            userId: UUID = USER_ID,
+            generation: Long = 4L,
+            status: DownloadIntentStatus = DownloadIntentStatus.RECEIVED,
+            albumName: String? = "Anchor Album",
+            artist: String? = "Anchor Artist",
+        ): DownloadIntentDto =
+            DownloadIntentDto(
+                    itemId = itemId,
+                    name = name,
+                    albumName = albumName,
+                    artist = artist,
+                    trackIndex = 0,
+                    status = status.name,
+                    createdAt = 1L,
+                    updatedAt = 1L,
+                    taskGeneration = generation,
+                    originServerId = serverId,
+                    originUserId = userId.toString(),
+                )
+                .also(dao::putDownloadIntent)
+
         fun seedReceivedIntentWithPendingSidecar(
             itemId: UUID,
             sourceId: String,
@@ -4648,6 +4708,8 @@ class DownloaderImplRecoveryTest {
                     createdAt = 1L,
                     updatedAt = 1L,
                     taskGeneration = 4L,
+                    originServerId = SERVER_ID,
+                    originUserId = USER_ID.toString(),
                 )
             dao.putDownloadIntent(intent)
             assertTrue(
@@ -4679,6 +4741,8 @@ class DownloaderImplRecoveryTest {
                     createdAt = 1L,
                     updatedAt = 1L,
                     taskGeneration = 4L,
+                    originServerId = SERVER_ID,
+                    originUserId = USER_ID.toString(),
                 )
             dao.putDownloadIntent(intent)
             assertTrue(
@@ -4721,6 +4785,8 @@ class DownloaderImplRecoveryTest {
                     createdAt = 1L,
                     updatedAt = 1L,
                     taskGeneration = 4L,
+                    originServerId = SERVER_ID,
+                    originUserId = USER_ID.toString(),
                 )
                 .also(dao::putDownloadIntent)
         }
@@ -4892,6 +4958,8 @@ class DownloaderImplRecoveryTest {
                 engineVersion = DownloaderImpl.ENGINE_VERSION,
                 container = "mp4",
                 taskGeneration = generation,
+                originServerId = SERVER_ID,
+                originUserId = USER_ID.toString(),
             )
         }
 
@@ -5039,6 +5107,8 @@ class DownloaderImplRecoveryTest {
                     engineVersion = DownloaderImpl.ENGINE_VERSION,
                     container = source.container,
                     taskGeneration = 1L,
+                    originServerId = SERVER_ID,
+                    originUserId = USER_ID.toString(),
                 )
             )
             if (persistOrigin) {
@@ -5157,6 +5227,8 @@ class DownloaderImplRecoveryTest {
                     totalBytes = MEDIA_BYTES.size.toLong(),
                     engineVersion = DownloaderImpl.ENGINE_VERSION,
                     taskGeneration = GENERATION,
+                    originServerId = SERVER_ID,
+                    originUserId = USER_ID.toString(),
                 )
         }
 
@@ -5375,6 +5447,7 @@ class DownloaderImplRecoveryTest {
         private var sourceInsertFailuresRemaining = 0
         var downloadIntentSaveAttempts = 0
         private var downloadIntentSaveFailuresRemaining = 0
+        private var downloadIntentSaveInterruptionsRemaining = 0
         private val episodeIdsBySeason = linkedMapOf<UUID, MutableSet<UUID>>()
         private val seasonIdsByShow = linkedMapOf<UUID, MutableSet<UUID>>()
         var snapshotWrites = 0
@@ -5845,6 +5918,10 @@ class DownloaderImplRecoveryTest {
                                 .sortedBy { it.createdAt }
                         "saveDownloadIntents" -> {
                             downloadIntentSaveAttempts += 1
+                            if (downloadIntentSaveInterruptionsRemaining > 0) {
+                                downloadIntentSaveInterruptionsRemaining -= 1
+                                throw CancellationException("模拟 Room anchor 前进程中断")
+                            }
                             if (downloadIntentSaveFailuresRemaining > 0) {
                                 downloadIntentSaveFailuresRemaining -= 1
                                 error("模拟 Room saveDownloadIntents 事务失败")
@@ -5859,6 +5936,8 @@ class DownloaderImplRecoveryTest {
                                 if (
                                     intent.itemId in supersedableItemIds &&
                                         (current?.status == DownloadIntentStatus.RECEIVED.name ||
+                                            current?.status ==
+                                                DownloadIntentStatus.RESOLVING.name ||
                                             (current?.status == DownloadIntentStatus.FAILED.name &&
                                                 current.failureDetail == legacyFailureDetail))
                                 ) {
@@ -6111,6 +6190,10 @@ class DownloaderImplRecoveryTest {
 
         fun failDownloadIntentSaves(count: Int) {
             downloadIntentSaveFailuresRemaining = count
+        }
+
+        fun interruptDownloadIntentSaves(count: Int) {
+            downloadIntentSaveInterruptionsRemaining = count
         }
 
         fun clearDownloadIntentSaveFailures() {
