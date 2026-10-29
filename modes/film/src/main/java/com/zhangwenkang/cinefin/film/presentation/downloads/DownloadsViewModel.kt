@@ -194,24 +194,43 @@ constructor(
         result: DownloadSelectionRefreshResult
     ): DownloadManagerState {
         val migrated = result.migratedEntries
-        val migratedOwners = deletionPendingBatches.mapKeys { (key, _) ->
-            migrated[key]?.key ?: key
+        val migratedOwners = linkedMapOf<String, MutableSet<Long>>()
+        deletionPendingBatches.forEach { (key, owners) ->
+            val currentKey = migrated[key]?.key ?: key
+            migratedOwners.getOrPut(currentKey) { linkedSetOf() }.addAll(owners)
         }
-        val activeAliases =
-            deletionAliases
-                .mapValues { (_, currentKey) -> migrated[currentKey]?.key ?: currentKey }
-                .filterValues { currentKey -> currentKey in migratedOwners }
-        val migratedAliases =
-            migrated
-                .filterKeys { requestKey -> requestKey in deletionPendingBatches }
-                .mapValues { (_, entry) -> entry.key }
-                .filterValues { currentKey -> currentKey in migratedOwners }
+        val activeAliases = linkedMapOf<String, String>()
+        val activeAliasBatches = linkedMapOf<String, Set<Long>>()
+        deletionAliases.forEach { (requestKey, aliasKey) ->
+            val currentKey = migrated[aliasKey]?.key ?: aliasKey
+            val owners =
+                deletionAliasBatches[requestKey]
+                    .orEmpty()
+                    .intersect(migratedOwners[currentKey].orEmpty())
+            if (owners.isNotEmpty()) {
+                activeAliases[requestKey] = currentKey
+                activeAliasBatches[requestKey] = owners
+            }
+        }
+        val migratedAliases = linkedMapOf<String, String>()
+        val migratedAliasBatches = linkedMapOf<String, Set<Long>>()
+        migrated.forEach { (requestKey, entry) ->
+            val owners =
+                deletionPendingBatches[requestKey]
+                    .orEmpty()
+                    .intersect(migratedOwners[entry.key].orEmpty())
+            if (owners.isNotEmpty()) {
+                migratedAliases[requestKey] = entry.key
+                migratedAliasBatches[requestKey] = owners
+            }
+        }
         return copy(
             selection = result.selection,
             selectionMode = result.selection.isNotEmpty(),
             pendingActions = pendingActions.mapKeys { (key, _) -> migrated[key]?.key ?: key },
-            deletionPendingBatches = migratedOwners,
+            deletionPendingBatches = migratedOwners.mapValues { (_, owners) -> owners.toSet() },
             deletionAliases = activeAliases + migratedAliases,
+            deletionAliasBatches = activeAliasBatches + migratedAliasBatches,
             actionFailure =
                 if (result.ambiguousIntentKeys.isNotEmpty()) {
                     DownloadActionFailure.DELETE

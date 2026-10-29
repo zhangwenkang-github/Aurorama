@@ -58,10 +58,12 @@ data class DownloadManagerState(
     val selection: List<String> = emptyList(),
     /** 本机已受理、仍等待任务调用 / 状态落地结果的下载动作。 */
     val pendingActions: Map<String, DownloadPendingAction> = emptyMap(),
-    /** DELETE pending 的进程内批次所有权；与 pendingActions 同步迁移 / 收敛。 */
-    val deletionPendingBatches: Map<String, Long> = emptyMap(),
+    /** DELETE pending 的进程内批次所有权；同一 current key 可被多个批次共同拥有。 */
+    val deletionPendingBatches: Map<String, Set<Long>> = emptyMap(),
     /** 删除请求开始时冻结的 key 到 refresh 后当前 logical alias 的进程内映射。 */
     val deletionAliases: Map<String, String> = emptyMap(),
+    /** alias 请求 key 对应的 active deletion batches；批次结束只移除自身所有权。 */
+    val deletionAliasBatches: Map<String, Set<Long>> = emptyMap(),
     /** 批次动作失败后的可见终态；下一次选择或动作开始时清除。 */
     val actionFailure: DownloadActionFailure? = null,
     val deletionFailureReason: DownloadDeletionFailureReason? = null,
@@ -193,29 +195,42 @@ internal fun DownloadManagerState.beginDeletionBatch(
     keys: Collection<String>,
 ): DownloadManagerState =
     beginPending(DownloadPendingAction.DELETE, keys)
-        .copy(deletionPendingBatches = deletionPendingBatches + keys.associateWith { batchId })
+        .copy(
+            deletionPendingBatches =
+                deletionPendingBatches +
+                    keys.associateWith { key -> deletionPendingBatches[key].orEmpty() + batchId }
+        )
 
 fun DownloadManagerState.finishPending(keys: Set<String>): DownloadManagerState =
-    copy(
-        pendingActions = pendingActions - keys,
-        deletionPendingBatches = deletionPendingBatches - keys,
-        deletionAliases =
-            deletionAliases -
-                deletionAliases.filterValues { currentKey -> currentKey in keys }.keys,
-    )
+    (copy(
+            pendingActions = pendingActions - keys,
+            deletionPendingBatches = deletionPendingBatches - keys,
+            deletionAliasBatches = deletionAliasBatches - keys,
+        ))
+        .withAliasesOwnedByCurrentKeys()
 
 internal fun DownloadManagerState.finishDeletionBatch(batchId: Long): DownloadManagerState {
-    val ownedKeys = deletionPendingBatches.filterValues { owner -> owner == batchId }.keys
-    val aliasRequests = deletionAliases.filterValues { currentKey -> currentKey in ownedKeys }.keys
+    val retainedOwners =
+        deletionPendingBatches
+            .mapValues { (_, owners) -> owners - batchId }
+            .filterValues { owners -> owners.isNotEmpty() }
+    val retainedAliasBatches =
+        deletionAliasBatches
+            .mapValues { (_, owners) -> owners - batchId }
+            .filterValues { owners -> owners.isNotEmpty() }
+    val completedKeys = deletionPendingBatches.keys - retainedOwners.keys
     return copy(
-        pendingActions = pendingActions - ownedKeys,
-        deletionPendingBatches = deletionPendingBatches - ownedKeys,
-        deletionAliases = deletionAliases - aliasRequests,
-    )
+            pendingActions = pendingActions - completedKeys,
+            deletionPendingBatches = retainedOwners,
+            deletionAliasBatches = retainedAliasBatches,
+        )
+        .withAliasesOwnedByCurrentKeys()
 }
 
 internal fun DownloadManagerState.resolveDeletionKey(key: String): String =
-    deletionAliases[key]?.takeIf { currentKey -> currentKey in deletionPendingBatches } ?: key
+    deletionAliases[key]?.takeIf { currentKey ->
+        currentKey in deletionPendingBatches && deletionAliasBatches[key].orEmpty().isNotEmpty()
+    } ?: key
 
 internal fun DownloadManagerState.resolveDeletionResult(
     result: DownloadDeletionResult
@@ -230,22 +245,32 @@ fun DownloadManagerState.failPending(
     action: DownloadPendingAction,
     keys: Set<String>,
 ): DownloadManagerState =
-    copy(
-        pendingActions = pendingActions - keys,
-        deletionPendingBatches = deletionPendingBatches - keys,
-        deletionAliases =
-            deletionAliases -
-                deletionAliases.filterValues { currentKey -> currentKey in keys }.keys,
-        actionFailure =
-            when (action) {
-                DownloadPendingAction.PLAY -> DownloadActionFailure.PLAY
-                DownloadPendingAction.PAUSE -> DownloadActionFailure.PAUSE
-                DownloadPendingAction.RESUME -> DownloadActionFailure.RESUME
-                DownloadPendingAction.RETRY -> DownloadActionFailure.RETRY
-                DownloadPendingAction.DELETE -> DownloadActionFailure.DELETE
-            },
-        deletionFailureReason = null,
+    (copy(
+            pendingActions = pendingActions - keys,
+            deletionPendingBatches = deletionPendingBatches - keys,
+            deletionAliasBatches = deletionAliasBatches - keys,
+            actionFailure =
+                when (action) {
+                    DownloadPendingAction.PLAY -> DownloadActionFailure.PLAY
+                    DownloadPendingAction.PAUSE -> DownloadActionFailure.PAUSE
+                    DownloadPendingAction.RESUME -> DownloadActionFailure.RESUME
+                    DownloadPendingAction.RETRY -> DownloadActionFailure.RETRY
+                    DownloadPendingAction.DELETE -> DownloadActionFailure.DELETE
+                },
+            deletionFailureReason = null,
+        ))
+        .withAliasesOwnedByCurrentKeys()
+
+private fun DownloadManagerState.withAliasesOwnedByCurrentKeys(): DownloadManagerState {
+    val retainedAliases = deletionAliases.filter { (requestKey, currentKey) ->
+        currentKey in deletionPendingBatches &&
+            deletionAliasBatches[requestKey].orEmpty().isNotEmpty()
+    }
+    return copy(
+        deletionAliases = retainedAliases,
+        deletionAliasBatches = deletionAliasBatches.filterKeys { it in retainedAliases },
     )
+}
 
 private fun DownloadHierarchyContainer.descendantEntries(): List<DownloadHierarchyEntry> =
     children.flatMap { child ->

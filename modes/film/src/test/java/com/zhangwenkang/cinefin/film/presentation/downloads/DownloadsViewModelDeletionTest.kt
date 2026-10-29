@@ -354,16 +354,15 @@ class DownloadsViewModelDeletionTest {
             }
 
             val state = fixture.viewModel.state.value
-            val migratedBatchId = state.deletionPendingBatches[sourceKey]
+            val migratedBatchIds =
+                requireNotNull(state.deletionPendingBatches[sourceKey]) {
+                    "container pending batch owner did not follow the visible source: " +
+                        "owners=${state.deletionPendingBatches}"
+                }
             assertTrue(
                 "container pending did not follow the visible source: " +
                     "pending=${state.pendingActions}",
                 state.pendingActions == mapOf(sourceKey to DownloadPendingAction.DELETE),
-            )
-            assertTrue(
-                "container pending batch owner did not follow the visible source: " +
-                    "owners=${state.deletionPendingBatches}",
-                migratedBatchId != null,
             )
 
             val sourceContainer =
@@ -377,9 +376,107 @@ class DownloadsViewModelDeletionTest {
                 fixture.deleteRequests.size,
             )
             assertEquals(
-                mapOf(sourceKey to migratedBatchId),
+                mapOf(sourceKey to migratedBatchIds),
                 fixture.viewModel.state.value.deletionPendingBatches,
             )
+        } finally {
+            fixture.deleteGates.values.forEach { it.complete(Unit) }
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `converging container batches preserve earlier owner after peer finishes`() {
+        val itemId = UUID.randomUUID()
+        val intent = task("intent", "intent:$itemId", itemId = itemId)
+        val source = task("source", "source-real", itemId = itemId)
+        val intentKey = taskKey(intent)
+        val sourceKey = taskKey(source)
+        val fixture =
+            Fixture(
+                tasks = listOf(intent, source),
+                outcomes =
+                    mapOf(
+                        "intent:$itemId" to DownloadDeleteOutcome.SUCCEEDED,
+                        "source-real" to DownloadDeleteOutcome.FAILED,
+                    ),
+            )
+        try {
+            fixture.start()
+            val intentContainer =
+                fixture.viewModel.state.value.activeContainers.single { container ->
+                    container.allEntries().single().key == intentKey
+                }
+            val sourceContainer =
+                fixture.viewModel.state.value.activeContainers.single { container ->
+                    container.allEntries().single().key == sourceKey
+                }
+
+            val intentGate = CompletableDeferred<Unit>()
+            fixture.deleteGates[intent.sourceId] = intentGate
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(intentContainer.key))
+            fixture.waitUntil("intent batch did not start") { fixture.deleteRequests.size == 1 }
+            val intentBatchId =
+                fixture.viewModel.state.value.deletionPendingBatches.getValue(intentKey).single()
+
+            fixture.deleteGates[source.sourceId] = CompletableDeferred()
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(sourceContainer.key))
+            fixture.waitUntil("source batch did not start") { fixture.deleteRequests.size == 2 }
+            val sourceBatchId =
+                fixture.viewModel.state.value.deletionPendingBatches.getValue(sourceKey).single()
+
+            fixture.tasks.value = listOf(source)
+            assertTrue(fixture.queueChanges.tryEmit(Unit))
+            fixture.waitUntil("converging refresh did not migrate the intent alias") {
+                fixture.viewModel.state.value.deletionAliases[intentKey] == sourceKey
+            }
+            assertEquals(
+                setOf(intentBatchId, sourceBatchId),
+                fixture.viewModel.state.value.deletionPendingBatches[sourceKey],
+            )
+
+            fixture.deleteGates.getValue(source.sourceId).complete(Unit)
+            fixture.waitUntil("source peer batch did not report failure") {
+                fixture.viewModel.state.value.actionFailure == DownloadActionFailure.DELETE
+            }
+            Thread.sleep(100L)
+            assertEquals(
+                setOf(intentBatchId),
+                fixture.viewModel.state.value.deletionPendingBatches[sourceKey],
+            )
+            assertEquals(
+                setOf(intentBatchId),
+                fixture.viewModel.state.value.deletionAliasBatches[intentKey],
+            )
+
+            fixture.deleteGates[source.sourceId] = CompletableDeferred()
+            val refreshedSourceContainer =
+                fixture.viewModel.state.value.activeContainers.single { container ->
+                    container.allEntries().single().key == sourceKey
+                }
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(refreshedSourceContainer.key))
+            Thread.sleep(100L)
+
+            val afterPeerFinished = fixture.viewModel.state.value
+            val requestCountAfterRetry = fixture.deleteRequests.size
+            val owners = afterPeerFinished.deletionPendingBatches.values.flatten().toSet()
+            assertTrue(
+                "the earlier owner lost protection after its peer finished; " +
+                    "pending=${afterPeerFinished.pendingActions} " +
+                    "requests=$requestCountAfterRetry owners=$owners",
+                afterPeerFinished.pendingActions[sourceKey] == DownloadPendingAction.DELETE &&
+                    requestCountAfterRetry == 2 &&
+                    owners == setOf(intentBatchId),
+            )
+
+            intentGate.complete(Unit)
+            fixture.waitUntil("all owners did not clear source pending and alias") {
+                val state = fixture.viewModel.state.value
+                sourceKey !in state.pendingActions &&
+                    state.deletionPendingBatches[sourceKey] == null &&
+                    intentKey !in state.deletionAliases &&
+                    intentKey !in state.deletionAliasBatches
+            }
         } finally {
             fixture.deleteGates.values.forEach { it.complete(Unit) }
             fixture.close()
