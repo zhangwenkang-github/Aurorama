@@ -170,6 +170,9 @@ constructor(
         MutableSharedFlow<DownloadPlaybackRequest>(extraBufferCapacity = 1)
     val playbackRequests = _playbackRequests.asSharedFlow()
 
+    private val deletionBatchStartLock = Any()
+    private var nextDeletionBatchId = 0L
+
     /** 本地 JVM action test 注入确定性作用域；生产保持 ViewModel 生命周期。 */
     internal var actionScopeOverride: CoroutineScope? = null
 
@@ -195,6 +198,9 @@ constructor(
             selection = result.selection,
             selectionMode = result.selection.isNotEmpty(),
             pendingActions = pendingActions.mapKeys { (key, _) -> migrated[key]?.key ?: key },
+            deletionPendingBatches =
+                deletionPendingBatches.mapKeys { (key, _) -> migrated[key]?.key ?: key },
+            deletionAliases = deletionAliases + migrated.mapValues { it.value.key },
             actionFailure =
                 if (result.ambiguousIntentKeys.isNotEmpty()) {
                     DownloadActionFailure.DELETE
@@ -764,11 +770,24 @@ constructor(
     }
 
     private fun deleteSelected() {
-        val current = _state.value
-        if (!DownloadSelectionRules.canStartSelectionAction(current)) return
-        val entries = DownloadSelectionRules.deletionEntries(current)
+        val batch =
+            synchronized(deletionBatchStartLock) {
+                val current = _state.value
+                if (!DownloadSelectionRules.canStartSelectionAction(current)) {
+                    null
+                } else {
+                    val entries = DownloadSelectionRules.deletionEntries(current)
+                    if (entries.isEmpty()) {
+                        null
+                    } else {
+                        val batchId = ++nextDeletionBatchId
+                        _state.update { DownloadSelectionRules.beginDeletion(it, entries, batchId) }
+                        batchId to entries
+                    }
+                }
+            } ?: return
+        val (batchId, entries) = batch
         val keys = entries.map { it.key }.toSet()
-        _state.update { DownloadSelectionRules.beginDeletion(it, entries) }
         actionScope().launch {
             try {
                 val result = deleteEntries(entries)
@@ -779,7 +798,7 @@ constructor(
             } catch (error: Exception) {
                 failSelectionAction(DownloadPendingAction.DELETE, keys, error)
             } finally {
-                _state.update { it.finishDeletionPending() }
+                _state.update { it.finishDeletionBatch(batchId) }
             }
         }
     }
@@ -832,38 +851,59 @@ constructor(
 
     /** W34：删除容器 = 删除容器内所有可删条目（进行中 / 失败任务 + 单个已完成条目）。 */
     private fun deleteContainer(containerKey: String) {
-        val container = _state.value.containerFor(containerKey)
-        val entries = container?.let(::descendantEntries).orEmpty()
+        val batch =
+            synchronized(deletionBatchStartLock) {
+                val current = _state.value
+                val container = current.containerFor(containerKey)
+                val entries = container?.let(::descendantEntries).orEmpty()
+                val keys = entries.mapTo(linkedSetOf()) { it.key }
+                val overlapsPending = keys.any { key -> key in current.pendingActions }
+                val hasNonDeletionPending =
+                    current.pendingActions.values.any { pending ->
+                        pending != DownloadPendingAction.DELETE
+                    }
+                if (entries.isEmpty() || overlapsPending || hasNonDeletionPending) {
+                    null
+                } else {
+                    val batchId = ++nextDeletionBatchId
+                    _state.update { it.beginDeletionBatch(batchId, keys) }
+                    batchId to entries
+                }
+            } ?: return
+        val (batchId, entries) = batch
         val keys = entries.map { it.key }.toSet()
-        _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
         actionScope().launch {
             try {
                 val result = deleteEntries(entries)
                 _state.update {
+                    val resolved = it.resolveDeletionResult(result)
                     it.copy(
                         expandedKeys =
                             if (
-                                keys.isNotEmpty() && keys.all { key -> key in result.succeededKeys }
+                                keys.isNotEmpty() &&
+                                    keys.all { key ->
+                                        it.resolveDeletionKey(key) in resolved.succeededKeys
+                                    }
                             ) {
                                 it.expandedKeys - containerKey
                             } else it.expandedKeys,
                         actionFailure =
-                            if (result.retainedKeys.isNotEmpty()) {
+                            if (resolved.retainedKeys.isNotEmpty()) {
                                 DownloadActionFailure.DELETE
                             } else {
-                                null
+                                it.actionFailure
                             },
                         deletionFailureReason =
-                            if (result.supersededKeys.isNotEmpty()) {
+                            if (resolved.supersededKeys.isNotEmpty()) {
                                 DownloadDeletionFailureReason.SUPERSEDED
                             } else {
-                                null
+                                it.deletionFailureReason
                             },
                     )
                 }
                 refresh(showLoading = false)
             } finally {
-                _state.update { it.finishDeletionPending() }
+                _state.update { it.finishDeletionBatch(batchId) }
             }
         }
     }

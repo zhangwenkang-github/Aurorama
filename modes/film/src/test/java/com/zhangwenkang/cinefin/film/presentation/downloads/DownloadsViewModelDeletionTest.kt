@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -187,6 +188,144 @@ class DownloadsViewModelDeletionTest {
     }
 
     @Test
+    fun `successful original intent result clears migrated source alias`() {
+        val itemId = UUID.randomUUID()
+        val intent = task("intent", "intent:$itemId", itemId = itemId)
+        val source = task("source", "source-real", itemId = itemId)
+        val fixture =
+            Fixture(
+                tasks = listOf(intent),
+                outcomes = mapOf("intent:$itemId" to DownloadDeleteOutcome.SUCCEEDED),
+            )
+        try {
+            fixture.start()
+            val intentKey = taskKey(intent)
+            val sourceKey = taskKey(source)
+            fixture.viewModel.onAction(DownloadAction.SelectKeys(listOf(intentKey)))
+            fixture.deleteGate = CompletableDeferred()
+            fixture.viewModel.onAction(DownloadAction.DeleteSelected)
+            fixture.waitUntil("delete request was not started") {
+                fixture.deleteRequests.isNotEmpty()
+            }
+
+            fixture.tasks.value = listOf(source)
+            assertTrue(fixture.queueChanges.tryEmit(Unit))
+            fixture.waitUntil("unique intent to source migration did not finish") {
+                val state = fixture.viewModel.state.value
+                state.selection == listOf(sourceKey) &&
+                    state.pendingActions == mapOf(sourceKey to DownloadPendingAction.DELETE) &&
+                    state.deletionRecoveryEntries.map { it.entryKey } == listOf(sourceKey)
+            }
+
+            fixture.deleteGate?.complete(Unit)
+            fixture.waitUntil("migrated alias delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            val state = fixture.viewModel.state.value
+            val mismatch = buildString {
+                if (state.selection.isNotEmpty()) append("selection=${state.selection}; ")
+                if (state.deletionRecoveryEntries.isNotEmpty()) {
+                    append("recovery=${state.deletionRecoveryEntries.map { it.entryKey }}; ")
+                }
+                val deletePending =
+                    state.pendingActions.filterValues { it == DownloadPendingAction.DELETE }
+                if (deletePending.isNotEmpty()) append("deletePending=$deletePending; ")
+                if (state.actionFailure == DownloadActionFailure.DELETE) {
+                    append("actionFailure=${state.actionFailure}; ")
+                }
+            }
+            assertTrue("migrated source alias was not fully cleared: $mismatch", mismatch.isEmpty())
+        } finally {
+            fixture.deleteGate?.complete(Unit)
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `container batch completion preserves other pending and failure state`() {
+        val firstSeriesId = UUID.randomUUID()
+        val secondSeriesId = UUID.randomUUID()
+        val failed = task("failed", "source-failed", seriesId = firstSeriesId)
+        val succeeded = task("succeeded", "source-succeeded", seriesId = secondSeriesId)
+        val fixture =
+            Fixture(
+                tasks = listOf(failed, succeeded),
+                outcomes =
+                    mapOf(
+                        "source-failed" to DownloadDeleteOutcome.FAILED,
+                        "source-succeeded" to DownloadDeleteOutcome.SUCCEEDED,
+                    ),
+            )
+        try {
+            fixture.start()
+            val failedKey = taskKey(failed)
+            val succeededKey = taskKey(succeeded)
+            val failedContainer =
+                fixture.viewModel.state.value.activeContainers.first { container ->
+                    container.allEntries().any { it.key == failedKey }
+                }
+            val succeededContainer =
+                fixture.viewModel.state.value.activeContainers.first { container ->
+                    container.allEntries().any { it.key == succeededKey }
+                }
+            assertTrue(
+                "fixture requires independent containers",
+                failedContainer.key != succeededContainer.key,
+            )
+            fixture.deleteGates["source-failed"] = CompletableDeferred()
+            fixture.deleteGates["source-succeeded"] = CompletableDeferred()
+
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(failedContainer.key))
+            fixture.waitUntil("first container delete was not started") {
+                fixture.deleteRequests.any { requests ->
+                    requests.any { it.sourceId == "source-failed" }
+                }
+            }
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(failedContainer.key))
+            assertEquals(
+                "overlapping container deletion must fail closed",
+                1,
+                fixture.deleteRequests.count { requests ->
+                    requests.any { it.sourceId == "source-failed" }
+                },
+            )
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(succeededContainer.key))
+            fixture.waitUntil("second container delete was not started") {
+                fixture.deleteRequests.any { requests ->
+                    requests.any { it.sourceId == "source-succeeded" }
+                }
+            }
+
+            fixture.deleteGates.getValue("source-failed").complete(Unit)
+            fixture.waitUntil("first container delete did not publish failure") {
+                fixture.viewModel.state.value.actionFailure == DownloadActionFailure.DELETE
+            }
+            val afterFirst = fixture.viewModel.state.value
+            assertEquals(
+                mapOf(succeededKey to DownloadPendingAction.DELETE),
+                afterFirst.pendingActions,
+            )
+            assertFalse(DownloadSelectionRules.canStartSelectionAction(afterFirst))
+            assertEquals(DownloadActionFailure.DELETE, afterFirst.actionFailure)
+
+            fixture.deleteGates.getValue("source-succeeded").complete(Unit)
+            fixture.waitUntil("second container delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+            val afterSecond = fixture.viewModel.state.value
+            assertEquals(
+                "a successful peer batch must not clear another batch failure",
+                DownloadActionFailure.DELETE,
+                afterSecond.actionFailure,
+            )
+        } finally {
+            fixture.deleteGates.values.forEach { it.complete(Unit) }
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `hidden failed selection retries from frozen recovery snapshot`() {
         val selected = task("selected", "source-selected")
         val fixture =
@@ -261,6 +400,7 @@ class DownloadsViewModelDeletionTest {
         val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val deleteRequests = mutableListOf<List<DownloadDeleteRequest>>()
         var deleteGate: CompletableDeferred<Unit>? = null
+        val deleteGates = mutableMapOf<String, CompletableDeferred<Unit>>()
         private val context = TestContext(createTempDirectory().toFile())
         private val downloader =
             proxy<Downloader> { method, args ->
@@ -273,7 +413,10 @@ class DownloadsViewModelDeletionTest {
                         @Suppress("UNCHECKED_CAST")
                         val requests = args.first() as List<DownloadDeleteRequest>
                         deleteRequests += requests
-                        val gate = deleteGate
+                        val gate =
+                            requests.firstNotNullOfOrNull { request ->
+                                deleteGates[request.sourceId]
+                            } ?: deleteGate
                         if (gate == null) {
                             result(requests)
                         } else {

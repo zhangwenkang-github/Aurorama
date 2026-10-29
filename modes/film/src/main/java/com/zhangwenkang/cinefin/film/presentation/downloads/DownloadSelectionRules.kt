@@ -56,19 +56,24 @@ object DownloadSelectionRules {
     fun beginDeletion(
         state: DownloadManagerState,
         entries: List<DownloadHierarchyEntry>,
+        batchId: Long? = null,
     ): DownloadManagerState {
         val keys = entries.mapTo(linkedSetOf()) { it.key }
-        return state
-            .beginPending(DownloadPendingAction.DELETE, keys)
-            .copy(
-                deletionRecoveryEntries =
-                    entries.distinctBy(DownloadHierarchyEntry::key).map { entry ->
-                        DownloadDeletionRecoveryEntry(
-                            entryKey = entry.key,
-                            canonicalIdentity = entry.canonicalIdentity,
-                        )
-                    }
-            )
+        val begun =
+            if (batchId == null) {
+                state.beginPending(DownloadPendingAction.DELETE, keys)
+            } else {
+                state.beginDeletionBatch(batchId, keys)
+            }
+        return begun.copy(
+            deletionRecoveryEntries =
+                entries.distinctBy(DownloadHierarchyEntry::key).map { entry ->
+                    DownloadDeletionRecoveryEntry(
+                        entryKey = entry.key,
+                        canonicalIdentity = entry.canonicalIdentity,
+                    )
+                }
+        )
     }
 
     /** 只保留 receipt 明确失败的候选；成功项必须同时退出 selection 与 recovery snapshot。 */
@@ -88,25 +93,28 @@ object DownloadSelectionRules {
     fun completeDeletion(
         state: DownloadManagerState,
         result: DownloadDeletionResult,
-    ): DownloadManagerState =
-        state.copy(
-            selection = state.selection.filterNot { it in result.succeededKeys },
-            selectionMode = state.selection.any { it !in result.succeededKeys },
+    ): DownloadManagerState {
+        val resolved = state.resolveDeletionResult(result)
+        val retainedSelection = state.selection.filterNot { key -> key in resolved.succeededKeys }
+        return state.copy(
+            selection = retainedSelection,
+            selectionMode = retainedSelection.isNotEmpty(),
             actionFailure =
-                if (state.selection.any { it !in result.succeededKeys }) {
+                if (retainedSelection.isNotEmpty()) {
                     DownloadActionFailure.DELETE
                 } else {
                     null
                 },
             deletionFailureReason =
-                if (result.supersededKeys.isNotEmpty()) {
+                if (resolved.supersededKeys.isNotEmpty()) {
                     DownloadDeletionFailureReason.SUPERSEDED
                 } else {
                     null
                 },
             deletionRecoveryEntries =
-                state.deletionRecoveryEntries.filterNot { it.entryKey in result.succeededKeys },
+                state.deletionRecoveryEntries.filterNot { it.entryKey in resolved.succeededKeys },
         )
+    }
 
     /** 本地数据先上屏时保留已完成键；完整服务器阶段仍由后续 validKeys 再裁剪。 */
     fun selectionAfterLocalRefresh(
