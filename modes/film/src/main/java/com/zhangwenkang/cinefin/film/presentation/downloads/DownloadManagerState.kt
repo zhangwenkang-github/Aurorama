@@ -9,6 +9,7 @@ import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
 import com.zhangwenkang.cinefin.utils.DownloadTaskRules
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.downloadIdentity
 import java.util.UUID
 
@@ -25,6 +26,17 @@ data class DownloadDeletionRecoveryEntry(
     val entryKey: String,
     val canonicalIdentity: DownloadCanonicalIdentity,
 )
+
+internal fun DownloadDeletionRecoveryEntry.toDeletionEntry(): DownloadHierarchyEntry =
+    DownloadHierarchyEntry(
+        itemId = UUID.fromString(canonicalIdentity.itemId),
+        name = "",
+        mediaKind = canonicalIdentity.mediaKind,
+        status = DownloadTaskStatus.FAILED,
+        sourceId = canonicalIdentity.sourceId,
+        serverId = canonicalIdentity.serverId,
+        userId = canonicalIdentity.userId,
+    )
 
 /** W32 下载管理页 UI 状态：进行中 / 已完成 / 失败三组 + 多选 + 存储占用；W34 追加层级容器。 */
 data class DownloadManagerState(
@@ -48,6 +60,7 @@ data class DownloadManagerState(
     val pendingActions: Map<String, DownloadPendingAction> = emptyMap(),
     /** 批次动作失败后的可见终态；下一次选择或动作开始时清除。 */
     val actionFailure: DownloadActionFailure? = null,
+    val deletionFailureReason: DownloadDeletionFailureReason? = null,
     /** 本次删除批次开始时的不可变恢复元数据，只保留仍失败的候选。 */
     val deletionRecoveryEntries: List<DownloadDeletionRecoveryEntry> = emptyList(),
 ) {
@@ -157,6 +170,10 @@ enum class DownloadActionFailure {
     DELETE,
 }
 
+enum class DownloadDeletionFailureReason {
+    SUPERSEDED
+}
+
 fun DownloadManagerState.beginPending(
     action: DownloadPendingAction,
     keys: Collection<String> = selection,
@@ -164,10 +181,14 @@ fun DownloadManagerState.beginPending(
     copy(
         pendingActions = pendingActions + keys.associateWith { action },
         actionFailure = null,
+        deletionFailureReason = null,
     )
 
 fun DownloadManagerState.finishPending(keys: Set<String>): DownloadManagerState =
     copy(pendingActions = pendingActions - keys)
+
+internal fun DownloadManagerState.finishDeletionPending(): DownloadManagerState =
+    copy(pendingActions = pendingActions.filterValues { it != DownloadPendingAction.DELETE })
 
 fun DownloadManagerState.failPending(
     action: DownloadPendingAction,
@@ -183,6 +204,7 @@ fun DownloadManagerState.failPending(
                 DownloadPendingAction.RETRY -> DownloadActionFailure.RETRY
                 DownloadPendingAction.DELETE -> DownloadActionFailure.DELETE
             },
+        deletionFailureReason = null,
     )
 
 private fun DownloadHierarchyContainer.descendantEntries(): List<DownloadHierarchyEntry> =

@@ -40,6 +40,179 @@ class DownloadSelectionRulesTest {
             albumName = task.albumName,
         )
 
+    private fun task(
+        name: String,
+        itemId: UUID = UUID.randomUUID(),
+        sourceId: String,
+        serverId: String = "server-a",
+        userId: String = "user-a",
+    ) =
+        DownloadTask(
+            itemId = itemId,
+            sourceId = sourceId,
+            name = name,
+            path = "/tmp/$name.download",
+            downloadId = null,
+            status = DownloadTaskStatus.RUNNING,
+            failureReason = null,
+            downloadedBytes = 0L,
+            totalBytes = 100L,
+            updatedAt = 0L,
+            mediaKind = DownloadMediaKind.MUSIC,
+            serverId = serverId,
+            userId = userId,
+        )
+
+    private fun deletionPending(selection: List<DownloadHierarchyEntry>): DownloadManagerState =
+        DownloadSelectionRules.beginDeletion(
+            state =
+                DownloadManagerState(
+                    activeTasks = selection.mapNotNull { it.task },
+                    activeContainers = DownloadHierarchyBuilder.build(selection),
+                    selectionMode = true,
+                    selection = selection.map { it.key },
+                ),
+            entries = selection,
+        )
+
+    @Test
+    fun `普通刷新优先保留仍有效的 exact key`() {
+        val itemId = UUID.randomUUID()
+        val intent = entry(task("意图", itemId, "intent:$itemId"))
+        val source = entry(task("来源", itemId, "real-source"))
+        val state =
+            deletionPending(listOf(intent))
+                .copy(activeContainers = DownloadHierarchyBuilder.build(listOf(intent, source)))
+
+        assertEquals(
+            listOf(intent.key),
+            DownloadSelectionRules.selectionAfterRefresh(
+                state = state,
+                validKeys = setOf(intent.key, source.key),
+                currentEntries = listOf(intent, source),
+            ),
+        )
+    }
+
+    @Test
+    fun `普通刷新把批次内唯一 intent key 迁移到真实 source key`() {
+        val itemId = UUID.randomUUID()
+        val intent = entry(task("意图", itemId, "intent:$itemId"))
+        val source = entry(task("来源", itemId, "real-source"))
+        val state = deletionPending(listOf(intent))
+
+        assertEquals(
+            listOf(source.key),
+            DownloadSelectionRules.selectionAfterRefresh(
+                state = state,
+                validKeys = setOf(source.key),
+                currentEntries = listOf(source),
+            ),
+        )
+    }
+
+    @Test
+    fun `多 source 候选时保留原 intent key 且不任意选择`() {
+        val itemId = UUID.randomUUID()
+        val intent = entry(task("意图", itemId, "intent:$itemId"))
+        val first = entry(task("来源一", itemId, "source-1"))
+        val second = entry(task("来源二", itemId, "source-2"))
+        val state = deletionPending(listOf(intent))
+        val refresh =
+            DownloadSelectionRules.reconcileAfterRefresh(
+                state = state,
+                validKeys = setOf(first.key, second.key),
+                currentEntries = listOf(first, second),
+            )
+
+        assertEquals(listOf(intent.key), refresh.selection)
+        assertEquals(setOf(intent.key), refresh.ambiguousIntentKeys)
+    }
+
+    @Test
+    fun `零 source 候选时保留原 intent key`() {
+        val itemId = UUID.randomUUID()
+        val intent = entry(task("意图", itemId, "intent:$itemId"))
+        val state = deletionPending(listOf(intent))
+        val refresh =
+            DownloadSelectionRules.reconcileAfterRefresh(
+                state = state,
+                validKeys = emptySet(),
+                currentEntries = emptyList(),
+            )
+
+        assertEquals(listOf(intent.key), refresh.selection)
+        assertEquals(setOf(intent.key), refresh.ambiguousIntentKeys)
+    }
+
+    @Test
+    fun `同一批迁移保持原选择顺序与重复项`() {
+        val migratedItemId = UUID.randomUUID()
+        val ambiguousItemId = UUID.randomUUID()
+        val migratedIntent = entry(task("可迁移", migratedItemId, "intent:$migratedItemId"))
+        val ambiguousIntent = entry(task("多候选", ambiguousItemId, "intent:$ambiguousItemId"))
+        val migratedSource = entry(task("真实来源", migratedItemId, "source-a"))
+        val firstAmbiguous = entry(task("候选一", ambiguousItemId, "source-b1"))
+        val secondAmbiguous = entry(task("候选二", ambiguousItemId, "source-b2"))
+        val state =
+            deletionPending(listOf(migratedIntent, ambiguousIntent))
+                .copy(
+                    selection =
+                        listOf(
+                            ambiguousIntent.key,
+                            migratedIntent.key,
+                            ambiguousIntent.key,
+                        )
+                )
+
+        val refresh =
+            DownloadSelectionRules.reconcileAfterRefresh(
+                state = state,
+                validKeys =
+                    setOf(
+                        migratedSource.key,
+                        firstAmbiguous.key,
+                        secondAmbiguous.key,
+                    ),
+                currentEntries = listOf(migratedSource, firstAmbiguous, secondAmbiguous),
+            )
+
+        assertEquals(
+            listOf(ambiguousIntent.key, migratedSource.key, ambiguousIntent.key),
+            refresh.selection,
+        )
+        assertEquals(
+            mapOf(migratedIntent.key to migratedSource),
+            refresh.migratedEntries,
+        )
+    }
+
+    @Test
+    fun `跨 server 的同 itemId 不迁移`() {
+        val itemId = UUID.randomUUID()
+        val intent = entry(task("意图", itemId, "intent:$itemId"))
+        val otherServer =
+            entry(
+                task(
+                    "其他服务器",
+                    itemId,
+                    "source-other",
+                    serverId = "server-b",
+                )
+            )
+        val state = deletionPending(listOf(intent))
+
+        val refresh =
+            DownloadSelectionRules.reconcileAfterRefresh(
+                state = state,
+                validKeys = setOf(otherServer.key),
+                currentEntries = listOf(otherServer),
+            )
+
+        assertEquals(listOf(intent.key), refresh.selection)
+        assertEquals(setOf(intent.key), refresh.ambiguousIntentKeys)
+    }
+
     @Test
     fun `失败全选键数等于可重试失败任务数而不是容器数`() {
         val first = failedTask("第一集", DownloadFailureReason.SERVER_ERROR)
@@ -101,13 +274,15 @@ class DownloadSelectionRulesTest {
         val oldEntries = listOf(entry(intentTask))
         val newEntries = listOf(entry(sourceTask))
         val state =
-            DownloadManagerState(
-                failedTasks = listOf(intentTask),
-                failedContainers = DownloadHierarchyBuilder.build(oldEntries),
-                selectionMode = true,
-                selection = listOf(oldEntries.single().key),
-                pendingActions = mapOf(oldEntries.single().key to DownloadPendingAction.DELETE),
-                actionFailure = DownloadActionFailure.DELETE,
+            DownloadSelectionRules.beginDeletion(
+                state =
+                    DownloadManagerState(
+                        failedTasks = listOf(intentTask),
+                        failedContainers = DownloadHierarchyBuilder.build(oldEntries),
+                        selectionMode = true,
+                        selection = listOf(oldEntries.single().key),
+                    ),
+                entries = oldEntries,
             )
 
         assertEquals(

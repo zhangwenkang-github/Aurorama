@@ -53,6 +53,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadActionFailure
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDeletionFailureReason
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDetailRow
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDrilldownRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadFormatRules
@@ -829,10 +831,13 @@ private fun SelectionBar(
     ) {
         Text(
             text =
-                if (state.actionFailure != null) {
-                    stringResource(CoreR.string.download_failed)
-                } else {
-                    stringResource(CoreR.string.download_selected_count, state.selection.size)
+                when {
+                    state.actionFailure == DownloadActionFailure.DELETE &&
+                        state.deletionFailureReason == DownloadDeletionFailureReason.SUPERSEDED ->
+                        stringResource(CoreR.string.download_delete_generation_superseded)
+                    state.actionFailure != null -> stringResource(CoreR.string.download_failed)
+                    else ->
+                        stringResource(CoreR.string.download_selected_count, state.selection.size)
                 },
             style = CinefinType.BodyMedium,
             color = if (state.actionFailure != null) colors.error else colors.onSurface,

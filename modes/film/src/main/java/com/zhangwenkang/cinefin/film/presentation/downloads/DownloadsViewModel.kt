@@ -187,6 +187,41 @@ constructor(
 
     private fun actionScope(): CoroutineScope = actionScopeOverride ?: viewModelScope
 
+    private fun DownloadManagerState.applySelectionRefresh(
+        result: DownloadSelectionRefreshResult
+    ): DownloadManagerState {
+        val migrated = result.migratedEntries
+        return copy(
+            selection = result.selection,
+            selectionMode = result.selection.isNotEmpty(),
+            pendingActions = pendingActions.mapKeys { (key, _) -> migrated[key]?.key ?: key },
+            actionFailure =
+                if (result.ambiguousIntentKeys.isNotEmpty()) {
+                    DownloadActionFailure.DELETE
+                } else {
+                    actionFailure
+                },
+            deletionFailureReason =
+                if (result.ambiguousIntentKeys.isNotEmpty()) {
+                    null
+                } else {
+                    deletionFailureReason
+                },
+            deletionRecoveryEntries =
+                deletionRecoveryEntries.map { entry ->
+                    val target = migrated[entry.entryKey]
+                    if (target == null) {
+                        entry
+                    } else {
+                        DownloadDeletionRecoveryEntry(
+                            entryKey = target.key,
+                            canonicalIdentity = target.canonicalIdentity,
+                        )
+                    }
+                },
+        )
+    }
+
     private var sessionJob: Job? = null
     private var pollingJob: Job? = null
     private var queueChangesJob: Job? = null
@@ -385,6 +420,7 @@ constructor(
                         selectionMode = action.keys.isNotEmpty(),
                         selection = action.keys,
                         actionFailure = null,
+                        deletionFailureReason = null,
                         deletionRecoveryEntries = emptyList(),
                     )
                 }
@@ -480,12 +516,14 @@ constructor(
                     selectionMode = false,
                     selection = emptyList(),
                     actionFailure = null,
+                    deletionFailureReason = null,
                     deletionRecoveryEntries = emptyList(),
                 )
             } else {
                 current.copy(
                     selectionMode = true,
                     actionFailure = null,
+                    deletionFailureReason = null,
                     deletionRecoveryEntries = emptyList(),
                 )
             }
@@ -499,6 +537,7 @@ constructor(
                 selection = selection,
                 selectionMode = selection.isNotEmpty(),
                 actionFailure = null,
+                deletionFailureReason = null,
                 deletionRecoveryEntries = emptyList(),
             )
         }
@@ -510,6 +549,7 @@ constructor(
                 selection = emptyList(),
                 selectionMode = false,
                 actionFailure = null,
+                deletionFailureReason = null,
                 deletionRecoveryEntries = emptyList(),
             )
         }
@@ -726,20 +766,20 @@ constructor(
     private fun deleteSelected() {
         val current = _state.value
         if (!DownloadSelectionRules.canStartSelectionAction(current)) return
-        val entries = current.selectedEntries
+        val entries = DownloadSelectionRules.deletionEntries(current)
         val keys = entries.map { it.key }.toSet()
         _state.update { DownloadSelectionRules.beginDeletion(it, entries) }
-        viewModelScope.launch {
+        actionScope().launch {
             try {
-                val failedKeys = deleteEntries(entries)
-                _state.update { DownloadSelectionRules.completeDeletion(it, failedKeys) }
+                val result = deleteEntries(entries)
+                _state.update { DownloadSelectionRules.completeDeletion(it, result) }
                 refresh(showLoading = false)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
                 failSelectionAction(DownloadPendingAction.DELETE, keys, error)
             } finally {
-                _state.update { it.finishPending(keys) }
+                _state.update { it.finishDeletionPending() }
             }
         }
     }
@@ -755,13 +795,39 @@ constructor(
     }
 
     /** 删除一组层级条目：优先走任务删除，其次走已完成条目删除。 */
-    private suspend fun deleteEntries(entries: List<DownloadHierarchyEntry>): Set<String> {
+    private suspend fun deleteEntries(
+        entries: List<DownloadHierarchyEntry>
+    ): DownloadDeletionResult {
         val candidates = DownloadDeletionRules.candidates(entries, completedMediaRecords)
-        if (candidates.isEmpty()) return entries.mapTo(mutableSetOf()) { it.key }
+        if (candidates.isEmpty()) {
+            return DownloadDeletionResult(failedKeys = entries.mapTo(linkedSetOf()) { it.key })
+        }
         val result = downloader.deleteDownloads(candidates.map { it.request })
-        return candidates
-            .filter { it.canonicalKey in result.failedKeys }
-            .mapTo(mutableSetOf()) { it.entryKey }
+        val succeeded =
+            candidates
+                .filter { it.canonicalKey in result.succeededKeys }
+                .mapTo(linkedSetOf()) { it.entryKey }
+        val failed =
+            candidates
+                .filter { it.canonicalKey in result.failedKeys }
+                .mapTo(linkedSetOf()) { it.entryKey }
+        val superseded =
+            candidates
+                .filter { it.canonicalKey in result.supersededKeys }
+                .mapTo(linkedSetOf()) { it.entryKey }
+        val unaccounted =
+            candidates
+                .filter {
+                    it.canonicalKey !in result.succeededKeys &&
+                        it.canonicalKey !in result.failedKeys &&
+                        it.canonicalKey !in result.supersededKeys
+                }
+                .mapTo(linkedSetOf()) { it.entryKey }
+        return DownloadDeletionResult(
+            succeededKeys = succeeded,
+            failedKeys = failed + unaccounted,
+            supersededKeys = superseded,
+        )
     }
 
     /** W34：删除容器 = 删除容器内所有可删条目（进行中 / 失败任务 + 单个已完成条目）。 */
@@ -770,21 +836,34 @@ constructor(
         val entries = container?.let(::descendantEntries).orEmpty()
         val keys = entries.map { it.key }.toSet()
         _state.update { it.beginPending(DownloadPendingAction.DELETE, keys) }
-        viewModelScope.launch {
+        actionScope().launch {
             try {
-                val failedKeys = deleteEntries(entries)
+                val result = deleteEntries(entries)
                 _state.update {
                     it.copy(
                         expandedKeys =
-                            if (failedKeys.isEmpty()) it.expandedKeys - containerKey
-                            else it.expandedKeys,
+                            if (
+                                keys.isNotEmpty() && keys.all { key -> key in result.succeededKeys }
+                            ) {
+                                it.expandedKeys - containerKey
+                            } else it.expandedKeys,
                         actionFailure =
-                            if (failedKeys.isNotEmpty()) DownloadActionFailure.DELETE else null,
+                            if (result.retainedKeys.isNotEmpty()) {
+                                DownloadActionFailure.DELETE
+                            } else {
+                                null
+                            },
+                        deletionFailureReason =
+                            if (result.supersededKeys.isNotEmpty()) {
+                                DownloadDeletionFailureReason.SUPERSEDED
+                            } else {
+                                null
+                            },
                     )
                 }
                 refresh(showLoading = false)
             } finally {
-                _state.update { it.finishPending(keys) }
+                _state.update { it.finishDeletionPending() }
             }
         }
     }
@@ -964,23 +1043,27 @@ constructor(
             )
         currentCoroutineContext().ensureActive()
         _state.update { current ->
-            current.copy(
-                isLoading = false,
-                activeTasks = activeEngineTasks,
-                failedTasks = failedEngineTasks,
-                activeContainers =
-                    DownloadHierarchyBuilder.build(localActiveEntries + localRunningBookEntries),
-                failedContainers =
-                    DownloadHierarchyBuilder.build(localFailedEntries + localFailedBookEntries),
-                bookStorageBytes = bookStorageBytes,
-                storage = storage,
-                selection =
-                    DownloadSelectionRules.selectionAfterRefresh(
-                        state = current,
-                        validKeys = localKeys,
-                        currentEntries = localEntries,
-                    ),
-            )
+            val refreshed =
+                current.copy(
+                    isLoading = false,
+                    activeTasks = activeEngineTasks,
+                    failedTasks = failedEngineTasks,
+                    activeContainers =
+                        DownloadHierarchyBuilder.build(
+                            localActiveEntries + localRunningBookEntries
+                        ),
+                    failedContainers =
+                        DownloadHierarchyBuilder.build(localFailedEntries + localFailedBookEntries),
+                    bookStorageBytes = bookStorageBytes,
+                    storage = storage,
+                )
+            val selectionRefresh =
+                DownloadSelectionRules.reconcileAfterRefresh(
+                    state = refreshed,
+                    validKeys = localKeys,
+                    currentEntries = localEntries,
+                )
+            refreshed.applySelectionRefresh(selectionRefresh)
         }
         localSnapshotToken = snapshotToken
         return LocalDownloadSnapshot(
@@ -1162,26 +1245,28 @@ constructor(
                 false
             } else {
                 _state.update { current ->
-                    current.copy(
-                        isLoading = false,
-                        activeTasks = snapshot.activeEngineTasks,
-                        failedTasks = snapshot.failedEngineTasks,
-                        completed = completed,
-                        activeContainers =
-                            DownloadHierarchyBuilder.build(activeEntries + runningBookEntries),
-                        completedContainers =
-                            DownloadHierarchyBuilder.build(completedEntries + bookEntries),
-                        failedContainers =
-                            DownloadHierarchyBuilder.build(failedEntries + failedBookEntries),
-                        bookStorageBytes = snapshot.bookStorageBytes,
-                        storage = snapshot.storage,
-                        selection =
-                            DownloadSelectionRules.selectionAfterRefresh(
-                                state = current,
-                                validKeys = validKeys,
-                                currentEntries = remoteEntries,
-                            ),
-                    )
+                    val refreshed =
+                        current.copy(
+                            isLoading = false,
+                            activeTasks = snapshot.activeEngineTasks,
+                            failedTasks = snapshot.failedEngineTasks,
+                            completed = completed,
+                            activeContainers =
+                                DownloadHierarchyBuilder.build(activeEntries + runningBookEntries),
+                            completedContainers =
+                                DownloadHierarchyBuilder.build(completedEntries + bookEntries),
+                            failedContainers =
+                                DownloadHierarchyBuilder.build(failedEntries + failedBookEntries),
+                            bookStorageBytes = snapshot.bookStorageBytes,
+                            storage = snapshot.storage,
+                        )
+                    val selectionRefresh =
+                        DownloadSelectionRules.reconcileAfterRefresh(
+                            state = refreshed,
+                            validKeys = validKeys,
+                            currentEntries = remoteEntries,
+                        )
+                    refreshed.applySelectionRefresh(selectionRefresh)
                 }
                 true
             }

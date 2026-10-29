@@ -137,6 +137,7 @@
     <string name="download_paused">Paused</string>
     <string name="download_downloading">Downloading…</string>
     <string name="download_failed">Failed to download</string>
+    <string name="download_delete_generation_superseded">The download generation changed. Refresh and try again.</string>
     <string name="download_tasks_active">Downloading</string>
     <string name="download_tasks_completed">Completed</string>
     <string name="download_tasks_failed">Failed</string>

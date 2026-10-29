@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
+import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
@@ -13,6 +14,21 @@ sealed interface DownloadPlaybackPlan {
 
     data class Video(val itemIds: List<UUID>) : DownloadPlaybackPlan
 }
+
+data class DownloadDeletionResult(
+    val succeededKeys: Set<String> = emptySet(),
+    val failedKeys: Set<String> = emptySet(),
+    val supersededKeys: Set<String> = emptySet(),
+) {
+    val retainedKeys: Set<String>
+        get() = failedKeys + supersededKeys
+}
+
+data class DownloadSelectionRefreshResult(
+    val selection: List<String>,
+    val migratedEntries: Map<String, DownloadHierarchyEntry> = emptyMap(),
+    val ambiguousIntentKeys: Set<String> = emptySet(),
+)
 
 /** W84：下载管理列表的全选口径。 */
 object DownloadSelectionRules {
@@ -60,12 +76,36 @@ object DownloadSelectionRules {
         state: DownloadManagerState,
         failedKeys: Set<String>,
     ): DownloadManagerState =
+        completeDeletion(
+            state = state,
+            result =
+                DownloadDeletionResult(
+                    succeededKeys = state.selection.toSet() - failedKeys,
+                    failedKeys = failedKeys,
+                ),
+        )
+
+    fun completeDeletion(
+        state: DownloadManagerState,
+        result: DownloadDeletionResult,
+    ): DownloadManagerState =
         state.copy(
-            selection = state.selection.filter { it in failedKeys },
-            selectionMode = failedKeys.isNotEmpty(),
-            actionFailure = if (failedKeys.isNotEmpty()) DownloadActionFailure.DELETE else null,
+            selection = state.selection.filterNot { it in result.succeededKeys },
+            selectionMode = state.selection.any { it !in result.succeededKeys },
+            actionFailure =
+                if (state.selection.any { it !in result.succeededKeys }) {
+                    DownloadActionFailure.DELETE
+                } else {
+                    null
+                },
+            deletionFailureReason =
+                if (result.supersededKeys.isNotEmpty()) {
+                    DownloadDeletionFailureReason.SUPERSEDED
+                } else {
+                    null
+                },
             deletionRecoveryEntries =
-                state.deletionRecoveryEntries.filter { it.entryKey in failedKeys },
+                state.deletionRecoveryEntries.filterNot { it.entryKey in result.succeededKeys },
         )
 
     /** 本地数据先上屏时保留已完成键；完整服务器阶段仍由后续 validKeys 再裁剪。 */
@@ -74,37 +114,79 @@ object DownloadSelectionRules {
         localKeys: Set<String>,
     ): List<String> = selectionAfterRefresh(state, localKeys, state.allEntries())
 
-    /** 删除失败时优先从批次快照恢复原 key；旧状态才按命名空间 + item 兼容映射。 */
+    /**
+     * refresh 选择对账：
+     * 1. exact key 永久优先；
+     * 2. 只有本删除批次冻结的 intent 才能在完整 namespace 内迁移；
+     * 3. 零 / 多 source 候选时保留原 key，交由删除结果层显式报错。
+     */
     fun selectionAfterRefresh(
         state: DownloadManagerState,
         validKeys: Set<String>,
         currentEntries: List<DownloadHierarchyEntry>,
-    ): List<String> {
-        if (state.actionFailure == DownloadActionFailure.DELETE) {
-            val previous = state.allEntries().associateBy(DownloadHierarchyEntry::key)
-            val recovery = state.deletionRecoveryEntries.associateBy { it.entryKey }
-            val recoverableEntries =
-                currentEntries + state.completedContainers.flatMap { it.allEntries() }
-            return state.selection.mapNotNull { key ->
-                when {
-                    key in validKeys -> key
-                    key in recovery -> recovery.getValue(key).entryKey
-                    else ->
-                        previous[key]?.canonicalIdentity?.let { identity ->
-                            val candidates = recoverableEntries.filter {
-                                it.canonicalIdentity.sameNamespace(identity)
-                            }
-                            candidates.firstOrNull { it.canonicalIdentity == identity }?.key
-                                ?: candidates.singleOrNull()?.key
-                        }
-                }
-            }
-        }
+    ): List<String> =
+        reconcileAfterRefresh(
+                state = state,
+                validKeys = validKeys,
+                currentEntries = currentEntries,
+            )
+            .selection
+
+    fun reconcileAfterRefresh(
+        state: DownloadManagerState,
+        validKeys: Set<String>,
+        currentEntries: List<DownloadHierarchyEntry>,
+    ): DownloadSelectionRefreshResult {
         val completedKeys =
             state.completedContainers
                 .flatMap { container -> container.allEntries() }
                 .mapTo(mutableSetOf()) { it.key }
-        return state.selection.filter { it in validKeys || it in completedKeys }
+        val recovery = state.deletionRecoveryEntries.associateBy { it.entryKey }
+        val selection = mutableListOf<String>()
+        val migrated = linkedMapOf<String, DownloadHierarchyEntry>()
+        val ambiguous = linkedSetOf<String>()
+        state.selection.forEach { key ->
+            when {
+                key in validKeys || key in completedKeys -> selection += key
+                else ->
+                    recovery[key]?.let { entry ->
+                        val identity = entry.canonicalIdentity
+                        if (!identity.isIntentSource()) {
+                            selection += key
+                            return@forEach
+                        }
+                        val sourceCandidates =
+                            currentEntries
+                                .filter { candidate ->
+                                    candidate.canonicalIdentity.sameNamespace(identity) &&
+                                        !candidate.canonicalIdentity.isIntentSource()
+                                }
+                                .distinctBy { candidate -> candidate.canonicalIdentity }
+                        val target = sourceCandidates.singleOrNull()
+                        if (target == null) {
+                            selection += key
+                            ambiguous += key
+                        } else {
+                            selection += target.key
+                            migrated[key] = target
+                        }
+                    }
+            }
+        }
+        return DownloadSelectionRefreshResult(
+            selection = selection,
+            migratedEntries = migrated,
+            ambiguousIntentKeys = ambiguous,
+        )
+    }
+
+    /** 当前 selection 顺序对应的删除目标；visible 缺失时使用批次冻结 identity 重建。 */
+    fun deletionEntries(state: DownloadManagerState): List<DownloadHierarchyEntry> {
+        val visible = state.allEntries().associateBy(DownloadHierarchyEntry::key)
+        val recovery = state.deletionRecoveryEntries.associateBy { it.entryKey }
+        return state.selection
+            .mapNotNull { key -> visible[key] ?: recovery[key]?.toDeletionEntry() }
+            .distinctBy(DownloadHierarchyEntry::key)
     }
 
     /** 容器 / 季选择展开为条目并追加到尾部；再次点击同一目标时整体移除。 */
@@ -176,7 +258,7 @@ object DownloadSelectionRules {
         }
     }
 
-    private fun DownloadManagerState.allEntries(): List<DownloadHierarchyEntry> =
+    fun DownloadManagerState.allEntries(): List<DownloadHierarchyEntry> =
         allContainers.flatMap { container ->
             container.children.flatMap { child ->
                 when (child) {
@@ -185,4 +267,9 @@ object DownloadSelectionRules {
                 }
             }
         }
+
+    private fun DownloadCanonicalIdentity.isIntentSource(): Boolean =
+        sourceId == "$INTENT_SOURCE_PREFIX$itemId"
+
+    private const val INTENT_SOURCE_PREFIX = "intent:"
 }
