@@ -40,6 +40,70 @@ class DownloadMediaSidecarIdentityTest {
     }
 
     @Test
+    fun `v2 sidecar 文件兼容读取为 legacy placement`() {
+        val directory = Files.createTempDirectory("download-sidecar-v2-placement").toFile()
+        try {
+            val file = File(directory, "download_media.tsv")
+            file.writeText(
+                listOf(
+                        "v2",
+                        "MUSIC",
+                        url64(itemId.toString()),
+                        url64("旧专辑"),
+                        url64("旧歌手"),
+                        "1",
+                        url64("server-a"),
+                        url64("user-a"),
+                        url64("source-a"),
+                        url64("旧标题"),
+                    )
+                    .joinToString("\t")
+            )
+
+            val decoded = DownloadMediaSidecar.forFile(file).allRecords().requireComplete().single()
+
+            assertEquals(DownloadPlacement.LEGACY, decoded.placement)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `placement 不参与 canonical identity 且同来源写入会更新元数据`() {
+        val directory = Files.createTempDirectory("download-sidecar-placement-identity").toFile()
+        try {
+            val sidecar = DownloadMediaSidecar.forFile(File(directory, "download_media.tsv"))
+            val base = record("server-a", "user-a", "source-a")
+            val first =
+                base.copy(
+                    placement =
+                        DownloadPlacement(
+                            batchId = "album-batch",
+                            policy = ContainerPolicy.ALBUM_BATCH,
+                            workKey = "music-work-a",
+                        )
+                )
+            val second =
+                base.copy(
+                    placement =
+                        DownloadPlacement(
+                            batchId = null,
+                            policy = ContainerPolicy.FLAT,
+                            workKey = null,
+                        )
+                )
+
+            assertEquals(first.canonicalIdentity(), second.canonicalIdentity())
+            assertTrue(sidecar.put(first))
+            assertTrue(sidecar.put(second))
+
+            assertEquals(listOf(second), sidecar.allRecords().requireComplete())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `真实 sidecar 文件不会用未知身份折叠同 UUID 的两条待处理记录`() {
         val directory = Files.createTempDirectory("download-sidecar-unknown").toFile()
         try {
@@ -181,4 +245,7 @@ class DownloadMediaSidecarIdentityTest {
             userId = userId,
             sourceId = sourceId,
         )
+
+    private fun url64(value: String): String =
+        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray())
 }

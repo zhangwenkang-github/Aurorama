@@ -17,6 +17,30 @@ enum class DownloadMediaKind {
     BOOK,
 }
 
+/** 下载入口显式声明的容器策略；不从媒体元数据事后猜测。 */
+enum class ContainerPolicy {
+    LEGACY,
+    FLAT,
+    ALBUM_BATCH,
+    SHOW,
+    VIDEO_WORK,
+}
+
+/**
+ * 下载项在容器层级中的持久化位置。
+ *
+ * `workKey` 只保存调用方冻结的作品身份；本层不生成或猜测来源。`batchId` 是容器标识，不是 UI 根节点。
+ */
+data class DownloadPlacement(
+    val batchId: String? = null,
+    val policy: ContainerPolicy = ContainerPolicy.LEGACY,
+    val workKey: String? = null,
+) {
+    companion object {
+        val LEGACY: DownloadPlacement = DownloadPlacement(policy = ContainerPolicy.LEGACY)
+    }
+}
+
 /** W88-B：下载创建时持久化的可证明来源；媒体源适用于视频 / 音乐。 */
 data class DownloadProvenance(
     val serverId: String,
@@ -36,6 +60,7 @@ data class DownloadMediaRecord(
     val userId: String? = null,
     val sourceId: String? = null,
     val displayName: String? = null,
+    val placement: DownloadPlacement = DownloadPlacement.LEGACY,
 ) {
     /** 视频 / 音乐必须有媒体 sourceId；书籍没有媒体源，前三段完整即可。 旧五列记录或任一关键段无法解析时返回 null，调用方必须按来源未知处理。 */
     fun provenance(): DownloadProvenance? {
@@ -87,9 +112,10 @@ fun DownloadMediaReadResult.requireComplete(): List<DownloadMediaRecord> =
  * 表。为了让下载列表在离线 / 重启后 仍能组织层级与封面，这里记录「媒体类型 + 专辑 / 艺人」。
  *
  * 编码：
- * - v2：`v2, kind, base64(itemId), base64(album), base64(artist), trackIndex, base64(serverId),
- *   base64(userId), base64(sourceId), base64(displayName)`；
- * - 旧五列记录继续可读，但不猜测 server / user / source，显式降级为来源未知。
+ * - v3：`v3, kind, base64(itemId), base64(album), base64(artist), trackIndex, base64(serverId),
+ *   base64(userId), base64(sourceId), base64(displayName), base64(batchId), policy,
+ *   base64(workKey)`；
+ * - v2 与旧五列记录继续可读，但 placement 显式降级为 [DownloadPlacement.LEGACY]；旧记录也不猜测 server / user / source。
  *
  * 每次写入均先落同目录临时文件再替换目标文件；[lock] 串行化同一进程内调用，避免并发 `put / remove` 互相覆盖。
  */
@@ -303,8 +329,10 @@ class DownloadMediaSidecar private constructor(private val file: File) {
 
 object DownloadMediaCodec {
     private const val SEPARATOR = "\t"
-    private const val VERSION = "v2"
+    private const val VERSION = "v3"
+    private const val V2_VERSION = "v2"
     private const val V2_COLUMN_COUNT = 10
+    private const val V3_COLUMN_COUNT = 13
 
     fun encodeLine(record: DownloadMediaRecord): String =
         listOf(
@@ -318,17 +346,44 @@ object DownloadMediaCodec {
                 encode(record.userId),
                 encode(record.sourceId),
                 encode(record.displayName),
+                encode(record.placement.batchId),
+                record.placement.policy.name,
+                encode(record.placement.workKey),
             )
             .joinToString(SEPARATOR)
 
     fun decodeLine(line: String): DownloadMediaRecord? {
         if (line.isBlank()) return null
         val parts = line.split(SEPARATOR)
-        return if (parts.firstOrNull() == VERSION) decodeV2(parts) else decodeLegacy(parts)
+        return when (parts.firstOrNull()) {
+            VERSION -> decodeV3(parts)
+            V2_VERSION -> decodeV2(parts)
+            else -> decodeLegacy(parts)
+        }
     }
 
     private fun decodeV2(parts: List<String>): DownloadMediaRecord? {
         if (parts.size != V2_COLUMN_COUNT) return null
+        return decodeCurrent(parts, DownloadPlacement.LEGACY)
+    }
+
+    private fun decodeV3(parts: List<String>): DownloadMediaRecord? {
+        if (parts.size != V3_COLUMN_COUNT) return null
+        val policy = ContainerPolicy.entries.firstOrNull { it.name == parts[11] } ?: return null
+        return decodeCurrent(
+            parts,
+            DownloadPlacement(
+                batchId = decode(parts[10]),
+                policy = policy,
+                workKey = decode(parts[12]),
+            ),
+        )
+    }
+
+    private fun decodeCurrent(
+        parts: List<String>,
+        placement: DownloadPlacement,
+    ): DownloadMediaRecord? {
         val kind = parts[1].toKindOrNull() ?: return null
         val itemId = decode(parts[2])?.takeIf { it.isNotBlank() } ?: return null
         return DownloadMediaRecord(
@@ -341,6 +396,7 @@ object DownloadMediaCodec {
             userId = decode(parts[7]),
             sourceId = decode(parts[8]),
             displayName = decode(parts[9]),
+            placement = placement,
         )
     }
 
