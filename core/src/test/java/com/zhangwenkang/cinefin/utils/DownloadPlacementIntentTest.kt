@@ -62,6 +62,236 @@ class DownloadPlacementIntentTest {
         }
 
     @Test
+    fun `refresh ignores stale incomplete sidecar before unique complete namespace match`() =
+        runBlocking {
+            val fixture = DownloaderImplRecoveryTest.Fixture()
+            val itemId = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+            val sourceId = "placement-namespace-source"
+            val stalePlacement =
+                DownloadPlacement(
+                    batchId = "stale-batch",
+                    policy = ContainerPolicy.FLAT,
+                    workKey = "stale-work",
+                )
+            val currentPlacement =
+                DownloadPlacement(
+                    batchId = "right-batch",
+                    policy = ContainerPolicy.SHOW,
+                    workKey = "right-work",
+                )
+            try {
+                assertTrue(
+                    fixture.downloader
+                        .mediaSidecar()
+                        .put(
+                            DownloadMediaRecord(
+                                itemId = itemId.toString(),
+                                kind = DownloadMediaKind.MUSIC,
+                                sourceId = sourceId,
+                                placement = stalePlacement,
+                            )
+                        )
+                )
+                fixture.prepareMusicOrigin(itemId, "namespace identity", sourceId)
+
+                val receipt =
+                    fixture.downloader.receiveMusicBatch(
+                        listOf(
+                            fixture
+                                .completeMusicRequest(itemId, "namespace identity")
+                                .copy(placement = currentPlacement)
+                        )
+                    )
+
+                assertEquals(1, receipt.acceptedRequests.size)
+                fixture.downloader.recoverOnStartup()
+                assertTrue(
+                    "意图必须解析为 source 才能验证 refresh 映射：${fixture.logs}",
+                    fixture.dao.awaitInsertedSourceCount(1),
+                )
+                val candidates =
+                    fixture.downloader.mediaSidecar().allRecords().requireComplete().filter {
+                        it.itemId == itemId.toString() && it.sourceId == sourceId
+                    }
+                assertEquals(2, candidates.size)
+                assertEquals(
+                    setOf(stalePlacement, currentPlacement),
+                    candidates.map { it.placement }.toSet(),
+                )
+
+                val task =
+                    fixture.newDownloader().refreshDownloadTasks().single {
+                        it.itemId == itemId && it.sourceId == sourceId
+                    }
+
+                assertEquals(ContainerPolicy.SHOW, task.placement.policy)
+                assertEquals("right-batch", task.placement.batchId)
+                assertEquals("right-work", task.placement.workKey)
+            } finally {
+                fixture.close()
+            }
+        }
+
+    @Test
+    fun `refresh falls back to legacy when complete namespace records are not unique`() =
+        runBlocking {
+            val fixture = DownloaderImplRecoveryTest.Fixture()
+            val itemId = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+            val sourceId = "placement-multiple-complete-source"
+            try {
+                fixture.prepareMusicOrigin(itemId, "multiple complete", sourceId)
+                fixture.downloader.receiveMusicBatch(
+                    listOf(
+                        fixture
+                            .completeMusicRequest(itemId, "multiple complete")
+                            .copy(
+                                placement =
+                                    DownloadPlacement(
+                                        batchId = "first-batch",
+                                        policy = ContainerPolicy.SHOW,
+                                        workKey = "first-work",
+                                    )
+                            )
+                    )
+                )
+                fixture.downloader.recoverOnStartup()
+                assertTrue(
+                    "意图必须解析为 source 才能验证 refresh 映射：${fixture.logs}",
+                    fixture.dao.awaitInsertedSourceCount(1),
+                )
+                val current =
+                    fixture.downloader.mediaSidecar().allRecords().requireComplete().single {
+                        it.itemId == itemId.toString() && it.sourceId == sourceId
+                    }
+                assertTrue(
+                    fixture.downloader
+                        .mediaSidecar()
+                        .put(
+                            current.copy(
+                                kind = DownloadMediaKind.VIDEO,
+                                placement =
+                                    DownloadPlacement(
+                                        batchId = "second-batch",
+                                        policy = ContainerPolicy.VIDEO_WORK,
+                                        workKey = "second-work",
+                                    ),
+                            )
+                        )
+                )
+                val candidates =
+                    fixture.downloader.mediaSidecar().allRecords().requireComplete().filter {
+                        it.itemId == itemId.toString() &&
+                            it.sourceId == sourceId &&
+                            it.provenance() != null
+                    }
+                assertEquals(2, candidates.size)
+                assertEquals(1, candidates.map { it.serverId to it.userId }.toSet().size)
+
+                val task =
+                    fixture.newDownloader().refreshDownloadTasks().single {
+                        it.itemId == itemId && it.sourceId == sourceId
+                    }
+
+                assertEquals(DownloadPlacement.LEGACY, task.placement)
+            } finally {
+                fixture.close()
+            }
+        }
+
+    @Test
+    fun `refresh falls back to legacy for no match and unprovable namespace`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        val noMatchItemId = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
+        val incompleteItemId = UUID.fromString("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+        val noMatchSourceId = "placement-no-match-source"
+        val incompleteSourceId = "placement-incomplete-source"
+        try {
+            fixture.prepareMusicOrigin(noMatchItemId, "no match", noMatchSourceId)
+            fixture.prepareMusicOrigin(incompleteItemId, "incomplete", incompleteSourceId)
+            fixture.downloader.receiveMusicBatch(
+                listOf(
+                    fixture.completeMusicRequest(noMatchItemId, "no match"),
+                    fixture.completeMusicRequest(incompleteItemId, "incomplete"),
+                )
+            )
+            fixture.downloader.recoverOnStartup()
+            assertTrue(
+                "两个意图都必须解析为 source：${fixture.logs}",
+                fixture.dao.awaitInsertedSourceCount(2),
+            )
+            val sidecar = fixture.downloader.mediaSidecar()
+            val records = sidecar.allRecords().requireComplete()
+            val noMatchRecord = records.single {
+                it.itemId == noMatchItemId.toString() && it.sourceId == noMatchSourceId
+            }
+            val incompleteRecord = records.single {
+                it.itemId == incompleteItemId.toString() && it.sourceId == incompleteSourceId
+            }
+            assertTrue(sidecar.remove(noMatchRecord.canonicalIdentity()))
+            assertTrue(sidecar.remove(incompleteRecord.canonicalIdentity()))
+            assertTrue(
+                sidecar.put(
+                    DownloadMediaRecord(
+                        itemId = incompleteItemId.toString(),
+                        kind = DownloadMediaKind.MUSIC,
+                        sourceId = incompleteSourceId,
+                        placement =
+                            DownloadPlacement(
+                                batchId = "unprovable-batch",
+                                policy = ContainerPolicy.FLAT,
+                                workKey = "unprovable-work",
+                            ),
+                    )
+                )
+            )
+
+            val tasks =
+                fixture.newDownloader().refreshDownloadTasks().associateBy {
+                    it.itemId to it.sourceId
+                }
+
+            assertEquals(
+                DownloadPlacement.LEGACY,
+                tasks.getValue(noMatchItemId to noMatchSourceId).placement,
+            )
+            assertEquals(
+                DownloadPlacement.LEGACY,
+                tasks.getValue(incompleteItemId to incompleteSourceId).placement,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `refresh falls back to legacy when sidecar is corrupt`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        val itemId = UUID.fromString("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
+        val sourceId = "placement-corrupt-source"
+        try {
+            fixture.prepareMusicOrigin(itemId, "corrupt sidecar", sourceId)
+            fixture.downloader.receiveMusicBatch(
+                listOf(fixture.completeMusicRequest(itemId, "corrupt sidecar"))
+            )
+            fixture.downloader.recoverOnStartup()
+            assertTrue(
+                "意图必须解析为 source 才能验证 refresh 映射：${fixture.logs}",
+                fixture.dao.awaitInsertedSourceCount(1),
+            )
+            fixture.sidecarFile().appendText("\ncorrupt-record")
+
+            val task =
+                fixture.newDownloader().refreshDownloadTasks().single {
+                    it.itemId == itemId && it.sourceId == sourceId
+                }
+
+            assertEquals(DownloadPlacement.LEGACY, task.placement)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `same work key leaves stay independent after intent refresh`() = runBlocking {
         val fixture = DownloaderImplRecoveryTest.Fixture()
         val firstItemId = UUID.fromString("55555555-5555-4555-8555-555555555555")

@@ -3741,12 +3741,13 @@ private constructor(
                         emptyList()
                     }
                 }
-            val mediaRecords = completeSidecarRecords.associateBy {
-                it.canonicalIdentity().canonicalKey
-            }
             val pendingIntentRecordsByItemId =
                 completeSidecarRecords
-                    .filter { it.kind == DownloadMediaKind.MUSIC && it.sourceId.isNullOrBlank() }
+                    .filter {
+                        it.kind == DownloadMediaKind.MUSIC &&
+                            it.sourceId.isNullOrBlank() &&
+                            it.hasCompleteProvableNamespace()
+                    }
                     .groupBy(DownloadMediaRecord::itemId)
             val episodeHierarchy = runCatching {
                 // W59：进行中 / 已完成的剧集都要带归属（Show → 季 → 剧集钻取分组）。
@@ -3781,9 +3782,11 @@ private constructor(
                         ?: partialFileSize(source.path)
                 val total = runtimeState?.totalBytes ?: source.totalBytes
                 val record =
-                    mediaRecords.values.firstOrNull {
-                        it.itemId == source.itemId.toString() && it.sourceId == source.id
-                    }
+                    uniqueCompleteSidecarRecord(
+                        records = completeSidecarRecords,
+                        itemId = source.itemId.toString(),
+                        sourceId = source.id,
+                    )
                 val hierarchy: DownloadedEpisodeHierarchy? = episodeHierarchy[source.itemId]
                 tasks +=
                     DownloadTask(
@@ -3825,10 +3828,7 @@ private constructor(
                     .filterNot { it.itemId in sourceItemIds }
                     .map { intent ->
                         val pendingRecords = pendingIntentRecordsByItemId[intent.itemId.toString()]
-                        val pendingRecord =
-                            pendingRecords
-                                ?.distinctBy { it.canonicalIdentity().canonicalKey }
-                                ?.singleOrNull()
+                        val pendingRecord = pendingRecords?.singleOrNull()
                         DownloadTask(
                             itemId = intent.itemId,
                             sourceId = intentSourceId(intent.itemId),
@@ -4865,10 +4865,32 @@ private constructor(
     private fun sidecarPlacementFor(source: FindroidSourceDto): DownloadPlacement {
         val snapshot = sidecar.allRecords()
         if (snapshot !is DownloadMediaReadResult.Complete) return DownloadPlacement.LEGACY
-        return snapshot.records
-            .firstOrNull { it.itemId == source.itemId.toString() && it.sourceId == source.id }
+        return uniqueCompleteSidecarRecord(
+                records = snapshot.records,
+                itemId = source.itemId.toString(),
+                sourceId = source.id,
+            )
             ?.placement ?: DownloadPlacement.LEGACY
     }
+
+    private fun uniqueCompleteSidecarRecord(
+        records: List<DownloadMediaRecord>,
+        itemId: String,
+        sourceId: String?,
+    ): DownloadMediaRecord? = records.singleOrNull { record ->
+        record.itemId == itemId &&
+            record.hasCompleteProvableNamespace() &&
+            if (sourceId == null) {
+                record.sourceId.isNullOrBlank()
+            } else {
+                record.sourceId == sourceId
+            }
+    }
+
+    private fun DownloadMediaRecord.hasCompleteProvableNamespace(): Boolean =
+        itemId.toUuidOrNull() != null &&
+            serverId?.isNotBlank() == true &&
+            userId?.toUuidOrNull() != null
 
     private suspend fun snapshotActiveTasks(): List<DownloadTask> =
         withContext(Dispatchers.IO) {
