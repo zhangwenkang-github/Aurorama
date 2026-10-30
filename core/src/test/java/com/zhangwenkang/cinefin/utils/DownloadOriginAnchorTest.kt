@@ -78,6 +78,74 @@ class DownloadOriginAnchorTest {
         }
 
     @Test
+    fun `pending exact selection requires music and ignores exact video beside music`() =
+        runBlocking {
+            val fixture = DownloaderImplRecoveryTest.Fixture()
+            val wrongOnlyItemId = UUID.fromString("11111111-1111-4111-8111-111111111111")
+            val mixedItemId = UUID.fromString("12121212-1212-4212-8212-121212121212")
+            val musicPlacement =
+                DownloadPlacement(
+                    batchId = "pending-music-batch",
+                    policy = ContainerPolicy.ALBUM_BATCH,
+                    workKey = "pending-music-work",
+                )
+            try {
+                fixture.seedAnchoredIntent(wrongOnlyItemId, "wrong kind only")
+                fixture.putMusicRecord(
+                    musicRecord(
+                            itemId = wrongOnlyItemId,
+                            sourceId = null,
+                            serverId = SERVER_ID,
+                            userId = USER_ID,
+                            placement =
+                                DownloadPlacement(
+                                    batchId = "wrong-kind-batch",
+                                    policy = ContainerPolicy.SHOW,
+                                    workKey = "wrong-kind-work",
+                                ),
+                        )
+                        .copy(kind = DownloadMediaKind.VIDEO)
+                )
+
+                fixture.seedAnchoredIntent(mixedItemId, "music beside video")
+                fixture.putMusicRecord(
+                    musicRecord(
+                            itemId = mixedItemId,
+                            sourceId = null,
+                            serverId = SERVER_ID,
+                            userId = USER_ID,
+                            placement =
+                                DownloadPlacement(
+                                    batchId = "video-batch",
+                                    policy = ContainerPolicy.SHOW,
+                                    workKey = "video-work",
+                                ),
+                        )
+                        .copy(kind = DownloadMediaKind.VIDEO)
+                )
+                fixture.putMusicRecord(
+                    musicRecord(
+                        itemId = mixedItemId,
+                        sourceId = null,
+                        serverId = SERVER_ID,
+                        userId = USER_ID,
+                        placement = musicPlacement,
+                    )
+                )
+
+                val tasks = fixture.downloader.refreshDownloadTasks().associateBy { it.itemId }
+                val wrongOnlyTask = tasks.getValue(wrongOnlyItemId)
+                assertEquals(DownloadPlacement.LEGACY, wrongOnlyTask.placement)
+
+                val mixedTask = tasks.getValue(mixedItemId)
+                assertEquals(DownloadMediaKind.MUSIC, mixedTask.mediaKind)
+                assertEquals(musicPlacement, mixedTask.placement)
+            } finally {
+                fixture.close()
+            }
+        }
+
+    @Test
     fun `only unique exact record supplies all placement fields`() = runBlocking {
         val fixture = DownloaderImplRecoveryTest.Fixture()
         val itemId = UUID.fromString("30303030-3030-4030-8030-303030303030")

@@ -4952,7 +4952,7 @@ private constructor(
         return snapshot.records.singleOrNull { record ->
             record.itemId.toUuidOrNull() == anchor.itemId &&
                 if (anchor.sourceId == null) {
-                    record.sourceId.isNullOrBlank()
+                    record.kind == DownloadMediaKind.MUSIC && record.sourceId.isNullOrBlank()
                 } else {
                     record.sourceId == anchor.sourceId
                 } &&
