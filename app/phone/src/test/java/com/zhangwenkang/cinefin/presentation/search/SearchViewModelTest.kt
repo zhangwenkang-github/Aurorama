@@ -21,13 +21,16 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Before
 import org.junit.Test
@@ -93,6 +96,15 @@ class SearchViewModelTest {
                         COROUTINE_SUSPENDED
                     }
                 )
+            val acceptedSequences = mutableListOf<List<String>>()
+            val collector =
+                launch(mainDispatcher) {
+                    viewModel.state.collect { state ->
+                        if (!state.loading && state.serverItems.isNotEmpty()) {
+                            acceptedSequences += state.serverItems.map { it.name }
+                        }
+                    }
+                }
 
             viewModel.onAction(SearchAction.UpdateQuery("first"))
             viewModel.onAction(SearchAction.Search("first"))
@@ -107,8 +119,16 @@ class SearchViewModelTest {
                 viewModel.state.first {
                     it.query == "second" && !it.loading && it.results.isNotEmpty()
                 }
+            mainDispatcher.scheduler.runCurrent()
+            collector.cancel()
 
             assertEquals(listOf("second"), finalState.serverItems.map { it.name })
+            assertEquals(listOf(listOf("second")), acceptedSequences)
+            println("nonLoadingAcceptedSequences=$acceptedSequences")
+            assertFalse(
+                "first must never enter a non-loading accepted sequence: $acceptedSequences",
+                acceptedSequences.any { sequence -> sequence.contains("first") },
+            )
         }
 
     private fun viewModel(

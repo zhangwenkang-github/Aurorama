@@ -36,6 +36,7 @@ import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -81,6 +82,65 @@ class JellyfinRepositoryImpl(
     private val localLibrary: LocalLibraryRepository,
     metadataSnapshotStore: MetadataSnapshotStore,
 ) : JellyfinRepository, OriginScopedJellyfinRepository {
+    private var searchItemsIoDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private var searchItemsFetch: suspend (JellyfinApi, String, SearchScope) -> List<BaseItemDto> =
+        { api, query, scope ->
+            api.itemsApi
+                .getItems(
+                    api.userId!!,
+                    searchTerm = query,
+                    includeItemTypes = SearchQueryRules.itemTypes(scope),
+                    recursive = true,
+                )
+                .content
+                .items
+        }
+    private var searchItemsMaterialize:
+        suspend (
+            List<BaseItemDto>,
+            suspend (List<BaseItemDto>) -> List<FindroidItem>,
+        ) -> List<FindroidItem> =
+        { items, materialize ->
+            materialize(items)
+        }
+    private var searchItemsCacheRead:
+        suspend (suspend () -> List<FindroidItem>) -> List<FindroidItem> =
+        { read ->
+            read()
+        }
+
+    /**
+     * Internal observation seam for the concrete search IO contract; defaults preserve production.
+     */
+    internal constructor(
+        context: Context,
+        jellyfinApi: JellyfinApi,
+        database: ServerDatabaseDao,
+        appPreferences: AppPreferences,
+        localLibrary: LocalLibraryRepository,
+        metadataSnapshotStore: MetadataSnapshotStore,
+        searchItemsIoDispatcher: CoroutineDispatcher,
+        searchItemsFetch: suspend (JellyfinApi, String, SearchScope) -> List<BaseItemDto>,
+        searchItemsMaterialize:
+            suspend (
+                List<BaseItemDto>,
+                suspend (List<BaseItemDto>) -> List<FindroidItem>,
+            ) -> List<FindroidItem>,
+        searchItemsCacheRead: suspend (suspend () -> List<FindroidItem>) -> List<FindroidItem>,
+    ) : this(
+        context = context,
+        jellyfinApi = jellyfinApi,
+        database = database,
+        appPreferences = appPreferences,
+        localLibrary = localLibrary,
+        metadataSnapshotStore = metadataSnapshotStore,
+    ) {
+        this.searchItemsIoDispatcher = searchItemsIoDispatcher
+        this.searchItemsFetch = searchItemsFetch
+        this.searchItemsMaterialize = searchItemsMaterialize
+        this.searchItemsCacheRead = searchItemsCacheRead
+    }
+
     /** W34：下载页轮询会重复取同一批封面 / 专辑元数据，用短 TTL 缓存避免每轮都打服务器。 */
     private val primaryImageUrls = java.util.concurrent.ConcurrentHashMap<UUID, String>()
     private val imageUrlCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
@@ -821,22 +881,16 @@ class JellyfinRepositoryImpl(
         query: String,
         scope: SearchScope,
     ): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            cachedDtoList(
-                key = MetadataCacheKeys.search(query, scope),
-                fetch = {
-                    jellyfinApi.itemsApi
-                        .getItems(
-                            jellyfinApi.userId!!,
-                            searchTerm = query,
-                            includeItemTypes = SearchQueryRules.itemTypes(scope),
-                            recursive = true,
-                        )
-                        .content
-                        .items
-                },
-                materialize = { it.toFindroidItems() },
-            )
+        withContext(searchItemsIoDispatcher) {
+            searchItemsCacheRead {
+                cachedDtoList(
+                    key = MetadataCacheKeys.search(query, scope),
+                    fetch = { searchItemsFetch(jellyfinApi, query, scope) },
+                    materialize = { items ->
+                        searchItemsMaterialize(items) { dtos -> dtos.toFindroidItems() }
+                    },
+                )
+            }
         }
 
     override suspend fun getSuggestions(): List<FindroidItem> =
