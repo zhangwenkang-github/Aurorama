@@ -510,7 +510,7 @@ constructor(
     /** W34：删除层级里的单个条目（任务 / 已完成媒体 / 阅读器离线书籍）。 */
     private fun deleteEntry(key: String) {
         _state.update { it.beginPending(DownloadPendingAction.DELETE, setOf(key)) }
-        viewModelScope.launch {
+        actionScope().launch {
             try {
                 val entry = _state.value.findEntry(key) ?: return@launch
                 when {
@@ -539,6 +539,10 @@ constructor(
                     }
                 }
                 refresh(showLoading = false)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(DownloadPendingAction.DELETE, setOf(key), error)
             } finally {
                 _state.update { it.finishPending(setOf(key)) }
             }
@@ -628,14 +632,23 @@ constructor(
     ) {
         val key = taskKey(task)
         _state.update { it.beginPending(pendingAction, setOf(key)) }
-        viewModelScope.launch {
-            try {
-                block(task)
-                refresh(showLoading = false)
-            } finally {
-                _state.update { it.finishPending(setOf(key)) }
+        (if (pendingAction == DownloadPendingAction.DELETE) actionScope() else viewModelScope)
+            .launch {
+                try {
+                    block(task)
+                    refresh(showLoading = false)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    if (pendingAction == DownloadPendingAction.DELETE) {
+                        failSelectionAction(DownloadPendingAction.DELETE, setOf(key), error)
+                    } else {
+                        throw error
+                    }
+                } finally {
+                    _state.update { it.finishPending(setOf(key)) }
+                }
             }
-        }
     }
 
     private fun runForSelectedTasks(
@@ -751,10 +764,14 @@ constructor(
                 }
                 ?.key ?: itemKey(download.item.id)
         _state.update { it.beginPending(DownloadPendingAction.DELETE, setOf(key)) }
-        viewModelScope.launch {
+        actionScope().launch {
             try {
                 download.source?.let { downloader.deleteItem(download.item, it) }
                 refresh(showLoading = false)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(DownloadPendingAction.DELETE, setOf(key), error)
             } finally {
                 _state.update { it.finishPending(setOf(key)) }
             }
@@ -936,6 +953,10 @@ constructor(
                     )
                 }
                 refresh(showLoading = false)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(DownloadPendingAction.DELETE, keys, error)
             } finally {
                 _state.update { it.finishDeletionBatch(batchId) }
             }

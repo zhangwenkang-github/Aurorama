@@ -32,6 +32,7 @@ import com.zhangwenkang.cinefin.models.FindroidSourceDto
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidTrickplayInfoDto
 import com.zhangwenkang.cinefin.models.FindroidUserDataDto
+import com.zhangwenkang.cinefin.models.toFindroidMovie
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.repository.JellyfinOrigin
 import com.zhangwenkang.cinefin.repository.JellyfinOriginCredentials
@@ -40,13 +41,16 @@ import com.zhangwenkang.cinefin.repository.OriginScopedJellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.ImagesDownloaderWorker
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
+import java.net.URLClassLoader
 import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
+import javax.tools.ToolProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -65,12 +69,269 @@ import org.jellyfin.sdk.model.api.MediaStreamType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import sun.misc.Unsafe
 import timber.log.Timber
 
 class DownloaderImplRecoveryTest {
+
+    private object RealDtoMapperBridge {
+        fun map(
+            dto: FindroidMovieDto,
+            database: ServerDatabaseDao,
+            userId: UUID,
+        ): FindroidMovie = runBlocking { dto.toFindroidMovie(database, userId) }
+    }
+
+    private val realDtoMapperLoader: ClassLoader by lazy {
+        val root = Files.createTempDirectory("real-dto-uri").toFile()
+        val source =
+            File(root, "android/net/Uri.java").apply {
+                parentFile.mkdirs()
+                writeText(
+                    """
+                    package android.net;
+
+                    public final class Uri {
+                        private final String value;
+
+                        private Uri(String value) {
+                            this.value = value;
+                        }
+
+                        public static final class Builder {
+                            private final StringBuilder value = new StringBuilder();
+
+                            public Builder appendEncodedPath(String path) {
+                                value.append(path);
+                                return this;
+                            }
+
+                            public Uri build() {
+                                return new Uri(value.toString());
+                            }
+                        }
+                    }
+                    """
+                        .trimIndent()
+                )
+            }
+        val classes = File(root, "classes").apply { mkdirs() }
+        val diagnostics = ByteArrayOutputStream()
+        val compiler = checkNotNull(ToolProvider.getSystemJavaCompiler())
+        val result =
+            compiler.run(
+                null,
+                null,
+                diagnostics,
+                "-d",
+                classes.path,
+                source.path,
+            )
+        check(result == 0) { "真实 DTO mapper 的 Uri 测试替身编译失败：${diagnostics.toString("UTF-8")}" }
+        object :
+            URLClassLoader(
+                arrayOf(classes.toURI().toURL()),
+                DownloaderImplRecoveryTest::class.java.classLoader,
+            ) {
+            private val childFirstExact =
+                setOf(
+                    "android.net.Uri",
+                    "android.net.Uri\$Builder",
+                    "com.zhangwenkang.cinefin.models.FindroidImages",
+                    "com.zhangwenkang.cinefin.models.FindroidImagesKt",
+                    "com.zhangwenkang.cinefin.models.FindroidItem",
+                    "com.zhangwenkang.cinefin.models.FindroidMovie",
+                    "com.zhangwenkang.cinefin.models.FindroidMovieKt",
+                    "com.zhangwenkang.cinefin.models.FindroidSources",
+                )
+            private val childFirstPrefix =
+                listOf(
+                    "com.zhangwenkang.cinefin.utils.DownloaderImplRecoveryTest\$RealDtoMapperBridge",
+                    "com.zhangwenkang.cinefin.models.FindroidImages\$",
+                    "com.zhangwenkang.cinefin.models.FindroidMovie\$",
+                    "com.zhangwenkang.cinefin.models.FindroidMovieKt\$toFindroidMovie",
+                )
+
+            override fun loadClass(name: String, resolve: Boolean): Class<*> {
+                if (name !in childFirstExact && childFirstPrefix.none(name::startsWith)) {
+                    return super.loadClass(name, resolve)
+                }
+                return synchronized(this) {
+                    val loaded = findLoadedClass(name) ?: findClass(name)
+                    if (resolve) resolveClass(loaded)
+                    loaded
+                }
+            }
+
+            override fun findClass(name: String): Class<*> {
+                if (name == "android.net.Uri" || name == "android.net.Uri\$Builder") {
+                    return super.findClass(name)
+                }
+                val resource = name.replace('.', '/') + ".class"
+                val bytes =
+                    checkNotNull(parent.getResourceAsStream(resource)) { "测试类不在父 classpath：$name" }
+                        .use { it.readBytes() }
+                return defineClass(name, bytes, 0, bytes.size)
+            }
+        }
+    }
+
+    private fun mapWithRealDtoProduction(
+        dto: FindroidMovieDto,
+        database: ServerDatabaseDao,
+        userId: UUID,
+    ): FindroidMovie {
+        val bridge =
+            realDtoMapperLoader.loadClass(
+                "com.zhangwenkang.cinefin.utils.DownloaderImplRecoveryTest\$RealDtoMapperBridge"
+            )
+        val instanceField = bridge.getField("INSTANCE").apply { isAccessible = true }
+        val instance = instanceField.get(null)
+        val method =
+            bridge.methods.single {
+                it.name == "map" &&
+                    it.parameterTypes.contentEquals(
+                        arrayOf(
+                            FindroidMovieDto::class.java,
+                            ServerDatabaseDao::class.java,
+                            UUID::class.java,
+                        )
+                    )
+            }
+        method.isAccessible = true
+        val mapped = method.invoke(instance, dto, database, userId)
+        return mapped as? FindroidMovie ?: adaptIsolatedFindroidMovie(mapped)
+    }
+
+    private fun adaptIsolatedFindroidMovie(value: Any): FindroidMovie {
+        fun property(name: String): Any? = value.javaClass.getMethod(name).invoke(value)
+
+        val constructor =
+            FindroidMovie::class.java.declaredConstructors.single { it.parameterCount == 26 }
+        return constructor.newInstance(
+            property("getId"),
+            property("getName"),
+            property("getOriginalTitle"),
+            property("getOverview"),
+            property("getSources"),
+            property("getPlayed"),
+            property("getFavorite"),
+            property("getCanPlay"),
+            property("getCanDownload"),
+            property("getRuntimeTicks"),
+            property("getPlaybackPositionTicks"),
+            property("getPlayedPercentage"),
+            property("getPremiereDate"),
+            property("getPeople"),
+            property("getGenres"),
+            property("getCommunityRating"),
+            property("getOfficialRating"),
+            property("getStatus"),
+            property("getProductionYear"),
+            property("getEndDate"),
+            property("getTrailer"),
+            property("getUnplayedItemCount"),
+            FindroidImages(),
+            property("getChapters"),
+            property("getTrickplayInfo"),
+            property("getKind"),
+        ) as FindroidMovie
+    }
+
+    private data class CompletedMusicDeleteSeed(
+        val item: FindroidMovie,
+        val source: FindroidSource,
+        val finalFile: File,
+        val partialFile: File,
+        val witnessFile: File,
+        val mediaStreamFile: File,
+    )
+
+    private suspend fun seedCompletedMusicDelete(fixture: Fixture): CompletedMusicDeleteSeed {
+        val itemId = UUID.randomUUID()
+        val sourceId = "completed-music-source"
+        val finalFile = File(fixture.downloads, "$itemId.$sourceId.g1").apply { writeText("music") }
+        val partialFile = File(finalFile.path + ".download").apply { writeText("partial") }
+        val witnessFile =
+            DownloadCompletionCommitRules.witnessFile(partialFile, finalFile).apply {
+                writeText(
+                    listOf(
+                            sourceId,
+                            "1",
+                            partialFile.canonicalPath,
+                            finalFile.canonicalPath,
+                        )
+                        .joinToString("\n")
+                )
+            }
+        val mediaStreamFile =
+            File(fixture.downloads, "$itemId.$sourceId.external.srt").apply {
+                writeText("subtitle")
+            }
+        fixture.dao.putMediaStream(
+            FindroidMediaStreamDto(
+                id = UUID.randomUUID(),
+                sourceId = sourceId,
+                title = "External",
+                displayTitle = null,
+                language = "und",
+                type = MediaStreamType.SUBTITLE,
+                codec = "srt",
+                isExternal = true,
+                path = mediaStreamFile.path,
+                channelLayout = null,
+                videoRangeType = null,
+                height = null,
+                width = null,
+                videoDoViTitle = null,
+            )
+        )
+        val source =
+            FindroidSource(
+                id = sourceId,
+                name = "Completed music",
+                type = FindroidSourceType.LOCAL,
+                path = finalFile.path,
+                size = finalFile.length(),
+                mediaStreams = emptyList(),
+                container = "m4a",
+            )
+        fixture.dao.seedMovie(itemId)
+        fixture.seedCompletedSource(
+            item = fixture.movie().copy(id = itemId, sources = listOf(source), kind = "AUDIO"),
+            source = source,
+            persistOrigin = false,
+        )
+        assertTrue(
+            fixture.putMusicSidecar(
+                itemId = itemId,
+                sourceId = sourceId,
+                serverId = SERVER_ID,
+                userId = USER_ID.toString(),
+                displayName = "Completed music",
+                albumName = "Album",
+            )
+        )
+        val rebuilt =
+            mapWithRealDtoProduction(
+                dto = requireNotNull(fixture.dao.proxy.getMovie(itemId)),
+                database = fixture.dao.proxy,
+                userId = USER_ID,
+            )
+        return CompletedMusicDeleteSeed(
+            item = rebuilt,
+            source =
+                requireNotNull(fixture.dao.sourceById(sourceId))
+                    .toFindroidSource(fixture.dao.proxy),
+            finalFile = finalFile,
+            partialFile = partialFile,
+            witnessFile = witnessFile,
+            mediaStreamFile = mediaStreamFile,
+        )
+    }
 
     @Test
     fun `设置并发从二增到四会经公开偏好写入立即补槽`() = runBlocking {
@@ -3676,6 +3937,67 @@ class DownloaderImplRecoveryTest {
                 "歧义身份不得删除同名 source",
                 fixture.dao.sourceById(source.id),
             )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `完成态音乐经DTO丢失kind后公开删除成功清理全部副作用`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seed = seedCompletedMusicDelete(fixture)
+
+            assertNull("Room DTO 重建的完成态音乐不应伪造 kind", seed.item.kind)
+
+            fixture.downloader.deleteItem(item = seed.item, source = seed.source)
+
+            assertFalse("完成文件未清理", seed.finalFile.exists())
+            assertFalse("断点文件未清理", seed.partialFile.exists())
+            assertFalse("完成 witness 未清理", seed.witnessFile.exists())
+            assertFalse("媒体流文件未清理", seed.mediaStreamFile.exists())
+            assertNull("source 未清理", fixture.dao.sourceById(seed.source.id))
+            assertNull("完成媒体快照未清理", fixture.dao.proxy.getMovie(seed.item.id))
+            assertTrue(
+                "sidecar 未清理",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none { record ->
+                    record.itemId == seed.item.id.toString() && record.sourceId == seed.source.id
+                },
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `显式MOVIE或EPISODE与MUSIC sidecar冲突时拒绝且零副作用`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seed = seedCompletedMusicDelete(fixture)
+
+            for (kind in listOf("MOVIE", "EPISODE")) {
+                val conflictItem = seed.item.copy(kind = kind)
+                val failure = runCatching {
+                    fixture.downloader.deleteItem(item = conflictItem, source = seed.source)
+                }
+                    .exceptionOrNull()
+
+                assertTrue("$kind kind 冲突必须 fail-closed", failure is IllegalStateException)
+                assertTrue("$kind 冲突删除了完成文件", seed.finalFile.isFile)
+                assertTrue("$kind 冲突删除了断点文件", seed.partialFile.isFile)
+                assertTrue("$kind 冲突删除了 witness", seed.witnessFile.isFile)
+                assertTrue("$kind 冲突删除了媒体流文件", seed.mediaStreamFile.isFile)
+                assertNotNull("$kind 冲突删除了 source", fixture.dao.sourceById(seed.source.id))
+                assertNotNull("$kind 冲突删除了完成快照", fixture.dao.proxy.getMovie(seed.item.id))
+                assertTrue(
+                    "$kind 冲突删除了 MUSIC sidecar",
+                    fixture.downloader.mediaSidecar().allRecords().requireComplete().any { record ->
+                        record.itemId == seed.item.id.toString() &&
+                            record.sourceId == seed.source.id &&
+                            record.kind == DownloadMediaKind.MUSIC
+                    },
+                )
+            }
         } finally {
             fixture.close()
         }

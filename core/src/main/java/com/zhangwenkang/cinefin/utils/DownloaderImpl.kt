@@ -3660,10 +3660,16 @@ private constructor(
                             error("下载来源持久身份不可证明：${source.id}/${resolution.detail}")
                     }
                 val expectedKind =
-                    if ((item as? FindroidMovie)?.kind.equals("AUDIO", ignoreCase = true)) {
-                        DownloadMediaKind.MUSIC
-                    } else {
-                        DownloadMediaKind.VIDEO
+                    when (item) {
+                        is FindroidMovie ->
+                            when {
+                                item.kind.equals("AUDIO", ignoreCase = true) ->
+                                    DownloadMediaKind.MUSIC
+                                item.kind.isNullOrBlank() -> null
+                                else -> DownloadMediaKind.VIDEO
+                            }
+                        is FindroidEpisode -> DownloadMediaKind.VIDEO
+                        else -> null
                     }
                 if (
                     current.itemId != item.id ||
@@ -3671,7 +3677,7 @@ private constructor(
                         source.type != FindroidSourceType.LOCAL ||
                         current.path != source.path ||
                         current.taskGeneration <= 0L ||
-                        persisted.kind != expectedKind
+                        (expectedKind != null && persisted.kind != expectedKind)
                 ) {
                     error("下载来源身份与当前代次不匹配：${source.id}")
                 }

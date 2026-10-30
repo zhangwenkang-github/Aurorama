@@ -1,9 +1,14 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
 import android.content.ContextWrapper
+import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
 import com.zhangwenkang.cinefin.utils.DownloadDeleteBatchResult
@@ -26,8 +31,10 @@ import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.resume
 import kotlin.io.path.createTempDirectory
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
@@ -38,6 +45,180 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 class DownloadsViewModelDeletionTest {
+
+    @Test
+    fun `single completed leaf exception becomes visible and retains entry`() {
+        val completed = completedMusic()
+        val fixture =
+            Fixture(
+                tasks = emptyList(),
+                outcomes = emptyMap(),
+                downloads = listOf(completed),
+                deleteItemException = IllegalStateException("completed music guard failed"),
+            )
+        try {
+            fixture.start()
+            fixture.waitUntil("completed music was not published") {
+                fixture.viewModel.state.value.completed.any { it.item.id == completed.id }
+            }
+            val key = completedLeafKeys(fixture.viewModel.state.value).single()
+
+            fixture.viewModel.onAction(DownloadAction.DeleteEntry(key))
+            fixture.waitUntil("single leaf delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            val state = fixture.viewModel.state.value
+            assertEquals(DownloadActionFailure.DELETE, state.actionFailure)
+            assertTrue(
+                "single leaf delete removed the completed entry",
+                completedLeafKeys(state).contains(key),
+            )
+            assertTrue(
+                "single leaf delete leaked an unhandled exception: ${fixture.unhandled}",
+                fixture.unhandled.isEmpty(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `completed action exception becomes visible and retains entry`() {
+        val completed = completedMusic()
+        val fixture =
+            Fixture(
+                tasks = emptyList(),
+                outcomes = emptyMap(),
+                downloads = listOf(completed),
+                deleteItemException = IllegalStateException("completed action guard failed"),
+            )
+        try {
+            fixture.start()
+            fixture.waitUntil("completed music was not published") {
+                fixture.viewModel.state.value.completed.any { it.item.id == completed.id }
+            }
+            val download =
+                fixture.viewModel.state.value.completed.single { it.item.id == completed.id }
+            val key = completedLeafKeys(fixture.viewModel.state.value).single()
+
+            fixture.viewModel.onAction(DownloadAction.DeleteCompleted(download))
+            fixture.waitUntil("completed action delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            val state = fixture.viewModel.state.value
+            assertEquals(DownloadActionFailure.DELETE, state.actionFailure)
+            assertTrue(
+                "completed action removed the completed entry",
+                completedLeafKeys(state).contains(key),
+            )
+            assertTrue(
+                "completed action leaked an unhandled exception: ${fixture.unhandled}",
+                fixture.unhandled.isEmpty(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `selected batch exception becomes visible and retains selection`() {
+        val task = task("music", "source-music")
+        val fixture =
+            Fixture(
+                tasks = listOf(task),
+                outcomes = emptyMap(),
+                deleteDownloadsException = IllegalStateException("batch guard failed"),
+            )
+        try {
+            fixture.start()
+            val key = taskKey(task)
+            fixture.viewModel.onAction(DownloadAction.SelectKeys(listOf(key)))
+
+            fixture.viewModel.onAction(DownloadAction.DeleteSelected)
+            fixture.waitUntil("selected delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            val state = fixture.viewModel.state.value
+            assertEquals(listOf(key), state.selection)
+            assertEquals(DownloadActionFailure.DELETE, state.actionFailure)
+            assertTrue(
+                "selected delete leaked an unhandled exception: ${fixture.unhandled}",
+                fixture.unhandled.isEmpty(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `single task delete exception becomes visible and retains task`() {
+        val task = task("music", "source-music")
+        val fixture =
+            Fixture(
+                tasks = listOf(task),
+                outcomes = emptyMap(),
+                deleteTaskException = IllegalStateException("task guard failed"),
+            )
+        try {
+            fixture.start()
+            val key = taskKey(task)
+
+            fixture.viewModel.onAction(DownloadAction.DeleteTask(task))
+            fixture.waitUntil("single task delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            val state = fixture.viewModel.state.value
+            assertEquals(DownloadActionFailure.DELETE, state.actionFailure)
+            assertTrue(
+                "single task delete removed the retained task",
+                state.activeContainers.flatMap(::hierarchyLeafKeys).contains(key),
+            )
+            assertTrue(
+                "single task delete leaked an unhandled exception: ${fixture.unhandled}",
+                fixture.unhandled.isEmpty(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `container delete exception becomes visible and retains entries`() {
+        val task = task("music", "source-music")
+        val fixture =
+            Fixture(
+                tasks = listOf(task),
+                outcomes = emptyMap(),
+                deleteDownloadsException = IllegalStateException("container guard failed"),
+            )
+        try {
+            fixture.start()
+            val container = fixture.viewModel.state.value.activeContainers.single()
+            val keys = hierarchyLeafKeys(container)
+
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(container.key))
+            fixture.waitUntil("container delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty()
+            }
+
+            val state = fixture.viewModel.state.value
+            assertEquals(DownloadActionFailure.DELETE, state.actionFailure)
+            assertTrue(
+                "container delete removed retained entries",
+                state.activeContainers.flatMap(::hierarchyLeafKeys).containsAll(keys),
+            )
+            assertTrue(
+                "container delete leaked an unhandled exception: ${fixture.unhandled}",
+                fixture.unhandled.isEmpty(),
+            )
+        } finally {
+            fixture.close()
+        }
+    }
 
     @Test
     fun `batch result removes only succeeded entries`() {
@@ -621,10 +802,15 @@ class DownloadsViewModelDeletionTest {
     private class Fixture(
         tasks: List<DownloadTask>,
         var outcomes: Map<String, DownloadDeleteOutcome>,
+        private val downloads: List<FindroidItem> = emptyList(),
+        private val deleteItemException: Exception? = null,
+        private val deleteTaskException: Exception? = null,
+        private val deleteDownloadsException: Exception? = null,
     ) {
         val tasks = MutableStateFlow(tasks)
         val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val deleteRequests = mutableListOf<List<DownloadDeleteRequest>>()
+        val unhandled = mutableListOf<Throwable>()
         var deleteGate: CompletableDeferred<Unit>? = null
         val deleteGates = mutableMapOf<String, CompletableDeferred<Unit>>()
         private val context = TestContext(createTempDirectory().toFile())
@@ -635,7 +821,12 @@ class DownloadsViewModelDeletionTest {
                     "refreshDownloadTasks" -> this.tasks.value
                     "downloadedMediaRecords" -> emptyList<Any>()
                     "getStorageUsage" -> DownloadStorageUsage(0L, 0L, 0L)
+                    "deleteItem" ->
+                        throw requireNotNull(deleteItemException) { "deleteItem was not expected" }
+                    "deleteTask" ->
+                        throw requireNotNull(deleteTaskException) { "deleteTask was not expected" }
                     "deleteDownloads" -> {
+                        deleteDownloadsException?.let { throw it }
                         @Suppress("UNCHECKED_CAST")
                         val requests = args.first() as List<DownloadDeleteRequest>
                         deleteRequests += requests
@@ -660,16 +851,24 @@ class DownloadsViewModelDeletionTest {
             DownloadsViewModel(
                     context = context,
                     downloader = downloader,
-                    repository = repositoryProxy(),
+                    repository = repositoryProxy(downloads),
                     readerRepository = readerRepositoryProxy(),
                     offlineMediaRepository = offlineRepositoryProxy(),
                     bookCoverProvider = bookCoverProvider(),
                     imageCacheStore = imageCacheStore(context),
                 )
                 .apply {
-                    actionScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+                    actionScopeOverride =
+                        CoroutineScope(
+                            Dispatchers.Unconfined +
+                                CoroutineExceptionHandler { _, error -> unhandled += error }
+                        )
                     pollIntervalMsOverrideForTest = 60_000L
                 }
+
+        init {
+            installTestMainDispatcher()
+        }
 
         fun start() {
             viewModel.start()
@@ -722,12 +921,23 @@ class DownloadsViewModelDeletionTest {
     }
 
     private companion object {
-        private fun repositoryProxy(): JellyfinRepository =
+        private fun repositoryProxy(downloads: List<FindroidItem>): JellyfinRepository =
             proxy(JellyfinRepository::class.java) { method, _ ->
                 when (method.name) {
-                    "getDownloads" -> emptyList<FindroidItem>()
+                    "getDownloads" -> downloads
                     "getEpisodeHierarchyWithSources" -> emptyList<Any>()
-                    "getMusicTrackMetadata" -> emptyMap<UUID, Any>()
+                    "getMusicTrackMetadata" ->
+                        downloads.filterIsInstance<FindroidMovie>().associate { item ->
+                            item.id to
+                                MusicTrackMetadata(
+                                    itemId = item.id,
+                                    name = item.name,
+                                    albumName = "Album",
+                                    artist = "Artist",
+                                    indexNumber = 1,
+                                    imageUri = null,
+                                )
+                        }
                     else -> defaultValue(method.returnType)
                 }
             }
@@ -797,6 +1007,95 @@ class DownloadsViewModelDeletionTest {
                 Unit::class.java -> Unit
                 else -> null
             }
+
+        private fun completedMusic(): FindroidMovie =
+            FindroidMovie(
+                id = UUID.randomUUID(),
+                name = "Completed Music",
+                originalTitle = null,
+                overview = "",
+                sources =
+                    listOf(
+                        FindroidSource(
+                            id = "completed-music-source",
+                            name = "Completed Music",
+                            type = FindroidSourceType.LOCAL,
+                            path = "/missing/completed.m4a",
+                            size = 1L,
+                            mediaStreams = emptyList(),
+                            container = "m4a",
+                        )
+                    ),
+                played = false,
+                favorite = false,
+                canPlay = true,
+                canDownload = false,
+                runtimeTicks = 0L,
+                playbackPositionTicks = 0L,
+                premiereDate = null,
+                people = emptyList(),
+                genres = emptyList(),
+                communityRating = null,
+                officialRating = null,
+                status = "Released",
+                productionYear = null,
+                endDate = null,
+                trailer = null,
+                images = FindroidImages(),
+                chapters = emptyList(),
+                trickplayInfo = emptyMap(),
+                kind = null,
+            )
+
+        private fun completedLeafKeys(state: DownloadManagerState): List<String> =
+            state.completedContainers.flatMap(::hierarchyLeafKeys)
+
+        private fun hierarchyLeafKeys(container: DownloadHierarchyContainer): List<String> =
+            container.children.flatMap { child ->
+                when (child) {
+                    is DownloadHierarchyLeaf -> listOf(child.entry.key)
+                    is DownloadHierarchySubContainer ->
+                        child.children.map { leaf -> leaf.entry.key }
+                }
+            }
+
+        private fun installTestMainDispatcher() {
+            val unsafeClass = Class.forName("sun.misc.Unsafe")
+            val instanceField =
+                unsafeClass.getDeclaredField("theUnsafe").apply { isAccessible = true }
+            val unsafe = instanceField.get(null)
+            val dispatcherField =
+                Class.forName("kotlinx.coroutines.internal.MainDispatcherLoader")
+                    .getField("dispatcher")
+            val base = unsafeClass.getMethod("staticFieldBase", java.lang.reflect.Field::class.java)
+            val offset =
+                unsafeClass.getMethod("staticFieldOffset", java.lang.reflect.Field::class.java)
+            val putObject =
+                unsafeClass.getMethod(
+                    "putObject",
+                    Any::class.java,
+                    Long::class.javaPrimitiveType,
+                    Any::class.java,
+                )
+            putObject.invoke(
+                unsafe,
+                base.invoke(unsafe, dispatcherField),
+                offset.invoke(unsafe, dispatcherField),
+                TestMainDispatcher,
+            )
+        }
+    }
+
+    private object TestMainDispatcher : MainCoroutineDispatcher() {
+        override val immediate: MainCoroutineDispatcher
+            get() = this
+
+        override fun dispatch(
+            context: kotlin.coroutines.CoroutineContext,
+            block: Runnable,
+        ) {
+            block.run()
+        }
     }
 
     private class TestContext(private val root: File) : ContextWrapper(null) {
