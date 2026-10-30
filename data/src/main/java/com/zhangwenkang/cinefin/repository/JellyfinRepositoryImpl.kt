@@ -821,21 +821,23 @@ class JellyfinRepositoryImpl(
         query: String,
         scope: SearchScope,
     ): List<FindroidItem> =
-        cachedDtoList(
-            key = MetadataCacheKeys.search(query, scope),
-            fetch = {
-                jellyfinApi.itemsApi
-                    .getItems(
-                        jellyfinApi.userId!!,
-                        searchTerm = query,
-                        includeItemTypes = SearchQueryRules.itemTypes(scope),
-                        recursive = true,
-                    )
-                    .content
-                    .items
-            },
-            materialize = { it.toFindroidItems() },
-        )
+        withContext(Dispatchers.IO) {
+            cachedDtoList(
+                key = MetadataCacheKeys.search(query, scope),
+                fetch = {
+                    jellyfinApi.itemsApi
+                        .getItems(
+                            jellyfinApi.userId!!,
+                            searchTerm = query,
+                            includeItemTypes = SearchQueryRules.itemTypes(scope),
+                            recursive = true,
+                        )
+                        .content
+                        .items
+                },
+                materialize = { it.toFindroidItems() },
+            )
+        }
 
     override suspend fun getSuggestions(): List<FindroidItem> =
         cachedDtoList(

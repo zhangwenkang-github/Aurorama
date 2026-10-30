@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -81,6 +82,28 @@ class SearchSessionTest {
         }
             .exceptionOrNull()
         assertTrue(cancelled is CancellationException)
+    }
+
+    @Test
+    fun `搜索请求不在调用方线程执行`() = runBlocking {
+        val callerThread = Thread.currentThread()
+        var serverThread: Thread? = null
+        var localThread: Thread? = null
+
+        executeSearch(
+            SearchRequest(query = "sample", scope = SearchScope.VIDEO),
+            serverSearch = {
+                serverThread = Thread.currentThread()
+                listOf(folder("sample"))
+            },
+            localSearch = {
+                localThread = Thread.currentThread()
+                emptyList()
+            },
+        )
+
+        assertNotEquals(callerThread, serverThread)
+        assertNotEquals(callerThread, localThread)
     }
 
     @Test

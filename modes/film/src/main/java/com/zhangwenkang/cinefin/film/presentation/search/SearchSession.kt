@@ -6,8 +6,10 @@ import com.zhangwenkang.cinefin.repository.SearchScope
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 data class SearchRequest(val query: String, val scope: SearchScope)
@@ -101,55 +103,61 @@ internal suspend fun executeSearch(
     localSearch: suspend (SearchRequest) -> List<LocalSearchHit>,
     namespace: SearchNamespace? = null,
     downloads: List<DownloadMediaRecord> = emptyList(),
-): SearchOutcome = coroutineScope {
-    val filteredDownloads = DownloadSearchRules.filter(request, namespace, downloads)
-    val server = async { captureSource("server search") { serverSearch(request) } }
-    val local = async { captureSource("local search") { localSearch(request) } }
-    val serverResult = server.await()
-    val localResult = local.await()
-    val serverCandidates = namespace?.let { fixedNamespace ->
-        serverResult.items.map { item ->
-            ServerSearchCandidate(
-                identity =
-                    ServerItemIdentity(
-                        serverId = fixedNamespace.serverId,
-                        userId = fixedNamespace.userId,
-                        itemId = item.id,
-                    ),
-                item = item,
+): SearchOutcome =
+    withContext(Dispatchers.Default) {
+        coroutineScope {
+            val filteredDownloads = DownloadSearchRules.filter(request, namespace, downloads)
+            val server = async { captureSource("server search") { serverSearch(request) } }
+            val local = async { captureSource("local search") { localSearch(request) } }
+            val serverResult = server.await()
+            val localResult = local.await()
+            val serverCandidates = namespace?.let { fixedNamespace ->
+                serverResult.items.map { item ->
+                    ServerSearchCandidate(
+                        identity =
+                            ServerItemIdentity(
+                                serverId = fixedNamespace.serverId,
+                                userId = fixedNamespace.userId,
+                                itemId = item.id,
+                            ),
+                        item = item,
+                    )
+                }
+            }
+            val dedupedServerCandidates = serverCandidates?.distinctBy { it.identity }
+            val dedupedLocal = SearchResultRules.dedupeLocal(localResult.items)
+            val folded =
+                dedupedServerCandidates?.let { candidates ->
+                    SearchResultRules.fold(
+                        serverItems = candidates,
+                        localHits = dedupedLocal,
+                        downloads = filteredDownloads,
+                    )
+                }
+                    ?: serverResult.items
+                        .distinctBy { it.id }
+                        .map { SearchResult.UnidentifiedServer(it) } +
+                        dedupedLocal.map { hit ->
+                            SearchResult.LocalLibrary(
+                                identity =
+                                    LocalLibraryItemIdentity(hit.libraryId, hit.entry.itemId),
+                                hit = hit,
+                            )
+                        } +
+                        filteredDownloads
+                            .distinctBy { SearchResult.Download(it).stableKey }
+                            .map { SearchResult.Download(it) }
+            SearchOutcome(
+                serverItems =
+                    dedupedServerCandidates?.map { it.item }
+                        ?: SearchResultRules.dedupeServer(serverResult.items),
+                localItems = dedupedLocal,
+                results = folded,
+                serverFailed = serverResult.failed,
+                localFailed = localResult.failed,
             )
         }
     }
-    val dedupedServerCandidates = serverCandidates?.distinctBy { it.identity }
-    val dedupedLocal = SearchResultRules.dedupeLocal(localResult.items)
-    val folded =
-        dedupedServerCandidates?.let { candidates ->
-            SearchResultRules.fold(
-                serverItems = candidates,
-                localHits = dedupedLocal,
-                downloads = filteredDownloads,
-            )
-        }
-            ?: serverResult.items.distinctBy { it.id }.map { SearchResult.UnidentifiedServer(it) } +
-                dedupedLocal.map { hit ->
-                    SearchResult.LocalLibrary(
-                        identity = LocalLibraryItemIdentity(hit.libraryId, hit.entry.itemId),
-                        hit = hit,
-                    )
-                } +
-                filteredDownloads
-                    .distinctBy { SearchResult.Download(it).stableKey }
-                    .map { SearchResult.Download(it) }
-    SearchOutcome(
-        serverItems =
-            dedupedServerCandidates?.map { it.item }
-                ?: SearchResultRules.dedupeServer(serverResult.items),
-        localItems = dedupedLocal,
-        results = folded,
-        serverFailed = serverResult.failed,
-        localFailed = localResult.failed,
-    )
-}
 
 private data class SourceResult<T>(val items: List<T>, val failed: Boolean)
 
