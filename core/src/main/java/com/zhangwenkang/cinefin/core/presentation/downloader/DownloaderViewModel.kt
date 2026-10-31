@@ -5,12 +5,15 @@ import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSourceType
+import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.models.isDownloading
 import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +31,7 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
 
     var downloadId: Long? = null
 
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler by lazy { Handler(Looper.getMainLooper()) }
 
     fun update(item: FindroidItem) {
         viewModelScope.launch {
@@ -44,23 +47,56 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
 
     private fun download(item: FindroidItem, storageIndex: Int = 0) {
         viewModelScope.launch {
-            _state.emit(DownloaderState(status = DownloadManager.STATUS_PENDING))
-            val (downloadId, uiText) =
-                downloader.downloadItem(
-                    item = item,
-                    sourceId = item.sources.first().id,
-                    storageIndex = storageIndex,
-                )
-            if (downloadId != -1L) {
-                this@DownloaderViewModel.downloadId = downloadId
+            var acceptedDownloadId: Long? = null
+            downloadId = null
+            try {
+                val source = item.sources.firstOrNull()
+                if (source == null) {
+                    publishDownloadFailure()
+                    return@launch
+                }
+
+                _state.emit(DownloaderState(status = DownloadManager.STATUS_PENDING))
+                val (queuedDownloadId, uiText) =
+                    downloader.downloadItem(
+                        item = item,
+                        sourceId = source.id,
+                        storageIndex = storageIndex,
+                    )
+                if (queuedDownloadId == -1L) {
+                    publishDownloadFailure(uiText)
+                } else {
+                    acceptedDownloadId = queuedDownloadId
+                    downloadId = queuedDownloadId
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                publishDownloadFailure()
+            } finally {
+                if (
+                    acceptedDownloadId == null &&
+                        _state.value.status == DownloadManager.STATUS_PENDING
+                ) {
+                    publishDownloadFailure()
+                }
+            }
+
+            acceptedDownloadId?.let { queuedDownloadId ->
                 eventsChannel.trySend(DownloaderEvent.Queued)
-                pollDownloadProgress(downloadId)
-            } else {
-                _state.emit(
-                    DownloaderState(status = DownloadManager.STATUS_FAILED, errorText = uiText)
-                )
+                pollDownloadProgress(queuedDownloadId)
             }
         }
+    }
+
+    private suspend fun publishDownloadFailure(uiText: UiText? = null) {
+        downloadId = null
+        _state.emit(
+            DownloaderState(
+                status = DownloadManager.STATUS_FAILED,
+                errorText = uiText ?: UiText.StringResource(CoreR.string.detail_download_failed),
+            )
+        )
     }
 
     private fun cancelDownload(item: FindroidItem) {

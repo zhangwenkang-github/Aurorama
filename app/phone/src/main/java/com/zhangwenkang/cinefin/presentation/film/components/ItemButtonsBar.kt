@@ -247,7 +247,10 @@ fun ItemButtonsBar(
                 }
             }
             if (downloaderState != null) {
-                AnimatedVisibility(downloaderState.isDownloading) {
+                AnimatedVisibility(
+                    downloaderState.isDownloading ||
+                        downloaderState.status == DownloadManager.STATUS_FAILED
+                ) {
                     DownloaderCard(
                         state = downloaderState,
                         onCancelClick = { cancelDownloadDialogOpen = true },
