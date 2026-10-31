@@ -3,7 +3,11 @@ package com.zhangwenkang.cinefin.film.presentation.downloads
 import android.content.Context
 import android.content.ContextWrapper
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
+import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
 import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -46,6 +50,68 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloadsFailureSyncTest {
+
+    @Test
+    fun `同 item 等待重试与完成 source 分属活动及完成投影`() {
+        Fixture().use { fixture ->
+            fixture.disablePolling()
+            fixture.allowRemoteImmediately()
+            fixture.tasks.value =
+                listOf(
+                    videoTask(
+                        status = DownloadTaskStatus.PENDING,
+                        generation = 1,
+                        updatedAt = 200,
+                        failureReason = DownloadFailureReason.SERVER_ERROR,
+                        sourceId = "pending-source",
+                        path = "/downloads/video.g1",
+                    )
+                )
+            fixture.remoteDownloads.set(
+                listOf(
+                    videoItemWithSources(
+                        listOf(
+                            FindroidSource(
+                                id = "pending-source",
+                                name = "Pending",
+                                type = FindroidSourceType.LOCAL,
+                                path = "/downloads/video.g1",
+                                size = 100,
+                                mediaStreams = emptyList(),
+                                downloadTaskStatus = DownloadTaskStatus.PENDING.name,
+                            ),
+                            FindroidSource(
+                                id = "completed-source",
+                                name = "Completed",
+                                type = FindroidSourceType.LOCAL,
+                                path = "/downloads/video-completed.g1",
+                                size = 100,
+                                mediaStreams = emptyList(),
+                                downloadTaskStatus = DownloadTaskStatus.COMPLETED.name,
+                            ),
+                        )
+                    )
+                )
+            )
+            fixture.start()
+
+            fixture.waitUntil("split source projection was not published") {
+                val state = fixture.viewModel.state.value
+                state.activeTasks.singleOrNull()?.sourceId == "pending-source" &&
+                    state.completedContainers
+                        .flatMap { it.allEntries() }
+                        .singleOrNull()
+                        ?.sourceId == "completed-source"
+            }
+
+            val state = fixture.viewModel.state.value
+            assertEquals(listOf("pending-source"), state.activeTasks.map(DownloadTask::sourceId))
+            assertEquals(
+                listOf("completed-source"),
+                state.completedContainers.flatMap { it.allEntries() }.map { it.sourceId },
+            )
+        }
+    }
 
     @Test
     fun `queue event publishes failed immediately and stale remote cannot restore running`() {
@@ -693,12 +759,14 @@ class DownloadsFailureSyncTest {
         updatedAt: Long,
         failureReason: DownloadFailureReason? = null,
         downloadedBytes: Long = 25,
+        sourceId: String = "video-source",
+        path: String = "",
     ) =
         DownloadTask(
             itemId = VIDEO_ID,
-            sourceId = "video-source",
+            sourceId = sourceId,
             name = "Video",
-            path = "",
+            path = path,
             downloadId = null,
             status = status,
             failureReason = failureReason,
@@ -709,6 +777,33 @@ class DownloadsFailureSyncTest {
             taskGeneration = generation,
             serverId = "server",
             userId = "user",
+        )
+
+    private fun videoItemWithSources(sources: List<FindroidSource>) =
+        FindroidMovie(
+            id = VIDEO_ID,
+            name = "Video",
+            originalTitle = null,
+            overview = "",
+            sources = sources,
+            played = false,
+            favorite = false,
+            canPlay = true,
+            canDownload = true,
+            runtimeTicks = 1_000,
+            playbackPositionTicks = 0,
+            premiereDate = null,
+            people = emptyList(),
+            genres = emptyList(),
+            communityRating = null,
+            officialRating = null,
+            status = "Ended",
+            productionYear = null,
+            endDate = null,
+            trailer = null,
+            images = FindroidImages(),
+            chapters = emptyList(),
+            trickplayInfo = null,
         )
 
     private fun bookTask(
@@ -774,6 +869,7 @@ class DownloadsFailureSyncTest {
         private val externalRefreshIngress = AtomicInteger(0)
 
         val tasks = MutableStateFlow(listOf(runningVideoTask()))
+        val remoteDownloads = AtomicReference<List<FindroidItem>>(emptyList())
         val books = MutableStateFlow(emptyList<BookDownloadTask>())
         val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
         val bookFiles = AtomicReference<List<LocalBookFile>>(emptyList())
@@ -996,7 +1092,7 @@ class DownloadsFailureSyncTest {
             } else {
                 remoteStarted.countDown()
             }
-            return emptyList()
+            return remoteDownloads.get()
         }
 
         override fun close() {

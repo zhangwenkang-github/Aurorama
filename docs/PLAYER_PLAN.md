@@ -3183,3 +3183,13 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **门禁**：`core:testLibreDebugUnitTest` + `data:testDebugUnitTest --rerun-tasks` 为 92 XML / 668/0/0/0（68/68 tasks executed）；`:app:phone:assembleDebug --rerun-tasks` 242/242 executed；根 `ktfmtCheck` 34 tasks / 29 executed / 5 up-to-date；`git diff --check` exit 0；`graphify update .` exit 0（15,192 nodes / 48,293 edges）。未运行 format 写代码。
 
 **边界 / 未覆盖**：设备 / adb、真实完成下载、Android Room instrumentation、前后台通知与独立 QA 均 NOT_RUN；Finding 1 通知仍未处理。P0/P1/P2/P3=`0/0/0/0`，BLOCKED=0。下一步仅由负责人另派 fresh scoped reviewer；不得把本检查点当作独立 QA、设备 PASS、merge 或 Release 准入。报告根：`F:\Develop\code_data\qa\w90-a2-download-fixture-p2-fix-implementation-20261031`。
+
+## 51. W90-A2 最终 QA 两项 P2 修复（2026-10-31，IMPLEMENTATION_DONE / AUTOMATION_GREEN / REVIEW_PENDING）
+
+**范围**：从固定 `682255e5f941170d562e3b64ef61e37a568d3bcf` / tree `5ea3e725c884154e7819f0a8d3f5acd13aa50d3a` 创建隔离 branch `codex/w90a2-download-final-p2-fixes-20261031`；只修最终 QA 的删除 generation 分叉与完成投影 / finalizer 时序两项 P2。未改 schema、finalizer effect 集合、通知策略、fixture、Release / signing / version / workflow，未接触设备或生产。
+
+**Finding A / commit `aeb2849c`**：公共删除现在显式区分 source path 的 artifact generation 与 witness body 的 claim generation；首次删除使用被删 claim，DELETING 重试从栅栏 `G+1` 恢复前代 `G`。扫描只接受精确 item / source / artifact generation / 可证明 claim 与 canonical partial/final；legacy 保持 `0` 规则，无法证明的精确 witness 在删除文件与 DB 前 fail closed。RED 为真实 `.g1 + claim3` 删除后 witness 残留；GREEN 另覆盖 DELETING/G4 重试、其他 item/source/artifact generation 保留、malformed witness 保留 tombstone、冷启与重复删除。`core` 全量 49 suites / 394 tests 全绿。
+
+**Finding B / 本卡第二实现提交**：完成真源统一为持久 `taskStatus=COMPLETED`，仅保留 `taskStatus IS NULL + final path` legacy；`PENDING/RUNNING/FAILED/DELETING` 即使已有 final 也不进入 completed。真实 JDBC SQL 覆盖 completed item / source、legacy、多 source 与非完成状态。`FindroidSource` 透传 LOCAL `downloadTaskStatus`，Downloads ViewModel 只选择实际 completed source；OfflineMedia 使用同一状态规则。完成提交拆为两阶段：rename 后仅条件发布 final path，状态保持 `RUNNING`；六项 finalizer 全部成功后才 CAS 写 `COMPLETED` 并沿用既有通知，失败继续写 `PENDING/SERVER_ERROR`、保留 witness。RED 分别为 waiting-retry `1→0`、finalizer gate 下提前 `COMPLETED`；GREEN 覆盖 waiting-retry active=1/completed=0/notify=0、完成 final notify=1、finalizer 执行中无 COMPLETED、legacy + final、同 item 多 source。
+
+**门禁 / 边界**：core 396、data 278、film 151、phone 392，合计 **1217 tests / 0 failed / 0 error / 0 skipped**；根 `ktfmtCheck` 34 tasks 通过，`git diff --check` exit 0，`graphify update .` exit 0（15,208 nodes / 48,367 edges；既有 ItemHeader / ItemTopBar 与超大测试解析告警保留）。新增 P0/P1/P2/P3=`0/0/0/0`，BLOCKED=0。真实 Room instrumentation、设备、通知 UI、修复后真实 finalizer 成功链路与独立 QA 均 NOT_RUN；本段不是 QA PASS / merge 或 Release 准入。下一步由负责人另派 fresh scoped review；第一条只读动作 = 核对本段、实现报告 / SHA256SUMS、base `682255e5` 与两个实现 commit，停止条件为对象漂移、需设备 / schema / 生产写或发现新 P0/P1/P2。

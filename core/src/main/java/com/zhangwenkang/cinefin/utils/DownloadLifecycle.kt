@@ -325,6 +325,53 @@ object DownloadCompletionCommitRules {
         return DownloadCompletionCommit.COMMITTED
     }
 
+    suspend fun commitFinalized(
+        partial: File,
+        finalFile: File,
+        canStart: suspend () -> Boolean,
+        publishPath: suspend () -> Int,
+        onFinalized: suspend () -> Unit,
+        completeState: suspend () -> Int,
+        sourceId: String = "",
+        generation: Long = 0L,
+    ): DownloadCompletionCommit {
+        if (!canStart()) return DownloadCompletionCommit.FENCED
+        val witness = witnessFile(partial = partial, finalFile = finalFile)
+        val recovered =
+            hasInterruptedFinalization(
+                partial = partial,
+                finalFile = finalFile,
+                sourceId = sourceId,
+                generation = generation,
+            )
+        val samePath = partial.canonicalFile == finalFile.canonicalFile
+        if (!recovered) {
+            if (!partial.isFile || finalFile.exists()) {
+                return DownloadCompletionCommit.RENAME_FAILED
+            }
+            if (!writeWitness(witness, sourceId, generation, partial, finalFile)) {
+                return DownloadCompletionCommit.RENAME_FAILED
+            }
+            if (!samePath && !partial.renameTo(finalFile)) {
+                return DownloadCompletionCommit.RENAME_FAILED
+            }
+        }
+        if (!finalFile.isFile || publishPath() <= 0) {
+            if (!recovered && !samePath && finalFile.isFile && !partial.exists()) {
+                finalFile.renameTo(partial)
+            }
+            return DownloadCompletionCommit.FENCED
+        }
+        try {
+            onFinalized()
+        } catch (incomplete: DownloadPostCommitIncompleteException) {
+            return DownloadCompletionCommit.SIDE_EFFECTS_FAILED
+        }
+        if (completeState() <= 0) return DownloadCompletionCommit.FENCED
+        witness.delete()
+        return DownloadCompletionCommit.COMMITTED
+    }
+
     fun finalFile(partial: File): File =
         if (partial.path.endsWith(".download")) {
             File(partial.path.removeSuffix(".download"))

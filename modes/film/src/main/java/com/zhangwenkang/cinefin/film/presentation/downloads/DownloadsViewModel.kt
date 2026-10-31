@@ -1568,7 +1568,11 @@ constructor(
     ): List<CompletedDownload> {
         return repository.getDownloads().mapNotNull { item ->
             val localSources = item.sources.filter { it.type == FindroidSourceType.LOCAL }
-            val completedSource = localSources.firstOrNull { !it.path.endsWith(".download") }
+            val completedSource = localSources.firstOrNull { source ->
+                !source.path.endsWith(".download") &&
+                    (source.downloadTaskStatus == DownloadTaskStatus.COMPLETED.name ||
+                        source.downloadTaskStatus == null)
+            }
             // 只有进行中 / 失败 source 的电影不放进「已完成」。
             if (localSources.isNotEmpty() && completedSource == null) return@mapNotNull null
             // W34：剧集由 getCompletedEpisodeHierarchy() 单独提供（带节目 / 季归属）；

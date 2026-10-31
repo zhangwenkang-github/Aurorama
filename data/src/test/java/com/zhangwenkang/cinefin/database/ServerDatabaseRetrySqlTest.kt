@@ -158,6 +158,76 @@ class ServerDatabaseRetrySqlTest {
         }
     }
 
+    @Test
+    fun `真实 completed SQL 只接受 COMPLETED 或 legacy null final`() {
+        DriverManager.getConnection("jdbc:sqlite::memory:").use { connection ->
+            connection.createProjectionSourcesTable()
+            connection.insertProjectionSource("pending", "item-pending", "PENDING", "file.g1")
+            connection.insertProjectionSource(
+                "pending-partial",
+                "item-pending-partial",
+                "PENDING",
+                "file.g1.download",
+            )
+            connection.insertProjectionSource("completed", "item-completed", "COMPLETED", "file.g1")
+            connection.insertProjectionSource(
+                "completed-partial",
+                "item-completed-partial",
+                "COMPLETED",
+                "file.g1.download",
+            )
+            connection.insertProjectionSource("legacy", "item-legacy", null, "file")
+            connection.insertProjectionSource(
+                "legacy-partial",
+                "item-legacy-partial",
+                null,
+                "file.download",
+            )
+            connection.insertProjectionSource("running", "item-running", "RUNNING", "file.g1")
+            connection.insertProjectionSource("failed", "item-failed", "FAILED", "file.g1")
+            connection.insertProjectionSource("deleting", "item-deleting", "DELETING", "file.g1")
+
+            val completedItems =
+                connection
+                    .prepareStatement(
+                        """
+                        SELECT DISTINCT sources.itemId
+                        FROM sources
+                        WHERE sources.type = 'LOCAL'
+                          AND $COMPLETED_LOCAL_SOURCE_SQL
+                        """
+                    )
+                    .use { statement ->
+                        statement.executeQuery().use { result ->
+                            buildSet { while (result.next()) add(result.getString(1)) }
+                        }
+                    }
+            assertEquals(
+                setOf("item-multi", "item-completed", "item-legacy"),
+                completedItems,
+            )
+
+            val completedSource =
+                connection
+                    .prepareStatement(
+                        """
+                        SELECT sources.id
+                        FROM sources
+                        WHERE sources.itemId = 'item-multi'
+                          AND sources.type = 'LOCAL'
+                          AND $COMPLETED_LOCAL_SOURCE_SQL
+                        """
+                    )
+                    .use { statement ->
+                        statement.executeQuery().use { result ->
+                            result.next()
+                            result.getString(1)
+                        }
+                    }
+            assertEquals("multi-completed", completedSource)
+        }
+    }
+
     private fun Connection.createSourcesTable() {
         createStatement().use { statement ->
             statement.execute(
@@ -186,6 +256,47 @@ class ServerDatabaseRetrySqlTest {
                 statement.setString(1, id)
                 statement.setString(2, status)
                 statement.setLong(3, generation)
+                statement.executeUpdate()
+            }
+    }
+
+    private fun Connection.createProjectionSourcesTable() {
+        createStatement().use { statement ->
+            statement.execute(
+                """
+                CREATE TABLE sources (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    itemId TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    taskStatus TEXT
+                )
+                """
+            )
+            statement.execute(
+                """
+                INSERT INTO sources(id, itemId, type, path, taskStatus)
+                VALUES ('multi-pending', 'item-multi', 'LOCAL', 'multi-pending.g1', 'PENDING'),
+                       ('multi-completed', 'item-multi', 'LOCAL', 'multi-completed.g1', 'COMPLETED')
+                """
+            )
+        }
+    }
+
+    private fun Connection.insertProjectionSource(
+        id: String,
+        itemId: String,
+        status: String?,
+        path: String,
+    ) {
+        prepareStatement(
+                "INSERT INTO sources(id, itemId, type, path, taskStatus) VALUES (?, ?, 'LOCAL', ?, ?)"
+            )
+            .use { statement ->
+                statement.setString(1, id)
+                statement.setString(2, itemId)
+                statement.setString(3, path)
+                statement.setString(4, status)
                 statement.executeUpdate()
             }
     }

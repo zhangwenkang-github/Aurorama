@@ -29,6 +29,8 @@ data class FindroidSource(
     val container: String? = null,
     /** 下载源映射白盒证据；不含令牌。 */
     val downloadMarker: DownloadSourceMarker? = null,
+    /** LOCAL source 的持久生命周期状态；REMOTE / legacy 可为 null。 */
+    val downloadTaskStatus: String? = null,
 )
 
 enum class DownloadPathKind {
@@ -278,6 +280,7 @@ fun FindroidSourceDto.toFindroidSource(mediaStreams: List<FindroidMediaStreamDto
         downloadId = downloadId,
         bitrate = bitrate?.takeIf { it > 0 },
         container = container?.takeIf { it.isNotBlank() },
+        downloadTaskStatus = taskStatus,
     )
 }
 

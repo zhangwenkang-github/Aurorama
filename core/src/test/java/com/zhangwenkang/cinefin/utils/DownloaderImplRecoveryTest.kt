@@ -4231,6 +4231,91 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `final路径等待重试仍保留活动任务且不发布完成通知`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val finalFile =
+                File(fixture.downloads, "${ITEM_ID}.${SOURCE_ID}.g1").apply { writeText("final") }
+            val localSource =
+                fixture
+                    .movie()
+                    .sources
+                    .single()
+                    .copy(
+                        id = SOURCE_ID,
+                        type = FindroidSourceType.LOCAL,
+                        path = finalFile.path,
+                    )
+            val item = fixture.movie().copy(id = ITEM_ID, sources = listOf(localSource))
+            fixture.dao.seedMovie(ITEM_ID)
+            fixture.seedCompletedSource(
+                item = item,
+                source = localSource,
+                generation = 1L,
+                taskStatus = DownloadTaskStatus.PENDING,
+            )
+            fixture.dao.putSource(
+                requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+                    .copy(
+                        failureReason = DownloadFailureReason.SERVER_ERROR.name,
+                        retryCount = 1,
+                        nextRetryAt = Long.MAX_VALUE,
+                    )
+            )
+
+            val tasks = fixture.downloader.refreshDownloadTasks()
+
+            assertEquals(1, tasks.size)
+            assertEquals(DownloadTaskStatus.PENDING, tasks.single().status)
+            assertEquals(DownloadFailureReason.SERVER_ERROR, tasks.single().failureReason)
+            assertTrue(fixture.notificationGateway.completedTasks.isEmpty())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `finalizer执行期间不得对外发布COMPLETED且成功后只通知一次`() = runBlocking {
+        val fixture = Fixture()
+        var recovery: kotlinx.coroutines.Deferred<*>? = null
+        try {
+            fixture.prepareInterruptedCompletion()
+            fixture.dao.armSnapshotWriteGate()
+
+            recovery = async {
+                fixture.downloader.recoverOnStartup()
+                fixture.downloader.runQueue()
+            }
+            assertTrue("finalizer 未进入可观察窗口", fixture.dao.awaitSnapshotWriteBlocked())
+            assertEquals(
+                "finalizer 完成前必须保持 RUNNING：${fixture.dao.source}",
+                DownloadTaskStatus.RUNNING.name,
+                fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+            )
+            assertTrue(fixture.notificationGateway.completedTasks.isEmpty())
+
+            fixture.dao.releaseSnapshotWrite()
+            recovery.await()
+            if (
+                fixture.dao.sourceById(SOURCE_ID)?.taskStatus != DownloadTaskStatus.COMPLETED.name
+            ) {
+                fixture.downloader.runQueue()
+            }
+
+            assertEquals(
+                DownloadTaskStatus.COMPLETED.name,
+                fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+            )
+            assertEquals(1, fixture.notificationGateway.completedTasks.size)
+            assertFalse(fixture.witness().exists())
+        } finally {
+            fixture.dao.releaseSnapshotWrite()
+            runCatching { recovery?.await() }
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `生产删除只清理当前item source generation的下载证据`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -5138,6 +5223,7 @@ class DownloaderImplRecoveryTest {
         val imageScheduler = RecordingImageScheduler()
         val preferences = FakePreferences()
         val appPreferences = AppPreferences(preferences)
+        val notificationGateway = FakeNotificationGateway()
         val downloader = newDownloader()
 
         init {
@@ -5157,7 +5243,7 @@ class DownloaderImplRecoveryTest {
                     allocateClass(Class.forName("androidx.work.impl.WorkManagerImpl"))
                         as WorkManager,
                 httpClient = allocate(),
-                notifications = FakeNotificationGateway(),
+                notifications = notificationGateway,
                 registerNetworkCallback = {},
                 externalStorageState = { "mounted" },
                 availableBytes = { Long.MAX_VALUE },
@@ -6110,6 +6196,9 @@ class DownloaderImplRecoveryTest {
         var pendingSourcesSnapshotStarted = CompletableDeferred<Unit>()
         var releasePendingSourcesSnapshot = CompletableDeferred<Unit>()
         private var blockPendingSourcesSnapshot = false
+        var snapshotWriteStarted = CompletableDeferred<Unit>()
+        var releaseSnapshotWrite = CompletableDeferred<Unit>()
+        private var blockSnapshotWrite = false
         private val insertedSources = mutableListOf<FindroidSourceDto>()
         val sourceEvents = mutableListOf<String>()
         var sourceInsertAttempts = 0
@@ -6279,6 +6368,16 @@ class DownloaderImplRecoveryTest {
                                     nextRetryAt = args[3] as Long,
                                 )
                             }
+                        "publishSourcePathIfCurrent" ->
+                            updateSource(args, requireRunning = true) {
+                                it.copy(
+                                    path = args[2] as String,
+                                    failureReason = null,
+                                    downloadedBytes = args[3] as Long,
+                                    totalBytes = args[4] as Long,
+                                    resumeValidator = args[5] as String?,
+                                )
+                            }
                         "completeSourceIfCurrent" ->
                             updateSource(args, requireRunning = true) {
                                 it.copy(
@@ -6430,6 +6529,11 @@ class DownloaderImplRecoveryTest {
                         "getTrickplayInfo" -> trickplay.takeIf { args[0] == SOURCE_ID }
                         "insertMovie" -> {
                             snapshotWrites += 1
+                            if (blockSnapshotWrite) {
+                                blockSnapshotWrite = false
+                                snapshotWriteStarted.complete(Unit)
+                                runBlocking { releaseSnapshotWrite.await() }
+                            }
                             val snapshot = args[0] as FindroidMovieDto
                             snapshots.putIfAbsent(snapshot.id, snapshot)
                             Unit
@@ -6806,7 +6910,11 @@ class DownloaderImplRecoveryTest {
                         }
                         "getDownloadedItemIds" ->
                             sources.values
-                                .filter { it.taskStatus == DownloadTaskStatus.COMPLETED.name }
+                                .filter {
+                                    !it.path.endsWith(".download") &&
+                                        (it.taskStatus == DownloadTaskStatus.COMPLETED.name ||
+                                            it.taskStatus == null)
+                                }
                                 .mapTo(mutableSetOf()) { it.itemId }
                         else -> error("unexpected DAO call: ${method.name}")
                     }
@@ -6845,6 +6953,22 @@ class DownloaderImplRecoveryTest {
             blockPendingSourcesSnapshot = true
             pendingSourcesSnapshotStarted = CompletableDeferred()
             releasePendingSourcesSnapshot = CompletableDeferred()
+        }
+
+        fun armSnapshotWriteGate() {
+            blockSnapshotWrite = true
+            snapshotWriteStarted = CompletableDeferred()
+            releaseSnapshotWrite = CompletableDeferred()
+        }
+
+        suspend fun awaitSnapshotWriteBlocked(): Boolean =
+            withTimeoutOrNull(2_000L) {
+                snapshotWriteStarted.await()
+                true
+            } ?: false
+
+        fun releaseSnapshotWrite() {
+            releaseSnapshotWrite.complete(Unit)
         }
 
         fun lastInsertedSource(sourceId: String): FindroidSourceDto? = insertedSources.lastOrNull {
@@ -7731,13 +7855,17 @@ class DownloaderImplRecoveryTest {
         }
     }
 
-    private class FakeNotificationGateway : DownloadNotificationGateway {
+    internal class FakeNotificationGateway : DownloadNotificationGateway {
+        val completedTasks = CopyOnWriteArrayList<DownloadTask>()
+
         override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification =
             allocate()
 
         override fun notifyForeground(task: DownloadTask?, activeCount: Int) = Unit
 
-        override fun notifyCompleted(task: DownloadTask) = Unit
+        override fun notifyCompleted(task: DownloadTask) {
+            completedTasks += task
+        }
 
         override fun notifyFailed(task: DownloadTask) = Unit
     }

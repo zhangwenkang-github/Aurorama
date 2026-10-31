@@ -31,6 +31,10 @@ import com.zhangwenkang.cinefin.models.ServerWithAddressesAndUsers
 import com.zhangwenkang.cinefin.models.User
 import java.util.UUID
 
+const val COMPLETED_LOCAL_SOURCE_SQL =
+    "(sources.path NOT LIKE '%.download' AND " +
+        "(sources.taskStatus = 'COMPLETED' OR sources.taskStatus IS NULL))"
+
 @Dao
 interface ServerDatabaseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertServer(server: Server)
@@ -395,6 +399,26 @@ interface ServerDatabaseDao {
     @Query("UPDATE sources SET path = :path WHERE id = :id")
     suspend fun setSourcePath(id: String, path: String)
 
+    /** final rename 后只发布可恢复路径，完成通知与 COMPLETED 状态仍由 finalizer 收口。 */
+    @Query(
+        """
+        UPDATE sources
+        SET path = :path, failureReason = NULL,
+            downloadedBytes = :downloadedBytes, totalBytes = :totalBytes,
+            resumeValidator = :validator, updatedAt = :updatedAt
+        WHERE id = :id AND taskGeneration = :generation AND taskStatus = 'RUNNING'
+        """
+    )
+    suspend fun publishSourcePathIfCurrent(
+        id: String,
+        generation: Long,
+        path: String,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        validator: String?,
+        updatedAt: Long,
+    ): Int
+
     /** 原子 claim；旧 claim 或已进入删除栅栏的行不会被重新标 RUNNING。 */
     @Query(
         """
@@ -575,6 +599,7 @@ interface ServerDatabaseDao {
             resumeValidator = :validator, retryCount = 0, nextRetryAt = 0,
             updatedAt = :updatedAt
         WHERE id = :id AND taskGeneration = :generation AND taskStatus = 'RUNNING'
+          AND path = :path
         """
     )
     suspend fun completeSourceIfCurrent(
@@ -697,7 +722,7 @@ interface ServerDatabaseDao {
             SELECT 1 FROM sources
             WHERE sources.itemId = episodes.id
               AND sources.type = 'LOCAL'
-              AND sources.path NOT LIKE '%.download'
+              AND $COMPLETED_LOCAL_SOURCE_SQL
         )
         ORDER BY shows.name ASC, seasons.indexNumber ASC, episodes.indexNumber ASC
         """
@@ -728,7 +753,7 @@ interface ServerDatabaseDao {
             SELECT 1 FROM sources
             WHERE sources.itemId = episodes.id
               AND sources.type = 'LOCAL'
-              AND sources.path NOT LIKE '%.download'
+              AND $COMPLETED_LOCAL_SOURCE_SQL
         )
         """
     )
@@ -767,7 +792,8 @@ interface ServerDatabaseDao {
     @Query(
         """
         SELECT * FROM sources
-        WHERE itemId = :itemId AND type = 'LOCAL' AND path NOT LIKE '%.download'
+        WHERE itemId = :itemId AND type = 'LOCAL'
+          AND $COMPLETED_LOCAL_SOURCE_SQL
         LIMIT 1
         """
     )
@@ -778,7 +804,8 @@ interface ServerDatabaseDao {
         """
         SELECT DISTINCT sources.itemId AS itemId
         FROM sources
-        WHERE sources.type = 'LOCAL' AND sources.path NOT LIKE '%.download'
+        WHERE sources.type = 'LOCAL'
+          AND $COMPLETED_LOCAL_SOURCE_SQL
         """
     )
     suspend fun getDownloadedItemIds(): List<UUID>

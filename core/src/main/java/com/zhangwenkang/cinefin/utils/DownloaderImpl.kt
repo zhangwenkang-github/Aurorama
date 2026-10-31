@@ -2286,12 +2286,12 @@ private constructor(
         val totalBytes = source.totalBytes.takeIf { it > 0L } ?: downloadedBytes
         lifecycleControl.withCurrentClaim(source.id, source.taskGeneration) {
             val commit =
-                DownloadCompletionCommitRules.commit(
+                DownloadCompletionCommitRules.commitFinalized(
                     partial = partial,
                     finalFile = finalFile,
                     canStart = { workerAccepts(source, DownloadLifecycleTransition.COMPLETION) },
-                    commitState = {
-                        database.completeSourceIfCurrent(
+                    publishPath = {
+                        database.publishSourcePathIfCurrent(
                             id = source.id,
                             generation = source.taskGeneration,
                             path = finalFile.path,
@@ -2301,7 +2301,7 @@ private constructor(
                             updatedAt = now,
                         )
                     },
-                    onCommitted = {
+                    onFinalized = {
                         completeCommittedEffects(
                             source = source,
                             item = item,
@@ -2312,9 +2312,23 @@ private constructor(
                             persistedOrigin = persistedOrigin,
                         )
                     },
+                    completeState = {
+                        database.completeSourceIfCurrent(
+                            id = source.id,
+                            generation = source.taskGeneration,
+                            path = finalFile.path,
+                            downloadedBytes = downloadedBytes,
+                            totalBytes = totalBytes,
+                            validator = source.resumeValidator,
+                            updatedAt = now,
+                        )
+                    },
                     sourceId = source.id,
                     generation = source.taskGeneration,
                 )
+            if (commit == DownloadCompletionCommit.COMMITTED) {
+                publishCompleted(source, finalFile, downloadedBytes, totalBytes)
+            }
             if (commit == DownloadCompletionCommit.RENAME_FAILED) {
                 val updated =
                     database.setSourceTaskStatusIfCurrent(
@@ -2408,6 +2422,15 @@ private constructor(
             throw DownloadPostCommitIncompleteException(finalization)
         }
 
+        Timber.i("下载完成：%s（%d 字节）", source.name, downloadedBytes)
+    }
+
+    private suspend fun publishCompleted(
+        source: FindroidSourceDto,
+        finalFile: File,
+        downloadedBytes: Long,
+        totalBytes: Long,
+    ) {
         notifyQueueChanged()
         if (appPreferences.getValue(appPreferences.downloadCompleteNotification)) {
             notifications.notifyCompleted(
@@ -2419,7 +2442,6 @@ private constructor(
                 )
             )
         }
-        Timber.i("下载完成：%s（%d 字节）", source.name, downloadedBytes)
     }
 
     private suspend fun deferPostCommitFinalization(
@@ -2493,11 +2515,33 @@ private constructor(
                 return@withCurrentClaim
             }
             val commit =
-                DownloadCompletionCommitRules.commit(
+                DownloadCompletionCommitRules.commitFinalized(
                     partial = partial,
                     finalFile = finalFile,
                     canStart = { true },
-                    commitState = {
+                    publishPath = {
+                        database.publishSourcePathIfCurrent(
+                            id = source.id,
+                            generation = source.taskGeneration,
+                            path = finalFile.path,
+                            downloadedBytes = result.downloadedBytes,
+                            totalBytes = result.totalBytes,
+                            validator = result.validator,
+                            updatedAt = now,
+                        )
+                    },
+                    onFinalized = {
+                        completeCommittedEffects(
+                            source = source,
+                            item = item,
+                            mediaSource = mediaSource,
+                            finalFile = finalFile,
+                            downloadedBytes = result.downloadedBytes,
+                            totalBytes = result.totalBytes,
+                            persistedOrigin = persistedOrigin,
+                        )
+                    },
+                    completeState = {
                         database.completeSourceIfCurrent(
                             id = source.id,
                             generation = source.taskGeneration,
@@ -2510,18 +2554,10 @@ private constructor(
                     },
                     sourceId = source.id,
                     generation = source.taskGeneration,
-                    onCommitted = {
-                        completeCommittedEffects(
-                            source = source,
-                            item = item,
-                            mediaSource = mediaSource,
-                            finalFile = finalFile,
-                            downloadedBytes = result.downloadedBytes,
-                            totalBytes = result.totalBytes,
-                            persistedOrigin = persistedOrigin,
-                        )
-                    },
                 )
+            if (commit == DownloadCompletionCommit.COMMITTED) {
+                publishCompleted(source, finalFile, result.downloadedBytes, result.totalBytes)
+            }
             if (commit != DownloadCompletionCommit.RENAME_FAILED) return@withCurrentClaim
             val updated =
                 database.setSourceTaskStatusIfCurrent(
