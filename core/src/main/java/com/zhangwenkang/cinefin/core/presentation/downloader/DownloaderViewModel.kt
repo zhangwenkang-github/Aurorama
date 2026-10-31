@@ -10,9 +10,15 @@ import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
+import java.util.WeakHashMap
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -21,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @HiltViewModel
 class DownloaderViewModel @Inject constructor(private val downloader: Downloader) : ViewModel() {
@@ -34,9 +41,8 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
 
     private var downloadJob: Job? = null
     private var pollJob: Job? = null
-    private var cancelJob: Job? = null
     private var requestGeneration = 0L
-    private val canceledDownloadIds = mutableSetOf<Long>()
+    private val cancellationOwner = DownloadCancellationOwner.forDownloader(downloader)
 
     fun update(item: FindroidItem) {
         val source =
@@ -47,10 +53,10 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
                         source.downloadTaskStatus == DownloadTaskStatus.RUNNING.name)
             } ?: return
         val sourceDownloadId = source.downloadId ?: return
-        if (sourceDownloadId in canceledDownloadIds) return
+        if (cancellationOwner.isFenced(item.id, sourceDownloadId)) return
 
         viewModelScope.launch {
-            if (sourceDownloadId in canceledDownloadIds) return@launch
+            if (cancellationOwner.isFenced(item.id, sourceDownloadId)) return@launch
             val generation = beginRequest()
             downloadId = sourceDownloadId
             pollDownloadProgress(generation, sourceDownloadId)
@@ -59,7 +65,6 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
 
     private fun download(item: FindroidItem, storageIndex: Int = 0) {
         val generation = beginRequest()
-        val cancellationBarrier = cancelJob
         downloadJob = viewModelScope.launch {
             var acceptedDownloadId: Long? = null
             try {
@@ -72,7 +77,10 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
                 }
 
                 _state.emit(DownloaderState(status = DownloadManager.STATUS_PENDING))
-                cancellationBarrier?.join()
+                if (!cancellationOwner.awaitCancellation(item.id)) {
+                    publishDownloadFailure(generation)
+                    return@launch
+                }
                 if (!isCurrentRequest(generation)) return@launch
                 val (queuedDownloadId, uiText) =
                     downloader.downloadItem(
@@ -86,7 +94,7 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
                 } else {
                     acceptedDownloadId = queuedDownloadId
                     downloadId = queuedDownloadId
-                    canceledDownloadIds.remove(queuedDownloadId)
+                    cancellationOwner.allowNewGeneration(item.id, queuedDownloadId)
                 }
             } catch (cancellation: CancellationException) {
                 if (generation == requestGeneration) {
@@ -130,18 +138,7 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
         downloadId = null
         _state.value = DownloaderState()
         if (handle == null) return
-        canceledDownloadIds += handle
-        val previousCancellation = cancelJob
-        cancelJob = viewModelScope.launch {
-            previousCancellation?.join()
-            try {
-                downloader.cancelDownload(item = item, downloadId = handle)
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                // Cancel is best-effort; its outcome must not overwrite the new request.
-            }
-        }
+        cancellationOwner.cancel(downloader = downloader, item = item, handle = handle)
     }
 
     private fun deleteDownload(item: FindroidItem) {
@@ -200,5 +197,69 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
 
     private companion object {
         const val PROGRESS_POLL_INTERVAL_MS = 1_000L
+    }
+}
+
+/**
+ * Cancellation that has already been accepted must outlive the ViewModel which requested it. The
+ * owner is scoped to the process-wide [Downloader] and keeps an item / handle fence until a later
+ * download is explicitly accepted.
+ */
+private class DownloadCancellationOwner private constructor() {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val pendingByItem = mutableMapOf<UUID, CompletableDeferred<Unit>>()
+    private val fencedItems = mutableSetOf<UUID>()
+    private val fencedHandles = mutableSetOf<Long>()
+
+    fun isFenced(itemId: UUID, handle: Long): Boolean =
+        synchronized(this) {
+            itemId in fencedItems || handle in fencedHandles || pendingByItem.containsKey(itemId)
+        }
+
+    fun cancel(downloader: Downloader, item: FindroidItem, handle: Long) {
+        val completion = CompletableDeferred<Unit>()
+        synchronized(this) {
+            fencedItems += item.id
+            fencedHandles += handle
+            if (pendingByItem.putIfAbsent(item.id, completion) != null) return
+        }
+        scope.launch {
+            try {
+                downloader.cancelDownload(item = item, downloadId = handle)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // Cancel is best-effort; a failed attempt still completes the bounded barrier.
+            } finally {
+                synchronized(this@DownloadCancellationOwner) {
+                    pendingByItem.remove(item.id, completion)
+                }
+                completion.complete(Unit)
+            }
+        }
+    }
+
+    suspend fun awaitCancellation(itemId: UUID): Boolean {
+        val completion = synchronized(this) { pendingByItem[itemId] } ?: return true
+        return withTimeoutOrNull(CANCELLATION_BARRIER_TIMEOUT_MS) {
+            completion.await()
+            true
+        } ?: false
+    }
+
+    fun allowNewGeneration(itemId: UUID, handle: Long) {
+        synchronized(this) {
+            check(!pendingByItem.containsKey(itemId))
+            fencedItems -= itemId
+            fencedHandles -= handle
+        }
+    }
+
+    companion object {
+        const val CANCELLATION_BARRIER_TIMEOUT_MS = 5_000L
+        val owners = WeakHashMap<Downloader, DownloadCancellationOwner>()
+
+        fun forDownloader(downloader: Downloader): DownloadCancellationOwner =
+            synchronized(owners) { owners.getOrPut(downloader) { DownloadCancellationOwner() } }
     }
 }

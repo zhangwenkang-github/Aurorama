@@ -634,6 +634,149 @@ class DownloaderViewModelTest {
         }
 
     @Test
+    fun `view model rebuild during accepted cancellation - partial stays fenced`() =
+        runTest(mainDispatcher.scheduler) {
+            val pendingCancellations = mutableListOf<Continuation<Unit>>()
+            var progressCalls = 0
+            val sharedDownloader =
+                downloader(
+                    onDownload = { 42L to null },
+                    onProgress = {
+                        progressCalls++
+                        DownloadManager.STATUS_RUNNING to 50
+                    },
+                    onCancelSuspending = { _, continuation ->
+                        pendingCancellations += continuation
+                        COROUTINE_SUSPENDED
+                    },
+                )
+            val item = movie()
+            val original = DownloaderViewModel(sharedDownloader)
+            val rebuilt = DownloaderViewModel(sharedDownloader)
+
+            try {
+                original.onAction(DownloaderAction.Download(item))
+                awaitStatus(original, DownloadManager.STATUS_RUNNING)
+                assertEquals(1, progressCalls)
+
+                original.onAction(DownloaderAction.CancelDownload(item))
+                original.viewModelScope.cancel()
+                mainDispatcher.scheduler.runCurrent()
+                assertEquals(1, pendingCancellations.size)
+
+                val partial =
+                    movie(
+                        sources =
+                            listOf(
+                                localSource(
+                                    path = "/downloads/old.download",
+                                    downloadId = 42L,
+                                    taskStatus = "RUNNING",
+                                )
+                            )
+                    )
+                rebuilt.update(partial)
+                mainDispatcher.scheduler.runCurrent()
+
+                assertEquals(DownloaderState(), rebuilt.state.value)
+                assertNull(rebuilt.downloadId)
+                assertEquals(1, progressCalls)
+
+                pendingCancellations.single().resume(Unit)
+                mainDispatcher.scheduler.runCurrent()
+                rebuilt.update(partial)
+                mainDispatcher.scheduler.runCurrent()
+
+                assertEquals(DownloaderState(), rebuilt.state.value)
+                assertNull(rebuilt.downloadId)
+                assertEquals(1, progressCalls)
+
+                rebuilt.onAction(DownloaderAction.Download(item))
+                awaitStatus(rebuilt, DownloadManager.STATUS_RUNNING)
+
+                assertEquals(42L, rebuilt.downloadId)
+                assertEquals(2, progressCalls)
+            } finally {
+                pendingCancellations.forEach { runCatching { it.resume(Unit) } }
+                mainDispatcher.scheduler.runCurrent()
+                original.viewModelScope.cancel()
+                rebuilt.viewModelScope.cancel()
+            }
+        }
+
+    @Test
+    fun `hung accepted cancellation - retry fails within bound and recovers after completion`() =
+        runTest(mainDispatcher.scheduler) {
+            val pendingCancellations = mutableListOf<Continuation<Unit>>()
+            var downloadAttempts = 0
+            var cancellationCompleted = false
+            var retryStartedBeforeCancellationCompleted = false
+            val viewModel =
+                DownloaderViewModel(
+                    downloader(
+                        onDownload = {
+                            if (downloadAttempts > 0 && !cancellationCompleted) {
+                                retryStartedBeforeCancellationCompleted = true
+                            }
+                            downloadAttempts++
+                            42L to null
+                        },
+                        onProgress = { DownloadManager.STATUS_RUNNING to 50 },
+                        onCancelSuspending = { _, continuation ->
+                            val wrapped =
+                                object : Continuation<Unit> {
+                                    override val context = continuation.context
+
+                                    override fun resumeWith(result: Result<Unit>) {
+                                        cancellationCompleted = true
+                                        continuation.resumeWith(result)
+                                    }
+                                }
+                            pendingCancellations += wrapped
+                            COROUTINE_SUSPENDED
+                        },
+                    )
+                )
+            val item = movie()
+
+            try {
+                viewModel.onAction(DownloaderAction.Download(item))
+                awaitStatus(viewModel, DownloadManager.STATUS_RUNNING)
+                viewModel.onAction(DownloaderAction.CancelDownload(item))
+                viewModel.onAction(DownloaderAction.Download(item))
+                mainDispatcher.scheduler.runCurrent()
+
+                assertEquals(DownloadManager.STATUS_PENDING, viewModel.state.value.status)
+                assertEquals(1, downloadAttempts)
+
+                viewModel.onAction(DownloaderAction.CancelDownload(item))
+                viewModel.onAction(DownloaderAction.Download(item))
+                mainDispatcher.scheduler.advanceTimeBy(10_000L)
+                mainDispatcher.scheduler.runCurrent()
+
+                val timedOutState = viewModel.state.value
+                assertFalse(timedOutState.isDownloading)
+                assertEquals(DownloadManager.STATUS_FAILED, timedOutState.status)
+                assertEquals(1, downloadAttempts)
+                assertFalse(retryStartedBeforeCancellationCompleted)
+                assertFalse(cancellationCompleted)
+
+                pendingCancellations.single().resume(Unit)
+                mainDispatcher.scheduler.runCurrent()
+                viewModel.onAction(DownloaderAction.Download(item))
+                awaitStatus(viewModel, DownloadManager.STATUS_RUNNING)
+
+                assertEquals(2, downloadAttempts)
+                assertEquals(42L, viewModel.downloadId)
+                assertFalse(retryStartedBeforeCancellationCompleted)
+            } finally {
+                pendingCancellations.forEach { runCatching { it.resume(Unit) } }
+                mainDispatcher.scheduler.runCurrent()
+                viewModel.viewModelScope.cancel()
+            }
+        }
+
+    @Test
     fun `cancel failure - retry waits for owned cancellation and publishes no failure`() =
         runTest(mainDispatcher.scheduler) {
             val pendingCancellations = mutableListOf<Continuation<Unit>>()
