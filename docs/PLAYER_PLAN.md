@@ -3163,3 +3163,13 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **证据**：`a67af263..eb1aa955` 为 32 files / `+1313/-169`；core/data/film/music/phone JVM 合计 **175 XML / 1101/0/0/0**，phone debug assemble、根 `ktfmtCheck`、`git diff --check`、graphify（13,540 nodes / 42,538 edges）通过；禁改路径 0。arm64 debug APK 153,692,828 B / SHA-256 `9E149266…B2B8A0`。详细 fix report 见 `F:\Develop\codex_work\project\Aurorama\.superpowers\sdd\w90-r\2a-report.md` §10。
 
 **未覆盖 / 下一步**：Android Room instrumentation migration、真实进程中断与设备文件系统 delete/rename 时序未执行（本任务禁止 instrumentation / 设备）；graphify 既有 `ItemHeader/ItemTopBar` 两项警告保留。P0/P1/P2/P3=`0/0/2/1`，BLOCKED=0。下一步由负责人另派全新独立 QA，先只读 `a67af263..eb1aa955` 与 v15 schema；未获 QA / 设备授权前不得 merge / push / tag / Release / workflow 或生产写。
+
+## 49. W90-A2 普通 VOD 官方 Download GET（2026-10-31，IMPLEMENTATION_DONE / QA_NOT_RUN）
+
+**范围**：从 base `3f8e055d085c4a120864dd07d767e5a18e145138` 的隔离 worktree，将 Downloader 的 origin-scoped 下载源解析从 `POST /Items/{id}/PlaybackInfo` 最小迁移到 Jellyfin SDK 生成的 `GET /Items/{id}/Download`。播放侧 `getMediaSources` 的 PlaybackInfo 协商保持不变；未改播放器、UI、产品 limit、分页、Room schema / migration、主键、删除策略、版本、签名、workflow 或 Release。
+
+**实现**：`JellyfinRepositoryImpl.getItemForOrigin` / `getMediaSourcesForOrigin` 复用条目 GET 返回的媒体源元数据，仅把下载 `path` 覆盖为官方 Download URL，显式清空 `transcodingPath`，并用 `DownloadPathKind.OFFICIAL_DOWNLOAD` 标记来源；Downloader、Range、暂停 / 续传、完成 / sidecar、删除与恢复结构未改。`DownloadHttpEngine` 的请求 marker 增加 `Items` / `Audio` itemId 解析。
+
+**TDD / 门禁**：RED 为业务断言失败，旧路径实际返回 `/Videos/{id}/stream?static=true...`；GREEN 契约断言官方路径、正确 itemId、认证头、原始响应字节与 `PlaybackInfo POST=0`。`:data:testDebugUnitTest`、`:core:testLibreDebugUnitTest`、`:app:phone:assembleDebug`、根 `ktfmtCheck` 全绿；`graphify update` 与 `git diff --check` 为收尾门。未运行设备、connected tests、生产请求、DB 或独立 QA。
+
+**证据 / 下一步**：实现报告根 `F:\Develop\code_data\qa\w90-a2-download-get-implementation-20261031`（`report.md` + `SHA256SUMS`）。本检查点只放行 fresh scoped reviewer；其第一条只读动作是核对报告与固定 commit 的 diff/选择路径，不得把本次实现报告自证为 QA PASS。

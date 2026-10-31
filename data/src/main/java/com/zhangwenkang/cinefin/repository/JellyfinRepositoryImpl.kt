@@ -30,6 +30,7 @@ import com.zhangwenkang.cinefin.models.toFindroidSeason
 import com.zhangwenkang.cinefin.models.toFindroidSegment
 import com.zhangwenkang.cinefin.models.toFindroidShow
 import com.zhangwenkang.cinefin.models.toFindroidSource
+import com.zhangwenkang.cinefin.models.toOfficialDownloadSource
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
@@ -148,6 +149,26 @@ class JellyfinRepositoryImpl(
         java.util.concurrent.atomic.AtomicReference<Map<UUID, MusicTrackMetadata>>(emptyMap())
     private val musicTrackCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
     private val originApis = java.util.concurrent.ConcurrentHashMap<JellyfinOrigin, JellyfinApi>()
+    private var originApiFactory: ((JellyfinOrigin) -> JellyfinApi)? = null
+
+    internal constructor(
+        context: Context,
+        jellyfinApi: JellyfinApi,
+        database: ServerDatabaseDao,
+        appPreferences: AppPreferences,
+        localLibrary: LocalLibraryRepository,
+        metadataSnapshotStore: MetadataSnapshotStore,
+        originApiFactory: (JellyfinOrigin) -> JellyfinApi,
+    ) : this(
+        context = context,
+        jellyfinApi = jellyfinApi,
+        database = database,
+        appPreferences = appPreferences,
+        localLibrary = localLibrary,
+        metadataSnapshotStore = metadataSnapshotStore,
+    ) {
+        this.originApiFactory = originApiFactory
+    }
 
     private data class BoundOriginClient(
         val api: JellyfinApi,
@@ -166,6 +187,7 @@ class JellyfinRepositoryImpl(
                     ?: error("origin server 缺少可用地址：${origin.serverId}")
             val api =
                 originApis[origin]
+                    ?: originApiFactory?.invoke(origin)
                     ?: JellyfinApi(
                             androidContext = context,
                             requestTimeout = appPreferences.getValue(appPreferences.requestTimeout),
@@ -207,7 +229,15 @@ class JellyfinRepositoryImpl(
             withContext(Dispatchers.IO) {
                 dto.toFindroidItem(this@JellyfinRepositoryImpl, database)
             } ?: return null
-        val sources = getMediaSourcesForOrigin(itemId, origin)
+        val downloadUrl = bound.api.libraryApi.getDownloadUrl(itemId)
+        val sources =
+            dto.mediaSources.orEmpty().map { mediaSource ->
+                mediaSource.toOfficialDownloadSource(
+                    baseUrl = bound.baseUrl,
+                    itemId = itemId,
+                    downloadUrl = downloadUrl,
+                )
+            }
         return when (mapped) {
             is FindroidMovie ->
                 mapped.copy(
@@ -1041,79 +1071,21 @@ class JellyfinRepositoryImpl(
             )
         }
 
-    private fun playbackInfoForDownloads(
-        userId: UUID,
-        startPositionTicks: Long,
-    ): PlaybackInfoDto {
-        val streamingBitrate = appPreferences.getPlayerStreamingBitrate()
-        val maxStreamingBitrate =
-            PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
-        val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)
-        val forceTranscode =
-            PlayerDecodeFallback.forcesServerTranscode(
-                appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
-            )
-        val transcodingProfiles =
-            if (PlayerStreamingQuality.requestsTranscoding(streamingBitrate) || forceTranscode) {
-                listOf(
-                    TranscodingProfile(
-                        container = "ts",
-                        type = DlnaProfileType.VIDEO,
-                        videoCodec = "h264",
-                        audioCodec = "aac,mp3,ac3,opus",
-                        protocol = MediaStreamProtocol.HLS,
-                        context = EncodingContext.STREAMING,
-                        enableSubtitlesInManifest = true,
-                        conditions = emptyList(),
-                    )
-                )
-            } else {
-                emptyList()
-            }
-        return PlaybackInfoDto(
-            userId = userId,
-            deviceProfile =
-                DeviceProfile(
-                    name = "Direct play all",
-                    maxStaticBitrate = maxStreamingBitrate,
-                    maxStreamingBitrate = maxStreamingBitrate,
-                    codecProfiles = emptyList(),
-                    containerProfiles = emptyList(),
-                    directPlayProfiles = emptyList(),
-                    transcodingProfiles = transcodingProfiles,
-                    subtitleProfiles =
-                        listOf(
-                            SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),
-                            SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
-                        ),
-                ),
-            maxStreamingBitrate = maxStreamingBitrate,
-            startTimeTicks = startPositionTicks.takeIf { it > 0L },
-            enableTranscoding = transcodingEnabled,
-            enableDirectPlay = if (forceTranscode) false else null,
-            enableDirectStream = if (forceTranscode) false else null,
-            allowVideoStreamCopy = if (forceTranscode) false else null,
-            allowAudioStreamCopy = if (forceTranscode) false else null,
-        )
-    }
-
     override suspend fun getMediaSourcesForOrigin(
         itemId: UUID,
         origin: JellyfinOrigin,
     ): List<FindroidSource> {
         val bound = bindOrigin(origin)
         return withContext(Dispatchers.IO) {
-            bound.api.mediaInfoApi
-                .getPostedPlaybackInfo(
-                    itemId,
-                    playbackInfoForDownloads(
-                        userId = bound.userId,
-                        startPositionTicks = 0L,
-                    ),
+            val item = bound.api.userLibraryApi.getItem(itemId, bound.userId).content
+            val downloadUrl = bound.api.libraryApi.getDownloadUrl(itemId)
+            item.mediaSources.orEmpty().map { mediaSource ->
+                mediaSource.toOfficialDownloadSource(
+                    baseUrl = bound.baseUrl,
+                    itemId = itemId,
+                    downloadUrl = downloadUrl,
                 )
-                .content
-                .mediaSources
-                .map { mediaSource -> mediaSource.toFindroidSource(bound.baseUrl, itemId) }
+            }
         }
     }
 

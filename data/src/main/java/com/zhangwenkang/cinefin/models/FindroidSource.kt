@@ -33,6 +33,7 @@ data class FindroidSource(
 
 enum class DownloadPathKind {
     SYNTHETIC_STREAM,
+    OFFICIAL_DOWNLOAD,
     ABSOLUTE_HTTP,
     RELATIVE_HTTP,
     EMPTY,
@@ -100,6 +101,44 @@ internal fun MediaSourceInfo.toFindroidSource(
         resolvedPath = resolution.path,
         resolvedTranscodingPath = resolvedTranscodingPath,
         downloadMarker = resolution.marker,
+    )
+}
+
+internal fun MediaSourceInfo.toOfficialDownloadSource(
+    baseUrl: String,
+    itemId: UUID,
+    downloadUrl: String,
+): FindroidSource {
+    val metadata = toFindroidSource(baseUrl, itemId)
+    val normalizedDownloadUrl = downloadUrl.toHttpUrlOrNull()?.toString()
+    if (normalizedDownloadUrl == null) {
+        return metadata.copy(
+            path = "",
+            transcodingPath = null,
+            downloadMarker =
+                DownloadSourceMarker(
+                    itemId = itemId,
+                    sourceId = id,
+                    protocol = "DOWNLOAD_GET",
+                    pathKind = DownloadPathKind.INVALID,
+                    requestSent = false,
+                    status = "REJECTED",
+                    failureReason = "invalid_download_url",
+                ),
+        )
+    }
+    return metadata.copy(
+        path = normalizedDownloadUrl,
+        transcodingPath = null,
+        downloadMarker =
+            DownloadSourceMarker(
+                itemId = itemId,
+                sourceId = id,
+                protocol = "DOWNLOAD_GET",
+                pathKind = DownloadPathKind.OFFICIAL_DOWNLOAD,
+                requestSent = false,
+                status = "READY",
+            ),
     )
 }
 

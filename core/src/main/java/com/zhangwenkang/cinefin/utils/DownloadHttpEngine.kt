@@ -348,7 +348,8 @@ internal class DownloadHttpEngine(
         ): DownloadRequestMarker {
             val parsed = url.toHttpUrlOrNull()
             val uriScheme = runCatching { URI(url).scheme }.getOrNull()
-            val videosIndex = parsed?.pathSegments?.indexOf("Videos") ?: -1
+            val itemIdSegmentIndex =
+                parsed?.pathSegments?.indexOfFirst { it in ITEM_SCOPED_PATH_SEGMENTS } ?: -1
             val pathKind =
                 when {
                     url.isBlank() -> "EMPTY"
@@ -358,7 +359,9 @@ internal class DownloadHttpEngine(
                 }
             return DownloadRequestMarker(
                 itemId =
-                    parsed?.pathSegments?.getOrNull(videosIndex + 1)?.takeIf { videosIndex >= 0 },
+                    parsed?.pathSegments?.getOrNull(itemIdSegmentIndex + 1)?.takeIf {
+                        itemIdSegmentIndex >= 0
+                    },
                 sourceId = parsed?.queryParameter("mediaSourceId"),
                 protocol = parsed?.scheme ?: uriScheme?.lowercase() ?: "INVALID",
                 pathKind = pathKind,
@@ -367,6 +370,8 @@ internal class DownloadHttpEngine(
                 failureReason = failureReason,
             )
         }
+
+        private val ITEM_SCOPED_PATH_SEGMENTS = setOf("Items", "Videos", "Audio")
     }
 }
 

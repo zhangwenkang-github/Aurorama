@@ -119,6 +119,47 @@ class DownloadHttpEngineTest {
     }
 
     @Test
+    fun `官方 Download GET 携带认证并原样写入响应字节`() = runBlocking {
+        val workDir = Files.createTempDirectory("official-download-http").toFile()
+        val originalBytes = "original-vod-bytes".toByteArray(StandardCharsets.UTF_8)
+        val server = MockWebServer(body = originalBytes)
+        server.start()
+        try {
+            val engine =
+                DownloadHttpEngine(
+                    configureDownloadHttpClient(OkHttpClient.Builder()).build(),
+                    elapsedRealtimeMillis = { 0L },
+                )
+            val target = File(workDir, "official-download.mkv")
+            val token = "official-download-test-token"
+
+            val result =
+                engine.download(
+                    url = server.url("/Items/item-download/Download"),
+                    token = token,
+                    baseUrl = server.baseUrl,
+                    target = target,
+                    existingBytes = 0L,
+                    validator = null,
+                    expectedTotalBytes = 0L,
+                ) { _, _, _, _ ->
+                }
+
+            assertTrue(originalBytes.contentEquals(target.readBytes()))
+            assertEquals(originalBytes.size.toLong(), result.totalBytes)
+            assertEquals("item-download", result.marker?.itemId)
+            val request = server.requests.single()
+            assertEquals("GET", request.method)
+            assertEquals("/Items/item-download/Download", request.path)
+            assertNull(request.range)
+            assertTrue(request.authorization.orEmpty().contains(token))
+        } finally {
+            server.close()
+            workDir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `连接前失败保持 requestSent false`() = runBlocking {
         val workDir = Files.createTempDirectory("download-http-connect-failure").toFile()
         val closedPort =
