@@ -261,6 +261,7 @@ class DownloaderImplRecoveryTest {
         itemId: UUID = ITEM_ID,
         sourceId: String = SOURCE_ID,
         generation: Long = 1L,
+        witnessGeneration: Long = generation,
         partialOnly: Boolean = false,
     ): DownloadArtifactSeed {
         val (partialFile, finalFile) =
@@ -280,7 +281,7 @@ class DownloaderImplRecoveryTest {
                 writeText(
                     listOf(
                             sourceId,
-                            generation.toString(),
+                            witnessGeneration.toString(),
                             partialFile.canonicalPath,
                             finalFile.canonicalPath,
                         )
@@ -4076,6 +4077,154 @@ class DownloaderImplRecoveryTest {
                 restarted.refreshDownloadTasks().isEmpty(),
             )
             assertFalse("冷启恢复重建了 orphan witness", artifacts.witnessFile.exists())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `生产删除真实artifact一与claim三代次分叉时清理精确witness`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val artifacts =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    generation = 1L,
+                    witnessGeneration = 3L,
+                )
+            val localSource =
+                fixture
+                    .movie()
+                    .sources
+                    .single()
+                    .copy(
+                        id = SOURCE_ID,
+                        type = FindroidSourceType.LOCAL,
+                        path = artifacts.finalFile.path,
+                    )
+            val item = fixture.movie().copy(id = ITEM_ID, sources = listOf(localSource))
+            fixture.dao.seedMovie(ITEM_ID)
+            fixture.seedCompletedSource(
+                item = item,
+                source = localSource,
+                generation = 3L,
+                taskStatus = DownloadTaskStatus.COMPLETED,
+            )
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertFalse(
+                "artifact generation 不得截断合法 witness claim：${artifacts.witnessFile}",
+                artifacts.witnessFile.exists(),
+            )
+            assertFalse(artifacts.finalFile.exists())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `生产删除DELETING栅栏四重试时按前代claim三清理且保留隔离项`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val current =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    generation = 1L,
+                    witnessGeneration = 3L,
+                )
+            val otherSource =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    sourceId = "other-source",
+                    generation = 1L,
+                    witnessGeneration = 3L,
+                )
+            val otherItem =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    itemId = OTHER_ITEM_ID,
+                    generation = 1L,
+                    witnessGeneration = 3L,
+                )
+            val otherArtifact =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    generation = 2L,
+                    witnessGeneration = 3L,
+                )
+            val localSource =
+                fixture
+                    .movie()
+                    .sources
+                    .single()
+                    .copy(
+                        id = SOURCE_ID,
+                        type = FindroidSourceType.LOCAL,
+                        path = current.finalFile.path,
+                    )
+            val item = fixture.movie().copy(id = ITEM_ID, sources = listOf(localSource))
+            fixture.dao.seedMovie(ITEM_ID)
+            fixture.seedCompletedSource(
+                item = item,
+                source = localSource,
+                generation = 4L,
+                taskStatus = DownloadTaskStatus.DELETING,
+            )
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertFalse(current.finalFile.exists())
+            assertFalse(current.witnessFile.exists())
+            assertNull(fixture.dao.sourceById(SOURCE_ID))
+            assertTrue(otherSource.finalFile.isFile)
+            assertTrue(otherSource.witnessFile.isFile)
+            assertTrue(otherItem.finalFile.isFile)
+            assertTrue(otherItem.witnessFile.isFile)
+            assertTrue(otherArtifact.finalFile.isFile)
+            assertTrue(otherArtifact.witnessFile.isFile)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `生产删除精确文件名但witness claim不匹配时保留tombstone并报失败`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val current =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    generation = 1L,
+                    witnessGeneration = 2L,
+                )
+            val localSource =
+                fixture
+                    .movie()
+                    .sources
+                    .single()
+                    .copy(
+                        id = SOURCE_ID,
+                        type = FindroidSourceType.LOCAL,
+                        path = current.finalFile.path,
+                    )
+            val item = fixture.movie().copy(id = ITEM_ID, sources = listOf(localSource))
+            fixture.dao.seedMovie(ITEM_ID)
+            fixture.seedCompletedSource(
+                item = item,
+                source = localSource,
+                generation = 4L,
+                taskStatus = DownloadTaskStatus.DELETING,
+            )
+
+            assertFalse(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertEquals(
+                DownloadTaskStatus.DELETING.name,
+                fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+            )
+            assertTrue(current.finalFile.isFile)
+            assertTrue(current.witnessFile.isFile)
         } finally {
             fixture.close()
         }

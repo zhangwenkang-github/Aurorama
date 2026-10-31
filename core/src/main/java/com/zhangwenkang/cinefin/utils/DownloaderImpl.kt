@@ -3157,7 +3157,13 @@ private constructor(
                     path = source.path,
                     itemId = source.itemId.toString(),
                     sourceId = source.id,
-                ) ?: expectedGeneration
+                )
+            val claimGeneration =
+                if (current.taskStatus.toTaskStatus() == DownloadTaskStatus.DELETING) {
+                    expectedGeneration - 1L
+                } else {
+                    expectedGeneration
+                }
             val cleanupSucceeded =
                 lifecycleControl.withCurrentGeneration(sourceId, source.taskGeneration) {
                     val fenced = database.getSource(sourceId)
@@ -3171,6 +3177,24 @@ private constructor(
                         return@withCurrentGeneration false
                     }
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
+                    val artifactScan = artifactGeneration?.let { generation ->
+                        File(source.path).parentFile?.let { directory ->
+                            DownloadCompletionCommitRules.sourceArtifactScan(
+                                directory = directory,
+                                itemId = source.itemId.toString(),
+                                sourceId = source.id,
+                                artifactGeneration = generation,
+                                claimGeneration = claimGeneration,
+                            )
+                        }
+                    }
+                    if (artifactScan?.unprovenWitnesses?.isNotEmpty() == true) {
+                        Timber.w(
+                            "下载删除发现无法证明的精确 witness，保留 DELETING：%s",
+                            artifactScan.unprovenWitnesses.joinToString { it.path },
+                        )
+                        return@withCurrentGeneration false
+                    }
                     if (!deletePartialArtifacts(source.path)) {
                         error("下载残片删除未确认：${source.path}")
                     }
@@ -3196,10 +3220,15 @@ private constructor(
                             source.toFindroidSource(database),
                             source.taskGeneration,
                             artifactGeneration,
+                            claimGeneration,
                         )
                     } else {
                         if (
-                            !deleteSourceCompletionArtifacts(source, artifactGeneration) ||
+                            !deleteSourceCompletionArtifacts(
+                                source,
+                                artifactGeneration,
+                                claimGeneration,
+                            ) ||
                                 !deletePartialSidecar(source.path) ||
                                 !removeSidecarForSource(
                                     itemId = source.itemId,
@@ -3705,34 +3734,39 @@ private constructor(
         item: FindroidItem,
         source: FindroidSource,
         expectedGeneration: Long,
-        artifactGeneration: Long,
+        artifactGeneration: Long?,
+        claimGeneration: Long,
     ): Boolean =
         itemMutationLock(item.id).withLock {
             if (database.getSource(source.id)?.taskGeneration != expectedGeneration) {
                 return@withLock false
             }
-            deleteItemUnderItemLock(item, source, artifactGeneration)
+            deleteItemUnderItemLock(item, source, artifactGeneration, claimGeneration)
             true
         }
 
     private suspend fun deleteItemUnderItemLock(
         item: FindroidItem,
         source: FindroidSource,
-        artifactGeneration: Long,
+        artifactGeneration: Long?,
+        claimGeneration: Long,
     ) {
         val current = checkNotNull(database.getSource(source.id))
         val parentOrigin = downloadOriginForSource(current)
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         val files = buildList {
-            File(source.path).parentFile?.let { directory ->
-                addAll(
-                    DownloadCompletionCommitRules.sourceArtifacts(
-                        directory = directory,
-                        itemId = item.id.toString(),
-                        sourceId = source.id,
-                        generation = artifactGeneration,
+            if (artifactGeneration != null) {
+                File(source.path).parentFile?.let { directory ->
+                    addAll(
+                        DownloadCompletionCommitRules.sourceArtifacts(
+                            directory = directory,
+                            itemId = item.id.toString(),
+                            sourceId = source.id,
+                            artifactGeneration = artifactGeneration,
+                            claimGeneration = claimGeneration,
+                        )
                     )
-                )
+                }
             }
             mediaStreams.mapTo(this) { stream -> File(stream.path) }
         }
@@ -4871,14 +4905,17 @@ private constructor(
 
     private fun deleteSourceCompletionArtifacts(
         source: FindroidSourceDto,
-        artifactGeneration: Long,
+        artifactGeneration: Long?,
+        claimGeneration: Long,
     ): Boolean {
+        if (artifactGeneration == null) return true
         val parent = File(source.path).parentFile ?: return deleteCompletionArtifacts(source.path)
         return DownloadCompletionCommitRules.sourceArtifacts(
                 directory = parent,
                 itemId = source.itemId.toString(),
                 sourceId = source.id,
-                generation = artifactGeneration,
+                artifactGeneration = artifactGeneration,
+                claimGeneration = claimGeneration,
             )
             .all { artifact -> !artifact.exists() || artifact.delete() }
     }

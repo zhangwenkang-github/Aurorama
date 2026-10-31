@@ -162,6 +162,11 @@ object DownloadPostCommitRules {
  * 顺序固定为 witness → 最终文件 → DB COMPLETED。进程若死在 rename 与 DB 之间，重启后可用 witness 重新提交；DB 永不记录不存在的最终文件。
  */
 object DownloadCompletionCommitRules {
+    data class SourceArtifactScan(
+        val deletable: Set<File>,
+        val unprovenWitnesses: Set<File>,
+    )
+
     fun downloadTargetFiles(
         directory: File,
         itemId: String,
@@ -176,14 +181,31 @@ object DownloadCompletionCommitRules {
         directory: File,
         itemId: String,
         sourceId: String,
-        generation: Long? = null,
-    ): Set<File> {
+        artifactGeneration: Long? = null,
+        claimGeneration: Long? = artifactGeneration,
+    ): Set<File> =
+        sourceArtifactScan(
+                directory = directory,
+                itemId = itemId,
+                sourceId = sourceId,
+                artifactGeneration = artifactGeneration,
+                claimGeneration = claimGeneration,
+            )
+            .deletable
+
+    fun sourceArtifactScan(
+        directory: File,
+        itemId: String,
+        sourceId: String,
+        artifactGeneration: Long?,
+        claimGeneration: Long?,
+    ): SourceArtifactScan {
         val prefix = "$itemId.$sourceId"
         val generationPattern =
-            when (generation) {
+            when (artifactGeneration) {
                 null -> "(?:\\.g\\d+)?"
                 0L -> ""
-                else -> "\\.g${generation}"
+                else -> "\\.g${artifactGeneration}"
             }
         val targetPattern =
             Regex(
@@ -197,25 +219,45 @@ object DownloadCompletionCommitRules {
             )
         val files = directory.listFiles().orEmpty()
         val targets = files.filter { targetPattern.matches(it.name) }
-        val orphanWitnesses = files.filter { file ->
-            orphanWitnessPattern.matches(file.name) &&
-                orphanWitnessMatches(
-                    file = file,
-                    sourceId = sourceId,
-                    generation = generation,
-                )
-        }
-        return buildSet {
-            targets.forEach { target ->
-                add(target)
+        val targetWitnesses =
+            targets.mapTo(mutableSetOf()) { target ->
                 val partial =
                     if (target.name.endsWith(".download")) target
                     else File(target.path + ".download")
-                val finalFile = finalFile(target)
-                add(witnessFile(partial, finalFile))
+                witnessFile(partial = partial, finalFile = finalFile(target))
             }
-            addAll(orphanWitnesses)
+        val exactWitnesses =
+            targetWitnesses +
+                files.filter { file ->
+                    orphanWitnessPattern.matches(file.name) && file !in targetWitnesses
+                }
+        val deletable = mutableSetOf<File>()
+        val unprovenWitnesses = mutableSetOf<File>()
+        targets.forEach { target ->
+            deletable += target
+            val partial =
+                if (target.name.endsWith(".download")) target else File(target.path + ".download")
+            val finalFile = finalFile(target)
+            if (partial.isFile) deletable += partial
+            if (finalFile.isFile) deletable += finalFile
         }
+        exactWitnesses.filter(File::isFile).forEach { witness ->
+            if (
+                orphanWitnessMatches(
+                    file = witness,
+                    sourceId = sourceId,
+                    generation = claimGeneration,
+                )
+            ) {
+                deletable += witness
+            } else {
+                unprovenWitnesses += witness
+            }
+        }
+        return SourceArtifactScan(
+            deletable = deletable,
+            unprovenWitnesses = unprovenWitnesses,
+        )
     }
 
     fun sourceArtifactGeneration(

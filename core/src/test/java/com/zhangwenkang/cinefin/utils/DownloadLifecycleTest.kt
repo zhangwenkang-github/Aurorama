@@ -463,13 +463,25 @@ class DownloadLifecycleTest {
                     directory.resolve("$itemId.$sourceId.g8.download"),
                     oldFinal,
                 )
-                .apply { writeText("witness") }
+                .apply {
+                    writeText(
+                        listOf(
+                                sourceId,
+                                "8",
+                                directory.resolve("$itemId.$sourceId.g8.download").canonicalPath,
+                                oldFinal.canonicalPath,
+                            )
+                            .joinToString("\n")
+                    )
+                }
 
         val artifacts =
             DownloadCompletionCommitRules.sourceArtifacts(
                 directory = directory,
                 itemId = itemId,
                 sourceId = sourceId,
+                artifactGeneration = null,
+                claimGeneration = null,
             )
 
         assertTrue(legacy in artifacts)
