@@ -7,7 +7,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.UiText
-import com.zhangwenkang.cinefin.models.isDownloading
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -34,23 +34,32 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
 
     private var downloadJob: Job? = null
     private var pollJob: Job? = null
+    private var cancelJob: Job? = null
     private var requestGeneration = 0L
+    private val canceledDownloadIds = mutableSetOf<Long>()
 
     fun update(item: FindroidItem) {
+        val source =
+            item.sources.firstOrNull { source ->
+                source.type == FindroidSourceType.LOCAL &&
+                    source.path.endsWith(".download") &&
+                    (source.downloadTaskStatus == DownloadTaskStatus.PENDING.name ||
+                        source.downloadTaskStatus == DownloadTaskStatus.RUNNING.name)
+            } ?: return
+        val sourceDownloadId = source.downloadId ?: return
+        if (sourceDownloadId in canceledDownloadIds) return
+
         viewModelScope.launch {
-            if (item.isDownloading()) {
-                val source =
-                    item.sources.firstOrNull { it.type == FindroidSourceType.LOCAL }
-                        ?: return@launch
-                val generation = beginRequest()
-                this@DownloaderViewModel.downloadId = source.downloadId
-                pollDownloadProgress(generation, source.downloadId)
-            }
+            if (sourceDownloadId in canceledDownloadIds) return@launch
+            val generation = beginRequest()
+            downloadId = sourceDownloadId
+            pollDownloadProgress(generation, sourceDownloadId)
         }
     }
 
     private fun download(item: FindroidItem, storageIndex: Int = 0) {
         val generation = beginRequest()
+        val cancellationBarrier = cancelJob
         downloadJob = viewModelScope.launch {
             var acceptedDownloadId: Long? = null
             try {
@@ -63,6 +72,8 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
                 }
 
                 _state.emit(DownloaderState(status = DownloadManager.STATUS_PENDING))
+                cancellationBarrier?.join()
+                if (!isCurrentRequest(generation)) return@launch
                 val (queuedDownloadId, uiText) =
                     downloader.downloadItem(
                         item = item,
@@ -75,6 +86,7 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
                 } else {
                     acceptedDownloadId = queuedDownloadId
                     downloadId = queuedDownloadId
+                    canceledDownloadIds.remove(queuedDownloadId)
                 }
             } catch (cancellation: CancellationException) {
                 if (generation == requestGeneration) {
@@ -117,8 +129,18 @@ class DownloaderViewModel @Inject constructor(private val downloader: Downloader
         val handle = downloadId
         downloadId = null
         _state.value = DownloaderState()
-        viewModelScope.launch {
-            handle?.let { downloader.cancelDownload(item = item, downloadId = it) }
+        if (handle == null) return
+        canceledDownloadIds += handle
+        val previousCancellation = cancelJob
+        cancelJob = viewModelScope.launch {
+            previousCancellation?.join()
+            try {
+                downloader.cancelDownload(item = item, downloadId = handle)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // Cancel is best-effort; its outcome must not overwrite the new request.
+            }
         }
     }
 

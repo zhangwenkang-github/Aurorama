@@ -154,6 +154,180 @@ class DownloaderViewModelTest {
         }
 
     @Test
+    fun `stale update after cancellation - non-active partial never restores poll`() =
+        runTest(mainDispatcher.scheduler) {
+            listOf("FAILED", "CANCELLED", "SUCCESSFUL", "COMPLETED").forEach { taskStatus ->
+                var progressCalls = 0
+                val viewModel =
+                    DownloaderViewModel(
+                        downloader(
+                            onDownload = { 42L to null },
+                            onProgress = {
+                                progressCalls++
+                                DownloadManager.STATUS_RUNNING to 50
+                            },
+                        )
+                    )
+
+                viewModel.update(
+                    movie(
+                        sources =
+                            listOf(
+                                localSource(
+                                    path = "/downloads/movie.download",
+                                    downloadId = 42L,
+                                    taskStatus = taskStatus,
+                                )
+                            )
+                    )
+                )
+                mainDispatcher.scheduler.runCurrent()
+
+                val state = viewModel.state.value
+                val downloadId = viewModel.downloadId
+                viewModel.viewModelScope.cancel()
+
+                assertEquals(DownloaderState(), state)
+                assertNull(downloadId)
+                assertEquals(0, progressCalls)
+            }
+        }
+
+    @Test
+    fun `active partial update - pending and running restore handle and poll`() =
+        runTest(mainDispatcher.scheduler) {
+            listOf("PENDING", "RUNNING").forEach { taskStatus ->
+                var progressCalls = 0
+                val viewModel =
+                    DownloaderViewModel(
+                        downloader(
+                            onDownload = { 42L to null },
+                            onProgress = {
+                                progressCalls++
+                                DownloadManager.STATUS_RUNNING to 37
+                            },
+                        )
+                    )
+
+                viewModel.update(
+                    movie(
+                        sources =
+                            listOf(
+                                localSource(
+                                    path = "/downloads/movie.download",
+                                    downloadId = 42L,
+                                    taskStatus = taskStatus,
+                                )
+                            )
+                    )
+                )
+                mainDispatcher.scheduler.runCurrent()
+
+                val downloadId = viewModel.downloadId
+                val state = viewModel.state.value
+                viewModel.viewModelScope.cancel()
+
+                assertEquals(42L, downloadId)
+                assertEquals(DownloadManager.STATUS_RUNNING, state.status)
+                assertEquals(0.37f, state.progress)
+                assertEquals(1, progressCalls)
+            }
+        }
+
+    @Test
+    fun `stale update cannot overwrite an accepted new download`() =
+        runTest(mainDispatcher.scheduler) {
+            var progressCalls = 0
+            val viewModel =
+                DownloaderViewModel(
+                    downloader(
+                        onDownload = { 42L to null },
+                        onProgress = {
+                            progressCalls++
+                            DownloadManager.STATUS_RUNNING to 50
+                        },
+                    )
+                )
+            val events = mutableListOf<DownloaderEvent>()
+            val eventJob = launch(mainDispatcher) { viewModel.events.collect { events += it } }
+
+            viewModel.onAction(DownloaderAction.Download(movie()))
+            awaitStatus(viewModel, DownloadManager.STATUS_RUNNING)
+            val progressBeforeUpdate = progressCalls
+
+            viewModel.update(
+                movie(
+                    sources =
+                        listOf(
+                            localSource(
+                                path = "/downloads/old.download",
+                                downloadId = 77L,
+                                taskStatus = "FAILED",
+                            )
+                        )
+                )
+            )
+            mainDispatcher.scheduler.runCurrent()
+
+            val downloadId = viewModel.downloadId
+            val state = viewModel.state.value
+            val recordedEvents = events.toList()
+            eventJob.cancel()
+            viewModel.viewModelScope.cancel()
+
+            assertEquals(42L, downloadId)
+            assertEquals(DownloadManager.STATUS_RUNNING, state.status)
+            assertEquals(progressBeforeUpdate, progressCalls)
+            assertEquals(listOf(DownloaderEvent.Queued), recordedEvents)
+        }
+
+    @Test
+    fun `stale running update after cancellation - old handle stays fenced`() =
+        runTest(mainDispatcher.scheduler) {
+            var progressCalls = 0
+            val viewModel =
+                DownloaderViewModel(
+                    downloader(
+                        onDownload = { 42L to null },
+                        onProgress = {
+                            progressCalls++
+                            DownloadManager.STATUS_RUNNING to 50
+                        },
+                    )
+                )
+            val item = movie()
+
+            viewModel.onAction(DownloaderAction.Download(item))
+            awaitStatus(viewModel, DownloadManager.STATUS_RUNNING)
+            viewModel.onAction(DownloaderAction.CancelDownload(item))
+            mainDispatcher.scheduler.runCurrent()
+            assertEquals(DownloaderState(), viewModel.state.value)
+            val progressCallsBeforeUpdate = progressCalls
+
+            viewModel.update(
+                movie(
+                    sources =
+                        listOf(
+                            localSource(
+                                path = "/downloads/old.download",
+                                downloadId = 42L,
+                                taskStatus = "RUNNING",
+                            )
+                        )
+                )
+            )
+            mainDispatcher.scheduler.runCurrent()
+
+            val state = viewModel.state.value
+            val downloadId = viewModel.downloadId
+            viewModel.viewModelScope.cancel()
+
+            assertEquals(DownloaderState(), state)
+            assertNull(downloadId)
+            assertEquals(progressCallsBeforeUpdate, progressCalls)
+        }
+
+    @Test
     fun `cancel during pending prepare - late success cannot publish handle queued or poll`() =
         runTest(mainDispatcher.scheduler) {
             val pendingDownloads = mutableListOf<Continuation<Pair<Long, UiText?>>>()
@@ -320,6 +494,42 @@ class DownloaderViewModelTest {
         }
 
     @Test
+    fun `accepted download successful - completion is emitted once and polling stops`() =
+        runTest(mainDispatcher.scheduler) {
+            var progressCalls = 0
+            val viewModel =
+                DownloaderViewModel(
+                    downloader(
+                        onDownload = { 42L to null },
+                        onProgress = {
+                            progressCalls++
+                            DownloadManager.STATUS_SUCCESSFUL to 100
+                        },
+                    )
+                )
+            val events = mutableListOf<DownloaderEvent>()
+            val eventJob = launch(mainDispatcher) { viewModel.events.collect { events += it } }
+
+            viewModel.onAction(DownloaderAction.Download(movie()))
+            val state = awaitStatus(viewModel, DownloadManager.STATUS_SUCCESSFUL)
+            mainDispatcher.scheduler.advanceTimeBy(5_000L)
+            mainDispatcher.scheduler.runCurrent()
+
+            val recordedEvents = events.toList()
+            eventJob.cancel()
+            viewModel.viewModelScope.cancel()
+
+            assertEquals(42L, viewModel.downloadId)
+            assertEquals(DownloadManager.STATUS_SUCCESSFUL, state.status)
+            assertEquals(1.0f, state.progress)
+            assertEquals(1, progressCalls)
+            assertEquals(
+                listOf(DownloaderEvent.Queued, DownloaderEvent.Successful),
+                recordedEvents,
+            )
+        }
+
+    @Test
     fun `cancel accepted download - real handle is canceled and polling stops`() =
         runTest(mainDispatcher.scheduler) {
             var progressCalls = 0
@@ -348,6 +558,155 @@ class DownloaderViewModelTest {
             assertEquals(listOf(42L), canceledHandles)
             assertEquals(1, progressCalls)
             viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `cancel then retry after accepted handle - retry waits for old cancellation`() =
+        runTest(mainDispatcher.scheduler) {
+            val pendingCancellations = mutableListOf<Continuation<Unit>>()
+            var activeGeneration: Int? = null
+            var nextGeneration = 0
+            var cancellationCompleted = false
+            var retryStartedBeforeCancellationCompleted = false
+            val viewModel =
+                DownloaderViewModel(
+                    downloader(
+                        onDownload = {
+                            if (nextGeneration > 0 && !cancellationCompleted) {
+                                retryStartedBeforeCancellationCompleted = true
+                            }
+                            nextGeneration++
+                            activeGeneration = nextGeneration
+                            42L to null
+                        },
+                        onProgress = {
+                            if (activeGeneration == null) {
+                                DownloadManager.STATUS_FAILED to 75
+                            } else {
+                                DownloadManager.STATUS_RUNNING to 50
+                            }
+                        },
+                        onCancelSuspending = { _, continuation ->
+                            val wrapped =
+                                object : Continuation<Unit> {
+                                    override val context = continuation.context
+
+                                    override fun resumeWith(result: Result<Unit>) {
+                                        cancellationCompleted = true
+                                        activeGeneration = null
+                                        continuation.resumeWith(result)
+                                    }
+                                }
+                            pendingCancellations += wrapped
+                            COROUTINE_SUSPENDED
+                        },
+                    )
+                )
+            val events = mutableListOf<DownloaderEvent>()
+            val eventJob = launch(mainDispatcher) { viewModel.events.collect { events += it } }
+            val item = movie()
+
+            viewModel.onAction(DownloaderAction.Download(item))
+            awaitStatus(viewModel, DownloadManager.STATUS_RUNNING)
+            viewModel.onAction(DownloaderAction.CancelDownload(item))
+            viewModel.onAction(DownloaderAction.Download(item))
+            mainDispatcher.scheduler.runCurrent()
+
+            assertEquals(1, pendingCancellations.size)
+            pendingCancellations.single().resume(Unit)
+            mainDispatcher.scheduler.advanceTimeBy(1_000L)
+            mainDispatcher.scheduler.runCurrent()
+
+            val downloadId = viewModel.downloadId
+            val state = viewModel.state.value
+            val recordedEvents = events.toList()
+            eventJob.cancel()
+            viewModel.viewModelScope.cancel()
+
+            assertFalse(retryStartedBeforeCancellationCompleted)
+            assertEquals(42L, downloadId)
+            assertEquals(DownloadManager.STATUS_RUNNING, state.status)
+            assertNotNull(activeGeneration)
+            assertEquals(
+                listOf(DownloaderEvent.Queued, DownloaderEvent.Queued),
+                recordedEvents,
+            )
+        }
+
+    @Test
+    fun `cancel failure - retry waits for owned cancellation and publishes no failure`() =
+        runTest(mainDispatcher.scheduler) {
+            val pendingCancellations = mutableListOf<Continuation<Unit>>()
+            var activeGeneration: Int? = null
+            var nextGeneration = 0
+            var cancellationCompleted = false
+            var retryStartedBeforeCancellationCompleted = false
+            val viewModel =
+                DownloaderViewModel(
+                    downloader(
+                        onDownload = {
+                            if (nextGeneration > 0 && !cancellationCompleted) {
+                                retryStartedBeforeCancellationCompleted = true
+                            }
+                            nextGeneration++
+                            activeGeneration = nextGeneration
+                            42L to null
+                        },
+                        onProgress = {
+                            if (activeGeneration == null) {
+                                DownloadManager.STATUS_FAILED to 75
+                            } else {
+                                DownloadManager.STATUS_RUNNING to 50
+                            }
+                        },
+                        onCancelSuspending = { _, continuation ->
+                            val wrapped =
+                                object : Continuation<Unit> {
+                                    override val context = continuation.context
+
+                                    override fun resumeWith(result: Result<Unit>) {
+                                        cancellationCompleted = true
+                                        activeGeneration = null
+                                        continuation.resumeWithException(
+                                            IllegalStateException("late cancel failure")
+                                        )
+                                    }
+                                }
+                            pendingCancellations += wrapped
+                            COROUTINE_SUSPENDED
+                        },
+                    )
+                )
+            val events = mutableListOf<DownloaderEvent>()
+            val eventJob = launch(mainDispatcher) { viewModel.events.collect { events += it } }
+            val item = movie()
+
+            viewModel.onAction(DownloaderAction.Download(item))
+            awaitStatus(viewModel, DownloadManager.STATUS_RUNNING)
+            viewModel.onAction(DownloaderAction.CancelDownload(item))
+            viewModel.onAction(DownloaderAction.Download(item))
+            mainDispatcher.scheduler.runCurrent()
+
+            assertEquals(1, pendingCancellations.size)
+            pendingCancellations.single().resume(Unit)
+            mainDispatcher.scheduler.advanceTimeBy(1_000L)
+            mainDispatcher.scheduler.runCurrent()
+
+            val downloadId = viewModel.downloadId
+            val state = viewModel.state.value
+            val recordedEvents = events.toList()
+            eventJob.cancel()
+            viewModel.viewModelScope.cancel()
+
+            assertFalse(retryStartedBeforeCancellationCompleted)
+            assertEquals(42L, downloadId)
+            assertEquals(DownloadManager.STATUS_RUNNING, state.status)
+            assertNull(state.errorText)
+            assertNotNull(activeGeneration)
+            assertEquals(
+                listOf(DownloaderEvent.Queued, DownloaderEvent.Queued),
+                recordedEvents,
+            )
         }
 
     @Test
@@ -405,11 +764,28 @@ class DownloaderViewModelTest {
             mediaStreams = emptyList(),
         )
 
+    private fun localSource(
+        path: String,
+        downloadId: Long,
+        taskStatus: String,
+    ): FindroidSource =
+        FindroidSource(
+            id = "source-local",
+            name = "本地下载",
+            type = FindroidSourceType.LOCAL,
+            path = path,
+            size = 1L,
+            mediaStreams = emptyList(),
+            downloadId = downloadId,
+            downloadTaskStatus = taskStatus,
+        )
+
     @Suppress("UNCHECKED_CAST")
     private fun downloader(
         onDownload: (Continuation<Pair<Long, UiText?>>) -> Any?,
         onProgress: () -> Pair<Int, Int>,
         onCancel: (Long) -> Unit = {},
+        onCancelSuspending: ((Long, Continuation<Unit>) -> Any?)? = null,
     ): Downloader =
         proxy(Downloader::class.java) { method, args ->
             when (method.name) {
@@ -420,7 +796,18 @@ class DownloaderViewModelTest {
                         onDownload(args.last() as Continuation<Pair<Long, UiText?>>)
                     }
                 "getProgress" -> onProgress()
-                "cancelDownload" -> (args.getOrNull(1) as? Number)?.toLong()?.let(onCancel) ?: Unit
+                "cancelDownload" -> {
+                    val handle = (args.getOrNull(1) as? Number)?.toLong()
+                    if (handle != null && onCancelSuspending != null) {
+                        onCancelSuspending.invoke(
+                            handle,
+                            args.last() as Continuation<Unit>,
+                        )
+                    } else {
+                        handle?.let(onCancel)
+                        Unit
+                    }
+                }
                 else -> defaultValue(method.returnType)
             }
         }
