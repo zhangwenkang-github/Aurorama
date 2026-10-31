@@ -176,14 +176,35 @@ object DownloadCompletionCommitRules {
         directory: File,
         itemId: String,
         sourceId: String,
+        generation: Long? = null,
     ): Set<File> {
         val prefix = "$itemId.$sourceId"
+        val generationPattern =
+            when (generation) {
+                null -> "(?:\\.g\\d+)?"
+                0L -> ""
+                else -> "\\.g${generation}"
+            }
         val targetPattern =
             Regex(
-                "^${Regex.escape(prefix)}(?:\\.g\\d+)?(?:\\.download)?$",
+                "^${Regex.escape(prefix)}$generationPattern(?:\\.download)?$",
                 RegexOption.IGNORE_CASE,
             )
-        val targets = directory.listFiles().orEmpty().filter { targetPattern.matches(it.name) }
+        val orphanWitnessPattern =
+            Regex(
+                "^\\.${Regex.escape(prefix)}$generationPattern\\.finalizing$",
+                RegexOption.IGNORE_CASE,
+            )
+        val files = directory.listFiles().orEmpty()
+        val targets = files.filter { targetPattern.matches(it.name) }
+        val orphanWitnesses = files.filter { file ->
+            orphanWitnessPattern.matches(file.name) &&
+                orphanWitnessMatches(
+                    file = file,
+                    sourceId = sourceId,
+                    generation = generation,
+                )
+        }
         return buildSet {
             targets.forEach { target ->
                 add(target)
@@ -193,7 +214,25 @@ object DownloadCompletionCommitRules {
                 val finalFile = finalFile(target)
                 add(witnessFile(partial, finalFile))
             }
+            addAll(orphanWitnesses)
         }
+    }
+
+    fun sourceArtifactGeneration(
+        path: String,
+        itemId: String,
+        sourceId: String,
+    ): Long? {
+        val stem = File(path).name.removeSuffix(".download")
+        val prefix = "$itemId.$sourceId"
+        if (!stem.startsWith(prefix)) return null
+        if (stem == prefix) return 0L
+        return Regex("^\\.g(\\d+)$")
+            .matchEntire(stem.removePrefix(prefix))
+            ?.groupValues
+            ?.get(1)
+            ?.toLongOrNull()
+            ?.takeIf { it > 0L }
     }
 
     suspend fun commit(
@@ -307,6 +346,28 @@ object DownloadCompletionCommitRules {
                         lines[2] == partial.canonicalPath &&
                         lines[3] == finalFile.canonicalPath
                 } == true
+
+    private fun orphanWitnessMatches(
+        file: File,
+        sourceId: String,
+        generation: Long?,
+    ): Boolean {
+        val finalName = file.name.removePrefix(".").removeSuffix(".finalizing")
+        val finalFile = File(file.parentFile, finalName)
+        val partial = File(finalFile.path + ".download")
+        return file.isFile &&
+            runCatching { file.readLines() }
+                .getOrNull()
+                ?.let { lines ->
+                    lines.size == 4 &&
+                        lines[0] == sourceId &&
+                        (generation == null ||
+                            generation == 0L ||
+                            lines[1].toLongOrNull() == generation) &&
+                        lines[2] == partial.canonicalPath &&
+                        lines[3] == finalFile.canonicalPath
+                } == true
+    }
 
     private fun witness(
         sourceId: String,

@@ -3152,6 +3152,12 @@ private constructor(
             val job = activeJobs[sourceId]
             job?.cancel(CancellationException("用户取消下载"))
             job?.join()
+            val artifactGeneration =
+                DownloadCompletionCommitRules.sourceArtifactGeneration(
+                    path = source.path,
+                    itemId = source.itemId.toString(),
+                    sourceId = source.id,
+                ) ?: expectedGeneration
             val cleanupSucceeded =
                 lifecycleControl.withCurrentGeneration(sourceId, source.taskGeneration) {
                     val fenced = database.getSource(sourceId)
@@ -3189,10 +3195,11 @@ private constructor(
                             item,
                             source.toFindroidSource(database),
                             source.taskGeneration,
+                            artifactGeneration,
                         )
                     } else {
                         if (
-                            !deleteSourceCompletionArtifacts(source) ||
+                            !deleteSourceCompletionArtifacts(source, artifactGeneration) ||
                                 !deletePartialSidecar(source.path) ||
                                 !removeSidecarForSource(
                                     itemId = source.itemId,
@@ -3698,18 +3705,20 @@ private constructor(
         item: FindroidItem,
         source: FindroidSource,
         expectedGeneration: Long,
+        artifactGeneration: Long,
     ): Boolean =
         itemMutationLock(item.id).withLock {
             if (database.getSource(source.id)?.taskGeneration != expectedGeneration) {
                 return@withLock false
             }
-            deleteItemUnderItemLock(item, source)
+            deleteItemUnderItemLock(item, source, artifactGeneration)
             true
         }
 
     private suspend fun deleteItemUnderItemLock(
         item: FindroidItem,
         source: FindroidSource,
+        artifactGeneration: Long,
     ) {
         val current = checkNotNull(database.getSource(source.id))
         val parentOrigin = downloadOriginForSource(current)
@@ -3721,6 +3730,7 @@ private constructor(
                         directory = directory,
                         itemId = item.id.toString(),
                         sourceId = source.id,
+                        generation = artifactGeneration,
                     )
                 )
             }
@@ -4859,12 +4869,16 @@ private constructor(
             is DownloadMediaReadResult.Corrupt -> false
         }
 
-    private fun deleteSourceCompletionArtifacts(source: FindroidSourceDto): Boolean {
+    private fun deleteSourceCompletionArtifacts(
+        source: FindroidSourceDto,
+        artifactGeneration: Long,
+    ): Boolean {
         val parent = File(source.path).parentFile ?: return deleteCompletionArtifacts(source.path)
         return DownloadCompletionCommitRules.sourceArtifacts(
                 directory = parent,
                 itemId = source.itemId.toString(),
                 sourceId = source.id,
+                generation = artifactGeneration,
             )
             .all { artifact -> !artifact.exists() || artifact.delete() }
     }

@@ -3173,3 +3173,13 @@ Exo 与 mpv 各跑完整横滑矩阵（x=384/1280/2176 × y=320/560/800/1040/128
 **TDD / 门禁**：RED 为业务断言失败，旧路径实际返回 `/Videos/{id}/stream?static=true...`；GREEN 契约断言官方路径、正确 itemId、认证头、原始响应字节与 `PlaybackInfo POST=0`。`:data:testDebugUnitTest`、`:core:testLibreDebugUnitTest`、`:app:phone:assembleDebug`、根 `ktfmtCheck` 全绿；`graphify update` 与 `git diff --check` 为收尾门。未运行设备、connected tests、生产请求、DB 或独立 QA。
 
 **证据 / 下一步**：实现报告根 `F:\Develop\code_data\qa\w90-a2-download-get-implementation-20261031`（`report.md` + `SHA256SUMS`）。本检查点只放行 fresh scoped reviewer；其第一条只读动作是核对报告与固定 commit 的 diff/选择路径，不得把本次实现报告自证为 QA PASS。
+
+## 50. W90-A2 删除后 `.finalizing` orphan 修复（2026-10-31，IMPLEMENTATION_DONE / AUTOMATION_GREEN / REVIEW_PENDING）
+
+**根因**：完成态删除先按 `source.path` 删除最终 `.g1`，随后才由主文件派生 `sourceArtifacts()`；正常完成没有 `.download` 第二锚点时，witness 不再进入删除集合。修复从 source 规范路径推导精确 item/source/generation，删除集合仅匹配该代次，并以全部大小写精确前缀 + witness 内容校验独立识别 orphan `.finalizing`；legacy 无 generation 路径单独处理。未改 Download GET、Range、暂停 / 继续、完成、sidecar、restore、schema、UI 或通知。
+
+**TDD / 边界**：公共 `deleteTaskById()` RED 先真实失败为 `orphan witness 未清理`；GREEN 覆盖最终文件 + witness、DB/source/sidecar/UI 快照归零、重复删除幂等、新 downloader 冷启不复活、活动 `.download` 原有清理，以及同目录其他 source / item / generation 的 `.download` 与 witness 均保留。未绕过删除顺序，未只测私有 helper。
+
+**门禁**：`core:testLibreDebugUnitTest` + `data:testDebugUnitTest --rerun-tasks` 为 92 XML / 668/0/0/0（68/68 tasks executed）；`:app:phone:assembleDebug --rerun-tasks` 242/242 executed；根 `ktfmtCheck` 34 tasks / 29 executed / 5 up-to-date；`git diff --check` exit 0；`graphify update .` exit 0（15,192 nodes / 48,293 edges）。未运行 format 写代码。
+
+**边界 / 未覆盖**：设备 / adb、真实完成下载、Android Room instrumentation、前后台通知与独立 QA 均 NOT_RUN；Finding 1 通知仍未处理。P0/P1/P2/P3=`0/0/0/0`，BLOCKED=0。下一步仅由负责人另派 fresh scoped reviewer；不得把本检查点当作独立 QA、设备 PASS、merge 或 Release 准入。报告根：`F:\Develop\code_data\qa\w90-a2-download-fixture-p2-fix-implementation-20261031`。

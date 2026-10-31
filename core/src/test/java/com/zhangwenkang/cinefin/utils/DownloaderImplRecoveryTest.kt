@@ -250,6 +250,88 @@ class DownloaderImplRecoveryTest {
         val mediaStreamFile: File,
     )
 
+    private data class DownloadArtifactSeed(
+        val finalFile: File,
+        val partialFile: File,
+        val witnessFile: File,
+    )
+
+    private fun writeDownloadArtifacts(
+        fixture: Fixture,
+        itemId: UUID = ITEM_ID,
+        sourceId: String = SOURCE_ID,
+        generation: Long = 1L,
+        partialOnly: Boolean = false,
+    ): DownloadArtifactSeed {
+        val (partialFile, finalFile) =
+            DownloadCompletionCommitRules.downloadTargetFiles(
+                directory = fixture.downloads,
+                itemId = itemId.toString(),
+                sourceId = sourceId,
+                generation = generation,
+            )
+        if (partialOnly) {
+            partialFile.writeText("partial")
+        } else {
+            finalFile.writeText("completed")
+        }
+        val witnessFile =
+            DownloadCompletionCommitRules.witnessFile(partialFile, finalFile).apply {
+                writeText(
+                    listOf(
+                            sourceId,
+                            generation.toString(),
+                            partialFile.canonicalPath,
+                            finalFile.canonicalPath,
+                        )
+                        .joinToString("\n")
+                )
+            }
+        return DownloadArtifactSeed(
+            finalFile = finalFile,
+            partialFile = partialFile,
+            witnessFile = witnessFile,
+        )
+    }
+
+    private fun seedDownloadArtifactSource(
+        fixture: Fixture,
+        itemId: UUID = ITEM_ID,
+        sourceId: String = SOURCE_ID,
+        generation: Long = 1L,
+        partialOnly: Boolean = false,
+    ): DownloadArtifactSeed {
+        val artifacts =
+            writeDownloadArtifacts(
+                fixture = fixture,
+                itemId = itemId,
+                sourceId = sourceId,
+                generation = generation,
+                partialOnly = partialOnly,
+            )
+        val localSource =
+            fixture
+                .movie()
+                .sources
+                .single()
+                .copy(
+                    id = sourceId,
+                    type = FindroidSourceType.LOCAL,
+                    path =
+                        if (partialOnly) artifacts.partialFile.path else artifacts.finalFile.path,
+                )
+        val item = fixture.movie().copy(id = itemId, sources = listOf(localSource))
+        fixture.dao.seedMovie(itemId)
+        fixture.seedCompletedSource(
+            item = item,
+            source = localSource,
+            generation = generation,
+            taskStatus =
+                if (partialOnly) DownloadTaskStatus.PENDING else DownloadTaskStatus.COMPLETED,
+        )
+        return artifacts
+    }
+
     private suspend fun seedCompletedMusicDelete(fixture: Fixture): CompletedMusicDeleteSeed {
         val itemId = UUID.randomUUID()
         val sourceId = "completed-music-source"
@@ -3943,6 +4025,120 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `生产删除完成来源清理仅witness锚定的finalizing且冷启不复活`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val artifacts = seedDownloadArtifactSource(fixture)
+
+            assertTrue(artifacts.finalFile.isFile)
+            assertFalse("复现前提不得存在第二锚点 .download", artifacts.partialFile.exists())
+            assertTrue(artifacts.witnessFile.isFile)
+            assertNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertTrue(
+                fixture.downloader.downloadedMediaRecords().any {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                }
+            )
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertFalse("最终媒体文件未清理", artifacts.finalFile.exists())
+            assertFalse("orphan witness 未清理", artifacts.witnessFile.exists())
+            assertFalse("断点文件未清理", artifacts.partialFile.exists())
+            assertNull("source / task id 未清理", fixture.dao.sourceById(SOURCE_ID))
+            assertTrue(
+                "sidecar 未清理",
+                fixture.downloader.mediaSidecar().allRecords().requireComplete().none {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                },
+            )
+            assertTrue(
+                "进行中 UI 快照未归零",
+                fixture.downloader.activeItemIds().isEmpty(),
+            )
+            assertTrue(
+                "已完成 UI 快照未归零：${fixture.downloader.downloadedMediaRecords()}",
+                fixture.downloader.downloadedMediaRecords().none {
+                    it.itemId == ITEM_ID.toString() && it.sourceId == SOURCE_ID
+                },
+            )
+            assertTrue(
+                "失败 / 任务 UI 快照未归零：${fixture.downloader.refreshDownloadTasks()}",
+                fixture.downloader.refreshDownloadTasks().isEmpty(),
+            )
+
+            assertTrue("重复删除必须幂等", fixture.downloader.deleteTaskById(SOURCE_ID))
+            val restarted = fixture.newDownloader()
+            restarted.recoverOnStartup()
+            restarted.runQueue()
+            assertTrue(
+                "冷启恢复复活了已删除任务：${restarted.refreshDownloadTasks()}",
+                restarted.refreshDownloadTasks().isEmpty(),
+            )
+            assertFalse("冷启恢复重建了 orphan witness", artifacts.witnessFile.exists())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `生产删除只清理当前item source generation的下载证据`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val current = seedDownloadArtifactSource(fixture)
+            val otherSource =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    sourceId = "other-source",
+                    partialOnly = true,
+                )
+            val otherItem =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    itemId = OTHER_ITEM_ID,
+                    partialOnly = true,
+                )
+            val otherGeneration =
+                writeDownloadArtifacts(
+                    fixture = fixture,
+                    generation = 2L,
+                    partialOnly = true,
+                )
+
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertFalse("当前 witness 未清理", current.witnessFile.exists())
+            assertTrue("其他 source 的 .download 被误删", otherSource.partialFile.isFile)
+            assertTrue("其他 source 的 witness 被误删", otherSource.witnessFile.isFile)
+            assertTrue("其他 item 的 .download 被误删", otherItem.partialFile.isFile)
+            assertTrue("其他 item 的 witness 被误删", otherItem.witnessFile.isFile)
+            assertTrue("其他 generation 的 .download 被误删", otherGeneration.partialFile.isFile)
+            assertTrue("其他 generation 的 witness 被误删", otherGeneration.witnessFile.isFile)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `生产删除活动download与witness后重复调用保持幂等`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val artifacts = seedDownloadArtifactSource(fixture, partialOnly = true)
+
+            assertTrue(artifacts.partialFile.isFile)
+            assertTrue(artifacts.witnessFile.isFile)
+            assertTrue(fixture.downloader.deleteTaskById(SOURCE_ID))
+
+            assertFalse("活动 .download 未清理", artifacts.partialFile.exists())
+            assertFalse("活动 witness 未清理", artifacts.witnessFile.exists())
+            assertNull(fixture.dao.sourceById(SOURCE_ID))
+            assertTrue("第二次删除必须幂等成功", fixture.downloader.deleteTaskById(SOURCE_ID))
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `完成态音乐经DTO丢失kind后公开删除成功清理全部副作用`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -5416,6 +5612,8 @@ class DownloaderImplRecoveryTest {
             item: FindroidItem,
             source: FindroidSource,
             persistOrigin: Boolean = true,
+            generation: Long = 1L,
+            taskStatus: DownloadTaskStatus = DownloadTaskStatus.COMPLETED,
         ) {
             dao.putSource(
                 FindroidSourceDto(
@@ -5424,11 +5622,11 @@ class DownloaderImplRecoveryTest {
                     name = source.name,
                     type = FindroidSourceType.LOCAL,
                     path = source.path,
-                    taskStatus = DownloadTaskStatus.COMPLETED.name,
+                    taskStatus = taskStatus.name,
                     updatedAt = 1L,
                     engineVersion = DownloaderImpl.ENGINE_VERSION,
                     container = source.container,
-                    taskGeneration = 1L,
+                    taskGeneration = generation,
                     originServerId = SERVER_ID,
                     originUserId = USER_ID.toString(),
                 )
