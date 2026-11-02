@@ -30,7 +30,7 @@
 
 | ID | 成果 | 证据 |
 |---|---|---|
-| `V2-P0-01` | 第零章、8 项根决策、资源边界、权威文档和 ADR 基线 | `docs/V2_PLAN.md`、`PROJECT_RULES`、`LESSONS`、`DECISIONS`、ADR-0003～0005 |
+| `V2-P0-01` | 第零章、8 项根决策、资源边界、权威文档和 ADR 基线；基线提交 `ee7ff239` 已本地进入集成分支 | `docs/V2_PLAN.md`、`PROJECT_RULES`、`LESSONS`、`DECISIONS`、ADR-0003～0005 |
 
 ## 任务卡模板
 
