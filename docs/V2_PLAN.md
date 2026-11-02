@@ -624,7 +624,7 @@ Aurorama 2.0 是正式 `2.0.0` 产品大版本，同时代表内部 V2 架构和
 |---|---|---|---|
 | 0 | `V2-REQ-Q0` | 1–147 总提示词 + 第零章 | ✅ 已落档 |
 | 1 | `V2-REQ-ARCH` | 148–289 引言 + 第一章 | ✅ 72 条已分类（69 MUST / 3 SHOULD）；用户已确认 |
-| 2 | `V2-REQ-UX` | 290–394 第二章 | 🟡 Logo / 图标边界已确认；需交接到新会话产出风格帧并继续收敛 |
+| 2 | `V2-REQ-UX` | 290–394 第二章 | 🟡 Logo / 图标边界已确认；五主题风格帧 v0.1 已产出，等待用户确认后继续 G1 与需求矩阵 |
 | 3 | `V2-REQ-READER` | 395–532 第三章 | ⚪ Todo |
 | 4 | `V2-REQ-WRITE` | 533–557 第四章 | ⚪ Todo |
 | 5 | `V2-REQ-MUSIC` | 558–746 第一个“第五章” | ⚪ Todo |
@@ -687,8 +687,8 @@ SHA-256 被误写为 62 位而按门禁停止。复核确认外部文件实际�
 
 **工作对象**：
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
-分支 `codex/v2-integration`。本轮决策收口提交 `1e300c05`；handoff 书签提交在本次更新后产生，
-新会话必须以 `git rev-parse HEAD` 实况为准。工作树 clean；无设备锁、服务器连接、构建或发布动作。
+分支 `codex/v2-integration`。首批五主题风格帧提交 `246e7ee5`；handoff 与状态文档随后进入分支，
+新会话必须以 `git rev-parse HEAD` 与 `git status` 实况为准。无设备锁、服务器连接、构建或发布动作。
 
 **已完成**：
 
