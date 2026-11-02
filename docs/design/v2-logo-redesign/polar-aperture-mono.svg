@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Aurorama 极向光瞳单色 Logo</title>
+  <desc id="desc">透明背景上的黑色单色标记：接近闭合的椭圆环接入带横向凹槽的六边切面玻璃，不包含三角箭头或刷新语义。</desc>
+  <path d="M390 451C321 468 249 447 190 405 120 355 78 291 78 216 78 133 158 78 260 78c96 0 170 61 174 147 1 37-1 74-8 110"
+    fill="none" stroke="#101318" stroke-width="48" stroke-linecap="round"/>
+  <path d="M291 268 433 303 424 355 383 438 300 412 271 353Z"
+    fill="none" stroke="#101318" stroke-width="25" stroke-linejoin="round"/>
+  <path d="M301 348 413 375" fill="none" stroke="#101318" stroke-width="18"
+    stroke-linecap="round"/>
+</svg>

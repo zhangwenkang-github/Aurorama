@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Aurorama 磁尾航迹单色 Logo</title>
+  <desc id="desc">透明背景上的黑色单色标记：不规则六边棱镜头部连接明显分离的粗外尾与细内尾，尾间保留连续负空间。</desc>
+  <path d="M177 337C105 287 125 200 205 164c72-33 151-18 222 43" fill="none"
+    stroke="#101318" stroke-width="58" stroke-linecap="round"/>
+  <path d="M194 353c-48-38-34-94 23-120 48-22 98-17 143 14" fill="none"
+    stroke="#101318" stroke-width="23" stroke-linecap="round"/>
+  <path d="M148 263 232 320 181 407 104 353 119 296Z" fill="#101318"/>
+  <path d="M132 337 207 359" fill="none" stroke="#101318" stroke-width="13"
+    stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Aurorama 折光山脊 Logo</title>
+  <desc id="desc">非对称双竖向极光帘幕被一片越过左帘幕的斜向玻璃横脊折成 A 形；右帘幕在横脊下方有明确玻璃断口，避免成为普通山形字母。</desc>
+  <defs>
+    <linearGradient id="tileB" x1="68" y1="34" x2="452" y2="486" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#121820"/>
+      <stop offset=".55" stop-color="#0B1016"/>
+      <stop offset="1" stop-color="#15171C"/>
+    </linearGradient>
+    <linearGradient id="curtainB" x1="160" y1="76" x2="344" y2="440" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#78FFE4"/>
+      <stop offset=".5" stop-color="#59C9E6"/>
+      <stop offset="1" stop-color="#7B9CFF"/>
+    </linearGradient>
+    <linearGradient id="glassB" x1="178" y1="259" x2="371" y2="322" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F9FDFF" stop-opacity=".9"/>
+      <stop offset=".5" stop-color="#A9D9EA" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#345A74" stop-opacity=".68"/>
+    </linearGradient>
+    <clipPath id="tileClipB">
+      <rect x="24" y="24" width="464" height="464" rx="116"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#tileClipB)">
+    <rect x="24" y="24" width="464" height="464" rx="116" fill="url(#tileB)"/>
+    <path d="M252 70c-38 80-62 164-68 252-4 49-23 92-63 132" fill="none"
+      stroke="url(#curtainB)" stroke-width="58" stroke-linecap="round"/>
+    <path d="M292 64c32 78 54 153 55 233 1 42 8 78 22 111" fill="none"
+      stroke="#E9F9FF" stroke-width="45" stroke-linecap="round"/>
+    <path d="M389 454c-10-26-13-49-7-72 7-24 21-43 39-59" fill="none"
+      stroke="#E9F9FF" stroke-width="43" stroke-linecap="round"/>
+    <path d="M267 88c-7 75 8 136 1 214-4 51 1 96 14 142" fill="none"
+      stroke="url(#curtainB)" stroke-width="15" stroke-linecap="round"/>
+    <path d="M139 265 315 225 323 270 363 260 372 219 390 215 421 293 160 341Z"
+      fill="url(#glassB)" stroke="#F5FDFF" stroke-width="12" stroke-linejoin="round"/>
+    <path d="M206 294 347 260" fill="none" stroke="#FFFFFF" stroke-opacity=".72"
+      stroke-width="9" stroke-linecap="round"/>
+    <rect x="27" y="27" width="458" height="458" rx="113" fill="none" stroke="#DDFBFF"
+      stroke-opacity=".12" stroke-width="6"/>
+  </g>
+</svg>

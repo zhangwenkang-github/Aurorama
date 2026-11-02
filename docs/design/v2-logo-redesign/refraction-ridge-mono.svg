@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Aurorama 折光山脊单色 Logo</title>
+  <desc id="desc">透明背景上的黑色单色标记：不对称双帘幕、越过左帘幕的斜向横脊，以及右帘幕下方的玻璃断口共同形成独特 A 形。</desc>
+  <path d="M252 59c-38 80-62 164-68 252-4 49-23 92-63 132" fill="none"
+    stroke="#101318" stroke-width="66" stroke-linecap="round"/>
+  <path d="M292 54c32 78 54 153 55 233 1 42 8 78 22 111" fill="none"
+    stroke="#101318" stroke-width="52" stroke-linecap="round"/>
+  <path d="M389 454c-10-26-13-49-7-72 7-24 21-43 39-59" fill="none"
+    stroke="#101318" stroke-width="48" stroke-linecap="round"/>
+  <path d="M139 265 315 225 323 270 363 260 372 219 390 215 421 293 160 341Z"
+    fill="#101318"/>
+</svg>

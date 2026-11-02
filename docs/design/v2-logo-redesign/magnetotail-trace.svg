@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Aurorama 磁尾航迹 Logo</title>
+  <desc id="desc">不规则六边切面棱镜头部连接一条宽外尾和一条较短的细内尾；两条弧线以宽阔负空间分离，避免合并成返回或刷新箭头。</desc>
+  <defs>
+    <linearGradient id="tileC" x1="66" y1="62" x2="454" y2="456" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#11161D"/>
+      <stop offset=".55" stop-color="#090C12"/>
+      <stop offset="1" stop-color="#14111A"/>
+    </linearGradient>
+    <linearGradient id="tailC" x1="149" y1="346" x2="429" y2="172" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6FFBD9"/>
+      <stop offset=".48" stop-color="#66D7F1"/>
+      <stop offset="1" stop-color="#8B9CFF"/>
+    </linearGradient>
+    <linearGradient id="glassC" x1="153" y1="290" x2="218" y2="382" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FDFF" stop-opacity=".9"/>
+      <stop offset=".58" stop-color="#79E1DF" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#294B64" stop-opacity=".7"/>
+    </linearGradient>
+    <clipPath id="tileClipC">
+      <rect x="24" y="24" width="464" height="464" rx="116"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#tileClipC)">
+    <rect x="24" y="24" width="464" height="464" rx="116" fill="url(#tileC)"/>
+    <path d="M177 337C105 287 125 200 205 164c72-33 151-18 222 43" fill="none"
+      stroke="url(#tailC)" stroke-width="50" stroke-linecap="round"/>
+    <path d="M194 353c-48-38-34-94 23-120 48-22 98-17 143 14" fill="none"
+      stroke="#DFF5FF" stroke-width="20" stroke-linecap="round" opacity=".9"/>
+    <path d="M150 278 226 329 181 399 114 351 128 307Z" fill="url(#glassC)"
+      stroke="#F5FDFF" stroke-width="13" stroke-linejoin="round"/>
+    <path d="M135 338 205 357" fill="none" stroke="#07131A" stroke-width="13"
+      stroke-linecap="round"/>
+    <path d="M151 304 190 351" fill="none" stroke="#FFFFFF" stroke-opacity=".7"
+      stroke-width="8" stroke-linecap="round"/>
+    <rect x="27" y="27" width="458" height="458" rx="113" fill="none" stroke="#DDFBFF"
+      stroke-opacity=".12" stroke-width="6"/>
+  </g>
+</svg>
