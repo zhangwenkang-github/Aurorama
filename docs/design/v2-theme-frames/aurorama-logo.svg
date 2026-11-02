@@ -1,59 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">Aurorama 棱镜极光标志</title>
-  <desc id="desc">深色方形底上，白色光束穿过三角棱镜，展开为三重极光帘幕与少量微粒。</desc>
+  <desc id="desc">深色圆角方形中，白色光束穿过一枚棱镜，展开为三股清晰的极光带。</desc>
   <defs>
-    <linearGradient id="bg" x1="88" y1="54" x2="424" y2="466" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#242830"/>
-      <stop offset="1" stop-color="#090B10"/>
+    <linearGradient id="aurora" x1="314" y1="256" x2="476" y2="301" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6FFFE6"/>
+      <stop offset=".5" stop-color="#64C9FF"/>
+      <stop offset="1" stop-color="#72A7FF"/>
     </linearGradient>
-    <linearGradient id="beam" x1="77" y1="248" x2="278" y2="267" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF" stop-opacity=".18"/>
-      <stop offset=".72" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#D9FFFA"/>
-    </linearGradient>
-    <linearGradient id="auroraA" x1="292" y1="256" x2="454" y2="214" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#56F2D0"/>
-      <stop offset="1" stop-color="#66BFFF"/>
-    </linearGradient>
-    <linearGradient id="auroraB" x1="300" y1="278" x2="458" y2="309" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8CFFF0"/>
-      <stop offset="1" stop-color="#62B7FF"/>
-    </linearGradient>
-    <linearGradient id="auroraC" x1="294" y1="301" x2="424" y2="380" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#4DDBD2"/>
-      <stop offset="1" stop-color="#9CCBFF"/>
-    </linearGradient>
-    <radialGradient id="halo" cx="0" cy="0" r="1" gradientTransform="translate(260 248) rotate(18) scale(142 92)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#D9FFFA" stop-opacity=".9"/>
-      <stop offset=".42" stop-color="#86F6E4" stop-opacity=".28"/>
-      <stop offset="1" stop-color="#86F6E4" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="12"/>
-    </filter>
-    <filter id="tinyGlow" x="-200%" y="-200%" width="500%" height="500%">
-      <feGaussianBlur stdDeviation="5"/>
-    </filter>
     <clipPath id="card">
       <rect x="32" y="32" width="448" height="448" rx="112"/>
     </clipPath>
   </defs>
   <g clip-path="url(#card)">
-    <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bg)"/>
-    <circle cx="260" cy="248" r="140" fill="url(#halo)" opacity=".7"/>
-    <path d="M86 246C156 241 216 244 279 260" stroke="url(#beam)" stroke-width="18" stroke-linecap="round" filter="url(#soft)" opacity=".75"/>
-    <path d="M86 246C156 240 217 246 276 262" stroke="url(#beam)" stroke-width="5" stroke-linecap="round"/>
-    <path d="M225 160L310 268L221 357L174 265L225 160Z" fill="#11151B" stroke="#F4F8FA" stroke-width="7" stroke-linejoin="round"/>
-    <path d="M225 176L294 267L222 338L191 265L225 176Z" fill="#20252C" opacity=".88"/>
-    <path d="M286 248C336 218 387 197 451 180C397 223 355 260 312 288L282 274L286 248Z" fill="url(#auroraA)"/>
-    <path d="M290 272C347 255 403 258 461 278C404 293 358 312 307 337L281 304L290 272Z" fill="url(#auroraB)" opacity=".9"/>
-    <path d="M286 300C330 315 365 343 395 389C351 361 315 344 276 335L271 311L286 300Z" fill="url(#auroraC)" opacity=".82"/>
-    <path d="M307 240C356 220 396 204 441 190" stroke="#E9FFFC" stroke-width="3" stroke-linecap="round" opacity=".75"/>
-    <circle cx="398" cy="166" r="8" fill="#C6FFF8" filter="url(#tinyGlow)" opacity=".85"/>
-    <circle cx="430" cy="325" r="6" fill="#84D8FF" filter="url(#tinyGlow)" opacity=".75"/>
-    <circle cx="335" cy="137" r="4" fill="#F7FFFF" opacity=".9"/>
-    <circle cx="350" cy="380" r="5" fill="#8DFFE9" opacity=".65"/>
-    <circle cx="456" cy="247" r="3" fill="#FFFFFF" opacity=".72"/>
+    <rect x="32" y="32" width="448" height="448" rx="112" fill="#0B0D12"/>
+    <path d="M76 256H233" stroke="#F7FBFF" stroke-width="13" stroke-linecap="round"/>
+    <path d="M237 154L337 256L237 358L176 256L237 154Z" fill="#11161D" stroke="#F7FBFF" stroke-width="15" stroke-linejoin="round"/>
+    <path d="M332 231C377 205 423 190 477 185" stroke="url(#aurora)" stroke-width="33" stroke-linecap="round"/>
+    <path d="M337 256C390 256 438 268 483 292" stroke="#64BFFF" stroke-width="33" stroke-linecap="round"/>
+    <path d="M329 286C371 317 407 351 438 404" stroke="#58DFD0" stroke-width="33" stroke-linecap="round"/>
+    <circle cx="337" cy="256" r="15" fill="#FFFFFF"/>
     <rect x="34" y="34" width="444" height="444" rx="110" fill="none" stroke="#F4F8FA" stroke-opacity=".12" stroke-width="4"/>
   </g>
 </svg>

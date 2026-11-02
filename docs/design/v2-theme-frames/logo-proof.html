@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aurorama · Logo 清晰度验证</title>
+  <style>
+    @font-face {
+      font-family: "MiSans";
+      src: url("../../../core/src/main/assets/fonts/MiSansVF.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Literata";
+      src: url("../../../core/src/main/res/font/literata_italic.ttf") format("truetype");
+      font-style: italic;
+      font-weight: 400;
+      font-display: block;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 1200px;
+      height: 720px;
+      margin: 0;
+      overflow: hidden;
+      background: #090b10;
+      color: #f4f7fa;
+      font-family: "MiSans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .proof {
+      width: 1200px;
+      height: 720px;
+      padding: 32px;
+      display: grid;
+      grid-template-rows: 72px minmax(0, 1fr);
+      gap: 24px;
+      background: #090b10;
+    }
+
+    .head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 32px;
+      border-bottom: 1px solid #282c32;
+    }
+
+    .head h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 40px;
+      font-weight: 700;
+      letter-spacing: -.04em;
+    }
+
+    .head h1 em {
+      color: #9ea7b2;
+      font-family: "Literata", "MiSans", serif;
+      font-size: 22px;
+      font-weight: 400;
+    }
+
+    .head p {
+      max-width: 520px;
+      margin: 0;
+      color: #9ea7b2;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: 400;
+      text-align: right;
+    }
+
+    .body {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 392px minmax(0, 1fr);
+      gap: 32px;
+    }
+
+    .hero-proof {
+      padding: 32px;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      border: 1px solid #2d3239;
+      border-radius: 20px;
+      background: #0e1116;
+    }
+
+    .hero-mark {
+      display: grid;
+      place-items: center;
+    }
+
+    .hero-mark img {
+      width: 288px;
+      height: 288px;
+      display: block;
+    }
+
+    .hero-copy strong {
+      display: block;
+      font-size: 20px;
+      line-height: 24px;
+      font-weight: 700;
+    }
+
+    .hero-copy span {
+      display: block;
+      margin-top: 8px;
+      color: #9ea7b2;
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 400;
+    }
+
+    .scale-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .scale-card {
+      min-width: 0;
+      padding: 20px;
+      display: grid;
+      grid-template-rows: 24px 1fr;
+      gap: 12px;
+      border: 1px solid #2d3239;
+      border-radius: 16px;
+      background: #111419;
+    }
+
+    .scale-card header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .scale-card strong {
+      font-size: 15px;
+      line-height: 20px;
+      font-weight: 700;
+    }
+
+    .scale-card span {
+      color: #7f8893;
+      font-size: 11px;
+      line-height: 16px;
+      font-weight: 500;
+    }
+
+    .logo-stage {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      border: 1px solid #20242a;
+      border-radius: 12px;
+      background: #0a0c10;
+    }
+
+    .logo-stage img {
+      display: block;
+      image-rendering: auto;
+    }
+
+    .logo-stage img[data-size="192"] { width: 192px; height: 192px; }
+    .logo-stage img[data-size="96"] { width: 96px; height: 96px; }
+    .logo-stage img[data-size="48"] { width: 48px; height: 48px; }
+    .logo-stage img[data-size="24"] { width: 24px; height: 24px; }
+
+    .footer-rule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      color: #6f7884;
+      font-size: 10px;
+      line-height: 14px;
+      font-weight: 500;
+    }
+
+    .footer-rule i {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #5ce1d2;
+    }
+
+    .footer-rule span {
+      display: inline;
+      margin: 0;
+      color: #6f7884;
+      font-size: 10px;
+      line-height: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="proof">
+    <header class="head">
+      <h1>Aurorama <em>Logo clarity</em></h1>
+      <p>保留“棱镜 + 极光帘幕”母题，收敛为一个三角、一束入射光和三股连续光带；不再使用内层三角、光晕或多粒子。</p>
+    </header>
+
+    <div class="body">
+      <section class="hero-proof" aria-labelledby="hero-proof-title">
+        <div class="hero-mark">
+          <img src="aurorama-logo.svg" alt="Aurorama 简化后的棱镜极光主标志">
+        </div>
+        <div class="hero-copy">
+          <strong id="hero-proof-title">主标志 · 288 px</strong>
+          <span>深色圆角底、单棱镜轮廓与三股极光带；保留唯一白色光核。</span>
+          <div class="footer-rule"><i aria-hidden="true"></i><span>极光渐变只存在于品牌标识，不进入手机页面。</span></div>
+        </div>
+      </section>
+
+      <section class="scale-grid" aria-label="Logo 实际尺寸验证">
+        <article class="scale-card">
+          <header><strong>192 px</strong><span>Launcher / 关于页</span></header>
+          <div class="logo-stage"><img data-size="192" src="aurorama-logo.svg" alt="192 像素 Logo 可读性验证"></div>
+        </article>
+        <article class="scale-card">
+          <header><strong>96 px</strong><span>品牌入口</span></header>
+          <div class="logo-stage"><img data-size="96" src="aurorama-logo.svg" alt="96 像素 Logo 可读性验证"></div>
+        </article>
+        <article class="scale-card">
+          <header><strong>48 px</strong><span>导航 / 顶栏</span></header>
+          <div class="logo-stage"><img data-size="48" src="aurorama-logo.svg" alt="48 像素 Logo 可读性验证"></div>
+        </article>
+        <article class="scale-card">
+          <header><strong>24 px</strong><span>最小可用尺寸</span></header>
+          <div class="logo-stage"><img data-size="24" src="aurorama-logo.svg" alt="24 像素 Logo 可读性验证"></div>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.fonts.ready.then(() => {
+      const sizes = [...document.querySelectorAll(".logo-stage img")].map((image) => ({
+        expected: Number(image.dataset.size),
+        width: image.getBoundingClientRect().width,
+        height: image.getBoundingClientRect().height,
+        complete: image.complete,
+        naturalWidth: image.naturalWidth
+      }));
+      document.documentElement.dataset.auditSizes = JSON.stringify(sizes);
+      document.documentElement.dataset.auditOverflow = String(
+        document.documentElement.scrollWidth > 1200 || document.documentElement.scrollHeight > 720
+      );
+    });
+  </script>
+</body>
+</html>

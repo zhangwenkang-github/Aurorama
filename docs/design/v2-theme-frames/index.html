@@ -1465,6 +1465,593 @@
       font-weight: 500;
     }
 
+    html[data-view="phone"],
+    html[data-view="phone"] body {
+      width: 540px;
+      height: 1170px;
+      background: var(--app-bg);
+    }
+
+    html[data-view="phone"] .frame {
+      display: none;
+    }
+
+    html[data-view="phone"] .masthead,
+    html[data-view="phone"] .workspace {
+      display: none;
+    }
+
+    html[data-view="phone"] .phone-stage {
+      display: flex;
+    }
+
+    .phone-stage {
+      width: 540px;
+      height: 1170px;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      color: var(--text);
+      background: var(--app-bg);
+    }
+
+    .phone-status {
+      height: 40px;
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      color: var(--text);
+    }
+
+    .phone-status time {
+      font-size: 16px;
+      line-height: 20px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .phone-signal {
+      height: 20px;
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .phone-signal i {
+      width: 4px;
+      display: block;
+      border-radius: 2px;
+      background: var(--text);
+    }
+
+    .phone-signal i:nth-child(1) { height: 6px; }
+    .phone-signal i:nth-child(2) { height: 10px; }
+    .phone-signal i:nth-child(3) { height: 14px; }
+
+    .phone-battery {
+      width: 28px;
+      height: 14px;
+      margin-left: 8px;
+      position: relative;
+      border: 2px solid var(--text);
+      border-radius: 4px;
+    }
+
+    .phone-battery::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 15px;
+      height: 6px;
+      border-radius: 2px;
+      background: var(--text);
+    }
+
+    .phone-head {
+      height: 80px;
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 24px;
+    }
+
+    .phone-brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .phone-logo {
+      width: 48px;
+      height: 48px;
+      flex: none;
+      overflow: hidden;
+      border-radius: calc(var(--radius) + 2px);
+    }
+
+    .phone-logo svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .phone-wordmark {
+      overflow: hidden;
+      font-size: 24px;
+      line-height: 28px;
+      font-weight: 700;
+      letter-spacing: -.03em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .phone-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: none;
+    }
+
+    .phone-icon-button {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      display: grid;
+      place-items: center;
+      border: var(--border-width) solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      background: var(--surface);
+    }
+
+    .phone-icon-button .icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .phone-avatar {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      display: grid;
+      place-items: center;
+      border: var(--border-width) solid var(--line-strong);
+      border-radius: 50%;
+      color: var(--text);
+      background: var(--surface-2);
+      font-size: 20px;
+      line-height: 24px;
+      font-weight: 700;
+    }
+
+    .phone-main {
+      min-height: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      padding: 0 24px 24px;
+      overflow: hidden;
+    }
+
+    .phone-hero {
+      height: 424px;
+      flex: none;
+      overflow: hidden;
+      border: var(--border-width) solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .phone-hero-art {
+      height: 280px;
+      position: relative;
+      overflow: hidden;
+      border-bottom: var(--border-width) solid var(--line);
+      background: var(--poster-sky);
+    }
+
+    .phone-hero-art > svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .phone-hero-kicker {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+      background: var(--surface);
+      font-size: 13px;
+      line-height: 16px;
+      font-weight: 700;
+    }
+
+    .phone-hero-actions {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .phone-primary-action {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      display: grid;
+      place-items: center;
+      border: var(--border-width) solid var(--primary-button-bg);
+      border-radius: var(--radius);
+      color: var(--primary-button-fg);
+      background: var(--primary-button-bg);
+    }
+
+    .phone-primary-action .icon {
+      width: 30px;
+      height: 30px;
+    }
+
+    .phone-secondary-action {
+      width: 56px;
+      height: 56px;
+      min-width: 56px;
+      min-height: 56px;
+      display: grid;
+      place-items: center;
+      border: var(--border-width) solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .phone-secondary-action .icon {
+      width: 26px;
+      height: 26px;
+    }
+
+    .phone-hero-copy {
+      height: 144px;
+      padding: 16px 24px 20px;
+    }
+
+    .phone-hero-title {
+      margin: 0;
+      color: var(--text);
+      font-family: var(--hero-title-family);
+      font-size: 44px;
+      line-height: 46px;
+      font-weight: var(--hero-title-weight);
+      letter-spacing: var(--hero-letter-spacing);
+    }
+
+    html[data-theme="nocturne"] .phone-hero-title {
+      font-style: italic;
+    }
+
+    .phone-hero-description {
+      max-width: 400px;
+      margin: 8px 0 0;
+      overflow: hidden;
+      color: var(--text-2);
+      font-size: 18px;
+      line-height: 24px;
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .phone-hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      color: var(--text-3);
+      font-size: 14px;
+      line-height: 18px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .phone-section {
+      min-width: 0;
+      flex: none;
+    }
+
+    .phone-section-head {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .phone-section-head h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 24px;
+      line-height: 28px;
+      font-weight: 700;
+      letter-spacing: -.03em;
+    }
+
+    .phone-section-head span {
+      color: var(--text-3);
+      font-size: 14px;
+      line-height: 18px;
+      font-weight: 500;
+    }
+
+    .phone-media-row {
+      height: 196px;
+      display: flex;
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    .phone-media-card {
+      width: 220px;
+      height: 196px;
+      flex: none;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: var(--border-width) solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .phone-media-cover {
+      height: 120px;
+      flex: none;
+      overflow: hidden;
+      border-bottom: var(--border-width) solid var(--line);
+      background: var(--surface-2);
+    }
+
+    .phone-media-cover svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .phone-media-meta {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+    }
+
+    .phone-media-copy {
+      min-width: 0;
+    }
+
+    .phone-media-copy strong {
+      display: block;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 17px;
+      line-height: 22px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .phone-media-copy span {
+      display: block;
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--text-3);
+      font-size: 13px;
+      line-height: 16px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .phone-media-action {
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--domain);
+      background: transparent;
+    }
+
+    .phone-media-action .icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    .phone-media-card.film { --domain: var(--film); }
+    .phone-media-card.music { --domain: var(--music); }
+    .phone-media-card.book { --domain: var(--book); }
+
+    .phone-media-card.book {
+      display: none;
+    }
+
+    .phone-recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .phone-recent-row {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 12px;
+      border: var(--border-width) solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+
+    .phone-recent-icon {
+      width: 40px;
+      height: 40px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius-sm);
+      color: var(--recent-color);
+      background: var(--recent-bg);
+    }
+
+    .phone-recent-icon .icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    .phone-recent-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .phone-recent-copy strong {
+      display: block;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 16px;
+      line-height: 20px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .phone-recent-copy span {
+      display: block;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+    }
+
+    .phone-recent-row.music {
+      --recent-color: var(--music);
+      --recent-bg: var(--surface-2);
+    }
+
+    .phone-recent-row.book {
+      --recent-color: var(--book);
+      --recent-bg: var(--surface-2);
+    }
+
+    .phone-recent-action {
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      color: var(--recent-color);
+    }
+
+    .phone-recent-action .icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    .phone-tabbar {
+      height: 104px;
+      flex: none;
+      position: relative;
+      padding: 12px 24px 16px;
+      border-top: var(--border-width) solid var(--line);
+      background: var(--rail-bg);
+    }
+
+    .phone-tabnav {
+      height: 72px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .phone-tab {
+      min-width: 0;
+      min-height: 72px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      background: transparent;
+    }
+
+    .phone-tab .icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .phone-tab[aria-current="page"] {
+      color: var(--accent);
+      background: var(--rail-active);
+    }
+
+    .phone-tab[aria-current="page"]::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 24px;
+      height: 3px;
+      border-radius: 2px;
+      transform: translateX(-50%);
+      background: var(--accent);
+    }
+
+    .phone-home-indicator {
+      position: absolute;
+      left: 50%;
+      bottom: 5px;
+      width: 128px;
+      height: 4px;
+      border-radius: 2px;
+      transform: translateX(-50%);
+      background: var(--text-3);
+    }
+
+    html[data-theme="nocturne"] .phone-hero-copy {
+      box-shadow: inset 40px 0 0 -39px rgba(200, 169, 107, .28);
+    }
+
+    html[data-theme="monolith"] .phone-hero,
+    html[data-theme="monolith"] .phone-media-card,
+    html[data-theme="monolith"] .phone-recent-row {
+      border-color: var(--text);
+    }
+
+    html[data-theme="dynamic"] .phone-tabbar {
+      background: color-mix(in srgb, var(--accent) 5%, var(--rail-bg));
+    }
+
     .sr-only {
       position: absolute;
       width: 1px;
@@ -1479,67 +2066,36 @@
   </style>
   <script>
     (() => {
-      const requested = new URLSearchParams(location.search).get("s");
+      const params = new URLSearchParams(location.search);
+      const requested = params.get("s");
+      const requestedView = params.get("view") || (location.hash === "#phone" ? "phone" : null);
       const allowed = new Set(["prism", "lumen", "nocturne", "monolith", "dynamic"]);
       document.documentElement.dataset.theme = allowed.has(requested) ? requested : "lumen";
+      document.documentElement.dataset.view = requestedView === "phone" ? "phone" : "wide";
     })();
   </script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" focusable="false">
     <defs>
-      <linearGradient id="logo-bg" x1="24" y1="18" x2="138" y2="144" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#282D35"/>
-        <stop offset="1" stop-color="#090B10"/>
+      <linearGradient id="logo-aurora" x1="98" y1="80" x2="152" y2="94" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#6FFFE6"/>
+        <stop offset=".5" stop-color="#64C9FF"/>
+        <stop offset="1" stop-color="#72A7FF"/>
       </linearGradient>
-      <linearGradient id="logo-beam" x1="25" y1="77" x2="86" y2="84" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#FFFFFF" stop-opacity=".2"/>
-        <stop offset=".74" stop-color="#FFFFFF"/>
-        <stop offset="1" stop-color="#D9FFFA"/>
-      </linearGradient>
-      <linearGradient id="logo-aurora-a" x1="92" y1="79" x2="144" y2="67" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#56F2D0"/>
-        <stop offset="1" stop-color="#66BFFF"/>
-      </linearGradient>
-      <linearGradient id="logo-aurora-b" x1="94" y1="87" x2="145" y2="97" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#8CFFF0"/>
-        <stop offset="1" stop-color="#62B7FF"/>
-      </linearGradient>
-      <linearGradient id="logo-aurora-c" x1="93" y1="95" x2="134" y2="119" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#4DDBD2"/>
-        <stop offset="1" stop-color="#9CCBFF"/>
-      </linearGradient>
-      <radialGradient id="logo-halo" cx="0" cy="0" r="1" gradientTransform="translate(82 78) rotate(18) scale(44 29)" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#D9FFFA" stop-opacity=".9"/>
-        <stop offset=".44" stop-color="#86F6E4" stop-opacity=".28"/>
-        <stop offset="1" stop-color="#86F6E4" stop-opacity="0"/>
-      </radialGradient>
-      <filter id="logo-soft" x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur stdDeviation="4"/>
-      </filter>
-      <filter id="logo-tiny" x="-200%" y="-200%" width="500%" height="500%">
-        <feGaussianBlur stdDeviation="2"/>
-      </filter>
       <clipPath id="logo-card">
         <rect x="8" y="8" width="144" height="144" rx="36"/>
       </clipPath>
 
       <symbol id="brand-mark" viewBox="0 0 160 160">
         <g clip-path="url(#logo-card)">
-          <rect x="8" y="8" width="144" height="144" rx="36" fill="url(#logo-bg)"/>
-          <circle cx="82" cy="78" r="44" fill="url(#logo-halo)" opacity=".72"/>
-          <path d="M25 77C48 76 68 76 87 81" stroke="url(#logo-beam)" stroke-width="6" stroke-linecap="round" filter="url(#logo-soft)" opacity=".82"/>
-          <path d="M25 77C48 76 69 77 88 82" stroke="url(#logo-beam)" stroke-width="1.55" stroke-linecap="round"/>
-          <path d="M68 49L99 84L67 113L53 83L68 49Z" fill="#11151B" stroke="#F4F8FA" stroke-width="2.2" stroke-linejoin="round"/>
-          <path d="M68 55L94 84L68 107L59 83L68 55Z" fill="#20252C" opacity=".9"/>
-          <path d="M90 78C108 67 126 61 147 56C127 72 111 84 99 92L89 87L90 78Z" fill="url(#logo-aurora-a)"/>
-          <path d="M91 86C111 80 131 81 149 87C131 92 115 99 97 107L89 96L91 86Z" fill="url(#logo-aurora-b)" opacity=".92"/>
-          <path d="M90 96C105 102 117 111 128 127C112 117 100 111 87 107L86 100L90 96Z" fill="url(#logo-aurora-c)" opacity=".86"/>
-          <path d="M97 76C114 69 128 64 141 60" stroke="#E9FFFC" stroke-width=".9" stroke-linecap="round" opacity=".78"/>
-          <circle cx="133" cy="55" r="2.3" fill="#C6FFF8" filter="url(#logo-tiny)"/>
-          <circle cx="141" cy="102" r="1.9" fill="#84D8FF" filter="url(#logo-tiny)"/>
-          <circle cx="110" cy="45" r="1.3" fill="#F7FFFF"/>
-          <circle cx="115" cy="125" r="1.6" fill="#8DFFE9"/>
+          <rect x="8" y="8" width="144" height="144" rx="36" fill="#0B0D12"/>
+          <path d="M24 80H73" stroke="#F7FBFF" stroke-width="4" stroke-linecap="round"/>
+          <path d="M74 48L105 80L74 112L55 80L74 48Z" fill="#11161D" stroke="#F7FBFF" stroke-width="4.4" stroke-linejoin="round"/>
+          <path d="M104 72C118 64 133 59 149 58" stroke="url(#logo-aurora)" stroke-width="10" stroke-linecap="round"/>
+          <path d="M105 80C122 80 136 84 151 92" stroke="#64BFFF" stroke-width="10" stroke-linecap="round"/>
+          <path d="M103 90C116 98 127 108 137 126" stroke="#58DFD0" stroke-width="10" stroke-linecap="round"/>
+          <circle cx="104" cy="80" r="4.4" fill="#FFFFFF"/>
           <rect x="9" y="9" width="142" height="142" rx="35" fill="none" stroke="#F4F8FA" stroke-opacity=".12" stroke-width="1.4"/>
         </g>
       </symbol>
@@ -1920,6 +2476,182 @@
     </div>
   </main>
 
+  <section class="phone-stage" aria-label="Aurorama 手机主页主题示意">
+    <header class="phone-status" aria-label="状态栏">
+      <time datetime="09:41">9:41</time>
+      <div class="phone-signal" aria-hidden="true">
+        <i></i><i></i><i></i>
+        <span class="phone-battery"></span>
+      </div>
+    </header>
+
+    <header class="phone-head">
+      <div class="phone-brand">
+        <div class="phone-logo" aria-hidden="true">
+          <svg viewBox="0 0 160 160"><use href="#brand-mark"></use></svg>
+        </div>
+        <span class="phone-wordmark">Aurorama</span>
+      </div>
+      <div class="phone-head-actions">
+        <button class="phone-icon-button" type="button" aria-label="搜索片名、专辑或作者">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
+        </button>
+        <button class="phone-avatar" type="button" aria-label="账号与服务器">A</button>
+      </div>
+    </header>
+
+    <main class="phone-main">
+      <section class="phone-hero" aria-labelledby="phone-hero-title">
+        <div class="phone-hero-art" aria-hidden="true">
+          <svg viewBox="0 0 492 280" preserveAspectRatio="xMidYMid slice">
+            <rect width="492" height="280" fill="var(--poster-sky)"/>
+            <circle cx="370" cy="74" r="46" fill="var(--poster-light)"/>
+            <path d="M0 196C90 171 178 176 261 197C348 220 423 217 492 194V280H0Z" fill="var(--poster-mid)"/>
+            <path d="M0 224C103 201 184 206 270 222C357 239 434 234 492 220V280H0Z" fill="var(--poster-deep)"/>
+            <path d="M0 113 181 124 170 141 0 142Z" fill="var(--poster-deep)"/>
+            <path d="M28 87H207L220 104H18Z" fill="var(--poster-warm)"/>
+            <path d="M61 50H92V250H61Z" fill="var(--poster-deep)"/>
+            <path d="M71 62H82V236H71Z" fill="var(--poster-mid)"/>
+            <path d="M341 195H460V210H331Z" fill="var(--poster-deep)"/>
+            <path d="M374 140H405V206H374Z" fill="var(--poster-warm)"/>
+            <path d="M389 140V61" stroke="var(--poster-light)" stroke-width="3" stroke-linecap="round"/>
+            <path d="m389 64-22 26M389 64l24 26" stroke="var(--poster-light)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M0 258H492" stroke="var(--poster-warm)" stroke-opacity=".65" stroke-width="2"/>
+            <path d="M259 234c42 15 86 15 132 2M152 254c46 9 89 8 132-3" stroke="var(--poster-light)" stroke-opacity=".3" stroke-width="2" fill="none"/>
+            <rect x="24" y="20" width="10" height="10" rx="2" fill="var(--poster-warm)"/>
+            <rect x="42" y="20" width="48" height="10" rx="2" fill="var(--poster-light)" opacity=".22"/>
+          </svg>
+          <div class="phone-hero-kicker">原创演示 · 本周精选</div>
+          <div class="phone-hero-actions">
+            <button class="phone-primary-action" type="button" aria-label="播放《第七码头》">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
+            </button>
+            <button class="phone-secondary-action" type="button" aria-label="下载《第七码头》">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
+            </button>
+          </div>
+        </div>
+        <div class="phone-hero-copy">
+          <h1 class="phone-hero-title" id="phone-hero-title">第七码头</h1>
+          <p class="phone-hero-description">潮汐退去后，留给夜航者的一段回声。</p>
+          <div class="phone-hero-meta">
+            <span>2026</span><i class="meta-sep"></i><span>112 分钟</span><i class="meta-sep"></i><span>4K</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="phone-section" aria-labelledby="phone-continue-title">
+        <header class="phone-section-head">
+          <h2 id="phone-continue-title">继续浏览</h2>
+          <span>为你保留</span>
+        </header>
+        <div class="phone-media-row">
+          <article class="phone-media-card film">
+            <div class="phone-media-cover" aria-hidden="true">
+              <svg viewBox="0 0 220 118" preserveAspectRatio="xMidYMid slice">
+                <rect width="220" height="118" fill="var(--cover-film-bg)"/>
+                <circle cx="167" cy="30" r="19" fill="var(--cover-film-accent)" opacity=".9"/>
+                <path d="M0 82 65 60l45 17 56-22 54 20v43H0Z" fill="var(--cover-film-accent)" opacity=".18"/>
+                <path d="M16 88h188" stroke="var(--cover-film-accent)" stroke-width="2" opacity=".65"/>
+                <path d="M53 47h14v42H53Z" fill="var(--cover-film-accent)" opacity=".65"/>
+              </svg>
+            </div>
+            <div class="phone-media-meta">
+              <div class="phone-media-copy"><strong>第七码头</strong><span>影视 · 42%</span></div>
+              <button class="phone-media-action" type="button" aria-label="继续播放《第七码头》">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
+              </button>
+            </div>
+          </article>
+
+          <article class="phone-media-card music">
+            <div class="phone-media-cover" aria-hidden="true">
+              <svg viewBox="0 0 220 118" preserveAspectRatio="xMidYMid slice">
+                <rect width="220" height="118" fill="var(--cover-music-bg)"/>
+                <circle cx="110" cy="59" r="43" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" opacity=".82"/>
+                <circle cx="110" cy="59" r="31" fill="none" stroke="var(--cover-music-accent)" stroke-width="1" opacity=".48"/>
+                <circle cx="110" cy="59" r="13" fill="var(--cover-music-accent)"/>
+                <circle cx="110" cy="59" r="3" fill="var(--cover-music-bg)"/>
+                <path d="M175 28v31M175 28l21-5v31" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="168" cy="61" r="7" fill="var(--cover-music-accent)"/>
+                <circle cx="189" cy="55" r="7" fill="var(--cover-music-accent)"/>
+              </svg>
+            </div>
+            <div class="phone-media-meta">
+              <div class="phone-media-copy"><strong>Glass Current</strong><span>音乐 · 正在播放</span></div>
+              <button class="phone-media-action" type="button" aria-label="暂停《Glass Current》">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-pause"></use></svg>
+              </button>
+            </div>
+          </article>
+
+          <article class="phone-media-card book">
+            <div class="phone-media-cover" aria-hidden="true">
+              <svg viewBox="0 0 220 118" preserveAspectRatio="xMidYMid slice">
+                <rect width="220" height="118" fill="var(--cover-book-bg)"/>
+                <path d="M62 18h98v82H62Z" fill="var(--cover-book-accent)" opacity=".14"/>
+                <path d="M62 18h98v82H62Z" fill="none" stroke="var(--cover-book-accent)" stroke-width="2"/>
+                <path d="M76 37h67M76 50h45M76 63h57M76 76h40" stroke="var(--cover-book-accent)" stroke-width="2" stroke-linecap="round" opacity=".82"/>
+                <path d="M19 98c30-13 56-13 86-1 34-13 65-12 107 2" fill="none" stroke="var(--cover-book-accent)" stroke-width="2" opacity=".52"/>
+              </svg>
+            </div>
+            <div class="phone-media-meta">
+              <div class="phone-media-copy"><strong>山海之后</strong><span>书籍 · 第 12 章</span></div>
+              <button class="phone-media-action" type="button" aria-label="继续阅读《山海之后》">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="phone-section" aria-labelledby="phone-recent-title">
+        <header class="phone-section-head">
+          <h2 id="phone-recent-title">接着打开</h2>
+          <span>最近内容</span>
+        </header>
+        <div class="phone-recent-list">
+          <article class="phone-recent-row music">
+            <div class="phone-recent-icon" aria-hidden="true">
+              <svg class="icon" focusable="false"><use href="#i-music"></use></svg>
+            </div>
+            <div class="phone-recent-copy"><strong>Glass Current</strong><span>Lumen Session · 04:31</span></div>
+            <button class="phone-recent-action" type="button" aria-label="播放《Glass Current》">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
+            </button>
+          </article>
+          <article class="phone-recent-row book">
+            <div class="phone-recent-icon" aria-hidden="true">
+              <svg class="icon" focusable="false"><use href="#i-book"></use></svg>
+            </div>
+            <div class="phone-recent-copy"><strong>山海之后</strong><span>第 12 章 · 28 分钟</span></div>
+            <button class="phone-recent-action" type="button" aria-label="继续阅读《山海之后》">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
+            </button>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <nav class="phone-tabbar" aria-label="主导航">
+      <div class="phone-tabnav">
+        <button class="phone-tab" type="button" aria-label="首页" aria-current="page">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"></use></svg>
+        </button>
+        <button class="phone-tab" type="button" aria-label="影视">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-video"></use></svg>
+        </button>
+        <button class="phone-tab" type="button" aria-label="音乐">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-music"></use></svg>
+        </button>
+        <button class="phone-tab" type="button" aria-label="书籍">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
+        </button>
+      </div>
+      <div class="phone-home-indicator" aria-hidden="true"></div>
+    </nav>
+  </section>
+
   <script>
     (() => {
       const themes = {
@@ -2041,6 +2773,7 @@
       };
 
       const key = document.documentElement.dataset.theme || "lumen";
+      const view = document.documentElement.dataset.view || "wide";
       const theme = themes[key] || themes.lumen;
       const bindAll = (selector, value) => {
         document.querySelectorAll(selector).forEach((node) => {
@@ -2083,17 +2816,18 @@
         node.setAttribute("aria-pressed", current?.[1] === key ? "true" : "false");
       });
 
-      document.title = `Aurorama 2.0 · ${theme.name} 风格帧`;
+      document.title = `Aurorama 2.0 · ${theme.name} ${view === "phone" ? "手机主页" : "风格帧"}`;
       document.documentElement.dataset.scriptRan = "true";
 
       const writeAudit = () => {
-        const frame = document.querySelector(".frame");
+        const isPhone = document.documentElement.dataset.view === "phone";
+        const expectedWidth = isPhone ? 540 : 1600;
+        const expectedHeight = isPhone ? 1170 : 1000;
+        const frame = document.querySelector(isPhone ? ".phone-stage" : ".frame");
         const rect = frame.getBoundingClientRect();
-        const workspace = document.querySelector(".workspace");
-        const workspaceRect = workspace.getBoundingClientRect();
         const bodyRect = document.body.getBoundingClientRect();
-        const specPanel = document.querySelector(".spec-panel");
-        const appContent = document.querySelector(".app-content");
+        const phoneStage = document.querySelector(".phone-stage");
+        const phoneMain = document.querySelector(".phone-main");
         const buttons = [...document.querySelectorAll("button")];
         const unnamedButtons = buttons.filter((button) => {
           const hasName = button.hasAttribute("aria-label") || button.hasAttribute("aria-labelledby") || button.textContent.trim().length > 0;
@@ -2101,21 +2835,55 @@
         });
         const visibleIconLinks = [...document.querySelectorAll("button .icon")];
         const iconsMissingHiddenState = visibleIconLinks.filter((icon) => icon.getAttribute("aria-hidden") !== "true").length;
-        const overflowX = document.documentElement.scrollWidth > 1600 || bodyRect.width > 1600;
-        const overflowY = document.documentElement.scrollHeight > 1000 || bodyRect.height > 1000;
+        const phoneVisibleButtons = isPhone ? [...document.querySelectorAll(".phone-stage button")].filter((button) => {
+          const buttonRect = button.getBoundingClientRect();
+          return buttonRect.width > 0 && buttonRect.height > 0;
+        }) : [];
+        const smallPhoneTargets = phoneVisibleButtons.filter((button) => {
+          const buttonRect = button.getBoundingClientRect();
+          return buttonRect.width < 48 || buttonRect.height < 48;
+        }).length;
+        const overflowX = document.documentElement.scrollWidth > expectedWidth || bodyRect.width > expectedWidth;
+        const overflowY = document.documentElement.scrollHeight > expectedHeight || bodyRect.height > expectedHeight;
+        const editableRoot = isPhone ? document.querySelector(".phone-stage") : document.querySelector(".frame");
+        const overflowNodes = [...editableRoot.querySelectorAll("*")]
+          .filter((node) => {
+            const nodeRect = node.getBoundingClientRect();
+            return nodeRect.width > 0 && (nodeRect.right > expectedWidth + 1 || nodeRect.left < -1);
+          })
+          .slice(0, 8)
+          .map((node) => `${node.tagName.toLowerCase()}.${node.className?.baseVal || node.className || ""}`);
+        document.documentElement.dataset.auditView = view;
         document.documentElement.dataset.auditTheme = key;
         document.documentElement.dataset.auditOverflowX = String(overflowX);
         document.documentElement.dataset.auditOverflowY = String(overflowY);
-        document.documentElement.dataset.auditSpecOverflow = String(specPanel.scrollHeight > specPanel.clientHeight + 1);
-        document.documentElement.dataset.auditContentOverflow = String(appContent.scrollHeight > appContent.clientHeight + 1);
-        document.documentElement.dataset.auditSpecHeight = `${specPanel.scrollHeight}/${specPanel.clientHeight}`;
-        document.documentElement.dataset.auditContentHeight = `${appContent.scrollHeight}/${appContent.clientHeight}`;
         document.documentElement.dataset.auditFrame = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
-        document.documentElement.dataset.auditWorkspace = `${Math.round(workspaceRect.width)}x${Math.round(workspaceRect.height)}`;
         document.documentElement.dataset.auditFonts = `${document.fonts.check('16px MiSans')}/${document.fonts.check('16px Literata')}`;
         document.documentElement.dataset.auditButtons = String(buttons.length);
         document.documentElement.dataset.auditUnnamedButtons = String(unnamedButtons.length);
         document.documentElement.dataset.auditIconHiddenIssues = String(iconsMissingHiddenState);
+        document.documentElement.dataset.auditSmallPhoneTargets = String(smallPhoneTargets);
+        document.documentElement.dataset.auditPhoneOverflow = String(phoneMain.scrollHeight > phoneMain.clientHeight + 1);
+        document.documentElement.dataset.auditPhoneHeight = `${phoneMain.scrollHeight}/${phoneMain.clientHeight}`;
+        document.documentElement.dataset.auditPhoneDisplay = getComputedStyle(phoneStage).display;
+        document.documentElement.dataset.auditPhoneRect = `${Math.round(phoneStage.getBoundingClientRect().width)}x${Math.round(phoneStage.getBoundingClientRect().height)}`;
+        document.documentElement.dataset.auditScrollWidth = `${document.documentElement.scrollWidth}/${document.body.scrollWidth}`;
+        document.documentElement.dataset.auditOverflowNodes = overflowNodes.join("|");
+        const workspace = document.querySelector(".workspace");
+        const specPanel = document.querySelector(".spec-panel");
+        const appContent = document.querySelector(".app-content");
+        if (isPhone) {
+          document.documentElement.dataset.auditWorkspace = "n/a";
+          document.documentElement.dataset.auditSpecOverflow = "false";
+          document.documentElement.dataset.auditContentOverflow = "false";
+        } else {
+          const workspaceRect = workspace.getBoundingClientRect();
+          document.documentElement.dataset.auditWorkspace = `${Math.round(workspaceRect.width)}x${Math.round(workspaceRect.height)}`;
+          document.documentElement.dataset.auditSpecOverflow = String(specPanel.scrollHeight > specPanel.clientHeight + 1);
+          document.documentElement.dataset.auditContentOverflow = String(appContent.scrollHeight > appContent.clientHeight + 1);
+          document.documentElement.dataset.auditSpecHeight = `${specPanel.scrollHeight}/${specPanel.clientHeight}`;
+          document.documentElement.dataset.auditContentHeight = `${appContent.scrollHeight}/${appContent.clientHeight}`;
+        }
       };
       writeAudit();
       document.fonts.ready.then(() => {
