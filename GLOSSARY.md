@@ -20,6 +20,18 @@ _Avoid_: 文档页码, 菜单页面
 Work that has passed independent QA and merge preparation, has entered the V2 integration branch, and has passed integration-state gates; it is not thereby released.
 _Avoid_: 分支自测完成, 已发布
 
+**待集成**:
+A functional branch or candidate that has passed its own scoped checks but has not entered the V2 integration branch; it is not `Done`.
+_Avoid_: 已完成, 已发布
+
+**批准集成目标**:
+The exact V2 integration branch and commit against which a task is based, reviewed, prepared for merge, and judged as integrated.
+_Avoid_: 最新 master, 任意集成分支
+
+**发布就绪**:
+A candidate that has passed the approved release gates but has not necessarily received authorization for push, tag, Release, or asset publication.
+_Avoid_: 已发布, 可自动发布
+
 **生产服务器**:
 The user's normal Jellyfin server whose content and user state are read-only during development and QA.
 _Avoid_: 测试服务器, 通用服务器
