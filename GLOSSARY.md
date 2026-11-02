@@ -40,9 +40,17 @@ _Avoid_: 阅读显示主题, 夜间模式
 The high-contrast geometric brand theme characterized by mostly opaque surfaces, strong outlines, and an 8dp base corner radius.
 _Avoid_: 纯黑白模式, 系统高对比模式
 
+**主题画廊 (Theme gallery)**:
+The settings surface that presents the finite app-theme family through large live previews and a separate appearance-mode control.
+_Avoid_: 配色圆点, 自定义主题编辑器
+
 **外观模式 (Appearance mode)**:
 The independent light, dark, or follow-system setting applied within an app theme.
 _Avoid_: 应用主题, 主题包
+
+**语义状态色 (Semantic status color)**:
+A success, warning, error, or info role that communicates operational meaning and must always have a non-color cue.
+_Avoid_: 主题强调色, 装饰色
 
 **内容域 (Content domain)**:
 The media context of film, music, or books that selects semantic domain roles without becoming a separate app theme.
