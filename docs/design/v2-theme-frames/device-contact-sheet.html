@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aurorama 2.0 · 设备主题总览</title>
+  <style>
+    @font-face {
+      font-family: "MiSans";
+      src: url("../../../core/src/main/assets/fonts/MiSansVF.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: block;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 1600px;
+      height: 1400px;
+      margin: 0;
+      overflow: hidden;
+      background: #090b10;
+      color: #f4f7fa;
+      font-family: "MiSans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .sheet {
+      width: 1600px;
+      height: 1400px;
+      padding: 44px 48px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      background: #090b10;
+    }
+
+    .hero {
+      height: 112px;
+      flex: none;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 48px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #2d3239;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #8f99a5;
+      font-size: 13px;
+      line-height: 18px;
+      font-weight: 500;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 38px;
+      line-height: 46px;
+      font-weight: 700;
+      letter-spacing: -.04em;
+    }
+
+    .hero-note {
+      margin: 22px 0 0;
+      color: #aab3bd;
+      font-size: 15px;
+      line-height: 22px;
+      font-weight: 400;
+      text-align: right;
+    }
+
+    .group {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 42px minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .group.tablets {
+      height: 300px;
+      flex: none;
+    }
+
+    .group.phones {
+      flex: 1;
+    }
+
+    .group-heading {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+
+    .group-heading h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .group-heading p {
+      margin: 0;
+      color: #89939f;
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 400;
+    }
+
+    .theme-grid {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .theme-card {
+      min-width: 0;
+      min-height: 0;
+      padding: 8px;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) 32px;
+      gap: 8px;
+      border: 1px solid #2d3239;
+      border-radius: 16px;
+      background: #0e1116;
+    }
+
+    .preview {
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #05070a;
+    }
+
+    .preview img {
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    .theme-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px;
+    }
+
+    .theme-label strong {
+      min-width: 0;
+      color: #f4f7fa;
+      font-size: 15px;
+      line-height: 20px;
+      font-weight: 700;
+    }
+
+    .theme-label span {
+      flex: none;
+      color: #78828d;
+      font-size: 10px;
+      line-height: 14px;
+      font-weight: 500;
+      letter-spacing: .08em;
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Aurorama 2.0 · Theme Frames</p>
+        <h1>设备主题总览</h1>
+      </div>
+      <p class="hero-note">平板 / 宽幅与手机 · 本地主题帧</p>
+    </header>
+
+    <section class="group tablets" aria-labelledby="tablets-title">
+      <header class="group-heading">
+        <h2 id="tablets-title">平板 / 宽幅主题</h2>
+        <p>上排 · 五主题同序</p>
+      </header>
+      <div class="theme-grid">
+        <article class="theme-card">
+          <div class="preview"><img src="prism.png" data-source="prism.png" width="1600" height="1000" alt="Prism 平板 / 宽幅主题帧"></div>
+          <div class="theme-label"><strong>Prism</strong><span>01</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="lumen.png" data-source="lumen.png" width="1600" height="1000" alt="Lumen 平板 / 宽幅主题帧"></div>
+          <div class="theme-label"><strong>Lumen</strong><span>02</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="nocturne.png" data-source="nocturne.png" width="1600" height="1000" alt="Nocturne 平板 / 宽幅主题帧"></div>
+          <div class="theme-label"><strong>Nocturne</strong><span>03</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="monolith.png" data-source="monolith.png" width="1600" height="1000" alt="Monolith 平板 / 宽幅主题帧"></div>
+          <div class="theme-label"><strong>Monolith</strong><span>04</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="dynamic.png" data-source="dynamic.png" width="1600" height="1000" alt="系统动态色平板 / 宽幅主题帧"></div>
+          <div class="theme-label"><strong>系统动态色</strong><span>05</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="group phones" aria-labelledby="phones-title">
+      <header class="group-heading">
+        <h2 id="phones-title">手机主题</h2>
+        <p>下排 · 五主题同序</p>
+      </header>
+      <div class="theme-grid">
+        <article class="theme-card">
+          <div class="preview"><img src="phone-prism.png" data-source="phone-prism.png" width="720" height="1560" alt="Prism 手机主题帧"></div>
+          <div class="theme-label"><strong>Prism</strong><span>01</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="phone-lumen.png" data-source="phone-lumen.png" width="720" height="1560" alt="Lumen 手机主题帧"></div>
+          <div class="theme-label"><strong>Lumen</strong><span>02</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="phone-nocturne.png" data-source="phone-nocturne.png" width="720" height="1560" alt="Nocturne 手机主题帧"></div>
+          <div class="theme-label"><strong>Nocturne</strong><span>03</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="phone-monolith.png" data-source="phone-monolith.png" width="720" height="1560" alt="Monolith 手机主题帧"></div>
+          <div class="theme-label"><strong>Monolith</strong><span>04</span></div>
+        </article>
+        <article class="theme-card">
+          <div class="preview"><img src="phone-dynamic.png" data-source="phone-dynamic.png" width="720" height="1560" alt="系统动态色手机主题帧"></div>
+          <div class="theme-label"><strong>系统动态色</strong><span>05</span></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const images = [...document.images];
+      const expected = images.length;
+      const loaded = new Set();
+      const failed = new Set();
+
+      const writeAudit = () => {
+        const measured = images.filter((image) => image.naturalWidth > 0 && image.naturalHeight > 0);
+        const aspectPreserved = measured.length === expected && measured.every((image) => {
+          const rect = image.getBoundingClientRect();
+          const renderedRatio = rect.width / rect.height;
+          const sourceRatio = image.naturalWidth / image.naturalHeight;
+          return Math.abs(renderedRatio - sourceRatio) <= 0.002;
+        });
+        const contained = measured.length === expected && measured.every((image) => {
+          const rect = image.getBoundingClientRect();
+          const stage = image.closest(".preview").getBoundingClientRect();
+          return (
+            rect.left >= stage.left - 0.5 &&
+            rect.top >= stage.top - 0.5 &&
+            rect.right <= stage.right + 0.5 &&
+            rect.bottom <= stage.bottom + 0.5
+          );
+        });
+
+        document.documentElement.dataset.assetsExpected = String(expected);
+        document.documentElement.dataset.assetsLoaded = String(loaded.size);
+        document.documentElement.dataset.assetsFailed = [...failed].join(",");
+        document.documentElement.dataset.assetsReady = String(loaded.size === expected);
+        document.documentElement.dataset.aspectPreserved = String(aspectPreserved);
+        document.documentElement.dataset.imagesContained = String(contained);
+        document.documentElement.dataset.renderedSizes = measured
+          .map((image) => {
+            const rect = image.getBoundingClientRect();
+            return `${image.dataset.source}:${Math.round(rect.width)}x${Math.round(rect.height)}`;
+          })
+          .join("|");
+        document.documentElement.dataset.canvas = "1600x1400";
+        document.documentElement.dataset.overflow = String(
+          document.documentElement.scrollWidth > 1600 || document.documentElement.scrollHeight > 1400
+        );
+      };
+
+      const record = (image, succeeded) => {
+        const source = image.dataset.source;
+        if (succeeded) {
+          loaded.add(source);
+          failed.delete(source);
+        } else {
+          failed.add(source);
+          loaded.delete(source);
+        }
+        writeAudit();
+      };
+
+      images.forEach((image) => {
+        const finish = () => record(image, image.complete && image.naturalWidth > 0);
+        image.addEventListener("load", finish, { once: true });
+        image.addEventListener("error", () => record(image, false), { once: true });
+        if (image.complete) finish();
+      });
+
+      writeAudit();
+      window.addEventListener("load", writeAudit, { once: true });
+      document.fonts.ready.then(() => {
+        document.documentElement.dataset.fontsReady = "true";
+        writeAudit();
+      });
+    })();
+  </script>
+</body>
+</html>
