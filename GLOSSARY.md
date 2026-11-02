@@ -12,6 +12,26 @@ _Avoid_: 换个版本号, 纯 UI 改版
 The approved requirements, target architecture, data migration, risk-spike results, and UX direction that must exist before implementation begins.
 _Avoid_: 需求清单, 开发计划
 
+**应用主题 (App theme)**:
+A named visual identity that covers the whole app and may change neutral colors, accents, typography expression, surface materials, shape language, and motion intensity while preserving information architecture, navigation, component behavior, and interaction semantics.
+_Avoid_: 页面皮肤, 内容域主题, 深色模式
+
+**外观模式 (Appearance mode)**:
+The independent light, dark, or follow-system setting applied within an app theme.
+_Avoid_: 应用主题, 主题包
+
+**内容域 (Content domain)**:
+The media context of film, music, or books that selects semantic domain roles without becoming a separate app theme.
+_Avoid_: 媒体主题, 页面皮肤
+
+**阅读显示主题 (Reader display theme)**:
+A reader-local preference for the reading surface and body presentation; it may override the reading canvas but does not replace the app theme for navigation, controls, or overlays.
+_Avoid_: 阅读 App 主题, 全 App 主题
+
+**系统动态色主题 (System dynamic theme)**:
+An independent app theme derived from the device’s system wallpaper colors and appearance, never layered over a brand theme.
+_Avoid_: 动态色开关, 品牌主题叠加色
+
 **需求域**:
 A coherent capability area that can be clarified, decided, and accepted independently within one relay session.
 _Avoid_: 文档页码, 菜单页面
