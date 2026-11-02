@@ -4,6 +4,30 @@ A Jellyfin Android client; this glossary names product concepts shared across th
 
 ## Language
 
+**Aurorama 2.0**:
+The next formal major product release, combining the V2 architecture and delivery-process generation; upgrading from 1.4.0 must preserve existing user data.
+_Avoid_: 换个版本号, 纯 UI 改版
+
+**V2 前置基线**:
+The approved requirements, target architecture, data migration, risk-spike results, and UX direction that must exist before implementation begins.
+_Avoid_: 需求清单, 开发计划
+
+**需求域**:
+A coherent capability area that can be clarified, decided, and accepted independently within one relay session.
+_Avoid_: 文档页码, 菜单页面
+
+**集成完成**:
+Work that has passed independent QA and merge preparation, has entered the V2 integration branch, and has passed integration-state gates; it is not thereby released.
+_Avoid_: 分支自测完成, 已发布
+
+**生产服务器**:
+The user's normal Jellyfin server whose content and user state are read-only during development and QA.
+_Avoid_: 测试服务器, 通用服务器
+
+**测试写入服务器**:
+The separate, mutable Jellyfin server reserved for explicitly controlled V2 server-write tests.
+_Avoid_: 生产只读服务器, 临时数据库
+
 **主字幕**:
 The user-selected primary subtitle track. In dual-subtitle playback it is positioned above the secondary track.
 _Avoid_: 大字幕, 第一字幕
