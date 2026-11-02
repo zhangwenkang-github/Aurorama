@@ -335,6 +335,51 @@ Aurorama 2.0 是正式 `2.0.0` 产品大版本，同时代表内部 V2 架构和
 | 自动视觉门禁 | 原建议包含渲染、截图、评分、lint 与漂移检查，但项目要求独立视觉 QA、截图预算和真机证据。 | 方案门统一工具链和证据边界，不能用 lint 替代真机。 |
 | 多主题 | 目前只确认需要多主题，未确认主题数量、命名、默认值、系统跟随、迁移和品牌故事。 | 单列 UX 前沿问题。 |
 
+#### 5.3.4 只读现状核查与外部规范研究
+
+用户于 `2026-11-02 20:01:27 +08:00` 补充：
+
+> “现有主题有点单调和主题不一。新版本要求多个主题可换。”
+
+该陈述确认“多个主题可换”进入 2.0 候选范围，并确认现状存在单调与不一致问题；
+主题数量、视觉身份、等级和实现边界仍未裁决。
+
+**现有实现事实**：
+
+| 事实 | 只读证据 | 对需求的影响 |
+|---|---|---|
+| 全局设置目前只有跟随系统 / 浅色 / 深色三种外观；Material You 动态色是另一个独立开关。 | `settings/src/main/res/values/string_arrays.xml`；`AppPreferences.kt`；`SettingsViewModel.kt` | “多主题”不能等同于现有三档外观。 |
+| `CinefinTheme` 在动态色开启时只替换 `MaterialTheme.colorScheme`，`LocalCinefinColors` 仍提供 Prism 固定色板。 | `core/.../CinefinTheme.kt` | 同一屏可能同时消费动态色和固定色，属于实际主题混用风险。 |
+| Lumen 是固定深色、页面局部的影视皮肤，覆盖大量导航 / 设置 / 详情 / 播放入口；离开 Lumen 后回到 Prism。 | `core/.../LumenColors.kt`、`NavigationRoot.kt`、`HomeScreen.kt` 等 | 页面边界切换会改变中性色、强调色和明暗外观，难以形成统一主题认知。 |
+| 阅读器另有纸色 / 护眼 / 深色 / OLED / 跟随五种页面内主题。 | `ReaderScreen.kt`、`AppPreferences.readerTheme` | 阅读可保留独立显示主题，但需要明确它与 App 主题的从属关系。 |
+| Prism、Lumen 和历史 `Color.kt` 同时保留色值；全仓 Kotlin 中现有 168 处 `Color(0x…)`，生产播放器和音乐浮层仍存在直接字面量。 | `CinefinTokens.kt`、`Color.kt`、`LumenColors.kt`、`PlayerControlOverlay.kt`、`MusicLyricsOverlayContent.kt` | 需要单一主题数据源和消费边界，否则“换主题”会继续局部漏色。 |
+| 当前代码使用 10 种字面圆角：4 / 6 / 8 / 9 / 10 / 12 / 14 / 16 / 22 / 28dp。 | phone / modes / core 的 Kotlin 静态搜索结果 | 原文“全局统一圆角、同页不混用”与现有组件规范需要重新收敛。 |
+| `Motion.kt` 与 `CinefinMotion.kt` 并存，时长体系分别含 180 / 200 / 280 / 420 / 560 / 700ms 等值。 | 两个 motion token 文件 | 主题若包含动效身份，必须先收敛为单一 motion 规范。 |
+| 当前内容域底色与强调色在 Prism 中固定；Lumen 会把影视域从琥珀改为极光青。 | `MediaColors.kt`、`LumenColors.kt` | 需决定内容域色是跨主题稳定语义，还是由主题重新定义。 |
+
+**外部规范研究**（只作设计依据，不替代用户产品或 UX 决策）：
+
+| 来源 | 可采用的结论 |
+|---|---|
+| [Apple HIG · Color](https://developer.apple.com/design/human-interface-guidelines/color) | 语义色应自动适配明暗、对比度与环境；同一颜色不能表达不同含义；自定义色需提供明暗和增强对比变体。 |
+| [Apple HIG · Dark Mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode) | 优先尊重系统外观；自定义色不得硬编码；正文至少 4.5:1，小字目标 7:1；沉浸媒体是永久深色的罕见例外。 |
+| [Apple HIG · Motion](https://developer.apple.com/design/human-interface-guidelines/motion) | 动效必须服务理解、反馈或空间连续性；高频交互避免额外等待；动效必须可取消或可关闭。 |
+| [Material Components for Android · Color](https://github.com/material-components/material-components-android/blob/master/docs/theming/Color.md) | 主题应通过 baseline / dynamic color roles 和 tonal surface roles 解耦组件与原始色值，动态色不能破坏可访问对比度。 |
+| [Ant Design · Colors](https://ant.design/docs/spec/colors) / [Dark Mode](https://ant.design/docs/spec/dark) | 品牌色、功能色、中性色分层管理；深色主题保持与浅色主题一致的信息层级，避免持续高对比造成疲劳。 |
+| [Arco Design · Theme](https://github.com/arco-design/arco-design/blob/main/site/docs/theme.en-US.md) | 以全局和组件级 design token / particle variables 生成主题；主题是系统性覆盖，不是页面级换色。 |
+| [WCAG 2.2 · Contrast Minimum](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) | 正文最低 4.5:1；大字最低 3:1。 |
+| [WCAG 2.2 · Animation from Interactions](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html) | 非必要交互动效必须能按用户偏好关闭。 |
+
+**用户新输入对候选的直接影响**：
+
+- `V2-REQ-UX-037` 的方向已确认为 2.0 必做候选，最终 `MUST / SHOULD` 等级仍待总确认。
+- `V2-REQ-UX-005`、`017` 的等价设计权威已定位为 `docs/UI_DESIGN_SYSTEM.md` + Compose token；
+  是否新建 `DESIGN.md` 作为用户可读入口仍未决定。
+- 当前 Prism / Lumen / 阅读主题不能直接相加为“多主题”，必须先定义统一主题模型。
+
+**第一轮前沿问题**：`V2-Q-UX-01`～`V2-Q-UX-05` 已登记到 `docs/DECISIONS.md` Open。
+本轮只等待这 5 项回答；主题数量、命名、默认主题、切换入口和动态色细节依赖本轮结果，留到下一轮。
+
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
@@ -361,7 +406,7 @@ Aurorama 2.0 是正式 `2.0.0` 产品大版本，同时代表内部 V2 架构和
 |---|---|---|---|
 | 0 | `V2-REQ-Q0` | 1–147 总提示词 + 第零章 | ✅ 已落档 |
 | 1 | `V2-REQ-ARCH` | 148–289 引言 + 第一章 | ✅ 72 条已分类（69 MUST / 3 SHOULD）；用户已确认 |
-| 2 | `V2-REQ-UX` | 290–394 第二章 | 🟡 候选盘点完成；待前沿澄清 |
+| 2 | `V2-REQ-UX` | 290–394 第二章 | 🟡 现状核查完成；第一轮前沿待答 |
 | 3 | `V2-REQ-READER` | 395–532 第三章 | ⚪ Todo |
 | 4 | `V2-REQ-WRITE` | 533–557 第四章 | ⚪ Todo |
 | 5 | `V2-REQ-MUSIC` | 558–746 第一个“第五章” | ⚪ Todo |
@@ -412,8 +457,8 @@ Aurorama 2.0 是正式 `2.0.0` 产品大版本，同时代表内部 V2 架构和
 
 ## 12. 下一需求域交接
 
-**状态**：`IN_PROGRESS`。V2 用户体验与视觉需求分析师已完成第二章候选盘点；
-下一轮只处理当前无前置依赖的 UX / 视觉前沿问题。
+**状态**：`IN_PROGRESS`。V2 用户体验与视觉需求分析师已完成候选盘点、现有主题只读核查与
+第一轮联网规范研究；当前等待 `V2-Q-UX-01`～`V2-Q-UX-05` 的用户决定。
 
 **当前事实**：`V2-REQ-ARCH` 已收口；第 148–289 行形成 72 条已分类需求，
 `V2-D010`～`D020` 已确认。下一需求域是 `V2-REQ-UX`，外部原始需求第 290–394 行。
@@ -447,3 +492,4 @@ Aurorama 2.0 是正式 `2.0.0` 产品大版本，同时代表内部 V2 架构和
 - **2026-11-02 — `V2-REQ-ARCH` 第一轮裁决完成**：用户于 `19:27:05 +08:00` 回复“全部按推荐”；7 项建议落为 `V2-D010`～`D016`，并同步 ADR-0003/0004。第二轮仅保留等级、可观测性、文档映射和架构债务策略 4 个前沿问题；仍未分类、未实现、未 push。
 - **2026-11-02 — `V2-REQ-ARCH` 收口**：用户于 `19:36:57 +08:00` 再次确认全部推荐。72 条最终为 `69 MUST / 3 SHOULD / 0 LATER / 0 OUT`；`V2-D017`～`D020` 落档，新增 ADR-0006 本地可观测性，架构债务门并入 ADR-0004。当前域无剩余产品 / 架构问题；未改业务代码、未跑 Gradle、未触设备或服务器、未 push。
 - **2026-11-02 — `V2-REQ-UX` 只读门与候选盘点**：在指定隔离 worktree 核对目录、`codex/v2-integration`、clean working tree 与原始文档 SHA-256，全部匹配；只读第 290–394 行，登记 H1 1 个、H2 8 个、H3 5 个，形成 38 个待澄清候选。识别设计权威落点、状态矩阵、视觉方向、首屏卡片边界、外部 Skill / MCP、安全与自动视觉门禁等前沿。未定级、未改业务代码、未跑 Gradle、未触设备或服务器、未 push。
+- **2026-11-02 — `V2-REQ-UX` 现状核查与第一轮前沿**：用户确认“现有主题单调、主题不一，2.0 要求多个主题可换”。只读确认全局三档外观、动态色、Lumen 局部深色皮肤、阅读器五主题、双色源、双 motion token 和散落圆角并存；联网学习 Apple HIG、Material color roles、Ant Design、Arco Design 与 WCAG 2.2。登记 `V2-Q-UX-01`～`05` 五个当前前沿，等待用户回答；未作产品 / UX 裁决，未实现。
