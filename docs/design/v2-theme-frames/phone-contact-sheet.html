@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aurorama · 手机主页五主题对照</title>
+  <style>
+    @font-face {
+      font-family: "MiSans";
+      src: url("../../../core/src/main/assets/fonts/MiSansVF.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: block;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 1600px;
+      height: 840px;
+      margin: 0;
+      overflow: hidden;
+      background: #090b10;
+      color: #f4f7fa;
+      font-family: "MiSans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .sheet {
+      width: 1600px;
+      height: 840px;
+      padding: 32px;
+      display: grid;
+      grid-template-rows: 64px minmax(0, 1fr);
+      gap: 24px;
+      background: #090b10;
+    }
+
+    .head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 32px;
+      border-bottom: 1px solid #2d3239;
+    }
+
+    .head h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 38px;
+      font-weight: 700;
+      letter-spacing: -.04em;
+    }
+
+    .head p {
+      margin: 0;
+      color: #9ea7b2;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: 400;
+    }
+
+    .grid {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .phone-proof {
+      min-width: 0;
+      padding: 12px;
+      display: grid;
+      grid-template-rows: 32px minmax(0, 1fr);
+      gap: 8px;
+      border: 1px solid #2d3239;
+      border-radius: 16px;
+      background: #0e1116;
+    }
+
+    .phone-proof header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .phone-proof strong {
+      font-size: 15px;
+      line-height: 20px;
+      font-weight: 700;
+    }
+
+    .phone-proof span {
+      overflow: hidden;
+      color: #7f8893;
+      font-size: 10px;
+      line-height: 14px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .phone-frame {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #05070a;
+    }
+
+    .phone-frame img {
+      width: auto;
+      height: 100%;
+      max-width: 100%;
+      display: block;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="head">
+      <h1>手机主页 · 五主题对照</h1>
+      <p>同一信息架构、同一原创演示内容与同一四入口底栏；差异只来自主题颜色、字阶、材质、圆角和图标状态。</p>
+    </header>
+
+    <section class="grid" aria-label="五主题手机主页">
+      <article class="phone-proof">
+        <header><strong>Prism</strong><span>结构 · 深色</span></header>
+        <div class="phone-frame"><img src="phone-prism.png" alt="Prism 手机主页"></div>
+      </article>
+      <article class="phone-proof">
+        <header><strong>Lumen</strong><span>默认 · 深色</span></header>
+        <div class="phone-frame"><img src="phone-lumen.png" alt="Lumen 手机主页"></div>
+      </article>
+      <article class="phone-proof">
+        <header><strong>Nocturne</strong><span>编辑 · 深色</span></header>
+        <div class="phone-frame"><img src="phone-nocturne.png" alt="Nocturne 手机主页"></div>
+      </article>
+      <article class="phone-proof">
+        <header><strong>Monolith</strong><span>高对比 · 浅色</span></header>
+        <div class="phone-frame"><img src="phone-monolith.png" alt="Monolith 手机主页"></div>
+      </article>
+      <article class="phone-proof">
+        <header><strong>动态色</strong><span>系统映射 · 浅色</span></header>
+        <div class="phone-frame"><img src="phone-dynamic.png" alt="系统动态色手机主页"></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    document.fonts.ready.then(() => {
+      const images = [...document.querySelectorAll(".phone-frame img")];
+      const loaded = images.every((image) => image.complete && image.naturalWidth > 0);
+      document.documentElement.dataset.auditLoaded = String(loaded);
+      document.documentElement.dataset.auditOverflow = String(
+        document.documentElement.scrollWidth > 1600 || document.documentElement.scrollHeight > 840
+      );
+    });
+  </script>
+</body>
+</html>
