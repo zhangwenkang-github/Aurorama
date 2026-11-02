@@ -677,8 +677,8 @@ Aurorama 2.0 是正式 `2.0.0` 产品大版本，同时代表内部 V2 架构和
 
 ### ACTIVE：`V2-REQ-UX` 视觉设计交接（2026-11-02）
 
-**状态**：`HANDOFF_REQUIRED_CONTEXT_LIMIT`。负责人上下文统计为
-`561,697 / 1,048,576`（53.6%），已超过 35 万强制交接线；不得继续在此会话扩问或生成设计稿。
+**状态**：`HANDOFF_REQUIRED_CONTEXT_LIMIT`。负责人交接前最后一次上下文统计为
+`571,061 / 1,048,576`（54.5%），已超过 35 万强制交接线；不得继续在此会话扩问或生成设计稿。
 
 **工作对象**：
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
