@@ -16,6 +16,14 @@ _Avoid_: 需求清单, 开发计划
 A named visual identity that covers the whole app and may change neutral colors, accents, typography expression, surface materials, shape language, and motion intensity while preserving information architecture, navigation, component behavior, and interaction semantics.
 _Avoid_: 页面皮肤, 内容域主题, 深色模式
 
+**主题家族 (Theme family)**:
+The complete supported set of app themes presented to the user as alternatives.
+_Avoid_: 页面模板, 配色开关
+
+**品牌主题 (Brand theme)**:
+A hand-designed app theme with a curated visual identity and light / dark appearances, distinct from a system-derived dynamic theme.
+_Avoid_: 系统动态色主题, 动态色开关
+
 **外观模式 (Appearance mode)**:
 The independent light, dark, or follow-system setting applied within an app theme.
 _Avoid_: 应用主题, 主题包
