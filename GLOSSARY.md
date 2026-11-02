@@ -44,6 +44,14 @@ _Avoid_: 纯黑白模式, 系统高对比模式
 A controlled brand layer of tokenized gradients, light ribbons, and particles used to add aurora atmosphere without carrying content or status meaning.
 _Avoid_: 页面背景纹理, 状态色, 媒体海报
 
+**App Logo**:
+The single master brand mark used for the in-app identity, launcher icon, splash, and monochrome system-icon derivations.
+_Avoid_: 界面动作图标, 主题图标集
+
+**图标式控件 (Icon-only control)**:
+An interface control whose action label is visually omitted while its accessible name, role, state, and input target remain available.
+_Avoid_: 无名称图标, 纯装饰图标
+
 **主题画廊 (Theme gallery)**:
 The settings surface that presents the finite app-theme family through large live previews and a separate appearance-mode control.
 _Avoid_: 配色圆点, 自定义主题编辑器
