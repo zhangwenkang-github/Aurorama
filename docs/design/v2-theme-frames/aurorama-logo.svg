@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">Aurorama 棱镜极光标志</title>
-  <desc id="desc">深色圆角方形中，白色光束穿过一枚棱镜，展开为三股清晰的极光带。</desc>
+  <desc id="desc">深色圆角方形中，白色光束穿过一枚透视棱镜，展开为三股清晰的极光带，并保留一个分离微粒。</desc>
   <defs>
     <linearGradient id="aurora" x1="314" y1="256" x2="476" y2="301" gradientUnits="userSpaceOnUse">
       <stop stop-color="#6FFFE6"/>
@@ -19,6 +19,7 @@
     <path d="M337 256C390 256 438 268 483 292" stroke="#64BFFF" stroke-width="33" stroke-linecap="round"/>
     <path d="M329 286C371 317 407 351 438 404" stroke="#58DFD0" stroke-width="33" stroke-linecap="round"/>
     <circle cx="337" cy="256" r="15" fill="#FFFFFF"/>
+    <circle cx="464" cy="148" r="9" fill="#B8FFF3"/>
     <rect x="34" y="34" width="444" height="444" rx="110" fill="none" stroke="#F4F8FA" stroke-opacity=".12" stroke-width="4"/>
   </g>
 </svg>

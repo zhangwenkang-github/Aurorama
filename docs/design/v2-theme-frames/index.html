@@ -1465,10 +1465,11 @@
       font-weight: 500;
     }
 
+    /* Phone view: 1 CSS px = 1 Android dp/sp. Final PNG uses 2x rendering (720x1560). */
     html[data-view="phone"],
     html[data-view="phone"] body {
-      width: 540px;
-      height: 1170px;
+      width: 360px;
+      height: 780px;
       background: var(--app-bg);
     }
 
@@ -1486,8 +1487,8 @@
     }
 
     .phone-stage {
-      width: 540px;
-      height: 1170px;
+      width: 360px;
+      height: 780px;
       display: none;
       flex-direction: column;
       overflow: hidden;
@@ -1496,24 +1497,24 @@
     }
 
     .phone-status {
-      height: 40px;
+      height: 28px;
       flex: none;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 24px;
+      padding: 0 20px;
       color: var(--text);
     }
 
     .phone-status time {
-      font-size: 16px;
-      line-height: 20px;
+      font-size: 12px;
+      line-height: 16px;
       font-weight: 700;
       letter-spacing: -.02em;
     }
 
     .phone-signal {
-      height: 20px;
+      height: 16px;
       display: flex;
       align-items: flex-end;
       gap: 4px;
@@ -1551,13 +1552,13 @@
     }
 
     .phone-head {
-      height: 80px;
+      height: 64px;
       flex: none;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 24px;
-      padding: 0 24px;
+      gap: 12px;
+      padding: 0 20px;
     }
 
     .phone-brand {
@@ -1583,8 +1584,8 @@
 
     .phone-wordmark {
       overflow: hidden;
-      font-size: 24px;
-      line-height: 28px;
+      font-size: 20px;
+      line-height: 24px;
       font-weight: 700;
       letter-spacing: -.03em;
       text-overflow: ellipsis;
@@ -1599,10 +1600,10 @@
     }
 
     .phone-icon-button {
-      width: 64px;
-      height: 64px;
-      min-width: 64px;
-      min-height: 64px;
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
       display: grid;
       place-items: center;
       border: var(--border-width) solid var(--line);
@@ -1612,23 +1613,23 @@
     }
 
     .phone-icon-button .icon {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
     }
 
     .phone-avatar {
-      width: 64px;
-      height: 64px;
-      min-width: 64px;
-      min-height: 64px;
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
       display: grid;
       place-items: center;
       border: var(--border-width) solid var(--line-strong);
       border-radius: 50%;
       color: var(--text);
       background: var(--surface-2);
-      font-size: 20px;
-      line-height: 24px;
+      font-size: 16px;
+      line-height: 20px;
       font-weight: 700;
     }
 
@@ -1637,13 +1638,13 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 24px;
-      padding: 0 24px 24px;
+      gap: 16px;
+      padding: 0 20px 16px;
       overflow: hidden;
     }
 
     .phone-hero {
-      height: 424px;
+      height: 328px;
       flex: none;
       overflow: hidden;
       border: var(--border-width) solid var(--line);
@@ -1652,9 +1653,10 @@
     }
 
     .phone-hero-art {
-      height: 280px;
+      height: 184px;
       position: relative;
       overflow: hidden;
+      contain: paint;
       border-bottom: var(--border-width) solid var(--line);
       background: var(--poster-sky);
     }
@@ -1663,39 +1665,40 @@
       width: 100%;
       height: 100%;
       display: block;
+      overflow: hidden;
     }
 
     .phone-hero-kicker {
       position: absolute;
-      left: 16px;
-      top: 16px;
-      min-height: 28px;
+      left: 12px;
+      top: 12px;
+      min-height: 24px;
       display: flex;
       align-items: center;
-      padding: 4px 12px;
+      padding: 4px 8px;
       border: 1px solid var(--accent);
       border-radius: var(--radius-sm);
       color: var(--accent);
       background: var(--surface);
-      font-size: 13px;
+      font-size: 11px;
       line-height: 16px;
       font-weight: 700;
     }
 
     .phone-hero-actions {
       position: absolute;
-      right: 16px;
-      bottom: 16px;
+      right: 12px;
+      bottom: 12px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
     .phone-primary-action {
-      width: 64px;
-      height: 64px;
-      min-width: 64px;
-      min-height: 64px;
+      width: 56px;
+      height: 56px;
+      min-width: 56px;
+      min-height: 56px;
       display: grid;
       place-items: center;
       border: var(--border-width) solid var(--primary-button-bg);
@@ -1705,15 +1708,15 @@
     }
 
     .phone-primary-action .icon {
-      width: 30px;
-      height: 30px;
+      width: 26px;
+      height: 26px;
     }
 
     .phone-secondary-action {
-      width: 56px;
-      height: 56px;
-      min-width: 56px;
-      min-height: 56px;
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      min-height: 48px;
       display: grid;
       place-items: center;
       border: var(--border-width) solid var(--line-strong);
@@ -1723,36 +1726,39 @@
     }
 
     .phone-secondary-action .icon {
-      width: 26px;
-      height: 26px;
+      width: 22px;
+      height: 22px;
     }
 
     .phone-hero-copy {
       height: 144px;
-      padding: 16px 24px 20px;
+      padding: 12px 16px 16px;
     }
 
     .phone-hero-title {
       margin: 0;
       color: var(--text);
       font-family: var(--hero-title-family);
-      font-size: 44px;
-      line-height: 46px;
+      font-size: 32px;
+      line-height: 34px;
       font-weight: var(--hero-title-weight);
       letter-spacing: var(--hero-letter-spacing);
     }
 
     html[data-theme="nocturne"] .phone-hero-title {
-      font-style: italic;
+      font-family: var(--font-sans);
+      font-style: normal;
+      font-weight: 700;
+      letter-spacing: -.04em;
     }
 
     .phone-hero-description {
-      max-width: 400px;
-      margin: 8px 0 0;
+      max-width: 288px;
+      margin: 4px 0 0;
       overflow: hidden;
       color: var(--text-2);
-      font-size: 18px;
-      line-height: 24px;
+      font-size: 14px;
+      line-height: 20px;
       font-weight: 400;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -1762,10 +1768,10 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-top: 8px;
+      margin-top: 4px;
       color: var(--text-3);
-      font-size: 14px;
-      line-height: 18px;
+      font-size: 11px;
+      line-height: 16px;
       font-weight: 500;
       white-space: nowrap;
     }
@@ -1776,53 +1782,58 @@
     }
 
     .phone-section-head {
-      height: 32px;
+      height: 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 12px;
+      gap: 12px;
+      margin-bottom: 8px;
     }
 
     .phone-section-head h2 {
       margin: 0;
       color: var(--text);
-      font-size: 24px;
-      line-height: 28px;
+      font-size: 20px;
+      line-height: 24px;
       font-weight: 700;
       letter-spacing: -.03em;
     }
 
     .phone-section-head span {
       color: var(--text-3);
-      font-size: 14px;
-      line-height: 18px;
+      font-size: 11px;
+      line-height: 16px;
       font-weight: 500;
     }
 
     .phone-media-row {
-      height: 196px;
-      display: flex;
-      gap: 16px;
+      height: 168px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
       overflow: hidden;
     }
 
     .phone-media-card {
-      width: 220px;
-      height: 196px;
-      flex: none;
+      width: auto;
+      height: 168px;
+      min-width: 0;
+      min-height: 168px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       border: var(--border-width) solid var(--line);
       border-radius: var(--radius);
       background: var(--surface);
+      color: var(--text);
+      text-align: left;
     }
 
     .phone-media-cover {
-      height: 120px;
+      height: 96px;
       flex: none;
       overflow: hidden;
+      contain: paint;
       border-bottom: var(--border-width) solid var(--line);
       background: var(--surface-2);
     }
@@ -1831,6 +1842,7 @@
       width: 100%;
       height: 100%;
       display: block;
+      overflow: hidden;
     }
 
     .phone-media-meta {
@@ -1838,9 +1850,9 @@
       flex: 1;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 8px 12px;
+      justify-content: flex-start;
+      gap: 4px;
+      padding: 8px;
     }
 
     .phone-media-copy {
@@ -1848,14 +1860,14 @@
     }
 
     .phone-media-copy strong {
-      display: block;
+      display: -webkit-box;
       overflow: hidden;
       color: var(--text);
-      font-size: 17px;
-      line-height: 22px;
+      font-size: 13px;
+      line-height: 16px;
       font-weight: 700;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
 
     .phone-media-copy span {
@@ -1863,29 +1875,11 @@
       overflow: hidden;
       margin-top: 4px;
       color: var(--text-3);
-      font-size: 13px;
-      line-height: 16px;
+      font-size: 10px;
+      line-height: 14px;
       font-weight: 500;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    .phone-media-action {
-      width: 48px;
-      height: 48px;
-      min-width: 48px;
-      min-height: 48px;
-      display: grid;
-      place-items: center;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      color: var(--domain);
-      background: transparent;
-    }
-
-    .phone-media-action .icon {
-      width: 22px;
-      height: 22px;
     }
 
     .phone-media-card.film { --domain: var(--film); }
@@ -1893,102 +1887,20 @@
     .phone-media-card.book { --domain: var(--book); }
 
     .phone-media-card.book {
-      display: none;
-    }
-
-    .phone-recent-list {
       display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .phone-recent-row {
-      height: 56px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 0 12px;
-      border: var(--border-width) solid var(--line);
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-    }
-
-    .phone-recent-icon {
-      width: 40px;
-      height: 40px;
-      flex: none;
-      display: grid;
-      place-items: center;
-      border-radius: var(--radius-sm);
-      color: var(--recent-color);
-      background: var(--recent-bg);
-    }
-
-    .phone-recent-icon .icon {
-      width: 22px;
-      height: 22px;
-    }
-
-    .phone-recent-copy {
-      min-width: 0;
-      flex: 1;
-    }
-
-    .phone-recent-copy strong {
-      display: block;
-      overflow: hidden;
-      color: var(--text);
-      font-size: 16px;
-      line-height: 20px;
-      font-weight: 700;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .phone-recent-copy span {
-      display: block;
-      color: var(--text-3);
-      font-size: 12px;
-      line-height: 16px;
-      font-weight: 500;
-    }
-
-    .phone-recent-row.music {
-      --recent-color: var(--music);
-      --recent-bg: var(--surface-2);
-    }
-
-    .phone-recent-row.book {
-      --recent-color: var(--book);
-      --recent-bg: var(--surface-2);
-    }
-
-    .phone-recent-action {
-      width: 48px;
-      height: 48px;
-      min-width: 48px;
-      min-height: 48px;
-      display: grid;
-      place-items: center;
-      color: var(--recent-color);
-    }
-
-    .phone-recent-action .icon {
-      width: 22px;
-      height: 22px;
     }
 
     .phone-tabbar {
-      height: 104px;
+      height: 88px;
       flex: none;
       position: relative;
-      padding: 12px 24px 16px;
+      padding: 8px 20px 12px;
       border-top: var(--border-width) solid var(--line);
       background: var(--rail-bg);
     }
 
     .phone-tabnav {
-      height: 72px;
+      height: 64px;
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 8px;
@@ -1996,7 +1908,7 @@
 
     .phone-tab {
       min-width: 0;
-      min-height: 72px;
+      min-height: 64px;
       display: grid;
       place-items: center;
       position: relative;
@@ -2006,8 +1918,8 @@
     }
 
     .phone-tab .icon {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
     }
 
     .phone-tab[aria-current="page"] {
@@ -2031,7 +1943,7 @@
       position: absolute;
       left: 50%;
       bottom: 5px;
-      width: 128px;
+      width: 112px;
       height: 4px;
       border-radius: 2px;
       transform: translateX(-50%);
@@ -2043,8 +1955,7 @@
     }
 
     html[data-theme="monolith"] .phone-hero,
-    html[data-theme="monolith"] .phone-media-card,
-    html[data-theme="monolith"] .phone-recent-row {
+    html[data-theme="monolith"] .phone-media-card {
       border-color: var(--text);
     }
 
@@ -2083,6 +1994,10 @@
         <stop offset=".5" stop-color="#64C9FF"/>
         <stop offset="1" stop-color="#72A7FF"/>
       </linearGradient>
+      <linearGradient id="logo-micro-aurora" x1="37" y1="31" x2="57" y2="37" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#75FFE8"/>
+        <stop offset="1" stop-color="#72B5FF"/>
+      </linearGradient>
       <clipPath id="logo-card">
         <rect x="8" y="8" width="144" height="144" rx="36"/>
       </clipPath>
@@ -2096,8 +2011,19 @@
           <path d="M105 80C122 80 136 84 151 92" stroke="#64BFFF" stroke-width="10" stroke-linecap="round"/>
           <path d="M103 90C116 98 127 108 137 126" stroke="#58DFD0" stroke-width="10" stroke-linecap="round"/>
           <circle cx="104" cy="80" r="4.4" fill="#FFFFFF"/>
+          <circle cx="144" cy="45" r="3" fill="#B8FFF3"/>
           <rect x="9" y="9" width="142" height="142" rx="35" fill="none" stroke="#F4F8FA" stroke-opacity=".12" stroke-width="1.4"/>
         </g>
+      </symbol>
+
+      <symbol id="brand-mark-micro" viewBox="0 0 64 64">
+        <rect x="2" y="2" width="60" height="60" rx="15" fill="#0B0D12" stroke="#2D3239" stroke-width="2"/>
+        <path d="M5 32H22" stroke="#F7FBFF" stroke-width="4" stroke-linecap="round"/>
+        <path d="M25 14L38 32L25 50L15 32L25 14Z" fill="#11161D" stroke="#F7FBFF" stroke-width="4" stroke-linejoin="round"/>
+        <path d="M25 14L31 21V43L25 50L18 32L25 14Z" fill="#343E4A"/>
+        <path d="M38 27L57 20" stroke="url(#logo-micro-aurora)" stroke-width="5" stroke-linecap="round"/>
+        <path d="M38 37L57 45" stroke="#64BFFF" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="38" cy="32" r="3" fill="#FFFFFF"/>
       </symbol>
 
       <symbol id="i-home" viewBox="0 0 24 24">
@@ -2546,89 +2472,53 @@
           <span>为你保留</span>
         </header>
         <div class="phone-media-row">
-          <article class="phone-media-card film">
-            <div class="phone-media-cover" aria-hidden="true">
-              <svg viewBox="0 0 220 118" preserveAspectRatio="xMidYMid slice">
-                <rect width="220" height="118" fill="var(--cover-film-bg)"/>
-                <circle cx="167" cy="30" r="19" fill="var(--cover-film-accent)" opacity=".9"/>
-                <path d="M0 82 65 60l45 17 56-22 54 20v43H0Z" fill="var(--cover-film-accent)" opacity=".18"/>
-                <path d="M16 88h188" stroke="var(--cover-film-accent)" stroke-width="2" opacity=".65"/>
-                <path d="M53 47h14v42H53Z" fill="var(--cover-film-accent)" opacity=".65"/>
+          <button class="phone-media-card film" type="button" aria-label="继续播放《第七码头》">
+            <span class="phone-media-cover" aria-hidden="true">
+              <svg viewBox="0 0 120 118" preserveAspectRatio="none">
+                <rect width="120" height="118" fill="var(--cover-film-bg)"/>
+                <circle cx="91" cy="28" r="18" fill="var(--cover-film-accent)" opacity=".9"/>
+                <path d="M0 82 35 60l25 17 31-22 29 20v43H0Z" fill="var(--cover-film-accent)" opacity=".18"/>
+                <path d="M8 88h104" stroke="var(--cover-film-accent)" stroke-width="2" opacity=".65"/>
+                <path d="M29 47h14v42H29Z" fill="var(--cover-film-accent)" opacity=".65"/>
               </svg>
-            </div>
-            <div class="phone-media-meta">
-              <div class="phone-media-copy"><strong>第七码头</strong><span>影视 · 42%</span></div>
-              <button class="phone-media-action" type="button" aria-label="继续播放《第七码头》">
-                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
-              </button>
-            </div>
-          </article>
+            </span>
+            <span class="phone-media-meta">
+              <span class="phone-media-copy"><strong>第七码头</strong><span>影视 · 42%</span></span>
+            </span>
+          </button>
 
-          <article class="phone-media-card music">
-            <div class="phone-media-cover" aria-hidden="true">
-              <svg viewBox="0 0 220 118" preserveAspectRatio="xMidYMid slice">
-                <rect width="220" height="118" fill="var(--cover-music-bg)"/>
-                <circle cx="110" cy="59" r="43" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" opacity=".82"/>
-                <circle cx="110" cy="59" r="31" fill="none" stroke="var(--cover-music-accent)" stroke-width="1" opacity=".48"/>
-                <circle cx="110" cy="59" r="13" fill="var(--cover-music-accent)"/>
-                <circle cx="110" cy="59" r="3" fill="var(--cover-music-bg)"/>
-                <path d="M175 28v31M175 28l21-5v31" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="168" cy="61" r="7" fill="var(--cover-music-accent)"/>
-                <circle cx="189" cy="55" r="7" fill="var(--cover-music-accent)"/>
+          <button class="phone-media-card music" type="button" aria-label="播放《Glass Current》">
+            <span class="phone-media-cover" aria-hidden="true">
+              <svg viewBox="0 0 120 118" preserveAspectRatio="none">
+                <rect width="120" height="118" fill="var(--cover-music-bg)"/>
+                <circle cx="60" cy="59" r="43" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" opacity=".82"/>
+                <circle cx="60" cy="59" r="31" fill="none" stroke="var(--cover-music-accent)" stroke-width="1" opacity=".48"/>
+                <circle cx="60" cy="59" r="13" fill="var(--cover-music-accent)"/>
+                <circle cx="60" cy="59" r="3" fill="var(--cover-music-bg)"/>
+                <path d="M96 28v31M96 28l16-4v31" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="90" cy="61" r="7" fill="var(--cover-music-accent)"/>
+                <circle cx="107" cy="55" r="7" fill="var(--cover-music-accent)"/>
               </svg>
-            </div>
-            <div class="phone-media-meta">
-              <div class="phone-media-copy"><strong>Glass Current</strong><span>音乐 · 正在播放</span></div>
-              <button class="phone-media-action" type="button" aria-label="暂停《Glass Current》">
-                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-pause"></use></svg>
-              </button>
-            </div>
-          </article>
+            </span>
+            <span class="phone-media-meta">
+              <span class="phone-media-copy"><strong>Glass Current</strong><span>音乐 · 正在播放</span></span>
+            </span>
+          </button>
 
-          <article class="phone-media-card book">
-            <div class="phone-media-cover" aria-hidden="true">
-              <svg viewBox="0 0 220 118" preserveAspectRatio="xMidYMid slice">
-                <rect width="220" height="118" fill="var(--cover-book-bg)"/>
-                <path d="M62 18h98v82H62Z" fill="var(--cover-book-accent)" opacity=".14"/>
-                <path d="M62 18h98v82H62Z" fill="none" stroke="var(--cover-book-accent)" stroke-width="2"/>
-                <path d="M76 37h67M76 50h45M76 63h57M76 76h40" stroke="var(--cover-book-accent)" stroke-width="2" stroke-linecap="round" opacity=".82"/>
-                <path d="M19 98c30-13 56-13 86-1 34-13 65-12 107 2" fill="none" stroke="var(--cover-book-accent)" stroke-width="2" opacity=".52"/>
+          <button class="phone-media-card book" type="button" aria-label="继续阅读《山海之后》">
+            <span class="phone-media-cover" aria-hidden="true">
+              <svg viewBox="0 0 120 118" preserveAspectRatio="none">
+                <rect width="120" height="118" fill="var(--cover-book-bg)"/>
+                <path d="M30 18h60v82H30Z" fill="var(--cover-book-accent)" opacity=".14"/>
+                <path d="M30 18h60v82H30Z" fill="none" stroke="var(--cover-book-accent)" stroke-width="2"/>
+                <path d="M40 37h40M40 50h28M40 63h35M40 76h24" stroke="var(--cover-book-accent)" stroke-width="2" stroke-linecap="round" opacity=".82"/>
+                <path d="M4 98c20-13 37-13 56-1 20-13 37-12 56 2" fill="none" stroke="var(--cover-book-accent)" stroke-width="2" opacity=".52"/>
               </svg>
-            </div>
-            <div class="phone-media-meta">
-              <div class="phone-media-copy"><strong>山海之后</strong><span>书籍 · 第 12 章</span></div>
-              <button class="phone-media-action" type="button" aria-label="继续阅读《山海之后》">
-                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="phone-section" aria-labelledby="phone-recent-title">
-        <header class="phone-section-head">
-          <h2 id="phone-recent-title">接着打开</h2>
-          <span>最近内容</span>
-        </header>
-        <div class="phone-recent-list">
-          <article class="phone-recent-row music">
-            <div class="phone-recent-icon" aria-hidden="true">
-              <svg class="icon" focusable="false"><use href="#i-music"></use></svg>
-            </div>
-            <div class="phone-recent-copy"><strong>Glass Current</strong><span>Lumen Session · 04:31</span></div>
-            <button class="phone-recent-action" type="button" aria-label="播放《Glass Current》">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
-            </button>
-          </article>
-          <article class="phone-recent-row book">
-            <div class="phone-recent-icon" aria-hidden="true">
-              <svg class="icon" focusable="false"><use href="#i-book"></use></svg>
-            </div>
-            <div class="phone-recent-copy"><strong>山海之后</strong><span>第 12 章 · 28 分钟</span></div>
-            <button class="phone-recent-action" type="button" aria-label="继续阅读《山海之后》">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
-            </button>
-          </article>
+            </span>
+            <span class="phone-media-meta">
+              <span class="phone-media-copy"><strong>山海之后</strong><span>书籍 · 第 12 章</span></span>
+            </span>
+          </button>
         </div>
       </section>
     </main>
@@ -2821,8 +2711,8 @@
 
       const writeAudit = () => {
         const isPhone = document.documentElement.dataset.view === "phone";
-        const expectedWidth = isPhone ? 540 : 1600;
-        const expectedHeight = isPhone ? 1170 : 1000;
+        const expectedWidth = isPhone ? 360 : 1600;
+        const expectedHeight = isPhone ? 780 : 1000;
         const frame = document.querySelector(isPhone ? ".phone-stage" : ".frame");
         const rect = frame.getBoundingClientRect();
         const bodyRect = document.body.getBoundingClientRect();
@@ -2843,8 +2733,8 @@
           const buttonRect = button.getBoundingClientRect();
           return buttonRect.width < 48 || buttonRect.height < 48;
         }).length;
-        const overflowX = document.documentElement.scrollWidth > expectedWidth || bodyRect.width > expectedWidth;
-        const overflowY = document.documentElement.scrollHeight > expectedHeight || bodyRect.height > expectedHeight;
+        const overflowX = document.body.scrollWidth > expectedWidth + 1 || bodyRect.width > expectedWidth + 1;
+        const overflowY = document.body.scrollHeight > expectedHeight + 1 || bodyRect.height > expectedHeight + 1;
         const editableRoot = isPhone ? document.querySelector(".phone-stage") : document.querySelector(".frame");
         const overflowNodes = [...editableRoot.querySelectorAll("*")]
           .filter((node) => {
@@ -2852,7 +2742,19 @@
             return nodeRect.width > 0 && (nodeRect.right > expectedWidth + 1 || nodeRect.left < -1);
           })
           .slice(0, 8)
-          .map((node) => `${node.tagName.toLowerCase()}.${node.className?.baseVal || node.className || ""}`);
+          .map((node) => {
+            const nodeRect = node.getBoundingClientRect();
+            const className = node.className?.baseVal || node.className || "";
+            const parent = node.parentElement;
+            const parentClass = parent?.className?.baseVal || parent?.className || "";
+            return `${node.tagName.toLowerCase()}.${className}@${Math.round(nodeRect.left)},${Math.round(nodeRect.right)},${Math.round(nodeRect.width)} parent=${parent?.tagName.toLowerCase()}.${parentClass}`;
+          });
+        const phoneSvgRects = isPhone ? [...phoneStage.querySelectorAll("svg")].map((node) => {
+          const nodeRect = node.getBoundingClientRect();
+          const parent = node.parentElement;
+          const parentClass = parent?.className?.baseVal || parent?.className || "";
+          return `${parentClass}@${Math.round(nodeRect.left)},${Math.round(nodeRect.right)},${Math.round(nodeRect.width)}`;
+        }) : [];
         document.documentElement.dataset.auditView = view;
         document.documentElement.dataset.auditTheme = key;
         document.documentElement.dataset.auditOverflowX = String(overflowX);
@@ -2863,12 +2765,27 @@
         document.documentElement.dataset.auditUnnamedButtons = String(unnamedButtons.length);
         document.documentElement.dataset.auditIconHiddenIssues = String(iconsMissingHiddenState);
         document.documentElement.dataset.auditSmallPhoneTargets = String(smallPhoneTargets);
+        const phoneHeroTitle = document.querySelector(".phone-hero-title");
+        const phoneHeroStyle = getComputedStyle(phoneHeroTitle);
+        const firstFontFamily = phoneHeroStyle.fontFamily.split(",")[0].replaceAll('"', "").replaceAll("'", "").trim();
+        document.documentElement.dataset.auditPhoneTitleFont = firstFontFamily;
+        document.documentElement.dataset.auditPhoneTitleStyle = phoneHeroStyle.fontStyle;
+        document.documentElement.dataset.auditNocturneTitlePass = String(
+          key !== "nocturne" || (firstFontFamily === "MiSans" && phoneHeroStyle.fontStyle !== "italic")
+        );
         document.documentElement.dataset.auditPhoneOverflow = String(phoneMain.scrollHeight > phoneMain.clientHeight + 1);
         document.documentElement.dataset.auditPhoneHeight = `${phoneMain.scrollHeight}/${phoneMain.clientHeight}`;
         document.documentElement.dataset.auditPhoneDisplay = getComputedStyle(phoneStage).display;
         document.documentElement.dataset.auditPhoneRect = `${Math.round(phoneStage.getBoundingClientRect().width)}x${Math.round(phoneStage.getBoundingClientRect().height)}`;
-        document.documentElement.dataset.auditScrollWidth = `${document.documentElement.scrollWidth}/${document.body.scrollWidth}`;
+        document.documentElement.dataset.auditScrollWidth = `${document.body.scrollWidth}/${Math.round(bodyRect.width)}`;
         document.documentElement.dataset.auditOverflowNodes = overflowNodes.join("|");
+        document.documentElement.dataset.auditViewport = `${window.innerWidth}/${document.documentElement.clientWidth}`;
+        document.documentElement.dataset.auditBodyChildren = [...document.body.children].map((node) => {
+          const nodeRect = node.getBoundingClientRect();
+          const className = node.className?.baseVal || node.className || "";
+          return `${node.tagName.toLowerCase()}.${className}@${Math.round(nodeRect.left)},${Math.round(nodeRect.right)},${Math.round(nodeRect.width)}`;
+        }).join("|");
+        document.documentElement.dataset.auditPhoneSvgRects = phoneSvgRects.join("|");
         const workspace = document.querySelector(".workspace");
         const specPanel = document.querySelector(".spec-panel");
         const appContent = document.querySelector(".app-content");

@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 当前退出条件 |
 |---|---|---|---|---|
-| `V2-REQ-UX` | 第二章 | 收敛视觉基线、结构、参考、Skill/MCP 和工作流要求 | `V2-REQ-ARCH` | 主题与 Logo / 图标决策已确认；五主题风格帧、五张手机主页与 Logo 简化稿 v0.2 已产出，状态为 `PHONE_AND_LOGO_REVIEW_PENDING`；等待独立视觉 QA / 用户确认，确认后才扩展 G1，38 条需求矩阵仍待继续 |
+| `V2-REQ-UX` | 第二章 | 收敛视觉基线、结构、参考、Skill/MCP 和工作流要求 | `V2-REQ-ARCH` | 主题与 Logo / 图标决策已确认；首轮视觉 QA 问题已修复，状态为 `QA_FIXES_READY_FOR_RECHECK`；等待第二轮独立视觉 QA / 用户确认，确认后才扩展 G1，38 条需求矩阵仍待继续 |
 
 ## Review
 
