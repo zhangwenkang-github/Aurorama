@@ -24,6 +24,22 @@ _Avoid_: 页面模板, 配色开关
 A hand-designed app theme with a curated visual identity and light / dark appearances, distinct from a system-derived dynamic theme.
 _Avoid_: 系统动态色主题, 动态色开关
 
+**Prism**:
+The structured, fine-line brand theme that uses stable content-domain roles and the most conventional Aurorama layout geometry.
+_Avoid_: 默认主题, 系统主题
+
+**Lumen**:
+The cinematic, immersive brand theme intended to recede behind media; it is the new-install default app theme.
+_Avoid_: 仅深色主题, 播放器主题
+
+**Nocturne**:
+The quiet, editorial brand theme oriented toward focused music and reading contexts.
+_Avoid_: 阅读显示主题, 夜间模式
+
+**Monolith**:
+The high-contrast geometric brand theme characterized by mostly opaque surfaces, strong outlines, and an 8dp base corner radius.
+_Avoid_: 纯黑白模式, 系统高对比模式
+
 **外观模式 (Appearance mode)**:
 The independent light, dark, or follow-system setting applied within an app theme.
 _Avoid_: 应用主题, 主题包
