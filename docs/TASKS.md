@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 当前退出条件 |
 |---|---|---|---|---|
-| `V2-REQ-UX` | 第二章 | 收敛视觉基线、结构、参考、Skill/MCP 和工作流要求 | `V2-REQ-ARCH` | 手机 / 平板视觉方向通过独立 QA `PASS_WITH_GAPS`（P0/P1/P2/P3=`0/0/3/1`），状态为 `VISUAL_DIRECTION_READY_FOR_USER_CONFIRMATION_WITH_GAPS`；`UI_DESIGN_SYSTEM` 尚未升 V2，等待用户确认后才扩展 G1，38 条需求矩阵仍待继续 |
+| `V2-REQ-UX` | 第二章 | 先重新设计 App Logo，再收敛视觉基线、结构、参考、Skill/MCP 和工作流要求 | `V2-REQ-ARCH` | 手机 / 平板视觉方向已通过独立 QA `PASS_WITH_GAPS`；用户要求新会话先研究极光图像 / 材料并输出至少 3 个原创 Logo 方向，状态为 `LOGO_REDESIGN_HANDOFF_READY`；`UI_DESIGN_SYSTEM` 尚未升 V2，38 条需求矩阵仍待继续 |
 
 ## Review
 
