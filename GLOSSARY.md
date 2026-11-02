@@ -40,6 +40,10 @@ _Avoid_: 阅读显示主题, 夜间模式
 The high-contrast geometric brand theme characterized by mostly opaque surfaces, strong outlines, and an 8dp base corner radius.
 _Avoid_: 纯黑白模式, 系统高对比模式
 
+**极光视觉层 (Aurora visual layer)**:
+A controlled brand layer of tokenized gradients, light ribbons, and particles used to add aurora atmosphere without carrying content or status meaning.
+_Avoid_: 页面背景纹理, 状态色, 媒体海报
+
 **主题画廊 (Theme gallery)**:
 The settings surface that presents the finite app-theme family through large live previews and a separate appearance-mode control.
 _Avoid_: 配色圆点, 自定义主题编辑器
