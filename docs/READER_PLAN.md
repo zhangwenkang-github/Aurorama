@@ -10,7 +10,7 @@
 | 分支 | `feature/r1-pdf-cbz`（W4）→ `feature/w9-reader-comics`（W9）→ `feature/w22-spread-merge`（W22）→ `feature/w26-reader-forms`（W26）→ **`feature/w29-pdf-search-annot`（W29，当前）** |
 | 基线 | `master` `d972315`（2026-10-02；W22/W26 均已合并：`21a97d0` / `a3dfc01`） |
 | 状态 | W4 PDF / CBZ 自研 + W9 RTL + W15-UI 顶栏 + W22 跨页对图合并 + W26 横版独占/带纸边裁剪均已合并 master（`modes:book` 77 项单测）；**W29 落地 PDF 文本层搜索 + 本地矩形高亮批注**（PdfBox-Android 流式扫描、`filesDir/reader/annotations/{itemId}.json`），`:modes:book` **103 项单测**（+26）、门禁四绿；**真机验收已在 Pad 5 完成**（§7.13）：真机拦下 1 个搜索崩溃缺陷（重复 key）已修复复验，另顺带发现 W26 版式扫描在大文档上的 native 内存膨胀（未修，交 W26 线） |
-| **2.0 需求门（2026-11-02）** | 外部 395–532 已只读归一为 `V2-REQ-READER-001`～`086`，候选、证据类型、能力矩阵和当前问题见 `docs/V2_PLAN.md` §5.4。等级与 MVP 尚未确认，未进入 G1 / 实现 / 真机；本文件原有实现与遗留事实继续作为现状证据，不与候选承诺混写 |
+| **2.0 需求门（2026-11-02 / 11-03）** | 首轮 `V2-Q-READER-01`～06 已由 `V2-D082`～`D087` 关闭，确认 MVP 范围权威、EPUB/TXT/PDF/CBZ、沉浸控制层、点击手势、SAF 本地库复用与五套阅读主题。当前第二轮待 `V2-Q-READER-07`～11 收敛 TTS、EPUB/TXT 批注、搜索、SAF 生命周期和性能 / 缓存 / 恢复；86 条最终等级与 MVP 尚未整包确认，未进入 G1 / 实现 / 真机。本文件原有实现与遗留事实继续作为现状证据，不与候选承诺混写 |
 
 ## 1. 需求与 W1 范围
 
@@ -2158,3 +2158,4 @@ worktree `:app:phone:assembleDebug`（arm64-v8a，`install -r`）。素材：金
 | 2026-10-07 | **1.2.0 发布（W77 波闭环）**：用户全检通过（2026-10-07）→ tag `v1.2.0` + GitHub Release「极光幕 / Aurorama v1.2.0」双 APK（universal `5b27d343…65fd5` / arm64-v8a `071a0ec4…a351bd`）；发布后自检（重新下载：哈希 / 体积 / 签名一致）；W77-1/2/3/4C/5 全部合并，合并态门禁 975/0/0。 |
 | 2026-10-17 | **W80（S80-2 + S80-3，分支 `feature/w80-reader-books`，worktree `w80r`，基座 master `899f85e`）**：EPUB 双栏竖屏静默失效修复（Readium `--USER__colCount` 被 CSS 媒体查询丢弃 → ≥640 dp 压 `--RS__colCount/--RS__colWidth` 兜底 + 切档重建导航器续页）+ 阅读器手势层（双击三等分 = 左右翻页 / 中间适宽·单双栏切换、上下滑亮度 + HUD、滚动档亮度只认左侧 1/4、双击与双指缩放互不干扰）；新增 `ReaderGestures.kt` + 13 项单测；真机 Pad 5：竖屏双栏真两列、PDF 适宽 843→1993 px、1/15↔2/15 翻页、亮度 HUD 65% / 100%、批注与滚动不回归；全量门禁 **996 / 0 / 0**。详见 §9「W80」。 |
 | 2026-11-02 | **V2-REQ-READER 候选盘点（文档，无生产代码）**：在隔离 worktree 通过只读门与原文 SHA-256 校验后，只读 395–532 行及阅读器现状；登记 86 条候选、格式 / 来源 / 模式 / 进度 / 目录 / 搜索 / 批注 / TTS / 设置 / 状态 / 非功能矩阵，并明确 TXT/HTML/FB2/UMD/CHM、TOC、TTS、重排批注、页动画等现状缺口。`V2-Q-READER-01`～`06` 等待用户裁决；未进入 G1、未改 Compose/Kotlin、未跑 Gradle、未触设备/服务器或发布。 |
+| 2026-11-03 | **V2-REQ-READER 首轮确认与第二轮前沿（文档，无生产代码）**：全新只读子代理复核分支、HEAD、基线祖先、clean、ADR / `D021`～`D081`、用户确认范围与下游依赖，未发现冲突。用户于 2026-11-02 23:58:02 +08:00 原话确认“1–6 全部按推荐接受”；`V2-Q-READER-01`～06 已由 `V2-D082`～`D087` 关闭，明确 MVP 范围权威、EPUB/TXT/PDF/CBZ、沉浸控制层与响应式规则、点击 / 双击仲裁、SAF 本地库复用和五套阅读主题。注册第二轮 `V2-Q-READER-07`～11；86 条等级仍待整包确认。未进 G1、未改 Compose/Kotlin、未跑 Gradle、未触设备/服务器或发布。 |
