@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <!-- Size policy: use this master only at >=48 px. 33-47 px is forbidden; use aurorama-logo-micro.svg at 24-32 px. -->
   <title id="title">Aurorama 棱镜极光标志</title>
   <desc id="desc">深色圆角方形中，白色光束穿过一枚透视棱镜，展开为三股清晰的极光带，并保留一个分离微粒。</desc>
   <defs>
@@ -14,7 +15,9 @@
   <g clip-path="url(#card)">
     <rect x="32" y="32" width="448" height="448" rx="112" fill="#0B0D12"/>
     <path d="M76 256H233" stroke="#F7FBFF" stroke-width="13" stroke-linecap="round"/>
-    <path d="M237 154L337 256L237 358L176 256L237 154Z" fill="#11161D" stroke="#F7FBFF" stroke-width="15" stroke-linejoin="round"/>
+    <path d="M237 154L337 256L237 358L176 256L237 154Z" fill="#11161D"/>
+    <path d="M237 154L337 256L237 358Z" fill="#28323C"/>
+    <path d="M237 154L337 256L237 358L176 256L237 154Z" fill="none" stroke="#F7FBFF" stroke-width="15" stroke-linejoin="round"/>
     <path d="M332 231C377 205 423 190 477 185" stroke="url(#aurora)" stroke-width="33" stroke-linecap="round"/>
     <path d="M337 256C390 256 438 268 483 292" stroke="#64BFFF" stroke-width="33" stroke-linecap="round"/>
     <path d="M329 286C371 317 407 351 438 404" stroke="#58DFD0" stroke-width="33" stroke-linecap="round"/>

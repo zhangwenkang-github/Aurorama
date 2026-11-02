@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+  <!-- Logo size contract: 24-32px micro only; 33-47px forbidden; 48px and above master only. -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Aurorama · Logo 清晰度验证</title>
@@ -211,7 +212,7 @@
   <main class="proof">
     <header class="head">
       <h1>Aurorama <em>Logo clarity</em></h1>
-      <p>保留“棱镜 + 极光帘幕”母题。主标是一个透视棱镜、一束入射光、三股连续光带与一个清晰分离微粒；24–32px 使用无粒子的专用 micro mark。</p>
+      <p>尺寸规则：24–32px 使用无粒子 micro mark；33–47px 禁止使用；48px 起使用带一个分离微粒的主标。主标是一枚带单折面的透视棱镜。</p>
     </header>
 
     <div class="body">
@@ -221,7 +222,7 @@
         </div>
         <div class="hero-copy">
           <strong id="hero-proof-title">主标志 · 288 px</strong>
-          <span>主标用于 ≥48px，保留一个清晰分离微粒；micro mark 只用于 24–32px。</span>
+          <span>主标仅用于 ≥48px；33–47px 禁用；24–32px 只用 micro mark。</span>
           <div class="footer-rule"><i aria-hidden="true"></i><span>极光渐变只存在于品牌标识，不进入手机页面。</span></div>
         </div>
       </section>
@@ -254,9 +255,16 @@
         width: image.getBoundingClientRect().width,
         height: image.getBoundingClientRect().height,
         complete: image.complete,
-        naturalWidth: image.naturalWidth
+        naturalWidth: image.naturalWidth,
+        src: image.getAttribute("src")
       }));
       document.documentElement.dataset.auditSizes = JSON.stringify(sizes);
+      document.documentElement.dataset.auditVariantMapping = String(sizes.every((image) => {
+        if (image.expected >= 24 && image.expected <= 32) return image.src === "aurorama-logo-micro.svg";
+        if (image.expected >= 33 && image.expected <= 47) return false;
+        if (image.expected >= 48) return image.src === "aurorama-logo.svg";
+        return false;
+      }));
       document.documentElement.dataset.auditOverflow = String(
         document.documentElement.scrollWidth > 1200 || document.documentElement.scrollHeight > 720
       );

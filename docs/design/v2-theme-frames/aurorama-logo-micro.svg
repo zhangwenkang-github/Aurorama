@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <!-- Size policy: use this micro mark only at 24-32 px. 33-47 px is forbidden; use the master from 48 px. -->
   <title id="title">Aurorama 小尺寸棱镜标志</title>
   <desc id="desc">为 24 至 32 像素设计的简化标志：深色底片、透视棱镜、单束入射光与两股可分离出射光，不使用微粒。</desc>
   <defs>

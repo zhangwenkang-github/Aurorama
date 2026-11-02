@@ -56,6 +56,7 @@
       --text: #f2f5f9;
       --text-2: #98a2b3;
       --text-3: #6b7483;
+      --phone-nav-inactive: var(--text-2);
       --line: rgba(255, 255, 255, .085);
       --line-strong: rgba(255, 255, 255, .16);
       --accent: #5ce1d2;
@@ -237,6 +238,7 @@
       --text: #111317;
       --text-2: #4f5358;
       --text-3: #777b7e;
+      --phone-nav-inactive: #aeb3b8;
       --line: #111317;
       --line-strong: #111317;
       --accent: #c23c1c;
@@ -789,7 +791,10 @@
     }
 
     html[data-theme="nocturne"] .hero-title {
-      font-style: italic;
+      font-family: var(--font-sans);
+      font-style: normal;
+      font-weight: 700;
+      letter-spacing: -.04em;
     }
 
     .hero-description {
@@ -1769,8 +1774,8 @@
       align-items: center;
       gap: 8px;
       margin-top: 4px;
-      color: var(--text-3);
-      font-size: 11px;
+      color: var(--text-2);
+      font-size: 13px;
       line-height: 16px;
       font-weight: 500;
       white-space: nowrap;
@@ -1800,14 +1805,14 @@
     }
 
     .phone-section-head span {
-      color: var(--text-3);
-      font-size: 11px;
+      color: var(--text-2);
+      font-size: 13px;
       line-height: 16px;
       font-weight: 500;
     }
 
     .phone-media-row {
-      height: 168px;
+      height: 176px;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
@@ -1816,9 +1821,9 @@
 
     .phone-media-card {
       width: auto;
-      height: 168px;
+      height: 176px;
       min-width: 0;
-      min-height: 168px;
+      min-height: 176px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -1871,15 +1876,15 @@
     }
 
     .phone-media-copy span {
-      display: block;
+      display: -webkit-box;
       overflow: hidden;
       margin-top: 4px;
-      color: var(--text-3);
-      font-size: 10px;
-      line-height: 14px;
+      color: var(--text-2);
+      font-size: 13px;
+      line-height: 16px;
       font-weight: 500;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
 
     .phone-media-card.film { --domain: var(--film); }
@@ -1913,7 +1918,7 @@
       place-items: center;
       position: relative;
       border-radius: var(--radius-sm);
-      color: var(--text-2);
+      color: var(--phone-nav-inactive);
       background: transparent;
     }
 
@@ -2002,11 +2007,14 @@
         <rect x="8" y="8" width="144" height="144" rx="36"/>
       </clipPath>
 
+      <!-- Main Logo: use at >=48px. 33-47px is forbidden; use brand-mark-micro at 24-32px. -->
       <symbol id="brand-mark" viewBox="0 0 160 160">
         <g clip-path="url(#logo-card)">
           <rect x="8" y="8" width="144" height="144" rx="36" fill="#0B0D12"/>
           <path d="M24 80H73" stroke="#F7FBFF" stroke-width="4" stroke-linecap="round"/>
-          <path d="M74 48L105 80L74 112L55 80L74 48Z" fill="#11161D" stroke="#F7FBFF" stroke-width="4.4" stroke-linejoin="round"/>
+          <path d="M74 48L105 80L74 112L55 80L74 48Z" fill="#11161D"/>
+          <path d="M74 48L105 80L74 112Z" fill="#28323C"/>
+          <path d="M74 48L105 80L74 112L55 80L74 48Z" fill="none" stroke="#F7FBFF" stroke-width="4.4" stroke-linejoin="round"/>
           <path d="M104 72C118 64 133 59 149 58" stroke="url(#logo-aurora)" stroke-width="10" stroke-linecap="round"/>
           <path d="M105 80C122 80 136 84 151 92" stroke="#64BFFF" stroke-width="10" stroke-linecap="round"/>
           <path d="M103 90C116 98 127 108 137 126" stroke="#58DFD0" stroke-width="10" stroke-linecap="round"/>
@@ -2016,6 +2024,7 @@
         </g>
       </symbol>
 
+      <!-- Micro mark: use at 24-32px only; 33-47px is forbidden. -->
       <symbol id="brand-mark-micro" viewBox="0 0 64 64">
         <rect x="2" y="2" width="60" height="60" rx="15" fill="#0B0D12" stroke="#2D3239" stroke-width="2"/>
         <path d="M5 32H22" stroke="#F7FBFF" stroke-width="4" stroke-linecap="round"/>
@@ -2768,11 +2777,26 @@
         const phoneHeroTitle = document.querySelector(".phone-hero-title");
         const phoneHeroStyle = getComputedStyle(phoneHeroTitle);
         const firstFontFamily = phoneHeroStyle.fontFamily.split(",")[0].replaceAll('"', "").replaceAll("'", "").trim();
+        const wideHeroTitle = document.querySelector(".hero-title");
+        const wideHeroStyle = getComputedStyle(wideHeroTitle);
+        const wideFirstFontFamily = wideHeroStyle.fontFamily.split(",")[0].replaceAll('"', "").replaceAll("'", "").trim();
         document.documentElement.dataset.auditPhoneTitleFont = firstFontFamily;
         document.documentElement.dataset.auditPhoneTitleStyle = phoneHeroStyle.fontStyle;
         document.documentElement.dataset.auditNocturneTitlePass = String(
           key !== "nocturne" || (firstFontFamily === "MiSans" && phoneHeroStyle.fontStyle !== "italic")
         );
+        document.documentElement.dataset.auditWideTitleFont = wideFirstFontFamily;
+        document.documentElement.dataset.auditWideTitleStyle = wideHeroStyle.fontStyle;
+        document.documentElement.dataset.auditNocturneWideTitlePass = String(
+          key !== "nocturne" || (wideFirstFontFamily === "MiSans" && wideHeroStyle.fontStyle !== "italic")
+        );
+        const phoneSemanticSizes = [
+          ".phone-hero-meta",
+          ".phone-section-head span",
+          ".phone-media-copy span"
+        ].map((selector) => parseFloat(getComputedStyle(document.querySelector(selector)).fontSize));
+        document.documentElement.dataset.auditPhoneSemanticSizes = phoneSemanticSizes.join(",");
+        document.documentElement.dataset.auditPhoneNavInactiveColor = getComputedStyle(document.querySelectorAll(".phone-tab")[1]).color;
         document.documentElement.dataset.auditPhoneOverflow = String(phoneMain.scrollHeight > phoneMain.clientHeight + 1);
         document.documentElement.dataset.auditPhoneHeight = `${phoneMain.scrollHeight}/${phoneMain.clientHeight}`;
         document.documentElement.dataset.auditPhoneDisplay = getComputedStyle(phoneStage).display;
