@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 当前退出条件 |
 |---|---|---|---|---|
-| `V2-REQ-UX` | 第二章 | 收敛视觉基线、结构、参考、Skill/MCP 和工作流要求 | `V2-REQ-ARCH` | 主题与 Logo / 图标决策已确认；因负责人上下文超过 35 万，状态为 `HANDOFF_REQUIRED`，下一会话产出风格帧并继续需求矩阵 |
+| `V2-REQ-UX` | 第二章 | 收敛视觉基线、结构、参考、Skill/MCP 和工作流要求 | `V2-REQ-ARCH` | 主题与 Logo / 图标决策已确认；五主题风格帧 v0.1 已产出，状态为 `STYLE_FRAME_PENDING_USER_CONFIRMATION`；确认后才扩展 G1，38 条需求矩阵仍待继续 |
 
 ## Review
 

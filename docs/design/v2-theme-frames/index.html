@@ -1,0 +1,2128 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="lumen">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aurorama 2.0 · 五主题风格帧</title>
+  <style>
+    @font-face {
+      font-family: "MiSans";
+      src: url("../../../core/src/main/assets/fonts/MiSansVF.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Literata";
+      src: url("../../../core/src/main/res/font/literata.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Literata";
+      src: url("../../../core/src/main/res/font/literata_italic.ttf") format("truetype");
+      font-style: italic;
+      font-weight: 400;
+      font-display: block;
+    }
+
+    :root {
+      color-scheme: dark;
+      --font-sans: "MiSans", sans-serif;
+      --font-serif: "Literata", "MiSans", serif;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-stage: 20px;
+      --border-width: 1px;
+      --icon-stroke: 1.75px;
+      --hero-title-size: 56px;
+      --hero-title-weight: 700;
+      --hero-title-family: var(--font-sans);
+      --hero-letter-spacing: -.035em;
+      --display-family: var(--font-sans);
+      --board-bg: #08090c;
+      --board-text: #f2f5f9;
+      --board-muted: #98a2b3;
+      --board-line: rgba(255, 255, 255, .1);
+      --app-bg: #08090c;
+      --app-border: rgba(255, 255, 255, .1);
+      --rail-bg: #0d0f14;
+      --surface: #111319;
+      --surface-2: #171a21;
+      --surface-3: #20242c;
+      --text: #f2f5f9;
+      --text-2: #98a2b3;
+      --text-3: #6b7483;
+      --line: rgba(255, 255, 255, .085);
+      --line-strong: rgba(255, 255, 255, .16);
+      --accent: #5ce1d2;
+      --accent-2: #7cc4ff;
+      --accent-soft: rgba(92, 225, 210, .14);
+      --accent-contrast: #07110f;
+      --spec-accent: var(--accent);
+      --film: #5ce1d2;
+      --music: #a8e3c1;
+      --book: #8cb9ff;
+      --spec-film: var(--film);
+      --spec-music: var(--music);
+      --spec-book: var(--book);
+      --success: #92d6ae;
+      --warning: #e1bd7a;
+      --error: #f08d82;
+      --info: #8ab8e8;
+      --spec-success: var(--success);
+      --spec-warning: var(--warning);
+      --spec-error: var(--error);
+      --spec-info: var(--info);
+      --rail-active: #171a21;
+      --spec-bg: #0e1116;
+      --spec-text: #f2f5f9;
+      --spec-muted: #98a2b3;
+      --spec-line: rgba(255, 255, 255, .1);
+      --spec-soft: #151920;
+      --primary-button-bg: #f2f5f9;
+      --primary-button-fg: #08090c;
+      --poster-sky: #121c27;
+      --poster-mid: #24394a;
+      --poster-light: #d2e9ed;
+      --poster-warm: #e0a064;
+      --poster-deep: #071116;
+      --cover-film-bg: #1e2d37;
+      --cover-film-accent: #5ce1d2;
+      --cover-music-bg: #151c1d;
+      --cover-music-accent: #a8e3c1;
+      --cover-book-bg: #232a3c;
+      --cover-book-accent: #8cb9ff;
+    }
+
+    html[data-theme="prism"] {
+      color-scheme: dark;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-stage: 20px;
+      --icon-stroke: 1.75px;
+      --hero-title-size: 56px;
+      --hero-title-weight: 700;
+      --hero-title-family: var(--font-sans);
+      --hero-letter-spacing: -.045em;
+      --board-bg: #0e1319;
+      --board-text: #f4f1ea;
+      --board-muted: #a7b0bd;
+      --board-line: #2c3542;
+      --app-bg: #151a21;
+      --app-border: #2c3542;
+      --rail-bg: #12171d;
+      --surface: #1b212b;
+      --surface-2: #222a36;
+      --surface-3: #2a3340;
+      --text: #f4f1ea;
+      --text-2: #a7b0bd;
+      --text-3: #6e7887;
+      --line: #2c3542;
+      --line-strong: #3a4554;
+      --accent: #e8a15c;
+      --accent-2: #6fa8ff;
+      --accent-soft: rgba(232, 161, 92, .14);
+      --accent-contrast: #141009;
+      --film: #e8a15c;
+      --music: #3fc9a0;
+      --book: #6fa8ff;
+      --success: #77c99d;
+      --warning: #e4b962;
+      --error: #e87c6e;
+      --info: #72aef5;
+      --rail-active: #222a36;
+      --spec-bg: #11171e;
+      --spec-text: #f4f1ea;
+      --spec-muted: #a7b0bd;
+      --spec-line: #2c3542;
+      --spec-soft: #1b212b;
+      --primary-button-bg: #e8a15c;
+      --primary-button-fg: #141009;
+      --poster-sky: #1a2834;
+      --poster-mid: #293d4d;
+      --poster-light: #e1d5c0;
+      --poster-warm: #e8a15c;
+      --poster-deep: #09131b;
+      --cover-film-bg: #2a3038;
+      --cover-film-accent: #e8a15c;
+      --cover-music-bg: #173334;
+      --cover-music-accent: #3fc9a0;
+      --cover-book-bg: #1c2b41;
+      --cover-book-accent: #6fa8ff;
+    }
+
+    html[data-theme="nocturne"] {
+      color-scheme: dark;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-stage: 20px;
+      --icon-stroke: 1.75px;
+      --hero-title-size: 62px;
+      --hero-title-weight: 400;
+      --hero-title-family: var(--font-serif);
+      --hero-letter-spacing: -.055em;
+      --display-family: var(--font-serif);
+      --board-bg: #100d0b;
+      --board-text: #efe6d8;
+      --board-muted: #a99c8a;
+      --board-line: rgba(200, 169, 107, .24);
+      --app-bg: #141110;
+      --app-border: rgba(200, 169, 107, .26);
+      --rail-bg: #17120f;
+      --surface: #1e1916;
+      --surface-2: #262019;
+      --surface-3: #30271f;
+      --text: #efe6d8;
+      --text-2: #a99c8a;
+      --text-3: #746a5d;
+      --line: rgba(200, 169, 107, .28);
+      --line-strong: rgba(200, 169, 107, .48);
+      --accent: #c8a96b;
+      --accent-2: #8fa07a;
+      --accent-soft: rgba(200, 169, 107, .15);
+      --accent-contrast: #17110a;
+      --film: #d1a15e;
+      --music: #c07f60;
+      --book: #91a476;
+      --success: #91a476;
+      --warning: #d1a15e;
+      --error: #d97965;
+      --info: #9ea8a0;
+      --rail-active: #262019;
+      --spec-bg: #1a1512;
+      --spec-text: #efe6d8;
+      --spec-muted: #a99c8a;
+      --spec-line: rgba(200, 169, 107, .28);
+      --spec-soft: #241e19;
+      --primary-button-bg: #c8a96b;
+      --primary-button-fg: #17110a;
+      --poster-sky: #241b17;
+      --poster-mid: #443124;
+      --poster-light: #eadcc6;
+      --poster-warm: #c8a96b;
+      --poster-deep: #100c0a;
+      --cover-film-bg: #31231b;
+      --cover-film-accent: #c8a96b;
+      --cover-music-bg: #2b211c;
+      --cover-music-accent: #c07f60;
+      --cover-book-bg: #25251c;
+      --cover-book-accent: #91a476;
+    }
+
+    html[data-theme="monolith"] {
+      color-scheme: light;
+      --radius: 8px;
+      --radius-sm: 4px;
+      --radius-stage: 16px;
+      --border-width: 2px;
+      --icon-stroke: 2px;
+      --hero-title-size: 60px;
+      --hero-title-weight: 700;
+      --hero-title-family: var(--font-sans);
+      --hero-letter-spacing: -.055em;
+      --board-bg: #d7d8d4;
+      --board-text: #111317;
+      --board-muted: #4f5358;
+      --board-line: #9da09c;
+      --app-bg: #f2f0e9;
+      --app-border: #111317;
+      --rail-bg: #17191d;
+      --surface: #ffffff;
+      --surface-2: #e7e5de;
+      --surface-3: #d6d4cc;
+      --text: #111317;
+      --text-2: #4f5358;
+      --text-3: #777b7e;
+      --line: #111317;
+      --line-strong: #111317;
+      --accent: #c23c1c;
+      --accent-2: #1f5f74;
+      --accent-soft: rgba(194, 60, 28, .12);
+      --accent-contrast: #ffffff;
+      --spec-accent: #f06a45;
+      --film: #c23c1c;
+      --music: #1f5f74;
+      --book: #6a5a2d;
+      --spec-film: #f06a45;
+      --spec-music: #76c6d4;
+      --spec-book: #c7b36a;
+      --success: #2f6b45;
+      --warning: #9a641d;
+      --error: #b62e21;
+      --info: #1f5f74;
+      --spec-success: #7acb96;
+      --spec-warning: #f1c46e;
+      --spec-error: #ff8a78;
+      --spec-info: #8cc7da;
+      --rail-active: #ffffff;
+      --spec-bg: #111317;
+      --spec-text: #f5f3ec;
+      --spec-muted: #adb2b5;
+      --spec-line: #3b3f43;
+      --spec-soft: #202328;
+      --primary-button-bg: #111317;
+      --primary-button-fg: #ffffff;
+      --poster-sky: #dfe0dd;
+      --poster-mid: #959a9c;
+      --poster-light: #faf9f5;
+      --poster-warm: #d44b28;
+      --poster-deep: #17191d;
+      --cover-film-bg: #d6d7d3;
+      --cover-film-accent: #c23c1c;
+      --cover-music-bg: #1f2b2e;
+      --cover-music-accent: #76c6d4;
+      --cover-book-bg: #e0ddd2;
+      --cover-book-accent: #6a5a2d;
+    }
+
+    html[data-theme="dynamic"] {
+      color-scheme: light;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-stage: 20px;
+      --icon-stroke: 1.75px;
+      --hero-title-size: 56px;
+      --hero-title-weight: 700;
+      --hero-title-family: var(--font-sans);
+      --hero-letter-spacing: -.04em;
+      --board-bg: #e8e1da;
+      --board-text: #251f1b;
+      --board-muted: #6a5c54;
+      --board-line: #c9beb5;
+      --app-bg: #fbf8f3;
+      --app-border: #d7ccc3;
+      --rail-bg: #f0e8e0;
+      --surface: #ffffff;
+      --surface-2: #f0e8e0;
+      --surface-3: #e4d8ce;
+      --text: #251f1b;
+      --text-2: #6a5c54;
+      --text-3: #8f8178;
+      --line: #d8cec4;
+      --line-strong: #b8aaa0;
+      --accent: #9c4a35;
+      --accent-2: #375d87;
+      --accent-soft: rgba(156, 74, 53, .12);
+      --accent-contrast: #ffffff;
+      --film: #9c4a35;
+      --music: #386b52;
+      --book: #375d87;
+      --success: #3f7556;
+      --warning: #90631d;
+      --error: #a83d32;
+      --info: #375d87;
+      --rail-active: #ffffff;
+      --spec-bg: #f7f1eb;
+      --spec-text: #251f1b;
+      --spec-muted: #6a5c54;
+      --spec-line: #d8cec4;
+      --spec-soft: #ffffff;
+      --primary-button-bg: #9c4a35;
+      --primary-button-fg: #ffffff;
+      --poster-sky: #ebe0d7;
+      --poster-mid: #beaa9b;
+      --poster-light: #fffaf4;
+      --poster-warm: #9c4a35;
+      --poster-deep: #2d2622;
+      --cover-film-bg: #ead9cf;
+      --cover-film-accent: #9c4a35;
+      --cover-music-bg: #dce9df;
+      --cover-music-accent: #386b52;
+      --cover-book-bg: #dce3ec;
+      --cover-book-accent: #375d87;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 1600px;
+      height: 1000px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    body {
+      background: var(--board-bg);
+      color: var(--board-text);
+      font-family: var(--font-sans);
+      font-weight: 400;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      margin: 0;
+      padding: 0;
+      color: inherit;
+      font: inherit;
+      background: transparent;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .spec-panel button:focus-visible {
+      outline-color: var(--spec-accent);
+    }
+
+    .svg-defs {
+      position: fixed;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .icon {
+      width: 24px;
+      height: 24px;
+      display: block;
+      color: currentColor;
+      overflow: visible;
+    }
+
+    .icon [stroke] {
+      stroke-width: var(--icon-stroke);
+    }
+
+    .frame {
+      width: 1600px;
+      height: 1000px;
+      padding: 32px;
+      background: var(--board-bg);
+      position: relative;
+    }
+
+    .masthead {
+      height: 64px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 32px;
+      margin-bottom: 24px;
+    }
+
+    .board-kicker {
+      display: block;
+      color: var(--board-muted);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+      letter-spacing: .08em;
+      margin-bottom: 8px;
+    }
+
+    .board-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .board-title {
+      margin: 0;
+      font-family: var(--display-family);
+      font-size: 30px;
+      line-height: 38px;
+      font-weight: 700;
+      letter-spacing: -.035em;
+      white-space: nowrap;
+    }
+
+    .board-subtitle {
+      color: var(--board-muted);
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .mast-tools {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 4px;
+    }
+
+    .theme-cluster {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--board-line);
+      border-radius: 999px;
+    }
+
+    .theme-dot {
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      background: var(--dot);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22);
+    }
+
+    .theme-dot[aria-pressed="true"] {
+      border-color: var(--board-text);
+      outline: 1px solid var(--board-bg);
+      outline-offset: 1px;
+    }
+
+    .dot-prism { --dot: #e8a15c; }
+    .dot-lumen { --dot: #5ce1d2; }
+    .dot-nocturne { --dot: #8e6b43; }
+    .dot-monolith { --dot: #d44b28; }
+    .dot-dynamic { --dot: #5e8c78; }
+
+    .preview-mode {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid var(--board-line);
+      color: var(--board-muted);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .workspace {
+      width: 1536px;
+      height: 848px;
+      display: grid;
+      grid-template-columns: 1184px 320px;
+      gap: 32px;
+    }
+
+    .app-stage {
+      height: 848px;
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      border: var(--border-width) solid var(--app-border);
+      border-radius: var(--radius-stage);
+      overflow: hidden;
+      background: var(--app-bg);
+    }
+
+    .rail {
+      height: 100%;
+      min-width: 0;
+      padding: 20px 12px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      background: var(--rail-bg);
+      border-right: 1px solid var(--line);
+    }
+
+    .rail-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: calc(var(--radius) + 2px);
+      overflow: hidden;
+      flex: none;
+      color: var(--text);
+    }
+
+    .rail-logo svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .rail-nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .rail-button {
+      width: 56px;
+      height: 48px;
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      cursor: default;
+    }
+
+    .rail-button .icon {
+      width: 24px;
+      height: 24px;
+    }
+
+    .rail-button[aria-current="page"] {
+      color: var(--accent);
+      background: var(--rail-active);
+    }
+
+    .rail-button[aria-current="page"]::before {
+      content: "";
+      position: absolute;
+      left: -12px;
+      top: 12px;
+      width: 3px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .rail-spacer {
+      flex: 1;
+    }
+
+    .profile-button {
+      width: 44px;
+      height: 44px;
+      min-height: 44px;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      border: 1px solid var(--line-strong);
+      border-radius: 50%;
+      background: var(--surface-2);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .app-content {
+      min-width: 0;
+      height: 100%;
+      display: grid;
+      grid-template-rows: 56px 356px minmax(0, 1fr);
+      gap: 16px;
+      padding: 24px 32px 32px;
+      overflow: hidden;
+      background: var(--app-bg);
+    }
+
+    .app-head {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .app-wordmark {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .app-wordmark strong {
+      font-size: 20px;
+      line-height: 24px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .app-wordmark span {
+      color: var(--text-2);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .app-actions {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-shell {
+      width: 270px;
+      height: 44px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-3);
+      text-align: left;
+      cursor: default;
+    }
+
+    .search-shell .icon {
+      width: 20px;
+      height: 20px;
+      color: var(--text-2);
+      flex: none;
+    }
+
+    .search-copy {
+      flex: 1;
+      font-size: 13px;
+      line-height: 18px;
+      white-space: nowrap;
+    }
+
+    .header-icon-button {
+      width: 44px;
+      height: 44px;
+      min-height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      background: var(--surface);
+    }
+
+    .hero {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 55% 45%;
+      overflow: hidden;
+      border: var(--border-width) solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .hero-art {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background: var(--poster-sky);
+      border-right: 1px solid var(--line);
+      position: relative;
+    }
+
+    .hero-art svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hero-copy {
+      min-width: 0;
+      padding: 28px 28px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      background: var(--surface);
+      position: relative;
+    }
+
+    html[data-theme="lumen"] .hero-copy {
+      background: #0f1218;
+      border-left: 1px solid rgba(92, 225, 210, .18);
+    }
+
+    html[data-theme="nocturne"] .hero-copy {
+      background: var(--surface);
+      padding-left: 36px;
+    }
+
+    html[data-theme="nocturne"] .hero-copy::before {
+      content: "";
+      position: absolute;
+      left: 82px;
+      top: 18px;
+      bottom: 18px;
+      width: 1px;
+      background: rgba(200, 169, 107, .16);
+      pointer-events: none;
+    }
+
+    html[data-theme="monolith"] .hero-art {
+      border-right: 2px solid var(--text);
+    }
+
+    html[data-theme="monolith"] .hero-copy {
+      background: #fff;
+    }
+
+    .hero-kicker {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-start;
+      min-height: 28px;
+      padding: 4px 12px;
+      margin-bottom: 16px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .hero-title {
+      margin: 0;
+      max-width: 420px;
+      font-family: var(--hero-title-family);
+      font-size: var(--hero-title-size);
+      line-height: .98;
+      font-weight: var(--hero-title-weight);
+      letter-spacing: var(--hero-letter-spacing);
+      color: var(--text);
+    }
+
+    html[data-theme="nocturne"] .hero-title {
+      font-style: italic;
+    }
+
+    .hero-description {
+      max-width: 390px;
+      margin: 16px 0 0;
+      color: var(--text-2);
+      font-size: 15px;
+      line-height: 24px;
+      font-weight: 400;
+    }
+
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .meta-sep {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--text-3);
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: auto;
+    }
+
+    .primary-icon-button {
+      width: 56px;
+      height: 56px;
+      min-width: 56px;
+      min-height: 56px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: var(--primary-button-fg);
+      background: var(--primary-button-bg);
+      border: var(--border-width) solid var(--primary-button-bg);
+    }
+
+    .primary-icon-button .icon {
+      width: 26px;
+      height: 26px;
+    }
+
+    .outline-icon-button {
+      width: 52px;
+      height: 52px;
+      min-width: 52px;
+      min-height: 52px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--text-2);
+      background: transparent;
+    }
+
+    .hero-progress {
+      min-width: 0;
+      flex: 1;
+      margin-left: 8px;
+    }
+
+    .progress-label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: var(--text-3);
+      font-size: 11px;
+      line-height: 14px;
+      font-weight: 500;
+    }
+
+    .progress-label strong {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      height: 4px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--line);
+    }
+
+    .progress-fill {
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+    }
+
+    .collection {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 32px minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .collection-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .collection-title {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .collection-title h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 24px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .collection-title span {
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .view-switch {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+
+    .view-switch button {
+      width: 32px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      color: var(--text-3);
+      border-radius: max(2px, calc(var(--radius-sm) - 2px));
+    }
+
+    .view-switch button[aria-pressed="true"] {
+      color: var(--text);
+      background: var(--surface-2);
+    }
+
+    .view-switch .icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .media-row {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .media-card {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .media-cover {
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .media-cover svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .media-card-meta {
+      height: 68px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .media-card-copy {
+      min-width: 0;
+    }
+
+    .media-card-copy strong {
+      display: block;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .media-card-copy span {
+      display: block;
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--text-3);
+      font-size: 11px;
+      line-height: 14px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .media-action {
+      width: 36px;
+      height: 36px;
+      min-height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--domain);
+      background: transparent;
+      flex: none;
+    }
+
+    .media-action .icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .media-card.film { --domain: var(--film); }
+    .media-card.music { --domain: var(--music); }
+    .media-card.book { --domain: var(--book); }
+
+    html[data-theme="lumen"] .media-card {
+      background: #101319;
+      border-color: rgba(255, 255, 255, .1);
+    }
+
+    html[data-theme="nocturne"] .media-card {
+      background: #1e1916;
+    }
+
+    html[data-theme="monolith"] .media-card {
+      border-width: 2px;
+      border-color: var(--text);
+      background: #fff;
+    }
+
+    html[data-theme="monolith"] .media-cover {
+      border-bottom: 2px solid var(--text);
+    }
+
+    html[data-theme="dynamic"] .media-card {
+      background: color-mix(in srgb, var(--domain) 4%, white);
+      border-color: color-mix(in srgb, var(--domain) 24%, var(--line));
+    }
+
+    .spec-panel {
+      height: 848px;
+      min-width: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+      color: var(--spec-text);
+      border: var(--border-width) solid var(--spec-line);
+      border-radius: var(--radius-stage);
+      background: var(--spec-bg);
+    }
+
+    .spec-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .spec-eyebrow {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--spec-muted);
+      font-size: 10px;
+      line-height: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+
+    .spec-title {
+      margin: 0;
+      font-family: var(--display-family);
+      font-size: 34px;
+      line-height: 38px;
+      font-weight: 700;
+      letter-spacing: -.045em;
+    }
+
+    .spec-summary {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: var(--spec-muted);
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 400;
+    }
+
+    .spec-mode {
+      min-height: 26px;
+      padding: 4px 8px;
+      border: 1px solid var(--spec-line);
+      border-radius: 999px;
+      color: var(--spec-muted);
+      font-size: 10px;
+      line-height: 16px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .spec-logo-row {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--spec-line);
+    }
+
+    .spec-logo {
+      width: 92px;
+      height: 92px;
+      display: block;
+      border-radius: 22px;
+      overflow: hidden;
+    }
+
+    .spec-logo svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .spec-lockup strong {
+      display: block;
+      font-family: "MiSans", sans-serif;
+      font-size: 20px;
+      line-height: 24px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .spec-lockup span {
+      display: block;
+      margin-top: 8px;
+      color: var(--spec-muted);
+      font-size: 11px;
+      line-height: 16px;
+      font-weight: 500;
+    }
+
+    .spec-lockup em {
+      display: block;
+      margin-top: 8px;
+      color: var(--spec-accent);
+      font-size: 11px;
+      line-height: 14px;
+      font-style: normal;
+      font-weight: 700;
+    }
+
+    .spec-section {
+      min-width: 0;
+    }
+
+    .spec-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: var(--spec-muted);
+      font-size: 10px;
+      line-height: 14px;
+      font-weight: 700;
+      letter-spacing: .06em;
+    }
+
+    .spec-label span:last-child {
+      font-weight: 500;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .swatch {
+      min-width: 0;
+    }
+
+    .swatch i {
+      display: block;
+      height: 38px;
+      border: 1px solid var(--spec-line);
+      border-radius: var(--radius-sm);
+      background: var(--swatch-color);
+    }
+
+    .swatch span {
+      display: block;
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--spec-muted);
+      font-size: 8px;
+      line-height: 12px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .role-map {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .role-cell {
+      min-width: 0;
+      padding: 8px;
+      border: 1px solid var(--spec-line);
+      border-radius: var(--radius-sm);
+      color: var(--spec-muted);
+      font-size: 9px;
+      line-height: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .role-cell strong {
+      color: var(--role-color);
+      font-weight: 700;
+    }
+
+    .role-cell:nth-child(1) { --role-color: var(--film); }
+    .role-cell:nth-child(2) { --role-color: var(--music); }
+    .role-cell:nth-child(3) { --role-color: var(--book); }
+    .spec-panel .role-cell:nth-child(1) { --role-color: var(--spec-film); }
+    .spec-panel .role-cell:nth-child(2) { --role-color: var(--spec-music); }
+    .spec-panel .role-cell:nth-child(3) { --role-color: var(--spec-book); }
+
+    .type-specimen {
+      padding: 12px;
+      border: 1px solid var(--spec-line);
+      border-radius: var(--radius-sm);
+      background: var(--spec-soft);
+    }
+
+    .type-display {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .type-display strong {
+      overflow: hidden;
+      color: var(--spec-text);
+      font-family: var(--display-family);
+      font-size: 26px;
+      line-height: 32px;
+      font-weight: var(--hero-title-weight);
+      letter-spacing: -.045em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .type-display span {
+      color: var(--spec-accent);
+      font-size: 9px;
+      line-height: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .type-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      color: var(--spec-muted);
+      font-size: 9px;
+      line-height: 12px;
+      font-weight: 500;
+    }
+
+    .type-serif {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--spec-line);
+      color: var(--spec-accent);
+      font-family: var(--font-serif);
+      font-size: 13px;
+      line-height: 16px;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .type-serif span {
+      color: var(--spec-muted);
+      font-family: var(--font-sans);
+      font-size: 8px;
+      line-height: 11px;
+      font-style: normal;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 8px 12px;
+      border: 1px solid var(--spec-line);
+      border-radius: var(--radius-sm);
+      background: var(--spec-soft);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--spec-muted);
+      font-size: 8px;
+      line-height: 11px;
+      font-weight: 500;
+    }
+
+    .metric strong {
+      display: block;
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--spec-text);
+      font-size: 11px;
+      line-height: 15px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-board {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .icon-tile {
+      height: 38px;
+      min-height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--spec-line);
+      border-radius: var(--radius-sm);
+      color: var(--spec-text);
+      background: var(--spec-soft);
+    }
+
+    .icon-tile:nth-child(2) { color: var(--spec-film); }
+    .icon-tile:nth-child(3) { color: var(--spec-music); }
+    .icon-tile:nth-child(4) { color: var(--spec-book); }
+    .icon-tile:nth-child(5) { color: var(--spec-accent); }
+
+    .icon-tile .icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    .semantic-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .semantic {
+      min-width: 0;
+      height: 32px;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px;
+      border: 1px solid var(--semantic-color);
+      border-radius: var(--radius-sm);
+      color: var(--spec-text);
+      font-size: 9px;
+      line-height: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .semantic .icon {
+      width: 14px;
+      height: 14px;
+      flex: none;
+      color: var(--semantic-color);
+    }
+
+    .semantic.success { --semantic-color: var(--spec-success); }
+    .semantic.warning { --semantic-color: var(--spec-warning); }
+    .semantic.danger { --semantic-color: var(--spec-error); }
+
+    .spec-footer {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--spec-line);
+    }
+
+    .spec-footer strong {
+      display: block;
+      color: var(--spec-text);
+      font-size: 10px;
+      line-height: 14px;
+      font-weight: 700;
+    }
+
+    .spec-footer span {
+      display: block;
+      margin-top: 4px;
+      color: var(--spec-muted);
+      font-size: 9px;
+      line-height: 13px;
+      font-weight: 500;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+  <script>
+    (() => {
+      const requested = new URLSearchParams(location.search).get("s");
+      const allowed = new Set(["prism", "lumen", "nocturne", "monolith", "dynamic"]);
+      document.documentElement.dataset.theme = allowed.has(requested) ? requested : "lumen";
+    })();
+  </script>
+</head>
+<body>
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="logo-bg" x1="24" y1="18" x2="138" y2="144" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#282D35"/>
+        <stop offset="1" stop-color="#090B10"/>
+      </linearGradient>
+      <linearGradient id="logo-beam" x1="25" y1="77" x2="86" y2="84" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#FFFFFF" stop-opacity=".2"/>
+        <stop offset=".74" stop-color="#FFFFFF"/>
+        <stop offset="1" stop-color="#D9FFFA"/>
+      </linearGradient>
+      <linearGradient id="logo-aurora-a" x1="92" y1="79" x2="144" y2="67" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#56F2D0"/>
+        <stop offset="1" stop-color="#66BFFF"/>
+      </linearGradient>
+      <linearGradient id="logo-aurora-b" x1="94" y1="87" x2="145" y2="97" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#8CFFF0"/>
+        <stop offset="1" stop-color="#62B7FF"/>
+      </linearGradient>
+      <linearGradient id="logo-aurora-c" x1="93" y1="95" x2="134" y2="119" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#4DDBD2"/>
+        <stop offset="1" stop-color="#9CCBFF"/>
+      </linearGradient>
+      <radialGradient id="logo-halo" cx="0" cy="0" r="1" gradientTransform="translate(82 78) rotate(18) scale(44 29)" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#D9FFFA" stop-opacity=".9"/>
+        <stop offset=".44" stop-color="#86F6E4" stop-opacity=".28"/>
+        <stop offset="1" stop-color="#86F6E4" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="logo-soft" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="4"/>
+      </filter>
+      <filter id="logo-tiny" x="-200%" y="-200%" width="500%" height="500%">
+        <feGaussianBlur stdDeviation="2"/>
+      </filter>
+      <clipPath id="logo-card">
+        <rect x="8" y="8" width="144" height="144" rx="36"/>
+      </clipPath>
+
+      <symbol id="brand-mark" viewBox="0 0 160 160">
+        <g clip-path="url(#logo-card)">
+          <rect x="8" y="8" width="144" height="144" rx="36" fill="url(#logo-bg)"/>
+          <circle cx="82" cy="78" r="44" fill="url(#logo-halo)" opacity=".72"/>
+          <path d="M25 77C48 76 68 76 87 81" stroke="url(#logo-beam)" stroke-width="6" stroke-linecap="round" filter="url(#logo-soft)" opacity=".82"/>
+          <path d="M25 77C48 76 69 77 88 82" stroke="url(#logo-beam)" stroke-width="1.55" stroke-linecap="round"/>
+          <path d="M68 49L99 84L67 113L53 83L68 49Z" fill="#11151B" stroke="#F4F8FA" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M68 55L94 84L68 107L59 83L68 55Z" fill="#20252C" opacity=".9"/>
+          <path d="M90 78C108 67 126 61 147 56C127 72 111 84 99 92L89 87L90 78Z" fill="url(#logo-aurora-a)"/>
+          <path d="M91 86C111 80 131 81 149 87C131 92 115 99 97 107L89 96L91 86Z" fill="url(#logo-aurora-b)" opacity=".92"/>
+          <path d="M90 96C105 102 117 111 128 127C112 117 100 111 87 107L86 100L90 96Z" fill="url(#logo-aurora-c)" opacity=".86"/>
+          <path d="M97 76C114 69 128 64 141 60" stroke="#E9FFFC" stroke-width=".9" stroke-linecap="round" opacity=".78"/>
+          <circle cx="133" cy="55" r="2.3" fill="#C6FFF8" filter="url(#logo-tiny)"/>
+          <circle cx="141" cy="102" r="1.9" fill="#84D8FF" filter="url(#logo-tiny)"/>
+          <circle cx="110" cy="45" r="1.3" fill="#F7FFFF"/>
+          <circle cx="115" cy="125" r="1.6" fill="#8DFFE9"/>
+          <rect x="9" y="9" width="142" height="142" rx="35" fill="none" stroke="#F4F8FA" stroke-opacity=".12" stroke-width="1.4"/>
+        </g>
+      </symbol>
+
+      <symbol id="i-home" viewBox="0 0 24 24">
+        <path d="M3.5 10.5L12 3.75l8.5 6.75V19a1.75 1.75 0 0 1-1.75 1.75H5.25A1.75 1.75 0 0 1 3.5 19Z" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9.5 20.75V14h5v6.75" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="i-video" viewBox="0 0 24 24">
+        <rect x="3.5" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+        <path d="m16.5 10 4-2.5v9l-4-2.5Z" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="i-music" viewBox="0 0 24 24">
+        <path d="M10 5.5v9.25M10 5.5l8-1.5v8.25" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="7.25" cy="16.25" r="2.75" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+        <circle cx="15.25" cy="13.75" r="2.75" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+      </symbol>
+      <symbol id="i-book" viewBox="0 0 24 24">
+        <path d="M4 5.25c2.9-.75 5.55-.15 8 1.5v12c-2.45-1.65-5.1-2.25-8-1.5v-12ZM20 5.25c-2.9-.75-5.55-.15-8 1.5v12c2.45-1.65 5.1-2.25 8-1.5v-12Z" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="i-library" viewBox="0 0 24 24">
+        <rect x="3.75" y="4.75" width="16.5" height="14.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+        <path d="M6.75 8.25H9M6.75 12H9M6.75 15.75H9M15 8.25h2.25M15 12h2.25M15 15.75h2.25" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 24 24">
+        <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 19.5h15" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round"/>
+        <circle cx="9" cy="7" r="2" fill="currentColor"/>
+        <circle cx="15" cy="12" r="2" fill="currentColor"/>
+        <circle cx="10" cy="17" r="2" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="7" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+        <path d="m15.45 15.45 5.55 5.55" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24">
+        <path d="M8.2 5.4 19 12 8.2 18.6Z" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24">
+        <path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24">
+        <path d="M6.5 4.5h11v16l-5.5-3.5-5.5 3.5Z" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="i-more" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1.7" fill="currentColor"/>
+        <circle cx="12" cy="12" r="1.7" fill="currentColor"/>
+        <circle cx="19" cy="12" r="1.7" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+        <rect x="14" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+        <rect x="4" y="14" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+        <rect x="14" y="14" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)"/>
+      </symbol>
+      <symbol id="i-list" viewBox="0 0 24 24">
+        <path d="M9 6h11M9 12h11M9 18h11" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round"/>
+        <circle cx="4.5" cy="6" r="1.2" fill="currentColor"/>
+        <circle cx="4.5" cy="12" r="1.2" fill="currentColor"/>
+        <circle cx="4.5" cy="18" r="1.2" fill="currentColor"/>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="m5 12.5 4.4 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path d="M12 4 21 20H3Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+        <path d="M12 9v4.5M12 17h.01" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M4.5 7h15M9 4.5h6M7 7l1 13h8l1-13M10 10.5v6M14 10.5v6" fill="none" stroke="currentColor" stroke-width="var(--icon-stroke)" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <main class="frame">
+    <header class="masthead">
+      <div>
+        <span class="board-kicker">Aurorama 2.0 · 视觉基线</span>
+        <div class="board-title-row">
+          <h1 class="board-title" data-theme-name>Lumen</h1>
+          <span class="board-subtitle" data-theme-tagline>让内容成为唯一光源</span>
+        </div>
+      </div>
+      <div class="mast-tools">
+        <div class="theme-cluster" aria-label="五主题家族">
+          <button class="theme-dot dot-prism" type="button" aria-label="Prism" aria-pressed="false"></button>
+          <button class="theme-dot dot-lumen" type="button" aria-label="Lumen" aria-pressed="true"></button>
+          <button class="theme-dot dot-nocturne" type="button" aria-label="Nocturne" aria-pressed="false"></button>
+          <button class="theme-dot dot-monolith" type="button" aria-label="Monolith" aria-pressed="false"></button>
+          <button class="theme-dot dot-dynamic" type="button" aria-label="系统动态色" aria-pressed="false"></button>
+        </div>
+        <div class="preview-mode" data-theme-mode>深色预览 · 支持跟随系统</div>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <section class="app-stage" aria-label="Aurorama 主题界面示意">
+        <aside class="rail" aria-label="主导航">
+          <div class="rail-logo" aria-hidden="true">
+            <svg viewBox="0 0 160 160"><use href="#brand-mark"></use></svg>
+          </div>
+          <nav class="rail-nav">
+            <button class="rail-button" type="button" aria-label="首页" aria-current="page">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"></use></svg>
+            </button>
+            <button class="rail-button" type="button" aria-label="影视">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-video"></use></svg>
+            </button>
+            <button class="rail-button" type="button" aria-label="音乐">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-music"></use></svg>
+            </button>
+            <button class="rail-button" type="button" aria-label="书籍">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
+            </button>
+            <button class="rail-button" type="button" aria-label="媒体库">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-library"></use></svg>
+            </button>
+            <button class="rail-button" type="button" aria-label="下载">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
+            </button>
+            <button class="rail-button" type="button" aria-label="设置">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
+            </button>
+          </nav>
+          <div class="rail-spacer"></div>
+          <button class="profile-button" type="button" aria-label="账号与服务器">A</button>
+        </aside>
+
+        <section class="app-content">
+          <header class="app-head">
+            <div class="app-wordmark">
+              <strong>Aurorama</strong>
+              <span>影视 / 精选</span>
+            </div>
+            <div class="app-actions">
+              <button class="search-shell" type="button" aria-label="搜索片名、专辑或作者">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
+                <span class="search-copy">搜索片名、专辑或作者</span>
+              </button>
+              <button class="header-icon-button" type="button" aria-label="更多操作">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-more"></use></svg>
+              </button>
+            </div>
+          </header>
+
+          <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-art" aria-hidden="true">
+              <svg viewBox="0 0 600 360" preserveAspectRatio="xMidYMid slice">
+                <rect width="600" height="360" fill="var(--poster-sky)"/>
+                <path d="M0 252C114 220 208 223 302 247C404 273 500 267 600 238V360H0Z" fill="var(--poster-mid)"/>
+                <path d="M0 288C125 258 224 263 318 281C417 300 518 296 600 278V360H0Z" fill="var(--poster-deep)"/>
+                <circle cx="438" cy="103" r="58" fill="var(--poster-light)"/>
+                <path d="M0 153 222 164 209 183 0 184Z" fill="var(--poster-deep)"/>
+                <path d="M31 119H252L268 138H21Z" fill="var(--poster-warm)"/>
+                <path d="M72 73H108V312H72Z" fill="var(--poster-deep)"/>
+                <path d="M84 85H97V297H84Z" fill="var(--poster-mid)"/>
+                <path d="M416 238H542V254H404Z" fill="var(--poster-deep)"/>
+                <path d="M446 177H478V252H446Z" fill="var(--poster-warm)"/>
+                <path d="M459 177V78" stroke="var(--poster-light)" stroke-width="3" stroke-linecap="round"/>
+                <path d="m459 81-26 32M459 81l28 32" stroke="var(--poster-light)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M0 330h600" stroke="var(--poster-warm)" stroke-opacity=".6" stroke-width="2"/>
+                <path d="M320 291c45 17 92 18 141 3M184 318c62 12 116 10 173-5" stroke="var(--poster-light)" stroke-opacity=".32" stroke-width="2" fill="none"/>
+                <rect x="28" y="26" width="12" height="12" rx="2" fill="var(--poster-warm)"/>
+                <rect x="48" y="26" width="54" height="12" rx="2" fill="var(--poster-light)" opacity=".26"/>
+              </svg>
+            </div>
+            <div class="hero-copy">
+              <div class="hero-kicker">原创演示 · 本周精选</div>
+              <h2 class="hero-title" id="hero-title">第七码头</h2>
+              <p class="hero-description">潮汐退去后，留给夜航者的一段回声。</p>
+              <div class="hero-meta">
+                <span>2026</span><i class="meta-sep"></i><span>112 分钟</span><i class="meta-sep"></i><span>4K · 立体声</span>
+              </div>
+              <div class="hero-actions">
+                <button class="primary-icon-button" type="button" aria-label="播放《第七码头》">
+                  <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
+                </button>
+                <button class="outline-icon-button" type="button" aria-label="收藏《第七码头》">
+                  <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bookmark"></use></svg>
+                </button>
+                <button class="outline-icon-button" type="button" aria-label="下载《第七码头》">
+                  <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
+                </button>
+                <div class="hero-progress" role="progressbar" aria-label="《第七码头》播放进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="42">
+                  <div class="progress-label"><span>继续播放</span><strong>42%</strong></div>
+                  <div class="progress-track"><div class="progress-fill"></div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="collection" aria-labelledby="collection-title">
+            <header class="collection-head">
+              <div class="collection-title">
+                <h3 id="collection-title">继续浏览</h3>
+                <span>同一组原创演示内容</span>
+              </div>
+              <div class="view-switch" aria-label="显示方式">
+                <button type="button" aria-label="卡片视图" aria-pressed="true">
+                  <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-grid"></use></svg>
+                </button>
+                <button type="button" aria-label="列表视图" aria-pressed="false">
+                  <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-list"></use></svg>
+                </button>
+              </div>
+            </header>
+            <div class="media-row">
+              <article class="media-card film">
+                <div class="media-cover" aria-hidden="true">
+                  <svg viewBox="0 0 320 150" preserveAspectRatio="xMidYMid slice">
+                    <rect width="320" height="150" fill="var(--cover-film-bg)"/>
+                    <circle cx="244" cy="42" r="25" fill="var(--cover-film-accent)" opacity=".9"/>
+                    <path d="M0 104 95 77l64 23 82-31 79 28v53H0Z" fill="var(--cover-film-accent)" opacity=".18"/>
+                    <path d="M20 112h280" stroke="var(--cover-film-accent)" stroke-width="2" opacity=".7"/>
+                    <path d="M74 60h18v65H74Z" fill="var(--cover-film-accent)" opacity=".7"/>
+                    <path d="M109 48h8v75h-8Z" fill="var(--cover-film-accent)" opacity=".38"/>
+                    <rect x="20" y="18" width="68" height="8" rx="4" fill="white" opacity=".16"/>
+                  </svg>
+                </div>
+                <div class="media-card-meta">
+                  <div class="media-card-copy"><strong>第七码头</strong><span>影视 · 继续观看 42%</span></div>
+                  <button class="media-action" type="button" aria-label="播放《第七码头》">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
+                  </button>
+                </div>
+              </article>
+
+              <article class="media-card music">
+                <div class="media-cover" aria-hidden="true">
+                  <svg viewBox="0 0 320 150" preserveAspectRatio="xMidYMid slice">
+                    <rect width="320" height="150" fill="var(--cover-music-bg)"/>
+                    <circle cx="160" cy="77" r="58" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" opacity=".8"/>
+                    <circle cx="160" cy="77" r="45" fill="none" stroke="var(--cover-music-accent)" stroke-width="1" opacity=".5"/>
+                    <circle cx="160" cy="77" r="32" fill="none" stroke="var(--cover-music-accent)" stroke-width="1" opacity=".38"/>
+                    <circle cx="160" cy="77" r="18" fill="var(--cover-music-accent)" opacity=".9"/>
+                    <circle cx="160" cy="77" r="4" fill="var(--cover-music-bg)"/>
+                    <path d="M257 35v44M257 35l27-6v43" fill="none" stroke="var(--cover-music-accent)" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="248" cy="81" r="9" fill="var(--cover-music-accent)"/>
+                    <circle cx="275" cy="73" r="9" fill="var(--cover-music-accent)"/>
+                  </svg>
+                </div>
+                <div class="media-card-meta">
+                  <div class="media-card-copy"><strong>Glass Current</strong><span>音乐 · Lumen Session</span></div>
+                  <button class="media-action" type="button" aria-label="播放《Glass Current》">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-pause"></use></svg>
+                  </button>
+                </div>
+              </article>
+
+              <article class="media-card book">
+                <div class="media-cover" aria-hidden="true">
+                  <svg viewBox="0 0 320 150" preserveAspectRatio="xMidYMid slice">
+                    <rect width="320" height="150" fill="var(--cover-book-bg)"/>
+                    <path d="M88 26h148v98H88Z" fill="var(--cover-book-accent)" opacity=".14"/>
+                    <path d="M88 26h148v98H88Z" fill="none" stroke="var(--cover-book-accent)" stroke-width="2"/>
+                    <path d="M104 48h103M104 64h71M104 80h90M104 96h62" stroke="var(--cover-book-accent)" stroke-width="2" stroke-linecap="round" opacity=".82"/>
+                    <path d="M29 121c41-18 77-18 116-1 45-18 85-16 146 2" fill="none" stroke="var(--cover-book-accent)" stroke-width="2" opacity=".55"/>
+                    <circle cx="257" cy="42" r="13" fill="none" stroke="var(--cover-book-accent)" stroke-width="2" opacity=".6"/>
+                  </svg>
+                </div>
+                <div class="media-card-meta">
+                  <div class="media-card-copy"><strong>山海之后</strong><span>书籍 · 第 12 章</span></div>
+                  <button class="media-action" type="button" aria-label="继续阅读《山海之后》">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+        </section>
+      </section>
+
+      <aside class="spec-panel" aria-label="主题设计系统摘要">
+        <header class="spec-header">
+          <div>
+            <span class="spec-eyebrow">主题系统</span>
+            <h2 class="spec-title" data-theme-name>Lumen</h2>
+          </div>
+          <span class="spec-mode" data-theme-short-mode>深色 · 默认</span>
+          <p class="spec-summary" data-theme-summary>黑场让位于画面，极光青只标记焦点、进度与当前行动。</p>
+        </header>
+
+        <section class="spec-logo-row">
+          <div class="spec-logo" aria-hidden="true">
+            <svg viewBox="0 0 160 160"><use href="#brand-mark"></use></svg>
+          </div>
+          <div class="spec-lockup">
+            <strong>Aurorama</strong>
+            <span>棱镜 + 极光帘幕<br>品牌与动作图标分治</span>
+            <em data-theme-material>玻璃边缘 / 克制材质</em>
+          </div>
+        </section>
+
+        <section class="spec-section">
+          <div class="spec-label"><span>主题色板</span><span data-theme-palette-note>近黑表面 · 单一强光</span></div>
+          <div class="palette">
+            <div class="swatch"><i data-swatch="surface"></i><span data-hex="surface"></span></div>
+            <div class="swatch"><i data-swatch="text"></i><span data-hex="text"></span></div>
+            <div class="swatch"><i data-swatch="film"></i><span data-hex="film"></span></div>
+            <div class="swatch"><i data-swatch="music"></i><span data-hex="music"></span></div>
+            <div class="swatch"><i data-swatch="book"></i><span data-hex="book"></span></div>
+          </div>
+          <div class="role-map" aria-label="内容域角色映射">
+            <div class="role-cell"><strong>影视</strong> <span data-role-label="film">Film</span></div>
+            <div class="role-cell"><strong>音乐</strong> <span data-role-label="music">Music</span></div>
+            <div class="role-cell"><strong>书籍</strong> <span data-role-label="book">Book</span></div>
+          </div>
+        </section>
+
+        <section class="spec-section">
+          <div class="spec-label"><span>排版</span><span data-theme-font-note>MiSans 400 / 500 / 700</span></div>
+          <div class="type-specimen">
+            <div class="type-display">
+              <strong>Aurorama</strong>
+              <span data-theme-type-accent>Literal / 400</span>
+            </div>
+            <div class="type-meta">
+              <span data-theme-type-detail>正文 15 / 24 · 行高 1.6</span>
+              <span>400 · 500 · 700</span>
+            </div>
+            <div class="type-serif">Glass Current <span>Literata italic · 400</span></div>
+          </div>
+        </section>
+
+        <section class="metrics" aria-label="视觉语法">
+          <div class="metric"><span>基础圆角</span><strong data-theme-radius>16dp</strong></div>
+          <div class="metric"><span>交互动效</span><strong>150–300ms</strong></div>
+          <div class="metric"><span>网格</span><strong>4 / 8 基准</strong></div>
+          <div class="metric"><span>域色纪律</span><strong>语义稳定</strong></div>
+        </section>
+
+        <section class="spec-section">
+          <div class="spec-label"><span>动作图标</span><span>不可见名称 · 角色 · 状态</span></div>
+          <div class="icon-board">
+            <button class="icon-tile" type="button" aria-label="首页">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"></use></svg>
+            </button>
+            <button class="icon-tile" type="button" aria-label="影视">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-video"></use></svg>
+            </button>
+            <button class="icon-tile" type="button" aria-label="音乐">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-music"></use></svg>
+            </button>
+            <button class="icon-tile" type="button" aria-label="书籍">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-book"></use></svg>
+            </button>
+            <button class="icon-tile" type="button" aria-label="搜索">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
+            </button>
+            <button class="icon-tile" type="button" aria-label="下载">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-download"></use></svg>
+            </button>
+            <button class="icon-tile" type="button" aria-label="设置">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
+            </button>
+          </div>
+        </section>
+
+        <div class="semantic-row" aria-label="语义状态示例">
+          <div class="semantic success">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg><span>已下载</span>
+          </div>
+          <div class="semantic warning">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-alert"></use></svg><span>存储不足</span>
+          </div>
+          <button class="semantic danger" type="button" aria-label="从本机移除下载">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg><span>移除</span>
+          </button>
+        </div>
+
+        <footer class="spec-footer">
+          <strong data-theme-principle>内容先行 · 焦点即光</strong>
+          <span data-theme-role-note>影视、音乐、书籍三域映射由 Lumen 色组定义。</span>
+        </footer>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const themes = {
+        prism: {
+          name: "Prism",
+          tagline: "结构恒定，色彩流动",
+          shortMode: "深色 · 结构",
+          mode: "深色预览 · 支持跟随系统",
+          summary: "细线与栅格先建立秩序，影视、音乐、书籍三种域色只在首页并列出现。",
+          material: "1px 发丝线 / 不透明面板",
+          paletteNote: "石板蓝黑 · 三域并列",
+          fontNote: "MiSans 主排 · Literata 点缀",
+          typeAccent: "Display / 700",
+          typeDetail: "中文标题 400 / 500 / 700",
+          radius: "12dp",
+          principle: "结构恒定 · 域色流动",
+          roleNote: "影视琥珀、音乐松石、书籍天青由 Prism 色组定义。",
+          roleLabels: ["琥珀 Film", "松石 Music", "天青 Book"],
+          colors: {
+            surface: "#1B212B",
+            text: "#F4F1EA",
+            film: "#E8A15C",
+            music: "#3FC9A0",
+            book: "#6FA8FF"
+          }
+        },
+        lumen: {
+          name: "Lumen",
+          tagline: "让内容成为唯一光源",
+          shortMode: "深色 · 默认",
+          mode: "深色预览 · 支持跟随系统",
+          summary: "黑场让位于画面，极光青只标记焦点、进度与当前行动。",
+          material: "玻璃边缘 / 克制材质",
+          paletteNote: "近黑表面 · 单一强光",
+          fontNote: "MiSans 主排 · Literata 斜体",
+          typeAccent: "Literal / 400",
+          typeDetail: "中文标题 400 / 500 / 700",
+          radius: "16dp",
+          principle: "内容先行 · 焦点即光",
+          roleNote: "影视、音乐、书籍三域映射由 Lumen 色组定义。",
+          roleLabels: ["极光青 Film", "雾绿 Music", "夜蓝 Book"],
+          colors: {
+            surface: "#08090C",
+            text: "#F2F5F9",
+            film: "#5CE1D2",
+            music: "#A8E3C1",
+            book: "#8CB9FF"
+          }
+        },
+        nocturne: {
+          name: "Nocturne",
+          tagline: "一张唱片，一本摊开的书",
+          shortMode: "深色 · 编辑",
+          mode: "深色预览 · 支持跟随系统",
+          summary: "深咖纸色与衬线比例把音乐、书籍置于前景，影视退成安静的长镜头。",
+          material: "暖纸 / 黄铜细线",
+          paletteNote: "深咖 · 纸色 · 黄铜",
+          fontNote: "MiSans UI · Literata 标题",
+          typeAccent: "Editorial / 400",
+          typeDetail: "编辑衬线 · 正文 400",
+          radius: "12dp",
+          principle: "温暖触感 · 私密收藏",
+          roleNote: "黄铜、玫瑰木与苔绿分别代表影视、音乐、书籍。",
+          roleLabels: ["黄铜 Film", "玫瑰木 Music", "苔绿 Book"],
+          colors: {
+            surface: "#141110",
+            text: "#EFE6D8",
+            film: "#D1A15E",
+            music: "#C07F60",
+            book: "#91A476"
+          }
+        },
+        monolith: {
+          name: "Monolith",
+          tagline: "强结构，零含混",
+          shortMode: "浅色 · 高对比",
+          mode: "浅色预览 · 支持跟随系统",
+          summary: "偏不透明表面、2dp 描边与 8dp 基础圆角，让层级只由结构与对比建立。",
+          material: "偏不透明 / 2dp 强描边",
+          paletteNote: "纸白 · 墨黑 · 信号橙",
+          fontNote: "MiSans 400 / 500 / 700",
+          typeAccent: "Block / 700",
+          typeDetail: "标题 700 · 正文 400",
+          radius: "8dp",
+          principle: "结构承担识别 · 拒绝装饰",
+          roleNote: "信号橙、深青与油橄榄分别代表影视、音乐、书籍。",
+          roleLabels: ["Signal Film", "Deep Teal Music", "Olive Book"],
+          colors: {
+            surface: "#F2F0E9",
+            text: "#111317",
+            film: "#D44B28",
+            music: "#1F5F74",
+            book: "#6A5A2D"
+          }
+        },
+        dynamic: {
+          name: "系统动态色",
+          tagline: "沿用 Prism，只替换颜色角色",
+          shortMode: "浅色 · 动态",
+          mode: "系统外观 · Android 12+",
+          summary: "表面跟随系统中性色；Primary、Secondary、Tertiary 依次映射影视、音乐、书籍。",
+          material: "系统色调 / Prism 骨架",
+          paletteNote: "壁纸源色 · 暖中性面",
+          fontNote: "Prism 字阶 · MiSans 400 / 500 / 700",
+          typeAccent: "Prism / 700",
+          typeDetail: "继承 Prism 字阶与几何",
+          radius: "12dp",
+          principle: "系统取色 · Prism 结构",
+          roleNote: "Primary → 影视；Secondary → 音乐；Tertiary → 书籍。",
+          roleLabels: ["Primary Film", "Secondary Music", "Tertiary Book"],
+          colors: {
+            surface: "#FBF8F3",
+            text: "#251F1B",
+            film: "#9C4A35",
+            music: "#386B52",
+            book: "#375D87"
+          }
+        }
+      };
+
+      const key = document.documentElement.dataset.theme || "lumen";
+      const theme = themes[key] || themes.lumen;
+      const bindAll = (selector, value) => {
+        document.querySelectorAll(selector).forEach((node) => {
+          node.textContent = value;
+        });
+      };
+
+      bindAll("[data-theme-name]", theme.name);
+      bindAll("[data-theme-tagline]", theme.tagline);
+      bindAll("[data-theme-short-mode]", theme.shortMode);
+      bindAll("[data-theme-mode]", theme.mode);
+      bindAll("[data-theme-summary]", theme.summary);
+      bindAll("[data-theme-material]", theme.material);
+      bindAll("[data-theme-palette-note]", theme.paletteNote);
+      bindAll("[data-theme-font-note]", theme.fontNote);
+      bindAll("[data-theme-type-accent]", theme.typeAccent);
+      bindAll("[data-theme-type-detail]", theme.typeDetail);
+      bindAll("[data-theme-radius]", theme.radius);
+      bindAll("[data-theme-principle]", theme.principle);
+      bindAll("[data-theme-role-note]", theme.roleNote);
+
+      Object.entries(theme.colors).forEach(([role, color]) => {
+        document.querySelectorAll(`[data-swatch="${role}"]`).forEach((node) => {
+          node.style.setProperty("--swatch-color", color);
+        });
+        document.querySelectorAll(`[data-hex="${role}"]`).forEach((node) => {
+          node.textContent = color.toUpperCase();
+        });
+      });
+
+      ["film", "music", "book"].forEach((role, index) => {
+        document.querySelectorAll(`[data-role-label="${role}"]`).forEach((node) => {
+          node.textContent = theme.roleLabels[index];
+        });
+      });
+
+      document.querySelectorAll(".theme-dot").forEach((node) => {
+        const map = { "dot-prism": "prism", "dot-lumen": "lumen", "dot-nocturne": "nocturne", "dot-monolith": "monolith", "dot-dynamic": "dynamic" };
+        const current = Object.entries(map).find(([className]) => node.classList.contains(className));
+        node.setAttribute("aria-pressed", current?.[1] === key ? "true" : "false");
+      });
+
+      document.title = `Aurorama 2.0 · ${theme.name} 风格帧`;
+      document.documentElement.dataset.scriptRan = "true";
+
+      const writeAudit = () => {
+        const frame = document.querySelector(".frame");
+        const rect = frame.getBoundingClientRect();
+        const workspace = document.querySelector(".workspace");
+        const workspaceRect = workspace.getBoundingClientRect();
+        const bodyRect = document.body.getBoundingClientRect();
+        const specPanel = document.querySelector(".spec-panel");
+        const appContent = document.querySelector(".app-content");
+        const buttons = [...document.querySelectorAll("button")];
+        const unnamedButtons = buttons.filter((button) => {
+          const hasName = button.hasAttribute("aria-label") || button.hasAttribute("aria-labelledby") || button.textContent.trim().length > 0;
+          return !hasName;
+        });
+        const visibleIconLinks = [...document.querySelectorAll("button .icon")];
+        const iconsMissingHiddenState = visibleIconLinks.filter((icon) => icon.getAttribute("aria-hidden") !== "true").length;
+        const overflowX = document.documentElement.scrollWidth > 1600 || bodyRect.width > 1600;
+        const overflowY = document.documentElement.scrollHeight > 1000 || bodyRect.height > 1000;
+        document.documentElement.dataset.auditTheme = key;
+        document.documentElement.dataset.auditOverflowX = String(overflowX);
+        document.documentElement.dataset.auditOverflowY = String(overflowY);
+        document.documentElement.dataset.auditSpecOverflow = String(specPanel.scrollHeight > specPanel.clientHeight + 1);
+        document.documentElement.dataset.auditContentOverflow = String(appContent.scrollHeight > appContent.clientHeight + 1);
+        document.documentElement.dataset.auditSpecHeight = `${specPanel.scrollHeight}/${specPanel.clientHeight}`;
+        document.documentElement.dataset.auditContentHeight = `${appContent.scrollHeight}/${appContent.clientHeight}`;
+        document.documentElement.dataset.auditFrame = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+        document.documentElement.dataset.auditWorkspace = `${Math.round(workspaceRect.width)}x${Math.round(workspaceRect.height)}`;
+        document.documentElement.dataset.auditFonts = `${document.fonts.check('16px MiSans')}/${document.fonts.check('16px Literata')}`;
+        document.documentElement.dataset.auditButtons = String(buttons.length);
+        document.documentElement.dataset.auditUnnamedButtons = String(unnamedButtons.length);
+        document.documentElement.dataset.auditIconHiddenIssues = String(iconsMissingHiddenState);
+      };
+      writeAudit();
+      document.fonts.ready.then(() => {
+        writeAudit();
+        requestAnimationFrame(writeAudit);
+      });
+    })();
+  </script>
+</body>
+</html>
