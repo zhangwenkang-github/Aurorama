@@ -418,20 +418,22 @@ val CinefinTypography = Typography(
 | 风格 | 自绘几何（棱镜语言）：无填充噪声、无厚描边；禁用 Material 默认图标的粗重外形 |
 | 特殊键 | 导航 / 播放键使用"方圆形"（corner-16/22），与卡片同心 |
 
-### 7.2 App 图标（三棱镜光栅）落地指引
+### 7.2 App 图标（当前生产：极光帘幕）
 
-概念：**白色光束从左侧射入一枚三角棱镜，右侧分出琥珀 / 松石 / 天青三条色带**——"白入彩出"，表达多媒体聚合；无播放三角、无胶片孔、无字母。
+2026-11-02 用户决定停止本轮新 Logo 探索，App Logo / launcher 保持当前生产 W38
+「极光帘幕」自适应图标；A/B/C 与 v0.2 候选均不采用。该决定由 `V2-D076` 记录。
 
-| 尺寸 | 交付 | 规则 |
-|------|------|------|
-| 512×512 | 商店 / 关于页 | 完整光栅细节，三色带 4dp 间隙 |
-| 192 / 144 / 96 / 72 | launcher 位图兜底 | 三角 + 三带，细节按尺寸裁减 |
-| 108×108（安全区 72dp） | 自适应图标前景层 | 三角居左 40%，光带向右展开；背景层纯 `#151A21` 无渐变 |
-| 48×48 | 最小可读 | 最小色带宽 ≥3dp，三角描边 ≥2dp |
-| 单色主题图标 | Android 13+ 主题图标 | 纯路径：棱镜轮廓 + 单色光带，颜色 `#F4F1EA` |
-| 浅色变体 | 浅色 launcher | 背景 `#F5F3EE`，棱镜 `#1B212B`，三色带同 base |
+概念：两条极光青到辅光蓝的帘幕自左上方流下，底部以一条弧形“幕布地平线”收束；不使用
+播放三角、胶片孔、字母、菱形主体或新增粒子。
 
-落地文件：`core/src/main/res/drawable/ic_launcher_foreground.xml`（矢量前景）+ `mipmap-anydpi-v26/ic_launcher.xml`（自适应）+ `drawable/ic_launcher_monochrome.xml`；启动图动效为"三色带横向展开"，560ms Emphasized，不出现文字。
+| 交付 | 当前资源 / 规则 |
+|---|---|
+| 自适应前景 | `core/src/main/res/drawable/ic_launcher_foreground.xml`；108×108dp 画布，关键形体在 66dp 安全区 |
+| 自适应外壳 | `core/src/main/res/mipmap-anydpi/ic_launcher.xml` 与 `mipmap-anydpi-v33/ic_launcher.xml` |
+| 单色主题图标 | `core/src/main/res/drawable/ic_launcher_monochrome.xml`；API 33+ 纯路径，无渐变与半透明层 |
+| 背景 | 深色 `#0B0C0E` / night `#05070B`，由 `ic_launcher_background` 资源提供 |
+| 主色 | 极光青 `#5CE1D2` → 辅光蓝 `#7CC4FF`；副帘幕使用 55% 辅光蓝 |
+| 边界 | App Logo 本轮不重绘、不派生新 launcher / splash；界面动作图标是否重绘另案确认 |
 
 ---
 
@@ -731,7 +733,7 @@ object CinefinMotion {
 - [ ] 深色主题 + 阅读器 5 主题（纸色 / 护眼 / 深色 / OLED / 跟随）实际渲染通过；纸色主题使用 `#A8843C` 纸页棕。
 - [ ] 动效：入场 560ms / 错峰 40ms / 面板 420ms；只动 transform / opacity / color；减少动画开关生效。
 - [ ] 对比度：正文 ≥4.5:1、大字 ≥3:1（§2.2 表）；截图抽检。
-- [ ] App 图标（三棱镜光栅）多尺寸（48 / 72 / 96 / 144 / 192 / 512 + 自适应 + 单色主题）全部产出并与本文规则一致。
+- [ ] App 图标继续使用当前 W38「极光帘幕」自适应前景与 API 33+ 单色图标；未擅自替换为 v0.2 或本轮 A/B/C 探索稿。
 
 ---
 

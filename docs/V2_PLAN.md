@@ -600,9 +600,9 @@ Aurorama 2.0 是正式 `2.0.0` 产品大版本，同时代表内部 V2 架构和
 
 #### 5.3.13 App Logo 原创方向探索
 
-**状态**：`LOGO_DIRECTIONS_READY_FOR_USER_SELECTION`（2026-11-02）。本轮只完成参考研究、
-三套原创矢量方向、确定性 Proof 和独立视觉 QA，不选择最终 Logo，不进入 launcher / splash
-派生、G1、Compose、设备或发布阶段。
+**状态**：`LOGO_EXPLORATION_NOT_ADOPTED`（2026-11-02）。本节保留参考研究、三套原创矢量方向、
+确定性 Proof 和独立视觉 QA 作为历史探索；用户随后决定 App Logo / launcher 仍使用当前生产
+W38「极光帘幕」自适应图标，A/B/C 不采用，不进入 launcher / splash 派生。
 
 **参考研究**：访问日期均为 `2026-11-02`，完整来源、许可和不可复制边界见
 `docs/design/v2-logo-redesign/reference-board.html`。研究覆盖：
@@ -664,6 +664,11 @@ NASA / NOAA / ESO 标识、署名照片、CC BY / CC BY-SA 构图均不得进入
 
 **未执行**：未改业务代码，未跑 Gradle，未接触 adb / 真机 / 服务器，未新增依赖，
 未更新 `UI_DESIGN_SYSTEM.md`，未扩展 G1，未 push / tag / Release。
+
+**后续用户决定（2026-11-02）**：`V2-D076` 已确认 App Logo / launcher 保持当前生产
+`ic_launcher_foreground.xml` / `ic_launcher_monochrome.xml`；A/B/C 及 v0.2 候选均不作为最终
+Logo。界面动作图标是否重绘仍由 `V2-D063` / `V2-D067` 的独立图标范围决定，不能把本决定
+扩大为“界面图标全部冻结”。
 
 ## 6. 三层前置门
 
@@ -742,12 +747,11 @@ NASA / NOAA / ESO 标识、署名照片、CC BY / CC BY-SA 构图均不得进入
 
 ## 12. 下一需求域交接
 
-### ACTIVE：`V2-REQ-UX` Logo 方向选择交接（2026-11-02）
+### ACTIVE：`V2-REQ-UX` UI/UX 范围收敛交接（2026-11-02）
 
-**状态**：`LOGO_DIRECTIONS_READY_FOR_USER_SELECTION`。三套全新原创 Logo 方向及
-24 / 48 / 96 / 512px Proof 已交付；最终独立视觉 QA 为 `PASS_WITH_GAPS`，
-P0/P1/P2/P3=`0/2/1/2`，只放行“用户选方向”，不放行 launcher / splash 或最终 Logo。
-`UI_DESIGN_SYSTEM.md` 尚未升级为 V2；38 条 UX 候选最终矩阵仍未完成。
+**状态**：`UI_UX_SCOPE_DECISIONS_PENDING`。用户已决定 App Logo / launcher 保持当前生产
+W38「极光帘幕」自适应图标；A/B/C 新方向不采用。下一步只收敛少量 UI/UX 产品决策，再由团队
+完成 38 条候选矩阵和五主题 G1，不继续 Logo 派生。`UI_DESIGN_SYSTEM.md` 尚未升级为 V2。
 
 **工作对象**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
 分支 `codex/v2-integration`。本轮从 `45d6ef7e2e0d4414fb9ac2cc4fad128ff750f2b2` 开始，
@@ -765,23 +769,30 @@ P0/P1/P2/P3=`0/2/1/2`，只放行“用户选方向”，不放行 launcher / sp
 - 单色浅底 / 深底对比度 `16.90:1` / `18.94:1`；主题矩阵文字最低 `10.03:1`。
 - 两轮独立视觉 QA：首轮 `PASS_WITH_GAPS` 发现 A/B/C 的 24px 风险，由全新实现代理修复；
   最终轮再次由全新 QA 只审两张压缩图，保留 B / C 的 24px 微标特异性风险与 A 切口压缩风险。
+- 用户已确认不采用 A/B/C；当前生产 `ic_launcher_foreground.xml` /
+  `ic_launcher_monochrome.xml` 保持为 App Logo / launcher，记为 `V2-D076`。
 
-**待用户选择**：
+**当前需要用户确认的 UI/UX 产品边界**：
 
-| 选项 | 方向 | 当前判断 |
-|---|---|---|
-| A | 极向光瞳 / Polar Aperture | QA 首选；环体在 24px、单色和五主题中最稳定；将优先修正切口压缩。 |
-| B | 折光山脊 / Refraction Ridge | 48px 以上最有电影与材料感；24px 要另做微标，避免退化为通用 A。 |
-| C | 磁尾航迹 / Magnetotail Trace | 动势最强；24px 要另做微标，避免返回 / 刷新联想。 |
+1. `V2-Q-UX-56`：界面动作图标是否仍按 D063 / D067 选择性重绘；建议只重绘低对比、歧义或高频动作，
+   不整包换风格。
+2. `V2-Q-UX-57`：手机底栏与平板侧轨是否冻结为当前 IA；建议保持首页 / 视频 / 音乐 / 书架，媒体库、
+   下载、控制台留在侧栏或抽屉。
+3. `V2-Q-UX-58`：首页首屏主焦点是否采用“继续观看 / 阅读 / 收听”优先，并保留独立“最近内容”区；
+   建议采用，避免仪表盘式堆卡。
+4. `V2-Q-UX-59`：信息密度是否采用“内容页影院感、设置 / 库管理偏高效率”的双档策略；建议采用，
+   所有档位仍共享 4/8 网格、48dp 触控与同一组件状态语义。
+
+前两项是产品选择；后两项分别影响首页层级和视觉密度。其余色彩、字体、圆角、动效、
+无障碍、主题切换、阅读主题、动态色和外部 Skill / MCP 边界均已确认，不重复询问。
 
 **未完成**：
 
-- 用户尚未选择 A / B / C。
-- 选定后需做单方向微标精修、48 / 96px 深浅单色、五主题完整材质方案、
-  launcher / monochrome / splash 派生与最终独立视觉 QA。
+- 上述 4 项 UI/UX 产品边界待用户确认；团队随后一次性提交 38 条候选建议分类，不逐条打扰用户。
 - 五主题完整界面稿、共享组件状态板、38 条 UX 最终矩阵与 `UI_DESIGN_SYSTEM.md` V2 仍未开始。
+- 界面动作图标如获准重绘，仍需单独出图标词表、识别测试和状态矩阵；App Logo 不在此范围。
 
-**当前事实**：`V2-REQ-ARCH` 已收口；`V2-D021`～`D075` 与 ADR-0007 已接受。当前需求域是
+**当前事实**：`V2-REQ-ARCH` 已收口；`V2-D021`～`D076` 与 ADR-0007 已接受。当前需求域是
 `V2-REQ-UX`，外部原始需求只读范围仍为第 290–394 行。旧 Logo v0.2 只作反例和尺寸教训。
 
 **精确读序**：
@@ -792,18 +803,17 @@ P0/P1/P2/P3=`0/2/1/2`，只放行“用户选方向”，不放行 launcher / sp
 4. `docs/PROJECT_RULES.md`
 5. `docs/LESSONS.md` 索引
 6. `docs/TASKS.md` 中 `V2-REQ-UX`
-7. `docs/DECISIONS.md` 的 `V2-D065`～`V2-D075` 与 ADR-0007
-8. `docs/design/v2-logo-redesign/reference-board.png`、`directions-overview.png`、
-   三份方向 Proof 与对应 SVG
+7. `docs/DECISIONS.md` 的 `V2-D065`～`V2-D076` 与 ADR-0007
+8. 当前生产 `ic_launcher_foreground.xml` / `ic_launcher_monochrome.xml`
 
-**下一角色**：先由用户选择 A / B / C。选择后由新的 App Logo 精修实现代理只深化单一方向，
-再做 launcher / monochrome / splash 派生；实现与最终视觉 QA 仍须由不同全新代理承担。
+**下一角色**：用户确认上述 4 项产品边界后，由 UI/UX 需求收敛代理整理 38 条候选矩阵、
+界面清单和五主题 G1 设计包；Logo 不再作为本轮任务对象。
 
 **第一条只读动作**：
 
 1. `git rev-parse HEAD`、`git status --porcelain=v1` 与分支核对；
-2. 打开参考板、三方向总览和用户选定方向的 Proof；
-3. 将 §5.3.13 的 P1/P2 残留逐项转成单方向微标验收，不改其他两个方向。
+2. 读取本 ACTIVE、§5.3.2 的 38 条候选及现有 `UI_DESIGN_SYSTEM.md` 标题地图；
+3. 只处理用户确认的 4 项边界，不继续 Logo、launcher 或 splash 工作。
 
 **设计交付约束**：
 
@@ -823,8 +833,8 @@ P0/P1/P2/P3=`0/2/1/2`，只放行“用户选方向”，不放行 launcher / sp
 **停止条件**：分支 / HEAD / 工作树漂移；外部需求哈希不一致；需要跨章节、数据迁移、服务器写、
 外部依赖或发布策略；与已接受 ADR 冲突；连续两次本地渲染 harness 且 5–10 分钟内无法收敛。
 
-**上下文水位**：`254,420 / 1,048,576` tokens（`24.3%`），测量于 2026-11-02 23:12；
-低于 30 万收口线和 35 万强制交接线。
+**上下文水位**：`303,232 / 1,048,576` tokens（`28.9%`），测量于 2026-11-02 23:19；
+已过 30 万收口线，下一会话应从此段继续；35 万为强制交接线。
 
 **HISTORY**：Logo v0.2、五主题风格帧与早期两轮视觉 QA 保留在 §5.3；其字体 / 画布 / 对比度
 结论仍可回查，但 Logo 构图已退役，不再作为当前待确认或待微调对象。
@@ -853,3 +863,4 @@ P0/P1/P2/P3=`0/2/1/2`，只放行“用户选方向”，不放行 launcher / sp
 - **2026-11-02 — V2 UX 手机 / 平板联合视觉 QA**：按用户要求不再复用原设计修复代理；新证据代理生成 `device-contact-sheet.png`，同图呈现五主题平板稿与五主题手机稿。随后全新独立 QA 只查看联合总览与 `logo-proof.png`，结论 `PASS_WITH_GAPS`、P0/P1/P2/P3=`0/0/3/1`：手机稿为独立移动版式，平板稿与手机共享 IA 且五主题可辨，Logo 24px micro 与 48–288px 主标通过。保留 P2：最近内容独立区未定、平板部分触控外框不足 48dp、真实安全区未验证；P3：长标题与大字号未压测。当前只放行用户主观视觉确认，未改 V2 设计系统、未进入 G1 / 实现 / 设备 / 服务器。
 - **2026-11-02 — Logo 重新设计交接**：用户要求创建新会话重新设计 App Logo，并建议先查找极光相关图片或资料寻找灵感。ACTIVE 交接改为 `LOGO_REDESIGN_HANDOFF_READY`；旧 Logo v0.2 只作为反例与尺寸规则输入，新角色先做极光 / 束光 / 棱镜 / 材质参考研究，再产出至少 3 个原创方向及 24 / 48 / 96 / 512px Proof。未进入 G1、实现、设备、服务器或发布。
 - **2026-11-02 — Logo 原创方向探索收口**：父会话交接 clean 后重新执行只读门，worktree、分支、`45d6ef7e` 祖先与外部需求 SHA-256 全部通过。联网研究 9 个可核验来源，仅记录链接 / 许可 / 用途，未下载或复制第三方素材；使用本地 SVG + Edge 从零产出 A 极向光瞳、B 折光山脊、C 磁尾航迹，每方向含全彩 / 单色和 24 / 48 / 96 / 512px Proof，五主题兼容说明完整。机械门 `30/30 PASS`；两轮全新独立视觉 QA，最终 `PASS_WITH_GAPS`、P0/P1/P2/P3=`0/2/1/2`：只放行用户方向选择，B / C 的 24px 微标特异性、A 切口压缩与完整材质矩阵留到选定方向后处理。未改业务代码，未跑 Gradle，未触设备 / 服务器，未 push / tag / Release。
+- **2026-11-02 — App Logo 使用决定与 UI/UX 收敛入口**：用户决定停止本轮 Logo 新方向，App Logo / launcher 保持当前生产 W38「极光帘幕」自适应图标；`V2-D076` 落档，A/B/C 与 v0.2 均不采用，不再派生 launcher / splash。界面动作图标是否重绘仍独立待确认，不把 Logo 决定扩大为全部图标冻结。当前只剩 4 项高杠杆 UI/UX 产品边界待用户确认；其余 38 条候选由团队提出建议分类，不逐条询问。

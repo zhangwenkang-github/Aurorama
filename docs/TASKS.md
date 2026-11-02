@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 当前退出条件 |
 |---|---|---|---|---|
-| `V2-REQ-UX` | 第二章 | 用户从 A 极向光瞳 / B 折光山脊 / C 磁尾航迹中选择单一方向，再精修 Logo、收敛视觉基线、结构、参考、Skill/MCP 和工作流要求 | `V2-REQ-ARCH` | 三方向原创 SVG、参考板、24 / 48 / 96 / 512px Proof 和五主题兼容说明已交付；机械门 `30/30 PASS`，最终独立视觉 QA `PASS_WITH_GAPS`、P0/P1/P2/P3=`0/2/1/2`，状态 `LOGO_DIRECTIONS_READY_FOR_USER_SELECTION`。待用户选方向；B / C 的 24px 微标与 A 切口压缩在选定后处理。`UI_DESIGN_SYSTEM` 尚未升 V2，38 条需求矩阵仍待继续 |
+| `V2-REQ-UX` | 第二章 | 在 App Logo 保持当前 W38 自适应图标的前提下，确认界面动作图标、导航 IA、首页层级和信息密度，再收敛 38 条 UX 候选与五主题 G1 | `V2-REQ-ARCH` | App Logo 已由 `V2-D076` 冻结为当前生产图标；A/B/C 与 v0.2 均不采用。待用户确认 4 项 UI/UX 产品边界；随后团队一次性提交 38 条候选建议分类、界面清单与五主题 G1。`UI_DESIGN_SYSTEM` 尚未升 V2 |
 
 ## Review
 
