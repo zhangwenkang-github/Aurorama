@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / SOLUTION_BASELINE`
-> 当前阶段：开发前置·G1 方案门进行中 / 新负责人交接
+> 状态：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / G1/1 隔离 Spike 待执行
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2597,12 +2597,209 @@ SWR / 本地歌单 / 音乐懒补的契约，以及全部设备 / 大文件 / �
 明确启动 G1 取代；G1 可做只读分析、协议 / 能力探针和显式隔离的可逆 Spike，但仍不得进入
 实现入集成分支、独立 QA、设备写入、服务器写、push、tag 或 Release。
 
+### 5.11 `V2-SOLUTION-BASELINE` G1/0 只读检查点（G1 未通过）
+
+**状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE / CANDIDATE_BASELINE /
+NO_IMPLEMENTATION / G1_NOT_PASSED`。
+
+本检查点只证明 G1/0 硬门、问题树和六条只读证据轨道已经建立；目标架构、迁移、协议、许可、
+UX 与证据矩阵仍是候选，不得报送 G1 PASS、G2 开始或任何用户承诺已实现。
+
+**工作对象 / 硬门事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
+分支 `codex/v2-integration`。G1/0 开工后先核验 brief 交接 HEAD
+`4900ae393d64d60989fa1d6a8e779673adbb926f`，Git 实况依次有
+`aede078020cac8af0f9981fe38ba6bb34f77b7d0`（交接线程）和
+`3baa150a222bdf7a8157b703b800f2857d0ab6a7`（最终交接元数据）两个纯文档后继；三条提交均未改
+业务代码。开工 clean，基线 `4fbe5e12d182fc1d9bdf2790c7a725bec0074d37` 与视频收口
+`bd5e3aa59c2e5671ada9354f230da4519589272b` 均为 HEAD 祖先，外部原文 SHA-256
+`E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229` 精确一致。
+
+#### 5.11.1 G1/0 问题树
+
+根问题：**2.0 能否在保留 1.4 用户资产与生产只读边界的前提下，以真实可替换的模块边界、
+可失败关闭的迁移、Jellyfin 可表达协议、可接受依赖与统一 UX，交付有证据的 G2 输入？**
+
+| 支线 | 必须回答 | 当前结论 | 门 |
+|---|---|---|---|
+| `G1/ARCH` | app/core/data/player/reader/film/music 的依赖、单一状态真源、深模块 seam 与违规基线 | 19 条 project 边、0 个模块级环；存在三类 P1 结构风险 | 边界 allowlist / seam Spike 后确认 |
+| `G1/DATA` | schema、canonical identity、1.4→2.0、DB+sidecar 一致、失败关闭与恢复 | 两条显式迁移链存在，但 Server 仍全局破坏性 fallback；身份不统一 | 冻结 1.4 schema 映射与失败关闭 fixture 后确认 |
+| `G1/PROTO` | PlaybackInfo、下载 Range、写回读、阅读、搜索、更新、SWR、SyncPlay | 官方能力存在；当前客户端缺失若干成功锚点、错误映射和 SyncPlay 适配 | 静态契约语料 + 隔离能力 Spike |
+| `G1/SELECT` | 依赖、许可证、包体、ABI、性能、双内核、TTS、PDF | 直接依赖许可总体相容；FFmpeg/Media3 版本错位、native 覆盖和 TTS/PDF 未选型 | `G1-S1～G1-S6` 证据与用户高成本决策 |
+| `G1/UX` | V2 token、五主题、RWD、低保真、状态与无障碍 | 已有单一解析模型和九条文字低保真候选；无 V2 权威落地 | 风格帧 + 低保真用户确认 |
+| `G1/EVIDENCE` | 每个承诺的 fixture、Spike、设备 / 写服 / 候选包证据和 G2 输入 | E0–E7 分层与六类 Spike 草案已形成；尚未执行 | 证据矩阵确认 |
+| `G1/DECIDE` | 产品、不可逆、数据兼容、高成本候选由用户拍板 | 尚无可提前替代用户接受的结论 | G1 最终决策包 |
+
+#### 5.11.2 六条只读轨道与证据
+
+六个全新只读子代理均固定 `model="deepseek-flash"`、`reasoning_effort="max"`、
+`fork_turns="none"`，第一句写明专业身份，先计划后同回合执行；只读白名单互斥，均未修改文件。
+
+| 轨道 | 专业身份 / 核心证据 | 已证实 | 未覆盖 / 门 |
+|---|---|---|---|
+| `G1-A` | 移动端架构师：Gradle、模块清单、scoped import | phone、core、data、player、book、film、music 子图内 19 条 project 边；无模块级环；`core→data`、UI/DAO/API/具体播放器直连为 P1 | `settings`、`setup`、`app/tv` 与完整类型图未审；边界原型未写 |
+| `G1-D` | Android 数据 / 持久化架构师：schema JSON、DAO、迁移测试 | Server schema 17 与 Music schema 3；Server builder 仍启用全局破坏性 fallback；intent、book、sidecar、userdata、queue、playlist 身份不一致 | 1.4 正式 APK 的真实 schema 映射未冻结；未打开真实 DB |
+| `G1-P` | Jellyfin 协议集成工程师：当前调用 + OpenAPI 12.4 + SDK 1.8.12 | PlaybackInfo / UserData / Download / Search 端点存在；Book 应走 direct Download；SyncPlay 官方 REST+WebSocket 存在但 App 未接 | 无服务器 / 认证请求；12.2、12.4 与目标服务版本尚未统一台账 |
+| `G1-L` | 开源依赖 / 许可审查专家：Gradle 目录、POM、官方许可 | 46 个 release 直依赖、1 个 debug-only、4 个处理器、7 个测试项、11 个插件条目；未见 AGPL/SSPL 直接依赖 | 完整 runtime closure、CVE、native AAR 内部许可和最终 APK SBOM 未生成 |
+| `G1-U` | Android UX / 信息架构师：设计系统、ADR、token | 单一主题解析链、五主题角色、RWD 与九条低保真候选；识别动态色、AmbientColors、Neutral、阅读皮肤 P1 漂移 | 非 Prism 色板、材质、风格帧、真实对比度与用户确认未完成 |
+| `G1-T` | 移动端测试架构师：规则、既有测试清单、scoped 抽样 | E0–E7 证据分层、fake 硬边界、六类 G1 Spike 与 G2 卡字段 | 所有 Spikes 均 `NOT_EXECUTED`；现有测试仅是局部解析 / 状态证据 |
+
+#### 5.11.3 候选目标架构与 seam
+
+当前架构是“app 同时直连所有层”，不是稳定的 app → feature → contract/data/player 分层。
+移除 tv 后八模块子图的代码证实依赖为：
+
+```text
+app/phone → core, data, player/core, player/local, modes/book, modes/film, modes/music
+core → data, player/core
+player/local → data, player/core
+modes/book → core, data
+modes/film → core, data
+modes/music → core, data, player/core, player/local
+```
+
+G1 候选不是立即物理拆包，而是先用稳定接口冻结以下 seam：
+
+| Seam | 隐藏内容 | 唯一消费者 / 等式 |
+|---|---|---|
+| Scope / Identity | server、user、离线作用域、canonical request/source key | 切号、缓存、下载、通知、队列不串身份 |
+| Catalog read | API / DAO、分页、SWR、TTL、304、失效 | UI 只消费可标 stale 的快照 |
+| User-state write | 本地 intent、受理、确认、回读、部分失败 | 受理不等于成功；403 为 DENIED |
+| Download control | submit/observe/pause/resume/retry/cancel/delete | 页面、角标、通知、sidecar、DB 同一任务真源 |
+| PlaybackSession | ExoPlayer/mpv、MediaSession、命令和结果 | 单播放会话、单 MediaSession、旧 owner 不可回写 |
+| Reader source | Readium、PDF、SAF、远程 Range、progress/bookmark | source-scoped bookId、进度和内容指纹分离 |
+| Music library / queue | playlist、queue snapshot、懒补、随机序恢复 | 当前 / Next Up / 失败项使用稳定身份 |
+
+候选迁移顺序：先冻结当前违规基线并只禁新增违规；再建立纯契约 seam；隐藏 API/DAO；
+收口 player/local 的 UI 与运行时；逐 feature 收紧依赖；最后才评估是否把逻辑 `core:contracts`
+和 `core:ui` 物理拆成 Gradle 模块。物理拆分是高成本决策，G1/0 不代替用户拍板。
+
+#### 5.11.4 候选数据身份与迁移
+
+建议 DATA-Spike 验证但不预先批准：
+
+- 请求身份：`keyVersion + mediaKind + serverId + userId + libraryId + itemId`；
+- source 执行身份：请求身份 + `sourceToken`；
+- 普通媒体解析完成后必须有真实 source，BOOK 使用非空 `NO_MEDIA_SOURCE` 哨兵；
+- 无法证明完整来源的旧记录生成独立 `legacyRowKey` 并标 `PROVENANCE_UNKNOWN`，不折叠、覆盖或
+  按当前账号猜填；
+- 多列唯一键的身份列保持非空，用显式哨兵或 `provenanceComplete` 部分唯一索引表达缺失；
+- 所有取消、重试、删除和 CAS 从裸 `itemId` 迁移到完整 intent / source key。
+
+迁移候选状态机：`PREFLIGHT → QUIESCE → DB_TRANSACTION → DB_VERIFY → SIDECAR_TEMP →
+ATOMIC_SWAP → CROSS_STORE_VERIFY → READY`。任一步失败进入 `FAIL_CLOSED`：保留旧文件与临时
+文件、停止下载和相关写任务、禁止 fallback 清表、提供重试 / 恢复入口。真实用户数据不执行
+down migration；所谓回滚只指可丢弃 profile 的备份 / 恢复或经验证的 forward-fix。
+
+G1 先冻结 1.4 正式包的 schema 与 identityHash 映射；G2 才在可丢弃 profile 上用主库 + WAL +
+SHM + journal + sidecar 执行真实升级和故障注入。仅复制主库、仅 schema JSON 通过或历史 1.4
+记录均不能关闭迁移门。
+
+#### 5.11.5 候选协议契约
+
+| 能力 | 当前核心缺口 | G1 契约 / Spike |
+|---|---|---|
+| `READ_PLAYBACK` | 丢弃 `PlaySessionId` / `ErrorCode`；上报缺少 source/session 且固定 `DirectPlay` | 冻结 PlaybackInfo 请求、VOD / `.strm` / 缺轨 / 三条 ErrorCode；特殊 POST 只在隔离环境 |
+| `DOWNLOAD_RANGE` | 401 / 403 合并；416 终止证据不足；`GET /Items/{id}/Download` 可能写活动日志 | 冻结 200 / 206 / 416 / ETag / If-Range / 重定向剥凭据；生产不把它当零副作用探针 |
+| `WRITE` | 先改本地、吞异常、忽略服务端 DTO；无强制回读 | 冻结 200 DTO、204 + GET 回读、401/403/404/409/5xx、部分失败；真实写只在独立写服 |
+| `READER` | Book 不是 `IHasMediaSources`；UserData POST 未回读 | direct Download + 200/206 + UserData 写后 GET；不得要求 Book PlaybackInfo |
+| `SEARCH` | 离线 scope 只覆盖影视，音频 / 书籍缺失 | 冻结 ALL/VIDEO/MUSIC/BOOK 完整 query shape、分页、空 / 失败 / 返回恢复 |
+| `UPDATE` | App 更新与 Jellyfin 服务器更新边界未入单一台账 | App 自有可信 manifest、ABI、SHA / 签名、系统安装器；不得调用服务器更新写 |
+| `SWR` | 对外缺独立 stale 标志；TTL/304/容量/多进程未闭环 | 固定时钟、304、generation、写后失效、双账号、损坏缓存 fixture |
+| `SYNCPLAY` | App 未接官方 REST + WebSocket；Media3 内建不足以直连 | 双客户端受理 / 命令 / revision / 时钟 / 重连 fixture；真实双端只在隔离写服 |
+
+官方依据统一为 OpenAPI stable 12.4.0（SHA-256
+`02a6064916b7e08f1f1d8d7ffc1fb1c7623df0e378729fcd7fd353766868036e`）、Jellyfin server
+commit `83d0d0e7f76e23e2e085c8ff67d28b772d35967d` 与 Jellyfin Kotlin SDK 1.8.12 commit
+`8729ab41951dc5e905271107bbc0031cd7680524`。这只是 G1 文档基线，不是 App 候选包能力通过。
+
+#### 5.11.6 候选依赖与 UX 基线
+
+依赖候选：
+
+- 项目自身 `GPL-3.0` 与当前直接依赖总体相容；当前未发现 AGPL / SSPL 直接依赖。
+- `media3-ffmpeg-decoder:1.9.0+1` 的 POM 绑定 Media3 1.9.0，而 app 使用 1.11.1，必须先证明
+  JNI / API 兼容或统一定版；Gradle classpath 仲裁不能证明 native 兼容。
+- `libc++_shared.so` 当前由自定义任务选择 libmpv 版本，必须把 ABI / 符号 / 版本组合冻结并测试。
+- TTS、PDFium 尚未实际引入；系统 TTS 不能证明完全离线，PdfBox 不能证明远程 Range。
+- 最终许可证门必须从候选 APK 生成完整 SBOM / notices，并核验 libmpv / FFmpeg / desugar 的
+  native 与特殊条款；当前 `NOTICE` 的 1.0.0 口径不能用于 2.0 发布。
+
+UX 候选：
+
+- 单一解析链：`ThemeId × Appearance × Domain × Density × Window × MotionPreference`；
+- 分层：`Primitive → Theme → Semantic → Component`，density/window/motion 只作正交修饰；
+- 五主题、明暗、三域角色、阅读正文局部覆盖、400/500/700、4/8 网格、48dp 触控与
+  150–300ms 动效继续受 ADR-0007 / G0 约束；
+- 候选基础圆角：Prism 12、Lumen 16、Nocturne 8、Monolith 8、系统动态色 12；
+- 候选 RWD：16/24/32/48dp 页面边距、72dp 收轨、216dp 展开轨，以窗格有效宽度选择档位；
+- `AmbientColors` 不得成为页面第二主题；`Neutral` 不得静默回退影视色；阅读正文主题不得
+  污染顶栏、按钮和弹层；
+- 九条文字低保真已覆盖首页、媒体库/视频详情、音乐/队列、书架/阅读器、下载、搜索、
+  设置/主题、播放控制、SyncPlay 候选；尚未成为 V2 权威设计或视觉稿定稿。
+
+#### 5.11.7 证据分层与 G1 Spike 最小集
+
+| 层 | 证据 | 最多证明 |
+|---|---|---|
+| E0 | 静态契约 fixture | 请求形状、schema、golden body 与哈希稳定 |
+| E1 | JVM property / state test | 纯状态、解析、身份、队列与缓存不变量 |
+| E2 | Robolectric | Notification / WorkManager / Context 模拟集成 |
+| E3 | Compose/UI test | UI 状态映射、语义节点和动作可达 |
+| E4 | instrumentation | 真实 Android Room / WorkManager / ContentResolver / MediaSession 接线 |
+| E5 | 可丢弃 profile 真机 | OEM、WAL/SHM、权限、重启与系统界面 |
+| E6 | 独立写服 | 真实 Jellyfin 写受理、403、回读和清理 |
+| E7 | 候选包核心旅程 | 用户承诺的完整真实链路与跨界面等式 |
+
+E0–E4 只能在 G1 作为契约 / 可编译性 / 可丢弃模型证据；E5–E7 保留 G2，除非某能力选择必须
+真实测量才能决定。fake 不得替生产协议映射作证；存在 fixture、计划或历史 1.4 通过记录均不得
+写成 PASS。
+
+下一波只执行隔离、可逆的 G1/1 Spikes，不进入实现：
+
+1. `G1-S1` 架构边界扫描原型、违规 ID，以及逻辑 seam / 物理拆模块的工作量与回归成本比较；
+2. `G1-S2` 冻结 1.4 schema / identityHash，验证两级 identity、未知 provenance、DB+sidecar
+   一致和迁移失败关闭静态 / 编译 fixture；
+3. `G1-S3` 建协议静态契约语料与版本台账，并形成 PlaybackInfo、写回读 / 403、Book direct
+   source、SyncPlay 等能力可表达性结论；不调用服务器；
+4. `G1-S4` 解析完整依赖闭包，执行 Media3/FFmpeg native 兼容、ABI / 包体 / 性能以及
+   TTS / PDF Range 候选 Spike，生成许可证 / native / 选项成本清单；
+5. `G1-S5` 五主题风格帧与九条低保真交互复核；
+6. `G1-S6` 汇总 E0–E7 验收矩阵、阈值与 G2 任务卡输入。
+
+所有 Spike 必须使用临时 worktree / detach base、记录 base SHA、命令、结果和清理；任何代码或
+fixture 不得合入 `codex/v2-integration`，除文档账本外的产物不得成为 2.0 候选。
+
+#### 5.11.8 风险与用户决策门
+
+| 等级 | 结论 |
+|---|---|
+| P0 | 流程安全门：`GET /Items/{id}/Download` 可能写 ActivityLog，禁止用来证明生产零副作用；候选包若仍含全局破坏性 Room fallback，发布 STOP。当前没有已发生的生产写或数据破坏。 |
+| P1 | Room 迁移 / fallback；1.4 正式 schema 映射；双账号 / Book / sidecar 身份；写成功判定与 403；PlaybackInfo session/error；SyncPlay 协议适配；Media3/FFmpeg 与 native ABI；动态色与阅读外框主题；G1 证据不可替代 |
+| P2 | 下载 401/403、416、stale 标志、离线搜索 scope、App 更新签名台账、依赖闭包 / SCA、超大实现与共享包名 |
+| P3 | 重复依赖声明、无障碍 polish、超大屏留白、图标视觉 polish、次要版本更新 |
+
+G1 后续只向用户提交经证据收敛的高杠杆决策，不逐条询问内部细节：
+
+| 待确认 ID | 用户问题 | 当前建议 | 证据前置 |
+|---|---|---|---|
+| `V2-Q-G1-01` | 目标架构先做逻辑 contracts seam，还是本轮物理拆 Gradle 模块？ | 先逻辑契约 + allowlist；物理拆分仅在边界 / 成本 Spike 证明收益时进入候选 | `G1-S1` 含拆模块成本与回归面比较 |
+| `V2-Q-G1-02` | 1.4→2.0 迁移的用户可见兼容范围与可接受中断 / 恢复成本是什么？ | 保留全部已承诺用户资产；一次性迁移等待应有明确进度与恢复入口 | `G1-S2`；FAIL_CLOSED、禁止真实数据 down migration / 清库、未知 provenance 隔离是强制安全不变量，不由用户拒绝 |
+| `V2-Q-G1-03` | Media3 / mpv 双内核、TTS 与 PDF 的高成本组合如何取舍？ | Media3 主路径；mpv 仅覆盖已证必需能力；TTS / PDF 先隔离 Spike | `G1-S3/S4` 含 native 兼容、ABI、包体、性能与失败证据 |
+| `V2-Q-G1-04` | 五主题色板 / 材质、AmbientColors 去留、RWD 与低保真方向是否接受？ | 待风格帧和低保真复核后给出推荐包 | `G1-S5` |
+
+其余内部命名、模块文件拆分、fixture 结构和测试组织由团队在 G2 留痕决定。写入服务器地址、
+凭据和独立写服授权仍不属于 G1；未提供时相关真实写证据保持 `BLOCKED_ENVIRONMENT`。
+
+**G1/0 结论**：问题树与六条只读证据轨道完成，候选方案已足以驱动 G1/1；没有 G1 决策被用户
+接受，没有真实能力或发布门 PASS，没有修改生产代码或构建产物。下一入口为 `G1/1` 隔离
+Spike 与用户决策包，不是实现或 G2。
+
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 用户已启动；G1 交付负责人 / 技术集成编排者新会话交接中 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0 只读检查点完成；候选方案见 §5.11，`G1-S1～S6` 与用户决策仍未收口 |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -2632,7 +2829,7 @@ SWR / 本地歌单 / 音乐懒补的契约，以及全部设备 / 大文件 / �
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1 已由用户启动；负责人线程 `01a1a14a-31a3-7441-bb9b-e9d0d31584e3` 已创建并接管；禁止从交接自动进入实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；候选方案待 `G1-S1～S6` 和用户确认，禁止自动进入实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -2740,54 +2937,53 @@ SWR / 本地歌单 / 音乐懒补的契约，以及全部设备 / 大文件 / �
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1 方案门已启动 / 新负责人交接（2026-11-03）
+### ACTIVE：G1/0 只读检查点完成 / G1 候选基线待证据收敛（2026-11-03）
 
-**下一任身份**：**G1 交付负责人 / 技术集成编排者**。只负责 G1 范围、风险、角色拆单、
+**负责人身份**：**G1 交付负责人 / 技术集成编排者**。只负责 G1 范围、风险、角色拆单、
 只读白名单、压缩报告 / 关键 diff 审查、集成决策、文档与交接；不得把负责人身份写成实现工程师、
 独立 QA、Release 架构师或 merge-prep owner。
 
-**一句话现状**：G0 已通过，用户已明确启动 G1；本线程只负责创建全新的 G1 负责人会话，
-新负责人从当前集成分支建立方案基线，尚未产生任何 G1 架构或产品新决策。
+**一句话现状**：G0 已通过；G1/0 已完成六条互斥只读轨道、问题树、候选方案与风险清单，
+但这些内容尚未成为用户批准的 G1 基线。下一阶段是隔离、可逆的 G1/1 Spike 与用户决策包。
 
-**状态**：`G0_PASSED / G1_ACTIVE / G1_THREAD_CREATED / NO_IMPLEMENTATION`。
+**状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE / CANDIDATE_BASELINE /
+NO_IMPLEMENTATION / G1_NOT_PASSED`。
 
 **用户在 2026-11-03 19:54:42 +08:00（记录时间）原话**：
 “启动G1，开新会话由新负责人负责。交接规则不变，还是尽量使用子代理，不浪费负责人的上下文空间。”
 
 **工作对象 / 硬门事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
-分支 `codex/v2-integration`。交接开始时 G0 HEAD
-`43cd5e3083b8a1a974573ec0774d1ea27ad57f68`；G1 激活提交为
-`c9478a2a00c2991ffc68828065fe68367c475523`，仅修改交接文档。创建新线程前必须重新核验
-当前 HEAD、clean、双祖先与外部 SHA；若存在后继，只允许纯文档后继。
-基线 `4fbe5e12d182fc1d9bdf2790c7a725bec0074d37` 与视频收口
-`bd5e3aa59c2e5671ada9354f230da4519589272b` 均为祖先；外部全文 SHA-256
-`E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229` 精确一致。
-交接文档提交后以 Git 实况核验后继 HEAD。
+分支 `codex/v2-integration`。G1/0 开工 brief HEAD 为
+`4900ae393d64d60989fa1d6a8e779673adbb926f`；Git 实况已有
+`aede078020cac8af0f9981fe38ba6bb34f77b7d0` 与
+`3baa150a222bdf7a8157b703b800f2857d0ab6a7` 两个允许的纯文档后继。开工 clean、双祖先与外部
+SHA 通过；本检查点文档提交后的 HEAD 以 Git 实况为准。
 
 **已完成（稳定指针）**：
 
 - G0 `V2-D194`～`D197`、外部八域 `445` 个 source ID、`376` 个外部 MVP 子项及
   `V2-REQ-BASE-001～005` 五个既有能力 MUST 组已在 §5.10 / §5.10.5 生效。
-- `TASKS` 中 `V2-FINAL-CHECK` 已 Done；`DECISIONS.Open` 当前无问题；G0 收口提交
-  `43cd5e30` 只修改 4 份文档。
-- G1 待核验清单固定在 §5.10.6；后续不得重开已关闭 G0 产品问题，除非出现新证据并请用户裁定。
+- 六条只读轨道（架构、迁移、协议、依赖许可、UX、测试）均完成白名单勘察并只返回压缩报告；
+  §5.11 已落问题树、候选架构 / 迁移 / 协议 / 依赖 / UX / 证据模型。
+- G1/0 发现并登记 Room 破坏性 fallback、书籍与 sidecar identity、写成功判定、
+  PlaybackInfo session/error、SyncPlay 适配、Media3/FFmpeg 版本误差和 V2 主题漂移等风险。
 
-**在跑**：新 G1 负责人线程 `01a1a14a-31a3-7441-bb9b-e9d0d31584e3` 已创建并接管。
-**排队**：G1/0 硬门复核与 G1 问题树；随后按压缩材料
-推进架构、模块依赖、数据 / 迁移、协议契约、依赖许可、Spike、UX 方向 / 低保真和验收矩阵。
+**在跑**：当前 G1 负责人继续主持 G1/1 拆单与关键报告 / 文档 diff 审查。
+**排队**：`G1-S1`～`G1-S6` 隔离 Spike、五主题风格帧 / 九条低保真复核、用户决策包与 G1
+最终确认。它们是证据收敛，不是 G2 实现。
 
 **决策与出处**：G0 全部产品基线以 §5.10、§9、`DECISIONS` `V2-D001`～`D197` 为准；G1 技术
 暂定项由新负责人组织只读证据后提出，产品或不可逆边界仍必须由用户拍板。
 
-**未决 / 停止边界**：G1 尚无方案结论。不得修改生产 Kotlin / Compose / Gradle / Manifest / 资源，
+**未决 / 停止边界**：G1 尚无用户批准的方案结论。不得修改生产 Kotlin / Compose / Gradle / Manifest / 资源，
 不得把 Spike 合入 `codex/v2-integration`，不得进入 G2、实现、独立 QA、设备写入、服务器写、
 push、tag 或 Release；生产服务器永久只读。出现新产品范围、数据破坏风险、独立写服需求、
 许可不可接受或对象漂移时停止并请用户决策。
 
-**交接完成后的下一步入口**：新负责人第一条只读动作是读取本 ACTIVE、`PROJECT_PLAN` 的 2.0
-任务行、`TASKS` 的 `V2-SOLUTION-BASELINE`、`DECISIONS.Open`、§5.10.5、§5.10.6、§6、§9、
-§10、§11 与 ADR-0003～0007；随后自行核验 worktree / branch / HEAD / clean / 双祖先 / 外部
-SHA，并先写 G1 计划（目标、非目标、阶段、验收门、预计耗时 / 上下文），再派子代理。
+**下一步入口**：先复核本检查点文档提交与 Git 实况，再按 §5.11.7 派生互斥 Spike：
+架构边界扫描、1.4 schema 冻结 / 迁移 fixture、协议静态语料、完整依赖闭包、UX 风格帧 /
+低保真、E0–E7 验收矩阵。关键不确定点分别由全新专业只读子代理承接；负责人只审压缩报告、
+关键 diff 与证据一致性。
 
 **首轮路径级白名单**：上述规则 / 计划 / 决策 / ADR；`settings.gradle.kts`、根与模块
 `build.gradle.kts`、`buildSrc/`、`gradle/libs.versions.toml`；`app/phone/`、`core/`、`data/`、
@@ -2802,22 +2998,23 @@ SHA，并先写 G1 计划（目标、非目标、阶段、验收门、预计耗�
 Android UX / 信息架构师、移动端测试架构师。负责人在 25 万收缩、30 万准备交接、35 万必须创建
 下一负责人。
 
-**环境 / 锁**：无设备锁、无端口锁、无服务器写锁。新负责人线程 ID：
-`01a1a14a-31a3-7441-bb9b-e9d0d31584e3`（2026-11-03 创建并接管）。
+**环境 / 锁**：无设备锁、无端口锁、无服务器写锁；当前没有独立写服授权，真实服务器写
+保持 `BLOCKED_ENVIRONMENT`。负责人线程仍为
+`01a1a14a-31a3-7441-bb9b-e9d0d31584e3`。
 
-**交接时上下文水位**：2026-11-03 19:55:44 派发审计前实测本线程
-`311,279 / 1,048,576`（29.7%）；2026-11-03 20:03:53 交接收尾实测
-`345,635 / 1,048,576`（33%，缓存命中 99.8%，请求 101）。已过 30 万准备交接线；
-本线程只完成 G1 交接，不再展开架构分析或新增任务。
+**上下文水位**：G1/0 首轮派单前实测 `144,351 / 1,048,576`（13.8%）；第二波派单前实测
+`163,428 / 1,048,576`（15.6%）。旧线程 `01a1a134…` 的 345,635 不得误写为本线程水位。
+G1/0 文档收口实测 `256,785 / 1,048,576`（24.5%，缓存命中 99.3%，线程请求 225）；
+已进入 25 万收缩区，只允许完成检查、提交与交接，不再扩展分析范围。
 
-**新负责人收口报告格式**：结论；cwd / branch / HEAD / clean；双祖先与 SHA；只读白名单与实际
+**负责人收口报告格式**：结论；cwd / branch / HEAD / clean；双祖先与 SHA；只读白名单与实际
 executed；子代理身份 / 模型 / 任务 / 水位；G1 问题树与建议阶段；已完成；未完成 / BLOCKED；
 P0–P3；证据链接；未覆盖；实际上下文水位；Engramory 同步判断；下一步角色、第一条只读动作与
 停止条件。不得把计划、硬门通过或文档更新报送成 G1 已通过。
 
 ### HISTORY：G0 已通过 / G1 启动前交接（2026-11-03）
 
-该状态已被顶部 `G1_ACTIVE / G1_THREAD_CREATED` 取代；以下保留 G0 收口证据，
+该状态已被顶部 `G1_0_READONLY_COMPLETE / CANDIDATE_BASELINE` 取代；以下保留 G0 收口证据，
 不得作为当前 G1 状态引用。
 
 **状态**：`G0_PASSED / FINAL_CHECK_DONE / G1_NOT_STARTED / NO_ACTIVE_IMPLEMENTATION`。
@@ -3116,3 +3313,11 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `deepseek-flash / max / fork_turns=none` 子代理策略、非目标、第一步与停止条件。
   前一负责人只完成交接与 ID 回写，不继续阅读 G1 架构材料、不进入实现 / G2 / QA / 设备 /
   服务器写 / push / tag / Release。
+- **2026-11-03 — G1/0 只读检查点完成，G1 尚未通过**：G1 负责人按允许的纯文档后继复核
+  `4900ae39 → aede0780 → 3baa150a`，分支、clean、双祖先与外部 SHA 均通过。六个全新只读
+  子代理固定 `deepseek-flash / max / fork_turns=none`，分别完成架构、迁移、Jellyfin 协议、
+  依赖许可、V2 UX 与测试证据勘察；§5.11 已落七支问题树、候选 seam / identity / 协议 /
+  许可 / UX / E0–E7 证据模型和 `G1-S1～S6`。确认 19 条模块边与 0 个模块级环、
+  Server schema 17 破坏性 fallback、写回读 / PlaybackInfo / SyncPlay 缺口、Media3/FFmpeg
+  版本错位及 V2 主题漂移。当前无用户 G1 决策、无代码 / 构建 / 设备 / 服务器执行；
+  `DECISIONS.Open` 新增四个证据门问题，下一步为隔离 Spike 与用户决策包。

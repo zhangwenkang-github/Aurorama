@@ -206,7 +206,17 @@
 
 ## Open
 
-当前无开放问题。
+当前 G0 无开放产品问题。G1/0 已登记四个证据门问题，尚未到向用户提交最终选择的条件；
+这些问题不是已接受决策，代理建议不得代替用户拍板。
+
+### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
+
+| 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
+|---|---|---|---|---|
+| `V2-Q-G1-01` | 现有 app 同时直连 core/data/player/modes，`core→data` 和 UI/DAO/API/具体播放器直连形成 P1；物理拆模块成本高 | 先建立 contracts seam、包所有权与依赖 allowlist，再以 Spike 评估物理拆分 | 立即物理拆可更快收紧边界，但迁移面、构建变化和回归面显著更大 | **Open / 待 `G1-S1`** |
+| `V2-Q-G1-02` | Server schema 17 仍有全局破坏性 fallback；intent/book/sidecar/userdata/queue/playlist 身份不一致；1.4 正式 schema 映射未冻结。显式版本迁移、两级 identity、未知 provenance 隔离、FAIL_CLOSED 与真实数据禁止 down migration / 清库是强制安全不变量 | 用户只需确认 1.4→2.0 的用户可见兼容范围、可接受的一次性等待 / 中断，以及迁移失败后的恢复入口 | 静默迁移或跳过恢复入口可能让用户无法判断资产是否完整；安全性本身不列为可选取舍 | **Open / 待 `G1-S2`** |
+| `V2-Q-G1-03` | Media3 1.11.1 与 FFmpeg decoder 绑定 1.9.0；libmpv native 与 libc++ 覆盖复杂；TTS / PDF 未实际选型 | Media3 主路径；mpv 只在格式矩阵证明必需时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖但增加包体、许可证、维护与 native 风险 | **Open / 待 `G1-S3/S4`** |
+| `V2-Q-G1-04` | V2 已有主题轴约束，但非 Prism 色板 / 材质、基础圆角、AmbientColors 去留、RWD 细节和九条低保真尚未确认 | 按 §5.11.6 候选先出五主题风格帧和低保真复核，再由用户整包确认 | 直接实现会固化第二主题、错误对比度和不一致 RWD | **Open / 待 `G1-S5`** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）
 
@@ -262,5 +272,5 @@ Open；该接受不批准 G1、实现、QA、设备、服务器写或发布。
 `V2-Q-NAV-12` 已由 `V2-D192` 关闭：随机 / 循环 / Auto DJ 下的追加位置、实际随机序与恢复语义
 已确认。最终矩阵 `V2-REQ-NAV-001`～`009` 与计数由 `V2-Q-NAV-13` / `V2-D193` 整包接受；
 NAV 需求域无剩余 Open；G0 后 `V2-D195` 补明确离线选号触发旧身份播放暂停 / 隐藏。
-完整 G0 已由 `V2-D197` 通过；用户随后明确启动 G1。Open 当前无产品问题，G1 技术 / 方案问题
-由新负责人按证据和必要用户确认管理。
+完整 G0 已由 `V2-D197` 通过；用户随后明确启动 G1。G0 当前无开放产品问题；G1 的
+`V2-Q-G1-01～04` 已在上方登记为证据门问题，待对应 Spike 收口后才向用户提交最终选择。
