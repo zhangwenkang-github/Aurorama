@@ -1613,13 +1613,13 @@ MVP；流程节点不额外计为产品能力。MVP 的核心边界是：
 `V2-D127` 关闭 `V2-Q-MUSIC-22`；上述矩阵、冲突、证据、计数与 MVP 正式生效。
 音乐需求域无剩余 Open。该接受不批准 G1、实现、QA、设备、服务器写或发布。
 
-### 5.7 `V2-REQ-DOWNLOAD`：第二个“第五章”下载需求（最终矩阵待整包确认）
+### 5.7 `V2-REQ-DOWNLOAD`：第二个“第五章”下载需求（最终矩阵已确认）
 
-**状态**：`DOWNLOAD_FINAL_MATRIX_SUBMITTED / USER_PACKAGE_CONFIRMATION_PENDING`。
-外部第 747–930 行已只读归一为 9 个候选能力域；用户于 2026-11-03 分三轮接受全部推荐，
-`V2-Q-DOWNLOAD-01`～`18` 由 `V2-D128`～`V2-D145` 落档。最终 68 节点候选矩阵、等级、MVP、
-证据、冲突与旧文档处置已提交 `V2-Q-DOWNLOAD-FINAL`，等待用户整包确认；不得把候选索引误报
-为已收口需求。
+**状态**：`DOWNLOAD_REQUIREMENTS_FINAL_MATRIX_ACCEPTED / DOMAIN_CLOSED`。
+外部第 747–930 行已只读归一为 9 个能力域；用户于 2026-11-03 分三轮接受全部推荐，
+`V2-Q-DOWNLOAD-01`～`18` 由 `V2-D128`～`V2-D145` 落档。用户随后原话“接受整包”，
+`V2-D146` 关闭 `V2-Q-DOWNLOAD-FINAL`，接受 68 节点、64 个 MUST 子项 MVP、`D-D`～`D-T`
+证据、现状风险、冲突与旧文档处置。下载需求域已收口；该接受不批准 G1、实现或发布。
 
 **只读来源**：外部原文第 747–930 行，文件 SHA-256
 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229`。
@@ -1732,7 +1732,7 @@ MVP；流程节点不额外计为产品能力。MVP 的核心边界是：
 | `allowOffline` | 视频 / 音乐写 `sources.allowOffline`，书籍写偏好；旧离线书架对书籍还有不按开关过滤的特殊口径 | 开关本身可复用，但“关闭只影响无账号离线入口、下载中心仍展示”的统一语义尚未成立 |
 | playlist / special / MediaSource | 定点搜索未发现播放列表下载入口或特别篇独立下载组；已有 source 元数据选择，但未证明多版本确认 UI | 只能作为待实现 / 待验证项；不得把元数据默认选源当作 D140 用户选择与恢复契约 |
 
-#### 5.7.4 最终候选需求矩阵
+#### 5.7.4 最终需求矩阵（已确认）
 
 **矩阵规则**：来源行均位于外部 747–930；D128–D145 是产品裁决。`MVP` 只包含 `MUST` 或
 复合节点中的 `MUST` 子项。最终证据必须来自候选包真实入口；fixture、单测、文件已存在、
@@ -1855,9 +1855,9 @@ Worker `SUCCESS`、通知出现或页面文案都不能单独证明完成。
 | 旧 Worker `Result.success()` | `EQUIVALENT` | 仅代表本轮结束；不得升级为任务完成或测试通过 | `V2-D130` |
 | 外部 Live TV / 录制 / 播客分区 | `OUT` | 不进入 2.0 四类下载；未来另立需求域，不从其他分区偷借 | `V2-D128`；范围边界 |
 
-#### 5.7.7 最终计数、MVP 与待确认边界
+#### 5.7.7 最终计数、MVP 与生效边界
 
-**候选计数**：68 个节点中，
+**最终已确认计数**：68 个节点中，
 
 - 62 个单级 `MUST`；
 - 2 个单级 `SHOULD`：`DOWNLOAD-057`、`DOWNLOAD-066`；
@@ -1869,7 +1869,7 @@ Worker `SUCCESS`、通知出现或页面文案都不能单独证明完成。
 
 合计：`62 + 2 + 0 + 1 + 2 + 1 = 68`。所有 ID 在 §5.7.4 唯一且连续。
 
-**候选 MVP**：64 个 `MUST` 子项，包括 62 个单级 `MUST` 与 `DOWNLOAD-001`、`DOWNLOAD-015`
+**最终 MVP**：64 个 `MUST` 子项，包括 62 个单级 `MUST` 与 `DOWNLOAD-001`、`DOWNLOAD-015`
 的 MUST 子项。两个 SHOULD、单级 OUT、两个复合 OUT 子项与流程节点都不计入产品能力 MVP。
 
 MVP 核心边界：
@@ -1903,16 +1903,13 @@ MVP 核心边界：
    持久记录可重放；
 6. `DOWNLOAD-068` 只有在全部 MVP 子项及相应证据完成后才可执行真实候选包总旅程。
 
-**未覆盖 / 待确认**：本矩阵尚未由用户整包接受；当前没有 G1 方案、候选包、真实下载或多媒体
-QA 证据。64 个 MUST 子项、2 个 SHOULD、1 个 OUT 与 1 个流程节点的最终范围由
-`V2-Q-DOWNLOAD-FINAL` 整包确认。
-接受前不得报下载域收口，也不得进入 G1、实现、QA、设备或服务器写。
+**未覆盖 / 后置证据**：需求矩阵虽已接受，但当前仍没有 G1 方案、候选包、真实下载或多媒体
+QA 证据。64 个 MUST 子项进入 2.0 发布必修范围，不等于已经实现或验收通过。
 
-**`V2-Q-DOWNLOAD-FINAL`（Open）**：是否整包接受上述 68 节点、`62 / 2 / 0 / 1 / 2 / 1`
-计数、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据、当前实现风险与全部冲突 / 旧文档处置？
-
-**建议**：整包接受。该确认只关闭下载需求域；不批准 G1、实现、QA、设备、服务器写、
-push、tag 或 Release。
+**整包确认（已关闭）**：用户于 2026-11-03 原话“接受整包”，`V2-D146` 关闭
+`V2-Q-DOWNLOAD-FINAL`。上述矩阵、`62 / 2 / 0 / 1 / 2 / 1` 计数、64 个 MUST 子项 MVP、
+证据与全部冲突处置正式生效。下载需求域无剩余 Open；该接受不批准 G1、实现、QA、设备、
+服务器写、push、tag 或 Release。
 
 ## 6. 三层前置门
 
@@ -1944,7 +1941,7 @@ push、tag 或 Release。
 | 3 | `V2-REQ-READER` | 395–532 第三章 | ✅ 86 条最终矩阵由 `V2-D098` 整包接受；需求域已收口 |
 | 4 | `V2-REQ-WRITE` | 533–557 第四章 | ✅ 13 节点由 `V2-D099`～`D105` 接受：11 单级 MUST + 1 复合 MUST/LATER + 1 验收流程节点；需求域已收口 |
 | 5 | `V2-REQ-MUSIC` | 558–746 第一个“第五章” | ✅ 62 节点最终矩阵、49 个 MUST 子项 MVP、`M-D`～`M-T` 证据与冲突处置由 `V2-D127` 整包接受；需求域已收口 |
-| 6 | `V2-REQ-DOWNLOAD` | 747–930 第二个“第五章” | 🟡 三轮 18 项决策已接受；68 节点最终矩阵已提交，等待用户整包确认 |
+| 6 | `V2-REQ-DOWNLOAD` | 747–930 第二个“第五章” | ✅ 68 节点最终矩阵、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据与冲突处置由 `V2-D146` 整包接受；需求域已收口 |
 | 7 | `V2-REQ-VIDEO` | 931–1047 第六章 | ⚪ Todo |
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ⚪ Todo |
 | 9 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ⚪ Todo |
@@ -1991,43 +1988,44 @@ push、tag 或 Release。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：`V2-REQ-DOWNLOAD` 最终矩阵已提交 / 等待整包确认（2026-11-03）
+### ACTIVE：`V2-REQ-VIDEO` 待启动 / 下载域已收口（2026-11-03）
 
-**状态**：`DOWNLOAD_FINAL_MATRIX_SUBMITTED / USER_PACKAGE_CONFIRMATION_PENDING`。
-68 节点最终候选、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据、冲突 / 旧文档处置已写入 §5.7；
-`V2-Q-DOWNLOAD-FINAL` 仍为 Open，下载需求域尚未收口。
+**状态**：`DOWNLOAD_REQUIREMENTS_DOMAIN_CLOSED / NEXT_VIDEO_HANDOFF_READY`。
+`V2-D146` 已接受下载 68 节点最终矩阵并关闭 `V2-Q-DOWNLOAD-FINAL`；`TASKS` 将
+`V2-REQ-DOWNLOAD` 移入 Done。当前没有活动需求实现，下一域为 `V2-REQ-VIDEO`。
 
-**工作对象 / 硬门**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
-分支 `codex/v2-integration`；开工提示指定提交 `cfabdc10051773d97a33f8940d4e68db688b8025`，
-实际交接 HEAD `be49f512beeba306241035dc6f791ed2b61a08dc`，后者仅比指定提交增加
-`docs/V2_PLAN.md` Thread ID / 日志 3 行。基线祖先
-`4fbe5e12d182fc1d9bdf2790c7a725bec0074d37` 与开工提交均为 HEAD 祖先；开工 clean；外部整文件
-SHA-256 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229` 匹配。
+**工作对象 / 事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
+分支 `codex/v2-integration`；下载矩阵提交为 `8cade229c754ddd19b534b030862cfdd35e781e7`，
+本次收口提交以 Git 实况为准。基线祖先
+`4fbe5e12d182fc1d9bdf2790c7a725bec0074d37` 必须保持可达；外部整文件 SHA-256
+`E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229` 必须继续匹配。
 
-**已完成**：
+**下载收口结果**：
 
-- 只读外部 747–930 与指定权威文档，定点核验 DownloadTask / Downloader / provenance sidecar /
-  BookDownload / 通知 / Worker / Room 迁移；现状只作风险证据。
-- 归一 68 个稳定节点：`62 MUST / 2 SHOULD / 0 LATER / 1 OUT / 2 复合 / 1 流程`；MVP 为
-  64 个 MUST 子项。
-- 建立 `D-D / D-C / D-A / D-F / D-R / D-O / D-N / D-U / D-T` 证据口径；逐项处置 token、
-  500ms 反馈、finalizer、旧 `allowOffline`、书籍暂停、播放列表、多版本、特别篇、通知一致性、
-  未知来源、跨存储一致性和破坏性迁移。
+- 68 节点：`62 MUST / 2 SHOULD / 0 LATER / 1 OUT / 2 复合 / 1 流程`；MVP 为 64 个 MUST 子项。
+- `D-D / D-C / D-A / D-F / D-R / D-O / D-N / D-U / D-T` 证据生效；所有冲突 / 旧实现处置已归档。
+- 当前仍没有下载实现、G1 方案、候选包、设备、真实旅程、QA 或服务器写证据；需求收口不等于实现完成。
 
-**未覆盖 / 风险**：没有 G1 方案、候选包、Gradle、设备、真实下载、QA 或服务器写证据；上述条目
-均不得由当前代码、fixture、Worker `SUCCESS` 或通知存在推断为通过。
+**下一步入口**：创建全新的 `V2-REQ-VIDEO` 需求负责人。第一条只读动作是核验 worktree、
+`codex/v2-integration`、clean、双祖先与外部 SHA-256，然后只读 `docs/PROJECT_PLAN.md`、
+本 ACTIVE、`V2_PLAN.md` 的视频分支所在行、`TASKS` 与 `DECISIONS`，再只读外部第 931–1047 行。
+第一步只建视频章节标题地图、能力 / 冲突 / 依赖前沿，不进入实现。
 
-**下一步入口**：用户对 `V2-Q-DOWNLOAD-FINAL` 回复“整包接受”，或在否定时指出要修改的节点 /
-等级 / MVP / 证据 / 冲突处置。接受后由负责人落 `V2-D146`，把本需求域移入 Done，再进入
-`V2-REQ-VIDEO` 需求域；不得自动启动 G1。
+**停止条件**：Git / 哈希 / 白名单漂移；需要新增未授权产品决策；需要 G1、实现、Gradle、设备、
+服务器写、QA 或发布。
 
-**停止条件**：用户尚未整包确认；需要新增未授权产品决策；需要 G1、实现、QA、设备、服务器写
-或发布。
+**上下文水位**：2026-11-03 09:13 经 `deepseek-status` 实测
+`348,525 / 1,048,576`（33.2%，缓存命中 97.9%，请求 44），已超过 30 万准备线但未到
+35 万硬线；本需求域在此自然边界收口，不在本线程启动 Video。
 
-**上下文水位**：2026-11-03 09:07 经 `deepseek-status` 实测当前会话
-`286,278 / 1,048,576`（27.3%，缓存命中 99.7%，请求 25），尚未到 30 万交接准备线。
+**Thread ID**：`V2-REQ-VIDEO` 新负责人待创建；下载矩阵线程
+`01a19eeb-8a17-75a1-b43d-0d21de0d2309` 已完成本域收口。
 
-**Thread ID**：`01a19eeb-8a17-75a1-b43d-0d21de0d2309`。
+### HISTORY：`V2-REQ-DOWNLOAD` 最终矩阵已提交 / 等待整包确认（2026-11-03）
+
+该状态已由上方 `DOWNLOAD_REQUIREMENTS_DOMAIN_CLOSED` 取代。提交时矩阵为 68 节点、
+64 个 MUST 子项 MVP，`V2-Q-DOWNLOAD-FINAL` 为 Open；用户随后原话“接受整包”，由
+`V2-D146` 关闭。
 
 ### HISTORY：`V2-REQ-DOWNLOAD` 最终矩阵交接（2026-11-03）
 
@@ -2125,3 +2123,4 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 第三轮六项确认并触发 35 万交接**：Git / 哈希 / 白名单复核通过，HEAD `c7610e64`；用户原话“全部按建议。注意交接”，`V2-Q-DOWNLOAD-13`～`18` 由 `V2-D140`～`V2-D145` 关闭。确认一个任务绑定一个 MediaSource、Series 常规集与特别篇分区、播放列表批量叶子与 Album 重组、存储卷失效 / 手动物理清理、身份切换 / 401 / 403 恢复及版本化迁移 / 未知大小完整性。`deepseek-status` 实测 `389,862 / 1,048,576`（37.2%），超过 35 万硬线；剩余仅最终矩阵整包确认，必须由新负责人承接。未改业务代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 最终矩阵负责人已创建**：新线程 `01a19eeb-8a17-75a1-b43d-0d21de0d2309`，从 `cfabdc10051773d97a33f8940d4e68db688b8025` 承接最终候选矩阵与 `V2-Q-DOWNLOAD-FINAL` 整包确认；本负责人未继续提交最终矩阵。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 最终候选矩阵提交**：新负责人核验实际交接 HEAD `be49f512`；`cfabdc10..HEAD` 仅含允许的 `docs/V2_PLAN.md` Thread ID / 日志 3 行，双祖先、clean 与外部 SHA-256 全部通过。只读外部 747–930，定点核验下载状态 / sidecar / BookDownload / 通知 / Worker / Room 后，归一 68 节点与 `64` 个 MUST 子项 MVP，建立 `D-D`～`D-T` 证据和 23 项冲突 / 旧实现处置。`V2-Q-DOWNLOAD-FINAL` 等待用户整包确认；未改业务代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
+- **2026-11-03 — `V2-REQ-DOWNLOAD` 整包接受并收口需求域**：用户原话“接受整包”；`V2-D146` 关闭 `V2-Q-DOWNLOAD-FINAL`，接受 68 节点最终矩阵、`62 MUST / 2 SHOULD / 0 LATER / 1 OUT / 2 复合 / 1 流程` 计数、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据及全部冲突 / 旧文档处置。`TASKS` 将下载域移入 Done，`DECISIONS` Open 清零，`PROJECT_PLAN` 把下一域切到 `V2-REQ-VIDEO`。未改业务代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
