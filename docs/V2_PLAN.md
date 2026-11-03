@@ -3332,9 +3332,9 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1 残余门 / Q03 + B/C/D/E 授权交接（2026-11-04；S6 已完成并通过 scoped review `PASS_WITH_P2`）
+### ACTIVE：G1 残余门 / 等待用户选择 A-G + L1 授权（2026-11-04；S6 已完成并通过 scoped review `PASS_WITH_P2`）
 
-**一句话现状**：S6 总验收矩阵与 G2 任务卡输入已完成，fresh scoped review 结论
+**一句话现状**：等待用户选择 A-G + L1 授权。S6 总验收矩阵与 G2 任务卡输入已完成，fresh scoped review 结论
 `PASS_WITH_P2`，唯一 P2 是 `G1-S6/__pycache__` 不得进入提交；Q03 仍 Open，B/C/D/E
 均未完成或未授权，runtime 仍 `UNVERIFIED`，G1 `NOT_PASSED`。S6 通过只接受其为规划包与
 docs integration/commit 候选，不等于 G1 PASS。
@@ -3352,18 +3352,41 @@ docs integration/commit 候选，不等于 G1 PASS。
 
 - Q03：TTS 引擎 / voice / 零网络 runtime、PDFium exact revision / 16 KB / Range、
   packaged SBOM / notice / source bundle / attestation / relink、native load-order 等。
-- `B`：TTS / PDF 引擎与 voice、BASE 排序 / TTL / 容量 / 合并策略等用户决策。
+- `B`：A-G 媒体 / TTS / voice / PDF / 搜索 / SWR / 歌单导入策略均待用户选择。
 - `C`：runtime / device / candidate package 真实执行；`D`：production implementation。
 - `E`：G2、独立 QA、Release 均未获授权；A1/A2 与 Q03 既有 gaps 原样保留。
+
+**用户决策菜单（PENDING）**
+
+推荐串 `A1-B1-C1-D1-E1-F1-G1` 只是待确认建议，不构成用户接受、Q03 关闭或 runtime 授权。
+
+| 项 | 当前事实 | 选项 | 推荐 | 仍不能证明 |
+|---|---|---|---|---|
+| A 媒体 | S4-B 已冻结 Media3 1.11.1 / decoder / libmpv 静态 ABI；现有双内核行为不等于 2.0 策略已定 | `A1`=Media3 默认，mpv 仅由真实能力 / 格式 / 字幕证据触发；`A2`=仅 Media3；`A3`=无条件双内核 | `A1` | runtime 兼容、格式 / 字幕覆盖、降级质量与用户接受度 |
+| B TTS 引擎 | 阅读器 TTS 必须纯本地完全离线；代码许可有静态证据，voice / model、零网络与 runtime 未证明 | `B1`=Sherpa-ONNX 主 Spike，系统 TTS 仅经能力探测与零网络证明后条件回退，Piper 延后；`B2`=系统 TTS 主路径；`B3`=Sherpa / Piper 双线 | `B1` | 引擎质量、包体、精确许可资产与设备离线行为 |
+| C voice | 随包 voice 的许可、质量与体积均未审计；系统 TTS 离线能力未证明 | `C1`=随包一个经许可普通话音色，系统音色仅离线证明通过时回退，exact voice / model 在 L1 资产审计后冻结；`C2`=随包男女双音色；`C3`=完全依赖系统 | `C1` | 资产许可、发音质量、体积与系统回退真实性 |
+| D PDF | PdfRenderer 可作生产回滚；PDFium stable / alpha native blob 相同，revision / notice / 16 KB / Range 尚未全过 | `D1`=stable PDFium 2.0.3 隔离 Spike，过 16 KB / revision / notice / Range 门后再比较；`D2`=alpha 主路径；`D3`=暂不做 Range | `D1` | runtime 渲染、Range 首开、16 KB 与 packaged notice |
+| E 搜索 | BASE-001 搜索静态路由 / 请求合同已冻结；排序 UI 与主线程阻塞阈值仍待 runtime | `E1`=按媒体类型 / 来源分组，组内默认相关性并提供适用排序；`E2`=全结果混排；`E3`=固定分组无排序 | `E1` | 相关性、排序语义、响应性与真实结果一致性 |
+| F SWR | BASE-003 持久 SWR 静态合同已冻结；现有 TTL / 容量是 evidence-gated 候选，LRU / single-flight / 时钟回拨未固定 | `F1`=沿用 10 / 5 分钟软 TTL、24h / 7d 硬上限、256MiB / 4096 文件 / 8MiB 单文件、内存 256 项，未固定项按 LRU、single-flight、0 宽限；`F2`=更长离线寿命；`F3`=更实时 | `F1`，数值由 G2 证据校准 | 设备缓存正确性、陈旧程度、磁盘 / 内存开销与回拨行为 |
+| G 歌单导入 | BASE-004 与 W87-B 已冻结身份、事务 / 占位静态合同；真实导入预览与部分成功用户路径未验证 | `G1`=预览后原子提交，缺曲 / 重复默认保留并允许显式去重，部分 M3U8 由用户接受有效子集或取消；`G2`=自动去重 / 接收子集；`G3`=全拒 | `G1` | 预览交互、取消 / 回滚、代表性 M3U8 与用户可理解性 |
+
+**授权阶梯**
+
+| 档位 | 当前状态 | 允许范围 | 明确边界 |
+|---|---|---|---|
+| `L1` | `PENDING`；本轮唯一建议请求 | 本地、可逆的静态 / 依赖 / packaged 证据准备；临时 worktree 内隔离构建或 Spike 包 | 不改生产代码，不接设备 / 账号 / 服务器，不发版；联网下载依赖须先单列域名与原因，不能自动获得网络授权 |
+| `L2` | `LOCKED`，仅 L1 结果通过后才可申请 | 隔离 runtime Spike、点名设备 serial 与只读旅程 | 不改生产代码，不做服务器写；不得用技术推荐替代该授权 |
+| `L3` | `LOCKED`，仅在完整 G1 闭包后按三个独立签字点申请 | 生产实现 `D`；全新独立 QA；push / tag / Release | 三个签字点分别授权，不得一次全开 |
+
+生产服务器永久只读；任何写验证必须另指定可写测试服，凭据只记录位置。
 
 **决策出处**：`V2-D057`、`V2-D198～D201`（尤其 Q04 的 `V2-D201`）；Q03 保持
 `docs/DECISIONS.md` Open。S6 只落实现有已接受需求的验收编排，不新增产品决策，不改
 D057/D201、Q03 或 G1 结论。
 
-**下一步入口**：交付负责人 / 技术集成编排者只做只读残余门审计和用户决策准备。第一条只读
-动作是核对本 ACTIVE、`docs/TASKS.md` In Progress、`docs/DECISIONS.md` Open Q03 与
-`.planning/v2-g1/G1-S6/README.md` + `manifest.json`，输出残余门与可选授权范围。下一步
-不得启动 Q03 runtime、引擎选型、设备、生产实现、G2、独立 QA 或 Release。
+**下一步入口**：等待用户明确回复推荐串 / 改动及是否批准 `L1`。在此之前不执行构建、网络、
+设备、runtime、生产实现、G2、独立 QA 或 Release；收到回复后仍由交付负责人按白名单拆单，
+不得替用户接受任何选项。
 
 **环境 / 设备 / 权限**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
@@ -4277,3 +4300,9 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   G1 `NOT_PASSED`、runtime `UNVERIFIED`；S6 完成不等于 G1 PASS。本轮只改白名单文档与
   S6 产物，不实现、不运行 Gradle / ADB / 设备 / 服务器 / 网络 / 独立 QA / Release，
   不 commit / push；最终 commit SHA 与 manifest hash 由命令实读，不写入正文。
+- **2026-11-04 — G1 残余门只读审计 / 决策包完成，等待用户**：完成三轨只读审计——
+  A-G 选择事实与不可证明边界、Q03 静态 / packaged / runtime / device 缺口、L1-L3 授权阶梯
+  与永久只读边界。形成 A-G 决策菜单，推荐串为 `A1-B1-C1-D1-E1-F1-G1`，并建议本轮仅申请
+  `L1`；推荐不等于接受。S6 仍为 `PASS_WITH_P2`，Q03 仍 Open、Q04 Closed/D201、
+  G1 `NOT_PASSED`、runtime `UNVERIFIED`。未执行产品构建、联网、设备、服务器、runtime、
+  生产实现、独立 QA 或 Release；下一步等待用户明确选择与 L1 授权。

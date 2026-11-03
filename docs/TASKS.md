@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 停止条件 |
 |---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02、S4-A/B、S5 与 S6 已完成；Q04 由 `V2-D201` 接受整包 R1 并关闭；S6 产物 445 source / 456 rows / 376 MVP / 5 BASE / 30 R1 / 16 cards / 45 waves / 491 memberships / 554 edges，verifier 与 29/29 self-test GREEN，fresh scoped review `PASS_WITH_P2`；唯一 P2 `G1-S6/__pycache__` 不进入提交。前沿定格 `NOW_SAFE=0`，唯一下一步是残余门审计 / 用户授权准备 | G1 NOT_PASSED；`V2-Q-G1-03` 仍 Open，`V2-Q-G1-04` 已 Closed/Accepted；剩余 `B=引擎 voice / 排序 TTL 合并策略`、`C=runtime/device`、`D=production implementation`、`E=G2/QA/Release 未授权`；A1/A2 gaps 与 Q03 packaged / runtime / device 未完成；S6 只接受为规划包与 docs integration/commit 候选，不等于 S6 / G1 runtime PASS 或独立 QA；`UI_DESIGN_SYSTEM` = V2 R1，runtime 仍 `UNVERIFIED`；最终文档提交 SHA 由 Git 实读，不自引用 |
+| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02、S4-A/B、S5 与 S6 已完成；Q04 由 `V2-D201` 接受整包 R1 并关闭；S6 产物 445 source / 456 rows / 376 MVP / 5 BASE / 30 R1 / 16 cards / 45 waves / 491 memberships / 554 edges，verifier 与 29/29 self-test GREEN，fresh scoped review `PASS_WITH_P2`；唯一 P2 `G1-S6/__pycache__` 不进入提交。前沿定格 `NOW_SAFE=0`；只读残余门审计 / 决策包已完成，当前依赖 = 等待用户对 A-G 选择与 L1 授权明确回复，推荐串 `A1-B1-C1-D1-E1-F1-G1`，本轮仅建议申请 L1 | G1 NOT_PASSED；`V2-Q-G1-03` 仍 Open，`V2-Q-G1-04` 已 Closed/Accepted；剩余 `B=引擎 voice / 排序 TTL 合并策略`、`C=runtime/device`、`D=production implementation`、`E=G2/QA/Release 未授权`；A1/A2 gaps 与 Q03 packaged / runtime / device 未完成；S6 只接受为规划包与 docs integration/commit 候选，不等于 S6 / G1 runtime PASS 或独立 QA；`UI_DESIGN_SYSTEM` = V2 R1，runtime 仍 `UNVERIFIED`；最终文档提交 SHA 由 Git 实读，不自引用 |
 
 ## Review
 
