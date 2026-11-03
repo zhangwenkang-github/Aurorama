@@ -2755,10 +2755,10 @@ SWR / 本地歌单 / 音乐懒补的契约，以及全部设备 / 大文件 / �
 “启动G1，开新会话由新负责人负责。交接规则不变，还是尽量使用子代理，不浪费负责人的上下文空间。”
 
 **工作对象 / 硬门事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
-分支 `codex/v2-integration`。交接开始 HEAD
-`43cd5e3083b8a1a974573ec0774d1ea27ad57f68`，当时工作树 clean；当前未提交范围仅为
-`V2_PLAN.md` / `DECISIONS.md` / `TASKS.md` / `PROJECT_PLAN.md` 四份允许的交接文档，
-不得 stash、revert 或覆盖。
+分支 `codex/v2-integration`。交接开始时 G0 HEAD
+`43cd5e3083b8a1a974573ec0774d1ea27ad57f68`；G1 激活提交为
+`c9478a2a00c2991ffc68828065fe68367c475523`，仅修改交接文档。创建新线程前必须重新核验
+当前 HEAD、clean、双祖先与外部 SHA；若存在后继，只允许纯文档后继。
 基线 `4fbe5e12d182fc1d9bdf2790c7a725bec0074d37` 与视频收口
 `bd5e3aa59c2e5671ada9354f230da4519589272b` 均为祖先；外部全文 SHA-256
 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229` 精确一致。
@@ -3106,4 +3106,4 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   In Progress，`PROJECT_PLAN` 更新为 G1 已启动；新负责人身份固定为 G1 交付负责人 / 技术集成
   编排者，优先派全新只读子代理压缩代码、协议、迁移、许可、UX 与测试材料。G1 仍未形成任何
   方案结论；新负责人线程待创建，未改业务代码、未构建、未触设备 / 服务器写、未进入 G2 / QA /
-  push / tag / Release。
+  push / tag / Release。G1 激活交接提交为 `c9478a2a`。
